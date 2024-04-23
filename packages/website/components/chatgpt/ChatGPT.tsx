@@ -16,8 +16,8 @@ import {
   EditBeginButton,
   EditConfirmButton,
   EditCancelButton,
-  ChatEmpty,
 } from "@/components/chatgpt/Misc";
+import { ChatEmpty } from "./ChatEmpty";
 import { BranchUI } from "@/components/chatgpt/BranchUI";
 import { AssistantProps } from "../../app/page";
 
