@@ -4,11 +4,11 @@
     "packages/*"
   ],
   "devDependencies": {
-    "eslint": "^9.1.0",
-    "eslint-config-next": "^14.2.2",
+    "eslint": "^9.1.1",
+    "eslint-config-next": "^14.2.3",
     "prettier": "^3.2.5",
     "prettier-plugin-tailwindcss": "^0.5.14",
-    "turbo": "^1.13.2"
+    "turbo": "^1.13.3"
   },
   "prettier": {
     "plugins": [

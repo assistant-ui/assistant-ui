@@ -5,7 +5,7 @@
     "@radix-ui/primitive": "^1.0.1",
     "@radix-ui/react-primitive": "^1.0.3",
     "@radix-ui/react-slot": "^1.0.2",
-    "ai": "^3.0.24",
-    "react": "^18.2.0"
+    "ai": "^3.0.35",
+    "react": "^18.3.1"
   }
 }
