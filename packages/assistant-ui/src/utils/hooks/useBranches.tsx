@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useRef } from "react";
-import { UseChatHelpers, useChat } from "ai/react";
+import { UseChatHelpers } from "ai/react";
 import { CreateMessage, Message } from "ai";
 
 type ChatBranchData = {
@@ -9,6 +9,8 @@ type ChatBranchData = {
   branchMap: Map<string, string[]>; // parent_id -> child_ids
   stash: Map<string, Message[]>; // id -> message[]
 };
+
+// TODO loop for every message
 
 const ensureLastMessageIsInBranches = (
   data: ChatBranchData,
@@ -104,8 +106,9 @@ export type UseChatWithBranchesHelpers = UseChatHelpers & {
   reloadAt: (message: Message) => Promise<void>;
 };
 
-export const useChatWithBranches = (): UseChatWithBranchesHelpers => {
-  const chat = useChat();
+export const useChatWithBranches = (
+  chat: UseChatHelpers,
+): UseChatWithBranchesHelpers => {
   const data = useRef<ChatBranchData>({
     parentMap: new Map(),
     branchMap: new Map(),

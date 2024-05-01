@@ -27,14 +27,6 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    "../assistant-ui/src/primitives/ChatPrimitive.tsx",
-    "../assistant-ui/src/primitives/MessagePrimitive.tsx",
-    "app/page.tsx",
-    "../assistant-ui/src/primitives/MessageActionPrimitive.tsx",
-    "../assistant-ui/src/utils/Context.tsx",
-    "../assistant-ui/src/primitives/ChatList.tsx",
-    "../assistant-ui/src/primitives/MessageActionBarPrimitive.tsx",
-    "../assistant-ui/src/primitives/MessageValues.tsx"
   ],
   "exclude": ["node_modules"]
 }

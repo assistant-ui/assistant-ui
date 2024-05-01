@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import { useChatWithBranches } from "assistant-ui/src/hooks/useChatWithBranches";
 import { ChatGPT } from "../components/chatgpt/ChatGPT";
 import { Badge } from "@/components/ui/badge";
 import { Claude } from "../components/claude/Claude";
@@ -13,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useChat } from "ai/react";
 
 const supportedModels = [
   {
@@ -30,7 +30,7 @@ const supportedModels = [
 ];
 
 export default function Home() {
-  const chat = useChatWithBranches();
+  const chat = useChat();
 
   const [selectedModel, setSelectedModel] = useState(supportedModels[0]);
   const ChatComponent = selectedModel.component;
@@ -93,5 +93,5 @@ export default function Home() {
 }
 
 export type AssistantProps = {
-  chat: ReturnType<typeof useChatWithBranches>;
+  chat: ReturnType<typeof useChat>;
 };

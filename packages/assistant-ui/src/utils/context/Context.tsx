@@ -1,13 +1,11 @@
 "use client";
-import { useContext } from "react";
-import { ChatContext } from "assistant-ui/src/primitives/ChatPrimitive";
-import {
-  IsEditingContext,
-  MessageContext,
-} from "assistant-ui/src/primitives/MessagePrimitive";
 
-export const useChatContext = () => {
-  const chat = useContext(ChatContext);
+import { useContext } from "react";
+import { ThreadContext } from "./ThreadContext";
+import { IsEditingContext, MessageContext } from "./MessageContext";
+
+export const useThreadContext = () => {
+  const chat = useContext(ThreadContext);
   if (!chat) throw new Error("useChat must be used within <Chat />");
   return chat;
 };
