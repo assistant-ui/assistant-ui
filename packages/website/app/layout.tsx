@@ -5,7 +5,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "assistant-ai",
+  title: "assistant-ui",
   description: "Unstyled React components for chat and co-pilot UIs",
 };
 
