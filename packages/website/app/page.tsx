@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useChat } from "ai/react";
+import { Thread } from "assistant-ui";
 
 const supportedModels = [
   {
@@ -85,7 +86,9 @@ export default function Home() {
           </div>
         </div>
         <div className="h-[700px] overflow-hidden rounded-2xl border border-zinc-300 shadow-2xl">
-          <ChatComponent chat={chat} />
+          <Thread.Provider chat={chat}>
+            <ChatComponent />
+          </Thread.Provider>
         </div>
       </main>
     </div>

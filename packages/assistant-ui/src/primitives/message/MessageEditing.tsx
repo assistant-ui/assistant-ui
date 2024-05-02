@@ -9,6 +9,6 @@ type MessageEditingProps = {
 
 export const MessageEditing: FC<MessageEditingProps> = ({ children }) => {
   const [isEditing] = useIsEditingContext();
-  if (!isEditing) return null;
+  if (isEditing === false) return null;
   return children;
 };

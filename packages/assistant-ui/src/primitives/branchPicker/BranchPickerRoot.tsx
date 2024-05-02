@@ -21,7 +21,7 @@ export const BranchPickerRoot = forwardRef<
   const chat = useThreadContext();
   const message = useMessageContext();
   const { branchCount } = chat.getBranchState(message);
-  if (branchCount === 0) return null;
+  if (branchCount < 2) return null;
 
   return <Primitive.div {...rest} ref={ref} />;
 });

@@ -1,7 +1,6 @@
 "use client";
 
 import React, { FC } from "react";
-import { AssistantProps } from "../../app/page";
 import * as Avatar from "@radix-ui/react-avatar";
 import {
   Thread,
@@ -20,12 +19,9 @@ import {
 } from "@radix-ui/react-icons";
 import { MessageEditableContent } from "assistant-ui/src/primitives/message/MessageEditableContent";
 
-export const ChatGPT: FC<AssistantProps> = ({ chat }) => {
+export const ChatGPT: FC = () => {
   return (
-    <Thread.Root
-      chat={chat}
-      className="flex h-full flex-col items-stretch bg-[#212121] px-12 pb-4"
-    >
+    <Thread.Root className="flex h-full flex-col items-stretch bg-[#212121] px-12 pb-4">
       <Thread.Viewport className="flex flex-grow flex-col overflow-y-scroll pt-16">
         <Thread.Empty>
           <div className="flex flex-grow flex-col items-center justify-center">

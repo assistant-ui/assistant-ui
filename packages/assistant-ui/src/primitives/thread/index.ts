@@ -1,3 +1,4 @@
+export { ThreadProvider as Provider } from "./ThreadProvider";
 export { ThreadRoot as Root } from "./ThreadRoot";
 export { ThreadEmpty as Empty } from "./ThreadEmpty";
 export { ThreadNotEmpty as NotEmpty } from "./ThreadNotEmpty";

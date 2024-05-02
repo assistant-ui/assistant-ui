@@ -3,18 +3,14 @@
 import { Thread, Message, Composer, ActionBar } from "assistant-ui";
 import { useMessageContext } from "assistant-ui/src/utils/context/Context";
 import React, { FC } from "react";
-import { AssistantProps } from "../../app/page";
 import { cn } from "@/lib/utils";
 import { ArrowUpIcon, ClipboardIcon } from "lucide-react";
 import * as Avatar from "@radix-ui/react-avatar";
 import { ReloadIcon } from "@radix-ui/react-icons";
 
-export const Claude: FC<AssistantProps> = ({ chat }) => {
+export const Claude: FC = () => {
   return (
-    <Thread.Root
-      className="flex h-full flex-col items-stretch bg-[#2b2a27] px-12 pt-16 font-serif"
-      chat={chat}
-    >
+    <Thread.Root className="flex h-full flex-col items-stretch bg-[#2b2a27] px-12 pt-16 font-serif">
       <Thread.Viewport className="flex flex-grow flex-col overflow-y-scroll">
         <Thread.Messages components={{ Message: ChatMessage }} />
         <Thread.NotEmpty>
@@ -81,7 +77,7 @@ const ChatMessage: FC = () => {
       </div>
 
       <Message.AssistantOnly>
-        <ActionBar.Root>
+        <ActionBar.Root className="relative -mt-6 mr-3  flex items-center gap-3 self-end rounded-lg border border-[#6c6a6040] bg-[#393937] px-2 py-1">
           <ActionBar.Reload className="flex items-center gap-1 font-mono text-xs text-[#b4b4b4] hover:text-white">
             <ReloadIcon width={12} height={12} />
             Retry
