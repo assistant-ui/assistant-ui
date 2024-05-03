@@ -4,46 +4,71 @@ import { useCallback, useMemo, useRef } from "react";
 import { UseChatHelpers } from "ai/react";
 import { CreateMessage, Message } from "ai";
 
+const ROOT_ID = "__ROOT_ID__";
+export const UPCOMING_MESSAGE_ID = "__UPCOMING_MESSAGE_ID__";
+
 type ChatBranchData = {
   parentMap: Map<string, string>; // child_id -> parent_id
   branchMap: Map<string, string[]>; // parent_id -> child_ids
-  stash: Map<string, Message[]>; // id -> message[]
+  snapshots: Map<string, Message[]>; // message_id -> message[]
 };
 
-// TODO loop for every message
+const updateBranchData = (data: ChatBranchData, messages: Message[]) => {
+  for (let i = 0; i < messages.length; i++) {
+    const child = messages[i];
+    const childId = child.id;
 
-const ensureLastMessageIsInBranches = (
-  data: ChatBranchData,
-  messages: Message[],
-) => {
-  const childId = messages.at(-1)?.id;
-  if (!childId) return;
+    const parentId = messages[i - 1]?.id ?? ROOT_ID;
+    data.parentMap.set(childId, parentId);
 
-  const parentId = messages.at(-2)?.id ?? "__ROOT_ID__";
-  data.parentMap.set(childId, parentId);
+    let parentArray = data.branchMap.get(parentId);
+    if (!parentArray) {
+      data.branchMap.set(parentId, [childId]);
+    } else if (!parentArray.includes(childId)) {
+      parentArray.push(childId);
+    }
 
-  let parentArray = data.branchMap.get(parentId);
-  if (!parentArray) {
-    data.branchMap.set(parentId, [childId]);
-  } else if (!parentArray.includes(childId)) {
-    parentArray.push(childId);
+    data.snapshots.set(childId, messages);
   }
 };
 
-const getBranchStateImpl = (data: ChatBranchData, message: Message) => {
+const getParentId = (
+  data: ChatBranchData,
+  messages: Message[],
+  message: Message,
+) => {
+  if (message.id === UPCOMING_MESSAGE_ID) {
+    const parent = messages.at(-1);
+    if (!parent) return ROOT_ID;
+    return parent.id;
+  }
+
   const parentId = data.parentMap.get(message.id);
   if (!parentId) throw new Error("Unexpected: Message parent not found");
+  return parentId;
+};
 
-  const branches = data.branchMap.get(parentId);
-  if (!branches) throw new Error("Unexpected: Parent children not found");
+const getBranchStateImpl = (
+  data: ChatBranchData,
+  messages: Message[],
+  message: Message,
+) => {
+  const parentId = getParentId(data, messages, message);
 
-  const branchId = branches.indexOf(message.id);
+  const branches = data.branchMap.get(parentId) ?? [];
+  const branchId =
+    message.id === UPCOMING_MESSAGE_ID
+      ? branches.length
+      : branches.indexOf(message.id);
+
   if (branchId === -1)
     throw new Error("Unexpected: Message not found in parent children");
 
+  const upcomingOffset = message.id === UPCOMING_MESSAGE_ID ? 1 : 0;
+
   return {
     branchId,
-    branchCount: branches.length,
+    branchCount: branches.length + upcomingOffset,
   };
 };
 
@@ -53,11 +78,7 @@ const switchToBranchImpl = (
   message: Message,
   branchId: number,
 ): Message[] => {
-  const messageIdx = messages.findIndex((m) => m.id === message.id);
-  if (messageIdx === -1) throw new Error("Unexpected: Message not found");
-
-  const parentId = data.parentMap.get(message.id);
-  if (!parentId) throw new Error("Unexpected: Message parent not found");
+  const parentId = getParentId(data, messages, message);
 
   const branches = data.branchMap.get(parentId);
   if (!branches) throw new Error("Unexpected: Parent children not found");
@@ -71,29 +92,20 @@ const switchToBranchImpl = (
   // switching to self
   if (newMessageId === message.id) return messages;
 
-  const unstashedMessages = data.stash.get(newMessageId);
-  if (!unstashedMessages) throw new Error("Unexpected: Branch stash not found");
-
-  // stash the current messages
-  const messagesToStash = messages.slice(messageIdx);
-  data.stash.set(message.id, messagesToStash);
+  const snapshot = data.snapshots.get(newMessageId);
+  if (!snapshot) throw new Error("Unexpected: Branch snapshot not found");
 
   // return the unstashed messages
-  return messages.slice(0, messageIdx).concat(unstashedMessages);
+  return snapshot;
 };
 
-const stachBranchAt = (
-  data: ChatBranchData,
-  messages: Message[],
-  message: Message,
-) => {
+const sliceMessagesUntil = (messages: Message[], message: Message) => {
+  if (message.id === UPCOMING_MESSAGE_ID) return messages;
+
   const messageIdx = messages.findIndex((m) => m.id === message.id);
   if (messageIdx === -1) throw new Error("Unexpected: Message not found");
 
-  const messagesToStash = messages.slice(messageIdx);
-  data.stash.set(message.id, messagesToStash);
-
-  return messageIdx;
+  return messages.slice(0, messageIdx);
 };
 
 export type UseChatWithBranchesHelpers = UseChatHelpers & {
@@ -112,25 +124,14 @@ export const useChatWithBranches = (
   const data = useRef<ChatBranchData>({
     parentMap: new Map(),
     branchMap: new Map(),
-    stash: new Map(),
+    snapshots: new Map(),
   }).current;
 
-  ensureLastMessageIsInBranches(data, chat.messages);
+  updateBranchData(data, chat.messages);
 
   const getBranchState = useCallback(
     (message: Message) => {
-      if (!message.id) {
-        const branchCount =
-          data.branchMap.get(chat.messages[chat.messages.length - 1].id)
-            ?.length ?? 0;
-
-        return {
-          branchId: branchCount,
-          branchCount: branchCount + 1,
-        };
-      }
-
-      return getBranchStateImpl(data, message);
+      return getBranchStateImpl(data, chat.messages, message);
     },
     [chat.messages],
   );
@@ -150,11 +151,9 @@ export const useChatWithBranches = (
 
   const reloadAt = useCallback(
     async (message: Message) => {
-      const messages = chat.messages;
-      const messageIdx = stachBranchAt(data, messages, message);
-
-      const newMessages = messages.slice(0, messageIdx);
+      const newMessages = sliceMessagesUntil(chat.messages, message);
       chat.setMessages(newMessages);
+
       await chat.reload();
     },
     [chat.messages, chat.setMessages, chat.reload],
@@ -162,15 +161,12 @@ export const useChatWithBranches = (
 
   const editAt = useCallback(
     async (message: Message, newMessage: CreateMessage) => {
-      const messages = chat.messages;
-      const messageIdx = stachBranchAt(data, messages, message);
-
-      const newMessages = messages.slice(0, messageIdx);
+      const newMessages = sliceMessagesUntil(chat.messages, message);
       chat.setMessages(newMessages);
 
       await chat.append(newMessage);
     },
-    [chat.messages, chat.append, chat.setMessages],
+    [chat.messages, chat.setMessages, chat.append],
   );
 
   return useMemo(

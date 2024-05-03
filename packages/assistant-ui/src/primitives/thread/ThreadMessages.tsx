@@ -3,6 +3,7 @@
 import { FC } from "react";
 import { Provider } from "../message";
 import { useThreadContext } from "../../utils/context/Context";
+import { UPCOMING_MESSAGE_ID } from "../../utils/hooks/useBranches";
 
 type ThreadMessagesProps = {
   components: {
@@ -29,7 +30,13 @@ export const ThreadMessages: FC<ThreadMessagesProps> = ({
       })}
       {chat.isLoading &&
         chat.messages[chat.messages.length - 1].role !== "assistant" && (
-          <Provider message={{ id: "", role: "assistant", content: "..." }}>
+          <Provider
+            message={{
+              id: UPCOMING_MESSAGE_ID,
+              role: "assistant",
+              content: "...",
+            }}
+          >
             <Message />
           </Provider>
         )}
