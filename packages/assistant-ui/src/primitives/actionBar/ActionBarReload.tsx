@@ -5,5 +5,5 @@ export const ActionBarReload = createActionButton(
   (message, chat) => {
     chat.reloadAt(message);
   },
-  (msg) => msg.role === "assistant",
+  (message, chat) => message.role === "assistant" && !chat.isLoading,
 );

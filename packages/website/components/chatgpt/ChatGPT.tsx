@@ -35,10 +35,10 @@ export const ChatGPT: FC = () => {
         <Thread.Messages components={{ Message: ChatMessage }} />
       </Thread.Viewport>
 
-      <Composer.Root className="flex rounded-xl border border-white/15 p-0.5">
+      <Composer.Root className="flex items-end rounded-xl border border-white/15 p-0.5">
         <Composer.Input
           placeholder="Message ChatGPT..."
-          className="h-12 flex-grow resize-none bg-transparent p-3.5 text-sm text-white outline-none placeholder:text-white/50"
+          className="h-12 max-h-40 flex-grow resize-none bg-transparent p-3.5 text-sm text-white outline-none placeholder:text-white/50"
         />
         <Composer.Send className="m-2 flex h-8 w-8 items-center justify-center rounded-lg bg-white text-2xl font-bold disabled:opacity-10">
           <ArrowUpIcon
@@ -72,13 +72,13 @@ const ChatMessage: FC = () => {
         </p>
 
         <Message.NotEditing>
-          <p className="text-[#eee]">
+          <p className="whitespace-pre-line text-[#eee]">
             <Message.PlaintextContent />
           </p>
         </Message.NotEditing>
 
         <Message.Editing>
-          <MessageEditableContent className="mb-2 flex h-8 w-full bg-transparent text-white outline-none" />
+          <MessageEditableContent className="flex h-8 w-full resize-none bg-transparent text-white outline-none" />
         </Message.Editing>
 
         <Message.NotEditing>
@@ -94,16 +94,16 @@ const ChatMessage: FC = () => {
             </BranchPicker.Root>
 
             <Message.AssistantOnly>
-              <ActionBar.Reload className="text-[#b4b4b4] hover:text-white">
+              <ActionBar.Reload className="text-[#b4b4b4] hover:enabled:text-white disabled:opacity-50">
                 <ReloadIcon />
               </ActionBar.Reload>
-              <ActionBar.Copy className="text-[#b4b4b4] hover:text-white">
+              <ActionBar.Copy className="text-[#b4b4b4] hover:enabled:text-white disabled:opacity-50">
                 <ClipboardIcon />
               </ActionBar.Copy>
             </Message.AssistantOnly>
 
             <Message.UserOnly>
-              <ActionBar.EditBegin className="text-[#b4b4b4] hover:text-white">
+              <ActionBar.EditBegin className="text-[#b4b4b4] hover:enabled:text-white disabled:opacity-50">
                 <Pencil1Icon />
               </ActionBar.EditBegin>
             </Message.UserOnly>

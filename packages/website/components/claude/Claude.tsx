@@ -4,9 +4,8 @@ import { Thread, Message, Composer, ActionBar } from "assistant-ui";
 import { useMessageContext } from "assistant-ui/src/utils/context/Context";
 import React, { FC } from "react";
 import { cn } from "@/lib/utils";
-import { ArrowUpIcon, ClipboardIcon } from "lucide-react";
 import * as Avatar from "@radix-ui/react-avatar";
-import { ReloadIcon } from "@radix-ui/react-icons";
+import { ReloadIcon, ArrowUpIcon, ClipboardIcon } from "@radix-ui/react-icons";
 
 export const Claude: FC = () => {
   return (
