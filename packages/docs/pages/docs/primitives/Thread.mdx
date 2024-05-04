@@ -1,0 +1,64 @@
+---
+title: Thread
+description: A conversation between a user and an assistant.
+---
+
+## Anatomy
+
+```tsx
+import { Thread } from "assistant-ui";
+
+export default () => (
+  <Thread.Root>
+    <Thread.Viewport>
+      <Thread.Empty>...</Thread.Empty>
+      <Thread.Messages components={...} />
+    </Thread.Viewport>
+    <Composer />
+  </Thread.Root>
+);
+```
+
+## API Reference
+
+### Provider
+
+The context provider for the thread. You usually wrap your entire application in this component.
+
+### Root
+
+Containts all parts of the thread.
+
+### Viewport
+
+The scrollable area containing all messages. Anchors scroll to the bottom as new messages are added.
+
+### Messages
+
+Renders all messages.
+
+### Empty
+
+Renders children only when there are no messages.
+
+### If
+
+Renders children if a condition is met.
+
+```tsx
+<Thread.If empty>
+  {/* equivalent to <Thread.Empty> */}
+</Thread.If>
+<Thread.If empty={false}>
+  {/* rendered if thread is not empty */}
+</Thread.If>
+```
+
+### useThreadContext
+
+The current thread context.
+
+### useThreadIf
+
+Returns true if the query conditions are met. Same API as `<Thread.If />`.
+

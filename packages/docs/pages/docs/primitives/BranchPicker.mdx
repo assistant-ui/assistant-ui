@@ -1,0 +1,42 @@
+---
+title: BranchPicker
+description: View and switch between branches.
+---
+
+## Anatomy
+
+```tsx
+import { BranchPicker } from "assistant-ui";
+
+export default () => (
+  <BranchPicker.Root>
+    <BranchPicker.Previous />
+
+    <BranchPicker.Number /> / <BranchPicker.Count />
+
+    <BranchPicker.Next />
+  </BranchPicker.Root>
+);
+```
+
+## API Reference
+
+### Root
+
+Containts all parts of the BranchPicker.
+
+### Previous
+
+Navigates to the previous branch.
+
+### Number
+
+The current branch number.
+
+### Count
+
+The total number of branches.
+
+### Next
+
+Navigates to the next branch.

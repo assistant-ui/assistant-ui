@@ -1,0 +1,31 @@
+---
+title: Composer
+description: The user interface to add new messages.
+---
+
+## Anatomy
+
+```tsx
+import { Composer } from "assistant-ui";
+
+export default () => (
+  <Composer.Root>
+    <Composer.Input />
+    <Composer.Send />
+  </Composer.Root>
+);
+```
+
+## API Reference
+
+### Root
+
+Containts all parts of the Composer.
+
+### Input
+
+The text input field for the user to type a new message.
+
+### Send
+
+The button to send the message.

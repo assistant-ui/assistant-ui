@@ -1,0 +1,69 @@
+---
+title: Message
+description: A single message in a conversation.
+---
+
+## Anatomy
+
+```tsx
+import { Message } from "assistant-ui";
+
+export default () => (
+  <Message.Root>
+    <Message.If user>You</Message.If>
+    <Message.If assistant>Assistant</Message.If>
+
+    <Message.If editing={false}>
+      <Message.PlaintextContent />
+      <ActionBar />
+    </Message.If>
+
+    <Message.If editing>
+      <Message.EditableContent />
+      <EditBar />
+    </Message.If>
+  </Message.Root>
+);
+```
+
+## API Reference
+
+### Provider
+
+The context provider for the Message. This is usually handled by `<Thread.Messages />` so you do not need to use this component directly.
+
+### Root
+
+Containts all parts of the Composer.
+
+### PlaintextContent
+
+The content of the message in plain text.
+
+### EditableContent
+
+The content of the message in an editable plain text field.
+
+### If
+
+Renders children if a condition is met.
+
+```tsx
+<Message.If user>
+  {/* rendered if message is from the user */}
+</Message.If>
+<Message.If assistant>
+  {/* rendered if message is from the assistant */}
+</Message.If>
+<Message.If editing>
+  {/* rendered if message is being edited */}
+</Message.If>
+```
+
+### useMessageContext
+
+The current message context.
+
+### useMessageIf
+
+Returns true if the query conditions are met. Same API as `<Message.If />`.

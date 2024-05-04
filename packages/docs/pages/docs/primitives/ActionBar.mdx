@@ -1,0 +1,46 @@
+---
+title: ActionBar
+description: Buttons to interact with the message.
+---
+
+## Anatomy
+
+```tsx
+import { ActionBar } from "assistant-ui";
+
+export default () => (
+  <ActionBar.Root>
+    <Message.If hasBranches>
+      <BranchPicker />
+    </Message.If>
+
+    <Message.If user>
+      <ActionBar.Edit />
+    </Message.If>
+
+    <Message.If assistant>
+      <ActionBar.Reload />
+    </Message.If>
+
+    <ActionBar.Copy />
+  </ActionBar.Root>
+);
+```
+
+## API Reference
+
+### Root
+
+Containts all parts of the ActionBar.
+
+### Edit
+
+Enables edit mode on user message.
+
+### Reload
+
+Regenerates the assistant message.
+
+### Copy
+
+Copies the message to the clipboard.
