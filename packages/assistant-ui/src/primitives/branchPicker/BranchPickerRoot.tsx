@@ -2,10 +2,7 @@
 
 import { forwardRef } from "react";
 import { ComponentPropsWithoutRef, Primitive } from "@radix-ui/react-primitive";
-import {
-  useMessageContext,
-  useThreadContext,
-} from "../../utils/context/Context";
+import { MessageIf } from "../message/MessageIf";
 
 type BranchPickerRootElement = React.ElementRef<typeof Primitive.div>;
 type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;
@@ -18,10 +15,5 @@ export const BranchPickerRoot = forwardRef<
   BranchPickerRootElement,
   BranchPickerRootProps
 >(({ ...rest }, ref) => {
-  const chat = useThreadContext();
-  const message = useMessageContext();
-  const { branchCount } = chat.getBranchState(message);
-  if (branchCount < 2) return null;
-
   return <Primitive.div {...rest} ref={ref} />;
 });

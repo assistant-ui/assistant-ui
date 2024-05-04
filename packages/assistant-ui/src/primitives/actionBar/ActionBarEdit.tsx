@@ -1,7 +1,7 @@
 "use client";
 import { createActionButton } from "../../utils/createActionButton";
 
-export const ActionBarEditBegin = createActionButton(
+export const ActionBarEdit = createActionButton(
   (message, __, [, setIsEditing]) => {
     setIsEditing(message.content);
   },

@@ -1,7 +1,7 @@
 "use client";
 import { createActionButton } from "../../utils/createActionButton";
 
-export const ActionBarEditConfirm = createActionButton(
+export const EditBarSave = createActionButton(
   (message, chat, [editValue, setIsEditing]) => {
     if (editValue !== false) {
       chat.editAt(message, {

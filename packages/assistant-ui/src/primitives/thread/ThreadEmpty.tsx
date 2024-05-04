@@ -1,14 +1,12 @@
 "use client";
 
 import { FC } from "react";
-import { useThreadContext } from "../../utils/context/Context";
+import { ThreadIf } from "./ThreadIf";
 
 type ThreadEmptyProps = {
   children: React.ReactNode;
 };
 
 export const ThreadEmpty: FC<ThreadEmptyProps> = ({ children }) => {
-  const thread = useThreadContext();
-  if (thread.messages.length > 0) return null;
-  return children;
+  return <ThreadIf empty>{children}</ThreadIf>;
 };

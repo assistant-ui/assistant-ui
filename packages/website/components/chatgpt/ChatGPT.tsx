@@ -8,6 +8,7 @@ import {
   Composer,
   ActionBar,
   BranchPicker,
+  EditBar,
 } from "assistant-ui";
 import {
   ChevronLeftIcon,
@@ -17,7 +18,6 @@ import {
   Pencil1Icon,
   ReloadIcon,
 } from "@radix-ui/react-icons";
-import { MessageEditableContent } from "assistant-ui/src/primitives/message/MessageEditableContent";
 
 export const ChatGPT: FC = () => {
   return (
@@ -60,67 +60,69 @@ const ChatMessage: FC = () => {
     <Message.Root className="mb-12 flex gap-3">
       <Avatar.Root className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-[24px] bg-white">
         <Avatar.AvatarFallback className="text-xs">
-          <Message.UserOnly>Y</Message.UserOnly>
-          <Message.AssistantOnly>C</Message.AssistantOnly>
+          <Message.If user>Y</Message.If>
+          <Message.If assistant>C</Message.If>
         </Avatar.AvatarFallback>
       </Avatar.Root>
 
       <div className="flex-grow">
         <p className="font-semibold text-white">
-          <Message.UserOnly>You</Message.UserOnly>
-          <Message.AssistantOnly>ChatGPT</Message.AssistantOnly>
+          <Message.If user>You</Message.If>
+          <Message.If assistant>ChatGPT</Message.If>
         </p>
 
-        <Message.NotEditing>
+        <Message.If editing={false}>
           <p className="whitespace-pre-line text-[#eee]">
             <Message.PlaintextContent />
           </p>
-        </Message.NotEditing>
+        </Message.If>
 
-        <Message.Editing>
-          <MessageEditableContent className="flex h-8 w-full resize-none bg-transparent text-white outline-none" />
-        </Message.Editing>
+        <Message.If editing>
+          <Message.EditableContent className="flex h-8 w-full resize-none bg-transparent text-white outline-none" />
+        </Message.If>
 
-        <Message.NotEditing>
+        <Message.If editing={false}>
           <ActionBar.Root className="mt-2 flex items-center gap-3">
-            <BranchPicker.Root className="inline-flex text-xs text-[#b4b4b4]">
-              <BranchPicker.Previous className="disabled:opacity-50">
-                <ChevronLeftIcon />
-              </BranchPicker.Previous>
-              <BranchPicker.Number /> / <BranchPicker.Count />
-              <BranchPicker.Next className="disabled:opacity-50">
-                <ChevronRightIcon />
-              </BranchPicker.Next>
-            </BranchPicker.Root>
+            <Message.If hasBranches>
+              <BranchPicker.Root className="inline-flex text-xs text-[#b4b4b4]">
+                <BranchPicker.Previous className="text-[#b4b4b4] hover:enabled:text-white disabled:opacity-50">
+                  <ChevronLeftIcon />
+                </BranchPicker.Previous>
+                <BranchPicker.Number /> / <BranchPicker.Count />
+                <BranchPicker.Next className="text-[#b4b4b4] hover:enabled:text-white disabled:opacity-50">
+                  <ChevronRightIcon />
+                </BranchPicker.Next>
+              </BranchPicker.Root>
+            </Message.If>
 
-            <Message.AssistantOnly>
+            <Message.If assistant>
               <ActionBar.Reload className="text-[#b4b4b4] hover:enabled:text-white disabled:opacity-50">
                 <ReloadIcon />
               </ActionBar.Reload>
               <ActionBar.Copy className="text-[#b4b4b4] hover:enabled:text-white disabled:opacity-50">
                 <ClipboardIcon />
               </ActionBar.Copy>
-            </Message.AssistantOnly>
+            </Message.If>
 
-            <Message.UserOnly>
-              <ActionBar.EditBegin className="text-[#b4b4b4] hover:enabled:text-white disabled:opacity-50">
+            <Message.If user>
+              <ActionBar.Edit className="text-[#b4b4b4] hover:enabled:text-white disabled:opacity-50">
                 <Pencil1Icon />
-              </ActionBar.EditBegin>
-            </Message.UserOnly>
+              </ActionBar.Edit>
+            </Message.If>
           </ActionBar.Root>
-        </Message.NotEditing>
+        </Message.If>
 
-        <Message.Editing>
-          <ActionBar.Root className="mt-2 flex items-center justify-center gap-3">
-            <ActionBar.EditConfirm className="rounded-lg bg-[#10a37e] px-3 py-2 text-sm text-white hover:bg-[#1a7f64]">
+        <Message.If editing>
+          <EditBar.Root className="mt-2 flex items-center justify-center gap-3">
+            <EditBar.Save className="rounded-lg bg-[#10a37e] px-3 py-2 text-sm text-white hover:bg-[#1a7f64]">
               Save & Submit
-            </ActionBar.EditConfirm>
+            </EditBar.Save>
 
-            <ActionBar.EditCancel className="rounded-lg border border-zinc-700 px-3 py-2 text-sm text-white hover:bg-zinc-800">
+            <EditBar.Cancel className="rounded-lg border border-zinc-700 px-3 py-2 text-sm text-white hover:bg-zinc-800">
               Cancel
-            </ActionBar.EditCancel>
-          </ActionBar.Root>
-        </Message.Editing>
+            </EditBar.Cancel>
+          </EditBar.Root>
+        </Message.If>
       </div>
     </Message.Root>
   );

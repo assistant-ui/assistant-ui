@@ -12,11 +12,11 @@ export const Claude: FC = () => {
     <Thread.Root className="flex h-full flex-col items-stretch bg-[#2b2a27] px-12 pt-16 font-serif">
       <Thread.Viewport className="flex flex-grow flex-col overflow-y-scroll">
         <Thread.Messages components={{ Message: ChatMessage }} />
-        <Thread.NotEmpty>
+        <Thread.If empty={false}>
           <p className="p-2 text-right text-xs text-[#b8b5a9]">
             Claude can make mistakes. Please double-check responses.
           </p>
-        </Thread.NotEmpty>
+        </Thread.If>
       </Thread.Viewport>
 
       <Composer.Root className="flex flex-col rounded-t-xl border border-[#6c6a6040] bg-[#393937] p-0.5">
@@ -61,13 +61,13 @@ const ChatMessage: FC = () => {
           <div className="absolute inset-0 rounded-2xl  border-[0.5px]  border-[hsla(50_5.8%_40%/0.15)]  bg-[radial-gradient(ellipse_at_left_top,_hsla(60_1.8%_22%/0.5)_0%,_hsla(60_1.8%_22%/0.3)_60%)]  shadow-[0_4px_24px_rgba(0,0,0,0.015)]" />
         )}
         <div className="relative flex gap-2">
-          <Message.UserOnly>
+          <Message.If user>
             <Avatar.Root className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-[24px] bg-white">
               <Avatar.AvatarFallback className="text-xs">
                 U
               </Avatar.AvatarFallback>
             </Avatar.Root>
-          </Message.UserOnly>
+          </Message.If>
 
           <p className="text-[#eee]">
             <Message.PlaintextContent />
@@ -75,7 +75,7 @@ const ChatMessage: FC = () => {
         </div>
       </div>
 
-      <Message.AssistantOnly>
+      <Message.If assistant>
         <ActionBar.Root className="relative -mt-6 mr-3  flex items-center gap-3 self-end rounded-lg border border-[#6c6a6040] bg-[#393937] px-2 py-1">
           <ActionBar.Reload className="flex items-center gap-1 font-mono text-xs text-[#b4b4b4] hover:text-white">
             <ReloadIcon width={12} height={12} />
@@ -87,7 +87,7 @@ const ChatMessage: FC = () => {
             Copy
           </ActionBar.Copy>
         </ActionBar.Root>
-      </Message.AssistantOnly>
+      </Message.If>
     </Message.Root>
   );
 };

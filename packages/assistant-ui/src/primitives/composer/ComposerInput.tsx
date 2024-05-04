@@ -30,6 +30,8 @@ export const ComposerInput = forwardRef<
   const composer = useComposerContext();
 
   const handleKeyPress = (e: KeyboardEvent) => {
+    if (chat.isLoading || rest.disabled) return;
+
     if (e.key === "Enter" && e.shiftKey == false) {
       e.preventDefault();
       composer.submit();
