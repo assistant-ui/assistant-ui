@@ -2,7 +2,7 @@
 
 import { createContext, forwardRef, useContext, useMemo, useRef } from "react";
 import { ComponentPropsWithoutRef, Primitive } from "@radix-ui/react-primitive";
-import { useThreadContext } from "../../utils/context/Context";
+import { useThreadContext } from "../../utils/context/ThreadContext";
 import { composeEventHandlers } from "@radix-ui/primitive";
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
 
@@ -28,7 +28,10 @@ export const useComposerContext = () => {
 
 export const ComposerRoot = forwardRef<ComposerRootElement, ComposerRootProps>(
   ({ onSubmit, ...rest }, forwardedRef) => {
-    const chat = useThreadContext();
+    const handleSubmit = useThreadContext(
+      "Composer.Root",
+      (s) => s.chat.handleSubmit,
+    );
     const formRef = useRef<HTMLFormElement>(null);
     const ref = useComposedRefs(forwardedRef, formRef);
 
@@ -41,11 +44,6 @@ export const ComposerRoot = forwardRef<ComposerRootElement, ComposerRootProps>(
       }),
       [],
     );
-
-    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-      chat.handleSubmit(e);
-      return false;
-    };
 
     return (
       <ComposerContext.Provider value={composerContextValue}>

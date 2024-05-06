@@ -1,8 +1,10 @@
+"use client";
+
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
-import { useIsEditingContext } from "../../utils/context/Context";
-import { ChangeEvent, FC, forwardRef, useRef } from "react";
+import { ChangeEvent, forwardRef, useRef } from "react";
 import { useAutosize } from "../../utils/hooks/useAutosize";
 import { composeEventHandlers } from "@radix-ui/primitive";
+import { useMessageContext } from "../../utils/context/MessageContext";
 
 type MessageEditableContentProps = React.ComponentPropsWithoutRef<"textarea">;
 
@@ -16,17 +18,25 @@ export const MessageEditableContent = forwardRef<
   // make the textarea grow with the content
   useAutosize(textareaRef);
 
-  const [isEditing, setIsEditing] = useIsEditingContext();
+  const [editState, setEditState] = useMessageContext(
+    "Message.EditableContent",
+    (s) => [s.editState, s.setEditState],
+  );
   const handleChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
-    setIsEditing(e.target.value);
+    setEditState({ isEditing: true, value: e.target.value });
   };
+
+  if (!editState.isEditing)
+    throw new Error(
+      "Message.EditableContent may only be rendered when edit mode is enabled. Consider wrapping the component in <Message.If editing>.",
+    );
 
   return (
     <textarea
       {...rest}
       ref={ref}
       onChange={composeEventHandlers(onChange, handleChange)}
-      value={isEditing || value}
+      value={editState.value || value}
     />
   );
 });

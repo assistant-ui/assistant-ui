@@ -108,11 +108,13 @@ const sliceMessagesUntil = (messages: Message[], message: Message) => {
   return messages.slice(0, messageIdx);
 };
 
+export type BranchState = {
+  branchId: number;
+  branchCount: number;
+};
+
 export type UseChatWithBranchesHelpers = UseChatHelpers & {
-  getBranchState: (message: Message) => {
-    branchId: number;
-    branchCount: number;
-  };
+  getBranchState: (message: Message) => BranchState;
   switchToBranch: (message: Message, branchId: number) => void;
   editAt: (message: Message, newMesssage: CreateMessage) => Promise<void>;
   reloadAt: (message: Message) => Promise<void>;

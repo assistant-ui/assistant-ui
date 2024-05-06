@@ -2,7 +2,6 @@
 
 import { forwardRef } from "react";
 import { ComponentPropsWithoutRef, Primitive } from "@radix-ui/react-primitive";
-import { MessageIf } from "../message/MessageIf";
 
 type BranchPickerRootElement = React.ElementRef<typeof Primitive.div>;
 type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;

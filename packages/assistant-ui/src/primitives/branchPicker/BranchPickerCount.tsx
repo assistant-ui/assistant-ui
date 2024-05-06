@@ -1,12 +1,12 @@
-import {
-  useThreadContext,
-  useMessageContext,
-} from "assistant-ui/src/utils/context/Context";
+"use client";
+
 import { FC } from "react";
+import { useMessageContext } from "../../utils/context/MessageContext";
 
 export const BranchPickerCount: FC = () => {
-  const chat = useThreadContext();
-  const message = useMessageContext();
-  const { branchCount } = chat.getBranchState(message);
+  const branchCount = useMessageContext(
+    "BranchPicker.Count",
+    (s) => s.branchState.branchCount,
+  );
   return <>{branchCount}</>;
 };

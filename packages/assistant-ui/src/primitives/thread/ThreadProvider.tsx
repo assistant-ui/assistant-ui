@@ -1,9 +1,9 @@
 "use client";
 
 import { useChatWithBranches } from "../../utils/hooks/useBranches";
-import { ThreadContext } from "../../utils/context/ThreadContext";
 import { UseChatHelpers } from "ai/react";
 import { FC } from "react";
+import { ThreadContextProvider } from "../../utils/context/ThreadContext";
 
 type ThreadProviderProps = {
   chat: UseChatHelpers;
@@ -13,6 +13,6 @@ type ThreadProviderProps = {
 export const ThreadProvider: FC<ThreadProviderProps> = ({ chat, children }) => {
   const branches = useChatWithBranches(chat);
   return (
-    <ThreadContext.Provider value={branches}>{children}</ThreadContext.Provider>
+    <ThreadContextProvider chat={branches}>{children}</ThreadContextProvider>
   );
 };

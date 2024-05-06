@@ -3,7 +3,7 @@
 import { KeyboardEvent, forwardRef, useRef } from "react";
 import { ComponentPropsWithoutRef } from "@radix-ui/react-primitive";
 import { Slot } from "@radix-ui/react-slot";
-import { useThreadContext } from "../../utils/context/Context";
+import { useThreadContext } from "../../utils/context/ThreadContext";
 import { composeEventHandlers } from "@radix-ui/primitive";
 import { useAutosize } from "../../utils/hooks/useAutosize";
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
@@ -17,7 +17,14 @@ export const ComposerInput = forwardRef<
   HTMLTextAreaElement,
   ComposerInputProps
 >(({ asChild, onChange, onKeyDown, ...rest }, forwardedRef) => {
-  const chat = useThreadContext();
+  const chat = useThreadContext(
+    "Composer.Input",
+    ({ chat: { input, handleInputChange, isLoading } }) => ({
+      input,
+      handleInputChange,
+      isLoading,
+    }),
+  );
 
   const Component = asChild ? Slot : "textarea";
 

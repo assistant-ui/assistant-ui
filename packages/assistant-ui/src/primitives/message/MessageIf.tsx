@@ -1,10 +1,8 @@
 "use client";
+
 import { FC } from "react";
-import {
-  useIsEditingContext,
-  useMessageContext,
-  useThreadContext,
-} from "../../utils/context/Context";
+import { useMessageContext } from "../../utils/context/MessageContext";
+import { useThreadContext } from "../../utils/context/ThreadContext";
 import { RequireAtLeastOne } from "../../utils/RequireAtLeastOne";
 
 type MessageIfFilters = {
@@ -21,28 +19,31 @@ type MessageIfProps = RequireAtLeastOne<MessageIfFilters> & {
 };
 
 const useMessageIf = (props: RequireAtLeastOne<MessageIfFilters>) => {
-  const message = useMessageContext();
-  const [isEditing] = useIsEditingContext();
-  const thread = useThreadContext();
+  const thread = useThreadContext("Message.If", (s) => s.chat);
 
-  const { branchCount } = thread.getBranchState(message);
+  return useMessageContext(
+    "Message.If",
+    ({ message, editState: { isEditing } }) => {
+      const { branchCount } = thread.getBranchState(message);
 
-  if (props.hasBranches === true && branchCount < 2) return false;
+      if (props.hasBranches === true && branchCount < 2) return false;
 
-  if (props.user && message.role !== "user") return false;
-  if (props.assistant && message.role !== "assistant") return false;
+      if (props.user && message.role !== "user") return false;
+      if (props.assistant && message.role !== "assistant") return false;
 
-  if (props.editing === true && isEditing === false) return false;
-  if (props.editing === false && isEditing !== false) return false;
+      if (props.editing === true && !isEditing) return false;
+      if (props.editing === false && isEditing) return false;
 
-  if (props.first && thread.messages[0].id !== message.id) return false;
-  if (
-    props.last &&
-    thread.messages[thread.messages.length - 1].id !== message.id
-  )
-    return false;
+      if (props.first && thread.messages[0].id !== message.id) return false;
+      if (
+        props.last &&
+        thread.messages[thread.messages.length - 1].id !== message.id
+      )
+        return false;
 
-  return true;
+      return true;
+    },
+  );
 };
 
 export const MessageIf: FC<MessageIfProps> = ({ children, ...query }) => {

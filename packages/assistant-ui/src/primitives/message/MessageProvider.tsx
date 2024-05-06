@@ -1,11 +1,12 @@
 "use client";
 
-import { FC, useState } from "react";
-import {
-  IsEditingContext,
-  MessageContext,
-} from "../../utils/context/MessageContext";
+import { FC, useMemo, useState } from "react";
 import { Message } from "ai";
+import {
+  MessageContextProvider,
+  MessageEditState,
+} from "../../utils/context/MessageContext";
+import { useThreadContext } from "../../utils/context/ThreadContext";
 
 type MessageProviderProps = {
   children?: React.ReactNode;
@@ -16,12 +17,27 @@ export const MessageProvider: FC<MessageProviderProps> = ({
   message,
   children,
 }) => {
-  const isEditingValue = useState<false | string>(false);
+  const getBranchState = useThreadContext(
+    "Message.Provider",
+    (s) => s.chat.getBranchState,
+  );
+  const [editState, setEditState] = useState<MessageEditState>({
+    isEditing: false,
+  });
+
+  const branchState = useMemo(
+    () => getBranchState(message),
+    [getBranchState, message],
+  );
+
   return (
-    <MessageContext.Provider value={message}>
-      <IsEditingContext.Provider value={isEditingValue}>
-        {children}
-      </IsEditingContext.Provider>
-    </MessageContext.Provider>
+    <MessageContextProvider
+      message={message}
+      editState={editState}
+      setEditState={setEditState}
+      branchState={branchState}
+    >
+      {children}
+    </MessageContextProvider>
   );
 };
