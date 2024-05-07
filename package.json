@@ -5,18 +5,7 @@
     "packages/*"
   ],
   "devDependencies": {
-    "eslint": "^9.2.0",
-    "eslint-config-next": "^14.2.3",
-    "prettier": "^3.2.5",
-    "prettier-plugin-tailwindcss": "^0.5.14",
+    "@biomejs/biome": "1.7.3",
     "turbo": "^1.13.3"
-  },
-  "prettier": {
-    "plugins": [
-      "prettier-plugin-tailwindcss"
-    ]
-  },
-  "eslintConfig": {
-    "extends": "next/core-web-vitals"
   }
 }

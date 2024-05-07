@@ -1,43 +1,43 @@
 "use client";
-import { MutableRefObject, useLayoutEffect, useRef } from "react";
+import { type MutableRefObject, useLayoutEffect, useRef } from "react";
 
 export const useOnResizeContent = (
-  ref: MutableRefObject<HTMLElement | null>,
-  callback: () => void,
+	ref: MutableRefObject<HTMLElement | null>,
+	callback: () => void,
 ) => {
-  const callbackRef = useRef(callback);
-  callbackRef.current = callback;
+	const callbackRef = useRef(callback);
+	callbackRef.current = callback;
 
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el) return;
+	useLayoutEffect(() => {
+		const el = ref.current;
+		if (!el) return;
 
-    const resizeObserver = new ResizeObserver(() => {
-      callbackRef.current();
-    });
+		const resizeObserver = new ResizeObserver(() => {
+			callbackRef.current();
+		});
 
-    const mutationObserver = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        mutation.addedNodes.forEach((node) => {
-          if (node instanceof HTMLElement) {
-            resizeObserver.observe(node as Element);
-          }
-        });
+		const mutationObserver = new MutationObserver((mutations) => {
+			for (const mutation of mutations) {
+				for (const node of mutation.addedNodes) {
+					if (node instanceof HTMLElement) {
+						resizeObserver.observe(node);
+					}
+				}
 
-        mutation.removedNodes.forEach((node) => {
-          if (node instanceof HTMLElement) {
-            resizeObserver.unobserve(node);
-          }
-        });
-      });
+				for (const node of mutation.removedNodes) {
+					if (node instanceof HTMLElement) {
+						resizeObserver.unobserve(node);
+					}
+				}
+			}
 
-      callbackRef.current();
-    });
+			callbackRef.current();
+		});
 
-    mutationObserver.observe(el, { childList: true });
-    return () => {
-      resizeObserver.disconnect();
-      mutationObserver.disconnect();
-    };
-  }, []);
+		mutationObserver.observe(el, { childList: true });
+		return () => {
+			resizeObserver.disconnect();
+			mutationObserver.disconnect();
+		};
+	}, [ref.current]);
 };

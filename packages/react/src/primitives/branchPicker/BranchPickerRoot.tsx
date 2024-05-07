@@ -1,7 +1,10 @@
 "use client";
 
 import { forwardRef } from "react";
-import { ComponentPropsWithoutRef, Primitive } from "@radix-ui/react-primitive";
+import {
+	type ComponentPropsWithoutRef,
+	Primitive,
+} from "@radix-ui/react-primitive";
 
 type BranchPickerRootElement = React.ElementRef<typeof Primitive.div>;
 type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;
@@ -9,8 +12,8 @@ type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;
 type BranchPickerRootProps = PrimitiveDivProps;
 
 export const BranchPickerRoot = forwardRef<
-  BranchPickerRootElement,
-  BranchPickerRootProps
+	BranchPickerRootElement,
+	BranchPickerRootProps
 >(({ ...rest }, ref) => {
-  return <Primitive.div {...rest} ref={ref} />;
+	return <Primitive.div {...rest} ref={ref} />;
 });
