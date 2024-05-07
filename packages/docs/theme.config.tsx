@@ -1,6 +1,5 @@
-import React, { FC } from "react";
+import React from "react";
 import { DocsThemeConfig, useConfig } from "nextra-theme-docs";
-
 import title from "title";
 
 const config: DocsThemeConfig = {

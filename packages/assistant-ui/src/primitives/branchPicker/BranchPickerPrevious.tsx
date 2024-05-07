@@ -4,7 +4,7 @@ import { useMessageContext } from "../../utils/context/MessageContext";
 import { useThreadContext } from "../../utils/context/ThreadContext";
 import { createActionButton } from "../../utils/createActionButton";
 
-export const BranchPickerPrevious = createActionButton(() => {
+export const useBranchPickerPrevious = () => {
   const switchToBranch = useThreadContext(
     "BranchPicker.Previous",
     (s) => s.chat.switchToBranch,
@@ -14,10 +14,10 @@ export const BranchPickerPrevious = createActionButton(() => {
     (s) => [s.message, s.branchState],
   );
 
-  return {
-    disabled: branchCount <= 1 || branchId <= 0,
-    onClick: () => {
-      switchToBranch(message, branchId - 1);
-    },
+  if (branchCount <= 1 || branchId <= 0) return null;
+  return () => {
+    switchToBranch(message, branchId - 1);
   };
-});
+};
+
+export const BranchPickerPrevious = createActionButton(useBranchPickerPrevious);

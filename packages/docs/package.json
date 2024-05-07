@@ -13,11 +13,13 @@
     "@fortawesome/free-regular-svg-icons": "^6.5.2",
     "@fortawesome/free-solid-svg-icons": "^6.5.2",
     "@fortawesome/react-fontawesome": "^0.2.0",
+    "@types/title": "^3.4.3",
     "next": "^14.2.3",
     "nextra": "3.0.0-alpha.24",
     "nextra-theme-docs": "^3.0.0-alpha.24",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "title": "^3.5.3"
   },
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.13",

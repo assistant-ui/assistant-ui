@@ -4,29 +4,25 @@ import { forwardRef } from "react";
 import { Primitive, ComponentPropsWithoutRef } from "@radix-ui/react-primitive";
 import { composeEventHandlers } from "@radix-ui/primitive";
 
-type ActionButtonCallback = () => {
-  disabled?: boolean;
-  onClick: () => void;
-};
+type ActionButtonCallback<TProps> = (props: TProps) => null | (() => void);
 
-export const createActionButton = (useActionButton: ActionButtonCallback) => {
+export const createActionButton = <TProps,>(
+  useActionButton: ActionButtonCallback<TProps>,
+) => {
   type PrimitiveButtonElement = React.ElementRef<typeof Primitive.button>;
   type PrimitiveButtonProps = ComponentPropsWithoutRef<typeof Primitive.button>;
 
-  return forwardRef<PrimitiveButtonElement, PrimitiveButtonProps>(
+  return forwardRef<PrimitiveButtonElement, PrimitiveButtonProps & TProps>(
     (props, forwardedRef) => {
-      const { disabled, onClick: callback } = useActionButton();
+      const onClick = useActionButton(props);
 
       return (
         <Primitive.button
           type="button"
-          disabled={disabled}
+          disabled={!onClick}
           {...props}
           ref={forwardedRef}
-          onClick={composeEventHandlers(props.onClick, () => {
-            if (disabled) return;
-            callback();
-          })}
+          onClick={composeEventHandlers(props.onClick, onClick ?? undefined)}
         />
       );
     },

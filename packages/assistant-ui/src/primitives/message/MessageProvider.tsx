@@ -25,6 +25,8 @@ export const MessageProvider: FC<MessageProviderProps> = ({
     isEditing: false,
   });
 
+  const [isCopied, setIsCopied] = useState(false);
+
   const branchState = useMemo(
     () => getBranchState(message),
     [getBranchState, message],
@@ -36,6 +38,8 @@ export const MessageProvider: FC<MessageProviderProps> = ({
       editState={editState}
       setEditState={setEditState}
       branchState={branchState}
+      isCopied={isCopied}
+      setIsCopied={setIsCopied}
     >
       {children}
     </MessageContextProvider>

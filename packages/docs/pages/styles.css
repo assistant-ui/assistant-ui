@@ -6,3 +6,7 @@ pre {
   background-color: #151515 !important;
   --tw-ring-color: #222 !important
 }
+
+.nextra-nav-container-blur {
+  background-color: rgba(var(--nextra-bg), .25);
+}

@@ -3,16 +3,16 @@
 import { forwardRef } from "react";
 import { ComponentPropsWithoutRef, Primitive } from "@radix-ui/react-primitive";
 
-type ThreadRootElement = React.ElementRef<typeof Primitive.button>;
+type ThreadScrollToBottomElement = React.ElementRef<typeof Primitive.button>;
 type PrimitiveButtonProps = ComponentPropsWithoutRef<typeof Primitive.button>;
 
-type ThreadRootProps = PrimitiveButtonProps;
+type ThreadScrollToBottomProps = PrimitiveButtonProps;
 
 // TODO
 
 export const ThreadScrollToBottom = forwardRef<
-  ThreadRootElement,
-  ThreadRootProps
+  ThreadScrollToBottomElement,
+  ThreadScrollToBottomProps
 >((props, ref) => {
   return <Primitive.button {...props} ref={ref} />;
 });

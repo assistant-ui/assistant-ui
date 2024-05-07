@@ -16,6 +16,8 @@ type MessageStore = {
   editState: MessageEditState;
   setEditState: (value: MessageEditState) => void;
   branchState: BranchState;
+  isCopied: boolean;
+  setIsCopied: (value: boolean) => void;
 };
 
 export const [MessageContextProvider, useMessageContext] =

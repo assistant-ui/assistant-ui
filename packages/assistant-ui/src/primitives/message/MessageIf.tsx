@@ -12,6 +12,7 @@ type MessageIfFilters = {
   first: boolean | undefined;
   last: boolean | undefined;
   hasBranches: boolean | undefined;
+  copied: boolean | undefined;
 };
 
 type MessageIfProps = RequireAtLeastOne<MessageIfFilters> & {
@@ -23,7 +24,7 @@ const useMessageIf = (props: RequireAtLeastOne<MessageIfFilters>) => {
 
   return useMessageContext(
     "Message.If",
-    ({ message, editState: { isEditing } }) => {
+    ({ message, editState: { isEditing }, isCopied }) => {
       const { branchCount } = thread.getBranchState(message);
 
       if (props.hasBranches === true && branchCount < 2) return false;
@@ -40,6 +41,9 @@ const useMessageIf = (props: RequireAtLeastOne<MessageIfFilters>) => {
         thread.messages[thread.messages.length - 1].id !== message.id
       )
         return false;
+
+      if (props.copied === true && !isCopied) return false;
+      if (props.copied === false && isCopied) return false;
 
       return true;
     },

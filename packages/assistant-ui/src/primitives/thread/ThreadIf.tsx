@@ -1,17 +1,15 @@
 "use client";
 
-import { FC } from "react";
+import { FC, PropsWithChildren } from "react";
 import { useThreadContext } from "../../utils/context/ThreadContext";
 import { RequireAtLeastOne } from "../../utils/RequireAtLeastOne";
 
 type ThreadIfFilters = {
-  empty: boolean;
-  busy: boolean;
+  empty: boolean | undefined;
+  busy: boolean | undefined;
 };
 
-type ThreadIfProps = RequireAtLeastOne<ThreadIfFilters> & {
-  children: React.ReactNode;
-};
+type ThreadIfProps = PropsWithChildren<RequireAtLeastOne<ThreadIfFilters>>;
 
 const useThreadIf = (props: RequireAtLeastOne<ThreadIfFilters>) => {
   return useThreadContext("Thread.If", (s) => {

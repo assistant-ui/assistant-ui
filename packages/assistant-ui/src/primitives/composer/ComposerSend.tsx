@@ -4,12 +4,12 @@ import { forwardRef } from "react";
 import { ComponentPropsWithoutRef, Primitive } from "@radix-ui/react-primitive";
 import { useThreadContext } from "../../utils/context/ThreadContext";
 
-type ComposerRootElement = React.ElementRef<typeof Primitive.button>;
+type ComposerSendElement = React.ElementRef<typeof Primitive.button>;
 type PrimitiveFormProps = ComponentPropsWithoutRef<typeof Primitive.button>;
 
-type ComposerRootProps = PrimitiveFormProps;
+type ComposerSendProps = PrimitiveFormProps;
 
-export const ComposerSend = forwardRef<ComposerRootElement, ComposerRootProps>(
+export const ComposerSend = forwardRef<ComposerSendElement, ComposerSendProps>(
   ({ disabled, ...rest }, ref) => {
     const input = useThreadContext("Composer.Send", (s) => s.chat.input);
 

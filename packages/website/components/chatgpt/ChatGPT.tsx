@@ -17,6 +17,7 @@ import {
   ClipboardIcon,
   Pencil1Icon,
   ReloadIcon,
+  CheckIcon,
 } from "@radix-ui/react-icons";
 
 export const ChatGPT: FC = () => {
@@ -40,13 +41,20 @@ export const ChatGPT: FC = () => {
           placeholder="Message ChatGPT..."
           className="h-12 max-h-40 flex-grow resize-none bg-transparent p-3.5 text-sm text-white outline-none placeholder:text-white/50"
         />
-        <Composer.Send className="m-2 flex h-8 w-8 items-center justify-center rounded-lg bg-white text-2xl font-bold disabled:opacity-10">
-          <ArrowUpIcon
-            width={20}
-            height={20}
-            className="[&_path]:stroke-black [&_path]:stroke-[0.5]"
-          />
-        </Composer.Send>
+        <Thread.If busy={false}>
+          <Composer.Send className="m-2 flex h-8 w-8 items-center justify-center rounded-lg bg-white text-2xl font-bold disabled:opacity-10">
+            <ArrowUpIcon
+              width={20}
+              height={20}
+              className="[&_path]:stroke-black [&_path]:stroke-[0.5]"
+            />
+          </Composer.Send>
+        </Thread.If>
+        <Thread.If busy>
+          <Composer.Stop className="border-whtie m-3.5 flex size-5 items-center justify-center rounded-full border-2 font-bold text-white">
+            <div className="size-2 rounded-[1px] bg-white" />
+          </Composer.Stop>
+        </Thread.If>
       </Composer.Root>
       <p className="p-2 text-center text-xs text-[#cdcdcd]">
         ChatGPT can make mistakes. Consider checking important information.
@@ -100,7 +108,12 @@ const ChatMessage: FC = () => {
                 <ReloadIcon />
               </ActionBar.Reload>
               <ActionBar.Copy className="text-[#b4b4b4] hover:enabled:text-white disabled:opacity-50">
-                <ClipboardIcon />
+                <Message.If copied>
+                  <CheckIcon />
+                </Message.If>
+                <Message.If copied={false}>
+                  <ClipboardIcon />
+                </Message.If>
               </ActionBar.Copy>
             </Message.If>
 
