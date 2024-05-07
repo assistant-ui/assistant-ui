@@ -14,7 +14,7 @@ export default () => (
     <Message.If assistant>Assistant</Message.If>
 
     <Message.If editing={false}>
-      <Message.PlaintextContent />
+      <Message.Content />
       <ActionBar />
     </Message.If>
 
@@ -36,7 +36,7 @@ The context provider for the Message. This is usually handled by `<Thread.Messag
 
 Containts all parts of the Composer.
 
-### PlaintextContent
+### Content
 
 The content of the message in plain text.
 
