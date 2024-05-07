@@ -47,8 +47,9 @@
     "access": "public"
   },
   "devDependencies": {
+    "@assistant-ui/tsconfig": "*",
     "@types/use-sync-external-store": "^0.0.6",
-    "@assistant-ui/tsconfig": "*"
+    "tsup": "^8.0.2"
   },
   "homepage": "https://assistant-ui.com/",
   "repository": {

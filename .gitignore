@@ -34,3 +34,5 @@ build
 .turbo
 
 .env
+
+dist/
