@@ -5,9 +5,9 @@ import {
   useContext,
   useMemo,
   useState,
-  useSyncExternalStore,
 } from "react";
 import { useSyncExternalStoreWithSelector } from "use-sync-external-store/with-selector";
+import { shallow } from "./shallow";
 
 type Store<State> = {
   subscribe: (callback: () => void) => () => void;
@@ -66,6 +66,7 @@ export const createStoreContext = <T extends Record<string, unknown>>(
       store.snapshot,
       store.snapshot,
       selector,
+      shallow,
     );
   };
 
