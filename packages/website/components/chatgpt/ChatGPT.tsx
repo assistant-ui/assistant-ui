@@ -9,7 +9,7 @@ import {
   ActionBar,
   BranchPicker,
   EditBar,
-} from "assistant-ui";
+} from "@assistant-ui/react";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -81,7 +81,7 @@ const ChatMessage: FC = () => {
 
         <Message.If editing={false}>
           <p className="whitespace-pre-line text-[#eee]">
-            <Message.PlaintextContent />
+            <Message.Content />
           </p>
         </Message.If>
 

@@ -8,8 +8,6 @@ type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;
 
 type BranchPickerRootProps = PrimitiveDivProps;
 
-// TODO put branch state in context?
-
 export const BranchPickerRoot = forwardRef<
   BranchPickerRootElement,
   BranchPickerRootProps

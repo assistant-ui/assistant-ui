@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "@tsconfig/strictest/tsconfig.json",
+  "compilerOptions": {
+    "moduleResolution": "bundler",
+    "target": "ESNext",
+    "module": "ESNext",
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "jsx": "preserve",
+    "lib": ["dom", "dom.iterable", "esnext"]
+  }
+}

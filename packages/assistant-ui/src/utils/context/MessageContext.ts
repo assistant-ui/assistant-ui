@@ -18,6 +18,8 @@ type MessageStore = {
   branchState: BranchState;
   isCopied: boolean;
   setIsCopied: (value: boolean) => void;
+  isHovering: boolean;
+  setIsHovering: (value: boolean) => void;
 };
 
 export const [MessageContextProvider, useMessageContext] =

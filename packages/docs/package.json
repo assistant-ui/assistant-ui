@@ -13,7 +13,6 @@
     "@fortawesome/free-regular-svg-icons": "^6.5.2",
     "@fortawesome/free-solid-svg-icons": "^6.5.2",
     "@fortawesome/react-fontawesome": "^0.2.0",
-    "@types/title": "^3.4.3",
     "next": "^14.2.3",
     "nextra": "3.0.0-alpha.24",
     "nextra-theme-docs": "^3.0.0-alpha.24",
@@ -22,8 +21,10 @@
     "title": "^3.5.3"
   },
   "devDependencies": {
+    "@assistant-ui/tsconfig": "*",
     "@tailwindcss/typography": "^0.5.13",
     "@types/node": "20.12.8",
+    "@types/title": "^3.4.3",
     "autoprefixer": "^10.4.19",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.3",

@@ -17,7 +17,7 @@ export const useEditBarSave = () => {
 
     chat.editAt(message, {
       ...message,
-      id: undefined,
+      id: undefined as unknown as string, // remove id to create a new message
       content: editState.value,
     });
 

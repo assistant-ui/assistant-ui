@@ -29,7 +29,7 @@ export const ThreadMessages: FC<ThreadMessagesProps> = ({
         );
       })}
       {chat.isLoading &&
-        chat.messages[chat.messages.length - 1].role !== "assistant" && (
+        chat.messages[chat.messages.length - 1]?.role !== "assistant" && (
           <Provider
             message={{
               id: UPCOMING_MESSAGE_ID,

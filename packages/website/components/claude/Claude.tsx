@@ -1,11 +1,16 @@
 "use client";
 
-import { Thread, Message, Composer, ActionBar } from "assistant-ui";
+import {
+  Thread,
+  Message,
+  Composer,
+  ActionBar,
+  unstable_useMessageContext,
+} from "@assistant-ui/react";
 import React, { FC } from "react";
 import { cn } from "@/lib/utils";
 import * as Avatar from "@radix-ui/react-avatar";
 import { ReloadIcon, ArrowUpIcon, ClipboardIcon } from "@radix-ui/react-icons";
-import { useMessageContext } from "assistant-ui/src/utils/context/MessageContext";
 
 export const Claude: FC = () => {
   return (
@@ -45,7 +50,7 @@ export const Claude: FC = () => {
 };
 
 const ChatMessage: FC = () => {
-  const message = useMessageContext("ChatMessage", (s) => s.message);
+  const message = unstable_useMessageContext("ChatMessage", (s) => s.message);
 
   return (
     <Message.Root className="mb-4 flex flex-col gap-3">
@@ -70,7 +75,7 @@ const ChatMessage: FC = () => {
           </Message.If>
 
           <p className="text-[#eee]">
-            <Message.PlaintextContent />
+            <Message.Content />
           </p>
         </div>
       </div>

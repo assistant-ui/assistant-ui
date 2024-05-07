@@ -26,6 +26,7 @@ export const MessageProvider: FC<MessageProviderProps> = ({
   });
 
   const [isCopied, setIsCopied] = useState(false);
+  const [isHovering, setIsHovering] = useState(false);
 
   const branchState = useMemo(
     () => getBranchState(message),
@@ -40,6 +41,8 @@ export const MessageProvider: FC<MessageProviderProps> = ({
       branchState={branchState}
       isCopied={isCopied}
       setIsCopied={setIsCopied}
+      isHovering={isHovering}
+      setIsHovering={setIsHovering}
     >
       {children}
     </MessageContextProvider>

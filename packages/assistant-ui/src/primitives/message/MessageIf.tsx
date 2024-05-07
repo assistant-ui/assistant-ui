@@ -9,10 +9,11 @@ type MessageIfFilters = {
   user: boolean | undefined;
   assistant: boolean | undefined;
   editing: boolean | undefined;
-  first: boolean | undefined;
-  last: boolean | undefined;
   hasBranches: boolean | undefined;
   copied: boolean | undefined;
+
+  // TODO
+  unstable_hoveringOrLast: boolean | undefined;
 };
 
 type MessageIfProps = RequireAtLeastOne<MessageIfFilters> & {
@@ -24,7 +25,7 @@ const useMessageIf = (props: RequireAtLeastOne<MessageIfFilters>) => {
 
   return useMessageContext(
     "Message.If",
-    ({ message, editState: { isEditing }, isCopied }) => {
+    ({ message, editState: { isEditing }, isCopied, isHovering }) => {
       const { branchCount } = thread.getBranchState(message);
 
       if (props.hasBranches === true && branchCount < 2) return false;
@@ -35,10 +36,10 @@ const useMessageIf = (props: RequireAtLeastOne<MessageIfFilters>) => {
       if (props.editing === true && !isEditing) return false;
       if (props.editing === false && isEditing) return false;
 
-      if (props.first && thread.messages[0].id !== message.id) return false;
       if (
-        props.last &&
-        thread.messages[thread.messages.length - 1].id !== message.id
+        props.unstable_hoveringOrLast === true &&
+        !isHovering &&
+        thread.messages[thread.messages.length - 1]?.id !== message.id
       )
         return false;
 

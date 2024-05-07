@@ -15,7 +15,7 @@ type ChatBranchData = {
 
 const updateBranchData = (data: ChatBranchData, messages: Message[]) => {
   for (let i = 0; i < messages.length; i++) {
-    const child = messages[i];
+    const child = messages[i]!;
     const childId = child.id;
 
     const parentId = messages[i - 1]?.id ?? ROOT_ID;
