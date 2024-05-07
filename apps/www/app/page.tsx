@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useChat } from "ai/react";
-import { Thread } from "assistant-ui";
+import { Thread } from "@assistant-ui/react";
 
 const supportedModels = [
   {

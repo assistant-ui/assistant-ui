@@ -1,0 +1,31 @@
+{
+  "extends": "@assistant-ui/tsconfig/base.json",
+  "compilerOptions": {
+    "target": "es5",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": [
+        "./*"
+      ],
+      "@assistant-ui/react": [
+        "../../packages/react/src"
+      ]
+    },
+    "allowJs": true,
+    "strictNullChecks": true
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}
