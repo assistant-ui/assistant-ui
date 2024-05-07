@@ -22,12 +22,12 @@ const config: DocsThemeConfig = {
     return (
       <>
         <p className="mb-2 mt-4 text-sm font-bold text-[hsl(var(--nextra-primary-hue)_var(--nextra-primary-saturation)_45%)]">
-          {title(filePath.split("/").at(-2))}
+          {title(filePath.split("/").at(-2)!)}
         </p>
         <h1 className="mb-2 inline-block text-2xl font-extrabold tracking-tight text-gray-900 sm:text-3xl dark:text-gray-200">
-          {frontMatter.title}
+          {frontMatter["title"]}
         </h1>
-        <p>{frontMatter.description}</p>
+        <p>{frontMatter["description"]}</p>
         {children}
       </>
     );

@@ -33,7 +33,7 @@ const supportedModels = [
 export default function Home() {
   const chat = useChat();
 
-  const [selectedModel, setSelectedModel] = useState(supportedModels[0]);
+  const [selectedModel, setSelectedModel] = useState(supportedModels[0]!);
   const ChatComponent = selectedModel.component;
 
   return (
