@@ -29,7 +29,7 @@ export const ChatGPT: FC = () => {
 						<Avatar.Root className="flex h-12 w-12 items-center justify-center rounded-[24px] bg-white">
 							<Avatar.AvatarFallback>C</Avatar.AvatarFallback>
 						</Avatar.Root>
-						<p className="mt-4 text-xl text-white">How can I help you today?</p>
+						<p className="mt-4 text-white text-xl">How can I help you today?</p>
 					</div>
 				</Thread.Empty>
 
@@ -42,21 +42,21 @@ export const ChatGPT: FC = () => {
 					className="h-12 max-h-40 flex-grow resize-none bg-transparent p-3.5 text-sm text-white outline-none placeholder:text-white/50"
 				/>
 				<Thread.If busy={false}>
-					<Composer.Send className="m-2 flex h-8 w-8 items-center justify-center rounded-lg bg-white text-2xl font-bold disabled:opacity-10">
+					<Composer.Send className="m-2 flex h-8 w-8 items-center justify-center rounded-lg bg-white font-bold text-2xl disabled:opacity-10">
 						<ArrowUpIcon
 							width={20}
 							height={20}
-							className="[&_path]:stroke-black [&_path]:stroke-[0.5]"
+							className="[&_path]:stroke-[0.5] [&_path]:stroke-black"
 						/>
 					</Composer.Send>
 				</Thread.If>
 				<Thread.If busy>
-					<Composer.Stop className="border-whtie m-3.5 flex size-5 items-center justify-center rounded-full border-2 font-bold text-white">
+					<Composer.Stop className="m-3.5 flex size-5 items-center justify-center rounded-full border-2 border-whtie font-bold text-white">
 						<div className="size-2 rounded-[1px] bg-white" />
 					</Composer.Stop>
 				</Thread.If>
 			</Composer.Root>
-			<p className="p-2 text-center text-xs text-[#cdcdcd]">
+			<p className="p-2 text-center text-[#cdcdcd] text-xs">
 				ChatGPT can make mistakes. Consider checking important information.
 			</p>
 		</Thread.Root>
@@ -92,7 +92,7 @@ const ChatMessage: FC = () => {
 				<Message.If editing={false}>
 					<ActionBar.Root className="mt-2 flex items-center gap-3">
 						<Message.If hasBranches>
-							<BranchPicker.Root className="inline-flex text-xs text-[#b4b4b4]">
+							<BranchPicker.Root className="inline-flex text-[#b4b4b4] text-xs">
 								<BranchPicker.Previous className="text-[#b4b4b4] hover:enabled:text-white disabled:opacity-50">
 									<ChevronLeftIcon />
 								</BranchPicker.Previous>

@@ -12,6 +12,9 @@
 			},
 			"complexity": {
 				"useLiteralKeys": "off"
+			},
+			"nursery":{
+				"useSortedClasses": "warn"
 			}
 		}
 	},

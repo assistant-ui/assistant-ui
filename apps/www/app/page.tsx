@@ -4,7 +4,6 @@ import React, { useState } from "react";
 import { ChatGPT } from "../components/chatgpt/ChatGPT";
 import { Badge } from "@/components/ui/badge";
 import { Claude } from "../components/claude/Claude";
-import { Shadcn } from "@/components/shadcn/Shadcn";
 import {
 	Select,
 	SelectContent,
@@ -24,10 +23,6 @@ const supportedModels = [
 		name: "Claude",
 		component: Claude,
 	},
-	{
-		name: "shadcn/ui",
-		component: Shadcn,
-	},
 ];
 
 export default function Home() {
@@ -37,9 +32,9 @@ export default function Home() {
 	const ChatComponent = selectedModel.component;
 
 	return (
-		<div className="h-full">
+		<div className="min-h-screen">
 			<main className="mx-auto flex max-w-screen-lg flex-col gap-4 self-stretch p-4">
-				<div className="mb-12 mt-16 flex flex-col gap-4 self-center">
+				<div className="mt-16 mb-12 flex flex-col gap-4 self-center">
 					<h1 className="text-center font-mono text-4xl">
 						<span className="text-zinc-400">npm install</span> assistant-ui
 					</h1>
@@ -85,7 +80,7 @@ export default function Home() {
 						</Select>
 					</div>
 				</div>
-				<div className="h-[700px] overflow-hidden rounded-2xl border border-zinc-300 shadow-2xl">
+				<div className="h-[700px] overflow-hidden rounded-lg border shadow">
 					<Thread.Provider chat={chat}>
 						<ChatComponent />
 					</Thread.Provider>
