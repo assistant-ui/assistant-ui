@@ -1,36 +1,7 @@
 import Link from "next/link";
-import {
-  ArchiveIcon,
-  Bell,
-  CircleUser,
-  EditIcon,
-  Home,
-  LineChart,
-  Menu,
-  Package,
-  Package2,
-  Search,
-  ShareIcon,
-} from "lucide-react";
+import { ArchiveIcon, EditIcon, ShareIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import Image from "next/image";
 import icon from "../../assets/icon.svg";
 import { ModelPicker } from "./ModelPicker";
@@ -41,16 +12,23 @@ export function Shadcn() {
     <div className="grid h-full w-full lg:grid-cols-[250px_1fr] md:grid-cols-[220px_1fr]">
       <div className="hidden border-r bg-muted/40 md:block">
         <div className="flex h-full flex-col gap-2">
-          <div className="flex h-14 items-center border-b px-5">
-            <Link href="/" className="flex items-center font-semibold text-sm">
-              <Image
-                src={icon}
-                alt="logo"
-                className="mr-2 inline size-4 dark:invert"
-              />
-              <span className="">assistant-ui</span>
-            </Link>
-            <Button variant="outline" size="icon" className="ml-auto size-8">
+          <div className="flex h-14 items-center border-b px-4">
+            <Button
+              variant="outline"
+              className="flex flex-grow justify-between px-3"
+            >
+              <Link
+                href="/"
+                className="flex items-center font-semibold text-sm"
+              >
+                <Image
+                  src={icon}
+                  alt="logo"
+                  className="mr-2 inline size-4 dark:invert"
+                />
+                <span className="">assistant-ui</span>
+              </Link>
+
               <EditIcon className="size-4" />
               <span className="sr-only">New Chat</span>
             </Button>
@@ -62,7 +40,7 @@ export function Shadcn() {
                 className="flex items-center gap-3 rounded-lg bg-muted px-3 py-2 text-primary transition-all hover:text-primary"
               >
                 New Chat
-                <ArchiveIcon className="size-4 ml-auto" />
+                <ArchiveIcon className="ml-auto size-4" />
               </Link>
               <Link
                 href="#"
