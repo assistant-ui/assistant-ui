@@ -8,177 +8,177 @@ const ROOT_ID = "__ROOT_ID__";
 export const UPCOMING_MESSAGE_ID = "__UPCOMING_MESSAGE_ID__";
 
 type ChatBranchData = {
-	parentMap: Map<string, string>; // child_id -> parent_id
-	branchMap: Map<string, string[]>; // parent_id -> child_ids
-	snapshots: Map<string, Message[]>; // message_id -> message[]
+  parentMap: Map<string, string>; // child_id -> parent_id
+  branchMap: Map<string, string[]>; // parent_id -> child_ids
+  snapshots: Map<string, Message[]>; // message_id -> message[]
 };
 
 const updateBranchData = (data: ChatBranchData, messages: Message[]) => {
-	for (let i = 0; i < messages.length; i++) {
-		const child = messages[i]!;
-		const childId = child.id;
+  for (let i = 0; i < messages.length; i++) {
+    const child = messages[i]!;
+    const childId = child.id;
 
-		const parentId = messages[i - 1]?.id ?? ROOT_ID;
-		data.parentMap.set(childId, parentId);
+    const parentId = messages[i - 1]?.id ?? ROOT_ID;
+    data.parentMap.set(childId, parentId);
 
-		const parentArray = data.branchMap.get(parentId);
-		if (!parentArray) {
-			data.branchMap.set(parentId, [childId]);
-		} else if (!parentArray.includes(childId)) {
-			parentArray.push(childId);
-		}
+    const parentArray = data.branchMap.get(parentId);
+    if (!parentArray) {
+      data.branchMap.set(parentId, [childId]);
+    } else if (!parentArray.includes(childId)) {
+      parentArray.push(childId);
+    }
 
-		data.snapshots.set(childId, messages);
-	}
+    data.snapshots.set(childId, messages);
+  }
 };
 
 const getParentId = (
-	data: ChatBranchData,
-	messages: Message[],
-	message: Message,
+  data: ChatBranchData,
+  messages: Message[],
+  message: Message,
 ) => {
-	if (message.id === UPCOMING_MESSAGE_ID) {
-		const parent = messages.at(-1);
-		if (!parent) return ROOT_ID;
-		return parent.id;
-	}
+  if (message.id === UPCOMING_MESSAGE_ID) {
+    const parent = messages.at(-1);
+    if (!parent) return ROOT_ID;
+    return parent.id;
+  }
 
-	const parentId = data.parentMap.get(message.id);
-	if (!parentId) throw new Error("Unexpected: Message parent not found");
-	return parentId;
+  const parentId = data.parentMap.get(message.id);
+  if (!parentId) throw new Error("Unexpected: Message parent not found");
+  return parentId;
 };
 
 const getBranchStateImpl = (
-	data: ChatBranchData,
-	messages: Message[],
-	message: Message,
+  data: ChatBranchData,
+  messages: Message[],
+  message: Message,
 ) => {
-	const parentId = getParentId(data, messages, message);
+  const parentId = getParentId(data, messages, message);
 
-	const branches = data.branchMap.get(parentId) ?? [];
-	const branchId =
-		message.id === UPCOMING_MESSAGE_ID
-			? branches.length
-			: branches.indexOf(message.id);
+  const branches = data.branchMap.get(parentId) ?? [];
+  const branchId =
+    message.id === UPCOMING_MESSAGE_ID
+      ? branches.length
+      : branches.indexOf(message.id);
 
-	if (branchId === -1)
-		throw new Error("Unexpected: Message not found in parent children");
+  if (branchId === -1)
+    throw new Error("Unexpected: Message not found in parent children");
 
-	const upcomingOffset = message.id === UPCOMING_MESSAGE_ID ? 1 : 0;
+  const upcomingOffset = message.id === UPCOMING_MESSAGE_ID ? 1 : 0;
 
-	return {
-		branchId,
-		branchCount: branches.length + upcomingOffset,
-	};
+  return {
+    branchId,
+    branchCount: branches.length + upcomingOffset,
+  };
 };
 
 const switchToBranchImpl = (
-	data: ChatBranchData,
-	messages: Message[],
-	message: Message,
-	branchId: number,
+  data: ChatBranchData,
+  messages: Message[],
+  message: Message,
+  branchId: number,
 ): Message[] => {
-	const parentId = getParentId(data, messages, message);
+  const parentId = getParentId(data, messages, message);
 
-	const branches = data.branchMap.get(parentId);
-	if (!branches) throw new Error("Unexpected: Parent children not found");
+  const branches = data.branchMap.get(parentId);
+  if (!branches) throw new Error("Unexpected: Parent children not found");
 
-	const newMessageId = branches[branchId];
-	if (!newMessageId) throw new Error("Unexpected: Requested branch not found");
+  const newMessageId = branches[branchId];
+  if (!newMessageId) throw new Error("Unexpected: Requested branch not found");
 
-	if (branchId < 0 || branchId >= branches.length)
-		throw new Error("Switch to branch called with a branch index out of range");
+  if (branchId < 0 || branchId >= branches.length)
+    throw new Error("Switch to branch called with a branch index out of range");
 
-	// switching to self
-	if (newMessageId === message.id) return messages;
+  // switching to self
+  if (newMessageId === message.id) return messages;
 
-	const snapshot = data.snapshots.get(newMessageId);
-	if (!snapshot) throw new Error("Unexpected: Branch snapshot not found");
+  const snapshot = data.snapshots.get(newMessageId);
+  if (!snapshot) throw new Error("Unexpected: Branch snapshot not found");
 
-	// return the unstashed messages
-	return snapshot;
+  // return the unstashed messages
+  return snapshot;
 };
 
 const sliceMessagesUntil = (messages: Message[], message: Message) => {
-	if (message.id === UPCOMING_MESSAGE_ID) return messages;
+  if (message.id === UPCOMING_MESSAGE_ID) return messages;
 
-	const messageIdx = messages.findIndex((m) => m.id === message.id);
-	if (messageIdx === -1) throw new Error("Unexpected: Message not found");
+  const messageIdx = messages.findIndex((m) => m.id === message.id);
+  if (messageIdx === -1) throw new Error("Unexpected: Message not found");
 
-	return messages.slice(0, messageIdx);
+  return messages.slice(0, messageIdx);
 };
 
 export type BranchState = {
-	branchId: number;
-	branchCount: number;
+  branchId: number;
+  branchCount: number;
 };
 
 export type UseChatWithBranchesHelpers = UseChatHelpers & {
-	getBranchState: (message: Message) => BranchState;
-	switchToBranch: (message: Message, branchId: number) => void;
-	editAt: (message: Message, newMesssage: CreateMessage) => Promise<void>;
-	reloadAt: (message: Message) => Promise<void>;
+  getBranchState: (message: Message) => BranchState;
+  switchToBranch: (message: Message, branchId: number) => void;
+  editAt: (message: Message, newMesssage: CreateMessage) => Promise<void>;
+  reloadAt: (message: Message) => Promise<void>;
 };
 
 export const useChatWithBranches = (
-	chat: UseChatHelpers,
+  chat: UseChatHelpers,
 ): UseChatWithBranchesHelpers => {
-	const data = useRef<ChatBranchData>({
-		parentMap: new Map(),
-		branchMap: new Map(),
-		snapshots: new Map(),
-	}).current;
+  const data = useRef<ChatBranchData>({
+    parentMap: new Map(),
+    branchMap: new Map(),
+    snapshots: new Map(),
+  }).current;
 
-	updateBranchData(data, chat.messages);
+  updateBranchData(data, chat.messages);
 
-	const getBranchState = useCallback(
-		(message: Message) => {
-			return getBranchStateImpl(data, chat.messages, message);
-		},
-		[data, chat.messages],
-	);
+  const getBranchState = useCallback(
+    (message: Message) => {
+      return getBranchStateImpl(data, chat.messages, message);
+    },
+    [data, chat.messages],
+  );
 
-	const switchToBranch = useCallback(
-		(message: Message, branchId: number) => {
-			const newMessages = switchToBranchImpl(
-				data,
-				chat.messages,
-				message,
-				branchId,
-			);
-			chat.setMessages(newMessages);
-		},
-		[data, chat.messages, chat.setMessages],
-	);
+  const switchToBranch = useCallback(
+    (message: Message, branchId: number) => {
+      const newMessages = switchToBranchImpl(
+        data,
+        chat.messages,
+        message,
+        branchId,
+      );
+      chat.setMessages(newMessages);
+    },
+    [data, chat.messages, chat.setMessages],
+  );
 
-	const reloadAt = useCallback(
-		async (message: Message) => {
-			const newMessages = sliceMessagesUntil(chat.messages, message);
-			chat.setMessages(newMessages);
+  const reloadAt = useCallback(
+    async (message: Message) => {
+      const newMessages = sliceMessagesUntil(chat.messages, message);
+      chat.setMessages(newMessages);
 
-			await chat.reload();
-		},
-		[chat.messages, chat.setMessages, chat.reload],
-	);
+      await chat.reload();
+    },
+    [chat.messages, chat.setMessages, chat.reload],
+  );
 
-	const editAt = useCallback(
-		async (message: Message, newMessage: CreateMessage) => {
-			const newMessages = sliceMessagesUntil(chat.messages, message);
-			chat.setMessages(newMessages);
+  const editAt = useCallback(
+    async (message: Message, newMessage: CreateMessage) => {
+      const newMessages = sliceMessagesUntil(chat.messages, message);
+      chat.setMessages(newMessages);
 
-			await chat.append(newMessage);
-		},
-		[chat.messages, chat.setMessages, chat.append],
-	);
+      await chat.append(newMessage);
+    },
+    [chat.messages, chat.setMessages, chat.append],
+  );
 
-	return useMemo(
-		() => ({
-			...chat,
-			getBranchState,
-			switchToBranch,
-			editAt,
-			reloadAt,
-		}),
-		[chat, getBranchState, switchToBranch, editAt, reloadAt],
-	);
+  return useMemo(
+    () => ({
+      ...chat,
+      getBranchState,
+      switchToBranch,
+      editAt,
+      reloadAt,
+    }),
+    [chat, getBranchState, switchToBranch, editAt, reloadAt],
+  );
 };

@@ -2,8 +2,8 @@ import { createStoreContext } from "./createStoreContext";
 import type { UseChatWithBranchesHelpers } from "../hooks/useBranches";
 
 type ThreadStore = {
-	chat: UseChatWithBranchesHelpers;
+  chat: UseChatWithBranchesHelpers;
 };
 
 export const [ThreadContextProvider, useThreadContext] =
-	createStoreContext<ThreadStore>("Thread.Provider");
+  createStoreContext<ThreadStore>("Thread.Provider");

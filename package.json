@@ -1,11 +1,11 @@
 {
-	"private": "true",
-	"workspaces": ["apps/*", "packages/*"],
-	"scripts": {
-		"lint": "biome lint ."
-	},
-	"devDependencies": {
-		"@biomejs/biome": "1.7.3",
-		"turbo": "^1.13.3"
-	}
+  "private": "true",
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "lint": "biome lint ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.7.3",
+    "turbo": "^1.13.3"
+  }
 }

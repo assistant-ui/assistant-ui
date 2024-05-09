@@ -10,48 +10,48 @@ import { useComposedRefs } from "@radix-ui/react-compose-refs";
 import { useComposerContext } from "./ComposerRoot";
 
 type ComposerInputProps = ComponentPropsWithoutRef<"textarea"> & {
-	asChild?: boolean;
+  asChild?: boolean;
 };
 
 export const ComposerInput = forwardRef<
-	HTMLTextAreaElement,
-	ComposerInputProps
+  HTMLTextAreaElement,
+  ComposerInputProps
 >(({ asChild, onChange, onKeyDown, ...rest }, forwardedRef) => {
-	const chat = useThreadContext(
-		"Composer.Input",
-		({ chat: { input, handleInputChange, isLoading } }) => ({
-			input,
-			handleInputChange,
-			isLoading,
-		}),
-	);
+  const chat = useThreadContext(
+    "Composer.Input",
+    ({ chat: { input, handleInputChange, isLoading } }) => ({
+      input,
+      handleInputChange,
+      isLoading,
+    }),
+  );
 
-	const Component = asChild ? Slot : "textarea";
+  const Component = asChild ? Slot : "textarea";
 
-	const textareaRef = useRef<HTMLTextAreaElement>(null);
-	const ref = useComposedRefs(forwardedRef, textareaRef);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const ref = useComposedRefs(forwardedRef, textareaRef);
 
-	// make the textarea grow with the content
-	useAutosize(textareaRef);
+  // make the textarea grow with the content
+  useAutosize(textareaRef);
 
-	const composer = useComposerContext();
+  const composer = useComposerContext();
 
-	const handleKeyPress = (e: KeyboardEvent) => {
-		if (chat.isLoading || rest.disabled) return;
+  const handleKeyPress = (e: KeyboardEvent) => {
+    if (chat.isLoading || rest.disabled) return;
 
-		if (e.key === "Enter" && e.shiftKey === false) {
-			e.preventDefault();
-			composer.submit();
-		}
-	};
+    if (e.key === "Enter" && e.shiftKey === false) {
+      e.preventDefault();
+      composer.submit();
+    }
+  };
 
-	return (
-		<Component
-			value={chat.input}
-			{...rest}
-			ref={ref}
-			onChange={composeEventHandlers(onChange, chat.handleInputChange)}
-			onKeyDown={composeEventHandlers(onKeyDown, handleKeyPress)}
-		/>
-	);
+  return (
+    <Component
+      value={chat.input}
+      {...rest}
+      ref={ref}
+      onChange={composeEventHandlers(onChange, chat.handleInputChange)}
+      onKeyDown={composeEventHandlers(onKeyDown, handleKeyPress)}
+    />
+  );
 });
