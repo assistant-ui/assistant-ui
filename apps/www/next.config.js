@@ -15,7 +15,7 @@ export default withNextra({
   rewrites: async () => [
     {
       source: "/registry/:path*",
-      destination: "https://ui.shadcn.com/registry",
+      destination: "https://ui.shadcn.com/registry/:path*",
     },
   ],
 });
