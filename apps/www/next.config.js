@@ -11,4 +11,11 @@ const withNextra = nextra({
   },
 });
 
-export default withNextra();
+export default withNextra({
+  rewrites: async () => [
+    {
+      source: "/registry/:path*",
+      destination: "https://ui.shadcn.com/registry",
+    },
+  ],
+});
