@@ -6,9 +6,13 @@ import type { Registry } from "../registry/schema";
 import { styles } from "../registry/styles";
 import { registry } from "../registry/registry";
 
-const REGISTRY_PATH = path.join(process.cwd(), "public/registry");
+const REGISTRY_PATH = path.join(process.cwd(), "../www/public/registry");
 
 async function buildRegistry(registry: Registry) {
+  if (!existsSync(REGISTRY_PATH)) {
+    await fs.mkdir(REGISTRY_PATH, { recursive: true });
+  }
+
   const names = registry.filter((item) => item.type === "components:ui");
   const registryJson = JSON.stringify(names, null, 2);
   rimraf.sync(path.join(REGISTRY_PATH, "index.json"));

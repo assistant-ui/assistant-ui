@@ -36,3 +36,5 @@ build
 .env
 
 dist/
+
+apps/www/public/registry/

@@ -1,10 +1,15 @@
 {
   "name": "@assistant-ui/shadcn",
   "version": "0.0.0",
+  "type": "module",
   "dependencies": {
     "@types/node": "^20.12.11"
   },
   "devDependencies": {
-    "rimraf": "^5.0.6"
+    "rimraf": "^5.0.6",
+    "tsx": "^4.10.0"
+  },
+  "scripts": {
+    "build": "tsx ./scripts/build-registry.ts"
   }
 }
