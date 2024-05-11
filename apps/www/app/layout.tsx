@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 import { GeistSans } from "geist/font/sans";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 export const metadata: Metadata = {
   title: "assistant-ui",
@@ -14,8 +15,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className={GeistSans.className}>{children}</body>
-    </html>
+    <TooltipProvider delayDuration={400}>
+      <html lang="en">
+        <body className={GeistSans.className}>{children}</body>
+      </html>
+    </TooltipProvider>
   );
 }

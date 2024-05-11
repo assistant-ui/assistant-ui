@@ -6,6 +6,7 @@ import Image from "next/image";
 import icon from "../../assets/icon.svg";
 import { ModelPicker } from "./ModelPicker";
 import { ShadcnThread } from "./Shadcn copy";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
 export function Shadcn() {
   return (
@@ -13,25 +14,30 @@ export function Shadcn() {
       <div className="hidden border-r bg-muted/40 md:block">
         <div className="flex h-full flex-col gap-2">
           <div className="flex h-14 items-center border-b px-4">
-            <Button
-              variant="outline"
-              className="flex flex-grow justify-between px-3"
-            >
-              <Link
-                href="/"
-                className="flex items-center font-semibold text-sm"
-              >
-                <Image
-                  src={icon}
-                  alt="logo"
-                  className="mr-2 inline size-4 dark:invert"
-                />
-                <span className="">assistant-ui</span>
-              </Link>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="flex flex-grow justify-between px-3"
+                >
+                  <Link
+                    href="/"
+                    className="flex items-center font-semibold text-sm"
+                  >
+                    <Image
+                      src={icon}
+                      alt="logo"
+                      className="mr-2 inline size-4 dark:invert"
+                    />
+                    <span className="">assistant-ui</span>
+                  </Link>
 
-              <EditIcon className="size-4" />
-              <span className="sr-only">New Chat</span>
-            </Button>
+                  <EditIcon className="size-4" />
+                  <span className="sr-only">New Chat</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">New Chat</TooltipContent>
+            </Tooltip>
           </div>
           <div className="flex-1">
             <nav className="grid items-start px-4 py-1 font-medium text-sm">
@@ -159,10 +165,15 @@ export function Shadcn() {
               </div>
             </form> */}
           </div>
-          <Button variant="outline" size="icon" className="size-8">
-            <ShareIcon className="size-4" />
-            <span className="sr-only">Share</span>
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" size="icon" className="size-8">
+                <ShareIcon className="size-4" />
+                <span className="sr-only">Share</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Share</TooltipContent>
+          </Tooltip>
           {/* <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="secondary" size="icon" className="rounded-full">
