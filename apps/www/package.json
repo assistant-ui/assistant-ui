@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@assistant-ui/react": "*",
+    "@assistant-ui/shadcn": "*",
     "@fortawesome/fontawesome-svg-core": "^6.5.2",
     "@fortawesome/free-regular-svg-icons": "^6.5.2",
     "@fortawesome/free-solid-svg-icons": "^6.5.2",
