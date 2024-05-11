@@ -4,13 +4,6 @@ import React, { useState } from "react";
 import { ChatGPT } from "../components/chatgpt/ChatGPT";
 import { Badge } from "@/components/ui/badge";
 import { Claude } from "../components/claude/Claude";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useChat } from "ai/react";
 import { Thread } from "@assistant-ui/react";
 import { Shadcn } from "@/components/shadcn/Shadcn";
@@ -61,27 +54,6 @@ export default function Home() {
               {model.name}
             </Badge>
           ))}
-        </div>
-        <div>
-          <Select>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="GPT-4 Turbo" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="gpt-4-turbo">GPT-4 Turbo</SelectItem>
-              <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
-              <SelectItem value="mixtral-8x7b">Mixtral 8x7B</SelectItem>
-              <SelectItem value="mistral-7b">Mistral 7B</SelectItem>
-              <SelectItem value="llama-3-70b">Llama 3 70B</SelectItem>
-              <SelectItem value="llama-3-13b">Llama 3 13B</SelectItem>
-              <SelectItem value="llama-3-7b">Llama 3 7B</SelectItem>
-              <SelectItem value="llama-2-70b">Llama 2 70B</SelectItem>
-              <SelectItem value="llama-2-13b">Llama 2 13B</SelectItem>
-              <SelectItem value="llama-2-7b">Llama 2 7B</SelectItem>
-              <SelectItem value="codellama-70b">Codellama 70B</SelectItem>
-              <SelectItem value="gemma-7b">Gemma 7B</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
       </div>
       <div className="h-[700px] overflow-hidden rounded-lg border shadow">
