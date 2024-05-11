@@ -6,7 +6,7 @@ import type { Registry } from "../registry/schema";
 import { styles } from "../registry/styles";
 import { registry } from "../registry/registry";
 
-const REGISTRY_PATH = path.join(process.cwd(), "../apps/www/public/registry");
+const REGISTRY_PATH = path.join(process.cwd(), "../../apps/www/public/registry");
 
 async function buildRegistry(registry: Registry) {
   if (!existsSync(REGISTRY_PATH)) {

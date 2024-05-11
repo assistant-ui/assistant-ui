@@ -13,7 +13,7 @@ const withNextra = nextra({
 
 export default withNextra({
   rewrites: async () => ({
-    afterFiles: [
+    fallback: [
       {
         source: "/registry/:path*",
         destination: "https://ui.shadcn.com/registry/:path*",
