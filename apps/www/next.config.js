@@ -12,10 +12,12 @@ const withNextra = nextra({
 });
 
 export default withNextra({
-  rewrites: async () => [
-    {
-      source: "/registry/:path*",
-      destination: "https://ui.shadcn.com/registry/:path*",
-    },
-  ],
+  rewrites: async () => ({
+    afterFiles: [
+      {
+        source: "/registry/:path*",
+        destination: "https://ui.shadcn.com/registry/:path*",
+      },
+    ],
+  }),
 });

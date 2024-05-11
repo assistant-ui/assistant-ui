@@ -6,6 +6,6 @@ export const registry: Registry = [
     type: "components:ui",
     files: ["assistant-ui/thread.tsx"],
     registryDependencies: ["button", "avatar"],
-    dependencies: ["@assistant-ui/rect"],
+    dependencies: ["@assistant-ui/react"],
   },
 ];
