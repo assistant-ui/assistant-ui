@@ -1,0 +1,10 @@
+{
+  "name": "@assistant-ui/shadcn",
+  "version": "0.0.0",
+  "dependencies": {
+    "@types/node": "^20.12.11"
+  },
+  "devDependencies": {
+    "rimraf": "^5.0.6"
+  }
+}
