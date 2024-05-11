@@ -34,8 +34,10 @@ export const ThreadViewport = forwardRef<
     const div = divRef.current;
     if (!div) return;
 
-    setIsAtBottom(div.scrollHeight - div.scrollTop <= div.clientHeight);
+    setIsAtBottom(div.scrollHeight - div.scrollTop <= div.clientHeight + 50);
   };
+
+  console.log(isAtBottom);
 
   return (
     <Primitive.div

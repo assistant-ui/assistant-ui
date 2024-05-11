@@ -14,18 +14,19 @@ export const useOnResizeContent = (
 
     const resizeObserver = new ResizeObserver(() => {
       callbackRef.current();
+      console.log("resize observed");
     });
 
     const mutationObserver = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
         for (const node of mutation.addedNodes) {
-          if (node instanceof HTMLElement) {
+          if (node instanceof Element) {
             resizeObserver.observe(node);
           }
         }
 
         for (const node of mutation.removedNodes) {
-          if (node instanceof HTMLElement) {
+          if (node instanceof Element) {
             resizeObserver.unobserve(node);
           }
         }
@@ -35,7 +36,15 @@ export const useOnResizeContent = (
     });
 
     mutationObserver.observe(el, { childList: true });
+
+    // Observe existing children
+    for (const child of el.children) {
+      resizeObserver.observe(child);
+      console.log("observing child", child);
+    }
+
     return () => {
+      console.log("disconnecting");
       resizeObserver.disconnect();
       mutationObserver.disconnect();
     };

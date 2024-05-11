@@ -92,7 +92,7 @@ const models = [
 export const ModelPicker: FC = () => {
   return (
     <Select defaultValue={models[0]?.value ?? ""}>
-      <SelectTrigger className="h-8 w-[300px] px-3 text-sm">
+      <SelectTrigger className="max-w-[300px]">
         <SelectValue />
       </SelectTrigger>
       <SelectContent className="">
@@ -104,7 +104,7 @@ export const ModelPicker: FC = () => {
                 alt={model.name}
                 className="inline size-4"
               />
-              {model.name}
+              <span>{model.name}</span>
             </span>
           </SelectItem>
         ))}
