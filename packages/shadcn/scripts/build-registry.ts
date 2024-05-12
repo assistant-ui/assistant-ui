@@ -3,10 +3,18 @@ import { existsSync, promises as fs, readFileSync } from "node:fs";
 import path, { basename } from "node:path";
 import { rimraf } from "rimraf";
 import type { Registry } from "../registry/schema";
-import { styles } from "../registry/styles";
 import { registry } from "../registry/registry";
 
-const REGISTRY_PATH = path.join(process.cwd(), "../../apps/www/public/registry");
+const getStyles = () => {
+  return fetch("https://ui.shadcn.com/registry/styles/index.json").then((res) =>
+    res.json(),
+  ) as Promise<{ name: string }[]>;
+};
+
+const REGISTRY_PATH = path.join(
+  process.cwd(),
+  "../../apps/www/public/registry",
+);
 
 async function buildRegistry(registry: Registry) {
   if (!existsSync(REGISTRY_PATH)) {
@@ -24,6 +32,7 @@ async function buildRegistry(registry: Registry) {
 }
 
 async function buildStyles(registry: Registry) {
+  const styles = await getStyles();
   for (const style of styles) {
     const targetPath = path.join(REGISTRY_PATH, "styles", style.name);
 
@@ -44,7 +53,7 @@ async function buildStyles(registry: Registry) {
         );
 
         return {
-          name: basename(file),
+          name: `assistant-ui/${basename(file)}`,
           content,
         };
       });
@@ -61,16 +70,6 @@ async function buildStyles(registry: Registry) {
       );
     }
   }
-
-  // ----------------------------------------------------------------------------
-  // Build registry/styles/index.json.
-  // ----------------------------------------------------------------------------
-  const stylesJson = JSON.stringify(styles, null, 2);
-  await fs.writeFile(
-    path.join(REGISTRY_PATH, "styles/index.json"),
-    stylesJson,
-    "utf8",
-  );
 }
 
 try {

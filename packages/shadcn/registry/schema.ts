@@ -6,4 +6,5 @@ type RegistryEntry = {
   files: string[];
   type: "components:ui";
 };
+
 export type Registry = RegistryEntry[];
