@@ -3,6 +3,44 @@ title: Introduction
 description: Assistant UI is a React component library that provides a set of components to build conversational user interfaces.
 --- 
 
-## Installation
+## Getting Started
 
-Coming soon...
+The recommended way to get started is with the `@assistant-ui/shadcn` starter template. This template is built with `tailwind` and `shadcn-ui`. You can adjust these styles and adapt them to your application as needed.
+
+First, set up `shadcn-ui` by following the installation guide: 
+
+https://ui.shadcn.com/docs/installation
+
+Then, add `@assistant-ui/shadcn` to your project:
+
+```sh
+npx @assistant-ui/shadcn add thread
+```
+
+This adds a `/components/ui/assistant-ui/thread.tsx` file to your project, which you can adjust as needed.
+
+Use the `Thread` component in your application:
+
+```tsx
+import { Thread as ThreadPrimitive } from '@assistant-ui/react';
+import { Thread } from '@/components/ui/assistant-ui/thread';
+import { useChat } from 'ai'; 
+
+function ChatBox() {
+  const chat = useChat();
+  return (
+    <ThreadPrimitive.Provider chat={chat}>
+      <Thread />
+    </ThreadPrimitive.Provider>
+  );
+}
+```
+
+### Manual Installation
+
+If your stack is not compatible with the `@assistant-ui/shadcn` starter template, you can install `@assistant-ui/react` manually. 
+You can check out the source code of the starter template as a reference implementation.
+
+```sh npm2yarn
+npm install @assistant-ui/react
+```
