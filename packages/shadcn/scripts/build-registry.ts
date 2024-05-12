@@ -53,7 +53,7 @@ async function buildStyles(registry: Registry) {
         );
 
         return {
-          name: `assistant-ui/${basename(file)}`,
+          name: basename(file),
           content,
         };
       });
