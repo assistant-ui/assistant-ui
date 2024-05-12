@@ -7,4 +7,4 @@ type RegistryEntry = {
   type: "components:ui";
 };
 
-export type Registry = RegistryEntry[];
+export type RegistryIndex = RegistryEntry[];

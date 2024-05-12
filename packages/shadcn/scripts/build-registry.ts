@@ -2,27 +2,64 @@
 import { existsSync, promises as fs, readFileSync } from "node:fs";
 import path, { basename } from "node:path";
 import { rimraf } from "rimraf";
-import type { Registry } from "../registry/schema";
+import type { RegistryIndex } from "../registry/schema";
 import { registry } from "../registry/registry";
 
-const getStyles = () => {
+const getUpstreamStyles = () => {
   return fetch("https://ui.shadcn.com/registry/styles/index.json").then((res) =>
     res.json(),
   ) as Promise<{ name: string }[]>;
 };
+
+const getUpstreamRegistryIndex = () => {
+  return fetch("https://ui.shadcn.com/registry/index.json").then((res) =>
+    res.json(),
+  ) as Promise<RegistryIndex>;
+};
+
+async function resolveTree(index: RegistryIndex, names: string[]) {
+  const tree: RegistryIndex = [];
+
+  for (const name of names) {
+    const entry = index.find((entry) => entry.name === name);
+
+    if (!entry) {
+      continue;
+    }
+
+    tree.push(entry);
+
+    if (entry.registryDependencies) {
+      const dependencies = await resolveTree(index, entry.registryDependencies);
+      tree.push(...dependencies);
+    }
+  }
+
+  return tree.filter(
+    (component, index, self) =>
+      self.findIndex((c) => c.name === component.name) === index,
+  );
+}
 
 const REGISTRY_PATH = path.join(
   process.cwd(),
   "../../apps/www/public/registry",
 );
 
-async function buildRegistry(registry: Registry) {
+async function buildRegistry(registry: RegistryIndex) {
   if (!existsSync(REGISTRY_PATH)) {
     await fs.mkdir(REGISTRY_PATH, { recursive: true });
   }
 
-  const names = registry.filter((item) => item.type === "components:ui");
-  const registryJson = JSON.stringify(names, null, 2);
+  // pull registryDependencies from upstream into the registry
+  const upstreamRegistry = await getUpstreamRegistryIndex();
+  const mergedRegistry = [...upstreamRegistry, ...registry];
+  const registryAndUpstreamDeps = await resolveTree(
+    mergedRegistry,
+    registry.map((entry) => entry.name),
+  );
+
+  const registryJson = JSON.stringify(registryAndUpstreamDeps, null, 2);
   rimraf.sync(path.join(REGISTRY_PATH, "index.json"));
   await fs.writeFile(
     path.join(REGISTRY_PATH, "index.json"),
@@ -31,8 +68,8 @@ async function buildRegistry(registry: Registry) {
   );
 }
 
-async function buildStyles(registry: Registry) {
-  const styles = await getStyles();
+async function buildStyles(registry: RegistryIndex) {
+  const styles = await getUpstreamStyles();
   for (const style of styles) {
     const targetPath = path.join(REGISTRY_PATH, "styles", style.name);
 

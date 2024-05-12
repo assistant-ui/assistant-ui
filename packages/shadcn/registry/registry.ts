@@ -1,6 +1,6 @@
-import type { Registry } from "./schema";
+import type { RegistryIndex } from "./schema";
 
-export const registry: Registry = [
+export const registry: RegistryIndex = [
   {
     name: "thread",
     type: "components:ui",
