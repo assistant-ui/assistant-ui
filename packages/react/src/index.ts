@@ -9,3 +9,13 @@ export { VercelAIThreadProvider } from "./vercel/VercelAIThreadProvider";
 
 // TODO
 export { useMessageContext as unstable_useMessageContext } from "./utils/context/MessageContext";
+
+export {
+  useCopyMessage,
+  useReloadMessage,
+  useBeginMessageEdit,
+  useCancelMessageEdit,
+  useSaveMessageEdit,
+  useGoToNextBranch,
+  useGoToPreviousBranch,
+} from "./actions";
