@@ -5,7 +5,7 @@ import { ChatGPT } from "../components/chatgpt/ChatGPT";
 import { Badge } from "@/components/ui/badge";
 import { Claude } from "../components/claude/Claude";
 import { useChat } from "ai/react";
-import { ThreadPrimitive } from "@assistant-ui/react";
+import { VercelAIThreadProvider } from "@assistant-ui/react";
 import { Shadcn } from "@/components/shadcn/Shadcn";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -67,9 +67,9 @@ export default function Home() {
         </div>
       </div>
       <div className="h-[700px] overflow-hidden rounded-lg border shadow">
-        <ThreadPrimitive.Provider chat={chat}>
+        <VercelAIThreadProvider chat={chat}>
           <ChatComponent />
-        </ThreadPrimitive.Provider>
+        </VercelAIThreadProvider>
       </div>
     </main>
   );

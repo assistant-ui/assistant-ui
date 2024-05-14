@@ -22,16 +22,16 @@ This adds a `/components/ui/assistant-ui/thread.tsx` file to your project, which
 Use the `Thread` component in your application:
 
 ```tsx
-import { Thread as ThreadPrimitive } from '@assistant-ui/react';
+import { VercelAIThreadProvider } from '@assistant-ui/react';
 import { Thread } from '@/components/ui/assistant-ui/thread';
 import { useChat } from 'ai'; 
 
 function ChatBox() {
   const chat = useChat();
   return (
-    <ThreadPrimitive.Provider chat={chat}>
+    <VercelAIThreadProvider chat={chat}>
       <Thread />
-    </ThreadPrimitive.Provider>
+    </VercelAIThreadProvider>
   );
 }
 ```
