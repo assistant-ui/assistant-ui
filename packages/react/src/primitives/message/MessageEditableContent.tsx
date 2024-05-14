@@ -1,23 +1,16 @@
 "use client";
 
-import { useComposedRefs } from "@radix-ui/react-compose-refs";
-import { type ChangeEvent, forwardRef, useRef } from "react";
-import { useAutosize } from "../../utils/hooks/useAutosize";
+import { type ChangeEvent, forwardRef } from "react";
 import { composeEventHandlers } from "@radix-ui/primitive";
 import { useMessageContext } from "../../utils/context/MessageContext";
+import TextareaAutosize, { type TextareaAutosizeProps } from "react-textarea-autosize";
 
-type MessageEditableContentProps = React.ComponentPropsWithoutRef<"textarea">;
+type MessageEditableContentProps = TextareaAutosizeProps;
 
 export const MessageEditableContent = forwardRef<
   HTMLTextAreaElement,
   MessageEditableContentProps
 >(({ onChange, value, ...rest }, forwardedRef) => {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const ref = useComposedRefs(forwardedRef, textareaRef);
-
-  // make the textarea grow with the content
-  useAutosize(textareaRef);
-
   const [editState, setEditState] = useMessageContext(
     "Message.EditableContent",
     (s) => [s.editState, s.setEditState],
@@ -32,9 +25,9 @@ export const MessageEditableContent = forwardRef<
     );
 
   return (
-    <textarea
+    <TextareaAutosize
       {...rest}
-      ref={ref}
+      ref={forwardedRef}
       onChange={composeEventHandlers(onChange, handleChange)}
       value={editState.value || value}
     />
