@@ -7,6 +7,8 @@ import { Claude } from "../components/claude/Claude";
 import { useChat } from "ai/react";
 import { Thread } from "@assistant-ui/react";
 import { Shadcn } from "@/components/shadcn/Shadcn";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 const supportedModels = [
   {
@@ -31,14 +33,22 @@ export default function Home() {
 
   return (
     <main className="container mx-auto flex flex-col gap-4 self-stretch py-4">
-      <div className="mt-16 mb-12 flex flex-col gap-4 self-center">
-        <h1 className="text-center font-mono text-4xl">
-          <span className="text-zinc-400">npm install</span> assistant-ui
-        </h1>
+      <div className="mt-16 flex flex-col gap-4 self-center">
+        <h1 className="text-center font-mono text-4xl">assistant-ui</h1>
 
         <p className="text-center text-lg">
           Unstyled React components for chat and co-pilot UIs
         </p>
+      </div>
+
+      <div className="flex justify-center gap-2 mb-12">
+        <Button asChild>
+          <Link href="/docs">Documentation</Link>
+        </Button>
+
+        <Button variant="secondary" asChild>
+          <Link href="https://github.com/Yonom/assistant-ui">GitHub</Link>
+        </Button>
       </div>
       <div className="flex">
         <div className="flex flex-grow gap-3">
