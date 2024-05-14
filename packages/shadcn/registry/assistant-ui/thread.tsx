@@ -1,11 +1,11 @@
 import React, { type PropsWithChildren, type FC } from "react";
 import {
-  Thread as ThreadPrimitive,
-  Message as MessagePrimitive,
-  Composer as ComposerPrimitive,
-  ActionBar as ActionBarPrimitive,
-  BranchPicker as BranchPickerPrimitive,
-  EditBar as EditBarPrimitive,
+  ThreadPrimitive,
+  MessagePrimitive,
+  ComposerPrimitive,
+  ActionBarPrimitive,
+  BranchPickerPrimitive,
+  EditBarPrimitive,
 } from "@assistant-ui/react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";

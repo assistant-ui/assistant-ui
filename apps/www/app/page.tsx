@@ -5,7 +5,7 @@ import { ChatGPT } from "../components/chatgpt/ChatGPT";
 import { Badge } from "@/components/ui/badge";
 import { Claude } from "../components/claude/Claude";
 import { useChat } from "ai/react";
-import { Thread } from "@assistant-ui/react";
+import { ThreadPrimitive } from "@assistant-ui/react";
 import { Shadcn } from "@/components/shadcn/Shadcn";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -41,7 +41,7 @@ export default function Home() {
         </p>
       </div>
 
-      <div className="flex justify-center gap-2 mb-12">
+      <div className="mb-12 flex justify-center gap-2">
         <Button asChild>
           <Link href="/docs">Documentation</Link>
         </Button>
@@ -67,9 +67,9 @@ export default function Home() {
         </div>
       </div>
       <div className="h-[700px] overflow-hidden rounded-lg border shadow">
-        <Thread.Provider chat={chat}>
+        <ThreadPrimitive.Provider chat={chat}>
           <ChatComponent />
-        </Thread.Provider>
+        </ThreadPrimitive.Provider>
       </div>
     </main>
   );

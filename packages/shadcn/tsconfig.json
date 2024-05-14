@@ -2,7 +2,8 @@
   "extends": "@assistant-ui/tsconfig/base.json",
   "compilerOptions": {
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@assistant-ui/*": ["../../packages/*/src"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],

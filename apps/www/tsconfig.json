@@ -10,7 +10,7 @@
     ],
     "paths": {
       "@/*": ["./*"],
-      "@assistant-ui/react": ["../../packages/react/src"]
+      "@assistant-ui/*": ["../../packages/*/src"]
     },
     "allowJs": true,
     "strictNullChecks": true
