@@ -17,14 +17,14 @@
     "@assistant-ui/tsconfig": "*",
     "@radix-ui/react-avatar": "^1.0.4",
     "@radix-ui/react-slot": "^1.0.2",
-    "@types/node": "^20.12.11",
+    "@types/node": "^20.12.12",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "lucide-react": "^0.378.0",
     "react": "^18.3.1",
-    "rimraf": "^5.0.6",
+    "rimraf": "^5.0.7",
     "tailwind-merge": "^2.3.0",
-    "tsx": "^4.10.0"
+    "tsx": "^4.10.2"
   },
   "files": [
     "dist",

@@ -6,12 +6,16 @@ const withNextra = nextra({
   defaultShowCopyCode: true,
   mdxOptions: {
     rehypePrettyCodeOptions: {
-      theme: "slack-dark",
+      theme: {
+        light: "github-light",
+        dark: "slack-dark",
+      },
     },
   },
 });
 
 export default withNextra({
+  transpilePackages: ["@assistant-ui/*"],
   rewrites: async () => ({
     fallback: [
       {

@@ -1,14 +1,14 @@
 "use client";
 
+import { Claude } from "@/components/claude/Claude";
+import { Shadcn } from "@/components/shadcn/Shadcn";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { VercelAIThreadProvider } from "@assistant-ui/react";
+import { useChat } from "ai/react";
+import Link from "next/link";
 import React, { useState } from "react";
 import { ChatGPT } from "../components/chatgpt/ChatGPT";
-import { Badge } from "@/components/ui/badge";
-import { Claude } from "../components/claude/Claude";
-import { useChat } from "ai/react";
-import { VercelAIThreadProvider } from "@assistant-ui/react";
-import { Shadcn } from "@/components/shadcn/Shadcn";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
 
 const supportedModels = [
   {

@@ -2,20 +2,20 @@
 # yarn lockfile v1
 
 
-"@ai-sdk/provider-utils@0.0.5":
-  version "0.0.5"
-  resolved "https://registry.yarnpkg.com/@ai-sdk/provider-utils/-/provider-utils-0.0.5.tgz#3fb0f4fac88b36ad2f14efe5bb7ecae22aba3ca4"
-  integrity sha512-VVy9eQS+vS2j6cqTEQ9htMHz2nW/HFAkDXLvNFPoi1pZkviknJZEzb+DZUna6Od+jBf/TVA0HZwYnyGDaeI9cQ==
+"@ai-sdk/provider-utils@0.0.8":
+  version "0.0.8"
+  resolved "https://registry.yarnpkg.com/@ai-sdk/provider-utils/-/provider-utils-0.0.8.tgz#fcfff6263a0ac4e3868380af2a12262d836f28ee"
+  integrity sha512-J/ZNvFhORd3gCeK3jFvNrxp1Dnvy6PvPq21RJ+OsIEjsoHeKQaHALCWG0aJunXDuzd+Mck/lCg7LqA0qmIbHIg==
   dependencies:
-    "@ai-sdk/provider" "0.0.3"
+    "@ai-sdk/provider" "0.0.5"
     eventsource-parser "1.1.2"
     nanoid "3.3.6"
     secure-json-parse "2.7.0"
 
-"@ai-sdk/provider@0.0.3":
-  version "0.0.3"
-  resolved "https://registry.yarnpkg.com/@ai-sdk/provider/-/provider-0.0.3.tgz#3b0cce48cfe183d306d6b085583a77c464d42491"
-  integrity sha512-0B8P6VZpJ6F9yS9BpmJBYSqIaIfeRtL5tD5SP+qgR8y0pPwalIbRMUFiLz9YUT6g70MJsCLpm/2/fX3cfAYCJw==
+"@ai-sdk/provider@0.0.5":
+  version "0.0.5"
+  resolved "https://registry.yarnpkg.com/@ai-sdk/provider/-/provider-0.0.5.tgz#276c2b638267d1586c0d16684f8d0bcbfd6e1017"
+  integrity sha512-TZDldBZ5clAsNwJ2PSeo/b1uILj9a2lvi0rnOj2RCNZDgaVqFRVIAnKyeHusCRv2lzhPIw03B3fiGI6VoLzOAA==
   dependencies:
     json-schema "0.4.0"
 
@@ -1494,10 +1494,17 @@
     "@types/node" "*"
     form-data "^4.0.0"
 
-"@types/node@*", "@types/node@20.12.8":
+"@types/node@*":
   version "20.12.8"
   resolved "https://registry.yarnpkg.com/@types/node/-/node-20.12.8.tgz#35897bf2bfe3469847ab04634636de09552e8256"
   integrity sha512-NU0rJLJnshZWdE/097cdCBbyW1h4hEg0xpovcoAQYHl8dnEyp/NAOiE45pvc+Bd1Dt+2r94v2eGFpQJ4R7g+2w==
+  dependencies:
+    undici-types "~5.26.4"
+
+"@types/node@20.12.12", "@types/node@^20.12.12":
+  version "20.12.12"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-20.12.12.tgz#7cbecdf902085cec634fdb362172dfe12b8f2050"
+  integrity sha512-eWLDGF/FOSPtAvEqeRAQ4C8LSA7M1I7i0ky1I8U7kD1J5ITyW3AsRhQrKVoWf5pFKZ2kILsEGJhsI9r93PYnOw==
   dependencies:
     undici-types "~5.26.4"
 
@@ -1505,13 +1512,6 @@
   version "18.19.31"
   resolved "https://registry.yarnpkg.com/@types/node/-/node-18.19.31.tgz#b7d4a00f7cb826b60a543cebdbda5d189aaecdcd"
   integrity sha512-ArgCD39YpyyrtFKIqMDvjz79jto5fcI/SVUs2HwB+f0dAzq68yqOdyaSivLiLugSziTpNXLQrVb7RZFmdZzbhA==
-  dependencies:
-    undici-types "~5.26.4"
-
-"@types/node@^20.12.11":
-  version "20.12.11"
-  resolved "https://registry.yarnpkg.com/@types/node/-/node-20.12.11.tgz#c4ef00d3507000d17690643278a60dc55a9dc9be"
-  integrity sha512-vDg9PZ/zi+Nqp6boSOT7plNuthRugEKixDv5sFTIpkE89MmNtEArAShI4mxuX2+UrLEe9pxC1vm2cjm9YlWbJw==
   dependencies:
     undici-types "~5.26.4"
 
@@ -1598,13 +1598,13 @@ agentkeepalive@^4.2.1:
   dependencies:
     humanize-ms "^1.2.1"
 
-ai@^3.1.1:
-  version "3.1.1"
-  resolved "https://registry.yarnpkg.com/ai/-/ai-3.1.1.tgz#3d2447fe2cd38d93c8e244781dac5725f171700a"
-  integrity sha512-pJZc6q7SLd2/NenxN62iagMw9HHQ4Q8FyKqkrZUJntupRTHHgN3fL7exzJU/ICHDAbtn/EcJXOau6P61QgUtKQ==
+ai@^3.1.8:
+  version "3.1.8"
+  resolved "https://registry.yarnpkg.com/ai/-/ai-3.1.8.tgz#015cb244bcdd4730478e3aaeb55574f6a401bf95"
+  integrity sha512-AmpNe2po6Duz8d5XKUOV5Jcp6fJRsBZLSDuleMa0KEdXUGYpN0fpgY3L7M0hqKXTr/Ntnh4cCaS27pO8szXdWw==
   dependencies:
-    "@ai-sdk/provider" "0.0.3"
-    "@ai-sdk/provider-utils" "0.0.5"
+    "@ai-sdk/provider" "0.0.5"
+    "@ai-sdk/provider-utils" "0.0.8"
     eventsource-parser "1.1.2"
     json-schema "0.4.0"
     jsondiffpatch "0.6.0"
@@ -4733,10 +4733,10 @@ onetime@^6.0.0:
   dependencies:
     mimic-fn "^4.0.0"
 
-openai@^4.41.0:
-  version "4.41.0"
-  resolved "https://registry.yarnpkg.com/openai/-/openai-4.41.0.tgz#85f9880fdca6a4d761d948f84df3f4f3558ff079"
-  integrity sha512-fiV+RvUGRW+PXxycqeDYuOwsL3TxNqT/LcM6vlqyLz9ACmfSUGg1qviQrHuuNKL7gFOvfzgEJRVVFdqmv/sjxg==
+openai@^4.47.1:
+  version "4.47.1"
+  resolved "https://registry.yarnpkg.com/openai/-/openai-4.47.1.tgz#1d23c7a8eb3d7bcdc69709cd905f4c9af0181dba"
+  integrity sha512-WWSxhC/69ZhYWxH/OBsLEirIjUcfpQ5+ihkXKp06hmeYXgBBIUCa9IptMzYx6NdkiOCsSGYCnTIsxaic3AjRCQ==
   dependencies:
     "@types/node" "^18.11.18"
     "@types/node-fetch" "^2.6.4"
@@ -5317,10 +5317,10 @@ reusify@^1.0.4:
   resolved "https://registry.yarnpkg.com/reusify/-/reusify-1.0.4.tgz#90da382b1e126efc02146e90845a88db12925d76"
   integrity sha512-U9nH88a3fc/ekCF1l0/UP1IosiuIjyTh7hBvXVMHYgVcfGvt897Xguj2UOLDeI5BG2m7/uwyaLVT6fbtCwTyzw==
 
-rimraf@^5.0.6:
-  version "5.0.6"
-  resolved "https://registry.yarnpkg.com/rimraf/-/rimraf-5.0.6.tgz#f13b90af1794a2e8e1ecd052263bcf688742af88"
-  integrity sha512-X72SgyOf+1lFnGM6gYcmZ4+jMOwuT4E4SajKQzUIlI7EoR5eFHMhS/wf8Ll0mN+w2bxcIVldrJQ6xT7HFQywjg==
+rimraf@^5.0.7:
+  version "5.0.7"
+  resolved "https://registry.yarnpkg.com/rimraf/-/rimraf-5.0.7.tgz#27bddf202e7d89cb2e0381656380d1734a854a74"
+  integrity sha512-nV6YcJo5wbLW77m+8KjH8aB/7/rxQy9SZ0HY5shnwULfS+9nmTtVXAJET5NdZmCzA4fPI/Hm1wo/Po/4mopOdg==
   dependencies:
     glob "^10.3.7"
 
@@ -5897,10 +5897,10 @@ tsup@^8.0.2:
     sucrase "^3.20.3"
     tree-kill "^1.2.2"
 
-tsx@^4.10.0:
-  version "4.10.0"
-  resolved "https://registry.yarnpkg.com/tsx/-/tsx-4.10.0.tgz#c9efb353f59219fe9056d4c271ef2f77563345c0"
-  integrity sha512-Ct/j4Yv49EFlr1z5CT++ld+BUhjLRLtimE4hIDaW9zEVIp3xJOQdTDAan+KEXeme7GcYIGzFD421Zcqf9dHomw==
+tsx@^4.10.2:
+  version "4.10.2"
+  resolved "https://registry.yarnpkg.com/tsx/-/tsx-4.10.2.tgz#ed1a39f556e208e899d2d8b204aa4108fe7b4668"
+  integrity sha512-gOfACgv1ElsIjvt7Fp0rMJKGnMGjox0JfGOfX3kmZCV/yZumaNqtHGKBXt1KgaYS9KjDOmqGeI8gHk/W7kWVZg==
   dependencies:
     esbuild "~0.20.2"
     get-tsconfig "^4.7.3"
@@ -6380,7 +6380,7 @@ zod@^3.20.2, zod@^3.23.8:
   resolved "https://registry.yarnpkg.com/zod/-/zod-3.23.8.tgz#e37b957b5d52079769fb8097099b592f0ef4067d"
   integrity sha512-XBx9AXhXktjUqnepgTiE5flcKIYWi/rme0Eaj+5Y0lftuGBq+jyRu/md4WnuxqgP1ubdpNCsYEYPxrzVHD8d6g==
 
-zod@^3.22.3, zod@^3.23.6:
+zod@^3.22.3:
   version "3.23.6"
   resolved "https://registry.yarnpkg.com/zod/-/zod-3.23.6.tgz#c08a977e2255dab1fdba933651584a05fcbf19e1"
   integrity sha512-RTHJlZhsRbuA8Hmp/iNL7jnfc4nZishjsanDAfEY1QpDQZCahUp3xDzl+zfweE9BklxMUcgBgS1b7Lvie/ZVwA==

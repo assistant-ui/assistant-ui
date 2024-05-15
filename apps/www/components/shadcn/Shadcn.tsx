@@ -3,14 +3,14 @@ import Link from "next/link";
 
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import icon from "@/public/favicon/favicon.svg";
 import type { TooltipContentProps } from "@radix-ui/react-tooltip";
 import Image from "next/image";
 import { type FC, forwardRef } from "react";
-import icon from "../../assets/icon.svg";
+import { Thread } from "../../../../packages/shadcn/registry/assistant-ui/thread";
 import { Sheet, SheetContent, SheetTrigger } from "../ui/sheet";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { ModelPicker } from "./ModelPicker";
-import { Thread } from "../../../../packages/shadcn/registry/assistant-ui/thread";
 
 type ButtonWithTooltipProps = ButtonProps & {
   tooltip: string;
@@ -42,7 +42,7 @@ const TopLeft: FC = () => {
       side="right"
     >
       <div className="flex items-center gap-2 font-semibold text-sm">
-        <Image src={icon} alt="logo" className="inline size-4 dark:invert" />
+        <Image src={icon} alt="logo" className="inline size-4" />
         <span>assistant-ui</span>
       </div>
 

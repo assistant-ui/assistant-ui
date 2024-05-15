@@ -2,12 +2,10 @@ import type { Config } from "tailwindcss";
 
 const config = {
   content: [
-    "./app/**/*.{ts,tsx,mdx}",
-    "./pages/**/*.{ts,tsx,mdx}",
-    "./components/**/*.{ts,tsx,mdx}",
-    "../../packages/shadcn/components/**/*.{ts,tsx,mdx}",
-    "../../packages/shadcn/registry/**/*.{ts,tsx,mdx}",
-    "./theme.config.tsx",
+    "./app/**/*.{ts,tsx}",
+    "./pages/**/*.{ts,tsx}",
+    "./components/**/*.{ts,tsx}",
+    "./registry/**/*.{ts,tsx}",
   ],
   prefix: "",
   theme: {
