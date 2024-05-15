@@ -85,9 +85,14 @@ const UserMessage: FC = () => {
       <div className="flex-grow">
         <p className="font-semibold">You</p>
 
-        <p className="whitespace-pre-line text-foreground">
-          <MessagePrimitive.Content />
-        </p>
+        <MessagePrimitive.If editing={false}>
+          <p className="whitespace-pre-line text-foreground">
+            <MessagePrimitive.Content />
+          </p>
+        </MessagePrimitive.If>
+        <MessagePrimitive.If editing>
+          <MessagePrimitive.EditableContent className="flex h-8 w-full resize-none bg-transparent outline-none" />
+        </MessagePrimitive.If>
 
         <UserActionBar />
         <EditBar />
@@ -116,6 +121,23 @@ const AssistantMessage: FC = () => {
   );
 };
 
+const UserActionBar: FC = () => {
+  return (
+    <ActionBarPrimitive.Root
+      hideWhenEditing
+      className="mt-2 flex items-center gap-1"
+    >
+      <BranchPicker />
+
+      <ActionBarPrimitive.Edit asChild>
+        <ActionBarButton tooltip="Edit">
+          <PencilIcon className="size-4" />
+        </ActionBarButton>
+      </ActionBarPrimitive.Edit>
+    </ActionBarPrimitive.Root>
+  );
+};
+
 const AssistantActionBar: FC = () => {
   return (
     <ActionBarPrimitive.Root className="mt-2 flex items-center gap-1">
@@ -136,23 +158,6 @@ const AssistantActionBar: FC = () => {
           <RefreshCwIcon className="size-4" />
         </ActionBarButton>
       </ActionBarPrimitive.Reload>
-    </ActionBarPrimitive.Root>
-  );
-};
-
-const UserActionBar: FC = () => {
-  return (
-    <ActionBarPrimitive.Root
-      hideWhenEditing
-      className="mt-2 flex items-center gap-1"
-    >
-      <BranchPicker />
-
-      <ActionBarPrimitive.Edit asChild>
-        <ActionBarButton tooltip="Edit">
-          <PencilIcon className="size-4" />
-        </ActionBarButton>
-      </ActionBarPrimitive.Edit>
     </ActionBarPrimitive.Root>
   );
 };
