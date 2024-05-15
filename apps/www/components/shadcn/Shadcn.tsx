@@ -1,16 +1,16 @@
-import Link from "next/link";
 import { ArchiveIcon, EditIcon, MenuIcon, ShareIcon } from "lucide-react";
+import Link from "next/link";
 
 import { Button, type ButtonProps } from "@/components/ui/button";
-import Image from "next/image";
-import icon from "../../assets/icon.svg";
-import { ModelPicker } from "./ModelPicker";
-import { ShadcnThread } from "./Thread";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
-import { Sheet, SheetContent, SheetTrigger } from "../ui/sheet";
-import { type FC, forwardRef } from "react";
-import type { TooltipContentProps } from "@radix-ui/react-tooltip";
 import { cn } from "@/lib/utils";
+import type { TooltipContentProps } from "@radix-ui/react-tooltip";
+import Image from "next/image";
+import { type FC, forwardRef } from "react";
+import icon from "../../assets/icon.svg";
+import { Sheet, SheetContent, SheetTrigger } from "../ui/sheet";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+import { ModelPicker } from "./ModelPicker";
+import { Thread } from "../../../../packages/shadcn/registry/assistant-ui/thread";
 
 type ButtonWithTooltipProps = ButtonProps & {
   tooltip: string;
@@ -125,7 +125,7 @@ export const Shadcn = () => {
         <Header />
       </div>
       <div className="overflow-hidden">
-        <ShadcnThread />
+        <Thread />
       </div>
     </div>
   );

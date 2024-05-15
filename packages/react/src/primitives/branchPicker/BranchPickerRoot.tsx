@@ -1,19 +1,26 @@
 "use client";
 
-import { forwardRef } from "react";
 import {
   type ComponentPropsWithoutRef,
   Primitive,
 } from "@radix-ui/react-primitive";
+import { forwardRef } from "react";
+import { If } from "../message";
 
 type BranchPickerRootElement = React.ElementRef<typeof Primitive.div>;
 type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;
 
-type BranchPickerRootProps = PrimitiveDivProps;
+type BranchPickerRootProps = PrimitiveDivProps & {
+  hideWhenSingleBranch?: boolean;
+};
 
 export const BranchPickerRoot = forwardRef<
   BranchPickerRootElement,
   BranchPickerRootProps
->(({ ...rest }, ref) => {
-  return <Primitive.div {...rest} ref={ref} />;
+>(({ hideWhenSingleBranch, ...rest }, ref) => {
+  return (
+    <If hasBranches={hideWhenSingleBranch ? true : undefined}>
+      <Primitive.div {...rest} ref={ref} />
+    </If>
+  );
 });

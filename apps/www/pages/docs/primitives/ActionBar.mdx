@@ -10,9 +10,7 @@ import { ActionBar } from "assistant-ui";
 
 export default () => (
   <ActionBar.Root>
-    <Message.If hasBranches>
-      <BranchPicker />
-    </Message.If>
+    <BranchPicker />
 
     <Message.If user>
       <ActionBar.Edit />
