@@ -76,12 +76,6 @@
   }
 }
 
-@media (max-width: 640px) {
-  .container {
-    @apply px-4;
-  }
-}
-
 pre {
   background-color: hsl(var(--background))  !important;
   --tw-ring-color: hsl(var(--border)) !important
