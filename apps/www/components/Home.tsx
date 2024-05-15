@@ -8,7 +8,7 @@ import { VercelAIThreadProvider } from "@assistant-ui/react";
 import { useChat } from "ai/react";
 import Link from "next/link";
 import React, { useState } from "react";
-import { ChatGPT } from "../components/chatgpt/ChatGPT";
+import { ChatGPT } from "./chatgpt/ChatGPT";
 
 const supportedModels = [
   {
@@ -33,7 +33,7 @@ export default function Home() {
 
   return (
     <main className="container mx-auto flex flex-col gap-4 self-stretch py-4">
-      <div className="mt-16 flex flex-col gap-4 self-center">
+      <div className="mt-12 flex flex-col gap-4 self-center">
         <h1 className="text-center font-mono text-4xl">assistant-ui</h1>
 
         <p className="text-center text-lg">
@@ -41,9 +41,9 @@ export default function Home() {
         </p>
       </div>
 
-      <div className="mb-12 flex justify-center gap-2">
+      <div className="mb-8 flex justify-center gap-2">
         <Button asChild>
-          <Link href="/docs">Documentation</Link>
+          <Link href="/docs">Get Started</Link>
         </Button>
 
         <Button variant="secondary" asChild>
@@ -66,7 +66,7 @@ export default function Home() {
           ))}
         </div>
       </div>
-      <div className="h-[700px] overflow-hidden rounded-lg border shadow">
+      <div className="h-[650px] overflow-hidden rounded-lg border shadow">
         <VercelAIThreadProvider chat={chat}>
           <ChatComponent />
         </VercelAIThreadProvider>

@@ -38,6 +38,21 @@ const config: DocsThemeConfig = {
       </>
     );
   },
+  head: () => {
+    const { frontMatter, title } = useConfig();
+    const description =
+      frontMatter["description"] ??
+      "Unstyled React components for chat and co-pilot UIs";
+    const hasTitle = title !== "Index";
+    return (
+      <>
+        <title>{hasTitle ? `${title} - assistant-ui` : "assistant-ui"}</title>
+        <meta name="description" content={description} />
+        <meta property="og:title" content={title} />
+        <meta property="og:description" content={description} />
+      </>
+    );
+  },
 };
 
 export default config;
