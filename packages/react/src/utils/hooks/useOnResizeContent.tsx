@@ -14,7 +14,6 @@ export const useOnResizeContent = (
 
     const resizeObserver = new ResizeObserver(() => {
       callbackRef.current();
-      console.log("resize observed");
     });
 
     const mutationObserver = new MutationObserver((mutations) => {
@@ -35,6 +34,7 @@ export const useOnResizeContent = (
       callbackRef.current();
     });
 
+    resizeObserver.observe(el);
     mutationObserver.observe(el, { childList: true });
 
     // Observe existing children
