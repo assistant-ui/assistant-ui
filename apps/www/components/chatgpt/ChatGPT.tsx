@@ -20,7 +20,7 @@ import {
   ReloadIcon,
 } from "@radix-ui/react-icons";
 import React, { type PropsWithChildren, type FC } from "react";
-import { Button } from "../ui/button";
+import { Button, type ButtonProps } from "../ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
 export const ChatGPT: FC = () => {
@@ -69,9 +69,13 @@ export const ChatGPT: FC = () => {
 
 const UserMessage: FC = () => {
   return (
-    <MessagePrimitive.Root className="mx-auto flex w-full max-w-screen-md flex-col items-end gap-1">
-      <div className="flex items-start gap-2">
-        <ActionBarPrimitive.Root className="m-2">
+    <MessagePrimitive.Root className="relative mx-auto flex w-full max-w-screen-md flex-col items-end gap-1">
+      <div className="flex items-start gap-4">
+        <ActionBarPrimitive.Root
+          hideWhenBusy
+          hideWhenNotLastOrHover
+          className="mt-2"
+        >
           <ActionBarPrimitive.Edit asChild>
             <ActionBarButton tooltip="Edit">
               <Pencil1Icon />
@@ -108,7 +112,7 @@ const EditingUserMessage: FC = () => {
 
 const AssistantMessage: FC = () => {
   return (
-    <MessagePrimitive.Root className="mx-auto flex w-full max-w-screen-md gap-3">
+    <MessagePrimitive.Root className="relative mx-auto flex w-full max-w-screen-md gap-3">
       <Avatar.Root className="flex size-8 flex-shrink-0 items-center justify-center rounded-[24px] border border-white/15 shadow">
         <Avatar.AvatarFallback className="text-white text-xs">
           C
@@ -120,7 +124,11 @@ const AssistantMessage: FC = () => {
           <MessagePrimitive.Content />
         </p>
 
-        <ActionBarPrimitive.Root className="mt-2 flex items-center gap-1">
+        <ActionBarPrimitive.Root
+          hideWhenBusy
+          hideWhenNotLastOrHover
+          className="absolute flex w-full items-center gap-1 py-2"
+        >
           <BranchPicker />
 
           <ActionBarPrimitive.Reload asChild>
@@ -168,20 +176,26 @@ const BranchPicker: FC<{ className?: string }> = ({ className }) => {
   );
 };
 
-type ActionBarButtonProps = PropsWithChildren<{ tooltip: string }>;
+type ActionBarButtonProps = PropsWithChildren<
+  ButtonProps & { tooltip: string }
+>;
 
 const ActionBarButton: FC<ActionBarButtonProps> = ({
-  children,
   tooltip,
+  className,
+  children,
   ...rest
 }) => {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
-          variant={"ghost"}
+          variant="ghost"
           size="icon"
-          className="size-auto p-1 text-[#b4b4b4] transition-colors hover:text-white"
+          className={cn(
+            "size-auto p-1 text-[#b4b4b4] transition-colors hover:text-white",
+            className,
+          )}
           {...rest}
         >
           {children}

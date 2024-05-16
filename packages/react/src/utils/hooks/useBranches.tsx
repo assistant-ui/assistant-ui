@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useMemo, useRef } from "react";
-import type { UseChatHelpers } from "ai/react";
 import type { CreateMessage, Message } from "ai";
+import type { UseChatHelpers } from "ai/react";
+import { useCallback, useMemo, useRef } from "react";
 
 const ROOT_ID = "__ROOT_ID__";
 export const UPCOMING_MESSAGE_ID = "__UPCOMING_MESSAGE_ID__";
@@ -180,5 +180,11 @@ export const useChatWithBranches = (
       reloadAt,
     }),
     [chat, getBranchState, switchToBranch, editAt, reloadAt],
+  );
+};
+export const hasUpcomingMessage = (thread: UseChatWithBranchesHelpers) => {
+  return (
+    thread.isLoading &&
+    thread.messages[thread.messages.length - 1]?.role !== "assistant"
   );
 };

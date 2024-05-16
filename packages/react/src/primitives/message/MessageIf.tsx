@@ -1,9 +1,15 @@
 "use client";
 
+import type { Message } from "ai";
 import type { FC } from "react";
+import type { RequireAtLeastOne } from "../../utils/RequireAtLeastOne";
 import { useMessageContext } from "../../utils/context/MessageContext";
 import { useThreadContext } from "../../utils/context/ThreadContext";
-import type { RequireAtLeastOne } from "../../utils/RequireAtLeastOne";
+import {
+  UPCOMING_MESSAGE_ID,
+  type UseChatWithBranchesHelpers,
+  hasUpcomingMessage,
+} from "../../utils/hooks/useBranches";
 
 type MessageIfFilters = {
   user: boolean | undefined;
@@ -11,13 +17,18 @@ type MessageIfFilters = {
   editing: boolean | undefined;
   hasBranches: boolean | undefined;
   copied: boolean | undefined;
-
-  // TODO
-  unstable_hoveringOrLast: boolean | undefined;
+  lastOrHover: boolean | undefined;
 };
 
 type MessageIfProps = RequireAtLeastOne<MessageIfFilters> & {
   children: React.ReactNode;
+};
+
+const isLast = (thread: UseChatWithBranchesHelpers, message: Message) => {
+  const hasUpcoming = hasUpcomingMessage(thread);
+  return hasUpcoming
+    ? message.id === UPCOMING_MESSAGE_ID
+    : thread.messages[thread.messages.length - 1]?.id === message.id;
 };
 
 const useMessageIf = (props: RequireAtLeastOne<MessageIfFilters>) => {
@@ -36,11 +47,7 @@ const useMessageIf = (props: RequireAtLeastOne<MessageIfFilters>) => {
       if (props.editing === true && !isEditing) return false;
       if (props.editing === false && isEditing) return false;
 
-      if (
-        props.unstable_hoveringOrLast === true &&
-        !isHovering &&
-        thread.messages[thread.messages.length - 1]?.id !== message.id
-      )
+      if (props.lastOrHover === true && !isHovering && !isLast(thread, message))
         return false;
 
       if (props.copied === true && !isCopied) return false;

@@ -3,6 +3,7 @@
 import type { FC } from "react";
 import { useThreadContext } from "../../utils/context/ThreadContext";
 import { UPCOMING_MESSAGE_ID } from "../../utils/hooks/useBranches";
+import { hasUpcomingMessage } from "../../utils/hooks/useBranches";
 import { Provider } from "../message";
 import { MessageIf } from "../message/MessageIf";
 
@@ -63,18 +64,17 @@ export const ThreadMessages: FC<ThreadMessagesProps> = ({ components }) => {
           </Provider>
         );
       })}
-      {chat.isLoading &&
-        chat.messages[chat.messages.length - 1]?.role !== "assistant" && (
-          <Provider
-            message={{
-              id: UPCOMING_MESSAGE_ID,
-              role: "assistant",
-              content: "...",
-            }}
-          >
-            <AssistantMessage />
-          </Provider>
-        )}
+      {hasUpcomingMessage(chat) && (
+        <Provider
+          message={{
+            id: UPCOMING_MESSAGE_ID,
+            role: "assistant",
+            content: "...",
+          }}
+        >
+          <AssistantMessage />
+        </Provider>
+      )}
     </>
   );
 };
