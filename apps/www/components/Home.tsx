@@ -50,26 +50,28 @@ export default function Home() {
           <Link href="https://github.com/Yonom/assistant-ui">GitHub</Link>
         </Button>
       </div>
-      <div className="flex">
-        <div className="flex flex-grow gap-3">
-          {supportedModels.map((model) => (
-            <Badge
-              key={model.name}
-              onClick={() => setSelectedModel(model)}
-              className="cursor-pointer px-4 py-2"
-              variant={
-                selectedModel.name === model.name ? "default" : "secondary"
-              }
-            >
-              {model.name}
-            </Badge>
-          ))}
+      <div className="mx-auto flex w-full max-w-screen-xl flex-col gap-2">
+        <div className="flex">
+          <div className="flex flex-grow gap-3">
+            {supportedModels.map((model) => (
+              <Badge
+                key={model.name}
+                onClick={() => setSelectedModel(model)}
+                className="cursor-pointer px-4 py-2"
+                variant={
+                  selectedModel.name === model.name ? "default" : "secondary"
+                }
+              >
+                {model.name}
+              </Badge>
+            ))}
+          </div>
         </div>
-      </div>
-      <div className="h-[650px] overflow-hidden rounded-lg border shadow">
-        <VercelAIThreadProvider chat={chat}>
-          <ChatComponent />
-        </VercelAIThreadProvider>
+        <div className="h-[650px] overflow-hidden rounded-lg border shadow">
+          <VercelAIThreadProvider chat={chat}>
+            <ChatComponent />
+          </VercelAIThreadProvider>
+        </div>
       </div>
     </main>
   );

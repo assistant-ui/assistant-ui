@@ -1,30 +1,30 @@
 "use client";
 
+import { cn } from "@/lib/utils";
 import {
-  ThreadPrimitive,
-  MessagePrimitive,
-  ComposerPrimitive,
   ActionBarPrimitive,
+  ComposerPrimitive,
+  MessagePrimitive,
+  ThreadPrimitive,
   unstable_useMessageContext,
 } from "@assistant-ui/react";
-import React, { type FC } from "react";
-import { cn } from "@/lib/utils";
 import * as Avatar from "@radix-ui/react-avatar";
-import { ReloadIcon, ArrowUpIcon, ClipboardIcon } from "@radix-ui/react-icons";
+import { ArrowUpIcon, ClipboardIcon, ReloadIcon } from "@radix-ui/react-icons";
+import React, { type FC } from "react";
 
 export const Claude: FC = () => {
   return (
-    <ThreadPrimitive.Root className="flex h-full flex-col items-stretch bg-[#2b2a27] px-12 pt-16 font-serif">
+    <ThreadPrimitive.Root className="flex h-full flex-col items-stretch bg-[#2b2a27] px-4 pt-16 font-serif">
       <ThreadPrimitive.Viewport className="flex flex-grow flex-col overflow-y-scroll">
         <ThreadPrimitive.Messages components={{ Message: ChatMessage }} />
         <ThreadPrimitive.If empty={false}>
-          <p className="p-2 text-right text-[#b8b5a9] text-xs">
+          <p className="mx-auto w-full max-w-screen-md p-2 text-right text-[#b8b5a9] text-xs">
             Claude can make mistakes. Please double-check responses.
           </p>
         </ThreadPrimitive.If>
       </ThreadPrimitive.Viewport>
 
-      <ComposerPrimitive.Root className="flex flex-col rounded-t-xl border border-[#6c6a6040] bg-[#393937] p-0.5">
+      <ComposerPrimitive.Root className="mx-auto flex w-full max-w-screen-md flex-col rounded-t-xl border border-[#6c6a6040] bg-[#393937] p-0.5">
         <div className="flex">
           <ComposerPrimitive.Input
             placeholder="Reply to Claude..."
@@ -53,7 +53,7 @@ const ChatMessage: FC = () => {
   const message = unstable_useMessageContext("ChatMessage", (s) => s.message);
 
   return (
-    <MessagePrimitive.Root className="mb-4 flex flex-col gap-3">
+    <MessagePrimitive.Root className="mx-auto mb-4 flex w-full max-w-screen-md flex-col gap-3">
       <div
         className={cn(
           "relative flex gap-2 rounded-2xl bg-gradient-to-b from-50% from-[#21201c] to-[#1a1915] px-3 py-2.5",
