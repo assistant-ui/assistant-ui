@@ -1,14 +1,20 @@
-"use client";
 import { useMessageContext } from "../utils/context/MessageContext";
 
 export const useBeginMessageEdit = () => {
-  const [editState, messageContent, setEditState] = useMessageContext(
-    "ActionBar.Edit",
-    (s) => [s.editState, s.message.content, s.setEditState],
-  );
+  const context = useMessageContext("ActionBar.Edit", (s) => {
+    const {
+      message: { content },
+      editState: { isEditing },
+      setEditState,
+    } = s;
+    if (isEditing) return null;
+    return { content, setEditState };
+  });
 
-  if (editState.isEditing) return null;
+  if (!context) return null;
+
+  const { content, setEditState } = context;
   return () => {
-    setEditState({ isEditing: true, value: messageContent });
+    setEditState({ isEditing: true, value: content });
   };
 };

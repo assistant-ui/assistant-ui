@@ -1,4 +1,3 @@
-"use client";
 import { useMessageContext } from "../utils/context/MessageContext";
 import { useThreadContext } from "../utils/context/ThreadContext";
 
@@ -7,12 +6,19 @@ export const useGoToPreviousBranch = () => {
     "BranchPicker.Previous",
     (s) => s.chat.switchToBranch,
   );
-  const [message, { branchId, branchCount }] = useMessageContext(
-    "BranchPicker.Previous",
-    (s) => [s.message, s.branchState],
-  );
+  const context = useMessageContext("BranchPicker.Previous", (s) => {
+    const {
+      message,
+      editState: { isEditing },
+      branchState: { branchId, branchCount },
+    } = s;
+    if (isEditing || branchCount <= 1 || branchId <= 0) return null;
+    return { message, branchId };
+  });
 
-  if (branchCount <= 1 || branchId <= 0) return null;
+  if (!context) return null;
+
+  const { message, branchId } = context;
   return () => {
     switchToBranch(message, branchId - 1);
   };

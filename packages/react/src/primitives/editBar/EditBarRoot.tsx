@@ -5,21 +5,14 @@ import {
   Primitive,
 } from "@radix-ui/react-primitive";
 import { forwardRef } from "react";
-import { If } from "../message";
 
 type EditBarRootElement = React.ElementRef<typeof Primitive.div>;
 type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;
 
-type EditBarRootProps = PrimitiveDivProps & {
-  hideWhenNotEditing?: boolean;
-};
+type EditBarRootProps = PrimitiveDivProps;
 
 export const EditBarRoot = forwardRef<EditBarRootElement, EditBarRootProps>(
-  ({ hideWhenNotEditing, ...rest }, ref) => {
-    return (
-      <If editing={hideWhenNotEditing ? true : undefined}>
-        <Primitive.div {...rest} ref={ref} />
-      </If>
-    );
+  ({ ...rest }, ref) => {
+    return <Primitive.div {...rest} ref={ref} />;
   },
 );

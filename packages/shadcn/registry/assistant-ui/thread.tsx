@@ -34,7 +34,7 @@ export const Thread: FC = () => {
         </ThreadPrimitive.Empty>
 
         <ThreadPrimitive.Messages
-          components={{ UserMessage, AssistantMessage }}
+          components={{ UserMessage, EditingUserMessage, AssistantMessage }}
         />
       </ThreadPrimitive.Viewport>
 
@@ -85,16 +85,27 @@ const UserMessage: FC = () => {
       <div className="flex-grow">
         <p className="font-semibold">You</p>
 
-        <MessagePrimitive.If editing={false}>
-          <p className="whitespace-pre-line text-foreground">
-            <MessagePrimitive.Content />
-          </p>
-        </MessagePrimitive.If>
-        <MessagePrimitive.If editing>
-          <MessagePrimitive.EditableContent className="flex h-8 w-full resize-none bg-transparent outline-none" />
-        </MessagePrimitive.If>
+        <p className="whitespace-pre-line text-foreground">
+          <MessagePrimitive.Content />
+        </p>
 
         <UserActionBar />
+      </div>
+    </MessagePrimitive.Root>
+  );
+};
+
+const EditingUserMessage: FC = () => {
+  return (
+    <MessagePrimitive.Root className="mb-12 flex w-full max-w-2xl gap-3">
+      <Avatar>
+        <AvatarFallback>Y</AvatarFallback>
+      </Avatar>
+
+      <div className="flex-grow">
+        <p className="font-semibold">You</p>
+
+        <MessagePrimitive.EditableContent className="flex h-8 w-full resize-none bg-transparent outline-none" />
         <EditBar />
       </div>
     </MessagePrimitive.Root>
@@ -123,10 +134,7 @@ const AssistantMessage: FC = () => {
 
 const UserActionBar: FC = () => {
   return (
-    <ActionBarPrimitive.Root
-      hideWhenEditing
-      className="mt-2 flex items-center gap-1"
-    >
+    <ActionBarPrimitive.Root className="mt-2 flex items-center gap-1">
       <BranchPicker />
 
       <ActionBarPrimitive.Edit asChild>
@@ -185,10 +193,7 @@ const BranchPicker: FC = () => {
 
 const EditBar: FC = () => {
   return (
-    <EditBarPrimitive.Root
-      hideWhenNotEditing
-      className="mt-2 flex justify-center gap-3"
-    >
+    <EditBarPrimitive.Root className="mt-2 flex justify-center gap-3">
       <EditBarPrimitive.Save asChild>
         <Button>Save & Submit</Button>
       </EditBarPrimitive.Save>

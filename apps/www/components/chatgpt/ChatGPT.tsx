@@ -1,29 +1,35 @@
 "use client";
 
-import React, { type FC } from "react";
-import * as Avatar from "@radix-ui/react-avatar";
+import { cn } from "@/lib/utils";
 import {
-  ThreadPrimitive,
-  MessagePrimitive,
-  ComposerPrimitive,
   ActionBarPrimitive,
   BranchPickerPrimitive,
+  ComposerPrimitive,
   EditBarPrimitive,
+  MessagePrimitive,
+  ThreadPrimitive,
 } from "@assistant-ui/react";
+import * as Avatar from "@radix-ui/react-avatar";
 import {
+  ArrowUpIcon,
+  CheckIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  ArrowUpIcon,
-  ClipboardIcon,
+  CopyIcon,
   Pencil1Icon,
   ReloadIcon,
-  CheckIcon,
 } from "@radix-ui/react-icons";
+import React, { type PropsWithChildren, type FC } from "react";
+import { Button } from "../ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
 export const ChatGPT: FC = () => {
   return (
-    <ThreadPrimitive.Root className="flex h-full flex-col items-stretch bg-[#212121] px-12 pb-4">
-      <ThreadPrimitive.Viewport className="flex flex-grow flex-col overflow-y-scroll pt-16">
+    <ThreadPrimitive.Root
+      className="dark flex h-full flex-col items-stretch bg-[#212121]"
+      style={{ colorScheme: "dark" }}
+    >
+      <ThreadPrimitive.Viewport className="flex flex-grow flex-col gap-8 overflow-y-scroll pt-16">
         <ThreadPrimitive.Empty>
           <div className="flex flex-grow flex-col items-center justify-center">
             <Avatar.Root className="flex h-12 w-12 items-center justify-center rounded-[24px] bg-white">
@@ -33,111 +39,157 @@ export const ChatGPT: FC = () => {
           </div>
         </ThreadPrimitive.Empty>
 
-        <ThreadPrimitive.Messages components={{ Message: ChatMessage }} />
+        <ThreadPrimitive.Messages
+          components={{ UserMessage, EditingUserMessage, AssistantMessage }}
+        />
       </ThreadPrimitive.Viewport>
 
-      <ComposerPrimitive.Root className="flex items-end rounded-xl border border-white/15 p-0.5">
+      <ComposerPrimitive.Root className="mx-auto flex w-full max-w-screen-md items-end rounded-3xl bg-white/5 pl-2">
         <ComposerPrimitive.Input
-          placeholder="Message ChatGPT..."
+          placeholder="Message ChatGPT"
           className="h-12 max-h-40 flex-grow resize-none bg-transparent p-3.5 text-sm text-white outline-none placeholder:text-white/50"
         />
         <ThreadPrimitive.If busy={false}>
-          <ComposerPrimitive.Send className="m-2 flex h-8 w-8 items-center justify-center rounded-lg bg-white font-bold text-2xl disabled:opacity-10">
-            <ArrowUpIcon
-              width={20}
-              height={20}
-              className="[&_path]:stroke-[0.5] [&_path]:stroke-black"
-            />
+          <ComposerPrimitive.Send className="m-2 flex size-8 items-center justify-center rounded-full bg-white transition-opacity disabled:opacity-10">
+            <ArrowUpIcon className="size-5 text-black [&_path]:stroke-[1] [&_path]:stroke-black" />
           </ComposerPrimitive.Send>
         </ThreadPrimitive.If>
         <ThreadPrimitive.If busy>
-          <ComposerPrimitive.Stop className="m-3.5 flex size-5 items-center justify-center rounded-full border-2 border-whtie font-bold text-white">
-            <div className="size-2 rounded-[1px] bg-white" />
+          <ComposerPrimitive.Stop className="m-2 flex size-8 items-center justify-center rounded-full bg-white">
+            <div className="size-2.5 bg-black" />
           </ComposerPrimitive.Stop>
         </ThreadPrimitive.If>
       </ComposerPrimitive.Root>
       <p className="p-2 text-center text-[#cdcdcd] text-xs">
-        ChatGPT can make mistakes. Consider checking important information.
+        ChatGPT can make mistakes. Check important info.
       </p>
     </ThreadPrimitive.Root>
   );
 };
 
-const ChatMessage: FC = () => {
+const UserMessage: FC = () => {
   return (
-    <MessagePrimitive.Root className="mb-12 flex gap-3">
-      <Avatar.Root className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-[24px] bg-white">
-        <Avatar.AvatarFallback className="text-xs">
-          <MessagePrimitive.If user>Y</MessagePrimitive.If>
-          <MessagePrimitive.If assistant>C</MessagePrimitive.If>
+    <MessagePrimitive.Root className="mx-auto flex w-full max-w-screen-md flex-col items-end gap-1">
+      <div className="flex items-start gap-2">
+        <ActionBarPrimitive.Root className="m-2">
+          <ActionBarPrimitive.Edit asChild>
+            <ActionBarButton tooltip="Edit">
+              <Pencil1Icon />
+            </ActionBarButton>
+          </ActionBarPrimitive.Edit>
+        </ActionBarPrimitive.Root>
+
+        <p className="whitespace-pre-line rounded-3xl bg-white/5 px-5 py-2 text-[#eee]">
+          <MessagePrimitive.Content />
+        </p>
+      </div>
+
+      <BranchPicker className="mt-2 mr-4" />
+    </MessagePrimitive.Root>
+  );
+};
+
+const EditingUserMessage: FC = () => {
+  return (
+    <MessagePrimitive.Root className="mx-auto flex w-full max-w-screen-md flex-col justify-end gap-1 rounded-3xl bg-white/15">
+      <MessagePrimitive.EditableContent className="flex h-8 w-full resize-none bg-transparent p-5 pb-0 text-white outline-none" />
+
+      <EditBarPrimitive.Root className="m-3 mt-2 flex items-center justify-center gap-2 self-end">
+        <EditBarPrimitive.Cancel className="rounded-full bg-zinc-900 px-3 py-2 font-semibold text-sm text-white hover:bg-zinc-800">
+          Cancel
+        </EditBarPrimitive.Cancel>
+        <EditBarPrimitive.Save className="rounded-full bg-white px-3 py-2 font-semibold text-black text-sm hover:bg-white/90">
+          Send
+        </EditBarPrimitive.Save>
+      </EditBarPrimitive.Root>
+    </MessagePrimitive.Root>
+  );
+};
+
+const AssistantMessage: FC = () => {
+  return (
+    <MessagePrimitive.Root className="mx-auto flex w-full max-w-screen-md gap-3">
+      <Avatar.Root className="flex size-8 flex-shrink-0 items-center justify-center rounded-[24px] border border-white/15 shadow">
+        <Avatar.AvatarFallback className="text-white text-xs">
+          C
         </Avatar.AvatarFallback>
       </Avatar.Root>
 
-      <div className="flex-grow">
-        <p className="font-semibold text-white">
-          <MessagePrimitive.If user>You</MessagePrimitive.If>
-          <MessagePrimitive.If assistant>ChatGPT</MessagePrimitive.If>
+      <div className="pt-1">
+        <p className="whitespace-pre-line text-[#eee]">
+          <MessagePrimitive.Content />
         </p>
 
-        <MessagePrimitive.If editing={false}>
-          <p className="whitespace-pre-line text-[#eee]">
-            <MessagePrimitive.Content />
-          </p>
-        </MessagePrimitive.If>
+        <ActionBarPrimitive.Root className="mt-2 flex items-center gap-1">
+          <BranchPicker />
 
-        <MessagePrimitive.If editing>
-          <MessagePrimitive.EditableContent className="flex h-8 w-full resize-none bg-transparent text-white outline-none" />
-        </MessagePrimitive.If>
-
-        <MessagePrimitive.If editing={false}>
-          <ActionBarPrimitive.Root className="mt-2 flex items-center gap-3">
-            <MessagePrimitive.If hasBranches>
-              <BranchPickerPrimitive.Root className="inline-flex text-[#b4b4b4] text-xs">
-                <BranchPickerPrimitive.Previous className="text-[#b4b4b4] hover:enabled:text-white disabled:opacity-50">
-                  <ChevronLeftIcon />
-                </BranchPickerPrimitive.Previous>
-                <BranchPickerPrimitive.Number /> /{" "}
-                <BranchPickerPrimitive.Count />
-                <BranchPickerPrimitive.Next className="text-[#b4b4b4] hover:enabled:text-white disabled:opacity-50">
-                  <ChevronRightIcon />
-                </BranchPickerPrimitive.Next>
-              </BranchPickerPrimitive.Root>
-            </MessagePrimitive.If>
-
-            <MessagePrimitive.If assistant>
-              <ActionBarPrimitive.Reload className="text-[#b4b4b4] hover:enabled:text-white disabled:opacity-50">
-                <ReloadIcon />
-              </ActionBarPrimitive.Reload>
-              <ActionBarPrimitive.Copy className="text-[#b4b4b4] hover:enabled:text-white disabled:opacity-50">
-                <MessagePrimitive.If copied>
-                  <CheckIcon />
-                </MessagePrimitive.If>
-                <MessagePrimitive.If copied={false}>
-                  <ClipboardIcon />
-                </MessagePrimitive.If>
-              </ActionBarPrimitive.Copy>
-            </MessagePrimitive.If>
-
-            <MessagePrimitive.If user>
-              <ActionBarPrimitive.Edit className="text-[#b4b4b4] hover:enabled:text-white disabled:opacity-50">
-                <Pencil1Icon />
-              </ActionBarPrimitive.Edit>
-            </MessagePrimitive.If>
-          </ActionBarPrimitive.Root>
-        </MessagePrimitive.If>
-
-        <MessagePrimitive.If editing>
-          <EditBarPrimitive.Root className="mt-2 flex items-center justify-center gap-3">
-            <EditBarPrimitive.Save className="rounded-lg bg-[#10a37e] px-3 py-2 text-sm text-white hover:bg-[#1a7f64]">
-              Save & Submit
-            </EditBarPrimitive.Save>
-
-            <EditBarPrimitive.Cancel className="rounded-lg border border-zinc-700 px-3 py-2 text-sm text-white hover:bg-zinc-800">
-              Cancel
-            </EditBarPrimitive.Cancel>
-          </EditBarPrimitive.Root>
-        </MessagePrimitive.If>
+          <ActionBarPrimitive.Reload asChild>
+            <ActionBarButton tooltip="Reload">
+              <ReloadIcon />
+            </ActionBarButton>
+          </ActionBarPrimitive.Reload>
+          <ActionBarPrimitive.Copy asChild>
+            <ActionBarButton tooltip="Copy">
+              <MessagePrimitive.If copied>
+                <CheckIcon />
+              </MessagePrimitive.If>
+              <MessagePrimitive.If copied={false}>
+                <CopyIcon />
+              </MessagePrimitive.If>
+            </ActionBarButton>
+          </ActionBarPrimitive.Copy>
+        </ActionBarPrimitive.Root>
       </div>
     </MessagePrimitive.Root>
+  );
+};
+
+const BranchPicker: FC<{ className?: string }> = ({ className }) => {
+  return (
+    <BranchPickerPrimitive.Root
+      hideWhenSingleBranch
+      className={cn(
+        "inline-flex items-center font-semibold text-[#b4b4b4] text-sm",
+        className,
+      )}
+    >
+      <BranchPickerPrimitive.Previous asChild>
+        <ActionBarButton tooltip="Previous">
+          <ChevronLeftIcon />
+        </ActionBarButton>
+      </BranchPickerPrimitive.Previous>
+      <BranchPickerPrimitive.Number />/<BranchPickerPrimitive.Count />
+      <BranchPickerPrimitive.Next asChild>
+        <ActionBarButton tooltip="Next">
+          <ChevronRightIcon />
+        </ActionBarButton>
+      </BranchPickerPrimitive.Next>
+    </BranchPickerPrimitive.Root>
+  );
+};
+
+type ActionBarButtonProps = PropsWithChildren<{ tooltip: string }>;
+
+const ActionBarButton: FC<ActionBarButtonProps> = ({
+  children,
+  tooltip,
+  ...rest
+}) => {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant={"ghost"}
+          size="icon"
+          className="size-auto p-1 text-[#b4b4b4] transition-colors hover:text-white"
+          {...rest}
+        >
+          {children}
+          <span className="sr-only">{tooltip}</span>
+        </Button>
+      </TooltipTrigger>
+
+      <TooltipContent side="bottom">{tooltip}</TooltipContent>
+    </Tooltip>
   );
 };

@@ -1,4 +1,3 @@
-"use client";
 import { useMessageContext } from "../utils/context/MessageContext";
 import { useThreadContext } from "../utils/context/ThreadContext";
 
@@ -7,8 +6,12 @@ export const useReloadMessage = () => {
     s.chat.isLoading,
     s.chat.reloadAt,
   ]);
-  const message = useMessageContext("ActionBar.Reload", (s) => s.message);
+  const message = useMessageContext("ActionBar.Reload", (s) => {
+    const message = s.message;
+    if (message.role !== "assistant" || isLoading) return null;
+    return message;
+  });
 
-  if (message.role !== "assistant" || isLoading) return null;
+  if (!message) return null;
   return () => reloadAt(message);
 };

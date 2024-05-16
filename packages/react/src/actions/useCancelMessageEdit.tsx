@@ -1,13 +1,18 @@
-"use client";
 import { useMessageContext } from "../utils/context/MessageContext";
 
 export const useCancelMessageEdit = () => {
-  const [isEditing, setEditState] = useMessageContext("EditBar.Cancel", (s) => [
-    s.editState.isEditing,
-    s.setEditState,
-  ]);
+  const context = useMessageContext("EditBar.Cancel", (s) => {
+    const {
+      editState: { isEditing },
+      setEditState,
+    } = s;
+    if (!isEditing) return null;
+    return { setEditState };
+  });
 
-  if (!isEditing) return null;
+  if (!context) return null;
+
+  const { setEditState } = context;
   return () => {
     setEditState({ isEditing: false });
   };
