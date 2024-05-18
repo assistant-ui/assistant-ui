@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "license": "MIT",
   "exports": {
     ".": {
@@ -18,10 +18,7 @@
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
-  "files": [
-    "dist",
-    "README.md"
-  ],
+  "files": ["dist", "README.md"],
   "sideEffects": false,
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts"
@@ -33,7 +30,7 @@
     "@radix-ui/react-slot": "^1.0.2",
     "ai": "^3.1.10",
     "react-textarea-autosize": "^8.5.3",
-    "use-sync-external-store": "^1.2.2"
+    "zustand": "^4.5.2"
   },
   "peerDependencies": {
     "@types/react": "*",
@@ -49,7 +46,6 @@
   },
   "devDependencies": {
     "@assistant-ui/tsconfig": "*",
-    "@types/use-sync-external-store": "^0.0.6",
     "tsup": "^8.0.2"
   },
   "homepage": "https://assistant-ui.com/",

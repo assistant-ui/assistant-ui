@@ -1,20 +1,16 @@
 import { useMessageContext } from "../utils/context/MessageContext";
 
 export const useBeginMessageEdit = () => {
-  const context = useMessageContext("ActionBar.Edit", (s) => {
-    const {
-      message: { content },
-      editState: { isEditing },
-      setEditState,
-    } = s;
-    if (isEditing) return null;
-    return { content, setEditState };
-  });
+  const { useMessage, useComposer } = useMessageContext();
 
-  if (!context) return null;
+  // TODO compose into one hook call
+  const isUser = useMessage((s) => s.message.role === "user");
+  const isEditing = useComposer((s) => s.isEditing);
 
-  const { content, setEditState } = context;
+  if (!isUser || isEditing) return null;
+
   return () => {
-    setEditState({ isEditing: true, value: content });
+    const { edit } = useComposer.getState();
+    edit();
   };
 };

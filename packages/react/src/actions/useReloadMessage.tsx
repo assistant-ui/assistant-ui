@@ -1,17 +1,17 @@
+import { useAssistantContext } from "../utils/context/AssistantContext";
 import { useMessageContext } from "../utils/context/MessageContext";
-import { useThreadContext } from "../utils/context/ThreadContext";
 
 export const useReloadMessage = () => {
-  const [isLoading, reloadAt] = useThreadContext("ActionBar.Reload", (s) => [
-    s.chat.isLoading,
-    s.chat.reloadAt,
-  ]);
-  const message = useMessageContext("ActionBar.Reload", (s) => {
-    const message = s.message;
-    if (message.role !== "assistant" || isLoading) return null;
-    return message;
-  });
+  const { useThread, useBranchObserver } = useAssistantContext();
+  const { useMessage } = useMessageContext();
 
-  if (!message) return null;
-  return () => reloadAt(message);
+  // TODO compose into one hook call
+  const isLoading = useThread((s) => s.isLoading);
+  const isAssistant = useMessage((s) => s.message.role === "assistant");
+
+  if (isLoading || !isAssistant) return null;
+
+  return () => {
+    useBranchObserver.getState().reloadAt(useMessage.getState().message);
+  };
 };

@@ -3,6 +3,7 @@
 import type { CreateMessage, Message } from "ai";
 import type { UseChatHelpers } from "ai/react";
 import { useCallback, useMemo, useRef } from "react";
+import type { ThreadState } from "../context/AssistantContext";
 
 const ROOT_ID = "__ROOT_ID__";
 export const UPCOMING_MESSAGE_ID = "__UPCOMING_MESSAGE_ID__";
@@ -113,16 +114,14 @@ export type BranchState = {
   branchCount: number;
 };
 
-export type UseChatWithBranchesHelpers = UseChatHelpers & {
+export type UseBranches = {
   getBranchState: (message: Message) => BranchState;
   switchToBranch: (message: Message, branchId: number) => void;
   editAt: (message: Message, newMesssage: CreateMessage) => Promise<void>;
   reloadAt: (message: Message) => Promise<void>;
 };
 
-export const useChatWithBranches = (
-  chat: UseChatHelpers,
-): UseChatWithBranchesHelpers => {
+export const useChatWithBranches = (chat: UseChatHelpers): UseBranches => {
   const data = useRef<ChatBranchData>({
     parentMap: new Map(),
     branchMap: new Map(),
@@ -173,16 +172,15 @@ export const useChatWithBranches = (
 
   return useMemo(
     () => ({
-      ...chat,
       getBranchState,
       switchToBranch,
       editAt,
       reloadAt,
     }),
-    [chat, getBranchState, switchToBranch, editAt, reloadAt],
+    [getBranchState, switchToBranch, editAt, reloadAt],
   );
 };
-export const hasUpcomingMessage = (thread: UseChatWithBranchesHelpers) => {
+export const hasUpcomingMessage = (thread: ThreadState) => {
   return (
     thread.isLoading &&
     thread.messages[thread.messages.length - 1]?.role !== "assistant"

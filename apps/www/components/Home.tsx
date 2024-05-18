@@ -50,7 +50,7 @@ export default function Home() {
           <Link href="https://github.com/Yonom/assistant-ui">GitHub</Link>
         </Button>
       </div>
-      <div className="mx-auto flex w-full max-w-screen-xl flex-col gap-2">
+      <div className="mx-auto flex w-full max-w-screen-xl flex-col gap-4">
         <div className="flex">
           <div className="flex flex-grow gap-3">
             {supportedModels.map((model) => (

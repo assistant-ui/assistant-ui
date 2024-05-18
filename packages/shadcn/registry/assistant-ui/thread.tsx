@@ -2,11 +2,10 @@ import {
   ActionBarPrimitive,
   BranchPickerPrimitive,
   ComposerPrimitive,
-  EditBarPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
 } from "@assistant-ui/react";
-import React, { type PropsWithChildren, type FC } from "react";
+import React, { type FC } from "react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button, type ButtonProps } from "@/components/ui/button";
@@ -35,7 +34,11 @@ export const Thread: FC = () => {
         </ThreadPrimitive.Empty>
 
         <ThreadPrimitive.Messages
-          components={{ UserMessage, EditingUserMessage, AssistantMessage }}
+          components={{
+            UserMessage,
+            EditComposer,
+            AssistantMessage,
+          }}
         />
       </ThreadPrimitive.Viewport>
 
@@ -68,9 +71,9 @@ const Composer: FC = () => {
         </ComposerPrimitive.Send>
       </ThreadPrimitive.If>
       <ThreadPrimitive.If busy>
-        <ComposerPrimitive.Stop className="m-3.5 flex size-5 items-center justify-center rounded-full border-2 border-foreground">
+        <ComposerPrimitive.Cancel className="m-3.5 flex size-5 items-center justify-center rounded-full border-2 border-foreground">
           <div className="size-2 rounded-[1px] bg-foreground" />
-        </ComposerPrimitive.Stop>
+        </ComposerPrimitive.Cancel>
       </ThreadPrimitive.If>
     </ComposerPrimitive.Root>
   );
@@ -90,24 +93,30 @@ const UserMessage: FC = () => {
           <MessagePrimitive.Content />
         </p>
 
-        <ActionBarPrimitive.Root
-          hideWhenNotLastOrHover
-          className="absolute flex w-full items-center gap-1 py-2"
-        >
+        <div className="flex pt-2">
           <BranchPicker />
 
-          <ActionBarPrimitive.Edit asChild>
-            <ActionBarButton tooltip="Edit">
-              <PencilIcon className="size-4" />
-            </ActionBarButton>
-          </ActionBarPrimitive.Edit>
-        </ActionBarPrimitive.Root>
+          <ActionBarPrimitive.Root
+            hideWhenBusy
+            autohide="not-last"
+            autohideFloat="single-branch"
+            className="flex items-center gap-1 rounded-lg data-[floating=true]:absolute data-[floating=true]:border data-[floating=true]:p-1"
+          >
+            <MessagePrimitive.If lastOrHover>
+              <ActionBarPrimitive.Edit asChild>
+                <IconButton tooltip="Edit">
+                  <PencilIcon className="size-4" />
+                </IconButton>
+              </ActionBarPrimitive.Edit>
+            </MessagePrimitive.If>
+          </ActionBarPrimitive.Root>
+        </div>
       </div>
     </MessagePrimitive.Root>
   );
 };
 
-const EditingUserMessage: FC = () => {
+const EditComposer: FC = () => {
   return (
     <MessagePrimitive.Root className="mb-12 flex w-full max-w-2xl gap-3">
       <Avatar>
@@ -117,17 +126,18 @@ const EditingUserMessage: FC = () => {
       <div className="flex-grow">
         <p className="font-semibold">You</p>
 
-        <MessagePrimitive.EditableContent className="flex h-8 w-full resize-none bg-transparent outline-none" />
+        <ComposerPrimitive.Root>
+          <ComposerPrimitive.Input className="flex h-8 w-full resize-none bg-transparent outline-none" />
 
-        <EditBarPrimitive.Root className="mt-2 flex justify-center gap-3">
-          <EditBarPrimitive.Save asChild>
-            <Button>Save & Submit</Button>
-          </EditBarPrimitive.Save>
-
-          <EditBarPrimitive.Cancel asChild>
-            <Button variant="outline">Cancel</Button>
-          </EditBarPrimitive.Cancel>
-        </EditBarPrimitive.Root>
+          <div className="mt-2 flex justify-center gap-3">
+            <ComposerPrimitive.Send asChild>
+              <Button>Save & Submit</Button>
+            </ComposerPrimitive.Send>
+            <ComposerPrimitive.Cancel asChild>
+              <Button variant="outline">Cancel</Button>
+            </ComposerPrimitive.Cancel>
+          </div>
+        </ComposerPrimitive.Root>
       </div>
     </MessagePrimitive.Root>
   );
@@ -147,29 +157,34 @@ const AssistantMessage: FC = () => {
           <MessagePrimitive.Content />
         </p>
 
-        <ActionBarPrimitive.Root
-          hideWhenNotLastOrHover
-          hideWhenBusy
-          className="absolute flex w-full items-center gap-1 py-2"
-        >
+        <div className="flex pt-2">
           <BranchPicker />
 
-          <ActionBarPrimitive.Copy asChild>
-            <ActionBarButton tooltip="Copy">
-              <MessagePrimitive.If copied>
-                <CheckIcon className="size-4" />
-              </MessagePrimitive.If>
-              <MessagePrimitive.If copied={false}>
-                <CopyIcon className="size-4" />
-              </MessagePrimitive.If>
-            </ActionBarButton>
-          </ActionBarPrimitive.Copy>
-          <ActionBarPrimitive.Reload asChild>
-            <ActionBarButton tooltip="Refresh">
-              <RefreshCwIcon className="size-4" />
-            </ActionBarButton>
-          </ActionBarPrimitive.Reload>
-        </ActionBarPrimitive.Root>
+          <ActionBarPrimitive.Root
+            hideWhenBusy
+            autohide="not-last"
+            autohideFloat="single-branch"
+            className="flex items-center gap-1 rounded-lg data-[floating=true]:absolute data-[floating=true]:border data-[floating=true]:p-1"
+          >
+            <MessagePrimitive.If lastOrHover>
+              <ActionBarPrimitive.Copy asChild>
+                <IconButton tooltip="Copy">
+                  <MessagePrimitive.If copied>
+                    <CheckIcon className="size-4" />
+                  </MessagePrimitive.If>
+                  <MessagePrimitive.If copied={false}>
+                    <CopyIcon className="size-4" />
+                  </MessagePrimitive.If>
+                </IconButton>
+              </ActionBarPrimitive.Copy>
+              <ActionBarPrimitive.Reload asChild>
+                <IconButton tooltip="Refresh">
+                  <RefreshCwIcon className="size-4" />
+                </IconButton>
+              </ActionBarPrimitive.Reload>
+            </MessagePrimitive.If>
+          </ActionBarPrimitive.Root>
+        </div>
       </div>
     </MessagePrimitive.Root>
   );
@@ -182,25 +197,23 @@ const BranchPicker: FC = () => {
       className="inline-flex items-center text-foreground/60 text-xs"
     >
       <BranchPickerPrimitive.Previous asChild>
-        <ActionBarButton tooltip="Previous">
+        <IconButton tooltip="Previous">
           <ChevronLeftIcon className="size-4" />
-        </ActionBarButton>
+        </IconButton>
       </BranchPickerPrimitive.Previous>
       <BranchPickerPrimitive.Number /> / <BranchPickerPrimitive.Count />
       <BranchPickerPrimitive.Next asChild>
-        <ActionBarButton tooltip="Next">
+        <IconButton tooltip="Next">
           <ChevronRightIcon className="size-4" />
-        </ActionBarButton>
+        </IconButton>
       </BranchPickerPrimitive.Next>
     </BranchPickerPrimitive.Root>
   );
 };
 
-type ActionBarButtonProps = PropsWithChildren<
-  ButtonProps & { tooltip: string }
->;
+type IconButton = ButtonProps & { tooltip: string };
 
-const ActionBarButton: FC<ActionBarButtonProps> = ({
+const IconButton: FC<IconButton> = ({
   children,
   tooltip,
   className,
@@ -210,7 +223,7 @@ const ActionBarButton: FC<ActionBarButtonProps> = ({
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
-          variant={"ghost"}
+          variant="ghost"
           size="icon"
           className={cn("size-auto p-1", className)}
           {...rest}
@@ -219,7 +232,6 @@ const ActionBarButton: FC<ActionBarButtonProps> = ({
           <span className="sr-only">{tooltip}</span>
         </Button>
       </TooltipTrigger>
-
       <TooltipContent side="bottom">{tooltip}</TooltipContent>
     </Tooltip>
   );

@@ -1,27 +1,28 @@
 ---
-title: Message
+title: MessagePrimitive
 description: A single message in a conversation. Messages may consist of multiple parts.
 ---
 
 ## Anatomy
 
 ```tsx
-import { Message } from "assistant-ui";
+import { MessagePrimitive } from "assistant-ui";
 
-export default () => (
-  <Message.Root>
-    <Message.If user>You</Message.If>
-    <Message.If assistant>Assistant</Message.If>
+const UserMessage = () => (
+  <MessagePrimitive.Root>
+    User: <MessagePrimitive.Content />
+    
+    <BranchPicker />
+    <ActionBar />
+  </Message.Root>
+);
 
-    <Message.If editing={false}>
-      <Message.Content />
-      <ActionBar />
-    </Message.If>
-
-    <Message.If editing>
-      <Message.EditableContent />
-      <EditBar />
-    </Message.If>
+const AssistantMessage = () => (
+  <MessagePrimitive.Root>
+    Assistant: <MessagePrimitive.Content />
+    
+    <BranchPicker />
+    <ActionBar />
   </Message.Root>
 );
 ```
@@ -30,7 +31,7 @@ export default () => (
 
 ### Provider
 
-The context provider for the Message. This is usually handled by `<Thread.Messages />` so you do not need to use this component directly.
+The context provider for the message. This is usually handled by `<Thread.Messages />` so you do not need to use this component directly.
 
 ### Root
 
@@ -39,10 +40,6 @@ Containts all parts of the Composer.
 ### Content
 
 The content of the message in plain text.
-
-### EditableContent
-
-The content of the message in an editable plain text field.
 
 ### If
 
@@ -59,11 +56,3 @@ Renders children if a condition is met.
   {/* rendered if message is being edited */}
 </Message.If>
 ```
-
-### useMessageContext
-
-The current message context.
-
-### useMessageIf
-
-Returns true if the query conditions are met. Same API as `<Message.If />`.

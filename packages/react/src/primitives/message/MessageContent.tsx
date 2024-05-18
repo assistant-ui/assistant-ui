@@ -1,13 +1,11 @@
 "use client";
 
-import { useMessageContext } from "../../utils/context/MessageContext";
 import type { FC } from "react";
+import { useMessageContext } from "../../utils/context/MessageContext";
 
 export const MessageContent: FC = () => {
-  const content = useMessageContext(
-    "Message.Content",
-    (s) => s.message.content,
-  );
+  const { useMessage } = useMessageContext();
+  const content = useMessage((s) => s.message.content);
 
   return <>{content}</>;
 };

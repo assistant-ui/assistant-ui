@@ -1,11 +1,11 @@
 "use client";
 
-import { forwardRef } from "react";
 import {
   type ComponentPropsWithoutRef,
   Primitive,
 } from "@radix-ui/react-primitive";
-import { useThreadContext } from "../../utils/context/ThreadContext";
+import { forwardRef } from "react";
+import { useComposerContext } from "../../utils/context/ComposerState";
 
 type ComposerSendElement = React.ElementRef<typeof Primitive.button>;
 type PrimitiveFormProps = ComponentPropsWithoutRef<typeof Primitive.button>;
@@ -14,14 +14,15 @@ type ComposerSendProps = PrimitiveFormProps;
 
 export const ComposerSend = forwardRef<ComposerSendElement, ComposerSendProps>(
   ({ disabled, ...rest }, ref) => {
-    const input = useThreadContext("Composer.Send", (s) => s.chat.input);
+    const { useComposer } = useComposerContext();
+    const hasValue = useComposer((c) => c.isEditing && c.value.length > 0);
 
     return (
       <Primitive.button
         type="submit"
         {...rest}
         ref={ref}
-        disabled={disabled || input.length === 0}
+        disabled={disabled || !hasValue}
       />
     );
   },

@@ -50,7 +50,8 @@ export const Claude: FC = () => {
 };
 
 const ChatMessage: FC = () => {
-  const message = unstable_useMessageContext("ChatMessage", (s) => s.message);
+  const { useMessage } = unstable_useMessageContext();
+  const { message } = useMessage();
 
   return (
     <MessagePrimitive.Root className="mx-auto mb-4 flex w-full max-w-screen-md flex-col gap-3">
@@ -81,7 +82,10 @@ const ChatMessage: FC = () => {
       </div>
 
       <MessagePrimitive.If assistant>
-        <ActionBarPrimitive.Root className="-mt-6 relative mr-3 flex items-center gap-3 self-end rounded-lg border border-[#6c6a6040] bg-[#393937] px-2 py-1">
+        <ActionBarPrimitive.Root
+          autohide="not-last"
+          className="-mt-6 relative mr-3 flex items-center gap-3 self-end rounded-lg border border-[#6c6a6040] bg-[#393937] px-2 py-1"
+        >
           <ActionBarPrimitive.Reload className="flex items-center gap-1 font-mono text-[#b4b4b4] text-xs hover:text-white">
             <ReloadIcon width={12} height={12} />
             Retry

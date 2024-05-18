@@ -1,21 +1,21 @@
 ---
-title: Thread
+title: ThreadPrimitive
 description: A conversation between a user and an assistant.
 ---
 
 ## Anatomy
 
 ```tsx
-import { Thread } from "assistant-ui";
+import { ThreadPrimitive } from "assistant-ui";
 
-export default () => (
-  <Thread.Root>
-    <Thread.Viewport>
-      <Thread.Empty>...</Thread.Empty>
-      <Thread.Messages components={...} />
-    </Thread.Viewport>
+const Thread = () => (
+  <ThreadPrimitive.Root>
+    <ThreadPrimitive.Viewport>
+      <ThreadPrimitive.Empty>...</ThreadPrimitive.Empty>
+      <ThreadPrimitive.Messages components={...} />
+    </ThreadPrimitive.Viewport>
     <Composer />
-  </Thread.Root>
+  </ThreadPrimitive.Root>
 );
 ```
 

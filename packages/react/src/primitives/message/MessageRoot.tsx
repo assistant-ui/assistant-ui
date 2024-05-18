@@ -1,11 +1,11 @@
 "use client";
 
-import { forwardRef } from "react";
+import { composeEventHandlers } from "@radix-ui/primitive";
 import {
   type ComponentPropsWithoutRef,
   Primitive,
 } from "@radix-ui/react-primitive";
-import { composeEventHandlers } from "@radix-ui/primitive";
+import { forwardRef } from "react";
 import { useMessageContext } from "../../utils/context/MessageContext";
 
 type MessageRootElement = React.ElementRef<typeof Primitive.div>;
@@ -15,10 +15,8 @@ type MessageRootProps = PrimitiveDivProps;
 
 export const MessageRoot = forwardRef<MessageRootElement, MessageRootProps>(
   ({ onMouseEnter, onMouseLeave, ...rest }, ref) => {
-    const setIsHovering = useMessageContext(
-      "Message.Root",
-      (s) => s.setIsHovering,
-    );
+    const { useMessage } = useMessageContext();
+    const setIsHovering = useMessage((s) => s.setIsHovering);
 
     const handleMouseEnter = () => {
       setIsHovering(true);

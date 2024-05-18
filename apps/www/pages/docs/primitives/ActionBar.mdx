@@ -1,35 +1,33 @@
 ---
-title: ActionBar
+title: ActionBarPrimitive
 description: Buttons to interact with the message.
 ---
 
 ## Anatomy
 
 ```tsx
-import { ActionBar } from "assistant-ui";
+import { ActionBarPrimitive } from "assistant-ui";
 
-export default () => (
-  <ActionBar.Root>
-    <BranchPicker />
+const UserMessageBar = () => (
+  <ActionBarPrimitive.Root>
+    <ActionBarPrimitive.Edit />
+    <ActionBarPrimitive.Copy />
+  </ActionBarPrimitive.Root>
+);
 
-    <Message.If user>
-      <ActionBar.Edit />
-    </Message.If>
-
-    <Message.If assistant>
-      <ActionBar.Reload />
-    </Message.If>
-
-    <ActionBar.Copy />
-  </ActionBar.Root>
+const AssistantMessageBar = () => (
+  <ActionBarPrimitive.Root>
+    <ActionBarPrimitive.Reload />
+    <ActionBarPrimitive.Copy />
+  </ActionBarPrimitive.Root>
 );
 ```
 
 ## API Reference
 
-### Root
+### Container
 
-Containts all parts of the ActionBar.
+Containts all parts of the action bar.
 
 ### Edit
 

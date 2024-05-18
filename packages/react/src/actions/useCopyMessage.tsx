@@ -1,20 +1,17 @@
 import { useMessageContext } from "../utils/context/MessageContext";
 
 export const useCopyMessage = ({ copiedDuration = 3000 }) => {
-  const context = useMessageContext("ActionBar.Copy", (s) => {
+  const { useMessage, useComposer } = useMessageContext();
+
+  const isEditing = useComposer((s) => s.isEditing);
+  if (isEditing) return null;
+
+  return () => {
     const {
-      editState: { isEditing },
       message: { content },
       setIsCopied,
-    } = s;
-    if (isEditing) return null;
-    return { content, setIsCopied };
-  });
+    } = useMessage.getState();
 
-  if (!context) return null;
-
-  const { content, setIsCopied } = context;
-  return () => {
     navigator.clipboard.writeText(content);
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), copiedDuration);

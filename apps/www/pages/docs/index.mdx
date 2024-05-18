@@ -1,46 +1,19 @@
 ---
 title: Introduction
-description: Assistant UI is a React component library that provides a set of components to build conversational user interfaces.
---- 
+description: Conversational AI for every app.
+---
 
-## Getting Started
+Assistant UI is a React component library to build conversational user interfaces.
 
-The recommended way to get started is with the `@assistant-ui/shadcn` starter template. This template is built with `tailwind` and `shadcn-ui`. You can adjust these styles and adapt them to your application as needed.
+### Composable Primitives
 
-First, set up `shadcn-ui` by following the installation guide: 
+Every app is unique and requires a different subset of features. Composable primitives allow you to mix and match the subset of features that you need.
+This is a more robust approach compared to a one size fits all component with lots of props and has been inspired by cmdk, radix-ui and others.
 
-https://ui.shadcn.com/docs/installation
+### Unstyled Components
 
-Then, add `@assistant-ui/shadcn` to your project:
+assistant-ui does not ship with any styling or CSS code. Instead, you copy paste a starter template (including styles) in your repository and adjust it as needed.
 
-```sh
-npx @assistant-ui/shadcn add thread
-```
+### Open and Extensible
 
-This adds a `/components/ui/assistant-ui/thread.tsx` file to your project, which you can adjust as needed.
-
-Use the `Thread` component in your application:
-
-```tsx
-import { VercelAIThreadProvider } from '@assistant-ui/react';
-import { Thread } from '@/components/ui/assistant-ui/thread';
-import { useChat } from 'ai'; 
-
-function ChatBox() {
-  const chat = useChat();
-  return (
-    <VercelAIThreadProvider chat={chat}>
-      <Thread />
-    </VercelAIThreadProvider>
-  );
-}
-```
-
-### Manual Installation
-
-If your stack is not compatible with the `@assistant-ui/shadcn` starter template, you can install `@assistant-ui/react` manually. 
-You can check out the source code of the starter template as a reference implementation.
-
-```sh npm2yarn
-npm install @assistant-ui/react
-```
+You have access to the entire internal state of assistant-ui and can mix and match your own promitives with ours.

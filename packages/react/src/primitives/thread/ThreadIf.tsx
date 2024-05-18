@@ -1,8 +1,8 @@
 "use client";
 
 import type { FC, PropsWithChildren } from "react";
-import { useThreadContext } from "../../utils/context/ThreadContext";
 import type { RequireAtLeastOne } from "../../utils/RequireAtLeastOne";
+import { useAssistantContext } from "../../utils/context/AssistantContext";
 
 type ThreadIfFilters = {
   empty: boolean | undefined;
@@ -12,9 +12,8 @@ type ThreadIfFilters = {
 type ThreadIfProps = PropsWithChildren<RequireAtLeastOne<ThreadIfFilters>>;
 
 const useThreadIf = (props: RequireAtLeastOne<ThreadIfFilters>) => {
-  return useThreadContext("Thread.If", (s) => {
-    const thread = s.chat;
-
+  const { useThread } = useAssistantContext();
+  return useThread((thread) => {
     if (props.empty === true && thread.messages.length !== 0) return false;
     if (props.empty === false && thread.messages.length === 0) return false;
     if (props.busy === true && !thread.isLoading) return false;

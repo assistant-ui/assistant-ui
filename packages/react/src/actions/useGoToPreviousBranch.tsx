@@ -1,25 +1,22 @@
+import { useAssistantContext } from "../utils/context/AssistantContext";
 import { useMessageContext } from "../utils/context/MessageContext";
-import { useThreadContext } from "../utils/context/ThreadContext";
 
 export const useGoToPreviousBranch = () => {
-  const switchToBranch = useThreadContext(
-    "BranchPicker.Previous",
-    (s) => s.chat.switchToBranch,
-  );
-  const context = useMessageContext("BranchPicker.Previous", (s) => {
+  const { useThread, useBranchObserver } = useAssistantContext();
+  const { useComposer, useMessage } = useMessageContext();
+
+  // TODO compose into one hook call
+  const isLoading = useThread((s) => s.isLoading);
+  const isEditing = useComposer((s) => s.isEditing);
+  const hasNext = useMessage(({ branchState: { branchId } }) => branchId > 0);
+
+  if (isLoading || isEditing || !hasNext) return null;
+
+  return () => {
     const {
       message,
-      editState: { isEditing },
-      branchState: { branchId, branchCount },
-    } = s;
-    if (isEditing || branchCount <= 1 || branchId <= 0) return null;
-    return { message, branchId };
-  });
-
-  if (!context) return null;
-
-  const { message, branchId } = context;
-  return () => {
-    switchToBranch(message, branchId - 1);
+      branchState: { branchId },
+    } = useMessage.getState();
+    useBranchObserver.getState().switchToBranch(message, branchId - 1);
   };
 };

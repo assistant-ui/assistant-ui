@@ -1,9 +1,10 @@
 "use client";
 
 import type { FC } from "react";
-import { useThreadContext } from "../../utils/context/ThreadContext";
+import { useAssistantContext } from "../../utils/context/AssistantContext";
 import { UPCOMING_MESSAGE_ID } from "../../utils/hooks/useBranches";
 import { hasUpcomingMessage } from "../../utils/hooks/useBranches";
+import { ComposerIf } from "../composer/ComposerIf";
 import { Provider } from "../message";
 import { MessageIf } from "../message/MessageIf";
 
@@ -12,21 +13,21 @@ type ThreadMessagesProps = {
     | {
         Message: React.ComponentType;
         UserMessage?: React.ComponentType;
-        EditingUserMessage?: React.ComponentType;
+        EditComposer?: React.ComponentType;
         AssistantMessage?: React.ComponentType;
       }
     | {
         Message?: React.ComponentType;
         UserMessage: React.ComponentType;
-        EditingUserMessage?: React.ComponentType;
+        EditComposer?: React.ComponentType;
         AssistantMessage: React.ComponentType;
       };
 };
 
 const getComponents = (components: ThreadMessagesProps["components"]) => {
   return {
-    EditingUserMessage:
-      components.EditingUserMessage ??
+    EditComposer:
+      components.EditComposer ??
       components.UserMessage ??
       (components.Message as React.ComponentType),
     UserMessage:
@@ -38,10 +39,12 @@ const getComponents = (components: ThreadMessagesProps["components"]) => {
 };
 
 export const ThreadMessages: FC<ThreadMessagesProps> = ({ components }) => {
-  const chat = useThreadContext("Thread.Messages", (s) => s.chat);
-  const messages = chat.messages;
+  const { useThread } = useAssistantContext();
+  const thread = useThread();
 
-  const { UserMessage, EditingUserMessage, AssistantMessage } =
+  const messages = thread.messages;
+
+  const { UserMessage, EditComposer, AssistantMessage } =
     getComponents(components);
 
   if (messages.length === 0) return null;
@@ -52,11 +55,13 @@ export const ThreadMessages: FC<ThreadMessagesProps> = ({ components }) => {
         return (
           // biome-ignore lint/suspicious/noArrayIndexKey: fixes a11y issues with branch navigation
           <Provider key={idx} message={message}>
-            <MessageIf user editing={false}>
-              <UserMessage />
-            </MessageIf>
-            <MessageIf user editing>
-              <EditingUserMessage />
+            <MessageIf user>
+              <ComposerIf editing={false}>
+                <UserMessage />
+              </ComposerIf>
+              <ComposerIf editing>
+                <EditComposer />
+              </ComposerIf>
             </MessageIf>
             <MessageIf assistant>
               <AssistantMessage />
@@ -64,7 +69,7 @@ export const ThreadMessages: FC<ThreadMessagesProps> = ({ components }) => {
           </Provider>
         );
       })}
-      {hasUpcomingMessage(chat) && (
+      {hasUpcomingMessage(thread) && (
         <Provider
           message={{
             id: UPCOMING_MESSAGE_ID,
