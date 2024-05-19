@@ -4,7 +4,7 @@ import { Claude } from "@/components/claude/Claude";
 import { Shadcn } from "@/components/shadcn/Shadcn";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { VercelAIThreadProvider } from "@assistant-ui/react";
+import { VercelAIAssistantProvider } from "@assistant-ui/react";
 import { useChat } from "ai/react";
 import Link from "next/link";
 import React, { useState } from "react";
@@ -68,9 +68,9 @@ export default function Home() {
           </div>
         </div>
         <div className="h-[650px] overflow-hidden rounded-lg border shadow">
-          <VercelAIThreadProvider chat={chat}>
+          <VercelAIAssistantProvider chat={chat}>
             <ChatComponent />
-          </VercelAIThreadProvider>
+          </VercelAIAssistantProvider>
         </div>
       </div>
     </main>
