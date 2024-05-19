@@ -82,84 +82,82 @@ const vercelToCachedThreadMessages = (messages: Message[]) => {
   });
 };
 
-type VercelAIAssistantProviderProps = {
+type VercelAIChatAssistantProviderProps = {
   chat: UseChatHelpers;
   children: React.ReactNode;
 };
 
-export const VercelAIAssistantProvider: FC<VercelAIAssistantProviderProps> = ({
-  chat,
-  children,
-}) => {
-  const context = useAIAssistantContext();
+export const VercelAIChatAssistantProvider: FC<VercelAIChatAssistantProviderProps> =
+  ({ chat, children }) => {
+    const context = useAIAssistantContext();
 
-  // -- useThread sync --
+    // -- useThread sync --
 
-  const messages = useMemo(() => {
-    return vercelToCachedThreadMessages(chat.messages);
-  }, [chat.messages]);
+    const messages = useMemo(() => {
+      return vercelToCachedThreadMessages(chat.messages);
+    }, [chat.messages]);
 
-  const reload = useCallback(async () => {
-    await chat.reload();
-  }, [chat.reload]);
+    const reload = useCallback(async () => {
+      await chat.reload();
+    }, [chat.reload]);
 
-  const append = useCallback(
-    async (message: CreateThreadMessage) => {
-      if (message.content[0]?.type !== "text") {
-        throw new Error("Only text content is currently supported");
-      }
+    const append = useCallback(
+      async (message: CreateThreadMessage) => {
+        if (message.content[0]?.type !== "text") {
+          throw new Error("Only text content is currently supported");
+        }
 
-      await chat.append({
-        role: message.role,
-        content: message.content[0].text,
-      });
-    },
-    [chat.append],
-  );
-
-  const stop = useCallback(() => {
-    const lastMessage = chat.messages.at(-1);
-    chat.stop();
-
-    if (lastMessage?.role === "user") {
-      chat.setInput(lastMessage.content);
-    }
-  }, [chat.messages, chat.stop, chat.setInput]);
-
-  useMemo(() => {
-    context.useThread.setState(
-      {
-        messages,
-        isLoading: chat.isLoading,
-        reload,
-        append,
-        stop,
+        await chat.append({
+          role: message.role,
+          content: message.content[0].text,
+        });
       },
-      true,
+      [chat.append],
     );
-  }, [context, messages, reload, append, stop, chat.isLoading]);
 
-  // -- useComposer sync --
+    const stop = useCallback(() => {
+      const lastMessage = chat.messages.at(-1);
+      chat.stop();
 
-  useMemo(() => {
-    context.useComposer.setState({
-      canCancel: chat.isLoading,
-      value: chat.input,
-      setValue: chat.setInput,
-    });
-  }, [context, chat.isLoading, chat.input, chat.setInput]);
+      if (lastMessage?.role === "user") {
+        chat.setInput(lastMessage.content);
+      }
+    }, [chat.messages, chat.stop, chat.setInput]);
 
-  // -- useBranchObserver sync --
+    useMemo(() => {
+      context.useThread.setState(
+        {
+          messages,
+          isLoading: chat.isLoading,
+          reload,
+          append,
+          stop,
+        },
+        true,
+      );
+    }, [context, messages, reload, append, stop, chat.isLoading]);
 
-  const branches = useVercelAIBranches(chat);
+    // -- useComposer sync --
 
-  useMemo(() => {
-    context.useBranchObserver.setState(branches, true);
-  }, [context, branches]);
+    useMemo(() => {
+      context.useComposer.setState({
+        canCancel: chat.isLoading,
+        value: chat.input,
+        setValue: chat.setInput,
+      });
+    }, [context, chat.isLoading, chat.input, chat.setInput]);
 
-  return (
-    <AssistantContext.Provider value={context}>
-      {children}
-    </AssistantContext.Provider>
-  );
-};
+    // -- useBranchObserver sync --
+
+    const branches = useVercelAIBranches(chat);
+
+    useMemo(() => {
+      context.useBranchObserver.setState(branches, true);
+    }, [context, branches]);
+
+    return (
+      <AssistantContext.Provider value={context}>
+        {children}
+      </AssistantContext.Provider>
+    );
+  };

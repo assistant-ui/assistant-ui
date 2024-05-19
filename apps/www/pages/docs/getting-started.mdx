@@ -20,16 +20,16 @@ This adds a `/components/ui/assistant-ui/thread.tsx` file to your project, which
 Use the `Thread` component in your application:
 
 ```tsx
-import { VercelAIThreadProvider } from '@assistant-ui/react';
+import { VercelAIAssistantProvider } from '@assistant-ui/react';
 import { Thread } from '@/components/ui/assistant-ui/thread';
 import { useChat } from 'ai'; 
 
 function ChatBox() {
   const chat = useChat();
   return (
-    <VercelAIThreadProvider chat={chat}>
+    <VercelAIAssistantProvider chat={chat}>
       <Thread />
-    </VercelAIThreadProvider>
+    </VercelAIAssistantProvider>
   );
 }
 ```

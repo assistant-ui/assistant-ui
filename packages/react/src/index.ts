@@ -4,7 +4,7 @@ export * as MessagePrimitive from "./primitives/message";
 export * as BranchPickerPrimitive from "./primitives/branchPicker";
 export * as ActionBarPrimitive from "./primitives/actionBar";
 
-export { VercelAIAssistantProvider as VercelAIThreadProvider } from "./vercel/VercelAIAssistantProvider";
+export { VercelAIChatAssistantProvider as VercelAIAssistantProvider } from "./vercel/VercelAIAssistantProvider";
 
 // TODO
 export { useMessageContext as unstable_useMessageContext } from "./utils/context/MessageContext";
