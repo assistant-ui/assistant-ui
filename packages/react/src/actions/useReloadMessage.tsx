@@ -12,6 +12,10 @@ export const useReloadMessage = () => {
   if (isLoading || !isAssistant) return null;
 
   return () => {
-    useBranchObserver.getState().reloadAt(useMessage.getState().message);
+    const message = useMessage.getState().message;
+    if (message.role !== "assistant")
+      throw new Error("Reloading is only supported on assistant messages");
+
+    useBranchObserver.getState().reloadAt(message);
   };
 };

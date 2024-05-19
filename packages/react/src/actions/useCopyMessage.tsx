@@ -7,12 +7,12 @@ export const useCopyMessage = ({ copiedDuration = 3000 }) => {
   if (isEditing) return null;
 
   return () => {
-    const {
-      message: { content },
-      setIsCopied,
-    } = useMessage.getState();
+    const { message, setIsCopied } = useMessage.getState();
 
-    navigator.clipboard.writeText(content);
+    if (message.content[0]?.type !== "text")
+      throw new Error("Copying is only supported for text-only messages");
+
+    navigator.clipboard.writeText(message.content[0].text);
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), copiedDuration);
   };

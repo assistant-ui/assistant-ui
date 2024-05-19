@@ -1,9 +1,13 @@
 "use client";
 
-import type { CreateMessage, Message } from "ai";
+import type { Message } from "ai";
 import type { UseChatHelpers } from "ai/react";
 import { useCallback, useMemo, useRef } from "react";
-import type { ThreadState } from "../context/AssistantContext";
+import type {
+  CreateThreadMessage,
+  ThreadMessage,
+  ThreadState,
+} from "../utils/context/AssistantContext";
 
 const ROOT_ID = "__ROOT_ID__";
 export const UPCOMING_MESSAGE_ID = "__UPCOMING_MESSAGE_ID__";
@@ -36,7 +40,7 @@ const updateBranchData = (data: ChatBranchData, messages: Message[]) => {
 const getParentId = (
   data: ChatBranchData,
   messages: Message[],
-  message: Message,
+  message: ThreadMessage,
 ) => {
   if (message.id === UPCOMING_MESSAGE_ID) {
     const parent = messages.at(-1);
@@ -52,7 +56,7 @@ const getParentId = (
 const getBranchStateImpl = (
   data: ChatBranchData,
   messages: Message[],
-  message: Message,
+  message: ThreadMessage,
 ) => {
   const parentId = getParentId(data, messages, message);
 
@@ -76,7 +80,7 @@ const getBranchStateImpl = (
 const switchToBranchImpl = (
   data: ChatBranchData,
   messages: Message[],
-  message: Message,
+  message: ThreadMessage,
   branchId: number,
 ): Message[] => {
   const parentId = getParentId(data, messages, message);
@@ -100,7 +104,7 @@ const switchToBranchImpl = (
   return snapshot;
 };
 
-const sliceMessagesUntil = (messages: Message[], message: Message) => {
+const sliceMessagesUntil = (messages: Message[], message: ThreadMessage) => {
   if (message.id === UPCOMING_MESSAGE_ID) return messages;
 
   const messageIdx = messages.findIndex((m) => m.id === message.id);
@@ -115,13 +119,16 @@ export type BranchState = {
 };
 
 export type UseBranches = {
-  getBranchState: (message: Message) => BranchState;
-  switchToBranch: (message: Message, branchId: number) => void;
-  editAt: (message: Message, newMesssage: CreateMessage) => Promise<void>;
-  reloadAt: (message: Message) => Promise<void>;
+  getBranchState: (message: ThreadMessage) => BranchState;
+  switchToBranch: (message: ThreadMessage, branchId: number) => void;
+  editAt: (
+    message: ThreadMessage,
+    newMesssage: CreateThreadMessage,
+  ) => Promise<void>;
+  reloadAt: (message: ThreadMessage) => Promise<void>;
 };
 
-export const useChatWithBranches = (chat: UseChatHelpers): UseBranches => {
+export const useVercelAIBranches = (chat: UseChatHelpers): UseBranches => {
   const data = useRef<ChatBranchData>({
     parentMap: new Map(),
     branchMap: new Map(),
@@ -131,14 +138,14 @@ export const useChatWithBranches = (chat: UseChatHelpers): UseBranches => {
   updateBranchData(data, chat.messages);
 
   const getBranchState = useCallback(
-    (message: Message) => {
+    (message: ThreadMessage) => {
       return getBranchStateImpl(data, chat.messages, message);
     },
     [data, chat.messages],
   );
 
   const switchToBranch = useCallback(
-    (message: Message, branchId: number) => {
+    (message: ThreadMessage, branchId: number) => {
       const newMessages = switchToBranchImpl(
         data,
         chat.messages,
@@ -151,7 +158,7 @@ export const useChatWithBranches = (chat: UseChatHelpers): UseBranches => {
   );
 
   const reloadAt = useCallback(
-    async (message: Message) => {
+    async (message: ThreadMessage) => {
       const newMessages = sliceMessagesUntil(chat.messages, message);
       chat.setMessages(newMessages);
 
@@ -161,11 +168,17 @@ export const useChatWithBranches = (chat: UseChatHelpers): UseBranches => {
   );
 
   const editAt = useCallback(
-    async (message: Message, newMessage: CreateMessage) => {
+    async (message: ThreadMessage, newMessage: CreateThreadMessage) => {
       const newMessages = sliceMessagesUntil(chat.messages, message);
       chat.setMessages(newMessages);
 
-      await chat.append(newMessage);
+      if (newMessage.content[0]?.type !== "text")
+        throw new Error("Only text content is currently supported");
+
+      await chat.append({
+        role: "user",
+        content: newMessage.content[0].text,
+      });
     },
     [chat.messages, chat.setMessages, chat.append],
   );

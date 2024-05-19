@@ -1,11 +1,11 @@
-import type { Message } from "ai";
 import { createContext, useContext } from "react";
 import type { StoreApi, UseBoundStore } from "zustand";
-import type { BranchState } from "../hooks/useBranches";
+import type { BranchState } from "../../vercel/useVercelAIBranches";
+import type { ThreadMessage } from "./AssistantContext";
 import type { ComposerStore } from "./ComposerState";
 
 export type MessageState = {
-  message: Message;
+  message: ThreadMessage;
   branchState: BranchState;
   isLast: boolean;
   isCopied: boolean;

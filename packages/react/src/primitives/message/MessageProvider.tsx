@@ -1,10 +1,10 @@
 "use client";
 
-import type { Message } from "ai";
 import { type FC, useMemo, useState } from "react";
 import { create } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import {
+  type ThreadMessage,
   type ThreadState,
   useAssistantContext,
 } from "../../utils/context/AssistantContext";
@@ -17,14 +17,14 @@ import {
 import {
   UPCOMING_MESSAGE_ID,
   hasUpcomingMessage,
-} from "../../utils/hooks/useBranches";
+} from "../../vercel/useVercelAIBranches";
 
 type MessageProviderProps = {
   children?: React.ReactNode;
-  message: Message;
+  message: ThreadMessage;
 };
 
-const getIsLast = (thread: ThreadState, message: Message) => {
+const getIsLast = (thread: ThreadState, message: ThreadMessage) => {
   const hasUpcoming = hasUpcomingMessage(thread);
   return hasUpcoming
     ? message.id === UPCOMING_MESSAGE_ID
@@ -35,7 +35,7 @@ const useMessageContext = () => {
   const { useBranchObserver } = useAssistantContext();
   const [context] = useState<MessageStore>(() => {
     const useMessage = create<MessageState>(() => ({
-      message: null as unknown as Message,
+      message: null as unknown as ThreadMessage,
       isLast: false,
       isCopied: false,
       isHovering: false,
@@ -50,18 +50,26 @@ const useMessageContext = () => {
     const useComposer = create<ComposerState>((set, get) => ({
       isEditing: false,
       canCancel: true,
-      edit: () =>
-        set({
+      edit: () => {
+        const message = useMessage.getState().message;
+        if (message.role !== "user")
+          throw new Error("Editing is only supported for user messages");
+        if (message.content[0]?.type !== "text")
+          throw new Error("Editing is only supported for text-only messages");
+
+        return set({
           isEditing: true,
-          value: useMessage.getState().message.content,
-        }),
+          value: message.content[0].text,
+        });
+      },
       cancel: () => set({ isEditing: false }),
       send: () => {
         const message = useMessage.getState().message;
+        if (message.role !== "user")
+          throw new Error("Editing is only supported for user messages");
         useBranchObserver.getState().editAt(message, {
-          ...message,
-          id: undefined as unknown as string, // remove id to create a new message
-          content: get().value,
+          role: "user",
+          content: [{ type: "text", text: get().value }],
         });
         set({ isEditing: false });
       },

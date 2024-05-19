@@ -2,8 +2,8 @@
 
 import type { FC } from "react";
 import { useAssistantContext } from "../../utils/context/AssistantContext";
-import { UPCOMING_MESSAGE_ID } from "../../utils/hooks/useBranches";
-import { hasUpcomingMessage } from "../../utils/hooks/useBranches";
+import { UPCOMING_MESSAGE_ID } from "../../vercel/useVercelAIBranches";
+import { hasUpcomingMessage } from "../../vercel/useVercelAIBranches";
 import { ComposerIf } from "../composer/ComposerIf";
 import { Provider } from "../message";
 import { MessageIf } from "../message/MessageIf";
@@ -74,7 +74,7 @@ export const ThreadMessages: FC<ThreadMessagesProps> = ({ components }) => {
           message={{
             id: UPCOMING_MESSAGE_ID,
             role: "assistant",
-            content: "...",
+            content: [{ type: "text", text: "..." }],
           }}
         >
           <AssistantMessage />

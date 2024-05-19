@@ -1,22 +1,24 @@
 "use client";
 
+import type { Message } from "ai";
 import type { UseChatHelpers } from "ai/react";
-import { type FC, useMemo, useState } from "react";
+import { type FC, useCallback, useMemo, useState } from "react";
 import { create } from "zustand";
 import {
   AssistantContext,
   type AssistantStore,
   type BranchObserver,
+  type CreateThreadMessage,
+  type ThreadMessage,
   type ThreadState,
 } from "../utils/context/AssistantContext";
 import type { ComposerState } from "../utils/context/ComposerState";
-import { useChatWithBranches } from "../utils/hooks/useBranches";
+import { useVercelAIBranches } from "./useVercelAIBranches";
 
 const useAIAssistantContext = () => {
   const [context] = useState<AssistantStore>(() => {
     const useThread = create<ThreadState>()(() => ({
       messages: [],
-      setMessages: () => {},
       isLoading: false,
       reload: async () => {},
       append: async () => {},
@@ -33,9 +35,8 @@ const useAIAssistantContext = () => {
       },
       send: () => {
         useThread.getState().append({
-          content: useComposer.getState().value,
           role: "user",
-          createdAt: new Date(),
+          content: [{ type: "text", text: useComposer.getState().value }],
         });
         useComposer.getState().setValue("");
       },
@@ -59,6 +60,28 @@ const useAIAssistantContext = () => {
   return context;
 };
 
+const ThreadMessageCache = new WeakMap<Message, ThreadMessage>();
+const vercelToThreadMessage = (message: Message): ThreadMessage => {
+  if (message.role !== "user" && message.role !== "assistant")
+    throw new Error("Unsupported role");
+
+  return {
+    id: message.id,
+    role: message.role,
+    content: [{ type: "text", text: message.content }],
+  };
+};
+
+const vercelToCachedThreadMessages = (messages: Message[]) => {
+  return messages.map((m) => {
+    const cached = ThreadMessageCache.get(m);
+    if (cached) return cached;
+    const newMessage = vercelToThreadMessage(m);
+    ThreadMessageCache.set(m, newMessage);
+    return newMessage;
+  });
+};
+
 type VercelAIAssistantProviderProps = {
   chat: UseChatHelpers;
   children: React.ReactNode;
@@ -70,35 +93,54 @@ export const VercelAIAssistantProvider: FC<VercelAIAssistantProviderProps> = ({
 }) => {
   const context = useAIAssistantContext();
 
-  // sync with vercel
+  // -- useThread sync --
+
+  const messages = useMemo(() => {
+    return vercelToCachedThreadMessages(chat.messages);
+  }, [chat.messages]);
+
+  const reload = useCallback(async () => {
+    await chat.reload();
+  }, [chat.reload]);
+
+  const append = useCallback(
+    async (message: CreateThreadMessage) => {
+      if (message.content[0]?.type !== "text") {
+        throw new Error("Only text content is currently supported");
+      }
+
+      await chat.append({
+        role: message.role,
+        content: message.content[0].text,
+      });
+    },
+    [chat.append],
+  );
+
+  const stop = useCallback(() => {
+    const lastMessage = chat.messages.at(-1);
+    chat.stop();
+
+    if (lastMessage?.role === "user") {
+      chat.setInput(lastMessage.content);
+    }
+  }, [chat.messages, chat.stop, chat.setInput]);
+
   useMemo(() => {
     context.useThread.setState(
       {
-        messages: chat.messages,
-        setMessages: (value) => {
-          chat.setMessages(value);
-        },
+        messages,
         isLoading: chat.isLoading,
-        reload: async () => {
-          await chat.reload();
-        },
-        append: async (message) => {
-          await chat.append(message);
-        },
-        stop: () => {
-          const lastMessage = chat.messages.at(-1);
-          chat.stop();
-
-          if (lastMessage?.role === "user") {
-            chat.setInput(lastMessage.content);
-          }
-        },
+        reload,
+        append,
+        stop,
       },
       true,
     );
-  }, [context, chat]);
+  }, [context, messages, reload, append, stop, chat.isLoading]);
 
-  // sync with vercel
+  // -- useComposer sync --
+
   useMemo(() => {
     context.useComposer.setState({
       canCancel: chat.isLoading,
@@ -107,21 +149,12 @@ export const VercelAIAssistantProvider: FC<VercelAIAssistantProviderProps> = ({
     });
   }, [context, chat.isLoading, chat.input, chat.setInput]);
 
-  const branches = useChatWithBranches(chat);
+  // -- useBranchObserver sync --
 
-  // sync with branches
+  const branches = useVercelAIBranches(chat);
+
   useMemo(() => {
-    context.useBranchObserver.setState(
-      {
-        getBranchState: (message) => branches.getBranchState(message),
-        switchToBranch: (message, branchId) =>
-          branches.switchToBranch(message, branchId),
-        editAt: async (message, newMessage) =>
-          branches.editAt(message, newMessage),
-        reloadAt: async (message) => branches.reloadAt(message),
-      },
-      true,
-    );
+    context.useBranchObserver.setState(branches, true);
   }, [context, branches]);
 
   return (

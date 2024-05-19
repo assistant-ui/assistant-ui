@@ -7,5 +7,8 @@ export const MessageContent: FC = () => {
   const { useMessage } = useMessageContext();
   const content = useMessage((s) => s.message.content);
 
-  return <>{content}</>;
+  if (content[0]?.type !== "text")
+    throw new Error("Unsupported message content type");
+
+  return <>{content[0].text}</>;
 };
