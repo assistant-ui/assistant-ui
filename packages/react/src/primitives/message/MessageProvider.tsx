@@ -3,12 +3,12 @@
 import { type FC, useMemo, useState } from "react";
 import { create } from "zustand";
 import { useShallow } from "zustand/react/shallow";
-import {
-  type ThreadMessage,
-  type ThreadState,
-  useAssistantContext,
-} from "../../utils/context/AssistantContext";
-import type { ComposerState } from "../../utils/context/ComposerState";
+import { useAssistantContext } from "../../utils/context/AssistantContext";
+import type {
+  ThreadMessage,
+  ThreadState,
+} from "../../utils/context/AssistantTypes";
+import type { ComposerState } from "../../utils/context/ComposerTypes";
 import {
   MessageContext,
   type MessageState,
@@ -54,6 +54,8 @@ const useMessageContext = () => {
         const message = useMessage.getState().message;
         if (message.role !== "user")
           throw new Error("Editing is only supported for user messages");
+
+        // TODO image/ui support
         if (message.content[0]?.type !== "text")
           throw new Error("Editing is only supported for text-only messages");
 

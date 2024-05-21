@@ -1,12 +1,12 @@
 "use client";
 
-import { forwardRef, useRef, useState } from "react";
+import { composeEventHandlers } from "@radix-ui/primitive";
+import { useComposedRefs } from "@radix-ui/react-compose-refs";
 import {
   type ComponentPropsWithoutRef,
   Primitive,
 } from "@radix-ui/react-primitive";
-import { useComposedRefs } from "@radix-ui/react-compose-refs";
-import { composeEventHandlers } from "@radix-ui/primitive";
+import { forwardRef, useRef, useState } from "react";
 import { useOnResizeContent } from "../../utils/hooks/useOnResizeContent";
 
 type ThreadViewportElement = React.ElementRef<typeof Primitive.div>;
@@ -36,8 +36,6 @@ export const ThreadViewport = forwardRef<
 
     setIsAtBottom(div.scrollHeight - div.scrollTop <= div.clientHeight + 50);
   };
-
-  console.log(isAtBottom);
 
   return (
     <Primitive.div

@@ -1,8 +1,8 @@
 import { createContext, useContext } from "react";
 import type { StoreApi, UseBoundStore } from "zustand";
 import type { BranchState } from "../../vercel/useVercelAIBranches";
-import type { ThreadMessage } from "./AssistantContext";
-import type { ComposerStore } from "./ComposerState";
+import type { ThreadMessage } from "./AssistantTypes";
+import type { ComposerStore } from "./ComposerTypes";
 
 export type MessageState = {
   message: ThreadMessage;

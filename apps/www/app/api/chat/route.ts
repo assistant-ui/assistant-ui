@@ -1,7 +1,10 @@
-import OpenAI from "openai";
 import { OpenAIStream, StreamingTextResponse } from "ai";
+import OpenAI from "openai";
 
-const openai = new OpenAI({ baseURL: "https://llm.mdb.ai/" });
+const openai = new OpenAI({
+  apiKey: process.env["MDB_API_KEY"],
+  baseURL: "https://llm.mdb.ai/",
+});
 
 export const runtime = "edge";
 

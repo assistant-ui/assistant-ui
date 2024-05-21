@@ -9,6 +9,7 @@ export const useCopyMessage = ({ copiedDuration = 3000 }) => {
   return () => {
     const { message, setIsCopied } = useMessage.getState();
 
+    // TODO image/ui support
     if (message.content[0]?.type !== "text")
       throw new Error("Copying is only supported for text-only messages");
 

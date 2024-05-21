@@ -40,11 +40,9 @@ export const useOnResizeContent = (
     // Observe existing children
     for (const child of el.children) {
       resizeObserver.observe(child);
-      console.log("observing child", child);
     }
 
     return () => {
-      console.log("disconnecting");
       resizeObserver.disconnect();
       mutationObserver.disconnect();
     };

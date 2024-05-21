@@ -1,13 +1,13 @@
 "use client";
 
 import type { Message } from "ai";
-import type { UseChatHelpers } from "ai/react";
+import type { UseAssistantHelpers, UseChatHelpers } from "ai/react";
 import { useCallback, useMemo, useRef } from "react";
 import type {
   CreateThreadMessage,
   ThreadMessage,
   ThreadState,
-} from "../utils/context/AssistantContext";
+} from "../utils/context/AssistantTypes";
 
 const ROOT_ID = "__ROOT_ID__";
 export const UPCOMING_MESSAGE_ID = "__UPCOMING_MESSAGE_ID__";
@@ -128,7 +128,9 @@ export type UseBranches = {
   reloadAt: (message: ThreadMessage) => Promise<void>;
 };
 
-export const useVercelAIBranches = (chat: UseChatHelpers): UseBranches => {
+export const useVercelAIBranches = (
+  chat: UseChatHelpers | UseAssistantHelpers,
+): UseBranches => {
   const data = useRef<ChatBranchData>({
     parentMap: new Map(),
     branchMap: new Map(),
@@ -157,14 +159,18 @@ export const useVercelAIBranches = (chat: UseChatHelpers): UseBranches => {
     [data, chat.messages, chat.setMessages],
   );
 
+  const reloadMaybe = "reload" in chat ? chat.reload : undefined;
   const reloadAt = useCallback(
     async (message: ThreadMessage) => {
+      if (!reloadMaybe)
+        throw new Error("Reload not supported by Vercel AI SDK's useAssistant");
+
       const newMessages = sliceMessagesUntil(chat.messages, message);
       chat.setMessages(newMessages);
 
-      await chat.reload();
+      await reloadMaybe();
     },
-    [chat.messages, chat.setMessages, chat.reload],
+    [chat.messages, chat.setMessages, reloadMaybe],
   );
 
   const editAt = useCallback(
@@ -172,6 +178,7 @@ export const useVercelAIBranches = (chat: UseChatHelpers): UseBranches => {
       const newMessages = sliceMessagesUntil(chat.messages, message);
       chat.setMessages(newMessages);
 
+      // TODO image/ui support
       if (newMessage.content[0]?.type !== "text")
         throw new Error("Only text content is currently supported");
 
