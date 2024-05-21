@@ -1,9 +1,9 @@
-import { Command } from "commander";
 import { spawn } from "node:child_process";
-import { type Config, getConfig } from "../utils/get-config";
 import path from "node:path";
-import { getComponentTargetPath } from "../utils/get-component-target-path";
 import chalk from "chalk";
+import { Command } from "commander";
+import { getComponentTargetPath } from "../utils/get-component-target-path";
+import { type Config, getConfig } from "../utils/get-config";
 
 const getTargetPath = async (config: Config) => {
   const baseConfig = await getComponentTargetPath(config);
