@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "yarn build:registry && next build",
+    "build:registry": "yarn workspace @assistant-ui/shadcn build:registry",
     "start": "next start"
   },
   "dependencies": {
