@@ -1,13 +1,25 @@
 import { spawn } from "node:child_process";
+import { existsSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
 import { getComponentTargetPath } from "../utils/get-component-target-path";
 import { type Config, getConfig } from "../utils/get-config";
 
-const getTargetPath = async (config: Config) => {
-  const baseConfig = await getComponentTargetPath(config);
-  return baseConfig ? path.join(baseConfig, "assistant-ui") : null;
+const SHADCN_CLI_VERSION = "0.8.0";
+
+const getTargetPath = (config: Config, pathOverride: string) => {
+  const baseConfig = pathOverride ?? getComponentTargetPath(config);
+  if (!baseConfig) {
+    console.warn(
+      `Unable to determine the base path. Please run ${chalk.green(
+        "npx shadcn-ui init",
+      )} to create a components.json file.`,
+    );
+    process.exit(1);
+  }
+
+  return [baseConfig, path.join(baseConfig, "assistant-ui")] as const;
 };
 
 export const add = new Command()
@@ -35,11 +47,22 @@ export const add = new Command()
       );
       process.exit(1);
     }
-    const targetPath = opts.path || (await getTargetPath(config));
+
+    const [basePath, targetPath] = getTargetPath(config, opts.path);
+
+    // create target path directory if it doesnt exist
+    if (targetPath && !existsSync(targetPath)) {
+      mkdirSync(targetPath, { recursive: true });
+    }
 
     const child = spawn(
       "npx",
-      ["shadcn-ui", ...process.argv.slice(2), "--path", targetPath],
+      [
+        `shadcn-ui@${SHADCN_CLI_VERSION}`,
+        ...process.argv.slice(2),
+        "--path",
+        basePath,
+      ],
       {
         stdio: "inherit",
         env: {

@@ -1,9 +1,9 @@
 // @sts-nocheck
-import { existsSync, promises as fs, readFileSync } from "node:fs";
+import { promises as fs, existsSync, readFileSync } from "node:fs";
 import path, { basename } from "node:path";
 import { rimraf } from "rimraf";
-import type { RegistryIndex } from "../registry/schema";
 import { registry } from "../registry/registry";
+import type { RegistryIndex } from "../registry/schema";
 
 const getUpstreamStyles = () => {
   return fetch("https://ui.shadcn.com/registry/styles/index.json").then((res) =>
@@ -90,7 +90,7 @@ async function buildStyles(registry: RegistryIndex) {
         );
 
         return {
-          name: basename(file),
+          name: `assistant-ui/${basename(file)}`,
           content,
         };
       });

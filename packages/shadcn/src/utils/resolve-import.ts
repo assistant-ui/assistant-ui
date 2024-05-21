@@ -1,9 +1,9 @@
 import {
-  createMatchPath,
   type ConfigLoaderSuccessResult,
+  createMatchPath,
 } from "tsconfig-paths";
 
-export async function resolveImport(
+export function resolveImport(
   importPath: string,
   config: Pick<ConfigLoaderSuccessResult, "absoluteBaseUrl" | "paths">,
 ) {

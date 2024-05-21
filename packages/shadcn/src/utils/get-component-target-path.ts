@@ -1,7 +1,7 @@
 import path from "node:path";
 import type { Config } from "./get-config";
 
-export async function getComponentTargetPath(config: Config) {
+export function getComponentTargetPath(config: Config) {
   if (config.aliases.ui) {
     return config.resolvedPaths.ui;
   }
