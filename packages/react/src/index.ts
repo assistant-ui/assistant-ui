@@ -9,7 +9,7 @@ export {
   VercelRSCAssistantProvider as unstable_VercelRSCAssistantProvider,
 } from "./vercel";
 
-export { useMessageContext as unstable_useMessageContext } from "./utils/context/MessageContext";
+export { useMessageContext as unstable_useMessageContext } from "./utils/context/useMessageContext";
 
 export {
   useCopyMessage,

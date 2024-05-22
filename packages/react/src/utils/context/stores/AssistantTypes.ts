@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { StoreApi, UseBoundStore } from "zustand";
-import type { BranchState } from "../../vercel/useVercelAIBranches";
+import type { BranchState } from "../../../vercel/useVercelAIBranches";
 import type { ComposerStore } from "./ComposerTypes";
 
 // TODO metadata field

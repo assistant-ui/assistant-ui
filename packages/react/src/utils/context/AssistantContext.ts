@@ -1,5 +1,5 @@
 import { createContext, useContext } from "react";
-import type { AssistantStore } from "./AssistantTypes";
+import type { AssistantStore } from "./stores/AssistantTypes";
 
 export const AssistantContext = createContext<AssistantStore | null>(null);
 

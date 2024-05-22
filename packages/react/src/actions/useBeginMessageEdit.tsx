@@ -1,13 +1,14 @@
-import { useMessageContext } from "../utils/context/MessageContext";
+import { useCombinedStore } from "../utils/context/combined/useCombinedStore";
+import { useMessageContext } from "../utils/context/useMessageContext";
 
 export const useBeginMessageEdit = () => {
   const { useMessage, useComposer } = useMessageContext();
 
-  // TODO compose into one hook call
-  const isUser = useMessage((s) => s.message.role === "user");
-  const isEditing = useComposer((s) => s.isEditing);
-
-  if (!isUser || isEditing) return null;
+  const disabled = useCombinedStore(
+    [useMessage, useComposer],
+    (m, c) => m.message.role !== "user" || c.isEditing,
+  );
+  if (disabled) return null;
 
   return () => {
     const { edit } = useComposer.getState();

@@ -1,4 +1,4 @@
-import { useMessageContext } from "../utils/context/MessageContext";
+import { useMessageContext } from "../utils/context/useMessageContext";
 
 export const useCopyMessage = ({ copiedDuration = 3000 }) => {
   const { useMessage, useComposer } = useMessageContext();

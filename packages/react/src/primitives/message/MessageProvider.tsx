@@ -7,13 +7,13 @@ import { useAssistantContext } from "../../utils/context/AssistantContext";
 import type {
   ThreadMessage,
   ThreadState,
-} from "../../utils/context/AssistantTypes";
-import type { ComposerState } from "../../utils/context/ComposerTypes";
-import {
-  MessageContext,
-  type MessageState,
-  type MessageStore,
-} from "../../utils/context/MessageContext";
+} from "../../utils/context/stores/AssistantTypes";
+import type { ComposerState } from "../../utils/context/stores/ComposerTypes";
+import type {
+  MessageState,
+  MessageStore,
+} from "../../utils/context/stores/MessageTypes";
+import { MessageContext } from "../../utils/context/useMessageContext";
 import {
   UPCOMING_MESSAGE_ID,
   hasUpcomingMessage,

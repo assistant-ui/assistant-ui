@@ -1,15 +1,17 @@
 import { useAssistantContext } from "../utils/context/AssistantContext";
-import { useMessageContext } from "../utils/context/MessageContext";
+import { useCombinedStore } from "../utils/context/combined/useCombinedStore";
+import { useMessageContext } from "../utils/context/useMessageContext";
 
 export const useReloadMessage = () => {
   const { useThread, useBranchObserver } = useAssistantContext();
   const { useMessage } = useMessageContext();
 
-  // TODO compose into one hook call
-  const isLoading = useThread((s) => s.isLoading);
-  const isAssistant = useMessage((s) => s.message.role === "assistant");
+  const disabled = useCombinedStore(
+    [useThread, useMessage],
+    (t, m) => t.isLoading || m.message.role !== "assistant",
+  );
 
-  if (isLoading || !isAssistant) return null;
+  if (disabled) return null;
 
   return () => {
     const message = useMessage.getState().message;

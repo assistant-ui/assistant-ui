@@ -14,7 +14,7 @@ import {
   useMemo,
   useRef,
 } from "react";
-import { useComposerContext } from "../../utils/context/ComposerState";
+import { useComposerContext } from "../../utils/context/useComposerContext";
 
 type ComposerRootElement = React.ElementRef<typeof Primitive.form>;
 type PrimitiveFormProps = ComponentPropsWithoutRef<typeof Primitive.form>;

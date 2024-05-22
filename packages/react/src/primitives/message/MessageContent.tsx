@@ -6,8 +6,8 @@ import type {
   ThreadMessageTextPart,
   ThreadMessageToolCallPart,
   ThreadMessageUIPart,
-} from "../../utils/context/AssistantTypes";
-import { useMessageContext } from "../../utils/context/MessageContext";
+} from "../../utils/context/stores/AssistantTypes";
+import { useMessageContext } from "../../utils/context/useMessageContext";
 
 type MessageContentProps = {
   components?: {

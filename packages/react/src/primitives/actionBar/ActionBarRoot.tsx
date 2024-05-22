@@ -6,7 +6,8 @@ import {
 } from "@radix-ui/react-primitive";
 import { forwardRef } from "react";
 import { useAssistantContext } from "../../utils/context/AssistantContext";
-import { useMessageContext } from "../../utils/context/MessageContext";
+import { useCombinedStore } from "../../utils/context/combined/useCombinedStore";
+import { useMessageContext } from "../../utils/context/useMessageContext";
 
 type ActionBarRootElement = React.ElementRef<typeof Primitive.div>;
 type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;
@@ -30,30 +31,31 @@ export const ActionBarRoot = forwardRef<
   const { useThread } = useAssistantContext();
   const { useMessage } = useMessageContext();
 
-  // TODO merge selectors
-  const hideAndfloatStatus = useMessage((m) => {
-    const autohideEnabled =
-      autohide === "always" || (autohide === "not-last" && !m.isLast);
+  const hideAndfloatStatus = useCombinedStore(
+    [useThread, useMessage],
+    (t, m) => {
+      if (hideWhenBusy && t.isLoading) return HideAndFloatStatus.Hidden;
 
-    // normal status
-    if (!autohideEnabled) return HideAndFloatStatus.Normal;
+      const autohideEnabled =
+        autohide === "always" || (autohide === "not-last" && !m.isLast);
 
-    // hidden status
-    if (!m.isHovering) return HideAndFloatStatus.Hidden;
+      // normal status
+      if (!autohideEnabled) return HideAndFloatStatus.Normal;
 
-    // floating status
-    if (
-      autohideFloat === "always" ||
-      (autohideFloat === "single-branch" && m.branchState.branchCount <= 1)
-    )
-      return HideAndFloatStatus.Floating;
+      // hidden status
+      if (!m.isHovering) return HideAndFloatStatus.Hidden;
 
-    return HideAndFloatStatus.Normal;
-  });
+      // floating status
+      if (
+        autohideFloat === "always" ||
+        (autohideFloat === "single-branch" && m.branchState.branchCount <= 1)
+      )
+        return HideAndFloatStatus.Floating;
 
-  const busy = useThread((t) => t.isLoading);
+      return HideAndFloatStatus.Normal;
+    },
+  );
 
-  if (hideWhenBusy && busy) return null;
   if (hideAndfloatStatus === HideAndFloatStatus.Hidden) return null;
 
   return (

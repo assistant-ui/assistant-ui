@@ -1,16 +1,16 @@
 import { useAssistantContext } from "../utils/context/AssistantContext";
-import { useMessageContext } from "../utils/context/MessageContext";
+import { useCombinedStore } from "../utils/context/combined/useCombinedStore";
+import { useMessageContext } from "../utils/context/useMessageContext";
 
 export const useGoToPreviousBranch = () => {
   const { useThread, useBranchObserver } = useAssistantContext();
   const { useComposer, useMessage } = useMessageContext();
 
-  // TODO compose into one hook call
-  const isLoading = useThread((s) => s.isLoading);
-  const isEditing = useComposer((s) => s.isEditing);
-  const hasNext = useMessage(({ branchState: { branchId } }) => branchId > 0);
-
-  if (isLoading || isEditing || !hasNext) return null;
+  const disabled = useCombinedStore(
+    [useThread, useComposer, useMessage],
+    (t, c, m) => t.isLoading || c.isEditing || m.branchState.branchId <= 0,
+  );
+  if (disabled) return null;
 
   return () => {
     const {
