@@ -18,8 +18,8 @@ export const ComposerInput = forwardRef<
   ComposerInputProps
 >(({ asChild, disabled, onChange, onKeyDown, ...rest }, forwardedRef) => {
   const { useThread } = useAssistantContext();
-  const isLoading = useThread((t) => t.isLoading);
   const { useComposer } = useComposerContext();
+
   const value = useComposer((c) => {
     if (!c.isEditing) return "";
     return c.value;
@@ -31,16 +31,16 @@ export const ComposerInput = forwardRef<
     if (disabled) return;
 
     const composer = useComposer.getState();
-
     if (e.key === "Escape") {
       useComposer.getState().cancel();
     }
 
-    if (isLoading) return;
-
     if (e.key === "Enter" && e.shiftKey === false) {
-      e.preventDefault();
-      composer.send();
+      const isLoading = useThread.getState().isLoading;
+      if (!isLoading) {
+        e.preventDefault();
+        composer.send();
+      }
     }
   };
 
