@@ -6,8 +6,10 @@ import {
   type ComponentPropsWithoutRef,
   Primitive,
 } from "@radix-ui/react-primitive";
-import { forwardRef, useRef, useState } from "react";
+import { forwardRef, useRef } from "react";
+import { useAssistantContext } from "../../utils/context/AssistantContext";
 import { useOnResizeContent } from "../../utils/hooks/useOnResizeContent";
+import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 
 type ThreadViewportElement = React.ElementRef<typeof Primitive.div>;
 type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;
@@ -25,7 +27,7 @@ export const ThreadViewport = forwardRef<
   const divRef = useRef<HTMLDivElement>(null);
   const ref = useComposedRefs(forwardedRef, divRef);
 
-  const [isAtBottom, setIsAtBottom] = useState(true);
+  const { useThread } = useAssistantContext();
 
   const firstRenderRef = useRef(true);
   const scrollToBottom = () => {
@@ -39,7 +41,11 @@ export const ThreadViewport = forwardRef<
   };
 
   useOnResizeContent(divRef, () => {
-    if (!isAtBottom) return;
+    if (!useThread.getState().isAtBottom) return;
+    scrollToBottom();
+  });
+
+  useOnScrollToBottom(() => {
     scrollToBottom();
   });
 
@@ -47,7 +53,13 @@ export const ThreadViewport = forwardRef<
     const div = divRef.current;
     if (!div) return;
 
-    setIsAtBottom(div.scrollHeight - div.scrollTop <= div.clientHeight + 50);
+    const isAtBottom = useThread.getState().isAtBottom;
+    const newIsAtBottom =
+      div.scrollHeight - div.scrollTop <= div.clientHeight + 50;
+
+    if (newIsAtBottom !== isAtBottom) {
+      useThread.setState({ isAtBottom: newIsAtBottom });
+    }
   };
 
   return (

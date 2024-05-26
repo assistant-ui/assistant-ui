@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import {
+  ArrowDownIcon,
   CheckIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -40,6 +41,8 @@ export const Thread: FC = () => {
             AssistantMessage,
           }}
         />
+
+        <ThreadScrollToBottom />
       </ThreadPrimitive.Viewport>
 
       <Composer />
@@ -55,6 +58,20 @@ const ThreadEmpty: FC = () => {
       </Avatar>
       <p className="mt-4 text-xl">How can I help you today?</p>
     </div>
+  );
+};
+
+const ThreadScrollToBottom: FC = () => {
+  return (
+    <ThreadPrimitive.ScrollToBottom asChild>
+      <IconButton
+        tooltip="Scroll to bottom"
+        variant="outline"
+        className="sticky bottom-3 rounded-full"
+      >
+        <ArrowDownIcon className="size-4" />
+      </IconButton>
+    </ThreadPrimitive.ScrollToBottom>
   );
 };
 

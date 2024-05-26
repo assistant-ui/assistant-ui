@@ -58,6 +58,10 @@ export type ThreadState = {
   reload: () => Promise<void>;
   append: (message: CreateThreadMessage) => Promise<void>;
   stop: () => void;
+
+  isAtBottom: boolean;
+  scrollToBottom: () => void;
+  onScrollToBottom: (callback: () => void) => () => void;
 };
 
 export type BranchObserver = {

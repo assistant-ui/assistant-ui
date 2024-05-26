@@ -10,6 +10,8 @@ import type { ComposerState } from "../utils/context/stores/ComposerTypes";
 
 export const useDummyAIAssistantContext = () => {
   const [context] = useState<AssistantStore>(() => {
+    const scrollToBottomListeners = new Set<() => void>();
+
     const useThread = create<ThreadState>()(() => ({
       messages: [],
       isLoading: false,
@@ -21,6 +23,18 @@ export const useDummyAIAssistantContext = () => {
       },
       stop: () => {
         throw new Error("Not implemented");
+      },
+      isAtBottom: true,
+      scrollToBottom: () => {
+        for (const listener of scrollToBottomListeners) {
+          listener();
+        }
+      },
+      onScrollToBottom: (callback) => {
+        scrollToBottomListeners.add(callback);
+        return () => {
+          scrollToBottomListeners.delete(callback);
+        };
       },
     }));
 
