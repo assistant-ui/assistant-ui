@@ -54,7 +54,7 @@ const ChatMessage: FC = () => {
   const { message } = useMessage();
 
   return (
-    <MessagePrimitive.Root className="mx-auto mb-4 flex w-full max-w-screen-md flex-col gap-3">
+    <MessagePrimitive.Root className="relative mx-auto mb-4 flex w-full max-w-screen-md flex-col gap-3">
       <div
         className={cn(
           "relative flex gap-2 rounded-2xl bg-gradient-to-b from-50% from-[#21201c] to-[#1a1915] px-3 py-2.5",
@@ -84,7 +84,7 @@ const ChatMessage: FC = () => {
       <MessagePrimitive.If assistant>
         <ActionBarPrimitive.Root
           autohide="not-last"
-          className="-mt-6 relative mr-3 flex items-center gap-3 self-end rounded-lg border border-[#6c6a6040] bg-[#393937] px-2 py-1"
+          className="-bottom-3 absolute mr-3 flex items-center gap-3 self-end rounded-lg border border-[#6c6a6040] bg-[#393937] px-2 py-1"
         >
           <ActionBarPrimitive.Reload className="flex items-center gap-1 font-mono text-[#b4b4b4] text-xs hover:text-white">
             <ReloadIcon width={12} height={12} />
