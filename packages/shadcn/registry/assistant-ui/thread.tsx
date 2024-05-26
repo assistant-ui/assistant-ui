@@ -102,13 +102,11 @@ const UserMessage: FC = () => {
             autohideFloat="single-branch"
             className="flex items-center gap-1 rounded-lg data-[floating=true]:absolute data-[floating=true]:border data-[floating=true]:p-1"
           >
-            <MessagePrimitive.If lastOrHover>
-              <ActionBarPrimitive.Edit asChild>
-                <IconButton tooltip="Edit">
-                  <PencilIcon className="size-4" />
-                </IconButton>
-              </ActionBarPrimitive.Edit>
-            </MessagePrimitive.If>
+            <ActionBarPrimitive.Edit asChild>
+              <IconButton tooltip="Edit">
+                <PencilIcon className="size-4" />
+              </IconButton>
+            </ActionBarPrimitive.Edit>
           </ActionBarPrimitive.Root>
         </div>
       </div>
@@ -166,23 +164,21 @@ const AssistantMessage: FC = () => {
             autohideFloat="single-branch"
             className="flex items-center gap-1 rounded-lg data-[floating=true]:absolute data-[floating=true]:border data-[floating=true]:p-1"
           >
-            <MessagePrimitive.If lastOrHover>
-              <ActionBarPrimitive.Copy asChild>
-                <IconButton tooltip="Copy">
-                  <MessagePrimitive.If copied>
-                    <CheckIcon className="size-4" />
-                  </MessagePrimitive.If>
-                  <MessagePrimitive.If copied={false}>
-                    <CopyIcon className="size-4" />
-                  </MessagePrimitive.If>
-                </IconButton>
-              </ActionBarPrimitive.Copy>
-              <ActionBarPrimitive.Reload asChild>
-                <IconButton tooltip="Refresh">
-                  <RefreshCwIcon className="size-4" />
-                </IconButton>
-              </ActionBarPrimitive.Reload>
-            </MessagePrimitive.If>
+            <ActionBarPrimitive.Copy asChild>
+              <IconButton tooltip="Copy">
+                <MessagePrimitive.If copied>
+                  <CheckIcon className="size-4" />
+                </MessagePrimitive.If>
+                <MessagePrimitive.If copied={false}>
+                  <CopyIcon className="size-4" />
+                </MessagePrimitive.If>
+              </IconButton>
+            </ActionBarPrimitive.Copy>
+            <ActionBarPrimitive.Reload asChild>
+              <IconButton tooltip="Refresh">
+                <RefreshCwIcon className="size-4" />
+              </IconButton>
+            </ActionBarPrimitive.Reload>
           </ActionBarPrimitive.Root>
         </div>
       </div>
