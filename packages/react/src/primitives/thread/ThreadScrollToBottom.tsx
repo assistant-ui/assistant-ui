@@ -25,11 +25,10 @@ export const ThreadScrollToBottom = forwardRef<
     thread.scrollToBottom();
   };
 
-  if (isAtBottom) return null;
-
   return (
     <Primitive.button
       {...rest}
+      disabled={isAtBottom}
       ref={ref}
       onClick={composeEventHandlers(onClick, handleScrollToBottom)}
     />

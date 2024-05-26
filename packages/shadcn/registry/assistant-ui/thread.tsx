@@ -67,7 +67,7 @@ const ThreadScrollToBottom: FC = () => {
       <IconButton
         tooltip="Scroll to bottom"
         variant="outline"
-        className="sticky bottom-3 rounded-full"
+        className="sticky bottom-3 rounded-full disabled:invisible"
       >
         <ArrowDownIcon className="size-4" />
       </IconButton>
