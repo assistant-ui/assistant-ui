@@ -31,7 +31,8 @@ export const ComposerInput = forwardRef<
     if (disabled) return;
 
     const composer = useComposer.getState();
-    if (e.key === "Escape") {
+    if (e.key === "Escape" && composer.canCancel) {
+      e.preventDefault();
       useComposer.getState().cancel();
     }
 
