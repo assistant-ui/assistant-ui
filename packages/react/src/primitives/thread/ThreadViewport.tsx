@@ -12,12 +12,14 @@ import { useOnResizeContent } from "../../utils/hooks/useOnResizeContent";
 type ThreadViewportElement = React.ElementRef<typeof Primitive.div>;
 type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;
 
-type ThreadViewportProps = PrimitiveDivProps;
+type ThreadViewportProps = PrimitiveDivProps & {
+  autoScroll?: boolean;
+};
 
 export const ThreadViewport = forwardRef<
   ThreadViewportElement,
   ThreadViewportProps
->(({ onScroll, children, ...rest }, forwardedRef) => {
+>(({ autoScroll = true, onScroll, children, ...rest }, forwardedRef) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const divRef = useRef<HTMLDivElement>(null);
@@ -28,7 +30,7 @@ export const ThreadViewport = forwardRef<
   const firstRenderRef = useRef(true);
   const scrollToBottom = () => {
     const div = messagesEndRef.current;
-    if (!div) return;
+    if (!div || !autoScroll) return;
 
     const behavior = firstRenderRef.current ? "instant" : "auto";
     firstRenderRef.current = false;
