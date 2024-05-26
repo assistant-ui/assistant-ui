@@ -3,12 +3,19 @@
 import { composeEventHandlers } from "@radix-ui/primitive";
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
 import { Slot } from "@radix-ui/react-slot";
-import { type KeyboardEvent, forwardRef, useEffect, useRef } from "react";
+import {
+  type KeyboardEvent,
+  forwardRef,
+  useCallback,
+  useEffect,
+  useRef,
+} from "react";
 import TextareaAutosize, {
   type TextareaAutosizeProps,
 } from "react-textarea-autosize";
 import { useAssistantContext } from "../../utils/context/AssistantContext";
 import { useComposerContext } from "../../utils/context/useComposerContext";
+import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 
 type ComposerInputProps = TextareaAutosizeProps & {
   asChild?: boolean;
@@ -23,7 +30,7 @@ export const ComposerInput = forwardRef<
     forwardedRef,
   ) => {
     const { useThread } = useAssistantContext();
-    const { useComposer } = useComposerContext();
+    const { useComposer, type } = useComposerContext();
 
     const value = useComposer((c) => {
       if (!c.isEditing) return "";
@@ -54,7 +61,7 @@ export const ComposerInput = forwardRef<
     const ref = useComposedRefs(forwardedRef, textareaRef);
 
     const autoFocusEnabled = autoFocus !== false && !disabled;
-    useEffect(() => {
+    const focus = useCallback(() => {
       const textarea = textareaRef.current;
       if (!textarea || !autoFocusEnabled) return;
 
@@ -64,6 +71,14 @@ export const ComposerInput = forwardRef<
         textareaRef.current.value.length,
       );
     }, [autoFocusEnabled]);
+
+    useEffect(() => focus(), [focus]);
+
+    useOnScrollToBottom(() => {
+      if (type === "assistant") {
+        focus();
+      }
+    });
 
     return (
       <Component

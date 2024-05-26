@@ -5,5 +5,8 @@ import { MessageContext } from "./useMessageContext";
 export const useComposerContext = () => {
   const { useComposer: useAssisstantComposer } = useAssistantContext();
   const { useComposer: useMessageComposer } = useContext(MessageContext) ?? {};
-  return { useComposer: useMessageComposer ?? useAssisstantComposer };
+  return {
+    useComposer: useMessageComposer ?? useAssisstantComposer,
+    type: useMessageComposer ? ("message" as const) : ("assistant" as const),
+  };
 };
