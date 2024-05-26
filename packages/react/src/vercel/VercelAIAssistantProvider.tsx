@@ -68,12 +68,13 @@ export const VercelAIAssistantProvider: FC<VercelAIAssistantProviderProps> = ({
         throw new Error("Only text content is currently supported");
       }
 
+      context.useThread.getState().scrollToBottom();
       await vercel.append({
         role: message.role,
         content: message.content[0].text,
       });
     },
-    [vercel.append],
+    [context, vercel.append],
   );
 
   const stop = useCallback(() => {
@@ -112,7 +113,7 @@ export const VercelAIAssistantProvider: FC<VercelAIAssistantProviderProps> = ({
 
   // -- useBranchObserver sync --
 
-  const branches = useVercelAIBranches(vercel);
+  const branches = useVercelAIBranches(vercel, context);
 
   useMemo(() => {
     context.useBranchObserver.setState(branches, true);

@@ -4,6 +4,7 @@ import type { Message } from "ai";
 import type { UseAssistantHelpers, UseChatHelpers } from "ai/react";
 import { useCallback, useMemo, useRef } from "react";
 import type {
+  AssistantStore,
   CreateThreadMessage,
   ThreadMessage,
   ThreadState,
@@ -130,6 +131,7 @@ export type UseBranches = {
 
 export const useVercelAIBranches = (
   chat: UseChatHelpers | UseAssistantHelpers,
+  context: AssistantStore,
 ): UseBranches => {
   const data = useRef<ChatBranchData>({
     parentMap: new Map(),
@@ -168,9 +170,10 @@ export const useVercelAIBranches = (
       const newMessages = sliceMessagesUntil(chat.messages, message);
       chat.setMessages(newMessages);
 
+      context.useThread.getState().scrollToBottom();
       await reloadMaybe();
     },
-    [chat.messages, chat.setMessages, reloadMaybe],
+    [context, chat.messages, chat.setMessages, reloadMaybe],
   );
 
   const editAt = useCallback(
@@ -182,12 +185,13 @@ export const useVercelAIBranches = (
       if (newMessage.content[0]?.type !== "text")
         throw new Error("Only text content is currently supported");
 
+      context.useThread.getState().scrollToBottom();
       await chat.append({
         role: "user",
         content: newMessage.content[0].text,
       });
     },
-    [chat.messages, chat.setMessages, chat.append],
+    [context, chat.messages, chat.setMessages, chat.append],
   );
 
   return useMemo(

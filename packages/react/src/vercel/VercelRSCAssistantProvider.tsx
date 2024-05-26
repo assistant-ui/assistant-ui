@@ -67,12 +67,13 @@ export const VercelRSCAssistantProvider: FC<VercelAIAssistantProviderProps> = ({
         throw new Error("Only text content is currently supported");
       }
 
+      context.useThread.getState().scrollToBottom();
       await vercelAppend({
         role: message.role,
         content: [{ type: "text", text: message.content[0].text }],
       });
     },
-    [vercelAppend],
+    [context, vercelAppend],
   );
 
   useMemo(() => {
