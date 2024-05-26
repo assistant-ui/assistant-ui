@@ -81,7 +81,7 @@ const Composer: FC = () => {
 
 const UserMessage: FC = () => {
   return (
-    <MessagePrimitive.Root className="relative mb-12 flex w-full max-w-2xl gap-3">
+    <MessagePrimitive.Root className="relative flex w-full max-w-2xl gap-3 pb-12">
       <Avatar>
         <AvatarFallback>Y</AvatarFallback>
       </Avatar>
@@ -118,7 +118,7 @@ const UserMessage: FC = () => {
 
 const EditComposer: FC = () => {
   return (
-    <MessagePrimitive.Root className="mb-12 flex w-full max-w-2xl gap-3">
+    <MessagePrimitive.Root className="flex w-full max-w-2xl gap-3 pb-4">
       <Avatar>
         <AvatarFallback>Y</AvatarFallback>
       </Avatar>
@@ -129,7 +129,7 @@ const EditComposer: FC = () => {
         <ComposerPrimitive.Root>
           <ComposerPrimitive.Input className="flex h-8 w-full resize-none bg-transparent outline-none" />
 
-          <div className="mt-2 flex justify-center gap-3">
+          <div className="mt-1 flex justify-center gap-3">
             <ComposerPrimitive.Send asChild>
               <Button>Save & Submit</Button>
             </ComposerPrimitive.Send>
@@ -145,7 +145,7 @@ const EditComposer: FC = () => {
 
 const AssistantMessage: FC = () => {
   return (
-    <MessagePrimitive.Root className="relative mb-12 flex w-full max-w-2xl gap-3">
+    <MessagePrimitive.Root className="relative flex w-full max-w-2xl gap-3 pb-12">
       <Avatar>
         <AvatarFallback>A</AvatarFallback>
       </Avatar>
