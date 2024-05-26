@@ -30,9 +30,18 @@ export const ThreadViewport = forwardRef<
   const { useThread } = useAssistantContext();
 
   const firstRenderRef = useRef(true);
-  const scrollingToBottomRef = useRef<false | ReturnType<typeof setTimeout>>(
+  const isScrollingToBottomRef = useRef<false | ReturnType<typeof setTimeout>>(
     false,
   );
+  const setIsScrollingToBottom = () => {
+    if (isScrollingToBottomRef.current)
+      clearTimeout(isScrollingToBottomRef.current);
+
+    isScrollingToBottomRef.current = setTimeout(() => {
+      isScrollingToBottomRef.current = false;
+      handleScroll();
+    }, 250);
+  };
   const scrollToBottom = () => {
     const div = messagesEndRef.current;
     if (!div || !autoScroll) return;
@@ -40,12 +49,8 @@ export const ThreadViewport = forwardRef<
     const behavior = firstRenderRef.current ? "instant" : "auto";
     firstRenderRef.current = false;
 
-    scrollingToBottomRef.current = setTimeout(() => {
-      scrollingToBottomRef.current = false;
-      handleScroll();
-    }, 500);
+    setIsScrollingToBottom();
     useThread.setState({ isAtBottom: true });
-
     div.scrollIntoView({ behavior });
   };
 
@@ -66,9 +71,11 @@ export const ThreadViewport = forwardRef<
     const newIsAtBottom =
       div.scrollHeight - div.scrollTop <= div.clientHeight + 50;
 
-    if (isAtBottom && scrollingToBottomRef.current) {
+    if (isAtBottom && isScrollingToBottomRef.current) {
       if (newIsAtBottom) {
-        scrollingToBottomRef.current = false;
+        isScrollingToBottomRef.current = false;
+      } else {
+        setIsScrollingToBottom();
       }
     } else if (newIsAtBottom !== isAtBottom) {
       useThread.setState({ isAtBottom: newIsAtBottom });
