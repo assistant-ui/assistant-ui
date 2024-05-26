@@ -28,7 +28,7 @@ import {
 export const Thread: FC = () => {
   return (
     <ThreadPrimitive.Root className="flex h-full flex-col items-center px-4 pb-3">
-      <ThreadPrimitive.Viewport className="flex w-full flex-grow flex-col items-center overflow-y-scroll pt-16">
+      <ThreadPrimitive.Viewport className="flex w-full flex-grow flex-col items-center overflow-y-scroll scroll-smooth pt-16">
         <ThreadPrimitive.Empty>
           <ThreadEmpty />
         </ThreadPrimitive.Empty>
