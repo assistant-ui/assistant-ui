@@ -55,7 +55,6 @@ export type CreateThreadMessage = Omit<ThreadUserMessage, "id">;
 export type ThreadState = {
   messages: ThreadMessage[];
   isLoading: boolean;
-  reload: () => Promise<void>;
   append: (message: CreateThreadMessage) => Promise<void>;
   stop: () => void;
 

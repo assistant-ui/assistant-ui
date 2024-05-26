@@ -15,9 +15,6 @@ export const useDummyAIAssistantContext = () => {
     const useThread = create<ThreadState>()(() => ({
       messages: [],
       isLoading: false,
-      reload: async () => {
-        throw new Error("Not implemented");
-      },
       append: async () => {
         throw new Error("Not implemented");
       },

@@ -56,12 +56,6 @@ export const VercelAIAssistantProvider: FC<VercelAIAssistantProviderProps> = ({
     return vercelToCachedThreadMessages(vercel.messages);
   }, [vercel.messages]);
 
-  const maybeReload = "reload" in vercel ? vercel.reload : null;
-  const reload = useCallback(async () => {
-    if (!maybeReload) throw new Error("Reload not supported");
-    await maybeReload();
-  }, [maybeReload]);
-
   const append = useCallback(
     async (message: CreateThreadMessage) => {
       if (message.content[0]?.type !== "text") {
@@ -89,17 +83,13 @@ export const VercelAIAssistantProvider: FC<VercelAIAssistantProviderProps> = ({
   const isLoading =
     "isLoading" in vercel ? vercel.isLoading : vercel.status === "in_progress";
   useMemo(() => {
-    context.useThread.setState(
-      {
-        messages,
-        isLoading,
-        reload,
-        append,
-        stop,
-      },
-      true,
-    );
-  }, [context, messages, reload, append, stop, isLoading]);
+    context.useThread.setState({
+      messages,
+      isLoading,
+      append,
+      stop,
+    });
+  }, [context, messages, append, stop, isLoading]);
 
   // -- useComposer sync --
 
