@@ -29,7 +29,7 @@ import {
 export const Thread: FC = () => {
   return (
     <ThreadPrimitive.Root className="flex h-full flex-col items-center pb-3">
-      <ThreadPrimitive.Viewport className="flex w-full flex-grow flex-col items-center overflow-y-scroll scroll-smooth pt-16">
+      <ThreadPrimitive.Viewport className="flex w-full flex-grow flex-col items-center overflow-y-scroll scroll-smooth px-4 pt-12">
         <ThreadPrimitive.Empty>
           <ThreadEmpty />
         </ThreadPrimitive.Empty>
@@ -77,7 +77,7 @@ const ThreadScrollToBottom: FC = () => {
 
 const Composer: FC = () => {
   return (
-    <ComposerPrimitive.Root className="flex w-full max-w-2xl items-end rounded-lg border p-0.5 shadow-sm">
+    <ComposerPrimitive.Root className="flex w-[calc(100%-32px)] max-w-2xl items-end rounded-lg border p-0.5 shadow-sm">
       <ComposerPrimitive.Input
         placeholder="Write a message..."
         className="h-12 max-h-40 flex-grow resize-none bg-transparent p-3.5 text-sm outline-none placeholder:text-foreground/50"
