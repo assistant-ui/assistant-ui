@@ -2,28 +2,28 @@
 # yarn lockfile v1
 
 
-"@ai-sdk/openai@^0.0.14":
-  version "0.0.14"
-  resolved "https://registry.yarnpkg.com/@ai-sdk/openai/-/openai-0.0.14.tgz#c76a73fd4197ea19809bd415579e798897221d46"
-  integrity sha512-ZiW2ETP2/K9eBUBZBAAnjLC0sJwViFPsRWpgRTy+KzMOYqkwkRScdQlFreczvfvi8M8ahzx+cavMd64O9pg2AA==
+"@ai-sdk/openai@^0.0.16":
+  version "0.0.16"
+  resolved "https://registry.yarnpkg.com/@ai-sdk/openai/-/openai-0.0.16.tgz#9255ffe912962c4191b7d20a74f0c905277acd43"
+  integrity sha512-rORtaSb3jmx6TGgD9HdwvFkGKbpoSeJoRQR9lCZchwF/EIixIAaHpTc5uO+4KfhOlqIbWt05a4A7ABmkPmj1fg==
   dependencies:
-    "@ai-sdk/provider" "0.0.6"
-    "@ai-sdk/provider-utils" "0.0.9"
+    "@ai-sdk/provider" "0.0.7"
+    "@ai-sdk/provider-utils" "0.0.10"
 
-"@ai-sdk/provider-utils@0.0.9":
-  version "0.0.9"
-  resolved "https://registry.yarnpkg.com/@ai-sdk/provider-utils/-/provider-utils-0.0.9.tgz#18f459e04d897162fbd0c475fc642a971b2dc193"
-  integrity sha512-bZFTVp/GIZ3Yz4VejYs0B93bmnwfk+RoSHAQxAe9WamkQFrZLuNgd2ngAFjF6b4naLynWe1ZCk+dLWEtozCciw==
+"@ai-sdk/provider-utils@0.0.10":
+  version "0.0.10"
+  resolved "https://registry.yarnpkg.com/@ai-sdk/provider-utils/-/provider-utils-0.0.10.tgz#46bc92e52ffa71e83318f2709eebd09b12e42a26"
+  integrity sha512-VAtWHXOKMXfo+Uz384wva5oqm6BTmtp3kVCZGcScubJYjIDApwAIER/a3WcTkeoq5ZXaN23bHT0KBfOhhBSgeg==
   dependencies:
-    "@ai-sdk/provider" "0.0.6"
+    "@ai-sdk/provider" "0.0.7"
     eventsource-parser "1.1.2"
     nanoid "3.3.6"
     secure-json-parse "2.7.0"
 
-"@ai-sdk/provider@0.0.6":
-  version "0.0.6"
-  resolved "https://registry.yarnpkg.com/@ai-sdk/provider/-/provider-0.0.6.tgz#e72236da2f251636943a5c1bc566f0b8d66c9c88"
-  integrity sha512-kiPqIsSnUimckaUn87WepxfjPNdy8SXlPP7P6yWuG3e1NmyFHcyuH6EBBZxXLmu0oZtkb+QEeP3UDWGSc+wwKQ==
+"@ai-sdk/provider@0.0.7":
+  version "0.0.7"
+  resolved "https://registry.yarnpkg.com/@ai-sdk/provider/-/provider-0.0.7.tgz#0406e474ead5544f236ca3ee7d95b48fda9a848f"
+  integrity sha512-PZ3L2FNvw4GHI8UFKt0ZHN5R8LFyDMtP6nlQrqT8N7yAcwBJUMTPYmq6SiWCc/S6JRhUM5pU3aUoFaycoLzxlQ==
   dependencies:
     json-schema "0.4.0"
 
@@ -1727,13 +1727,13 @@ agentkeepalive@^4.2.1:
   dependencies:
     humanize-ms "^1.2.1"
 
-ai@3.1.14, ai@^3.1.14:
-  version "3.1.14"
-  resolved "https://registry.yarnpkg.com/ai/-/ai-3.1.14.tgz#81cfccb8b19b7fbd41b72e6b891697fbd7d6f5c6"
-  integrity sha512-yW9ipraLm2PzzWc74eWUUVUIVZbO/Ggv//83iBfDkOTndrBmFqyIk6DtVVzf+RwKNUYuZzj8v5MKcgnHQhceXw==
+ai@3.1.15, ai@^3.1.15:
+  version "3.1.15"
+  resolved "https://registry.yarnpkg.com/ai/-/ai-3.1.15.tgz#4e6d6bf144f4cce28dee78bf5bede062203bc9fd"
+  integrity sha512-vrAiRaGjtjWkPO0g9mpYALM7L5lsHFFAv5ErEd9QQjiYUJPJGqBQhJ68bikupyX+Fkj/oTt27z9qbF0+peuEPw==
   dependencies:
-    "@ai-sdk/provider" "0.0.6"
-    "@ai-sdk/provider-utils" "0.0.9"
+    "@ai-sdk/provider" "0.0.7"
+    "@ai-sdk/provider-utils" "0.0.10"
     eventsource-parser "1.1.2"
     json-schema "0.4.0"
     jsondiffpatch "0.6.0"
