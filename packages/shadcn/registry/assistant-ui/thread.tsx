@@ -63,15 +63,17 @@ const ThreadEmpty: FC = () => {
 
 const ThreadScrollToBottom: FC = () => {
   return (
-    <ThreadPrimitive.ScrollToBottom asChild>
-      <IconButton
-        tooltip="Scroll to bottom"
-        variant="outline"
-        className="sticky bottom-3 rounded-full disabled:invisible"
-      >
-        <ArrowDownIcon className="size-4" />
-      </IconButton>
-    </ThreadPrimitive.ScrollToBottom>
+    <div className="sticky bottom-0">
+      <ThreadPrimitive.ScrollToBottom asChild>
+        <IconButton
+          tooltip="Scroll to bottom"
+          variant="outline"
+          className="-top-10 absolute rounded-full disabled:invisible"
+        >
+          <ArrowDownIcon className="size-4" />
+        </IconButton>
+      </ThreadPrimitive.ScrollToBottom>
+    </div>
   );
 };
 
