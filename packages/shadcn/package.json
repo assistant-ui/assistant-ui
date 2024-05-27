@@ -1,16 +1,13 @@
 {
   "name": "@assistant-ui/shadcn",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "license": "MIT",
   "type": "module",
   "dependencies": {
-    "@radix-ui/react-tooltip": "^1.0.7",
     "chalk": "^5.3.0",
     "commander": "^12.1.0",
     "cosmiconfig": "^9.0.0",
-    "shadcn-ui": "^0.8.0",
-    "tailwindcss-animate": "^1.0.7",
-    "tailwind-merge": "^2.3.0",
+    "shadcn-ui": "0.8.0",
     "tsconfig-paths": "^4.2.0",
     "zod": "^3.23.8"
   },
@@ -18,14 +15,18 @@
     "@assistant-ui/react": "*",
     "@assistant-ui/tsconfig": "*",
     "@radix-ui/react-avatar": "^1.0.4",
+    "@radix-ui/react-popover": "^1.0.7",
     "@radix-ui/react-slot": "^1.0.2",
+    "@radix-ui/react-tooltip": "^1.0.7",
     "@types/node": "^20.12.12",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "lucide-react": "^0.379.0",
     "react": "^18.3.1",
     "rimraf": "^5.0.7",
+    "tailwind-merge": "^2.3.0",
     "tailwindcss": "^3.4.3",
+    "tailwindcss-animate": "^1.0.7",
     "tsx": "^4.11.0"
   },
   "files": [

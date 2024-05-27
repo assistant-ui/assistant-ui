@@ -9,6 +9,7 @@ import { useChat } from "ai/react";
 import Link from "next/link";
 import React, { useState } from "react";
 import { ChatGPT } from "./chatgpt/ChatGPT";
+import { ModalChat } from "./modal/ModalChat";
 
 const supportedModels = [
   {
@@ -23,6 +24,10 @@ const supportedModels = [
     name: "Claude",
     component: Claude,
   },
+  {
+    name: "Modal",
+    component: ModalChat,
+  }
 ];
 
 export default function Home() {
