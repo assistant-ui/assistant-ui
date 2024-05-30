@@ -41,8 +41,7 @@ const vercelToThreadMessage = (
     role: message.role,
     content: [{ type: "ui", display: message.display }],
     createdAt: message.createdAt ?? new Date(),
-    branchId: 0,
-    branchCount: 1,
+    branches: [message.id],
   };
 };
 

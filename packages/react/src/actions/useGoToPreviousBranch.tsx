@@ -8,12 +8,17 @@ export const useGoToPreviousBranch = () => {
 
   const disabled = useCombinedStore(
     [useThread, useComposer, useMessage],
-    (t, c, m) => t.isRunning || c.isEditing || m.message.branchId <= 0,
+    (t, c, m) =>
+      t.isRunning ||
+      c.isEditing ||
+      m.message.branches.indexOf(m.message.id) <= 0,
   );
   if (disabled) return null;
 
   return () => {
     const { message } = useMessage.getState();
-    useThread.getState().switchToBranch(message.id, message.branchId - 1);
+    useThread.getState().switchToBranch(
+      message.branches[message.branches.indexOf(message.id) - 1]!, // TODO probably there's a more elegant way to do this
+    );
   };
 };

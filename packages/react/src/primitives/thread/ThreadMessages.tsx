@@ -78,8 +78,7 @@ export const ThreadMessages: FC<ThreadMessagesProps> = ({ components }) => {
             content: [{ type: "text", text: "..." }],
             parentId: messages.at(-1)?.id ?? ROOT_PARENT_ID,
             // TODO fix these (move upcoming message to AssistantContext)
-            branchId: 0,
-            branchCount: 1,
+            branches: [UPCOMING_MESSAGE_ID],
             createdAt: new Date(),
           }}
         >

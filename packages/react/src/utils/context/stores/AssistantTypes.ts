@@ -42,8 +42,7 @@ export type ThreadMessageBase = {
   id: string;
   parentId: string;
   createdAt: Date;
-  branchId: number;
-  branchCount: number;
+  branches: string[];
 };
 
 export type ThreadUserMessage = ThreadMessageBase & {
@@ -57,15 +56,15 @@ export type ThreadAssistantMessage = ThreadMessageBase & {
 };
 
 export type ThreadMessage = ThreadUserMessage | ThreadAssistantMessage;
-export type CreateThreadMessage = Omit<
+export type CreateThreadMessage = Pick<
   ThreadUserMessage,
-  "id" | "branchId" | "branchCount" | "createdAt" | "role"
+  "parentId" | "content"
 >;
 
 export type ThreadState = {
   messages: ThreadMessage[];
   isRunning: boolean;
-  switchToBranch: (messageId: string, branchId: number) => void;
+  switchToBranch: (branchId: string) => void;
   append: (message: CreateThreadMessage) => void;
   startRun: (parentId: string) => void;
   cancelRun: () => void;

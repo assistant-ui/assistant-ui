@@ -2,7 +2,7 @@
 
 import type { Message } from "ai";
 import type { UseAssistantHelpers, UseChatHelpers } from "ai/react";
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type {
   AssistantStore,
   CreateThreadMessage,
@@ -12,10 +12,11 @@ import { ROOT_PARENT_ID } from "../../utils/context/stores/AssistantTypes";
 
 export const UPCOMING_MESSAGE_ID = "__UPCOMING_MESSAGE_ID__";
 
+type Branch = Message[];
+
 type ChatBranchData = {
-  parentMap: Map<string, string>; // child_id -> parent_id
   branchMap: Map<string, string[]>; // parent_id -> child_ids
-  snapshots: Map<string, Message[]>; // message_id -> message[]
+  snapshots: Map<string, Branch>; // message_id -> message[]
 };
 
 const updateBranchData = (data: ChatBranchData, messages: Message[]) => {
@@ -24,8 +25,6 @@ const updateBranchData = (data: ChatBranchData, messages: Message[]) => {
     const childId = child.id;
 
     const parentId = messages[i - 1]?.id ?? ROOT_PARENT_ID;
-    data.parentMap.set(childId, parentId);
-
     const parentArray = data.branchMap.get(parentId);
     if (!parentArray) {
       data.branchMap.set(parentId, [childId]);
@@ -37,70 +36,17 @@ const updateBranchData = (data: ChatBranchData, messages: Message[]) => {
   }
 };
 
-const getParentId = (
-  data: ChatBranchData,
-  messages: Message[],
-  messageId: string,
-) => {
-  if (messageId === UPCOMING_MESSAGE_ID) {
-    const parent = messages.at(-1);
-    if (!parent) return ROOT_PARENT_ID;
-    return parent.id;
-  }
-
-  const parentId = data.parentMap.get(messageId);
-  if (!parentId) throw new Error("Unexpected: Message parent not found");
-  return parentId;
-};
-
-const getBranchStateImpl = (
-  data: ChatBranchData,
-  messages: Message[],
-  messageId: string,
-) => {
-  const parentId = getParentId(data, messages, messageId);
-
-  const branches = data.branchMap.get(parentId) ?? [];
-  const branchId =
-    messageId === UPCOMING_MESSAGE_ID
-      ? branches.length
-      : branches.indexOf(messageId);
-
-  if (branchId === -1)
-    throw new Error("Unexpected: Message not found in parent children");
-
-  const upcomingOffset = messageId === UPCOMING_MESSAGE_ID ? 1 : 0;
-
-  return {
-    branchId,
-    branchCount: branches.length + upcomingOffset,
-  };
+// TODO handle UPCOMING_MESSAGE_ID
+const getChildrenImpl = (data: ChatBranchData, parentId: string) => {
+  return data.branchMap.get(parentId) ?? [];
 };
 
 const switchToBranchImpl = (
   data: ChatBranchData,
-  messages: Message[],
   messageId: string,
-  branchId: number,
 ): Message[] => {
-  const parentId = getParentId(data, messages, messageId);
-
-  const branches = data.branchMap.get(parentId);
-  if (!branches) throw new Error("Unexpected: Parent children not found");
-
-  const newMessageId = branches[branchId];
-  if (!newMessageId) throw new Error("Unexpected: Requested branch not found");
-
-  if (branchId < 0 || branchId >= branches.length)
-    throw new Error("Switch to branch called with a branch index out of range");
-
-  // switching to self
-  if (newMessageId === messageId) return messages;
-
-  const snapshot = data.snapshots.get(newMessageId);
+  const snapshot = data.snapshots.get(messageId);
   if (!snapshot) throw new Error("Unexpected: Branch snapshot not found");
-
-  // return the unstashed messages
   return snapshot;
 };
 
@@ -114,14 +60,9 @@ const sliceMessagesUntil = (messages: Message[], messageId: string) => {
   return messages.slice(0, messageIdx + 1);
 };
 
-export type BranchState = {
-  branchId: number;
-  branchCount: number;
-};
-
 export type UseBranches = {
-  getBranchState: (messageId: string) => BranchState;
-  switchToBranch: (messageId: string, branchId: number) => void;
+  getChildren: (parentId: string) => string[];
+  switchToBranch: (messageId: string) => void;
   append: (message: CreateThreadMessage) => Promise<void>;
   startRun: (parentId: string) => Promise<void>;
 };
@@ -130,32 +71,26 @@ export const useVercelAIBranches = (
   chat: UseChatHelpers | UseAssistantHelpers,
   context: AssistantStore,
 ): UseBranches => {
-  const data = useRef<ChatBranchData>({
-    parentMap: new Map(),
+  const [data] = useState<ChatBranchData>(() => ({
     branchMap: new Map(),
     snapshots: new Map(),
-  }).current;
+  }));
 
   updateBranchData(data, chat.messages);
 
-  const getBranchState = useCallback(
-    (messageId: string) => {
-      return getBranchStateImpl(data, chat.messages, messageId);
+  const getChildren = useCallback(
+    (parentId: string) => {
+      return getChildrenImpl(data, parentId);
     },
-    [data, chat.messages],
+    [data],
   );
 
   const switchToBranch = useCallback(
-    (messageId: string, branchId: number) => {
-      const newMessages = switchToBranchImpl(
-        data,
-        chat.messages,
-        messageId,
-        branchId,
-      );
+    (messageId: string) => {
+      const newMessages = switchToBranchImpl(data, messageId);
       chat.setMessages(newMessages);
     },
-    [data, chat.messages, chat.setMessages],
+    [data, chat.setMessages],
   );
 
   const reloadMaybe = "reload" in chat ? chat.reload : undefined;
@@ -193,12 +128,12 @@ export const useVercelAIBranches = (
 
   return useMemo(
     () => ({
-      getBranchState,
+      getChildren,
       switchToBranch,
       append,
       startRun,
     }),
-    [getBranchState, switchToBranch, append, startRun],
+    [getChildren, switchToBranch, append, startRun],
   );
 };
 export const hasUpcomingMessage = (thread: ThreadState) => {

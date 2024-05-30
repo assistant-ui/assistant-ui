@@ -9,14 +9,13 @@ import {
   type ThreadMessage,
 } from "../../utils/context/stores/AssistantTypes";
 import { useDummyAIAssistantContext } from "./useDummyAIAssistantContext";
-import { type BranchState, useVercelAIBranches } from "./useVercelAIBranches";
+import { useVercelAIBranches } from "./useVercelAIBranches";
 
 const ThreadMessageCache = new WeakMap<Message, ThreadMessage>();
 const vercelToThreadMessage = (
   message: Message,
   parentId: string,
-  branchId: number,
-  branchCount: number,
+  branches: string[],
 ): ThreadMessage => {
   if (message.role !== "user" && message.role !== "assistant")
     throw new Error("Unsupported role");
@@ -26,33 +25,23 @@ const vercelToThreadMessage = (
     id: message.id,
     role: message.role,
     content: [{ type: "text", text: message.content }],
-    branchId: branchId,
-    branchCount: branchCount,
+    branches,
     createdAt: message.createdAt ?? new Date(),
   };
 };
 
 const vercelToCachedThreadMessages = (
   messages: Message[],
-  getBranchState: (messageId: string) => BranchState,
+  getChildren: (messageId: string) => string[],
 ) => {
   return messages.map((m, idx) => {
     const cached = ThreadMessageCache.get(m);
     const parentId = messages[idx - 1]?.id ?? ROOT_PARENT_ID;
-    const { branchId, branchCount } = getBranchState(m.id);
-    if (
-      cached &&
-      cached.parentId === parentId &&
-      cached.branchId === branchId &&
-      cached.branchCount === branchCount
-    )
+    const branches = getChildren(parentId);
+    if (cached && cached.parentId === parentId && cached.branches === branches)
       return cached;
-    const newMessage = vercelToThreadMessage(
-      m,
-      parentId,
-      branchId,
-      branchCount,
-    );
+
+    const newMessage = vercelToThreadMessage(m, parentId, branches);
     ThreadMessageCache.set(m, newMessage);
     return newMessage;
   });
@@ -79,11 +68,8 @@ export const VercelAIAssistantProvider: FC<VercelAIAssistantProviderProps> = ({
   const branches = useVercelAIBranches(vercel, context);
 
   const messages = useMemo(() => {
-    return vercelToCachedThreadMessages(
-      vercel.messages,
-      branches.getBranchState,
-    );
-  }, [vercel.messages, branches.getBranchState]);
+    return vercelToCachedThreadMessages(vercel.messages, branches.getChildren);
+  }, [vercel.messages, branches.getChildren]);
 
   const cancelRun = useCallback(() => {
     const lastMessage = vercel.messages.at(-1);
