@@ -8,7 +8,7 @@ export const useReloadMessage = () => {
 
   const disabled = useCombinedStore(
     [useThread, useMessage],
-    (t, m) => t.isLoading || m.message.role !== "assistant",
+    (t, m) => t.isRunning || m.message.role !== "assistant",
   );
 
   if (disabled) return null;
@@ -18,6 +18,6 @@ export const useReloadMessage = () => {
     if (message.role !== "assistant")
       throw new Error("Reloading is only supported on assistant messages");
 
-    useThread.getState().reload(message.id);
+    useThread.getState().startRun(message.parentId);
   };
 };

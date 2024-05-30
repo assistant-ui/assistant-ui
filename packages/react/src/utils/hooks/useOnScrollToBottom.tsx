@@ -6,10 +6,10 @@ export const useOnScrollToBottom = (callback: () => void) => {
   const callbackRef = useRef(callback);
   callbackRef.current = callback;
 
-  const { useThread } = useAssistantContext();
+  const { useViewport } = useAssistantContext();
   useEffect(() => {
-    return useThread.getState().onScrollToBottom(() => {
+    return useViewport.getState().onScrollToBottom(() => {
       callbackRef.current();
     });
-  }, [useThread]);
+  }, [useViewport]);
 };

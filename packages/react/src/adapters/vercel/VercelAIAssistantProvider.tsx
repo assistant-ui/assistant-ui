@@ -85,7 +85,7 @@ export const VercelAIAssistantProvider: FC<VercelAIAssistantProviderProps> = ({
     );
   }, [vercel.messages, branches.getBranchState]);
 
-  const stop = useCallback(() => {
+  const cancelRun = useCallback(() => {
     const lastMessage = vercel.messages.at(-1);
     vercel.stop();
 
@@ -94,29 +94,29 @@ export const VercelAIAssistantProvider: FC<VercelAIAssistantProviderProps> = ({
     }
   }, [vercel.messages, vercel.stop, vercel.setInput]);
 
-  const isLoading =
+  const isRunning =
     "isLoading" in vercel ? vercel.isLoading : vercel.status === "in_progress";
 
   useMemo(() => {
     context.useThread.setState({
       messages,
-      isLoading,
-      stop,
+      isRunning,
+      cancelRun,
       switchToBranch: branches.switchToBranch,
       append: branches.append,
-      reload: branches.reload,
+      startRun: branches.startRun,
     });
-  }, [context, messages, isLoading, stop, branches]);
+  }, [context, messages, isRunning, cancelRun, branches]);
 
   // -- useComposer sync --
 
   useMemo(() => {
     context.useComposer.setState({
-      canCancel: isLoading,
+      canCancel: isRunning,
       value: vercel.input,
       setValue: vercel.setInput,
     });
-  }, [context, isLoading, vercel.input, vercel.setInput]);
+  }, [context, isRunning, vercel.input, vercel.setInput]);
 
   return (
     <AssistantContext.Provider value={context}>

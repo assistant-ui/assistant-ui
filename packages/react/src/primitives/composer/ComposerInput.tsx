@@ -49,8 +49,8 @@ export const ComposerInput = forwardRef<
       }
 
       if (e.key === "Enter" && e.shiftKey === false) {
-        const isLoading = useThread.getState().isLoading;
-        if (!isLoading) {
+        const isRunning = useThread.getState().isRunning;
+        if (!isRunning) {
           e.preventDefault();
           composer.send();
         }

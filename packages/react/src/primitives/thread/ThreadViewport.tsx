@@ -27,7 +27,7 @@ export const ThreadViewport = forwardRef<
   const divRef = useRef<HTMLDivElement>(null);
   const ref = useComposedRefs(forwardedRef, divRef);
 
-  const { useThread } = useAssistantContext();
+  const { useViewport } = useAssistantContext();
 
   const firstRenderRef = useRef(true);
   const lastScrollTop = useRef<number>(0);
@@ -39,12 +39,12 @@ export const ThreadViewport = forwardRef<
     const behavior = firstRenderRef.current ? "instant" : "auto";
     firstRenderRef.current = false;
 
-    useThread.setState({ isAtBottom: true });
+    useViewport.setState({ isAtBottom: true });
     div.scrollIntoView({ behavior });
   };
 
   useOnResizeContent(divRef, () => {
-    if (!useThread.getState().isAtBottom) return;
+    if (!useViewport.getState().isAtBottom) return;
     scrollToBottom();
   });
 
@@ -56,13 +56,13 @@ export const ThreadViewport = forwardRef<
     const div = divRef.current;
     if (!div) return;
 
-    const isAtBottom = useThread.getState().isAtBottom;
+    const isAtBottom = useViewport.getState().isAtBottom;
     const newIsAtBottom = div.scrollHeight - div.scrollTop <= div.clientHeight;
 
     if (!newIsAtBottom && lastScrollTop.current < div.scrollTop) {
       // ignore scroll down
     } else if (newIsAtBottom !== isAtBottom) {
-      useThread.setState({ isAtBottom: newIsAtBottom });
+      useViewport.setState({ isAtBottom: newIsAtBottom });
     }
     lastScrollTop.current = div.scrollTop;
   };

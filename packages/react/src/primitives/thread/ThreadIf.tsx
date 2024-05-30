@@ -6,7 +6,7 @@ import { useAssistantContext } from "../../utils/context/AssistantContext";
 
 type ThreadIfFilters = {
   empty: boolean | undefined;
-  busy: boolean | undefined;
+  running: boolean | undefined;
 };
 
 type ThreadIfProps = PropsWithChildren<RequireAtLeastOne<ThreadIfFilters>>;
@@ -16,8 +16,8 @@ const useThreadIf = (props: RequireAtLeastOne<ThreadIfFilters>) => {
   return useThread((thread) => {
     if (props.empty === true && thread.messages.length !== 0) return false;
     if (props.empty === false && thread.messages.length === 0) return false;
-    if (props.busy === true && !thread.isLoading) return false;
-    if (props.busy === false && thread.isLoading) return false;
+    if (props.running === true && !thread.isRunning) return false;
+    if (props.running === false && thread.isRunning) return false;
 
     return true;
   });

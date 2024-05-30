@@ -9,7 +9,7 @@ export const useGoToNextBranch = () => {
   const disabled = useCombinedStore(
     [useThread, useComposer, useMessage],
     (t, c, m) =>
-      t.isLoading ||
+      t.isRunning ||
       c.isEditing ||
       m.message.branchId + 1 >= m.message.branchCount,
   );

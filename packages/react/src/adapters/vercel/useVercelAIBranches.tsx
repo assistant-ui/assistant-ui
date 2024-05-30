@@ -123,7 +123,7 @@ export type UseBranches = {
   getBranchState: (messageId: string) => BranchState;
   switchToBranch: (messageId: string, branchId: number) => void;
   append: (message: CreateThreadMessage) => Promise<void>;
-  reload: (messageId: string) => Promise<void>;
+  startRun: (parentId: string) => Promise<void>;
 };
 
 export const useVercelAIBranches = (
@@ -159,15 +159,15 @@ export const useVercelAIBranches = (
   );
 
   const reloadMaybe = "reload" in chat ? chat.reload : undefined;
-  const reload = useCallback(
-    async (messageId: string) => {
+  const startRun = useCallback(
+    async (parentId: string) => {
       if (!reloadMaybe)
         throw new Error("Reload not supported by Vercel AI SDK's useAssistant");
 
-      const newMessages = sliceMessagesUntil(chat.messages, messageId);
+      const newMessages = sliceMessagesUntil(chat.messages, parentId);
       chat.setMessages(newMessages);
 
-      context.useThread.getState().scrollToBottom();
+      context.useViewport.getState().scrollToBottom();
       await reloadMaybe();
     },
     [context, chat.messages, chat.setMessages, reloadMaybe],
@@ -182,7 +182,7 @@ export const useVercelAIBranches = (
       if (message.content.length !== 1 || message.content[0]?.type !== "text")
         throw new Error("Only text content is currently supported");
 
-      context.useThread.getState().scrollToBottom();
+      context.useViewport.getState().scrollToBottom();
       await chat.append({
         role: "user",
         content: message.content[0].text,
@@ -196,14 +196,14 @@ export const useVercelAIBranches = (
       getBranchState,
       switchToBranch,
       append,
-      reload,
+      startRun,
     }),
-    [getBranchState, switchToBranch, append, reload],
+    [getBranchState, switchToBranch, append, startRun],
   );
 };
 export const hasUpcomingMessage = (thread: ThreadState) => {
   return (
-    thread.isLoading &&
+    thread.isRunning &&
     thread.messages[thread.messages.length - 1]?.role !== "assistant"
   );
 };

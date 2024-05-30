@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { StoreApi, UseBoundStore } from "zustand";
 import type { ThreadComposerState } from "./ComposerStore";
+import type { ThreadViewportState } from "./ViewportStore";
 
 // TODO metadata field
 
@@ -62,20 +63,17 @@ export type CreateThreadMessage = Omit<
 >;
 
 export type ThreadState = {
+  id: string;
   messages: ThreadMessage[];
-  isLoading: boolean;
+  isRunning: boolean;
   switchToBranch: (messageId: string, branchId: number) => void;
   append: (message: CreateThreadMessage) => Promise<void>;
-  reload: (messageId: string) => Promise<void>;
-  stop: () => void;
-
-  // UI only
-  isAtBottom: boolean;
-  scrollToBottom: () => void;
-  onScrollToBottom: (callback: () => void) => () => void;
+  startRun: (parentId: string) => Promise<void>;
+  cancelRun: () => void;
 };
 
 export type AssistantStore = {
+  useViewport: UseBoundStore<StoreApi<ThreadViewportState>>;
   useThread: UseBoundStore<StoreApi<ThreadState>>;
   useComposer: UseBoundStore<StoreApi<ThreadComposerState>>;
 };

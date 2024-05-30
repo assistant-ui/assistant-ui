@@ -19,7 +19,7 @@ enum HideAndFloatStatus {
 }
 
 export type ActionBarRootProps = PrimitiveDivProps & {
-  hideWhenBusy?: boolean;
+  hideWhenRunning?: boolean;
   autohide?: "always" | "not-last" | "never";
   autohideFloat?: "always" | "single-branch" | "never";
 };
@@ -27,14 +27,14 @@ export type ActionBarRootProps = PrimitiveDivProps & {
 export const ActionBarRoot = forwardRef<
   ActionBarRootElement,
   ActionBarRootProps
->(({ hideWhenBusy, autohide, autohideFloat, ...rest }, ref) => {
+>(({ hideWhenRunning, autohide, autohideFloat, ...rest }, ref) => {
   const { useThread } = useAssistantContext();
   const { useMessage } = useMessageContext();
 
   const hideAndfloatStatus = useCombinedStore(
     [useThread, useMessage],
     (t, m) => {
-      if (hideWhenBusy && t.isLoading) return HideAndFloatStatus.Hidden;
+      if (hideWhenRunning && t.isRunning) return HideAndFloatStatus.Hidden;
 
       const autohideEnabled =
         autohide === "always" || (autohide === "not-last" && !m.isLast);

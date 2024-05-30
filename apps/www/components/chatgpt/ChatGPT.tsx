@@ -49,12 +49,12 @@ export const ChatGPT: FC = () => {
           placeholder="Message ChatGPT"
           className="h-12 max-h-40 flex-grow resize-none bg-transparent p-3.5 text-sm text-white outline-none placeholder:text-white/50"
         />
-        <ThreadPrimitive.If busy={false}>
+        <ThreadPrimitive.If running={false}>
           <ComposerPrimitive.Send className="m-2 flex size-8 items-center justify-center rounded-full bg-white transition-opacity disabled:opacity-10">
             <ArrowUpIcon className="size-5 text-black [&_path]:stroke-[1] [&_path]:stroke-black" />
           </ComposerPrimitive.Send>
         </ThreadPrimitive.If>
-        <ThreadPrimitive.If busy>
+        <ThreadPrimitive.If running>
           <ComposerPrimitive.Cancel className="m-2 flex size-8 items-center justify-center rounded-full bg-white">
             <div className="size-2.5 bg-black" />
           </ComposerPrimitive.Cancel>
@@ -72,7 +72,7 @@ const UserMessage: FC = () => {
     <MessagePrimitive.Root className="relative mx-auto flex w-full max-w-screen-md flex-col items-end gap-1">
       <div className="flex items-start gap-4">
         <ActionBarPrimitive.Root
-          hideWhenBusy
+          hideWhenRunning
           autohide="not-last"
           autohideFloat="single-branch"
           className="mt-2"
@@ -129,7 +129,7 @@ const AssistantMessage: FC = () => {
           <BranchPicker />
 
           <ActionBarPrimitive.Root
-            hideWhenBusy
+            hideWhenRunning
             autohide="not-last"
             autohideFloat="single-branch"
             className="flex items-center gap-1 rounded-lg data-[floating=true]:absolute data-[floating=true]:border-2 data-[floating=true]:p-1"

@@ -83,7 +83,7 @@ export const VercelRSCAssistantProvider: FC<VercelAIAssistantProviderProps> = ({
         throw new Error("Only text content is currently supported");
       }
 
-      context.useThread.getState().scrollToBottom();
+      context.useViewport.getState().scrollToBottom();
       await vercelAppend(message);
     },
     [context, vercelAppend],

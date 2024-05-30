@@ -8,7 +8,7 @@ export const useGoToPreviousBranch = () => {
 
   const disabled = useCombinedStore(
     [useThread, useComposer, useMessage],
-    (t, c, m) => t.isLoading || c.isEditing || m.message.branchId <= 0,
+    (t, c, m) => t.isRunning || c.isEditing || m.message.branchId <= 0,
   );
   if (disabled) return null;
 

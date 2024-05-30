@@ -7,40 +7,29 @@ import {
   type ThreadState,
 } from "../../utils/context/stores/AssistantTypes";
 import { makeThreadComposerStore } from "../../utils/context/stores/ComposerStore";
+import { makeViewportStore } from "../../utils/context/stores/ViewportStore";
 
 export const useDummyAIAssistantContext = () => {
   const [context] = useState<AssistantStore>(() => {
-    const scrollToBottomListeners = new Set<() => void>();
-
     const useThread = create<ThreadState>()(() => ({
+      id: "",
       messages: [],
-      isLoading: false,
+      isRunning: false,
       append: async () => {
         throw new Error("Not implemented");
       },
-      stop: () => {
+      cancelRun: () => {
         throw new Error("Not implemented");
       },
       switchToBranch: () => {
         throw new Error("Not implemented");
       },
-      reload: async () => {
+      startRun: async () => {
         throw new Error("Not implemented");
-      },
-      isAtBottom: true,
-      scrollToBottom: () => {
-        for (const listener of scrollToBottomListeners) {
-          listener();
-        }
-      },
-      onScrollToBottom: (callback) => {
-        scrollToBottomListeners.add(callback);
-        return () => {
-          scrollToBottomListeners.delete(callback);
-        };
       },
     }));
 
+    const useViewport = makeViewportStore();
     const useComposer = makeThreadComposerStore({
       onSend: async (text) => {
         await useThread.getState().append({
@@ -49,11 +38,11 @@ export const useDummyAIAssistantContext = () => {
         });
       },
       onCancel: () => {
-        useThread.getState().stop();
+        useThread.getState().cancelRun();
       },
     });
 
-    return { useThread, useComposer };
+    return { useThread, useViewport, useComposer };
   });
   return context;
 };

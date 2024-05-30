@@ -5,6 +5,8 @@ import {
   create,
 } from "zustand";
 
+// base
+
 type BaseComposerState = {
   value: string;
   setValue: (value: string) => void;
@@ -21,6 +23,8 @@ const makeBaseComposer: StateCreator<
     set({ value });
   },
 });
+
+// message
 
 export type MessageComposerState = BaseComposerState & {
   isEditing: boolean;
@@ -57,6 +61,8 @@ export const makeMessageComposerStore = ({
       set({ isEditing: false });
     },
   }));
+
+// thread
 
 export type ThreadComposerState = BaseComposerState & {
   isEditing: true;

@@ -17,12 +17,11 @@ export const ThreadScrollToBottom = forwardRef<
   ThreadScrollToBottomElement,
   ThreadScrollToBottomProps
 >(({ onClick, ...rest }, ref) => {
-  const { useThread } = useAssistantContext();
+  const { useViewport } = useAssistantContext();
 
-  const isAtBottom = useThread((s) => s.isAtBottom);
+  const isAtBottom = useViewport((s) => s.isAtBottom);
   const handleScrollToBottom = () => {
-    const thread = useThread.getState();
-    thread.scrollToBottom();
+    useViewport.getState().scrollToBottom();
   };
 
   return (
