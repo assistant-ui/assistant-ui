@@ -1,6 +1,6 @@
 import type { StoreApi, UseBoundStore } from "zustand";
 import type { ThreadMessage } from "./AssistantTypes";
-import type { ComposerStore } from "./ComposerTypes";
+import type { MessageComposerStore } from "./ComposerTypes";
 
 export type MessageState = {
   message: ThreadMessage;
@@ -11,6 +11,6 @@ export type MessageState = {
   setIsHovering: (value: boolean) => void;
 };
 
-export type MessageStore = ComposerStore & {
+export type MessageStore = MessageComposerStore & {
   useMessage: UseBoundStore<StoreApi<MessageState>>;
 };

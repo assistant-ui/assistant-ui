@@ -6,7 +6,7 @@ import {
   ROOT_PARENT_ID,
   type ThreadState,
 } from "../../utils/context/stores/AssistantTypes";
-import type { ComposerState } from "../../utils/context/stores/ComposerTypes";
+import { makeThreadComposer } from "../../utils/context/stores/ComposerTypes";
 
 export const useDummyAIAssistantContext = () => {
   const [context] = useState<AssistantStore>(() => {
@@ -41,27 +41,17 @@ export const useDummyAIAssistantContext = () => {
       },
     }));
 
-    const useComposer = create<ComposerState>()(() => ({
-      isEditing: true,
-      canCancel: false,
-      value: "",
-      setValue: (value) => {
-        useComposer.setState({ value });
-      },
-      edit: () => {
-        throw new Error("Not implemented");
-      },
-      send: () => {
-        useThread.getState().append({
+    const useComposer = makeThreadComposer({
+      onSend: async (text) => {
+        await useThread.getState().append({
           parentId: useThread.getState().messages.at(-1)?.id ?? ROOT_PARENT_ID,
-          content: [{ type: "text", text: useComposer.getState().value }],
+          content: [{ type: "text", text }],
         });
-        useComposer.getState().setValue("");
       },
-      cancel: () => {
+      onCancel: () => {
         useThread.getState().stop();
       },
-    }));
+    });
 
     return { useThread, useComposer };
   });

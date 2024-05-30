@@ -11,7 +11,7 @@ import type {
   ThreadMessage,
   ThreadState,
 } from "../../utils/context/stores/AssistantTypes";
-import type { ComposerState } from "../../utils/context/stores/ComposerTypes";
+import { makeMessageComposer } from "../../utils/context/stores/ComposerTypes";
 import type {
   MessageState,
   MessageStore,
@@ -42,10 +42,8 @@ const useMessageContext = () => {
       setIsHovering: () => {},
     }));
 
-    const useComposer = create<ComposerState>((set, get) => ({
-      isEditing: false,
-      canCancel: true,
-      edit: () => {
+    const useComposer = makeMessageComposer({
+      onEdit: () => {
         const message = useMessage.getState().message;
         if (message.role !== "user")
           throw new Error("Editing is only supported for user messages");
@@ -54,25 +52,16 @@ const useMessageContext = () => {
         if (message.content[0]?.type !== "text")
           throw new Error("Editing is only supported for text-only messages");
 
-        return set({
-          isEditing: true,
-          value: message.content[0].text,
-        });
+        return message.content[0].text;
       },
-      cancel: () => set({ isEditing: false }),
-      send: () => {
+      onSend: (text) => {
         const message = useMessage.getState().message;
-        if (message.role !== "user")
-          throw new Error("Editing is only supported for user messages");
-        useThread.getState().append({
+        return useThread.getState().append({
           parentId: message.parentId,
-          content: [{ type: "text", text: get().value }],
+          content: [{ type: "text", text }],
         });
-        set({ isEditing: false });
       },
-      value: "",
-      setValue: (value) => set({ value }),
-    }));
+    });
 
     return { useMessage, useComposer };
   });
