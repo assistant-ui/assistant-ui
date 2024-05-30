@@ -11,7 +11,7 @@ import type {
   ThreadMessage,
   ThreadState,
 } from "../../utils/context/stores/AssistantTypes";
-import { makeMessageComposer } from "../../utils/context/stores/ComposerTypes";
+import { makeMessageComposerStore } from "../../utils/context/stores/ComposerStore";
 import type {
   MessageState,
   MessageStore,
@@ -42,7 +42,7 @@ const useMessageContext = () => {
       setIsHovering: () => {},
     }));
 
-    const useComposer = makeMessageComposer({
+    const useComposer = makeMessageComposerStore({
       onEdit: () => {
         const message = useMessage.getState().message;
         if (message.role !== "user")

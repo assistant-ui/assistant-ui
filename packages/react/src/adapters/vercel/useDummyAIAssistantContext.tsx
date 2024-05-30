@@ -6,7 +6,7 @@ import {
   ROOT_PARENT_ID,
   type ThreadState,
 } from "../../utils/context/stores/AssistantTypes";
-import { makeThreadComposer } from "../../utils/context/stores/ComposerTypes";
+import { makeThreadComposerStore } from "../../utils/context/stores/ComposerStore";
 
 export const useDummyAIAssistantContext = () => {
   const [context] = useState<AssistantStore>(() => {
@@ -41,7 +41,7 @@ export const useDummyAIAssistantContext = () => {
       },
     }));
 
-    const useComposer = makeThreadComposer({
+    const useComposer = makeThreadComposerStore({
       onSend: async (text) => {
         await useThread.getState().append({
           parentId: useThread.getState().messages.at(-1)?.id ?? ROOT_PARENT_ID,

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { StoreApi, UseBoundStore } from "zustand";
-import type { ComposerStore } from "./ComposerTypes";
+import type { ThreadComposerState } from "./ComposerStore";
 
 // TODO metadata field
 
@@ -75,8 +75,9 @@ export type ThreadState = {
   onScrollToBottom: (callback: () => void) => () => void;
 };
 
-export type AssistantStore = ComposerStore & {
+export type AssistantStore = {
   useThread: UseBoundStore<StoreApi<ThreadState>>;
+  useComposer: UseBoundStore<StoreApi<ThreadComposerState>>;
 };
 
 export const ROOT_PARENT_ID = "__ROOT_ID__";
