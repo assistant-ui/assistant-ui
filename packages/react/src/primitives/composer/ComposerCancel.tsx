@@ -16,11 +16,10 @@ type ComposerCancelProps = PrimitiveFormProps;
 export const ComposerCancel = forwardRef<
   ComposerCancelElement,
   ComposerCancelProps
->(({ disabled, onClick, ...rest }, ref) => {
+>(({ onClick, ...rest }, ref) => {
   const { useComposer } = useComposerContext();
-  const hasValue = useComposer((c) => c.canCancel);
 
-  const handleClose = () => {
+  const handleCancel = () => {
     useComposer.getState().cancel();
   };
 
@@ -29,8 +28,7 @@ export const ComposerCancel = forwardRef<
       type="button"
       {...rest}
       ref={ref}
-      onClick={composeEventHandlers(onClick, handleClose)}
-      disabled={disabled || !hasValue}
+      onClick={composeEventHandlers(onClick, handleCancel)}
     />
   );
 });

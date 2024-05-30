@@ -43,12 +43,11 @@ export const ComposerInput = forwardRef<
       if (disabled) return;
 
       const composer = useComposer.getState();
-      if (e.key === "Escape" && composer.canCancel) {
-        e.preventDefault();
-        useComposer.getState().cancel();
-      }
-
-      if (e.key === "Enter" && e.shiftKey === false) {
+      if (e.key === "Escape") {
+        if (useComposer.getState().cancel()) {
+          e.preventDefault();
+        }
+      } else if (e.key === "Enter" && e.shiftKey === false) {
         const isRunning = useThread.getState().isRunning;
         if (!isRunning) {
           e.preventDefault();

@@ -12,7 +12,6 @@ import { makeViewportStore } from "../../utils/context/stores/ViewportStore";
 export const useDummyAIAssistantContext = () => {
   const [context] = useState<AssistantStore>(() => {
     const useThread = create<ThreadState>()(() => ({
-      id: "",
       messages: [],
       isRunning: false,
       append: async () => {
@@ -31,14 +30,18 @@ export const useDummyAIAssistantContext = () => {
 
     const useViewport = makeViewportStore();
     const useComposer = makeThreadComposerStore({
-      onSend: async (text) => {
-        await useThread.getState().append({
+      onSend: (text) => {
+        useThread.getState().append({
           parentId: useThread.getState().messages.at(-1)?.id ?? ROOT_PARENT_ID,
           content: [{ type: "text", text }],
         });
       },
       onCancel: () => {
+        const thread = useThread.getState();
+        if (!thread.isRunning) return false;
+
         useThread.getState().cancelRun();
+        return true;
       },
     });
 

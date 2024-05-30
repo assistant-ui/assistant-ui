@@ -63,12 +63,11 @@ export type CreateThreadMessage = Omit<
 >;
 
 export type ThreadState = {
-  id: string;
   messages: ThreadMessage[];
   isRunning: boolean;
   switchToBranch: (messageId: string, branchId: number) => void;
-  append: (message: CreateThreadMessage) => Promise<void>;
-  startRun: (parentId: string) => Promise<void>;
+  append: (message: CreateThreadMessage) => void;
+  startRun: (parentId: string) => void;
   cancelRun: () => void;
 };
 

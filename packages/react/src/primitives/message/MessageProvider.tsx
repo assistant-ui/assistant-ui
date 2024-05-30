@@ -56,7 +56,7 @@ const useMessageContext = () => {
       },
       onSend: (text) => {
         const message = useMessage.getState().message;
-        return useThread.getState().append({
+        useThread.getState().append({
           parentId: message.parentId,
           content: [{ type: "text", text }],
         });

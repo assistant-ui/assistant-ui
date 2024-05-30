@@ -112,11 +112,10 @@ export const VercelAIAssistantProvider: FC<VercelAIAssistantProviderProps> = ({
 
   useMemo(() => {
     context.useComposer.setState({
-      canCancel: isRunning,
       value: vercel.input,
       setValue: vercel.setInput,
     });
-  }, [context, isRunning, vercel.input, vercel.setInput]);
+  }, [context, vercel.input, vercel.setInput]);
 
   return (
     <AssistantContext.Provider value={context}>
