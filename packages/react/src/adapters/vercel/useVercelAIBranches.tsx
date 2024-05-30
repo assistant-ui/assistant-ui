@@ -8,7 +8,7 @@ import type {
   CreateThreadMessage,
   ThreadMessage,
   ThreadState,
-} from "../utils/context/stores/AssistantTypes";
+} from "../../utils/context/stores/AssistantTypes";
 
 const ROOT_ID = "__ROOT_ID__";
 export const UPCOMING_MESSAGE_ID = "__UPCOMING_MESSAGE_ID__";

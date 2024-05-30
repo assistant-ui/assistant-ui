@@ -7,7 +7,7 @@ export * as ActionBarPrimitive from "./primitives/actionBar";
 export {
   VercelAIAssistantProvider,
   VercelRSCAssistantProvider as unstable_VercelRSCAssistantProvider,
-} from "./vercel";
+} from "./adapters/vercel";
 
 export { useMessageContext as unstable_useMessageContext } from "./utils/context/useMessageContext";
 

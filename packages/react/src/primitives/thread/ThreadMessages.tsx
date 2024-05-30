@@ -1,9 +1,9 @@
 "use client";
 
 import type { FC } from "react";
+import { UPCOMING_MESSAGE_ID } from "../../adapters/vercel/useVercelAIBranches";
+import { hasUpcomingMessage } from "../../adapters/vercel/useVercelAIBranches";
 import { useAssistantContext } from "../../utils/context/AssistantContext";
-import { UPCOMING_MESSAGE_ID } from "../../vercel/useVercelAIBranches";
-import { hasUpcomingMessage } from "../../vercel/useVercelAIBranches";
 import { ComposerIf } from "../composer/ComposerIf";
 import { Provider } from "../message";
 import { MessageIf } from "../message/MessageIf";

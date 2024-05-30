@@ -5,8 +5,8 @@ import type {
   AssistantStore,
   BranchObserver,
   ThreadState,
-} from "../utils/context/stores/AssistantTypes";
-import type { ComposerState } from "../utils/context/stores/ComposerTypes";
+} from "../../utils/context/stores/AssistantTypes";
+import type { ComposerState } from "../../utils/context/stores/ComposerTypes";
 
 export const useDummyAIAssistantContext = () => {
   const [context] = useState<AssistantStore>(() => {

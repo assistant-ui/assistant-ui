@@ -3,6 +3,10 @@
 import { type FC, useMemo, useState } from "react";
 import { create } from "zustand";
 import { useShallow } from "zustand/react/shallow";
+import {
+  UPCOMING_MESSAGE_ID,
+  hasUpcomingMessage,
+} from "../../adapters/vercel/useVercelAIBranches";
 import { useAssistantContext } from "../../utils/context/AssistantContext";
 import type {
   ThreadMessage,
@@ -14,10 +18,6 @@ import type {
   MessageStore,
 } from "../../utils/context/stores/MessageTypes";
 import { MessageContext } from "../../utils/context/useMessageContext";
-import {
-  UPCOMING_MESSAGE_ID,
-  hasUpcomingMessage,
-} from "../../vercel/useVercelAIBranches";
 
 type MessageProviderProps = {
   children?: React.ReactNode;

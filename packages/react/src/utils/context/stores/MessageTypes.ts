@@ -1,5 +1,5 @@
 import type { StoreApi, UseBoundStore } from "zustand";
-import type { BranchState } from "../../../vercel/useVercelAIBranches";
+import type { BranchState } from "../../../adapters/vercel/useVercelAIBranches";
 import type { ThreadMessage } from "./AssistantTypes";
 import type { ComposerStore } from "./ComposerTypes";
 
