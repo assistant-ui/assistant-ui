@@ -70,11 +70,11 @@ export const VercelRSCAssistantProvider: FC<VercelAIAssistantProviderProps> = ({
     return vercelToCachedThreadMessages(vercelMessages);
   }, [vercelMessages]);
 
-  const appendAt = useCallback(
+  const append = useCallback(
     async (message: CreateThreadMessage) => {
       if (
-        message.parentId !== context.useThread.getState().messages.at(-1)?.id ??
-        ROOT_PARENT_ID
+        message.parentId !==
+        (context.useThread.getState().messages.at(-1)?.id ?? ROOT_PARENT_ID)
       )
         throw new Error("Unexpected: Message editing is not supported");
 
@@ -92,9 +92,9 @@ export const VercelRSCAssistantProvider: FC<VercelAIAssistantProviderProps> = ({
   useMemo(() => {
     context.useThread.setState({
       messages,
-      append: appendAt,
+      append,
     });
-  }, [context, messages, appendAt]);
+  }, [context, messages, append]);
 
   return (
     <AssistantContext.Provider value={context}>
