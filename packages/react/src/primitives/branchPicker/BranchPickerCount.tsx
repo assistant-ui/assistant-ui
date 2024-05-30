@@ -5,6 +5,6 @@ import { useMessageContext } from "../../utils/context/useMessageContext";
 
 export const BranchPickerCount: FC = () => {
   const { useMessage } = useMessageContext();
-  const branchCount = useMessage((s) => s.branchState.branchCount);
+  const branchCount = useMessage((s) => s.message.branchCount);
   return <>{branchCount}</>;
 };

@@ -48,8 +48,6 @@ You can access the current branch state or navigate via the API as well.
 These APIs rely on the message state and may only be called inside a message component.
 
 ```tsx
-// reading the current state
-const { branchId, branchCount } = useBranchState(); // (TODO: coming soon)
 const hasBranches = useMessageIf({ hasBranches: true });  // whether branchCount is >= 2
 
 

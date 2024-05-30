@@ -2,7 +2,6 @@
 
 import { type FC, useMemo, useState } from "react";
 import { create } from "zustand";
-import { useShallow } from "zustand/react/shallow";
 import {
   UPCOMING_MESSAGE_ID,
   hasUpcomingMessage,
@@ -32,8 +31,8 @@ const getIsLast = (thread: ThreadState, message: ThreadMessage) => {
 };
 
 const useMessageContext = () => {
-  const { useBranchObserver } = useAssistantContext();
   const [context] = useState<MessageStore>(() => {
+    const { useThread } = useAssistantContext();
     const useMessage = create<MessageState>(() => ({
       message: null as unknown as ThreadMessage,
       isLast: false,
@@ -41,10 +40,6 @@ const useMessageContext = () => {
       isHovering: false,
       setIsCopied: () => {},
       setIsHovering: () => {},
-      branchState: {
-        branchId: 0,
-        branchCount: 0,
-      },
     }));
 
     const useComposer = create<ComposerState>((set, get) => ({
@@ -69,8 +64,8 @@ const useMessageContext = () => {
         const message = useMessage.getState().message;
         if (message.role !== "user")
           throw new Error("Editing is only supported for user messages");
-        useBranchObserver.getState().editAt(message, {
-          role: "user",
+        useThread.getState().append({
+          parentId: message.parentId,
           content: [{ type: "text", text: get().value }],
         });
         set({ isEditing: false });
@@ -88,12 +83,9 @@ export const MessageProvider: FC<MessageProviderProps> = ({
   message,
   children,
 }) => {
-  const { useThread, useBranchObserver } = useAssistantContext();
+  const { useThread } = useAssistantContext();
   const context = useMessageContext();
 
-  const branchState = useBranchObserver(
-    useShallow((b) => b.getBranchState(message)),
-  );
   const isLast = useThread((thread) => getIsLast(thread, message));
 
   const [isCopied, setIsCopied] = useState(false);
@@ -109,11 +101,10 @@ export const MessageProvider: FC<MessageProviderProps> = ({
         isHovering,
         setIsCopied,
         setIsHovering,
-        branchState,
       },
       true,
     );
-  }, [context, message, isLast, isCopied, isHovering, branchState]);
+  }, [context, message, isLast, isCopied, isHovering]);
 
   return (
     <MessageContext.Provider value={context}>

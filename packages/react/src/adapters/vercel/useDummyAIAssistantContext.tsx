@@ -1,10 +1,10 @@
 "use client";
 import { useState } from "react";
 import { create } from "zustand";
-import type {
-  AssistantStore,
-  BranchObserver,
-  ThreadState,
+import {
+  type AssistantStore,
+  ROOT_PARENT_ID,
+  type ThreadState,
 } from "../../utils/context/stores/AssistantTypes";
 import type { ComposerState } from "../../utils/context/stores/ComposerTypes";
 
@@ -19,6 +19,12 @@ export const useDummyAIAssistantContext = () => {
         throw new Error("Not implemented");
       },
       stop: () => {
+        throw new Error("Not implemented");
+      },
+      switchToBranch: () => {
+        throw new Error("Not implemented");
+      },
+      reloadAt: async () => {
         throw new Error("Not implemented");
       },
       isAtBottom: true,
@@ -47,7 +53,7 @@ export const useDummyAIAssistantContext = () => {
       },
       send: () => {
         useThread.getState().append({
-          role: "user",
+          parentId: useThread.getState().messages.at(-1)?.id ?? ROOT_PARENT_ID,
           content: [{ type: "text", text: useComposer.getState().value }],
         });
         useComposer.getState().setValue("");
@@ -57,23 +63,7 @@ export const useDummyAIAssistantContext = () => {
       },
     }));
 
-    const useBranchObserver = create<BranchObserver>()(() => ({
-      getBranchState: () => ({
-        branchId: 0,
-        branchCount: 1,
-      }),
-      switchToBranch: () => {
-        throw new Error("Not implemented");
-      },
-      editAt: async () => {
-        throw new Error("Not implemented");
-      },
-      reloadAt: async () => {
-        throw new Error("Not implemented");
-      },
-    }));
-
-    return { useThread, useComposer, useBranchObserver };
+    return { useThread, useComposer };
   });
   return context;
 };

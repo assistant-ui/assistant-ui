@@ -5,6 +5,6 @@ import { useMessageContext } from "../../utils/context/useMessageContext";
 
 export const BranchPickerNumber: FC = () => {
   const { useMessage } = useMessageContext();
-  const branchId = useMessage((s) => s.branchState.branchId);
+  const branchId = useMessage((s) => s.message.branchId);
   return <>{branchId + 1}</>;
 };

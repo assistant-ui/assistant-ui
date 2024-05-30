@@ -48,7 +48,7 @@ export const ActionBarRoot = forwardRef<
       // floating status
       if (
         autohideFloat === "always" ||
-        (autohideFloat === "single-branch" && m.branchState.branchCount <= 1)
+        (autohideFloat === "single-branch" && m.message.branchCount <= 1)
       )
         return HideAndFloatStatus.Floating;
 

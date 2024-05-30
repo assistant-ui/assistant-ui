@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import type { StoreApi, UseBoundStore } from "zustand";
-import type { BranchState } from "../../../adapters/vercel/useVercelAIBranches";
 import type { ComposerStore } from "./ComposerTypes";
 
 // TODO metadata field
@@ -31,49 +30,53 @@ export type ThreadUserMessageContent =
   | ThreadMessageTextPart
   | ThreadMessageImagePart
   | ThreadMessageUIPart;
+
 export type ThreadAssistantMessageContent =
   | ThreadMessageTextPart
   | ThreadMessageImagePart
   | ThreadMessageUIPart
   | ThreadMessageToolCallPart;
 
-export type ThreadUserMessage = {
+export type ThreadMessageBase = {
   id: string;
+  parentId: string;
+  createdAt: Date;
+  branchId: number;
+  branchCount: number;
+};
+
+export type ThreadUserMessage = ThreadMessageBase & {
   role: "user";
   content: ThreadUserMessageContent[];
 };
 
-export type ThreadAssistantMessage = {
-  id: string;
+export type ThreadAssistantMessage = ThreadMessageBase & {
   role: "assistant";
   content: ThreadAssistantMessageContent[];
 };
 
 export type ThreadMessage = ThreadUserMessage | ThreadAssistantMessage;
-export type CreateThreadMessage = Omit<ThreadUserMessage, "id">;
+export type CreateThreadMessage = Omit<
+  ThreadUserMessage,
+  "id" | "branchId" | "branchCount" | "createdAt" | "role"
+>;
 
 export type ThreadState = {
   messages: ThreadMessage[];
   isLoading: boolean;
+  switchToBranch: (messageId: string, branchId: number) => void;
   append: (message: CreateThreadMessage) => Promise<void>;
+  reloadAt: (messageId: string) => Promise<void>;
   stop: () => void;
 
+  // UI only
   isAtBottom: boolean;
   scrollToBottom: () => void;
   onScrollToBottom: (callback: () => void) => () => void;
 };
 
-export type BranchObserver = {
-  getBranchState: (message: ThreadMessage) => BranchState;
-  switchToBranch: (message: ThreadMessage, branchId: number) => void;
-  editAt: (
-    message: ThreadUserMessage,
-    newMesssage: CreateThreadMessage,
-  ) => Promise<void>;
-  reloadAt: (message: ThreadAssistantMessage) => Promise<void>;
-};
-
 export type AssistantStore = ComposerStore & {
   useThread: UseBoundStore<StoreApi<ThreadState>>;
-  useBranchObserver: UseBoundStore<StoreApi<BranchObserver>>;
 };
+
+export const ROOT_PARENT_ID = "__ROOT_ID__";

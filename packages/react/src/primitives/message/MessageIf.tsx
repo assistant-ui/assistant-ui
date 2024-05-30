@@ -19,27 +19,19 @@ type MessageIfProps = RequireAtLeastOne<MessageIfFilters> & {
 export const useMessageIf = (props: RequireAtLeastOne<MessageIfFilters>) => {
   const { useMessage } = useMessageContext();
 
-  return useMessage(
-    ({
-      message,
-      isLast,
-      isCopied,
-      isHovering,
-      branchState: { branchCount },
-    }) => {
-      if (props.hasBranches === true && branchCount < 2) return false;
+  return useMessage(({ message, isLast, isCopied, isHovering }) => {
+    if (props.hasBranches === true && message.branchCount < 2) return false;
 
-      if (props.user && message.role !== "user") return false;
-      if (props.assistant && message.role !== "assistant") return false;
+    if (props.user && message.role !== "user") return false;
+    if (props.assistant && message.role !== "assistant") return false;
 
-      if (props.lastOrHover === true && !isHovering && !isLast) return false;
+    if (props.lastOrHover === true && !isHovering && !isLast) return false;
 
-      if (props.copied === true && !isCopied) return false;
-      if (props.copied === false && isCopied) return false;
+    if (props.copied === true && !isCopied) return false;
+    if (props.copied === false && isCopied) return false;
 
-      return true;
-    },
-  );
+    return true;
+  });
 };
 
 export const MessageIf: FC<MessageIfProps> = ({ children, ...query }) => {

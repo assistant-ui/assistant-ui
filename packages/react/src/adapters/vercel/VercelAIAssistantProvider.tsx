@@ -4,30 +4,55 @@ import type { Message } from "ai";
 import type { UseAssistantHelpers, UseChatHelpers } from "ai/react";
 import { type FC, type PropsWithChildren, useCallback, useMemo } from "react";
 import { AssistantContext } from "../../utils/context/AssistantContext";
-import type {
-  CreateThreadMessage,
-  ThreadMessage,
+import {
+  ROOT_PARENT_ID,
+  type ThreadMessage,
 } from "../../utils/context/stores/AssistantTypes";
 import { useDummyAIAssistantContext } from "./useDummyAIAssistantContext";
-import { useVercelAIBranches } from "./useVercelAIBranches";
+import { type BranchState, useVercelAIBranches } from "./useVercelAIBranches";
 
 const ThreadMessageCache = new WeakMap<Message, ThreadMessage>();
-const vercelToThreadMessage = (message: Message): ThreadMessage => {
+const vercelToThreadMessage = (
+  message: Message,
+  parentId: string,
+  branchId: number,
+  branchCount: number,
+): ThreadMessage => {
   if (message.role !== "user" && message.role !== "assistant")
     throw new Error("Unsupported role");
 
   return {
+    parentId: parentId,
     id: message.id,
     role: message.role,
     content: [{ type: "text", text: message.content }],
+    branchId: branchId,
+    branchCount: branchCount,
+    createdAt: message.createdAt ?? new Date(),
   };
 };
 
-const vercelToCachedThreadMessages = (messages: Message[]) => {
-  return messages.map((m) => {
+const vercelToCachedThreadMessages = (
+  messages: Message[],
+  getBranchState: (messageId: string) => BranchState,
+) => {
+  return messages.map((m, idx) => {
     const cached = ThreadMessageCache.get(m);
-    if (cached) return cached;
-    const newMessage = vercelToThreadMessage(m);
+    const parentId = messages[idx - 1]?.id ?? ROOT_PARENT_ID;
+    const { branchId, branchCount } = getBranchState(m.id);
+    if (
+      cached &&
+      cached.parentId === parentId &&
+      cached.branchId === branchId &&
+      cached.branchCount === branchCount
+    )
+      return cached;
+    const newMessage = vercelToThreadMessage(
+      m,
+      parentId,
+      branchId,
+      branchCount,
+    );
     ThreadMessageCache.set(m, newMessage);
     return newMessage;
   });
@@ -51,25 +76,14 @@ export const VercelAIAssistantProvider: FC<VercelAIAssistantProviderProps> = ({
   const vercel = "chat" in rest ? rest.chat : rest.assistant;
 
   // -- useThread sync --
+  const branches = useVercelAIBranches(vercel, context);
 
   const messages = useMemo(() => {
-    return vercelToCachedThreadMessages(vercel.messages);
-  }, [vercel.messages]);
-
-  const append = useCallback(
-    async (message: CreateThreadMessage) => {
-      if (message.content[0]?.type !== "text") {
-        throw new Error("Only text content is currently supported");
-      }
-
-      context.useThread.getState().scrollToBottom();
-      await vercel.append({
-        role: message.role,
-        content: message.content[0].text,
-      });
-    },
-    [context, vercel.append],
-  );
+    return vercelToCachedThreadMessages(
+      vercel.messages,
+      branches.getBranchState,
+    );
+  }, [vercel.messages, branches.getBranchState]);
 
   const stop = useCallback(() => {
     const lastMessage = vercel.messages.at(-1);
@@ -82,14 +96,17 @@ export const VercelAIAssistantProvider: FC<VercelAIAssistantProviderProps> = ({
 
   const isLoading =
     "isLoading" in vercel ? vercel.isLoading : vercel.status === "in_progress";
+
   useMemo(() => {
     context.useThread.setState({
       messages,
       isLoading,
-      append,
       stop,
+      switchToBranch: branches.switchToBranch,
+      append: branches.append,
+      reloadAt: branches.reloadAt,
     });
-  }, [context, messages, append, stop, isLoading]);
+  }, [context, messages, isLoading, stop, branches]);
 
   // -- useComposer sync --
 
@@ -100,14 +117,6 @@ export const VercelAIAssistantProvider: FC<VercelAIAssistantProviderProps> = ({
       setValue: vercel.setInput,
     });
   }, [context, isLoading, vercel.input, vercel.setInput]);
-
-  // -- useBranchObserver sync --
-
-  const branches = useVercelAIBranches(vercel, context);
-
-  useMemo(() => {
-    context.useBranchObserver.setState(branches, true);
-  }, [context, branches]);
 
   return (
     <AssistantContext.Provider value={context}>

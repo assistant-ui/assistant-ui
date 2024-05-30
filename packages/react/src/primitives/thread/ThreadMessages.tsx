@@ -4,6 +4,7 @@ import type { FC } from "react";
 import { UPCOMING_MESSAGE_ID } from "../../adapters/vercel/useVercelAIBranches";
 import { hasUpcomingMessage } from "../../adapters/vercel/useVercelAIBranches";
 import { useAssistantContext } from "../../utils/context/AssistantContext";
+import { ROOT_PARENT_ID } from "../../utils/context/stores/AssistantTypes";
 import { ComposerIf } from "../composer/ComposerIf";
 import { Provider } from "../message";
 import { MessageIf } from "../message/MessageIf";
@@ -75,6 +76,11 @@ export const ThreadMessages: FC<ThreadMessagesProps> = ({ components }) => {
             id: UPCOMING_MESSAGE_ID,
             role: "assistant",
             content: [{ type: "text", text: "..." }],
+            parentId: messages.at(-1)?.id ?? ROOT_PARENT_ID,
+            // TODO fix these (move upcoming message to AssistantContext)
+            branchId: 0,
+            branchCount: 1,
+            createdAt: new Date(),
           }}
         >
           <AssistantMessage />

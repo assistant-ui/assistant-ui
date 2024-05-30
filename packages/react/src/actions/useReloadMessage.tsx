@@ -3,7 +3,7 @@ import { useCombinedStore } from "../utils/context/combined/useCombinedStore";
 import { useMessageContext } from "../utils/context/useMessageContext";
 
 export const useReloadMessage = () => {
-  const { useThread, useBranchObserver } = useAssistantContext();
+  const { useThread } = useAssistantContext();
   const { useMessage } = useMessageContext();
 
   const disabled = useCombinedStore(
@@ -18,6 +18,6 @@ export const useReloadMessage = () => {
     if (message.role !== "assistant")
       throw new Error("Reloading is only supported on assistant messages");
 
-    useBranchObserver.getState().reloadAt(message);
+    useThread.getState().reloadAt(message.id);
   };
 };
