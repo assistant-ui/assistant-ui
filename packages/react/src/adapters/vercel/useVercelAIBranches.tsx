@@ -123,7 +123,7 @@ export type UseBranches = {
   getBranchState: (messageId: string) => BranchState;
   switchToBranch: (messageId: string, branchId: number) => void;
   append: (message: CreateThreadMessage) => Promise<void>;
-  reloadAt: (messageId: string) => Promise<void>;
+  reload: (messageId: string) => Promise<void>;
 };
 
 export const useVercelAIBranches = (
@@ -159,7 +159,7 @@ export const useVercelAIBranches = (
   );
 
   const reloadMaybe = "reload" in chat ? chat.reload : undefined;
-  const reloadAt = useCallback(
+  const reload = useCallback(
     async (messageId: string) => {
       if (!reloadMaybe)
         throw new Error("Reload not supported by Vercel AI SDK's useAssistant");
@@ -196,9 +196,9 @@ export const useVercelAIBranches = (
       getBranchState,
       switchToBranch,
       append,
-      reloadAt,
+      reload,
     }),
-    [getBranchState, switchToBranch, append, reloadAt],
+    [getBranchState, switchToBranch, append, reload],
   );
 };
 export const hasUpcomingMessage = (thread: ThreadState) => {

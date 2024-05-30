@@ -18,6 +18,6 @@ export const useReloadMessage = () => {
     if (message.role !== "assistant")
       throw new Error("Reloading is only supported on assistant messages");
 
-    useThread.getState().reloadAt(message.id);
+    useThread.getState().reload(message.id);
   };
 };

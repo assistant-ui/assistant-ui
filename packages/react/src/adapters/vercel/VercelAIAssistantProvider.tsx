@@ -104,7 +104,7 @@ export const VercelAIAssistantProvider: FC<VercelAIAssistantProviderProps> = ({
       stop,
       switchToBranch: branches.switchToBranch,
       append: branches.append,
-      reloadAt: branches.reloadAt,
+      reload: branches.reload,
     });
   }, [context, messages, isLoading, stop, branches]);
 

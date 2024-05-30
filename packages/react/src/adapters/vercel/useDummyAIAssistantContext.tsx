@@ -24,7 +24,7 @@ export const useDummyAIAssistantContext = () => {
       switchToBranch: () => {
         throw new Error("Not implemented");
       },
-      reloadAt: async () => {
+      reload: async () => {
         throw new Error("Not implemented");
       },
       isAtBottom: true,

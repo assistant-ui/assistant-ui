@@ -66,7 +66,7 @@ export type ThreadState = {
   isLoading: boolean;
   switchToBranch: (messageId: string, branchId: number) => void;
   append: (message: CreateThreadMessage) => Promise<void>;
-  reloadAt: (messageId: string) => Promise<void>;
+  reload: (messageId: string) => Promise<void>;
   stop: () => void;
 
   // UI only
