@@ -4,6 +4,7 @@ import {
   type UseBoundStore,
   create,
 } from "zustand";
+import { ROOT_PARENT_ID, type ThreadState } from "./AssistantTypes";
 
 // base
 
@@ -68,25 +69,33 @@ export type ThreadComposerState = BaseComposerState & {
   isEditing: true;
 
   send: () => void;
-  cancel: () => void;
+  cancel: () => boolean;
 };
 
-export const makeThreadComposerStore = ({
-  onSend,
-  onCancel,
-}: {
-  onSend: (value: string) => void;
-  onCancel: () => boolean;
-}): UseBoundStore<StoreApi<ThreadComposerState>> =>
-  create<ThreadComposerState>()((set, get, store) => ({
-    ...makeBaseComposer(set, get, store),
+export const makeThreadComposerStore = (
+  useThread: StoreApi<ThreadState>,
+): UseBoundStore<StoreApi<ThreadComposerState>> =>
+  create<ThreadComposerState>()((set, get, store) => {
+    return {
+      ...makeBaseComposer(set, get, store),
 
-    isEditing: true,
+      isEditing: true,
 
-    send: () => {
-      const value = get().value;
-      set({ value: "" });
-      onSend(value);
-    },
-    cancel: onCancel,
-  }));
+      send: () => {
+        const { value } = get();
+        set({ value: "" });
+
+        useThread.getState().append({
+          parentId: useThread.getState().messages.at(-1)?.id ?? ROOT_PARENT_ID,
+          content: [{ type: "text", text: value }],
+        });
+      },
+      cancel: () => {
+        const thread = useThread.getState();
+        if (!thread.isRunning) return false;
+  
+        useThread.getState().cancelRun();
+        return true;
+      }
+    };
+  });

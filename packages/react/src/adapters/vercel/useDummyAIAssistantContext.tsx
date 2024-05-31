@@ -29,21 +29,7 @@ export const useDummyAIAssistantContext = () => {
     }));
 
     const useViewport = makeViewportStore();
-    const useComposer = makeThreadComposerStore({
-      onSend: (text) => {
-        useThread.getState().append({
-          parentId: useThread.getState().messages.at(-1)?.id ?? ROOT_PARENT_ID,
-          content: [{ type: "text", text }],
-        });
-      },
-      onCancel: () => {
-        const thread = useThread.getState();
-        if (!thread.isRunning) return false;
-
-        useThread.getState().cancelRun();
-        return true;
-      },
-    });
+    const useComposer = makeThreadComposerStore(useThread);
 
     return { useThread, useViewport, useComposer };
   });
