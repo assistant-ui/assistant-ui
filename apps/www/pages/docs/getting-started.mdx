@@ -23,18 +23,15 @@ Use the `Thread` component in your application:
 "use client";
 
 import { VercelAIAssistantProvider } from '@assistant-ui/react';
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { Thread } from '@/components/ui/assistant-ui/thread';
 import { useChat } from 'ai'; 
 
 function ChatBox() {
   const chat = useChat();
   return (
-    <TooltipProvider>
-      <VercelAIAssistantProvider chat={chat}>
-        <Thread />
-      </VercelAIAssistantProvider>
-    </TooltipProvider>
+    <VercelAIAssistantProvider chat={chat}>
+      <Thread />
+    </VercelAIAssistantProvider>
   );
 }
 ```

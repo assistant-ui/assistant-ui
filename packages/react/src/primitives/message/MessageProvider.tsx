@@ -31,8 +31,8 @@ const getIsLast = (thread: ThreadState, message: ThreadMessage) => {
 };
 
 const useMessageContext = () => {
+  const { useThread } = useAssistantContext();
   const [context] = useState<MessageStore>(() => {
-    const { useThread } = useAssistantContext();
     const useMessage = create<MessageState>(() => ({
       message: null as unknown as ThreadMessage,
       isLast: false,

@@ -15,6 +15,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { TooltipProvider } from "@radix-ui/react-tooltip";
 import {
   ArrowDownIcon,
   CheckIcon,
@@ -28,25 +29,27 @@ import {
 
 export const Thread: FC = () => {
   return (
-    <ThreadPrimitive.Root className="flex h-full flex-col items-center pb-3">
-      <ThreadPrimitive.Viewport className="flex w-full flex-grow flex-col items-center overflow-y-scroll scroll-smooth px-4 pt-12">
-        <ThreadPrimitive.Empty>
-          <ThreadEmpty />
-        </ThreadPrimitive.Empty>
+    <TooltipProvider>
+      <ThreadPrimitive.Root className="flex h-full flex-col items-center pb-3">
+        <ThreadPrimitive.Viewport className="flex w-full flex-grow flex-col items-center overflow-y-scroll scroll-smooth px-4 pt-12">
+          <ThreadPrimitive.Empty>
+            <ThreadEmpty />
+          </ThreadPrimitive.Empty>
 
-        <ThreadPrimitive.Messages
-          components={{
-            UserMessage,
-            EditComposer,
-            AssistantMessage,
-          }}
-        />
+          <ThreadPrimitive.Messages
+            components={{
+              UserMessage,
+              EditComposer,
+              AssistantMessage,
+            }}
+          />
 
-        <ThreadScrollToBottom />
-      </ThreadPrimitive.Viewport>
+          <ThreadScrollToBottom />
+        </ThreadPrimitive.Viewport>
 
-      <Composer />
-    </ThreadPrimitive.Root>
+        <Composer />
+      </ThreadPrimitive.Root>
+    </TooltipProvider>
   );
 };
 
