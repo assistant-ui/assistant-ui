@@ -11,17 +11,15 @@ export const useGoToNextBranch = () => {
     (t, c, m) =>
       t.isRunning ||
       c.isEditing ||
-      m.message.branches.indexOf(m.message.id) + 1 >= m.message.branches.length,
+      m.branches.indexOf(m.message.id) + 1 >= m.branches.length,
   );
 
   if (disabled) return null;
 
   return () => {
-    const { message } = useMessage.getState();
+    const { message, branches } = useMessage.getState();
     useThread
       .getState()
-      .switchToBranch(
-        message.branches[message.branches.indexOf(message.id) + 1]!,
-      );
+      .switchToBranch(branches[branches.indexOf(message.id) + 1]!);
   };
 };

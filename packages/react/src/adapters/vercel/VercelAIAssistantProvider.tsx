@@ -15,7 +15,6 @@ const ThreadMessageCache = new WeakMap<Message, ThreadMessage>();
 const vercelToThreadMessage = (
   message: Message,
   parentId: string,
-  branches: string[],
 ): ThreadMessage => {
   if (message.role !== "user" && message.role !== "assistant")
     throw new Error("Unsupported role");
@@ -25,23 +24,17 @@ const vercelToThreadMessage = (
     id: message.id,
     role: message.role,
     content: [{ type: "text", text: message.content }],
-    branches,
     createdAt: message.createdAt ?? new Date(),
   };
 };
 
-const vercelToCachedThreadMessages = (
-  messages: Message[],
-  getChildren: (messageId: string) => string[],
-) => {
+const vercelToCachedThreadMessages = (messages: Message[]) => {
   return messages.map((m, idx) => {
     const cached = ThreadMessageCache.get(m);
     const parentId = messages[idx - 1]?.id ?? ROOT_PARENT_ID;
-    const branches = getChildren(parentId);
-    if (cached && cached.parentId === parentId && cached.branches === branches)
-      return cached;
+    if (cached && cached.parentId === parentId) return cached;
 
-    const newMessage = vercelToThreadMessage(m, parentId, branches);
+    const newMessage = vercelToThreadMessage(m, parentId);
     ThreadMessageCache.set(m, newMessage);
     return newMessage;
   });
@@ -68,8 +61,8 @@ export const VercelAIAssistantProvider: FC<VercelAIAssistantProviderProps> = ({
   const branches = useVercelAIBranches(vercel, context);
 
   const messages = useMemo(() => {
-    return vercelToCachedThreadMessages(vercel.messages, branches.getChildren);
-  }, [vercel.messages, branches.getChildren]);
+    return vercelToCachedThreadMessages(vercel.messages);
+  }, [vercel.messages]);
 
   const cancelRun = useCallback(() => {
     const lastMessage = vercel.messages.at(-1);
@@ -84,14 +77,20 @@ export const VercelAIAssistantProvider: FC<VercelAIAssistantProviderProps> = ({
     "isLoading" in vercel ? vercel.isLoading : vercel.status === "in_progress";
 
   useMemo(() => {
-    context.useThread.setState({
-      messages,
-      isRunning,
-      cancelRun,
-      switchToBranch: branches.switchToBranch,
-      append: branches.append,
-      startRun: branches.startRun,
-    });
+    context.useThread.setState(
+      {
+        messages,
+        isRunning,
+
+        getBranches: branches.getBranches,
+        switchToBranch: branches.switchToBranch,
+
+        append: branches.append,
+        startRun: branches.startRun,
+        cancelRun,
+      },
+      true,
+    );
   }, [context, messages, isRunning, cancelRun, branches]);
 
   // -- useComposer sync --

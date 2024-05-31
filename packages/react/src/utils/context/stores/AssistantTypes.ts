@@ -42,7 +42,6 @@ export type ThreadMessageBase = {
   id: string;
   parentId: string;
   createdAt: Date;
-  branches: string[];
 };
 
 export type ThreadUserMessage = ThreadMessageBase & {
@@ -64,7 +63,10 @@ export type CreateThreadMessage = Pick<
 export type ThreadState = {
   messages: ThreadMessage[];
   isRunning: boolean;
+
+  getBranches: (parentId: string) => string[];
   switchToBranch: (branchId: string) => void;
+
   append: (message: CreateThreadMessage) => void;
   startRun: (parentId: string) => void;
   cancelRun: () => void;

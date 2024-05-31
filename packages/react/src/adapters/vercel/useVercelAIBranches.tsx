@@ -12,11 +12,9 @@ import { ROOT_PARENT_ID } from "../../utils/context/stores/AssistantTypes";
 
 export const UPCOMING_MESSAGE_ID = "__UPCOMING_MESSAGE_ID__";
 
-type Branch = Message[];
-
 type ChatBranchData = {
-  branchMap: Map<string, string[]>; // parent_id -> child_ids
-  snapshots: Map<string, Branch>; // message_id -> message[]
+  childrenMap: Map<string, string[]>; // parent_id -> child_ids
+  branchMap: Map<string, Message[]>; // message_id -> Branch
 };
 
 const updateBranchData = (data: ChatBranchData, messages: Message[]) => {
@@ -25,27 +23,27 @@ const updateBranchData = (data: ChatBranchData, messages: Message[]) => {
     const childId = child.id;
 
     const parentId = messages[i - 1]?.id ?? ROOT_PARENT_ID;
-    const parentArray = data.branchMap.get(parentId);
+    const parentArray = data.childrenMap.get(parentId);
     if (!parentArray) {
-      data.branchMap.set(parentId, [childId]);
+      data.childrenMap.set(parentId, [childId]);
     } else if (!parentArray.includes(childId)) {
       parentArray.push(childId);
     }
 
-    data.snapshots.set(childId, messages);
+    data.branchMap.set(childId, messages);
   }
 };
 
 // TODO handle UPCOMING_MESSAGE_ID
-const getChildrenImpl = (data: ChatBranchData, parentId: string) => {
-  return data.branchMap.get(parentId) ?? [];
+const getBranchesImpl = (data: ChatBranchData, parentId: string) => {
+  return data.childrenMap.get(parentId) ?? [];
 };
 
 const switchToBranchImpl = (
   data: ChatBranchData,
   messageId: string,
 ): Message[] => {
-  const snapshot = data.snapshots.get(messageId);
+  const snapshot = data.branchMap.get(messageId);
   if (!snapshot) throw new Error("Unexpected: Branch snapshot not found");
   return snapshot;
 };
@@ -61,7 +59,7 @@ const sliceMessagesUntil = (messages: Message[], messageId: string) => {
 };
 
 export type UseBranches = {
-  getChildren: (parentId: string) => string[];
+  getBranches: (parentId: string) => string[];
   switchToBranch: (messageId: string) => void;
   append: (message: CreateThreadMessage) => Promise<void>;
   startRun: (parentId: string) => Promise<void>;
@@ -72,15 +70,15 @@ export const useVercelAIBranches = (
   context: AssistantStore,
 ): UseBranches => {
   const [data] = useState<ChatBranchData>(() => ({
+    childrenMap: new Map(),
     branchMap: new Map(),
-    snapshots: new Map(),
   }));
 
   updateBranchData(data, chat.messages);
 
-  const getChildren = useCallback(
+  const getBranches = useCallback(
     (parentId: string) => {
-      return getChildrenImpl(data, parentId);
+      return getBranchesImpl(data, parentId);
     },
     [data],
   );
@@ -128,12 +126,12 @@ export const useVercelAIBranches = (
 
   return useMemo(
     () => ({
-      getChildren,
+      getBranches,
       switchToBranch,
       append,
       startRun,
     }),
-    [getChildren, switchToBranch, append, startRun],
+    [getBranches, switchToBranch, append, startRun],
   );
 };
 export const hasUpcomingMessage = (thread: ThreadState) => {

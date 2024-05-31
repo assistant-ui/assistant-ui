@@ -12,13 +12,18 @@ const makeDummyThreadStore = () => {
   return create<ThreadState>(() => ({
     messages: [],
     isRunning: false,
+
+    getBranches: () => {
+      return [];
+    },
+    switchToBranch: () => {
+      throw new Error("Not implemented");
+    },
+
     append: async () => {
       throw new Error("Not implemented");
     },
     cancelRun: () => {
-      throw new Error("Not implemented");
-    },
-    switchToBranch: () => {
       throw new Error("Not implemented");
     },
     startRun: async () => {

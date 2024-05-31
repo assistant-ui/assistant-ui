@@ -35,6 +35,7 @@ const useMessageContext = () => {
   const [context] = useState<MessageStore>(() => {
     const useMessage = create<MessageState>(() => ({
       message: null as unknown as ThreadMessage,
+      branches: [],
       isLast: false,
       isCopied: false,
       isHovering: false,
@@ -76,6 +77,7 @@ export const MessageProvider: FC<MessageProviderProps> = ({
   const context = useMessageContext();
 
   const isLast = useThread((thread) => getIsLast(thread, message));
+  const branches = useThread((thread) => thread.getBranches(message.parentId));
 
   const [isCopied, setIsCopied] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
@@ -85,6 +87,7 @@ export const MessageProvider: FC<MessageProviderProps> = ({
     context.useMessage.setState(
       {
         message,
+        branches,
         isLast,
         isCopied,
         isHovering,
@@ -93,7 +96,7 @@ export const MessageProvider: FC<MessageProviderProps> = ({
       },
       true,
     );
-  }, [context, message, isLast, isCopied, isHovering]);
+  }, [context, message, branches, isLast, isCopied, isHovering]);
 
   return (
     <MessageContext.Provider value={context}>

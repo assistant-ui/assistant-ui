@@ -19,8 +19,8 @@ type MessageIfProps = RequireAtLeastOne<MessageIfFilters> & {
 export const useMessageIf = (props: RequireAtLeastOne<MessageIfFilters>) => {
   const { useMessage } = useMessageContext();
 
-  return useMessage(({ message, isLast, isCopied, isHovering }) => {
-    if (props.hasBranches === true && message.branches.length < 2) return false;
+  return useMessage(({ message, branches, isLast, isCopied, isHovering }) => {
+    if (props.hasBranches === true && branches.length < 2) return false;
 
     if (props.user && message.role !== "user") return false;
     if (props.assistant && message.role !== "assistant") return false;
