@@ -2,10 +2,6 @@
 
 import { type FC, useMemo, useState } from "react";
 import { create } from "zustand";
-import {
-  UPCOMING_MESSAGE_ID,
-  hasUpcomingMessage,
-} from "../../adapters/vercel/useVercelAIBranches";
 import { useAssistantContext } from "../../utils/context/AssistantContext";
 import type {
   ThreadMessage,
@@ -24,10 +20,7 @@ type MessageProviderProps = {
 };
 
 const getIsLast = (thread: ThreadState, message: ThreadMessage) => {
-  const hasUpcoming = hasUpcomingMessage(thread);
-  return hasUpcoming
-    ? message.id === UPCOMING_MESSAGE_ID
-    : thread.messages[thread.messages.length - 1]?.id === message.id;
+  return thread.messages[thread.messages.length - 1]?.id === message.id;
 };
 
 const useMessageContext = () => {

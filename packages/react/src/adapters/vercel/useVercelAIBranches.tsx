@@ -2,25 +2,21 @@
 
 import type { Message } from "ai";
 import type { UseAssistantHelpers, UseChatHelpers } from "ai/react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import type {
   AssistantStore,
   CreateThreadMessage,
   ThreadMessage,
-  ThreadState,
 } from "../../utils/context/stores/AssistantTypes";
-import { ROOT_PARENT_ID } from "../../utils/context/stores/AssistantTypes";
-import { MessageRepository } from "../MessageRepository";
-
-export const UPCOMING_MESSAGE_ID = "__UPCOMING_MESSAGE_ID__";
+import { MessageRepository, isOptimisticId } from "../MessageRepository";
 
 export type VercelThreadMessage = ThreadMessage & {
   innerMessage: Message; // TODO make this less hacky
 };
 
-const sliceMessagesUntil = (messages: Message[], messageId: string) => {
-  if (messageId === ROOT_PARENT_ID) return [];
-  if (messageId === UPCOMING_MESSAGE_ID) return messages;
+const sliceMessagesUntil = (messages: Message[], messageId: string | null) => {
+  if (messageId == null) return [];
+  if (isOptimisticId(messageId)) return messages; // TODO figure out if this is needed
 
   const messageIdx = messages.findIndex((m) => m.id === messageId);
   if (messageIdx === -1) throw new Error("Unexpected: Message not found");
@@ -28,11 +24,16 @@ const sliceMessagesUntil = (messages: Message[], messageId: string) => {
   return messages.slice(0, messageIdx + 1);
 };
 
+const hasUpcomingMessage = (isRunning: boolean, messages: ThreadMessage[]) => {
+  return isRunning && messages[messages.length - 1]?.role !== "assistant";
+};
+
 export type UseBranches = {
-  getBranches: (parentId: string) => string[];
+  messages: ThreadMessage[];
+  getBranches: (parentId: string | null) => string[];
   switchToBranch: (messageId: string) => void;
   append: (message: CreateThreadMessage) => Promise<void>;
-  startRun: (parentId: string) => Promise<void>;
+  startRun: (parentId: string | null) => Promise<void>;
 };
 
 export const useVercelAIBranches = (
@@ -42,12 +43,36 @@ export const useVercelAIBranches = (
 ): UseBranches => {
   const [data] = useState(() => new MessageRepository());
 
-  useMemo(() => {
-    data.resetHead(messages);
-  }, [data, messages]);
+  const isRunning =
+    "isLoading" in chat ? chat.isLoading : chat.status === "in_progress";
+
+  const assistantOptimisticIdRef = useRef<string | null>(null);
+  const messagesEx = useMemo(() => {
+    for (const message of messages) {
+      data.addOrUpdateMessage(message);
+    }
+
+    // TODO dont delete and recreate every time?
+    if (assistantOptimisticIdRef.current) {
+      data.deleteMessage(assistantOptimisticIdRef.current);
+      assistantOptimisticIdRef.current = null;
+    }
+
+    if (hasUpcomingMessage(isRunning, messages)) {
+      assistantOptimisticIdRef.current = data.commitOptimisticRun(
+        messages.at(-1)?.id ?? null,
+      );
+    }
+
+    data.resetHead(
+      assistantOptimisticIdRef.current ?? messages.at(-1)?.id ?? null,
+    );
+
+    return data.getMessages();
+  }, [data, isRunning, messages]);
 
   const getBranches = useCallback(
-    (parentId: string) => {
+    (parentId: string | null) => {
       return data.getBranches(parentId);
     },
     [data],
@@ -55,9 +80,12 @@ export const useVercelAIBranches = (
 
   const switchToBranch = useCallback(
     (messageId: string) => {
-      data.checkout(messageId);
+      data.switchToBranch(messageId);
+
       chat.setMessages(
-        (data.head as VercelThreadMessage[]).map((m) => m.innerMessage),
+        (data.getMessages() as VercelThreadMessage[])
+          .filter((m) => !isOptimisticId(m.id))
+          .map((m) => m.innerMessage),
       );
     },
     [data, chat.setMessages],
@@ -65,7 +93,7 @@ export const useVercelAIBranches = (
 
   const reloadMaybe = "reload" in chat ? chat.reload : undefined;
   const startRun = useCallback(
-    async (parentId: string) => {
+    async (parentId: string | null) => {
       if (!reloadMaybe)
         throw new Error("Reload not supported by Vercel AI SDK's useAssistant");
 
@@ -80,12 +108,12 @@ export const useVercelAIBranches = (
 
   const append = useCallback(
     async (message: CreateThreadMessage) => {
-      const newMessages = sliceMessagesUntil(chat.messages, message.parentId);
-      chat.setMessages(newMessages);
-
       // TODO image/ui support
       if (message.content.length !== 1 || message.content[0]?.type !== "text")
         throw new Error("Only text content is currently supported");
+
+      const newMessages = sliceMessagesUntil(chat.messages, message.parentId);
+      chat.setMessages(newMessages);
 
       context.useViewport.getState().scrollToBottom();
       await chat.append({
@@ -98,17 +126,12 @@ export const useVercelAIBranches = (
 
   return useMemo(
     () => ({
+      messages: messagesEx,
       getBranches,
       switchToBranch,
       append,
       startRun,
     }),
-    [getBranches, switchToBranch, append, startRun],
-  );
-};
-export const hasUpcomingMessage = (thread: ThreadState) => {
-  return (
-    thread.isRunning &&
-    thread.messages[thread.messages.length - 1]?.role !== "assistant"
+    [messagesEx, getBranches, switchToBranch, append, startRun],
   );
 };

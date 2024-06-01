@@ -4,7 +4,6 @@ import type { Message } from "ai";
 import type { UseAssistantHelpers, UseChatHelpers } from "ai/react";
 import { type FC, type PropsWithChildren, useCallback, useMemo } from "react";
 import { AssistantContext } from "../../utils/context/AssistantContext";
-import { ROOT_PARENT_ID } from "../../utils/context/stores/AssistantTypes";
 import { useDummyAIAssistantContext } from "./useDummyAIAssistantContext";
 import {
   type VercelThreadMessage,
@@ -14,7 +13,7 @@ import {
 const ThreadMessageCache = new WeakMap<Message, VercelThreadMessage>();
 const vercelToThreadMessage = (
   message: Message,
-  parentId: string,
+  parentId: string | null,
 ): VercelThreadMessage => {
   if (message.role !== "user" && message.role !== "assistant")
     throw new Error("Unsupported role");
@@ -32,7 +31,7 @@ const vercelToThreadMessage = (
 const vercelToCachedThreadMessages = (messages: Message[]) => {
   return messages.map((m, idx) => {
     const cached = ThreadMessageCache.get(m);
-    const parentId = messages[idx - 1]?.id ?? ROOT_PARENT_ID;
+    const parentId = messages[idx - 1]?.id ?? null;
     if (cached && cached.parentId === parentId) return cached;
 
     const newMessage = vercelToThreadMessage(m, parentId);
@@ -81,7 +80,7 @@ export const VercelAIAssistantProvider: FC<VercelAIAssistantProviderProps> = ({
   useMemo(() => {
     context.useThread.setState(
       {
-        messages,
+        messages: branches.messages,
         isRunning,
 
         getBranches: branches.getBranches,
@@ -93,7 +92,7 @@ export const VercelAIAssistantProvider: FC<VercelAIAssistantProviderProps> = ({
       },
       true,
     );
-  }, [context, messages, isRunning, cancelRun, branches]);
+  }, [context, isRunning, cancelRun, branches]);
 
   // -- useComposer sync --
 

@@ -8,10 +8,9 @@ import {
   useMemo,
 } from "react";
 import { AssistantContext } from "../../utils/context/AssistantContext";
-import {
-  type CreateThreadMessage,
-  ROOT_PARENT_ID,
-  type ThreadMessage,
+import type {
+  CreateThreadMessage,
+  ThreadMessage,
 } from "../../utils/context/stores/AssistantTypes";
 import { useDummyAIAssistantContext } from "./useDummyAIAssistantContext";
 
@@ -29,7 +28,7 @@ type VercelAIAssistantProviderProps = PropsWithChildren<{
 
 const ThreadMessageCache = new WeakMap<RSCMessage, ThreadMessage>();
 const vercelToThreadMessage = (
-  parentId: string,
+  parentId: string | null,
   message: RSCMessage,
 ): ThreadMessage => {
   if (message.role !== "user" && message.role !== "assistant")
@@ -47,7 +46,7 @@ const vercelToThreadMessage = (
 const vercelToCachedThreadMessages = (messages: RSCMessage[]) => {
   return messages.map((m, idx) => {
     const cached = ThreadMessageCache.get(m);
-    const parentId = messages[idx - 1]?.id ?? ROOT_PARENT_ID;
+    const parentId = messages[idx - 1]?.id ?? null;
     if (cached && cached.parentId === parentId) return cached;
     const newMessage = vercelToThreadMessage(parentId, m);
     ThreadMessageCache.set(m, newMessage);
@@ -72,7 +71,7 @@ export const VercelRSCAssistantProvider: FC<VercelAIAssistantProviderProps> = ({
     async (message: CreateThreadMessage) => {
       if (
         message.parentId !==
-        (context.useThread.getState().messages.at(-1)?.id ?? ROOT_PARENT_ID)
+        (context.useThread.getState().messages.at(-1)?.id ?? null)
       )
         throw new Error("Unexpected: Message editing is not supported");
 

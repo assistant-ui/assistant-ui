@@ -40,7 +40,7 @@ export type ThreadAssistantMessageContent =
 
 export type ThreadMessageBase = {
   id: string;
-  parentId: string;
+  parentId: string | null;
   createdAt: Date;
 };
 
@@ -64,11 +64,11 @@ export type ThreadState = {
   messages: ThreadMessage[];
   isRunning: boolean;
 
-  getBranches: (parentId: string) => string[];
+  getBranches: (parentId: string | null) => string[];
   switchToBranch: (branchId: string) => void;
 
   append: (message: CreateThreadMessage) => void;
-  startRun: (parentId: string) => void;
+  startRun: (parentId: string | null) => void;
   cancelRun: () => void;
 };
 
@@ -77,5 +77,3 @@ export type AssistantStore = {
   useThread: UseBoundStore<StoreApi<ThreadState>>;
   useComposer: UseBoundStore<StoreApi<ThreadComposerState>>;
 };
-
-export const ROOT_PARENT_ID = "__ROOT_ID__";

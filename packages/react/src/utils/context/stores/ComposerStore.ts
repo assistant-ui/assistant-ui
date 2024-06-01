@@ -4,7 +4,7 @@ import {
   type UseBoundStore,
   create,
 } from "zustand";
-import { ROOT_PARENT_ID, type ThreadState } from "./AssistantTypes";
+import type { ThreadState } from "./AssistantTypes";
 
 // base
 
@@ -86,16 +86,16 @@ export const makeThreadComposerStore = (
         set({ value: "" });
 
         useThread.getState().append({
-          parentId: useThread.getState().messages.at(-1)?.id ?? ROOT_PARENT_ID,
+          parentId: useThread.getState().messages.at(-1)?.id ?? null,
           content: [{ type: "text", text: value }],
         });
       },
       cancel: () => {
         const thread = useThread.getState();
         if (!thread.isRunning) return false;
-  
+
         useThread.getState().cancelRun();
         return true;
-      }
+      },
     };
   });
