@@ -40,7 +40,7 @@ const vercelToCachedThreadMessages = (messages: Message[]) => {
   });
 };
 
-type VercelAIAssistantProviderProps = PropsWithChildren<
+export type VercelAIAssistantProviderProps = PropsWithChildren<
   | {
       chat: UseChatHelpers;
     }

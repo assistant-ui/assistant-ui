@@ -6,15 +6,15 @@ import type { ClientMessage } from "./actions";
 
 import { Thread } from "@/components/ui/assistant-ui/thread";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { unstable_VercelRSCAssistantProvider as VercelRSCAssistantProvider } from "@assistant-ui/react";
-// TODO
-import type { CreateThreadMessage } from "../../../packages/react/src/utils/context/stores/AssistantTypes";
+import {
+  type CreateThreadMessage,
+  VercelRSCAssistantProvider,
+} from "@assistant-ui/react";
 
 export default function Home() {
   const { continueConversation } = useActions();
   const [conversation, setConversation] = useUIState();
   const next = async (m: CreateThreadMessage) => {
-    // TODO
     if (m.content[0]?.type !== "text")
       throw new Error("Only text messages are supported");
 

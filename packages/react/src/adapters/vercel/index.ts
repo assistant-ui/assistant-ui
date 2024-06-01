@@ -1,2 +1,2 @@
-export { VercelAIAssistantProvider } from "./VercelAIAssistantProvider";
-export { VercelRSCAssistantProvider } from "./VercelRSCAssistantProvider";
+export * from "./VercelAIAssistantProvider";
+export * from "./VercelRSCAssistantProvider";

@@ -14,22 +14,22 @@ import type {
 } from "../../utils/context/stores/AssistantTypes";
 import { useDummyAIAssistantContext } from "./useDummyAIAssistantContext";
 
-type RSCMessage = {
+export type VercelRSCMessage = {
   id: string;
   role: "user" | "assistant";
   display: ReactNode;
   createdAt?: Date;
 };
 
-type VercelAIAssistantProviderProps = PropsWithChildren<{
-  messages: RSCMessage[];
+export type VercelRSCAssistantProviderProps = PropsWithChildren<{
+  messages: VercelRSCMessage[];
   append: (message: CreateThreadMessage) => Promise<void>;
 }>;
 
-const ThreadMessageCache = new WeakMap<RSCMessage, ThreadMessage>();
+const ThreadMessageCache = new WeakMap<VercelRSCMessage, ThreadMessage>();
 const vercelToThreadMessage = (
   parentId: string | null,
-  message: RSCMessage,
+  message: VercelRSCMessage,
 ): ThreadMessage => {
   if (message.role !== "user" && message.role !== "assistant")
     throw new Error("Unsupported role");
@@ -43,7 +43,7 @@ const vercelToThreadMessage = (
   };
 };
 
-const vercelToCachedThreadMessages = (messages: RSCMessage[]) => {
+const vercelToCachedThreadMessages = (messages: VercelRSCMessage[]) => {
   return messages.map((m, idx) => {
     const cached = ThreadMessageCache.get(m);
     const parentId = messages[idx - 1]?.id ?? null;
@@ -54,47 +54,44 @@ const vercelToCachedThreadMessages = (messages: RSCMessage[]) => {
   });
 };
 
-export const VercelRSCAssistantProvider: FC<VercelAIAssistantProviderProps> = ({
-  children,
-  messages: vercelMessages,
-  append: vercelAppend,
-}) => {
-  const context = useDummyAIAssistantContext();
+export const VercelRSCAssistantProvider: FC<VercelRSCAssistantProviderProps> =
+  ({ children, messages: vercelMessages, append: vercelAppend }) => {
+    const context = useDummyAIAssistantContext();
 
-  // -- useThread sync --
+    // -- useThread sync --
 
-  const messages = useMemo(() => {
-    return vercelToCachedThreadMessages(vercelMessages);
-  }, [vercelMessages]);
+    const messages = useMemo(() => {
+      return vercelToCachedThreadMessages(vercelMessages);
+    }, [vercelMessages]);
 
-  const append = useCallback(
-    async (message: CreateThreadMessage) => {
-      if (
-        message.parentId !==
-        (context.useThread.getState().messages.at(-1)?.id ?? null)
-      )
-        throw new Error("Unexpected: Message editing is not supported");
+    const append = useCallback(
+      async (message: CreateThreadMessage) => {
+        if (
+          message.parentId !==
+          (context.useThread.getState().messages.at(-1)?.id ?? null)
+        )
+          throw new Error("Unexpected: Message editing is not supported");
 
-      // TODO image/ui support
-      if (message.content[0]?.type !== "text") {
-        throw new Error("Only text content is currently supported");
-      }
+        // TODO image/ui support
+        if (message.content[0]?.type !== "text") {
+          throw new Error("Only text content is currently supported");
+        }
 
-      await vercelAppend(message);
-    },
-    [context, vercelAppend],
-  );
+        await vercelAppend(message);
+      },
+      [context, vercelAppend],
+    );
 
-  useMemo(() => {
-    context.useThread.setState({
-      messages,
-      append,
-    });
-  }, [context, messages, append]);
+    useMemo(() => {
+      context.useThread.setState({
+        messages,
+        append,
+      });
+    }, [context, messages, append]);
 
-  return (
-    <AssistantContext.Provider value={context}>
-      {children}
-    </AssistantContext.Provider>
-  );
-};
+    return (
+      <AssistantContext.Provider value={context}>
+        {children}
+      </AssistantContext.Provider>
+    );
+  };

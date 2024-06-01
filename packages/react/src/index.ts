@@ -6,8 +6,21 @@ export * as ActionBarPrimitive from "./primitives/actionBar";
 
 export {
   VercelAIAssistantProvider,
-  VercelRSCAssistantProvider as unstable_VercelRSCAssistantProvider,
+  VercelRSCAssistantProvider,
 } from "./adapters/vercel";
+
+export type {
+  VercelAIAssistantProviderProps,
+  VercelRSCMessage as RSCMessage,
+  VercelRSCAssistantProviderProps,
+} from "./adapters/vercel";
+
+export type {
+  CreateThreadMessage,
+  CreateThreadUserMessageContent,
+  ThreadMessageTextPart,
+  ThreadMessageImagePart,
+} from "./utils/context/stores/AssistantTypes";
 
 export { useMessageContext as unstable_useMessageContext } from "./utils/context/useMessageContext";
 
