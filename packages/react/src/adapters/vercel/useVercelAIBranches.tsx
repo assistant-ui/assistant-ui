@@ -6,46 +6,16 @@ import { useCallback, useMemo, useState } from "react";
 import type {
   AssistantStore,
   CreateThreadMessage,
+  ThreadMessage,
   ThreadState,
 } from "../../utils/context/stores/AssistantTypes";
 import { ROOT_PARENT_ID } from "../../utils/context/stores/AssistantTypes";
+import { MessageRepository } from "../MessageRepository";
 
 export const UPCOMING_MESSAGE_ID = "__UPCOMING_MESSAGE_ID__";
 
-type ChatBranchData = {
-  childrenMap: Map<string, string[]>; // parent_id -> child_ids
-  branchMap: Map<string, Message[]>; // message_id -> Branch
-};
-
-const updateBranchData = (data: ChatBranchData, messages: Message[]) => {
-  for (let i = 0; i < messages.length; i++) {
-    const child = messages[i]!;
-    const childId = child.id;
-
-    const parentId = messages[i - 1]?.id ?? ROOT_PARENT_ID;
-    const parentArray = data.childrenMap.get(parentId);
-    if (!parentArray) {
-      data.childrenMap.set(parentId, [childId]);
-    } else if (!parentArray.includes(childId)) {
-      parentArray.push(childId);
-    }
-
-    data.branchMap.set(childId, messages);
-  }
-};
-
-// TODO handle UPCOMING_MESSAGE_ID
-const getBranchesImpl = (data: ChatBranchData, parentId: string) => {
-  return data.childrenMap.get(parentId) ?? [];
-};
-
-const switchToBranchImpl = (
-  data: ChatBranchData,
-  messageId: string,
-): Message[] => {
-  const snapshot = data.branchMap.get(messageId);
-  if (!snapshot) throw new Error("Unexpected: Branch snapshot not found");
-  return snapshot;
+export type VercelThreadMessage = ThreadMessage & {
+  innerMessage: Message; // TODO make this less hacky
 };
 
 const sliceMessagesUntil = (messages: Message[], messageId: string) => {
@@ -67,26 +37,28 @@ export type UseBranches = {
 
 export const useVercelAIBranches = (
   chat: UseChatHelpers | UseAssistantHelpers,
+  messages: ThreadMessage[],
   context: AssistantStore,
 ): UseBranches => {
-  const [data] = useState<ChatBranchData>(() => ({
-    childrenMap: new Map(),
-    branchMap: new Map(),
-  }));
+  const [data] = useState(() => new MessageRepository());
 
-  updateBranchData(data, chat.messages);
+  useMemo(() => {
+    data.resetHead(messages);
+  }, [data, messages]);
 
   const getBranches = useCallback(
     (parentId: string) => {
-      return getBranchesImpl(data, parentId);
+      return data.getBranches(parentId);
     },
     [data],
   );
 
   const switchToBranch = useCallback(
     (messageId: string) => {
-      const newMessages = switchToBranchImpl(data, messageId);
-      chat.setMessages(newMessages);
+      data.checkout(messageId);
+      chat.setMessages(
+        (data.head as VercelThreadMessage[]).map((m) => m.innerMessage),
+      );
     },
     [data, chat.setMessages],
   );
