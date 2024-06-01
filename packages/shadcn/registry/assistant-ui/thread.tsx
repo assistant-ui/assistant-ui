@@ -82,7 +82,7 @@ const ThreadScrollToBottom: FC = () => {
 
 const Composer: FC = () => {
   return (
-    <ComposerPrimitive.Root className="flex w-[calc(100%-32px)] max-w-2xl items-end rounded-lg border p-0.5 shadow-sm">
+    <ComposerPrimitive.Root className="flex w-[calc(100%-32px)] max-w-[40rem] items-end rounded-lg border p-0.5 shadow-sm">
       <ComposerPrimitive.Input
         placeholder="Write a message..."
         className="h-12 max-h-40 flex-grow resize-none bg-transparent p-3.5 text-sm outline-none placeholder:text-foreground/50"
