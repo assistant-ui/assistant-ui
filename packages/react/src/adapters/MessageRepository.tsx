@@ -66,16 +66,13 @@ export class MessageRepository {
 
     if (prev) {
       prev.children = [...prev.children, message.id];
+      prev.next = newItem;
     } else {
       this.rootChildren = [...this.rootChildren, message.id];
     }
 
     if (this.head === prev) {
       this.head = newItem;
-
-      if (prev) {
-        prev.next = newItem;
-      }
     }
   }
 

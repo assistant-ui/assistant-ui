@@ -52,7 +52,6 @@ export const useVercelAIBranches = (
       data.addOrUpdateMessage(message);
     }
 
-    // TODO dont delete and recreate every time?
     if (assistantOptimisticIdRef.current) {
       data.deleteMessage(assistantOptimisticIdRef.current);
       assistantOptimisticIdRef.current = null;
@@ -108,9 +107,8 @@ export const useVercelAIBranches = (
 
   const append = useCallback(
     async (message: CreateThreadMessage) => {
-      // TODO image/ui support
       if (message.content.length !== 1 || message.content[0]?.type !== "text")
-        throw new Error("Only text content is currently supported");
+        throw new Error("Only text content is supported by Vercel AI SDK");
 
       const newMessages = sliceMessagesUntil(chat.messages, message.parentId);
       chat.setMessages(newMessages);
