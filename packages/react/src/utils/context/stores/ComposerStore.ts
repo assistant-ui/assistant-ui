@@ -5,7 +5,6 @@ import {
   create,
 } from "zustand";
 import type { ThreadState } from "./AssistantTypes";
-import type { ThreadViewportState } from "./ViewportStore";
 
 // base
 
