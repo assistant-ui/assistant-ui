@@ -26,7 +26,7 @@ export const ComposerInput = forwardRef<
   ComposerInputProps
 >(
   (
-    { autoFocus, asChild, disabled, onChange, onKeyDown, ...rest },
+    { autoFocus = false, asChild, disabled, onChange, onKeyDown, ...rest },
     forwardedRef,
   ) => {
     const { useThread, useViewport } = useAssistantContext();
@@ -61,7 +61,7 @@ export const ComposerInput = forwardRef<
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const ref = useComposedRefs(forwardedRef, textareaRef);
 
-    const autoFocusEnabled = autoFocus !== false && !disabled;
+    const autoFocusEnabled = autoFocus && !disabled;
     const focus = useCallback(() => {
       const textarea = textareaRef.current;
       if (!textarea || !autoFocusEnabled) return;
