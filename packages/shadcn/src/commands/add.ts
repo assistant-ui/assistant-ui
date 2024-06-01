@@ -66,7 +66,7 @@ export const add = new Command()
       {
         stdio: "inherit",
         env: {
-          COMPONENTS_REGISTRY_URL: "https://assistant-ui.com",
+          COMPONENTS_REGISTRY_URL: "https://www.assistant-ui.com",
           ...process.env,
         },
       },
