@@ -4,7 +4,6 @@ import type { Message } from "ai";
 import type { UseAssistantHelpers, UseChatHelpers } from "ai/react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import type {
-  AssistantStore,
   CreateThreadMessage,
   ThreadMessage,
 } from "../../utils/context/stores/AssistantTypes";
@@ -39,7 +38,6 @@ export type UseBranches = {
 export const useVercelAIBranches = (
   chat: UseChatHelpers | UseAssistantHelpers,
   messages: ThreadMessage[],
-  context: AssistantStore,
 ): UseBranches => {
   const [data] = useState(() => new MessageRepository());
 
@@ -99,10 +97,9 @@ export const useVercelAIBranches = (
       const newMessages = sliceMessagesUntil(chat.messages, parentId);
       chat.setMessages(newMessages);
 
-      context.useViewport.getState().scrollToBottom();
       await reloadMaybe();
     },
-    [context, chat.messages, chat.setMessages, reloadMaybe],
+    [chat.messages, chat.setMessages, reloadMaybe],
   );
 
   const append = useCallback(
@@ -113,13 +110,12 @@ export const useVercelAIBranches = (
       const newMessages = sliceMessagesUntil(chat.messages, message.parentId);
       chat.setMessages(newMessages);
 
-      context.useViewport.getState().scrollToBottom();
       await chat.append({
         role: "user",
         content: message.content[0].text,
       });
     },
-    [context, chat.messages, chat.setMessages, chat.append],
+    [chat.messages, chat.setMessages, chat.append],
   );
 
   return useMemo(

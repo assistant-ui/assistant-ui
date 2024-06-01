@@ -34,8 +34,8 @@ const makeDummyThreadStore = () => {
 
 export const useDummyAIAssistantContext = () => {
   const [context] = useState<AssistantStore>(() => {
-    const useViewport = makeViewportStore();
     const useThread = makeDummyThreadStore();
+    const useViewport = makeViewportStore();
     const useComposer = makeThreadComposerStore(useThread);
 
     return { useThread, useViewport, useComposer };

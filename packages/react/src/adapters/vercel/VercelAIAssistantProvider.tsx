@@ -63,7 +63,7 @@ export const VercelAIAssistantProvider: FC<VercelAIAssistantProviderProps> = ({
     return vercelToCachedThreadMessages(vercel.messages);
   }, [vercel.messages]);
 
-  const branches = useVercelAIBranches(vercel, messages, context);
+  const branches = useVercelAIBranches(vercel, messages);
 
   const cancelRun = useCallback(() => {
     const lastMessage = vercel.messages.at(-1);

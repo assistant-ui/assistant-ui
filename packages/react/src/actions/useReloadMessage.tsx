@@ -3,7 +3,7 @@ import { useCombinedStore } from "../utils/context/combined/useCombinedStore";
 import { useMessageContext } from "../utils/context/useMessageContext";
 
 export const useReloadMessage = () => {
-  const { useThread } = useAssistantContext();
+  const { useThread, useViewport } = useAssistantContext();
   const { useMessage } = useMessageContext();
 
   const disabled = useCombinedStore(
@@ -19,5 +19,6 @@ export const useReloadMessage = () => {
       throw new Error("Reloading is only supported on assistant messages");
 
     useThread.getState().startRun(message.parentId);
+    useViewport.getState().scrollToBottom();
   };
 };

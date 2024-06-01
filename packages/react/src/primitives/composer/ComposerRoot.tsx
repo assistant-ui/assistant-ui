@@ -7,6 +7,7 @@ import {
   Primitive,
 } from "@radix-ui/react-primitive";
 import { type FormEvent, forwardRef, useRef } from "react";
+import { useAssistantContext } from "../../utils/context/AssistantContext";
 import { useComposerContext } from "../../utils/context/useComposerContext";
 
 type ComposerRootElement = React.ElementRef<typeof Primitive.form>;
@@ -16,6 +17,7 @@ type ComposerRootProps = PrimitiveFormProps;
 
 export const ComposerRoot = forwardRef<ComposerRootElement, ComposerRootProps>(
   ({ onSubmit, ...rest }, forwardedRef) => {
+    const { useViewport } = useAssistantContext();
     const { useComposer } = useComposerContext();
 
     const formRef = useRef<HTMLFormElement>(null);
@@ -27,6 +29,8 @@ export const ComposerRoot = forwardRef<ComposerRootElement, ComposerRootProps>(
 
       e.preventDefault();
       composerState.send();
+
+      useViewport.getState().scrollToBottom();
     };
 
     return (

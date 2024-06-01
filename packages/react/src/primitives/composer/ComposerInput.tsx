@@ -29,7 +29,7 @@ export const ComposerInput = forwardRef<
     { autoFocus, asChild, disabled, onChange, onKeyDown, ...rest },
     forwardedRef,
   ) => {
-    const { useThread } = useAssistantContext();
+    const { useThread, useViewport } = useAssistantContext();
     const { useComposer, type } = useComposerContext();
 
     const value = useComposer((c) => {
@@ -52,6 +52,8 @@ export const ComposerInput = forwardRef<
         if (!isRunning) {
           e.preventDefault();
           composer.send();
+
+          useViewport.getState().scrollToBottom();
         }
       }
     };
