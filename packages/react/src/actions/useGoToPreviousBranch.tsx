@@ -4,12 +4,11 @@ import { useMessageContext } from "../utils/context/useMessageContext";
 
 export const useGoToPreviousBranch = () => {
   const { useThread } = useAssistantContext();
-  const { useComposer, useMessage } = useMessageContext();
+  const { useMessage, useComposer } = useMessageContext();
 
   const disabled = useCombinedStore(
-    [useThread, useComposer, useMessage],
-    (t, c, m) =>
-      t.isRunning || c.isEditing || m.branches.indexOf(m.message.id) <= 0,
+    [useMessage, useComposer],
+    (m, c) => c.isEditing || m.branches.indexOf(m.message.id) <= 0,
   );
   if (disabled) return null;
 
