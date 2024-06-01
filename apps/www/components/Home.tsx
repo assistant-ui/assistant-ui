@@ -10,11 +10,20 @@ import Link from "next/link";
 import { useState } from "react";
 import { ChatGPT } from "./chatgpt/ChatGPT";
 import { ModalChat } from "./modal/ModalChat";
+import { GenUI } from "./genui/GenUI";
 
 const supportedModels = [
   {
-    name: "shadcn",
+    name: "Standalone",
     component: Shadcn,
+  },
+  {
+    name: "Modal",
+    component: ModalChat,
+  },
+  {
+    name: "Generative UI",
+    component: GenUI,
   },
   {
     name: "ChatGPT",
@@ -23,10 +32,6 @@ const supportedModels = [
   {
     name: "Claude",
     component: Claude,
-  },
-  {
-    name: "Modal",
-    component: ModalChat,
   }
 ];
 
