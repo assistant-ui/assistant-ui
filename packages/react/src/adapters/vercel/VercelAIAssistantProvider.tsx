@@ -19,7 +19,7 @@ const vercelToThreadMessage = (
     throw new Error("Unsupported role");
 
   return {
-    parentId: parentId,
+    parentId,
     id: message.id,
     role: message.role,
     content: [{ type: "text", text: message.content }],

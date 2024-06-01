@@ -27,6 +27,10 @@ export type ThreadMessageToolCallPart = {
   result?: object;
 };
 
+export type CreateThreadUserMessageContent =
+  | ThreadMessageTextPart
+  | ThreadMessageImagePart;
+
 export type ThreadUserMessageContent =
   | ThreadMessageTextPart
   | ThreadMessageImagePart
@@ -54,17 +58,18 @@ export type ThreadAssistantMessage = ThreadMessageBase & {
   content: ThreadAssistantMessageContent[];
 };
 
+export type CreateThreadMessage = {
+  parentId: string | null;
+  content: CreateThreadUserMessageContent[];
+};
+
 export type ThreadMessage = ThreadUserMessage | ThreadAssistantMessage;
-export type CreateThreadMessage = Pick<
-  ThreadUserMessage,
-  "parentId" | "content"
->;
 
 export type ThreadState = {
   messages: ThreadMessage[];
   isRunning: boolean;
 
-  getBranches: (parentId: string | null) => string[];
+  getBranches: (messageId: string) => string[];
   switchToBranch: (branchId: string) => void;
 
   append: (message: CreateThreadMessage) => void;

@@ -30,7 +30,7 @@ const hasUpcomingMessage = (isRunning: boolean, messages: ThreadMessage[]) => {
 
 export type UseBranches = {
   messages: ThreadMessage[];
-  getBranches: (parentId: string | null) => string[];
+  getBranches: (messageId: string) => string[];
   switchToBranch: (messageId: string) => void;
   append: (message: CreateThreadMessage) => Promise<void>;
   startRun: (parentId: string | null) => Promise<void>;
@@ -72,8 +72,8 @@ export const useVercelAIBranches = (
   }, [data, isRunning, messages]);
 
   const getBranches = useCallback(
-    (parentId: string | null) => {
-      return data.getBranches(parentId);
+    (messageId: string) => {
+      return data.getBranches(messageId);
     },
     [data],
   );

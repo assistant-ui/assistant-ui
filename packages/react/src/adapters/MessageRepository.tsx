@@ -138,13 +138,15 @@ export class MessageRepository {
     return optimisticId;
   }
 
-  // TODO switch to back to messageId
-  getBranches(parentId: string | null) {
-    if (parentId === null) return this.rootChildren;
+  getBranches(messageId: string) {
+    const message = this.messages.get(messageId);
+    if (!message) throw new Error("Unexpected: Message not found");
 
-    const message = this.messages.get(parentId);
-    if (!message) throw new Error("Unexpected: Parent message not found");
-    return message.children;
+    if (message.prev) {
+      return message.prev.children;
+    }
+
+    return this.rootChildren;
   }
 
   switchToBranch(messageId: string) {

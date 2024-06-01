@@ -70,7 +70,7 @@ export const MessageProvider: FC<MessageProviderProps> = ({
   const context = useMessageContext();
 
   const isLast = useThread((thread) => getIsLast(thread, message));
-  const branches = useThread((thread) => thread.getBranches(message.parentId));
+  const branches = useThread((thread) => thread.getBranches(message.id));
 
   const [isCopied, setIsCopied] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
