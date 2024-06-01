@@ -8,7 +8,7 @@ import { Thread } from "@/components/ui/assistant-ui/thread";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { unstable_VercelRSCAssistantProvider as VercelRSCAssistantProvider } from "@assistant-ui/react";
 // TODO
-import type { CreateThreadMessage } from "../../../packages/react/src/utils/context/AssistantTypes";
+import type { CreateThreadMessage } from "../../../packages/react/src/utils/context/stores/AssistantTypes";
 
 export default function Home() {
   const { continueConversation } = useActions();
@@ -34,10 +34,7 @@ export default function Home() {
   return (
     <main className="h-screen">
       <TooltipProvider>
-        <VercelRSCAssistantProvider
-          messages={conversation}
-          append={next}
-        >
+        <VercelRSCAssistantProvider messages={conversation} append={next}>
           <Thread />
         </VercelRSCAssistantProvider>
       </TooltipProvider>
