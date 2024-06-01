@@ -4,7 +4,7 @@
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["**.*", "!.next", "!.turbo"],
-      "outputs": ["dist", ".next/**", "!.next/cache/**"]
+      "outputs": ["dist", ".next/**", "!.next/cache/**", "public/registry"]
     },
     "lint": {},
     "deploy": {

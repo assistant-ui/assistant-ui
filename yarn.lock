@@ -20,10 +20,27 @@
     nanoid "3.3.6"
     secure-json-parse "2.7.0"
 
+"@ai-sdk/provider-utils@0.0.11":
+  version "0.0.11"
+  resolved "https://registry.yarnpkg.com/@ai-sdk/provider-utils/-/provider-utils-0.0.11.tgz#f89cced1b016ce4e4700f9776a63cdd0db4c8f47"
+  integrity sha512-JRDrqL2FGDmLh+a4R5qbS8UrWN9Lt7DpDIY1x6owgXjXkz3Umm1czs1X32VlL0M1dpoSxu4hGBFtXd56+kDzXA==
+  dependencies:
+    "@ai-sdk/provider" "0.0.8"
+    eventsource-parser "1.1.2"
+    nanoid "3.3.6"
+    secure-json-parse "2.7.0"
+
 "@ai-sdk/provider@0.0.7":
   version "0.0.7"
   resolved "https://registry.yarnpkg.com/@ai-sdk/provider/-/provider-0.0.7.tgz#0406e474ead5544f236ca3ee7d95b48fda9a848f"
   integrity sha512-PZ3L2FNvw4GHI8UFKt0ZHN5R8LFyDMtP6nlQrqT8N7yAcwBJUMTPYmq6SiWCc/S6JRhUM5pU3aUoFaycoLzxlQ==
+  dependencies:
+    json-schema "0.4.0"
+
+"@ai-sdk/provider@0.0.8":
+  version "0.0.8"
+  resolved "https://registry.yarnpkg.com/@ai-sdk/provider/-/provider-0.0.8.tgz#dbdb63dff3f5c3fe2c999924c7cfe4b9043d3354"
+  integrity sha512-+gcMvyPUDfDXV9caN3CG5Le0M5K4CjqTdMV1ODg/AosApQiJW9ByN5imJPdI043zVdt+HS9WG+s0j4am7ca4bg==
   dependencies:
     json-schema "0.4.0"
 
@@ -44,6 +61,19 @@
   version "0.21.12"
   resolved "https://registry.yarnpkg.com/@antfu/ni/-/ni-0.21.12.tgz#54d33cf0e6d35cb2ec12ab3d5092e4904540b7c0"
   integrity sha512-2aDL3WUv8hMJb2L3r/PIQWsTLyq7RQr3v9xD16fiz6O8ys1xEyLhhTOv8gxtZvJiTzjTF5pHoArvRdesGL1DMQ==
+
+"@assistant-ui/react@^0.0.8":
+  version "0.0.8"
+  resolved "https://registry.yarnpkg.com/@assistant-ui/react/-/react-0.0.8.tgz#6fe80da2ef7081431d792815d88518561324b090"
+  integrity sha512-u+B7ZtGCqKV3a2ZIo28a8n8VIFzqGLely+5fBFvc/Fa8LdU/7oPBDs2S6mmsSTbzJkjKgAi7a+gElxKHoXT1WQ==
+  dependencies:
+    "@radix-ui/primitive" "^1.0.1"
+    "@radix-ui/react-compose-refs" "^1.0.1"
+    "@radix-ui/react-primitive" "^1.0.3"
+    "@radix-ui/react-slot" "^1.0.2"
+    ai "^3.1.12"
+    react-textarea-autosize "^8.5.3"
+    zustand "^4.5.2"
 
 "@babel/code-frame@^7.0.0", "@babel/code-frame@^7.24.6":
   version "7.24.6"
@@ -1734,6 +1764,25 @@ ai@3.1.15, ai@^3.1.15:
   dependencies:
     "@ai-sdk/provider" "0.0.7"
     "@ai-sdk/provider-utils" "0.0.10"
+    eventsource-parser "1.1.2"
+    json-schema "0.4.0"
+    jsondiffpatch "0.6.0"
+    nanoid "3.3.6"
+    secure-json-parse "2.7.0"
+    solid-swr-store "0.10.7"
+    sswr "2.0.0"
+    swr "2.2.0"
+    swr-store "0.10.6"
+    swrv "1.0.4"
+    zod-to-json-schema "3.22.5"
+
+ai@^3.1.12:
+  version "3.1.22"
+  resolved "https://registry.yarnpkg.com/ai/-/ai-3.1.22.tgz#8583756572e28458bf62528c0f9096e18e77bd9f"
+  integrity sha512-Vgy490Q6p6pZ39VrRzL9ovr2N1YPsR+KvWNs+n73VAQoGBZtU/vwiiWrFU9LHXGhB9X+EBfQD0vixnTDS2dJWA==
+  dependencies:
+    "@ai-sdk/provider" "0.0.8"
+    "@ai-sdk/provider-utils" "0.0.11"
     eventsource-parser "1.1.2"
     json-schema "0.4.0"
     jsondiffpatch "0.6.0"
