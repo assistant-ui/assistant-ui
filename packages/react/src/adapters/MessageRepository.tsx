@@ -163,7 +163,7 @@ export class MessageRepository {
       const message = this.messages.get(messageId);
       if (!message) throw new Error("Unexpected: Branch not found");
       this.head = message;
-      console.log("resetHead", message.current.id, message);
+
       for (
         let current: RepositoryMessage | null = message;
         current;
