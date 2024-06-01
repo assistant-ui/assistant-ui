@@ -6,12 +6,12 @@ import {
   type ComponentPropsWithoutRef,
   Primitive,
 } from "@radix-ui/react-primitive";
-import { forwardRef, useRef } from "react";
+import { type ElementRef, forwardRef, useRef } from "react";
 import { useAssistantContext } from "../../utils/context/AssistantContext";
 import { useOnResizeContent } from "../../utils/hooks/useOnResizeContent";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 
-type ThreadViewportElement = React.ElementRef<typeof Primitive.div>;
+type ThreadViewportElement = ElementRef<typeof Primitive.div>;
 type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;
 
 type ThreadViewportProps = PrimitiveDivProps & {

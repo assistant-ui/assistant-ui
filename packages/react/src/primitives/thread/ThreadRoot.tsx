@@ -1,12 +1,12 @@
 "use client";
 
-import { forwardRef } from "react";
 import {
   type ComponentPropsWithoutRef,
   Primitive,
 } from "@radix-ui/react-primitive";
+import { type ElementRef, forwardRef } from "react";
 
-type ThreadRootElement = React.ElementRef<typeof Primitive.div>;
+type ThreadRootElement = ElementRef<typeof Primitive.div>;
 type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;
 
 type ThreadRootProps = PrimitiveDivProps;

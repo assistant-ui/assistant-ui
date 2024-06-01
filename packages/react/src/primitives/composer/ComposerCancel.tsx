@@ -5,10 +5,10 @@ import {
   type ComponentPropsWithoutRef,
   Primitive,
 } from "@radix-ui/react-primitive";
-import { forwardRef } from "react";
+import { type ElementRef, forwardRef } from "react";
 import { useComposerContext } from "../../utils/context/useComposerContext";
 
-type ComposerCancelElement = React.ElementRef<typeof Primitive.button>;
+type ComposerCancelElement = ElementRef<typeof Primitive.button>;
 type PrimitiveFormProps = ComponentPropsWithoutRef<typeof Primitive.button>;
 
 type ComposerCancelProps = PrimitiveFormProps;

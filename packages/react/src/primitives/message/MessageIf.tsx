@@ -1,6 +1,6 @@
 "use client";
 
-import type { FC } from "react";
+import type { FC, ReactNode } from "react";
 import type { RequireAtLeastOne } from "../../utils/RequireAtLeastOne";
 import { useMessageContext } from "../../utils/context/useMessageContext";
 
@@ -13,7 +13,7 @@ type MessageIfFilters = {
 };
 
 type MessageIfProps = RequireAtLeastOne<MessageIfFilters> & {
-  children: React.ReactNode;
+  children: ReactNode;
 };
 
 export const useMessageIf = (props: RequireAtLeastOne<MessageIfFilters>) => {

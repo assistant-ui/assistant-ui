@@ -1,18 +1,18 @@
 "use client";
 
-import { forwardRef } from "react";
-import {
-  Primitive,
-  type ComponentPropsWithoutRef,
-} from "@radix-ui/react-primitive";
 import { composeEventHandlers } from "@radix-ui/primitive";
+import {
+  type ComponentPropsWithoutRef,
+  Primitive,
+} from "@radix-ui/react-primitive";
+import { type ElementRef, forwardRef } from "react";
 
 type ActionButtonCallback<TProps> = (props: TProps) => null | (() => void);
 
 export const createActionButton = <TProps,>(
   useActionButton: ActionButtonCallback<TProps>,
 ) => {
-  type PrimitiveButtonElement = React.ElementRef<typeof Primitive.button>;
+  type PrimitiveButtonElement = ElementRef<typeof Primitive.button>;
   type PrimitiveButtonProps = ComponentPropsWithoutRef<typeof Primitive.button>;
 
   return forwardRef<PrimitiveButtonElement, PrimitiveButtonProps & TProps>(

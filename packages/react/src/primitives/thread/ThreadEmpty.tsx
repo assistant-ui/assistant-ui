@@ -1,10 +1,10 @@
 "use client";
 
-import type { FC } from "react";
+import type { FC, ReactNode } from "react";
 import { ThreadIf } from "./ThreadIf";
 
 type ThreadEmptyProps = {
-  children: React.ReactNode;
+  children: ReactNode;
 };
 
 export const ThreadEmpty: FC<ThreadEmptyProps> = ({ children }) => {

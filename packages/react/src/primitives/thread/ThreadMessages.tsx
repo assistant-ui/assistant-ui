@@ -1,6 +1,6 @@
 "use client";
 
-import type { FC } from "react";
+import type { ComponentType, FC } from "react";
 import { useAssistantContext } from "../../utils/context/AssistantContext";
 import { ComposerIf } from "../composer/ComposerIf";
 import { Provider } from "../message";
@@ -9,16 +9,16 @@ import { MessageIf } from "../message/MessageIf";
 type ThreadMessagesProps = {
   components:
     | {
-        Message: React.ComponentType;
-        UserMessage?: React.ComponentType;
-        EditComposer?: React.ComponentType;
-        AssistantMessage?: React.ComponentType;
+        Message: ComponentType;
+        UserMessage?: ComponentType;
+        EditComposer?: ComponentType;
+        AssistantMessage?: ComponentType;
       }
     | {
-        Message?: React.ComponentType;
-        UserMessage: React.ComponentType;
-        EditComposer?: React.ComponentType;
-        AssistantMessage: React.ComponentType;
+        Message?: ComponentType;
+        UserMessage: ComponentType;
+        EditComposer?: ComponentType;
+        AssistantMessage: ComponentType;
       };
 };
 
@@ -27,12 +27,11 @@ const getComponents = (components: ThreadMessagesProps["components"]) => {
     EditComposer:
       components.EditComposer ??
       components.UserMessage ??
-      (components.Message as React.ComponentType),
+      (components.Message as ComponentType),
     UserMessage:
-      components.UserMessage ?? (components.Message as React.ComponentType),
+      components.UserMessage ?? (components.Message as ComponentType),
     AssistantMessage:
-      components.AssistantMessage ??
-      (components.Message as React.ComponentType),
+      components.AssistantMessage ?? (components.Message as ComponentType),
   };
 };
 

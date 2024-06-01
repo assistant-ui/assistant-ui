@@ -7,7 +7,7 @@
     "module": "ESNext",
     "noEmit": true,
     "resolveJsonModule": true,
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "lib": [
       "dom",
       "dom.iterable",

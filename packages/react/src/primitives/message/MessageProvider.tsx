@@ -1,6 +1,6 @@
 "use client";
 
-import { type FC, useMemo, useState } from "react";
+import { type FC, type ReactNode, useMemo, useState } from "react";
 import { create } from "zustand";
 import { useAssistantContext } from "../../utils/context/AssistantContext";
 import type {
@@ -15,7 +15,7 @@ import type {
 import { MessageContext } from "../../utils/context/useMessageContext";
 
 type MessageProviderProps = {
-  children?: React.ReactNode;
+  children?: ReactNode;
   message: ThreadMessage;
 };
 

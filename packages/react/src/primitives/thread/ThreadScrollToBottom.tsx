@@ -5,10 +5,10 @@ import {
   type ComponentPropsWithoutRef,
   Primitive,
 } from "@radix-ui/react-primitive";
-import { forwardRef } from "react";
+import { type ElementRef, forwardRef } from "react";
 import { useAssistantContext } from "../../utils/context/AssistantContext";
 
-type ThreadScrollToBottomElement = React.ElementRef<typeof Primitive.button>;
+type ThreadScrollToBottomElement = ElementRef<typeof Primitive.button>;
 type PrimitiveButtonProps = ComponentPropsWithoutRef<typeof Primitive.button>;
 
 type ThreadScrollToBottomProps = PrimitiveButtonProps;

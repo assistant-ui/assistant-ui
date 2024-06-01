@@ -4,10 +4,10 @@ import {
   type ComponentPropsWithoutRef,
   Primitive,
 } from "@radix-ui/react-primitive";
-import { forwardRef } from "react";
+import { type ElementRef, forwardRef } from "react";
 import { useComposerContext } from "../../utils/context/useComposerContext";
 
-type ComposerSendElement = React.ElementRef<typeof Primitive.button>;
+type ComposerSendElement = ElementRef<typeof Primitive.button>;
 type PrimitiveFormProps = ComponentPropsWithoutRef<typeof Primitive.button>;
 
 type ComposerSendProps = PrimitiveFormProps;

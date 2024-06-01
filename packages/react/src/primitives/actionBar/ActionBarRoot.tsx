@@ -4,12 +4,12 @@ import {
   type ComponentPropsWithoutRef,
   Primitive,
 } from "@radix-ui/react-primitive";
-import { forwardRef } from "react";
+import { type ElementRef, forwardRef } from "react";
 import { useAssistantContext } from "../../utils/context/AssistantContext";
 import { useCombinedStore } from "../../utils/context/combined/useCombinedStore";
 import { useMessageContext } from "../../utils/context/useMessageContext";
 
-type ActionBarRootElement = React.ElementRef<typeof Primitive.div>;
+type ActionBarRootElement = ElementRef<typeof Primitive.div>;
 type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;
 
 enum HideAndFloatStatus {
