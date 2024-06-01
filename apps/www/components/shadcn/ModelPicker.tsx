@@ -1,21 +1,21 @@
 "use client";
-import React, { type FC } from "react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectValue,
-  SelectTrigger,
-} from "../ui/select";
-import Image from "next/image";
 import {} from "@radix-ui/react-select";
+import Image from "next/image";
+import type { FC } from "react";
 import anthropic from "../../assets/providers/anthropic.svg";
-import openai from "../../assets/providers/openai.svg";
 import fireworks from "../../assets/providers/fireworks.svg";
 import google from "../../assets/providers/google.svg";
 import huggingface from "../../assets/providers/huggingface.svg";
 import meta from "../../assets/providers/meta.svg";
 import mistral from "../../assets/providers/mistral.svg";
+import openai from "../../assets/providers/openai.svg";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
 
 const models = [
   {

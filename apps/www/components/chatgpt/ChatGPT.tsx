@@ -18,7 +18,7 @@ import {
   Pencil1Icon,
   ReloadIcon,
 } from "@radix-ui/react-icons";
-import React, { type FC } from "react";
+import type { FC } from "react";
 import { Button, type ButtonProps } from "../ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 

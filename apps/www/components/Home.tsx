@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { VercelAIAssistantProvider } from "@assistant-ui/react";
 import { useChat } from "ai/react";
 import Link from "next/link";
-import React, { useState } from "react";
+import { useState } from "react";
 import { ChatGPT } from "./chatgpt/ChatGPT";
 import { ModalChat } from "./modal/ModalChat";
 

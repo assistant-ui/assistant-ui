@@ -5,7 +5,7 @@ import {
   MessagePrimitive,
   ThreadPrimitive,
 } from "@assistant-ui/react";
-import React, { type FC } from "react";
+import type { FC } from "react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button, type ButtonProps } from "@/components/ui/button";
