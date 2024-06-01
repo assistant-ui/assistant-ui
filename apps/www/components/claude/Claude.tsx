@@ -10,7 +10,7 @@ import {
 } from "@assistant-ui/react";
 import * as Avatar from "@radix-ui/react-avatar";
 import { ArrowUpIcon, ClipboardIcon, ReloadIcon } from "@radix-ui/react-icons";
-import React, { type FC } from "react";
+import type { FC } from "react";
 
 export const Claude: FC = () => {
   return (
