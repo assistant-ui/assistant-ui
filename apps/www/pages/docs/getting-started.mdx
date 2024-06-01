@@ -1,15 +1,33 @@
 ---
 title: Getting Started
 description: This initial setup should take less than 5 minutes.
---- 
+---
 
-The recommended way to get started is with the `@assistant-ui/shadcn` starter template. This template is built with `tailwind` and `shadcn-ui`. You can adjust these styles and adapt them to your application as needed.
+import { Steps } from 'nextra/components'
+ 
+The recommended way to get started is with the following stack:
 
-First, set up `shadcn-ui` by following the installation guide: 
+- NextJS
+- Vercel's `ai` package
+- `tailwindcss` for styling
+- `shadcn/ui` for UI components
 
-https://ui.shadcn.com/docs/installation
 
-Then, add `@assistant-ui/shadcn` to your project:
+<Steps>
+### Create a Next.JS project
+
+```sh
+npx create-next-app@latest my-app
+cd my-app
+```
+
+### Initialize `shadcn-ui`
+
+```sh
+npx shadcn-ui@latest init
+```
+
+### Add `assistant-ui`
 
 ```sh
 npx @assistant-ui/shadcn@latest add thread
@@ -17,7 +35,9 @@ npx @assistant-ui/shadcn@latest add thread
 
 This adds a `/components/ui/assistant-ui/thread.tsx` file to your project, which you can adjust as needed.
 
-Use the `Thread` component in your application:
+### Use it in your application:
+
+`/app/index.tsx`
 
 ```tsx
 "use client";
@@ -26,15 +46,38 @@ import { VercelAIAssistantProvider } from '@assistant-ui/react';
 import { Thread } from '@/components/ui/assistant-ui/thread';
 import { useChat } from 'ai'; 
 
-function ChatBox() {
+export default function Home() {
   const chat = useChat();
   return (
-    <VercelAIAssistantProvider chat={chat}>
-      <Thread />
-    </VercelAIAssistantProvider>
+    <div className="h-full">
+      <VercelAIAssistantProvider chat={chat}>
+        <Thread />
+      </VercelAIAssistantProvider>
+    </div>
   );
 }
 ```
+
+`/app/api/chat/route.ts`
+
+```tsx
+import { openai } from '@ai-sdk/openai';
+import { streamText } from 'ai';
+
+export const maxDuration = 30;
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+
+  const result = await streamText({
+    model: openai('gpt-4o'),
+    messages,
+  });
+
+  return result.toAIStreamResponse();
+}
+```
+</Steps>
 
 ### Manual Installation
 

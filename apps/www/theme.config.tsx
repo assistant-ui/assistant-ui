@@ -41,8 +41,7 @@ const config: DocsThemeConfig = {
   head: () => {
     const { frontMatter, title } = useConfig();
     const description =
-      frontMatter["description"] ??
-      "Unstyled React components for chat and co-pilot UIs";
+      frontMatter["description"] ?? "React Components for AI Chat";
     const hasTitle = title !== "Index";
     return (
       <>

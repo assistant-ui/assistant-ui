@@ -9,8 +9,8 @@ import { useChat } from "ai/react";
 import Link from "next/link";
 import { useState } from "react";
 import { ChatGPT } from "./chatgpt/ChatGPT";
-import { ModalChat } from "./modal/ModalChat";
 import { GenUI } from "./genui/GenUI";
+import { ModalChat } from "./modal/ModalChat";
 
 const supportedModels = [
   {
@@ -26,13 +26,13 @@ const supportedModels = [
     component: GenUI,
   },
   {
-    name: "ChatGPT",
+    name: "ChatGPT Theme",
     component: ChatGPT,
   },
   {
-    name: "Claude",
+    name: "Claude Theme",
     component: Claude,
-  }
+  },
 ];
 
 export default function Home() {
@@ -42,32 +42,36 @@ export default function Home() {
   const ChatComponent = selectedModel.component;
 
   return (
-    <main className="container mx-auto flex flex-col gap-4 self-stretch py-4">
+    <main className="container mx-auto flex flex-col gap-6 self-stretch py-4">
       <div className="mt-12 flex flex-col gap-4 self-center">
-        <h1 className="text-center font-mono text-4xl">assistant-ui</h1>
+        {/* <h1 className="text-center font-mono text-4xl">assistant-ui</h1> */}
 
-        <p className="text-center text-lg">
-          Unstyled React components for chat and co-pilot UIs
+        <p className="text-center font-bold text-4xl">
+          React Components for AI Chat
+        </p>
+        <p className="text-center text-foreground/85 text-xl">
+          Add an AI chatbot in your app in minutes.
         </p>
       </div>
 
       <div className="mb-8 flex justify-center gap-2">
         <Button asChild>
-          <Link href="/docs">Get Started</Link>
+          <Link href="/docs/getting-started">Get Started</Link>
         </Button>
 
         <Button variant="secondary" asChild>
           <Link href="https://github.com/Yonom/assistant-ui">GitHub</Link>
         </Button>
       </div>
-      <div className="mx-auto flex w-full max-w-screen-xl flex-col gap-4">
-        <div className="flex">
+      <div className="mx-auto flex w-full max-w-screen-xl flex-col">
+        <p className="font-bold">Examples:</p>
+        <div className="mt-2 flex overflow-x-scroll">
           <div className="flex flex-grow gap-3">
             {supportedModels.map((model) => (
               <Badge
                 key={model.name}
                 onClick={() => setSelectedModel(model)}
-                className="cursor-pointer px-4 py-2"
+                className="shrink-0 cursor-pointer px-4 py-2"
                 variant={
                   selectedModel.name === model.name ? "default" : "secondary"
                 }
@@ -77,7 +81,7 @@ export default function Home() {
             ))}
           </div>
         </div>
-        <div className="h-[650px] overflow-hidden rounded-lg border shadow">
+        <div className="mt-4 h-[650px] overflow-hidden rounded-lg border shadow">
           <VercelAIAssistantProvider chat={chat}>
             <ChatComponent />
           </VercelAIAssistantProvider>
