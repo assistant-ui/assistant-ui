@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@assistant-ui/react": "*",
+    "@calcom/embed-react": "^1.5.0",
     "@fortawesome/fontawesome-svg-core": "^6.5.2",
     "@fortawesome/free-solid-svg-icons": "^6.5.2",
     "@fortawesome/react-fontawesome": "^0.2.2",
