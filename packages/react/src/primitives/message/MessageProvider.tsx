@@ -3,9 +3,9 @@
 import { type FC, type PropsWithChildren, useMemo, useState } from "react";
 import { create } from "zustand";
 import { useAssistantContext } from "../../utils/context/AssistantContext";
+import { getMessageText } from "../../utils/context/getMessageText";
 import type {
   AppendContentPart,
-  TextContentPart,
   ThreadMessage,
   ThreadState,
 } from "../../utils/context/stores/AssistantTypes";
@@ -45,10 +45,7 @@ const useMessageContext = () => {
         if (message.role !== "user")
           throw new Error("Editing is only supported for user messages");
 
-        const text = message.content
-          .filter((part): part is TextContentPart => part.type === "text")
-          .map((part) => part.text)
-          .join("\n");
+        const text = getMessageText(message);
 
         return text;
       },

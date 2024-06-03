@@ -1,19 +1,25 @@
+import { useCombinedStore } from "../utils/context/combined/useCombinedStore";
+import { getMessageText } from "../utils/context/getMessageText";
 import { useMessageContext } from "../utils/context/useMessageContext";
 
 export const useCopyMessage = ({ copiedDuration = 3000 }) => {
   const { useMessage, useComposer } = useMessageContext();
 
-  const isEditing = useComposer((s) => s.isEditing);
-  if (isEditing) return null;
+  const hasCopyableContent = useCombinedStore(
+    [useMessage, useComposer],
+    (m, c) => {
+      return c.isEditing || m.message.content.some((c) => c.type === "text");
+    },
+  );
+  if (!hasCopyableContent) return null;
 
   return () => {
+    const { isEditing, value: composerValue } = useComposer.getState();
     const { message, setIsCopied } = useMessage.getState();
 
-    // TODO image/ui support
-    if (message.content[0]?.type !== "text")
-      throw new Error("Copying is only supported for text-only messages");
+    const valueToCopy = isEditing ? composerValue : getMessageText(message);
 
-    navigator.clipboard.writeText(message.content[0].text);
+    navigator.clipboard.writeText(valueToCopy);
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), copiedDuration);
   };
