@@ -2,24 +2,21 @@
 
 import type { ComponentType, FC } from "react";
 import type {
-  ThreadMessageImagePart,
-  ThreadMessageTextPart,
-  ThreadMessageToolCallPart,
-  ThreadMessageUIPart,
+  ImageContentPart,
+  TextContentPart,
+  ToolCallContentPart,
+  UIContentPart,
 } from "../../utils/context/stores/AssistantTypes";
 import { useMessageContext } from "../../utils/context/useMessageContext";
 
 type MessageContentProps = {
   components?: {
-    Text?: ComponentType<{ part: ThreadMessageTextPart }>;
-    Image?: ComponentType<{ part: ThreadMessageImagePart }>;
-    UI?: ComponentType<{ part: ThreadMessageUIPart }>;
+    Text?: ComponentType<{ part: TextContentPart }>;
+    Image?: ComponentType<{ part: ImageContentPart }>;
+    UI?: ComponentType<{ part: UIContentPart }>;
     tools?: {
-      by_name?: Record<
-        string,
-        ComponentType<{ part: ThreadMessageToolCallPart }>
-      >;
-      Fallback?: ComponentType<{ part: ThreadMessageToolCallPart }>;
+      by_name?: Record<string, ComponentType<{ part: ToolCallContentPart }>>;
+      Fallback?: ComponentType<{ part: ToolCallContentPart }>;
     };
   };
 };

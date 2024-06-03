@@ -8,7 +8,7 @@ import {
 } from "react";
 import { AssistantContext } from "../../utils/context/AssistantContext";
 import type {
-  CreateThreadMessage,
+  AppendMessage,
   ThreadMessage,
 } from "../../utils/context/stores/AssistantTypes";
 import { ThreadMessageConverter } from "../ThreadMessageConverter";
@@ -23,8 +23,8 @@ export type VercelRSCMessage = {
 
 type VercelRSCAssistantProviderBaseProps<T> = PropsWithChildren<{
   messages: T[];
-  append: (message: CreateThreadMessage) => Promise<void>;
-  edit?: (message: CreateThreadMessage) => Promise<void>;
+  append: (message: AppendMessage) => Promise<void>;
+  edit?: (message: AppendMessage) => Promise<void>;
   reload?: (parentId: string | null) => Promise<void>;
   convertMessage?: (message: T) => VercelRSCMessage;
 }>;
@@ -75,7 +75,7 @@ export const VercelRSCAssistantProvider = <
   }, [converter, vercelMessages]);
 
   const append = useCallback(
-    async (message: CreateThreadMessage) => {
+    async (message: AppendMessage) => {
       if (
         message.parentId !==
         (context.useThread.getState().messages.at(-1)?.id ?? null)

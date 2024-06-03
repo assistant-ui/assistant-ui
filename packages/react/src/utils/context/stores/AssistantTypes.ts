@@ -5,64 +5,63 @@ import type { ThreadViewportState } from "./ViewportStore";
 
 // TODO metadata field
 
-export type ThreadMessageTextPart = {
+export type TextContentPart = {
   type: "text";
   text: string;
 };
 
-export type ThreadMessageImagePart = {
+// TODO image input support
+export type ImageContentPart = {
   type: "image";
   image: string;
 };
 
-export type ThreadMessageUIPart = {
+export type UIContentPart = {
   type: "ui";
   display: ReactNode;
 };
 
-export type ThreadMessageToolCallPart = {
+export type ToolCallContentPart = {
   type: "tool-call";
   name: string;
   args: object;
   result?: object;
 };
 
-export type CreateThreadUserMessageContent =
-  | ThreadMessageTextPart
-  | ThreadMessageImagePart;
+export type UserContentPart =
+  | TextContentPart
+  | ImageContentPart
+  | UIContentPart;
 
-export type ThreadUserMessageContent =
-  | ThreadMessageTextPart
-  | ThreadMessageImagePart
-  | ThreadMessageUIPart;
+export type AssistantContentPart =
+  | TextContentPart
+  | ImageContentPart
+  | UIContentPart
+  | ToolCallContentPart;
 
-export type ThreadAssistantMessageContent =
-  | ThreadMessageTextPart
-  | ThreadMessageImagePart
-  | ThreadMessageUIPart
-  | ThreadMessageToolCallPart;
+export type AppendContentPart = TextContentPart | ImageContentPart;
 
-export type ThreadMessageBase = {
+export type BaseMessage = {
   id: string;
   createdAt: Date;
 };
 
-export type ThreadUserMessage = ThreadMessageBase & {
+export type UserMessage = BaseMessage & {
   role: "user";
-  content: ThreadUserMessageContent[];
+  content: UserContentPart[];
 };
 
-export type ThreadAssistantMessage = ThreadMessageBase & {
+export type AssistantMessage = BaseMessage & {
   role: "assistant";
-  content: ThreadAssistantMessageContent[];
+  content: AssistantContentPart[];
 };
 
-export type CreateThreadMessage = {
+export type AppendMessage = {
   parentId: string | null;
-  content: CreateThreadUserMessageContent[];
+  content: AppendContentPart[];
 };
 
-export type ThreadMessage = ThreadUserMessage | ThreadAssistantMessage;
+export type ThreadMessage = UserMessage | AssistantMessage;
 
 export type ThreadState = {
   messages: ThreadMessage[];
@@ -71,7 +70,7 @@ export type ThreadState = {
   getBranches: (messageId: string) => string[];
   switchToBranch: (branchId: string) => void;
 
-  append: (message: CreateThreadMessage) => void;
+  append: (message: AppendMessage) => void;
   startRun: (parentId: string | null) => void;
   cancelRun: () => void;
 };

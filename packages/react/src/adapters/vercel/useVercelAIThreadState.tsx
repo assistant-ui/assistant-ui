@@ -2,7 +2,7 @@ import type { Message } from "ai";
 import type { UseAssistantHelpers, UseChatHelpers } from "ai/react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import type {
-  CreateThreadMessage,
+  AppendMessage,
   ThreadMessage,
   ThreadState,
 } from "../../utils/context/stores/AssistantTypes";
@@ -118,7 +118,7 @@ export const useVercelAIThreadState = (
     await reloadMaybe();
   }, []);
 
-  const append = useCallback(async (message: CreateThreadMessage) => {
+  const append = useCallback(async (message: AppendMessage) => {
     if (message.content.length !== 1 || message.content[0]?.type !== "text")
       throw new Error("Only text content is supported by Vercel AI SDK");
 

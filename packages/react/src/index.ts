@@ -16,10 +16,10 @@ export type {
 } from "./adapters/vercel";
 
 export type {
-  CreateThreadMessage,
-  CreateThreadUserMessageContent,
-  ThreadMessageTextPart,
-  ThreadMessageImagePart,
+  AppendMessage,
+  AppendContentPart,
+  TextContentPart,
+  ImageContentPart,
 } from "./utils/context/stores/AssistantTypes";
 
 export { useMessageContext as unstable_useMessageContext } from "./utils/context/useMessageContext";
