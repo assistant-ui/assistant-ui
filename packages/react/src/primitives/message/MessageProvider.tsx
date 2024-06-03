@@ -4,6 +4,8 @@ import { type FC, type PropsWithChildren, useMemo, useState } from "react";
 import { create } from "zustand";
 import { useAssistantContext } from "../../utils/context/AssistantContext";
 import type {
+  AppendContentPart,
+  TextContentPart,
   ThreadMessage,
   ThreadState,
 } from "../../utils/context/stores/AssistantTypes";
@@ -43,17 +45,25 @@ const useMessageContext = () => {
         if (message.role !== "user")
           throw new Error("Editing is only supported for user messages");
 
-        // TODO image/ui support
-        if (message.content[0]?.type !== "text")
-          throw new Error("Editing is only supported for text-only messages");
+        const text = message.content
+          .filter((part): part is TextContentPart => part.type === "text")
+          .map((part) => part.text)
+          .join("\n");
 
-        return message.content[0].text;
+        return text;
       },
       onSend: (text) => {
-        const parentId = useMessage.getState().parentId;
+        const { message, parentId } = useMessage.getState();
+        if (message.role !== "user")
+          throw new Error("Editing is only supported for user messages");
+
+        const nonTextParts = message.content.filter(
+          (part): part is AppendContentPart =>
+            part.type !== "text" && part.type !== "ui",
+        );
         useThread.getState().append({
           parentId,
-          content: [{ type: "text", text }],
+          content: [{ type: "text", text }, ...nonTextParts],
         });
       },
     });
