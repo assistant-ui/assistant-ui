@@ -7,13 +7,14 @@ import type {
   ThreadState,
 } from "../../utils/context/stores/AssistantTypes";
 import { MessageRepository, isOptimisticId } from "../MessageRepository";
+import { ThreadMessageConverter } from "../ThreadMessageConverter";
 
 type VercelThreadMessage = ThreadMessage & {
   innerMessage: Message; // TODO make this less hacky
 };
 
-const ThreadMessageCache = new WeakMap<Message, VercelThreadMessage>();
 const vercelToThreadMessage = (message: Message): VercelThreadMessage => {
+  // TODO tool call and system message support
   if (message.role !== "user" && message.role !== "assistant")
     throw new Error("Unsupported role");
 
@@ -26,17 +27,7 @@ const vercelToThreadMessage = (message: Message): VercelThreadMessage => {
   };
 };
 
-const vercelToCachedThreadMessages = (messages: Message[]) => {
-  return messages.map((m) => {
-    const cached = ThreadMessageCache.get(m);
-    if (cached) return cached;
-
-    const newMessage = vercelToThreadMessage(m);
-    ThreadMessageCache.set(m, newMessage);
-    return newMessage;
-  });
-};
-
+const converter = new ThreadMessageConverter(vercelToThreadMessage);
 const sliceMessagesUntil = (messages: Message[], messageId: string | null) => {
   if (messageId == null) return [];
   if (isOptimisticId(messageId)) return messages; // TODO figure out if this is needed
@@ -69,7 +60,7 @@ export const useVercelAIThreadState = (
 
   const assistantOptimisticIdRef = useRef<string | null>(null);
   const messages = useMemo(() => {
-    const vm = vercelToCachedThreadMessages(vercel.messages);
+    const vm = converter.convertMessages(vercel.messages);
     for (let i = 0; i < vm.length; i++) {
       const message = vm[i]!;
       const parent = vm[i - 1];

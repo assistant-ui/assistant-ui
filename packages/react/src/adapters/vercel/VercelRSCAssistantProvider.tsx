@@ -11,6 +11,7 @@ import type {
   CreateThreadMessage,
   ThreadMessage,
 } from "../../utils/context/stores/AssistantTypes";
+import { ThreadMessageConverter } from "../ThreadMessageConverter";
 import { useDummyAIAssistantContext } from "./useDummyAIAssistantContext";
 
 export type VercelRSCMessage = {
@@ -36,7 +37,6 @@ export type VercelRSCAssistantProviderProps<T = VercelRSCMessage> =
   VercelRSCAssistantProviderBaseProps<T> &
     (T extends VercelRSCMessage ? object : RSCMessageConverter<T>);
 
-const ThreadMessageCache = new WeakMap<object, ThreadMessage>();
 const vercelToThreadMessage = (message: VercelRSCMessage): ThreadMessage => {
   if (message.role !== "user" && message.role !== "assistant")
     throw new Error("Unsupported role");
@@ -49,21 +49,8 @@ const vercelToThreadMessage = (message: VercelRSCMessage): ThreadMessage => {
   };
 };
 
-const vercelToCachedThreadMessages = <T extends object>(
-  messages: T[],
-  convertMessage: (message: T) => VercelRSCMessage,
-) => {
-  return messages.map((m) => {
-    const cached = ThreadMessageCache.get(m);
-    if (cached) return cached;
-    const newMessage = vercelToThreadMessage(convertMessage(m));
-    ThreadMessageCache.set(m, newMessage);
-    return newMessage;
-  });
-};
-
 export const VercelRSCAssistantProvider = <
-  T extends object = VercelRSCMessage,
+  T extends WeakKey = VercelRSCMessage,
 >({
   children,
   convertMessage,
@@ -74,14 +61,18 @@ export const VercelRSCAssistantProvider = <
 }: VercelRSCAssistantProviderProps<T>) => {
   const context = useDummyAIAssistantContext();
 
+  const converter = useMemo(() => {
+    const rscConverter = convertMessage ?? ((m: T) => m as VercelRSCMessage);
+    return new ThreadMessageConverter<T>((m) => {
+      return vercelToThreadMessage(rscConverter(m));
+    });
+  }, [convertMessage]);
+
   // -- useThread sync --
 
   const messages = useMemo(() => {
-    return vercelToCachedThreadMessages<T>(
-      vercelMessages,
-      convertMessage ?? ((m: T) => m as VercelRSCMessage),
-    );
-  }, [convertMessage, vercelMessages]);
+    return converter.convertMessages(vercelMessages);
+  }, [converter, vercelMessages]);
 
   const append = useCallback(
     async (message: CreateThreadMessage) => {
