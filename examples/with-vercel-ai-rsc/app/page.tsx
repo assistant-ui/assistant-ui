@@ -2,7 +2,7 @@
 
 import { useActions, useUIState } from "ai/rsc";
 import { nanoid } from "nanoid";
-import type { ClientMessage } from "./actions";
+import type { AI, ClientMessage } from "./actions";
 
 import { Thread } from "@/components/ui/assistant-ui/thread";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -13,7 +13,7 @@ import {
 
 export default function Home() {
   const { continueConversation } = useActions();
-  const [conversation, setConversation] = useUIState();
+  const [conversation, setConversation] = useUIState<typeof AI>();
   const next = async (m: CreateThreadMessage) => {
     if (m.content[0]?.type !== "text")
       throw new Error("Only text messages are supported");
