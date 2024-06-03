@@ -7,7 +7,7 @@ export const useAssistantContext = () => {
   const context = useContext(AssistantContext);
   if (!context)
     throw new Error(
-      "useAssistantContext must be used within a AssistantProvider",
+      "This component must be used within a AssistantProvider",
     );
   return context;
 };
