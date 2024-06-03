@@ -49,9 +49,13 @@ export const ThreadMessages: FC<ThreadMessagesProps> = ({ components }) => {
   return (
     <>
       {messages.map((message, idx) => {
+        const parentId = messages[idx - 1]?.id ?? null;
         return (
-          // biome-ignore lint/suspicious/noArrayIndexKey: fixes a11y issues with branch navigation
-          <Provider key={idx} message={message}>
+          <Provider
+            key={parentId ?? "__ROOT__"} // keep the same key when switching branches for better a11y support
+            message={message}
+            parentId={parentId}
+          >
             <MessageIf user>
               <ComposerIf editing={false}>
                 <UserMessage />

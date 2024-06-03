@@ -44,7 +44,6 @@ export type ThreadAssistantMessageContent =
 
 export type ThreadMessageBase = {
   id: string;
-  parentId: string | null;
   createdAt: Date;
 };
 

@@ -14,11 +14,11 @@ export const useReloadMessage = () => {
   if (disabled) return null;
 
   return () => {
-    const message = useMessage.getState().message;
+    const { message, parentId } = useMessage.getState();
     if (message.role !== "assistant")
       throw new Error("Reloading is only supported on assistant messages");
 
-    useThread.getState().startRun(message.parentId);
+    useThread.getState().startRun(parentId);
     useViewport.getState().scrollToBottom();
   };
 };

@@ -38,10 +38,10 @@ export class MessageRepository {
     return messages;
   }
 
-  addOrUpdateMessage(message: ThreadMessage) {
+  addOrUpdateMessage(parentId: string | null, message: ThreadMessage) {
     const item = this.messages.get(message.id);
     if (item) {
-      if (item.current.parentId !== message.parentId) {
+      if ((item.prev?.current.id ?? null) !== parentId) {
         // if the parents dont match, delete the message and create a new one
         this.deleteMessage(message.id);
       } else {
@@ -51,7 +51,7 @@ export class MessageRepository {
     }
 
     // create a new message
-    const prev = message.parentId ? this.messages.get(message.parentId) : null;
+    const prev = parentId ? this.messages.get(parentId) : null;
     if (prev === undefined)
       throw new Error("Unexpected: Parent message not found");
 
@@ -120,7 +120,7 @@ export class MessageRepository {
 
   commitOptimisticRun(parentId: string | null) {
     const optimisticId = this.getOptimisticId();
-    this.addOrUpdateMessage({
+    this.addOrUpdateMessage(parentId, {
       id: optimisticId,
       role: "assistant",
       content: [
@@ -129,7 +129,6 @@ export class MessageRepository {
           text: "",
         },
       ],
-      parentId,
       createdAt: new Date(),
     });
     return optimisticId;

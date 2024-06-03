@@ -4,6 +4,7 @@ import type { MessageComposerState } from "./ComposerStore";
 
 export type MessageState = {
   message: ThreadMessage;
+  parentId: string | null;
   branches: string[];
   isLast: boolean;
   isCopied: boolean;

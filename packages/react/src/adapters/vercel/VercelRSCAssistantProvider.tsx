@@ -27,15 +27,11 @@ export type VercelRSCAssistantProviderProps = PropsWithChildren<{
 }>;
 
 const ThreadMessageCache = new WeakMap<VercelRSCMessage, ThreadMessage>();
-const vercelToThreadMessage = (
-  parentId: string | null,
-  message: VercelRSCMessage,
-): ThreadMessage => {
+const vercelToThreadMessage = (message: VercelRSCMessage): ThreadMessage => {
   if (message.role !== "user" && message.role !== "assistant")
     throw new Error("Unsupported role");
 
   return {
-    parentId: parentId,
     id: message.id,
     role: message.role,
     content: [{ type: "ui", display: message.display }],
@@ -44,11 +40,10 @@ const vercelToThreadMessage = (
 };
 
 const vercelToCachedThreadMessages = (messages: VercelRSCMessage[]) => {
-  return messages.map((m, idx) => {
+  return messages.map((m) => {
     const cached = ThreadMessageCache.get(m);
-    const parentId = messages[idx - 1]?.id ?? null;
-    if (cached && cached.parentId === parentId) return cached;
-    const newMessage = vercelToThreadMessage(parentId, m);
+    if (cached) return cached;
+    const newMessage = vercelToThreadMessage(m);
     ThreadMessageCache.set(m, newMessage);
     return newMessage;
   });

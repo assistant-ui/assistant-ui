@@ -13,15 +13,11 @@ type VercelThreadMessage = ThreadMessage & {
 };
 
 const ThreadMessageCache = new WeakMap<Message, VercelThreadMessage>();
-const vercelToThreadMessage = (
-  message: Message,
-  parentId: string | null,
-): VercelThreadMessage => {
+const vercelToThreadMessage = (message: Message): VercelThreadMessage => {
   if (message.role !== "user" && message.role !== "assistant")
     throw new Error("Unsupported role");
 
   return {
-    parentId,
     id: message.id,
     role: message.role,
     content: [{ type: "text", text: message.content }],
@@ -31,12 +27,11 @@ const vercelToThreadMessage = (
 };
 
 const vercelToCachedThreadMessages = (messages: Message[]) => {
-  return messages.map((m, idx) => {
+  return messages.map((m) => {
     const cached = ThreadMessageCache.get(m);
-    const parentId = messages[idx - 1]?.id ?? null;
-    if (cached && cached.parentId === parentId) return cached;
+    if (cached) return cached;
 
-    const newMessage = vercelToThreadMessage(m, parentId);
+    const newMessage = vercelToThreadMessage(m);
     ThreadMessageCache.set(m, newMessage);
     return newMessage;
   });
@@ -75,8 +70,10 @@ export const useVercelAIThreadState = (
   const assistantOptimisticIdRef = useRef<string | null>(null);
   const messages = useMemo(() => {
     const vm = vercelToCachedThreadMessages(vercel.messages);
-    for (const message of vm) {
-      data.addOrUpdateMessage(message);
+    for (let i = 0; i < vm.length; i++) {
+      const message = vm[i]!;
+      const parent = vm[i - 1];
+      data.addOrUpdateMessage(parent?.id ?? null, message);
     }
 
     if (assistantOptimisticIdRef.current) {
