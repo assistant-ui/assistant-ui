@@ -18,7 +18,8 @@
       ]
     },
     "allowJs": true,
-    "strictNullChecks": true
+    "strictNullChecks": true,
+    "jsx": "preserve"
   },
   "include": [
     "next-env.d.ts",
