@@ -5,6 +5,7 @@ import {
   type ReactNode,
   useCallback,
   useMemo,
+  useState,
 } from "react";
 import { AssistantContext } from "../../utils/context/AssistantContext";
 import type {
@@ -78,6 +79,13 @@ export const VercelRSCAssistantProvider = <
 }: VercelRSCAssistantProviderProps<T>) => {
   const context = useDummyAIAssistantContext();
 
+  const [isRunning, setIsRunning] = useState(false);
+
+  const withRunning = useCallback((callback: Promise<unknown>) => {
+    setIsRunning(true);
+    return callback.finally(() => setIsRunning(false));
+  }, []);
+
   const converter = useMemo(() => {
     const rscConverter = convertMessage ?? ((m: T) => m as VercelRSCMessage);
     return new ThreadMessageConverter<T>((m) => {
@@ -99,34 +107,43 @@ export const VercelRSCAssistantProvider = <
       ) {
         if (!edit)
           throw new Error(
-            "Unexpected: Message editing is not supported, no edit callback was provided to VercelRSCAssistantProvider.",
+            "Message editing is not enabled, please provide an edit callback to VercelRSCAssistantProvider.",
           );
-        await edit(message);
+        await withRunning(edit(message));
       } else {
-        await appendCallback(message);
+        await withRunning(appendCallback(message));
       }
     },
-    [context, appendCallback, edit],
+    [context, withRunning, appendCallback, edit],
   );
 
   const startRun = useCallback(
     async (parentId: string | null) => {
       if (!reload)
         throw new Error(
-          "Unexpected: Message reloading is not supported, no reload callback was provided to VercelRSCAssistantProvider.",
+          "Message reloading is not enabled, please provide a reload callback to VercelRSCAssistantProvider.",
         );
-      await reload(parentId);
+      await withRunning(reload(parentId));
     },
-    [reload],
+    [withRunning, reload],
   );
 
   useMemo(() => {
-    context.useThread.setState({
-      messages,
-      append,
-      startRun,
-    });
-  }, [context, messages, append, startRun]);
+    context.useThread.setState(
+      {
+        messages,
+        isRunning,
+
+        getBranches,
+        switchToBranch,
+
+        append,
+        startRun,
+        cancelRun,
+      },
+      true,
+    );
+  }, [context, messages, isRunning, append, startRun]);
 
   return (
     <AssistantContext.Provider value={context}>
