@@ -28,15 +28,19 @@ const getIsLast = (thread: ThreadState, message: ThreadMessage) => {
 const useMessageContext = () => {
   const { useThread } = useAssistantContext();
   const [context] = useState<MessageStore>(() => {
-    const useMessage = create<MessageState>(() => ({
+    const useMessage = create<MessageState>((set) => ({
       message: null as unknown as ThreadMessage,
       parentId: null,
       branches: [],
       isLast: false,
       isCopied: false,
       isHovering: false,
-      setIsCopied: () => {},
-      setIsHovering: () => {},
+      setIsCopied: (value) => {
+        set({ isCopied: value });
+      },
+      setIsHovering: (value) => {
+        set({ isHovering: value });
+      },
     }));
 
     const useComposer = makeMessageComposerStore({
@@ -85,26 +89,15 @@ export const MessageProvider: FC<MessageProviderProps> = ({
   const isLast = useThread((thread) => getIsLast(thread, message));
   const branches = useThread((thread) => thread.getBranches(message.id));
 
-  // TODO move to useMessageContext
-  const [isCopied, setIsCopied] = useState(false);
-  const [isHovering, setIsHovering] = useState(false);
-
   // sync useMessage
   useMemo(() => {
-    context.useMessage.setState(
-      {
-        message,
-        parentId,
-        branches,
-        isLast,
-        isCopied,
-        isHovering,
-        setIsCopied,
-        setIsHovering,
-      } satisfies MessageState,
-      true,
-    );
-  }, [context, message, parentId, branches, isLast, isCopied, isHovering]);
+    context.useMessage.setState({
+      message,
+      parentId,
+      branches,
+      isLast,
+    });
+  }, [context, message, parentId, branches, isLast]);
 
   return (
     <MessageContext.Provider value={context}>
