@@ -116,14 +116,14 @@ export class MessageRepository {
     }
   }
 
-  private getOptimisticId = () => {
+  private getOptimisticId() {
     let optimisticId: string;
     do {
       optimisticId = generateOptimisticId();
     } while (this.messages.has(optimisticId));
 
     return optimisticId;
-  };
+  }
 
   commitOptimisticRun(parentId: string | null) {
     const optimisticId = this.getOptimisticId();
