@@ -33,7 +33,10 @@ const sliceMessagesUntil = (messages: Message[], messageId: string | null) => {
   if (isOptimisticId(messageId)) return messages; // TODO figure out if this is needed
 
   const messageIdx = messages.findIndex((m) => m.id === messageId);
-  if (messageIdx === -1) throw new Error("Unexpected: Message not found");
+  if (messageIdx === -1)
+    throw new Error(
+      "useVercelAIThreadState: Message not found. This is liekly an internal bug in assistant-ui.",
+    );
 
   return messages.slice(0, messageIdx + 1);
 };
@@ -107,7 +110,9 @@ export const useVercelAIThreadState = (
     const reloadMaybe =
       "reload" in vercelRef.current ? vercelRef.current.reload : undefined;
     if (!reloadMaybe)
-      throw new Error("Reload not supported by Vercel AI SDK's useAssistant");
+      throw new Error(
+        "Reload is not supported by Vercel AI SDK's useAssistant.",
+      );
 
     const newMessages = sliceMessagesUntil(
       vercelRef.current.messages,
@@ -120,7 +125,7 @@ export const useVercelAIThreadState = (
 
   const append = useCallback(async (message: AppendMessage) => {
     if (message.content.length !== 1 || message.content[0]?.type !== "text")
-      throw new Error("Only text content is supported by Vercel AI SDK");
+      throw new Error("Only text content is supported by Vercel AI SDK.");
 
     const newMessages = sliceMessagesUntil(
       vercelRef.current.messages,

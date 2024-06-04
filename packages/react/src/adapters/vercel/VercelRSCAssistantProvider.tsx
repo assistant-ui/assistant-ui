@@ -38,15 +38,32 @@ export type VercelRSCAssistantProviderProps<T = VercelRSCMessage> =
     (T extends VercelRSCMessage ? object : RSCMessageConverter<T>);
 
 const vercelToThreadMessage = (message: VercelRSCMessage): ThreadMessage => {
-  if (message.role !== "user" && message.role !== "assistant")
-    throw new Error("Unsupported role");
-
   return {
     id: message.id,
     role: message.role,
     content: [{ type: "ui", display: message.display }],
     createdAt: message.createdAt ?? new Date(),
   };
+};
+
+const EMPTY_BRANCHES: never[] = [];
+const getBranches = () => {
+  return EMPTY_BRANCHES;
+};
+
+const switchToBranch = () => {
+  throw new Error(
+    "Branch switching is not supported by VercelRSCAssistantProvider.",
+  );
+};
+
+const cancelRun = () => {
+  // in dev mode, log a warning
+  if (process.env["NODE_ENV"] === "development") {
+    console.warn(
+      "Run cancellation is not supported by VercelRSCAssistantProvider.",
+    );
+  }
 };
 
 export const VercelRSCAssistantProvider = <

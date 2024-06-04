@@ -20,13 +20,13 @@ const makeDummyThreadStore = () => {
       throw new Error("Not implemented");
     },
 
-    append: async () => {
+    append: () => {
+      throw new Error("Not implemented");
+    },
+    startRun: () => {
       throw new Error("Not implemented");
     },
     cancelRun: () => {
-      throw new Error("Not implemented");
-    },
-    startRun: async () => {
       throw new Error("Not implemented");
     },
   }));

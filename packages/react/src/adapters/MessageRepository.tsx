@@ -53,7 +53,9 @@ export class MessageRepository {
     // create a new message
     const prev = parentId ? this.messages.get(parentId) : null;
     if (prev === undefined)
-      throw new Error("Unexpected: Parent message not found");
+      throw new Error(
+        "MessageRepository(addOrUpdateMessage): Parent message not found. This is likely an internal bug in assistant-ui.",
+      );
 
     const newItem: RepositoryMessage = {
       prev,
@@ -78,7 +80,10 @@ export class MessageRepository {
 
   deleteMessage(messageId: string) {
     const message = this.messages.get(messageId);
-    if (!message) throw new Error("Unexpected: Message not found");
+    if (!message)
+      throw new Error(
+        "MessageRepository(deleteMessage): Message not found. This is likely an internal bug in assistant-ui.",
+      );
 
     if (message.children.length > 0) {
       for (const child of message.children) {
@@ -97,7 +102,9 @@ export class MessageRepository {
         const childId = message.prev.children.at(-1);
         const child = childId ? this.messages.get(childId) : null;
         if (child === undefined)
-          throw new Error("Unexpected: Child message not found");
+          throw new Error(
+            "MessageRepository(deleteMessage): Child message not found. This is likely an internal bug in assistant-ui.",
+          );
         message.prev.next = child;
       }
     } else {
@@ -136,7 +143,10 @@ export class MessageRepository {
 
   getBranches(messageId: string) {
     const message = this.messages.get(messageId);
-    if (!message) throw new Error("Unexpected: Message not found");
+    if (!message)
+      throw new Error(
+        "MessageRepository(getBranches): Message not found. This is likely an internal bug in assistant-ui.",
+      );
 
     if (message.prev) {
       return message.prev.children;
@@ -147,7 +157,10 @@ export class MessageRepository {
 
   switchToBranch(messageId: string) {
     const message = this.messages.get(messageId);
-    if (!message) throw new Error("Unexpected: Branch not found");
+    if (!message)
+      throw new Error(
+        "MessageRepository(switchToBranch): Branch not found. This is likely an internal bug in assistant-ui.",
+      );
 
     if (message.prev) {
       message.prev.next = message;
@@ -159,7 +172,10 @@ export class MessageRepository {
   resetHead(messageId: string | null) {
     if (messageId) {
       const message = this.messages.get(messageId);
-      if (!message) throw new Error("Unexpected: Branch not found");
+      if (!message)
+        throw new Error(
+          "MessageRepository(resetHead): Branch not found. This is likely an internal bug in assistant-ui.",
+        );
       this.head = message;
 
       for (

@@ -43,7 +43,9 @@ const useMessageContext = () => {
       onEdit: () => {
         const message = useMessage.getState().message;
         if (message.role !== "user")
-          throw new Error("Editing is only supported for user messages");
+          throw new Error(
+            "Tried to edit a non-user message. Editing is only supported for user messages. This is likely an internal bug in assistant-ui.",
+          );
 
         const text = getMessageText(message);
 
@@ -52,7 +54,9 @@ const useMessageContext = () => {
       onSend: (text) => {
         const { message, parentId } = useMessage.getState();
         if (message.role !== "user")
-          throw new Error("Editing is only supported for user messages");
+          throw new Error(
+            "Tried to edit a non-user message. Editing is only supported for user messages. This is likely an internal bug in assistant-ui.",
+          );
 
         const nonTextParts = message.content.filter(
           (part): part is AppendContentPart =>
