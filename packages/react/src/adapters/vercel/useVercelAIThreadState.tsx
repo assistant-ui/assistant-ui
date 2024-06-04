@@ -5,6 +5,7 @@ import type {
   AppendMessage,
   ThreadMessage,
   ThreadState,
+  UserMessage,
 } from "../../utils/context/stores/AssistantTypes";
 import { MessageRepository, isOptimisticId } from "../MessageRepository";
 import { ThreadMessageConverter } from "../ThreadMessageConverter";
@@ -14,14 +15,24 @@ type VercelThreadMessage = ThreadMessage & {
 };
 
 const vercelToThreadMessage = (message: Message): VercelThreadMessage => {
-  // TODO tool call and system message support
+  // TODO system message support ?
   if (message.role !== "user" && message.role !== "assistant")
-    throw new Error("Unsupported role");
+    throw new Error(
+      `You have a message with an unsupported role. The role ${message.role} is not supported.`,
+    );
 
   return {
     id: message.id,
     role: message.role,
-    content: [{ type: "text", text: message.content }],
+    content: [
+      ...(message.content ? [{ type: "text", text: message.content }] : []),
+      ...(message.toolInvocations?.map((t) => ({
+        type: "tool-call" as const,
+        name: t.toolName,
+        args: t.args,
+        result: "result" in t ? t.result : undefined,
+      })) ?? []),
+    ] as UserMessage["content"], // ignore type mismatch for now
     createdAt: message.createdAt ?? new Date(),
     innerMessage: message,
   };
