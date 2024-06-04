@@ -12,11 +12,14 @@ const optimisticPrefix = "__optimistic__";
 const generateOptimisticId = () => `${optimisticPrefix}${generateId()}`;
 export const isOptimisticId = (id: string) => id.startsWith(optimisticPrefix);
 
-type RepositoryMessage = {
+type RepositoryParent = {
+  children: string[];
+};
+
+type RepositoryMessage = RepositoryParent & {
   prev: RepositoryMessage | null;
   current: ThreadMessage;
   next: RepositoryMessage | null;
-  children: string[];
   level: number;
 };
 
@@ -28,7 +31,9 @@ const findHead = (message: RepositoryMessage): RepositoryMessage => {
 export class MessageRepository {
   private messages = new Map<string, RepositoryMessage>(); // message_id -> item
   private head: RepositoryMessage | null = null;
-  private rootChildren: string[] = [];
+  private root: RepositoryParent = {
+    children: [],
+  };
 
   getMessages() {
     const messages = new Array<ThreadMessage>(this.head?.level ?? 0);
@@ -70,7 +75,7 @@ export class MessageRepository {
       prev.children = [...prev.children, message.id];
       prev.next = newItem;
     } else {
-      this.rootChildren = [...this.rootChildren, message.id];
+      this.root.children = [...this.root.children, message.id];
     }
 
     if (this.head === prev) {
@@ -93,26 +98,27 @@ export class MessageRepository {
 
     this.messages.delete(messageId);
 
-    if (message.prev) {
-      message.prev.children = message.prev.children.filter(
-        (m) => m !== messageId,
-      );
+    const parent = message.prev ?? this.root;
+    parent.children = parent.children.filter((m) => m !== messageId);
 
-      if (message.prev.next === message) {
-        const childId = message.prev.children.at(-1);
-        const child = childId ? this.messages.get(childId) : null;
-        if (child === undefined)
-          throw new Error(
-            "MessageRepository(deleteMessage): Child message not found. This is likely an internal bug in assistant-ui.",
-          );
-        message.prev.next = child;
-      }
-    } else {
-      this.rootChildren = this.rootChildren.filter((m) => m !== messageId);
+    const getFallbackChild = (p: RepositoryParent) => {
+      const childId = p.children.at(-1);
+      const child = childId ? this.messages.get(childId) : null;
+      if (child === undefined)
+        throw new Error(
+          "MessageRepository(deleteMessage): Child message not found. This is likely an internal bug in assistant-ui.",
+        );
+      return child;
+    };
+
+    if (message.prev?.next === message) {
+      message.prev.next = getFallbackChild(message.prev);
     }
 
     if (this.head === message) {
-      this.head = message.prev ? findHead(message.prev) : null;
+      this.head = message.prev
+        ? findHead(message.prev)
+        : getFallbackChild(this.root);
     }
   }
 
@@ -152,7 +158,7 @@ export class MessageRepository {
       return message.prev.children;
     }
 
-    return this.rootChildren;
+    return this.root.children;
   }
 
   switchToBranch(messageId: string) {
