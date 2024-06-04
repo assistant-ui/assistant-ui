@@ -31,7 +31,7 @@
     "@radix-ui/react-compose-refs": "^1.0.1",
     "@radix-ui/react-primitive": "^1.0.3",
     "@radix-ui/react-slot": "^1.0.2",
-    "ai": "^3.1.22",
+    "ai": "^3.1.23",
     "nanoid": "^5.0.7",
     "react-textarea-autosize": "^8.5.3",
     "zustand": "^4.5.2"
@@ -50,7 +50,7 @@
   },
   "devDependencies": {
     "@assistant-ui/tsconfig": "*",
-    "tsup": "^8.0.2"
+    "tsup": "^8.1.0"
   },
   "homepage": "https://assistant-ui.com/",
   "repository": {

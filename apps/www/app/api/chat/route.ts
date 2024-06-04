@@ -1,8 +1,8 @@
-import { OpenAIStream, StreamingTextResponse } from "ai";
-import OpenAI from "openai";
+import { createOpenAI } from "@ai-sdk/openai";
+import { streamText } from "ai";
 
-const openai = new OpenAI({
-  apiKey: process.env["MDB_API_KEY"],
+const openai = createOpenAI({
+  apiKey: process.env["MDB_API_KEY"] ?? "-",
   baseURL: "https://llm.mdb.ai/",
 });
 
@@ -10,9 +10,8 @@ export const runtime = "edge";
 
 export async function POST(req: Request) {
   const { messages } = await req.json();
-  const response = await openai.chat.completions.create({
-    model: "gpt-3.5-turbo",
-    stream: true,
+  const result = await streamText({
+    model: openai("gpt-3.5-turbo"),
     messages: [
       {
         role: "system",
@@ -22,6 +21,5 @@ export async function POST(req: Request) {
     ],
   });
 
-  const stream = OpenAIStream(response);
-  return new StreamingTextResponse(stream);
+  return result.toAIStreamResponse();
 }

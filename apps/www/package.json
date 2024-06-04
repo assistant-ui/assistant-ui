@@ -10,7 +10,9 @@
     "start": "next start"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^0.0.18",
     "@assistant-ui/react": "*",
+    "@assistant-ui/shadcn": "*",
     "@calcom/embed-react": "^1.5.0",
     "@fortawesome/fontawesome-svg-core": "^6.5.2",
     "@fortawesome/free-solid-svg-icons": "^6.5.2",
@@ -23,10 +25,10 @@
     "@radix-ui/react-select": "^2.0.0",
     "@radix-ui/react-slot": "^1.0.2",
     "@radix-ui/react-tooltip": "^1.0.7",
-    "ai": "^3.1.22",
+    "ai": "^3.1.23",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
-    "lucide-react": "^0.381.0",
+    "lucide-react": "^0.383.0",
     "next": "14.2.3",
     "nextra": "3.0.0-alpha.24",
     "nextra-theme-docs": "^3.0.0-alpha.24",
@@ -41,7 +43,7 @@
   "devDependencies": {
     "@assistant-ui/tsconfig": "*",
     "@tailwindcss/typography": "^0.5.13",
-    "@types/node": "20.13.0",
+    "@types/node": "20.14.1",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "@types/title": "^3.4.3",
