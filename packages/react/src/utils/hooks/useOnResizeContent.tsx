@@ -1,5 +1,5 @@
 "use client";
-import { type MutableRefObject, useLayoutEffect, useRef } from "react";
+import { type MutableRefObject, useEffect, useRef } from "react";
 
 export const useOnResizeContent = (
   ref: MutableRefObject<HTMLElement | null>,
@@ -8,7 +8,7 @@ export const useOnResizeContent = (
   const callbackRef = useRef(callback);
   callbackRef.current = callback;
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     const el = ref.current;
     if (!el) return;
 
