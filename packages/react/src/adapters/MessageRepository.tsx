@@ -40,7 +40,7 @@ export class MessageRepository {
     const child = childId ? this.messages.get(childId) : null;
     if (child === undefined)
       throw new Error(
-        "MessageRepository(deleteMessage): Child message not found. This is likely an internal bug in assistant-ui.",
+        "MessageRepository(getFallbackChild): Child message not found. This is likely an internal bug in assistant-ui.",
       );
     return child;
   }
@@ -146,19 +146,19 @@ export class MessageRepository {
     const newParent = newParentId ? this.messages.get(newParentId) : null;
     if (!message)
       throw new Error(
-        "MessageRepository(moveOptimisticMessage): Optimistic message not found. This is likely an internal bug in assistant-ui.",
+        "MessageRepository(deleteMessage): Optimistic message not found. This is likely an internal bug in assistant-ui.",
       );
 
     if (newParent === undefined)
       throw new Error(
-        "MessageRepository(moveOptimisticMessage): New message not found. This is likely an internal bug in assistant-ui.",
+        "MessageRepository(deleteMessage): New message not found. This is likely an internal bug in assistant-ui.",
       );
 
     for (const child of message.children) {
       const childMessage = this.messages.get(child);
       if (!childMessage)
         throw new Error(
-          "MessageRepository(moveOptimisticMessage): Child message not found. This is likely an internal bug in assistant-ui.",
+          "MessageRepository(deleteMessage): Child message not found. This is likely an internal bug in assistant-ui.",
         );
       this.performOp(newParent, childMessage, "relink");
     }
