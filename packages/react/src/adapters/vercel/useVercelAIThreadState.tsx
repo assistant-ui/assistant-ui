@@ -82,13 +82,17 @@ export const useVercelAIThreadState = (
     }
 
     if (assistantOptimisticIdRef.current) {
-      data.deleteMessage(assistantOptimisticIdRef.current);
+      data.deleteMessage(assistantOptimisticIdRef.current, null);
       assistantOptimisticIdRef.current = null;
     }
 
     if (hasUpcomingMessage(isRunning, vm)) {
-      assistantOptimisticIdRef.current = data.commitOptimisticRun(
+      assistantOptimisticIdRef.current = data.appendOptimisticMessage(
         vm.at(-1)?.id ?? null,
+        {
+          role: "assistant",
+          content: [{ type: "text", text: "" }],
+        },
       );
     }
 
