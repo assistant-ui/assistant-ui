@@ -173,7 +173,7 @@ const AssistantMessage: FC = () => {
       <div className="flex-grow">
         <p className="font-semibold">Assistant</p>
 
-        <MessagePrimitive.Loading>...</MessagePrimitive.Loading>
+        <MessagePrimitive.Loading className="inline-block size-3 animate-pulse rounded-full bg-foreground" />
         <p className="whitespace-pre-line text-foreground">
           <MessagePrimitive.Content />
         </p>
