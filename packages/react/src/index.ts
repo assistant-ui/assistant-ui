@@ -3,6 +3,7 @@ export * as ComposerPrimitive from "./primitives/composer";
 export * as MessagePrimitive from "./primitives/message";
 export * as BranchPickerPrimitive from "./primitives/branchPicker";
 export * as ActionBarPrimitive from "./primitives/actionBar";
+export * as ContentPartPrimitive from "./primitives/contentPart";
 
 export {
   VercelAIAssistantProvider,
