@@ -3,11 +3,22 @@ title: ContentPartPrimitive
 description: A part of a message's content. Content parts may be text, image, tool call or UI elements.
 ---
 
+import { Callout } from 'nextra/components'
+
+<Callout type="warning" emoji="🚧">
+  This API is still being developed.
+</Callout>
+
 ## Anatomy
 
 ```tsx
 import { ContentPartPrimitive } from "assistant-ui";
 
+const ContentPart = () => {
+  return (
+    <ContentPartPrimitive.LoadingIndicator />
+  );
+};
 ```
 
 ## API Reference
@@ -15,3 +26,7 @@ import { ContentPartPrimitive } from "assistant-ui";
 ### Provider
 
 The context provider for the content part. This is usually handled by `<MessagePrimitive.Content />` so you do not need to use this component directly.
+
+### LoadingIndicator
+
+Only rendered when the content part is loading. While a Thread is running, the very last content part is considered to be loading. This component acts as a portal host for `<MessagePrimitive.Loading />`.  
