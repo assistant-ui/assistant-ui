@@ -26,7 +26,12 @@ type MessageContentProps = {
 };
 
 const defaultComponents = {
-  Text: ({ part }) => <>{part.text}</>,
+  Text: ({ part }) => (
+    <>
+      {part.text}
+      <ContentPartLoadingIndicator />
+    </>
+  ),
   Image: () => null,
   UI: ({ part }) => part.display,
   tools: {
@@ -83,6 +88,7 @@ export const MessageContent: FC<MessageContentProps> = ({
           <ContentPartProvider
             key={key}
             part={part}
+            isLoading={i === content.length - 1 && isLoading}
           >
             {component}
           </ContentPartProvider>
