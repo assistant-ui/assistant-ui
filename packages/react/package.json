@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react",
-  "version": "0.0.15",
+  "version": "0.0.16",
   "license": "MIT",
   "exports": {
     ".": {
