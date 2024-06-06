@@ -82,13 +82,13 @@ const ThreadScrollToBottom: FC = () => {
 
 const Composer: FC = () => {
   return (
-    <ComposerPrimitive.Root className="flex w-[calc(100%-32px)] max-w-[40rem] items-end rounded-lg border p-0.5 shadow-sm">
+    <ComposerPrimitive.Root className="flex w-[calc(100%-32px)] max-w-[40rem] items-end rounded-lg border p-0.5 transition-shadow focus-within:shadow-sm">
       <ComposerPrimitive.Input
         placeholder="Write a message..."
         className="h-12 max-h-40 flex-grow resize-none bg-transparent p-3.5 text-sm outline-none placeholder:text-foreground/50"
       />
       <ThreadPrimitive.If running={false}>
-        <ComposerPrimitive.Send className="m-2 flex h-8 w-8 items-center justify-center rounded-md bg-foreground font-bold text-2xl shadow disabled:opacity-10">
+        <ComposerPrimitive.Send className="m-2 flex h-8 w-8 items-center justify-center rounded-md bg-foreground font-bold text-2xl shadow transition-opacity disabled:opacity-10">
           <SendHorizonalIcon className="size-4 text-background" />
         </ComposerPrimitive.Send>
       </ThreadPrimitive.If>
