@@ -23,6 +23,8 @@ export type {
   ImageContentPart,
 } from "./utils/context/stores/AssistantTypes";
 
+export { AssistantProvider as unstable_AssistantProvider } from "./adapters/core/AssistantProvider";
+
 export { getVercelMessage as unstable_getVercelMessage } from "./adapters/vercel/VercelThreadMessage";
 export { getVercelRSCMessage as unstable_getVercelRSCMessage } from "./adapters/vercel/VercelThreadMessage";
 export { useMessageContext as unstable_useMessageContext } from "./utils/context/useMessageContext";
