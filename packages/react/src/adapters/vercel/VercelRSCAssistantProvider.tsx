@@ -8,11 +8,12 @@ import {
   useState,
 } from "react";
 import { AssistantContext } from "../../utils/context/AssistantContext";
-import type {
-  AppendMessage,
-  ThreadMessage,
-} from "../../utils/context/stores/AssistantTypes";
+import type { AppendMessage } from "../../utils/context/stores/AssistantTypes";
 import { ThreadMessageConverter } from "../ThreadMessageConverter";
+import {
+  type VercelRSCThreadMessage,
+  symbolInnerRSCMessage,
+} from "./VercelThreadMessage";
 import { useDummyAIAssistantContext } from "./useDummyAIAssistantContext";
 
 export type VercelRSCMessage = {
@@ -38,12 +39,18 @@ export type VercelRSCAssistantProviderProps<T = VercelRSCMessage> =
   VercelRSCAssistantProviderBaseProps<T> &
     (T extends VercelRSCMessage ? object : RSCMessageConverter<T>);
 
-const vercelToThreadMessage = (message: VercelRSCMessage): ThreadMessage => {
+const vercelToThreadMessage = <T,>(
+  converter: (message: T) => VercelRSCMessage,
+  rawMessage: T,
+): VercelRSCThreadMessage<T> => {
+  const message = converter(rawMessage);
+
   return {
     id: message.id,
     role: message.role,
     content: [{ type: "ui", display: message.display }],
     createdAt: message.createdAt ?? new Date(),
+    [symbolInnerRSCMessage]: rawMessage,
   };
 };
 
@@ -89,7 +96,7 @@ export const VercelRSCAssistantProvider = <
   const converter = useMemo(() => {
     const rscConverter = convertMessage ?? ((m: T) => m as VercelRSCMessage);
     return new ThreadMessageConverter<T>((m) => {
-      return vercelToThreadMessage(rscConverter(m));
+      return vercelToThreadMessage(rscConverter, m);
     });
   }, [convertMessage]);
 

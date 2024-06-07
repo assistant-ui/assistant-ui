@@ -8,15 +8,15 @@ import type {
   ThreadState,
   UserMessage,
 } from "../../utils/context/stores/AssistantTypes";
-import { MessageRepository, isOptimisticId } from "../MessageRepository";
+import { MessageRepository } from "../MessageRepository";
 import { ThreadMessageConverter } from "../ThreadMessageConverter";
-
-type VercelThreadMessage = ThreadMessage & {
-  innerMessage: Message; // TODO make this less hacky
-};
+import {
+  type VercelThreadMessage,
+  getVercelMessage,
+  symbolInnerMessage,
+} from "./VercelThreadMessage";
 
 const vercelToThreadMessage = (message: Message): VercelThreadMessage => {
-  // TODO system message support ?
   if (message.role !== "user" && message.role !== "assistant")
     throw new Error(
       `You have a message with an unsupported role. The role ${message.role} is not supported.`,
@@ -35,14 +35,13 @@ const vercelToThreadMessage = (message: Message): VercelThreadMessage => {
       })) ?? []),
     ] as UserMessage["content"], // ignore type mismatch for now
     createdAt: message.createdAt ?? new Date(),
-    innerMessage: message,
+    [symbolInnerMessage]: message,
   };
 };
 
 const converter = new ThreadMessageConverter(vercelToThreadMessage);
 const sliceMessagesUntil = (messages: Message[], messageId: string | null) => {
   if (messageId == null) return [];
-  if (isOptimisticId(messageId)) return messages; // TODO figure out if this is needed
 
   const messageIdx = messages.findIndex((m) => m.id === messageId);
   if (messageIdx === -1)
@@ -109,9 +108,9 @@ export const useVercelAIThreadState = (
     data.switchToBranch(messageId);
 
     vercel.setMessages(
-      (data.getMessages() as VercelThreadMessage[])
-        .filter((m) => !isOptimisticId(m.id))
-        .map((m) => m.innerMessage),
+      (data.getMessages() as ThreadMessage[])
+        .map(getVercelMessage)
+        .filter((m): m is Message => m != null),
     );
   });
 
