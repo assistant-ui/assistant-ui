@@ -2,9 +2,9 @@ import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
 import type { Message } from "ai";
 import type { UseAssistantHelpers, UseChatHelpers } from "ai/react";
 import { useCallback, useMemo, useRef, useState } from "react";
-import type { TextContentPart } from "../../../dist";
 import type {
   AppendMessage,
+  TextContentPart,
   ThreadMessage,
   ThreadState,
   ToolCallContentPart,
