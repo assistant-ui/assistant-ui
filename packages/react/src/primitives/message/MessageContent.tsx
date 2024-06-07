@@ -50,7 +50,6 @@ export const MessageContent: FC<MessageContentProps> = ({
   const { useThread } = useAssistantContext();
   const { useMessage } = useMessageContext();
 
-  // TODO multiple store hooks
   const content = useMessage((s) => s.message.content);
   const isLoading = useCombinedStore(
     [useThread, useMessage],

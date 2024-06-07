@@ -15,7 +15,7 @@ export const useGoToPreviousBranch = () => {
   return () => {
     const { message, branches } = useMessage.getState();
     useThread.getState().switchToBranch(
-      branches[branches.indexOf(message.id) - 1]!, // TODO probably there's a more elegant way to do this
+      branches[branches.indexOf(message.id) - 1]!,
     );
   };
 };

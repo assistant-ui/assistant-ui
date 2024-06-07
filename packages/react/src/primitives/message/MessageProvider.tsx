@@ -90,7 +90,6 @@ export const MessageProvider: FC<MessageProviderProps> = ({
   const { useThread } = useAssistantContext();
   const context = useMessageContext();
 
-  // TODO multiple store hooks
   const isLast = useThread((thread) => getIsLast(thread, message));
   const branches = useThread((thread) => thread.getBranches(message.id));
 
