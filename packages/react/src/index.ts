@@ -24,6 +24,11 @@ export type {
 } from "./utils/context/stores/AssistantTypes";
 
 export { AssistantProvider as unstable_AssistantProvider } from "./adapters/core/AssistantProvider";
+export { useLocalRuntime as unstable_useLocalRuntime } from "./adapters/core/local/useLocalRuntime";
+export type {
+  ChatModelAdapter as unstable_ChatModelAdapter,
+  ChatModelRunOptions as unstable_ChatModelRunOptions,
+} from "./adapters/core/local/ChatModelAdapter";
 
 export { getVercelMessage as unstable_getVercelMessage } from "./adapters/vercel/VercelThreadMessage";
 export { getVercelRSCMessage as unstable_getVercelRSCMessage } from "./adapters/vercel/VercelThreadMessage";
