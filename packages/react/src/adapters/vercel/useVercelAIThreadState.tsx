@@ -1,3 +1,4 @@
+import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
 import type { Message } from "ai";
 import type { UseAssistantHelpers, UseChatHelpers } from "ai/react";
 import { useCallback, useMemo, useRef, useState } from "react";
@@ -66,11 +67,7 @@ export const useVercelAIThreadState = (
 ): ThreadState => {
   const [data] = useState(() => new MessageRepository());
 
-  // for callbacks, we can use a ref to keep the callback reference stable
-  const vercelRef = useRef(vercel);
-  vercelRef.current = vercel;
-
-  const isRunning = getIsRunning(vercelRef.current);
+  const isRunning = getIsRunning(vercel);
 
   const assistantOptimisticIdRef = useRef<string | null>(null);
   const messages = useMemo(() => {
@@ -108,60 +105,50 @@ export const useVercelAIThreadState = (
     [data],
   );
 
-  const switchToBranch = useCallback(
-    (messageId: string) => {
-      data.switchToBranch(messageId);
+  const switchToBranch = useCallbackRef((messageId: string) => {
+    data.switchToBranch(messageId);
 
-      vercelRef.current.setMessages(
-        (data.getMessages() as VercelThreadMessage[])
-          .filter((m) => !isOptimisticId(m.id))
-          .map((m) => m.innerMessage),
-      );
-    },
-    [data],
-  );
+    vercel.setMessages(
+      (data.getMessages() as VercelThreadMessage[])
+        .filter((m) => !isOptimisticId(m.id))
+        .map((m) => m.innerMessage),
+    );
+  });
 
-  const startRun = useCallback(async (parentId: string | null) => {
-    const reloadMaybe =
-      "reload" in vercelRef.current ? vercelRef.current.reload : undefined;
+  const startRun = useCallbackRef(async (parentId: string | null) => {
+    const reloadMaybe = "reload" in vercel ? vercel.reload : undefined;
     if (!reloadMaybe)
       throw new Error(
         "Reload is not supported by Vercel AI SDK's useAssistant.",
       );
 
-    const newMessages = sliceMessagesUntil(
-      vercelRef.current.messages,
-      parentId,
-    );
-    vercelRef.current.setMessages(newMessages);
+    const newMessages = sliceMessagesUntil(vercel.messages, parentId);
+    vercel.setMessages(newMessages);
 
     await reloadMaybe();
-  }, []);
+  });
 
-  const append = useCallback(async (message: AppendMessage) => {
+  const append = useCallbackRef(async (message: AppendMessage) => {
     if (message.content.length !== 1 || message.content[0]?.type !== "text")
       throw new Error("Only text content is supported by Vercel AI SDK.");
 
-    const newMessages = sliceMessagesUntil(
-      vercelRef.current.messages,
-      message.parentId,
-    );
-    vercelRef.current.setMessages(newMessages);
+    const newMessages = sliceMessagesUntil(vercel.messages, message.parentId);
+    vercel.setMessages(newMessages);
 
-    await vercelRef.current.append({
+    await vercel.append({
       role: "user",
       content: message.content[0].text,
     });
-  }, []);
+  });
 
-  const cancelRun = useCallback(() => {
-    const lastMessage = vercelRef.current.messages.at(-1);
-    vercelRef.current.stop();
+  const cancelRun = useCallbackRef(() => {
+    const lastMessage = vercel.messages.at(-1);
+    vercel.stop();
 
     if (lastMessage?.role === "user") {
-      vercelRef.current.setInput(lastMessage.content);
+      vercel.setInput(lastMessage.content);
     }
-  }, []);
+  });
 
   return useMemo(
     () => ({

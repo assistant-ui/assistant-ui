@@ -1,19 +1,19 @@
 "use client";
-import { type MutableRefObject, useEffect, useRef } from "react";
+import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
+import { type MutableRefObject, useEffect } from "react";
 
 export const useOnResizeContent = (
   ref: MutableRefObject<HTMLElement | null>,
   callback: () => void,
 ) => {
-  const callbackRef = useRef(callback);
-  callbackRef.current = callback;
+  const callbackRef = useCallbackRef(callback);
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
 
     const resizeObserver = new ResizeObserver(() => {
-      callbackRef.current();
+      callbackRef();
     });
 
     const mutationObserver = new MutationObserver((mutations) => {
@@ -31,7 +31,7 @@ export const useOnResizeContent = (
         }
       }
 
-      callbackRef.current();
+      callbackRef();
     });
 
     resizeObserver.observe(el);
@@ -46,5 +46,5 @@ export const useOnResizeContent = (
       resizeObserver.disconnect();
       mutationObserver.disconnect();
     };
-  }, [ref.current]);
+  }, [ref.current, callbackRef]);
 };

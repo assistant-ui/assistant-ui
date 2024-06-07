@@ -1,15 +1,15 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
+import { useEffect } from "react";
 import { useAssistantContext } from "../context/AssistantContext";
 
 export const useOnScrollToBottom = (callback: () => void) => {
-  const callbackRef = useRef(callback);
-  callbackRef.current = callback;
+  const callbackRef = useCallbackRef(callback);
 
   const { useViewport } = useAssistantContext();
   useEffect(() => {
     return useViewport.getState().onScrollToBottom(() => {
-      callbackRef.current();
+      callbackRef();
     });
-  }, [useViewport]);
+  }, [useViewport, callbackRef]);
 };
