@@ -2,11 +2,12 @@ import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
 import type { Message } from "ai";
 import type { UseAssistantHelpers, UseChatHelpers } from "ai/react";
 import { useCallback, useMemo, useRef, useState } from "react";
+import type { TextContentPart } from "../../../dist";
 import type {
   AppendMessage,
   ThreadMessage,
   ThreadState,
-  UserMessage,
+  ToolCallContentPart,
 } from "../../utils/context/stores/AssistantTypes";
 import { MessageRepository } from "../MessageRepository";
 import { ThreadMessageConverter } from "../ThreadMessageConverter";
@@ -16,30 +17,50 @@ import {
   symbolInnerMessage,
 } from "./VercelThreadMessage";
 
-const vercelToThreadMessage = (message: Message): VercelThreadMessage => {
-  if (message.role !== "user" && message.role !== "assistant")
-    throw new Error(
-      `You have a message with an unsupported role. The role ${message.role} is not supported.`,
-    );
-
-  return {
+const vercelToThreadMessage = (
+  message: Message,
+  status: "in_progress" | "done" | "error",
+): VercelThreadMessage => {
+  const common = {
     id: message.id,
-    role: message.role,
-    content: [
-      ...(message.content ? [{ type: "text", text: message.content }] : []),
-      ...(message.toolInvocations?.map((t) => ({
-        type: "tool-call" as const,
-        name: t.toolName,
-        args: t.args,
-        result: "result" in t ? t.result : undefined,
-      })) ?? []),
-    ] as UserMessage["content"], // ignore type mismatch for now
     createdAt: message.createdAt ?? new Date(),
     [symbolInnerMessage]: message,
   };
+
+  switch (message.role) {
+    case "user":
+      return {
+        ...common,
+        role: "user",
+        content: [{ type: "text", text: message.content }],
+      };
+    case "assistant":
+      return {
+        ...common,
+        role: "assistant",
+        content: [
+          ...(message.content
+            ? [{ type: "text", text: message.content } as TextContentPart]
+            : []),
+          ...(message.toolInvocations?.map(
+            (t) =>
+              ({
+                type: "tool-call",
+                name: t.toolName,
+                args: t.args,
+                result: "result" in t ? t.result : undefined,
+              }) as ToolCallContentPart,
+          ) ?? []),
+        ],
+        status,
+      };
+    default:
+      throw new Error(
+        `You have a message with an unsupported role. The role ${message.role} is not supported.`,
+      );
+  }
 };
 
-const converter = new ThreadMessageConverter(vercelToThreadMessage);
 const sliceMessagesUntil = (messages: Message[], messageId: string | null) => {
   if (messageId == null) return [];
 
@@ -68,6 +89,15 @@ export const useVercelAIThreadState = (
 
   const isRunning = getIsRunning(vercel);
 
+  const convertCallback = useCallbackRef((message: Message) => {
+    return vercelToThreadMessage(
+      message,
+      vercel.messages.at(-1) === message && isRunning ? "in_progress" : "done",
+    );
+  });
+
+  const converter = new ThreadMessageConverter(convertCallback);
+
   const assistantOptimisticIdRef = useRef<string | null>(null);
   const messages = useMemo(() => {
     const vm = converter.convertMessages(vercel.messages);
@@ -95,7 +125,7 @@ export const useVercelAIThreadState = (
     data.resetHead(assistantOptimisticIdRef.current ?? vm.at(-1)?.id ?? null);
 
     return data.getMessages();
-  }, [data, isRunning, vercel.messages]);
+  }, [converter, data, isRunning, vercel.messages]);
 
   const getBranches = useCallback(
     (messageId: string) => {

@@ -1,8 +1,6 @@
 "use client";
 
 import type { ComponentType, FC, ReactNode } from "react";
-import { useAssistantContext } from "../../utils/context/AssistantContext";
-import { useCombinedStore } from "../../utils/context/combined/useCombinedStore";
 import type {
   ImageContentPart,
   TextContentPart,
@@ -10,7 +8,7 @@ import type {
   UIContentPart,
 } from "../../utils/context/stores/AssistantTypes";
 import { useMessageContext } from "../../utils/context/useMessageContext";
-import { ContentPartLoadingIndicator } from "../contentPart/ContentPartLoadingIndicator";
+import { ContentPartInProgressIndicator } from "../contentPart/ContentPartInProgressIndicator";
 import { ContentPartProvider } from "../contentPart/ContentPartProvider";
 
 type MessageContentProps = {
@@ -29,7 +27,7 @@ const defaultComponents = {
   Text: ({ part }) => (
     <>
       {part.text}
-      <ContentPartLoadingIndicator />
+      <ContentPartInProgressIndicator />
     </>
   ),
   Image: () => null,
@@ -47,14 +45,11 @@ export const MessageContent: FC<MessageContentProps> = ({
     tools: { by_name = {}, Fallback = defaultComponents.tools.Fallback } = {},
   } = {},
 }) => {
-  const { useThread } = useAssistantContext();
   const { useMessage } = useMessageContext();
 
-  const content = useMessage((s) => s.message.content);
-  const isLoading = useCombinedStore(
-    [useThread, useMessage],
-    (t, s) => s.isLast && t.isRunning,
-  );
+  const message = useMessage((s) => s.message);
+  const content = message.content;
+  const status = message.role === "assistant" ? message.status : "done";
 
   return (
     <>
@@ -87,7 +82,7 @@ export const MessageContent: FC<MessageContentProps> = ({
           <ContentPartProvider
             key={key}
             part={part}
-            isLoading={i === content.length - 1 && isLoading}
+            status={i === content.length - 1 ? status : "done"}
           >
             {component}
           </ContentPartProvider>

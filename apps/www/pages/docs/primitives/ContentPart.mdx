@@ -16,7 +16,7 @@ import { ContentPartPrimitive } from "assistant-ui";
 
 const ContentPart = () => {
   return (
-    <ContentPartPrimitive.LoadingIndicator />
+    <ContentPartPrimitive.InProgressIndicator />
   );
 };
 ```
@@ -27,6 +27,6 @@ const ContentPart = () => {
 
 The context provider for the content part. This is usually handled by `<MessagePrimitive.Content />` so you do not need to use this component directly.
 
-### LoadingIndicator
+### InProgressIndicator
 
-Only rendered when the content part is loading. While a Thread is running, the very last content part is considered to be loading. This component acts as a portal host for `<MessagePrimitive.Loading />`.  
+Only rendered when the content part is in progress. While a message is in progress, the very last content part is considered to be in progress. This component acts as a portal host for `<MessagePrimitive.InProgress />`.  

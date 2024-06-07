@@ -33,11 +33,11 @@ const useMessageContext = () => {
       parentId: null,
       branches: [],
       isLast: false,
-      loadingIndicator: null,
+      inProgressIndicator: null,
       isCopied: false,
       isHovering: false,
-      setLoadingIndicator: (value) => {
-        set({ loadingIndicator: value });
+      setInProgressIndicator: (value) => {
+        set({ inProgressIndicator: value });
       },
       setIsCopied: (value) => {
         set({ isCopied: value });

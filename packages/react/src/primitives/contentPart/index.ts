@@ -1,2 +1,2 @@
 export { ContentPartProvider as Provider } from "./ContentPartProvider";
-export { ContentPartLoadingIndicator as LoadingIndicator } from "./ContentPartLoadingIndicator";
+export { ContentPartInProgressIndicator as InProgressIndicator } from "./ContentPartInProgressIndicator";

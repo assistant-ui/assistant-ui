@@ -3,13 +3,12 @@ import { useCombinedStore } from "../../utils/context/combined/useCombinedStore"
 import { useContentPartContext } from "../../utils/context/useContentPartContext";
 import { useMessageContext } from "../../utils/context/useMessageContext";
 
-export const ContentPartLoadingIndicator: FC = () => {
+export const ContentPartInProgressIndicator: FC = () => {
   const { useMessage } = useMessageContext();
   const { useContentPart } = useContentPartContext();
 
-  const loadingIndicator = useCombinedStore(
-    [useMessage, useContentPart],
-    (m, c) => (c.isLoading ? m.loadingIndicator : null),
+  const indicator = useCombinedStore([useMessage, useContentPart], (m, c) =>
+    c.status === "in_progress" ? m.inProgressIndicator : null,
   );
-  return loadingIndicator;
+  return indicator;
 };

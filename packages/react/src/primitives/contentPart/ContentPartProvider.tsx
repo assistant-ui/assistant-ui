@@ -11,14 +11,14 @@ import { ContentPartContext } from "../../utils/context/useContentPartContext";
 
 type ContentPartProviderProps = PropsWithChildren<{
   part: ThreadMessage["content"][number];
-  isLoading: boolean;
+  status: "in_progress" | "done" | "error";
 }>;
 
 const useContentPartContext = () => {
   const [context] = useState<ContentPartStore>(() => {
     const useContentPart = create<ContentPartState>(() => ({
       part: null as unknown as ThreadMessage["content"][number],
-      isLoading: false,
+      status: "done",
     }));
 
     return { useContentPart };
@@ -28,7 +28,7 @@ const useContentPartContext = () => {
 
 export const ContentPartProvider: FC<ContentPartProviderProps> = ({
   part,
-  isLoading,
+  status,
   children,
 }) => {
   const context = useContentPartContext();
@@ -38,11 +38,11 @@ export const ContentPartProvider: FC<ContentPartProviderProps> = ({
     context.useContentPart.setState(
       {
         part,
-        isLoading,
+        status,
       },
       true,
     );
-  }, [context, part, isLoading]);
+  }, [context, part, status]);
 
   return (
     <ContentPartContext.Provider value={context}>

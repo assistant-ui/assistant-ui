@@ -136,6 +136,7 @@ export class MessageRepository {
       ...message,
       id: optimisticId,
       createdAt: new Date(),
+      ...(message.role === "assistant" ? { status: "in_progress" } : undefined),
     } as ThreadMessage);
 
     return optimisticId;

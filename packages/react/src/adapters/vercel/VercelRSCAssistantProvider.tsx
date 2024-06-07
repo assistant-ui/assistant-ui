@@ -50,6 +50,7 @@ const vercelToThreadMessage = <T,>(
     role: message.role,
     content: [{ type: "ui", display: message.display }],
     createdAt: message.createdAt ?? new Date(),
+    ...{ status: "done" },
     [symbolInnerRSCMessage]: rawMessage,
   };
 };

@@ -8,8 +8,8 @@ export type MessageState = {
   parentId: string | null;
   branches: string[];
   isLast: boolean;
-  loadingIndicator: ReactNode | null;
-  setLoadingIndicator: (value: ReactNode | null) => void;
+  inProgressIndicator: ReactNode | null;
+  setInProgressIndicator: (value: ReactNode | null) => void;
   isCopied: boolean;
   setIsCopied: (value: boolean) => void;
   isHovering: boolean;

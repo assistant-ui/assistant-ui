@@ -54,6 +54,7 @@ export type UserMessage = BaseMessage & {
 export type AssistantMessage = BaseMessage & {
   role: "assistant";
   content: AssistantContentPart[];
+  status: "in_progress" | "done" | "error";
 };
 
 export type AppendMessage = {
