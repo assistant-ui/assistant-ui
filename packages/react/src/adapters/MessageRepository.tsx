@@ -1,16 +1,7 @@
 "use client";
 
-import { customAlphabet } from "nanoid/non-secure";
 import type { ThreadMessage } from "../utils/context/stores/AssistantTypes";
-
-const generateId = customAlphabet(
-  "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
-  7,
-);
-
-const optimisticPrefix = "__optimistic__";
-const generateOptimisticId = () => `${optimisticPrefix}${generateId()}`;
-export const isOptimisticId = (id: string) => id.startsWith(optimisticPrefix);
+import { generateOptimisticId } from "./idUtils";
 
 type RepositoryParent = {
   children: string[];
@@ -35,16 +26,6 @@ export class MessageRepository {
     children: [],
   };
 
-  private getFallbackChild(p: RepositoryParent) {
-    const childId = p.children.at(-1);
-    const child = childId ? this.messages.get(childId) : null;
-    if (child === undefined)
-      throw new Error(
-        "MessageRepository(getFallbackChild): Child message not found. This is likely an internal bug in assistant-ui.",
-      );
-    return child;
-  }
-
   private performOp(
     newParent: RepositoryMessage | null,
     child: RepositoryMessage,
@@ -62,7 +43,14 @@ export class MessageRepository {
       );
 
       if (child.prev?.next === child) {
-        child.prev.next = this.getFallbackChild(child.prev);
+        const fallbackId = child.prev.children.at(-1);
+        const fallback = fallbackId ? this.messages.get(fallbackId) : null;
+        if (fallback === undefined) {
+          throw new Error(
+            "MessageRepository(performOp/cut): Fallback sibling message not found. This is likely an internal bug in assistant-ui.",
+          );
+        }
+        child.prev.next = fallback;
       }
     }
 
@@ -142,15 +130,15 @@ export class MessageRepository {
     return optimisticId;
   }
 
-  deleteMessage(messageId: string, newParentId: string | null) {
+  deleteMessage(messageId: string, replacementId: string | null) {
     const message = this.messages.get(messageId);
-    const newParent = newParentId ? this.messages.get(newParentId) : null;
+    const replacement = replacementId ? this.messages.get(replacementId) : null;
     if (!message)
       throw new Error(
         "MessageRepository(deleteMessage): Optimistic message not found. This is likely an internal bug in assistant-ui.",
       );
 
-    if (newParent === undefined)
+    if (replacement === undefined)
       throw new Error(
         "MessageRepository(deleteMessage): New message not found. This is likely an internal bug in assistant-ui.",
       );
@@ -161,13 +149,13 @@ export class MessageRepository {
         throw new Error(
           "MessageRepository(deleteMessage): Child message not found. This is likely an internal bug in assistant-ui.",
         );
-      this.performOp(newParent, childMessage, "relink");
+      this.performOp(replacement, childMessage, "relink");
     }
 
     this.messages.delete(messageId);
 
     if (this.head === message) {
-      this.head = this.getFallbackChild(message.prev ?? this.root);
+      this.head = replacement;
     }
 
     this.performOp(null, message, "cut");
