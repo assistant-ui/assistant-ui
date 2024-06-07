@@ -35,7 +35,6 @@ export type UserContentPart =
 
 export type AssistantContentPart =
   | TextContentPart
-  | ImageContentPart
   | UIContentPart
   | ToolCallContentPart;
 
