@@ -2,7 +2,7 @@ import type { RegistryIndex } from "./schema";
 
 export const registry: RegistryIndex = [
   {
-    name: "asssitant-modal",
+    name: "assistant-modal",
     type: "components:ui",
     files: ["assistant-ui/assistant-modal.tsx"],
     registryDependencies: ["thread", "button", "popover", "tooltip"],
