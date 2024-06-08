@@ -12,11 +12,12 @@ export const useReloadMessage = () => {
     (t, m) => t.isRunning || m.message.role !== "assistant",
   );
 
-  if (disabled) return null;
-
-  return useCallback(() => {
+  const callback = useCallback(() => {
     const { parentId } = useMessage.getState();
     useThread.getState().startRun(parentId);
     useViewport.getState().scrollToBottom();
   }, [useMessage, useThread, useViewport]);
+
+  if (disabled) return null;
+  return callback;
 };

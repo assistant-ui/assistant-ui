@@ -9,10 +9,12 @@ export const useBeginMessageEdit = () => {
     [useMessage, useComposer],
     (m, c) => m.message.role !== "user" || c.isEditing,
   );
-  if (disabled) return null;
 
-  return useCallback(() => {
+  const callback = useCallback(() => {
     const { edit } = useComposer.getState();
     edit();
   }, [useComposer]);
+
+  if (disabled) return null;
+  return callback;
 };

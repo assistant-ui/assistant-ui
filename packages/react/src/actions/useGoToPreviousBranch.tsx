@@ -11,12 +11,14 @@ export const useGoToPreviousBranch = () => {
     [useMessage, useComposer],
     (m, c) => c.isEditing || m.branches.indexOf(m.message.id) <= 0,
   );
-  if (disabled) return null;
 
-  return useCallback(() => {
+  const callback = useCallback(() => {
     const { message, branches } = useMessage.getState();
     useThread
       .getState()
       .switchToBranch(branches[branches.indexOf(message.id) - 1]!);
   }, [useMessage, useThread]);
+
+  if (disabled) return null;
+  return callback;
 };

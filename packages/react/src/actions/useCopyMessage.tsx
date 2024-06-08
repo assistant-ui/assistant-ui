@@ -12,9 +12,8 @@ export const useCopyMessage = ({ copiedDuration = 3000 }) => {
       return c.isEditing || m.message.content.some((c) => c.type === "text");
     },
   );
-  if (!hasCopyableContent) return null;
 
-  return useCallback(() => {
+  const callback = useCallback(() => {
     const { isEditing, value: composerValue } = useComposer.getState();
     const { message, setIsCopied } = useMessage.getState();
 
@@ -24,4 +23,7 @@ export const useCopyMessage = ({ copiedDuration = 3000 }) => {
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), copiedDuration);
   }, [useComposer, useMessage, copiedDuration]);
+
+  if (!hasCopyableContent) return null;
+  return callback;
 };

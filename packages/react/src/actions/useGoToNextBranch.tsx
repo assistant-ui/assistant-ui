@@ -13,12 +13,13 @@ export const useGoToNextBranch = () => {
       c.isEditing || m.branches.indexOf(m.message.id) + 1 >= m.branches.length,
   );
 
-  if (disabled) return null;
-
-  return useCallback(() => {
+  const callback = useCallback(() => {
     const { message, branches } = useMessage.getState();
     useThread
       .getState()
       .switchToBranch(branches[branches.indexOf(message.id) + 1]!);
   }, [useMessage, useThread]);
+
+  if (disabled) return null;
+  return callback;
 };

@@ -7,9 +7,11 @@ export const useCancelRun = () => {
   const { useThread } = useAssistantContext();
   const isRunning = useThread((s) => s.isRunning);
 
-  if (!isRunning) return null;
-  return useCallback(() => {
+  const callback = useCallback(() => {
     const { cancelRun } = useThread.getState();
     cancelRun();
   }, [useThread]);
+
+  if (!isRunning) return null;
+  return callback;
 };
