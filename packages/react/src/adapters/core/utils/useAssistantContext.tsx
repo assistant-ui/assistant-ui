@@ -1,5 +1,11 @@
 "use client";
-import { type MutableRefObject, useEffect, useRef, useState } from "react";
+import {
+  type MutableRefObject,
+  useEffect,
+  useInsertionEffect,
+  useRef,
+  useState,
+} from "react";
 import { create } from "zustand";
 import type {
   AssistantStore,
@@ -88,7 +94,11 @@ const makeThreadStore = (runtimeRef: MutableRefObject<ThreadRuntime>) => {
 
 export const useAssistantContext = (runtime: ThreadRuntime) => {
   const runtimeRef = useRef(runtime);
-  runtimeRef.current = runtime;
+
+  useInsertionEffect(() => {
+    runtimeRef.current = runtime;
+  });
+
   const [{ context, onNewMessage, onRunningChange }] = useState(() => {
     const { useThread, onNewMessage, onRunningChange } =
       makeThreadStore(runtimeRef);
