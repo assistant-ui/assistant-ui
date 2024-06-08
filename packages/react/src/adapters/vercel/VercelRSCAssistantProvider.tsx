@@ -9,7 +9,10 @@ import {
 } from "react";
 import { AssistantContext } from "../../utils/context/AssistantContext";
 import type { AppendMessage } from "../../utils/context/stores/AssistantTypes";
-import { ThreadMessageConverter } from "../ThreadMessageConverter";
+import {
+  type ConverterCallback,
+  ThreadMessageConverter,
+} from "../ThreadMessageConverter";
 import {
   type VercelRSCThreadMessage,
   symbolInnerRSCMessage,
@@ -94,18 +97,21 @@ export const VercelRSCAssistantProvider = <
     return callback.finally(() => setIsRunning(false));
   }, []);
 
-  const converter = useMemo(() => {
+  // flush the converter cache when the convertMessage prop changes
+  const [converter, convertCallback] = useMemo(() => {
     const rscConverter = convertMessage ?? ((m: T) => m as VercelRSCMessage);
-    return new ThreadMessageConverter<T>((m) => {
+    const convertCallback: ConverterCallback<T> = (m, cache) => {
+      if (cache) return cache;
       return vercelToThreadMessage(rscConverter, m);
-    });
+    };
+    return [new ThreadMessageConverter(), convertCallback];
   }, [convertMessage]);
 
   // -- useThread sync --
 
   const messages = useMemo(() => {
-    return converter.convertMessages(vercelMessages);
-  }, [converter, vercelMessages]);
+    return converter.convertMessages(convertCallback, vercelMessages);
+  }, [converter, convertCallback, vercelMessages]);
 
   const append = useCallback(
     async (message: AppendMessage) => {

@@ -10,7 +10,10 @@ import type {
   ToolCallContentPart,
 } from "../../utils/context/stores/AssistantTypes";
 import { MessageRepository } from "../MessageRepository";
-import { ThreadMessageConverter } from "../ThreadMessageConverter";
+import {
+  type ConverterCallback,
+  ThreadMessageConverter,
+} from "../ThreadMessageConverter";
 import {
   type VercelThreadMessage,
   getVercelMessage,
@@ -89,18 +92,23 @@ export const useVercelAIThreadState = (
 
   const isRunning = getIsRunning(vercel);
 
-  const convertCallback = useCallbackRef((message: Message) => {
-    return vercelToThreadMessage(
-      message,
-      vercel.messages.at(-1) === message && isRunning ? "in_progress" : "done",
-    );
-  });
-
-  const converter = new ThreadMessageConverter(convertCallback);
+  const converter = useMemo(() => new ThreadMessageConverter(), []);
 
   const assistantOptimisticIdRef = useRef<string | null>(null);
+
   const messages = useMemo(() => {
-    const vm = converter.convertMessages(vercel.messages);
+    const lastMessageId = vercel.messages.at(-1)?.id;
+    const convertCallback: ConverterCallback<Message> = (message, cache) => {
+      const status =
+        lastMessageId === message.id && isRunning ? "in_progress" : "done";
+
+      if (cache && (cache.role === "user" || cache.status === status))
+        return cache;
+
+      return vercelToThreadMessage(message, status);
+    };
+
+    const vm = converter.convertMessages(convertCallback, vercel.messages);
     for (let i = 0; i < vm.length; i++) {
       const message = vm[i]!;
       const parent = vm[i - 1];
