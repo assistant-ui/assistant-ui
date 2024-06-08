@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { useCombinedStore } from "../utils/context/combined/useCombinedStore";
 import { useMessageContext } from "../utils/context/useMessageContext";
 
@@ -10,8 +11,8 @@ export const useBeginMessageEdit = () => {
   );
   if (disabled) return null;
 
-  return () => {
+  return useCallback(() => {
     const { edit } = useComposer.getState();
     edit();
-  };
+  }, [useComposer]);
 };

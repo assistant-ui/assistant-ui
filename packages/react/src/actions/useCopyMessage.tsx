@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { useCombinedStore } from "../utils/context/combined/useCombinedStore";
 import { getMessageText } from "../utils/context/getMessageText";
 import { useMessageContext } from "../utils/context/useMessageContext";
@@ -13,7 +14,7 @@ export const useCopyMessage = ({ copiedDuration = 3000 }) => {
   );
   if (!hasCopyableContent) return null;
 
-  return () => {
+  return useCallback(() => {
     const { isEditing, value: composerValue } = useComposer.getState();
     const { message, setIsCopied } = useMessage.getState();
 
@@ -22,5 +23,5 @@ export const useCopyMessage = ({ copiedDuration = 3000 }) => {
     navigator.clipboard.writeText(valueToCopy);
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), copiedDuration);
-  };
+  }, [useComposer, useMessage, copiedDuration]);
 };
