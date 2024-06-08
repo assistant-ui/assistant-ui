@@ -67,7 +67,7 @@ export type ThreadState = {
   messages: ThreadMessage[];
   isRunning: boolean;
 
-  getBranches: (messageId: string) => string[];
+  getBranches: (messageId: string) => readonly string[];
   switchToBranch: (branchId: string) => void;
 
   append: (message: AppendMessage) => void;

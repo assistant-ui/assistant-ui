@@ -8,10 +8,10 @@ import type { ThreadState } from "./AssistantTypes";
 
 // base
 
-type BaseComposerState = {
+type BaseComposerState = Readonly<{
   value: string;
   setValue: (value: string) => void;
-};
+}>;
 
 const makeBaseComposer: StateCreator<
   BaseComposerState,
@@ -27,13 +27,14 @@ const makeBaseComposer: StateCreator<
 
 // message
 
-export type MessageComposerState = BaseComposerState & {
-  isEditing: boolean;
+export type MessageComposerState = BaseComposerState &
+  Readonly<{
+    isEditing: boolean;
 
-  edit: () => void;
-  send: () => void;
-  cancel: () => boolean;
-};
+    edit: () => void;
+    send: () => void;
+    cancel: () => boolean;
+  }>;
 
 export const makeMessageComposerStore = ({
   onEdit,
@@ -65,12 +66,13 @@ export const makeMessageComposerStore = ({
 
 // thread
 
-export type ThreadComposerState = BaseComposerState & {
-  isEditing: true;
+export type ThreadComposerState = BaseComposerState &
+  Readonly<{
+    isEditing: true;
 
-  send: () => void;
-  cancel: () => boolean;
-};
+    send: () => void;
+    cancel: () => boolean;
+  }>;
 
 export const makeThreadComposerStore = (
   useThread: StoreApi<ThreadState>,

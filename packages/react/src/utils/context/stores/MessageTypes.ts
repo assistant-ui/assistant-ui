@@ -3,10 +3,10 @@ import type { StoreApi, UseBoundStore } from "zustand";
 import type { ThreadMessage } from "./AssistantTypes";
 import type { MessageComposerState } from "./ComposerStore";
 
-export type MessageState = {
-  message: ThreadMessage;
+export type MessageState = Readonly<{
+  message: Readonly<ThreadMessage>;
   parentId: string | null;
-  branches: string[];
+  branches: readonly string[];
   isLast: boolean;
   inProgressIndicator: ReactNode | null;
   setInProgressIndicator: (value: ReactNode | null) => void;
@@ -14,7 +14,7 @@ export type MessageState = {
   setIsCopied: (value: boolean) => void;
   isHovering: boolean;
   setIsHovering: (value: boolean) => void;
-};
+}>;
 
 export type MessageStore = {
   useMessage: UseBoundStore<StoreApi<MessageState>>;
