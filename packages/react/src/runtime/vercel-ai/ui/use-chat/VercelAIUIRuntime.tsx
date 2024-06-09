@@ -5,10 +5,13 @@ import type { UseAssistantHelpers, UseChatHelpers } from "ai/react";
 import type {
   AppendMessage,
   ThreadMessage,
-} from "../../../utils/AssistantTypes";
-import { MessageRepository } from "../../MessageRepository";
-import { getVercelMessage } from "../../vercel/VercelThreadMessage";
-import type { AssistantRuntime, Unsubscribe } from "../AssistantRuntime";
+} from "../../../../utils/AssistantTypes";
+import type {
+  AssistantRuntime,
+  Unsubscribe,
+} from "../../../core/AssistantRuntime";
+import { MessageRepository } from "../../../utils/MessageRepository";
+import { getVercelAIMessage } from "../../utils/VercelThreadMessage";
 
 const sliceMessagesUntil = (messages: Message[], messageId: string | null) => {
   if (messageId == null) return [];
@@ -44,7 +47,7 @@ export class VercelUseChatRuntime implements AssistantRuntime {
     this.repository.switchToBranch(branchId);
     this.vercel.setMessages(
       (this.repository.getMessages() as ThreadMessage[])
-        .map(getVercelMessage)
+        .map(getVercelAIMessage)
         .filter((m): m is Message => m != null),
     );
   }

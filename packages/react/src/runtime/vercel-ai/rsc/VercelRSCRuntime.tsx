@@ -5,7 +5,7 @@ import type {
   AppendMessage,
   ThreadMessage,
 } from "../../../utils/AssistantTypes";
-import type { AssistantRuntime, Unsubscribe } from "../AssistantRuntime";
+import type { AssistantRuntime, Unsubscribe } from "../../core/AssistantRuntime";
 
 export type VercelRSCMessage = {
   id: string;

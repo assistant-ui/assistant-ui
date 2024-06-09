@@ -6,16 +6,16 @@ import { useEffect, useInsertionEffect, useMemo, useState } from "react";
 import type {
   TextContentPart,
   ToolCallContentPart,
-} from "../../../utils/AssistantTypes";
+} from "../../../../utils/AssistantTypes";
 import {
   type ConverterCallback,
   ThreadMessageConverter,
-} from "../../ThreadMessageConverter";
+} from "../../utils/ThreadMessageConverter";
 import {
-  type VercelThreadMessage,
-  symbolInnerMessage,
-} from "../../vercel/VercelThreadMessage";
-import { VercelUseChatRuntime } from "./VercelUseChatRuntime";
+  type VercelAIThreadMessage,
+  symbolInnerAIMessage,
+} from "../../utils/VercelThreadMessage";
+import { VercelUseChatRuntime } from "./VercelAIUIRuntime";
 
 export const getIsRunning = (vercel: UseChatHelpers | UseAssistantHelpers) => {
   if ("isLoading" in vercel) return vercel.isLoading;
@@ -25,11 +25,11 @@ export const getIsRunning = (vercel: UseChatHelpers | UseAssistantHelpers) => {
 const vercelToThreadMessage = (
   message: Message,
   status: "in_progress" | "done" | "error",
-): VercelThreadMessage => {
+): VercelAIThreadMessage => {
   const common = {
     id: message.id,
     createdAt: message.createdAt ?? new Date(),
-    [symbolInnerMessage]: message,
+    [symbolInnerAIMessage]: message,
   };
 
   switch (message.role) {

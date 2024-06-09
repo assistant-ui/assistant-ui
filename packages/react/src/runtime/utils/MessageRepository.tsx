@@ -1,6 +1,6 @@
 "use client";
 
-import type { ThreadMessage } from "../utils/AssistantTypes";
+import type { ThreadMessage } from "../../utils/AssistantTypes";
 import { generateOptimisticId } from "./idUtils";
 
 type RepositoryParent = {

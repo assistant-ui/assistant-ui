@@ -4,8 +4,11 @@ import type { UseAssistantHelpers, UseChatHelpers } from "ai/react";
 import { type FC, type PropsWithChildren, useEffect } from "react";
 import { useAssistantContext } from "../../context/AssistantContext";
 import { AssistantRuntimeProvider } from "../core/AssistantRuntimeProvider";
-import { useVercelUseChatRuntime } from "../core/vercel-use-chat/useVercelUseChatRuntime";
+import { useVercelUseChatRuntime } from "../vercel-ai/ui/use-chat/useVercelUseChatRuntime";
 
+// /**
+//  * @deprecated Will be removed in 0.1.0.
+//  */
 export type VercelAIAssistantProviderProps = PropsWithChildren<
   | {
       chat: UseChatHelpers;
@@ -15,6 +18,10 @@ export type VercelAIAssistantProviderProps = PropsWithChildren<
     }
 >;
 
+// TODO mark as deprecated
+// /**
+//  * @deprecated Replaced with `<AssistantRuntimeProvider runtime={...} />` in conjuction with `useVercelUseChatRuntime()`. Will be removed in 0.1.0.
+//  */
 export const VercelAIAssistantProvider: FC<VercelAIAssistantProviderProps> = ({
   children,
   ...rest

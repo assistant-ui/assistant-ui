@@ -2,13 +2,13 @@
 
 import { useEffect, useInsertionEffect, useMemo, useState } from "react";
 import {
-  type ConverterCallback,
-  ThreadMessageConverter,
-} from "../../ThreadMessageConverter";
-import {
   type VercelRSCThreadMessage,
   symbolInnerRSCMessage,
-} from "../../vercel/VercelThreadMessage";
+} from "../utils/VercelThreadMessage";
+import {
+  type ConverterCallback,
+  ThreadMessageConverter,
+} from "../utils/ThreadMessageConverter";
 import {
   type VercelRSCAdapter,
   type VercelRSCMessage,

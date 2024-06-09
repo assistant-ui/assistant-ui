@@ -5,18 +5,20 @@ export * as BranchPickerPrimitive from "./primitives/branchPicker";
 export * as ActionBarPrimitive from "./primitives/actionBar";
 export * as ContentPartPrimitive from "./primitives/contentPart";
 
+// deprecated
 export {
   VercelAIAssistantProvider,
-  VercelRSCAssistantProvider,
   type VercelAIAssistantProviderProps,
+  VercelRSCAssistantProvider,
   type VercelRSCAssistantProviderProps,
-} from "./runtime/vercel";
-export type { VercelRSCMessage } from "./runtime/core/vercel-rsc/VercelRSCRuntime";
+} from "./runtime/vercel-deprecated";
 
 /**
  * @deprecated This type was renamed to `VercelRSCMessage`. Please use that import. Will be removed in 0.1.0.
  */
-export type { VercelRSCMessage as RSCMessage } from "./runtime/core/vercel-rsc/VercelRSCRuntime";
+export type { VercelRSCMessage as RSCMessage } from "./runtime/vercel-ai/rsc/VercelRSCRuntime";
+
+export type { VercelRSCMessage } from "./runtime/vercel-ai/rsc/VercelRSCRuntime";
 
 export type {
   ThreadMessage,
@@ -33,17 +35,17 @@ export type {
 } from "./utils/AssistantTypes";
 
 export { AssistantRuntimeProvider } from "./runtime/core/AssistantRuntimeProvider";
-export { useLocalRuntime as unstable_useLocalRuntime } from "./runtime/core/local/useLocalRuntime";
+export { useLocalRuntime as unstable_useLocalRuntime } from "./runtime/local/useLocalRuntime";
 export type {
   ChatModelAdapter as unstable_ChatModelAdapter,
   ChatModelRunOptions as unstable_ChatModelRunOptions,
-} from "./runtime/core/local/ChatModelAdapter";
-export { VercelModelAdapter as unstable_VercelModelAdapter } from "./runtime/core/local/vercel/VercelModelAdapter";
+} from "./runtime/local/ChatModelAdapter";
+export { VercelModelAdapter as unstable_VercelModelAdapter } from "./runtime/local/vercel/VercelModelAdapter";
 
 export {
-  getVercelMessage as unstable_getVercelMessage,
+  getVercelAIMessage as unstable_getVercelMessage,
   getVercelRSCMessage as unstable_getVercelRSCMessage,
-} from "./runtime/vercel/VercelThreadMessage";
+} from "./runtime/vercel-ai/utils/VercelThreadMessage";
 
 export {
   // context
