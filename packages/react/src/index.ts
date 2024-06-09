@@ -12,9 +12,10 @@ export {
 
 export type {
   VercelAIAssistantProviderProps,
-  VercelRSCMessage as RSCMessage,
   VercelRSCAssistantProviderProps,
 } from "./adapters/vercel";
+
+export type { VercelRSCMessage as RSCMessage } from "./adapters/core/vercel-rsc/VercelRSCRuntime";
 
 export type {
   AppendMessage,
