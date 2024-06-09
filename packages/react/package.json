@@ -51,6 +51,7 @@
   },
   "devDependencies": {
     "@assistant-ui/tsconfig": "workspace:*",
+    "@types/node": "^20.14.2",
     "tsup": "^8.1.0"
   },
   "homepage": "https://assistant-ui.com/",
