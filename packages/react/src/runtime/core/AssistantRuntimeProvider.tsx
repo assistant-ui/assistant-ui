@@ -1,5 +1,5 @@
 import type { FC, PropsWithChildren } from "react";
-import { useEffect, useInsertionEffect, useRef, useState } from "react";
+import { memo, useEffect, useInsertionEffect, useRef, useState } from "react";
 import type { AssistantContextValue } from "../../context/AssistantContext";
 import { AssistantContext } from "../../context/AssistantContext";
 import { makeThreadStore } from "../../context/stores/Thread";
@@ -14,7 +14,7 @@ type AssistantProviderProps = {
   runtime: AssistantRuntime;
 };
 
-export const AssistantRuntimeProvider: FC<
+const AssistantRuntimeProviderImpl: FC<
   PropsWithChildren<AssistantProviderProps>
 > = ({ children, runtime }) => {
   const runtimeRef = useRef(runtime);
@@ -55,3 +55,5 @@ export const AssistantRuntimeProvider: FC<
     </AssistantContext.Provider>
   );
 };
+
+export const AssistantRuntimeProvider = memo(AssistantRuntimeProviderImpl);
