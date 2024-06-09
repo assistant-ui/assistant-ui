@@ -7,7 +7,7 @@ export type ThreadViewportState = {
   onScrollToBottom: (callback: () => void) => () => void;
 };
 
-export const makeViewportStore = () => {
+export const makeThreadViewportStore = () => {
   const scrollToBottomListeners = new Set<() => void>();
 
   return create<ThreadViewportState>(() => ({

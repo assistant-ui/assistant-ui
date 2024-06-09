@@ -8,18 +8,18 @@ export * as ContentPartPrimitive from "./primitives/contentPart";
 export {
   VercelAIAssistantProvider,
   VercelRSCAssistantProvider,
-} from "./adapters/vercel";
+} from "./runtime/vercel";
 
 export type {
   VercelAIAssistantProviderProps,
   VercelRSCAssistantProviderProps,
-} from "./adapters/vercel";
-export type { VercelRSCMessage } from "./adapters/core/vercel-rsc/VercelRSCRuntime";
+} from "./runtime/vercel";
+export type { VercelRSCMessage } from "./runtime/core/vercel-rsc/VercelRSCRuntime";
 
 /**
  * @deprecated This type was renamed to `VercelRSCMessage`. Please use that import. Will be removed in 0.1.0.
  */
-export type { VercelRSCMessage as RSCMessage } from "./adapters/core/vercel-rsc/VercelRSCRuntime";
+export type { VercelRSCMessage as RSCMessage } from "./runtime/core/vercel-rsc/VercelRSCRuntime";
 
 export type {
   ThreadMessage,
@@ -35,16 +35,16 @@ export type {
   UIContentPart as unstable_UIContentPart,
 } from "./utils/AssistantTypes";
 
-export { AssistantProvider as unstable_AssistantProvider } from "./adapters/core/AssistantProvider";
-export { useLocalRuntime as unstable_useLocalRuntime } from "./adapters/core/local/useLocalRuntime";
+export { AssistantProvider as unstable_AssistantProvider } from "./runtime/core/AssistantProvider";
+export { useLocalRuntime as unstable_useLocalRuntime } from "./runtime/core/local/useLocalRuntime";
 export type {
   ChatModelAdapter as unstable_ChatModelAdapter,
   ChatModelRunOptions as unstable_ChatModelRunOptions,
-} from "./adapters/core/local/ChatModelAdapter";
-export { VercelModelAdapter as unstable_VercelModelAdapter } from "./adapters/core/local/vercel/VercelModelAdapter";
+} from "./runtime/core/local/ChatModelAdapter";
+export { VercelModelAdapter as unstable_VercelModelAdapter } from "./runtime/core/local/vercel/VercelModelAdapter";
 
-export { getVercelMessage as unstable_getVercelMessage } from "./adapters/vercel/VercelThreadMessage";
-export { getVercelRSCMessage as unstable_getVercelRSCMessage } from "./adapters/vercel/VercelThreadMessage";
+export { getVercelMessage as unstable_getVercelMessage } from "./runtime/vercel/VercelThreadMessage";
+export { getVercelRSCMessage as unstable_getVercelRSCMessage } from "./runtime/vercel/VercelThreadMessage";
 
 export {
   // context
