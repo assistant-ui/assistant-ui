@@ -47,11 +47,7 @@ export class VercelUseChatRuntime implements ReactAssistantRuntime {
 
   public switchToBranch(branchId: string): void {
     this.repository.switchToBranch(branchId);
-    this.vercel.setMessages(
-      (this.repository.getMessages() as ThreadMessage[])
-        .map(getVercelAIMessage)
-        .filter((m): m is Message => m != null),
-    );
+    this.updateVercelMessages(this.repository.getMessages());
   }
 
   public async append(message: AppendMessage): Promise<void> {
@@ -86,20 +82,42 @@ export class VercelUseChatRuntime implements ReactAssistantRuntime {
   }
 
   public cancelRun(): void {
-    console.log("cancel", this.vercel);
-    const lastMessage = this.vercel.messages.at(-1);
+    const previousMessage = this.vercel.messages.at(-1);
+
     this.vercel.stop();
 
-    // TODO not working
-    if (lastMessage?.role === "user") {
-      this.vercel.setInput(lastMessage.content);
+    if (this.assistantOptimisticId) {
+      this.repository.deleteMessage(this.assistantOptimisticId);
+      this.assistantOptimisticId = null;
     }
+
+    let messages = this.repository.getMessages();
+    if (
+      previousMessage?.role === "user" &&
+      previousMessage.id === messages.at(-1)?.id // ensure the previous message is a leaf node
+    ) {
+      this.vercel.setInput(previousMessage.content);
+      this.repository.deleteMessage(previousMessage.id);
+
+      messages = this.repository.getMessages();
+    }
+
+    // resync messages
+    setTimeout(() => {
+      this.updateVercelMessages(messages);
+    }, 0);
   }
 
   public subscribe(callback: () => void): Unsubscribe {
     this._subscriptions.add(callback);
     return () => this._subscriptions.delete(callback);
   }
+
+  private updateVercelMessages = (messages: ThreadMessage[]) => {
+    this.vercel.setMessages(
+      messages.map(getVercelAIMessage).filter((m): m is Message => m != null),
+    );
+  };
 
   private updateData = (isRunning: boolean, vm: ThreadMessage[]) => {
     for (let i = 0; i < vm.length; i++) {
