@@ -3,7 +3,7 @@
 import type { UseAssistantHelpers, UseChatHelpers } from "ai/react";
 import { type FC, type PropsWithChildren, useEffect } from "react";
 import { useAssistantContext } from "../../context/AssistantContext";
-import { AssistantProvider } from "../core/AssistantProvider";
+import { AssistantRuntimeProvider } from "../core/AssistantRuntimeProvider";
 import { useVercelUseChatRuntime } from "../core/vercel-use-chat/useVercelUseChatRuntime";
 
 export type VercelAIAssistantProviderProps = PropsWithChildren<
@@ -23,10 +23,10 @@ export const VercelAIAssistantProvider: FC<VercelAIAssistantProviderProps> = ({
   const runtime = useVercelUseChatRuntime(vercel);
 
   return (
-    <AssistantProvider runtime={runtime}>
+    <AssistantRuntimeProvider runtime={runtime}>
       <ComposerSync vercel={vercel} />
       {children}
-    </AssistantProvider>
+    </AssistantRuntimeProvider>
   );
 };
 

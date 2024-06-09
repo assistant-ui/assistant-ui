@@ -1,7 +1,7 @@
 "use client";
 
 import type { PropsWithChildren } from "react";
-import { AssistantProvider } from "../core/AssistantProvider";
+import { AssistantRuntimeProvider } from "../core/AssistantRuntimeProvider";
 import type {
   VercelRSCAdapter,
   VercelRSCMessage,
@@ -19,5 +19,9 @@ export const VercelRSCAssistantProvider = <
   ...adapter
 }: VercelRSCAssistantProviderProps<T>) => {
   const runtime = useVercelRSCRuntime<T>(adapter as VercelRSCAdapter<T>);
-  return <AssistantProvider runtime={runtime}>{children}</AssistantProvider>;
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
 };

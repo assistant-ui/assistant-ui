@@ -8,11 +8,8 @@ export * as ContentPartPrimitive from "./primitives/contentPart";
 export {
   VercelAIAssistantProvider,
   VercelRSCAssistantProvider,
-} from "./runtime/vercel";
-
-export type {
-  VercelAIAssistantProviderProps,
-  VercelRSCAssistantProviderProps,
+  type VercelAIAssistantProviderProps,
+  type VercelRSCAssistantProviderProps,
 } from "./runtime/vercel";
 export type { VercelRSCMessage } from "./runtime/core/vercel-rsc/VercelRSCRuntime";
 
@@ -35,7 +32,7 @@ export type {
   UIContentPart as unstable_UIContentPart,
 } from "./utils/AssistantTypes";
 
-export { AssistantProvider as unstable_AssistantProvider } from "./runtime/core/AssistantProvider";
+export { AssistantRuntimeProvider } from "./runtime/core/AssistantRuntimeProvider";
 export { useLocalRuntime as unstable_useLocalRuntime } from "./runtime/core/local/useLocalRuntime";
 export type {
   ChatModelAdapter as unstable_ChatModelAdapter,
@@ -43,8 +40,10 @@ export type {
 } from "./runtime/core/local/ChatModelAdapter";
 export { VercelModelAdapter as unstable_VercelModelAdapter } from "./runtime/core/local/vercel/VercelModelAdapter";
 
-export { getVercelMessage as unstable_getVercelMessage } from "./runtime/vercel/VercelThreadMessage";
-export { getVercelRSCMessage as unstable_getVercelRSCMessage } from "./runtime/vercel/VercelThreadMessage";
+export {
+  getVercelMessage as unstable_getVercelMessage,
+  getVercelRSCMessage as unstable_getVercelRSCMessage,
+} from "./runtime/vercel/VercelThreadMessage";
 
 export {
   // context
