@@ -10,7 +10,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^0.0.18",
+    "@ai-sdk/openai": "^0.0.24",
     "@assistant-ui/react": "*",
     "@assistant-ui/shadcn": "*",
     "@calcom/embed-react": "^1.5.0",
@@ -25,16 +25,16 @@
     "@radix-ui/react-select": "^2.0.0",
     "@radix-ui/react-slot": "^1.0.2",
     "@radix-ui/react-tooltip": "^1.0.7",
-    "ai": "^3.1.23",
+    "ai": "^3.1.30",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
-    "lucide-react": "^0.383.0",
+    "lucide-react": "^0.390.0",
     "next": "14.2.3",
     "nextra": "3.0.0-alpha.24",
     "nextra-theme-docs": "^3.0.0-alpha.24",
-    "openai": "^4.47.3",
-    "react": "^18",
-    "react-dom": "^18",
+    "openai": "^4.49.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "tailwind-merge": "^2.3.0",
     "tailwindcss-animate": "^1.0.7",
     "title": "^3.5.3",
@@ -43,13 +43,13 @@
   "devDependencies": {
     "@assistant-ui/tsconfig": "*",
     "@tailwindcss/typography": "^0.5.13",
-    "@types/node": "20.14.1",
+    "@types/node": "20.14.2",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "@types/title": "^3.4.3",
     "autoprefixer": "^10.4.19",
     "postcss": "^8.4.38",
-    "tailwindcss": "^3.4.3",
+    "tailwindcss": "^3.4.4",
     "typescript": "^5.4.5"
   }
 }
