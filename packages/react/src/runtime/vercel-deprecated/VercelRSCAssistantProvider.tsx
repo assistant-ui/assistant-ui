@@ -2,23 +2,20 @@
 
 import type { PropsWithChildren } from "react";
 import { AssistantRuntimeProvider } from "../core/AssistantRuntimeProvider";
-import type {
-  VercelRSCAdapter,
-  VercelRSCMessage,
-} from "../vercel-ai/rsc/VercelRSCRuntime";
+import type { VercelRSCAdapter } from "../vercel-ai/rsc/VercelRSCAdapter";
+import type { VercelRSCMessage } from "../vercel-ai/rsc/VercelRSCMessage";
 import { useVercelRSCRuntime } from "../vercel-ai/rsc/useVercelRSCRuntime";
 
-// /**
-//  * @deprecated Will be removed in 0.1.0.
-//  */
+/**
+ * @deprecated Will be removed in 0.1.0.
+ */
 export type VercelRSCAssistantProviderProps<T> = PropsWithChildren<
   VercelRSCAdapter<T>
 >;
 
-// TODO mark as deprecated
-// /**
-//  * @deprecated Replaced with `<AssistantRuntimeProvider runtime={...} />` in conjuction with `useVercelAIRSCRuntime()`. Will be removed in 0.1.0.
-//  */
+/**
+ * @deprecated Replaced with `const runtime = useVercelRSCRuntime({ messages, append })` and `<AssistantRuntimeProvider runtime={runtime} />`. Will be removed in 0.1.0.
+ */
 export const VercelRSCAssistantProvider = <
   T extends WeakKey = VercelRSCMessage,
 >({

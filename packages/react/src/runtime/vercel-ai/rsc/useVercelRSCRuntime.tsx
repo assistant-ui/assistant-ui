@@ -2,18 +2,16 @@
 
 import { useEffect, useInsertionEffect, useMemo, useState } from "react";
 import {
-  type VercelRSCThreadMessage,
-  symbolInnerRSCMessage,
-} from "../utils/VercelThreadMessage";
-import {
   type ConverterCallback,
   ThreadMessageConverter,
 } from "../utils/ThreadMessageConverter";
+import type { VercelRSCAdapter } from "./VercelRSCAdapter";
+import type { VercelRSCMessage } from "./VercelRSCMessage";
+import { VercelRSCRuntime } from "./VercelRSCRuntime";
 import {
-  type VercelRSCAdapter,
-  type VercelRSCMessage,
-  VercelRSCRuntime,
-} from "./VercelRSCRuntime";
+  type VercelRSCThreadMessage,
+  symbolInnerRSCMessage,
+} from "./getVercelRSCMessage";
 
 const vercelToThreadMessage = <T,>(
   converter: (message: T) => VercelRSCMessage,

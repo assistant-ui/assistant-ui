@@ -1,9 +1,6 @@
-export * as ThreadPrimitive from "./primitives/thread";
-export * as ComposerPrimitive from "./primitives/composer";
-export * as MessagePrimitive from "./primitives/message";
-export * as BranchPickerPrimitive from "./primitives/branchPicker";
-export * as ActionBarPrimitive from "./primitives/actionBar";
-export * as ContentPartPrimitive from "./primitives/contentPart";
+export * from "./actions";
+export * from "./primitives";
+export * from "./runtime";
 
 // deprecated
 export {
@@ -16,10 +13,9 @@ export {
 /**
  * @deprecated This type was renamed to `VercelRSCMessage`. Please use that import. Will be removed in 0.1.0.
  */
-export type { VercelRSCMessage as RSCMessage } from "./runtime/vercel-ai/rsc/VercelRSCRuntime";
+export type { VercelRSCMessage as RSCMessage } from "./runtime/vercel-ai/rsc/VercelRSCMessage";
 
-export type { VercelRSCMessage } from "./runtime/vercel-ai/rsc/VercelRSCRuntime";
-
+// experimental
 export type {
   ThreadMessage,
   AssistantMessage,
@@ -43,11 +39,6 @@ export type {
 export { VercelModelAdapter as unstable_VercelModelAdapter } from "./runtime/local/vercel/VercelModelAdapter";
 
 export {
-  getVercelAIMessage as unstable_getVercelMessage,
-  getVercelRSCMessage as unstable_getVercelRSCMessage,
-} from "./runtime/vercel-ai/utils/VercelThreadMessage";
-
-export {
   // context
   useAssistantContext as unstable_useAssistantContext,
   type AssistantContextValue as unstable_AssistantContextValue,
@@ -67,10 +58,3 @@ export {
   type ThreadViewportState as unstable_ThreadViewportState,
 } from "./context";
 
-export {
-  useCopyMessage,
-  useReloadMessage,
-  useBeginMessageEdit,
-  useGoToNextBranch,
-  useGoToPreviousBranch,
-} from "./actions";

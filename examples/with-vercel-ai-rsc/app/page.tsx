@@ -5,16 +5,27 @@ import { nanoid } from "nanoid";
 import type { AI, ClientMessage } from "./actions";
 
 import { Thread } from "@/components/ui/assistant-ui/thread";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import {
   type AppendMessage,
-  VercelRSCAssistantProvider,
+  AssistantRuntimeProvider,
+  useVercelRSCRuntime,
 } from "@assistant-ui/react";
 
 export default function Home() {
+  return (
+    <main className="h-screen">
+      <MyRuntimeProvider>
+        <Thread />
+      </MyRuntimeProvider>
+    </main>
+  );
+}
+
+const MyRuntimeProvider = ({ children }: { children: React.ReactNode }) => {
   const { continueConversation } = useActions();
-  const [conversation, setConversation] = useUIState<typeof AI>();
-  const next = async (m: AppendMessage) => {
+  const [messages, setConversation] = useUIState<typeof AI>();
+
+  const append = async (m: AppendMessage) => {
     if (m.content[0]?.type !== "text")
       throw new Error("Only text messages are supported");
 
@@ -31,13 +42,12 @@ export default function Home() {
       message,
     ]);
   };
+
+  const runtime = useVercelRSCRuntime({ messages, append });
+
   return (
-    <main className="h-screen">
-      <TooltipProvider>
-        <VercelRSCAssistantProvider messages={conversation} append={next}>
-          <Thread />
-        </VercelRSCAssistantProvider>
-      </TooltipProvider>
-    </main>
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
   );
-}
+};

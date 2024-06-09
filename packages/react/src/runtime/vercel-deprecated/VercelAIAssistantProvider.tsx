@@ -3,11 +3,48 @@
 import type { UseAssistantHelpers, UseChatHelpers } from "ai/react";
 import type { FC, PropsWithChildren } from "react";
 import { AssistantRuntimeProvider } from "../core/AssistantRuntimeProvider";
-import { useVercelUseChatRuntime } from "../vercel-ai/ui/use-chat/useVercelUseChatRuntime";
+import {
+  useVercelUseAssistantRuntime,
+  useVercelUseChatRuntime,
+} from "../vercel-ai";
 
-// /**
-//  * @deprecated Will be removed in 0.1.0.
-//  */
+type VercelUseChatRuntimeProps = PropsWithChildren<{
+  chat: UseChatHelpers;
+}>;
+
+const VercelUseChatRuntimeProvider: FC<VercelUseChatRuntimeProps> = ({
+  chat,
+  children,
+}) => {
+  const runtime = useVercelUseChatRuntime(chat);
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+};
+
+type VercelUseAssistantRuntimeProps = PropsWithChildren<{
+  assistant: UseAssistantHelpers;
+}>;
+
+const VercelUseAssistantRuntimeProvider: FC<VercelUseAssistantRuntimeProps> = ({
+  assistant,
+  children,
+}) => {
+  const runtime = useVercelUseAssistantRuntime(assistant);
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+};
+
+/**
+ * @deprecated Will be removed in 0.1.0.
+ */
 export type VercelAIAssistantProviderProps = PropsWithChildren<
   | {
       chat: UseChatHelpers;
@@ -17,20 +54,24 @@ export type VercelAIAssistantProviderProps = PropsWithChildren<
     }
 >;
 
-// TODO mark as deprecated
-// /**
-//  * @deprecated Replaced with `<AssistantRuntimeProvider runtime={...} />` in conjuction with `useVercelUseChatRuntime()`. Will be removed in 0.1.0.
-//  */
+/**
+ * @deprecated `const runtime = useVercelUseChatRuntime(chat)` and `<AssistantRuntimeProvider runtime={...} />`. Will be removed in 0.1.0.
+ */
 export const VercelAIAssistantProvider: FC<VercelAIAssistantProviderProps> = ({
   children,
   ...rest
 }) => {
-  const vercel = "chat" in rest ? rest.chat : rest.assistant;
-  const runtime = useVercelUseChatRuntime(vercel);
+  if ("chat" in rest) {
+    return (
+      <VercelUseChatRuntimeProvider chat={rest.chat}>
+        {children}
+      </VercelUseChatRuntimeProvider>
+    );
+  }
 
   return (
-    <AssistantRuntimeProvider runtime={runtime}>
+    <VercelUseAssistantRuntimeProvider assistant={rest.assistant}>
       {children}
-    </AssistantRuntimeProvider>
+    </VercelUseAssistantRuntimeProvider>
   );
 };

@@ -1,35 +1,17 @@
 "use client";
 
-import type { ReactNode } from "react";
 import type {
   AppendMessage,
   ThreadMessage,
 } from "../../../utils/AssistantTypes";
-import type { AssistantRuntime, Unsubscribe } from "../../core/AssistantRuntime";
-
-export type VercelRSCMessage = {
-  id: string;
-  role: "user" | "assistant";
-  display: ReactNode;
-  createdAt?: Date;
-};
-
-export type RSCMessageConverter<T> = {
-  convertMessage: (message: T) => VercelRSCMessage;
-};
+import type {
+  AssistantRuntime,
+  Unsubscribe,
+} from "../../core/AssistantRuntime";
+import type { VercelRSCAdapter } from "./VercelRSCAdapter";
+import type { VercelRSCMessage } from "./VercelRSCMessage";
 
 const EMPTY_BRANCHES: readonly never[] = Object.freeze([]);
-
-type VercelRSCAdapterBase<T> = {
-  messages: T[];
-  append: (message: AppendMessage) => Promise<void>;
-  edit?: (message: AppendMessage) => Promise<void>;
-  reload?: (parentId: string | null) => Promise<void>;
-  convertMessage?: (message: T) => VercelRSCMessage;
-};
-
-export type VercelRSCAdapter<T = VercelRSCMessage> = VercelRSCAdapterBase<T> &
-  (T extends VercelRSCMessage ? object : RSCMessageConverter<T>);
 
 export class VercelRSCRuntime<T extends WeakKey = VercelRSCMessage>
   implements AssistantRuntime

@@ -12,8 +12,8 @@ import {
 import {
   type VercelAIThreadMessage,
   symbolInnerAIMessage,
-} from "../../utils/VercelThreadMessage";
-import type { VercelHelpers } from "./utils/VercelHelpers";
+} from "../getVercelAIMessage";
+import type { VercelHelpers } from "./VercelHelpers";
 
 const getIsRunning = (vercel: VercelHelpers) => {
   if ("isLoading" in vercel) return vercel.isLoading;

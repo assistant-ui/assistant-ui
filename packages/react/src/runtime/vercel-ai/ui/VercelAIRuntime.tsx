@@ -3,23 +3,23 @@ import { type StoreApi, type UseBoundStore, create } from "zustand";
 import type {
   AppendMessage,
   ThreadMessage,
-} from "../../../../utils/AssistantTypes";
+} from "../../../utils/AssistantTypes";
 import type {
   ReactAssistantRuntime,
   Unsubscribe,
-} from "../../../core/AssistantRuntime";
-import { MessageRepository } from "../../../utils/MessageRepository";
-import { getVercelAIMessage } from "../../utils/VercelThreadMessage";
-import { useVercelThreadSync } from "./useVercelThreadSync";
+} from "../../core/AssistantRuntime";
+import { MessageRepository } from "../../utils/MessageRepository";
+import { getVercelAIMessage } from "./getVercelAIMessage";
 import type { VercelHelpers } from "./utils/VercelHelpers";
 import { sliceMessagesUntil } from "./utils/sliceMessagesUntil";
 import { useVercelComposerSync } from "./utils/useVercelComposerSync";
+import { useVercelThreadSync } from "./utils/useVercelThreadSync";
 
 const hasUpcomingMessage = (isRunning: boolean, messages: ThreadMessage[]) => {
   return isRunning && messages[messages.length - 1]?.role !== "assistant";
 };
 
-export class VercelUseChatRuntime implements ReactAssistantRuntime {
+export class VercelAIRuntime implements ReactAssistantRuntime {
   private _subscriptions = new Set<() => void>();
   private repository = new MessageRepository();
   private assistantOptimisticId: string | null = null;
