@@ -1,8 +1,7 @@
 "use client";
 
 import type { UseAssistantHelpers, UseChatHelpers } from "ai/react";
-import { type FC, type PropsWithChildren, useEffect } from "react";
-import { useAssistantContext } from "../../context/AssistantContext";
+import type { FC, PropsWithChildren } from "react";
 import { AssistantRuntimeProvider } from "../core/AssistantRuntimeProvider";
 import { useVercelUseChatRuntime } from "../vercel-ai/ui/use-chat/useVercelUseChatRuntime";
 
@@ -31,23 +30,7 @@ export const VercelAIAssistantProvider: FC<VercelAIAssistantProviderProps> = ({
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <ComposerSync vercel={vercel} />
       {children}
     </AssistantRuntimeProvider>
   );
-};
-
-const ComposerSync = ({
-  vercel,
-}: { vercel: UseChatHelpers | UseAssistantHelpers }) => {
-  const { useComposer } = useAssistantContext();
-
-  useEffect(() => {
-    useComposer.setState({
-      value: vercel.input,
-      setValue: vercel.setInput,
-    });
-  }, [useComposer, vercel.input, vercel.setInput]);
-
-  return null;
 };

@@ -1,43 +1,45 @@
-"use client";
-
 import type { Message } from "ai";
-import type { UseAssistantHelpers, UseChatHelpers } from "ai/react";
+import { type StoreApi, type UseBoundStore, create } from "zustand";
 import type {
   AppendMessage,
   ThreadMessage,
 } from "../../../../utils/AssistantTypes";
 import type {
-  AssistantRuntime,
+  ReactAssistantRuntime,
   Unsubscribe,
 } from "../../../core/AssistantRuntime";
 import { MessageRepository } from "../../../utils/MessageRepository";
 import { getVercelAIMessage } from "../../utils/VercelThreadMessage";
-
-const sliceMessagesUntil = (messages: Message[], messageId: string | null) => {
-  if (messageId == null) return [];
-
-  const messageIdx = messages.findIndex((m) => m.id === messageId);
-  if (messageIdx === -1)
-    throw new Error(
-      "useVercelAIThreadState: Message not found. This is liekly an internal bug in assistant-ui.",
-    );
-
-  return messages.slice(0, messageIdx + 1);
-};
+import { useVercelThreadSync } from "./useVercelThreadSync";
+import type { VercelHelpers } from "./utils/VercelHelpers";
+import { sliceMessagesUntil } from "./utils/sliceMessagesUntil";
+import { useVercelComposerSync } from "./utils/useVercelComposerSync";
 
 const hasUpcomingMessage = (isRunning: boolean, messages: ThreadMessage[]) => {
   return isRunning && messages[messages.length - 1]?.role !== "assistant";
 };
 
-export class VercelUseChatRuntime implements AssistantRuntime {
+export class VercelUseChatRuntime implements ReactAssistantRuntime {
   private _subscriptions = new Set<() => void>();
   private repository = new MessageRepository();
   private assistantOptimisticId: string | null = null;
 
+  private useVercel: UseBoundStore<StoreApi<{ vercel: VercelHelpers }>>;
+
   public messages: ThreadMessage[] = [];
   public isRunning = false;
 
-  constructor(public vercel: UseChatHelpers | UseAssistantHelpers) {}
+  public onVercelUpdated() {
+    if (this.useVercel.getState().vercel !== this.vercel) {
+      this.useVercel.setState({ vercel: this.vercel });
+    }
+  }
+
+  constructor(public vercel: VercelHelpers) {
+    this.useVercel = create(() => ({
+      vercel,
+    }));
+  }
 
   public getBranches(messageId: string): string[] {
     return this.repository.getBranches(messageId);
@@ -83,16 +85,23 @@ export class VercelUseChatRuntime implements AssistantRuntime {
     await reloadMaybe();
   }
 
-  cancelRun(): void {
+  public cancelRun(): void {
+    console.log("cancel", this.vercel);
     const lastMessage = this.vercel.messages.at(-1);
     this.vercel.stop();
 
+    // TODO not working
     if (lastMessage?.role === "user") {
       this.vercel.setInput(lastMessage.content);
     }
   }
 
-  public updateData(isRunning: boolean, vm: ThreadMessage[]) {
+  public subscribe(callback: () => void): Unsubscribe {
+    this._subscriptions.add(callback);
+    return () => this._subscriptions.delete(callback);
+  }
+
+  private updateData = (isRunning: boolean, vm: ThreadMessage[]) => {
     for (let i = 0; i < vm.length; i++) {
       const message = vm[i]!;
       const parent = vm[i - 1];
@@ -122,10 +131,14 @@ export class VercelUseChatRuntime implements AssistantRuntime {
     this.isRunning = isRunning;
 
     for (const callback of this._subscriptions) callback();
-  }
+  };
 
-  public subscribe(callback: () => void): Unsubscribe {
-    this._subscriptions.add(callback);
-    return () => this._subscriptions.delete(callback);
-  }
+  unstable_synchronizer = () => {
+    const { vercel } = this.useVercel();
+
+    useVercelThreadSync(vercel, this.updateData);
+    useVercelComposerSync(vercel);
+
+    return null;
+  };
 }
