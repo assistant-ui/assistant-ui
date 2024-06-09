@@ -22,8 +22,8 @@ export const makeThreadComposerStore = (
       isEditing: true,
 
       send: () => {
-        const { value } = get();
-        set({ value: "" });
+        const { setValue, value } = get();
+        setValue("");
 
         useThread.getState().append({
           parentId: useThread.getState().messages.at(-1)?.id ?? null,
