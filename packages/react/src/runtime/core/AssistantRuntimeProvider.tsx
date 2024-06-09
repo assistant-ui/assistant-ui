@@ -5,7 +5,10 @@ import { AssistantContext } from "../../context/AssistantContext";
 import { makeThreadStore } from "../../context/stores/Thread";
 import { makeThreadComposerStore } from "../../context/stores/ThreadComposer";
 import { makeThreadViewportStore } from "../../context/stores/ThreadViewport";
-import type { AssistantRuntime } from "./AssistantRuntime";
+import type {
+  AssistantRuntime,
+  ReactAssistantRuntime,
+} from "./AssistantRuntime";
 
 type AssistantProviderProps = {
   runtime: AssistantRuntime;
@@ -38,11 +41,16 @@ export const AssistantRuntimeProvider: FC<
     // whenever the runtime changes
     onRuntimeUpdate();
 
+    // subscribe to runtime updates
     return runtime.subscribe(onRuntimeUpdate);
   }, [onRuntimeUpdate, runtime]);
 
+  const RuntimeSynchronizer = (runtime as ReactAssistantRuntime)
+    .unstable_synchronizer;
+
   return (
     <AssistantContext.Provider value={context}>
+      {RuntimeSynchronizer && <RuntimeSynchronizer />}
       {children}
     </AssistantContext.Provider>
   );
