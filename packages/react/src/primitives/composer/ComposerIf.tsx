@@ -1,8 +1,8 @@
 "use client";
 
 import type { FC, PropsWithChildren } from "react";
+import { useComposerContext } from "../../context/ComposerContext";
 import type { RequireAtLeastOne } from "../../utils/RequireAtLeastOne";
-import { useComposerContext } from "../../utils/context/useComposerContext";
 
 type ComposerIfFilters = {
   editing: boolean | undefined;

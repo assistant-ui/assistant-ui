@@ -2,7 +2,7 @@
 import type {
   AssistantContentPart,
   ThreadMessage,
-} from "../../../utils/context/stores/AssistantTypes";
+} from "../../../utils/AssistantTypes";
 
 type ChatModelRunResult = {
   content: AssistantContentPart[];

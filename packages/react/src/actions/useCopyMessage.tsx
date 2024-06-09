@@ -1,7 +1,7 @@
 import { useCallback } from "react";
-import { useCombinedStore } from "../utils/context/combined/useCombinedStore";
-import { getMessageText } from "../utils/context/getMessageText";
-import { useMessageContext } from "../utils/context/useMessageContext";
+import { useMessageContext } from "../context/MessageContext";
+import { useCombinedStore } from "../utils/combined/useCombinedStore";
+import { getMessageText } from "../utils/getMessageText";
 
 export const useCopyMessage = ({ copiedDuration = 3000 }) => {
   const { useMessage, useComposer } = useMessageContext();

@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import type {
   AppendMessage,
   ThreadMessage,
-} from "../../../utils/context/stores/AssistantTypes";
+} from "../../../utils/AssistantTypes";
 import type { AssistantRuntime, Unsubscribe } from "../AssistantRuntime";
 
 export type VercelRSCMessage = {

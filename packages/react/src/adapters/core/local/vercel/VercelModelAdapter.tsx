@@ -3,7 +3,7 @@ import { type LanguageModel, streamText } from "ai";
 import type {
   AssistantContentPart,
   TextContentPart,
-} from "../../../../utils/context/stores/AssistantTypes";
+} from "../../../../utils/AssistantTypes";
 import type {
   ChatModelAdapter,
   ChatModelRunOptions,

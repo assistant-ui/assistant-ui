@@ -5,7 +5,7 @@ import type { UseAssistantHelpers, UseChatHelpers } from "ai/react";
 import type {
   AppendMessage,
   ThreadMessage,
-} from "../../../utils/context/stores/AssistantTypes";
+} from "../../../utils/AssistantTypes";
 import { MessageRepository } from "../../MessageRepository";
 import { getVercelMessage } from "../../vercel/VercelThreadMessage";
 import type { AssistantRuntime, Unsubscribe } from "../AssistantRuntime";

@@ -1,6 +1,6 @@
 "use client";
 
-import type { ThreadMessage } from "../utils/context/stores/AssistantTypes";
+import type { ThreadMessage } from "../utils/AssistantTypes";
 
 export type ConverterCallback<TIn> = (
   message: TIn,

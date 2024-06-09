@@ -6,7 +6,7 @@ import {
   Primitive,
 } from "@radix-ui/react-primitive";
 import { type ElementRef, forwardRef } from "react";
-import { useMessageContext } from "../../utils/context/useMessageContext";
+import { useMessageContext } from "../../context/MessageContext";
 
 type MessageRootElement = ElementRef<typeof Primitive.div>;
 type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;

@@ -2,12 +2,10 @@
 
 import { type FC, type PropsWithChildren, useMemo, useState } from "react";
 import { create } from "zustand";
-import type { ThreadMessage } from "../../utils/context/stores/AssistantTypes";
-import type {
-  ContentPartState,
-  ContentPartStore,
-} from "../../utils/context/stores/ContentPartTypes";
-import { ContentPartContext } from "../../utils/context/useContentPartContext";
+import { ContentPartContext } from "../../context/ContentPartContext";
+import type { ContentPartContextValue } from "../../context/ContentPartContext";
+import type { ContentPartState } from "../../context/stores/ContentPart";
+import type { ThreadMessage } from "../../utils/AssistantTypes";
 
 type ContentPartProviderProps = PropsWithChildren<{
   part: ThreadMessage["content"][number];
@@ -15,7 +13,7 @@ type ContentPartProviderProps = PropsWithChildren<{
 }>;
 
 const useContentPartContext = () => {
-  const [context] = useState<ContentPartStore>(() => {
+  const [context] = useState<ContentPartContextValue>(() => {
     const useContentPart = create<ContentPartState>(() => ({
       part: null as unknown as ThreadMessage["content"][number],
       status: "done",

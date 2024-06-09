@@ -6,7 +6,7 @@ import { useEffect, useInsertionEffect, useMemo, useState } from "react";
 import type {
   TextContentPart,
   ToolCallContentPart,
-} from "../../../utils/context/stores/AssistantTypes";
+} from "../../../utils/AssistantTypes";
 import {
   type ConverterCallback,
   ThreadMessageConverter,

@@ -1,5 +1,5 @@
 import type { Message } from "ai";
-import type { ThreadMessage } from "../../utils/context/stores/AssistantTypes";
+import type { ThreadMessage } from "../../utils/AssistantTypes";
 
 export const symbolInnerMessage = Symbol("innerMessage");
 export const symbolInnerRSCMessage = Symbol("innerRSCMessage");

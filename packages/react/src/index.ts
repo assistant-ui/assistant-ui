@@ -22,11 +22,18 @@ export type { VercelRSCMessage } from "./adapters/core/vercel-rsc/VercelRSCRunti
 export type { VercelRSCMessage as RSCMessage } from "./adapters/core/vercel-rsc/VercelRSCRuntime";
 
 export type {
+  ThreadMessage,
+  AssistantMessage,
+  UserMessage,
   AppendMessage,
+  AssistantContentPart,
+  UserContentPart,
   AppendContentPart,
   TextContentPart,
-  ImageContentPart,
-} from "./utils/context/stores/AssistantTypes";
+  ImageContentPart as unstable_ImageContentPart,
+  ToolCallContentPart as unstable_ToolCallContentPart,
+  UIContentPart as unstable_UIContentPart,
+} from "./utils/AssistantTypes";
 
 export { AssistantProvider as unstable_AssistantProvider } from "./adapters/core/AssistantProvider";
 export { useLocalRuntime as unstable_useLocalRuntime } from "./adapters/core/local/useLocalRuntime";
@@ -38,7 +45,26 @@ export { VercelModelAdapter as unstable_VercelModelAdapter } from "./adapters/co
 
 export { getVercelMessage as unstable_getVercelMessage } from "./adapters/vercel/VercelThreadMessage";
 export { getVercelRSCMessage as unstable_getVercelRSCMessage } from "./adapters/vercel/VercelThreadMessage";
-export { useMessageContext as unstable_useMessageContext } from "./utils/context/useMessageContext";
+
+export {
+  // context
+  useAssistantContext as unstable_useAssistantContext,
+  type AssistantContextValue as unstable_AssistantContextValue,
+  useComposerContext as unstable_useComposerContext,
+  type ComposerContextValue as unstable_ComposerContextValue,
+  useMessageContext as unstable_useMessageContext,
+  type MessageContextValue as unstable_MessageContextValue,
+  useContentPartContext as unstable_useContentPartContext,
+  type ContentPartContextValue as unstable_ContentPartContextValue,
+  // stores
+  type BaseComposerState as unstable_BaseComposerState,
+  type ContentPartState as unstable_ContentPartState,
+  type MessageState as unstable_MessageState,
+  type MessageComposerState as unstable_MessageComposerState,
+  type ThreadState as unstable_ThreadState,
+  type ThreadComposerState as unstable_ThreadComposerState,
+  type ThreadViewportState as unstable_ThreadViewportState,
+} from "./context";
 
 export {
   useCopyMessage,

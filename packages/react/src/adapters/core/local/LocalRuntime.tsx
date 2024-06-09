@@ -2,7 +2,7 @@ import type {
   AppendMessage,
   AssistantMessage,
   UserMessage,
-} from "../../../utils/context/stores/AssistantTypes";
+} from "../../../utils/AssistantTypes";
 import { MessageRepository } from "../../MessageRepository";
 import { generateId } from "../../idUtils";
 import type { AssistantRuntime, Unsubscribe } from "../AssistantRuntime";

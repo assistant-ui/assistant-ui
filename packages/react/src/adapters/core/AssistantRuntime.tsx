@@ -1,4 +1,4 @@
-import type { ThreadState } from "../../utils/context/stores/AssistantTypes";
+import type { ThreadState } from "../../context/stores/Thread";
 
 export type Unsubscribe = () => void;
 export type AssistantRuntime = Readonly<ThreadState> & {

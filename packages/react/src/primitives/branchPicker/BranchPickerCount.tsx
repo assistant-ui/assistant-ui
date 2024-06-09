@@ -1,7 +1,7 @@
 "use client";
 
 import type { FC } from "react";
-import { useMessageContext } from "../../utils/context/useMessageContext";
+import { useMessageContext } from "../../context/MessageContext";
 
 export const BranchPickerCount: FC = () => {
   const { useMessage } = useMessageContext();
