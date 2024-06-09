@@ -1,32 +1,38 @@
-"use client";
 import type {
   AppendMessage,
   AssistantMessage,
-  ThreadMessage,
   UserMessage,
 } from "../../../utils/context/stores/AssistantTypes";
 import { MessageRepository } from "../../MessageRepository";
 import { generateId } from "../../idUtils";
-import type {
-  MessageUpdateCallback,
-  StatusUpdateCallback,
-  ThreadRuntime,
-  Unsubscribe,
-} from "../ThreadRuntime";
+import type { AssistantRuntime, Unsubscribe } from "../AssistantRuntime";
 import type { ChatModelAdapter } from "./ChatModelAdapter";
 
-export class LocalRuntime implements ThreadRuntime {
-  private _messageUpdateCallbacks = new Set<MessageUpdateCallback>();
-  private _statusUpdateCallbacks = new Set<StatusUpdateCallback>();
+export class LocalRuntime implements AssistantRuntime {
+  private _subscriptions = new Set<() => void>();
 
   private abortController: AbortController | null = null;
   private repository = new MessageRepository();
 
+  public get messages() {
+    return this.repository.getMessages();
+  }
+  public get isRunning() {
+    return this.abortController != null;
+  }
+
   constructor(public adapter: ChatModelAdapter) {}
 
-  async append(
-    message: AppendMessage,
-  ): Promise<{ parentId: string; id: string }> {
+  public getBranches(messageId: string): string[] {
+    return this.repository.getBranches(messageId);
+  }
+
+  public switchToBranch(branchId: string): void {
+    this.repository.switchToBranch(branchId);
+    this.notifySubscribers();
+  }
+
+  public async append(message: AppendMessage): Promise<void> {
     // add user message
     const userMessageId = generateId();
     const userMessage: UserMessage = {
@@ -35,13 +41,12 @@ export class LocalRuntime implements ThreadRuntime {
       content: message.content,
       createdAt: new Date(),
     };
-    this.addOrUpdateMessage(message.parentId, userMessage);
+    this.repository.addOrUpdateMessage(message.parentId, userMessage);
 
-    const { id } = await this.startRun(userMessageId);
-    return { parentId: userMessageId, id };
+    await this.startRun(userMessageId);
   }
 
-  async startRun(parentId: string | null): Promise<{ id: string }> {
+  public async startRun(parentId: string | null): Promise<void> {
     const id = generateId();
 
     this.repository.resetHead(parentId);
@@ -55,30 +60,13 @@ export class LocalRuntime implements ThreadRuntime {
       content: [{ type: "text", text: "" }],
       createdAt: new Date(),
     };
-    this.addOrUpdateMessage(parentId, message);
+    this.repository.addOrUpdateMessage(parentId, { ...message });
 
-    void this.run(parentId, messages, message); // run in background
-
-    return { id };
-  }
-
-  private addOrUpdateMessage(parentId: string | null, message: ThreadMessage) {
-    const clone = { ...message };
-    this.repository.addOrUpdateMessage(parentId, clone);
-    for (const callback of this._messageUpdateCallbacks)
-      callback(parentId, clone);
-  }
-
-  private async run(
-    parentId: string | null,
-    messages: ThreadMessage[],
-    message: AssistantMessage,
-  ) {
     // abort existing run
-    this.cancelRun();
-    for (const callback of this._statusUpdateCallbacks) callback(true);
-
+    this.abortController?.abort();
     this.abortController = new AbortController();
+
+    this.notifySubscribers();
 
     try {
       await this.adapter.run({
@@ -86,18 +74,20 @@ export class LocalRuntime implements ThreadRuntime {
         abortSignal: this.abortController.signal,
         onUpdate: ({ content }) => {
           message.content = content;
-          this.addOrUpdateMessage(parentId, message);
+          this.repository.addOrUpdateMessage(parentId, { ...message });
+          this.notifySubscribers();
         },
       });
 
       message.status = "done";
-      this.addOrUpdateMessage(parentId, message);
+      this.repository.addOrUpdateMessage(parentId, { ...message });
     } catch (e) {
       message.status = "error";
-      this.addOrUpdateMessage(parentId, message);
+      this.repository.addOrUpdateMessage(parentId, { ...message });
       console.error(e);
     } finally {
-      this.cancelRun();
+      this.abortController = null;
+      this.notifySubscribers();
     }
   }
 
@@ -106,16 +96,15 @@ export class LocalRuntime implements ThreadRuntime {
 
     this.abortController.abort();
     this.abortController = null;
-    for (const callback of this._statusUpdateCallbacks) callback(false);
+    this.notifySubscribers();
   }
 
-  subscribeToMessageUpdates(callback: MessageUpdateCallback): Unsubscribe {
-    this._messageUpdateCallbacks.add(callback);
-    return () => this._messageUpdateCallbacks.delete(callback);
+  private notifySubscribers() {
+    for (const callback of this._subscriptions) callback();
   }
 
-  subscribeToStatusUpdates(callback: StatusUpdateCallback): Unsubscribe {
-    this._statusUpdateCallbacks.add(callback);
-    return () => this._statusUpdateCallbacks.delete(callback);
+  public subscribe(callback: () => void): Unsubscribe {
+    this._subscriptions.add(callback);
+    return () => this._subscriptions.delete(callback);
   }
 }
