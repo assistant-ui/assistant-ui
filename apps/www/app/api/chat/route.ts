@@ -2,8 +2,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { streamText } from "ai";
 
 const openai = createOpenAI({
-  apiKey: process.env["MDB_API_KEY"] ?? "-",
-  baseURL: "https://llm.mdb.ai/",
+  baseURL: process.env["OPENAI_BASE_URL"] as string,
 });
 
 export const runtime = "edge";

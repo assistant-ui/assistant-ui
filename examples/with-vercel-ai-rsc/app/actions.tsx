@@ -49,7 +49,7 @@ export async function continueConversation(
             .number()
             .describe("The number of months to get historical information for"),
         }),
-        generate: async ({ symbol, numOfMonths }) => {
+        generate: async ({ symbol }) => {
           history.done((messages: ServerMessage[]) => [
             ...messages,
             {

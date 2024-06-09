@@ -4,7 +4,8 @@
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["**/*.*", "!.next", "!.turbo"],
-      "outputs": ["dist", ".next/**", "!.next/cache/**", "public/registry/**"]
+      "outputs": ["dist", ".next/**", "!.next/cache/**", "public/registry/**"],
+      "env": ["OPENAI_*"]
     },
     "lint": {},
     "deploy": {
