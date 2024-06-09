@@ -29,7 +29,10 @@ export const ThreadViewport = forwardRef<
 
   const { useViewport } = useAssistantContext();
 
+  // TODO find a more elegant implementation for this
+
   const firstRenderRef = useRef(true);
+  const isScrollingToBottomRef = useRef(false);
   const lastScrollTop = useRef<number>(0);
 
   const scrollToBottom = () => {
@@ -39,12 +42,13 @@ export const ThreadViewport = forwardRef<
     const behavior = firstRenderRef.current ? "instant" : "auto";
     firstRenderRef.current = false;
 
-    useViewport.setState({ isAtBottom: true });
+    isScrollingToBottomRef.current = true;
     div.scrollIntoView({ behavior });
   };
 
   useOnResizeContent(divRef, () => {
-    if (!useViewport.getState().isAtBottom) return;
+    if (!isScrollingToBottomRef.current && !useViewport.getState().isAtBottom)
+      return;
     scrollToBottom();
   });
 
@@ -62,8 +66,10 @@ export const ThreadViewport = forwardRef<
     if (!newIsAtBottom && lastScrollTop.current < div.scrollTop) {
       // ignore scroll down
     } else if (newIsAtBottom !== isAtBottom) {
+      isScrollingToBottomRef.current = false;
       useViewport.setState({ isAtBottom: newIsAtBottom });
     }
+
     lastScrollTop.current = div.scrollTop;
   };
 
