@@ -36,8 +36,6 @@ const supportedModels = [
 ];
 
 export default function Home() {
-  const chat = useChat();
-
   const [selectedModel, setSelectedModel] = useState(supportedModels[0]!);
   const ChatComponent = selectedModel.component;
 
@@ -76,9 +74,9 @@ export default function Home() {
           </div>
         </div>
         <div className="mt-4 h-[650px] overflow-hidden rounded-lg border shadow">
-          <VercelAIAssistantProvider chat={chat}>
+          <MyRuntimeProvider>
             <ChatComponent />
-          </VercelAIAssistantProvider>
+          </MyRuntimeProvider>
         </div>
       </div>
     </main>
@@ -87,4 +85,13 @@ export default function Home() {
 
 export type AssistantProps = {
   chat: ReturnType<typeof useChat>;
+};
+
+const MyRuntimeProvider = ({ children }: { children: React.ReactNode }) => {
+  const chat = useChat();
+  return (
+    <VercelAIAssistantProvider chat={chat}>
+      {children}
+    </VercelAIAssistantProvider>
+  );
 };
