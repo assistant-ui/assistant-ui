@@ -47,9 +47,11 @@ export const ThreadViewport = forwardRef<
   };
 
   useOnResizeContent(divRef, () => {
-    if (!isScrollingToBottomRef.current && !useViewport.getState().isAtBottom)
-      return;
-    scrollToBottom();
+    if (!isScrollingToBottomRef.current && !useViewport.getState().isAtBottom) {
+      handleScroll();
+    } else {
+      scrollToBottom();
+    }
   });
 
   useOnScrollToBottom(() => {
