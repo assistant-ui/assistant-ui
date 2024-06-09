@@ -14,7 +14,11 @@ export type {
   VercelAIAssistantProviderProps,
   VercelRSCAssistantProviderProps,
 } from "./adapters/vercel";
+export type { VercelRSCMessage } from "./adapters/core/vercel-rsc/VercelRSCRuntime";
 
+/**
+ * @deprecated This type was renamed to `VercelRSCMessage`. Please use that import. Will be removed in 0.1.0.
+ */
 export type { VercelRSCMessage as RSCMessage } from "./adapters/core/vercel-rsc/VercelRSCRuntime";
 
 export type {
