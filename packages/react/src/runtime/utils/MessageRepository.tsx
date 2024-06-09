@@ -102,13 +102,13 @@ export class MessageRepository {
       children: [],
       level: prev ? prev.level + 1 : 0,
     };
+    
     this.messages.set(message.id, newItem);
+    this.performOp(prev, newItem, "link");
 
     if (this.head === prev) {
       this.head = newItem;
     }
-
-    this.performOp(prev, newItem, "link");
   }
 
   appendOptimisticMessage(
@@ -130,17 +130,23 @@ export class MessageRepository {
     return optimisticId;
   }
 
-  deleteMessage(messageId: string, replacementId: string | null) {
+  deleteMessage(messageId: string, replacementId?: string | null | undefined) {
     const message = this.messages.get(messageId);
-    const replacement = replacementId ? this.messages.get(replacementId) : null;
+
     if (!message)
       throw new Error(
         "MessageRepository(deleteMessage): Optimistic message not found. This is likely an internal bug in assistant-ui.",
       );
 
+    const replacement =
+      replacementId === undefined
+        ? message.prev // if no replacementId is provided, use the parent
+        : replacementId === null
+          ? null
+          : this.messages.get(replacementId);
     if (replacement === undefined)
       throw new Error(
-        "MessageRepository(deleteMessage): New message not found. This is likely an internal bug in assistant-ui.",
+        "MessageRepository(deleteMessage): Replacement not found. This is likely an internal bug in assistant-ui.",
       );
 
     for (const child of message.children) {
@@ -152,13 +158,12 @@ export class MessageRepository {
       this.performOp(replacement, childMessage, "relink");
     }
 
+    this.performOp(null, message, "cut");
     this.messages.delete(messageId);
 
     if (this.head === message) {
-      this.head = replacement;
+      this.head = replacement ? findHead(replacement) : null;
     }
-
-    this.performOp(null, message, "cut");
   }
 
   getBranches(messageId: string) {

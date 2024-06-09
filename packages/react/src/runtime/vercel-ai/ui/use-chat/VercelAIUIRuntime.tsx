@@ -109,7 +109,7 @@ export class VercelUseChatRuntime implements ReactAssistantRuntime {
     }
 
     if (this.assistantOptimisticId) {
-      this.repository.deleteMessage(this.assistantOptimisticId, null);
+      this.repository.deleteMessage(this.assistantOptimisticId);
       this.assistantOptimisticId = null;
     }
 
