@@ -1,9 +1,9 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "pipeline": {
+  "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "inputs": ["**.*", "!.next", "!.turbo"],
+      "inputs": ["**/*.*", "!.next", "!.turbo"],
       "outputs": ["dist", ".next/**", "!.next/cache/**", "public/registry/**"]
     },
     "lint": {},

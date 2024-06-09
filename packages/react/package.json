@@ -18,10 +18,7 @@
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
-  "files": [
-    "dist",
-    "README.md"
-  ],
+  "files": ["dist", "README.md"],
   "sideEffects": false,
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts"
@@ -32,17 +29,20 @@
     "@radix-ui/react-primitive": "^1.0.3",
     "@radix-ui/react-slot": "^1.0.2",
     "@radix-ui/react-use-callback-ref": "^1.0.1",
-    "ai": "^3.1.30",
     "nanoid": "^5.0.7",
     "react-textarea-autosize": "^8.5.3",
     "zustand": "^4.5.2"
   },
   "peerDependencies": {
     "@types/react": "*",
+    "ai": "^3",
     "react": "^18"
   },
   "peerDependenciesMeta": {
     "@types/react": {
+      "optional": true
+    },
+    "ai": {
       "optional": true
     }
   },
