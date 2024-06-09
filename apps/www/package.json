@@ -11,8 +11,8 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^0.0.24",
-    "@assistant-ui/react": "*",
-    "@assistant-ui/shadcn": "*",
+    "@assistant-ui/react": "workspace:*",
+    "@assistant-ui/shadcn": "workspace:*",
     "@calcom/embed-react": "^1.5.0",
     "@fortawesome/fontawesome-svg-core": "^6.5.2",
     "@fortawesome/free-solid-svg-icons": "^6.5.2",
@@ -41,7 +41,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@assistant-ui/tsconfig": "*",
+    "@assistant-ui/tsconfig": "workspace:*",
     "@tailwindcss/typography": "^0.5.13",
     "@types/node": "20.14.2",
     "@types/react": "^18",
