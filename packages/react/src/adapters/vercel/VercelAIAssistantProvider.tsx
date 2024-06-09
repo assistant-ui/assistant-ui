@@ -1,10 +1,10 @@
 "use client";
 
 import type { UseAssistantHelpers, UseChatHelpers } from "ai/react";
-import { type FC, type PropsWithChildren, useMemo } from "react";
-import { AssistantContext } from "../../utils/context/AssistantContext";
-import { useDummyAIAssistantContext } from "./useDummyAIAssistantContext";
-import { useVercelAIThreadState } from "./useVercelAIThreadState";
+import { type FC, type PropsWithChildren, useEffect } from "react";
+import { useAssistantContext } from "../../utils/context/AssistantContext";
+import { AssistantProvider } from "../core/AssistantProvider";
+import { useVercelUseChatRuntime } from "../core/vercel-use-chat/useVercelUseChatRuntime";
 
 export type VercelAIAssistantProviderProps = PropsWithChildren<
   | {
@@ -19,30 +19,28 @@ export const VercelAIAssistantProvider: FC<VercelAIAssistantProviderProps> = ({
   children,
   ...rest
 }) => {
-  const context = useDummyAIAssistantContext();
-
   const vercel = "chat" in rest ? rest.chat : rest.assistant;
+  const runtime = useVercelUseChatRuntime(vercel);
 
-  // -- useThread sync --
+  return (
+    <AssistantProvider runtime={runtime}>
+      <ComposerSync vercel={vercel} />
+      {children}
+    </AssistantProvider>
+  );
+};
 
-  const threadState = useVercelAIThreadState(vercel);
+const ComposerSync = ({
+  vercel,
+}: { vercel: UseChatHelpers | UseAssistantHelpers }) => {
+  const { useComposer } = useAssistantContext();
 
-  useMemo(() => {
-    context.useThread.setState(threadState, true);
-  }, [context, threadState]);
-
-  // -- useComposer sync --
-
-  useMemo(() => {
-    context.useComposer.setState({
+  useEffect(() => {
+    useComposer.setState({
       value: vercel.input,
       setValue: vercel.setInput,
     });
-  }, [context, vercel.input, vercel.setInput]);
+  }, [useComposer, vercel.input, vercel.setInput]);
 
-  return (
-    <AssistantContext.Provider value={context}>
-      {children}
-    </AssistantContext.Provider>
-  );
+  return null;
 };
