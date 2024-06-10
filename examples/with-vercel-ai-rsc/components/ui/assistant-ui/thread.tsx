@@ -80,9 +80,7 @@ const UserMessage: FC = () => {
       <div className="flex-grow">
         <p className="font-semibold">You</p>
 
-        <p className="whitespace-pre-line text-foreground">
-          <MessagePrimitive.Content />
-        </p>
+        <MessagePrimitive.Content />
       </div>
     </MessagePrimitive.Root>
   );
@@ -98,9 +96,7 @@ const AssistantMessage: FC = () => {
       <div className="flex-grow">
         <p className="font-semibold">Assistant</p>
 
-        <p className="whitespace-pre-line text-foreground">
-          <MessagePrimitive.Content />
-        </p>
+        <MessagePrimitive.Content />
       </div>
     </MessagePrimitive.Root>
   );

@@ -1,0 +1,105 @@
+---
+title: useChat Runtime
+---
+
+## Overview
+
+Integration with the Vercel AI SDK UI's `useChat` hook.  
+It allows integration with OpenAI, Anthropic, Mistral, Perplexity, AWS Bedrock, Azure, Google Gemini, Hugging Face, Fireworks, Cohere, LangChain, Replicate, Ollama, and more.
+
+## Getting Started
+
+import { Steps } from 'nextra/components'
+
+<Steps>
+  ### Create a Next.JS project
+
+  ```sh
+  npx create-next-app@latest my-app
+  cd my-app
+  ```
+  
+  ### Install Vercel AI SDK and `@assistant-ui/react`
+
+  ```sh npm2yarn
+  npm install @assistant-ui/react@latest ai @ai-sdk/openai
+  ```
+
+  ### Setup a backend route under `/api/chat`
+
+  `@/app/api/chat/route.ts`
+
+  ```tsx
+  import { openai } from '@ai-sdk/openai';
+  import { streamText } from 'ai';
+
+  export const maxDuration = 30;
+
+  export async function POST(req: Request) {
+    const { messages } = await req.json();
+
+    const result = await streamText({
+      model: openai('gpt-4o'),
+      messages,
+    });
+
+    return result.toAIStreamResponse();
+  }
+  ```
+
+  ### Define a `MyRuntimeProvider` component
+
+  `@/app/MyRuntimeProvider.tsx`
+
+  ```tsx
+  "use client";
+
+  import { AssistantRuntimeProvider, useVercelUseChatRuntime } from '@assistant-ui/react';
+  import { useChat } from 'ai/react'; 
+
+  export function MyRuntimeProvider({
+    children,
+  }: Readonly<{
+    children: React.ReactNode;
+  }>) { 
+    const chat = useChat({
+      api: '/api/chat',
+    });
+
+    const runtime = useVercelUseChatRuntime(chat);
+
+    return (
+      <AssistantRuntimeProvider runtime={runtime}>
+        {children}
+      </AssistantRuntimeProvider>
+    );
+  }
+  ```
+
+  ### Wrap your app in `MyRuntimeProvider`
+
+  `@/app/layout.tsx`
+
+  ```tsx {1,11,17}
+  import { MyRuntimeProvider } from '@/app/MyRuntimeProvider';
+
+  ...
+
+  export default function RootLayout({
+    children,
+  }: Readonly<{
+    children: React.ReactNode;
+  }>) {
+    return (
+      <MyRuntimeProvider>
+        <html lang="en">
+          <body className={inter.className}>
+            {children}
+          </body>
+        </html>
+      </MyRuntimeProvider>
+    )
+  }
+  ```
+
+</Steps>

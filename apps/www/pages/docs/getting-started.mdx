@@ -1,10 +1,11 @@
 ---
 title: Getting Started
-description: This initial setup should take less than 5 minutes.
+description: React Components for AI Chat
 ---
 
-import { Steps } from 'nextra/components'
- 
+`assistant-ui` consists of two parts, `runtime` and `ui`.  
+You need to setup the `runtime` before you can use any `ui` components.
+
 The recommended way to get started is with the following stack:
 
 - NextJS
@@ -12,78 +13,20 @@ The recommended way to get started is with the following stack:
 - `tailwindcss` for styling
 - `shadcn/ui` for UI components
 
+## Step 1: Setup the Runtime
 
-<Steps>
-### Create a Next.JS project
+You wrap your entire app in a `<AssistantRuntimeProvider runtime={runtime}>` component. 
 
-```sh
-npx create-next-app@latest my-app
-cd my-app
-```
+This component makes a `Runtime` available to the rest of your app.
+The `Runtime` takes care of LLM communication, tools, streaming, state management, branching, persistence, authentication and more.
 
-### Initialize `shadcn-ui`
+Refer to [Picking a Runtime](/docs/runtimes/pick-a-runtime) to pick the right runtime for your use case.
 
-```sh
-npx shadcn-ui@latest init
-```
+## Step 2: Use the UI Components
 
-### Add `assistant-ui`
+The easiest way to get started is with `shadcn/ui` + `tailwind` components.
 
-```sh
-npx @assistant-ui/shadcn@latest add thread
-```
+Currently, two modes are supported:
 
-This adds a `/components/ui/assistant-ui/thread.tsx` file to your project, which you can adjust as needed.
-
-### Use it in your application:
-
-`/app/index.tsx`
-
-```tsx
-"use client";
-
-import { VercelAIAssistantProvider } from '@assistant-ui/react';
-import { Thread } from '@/components/ui/assistant-ui/thread';
-import { useChat } from 'ai/react'; 
-
-export default function Home() {
-  const chat = useChat();
-  return (
-    <div className="h-full">
-      <VercelAIAssistantProvider chat={chat}>
-        <Thread />
-      </VercelAIAssistantProvider>
-    </div>
-  );
-}
-```
-
-`/app/api/chat/route.ts`
-
-```tsx
-import { openai } from '@ai-sdk/openai';
-import { streamText } from 'ai';
-
-export const maxDuration = 30;
-
-export async function POST(req: Request) {
-  const { messages } = await req.json();
-
-  const result = await streamText({
-    model: openai('gpt-4o'),
-    messages,
-  });
-
-  return result.toAIStreamResponse();
-}
-```
-</Steps>
-
-### Manual Installation
-
-If your stack is not compatible with the `@assistant-ui/shadcn` starter template, you can install `@assistant-ui/react` manually. 
-You can check out the source code of the starter template as a reference implementation.
-
-```sh npm2yarn
-npm install @assistant-ui/react
-```
+- [`<AssistantModal />`](/docs/ui/assistant-modal): a modal chat UI in the bottom right corner
+- [`<Thread />`](/docs/ui/thread): a chat UI with a sidebar

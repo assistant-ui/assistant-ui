@@ -2,7 +2,6 @@ import icon from "@/public/favicon/favicon.svg";
 import Image from "next/image";
 import { type DocsThemeConfig, useConfig } from "nextra-theme-docs";
 import React from "react";
-import title from "title";
 
 const config: DocsThemeConfig = {
   color: {
@@ -24,11 +23,11 @@ const config: DocsThemeConfig = {
   editLink: { component: null },
   toc: { title: null, backToTop: false },
   main: ({ children }) => {
-    const { frontMatter, filePath } = useConfig();
+    const { frontMatter, normalizePagesResult } = useConfig();
     return (
       <>
         <p className="mt-4 mb-2 font-bold text-[hsl(var(--nextra-primary-hue)_var(--nextra-primary-saturation)_45%)] text-sm">
-          {title(filePath.split("/").at(-2)!)}
+          {normalizePagesResult.activePath.at(-2)?.title}
         </p>
         <h1 className="mb-2 inline-block font-extrabold text-2xl text-foreground tracking-tight sm:text-3xl">
           {frontMatter["title"]}

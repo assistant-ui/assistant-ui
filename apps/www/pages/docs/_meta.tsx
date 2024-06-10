@@ -1,11 +1,19 @@
 export default {
   index: "Introduction",
   "getting-started": "Getting Started",
-  "-- guides": {
-    title: "Guides",
+  "-- runtime": {
+    title: "Runtime",
     type: "separator",
   },
-  guides: {
+  runtimes: {
+    display: "children",
+  },
+
+  "-- ui": {
+    title: "UI",
+    type: "separator",
+  },
+  ui: {
     display: "children",
   },
   "-- primitives": {
@@ -13,6 +21,14 @@ export default {
     type: "separator",
   },
   primitives: {
+    display: "children",
+  },
+
+  "-- advanced": {
+    title: "Advacned",
+    type: "separator",
+  },
+  advanced: {
     display: "children",
   },
 };

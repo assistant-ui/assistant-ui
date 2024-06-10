@@ -1,0 +1,161 @@
+---
+title: useAssistant Runtime
+---
+
+## Overview
+
+Integration with the Vercel AI SDK UI's `useAssistant` hook.  
+This allows interaction with the OpenAI Assistants API.
+
+## Getting Started  
+
+import { Steps } from 'nextra/components'
+
+<Steps>
+  ### Create a Next.JS project
+
+  ```sh
+  npx create-next-app@latest my-app
+  cd my-app
+  ```
+
+  ### Install Vercel AI SDK and `@assistant-ui/react`
+
+  ```sh npm2yarn
+  npm install @assistant-ui/react@latest ai openai
+  ```
+
+  ### Setup a backend route under `/api/assistant`
+
+  `/app/api/assistant/route.ts`
+
+  ```tsx
+  import { AssistantResponse } from 'ai';
+  import OpenAI from 'openai';
+
+  const openai = new OpenAI();
+
+  // Allow streaming responses up to 30 seconds
+  export const maxDuration = 30;
+
+  export async function POST(req: Request) {
+    // Parse the request body
+    const input: {
+      threadId: string | null;
+      message: string;
+    } = await req.json();
+
+    // Create a thread if needed
+    const threadId = input.threadId ?? (await openai.beta.threads.create({})).id;
+
+    // Add a message to the thread
+    const createdMessage = await openai.beta.threads.messages.create(threadId, {
+      role: 'user',
+      content: input.message,
+    });
+
+    return AssistantResponse(
+      { threadId, messageId: createdMessage.id },
+      async ({ forwardStream, sendDataMessage }) => {
+        // Run the assistant on the thread
+        const runStream = openai.beta.threads.runs.stream(threadId, {
+          assistant_id:
+            process.env.ASSISTANT_ID ??
+            (() => {
+              throw new Error('ASSISTANT_ID is not set');
+            })(),
+        });
+
+        // forward run status would stream message deltas
+        let runResult = await forwardStream(runStream);
+
+        // status can be: queued, in_progress, requires_action, cancelling, cancelled, failed, completed, or expired
+        while (
+          runResult?.status === 'requires_action' &&
+          runResult.required_action?.type === 'submit_tool_outputs'
+        ) {
+          const tool_outputs =
+            runResult.required_action.submit_tool_outputs.tool_calls.map(
+              (toolCall: any) => {
+                const parameters = JSON.parse(toolCall.function.arguments);
+
+                switch (toolCall.function.name) {
+                  // configure your tool calls here
+
+                  default:
+                    throw new Error(
+                      `Unknown tool call function: ${toolCall.function.name}`,
+                    );
+                }
+              },
+            );
+
+          runResult = await forwardStream(
+            openai.beta.threads.runs.submitToolOutputsStream(
+              threadId,
+              runResult.id,
+              { tool_outputs },
+            ),
+          );
+        }
+      },
+    );
+  }
+  ```
+
+  ### Define a `MyRuntimeProvider` component
+
+  `@/app/MyRuntimeProvider.tsx`
+
+  ```tsx
+  "use client";
+
+  import { AssistantRuntimeProvider, useVercelUseAssistantRuntime } from '@assistant-ui/react';
+  import { useAssistant } from 'ai/react'; 
+
+  export function MyRuntimeProvider({
+    children,
+  }: Readonly<{
+    children: React.ReactNode;
+  }>) { 
+    const assistant = useAssistant({
+      api: '/api/assistant',
+    });
+
+    const runtime = useVercelUseAssistantRuntime(assistant);
+
+    return (
+      <AssistantRuntimeProvider runtime={runtime}>
+        {children}
+      </AssistantRuntimeProvider>
+    );
+  }
+  ```
+
+  ### Wrap your app in `MyRuntimeProvider`
+
+  `@/app/layout.tsx`
+
+  ```tsx {1,11,17}
+  import { MyRuntimeProvider } from '@/app/MyRuntimeProvider';
+
+  ...
+
+  export default function RootLayout({
+    children,
+  }: Readonly<{
+    children: React.ReactNode;
+  }>) {
+    return (
+      <MyRuntimeProvider>
+        <html lang="en">
+          <body className={inter.className}>
+            {children}
+          </body>
+        </html>
+      </MyRuntimeProvider>
+    )
+  }
+  ```
+
+</Steps>
