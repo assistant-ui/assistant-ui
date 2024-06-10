@@ -1,7 +1,7 @@
-export * from "./BaseComposer";
-export * from "./ContentPart";
-export * from "./Message";
-export * from "./MessageComposer";
-export * from "./Thread";
-export * from "./ThreadComposer";
-export * from "./ThreadViewport";
+export type { BaseComposerState } from "./BaseComposer";
+export type { ContentPartState } from "./ContentPart";
+export type { MessageState } from "./Message";
+export type { MessageComposerState } from "./MessageComposer";
+export type { ThreadState } from "./Thread";
+export type { ThreadComposerState } from "./ThreadComposer";
+export type { ThreadViewportState } from "./ThreadViewport";

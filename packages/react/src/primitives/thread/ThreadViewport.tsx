@@ -7,7 +7,7 @@ import {
   Primitive,
 } from "@radix-ui/react-primitive";
 import { type ElementRef, forwardRef, useRef } from "react";
-import { useThreadContext } from "../../context/AssistantContext";
+import { useThreadContext } from "../../context/ThreadContext";
 import { useOnResizeContent } from "../../utils/hooks/useOnResizeContent";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 

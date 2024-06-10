@@ -30,7 +30,6 @@ export type {
   UIContentPart as unstable_UIContentPart,
 } from "./utils/AssistantTypes";
 
-export { AssistantRuntimeProvider } from "./context/providers/AssistantRuntimeProvider";
 export { useLocalRuntime as unstable_useLocalRuntime } from "./runtime/local/useLocalRuntime";
 export type {
   ChatModelAdapter as unstable_ChatModelAdapter,
@@ -38,6 +37,7 @@ export type {
 } from "./runtime/local/ChatModelAdapter";
 export { VercelModelAdapter as unstable_VercelModelAdapter } from "./runtime/local/vercel/VercelModelAdapter";
 
+export { AssistantRuntimeProvider } from "./context/providers/AssistantRuntimeProvider";
 export {
   // context
   useThreadContext as unstable_useThreadContext,

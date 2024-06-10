@@ -1,7 +1,7 @@
 "use client";
 
 import type { ComponentType, FC } from "react";
-import { useThreadContext } from "../../context/AssistantContext";
+import { useThreadContext } from "../../context/ThreadContext";
 import { MessageProvider } from "../../context/providers/MessageProvider";
 import { ComposerIf } from "../composer/ComposerIf";
 import { MessageIf } from "../message/MessageIf";

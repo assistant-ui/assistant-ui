@@ -5,10 +5,8 @@ import type {
   AppendMessage,
   ThreadMessage,
 } from "../../../utils/AssistantTypes";
-import type {
-  AssistantRuntime,
-  Unsubscribe,
-} from "../../core/AssistantRuntime";
+import type { AssistantRuntime } from "../../core/AssistantRuntime";
+import type { ReactThreadRuntime, Unsubscribe } from "../../core/ThreadRuntime";
 import type { VercelRSCAdapter } from "./VercelRSCAdapter";
 import type { VercelRSCMessage } from "./VercelRSCMessage";
 import { useVercelRSCSync } from "./useVercelRSCSync";
@@ -16,7 +14,7 @@ import { useVercelRSCSync } from "./useVercelRSCSync";
 const EMPTY_BRANCHES: readonly never[] = Object.freeze([]);
 
 export class VercelRSCRuntime<T extends WeakKey = VercelRSCMessage>
-  implements AssistantRuntime
+  implements AssistantRuntime, ReactThreadRuntime
 {
   private useAdapter: UseBoundStore<StoreApi<{ adapter: VercelRSCAdapter<T> }>>;
 

@@ -3,9 +3,10 @@ import type {
   AssistantMessage,
   UserMessage,
 } from "../../utils/AssistantTypes";
+import type { AssistantRuntime } from "../core/AssistantRuntime";
+import type { Unsubscribe } from "../core/ThreadRuntime";
 import { MessageRepository } from "../utils/MessageRepository";
 import { generateId } from "../utils/idUtils";
-import type { AssistantRuntime, Unsubscribe } from "../core/AssistantRuntime";
 import type { ChatModelAdapter } from "./ChatModelAdapter";
 
 export class LocalRuntime implements AssistantRuntime {

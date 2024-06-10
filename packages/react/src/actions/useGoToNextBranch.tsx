@@ -1,6 +1,6 @@
 import { useCallback } from "react";
-import { useThreadContext } from "../context/AssistantContext";
 import { useMessageContext } from "../context/MessageContext";
+import { useThreadContext } from "../context/ThreadContext";
 import { useCombinedStore } from "../utils/combined/useCombinedStore";
 
 export const useGoToNextBranch = () => {

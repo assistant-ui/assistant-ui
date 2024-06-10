@@ -5,8 +5,8 @@ import {
   Primitive,
 } from "@radix-ui/react-primitive";
 import { type ElementRef, forwardRef } from "react";
-import { useThreadContext } from "../../context/AssistantContext";
 import { useMessageContext } from "../../context/MessageContext";
+import { useThreadContext } from "../../context/ThreadContext";
 import { useCombinedStore } from "../../utils/combined/useCombinedStore";
 
 type ActionBarRootElement = ElementRef<typeof Primitive.div>;

@@ -7,9 +7,9 @@ import type {
   ThreadMessage,
 } from "../../utils/AssistantTypes";
 import { getMessageText } from "../../utils/getMessageText";
-import { useThreadContext } from "../AssistantContext";
 import { MessageContext } from "../MessageContext";
 import type { MessageContextValue } from "../MessageContext";
+import { useThreadContext } from "../ThreadContext";
 import type { MessageState } from "../stores/Message";
 import { makeMessageComposerStore } from "../stores/MessageComposer";
 import type { ThreadState } from "../stores/Thread";

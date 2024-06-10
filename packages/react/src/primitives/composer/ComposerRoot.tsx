@@ -7,8 +7,8 @@ import {
   Primitive,
 } from "@radix-ui/react-primitive";
 import { type ElementRef, type FormEvent, forwardRef, useRef } from "react";
-import { useThreadContext } from "../../context/AssistantContext";
 import { useComposerContext } from "../../context/ComposerContext";
+import { useThreadContext } from "../../context/ThreadContext";
 
 type ComposerRootElement = ElementRef<typeof Primitive.form>;
 type PrimitiveFormProps = ComponentPropsWithoutRef<typeof Primitive.form>;

@@ -6,7 +6,7 @@ import {
   Primitive,
 } from "@radix-ui/react-primitive";
 import { type ElementRef, forwardRef } from "react";
-import { useThreadContext } from "../../context/AssistantContext";
+import { useThreadContext } from "../../context/ThreadContext";
 
 type ThreadSuggestionElement = ElementRef<typeof Primitive.button>;
 type PrimitiveButtonProps = ComponentPropsWithoutRef<typeof Primitive.button>;

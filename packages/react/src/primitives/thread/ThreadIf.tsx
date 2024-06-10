@@ -1,7 +1,7 @@
 "use client";
 
 import type { FC, PropsWithChildren } from "react";
-import { useThreadContext } from "../../context/AssistantContext";
+import { useThreadContext } from "../../context/ThreadContext";
 import type { RequireAtLeastOne } from "../../utils/RequireAtLeastOne";
 
 type ThreadIfFilters = {

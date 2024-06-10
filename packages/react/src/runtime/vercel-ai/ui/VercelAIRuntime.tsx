@@ -4,10 +4,8 @@ import type {
   AppendMessage,
   ThreadMessage,
 } from "../../../utils/AssistantTypes";
-import type {
-  ReactAssistantRuntime,
-  Unsubscribe,
-} from "../../core/AssistantRuntime";
+import type { AssistantRuntime } from "../../core/AssistantRuntime";
+import type { ReactThreadRuntime, Unsubscribe } from "../../core/ThreadRuntime";
 import { MessageRepository } from "../../utils/MessageRepository";
 import { getVercelAIMessage } from "./getVercelAIMessage";
 import type { VercelHelpers } from "./utils/VercelHelpers";
@@ -19,7 +17,7 @@ const hasUpcomingMessage = (isRunning: boolean, messages: ThreadMessage[]) => {
   return isRunning && messages[messages.length - 1]?.role !== "assistant";
 };
 
-export class VercelAIRuntime implements ReactAssistantRuntime {
+export class VercelAIRuntime implements AssistantRuntime, ReactThreadRuntime {
   private _subscriptions = new Set<() => void>();
   private repository = new MessageRepository();
   private assistantOptimisticId: string | null = null;
