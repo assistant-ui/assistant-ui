@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback } from "react";
-import { useAssistantContext } from "../context/AssistantContext";
+import { useThreadContext } from "../context/AssistantContext";
 
 export const useCancelRun = () => {
-  const { useThread } = useAssistantContext();
+  const { useThread } = useThreadContext();
   const isRunning = useThread((s) => s.isRunning);
 
   const callback = useCallback(() => {

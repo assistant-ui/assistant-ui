@@ -4,18 +4,16 @@ import type { ThreadState } from "./stores/Thread";
 import type { ThreadComposerState } from "./stores/ThreadComposer";
 import type { ThreadViewportState } from "./stores/ThreadViewport";
 
-export type AssistantContextValue = {
-  useViewport: UseBoundStore<StoreApi<ThreadViewportState>>;
+export type ThreadContextValue = {
   useThread: UseBoundStore<StoreApi<ThreadState>>;
   useComposer: UseBoundStore<StoreApi<ThreadComposerState>>;
+  useViewport: UseBoundStore<StoreApi<ThreadViewportState>>;
 };
 
-export const AssistantContext = createContext<AssistantContextValue | null>(
-  null,
-);
+export const ThreadContext = createContext<ThreadContextValue | null>(null);
 
-export const useAssistantContext = (): AssistantContextValue => {
-  const context = useContext(AssistantContext);
+export const useThreadContext = (): ThreadContextValue => {
+  const context = useContext(ThreadContext);
   if (!context)
     throw new Error("This component must be used within an AssistantProvider.");
   return context;

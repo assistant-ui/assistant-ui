@@ -6,7 +6,7 @@ import {
   Primitive,
 } from "@radix-ui/react-primitive";
 import { type ElementRef, forwardRef } from "react";
-import { useAssistantContext } from "../../context/AssistantContext";
+import { useThreadContext } from "../../context/AssistantContext";
 
 type ThreadSuggestionElement = ElementRef<typeof Primitive.button>;
 type PrimitiveButtonProps = ComponentPropsWithoutRef<typeof Primitive.button>;
@@ -21,7 +21,7 @@ export const ThreadSuggestion = forwardRef<
   ThreadSuggestionElement,
   ThreadSuggestionProps
 >(({ onClick, prompt, method, autoSend: send, ...rest }, ref) => {
-  const { useThread, useComposer } = useAssistantContext();
+  const { useThread, useComposer } = useThreadContext();
 
   const isDisabled = useThread((t) => t.isRunning);
   const handleApplySuggestion = () => {

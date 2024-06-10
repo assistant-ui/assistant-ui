@@ -2,6 +2,7 @@
 
 import type { ComponentType, FC, ReactNode } from "react";
 import { useMessageContext } from "../../context/MessageContext";
+import { ContentPartProvider } from "../../context/providers/ContentPartProvider";
 import type {
   ImageContentPart,
   TextContentPart,
@@ -9,7 +10,6 @@ import type {
   UIContentPart,
 } from "../../utils/AssistantTypes";
 import { ContentPartInProgressIndicator } from "../contentPart/ContentPartInProgressIndicator";
-import { ContentPartProvider } from "../contentPart/ContentPartProvider";
 
 type MessageContentProps = {
   components?: {
@@ -49,12 +49,11 @@ export const MessageContent: FC<MessageContentProps> = ({
 
   const message = useMessage((s) => s.message);
   const content = message.content;
-  const status = message.role === "assistant" ? message.status : "done";
 
   return (
     <>
       {content.map((part, i) => {
-        const key = i; // use the index as key, as message is generally append only
+        const partIndex = i; // use the index as key, as message is generally append only
 
         const type = part.type;
         let component: ReactNode | null = null;
@@ -79,11 +78,7 @@ export const MessageContent: FC<MessageContentProps> = ({
         }
 
         return (
-          <ContentPartProvider
-            key={key}
-            part={part}
-            status={i === content.length - 1 ? status : "done"}
-          >
+          <ContentPartProvider key={partIndex} partIndex={partIndex}>
             {component}
           </ContentPartProvider>
         );

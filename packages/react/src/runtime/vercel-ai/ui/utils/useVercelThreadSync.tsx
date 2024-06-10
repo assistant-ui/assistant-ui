@@ -73,7 +73,8 @@ export const useVercelThreadSync = (
   const isRunning = getIsRunning(vercel);
 
   const converter = useMemo(() => new ThreadMessageConverter(), []);
-  const messages = useMemo(() => {
+
+  useEffect(() => {
     const lastMessageId = vercel.messages.at(-1)?.id;
     const convertCallback: ConverterCallback<Message> = (message, cache) => {
       const status =
@@ -85,10 +86,11 @@ export const useVercelThreadSync = (
       return vercelToThreadMessage(message, status);
     };
 
-    return converter.convertMessages(convertCallback, vercel.messages);
-  }, [isRunning, vercel.messages, converter]);
+    const messages = converter.convertMessages(
+      convertCallback,
+      vercel.messages,
+    );
 
-  useEffect(() => {
     updateData(isRunning, messages);
-  }, [updateData, isRunning, messages]);
+  }, [updateData, isRunning, vercel.messages, converter]);
 };

@@ -6,7 +6,7 @@ import {
   Primitive,
 } from "@radix-ui/react-primitive";
 import { type ElementRef, forwardRef } from "react";
-import { useAssistantContext } from "../../context/AssistantContext";
+import { useThreadContext } from "../../context/AssistantContext";
 
 type ThreadScrollToBottomElement = ElementRef<typeof Primitive.button>;
 type PrimitiveButtonProps = ComponentPropsWithoutRef<typeof Primitive.button>;
@@ -17,7 +17,7 @@ export const ThreadScrollToBottom = forwardRef<
   ThreadScrollToBottomElement,
   ThreadScrollToBottomProps
 >(({ onClick, ...rest }, ref) => {
-  const { useViewport } = useAssistantContext();
+  const { useViewport } = useThreadContext();
 
   const isAtBottom = useViewport((s) => s.isAtBottom);
   const handleScrollToBottom = () => {

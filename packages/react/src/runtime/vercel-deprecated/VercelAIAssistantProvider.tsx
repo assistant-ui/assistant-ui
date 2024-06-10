@@ -2,7 +2,7 @@
 
 import type { UseAssistantHelpers, UseChatHelpers } from "ai/react";
 import type { FC, PropsWithChildren } from "react";
-import { AssistantRuntimeProvider } from "../core/AssistantRuntimeProvider";
+import { AssistantRuntimeProvider } from "../../context/providers/AssistantRuntimeProvider";
 import {
   useVercelUseAssistantRuntime,
   useVercelUseChatRuntime,

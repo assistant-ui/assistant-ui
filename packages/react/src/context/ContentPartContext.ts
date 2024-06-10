@@ -14,7 +14,7 @@ export const useContentPartContext = (): ContentPartContextValue => {
   const context = useContext(ContentPartContext);
   if (!context)
     throw new Error(
-      "This component must be used within a ContentPartPrimitive.Provider.",
+      "This component can only be used inside a component passed to <MessagePrimitive.Content components={...} >.",
     );
   return context;
 };

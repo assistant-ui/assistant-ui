@@ -13,7 +13,7 @@ import {
 import TextareaAutosize, {
   type TextareaAutosizeProps,
 } from "react-textarea-autosize";
-import { useAssistantContext } from "../../context/AssistantContext";
+import { useThreadContext } from "../../context/AssistantContext";
 import { useComposerContext } from "../../context/ComposerContext";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 
@@ -29,7 +29,7 @@ export const ComposerInput = forwardRef<
     { autoFocus = false, asChild, disabled, onChange, onKeyDown, ...rest },
     forwardedRef,
   ) => {
-    const { useThread, useViewport } = useAssistantContext();
+    const { useThread, useViewport } = useThreadContext();
     const { useComposer, type } = useComposerContext();
 
     const value = useComposer((c) => {

@@ -14,7 +14,7 @@ export const useMessageContext = () => {
   const context = useContext(MessageContext);
   if (!context)
     throw new Error(
-      "This component must be used within a MessagePrimitive.Provider.",
+      "This component can only be used inside a component passed to <ThreadPrimitive.Messages components={...} />.",
     );
   return context;
 };

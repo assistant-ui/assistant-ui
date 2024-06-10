@@ -1,14 +1,14 @@
 import type { FC, PropsWithChildren } from "react";
 import { memo, useEffect, useInsertionEffect, useRef, useState } from "react";
-import type { AssistantContextValue } from "../../context/AssistantContext";
-import { AssistantContext } from "../../context/AssistantContext";
-import { makeThreadStore } from "../../context/stores/Thread";
-import { makeThreadComposerStore } from "../../context/stores/ThreadComposer";
-import { makeThreadViewportStore } from "../../context/stores/ThreadViewport";
 import type {
   AssistantRuntime,
   ReactAssistantRuntime,
-} from "./AssistantRuntime";
+} from "../../runtime/core/AssistantRuntime";
+import type { ThreadContextValue } from "../AssistantContext";
+import { ThreadContext } from "../AssistantContext";
+import { makeThreadStore } from "../stores/Thread";
+import { makeThreadComposerStore } from "../stores/ThreadComposer";
+import { makeThreadViewportStore } from "../stores/ThreadViewport";
 
 type AssistantProviderProps = {
   runtime: AssistantRuntime;
@@ -32,7 +32,7 @@ const AssistantRuntimeProviderImpl: FC<
         useViewport,
         useThread,
         useComposer,
-      } satisfies AssistantContextValue,
+      } satisfies ThreadContextValue,
       onRuntimeUpdate,
     };
   });
@@ -49,10 +49,10 @@ const AssistantRuntimeProviderImpl: FC<
     .unstable_synchronizer;
 
   return (
-    <AssistantContext.Provider value={context}>
+    <ThreadContext.Provider value={context}>
       {RuntimeSynchronizer && <RuntimeSynchronizer />}
       {children}
-    </AssistantContext.Provider>
+    </ThreadContext.Provider>
   );
 };
 

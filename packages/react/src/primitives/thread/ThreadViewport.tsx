@@ -7,7 +7,7 @@ import {
   Primitive,
 } from "@radix-ui/react-primitive";
 import { type ElementRef, forwardRef, useRef } from "react";
-import { useAssistantContext } from "../../context/AssistantContext";
+import { useThreadContext } from "../../context/AssistantContext";
 import { useOnResizeContent } from "../../utils/hooks/useOnResizeContent";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 
@@ -27,7 +27,7 @@ export const ThreadViewport = forwardRef<
   const divRef = useRef<HTMLDivElement>(null);
   const ref = useComposedRefs(forwardedRef, divRef);
 
-  const { useViewport } = useAssistantContext();
+  const { useViewport } = useThreadContext();
 
   // TODO find a more elegant implementation for this
 

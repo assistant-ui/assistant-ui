@@ -7,10 +7,10 @@ import {
 import { type ElementRef, forwardRef, useMemo } from "react";
 import { useMessageContext } from "../../context/MessageContext";
 
-type MessageInProgressElement = ElementRef<typeof Primitive.div>;
-type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;
+type MessageInProgressElement = ElementRef<typeof Primitive.span>;
+type PrimitiveSpanProps = ComponentPropsWithoutRef<typeof Primitive.span>;
 
-type MessageInProgressProps = PrimitiveDivProps;
+type MessageInProgressProps = PrimitiveSpanProps;
 
 export const MessageInProgress = forwardRef<
   MessageInProgressElement,
@@ -21,7 +21,7 @@ export const MessageInProgress = forwardRef<
   useMemo(() => {
     useMessage
       .getState()
-      .setInProgressIndicator(<Primitive.div {...props} ref={ref} />);
+      .setInProgressIndicator(<Primitive.span {...props} ref={ref} />);
   }, [useMessage, props, ref]);
 
   return null;

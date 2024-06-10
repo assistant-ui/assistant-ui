@@ -5,7 +5,7 @@ import {
   Primitive,
 } from "@radix-ui/react-primitive";
 import { type ElementRef, forwardRef } from "react";
-import { useAssistantContext } from "../../context/AssistantContext";
+import { useThreadContext } from "../../context/AssistantContext";
 import { useMessageContext } from "../../context/MessageContext";
 import { useCombinedStore } from "../../utils/combined/useCombinedStore";
 
@@ -28,7 +28,7 @@ export const ActionBarRoot = forwardRef<
   ActionBarRootElement,
   ActionBarRootProps
 >(({ hideWhenRunning, autohide, autohideFloat, ...rest }, ref) => {
-  const { useThread } = useAssistantContext();
+  const { useThread } = useThreadContext();
   const { useMessage } = useMessageContext();
 
   const hideAndfloatStatus = useCombinedStore(

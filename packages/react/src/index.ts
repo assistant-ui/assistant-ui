@@ -30,7 +30,7 @@ export type {
   UIContentPart as unstable_UIContentPart,
 } from "./utils/AssistantTypes";
 
-export { AssistantRuntimeProvider } from "./runtime/core/AssistantRuntimeProvider";
+export { AssistantRuntimeProvider } from "./context/providers/AssistantRuntimeProvider";
 export { useLocalRuntime as unstable_useLocalRuntime } from "./runtime/local/useLocalRuntime";
 export type {
   ChatModelAdapter as unstable_ChatModelAdapter,
@@ -40,21 +40,20 @@ export { VercelModelAdapter as unstable_VercelModelAdapter } from "./runtime/loc
 
 export {
   // context
-  useAssistantContext as unstable_useAssistantContext,
-  type AssistantContextValue as unstable_AssistantContextValue,
-  useComposerContext as unstable_useComposerContext,
-  type ComposerContextValue as unstable_ComposerContextValue,
+  useThreadContext as unstable_useThreadContext,
+  type ThreadContextValue as unstable_ThreadContextValue,
   useMessageContext as unstable_useMessageContext,
   type MessageContextValue as unstable_MessageContextValue,
+  useComposerContext as unstable_useComposerContext,
+  type ComposerContextValue as unstable_ComposerContextValue,
   useContentPartContext as unstable_useContentPartContext,
   type ContentPartContextValue as unstable_ContentPartContextValue,
   // stores
-  type BaseComposerState as unstable_BaseComposerState,
-  type ContentPartState as unstable_ContentPartState,
-  type MessageState as unstable_MessageState,
-  type MessageComposerState as unstable_MessageComposerState,
   type ThreadState as unstable_ThreadState,
   type ThreadComposerState as unstable_ThreadComposerState,
   type ThreadViewportState as unstable_ThreadViewportState,
+  type MessageState as unstable_MessageState,
+  type MessageComposerState as unstable_MessageComposerState,
+  type BaseComposerState as unstable_BaseComposerState,
+  type ContentPartState as unstable_ContentPartState,
 } from "./context";
-

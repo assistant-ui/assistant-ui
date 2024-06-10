@@ -1,6 +1,6 @@
 import { useContext, useMemo } from "react";
 import type { StoreApi, UseBoundStore } from "zustand";
-import { useAssistantContext } from "./AssistantContext";
+import { useThreadContext } from "./AssistantContext";
 import { MessageContext } from "./MessageContext";
 import type { MessageComposerState } from "./stores/MessageComposer";
 import type { ThreadComposerState } from "./stores/ThreadComposer";
@@ -13,7 +13,7 @@ export type ComposerContextValue = {
 };
 
 export const useComposerContext = (): ComposerContextValue => {
-  const { useComposer: useAssisstantComposer } = useAssistantContext();
+  const { useComposer: useAssisstantComposer } = useThreadContext();
   const { useComposer: useMessageComposer } = useContext(MessageContext) ?? {};
   return useMemo(
     () => ({

@@ -1,10 +1,10 @@
 import { useEffect } from "react";
-import { useAssistantContext } from "../../../../context";
+import { useThreadContext } from "../../../../context";
 import type { VercelHelpers } from "./VercelHelpers";
 
 // two way sync between vercel helpers input state and composer text state
 export const useVercelComposerSync = (vercel: VercelHelpers) => {
-  const { useComposer } = useAssistantContext();
+  const { useComposer } = useThreadContext();
 
   useEffect(() => {
     useComposer.setState({

@@ -1,30 +1,63 @@
 "use client";
 
-import { type FC, type PropsWithChildren, useMemo, useState } from "react";
+import { type FC, type PropsWithChildren, useEffect, useState } from "react";
 import { create } from "zustand";
-import { useAssistantContext } from "../../context/AssistantContext";
-import { MessageContext } from "../../context/MessageContext";
-import type { MessageContextValue } from "../../context/MessageContext";
-import type { MessageState } from "../../context/stores/Message";
-import { makeMessageComposerStore } from "../../context/stores/MessageComposer";
-import type { ThreadState } from "../../context/stores/Thread";
 import type {
   AppendContentPart,
   ThreadMessage,
 } from "../../utils/AssistantTypes";
 import { getMessageText } from "../../utils/getMessageText";
+import { useThreadContext } from "../AssistantContext";
+import { MessageContext } from "../MessageContext";
+import type { MessageContextValue } from "../MessageContext";
+import type { MessageState } from "../stores/Message";
+import { makeMessageComposerStore } from "../stores/MessageComposer";
+import type { ThreadState } from "../stores/Thread";
 
 type MessageProviderProps = PropsWithChildren<{
-  message: ThreadMessage;
-  parentId: string | null;
+  messageIndex: number;
 }>;
 
 const getIsLast = (thread: ThreadState, message: ThreadMessage) => {
   return thread.messages[thread.messages.length - 1]?.id === message.id;
 };
 
-const useMessageContext = () => {
-  const { useThread } = useAssistantContext();
+const syncMessage = (
+  thread: ThreadState,
+  useMessage: MessageContextValue["useMessage"],
+  messageIndex: number,
+) => {
+  const parentId = thread.messages[messageIndex - 1]?.id ?? null;
+  const message = thread.messages[messageIndex];
+
+  // TODO check if this can happen
+  if (!message) return;
+
+  const isLast = getIsLast(thread, message);
+  const branches = thread.getBranches(message.id);
+
+  // if the message is the same, don't update
+  const currentState = useMessage.getState();
+  if (
+    currentState.message === message &&
+    currentState.parentId === parentId &&
+    currentState.branches === branches &&
+    currentState.isLast === isLast
+  )
+    return;
+
+  // sync useMessage
+  useMessage.setState({
+    message,
+    parentId,
+    branches,
+    isLast,
+  });
+};
+
+const useMessageContext = (messageIndex: number) => {
+  const { useThread } = useThreadContext();
+
   const [context] = useState<MessageContextValue>(() => {
     const useMessage = create<MessageState>((set) => ({
       message: null as unknown as ThreadMessage,
@@ -75,31 +108,25 @@ const useMessageContext = () => {
       },
     });
 
+    syncMessage(useThread.getState(), useMessage, messageIndex);
+
     return { useMessage, useComposer };
   });
+
+  useEffect(() => {
+    return useThread.subscribe((thread) => {
+      syncMessage(thread, context.useMessage, messageIndex);
+    });
+  }, [context, useThread, messageIndex]);
+
   return context;
 };
 
 export const MessageProvider: FC<MessageProviderProps> = ({
-  message,
-  parentId,
+  messageIndex,
   children,
 }) => {
-  const { useThread } = useAssistantContext();
-  const context = useMessageContext();
-
-  const isLast = useThread((thread) => getIsLast(thread, message));
-  const branches = useThread((thread) => thread.getBranches(message.id));
-
-  // sync useMessage
-  useMemo(() => {
-    context.useMessage.setState({
-      message,
-      parentId,
-      branches,
-      isLast,
-    });
-  }, [context, message, parentId, branches, isLast]);
+  const context = useMessageContext(messageIndex);
 
   return (
     <MessageContext.Provider value={context}>

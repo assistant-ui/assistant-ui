@@ -1,10 +1,10 @@
 import { useCallback } from "react";
-import { useAssistantContext } from "../context/AssistantContext";
+import { useThreadContext } from "../context/AssistantContext";
 import { useMessageContext } from "../context/MessageContext";
 import { useCombinedStore } from "../utils/combined/useCombinedStore";
 
 export const useReloadMessage = () => {
-  const { useThread, useViewport } = useAssistantContext();
+  const { useThread, useViewport } = useThreadContext();
   const { useMessage } = useMessageContext();
 
   const disabled = useCombinedStore(

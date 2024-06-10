@@ -1,9 +1,9 @@
 "use client";
 
 import type { ComponentType, FC } from "react";
-import { useAssistantContext } from "../../context/AssistantContext";
+import { useThreadContext } from "../../context/AssistantContext";
+import { MessageProvider } from "../../context/providers/MessageProvider";
 import { ComposerIf } from "../composer/ComposerIf";
-import { Provider } from "../message";
 import { MessageIf } from "../message/MessageIf";
 
 type ThreadMessagesProps = {
@@ -36,25 +36,23 @@ const getComponents = (components: ThreadMessagesProps["components"]) => {
 };
 
 export const ThreadMessages: FC<ThreadMessagesProps> = ({ components }) => {
-  const { useThread } = useAssistantContext();
-  const thread = useThread();
-
-  const messages = thread.messages;
+  const { useThread } = useThreadContext();
+  const messagesLength = useThread((t) => t.messages.length);
 
   const { UserMessage, EditComposer, AssistantMessage } =
     getComponents(components);
 
-  if (messages.length === 0) return null;
+  if (messagesLength === 0) return null;
 
   return (
     <>
-      {messages.map((message, idx) => {
-        const parentId = messages[idx - 1]?.id ?? null;
+      {new Array(messagesLength).fill(null).map((_, idx) => {
+        const messageIndex = idx;
+        // TODO avoid rerendering on messageLength change
         return (
-          <Provider
-            key={parentId ?? "__ROOT__"} // keep the same key when switching branches for better a11y support
-            message={message}
-            parentId={parentId}
+          <MessageProvider
+            key={messageIndex} // keep the same key when switching branches for better a11y support
+            messageIndex={messageIndex}
           >
             <MessageIf user>
               <ComposerIf editing={false}>
@@ -67,7 +65,7 @@ export const ThreadMessages: FC<ThreadMessagesProps> = ({ components }) => {
             <MessageIf assistant>
               <AssistantMessage />
             </MessageIf>
-          </Provider>
+          </MessageProvider>
         );
       })}
     </>
