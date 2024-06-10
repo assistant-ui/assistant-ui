@@ -11,7 +11,7 @@ import { MessageContext } from "../MessageContext";
 import type { MessageContextValue } from "../MessageContext";
 import { useThreadContext } from "../ThreadContext";
 import type { MessageState } from "../stores/Message";
-import { makeMessageComposerStore } from "../stores/MessageComposer";
+import { makeEditComposerStore } from "../stores/MessageComposer";
 import type { ThreadState } from "../stores/Thread";
 
 type MessageProviderProps = PropsWithChildren<{
@@ -78,7 +78,7 @@ const useMessageContext = (messageIndex: number) => {
       },
     }));
 
-    const useComposer = makeMessageComposerStore({
+    const useComposer = makeEditComposerStore({
       onEdit: () => {
         const message = useMessage.getState().message;
         if (message.role !== "user")

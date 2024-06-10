@@ -50,10 +50,9 @@ export {
   type ContentPartContextValue as unstable_ContentPartContextValue,
   // stores
   type ThreadState as unstable_ThreadState,
-  type ThreadComposerState as unstable_ThreadComposerState,
+  type ComposerState as unstable_ComposerState,
   type ThreadViewportState as unstable_ThreadViewportState,
   type MessageState as unstable_MessageState,
-  type MessageComposerState as unstable_MessageComposerState,
-  type BaseComposerState as unstable_BaseComposerState,
+  type EditComposerState as unstable_EditComposerState,
   type ContentPartState as unstable_ContentPartState,
 } from "./context";

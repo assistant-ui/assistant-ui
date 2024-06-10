@@ -76,7 +76,7 @@ export const ComposerInput = forwardRef<
     useEffect(() => focus(), [focus]);
 
     useOnScrollToBottom(() => {
-      if (type === "assistant") {
+      if (type === "new") {
         focus();
       }
     });

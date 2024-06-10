@@ -2,27 +2,24 @@ import { useContext, useMemo } from "react";
 import type { StoreApi, UseBoundStore } from "zustand";
 import { MessageContext } from "./MessageContext";
 import { useThreadContext } from "./ThreadContext";
-import type { MessageComposerState } from "./stores/MessageComposer";
-import type { ThreadComposerState } from "./stores/ThreadComposer";
+import type { ComposerState } from "./stores/Composer";
+import type { EditComposerState } from "./stores/MessageComposer";
 
 export type ComposerContextValue = {
-  useComposer: UseBoundStore<
-    StoreApi<MessageComposerState | ThreadComposerState>
-  >;
-  type: "message" | "assistant";
+  useComposer: UseBoundStore<StoreApi<EditComposerState | ComposerState>>;
+  type: "edit" | "new";
 };
 
 export const useComposerContext = (): ComposerContextValue => {
-  const { useComposer: useAssisstantComposer } = useThreadContext();
-  const { useComposer: useMessageComposer } = useContext(MessageContext) ?? {};
+  const { useComposer } = useThreadContext();
+  const { useComposer: useEditComposer } = useContext(MessageContext) ?? {};
   return useMemo(
     () => ({
-      useComposer: (useMessageComposer ??
-        useAssisstantComposer) as UseBoundStore<
-        StoreApi<MessageComposerState | ThreadComposerState>
+      useComposer: (useEditComposer ?? useComposer) as UseBoundStore<
+        StoreApi<EditComposerState | ComposerState>
       >,
-      type: useMessageComposer ? ("message" as const) : ("assistant" as const),
+      type: useEditComposer ? ("edit" as const) : ("new" as const),
     }),
-    [useMessageComposer, useAssisstantComposer],
+    [useEditComposer, useComposer],
   );
 };

@@ -6,8 +6,8 @@ import type {
 } from "../../runtime/core/ThreadRuntime";
 import type { ThreadContextValue } from "../ThreadContext";
 import { ThreadContext } from "../ThreadContext";
+import { makeComposerStore } from "../stores/Composer";
 import { makeThreadStore } from "../stores/Thread";
-import { makeThreadComposerStore } from "../stores/ThreadComposer";
 import { makeThreadViewportStore } from "../stores/ThreadViewport";
 
 type ThreadProviderProps = {
@@ -26,7 +26,7 @@ export const ThreadProvider: FC<PropsWithChildren<ThreadProviderProps>> = ({
   const [{ context, onRuntimeUpdate }] = useState(() => {
     const { useThread, onRuntimeUpdate } = makeThreadStore(runtimeRef);
     const useViewport = makeThreadViewportStore();
-    const useComposer = makeThreadComposerStore(useThread);
+    const useComposer = makeComposerStore(useThread);
 
     return {
       context: {

@@ -2,9 +2,7 @@ import { type StoreApi, type UseBoundStore, create } from "zustand";
 import { type BaseComposerState, makeBaseComposer } from "./BaseComposer";
 import type { ThreadState } from "./Thread";
 
-// thread
-
-export type ThreadComposerState = BaseComposerState &
+export type ComposerState = BaseComposerState &
   Readonly<{
     isEditing: true;
 
@@ -12,10 +10,10 @@ export type ThreadComposerState = BaseComposerState &
     cancel: () => boolean;
   }>;
 
-export const makeThreadComposerStore = (
+export const makeComposerStore = (
   useThread: StoreApi<ThreadState>,
-): UseBoundStore<StoreApi<ThreadComposerState>> =>
-  create<ThreadComposerState>()((set, get, store) => {
+): UseBoundStore<StoreApi<ComposerState>> =>
+  create<ComposerState>()((set, get, store) => {
     return {
       ...makeBaseComposer(set, get, store),
 

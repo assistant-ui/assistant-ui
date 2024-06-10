@@ -1,7 +1,7 @@
 import { type StoreApi, type UseBoundStore, create } from "zustand";
 import { type BaseComposerState, makeBaseComposer } from "./BaseComposer";
 
-export type MessageComposerState = BaseComposerState &
+export type EditComposerState = BaseComposerState &
   Readonly<{
     isEditing: boolean;
 
@@ -10,14 +10,14 @@ export type MessageComposerState = BaseComposerState &
     cancel: () => boolean;
   }>;
 
-export const makeMessageComposerStore = ({
+export const makeEditComposerStore = ({
   onEdit,
   onSend,
 }: {
   onEdit: () => string;
   onSend: (value: string) => void;
-}): UseBoundStore<StoreApi<MessageComposerState>> =>
-  create<MessageComposerState>()((set, get, store) => ({
+}): UseBoundStore<StoreApi<EditComposerState>> =>
+  create<EditComposerState>()((set, get, store) => ({
     ...makeBaseComposer(set, get, store),
 
     isEditing: false,
