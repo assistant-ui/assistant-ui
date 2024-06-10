@@ -3,7 +3,7 @@ import { useThreadContext } from "../../../../context";
 import type { VercelHelpers } from "./VercelHelpers";
 
 // two way sync between vercel helpers input state and composer text state
-export const useVercelComposerSync = (vercel: VercelHelpers) => {
+export const useVercelAIComposerSync = (vercel: VercelHelpers) => {
   const { useComposer } = useThreadContext();
 
   useEffect(() => {

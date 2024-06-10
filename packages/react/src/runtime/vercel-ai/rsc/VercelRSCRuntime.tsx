@@ -1,5 +1,6 @@
 "use client";
 
+import { type StoreApi, type UseBoundStore, create } from "zustand";
 import type {
   AppendMessage,
   ThreadMessage,
@@ -10,18 +11,25 @@ import type {
 } from "../../core/AssistantRuntime";
 import type { VercelRSCAdapter } from "./VercelRSCAdapter";
 import type { VercelRSCMessage } from "./VercelRSCMessage";
+import { useVercelRSCSync } from "./useVercelRSCSync";
 
 const EMPTY_BRANCHES: readonly never[] = Object.freeze([]);
 
 export class VercelRSCRuntime<T extends WeakKey = VercelRSCMessage>
   implements AssistantRuntime
 {
+  private useAdapter: UseBoundStore<StoreApi<{ adapter: VercelRSCAdapter<T> }>>;
+
   private _subscriptions = new Set<() => void>();
 
   public isRunning = false;
   public messages: ThreadMessage[] = [];
 
-  constructor(public adapter: VercelRSCAdapter<T>) {}
+  constructor(public adapter: VercelRSCAdapter<T>) {
+    this.useAdapter = create(() => ({
+      adapter,
+    }));
+  }
 
   private withRunning = (callback: Promise<unknown>) => {
     this.isRunning = true;
@@ -69,13 +77,27 @@ export class VercelRSCRuntime<T extends WeakKey = VercelRSCMessage>
     }
   }
 
-  public updateData(messages: ThreadMessage[]) {
-    this.messages = messages;
-    for (const callback of this._subscriptions) callback();
-  }
-
   public subscribe(callback: () => void): Unsubscribe {
     this._subscriptions.add(callback);
     return () => this._subscriptions.delete(callback);
   }
+
+  public onAdapterUpdated() {
+    if (this.useAdapter.getState().adapter !== this.adapter) {
+      this.useAdapter.setState({ adapter: this.adapter });
+    }
+  }
+
+  private updateData = (messages: ThreadMessage[]) => {
+    this.messages = messages;
+    for (const callback of this._subscriptions) callback();
+  };
+
+  unstable_synchronizer = () => {
+    const { adapter } = this.useAdapter();
+
+    useVercelRSCSync(adapter, this.updateData);
+
+    return null;
+  };
 }

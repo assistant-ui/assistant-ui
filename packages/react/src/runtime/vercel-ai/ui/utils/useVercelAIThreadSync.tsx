@@ -66,7 +66,7 @@ const vercelToThreadMessage = (
 
 type UpdateDataCallback = (isRunning: boolean, vm: ThreadMessage[]) => void;
 
-export const useVercelThreadSync = (
+export const useVercelAIThreadSync = (
   vercel: VercelHelpers,
   updateData: UpdateDataCallback,
 ) => {

@@ -12,8 +12,8 @@ import { MessageRepository } from "../../utils/MessageRepository";
 import { getVercelAIMessage } from "./getVercelAIMessage";
 import type { VercelHelpers } from "./utils/VercelHelpers";
 import { sliceMessagesUntil } from "./utils/sliceMessagesUntil";
-import { useVercelComposerSync } from "./utils/useVercelComposerSync";
-import { useVercelThreadSync } from "./utils/useVercelThreadSync";
+import { useVercelAIComposerSync } from "./utils/useVercelAIComposerSync";
+import { useVercelAIThreadSync } from "./utils/useVercelAIThreadSync";
 
 const hasUpcomingMessage = (isRunning: boolean, messages: ThreadMessage[]) => {
   return isRunning && messages[messages.length - 1]?.role !== "assistant";
@@ -28,12 +28,6 @@ export class VercelAIRuntime implements ReactAssistantRuntime {
 
   public messages: ThreadMessage[] = [];
   public isRunning = false;
-
-  public onVercelUpdated() {
-    if (this.useVercel.getState().vercel !== this.vercel) {
-      this.useVercel.setState({ vercel: this.vercel });
-    }
-  }
 
   constructor(public vercel: VercelHelpers) {
     this.useVercel = create(() => ({
@@ -119,6 +113,12 @@ export class VercelAIRuntime implements ReactAssistantRuntime {
     );
   };
 
+  public onVercelUpdated() {
+    if (this.useVercel.getState().vercel !== this.vercel) {
+      this.useVercel.setState({ vercel: this.vercel });
+    }
+  }
+
   private updateData = (isRunning: boolean, vm: ThreadMessage[]) => {
     for (let i = 0; i < vm.length; i++) {
       const message = vm[i]!;
@@ -154,8 +154,8 @@ export class VercelAIRuntime implements ReactAssistantRuntime {
   unstable_synchronizer = () => {
     const { vercel } = this.useVercel();
 
-    useVercelThreadSync(vercel, this.updateData);
-    useVercelComposerSync(vercel);
+    useVercelAIThreadSync(vercel, this.updateData);
+    useVercelAIComposerSync(vercel);
 
     return null;
   };
