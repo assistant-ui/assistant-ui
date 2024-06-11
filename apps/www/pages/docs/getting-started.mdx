@@ -3,8 +3,20 @@ title: Getting Started
 description: React Components for AI Chat
 ---
 
-`assistant-ui` consists of two parts, `runtime` and `ui`.  
-You need to setup the `runtime` before you can use any `ui` components.
+import Image from "next/image";
+import architecture from "../../assets/docs/architecture.png";
+
+## Architecture
+
+`assistant-ui` consists of two parts, ***Runtime*** and ***UI Components***.  
+
+<Image src={architecture} height={300} className="dark:invert dark:hue-rotate-180 my-2 mx-auto" />
+
+Behind the scenes, communication between these two parts is faciliated with **Context** and **Actions** APIs.  
+
+## Setup
+
+You need to setup the *Runtime* before you can use any *UI Components*. 
 
 The recommended way to get started is with the following stack:
 
@@ -13,7 +25,7 @@ The recommended way to get started is with the following stack:
 - `tailwindcss` for styling
 - `shadcn/ui` for UI components
 
-## Step 1: Setup the Runtime
+### Step 1: Setup Runtime
 
 You wrap your entire app in a `<AssistantRuntimeProvider runtime={runtime}>` component. 
 
@@ -22,7 +34,7 @@ The `Runtime` takes care of LLM communication, tools, streaming, state managemen
 
 Refer to [Picking a Runtime](/docs/runtimes/pick-a-runtime) to pick the right runtime for your use case.
 
-## Step 2: Use the UI Components
+### Step 2: Setup UI Components
 
 The easiest way to get started is with `shadcn/ui` + `tailwind` components.
 
