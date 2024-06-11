@@ -1,4 +1,4 @@
-import type { UseChatHelpers } from "ai/react";
+import type { UseChatHelpers } from "@ai-sdk/react";
 import { useEffect, useInsertionEffect, useState } from "react";
 import { VercelAIRuntime } from "../VercelAIRuntime";
 

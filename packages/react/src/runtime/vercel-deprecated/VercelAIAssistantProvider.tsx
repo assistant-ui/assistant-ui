@@ -1,6 +1,6 @@
 "use client";
 
-import type { UseAssistantHelpers, UseChatHelpers } from "ai/react";
+import type { UseAssistantHelpers, UseChatHelpers } from "@ai-sdk/react";
 import type { FC, PropsWithChildren } from "react";
 import { AssistantRuntimeProvider } from "../../context/providers/AssistantRuntimeProvider";
 import {

@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react",
-  "version": "0.0.21",
+  "version": "0.0.22",
   "license": "MIT",
   "exports": {
     ".": {
@@ -34,11 +34,15 @@
     "zustand": "^4.5.2"
   },
   "peerDependencies": {
+    "@ai-sdk/react": "^0.0.x",
     "@types/react": "*",
-    "ai": "^3",
+    "ai": "^3.1.31",
     "react": "^18"
   },
   "peerDependenciesMeta": {
+    "@ai-sdk/react": {
+      "optional": true
+    },
     "@types/react": {
       "optional": true
     },
