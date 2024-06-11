@@ -31,13 +31,10 @@
     "tsup": "^8.1.0",
     "tsx": "^4.15.2"
   },
-  "files": [
-    "dist",
-    "README.md"
-  ],
+  "files": ["dist", "README.md"],
   "bin": "./dist/index.js",
   "scripts": {
-    "build": "tsup src/index.ts --format esm",
+    "build": "tsup src/index.ts --format esm --sourcemap",
     "build:registry": "tsx ./scripts/build-registry.ts"
   },
   "publishConfig": {

@@ -50,7 +50,7 @@
   "files": ["dist", "README.md"],
   "sideEffects": false,
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "build": "tsup src/index.ts --format cjs,esm --dts --sourcemap",
     "prepublish": "cp ../../README.md ./README.md"
   },
   "dependencies": {
@@ -66,7 +66,7 @@
   "peerDependencies": {
     "@ai-sdk/react": "^0.0.x",
     "@types/react": "*",
-    "ai": "^3.1.31",
+    "ai": "^3.1.x",
     "react": "^18"
   },
   "peerDependenciesMeta": {
