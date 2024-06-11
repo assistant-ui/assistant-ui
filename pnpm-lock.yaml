@@ -242,7 +242,7 @@ importers:
         specifier: '*'
         version: 18.3.3
       ai:
-        specifier: ^3.1.31
+        specifier: ^3.1.x
         version: 3.1.31(openai@4.50.0)(react@18.3.1)(solid-js@1.8.17)(svelte@4.2.18)(vue@3.4.27(typescript@5.4.5))(zod@3.23.8)
       nanoid:
         specifier: ^5.0.7
