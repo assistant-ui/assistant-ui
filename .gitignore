@@ -38,3 +38,4 @@ build
 dist/
 
 apps/www/public/registry/
+packages/react/README.md

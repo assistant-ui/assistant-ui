@@ -1,7 +1,37 @@
-# `assistant-ui`
+# `@assistant-ui/react`
 
-`assistant-ui` is a set of unstyled React components to add a ChatGPT-like interfaces in your app. Compatible with Vercel's `ai` package.
+`@assistant-ui/react` is a set of React components for AI chat.
 
 - [Website](https://assistant-ui.com/)
 - [Demo](https://assistant-ui-rsc-example.vercel.app/)
-- [Getting Started](https://www.assistant-ui.com/docs/getting-started)
+
+## Documentation
+
+- [Documentation](https://www.assistant-ui.com/docs/getting-started)
+
+## Minimal Example with Vercel AI SDK
+
+```sh
+npx @assistant-ui/shadcn add thread
+```
+
+```tsx
+"use client";
+
+import { useChat } from "@ai-sdk/react";
+import { AssistantRuntimeProvider,  useVercelAIRuntime } from "@assistant-ui/react";
+import { Thread } from "@/components/ui/assistant-ui/thread";
+
+const MyApp = () => {
+  const chat = useChat({ 
+    api: "/api/chat" // your backend route
+  });
+  const runtime = useVercelAIRuntime(chat);
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```

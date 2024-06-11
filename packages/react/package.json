@@ -1,6 +1,35 @@
 {
   "name": "@assistant-ui/react",
-  "version": "0.0.22",
+  "description": "React components for AI chat.",
+  "keywords": [
+    "radix-ui",
+    "nextjs",
+    "vercel",
+    "ai-sdk",
+    "react",
+    "components",
+    "ui",
+    "frontend",
+    "tailwind",
+    "shadcn",
+    "assistant",
+    "openai",
+    "ai",
+    "chat",
+    "chatbot",
+    "copilot",
+    "assistant",
+    "ai-chat",
+    "ai-chatbot",
+    "ai-assistant",
+    "ai-copilot",
+    "chatgpt",
+    "gpt4",
+    "gpt-4",
+    "conversational-ui",
+    "conversational-ai"
+  ],
+  "version": "0.0.23",
   "license": "MIT",
   "exports": {
     ".": {
@@ -21,7 +50,8 @@
   "files": ["dist", "README.md"],
   "sideEffects": false,
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts"
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "prepublish": "cp ../../README.md ./README.md"
   },
   "dependencies": {
     "@radix-ui/primitive": "^1.0.1",
