@@ -54,8 +54,8 @@ import { Steps } from 'nextra/components'
   ```tsx
   "use client";
 
+  import { useChat } from '@ai-sdk/react';
   import { AssistantRuntimeProvider, useVercelUseChatRuntime } from '@assistant-ui/react';
-  import { useChat } from '@ai-sdk/react'; 
 
   export function MyRuntimeProvider({
     children,

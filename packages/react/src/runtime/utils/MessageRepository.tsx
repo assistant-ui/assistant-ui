@@ -102,7 +102,7 @@ export class MessageRepository {
       children: [],
       level: prev ? prev.level + 1 : 0,
     };
-    
+
     this.messages.set(message.id, newItem);
     this.performOp(prev, newItem, "link");
 
