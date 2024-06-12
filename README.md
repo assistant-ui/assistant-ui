@@ -19,14 +19,14 @@ npx @assistant-ui/shadcn add thread
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import { AssistantRuntimeProvider,  useVercelAIRuntime } from "@assistant-ui/react";
+import { AssistantRuntimeProvider, useVercelUseChatRuntime } from "@assistant-ui/react";
 import { Thread } from "@/components/ui/assistant-ui/thread";
 
-const MyApp = () => {
+export default const MyApp = () => {
   const chat = useChat({ 
     api: "/api/chat" // your backend route
   });
-  const runtime = useVercelAIRuntime(chat);
+  const runtime = useVercelUseChatRuntime(chat);
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
