@@ -1,3 +1,5 @@
+"use client";
+
 import { BotIcon, ChevronDownIcon } from "lucide-react";
 
 import { Thread } from "@/components/ui/assistant-ui/thread";
