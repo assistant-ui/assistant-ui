@@ -26,9 +26,6 @@ importers:
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
-      '@assistant-ui/shadcn':
-        specifier: workspace:*
-        version: link:../../packages/shadcn
       '@calcom/embed-react':
         specifier: ^1.5.0
         version: 1.5.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -68,6 +65,9 @@ importers:
       ai:
         specifier: ^3.1.32
         version: 3.1.32(openai@4.50.0)(react@18.3.1)(solid-js@1.8.17)(svelte@4.2.18)(vue@3.4.27(typescript@5.4.5))(zod@3.23.8)
+      assistant-ui:
+        specifier: workspace:*
+        version: link:../../packages/cli
       class-variance-authority:
         specifier: ^0.7.0
         version: 0.7.0
@@ -218,56 +218,7 @@ importers:
         specifier: ^5
         version: 5.4.5
 
-  packages/react:
-    dependencies:
-      '@ai-sdk/react':
-        specifier: ^0.0.x
-        version: 0.0.1(react@18.3.1)(zod@3.23.8)
-      '@radix-ui/primitive':
-        specifier: ^1.0.1
-        version: 1.0.1
-      '@radix-ui/react-compose-refs':
-        specifier: ^1.0.1
-        version: 1.0.1(@types/react@18.3.3)(react@18.3.1)
-      '@radix-ui/react-primitive':
-        specifier: ^1.0.3
-        version: 1.0.3(@types/react-dom@18.3.0)(@types/react@18.3.3)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@radix-ui/react-slot':
-        specifier: ^1.0.2
-        version: 1.0.2(@types/react@18.3.3)(react@18.3.1)
-      '@radix-ui/react-use-callback-ref':
-        specifier: ^1.0.1
-        version: 1.0.1(@types/react@18.3.3)(react@18.3.1)
-      '@types/react':
-        specifier: '*'
-        version: 18.3.3
-      ai:
-        specifier: ^3.1.x
-        version: 3.1.31(openai@4.50.0)(react@18.3.1)(solid-js@1.8.17)(svelte@4.2.18)(vue@3.4.27(typescript@5.4.5))(zod@3.23.8)
-      nanoid:
-        specifier: ^5.0.7
-        version: 5.0.7
-      react:
-        specifier: ^18
-        version: 18.3.1
-      react-textarea-autosize:
-        specifier: ^8.5.3
-        version: 8.5.3(@types/react@18.3.3)(react@18.3.1)
-      zustand:
-        specifier: ^4.5.2
-        version: 4.5.2(@types/react@18.3.3)(react@18.3.1)
-    devDependencies:
-      '@assistant-ui/tsconfig':
-        specifier: workspace:*
-        version: link:../tsconfig
-      '@types/node':
-        specifier: ^20.14.2
-        version: 20.14.2
-      tsup:
-        specifier: ^8.1.0
-        version: 8.1.0(postcss@8.4.38)(typescript@5.4.5)
-
-  packages/shadcn:
+  packages/cli:
     dependencies:
       chalk:
         specifier: ^5.3.0
@@ -342,6 +293,55 @@ importers:
       tsx:
         specifier: ^4.15.2
         version: 4.15.2
+
+  packages/react:
+    dependencies:
+      '@ai-sdk/react':
+        specifier: ^0.0.x
+        version: 0.0.1(react@18.3.1)(zod@3.23.8)
+      '@radix-ui/primitive':
+        specifier: ^1.0.1
+        version: 1.0.1
+      '@radix-ui/react-compose-refs':
+        specifier: ^1.0.1
+        version: 1.0.1(@types/react@18.3.3)(react@18.3.1)
+      '@radix-ui/react-primitive':
+        specifier: ^1.0.3
+        version: 1.0.3(@types/react-dom@18.3.0)(@types/react@18.3.3)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@radix-ui/react-slot':
+        specifier: ^1.0.2
+        version: 1.0.2(@types/react@18.3.3)(react@18.3.1)
+      '@radix-ui/react-use-callback-ref':
+        specifier: ^1.0.1
+        version: 1.0.1(@types/react@18.3.3)(react@18.3.1)
+      '@types/react':
+        specifier: '*'
+        version: 18.3.3
+      ai:
+        specifier: ^3.1.x
+        version: 3.1.31(openai@4.50.0)(react@18.3.1)(solid-js@1.8.17)(svelte@4.2.18)(vue@3.4.27(typescript@5.4.5))(zod@3.23.8)
+      nanoid:
+        specifier: ^5.0.7
+        version: 5.0.7
+      react:
+        specifier: ^18
+        version: 18.3.1
+      react-textarea-autosize:
+        specifier: ^8.5.3
+        version: 8.5.3(@types/react@18.3.3)(react@18.3.1)
+      zustand:
+        specifier: ^4.5.2
+        version: 4.5.2(@types/react@18.3.3)(react@18.3.1)
+    devDependencies:
+      '@assistant-ui/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@types/node':
+        specifier: ^20.14.2
+        version: 20.14.2
+      tsup:
+        specifier: ^8.1.0
+        version: 8.1.0(postcss@8.4.38)(typescript@5.4.5)
 
   packages/tsconfig:
     dependencies:
@@ -7007,7 +7007,7 @@ snapshots:
       eslint: 8.57.0
       eslint-import-resolver-node: 0.3.9
       eslint-import-resolver-typescript: 3.6.1(@typescript-eslint/parser@7.2.0(eslint@8.57.0)(typescript@5.4.5))(eslint-import-resolver-node@0.3.9)(eslint-plugin-import@2.29.1(eslint@8.57.0))(eslint@8.57.0)
-      eslint-plugin-import: 2.29.1(@typescript-eslint/parser@7.2.0(eslint@8.57.0)(typescript@5.4.5))(eslint-import-resolver-typescript@3.6.1)(eslint@8.57.0)
+      eslint-plugin-import: 2.29.1(@typescript-eslint/parser@7.2.0(eslint@8.57.0)(typescript@5.4.5))(eslint-import-resolver-typescript@3.6.1(@typescript-eslint/parser@7.2.0(eslint@8.57.0)(typescript@5.4.5))(eslint-import-resolver-node@0.3.9)(eslint-plugin-import@2.29.1(eslint@8.57.0))(eslint@8.57.0))(eslint@8.57.0)
       eslint-plugin-jsx-a11y: 6.8.0(eslint@8.57.0)
       eslint-plugin-react: 7.34.2(eslint@8.57.0)
       eslint-plugin-react-hooks: 4.6.2(eslint@8.57.0)
@@ -7031,7 +7031,7 @@ snapshots:
       enhanced-resolve: 5.17.0
       eslint: 8.57.0
       eslint-module-utils: 2.8.1(@typescript-eslint/parser@7.2.0(eslint@8.57.0)(typescript@5.4.5))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.6.1(@typescript-eslint/parser@7.2.0(eslint@8.57.0)(typescript@5.4.5))(eslint-import-resolver-node@0.3.9)(eslint-plugin-import@2.29.1(eslint@8.57.0))(eslint@8.57.0))(eslint@8.57.0)
-      eslint-plugin-import: 2.29.1(@typescript-eslint/parser@7.2.0(eslint@8.57.0)(typescript@5.4.5))(eslint-import-resolver-typescript@3.6.1)(eslint@8.57.0)
+      eslint-plugin-import: 2.29.1(@typescript-eslint/parser@7.2.0(eslint@8.57.0)(typescript@5.4.5))(eslint-import-resolver-typescript@3.6.1(@typescript-eslint/parser@7.2.0(eslint@8.57.0)(typescript@5.4.5))(eslint-import-resolver-node@0.3.9)(eslint-plugin-import@2.29.1(eslint@8.57.0))(eslint@8.57.0))(eslint@8.57.0)
       fast-glob: 3.3.2
       get-tsconfig: 4.7.5
       is-core-module: 2.13.1
@@ -7053,7 +7053,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  eslint-plugin-import@2.29.1(@typescript-eslint/parser@7.2.0(eslint@8.57.0)(typescript@5.4.5))(eslint-import-resolver-typescript@3.6.1)(eslint@8.57.0):
+  eslint-plugin-import@2.29.1(@typescript-eslint/parser@7.2.0(eslint@8.57.0)(typescript@5.4.5))(eslint-import-resolver-typescript@3.6.1(@typescript-eslint/parser@7.2.0(eslint@8.57.0)(typescript@5.4.5))(eslint-import-resolver-node@0.3.9)(eslint-plugin-import@2.29.1(eslint@8.57.0))(eslint@8.57.0))(eslint@8.57.0):
     dependencies:
       array-includes: 3.1.8
       array.prototype.findlastindex: 1.2.5

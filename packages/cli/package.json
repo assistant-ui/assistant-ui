@@ -1,6 +1,6 @@
 {
-  "name": "@assistant-ui/shadcn",
-  "version": "0.0.4",
+  "name": "assistant-ui",
+  "version": "0.0.1",
   "license": "MIT",
   "type": "module",
   "dependencies": {
@@ -35,7 +35,8 @@
   "bin": "./dist/index.js",
   "scripts": {
     "build": "tsup src/index.ts --format esm --sourcemap",
-    "build:registry": "tsx ./scripts/build-registry.ts"
+    "build:registry": "tsx ./scripts/build-registry.ts",
+    "prepublish": "cp ../../README.md ./README.md"
   },
   "publishConfig": {
     "access": "public"

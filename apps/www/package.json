@@ -6,14 +6,14 @@
   "scripts": {
     "dev": "next dev",
     "build": "pnpm run build:registry && next build",
-    "build:registry": "pnpm --filter @assistant-ui/shadcn run build:registry",
+    "build:registry": "pnpm --filter assistant-ui run build:registry",
     "start": "next start"
   },
   "dependencies": {
     "@ai-sdk/openai": "^0.0.27",
     "@ai-sdk/react": "^0.0.1",
     "@assistant-ui/react": "workspace:*",
-    "@assistant-ui/shadcn": "workspace:*",
+    "assistant-ui": "workspace:*",
     "@calcom/embed-react": "^1.5.0",
     "@fortawesome/fontawesome-svg-core": "^6.5.2",
     "@fortawesome/free-solid-svg-icons": "^6.5.2",

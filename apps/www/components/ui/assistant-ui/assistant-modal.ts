@@ -1,1 +1,1 @@
-export * from "@assistant-ui/shadcn/registry/assistant-ui/assistant-modal";
+export * from "assistant-ui/registry/assistant-ui/assistant-modal";

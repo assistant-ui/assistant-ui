@@ -1,6 +1,6 @@
-# `@assistant-ui/react`
+# `assistant-ui`
 
-`@assistant-ui/react` is a set of React components for AI chat.
+`assistant-ui` is a set of React components for AI chat.
 
 - [Website](https://assistant-ui.com/)
 - [Demo](https://assistant-ui-rsc-example.vercel.app/)
@@ -12,7 +12,7 @@
 ## Minimal Example with Vercel AI SDK
 
 ```sh
-npx @assistant-ui/shadcn add thread
+npx assistant-ui add thread
 ```
 
 ```tsx

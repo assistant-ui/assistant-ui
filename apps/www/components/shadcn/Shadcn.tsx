@@ -7,7 +7,7 @@ import icon from "@/public/favicon/favicon.svg";
 import type { TooltipContentProps } from "@radix-ui/react-tooltip";
 import Image from "next/image";
 import { type FC, forwardRef } from "react";
-import { Thread } from "@assistant-ui/shadcn/registry/assistant-ui/full/thread";
+import { Thread } from "assistant-ui/registry/assistant-ui/full/thread";
 import { Sheet, SheetContent, SheetTrigger } from "../ui/sheet";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { ModelPicker } from "./ModelPicker";
