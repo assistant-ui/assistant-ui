@@ -13,7 +13,7 @@ import {
 
 export default function Home() {
   return (
-    <main className="h-screen">
+    <main className="h-[calc(100dvh)]">
       <MyRuntimeProvider>
         <Thread />
       </MyRuntimeProvider>

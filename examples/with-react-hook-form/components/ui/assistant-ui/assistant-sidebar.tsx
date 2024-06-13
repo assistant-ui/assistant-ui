@@ -17,7 +17,7 @@ export const AssistantSidebar: FC<PropsWithChildren> = ({ children }) => {
     return (
       <Tabs
         defaultValue="app"
-        className="mx-auto h-full max-w-[480px] pt-4 flex flex-col"
+        className="mx-auto flex h-full max-w-[480px] flex-col px-4 pt-4"
       >
         <TabsList className="grid w-full grid-cols-2 ">
           <TabsTrigger value="app">Form</TabsTrigger>

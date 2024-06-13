@@ -58,7 +58,7 @@ export default function RootLayout({
     <AssistantSystemProvider>
       <MyRuntimeProvider>
         <html lang="en">
-          <body className={cn(montserrat.className, "h-screen")}>
+          <body className={cn(montserrat.className, "h-[calc(100dvh)]")}>
             {children}
           </body>
         </html>
