@@ -47,6 +47,6 @@ export const useVercelRSCSync = <T extends WeakKey>(
   }, [adapter.convertMessage]);
 
   useEffect(() => {
-    updateData(converter.convertMessages(convertCallback, adapter.messages));
+    updateData(converter.convertMessages(adapter.messages, convertCallback));
   }, [updateData, converter, convertCallback, adapter.messages]);
 };

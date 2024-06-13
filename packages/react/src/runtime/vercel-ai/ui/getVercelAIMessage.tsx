@@ -4,7 +4,7 @@ import type { ThreadMessage } from "../../../utils/AssistantTypes";
 export const symbolInnerAIMessage = Symbol("innerVercelAIUIMessage");
 
 export type VercelAIThreadMessage = ThreadMessage & {
-  [symbolInnerAIMessage]?: Message;
+  [symbolInnerAIMessage]?: Message[];
 };
 
 export const getVercelAIMessage = (message: ThreadMessage) => {

@@ -21,27 +21,36 @@ const getIsRunning = (vercel: VercelHelpers) => {
 };
 
 const vercelToThreadMessage = (
-  message: Message,
+  messages: Message[],
   status: "in_progress" | "done" | "error",
 ): VercelAIThreadMessage => {
+  const firstMessage = messages[0];
+  if (!firstMessage) throw new Error("No messages found");
+
   const common = {
-    id: message.id,
-    createdAt: message.createdAt ?? new Date(),
-    [symbolInnerAIMessage]: message,
+    id: firstMessage.id,
+    createdAt: firstMessage.createdAt ?? new Date(),
+    [symbolInnerAIMessage]: messages,
   };
 
-  switch (message.role) {
+  switch (firstMessage.role) {
     case "user":
+      if (messages.length > 1) {
+        throw new Error(
+          "Multiple user messages found. This is likely an internal bug in assistant-ui.",
+        );
+      }
+
       return {
         ...common,
         role: "user",
-        content: [{ type: "text", text: message.content }],
+        content: [{ type: "text", text: firstMessage.content }],
       };
     case "assistant":
       return {
         ...common,
         role: "assistant",
-        content: [
+        content: messages.flatMap((message) => [
           ...(message.content
             ? [{ type: "text", text: message.content } as TextContentPart]
             : []),
@@ -54,14 +63,49 @@ const vercelToThreadMessage = (
                 result: "result" in t ? t.result : undefined,
               }) as ToolCallContentPart,
           ) ?? []),
-        ],
+        ]),
         status,
       };
     default:
       throw new Error(
-        `You have a message with an unsupported role. The role ${message.role} is not supported.`,
+        `You have a message with an unsupported role. The role ${firstMessage.role} is not supported.`,
       );
   }
+};
+
+type Chunk = [Message, ...Message[]];
+const hasItems = (messages: Message[]): messages is Chunk =>
+  messages.length > 0;
+
+const chunkedMessages = (messages: Message[]): Chunk[] => {
+  const chunks: Chunk[] = [];
+  let currentChunk: Message[] = [];
+
+  for (const message of messages) {
+    if (message.role === "assistant") {
+      currentChunk.push(message);
+    } else {
+      if (hasItems(currentChunk)) {
+        chunks.push(currentChunk);
+        currentChunk = [];
+      }
+      chunks.push([message]);
+    }
+  }
+
+  if (hasItems(currentChunk)) {
+    chunks.push(currentChunk);
+  }
+
+  return chunks;
+};
+
+const shallowArrayEqual = (a: unknown[], b: unknown[]) => {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
 };
 
 type UpdateDataCallback = (isRunning: boolean, vm: ThreadMessage[]) => void;
@@ -76,19 +120,24 @@ export const useVercelAIThreadSync = (
 
   useEffect(() => {
     const lastMessageId = vercel.messages.at(-1)?.id;
-    const convertCallback: ConverterCallback<Message> = (message, cache) => {
+    const convertCallback: ConverterCallback<Chunk> = (messages, cache) => {
       const status =
-        lastMessageId === message.id && isRunning ? "in_progress" : "done";
+        lastMessageId === messages[0].id && isRunning ? "in_progress" : "done";
 
-      if (cache && (cache.role === "user" || cache.status === status))
+      if (
+        cache &&
+        shallowArrayEqual(cache.content, messages) &&
+        (cache.role === "user" || cache.status === status)
+      )
         return cache;
 
-      return vercelToThreadMessage(message, status);
+      return vercelToThreadMessage(messages, status);
     };
 
     const messages = converter.convertMessages(
+      chunkedMessages(vercel.messages),
       convertCallback,
-      vercel.messages,
+      (m) => m[0],
     );
 
     updateData(isRunning, messages);

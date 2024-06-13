@@ -6,11 +6,15 @@ export const sliceMessagesUntil = (
 ) => {
   if (messageId == null) return [];
 
-  const messageIdx = messages.findIndex((m) => m.id === messageId);
+  let messageIdx = messages.findIndex((m) => m.id === messageId);
   if (messageIdx === -1)
     throw new Error(
       "useVercelAIThreadState: Message not found. This is liekly an internal bug in assistant-ui.",
     );
+
+  while (messages[messageIdx + 1]?.role === "assistant") {
+    messageIdx++;
+  }
 
   return messages.slice(0, messageIdx + 1);
 };

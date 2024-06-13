@@ -107,7 +107,9 @@ export class VercelAIRuntime implements AssistantRuntime, ReactThreadRuntime {
 
   private updateVercelMessages = (messages: ThreadMessage[]) => {
     this.vercel.setMessages(
-      messages.map(getVercelAIMessage).filter((m): m is Message => m != null),
+      messages
+        .flatMap(getVercelAIMessage)
+        .filter((m): m is Message => m != null),
     );
   };
 
