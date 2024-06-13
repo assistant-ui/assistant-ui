@@ -229,9 +229,6 @@ importers:
       cosmiconfig:
         specifier: ^9.0.0
         version: 9.0.0(typescript@5.4.5)
-      shadcn-ui:
-        specifier: 0.8.0
-        version: 0.8.0(typescript@5.4.5)
       tsconfig-paths:
         specifier: ^4.2.0
         version: 4.2.0
@@ -275,9 +272,15 @@ importers:
       react:
         specifier: ^18.3.1
         version: 18.3.1
+      react-resizable-panels:
+        specifier: ^2.0.19
+        version: 2.0.19(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       rimraf:
         specifier: ^5.0.7
         version: 5.0.7
+      shadcn-ui:
+        specifier: 0.8.0
+        version: 0.8.0(typescript@5.4.5)
       tailwind-merge:
         specifier: ^2.3.0
         version: 2.3.0
@@ -3914,6 +3917,12 @@ packages:
     peerDependenciesMeta:
       '@types/react':
         optional: true
+
+  react-resizable-panels@2.0.19:
+    resolution: {integrity: sha512-v3E41kfKSuCPIvJVb4nL4mIZjjKIn/gh6YqZF/gDfQDolv/8XnhJBek4EiV2gOr3hhc5A3kOGOayk3DhanpaQw==}
+    peerDependencies:
+      react: ^16.14.0 || ^17.0.0 || ^18.0.0
+      react-dom: ^16.14.0 || ^17.0.0 || ^18.0.0
 
   react-style-singleton@2.2.1:
     resolution: {integrity: sha512-ZWj0fHEMyWkHzKYUr2Bs/4zU6XLmq9HsgBURm7g5pAVfyn49DgUiNgY2d4lXRlYSiCif9YBGpQleewkcqddc7g==}
@@ -9124,6 +9133,11 @@ snapshots:
       use-sidecar: 1.1.2(@types/react@18.3.3)(react@18.3.1)
     optionalDependencies:
       '@types/react': 18.3.3
+
+  react-resizable-panels@2.0.19(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
+    dependencies:
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
 
   react-style-singleton@2.2.1(@types/react@18.3.3)(react@18.3.1):
     dependencies:

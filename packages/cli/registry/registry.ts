@@ -2,6 +2,13 @@ import type { RegistryIndex } from "./schema";
 
 export const registry: RegistryIndex = [
   {
+    name: "sidebar",
+    type: "components:ui",
+    files: ["assistant-ui/assistant-sidebar.tsx"],
+    registryDependencies: ["thread", "resizable"],
+    dependencies: ["@assistant-ui/react", "lucide-react"],
+  },
+  {
     name: "modal",
     type: "components:ui",
     files: ["assistant-ui/assistant-modal.tsx"],
