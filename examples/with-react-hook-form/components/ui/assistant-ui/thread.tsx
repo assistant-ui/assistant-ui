@@ -221,10 +221,7 @@ const AssistantMessage: FC = () => {
   );
 };
 
-const SetFormFieldTool: FC<{ part: unstable_ToolCallContentPart }> = ({
-  part,
-}) => {
-  // TODO
+const SetFormFieldTool: FC<{ part: unstable_ToolCallContentPart }> = () => {
   return (
     <p className="text-center font-bold font-mono text-blue-500 text-sm">
       set_form_field(...)
@@ -232,9 +229,7 @@ const SetFormFieldTool: FC<{ part: unstable_ToolCallContentPart }> = ({
   );
 };
 
-const SubmitFormTool: FC<{ part: unstable_ToolCallContentPart }> = ({
-  part,
-}) => {
+const SubmitFormTool: FC<{ part: unstable_ToolCallContentPart }> = () => {
   return (
     <p className="text-center font-bold font-mono text-blue-500 text-sm">
       submit_form(...)
