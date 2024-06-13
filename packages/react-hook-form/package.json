@@ -1,0 +1,32 @@
+{
+  "name": "@assistant-ui/react-hook-form",
+  "version": "0.0.0-alpha.1",
+  "license": "MIT",
+  "type": "module",
+  "peerDependencies": {
+    "@assistant-ui/react": "^0.0.x",
+    "@assistant-ui/react-system": "^0.0.x",
+    "react-hook-form": "^7.x.x",
+    "@types/react": "*",
+    "react": "^18"
+  },
+  "devDependencies": {
+    "@assistant-ui/react": "workspace:*",
+    "@assistant-ui/react-system": "workspace:*",
+    "@assistant-ui/tsconfig": "workspace:*"
+  },
+  "files": ["dist", "README.md"],
+  "bin": "./dist/index.js",
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --sourcemap",
+    "build:registry": "tsx ./scripts/build-registry.ts",
+    "prepublish": "cp ../../README.md ./README.md"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "zod": "^3.23.8",
+    "zustand": "^4.5.2"
+  }
+}

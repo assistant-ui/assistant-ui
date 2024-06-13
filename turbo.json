@@ -5,7 +5,7 @@
       "dependsOn": ["^build"],
       "inputs": ["**/*.*", "!.next", "!.turbo"],
       "outputs": ["dist", ".next/**", "!.next/cache/**", "public/registry/**"],
-      "env": ["OPENAI_*"]
+      "env": ["OPENAI_*", "ASSISTANT_UI_*"]
     },
     "lint": {},
     "deploy": {

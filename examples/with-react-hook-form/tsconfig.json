@@ -1,0 +1,29 @@
+{
+  "extends": "@assistant-ui/tsconfig/base.json",
+  "compilerOptions": {
+    "target": "ES6",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./*"],
+      "@assistant-ui/*": ["../../packages/*/src"]
+    },
+    "allowJs": true,
+    "strictNullChecks": true,
+    "jsx": "preserve"
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    "../../packages/react-hook-form/src/useAssistantForm.tsx",
+    "../../packages/react-hook-form/src/context-management.tsx",
+    "../../packages/react-hook-form/src/formTools.tsx"
+  ],
+  "exclude": ["node_modules"]
+}

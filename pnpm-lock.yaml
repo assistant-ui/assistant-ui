@@ -136,6 +136,115 @@ importers:
         specifier: ^5.4.5
         version: 5.4.5
 
+  examples/with-react-hook-form:
+    dependencies:
+      '@ai-sdk/openai':
+        specifier: ^0.0.27
+        version: 0.0.27(zod@3.23.8)
+      '@ai-sdk/react':
+        specifier: ^0.0.1
+        version: 0.0.1(react@18.3.1)(zod@3.23.8)
+      '@assistant-ui/react':
+        specifier: ^0.0.23
+        version: 0.0.23(@ai-sdk/react@0.0.1(react@18.3.1)(zod@3.23.8))(@types/react-dom@18.3.0)(@types/react@18.3.3)(ai@3.1.35(openai@4.50.0)(react@18.3.1)(solid-js@1.8.17)(svelte@4.2.18)(vue@3.4.27(typescript@5.4.5))(zod@3.23.8))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@assistant-ui/react-hook-form':
+        specifier: workspace:*
+        version: link:../../packages/react-hook-form
+      '@assistant-ui/react-system':
+        specifier: workspace:*
+        version: link:../../packages/react-system
+      '@hookform/resolvers':
+        specifier: ^3.6.0
+        version: 3.6.0(react-hook-form@7.51.5(react@18.3.1))
+      '@radix-ui/react-avatar':
+        specifier: ^1.0.4
+        version: 1.0.4(@types/react-dom@18.3.0)(@types/react@18.3.3)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@radix-ui/react-icons':
+        specifier: ^1.3.0
+        version: 1.3.0(react@18.3.1)
+      '@radix-ui/react-label':
+        specifier: ^2.0.2
+        version: 2.0.2(@types/react-dom@18.3.0)(@types/react@18.3.3)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@radix-ui/react-slot':
+        specifier: ^1.0.2
+        version: 1.0.2(@types/react@18.3.3)(react@18.3.1)
+      '@radix-ui/react-tooltip':
+        specifier: ^1.0.7
+        version: 1.0.7(@types/react-dom@18.3.0)(@types/react@18.3.3)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      ai:
+        specifier: ^3.1.33
+        version: 3.1.35(openai@4.50.0)(react@18.3.1)(solid-js@1.8.17)(svelte@4.2.18)(vue@3.4.27(typescript@5.4.5))(zod@3.23.8)
+      class-variance-authority:
+        specifier: ^0.7.0
+        version: 0.7.0
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
+      json-schema-to-zod:
+        specifier: ^2.1.0
+        version: 2.1.0
+      lucide-react:
+        specifier: ^0.394.0
+        version: 0.394.0(react@18.3.1)
+      next:
+        specifier: 14.2.4
+        version: 14.2.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      react:
+        specifier: ^18
+        version: 18.3.1
+      react-dom:
+        specifier: ^18
+        version: 18.3.1(react@18.3.1)
+      react-hook-form:
+        specifier: ^7.51.5
+        version: 7.51.5(react@18.3.1)
+      react-resizable-panels:
+        specifier: ^2.0.19
+        version: 2.0.19(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      tailwind-merge:
+        specifier: ^2.3.0
+        version: 2.3.0
+      tailwindcss-animate:
+        specifier: ^1.0.7
+        version: 1.0.7(tailwindcss@3.4.4)
+      zod:
+        specifier: ^3.23.8
+        version: 3.23.8
+      zod-to-json-schema:
+        specifier: ^3.23.0
+        version: 3.23.0(zod@3.23.8)
+      zustand:
+        specifier: ^4.5.2
+        version: 4.5.2(@types/react@18.3.3)(react@18.3.1)
+    devDependencies:
+      '@assistant-ui/tsconfig':
+        specifier: workspace:*
+        version: link:../../packages/tsconfig
+      '@types/node':
+        specifier: ^20
+        version: 20.14.2
+      '@types/react':
+        specifier: ^18
+        version: 18.3.3
+      '@types/react-dom':
+        specifier: ^18
+        version: 18.3.0
+      eslint:
+        specifier: ^8
+        version: 8.57.0
+      eslint-config-next:
+        specifier: 14.2.4
+        version: 14.2.4(eslint@8.57.0)(typescript@5.4.5)
+      postcss:
+        specifier: ^8
+        version: 8.4.38
+      tailwindcss:
+        specifier: ^3.4.1
+        version: 3.4.4
+      typescript:
+        specifier: ^5
+        version: 5.4.5
+
   examples/with-vercel-ai-rsc:
     dependencies:
       '@ai-sdk/openai':
@@ -346,6 +455,59 @@ importers:
         specifier: ^8.1.0
         version: 8.1.0(postcss@8.4.38)(typescript@5.4.5)
 
+  packages/react-hook-form:
+    dependencies:
+      '@types/react':
+        specifier: '*'
+        version: 18.3.3
+      react:
+        specifier: ^18
+        version: 18.3.1
+      react-hook-form:
+        specifier: ^7.x.x
+        version: 7.51.5(react@18.3.1)
+      zod:
+        specifier: ^3.23.8
+        version: 3.23.8
+      zustand:
+        specifier: ^4.5.2
+        version: 4.5.2(@types/react@18.3.3)(react@18.3.1)
+    devDependencies:
+      '@assistant-ui/react':
+        specifier: workspace:*
+        version: link:../react
+      '@assistant-ui/react-system':
+        specifier: workspace:*
+        version: link:../react-system
+      '@assistant-ui/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+
+  packages/react-system:
+    dependencies:
+      '@types/react':
+        specifier: '*'
+        version: 18.3.3
+      react:
+        specifier: ^18
+        version: 18.3.1
+      react-hook-form:
+        specifier: ^7.x.x
+        version: 7.51.5(react@18.3.1)
+      zod:
+        specifier: ^3.23.8
+        version: 3.23.8
+      zustand:
+        specifier: ^4.5.2
+        version: 4.5.2(@types/react@18.3.3)(react@18.3.1)
+    devDependencies:
+      '@assistant-ui/react':
+        specifier: workspace:*
+        version: link:../react
+      '@assistant-ui/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+
   packages/tsconfig:
     dependencies:
       '@tsconfig/strictest':
@@ -424,6 +586,21 @@ packages:
   '@antfu/ni@0.21.12':
     resolution: {integrity: sha512-2aDL3WUv8hMJb2L3r/PIQWsTLyq7RQr3v9xD16fiz6O8ys1xEyLhhTOv8gxtZvJiTzjTF5pHoArvRdesGL1DMQ==}
     hasBin: true
+
+  '@assistant-ui/react@0.0.23':
+    resolution: {integrity: sha512-yVzn0W0rb89VEnA4gmbfEhIDml4uLYzWiXm2ovU9msPT0oy+pJVJrxFZzLKJYo93r261ZlF2LBk5l60+6mErww==}
+    peerDependencies:
+      '@ai-sdk/react': ^0.0.x
+      '@types/react': '*'
+      ai: ^3.1.31
+      react: ^18
+    peerDependenciesMeta:
+      '@ai-sdk/react':
+        optional: true
+      '@types/react':
+        optional: true
+      ai:
+        optional: true
 
   '@babel/code-frame@7.24.7':
     resolution: {integrity: sha512-BcYH1CVJBO9tvyIZ2jVeXgSIMvGZ2FDRvDdOIVQyuklNKSsx+eppDEBq/g47Ayw+RqNFE+URvOShmf+f/qwAlA==}
@@ -824,6 +1001,11 @@ packages:
       react: ^16 || ^17 || ^18
       react-dom: ^16 || ^17 || ^18
 
+  '@hookform/resolvers@3.6.0':
+    resolution: {integrity: sha512-UBcpyOX3+RR+dNnqBd0lchXpoL8p4xC21XP8H6Meb8uve5Br1GCnmg0PcBoKKqPKgGu9GHQ/oygcmPrQhetwqw==}
+    peerDependencies:
+      react-hook-form: ^7.0.0
+
   '@humanwhocodes/config-array@0.11.14':
     resolution: {integrity: sha512-3T8LkOmg45BV5FICb15QQMsyUSWrQ8AygVfC7ZG32zOalnqrilm018ZVCw0eapXux8FtA33q8PSRSstjee3jSg==}
     engines: {node: '>=10.10.0'}
@@ -1160,6 +1342,19 @@ packages:
       react: ^16.8 || ^17.0 || ^18.0
     peerDependenciesMeta:
       '@types/react':
+        optional: true
+
+  '@radix-ui/react-label@2.0.2':
+    resolution: {integrity: sha512-N5ehvlM7qoTLx7nWPodsPYPgMzA5WM8zZChQg8nyFJKnDO5WHdba1vv5/H6IO5LtJMfD2Q3wh1qHFGNtK0w3bQ==}
+    peerDependencies:
+      '@types/react': '*'
+      '@types/react-dom': '*'
+      react: ^16.8 || ^17.0 || ^18.0
+      react-dom: ^16.8 || ^17.0 || ^18.0
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+      '@types/react-dom':
         optional: true
 
   '@radix-ui/react-menu@2.0.6':
@@ -1673,6 +1868,24 @@ packages:
 
   ai@3.1.32:
     resolution: {integrity: sha512-+2dycoLQE3xN2BnfpWwTQYjMiwB3y1M9yLZxoODhzGCT/R/0JJjOFvqUHOvpx1K6hkWgIlHWTFfsK2VK/fRG7A==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      openai: ^4.42.0
+      react: ^18 || ^19
+      svelte: ^3.0.0 || ^4.0.0
+      zod: ^3.0.0
+    peerDependenciesMeta:
+      openai:
+        optional: true
+      react:
+        optional: true
+      svelte:
+        optional: true
+      zod:
+        optional: true
+
+  ai@3.1.35:
+    resolution: {integrity: sha512-kr0GAKe3HrUqk0SSII8MrOyBC/Lsglh37ayYrGzzEo3QQ0igriBdVTQed+8UYljbnYikEglbLfwXAzg3qH6u4g==}
     engines: {node: '>=18'}
     peerDependencies:
       openai: ^4.42.0
@@ -3091,6 +3304,10 @@ packages:
   json-parse-even-better-errors@2.3.1:
     resolution: {integrity: sha512-xyFwyhro/JEof6Ghe2iz2NcXoj2sloNsWr/XsERDK/oiPCfaNhl5ONfp+jQdAZRQQ0IJWNzH9zIZF7li91kh2w==}
 
+  json-schema-to-zod@2.1.0:
+    resolution: {integrity: sha512-7ishNgYY+AbIKeeHcp5xCOdJbdVwSfDx/4V2ktc16LUusCJJbz2fEKdWUmAxhKIiYzhZ9Fp4E8OsAoM/h9cOLA==}
+    hasBin: true
+
   json-schema-traverse@0.4.1:
     resolution: {integrity: sha512-xbbCH5dCYU5T8LcEhhuh7HJ88HXuW3qsI3Y0zOZFKfZEHcpWiHU/Jxzk629Brsab/mMiHQti9wMP+845RPe3Vg==}
 
@@ -3894,6 +4111,12 @@ packages:
     resolution: {integrity: sha512-5m4nQKp+rZRb09LNH59GM4BxTh9251/ylbKIbpe7TpGxfJ+9kv6BLkLBXIjjspbgbnIBNqlI23tRnTWT0snUIw==}
     peerDependencies:
       react: ^18.3.1
+
+  react-hook-form@7.51.5:
+    resolution: {integrity: sha512-J2ILT5gWx1XUIJRETiA7M19iXHlG74+6O3KApzvqB/w8S5NQR7AbU8HVZrMALdmDgWpRPYiZJl0zx8Z4L2mP6Q==}
+    engines: {node: '>=12.22.0'}
+    peerDependencies:
+      react: ^16.8.0 || ^17 || ^18
 
   react-is@16.13.1:
     resolution: {integrity: sha512-24e6ynE2H+OKt4kqsOvNd8kBpV65zoxbA4BVsEOB3ARVWQki/DHzaUoC5KuON/BiccDaCCTZBuOcfZs70kR8bQ==}
@@ -4805,6 +5028,11 @@ packages:
     peerDependencies:
       zod: ^3.22.4
 
+  zod-to-json-schema@3.23.0:
+    resolution: {integrity: sha512-az0uJ243PxsRIa2x1WmNE/pnuA05gUq/JB8Lwe1EDCCL/Fz9MgjYQ0fPlyc2Tcv6aF2ZA7WM5TWaRZVEFaAIag==}
+    peerDependencies:
+      zod: ^3.23.3
+
   zod-validation-error@1.5.0:
     resolution: {integrity: sha512-/7eFkAI4qV0tcxMBB/3+d2c1P6jzzZYdYSlBuAklzMuCrJu5bzJfHS0yVAS87dRHVlhftd6RFJDIvv03JgkSbw==}
     engines: {node: '>=16.0.0'}
@@ -4906,6 +5134,26 @@ snapshots:
       '@jridgewell/trace-mapping': 0.3.25
 
   '@antfu/ni@0.21.12': {}
+
+  '@assistant-ui/react@0.0.23(@ai-sdk/react@0.0.1(react@18.3.1)(zod@3.23.8))(@types/react-dom@18.3.0)(@types/react@18.3.3)(ai@3.1.35(openai@4.50.0)(react@18.3.1)(solid-js@1.8.17)(svelte@4.2.18)(vue@3.4.27(typescript@5.4.5))(zod@3.23.8))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+    dependencies:
+      '@radix-ui/primitive': 1.0.1
+      '@radix-ui/react-compose-refs': 1.0.1(@types/react@18.3.3)(react@18.3.1)
+      '@radix-ui/react-primitive': 1.0.3(@types/react-dom@18.3.0)(@types/react@18.3.3)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@radix-ui/react-slot': 1.0.2(@types/react@18.3.3)(react@18.3.1)
+      '@radix-ui/react-use-callback-ref': 1.0.1(@types/react@18.3.3)(react@18.3.1)
+      nanoid: 5.0.7
+      react: 18.3.1
+      react-textarea-autosize: 8.5.3(@types/react@18.3.3)(react@18.3.1)
+      zustand: 4.5.2(@types/react@18.3.3)(react@18.3.1)
+    optionalDependencies:
+      '@ai-sdk/react': 0.0.1(react@18.3.1)(zod@3.23.8)
+      '@types/react': 18.3.3
+      ai: 3.1.35(openai@4.50.0)(react@18.3.1)(solid-js@1.8.17)(svelte@4.2.18)(vue@3.4.27(typescript@5.4.5))(zod@3.23.8)
+    transitivePeerDependencies:
+      - '@types/react-dom'
+      - immer
+      - react-dom
 
   '@babel/code-frame@7.24.7':
     dependencies:
@@ -5289,6 +5537,10 @@ snapshots:
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
 
+  '@hookform/resolvers@3.6.0(react-hook-form@7.51.5(react@18.3.1))':
+    dependencies:
+      react-hook-form: 7.51.5(react@18.3.1)
+
   '@humanwhocodes/config-array@0.11.14':
     dependencies:
       '@humanwhocodes/object-schema': 2.0.3
@@ -5606,6 +5858,16 @@ snapshots:
       react: 18.3.1
     optionalDependencies:
       '@types/react': 18.3.3
+
+  '@radix-ui/react-label@2.0.2(@types/react-dom@18.3.0)(@types/react@18.3.3)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+    dependencies:
+      '@babel/runtime': 7.24.7
+      '@radix-ui/react-primitive': 1.0.3(@types/react-dom@18.3.0)(@types/react@18.3.3)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+    optionalDependencies:
+      '@types/react': 18.3.3
+      '@types/react-dom': 18.3.0
 
   '@radix-ui/react-menu@2.0.6(@types/react-dom@18.3.0)(@types/react@18.3.3)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
@@ -6182,6 +6444,31 @@ snapshots:
       - vue
 
   ai@3.1.32(openai@4.50.0)(react@18.3.1)(solid-js@1.8.17)(svelte@4.2.18)(vue@3.4.27(typescript@5.4.5))(zod@3.23.8):
+    dependencies:
+      '@ai-sdk/provider': 0.0.10
+      '@ai-sdk/provider-utils': 0.0.13(zod@3.23.8)
+      '@ai-sdk/react': 0.0.1(react@18.3.1)(zod@3.23.8)
+      '@ai-sdk/solid': 0.0.1(solid-js@1.8.17)(zod@3.23.8)
+      '@ai-sdk/svelte': 0.0.1(svelte@4.2.18)(zod@3.23.8)
+      '@ai-sdk/ui-utils': 0.0.1(zod@3.23.8)
+      '@ai-sdk/vue': 0.0.1(vue@3.4.27(typescript@5.4.5))(zod@3.23.8)
+      eventsource-parser: 1.1.2
+      json-schema: 0.4.0
+      jsondiffpatch: 0.6.0
+      nanoid: 3.3.6
+      secure-json-parse: 2.7.0
+      sswr: 2.1.0(svelte@4.2.18)
+      zod-to-json-schema: 3.22.5(zod@3.23.8)
+    optionalDependencies:
+      openai: 4.50.0
+      react: 18.3.1
+      svelte: 4.2.18
+      zod: 3.23.8
+    transitivePeerDependencies:
+      - solid-js
+      - vue
+
+  ai@3.1.35(openai@4.50.0)(react@18.3.1)(solid-js@1.8.17)(svelte@4.2.18)(vue@3.4.27(typescript@5.4.5))(zod@3.23.8):
     dependencies:
       '@ai-sdk/provider': 0.0.10
       '@ai-sdk/provider-utils': 0.0.13(zod@3.23.8)
@@ -7884,6 +8171,8 @@ snapshots:
 
   json-parse-even-better-errors@2.3.1: {}
 
+  json-schema-to-zod@2.1.0: {}
+
   json-schema-traverse@0.4.1: {}
 
   json-schema@0.4.0: {}
@@ -9113,6 +9402,10 @@ snapshots:
       react: 18.3.1
       scheduler: 0.23.2
 
+  react-hook-form@7.51.5(react@18.3.1):
+    dependencies:
+      react: 18.3.1
+
   react-is@16.13.1: {}
 
   react-remove-scroll-bar@2.3.6(@types/react@18.3.3)(react@18.3.1):
@@ -10236,6 +10529,10 @@ snapshots:
   yocto-queue@1.0.0: {}
 
   zod-to-json-schema@3.22.5(zod@3.23.8):
+    dependencies:
+      zod: 3.23.8
+
+  zod-to-json-schema@3.23.0(zod@3.23.8):
     dependencies:
       zod: 3.23.8
 
