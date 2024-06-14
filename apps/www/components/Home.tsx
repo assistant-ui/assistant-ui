@@ -5,7 +5,11 @@ import { Shadcn } from "@/components/shadcn/Shadcn";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useChat } from "@ai-sdk/react";
-import { VercelAIAssistantProvider } from "@assistant-ui/react";
+import {
+  AssistantRuntimeProvider,
+  VercelAIAssistantProvider,
+  useVercelUseChatRuntime,
+} from "@assistant-ui/react";
 import Link from "next/link";
 import { useState } from "react";
 import { ChatGPT } from "./chatgpt/ChatGPT";
@@ -89,9 +93,10 @@ export type AssistantProps = {
 
 const MyRuntimeProvider = ({ children }: { children: React.ReactNode }) => {
   const chat = useChat();
+  const runtime = useVercelUseChatRuntime(chat);
   return (
-    <VercelAIAssistantProvider chat={chat}>
+    <AssistantRuntimeProvider runtime={runtime}>
       {children}
-    </VercelAIAssistantProvider>
+    </AssistantRuntimeProvider>
   );
 };
