@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { useChat } from "@ai-sdk/react";
 import {
   AssistantRuntimeProvider,
-  VercelAIAssistantProvider,
   useVercelUseChatRuntime,
 } from "@assistant-ui/react";
 import Link from "next/link";
