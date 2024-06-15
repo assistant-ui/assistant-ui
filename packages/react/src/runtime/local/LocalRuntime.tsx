@@ -7,7 +7,7 @@ import type { AssistantRuntime } from "../core/AssistantRuntime";
 import type { Unsubscribe } from "../core/ThreadRuntime";
 import { MessageRepository } from "../utils/MessageRepository";
 import { generateId } from "../utils/idUtils";
-import type { ChatModelAdapter } from "./ChatModelAdapter";
+import type { ChatModelAdapter, ChatModelRunResult } from "./ChatModelAdapter";
 
 export class LocalRuntime implements AssistantRuntime {
   private _subscriptions = new Set<() => void>();
@@ -70,15 +70,17 @@ export class LocalRuntime implements AssistantRuntime {
     this.notifySubscribers();
 
     try {
-      await this.adapter.run({
+      const updateHandler = ({ content }: ChatModelRunResult) => {
+        message.content = content;
+        this.repository.addOrUpdateMessage(parentId, { ...message });
+        this.notifySubscribers();
+      };
+      const result = await this.adapter.run({
         messages,
         abortSignal: this.abortController.signal,
-        onUpdate: ({ content }) => {
-          message.content = content;
-          this.repository.addOrUpdateMessage(parentId, { ...message });
-          this.notifySubscribers();
-        },
+        onUpdate: updateHandler,
       });
+      updateHandler(result);
 
       message.status = "done";
       this.repository.addOrUpdateMessage(parentId, { ...message });

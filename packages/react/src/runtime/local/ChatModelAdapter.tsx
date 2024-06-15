@@ -4,7 +4,7 @@ import type {
   ThreadMessage,
 } from "../../utils/AssistantTypes";
 
-type ChatModelRunResult = {
+export type ChatModelRunResult = {
   content: AssistantContentPart[];
 };
 

@@ -29,7 +29,7 @@
     "conversational-ui",
     "conversational-ai"
   ],
-  "version": "0.0.25",
+  "version": "0.0.26",
   "license": "MIT",
   "exports": {
     ".": {
