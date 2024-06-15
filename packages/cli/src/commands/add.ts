@@ -1,8 +1,8 @@
-import { spawn } from "node:child_process";
 import { existsSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
+import { spawn } from "cross-spawn";
 import { getComponentTargetPath } from "../utils/get-component-target-path";
 import { type Config, getConfig } from "../utils/get-config";
 

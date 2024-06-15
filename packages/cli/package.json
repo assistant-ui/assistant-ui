@@ -1,12 +1,13 @@
 {
   "name": "assistant-ui",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "license": "MIT",
   "type": "module",
   "dependencies": {
     "chalk": "^5.3.0",
     "commander": "^12.1.0",
     "cosmiconfig": "^9.0.0",
+    "cross-spawn": "^7.0.3",
     "tsconfig-paths": "^4.2.0",
     "zod": "^3.23.8"
   },
@@ -17,6 +18,7 @@
     "@radix-ui/react-popover": "^1.0.7",
     "@radix-ui/react-slot": "^1.0.2",
     "@radix-ui/react-tooltip": "^1.0.7",
+    "@types/cross-spawn": "^6.0.6",
     "@types/node": "^20.14.2",
     "@types/react": "^18",
     "class-variance-authority": "^0.7.0",
@@ -32,7 +34,10 @@
     "tsup": "^8.1.0",
     "tsx": "^4.15.4"
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "bin": "./dist/index.js",
   "scripts": {
     "build": "tsup src/index.ts --format esm --sourcemap",

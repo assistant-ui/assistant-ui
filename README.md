@@ -13,7 +13,7 @@
 ## Minimal Example with Vercel AI SDK
 
 ```sh
-npx assistant-ui add thread
+npx assistant-ui@latest add assistant-modal
 ```
 
 ```tsx
@@ -21,7 +21,7 @@ npx assistant-ui add thread
 
 import { useChat } from "@ai-sdk/react";
 import { AssistantRuntimeProvider, useVercelUseChatRuntime } from "@assistant-ui/react";
-import { Thread } from "@/components/ui/assistant-ui/thread";
+import { AssistantModal } from "@/components/ui/assistant-ui/assistant-modal";
 
 export default const MyApp = () => {
   const chat = useChat({ 
@@ -31,7 +31,7 @@ export default const MyApp = () => {
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <Thread />
+      <AssistantModal />
     </AssistantRuntimeProvider>
   );
 }
