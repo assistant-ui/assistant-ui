@@ -16,6 +16,9 @@ const config: DocsThemeConfig = {
   project: {
     link: "https://github.com/Yonom/assistant-ui",
   },
+  chat: {
+    link: "https://discord.gg/S9dwgCNEFs",
+  },
   docsRepositoryBase:
     "https://github.com/Yonom/assistant-ui/tree/main/packages/docs",
   footer: { component: null },

@@ -2,6 +2,7 @@
 
 `assistant-ui` is a set of React components for AI chat.
 
+- [Discord](https://discord.gg/S9dwgCNEFs)
 - [Website](https://assistant-ui.com/)
 - [Demo](https://assistant-ui-rsc-example.vercel.app/)
 
