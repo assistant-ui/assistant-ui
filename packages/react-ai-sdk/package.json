@@ -25,8 +25,7 @@
     "@types/node": "^20.14.2"
   },
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts --sourcemap",
-    "prepublish": "cp ../../README.md ./README.md"
+    "build": "tsup src/index.ts --format cjs,esm --dts --sourcemap"
   },
   "publishConfig": {
     "access": "public"
