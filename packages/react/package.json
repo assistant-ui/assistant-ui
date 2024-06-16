@@ -79,7 +79,7 @@
     "access": "public"
   },
   "devDependencies": {
-    "@ai-sdk/react": "^0.0.1",
+    "@ai-sdk/react": "^0.0.2",
     "@assistant-ui/react-ai-sdk": "workspace:*",
     "@assistant-ui/tsconfig": "workspace:*",
     "@types/node": "^20.14.2",

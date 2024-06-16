@@ -1,10 +1,10 @@
 {
   "name": "@assistant-ui/react-ai-sdk",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "license": "MIT",
   "type": "module",
   "peerDependencies": {
-    "@ai-sdk/react": "^0.0.1",
+    "@ai-sdk/react": "^0.0.x",
     "@assistant-ui/react": "^0.0.x",
     "@types/react": "*",
     "ai": "^3.1.x",

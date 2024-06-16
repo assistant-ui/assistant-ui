@@ -10,8 +10,8 @@
     "start": "next start"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^0.0.28",
-    "@ai-sdk/react": "^0.0.1",
+    "@ai-sdk/openai": "^0.0.29",
+    "@ai-sdk/react": "^0.0.2",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-ai-sdk": "workspace:*",
     "assistant-ui": "workspace:*",
@@ -27,10 +27,10 @@
     "@radix-ui/react-select": "^2.0.0",
     "@radix-ui/react-slot": "^1.0.2",
     "@radix-ui/react-tooltip": "^1.0.7",
-    "ai": "^3.1.35",
+    "ai": "^3.1.36",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
-    "lucide-react": "^0.394.0",
+    "lucide-react": "^0.395.0",
     "next": "14.2.4",
     "nextra": "3.0.0-alpha.24",
     "nextra-theme-docs": "^3.0.0-alpha.24",
