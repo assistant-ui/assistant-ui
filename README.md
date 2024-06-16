@@ -20,7 +20,8 @@ npx assistant-ui@latest add assistant-modal
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import { AssistantRuntimeProvider, useVercelUseChatRuntime } from "@assistant-ui/react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useVercelUseChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { AssistantModal } from "@/components/ui/assistant-ui/assistant-modal";
 
 export default const MyApp = () => {

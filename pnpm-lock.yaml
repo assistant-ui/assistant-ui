@@ -26,6 +26,9 @@ importers:
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
+      '@assistant-ui/react-ai-sdk':
+        specifier: workspace:*
+        version: link:../../packages/react-ai-sdk
       '@calcom/embed-react':
         specifier: ^1.5.0
         version: 1.5.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -147,6 +150,9 @@ importers:
       '@assistant-ui/react':
         specifier: ^0.0.23
         version: 0.0.23(@ai-sdk/react@0.0.1(react@18.3.1)(zod@3.23.8))(@types/react-dom@18.3.0)(@types/react@18.3.3)(ai@3.1.35(openai@4.51.0)(react@18.3.1)(solid-js@1.8.17)(svelte@4.2.18)(vue@3.4.27(typescript@5.4.5))(zod@3.23.8))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@assistant-ui/react-ai-sdk':
+        specifier: ^0.0.2
+        version: 0.0.2(@ai-sdk/react@0.0.1(react@18.3.1)(zod@3.23.8))(@assistant-ui/react@0.0.23(@ai-sdk/react@0.0.1(react@18.3.1)(zod@3.23.8))(@types/react-dom@18.3.0)(@types/react@18.3.3)(ai@3.1.35(openai@4.51.0)(react@18.3.1)(solid-js@1.8.17)(svelte@4.2.18)(vue@3.4.27(typescript@5.4.5))(zod@3.23.8))(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(@types/react@18.3.3)(ai@3.1.35(openai@4.51.0)(react@18.3.1)(solid-js@1.8.17)(svelte@4.2.18)(vue@3.4.27(typescript@5.4.5))(zod@3.23.8))(postcss@8.4.38)(react@18.3.1)(typescript@5.4.5)
       '@assistant-ui/react-hook-form':
         specifier: workspace:*
         version: link:../../packages/react-hook-form
@@ -629,6 +635,18 @@ packages:
   '@antfu/ni@0.21.12':
     resolution: {integrity: sha512-2aDL3WUv8hMJb2L3r/PIQWsTLyq7RQr3v9xD16fiz6O8ys1xEyLhhTOv8gxtZvJiTzjTF5pHoArvRdesGL1DMQ==}
     hasBin: true
+
+  '@assistant-ui/react-ai-sdk@0.0.2':
+    resolution: {integrity: sha512-1ptFN1OnsPPAKhscAnsX4pk/fmhpJSh/9hplUuGZMRhgnJIOHdhw3P/PhLK36yLRPiuoJffKyZFJo9tgqpyPGw==}
+    peerDependencies:
+      '@ai-sdk/react': ^0.0.1
+      '@assistant-ui/react': ^0.0.x
+      '@types/react': '*'
+      ai: ^3.1.x
+      react: ^18
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
 
   '@assistant-ui/react@0.0.23':
     resolution: {integrity: sha512-yVzn0W0rb89VEnA4gmbfEhIDml4uLYzWiXm2ovU9msPT0oy+pJVJrxFZzLKJYo93r261ZlF2LBk5l60+6mErww==}
@@ -5162,6 +5180,26 @@ snapshots:
       '@jridgewell/trace-mapping': 0.3.25
 
   '@antfu/ni@0.21.12': {}
+
+  '@assistant-ui/react-ai-sdk@0.0.2(@ai-sdk/react@0.0.1(react@18.3.1)(zod@3.23.8))(@assistant-ui/react@0.0.23(@ai-sdk/react@0.0.1(react@18.3.1)(zod@3.23.8))(@types/react-dom@18.3.0)(@types/react@18.3.3)(ai@3.1.35(openai@4.51.0)(react@18.3.1)(solid-js@1.8.17)(svelte@4.2.18)(vue@3.4.27(typescript@5.4.5))(zod@3.23.8))(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(@types/react@18.3.3)(ai@3.1.35(openai@4.51.0)(react@18.3.1)(solid-js@1.8.17)(svelte@4.2.18)(vue@3.4.27(typescript@5.4.5))(zod@3.23.8))(postcss@8.4.38)(react@18.3.1)(typescript@5.4.5)':
+    dependencies:
+      '@ai-sdk/react': 0.0.1(react@18.3.1)(zod@3.23.8)
+      '@assistant-ui/react': 0.0.23(@ai-sdk/react@0.0.1(react@18.3.1)(zod@3.23.8))(@types/react-dom@18.3.0)(@types/react@18.3.3)(ai@3.1.35(openai@4.51.0)(react@18.3.1)(solid-js@1.8.17)(svelte@4.2.18)(vue@3.4.27(typescript@5.4.5))(zod@3.23.8))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      ai: 3.1.35(openai@4.51.0)(react@18.3.1)(solid-js@1.8.17)(svelte@4.2.18)(vue@3.4.27(typescript@5.4.5))(zod@3.23.8)
+      react: 18.3.1
+      tsup: 8.1.0(postcss@8.4.38)(typescript@5.4.5)
+      zod: 3.23.8
+      zustand: 4.5.2(@types/react@18.3.3)(react@18.3.1)
+    optionalDependencies:
+      '@types/react': 18.3.3
+    transitivePeerDependencies:
+      - '@microsoft/api-extractor'
+      - '@swc/core'
+      - immer
+      - postcss
+      - supports-color
+      - ts-node
+      - typescript
 
   '@assistant-ui/react@0.0.23(@ai-sdk/react@0.0.1(react@18.3.1)(zod@3.23.8))(@types/react-dom@18.3.0)(@types/react@18.3.3)(ai@3.1.35(openai@4.51.0)(react@18.3.1)(solid-js@1.8.17)(svelte@4.2.18)(vue@3.4.27(typescript@5.4.5))(zod@3.23.8))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:

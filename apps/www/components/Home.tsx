@@ -5,10 +5,8 @@ import { Shadcn } from "@/components/shadcn/Shadcn";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useChat } from "@ai-sdk/react";
-import {
-  AssistantRuntimeProvider,
-  useVercelUseChatRuntime,
-} from "@assistant-ui/react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useVercelUseChatRuntime } from "@assistant-ui/react-ai-sdk";
 import Link from "next/link";
 import { useState } from "react";
 import { ChatGPT } from "./chatgpt/ChatGPT";

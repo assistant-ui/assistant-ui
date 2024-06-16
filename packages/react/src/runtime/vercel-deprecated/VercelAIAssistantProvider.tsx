@@ -55,7 +55,7 @@ export type VercelAIAssistantProviderProps = PropsWithChildren<
 >;
 
 /**
- * @deprecated `const runtime = useVercelUseChatRuntime(chat)` and `<AssistantRuntimeProvider runtime={...} />`. Will be removed in 0.1.0.
+ * @deprecated Use `const runtime = useVercelUseChatRuntime(chat)` and `<AssistantRuntimeProvider runtime={...} />`. Will be removed in 0.1.0.
  */
 export const VercelAIAssistantProvider: FC<VercelAIAssistantProviderProps> = ({
   children,

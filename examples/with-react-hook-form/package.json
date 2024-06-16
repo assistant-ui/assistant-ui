@@ -12,6 +12,7 @@
     "@ai-sdk/openai": "^0.0.28",
     "@ai-sdk/react": "^0.0.1",
     "@assistant-ui/react": "^0.0.23",
+    "@assistant-ui/react-ai-sdk": "^0.0.2",
     "@assistant-ui/react-hook-form": "workspace:*",
     "@assistant-ui/react-system": "workspace:*",
     "@hookform/resolvers": "^3.6.0",

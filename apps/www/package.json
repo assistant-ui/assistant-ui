@@ -13,6 +13,7 @@
     "@ai-sdk/openai": "^0.0.28",
     "@ai-sdk/react": "^0.0.1",
     "@assistant-ui/react": "workspace:*",
+    "@assistant-ui/react-ai-sdk": "workspace:*",
     "assistant-ui": "workspace:*",
     "@calcom/embed-react": "^1.5.0",
     "@fortawesome/fontawesome-svg-core": "^6.5.2",
