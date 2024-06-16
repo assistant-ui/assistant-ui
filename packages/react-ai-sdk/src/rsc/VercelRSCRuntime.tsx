@@ -7,11 +7,13 @@ import type {
 } from "@assistant-ui/react";
 
 import type { AppendMessage, ThreadMessage } from "@assistant-ui/react";
-import { ProxyConfigProvider } from "@assistant-ui/react/internal";
+import { INTERNAL } from "@assistant-ui/react";
 import { type StoreApi, type UseBoundStore, create } from "zustand";
 import type { VercelRSCAdapter } from "./VercelRSCAdapter";
 import type { VercelRSCMessage } from "./VercelRSCMessage";
 import { useVercelRSCSync } from "./useVercelRSCSync";
+
+const { ProxyConfigProvider } = INTERNAL;
 
 const EMPTY_BRANCHES: readonly never[] = Object.freeze([]);
 

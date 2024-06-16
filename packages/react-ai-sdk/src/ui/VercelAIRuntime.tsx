@@ -4,10 +4,7 @@ import type {
   Unsubscribe,
 } from "@assistant-ui/react";
 import type { AppendMessage, ThreadMessage } from "@assistant-ui/react";
-import {
-  MessageRepository,
-  ProxyConfigProvider,
-} from "@assistant-ui/react/internal";
+import { INTERNAL } from "@assistant-ui/react";
 import type { Message } from "ai";
 import { type StoreApi, type UseBoundStore, create } from "zustand";
 import { getVercelAIMessage } from "./getVercelAIMessage";
@@ -15,6 +12,8 @@ import type { VercelHelpers } from "./utils/VercelHelpers";
 import { sliceMessagesUntil } from "./utils/sliceMessagesUntil";
 import { useVercelAIComposerSync } from "./utils/useVercelAIComposerSync";
 import { useVercelAIThreadSync } from "./utils/useVercelAIThreadSync";
+
+const { ProxyConfigProvider, MessageRepository } = INTERNAL;
 
 const hasUpcomingMessage = (isRunning: boolean, messages: ThreadMessage[]) => {
   return isRunning && messages[messages.length - 1]?.role !== "assistant";

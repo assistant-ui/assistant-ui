@@ -17,3 +17,5 @@ export { AssistantRuntimeProvider } from "./context/providers/AssistantRuntimePr
 
 // utils
 export type { Unsubscribe } from "./utils/Unsubscribe";
+
+export * as INTERNAL from "./internal";

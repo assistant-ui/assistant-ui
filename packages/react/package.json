@@ -29,7 +29,7 @@
     "conversational-ui",
     "conversational-ai"
   ],
-  "version": "0.1.1",
+  "version": "0.1.2",
   "license": "MIT",
   "exports": {
     ".": {
@@ -40,16 +40,6 @@
       "require": {
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
-      }
-    },
-    "./internal": {
-      "import": {
-        "types": "./dist/internal.d.mts",
-        "default": "./dist/internal.mjs"
-      },
-      "require": {
-        "types": "./dist/internal.d.ts",
-        "default": "./dist/internal.js"
       }
     },
     "./experimental": {
@@ -70,7 +60,7 @@
   "files": ["dist", "README.md"],
   "sideEffects": false,
   "scripts": {
-    "build": "tsup src/index.ts src/internal.ts src/experimental.ts --format cjs,esm --dts --sourcemap",
+    "build": "tsup src/index.ts src/experimental.ts --format cjs,esm --dts --sourcemap",
     "prepublish": "cp ../../README.md ./README.md"
   },
   "dependencies": {
