@@ -93,14 +93,14 @@
       "optional": true
     }
   },
-  "publishConfig": {
-    "access": "public"
-  },
   "devDependencies": {
     "@ai-sdk/react": "^0.0.2",
     "@assistant-ui/tsconfig": "workspace:*",
     "@types/node": "^20.14.2",
     "tsup": "^8.1.0"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "homepage": "https://assistant-ui.com/",
   "repository": {

@@ -1,8 +1,33 @@
 {
   "name": "@assistant-ui/react-ai-sdk",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "license": "MIT",
-  "type": "module",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "source": "./src/index.ts",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "files": ["dist", "README.md"],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --sourcemap"
+  },
+  "dependencies": {
+    "tsup": "^8.1.0",
+    "zod": "^3.23.8",
+    "zustand": "^4.5.2"
+  },
   "peerDependencies": {
     "@ai-sdk/react": "^0.0.x",
     "@assistant-ui/react": "^0.1",
@@ -15,20 +40,20 @@
       "optional": true
     }
   },
-  "dependencies": {
-    "tsup": "^8.1.0",
-    "zod": "^3.23.8",
-    "zustand": "^4.5.2"
-  },
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/tsconfig": "workspace:*",
     "@types/node": "^20.14.2"
   },
-  "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts --sourcemap"
-  },
   "publishConfig": {
     "access": "public"
+  },
+  "homepage": "https://assistant-ui.com/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Yonom/assistant-ui.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Yonom/assistant-ui/issues"
   }
 }
