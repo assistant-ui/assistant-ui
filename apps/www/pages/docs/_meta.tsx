@@ -26,7 +26,7 @@ export default {
   },
 
   "-- advanced": {
-    title: "Advacned",
+    title: "Advanced",
     type: "separator",
   },
   advanced: {

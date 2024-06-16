@@ -15,7 +15,7 @@ import { useVercelRSCSync } from "./useVercelRSCSync";
 
 const { ProxyConfigProvider } = INTERNAL;
 
-const EMPTY_BRANCHES: readonly never[] = Object.freeze([]);
+const EMPTY_BRANCHES: readonly string[] = Object.freeze([]);
 
 export class VercelRSCRuntime<T extends WeakKey = VercelRSCMessage>
   extends ProxyConfigProvider
