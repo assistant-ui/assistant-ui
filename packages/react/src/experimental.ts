@@ -1,12 +1,4 @@
 export type {
-  ThreadMessage,
-  AssistantMessage,
-  UserMessage,
-  AppendMessage,
-  AssistantContentPart,
-  UserContentPart,
-  AppendContentPart,
-  TextContentPart,
   ImageContentPart,
   ToolCallContentPart,
   UIContentPart,

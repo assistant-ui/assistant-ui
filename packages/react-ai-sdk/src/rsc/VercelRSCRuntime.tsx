@@ -6,8 +6,7 @@ import type {
   Unsubscribe,
 } from "@assistant-ui/react";
 
-import type { ThreadMessage } from "@assistant-ui/react/experimental";
-import type { AppendMessage } from "@assistant-ui/react/experimental";
+import type { AppendMessage, ThreadMessage } from "@assistant-ui/react";
 import { ProxyConfigProvider } from "@assistant-ui/react/internal";
 import { type StoreApi, type UseBoundStore, create } from "zustand";
 import type { VercelRSCAdapter } from "./VercelRSCAdapter";

@@ -1,8 +1,5 @@
-import type {
-  TextContentPart,
-  ThreadMessage,
-  ToolCallContentPart,
-} from "@assistant-ui/react/experimental";
+import type { TextContentPart, ThreadMessage } from "@assistant-ui/react";
+import type { ToolCallContentPart } from "@assistant-ui/react/experimental";
 import type { Message } from "ai";
 import { useEffect, useMemo } from "react";
 import {

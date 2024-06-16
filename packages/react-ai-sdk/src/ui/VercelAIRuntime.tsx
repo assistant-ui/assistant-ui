@@ -3,10 +3,7 @@ import type {
   ReactThreadRuntime,
   Unsubscribe,
 } from "@assistant-ui/react";
-import type {
-  AppendMessage,
-  ThreadMessage,
-} from "@assistant-ui/react/experimental";
+import type { AppendMessage, ThreadMessage } from "@assistant-ui/react";
 import {
   MessageRepository,
   ProxyConfigProvider,

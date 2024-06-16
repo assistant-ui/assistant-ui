@@ -1,4 +1,4 @@
-import type { ThreadMessage } from "@assistant-ui/react/experimental";
+import type { ThreadMessage } from "@assistant-ui/react";
 import type { Message } from "ai";
 
 export const symbolInnerAIMessage = Symbol("innerVercelAIUIMessage");

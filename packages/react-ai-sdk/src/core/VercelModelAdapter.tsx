@@ -2,9 +2,11 @@
 
 import type {
   AssistantContentPart,
+  TextContentPart,
+} from "@assistant-ui/react";
+import type {
   ChatModelAdapter,
   ChatModelRunOptions,
-  TextContentPart,
 } from "@assistant-ui/react/experimental";
 import { type LanguageModel, streamText } from "ai";
 
