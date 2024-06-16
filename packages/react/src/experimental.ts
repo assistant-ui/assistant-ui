@@ -20,6 +20,5 @@ export type {
   ChatModelRunOptions,
 } from "./runtime/local/ChatModelAdapter";
 
-export { AssistantRuntimeProvider } from "./context/providers/AssistantRuntimeProvider";
 export * from "./context";
 export { useAssistantInstructions } from "./model-config/useAssistantInstructions";
