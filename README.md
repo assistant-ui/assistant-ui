@@ -13,7 +13,7 @@
 ## Minimal Example with Vercel AI SDK
 
 ```sh
-npx assistant-ui@latest add assistant-modal
+npx assistant-ui@latest add modal
 ```
 
 ```tsx
