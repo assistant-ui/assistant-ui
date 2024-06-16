@@ -3,7 +3,7 @@ import { create } from "zustand";
 import type { AppendMessage, ThreadMessage } from "../../utils/AssistantTypes";
 
 export type ThreadState = {
-  messages: ThreadMessage[];
+  messages: readonly ThreadMessage[];
   isRunning: boolean;
 
   getBranches: (messageId: string) => readonly string[];

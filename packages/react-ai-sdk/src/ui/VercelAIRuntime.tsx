@@ -1,12 +1,12 @@
+import {
+  type AppendMessage,
+  type AssistantRuntime,
+  unstable_MessageRepository as MessageRepository,
+  type ReactThreadRuntime,
+  type ThreadMessage,
+} from "@assistant-ui/react";
 import type { Message } from "ai";
 import { type StoreApi, type UseBoundStore, create } from "zustand";
-import type {
-  AppendMessage,
-  ThreadMessage,
-} from "../../../utils/AssistantTypes";
-import type { AssistantRuntime } from "../../core/AssistantRuntime";
-import type { ReactThreadRuntime, Unsubscribe } from "../../core/ThreadRuntime";
-import { MessageRepository } from "../../utils/MessageRepository";
 import { getVercelAIMessage } from "./getVercelAIMessage";
 import type { VercelHelpers } from "./utils/VercelHelpers";
 import { sliceMessagesUntil } from "./utils/sliceMessagesUntil";
@@ -100,7 +100,7 @@ export class VercelAIRuntime implements AssistantRuntime, ReactThreadRuntime {
     }, 0);
   }
 
-  public subscribe(callback: () => void): Unsubscribe {
+  public subscribe(callback: () => void): () => void {
     this._subscriptions.add(callback);
     return () => this._subscriptions.delete(callback);
   }

@@ -1,10 +1,12 @@
 "use client";
 
+import {
+  type VercelRSCAdapter,
+  type VercelRSCMessage,
+  useVercelRSCRuntime,
+} from "@assistant-ui/react-ai-sdk";
 import type { PropsWithChildren } from "react";
 import { AssistantRuntimeProvider } from "../../context/providers/AssistantRuntimeProvider";
-import type { VercelRSCAdapter } from "../vercel-ai/rsc/VercelRSCAdapter";
-import type { VercelRSCMessage } from "../vercel-ai/rsc/VercelRSCMessage";
-import { useVercelRSCRuntime } from "../vercel-ai/rsc/useVercelRSCRuntime";
 
 /**
  * @deprecated Will be removed in 0.1.0.

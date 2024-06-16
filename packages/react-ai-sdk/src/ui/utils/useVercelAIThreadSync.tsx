@@ -1,10 +1,10 @@
-import type { Message } from "ai";
-import { useEffect, useMemo } from "react";
 import type {
   TextContentPart,
   ThreadMessage,
-  ToolCallContentPart,
-} from "../../../../utils/AssistantTypes";
+  unstable_ToolCallContentPart as ToolCallContentPart,
+} from "@assistant-ui/react";
+import type { Message } from "ai";
+import { useEffect, useMemo } from "react";
 import {
   type ConverterCallback,
   ThreadMessageConverter,

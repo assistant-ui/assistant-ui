@@ -1,13 +1,13 @@
 "use client";
-import { type LanguageModel, streamText } from "ai";
 import type {
   AssistantContentPart,
   TextContentPart,
-} from "../../../utils/AssistantTypes";
+} from "@assistant-ui/react";
 import type {
-  ChatModelAdapter,
-  ChatModelRunOptions,
-} from "../ChatModelAdapter";
+  unstable_ChatModelAdapter as ChatModelAdapter,
+  unstable_ChatModelRunOptions as ChatModelRunOptions,
+} from "@assistant-ui/react";
+import { type LanguageModel, streamText } from "ai";
 
 export class VercelModelAdapter implements ChatModelAdapter {
   constructor(private readonly model: LanguageModel) {}

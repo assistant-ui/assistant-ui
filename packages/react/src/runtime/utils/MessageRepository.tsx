@@ -1,5 +1,3 @@
-"use client";
-
 import type { ThreadMessage } from "../../utils/AssistantTypes";
 import { generateOptimisticId } from "./idUtils";
 

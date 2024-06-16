@@ -1,4 +1,3 @@
-"use client";
 import { customAlphabet } from "nanoid/non-secure";
 
 export const generateId = customAlphabet(

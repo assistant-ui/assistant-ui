@@ -2,7 +2,7 @@ export * from "./actions";
 export * from "./primitives";
 export * from "./runtime";
 
-// deprecated
+// deprecated, remove in 0.1.0
 export {
   VercelAIAssistantProvider,
   type VercelAIAssistantProviderProps,
@@ -13,7 +13,7 @@ export {
 /**
  * @deprecated This type was renamed to `VercelRSCMessage`. Please use that import. Will be removed in 0.1.0.
  */
-export type { VercelRSCMessage as RSCMessage } from "./runtime/vercel-ai/rsc/VercelRSCMessage";
+export type { VercelRSCMessage as RSCMessage } from "@assistant-ui/react-ai-sdk";
 
 // experimental
 export type {
@@ -35,7 +35,6 @@ export type {
   ChatModelAdapter as unstable_ChatModelAdapter,
   ChatModelRunOptions as unstable_ChatModelRunOptions,
 } from "./runtime/local/ChatModelAdapter";
-export { VercelModelAdapter as unstable_VercelModelAdapter } from "./runtime/local/vercel/VercelModelAdapter";
 
 export { AssistantRuntimeProvider } from "./context/providers/AssistantRuntimeProvider";
 export {

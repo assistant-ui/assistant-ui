@@ -1,5 +1,5 @@
+import { unstable_useThreadContext as useThreadContext } from "@assistant-ui/react";
 import { useEffect } from "react";
-import { useThreadContext } from "../../../../context";
 import type { VercelHelpers } from "./VercelHelpers";
 
 // two way sync between vercel helpers input state and composer text state

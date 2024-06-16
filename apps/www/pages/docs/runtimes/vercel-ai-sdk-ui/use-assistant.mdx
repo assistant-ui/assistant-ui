@@ -19,10 +19,10 @@ import { Steps } from 'nextra/components'
   cd my-app
   ```
 
-  ### Install Vercel AI SDK and `@assistant-ui/react`
+  ### Install Vercel AI SDK and `@assistant-ui/react-ai-sdk`
 
   ```sh npm2yarn
-  npm install @assistant-ui/react@latest ai @ai-sdk/react openai
+  npm install @assistant-ui/react @assistant-ui/react-ai-sdk ai @ai-sdk/react openai
   ```
 
   ### Setup a backend route under `/api/assistant`
@@ -111,7 +111,8 @@ import { Steps } from 'nextra/components'
   "use client";
 
   import { useAssistant } from '@ai-sdk/react'; 
-  import { AssistantRuntimeProvider, useVercelUseAssistantRuntime } from '@assistant-ui/react';
+  import { AssistantRuntimeProvider } from '@assistant-ui/react';
+  import { useVercelUseAssistantRuntime } from '@assistant-ui/react-ai-sdk';
 
   export function MyRuntimeProvider({
     children,

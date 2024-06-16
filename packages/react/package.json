@@ -29,7 +29,7 @@
     "conversational-ui",
     "conversational-ai"
   ],
-  "version": "0.0.26",
+  "version": "0.0.27",
   "license": "MIT",
   "exports": {
     ".": {
@@ -47,7 +47,10 @@
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "sideEffects": false,
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts --sourcemap",
@@ -64,19 +67,11 @@
     "zustand": "^4.5.2"
   },
   "peerDependencies": {
-    "@ai-sdk/react": "^0.0.x",
     "@types/react": "*",
-    "ai": "^3.1.x",
     "react": "^18"
   },
   "peerDependenciesMeta": {
-    "@ai-sdk/react": {
-      "optional": true
-    },
     "@types/react": {
-      "optional": true
-    },
-    "ai": {
       "optional": true
     }
   },
@@ -84,6 +79,8 @@
     "access": "public"
   },
   "devDependencies": {
+    "@ai-sdk/react": "^0.0.1",
+    "@assistant-ui/react-ai-sdk": "workspace:*",
     "@assistant-ui/tsconfig": "workspace:*",
     "@types/node": "^20.14.2",
     "tsup": "^8.1.0"

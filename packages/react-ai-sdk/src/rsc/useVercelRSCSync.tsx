@@ -1,13 +1,11 @@
+import type { ThreadMessage } from "@assistant-ui/react";
 import { useEffect, useMemo } from "react";
-import type {
-  ThreadMessage,
-  VercelRSCAdapter,
-  VercelRSCMessage,
-} from "../../../../dist";
 import {
   type ConverterCallback,
   ThreadMessageConverter,
 } from "../utils/ThreadMessageConverter";
+import type { VercelRSCAdapter } from "./VercelRSCAdapter";
+import type { VercelRSCMessage } from "./VercelRSCMessage";
 import {
   type VercelRSCThreadMessage,
   symbolInnerRSCMessage,

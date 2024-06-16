@@ -1,12 +1,12 @@
 "use client";
 
 import type { UseAssistantHelpers, UseChatHelpers } from "@ai-sdk/react";
-import type { FC, PropsWithChildren } from "react";
-import { AssistantRuntimeProvider } from "../../context/providers/AssistantRuntimeProvider";
 import {
   useVercelUseAssistantRuntime,
   useVercelUseChatRuntime,
-} from "../vercel-ai";
+} from "@assistant-ui/react-ai-sdk";
+import type { FC, PropsWithChildren } from "react";
+import { AssistantRuntimeProvider } from "../../context/providers/AssistantRuntimeProvider";
 
 type VercelUseChatRuntimeProps = PropsWithChildren<{
   chat: UseChatHelpers;

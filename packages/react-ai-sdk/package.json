@@ -1,13 +1,13 @@
 {
-  "name": "@assistant-ui/react-hook-form",
-  "version": "0.0.0-alpha.1",
+  "name": "@assistant-ui/react-ai-sdk",
+  "version": "0.0.1",
   "license": "MIT",
   "type": "module",
   "peerDependencies": {
+    "@ai-sdk/react": "^0.0.1",
     "@assistant-ui/react": "^0.0.x",
-    "@assistant-ui/react-system": "^0.0.x",
-    "react-hook-form": "^7.x.x",
     "@types/react": "*",
+    "ai": "^3.1.x",
     "react": "^18"
   },
   "peerDependenciesMeta": {
@@ -16,14 +16,16 @@
     }
   },
   "dependencies": {
-    "zod": "^3.23.8"
+    "tsup": "^8.1.0",
+    "zod": "^3.23.8",
+    "zustand": "^4.5.2"
   },
   "devDependencies": {
-    "@assistant-ui/react": "workspace:*",
-    "@assistant-ui/react-system": "workspace:*",
-    "@assistant-ui/tsconfig": "workspace:*"
+    "@assistant-ui/tsconfig": "workspace:*",
+    "@types/node": "^20.14.2"
   },
   "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --sourcemap",
     "prepublish": "cp ../../README.md ./README.md"
   },
   "publishConfig": {

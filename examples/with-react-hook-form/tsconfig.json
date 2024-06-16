@@ -16,14 +16,6 @@
     "strictNullChecks": true,
     "jsx": "preserve"
   },
-  "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    ".next/types/**/*.ts",
-    "../../packages/react-hook-form/src/useAssistantForm.tsx",
-    "../../packages/react-hook-form/src/context-management.tsx",
-    "../../packages/react-hook-form/src/formTools.tsx"
-  ],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]
 }

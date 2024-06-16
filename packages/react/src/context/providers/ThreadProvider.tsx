@@ -1,9 +1,7 @@
 import type { FC, PropsWithChildren } from "react";
 import { useEffect, useInsertionEffect, useRef, useState } from "react";
-import type {
-  ReactThreadRuntime,
-  ThreadRuntime,
-} from "../../runtime/core/ThreadRuntime";
+import type { ReactThreadRuntime } from "../../runtime/core/ReactThreadRuntime";
+import type { ThreadRuntime } from "../../runtime/core/ThreadRuntime";
 import type { ThreadContextValue } from "../ThreadContext";
 import { ThreadContext } from "../ThreadContext";
 import { makeComposerStore } from "../stores/Composer";

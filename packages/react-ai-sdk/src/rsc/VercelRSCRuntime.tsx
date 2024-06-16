@@ -1,12 +1,12 @@
 "use client";
 
-import { type StoreApi, type UseBoundStore, create } from "zustand";
 import type {
   AppendMessage,
+  AssistantRuntime,
+  ReactThreadRuntime,
   ThreadMessage,
-} from "../../../utils/AssistantTypes";
-import type { AssistantRuntime } from "../../core/AssistantRuntime";
-import type { ReactThreadRuntime, Unsubscribe } from "../../core/ThreadRuntime";
+} from "@assistant-ui/react";
+import { type StoreApi, type UseBoundStore, create } from "zustand";
 import type { VercelRSCAdapter } from "./VercelRSCAdapter";
 import type { VercelRSCMessage } from "./VercelRSCMessage";
 import { useVercelRSCSync } from "./useVercelRSCSync";
@@ -75,7 +75,7 @@ export class VercelRSCRuntime<T extends WeakKey = VercelRSCMessage>
     }
   }
 
-  public subscribe(callback: () => void): Unsubscribe {
+  public subscribe(callback: () => void): () => void {
     this._subscriptions.add(callback);
     return () => this._subscriptions.delete(callback);
   }

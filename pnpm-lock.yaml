@@ -420,9 +420,6 @@ importers:
 
   packages/react:
     dependencies:
-      '@ai-sdk/react':
-        specifier: ^0.0.x
-        version: 0.0.1(react@18.3.1)(zod@3.23.8)
       '@radix-ui/primitive':
         specifier: ^1.0.1
         version: 1.0.1
@@ -441,9 +438,6 @@ importers:
       '@types/react':
         specifier: '*'
         version: 18.3.3
-      ai:
-        specifier: ^3.1.x
-        version: 3.1.31(openai@4.51.0)(react@18.3.1)(solid-js@1.8.17)(svelte@4.2.18)(vue@3.4.27(typescript@5.4.5))(zod@3.23.8)
       nanoid:
         specifier: ^5.0.7
         version: 5.0.7
@@ -457,6 +451,12 @@ importers:
         specifier: ^4.5.2
         version: 4.5.2(@types/react@18.3.3)(react@18.3.1)
     devDependencies:
+      '@ai-sdk/react':
+        specifier: ^0.0.1
+        version: 0.0.1(react@18.3.1)(zod@3.23.8)
+      '@assistant-ui/react-ai-sdk':
+        specifier: workspace:*
+        version: link:../react-ai-sdk
       '@assistant-ui/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
@@ -466,6 +466,40 @@ importers:
       tsup:
         specifier: ^8.1.0
         version: 8.1.0(postcss@8.4.38)(typescript@5.4.5)
+
+  packages/react-ai-sdk:
+    dependencies:
+      '@ai-sdk/react':
+        specifier: ^0.0.1
+        version: 0.0.1(react@18.3.1)(zod@3.23.8)
+      '@assistant-ui/react':
+        specifier: ^0.0.x
+        version: 0.0.23(@ai-sdk/react@0.0.1(react@18.3.1)(zod@3.23.8))(@types/react-dom@18.3.0)(@types/react@18.3.3)(ai@3.1.35(openai@4.51.0)(react@18.3.1)(solid-js@1.8.17)(svelte@4.2.18)(vue@3.4.27(typescript@5.4.5))(zod@3.23.8))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@types/react':
+        specifier: '*'
+        version: 18.3.3
+      ai:
+        specifier: ^3.1.x
+        version: 3.1.35(openai@4.51.0)(react@18.3.1)(solid-js@1.8.17)(svelte@4.2.18)(vue@3.4.27(typescript@5.4.5))(zod@3.23.8)
+      react:
+        specifier: ^18
+        version: 18.3.1
+      tsup:
+        specifier: ^8.1.0
+        version: 8.1.0(postcss@8.4.38)(typescript@5.4.5)
+      zod:
+        specifier: ^3.23.8
+        version: 3.23.8
+      zustand:
+        specifier: ^4.5.2
+        version: 4.5.2(@types/react@18.3.3)(react@18.3.1)
+    devDependencies:
+      '@assistant-ui/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@types/node':
+        specifier: ^20.14.2
+        version: 20.14.2
 
   packages/react-hook-form:
     dependencies:
@@ -1877,24 +1911,6 @@ packages:
   agentkeepalive@4.5.0:
     resolution: {integrity: sha512-5GG/5IbQQpC9FpkRGsSvZI5QYeSCzlJHdpBQntCsuTOxhKD8lqKhrleg2Yi7yvMIf82Ycmmqln9U8V9qwEiJew==}
     engines: {node: '>= 8.0.0'}
-
-  ai@3.1.31:
-    resolution: {integrity: sha512-fnQz8qlBuJuImUZCydbn0bTFCZFRwHeVQI+wBbBkR5S/FrF09snt0YrgiWzDc0il4u1rerzVPEUiasOdoGaoWA==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      openai: ^4.42.0
-      react: ^18 || ^19
-      svelte: ^3.0.0 || ^4.0.0
-      zod: ^3.0.0
-    peerDependenciesMeta:
-      openai:
-        optional: true
-      react:
-        optional: true
-      svelte:
-        optional: true
-      zod:
-        optional: true
 
   ai@3.1.35:
     resolution: {integrity: sha512-kr0GAKe3HrUqk0SSII8MrOyBC/Lsglh37ayYrGzzEo3QQ0igriBdVTQed+8UYljbnYikEglbLfwXAzg3qH6u4g==}
@@ -6454,31 +6470,6 @@ snapshots:
   agentkeepalive@4.5.0:
     dependencies:
       humanize-ms: 1.2.1
-
-  ai@3.1.31(openai@4.51.0)(react@18.3.1)(solid-js@1.8.17)(svelte@4.2.18)(vue@3.4.27(typescript@5.4.5))(zod@3.23.8):
-    dependencies:
-      '@ai-sdk/provider': 0.0.10
-      '@ai-sdk/provider-utils': 0.0.13(zod@3.23.8)
-      '@ai-sdk/react': 0.0.1(react@18.3.1)(zod@3.23.8)
-      '@ai-sdk/solid': 0.0.1(solid-js@1.8.17)(zod@3.23.8)
-      '@ai-sdk/svelte': 0.0.1(svelte@4.2.18)(zod@3.23.8)
-      '@ai-sdk/ui-utils': 0.0.1(zod@3.23.8)
-      '@ai-sdk/vue': 0.0.1(vue@3.4.27(typescript@5.4.5))(zod@3.23.8)
-      eventsource-parser: 1.1.2
-      json-schema: 0.4.0
-      jsondiffpatch: 0.6.0
-      nanoid: 3.3.6
-      secure-json-parse: 2.7.0
-      sswr: 2.1.0(svelte@4.2.18)
-      zod-to-json-schema: 3.22.5(zod@3.23.8)
-    optionalDependencies:
-      openai: 4.51.0
-      react: 18.3.1
-      svelte: 4.2.18
-      zod: 3.23.8
-    transitivePeerDependencies:
-      - solid-js
-      - vue
 
   ai@3.1.35(openai@4.51.0)(react@18.3.1)(solid-js@1.8.17)(svelte@4.2.18)(vue@3.4.27(typescript@5.4.5))(zod@3.23.8):
     dependencies:

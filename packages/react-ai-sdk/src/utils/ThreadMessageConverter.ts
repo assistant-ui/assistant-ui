@@ -1,6 +1,4 @@
-"use client";
-
-import type { ThreadMessage } from "../../../utils/AssistantTypes";
+import type { ThreadMessage } from "@assistant-ui/react";
 
 export type ConverterCallback<TIn> = (
   message: TIn,
