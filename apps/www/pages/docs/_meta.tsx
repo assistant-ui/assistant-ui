@@ -16,6 +16,7 @@ export default {
   ui: {
     display: "children",
   },
+
   "-- primitives": {
     title: "Primitives",
     type: "separator",
@@ -29,6 +30,14 @@ export default {
     type: "separator",
   },
   advanced: {
+    display: "children",
+  },
+
+  "-- migrations": {
+    title: "Migrations",
+    type: "separator",
+  },
+  migrations: {
     display: "children",
   },
 };

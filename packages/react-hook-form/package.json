@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-hook-form",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "license": "MIT",
   "type": "module",
   "peerDependencies": {
@@ -19,10 +19,11 @@
   },
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
-    "@assistant-ui/tsconfig": "workspace:*"
+    "@assistant-ui/tsconfig": "workspace:*",
+    "tsup": "^8.1.0"
   },
   "scripts": {
-    "prepublish": "cp ../../README.md ./README.md"
+    "build": "tsup src/index.ts --format cjs,esm --dts --sourcemap"
   },
   "publishConfig": {
     "access": "public"

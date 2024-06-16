@@ -525,6 +525,9 @@ importers:
       '@assistant-ui/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      tsup:
+        specifier: ^8.1.0
+        version: 8.1.0(postcss@8.4.38)(typescript@5.4.5)
 
   packages/tsconfig:
     dependencies:

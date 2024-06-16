@@ -7,7 +7,7 @@ import type {
 import type {
   ChatModelAdapter,
   ChatModelRunOptions,
-} from "@assistant-ui/react/experimental";
+} from "@assistant-ui/react";
 import { type LanguageModel, streamText } from "ai";
 
 export class VercelModelAdapter implements ChatModelAdapter {
