@@ -30,6 +30,8 @@ export type {
   UIContentPart as unstable_UIContentPart,
 } from "./utils/AssistantTypes";
 
+export type { ModelConfigProvider as unstable_ModelConfigProvider } from "./utils/ModelConfigTypes";
+
 export { useLocalRuntime as unstable_useLocalRuntime } from "./runtime/local/useLocalRuntime";
 export type {
   ChatModelAdapter as unstable_ChatModelAdapter,
@@ -39,6 +41,8 @@ export type {
 export { AssistantRuntimeProvider } from "./context/providers/AssistantRuntimeProvider";
 export {
   // context
+  useAssistantContext as unstable_useAssistantContext,
+  type AssistantContextValue as unstable_AssistantContextValue,
   useThreadContext as unstable_useThreadContext,
   type ThreadContextValue as unstable_ThreadContextValue,
   useMessageContext as unstable_useMessageContext,
@@ -48,6 +52,7 @@ export {
   useContentPartContext as unstable_useContentPartContext,
   type ContentPartContextValue as unstable_ContentPartContextValue,
   // stores
+  type AssistantModelConfigState as unstable_AssistantModelConfigState,
   type ThreadState as unstable_ThreadState,
   type ComposerState as unstable_ComposerState,
   type ThreadViewportState as unstable_ThreadViewportState,
@@ -55,3 +60,10 @@ export {
   type EditComposerState as unstable_EditComposerState,
   type ContentPartState as unstable_ContentPartState,
 } from "./context";
+
+// utils
+export type { Unsubscribe } from "./utils/Unsubscribe";
+export { useAssistantInstructions as unstable_useAssistantInstructions } from "./model-config/useAssistantInstructions";
+
+// TODO remove this
+export { ProxyConfigProvider } from "./utils/ProxyConfigProvider";

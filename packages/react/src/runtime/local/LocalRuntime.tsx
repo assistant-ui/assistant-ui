@@ -3,14 +3,19 @@ import type {
   AssistantMessage,
   UserMessage,
 } from "../../utils/AssistantTypes";
+import {
+  type ModelConfigProvider,
+  mergeModelConfigs,
+} from "../../utils/ModelConfigTypes";
+import type { Unsubscribe } from "../../utils/Unsubscribe";
 import type { AssistantRuntime } from "../core/AssistantRuntime";
-import type { Unsubscribe } from "../core/ThreadRuntime";
 import { MessageRepository } from "../utils/MessageRepository";
 import { generateId } from "../utils/idUtils";
 import type { ChatModelAdapter, ChatModelRunResult } from "./ChatModelAdapter";
 
 export class LocalRuntime implements AssistantRuntime {
   private _subscriptions = new Set<() => void>();
+  private _configProviders = new Set<ModelConfigProvider>();
 
   private abortController: AbortController | null = null;
   private repository = new MessageRepository();
@@ -78,6 +83,7 @@ export class LocalRuntime implements AssistantRuntime {
       const result = await this.adapter.run({
         messages,
         abortSignal: this.abortController.signal,
+        config: mergeModelConfigs([...this._configProviders].map((p) => p())),
         onUpdate: updateHandler,
       });
       updateHandler(result);
@@ -109,5 +115,10 @@ export class LocalRuntime implements AssistantRuntime {
   public subscribe(callback: () => void): Unsubscribe {
     this._subscriptions.add(callback);
     return () => this._subscriptions.delete(callback);
+  }
+
+  registerModelConfigProvider(provider: ModelConfigProvider) {
+    this._configProviders.add(provider);
+    return () => this._configProviders.delete(provider);
   }
 }

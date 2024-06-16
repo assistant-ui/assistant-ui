@@ -3,10 +3,8 @@
 import { SignupForm } from "@/components/SignupForm";
 import { AssistantSidebar } from "@/components/ui/assistant-ui/assistant-sidebar";
 import { Form } from "@/components/ui/form";
-import {
-  useAssistantForm,
-  useAssistantInstructions,
-} from "@assistant-ui/react-hook-form";
+import { unstable_useAssistantInstructions as useAssistantInstructions } from "@assistant-ui/react";
+import { useAssistantForm } from "@assistant-ui/react-hook-form";
 import Link from "next/link";
 
 export default function Home() {

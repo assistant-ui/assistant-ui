@@ -3,6 +3,7 @@ import type {
   AssistantContentPart,
   ThreadMessage,
 } from "../../utils/AssistantTypes";
+import type { ModelConfig } from "../../utils/ModelConfigTypes";
 
 export type ChatModelRunResult = {
   content: AssistantContentPart[];
@@ -11,6 +12,7 @@ export type ChatModelRunResult = {
 export type ChatModelRunOptions = {
   messages: ThreadMessage[];
   abortSignal: AbortSignal;
+  config: ModelConfig;
   onUpdate: (result: ChatModelRunResult) => void;
 };
 

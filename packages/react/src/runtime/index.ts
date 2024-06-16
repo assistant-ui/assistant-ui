@@ -31,4 +31,5 @@ export {
 
 export * from "./core";
 
+// TODO remove this
 export { MessageRepository as unstable_MessageRepository } from "./utils/MessageRepository";

@@ -15,6 +15,6 @@ export const ThreadContext = createContext<ThreadContextValue | null>(null);
 export const useThreadContext = (): ThreadContextValue => {
   const context = useContext(ThreadContext);
   if (!context)
-    throw new Error("This component must be used within an AssistantProvider.");
+    throw new Error("This component must be used within an AssistantRuntimeProvider.");
   return context;
 };

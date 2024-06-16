@@ -1,7 +1,7 @@
 import type { FC, PropsWithChildren } from "react";
 import { memo } from "react";
 import type { AssistantRuntime } from "../../runtime/core/AssistantRuntime";
-import { ThreadProvider } from "./ThreadProvider";
+import { AssistantProvider } from "./AssistantProvider";
 
 type AssistantRuntimeProviderProps = {
   runtime: AssistantRuntime;
@@ -10,7 +10,7 @@ type AssistantRuntimeProviderProps = {
 const AssistantRuntimeProviderImpl: FC<
   PropsWithChildren<AssistantRuntimeProviderProps>
 > = ({ children, runtime }) => {
-  return <ThreadProvider runtime={runtime}>{children}</ThreadProvider>;
+  return <AssistantProvider runtime={runtime}>{children}</AssistantProvider>;
 };
 
 export const AssistantRuntimeProvider = memo(AssistantRuntimeProviderImpl);

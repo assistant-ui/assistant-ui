@@ -1,10 +1,11 @@
 "use client";
 import { create } from "zustand";
+import type { Unsubscribe } from "../../utils/Unsubscribe";
 
 export type ThreadViewportState = {
   isAtBottom: boolean;
   scrollToBottom: () => void;
-  onScrollToBottom: (callback: () => void) => () => void;
+  onScrollToBottom: (callback: () => void) => Unsubscribe;
 };
 
 export const makeThreadViewportStore = () => {

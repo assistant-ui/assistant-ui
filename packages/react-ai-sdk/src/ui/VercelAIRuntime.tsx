@@ -2,8 +2,10 @@ import {
   type AppendMessage,
   type AssistantRuntime,
   unstable_MessageRepository as MessageRepository,
+  ProxyConfigProvider,
   type ReactThreadRuntime,
   type ThreadMessage,
+  type Unsubscribe,
 } from "@assistant-ui/react";
 import type { Message } from "ai";
 import { type StoreApi, type UseBoundStore, create } from "zustand";
@@ -17,7 +19,10 @@ const hasUpcomingMessage = (isRunning: boolean, messages: ThreadMessage[]) => {
   return isRunning && messages[messages.length - 1]?.role !== "assistant";
 };
 
-export class VercelAIRuntime implements AssistantRuntime, ReactThreadRuntime {
+export class VercelAIRuntime
+  extends ProxyConfigProvider
+  implements AssistantRuntime, ReactThreadRuntime
+{
   private _subscriptions = new Set<() => void>();
   private repository = new MessageRepository();
   private assistantOptimisticId: string | null = null;
@@ -28,6 +33,7 @@ export class VercelAIRuntime implements AssistantRuntime, ReactThreadRuntime {
   public isRunning = false;
 
   constructor(public vercel: VercelHelpers) {
+    super();
     this.useVercel = create(() => ({
       vercel,
     }));
@@ -100,7 +106,7 @@ export class VercelAIRuntime implements AssistantRuntime, ReactThreadRuntime {
     }, 0);
   }
 
-  public subscribe(callback: () => void): () => void {
+  public subscribe(callback: () => void): Unsubscribe {
     this._subscriptions.add(callback);
     return () => this._subscriptions.delete(callback);
   }

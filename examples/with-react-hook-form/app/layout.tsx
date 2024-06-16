@@ -6,10 +6,6 @@ import { cn } from "@/lib/utils";
 import { useChat } from "@ai-sdk/react";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useVercelUseChatRuntime } from "@assistant-ui/react-ai-sdk";
-import {
-  AssistantSystemProvider,
-  useAssistantSystemContext,
-} from "@assistant-ui/react-system";
 import { Montserrat } from "next/font/google";
 
 export function MyRuntimeProvider({
@@ -17,20 +13,16 @@ export function MyRuntimeProvider({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const { useAssistantSystem } = useAssistantSystemContext();
-  const getSystemPrompt = useAssistantSystem((s) => s.getSystemPrompt);
-  const getTools = useAssistantSystem((s) => s.getTools);
-
   const chat = useChat({
     api: "/api/chat",
     maxToolRoundtrips: 1,
     body: {
       get system() {
-        return getSystemPrompt();
+        return runtime.getModelConfig().system;
       },
     },
     onToolCall: ({ toolCall: { toolName, args } }) => {
-      const tool = getTools()[toolName];
+      const tool = runtime.getModelConfig().tools?.[toolName];
       if (!tool) return;
       return tool.execute(args as object);
     },
@@ -53,14 +45,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <AssistantSystemProvider>
-      <MyRuntimeProvider>
-        <html lang="en">
-          <body className={cn(montserrat.className, "h-[calc(100dvh)]")}>
-            {children}
-          </body>
-        </html>
-      </MyRuntimeProvider>
-    </AssistantSystemProvider>
+    <MyRuntimeProvider>
+      <html lang="en">
+        <body className={cn(montserrat.className, "h-[calc(100dvh)]")}>
+          {children}
+        </body>
+      </html>
+    </MyRuntimeProvider>
   );
 }
