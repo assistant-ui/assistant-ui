@@ -21,6 +21,7 @@
     "zustand": "^4.5.2"
   },
   "devDependencies": {
+    "@assistant-ui/react": "workspace:*",
     "@assistant-ui/tsconfig": "workspace:*",
     "@types/node": "^20.14.2"
   },

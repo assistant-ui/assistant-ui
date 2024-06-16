@@ -1,12 +1,14 @@
-import {
-  type AppendMessage,
-  type AssistantRuntime,
-  unstable_MessageRepository as MessageRepository,
-  ProxyConfigProvider,
-  type ReactThreadRuntime,
-  type ThreadMessage,
-  type Unsubscribe,
+import type {
+  AppendMessage,
+  AssistantRuntime,
+  ReactThreadRuntime,
+  ThreadMessage,
+  Unsubscribe,
 } from "@assistant-ui/react";
+import {
+  MessageRepository,
+  ProxyConfigProvider,
+} from "@assistant-ui/react/internal";
 import type { Message } from "ai";
 import { type StoreApi, type UseBoundStore, create } from "zustand";
 import { getVercelAIMessage } from "./getVercelAIMessage";

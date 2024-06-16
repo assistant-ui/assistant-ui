@@ -17,7 +17,6 @@ const VercelUseChatRuntimeProvider: FC<VercelUseChatRuntimeProps> = ({
   children,
 }) => {
   const runtime = useVercelUseChatRuntime(chat);
-
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       {children}
