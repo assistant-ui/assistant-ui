@@ -1,6 +1,6 @@
 "use client";
 
-import { unstable_useAssistantContext as useAssistantContext } from "@assistant-ui/react";
+import { useAssistantContext } from "@assistant-ui/react/experimental";
 import { useEffect } from "react";
 import {
   type FieldValues,

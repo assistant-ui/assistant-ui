@@ -4,8 +4,8 @@ import "./globals.css";
 
 import { cn } from "@/lib/utils";
 import { useChat } from "@ai-sdk/react";
-import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useVercelUseChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { AssistantRuntimeProvider } from "@assistant-ui/react/experimental";
 import { Montserrat } from "next/font/google";
 
 export function MyRuntimeProvider({

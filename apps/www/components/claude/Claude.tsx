@@ -6,8 +6,8 @@ import {
   ComposerPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
-  unstable_useMessageContext,
 } from "@assistant-ui/react";
+import { useMessageContext } from "@assistant-ui/react/experimental";
 import * as Avatar from "@radix-ui/react-avatar";
 import { ArrowUpIcon, ClipboardIcon, ReloadIcon } from "@radix-ui/react-icons";
 import type { FC } from "react";
@@ -50,7 +50,7 @@ export const Claude: FC = () => {
 };
 
 const ChatMessage: FC = () => {
-  const { useMessage } = unstable_useMessageContext();
+  const { useMessage } = useMessageContext();
   const { message } = useMessage();
 
   return (

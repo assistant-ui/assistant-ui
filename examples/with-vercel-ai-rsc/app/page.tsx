@@ -5,11 +5,11 @@ import { nanoid } from "nanoid";
 import type { AI } from "./actions";
 
 import { Thread } from "@/components/ui/assistant-ui/thread";
+import { useVercelRSCRuntime } from "@assistant-ui/react-ai-sdk";
 import {
   type AppendMessage,
   AssistantRuntimeProvider,
-  useVercelRSCRuntime,
-} from "@assistant-ui/react";
+} from "@assistant-ui/react/experimental";
 
 export default function Home() {
   return (

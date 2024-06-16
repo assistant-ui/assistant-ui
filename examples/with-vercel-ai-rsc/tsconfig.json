@@ -10,24 +10,14 @@
       }
     ],
     "paths": {
-      "@/*": [
-        "./*"
-      ],
-      "@assistant-ui/*": [
-        "../../packages/*/src"
-      ]
+      "@/*": ["./*"],
+      "@assistant-ui/*": ["../../packages/*/src"],
+      "@assistant-ui/react/*": ["../../packages/react/src/*"]
     },
     "allowJs": true,
     "strictNullChecks": true,
     "jsx": "preserve"
   },
-  "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    ".next/types/**/*.ts"
-  ],
-  "exclude": [
-    "node_modules"
-  ]
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
 }

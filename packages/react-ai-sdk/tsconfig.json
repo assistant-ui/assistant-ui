@@ -3,7 +3,7 @@
   "compilerOptions": {
     "paths": {
       "@assistant-ui/*": ["../../packages/*/src"],
-      "@assistant-ui/react/internal": ["../../packages/react/src/internal"]
+      "@assistant-ui/react/*": ["../../packages/react/src/*"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],

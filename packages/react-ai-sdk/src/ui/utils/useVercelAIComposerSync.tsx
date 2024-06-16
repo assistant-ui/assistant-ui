@@ -1,4 +1,4 @@
-import { unstable_useThreadContext as useThreadContext } from "@assistant-ui/react";
+import { useThreadContext } from "@assistant-ui/react/experimental";
 import { useEffect } from "react";
 import type { VercelHelpers } from "./VercelHelpers";
 

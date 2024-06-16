@@ -1,8 +1,8 @@
 import type {
   TextContentPart,
   ThreadMessage,
-  unstable_ToolCallContentPart as ToolCallContentPart,
-} from "@assistant-ui/react";
+  ToolCallContentPart,
+} from "@assistant-ui/react/experimental";
 import type { Message } from "ai";
 import { useEffect, useMemo } from "react";
 import {

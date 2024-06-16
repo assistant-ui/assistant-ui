@@ -6,7 +6,6 @@ import {
   ComposerPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
-  type unstable_ToolCallContentPart,
 } from "@assistant-ui/react";
 import type { FC } from "react";
 
@@ -18,6 +17,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import type { ToolCallContentPart } from "@assistant-ui/react/experimental";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import {
   ArrowDownIcon,
@@ -221,7 +221,7 @@ const AssistantMessage: FC = () => {
   );
 };
 
-const SetFormFieldTool: FC<{ part: unstable_ToolCallContentPart }> = () => {
+const SetFormFieldTool: FC<{ part: ToolCallContentPart }> = () => {
   return (
     <p className="text-center font-bold font-mono text-blue-500 text-sm">
       set_form_field(...)
@@ -229,7 +229,7 @@ const SetFormFieldTool: FC<{ part: unstable_ToolCallContentPart }> = () => {
   );
 };
 
-const SubmitFormTool: FC<{ part: unstable_ToolCallContentPart }> = () => {
+const SubmitFormTool: FC<{ part: ToolCallContentPart }> = () => {
   return (
     <p className="text-center font-bold font-mono text-blue-500 text-sm">
       submit_form(...)
