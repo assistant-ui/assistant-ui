@@ -18,13 +18,17 @@ const syncContentPart = (
   partIndex: number,
 ) => {
   const part = message.content[partIndex];
-  // TODO check if this can happen
   if (!part) return;
 
   const messageStatus = message.role === "assistant" ? message.status : "done";
   const status =
     partIndex === message.content.length - 1 ? messageStatus : "done";
 
+  // if the content part is the same, don't update
+  const currentState = useContentPart.getState();
+  if (currentState.part === part && currentState.status === status) return;
+
+  // sync useContentPart
   useContentPart.setState({ part, status });
 };
 

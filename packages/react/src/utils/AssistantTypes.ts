@@ -1,13 +1,10 @@
 import type { ReactNode } from "react";
 
-// TODO metadata field
-
 export type TextContentPart = {
   type: "text";
   text: string;
 };
 
-// TODO image input support
 export type ImageContentPart = {
   type: "image";
   image: string;

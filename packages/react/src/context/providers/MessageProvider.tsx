@@ -29,8 +29,6 @@ const syncMessage = (
 ) => {
   const parentId = thread.messages[messageIndex - 1]?.id ?? null;
   const message = thread.messages[messageIndex];
-
-  // TODO check if this can happen
   if (!message) return;
 
   const isLast = getIsLast(thread, message);
