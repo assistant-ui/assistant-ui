@@ -187,8 +187,8 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       json-schema-to-zod:
-        specifier: ^2.1.0
-        version: 2.1.0
+        specifier: ^2.1.1
+        version: 2.1.1
       lucide-react:
         specifier: ^0.395.0
         version: 0.395.0(react@18.3.1)
@@ -217,8 +217,8 @@ importers:
         specifier: ^3.23.8
         version: 3.23.8
       zod-to-json-schema:
-        specifier: ^3.23.0
-        version: 3.23.0(zod@3.23.8)
+        specifier: ^3.23.1
+        version: 3.23.1(zod@3.23.8)
       zustand:
         specifier: ^4.5.2
         version: 4.5.2(@types/react@18.3.3)(react@18.3.1)
@@ -418,8 +418,8 @@ importers:
         specifier: ^8.1.0
         version: 8.1.0(postcss@8.4.38)(typescript@5.4.5)
       tsx:
-        specifier: ^4.15.5
-        version: 4.15.5
+        specifier: ^4.15.6
+        version: 4.15.6
 
   packages/react:
     dependencies:
@@ -3362,8 +3362,8 @@ packages:
   json-parse-even-better-errors@2.3.1:
     resolution: {integrity: sha512-xyFwyhro/JEof6Ghe2iz2NcXoj2sloNsWr/XsERDK/oiPCfaNhl5ONfp+jQdAZRQQ0IJWNzH9zIZF7li91kh2w==}
 
-  json-schema-to-zod@2.1.0:
-    resolution: {integrity: sha512-7ishNgYY+AbIKeeHcp5xCOdJbdVwSfDx/4V2ktc16LUusCJJbz2fEKdWUmAxhKIiYzhZ9Fp4E8OsAoM/h9cOLA==}
+  json-schema-to-zod@2.1.1:
+    resolution: {integrity: sha512-IyIhb2k3fIy0UPA46SEmcRpHyGpmf4Fr7pOTtqC3VM0BuLMLH4GeGbW6kx4p2HGJhN23UdrxRc2HlwzGNWGnBg==}
     hasBin: true
 
   json-schema-traverse@0.4.1:
@@ -4744,8 +4744,8 @@ packages:
       typescript:
         optional: true
 
-  tsx@4.15.5:
-    resolution: {integrity: sha512-iKi8jQ2VBmZ2kU/FkGkL2OSHBHsazsUzsdC/W/RwhKIEsIoZ1alCclZHP5jGfNHEaEWUJFM1GquzCf+4db3b0w==}
+  tsx@4.15.6:
+    resolution: {integrity: sha512-is0VQQlfNZRHEuSSTKA6m4xw74IU4AizmuB6lAYLRt9XtuyeQnyJYexhNZOPCB59SqC4JzmSzPnHGBXxf3k0hA==}
     engines: {node: '>=18.0.0'}
     hasBin: true
 
@@ -5086,8 +5086,8 @@ packages:
     peerDependencies:
       zod: ^3.22.4
 
-  zod-to-json-schema@3.23.0:
-    resolution: {integrity: sha512-az0uJ243PxsRIa2x1WmNE/pnuA05gUq/JB8Lwe1EDCCL/Fz9MgjYQ0fPlyc2Tcv6aF2ZA7WM5TWaRZVEFaAIag==}
+  zod-to-json-schema@3.23.1:
+    resolution: {integrity: sha512-oT9INvydob1XV0v1d2IadrR74rLtDInLvDFfAa1CG0Pmg/vxATk7I2gSelfj271mbzeM4Da0uuDQE/Nkj3DWNw==}
     peerDependencies:
       zod: ^3.23.3
 
@@ -8263,7 +8263,7 @@ snapshots:
 
   json-parse-even-better-errors@2.3.1: {}
 
-  json-schema-to-zod@2.1.0: {}
+  json-schema-to-zod@2.1.1: {}
 
   json-schema-traverse@0.4.1: {}
 
@@ -10219,7 +10219,7 @@ snapshots:
       - supports-color
       - ts-node
 
-  tsx@4.15.5:
+  tsx@4.15.6:
     dependencies:
       esbuild: 0.21.4
       get-tsconfig: 4.7.5
@@ -10624,7 +10624,7 @@ snapshots:
     dependencies:
       zod: 3.23.8
 
-  zod-to-json-schema@3.23.0(zod@3.23.8):
+  zod-to-json-schema@3.23.1(zod@3.23.8):
     dependencies:
       zod: 3.23.8
 
