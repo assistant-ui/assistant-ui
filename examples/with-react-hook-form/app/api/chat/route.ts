@@ -1,7 +1,6 @@
 import { openai } from "@ai-sdk/openai";
 import { formTools } from "@assistant-ui/react-hook-form";
-import { type CoreMessage, type Message, streamText } from "ai";
-import { convertToCoreMessage } from "../../../lib/convertToCoreMessage";
+import { type Message, convertToCoreMessages, streamText } from "ai";
 
 export const runtime = "edge";
 
@@ -11,12 +10,12 @@ export async function POST(req: Request) {
     messages: Message[];
   };
 
-  const coreMessages: CoreMessage[] = messages.flatMap(convertToCoreMessage);
-
   const result = await streamText({
     model: openai("gpt-4o"),
     system,
-    messages: coreMessages,
+    messages: convertToCoreMessages(
+      messages as Parameters<typeof convertToCoreMessages>[0],
+    ),
     tools: formTools,
   });
 

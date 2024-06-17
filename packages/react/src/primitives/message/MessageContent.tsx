@@ -69,7 +69,7 @@ const MessageContentPartImpl: FC<MessageContentPartProps> = ({
       component = <UI part={part} />;
       break;
     case "tool-call": {
-      const Tool = by_name[part.name] || Fallback;
+      const Tool = by_name[part.toolName] || Fallback;
       component = <Tool part={part} />;
       break;
     }

@@ -17,9 +17,11 @@ export type UIContentPart = {
 
 export type ToolCallContentPart = {
   type: "tool-call";
-  name: string;
+  toolCallId: string;
+  toolName: string;
   args: object;
   result?: object;
+  display?: ReactNode;
 };
 
 export type UserContentPart =
@@ -29,8 +31,8 @@ export type UserContentPart =
 
 export type AssistantContentPart =
   | TextContentPart
-  | UIContentPart
-  | ToolCallContentPart;
+  | ToolCallContentPart
+  | UIContentPart;
 
 export type AppendContentPart = TextContentPart | ImageContentPart;
 

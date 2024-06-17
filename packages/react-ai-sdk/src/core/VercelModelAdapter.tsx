@@ -1,3 +1,5 @@
+// @ts-nocheck TOOD
+
 "use client";
 
 import type {
@@ -8,19 +10,26 @@ import type {
   ChatModelAdapter,
   ChatModelRunOptions,
 } from "@assistant-ui/react";
-import { type LanguageModel, streamText } from "ai";
+import type { ToolCallContentPart } from "@assistant-ui/react/experimental";
+import { type CoreTool, type LanguageModel, streamText } from "ai";
+import { convertToCoreMessage } from "./convertToCoreMessage";
 
+// TODO multiple roundtrip support
 export class VercelModelAdapter implements ChatModelAdapter {
   constructor(private readonly model: LanguageModel) {}
 
-  async run({ messages, abortSignal, onUpdate }: ChatModelRunOptions) {
+  async run({ messages, abortSignal, config, onUpdate }: ChatModelRunOptions) {
     const { fullStream } = await streamText({
       model: this.model,
       abortSignal,
-      messages: messages.map((m) => ({
-        role: m.role,
-        content: m.content.filter((c): c is TextContentPart => c.type !== "ui"),
-      })),
+      ...(config.system ? { system: config.system } : {}),
+      messages: messages.flatMap(convertToCoreMessage),
+      ...(config.tools
+        ? {
+            // biome-ignore lint/suspicious/noExplicitAny: TODO
+            tools: config.tools as Record<string, CoreTool<any>>,
+          }
+        : {}),
     });
 
     const content: AssistantContentPart[] = [];
@@ -29,19 +38,43 @@ export class VercelModelAdapter implements ChatModelAdapter {
         case "text-delta": {
           let part = content.at(-1);
           if (!part || part.type !== "text") {
-            part = { type: "text", text: "" };
+            part = { type: "text", text: aiPart.textDelta };
             content.push(part);
+          } else {
+            content[content.length - 1] = {
+              ...part,
+              text: part.text + aiPart.textDelta,
+            };
           }
-          part.text += aiPart.textDelta;
           break;
         }
-        // TODO tool results
+
         case "tool-call": {
           content.push({
             type: "tool-call",
-            name: aiPart.toolName,
+            toolName: aiPart.toolName,
+            toolCallId: aiPart.toolCallId,
             args: aiPart.args,
           });
+          break;
+        }
+
+        // TODO test this
+        case "tool-result": {
+          const toolCall = content.findIndex(
+            (c) => c.type === "tool-call" && c.toolCallId === aiPart.toolCallId,
+          );
+          if (toolCall === -1) {
+            throw new Error(
+              `Tool call ${aiPart.toolCallId} not found in the content stream. This is likely an internal bug in assistant-ui.`,
+            );
+          }
+
+          content[toolCall] = {
+            ...(content[toolCall] as ToolCallContentPart),
+            result: aiPart.result,
+          };
+
           break;
         }
       }

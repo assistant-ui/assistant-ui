@@ -1,13 +1,13 @@
 "use client";
 
-import type {
-  AssistantRuntime,
-  ReactThreadRuntime,
-  Unsubscribe,
+import {
+  type AppendMessage,
+  type AssistantRuntime,
+  INTERNAL,
+  type ReactThreadRuntime,
+  type ThreadMessage,
+  type Unsubscribe,
 } from "@assistant-ui/react";
-
-import type { AppendMessage, ThreadMessage } from "@assistant-ui/react";
-import { INTERNAL } from "@assistant-ui/react";
 import { type StoreApi, type UseBoundStore, create } from "zustand";
 import type { VercelRSCAdapter } from "./VercelRSCAdapter";
 import type { VercelRSCMessage } from "./VercelRSCMessage";

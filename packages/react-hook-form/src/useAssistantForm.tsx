@@ -33,7 +33,7 @@ export const useAssistantForm = <
         tools: {
           set_form_field: {
             ...formTools.set_form_field,
-            execute: (args) => {
+            execute: async (args) => {
               // biome-ignore lint/suspicious/noExplicitAny: TODO
               form.setValue(args.name as any, args.value as any);
 
@@ -42,7 +42,7 @@ export const useAssistantForm = <
           },
           submit_form: {
             ...formTools.submit_form,
-            execute: () => {
+            execute: async () => {
               const { _names, _fields } = form.control;
               for (const name of _names.mount) {
                 const field = _fields[name];

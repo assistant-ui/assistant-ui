@@ -55,10 +55,11 @@ const vercelToThreadMessage = (
             (t) =>
               ({
                 type: "tool-call",
-                name: t.toolName,
+                toolName: t.toolName,
+                toolCallId: t.toolCallId,
                 args: t.args,
                 result: "result" in t ? t.result : undefined,
-              }) as ToolCallContentPart,
+              }) satisfies ToolCallContentPart,
           ) ?? []),
         ]),
         status,

@@ -4,7 +4,7 @@ import type { z } from "zod";
 export type Tool<TArgs> = {
   description: string;
   parameters: z.ZodSchema<TArgs>;
-  execute: (args: TArgs) => unknown; // TODO return type
+  execute: (args: TArgs) => Promise<unknown>; // TODO return type
 };
 
 export type ModelConfig = {
