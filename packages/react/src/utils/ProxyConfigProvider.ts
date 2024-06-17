@@ -8,7 +8,7 @@ export class ProxyConfigProvider {
   private _providers = new Set<ModelConfigProvider>();
 
   getModelConfig() {
-    return mergeModelConfigs([...this._providers].map((p) => p()));
+    return mergeModelConfigs(this._providers);
   }
 
   registerModelConfigProvider(provider: ModelConfigProvider) {

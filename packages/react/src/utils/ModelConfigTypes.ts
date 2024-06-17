@@ -8,6 +8,7 @@ export type Tool<TArgs> = {
 };
 
 export type ModelConfig = {
+  priority?: number;
   system?: string;
   // biome-ignore lint/suspicious/noExplicitAny: TODO
   tools?: Record<string, Tool<any>>;
@@ -15,7 +16,13 @@ export type ModelConfig = {
 
 export type ModelConfigProvider = () => ModelConfig;
 
-export const mergeModelConfigs = (configs: ModelConfig[]): ModelConfig => {
+export const mergeModelConfigs = (
+  configSet: Set<ModelConfigProvider>,
+): ModelConfig => {
+  const configs = Array.from(configSet)
+    .map((c) => c())
+    .sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0));
+
   return configs.reduce((acc, config) => {
     if (config.system) {
       if (acc.system) {
@@ -26,7 +33,15 @@ export const mergeModelConfigs = (configs: ModelConfig[]): ModelConfig => {
       }
     }
     if (config.tools) {
-      acc.tools = { ...acc.tools, ...config.tools };
+      for (const [name, tool] of Object.entries(config.tools)) {
+        if (acc.tools?.[name]) {
+          throw new Error(
+            `You tried to define a tool with the name ${name}, but it already exists.`,
+          );
+        }
+        if (!acc.tools) acc.tools = {};
+        acc.tools[name] = tool;
+      }
     }
     return acc;
   }, {} as ModelConfig);

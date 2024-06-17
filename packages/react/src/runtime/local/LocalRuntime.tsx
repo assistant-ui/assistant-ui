@@ -83,7 +83,7 @@ export class LocalRuntime implements AssistantRuntime {
       const result = await this.adapter.run({
         messages,
         abortSignal: this.abortController.signal,
-        config: mergeModelConfigs([...this._configProviders].map((p) => p())),
+        config: mergeModelConfigs(this._configProviders),
         onUpdate: updateHandler,
       });
       updateHandler(result);
