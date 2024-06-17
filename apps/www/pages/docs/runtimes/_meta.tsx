@@ -1,5 +1,5 @@
 export default {
   "pick-a-runtime": "Picking a Runtime",
-  "vercel-ai-sdk-ui": "Vercel AI SDK UI",
-  "vercel-ai-sdk-rsc": "Vercel AI SDK RSC",
+  "vercel-ai-sdk": "Vercel AI SDK",
+  "custom-rest": "Custom REST API",
 };
