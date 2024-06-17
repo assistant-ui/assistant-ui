@@ -26,6 +26,7 @@
     "build": "tsup src/index.ts --format cjs,esm --dts --sourcemap"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "provenance": true
   }
 }

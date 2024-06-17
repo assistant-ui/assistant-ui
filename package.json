@@ -2,10 +2,12 @@
   "name": "assistant-ui",
   "private": "true",
   "scripts": {
-    "lint": "biome lint ."
+    "lint": "biome lint .",
+    "ci:publish": "pnpm publish -r"
   },
   "devDependencies": {
     "@biomejs/biome": "1.8.1",
+    "@changesets/cli": "^2.27.5",
     "turbo": "^2.0.4"
   },
   "packageManager": "pnpm@9.3.0+sha512.ee7b93e0c2bd11409c6424f92b866f31d3ea1bef5fbe47d3c7500cdc3c9668833d2e55681ad66df5b640c61fa9dc25d546efa54d76d7f8bf54b13614ac293631"

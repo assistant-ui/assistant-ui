@@ -90,7 +90,8 @@
     "tsup": "^8.1.0"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "provenance": true
   },
   "homepage": "https://assistant-ui.com/",
   "repository": {

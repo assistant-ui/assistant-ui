@@ -46,7 +46,8 @@
     "@types/node": "^20.14.2"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "provenance": true
   },
   "homepage": "https://assistant-ui.com/",
   "repository": {
