@@ -33,7 +33,7 @@ const defaultComponents = {
   Image: () => null,
   UI: ({ part }) => part.display,
   tools: {
-    Fallback: () => null,
+    Fallback: ({ part }) => part.display ?? null,
   },
 } satisfies MessageContentProps["components"];
 

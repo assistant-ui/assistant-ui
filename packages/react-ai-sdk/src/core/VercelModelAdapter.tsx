@@ -59,7 +59,6 @@ export class VercelModelAdapter implements ChatModelAdapter {
           break;
         }
 
-        // TODO test this
         case "tool-result": {
           const toolCall = content.findIndex(
             (c) => c.type === "tool-call" && c.toolCallId === aiPart.toolCallId,
