@@ -21,7 +21,7 @@ export const mergeModelConfigs = (
 ): ModelConfig => {
   const configs = Array.from(configSet)
     .map((c) => c())
-    .sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0));
+    .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
 
   return configs.reduce((acc, config) => {
     if (config.system) {
