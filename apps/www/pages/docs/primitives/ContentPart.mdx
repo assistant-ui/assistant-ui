@@ -3,20 +3,35 @@ title: ContentPartPrimitive
 description: A part of a message's content. Content parts may be text, image, tool call or UI elements.
 ---
 
-import { Callout } from 'nextra/components'
-
-<Callout type="warning" emoji="🚧">
-  This API is still being developed.
-</Callout>
-
 ## Anatomy
 
 ```tsx
 import { ContentPartPrimitive } from "assistant-ui";
 
-const ContentPart = () => {
+const TextContentPart = () => {
   return (
-    <ContentPartPrimitive.InProgressIndicator />
+    <p>
+      <ContentPartPrimitive.Text />
+      <ContentPartPrimitive.InProgressIndicator />
+    </p>
+  );
+};
+
+const ImageContentPart = () => {
+  return (
+    <ContentPartPrimitive.Image />
+  );
+};
+
+const ToolCallContentPart = () => {
+  return (
+    <ContentPartPrimitive.Display />
+  );
+};
+
+const UIContentPart = () => {
+  return (
+    <ContentPartPrimitive.Display />
   );
 };
 ```
@@ -26,3 +41,15 @@ const ContentPart = () => {
 ### InProgressIndicator
 
 Only rendered when the content part is in progress. While a message is in progress, the very last content part is considered to be in progress. This component acts as a portal host for `<MessagePrimitive.InProgress />`.  
+
+### Text
+
+Renders the text content of a text content part inside a `<span>` element.
+
+### Image
+
+Renders the image content of an image content part as an `<img>` element.
+
+### Display
+
+Renders the display content of a tool call or UI content part. This feature allows for colocation of tool call definition and corresponding UI elements.

@@ -9,7 +9,9 @@ import type {
   ToolCallContentPart,
   UIContentPart,
 } from "../../utils/AssistantTypes";
+import { ContentPartDisplay } from "../contentPart/ContentPartDisplay";
 import { ContentPartInProgressIndicator } from "../contentPart/ContentPartInProgressIndicator";
+import { ContentPartText } from "../contentPart/ContentPartText";
 
 type MessageContentProps = {
   components?: {
@@ -24,16 +26,16 @@ type MessageContentProps = {
 };
 
 const defaultComponents = {
-  Text: ({ part }) => (
+  Text: () => (
     <>
-      {part.text}
+      <ContentPartText />
       <ContentPartInProgressIndicator />
     </>
   ),
   Image: () => null,
-  UI: ({ part }) => part.display,
+  UI: () => <ContentPartDisplay />,
   tools: {
-    Fallback: ({ part }) => part.display ?? null,
+    Fallback: () => <ContentPartDisplay />,
   },
 } satisfies MessageContentProps["components"];
 
