@@ -8,3 +8,4 @@ export type { ModelConfigProvider } from "./utils/ModelConfigTypes";
 
 export * from "./context";
 export { useAssistantInstructions } from "./model-config/useAssistantInstructions";
+export { useAssistantTool } from "./model-config/useAssistantTool";

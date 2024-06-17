@@ -2,8 +2,9 @@
 
 import { useEffect } from "react";
 import { useAssistantContext } from "../context/AssistantContext";
+import type { Tool } from "../utils/ModelConfigTypes";
 
-export const useAssistantInstructions = (instruction: string) => {
+export const useAssistantTool = <T,>(tool: Tool<T>) => {
   const { useModelConfig } = useAssistantContext();
   const registerModelConfigProvider = useModelConfig(
     (s) => s.registerModelConfigProvider,
@@ -12,9 +13,11 @@ export const useAssistantInstructions = (instruction: string) => {
     () =>
       registerModelConfigProvider(() => {
         return {
-          system: instruction,
+          tools: {
+            [tool.name]: tool,
+          },
         };
       }),
-    [registerModelConfigProvider, instruction],
+    [registerModelConfigProvider, tool],
   );
 };

@@ -2,6 +2,7 @@
 import type { z } from "zod";
 
 export type Tool<TArgs> = {
+  name: string;
   description: string;
   parameters: z.ZodSchema<TArgs>;
   execute: (args: TArgs) => Promise<unknown>; // TODO return type
