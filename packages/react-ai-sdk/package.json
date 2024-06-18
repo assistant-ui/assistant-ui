@@ -33,7 +33,7 @@
   },
   "peerDependencies": {
     "@ai-sdk/react": "^0.0.x",
-    "@assistant-ui/react": "^0.1.3",
+    "@assistant-ui/react": "^0.1.4",
     "@types/react": "*",
     "ai": "^3.1.x",
     "react": "^18"
