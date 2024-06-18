@@ -2,8 +2,7 @@
   "name": "assistant-ui",
   "private": "true",
   "scripts": {
-    "lint": "biome lint .",
-    "ci:publish": "pnpm publish -r"
+    "lint": "biome lint ."
   },
   "devDependencies": {
     "@biomejs/biome": "1.8.1",
