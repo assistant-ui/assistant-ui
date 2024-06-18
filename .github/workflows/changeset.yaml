@@ -3,12 +3,14 @@ on:
   push:
     branches:
       - main
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
 env:
   CI: true
-  PNPM_CACHE_FOLDER: .pnpm-store
+
 jobs:
   version:
-    timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
       - name: checkout code repository
@@ -22,17 +24,12 @@ jobs:
           node-version: 20
 
       - run: corepack enable
-      - name: setup pnpm config
-        run: pnpm config set store-dir $PNPM_CACHE_FOLDER
       - name: install dependencies
         run: pnpm install
 
       - name: create and publish versions
         uses: changesets/action@v1
         with:
-          version: pnpm changeset version
-          commit: "chore: update versions"
-          title: "chore: update versions"
           publish: pnpm publish -r
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
