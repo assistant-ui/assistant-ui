@@ -29,7 +29,7 @@ export const ComposerInput = forwardRef<
     { autoFocus = false, asChild, disabled, onChange, onKeyDown, ...rest },
     forwardedRef,
   ) => {
-    const { useThread, useViewport } = useThreadContext();
+    const { useThread } = useThreadContext();
     const { useComposer, type } = useComposerContext();
 
     const value = useComposer((c) => {
@@ -39,27 +39,26 @@ export const ComposerInput = forwardRef<
 
     const Component = asChild ? Slot : TextareaAutosize;
 
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const ref = useComposedRefs(forwardedRef, textareaRef);
+
     const handleKeyPress = (e: KeyboardEvent) => {
       if (disabled) return;
 
-      const composer = useComposer.getState();
       if (e.key === "Escape") {
-        if (useComposer.getState().cancel()) {
+        const composer = useComposer.getState();
+        if (composer.cancel()) {
           e.preventDefault();
         }
       } else if (e.key === "Enter" && e.shiftKey === false) {
         const isRunning = useThread.getState().isRunning;
         if (!isRunning) {
           e.preventDefault();
-          composer.send();
 
-          useViewport.getState().scrollToBottom();
+          textareaRef.current?.closest("form")?.requestSubmit();
         }
       }
     };
-
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
-    const ref = useComposedRefs(forwardedRef, textareaRef);
 
     const autoFocusEnabled = autoFocus && !disabled;
     const focus = useCallback(() => {
