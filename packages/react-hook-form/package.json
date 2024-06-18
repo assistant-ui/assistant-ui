@@ -1,10 +1,10 @@
 {
   "name": "@assistant-ui/react-hook-form",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "license": "MIT",
   "type": "module",
   "peerDependencies": {
-    "@assistant-ui/react": "^0.1",
+    "@assistant-ui/react": "^0.1.3",
     "react-hook-form": "^7.x.x",
     "@types/react": "*",
     "react": "^18"
