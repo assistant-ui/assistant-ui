@@ -2,9 +2,9 @@
 
 import { useEffect } from "react";
 import { useAssistantContext } from "../context/AssistantContext";
-import type { Tool } from "../utils/ModelConfigTypes";
+import type { ToolWithName } from "../utils/ModelConfigTypes";
 
-export const useAssistantTool = <T,>(tool: Tool<T>) => {
+export const useAssistantTool = <T,>(tool: ToolWithName<T>) => {
   const { useModelConfig } = useAssistantContext();
   const registerModelConfigProvider = useModelConfig(
     (s) => s.registerModelConfigProvider,
