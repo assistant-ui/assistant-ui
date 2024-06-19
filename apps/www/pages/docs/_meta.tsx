@@ -17,14 +17,6 @@ export default {
     display: "children",
   },
 
-  "-- primitives": {
-    title: "Primitives",
-    type: "separator",
-  },
-  primitives: {
-    display: "children",
-  },
-
   "-- advanced": {
     title: "Advanced",
     type: "separator",

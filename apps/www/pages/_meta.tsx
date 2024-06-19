@@ -15,7 +15,14 @@ export default {
     },
   },
   docs: {
-    title: "Documentation",
+    title: "Docs",
+    type: "page",
+    theme: {
+      breadcrumb: false,
+    },
+  },
+  reference: {
+    title: "Reference",
     type: "page",
     theme: {
       breadcrumb: false,
