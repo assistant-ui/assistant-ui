@@ -27,6 +27,40 @@ const BranchPicker = () => (
 
 Containts all parts of the branch picker.
 
+This primitive renders a `<div>` element unless `asChild` is set.
+
+<PropsTable
+  data={[
+    {
+      name: 'asChild',
+      required: false,
+      type: 'boolean',
+      default: 'false',
+      description: (
+        <>
+          Change the default rendered element for the one passed as a child,
+          merging their props and behavior.
+          <br />
+          <br />
+          Read our <a href="/reference/primitives/composition">Composition</a> guide for more
+          details.
+        </>
+      ),
+    },
+    {
+      name: 'hideWhenSingleBranch',
+      required: false,
+      type: 'boolean',
+      default: 'false',
+      description: (
+        <span>
+          Do not render the BranchPicker when there is only one branch at the current message.
+        </span>
+      ),
+    }
+  ]}
+/>
+
 ### Number
 
 The current branch number.
