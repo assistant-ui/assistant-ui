@@ -1,0 +1,58 @@
+{
+  "name": "@assistant-ui/react-markdown",
+  "version": "0.0.1",
+  "private": true,
+  "license": "MIT",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "source": "./src/index.ts",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "files": ["dist", "README.md"],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --sourcemap"
+  },
+  "dependencies": {
+    "react-markdown": "^9.0.1",
+    "zod": "^3.23.8"
+  },
+  "peerDependencies": {
+    "@assistant-ui/react": "^0.1.5",
+    "@types/react": "*",
+    "react": "^18"
+  },
+  "peerDependenciesMeta": {
+    "@types/react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@assistant-ui/react": "workspace:*",
+    "@assistant-ui/tsconfig": "workspace:*",
+    "tsup": "^8.1.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "homepage": "https://assistant-ui.com/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Yonom/assistant-ui.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Yonom/assistant-ui/issues"
+  }
+}
