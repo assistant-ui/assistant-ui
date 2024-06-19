@@ -1,0 +1,37 @@
+---
+title: "@assistant-ui/react-hook-form"
+description: A React Hook Form integration for @assistant-ui.
+--- 
+
+## API Reference
+
+### `useAssistantForm`
+
+Drop-in replacement hook for `useForm` that adds support for `@assistant-ui/react`.
+
+```diff
+- import { useForm } from "react-hook-form";
++ import { useAssistantForm } from "@assistant-ui/react-hook-form";
+
+- useForm({
++ useAssistantForm({
+    ...
+  });
+```
+
+{/** TODO document assistant.tools property */}
+
+### `formTools`
+
+The set of tools to use with `useAssistantForm`, useful for runtimes that do not support client-side tool definitions (i.e. Vercel AI SDK).
+
+```tsx {1, 5-7}
+import { formTools } from "@assistant-ui/react-hook-form";
+
+const result = await streamText({
+  ...
+  tools: {
+    ...formTools,
+  }
+});
+```
