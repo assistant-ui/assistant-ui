@@ -4,7 +4,7 @@
   "scripts": {
     "lint": "biome lint .",
     "ci:version": "changeset version && pnpm install --no-frozen-lockfile",
-    "ci:publish": "turbo clean && turbo build && changeset publish"
+    "ci:publish": "turbo build && changeset publish"
   },
   "devDependencies": {
     "@biomejs/biome": "1.8.1",
