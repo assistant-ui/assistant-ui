@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.1.5
+
+### Patch Changes
+
+- 671dc86: feat: Tool Render functions
+
 ## 0.1.4
 
 ### Patch Changes

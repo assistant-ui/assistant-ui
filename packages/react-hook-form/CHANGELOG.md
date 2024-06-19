@@ -1,5 +1,13 @@
 # @assistant-ui/react-hook-form
 
+## 0.0.4
+
+### Patch Changes
+
+- 671dc86: feat: Tool Render functions
+- Updated dependencies [671dc86]
+  - @assistant-ui/react@0.1.5
+
 ## 0.0.3
 
 ### Patch Changes
