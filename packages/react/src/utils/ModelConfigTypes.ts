@@ -1,21 +1,21 @@
 "use client";
 import type { z } from "zod";
 
-export type Tool<TArgs> = {
-  description: string;
-  parameters: z.ZodSchema<TArgs>;
-  execute: (args: TArgs) => Promise<unknown>; // TODO return type
-};
+type ToolExecuteFunction<TArgs, TResult> = (
+  args: TArgs,
+) => TResult | Promise<TResult>;
 
-export type ToolWithName<TArgs> = Tool<TArgs> & {
-  name: string;
+export type Tool<TArgs = unknown, TResult = unknown> = {
+  description?: string;
+  parameters: z.ZodSchema<TArgs>;
+  execute: ToolExecuteFunction<TArgs, TResult>;
 };
 
 export type ModelConfig = {
   priority?: number;
   system?: string;
-  // biome-ignore lint/suspicious/noExplicitAny: TODO
-  tools?: Record<string, Tool<any>>;
+  // biome-ignore lint/suspicious/noExplicitAny: intentional any
+  tools?: Record<string, Tool<any, any>>;
 };
 
 export type ModelConfigProvider = () => ModelConfig;

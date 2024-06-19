@@ -15,13 +15,12 @@ export type UIContentPart = {
   display: ReactNode;
 };
 
-export type ToolCallContentPart = {
+export type ToolCallContentPart<TArgs = unknown, TResult = unknown> = {
   type: "tool-call";
   toolCallId: string;
   toolName: string;
-  args: object;
-  result?: object;
-  display?: ReactNode;
+  args: TArgs;
+  result?: TResult;
 };
 
 export type UserContentPart =

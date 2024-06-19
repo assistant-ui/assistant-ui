@@ -1,6 +1,7 @@
 "use client";
 
-import { type ComponentType, type FC, type ReactNode, memo } from "react";
+import { type ComponentType, type FC, memo } from "react";
+import { useAssistantContext, useContentPartContext } from "../../context";
 import { useMessageContext } from "../../context/MessageContext";
 import { ContentPartProvider } from "../../context/providers/ContentPartProvider";
 import type {
@@ -15,12 +16,30 @@ import { ContentPartText } from "../contentPart/ContentPartText";
 
 type MessageContentProps = {
   components?: {
-    Text?: ComponentType<{ part: TextContentPart }>;
-    Image?: ComponentType<{ part: ImageContentPart }>;
-    UI?: ComponentType<{ part: UIContentPart }>;
+    Text?: ComponentType<{
+      part: TextContentPart;
+      status: "done" | "in_progress" | "error";
+    }>;
+    Image?: ComponentType<{
+      part: ImageContentPart;
+      status: "done" | "in_progress" | "error";
+    }>;
+    UI?: ComponentType<{
+      part: UIContentPart;
+      status: "done" | "in_progress" | "error";
+    }>;
     tools?: {
-      by_name?: Record<string, ComponentType<{ part: ToolCallContentPart }>>;
-      Fallback?: ComponentType<{ part: ToolCallContentPart }>;
+      by_name?: Record<
+        string,
+        ComponentType<{
+          part: ToolCallContentPart;
+          status: "done" | "in_progress" | "error";
+        }>
+      >;
+      Fallback?: ComponentType<{
+        part: ToolCallContentPart;
+        status: "done" | "in_progress" | "error";
+      }>;
     };
   };
 };
@@ -35,9 +54,51 @@ const defaultComponents = {
   Image: () => null,
   UI: () => <ContentPartDisplay />,
   tools: {
-    Fallback: () => <ContentPartDisplay />,
+    Fallback: (props) => {
+      const { useToolRenderers } = useAssistantContext();
+      const Render = useToolRenderers((s) =>
+        s.getToolRenderer(props.part.toolName),
+      );
+      if (!Render) return null;
+      return <Render {...props} />;
+    },
   },
 } satisfies MessageContentProps["components"];
+
+type MessageContentPartComponentProps = {
+  components: MessageContentProps["components"];
+};
+
+const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
+  components: {
+    Text = defaultComponents.Text,
+    Image = defaultComponents.Image,
+    UI = defaultComponents.UI,
+    tools: { by_name = {}, Fallback = defaultComponents.tools.Fallback } = {},
+  } = {},
+}) => {
+  const { useContentPart } = useContentPartContext();
+  const { part, status } = useContentPart();
+
+  const type = part.type;
+  switch (type) {
+    case "text":
+      return <Text part={part} status={status} />;
+
+    case "image":
+      return <Image part={part} status={status} />;
+
+    case "ui":
+      return <UI part={part} status={status} />;
+
+    case "tool-call": {
+      const Tool = by_name[part.toolName] || Fallback;
+      return <Tool part={part} status={status} />;
+    }
+    default:
+      throw new Error(`Unknown content part type: ${type}`);
+  }
+};
 
 type MessageContentPartProps = {
   partIndex: number;
@@ -46,42 +107,11 @@ type MessageContentPartProps = {
 
 const MessageContentPartImpl: FC<MessageContentPartProps> = ({
   partIndex,
-  components: {
-    Text = defaultComponents.Text,
-    Image = defaultComponents.Image,
-    UI = defaultComponents.UI,
-    tools: { by_name = {}, Fallback = defaultComponents.tools.Fallback } = {},
-  } = {},
+  components,
 }) => {
-  const { useMessage } = useMessageContext();
-
-  const part = useMessage((s) => s.message.content[partIndex]!);
-
-  const type = part.type;
-  let component: ReactNode | null = null;
-  switch (type) {
-    case "text":
-      component = <Text part={part} />;
-      break;
-
-    case "image":
-      component = <Image part={part} />;
-      break;
-    case "ui":
-      component = <UI part={part} />;
-      break;
-    case "tool-call": {
-      const Tool = by_name[part.toolName] || Fallback;
-      component = <Tool part={part} />;
-      break;
-    }
-    default:
-      throw new Error(`Unknown content part type: ${type}`);
-  }
-
   return (
-    <ContentPartProvider key={partIndex} partIndex={partIndex}>
-      {component}
+    <ContentPartProvider partIndex={partIndex}>
+      <MessageContentPartComponent components={components} />
     </ContentPartProvider>
   );
 };

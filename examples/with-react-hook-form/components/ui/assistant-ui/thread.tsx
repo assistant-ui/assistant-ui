@@ -17,7 +17,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import type { ToolCallContentPart } from "@assistant-ui/react/experimental";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import {
   ArrowDownIcon,
@@ -178,16 +177,7 @@ const AssistantMessage: FC = () => {
 
         <MessagePrimitive.InProgress className="inline-block size-3 animate-pulse rounded-full bg-foreground" />
         <div className="flex flex-col gap-3 whitespace-pre-line text-foreground">
-          <MessagePrimitive.Content
-            components={{
-              tools: {
-                by_name: {
-                  set_form_field: SetFormFieldTool,
-                  submit_form: SubmitFormTool,
-                },
-              },
-            }}
-          />
+          <MessagePrimitive.Content />
         </div>
 
         <div className="flex pt-2">
@@ -218,22 +208,6 @@ const AssistantMessage: FC = () => {
         </div>
       </div>
     </MessagePrimitive.Root>
-  );
-};
-
-const SetFormFieldTool: FC<{ part: ToolCallContentPart }> = () => {
-  return (
-    <p className="text-center font-bold font-mono text-blue-500 text-sm">
-      set_form_field(...)
-    </p>
-  );
-};
-
-const SubmitFormTool: FC<{ part: ToolCallContentPart }> = () => {
-  return (
-    <p className="text-center font-bold font-mono text-blue-500 text-sm">
-      submit_form(...)
-    </p>
   );
 };
 

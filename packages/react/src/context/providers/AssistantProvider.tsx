@@ -3,6 +3,7 @@ import { useEffect, useInsertionEffect, useRef, useState } from "react";
 import type { AssistantRuntime } from "../../runtime";
 import { AssistantContext } from "../AssistantContext";
 import { makeAssistantModelConfigStore } from "../stores/AssistantModelConfig";
+import { makeAssistantToolRenderersStore } from "../stores/AssistantToolRenderers";
 import { ThreadProvider } from "./ThreadProvider";
 
 type AssistantProviderProps = {
@@ -19,8 +20,9 @@ export const AssistantProvider: FC<
 
   const [context] = useState(() => {
     const useModelConfig = makeAssistantModelConfigStore();
+    const useToolRenderers = makeAssistantToolRenderersStore();
 
-    return { useModelConfig };
+    return { useModelConfig, useToolRenderers };
   });
 
   const getModelCOnfig = context.useModelConfig((c) => c.getModelConfig);

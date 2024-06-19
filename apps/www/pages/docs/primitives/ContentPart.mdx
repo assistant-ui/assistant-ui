@@ -23,12 +23,6 @@ const ImageContentPart = () => {
   );
 };
 
-const ToolCallContentPart = () => {
-  return (
-    <ContentPartPrimitive.Display />
-  );
-};
-
 const UIContentPart = () => {
   return (
     <ContentPartPrimitive.Display />
@@ -52,4 +46,4 @@ Renders the image content of an image content part as an `<img>` element.
 
 ### Display
 
-Renders the display content of a tool call or UI content part. This feature allows for colocation of tool call definition and corresponding UI elements.
+Renders the display content of a UI content part. This feature is used by the Vercel RSC runtime.

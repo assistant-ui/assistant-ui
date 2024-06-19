@@ -22,7 +22,6 @@ export const SignupForm: FC = () => {
   const onSubmit = async (values: object) => {
     try {
       setIsSubmitting(true);
-      console.log(values);
       await submitSignup(values);
       setIsSubmitted(true);
     } finally {

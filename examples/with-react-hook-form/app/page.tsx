@@ -7,6 +7,22 @@ import { useAssistantForm } from "@assistant-ui/react-hook-form";
 import { useAssistantInstructions } from "@assistant-ui/react/experimental";
 import Link from "next/link";
 
+const SetFormFieldTool = () => {
+  return (
+    <p className="text-center font-bold font-mono text-blue-500 text-sm">
+      set_form_field(...)
+    </p>
+  );
+};
+
+const SubmitFormTool = () => {
+  return (
+    <p className="text-center font-bold font-mono text-blue-500 text-sm">
+      submit_form(...)
+    </p>
+  );
+};
+
 export default function Home() {
   useAssistantInstructions("Help users sign up for Simon's hackathon.");
   const form = useAssistantForm({
@@ -17,6 +33,16 @@ export default function Home() {
       cityAndCountry: "",
       projectIdea: "",
       proficientTechnologies: "",
+    },
+    assistant: {
+      tools: {
+        set_form_field: {
+          render: SetFormFieldTool,
+        },
+        submit_form: {
+          render: SubmitFormTool,
+        },
+      },
     },
   });
 

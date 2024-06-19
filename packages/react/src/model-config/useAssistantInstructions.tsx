@@ -8,13 +8,10 @@ export const useAssistantInstructions = (instruction: string) => {
   const registerModelConfigProvider = useModelConfig(
     (s) => s.registerModelConfigProvider,
   );
-  useEffect(
-    () =>
-      registerModelConfigProvider(() => {
-        return {
-          system: instruction,
-        };
-      }),
-    [registerModelConfigProvider, instruction],
-  );
+  useEffect(() => {
+    const config = {
+      system: instruction,
+    };
+    return registerModelConfigProvider(() => config);
+  }, [registerModelConfigProvider, instruction]);
 };
