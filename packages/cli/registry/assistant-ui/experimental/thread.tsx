@@ -125,7 +125,7 @@ const UserMessage: FC = () => {
             hideWhenRunning
             autohide="not-last"
             autohideFloat="single-branch"
-            className="flex items-center gap-1 rounded-lg data-[floating=true]:absolute data-[floating=true]:border data-[floating=true]:p-1"
+            className="flex items-center gap-1 rounded-lg data-[floating]:absolute data-[floating]:border data-[floating]:p-1"
           >
             <ActionBarPrimitive.Edit asChild>
               <IconButton tooltip="Edit">
@@ -188,7 +188,7 @@ const AssistantMessage: FC = () => {
             hideWhenRunning
             autohide="not-last"
             autohideFloat="single-branch"
-            className="flex items-center gap-1 rounded-lg data-[floating=true]:absolute data-[floating=true]:border data-[floating=true]:p-1"
+            className="flex items-center gap-1 rounded-lg data-[floating]:absolute data-[floating]:border data-[floating]:p-1"
           >
             <ActionBarPrimitive.Copy asChild>
               <IconButton tooltip="Copy">
