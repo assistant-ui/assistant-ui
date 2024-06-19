@@ -3,6 +3,8 @@ title: BranchPickerPrimitive
 description: View and switch between branches.
 ---
 
+import { PropsTable } from "@/components/docs";
+
 ## Anatomy
 
 ```tsx
@@ -25,18 +27,68 @@ const BranchPicker = () => (
 
 Containts all parts of the branch picker.
 
-### Previous
-
-Navigates to the previous branch.
-
 ### Number
 
 The current branch number.
+
+This primitive renders the raw number as a string.
 
 ### Count
 
 The total number of branches.
 
+This primitive renders the raw number as a string.
+
+### Previous
+
+Navigates to the previous branch.
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+<PropsTable
+  data={[
+    {
+      name: 'asChild',
+      required: false,
+      type: 'boolean',
+      default: 'false',
+      description: (
+        <>
+          Change the default rendered element for the one passed as a child,
+          merging their props and behavior.
+          <br />
+          <br />
+          Read our <a href="/reference/primitives/composition">Composition</a> guide for more
+          details.
+        </>
+      ),
+    },
+  ]}
+/>
+
 ### Next
 
 Navigates to the next branch.
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+<PropsTable
+  data={[
+    {
+      name: 'asChild',
+      required: false,
+      type: 'boolean',
+      default: 'false',
+      description: (
+        <>
+          Change the default rendered element for the one passed as a child,
+          merging their props and behavior.
+          <br />
+          <br />
+          Read our <a href="/reference/primitives/composition">Composition</a> guide for more
+          details.
+        </>
+      ),
+    },
+  ]}
+/>

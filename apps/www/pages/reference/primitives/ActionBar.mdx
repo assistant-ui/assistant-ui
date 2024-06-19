@@ -3,6 +3,9 @@ title: ActionBarPrimitive
 description: Buttons to interact with the message.
 ---
 
+import { PropsTable, DataAttributesTable } from "@/components/docs";
+import { Code } from "@radix-ui/themes";
+
 ## Anatomy
 
 ```tsx
@@ -29,14 +32,162 @@ const AssistantMessageBar = () => (
 
 Containts all parts of the action bar.
 
+This primitive renders a `<div>` element unless `asChild` is set.
+
+<PropsTable
+  data={[
+    {
+      name: 'asChild',
+      required: false,
+      type: 'boolean',
+      default: 'false',
+      description: (
+        <>
+          Change the default rendered element for the one passed as a child,
+          merging their props and behavior.
+          <br />
+          <br />
+          Read our <a href="/reference/primitives/composition">Composition</a> guide for more
+          details.
+        </>
+      ),
+    },
+    {
+      name: 'hideWhenRunning',
+      required: false,
+      type: 'boolean',
+      default: 'false',
+      description: (
+        <span>
+          Do not render the ActionBar when the thread is in running state.
+        </span>
+      ),
+    },
+    {
+      name: 'autohide',
+      required: false,
+      type: '"always" | "not-last" | "never"',
+      default: '"never"',
+      description: (
+        <span>
+          Do not render the ActionBar unless the mouse is hovering over the message.
+          <br />
+          <br />
+          <Code>"always"</Code>: always autohide.
+          <br />
+          <Code>"not-last"</Code>; only autohide if the message is not the last one in the thread.
+        </span>
+      ),
+    },
+    {
+      name: 'autohideFloat',
+      required: false,
+      type: '"always" | "single-branch" | "never"',
+      default: '"never"',
+      description: (
+        <span>
+          Float the ActionBar during autohide.
+          <br />
+          <br />
+          <Code>"always"</Code>: always float during autohide.
+          <br />
+          <Code>"single-branch"</Code>: only float if the message is the only one in the thread.
+          <br />
+          <br />
+          Note: this only sets `data-floating` on the ActionBar. You need to set the appropriate styles on the ActionBar to make it float.
+        </span>
+      ),
+    },
+  ]}
+/>
+
+<DataAttributesTable
+  data={[
+    {
+      attribute: '[data-floating]',
+      values: 'Present when floating',
+    },
+  ]}
+/>
+
+
 ### Edit
 
 Enables edit mode on user message.
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+<PropsTable
+  data={[
+    {
+      name: 'asChild',
+      required: false,
+      type: 'boolean',
+      default: 'false',
+      description: (
+        <>
+          Change the default rendered element for the one passed as a child,
+          merging their props and behavior.
+          <br />
+          <br />
+          Read our <a href="/reference/primitives/composition">Composition</a> guide for more
+          details.
+        </>
+      ),
+    },
+  ]}
+/>
 
 ### Reload
 
 Regenerates the assistant message.
 
+This primitive renders a `<button>` element unless `asChild` is set.
+
+<PropsTable
+  data={[
+    {
+      name: 'asChild',
+      required: false,
+      type: 'boolean',
+      default: 'false',
+      description: (
+        <>
+          Change the default rendered element for the one passed as a child,
+          merging their props and behavior.
+          <br />
+          <br />
+          Read our <a href="/reference/primitives/composition">Composition</a> guide for more
+          details.
+        </>
+      ),
+    },
+  ]}
+/>
+
 ### Copy
 
 Copies the message to the clipboard.
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+<PropsTable
+  data={[
+    {
+      name: 'asChild',
+      required: false,
+      type: 'boolean',
+      default: 'false',
+      description: (
+        <>
+          Change the default rendered element for the one passed as a child,
+          merging their props and behavior.
+          <br />
+          <br />
+          Read our <a href="/reference/primitives/composition">Composition</a> guide for more
+          details.
+        </>
+      ),
+    },
+  ]}
+/>

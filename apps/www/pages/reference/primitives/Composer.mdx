@@ -4,7 +4,10 @@ description: The user interface to add new messages or edit existing ones.
 ---
 
 import { Callout } from 'nextra/components'
- 
+
+import { PropsTable, KeyboardTable } from "@/components/docs";
+import { Code } from "@radix-ui/themes";
+
 <Callout type="info" emoji="✨">
   **Dual Use!** A Composer placed directly inside a `Thread` will compose new messages. A Composer placed inside a `Message` will edit that message.
 </Callout>
@@ -38,14 +41,150 @@ const EditComposer = () => (
 
 Containts all parts of the composer.
 
+This primitive renders a `<form>` element unless `asChild` is set.
+
+<PropsTable
+  data={[
+    {
+      name: 'asChild',
+      required: false,
+      type: 'boolean',
+      default: 'false',
+      description: (
+        <>
+          Change the default rendered element for the one passed as a child,
+          merging their props and behavior.
+          <br />
+          <br />
+          Read our <a href="/reference/primitives/composition">Composition</a> guide for more
+          details.
+        </>
+      ),
+    },
+  ]}
+/>
+
 ### Input
 
 The text input field for the user to type a new message.
+
+This primitive renders a `<textarea>` element unless `asChild` is set.
+
+<PropsTable
+  data={[
+    {
+      name: 'asChild',
+      required: false,
+      type: 'boolean',
+      default: 'false',
+      description: (
+        <>
+          Change the default rendered element for the one passed as a child,
+          merging their props and behavior.
+          <br />
+          <br />
+          Read our <a href="/reference/primitives/composition">Composition</a> guide for more
+          details.
+        </>
+      ),
+    },
+  ]}
+/>
+
+#### Keyboard Shortcuts
+
+<KeyboardTable
+  data={[
+    {
+      keys: ['Enter'],
+      description: 'Sends the message.',
+    },
+    {
+      keys: ['Escape'],
+      description: 'Sends a cancel action.',
+    },
+  ]}
+/>
 
 ### Send
 
 The button to send the message.
 
+This primitive renders a `<button>` element unless `asChild` is set.
+
+<PropsTable
+  data={[
+    {
+      name: 'asChild',
+      required: false,
+      type: 'boolean',
+      default: 'false',
+      description: (
+        <>
+          Change the default rendered element for the one passed as a child,
+          merging their props and behavior.
+          <br />
+          <br />
+          Read our <a href="/reference/primitives/composition">Composition</a> guide for more
+          details.
+        </>
+      ),
+    },
+  ]}
+/>
+
 ### Cancel
 
-Cancel the composer. Only available when editing a message.
+Sends a cancel action.  
+
+In edit composers, this action exits the edit mode.  
+In thread composers, this action stops the current run.
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+<PropsTable
+  data={[
+    {
+      name: 'asChild',
+      required: false,
+      type: 'boolean',
+      default: 'false',
+      description: (
+        <>
+          Change the default rendered element for the one passed as a child,
+          merging their props and behavior.
+          <br />
+          <br />
+          Read our <a href="/reference/primitives/composition">Composition</a> guide for more
+          details.
+        </>
+      ),
+    },
+  ]}
+/>
+
+# If 
+
+Renders children if a condition is met.
+
+<PropsTable
+  data={[
+    {
+      name: 'editing',
+      required: false,
+      type: 'boolean | undefined',
+      default: 'undefined',
+      description: (
+        <>
+          Render children if the message is being edited.
+        </>
+      ),
+    }
+  ]}
+/>
+
+```tsx 
+<Composer.If editing>
+  {/* rendered if message is being edited */}
+</Composer.If>
+```

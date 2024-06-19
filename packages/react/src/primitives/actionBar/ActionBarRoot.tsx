@@ -60,7 +60,9 @@ export const ActionBarRoot = forwardRef<
 
   return (
     <Primitive.div
-      data-floating={hideAndfloatStatus === HideAndFloatStatus.Floating}
+      {...(hideAndfloatStatus === HideAndFloatStatus.Floating
+        ? { "data-floating": "true" }
+        : null)}
       {...rest}
       ref={ref}
     />

@@ -24,6 +24,7 @@ const IconTitle: FC<IconTitleProps> = ({ icon, name }) => {
 };
 
 export default {
+  composition: "Composition",
   Thread: {
     title: <IconTitle icon={faComments} name="Thread" />,
   },
