@@ -9,7 +9,6 @@ export type AssistantToolRendererProps<TArgs, TResult> = {
 };
 
 export const useAssistantToolRenderer = (
-  // biome-ignore lint/suspicious/noExplicitAny: intentional any
   tool: AssistantToolRendererProps<any, any> | null,
 ) => {
   const { useToolRenderers } = useAssistantContext();

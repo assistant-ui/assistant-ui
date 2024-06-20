@@ -26,7 +26,6 @@ export class VercelModelAdapter implements ChatModelAdapter {
       messages: messages.flatMap(convertToCoreMessage),
       ...(config.tools
         ? {
-            // biome-ignore lint/suspicious/noExplicitAny: TODO
             tools: config.tools as Record<string, CoreTool<any>>,
           }
         : {}),

@@ -14,7 +14,6 @@ export type Tool<TArgs = unknown, TResult = unknown> = {
 export type ModelConfig = {
   priority?: number;
   system?: string;
-  // biome-ignore lint/suspicious/noExplicitAny: intentional any
   tools?: Record<string, Tool<any, any>>;
 };
 

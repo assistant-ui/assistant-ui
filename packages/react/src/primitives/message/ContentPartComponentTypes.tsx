@@ -27,15 +27,12 @@ export type UIContentPartProps = {
 };
 export type UIContentPartComponent = ComponentType<UIContentPartProps>;
 
-// biome-ignore lint/suspicious/noExplicitAny: intentional any
 export type ToolCallContentPartProps<TArgs = any, TResult = any> = {
   part: ToolCallContentPart<TArgs, TResult>;
   status: ContentPartStatus;
 };
 
 export type ToolCallContentPartComponent<
-  // biome-ignore lint/suspicious/noExplicitAny: intentional any
   TArgs = any,
-  // biome-ignore lint/suspicious/noExplicitAny: intentional any
   TResult = any,
 > = ComponentType<ToolCallContentPartProps<TArgs, TResult>>;

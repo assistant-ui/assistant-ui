@@ -27,11 +27,9 @@ export const convertToCoreMessage = (message: ThreadMessage): CoreMessage[] => {
     ) {
       expandedMessages.push({
         role: content.type === "tool-result" ? "tool" : message.role,
-        // biome-ignore lint/suspicious/noExplicitAny: <explanation>
         content: [content] as any,
       });
     } else {
-      // biome-ignore lint/suspicious/noExplicitAny: <explanation>
       (lastMessage.content as Array<any>).push(content);
     }
   };

@@ -40,13 +40,13 @@ export type UseAssistantFormProps<
 
 export const useAssistantForm = <
   TFieldValues extends FieldValues = FieldValues,
-  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
   TContext = any,
   TTransformedValues extends FieldValues | undefined = undefined,
 >(
   props?: UseAssistantFormProps<TFieldValues, TContext>,
 ): UseFormReturn<TFieldValues, TContext, TTransformedValues> => {
   const form = useForm<TFieldValues, TContext, TTransformedValues>(props);
+  const { control, getValues, setValue } = form;
 
   const { useModelConfig } = useAssistantContext();
   const registerModelConfigProvider = useModelConfig(
@@ -55,14 +55,13 @@ export const useAssistantForm = <
 
   useEffect(() => {
     const value: ModelConfig = {
-      system: `Form State:\n${JSON.stringify(form.getValues())}`,
+      system: `Form State:\n${JSON.stringify(getValues())}`,
 
       tools: {
         set_form_field: {
           ...formTools.set_form_field,
           execute: async (args) => {
-            // biome-ignore lint/suspicious/noExplicitAny: TODO
-            form.setValue(args.name as any, args.value as any);
+            setValue(args.name, args.value);
 
             return { success: true };
           },
@@ -70,7 +69,7 @@ export const useAssistantForm = <
         submit_form: {
           ...formTools.submit_form,
           execute: async () => {
-            const { _names, _fields } = form.control;
+            const { _names, _fields } = control;
             for (const name of _names.mount) {
               const field = _fields[name];
               if (field?._f) {
@@ -99,12 +98,7 @@ export const useAssistantForm = <
       },
     };
     return registerModelConfigProvider(() => value);
-  }, [
-    form.control,
-    form.setValue,
-    form.getValues,
-    registerModelConfigProvider,
-  ]);
+  }, [control, setValue, getValues, registerModelConfigProvider]);
 
   const renderFormFieldTool = props?.assistant?.tools?.set_form_field?.render;
   useAssistantToolRenderer(
