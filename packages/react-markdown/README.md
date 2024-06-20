@@ -1,5 +1,3 @@
-# `@assistant-ui/react-hook-form`
+# `@assistant-ui/react-markdown`
 
-React Hook Form integration for `@assistant-ui/react`.
-
-Simply replace `useForm` with `useAssistantForm` to give the chatbot the ability to interact with your form.
+`react-markdown` integration for `@assistant-ui/react`.
