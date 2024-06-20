@@ -64,7 +64,7 @@ export const ComposerInput = forwardRef<
     const focus = useCallback(() => {
       const textarea = textareaRef.current;
       if (!textarea || !autoFocusEnabled) return;
-
+      console.log("focus");
       textarea.focus();
       textarea.setSelectionRange(
         textareaRef.current.value.length,
@@ -85,6 +85,7 @@ export const ComposerInput = forwardRef<
         value={value}
         {...rest}
         ref={ref}
+        autoFocus={autoFocus}
         disabled={disabled}
         onChange={composeEventHandlers(onChange, (e) => {
           const composerState = useComposer.getState();

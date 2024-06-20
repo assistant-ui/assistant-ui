@@ -53,7 +53,7 @@ export default function Home() {
 
       <div className="mb-8 flex justify-center gap-2">
         <Button asChild>
-          <Link href="/onboarding">Get Started</Link>
+          <Link href="/docs/getting-started">Get Started</Link>
         </Button>
       </div>
       <div className="mx-auto flex w-full max-w-screen-xl flex-col">
