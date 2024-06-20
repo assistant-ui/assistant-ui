@@ -1,1 +1,1 @@
-export * from "assistant-ui/registry/assistant-ui/full/thread";
+export * from "@assistant-ui/shadcn-registry/registry/assistant-ui/full/thread";

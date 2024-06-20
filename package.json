@@ -1,5 +1,5 @@
 {
-  "name": "assistant-ui",
+  "name": "@assistant-ui/monorepo",
   "private": true,
   "scripts": {
     "lint": "biome lint .",

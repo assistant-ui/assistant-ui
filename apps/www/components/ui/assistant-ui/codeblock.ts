@@ -1,1 +1,1 @@
-export * from "assistant-ui/registry/assistant-ui/experimental/codeblock";
+export * from "@assistant-ui/shadcn-registry/registry/assistant-ui/experimental/codeblock";
