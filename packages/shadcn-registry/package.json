@@ -32,6 +32,6 @@
     "tsx": "^4.15.6"
   },
   "scripts": {
-    "build": "tsx ./scripts/build-registry.ts"
+    "build:registry": "tsx ./scripts/build-registry.ts"
   }
 }
