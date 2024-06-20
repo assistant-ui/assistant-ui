@@ -27,6 +27,7 @@ const MyApp = () => {
 #### Properties
 
 <ParametersTable
+  type="AssistantRuntimeProviderProps"
   parameters={[
     {
       name: "runtime",
@@ -35,6 +36,7 @@ const MyApp = () => {
       description: "The runtime to provide to the rest of your app.",
       children: [
         {
+          type: "AssistantRuntime",
           parameters: [
             {
               name: "messages",

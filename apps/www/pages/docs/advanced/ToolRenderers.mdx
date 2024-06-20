@@ -1,0 +1,96 @@
+---
+title: Tool Renderers
+---
+
+You can show a custom UI when a tool is called to let the user know what is happening.
+
+### Tool Renderer Components
+
+```tsx
+import { makeToolRenderer } from '@assistant-ui/react/experimental';
+
+type WebSearchArgs = {
+  query: string;
+};
+
+type WebSearchResult = {
+  title: string;
+  description: string;
+  url: string;
+};
+
+const WebSearch = makeToolRenderer<WebSearchArgs, WebSearchResult>({
+  name: 'web_search',
+  render: ({ part, status }) => {
+    return (
+      <p>web_search({part.args.query})</p>
+    );
+  },
+});
+```
+
+You can put this component anywhere in your app inside the `<AssistantRuntimeProvider />` component.
+
+```tsx {1, 8}
+import { useWebSearch } from '@/tools/useWebSearch';
+
+const MyApp = () => {
+  ...
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      ...
+      <WebSearch />
+      ...
+    </AssistantRuntimeProvider>
+  );
+};
+```
+
+### Tool Renderer Hooks
+
+
+```tsx
+import { makeToolRenderer } from '@assistant-ui/react/experimental';
+
+type WebSearchArgs = {
+  query: string;
+};
+
+type WebSearchResult = {
+  title: string;
+  description: string;
+  url: string;
+};
+
+const useWebSearch = makeToolRenderer<WebSearchArgs, WebSearchResult>({
+  name: 'web_search',
+  render: ({ part, status }) => {
+    return (
+      <p>web_search({part.args.query})</p>
+    );
+  },
+});
+```
+
+
+You can use this hook anywhere in your app inside the `<AssistantRuntimeProvider />` component.
+
+```tsx {1, 4}
+import { useWebSearch } from '@/tools/useWebSearch';
+
+const MyComponent = () => {
+  useWebSearch();
+
+  ...
+};
+
+const MyApp = () => {
+  ...
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      ...
+      <MyComponent />
+      ...
+    </AssistantRuntimeProvider>
+  );
+};

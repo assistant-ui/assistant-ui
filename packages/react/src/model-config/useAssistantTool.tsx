@@ -5,13 +5,13 @@ import { useAssistantContext } from "../context/AssistantContext";
 import type { ToolCallContentPartComponent } from "../primitives/message/ContentPartComponentTypes";
 import type { Tool } from "../utils/ModelConfigTypes";
 
-export type UseAssistantTool<TArgs, TResult> = Tool<TArgs, TResult> & {
+export type AssistantToolProps<TArgs, TResult> = Tool<TArgs, TResult> & {
   name: string;
   render?: ToolCallContentPartComponent<TArgs, TResult>;
 };
 
 export const useAssistantTool = <TArgs, TResult>(
-  tool: UseAssistantTool<TArgs, TResult>,
+  tool: AssistantToolProps<TArgs, TResult>,
 ) => {
   const { useModelConfig, useToolRenderers } = useAssistantContext();
   const registerModelConfigProvider = useModelConfig(

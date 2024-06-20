@@ -3,14 +3,14 @@ import { useEffect } from "react";
 import { useAssistantContext } from "../context/AssistantContext";
 import type { ToolCallContentPartComponent } from "../primitives/message/ContentPartComponentTypes";
 
-type UseAssistantToolRenderer<TArgs, TResult> = {
+export type AssistantToolRendererProps<TArgs, TResult> = {
   name: string;
   render: ToolCallContentPartComponent<TArgs, TResult>;
 };
 
 export const useAssistantToolRenderer = (
   // biome-ignore lint/suspicious/noExplicitAny: intentional any
-  tool: UseAssistantToolRenderer<any, any> | null,
+  tool: AssistantToolRendererProps<any, any> | null,
 ) => {
   const { useToolRenderers } = useAssistantContext();
   const setToolRenderer = useToolRenderers((s) => s.setToolRenderer);

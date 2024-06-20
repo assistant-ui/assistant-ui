@@ -22,5 +22,13 @@ export type {
 
 export * from "./context";
 export { useAssistantInstructions } from "./model-config/useAssistantInstructions";
-export { useAssistantTool } from "./model-config/useAssistantTool";
-export { useAssistantToolRenderer } from "./model-config/useAssistantToolRenderer";
+export {
+  useAssistantTool,
+  type AssistantToolProps,
+} from "./model-config/useAssistantTool";
+export {
+  useAssistantToolRenderer,
+  type AssistantToolRendererProps,
+} from "./model-config/useAssistantToolRenderer";
+export { makeTool } from "./model-config/makeTool";
+export { makeToolRenderer } from "./model-config/makeToolRenderer";
