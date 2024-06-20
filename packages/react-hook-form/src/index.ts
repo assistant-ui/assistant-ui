@@ -1,2 +1,5 @@
-export { useAssistantForm } from "./useAssistantForm";
+export {
+  useAssistantForm,
+  type UseAssistantFormProps,
+} from "./useAssistantForm";
 export { formTools } from "./formTools";

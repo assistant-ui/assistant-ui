@@ -16,7 +16,7 @@ import {
 import type { z } from "zod";
 import { formTools } from "./formTools";
 
-type UseAssistantFormProps<
+export type UseAssistantFormProps<
   TFieldValues extends FieldValues,
   TContext,
 > = UseFormProps<TFieldValues, TContext> & {
