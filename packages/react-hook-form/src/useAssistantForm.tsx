@@ -2,6 +2,7 @@
 
 import {
   type ModelConfig,
+  type ToolCallContentPartComponent,
   useAssistantContext,
   useAssistantToolRenderer,
 } from "@assistant-ui/react/experimental";
@@ -13,7 +14,6 @@ import {
   useForm,
 } from "react-hook-form";
 import type { z } from "zod";
-import type { ToolRenderComponent } from "../../react/src/model-config/ToolRenderComponent";
 import { formTools } from "./formTools";
 
 type UseAssistantFormProps<
@@ -23,13 +23,13 @@ type UseAssistantFormProps<
   assistant?: {
     tools?: {
       set_form_field?: {
-        render?: ToolRenderComponent<
+        render?: ToolCallContentPartComponent<
           z.ZodType<typeof formTools.set_form_field>,
           unknown
         >;
       };
       submit_form?: {
-        render?: ToolRenderComponent<
+        render?: ToolCallContentPartComponent<
           z.ZodType<typeof formTools.submit_form>,
           unknown
         >;

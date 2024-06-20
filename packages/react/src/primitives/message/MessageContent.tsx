@@ -4,42 +4,25 @@ import { type ComponentType, type FC, memo } from "react";
 import { useAssistantContext, useContentPartContext } from "../../context";
 import { useMessageContext } from "../../context/MessageContext";
 import { ContentPartProvider } from "../../context/providers/ContentPartProvider";
-import type {
-  ImageContentPart,
-  TextContentPart,
-  ToolCallContentPart,
-  UIContentPart,
-} from "../../utils/AssistantTypes";
 import { ContentPartDisplay } from "../contentPart/ContentPartDisplay";
 import { ContentPartInProgressIndicator } from "../contentPart/ContentPartInProgressIndicator";
 import { ContentPartText } from "../contentPart/ContentPartText";
+import type {
+  ImageContentPartComponent,
+  TextContentPartComponent,
+  ToolCallContentPartComponent,
+  ToolCallContentPartProps,
+  UIContentPartComponent,
+} from "./ContentPartComponentTypes";
 
-type MessageContentProps = {
+export type MessageContentProps = {
   components?: {
-    Text?: ComponentType<{
-      part: TextContentPart;
-      status: "done" | "in_progress" | "error";
-    }>;
-    Image?: ComponentType<{
-      part: ImageContentPart;
-      status: "done" | "in_progress" | "error";
-    }>;
-    UI?: ComponentType<{
-      part: UIContentPart;
-      status: "done" | "in_progress" | "error";
-    }>;
+    Text?: TextContentPartComponent;
+    Image?: ImageContentPartComponent;
+    UI?: UIContentPartComponent;
     tools?: {
-      by_name?: Record<
-        string,
-        ComponentType<{
-          part: ToolCallContentPart;
-          status: "done" | "in_progress" | "error";
-        }>
-      >;
-      Fallback?: ComponentType<{
-        part: ToolCallContentPart;
-        status: "done" | "in_progress" | "error";
-      }>;
+      by_name?: Record<string, ToolCallContentPartComponent>;
+      Fallback?: ComponentType<ToolCallContentPartProps>;
     };
   };
 };

@@ -9,6 +9,17 @@ export type {
   ModelConfig,
 } from "./utils/ModelConfigTypes";
 
+export type {
+  TextContentPartProps,
+  TextContentPartComponent,
+  ImageContentPartProps,
+  ImageContentPartComponent,
+  UIContentPartProps,
+  UIContentPartComponent,
+  ToolCallContentPartProps,
+  ToolCallContentPartComponent,
+} from "./primitives/message/ContentPartComponentTypes";
+
 export * from "./context";
 export { useAssistantInstructions } from "./model-config/useAssistantInstructions";
 export { useAssistantTool } from "./model-config/useAssistantTool";

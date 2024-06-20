@@ -1,11 +1,11 @@
 "use client";
 import { useEffect } from "react";
 import { useAssistantContext } from "../context/AssistantContext";
-import type { ToolRenderComponent } from "./ToolRenderComponent";
+import type { ToolCallContentPartComponent } from "../primitives/message/ContentPartComponentTypes";
 
 type UseAssistantToolRenderer<TArgs, TResult> = {
   name: string;
-  render: ToolRenderComponent<TArgs, TResult>;
+  render: ToolCallContentPartComponent<TArgs, TResult>;
 };
 
 export const useAssistantToolRenderer = (

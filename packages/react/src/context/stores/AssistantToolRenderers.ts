@@ -1,22 +1,19 @@
 "use client";
 
 import { create } from "zustand";
-import type { ToolRenderComponent } from "../../model-config/ToolRenderComponent";
+import type { ToolCallContentPartComponent } from "../../primitives/message/ContentPartComponentTypes";
 
 export type AssistantToolRenderersState = {
-  // biome-ignore lint/suspicious/noExplicitAny: intentional any
-  getToolRenderer: (name: string) => ToolRenderComponent<any, any> | null;
+  getToolRenderer: (name: string) => ToolCallContentPartComponent | null;
   setToolRenderer: (
     name: string,
-    // biome-ignore lint/suspicious/noExplicitAny: intentional any
-    render: ToolRenderComponent<any, any>,
+    render: ToolCallContentPartComponent,
   ) => () => void;
 };
 
 export const makeAssistantToolRenderersStore = () =>
   create<AssistantToolRenderersState>((set) => {
-    // biome-ignore lint/suspicious/noExplicitAny: intentional any
-    const renderers = new Map<string, ToolRenderComponent<any, any>[]>();
+    const renderers = new Map<string, ToolCallContentPartComponent[]>();
 
     return {
       getToolRenderer: (name) => {

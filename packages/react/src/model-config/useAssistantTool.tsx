@@ -2,12 +2,12 @@
 
 import { useEffect } from "react";
 import { useAssistantContext } from "../context/AssistantContext";
+import type { ToolCallContentPartComponent } from "../primitives/message/ContentPartComponentTypes";
 import type { Tool } from "../utils/ModelConfigTypes";
-import type { ToolRenderComponent } from "./ToolRenderComponent";
 
 export type UseAssistantTool<TArgs, TResult> = Tool<TArgs, TResult> & {
   name: string;
-  render?: ToolRenderComponent<TArgs, TResult>;
+  render?: ToolCallContentPartComponent<TArgs, TResult>;
 };
 
 export const useAssistantTool = <TArgs, TResult>(
