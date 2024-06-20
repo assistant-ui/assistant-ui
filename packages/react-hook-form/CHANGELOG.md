@@ -1,5 +1,15 @@
 # @assistant-ui/react-hook-form
 
+## 0.0.6
+
+### Patch Changes
+
+- a6769d5: feat: ContentPartComponent types
+- 86d4f7f: feat: add UseAssistantFormProps type
+- Updated dependencies [a6769d5]
+- Updated dependencies [52236ab]
+  - @assistant-ui/react@0.1.6
+
 ## 0.0.4
 
 ### Patch Changes

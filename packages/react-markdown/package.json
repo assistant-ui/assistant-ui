@@ -19,7 +19,10 @@
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "sideEffects": false,
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts --sourcemap"
@@ -29,7 +32,7 @@
     "zod": "^3.23.8"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.1.5",
+    "@assistant-ui/react": "^0.1.6",
     "@types/react": "*",
     "react": "^18"
   },

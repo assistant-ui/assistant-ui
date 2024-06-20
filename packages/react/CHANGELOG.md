@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.1.6
+
+### Patch Changes
+
+- a6769d5: feat: ContentPartComponent types
+- 52236ab: feat: new default chat bubble design
+
 ## 0.1.5
 
 ### Patch Changes
