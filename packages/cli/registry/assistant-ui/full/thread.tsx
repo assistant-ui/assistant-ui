@@ -105,78 +105,59 @@ const Composer: FC = () => {
 
 const UserMessage: FC = () => {
   return (
-    <MessagePrimitive.Root className="relative flex w-full max-w-2xl gap-3 pb-12">
-      <Avatar>
-        <AvatarFallback>Y</AvatarFallback>
-      </Avatar>
+    <MessagePrimitive.Root className="relative mb-6 flex w-full max-w-2xl flex-col items-end gap-2 pl-24">
+      <div className="relative mr-1 flex items-start gap-3">
+        <ActionBarPrimitive.Root
+          hideWhenRunning
+          autohide="not-last"
+          className="mt-2"
+        >
+          <ActionBarPrimitive.Edit asChild>
+            <IconButton tooltip="Edit">
+              <PencilIcon className="size-4" />
+            </IconButton>
+          </ActionBarPrimitive.Edit>
+        </ActionBarPrimitive.Root>
 
-      <div className="flex-grow">
-        <p className="font-semibold">You</p>
-
-        <p className="whitespace-pre-line text-foreground">
+        <p className="max-w-xl break-words whitespace-pre-line rounded-3xl bg-foreground/5 px-5 py-2.5 text-foreground">
           <MessagePrimitive.Content />
         </p>
-
-        <div className="flex pt-2">
-          <BranchPicker />
-
-          <ActionBarPrimitive.Root
-            hideWhenRunning
-            autohide="not-last"
-            autohideFloat="single-branch"
-            className="flex items-center gap-1 rounded-lg data-[floating]:absolute data-[floating]:border data-[floating]:p-1"
-          >
-            <ActionBarPrimitive.Edit asChild>
-              <IconButton tooltip="Edit">
-                <PencilIcon className="size-4" />
-              </IconButton>
-            </ActionBarPrimitive.Edit>
-          </ActionBarPrimitive.Root>
-        </div>
       </div>
+
+      <BranchPicker />
     </MessagePrimitive.Root>
   );
 };
 
 const EditComposer: FC = () => {
   return (
-    <MessagePrimitive.Root className="flex w-full max-w-2xl gap-3 pb-4">
-      <Avatar>
-        <AvatarFallback>Y</AvatarFallback>
-      </Avatar>
+    <ComposerPrimitive.Root className="mb-4 flex w-full max-w-2xl flex-col gap-2 rounded-xl bg-foreground/5">
+      <ComposerPrimitive.Input className="flex h-8 w-full resize-none bg-transparent p-5 pb-0 text-foreground outline-none" />
 
-      <div className="flex-grow">
-        <p className="font-semibold">You</p>
-
-        <ComposerPrimitive.Root>
-          <ComposerPrimitive.Input className="flex h-8 w-full resize-none bg-transparent outline-none" />
-
-          <div className="mt-1 flex justify-center gap-3">
-            <ComposerPrimitive.Send asChild>
-              <Button>Save & Submit</Button>
-            </ComposerPrimitive.Send>
-            <ComposerPrimitive.Cancel asChild>
-              <Button variant="outline">Cancel</Button>
-            </ComposerPrimitive.Cancel>
-          </div>
-        </ComposerPrimitive.Root>
+      <div className="mx-3 mb-3 flex items-center justify-center gap-2 self-end">
+        <ComposerPrimitive.Cancel asChild>
+          <Button variant="secondary" className="bg-transparent">
+            Cancel
+          </Button>
+        </ComposerPrimitive.Cancel>
+        <ComposerPrimitive.Send>
+          <Button>Send</Button>
+        </ComposerPrimitive.Send>
       </div>
-    </MessagePrimitive.Root>
+    </ComposerPrimitive.Root>
   );
 };
 
 const AssistantMessage: FC = () => {
   return (
-    <MessagePrimitive.Root className="relative flex w-full max-w-2xl gap-3 pb-12">
+    <MessagePrimitive.Root className="relative mb-6 flex w-full max-w-2xl gap-3">
       <Avatar>
         <AvatarFallback>A</AvatarFallback>
       </Avatar>
 
-      <div className="flex-grow">
-        <p className="font-semibold">Assistant</p>
-
+      <div className="mt-2 flex-grow">
         <MessagePrimitive.InProgress className="inline-block size-3 animate-pulse rounded-full bg-foreground" />
-        <p className="whitespace-pre-line text-foreground">
+        <p className="max-w-xl break-words whitespace-pre-line text-foreground">
           <MessagePrimitive.Content />
         </p>
 
@@ -187,7 +168,7 @@ const AssistantMessage: FC = () => {
             hideWhenRunning
             autohide="not-last"
             autohideFloat="single-branch"
-            className="flex items-center gap-1 rounded-lg data-[floating]:absolute data-[floating]:border data-[floating]:p-1"
+            className="flex items-center gap-1 rounded-lg data-[floating]:absolute data-[floating]:border data-[floating]:bg-background data-[floating]:p-1"
           >
             <ActionBarPrimitive.Copy asChild>
               <IconButton tooltip="Copy">
