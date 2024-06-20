@@ -1,11 +1,12 @@
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Theme } from "@radix-ui/themes";
+import { Analytics } from "@vercel/analytics/react";
 import type { AppProps } from "next/app";
 import Head from "next/head";
 import React from "react";
 
 import "./styles.css";
 import "@radix-ui/themes/styles.css";
-import { Theme } from "@radix-ui/themes";
 
 export default function MyApp({ Component, pageProps }: AppProps) {
   return (
@@ -19,6 +20,8 @@ export default function MyApp({ Component, pageProps }: AppProps) {
           <Component {...pageProps} />
         </Theme>
       </TooltipProvider>
+
+      <Analytics />
     </>
   );
 }
