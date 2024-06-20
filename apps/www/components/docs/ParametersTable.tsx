@@ -4,7 +4,7 @@ type ParameterDef = {
   name: string;
   type: string;
   description: string;
-  isOptional?: boolean;
+  required?: boolean;
   children?: Array<{
     type: string;
     parameters: Array<ParameterDef>;
@@ -24,12 +24,12 @@ const Parameter: FC<ParameterProps> = ({ parameter, isLast }) => {
       <div className="relative flex gap-2">
         <h3 className="font-mono font-semibold text-sm">
           {parameter.name}
-          {parameter.isOptional && "?"}:
+          {!parameter.required && "?"}:
         </h3>
         <div className="no-scrollbar w-full overflow-x-scroll text-nowrap pr-12 font-mono text-foreground/70 text-sm">
           {parameter.type}
         </div>
-        <div className="pointer-events-none absolute top-0 right-0 h-5 w-12 bg-gradient-to-r from-white/0 to-white/100" />
+        <div className="pointer-events-none absolute top-0 right-0 h-5 w-12 bg-gradient-to-r from-white/0 to-background/100" />
       </div>
       <div>
         <p className="text-foreground/70 text-sm">{parameter.description}</p>

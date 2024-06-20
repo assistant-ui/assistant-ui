@@ -1,4 +1,5 @@
 export default {
+  runtime: "Runtime API",
   "-- integrations": {
     title: "Integrations",
     type: "separator",
