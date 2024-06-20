@@ -15,13 +15,13 @@ export default function Onboarding() {
   }, []);
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 py-10">
-      <h2 className="font-extrabold text-2xl">Get Onboarded By a Founder</h2>
+      <h2 className="text-2xl font-extrabold">Get Onboarded By a Founder</h2>
       <Cal
         calLink="simon-farshid/assistant-ui-onboarding"
         style={{ width: "100%", height: "620px", overflow: "scroll" }}
         config={{ layout: "month_view" }}
       />
-      <h2 className="font-extrabold text-2xl">Self-Guided Onboarding</h2>
+      <h2 className="text-2xl font-extrabold">Self-Guided Onboarding</h2>
       <p>
         If you prefer to explore on your own, you can visit the{" "}
         <Link href="/docs/getting-started" className="text-green-600">

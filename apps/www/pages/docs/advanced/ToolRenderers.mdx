@@ -7,7 +7,7 @@ You can show a custom UI when a tool is called to let the user know what is happ
 ### Tool Renderer Components
 
 ```tsx
-import { makeToolRenderer } from '@assistant-ui/react/experimental';
+import { makeToolRenderer } from "@assistant-ui/react/experimental";
 
 type WebSearchArgs = {
   query: string;
@@ -20,11 +20,9 @@ type WebSearchResult = {
 };
 
 const WebSearch = makeToolRenderer<WebSearchArgs, WebSearchResult>({
-  name: 'web_search',
+  name: "web_search",
   render: ({ part, status }) => {
-    return (
-      <p>web_search({part.args.query})</p>
-    );
+    return <p>web_search({part.args.query})</p>;
   },
 });
 ```
@@ -48,9 +46,8 @@ const MyApp = () => {
 
 ### Tool Renderer Hooks
 
-
 ```tsx
-import { makeToolRenderer } from '@assistant-ui/react/experimental';
+import { makeToolRenderer } from "@assistant-ui/react/experimental";
 
 type WebSearchArgs = {
   query: string;
@@ -63,15 +60,12 @@ type WebSearchResult = {
 };
 
 const useWebSearch = makeToolRenderer<WebSearchArgs, WebSearchResult>({
-  name: 'web_search',
+  name: "web_search",
   render: ({ part, status }) => {
-    return (
-      <p>web_search({part.args.query})</p>
-    );
+    return <p>web_search({part.args.query})</p>;
   },
 });
 ```
-
 
 You can use this hook anywhere in your app inside the `<AssistantRuntimeProvider />` component.
 
@@ -94,3 +88,4 @@ const MyApp = () => {
     </AssistantRuntimeProvider>
   );
 };
+```

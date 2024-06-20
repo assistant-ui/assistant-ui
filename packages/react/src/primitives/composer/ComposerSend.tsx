@@ -1,10 +1,7 @@
 "use client";
 
-import {
-  type ComponentPropsWithoutRef,
-  Primitive,
-} from "@radix-ui/react-primitive";
-import { type ElementRef, forwardRef } from "react";
+import { Primitive } from "@radix-ui/react-primitive";
+import { type ElementRef, forwardRef, ComponentPropsWithoutRef } from "react";
 import { useComposerContext } from "../../context/ComposerContext";
 
 type ComposerSendElement = ElementRef<typeof Primitive.button>;
@@ -27,3 +24,5 @@ export const ComposerSend = forwardRef<ComposerSendElement, ComposerSendProps>(
     );
   },
 );
+
+ComposerSend.displayName = "ComposerSend";

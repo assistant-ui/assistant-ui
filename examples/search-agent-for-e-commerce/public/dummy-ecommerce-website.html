@@ -1,18 +1,44 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Iframe Widget Test</title>
-  <script nonce="your-nonce-value" type="text/javascript">window.addEventListener('DOMContentLoaded',(event)=>{const iframe=document.createElement('iframe');iframe.src="http://localhost:3000?iframeId=666fc2181f6bb6fa20a4a9e7";iframe.style.position="fixed";iframe.style.bottom="10px";iframe.style.right="10px";iframe.style.width="70px";iframe.style.height="70px";iframe.style.border="none";iframe.style.zIndex="9999";document.body.appendChild(iframe);});window.addEventListener('message',(event)=>{if(event.data.type==='resize'){const iframe=document.querySelector('iframe');let newHeight=event.data.height;let newWidth=event.data.width;if(newHeight===0){newHeight=70;newWidth=70;}iframe.style.height=newHeight+'px';iframe.style.width=newWidth+'px';}});</script>
-</head>
-<body>
-  <h1>Testing Iframe Widget</h1>
-  <Image
-    src="/unclereco.png"
-    width={1000}
-    height={1000}
-    alt="background"
-  />
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Iframe Widget Test</title>
+    <script nonce="your-nonce-value" type="text/javascript">
+      window.addEventListener("DOMContentLoaded", (event) => {
+        const iframe = document.createElement("iframe");
+        iframe.src = "http://localhost:3000?iframeId=666fc2181f6bb6fa20a4a9e7";
+        iframe.style.position = "fixed";
+        iframe.style.bottom = "10px";
+        iframe.style.right = "10px";
+        iframe.style.width = "70px";
+        iframe.style.height = "70px";
+        iframe.style.border = "none";
+        iframe.style.zIndex = "9999";
+        document.body.appendChild(iframe);
+      });
+      window.addEventListener("message", (event) => {
+        if (event.data.type === "resize") {
+          const iframe = document.querySelector("iframe");
+          let newHeight = event.data.height;
+          let newWidth = event.data.width;
+          if (newHeight === 0) {
+            newHeight = 70;
+            newWidth = 70;
+          }
+          iframe.style.height = newHeight + "px";
+          iframe.style.width = newWidth + "px";
+        }
+      });
+    </script>
+  </head>
+  <body>
+    <h1>Testing Iframe Widget</h1>
+    <image
+      src="/unclereco.png"
+      width="{1000}"
+      height="{1000}"
+      alt="background"
+    />
+  </body>
 </html>

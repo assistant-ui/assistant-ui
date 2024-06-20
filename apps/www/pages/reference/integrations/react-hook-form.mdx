@@ -1,7 +1,7 @@
 ---
 title: "@assistant-ui/react-hook-form"
 description: A React Hook Form integration for @assistant-ui.
---- 
+---
 
 import { ParametersTable } from "@/components/docs";
 
@@ -28,7 +28,7 @@ Drop-in replacement hook for `useForm` that adds support for `@assistant-ui/reac
   parameters={[
     {
       name: "assistant",
-      type: 'object',
+      type: "object",
       optional: true,
       description: "Configuration for useAssistantForm",
       children: [
@@ -36,16 +36,15 @@ Drop-in replacement hook for `useForm` that adds support for `@assistant-ui/reac
           parameters: [
             {
               name: "tools",
-              type: 'object',
+              type: "object",
               description: "Tools configuration for useAssistantForm",
               children: [
                 {
                   parameters: [
                     {
                       name: "set_form_field",
-                      type: 'object',
-                      description:
-                        "Configuration for the set_form_field tool",
+                      type: "object",
+                      description: "Configuration for the set_form_field tool",
                       children: [
                         {
                           parameters: [
@@ -61,7 +60,7 @@ Drop-in replacement hook for `useForm` that adds support for `@assistant-ui/reac
                     },
                     {
                       name: "submit_form",
-                      type: 'object',
+                      type: "object",
                       description: "Configuration for the submit_form tool",
                       children: [
                         {

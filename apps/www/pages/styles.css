@@ -77,10 +77,11 @@
 }
 
 pre {
-  background-color: hsl(var(--background))  !important;
+  background-color: hsl(var(--background)) !important;
   --tw-ring-color: hsl(var(--border)) !important
+;
 }
 
 .nextra-nav-container-blur {
-  background-color: rgba(var(--nextra-bg), .25);
+  background-color: rgba(var(--nextra-bg), 0.25);
 }

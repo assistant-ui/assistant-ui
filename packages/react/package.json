@@ -67,11 +67,11 @@
     "prepublish": "cp ../../README.md ./README.md"
   },
   "dependencies": {
-    "@radix-ui/primitive": "^1.0.1",
-    "@radix-ui/react-compose-refs": "^1.0.1",
-    "@radix-ui/react-primitive": "^1.0.3",
-    "@radix-ui/react-slot": "^1.0.2",
-    "@radix-ui/react-use-callback-ref": "^1.0.1",
+    "@radix-ui/primitive": "^1.1.0",
+    "@radix-ui/react-compose-refs": "^1.1.0",
+    "@radix-ui/react-primitive": "^2.0.0",
+    "@radix-ui/react-slot": "^1.1.0",
+    "@radix-ui/react-use-callback-ref": "^1.1.0",
     "nanoid": "^5.0.7",
     "react-textarea-autosize": "^8.5.3",
     "zod": "^3.23.8",
@@ -87,9 +87,9 @@
     }
   },
   "devDependencies": {
-    "@ai-sdk/react": "^0.0.2",
+    "@ai-sdk/react": "^0.0.4",
     "@assistant-ui/tsconfig": "workspace:*",
-    "@types/node": "^20.14.2",
+    "@types/node": "^20.14.7",
     "tsup": "^8.1.0"
   },
   "publishConfig": {

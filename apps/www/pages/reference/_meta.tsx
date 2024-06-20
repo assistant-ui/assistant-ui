@@ -1,4 +1,4 @@
-export default {
+const meta = {
   runtime: "Runtime API",
   "-- integrations": {
     title: "Integrations",
@@ -15,3 +15,5 @@ export default {
     display: "children",
   },
 };
+
+export default meta;

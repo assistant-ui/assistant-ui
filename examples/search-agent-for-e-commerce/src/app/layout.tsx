@@ -19,7 +19,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <AI>
-      <body className={inter.className} style={{ backgroundColor: 'transparent' }}>
+        <body
+          className={inter.className}
+          style={{ backgroundColor: "transparent" }}
+        >
           {children}
         </body>
       </AI>

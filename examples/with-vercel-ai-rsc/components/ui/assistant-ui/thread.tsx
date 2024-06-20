@@ -54,16 +54,16 @@ const Composer: FC = () => {
     <ComposerPrimitive.Root className="flex w-full max-w-2xl items-end rounded-lg border p-0.5 shadow-sm">
       <ComposerPrimitive.Input
         placeholder="Write a message..."
-        className="h-12 max-h-40 flex-grow resize-none bg-transparent p-3.5 text-sm outline-none placeholder:text-foreground/50"
+        className="placeholder:text-foreground/50 h-12 max-h-40 flex-grow resize-none bg-transparent p-3.5 text-sm outline-none"
       />
       <ThreadPrimitive.If running={false}>
-        <ComposerPrimitive.Send className="m-2 flex h-8 w-8 items-center justify-center rounded-md bg-foreground font-bold text-2xl shadow disabled:opacity-10">
-          <SendHorizonalIcon className="size-4 text-background" />
+        <ComposerPrimitive.Send className="bg-foreground m-2 flex h-8 w-8 items-center justify-center rounded-md text-2xl font-bold shadow disabled:opacity-10">
+          <SendHorizonalIcon className="text-background size-4" />
         </ComposerPrimitive.Send>
       </ThreadPrimitive.If>
       <ThreadPrimitive.If running>
-        <ComposerPrimitive.Cancel className="m-3.5 flex size-5 items-center justify-center rounded-full border-2 border-foreground">
-          <div className="size-2 rounded-[1px] bg-foreground" />
+        <ComposerPrimitive.Cancel className="border-foreground m-3.5 flex size-5 items-center justify-center rounded-full border-2">
+          <div className="bg-foreground size-2 rounded-[1px]" />
         </ComposerPrimitive.Cancel>
       </ThreadPrimitive.If>
     </ComposerPrimitive.Root>

@@ -1,10 +1,7 @@
 "use client";
 
-import {
-  type ComponentPropsWithoutRef,
-  Primitive,
-} from "@radix-ui/react-primitive";
-import { type ElementRef, forwardRef } from "react";
+import { Primitive } from "@radix-ui/react-primitive";
+import { type ElementRef, forwardRef, ComponentPropsWithoutRef } from "react";
 import { useMessageContext } from "../../context/MessageContext";
 import { useThreadContext } from "../../context/ThreadContext";
 import { useCombinedStore } from "../../utils/combined/useCombinedStore";
@@ -68,3 +65,5 @@ export const ActionBarRoot = forwardRef<
     />
   );
 });
+
+ActionBarRoot.displayName = "ActionBarRoot";

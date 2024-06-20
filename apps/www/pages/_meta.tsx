@@ -1,4 +1,4 @@
-export default {
+const meta = {
   "*": {},
   index: {
     type: "page",
@@ -36,3 +36,5 @@ export default {
     },
   },
 };
+
+export default meta;

@@ -7,7 +7,7 @@ import remarkMath from "remark-math";
 export const MarkdownText = () => {
   return (
     <MarkdownTextPrimitive
-      className="prose dark:prose-invert break-words prose-pre:p-0 prose-p:leading-relaxed"
+      className="prose dark:prose-invert prose-pre:p-0 prose-p:leading-relaxed break-words"
       remarkPlugins={[remarkGfm, remarkMath]}
       components={{
         p({ children }) {

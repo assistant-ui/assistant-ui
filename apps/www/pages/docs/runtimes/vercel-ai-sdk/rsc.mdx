@@ -4,7 +4,7 @@ title: Vercel AI SDK RSC Runtime
 
 ## Overview
 
-Integration with the Vercel AI SDK React Server Components. It allows streaming React components directly from the server.    
+Integration with the Vercel AI SDK React Server Components. It allows streaming React components directly from the server.  
 Integrates with OpenAI, Anthropic, Mistral, Perplexity, AWS Bedrock, Azure, Google Gemini, Hugging Face, Fireworks, Cohere, LangChain, Replicate, Ollama, and more.
 
 ## Example
@@ -13,177 +13,175 @@ Integrates with OpenAI, Anthropic, Mistral, Perplexity, AWS Bedrock, Azure, Goog
 
 ## Getting Started
 
-import { Steps, Callout } from 'nextra/components'
+import { Steps, Callout } from "nextra/components";
 
 <Steps>
   ### Create a Next.JS project
 
-  ```sh
-  npx create-next-app@latest my-app
-  cd my-app
-  ```
-  
-  ### Install Vercel AI SDK and `@assistant-ui/react-ai-sdk`
+```sh
+npx create-next-app@latest my-app
+cd my-app
+```
 
-  ```sh npm2yarn
-  npm install @assistant-ui/react @assistant-ui/react-ai-sdk ai @ai-sdk/openai zod nanoid
-  ```
+### Install Vercel AI SDK and `@assistant-ui/react-ai-sdk`
 
-  ### Setup `actions.tsx`
+```sh npm2yarn
+npm install @assistant-ui/react @assistant-ui/react-ai-sdk ai @ai-sdk/openai zod nanoid
+```
 
-  `@/app/api/chat/route.ts`
+### Setup `actions.tsx`
 
-  ```tsx
-  'use server';
+`@/app/api/chat/route.ts`
 
-  import { createAI, getMutableAIState, streamUI } from 'ai/rsc';
-  import { openai } from '@ai-sdk/openai';
-  import { ReactNode } from 'react';
-  import { z } from 'zod';
-  import { nanoid } from 'nanoid';
+```tsx
+"use server";
 
-  export interface ServerMessage {
-    role: 'user' | 'assistant';
-    content: string;
-  }
+import { createAI, getMutableAIState, streamUI } from "ai/rsc";
+import { openai } from "@ai-sdk/openai";
+import { ReactNode } from "react";
+import { z } from "zod";
+import { nanoid } from "nanoid";
 
-  export interface ClientMessage {
-    id: string;
-    role: 'user' | 'assistant';
-    display: ReactNode;
-  }
+export interface ServerMessage {
+  role: "user" | "assistant";
+  content: string;
+}
 
-  export async function continueConversation(
-    input: string,
-  ): Promise<ClientMessage> {
-    'use server';
+export interface ClientMessage {
+  id: string;
+  role: "user" | "assistant";
+  display: ReactNode;
+}
 
-    const history = getMutableAIState();
+export async function continueConversation(
+  input: string,
+): Promise<ClientMessage> {
+  "use server";
 
-    const result = await streamUI({
-      model: openai('gpt-3.5-turbo'),
-      messages: [...history.get(), { role: 'user', content: input }],
-      text: ({ content, done }) => {
-        if (done) {
-          history.done((messages: ServerMessage[]) => [
-            ...messages,
-            { role: 'assistant', content },
-          ]);
-        }
+  const history = getMutableAIState();
 
-        return <div>{content}</div>;
-      },
-      tools: {
-        deploy: {
-          description: 'Deploy repository to vercel',
-          parameters: z.object({
-            repositoryName: z
-              .string()
-              .describe('The name of the repository, example: vercel/ai-chatbot'),
-          }),
-          generate: async function* ({ repositoryName }) {
-            yield <div>Cloning repository {repositoryName}...</div>; // [!code highlight:5]
-            await new Promise(resolve => setTimeout(resolve, 3000));
-            yield <div>Building repository {repositoryName}...</div>;
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            return <div>{repositoryName} deployed!</div>;
-          },
+  const result = await streamUI({
+    model: openai("gpt-3.5-turbo"),
+    messages: [...history.get(), { role: "user", content: input }],
+    text: ({ content, done }) => {
+      if (done) {
+        history.done((messages: ServerMessage[]) => [
+          ...messages,
+          { role: "assistant", content },
+        ]);
+      }
+
+      return <div>{content}</div>;
+    },
+    tools: {
+      deploy: {
+        description: "Deploy repository to vercel",
+        parameters: z.object({
+          repositoryName: z
+            .string()
+            .describe("The name of the repository, example: vercel/ai-chatbot"),
+        }),
+        generate: async function* ({ repositoryName }) {
+          yield <div>Cloning repository {repositoryName}...</div>; // [!code highlight:5]
+          await new Promise((resolve) => setTimeout(resolve, 3000));
+          yield <div>Building repository {repositoryName}...</div>;
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+          return <div>{repositoryName} deployed!</div>;
         },
       },
-    });
-
-    return {
-      id: nanoid(),
-      role: 'assistant',
-      display: result.value,
-    };
-  }
-
-  export const AI = createAI<ServerMessage[], ClientMessage[]>({
-    actions: {
-      continueConversation,
     },
-    initialAIState: [],
-    initialUIState: [],
   });
-  ```
 
-  ### Define a `MyRuntimeProvider` component
+  return {
+    id: nanoid(),
+    role: "assistant",
+    display: result.value,
+  };
+}
 
-  `@/app/MyRuntimeProvider.tsx`
+export const AI = createAI<ServerMessage[], ClientMessage[]>({
+  actions: {
+    continueConversation,
+  },
+  initialAIState: [],
+  initialUIState: [],
+});
+```
 
-  ```tsx
-  "use client";
+### Define a `MyRuntimeProvider` component
 
-  import { AssistantRuntimeProvider } from '@assistant-ui/react';
-  import { useVercelRSCRuntime } from '@assistant-ui/react-ai-sdk';
-  import { useActions, useUIState } from "ai/rsc";
-  import { nanoid } from "nanoid";
-  
-  import type { AI } from "./actions";
+`@/app/MyRuntimeProvider.tsx`
 
-  export function MyRuntimeProvider({
-    children,
-  }: Readonly<{
-    children: React.ReactNode;
-  }>) { 
-    const { continueConversation } = useActions();
-    const [messages, setMessages] = useUIState<typeof AI>();
+```tsx
+"use client";
 
-    const append = async (m: AppendMessage) => {
-      if (m.content[0]?.type !== "text")
-        throw new Error("Only text messages are supported");
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useVercelRSCRuntime } from "@assistant-ui/react-ai-sdk";
+import { useActions, useUIState } from "ai/rsc";
+import { nanoid } from "nanoid";
 
-      const input = m.content[0].text;
-      setMessages((currentConversation) => [
-        ...currentConversation,
-        { id: nanoid(), role: "user", display: input },
-      ]);
+import type { AI } from "./actions";
 
-      const message = await continueConversation(input);
+export function MyRuntimeProvider({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  const { continueConversation } = useActions();
+  const [messages, setMessages] = useUIState<typeof AI>();
 
-      setMessages((currentConversation) => [
-        ...currentConversation,
-        message,
-      ]);
-    };
+  const append = async (m: AppendMessage) => {
+    if (m.content[0]?.type !== "text")
+      throw new Error("Only text messages are supported");
 
-    const runtime = useVercelRSCRuntime({ messages, append });
+    const input = m.content[0].text;
+    setMessages((currentConversation) => [
+      ...currentConversation,
+      { id: nanoid(), role: "user", display: input },
+    ]);
 
-    return (
-      <AssistantRuntimeProvider runtime={runtime}>
-        {children}
-      </AssistantRuntimeProvider>
-    );
-  }
-  ```
+    const message = await continueConversation(input);
 
-  ### Wrap your app in `AI` and `MyRuntimeProvider`
+    setMessages((currentConversation) => [...currentConversation, message]);
+  };
 
-  `@/app/layout.tsx`
+  const runtime = useVercelRSCRuntime({ messages, append });
 
-  ```tsx {1-2,12-13,19-20}
-  import { AI } from '@/app/actions';
-  import { MyRuntimeProvider } from '@/app/MyRuntimeProvider';
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
 
-  ...
+### Wrap your app in `AI` and `MyRuntimeProvider`
 
-  export default function RootLayout({
-    children,
-  }: Readonly<{
-    children: React.ReactNode;
-  }>) {
-    return (
-      <AI>
-        <MyRuntimeProvider>
-          <html lang="en">
-            <body className={inter.className}>
-              {children}
-            </body>
-          </html>
-        </MyRuntimeProvider>
-      </AI>
-    )
-  }
-  ```
+`@/app/layout.tsx`
+
+```tsx {1-2,12-13,19-20}
+import { AI } from '@/app/actions';
+import { MyRuntimeProvider } from '@/app/MyRuntimeProvider';
+
+...
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <AI>
+      <MyRuntimeProvider>
+        <html lang="en">
+          <body className={inter.className}>
+            {children}
+          </body>
+        </html>
+      </MyRuntimeProvider>
+    </AI>
+  )
+}
+```
+
 </Steps>

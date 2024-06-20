@@ -8,9 +8,13 @@ import architecture from "../../assets/docs/architecture.png";
 
 ## Architecture
 
-`assistant-ui` consists of two parts, ***Runtime*** and ***UI Components***.  
+`assistant-ui` consists of two parts, **_Runtime_** and **_UI Components_**.
 
-<Image src={architecture} height={300} className="dark:invert dark:hue-rotate-180 my-2 mx-auto" />
+<Image
+  src={architecture}
+  height={300}
+  className="mx-auto my-2 dark:hue-rotate-180 dark:invert"
+/>
 
 The Runtime and UI Components each require independent setup and both must be set up.
 
@@ -25,7 +29,7 @@ The recommended way to get started is with the following stack:
 
 ### Step 1: Setup Runtime
 
-You wrap your entire app in a `<AssistantRuntimeProvider runtime={runtime}>` component. 
+You wrap your entire app in a `<AssistantRuntimeProvider runtime={runtime}>` component.
 
 This component makes a `Runtime` available to the rest of your app.
 The `Runtime` takes care of LLM communication, tools, streaming, state management, branching, persistence, authentication and more.

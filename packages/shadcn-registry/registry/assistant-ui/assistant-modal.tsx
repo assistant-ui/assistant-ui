@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
-import { forwardRef, useState } from "react";
+import { type FC, useState } from "react";
 
 export const AssistantModal = () => {
   const [open, setOpen] = useState(false);
@@ -37,12 +37,12 @@ export const AssistantModal = () => {
   );
 };
 
-type FloatingAssistantButton = { "data-state"?: "open" | "closed" };
+type FloatingAssistantButtonProps = { "data-state"?: "open" | "closed" };
 
-const FloatingAssistantButton = forwardRef<
-  HTMLButtonElement,
-  FloatingAssistantButton
->(({ "data-state": state, ...rest }, forwardedRef) => {
+const FloatingAssistantButton: FC<FloatingAssistantButtonProps> = ({
+  "data-state": state,
+  ...rest
+}) => {
   const tooltip = state === "open" ? "Close Assistant" : "Open Assistant";
   return (
     <TooltipProvider>
@@ -51,9 +51,8 @@ const FloatingAssistantButton = forwardRef<
           <Button
             variant="default"
             size="icon"
-            className="absolute right-4 bottom-4 size-12 rounded-full shadow hover:scale-70"
+            className="hover:scale-70 absolute bottom-4 right-4 size-12 rounded-full shadow"
             {...rest}
-            ref={forwardedRef}
           >
             <BotIcon
               className={cn(
@@ -77,4 +76,4 @@ const FloatingAssistantButton = forwardRef<
       </Tooltip>
     </TooltipProvider>
   );
-});
+};

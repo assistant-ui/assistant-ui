@@ -1,15 +1,15 @@
 "use server";
 
-import React, { useEffect } from 'react';
+import React, { useEffect } from "react";
 import { openai } from "@ai-sdk/openai";
 import { createAI, getMutableAIState, streamUI } from "ai/rsc";
 import { nanoid } from "nanoid";
 import type { ReactNode } from "react";
 import { z } from "zod";
-import {CarouselPlugin} from '../../../components/ui/productcarousel'; 
-import fs from 'fs';
-import path from 'path';
-import { streamText } from 'ai';
+import { CarouselPlugin } from "../../../components/ui/productcarousel";
+import fs from "fs";
+import path from "path";
+import { streamText } from "ai";
 
 export interface ServerMessage {
   role: "user" | "assistant";
@@ -23,7 +23,8 @@ export interface ClientMessage {
 }
 
 export async function continueConversation(
-  input: string, indexId: string,
+  input: string,
+  indexId: string,
 ): Promise<ClientMessage> {
   "use server";
 
@@ -65,22 +66,29 @@ export async function continueConversation(
     // maxToolRoundtrips: 5, // allow up to 5 tool roundtrips
     tools: {
       product_search: {
-        description: "Search for products on this website using pre-built indices",
+        description:
+          "Search for products on this website using pre-built indices",
         parameters: z.object({
-          query: z.string().describe("A clear factual product query, potentially including type, name, qualities, characteristics of the product"),
+          query: z
+            .string()
+            .describe(
+              "A clear factual product query, potentially including type, name, qualities, characteristics of the product",
+            ),
         }),
         generate: async ({ query }) => {
           try {
             console.log("query=", query);
-            const response = await fetch(`https://dummyjson.com/products/search?q=${query}`);
+            const response = await fetch(
+              `https://dummyjson.com/products/search?q=${query}`,
+            );
             const data = await response.json();
-            console.log('data=',data);
+            console.log("data=", data);
             if (data.products && data.products.length > 0) {
               const products = data.products.map((item: any) => ({
                 thumbnail: item.thumbnail,
                 title: item.title,
                 description: item.description,
-                metadata_3: item.price, 
+                metadata_3: item.price,
                 link: item.url,
               }));
               return <CarouselPlugin products={products} />;
@@ -88,24 +96,34 @@ export async function continueConversation(
               return <p>No products found.</p>;
             }
           } catch (error) {
-            return <p>Sorry, we are experiencing some error. Please refresh the chat and try again.</p>;
+            return (
+              <p>
+                Sorry, we are experiencing some error. Please refresh the chat
+                and try again.
+              </p>
+            );
           }
         },
       },
       general_question: {
         description: "User questions not related to products directly",
         parameters: z.object({
-          user_question: z.string().describe('User questions not related to products directly'),
+          user_question: z
+            .string()
+            .describe("User questions not related to products directly"),
         }),
         generate: async function* ({ user_question }) {
-          const filePath = path.resolve(process.cwd(), 'public/unclereco_info.txt');
-          const generalInfo = fs.readFileSync(filePath, 'utf-8');    
+          const filePath = path.resolve(
+            process.cwd(),
+            "public/unclereco_info.txt",
+          );
+          const generalInfo = fs.readFileSync(filePath, "utf-8");
           const result = await streamText({
-            model: openai('gpt-3.5-turbo'),
+            model: openai("gpt-3.5-turbo"),
             temperature: 0,
             prompt: `Generate response to user question ${user_question} based on the context ${generalInfo}`,
           });
-          let textContent = '';
+          let textContent = "";
 
           for await (const textPart of result.textStream) {
             textContent += textPart;
@@ -119,11 +137,12 @@ export async function continueConversation(
           "Send to user link to guidelines for clothes fitting https://www.unclereco.com/catalog/size_chart.php",
         parameters: z.object({}),
         generate: async ({}) => {
-          const fittingGuidelinesLink = "https://www.unclereco.com/catalog/size_chart.php";
+          const fittingGuidelinesLink =
+            "https://www.unclereco.com/catalog/size_chart.php";
           const formattedLink = `<a href="${fittingGuidelinesLink}" target="_blank">Guidelines for clothes fitting</a>`;
           const linkStyle = {
-            color: 'blue',
-            textDecoration: 'underline'
+            color: "blue",
+            textDecoration: "underline",
           };
           history.done((messages: ServerMessage[]) => [
             ...messages,
@@ -132,49 +151,59 @@ export async function continueConversation(
               content: formattedLink,
             },
           ]);
-    
+
           return (
             <a href={fittingGuidelinesLink} target="_blank" style={linkStyle}>
               Guidelines for clothes fitting
             </a>
-          );        },
+          );
+        },
       },
       escalate: {
         description:
           "Escalate to human agent if none of the other tools seem relevant or the interaction is repetative, or if the user is getting upset",
         parameters: z.object({
-          identifiable_info: z.string().describe("Email, full name, or order number to make the request identifiable"),
+          identifiable_info: z
+            .string()
+            .describe(
+              "Email, full name, or order number to make the request identifiable",
+            ),
           summary: z.string().describe("Summarize user request concisely"),
         }),
         generate: async function* ({ identifiable_info, summary }) {
-          let textContent = 'I am escalating your question to the human assistant\n\n';
+          let textContent =
+            "I am escalating your question to the human assistant\n\n";
           yield textContent;
-          console.log('generating answer while escalating, ', identifiable_info);
-          const filePath = path.resolve(process.cwd(), 'public/unclereco_info.txt');
-          const generalInfo = fs.readFileSync(filePath, 'utf-8');    
+          console.log(
+            "generating answer while escalating, ",
+            identifiable_info,
+          );
+          const filePath = path.resolve(
+            process.cwd(),
+            "public/unclereco_info.txt",
+          );
+          const generalInfo = fs.readFileSync(filePath, "utf-8");
           const result = await streamText({
-            model: openai('gpt-3.5-turbo'),
+            model: openai("gpt-3.5-turbo"),
             temperature: 0,
             system: `Generate response to user question ${summary} based on the context ${generalInfo}. Your answer begins with: "While we wait for the human assistant,`,
             messages: [
               {
                 role: "user",
-                content: summary
+                content: summary,
               },
               {
                 role: "assistant",
-                content: textContent
+                content: textContent,
               },
-            ]
+            ],
           });
-          
 
           for await (const textPart of result.textStream) {
             textContent += textPart;
             yield textContent;
           }
           return textContent;
-
         },
       },
     },

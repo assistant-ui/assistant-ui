@@ -6,101 +6,102 @@ title: Custom REST API Runtime
 
 `assistant-ui` integrates with any custom REST API. To do so, you define a custom `ChatModelAdapter` and pass it to the `useLocalRuntime` hook.
 
-## Getting Started  
+## Getting Started
 
-import { Steps } from 'nextra/components'
+import { Steps } from "nextra/components";
 
 <Steps>
   ### Create a Next.JS project
 
-  ```sh
-  npx create-next-app@latest my-app
-  cd my-app
-  ```
+```sh
+npx create-next-app@latest my-app
+cd my-app
+```
 
-  ### Install `@assistant-ui/react`
+### Install `@assistant-ui/react`
 
-  ```sh npm2yarn
-  npm install @assistant-ui/react
-  ```
-  ### Define a `MyRuntimeProvider` component
+```sh npm2yarn
+npm install @assistant-ui/react
+```
 
-  Update the `MyModelAdapter` below to integrate with your own custom API.
+### Define a `MyRuntimeProvider` component
 
-  `@/app/MyRuntimeProvider.tsx`
+Update the `MyModelAdapter` below to integrate with your own custom API.
 
-  ```tsx
-  "use client";
+`@/app/MyRuntimeProvider.tsx`
 
-  import { AssistantRuntimeProvider, useLocalRuntime } from '@assistant-ui/react';
+```tsx
+"use client";
 
-  const MyModelAdapter: ChatModelAdapter = {
-    async run({ messages, abortSignal }) {
-      // TODO replace with your own API
-      const result = await fetch("<YOUR_API_ENDPOINT>", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+import { AssistantRuntimeProvider, useLocalRuntime } from "@assistant-ui/react";
+
+const MyModelAdapter: ChatModelAdapter = {
+  async run({ messages, abortSignal }) {
+    // TODO replace with your own API
+    const result = await fetch("<YOUR_API_ENDPOINT>", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      // forward the messages in the chat to the API
+      body: JSON.stringify({
+        messages,
+      }),
+      // if the user hits the "cancel" button or escape keyboard key, cancel the request
+      signal: abortSignal,
+    });
+
+    const data = await result.json();
+    return {
+      content: [
+        {
+          type: "text",
+          text: data.text,
         },
-        // forward the messages in the chat to the API
-        body: JSON.stringify({
-          messages,
-        }),
-        // if the user hits the "cancel" button or escape keyboard key, cancel the request
-        signal: abortSignal,
-      });
+      ],
+    };
+  },
+};
 
-      const data = await result.json();
-      return {
-        content: [
-          {
-            type: "text",
-            text: data.text,
-          },
-        ],
-      };
-    },
-  };
+export function MyRuntimeProvider({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  const runtime = useLocalRuntime(MyModelAdapter);
 
-  export function MyRuntimeProvider({
-    children,
-  }: Readonly<{
-    children: React.ReactNode;
-  }>) {
-    const runtime = useLocalRuntime(MyModelAdapter);
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
 
-    return (
-      <AssistantRuntimeProvider runtime={runtime}>
-        {children}
-      </AssistantRuntimeProvider>
-    );
-  }
-  ```
+### Wrap your app in `MyRuntimeProvider`
 
-  ### Wrap your app in `MyRuntimeProvider`
+`@/app/layout.tsx`
 
-  `@/app/layout.tsx`
+```tsx {1,11,17}
+import { MyRuntimeProvider } from '@/app/MyRuntimeProvider';
 
-  ```tsx {1,11,17}
-  import { MyRuntimeProvider } from '@/app/MyRuntimeProvider';
+...
 
-  ...
-
-  export default function RootLayout({
-    children,
-  }: Readonly<{
-    children: React.ReactNode;
-  }>) {
-    return (
-      <MyRuntimeProvider>
-        <html lang="en">
-          <body className={inter.className}>
-            {children}
-          </body>
-        </html>
-      </MyRuntimeProvider>
-    )
-  }
-  ```
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <MyRuntimeProvider>
+      <html lang="en">
+        <body className={inter.className}>
+          {children}
+        </body>
+      </html>
+    </MyRuntimeProvider>
+  )
+}
+```
 
 </Steps>

@@ -2,11 +2,14 @@
 
 import { composeEventHandlers } from "@radix-ui/primitive";
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
+import { Primitive } from "@radix-ui/react-primitive";
 import {
-  type ComponentPropsWithoutRef,
-  Primitive,
-} from "@radix-ui/react-primitive";
-import { type ElementRef, type FormEvent, forwardRef, useRef } from "react";
+  type ElementRef,
+  type FormEvent,
+  forwardRef,
+  useRef,
+  ComponentPropsWithoutRef,
+} from "react";
 import { useComposerContext } from "../../context/ComposerContext";
 import { useThreadContext } from "../../context/ThreadContext";
 
@@ -42,3 +45,5 @@ export const ComposerRoot = forwardRef<ComposerRootElement, ComposerRootProps>(
     );
   },
 );
+
+ComposerRoot.displayName = "ComposerRoot";

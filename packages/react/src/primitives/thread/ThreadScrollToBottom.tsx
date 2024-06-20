@@ -1,11 +1,8 @@
 "use client";
 
 import { composeEventHandlers } from "@radix-ui/primitive";
-import {
-  type ComponentPropsWithoutRef,
-  Primitive,
-} from "@radix-ui/react-primitive";
-import { type ElementRef, forwardRef } from "react";
+import { Primitive } from "@radix-ui/react-primitive";
+import { type ElementRef, forwardRef, ComponentPropsWithoutRef } from "react";
 import { useThreadContext } from "../../context/ThreadContext";
 
 type ThreadScrollToBottomElement = ElementRef<typeof Primitive.button>;
@@ -33,3 +30,5 @@ export const ThreadScrollToBottom = forwardRef<
     />
   );
 });
+
+ThreadScrollToBottom.displayName = "ThreadScrollToBottom";

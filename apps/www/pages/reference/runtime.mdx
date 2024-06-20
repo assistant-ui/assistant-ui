@@ -1,7 +1,7 @@
 ---
 title: Runtime API
 description: A React Hook Form integration for @assistant-ui.
---- 
+---
 
 import { ParametersTable } from "@/components/docs";
 
@@ -31,7 +31,7 @@ const MyApp = () => {
   parameters={[
     {
       name: "runtime",
-      type: 'AssistantRuntime',
+      type: "AssistantRuntime",
       required: true,
       description: "The runtime to provide to the rest of your app.",
       children: [
@@ -40,55 +40,55 @@ const MyApp = () => {
           parameters: [
             {
               name: "messages",
-              type: 'readonly ThreadMessage[]',
+              type: "readonly ThreadMessage[]",
               required: true,
               description: "The messages in the thread.",
             },
             {
               name: "isRunning",
-              type: 'boolean',
+              type: "boolean",
               required: true,
               description: "Whether the thread is running.",
             },
             {
               name: "getBranches",
-              type: '(messageId: string) => readonly string[]',
+              type: "(messageId: string) => readonly string[]",
               required: true,
               description: "A function to get the branches for a message.",
             },
             {
               name: "switchToBranch",
-              type: '(branchId: string) => void',
+              type: "(branchId: string) => void",
               required: true,
-              description: "A function to switch to a branch.", 
+              description: "A function to switch to a branch.",
             },
             {
               name: "append",
-              type: '(message: AppendMessage) => void',
+              type: "(message: AppendMessage) => void",
               required: true,
               description: "A function to append a message to the thread.",
             },
             {
               name: "startRun",
-              type: '(parentId: string | null) => void',
+              type: "(parentId: string | null) => void",
               required: true,
               description: "A function to start a run.",
             },
             {
               name: "cancelRun",
-              type: '() => void',
+              type: "() => void",
               required: true,
               description: "A function to cancel a run.",
             },
             {
               name: "subscribe",
-              type: '(callback: () => void) => Unsubscribe',
+              type: "(callback: () => void) => Unsubscribe",
               required: true,
               description: "A function to subscribe to updates.",
             },
             {
               name: "registerModelConfigProvider",
-              type: '(provider: ModelConfigProvider) => Unsubscribe',
+              type: "(provider: ModelConfigProvider) => Unsubscribe",
               required: true,
               description: "A function to register a model config provider.",
             },

@@ -1,4 +1,4 @@
-export default {
+const meta = {
   index: "Introduction",
   "getting-started": "Getting Started",
   "-- runtime": {
@@ -33,3 +33,5 @@ export default {
     display: "children",
   },
 };
+
+export default meta;

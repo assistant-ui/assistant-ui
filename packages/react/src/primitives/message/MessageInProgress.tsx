@@ -1,10 +1,12 @@
 "use client";
 
+import { Primitive } from "@radix-ui/react-primitive";
 import {
-  type ComponentPropsWithoutRef,
-  Primitive,
-} from "@radix-ui/react-primitive";
-import { type ElementRef, forwardRef, useMemo } from "react";
+  type ElementRef,
+  forwardRef,
+  useMemo,
+  ComponentPropsWithoutRef,
+} from "react";
 import { useMessageContext } from "../../context/MessageContext";
 
 type MessageInProgressElement = ElementRef<typeof Primitive.span>;
@@ -26,3 +28,5 @@ export const MessageInProgress = forwardRef<
 
   return null;
 });
+
+MessageInProgress.displayName = "MessageInProgress";

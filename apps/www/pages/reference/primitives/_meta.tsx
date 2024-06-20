@@ -23,7 +23,7 @@ const IconTitle: FC<IconTitleProps> = ({ icon, name }) => {
   );
 };
 
-export default {
+const meta = {
   composition: "Composition",
   Thread: {
     title: <IconTitle icon={faComments} name="Thread" />,
@@ -44,3 +44,5 @@ export default {
     title: <IconTitle icon={faPuzzlePiece} name="ContentPart" />,
   },
 };
+
+export default meta;

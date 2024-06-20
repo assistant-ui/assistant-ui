@@ -1,16 +1,16 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import Autoplay from "embla-carousel-autoplay"
+import * as React from "react";
+import Autoplay from "embla-carousel-autoplay";
 
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Carousel,
   CarouselContent,
   CarouselItem,
   CarouselNext,
   CarouselPrevious,
-} from "@/components/ui/carousel"
+} from "@/components/ui/carousel";
 
 interface Product {
   thumbnail: string;
@@ -25,65 +25,66 @@ interface ProductCarouselProps {
 }
 
 const productStyle = {
-    display: 'flex',
-    flexDirection: 'column' as 'column', // Type assertion
-    alignItems: 'center',
-    textAlign: 'center' as 'center', // Type assertion
-  };
-  
-  const imageContainerStyle = {
-    justifyContent: 'center',
-    maxWidth: '100%',
-    overflow: 'hidden',
-  };
-  
-  const productLinkStyle = {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    maxWidth: '100%',
-    height: '100%',
-  };
-  
-  const productNameStyle = {
-    marginTop: '0.5rem',
-  };
-  
-  const productPriceStyle = {
-    marginTop: '0.5rem',
-  };
-  
-  const actionGroupStyle = {
-    marginTop: '0.5rem',
-  };
-  
-  const seeMoreProductsStyle = {
-    marginTop: '1rem',
-    cursor: 'pointer',
-  };
+  display: "flex",
+  flexDirection: "column" as "column", // Type assertion
+  alignItems: "center",
+  textAlign: "center" as "center", // Type assertion
+};
 
+const imageContainerStyle = {
+  justifyContent: "center",
+  maxWidth: "100%",
+  overflow: "hidden",
+};
 
-  
+const productLinkStyle = {
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+  maxWidth: "100%",
+  height: "100%",
+};
+
+const productNameStyle = {
+  marginTop: "0.5rem",
+};
+
+const productPriceStyle = {
+  marginTop: "0.5rem",
+};
+
+const actionGroupStyle = {
+  marginTop: "0.5rem",
+};
+
+const seeMoreProductsStyle = {
+  marginTop: "1rem",
+  cursor: "pointer",
+};
+
 export function CarouselPlugin({ products }: ProductCarouselProps) {
   const plugin = React.useRef(
-    Autoplay({ delay: 2000, stopOnInteraction: true })
-  )
+    Autoplay({ delay: 2000, stopOnInteraction: true }),
+  );
 
   return (
     <Carousel
       plugins={[plugin.current]}
-      className="w-full max-w-2xl relative"
+      className="relative w-full max-w-2xl"
       onMouseEnter={plugin.current.stop}
       onMouseLeave={plugin.current.reset}
     >
       <CarouselContent className="w-full">
         {products.map((product, index) => (
           <CarouselItem key={index} className="basis-1/2">
-          <div className="p-1 w-full relative">
-              <Card className="w-full h-full">
+            <div className="relative w-full p-1">
+              <Card className="h-full w-full">
                 <CardContent className="flex flex-col items-center justify-center p-6">
                   <div className="product" style={productStyle}>
-                    <div className="image-container" style={imageContainerStyle}>
+                    <div
+                      className="image-container"
+                      style={imageContainerStyle}
+                    >
                       <a
                         className="product-link product_image"
                         href={product.link}
@@ -97,7 +98,7 @@ export function CarouselPlugin({ products }: ProductCarouselProps) {
                           className="img-fluid mb-3"
                           src={product.thumbnail}
                           alt={product.title}
-                          style={{ maxWidth: '100%', maxHeight: '100%' }}
+                          style={{ maxWidth: "100%", maxHeight: "100%" }}
                         />
                       </a>
                       <div className="productName" style={productNameStyle}>
@@ -110,12 +111,14 @@ export function CarouselPlugin({ products }: ProductCarouselProps) {
                         </a>
                       </div>
                       <p>
-                          <span
-                            className="productPrice"
-                            style={productPriceStyle}
-                            dangerouslySetInnerHTML={{ __html: product.metadata_3 }}
-                          />
-                        </p>
+                        <span
+                          className="productPrice"
+                          style={productPriceStyle}
+                          dangerouslySetInnerHTML={{
+                            __html: product.metadata_3,
+                          }}
+                        />
+                      </p>
                       {/* <div className="actionGroup" style={actionGroupStyle}>
                         <a
                           className="chat_buy_now"
@@ -134,7 +137,6 @@ export function CarouselPlugin({ products }: ProductCarouselProps) {
                       >
                         See more like this
                       </div> */}
-
                     </div>
                   </div>
                 </CardContent>
@@ -143,8 +145,8 @@ export function CarouselPlugin({ products }: ProductCarouselProps) {
           </CarouselItem>
         ))}
       </CarouselContent>
-      <CarouselPrevious className="absolute left-2 top-1/2 transform -translate-y-1/2 z-10" />
-              <CarouselNext className="absolute right-2 top-1/2 transform -translate-y-1/2 z-10" />
+      <CarouselPrevious className="absolute left-2 top-1/2 z-10 -translate-y-1/2 transform" />
+      <CarouselNext className="absolute right-2 top-1/2 z-10 -translate-y-1/2 transform" />
     </Carousel>
-  )
+  );
 }

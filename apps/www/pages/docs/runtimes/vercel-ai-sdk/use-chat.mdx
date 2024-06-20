@@ -9,98 +9,98 @@ It allows integration with OpenAI, Anthropic, Mistral, Perplexity, AWS Bedrock, 
 
 ## Getting Started
 
-import { Steps } from 'nextra/components'
+import { Steps } from "nextra/components";
 
 <Steps>
   ### Create a Next.JS project
 
-  ```sh
-  npx create-next-app@latest my-app
-  cd my-app
-  ```
-  
-  ### Install Vercel AI SDK and `@assistant-ui/react`
+```sh
+npx create-next-app@latest my-app
+cd my-app
+```
 
-  ```sh npm2yarn
-  npm install @assistant-ui/react @assistant-ui/react-ai-sdk ai @ai-sdk/react @ai-sdk/openai
-  ```
+### Install Vercel AI SDK and `@assistant-ui/react`
 
-  ### Setup a backend route under `/api/chat`
+```sh npm2yarn
+npm install @assistant-ui/react @assistant-ui/react-ai-sdk ai @ai-sdk/react @ai-sdk/openai
+```
 
-  `@/app/api/chat/route.ts`
+### Setup a backend route under `/api/chat`
 
-  ```tsx
-  import { openai } from '@ai-sdk/openai';
-  import { streamText } from 'ai';
+`@/app/api/chat/route.ts`
 
-  export const maxDuration = 30;
+```tsx
+import { openai } from "@ai-sdk/openai";
+import { streamText } from "ai";
 
-  export async function POST(req: Request) {
-    const { messages } = await req.json();
+export const maxDuration = 30;
 
-    const result = await streamText({
-      model: openai('gpt-4o'),
-      messages,
-    });
+export async function POST(req: Request) {
+  const { messages } = await req.json();
 
-    return result.toAIStreamResponse();
-  }
-  ```
+  const result = await streamText({
+    model: openai("gpt-4o"),
+    messages,
+  });
 
-  ### Define a `MyRuntimeProvider` component
+  return result.toAIStreamResponse();
+}
+```
 
-  `@/app/MyRuntimeProvider.tsx`
+### Define a `MyRuntimeProvider` component
 
-  ```tsx
-  "use client";
+`@/app/MyRuntimeProvider.tsx`
 
-  import { useChat } from '@ai-sdk/react';
-  import { AssistantRuntimeProvider } from '@assistant-ui/react';
-  import { useVercelUseChatRuntime } from '@assistant-ui/react-ai-sdk';
+```tsx
+"use client";
 
-  export function MyRuntimeProvider({
-    children,
-  }: Readonly<{
-    children: React.ReactNode;
-  }>) { 
-    const chat = useChat({
-      api: '/api/chat',
-    });
+import { useChat } from "@ai-sdk/react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useVercelUseChatRuntime } from "@assistant-ui/react-ai-sdk";
 
-    const runtime = useVercelUseChatRuntime(chat);
+export function MyRuntimeProvider({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  const chat = useChat({
+    api: "/api/chat",
+  });
 
-    return (
-      <AssistantRuntimeProvider runtime={runtime}>
-        {children}
-      </AssistantRuntimeProvider>
-    );
-  }
-  ```
+  const runtime = useVercelUseChatRuntime(chat);
 
-  ### Wrap your app in `MyRuntimeProvider`
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
 
-  `@/app/layout.tsx`
+### Wrap your app in `MyRuntimeProvider`
 
-  ```tsx {1,11,17}
-  import { MyRuntimeProvider } from '@/app/MyRuntimeProvider';
+`@/app/layout.tsx`
 
-  ...
+```tsx {1,11,17}
+import { MyRuntimeProvider } from '@/app/MyRuntimeProvider';
 
-  export default function RootLayout({
-    children,
-  }: Readonly<{
-    children: React.ReactNode;
-  }>) {
-    return (
-      <MyRuntimeProvider>
-        <html lang="en">
-          <body className={inter.className}>
-            {children}
-          </body>
-        </html>
-      </MyRuntimeProvider>
-    )
-  }
-  ```
+...
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <MyRuntimeProvider>
+      <html lang="en">
+        <body className={inter.className}>
+          {children}
+        </body>
+      </html>
+    </MyRuntimeProvider>
+  )
+}
+```
 
 </Steps>

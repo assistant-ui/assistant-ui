@@ -24,14 +24,14 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
 export const ChatGPT: FC = () => {
   return (
-    <ThreadPrimitive.Root className="dark flex h-full flex-col items-stretch bg-[#212121] px-4 text-foreground">
+    <ThreadPrimitive.Root className="text-foreground dark flex h-full flex-col items-stretch bg-[#212121] px-4">
       <ThreadPrimitive.Viewport className="flex flex-grow flex-col gap-8 overflow-y-scroll pt-16">
         <ThreadPrimitive.Empty>
           <div className="flex flex-grow flex-col items-center justify-center">
             <Avatar.Root className="flex h-12 w-12 items-center justify-center rounded-[24px] border border-white/15 shadow">
               <Avatar.AvatarFallback>C</Avatar.AvatarFallback>
             </Avatar.Root>
-            <p className="mt-4 text-white text-xl">How can I help you today?</p>
+            <p className="mt-4 text-xl text-white">How can I help you today?</p>
           </div>
         </ThreadPrimitive.Empty>
 
@@ -51,7 +51,7 @@ export const ChatGPT: FC = () => {
         />
         <ThreadPrimitive.If running={false}>
           <ComposerPrimitive.Send className="m-2 flex size-8 items-center justify-center rounded-full bg-white transition-opacity disabled:opacity-10">
-            <ArrowUpIcon className="size-5 text-black [&_path]:stroke-[1] [&_path]:stroke-black" />
+            <ArrowUpIcon className="size-5 text-black [&_path]:stroke-black [&_path]:stroke-[1]" />
           </ComposerPrimitive.Send>
         </ThreadPrimitive.If>
         <ThreadPrimitive.If running>
@@ -60,7 +60,7 @@ export const ChatGPT: FC = () => {
           </ComposerPrimitive.Cancel>
         </ThreadPrimitive.If>
       </ComposerPrimitive.Root>
-      <p className="p-2 text-center text-[#cdcdcd] text-xs">
+      <p className="p-2 text-center text-xs text-[#cdcdcd]">
         ChatGPT can make mistakes. Check important info.
       </p>
     </ThreadPrimitive.Root>
@@ -89,7 +89,7 @@ const UserMessage: FC = () => {
         </p>
       </div>
 
-      <BranchPicker className="mt-2 mr-3" />
+      <BranchPicker className="mr-3 mt-2" />
     </MessagePrimitive.Root>
   );
 };
@@ -100,10 +100,10 @@ const EditComposer: FC = () => {
       <ComposerPrimitive.Input className="flex h-8 w-full resize-none bg-transparent p-5 pb-0 text-white outline-none" />
 
       <div className="m-3 mt-2 flex items-center justify-center gap-2 self-end">
-        <ComposerPrimitive.Cancel className="rounded-full bg-zinc-900 px-3 py-2 font-semibold text-sm text-white hover:bg-zinc-800">
+        <ComposerPrimitive.Cancel className="rounded-full bg-zinc-900 px-3 py-2 text-sm font-semibold text-white hover:bg-zinc-800">
           Cancel
         </ComposerPrimitive.Cancel>
-        <ComposerPrimitive.Send className="rounded-full bg-white px-3 py-2 font-semibold text-black text-sm hover:bg-white/90">
+        <ComposerPrimitive.Send className="rounded-full bg-white px-3 py-2 text-sm font-semibold text-black hover:bg-white/90">
           Send
         </ComposerPrimitive.Send>
       </div>
@@ -115,7 +115,7 @@ const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="relative mx-auto flex w-full max-w-screen-md gap-3">
       <Avatar.Root className="flex size-8 flex-shrink-0 items-center justify-center rounded-[24px] border border-white/15 shadow">
-        <Avatar.AvatarFallback className="text-white text-xs">
+        <Avatar.AvatarFallback className="text-xs text-white">
           C
         </Avatar.AvatarFallback>
       </Avatar.Root>
@@ -161,7 +161,7 @@ const BranchPicker: FC<{ className?: string }> = ({ className }) => {
     <BranchPickerPrimitive.Root
       hideWhenSingleBranch
       className={cn(
-        "inline-flex items-center font-semibold text-[#b4b4b4] text-sm",
+        "inline-flex items-center text-sm font-semibold text-[#b4b4b4]",
         className,
       )}
     >

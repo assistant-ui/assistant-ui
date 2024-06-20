@@ -8,104 +8,104 @@ Integration with a LangServe server via Vercel AI SDK.
 
 ## Getting Started
 
-import { Steps } from 'nextra/components'
+import { Steps } from "nextra/components";
 
 <Steps>
   ### Create a Next.JS project
 
-  ```sh
-  npx create-next-app@latest my-app
-  cd my-app
-  ```
-  
-  ### Install `@langchain/core`, `ai-sdk` and `@assistant-ui/react`
+```sh
+npx create-next-app@latest my-app
+cd my-app
+```
 
-  ```sh npm2yarn
-  npm install @assistant-ui/react @assistant-ui/react-ai-sdk ai @ai-sdk/react @langchain/core
-  ```
+### Install `@langchain/core`, `ai-sdk` and `@assistant-ui/react`
 
-  ### Setup a backend route under `/api/chat`
+```sh npm2yarn
+npm install @assistant-ui/react @assistant-ui/react-ai-sdk ai @ai-sdk/react @langchain/core
+```
 
-  `@/app/api/chat/route.ts`
+### Setup a backend route under `/api/chat`
 
-  ```tsx
-  import { RemoteRunnable } from "@langchain/core/runnables/remote";
-  import { streamText } from 'ai';
+`@/app/api/chat/route.ts`
 
-  export const maxDuration = 30;
+```tsx
+import { RemoteRunnable } from "@langchain/core/runnables/remote";
+import { streamText } from "ai";
 
-  export async function POST(req: Request) {
-    const { messages } = await req.json();
+export const maxDuration = 30;
 
-    // TODO replace with your own API URL
-    const remoteChain = new RemoteRunnable({
-      url: "<YOUR_LANGSERVE_URL>",
-    });
+export async function POST(req: Request) {
+  const { messages } = await req.json();
 
-    const stream = await remoteChain.stream({
-      messages,
-    });
+  // TODO replace with your own API URL
+  const remoteChain = new RemoteRunnable({
+    url: "<YOUR_LANGSERVE_URL>",
+  });
 
-    const aiStream = LangChainAdapter.toAIStream(stream);
+  const stream = await remoteChain.stream({
+    messages,
+  });
 
-    return new StreamingTextResponse(aiStream);
-  }
-  ```
+  const aiStream = LangChainAdapter.toAIStream(stream);
 
-  ### Define a `MyRuntimeProvider` component
+  return new StreamingTextResponse(aiStream);
+}
+```
 
-  `@/app/MyRuntimeProvider.tsx`
+### Define a `MyRuntimeProvider` component
 
-  ```tsx
-  "use client";
+`@/app/MyRuntimeProvider.tsx`
 
-  import { useChat } from '@ai-sdk/react';
-  import { AssistantRuntimeProvider } from '@assistant-ui/react';
-  import { useVercelUseChatRuntime } from '@assistant-ui/react-ai-sdk';
+```tsx
+"use client";
 
-  export function MyRuntimeProvider({
-    children,
-  }: Readonly<{
-    children: React.ReactNode;
-  }>) { 
-    const chat = useChat({
-      api: '/api/chat',
-    });
+import { useChat } from "@ai-sdk/react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useVercelUseChatRuntime } from "@assistant-ui/react-ai-sdk";
 
-    const runtime = useVercelUseChatRuntime(chat);
+export function MyRuntimeProvider({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  const chat = useChat({
+    api: "/api/chat",
+  });
 
-    return (
-      <AssistantRuntimeProvider runtime={runtime}>
-        {children}
-      </AssistantRuntimeProvider>
-    );
-  }
-  ```
+  const runtime = useVercelUseChatRuntime(chat);
 
-  ### Wrap your app in `MyRuntimeProvider`
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
 
-  `@/app/layout.tsx`
+### Wrap your app in `MyRuntimeProvider`
 
-  ```tsx {1,11,17}
-  import { MyRuntimeProvider } from '@/app/MyRuntimeProvider';
+`@/app/layout.tsx`
 
-  ...
+```tsx {1,11,17}
+import { MyRuntimeProvider } from '@/app/MyRuntimeProvider';
 
-  export default function RootLayout({
-    children,
-  }: Readonly<{
-    children: React.ReactNode;
-  }>) {
-    return (
-      <MyRuntimeProvider>
-        <html lang="en">
-          <body className={inter.className}>
-            {children}
-          </body>
-        </html>
-      </MyRuntimeProvider>
-    )
-  }
-  ```
+...
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <MyRuntimeProvider>
+      <html lang="en">
+        <body className={inter.className}>
+          {children}
+        </body>
+      </html>
+    </MyRuntimeProvider>
+  )
+}
+```
 
 </Steps>

@@ -32,18 +32,20 @@ This primitive renders a `<div>` element unless `asChild` is set.
 <PropsTable
   data={[
     {
-      name: 'asChild',
+      name: "asChild",
       required: false,
-      type: 'boolean',
-      default: 'false',
+      type: "boolean",
+      default: "false",
       description: (
         <>
           Change the default rendered element for the one passed as a child,
           merging their props and behavior.
           <br />
           <br />
-          Read our <a href="/reference/primitives/composition">Composition</a> guide for more
-          details.
+          Read our <a href="/reference/primitives/composition">
+            Composition
+          </a>{" "}
+          guide for more details.
         </>
       ),
     },
@@ -59,35 +61,38 @@ This primitive renders a `<div>` element unless `asChild` is set.
 <PropsTable
   data={[
     {
-      name: 'asChild',
+      name: "asChild",
       required: false,
-      type: 'boolean',
-      default: 'false',
+      type: "boolean",
+      default: "false",
       description: (
         <>
           Change the default rendered element for the one passed as a child,
           merging their props and behavior.
           <br />
           <br />
-          Read our <a href="/reference/primitives/composition">Composition</a> guide for more
-          details.
+          Read our <a href="/reference/primitives/composition">
+            Composition
+          </a>{" "}
+          guide for more details.
         </>
       ),
     },
     {
-      name: 'autoScroll',
+      name: "autoScroll",
       required: false,
-      type: 'boolean',
-      default: 'undefined',
+      type: "boolean",
+      default: "undefined",
       description: (
         <>
-          Whether to automatically scroll to the bottom of the viewport when new messages are added while the viewport is was previously scrolled to the bottom.
+          Whether to automatically scroll to the bottom of the viewport when new
+          messages are added while the viewport is was previously scrolled to
+          the bottom.
         </>
       ),
-    }
+    },
   ]}
 />
-
 
 ### Messages
 
@@ -96,14 +101,12 @@ Renders all messages. This primitive renders a separate component for each messa
 <PropsTable
   data={[
     {
-      name: 'components',
+      name: "components",
       required: false,
-      type: 'MessageComponents',
+      type: "MessageComponents",
       description: (
         // TODO better docs for this
-        <>
-          The component to render for each message.
-        </>
+        <>The component to render for each message.</>
       ),
     },
   ]}
@@ -122,18 +125,20 @@ This primitive renders a `<button>` element unless `asChild` is set.
 <PropsTable
   data={[
     {
-      name: 'asChild',
+      name: "asChild",
       required: false,
-      type: 'boolean',
-      default: 'false',
+      type: "boolean",
+      default: "false",
       description: (
         <>
           Change the default rendered element for the one passed as a child,
           merging their props and behavior.
           <br />
           <br />
-          Read our <a href="/reference/primitives/composition">Composition</a> guide for more
-          details.
+          Read our <a href="/reference/primitives/composition">
+            Composition
+          </a>{" "}
+          guide for more details.
         </>
       ),
     },
@@ -147,26 +152,18 @@ Renders children if a condition is met.
 <PropsTable
   data={[
     {
-      name: 'empty',
+      name: "empty",
       required: false,
-      type: 'boolean | undefined',
-      default: 'undefined',
-      description: (
-        <>
-          Render children if the thread is empty.
-        </>
-      ),
+      type: "boolean | undefined",
+      default: "undefined",
+      description: <>Render children if the thread is empty.</>,
     },
     {
-      name: 'running',
+      name: "running",
       required: false,
-      type: 'boolean | undefined',
-      default: 'undefined',
-      description: (
-        <>
-          Render children if the thread is running.
-        </>
-      ),
+      type: "boolean | undefined",
+      default: "undefined",
+      description: <>Render children if the thread is running.</>,
     },
   ]}
 />

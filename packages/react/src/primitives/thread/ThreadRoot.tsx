@@ -1,10 +1,7 @@
 "use client";
 
-import {
-  type ComponentPropsWithoutRef,
-  Primitive,
-} from "@radix-ui/react-primitive";
-import { type ElementRef, forwardRef } from "react";
+import { Primitive } from "@radix-ui/react-primitive";
+import { type ElementRef, forwardRef, ComponentPropsWithoutRef } from "react";
 
 type ThreadRootElement = ElementRef<typeof Primitive.div>;
 type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;
@@ -16,3 +13,5 @@ export const ThreadRoot = forwardRef<ThreadRootElement, ThreadRootProps>(
     return <Primitive.div {...props} ref={ref} />;
   },
 );
+
+ThreadRoot.displayName = "ThreadRoot";

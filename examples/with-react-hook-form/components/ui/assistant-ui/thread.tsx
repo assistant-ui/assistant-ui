@@ -73,7 +73,7 @@ const ThreadScrollToBottom: FC = () => {
         <IconButton
           tooltip="Scroll to bottom"
           variant="outline"
-          className="-top-10 absolute rounded-full disabled:invisible"
+          className="absolute -top-10 rounded-full disabled:invisible"
         >
           <ArrowDownIcon className="size-4" />
         </IconButton>
@@ -87,16 +87,16 @@ const Composer: FC = () => {
     <ComposerPrimitive.Root className="flex w-[calc(100%-32px)] max-w-[40rem] items-end rounded-lg border p-0.5 transition-shadow focus-within:shadow-sm">
       <ComposerPrimitive.Input
         placeholder="Write a message..."
-        className="h-12 max-h-40 flex-grow resize-none bg-transparent p-3.5 text-sm outline-none placeholder:text-foreground/50"
+        className="placeholder:text-foreground/50 h-12 max-h-40 flex-grow resize-none bg-transparent p-3.5 text-sm outline-none"
       />
       <ThreadPrimitive.If running={false}>
-        <ComposerPrimitive.Send className="m-2 flex h-8 w-8 items-center justify-center rounded-md bg-foreground font-bold text-2xl shadow transition-opacity disabled:opacity-10">
-          <SendHorizonalIcon className="size-4 text-background" />
+        <ComposerPrimitive.Send className="bg-foreground m-2 flex h-8 w-8 items-center justify-center rounded-md text-2xl font-bold shadow transition-opacity disabled:opacity-10">
+          <SendHorizonalIcon className="text-background size-4" />
         </ComposerPrimitive.Send>
       </ThreadPrimitive.If>
       <ThreadPrimitive.If running>
-        <ComposerPrimitive.Cancel className="m-3.5 flex size-5 items-center justify-center rounded-full border-2 border-foreground">
-          <div className="size-2 rounded-[1px] bg-foreground" />
+        <ComposerPrimitive.Cancel className="border-foreground m-3.5 flex size-5 items-center justify-center rounded-full border-2">
+          <div className="bg-foreground size-2 rounded-[1px]" />
         </ComposerPrimitive.Cancel>
       </ThreadPrimitive.If>
     </ComposerPrimitive.Root>
@@ -113,7 +113,7 @@ const UserMessage: FC = () => {
       <div className="flex-grow">
         <p className="font-semibold">You</p>
 
-        <p className="whitespace-pre-line text-foreground">
+        <p className="text-foreground whitespace-pre-line">
           <MessagePrimitive.Content />
         </p>
 
@@ -175,8 +175,8 @@ const AssistantMessage: FC = () => {
       <div className="flex-grow">
         <p className="font-semibold">Assistant</p>
 
-        <MessagePrimitive.InProgress className="inline-block size-3 animate-pulse rounded-full bg-foreground" />
-        <div className="flex flex-col gap-3 whitespace-pre-line text-foreground">
+        <MessagePrimitive.InProgress className="bg-foreground inline-block size-3 animate-pulse rounded-full" />
+        <div className="text-foreground flex flex-col gap-3 whitespace-pre-line">
           <MessagePrimitive.Content />
         </div>
 
@@ -215,7 +215,7 @@ const BranchPicker: FC = () => {
   return (
     <BranchPickerPrimitive.Root
       hideWhenSingleBranch
-      className="inline-flex items-center text-foreground/60 text-xs"
+      className="text-foreground/60 inline-flex items-center text-xs"
     >
       <BranchPickerPrimitive.Previous asChild>
         <IconButton tooltip="Previous">

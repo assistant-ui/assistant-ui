@@ -15,10 +15,13 @@
   "devDependencies": {
     "@assistant-ui/tsconfig": "workspace:*",
     "@types/cross-spawn": "^6.0.6",
-    "@types/node": "^20.14.2",
+    "@types/node": "^20.14.7",
     "tsup": "^8.1.0"
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "bin": "./dist/index.js",
   "scripts": {
     "build": "tsup src/index.ts --format esm --sourcemap"

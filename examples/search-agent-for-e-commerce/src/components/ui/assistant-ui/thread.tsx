@@ -14,7 +14,7 @@ import {
 import { cn } from "@/lib/utils";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { ArrowDownIcon, SendHorizonalIcon } from "lucide-react";
-import uncleRecoImage from '/Users/matthewdi/Desktop/Shardul/conversecart/plugin/assets/uncle-reco.png';
+import uncleRecoImage from "/Users/matthewdi/Desktop/Shardul/conversecart/plugin/assets/uncle-reco.png";
 
 export const Thread: FC = () => {
   return (
@@ -42,38 +42,63 @@ export const Thread: FC = () => {
 
 const ThreadEmpty: FC = () => {
   return (
-    <div className="w-full max-w-2xl flex flex-col grow py-6 px-4 justify-end"> {/* Stick to bottom */}
-      <div className="flex flex-grow flex-col items-center justify-center mb-1"> {/* Reduced margin-bottom */}
-        <img src="/uncle-reco.png" alt="Uncle Reco" className="w-1/2 max-w-xs mb-4" /> {/* Smaller image */}
+    <div className="flex w-full max-w-2xl grow flex-col justify-end px-4 py-6">
+      {" "}
+      {/* Stick to bottom */}
+      <div className="mb-1 flex flex-grow flex-col items-center justify-center">
+        {" "}
+        {/* Reduced margin-bottom */}
+        <img
+          src="/uncle-reco.png"
+          alt="Uncle Reco"
+          className="mb-4 w-1/2 max-w-xs"
+        />{" "}
+        {/* Smaller image */}
         <div className="flex items-center">
-        <Avatar className="mr-4" style={{ width: '20px', height: '20px' }}> {/* Adjusted size */}
+          <Avatar className="mr-4" style={{ width: "20px", height: "20px" }}>
+            {" "}
+            {/* Adjusted size */}
             <AvatarImage src="/unclereco-favicon.ico" alt="AI" />
             <AvatarFallback>AI</AvatarFallback>
           </Avatar>
-          <p className="mt-4">Hi, do you know what product you are looking for, or you have a general question?</p>
+          <p className="mt-4">
+            Hi, do you know what product you are looking for, or you have a
+            general question?
+          </p>
         </div>
       </div>
-      <div className="flex gap-4 self-stretch flex-col sm:flex-row">
+      <div className="flex flex-col gap-4 self-stretch sm:flex-row">
         <ThreadSuggestion prompt="I need help with product search">
-          <p className="font-semibold mb-2">Product search</p>
+          <p className="mb-2 font-semibold">Product search</p>
         </ThreadSuggestion>
         <ThreadSuggestion prompt="I need to talk to human agent support">
-          <p className="font-semibold mb-2">Human agent</p>
+          <p className="mb-2 font-semibold">Human agent</p>
         </ThreadSuggestion>
       </div>
     </div>
   );
 };
 
-const ThreadSuggestion: FC<PropsWithChildren<{ prompt: string }>> = ({ prompt, children }) => {
+const ThreadSuggestion: FC<PropsWithChildren<{ prompt: string }>> = ({
+  prompt,
+  children,
+}) => {
   return (
-    <ThreadPrimitive.Suggestion prompt={prompt} method="replace" autoSend asChild>
-      <Button variant="outline" className="sm:basis-full flex items-center justify-center text-md h-full"> 
+    <ThreadPrimitive.Suggestion
+      prompt={prompt}
+      method="replace"
+      autoSend
+      asChild
+    >
+      <Button
+        variant="outline"
+        className="text-md flex h-full items-center justify-center sm:basis-full"
+      >
         {children}
       </Button>
     </ThreadPrimitive.Suggestion>
-  )
-}
+  );
+};
 
 const ThreadScrollToBottom: FC = () => {
   return (
@@ -82,7 +107,7 @@ const ThreadScrollToBottom: FC = () => {
         <IconButton
           tooltip="Scroll to bottom"
           variant="outline"
-          className="-top-10 absolute rounded-full disabled:invisible"
+          className="absolute -top-10 rounded-full disabled:invisible"
         >
           <ArrowDownIcon className="size-4" />
         </IconButton>
@@ -96,10 +121,10 @@ const Composer: FC = () => {
     <ComposerPrimitive.Root className="flex w-[calc(100%-32px)] max-w-[40rem] items-end rounded-lg border p-0.5 transition-shadow focus-within:shadow-sm">
       <ComposerPrimitive.Input
         placeholder="Write a message..."
-        className="h-12 max-h-40 flex-grow resize-none bg-transparent p-3.5 text-sm outline-none placeholder:text-foreground/50"
+        className="placeholder:text-foreground/50 h-12 max-h-40 flex-grow resize-none bg-transparent p-3.5 text-sm outline-none"
       />
-      <ComposerPrimitive.Send className="m-2 flex h-8 w-8 items-center justify-center rounded-md bg-foreground font-bold text-2xl shadow transition-opacity disabled:opacity-10">
-        <SendHorizonalIcon className="size-4 text-background" />
+      <ComposerPrimitive.Send className="bg-foreground m-2 flex h-8 w-8 items-center justify-center rounded-md text-2xl font-bold shadow transition-opacity disabled:opacity-10">
+        <SendHorizonalIcon className="text-background size-4" />
       </ComposerPrimitive.Send>
     </ComposerPrimitive.Root>
   );
@@ -116,7 +141,7 @@ const UserMessage: FC = () => {
       <div className="flex-grow">
         {/* <p className="font-semibold">You</p> */}
 
-        <div className="bg-gray-800 text-white rounded-full p-4">
+        <div className="rounded-full bg-gray-800 p-4 text-white">
           <p className="whitespace-pre-line">
             <MessagePrimitive.Content />
           </p>
@@ -137,14 +162,13 @@ const AssistantMessage: FC = () => {
       <div className="flex-grow">
         {/* <p className="font-semibold">Assistant</p> */}
 
-        <p className="whitespace-pre-line text-foreground">
+        <p className="text-foreground whitespace-pre-line">
           <MessagePrimitive.Content />
         </p>
       </div>
     </MessagePrimitive.Root>
   );
 };
-
 
 type IconButton = ButtonProps & { tooltip: string };
 

@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import icon from "@/public/favicon/favicon.svg";
 import type { TooltipContentProps } from "@radix-ui/react-tooltip";
 import Image from "next/image";
-import { type FC, forwardRef } from "react";
+import { type FC } from "react";
 import { Thread } from "@/components/ui/assistant-ui/thread";
 import { Sheet, SheetContent, SheetTrigger } from "../ui/sheet";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
@@ -17,21 +17,24 @@ type ButtonWithTooltipProps = ButtonProps & {
   side?: TooltipContentProps["side"];
 };
 
-const ButtonWithTooltip = forwardRef<HTMLButtonElement, ButtonWithTooltipProps>(
-  ({ children, tooltip, side = "top", ...rest }, ref) => {
-    return (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button {...rest} ref={ref}>
-            {children}
-            <span className="sr-only">{tooltip}</span>
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side={side}>{tooltip}</TooltipContent>
-      </Tooltip>
-    );
-  },
-);
+const ButtonWithTooltip: FC<ButtonWithTooltipProps> = ({
+  children,
+  tooltip,
+  side = "top",
+  ...rest
+}) => {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button {...rest}>
+          {children}
+          <span className="sr-only">{tooltip}</span>
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side={side}>{tooltip}</TooltipContent>
+    </Tooltip>
+  );
+};
 
 const TopLeft: FC = () => {
   return (
@@ -41,7 +44,7 @@ const TopLeft: FC = () => {
       tooltip="New Chat"
       side="right"
     >
-      <div className="flex items-center gap-2 font-semibold text-sm">
+      <div className="flex items-center gap-2 text-sm font-semibold">
         <Image src={icon} alt="logo" className="inline size-4" />
         <span>assistant-ui</span>
       </div>
@@ -53,15 +56,15 @@ const TopLeft: FC = () => {
 
 const MainLeft: FC = () => {
   return (
-    <nav className="flex flex-col items-stretch gap-1 font-medium text-sm">
+    <nav className="flex flex-col items-stretch gap-1 text-sm font-medium">
       <Link
         href="#"
-        className="flex items-center gap-3 rounded-lg bg-muted px-3 py-2 text-primary transition-all hover:text-primary"
+        className="bg-muted text-primary hover:text-primary flex items-center gap-3 rounded-lg px-3 py-2 transition-all"
       >
         New Chat
         <ButtonWithTooltip
           variant={"ghost"}
-          className="ml-auto h-auto p-0 hover:text-foreground/60"
+          className="hover:text-foreground/60 ml-auto h-auto p-0"
           tooltip="Archive"
         >
           <ArchiveIcon className="size-4" />

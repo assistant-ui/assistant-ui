@@ -43,10 +43,10 @@ export default function Home() {
   return (
     <main className="container mx-auto flex flex-col gap-6 self-stretch py-4">
       <div className="mt-12 flex flex-col gap-4 self-center">
-        <h1 className="text-center font-extrabold text-4xl">
+        <h1 className="text-center text-4xl font-extrabold">
           React Components for AI Chat
         </h1>
-        <p className="text-center text-foreground/85 text-xl">
+        <p className="text-foreground/85 text-center text-xl">
           Add an AI chatbot to your app in minutes.
         </p>
       </div>

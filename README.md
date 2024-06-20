@@ -25,7 +25,7 @@ import { useVercelUseChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { AssistantModal } from "@/components/ui/assistant-ui/assistant-modal";
 
 export default const MyApp = () => {
-  const chat = useChat({ 
+  const chat = useChat({
     api: "/api/chat" // your backend route
   });
   const runtime = useVercelUseChatRuntime(chat);

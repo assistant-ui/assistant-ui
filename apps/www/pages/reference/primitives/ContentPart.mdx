@@ -18,15 +18,11 @@ const TextContentPart = () => {
 };
 
 const ImageContentPart = () => {
-  return (
-    <ContentPartPrimitive.Image />
-  );
+  return <ContentPartPrimitive.Image />;
 };
 
 const UIContentPart = () => {
-  return (
-    <ContentPartPrimitive.Display />
-  );
+  return <ContentPartPrimitive.Display />;
 };
 ```
 
@@ -34,7 +30,7 @@ const UIContentPart = () => {
 
 ### InProgressIndicator
 
-Only rendered when the content part is in progress. While a message is in progress, the very last content part is considered to be in progress. This component acts as a portal host for `<MessagePrimitive.InProgress />`.  
+Only rendered when the content part is in progress. While a message is in progress, the very last content part is considered to be in progress. This component acts as a portal host for `<MessagePrimitive.InProgress />`.
 
 ### Text
 

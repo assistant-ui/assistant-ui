@@ -13,7 +13,7 @@ import { MessagePrimitive } from "@assistant-ui/react";
 const UserMessage = () => (
   <MessagePrimitive.Root>
     User: <MessagePrimitive.Content />
-    
+
     <BranchPicker />
     <ActionBar />
   </Message.Root>
@@ -22,7 +22,7 @@ const UserMessage = () => (
 const AssistantMessage = () => (
   <MessagePrimitive.Root>
     Assistant: <MessagePrimitive.Content />
-    
+
     <BranchPicker />
     <ActionBar />
   </Message.Root>
@@ -40,48 +40,51 @@ This primitive renders a `<div>` element unless `asChild` is set.
 <PropsTable
   data={[
     {
-      name: 'asChild',
+      name: "asChild",
       required: false,
-      type: 'boolean',
-      default: 'false',
+      type: "boolean",
+      default: "false",
       description: (
         <>
           Change the default rendered element for the one passed as a child,
           merging their props and behavior.
           <br />
           <br />
-          Read our <a href="/reference/primitives/composition">Composition</a> guide for more
-          details.
+          Read our <a href="/reference/primitives/composition">
+            Composition
+          </a>{" "}
+          guide for more details.
         </>
       ),
     },
   ]}
 />
 
-
 ### InProgress
 
-The indicator to show while an assistant message is being generated.  
+The indicator to show while an assistant message is being generated.
 
-The contents of this element will be portaled to `<ContentPartPrimitive.InProgressIndicator />`, which allows the indicator to be displayed at the very end of the message.  
+The contents of this element will be portaled to `<ContentPartPrimitive.InProgressIndicator />`, which allows the indicator to be displayed at the very end of the message.
 
 This primitive renders a `<span>` element unless `asChild` is set.
 
 <PropsTable
   data={[
     {
-      name: 'asChild',
+      name: "asChild",
       required: false,
-      type: 'boolean',
-      default: 'false',
+      type: "boolean",
+      default: "false",
       description: (
         <>
           Change the default rendered element for the one passed as a child,
           merging their props and behavior.
           <br />
           <br />
-          Read our <a href="/reference/primitives/composition">Composition</a> guide for more
-          details.
+          Read our <a href="/reference/primitives/composition">
+            Composition
+          </a>{" "}
+          guide for more details.
         </>
       ),
     },
@@ -90,19 +93,17 @@ This primitive renders a `<span>` element unless `asChild` is set.
 
 ### Content
 
-The content of the message. This renders a separate component for each content part of the message. 
+The content of the message. This renders a separate component for each content part of the message.
 
 <PropsTable
   data={[
     {
-      name: 'components',
+      name: "components",
       required: false,
-      type: 'ContentPartComponents',
+      type: "ContentPartComponents",
       description: (
         // TODO better docs for this
-        <>
-          The component to render for each content part.
-        </>
+        <>The component to render for each content part.</>
       ),
     },
   ]}
@@ -115,58 +116,40 @@ Renders children if a condition is met.
 <PropsTable
   data={[
     {
-      name: 'user',
+      name: "user",
       required: false,
-      type: 'boolean | undefined',
-      default: 'undefined',
-      description: (
-        <>
-          Render children if the message is from the user.
-        </>
-      ),
+      type: "boolean | undefined",
+      default: "undefined",
+      description: <>Render children if the message is from the user.</>,
     },
     {
-      name: 'assistant',
+      name: "assistant",
       required: false,
-      type: 'boolean | undefined',
-      default: 'undefined',
-      description: (
-        <>
-          Render children if the message is from the assistant.
-        </>
-      ),
+      type: "boolean | undefined",
+      default: "undefined",
+      description: <>Render children if the message is from the assistant.</>,
     },
     {
-      name: 'hasBranches',
+      name: "hasBranches",
       required: false,
-      type: 'boolean | undefined',
-      default: 'undefined',
-      description: (
-        <>
-          Render children if the message has branches.
-        </>
-      ),
+      type: "boolean | undefined",
+      default: "undefined",
+      description: <>Render children if the message has branches.</>,
     },
     {
-      name: 'copied',
+      name: "copied",
       required: false,
-      type: 'boolean | undefined',
-      default: 'undefined',
-      description: (
-        <>
-          Render children if the message is copied.
-        </>
-      ),
+      type: "boolean | undefined",
+      default: "undefined",
+      description: <>Render children if the message is copied.</>,
     },
     {
-      name: 'lastOrHover',
+      name: "lastOrHover",
       required: false,
-      type: 'boolean | undefined',
-      default: 'undefined',
+      type: "boolean | undefined",
+      default: "undefined",
       description: (
-        <>
-          Render children if the message is the last or hovered over.
-        </>
+        <>Render children if the message is the last or hovered over.</>
       ),
     },
   ]}

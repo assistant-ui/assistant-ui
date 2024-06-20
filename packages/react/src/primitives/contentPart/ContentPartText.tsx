@@ -1,8 +1,5 @@
-import {
-  type ComponentPropsWithoutRef,
-  Primitive,
-} from "@radix-ui/react-primitive";
-import { type ElementRef, forwardRef } from "react";
+import { Primitive } from "@radix-ui/react-primitive";
+import { type ElementRef, forwardRef, ComponentPropsWithoutRef } from "react";
 import { useContentPartContext } from "../../context/ContentPartContext";
 
 type ContentPartTextElement = ElementRef<typeof Primitive.span>;
@@ -31,3 +28,5 @@ export const ContentPartText = forwardRef<
     </Primitive.span>
   );
 });
+
+ContentPartText.displayName = "ContentPartText";

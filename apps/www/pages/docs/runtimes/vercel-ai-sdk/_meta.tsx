@@ -1,5 +1,7 @@
-export default {
+const meta = {
   "use-chat": "useChat",
   "use-assistant": "useAssistant",
-  "rsc": "RSC",
+  rsc: "RSC",
 };
+
+export default meta;

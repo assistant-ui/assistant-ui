@@ -2,11 +2,13 @@
 
 import { composeEventHandlers } from "@radix-ui/primitive";
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
+import { Primitive } from "@radix-ui/react-primitive";
 import {
-  type ComponentPropsWithoutRef,
-  Primitive,
-} from "@radix-ui/react-primitive";
-import { type ElementRef, forwardRef, useRef } from "react";
+  type ElementRef,
+  forwardRef,
+  useRef,
+  ComponentPropsWithoutRef,
+} from "react";
 import { useThreadContext } from "../../context/ThreadContext";
 import { useOnResizeContent } from "../../utils/hooks/useOnResizeContent";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
@@ -86,3 +88,5 @@ export const ThreadViewport = forwardRef<
     </Primitive.div>
   );
 });
+
+ThreadViewport.displayName = "ThreadViewport";

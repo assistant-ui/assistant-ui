@@ -97,3 +97,5 @@ export const ComposerInput = forwardRef<
     );
   },
 );
+
+ComposerInput.displayName = "ComposerInput";

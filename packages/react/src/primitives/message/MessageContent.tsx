@@ -69,6 +69,7 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
       return <Text part={part} status={status} />;
 
     case "image":
+      // eslint-disable-next-line jsx-a11y/alt-text -- not a real image
       return <Image part={part} status={status} />;
 
     case "ui":

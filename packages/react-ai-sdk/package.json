@@ -46,7 +46,7 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/tsconfig": "workspace:*",
-    "@types/node": "^20.14.2"
+    "@types/node": "^20.14.7"
   },
   "publishConfig": {
     "access": "public",

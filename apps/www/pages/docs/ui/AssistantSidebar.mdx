@@ -2,14 +2,14 @@
 title: AssistantSidebar
 ---
 
-import { Steps } from 'nextra/components'
+import { Steps } from "nextra/components";
 
 ## Overview
 
 A chat sidebar show on the right side of the screen. Useful for co-pilot use cases.
 
 ## Getting Started
- 
+
 <Steps>
 ### Create a Next.JS project
 
@@ -37,14 +37,12 @@ This adds `/components/ui/assistant-ui/assistant-sidebar.tsx` and `/components/u
 `/app/page.tsx`
 
 ```tsx {1, 6}
-import { AssistantSidebar } from '@/components/ui/assistant-ui/assistant-sidebar';
+import { AssistantSidebar } from "@/components/ui/assistant-ui/assistant-sidebar";
 
 export default function Home() {
   return (
     <div className="h-full">
-      <AssistantSidebar>
-        {/* your app */}
-      </AssistantSidebar>
+      <AssistantSidebar>{/* your app */}</AssistantSidebar>
     </div>
   );
 }

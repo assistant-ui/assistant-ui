@@ -2,7 +2,7 @@
 title: Thread
 ---
 
-import { Steps, Callout } from 'nextra/components'
+import { Steps, Callout } from "nextra/components";
 
 ## Overview
 
@@ -29,24 +29,26 @@ npx shadcn-ui@latest init
 ```sh
 npx assistant-ui@latest add thread
 ```
+
 This adds a `/components/ui/assistant-ui/thread.tsx` file to your project, which you can adjust as needed.
 
 <Callout type="info" emoji="💡">
-  The `thread` template is minimal and does not include branching or editing support.  
+  The `thread` template is minimal and does not include branching or editing support.
 
-  Alternatively, you can add `thread-full`, which includes branching and editing enabled by default. 
-  ```sh
-  npx assistant-ui@latest add thread-full
-  ```
+Alternatively, you can add `thread-full`, which includes branching and editing enabled by default.
+
+```sh
+npx assistant-ui@latest add thread-full
+```
+
 </Callout>
-
 
 ### Use in your application
 
 `/app/page.tsx`
 
 ```tsx {1, 6}
-import { Thread } from '@/components/ui/assistant-ui/thread';
+import { Thread } from "@/components/ui/assistant-ui/thread";
 
 export default function Home() {
   return (

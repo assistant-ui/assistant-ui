@@ -1,8 +1,5 @@
-import {
-  type ComponentPropsWithoutRef,
-  Primitive,
-} from "@radix-ui/react-primitive";
-import { type ElementRef, forwardRef } from "react";
+import { Primitive } from "@radix-ui/react-primitive";
+import { type ElementRef, forwardRef, ComponentPropsWithoutRef } from "react";
 import { useContentPartContext } from "../../context/ContentPartContext";
 
 type ContentPartImageElement = ElementRef<typeof Primitive.img>;
@@ -27,3 +24,5 @@ export const ContentPartImage = forwardRef<
 
   return <Primitive.img src={image} {...props} ref={forwardedRef} />;
 });
+
+ContentPartImage.displayName = "ContentPartImage";

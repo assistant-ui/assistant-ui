@@ -4,9 +4,9 @@ import type { Unsubscribe } from "../Unsubscribe";
 
 export type CombinedSelector<T extends Array<unknown>, R> = (...args: T) => R;
 
-export const createCombinedStore = <T extends Array<unknown>, R>(
-  stores: { [K in keyof T]: StoreApi<T[K]> },
-) => {
+export const createCombinedStore = <T extends Array<unknown>, R>(stores: {
+  [K in keyof T]: StoreApi<T[K]>;
+}) => {
   const subscribe = (callback: () => void): Unsubscribe => {
     const unsubscribes = stores.map((store) => store.subscribe(callback));
     return () => {

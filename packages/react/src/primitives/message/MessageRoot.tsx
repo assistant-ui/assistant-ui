@@ -1,11 +1,8 @@
 "use client";
 
 import { composeEventHandlers } from "@radix-ui/primitive";
-import {
-  type ComponentPropsWithoutRef,
-  Primitive,
-} from "@radix-ui/react-primitive";
-import { type ElementRef, forwardRef } from "react";
+import { Primitive } from "@radix-ui/react-primitive";
+import { type ElementRef, forwardRef, ComponentPropsWithoutRef } from "react";
 import { useMessageContext } from "../../context/MessageContext";
 
 type MessageRootElement = ElementRef<typeof Primitive.div>;
@@ -35,3 +32,5 @@ export const MessageRoot = forwardRef<MessageRootElement, MessageRootProps>(
     );
   },
 );
+
+MessageRoot.displayName = "MessageRoot";

@@ -9,7 +9,7 @@ const config: DocsThemeConfig = {
     saturation: 93,
   },
   logo: (
-    <p className="flex items-center gap-2 font-bold text-lg">
+    <p className="flex items-center gap-2 text-lg font-bold">
       <Image src={icon} alt="logo" className="inline size-6" /> assistant-ui
     </p>
   ),
@@ -29,10 +29,10 @@ const config: DocsThemeConfig = {
     const { frontMatter, normalizePagesResult } = useConfig();
     return (
       <>
-        <p className="mt-4 mb-2 font-bold text-[hsl(var(--nextra-primary-hue)_var(--nextra-primary-saturation)_45%)] text-sm">
+        <p className="mb-2 mt-4 text-sm font-bold text-[hsl(var(--nextra-primary-hue)_var(--nextra-primary-saturation)_45%)]">
           {normalizePagesResult.activePath.at(-2)?.title}
         </p>
-        <h1 className="mb-2 inline-block font-extrabold text-2xl text-foreground tracking-tight sm:text-3xl">
+        <h1 className="text-foreground mb-2 inline-block text-2xl font-extrabold tracking-tight sm:text-3xl">
           {frontMatter["title"]}
         </h1>
         <p>{frontMatter["description"]}</p>

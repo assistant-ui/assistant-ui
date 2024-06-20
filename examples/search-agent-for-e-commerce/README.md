@@ -1,19 +1,19 @@
 ## Getting Started
 
 1. Clone the repository:
-(((git clone https://github.com/Yonom/assistant-ui.git)))
+   (((git clone https://github.com/Yonom/assistant-ui.git)))
 
 2. Navigate to the project directory:
-(((cd assistant-ui/examples/search-agent-for-e-commerce)))
+   (((cd assistant-ui/examples/search-agent-for-e-commerce)))
 
 3. Create a `.env` file with the following variable:
-(((echo 'OPENAI_API_KEY="")))
+   (((echo 'OPENAI_API_KEY="")))
 
 4. Make the `start.sh` script executable:
-(((chmod +x start.sh)))
+   (((chmod +x start.sh)))
 
 5. Start the servers:
-(((./start.sh)))
+   (((./start.sh)))
 
 6. Open the dummy e-commerce website in your browser:
    [http://localhost:8080/dummy-ecommerce-website.html](http://localhost:8080/dummy-ecommerce-website.html)
@@ -23,6 +23,7 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 ## Learn More
 
 This project uses:
+
 - assistant-ui components
 - shadcn components
 - Vercel AI SDK
