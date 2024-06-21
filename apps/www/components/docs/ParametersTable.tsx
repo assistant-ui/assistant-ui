@@ -1,3 +1,4 @@
+import { cn } from "@/lib/utils";
 import type { FC } from "react";
 
 type ParameterDef = {
@@ -15,9 +16,7 @@ type ParameterProps = {
 
 const Parameter: FC<ParameterProps> = ({ parameter, isLast }) => {
   return (
-    <div
-      className={`flex flex-col gap-1 px-3 py-3${!isLast ? "border-b" : ""}`}
-    >
+    <div className={cn("flex flex-col gap-1 px-3 py-3", !isLast && "border-b")}>
       <div className="relative flex gap-2">
         <h3 className="font-mono text-sm font-semibold">
           {parameter.name}
