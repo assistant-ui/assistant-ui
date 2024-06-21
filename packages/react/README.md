@@ -1,5 +1,5 @@
 <a href="https://www.assistant-ui.com">
-  <img src="https://raw.githubusercontent.com/Yonom/assistant-ui/.github/assets/header.svg" alt="assistant-ui Header" width="100%" />
+  <img src="https://raw.githubusercontent.com/Yonom/assistant-ui/main/.github/assets/header.svg" alt="assistant-ui Header" width="100%" />
 </a>
 
 assistant-ui is a set of React components for AI chat.
