@@ -4,12 +4,13 @@ import { add } from "@/src/commands/add";
 import { Command } from "commander";
 
 import { getPackageInfo } from "./utils/get-package-info";
+import { create } from "./commands/create";
 
 process.on("SIGINT", () => process.exit(0));
 process.on("SIGTERM", () => process.exit(0));
 
 async function main() {
-  const packageInfo = await getPackageInfo();
+  const packageInfo = getPackageInfo();
 
   const program = new Command()
     .name("assistant-ui")
@@ -21,6 +22,7 @@ async function main() {
     );
 
   program.addCommand(add);
+  program.addCommand(create);
 
   program.parse();
 }

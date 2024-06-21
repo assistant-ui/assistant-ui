@@ -10,30 +10,19 @@
 
 - [Documentation](https://www.assistant-ui.com/docs/getting-started)
 
-## Minimal Example with Vercel AI SDK
+## Quick Start
+
+Step 1: Create a new project with `assistant-ui` pre-configured:
 
 ```sh
-npx assistant-ui@latest add modal
+npx assistant-ui@latest create my-app
+cd my-app
 ```
 
-```tsx
-"use client";
+Step 2: Update the `.env` file with your OpenAI API key. 
 
-import { useChat } from "@ai-sdk/react";
-import { AssistantRuntimeProvider } from "@assistant-ui/react";
-import { useVercelUseChatRuntime } from "@assistant-ui/react-ai-sdk";
-import { AssistantModal } from "@/components/ui/assistant-ui/assistant-modal";
+Step 3: Run the app:
 
-export default const MyApp = () => {
-  const chat = useChat({
-    api: "/api/chat" // your backend route
-  });
-  const runtime = useVercelUseChatRuntime(chat);
-
-  return (
-    <AssistantRuntimeProvider runtime={runtime}>
-      <AssistantModal />
-    </AssistantRuntimeProvider>
-  );
-}
+```sh
+npm run dev
 ```
