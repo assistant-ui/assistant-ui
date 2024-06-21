@@ -63,8 +63,7 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsup src/index.ts src/experimental.ts --format cjs,esm --dts --sourcemap",
-    "prepublish": "cp ../../README.md ./README.md"
+    "build": "tsup src/index.ts src/experimental.ts --format cjs,esm --dts --sourcemap"
   },
   "dependencies": {
     "@radix-ui/primitive": "^1.1.0",
