@@ -96,7 +96,7 @@ const MyApp = () => {
 
 If you need access to component props, you can use the `useAssistantToolUI` hook.
 
-```tsx {1, 4}
+```tsx {5-11}
 import { useAssistantToolUI } from "@assistant-ui/react/experimental";
 import { useCallback } from "react";
 
@@ -107,7 +107,7 @@ const MyComponent = ({ product_id }) => {
       // you can access component props here
       return <p>product_info({ product_id })</p>;
     }, [product_id]),
-  })
+  });
 
   ...
 };
@@ -128,7 +128,7 @@ const MyApp = () => {
 
 The following example shows a `date_picker` tool that the AI can call to collect a date from the user.
 
-```tsx {1, 4}
+```tsx {12}
 import { makeAssistantToolUI } from "@assistant-ui/react/experimental"; 
 import { DatePicker } from "@/components/datepicker";
 
