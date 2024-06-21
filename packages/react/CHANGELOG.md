@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.1.8
+
+### Patch Changes
+
+- 8513f9a: feat: ToolUI addResult API
+
 ## 0.1.7
 
 ### Patch Changes

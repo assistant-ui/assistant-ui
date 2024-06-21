@@ -1,5 +1,13 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.1.7
+
+### Patch Changes
+
+- 8513f9a: feat: ToolUI addResult API
+- Updated dependencies [8513f9a]
+  - @assistant-ui/react@0.1.8
+
 ## 0.1.6
 
 ### Patch Changes
