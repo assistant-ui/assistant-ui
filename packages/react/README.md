@@ -14,6 +14,8 @@ assistant-ui is a set of React components for AI chat.
 
 ## Quick Start
 
+[![assistant-ui starter template](https://raw.githubusercontent.com/Yonom/assistant-ui/main/.github/assets/assistant-ui-starter.gif)](https://youtu.be/k6Dc8URmLjk)
+
 Step 1: Create a new project with `assistant-ui` pre-configured:
 
 ```sh
