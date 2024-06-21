@@ -1,5 +1,11 @@
 # assistant-ui
 
+## 0.0.6
+
+### Patch Changes
+
+- ab031a0: fix: make `create` directory argument optional
+
 ## 0.0.5
 
 ### Patch Changes

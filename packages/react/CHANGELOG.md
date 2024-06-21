@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.1.9
+
+### Patch Changes
+
+- ab16a99: feat: useMessageUtils Context API
+- ab16a99: feat: useThreadActions Context API
+- ab16a99: fix: make all Context APIs read-only
+
 ## 0.1.8
 
 ### Patch Changes
