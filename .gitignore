@@ -29,12 +29,10 @@ out/
 
 # production
 build
+dist
+apps/www/public/registry/
 
 # turbo
 .turbo
 
-.env
 
-dist/
-
-apps/www/public/registry/

@@ -18,13 +18,13 @@ export const MessageInProgress = forwardRef<
   MessageInProgressElement,
   MessageInProgressProps
 >((props, ref) => {
-  const { useMessage } = useMessageContext();
+  const { useMessageUtils } = useMessageContext();
 
   useMemo(() => {
-    useMessage
+    useMessageUtils
       .getState()
       .setInProgressIndicator(<Primitive.span {...props} ref={ref} />);
-  }, [useMessage, props, ref]);
+  }, [useMessageUtils, props, ref]);
 
   return null;
 });

@@ -12,6 +12,8 @@ import {
 import { useThreadContext } from "../../context/ThreadContext";
 import { useOnResizeContent } from "../../utils/hooks/useOnResizeContent";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
+import { StoreApi } from "zustand";
+import { ThreadViewportState } from "../../context";
 
 type ThreadViewportElement = ElementRef<typeof Primitive.div>;
 type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;
@@ -71,7 +73,9 @@ export const ThreadViewport = forwardRef<
       // ignore scroll down
     } else if (newIsAtBottom !== isAtBottom) {
       isScrollingToBottomRef.current = false;
-      useViewport.setState({ isAtBottom: newIsAtBottom });
+      (useViewport as unknown as StoreApi<ThreadViewportState>).setState({
+        isAtBottom: newIsAtBottom,
+      });
     }
 
     lastScrollTop.current = div.scrollTop;

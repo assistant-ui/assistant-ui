@@ -4,7 +4,7 @@ import { useThreadContext } from "../context/ThreadContext";
 import { useCombinedStore } from "../utils/combined/useCombinedStore";
 
 export const useGoToPreviousBranch = () => {
-  const { useThread } = useThreadContext();
+  const { useThreadActions } = useThreadContext();
   const { useMessage, useComposer } = useMessageContext();
 
   const disabled = useCombinedStore(
@@ -14,10 +14,10 @@ export const useGoToPreviousBranch = () => {
 
   const callback = useCallback(() => {
     const { message, branches } = useMessage.getState();
-    useThread
+    useThreadActions
       .getState()
       .switchToBranch(branches[branches.indexOf(message.id) - 1]!);
-  }, [useMessage, useThread]);
+  }, [useThreadActions, useMessage]);
 
   if (disabled) return null;
   return callback;

@@ -12,8 +12,8 @@ type MessageRootProps = PrimitiveDivProps;
 
 export const MessageRoot = forwardRef<MessageRootElement, MessageRootProps>(
   ({ onMouseEnter, onMouseLeave, ...rest }, ref) => {
-    const { useMessage } = useMessageContext();
-    const setIsHovering = useMessage((s) => s.setIsHovering);
+    const { useMessageUtils } = useMessageContext();
+    const setIsHovering = useMessageUtils((s) => s.setIsHovering);
 
     const handleMouseEnter = () => {
       setIsHovering(true);

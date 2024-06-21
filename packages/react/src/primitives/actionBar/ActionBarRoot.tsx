@@ -26,11 +26,11 @@ export const ActionBarRoot = forwardRef<
   ActionBarRootProps
 >(({ hideWhenRunning, autohide, autohideFloat, ...rest }, ref) => {
   const { useThread } = useThreadContext();
-  const { useMessage } = useMessageContext();
+  const { useMessage, useMessageUtils } = useMessageContext();
 
   const hideAndfloatStatus = useCombinedStore(
-    [useThread, useMessage],
-    (t, m) => {
+    [useThread, useMessage, useMessageUtils],
+    (t, m, mu) => {
       if (hideWhenRunning && t.isRunning) return HideAndFloatStatus.Hidden;
 
       const autohideEnabled =
@@ -40,7 +40,7 @@ export const ActionBarRoot = forwardRef<
       if (!autohideEnabled) return HideAndFloatStatus.Normal;
 
       // hidden status
-      if (!m.isHovering) return HideAndFloatStatus.Hidden;
+      if (!mu.isHovering) return HideAndFloatStatus.Hidden;
 
       // floating status
       if (

@@ -5,8 +5,10 @@ import type { ThreadRuntime } from "../../runtime/core/ThreadRuntime";
 import type { ThreadContextValue } from "../ThreadContext";
 import { ThreadContext } from "../ThreadContext";
 import { makeComposerStore } from "../stores/Composer";
-import { makeThreadStore } from "../stores/Thread";
+import { ThreadState, makeThreadStore } from "../stores/Thread";
 import { makeThreadViewportStore } from "../stores/ThreadViewport";
+import { makeThreadActionStore } from "../stores/ThreadActions";
+import { StoreApi } from "zustand";
 
 type ThreadProviderProps = {
   runtime: ThreadRuntime;
@@ -21,28 +23,34 @@ export const ThreadProvider: FC<PropsWithChildren<ThreadProviderProps>> = ({
     runtimeRef.current = runtime;
   });
 
-  const [{ context, onRuntimeUpdate }] = useState(() => {
-    const { useThread, onRuntimeUpdate } = makeThreadStore(runtimeRef);
+  const [context] = useState<ThreadContextValue>(() => {
+    const useThread = makeThreadStore(runtimeRef);
+    const useThreadActions = makeThreadActionStore(runtimeRef);
     const useViewport = makeThreadViewportStore();
-    const useComposer = makeComposerStore(useThread);
+    const useComposer = makeComposerStore(useThread, useThreadActions);
 
     return {
-      context: {
-        useViewport,
-        useThread,
-        useComposer,
-      } satisfies ThreadContextValue,
-      onRuntimeUpdate,
+      useThread,
+      useThreadActions,
+      useComposer,
+      useViewport,
     };
   });
 
+  // subscribe to runtime updates
   useEffect(() => {
-    // whenever the runtime changes
+    const onRuntimeUpdate = () => {
+      (context.useThread as unknown as StoreApi<ThreadState>).setState(
+        Object.freeze({
+          messages: runtimeRef.current.messages,
+          isRunning: runtimeRef.current.isRunning,
+        }) satisfies ThreadState,
+        true,
+      );
+    };
     onRuntimeUpdate();
-
-    // subscribe to runtime updates
     return runtime.subscribe(onRuntimeUpdate);
-  }, [onRuntimeUpdate, runtime]);
+  }, [context, runtime]);
 
   const RuntimeSynchronizer = (runtime as ReactThreadRuntime)
     .unstable_synchronizer;

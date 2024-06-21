@@ -1,7 +1,7 @@
 "use client";
 
 import { type FC, type PropsWithChildren, useEffect, useState } from "react";
-import { create } from "zustand";
+import { StoreApi, create } from "zustand";
 import { ContentPartContext } from "../ContentPartContext";
 import type { ContentPartContextValue } from "../ContentPartContext";
 import { useMessageContext } from "../MessageContext";
@@ -29,16 +29,20 @@ const syncContentPart = (
   if (currentState.part === part && currentState.status === status) return;
 
   // sync useContentPart
-  useContentPart.setState({ part, status });
+  (useContentPart as unknown as StoreApi<ContentPartState>).setState(
+    Object.freeze({
+      part,
+      status,
+    }),
+  );
 };
 
 const useContentPartContext = (partIndex: number) => {
   const { useMessage } = useMessageContext();
   const [context] = useState<ContentPartContextValue>(() => {
-    const useContentPart = create<ContentPartState>(() => ({
-      part: { type: "text", text: "" },
-      status: "done",
-    }));
+    const useContentPart = create<ContentPartState>(
+      () => ({}) as ContentPartState,
+    );
 
     syncContentPart(useMessage.getState(), useContentPart, partIndex);
 
@@ -46,6 +50,7 @@ const useContentPartContext = (partIndex: number) => {
   });
 
   useEffect(() => {
+    syncContentPart(useMessage.getState(), context.useContentPart, partIndex);
     return useMessage.subscribe((message) => {
       syncContentPart(message, context.useContentPart, partIndex);
     });

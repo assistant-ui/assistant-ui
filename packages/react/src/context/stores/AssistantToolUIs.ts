@@ -3,19 +3,19 @@
 import { create } from "zustand";
 import type { ToolCallContentPartComponent } from "../../primitives/message/ContentPartComponentTypes";
 
-export type AssistantToolUIsState = {
+export type AssistantToolUIsState = Readonly<{
   getToolUI: (toolName: string) => ToolCallContentPartComponent | null;
   setToolUI: (
     toolName: string,
     render: ToolCallContentPartComponent,
   ) => () => void;
-};
+}>;
 
 export const makeAssistantToolUIsStore = () =>
   create<AssistantToolUIsState>((set) => {
     const renderers = new Map<string, ToolCallContentPartComponent[]>();
 
-    return {
+    return Object.freeze({
       getToolUI: (name) => {
         const arr = renderers.get(name);
         const last = arr?.at(-1);
@@ -36,8 +36,10 @@ export const makeAssistantToolUIsStore = () =>
           if (index !== -1) {
             arr.splice(index, 1);
           }
-          set({}); // notify the store listeners
+          if (index === arr.length) {
+            set({}); // notify the store listeners
+          }
         };
       },
-    } satisfies AssistantToolUIsState;
+    }) satisfies AssistantToolUIsState;
   });

@@ -4,7 +4,7 @@ import { useCombinedStore } from "../utils/combined/useCombinedStore";
 import { getMessageText } from "../utils/getMessageText";
 
 export const useCopyMessage = ({ copiedDuration = 3000 }) => {
-  const { useMessage, useComposer } = useMessageContext();
+  const { useMessage, useMessageUtils, useComposer } = useMessageContext();
 
   const hasCopyableContent = useCombinedStore(
     [useMessage, useComposer],
@@ -14,15 +14,16 @@ export const useCopyMessage = ({ copiedDuration = 3000 }) => {
   );
 
   const callback = useCallback(() => {
+    const { message } = useMessage.getState();
+    const { setIsCopied } = useMessageUtils.getState();
     const { isEditing, value: composerValue } = useComposer.getState();
-    const { message, setIsCopied } = useMessage.getState();
 
     const valueToCopy = isEditing ? composerValue : getMessageText(message);
 
     navigator.clipboard.writeText(valueToCopy);
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), copiedDuration);
-  }, [useComposer, useMessage, copiedDuration]);
+  }, [useMessage, useMessageUtils, useComposer, copiedDuration]);
 
   if (!hasCopyableContent) return null;
   return callback;

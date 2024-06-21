@@ -4,13 +4,13 @@ import { useCallback } from "react";
 import { useThreadContext } from "../context/ThreadContext";
 
 export const useCancelRun = () => {
-  const { useThread } = useThreadContext();
+  const { useThread, useThreadActions } = useThreadContext();
   const isRunning = useThread((s) => s.isRunning);
 
   const callback = useCallback(() => {
-    const { cancelRun } = useThread.getState();
+    const { cancelRun } = useThreadActions.getState();
     cancelRun();
-  }, [useThread]);
+  }, [useThreadActions]);
 
   if (!isRunning) return null;
   return callback;

@@ -1,13 +1,15 @@
 import { createContext, useContext } from "react";
-import type { StoreApi, UseBoundStore } from "zustand";
 import type { ComposerState } from "./stores/Composer";
 import type { ThreadState } from "./stores/Thread";
 import type { ThreadViewportState } from "./stores/ThreadViewport";
+import { ThreadActionsState } from "./stores/ThreadActions";
+import { ReadonlyStore } from "./ReadonlyStore";
 
 export type ThreadContextValue = {
-  useThread: UseBoundStore<StoreApi<ThreadState>>;
-  useComposer: UseBoundStore<StoreApi<ComposerState>>;
-  useViewport: UseBoundStore<StoreApi<ThreadViewportState>>;
+  useThread: ReadonlyStore<ThreadState>;
+  useThreadActions: ReadonlyStore<ThreadActionsState>;
+  useComposer: ReadonlyStore<ComposerState>;
+  useViewport: ReadonlyStore<ThreadViewportState>;
 };
 
 export const ThreadContext = createContext<ThreadContextValue | null>(null);

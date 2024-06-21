@@ -4,7 +4,7 @@ import { useThreadContext } from "../context/ThreadContext";
 import { useCombinedStore } from "../utils/combined/useCombinedStore";
 
 export const useReloadMessage = () => {
-  const { useThread, useViewport } = useThreadContext();
+  const { useThread, useThreadActions, useViewport } = useThreadContext();
   const { useMessage } = useMessageContext();
 
   const disabled = useCombinedStore(
@@ -14,9 +14,9 @@ export const useReloadMessage = () => {
 
   const callback = useCallback(() => {
     const { parentId } = useMessage.getState();
-    useThread.getState().startRun(parentId);
+    useThreadActions.getState().startRun(parentId);
     useViewport.getState().scrollToBottom();
-  }, [useMessage, useThread, useViewport]);
+  }, [useThreadActions, useMessage, useViewport]);
 
   if (disabled) return null;
   return callback;

@@ -1,7 +1,7 @@
 "use client";
 
 import { type FC, type PropsWithChildren, useEffect, useState } from "react";
-import { create } from "zustand";
+import { StoreApi, create } from "zustand";
 import type {
   AppendContentPart,
   ThreadMessage,
@@ -13,6 +13,7 @@ import { useThreadContext } from "../ThreadContext";
 import type { MessageState } from "../stores/Message";
 import { makeEditComposerStore } from "../stores/MessageComposer";
 import type { ThreadState } from "../stores/Thread";
+import { makeMessageUtilsStore } from "../stores/MessageUtils";
 
 type MessageProviderProps = PropsWithChildren<{
   messageIndex: number;
@@ -24,6 +25,7 @@ const getIsLast = (thread: ThreadState, message: ThreadMessage) => {
 
 const syncMessage = (
   thread: ThreadState,
+  getBranches: (messageId: string) => readonly string[],
   useMessage: MessageContextValue["useMessage"],
   messageIndex: number,
 ) => {
@@ -32,7 +34,7 @@ const syncMessage = (
   if (!message) return;
 
   const isLast = getIsLast(thread, message);
-  const branches = thread.getBranches(message.id);
+  const branches = getBranches(message.id);
 
   // if the message is the same, don't update
   const currentState = useMessage.getState();
@@ -45,7 +47,7 @@ const syncMessage = (
     return;
 
   // sync useMessage
-  useMessage.setState({
+  (useMessage as unknown as StoreApi<MessageState>).setState({
     message,
     parentId,
     branches,
@@ -54,28 +56,11 @@ const syncMessage = (
 };
 
 const useMessageContext = (messageIndex: number) => {
-  const { useThread } = useThreadContext();
+  const { useThread, useThreadActions } = useThreadContext();
 
   const [context] = useState<MessageContextValue>(() => {
-    const useMessage = create<MessageState>((set) => ({
-      message: null as unknown as ThreadMessage,
-      parentId: null,
-      branches: [],
-      isLast: false,
-      inProgressIndicator: null,
-      isCopied: false,
-      isHovering: false,
-      setInProgressIndicator: (value) => {
-        set({ inProgressIndicator: value });
-      },
-      setIsCopied: (value) => {
-        set({ isCopied: value });
-      },
-      setIsHovering: (value) => {
-        set({ isHovering: value });
-      },
-    }));
-
+    const useMessage = create<MessageState>(() => ({}) as MessageState);
+    const useMessageUtils = makeMessageUtilsStore();
     const useComposer = makeEditComposerStore({
       onEdit: () => {
         const message = useMessage.getState().message;
@@ -99,23 +84,33 @@ const useMessageContext = (messageIndex: number) => {
           (part): part is AppendContentPart =>
             part.type !== "text" && part.type !== "ui",
         );
-        useThread.getState().append({
+        useThreadActions.getState().append({
           parentId,
           content: [{ type: "text", text }, ...nonTextParts],
         });
       },
     });
 
-    syncMessage(useThread.getState(), useMessage, messageIndex);
+    syncMessage(
+      useThread.getState(),
+      useThreadActions.getState().getBranches,
+      useMessage,
+      messageIndex,
+    );
 
-    return { useMessage, useComposer };
+    return { useMessage, useMessageUtils, useComposer };
   });
 
   useEffect(() => {
     return useThread.subscribe((thread) => {
-      syncMessage(thread, context.useMessage, messageIndex);
+      syncMessage(
+        thread,
+        useThreadActions.getState().getBranches,
+        context.useMessage,
+        messageIndex,
+      );
     });
-  }, [context, useThread, messageIndex]);
+  }, [useThread, useThreadActions, context, messageIndex]);
 
   return context;
 };

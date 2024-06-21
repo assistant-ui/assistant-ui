@@ -62,8 +62,8 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
     tools: { by_name = {}, Fallback = defaultComponents.tools.Fallback } = {},
   } = {},
 }) => {
-  const { useThread } = useThreadContext();
-  const addToolResult = useThread((t) => t.addToolResult);
+  const { useThreadActions } = useThreadContext();
+  const addToolResult = useThreadActions((t) => t.addToolResult);
 
   const { useContentPart } = useContentPartContext();
   const { part, status } = useContentPart();

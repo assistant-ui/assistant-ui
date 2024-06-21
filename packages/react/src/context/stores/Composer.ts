@@ -1,6 +1,8 @@
-import { type StoreApi, type UseBoundStore, create } from "zustand";
+import { create } from "zustand";
 import { type BaseComposerState, makeBaseComposer } from "./BaseComposer";
 import type { ThreadState } from "./Thread";
+import { ThreadActionsState } from "./ThreadActions";
+import { ReadonlyStore } from "../ReadonlyStore";
 
 export type ComposerState = BaseComposerState &
   Readonly<{
@@ -11,8 +13,9 @@ export type ComposerState = BaseComposerState &
   }>;
 
 export const makeComposerStore = (
-  useThread: StoreApi<ThreadState>,
-): UseBoundStore<StoreApi<ComposerState>> =>
+  useThread: ReadonlyStore<ThreadState>,
+  useThreadActions: ReadonlyStore<ThreadActionsState>,
+): ReadonlyStore<ComposerState> =>
   create<ComposerState>()((set, get, store) => {
     return {
       ...makeBaseComposer(set, get, store),
@@ -23,7 +26,7 @@ export const makeComposerStore = (
         const { setValue, value } = get();
         setValue("");
 
-        useThread.getState().append({
+        useThreadActions.getState().append({
           parentId: useThread.getState().messages.at(-1)?.id ?? null,
           content: [{ type: "text", text: value }],
         });
@@ -32,7 +35,7 @@ export const makeComposerStore = (
         const thread = useThread.getState();
         if (!thread.isRunning) return false;
 
-        useThread.getState().cancelRun();
+        useThreadActions.getState().cancelRun();
         return true;
       },
     };
