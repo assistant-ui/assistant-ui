@@ -33,7 +33,11 @@ Update the `MyModelAdapter` below to integrate with your own custom API.
 ```tsx
 "use client";
 
-import { AssistantRuntimeProvider, useLocalRuntime } from "@assistant-ui/react";
+import { 
+  AssistantRuntimeProvider,
+  useLocalRuntime,
+  type ChatModelAdapter,
+} from "@assistant-ui/react";
 
 const MyModelAdapter: ChatModelAdapter = {
   async run({ messages, abortSignal }) {
