@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-ai-sdk",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "license": "MIT",
   "exports": {
     ".": {
@@ -33,7 +33,7 @@
   },
   "peerDependencies": {
     "@ai-sdk/react": "^0.0.x",
-    "@assistant-ui/react": "^0.1.6",
+    "@assistant-ui/react": "^0.1.7",
     "@types/react": "*",
     "ai": "^3.1.x",
     "react": "^18"
