@@ -2,16 +2,7 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import Image from "next/image";
-import { useActions, useUIState } from "ai/rsc";
-import {
-  VercelRSCAssistantProvider,
-  type AppendMessage,
-} from "@assistant-ui/react";
 import { AssistantModal } from "@/components/ui/assistant-ui/assistant-modal";
-import { useChat } from "ai/react";
-import { nanoid } from "nanoid";
-import { AI } from "@/app/api/chat/actions"; // Import AI
 
 function Home() {
   const searchParams = useSearchParams();
@@ -19,7 +10,6 @@ function Home() {
   const [isValid, setIsValid] = useState(false);
   const [indexId, setIndexId] = useState("");
   const [referrer, setReferrer] = useState("");
-  const chat = useChat();
 
   useEffect(() => {
     // console.log('isValid state changed:', isValid);
@@ -66,28 +56,10 @@ function Home() {
     }
   }, [iframeId]);
 
-  const { continueConversation } = useActions();
-  const [conversation, setConversation] = useUIState<typeof AI>();
-  const next = async (m: AppendMessage) => {
-    if (m.content[0]?.type !== "text")
-      throw new Error("Only text messages are supported");
-
-    const input = m.content[0].text;
-    setConversation((currentConversation) => [
-      ...currentConversation,
-      { id: nanoid(), role: "user", display: input },
-    ]);
-
-    const message = await continueConversation(input, indexId);
-    setConversation((currentConversation) => [...currentConversation, message]);
-  };
-
   return (
     <Suspense fallback={<div>Loading...</div>}>
       <div className="hover:scale-70 fixed bottom-4 right-4 size-12 rounded-full shadow">
-        <VercelRSCAssistantProvider messages={conversation} append={next}>
-          <AssistantModal />
-        </VercelRSCAssistantProvider>
+        <AssistantModal />
       </div>
     </Suspense>
   );

@@ -1,5 +1,5 @@
 {
-  "name": "search-agent",
+  "name": "search-agent-for-e-commerce",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -9,18 +9,19 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^0.0.32",
-    "@assistant-ui/react": "^0.0.19",
+    "@ai-sdk/openai": "^0.0.33",
+    "@assistant-ui/react": "^0.1.6",
+    "@assistant-ui/react-ai-sdk": "^0.1",
     "@radix-ui/react-avatar": "^1.1.0",
-    "@radix-ui/react-popover": "^1.1.0",
+    "@radix-ui/react-popover": "^1.1.1",
     "@radix-ui/react-slot": "^1.1.0",
-    "@radix-ui/react-tooltip": "^1.1.0",
-    "ai": "^3.2.1",
+    "@radix-ui/react-tooltip": "^1.1.1",
+    "ai": "^3.2.4",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "embla-carousel-autoplay": "^8.1.5",
     "embla-carousel-react": "^8.1.5",
-    "lucide-react": "^0.395.0",
+    "lucide-react": "^0.396.0",
     "nanoid": "^5.0.7",
     "next": "14.2.4",
     "react": "^18.3.1",

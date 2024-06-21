@@ -1,12 +1,11 @@
 "use server";
 
-import React, { useEffect } from "react";
 import { openai } from "@ai-sdk/openai";
 import { createAI, getMutableAIState, streamUI } from "ai/rsc";
 import { nanoid } from "nanoid";
 import type { ReactNode } from "react";
 import { z } from "zod";
-import { CarouselPlugin } from "../../../components/ui/productcarousel";
+import { CarouselPlugin } from "../components/ui/productcarousel";
 import fs from "fs";
 import path from "path";
 import { streamText } from "ai";
@@ -113,10 +112,7 @@ export async function continueConversation(
             .describe("User questions not related to products directly"),
         }),
         generate: async function* ({ user_question }) {
-          const filePath = path.resolve(
-            process.cwd(),
-            "public/shop_info.txt",
-          );
+          const filePath = path.resolve(process.cwd(), "public/shop_info.txt");
           const generalInfo = fs.readFileSync(filePath, "utf-8");
           const result = await streamText({
             model: openai("gpt-3.5-turbo"),
@@ -178,10 +174,7 @@ export async function continueConversation(
             "generating answer while escalating, ",
             identifiable_info,
           );
-          const filePath = path.resolve(
-            process.cwd(),
-            "public/shop_info.txt",
-          );
+          const filePath = path.resolve(process.cwd(), "public/shop_info.txt");
           const generalInfo = fs.readFileSync(filePath, "utf-8");
           const result = await streamText({
             model: openai("gpt-3.5-turbo"),

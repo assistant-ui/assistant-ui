@@ -115,7 +115,10 @@ export const AI = createAI<ServerMessage[], ClientMessage[]>({
 ```tsx
 "use client";
 
-import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import {
+  type AppendMessage,
+  AssistantRuntimeProvider,
+} from "@assistant-ui/react";
 import { useVercelRSCRuntime } from "@assistant-ui/react-ai-sdk";
 import { useActions, useUIState } from "ai/rsc";
 import { nanoid } from "nanoid";

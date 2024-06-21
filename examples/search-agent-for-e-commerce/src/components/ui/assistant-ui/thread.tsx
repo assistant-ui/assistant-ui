@@ -1,19 +1,22 @@
+"use client";
+
 import {
   ComposerPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
 } from "@assistant-ui/react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import React, { PropsWithChildren, type FC } from "react";
+import type { FC, PropsWithChildren } from "react";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
+  TooltipProvider,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { ArrowDownIcon, SendHorizonalIcon } from "lucide-react";
+import Image from "next/image";
 
 export const Thread: FC = () => {
   return (
@@ -47,10 +50,12 @@ const ThreadEmpty: FC = () => {
       <div className="mb-1 flex flex-grow flex-col items-center justify-center">
         {" "}
         {/* Reduced margin-bottom */}
-        <img
+        <Image
           src="/image.png"
           alt="Your Logo"
           className="mb-4 w-1/2 max-w-xs"
+          width={320}
+          height={164}
         />{" "}
         {/* Smaller image */}
         <div className="flex items-center">
@@ -117,7 +122,7 @@ const ThreadScrollToBottom: FC = () => {
 
 const Composer: FC = () => {
   return (
-    <ComposerPrimitive.Root className="flex w-[calc(100%-32px)] max-w-[40rem] items-end rounded-lg border p-0.5 transition-shadow focus-within:shadow-sm">
+    <ComposerPrimitive.Root className="flex w-[calc(100%-32px)] max-w-[42rem] items-end rounded-lg border p-0.5 transition-shadow focus-within:shadow-sm">
       <ComposerPrimitive.Input
         placeholder="Write a message..."
         className="placeholder:text-foreground/50 h-12 max-h-40 flex-grow resize-none bg-transparent p-3.5 text-sm outline-none"
@@ -131,20 +136,11 @@ const Composer: FC = () => {
 
 const UserMessage: FC = () => {
   return (
-    <MessagePrimitive.Root className="relative flex w-full max-w-2xl gap-3 pb-6">
-      {/* OPTIONALLY YOU CAN ADD AVATARS OF THE ASSISTANT */}
-      {/* <Avatar>
-        <AvatarFallback>Y</AvatarFallback>
-      </Avatar> */}
-
-      <div className="flex-grow">
-        {/* <p className="font-semibold">You</p> */}
-
-        <div className="rounded-full bg-gray-800 p-4 text-white">
-          <p className="whitespace-pre-line">
-            <MessagePrimitive.Content />
-          </p>
-        </div>
+    <MessagePrimitive.Root className="relative mb-6 flex w-full max-w-2xl flex-col items-end gap-2 pl-24">
+      <div className="relative mr-1 flex items-start gap-3">
+        <p className="bg-foreground/5 text-foreground max-w-xl whitespace-pre-line break-words rounded-3xl px-5 py-2.5">
+          <MessagePrimitive.Content />
+        </p>
       </div>
     </MessagePrimitive.Root>
   );
@@ -152,16 +148,14 @@ const UserMessage: FC = () => {
 
 const AssistantMessage: FC = () => {
   return (
-    <MessagePrimitive.Root className="relative flex w-full max-w-2xl gap-3 pb-6">
-      {/* OPTIONALLY YOU CAN ADD AVATARS OF THE USER */}
-      {/* <Avatar>
+    <MessagePrimitive.Root className="relative mb-6 flex w-full max-w-2xl gap-3">
+      <Avatar>
         <AvatarFallback>A</AvatarFallback>
-      </Avatar> */}
+      </Avatar>
 
-      <div className="flex-grow">
-        {/* <p className="font-semibold">Assistant</p> */}
-
-        <p className="text-foreground whitespace-pre-line">
+      <div className="mt-2 flex-grow">
+        <MessagePrimitive.InProgress className="bg-foreground inline-block size-3 animate-pulse rounded-full" />
+        <p className="text-foreground max-w-xl whitespace-pre-line break-words">
           <MessagePrimitive.Content />
         </p>
       </div>

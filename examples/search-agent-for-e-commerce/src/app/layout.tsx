@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import "./globals.css";
-import { AI } from "@/app/api/chat/actions"; // Import AI
-import { nanoid } from "nanoid";
+import { AI } from "@/app/actions";
+import { MyRuntimeProvider } from "@/app/MyRuntimeProvider";
 import type React from "react";
+
+import "./globals.css";
+
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
@@ -19,12 +21,14 @@ export default function RootLayout({
   return (
     <html lang="en">
       <AI>
-        <body
-          className={inter.className}
-          style={{ backgroundColor: "transparent" }}
-        >
-          {children}
-        </body>
+        <MyRuntimeProvider>
+          <body
+            className={inter.className}
+            style={{ backgroundColor: "transparent" }}
+          >
+            {children}
+          </body>
+        </MyRuntimeProvider>
       </AI>
     </html>
   );
