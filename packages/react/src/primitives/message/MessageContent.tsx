@@ -1,7 +1,11 @@
 "use client";
 
 import { type ComponentType, type FC, memo } from "react";
-import { useAssistantContext, useContentPartContext } from "../../context";
+import {
+  useAssistantContext,
+  useContentPartContext,
+  useThreadContext,
+} from "../../context";
 import { useMessageContext } from "../../context/MessageContext";
 import { ContentPartProvider } from "../../context/providers/ContentPartProvider";
 import { ContentPartDisplay } from "../contentPart/ContentPartDisplay";
@@ -38,10 +42,8 @@ const defaultComponents = {
   UI: () => <ContentPartDisplay />,
   tools: {
     Fallback: (props) => {
-      const { useToolRenderers } = useAssistantContext();
-      const Render = useToolRenderers((s) =>
-        s.getToolRenderer(props.part.toolName),
-      );
+      const { useToolUIs } = useAssistantContext();
+      const Render = useToolUIs((s) => s.getToolUI(props.part.toolName));
       if (!Render) return null;
       return <Render {...props} />;
     },
@@ -60,6 +62,9 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
     tools: { by_name = {}, Fallback = defaultComponents.tools.Fallback } = {},
   } = {},
 }) => {
+  const { useThread } = useThreadContext();
+  const addToolResult = useThread((t) => t.addToolResult);
+
   const { useContentPart } = useContentPartContext();
   const { part, status } = useContentPart();
 
@@ -77,7 +82,8 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
 
     case "tool-call": {
       const Tool = by_name[part.toolName] || Fallback;
-      return <Tool part={part} status={status} />;
+      const addResult = (result: any) => addToolResult(part.toolCallId, result);
+      return <Tool part={part} status={status} addResult={addResult} />;
     }
     default:
       throw new Error(`Unknown content part type: ${type}`);

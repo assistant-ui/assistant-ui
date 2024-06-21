@@ -1,11 +1,11 @@
 import { createContext, useContext } from "react";
 import type { StoreApi, UseBoundStore } from "zustand";
 import type { AssistantModelConfigState } from "./stores/AssistantModelConfig";
-import type { AssistantToolRenderersState } from "./stores/AssistantToolRenderers";
+import type { AssistantToolUIsState } from "./stores/AssistantToolUIs";
 
 export type AssistantContextValue = {
   useModelConfig: UseBoundStore<StoreApi<AssistantModelConfigState>>;
-  useToolRenderers: UseBoundStore<StoreApi<AssistantToolRenderersState>>;
+  useToolUIs: UseBoundStore<StoreApi<AssistantToolUIsState>>;
 };
 
 export const AssistantContext = createContext<AssistantContextValue | null>(

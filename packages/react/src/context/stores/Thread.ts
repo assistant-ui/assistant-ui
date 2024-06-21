@@ -12,6 +12,8 @@ export type ThreadState = {
   append: (message: AppendMessage) => void;
   startRun: (parentId: string | null) => void;
   cancelRun: () => void;
+
+  addToolResult: (toolCallId: string, result: any) => void;
 };
 
 export const makeThreadStore = (runtimeRef: MutableRefObject<ThreadState>) => {
@@ -23,6 +25,8 @@ export const makeThreadStore = (runtimeRef: MutableRefObject<ThreadState>) => {
     startRun: (parentId) => runtimeRef.current.startRun(parentId),
     append: (message) => runtimeRef.current.append(message),
     cancelRun: () => runtimeRef.current.cancelRun(),
+    addToolResult: (toolCallId, result) =>
+      runtimeRef.current.addToolResult(toolCallId, result),
   }));
 
   const onRuntimeUpdate = () => {

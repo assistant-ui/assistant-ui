@@ -1,5 +1,5 @@
 const meta = {
-  ToolRenderers: "Tool Renderers",
+  ToolUI: "Tool UIs",
   Branching: "Branching",
   Editing: "Editing",
 };

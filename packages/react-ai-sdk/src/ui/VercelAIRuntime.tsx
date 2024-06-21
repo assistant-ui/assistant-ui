@@ -165,4 +165,11 @@ export class VercelAIRuntime
 
     return null;
   };
+
+  addToolResult(toolCallId: string, result: any) {
+    if (!("addToolResult" in this.vercel)) {
+      throw new Error("VercelAIRuntime does not support adding tool results");
+    }
+    this.vercel.addToolResult({ toolCallId, result });
+  }
 }

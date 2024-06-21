@@ -6,30 +6,30 @@ import type { ToolCallContentPartComponent } from "../primitives/message/Content
 import type { Tool } from "../utils/ModelConfigTypes";
 
 export type AssistantToolProps<TArgs, TResult> = Tool<TArgs, TResult> & {
-  name: string;
+  toolName: string;
   render?: ToolCallContentPartComponent<TArgs, TResult>;
 };
 
 export const useAssistantTool = <TArgs, TResult>(
   tool: AssistantToolProps<TArgs, TResult>,
 ) => {
-  const { useModelConfig, useToolRenderers } = useAssistantContext();
+  const { useModelConfig, useToolUIs } = useAssistantContext();
   const registerModelConfigProvider = useModelConfig(
     (s) => s.registerModelConfigProvider,
   );
-  const setToolRenderer = useToolRenderers((s) => s.setToolRenderer);
+  const setToolUI = useToolUIs((s) => s.setToolUI);
   useEffect(() => {
-    const { name, render, ...rest } = tool;
+    const { toolName, render, ...rest } = tool;
     const config = {
       tools: {
-        [tool.name]: rest,
+        [tool.toolName]: rest,
       },
     };
     const unsub1 = registerModelConfigProvider(() => config);
-    const unsub2 = render ? setToolRenderer(name, render) : undefined;
+    const unsub2 = render ? setToolUI(toolName, render) : undefined;
     return () => {
       unsub1();
       unsub2?.();
     };
-  }, [registerModelConfigProvider, setToolRenderer, tool]);
+  }, [registerModelConfigProvider, setToolUI, tool]);
 };

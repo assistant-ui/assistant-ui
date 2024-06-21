@@ -4,7 +4,7 @@ import {
   type ModelConfig,
   type ToolCallContentPartComponent,
   useAssistantContext,
-  useAssistantToolRenderer,
+  useAssistantToolUI,
 } from "@assistant-ui/react/experimental";
 import { useEffect } from "react";
 import {
@@ -101,20 +101,20 @@ export const useAssistantForm = <
   }, [control, setValue, getValues, registerModelConfigProvider]);
 
   const renderFormFieldTool = props?.assistant?.tools?.set_form_field?.render;
-  useAssistantToolRenderer(
+  useAssistantToolUI(
     renderFormFieldTool
       ? {
-          name: "set_form_field",
+          toolName: "set_form_field",
           render: renderFormFieldTool,
         }
       : null,
   );
 
   const renderSubmitFormTool = props?.assistant?.tools?.submit_form?.render;
-  useAssistantToolRenderer(
+  useAssistantToolUI(
     renderSubmitFormTool
       ? {
-          name: "submit_form",
+          toolName: "submit_form",
           render: renderSubmitFormTool,
         }
       : null,

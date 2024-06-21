@@ -121,4 +121,8 @@ export class LocalRuntime implements AssistantRuntime {
     this._configProviders.add(provider);
     return () => this._configProviders.delete(provider);
   }
+
+  addToolResult() {
+    throw new Error("LocalRuntime does not yet support tool results");
+  }
 }

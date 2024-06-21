@@ -30,6 +30,7 @@ export type UIContentPartComponent = ComponentType<UIContentPartProps>;
 export type ToolCallContentPartProps<TArgs = any, TResult = any> = {
   part: ToolCallContentPart<TArgs, TResult>;
   status: ContentPartStatus;
+  addResult: (result: any) => void;
 };
 
 export type ToolCallContentPartComponent<

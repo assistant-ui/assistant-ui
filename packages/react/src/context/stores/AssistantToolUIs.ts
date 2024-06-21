@@ -3,26 +3,26 @@
 import { create } from "zustand";
 import type { ToolCallContentPartComponent } from "../../primitives/message/ContentPartComponentTypes";
 
-export type AssistantToolRenderersState = {
-  getToolRenderer: (name: string) => ToolCallContentPartComponent | null;
-  setToolRenderer: (
-    name: string,
+export type AssistantToolUIsState = {
+  getToolUI: (toolName: string) => ToolCallContentPartComponent | null;
+  setToolUI: (
+    toolName: string,
     render: ToolCallContentPartComponent,
   ) => () => void;
 };
 
-export const makeAssistantToolRenderersStore = () =>
-  create<AssistantToolRenderersState>((set) => {
+export const makeAssistantToolUIsStore = () =>
+  create<AssistantToolUIsState>((set) => {
     const renderers = new Map<string, ToolCallContentPartComponent[]>();
 
     return {
-      getToolRenderer: (name) => {
+      getToolUI: (name) => {
         const arr = renderers.get(name);
         const last = arr?.at(-1);
         if (last) return last;
         return null;
       },
-      setToolRenderer: (name, render) => {
+      setToolUI: (name, render) => {
         let arr = renderers.get(name);
         if (!arr) {
           arr = [];
@@ -39,5 +39,5 @@ export const makeAssistantToolRenderersStore = () =>
           set({}); // notify the store listeners
         };
       },
-    } satisfies AssistantToolRenderersState;
+    } satisfies AssistantToolUIsState;
   });

@@ -81,6 +81,12 @@ const MyApp = () => {
               description: "A function to cancel a run.",
             },
             {
+              name: "addToolResult",
+              type: "(toolCallId: string, result: any) => void",
+              required: true,
+              description: "A function to add a tool result.",
+            },
+            {
               name: "subscribe",
               type: "(callback: () => void) => Unsubscribe",
               required: true,

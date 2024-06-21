@@ -23,7 +23,7 @@ const supportedModels = [
     component: ModalChat,
   },
   {
-    name: "Generative UI",
+    name: "Tool UI",
     component: GenUI,
   },
   {

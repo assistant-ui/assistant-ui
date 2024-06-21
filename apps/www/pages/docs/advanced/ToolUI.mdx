@@ -1,0 +1,149 @@
+---
+title: Tool UIs
+---
+
+You can show a custom UI when a tool is called to let the user know what is happening.
+
+### Tool UI Components
+
+```tsx
+import { makeAssistantToolUI } from "@assistant-ui/react/experimental";
+
+type WebSearchArgs = {
+  query: string;
+};
+
+type WebSearchResult = {
+  title: string;
+  description: string;
+  url: string;
+};
+
+const WebSearchToolUI = makeAssistantToolUI<WebSearchArgs, WebSearchResult>({
+  toolName: "web_search",
+  render: ({ part, status }) => {
+    return <p>web_search({part.args.query})</p>;
+  },
+});
+```
+
+You can put this component anywhere in your app inside the `<AssistantRuntimeProvider />` component.
+
+```tsx {1, 8}
+import { WebSearchToolUI } from '@/tools/WebSearchToolUI';
+
+const MyApp = () => {
+  ...
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      ...
+      <WebSearchToolUI />
+      ...
+    </AssistantRuntimeProvider>
+  );
+};
+```
+
+### Tool UI Hooks
+
+```tsx
+import { makeAssistantToolUI } from "@assistant-ui/react/experimental";
+
+type WebSearchArgs = {
+  query: string;
+};
+
+type WebSearchResult = {
+  title: string;
+  description: string;
+  url: string;
+};
+
+const useWebSearchToolUI = makeAssistantToolUI<WebSearchArgs, WebSearchResult>({
+  toolName: "web_search",
+  render: ({ part, status }) => {
+    return <p>web_search({part.args.query})</p>;
+  },
+});
+```
+
+You can use this hook anywhere in your app inside the `<AssistantRuntimeProvider />` component.
+
+```tsx {1, 4}
+import { useWebSearchToolUI } from '@/tools/useWebSearchToolUI';
+
+const MyComponent = () => {
+  useWebSearchToolUI();
+
+  ...
+};
+
+const MyApp = () => {
+  ...
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      ...
+      <MyComponent />
+      ...
+    </AssistantRuntimeProvider>
+  );
+};
+```
+
+
+
+### Inline Tool UI Hooks
+
+If you need access to component props, you can use the `useAssistantToolUI` hook.
+
+```tsx {1, 4}
+import { useAssistantToolUI } from "@assistant-ui/react/experimental";
+import { useCallback } from "react";
+
+const MyComponent = ({ product_id }) => {
+  useAssistantToolUI({
+    toolName: "current_product_info",
+    render: useCallback(({ part, status }) => {
+      // you can access component props here
+      return <p>product_info({ product_id })</p>;
+    }, [product_id]),
+  })
+
+  ...
+};
+
+const MyApp = () => {
+  ...
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      ...
+      <MyComponent product_id="123" />
+      ...
+    </AssistantRuntimeProvider>
+  );
+};
+```
+
+### Function Calling for User Input
+
+The following example shows a `date_picker` tool that the AI can call to collect a date from the user.
+
+```tsx {1, 4}
+import { makeAssistantToolUI } from "@assistant-ui/react/experimental"; 
+import { DatePicker } from "@/components/datepicker";
+
+const DatePickerToolUI = makeAssistantToolUI<{}, { date: string }>({
+  toolName: "date_picker",
+  render: ({ part, status, addResult }) => {
+    if (part.result) {
+      return <p>You picked {part.result.date}</p>;
+    }
+
+    const handleSubmit = (date: Date) => {
+      addResult({ date: date.toISOString() });
+    };
+
+    return <DatePicker onSubmit={handleSubmit} />;
+  },
+});
+```

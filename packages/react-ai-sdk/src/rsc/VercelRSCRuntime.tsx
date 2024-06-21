@@ -105,4 +105,8 @@ export class VercelRSCRuntime<T extends WeakKey = VercelRSCMessage>
 
     return null;
   };
+
+  addToolResult() {
+    throw new Error("VercelRSCRuntime does not support adding tool results");
+  }
 }

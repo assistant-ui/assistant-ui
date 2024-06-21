@@ -27,8 +27,8 @@ export {
   type AssistantToolProps,
 } from "./model-config/useAssistantTool";
 export {
-  useAssistantToolRenderer,
-  type AssistantToolRendererProps,
-} from "./model-config/useAssistantToolRenderer";
-export { makeTool } from "./model-config/makeTool";
-export { makeToolRenderer } from "./model-config/makeToolRenderer";
+  useAssistantToolUI,
+  type AssistantToolUIProps,
+} from "./model-config/useAssistantToolUI";
+export { makeAssistantTool } from "./model-config/makeAssistantTool";
+export { makeAssistantToolUI } from "./model-config/makeAssistantToolUI";
