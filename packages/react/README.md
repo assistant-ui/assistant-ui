@@ -1,6 +1,6 @@
-# `assistant-ui`
+# `@assistant-ui/react`
 
-`assistant-ui` is a set of React components for AI chat.
+assistant-ui is a set of React components for AI chat.
 
 - [Discord](https://discord.gg/S9dwgCNEFs)
 - [Website](https://assistant-ui.com/)

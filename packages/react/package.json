@@ -99,7 +99,7 @@
   "homepage": "https://assistant-ui.com/",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Yonom/assistant-ui.git"
+    "url": "https://github.com/Yonom/assistant-ui/tree/main/packages/react"
   },
   "bugs": {
     "url": "https://github.com/Yonom/assistant-ui/issues"
