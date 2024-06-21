@@ -34,7 +34,7 @@ export async function continueConversation(
     model: openai("gpt-3.5-turbo"),
     temperature: 0,
     system: `\
-    You are a friendly assistant that helps the user with shopping on a ecommerce website ('uncle-reco'). You help users with end-to-end shopping experience
+    You are a friendly assistant that helps the user with shopping on a ecommerce website ('DUMMY SHOP'). You help users with end-to-end shopping experience
     starting from general information about the brands and products, and helping with product discovery, search, and product details, as well as
     product purchase, customer support, fitting questions, technical questions.
     Your responses are solely based on the provided context about the store and its products.
@@ -115,7 +115,7 @@ export async function continueConversation(
         generate: async function* ({ user_question }) {
           const filePath = path.resolve(
             process.cwd(),
-            "public/unclereco_info.txt",
+            "public/shop_info.txt",
           );
           const generalInfo = fs.readFileSync(filePath, "utf-8");
           const result = await streamText({
@@ -134,11 +134,11 @@ export async function continueConversation(
       },
       clothes_fitting: {
         description:
-          "Send to user link to guidelines for clothes fitting https://www.unclereco.com/catalog/size_chart.php",
+          "Send to user link to guidelines for clothes fitting https://images.app.goo.gl/LECaeXJfXa7gzYCC8 ",
         parameters: z.object({}),
         generate: async ({}) => {
           const fittingGuidelinesLink =
-            "https://www.unclereco.com/catalog/size_chart.php";
+            "https://images.app.goo.gl/LECaeXJfXa7gzYCC8 ";
           const formattedLink = `<a href="${fittingGuidelinesLink}" target="_blank">Guidelines for clothes fitting</a>`;
           const linkStyle = {
             color: "blue",
@@ -180,7 +180,7 @@ export async function continueConversation(
           );
           const filePath = path.resolve(
             process.cwd(),
-            "public/unclereco_info.txt",
+            "public/shop_info.txt",
           );
           const generalInfo = fs.readFileSync(filePath, "utf-8");
           const result = await streamText({

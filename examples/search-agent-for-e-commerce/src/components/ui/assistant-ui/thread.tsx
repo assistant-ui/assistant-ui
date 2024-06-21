@@ -14,7 +14,6 @@ import {
 import { cn } from "@/lib/utils";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { ArrowDownIcon, SendHorizonalIcon } from "lucide-react";
-import uncleRecoImage from "/Users/matthewdi/Desktop/Shardul/conversecart/plugin/assets/uncle-reco.png";
 
 export const Thread: FC = () => {
   return (
@@ -49,8 +48,8 @@ const ThreadEmpty: FC = () => {
         {" "}
         {/* Reduced margin-bottom */}
         <img
-          src="/uncle-reco.png"
-          alt="Uncle Reco"
+          src="/image.png"
+          alt="Your Logo"
           className="mb-4 w-1/2 max-w-xs"
         />{" "}
         {/* Smaller image */}
@@ -58,7 +57,7 @@ const ThreadEmpty: FC = () => {
           <Avatar className="mr-4" style={{ width: "20px", height: "20px" }}>
             {" "}
             {/* Adjusted size */}
-            <AvatarImage src="/unclereco-favicon.ico" alt="AI" />
+            <AvatarImage src="/favicon.ico" alt="AI" />
             <AvatarFallback>AI</AvatarFallback>
           </Avatar>
           <p className="mt-4">

@@ -27,7 +27,7 @@ const AvatarImage = React.forwardRef<
   <AvatarPrimitive.Image
     ref={ref}
     className={cn("aspect-square h-full w-full", className)}
-    src="/unclereco-favicon.ico"
+    src="/favicon.ico"
     alt="AI"
     {...props}
   />
