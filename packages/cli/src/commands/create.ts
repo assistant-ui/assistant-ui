@@ -5,8 +5,8 @@ import { spawn } from "child_process";
 export const create = new Command()
   .name("create")
   .description("create a new project")
-  .arguments("<project-directory>")
-  .usage(`${chalk.green("<project-directory>")} [options]`)
+  .argument("[project-directory]")
+  .usage(`${chalk.green("[project-directory]")} [options]`)
   .option(
     "--use-npm",
     `
