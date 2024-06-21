@@ -615,6 +615,73 @@ importers:
         specifier: ^8.1.0
         version: 8.1.0(postcss@8.4.38)(ts-node@10.9.2(@types/node@20.14.7)(typescript@5.5.2))(typescript@5.5.2)
 
+  packages/react-ui:
+    dependencies:
+      '@assistant-ui/react':
+        specifier: ^0.1.6
+        version: 0.1.6(@types/react-dom@18.3.0)(@types/react@18.3.3)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@radix-ui/react-avatar':
+        specifier: ^1.1.0
+        version: 1.1.0(@types/react-dom@18.3.0)(@types/react@18.3.3)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
+      react-resizable-panels:
+        specifier: ^2.0.19
+        version: 2.0.19(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      react-syntax-highlighter:
+        specifier: ^15.5.0
+        version: 15.5.0(react@18.3.1)
+      remark-gfm:
+        specifier: ^4.0.0
+        version: 4.0.0
+      remark-math:
+        specifier: ^6.0.0
+        version: 6.0.0
+      tailwind-merge:
+        specifier: ^2.3.0
+        version: 2.3.0
+    devDependencies:
+      '@assistant-ui/react-markdown':
+        specifier: workspace:*
+        version: link:../react-markdown
+      '@assistant-ui/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@types/node':
+        specifier: ^20.14.7
+        version: 20.14.7
+      '@types/react':
+        specifier: ^18
+        version: 18.3.3
+      '@types/react-syntax-highlighter':
+        specifier: ^15.5.13
+        version: 15.5.13
+      autoprefixer:
+        specifier: ^10.4.19
+        version: 10.4.19(postcss@8.4.38)
+      class-variance-authority:
+        specifier: ^0.7.0
+        version: 0.7.0
+      lucide-react:
+        specifier: ^0.395.0
+        version: 0.395.0(react@18.3.1)
+      rimraf:
+        specifier: ^5.0.7
+        version: 5.0.7
+      tailwindcss:
+        specifier: ^3.4.4
+        version: 3.4.4(ts-node@10.9.2(@types/node@20.14.7)(typescript@5.5.2))
+      tailwindcss-animate:
+        specifier: ^1.0.7
+        version: 1.0.7(tailwindcss@3.4.4(ts-node@10.9.2(@types/node@20.14.7)(typescript@5.5.2)))
+      tsup:
+        specifier: ^8.1.0
+        version: 8.1.0(postcss@8.4.38)(ts-node@10.9.2(@types/node@20.14.7)(typescript@5.5.2))(typescript@5.5.2)
+
   packages/shadcn-registry:
     devDependencies:
       '@assistant-ui/react':
@@ -856,6 +923,15 @@ packages:
 
   '@assistant-ui/react@0.0.19':
     resolution: {integrity: sha512-kWqwF6p0mogjbKmXq1XKexQEA2nmIdYI8oqJC/lqqJeUZ0ypxXVwS4cqZ0O3GppPjqgCi+HlcfRF6jz4Z/XFYQ==}
+    peerDependencies:
+      '@types/react': '*'
+      react: ^18
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+
+  '@assistant-ui/react@0.1.6':
+    resolution: {integrity: sha512-H44Ql9/dGtP6vYSTJev/C7cxS/eL60X1Gm38C5KI/eOkUt5BWDxSwJvC63ZR57SAMlhpOlGVT6FFKeqXVkwk5Q==}
     peerDependencies:
       '@types/react': '*'
       react: ^18
@@ -6368,6 +6444,25 @@ snapshots:
       - svelte
       - vue
       - zod
+
+  '@assistant-ui/react@0.1.6(@types/react-dom@18.3.0)(@types/react@18.3.3)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+    dependencies:
+      '@radix-ui/primitive': 1.1.0
+      '@radix-ui/react-compose-refs': 1.1.0(@types/react@18.3.3)(react@18.3.1)
+      '@radix-ui/react-primitive': 1.0.3(@types/react-dom@18.3.0)(@types/react@18.3.3)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@radix-ui/react-slot': 1.1.0(@types/react@18.3.3)(react@18.3.1)
+      '@radix-ui/react-use-callback-ref': 1.1.0(@types/react@18.3.3)(react@18.3.1)
+      nanoid: 5.0.7
+      react: 18.3.1
+      react-textarea-autosize: 8.5.3(@types/react@18.3.3)(react@18.3.1)
+      zod: 3.23.8
+      zustand: 4.5.2(@types/react@18.3.3)(react@18.3.1)
+    optionalDependencies:
+      '@types/react': 18.3.3
+    transitivePeerDependencies:
+      - '@types/react-dom'
+      - immer
+      - react-dom
 
   '@babel/code-frame@7.24.7':
     dependencies:
