@@ -36,6 +36,10 @@ const tailwindcssTransformerCode: Plugin = {
       });
       await fs.promises.mkdir(outDir, { recursive: true });
       await fs.promises.writeFile(path.join(outDir, "styles.css"), styleSheet);
+      await fs.promises.writeFile(
+        path.join(outDir, "styles.css.d.ts"),
+        'declare module "@assistant-ui/react-ui/styles.css";',
+      );
     });
   },
 };
