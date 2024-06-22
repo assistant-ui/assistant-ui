@@ -1,9 +1,27 @@
 {
   "name": "@assistant-ui/react-ui",
   "version": "0.0.1",
-  "private": true,
   "license": "MIT",
-  "type": "module",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "source": "./src/index.ts",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsup"
   },
@@ -11,29 +29,40 @@
     "@assistant-ui/react": "^0.1.6",
     "@radix-ui/react-avatar": "^1.1.0",
     "clsx": "^2.1.1",
-    "react": "^18.3.1",
-    "react-resizable-panels": "^2.0.19",
-    "react-syntax-highlighter": "^15.5.0",
-    "remark-gfm": "^4.0.0",
-    "remark-math": "^6.0.0",
+    "lucide-react": "^0.395.0",
     "tailwind-merge": "^2.3.0"
   },
+  "peerDependencies": {
+    "@types/react": "*",
+    "react": "^18"
+  },
+  "peerDependenciesMeta": {
+    "@types/react": {
+      "optional": true
+    }
+  },
   "devDependencies": {
-    "@assistant-ui/react": "workspace:*",
-    "@assistant-ui/react-markdown": "workspace:*",
     "@assistant-ui-tsup/tailwindcss-transformer": "workspace:*",
+    "@assistant-ui/react": "workspace:*",
     "@assistant-ui/tsconfig": "workspace:*",
     "@types/node": "^20.14.7",
-    "@types/react": "^18",
-    "@types/react-syntax-highlighter": "^15.5.13",
-    "autoprefixer": "^10.4.19",
-    "class-variance-authority": "^0.7.0",
     "esbuild": "^0.21.5",
-    "lucide-react": "^0.395.0",
-    "rimraf": "^5.0.7",
+    "eslint-config-next": "14.2.4",
     "tailwindcss": "^3.4.4",
     "tailwindcss-animate": "^1.0.7",
     "tsup": "^8.1.0",
     "typescript": "^5.5.2"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "homepage": "https://assistant-ui.com/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Yonom/assistant-ui/tree/main/packages/react"
+  },
+  "bugs": {
+    "url": "https://github.com/Yonom/assistant-ui/issues"
   }
 }
