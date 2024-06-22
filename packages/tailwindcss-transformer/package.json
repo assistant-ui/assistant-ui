@@ -1,0 +1,24 @@
+{
+  "name": "@assistant-ui-tsup/tailwindcss-transformer",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs --dts --sourcemap --clean"
+  },
+  "dependencies": {
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.38",
+    "postcss-value-parser": "^4.2.0",
+    "recast": "^0.23.9",
+    "tailwindcss": "^3.4.4"
+  },
+  "devDependencies": {
+    "@assistant-ui/tsconfig": "workspace:*",
+    "@types/node": "^20.14.8",
+    "eslint-config-next": "14.2.4",
+    "tsup": "^8.1.0",
+    "typescript": "^5.5.2"
+  }
+}
