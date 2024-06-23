@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-ui",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "license": "MIT",
   "exports": {
     ".": {
@@ -14,8 +14,8 @@
       }
     },
     "./styles.css": {
-      "types": "./styles.css.d.ts",
-      "default": "./styles.css"
+      "types": "./dist/styles.css.d.ts",
+      "default": "./dist/styles.css"
     }
   },
   "source": "./src/index.ts",

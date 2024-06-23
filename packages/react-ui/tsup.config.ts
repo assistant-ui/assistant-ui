@@ -34,6 +34,7 @@ const tailwindcssTransformerCode: Plugin = {
           "utf8",
         ),
       });
+
       await fs.promises.mkdir(outDir, { recursive: true });
       await fs.promises.writeFile(path.join(outDir, "styles.css"), styleSheet);
       await fs.promises.writeFile(
@@ -50,7 +51,12 @@ export default defineConfig(() => {
     format: ["cjs", "esm"],
     dts: true,
     sourcemap: true,
-    clean: true,
+    // clean: true,
     esbuildPlugins: [tailwindcssTransformerCode],
+    esbuildOptions: (options) => {
+      options.banner = {
+        js: '"use client";',
+      };
+    },
   };
 });
