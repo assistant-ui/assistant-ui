@@ -1,5 +1,6 @@
 const meta = {
   runtime: "Runtime API",
+  context: "Context API",
   "-- integrations": {
     title: "Integrations",
     type: "separator",

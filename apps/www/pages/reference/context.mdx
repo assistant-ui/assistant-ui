@@ -1,0 +1,76 @@
+---
+title: Context API
+---
+
+assistant-ui components and APIs use React Context to store information and interact with the runtime.
+
+The context is split into four hierarchies:
+
+- **Assistant Context**: Wraps your entire app. An app can contain multiple threads.
+- **Thread Context**: Provides access to the thread state. A thread can contain multiple messages.
+- **Message Context**: Provides access to the message state. A message can contain multiple content parts.
+- **Content Part Context**: Provides access to the content part state.
+
+
+import { AssistantContextValue } from "./contextParameters";
+
+## Assistant Context
+
+The **Assistant Context** provides access for ModelConfigState and ToolUIsState.
+
+### `useAssistantContext`
+
+This hook providers access to the context stores.
+
+```tsx
+import { useAssistantContext } from "@assistant-ui/react";
+
+const { useModelConfig, useToolUIs } = useAssistantContext();
+```
+
+#### Return Type
+
+<AssistantContextValue />
+
+
+## Thread Context
+
+The **Thread Context** provides access to ThreadState, ThreadActionsState, ComposerState and ThreadViewportState.
+
+### `useThreadContext`
+
+This hook provides access to the context stores.
+
+```tsx
+import { useThreadContext } from "@assistant-ui/react";
+
+const { useThread, useThreadActions, useComposer, useViewport } = useThreadContext();
+```
+
+## Message Context
+
+The **Message Context** provides access to MessageState, EditComposerState and MessageUtilsState.
+
+### `useMessageContext`
+
+This hook provides access to the context stores.
+
+```tsx
+import { useMessageContext } from "@assistant-ui/react";
+
+const { useMessage, useMessageUtils, useComposer } = useMessageContext();
+```
+
+## Content Part Context
+
+The **Content Part Context** provides access to ContentPartState.
+
+### `useContentPartContext`
+
+This hook provides access to the context stores.
+
+```tsx
+import { useContentPartContext } from "@assistant-ui/react";
+
+const { useContentPart } = useContentPartContext();
+```
