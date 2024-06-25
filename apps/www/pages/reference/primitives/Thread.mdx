@@ -105,9 +105,21 @@ Renders all messages. This primitive renders a separate component for each messa
 
 Renders children only when there are no messages.
 
+#### `useThreadEmpty`
+
+```tsx
+import { useThreadEmpty } from "@assistant-ui/react";
+
+const ThreadEmpty = () => {
+  const isEmpty = useThreadEmpty();
+
+  return isEmpty ? <Empty /> : <NotEmpty />;
+};
+```
+
 ### ScrollToBottom
 
-A button to scroll the viewport to the bottom. Disabled when the viewport is at bottom.
+A button to scroll the viewport to the bottom. Disabled when the viewport is already at bottom.
 
 This primitive renders a `<button>` element unless `asChild` is set.
 
@@ -119,6 +131,23 @@ This primitive renders a `<button>` element unless `asChild` is set.
     }
   ]}
 />
+
+#### `useThreadScrollToBottom`
+
+```tsx
+import { useThreadScrollToBottom } from "@assistant-ui/react";
+
+const ScrollToBottom = () => {
+  const scrollToBottom = useThreadScrollToBottom();
+
+  // scroll to bottom action is not available
+  if (!scrollToBottom) return null;
+
+  return (
+    <button onClick={scrollToBottom}>Scroll to bottom</button>
+  );
+};
+```
 
 ### If
 
@@ -149,4 +178,16 @@ Renders children if a condition is met.
 <Thread.If empty={false}>
   {/* rendered if thread is not empty */}
 </Thread.If>
+```
+
+#### `useThreadIf`
+
+```tsx
+import { useThreadIf } from "@assistant-ui/react";
+
+const ThreadIf = () => {
+  const isRunning = useThreadIf({ empty: true });
+
+  return isRunning ? <Running /> : <NotRunning />;
+};
 ```

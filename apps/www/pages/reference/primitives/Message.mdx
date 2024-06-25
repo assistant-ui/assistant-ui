@@ -172,7 +172,7 @@ Renders children if a condition is met.
 import { useMessageIf } from "@assistant-ui/react";
 
 const Message = () => {
-  const isUser = useMessageIf((m) => m.message.role === "user");
+  const isUser = useMessageIf({ user: true });
 
   return isUser ? <UserMessage /> : <AssistantMessage />;
 };

@@ -28,15 +28,23 @@ const UIContentPart = () => {
 
 ## API Reference
 
-### InProgressIndicator
-
-Only rendered when the content part is in progress. While a message is in progress, the very last content part is considered to be in progress. This component acts as a portal host for `<MessagePrimitive.InProgress />`.
-
 ### Text
 
 Renders the text content of a text content part.
 
 This primitive renders a `<span>` element.
+
+#### `useContentPartText`
+
+```tsx
+import { useContentPartText } from "@assistant-ui/react";
+
+const Text = () => {
+  const text = useContentPartText();
+
+  return <span>{text}</span>;
+};
+```
 
 ### Image
 
@@ -44,6 +52,46 @@ Renders the image content of an image content part.
 
 This primitive renders an `<img>` element.
 
+#### `useContentPartImage`
+
+```tsx
+import { useContentPartImage } from "@assistant-ui/react";
+
+const Image = () => {
+  const image = useContentPartImage();
+
+  return <img src={image} alt="AI" />;
+};
+```
+
 ### Display
 
 Renders the display content of a UI content part. This feature is used by the Vercel RSC runtime.
+
+#### `useContentPartDisplay`
+
+```tsx
+import { useContentPartDisplay } from "@assistant-ui/react";
+
+const Display = () => {
+  const display = useContentPartDisplay();
+
+  return <div>{display}</div>;
+};
+```
+
+### InProgressIndicator
+
+Only rendered when the content part is in progress. While a message is in progress, the very last content part is considered to be in progress. This component acts as a portal host for `<MessagePrimitive.InProgress />`.
+
+#### `useContentPartInProgressIndicator`
+
+```tsx
+import { useContentPartInProgressIndicator } from "@assistant-ui/react";
+
+const InProgressIndicator = () => {
+  const indicator = useContentPartInProgressIndicator();
+
+  return indicator;
+};
+```
