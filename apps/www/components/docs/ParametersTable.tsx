@@ -99,7 +99,7 @@ const ParametersBox: FC<ParametersTableProps> = ({ type, parameters }) => {
 };
 
 export type ParametersTableProps = {
-  type?: string;
+  type?: string | undefined;
   parameters: Array<ParameterDef>;
 };
 
@@ -108,12 +108,8 @@ export const ParametersTable: FC<ParametersTableProps> = ({
   parameters,
 }) => {
   return (
-    <div className={cn("-mx-2", type && "mt-6")}>
-      {type ? (
-        <ParametersBox type={type} parameters={parameters} />
-      ) : (
-        <ParametersList parameters={parameters} />
-      )}
+    <div className={cn("-mx-2 mt-4", type && "mt-6")}>
+      <ParametersBox type={type} parameters={parameters} />
     </div>
   );
 };
