@@ -6,8 +6,8 @@ export const useOnResizeContent = (
   callback: () => void,
 ) => {
   const callbackRef = useCallbackRef(callback);
-  const el = ref.current;
   useEffect(() => {
+    const el = ref.current;
     if (!el) return;
 
     const resizeObserver = new ResizeObserver(() => {
@@ -44,5 +44,5 @@ export const useOnResizeContent = (
       resizeObserver.disconnect();
       mutationObserver.disconnect();
     };
-  }, [el, callbackRef]);
+  }, [ref, callbackRef]);
 };
