@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.1.10
+
+### Patch Changes
+
+- 269b32f: feat: Primitive Hooks API
+- 2867923: feat: Composer API Docs
+
 ## 0.1.9
 
 ### Patch Changes
