@@ -32,7 +32,7 @@ import {
 export const Thread: FC = () => {
   return (
     <TooltipProvider>
-      <ThreadPrimitive.Root className="flex h-full flex-col items-center pb-3">
+      <ThreadPrimitive.Root className="flex h-full flex-col items-center pb-4">
         <ThreadPrimitive.Viewport className="flex w-full flex-grow flex-col items-center overflow-y-scroll scroll-smooth px-4 pt-12">
           <ThreadPrimitive.Empty>
             <ThreadEmpty />

@@ -27,9 +27,10 @@ export const AssistantModal = () => {
         <FloatingAssistantButton />
       </PopoverTrigger>
       <PopoverContent
+        onInteractOutside={(e) => e.preventDefault()}
         side="top"
         align="end"
-        className="h-[500px] w-[400px] rounded p-0"
+        className="mb-3 h-[500px] w-[400px] rounded-xl p-0"
       >
         <Thread />
       </PopoverContent>
@@ -52,7 +53,7 @@ const FloatingAssistantButton = forwardRef<
             variant="default"
             size="icon"
             {...rest}
-            className="hover:scale-70 absolute bottom-4 right-4 size-12 rounded-full shadow"
+            className="hover:scale-70 fixed bottom-4 right-4 size-12 rounded-full shadow"
             ref={ref}
           >
             <BotIcon
