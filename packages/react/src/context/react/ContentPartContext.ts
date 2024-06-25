@@ -1,6 +1,6 @@
 import { createContext, useContext } from "react";
-import type { ContentPartState } from "./stores/ContentPart";
-import { ReadonlyStore } from "./ReadonlyStore";
+import type { ContentPartState } from "../stores/ContentPart";
+import { ReadonlyStore } from "../ReadonlyStore";
 
 export type ContentPartContextValue = {
   useContentPart: ReadonlyStore<ContentPartState>;

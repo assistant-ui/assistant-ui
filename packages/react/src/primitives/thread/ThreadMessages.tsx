@@ -1,7 +1,7 @@
 "use client";
 
 import { type ComponentType, type FC, memo } from "react";
-import { useThreadContext } from "../../context/ThreadContext";
+import { useThreadContext } from "../../context/react/ThreadContext";
 import { MessageProvider } from "../../context/providers/MessageProvider";
 import { ComposerIf } from "../composer/ComposerIf";
 import { MessageIf } from "../message/MessageIf";

@@ -1,11 +1,12 @@
 import { cn } from "@/lib/utils";
-import type { FC } from "react";
+import type { FC, ReactNode } from "react";
 
 type ParameterDef = {
   name: string;
-  type: string;
-  description: string;
+  type?: string;
+  description: string | ReactNode;
   required?: boolean;
+  default?: string;
   children?: Array<ParametersTableProps>;
 };
 
@@ -14,16 +15,50 @@ type ParameterProps = {
   isLast: boolean;
 };
 
-const Parameter: FC<ParameterProps> = ({ parameter, isLast }) => {
+const COMMON_PARAMS: Record<string, ParameterDef> = {
+  asChild: {
+    name: "asChild",
+    type: "boolean",
+    default: "false",
+    description: (
+      <>
+        Change the default rendered element for the one passed as a child,
+        merging their props and behavior.
+        <br />
+        <br />
+        Read the{" "}
+        <a
+          className="font-semibold underline"
+          href="/reference/primitives/composition"
+        >
+          Composition
+        </a>{" "}
+        guide for more details.
+      </>
+    ),
+  },
+};
+
+const Parameter: FC<ParameterProps> = ({
+  parameter: partialParameter,
+  isLast,
+}) => {
+  const parameter = {
+    ...COMMON_PARAMS[partialParameter.name],
+    ...partialParameter,
+  };
+
   return (
     <div className={cn("flex flex-col gap-1 px-3 py-3", !isLast && "border-b")}>
       <div className="relative flex gap-2">
         <h3 className="font-mono text-sm font-semibold">
           {parameter.name}
-          {!parameter.required && "?"}:
+          {!parameter.required && !parameter.default && "?"}
+          {!!parameter.type && ":"}
         </h3>
         <div className="no-scrollbar text-foreground/70 w-full overflow-x-scroll text-nowrap pr-12 font-mono text-sm">
           {parameter.type}
+          {parameter.default && ` = ${parameter.default}`}
         </div>
         <div className="to-background/100 pointer-events-none absolute right-0 top-0 h-5 w-12 bg-gradient-to-r from-white/0" />
       </div>
@@ -73,7 +108,7 @@ export const ParametersTable: FC<ParametersTableProps> = ({
   parameters,
 }) => {
   return (
-    <div className="-mx-3">
+    <div className={cn("-mx-2", type && "mt-6")}>
       {type ? (
         <ParametersBox type={type} parameters={parameters} />
       ) : (

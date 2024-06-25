@@ -1,6 +1,9 @@
 "use client";
 
-import { useReloadMessage } from "../../actions/useReloadMessage";
+import { useActionBarReload } from "../../primitive-hooks/actionBar/useActionBarReload";
 import { createActionButton } from "../../utils/createActionButton";
 
-export const ActionBarReload = createActionButton(useReloadMessage);
+export const ActionBarReload = createActionButton(
+  "ActionBarReload",
+  useActionBarReload,
+);

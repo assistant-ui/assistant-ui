@@ -1,24 +1,12 @@
 "use client";
 
 import type { FC, PropsWithChildren } from "react";
-import { useComposerContext } from "../../context/ComposerContext";
-import type { RequireAtLeastOne } from "../../utils/RequireAtLeastOne";
+import {
+  UseComposerIfProps,
+  useComposerIf,
+} from "../../primitive-hooks/composer/useComposerIf";
 
-type ComposerIfFilters = {
-  editing: boolean | undefined;
-};
-
-type ComposerIfProps = PropsWithChildren<RequireAtLeastOne<ComposerIfFilters>>;
-
-const useComposerIf = (props: RequireAtLeastOne<ComposerIfFilters>) => {
-  const { useComposer } = useComposerContext();
-  return useComposer((composer) => {
-    if (props.editing === true && !composer.isEditing) return false;
-    if (props.editing === false && composer.isEditing) return false;
-
-    return true;
-  });
-};
+type ComposerIfProps = PropsWithChildren<UseComposerIfProps>;
 
 export const ComposerIf: FC<ComposerIfProps> = ({ children, ...query }) => {
   const result = useComposerIf(query);

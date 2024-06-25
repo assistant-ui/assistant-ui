@@ -1,4 +1,4 @@
-export * from "./actions";
+export * from "./primitive-hooks";
 export * from "./primitives";
 export * from "./runtime";
 

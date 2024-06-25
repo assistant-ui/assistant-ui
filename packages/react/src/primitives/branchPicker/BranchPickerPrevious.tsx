@@ -1,6 +1,9 @@
 "use client";
 
-import { useGoToPreviousBranch } from "../../actions/useGoToPreviousBranch";
+import { useBranchPickerPrevious } from "../../primitive-hooks/branchPicker/useBranchPickerPrevious";
 import { createActionButton } from "../../utils/createActionButton";
 
-export const BranchPickerPrevious = createActionButton(useGoToPreviousBranch);
+export const BranchPickerPrevious = createActionButton(
+  "BranchPickerPrevious",
+  useBranchPickerPrevious,
+);

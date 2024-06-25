@@ -1,8 +1,8 @@
 import { useCallback } from "react";
-import { useMessageContext } from "../context/MessageContext";
-import { useCombinedStore } from "../utils/combined/useCombinedStore";
+import { useMessageContext } from "../../context/react/MessageContext";
+import { useCombinedStore } from "../../utils/combined/useCombinedStore";
 
-export const useBeginMessageEdit = () => {
+export const useActionBarEdit = () => {
   const { useMessage, useComposer } = useMessageContext();
 
   const disabled = useCombinedStore(

@@ -7,9 +7,9 @@ import type {
   ThreadMessage,
 } from "../../utils/AssistantTypes";
 import { getMessageText } from "../../utils/getMessageText";
-import { MessageContext } from "../MessageContext";
-import type { MessageContextValue } from "../MessageContext";
-import { useThreadContext } from "../ThreadContext";
+import { MessageContext } from "../react/MessageContext";
+import type { MessageContextValue } from "../react/MessageContext";
+import { useThreadContext } from "../react/ThreadContext";
 import type { MessageState } from "../stores/Message";
 import { makeEditComposerStore } from "../stores/MessageComposer";
 import type { ThreadState } from "../stores/Thread";

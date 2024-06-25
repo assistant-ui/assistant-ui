@@ -1,33 +1,9 @@
 "use client";
 
-import { composeEventHandlers } from "@radix-ui/primitive";
-import { Primitive } from "@radix-ui/react-primitive";
-import { type ElementRef, forwardRef, ComponentPropsWithoutRef } from "react";
-import { useComposerContext } from "../../context/ComposerContext";
+import { createActionButton } from "../../utils/createActionButton";
+import { useComposerCancel } from "../../primitive-hooks/composer/useComposerCancel";
 
-type ComposerCancelElement = ElementRef<typeof Primitive.button>;
-type PrimitiveFormProps = ComponentPropsWithoutRef<typeof Primitive.button>;
-
-type ComposerCancelProps = PrimitiveFormProps;
-
-export const ComposerCancel = forwardRef<
-  ComposerCancelElement,
-  ComposerCancelProps
->(({ onClick, ...rest }, ref) => {
-  const { useComposer } = useComposerContext();
-
-  const handleCancel = () => {
-    useComposer.getState().cancel();
-  };
-
-  return (
-    <Primitive.button
-      type="button"
-      {...rest}
-      ref={ref}
-      onClick={composeEventHandlers(onClick, handleCancel)}
-    />
-  );
-});
-
-ComposerCancel.displayName = "ComposerCancel";
+export const ComposerCancel = createActionButton(
+  "ComposerCancel",
+  useComposerCancel,
+);

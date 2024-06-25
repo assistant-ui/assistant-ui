@@ -1,4 +1,3 @@
-"use client";
 import type { z } from "zod";
 
 type ToolExecuteFunction<TArgs, TResult> = (

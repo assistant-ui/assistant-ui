@@ -1,6 +1,6 @@
 import { Primitive } from "@radix-ui/react-primitive";
 import { type ElementRef, forwardRef, ComponentPropsWithoutRef } from "react";
-import { useContentPartContext } from "../../context/ContentPartContext";
+import { useContentPartImage } from "../../primitive-hooks/contentPart/useContentPartImage";
 
 type ContentPartImageElement = ElementRef<typeof Primitive.img>;
 type PrimitiveImageProps = ComponentPropsWithoutRef<typeof Primitive.img>;
@@ -11,17 +11,7 @@ export const ContentPartImage = forwardRef<
   ContentPartImageElement,
   ContentPartImageProps
 >((props, forwardedRef) => {
-  const { useContentPart } = useContentPartContext();
-
-  const image = useContentPart((c) => {
-    if (c.part.type !== "image")
-      throw new Error(
-        "ContentPartImage can only be used inside image content parts.",
-      );
-
-    return c.part.image;
-  });
-
+  const image = useContentPartImage();
   return <Primitive.img src={image} {...props} ref={forwardedRef} />;
 });
 

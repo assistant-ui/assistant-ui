@@ -6,7 +6,7 @@ import {
   useContentPartContext,
   useThreadContext,
 } from "../../context";
-import { useMessageContext } from "../../context/MessageContext";
+import { useMessageContext } from "../../context/react/MessageContext";
 import { ContentPartProvider } from "../../context/providers/ContentPartProvider";
 import { ContentPartDisplay } from "../contentPart/ContentPartDisplay";
 import { ContentPartInProgressIndicator } from "../contentPart/ContentPartInProgressIndicator";

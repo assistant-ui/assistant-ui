@@ -53,6 +53,7 @@ export type AssistantMessage = BaseMessage & {
 
 export type AppendMessage = {
   parentId: string | null;
+  // role: "user"; // TODO
   content: AppendContentPart[];
 };
 

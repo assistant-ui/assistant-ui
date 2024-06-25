@@ -9,7 +9,7 @@ import {
   useRef,
   ComponentPropsWithoutRef,
 } from "react";
-import { useThreadContext } from "../../context/ThreadContext";
+import { useThreadContext } from "../../context/react/ThreadContext";
 import { useOnResizeContent } from "../../utils/hooks/useOnResizeContent";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { StoreApi } from "zustand";

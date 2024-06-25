@@ -1,42 +1,12 @@
 "use client";
 
-import type { FC, ReactNode } from "react";
-import { useMessageContext } from "../../context/MessageContext";
-import type { RequireAtLeastOne } from "../../utils/RequireAtLeastOne";
-import { useCombinedStore } from "../../utils/combined/useCombinedStore";
+import type { FC, PropsWithChildren } from "react";
+import {
+  UseMessageIfProps,
+  useMessageIf,
+} from "../../primitive-hooks/message/useMessageIf";
 
-type MessageIfFilters = {
-  user: boolean | undefined;
-  assistant: boolean | undefined;
-  hasBranches: boolean | undefined;
-  copied: boolean | undefined;
-  lastOrHover: boolean | undefined;
-};
-
-type MessageIfProps = RequireAtLeastOne<MessageIfFilters> & {
-  children: ReactNode;
-};
-
-export const useMessageIf = (props: RequireAtLeastOne<MessageIfFilters>) => {
-  const { useMessage, useMessageUtils } = useMessageContext();
-
-  return useCombinedStore(
-    [useMessage, useMessageUtils],
-    ({ message, branches, isLast }, { isCopied, isHovering }) => {
-      if (props.hasBranches === true && branches.length < 2) return false;
-
-      if (props.user && message.role !== "user") return false;
-      if (props.assistant && message.role !== "assistant") return false;
-
-      if (props.lastOrHover === true && !isHovering && !isLast) return false;
-
-      if (props.copied === true && !isCopied) return false;
-      if (props.copied === false && isCopied) return false;
-
-      return true;
-    },
-  );
-};
+type MessageIfProps = PropsWithChildren<UseMessageIfProps>;
 
 export const MessageIf: FC<MessageIfProps> = ({ children, ...query }) => {
   const result = useMessageIf(query);

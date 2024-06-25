@@ -7,6 +7,7 @@ import { type ElementRef, forwardRef, ComponentPropsWithoutRef } from "react";
 type ActionButtonCallback<TProps> = (props: TProps) => null | (() => void);
 
 export const createActionButton = <TProps,>(
+  displayName: string,
   useActionButton: ActionButtonCallback<TProps>,
 ) => {
   type PrimitiveButtonElement = ElementRef<typeof Primitive.button>;
@@ -16,20 +17,22 @@ export const createActionButton = <TProps,>(
     PrimitiveButtonElement,
     PrimitiveButtonProps & TProps
   >((props, forwardedRef) => {
-    const onClick = useActionButton(props);
+    const callback = useActionButton(props);
 
     return (
       <Primitive.button
         type="button"
-        disabled={!onClick}
+        disabled={!callback}
         {...props}
         ref={forwardedRef}
-        onClick={composeEventHandlers(props.onClick, onClick ?? undefined)}
+        onClick={composeEventHandlers(props.onClick, () => {
+          callback?.();
+        })}
       />
     );
   });
 
-  ActionButton.displayName = "ActionButton";
+  ActionButton.displayName = displayName;
 
   return ActionButton;
 };

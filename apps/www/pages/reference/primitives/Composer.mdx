@@ -5,7 +5,7 @@ description: The user interface to add new messages or edit existing ones.
 
 import { Callout } from "nextra/components";
 
-import { PropsTable, KeyboardTable } from "@/components/docs";
+import { ParametersTable, KeyboardTable } from "@/components/docs";
 import { Code } from "@radix-ui/themes";
 
 <Callout type="info" emoji="✨">
@@ -44,25 +44,11 @@ Containts all parts of the composer.
 
 This primitive renders a `<form>` element unless `asChild` is set.
 
-<PropsTable
-  data={[
+<ParametersTable
+  type="ComposerRootProps"
+  parameters={[
     {
       name: "asChild",
-      required: false,
-      type: "boolean",
-      default: "false",
-      description: (
-        <>
-          Change the default rendered element for the one passed as a child,
-          merging their props and behavior.
-          <br />
-          <br />
-          Read our <a href="/reference/primitives/composition">
-            Composition
-          </a>{" "}
-          guide for more details.
-        </>
-      ),
     },
   ]}
 />
@@ -73,28 +59,15 @@ The text input field for the user to type a new message.
 
 This primitive renders a `<textarea>` element unless `asChild` is set.
 
-<PropsTable
-  data={[
+<ParametersTable
+  type="ComposerInputProps"
+  parameters={[
     {
       name: "asChild",
-      required: false,
-      type: "boolean",
-      default: "false",
-      description: (
-        <>
-          Change the default rendered element for the one passed as a child,
-          merging their props and behavior.
-          <br />
-          <br />
-          Read our <a href="/reference/primitives/composition">
-            Composition
-          </a>{" "}
-          guide for more details.
-        </>
-      ),
     },
   ]}
 />
+
 
 #### Keyboard Shortcuts
 
@@ -117,28 +90,31 @@ The button to send the message.
 
 This primitive renders a `<button>` element unless `asChild` is set.
 
-<PropsTable
-  data={[
+<ParametersTable
+  type="ComposerSendProps"
+  parameters={[
     {
       name: "asChild",
-      required: false,
-      type: "boolean",
-      default: "false",
-      description: (
-        <>
-          Change the default rendered element for the one passed as a child,
-          merging their props and behavior.
-          <br />
-          <br />
-          Read our <a href="/reference/primitives/composition">
-            Composition
-          </a>{" "}
-          guide for more details.
-        </>
-      ),
     },
   ]}
 />
+
+#### `useComposerSend`
+
+```tsx
+import { useComposerSend } from "@assistant-ui/react";
+
+const Send = () => {
+  const send = useComposerSend();
+
+  // send action is not available
+  if (!send) return null;
+
+  return (
+    <button onClick={send}>Send</button>
+  );
+};
+```
 
 ### Cancel
 
@@ -149,45 +125,62 @@ In thread composers, this action stops the current run.
 
 This primitive renders a `<button>` element unless `asChild` is set.
 
-<PropsTable
-  data={[
+<ParametersTable
+  type="ComposerCancelProps"
+  parameters={[
     {
       name: "asChild",
-      required: false,
-      type: "boolean",
-      default: "false",
-      description: (
-        <>
-          Change the default rendered element for the one passed as a child,
-          merging their props and behavior.
-          <br />
-          <br />
-          Read our <a href="/reference/primitives/composition">
-            Composition
-          </a>{" "}
-          guide for more details.
-        </>
-      ),
     },
   ]}
 />
 
-# If
+#### `useComposerCancel`
+
+```tsx
+import { useComposerCancel } from "@assistant-ui/react";
+
+const Cancel = () => {
+  const cancel = useComposerCancel();
+
+  // cancel action is not available
+  if (!cancel) return null;
+
+  return (
+    <button onClick={cancel}>Cancel</button>
+  );
+};
+```
+
+### If
 
 Renders children if a condition is met.
 
-<PropsTable
-  data={[
+
+<ParametersTable
+  type="UseComposerIfProps"
+  parameters={[
     {
       name: "editing",
       required: false,
       type: "boolean | undefined",
       default: "undefined",
-      description: <>Render children if the message is being edited.</>,
+      description: "Render children if the message is being edited.",
     },
   ]}
 />
 
 ```tsx
 <Composer.If editing>{/* rendered if message is being edited */}</Composer.If>
+```
+
+#### `useComposerIf`
+
+```tsx
+import { useComposerIf } from "@assistant-ui/react";
+
+const Composer = () => {
+  const isEditing = useComposerIf((c) => c.isEditing);
+
+  return isEditing ? <Editing /> : <NotEditing />;
+};
 ```

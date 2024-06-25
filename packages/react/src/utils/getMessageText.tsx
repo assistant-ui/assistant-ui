@@ -1,4 +1,3 @@
-"use client";
 import type { TextContentPart, ThreadMessage } from "./AssistantTypes";
 
 export const getMessageText = (message: ThreadMessage) => {

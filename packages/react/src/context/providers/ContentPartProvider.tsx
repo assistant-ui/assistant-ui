@@ -2,9 +2,9 @@
 
 import { type FC, type PropsWithChildren, useEffect, useState } from "react";
 import { StoreApi, create } from "zustand";
-import { ContentPartContext } from "../ContentPartContext";
-import type { ContentPartContextValue } from "../ContentPartContext";
-import { useMessageContext } from "../MessageContext";
+import { ContentPartContext } from "../react/ContentPartContext";
+import type { ContentPartContextValue } from "../react/ContentPartContext";
+import { useMessageContext } from "../react/MessageContext";
 import type { MessageState } from "../stores";
 import type { ContentPartState } from "../stores/ContentPart";
 

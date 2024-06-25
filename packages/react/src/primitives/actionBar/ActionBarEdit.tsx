@@ -1,6 +1,9 @@
 "use client";
 
-import { useBeginMessageEdit } from "../../actions/useBeginMessageEdit";
+import { useActionBarEdit } from "../../primitive-hooks/actionBar/useActionBarEdit";
 import { createActionButton } from "../../utils/createActionButton";
 
-export const ActionBarEdit = createActionButton(useBeginMessageEdit);
+export const ActionBarEdit = createActionButton(
+  "ActionBarEdit",
+  useActionBarEdit,
+);

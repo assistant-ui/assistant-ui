@@ -3,7 +3,7 @@
 import { composeEventHandlers } from "@radix-ui/primitive";
 import { Primitive } from "@radix-ui/react-primitive";
 import { type ElementRef, forwardRef, ComponentPropsWithoutRef } from "react";
-import { useMessageContext } from "../../context/MessageContext";
+import { useMessageContext } from "../../context/react/MessageContext";
 
 type MessageRootElement = ElementRef<typeof Primitive.div>;
 type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;

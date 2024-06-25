@@ -10,8 +10,8 @@ import {
   useRef,
   ComponentPropsWithoutRef,
 } from "react";
-import { useComposerContext } from "../../context/ComposerContext";
-import { useThreadContext } from "../../context/ThreadContext";
+import { useComposerContext } from "../../context/react/ComposerContext";
+import { useThreadContext } from "../../context/react/ThreadContext";
 
 type ComposerRootElement = ElementRef<typeof Primitive.form>;
 type PrimitiveFormProps = ComponentPropsWithoutRef<typeof Primitive.form>;

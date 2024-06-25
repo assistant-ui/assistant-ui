@@ -1,7 +1,7 @@
 import { createContext, useContext } from "react";
-import type { AssistantModelConfigState } from "./stores/AssistantModelConfig";
-import type { AssistantToolUIsState } from "./stores/AssistantToolUIs";
-import { ReadonlyStore } from "./ReadonlyStore";
+import type { AssistantModelConfigState } from "../stores/AssistantModelConfig";
+import type { AssistantToolUIsState } from "../stores/AssistantToolUIs";
+import { ReadonlyStore } from "../ReadonlyStore";
 
 export type AssistantContextValue = {
   useModelConfig: ReadonlyStore<AssistantModelConfigState>;

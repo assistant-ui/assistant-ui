@@ -1,9 +1,9 @@
 import { createContext, useContext } from "react";
-import type { ComposerState } from "./stores/Composer";
-import type { ThreadState } from "./stores/Thread";
-import type { ThreadViewportState } from "./stores/ThreadViewport";
-import { ThreadActionsState } from "./stores/ThreadActions";
-import { ReadonlyStore } from "./ReadonlyStore";
+import type { ComposerState } from "../stores/Composer";
+import type { ThreadState } from "../stores/Thread";
+import type { ThreadViewportState } from "../stores/ThreadViewport";
+import { ThreadActionsState } from "../stores/ThreadActions";
+import { ReadonlyStore } from "../ReadonlyStore";
 
 export type ThreadContextValue = {
   useThread: ReadonlyStore<ThreadState>;

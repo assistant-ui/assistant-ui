@@ -1,15 +1,21 @@
 import { useCallback } from "react";
-import { useMessageContext } from "../context/MessageContext";
-import { useCombinedStore } from "../utils/combined/useCombinedStore";
-import { getMessageText } from "../utils/getMessageText";
+import { useMessageContext } from "../../context/react/MessageContext";
+import { useCombinedStore } from "../../utils/combined/useCombinedStore";
+import { getMessageText } from "../../utils/getMessageText";
 
-export const useCopyMessage = ({ copiedDuration = 3000 }) => {
+type UseActionBarCopyProps = {
+  copiedDuration?: number;
+};
+
+export const useActionBarCopy = ({
+  copiedDuration = 3000,
+}: UseActionBarCopyProps = {}) => {
   const { useMessage, useMessageUtils, useComposer } = useMessageContext();
 
   const hasCopyableContent = useCombinedStore(
     [useMessage, useComposer],
     (m, c) => {
-      return c.isEditing || m.message.content.some((c) => c.type === "text");
+      return !c.isEditing && m.message.content.some((c) => c.type === "text");
     },
   );
 

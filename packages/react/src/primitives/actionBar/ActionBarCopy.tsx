@@ -1,11 +1,9 @@
 "use client";
 
-import { useCopyMessage } from "../../actions/useCopyMessage";
+import { useActionBarCopy } from "../../primitive-hooks/actionBar/useActionBarCopy";
 import { createActionButton } from "../../utils/createActionButton";
 
-type ActionBarCopyProps = {
-  copiedDuration?: number;
-};
-
-export const ActionBarCopy =
-  createActionButton<ActionBarCopyProps>(useCopyMessage);
+export const ActionBarCopy = createActionButton(
+  "ActionBarCopy",
+  useActionBarCopy,
+);

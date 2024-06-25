@@ -1,9 +1,9 @@
 import { useCallback } from "react";
-import { useMessageContext } from "../context/MessageContext";
-import { useThreadContext } from "../context/ThreadContext";
-import { useCombinedStore } from "../utils/combined/useCombinedStore";
+import { useMessageContext } from "../../context/react/MessageContext";
+import { useThreadContext } from "../../context/react/ThreadContext";
+import { useCombinedStore } from "../../utils/combined/useCombinedStore";
 
-export const useGoToNextBranch = () => {
+export const useBranchPickerNext = () => {
   const { useThreadActions } = useThreadContext();
   const { useMessage, useComposer } = useMessageContext();
 

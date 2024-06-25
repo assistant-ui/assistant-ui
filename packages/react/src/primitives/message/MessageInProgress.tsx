@@ -7,7 +7,7 @@ import {
   useMemo,
   ComponentPropsWithoutRef,
 } from "react";
-import { useMessageContext } from "../../context/MessageContext";
+import { useMessageContext } from "../../context/react/MessageContext";
 
 type MessageInProgressElement = ElementRef<typeof Primitive.span>;
 type PrimitiveSpanProps = ComponentPropsWithoutRef<typeof Primitive.span>;

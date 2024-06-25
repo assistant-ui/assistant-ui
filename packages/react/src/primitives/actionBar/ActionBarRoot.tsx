@@ -2,8 +2,8 @@
 
 import { Primitive } from "@radix-ui/react-primitive";
 import { type ElementRef, forwardRef, ComponentPropsWithoutRef } from "react";
-import { useMessageContext } from "../../context/MessageContext";
-import { useThreadContext } from "../../context/ThreadContext";
+import { useMessageContext } from "../../context/react/MessageContext";
+import { useThreadContext } from "../../context/react/ThreadContext";
 import { useCombinedStore } from "../../utils/combined/useCombinedStore";
 
 type ActionBarRootElement = ElementRef<typeof Primitive.div>;
@@ -15,20 +15,21 @@ enum HideAndFloatStatus {
   Normal = "normal",
 }
 
-export type ActionBarRootProps = PrimitiveDivProps & {
-  hideWhenRunning?: boolean;
-  autohide?: "always" | "not-last" | "never";
-  autohideFloat?: "always" | "single-branch" | "never";
+type UseActionBarFloatStatusProps = {
+  hideWhenRunning?: boolean | undefined;
+  autohide?: "always" | "not-last" | "never" | undefined;
+  autohideFloat?: "always" | "single-branch" | "never" | undefined;
 };
 
-export const ActionBarRoot = forwardRef<
-  ActionBarRootElement,
-  ActionBarRootProps
->(({ hideWhenRunning, autohide, autohideFloat, ...rest }, ref) => {
+const useActionBarFloatStatus = ({
+  hideWhenRunning,
+  autohide,
+  autohideFloat,
+}: UseActionBarFloatStatusProps) => {
   const { useThread } = useThreadContext();
   const { useMessage, useMessageUtils } = useMessageContext();
 
-  const hideAndfloatStatus = useCombinedStore(
+  return useCombinedStore(
     [useThread, useMessage, useMessageUtils],
     (t, m, mu) => {
       if (hideWhenRunning && t.isRunning) return HideAndFloatStatus.Hidden;
@@ -52,6 +53,20 @@ export const ActionBarRoot = forwardRef<
       return HideAndFloatStatus.Normal;
     },
   );
+};
+
+export type ActionBarRootProps = PrimitiveDivProps &
+  UseActionBarFloatStatusProps;
+
+export const ActionBarRoot = forwardRef<
+  ActionBarRootElement,
+  ActionBarRootProps
+>(({ hideWhenRunning, autohide, autohideFloat, ...rest }, ref) => {
+  const hideAndfloatStatus = useActionBarFloatStatus({
+    hideWhenRunning,
+    autohide,
+    autohideFloat,
+  });
 
   if (hideAndfloatStatus === HideAndFloatStatus.Hidden) return null;
 

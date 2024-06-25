@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useAssistantContext } from "../context/AssistantContext";
+import { useAssistantContext } from "../context/react/AssistantContext";
 
 export const useAssistantInstructions = (instruction: string) => {
   const { useModelConfig } = useAssistantContext();
