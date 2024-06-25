@@ -7,7 +7,7 @@ import { MessageUtilsState } from "../stores/MessageUtils";
 export type MessageContextValue = {
   useMessage: ReadonlyStore<MessageState>;
   useMessageUtils: ReadonlyStore<MessageUtilsState>;
-  useComposer: ReadonlyStore<EditComposerState>;
+  useEditComposer: ReadonlyStore<EditComposerState>;
 };
 
 export const MessageContext = createContext<MessageContextValue | null>(null);

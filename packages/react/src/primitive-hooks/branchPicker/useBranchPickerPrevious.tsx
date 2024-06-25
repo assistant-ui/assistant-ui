@@ -5,10 +5,10 @@ import { useCombinedStore } from "../../utils/combined/useCombinedStore";
 
 export const useBranchPickerPrevious = () => {
   const { useThreadActions } = useThreadContext();
-  const { useMessage, useComposer } = useMessageContext();
+  const { useMessage, useEditComposer } = useMessageContext();
 
   const disabled = useCombinedStore(
-    [useMessage, useComposer],
+    [useMessage, useEditComposer],
     (m, c) => c.isEditing || m.branches.indexOf(m.message.id) <= 0,
   );
 

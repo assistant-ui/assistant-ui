@@ -10,10 +10,10 @@ type UseActionBarCopyProps = {
 export const useActionBarCopy = ({
   copiedDuration = 3000,
 }: UseActionBarCopyProps = {}) => {
-  const { useMessage, useMessageUtils, useComposer } = useMessageContext();
+  const { useMessage, useMessageUtils, useEditComposer } = useMessageContext();
 
   const hasCopyableContent = useCombinedStore(
-    [useMessage, useComposer],
+    [useMessage, useEditComposer],
     (m, c) => {
       return !c.isEditing && m.message.content.some((c) => c.type === "text");
     },
@@ -22,14 +22,14 @@ export const useActionBarCopy = ({
   const callback = useCallback(() => {
     const { message } = useMessage.getState();
     const { setIsCopied } = useMessageUtils.getState();
-    const { isEditing, value: composerValue } = useComposer.getState();
+    const { isEditing, value: composerValue } = useEditComposer.getState();
 
     const valueToCopy = isEditing ? composerValue : getMessageText(message);
 
     navigator.clipboard.writeText(valueToCopy);
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), copiedDuration);
-  }, [useMessage, useMessageUtils, useComposer, copiedDuration]);
+  }, [useMessage, useMessageUtils, useEditComposer, copiedDuration]);
 
   if (!hasCopyableContent) return null;
   return callback;

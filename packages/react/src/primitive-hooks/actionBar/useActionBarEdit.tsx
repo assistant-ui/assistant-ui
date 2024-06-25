@@ -3,17 +3,17 @@ import { useMessageContext } from "../../context/react/MessageContext";
 import { useCombinedStore } from "../../utils/combined/useCombinedStore";
 
 export const useActionBarEdit = () => {
-  const { useMessage, useComposer } = useMessageContext();
+  const { useMessage, useEditComposer } = useMessageContext();
 
   const disabled = useCombinedStore(
-    [useMessage, useComposer],
+    [useMessage, useEditComposer],
     (m, c) => m.message.role !== "user" || c.isEditing,
   );
 
   const callback = useCallback(() => {
-    const { edit } = useComposer.getState();
+    const { edit } = useEditComposer.getState();
     edit();
-  }, [useComposer]);
+  }, [useEditComposer]);
 
   if (disabled) return null;
   return callback;

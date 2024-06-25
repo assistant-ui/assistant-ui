@@ -12,7 +12,7 @@ export type ComposerContextValue = {
 
 export const useComposerContext = (): ComposerContextValue => {
   const { useComposer } = useThreadContext();
-  const { useComposer: useEditComposer } = useContext(MessageContext) ?? {};
+  const { useEditComposer } = useContext(MessageContext) ?? {};
   return useMemo(
     () => ({
       useComposer: (useEditComposer ?? useComposer) as ReadonlyStore<

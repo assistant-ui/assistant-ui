@@ -133,8 +133,6 @@ const setValue = useComposer(m => m.setValue);
 const setValue = useComposer.getState().setValue;
 ```
 
-{/** TODO rest of composer state */}
-
 <ParametersTable {...ComposerState} />
 
 ### `useViewport`
@@ -165,7 +163,7 @@ This hook provides access to the context stores.
 ```tsx
 import { useMessageContext } from "@assistant-ui/react";
 
-const { useMessage, useMessageUtils, useComposer } = useMessageContext();
+const { useMessage, useMessageUtils, useEditComposer } = useMessageContext();
 ```
 
 ### `useMessage`
@@ -214,19 +212,17 @@ const setIsHovering = useMessageUtils.getState().setIsHovering;
 
 <ParametersTable {...MessageUtilsState} />
 
-### `useComposer` (Edit Composer)
+### `useEditComposer`
 
 ```tsx
-const { useComposer } = useMessageContext();
+const { useEditComposer } = useMessageContext();
 
-const value = useComposer(m => m.value);
-const value = useComposer.getState().value;
+const value = useEditComposer(m => m.value);
+const value = useEditComposer.getState().value;
 
-const setValue = useComposer(m => m.setValue);
-const setValue = useComposer.getState().setValue;
+const setValue = useEditComposer(m => m.setValue);
+const setValue = useEditComposer.getState().setValue;
 ```
-
-{/** TODO rest of composer state */}
 
 <ParametersTable {...EditComposerState} />
 
@@ -257,3 +253,47 @@ const status = useContentPart.getState().status;
 ```
 
 <ParametersTable {...ContentPartState} />
+
+## Composer Context
+
+The **Composer Context** provides access to the nearest composer state (either the edit composer or the thread's new message composer).
+
+### `useComposerContext`
+
+This hook provides access to the context stores.
+
+```tsx
+import { useComposerContext } from "@assistant-ui/react";
+
+const { useComposer } = useComposerContext();
+```
+
+<ParametersTable
+  type="ComposerContextValue"
+  parameters={[
+    {
+      name: "useComposer",
+      type: "ReadonlyStore<ComposerState | EditComposerState>",
+      required: true,
+      description: "The composer state.",
+    },
+    {
+      name: "type",
+      type: "'edit' | 'new'",
+      required: true,
+      description: "The type of composer.",
+    },
+  ]}
+/>
+
+### `useComposer`
+
+```tsx
+const { useComposer } = useComposerContext();
+
+const value = useComposer(m => m.value);
+const value = useComposer.getState().value;
+
+const setValue = useComposer(m => m.setValue);
+const setValue = useComposer.getState().setValue;
+```

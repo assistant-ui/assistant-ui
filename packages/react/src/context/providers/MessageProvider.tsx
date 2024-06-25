@@ -61,7 +61,7 @@ const useMessageContext = (messageIndex: number) => {
   const [context] = useState<MessageContextValue>(() => {
     const useMessage = create<MessageState>(() => ({}) as MessageState);
     const useMessageUtils = makeMessageUtilsStore();
-    const useComposer = makeEditComposerStore({
+    const useEditComposer = makeEditComposerStore({
       onEdit: () => {
         const message = useMessage.getState().message;
         if (message.role !== "user")
@@ -98,7 +98,7 @@ const useMessageContext = (messageIndex: number) => {
       messageIndex,
     );
 
-    return { useMessage, useMessageUtils, useComposer };
+    return { useMessage, useMessageUtils, useEditComposer };
   });
 
   useEffect(() => {
