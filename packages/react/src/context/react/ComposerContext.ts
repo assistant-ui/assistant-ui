@@ -2,7 +2,7 @@ import { useContext, useMemo } from "react";
 import { MessageContext } from "./MessageContext";
 import { useThreadContext } from "./ThreadContext";
 import type { ComposerState } from "../stores/Composer";
-import type { EditComposerState } from "../stores/MessageComposer";
+import type { EditComposerState } from "../stores/EditComposer";
 import { ReadonlyStore } from "../ReadonlyStore";
 
 export type ComposerContextValue = {

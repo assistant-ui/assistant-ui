@@ -12,7 +12,20 @@ The context is split into four hierarchies:
 - **Content Part Context**: Provides access to the content part state.
 
 
-import { AssistantContextValue } from "@/components/docs/parameters/context";
+import { ParametersTable } from "@/components/docs";
+import { 
+  AssistantContextValue, 
+  AssistantModelConfigState, 
+  AssistantToolUIsState,
+  ThreadState, 
+  ThreadActionsState, 
+  ComposerState, 
+  EditComposerState, 
+  ThreadViewportState,
+  ContentPartState,
+  MessageState,
+  MessageUtilsState,
+} from "@/components/docs/parameters/context";
 
 ## Assistant Context
 
@@ -28,9 +41,30 @@ import { useAssistantContext } from "@assistant-ui/react";
 const { useModelConfig, useToolUIs } = useAssistantContext();
 ```
 
-#### Return Type
+<ParametersTable {...AssistantContextValue} /> 
 
-<AssistantContextValue />
+### `useModelConfig`
+
+```tsx
+const { useModelConfig } = useAssistantContext();
+
+const getModelConfig = useModelConfig(m => m.getModelConfig);
+const getModelConfig = useModelConfig.getState().getModelConfig;
+```
+
+<ParametersTable {...AssistantModelConfigState} /> 
+
+
+### `useToolUIs`
+
+```tsx
+const { useToolUIs } = useAssistantContext();
+
+const getToolUI = useToolUIs(m => m.getToolUI);
+const getToolUI = useToolUIs.getState().getToolUI;
+```
+
+<ParametersTable {...AssistantToolUIsState} />
 
 
 ## Thread Context
@@ -47,6 +81,79 @@ import { useThreadContext } from "@assistant-ui/react";
 const { useThread, useThreadActions, useComposer, useViewport } = useThreadContext();
 ```
 
+### `useThread`
+
+```tsx
+const { useThread } = useThreadContext();
+
+const messages = useThread(m => m.messages);
+const messages = useThread.getState().messages;
+
+const isRunning = useThread(m => m.isRunning);
+const isRunning = useThread.getState().isRunning;
+```
+
+<ParametersTable {...ThreadState} />
+
+### `useThreadActions`
+
+```tsx
+const { useThreadActions } = useThreadContext();
+
+const getBranches = useThreadActions(m => m.getBranches);
+const getBranches = useThreadActions.getState().getBranches;
+
+const switchToBranch = useThreadActions(m => m.switchToBranch);
+const switchToBranch = useThreadActions.getState().switchToBranch;
+
+const append = useThreadActions(m => m.append);
+const append = useThreadActions.getState().append;
+
+const startRun = useThreadActions(m => m.startRun);
+const startRun = useThreadActions.getState().startRun;
+
+const cancelRun = useThreadActions(m => m.cancelRun);
+const cancelRun = useThreadActions.getState().cancelRun;
+
+const addToolResult = useThreadActions(m => m.addToolResult);
+const addToolResult = useThreadActions.getState().addToolResult;
+```
+
+<ParametersTable {...ThreadActionsState} />
+
+### `useComposer`
+
+```tsx
+const { useComposer } = useThreadContext();
+
+const value = useComposer(m => m.value);
+const value = useComposer.getState().value;
+
+const setValue = useComposer(m => m.setValue);
+const setValue = useComposer.getState().setValue;
+```
+
+{/** TODO rest of composer state */}
+
+<ParametersTable {...ComposerState} />
+
+### `useViewport`
+
+```tsx
+const { useViewport } = useThreadContext();
+
+const isAtBottom = useViewport(m => m.isAtBottom);
+const isAtBottom = useViewport.getState().isAtBottom;
+
+const scrollToBottom = useViewport(m => m.scrollToBottom);
+const scrollToBottom = useViewport.getState().scrollToBottom;
+
+const onScrollToBottom = useViewport(m => m.onScrollToBottom);
+const onScrollToBottom = useViewport.getState().onScrollToBottom;
+```
+
+<ParametersTable {...ThreadViewportState} />
+
 ## Message Context
 
 The **Message Context** provides access to MessageState, EditComposerState and MessageUtilsState.
@@ -61,6 +168,68 @@ import { useMessageContext } from "@assistant-ui/react";
 const { useMessage, useMessageUtils, useComposer } = useMessageContext();
 ```
 
+### `useMessage`
+
+```tsx
+const { useMessage } = useMessageContext();
+
+const message = useMessage(m => m.message);
+const message = useMessage.getState().message;
+
+const parentId = useMessage(m => m.parentId);
+const parentId = useMessage.getState().parentId;
+
+const branches = useMessage(m => m.branches);
+const branches = useMessage.getState().branches;
+
+const isLast = useMessage(m => m.isLast);
+const isLast = useMessage.getState().isLast;
+```
+
+<ParametersTable {...MessageState} />
+
+### `useMessageUtils`
+
+```tsx
+const { useMessageUtils } = useMessageContext();
+
+const inProgressIndicator = useMessageUtils(m => m.inProgressIndicator);
+const inProgressIndicator = useMessageUtils.getState().inProgressIndicator;
+
+const setInProgressIndicator = useMessageUtils(m => m.setInProgressIndicator);
+const setInProgressIndicator = useMessageUtils.getState().setInProgressIndicator;
+
+const isCopied = useMessageUtils(m => m.isCopied);
+const isCopied = useMessageUtils.getState().isCopied;
+
+const setIsCopied = useMessageUtils(m => m.setIsCopied);
+const setIsCopied = useMessageUtils.getState().setIsCopied;
+
+const isHovering = useMessageUtils(m => m.isHovering);
+const isHovering = useMessageUtils.getState().isHovering;
+
+const setIsHovering = useMessageUtils(m => m.setIsHovering);
+const setIsHovering = useMessageUtils.getState().setIsHovering;
+```
+
+<ParametersTable {...MessageUtilsState} />
+
+### `useComposer` (Edit Composer)
+
+```tsx
+const { useComposer } = useMessageContext();
+
+const value = useComposer(m => m.value);
+const value = useComposer.getState().value;
+
+const setValue = useComposer(m => m.setValue);
+const setValue = useComposer.getState().setValue;
+```
+
+{/** TODO rest of composer state */}
+
+<ParametersTable {...EditComposerState} />
+
 ## Content Part Context
 
 The **Content Part Context** provides access to ContentPartState.
@@ -73,4 +242,18 @@ This hook provides access to the context stores.
 import { useContentPartContext } from "@assistant-ui/react";
 
 const { useContentPart } = useContentPartContext();
-```../../components/docs/parameters/contextParameters
+```
+
+### `useContentPart`
+
+```tsx
+const { useContentPart } = useContentPartContext();
+
+const part = useContentPart(m => m.part);
+const part = useContentPart.getState().part;
+
+const status = useContentPart(m => m.status);
+const status = useContentPart.getState().status;
+```
+
+<ParametersTable {...ContentPartState} />

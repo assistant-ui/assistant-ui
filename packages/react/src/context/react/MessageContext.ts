@@ -1,6 +1,6 @@
 import { createContext, useContext } from "react";
 import type { MessageState } from "../stores/Message";
-import type { EditComposerState } from "../stores/MessageComposer";
+import type { EditComposerState } from "../stores/EditComposer";
 import { ReadonlyStore } from "../ReadonlyStore";
 import { MessageUtilsState } from "../stores/MessageUtils";
 

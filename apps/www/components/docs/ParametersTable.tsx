@@ -98,7 +98,7 @@ const ParametersBox: FC<ParametersTableProps> = ({ type, parameters }) => {
   );
 };
 
-type ParametersTableProps = {
+export type ParametersTableProps = {
   type?: string;
   parameters: Array<ParameterDef>;
 };

@@ -11,7 +11,7 @@ import { MessageContext } from "../react/MessageContext";
 import type { MessageContextValue } from "../react/MessageContext";
 import { useThreadContext } from "../react/ThreadContext";
 import type { MessageState } from "../stores/Message";
-import { makeEditComposerStore } from "../stores/MessageComposer";
+import { makeEditComposerStore } from "../stores/EditComposer";
 import type { ThreadState } from "../stores/Thread";
 import { makeMessageUtilsStore } from "../stores/MessageUtils";
 
