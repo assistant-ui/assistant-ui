@@ -1,9 +1,16 @@
 "use client";
 
-import { createActionButton } from "../../utils/createActionButton";
+import {
+  ActionButtonProps,
+  createActionButton,
+} from "../../utils/createActionButton";
 import { useComposerCancel } from "../../primitive-hooks/composer/useComposerCancel";
 
-export const ComposerCancel = createActionButton(
-  "ComposerCancel",
+export type ComposerPrimitiveCancelProps = ActionButtonProps<
+  typeof useComposerCancel
+>;
+
+export const ComposerPrimitiveCancel = createActionButton(
+  "ComposerPrimitive.Cancel",
   useComposerCancel,
 );

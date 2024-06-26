@@ -3,7 +3,13 @@
 import type { FC } from "react";
 import { useBranchPickerNumber } from "../../primitive-hooks/branchPicker/useBranchPickerNumber";
 
-export const BranchPickerNumber: FC = () => {
+export type BranchPickerPrimitiveNumberProps = {};
+
+export const BranchPickerPrimitiveNumber: FC<
+  BranchPickerPrimitiveNumberProps
+> = () => {
   const branchNumber = useBranchPickerNumber();
   return <>{branchNumber}</>;
 };
+
+BranchPickerPrimitiveNumber.displayName = "BranchPickerPrimitive.Number";

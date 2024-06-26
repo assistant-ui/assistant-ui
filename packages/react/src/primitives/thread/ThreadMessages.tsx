@@ -3,10 +3,10 @@
 import { type ComponentType, type FC, memo } from "react";
 import { useThreadContext } from "../../context/react/ThreadContext";
 import { MessageProvider } from "../../context/providers/MessageProvider";
-import { ComposerIf } from "../composer/ComposerIf";
-import { MessageIf } from "../message/MessageIf";
+import { ComposerPrimitiveIf } from "../composer/ComposerIf";
+import { MessagePrimitiveIf } from "../message/MessageIf";
 
-type ThreadMessagesProps = {
+export type ThreadPrimitiveMessagesProps = {
   components:
     | {
         Message: ComponentType;
@@ -22,7 +22,9 @@ type ThreadMessagesProps = {
       };
 };
 
-const getComponents = (components: ThreadMessagesProps["components"]) => {
+const getComponents = (
+  components: ThreadPrimitiveMessagesProps["components"],
+) => {
   return {
     EditComposer:
       components.EditComposer ??
@@ -37,7 +39,7 @@ const getComponents = (components: ThreadMessagesProps["components"]) => {
 
 type ThreadMessageProps = {
   messageIndex: number;
-  components: ThreadMessagesProps["components"];
+  components: ThreadPrimitiveMessagesProps["components"];
 };
 
 const ThreadMessageImpl: FC<ThreadMessageProps> = ({
@@ -48,17 +50,17 @@ const ThreadMessageImpl: FC<ThreadMessageProps> = ({
     getComponents(components);
   return (
     <MessageProvider messageIndex={messageIndex}>
-      <MessageIf user>
-        <ComposerIf editing={false}>
+      <MessagePrimitiveIf user>
+        <ComposerPrimitiveIf editing={false}>
           <UserMessage />
-        </ComposerIf>
-        <ComposerIf editing>
+        </ComposerPrimitiveIf>
+        <ComposerPrimitiveIf editing>
           <EditComposer />
-        </ComposerIf>
-      </MessageIf>
-      <MessageIf assistant>
+        </ComposerPrimitiveIf>
+      </MessagePrimitiveIf>
+      <MessagePrimitiveIf assistant>
         <AssistantMessage />
-      </MessageIf>
+      </MessagePrimitiveIf>
     </MessageProvider>
   );
 };
@@ -72,7 +74,9 @@ const ThreadMessage = memo(
     prev.components.AssistantMessage === next.components.AssistantMessage,
 );
 
-export const ThreadMessages: FC<ThreadMessagesProps> = ({ components }) => {
+export const ThreadPrimitiveMessages: FC<ThreadPrimitiveMessagesProps> = ({
+  components,
+}) => {
   const { useThread } = useThreadContext();
 
   const messagesLength = useThread((t) => t.messages.length);
@@ -89,3 +93,5 @@ export const ThreadMessages: FC<ThreadMessagesProps> = ({ components }) => {
     );
   });
 };
+
+ThreadPrimitiveMessages.displayName = "ThreadPrimitive.Messages";

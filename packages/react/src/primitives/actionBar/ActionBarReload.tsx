@@ -1,9 +1,16 @@
 "use client";
 
 import { useActionBarReload } from "../../primitive-hooks/actionBar/useActionBarReload";
-import { createActionButton } from "../../utils/createActionButton";
+import {
+  ActionButtonProps,
+  createActionButton,
+} from "../../utils/createActionButton";
 
-export const ActionBarReload = createActionButton(
-  "ActionBarReload",
+export type ActionBarPrimitiveReloadProps = ActionButtonProps<
+  typeof useActionBarReload
+>;
+
+export const ActionBarPrimitiveReload = createActionButton(
+  "ActionBarPrimitive.Reload",
   useActionBarReload,
 );

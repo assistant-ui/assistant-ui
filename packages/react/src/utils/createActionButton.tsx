@@ -6,13 +6,16 @@ import { type ElementRef, forwardRef, ComponentPropsWithoutRef } from "react";
 
 type ActionButtonCallback<TProps> = (props: TProps) => null | (() => void);
 
+type PrimitiveButtonElement = ElementRef<typeof Primitive.button>;
+type PrimitiveButtonProps = ComponentPropsWithoutRef<typeof Primitive.button>;
+
+export type ActionButtonProps<THook> = PrimitiveButtonProps &
+  (THook extends (props: infer TProps) => unknown ? TProps : never);
+
 export const createActionButton = <TProps,>(
   displayName: string,
   useActionButton: ActionButtonCallback<TProps>,
 ) => {
-  type PrimitiveButtonElement = ElementRef<typeof Primitive.button>;
-  type PrimitiveButtonProps = ComponentPropsWithoutRef<typeof Primitive.button>;
-
   const ActionButton = forwardRef<
     PrimitiveButtonElement,
     PrimitiveButtonProps & TProps

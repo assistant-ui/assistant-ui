@@ -6,9 +6,14 @@ import {
   useComposerIf,
 } from "../../primitive-hooks/composer/useComposerIf";
 
-type ComposerIfProps = PropsWithChildren<UseComposerIfProps>;
+export type ComposerPrimitiveIfProps = PropsWithChildren<UseComposerIfProps>;
 
-export const ComposerIf: FC<ComposerIfProps> = ({ children, ...query }) => {
+export const ComposerPrimitiveIf: FC<ComposerPrimitiveIfProps> = ({
+  children,
+  ...query
+}) => {
   const result = useComposerIf(query);
   return result ? children : null;
 };
+
+ComposerPrimitiveIf.displayName = "ComposerPrimitive.If";

@@ -1,9 +1,16 @@
 "use client";
 
 import { useActionBarCopy } from "../../primitive-hooks/actionBar/useActionBarCopy";
-import { createActionButton } from "../../utils/createActionButton";
+import {
+  ActionButtonProps,
+  createActionButton,
+} from "../../utils/createActionButton";
 
-export const ActionBarCopy = createActionButton(
-  "ActionBarCopy",
+export type ActionBarPrimitiveCopyProps = ActionButtonProps<
+  typeof useActionBarCopy
+>;
+
+export const ActionBarPrimitiveCopy = createActionButton(
+  "ActionBarPrimitive.Copy",
   useActionBarCopy,
 );

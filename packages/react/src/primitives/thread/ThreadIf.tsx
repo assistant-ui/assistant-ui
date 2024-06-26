@@ -6,9 +6,14 @@ import {
   useThreadIf,
 } from "../../primitive-hooks/thread/useThreadIf";
 
-export type ThreadIfProps = PropsWithChildren<UseThreadIfProps>;
+export type ThreadPrimitiveIfProps = PropsWithChildren<UseThreadIfProps>;
 
-export const ThreadIf: FC<ThreadIfProps> = ({ children, ...query }) => {
+export const ThreadPrimitiveIf: FC<ThreadPrimitiveIfProps> = ({
+  children,
+  ...query
+}) => {
   const result = useThreadIf(query);
   return result ? children : null;
 };
+
+ThreadPrimitiveIf.displayName = "ThreadPrimitive.If";

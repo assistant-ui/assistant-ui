@@ -1,7 +1,13 @@
 import type { FC } from "react";
 import { useContentPartDisplay } from "../../primitive-hooks/contentPart/useContentPartDisplay";
 
-export const ContentPartDisplay: FC = () => {
+export type ContentPartPrimitiveDisplayProps = {};
+
+export const ContentPartPrimitiveDisplay: FC<
+  ContentPartPrimitiveDisplayProps
+> = () => {
   const display = useContentPartDisplay();
   return display ?? null;
 };
+
+ContentPartPrimitiveDisplay.displayName = "ContentPartPrimitive.Display";

@@ -10,30 +10,31 @@ import {
 } from "react";
 import { useComposerSend } from "../../primitive-hooks";
 
-type ComposerRootElement = ElementRef<typeof Primitive.form>;
+type ComposerPrimitiveRootElement = ElementRef<typeof Primitive.form>;
 type PrimitiveFormProps = ComponentPropsWithoutRef<typeof Primitive.form>;
 
-type ComposerRootProps = PrimitiveFormProps;
+export type ComposerPrimitiveRootProps = PrimitiveFormProps;
 
-export const ComposerRoot = forwardRef<ComposerRootElement, ComposerRootProps>(
-  ({ onSubmit, ...rest }, forwardedRef) => {
-    const send = useComposerSend();
+export const ComposerPrimitiveRoot = forwardRef<
+  ComposerPrimitiveRootElement,
+  ComposerPrimitiveRootProps
+>(({ onSubmit, ...rest }, forwardedRef) => {
+  const send = useComposerSend();
 
-    const handleSubmit = (e: FormEvent) => {
-      if (!send) return;
+  const handleSubmit = (e: FormEvent) => {
+    if (!send) return;
 
-      e.preventDefault();
-      send();
-    };
+    e.preventDefault();
+    send();
+  };
 
-    return (
-      <Primitive.form
-        {...rest}
-        ref={forwardedRef}
-        onSubmit={composeEventHandlers(onSubmit, handleSubmit)}
-      />
-    );
-  },
-);
+  return (
+    <Primitive.form
+      {...rest}
+      ref={forwardedRef}
+      onSubmit={composeEventHandlers(onSubmit, handleSubmit)}
+    />
+  );
+});
 
-ComposerRoot.displayName = "ComposerRoot";
+ComposerPrimitiveRoot.displayName = "ComposerPrimitive.Root";

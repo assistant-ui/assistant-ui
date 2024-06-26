@@ -45,7 +45,7 @@ The scrollable area containing all messages. Anchors scroll to the bottom as new
 This primitive renders a `<div>` element unless `asChild` is set.
 
 <ParametersTable
-  type="ThreadViewportProps"
+  type="ThreadPrimitiveViewportProps"
   parameters={[ 
     {
       name: "asChild",
@@ -81,7 +81,7 @@ const Viewport = () => {
 Renders all messages. This primitive renders a separate component for each message.
 
 <ParametersTable
-  type="ThreadMessagesProps"
+  type="ThreadPrimitiveMessagesProps"
   parameters={[
     {
       name: "components",
@@ -141,7 +141,7 @@ A button to scroll the viewport to the bottom. Disabled when the viewport is alr
 This primitive renders a `<button>` element unless `asChild` is set.
 
 <ParametersTable
-  type="ThreadScrollToBottomProps"
+  type="ThreadPrimitiveScrollToBottomProps"
   parameters={[
     {
       name: "asChild",
@@ -171,7 +171,7 @@ const ScrollToBottom = () => {
 Renders children if a condition is met.
 
 <ParametersTable
-  type="UseThreadIfProps"
+  type="ThreadPrimitiveIfProps"
   parameters={[
     {
       name: "empty",

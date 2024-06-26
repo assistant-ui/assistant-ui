@@ -4,16 +4,16 @@ import { Primitive } from "@radix-ui/react-primitive";
 import { type ElementRef, forwardRef, ComponentPropsWithoutRef } from "react";
 import { If } from "../message";
 
-type BranchPickerRootElement = ElementRef<typeof Primitive.div>;
+type BranchPickerPrimitiveRootElement = ElementRef<typeof Primitive.div>;
 type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;
 
-type BranchPickerRootProps = PrimitiveDivProps & {
+export type BranchPickerPrimitiveRootProps = PrimitiveDivProps & {
   hideWhenSingleBranch?: boolean;
 };
 
-export const BranchPickerRoot = forwardRef<
-  BranchPickerRootElement,
-  BranchPickerRootProps
+export const BranchPickerPrimitiveRoot = forwardRef<
+  BranchPickerPrimitiveRootElement,
+  BranchPickerPrimitiveRootProps
 >(({ hideWhenSingleBranch, ...rest }, ref) => {
   return (
     <If hasBranches={hideWhenSingleBranch ? true : undefined}>
@@ -22,4 +22,4 @@ export const BranchPickerRoot = forwardRef<
   );
 });
 
-BranchPickerRoot.displayName = "BranchPickerRoot";
+BranchPickerPrimitiveRoot.displayName = "BranchPickerPrimitive.Root";

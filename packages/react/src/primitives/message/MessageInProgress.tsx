@@ -9,14 +9,14 @@ import {
 } from "react";
 import { useMessageContext } from "../../context/react/MessageContext";
 
-type MessageInProgressElement = ElementRef<typeof Primitive.span>;
+type MessagePrimitiveInProgressElement = ElementRef<typeof Primitive.span>;
 type PrimitiveSpanProps = ComponentPropsWithoutRef<typeof Primitive.span>;
 
-type MessageInProgressProps = PrimitiveSpanProps;
+export type MessagePrimitiveInProgressProps = PrimitiveSpanProps;
 
-export const MessageInProgress = forwardRef<
-  MessageInProgressElement,
-  MessageInProgressProps
+export const MessagePrimitiveInProgress = forwardRef<
+  MessagePrimitiveInProgressElement,
+  MessagePrimitiveInProgressProps
 >((props, ref) => {
   const { useMessageUtils } = useMessageContext();
 
@@ -29,4 +29,4 @@ export const MessageInProgress = forwardRef<
   return null;
 });
 
-MessageInProgress.displayName = "MessageInProgress";
+MessagePrimitiveInProgress.displayName = "MessagePrimitive.InProgress";

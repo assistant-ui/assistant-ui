@@ -1,4 +1,4 @@
-export { ContentPartInProgressIndicator as InProgressIndicator } from "./ContentPartInProgressIndicator";
-export { ContentPartText as Text } from "./ContentPartText";
-export { ContentPartImage as Image } from "./ContentPartImage";
-export { ContentPartDisplay as Display } from "./ContentPartDisplay";
+export { ContentPartPrimitiveInProgressIndicator as InProgressIndicator } from "./ContentPartInProgressIndicator";
+export { ContentPartPrimitiveText as Text } from "./ContentPartText";
+export { ContentPartPrimitiveImage as Image } from "./ContentPartImage";
+export { ContentPartPrimitiveDisplay as Display } from "./ContentPartDisplay";

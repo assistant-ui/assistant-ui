@@ -18,13 +18,13 @@ import { useThreadContext } from "../../context/react/ThreadContext";
 import { useEscapeKeydown } from "@radix-ui/react-use-escape-keydown";
 import { useOnComposerFocus } from "../../utils/hooks/useOnComposerFocus";
 
-type ComposerInputProps = TextareaAutosizeProps & {
+export type ComposerPrimitiveInputProps = TextareaAutosizeProps & {
   asChild?: boolean;
 };
 
-export const ComposerInput = forwardRef<
+export const ComposerPrimitiveInput = forwardRef<
   HTMLTextAreaElement,
-  ComposerInputProps
+  ComposerPrimitiveInputProps
 >(
   (
     { autoFocus = false, asChild, disabled, onChange, onKeyDown, ...rest },
@@ -100,4 +100,4 @@ export const ComposerInput = forwardRef<
   },
 );
 
-ComposerInput.displayName = "ComposerInput";
+ComposerPrimitiveInput.displayName = "ComposerPrimitive.Input";

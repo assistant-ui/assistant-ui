@@ -1,18 +1,22 @@
+"use client";
+
 import { ComponentPropsWithoutRef, ElementRef, forwardRef } from "react";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
-import { ScopedProps, usePopoverScope } from "./AssistantModalRoot";
+import { ScopedProps, usePopoverScope } from "./scope";
 import { composeEventHandlers } from "@radix-ui/primitive";
 
-type AssistantModalContentElement = ElementRef<typeof PopoverPrimitive.Content>;
-type AssistantModalContentProps = ComponentPropsWithoutRef<
+type AssistantModalPrimitiveContentElement = ElementRef<
+  typeof PopoverPrimitive.Content
+>;
+export type AssistantModalPrimitiveContentProps = ComponentPropsWithoutRef<
   typeof PopoverPrimitive.Content
 > & {
   dissmissOnInteractOutside?: boolean;
 };
 
-export const AssistantModalContent = forwardRef<
-  AssistantModalContentElement,
-  AssistantModalContentProps
+export const AssistantModalPrimitiveContent = forwardRef<
+  AssistantModalPrimitiveContentElement,
+  AssistantModalPrimitiveContentProps
 >(
   (
     {
@@ -22,7 +26,7 @@ export const AssistantModalContent = forwardRef<
       onInteractOutside,
       dissmissOnInteractOutside = false,
       ...props
-    }: ScopedProps<AssistantModalContentProps>,
+    }: ScopedProps<AssistantModalPrimitiveContentProps>,
     forwardedRef,
   ) => {
     const scope = usePopoverScope(__scopeAssistantModal);
@@ -44,4 +48,5 @@ export const AssistantModalContent = forwardRef<
     );
   },
 );
-AssistantModalContent.displayName = "AssistantModalContent";
+
+AssistantModalPrimitiveContent.displayName = "AssistantModalPrimitive.Content";

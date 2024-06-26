@@ -8,9 +8,9 @@ import {
 } from "../../context";
 import { useMessageContext } from "../../context/react/MessageContext";
 import { ContentPartProvider } from "../../context/providers/ContentPartProvider";
-import { ContentPartDisplay } from "../contentPart/ContentPartDisplay";
-import { ContentPartInProgressIndicator } from "../contentPart/ContentPartInProgressIndicator";
-import { ContentPartText } from "../contentPart/ContentPartText";
+import { ContentPartPrimitiveDisplay } from "../contentPart/ContentPartDisplay";
+import { ContentPartPrimitiveInProgressIndicator } from "../contentPart/ContentPartInProgressIndicator";
+import { ContentPartPrimitiveText } from "../contentPart/ContentPartText";
 import type {
   ImageContentPartComponent,
   TextContentPartComponent,
@@ -19,7 +19,7 @@ import type {
   UIContentPartComponent,
 } from "../../types/ContentPartComponentTypes";
 
-export type MessageContentProps = {
+export type MessagePrimitiveContentProps = {
   components?: {
     Text?: TextContentPartComponent;
     Image?: ImageContentPartComponent;
@@ -34,12 +34,12 @@ export type MessageContentProps = {
 const defaultComponents = {
   Text: () => (
     <>
-      <ContentPartText style={{ whiteSpace: "pre-line" }} />
-      <ContentPartInProgressIndicator />
+      <ContentPartPrimitiveText style={{ whiteSpace: "pre-line" }} />
+      <ContentPartPrimitiveInProgressIndicator />
     </>
   ),
   Image: () => null,
-  UI: () => <ContentPartDisplay />,
+  UI: () => <ContentPartPrimitiveDisplay />,
   tools: {
     Fallback: (props) => {
       const { useToolUIs } = useAssistantContext();
@@ -48,10 +48,10 @@ const defaultComponents = {
       return <Render {...props} />;
     },
   },
-} satisfies MessageContentProps["components"];
+} satisfies MessagePrimitiveContentProps["components"];
 
 type MessageContentPartComponentProps = {
-  components: MessageContentProps["components"];
+  components: MessagePrimitiveContentProps["components"];
 };
 
 const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
@@ -92,7 +92,7 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
 
 type MessageContentPartProps = {
   partIndex: number;
-  components: MessageContentProps["components"];
+  components: MessagePrimitiveContentProps["components"];
 };
 
 const MessageContentPartImpl: FC<MessageContentPartProps> = ({
@@ -116,7 +116,9 @@ const MessageContentPart = memo(
     prev.components?.tools === next.components?.tools,
 );
 
-export const MessageContent: FC<MessageContentProps> = ({ components }) => {
+export const MessagePrimitiveContent: FC<MessagePrimitiveContentProps> = ({
+  components,
+}) => {
   const { useMessage } = useMessageContext();
 
   const contentLength = useMessage((s) => s.message.content.length);
@@ -132,3 +134,5 @@ export const MessageContent: FC<MessageContentProps> = ({ components }) => {
     );
   });
 };
+
+MessagePrimitiveContent.displayName = "MessagePrimitive.Content";

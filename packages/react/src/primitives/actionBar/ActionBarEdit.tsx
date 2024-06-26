@@ -1,9 +1,16 @@
 "use client";
 
 import { useActionBarEdit } from "../../primitive-hooks/actionBar/useActionBarEdit";
-import { createActionButton } from "../../utils/createActionButton";
+import {
+  ActionButtonProps,
+  createActionButton,
+} from "../../utils/createActionButton";
 
-export const ActionBarEdit = createActionButton(
-  "ActionBarEdit",
+export type ActionBarPrimitiveEditProps = ActionButtonProps<
+  typeof useActionBarEdit
+>;
+
+export const ActionBarPrimitiveEdit = createActionButton(
+  "ActionBarPrimitive.Edit",
   useActionBarEdit,
 );

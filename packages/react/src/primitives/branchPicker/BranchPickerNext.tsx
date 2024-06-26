@@ -1,9 +1,16 @@
 "use client";
 
 import { useBranchPickerNext } from "../../primitive-hooks/branchPicker/useBranchPickerNext";
-import { createActionButton } from "../../utils/createActionButton";
+import {
+  ActionButtonProps,
+  createActionButton,
+} from "../../utils/createActionButton";
 
-export const BranchPickerNext = createActionButton(
-  "BranchPickerNext",
+export type BranchPickerPrimitiveNextProps = ActionButtonProps<
+  typeof useBranchPickerNext
+>;
+
+export const BranchPickerPrimitiveNext = createActionButton(
+  "BranchPickerPrimitive.Next",
   useBranchPickerNext,
 );

@@ -1,7 +1,7 @@
-export { ThreadRoot as Root } from "./ThreadRoot";
-export { ThreadEmpty as Empty } from "./ThreadEmpty";
-export { ThreadIf as If } from "./ThreadIf";
-export { ThreadViewport as Viewport } from "./ThreadViewport";
-export { ThreadMessages as Messages } from "./ThreadMessages";
-export { ThreadScrollToBottom as ScrollToBottom } from "./ThreadScrollToBottom";
-export { ThreadSuggestion as Suggestion } from "./ThreadSuggestion";
+export { ThreadPrimitiveRoot as Root } from "./ThreadRoot";
+export { ThreadPrimitiveEmpty as Empty } from "./ThreadEmpty";
+export { ThreadPrimitiveIf as If } from "./ThreadIf";
+export { ThreadPrimitiveViewport as Viewport } from "./ThreadViewport";
+export { ThreadPrimitiveMessages as Messages } from "./ThreadMessages";
+export { ThreadPrimitiveScrollToBottom as ScrollToBottom } from "./ThreadScrollToBottom";
+export { ThreadPrimitiveSuggestion as Suggestion } from "./ThreadSuggestion";

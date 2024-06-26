@@ -22,9 +22,11 @@ import { Steps, Callout } from "nextra/components";
 npx assistant-ui@latest add markdown-text
 ```
 
-### Use it in Thread.tsx
+### Use it in `Thread.tsx`
 
-```tsx
+Pass the `MarkdownText` component to the `MessagePrimitive.Content` component
+
+```tsx {1, 7}
 import { MarkdownText } from "@/components/ui/assistant-ui/markdown-text";
 
 const AssistantMessage = () => {
@@ -32,6 +34,7 @@ const AssistantMessage = () => {
     <MessagePrimitive.Root>
       ...
       <MessagePrimitive.Content components={{ Text: MarkdownText }} />
+      ...
     </MessagePrimitive.Root>
   );
 };

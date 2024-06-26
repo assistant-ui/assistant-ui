@@ -1,4 +1,4 @@
-export { MessageRoot as Root } from "./MessageRoot";
-export { MessageIf as If } from "./MessageIf";
-export { MessageContent as Content } from "./MessageContent";
-export { MessageInProgress as InProgress } from "./MessageInProgress";
+export { MessagePrimitiveRoot as Root } from "./MessageRoot";
+export { MessagePrimitiveIf as If } from "./MessageIf";
+export { MessagePrimitiveContent as Content } from "./MessageContent";
+export { MessagePrimitiveInProgress as InProgress } from "./MessageInProgress";

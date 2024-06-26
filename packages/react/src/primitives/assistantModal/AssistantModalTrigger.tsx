@@ -1,18 +1,25 @@
+"use client";
+
 import { ComponentPropsWithoutRef, ElementRef, forwardRef } from "react";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
-import { ScopedProps, usePopoverScope } from "./AssistantModalRoot";
+import { ScopedProps, usePopoverScope } from "./scope";
 
-type AssistantModalTriggerElement = ElementRef<typeof PopoverPrimitive.Trigger>;
-type AssistantModalTriggerProps = ComponentPropsWithoutRef<
+type AssistantModalPrimitiveTriggerElement = ElementRef<
+  typeof PopoverPrimitive.Trigger
+>;
+export type AssistantModalPrimitiveTriggerProps = ComponentPropsWithoutRef<
   typeof PopoverPrimitive.Trigger
 >;
 
-export const AssistantModalTrigger = forwardRef<
-  AssistantModalTriggerElement,
-  AssistantModalTriggerProps
+export const AssistantModalPrimitiveTrigger = forwardRef<
+  AssistantModalPrimitiveTriggerElement,
+  AssistantModalPrimitiveTriggerProps
 >(
   (
-    { __scopeAssistantModal, ...rest }: ScopedProps<AssistantModalTriggerProps>,
+    {
+      __scopeAssistantModal,
+      ...rest
+    }: ScopedProps<AssistantModalPrimitiveTriggerProps>,
     ref,
   ) => {
     const scope = usePopoverScope(__scopeAssistantModal);
@@ -20,4 +27,5 @@ export const AssistantModalTrigger = forwardRef<
     return <PopoverPrimitive.Trigger {...scope} {...rest} ref={ref} />;
   },
 );
-AssistantModalTrigger.displayName = "AssistantModalTrigger";
+
+AssistantModalPrimitiveTrigger.displayName = "AssistantModalPrimitive.Trigger";
