@@ -28,6 +28,7 @@ export const makeComposerStore = (
 
         useThreadActions.getState().append({
           parentId: useThread.getState().messages.at(-1)?.id ?? null,
+          role: "user",
           content: [{ type: "text", text: value }],
         });
       },

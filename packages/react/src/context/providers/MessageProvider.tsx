@@ -86,6 +86,7 @@ const useMessageContext = (messageIndex: number) => {
         );
         useThreadActions.getState().append({
           parentId,
+          role: "user",
           content: [{ type: "text", text }, ...nonTextParts],
         });
       },
