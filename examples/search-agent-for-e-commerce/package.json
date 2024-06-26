@@ -10,8 +10,8 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^0.0.33",
-    "@assistant-ui/react": "^0.1",
-    "@assistant-ui/react-ai-sdk": "^0.1",
+    "@assistant-ui/react": "workspace:*",
+    "@assistant-ui/react-ai-sdk": "workspace:*",
     "@radix-ui/react-avatar": "^1.1.0",
     "@radix-ui/react-popover": "^1.1.1",
     "@radix-ui/react-slot": "^1.1.0",
