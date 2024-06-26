@@ -26,8 +26,6 @@ export const ThreadViewport = forwardRef<
   ThreadViewportElement,
   ThreadViewportProps
 >(({ autoScroll = true, onScroll, children, ...rest }, forwardedRef) => {
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
   const divRef = useRef<HTMLDivElement>(null);
   const ref = useComposedRefs(forwardedRef, divRef);
 
@@ -40,14 +38,14 @@ export const ThreadViewport = forwardRef<
   const lastScrollTop = useRef<number>(0);
 
   const scrollToBottom = () => {
-    const div = messagesEndRef.current;
+    const div = divRef.current;
     if (!div || !autoScroll) return;
 
     const behavior = firstRenderRef.current ? "instant" : "auto";
     firstRenderRef.current = false;
 
     isScrollingToBottomRef.current = true;
-    div.scrollIntoView({ behavior });
+    div.scrollTo({ top: div.scrollHeight, behavior });
   };
 
   useOnResizeContent(divRef, () => {
@@ -88,7 +86,6 @@ export const ThreadViewport = forwardRef<
       ref={ref}
     >
       {children}
-      <div ref={messagesEndRef} />
     </Primitive.div>
   );
 });
