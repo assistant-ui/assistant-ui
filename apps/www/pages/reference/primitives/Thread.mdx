@@ -59,6 +59,23 @@ This primitive renders a `<div>` element unless `asChild` is set.
   ]}
 />
 
+#### `useThreadViewportAutoScroll`
+
+Returns a ref, which when set, will implement the viewport auto scroll behavior.
+Only useful you are creating a custom viewport component.
+
+```tsx
+import { useThreadViewportAutoScroll } from "@assistant-ui/react";
+
+const Viewport = () => {
+  const autoScrollRef = useThreadViewportAutoScroll();
+
+  return (
+    <div ref={autoScrollRef}>...</div>
+  );
+}
+```
+
 ### Messages
 
 Renders all messages. This primitive renders a separate component for each message.
