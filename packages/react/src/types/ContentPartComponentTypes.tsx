@@ -5,7 +5,7 @@ import type {
   TextContentPart,
   ToolCallContentPart,
   UIContentPart,
-} from "../../utils/AssistantTypes";
+} from "./AssistantTypes";
 
 type ContentPartStatus = "done" | "in_progress" | "error";
 

@@ -5,7 +5,7 @@ import { StoreApi, create } from "zustand";
 import type {
   AppendContentPart,
   ThreadMessage,
-} from "../../utils/AssistantTypes";
+} from "../../types/AssistantTypes";
 import { getMessageText } from "../../utils/getMessageText";
 import { MessageContext } from "../react/MessageContext";
 import type { MessageContextValue } from "../react/MessageContext";

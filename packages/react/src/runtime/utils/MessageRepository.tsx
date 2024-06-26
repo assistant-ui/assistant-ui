@@ -1,4 +1,4 @@
-import type { ThreadMessage } from "../../utils/AssistantTypes";
+import type { ThreadMessage } from "../../types/AssistantTypes";
 import { generateOptimisticId } from "./idUtils";
 
 type RepositoryParent = {

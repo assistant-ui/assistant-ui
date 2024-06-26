@@ -1,6 +1,6 @@
 import type { MutableRefObject } from "react";
 import { create } from "zustand";
-import type { ThreadMessage } from "../../utils/AssistantTypes";
+import type { ThreadMessage } from "../../types/AssistantTypes";
 
 export type ThreadState = Readonly<{
   messages: readonly ThreadMessage[];

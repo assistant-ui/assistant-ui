@@ -2,7 +2,7 @@ import type {
   AppendMessage,
   AssistantMessage,
   UserMessage,
-} from "../../utils/AssistantTypes";
+} from "../../types/AssistantTypes";
 import {
   type ModelConfigProvider,
   mergeModelConfigs,

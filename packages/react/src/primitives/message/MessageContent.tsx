@@ -17,7 +17,7 @@ import type {
   ToolCallContentPartComponent,
   ToolCallContentPartProps,
   UIContentPartComponent,
-} from "./ContentPartComponentTypes";
+} from "../../types/ContentPartComponentTypes";
 
 export type MessageContentProps = {
   components?: {

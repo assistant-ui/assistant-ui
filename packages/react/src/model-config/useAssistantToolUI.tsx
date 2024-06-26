@@ -1,7 +1,7 @@
 "use client";
 import { useEffect } from "react";
 import { useAssistantContext } from "../context/react/AssistantContext";
-import type { ToolCallContentPartComponent } from "../primitives/message/ContentPartComponentTypes";
+import type { ToolCallContentPartComponent } from "../types/ContentPartComponentTypes";
 
 export type AssistantToolUIProps<TArgs, TResult> = {
   toolName: string;

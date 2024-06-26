@@ -11,7 +11,7 @@ export type {
   UserContentPart,
   AppendContentPart,
   TextContentPart,
-} from "./utils/AssistantTypes";
+} from "./types/AssistantTypes";
 
 export { AssistantRuntimeProvider } from "./context/providers/AssistantRuntimeProvider";
 

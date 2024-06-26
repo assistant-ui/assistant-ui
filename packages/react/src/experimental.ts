@@ -2,7 +2,7 @@ export type {
   ImageContentPart,
   ToolCallContentPart,
   UIContentPart,
-} from "./utils/AssistantTypes";
+} from "./types/AssistantTypes";
 
 export type {
   ModelConfigProvider,
@@ -18,7 +18,7 @@ export type {
   UIContentPartComponent,
   ToolCallContentPartProps,
   ToolCallContentPartComponent,
-} from "./primitives/message/ContentPartComponentTypes";
+} from "./types/ContentPartComponentTypes";
 
 export * from "./context";
 export { useAssistantInstructions } from "./model-config/useAssistantInstructions";

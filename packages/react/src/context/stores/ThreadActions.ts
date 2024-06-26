@@ -1,6 +1,6 @@
 import type { MutableRefObject } from "react";
 import { create } from "zustand";
-import type { AppendMessage } from "../../utils/AssistantTypes";
+import type { AppendMessage } from "../../types/AssistantTypes";
 
 export type ThreadActionsState = Readonly<{
   getBranches: (messageId: string) => readonly string[];

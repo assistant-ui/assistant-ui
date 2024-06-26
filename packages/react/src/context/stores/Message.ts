@@ -1,4 +1,4 @@
-import type { ThreadMessage } from "../../utils/AssistantTypes";
+import type { ThreadMessage } from "../../types/AssistantTypes";
 
 export type MessageState = Readonly<{
   message: Readonly<ThreadMessage>;

@@ -2,7 +2,7 @@
 import type {
   AssistantContentPart,
   ThreadMessage,
-} from "../../utils/AssistantTypes";
+} from "../../types/AssistantTypes";
 import type { ModelConfig } from "../../utils/ModelConfigTypes";
 
 export type ChatModelRunResult = {

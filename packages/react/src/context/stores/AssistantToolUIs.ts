@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import type { ToolCallContentPartComponent } from "../../primitives/message/ContentPartComponentTypes";
+import type { ToolCallContentPartComponent } from "../../types/ContentPartComponentTypes";
 
 export type AssistantToolUIsState = Readonly<{
   getToolUI: (toolName: string) => ToolCallContentPartComponent | null;
