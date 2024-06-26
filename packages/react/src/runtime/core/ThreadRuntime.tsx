@@ -1,6 +1,6 @@
 import type { ThreadState } from "../../context";
 import { ThreadActionsState } from "../../context/stores/ThreadActions";
-import type { Unsubscribe } from "../../utils/Unsubscribe";
+import type { Unsubscribe } from "../../types/Unsubscribe";
 
 export type ThreadRuntime = Readonly<
   ThreadState &

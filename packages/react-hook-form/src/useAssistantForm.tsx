@@ -5,7 +5,7 @@ import {
   type ToolCallContentPartComponent,
   useAssistantContext,
   useAssistantToolUI,
-} from "@assistant-ui/react/experimental";
+} from "@assistant-ui/react";
 import { useEffect } from "react";
 import {
   type FieldValues,

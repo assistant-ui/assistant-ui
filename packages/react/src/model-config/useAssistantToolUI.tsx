@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect } from "react";
 import { useAssistantContext } from "../context/react/AssistantContext";
 import type { ToolCallContentPartComponent } from "../types/ContentPartComponentTypes";

@@ -3,7 +3,7 @@ import { type BaseComposerState, makeBaseComposer } from "./BaseComposer";
 import type { ThreadState } from "./Thread";
 import { ThreadActionsState } from "./ThreadActions";
 import { ReadonlyStore } from "../ReadonlyStore";
-import { Unsubscribe } from "../../utils/Unsubscribe";
+import { Unsubscribe } from "../../types/Unsubscribe";
 
 export type ComposerState = BaseComposerState &
   Readonly<{

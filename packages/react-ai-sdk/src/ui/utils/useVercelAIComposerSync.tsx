@@ -1,7 +1,4 @@
-import {
-  useThreadContext,
-  ComposerState,
-} from "@assistant-ui/react/experimental";
+import { useThreadContext, ComposerState } from "@assistant-ui/react";
 import { useEffect } from "react";
 import type { VercelHelpers } from "./VercelHelpers";
 import { StoreApi } from "zustand";

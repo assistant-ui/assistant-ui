@@ -1,5 +1,5 @@
-import type { ModelConfigProvider } from "../../utils/ModelConfigTypes";
-import type { Unsubscribe } from "../../utils/Unsubscribe";
+import type { ModelConfigProvider } from "../../types/ModelConfigTypes";
+import type { Unsubscribe } from "../../types/Unsubscribe";
 import type { ThreadRuntime } from "./ThreadRuntime";
 
 export type AssistantRuntime = ThreadRuntime & {

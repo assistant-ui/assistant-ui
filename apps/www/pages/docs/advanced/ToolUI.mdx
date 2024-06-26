@@ -7,7 +7,7 @@ You can show a custom UI when a tool is called to let the user know what is happ
 ### Tool UI Components
 
 ```tsx
-import { makeAssistantToolUI } from "@assistant-ui/react/experimental";
+import { makeAssistantToolUI } from "@assistant-ui/react";
 
 type WebSearchArgs = {
   query: string;
@@ -47,7 +47,7 @@ const MyApp = () => {
 ### Tool UI Hooks
 
 ```tsx
-import { makeAssistantToolUI } from "@assistant-ui/react/experimental";
+import { makeAssistantToolUI } from "@assistant-ui/react";
 
 type WebSearchArgs = {
   query: string;
@@ -97,7 +97,7 @@ const MyApp = () => {
 If you need access to component props, you can use the `useAssistantToolUI` hook.
 
 ```tsx {5-11}
-import { useAssistantToolUI } from "@assistant-ui/react/experimental";
+import { useAssistantToolUI } from "@assistant-ui/react";
 import { useCallback } from "react";
 
 const MyComponent = ({ product_id }) => {
@@ -129,7 +129,7 @@ const MyApp = () => {
 The following example shows a `date_picker` tool that the AI can call to collect a date from the user.
 
 ```tsx {12}
-import { makeAssistantToolUI } from "@assistant-ui/react/experimental"; 
+import { makeAssistantToolUI } from "@assistant-ui/react"; 
 import { DatePicker } from "@/components/datepicker";
 
 const DatePickerToolUI = makeAssistantToolUI<{}, { date: string }>({

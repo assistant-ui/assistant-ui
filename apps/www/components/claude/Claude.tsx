@@ -7,7 +7,7 @@ import {
   MessagePrimitive,
   ThreadPrimitive,
 } from "@assistant-ui/react";
-import { useMessageContext } from "@assistant-ui/react/experimental";
+import { useMessageContext } from "@assistant-ui/react";
 import * as Avatar from "@radix-ui/react-avatar";
 import { ArrowUpIcon, ClipboardIcon, ReloadIcon } from "@radix-ui/react-icons";
 import type { FC } from "react";

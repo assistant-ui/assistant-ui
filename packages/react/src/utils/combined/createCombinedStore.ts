@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import type { Unsubscribe } from "../Unsubscribe";
+import type { Unsubscribe } from "../../types/Unsubscribe";
 import { ReadonlyStore } from "../../context/ReadonlyStore";
 
 export type CombinedSelector<T extends Array<unknown>, R> = (...args: T) => R;

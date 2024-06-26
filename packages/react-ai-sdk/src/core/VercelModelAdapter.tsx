@@ -10,7 +10,7 @@ import type {
   ChatModelAdapter,
   ChatModelRunOptions,
 } from "@assistant-ui/react";
-import type { ToolCallContentPart } from "@assistant-ui/react/experimental";
+import type { ToolCallContentPart } from "@assistant-ui/react";
 import { type CoreTool, type LanguageModel, streamText } from "ai";
 import { convertToCoreMessage } from "./convertToCoreMessage";
 

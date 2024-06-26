@@ -2,7 +2,7 @@
 import {
   type ModelConfigProvider,
   mergeModelConfigs,
-} from "./ModelConfigTypes";
+} from "../types/ModelConfigTypes";
 
 export class ProxyConfigProvider {
   private _providers = new Set<ModelConfigProvider>();

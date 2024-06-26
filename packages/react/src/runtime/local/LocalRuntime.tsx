@@ -6,8 +6,8 @@ import type {
 import {
   type ModelConfigProvider,
   mergeModelConfigs,
-} from "../../utils/ModelConfigTypes";
-import type { Unsubscribe } from "../../utils/Unsubscribe";
+} from "../../types/ModelConfigTypes";
+import type { Unsubscribe } from "../../types/Unsubscribe";
 import type { AssistantRuntime } from "../core/AssistantRuntime";
 import { MessageRepository } from "../utils/MessageRepository";
 import { generateId } from "../utils/idUtils";

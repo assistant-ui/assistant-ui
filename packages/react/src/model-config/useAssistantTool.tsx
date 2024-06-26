@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useAssistantContext } from "../context/react/AssistantContext";
 import type { ToolCallContentPartComponent } from "../types/ContentPartComponentTypes";
-import type { Tool } from "../utils/ModelConfigTypes";
+import type { Tool } from "../types/ModelConfigTypes";
 
 export type AssistantToolProps<TArgs, TResult> = Tool<TArgs, TResult> & {
   toolName: string;
