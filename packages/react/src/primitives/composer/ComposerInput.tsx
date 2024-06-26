@@ -16,6 +16,7 @@ import TextareaAutosize, {
 import { useComposerContext } from "../../context/react/ComposerContext";
 import { useThreadContext } from "../../context/react/ThreadContext";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
+import { useEscapeKeydown } from "@radix-ui/react-use-escape-keydown";
 
 type ComposerInputProps = TextareaAutosizeProps & {
   asChild?: boolean;
@@ -42,15 +43,17 @@ export const ComposerInput = forwardRef<
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const ref = useComposedRefs(forwardedRef, textareaRef);
 
+    useEscapeKeydown((e) => {
+      const composer = useComposer.getState();
+      if (composer.cancel()) {
+        e.preventDefault();
+      }
+    });
+
     const handleKeyPress = (e: KeyboardEvent) => {
       if (disabled) return;
 
-      if (e.key === "Escape") {
-        const composer = useComposer.getState();
-        if (composer.cancel()) {
-          e.preventDefault();
-        }
-      } else if (e.key === "Enter" && e.shiftKey === false) {
+      if (e.key === "Enter" && e.shiftKey === false) {
         const isRunning = useThread.getState().isRunning;
         if (!isRunning) {
           e.preventDefault();
