@@ -113,9 +113,9 @@ const UserMessage: FC = () => {
       <div className="flex-grow">
         <p className="font-semibold">You</p>
 
-        <p className="text-foreground whitespace-pre-line">
+        <div className="text-foreground">
           <MessagePrimitive.Content />
-        </p>
+        </div>
 
         <div className="flex pt-2">
           <BranchPicker />
@@ -176,7 +176,7 @@ const AssistantMessage: FC = () => {
         <p className="font-semibold">Assistant</p>
 
         <MessagePrimitive.InProgress className="bg-foreground inline-block size-3 animate-pulse rounded-full" />
-        <div className="text-foreground flex flex-col gap-3 whitespace-pre-line">
+        <div className="text-foreground flex flex-col gap-3">
           <MessagePrimitive.Content />
         </div>
 

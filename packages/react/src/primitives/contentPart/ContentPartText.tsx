@@ -2,8 +2,8 @@ import { Primitive } from "@radix-ui/react-primitive";
 import { type ElementRef, forwardRef, ComponentPropsWithoutRef } from "react";
 import { useContentPartText } from "../../primitive-hooks/contentPart/useContentPartText";
 
-type ContentPartTextElement = ElementRef<typeof Primitive.span>;
-type PrimitiveSpanProps = ComponentPropsWithoutRef<typeof Primitive.span>;
+type ContentPartTextElement = ElementRef<typeof Primitive.p>;
+type PrimitiveSpanProps = ComponentPropsWithoutRef<typeof Primitive.p>;
 
 type ContentPartTextProps = Omit<PrimitiveSpanProps, "children">;
 
@@ -14,9 +14,9 @@ export const ContentPartText = forwardRef<
   const text = useContentPartText();
 
   return (
-    <Primitive.span {...props} ref={forwardedRef}>
+    <Primitive.p {...props} ref={forwardedRef}>
       {text}
-    </Primitive.span>
+    </Primitive.p>
   );
 });
 

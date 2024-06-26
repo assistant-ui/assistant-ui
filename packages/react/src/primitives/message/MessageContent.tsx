@@ -34,7 +34,7 @@ export type MessageContentProps = {
 const defaultComponents = {
   Text: () => (
     <>
-      <ContentPartText />
+      <ContentPartText style={{ whiteSpace: "pre-line" }} />
       <ContentPartInProgressIndicator />
     </>
   ),

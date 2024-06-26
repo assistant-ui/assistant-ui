@@ -67,9 +67,9 @@ const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="relative mb-6 flex w-full max-w-2xl flex-col items-end gap-2 pl-24">
       <div className="relative mr-1 flex items-start gap-3">
-        <p className="bg-foreground/5 text-foreground max-w-xl whitespace-pre-line break-words rounded-3xl px-5 py-2.5">
+        <div className="bg-foreground/5 text-foreground max-w-xl break-words rounded-3xl px-5 py-2.5">
           <MessagePrimitive.Content />
-        </p>
+        </div>
       </div>
     </MessagePrimitive.Root>
   );
@@ -84,9 +84,9 @@ const AssistantMessage: FC = () => {
 
       <div className="mt-2 flex-grow">
         <MessagePrimitive.InProgress className="bg-foreground inline-block size-3 animate-pulse rounded-full" />
-        <p className="text-foreground max-w-xl whitespace-pre-line break-words">
+        <div className="text-foreground max-w-x break-words">
           <MessagePrimitive.Content />
-        </p>
+        </div>
       </div>
     </MessagePrimitive.Root>
   );
