@@ -28,6 +28,7 @@ import {
   RefreshCwIcon,
   SendHorizonalIcon,
 } from "lucide-react";
+import { MarkdownText } from "@/components/ui/assistant-ui/markdown-text";
 
 export const Thread: FC = () => {
   return (
@@ -159,7 +160,7 @@ const AssistantMessage: FC = () => {
       <div className="mt-2 flex-grow">
         <MessagePrimitive.InProgress className="bg-foreground inline-block size-3 animate-pulse rounded-full" />
         <div className="text-foreground max-w-xl break-words">
-          <MessagePrimitive.Content />
+          <MessagePrimitive.Content components={{ Text: MarkdownText }} />
         </div>
 
         <div className="flex pt-2">

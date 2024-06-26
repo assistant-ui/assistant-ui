@@ -1,1 +1,1 @@
-export * from "@/registry/assistant-ui/experimental/markdown-text";
+export * from "@/registry/assistant-ui/markdown-text";

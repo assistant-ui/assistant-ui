@@ -34,34 +34,22 @@ export const registry: RegistryIndex = [
     ],
   },
   {
-    name: "unstable-markdown-text",
+    name: "markdown-text",
     type: "components:ui",
-    files: ["assistant-ui/experimental/markdown-text.tsx"],
+    files: ["assistant-ui/markdown-text.tsx"],
     // registryDependencies: ["unstable-codeblock"],
     dependencies: [
       "@assistant-ui/react",
       "@assistant-ui/react-markdown",
       "remark-gfm",
-      "remark-math",
+      // "remark-math",
     ],
-  },
-  {
-    name: "unstable-thread-full",
-    type: "components:ui",
-    files: ["assistant-ui/experimental/thread.tsx"],
-    registryDependencies: [
-      "unstable-markdown-text",
-      "button",
-      "avatar",
-      "tooltip",
-    ],
-    dependencies: ["@assistant-ui/react", "lucide-react"],
   },
   {
     name: "thread-full",
     type: "components:ui",
     files: ["assistant-ui/full/thread.tsx"],
-    registryDependencies: ["button", "avatar", "tooltip"],
+    registryDependencies: ["markdown-text", "button", "avatar", "tooltip"],
     dependencies: ["@assistant-ui/react", "lucide-react"],
   },
 ];

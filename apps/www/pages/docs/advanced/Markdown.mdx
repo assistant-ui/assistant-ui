@@ -1,0 +1,39 @@
+---
+title: Markdown
+description: Allow the assistant to display rich text using markdown.
+---
+
+import { Steps, Callout } from "nextra/components";
+
+<Callout type="warning" emoji="⚠️">
+  Make sure to upgrade `@assistant-ui/react` to `>=0.2` and to follow steps outlined in the [migration guide](/docs/migrations/v0.2).
+</Callout>
+
+<Callout type="info" emoji="💡">
+  Markdown support is alraedy included in the `npx assistant-ui@latest add thread-full` template.
+</Callout>
+
+## Enabling markdown support
+
+<Steps>
+### Add the `markdown-text` component to your project.
+
+```tsx
+npx assistant-ui@latest add markdown-text
+```
+
+### Use it in Thread.tsx
+
+```tsx
+import { MarkdownText } from "@/components/ui/assistant-ui/markdown-text";
+
+const AssistantMessage = () => {
+  return (
+    <MessagePrimitive.Root>
+      ...
+      <MessagePrimitive.Content components={{ Text: MarkdownText }} />
+    </MessagePrimitive.Root>
+  );
+};
+```
+</Steps>

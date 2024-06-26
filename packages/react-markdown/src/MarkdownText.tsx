@@ -1,9 +1,11 @@
 import { ContentPartPrimitive } from "@assistant-ui/react";
-import { useContentPartContext } from "@assistant-ui/react/experimental";
+import { useContentPartContext } from "@assistant-ui/react";
 import type { FC } from "react";
 import ReactMarkdown, { type Options } from "react-markdown";
 
-export const MarkdownText: FC<Options> = (options) => {
+export const MarkdownTextPrimitive: FC<Omit<Options, "children">> = (
+  options,
+) => {
   const { useContentPart } = useContentPartContext();
   const text = useContentPart((c) => {
     if (c.part.type !== "text")
@@ -14,9 +16,9 @@ export const MarkdownText: FC<Options> = (options) => {
     return c.part.text;
   });
   return (
-    <span>
+    <>
       <ReactMarkdown {...options}>{text}</ReactMarkdown>
       <ContentPartPrimitive.InProgressIndicator />
-    </span>
+    </>
   );
 };
