@@ -24,6 +24,7 @@ export default function MyApp({ Component, pageProps }: AppProps) {
         defer
         src="/umami/script.js"
         data-website-id="6f07c001-46a2-411f-9241-4f7f5afb60ee"
+        data-domains="www.assistant-ui.com"
       ></script>
     </>
   );
