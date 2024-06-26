@@ -1,17 +1,14 @@
 "use client";
 
 import { composeEventHandlers } from "@radix-ui/primitive";
-import { useComposedRefs } from "@radix-ui/react-compose-refs";
 import { Primitive } from "@radix-ui/react-primitive";
 import {
   type ElementRef,
   type FormEvent,
   forwardRef,
-  useRef,
   ComponentPropsWithoutRef,
 } from "react";
-import { useComposerContext } from "../../context/react/ComposerContext";
-import { useThreadContext } from "../../context/react/ThreadContext";
+import { useComposerSend } from "../../primitive-hooks";
 
 type ComposerRootElement = ElementRef<typeof Primitive.form>;
 type PrimitiveFormProps = ComponentPropsWithoutRef<typeof Primitive.form>;
@@ -20,26 +17,19 @@ type ComposerRootProps = PrimitiveFormProps;
 
 export const ComposerRoot = forwardRef<ComposerRootElement, ComposerRootProps>(
   ({ onSubmit, ...rest }, forwardedRef) => {
-    const { useViewport } = useThreadContext();
-    const { useComposer } = useComposerContext();
-
-    const formRef = useRef<HTMLFormElement>(null);
-    const ref = useComposedRefs(forwardedRef, formRef);
+    const send = useComposerSend();
 
     const handleSubmit = (e: FormEvent) => {
-      const composerState = useComposer.getState();
-      if (!composerState.isEditing) return;
+      if (!send) return;
 
       e.preventDefault();
-      composerState.send();
-
-      useViewport.getState().scrollToBottom();
+      send();
     };
 
     return (
       <Primitive.form
         {...rest}
-        ref={ref}
+        ref={forwardedRef}
         onSubmit={composeEventHandlers(onSubmit, handleSubmit)}
       />
     );

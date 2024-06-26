@@ -53,6 +53,29 @@ This primitive renders a `<form>` element unless `asChild` is set.
   ]}
 />
 
+
+#### `useComposerSend`
+
+```tsx
+import { useComposerSend } from "@assistant-ui/react";
+
+const Send = () => {
+  const send = useComposerSend();
+
+  const handleSubmit = (e: FormEvent) => {
+    // send action is not available
+    if (!send) return;
+
+    e.preventDefault();
+    send();
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>...</form>
+  );
+};
+```
+
 ### Input
 
 The text input field for the user to type a new message.
@@ -98,23 +121,6 @@ This primitive renders a `<button>` element unless `asChild` is set.
     },
   ]}
 />
-
-#### `useComposerSend`
-
-```tsx
-import { useComposerSend } from "@assistant-ui/react";
-
-const Send = () => {
-  const send = useComposerSend();
-
-  // send action is not available
-  if (!send) return null;
-
-  return (
-    <button onClick={send}>Send</button>
-  );
-};
-```
 
 ### Cancel
 
