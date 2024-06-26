@@ -21,8 +21,9 @@ export const AssistantModal = () => {
         <FloatingAssistantButton />
       </AssistantModalPrimitive.Trigger>
       <AssistantModalPrimitive.Content
+        sideOffset={16}
         className={
-          "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 slide-in-from-bottom-2 bg-popover text-popover-foreground data-[state=closed]:animate-out data-[state=open]:animate-in z-50 mb-3 h-[500px] w-[400px] rounded-xl border p-0 shadow-md outline-none"
+          "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 slide-in-from-bottom-2 bg-popover text-popover-foreground data-[state=closed]:animate-out data-[state=open]:animate-in z-50 h-[500px] w-[400px] rounded-xl border p-0 shadow-md outline-none"
         }
       >
         <Thread />
