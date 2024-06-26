@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.1.12
+
+### Patch Changes
+
+- 904556d: feat: ComposerContext focus() API
+- 33ae8f9: feat: AssistantModalPrimitive
+
 ## 0.1.11
 
 ### Patch Changes
