@@ -6,11 +6,11 @@
     "ci:publish": "turbo build && changeset publish"
   },
   "devDependencies": {
-    "@changesets/cli": "^2.27.5",
+    "@changesets/cli": "^2.27.6",
     "eslint": "^8",
     "prettier": "^3.3.2",
     "prettier-plugin-tailwindcss": "^0.6.5",
-    "turbo": "^2.0.4"
+    "turbo": "^2.0.5"
   },
   "prettier": {
     "trailingComma": "all",

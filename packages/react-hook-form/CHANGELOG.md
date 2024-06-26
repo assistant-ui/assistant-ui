@@ -1,5 +1,17 @@
 # @assistant-ui/react-hook-form
 
+## 0.1.0
+
+### Minor Changes
+
+- 2ab2cab: feat!: experimental features are now marked as stable
+
+### Patch Changes
+
+- Updated dependencies [de20b1c]
+- Updated dependencies [2ab2cab]
+  - @assistant-ui/react@0.2.0
+
 ## 0.0.7
 
 ### Patch Changes

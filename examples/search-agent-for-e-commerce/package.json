@@ -16,12 +16,12 @@
     "@radix-ui/react-popover": "^1.1.1",
     "@radix-ui/react-slot": "^1.1.0",
     "@radix-ui/react-tooltip": "^1.1.1",
-    "ai": "^3.2.4",
+    "ai": "^3.2.11",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "embla-carousel-autoplay": "^8.1.5",
     "embla-carousel-react": "^8.1.5",
-    "lucide-react": "^0.396.0",
+    "lucide-react": "^0.397.0",
     "nanoid": "^5.0.7",
     "next": "14.2.4",
     "react": "^18.3.1",
@@ -31,7 +31,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@types/node": "^20.14.7",
+    "@types/node": "^20.14.9",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "eslint": "^8",

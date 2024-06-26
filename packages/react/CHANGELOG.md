@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.2.0
+
+### Minor Changes
+
+- de20b1c: feat!: ContentPartText is now a <p> element
+- 2ab2cab: feat!: experimental features are now marked as stable
+
 ## 0.1.12
 
 ### Patch Changes

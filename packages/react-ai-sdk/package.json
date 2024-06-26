@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-ai-sdk",
-  "version": "0.1.7",
+  "version": "0.2.0",
   "license": "MIT",
   "exports": {
     ".": {
@@ -29,11 +29,11 @@
   "dependencies": {
     "tsup": "^8.1.0",
     "zod": "^3.23.8",
-    "zustand": "^4.5.2"
+    "zustand": "^4.5.4"
   },
   "peerDependencies": {
     "@ai-sdk/react": "^0.0.x",
-    "@assistant-ui/react": "^0.1.12",
+    "@assistant-ui/react": "^0.2.0",
     "@types/react": "*",
     "ai": "^3.1.x",
     "react": "^18"
@@ -44,9 +44,8 @@
     }
   },
   "devDependencies": {
-    "@assistant-ui/react": "workspace:*",
     "@assistant-ui/tsconfig": "workspace:*",
-    "@types/node": "^20.14.7"
+    "@types/node": "^20.14.9"
   },
   "publishConfig": {
     "access": "public",
