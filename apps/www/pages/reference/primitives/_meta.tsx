@@ -4,6 +4,7 @@ import {
   faCodeBranch,
   faCommentDots,
   faComments,
+  faCube,
   faPenNib,
   faPuzzlePiece,
 } from "@fortawesome/free-solid-svg-icons";
@@ -25,6 +26,9 @@ const IconTitle: FC<IconTitleProps> = ({ icon, name }) => {
 
 const meta = {
   composition: "Composition",
+  AssistantModal: {
+    title: <IconTitle icon={faCube} name="AssistantModal" />,
+  },
   Thread: {
     title: <IconTitle icon={faComments} name="Thread" />,
   },

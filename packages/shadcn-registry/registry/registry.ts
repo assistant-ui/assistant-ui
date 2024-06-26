@@ -12,7 +12,7 @@ export const registry: RegistryIndex = [
     name: "modal",
     type: "components:ui",
     files: ["assistant-ui/assistant-modal.tsx"],
-    registryDependencies: ["thread", "button", "popover", "tooltip"],
+    registryDependencies: ["thread", "button", "tooltip"],
     dependencies: ["@assistant-ui/react", "lucide-react"],
   },
   {

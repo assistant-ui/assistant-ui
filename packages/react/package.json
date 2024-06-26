@@ -68,6 +68,8 @@
   "dependencies": {
     "@radix-ui/primitive": "^1.1.0",
     "@radix-ui/react-compose-refs": "^1.1.0",
+    "@radix-ui/react-context": "^1.1.0",
+    "@radix-ui/react-popover": "^1.1.1",
     "@radix-ui/react-primitive": "^2.0.0",
     "@radix-ui/react-slot": "^1.1.0",
     "@radix-ui/react-use-callback-ref": "^1.1.0",
