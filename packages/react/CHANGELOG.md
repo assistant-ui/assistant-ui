@@ -1,5 +1,14 @@
 # @assistant-ui/react
 
+## 0.1.11
+
+### Patch Changes
+
+- fd6a202: feat: Primitive Hook useThreadViewportAutoScroll
+- c2a6b22: fix: improved Viewport autoscroll handling
+- c2a6b22: fix: more reliable escape hotkey handling
+- c2a6b22: feat: add "role" field to AppendMessage
+
 ## 0.1.10
 
 ### Patch Changes
