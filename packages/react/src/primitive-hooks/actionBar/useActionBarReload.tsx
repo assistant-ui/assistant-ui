@@ -4,7 +4,8 @@ import { useThreadContext } from "../../context/react/ThreadContext";
 import { useCombinedStore } from "../../utils/combined/useCombinedStore";
 
 export const useActionBarReload = () => {
-  const { useThread, useThreadActions, useViewport } = useThreadContext();
+  const { useThread, useThreadActions, useComposer, useViewport } =
+    useThreadContext();
   const { useMessage } = useMessageContext();
 
   const disabled = useCombinedStore(
@@ -16,7 +17,8 @@ export const useActionBarReload = () => {
     const { parentId } = useMessage.getState();
     useThreadActions.getState().startRun(parentId);
     useViewport.getState().scrollToBottom();
-  }, [useThreadActions, useMessage, useViewport]);
+    useComposer.getState().focus();
+  }, [useThreadActions, useComposer, useViewport, useMessage]);
 
   if (disabled) return null;
   return callback;

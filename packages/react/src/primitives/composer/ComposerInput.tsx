@@ -15,8 +15,8 @@ import TextareaAutosize, {
 } from "react-textarea-autosize";
 import { useComposerContext } from "../../context/react/ComposerContext";
 import { useThreadContext } from "../../context/react/ThreadContext";
-import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { useEscapeKeydown } from "@radix-ui/react-use-escape-keydown";
+import { useOnComposerFocus } from "../../utils/hooks/useOnComposerFocus";
 
 type ComposerInputProps = TextareaAutosizeProps & {
   asChild?: boolean;
@@ -77,7 +77,7 @@ export const ComposerInput = forwardRef<
 
     useEffect(() => focus(), [focus]);
 
-    useOnScrollToBottom(() => {
+    useOnComposerFocus(() => {
       if (type === "new") {
         focus();
       }

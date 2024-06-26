@@ -217,6 +217,18 @@ export const ComposerState: ParametersTableProps = {
       required: true,
       description: "A function to cancel the run. Returns true if the run was canceled.",
     },
+    {
+      name: "focus",
+      type: "() => void",
+      required: true,
+      description: "A function to focus the composer.",
+    },
+    {
+      name: "onFocus",
+      type: "(listener: () => void) => Unsubscribe",
+      required: true,
+      description: "A function to subscribe to focus events.",
+    },
   ],
 };
 

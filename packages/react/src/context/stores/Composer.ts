@@ -3,6 +3,7 @@ import { type BaseComposerState, makeBaseComposer } from "./BaseComposer";
 import type { ThreadState } from "./Thread";
 import { ThreadActionsState } from "./ThreadActions";
 import { ReadonlyStore } from "../ReadonlyStore";
+import { Unsubscribe } from "../../utils/Unsubscribe";
 
 export type ComposerState = BaseComposerState &
   Readonly<{
@@ -10,13 +11,16 @@ export type ComposerState = BaseComposerState &
 
     send: () => void;
     cancel: () => boolean;
+    focus: () => void;
+    onFocus: (listener: () => void) => Unsubscribe;
   }>;
 
 export const makeComposerStore = (
   useThread: ReadonlyStore<ThreadState>,
   useThreadActions: ReadonlyStore<ThreadActionsState>,
-): ReadonlyStore<ComposerState> =>
-  create<ComposerState>()((set, get, store) => {
+): ReadonlyStore<ComposerState> => {
+  const focusListeners = new Set<() => void>();
+  return create<ComposerState>()((set, get, store) => {
     return {
       ...makeBaseComposer(set, get, store),
 
@@ -39,5 +43,17 @@ export const makeComposerStore = (
         useThreadActions.getState().cancelRun();
         return true;
       },
+      focus: () => {
+        for (const listener of focusListeners) {
+          listener();
+        }
+      },
+      onFocus: (listener) => {
+        focusListeners.add(listener);
+        return () => {
+          focusListeners.delete(listener);
+        };
+      },
     };
   });
+};
