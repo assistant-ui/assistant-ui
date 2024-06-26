@@ -1,6 +1,5 @@
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Theme } from "@radix-ui/themes";
-import { Analytics } from "@vercel/analytics/react";
 import type { AppProps } from "next/app";
 import Head from "next/head";
 import React from "react";
@@ -21,7 +20,11 @@ export default function MyApp({ Component, pageProps }: AppProps) {
         </Theme>
       </TooltipProvider>
 
-      <Analytics />
+      <script
+        defer
+        src="/umami/script.js"
+        data-website-id="6f07c001-46a2-411f-9241-4f7f5afb60ee"
+      ></script>
     </>
   );
 }

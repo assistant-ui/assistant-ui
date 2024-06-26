@@ -17,6 +17,12 @@ const withNextra = nextra({
 export default withNextra({
   transpilePackages: ["@assistant-ui/*"],
   rewrites: async () => ({
+    beforeFiles: [
+      {
+        source: "/umami/:path*",
+        destination: "https://assistant-ui-umami.vercel.app/:path*",
+      },
+    ],
     fallback: [
       {
         source: "/registry/:path*",
