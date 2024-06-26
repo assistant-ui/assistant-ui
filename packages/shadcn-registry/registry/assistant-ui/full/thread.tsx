@@ -86,6 +86,7 @@ const Composer: FC = () => {
   return (
     <ComposerPrimitive.Root className="flex w-[calc(100%-32px)] max-w-[42rem] items-end rounded-lg border p-0.5 transition-shadow focus-within:shadow-sm">
       <ComposerPrimitive.Input
+        autoFocus
         placeholder="Write a message..."
         className="placeholder:text-foreground/50 h-12 max-h-40 flex-grow resize-none bg-transparent p-3.5 text-sm outline-none"
       />
