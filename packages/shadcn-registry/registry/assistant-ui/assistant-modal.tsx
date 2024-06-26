@@ -5,36 +5,29 @@ import { BotIcon, ChevronDownIcon } from "lucide-react";
 import { Thread } from "@/components/ui/assistant-ui/thread";
 import { Button } from "@/components/ui/button";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
-import { useState, forwardRef } from "react";
+import { forwardRef } from "react";
+import { AssistantModalPrimitive } from "@assistant-ui/react";
 
 export const AssistantModal = () => {
-  const [open, setOpen] = useState(false);
-
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
+    <AssistantModalPrimitive.Root>
+      <AssistantModalPrimitive.Trigger asChild>
         <FloatingAssistantButton />
-      </PopoverTrigger>
-      <PopoverContent
-        onInteractOutside={(e) => e.preventDefault()}
-        side="top"
-        align="end"
-        className="mb-3 h-[500px] w-[400px] rounded-xl p-0"
+      </AssistantModalPrimitive.Trigger>
+      <AssistantModalPrimitive.Content
+        className={
+          "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 slide-in-from-bottom-2 bg-popover text-popover-foreground data-[state=closed]:animate-out data-[state=open]:animate-in z-50 mb-3 h-[500px] w-[400px] rounded-xl border p-0 shadow-md outline-none"
+        }
       >
         <Thread />
-      </PopoverContent>
-    </Popover>
+      </AssistantModalPrimitive.Content>
+    </AssistantModalPrimitive.Root>
   );
 };
 
@@ -45,6 +38,7 @@ const FloatingAssistantButton = forwardRef<
   FloatingAssistantButtonProps
 >(({ "data-state": state, ...rest }, ref) => {
   const tooltip = state === "open" ? "Close Assistant" : "Open Assistant";
+
   return (
     <TooltipProvider>
       <Tooltip>
