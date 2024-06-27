@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.2.2
+
+### Patch Changes
+
+- 62e9f19: feat: AssistantRuntime newThread
+- 611fdcc: feat: useAssistantActions
+- ca0eaa1: feat: Programmatic Interactions API
+
 ## 0.2.1
 
 ### Patch Changes
