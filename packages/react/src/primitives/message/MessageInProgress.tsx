@@ -4,8 +4,8 @@ import { Primitive } from "@radix-ui/react-primitive";
 import {
   type ElementRef,
   forwardRef,
-  useMemo,
   ComponentPropsWithoutRef,
+  useEffect,
 } from "react";
 import { useMessageContext } from "../../context/react/MessageContext";
 
@@ -20,10 +20,15 @@ export const MessagePrimitiveInProgress = forwardRef<
 >((props, ref) => {
   const { useMessageUtils } = useMessageContext();
 
-  useMemo(() => {
+  // TODO make this more efficient
+  useEffect(() => {
     useMessageUtils
       .getState()
       .setInProgressIndicator(<Primitive.span {...props} ref={ref} />);
+
+    return () => {
+      useMessageUtils.getState().setInProgressIndicator(null);
+    };
   }, [useMessageUtils, props, ref]);
 
   return null;
