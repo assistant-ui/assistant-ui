@@ -23,6 +23,7 @@ export abstract class BaseAssistantRuntime<
     this._unsubscribe();
     this._thread = thread;
     this._unsubscribe = this._thread.subscribe(this.subscriptionHandler);
+    this.subscriptionHandler();
   }
 
   public abstract registerModelConfigProvider(

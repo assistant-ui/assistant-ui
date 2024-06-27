@@ -1,5 +1,12 @@
 import type { FC, PropsWithChildren } from "react";
-import { useEffect, useInsertionEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useInsertionEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import type { ReactThreadRuntime } from "../../runtime/core/ReactThreadRuntime";
 import type { ThreadRuntime } from "../../runtime/core/ThreadRuntime";
 import type { ThreadContextValue } from "../react/ThreadContext";
@@ -52,8 +59,16 @@ export const ThreadProvider: FC<PropsWithChildren<ThreadProviderProps>> = ({
     return runtime.subscribe(onRuntimeUpdate);
   }, [context, runtime]);
 
-  const RuntimeSynchronizer = (runtime as ReactThreadRuntime)
-    .unstable_synchronizer;
+  const subscribe = useCallback(
+    (c: () => void) => runtime.subscribe(c),
+    [runtime],
+  );
+
+  const RuntimeSynchronizer = useSyncExternalStore(
+    subscribe,
+    () => (runtime as ReactThreadRuntime).unstable_synchronizer,
+    () => undefined,
+  );
 
   return (
     <ThreadContext.Provider value={context}>
