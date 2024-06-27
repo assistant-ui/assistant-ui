@@ -12,6 +12,7 @@ import type { VercelHelpers } from "./utils/VercelHelpers";
 import { sliceMessagesUntil } from "./utils/sliceMessagesUntil";
 import { useVercelAIComposerSync } from "./utils/useVercelAIComposerSync";
 import { useVercelAIThreadSync } from "./utils/useVercelAIThreadSync";
+import { ModelConfigProvider } from "@assistant-ui/react";
 
 const { ProxyConfigProvider, MessageRepository, BaseAssistantRuntime } =
   INTERNAL;
@@ -21,6 +22,8 @@ const hasUpcomingMessage = (isRunning: boolean, messages: ThreadMessage[]) => {
 };
 
 export class VercelAIRuntime extends BaseAssistantRuntime<VercelAIThreadRuntime> {
+  private readonly _proxyConfigProvider = new ProxyConfigProvider();
+
   constructor(vercel: VercelHelpers) {
     super(new VercelAIThreadRuntime(vercel));
   }
@@ -33,9 +36,12 @@ export class VercelAIRuntime extends BaseAssistantRuntime<VercelAIThreadRuntime>
     return this.thread.onVercelUpdated();
   }
 
-  public registerModelConfigProvider() {
-    // no-op
-    return () => {};
+  public getModelConfig() {
+    return this._proxyConfigProvider.getModelConfig();
+  }
+
+  public registerModelConfigProvider(provider: ModelConfigProvider) {
+    return this._proxyConfigProvider.registerModelConfigProvider(provider);
   }
 
   public switchToThread(threadId: string | null) {
@@ -53,10 +59,7 @@ export class VercelAIRuntime extends BaseAssistantRuntime<VercelAIThreadRuntime>
   }
 }
 
-class VercelAIThreadRuntime
-  extends ProxyConfigProvider
-  implements ReactThreadRuntime
-{
+class VercelAIThreadRuntime implements ReactThreadRuntime {
   private _subscriptions = new Set<() => void>();
   private repository = new MessageRepository();
   private assistantOptimisticId: string | null = null;
@@ -67,7 +70,6 @@ class VercelAIThreadRuntime
   public isRunning = false;
 
   constructor(public vercel: VercelHelpers) {
-    super();
     this.useVercel = create(() => ({
       vercel,
     }));

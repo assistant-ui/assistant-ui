@@ -11,6 +11,7 @@ import { type StoreApi, type UseBoundStore, create } from "zustand";
 import type { VercelRSCAdapter } from "./VercelRSCAdapter";
 import type { VercelRSCMessage } from "./VercelRSCMessage";
 import { useVercelRSCSync } from "./useVercelRSCSync";
+import { ModelConfigProvider } from "@assistant-ui/react";
 
 const { ProxyConfigProvider, BaseAssistantRuntime } = INTERNAL;
 
@@ -19,6 +20,8 @@ const EMPTY_BRANCHES: readonly string[] = Object.freeze([]);
 export class VercelRSCRuntime<
   T extends WeakKey = VercelRSCMessage,
 > extends BaseAssistantRuntime<VercelRSCThreadRuntime<T>> {
+  private readonly _proxyConfigProvider = new ProxyConfigProvider();
+
   constructor(adapter: VercelRSCAdapter<T>) {
     super(new VercelRSCThreadRuntime(adapter));
   }
@@ -31,9 +34,12 @@ export class VercelRSCRuntime<
     return this.thread.onAdapterUpdated();
   }
 
-  public registerModelConfigProvider() {
-    // no-op
-    return () => {};
+  public getModelConfig() {
+    return this._proxyConfigProvider.getModelConfig();
+  }
+
+  public registerModelConfigProvider(provider: ModelConfigProvider) {
+    return this._proxyConfigProvider.registerModelConfigProvider(provider);
   }
 
   public switchToThread() {
@@ -42,7 +48,6 @@ export class VercelRSCRuntime<
 }
 
 class VercelRSCThreadRuntime<T extends WeakKey = VercelRSCMessage>
-  extends ProxyConfigProvider
   implements ReactThreadRuntime
 {
   private useAdapter: UseBoundStore<StoreApi<{ adapter: VercelRSCAdapter<T> }>>;
@@ -53,8 +58,6 @@ class VercelRSCThreadRuntime<T extends WeakKey = VercelRSCMessage>
   public messages: ThreadMessage[] = [];
 
   constructor(public adapter: VercelRSCAdapter<T>) {
-    super();
-
     this.useAdapter = create(() => ({
       adapter,
     }));
