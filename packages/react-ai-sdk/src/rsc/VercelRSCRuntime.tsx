@@ -1,9 +1,8 @@
 "use client";
 
 import {
-  type AppendMessage,
-  type AssistantRuntime,
   INTERNAL,
+  type AppendMessage,
   type ReactThreadRuntime,
   type ThreadMessage,
   type Unsubscribe,
@@ -13,13 +12,42 @@ import type { VercelRSCAdapter } from "./VercelRSCAdapter";
 import type { VercelRSCMessage } from "./VercelRSCMessage";
 import { useVercelRSCSync } from "./useVercelRSCSync";
 
-const { ProxyConfigProvider } = INTERNAL;
+const { ProxyConfigProvider, BaseAssistantRuntime } = INTERNAL;
 
 const EMPTY_BRANCHES: readonly string[] = Object.freeze([]);
 
-export class VercelRSCRuntime<T extends WeakKey = VercelRSCMessage>
+export class VercelRSCRuntime<
+  T extends WeakKey = VercelRSCMessage,
+> extends BaseAssistantRuntime<VercelRSCThreadRuntime<T>> {
+  constructor(adapter: VercelRSCAdapter<T>) {
+    super(new VercelRSCThreadRuntime(adapter));
+  }
+
+  public set adapter(adapter: VercelRSCAdapter<T>) {
+    this.thread.adapter = adapter;
+  }
+
+  public onAdapterUpdated() {
+    return this.thread.onAdapterUpdated();
+  }
+
+  public registerModelConfigProvider() {
+    // no-op
+    return () => {};
+  }
+
+  public newThread() {
+    this.thread = new VercelRSCThreadRuntime(this.thread.adapter);
+  }
+
+  public switchToThread() {
+    throw new Error("VercelRSCRuntime does not yet support switching threads");
+  }
+}
+
+class VercelRSCThreadRuntime<T extends WeakKey = VercelRSCMessage>
   extends ProxyConfigProvider
-  implements AssistantRuntime, ReactThreadRuntime
+  implements ReactThreadRuntime
 {
   private useAdapter: UseBoundStore<StoreApi<{ adapter: VercelRSCAdapter<T> }>>;
 

@@ -8,14 +8,44 @@ import {
   mergeModelConfigs,
 } from "../../types/ModelConfigTypes";
 import type { Unsubscribe } from "../../types/Unsubscribe";
-import type { AssistantRuntime } from "../core/AssistantRuntime";
+import { ThreadRuntime } from "../core";
 import { MessageRepository } from "../utils/MessageRepository";
 import { generateId } from "../utils/idUtils";
+import { BaseAssistantRuntime } from "../core/BaseAssistantRuntime";
 import type { ChatModelAdapter, ChatModelRunResult } from "./ChatModelAdapter";
 
-export class LocalRuntime implements AssistantRuntime {
+export class LocalRuntime extends BaseAssistantRuntime<LocalThreadRuntime> {
+  private readonly _configProviders: Set<ModelConfigProvider>;
+
+  constructor(adapter: ChatModelAdapter) {
+    const configProviders = new Set<ModelConfigProvider>();
+    super(new LocalThreadRuntime(configProviders, adapter));
+    this._configProviders = configProviders;
+  }
+
+  public set adapter(adapter: ChatModelAdapter) {
+    this.thread.adapter = adapter;
+  }
+
+  registerModelConfigProvider(provider: ModelConfigProvider) {
+    this._configProviders.add(provider);
+    return () => this._configProviders.delete(provider);
+  }
+
+  public newThread() {
+    return (this.thread = new LocalThreadRuntime(
+      this._configProviders,
+      this.thread.adapter,
+    ));
+  }
+
+  public switchToThread() {
+    throw new Error("LocalRuntime does not yet support switching threads");
+  }
+}
+
+class LocalThreadRuntime implements ThreadRuntime {
   private _subscriptions = new Set<() => void>();
-  private _configProviders = new Set<ModelConfigProvider>();
 
   private abortController: AbortController | null = null;
   private repository = new MessageRepository();
@@ -27,7 +57,10 @@ export class LocalRuntime implements AssistantRuntime {
     return this.abortController != null;
   }
 
-  constructor(public adapter: ChatModelAdapter) {}
+  constructor(
+    private _configProviders: Set<ModelConfigProvider>,
+    public adapter: ChatModelAdapter,
+  ) {}
 
   public getBranches(messageId: string): string[] {
     return this.repository.getBranches(messageId);
@@ -117,12 +150,7 @@ export class LocalRuntime implements AssistantRuntime {
     return () => this._subscriptions.delete(callback);
   }
 
-  registerModelConfigProvider(provider: ModelConfigProvider) {
-    this._configProviders.add(provider);
-    return () => this._configProviders.delete(provider);
-  }
-
   addToolResult() {
-    throw new Error("LocalRuntime does not yet support tool results");
+    throw new Error("LocalRuntime does not yet support adding tool results");
   }
 }

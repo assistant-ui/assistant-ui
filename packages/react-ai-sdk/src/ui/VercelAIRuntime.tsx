@@ -1,8 +1,4 @@
-import type {
-  AssistantRuntime,
-  ReactThreadRuntime,
-  Unsubscribe,
-} from "@assistant-ui/react";
+import type { ReactThreadRuntime, Unsubscribe } from "@assistant-ui/react";
 import type { AppendMessage, ThreadMessage } from "@assistant-ui/react";
 import { INTERNAL } from "@assistant-ui/react";
 import type { Message } from "ai";
@@ -13,15 +9,43 @@ import { sliceMessagesUntil } from "./utils/sliceMessagesUntil";
 import { useVercelAIComposerSync } from "./utils/useVercelAIComposerSync";
 import { useVercelAIThreadSync } from "./utils/useVercelAIThreadSync";
 
-const { ProxyConfigProvider, MessageRepository } = INTERNAL;
+const { ProxyConfigProvider, MessageRepository, BaseAssistantRuntime } =
+  INTERNAL;
 
 const hasUpcomingMessage = (isRunning: boolean, messages: ThreadMessage[]) => {
   return isRunning && messages[messages.length - 1]?.role !== "assistant";
 };
 
-export class VercelAIRuntime
+export class VercelAIRuntime extends BaseAssistantRuntime<VercelAIThreadRuntime> {
+  constructor(vercel: VercelHelpers) {
+    super(new VercelAIThreadRuntime(vercel));
+  }
+
+  public set vercel(vercel: VercelHelpers) {
+    this.thread.vercel = vercel;
+  }
+
+  public onVercelUpdated() {
+    return this.thread.onVercelUpdated();
+  }
+
+  public registerModelConfigProvider() {
+    // no-op
+    return () => {};
+  }
+
+  public newThread() {
+    this.thread = new VercelAIThreadRuntime(this.thread.vercel);
+  }
+
+  public switchToThread() {
+    throw new Error("VercelAIRuntime does not yet support switching threads");
+  }
+}
+
+class VercelAIThreadRuntime
   extends ProxyConfigProvider
-  implements AssistantRuntime, ReactThreadRuntime
+  implements ReactThreadRuntime
 {
   private _subscriptions = new Set<() => void>();
   private repository = new MessageRepository();
