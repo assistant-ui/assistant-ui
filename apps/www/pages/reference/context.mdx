@@ -15,7 +15,8 @@ The context is split into four hierarchies:
 import { ParametersTable } from "@/components/docs";
 import { 
   AssistantContextValue, 
-  AssistantModelConfigState, 
+  AssistantActionsState,
+  AssistantModelConfigState,
   AssistantToolUIsState,
   ThreadState, 
   ThreadActionsState, 
@@ -42,6 +43,17 @@ const { useModelConfig, useToolUIs } = useAssistantContext();
 ```
 
 <ParametersTable {...AssistantContextValue} /> 
+
+#### `useAssistantActions`
+
+```tsx
+import { useAssistantActions } from "@assistant-ui/react";
+
+const switchToNewThread = useAssistantActions(m => m.switchToThread);
+const switchToNewThread = useAssistantActions.getState().switchToThread;
+```
+
+<ParametersTable {...AssistantActionsState} />
 
 ### `useModelConfig`
 

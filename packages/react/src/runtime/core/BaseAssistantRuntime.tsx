@@ -12,8 +12,7 @@ export abstract class BaseAssistantRuntime<TThreadRuntime extends ThreadRuntime>
   public abstract registerModelConfigProvider(
     provider: ModelConfigProvider,
   ): Unsubscribe;
-  public abstract newThread(): void;
-  public abstract switchToThread(threadId: string): void;
+  public abstract switchToThread(threadId: string | null): void;
 
   public get messages() {
     return this.thread.messages;

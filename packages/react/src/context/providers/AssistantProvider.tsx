@@ -5,6 +5,7 @@ import { AssistantContext } from "../react/AssistantContext";
 import { makeAssistantModelConfigStore } from "../stores/AssistantModelConfig";
 import { makeAssistantToolUIsStore } from "../stores/AssistantToolUIs";
 import { ThreadProvider } from "./ThreadProvider";
+import { makeAssistantActionsStore } from "../stores/AssistantActions";
 
 type AssistantProviderProps = {
   runtime: AssistantRuntime;
@@ -21,8 +22,9 @@ export const AssistantProvider: FC<
   const [context] = useState(() => {
     const useModelConfig = makeAssistantModelConfigStore();
     const useToolUIs = makeAssistantToolUIsStore();
+    const useAssistantActions = makeAssistantActionsStore(runtimeRef);
 
-    return { useModelConfig, useToolUIs };
+    return { useModelConfig, useToolUIs, useAssistantActions };
   });
 
   const getModelCOnfig = context.useModelConfig((c) => c.getModelConfig);

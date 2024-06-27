@@ -32,15 +32,15 @@ export class LocalRuntime extends BaseAssistantRuntime<LocalThreadRuntime> {
     return () => this._configProviders.delete(provider);
   }
 
-  public newThread() {
+  public switchToThread(threadId: string | null) {
+    if (threadId) {
+      throw new Error("LocalRuntime does not yet support switching threads");
+    }
+
     return (this.thread = new LocalThreadRuntime(
       this._configProviders,
       this.thread.adapter,
     ));
-  }
-
-  public switchToThread() {
-    throw new Error("LocalRuntime does not yet support switching threads");
   }
 }
 

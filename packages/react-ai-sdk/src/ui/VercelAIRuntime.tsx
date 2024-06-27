@@ -34,12 +34,12 @@ export class VercelAIRuntime extends BaseAssistantRuntime<VercelAIThreadRuntime>
     return () => {};
   }
 
-  public newThread() {
-    this.thread = new VercelAIThreadRuntime(this.thread.vercel);
-  }
+  public switchToThread(threadId: string | null) {
+    if (threadId) {
+      throw new Error("VercelAIRuntime does not yet support switching threads");
+    }
 
-  public switchToThread() {
-    throw new Error("VercelAIRuntime does not yet support switching threads");
+    this.thread = new VercelAIThreadRuntime(this.thread.vercel);
   }
 }
 

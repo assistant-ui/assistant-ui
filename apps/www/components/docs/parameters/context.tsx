@@ -1,5 +1,17 @@
 import { ParametersTableProps } from "../ParametersTable";
 
+export const AssistantActionsState: ParametersTableProps = {
+  type: "AssistantActionsState",
+  parameters: [
+    {
+      name: "switchToThread",
+      type: "(threadId: string | null) => void",
+      description: "Switch to a new thread.",
+      required: true,
+    },
+  ],
+};
+
 export const AssistantModelConfigState: ParametersTableProps = {
   type: "AssistantModelConfigState",
   parameters: [
@@ -101,6 +113,12 @@ export const AssistantToolUIsState: ParametersTableProps = {
 export const AssistantContextValue: ParametersTableProps = {
   type: "AssistantContextValue",
   parameters: [
+    {
+      name: "useAssistantActions",
+      type: "ReadonlyStore<AssistantActionsState>",
+      required: true,
+      description: "Provides functions to perform actions on the assistant.",
+    },
     {
       name: "useModelConfig",
       type: "ReadonlyStore<AssistantModelConfigState>",
@@ -215,7 +233,8 @@ export const ComposerState: ParametersTableProps = {
       name: "cancel",
       type: "() => boolean",
       required: true,
-      description: "A function to cancel the run. Returns true if the run was canceled.",
+      description:
+        "A function to cancel the run. Returns true if the run was canceled.",
     },
     {
       name: "focus",

@@ -36,12 +36,14 @@ export class VercelRSCRuntime<
     return () => {};
   }
 
-  public newThread() {
-    this.thread = new VercelRSCThreadRuntime(this.thread.adapter);
-  }
+  public switchToThread(threadId: string | null) {
+    if (threadId) {
+      throw new Error(
+        "VercelRSCRuntime does not yet support switching threads",
+      );
+    }
 
-  public switchToThread() {
-    throw new Error("VercelRSCRuntime does not yet support switching threads");
+    this.thread = new VercelRSCThreadRuntime(this.thread.adapter);
   }
 }
 

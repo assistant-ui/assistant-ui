@@ -1,6 +1,7 @@
 import type { MutableRefObject } from "react";
 import { create } from "zustand";
 import type { AppendMessage } from "../../types/AssistantTypes";
+import { ThreadRuntime } from "../../runtime";
 
 export type ThreadActionsState = Readonly<{
   getBranches: (messageId: string) => readonly string[];
@@ -14,7 +15,7 @@ export type ThreadActionsState = Readonly<{
 }>;
 
 export const makeThreadActionStore = (
-  runtimeRef: MutableRefObject<ThreadActionsState>,
+  runtimeRef: MutableRefObject<ThreadRuntime>,
 ) => {
   return create<ThreadActionsState>(() =>
     Object.freeze({
