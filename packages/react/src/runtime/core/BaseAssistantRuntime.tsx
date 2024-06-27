@@ -1,8 +1,8 @@
-import { ReactThreadRuntime } from "../../../dist";
 import type { AppendMessage } from "../../types/AssistantTypes";
 import { type ModelConfigProvider } from "../../types/ModelConfigTypes";
 import type { Unsubscribe } from "../../types/Unsubscribe";
 import type { AssistantRuntime } from "./AssistantRuntime";
+import { ReactThreadRuntime } from "./ReactThreadRuntime";
 
 export abstract class BaseAssistantRuntime<
   TThreadRuntime extends ReactThreadRuntime,
