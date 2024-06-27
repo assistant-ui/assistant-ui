@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.2.1
+
+### Patch Changes
+
+- d52c345: feat: Primitive Prop Types
+
 ## 0.2.0
 
 ### Minor Changes
