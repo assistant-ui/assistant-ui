@@ -1,6 +1,10 @@
-import type { ReactThreadRuntime, Unsubscribe } from "@assistant-ui/react";
-import type { AppendMessage, ThreadMessage } from "@assistant-ui/react";
-import { INTERNAL } from "@assistant-ui/react";
+import {
+  type ReactThreadRuntime,
+  type Unsubscribe,
+  type AppendMessage,
+  type ThreadMessage,
+  INTERNAL,
+} from "@assistant-ui/react";
 import type { Message } from "ai";
 import { type StoreApi, type UseBoundStore, create } from "zustand";
 import { getVercelAIMessage } from "./getVercelAIMessage";
@@ -38,6 +42,12 @@ export class VercelAIRuntime extends BaseAssistantRuntime<VercelAIThreadRuntime>
     if (threadId) {
       throw new Error("VercelAIRuntime does not yet support switching threads");
     }
+
+    // clear the vercel state (otherwise, it will be captured by the MessageRepository)
+    this.thread.vercel.messages = [];
+    this.thread.vercel.input = "";
+    this.thread.vercel.setMessages([]);
+    this.thread.vercel.setInput("");
 
     this.thread = new VercelAIThreadRuntime(this.thread.vercel);
   }
