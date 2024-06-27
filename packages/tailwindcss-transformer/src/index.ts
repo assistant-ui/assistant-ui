@@ -66,10 +66,8 @@ function visitNode(
       ) {
         return false;
       }
+
       const cn = generateHashedClassName(path.node.value);
-      if (cn === "aui-e3b0c442") {
-        console.log(cn, path.parentPath.value);
-      }
       ctx.styleCache.set(cn, path.node.value);
       path.node.value = cn;
       return false;

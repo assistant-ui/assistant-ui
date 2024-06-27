@@ -22,9 +22,9 @@ export const ComposerPrimitiveRoot = forwardRef<
   const send = useComposerSend();
 
   const handleSubmit = (e: FormEvent) => {
-    if (!send) return;
-
     e.preventDefault();
+
+    if (!send) return;
     send();
   };
 
