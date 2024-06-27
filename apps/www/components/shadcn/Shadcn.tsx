@@ -11,6 +11,7 @@ import { Thread } from "@/components/ui/assistant-ui/thread";
 import { Sheet, SheetContent, SheetTrigger } from "../ui/sheet";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { ModelPicker } from "./ModelPicker";
+import { useSwitchToNewThread } from "@assistant-ui/react";
 
 type ButtonWithTooltipProps = ButtonProps & {
   tooltip: string;
@@ -37,8 +38,11 @@ const ButtonWithTooltip: FC<ButtonWithTooltipProps> = ({
 };
 
 const TopLeft: FC = () => {
+  const switchToNewThread = useSwitchToNewThread();
+
   return (
     <ButtonWithTooltip
+      onClick={switchToNewThread}
       variant="ghost"
       className="flex w-full justify-between px-3"
       tooltip="New Chat"
