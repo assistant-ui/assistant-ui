@@ -1,4 +1,5 @@
 import type {
+  AssistantMessage,
   TextContentPart,
   ThreadMessage,
   ToolCallContentPart,
@@ -46,30 +47,58 @@ const vercelToThreadMessage = (
         role: "user",
         content: [{ type: "text", text: firstMessage.content }],
       };
-    case "assistant":
-      return {
+
+    case "data":
+    case "assistant": {
+      const res: AssistantMessage = {
         ...common,
         role: "assistant",
-        content: messages.flatMap((message) => [
-          ...(message.content
-            ? [{ type: "text", text: message.content } as TextContentPart]
-            : []),
-          ...(message.toolInvocations?.map(
-            (t) =>
-              ({
-                type: "tool-call",
-                toolName: t.toolName,
-                toolCallId: t.toolCallId,
-                args: t.args,
-                result: "result" in t ? t.result : undefined,
-              }) satisfies ToolCallContentPart,
-          ) ?? []),
-        ]),
+        content: messages.flatMap((message) => {
+          return [
+            ...(message.content
+              ? [{ type: "text", text: message.content } as TextContentPart]
+              : []),
+            ...(message.toolInvocations?.map(
+              (t) =>
+                ({
+                  type: "tool-call",
+                  toolName: t.toolName,
+                  toolCallId: t.toolCallId,
+                  args: t.args,
+                  result: "result" in t ? t.result : undefined,
+                }) satisfies ToolCallContentPart,
+            ) ?? []),
+            ...(typeof message.data === "object" &&
+            !Array.isArray(message.data) &&
+            message.data?.["type"] === "tool-call"
+              ? [message.data as ToolCallContentPart]
+              : []),
+          ];
+        }),
         status,
       };
+
+      for (const message of messages) {
+        if (
+          typeof message.data === "object" &&
+          !Array.isArray(message.data) &&
+          message.data?.["type"] === "tool-result"
+        ) {
+          const toolCallId = message.data["toolCallId"];
+          const toolContent = res.content.find(
+            (c) => c.type === "tool-call" && c.toolCallId === toolCallId,
+          ) as ToolCallContentPart | undefined;
+          if (!toolContent) throw new Error("Tool call not found");
+          toolContent.result = message.data["result"];
+        }
+      }
+
+      return res;
+    }
+
     default:
       throw new Error(
-        `You have a message with an unsupported role. The role ${firstMessage.role} is not supported.`,
+        `123 You have a message with an unsupported role. The role ${firstMessage.role} is not supported.`,
       );
   }
 };
@@ -83,7 +112,7 @@ const chunkedMessages = (messages: Message[]): Chunk[] => {
   let currentChunk: Message[] = [];
 
   for (const message of messages) {
-    if (message.role === "assistant") {
+    if (message.role === "assistant" || message.role === "data") {
       currentChunk.push(message);
     } else {
       if (hasItems(currentChunk)) {
