@@ -1,5 +1,12 @@
 # search-agent-for-e-commerce
 
+## 0.1.3
+
+### Patch Changes
+
+- Updated dependencies [ff042d8]
+  - @assistant-ui/react-ai-sdk@0.2.2
+
 ## 0.1.2
 
 ### Patch Changes

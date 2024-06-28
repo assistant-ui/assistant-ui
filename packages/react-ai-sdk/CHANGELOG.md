@@ -1,5 +1,11 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.2.2
+
+### Patch Changes
+
+- ff042d8: feat: Vercel AI SDK useAssistant Data Message for tool calling support
+
 ## 0.2.1
 
 ### Patch Changes
