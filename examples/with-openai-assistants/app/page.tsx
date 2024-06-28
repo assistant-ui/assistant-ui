@@ -1,6 +1,7 @@
 "use client";
 
 import { Thread } from "@/components/ui/assistant-ui/thread";
+import { cn } from "@/lib/utils";
 import { makeAssistantToolUI } from "@assistant-ui/react";
 
 type WeatherArgs = {
@@ -14,9 +15,14 @@ type WeatherResult = {
 
 const WeatherTool = makeAssistantToolUI<WeatherArgs, WeatherResult>({
   toolName: "get_weather",
-  render: ({ part }) => {
+  render: ({ part, status }) => {
     return (
-      <p className="my-4 text-center font-mono text-sm font-bold text-blue-500 first:mt-0">
+      <p
+        className={cn(
+          "my-4 text-center font-mono text-sm font-bold text-blue-500 first:mt-0",
+          status === "in_progress" && "animate-pulse",
+        )}
+      >
         get_weather({JSON.stringify(part.args)})
         {!!part.result && <> =&gt; {JSON.stringify(part.result)}</>}
       </p>

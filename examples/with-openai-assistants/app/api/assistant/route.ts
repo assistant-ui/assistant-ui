@@ -63,7 +63,7 @@ export async function POST(req: Request) {
                     },
                   });
 
-                  await new Promise((resolve) => setTimeout(resolve, 1000));
+                  await new Promise((resolve) => setTimeout(resolve, 5000));
 
                   const result = { t: unit === "c" ? 21 : 70 };
 
