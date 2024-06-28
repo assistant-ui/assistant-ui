@@ -692,6 +692,10 @@ importers:
         version: 5.5.2
 
   packages/shadcn-registry:
+    dependencies:
+      rehype-katex:
+        specifier: ^7.0.0
+        version: 7.0.0
     devDependencies:
       '@assistant-ui/react':
         specifier: workspace:*

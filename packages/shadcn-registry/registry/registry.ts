@@ -42,7 +42,8 @@ export const registry: RegistryIndex = [
       "@assistant-ui/react",
       "@assistant-ui/react-markdown",
       "remark-gfm",
-      // "remark-math",
+      "remark-math",
+      "rehype-katex",
     ],
   },
   {

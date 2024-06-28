@@ -84,9 +84,9 @@ const UserMessage: FC = () => {
           </ActionBarPrimitive.Edit>
         </ActionBarPrimitive.Root>
 
-        <p className="whitespace-pre-line rounded-3xl bg-white/5 px-5 py-2 text-[#eee]">
+        <div className="rounded-3xl bg-white/5 px-5 py-2 text-[#eee]">
           <MessagePrimitive.Content />
-        </p>
+        </div>
       </div>
 
       <BranchPicker className="mr-3 mt-2" />
@@ -121,9 +121,9 @@ const AssistantMessage: FC = () => {
       </Avatar.Root>
 
       <div className="pt-1">
-        <p className="whitespace-pre-line text-[#eee]">
+        <div className="text-[#eee]">
           <MessagePrimitive.Content />
-        </p>
+        </div>
 
         <div className="flex pt-2">
           <BranchPicker />

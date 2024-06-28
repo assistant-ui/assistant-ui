@@ -34,5 +34,8 @@
   },
   "scripts": {
     "build:registry": "tsx ./scripts/build-registry.ts"
+  },
+  "dependencies": {
+    "rehype-katex": "^7.0.0"
   }
 }
