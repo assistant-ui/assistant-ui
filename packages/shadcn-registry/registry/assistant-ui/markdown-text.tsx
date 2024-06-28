@@ -147,6 +147,26 @@ const MarkdownTextImpl = () => {
             {...props}
           />
         ),
+        code(props) {
+          const { children, className, node, ref, ...rest } = props;
+          const match = /language-(\w+)/.exec(className || "")?.[1];
+          return (
+            <>
+              <div className="bg-muted rounded-t-lg px-4 py-2 font-mono text-xs">
+                <p>{match}</p>
+              </div>
+              <code
+                {...rest}
+                className={cn(
+                  "overflow-x-auto rounded-b-lg bg-black p-4 text-white",
+                  className,
+                )}
+              >
+                {children}
+              </code>
+            </>
+          );
+        },
       }}
     />
   );
