@@ -1,12 +1,12 @@
 import { AssistantResponse } from "ai";
 import OpenAI from "openai";
 
-const openai = new OpenAI();
-
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
+  const openai = new OpenAI();
+
   // Parse the request body
   const input: {
     threadId: string | null;
