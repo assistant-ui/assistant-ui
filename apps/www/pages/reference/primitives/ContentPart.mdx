@@ -10,7 +10,7 @@ import { ContentPartPrimitive } from "@assistant-ui/react";
 
 const TextContentPart = () => {
   return (
-    <p>
+    <p style={{ whiteSpace: "pre-wrap" }}>
       <ContentPartPrimitive.Text />
       <ContentPartPrimitive.InProgressIndicator />
     </p>
@@ -32,7 +32,7 @@ const UIContentPart = () => {
 
 Renders the text content of a text content part.
 
-This primitive renders a `<p>` element.
+This primitive renders a `<span>` element.
 
 #### `useContentPartText`
 

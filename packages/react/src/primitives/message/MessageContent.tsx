@@ -33,10 +33,10 @@ export type MessagePrimitiveContentProps = {
 
 const defaultComponents = {
   Text: () => (
-    <>
-      <ContentPartPrimitiveText style={{ whiteSpace: "pre-line" }} />
+    <p style={{ whiteSpace: "pre-line" }}>
+      <ContentPartPrimitiveText />
       <ContentPartPrimitiveInProgressIndicator />
-    </>
+    </p>
   ),
   Image: () => null,
   UI: () => <ContentPartPrimitiveDisplay />,

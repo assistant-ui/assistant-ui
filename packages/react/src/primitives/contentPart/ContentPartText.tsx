@@ -17,9 +17,9 @@ export const ContentPartPrimitiveText = forwardRef<
   const text = useContentPartText();
 
   return (
-    <Primitive.p {...props} ref={forwardedRef}>
+    <Primitive.span {...props} ref={forwardedRef}>
       {text}
-    </Primitive.p>
+    </Primitive.span>
   );
 });
 
