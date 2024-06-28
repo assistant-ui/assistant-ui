@@ -242,6 +242,82 @@ importers:
         specifier: ^5.5.2
         version: 5.5.2
 
+  examples/with-openai-assistants:
+    dependencies:
+      '@ai-sdk/openai':
+        specifier: ^0.0.32
+        version: 0.0.32(zod@3.23.8)
+      '@ai-sdk/react':
+        specifier: ^0.0.4
+        version: 0.0.4(react@18.3.1)(zod@3.23.8)
+      '@assistant-ui/react':
+        specifier: workspace:*
+        version: link:../../packages/react
+      '@assistant-ui/react-ai-sdk':
+        specifier: workspace:*
+        version: link:../../packages/react-ai-sdk
+      '@radix-ui/react-avatar':
+        specifier: ^1.1.0
+        version: 1.1.0(@types/react-dom@18.3.0)(@types/react@18.3.3)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      ai:
+        specifier: ^3.2.1
+        version: 3.2.11(openai@4.52.1)(react@18.3.1)(solid-js@1.8.17)(svelte@4.2.18)(vue@3.4.30(typescript@5.5.2))(zod@3.23.8)
+      class-variance-authority:
+        specifier: ^0.7.0
+        version: 0.7.0
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
+      lucide-react:
+        specifier: ^0.395.0
+        version: 0.395.0(react@18.3.1)
+      next:
+        specifier: 14.2.4
+        version: 14.2.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      openai:
+        specifier: ^4.52.1
+        version: 4.52.1
+      react:
+        specifier: ^18
+        version: 18.3.1
+      react-dom:
+        specifier: ^18
+        version: 18.3.1(react@18.3.1)
+      tailwind-merge:
+        specifier: ^2.3.0
+        version: 2.3.0
+      tailwindcss-animate:
+        specifier: ^1.0.7
+        version: 1.0.7(tailwindcss@3.4.4)
+    devDependencies:
+      '@assistant-ui/tsconfig':
+        specifier: workspace:*
+        version: link:../../packages/tsconfig
+      '@types/node':
+        specifier: ^20
+        version: 20.14.9
+      '@types/react':
+        specifier: ^18
+        version: 18.3.3
+      '@types/react-dom':
+        specifier: ^18
+        version: 18.3.0
+      eslint:
+        specifier: ^8
+        version: 8.57.0
+      eslint-config-next:
+        specifier: 14.2.4
+        version: 14.2.4(eslint@8.57.0)(typescript@5.5.2)
+      postcss:
+        specifier: ^8
+        version: 8.4.38
+      tailwindcss:
+        specifier: ^3.4.1
+        version: 3.4.4
+      typescript:
+        specifier: ^5
+        version: 5.5.2
+
   examples/with-react-hook-form:
     dependencies:
       '@ai-sdk/openai':
@@ -817,6 +893,12 @@ importers:
         version: 2.0.5
 
 packages:
+
+  '@ai-sdk/openai@0.0.32':
+    resolution: {integrity: sha512-ySwtOoGTwmK+CiXreJO9iJkV7SBhetdgrmoP0gOKbz1uWQ9B1FMQ6Zdq6V5koWFXeN91Sz9n4jRIZ09GjxjY2g==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.0.0
 
   '@ai-sdk/openai@0.0.33':
     resolution: {integrity: sha512-siVeHnagh08UFgdwflPdUKTdrVvfU/JWqSa8nCsMy6DvSri8T7zTzPZoCxXiMKPXkhQDd/KsaXhweOShGLQ1uQ==}
@@ -4136,6 +4218,11 @@ packages:
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
 
+  lucide-react@0.395.0:
+    resolution: {integrity: sha512-6hzdNH5723A4FLaYZWpK50iyZH8iS2Jq5zuPRRotOFkhu6kxxJiebVdJ72tCR5XkiIeYFOU5NUawFZOac+VeYw==}
+    peerDependencies:
+      react: ^16.5.1 || ^17.0.0 || ^18.0.0
+
   lucide-react@0.397.0:
     resolution: {integrity: sha512-rUcbRY5jFP/4za/OJvaRUUmdPsPb940Tw9zE1ehrRZmr9JnkDcW8OV3POR3XfEAAMDkssiTc5IWBFv8Y//pkDQ==}
     peerDependencies:
@@ -5929,6 +6016,12 @@ packages:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
 snapshots:
+
+  '@ai-sdk/openai@0.0.32(zod@3.23.8)':
+    dependencies:
+      '@ai-sdk/provider': 0.0.10
+      '@ai-sdk/provider-utils': 0.0.15(zod@3.23.8)
+      zod: 3.23.8
 
   '@ai-sdk/openai@0.0.33(zod@3.23.8)':
     dependencies:
@@ -9691,6 +9784,10 @@ snapshots:
   lru-cache@5.1.1:
     dependencies:
       yallist: 3.1.1
+
+  lucide-react@0.395.0(react@18.3.1):
+    dependencies:
+      react: 18.3.1
 
   lucide-react@0.397.0(react@18.3.1):
     dependencies:
