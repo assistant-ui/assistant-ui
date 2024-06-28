@@ -78,7 +78,7 @@ export async function POST(req: Request) {
 
                   return {
                     tool_call_id: toolCall.id,
-                    output: result,
+                    output: JSON.stringify(result),
                   };
 
                 default:
