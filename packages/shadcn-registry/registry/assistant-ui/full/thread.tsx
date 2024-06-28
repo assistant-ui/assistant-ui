@@ -170,7 +170,7 @@ const AssistantMessage: FC = () => {
             hideWhenRunning
             autohide="not-last"
             autohideFloat="single-branch"
-            className="data-[floating]:bg-background flex items-center gap-1 rounded-lg data-[floating]:absolute data-[floating]:border data-[floating]:p-1"
+            className="data-[floating]:bg-background z-50 flex items-center gap-1 rounded-lg data-[floating]:absolute data-[floating]:border data-[floating]:p-1"
           >
             <ActionBarPrimitive.Copy asChild>
               <IconButton tooltip="Copy">
