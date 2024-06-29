@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.2.4
+
+### Patch Changes
+
+- c373fc9: feat: AssistantModalPrimitive.Anchor
+
 ## 0.2.3
 
 ### Patch Changes

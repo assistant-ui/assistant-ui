@@ -1,5 +1,12 @@
 # assistant-ui-starter
 
+## 0.1.3
+
+### Patch Changes
+
+- Updated dependencies [c373fc9]
+  - @assistant-ui/react@0.2.4
+
 ## 0.1.2
 
 ### Patch Changes
