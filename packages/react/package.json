@@ -81,10 +81,15 @@
   },
   "peerDependencies": {
     "@types/react": "*",
-    "react": "^18"
+    "@types/react-dom": "*",
+    "react": "^18",
+    "react-dom": "^18"
   },
   "peerDependenciesMeta": {
     "@types/react": {
+      "optional": true
+    },
+    "@types/react-dom": {
       "optional": true
     }
   },

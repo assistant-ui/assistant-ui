@@ -1,9 +1,7 @@
-import type { ReactNode } from "react";
 import { create } from "zustand";
 
 export type MessageUtilsState = Readonly<{
-  inProgressIndicator: ReactNode | null;
-  setInProgressIndicator: (value: ReactNode | null) => void;
+  inProgressIndicator: HTMLSpanElement;
   isCopied: boolean;
   setIsCopied: (value: boolean) => void;
   isHovering: boolean;
@@ -12,10 +10,7 @@ export type MessageUtilsState = Readonly<{
 
 export const makeMessageUtilsStore = () =>
   create<MessageUtilsState>((set) => ({
-    inProgressIndicator: null,
-    setInProgressIndicator: (value) => {
-      set({ inProgressIndicator: value });
-    },
+    inProgressIndicator: document.createElement("span"),
     isCopied: false,
     setIsCopied: (value) => {
       set({ isCopied: value });

@@ -581,12 +581,18 @@ importers:
       '@types/react':
         specifier: '*'
         version: 18.3.3
+      '@types/react-dom':
+        specifier: '*'
+        version: 18.3.0
       nanoid:
         specifier: ^5.0.7
         version: 5.0.7
       react:
         specifier: ^18
         version: 18.3.1
+      react-dom:
+        specifier: ^18
+        version: 18.3.1(react@18.3.1)
       react-textarea-autosize:
         specifier: ^8.5.3
         version: 8.5.3(@types/react@18.3.3)(react@18.3.1)

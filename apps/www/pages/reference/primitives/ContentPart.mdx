@@ -83,15 +83,3 @@ const Display = () => {
 ### InProgressIndicator
 
 Only rendered when the content part is in progress. While a message is in progress, the very last content part is considered to be in progress. This component acts as a portal host for `<MessagePrimitive.InProgress />`.
-
-#### `useContentPartInProgressIndicator`
-
-```tsx
-import { useContentPartInProgressIndicator } from "@assistant-ui/react";
-
-const InProgressIndicator = () => {
-  const indicator = useContentPartInProgressIndicator();
-
-  return indicator;
-};
-```
