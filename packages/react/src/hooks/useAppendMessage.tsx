@@ -11,12 +11,12 @@ type CreateAppendMessage =
     };
 
 const toAppendMessage = (
-  useThread: ThreadContextValue["useThread"],
+  useThreadMessages: ThreadContextValue["useThreadMessages"],
   message: CreateAppendMessage,
 ): AppendMessage => {
   if (typeof message === "string") {
     return {
-      parentId: useThread.getState().messages.at(-1)?.id ?? null,
+      parentId: useThreadMessages.getState().at(-1)?.id ?? null,
       role: "user",
       content: [{ type: "text", text: message }],
     };
@@ -24,25 +24,25 @@ const toAppendMessage = (
 
   return {
     parentId:
-      message.parentId ?? useThread.getState().messages.at(-1)?.id ?? null,
+      message.parentId ?? useThreadMessages.getState().at(-1)?.id ?? null,
     role: message.role ?? "user",
     content: message.content,
   };
 };
 
 export const useAppendMessage = () => {
-  const { useThread, useThreadActions, useViewport, useComposer } =
+  const { useThreadMessages, useThreadActions, useViewport, useComposer } =
     useThreadContext();
 
   const append = useCallback(
     (message: CreateAppendMessage) => {
-      const appendMessage = toAppendMessage(useThread, message);
+      const appendMessage = toAppendMessage(useThreadMessages, message);
       useThreadActions.getState().append(appendMessage);
 
       useViewport.getState().scrollToBottom();
       useComposer.getState().focus();
     },
-    [useThread, useThreadActions, useViewport, useComposer],
+    [useThreadMessages, useThreadActions, useViewport, useComposer],
   );
 
   return append;

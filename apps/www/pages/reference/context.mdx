@@ -14,14 +14,15 @@ The context is split into four hierarchies:
 
 import { ParametersTable } from "@/components/docs";
 import { 
-  AssistantContextValue, 
+  AssistantContextValue,
   AssistantActionsState,
   AssistantModelConfigState,
   AssistantToolUIsState,
-  ThreadState, 
-  ThreadActionsState, 
-  ComposerState, 
-  EditComposerState, 
+  ThreadState,
+  ThreadMessagesState,
+  ThreadActionsState,
+  ComposerState,
+  EditComposerState,
   ThreadViewportState,
   ContentPartState,
   MessageState,
@@ -98,14 +99,22 @@ const { useThread, useThreadActions, useComposer, useViewport } = useThreadConte
 ```tsx
 const { useThread } = useThreadContext();
 
-const messages = useThread(m => m.messages);
-const messages = useThread.getState().messages;
-
 const isRunning = useThread(m => m.isRunning);
 const isRunning = useThread.getState().isRunning;
 ```
 
 <ParametersTable {...ThreadState} />
+
+### `useThreadMessages`
+
+```tsx
+const { useThreadMessages } = useThreadContext();
+
+const firstMessage = useThreadMessages(m => m[0]);
+const firstMessage = useThreadMessages.getState()[0];
+```
+
+<ParametersTable {...ThreadMessagesState} />
 
 ### `useThreadActions`
 

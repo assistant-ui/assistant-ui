@@ -16,6 +16,10 @@ import { ThreadState, makeThreadStore } from "../stores/Thread";
 import { makeThreadViewportStore } from "../stores/ThreadViewport";
 import { makeThreadActionStore } from "../stores/ThreadActions";
 import { StoreApi } from "zustand";
+import {
+  ThreadMessagesState,
+  makeThreadMessagesStore,
+} from "../stores/ThreadMessages";
 
 type ThreadProviderProps = {
   runtime: ThreadRuntime;
@@ -32,12 +36,18 @@ export const ThreadProvider: FC<PropsWithChildren<ThreadProviderProps>> = ({
 
   const [context] = useState<ThreadContextValue>(() => {
     const useThread = makeThreadStore(runtimeRef);
+    const useThreadMessages = makeThreadMessagesStore(runtimeRef);
     const useThreadActions = makeThreadActionStore(runtimeRef);
     const useViewport = makeThreadViewportStore();
-    const useComposer = makeComposerStore(useThread, useThreadActions);
+    const useComposer = makeComposerStore(
+      useThread,
+      useThreadMessages,
+      useThreadActions,
+    );
 
     return {
       useThread,
+      useThreadMessages,
       useThreadActions,
       useComposer,
       useViewport,
@@ -49,11 +59,13 @@ export const ThreadProvider: FC<PropsWithChildren<ThreadProviderProps>> = ({
     const onRuntimeUpdate = () => {
       (context.useThread as unknown as StoreApi<ThreadState>).setState(
         Object.freeze({
-          messages: runtimeRef.current.messages,
           isRunning: runtimeRef.current.isRunning,
         }) satisfies ThreadState,
         true,
       );
+      (
+        context.useThreadMessages as unknown as StoreApi<ThreadMessagesState>
+      ).setState(Object.freeze(runtimeRef.current.messages), true);
     };
     onRuntimeUpdate();
     return runtime.subscribe(onRuntimeUpdate);

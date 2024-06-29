@@ -4,9 +4,11 @@ import type { ThreadState } from "../stores/Thread";
 import type { ThreadViewportState } from "../stores/ThreadViewport";
 import { ThreadActionsState } from "../stores/ThreadActions";
 import { ReadonlyStore } from "../ReadonlyStore";
+import { ThreadMessagesState } from "../stores/ThreadMessages";
 
 export type ThreadContextValue = {
   useThread: ReadonlyStore<ThreadState>;
+  useThreadMessages: ReadonlyStore<ThreadMessagesState>;
   useThreadActions: ReadonlyStore<ThreadActionsState>;
   useComposer: ReadonlyStore<ComposerState>;
   useViewport: ReadonlyStore<ThreadViewportState>;

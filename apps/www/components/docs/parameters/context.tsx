@@ -139,16 +139,22 @@ export const ThreadState: ParametersTableProps = {
   type: "ThreadState",
   parameters: [
     {
-      name: "messages",
-      type: "readonly ThreadMessage[]",
-      required: true,
-      description: "The messages in the thread.",
-    },
-    {
       name: "isRunning",
       type: "boolean",
       required: true,
       description: "Whether the thread is running.",
+    },
+  ],
+};
+
+export const ThreadMessagesState: ParametersTableProps = {
+  type: "ThreadMessagesState",
+  parameters: [
+    {
+      name: "messages",
+      type: "readonly ThreadMessage[]",
+      required: true,
+      description: "The messages in the thread.",
     },
   ],
 };

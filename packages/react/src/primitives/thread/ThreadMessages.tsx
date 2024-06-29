@@ -77,9 +77,9 @@ const ThreadMessage = memo(
 export const ThreadPrimitiveMessages: FC<ThreadPrimitiveMessagesProps> = ({
   components,
 }) => {
-  const { useThread } = useThreadContext();
+  const { useThreadMessages } = useThreadContext();
 
-  const messagesLength = useThread((t) => t.messages.length);
+  const messagesLength = useThreadMessages((t) => t.length);
   if (messagesLength === 0) return null;
 
   return new Array(messagesLength).fill(null).map((_, idx) => {

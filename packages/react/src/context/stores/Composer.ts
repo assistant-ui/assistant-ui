@@ -1,9 +1,8 @@
 import { create } from "zustand";
 import { type BaseComposerState, makeBaseComposer } from "./BaseComposer";
-import type { ThreadState } from "./Thread";
-import { ThreadActionsState } from "./ThreadActions";
 import { ReadonlyStore } from "../ReadonlyStore";
 import { Unsubscribe } from "../../types/Unsubscribe";
+import { ThreadContextValue } from "../react";
 
 export type ComposerState = BaseComposerState &
   Readonly<{
@@ -16,8 +15,9 @@ export type ComposerState = BaseComposerState &
   }>;
 
 export const makeComposerStore = (
-  useThread: ReadonlyStore<ThreadState>,
-  useThreadActions: ReadonlyStore<ThreadActionsState>,
+  useThread: ThreadContextValue["useThread"],
+  useThreadMessages: ThreadContextValue["useThreadMessages"],
+  useThreadActions: ThreadContextValue["useThreadActions"],
 ): ReadonlyStore<ComposerState> => {
   const focusListeners = new Set<() => void>();
   return create<ComposerState>()((set, get, store) => {
@@ -31,7 +31,7 @@ export const makeComposerStore = (
         setValue("");
 
         useThreadActions.getState().append({
-          parentId: useThread.getState().messages.at(-1)?.id ?? null,
+          parentId: useThreadMessages.getState().at(-1)?.id ?? null,
           role: "user",
           content: [{ type: "text", text: value }],
         });

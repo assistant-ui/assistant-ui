@@ -12,28 +12,28 @@ import type { MessageContextValue } from "../react/MessageContext";
 import { useThreadContext } from "../react/ThreadContext";
 import type { MessageState } from "../stores/Message";
 import { makeEditComposerStore } from "../stores/EditComposer";
-import type { ThreadState } from "../stores/Thread";
 import { makeMessageUtilsStore } from "../stores/MessageUtils";
+import { ThreadMessagesState } from "../stores/ThreadMessages";
 
 type MessageProviderProps = PropsWithChildren<{
   messageIndex: number;
 }>;
 
-const getIsLast = (thread: ThreadState, message: ThreadMessage) => {
-  return thread.messages[thread.messages.length - 1]?.id === message.id;
+const getIsLast = (messages: ThreadMessagesState, message: ThreadMessage) => {
+  return messages[messages.length - 1]?.id === message.id;
 };
 
 const syncMessage = (
-  thread: ThreadState,
+  messages: ThreadMessagesState,
   getBranches: (messageId: string) => readonly string[],
   useMessage: MessageContextValue["useMessage"],
   messageIndex: number,
 ) => {
-  const parentId = thread.messages[messageIndex - 1]?.id ?? null;
-  const message = thread.messages[messageIndex];
+  const parentId = messages[messageIndex - 1]?.id ?? null;
+  const message = messages[messageIndex];
   if (!message) return;
 
-  const isLast = getIsLast(thread, message);
+  const isLast = getIsLast(messages, message);
   const branches = getBranches(message.id);
 
   // if the message is the same, don't update
@@ -56,7 +56,7 @@ const syncMessage = (
 };
 
 const useMessageContext = (messageIndex: number) => {
-  const { useThread, useThreadActions } = useThreadContext();
+  const { useThreadMessages, useThreadActions } = useThreadContext();
 
   const [context] = useState<MessageContextValue>(() => {
     const useMessage = create<MessageState>(() => ({}) as MessageState);
@@ -93,7 +93,7 @@ const useMessageContext = (messageIndex: number) => {
     });
 
     syncMessage(
-      useThread.getState(),
+      useThreadMessages.getState(),
       useThreadActions.getState().getBranches,
       useMessage,
       messageIndex,
@@ -103,7 +103,7 @@ const useMessageContext = (messageIndex: number) => {
   });
 
   useEffect(() => {
-    return useThread.subscribe((thread) => {
+    return useThreadMessages.subscribe((thread) => {
       syncMessage(
         thread,
         useThreadActions.getState().getBranches,
@@ -111,7 +111,7 @@ const useMessageContext = (messageIndex: number) => {
         messageIndex,
       );
     });
-  }, [useThread, useThreadActions, context, messageIndex]);
+  }, [useThreadMessages, useThreadActions, context, messageIndex]);
 
   return context;
 };
