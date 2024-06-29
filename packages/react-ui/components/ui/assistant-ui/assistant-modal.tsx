@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
-import { type FC, forwardRef } from "react";
+import { FC, forwardRef } from "react";
 import { AssistantModalPrimitive } from "@assistant-ui/react";
 
 export const AssistantModal: FC = () => {
