@@ -77,6 +77,7 @@ const MarkdownTextImpl = () => {
         ),
         a: ({ node, ...props }) => (
           <a
+            target="_blank"
             className={cn(
               "text-primary font-medium underline underline-offset-4",
               props.className,
