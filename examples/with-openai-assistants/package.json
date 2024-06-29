@@ -9,17 +9,17 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^0.0.32",
-    "@ai-sdk/react": "^0.0.4",
+    "@ai-sdk/openai": "^0.0.34",
+    "@ai-sdk/react": "^0.0.15",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-ai-sdk": "workspace:*",
     "@radix-ui/react-avatar": "^1.1.0",
-    "ai": "^3.2.1",
+    "ai": "^3.2.15",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
-    "lucide-react": "^0.395.0",
+    "lucide-react": "^0.399.0",
     "next": "14.2.4",
-    "openai": "^4.52.1",
+    "openai": "^4.52.2",
     "react": "^18",
     "react-dom": "^18",
     "tailwind-merge": "^2.3.0",
@@ -33,7 +33,7 @@
     "eslint": "^8",
     "eslint-config-next": "14.2.4",
     "postcss": "^8",
-    "tailwindcss": "^3.4.1",
+    "tailwindcss": "^3.4.4",
     "typescript": "^5"
   }
 }

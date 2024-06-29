@@ -94,7 +94,7 @@
     }
   },
   "devDependencies": {
-    "@ai-sdk/react": "^0.0.11",
+    "@ai-sdk/react": "^0.0.15",
     "@assistant-ui/tsconfig": "workspace:*",
     "@types/node": "^20.14.9",
     "tsup": "^8.1.0"
