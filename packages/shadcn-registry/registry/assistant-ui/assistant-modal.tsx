@@ -48,7 +48,7 @@ const FloatingAssistantButton = forwardRef<
             variant="default"
             size="icon"
             {...rest}
-            className="hover:scale-70 fixed bottom-4 right-4 size-12 rounded-full shadow"
+            className="fixed bottom-4 right-4 size-12 rounded-full shadow transition-transform hover:scale-110 active:scale-90"
             ref={ref}
           >
             <BotIcon

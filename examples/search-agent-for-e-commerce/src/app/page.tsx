@@ -58,7 +58,7 @@ function Home() {
 
   return (
     <Suspense fallback={<div>Loading...</div>}>
-      <div className="hover:scale-70 fixed bottom-4 right-4 size-12 rounded-full shadow">
+      <div className="fixed bottom-4 right-4 size-12 rounded-full shadow">
         <AssistantModal />
       </div>
     </Suspense>

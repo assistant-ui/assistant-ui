@@ -61,7 +61,7 @@ const FloatingAssistantButton = forwardRef<
           <Button
             variant="default"
             size="icon"
-            className="hover:scale-70 fixed bottom-4 right-4 size-12 rounded-full shadow"
+            className="fixed bottom-4 right-4 size-12 rounded-full shadow transition-transform hover:scale-110 active:scale-90"
             {...rest}
             ref={forwardedRef}
             style={{ zIndex: 1000 }}
