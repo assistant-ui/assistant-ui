@@ -11,15 +11,17 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
-import { FC, forwardRef } from "react";
+import { type FC, forwardRef } from "react";
 import { AssistantModalPrimitive } from "@assistant-ui/react";
 
 export const AssistantModal: FC = () => {
   return (
     <AssistantModalPrimitive.Root>
-      <AssistantModalPrimitive.Trigger asChild>
-        <FloatingAssistantButton />
-      </AssistantModalPrimitive.Trigger>
+      <AssistantModalPrimitive.Anchor className="fixed bottom-4 right-4 size-12">
+        <AssistantModalPrimitive.Trigger asChild>
+          <FloatingAssistantButton />
+        </AssistantModalPrimitive.Trigger>
+      </AssistantModalPrimitive.Anchor>
       <AssistantModalPrimitive.Content
         sideOffset={16}
         className={
@@ -48,7 +50,7 @@ const FloatingAssistantButton = forwardRef<
             variant="default"
             size="icon"
             {...rest}
-            className="fixed bottom-4 right-4 size-12 rounded-full shadow transition-transform hover:scale-110 active:scale-90"
+            className="size-full rounded-full shadow transition-transform hover:scale-110 active:scale-90"
             ref={ref}
           >
             <BotIcon
