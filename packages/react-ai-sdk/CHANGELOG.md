@@ -1,5 +1,13 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.2.3
+
+### Patch Changes
+
+- be2c26b: fix: Vercel useAssistant BranchPicker duplicates bug
+- Updated dependencies [be2c26b]
+  - @assistant-ui/react@0.2.3
+
 ## 0.2.2
 
 ### Patch Changes
