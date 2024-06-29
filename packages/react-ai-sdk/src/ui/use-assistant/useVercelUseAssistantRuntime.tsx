@@ -1,11 +1,13 @@
 import type { UseAssistantHelpers } from "@ai-sdk/react";
 import { useEffect, useInsertionEffect, useState } from "react";
-import { VercelAIRuntime } from "../VercelAIRuntime";
+import { VercelUseAssistantRuntime } from "./VercelUseAssistantRuntime";
 
 export const useVercelUseAssistantRuntime = (
   assistantHelpers: UseAssistantHelpers,
 ) => {
-  const [runtime] = useState(() => new VercelAIRuntime(assistantHelpers));
+  const [runtime] = useState(
+    () => new VercelUseAssistantRuntime(assistantHelpers),
+  );
 
   useInsertionEffect(() => {
     runtime.vercel = assistantHelpers;

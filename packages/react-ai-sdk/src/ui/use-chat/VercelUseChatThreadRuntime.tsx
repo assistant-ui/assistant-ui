@@ -7,69 +7,34 @@ import {
 } from "@assistant-ui/react";
 import type { Message } from "ai";
 import { type StoreApi, type UseBoundStore, create } from "zustand";
-import { getVercelAIMessage } from "./getVercelAIMessage";
-import type { VercelHelpers } from "./utils/VercelHelpers";
-import { sliceMessagesUntil } from "./utils/sliceMessagesUntil";
-import { useVercelAIComposerSync } from "./utils/useVercelAIComposerSync";
-import { useVercelAIThreadSync } from "./utils/useVercelAIThreadSync";
-import { ModelConfigProvider } from "@assistant-ui/react";
+import { getVercelAIMessage } from "../getVercelAIMessage";
+import { sliceMessagesUntil } from "../utils/sliceMessagesUntil";
+import { useVercelAIComposerSync } from "../utils/useVercelAIComposerSync";
+import { useVercelAIThreadSync } from "../utils/useVercelAIThreadSync";
+import { useChat } from "@ai-sdk/react";
 
-const { ProxyConfigProvider, MessageRepository, BaseAssistantRuntime } =
-  INTERNAL;
+const { MessageRepository } = INTERNAL;
 
-const hasUpcomingMessage = (isRunning: boolean, messages: ThreadMessage[]) => {
+export const hasUpcomingMessage = (
+  isRunning: boolean,
+  messages: ThreadMessage[],
+) => {
   return isRunning && messages[messages.length - 1]?.role !== "assistant";
 };
 
-export class VercelAIRuntime extends BaseAssistantRuntime<VercelAIThreadRuntime> {
-  private readonly _proxyConfigProvider = new ProxyConfigProvider();
-
-  constructor(vercel: VercelHelpers) {
-    super(new VercelAIThreadRuntime(vercel));
-  }
-
-  public set vercel(vercel: VercelHelpers) {
-    this.thread.vercel = vercel;
-  }
-
-  public onVercelUpdated() {
-    return this.thread.onVercelUpdated();
-  }
-
-  public getModelConfig() {
-    return this._proxyConfigProvider.getModelConfig();
-  }
-
-  public registerModelConfigProvider(provider: ModelConfigProvider) {
-    return this._proxyConfigProvider.registerModelConfigProvider(provider);
-  }
-
-  public switchToThread(threadId: string | null) {
-    if (threadId) {
-      throw new Error("VercelAIRuntime does not yet support switching threads");
-    }
-
-    // clear the vercel state (otherwise, it will be captured by the MessageRepository)
-    this.thread.vercel.messages = [];
-    this.thread.vercel.input = "";
-    this.thread.vercel.setMessages([]);
-    this.thread.vercel.setInput("");
-
-    this.thread = new VercelAIThreadRuntime(this.thread.vercel);
-  }
-}
-
-class VercelAIThreadRuntime implements ReactThreadRuntime {
+export class VercelUseChatThreadRuntime implements ReactThreadRuntime {
   private _subscriptions = new Set<() => void>();
   private repository = new MessageRepository();
   private assistantOptimisticId: string | null = null;
 
-  private useVercel: UseBoundStore<StoreApi<{ vercel: VercelHelpers }>>;
+  private useVercel: UseBoundStore<
+    StoreApi<{ vercel: ReturnType<typeof useChat> }>
+  >;
 
   public messages: ThreadMessage[] = [];
   public isRunning = false;
 
-  constructor(public vercel: VercelHelpers) {
+  constructor(public vercel: ReturnType<typeof useChat>) {
     this.useVercel = create(() => ({
       vercel,
     }));
@@ -87,7 +52,9 @@ class VercelAIThreadRuntime implements ReactThreadRuntime {
   public async append(message: AppendMessage): Promise<void> {
     // add user message
     if (message.content.length !== 1 || message.content[0]?.type !== "text")
-      throw new Error("Only text content is supported by Vercel AI SDK.");
+      throw new Error(
+        "Only text content is supported by VercelUseChatRuntime.",
+      );
 
     const newMessages = sliceMessagesUntil(
       this.vercel.messages,
@@ -102,17 +69,10 @@ class VercelAIThreadRuntime implements ReactThreadRuntime {
   }
 
   public async startRun(parentId: string | null): Promise<void> {
-    const reloadMaybe =
-      "reload" in this.vercel ? this.vercel.reload : undefined;
-    if (!reloadMaybe)
-      throw new Error(
-        "Reload is not supported by Vercel AI SDK's useAssistant.",
-      );
-
     const newMessages = sliceMessagesUntil(this.vercel.messages, parentId);
     this.vercel.setMessages(newMessages);
 
-    await reloadMaybe();
+    await this.vercel.reload();
   }
 
   public cancelRun(): void {
@@ -203,9 +163,6 @@ class VercelAIThreadRuntime implements ReactThreadRuntime {
   };
 
   addToolResult(toolCallId: string, result: any) {
-    if (!("addToolResult" in this.vercel)) {
-      throw new Error("VercelAIRuntime does not support adding tool results");
-    }
     this.vercel.addToolResult({ toolCallId, result });
   }
 }

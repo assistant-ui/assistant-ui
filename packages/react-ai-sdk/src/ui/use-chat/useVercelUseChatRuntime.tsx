@@ -1,11 +1,11 @@
 import type { useChat } from "@ai-sdk/react";
 import { useEffect, useInsertionEffect, useState } from "react";
-import { VercelAIRuntime } from "../VercelAIRuntime";
+import { VercelUseChatRuntime } from "./VercelUseChatRuntime";
 
 export const useVercelUseChatRuntime = (
   chatHelpers: ReturnType<typeof useChat>,
 ) => {
-  const [runtime] = useState(() => new VercelAIRuntime(chatHelpers));
+  const [runtime] = useState(() => new VercelUseChatRuntime(chatHelpers));
 
   useInsertionEffect(() => {
     runtime.vercel = chatHelpers;
