@@ -1,4 +1,5 @@
-import { useLayoutEffect, useRef, type FC } from "react";
+import { useRef, type FC } from "react";
+import { useLayoutEffect } from "@radix-ui/react-use-layout-effect";
 
 type OutPortalProps = {
   node: HTMLElement | null;

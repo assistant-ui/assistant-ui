@@ -74,6 +74,7 @@
     "@radix-ui/react-slot": "^1.1.0",
     "@radix-ui/react-use-callback-ref": "^1.1.0",
     "@radix-ui/react-use-escape-keydown": "^1.1.0",
+    "@radix-ui/react-use-layout-effect": "^1.1.0",
     "nanoid": "^5.0.7",
     "react-textarea-autosize": "^8.5.3",
     "zod": "^3.23.8",
