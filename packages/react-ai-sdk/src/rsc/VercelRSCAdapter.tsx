@@ -9,9 +9,9 @@ type RSCMessageConverter<T> = {
 type VercelRSCAdapterBase<T> = {
   messages: T[];
   append: (message: AppendMessage) => Promise<void>;
-  edit?: (message: AppendMessage) => Promise<void> | undefined;
-  reload?: (parentId: string | null) => Promise<void> | undefined;
-  convertMessage?: (message: T) => VercelRSCMessage | undefined;
+  edit?: ((message: AppendMessage) => Promise<void>) | undefined;
+  reload?: ((parentId: string | null) => Promise<void>) | undefined;
+  convertMessage?: ((message: T) => VercelRSCMessage) | undefined;
 };
 
 export type VercelRSCAdapter<T = VercelRSCMessage> = VercelRSCAdapterBase<T> &
