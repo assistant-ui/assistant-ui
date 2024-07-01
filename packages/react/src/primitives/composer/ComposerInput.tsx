@@ -19,7 +19,7 @@ import { useEscapeKeydown } from "@radix-ui/react-use-escape-keydown";
 import { useOnComposerFocus } from "../../utils/hooks/useOnComposerFocus";
 
 export type ComposerPrimitiveInputProps = TextareaAutosizeProps & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 };
 
 export const ComposerPrimitiveInput = forwardRef<
@@ -85,6 +85,7 @@ export const ComposerPrimitiveInput = forwardRef<
 
     return (
       <Component
+        name="input"
         value={value}
         {...rest}
         ref={ref}
