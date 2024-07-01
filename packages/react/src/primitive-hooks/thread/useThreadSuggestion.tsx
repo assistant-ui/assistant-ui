@@ -1,10 +1,10 @@
 import { useCallback } from "react";
 import { useThreadContext } from "../../context";
 
-type UseApplyThreadSuggestionProps = {
+export type UseApplyThreadSuggestionProps = {
   prompt: string;
   method: "replace";
-  autoSend?: boolean;
+  autoSend?: boolean | undefined;
 };
 
 export const useThreadSuggestion = ({

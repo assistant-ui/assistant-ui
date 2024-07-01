@@ -7,7 +7,7 @@ import type { Tool } from "../types/ModelConfigTypes";
 
 export type AssistantToolProps<TArgs, TResult> = Tool<TArgs, TResult> & {
   toolName: string;
-  render?: ToolCallContentPartComponent<TArgs, TResult>;
+  render?: ToolCallContentPartComponent<TArgs, TResult> | undefined;
 };
 
 export const useAssistantTool = <TArgs, TResult>(

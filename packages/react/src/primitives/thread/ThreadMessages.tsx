@@ -10,14 +10,14 @@ export type ThreadPrimitiveMessagesProps = {
   components:
     | {
         Message: ComponentType;
-        UserMessage?: ComponentType;
-        EditComposer?: ComponentType;
-        AssistantMessage?: ComponentType;
+        UserMessage?: ComponentType | undefined;
+        EditComposer?: ComponentType | undefined;
+        AssistantMessage?: ComponentType | undefined;
       }
     | {
-        Message?: ComponentType;
+        Message?: ComponentType | undefined;
         UserMessage: ComponentType;
-        EditComposer?: ComponentType;
+        EditComposer?: ComponentType | undefined;
         AssistantMessage: ComponentType;
       };
 };

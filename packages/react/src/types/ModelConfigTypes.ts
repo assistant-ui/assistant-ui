@@ -5,15 +5,15 @@ type ToolExecuteFunction<TArgs, TResult> = (
 ) => TResult | Promise<TResult>;
 
 export type Tool<TArgs = unknown, TResult = unknown> = {
-  description?: string;
+  description?: string | undefined;
   parameters: z.ZodSchema<TArgs>;
   execute: ToolExecuteFunction<TArgs, TResult>;
 };
 
 export type ModelConfig = {
-  priority?: number;
-  system?: string;
-  tools?: Record<string, Tool<any, any>>;
+  priority?: number | undefined;
+  system?: string | undefined;
+  tools?: Record<string, Tool<any, any>> | undefined;
 };
 
 export type ModelConfigProvider = () => ModelConfig;

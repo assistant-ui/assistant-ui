@@ -8,7 +8,7 @@ type BranchPickerPrimitiveRootElement = ElementRef<typeof Primitive.div>;
 type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;
 
 export type BranchPickerPrimitiveRootProps = PrimitiveDivProps & {
-  hideWhenSingleBranch?: boolean;
+  hideWhenSingleBranch?: boolean | undefined;
 };
 
 export const BranchPickerPrimitiveRoot = forwardRef<

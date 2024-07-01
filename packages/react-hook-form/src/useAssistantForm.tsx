@@ -20,22 +20,34 @@ export type UseAssistantFormProps<
   TFieldValues extends FieldValues,
   TContext,
 > = UseFormProps<TFieldValues, TContext> & {
-  assistant?: {
-    tools?: {
-      set_form_field?: {
-        render?: ToolCallContentPartComponent<
-          z.ZodType<typeof formTools.set_form_field>,
-          unknown
-        >;
-      };
-      submit_form?: {
-        render?: ToolCallContentPartComponent<
-          z.ZodType<typeof formTools.submit_form>,
-          unknown
-        >;
-      };
-    };
-  };
+  assistant?:
+    | {
+        tools?:
+          | {
+              set_form_field?:
+                | {
+                    render?:
+                      | ToolCallContentPartComponent<
+                          z.ZodType<typeof formTools.set_form_field>,
+                          unknown
+                        >
+                      | undefined;
+                  }
+                | undefined;
+              submit_form?:
+                | {
+                    render?:
+                      | ToolCallContentPartComponent<
+                          z.ZodType<typeof formTools.submit_form>,
+                          unknown
+                        >
+                      | undefined;
+                  }
+                | undefined;
+            }
+          | undefined;
+      }
+    | undefined;
 };
 
 export const useAssistantForm = <

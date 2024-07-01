@@ -6,7 +6,7 @@ type CreateAppendMessage =
   | string
   | {
       parentId?: string | null | undefined;
-      role?: AppendMessage["role"];
+      role?: AppendMessage["role"] | undefined;
       content: AppendMessage["content"];
     };
 

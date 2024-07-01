@@ -3,8 +3,8 @@ import { useMessageContext } from "../../context/react/MessageContext";
 import { useCombinedStore } from "../../utils/combined/useCombinedStore";
 import { getMessageText } from "../../utils/getMessageText";
 
-type UseActionBarCopyProps = {
-  copiedDuration?: number;
+export type UseActionBarCopyProps = {
+  copiedDuration?: number | undefined;
 };
 
 export const useActionBarCopy = ({
@@ -15,7 +15,10 @@ export const useActionBarCopy = ({
   const hasCopyableContent = useCombinedStore(
     [useMessage, useEditComposer],
     (m, c) => {
-      return !c.isEditing && m.message.content.some((c) => c.type === "text");
+      return (
+        !c.isEditing &&
+        m.message.content.some((c) => c.type === "text" && c.text.length > 0)
+      );
     },
   );
 

@@ -11,7 +11,7 @@ type AssistantModalPrimitiveContentElement = ElementRef<
 export type AssistantModalPrimitiveContentProps = ComponentPropsWithoutRef<
   typeof PopoverPrimitive.Content
 > & {
-  dissmissOnInteractOutside?: boolean;
+  dissmissOnInteractOutside?: boolean | undefined;
 };
 
 export const AssistantModalPrimitiveContent = forwardRef<

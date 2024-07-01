@@ -20,15 +20,19 @@ import type {
 } from "../../types/ContentPartComponentTypes";
 
 export type MessagePrimitiveContentProps = {
-  components?: {
-    Text?: TextContentPartComponent;
-    Image?: ImageContentPartComponent;
-    UI?: UIContentPartComponent;
-    tools?: {
-      by_name?: Record<string, ToolCallContentPartComponent>;
-      Fallback?: ComponentType<ToolCallContentPartProps>;
-    };
-  };
+  components?:
+    | {
+        Text?: TextContentPartComponent | undefined;
+        Image?: ImageContentPartComponent | undefined;
+        UI?: UIContentPartComponent | undefined;
+        tools?: {
+          by_name?:
+            | Record<string, ToolCallContentPartComponent | undefined>
+            | undefined;
+          Fallback?: ComponentType<ToolCallContentPartProps> | undefined;
+        };
+      }
+    | undefined;
 };
 
 const defaultComponents = {

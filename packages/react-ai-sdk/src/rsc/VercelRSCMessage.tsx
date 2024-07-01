@@ -5,5 +5,5 @@ export type VercelRSCMessage = {
   id: string;
   role: "user" | "assistant";
   display: ReactNode;
-  createdAt?: Date;
+  createdAt?: Date | undefined;
 };
