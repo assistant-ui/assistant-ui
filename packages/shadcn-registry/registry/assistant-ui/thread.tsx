@@ -67,7 +67,6 @@ const Composer: FC = () => {
         <ComposerPrimitive.Send asChild>
           <TooltipTrigger asChild>
             <Button
-              variant="ghost"
               size="icon"
               className={cn(
                 "absolute bottom-0 right-0 m-2.5 size-8 p-2 transition-opacity",
