@@ -8,68 +8,87 @@ import {
 import type { FC } from "react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
+import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { SendHorizonalIcon } from "lucide-react";
 
 export const Thread: FC = () => {
   return (
-    <ThreadPrimitive.Root className="flex h-full flex-col items-center pb-3">
-      <ThreadPrimitive.Viewport className="flex w-full flex-grow flex-col items-center overflow-y-scroll scroll-smooth px-4 pt-12">
-        <ThreadPrimitive.Empty>
-          <ThreadEmpty />
-        </ThreadPrimitive.Empty>
+    <TooltipProvider>
+      <ThreadPrimitive.Root className="bg-background h-full">
+        <ThreadPrimitive.Viewport className="flex h-full flex-col items-center overflow-y-scroll scroll-smooth px-4 pt-8">
+          <ThreadWelcome />
 
-        <ThreadPrimitive.Messages
-          components={{
-            UserMessage,
-            AssistantMessage,
-          }}
-        />
-      </ThreadPrimitive.Viewport>
+          <ThreadPrimitive.Messages
+            components={{
+              UserMessage,
+              AssistantMessage,
+            }}
+          />
 
-      <Composer />
-    </ThreadPrimitive.Root>
+          <div className="sticky bottom-0 mt-4 flex w-full max-w-2xl flex-grow flex-col items-center justify-end rounded-t-lg bg-inherit pb-4">
+            <Composer />
+          </div>
+        </ThreadPrimitive.Viewport>
+      </ThreadPrimitive.Root>
+    </TooltipProvider>
   );
 };
 
-const ThreadEmpty: FC = () => {
+const ThreadWelcome: FC = () => {
   return (
-    <div className="flex flex-grow flex-col items-center justify-center">
-      <Avatar>
-        <AvatarFallback>C</AvatarFallback>
-      </Avatar>
-      <p className="mt-4 text-xl">How can I help you today?</p>
-    </div>
+    <ThreadPrimitive.Empty>
+      <div className="flex flex-grow basis-full flex-col items-center justify-center">
+        <Avatar>
+          <AvatarFallback>C</AvatarFallback>
+        </Avatar>
+        <p className="mt-4 text-lg font-medium">How can I help you today?</p>
+      </div>
+    </ThreadPrimitive.Empty>
   );
 };
 
 const Composer: FC = () => {
   return (
-    <ComposerPrimitive.Root className="flex w-[calc(100%-32px)] max-w-[42rem] items-end rounded-lg border p-0.5 transition-shadow focus-within:shadow-sm">
+    <ComposerPrimitive.Root className="relative flex w-full items-end rounded-lg border transition-shadow focus-within:shadow-sm">
       <ComposerPrimitive.Input
+        autoFocus
         placeholder="Write a message..."
-        className="placeholder:text-foreground/50 h-12 max-h-40 flex-grow resize-none bg-transparent p-3.5 text-sm outline-none"
+        rows={1}
+        className="placeholder:text-muted-foreground size-full max-h-40 resize-none bg-transparent p-4 pr-12 text-sm outline-none"
       />
-      <ThreadPrimitive.If running={false}>
-        <ComposerPrimitive.Send className="bg-foreground m-2 flex h-8 w-8 items-center justify-center rounded-md text-2xl font-bold shadow transition-opacity disabled:opacity-10">
-          <SendHorizonalIcon className="text-background size-4" />
+      <Tooltip>
+        <ComposerPrimitive.Send asChild>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "absolute bottom-0 right-0 m-2.5 size-8 p-2 transition-opacity",
+              )}
+            >
+              <SendHorizonalIcon />
+              <span className="sr-only">Send</span>
+            </Button>
+          </TooltipTrigger>
         </ComposerPrimitive.Send>
-      </ThreadPrimitive.If>
-      <ThreadPrimitive.If running>
-        <ComposerPrimitive.Cancel className="border-foreground m-3.5 flex size-5 items-center justify-center rounded-full border-2">
-          <div className="bg-foreground size-2 rounded-[1px]" />
-        </ComposerPrimitive.Cancel>
-      </ThreadPrimitive.If>
+        <TooltipContent side="bottom">Send</TooltipContent>
+      </Tooltip>
     </ComposerPrimitive.Root>
   );
 };
 
 const UserMessage: FC = () => {
   return (
-    <MessagePrimitive.Root className="relative mb-6 flex w-full max-w-2xl flex-col items-end gap-2 pl-24">
-      <div className="relative mr-1 flex items-start gap-3">
-        <div className="bg-foreground/5 text-foreground max-w-xl break-words rounded-3xl px-5 py-2.5">
-          <MessagePrimitive.Content />
-        </div>
+    <MessagePrimitive.Root className="my-4 grid w-full max-w-2xl auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] gap-y-2">
+      <div className="bg-muted text-foreground col-start-2 row-start-1 max-w-xl break-words rounded-3xl px-5 py-2.5">
+        <MessagePrimitive.Content />
       </div>
     </MessagePrimitive.Root>
   );
@@ -77,15 +96,13 @@ const UserMessage: FC = () => {
 
 const AssistantMessage: FC = () => {
   return (
-    <MessagePrimitive.Root className="relative mb-6 flex w-full max-w-2xl gap-3">
-      <Avatar>
+    <MessagePrimitive.Root className="relative my-4 grid w-full max-w-2xl grid-cols-[auto_1fr] grid-rows-[auto_1fr]">
+      <Avatar className="col-start-1 row-span-full row-start-1 mr-4">
         <AvatarFallback>A</AvatarFallback>
       </Avatar>
 
-      <div className="mt-2 flex-grow">
-        <div className="text-foreground max-w-x break-words">
-          <MessagePrimitive.Content />
-        </div>
+      <div className="text-foreground col-start-2 row-start-1 my-1.5 max-w-xl break-words leading-7">
+        <MessagePrimitive.Content />
       </div>
     </MessagePrimitive.Root>
   );

@@ -75,81 +75,76 @@ const MarkdownTextImpl = () => {
             {...props}
           />
         ),
-        a: ({ node, ...props }) => (
+        a: ({ node, className, ...props }) => (
           <a
             target="_blank"
             className={cn(
               "text-primary font-medium underline underline-offset-4",
-              props.className,
+              className,
             )}
             {...props}
           />
         ),
-        blockquote: ({ node, ...props }) => (
+        blockquote: ({ node, className, ...props }) => (
           <blockquote
-            className={cn("border-l-2 pl-6 italic", props.className)}
+            className={cn("border-l-2 pl-6 italic", className)}
             {...props}
           />
         ),
-        ul: ({ node, ...props }) => (
+        ul: ({ node, className, ...props }) => (
           <ul
-            className={cn("my-5 ml-6 list-disc [&>li]:mt-2", props.className)}
+            className={cn("my-5 ml-6 list-disc [&>li]:mt-2", className)}
             {...props}
           />
         ),
-        ol: ({ node, ...props }) => (
+        ol: ({ node, className, ...props }) => (
           <ol
-            className={cn(
-              "my-5 ml-6 list-decimal [&>li]:mt-2",
-              props.className,
-            )}
+            className={cn("my-5 ml-6 list-decimal [&>li]:mt-2", className)}
             {...props}
           />
         ),
-        hr: ({ node, ...props }) => (
-          <hr className={cn("my-5 border-b", props.className)} {...props} />
+        hr: ({ node, className, ...props }) => (
+          <hr className={cn("my-5 border-b", className)} {...props} />
         ),
-
-        table: ({ node, ...props }) => (
+        table: ({ node, className, ...props }) => (
           <table
             className={cn(
               "my-5 w-full border-separate border-spacing-0 overflow-y-auto",
-              props.className,
+              className,
             )}
             {...props}
           />
         ),
-        th: ({ node, ...props }) => (
+        th: ({ node, className, ...props }) => (
           <th
             className={cn(
               "bg-muted px-4 py-2 text-left font-bold first:rounded-tl-lg last:rounded-tr-lg [&[align=center]]:text-center [&[align=right]]:text-right",
-              props.className,
+              className,
             )}
             {...props}
           />
         ),
-        td: ({ node, ...props }) => (
+        td: ({ node, className, ...props }) => (
           <td
             className={cn(
               "border-b border-l px-4 py-2 text-left last:border-r [&[align=center]]:text-center [&[align=right]]:text-right",
-              props.className,
+              className,
             )}
             {...props}
           />
         ),
-        tr: ({ node, ...props }) => (
+        tr: ({ node, className, ...props }) => (
           <tr
             className={cn(
               "m-0 border-b p-0 first:border-t [&:last-child>td:first-child]:rounded-bl-lg [&:last-child>td:last-child]:rounded-br-lg",
-              props.className,
+              className,
             )}
             {...props}
           />
         ),
-
-        sup: ({ node, ...props }) => (
+        sup: ({ node, className, ...props }) => (
           <sup
-            className={cn("[&>a]:text-xs [&>a]:no-underline", props.className)}
+            className={cn("[&>a]:text-xs [&>a]:no-underline", className)}
             {...props}
           />
         ),
