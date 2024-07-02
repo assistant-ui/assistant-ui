@@ -77,7 +77,7 @@ const ThreadWelcome: FC = () => {
         <Avatar>
           <AvatarFallback>C</AvatarFallback>
         </Avatar>
-        <p className="mt-4 text-lg font-medium">How can I help you today?</p>
+        <p className="mt-4 font-medium">How can I help you today?</p>
       </div>
     </ThreadPrimitive.Empty>
   );
