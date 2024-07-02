@@ -107,7 +107,7 @@ const Composer: FC = () => {
         <ComposerPrimitive.Cancel asChild>
           <TooltipIconButton
             tooltip="Cancel"
-            variant="outline"
+            variant="default"
             className="absolute bottom-0 right-0 m-2.5 size-8 p-2 transition-opacity"
           >
             <CircleStopIcon />
