@@ -19,7 +19,7 @@ export const registry: RegistryIndex = [
     name: "thread",
     type: "components:ui",
     files: ["assistant-ui/thread.tsx"],
-    registryDependencies: ["avatar"],
+    registryDependencies: ["avatar", "button", "tooltip"],
     dependencies: ["@assistant-ui/react", "lucide-react"],
   },
   {

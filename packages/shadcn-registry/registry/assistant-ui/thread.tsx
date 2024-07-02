@@ -13,9 +13,9 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
+  TooltipProvider,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { SendHorizonalIcon } from "lucide-react";
 
 export const Thread: FC = () => {
