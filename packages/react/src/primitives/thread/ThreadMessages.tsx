@@ -69,6 +69,7 @@ const ThreadMessage = memo(
   ThreadMessageImpl,
   (prev, next) =>
     prev.messageIndex === next.messageIndex &&
+    prev.components.Message === next.components.Message &&
     prev.components.UserMessage === next.components.UserMessage &&
     prev.components.EditComposer === next.components.EditComposer &&
     prev.components.AssistantMessage === next.components.AssistantMessage,
