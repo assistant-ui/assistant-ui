@@ -7,5 +7,11 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "minor",
-  "ignore": ["@assistant-ui/www", "with-react-hook-form", "with-vercel-ai-rsc"]
+  "ignore": [
+    "@assistant-ui/www",
+    "search-agent-for-e-commerce",
+    "with-react-hook-form",
+    "with-vercel-ai-rsc",
+    "with-openai-assistants"
+  ]
 }

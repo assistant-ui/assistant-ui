@@ -1,5 +1,14 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.3.0
+
+### Patch Changes
+
+- Updated dependencies [3dd7384]
+- Updated dependencies [23f474e]
+- Updated dependencies [5b68f4a]
+  - @assistant-ui/react@0.3.0
+
 ## 0.2.3
 
 ### Patch Changes

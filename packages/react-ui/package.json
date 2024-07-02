@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-ui",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "license": "MIT",
   "exports": {
     ".": {
@@ -41,7 +41,7 @@
     "tailwind-merge": "^2.3.0"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.2.0",
+    "@assistant-ui/react": "^0.3.0",
     "@types/react": "*",
     "react": "^18"
   },

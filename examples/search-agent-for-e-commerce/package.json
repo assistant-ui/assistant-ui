@@ -1,6 +1,6 @@
 {
   "name": "search-agent-for-e-commerce",
-  "version": "0.1.5",
+  "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",

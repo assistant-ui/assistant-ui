@@ -1,5 +1,16 @@
 # @assistant-ui/react
 
+## 0.3.0
+
+### Minor Changes
+
+- 5b68f4a: refactor!: drop Message.InProgress support
+
+### Patch Changes
+
+- 3dd7384: fix: better message hover state tracking
+- 23f474e: fix: remove warning about useLayoutEffect in SSR
+
 ## 0.2.4
 
 ### Patch Changes
