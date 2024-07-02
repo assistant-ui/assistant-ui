@@ -8,9 +8,9 @@ import {
 } from "../../context";
 import { useMessageContext } from "../../context/react/MessageContext";
 import { ContentPartProvider } from "../../context/providers/ContentPartProvider";
-import { ContentPartPrimitiveDisplay } from "../contentPart/ContentPartDisplay";
-import { ContentPartPrimitiveInProgressIndicator } from "../contentPart/ContentPartInProgressIndicator";
 import { ContentPartPrimitiveText } from "../contentPart/ContentPartText";
+import { ContentPartPrimitiveImage } from "../contentPart/ContentPartImage";
+import { ContentPartPrimitiveDisplay } from "../contentPart/ContentPartDisplay";
 import type {
   ImageContentPartComponent,
   TextContentPartComponent,
@@ -18,6 +18,7 @@ import type {
   ToolCallContentPartProps,
   UIContentPartComponent,
 } from "../../types/ContentPartComponentTypes";
+import { ContentPartPrimitiveInProgress } from "../contentPart/ContentPartInProgress";
 
 export type MessagePrimitiveContentProps = {
   components?:
@@ -39,10 +40,10 @@ const defaultComponents = {
   Text: () => (
     <p style={{ whiteSpace: "pre-line" }}>
       <ContentPartPrimitiveText />
-      <ContentPartPrimitiveInProgressIndicator />
+      <ContentPartPrimitiveInProgress> ●</ContentPartPrimitiveInProgress>
     </p>
   ),
-  Image: () => null,
+  Image: () => <ContentPartPrimitiveImage />,
   UI: () => <ContentPartPrimitiveDisplay />,
   tools: {
     Fallback: (props) => {

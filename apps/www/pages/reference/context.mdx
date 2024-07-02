@@ -212,12 +212,6 @@ const isLast = useMessage.getState().isLast;
 ```tsx
 const { useMessageUtils } = useMessageContext();
 
-const inProgressIndicator = useMessageUtils(m => m.inProgressIndicator);
-const inProgressIndicator = useMessageUtils.getState().inProgressIndicator;
-
-const setInProgressIndicator = useMessageUtils(m => m.setInProgressIndicator);
-const setInProgressIndicator = useMessageUtils.getState().setInProgressIndicator;
-
 const isCopied = useMessageUtils(m => m.isCopied);
 const isCopied = useMessageUtils.getState().isCopied;
 

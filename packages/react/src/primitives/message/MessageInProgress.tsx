@@ -1,23 +1,19 @@
 "use client";
 
-import { createPortal } from "react-dom";
 import { Primitive } from "@radix-ui/react-primitive";
-import { type ElementRef, forwardRef, ComponentPropsWithoutRef } from "react";
-import { useMessageContext } from "../../context/react/MessageContext";
+import { ComponentPropsWithoutRef, FC } from "react";
 
-type MessagePrimitiveInProgressElement = ElementRef<typeof Primitive.span>;
 type PrimitiveSpanProps = ComponentPropsWithoutRef<typeof Primitive.span>;
 
 export type MessagePrimitiveInProgressProps = PrimitiveSpanProps;
 
-export const MessagePrimitiveInProgress = forwardRef<
-  MessagePrimitiveInProgressElement,
+/**
+ * @deprecated Define a custom Text renderer via ContentPartPrimitiveInProgress instead.
+ */
+export const MessagePrimitiveInProgress: FC<
   MessagePrimitiveInProgressProps
->((props, ref) => {
-  const { useMessageUtils } = useMessageContext();
-
-  const portalNode = useMessageUtils((s) => s.inProgressIndicator);
-  return createPortal(<Primitive.span {...props} ref={ref} />, portalNode);
-});
+> = () => {
+  return null;
+};
 
 MessagePrimitiveInProgress.displayName = "MessagePrimitive.InProgress";

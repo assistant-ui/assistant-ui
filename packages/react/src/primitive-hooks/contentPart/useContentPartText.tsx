@@ -1,4 +1,5 @@
 import { useContentPartContext } from "../../context/react/ContentPartContext";
+import { TextContentPartState } from "../../context/stores/ContentPart";
 
 export const useContentPartText = () => {
   const { useContentPart } = useContentPartContext();
@@ -9,7 +10,7 @@ export const useContentPartText = () => {
         "ContentPartText can only be used inside text content parts.",
       );
 
-    return c.part.text;
+    return c as TextContentPartState;
   });
 
   return text;

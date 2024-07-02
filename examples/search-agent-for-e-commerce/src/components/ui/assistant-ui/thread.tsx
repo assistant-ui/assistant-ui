@@ -154,7 +154,6 @@ const AssistantMessage: FC = () => {
       </Avatar>
 
       <div className="mt-2 flex-grow">
-        <MessagePrimitive.InProgress className="bg-foreground inline-block size-3 animate-pulse rounded-full" />
         <p className="text-foreground max-w-xl whitespace-pre-line break-words">
           <MessagePrimitive.Content />
         </p>
