@@ -1,229 +1,237 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* shadcn-ui/button */
 
-.aui-button {
-  @apply focus-visible:ring-ring inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 disabled:pointer-events-none disabled:opacity-50;
-}
+@layer components {
+  .aui-button {
+    @apply focus-visible:ring-ring inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 disabled:pointer-events-none disabled:opacity-50;
+  }
 
-.aui-button-primary {
-  @apply bg-primary text-primary-foreground hover:bg-primary/90 shadow;
-}
+  .aui-button-primary {
+    @apply bg-primary text-primary-foreground hover:bg-primary/90 shadow;
+  }
 
-.aui-button-outline {
-  @apply border-input bg-background hover:bg-accent hover:text-accent-foreground border shadow-sm;
-}
+  .aui-button-outline {
+    @apply border-input bg-background hover:bg-accent hover:text-accent-foreground border shadow-sm;
+  }
 
-.aui-button-ghost {
-  @apply hover:bg-accent hover:text-accent-foreground;
-}
+  .aui-button-ghost {
+    @apply hover:bg-accent hover:text-accent-foreground;
+  }
 
-.aui-button-medium {
-  @apply h-9 px-4 py-2;
-}
+  .aui-button-medium {
+    @apply h-9 px-4 py-2;
+  }
 
-/** tooltip icon button */
-.aui-button-icon {
-  @apply size-6 p-1;
-}
+  /** tooltip icon button */
+  .aui-button-icon {
+    @apply size-6 p-1;
+  }
 
-.aui-sr-only {
-  @apply sr-only;
-}
+  .aui-sr-only {
+    @apply sr-only;
+  }
 
-/* shadcn-ui/avatar */
+  /* shadcn-ui/avatar */
 
-.aui-avatar-root {
-  @apply relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full;
-}
+  .aui-avatar-root {
+    @apply relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full;
+  }
 
-.aui-avatar-image {
-  @apply aspect-square h-full w-full;
-}
+  .aui-avatar-image {
+    @apply aspect-square h-full w-full;
+  }
 
-.aui-avatar-fallback {
-  @apply bg-muted flex h-full w-full items-center justify-center rounded-full;
-}
+  .aui-avatar-fallback {
+    @apply bg-muted flex h-full w-full items-center justify-center rounded-full;
+  }
 
-/* shadcn-ui/tooltip */
+  /* shadcn-ui/tooltip */
 
-.aui-tooltip-content {
-  @apply fade-in-0 zoom-in-95 data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 animate-in bg-primary text-primary-foreground data-[state=closed]:animate-out z-50 overflow-hidden rounded-md px-3 py-1.5 text-xs;
-}
+  .aui-tooltip-content {
+    @apply fade-in-0 zoom-in-95 data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 animate-in bg-primary text-primary-foreground data-[state=closed]:animate-out z-50 overflow-hidden rounded-md px-3 py-1.5 text-xs;
+  }
 
-/* assistant-modal */
+  /* assistant-modal */
 
-.aui-assistant-modal-content {
-  @apply bg-popover text-popover-foreground z-50 h-[500px] w-[400px] overflow-clip rounded-xl border p-0 shadow-md outline-none;
-  @apply [&>.aui-thread-root]:bg-inherit;
+  .aui-assistant-modal-content {
+    @apply bg-popover text-popover-foreground z-50 h-[500px] w-[400px] overflow-clip rounded-xl border p-0 shadow-md outline-none;
+    @apply [&>.aui-thread-root]:bg-inherit;
 
-  @apply data-[state=closed]:animate-out data-[state=open]:animate-in;
-  @apply data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0;
-  @apply data-[state=closed]:zoom-out data-[state=open]:zoom-in;
-  @apply data-[state=open]:slide-in-from-bottom-1/2 data-[state=open]:slide-in-from-right-1/2 data-[state=closed]:slide-out-to-bottom-1/2 data-[state=closed]:slide-out-to-right-1/2;
-}
+    @apply data-[state=closed]:animate-out data-[state=open]:animate-in;
+    @apply data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0;
+    @apply data-[state=closed]:zoom-out data-[state=open]:zoom-in;
+    @apply data-[state=open]:slide-in-from-bottom-1/2 data-[state=open]:slide-in-from-right-1/2 data-[state=closed]:slide-out-to-bottom-1/2 data-[state=closed]:slide-out-to-right-1/2;
+  }
 
-.aui-assistant-modal-anchor {
-  @apply fixed bottom-4 right-4 size-11;
-}
+  .aui-assistant-modal-anchor {
+    @apply fixed bottom-4 right-4 size-11;
+  }
 
-.aui-assistant-modal-button {
-  @apply size-full rounded-full shadow transition-transform hover:scale-110 active:scale-90;
-}
+  .aui-assistant-modal-button {
+    @apply size-full rounded-full shadow transition-transform hover:scale-110 active:scale-90;
+  }
 
-.aui-assistant-modal-button-closed-icon {
-  @apply absolute size-6 transition-all;
-  @apply data-[state=closed]:rotate-0 data-[state=open]:rotate-90;
-  @apply data-[state=closed]:scale-100 data-[state=open]:scale-0;
-}
+  .aui-assistant-modal-button-closed-icon {
+    @apply absolute size-6 transition-all;
+    @apply data-[state=closed]:rotate-0 data-[state=open]:rotate-90;
+    @apply data-[state=closed]:scale-100 data-[state=open]:scale-0;
+  }
 
-.aui-assistant-modal-button-open-icon {
-  @apply absolute size-6 transition-all;
-  @apply data-[state=closed]:-rotate-90 data-[state=open]:rotate-0;
-  @apply data-[state=closed]:scale-0 data-[state=open]:scale-100;
-}
+  .aui-assistant-modal-button-open-icon {
+    @apply absolute size-6 transition-all;
+    @apply data-[state=closed]:-rotate-90 data-[state=open]:rotate-0;
+    @apply data-[state=closed]:scale-0 data-[state=open]:scale-100;
+  }
 
-/* thread */
+  /* thread */
 
-.aui-thread-root {
-  @apply bg-background h-full;
-  @apply [&>.aui-thread-viewport]:bg-inherit;
-}
+  .aui-thread-root {
+    @apply bg-background h-full;
+    @apply [&>.aui-thread-viewport]:bg-inherit;
+  }
 
-.aui-thread-viewport {
-  @apply bg-background flex h-full flex-col items-center overflow-y-scroll scroll-smooth px-4 pt-8;
-}
+  .aui-thread-viewport {
+    @apply bg-background flex h-full flex-col items-center overflow-y-scroll scroll-smooth px-4 pt-8;
+  }
 
-.aui-thread-viewport-footer {
-  @apply sticky bottom-0 mt-4 flex w-full max-w-2xl flex-grow flex-col items-center justify-end rounded-t-lg bg-inherit pb-4;
-}
+  .aui-thread-viewport-footer {
+    @apply sticky bottom-0 mt-4 flex w-full max-w-2xl flex-grow flex-col items-center justify-end rounded-t-lg bg-inherit pb-4;
+  }
 
-.aui-thread-scroll-to-bottom {
-  @apply absolute -top-8 rounded-full disabled:invisible;
-}
+  .aui-thread-scroll-to-bottom {
+    @apply absolute -top-8 rounded-full disabled:invisible;
+  }
 
-/* thread-welcome */
+  /* thread-welcome */
 
-.aui-thread-welcome-root {
-  @apply flex flex-grow basis-full flex-col items-center justify-center;
-}
+  .aui-thread-welcome-root {
+    @apply flex flex-grow basis-full flex-col items-center justify-center;
+  }
 
-.aui-thread-welcome-message {
-  @apply mt-4 font-medium;
-}
+  .aui-thread-welcome-message {
+    @apply mt-4 font-medium;
+  }
 
-/* composer */
+  /* composer */
 
-.aui-composer-root {
-  @apply relative flex w-full items-end rounded-lg border transition-shadow focus-within:shadow-sm;
-}
+  .aui-composer-root {
+    @apply relative flex w-full items-end rounded-lg border transition-shadow focus-within:shadow-sm;
+  }
 
-.aui-composer-input {
-  @apply placeholder:text-muted-foreground size-full max-h-40 resize-none bg-transparent p-4 pr-12 text-sm outline-none;
-}
+  .aui-composer-input {
+    @apply placeholder:text-muted-foreground size-full max-h-40 resize-none bg-transparent p-4 pr-12 text-sm outline-none;
+  }
 
-.aui-composer-send,
-.aui-composer-cancel {
-  @apply absolute bottom-0 right-0 m-2.5 size-8 p-2 transition-opacity;
-}
+  .aui-composer-send,
+  .aui-composer-cancel {
+    @apply absolute bottom-0 right-0 m-2.5 size-8 p-2 transition-opacity;
+  }
 
-/* user-message */
+  /* user-message */
 
-.aui-user-message-root {
-  @apply grid auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] gap-y-2 [&>*]:col-start-2;
-  @apply w-full max-w-2xl py-4;
-}
+  .aui-user-message-root {
+    @apply grid auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] gap-y-2 [&>*]:col-start-2;
+    @apply w-full max-w-2xl py-4;
+  }
 
-.aui-user-message-root > .aui-user-action-bar-root {
-  @apply col-start-1 mr-3 mt-2.5;
-}
+  .aui-user-message-root > .aui-user-action-bar-root {
+    @apply col-start-1 mr-3 mt-2.5;
+  }
 
-.aui-user-message-root > .aui-user-message-content {
-  @apply col-start-2 row-start-1;
-}
+  .aui-user-message-root > .aui-user-message-content {
+    @apply col-start-2 row-start-1;
+  }
 
-.aui-user-message-root > .aui-branch-picker-root {
-  @apply col-span-full col-start-1 row-start-2;
-  @apply -mr-1 justify-end;
-}
+  .aui-user-message-root > .aui-branch-picker-root {
+    @apply col-span-full col-start-1 row-start-2;
+    @apply -mr-1 justify-end;
+  }
 
-.aui-user-message-content {
-  @apply bg-muted text-foreground max-w-xl break-words rounded-3xl px-5 py-2.5;
-}
+  .aui-user-message-content {
+    @apply bg-muted text-foreground max-w-xl break-words rounded-3xl px-5 py-2.5;
+  }
 
-/* user-action-bar */
+  /* user-action-bar */
 
-.aui-user-action-bar-root {
-  @apply flex flex-col items-end;
-}
+  .aui-user-action-bar-root {
+    @apply flex flex-col items-end;
+  }
 
-/* edit-composer */
+  /* edit-composer */
 
-.aui-edit-composer-root {
-  @apply bg-muted my-4 flex w-full max-w-2xl flex-col gap-2 rounded-xl;
-}
+  .aui-edit-composer-root {
+    @apply bg-muted my-4 flex w-full max-w-2xl flex-col gap-2 rounded-xl;
+  }
 
-.aui-edit-composer-input {
-  @apply text-foreground flex h-8 w-full resize-none bg-transparent p-5 pb-0 outline-none;
-}
+  .aui-edit-composer-input {
+    @apply text-foreground flex h-8 w-full resize-none bg-transparent p-5 pb-0 outline-none;
+  }
 
-.aui-edit-composer-footer {
-  @apply mx-3 mb-3 flex items-center justify-center gap-2 self-end;
-}
+  .aui-edit-composer-footer {
+    @apply mx-3 mb-3 flex items-center justify-center gap-2 self-end;
+  }
 
-/* assistant-message */
+  /* assistant-message */
 
-.aui-assistant-message-root {
-  @apply grid grid-cols-[auto_auto_1fr] grid-rows-[auto_1fr];
-  @apply relative w-full max-w-2xl py-4;
-}
+  .aui-assistant-message-root {
+    @apply grid grid-cols-[auto_auto_1fr] grid-rows-[auto_1fr];
+    @apply relative w-full max-w-2xl py-4;
+  }
 
-.aui-assistant-message-root > .aui-avatar-root {
-  @apply col-start-1 row-span-full row-start-1 mr-4;
-}
+  .aui-assistant-message-root > .aui-avatar-root {
+    @apply col-start-1 row-span-full row-start-1 mr-4;
+  }
 
-.aui-assistant-message-root > .aui-branch-picker-root {
-  @apply col-start-2 row-start-2;
-  @apply -ml-2 mr-2;
-}
+  .aui-assistant-message-root > .aui-branch-picker-root {
+    @apply col-start-2 row-start-2;
+    @apply -ml-2 mr-2;
+  }
 
-.aui-assistant-message-root > .aui-assistant-action-bar-root {
-  @apply col-start-3 row-start-2;
-  @apply -ml-1;
-}
+  .aui-assistant-message-root > .aui-assistant-action-bar-root {
+    @apply col-start-3 row-start-2;
+    @apply -ml-1;
+  }
 
-.aui-assistant-message-root > .aui-assistant-message-content {
-  @apply col-span-2 col-start-2 row-start-1 my-1.5;
-}
+  .aui-assistant-message-root > .aui-assistant-message-content {
+    @apply col-span-2 col-start-2 row-start-1 my-1.5;
+  }
 
-.aui-assistant-message-content {
-  @apply text-foreground max-w-xl break-words leading-7;
-}
+  .aui-assistant-message-content {
+    @apply text-foreground max-w-xl break-words leading-7;
+  }
 
-/* assistant-action-bar */
+  /* assistant-action-bar */
 
-.aui-assistant-action-bar-root {
-  @apply text-muted-foreground flex gap-1 rounded-lg;
-  @apply data-[floating]:bg-background data-[floating]:absolute data-[floating]:border-2 data-[floating]:p-1;
-}
+  .aui-assistant-action-bar-root {
+    @apply text-muted-foreground flex gap-1;
+  }
+  .aui-assistant-action-bar-root[data-floating] {
+    @apply bg-background absolute rounded-md border p-1 shadow-sm;
+  }
 
-/* branch-picker */
+  /* branch-picker */
 
-.aui-branch-picker-root {
-  @apply text-muted-foreground inline-flex items-center text-xs;
-}
+  .aui-branch-picker-root {
+    @apply text-muted-foreground inline-flex items-center text-xs;
+  }
 
-.aui-branch-picker-state {
-  @apply font-medium;
-}
+  .aui-branch-picker-state {
+    @apply font-medium;
+  }
 
-/* TODO text content part */
+  /* TODO text content part */
 
-.aui-content-part-in-progress {
-  @apply bg-foreground inline-block size-3 rounded-full;
-  @apply animate-[aui-pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite];
-}
+  .aui-content-part-in-progress {
+    @apply bg-foreground inline-block size-3 rounded-full;
+    @apply animate-[aui-pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite];
+  }
 
-@keyframes aui-pulse {
-  50% {
-    opacity: 0.5;
+  @keyframes aui-pulse {
+    50% {
+      opacity: 0.5;
+    }
   }
 }
