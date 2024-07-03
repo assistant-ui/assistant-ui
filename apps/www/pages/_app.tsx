@@ -8,6 +8,7 @@ import "./styles.css";
 import "@radix-ui/themes/styles.css";
 import "@assistant-ui/react-ui/styles.css";
 import "@assistant-ui/react-ui/markdown-styles.css";
+import "@assistant-ui/react-ui/theme/default.css";
 
 export default function MyApp({ Component, pageProps }: AppProps) {
   return (

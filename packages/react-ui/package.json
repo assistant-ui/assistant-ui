@@ -21,9 +21,9 @@
       "types": "./dist/markdown-styles.css.d.ts",
       "default": "./dist/markdown-styles.css"
     },
-    "./theme/default.css": {
-      "types": "./dist/theme/default.css.d.ts",
-      "default": "./dist/theme/default.css"
+    "./themes/default.css": {
+      "types": "./dist/themes/default.css.d.ts",
+      "default": "./dist/themes/default.css"
     }
   },
   "source": "./src/index.ts",
