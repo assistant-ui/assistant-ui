@@ -1,1 +1,4 @@
-export { MarkdownTextPrimitive } from "./MarkdownText";
+export {
+  MarkdownTextPrimitive,
+  type MarkdownTextPrimitiveProps,
+} from "./MarkdownText";

@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-ui",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "license": "MIT",
   "exports": {
     ".": {
@@ -16,6 +16,14 @@
     "./styles.css": {
       "types": "./dist/styles.css.d.ts",
       "default": "./dist/styles.css"
+    },
+    "./markdown-styles.css": {
+      "types": "./dist/markdown-styles.css.d.ts",
+      "default": "./dist/markdown-styles.css"
+    },
+    "./theme/default.css": {
+      "types": "./dist/theme/default.css.d.ts",
+      "default": "./dist/theme/default.css"
     }
   },
   "source": "./src/index.ts",
@@ -30,15 +38,16 @@
     "build": "tsup"
   },
   "dependencies": {
-    "@assistant-ui/react-markdown": "workspace:^",
+    "@assistant-ui/react-markdown": "workspace:*",
     "@radix-ui/react-avatar": "^1.1.0",
+    "@radix-ui/react-primitive": "^2.0.0",
     "@radix-ui/react-slot": "^1.1.0",
     "@radix-ui/react-tooltip": "^1.1.2",
+    "autoprefixer": "^10.4.19",
     "class-variance-authority": "^0.7.0",
-    "clsx": "^2.1.1",
-    "lucide-react": "^0.399.0",
-    "remark-gfm": "^4.0.0",
-    "tailwind-merge": "^2.3.0"
+    "lucide-react": "^0.400.0",
+    "postcss": "^8.4.39",
+    "remark-gfm": "^4.0.0"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.3.0",
@@ -51,15 +60,14 @@
     }
   },
   "devDependencies": {
-    "@assistant-ui-tsup/tailwindcss-transformer": "workspace:*",
     "@assistant-ui/tsconfig": "workspace:*",
     "@types/node": "^20.14.9",
-    "esbuild": "^0.21.5",
+    "esbuild": "^0.23.0",
     "eslint-config-next": "14.2.4",
     "tailwindcss": "^3.4.4",
     "tailwindcss-animate": "^1.0.7",
     "tsup": "^8.1.0",
-    "typescript": "^5.5.2"
+    "typescript": "^5.5.3"
   },
   "publishConfig": {
     "access": "public",

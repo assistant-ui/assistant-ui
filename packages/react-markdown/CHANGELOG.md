@@ -1,5 +1,11 @@
 # @assistant-ui/react-markdown
 
+## 0.0.3
+
+### Patch Changes
+
+- export `MarkdownTextPrimitiveProps`
+
 ## 0.0.2
 
 ### Patch Changes

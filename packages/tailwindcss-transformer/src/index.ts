@@ -13,7 +13,7 @@ import { replaceVariableScope } from "./replace-variable-scope";
  */
 type StyleCache = Map<string, string>;
 
-const clRegex = /^aui-[a-z0-9]{8}$/;
+const clRegex = /^aui-[a-z0-9-]+$/;
 
 function isBinaryExpression(node: recast.types.namedTypes.BinaryExpression) {
   return recast.types.namedTypes.BinaryExpression.check(node);

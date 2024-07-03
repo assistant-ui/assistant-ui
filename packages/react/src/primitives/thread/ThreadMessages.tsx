@@ -75,7 +75,7 @@ const ThreadMessage = memo(
     prev.components.AssistantMessage === next.components.AssistantMessage,
 );
 
-export const ThreadPrimitiveMessages: FC<ThreadPrimitiveMessagesProps> = ({
+export const ThreadPrimitiveMessagesImpl: FC<ThreadPrimitiveMessagesProps> = ({
   components,
 }) => {
   const { useThreadMessages } = useThreadContext();
@@ -95,4 +95,13 @@ export const ThreadPrimitiveMessages: FC<ThreadPrimitiveMessagesProps> = ({
   });
 };
 
-ThreadPrimitiveMessages.displayName = "ThreadPrimitive.Messages";
+ThreadPrimitiveMessagesImpl.displayName = "ThreadPrimitive.Messages";
+
+export const ThreadPrimitiveMessages = memo(
+  ThreadPrimitiveMessagesImpl,
+  (prev, next) =>
+    prev.components?.Message === next.components?.Message &&
+    prev.components?.UserMessage === next.components?.UserMessage &&
+    prev.components?.EditComposer === next.components?.EditComposer &&
+    prev.components?.AssistantMessage === next.components?.AssistantMessage,
+);

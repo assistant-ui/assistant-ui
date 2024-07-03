@@ -1,6 +1,12 @@
 # @assistant-ui/react-ui
 
-## 0.0.5
+## 0.0.6
+
+### Patch Changes
+
+- feat: add `AssistantModal` component
+- feat: add `Thread` config API
+- feat: add `MarkdownText` component
 
 ### Patch Changes
 

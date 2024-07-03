@@ -2,7 +2,7 @@ import { useContentPartContext } from "@assistant-ui/react";
 import type { FC } from "react";
 import ReactMarkdown, { type Options } from "react-markdown";
 
-type MarkdownTextPrimitiveProps = Omit<Options, "children">;
+export type MarkdownTextPrimitiveProps = Omit<Options, "children">;
 
 export const MarkdownTextPrimitive: FC<MarkdownTextPrimitiveProps> = (
   options,
@@ -16,5 +16,5 @@ export const MarkdownTextPrimitive: FC<MarkdownTextPrimitiveProps> = (
 
     return c.part.text;
   });
-  return <ReactMarkdown {...options}>{text || "\u00A0"}</ReactMarkdown>;
+  return <ReactMarkdown {...options}>{text}</ReactMarkdown>;
 };

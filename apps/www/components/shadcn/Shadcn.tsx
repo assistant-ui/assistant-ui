@@ -7,7 +7,7 @@ import icon from "@/public/favicon/favicon.svg";
 import type { TooltipContentProps } from "@radix-ui/react-tooltip";
 import Image from "next/image";
 import { type FC } from "react";
-import { Thread } from "@/components/ui/assistant-ui/thread";
+import { MarkdownText, Thread } from "@assistant-ui/react-ui";
 import { Sheet, SheetContent, SheetTrigger } from "../ui/sheet";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { ModelPicker } from "./ModelPicker";
@@ -131,8 +131,21 @@ export const Shadcn = () => {
       <div className={cn(sideStyle, topStyle)}>
         <Header />
       </div>
-      <div className="overflow-hidden">
-        <Thread />
+      <div className="bg-background overflow-hidden">
+        <Thread
+          assistantMessage={{ components: { Text: MarkdownText } }}
+          assistantAvatar={{ fallback: "T" }}
+          welcome={{
+            message: "Hi, how can I help you today?",
+            // suggestions: [
+            //   {
+            //     icon: "💡",
+            //     text: "Helpful Tips",
+            //     prompt: "I need help with product search",
+            //   },
+            // ],
+          }}
+        />
       </div>
     </div>
   );

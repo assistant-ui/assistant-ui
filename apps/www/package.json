@@ -12,10 +12,10 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^0.0.34",
-    "@ai-sdk/react": "^0.0.15",
+    "@ai-sdk/react": "^0.0.16",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-ai-sdk": "workspace:*",
-    "@assistant-ui/shadcn-registry": "workspace:*",
+    "@assistant-ui/react-ui": "workspace:*",
     "@calcom/embed-react": "^1.5.0",
     "@fortawesome/fontawesome-svg-core": "^6.5.2",
     "@fortawesome/free-solid-svg-icons": "^6.5.2",
@@ -30,14 +30,14 @@
     "@radix-ui/react-slot": "^1.1.0",
     "@radix-ui/react-tooltip": "^1.1.2",
     "@radix-ui/themes": "^3.1.1",
-    "ai": "^3.2.15",
+    "ai": "^3.2.16",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
-    "lucide-react": "^0.399.0",
+    "lucide-react": "^0.400.0",
     "next": "14.2.4",
     "nextra": "3.0.0-alpha.24",
     "nextra-theme-docs": "^3.0.0-alpha.24",
-    "openai": "^4.52.2",
+    "openai": "^4.52.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "tailwind-merge": "^2.3.0",
@@ -52,8 +52,8 @@
     "@types/react-dom": "^18",
     "@types/title": "^3.4.3",
     "autoprefixer": "^10.4.19",
-    "postcss": "^8.4.38",
+    "postcss": "^8.4.39",
     "tailwindcss": "^3.4.4",
-    "typescript": "^5.5.2"
+    "typescript": "^5.5.3"
   }
 }
