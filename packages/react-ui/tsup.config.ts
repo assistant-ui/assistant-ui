@@ -6,7 +6,7 @@ export default defineConfig(() => {
       "src/index.ts",
       "src/styles.css",
       "src/markdown-styles.css",
-      "src/theme/default.css",
+      "src/themes/default.css",
     ],
     format: ["cjs", "esm"],
     dts: true,
