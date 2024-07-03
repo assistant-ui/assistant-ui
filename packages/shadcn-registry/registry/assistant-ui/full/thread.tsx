@@ -120,7 +120,7 @@ const Composer: FC = () => {
 
 const UserMessage: FC = () => {
   return (
-    <MessagePrimitive.Root className="my-4 grid w-full max-w-2xl auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] gap-y-2">
+    <MessagePrimitive.Root className="grid w-full max-w-2xl auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] gap-y-2 py-4">
       <ActionBarPrimitive.Root
         hideWhenRunning
         autohide="not-last"
@@ -161,7 +161,7 @@ const EditComposer: FC = () => {
 
 const AssistantMessage: FC = () => {
   return (
-    <MessagePrimitive.Root className="relative my-4 grid w-full max-w-2xl grid-cols-[auto_auto_1fr] grid-rows-[auto_1fr]">
+    <MessagePrimitive.Root className="relative grid w-full max-w-2xl grid-cols-[auto_auto_1fr] grid-rows-[auto_1fr] py-4">
       <Avatar className="col-start-1 row-span-full row-start-1 mr-4">
         <AvatarFallback>A</AvatarFallback>
       </Avatar>
