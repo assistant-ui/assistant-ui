@@ -40,7 +40,9 @@ const defaultComponents = {
   Text: () => (
     <p style={{ whiteSpace: "pre-line" }}>
       <ContentPartPrimitiveText />
-      <ContentPartPrimitiveInProgress> ●</ContentPartPrimitiveInProgress>
+      <ContentPartPrimitiveInProgress>
+        <span style={{ fontFamily: "revert" }}>{" \u25CF"}</span>
+      </ContentPartPrimitiveInProgress>
     </p>
   ),
   Image: () => <ContentPartPrimitiveImage />,
