@@ -6,6 +6,7 @@ export {
   type UserMessageConfig,
   type AssistantMessageConfig,
   type StringsConfig,
+  type SuggestionConfig,
   type ThreadConfigProviderProps,
 } from "./thread-config";
 
@@ -35,6 +36,7 @@ export {
 export {
   AssistantMessage,
   AssistantMessageRoot,
+  AssistantAvatar,
   AssistantMessageContent,
   type AssistantMessageContentProps,
 } from "./assistant-message";
@@ -74,7 +76,17 @@ export {
 
 export { AssistantModal, AssistantModalTrigger } from "./assistant-modal";
 
-export { ThreadWelcome, ThreadWelcomeRoot } from "./thread-welcome";
+export {
+  ThreadWelcome,
+  ThreadWelcomeRoot,
+  ThreadWelcomeAvatar,
+  ThreadWelcomeMessage,
+  type ThreadWelcomeMessageProps,
+  ThreadWelcomeSuggestions,
+  ThreadWelcomeSuggestion,
+} from "./thread-welcome";
+
+export { Text } from "./text";
 
 export { MarkdownText } from "./markdown-text";
 

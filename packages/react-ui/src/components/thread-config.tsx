@@ -1,9 +1,20 @@
-import { TextContentPartComponent } from "@assistant-ui/react";
+import {
+  AssistantRuntimeProvider,
+  TextContentPartComponent,
+} from "@assistant-ui/react";
 import { FC, PropsWithChildren, createContext, useContext } from "react";
 import { AvatarProps } from "./base/avatar";
+import { AssistantRuntime } from "@assistant-ui/react";
+
+export type SuggestionConfig = {
+  icon?: string;
+  text: string;
+  prompt?: string;
+};
 
 export type ThreadWelcomeConfig = {
   message?: string | null | undefined;
+  suggestions?: SuggestionConfig[] | undefined;
 };
 
 export type UserMessageConfig = {

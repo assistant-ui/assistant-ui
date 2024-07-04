@@ -10,6 +10,7 @@ import { Avatar } from "./base/avatar";
 import { styled } from "../styled";
 import { useThreadConfig } from "./thread-config";
 import { AssistantActionBar } from "./assistant-action-bar";
+import { Text } from "./text";
 
 export const AssistantMessage: FC = () => {
   return (
@@ -24,7 +25,7 @@ export const AssistantMessage: FC = () => {
 
 AssistantMessage.displayName = "AssistantMessage";
 
-const AssistantAvatar: FC = () => {
+export const AssistantAvatar: FC = () => {
   const { assistantAvatar: avatar = { fallback: "A" } } = useThreadConfig();
   return <Avatar {...avatar} />;
 };
@@ -46,10 +47,12 @@ export const AssistantMessageContent = forwardRef<
   HTMLDivElement,
   AssistantMessageContentProps
 >(({ components: componentsProp, ...rest }, ref) => {
-  const { assistantMessage: { components } = {} } = useThreadConfig();
+  const { assistantMessage: { components = {} } = {} } = useThreadConfig();
   return (
     <AssistantMessageContentWrapper {...rest} ref={ref}>
-      <MessagePrimitive.Content components={componentsProp ?? components} />
+      <MessagePrimitive.Content
+        components={{ Text: components.Text ?? Text, ...components }}
+      />
     </AssistantMessageContentWrapper>
   );
 });

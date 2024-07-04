@@ -3,13 +3,14 @@ import { ThreadPrimitive } from "@assistant-ui/react";
 import { ComponentPropsWithoutRef, forwardRef, type FC } from "react";
 import { styled } from "../styled";
 import { Avatar } from "./base/avatar";
-import { useThreadConfig } from "./thread-config";
+import { SuggestionConfig, useThreadConfig } from "./thread-config";
 
 export const ThreadWelcome: FC = () => {
   return (
     <ThreadWelcomeRoot>
       <ThreadWelcomeAvatar />
       <ThreadWelcomeMessage />
+      <ThreadWelcomeSuggestions />
     </ThreadWelcomeRoot>
   );
 };
@@ -35,7 +36,7 @@ export const ThreadWelcomeRoot = forwardRef<
 
 ThreadWelcomeRoot.displayName = "ThreadWelcomeRoot";
 
-const ThreadWelcomeAvatar: FC = () => {
+export const ThreadWelcomeAvatar: FC = () => {
   const { assistantAvatar: avatar = { fallback: "A" } } = useThreadConfig();
   return <Avatar {...avatar} />;
 };
@@ -44,16 +45,16 @@ const ThreadWelcomeMessageStyled = styled("p", {
   className: "aui-thread-welcome-message",
 });
 
-type ThreadWelcomeMessageProps = Omit<
+export type ThreadWelcomeMessageProps = Omit<
   ComponentPropsWithoutRef<typeof ThreadWelcomeMessageStyled>,
   "children"
 > & { message?: string | undefined };
 
-const ThreadWelcomeMessage = forwardRef<
+export const ThreadWelcomeMessage = forwardRef<
   HTMLParagraphElement,
   ThreadWelcomeMessageProps
 >(({ message: messageProp, ...rest }, ref) => {
-  const { welcome: { message } = { message: "How can I help you today?" } } =
+  const { welcome: { message = "How can I help you today?" } = {} } =
     useThreadConfig();
   return (
     <ThreadWelcomeMessageStyled {...rest} ref={ref}>
@@ -63,3 +64,45 @@ const ThreadWelcomeMessage = forwardRef<
 });
 
 ThreadWelcomeMessage.displayName = "ThreadWelcomeMessage";
+
+const ThreadWelcomeSuggestionContainer = styled("div", {
+  className: "aui-thread-welcome-suggestion-container",
+});
+
+const ThreadWelcomeSuggestionStyled = styled(ThreadPrimitive.Suggestion, {
+  className: "aui-thread-welcome-suggestion",
+});
+
+export type ThreadWelcomeSuggestionProps = {
+  suggestion: SuggestionConfig;
+};
+
+export const ThreadWelcomeSuggestion: FC<ThreadWelcomeSuggestionProps> = ({
+  suggestion: { text, prompt },
+}) => {
+  return (
+    <ThreadWelcomeSuggestionStyled
+      prompt={prompt ?? text}
+      method="replace"
+      autoSend
+    >
+      <span className="aui-thread-welcome-suggestion-text">{text}</span>
+    </ThreadWelcomeSuggestionStyled>
+  );
+};
+
+export const ThreadWelcomeSuggestions: FC = () => {
+  const { welcome: { suggestions } = {} } = useThreadConfig();
+  return (
+    <ThreadWelcomeSuggestionContainer>
+      {suggestions?.map((suggestion) => (
+        <ThreadWelcomeSuggestion
+          key={suggestion.prompt}
+          suggestion={suggestion}
+        />
+      ))}
+    </ThreadWelcomeSuggestionContainer>
+  );
+};
+
+ThreadWelcomeSuggestions.displayName = "ThreadWelcomeSuggestions";

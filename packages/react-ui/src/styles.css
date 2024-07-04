@@ -221,11 +221,12 @@
     @apply font-medium;
   }
 
-  /* TODO text content part */
+  .aui-text {
+    @apply whitespace-pre-line;
+  }
 
-  .aui-content-part-in-progress {
-    @apply bg-foreground inline-block size-3 rounded-full;
-    @apply animate-aui-pulse;
+  .aui-text-in-progress::after {
+    @apply animate-aui-pulse font-sans content-['\25CF'] ltr:ml-1 rtl:mr-1;
   }
 
   .animate-aui-pulse {

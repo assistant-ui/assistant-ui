@@ -6,6 +6,7 @@ import { BranchPicker } from "./branch-picker";
 import { styled } from "../styled";
 import { MessagePrimitiveContentProps } from "@assistant-ui/react";
 import { UserActionBar } from "./user-action-bar";
+import { Text } from "./text";
 
 export const UserMessage: FC = () => {
   return (
@@ -38,7 +39,7 @@ export const UserMessageContent = forwardRef<
 >(({ components, ...props }, ref) => {
   return (
     <UserMessageContentWrapper {...props} ref={ref}>
-      <MessagePrimitive.Content components={components} />
+      <MessagePrimitive.Content components={{ Text, ...components }} />
     </UserMessageContentWrapper>
   );
 });

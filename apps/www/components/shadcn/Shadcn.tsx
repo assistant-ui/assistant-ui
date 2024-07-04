@@ -132,20 +132,7 @@ export const Shadcn = () => {
         <Header />
       </div>
       <div className="bg-background overflow-hidden">
-        <Thread
-          assistantMessage={{ components: { Text: MarkdownText } }}
-          assistantAvatar={{ fallback: "T" }}
-          welcome={{
-            message: "Hi, how can I help you today?",
-            // suggestions: [
-            //   {
-            //     icon: "💡",
-            //     text: "Helpful Tips",
-            //     prompt: "I need help with product search",
-            //   },
-            // ],
-          }}
-        />
+        <Thread assistantMessage={{ components: { Text: MarkdownText } }} />
       </div>
     </div>
   );
