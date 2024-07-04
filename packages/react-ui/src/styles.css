@@ -3,9 +3,17 @@
 }
 @tailwind components;
 
-/* shadcn-ui/button */
+@layer base {
+  * {
+    @apply border-aui-border;
+  }
+}
 
 @layer components {
+  .aui-root {
+    @apply bg-aui-background text-aui-foreground;
+  }
+
   .aui-modal-content {
     @apply bg-aui-popover text-aui-popover-foreground z-50 h-[500px] w-[400px] overflow-clip rounded-xl border p-0 shadow-md outline-none;
     @apply [&>.aui-thread-root]:bg-inherit;
@@ -27,6 +35,8 @@
   .aui-thread-root {
     @apply bg-aui-background box-border h-full;
     @apply [&>.aui-thread-viewport]:bg-inherit;
+
+    /* shadcn-ui/button */
 
     .aui-button {
       @apply focus-visible:ring-aui-ring inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 disabled:pointer-events-none disabled:opacity-50;

@@ -43,7 +43,7 @@ const config = {
     extend: {
       colors: {
         aui: {
-          //   border: "hsl(var(--aui-border))",
+          border: "hsl(var(--aui-border))",
           input: "hsl(var(--aui-input))",
           ring: "hsl(var(--aui-ring))",
           background: "hsl(var(--aui-background))",
