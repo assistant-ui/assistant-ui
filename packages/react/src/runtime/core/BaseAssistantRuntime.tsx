@@ -8,6 +8,10 @@ export abstract class BaseAssistantRuntime<
   TThreadRuntime extends ReactThreadRuntime,
 > implements AssistantRuntime
 {
+  public get support() {
+    return this._thread.capabilities;
+  }
+
   constructor(private _thread: TThreadRuntime) {
     this._thread = _thread;
     this._unsubscribe = this._thread.subscribe(this.subscriptionHandler);

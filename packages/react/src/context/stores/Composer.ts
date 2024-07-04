@@ -6,10 +6,11 @@ import { ThreadContextValue } from "../react";
 
 export type ComposerState = BaseComposerState &
   Readonly<{
+    canCancel: boolean;
     isEditing: true;
 
     send: () => void;
-    cancel: () => boolean;
+    cancel: () => void;
     focus: () => void;
     onFocus: (listener: () => void) => Unsubscribe;
   }>;
@@ -24,6 +25,9 @@ export const makeComposerStore = (
     return {
       ...makeBaseComposer(set, get, store),
 
+      get canCancel() {
+        return useThreadActions.getState().capabilities.cancel;
+      },
       isEditing: true,
 
       send: () => {
@@ -37,11 +41,7 @@ export const makeComposerStore = (
         });
       },
       cancel: () => {
-        const thread = useThread.getState();
-        if (!thread.isRunning) return false;
-
         useThreadActions.getState().cancelRun();
-        return true;
       },
       focus: () => {
         for (const listener of focusListeners) {

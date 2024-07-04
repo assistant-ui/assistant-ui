@@ -23,7 +23,7 @@ import { ThreadPrimitiveRootProps } from "@assistant-ui/react";
 
 export const Thread: FC<ThreadConfig> = (config) => {
   return (
-    <ThreadRoot config={config} asChild>
+    <ThreadRoot config={config}>
       <ThreadViewport>
         <ThreadWelcome />
         <ThreadMessages />

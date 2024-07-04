@@ -22,6 +22,13 @@ export const hasUpcomingMessage = (
   return isRunning && messages[messages.length - 1]?.role !== "assistant";
 };
 
+const CAPABILITIES = Object.freeze({
+  edit: true,
+  reload: true,
+  cancel: true,
+  copy: true,
+});
+
 export class VercelUseChatThreadRuntime implements ReactThreadRuntime {
   private _subscriptions = new Set<() => void>();
   private repository = new MessageRepository();
@@ -30,6 +37,8 @@ export class VercelUseChatThreadRuntime implements ReactThreadRuntime {
   private useVercel: UseBoundStore<
     StoreApi<{ vercel: ReturnType<typeof useChat> }>
   >;
+
+  public readonly capabilities = CAPABILITIES;
 
   public messages: ThreadMessage[] = [];
   public isRunning = false;

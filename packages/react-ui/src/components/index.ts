@@ -60,7 +60,7 @@ export {
   Composer,
   ComposerRoot,
   ComposerInput,
-  ComposerSendOrCancel,
+  ComposerAction,
   ComposerSend,
   ComposerCancel,
 } from "./composer";

@@ -12,8 +12,17 @@ import { hasUpcomingMessage } from "./VercelUseAssistantRuntime";
 
 const EMPTY_BRANCHES: readonly string[] = Object.freeze([]);
 
+const CAPABILITIES = Object.freeze({
+  edit: false,
+  reload: false,
+  cancel: false,
+  copy: true,
+});
+
 export class VercelUseAssistantThreadRuntime implements ReactThreadRuntime {
   private _subscriptions = new Set<() => void>();
+
+  public readonly capabilities = CAPABILITIES;
 
   private useVercel: UseBoundStore<StoreApi<{ vercel: UseAssistantHelpers }>>;
 

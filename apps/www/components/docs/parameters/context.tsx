@@ -224,6 +224,12 @@ export const ComposerState: ParametersTableProps = {
   parameters: [
     ...BaseComposerState.parameters,
     {
+      name: "canCancel",
+      type: "true",
+      required: true,
+      description: "Whether the composer can be canceled.",
+    },
+    {
       name: "isEditing",
       type: "true",
       required: true,
@@ -237,10 +243,9 @@ export const ComposerState: ParametersTableProps = {
     },
     {
       name: "cancel",
-      type: "() => boolean",
+      type: "() => void",
       required: true,
-      description:
-        "A function to cancel the run. Returns true if the run was canceled.",
+      description: "A function to cancel the run.",
     },
     {
       name: "focus",
@@ -262,6 +267,12 @@ export const EditComposerState: ParametersTableProps = {
   parameters: [
     ...BaseComposerState.parameters,
     {
+      name: "canCancel",
+      type: "boolean",
+      required: true,
+      description: "Whether the composer can be canceled.",
+    },
+    {
       name: "isEditing",
       type: "boolean",
       required: true,
@@ -281,9 +292,9 @@ export const EditComposerState: ParametersTableProps = {
     },
     {
       name: "cancel",
-      type: "() => boolean",
+      type: "() => void",
       required: true,
-      description: "A function to cancel the edit mode. Always returns true.",
+      description: "A function to exit the edit mode.",
     },
   ],
 };

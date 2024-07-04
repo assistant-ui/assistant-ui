@@ -4,11 +4,12 @@ import { ReadonlyStore } from "../ReadonlyStore";
 
 export type EditComposerState = BaseComposerState &
   Readonly<{
+    canCancel: boolean;
     isEditing: boolean;
 
     edit: () => void;
     send: () => void;
-    cancel: () => boolean;
+    cancel: () => void;
   }>;
 
 export const makeEditComposerStore = ({
@@ -21,20 +22,19 @@ export const makeEditComposerStore = ({
   create<EditComposerState>()((set, get, store) => ({
     ...makeBaseComposer(set, get, store),
 
+    canCancel: false,
     isEditing: false,
 
     edit: () => {
       const value = onEdit();
-      set({ isEditing: true, value });
+      set({ isEditing: true, canCancel: true, value });
     },
     send: () => {
       const value = get().value;
-      set({ isEditing: false });
+      set({ isEditing: false, canCancel: false });
       onSend(value);
     },
     cancel: () => {
-      if (!get().isEditing) return false;
-      set({ isEditing: false });
-      return true;
+      set({ isEditing: false, canCancel: false });
     },
   }));

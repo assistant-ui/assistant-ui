@@ -4,6 +4,12 @@ import type { AppendMessage } from "../../types/AssistantTypes";
 import { ThreadRuntime } from "../../runtime";
 
 export type ThreadActionsState = Readonly<{
+  capabilities: Readonly<{
+    edit: boolean;
+    reload: boolean;
+    cancel: boolean;
+    copy: boolean;
+  }>;
   getBranches: (messageId: string) => readonly string[];
   switchToBranch: (branchId: string) => void;
 
@@ -19,6 +25,9 @@ export const makeThreadActionStore = (
 ) => {
   return create<ThreadActionsState>(() =>
     Object.freeze({
+      get capabilities() {
+        return runtimeRef.current.capabilities;
+      },
       getBranches: (messageId) => runtimeRef.current.getBranches(messageId),
       switchToBranch: (branchId) => runtimeRef.current.switchToBranch(branchId),
       startRun: (parentId) => runtimeRef.current.startRun(parentId),

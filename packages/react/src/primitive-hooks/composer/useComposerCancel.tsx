@@ -4,7 +4,7 @@ import { useComposerContext } from "../../context";
 export const useComposerCancel = () => {
   const { useComposer } = useComposerContext();
 
-  const disabled = useComposer((c) => !c.isEditing);
+  const disabled = useComposer((c) => !c.canCancel);
 
   const callback = useCallback(() => {
     const { cancel } = useComposer.getState();

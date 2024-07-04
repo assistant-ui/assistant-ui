@@ -45,7 +45,8 @@ export const ComposerPrimitiveInput = forwardRef<
 
     useEscapeKeydown((e) => {
       const composer = useComposer.getState();
-      if (composer.cancel()) {
+      if (composer.canCancel) {
+        composer.cancel();
         e.preventDefault();
       }
     });

@@ -1,6 +1,10 @@
 "use client";
 
-import { ActionBarPrimitive, MessagePrimitive } from "@assistant-ui/react";
+import {
+  ActionBarPrimitive,
+  MessagePrimitive,
+  useThreadContext,
+} from "@assistant-ui/react";
 import { forwardRef, type FC } from "react";
 import { CheckIcon, CopyIcon, RefreshCwIcon } from "lucide-react";
 import {
@@ -10,9 +14,23 @@ import {
 import { styled } from "../styled";
 import { useThreadConfig } from "./thread-config";
 
+const useAllowCopy = () => {
+  const { assistantMessage: { allowCopy = true } = {} } = useThreadConfig();
+  const { useThreadActions } = useThreadContext();
+  const copySupported = useThreadActions((t) => t.capabilities.copy);
+  return copySupported && allowCopy;
+};
+
+const useAllowReload = () => {
+  const { assistantMessage: { allowReload = true } = {} } = useThreadConfig();
+  const { useThreadActions } = useThreadContext();
+  const reloadSupported = useThreadActions((t) => t.capabilities.reload);
+  return reloadSupported && allowReload;
+};
+
 export const AssistantActionBar: FC = () => {
-  const { assistantMessage: { allowCopy = true, allowReload = true } = {} } =
-    useThreadConfig();
+  const allowCopy = useAllowCopy();
+  const allowReload = useAllowReload();
   if (!allowCopy && !allowReload) return null;
   return (
     <AssistantActionBarRoot
@@ -39,11 +57,11 @@ export const AssistantActionBarCopy = forwardRef<
   Partial<TooltipIconButtonProps>
 >((props, ref) => {
   const {
-    assistantMessage: { allowCopy = true } = {},
     strings: {
       assistantMessage: { reload: { tooltip = "Copy" } = {} } = {},
     } = {},
   } = useThreadConfig();
+  const allowCopy = useAllowCopy();
   if (!allowCopy) return null;
   return (
     <ActionBarPrimitive.Copy asChild>
@@ -66,11 +84,11 @@ export const AssistantActionBarReload = forwardRef<
   Partial<TooltipIconButtonProps>
 >((props, ref) => {
   const {
-    assistantMessage: { allowReload = true } = {},
     strings: {
       assistantMessage: { reload: { tooltip = "Refresh" } = {} } = {},
     } = {},
   } = useThreadConfig();
+  const allowReload = useAllowReload();
   if (!allowReload) return null;
   return (
     <ActionBarPrimitive.Reload asChild>

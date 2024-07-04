@@ -44,11 +44,20 @@ export class LocalRuntime extends BaseAssistantRuntime<LocalThreadRuntime> {
   }
 }
 
+const CAPABILITIES = Object.freeze({
+  edit: true,
+  reload: true,
+  cancel: true,
+  copy: true,
+});
+
 class LocalThreadRuntime implements ThreadRuntime {
   private _subscriptions = new Set<() => void>();
 
   private abortController: AbortController | null = null;
-  private repository = new MessageRepository();
+  private readonly repository = new MessageRepository();
+
+  public readonly capabilities = CAPABILITIES;
 
   public get messages() {
     return this.repository.getMessages();

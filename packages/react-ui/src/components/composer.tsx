@@ -1,6 +1,10 @@
 "use client";
 
-import { ComposerPrimitive, ThreadPrimitive } from "@assistant-ui/react";
+import {
+  ComposerPrimitive,
+  ThreadPrimitive,
+  useThreadContext,
+} from "@assistant-ui/react";
 import { ComponentPropsWithoutRef, forwardRef, type FC } from "react";
 
 import { SendHorizonalIcon } from "lucide-react";
@@ -16,7 +20,7 @@ export const Composer: FC = () => {
   return (
     <ComposerRoot>
       <ComposerInput autoFocus />
-      <ComposerSendOrCancel />
+      <ComposerAction />
     </ComposerRoot>
   );
 };
@@ -50,9 +54,15 @@ export const ComposerInput = forwardRef<
 
 ComposerInput.displayName = "ComposerInput";
 
-export const ComposerSendOrCancel: FC = () => {
-  // TODO detect cancel support
-  // if (cancel === false) return <ComposerSend />;
+const useAllowCancel = () => {
+  const { useThreadActions } = useThreadContext();
+  const cancelSupported = useThreadActions((t) => t.capabilities.cancel);
+  return cancelSupported;
+};
+
+export const ComposerAction: FC = () => {
+  const allowCancel = useAllowCancel();
+  if (!allowCancel) return <ComposerSend />;
   return (
     <>
       <ThreadPrimitive.If running={false}>
@@ -65,7 +75,7 @@ export const ComposerSendOrCancel: FC = () => {
   );
 };
 
-ComposerSendOrCancel.displayName = "ComposerSendOrCancel";
+ComposerAction.displayName = "ComposerAction";
 
 const ComposerSendButton = styled(TooltipIconButton, {
   variant: "default",
