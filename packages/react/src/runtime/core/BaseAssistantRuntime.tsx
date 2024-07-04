@@ -8,7 +8,7 @@ export abstract class BaseAssistantRuntime<
   TThreadRuntime extends ReactThreadRuntime,
 > implements AssistantRuntime
 {
-  public get support() {
+  public get capabilities() {
     return this._thread.capabilities;
   }
 

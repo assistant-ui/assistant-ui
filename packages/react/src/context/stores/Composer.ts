@@ -16,7 +16,6 @@ export type ComposerState = BaseComposerState &
   }>;
 
 export const makeComposerStore = (
-  useThread: ThreadContextValue["useThread"],
   useThreadMessages: ThreadContextValue["useThreadMessages"],
   useThreadActions: ThreadContextValue["useThreadActions"],
 ): ReadonlyStore<ComposerState> => {

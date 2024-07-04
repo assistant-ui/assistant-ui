@@ -39,11 +39,7 @@ export const ThreadProvider: FC<PropsWithChildren<ThreadProviderProps>> = ({
     const useThreadMessages = makeThreadMessagesStore(runtimeRef);
     const useThreadActions = makeThreadActionStore(runtimeRef);
     const useViewport = makeThreadViewportStore();
-    const useComposer = makeComposerStore(
-      useThread,
-      useThreadMessages,
-      useThreadActions,
-    );
+    const useComposer = makeComposerStore(useThreadMessages, useThreadActions);
 
     return {
       useThread,
