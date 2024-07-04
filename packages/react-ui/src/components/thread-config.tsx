@@ -114,19 +114,22 @@ export const useThreadConfig = (): Omit<ThreadConfig, "runtime"> => {
 };
 
 export type ThreadConfigProviderProps = PropsWithChildren<{
-  config: ThreadConfig;
+  config?: ThreadConfig | undefined;
 }>;
 
 export const ThreadConfigProvider: FC<ThreadConfigProviderProps> = ({
   children,
   config,
 }) => {
-  const configProvider = (
-    <ThreadConfigContext.Provider value={config}>
-      {children}
-    </ThreadConfigContext.Provider>
-  );
-  if (!config.runtime) return configProvider;
+  const configProvider =
+    config && Object.keys(config ?? {}).length > 0 ? (
+      <ThreadConfigContext.Provider value={config}>
+        {children}
+      </ThreadConfigContext.Provider>
+    ) : (
+      <>{children}</>
+    );
+  if (!config?.runtime) return configProvider;
   return (
     <AssistantRuntimeProvider runtime={config.runtime}>
       {configProvider}

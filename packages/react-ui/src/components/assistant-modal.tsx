@@ -10,20 +10,38 @@ import {
   TooltipIconButton,
   TooltipIconButtonProps,
 } from "./base/tooltip-icon-button";
-import { useThreadConfig } from "./thread-config";
+import {
+  ThreadConfig,
+  ThreadConfigProvider,
+  ThreadConfigProviderProps,
+  useThreadConfig,
+} from "./thread-config";
+import { AssistantModalPrimitiveRootProps } from "@assistant-ui/react";
 
-export const AssistantModal: FC = () => {
+export const AssistantModal: FC<ThreadConfig> = (config) => {
   return (
-    <AssistantModalPrimitive.Root>
+    <AssistantModalRoot config={config}>
       <AssistantModalTrigger />
       <AssistantModalContent>
         <Thread />
       </AssistantModalContent>
-    </AssistantModalPrimitive.Root>
+    </AssistantModalRoot>
   );
 };
 
 AssistantModal.displayName = "AssistantModal";
+
+export const AssistantModalRoot: FC<
+  AssistantModalPrimitiveRootProps & ThreadConfigProviderProps
+> = ({ config, ...props }) => {
+  return (
+    <ThreadConfigProvider config={config}>
+      <AssistantModalPrimitive.Root {...props} />
+    </ThreadConfigProvider>
+  );
+};
+
+AssistantModalRoot.displayName = "AssistantModalRoot";
 
 export const AssistantModalTrigger = forwardRef<
   HTMLButtonElement,
