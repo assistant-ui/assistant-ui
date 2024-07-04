@@ -1,6 +1,4 @@
-.aui-root {
-  @tailwind base;
-}
+@tailwind base;
 @tailwind components;
 
 /* shadcn-ui/button */

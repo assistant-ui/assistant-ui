@@ -1,0 +1,212 @@
+.aui-reset *,
+.aui-reset ::before,
+.aui-reset ::after {
+  box-sizing: border-box;
+  border-width: 0;
+  border-style: solid;
+  border-color: #e5e7eb;
+}
+.aui-reset ::before,
+.aui-reset ::after {
+  --tw-content: "";
+}
+.aui-reset html,
+.aui-reset :host {
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+  -moz-tab-size: 4;
+  -o-tab-size: 4;
+  tab-size: 4;
+  font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
+    "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  font-feature-settings: normal;
+  font-variation-settings: normal;
+  -webkit-tap-highlight-color: transparent;
+}
+.aui-reset body {
+  margin: 0;
+  line-height: inherit;
+}
+.aui-reset hr {
+  height: 0;
+  color: inherit;
+  border-top-width: 1px;
+}
+.aui-reset abbr:where([title]) {
+  -webkit-text-decoration: underline dotted;
+  text-decoration: underline dotted;
+}
+.aui-reset h1,
+.aui-reset h2,
+.aui-reset h3,
+.aui-reset h4,
+.aui-reset h5,
+.aui-reset h6 {
+  font-size: inherit;
+  font-weight: inherit;
+}
+.aui-reset a {
+  color: inherit;
+  text-decoration: inherit;
+}
+.aui-reset b,
+.aui-reset strong {
+  font-weight: bolder;
+}
+.aui-reset code,
+.aui-reset kbd,
+.aui-reset samp,
+.aui-reset pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+  font-feature-settings: normal;
+  font-variation-settings: normal;
+  font-size: 1em;
+}
+.aui-reset small {
+  font-size: 80%;
+}
+.aui-reset sub,
+.aui-reset sup {
+  font-size: 75%;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+.aui-reset sub {
+  bottom: -0.25em;
+}
+.aui-reset sup {
+  top: -0.5em;
+}
+.aui-reset table {
+  text-indent: 0;
+  border-color: inherit;
+  border-collapse: collapse;
+}
+.aui-reset button,
+.aui-reset input,
+.aui-reset optgroup,
+.aui-reset select,
+.aui-reset textarea {
+  font-family: inherit;
+  font-feature-settings: inherit;
+  font-variation-settings: inherit;
+  font-size: 100%;
+  font-weight: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  margin: 0;
+  padding: 0;
+}
+.aui-reset button,
+.aui-reset select {
+  text-transform: none;
+}
+.aui-reset button,
+.aui-reset input:where([type="button"]),
+.aui-reset input:where([type="reset"]),
+.aui-reset input:where([type="submit"]) {
+  -webkit-appearance: button;
+  background-color: transparent;
+  background-image: none;
+}
+.aui-reset :-moz-focusring {
+  outline: auto;
+}
+.aui-reset :-moz-ui-invalid {
+  box-shadow: none;
+}
+.aui-reset progress {
+  vertical-align: baseline;
+}
+.aui-reset ::-webkit-inner-spin-button,
+.aui-reset ::-webkit-outer-spin-button {
+  height: auto;
+}
+.aui-reset [type="search"] {
+  -webkit-appearance: textfield;
+  outline-offset: -2px;
+}
+.aui-reset ::-webkit-search-decoration {
+  -webkit-appearance: none;
+}
+.aui-reset ::-webkit-file-upload-button {
+  -webkit-appearance: button;
+  font: inherit;
+}
+.aui-reset summary {
+  display: list-item;
+}
+.aui-reset blockquote,
+.aui-reset dl,
+.aui-reset dd,
+.aui-reset h1,
+.aui-reset h2,
+.aui-reset h3,
+.aui-reset h4,
+.aui-reset h5,
+.aui-reset h6,
+.aui-reset hr,
+.aui-reset figure,
+.aui-reset p,
+.aui-reset pre {
+  margin: 0;
+}
+.aui-reset fieldset {
+  margin: 0;
+  padding: 0;
+}
+.aui-reset legend {
+  padding: 0;
+}
+.aui-reset ol,
+.aui-reset ul,
+.aui-reset menu {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.aui-reset dialog {
+  padding: 0;
+}
+.aui-reset textarea {
+  resize: vertical;
+}
+.aui-reset input::-moz-placeholder,
+.aui-reset textarea::-moz-placeholder {
+  opacity: 1;
+  color: #9ca3af;
+}
+.aui-reset input::placeholder,
+.aui-reset textarea::placeholder {
+  opacity: 1;
+  color: #9ca3af;
+}
+.aui-reset button,
+.aui-reset [role="button"] {
+  cursor: pointer;
+}
+.aui-reset :disabled {
+  cursor: default;
+}
+.aui-reset img,
+.aui-reset svg,
+.aui-reset video,
+.aui-reset canvas,
+.aui-reset audio,
+.aui-reset iframe,
+.aui-reset embed,
+.aui-reset object {
+  display: block;
+  vertical-align: middle;
+}
+.aui-reset img,
+.aui-reset video {
+  max-width: 100%;
+  height: auto;
+}
+.aui-reset [hidden] {
+  display: none;
+}

@@ -2,6 +2,11 @@ export {
   ThreadConfigProvider,
   useThreadConfig,
   type ThreadConfig,
+  type ThreadWelcomeConfig,
+  type UserMessageConfig,
+  type AssistantMessageConfig,
+  type StringsConfig,
+  type ThreadConfigProviderProps,
 } from "./thread-config";
 
 export {
@@ -72,3 +77,23 @@ export { AssistantModal, AssistantModalTrigger } from "./assistant-modal";
 export { ThreadWelcome, ThreadWelcomeRoot } from "./thread-welcome";
 
 export { MarkdownText } from "./markdown-text";
+
+export { Reset } from "./base/reset";
+export {
+  Avatar,
+  AvatarRoot,
+  AvatarImage,
+  AvatarFallback,
+  type AvatarProps,
+} from "./base/avatar";
+
+export { Button, buttonVariants, type ButtonProps } from "./base/button";
+
+export { Tooltip, TooltipContent, TooltipTrigger } from "./base/tooltip";
+
+export {
+  TooltipIconButton,
+  type TooltipIconButtonProps,
+} from "./base/tooltip-icon-button";
+
+export { CircleStopIcon } from "./base/CircleStopIcon";

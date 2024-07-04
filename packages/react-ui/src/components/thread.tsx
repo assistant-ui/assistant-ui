@@ -23,7 +23,7 @@ import { ThreadPrimitiveRootProps } from "@assistant-ui/react";
 
 export const Thread: FC<ThreadConfig> = (config) => {
   return (
-    <ThreadRoot config={config} asChild>
+    <ThreadRoot config={config}>
       <ThreadViewport>
         <ThreadWelcome />
         <ThreadMessages />
@@ -40,7 +40,7 @@ export type ThreadRootProps = ThreadPrimitiveRootProps &
   ThreadConfigProviderProps;
 
 const ThreadRootStyled = styled(ThreadPrimitive.Root, {
-  className: "aui-root aui-thread-root",
+  className: "aui-thread-root",
 });
 
 export const ThreadRoot = forwardRef<HTMLDivElement, ThreadRootProps>(
