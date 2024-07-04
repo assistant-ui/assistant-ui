@@ -166,7 +166,7 @@
   }
 
   .aui-edit-composer-input {
-    @apply text-foreground flex h-8 w-full resize-none bg-transparent p-5 pb-0 outline-none;
+    @apply text-foreground flex h-8 w-full resize-none bg-transparent p-4 pb-0 outline-none;
   }
 
   .aui-edit-composer-footer {

@@ -3,13 +3,12 @@ import { ComposerPrimitive } from "@assistant-ui/react";
 import { forwardRef, type FC } from "react";
 import { Button, ButtonProps } from "./base/button";
 import { styled } from "../styled";
-import { ComposerInput } from "./composer";
 import { useThreadConfig } from "./thread-config";
 
 export const EditComposer: FC = () => {
   return (
     <EditComposerRoot>
-      <ComposerInput />
+      <EditComposerInput />
 
       <EditComposerFooter>
         <EditComposerCancel />
