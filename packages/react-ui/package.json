@@ -24,6 +24,10 @@
     "./themes/default.css": {
       "types": "./dist/themes/default.css.d.ts",
       "default": "./dist/themes/default.css"
+    },
+    "./themes/shadcn.css": {
+      "types": "./dist/themes/shadcn.css.d.ts",
+      "default": "./dist/themes/shadcn.css"
     }
   },
   "source": "./src/index.ts",

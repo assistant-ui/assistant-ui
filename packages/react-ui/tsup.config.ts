@@ -7,6 +7,7 @@ export default defineConfig(() => {
       "src/styles.css",
       "src/markdown-styles.css",
       "src/themes/default.css",
+      "src/themes/shadcn.css",
     ],
     format: ["cjs", "esm"],
     dts: true,
