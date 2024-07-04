@@ -59,14 +59,14 @@ export const AssistantModalTrigger = forwardRef<
 AssistantModalTrigger.displayName = "AssistantModalTrigger";
 
 const AssistantModalAnchor = styled(AssistantModalPrimitive.Anchor, {
-  className: "aui-assistant-modal-anchor",
+  className: "aui-root aui-assistant-anchor",
 });
 
 AssistantModalAnchor.displayName = "AssistantModalAnchor";
 
 const ModalButtonStyled = styled(TooltipIconButton, {
   variant: "default",
-  className: "aui-assistant-modal-button",
+  className: "aui-modal-button",
 });
 
 type AssistantModalButtonProps = TooltipIconButtonProps & {
@@ -99,14 +99,11 @@ const AssistantModalButton = forwardRef<
       {...rest}
       ref={ref}
     >
-      <BotIcon
-        data-state={state}
-        className="aui-assistant-modal-button-closed-icon"
-      />
+      <BotIcon data-state={state} className="aui-modal-button-closed-icon" />
 
       <ChevronDownIcon
         data-state={state}
-        className="aui-assistant-modal-button-open-icon"
+        className="aui-modal-button-open-icon"
       />
       <span className="aui-sr-only">{tooltip}</span>
     </ModalButtonStyled>
@@ -116,7 +113,7 @@ const AssistantModalButton = forwardRef<
 AssistantModalButton.displayName = "AssistantModalButton";
 
 export const AssistantModalContent = styled(AssistantModalPrimitive.Content, {
-  className: "aui-assistant-modal-content",
+  className: "aui-modal-content",
   sideOffset: 16,
 });
 
