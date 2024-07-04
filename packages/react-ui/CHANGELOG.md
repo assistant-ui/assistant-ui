@@ -1,5 +1,13 @@
 # @assistant-ui/react-ui
 
+## 0.0.12
+
+### Patch Changes
+
+- 05fd5d6: feat: runtime capabilities API
+- Updated dependencies [05fd5d6]
+  - @assistant-ui/react@0.3.1
+
 ## 0.0.6
 
 ### Patch Changes

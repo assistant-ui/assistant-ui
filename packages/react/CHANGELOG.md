@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.3.1
+
+### Patch Changes
+
+- 05fd5d6: feat: runtime capabilities API
+
 ## 0.3.0
 
 ### Minor Changes
