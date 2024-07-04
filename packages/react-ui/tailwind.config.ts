@@ -49,11 +49,11 @@ const config = {
         //     foreground: "hsl(var(--aui-card-foreground))",
         //   },
       },
-      // borderRadius: {
-      //   lg: "var(--aui-radius)",
-      //   md: "calc(var(--aui-radius) - 2px)",
-      //   sm: "calc(var(--aui-radius) - 4px)",
-      // },
+      borderRadius: {
+        lg: "var(--aui-radius)",
+        md: "calc(var(--aui-radius) - 2px)",
+        sm: "calc(var(--aui-radius) - 4px)",
+      },
     },
   },
   plugins: [require("tailwindcss-animate")],

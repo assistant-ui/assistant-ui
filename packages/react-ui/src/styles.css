@@ -1,8 +1,8 @@
 .aui-root {
   @tailwind base;
-  @tailwind components;
-  @tailwind utilities;
 }
+@tailwind components;
+
 /* shadcn-ui/button */
 
 @layer components {
@@ -52,7 +52,7 @@
   /* shadcn-ui/tooltip */
 
   .aui-tooltip-content {
-    @apply fade-in-0 zoom-in-95 data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 animate-in bg-primary text-primary-foreground data-[state=closed]:animate-out z-50 overflow-hidden rounded-md px-3 py-1.5 text-xs;
+    @apply fade-in-0 zoom-in-95 data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 animate-aui-in bg-primary text-primary-foreground data-[state=closed]:animate-aui-out z-50 overflow-hidden rounded-md px-3 py-1.5 text-xs;
   }
 
   /* assistant-modal */
@@ -61,7 +61,7 @@
     @apply bg-popover text-popover-foreground z-50 h-[500px] w-[400px] overflow-clip rounded-xl border p-0 shadow-md outline-none;
     @apply [&>.aui-thread-root]:bg-inherit;
 
-    @apply data-[state=closed]:animate-out data-[state=open]:animate-in;
+    @apply data-[state=closed]:animate-aui-out data-[state=open]:animate-aui-in;
     @apply data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0;
     @apply data-[state=closed]:zoom-out data-[state=open]:zoom-in;
     @apply data-[state=open]:slide-in-from-bottom-1/2 data-[state=open]:slide-in-from-right-1/2 data-[state=closed]:slide-out-to-bottom-1/2 data-[state=closed]:slide-out-to-right-1/2;
@@ -227,12 +227,66 @@
 
   .aui-content-part-in-progress {
     @apply bg-foreground inline-block size-3 rounded-full;
-    @apply animate-[aui-pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite];
+    @apply animate-aui-pulse;
+  }
+
+  .animate-aui-pulse {
+    animation: aui-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
 
   @keyframes aui-pulse {
     50% {
       opacity: 0.5;
+    }
+  }
+  .animate-aui-in {
+    animation-name: aui-enter;
+    animation-duration: 150ms;
+    --tw-enter-opacity: initial;
+    --tw-enter-scale: initial;
+    --tw-enter-rotate: initial;
+    --tw-enter-translate-x: initial;
+    --tw-enter-translate-y: initial;
+  }
+  .animate-aui-out {
+    animation-name: aui-exit;
+    animation-duration: 150ms;
+    --tw-exit-opacity: initial;
+    --tw-exit-scale: initial;
+    --tw-exit-rotate: initial;
+    --tw-exit-translate-x: initial;
+    --tw-exit-translate-y: initial;
+  }
+  @keyframes aui-enter {
+    from {
+      opacity: var(--tw-enter-opacity, 1);
+      transform: translate3d(
+          var(--tw-enter-translate-x, 0),
+          var(--tw-enter-translate-y, 0),
+          0
+        )
+        scale3d(
+          var(--tw-enter-scale, 1),
+          var(--tw-enter-scale, 1),
+          var(--tw-enter-scale, 1)
+        )
+        rotate(var(--tw-enter-rotate, 0));
+    }
+  }
+  @keyframes aui-exit {
+    to {
+      opacity: var(--tw-exit-opacity, 1);
+      transform: translate3d(
+          var(--tw-exit-translate-x, 0),
+          var(--tw-exit-translate-y, 0),
+          0
+        )
+        scale3d(
+          var(--tw-exit-scale, 1),
+          var(--tw-exit-scale, 1),
+          var(--tw-exit-scale, 1)
+        )
+        rotate(var(--tw-exit-rotate, 0));
     }
   }
 }

@@ -24,83 +24,77 @@
     @apply animate-[aui-pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite];
   }
 
-  @keyframes aui-pulse {
-    50% {
-      opacity: 0.5;
-    }
-  }
-
   /* typography */
 
-  h1 {
+  .aui-md-root h1 {
     @apply mb-8 scroll-m-20 text-4xl font-extrabold tracking-tight last:mb-0;
   }
 
-  h2 {
+  .aui-md-root h2 {
     @apply mb-4 mt-8 scroll-m-20 text-3xl font-semibold tracking-tight first:mt-0 last:mb-0;
   }
 
-  h3 {
+  .aui-md-root h3 {
     @apply mb-4 mt-6 scroll-m-20 text-2xl font-semibold tracking-tight first:mt-0 last:mb-0;
   }
 
-  h4 {
+  .aui-md-root h4 {
     @apply mb-4 mt-6 scroll-m-20 text-xl font-semibold tracking-tight first:mt-0 last:mb-0;
   }
 
-  h5 {
+  .aui-md-root h5 {
     @apply my-4 text-lg font-semibold first:mt-0 last:mb-0;
   }
 
-  h6 {
+  .aui-md-root h6 {
     @apply my-4 font-semibold first:mt-0 last:mb-0;
   }
 
-  p {
+  .aui-md-root p {
     @apply mb-5 mt-5 leading-7 first:mt-0 last:mb-0;
   }
 
-  a {
+  .aui-md-root a {
     @apply text-primary font-medium underline underline-offset-4;
   }
 
-  blockquote {
+  .aui-md-root blockquote {
     @apply border-l-2 pl-6 italic;
   }
 
-  ul {
+  .aui-md-root ul {
     @apply my-5 ml-6 list-disc [&>li]:mt-2;
   }
 
-  ol {
+  .aui-md-root ol {
     @apply my-5 ml-6 list-decimal [&>li]:mt-2;
   }
 
-  hr {
+  .aui-md-root hr {
     @apply my-5 border-b;
   }
 
-  table {
+  .aui-md-root table {
     @apply my-5 w-full border-separate border-spacing-0 overflow-y-auto;
   }
 
-  th {
+  .aui-md-root th {
     @apply bg-muted px-4 py-2 text-left font-bold first:rounded-tl-lg last:rounded-tr-lg [&[align=center]]:text-center [&[align=right]]:text-right;
   }
 
-  td {
+  .aui-md-root td {
     @apply border-b border-l px-4 py-2 text-left last:border-r [&[align=center]]:text-center [&[align=right]]:text-right;
   }
 
-  tr {
+  .aui-md-root tr {
     @apply m-0 border-b p-0 first:border-t [&:last-child>td:first-child]:rounded-bl-lg [&:last-child>td:last-child]:rounded-br-lg;
   }
 
-  sup {
+  .aui-md-root sup {
     @apply [&>a]:text-xs [&>a]:no-underline;
   }
 
-  code {
+  .aui-md-root code {
     @apply overflow-x-auto rounded-b-lg bg-black p-4 text-white;
   }
 }
