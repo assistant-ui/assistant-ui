@@ -87,6 +87,8 @@ export type StringsConfig = {
 const ThreadConfigContext = createContext<ThreadConfig>({});
 
 export type ThreadConfig = {
+  runtime?: AssistantRuntime;
+
   assistantAvatar?: AvatarProps;
 
   welcome?: ThreadWelcomeConfig;
@@ -96,7 +98,7 @@ export type ThreadConfig = {
   strings?: StringsConfig;
 };
 
-export const useThreadConfig = () => {
+export const useThreadConfig = (): Omit<ThreadConfig, "runtime"> => {
   return useContext(ThreadConfigContext);
 };
 
@@ -108,10 +110,16 @@ export const ThreadConfigProvider: FC<ThreadConfigProviderProps> = ({
   children,
   config,
 }) => {
-  return (
+  const configProvider = (
     <ThreadConfigContext.Provider value={config}>
       {children}
     </ThreadConfigContext.Provider>
+  );
+  if (!config.runtime) return configProvider;
+  return (
+    <AssistantRuntimeProvider runtime={config.runtime}>
+      {configProvider}
+    </AssistantRuntimeProvider>
   );
 };
 
