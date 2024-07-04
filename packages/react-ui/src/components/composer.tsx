@@ -1,7 +1,7 @@
 "use client";
 
 import { ComposerPrimitive, ThreadPrimitive } from "@assistant-ui/react";
-import { forwardRef, type FC } from "react";
+import { ComponentPropsWithoutRef, forwardRef, type FC } from "react";
 
 import { SendHorizonalIcon } from "lucide-react";
 import { styled } from "../styled";
@@ -13,14 +13,9 @@ import {
 import { CircleStopIcon } from "./base/CircleStopIcon";
 
 export const Composer: FC = () => {
-  const {
-    strings: {
-      composer: { input: { placeholder = "Write a message..." } = {} } = {},
-    } = {},
-  } = useThreadConfig();
   return (
     <ComposerRoot>
-      <ComposerInput placeholder={placeholder} />
+      <ComposerInput autoFocus />
       <ComposerSendOrCancel />
     </ComposerRoot>
   );
@@ -34,10 +29,23 @@ export const ComposerRoot = styled(ComposerPrimitive.Root, {
 
 ComposerRoot.displayName = "ComposerRoot";
 
-export const ComposerInput = styled(ComposerPrimitive.Input, {
+const ComposerInputStyled = styled(ComposerPrimitive.Input, {
   rows: 1,
   autoFocus: true,
   className: "aui-composer-input",
+});
+
+type ComposerInputProps = ComponentPropsWithoutRef<typeof ComposerInputStyled>;
+export const ComposerInput = forwardRef<
+  HTMLTextAreaElement,
+  ComposerInputProps
+>((props, ref) => {
+  const {
+    strings: {
+      composer: { input: { placeholder = "Write a message..." } = {} } = {},
+    } = {},
+  } = useThreadConfig();
+  return <ComposerInputStyled placeholder={placeholder} {...props} ref={ref} />;
 });
 
 ComposerInput.displayName = "ComposerInput";

@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-ui",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "license": "MIT",
   "exports": {
     ".": {
@@ -64,6 +64,7 @@
     "@types/node": "^20.14.9",
     "esbuild": "^0.23.0",
     "eslint-config-next": "14.2.4",
+    "postcss-nested": "^6.0.1",
     "tailwindcss": "^3.4.4",
     "tailwindcss-animate": "^1.0.7",
     "tsup": "^8.1.0",

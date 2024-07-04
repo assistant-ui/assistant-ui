@@ -40,7 +40,7 @@ export type ThreadRootProps = ThreadPrimitiveRootProps &
   ThreadConfigProviderProps;
 
 const ThreadRootStyled = styled(ThreadPrimitive.Root, {
-  className: "aui-thread-root",
+  className: "aui-root aui-thread-root",
 });
 
 export const ThreadRoot = forwardRef<HTMLDivElement, ThreadRootProps>(

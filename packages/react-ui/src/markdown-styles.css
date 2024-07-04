@@ -1,102 +1,106 @@
-/* in progress indicator */
-.aui-md-in-progress:empty::after,
-.aui-md-in-progress > :not(ol):not(ul):not(pre):last-child::after,
-.aui-md-in-progress > pre:last-child code::after,
-.aui-md-in-progress
-  > :is(ol, ul):last-child
-  > li:last-child:not(:has(* > li))::after,
-.aui-md-in-progress
-  > :is(ol, ul):last-child
-  > li:last-child
-  > :is(ol, ul):last-child
-  > li:last-child:not(:has(* > li))::after,
-.aui-md-in-progress
-  > :is(ol, ul):last-child
-  > li:last-child
-  > :is(ol, ul):last-child
-  > li:last-child
-  > :is(ol, ul):last-child
-  > li:last-child::after {
-  @apply font-sans content-['\25CF'] ltr:ml-1 rtl:mr-1;
-  @apply animate-[aui-pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite];
-}
+@tailwind components;
 
-@keyframes aui-pulse {
-  50% {
-    opacity: 0.5;
+@layer components {
+  /* in progress indicator */
+  .aui-md-in-progress:empty::after,
+  .aui-md-in-progress > :not(ol):not(ul):not(pre):last-child::after,
+  .aui-md-in-progress > pre:last-child code::after,
+  .aui-md-in-progress
+    > :is(ol, ul):last-child
+    > li:last-child:not(:has(* > li))::after,
+  .aui-md-in-progress
+    > :is(ol, ul):last-child
+    > li:last-child
+    > :is(ol, ul):last-child
+    > li:last-child:not(:has(* > li))::after,
+  .aui-md-in-progress
+    > :is(ol, ul):last-child
+    > li:last-child
+    > :is(ol, ul):last-child
+    > li:last-child
+    > :is(ol, ul):last-child
+    > li:last-child::after {
+    @apply font-sans content-['\25CF'] ltr:ml-1 rtl:mr-1;
+    @apply animate-[aui-pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite];
   }
-}
 
-/* typography */
+  @keyframes aui-pulse {
+    50% {
+      opacity: 0.5;
+    }
+  }
 
-.aui-md-h1 {
-  @apply mb-8 scroll-m-20 text-4xl font-extrabold tracking-tight last:mb-0;
-}
+  /* typography */
 
-.aui-md-h2 {
-  @apply mb-4 mt-8 scroll-m-20 text-3xl font-semibold tracking-tight first:mt-0 last:mb-0;
-}
+  h1 {
+    @apply mb-8 scroll-m-20 text-4xl font-extrabold tracking-tight last:mb-0;
+  }
 
-.aui-md-h3 {
-  @apply mb-4 mt-6 scroll-m-20 text-2xl font-semibold tracking-tight first:mt-0 last:mb-0;
-}
+  h2 {
+    @apply mb-4 mt-8 scroll-m-20 text-3xl font-semibold tracking-tight first:mt-0 last:mb-0;
+  }
 
-.aui-md-h4 {
-  @apply mb-4 mt-6 scroll-m-20 text-xl font-semibold tracking-tight first:mt-0 last:mb-0;
-}
+  h3 {
+    @apply mb-4 mt-6 scroll-m-20 text-2xl font-semibold tracking-tight first:mt-0 last:mb-0;
+  }
 
-.aui-md-h5 {
-  @apply my-4 text-lg font-semibold first:mt-0 last:mb-0;
-}
+  h4 {
+    @apply mb-4 mt-6 scroll-m-20 text-xl font-semibold tracking-tight first:mt-0 last:mb-0;
+  }
 
-.aui-md-h6 {
-  @apply my-4 font-semibold first:mt-0 last:mb-0;
-}
+  h5 {
+    @apply my-4 text-lg font-semibold first:mt-0 last:mb-0;
+  }
 
-.aui-md-p {
-  @apply mb-5 mt-5 leading-7 first:mt-0 last:mb-0;
-}
+  h6 {
+    @apply my-4 font-semibold first:mt-0 last:mb-0;
+  }
 
-.aui-md-a {
-  @apply text-primary font-medium underline underline-offset-4;
-}
+  p {
+    @apply mb-5 mt-5 leading-7 first:mt-0 last:mb-0;
+  }
 
-.aui-md-blockquote {
-  @apply border-l-2 pl-6 italic;
-}
+  a {
+    @apply text-primary font-medium underline underline-offset-4;
+  }
 
-.aui-md-ul {
-  @apply my-5 ml-6 list-disc [&>li]:mt-2;
-}
+  blockquote {
+    @apply border-l-2 pl-6 italic;
+  }
 
-.aui-md-ol {
-  @apply my-5 ml-6 list-decimal [&>li]:mt-2;
-}
+  ul {
+    @apply my-5 ml-6 list-disc [&>li]:mt-2;
+  }
 
-.aui-md-hr {
-  @apply my-5 border-b;
-}
+  ol {
+    @apply my-5 ml-6 list-decimal [&>li]:mt-2;
+  }
 
-.aui-md-table {
-  @apply my-5 w-full border-separate border-spacing-0 overflow-y-auto;
-}
+  hr {
+    @apply my-5 border-b;
+  }
 
-.aui-md-th {
-  @apply bg-muted px-4 py-2 text-left font-bold first:rounded-tl-lg last:rounded-tr-lg [&[align=center]]:text-center [&[align=right]]:text-right;
-}
+  table {
+    @apply my-5 w-full border-separate border-spacing-0 overflow-y-auto;
+  }
 
-.aui-md-td {
-  @apply border-b border-l px-4 py-2 text-left last:border-r [&[align=center]]:text-center [&[align=right]]:text-right;
-}
+  th {
+    @apply bg-muted px-4 py-2 text-left font-bold first:rounded-tl-lg last:rounded-tr-lg [&[align=center]]:text-center [&[align=right]]:text-right;
+  }
 
-.aui-md-tr {
-  @apply m-0 border-b p-0 first:border-t [&:last-child>td:first-child]:rounded-bl-lg [&:last-child>td:last-child]:rounded-br-lg;
-}
+  td {
+    @apply border-b border-l px-4 py-2 text-left last:border-r [&[align=center]]:text-center [&[align=right]]:text-right;
+  }
 
-.aui-md-sup {
-  @apply [&>a]:text-xs [&>a]:no-underline;
-}
+  tr {
+    @apply m-0 border-b p-0 first:border-t [&:last-child>td:first-child]:rounded-bl-lg [&:last-child>td:last-child]:rounded-br-lg;
+  }
 
-.aui-md-code {
-  @apply overflow-x-auto rounded-b-lg bg-black p-4 text-white;
+  sup {
+    @apply [&>a]:text-xs [&>a]:no-underline;
+  }
+
+  code {
+    @apply overflow-x-auto rounded-b-lg bg-black p-4 text-white;
+  }
 }

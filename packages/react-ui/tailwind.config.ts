@@ -3,7 +3,7 @@ import type { Config } from "tailwindcss";
 const config = {
   content: ["./src/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
   corePlugins: {
-    preflight: false,
+    backgroundOpacity: false,
   },
   theme: {
     container: {

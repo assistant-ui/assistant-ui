@@ -1,7 +1,8 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
+.aui-root {
+  @tailwind base;
+  @tailwind components;
+  @tailwind utilities;
+}
 /* shadcn-ui/button */
 
 @layer components {

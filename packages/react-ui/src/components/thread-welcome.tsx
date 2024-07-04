@@ -6,14 +6,10 @@ import { Avatar } from "./base/avatar";
 import { useThreadConfig } from "./thread-config";
 
 export const ThreadWelcome: FC = () => {
-  const {
-    assistantAvatar: avatar = { fallback: "A" },
-    welcome: { message } = { message: "How can I help you today?" },
-  } = useThreadConfig();
   return (
     <ThreadWelcomeRoot>
-      <Avatar {...avatar} />
-      <ThreadWelcomeMessage>{message}</ThreadWelcomeMessage>
+      <ThreadWelcomeAvatar />
+      <ThreadWelcomeMessage />
     </ThreadWelcomeRoot>
   );
 };
@@ -39,8 +35,31 @@ export const ThreadWelcomeRoot = forwardRef<
 
 ThreadWelcomeRoot.displayName = "ThreadWelcomeRoot";
 
-const ThreadWelcomeMessage = styled("p", {
+const ThreadWelcomeAvatar: FC = () => {
+  const { assistantAvatar: avatar = { fallback: "A" } } = useThreadConfig();
+  return <Avatar {...avatar} />;
+};
+
+const ThreadWelcomeMessageStyled = styled("p", {
   className: "aui-thread-welcome-message",
+});
+
+type ThreadWelcomeMessageProps = Omit<
+  ComponentPropsWithoutRef<typeof ThreadWelcomeMessageStyled>,
+  "children"
+> & { message?: string | undefined };
+
+const ThreadWelcomeMessage = forwardRef<
+  HTMLParagraphElement,
+  ThreadWelcomeMessageProps
+>(({ message: messageProp, ...rest }, ref) => {
+  const { welcome: { message } = { message: "How can I help you today?" } } =
+    useThreadConfig();
+  return (
+    <ThreadWelcomeMessageStyled {...rest} ref={ref}>
+      {messageProp ?? message}
+    </ThreadWelcomeMessageStyled>
+  );
 });
 
 ThreadWelcomeMessage.displayName = "ThreadWelcomeMessage";

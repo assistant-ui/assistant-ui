@@ -12,14 +12,10 @@ import { useThreadConfig } from "./thread-config";
 import { AssistantActionBar } from "./assistant-action-bar";
 
 export const AssistantMessage: FC = () => {
-  const {
-    assistantAvatar: avatar = { fallback: "A" },
-    assistantMessage: { components } = {},
-  } = useThreadConfig();
   return (
     <AssistantMessageRoot>
-      <Avatar {...avatar} />
-      <AssistantMessageContent components={components} />
+      <AssistantAvatar />
+      <AssistantMessageContent />
       <BranchPicker />
       <AssistantActionBar />
     </AssistantMessageRoot>
@@ -27,6 +23,11 @@ export const AssistantMessage: FC = () => {
 };
 
 AssistantMessage.displayName = "AssistantMessage";
+
+const AssistantAvatar: FC = () => {
+  const { assistantAvatar: avatar = { fallback: "A" } } = useThreadConfig();
+  return <Avatar {...avatar} />;
+};
 
 export const AssistantMessageRoot = styled(MessagePrimitive.Root, {
   className: "aui-assistant-message-root",
@@ -44,10 +45,11 @@ export type AssistantMessageContentProps = MessagePrimitiveContentProps &
 export const AssistantMessageContent = forwardRef<
   HTMLDivElement,
   AssistantMessageContentProps
->(({ components, ...rest }, ref) => {
+>(({ components: componentsProp, ...rest }, ref) => {
+  const { assistantMessage: { components } = {} } = useThreadConfig();
   return (
     <AssistantMessageContentWrapper {...rest} ref={ref}>
-      <MessagePrimitive.Content components={components} />
+      <MessagePrimitive.Content components={componentsProp ?? components} />
     </AssistantMessageContentWrapper>
   );
 });
