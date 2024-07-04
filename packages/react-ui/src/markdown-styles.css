@@ -55,7 +55,7 @@
   }
 
   .aui-md-root a {
-    @apply text-primary font-medium underline underline-offset-4;
+    @apply text-aui-primary font-medium underline underline-offset-4;
   }
 
   .aui-md-root blockquote {
@@ -79,7 +79,7 @@
   }
 
   .aui-md-root th {
-    @apply bg-muted px-4 py-2 text-left font-bold first:rounded-tl-lg last:rounded-tr-lg [&[align=center]]:text-center [&[align=right]]:text-right;
+    @apply bg-aui-muted px-4 py-2 text-left font-bold first:rounded-tl-lg last:rounded-tr-lg [&[align=center]]:text-center [&[align=right]]:text-right;
   }
 
   .aui-md-root td {

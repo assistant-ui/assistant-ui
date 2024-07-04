@@ -7,7 +7,7 @@
 
 @layer components {
   .aui-modal-content {
-    @apply bg-popover text-popover-foreground z-50 h-[500px] w-[400px] overflow-clip rounded-xl border p-0 shadow-md outline-none;
+    @apply bg-aui-popover text-aui-popover-foreground z-50 h-[500px] w-[400px] overflow-clip rounded-xl border p-0 shadow-md outline-none;
     @apply [&>.aui-thread-root]:bg-inherit;
 
     @apply data-[state=closed]:animate-aui-out data-[state=open]:animate-aui-in;
@@ -21,27 +21,27 @@
   }
 
   .aui-thread-viewport {
-    @apply bg-background flex h-full flex-col items-center overflow-y-scroll scroll-smooth px-4 pt-8;
+    @apply bg-aui-background flex h-full flex-col items-center overflow-y-scroll scroll-smooth px-4 pt-8;
   }
 
   .aui-thread-root {
-    @apply bg-background h-full;
+    @apply bg-aui-background box-border h-full;
     @apply [&>.aui-thread-viewport]:bg-inherit;
 
     .aui-button {
-      @apply focus-visible:ring-ring inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 disabled:pointer-events-none disabled:opacity-50;
+      @apply focus-visible:ring-aui-ring inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 disabled:pointer-events-none disabled:opacity-50;
     }
 
     .aui-button-primary {
-      @apply bg-primary text-primary-foreground hover:bg-primary/90 shadow;
+      @apply bg-aui-primary text-aui-primary-foreground hover:bg-aui-primary/90 shadow;
     }
 
     .aui-button-outline {
-      @apply border-input bg-background hover:bg-accent hover:text-accent-foreground border shadow-sm;
+      @apply border-aui-input bg-aui-background hover:bg-aui-accent hover:text-aui-accent-foreground border shadow-sm;
     }
 
     .aui-button-ghost {
-      @apply hover:bg-accent hover:text-accent-foreground;
+      @apply hover:bg-aui-accent hover:text-aui-accent-foreground;
     }
 
     .aui-button-medium {
@@ -68,13 +68,13 @@
     }
 
     .aui-avatar-fallback {
-      @apply bg-muted flex h-full w-full items-center justify-center rounded-full;
+      @apply bg-aui-muted flex h-full w-full items-center justify-center rounded-full;
     }
 
     /* shadcn-ui/tooltip */
 
     .aui-tooltip-content {
-      @apply fade-in-0 zoom-in-95 data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 animate-aui-in bg-primary text-primary-foreground data-[state=closed]:animate-aui-out z-50 overflow-hidden rounded-md px-3 py-1.5 text-xs;
+      @apply fade-in-0 zoom-in-95 data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 animate-aui-in bg-aui-primary text-aui-primary-foreground data-[state=closed]:animate-aui-out z-50 overflow-hidden rounded-md px-3 py-1.5 text-xs;
     }
 
     /* modal */
@@ -122,7 +122,7 @@
     }
 
     .aui-composer-input {
-      @apply placeholder:text-muted-foreground size-full max-h-40 resize-none bg-transparent p-4 pr-12 text-sm outline-none;
+      @apply placeholder:text-aui-muted-foreground size-full max-h-40 resize-none bg-transparent p-4 pr-12 text-sm outline-none;
     }
 
     .aui-composer-send,
@@ -151,7 +151,7 @@
     }
 
     .aui-user-message-content {
-      @apply bg-muted text-foreground max-w-xl break-words rounded-3xl px-5 py-2.5;
+      @apply bg-aui-muted text-aui-foreground max-w-xl break-words rounded-3xl px-5 py-2.5;
     }
 
     /* user-action-bar */
@@ -163,11 +163,11 @@
     /* edit-composer */
 
     .aui-edit-composer-root {
-      @apply bg-muted my-4 flex w-full max-w-2xl flex-col gap-2 rounded-xl;
+      @apply bg-aui-muted my-4 flex w-full max-w-2xl flex-col gap-2 rounded-xl;
     }
 
     .aui-edit-composer-input {
-      @apply text-foreground flex h-8 w-full resize-none bg-transparent p-4 pb-0 outline-none;
+      @apply text-aui-foreground flex h-8 w-full resize-none bg-transparent p-4 pb-0 outline-none;
     }
 
     .aui-edit-composer-footer {
@@ -200,22 +200,22 @@
     }
 
     .aui-assistant-message-content {
-      @apply text-foreground max-w-xl break-words leading-7;
+      @apply text-aui-foreground max-w-xl break-words leading-7;
     }
 
     /* assistant-action-bar */
 
     .aui-assistant-action-bar-root {
-      @apply text-muted-foreground flex gap-1;
+      @apply text-aui-muted-foreground flex gap-1;
     }
     .aui-assistant-action-bar-root[data-floating] {
-      @apply bg-background absolute rounded-md border p-1 shadow-sm;
+      @apply bg-aui-background absolute rounded-md border p-1 shadow-sm;
     }
 
     /* branch-picker */
 
     .aui-branch-picker-root {
-      @apply text-muted-foreground inline-flex items-center text-xs;
+      @apply text-aui-muted-foreground inline-flex items-center text-xs;
     }
 
     .aui-branch-picker-state {
