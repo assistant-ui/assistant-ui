@@ -41,16 +41,6 @@
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
       }
-    },
-    "./experimental": {
-      "import": {
-        "types": "./dist/experimental.d.mts",
-        "default": "./dist/experimental.mjs"
-      },
-      "require": {
-        "types": "./dist/experimental.d.ts",
-        "default": "./dist/experimental.js"
-      }
     }
   },
   "source": "./src/index.ts",
@@ -63,7 +53,7 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsup src/index.ts src/experimental.ts --format cjs,esm --dts --sourcemap"
+    "build": "tsup src/index.ts --format cjs,esm --dts --sourcemap"
   },
   "dependencies": {
     "@radix-ui/primitive": "^1.1.0",
