@@ -6,7 +6,9 @@ export type ContentPartPrimitiveDisplayProps = {};
 export const ContentPartPrimitiveDisplay: FC<
   ContentPartPrimitiveDisplayProps
 > = () => {
-  const display = useContentPartDisplay();
+  const {
+    part: { display },
+  } = useContentPartDisplay();
   return display ?? null;
 };
 

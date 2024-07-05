@@ -1,4 +1,5 @@
 import { useContentPartContext } from "../../context/react/ContentPartContext";
+import { ImageContentPartState } from "../../context/stores/ContentPart";
 
 export const useContentPartImage = () => {
   const { useContentPart } = useContentPartContext();
@@ -9,7 +10,7 @@ export const useContentPartImage = () => {
         "ContentPartImage can only be used inside image content parts.",
       );
 
-    return c.part.image;
+    return c as ImageContentPartState;
   });
 
   return image;

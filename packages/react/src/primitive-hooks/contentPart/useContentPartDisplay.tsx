@@ -1,4 +1,5 @@
 import { useContentPartContext } from "../../context/react/ContentPartContext";
+import { UIContentPartState } from "../../context/stores/ContentPart";
 
 export const useContentPartDisplay = () => {
   const { useContentPart } = useContentPartContext();
@@ -9,7 +10,7 @@ export const useContentPartDisplay = () => {
         "This component can only be used inside ui content parts.",
       );
 
-    return c.part.display;
+    return c as UIContentPartState;
   });
 
   return display;

@@ -18,6 +18,7 @@ const MarkdownTextImpl: FC<
         (!!className ? " " + className : "")
       }
       remarkPlugins={[remarkGfm, ...(remarkPlugins ?? [])]}
+      smooth // TODO figure out the default for this
       {...rest}
     />
   );
