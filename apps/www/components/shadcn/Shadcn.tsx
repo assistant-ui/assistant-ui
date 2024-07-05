@@ -1,5 +1,6 @@
 import { ArchiveIcon, EditIcon, MenuIcon, ShareIcon } from "lucide-react";
 import Link from "next/link";
+import remarkGfm from "remark-gfm";
 
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -7,11 +8,13 @@ import icon from "@/public/favicon/favicon.svg";
 import type { TooltipContentProps } from "@radix-ui/react-tooltip";
 import Image from "next/image";
 import { type FC } from "react";
-import { MarkdownText, Thread } from "@assistant-ui/react-ui";
+import { makeMarkdownText, Thread } from "@assistant-ui/react-ui";
 import { Sheet, SheetContent, SheetTrigger } from "../ui/sheet";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { ModelPicker } from "./ModelPicker";
 import { useSwitchToNewThread } from "@assistant-ui/react";
+
+const MarkdownText = makeMarkdownText({ remarkPlugins: [remarkGfm] });
 
 type ButtonWithTooltipProps = ButtonProps & {
   tooltip: string;

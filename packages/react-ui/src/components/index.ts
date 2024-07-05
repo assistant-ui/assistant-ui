@@ -88,7 +88,7 @@ export {
 
 export { Text } from "./text";
 
-export { MarkdownText } from "./markdown-text";
+export { makeMarkdownText } from "./markdown-text";
 
 export { Reset } from "./base/reset";
 export {
