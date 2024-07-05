@@ -15,6 +15,47 @@ export const AssistantRuntimeProviderProps = () => {
               type: "AssistantRuntime",
               parameters: [
                 {
+                  name: "capabilities",
+                  type: "RuntimeCapabilities",
+                  required: true,
+                  description: "The capabilities of the runtime.",
+                  children: [
+                    {
+                      type: "RuntimeCapability",
+                      parameters: [
+                        {
+                          name: "edit",
+                          type: "boolean",
+                          required: true,
+                          description:
+                            "Whether the runtime supports editing messages.",
+                        },
+                        {
+                          name: "reload",
+                          type: "boolean",
+                          required: true,
+                          description:
+                            "Whether the runtime supports reloading messages.",
+                        },
+                        {
+                          name: "cancel",
+                          type: "boolean",
+                          required: true,
+                          description:
+                            "Whether the runtime supports cancelling runs.",
+                        },
+                        {
+                          name: "copy",
+                          type: "boolean",
+                          required: true,
+                          description:
+                            "Whether the runtime supports copying messages.",
+                        },
+                      ],
+                    },
+                  ],
+                },
+                {
                   name: "messages",
                   type: "readonly ThreadMessage[]",
                   required: true,
