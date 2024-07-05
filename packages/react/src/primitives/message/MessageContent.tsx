@@ -39,7 +39,7 @@ export type MessagePrimitiveContentProps = {
 const defaultComponents = {
   Text: () => (
     <p style={{ whiteSpace: "pre-line" }}>
-      <ContentPartPrimitiveText smooth />
+      <ContentPartPrimitiveText />
       <ContentPartPrimitiveInProgress>
         <span style={{ fontFamily: "revert" }}>{" \u25CF"}</span>
       </ContentPartPrimitiveInProgress>

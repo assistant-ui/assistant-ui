@@ -7,14 +7,16 @@ type MarkdownTextProps = Partial<MarkdownTextPrimitiveProps>;
 
 export const makeMarkdownText = ({
   className,
+  smooth = true,
   ...rest
 }: MarkdownTextProps = {}) => {
   const MarkdownTextImpl: FC<TextContentPartProps> = ({ status }) => {
     return (
       <MarkdownTextPrimitive
+        smooth={smooth}
         className={
           "aui-md-root" +
-          (status === "in_progress" ? " aui-md aui-md-in-progress" : "") +
+          (status === "in_progress" ? " aui-md-in-progress" : "") +
           (!!className ? " " + className : "")
         }
         {...rest}

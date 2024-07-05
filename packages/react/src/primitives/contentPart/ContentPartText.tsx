@@ -14,7 +14,7 @@ export type ContentPartPrimitiveTextProps = Omit<
 export const ContentPartPrimitiveText = forwardRef<
   ContentPartPrimitiveTextElement,
   ContentPartPrimitiveTextProps
->(({ smooth, ...rest }, forwardedRef) => {
+>(({ smooth = true, ...rest }, forwardedRef) => {
   const {
     status,
     part: { text },

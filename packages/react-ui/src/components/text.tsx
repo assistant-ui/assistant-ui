@@ -11,7 +11,7 @@ export const Text: FC<TextContentPartProps> = ({ status }) => {
         "aui-text" + (status === "in_progress" ? " aui-text-in-progress" : "")
       }
     >
-      <ContentPartPrimitive.Text smooth />
+      <ContentPartPrimitive.Text />
     </p>
   );
 };

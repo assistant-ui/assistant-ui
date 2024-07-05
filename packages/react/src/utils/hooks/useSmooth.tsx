@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 class TextStreamAnimator {
   private animationFrameId: number | null = null;
   private lastUpdateTime: number = Date.now();
-  private decayFactor: number = 0.99;
 
   public targetText: string = "";
 
@@ -13,6 +12,7 @@ class TextStreamAnimator {
 
   start() {
     if (this.animationFrameId !== null) return;
+    this.lastUpdateTime = Date.now();
     this.animate();
   }
 
@@ -26,7 +26,7 @@ class TextStreamAnimator {
   private animate = () => {
     const currentTime = Date.now();
     const deltaTime = currentTime - this.lastUpdateTime;
-    this.lastUpdateTime = currentTime;
+    let timeToConsume = deltaTime;
 
     this.setText((currentText) => {
       const targetText = this.targetText;
@@ -37,14 +37,22 @@ class TextStreamAnimator {
       }
 
       const remainingChars = targetText.length - currentText.length;
-      const charsToAdd = Math.max(
-        1,
-        Math.floor(
-          remainingChars * (1 - Math.pow(this.decayFactor, deltaTime)),
-        ),
-      );
-      const newText = targetText.slice(0, currentText.length + charsToAdd);
+      const baseTimePerChar = Math.min(5, 250 / remainingChars);
+
+      let charsToAdd = 0;
+      while (timeToConsume >= baseTimePerChar && charsToAdd < remainingChars) {
+        charsToAdd++;
+        timeToConsume -= baseTimePerChar;
+      }
+
       this.animationFrameId = requestAnimationFrame(this.animate);
+
+      if (charsToAdd === 0) {
+        return currentText;
+      }
+
+      const newText = targetText.slice(0, currentText.length + charsToAdd);
+      this.lastUpdateTime = currentTime - timeToConsume;
       return newText;
     });
   };
@@ -57,6 +65,7 @@ export const useSmooth = (text: string, smooth: boolean = false) => {
   );
 
   useEffect(() => {
+    console.log("smooth", smooth);
     if (!smooth) {
       animatorRef.stop();
       return;
@@ -71,6 +80,7 @@ export const useSmooth = (text: string, smooth: boolean = false) => {
 
     animatorRef.targetText = text;
     animatorRef.start();
+    console.log("animating");
   }, [animatorRef, smooth, text]);
 
   useEffect(() => {
