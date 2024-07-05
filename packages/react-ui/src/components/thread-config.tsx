@@ -7,7 +7,6 @@ import { AvatarProps } from "./base/avatar";
 import { AssistantRuntime } from "@assistant-ui/react";
 
 export type SuggestionConfig = {
-  icon?: string;
   text: string;
   prompt?: string;
 };
