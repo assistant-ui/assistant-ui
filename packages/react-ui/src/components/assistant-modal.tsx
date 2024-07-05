@@ -59,7 +59,7 @@ export const AssistantModalTrigger = forwardRef<
 AssistantModalTrigger.displayName = "AssistantModalTrigger";
 
 const AssistantModalAnchor = styled(AssistantModalPrimitive.Anchor, {
-  className: "aui-root aui-assistant-anchor",
+  className: "aui-root aui-modal-anchor",
 });
 
 AssistantModalAnchor.displayName = "AssistantModalAnchor";
