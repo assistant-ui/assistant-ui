@@ -81,9 +81,11 @@ export {
   ThreadWelcomeRoot,
   ThreadWelcomeAvatar,
   ThreadWelcomeMessage,
+  ThreadWelcomeCenter,
   type ThreadWelcomeMessageProps,
   ThreadWelcomeSuggestions,
   ThreadWelcomeSuggestion,
+  type ThreadWelcomeSuggestionProps,
 } from "./thread-welcome";
 
 export { Text } from "./text";

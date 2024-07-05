@@ -135,7 +135,22 @@ export const Shadcn = () => {
         <Header />
       </div>
       <div className="bg-background overflow-hidden">
-        <Thread assistantMessage={{ components: { Text: MarkdownText } }} />
+        <Thread
+          assistantMessage={{ components: { Text: MarkdownText } }}
+          welcome={{
+            suggestions: [
+              {
+                text: "Write a poem",
+                prompt: "Write me a poem about the weather",
+              },
+              {
+                text: "What is assistant-ui?",
+                prompt:
+                  "Psst: assistant-ui is a react component library for AI chatbots.\n\nWhat is assistant-ui?",
+              },
+            ],
+          }}
+        />
       </div>
     </div>
   );

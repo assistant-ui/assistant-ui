@@ -72,10 +72,10 @@ const config = {
             DEFAULT: "hsl(var(--aui-popover))",
             foreground: "hsl(var(--aui-popover-foreground))",
           },
-          //   card: {
-          //     DEFAULT: "hsl(var(--aui-card))",
-          //     foreground: "hsl(var(--aui-card-foreground))",
-          //   },
+          card: {
+            DEFAULT: "hsl(var(--aui-card))",
+            foreground: "hsl(var(--aui-card-foreground))",
+          },
         },
       },
       borderRadius: {

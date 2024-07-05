@@ -8,8 +8,10 @@ import { SuggestionConfig, useThreadConfig } from "./thread-config";
 export const ThreadWelcome: FC = () => {
   return (
     <ThreadWelcomeRoot>
-      <ThreadWelcomeAvatar />
-      <ThreadWelcomeMessage />
+      <ThreadWelcomeCenter>
+        <ThreadWelcomeAvatar />
+        <ThreadWelcomeMessage />
+      </ThreadWelcomeCenter>
       <ThreadWelcomeSuggestions />
     </ThreadWelcomeRoot>
   );
@@ -19,6 +21,10 @@ ThreadWelcome.displayName = "ThreadWelcome";
 
 const ThreadWelcomeRootStyled = styled("div", {
   className: "aui-thread-welcome-root",
+});
+
+export const ThreadWelcomeCenter = styled("div", {
+  className: "aui-thread-welcome-center",
 });
 
 type ThreadWelcomeRootProps = ComponentPropsWithoutRef<"div">;
@@ -95,12 +101,10 @@ export const ThreadWelcomeSuggestions: FC = () => {
   const { welcome: { suggestions } = {} } = useThreadConfig();
   return (
     <ThreadWelcomeSuggestionContainer>
-      {suggestions?.map((suggestion) => (
-        <ThreadWelcomeSuggestion
-          key={suggestion.prompt}
-          suggestion={suggestion}
-        />
-      ))}
+      {suggestions?.map((suggestion, idx) => {
+        const key = `${suggestion.prompt}-${idx}`;
+        return <ThreadWelcomeSuggestion key={key} suggestion={suggestion} />;
+      })}
     </ThreadWelcomeSuggestionContainer>
   );
 };

@@ -118,17 +118,33 @@
     /* thread-welcome */
 
     .aui-thread-welcome-root {
-      @apply flex flex-grow basis-full flex-col items-center justify-center;
+      @apply flex w-full max-w-2xl flex-grow basis-full flex-col;
+    }
+
+    .aui-thread-welcome-center {
+      @apply flex w-full flex-grow flex-col items-center justify-center;
     }
 
     .aui-thread-welcome-message {
       @apply mt-4 font-medium;
     }
 
+    .aui-thread-welcome-suggestion-container {
+      @apply mt-4 flex w-full items-stretch justify-center gap-4;
+    }
+
+    .aui-thread-welcome-suggestion {
+      @apply bg-aui-card flex max-w-sm grow basis-0 flex-col items-center justify-center rounded-lg border px-3 py-3;
+    }
+
+    .aui-thread-welcome-suggestion-text {
+      @apply line-clamp-2 text-ellipsis text-sm font-semibold;
+    }
+
     /* composer */
 
     .aui-composer-root {
-      @apply relative flex w-full items-end rounded-lg border transition-shadow focus-within:shadow-sm;
+      @apply bg-aui-card relative flex w-full items-end rounded-lg border transition-shadow focus-within:shadow-sm;
     }
 
     .aui-composer-input {
