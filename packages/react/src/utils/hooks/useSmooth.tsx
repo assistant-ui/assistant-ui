@@ -5,20 +5,16 @@ class TextStreamAnimator {
   private lastUpdateTime: number = Date.now();
   private decayFactor: number = 0.99;
 
-  private _targetText: string = "";
-  get targetText() {
-    return this._targetText;
-  }
-  set targetText(targetText: string) {
-    this._targetText = targetText;
-    if (this.animationFrameId === null) {
-      this.animate();
-    }
-  }
+  public targetText: string = "";
 
   constructor(
     private setText: (callback: (prevText: string) => string) => void,
   ) {}
+
+  start() {
+    if (this.animationFrameId !== null) return;
+    this.animate();
+  }
 
   stop() {
     if (this.animationFrameId !== null) {
@@ -33,7 +29,7 @@ class TextStreamAnimator {
     this.lastUpdateTime = currentTime;
 
     this.setText((currentText) => {
-      const targetText = this._targetText;
+      const targetText = this.targetText;
 
       if (currentText === targetText) {
         this.animationFrameId = null;
@@ -68,11 +64,13 @@ export const useSmooth = (text: string, smooth: boolean = false) => {
 
     if (!text.startsWith(animatorRef.targetText)) {
       setDisplayedText(text);
+      animatorRef.targetText = text;
       animatorRef.stop();
       return;
     }
 
     animatorRef.targetText = text;
+    animatorRef.start();
   }, [animatorRef, smooth, text]);
 
   useEffect(() => {
