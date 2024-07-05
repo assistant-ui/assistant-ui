@@ -684,7 +684,7 @@ importers:
   packages/react-markdown:
     dependencies:
       '@assistant-ui/react':
-        specifier: ^0.3.0
+        specifier: ^0.3.2
         version: link:../react
       '@types/react':
         specifier: '*'
@@ -712,7 +712,7 @@ importers:
   packages/react-ui:
     dependencies:
       '@assistant-ui/react':
-        specifier: ^0.3.1
+        specifier: ^0.3.2
         version: link:../react
       '@assistant-ui/react-markdown':
         specifier: workspace:*

@@ -1,5 +1,13 @@
 # @assistant-ui/react-markdown
 
+## 0.0.4
+
+### Patch Changes
+
+- 1a8919b: feat: smooth text streaming
+- Updated dependencies [1a8919b]
+  - @assistant-ui/react@0.3.2
+
 ## 0.0.3
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-ui",
-  "version": "0.0.14",
+  "version": "0.0.15",
   "license": "MIT",
   "exports": {
     ".": {
@@ -54,7 +54,7 @@
     "remark-gfm": "^4.0.0"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.3.1",
+    "@assistant-ui/react": "^0.3.2",
     "@types/react": "*",
     "react": "^18"
   },
