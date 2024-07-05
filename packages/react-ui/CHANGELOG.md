@@ -1,5 +1,14 @@
 # @assistant-ui/react-ui
 
+## 0.0.16
+
+### Patch Changes
+
+- 82bf546: feat: Thread Welcome Suggestions
+- b5aa29f: feat: smooth streaming by default
+- Updated dependencies [b5aa29f]
+  - @assistant-ui/react@0.3.3
+
 ## 0.0.15
 
 ### Patch Changes

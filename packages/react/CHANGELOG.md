@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.3.3
+
+### Patch Changes
+
+- b5aa29f: feat: smooth streaming by default
+
 ## 0.3.2
 
 ### Patch Changes
