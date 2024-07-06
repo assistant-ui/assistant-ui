@@ -13,6 +13,16 @@
         "default": "./dist/index.js"
       }
     },
+    "./tailwindcss": {
+      "import": {
+        "types": "./dist/tailwindcss.d.mts",
+        "default": "./dist/tailwindcss.mjs"
+      },
+      "require": {
+        "types": "./dist/tailwindcss.d.ts",
+        "default": "./dist/tailwindcss.js"
+      }
+    },
     "./styles.css": {
       "types": "./dist/styles.css.d.ts",
       "default": "./dist/styles.css"
@@ -39,7 +49,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsup"
+    "build": "tsup && tsup --config tsup.plugin.config.ts"
   },
   "dependencies": {
     "@assistant-ui/react-markdown": "workspace:*",

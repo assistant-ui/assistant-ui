@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import auiPlugin from "@assistant-ui/react-ui/tailwindcss";
 
 const config = {
   darkMode: "class",
@@ -76,7 +77,13 @@ const config = {
       },
     },
   },
-  plugins: [require("@tailwindcss/typography"), require("tailwindcss-animate")],
+  plugins: [
+    require("@tailwindcss/typography"),
+    require("tailwindcss-animate"),
+    auiPlugin({
+      components: ["thread", "assistant-modal", "markdown"],
+    }),
+  ],
 } satisfies Config;
 
 export default config;
