@@ -2,10 +2,16 @@
   "extends": "@assistant-ui/tsconfig/base.json",
   "compilerOptions": {
     "paths": {
-      "@/*": ["./*"],
       "@assistant-ui/*": ["../../packages/*/src"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    "../react-markdown/src/PreOverride.tsx",
+    "../react-markdown/src/CodeOverride.tsx",
+    "../react-markdown/src/syntax-highlighter.tsx"
+  ],
   "exclude": ["node_modules"]
 }

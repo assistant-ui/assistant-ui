@@ -94,7 +94,19 @@
     @apply [&>a]:text-xs [&>a]:no-underline;
   }
 
-  .aui-md-root code {
+  .aui-md-root pre {
     @apply overflow-x-auto rounded-b-lg bg-black p-4 text-white;
+  }
+
+  .aui-md-root :not(pre) code {
+    @apply bg-aui-muted rounded border font-semibold;
+  }
+
+  .aui-code-header-root {
+    @apply flex items-center justify-between gap-4 rounded-t-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white;
+  }
+
+  .aui-code-header-language {
+    @apply lowercase [&>span]:text-xs;
   }
 }

@@ -1,7 +1,38 @@
 import icon from "@/public/favicon/favicon.svg";
 import Image from "next/image";
 import { type DocsThemeConfig, useConfig } from "nextra-theme-docs";
-import React from "react";
+import React, { FC, PropsWithChildren } from "react";
+
+const Head: FC = () => {
+  const { frontMatter, title } = useConfig();
+  const description =
+    frontMatter["description"] ?? "React Components for AI Chat";
+  const hasTitle = title !== "Index";
+  return (
+    <>
+      <title>{hasTitle ? `${title} - assistant-ui` : "assistant-ui"}</title>
+      <meta name="description" content={description} />
+      <meta property="og:title" content={title} />
+      <meta property="og:description" content={description} />
+    </>
+  );
+};
+
+const Main: FC<PropsWithChildren> = ({ children }) => {
+  const { frontMatter, normalizePagesResult } = useConfig();
+  return (
+    <>
+      <p className="mb-2 mt-4 text-sm font-bold text-[hsl(var(--nextra-primary-hue)_var(--nextra-primary-saturation)_45%)]">
+        {normalizePagesResult.activePath.at(-2)?.title}
+      </p>
+      <h1 className="text-foreground mb-2 inline-block text-2xl font-extrabold tracking-tight sm:text-3xl">
+        {frontMatter["title"]}
+      </h1>
+      <p>{frontMatter["description"]}</p>
+      {children}
+    </>
+  );
+};
 
 const config: DocsThemeConfig = {
   color: {
@@ -25,35 +56,8 @@ const config: DocsThemeConfig = {
   feedback: { content: null },
   editLink: { component: null },
   toc: { title: null, backToTop: false },
-  main: ({ children }) => {
-    const { frontMatter, normalizePagesResult } = useConfig();
-    return (
-      <>
-        <p className="mb-2 mt-4 text-sm font-bold text-[hsl(var(--nextra-primary-hue)_var(--nextra-primary-saturation)_45%)]">
-          {normalizePagesResult.activePath.at(-2)?.title}
-        </p>
-        <h1 className="text-foreground mb-2 inline-block text-2xl font-extrabold tracking-tight sm:text-3xl">
-          {frontMatter["title"]}
-        </h1>
-        <p>{frontMatter["description"]}</p>
-        {children}
-      </>
-    );
-  },
-  head: () => {
-    const { frontMatter, title } = useConfig();
-    const description =
-      frontMatter["description"] ?? "React Components for AI Chat";
-    const hasTitle = title !== "Index";
-    return (
-      <>
-        <title>{hasTitle ? `${title} - assistant-ui` : "assistant-ui"}</title>
-        <meta name="description" content={description} />
-        <meta property="og:title" content={title} />
-        <meta property="og:description" content={description} />
-      </>
-    );
-  },
+  main: Main,
+  head: Head,
 };
 
 export default config;

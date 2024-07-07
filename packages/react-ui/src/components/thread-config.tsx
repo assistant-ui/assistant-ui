@@ -92,6 +92,13 @@ export type StringsConfig = {
       label?: string | undefined;
     };
   };
+  code?: {
+    header?: {
+      copy?: {
+        tooltip?: string | undefined;
+      };
+    };
+  };
 };
 
 const ThreadConfigContext = createContext<ThreadConfig>({});

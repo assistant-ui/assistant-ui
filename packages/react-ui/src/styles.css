@@ -134,7 +134,7 @@
     }
 
     .aui-thread-welcome-suggestion {
-      @apply bg-aui-card flex max-w-sm grow basis-0 flex-col items-center justify-center rounded-lg border px-3 py-3;
+      @apply flex max-w-sm grow basis-0 flex-col items-center justify-center rounded-lg border px-3 py-3;
     }
 
     .aui-thread-welcome-suggestion-text {
@@ -144,7 +144,7 @@
     /* composer */
 
     .aui-composer-root {
-      @apply bg-aui-card relative flex w-full items-end rounded-lg border transition-shadow focus-within:shadow-sm;
+      @apply relative flex w-full items-end rounded-lg border transition-shadow focus-within:shadow-sm;
     }
 
     .aui-composer-input {

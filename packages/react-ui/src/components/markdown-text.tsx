@@ -1,29 +1,35 @@
 import { MarkdownTextPrimitive } from "@assistant-ui/react-markdown";
-import { FC } from "react";
-import { MarkdownTextPrimitiveProps } from "@assistant-ui/react-markdown";
 import { TextContentPartProps } from "@assistant-ui/react";
+import { CodeHeader } from "./code/code-header";
+import { MarkdownTextPrimitiveProps } from "@assistant-ui/react-markdown";
+import { FC, memo } from "react";
 
-type MarkdownTextProps = Partial<MarkdownTextPrimitiveProps>;
+type MakeMarkdownTextProps = MarkdownTextPrimitiveProps;
 
 export const makeMarkdownText = ({
   className,
-  smooth = true,
+  components: userComponents,
   ...rest
-}: MarkdownTextProps = {}) => {
+}: MakeMarkdownTextProps = {}) => {
+  const components = {
+    ...userComponents,
+    CodeHeader: userComponents?.CodeHeader ?? CodeHeader,
+  };
+
   const MarkdownTextImpl: FC<TextContentPartProps> = ({ status }) => {
     return (
-      <MarkdownTextPrimitive
-        smooth={smooth}
+      <div
         className={
           "aui-md-root" +
           (status === "in_progress" ? " aui-md-in-progress" : "") +
           (!!className ? " " + className : "")
         }
-        {...rest}
-      />
+      >
+        <MarkdownTextPrimitive components={components} {...rest} />
+      </div>
     );
   };
   MarkdownTextImpl.displayName = "MarkdownText";
 
-  return MarkdownTextImpl;
+  return memo(MarkdownTextImpl, (prev, next) => prev.status === next.status);
 };

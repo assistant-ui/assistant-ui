@@ -29,9 +29,10 @@ export const useActionBarCopy = ({
 
     const valueToCopy = isEditing ? composerValue : getMessageText(message);
 
-    navigator.clipboard.writeText(valueToCopy);
-    setIsCopied(true);
-    setTimeout(() => setIsCopied(false), copiedDuration);
+    navigator.clipboard.writeText(valueToCopy).then(() => {
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), copiedDuration);
+    });
   }, [useMessage, useMessageUtils, useEditComposer, copiedDuration]);
 
   if (!hasCopyableContent) return null;

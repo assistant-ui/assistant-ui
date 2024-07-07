@@ -8,13 +8,29 @@ import icon from "@/public/favicon/favicon.svg";
 import type { TooltipContentProps } from "@radix-ui/react-tooltip";
 import Image from "next/image";
 import { type FC } from "react";
-import { makeMarkdownText, Thread } from "@assistant-ui/react-ui";
+import {
+  makePrismSyntaxHighlighter,
+  makeMarkdownText,
+  Thread,
+} from "@assistant-ui/react-ui";
 import { Sheet, SheetContent, SheetTrigger } from "../ui/sheet";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { ModelPicker } from "./ModelPicker";
 import { useSwitchToNewThread } from "@assistant-ui/react";
+import { coldarkDark } from "react-syntax-highlighter/dist/cjs/styles/prism";
 
-const MarkdownText = makeMarkdownText({ remarkPlugins: [remarkGfm] });
+const MarkdownText = makeMarkdownText({
+  remarkPlugins: [remarkGfm],
+  components: {
+    SyntaxHighlighter: makePrismSyntaxHighlighter({
+      style: coldarkDark,
+      customStyle: {
+        margin: 0,
+        backgroundColor: "black",
+      },
+    }),
+  },
+});
 
 type ButtonWithTooltipProps = ButtonProps & {
   tooltip: string;

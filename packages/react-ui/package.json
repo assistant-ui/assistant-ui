@@ -57,9 +57,11 @@
     "@radix-ui/react-primitive": "^2.0.0",
     "@radix-ui/react-slot": "^1.1.0",
     "@radix-ui/react-tooltip": "^1.1.2",
+    "@radix-ui/react-use-callback-ref": "^1.1.0",
     "class-variance-authority": "^0.7.0",
     "lucide-react": "^0.400.0",
-    "postcss": "^8.4.39"
+    "postcss": "^8.4.39",
+    "react-syntax-highlighter": "^15.5.0"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.3.3",
@@ -74,6 +76,7 @@
   "devDependencies": {
     "@assistant-ui/tsconfig": "workspace:*",
     "@types/node": "^20.14.9",
+    "@types/react-syntax-highlighter": "^15.5.13",
     "autoprefixer": "^10.4.19",
     "esbuild": "^0.23.0",
     "eslint-config-next": "14.2.4",

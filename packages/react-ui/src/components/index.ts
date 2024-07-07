@@ -90,9 +90,12 @@ export {
 
 export { Text } from "./text";
 
+export { CodeHeader } from "./code/code-header";
+
+export { makePrismSyntaxHighlighter } from "./code/react-syntax-highlighter";
+
 export { makeMarkdownText } from "./markdown-text";
 
-export { Reset } from "./base/reset";
 export {
   Avatar,
   AvatarRoot,

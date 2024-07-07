@@ -1,4 +1,5 @@
 "use client";
+
 import { ThreadPrimitive } from "@assistant-ui/react";
 import { ComponentPropsWithoutRef, forwardRef, type FC } from "react";
 import { styled } from "../styled";

@@ -76,10 +76,18 @@
   } */
 }
 
-pre {
+:not(.aui-md-root) > pre {
   background-color: hsl(var(--background)) !important;
-  --tw-ring-color: hsl(var(--border)) !important
-;
+  --tw-ring-color: hsl(var(--border)) !important;
+}
+
+pre code:not([class*="twoslash-"]) {
+  display: inherit;
+}
+
+pre code:not([class*="twoslash-"]) > span {
+  padding-left: unset;
+  padding-right: unset;
 }
 
 .nextra-nav-container-blur {
