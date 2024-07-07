@@ -53,7 +53,7 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts --sourcemap"
+    "build": "tsup src/index.ts --format cjs,esm --dts --sourcemap --clean"
   },
   "dependencies": {
     "@radix-ui/primitive": "^1.1.0",

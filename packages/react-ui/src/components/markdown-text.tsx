@@ -1,6 +1,6 @@
 import { MarkdownTextPrimitive } from "@assistant-ui/react-markdown";
 import { TextContentPartProps } from "@assistant-ui/react";
-import { CodeHeader } from "./code/code-header";
+import { CodeHeader } from "./code-header";
 import { MarkdownTextPrimitiveProps } from "@assistant-ui/react-markdown";
 import { FC, memo } from "react";
 

@@ -8,21 +8,18 @@ import icon from "@/public/favicon/favicon.svg";
 import type { TooltipContentProps } from "@radix-ui/react-tooltip";
 import Image from "next/image";
 import { type FC } from "react";
-import {
-  makePrismSyntaxHighlighter,
-  makeMarkdownText,
-  Thread,
-} from "@assistant-ui/react-ui";
+import { makeMarkdownText, Thread } from "@assistant-ui/react-ui";
 import { Sheet, SheetContent, SheetTrigger } from "../ui/sheet";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { ModelPicker } from "./ModelPicker";
 import { useSwitchToNewThread } from "@assistant-ui/react";
 import { coldarkDark } from "react-syntax-highlighter/dist/cjs/styles/prism";
+import { makePrismAsyncSyntaxHighlighter } from "@assistant-ui/react-syntax-highlighter";
 
 const MarkdownText = makeMarkdownText({
   remarkPlugins: [remarkGfm],
   components: {
-    SyntaxHighlighter: makePrismSyntaxHighlighter({
+    SyntaxHighlighter: makePrismAsyncSyntaxHighlighter({
       style: coldarkDark,
       customStyle: {
         margin: 0,

@@ -24,16 +24,16 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts --sourcemap"
+    "build": "tsup src/index.ts --format cjs,esm --dts --sourcemap --clean"
   },
   "dependencies": {
     "zod": "^3.23.8"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.3.0",
-    "react-hook-form": "^7.x.x",
     "@types/react": "*",
-    "react": "^18"
+    "react": "^18",
+    "react-hook-form": "^7.x.x"
   },
   "peerDependenciesMeta": {
     "@types/react": {
@@ -42,7 +42,7 @@
   },
   "devDependencies": {
     "@assistant-ui/tsconfig": "workspace:*",
-    "@types/node": "^20.14.9",
+    "eslint-config-next": "14.2.4",
     "tsup": "^8.1.0"
   },
   "publishConfig": {

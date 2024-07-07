@@ -24,7 +24,7 @@
   ],
   "bin": "./dist/index.js",
   "scripts": {
-    "build": "tsup src/index.ts --format esm --sourcemap"
+    "build": "tsup src/index.ts --format esm --sourcemap --clean"
   },
   "publishConfig": {
     "access": "public",

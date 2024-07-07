@@ -90,9 +90,7 @@ export {
 
 export { Text } from "./text";
 
-export { CodeHeader } from "./code/code-header";
-
-export { makePrismSyntaxHighlighter } from "./code/react-syntax-highlighter";
+export { CodeHeader } from "./code-header";
 
 export { makeMarkdownText } from "./markdown-text";
 

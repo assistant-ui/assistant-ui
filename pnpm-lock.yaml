@@ -38,6 +38,9 @@ importers:
       '@assistant-ui/react-ai-sdk':
         specifier: workspace:*
         version: link:../../packages/react-ai-sdk
+      '@assistant-ui/react-syntax-highlighter':
+        specifier: workspace:^
+        version: link:../../packages/react-syntax-highlighter
       '@assistant-ui/react-ui':
         specifier: workspace:*
         version: link:../../packages/react-ui
@@ -141,6 +144,9 @@ importers:
       '@types/react-dom':
         specifier: ^18
         version: 18.3.0
+      '@types/react-syntax-highlighter':
+        specifier: ^15.5.13
+        version: 15.5.13
       '@types/title':
         specifier: ^3.4.3
         version: 3.4.3
@@ -655,9 +661,9 @@ importers:
       '@assistant-ui/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
-      '@types/node':
-        specifier: ^20.14.9
-        version: 20.14.9
+      eslint-config-next:
+        specifier: 14.2.4
+        version: 14.2.4(eslint@8.57.0)(typescript@5.5.3)
 
   packages/react-hook-form:
     dependencies:
@@ -680,9 +686,9 @@ importers:
       '@assistant-ui/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
-      '@types/node':
-        specifier: ^20.14.9
-        version: 20.14.9
+      eslint-config-next:
+        specifier: 14.2.4
+        version: 14.2.4(eslint@8.57.0)(typescript@5.5.3)
       tsup:
         specifier: ^8.1.0
         version: 8.1.0(postcss@8.4.39)(typescript@5.5.3)
@@ -707,16 +713,44 @@ importers:
       react-markdown:
         specifier: ^9.0.1
         version: 9.0.1(@types/react@18.3.3)(react@18.3.1)
-      zod:
-        specifier: ^3.23.8
-        version: 3.23.8
     devDependencies:
       '@assistant-ui/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
-      '@types/node':
-        specifier: ^20.14.9
-        version: 20.14.9
+      eslint-config-next:
+        specifier: 14.2.4
+        version: 14.2.4(eslint@8.57.0)(typescript@5.5.3)
+      tsup:
+        specifier: ^8.1.0
+        version: 8.1.0(postcss@8.4.39)(typescript@5.5.3)
+
+  packages/react-syntax-highlighter:
+    dependencies:
+      '@assistant-ui/react':
+        specifier: ^0.3.2
+        version: link:../react
+      '@assistant-ui/react-markdown':
+        specifier: ^0.0.4
+        version: link:../react-markdown
+      '@types/react':
+        specifier: '*'
+        version: 18.3.3
+      '@types/react-syntax-highlighter':
+        specifier: '*'
+        version: 15.5.13
+      react:
+        specifier: ^18
+        version: 18.3.1
+      react-syntax-highlighter:
+        specifier: ^15.5.0
+        version: 15.5.0(react@18.3.1)
+    devDependencies:
+      '@assistant-ui/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      eslint-config-next:
+        specifier: 14.2.4
+        version: 14.2.4(eslint@8.57.0)(typescript@5.5.3)
       tsup:
         specifier: ^8.1.0
         version: 8.1.0(postcss@8.4.39)(typescript@5.5.3)

@@ -1,7 +1,7 @@
 import { FC } from "react";
-import { useThreadConfig } from "../thread-config";
-import { useCopyToClipboard } from "../../utils/useCopyToClipboard";
-import { TooltipIconButton } from "../base";
+import { useThreadConfig } from "./thread-config";
+import { useCopyToClipboard } from "../utils/useCopyToClipboard";
+import { TooltipIconButton } from "./base";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import type { CodeHeaderProps } from "@assistant-ui/react-markdown";
 
