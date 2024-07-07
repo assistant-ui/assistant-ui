@@ -16,12 +16,13 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { SendHorizonalIcon } from "lucide-react";
-import { ThreadPrimitiveNotEmpty } from "./ThreadNotEmptyHook";
-import AI_ThreadSuggestion from './AI_ThreadSuggestion';
-import ThreadSuggestion from './ThreadSuggestion';
+import AI_ThreadSuggestion from "./AI_ThreadSuggestion";
+import ThreadSuggestion from "./ThreadSuggestion";
 
-
-export const Thread: FC = () => {  {/* This is UI for ongoing chat */}
+export const Thread: FC = () => {
+  {
+    /* This is UI for ongoing chat */
+  }
   return (
     <TooltipProvider>
       <ThreadPrimitive.Root className="bg-background h-full">
@@ -34,16 +35,17 @@ export const Thread: FC = () => {  {/* This is UI for ongoing chat */}
             }}
           />
           <div className="sticky bottom-0 mt-4 flex w-full max-w-2xl flex-grow flex-col items-center justify-end rounded-t-lg bg-inherit pb-4">
-            <ThreadPrimitiveNotEmpty>
-              <div className="w-full px-4 mb-4">
-                <div className="flex flex-wrap gap-4 justify-center">
-                  <ThreadPrimitive.If running={false}> {/*Important to wrap Thread suggestion into if statement since the original message is streamed and we don't want to generate buttons ahead of time*/}
-                    <AI_ThreadSuggestion>
-                    </AI_ThreadSuggestion>
+            <ThreadPrimitive.If empty={false}>
+              <div className="mb-4 w-full px-4">
+                <div className="flex flex-wrap justify-center gap-4">
+                  <ThreadPrimitive.If running={false}>
+                    {" "}
+                    {/*Important to wrap Thread suggestion into if statement since the original message is streamed and we don't want to generate buttons ahead of time*/}
+                    <AI_ThreadSuggestion></AI_ThreadSuggestion>
                   </ThreadPrimitive.If>
                 </div>
               </div>
-            </ThreadPrimitiveNotEmpty>
+            </ThreadPrimitive.If>
             <Composer />
           </div>
         </ThreadPrimitive.Viewport>
@@ -52,17 +54,22 @@ export const Thread: FC = () => {  {/* This is UI for ongoing chat */}
   );
 };
 
-const ThreadWelcome: FC = () => { {/* This is WELCOME UI */}
+const ThreadWelcome: FC = () => {
+  {
+    /* This is WELCOME UI */
+  }
   return (
-    <div className="w-full max-w-2xl flex flex-col grow py-6 px-4">
+    <div className="flex w-full max-w-2xl grow flex-col px-4 py-6">
       <ThreadPrimitive.Empty>
         <div className="flex flex-grow basis-full flex-col items-center justify-center">
-          <h1 className="text-5xl md:text-6xl font-extrabold leading-tighter tracking-tighter mb-4 text-center">
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-green-500 to-teal-400">AI_button. Try me</span>
+          <h1 className="leading-tighter mb-4 text-center text-5xl font-extrabold tracking-tighter md:text-6xl">
+            <span className="bg-gradient-to-r from-green-500 to-teal-400 bg-clip-text text-transparent">
+              AI_button. Try me
+            </span>
           </h1>
         </div>
-        <div className="w-full px-4 mb-4">
-          <div className="flex flex-wrap gap-4 justify-center">
+        <div className="mb-4 w-full px-4">
+          <div className="flex flex-wrap justify-center gap-4">
             <ThreadSuggestion prompt="Tell me something goofy">
               <p className="font-semibold">Press here</p>
             </ThreadSuggestion>
@@ -88,7 +95,7 @@ const Composer: FC = () => {
             <Button
               size="icon"
               className={cn(
-                "absolute bottom-0 right-0 m-2.5 size-8 p-2 transition-opacity"
+                "absolute bottom-0 right-0 m-2.5 size-8 p-2 transition-opacity",
               )}
             >
               <SendHorizonalIcon />

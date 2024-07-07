@@ -10,6 +10,7 @@
   "ignore": [
     "@assistant-ui/www",
     "search-agent-for-e-commerce",
+    "with-inline-suggestions",
     "with-react-hook-form",
     "with-vercel-ai-rsc",
     "with-openai-assistants"

@@ -1,5 +1,5 @@
 {
-  "name": "assistant-ui-starter",
+  "name": "with-inline-suggestions",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -11,8 +11,8 @@
   "dependencies": {
     "@ai-sdk/openai": "^0.0.34",
     "@ai-sdk/react": "^0.0.16",
-    "@assistant-ui/react": "^0.3",
-    "@assistant-ui/react-ai-sdk": "^0.3",
+    "@assistant-ui/react": "workspace:*",
+    "@assistant-ui/react-ai-sdk": "workspace:*",
     "@radix-ui/react-avatar": "^1.1.0",
     "@radix-ui/react-slot": "^1.1.0",
     "@radix-ui/react-tooltip": "^1.1.2",
