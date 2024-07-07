@@ -2,15 +2,17 @@
   <img src="https://raw.githubusercontent.com/Yonom/assistant-ui/main/.github/assets/header.svg" alt="assistant-ui Header" width="100%" />
 </a>
 
-assistant-ui is a set of React components for AI chat.
+<p align="center">
+  <a href="https://assistant-ui.com">Product</a> ·
+  <a href="https://assistant-ui.com/docs/getting-started">Documentation</a> ·
+  <a href="https://assistant-ui.com/examples">Examples</a> ·
+  <a href="https://discord.gg/S9dwgCNEFs">Discord Community</a> ·
+  <a href="https://cal.com/simon-farshid/assistant-ui">Enterprise inquiry</a>
+</p>
 
-- [Discord](https://discord.gg/S9dwgCNEFs)
-- [Website](https://assistant-ui.com/)
-- [Demo](https://assistant-ui-rsc-example.vercel.app/)
+**assistant-ui** is a set of React components for AI chat, with integrations Langchain, Vercel AI SDK, TailwindCSS, shadcn-ui, react-markdown, react-syntax-highlighter, React Hook Form and more!  
 
-## Documentation
-
-- [Documentation](https://www.assistant-ui.com/docs/getting-started)
+Wide model provider support (OpenAI, Anthropic, Mistral, Perplexity, AWS Bedrock, Azure, Google Gemini, Hugging Face, Fireworks, Cohere, Replicate, Ollama) out of the box and the ability to integrate custom APIs.
 
 ## Quick Start
 
@@ -23,7 +25,7 @@ npx assistant-ui@latest create my-app
 cd my-app
 ```
 
-Step 2: Update the `.env` file with your OpenAI API key. 
+Step 2: Update the `.env` file with your OpenAI API key.
 
 Step 3: Run the app:
 

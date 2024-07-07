@@ -17,7 +17,7 @@ export default function Onboarding() {
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 py-10">
       <h2 className="text-2xl font-extrabold">Get Onboarded By a Founder</h2>
       <Cal
-        calLink="simon-farshid/assistant-ui-onboarding"
+        calLink="simon-farshid/assistant-ui"
         style={{ width: "100%", height: "620px", overflow: "scroll" }}
         config={{ layout: "month_view" }}
       />
