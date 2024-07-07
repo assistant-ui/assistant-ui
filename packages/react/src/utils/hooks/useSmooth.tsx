@@ -65,7 +65,6 @@ export const useSmooth = (text: string, smooth: boolean = false) => {
   );
 
   useEffect(() => {
-    console.log("smooth", smooth);
     if (!smooth) {
       animatorRef.stop();
       return;
@@ -80,7 +79,6 @@ export const useSmooth = (text: string, smooth: boolean = false) => {
 
     animatorRef.targetText = text;
     animatorRef.start();
-    console.log("animating");
   }, [animatorRef, smooth, text]);
 
   useEffect(() => {
