@@ -1,5 +1,14 @@
 # @assistant-ui/react-ui
 
+## 0.0.18
+
+### Patch Changes
+
+- ef25706: feat: Code Header and Syntax Highlighter support
+- Updated dependencies [ef25706]
+  - @assistant-ui/react-markdown@0.0.5
+  - @assistant-ui/react@0.3.5
+
 ## 0.0.17
 
 ### Patch Changes

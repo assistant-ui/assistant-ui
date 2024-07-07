@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-markdown",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "license": "MIT",
   "exports": {
     ".": {
@@ -32,7 +32,7 @@
     "react-markdown": "^9.0.1"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.3.2",
+    "@assistant-ui/react": "^0.3.5",
     "@types/react": "*",
     "react": "^18"
   },

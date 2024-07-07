@@ -696,7 +696,7 @@ importers:
   packages/react-markdown:
     dependencies:
       '@assistant-ui/react':
-        specifier: ^0.3.2
+        specifier: ^0.3.5
         version: link:../react
       '@radix-ui/react-slot':
         specifier: ^1.1.0
@@ -727,10 +727,10 @@ importers:
   packages/react-syntax-highlighter:
     dependencies:
       '@assistant-ui/react':
-        specifier: ^0.3.2
+        specifier: ^0.3.5
         version: link:../react
       '@assistant-ui/react-markdown':
-        specifier: ^0.0.4
+        specifier: ^0.0.5
         version: link:../react-markdown
       '@types/react':
         specifier: '*'
@@ -758,7 +758,7 @@ importers:
   packages/react-ui:
     dependencies:
       '@assistant-ui/react':
-        specifier: ^0.3.3
+        specifier: ^0.3.5
         version: link:../react
       '@assistant-ui/react-markdown':
         specifier: workspace:*
