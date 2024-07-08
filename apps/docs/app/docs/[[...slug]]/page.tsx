@@ -1,25 +1,52 @@
-import { getPage, getPages } from '@/app/source';
-import type { Metadata } from 'next';
-import { DocsPage, DocsBody } from 'fumadocs-ui/page';
-import { notFound } from 'next/navigation';
+import { getPages, getPage } from "@/app/source";
+import type { Metadata } from "next";
+import { DocsPage, DocsBody } from "fumadocs-ui/page";
+import { notFound } from "next/navigation";
+import { cn } from "@/lib/utils";
+import { buttonVariants } from "@/components/ui/button";
+import { EditIcon } from "lucide-react";
 
 export default async function Page({
   params,
 }: {
   params: { slug?: string[] };
 }) {
-  const page = getPage(params.slug);
+  const page = getPage(["docs", ...(params.slug ?? [])]);
 
   if (page == null) {
     notFound();
   }
 
-  const MDX = page.data.exports.default;
+  const path = `apps/docs/content/docs/${page.file.path}`;
+
+  const footer = (
+    <a
+      href={`https://github.com/Yonom/assistant-ui/blob/main/${path}`}
+      target="_blank"
+      rel="noreferrer noopener"
+      className={cn(
+        buttonVariants({
+          variant: "secondary",
+          size: "sm",
+          className: "gap-1.5 text-xs",
+        }),
+      )}
+    >
+      <EditIcon className="size-3" />
+      Edit on Github
+    </a>
+  );
+
+  const MDX = (page.data as any).exports.default;
 
   return (
-    <DocsPage toc={page.data.exports.toc} full={page.data.full}>
+    <DocsPage
+      toc={(page.data as any).exports.toc}
+      full={(page.data as any).full}
+      tableOfContent={{ footer }}
+    >
       <DocsBody>
-        <h1>{page.data.title}</h1>
+        <h1>{(page.data as any).title}</h1>
         <MDX />
       </DocsBody>
     </DocsPage>
@@ -27,18 +54,20 @@ export default async function Page({
 }
 
 export async function generateStaticParams() {
-  return getPages().map((page) => ({
-    slug: page.slugs,
-  }));
+  return getPages()
+    .filter((page) => page.slugs[0] === "docs")
+    .map((page) => ({
+      slug: page.slugs.slice(1),
+    }));
 }
 
 export function generateMetadata({ params }: { params: { slug?: string[] } }) {
-  const page = getPage(params.slug);
+  const page = getPage(["docs", ...(params.slug ?? [])]);
 
   if (page == null) notFound();
 
   return {
-    title: page.data.title,
-    description: page.data.description,
+    title: (page.data as any).title,
+    description: (page.data as any).description,
   } satisfies Metadata;
 }

@@ -1,0 +1,16 @@
+{
+  "name": "unstable-markdown-text",
+  "type": "components:ui",
+  "files": [
+    {
+      "name": "assistant-ui/markdown-text.tsx",
+      "content": "\"use client\";\n\nimport { unstable_MarkdownTextPrimitive as MarkdownTextPrimitive } from \"@assistant-ui/react-markdown\";\nimport remarkGfm from \"remark-gfm\";\nimport remarkMath from \"remark-math\";\n\nexport const MarkdownText = () => {\n  return (\n    <MarkdownTextPrimitive\n      className=\"prose dark:prose-invert prose-pre:p-0 prose-p:leading-relaxed break-words\"\n      remarkPlugins={[remarkGfm, remarkMath]}\n      components={{\n        p({ children }) {\n          return <p className=\"mb-2 last:mb-0\">{children}</p>;\n        },\n        // code({ node, className, children, ...props }) {\n        //   if (children.length) {\n        //     if (children[0] == \"▍\") {\n        //       return (\n        //         <span className=\"mt-1 animate-pulse cursor-default\">▍</span>\n        //       );\n        //     }\n\n        //     children[0] = (children[0] as string).replace(\"`▍`\", \"▍\");\n        //   }\n\n        //   const match = /language-(\\w+)/.exec(className || \"\");\n\n        //   if (inline) {\n        //     return (\n        //       <code className={className} {...props}>\n        //         {children}\n        //       </code>\n        //     );\n        //   }\n\n        //   return (\n        //     <CodeBlock\n        //       key={Math.random()}\n        //       language={match?.[1] || \"\"}\n        //       value={String(children).replace(/\\n$/, \"\")}\n        //       {...props}\n        //     />\n        //   );\n        // },\n      }}\n    />\n  );\n};\n"
+    }
+  ],
+  "dependencies": [
+    "@assistant-ui/react",
+    "@assistant-ui/react-markdown",
+    "remark-gfm",
+    "remark-math"
+  ]
+}

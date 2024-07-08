@@ -1,0 +1,145 @@
+---
+title: "@assistant-ui/react-ai-sdk"
+---
+
+Vercel AI SDK integration for assistant-ui.
+
+import { ParametersTable } from "@/components/docs";
+
+## API Reference
+
+### `useVercelUseChatRuntime`
+
+Convert Vercel AI SDK chat helpers into a `AssistantRuntime`.
+
+```tsx
+import { useVercelUseChatRuntime } from "@assistant-ui/react-ai-sdk";
+
+const MyRuntimeProvider = ({ children }: { children: React.ReactNode }) => {
+  const chat = useChat();
+  const runtime = useVercelUseChatRuntime(chat);
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+};
+```
+
+<ParametersTable
+  parameters={[
+    {
+      name: "chat",
+      type: "ReturnType<typeof useChat>",
+      description: "The UseChatHelpers from @ai-sdk/react.",
+    },
+  ]}
+/>
+
+### `useVercelUseAssistantRuntime`
+
+Convert Vercel AI SDK assistant helpers into a `AssistantRuntime`.
+
+```tsx
+import { useVercelUseAssistantRuntime } from "@assistant-ui/react-ai-sdk";
+
+const MyRuntimeProvider = ({ children }: { children: React.ReactNode }) => {
+  const assistant = useAssistant();
+  const runtime = useVercelUseAssistantRuntime(assistant);
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+};
+```
+
+<ParametersTable
+  parameters={[
+    {
+      name: "assistant",
+      type: "ReturnType<typeof useAssistant>",
+      description: "The UseAssistantHelpers from @ai-sdk/react.",
+    },
+  ]}
+/>
+
+### `useVercelRSCRuntime`
+
+Convert Vercel RSC runtime into a `AssistantRuntime`.
+
+```tsx
+import { useVercelRSCRuntime } from "@assistant-ui/react-ai-sdk";
+
+const MyRuntimeProvider = ({ children }: { children: React.ReactNode }) => {
+  const [messages, setMessages] = useUIState<typeof AI>();
+
+  const append = async (m: AppendMessage) => {
+    if (m.content[0]?.type !== "text")
+      throw new Error("Only text messages are supported");
+
+    const input = m.content[0].text;
+    setMessages((currentConversation) => [
+      ...currentConversation,
+      { id: nanoid(), role: "user", display: input },
+    ]);
+
+    const message = await continueConversation(input);
+
+    setMessages((currentConversation) => [...currentConversation, message]);
+  };
+
+  const runtime = useVercelRSCRuntime({ messages, append });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+};
+```
+
+<ParametersTable
+  parameters={[
+    {
+      name: "adapter",
+      type: "VercelRSCAdapter<TMessage>",
+      description: "The Vercel RSC adapter to use.",
+      children: [
+        {
+          type: "VercelRSCAdapter<TMessage>",
+          parameters: [
+            {
+              name: "messages",
+              type: "readonly ThreadMessage[]",
+              description: "The messages in the thread.",
+            },
+            {
+              name: "append",
+              type: "(message: AppendMessage) => Promise<void>",
+              description: "A function to append a message to the thread.",
+            },
+            {
+              name: "edit",
+              type: "(message: AppendMessage) => Promise<void>",
+              description: "A function to edit a message.",
+            },
+            {
+              name: "reload",
+              type: "(parentId: string | null) => Promise<void>",
+              description: "A function to reload a message.",
+            },
+            {
+              name: "convertMessage",
+              type: "(message: TMessage) => VercelRSCMessage",
+              description:
+                "A function to convert messages to the VercelRSCMessage format. Only required if your message objects are not already compatible with Vercel RSC.",
+            },
+          ],
+        },
+      ],
+    },
+  ]}
+/>

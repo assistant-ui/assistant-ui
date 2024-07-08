@@ -1,0 +1,169 @@
+---
+title: Message
+---
+
+A single message in a conversation. Messages may consist of multiple parts.
+
+import { ParametersTable } from "@/components/docs";
+
+## Anatomy
+
+```tsx
+import { MessagePrimitive } from "@assistant-ui/react";
+
+const UserMessage = () => (
+  <MessagePrimitive.Root>
+    User: <MessagePrimitive.Content />
+
+    <BranchPicker />
+    <ActionBar />
+  </Message.Root>
+);
+
+const AssistantMessage = () => (
+  <MessagePrimitive.Root>
+    Assistant: <MessagePrimitive.Content />
+
+    <BranchPicker />
+    <ActionBar />
+  </Message.Root>
+);
+```
+
+## API Reference
+
+### Root
+
+Containts all parts of the message.
+
+This primitive renders a `<div>` element unless `asChild` is set.
+
+<ParametersTable
+  type="MessagePrimitiveRootProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+  ]}
+/>
+
+### Content
+
+The content of the message. This renders a separate component for each content part of the message.
+
+<ParametersTable
+  type="MessagePrimitiveContentProps"
+  parameters={[
+    {
+      name: "components",
+      required: false,
+      type: "ContentPartComponents",
+      description: "The components to render for each content part.",
+      children: [
+        {
+          type: "ContentPartComponents",
+          parameters: [
+            {
+              name: "Text",
+              type: "TextContentPartComponent",
+              description:
+                "The component to render for each text content part.",
+            },
+            {
+              name: "Image",
+              type: "ImageContentPartComponent",
+              description:
+                "The component to render for each image content part.",
+            },
+            {
+              name: "UI",
+              type: "UIContentPartComponent",
+              description: "The component to render for each UI content part.",
+            },
+            {
+              name: "tools",
+              type: "object",
+              description:
+                "The component to render for each tool call content part.",
+              children: [
+                {
+                  parameters: [
+                    {
+                      name: "by_name",
+                      type: "Record<string, ToolCallContentPartComponent>",
+                      description:
+                        "The components to render for each tool call content part.",
+                    },
+                    {
+                      name: "Fallback",
+                      type: "ToolCallContentPartComponent",
+                      description:
+                        "The fallback component to render for tool call content parts.",
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  ]}
+/>
+
+### If
+
+Renders children if a condition is met.
+
+<ParametersTable
+  type="UseMessageIfProps"
+  parameters={[
+    {
+      name: "user",
+      type: "boolean | undefined",
+      description: "Render children if the message is from the user.",
+    },
+    {
+      name: "assistant",
+      type: "boolean | undefined",
+      description: "Render children if the message is from the assistant.",
+    },
+    {
+      name: "hasBranches",
+      type: "boolean | undefined",
+      description: "Render children if the message has branches.",
+    },
+    {
+      name: "copied",
+      type: "boolean | undefined",
+      description: "Render children if the message is copied.",
+    },
+    {
+      name: "lastOrHover",
+      type: "boolean | undefined",
+      description:
+        "Render children if the message is the last or hovered over.",
+    },
+  ]}
+/>
+
+```tsx
+<Message.If user>
+  {/* rendered if message is from the user */}
+</Message.If>
+<Message.If assistant>
+  {/* rendered if message is from the assistant */}
+</Message.If>
+```
+
+#### `useMessageIf`
+
+```tsx
+import { useMessageIf } from "@assistant-ui/react";
+
+const Message = () => {
+  const isUser = useMessageIf({ user: true });
+
+  return isUser ? <UserMessage /> : <AssistantMessage />;
+};
+```

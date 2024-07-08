@@ -1,0 +1,55 @@
+---
+title: Markdown
+---
+
+Allow the assistant to display rich text using markdown.¥
+
+import { Step, Steps } from "fumadocs-ui/components/steps";
+import { Callout } from "fumadocs-ui/components/callout";
+
+<Callout type="warn">
+  Make sure to upgrade `@assistant-ui/react` to `>=0.2` and to follow steps
+  outlined in the [migration guide](/docs/migrations/v0.2).
+</Callout>
+
+<Callout>
+  Markdown support is alraedy included in the `npx assistant-ui@latest add
+  thread-full` template.
+</Callout>
+
+## Enabling markdown support
+
+<Steps>
+
+<Step>
+### Add the `markdown-text` component to your project.
+
+```tsx
+npx assistant-ui@latest add markdown-text
+```
+
+</Step>
+
+<Step>
+
+### Use it in `Thread.tsx`
+
+Pass the `MarkdownText` component to the `MessagePrimitive.Content` component
+
+```tsx {1, 7}
+import { MarkdownText } from "@/components/ui/assistant-ui/markdown-text";
+
+const AssistantMessage = () => {
+  return (
+    <MessagePrimitive.Root>
+      ...
+      <MessagePrimitive.Content components={{ Text: MarkdownText }} />
+      ...
+    </MessagePrimitive.Root>
+  );
+};
+```
+
+</Step>
+
+</Steps>

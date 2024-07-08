@@ -43,7 +43,7 @@ async function resolveTree(index: RegistryIndex, names: string[]) {
 
 const REGISTRY_PATH = path.join(
   process.cwd(),
-  "../../apps/www/public/registry",
+  "../../apps/docs/public/registry",
 );
 
 async function buildRegistry(registry: RegistryIndex) {

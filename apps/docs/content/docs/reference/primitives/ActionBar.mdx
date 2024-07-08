@@ -1,0 +1,232 @@
+---
+title: ActionBar
+---
+
+Buttons to interact with the message.
+
+import { ParametersTable, DataAttributesTable } from "@/components/docs";
+import { Code } from "@radix-ui/themes";
+
+## Anatomy
+
+```tsx
+import { ActionBarPrimitive } from "@assistant-ui/react";
+
+const UserMessageBar = () => (
+  <ActionBarPrimitive.Root>
+    <ActionBarPrimitive.Edit />
+    <ActionBarPrimitive.Copy />
+  </ActionBarPrimitive.Root>
+);
+
+const AssistantMessageBar = () => (
+  <ActionBarPrimitive.Root>
+    <ActionBarPrimitive.Reload />
+    <ActionBarPrimitive.Copy />
+  </ActionBarPrimitive.Root>
+);
+```
+
+## API Reference
+
+### Container
+
+Containts all parts of the action bar.
+
+This primitive renders a `<div>` element unless `asChild` is set.
+
+<ParametersTable
+  type="ActionBarPrimitiveRootProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+    {
+      name: "hideWhenRunning",
+      type: "boolean",
+      default: "false",
+      description: (
+        <span>
+          Do not render the ActionBar when the thread is in running state.
+        </span>
+      ),
+    },
+    {
+      name: "autohide",
+      type: '"always" | "not-last" | "never"',
+      default: '"never"',
+      description: (
+        <span>
+          Do not render the ActionBar unless the mouse is hovering over the
+          message.
+          <br />
+          <br />
+          <Code>"always"</Code>: always autohide.
+          <br />
+          <Code>"not-last"</Code>; only autohide if the message is not the last
+          one in the thread.
+        </span>
+      ),
+    },
+    {
+      name: "autohideFloat",
+      type: '"always" | "single-branch" | "never"',
+      default: '"never"',
+      description: (
+        <span>
+          Float the ActionBar during autohide.
+          <br />
+          <br />
+          <Code>"always"</Code>: always float during autohide.
+          <br />
+          <Code>"single-branch"</Code>: only float if the message is the only
+          one in the thread.
+          <br />
+          <br />
+          Note: this only sets `data-floating` on the ActionBar. You need to set
+          the appropriate styles on the ActionBar to make it float.
+        </span>
+      ),
+    },
+  ]}
+/>
+
+<DataAttributesTable
+  data={[
+    {
+      attribute: "[data-floating]",
+      values: "Present when floating",
+    },
+  ]}
+/>
+
+### Edit
+
+Enables edit mode on user message.
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+<ParametersTable
+  type="ActionBarPrimitiveEditProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+  ]}
+/>
+
+#### `useActionBarEdit`
+
+Provides the `Edit` functionality as a hook.
+
+```tsx
+import { useActionBarEdit } from "@assistant-ui/react";
+
+const Edit = () => {
+  const edit = useActionBarEdit();
+
+  // edit action is not available
+  if (!edit) return null;
+
+  return <button onClick={edit}>Edit</button>;
+};
+```
+
+### Reload
+
+Regenerates the assistant message.
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+<ParametersTable
+  type="ActionBarPrimitiveReloadProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+  ]}
+/>
+
+#### `useActionBarReload`
+
+Provides the `Reload` functionality as a hook.
+
+```tsx
+import { useActionBarReload } from "@assistant-ui/react";
+
+const Reload = () => {
+  const reload = useActionBarReload();
+
+  // reload action is not available
+  if (!reload) return null;
+
+  return <button onClick={reload}>Reload</button>;
+};
+```
+
+### Copy
+
+Copies the message to the clipboard.
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+<ParametersTable
+  type="ActionBarPrimitiveCopyProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+    {
+      name: "copiedDuration",
+      type: "number",
+      description:
+        "The duration in milliseconds to change the message status to 'copied'.",
+      default: "3000",
+    },
+  ]}
+/>
+
+#### Copied state
+
+Show a different icon for a few seconds after the message is copied.
+
+```tsx
+<ActionBarPrimitive.Copy>
+  <MessagePrimitive.If copied={false}>
+    <CopyIcon />
+  </MessagePrimitive.If>
+  <MessagePrimitive.If copied>
+    <CopySuccessIcon />
+  </MessagePrimitive.If>
+</ActionBarPrimitive.Copy>
+```
+
+#### `useActionBarCopy`
+
+Provides the `Copy` functionality as a hook.
+
+```tsx
+import { useActionBarCopy } from "@assistant-ui/react";
+
+const Copy = () => {
+  const copy = useActionBarCopy({ copiedDuration: 3000 });
+
+  // copy action is not available
+  if (!copy) return null;
+
+  return <button onClick={copy}>Copy</button>;
+};
+```
+
+<ParametersTable
+  type="UseActionBarCopyProps"
+  parameters={[
+    {
+      name: "copiedDuration",
+      type: "number",
+      description:
+        "The duration in milliseconds in which the message status is set to 'copied'.",
+      default: "3000",
+    },
+  ]}
+/>

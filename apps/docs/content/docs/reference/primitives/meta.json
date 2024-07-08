@@ -1,0 +1,13 @@
+{
+  "pages": [
+    "composition",
+    "AssistantModal",
+    "Thread",
+    "Composer",
+    "Message",
+    "BranchPicker",
+    "ActionBar",
+    "ContentPart",
+    "..."
+  ]
+}

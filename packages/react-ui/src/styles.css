@@ -14,7 +14,7 @@
     @apply bg-aui-background text-aui-foreground;
   }
 
-  .aui-modal-content {
+  .aui-root.aui-modal-content {
     @apply bg-aui-popover text-aui-popover-foreground z-50 h-[500px] w-[400px] overflow-clip rounded-xl border p-0 shadow-md outline-none;
     @apply [&>.aui-thread-root]:bg-inherit;
 
@@ -24,18 +24,20 @@
     @apply data-[state=open]:slide-in-from-bottom-1/2 data-[state=open]:slide-in-from-right-1/2 data-[state=closed]:slide-out-to-bottom-1/2 data-[state=closed]:slide-out-to-right-1/2;
   }
 
-  .aui-modal-anchor {
+  .aui-root.aui-modal-anchor {
     @apply fixed bottom-4 right-4 size-11;
   }
 
-  .aui-thread-viewport {
+  .aui-root.aui-thread-root {
+    @apply bg-aui-background box-border h-full;
+    @apply [&>.aui-thread-viewport]:bg-inherit;
+  }
+
+  .aui-root .aui-thread-viewport {
     @apply bg-aui-background flex h-full flex-col items-center overflow-y-scroll scroll-smooth px-4 pt-8;
   }
 
-  .aui-thread-root {
-    @apply bg-aui-background box-border h-full;
-    @apply [&>.aui-thread-viewport]:bg-inherit;
-
+  .aui-root {
     /* shadcn-ui/button */
 
     .aui-button {

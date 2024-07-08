@@ -1,0 +1,74 @@
+---
+title: Thread
+---
+
+import { Steps, Step } from "fumadocs-ui/components/steps";
+import { Callout } from "fumadocs-ui/components/callout";
+
+## Overview
+
+The raw message list and message composer UI. Useful for full screen chat use cases.
+
+## Getting Started
+
+<Steps>
+  <Step>
+### Create a Next.JS project
+
+```sh
+npx create-next-app@latest my-app
+cd my-app
+```
+
+  </Step>
+  <Step>
+
+### Initialize `shadcn-ui`
+
+```sh
+npx shadcn-ui@latest init
+```
+
+  </Step>
+  <Step>
+
+### Add `thread`
+
+```sh
+npx assistant-ui@latest add thread
+```
+
+This adds a `/components/ui/assistant-ui/thread.tsx` file to your project, which you can adjust as needed.
+
+<Callout type="info" emoji="💡">
+  The `thread` template is minimal and does not include branching or editing support.
+
+Alternatively, you can add `thread-full`, which includes branching and editing enabled by default.
+
+```sh
+npx assistant-ui@latest add thread-full
+```
+
+</Callout>
+
+  </Step>
+  <Step>
+
+### Use in your application
+
+`/app/page.tsx`
+
+```tsx {1, 6}
+import { Thread } from "@/components/ui/assistant-ui/thread";
+
+export default function Home() {
+  return (
+    <div className="h-full">
+      <Thread />
+    </div>
+  );
+}
+```
+
+  </Step>
+</Steps>

@@ -1,0 +1,62 @@
+---
+title: AssistantModal
+---
+
+import { Steps, Step } from "fumadocs-ui/components/steps";
+
+## Overview
+
+A chat bubble shown in the bottom right corner of the screen. Useful for support or Q&A use cases.
+
+## Getting Started
+
+<Steps>
+  <Step>
+### Create a Next.JS project
+
+```sh
+npx create-next-app@latest my-app
+cd my-app
+```
+
+  </Step>
+  <Step>
+
+### Initialize `shadcn-ui`
+
+```sh
+npx shadcn-ui@latest init
+```
+
+  </Step>
+  <Step>
+
+### Add `assistant-modal`
+
+```sh
+npx assistant-ui@latest add modal
+```
+
+This adds `/components/ui/assistant-ui/assistant-modal.tsx` and `/components/ui/assistant-ui/thread.tsx` files to your project, which you can adjust as needed.
+
+  </Step>
+  <Step>
+
+### Use in your application
+
+`/app/page.tsx`
+
+```tsx {1, 6}
+import { AssistantModal } from "@/components/ui/assistant-ui/assistant-modal";
+
+export default function Home() {
+  return (
+    <div className="h-full">
+      <AssistantModal />
+    </div>
+  );
+}
+```
+
+  </Step>
+</Steps>

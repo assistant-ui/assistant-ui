@@ -30,7 +30,7 @@ out/
 # production
 build
 dist
-apps/www/public/registry/
+apps/docs/public/registry/
 
 # turbo
 .turbo

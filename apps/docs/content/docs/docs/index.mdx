@@ -1,0 +1,72 @@
+---
+title: Getting Started
+---
+
+import { Step, Steps } from "fumadocs-ui/components/steps";
+
+## Start with a new project
+
+<Steps>
+  <Step>
+
+### Create a new project
+
+Create a new project with `assistant-ui` pre-configured:
+
+```sh
+npx assistant-ui@latest create my-app
+cd my-app
+```
+
+  </Step>
+  <Step>
+
+### Add API key
+
+Add a new `.env` file to your project with your OpenAI API key:
+
+```
+OPENAI_API_KEY="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+  </Step>
+  <Step>
+
+### Start the app
+
+```sh
+npm run dev
+```
+
+  </Step>
+</Steps>
+
+## Install in an existing app
+
+<Steps>
+  <Step>
+
+### Setup Runtime
+
+You wrap your entire app in a `<AssistantRuntimeProvider runtime={runtime}>` component.
+
+This component makes a `Runtime` available to the rest of your app.
+The `Runtime` takes care of LLM communication, tools, streaming, state management, branching, persistence, authentication and more.
+
+Refer to [Picking a Runtime](/docs/runtimes/pick-a-runtime) to pick the right runtime for your use case.
+
+  </Step>
+  <Step>
+
+### Setup UI Components
+
+The easiest way to get started is with `shadcn/ui` + `tailwind` components.
+
+Currently, three modes are supported:
+
+- [`<AssistantModal />`](/docs/ui/AssistantModal): a modal chat UI in the bottom right corner
+- [`<AssistantSidebar />`](/docs/ui/AssistantSidebar): a sidebar chat UI
+- [`<Thread />`](/docs/ui/Thread): the raw chat UI
+
+</Step>
+</Steps>

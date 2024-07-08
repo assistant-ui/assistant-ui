@@ -115,7 +115,7 @@ AssistantModalButton.displayName = "AssistantModalButton";
 export const AssistantModalContent = withDefaults(
   AssistantModalPrimitive.Content,
   {
-    className: "aui-modal-content",
+    className: "aui-root aui-modal-content",
     sideOffset: 16,
   },
 );
