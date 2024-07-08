@@ -8,7 +8,7 @@
   "baseBranch": "main",
   "updateInternalDependencies": "minor",
   "ignore": [
-    "@assistant-ui/www",
+    "@assistant-ui/docs",
     "search-agent-for-e-commerce",
     "with-inline-suggestions",
     "with-react-hook-form",
