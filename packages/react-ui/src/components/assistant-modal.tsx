@@ -5,7 +5,7 @@ import { AssistantModalPrimitive } from "@assistant-ui/react";
 import { BotIcon, ChevronDownIcon } from "lucide-react";
 
 import { Thread } from "./thread";
-import { styled } from "../styled";
+import { withDefaults } from "../utils/withDefaults";
 import {
   TooltipIconButton,
   TooltipIconButtonProps,
@@ -58,13 +58,13 @@ export const AssistantModalTrigger = forwardRef<
 
 AssistantModalTrigger.displayName = "AssistantModalTrigger";
 
-const AssistantModalAnchor = styled(AssistantModalPrimitive.Anchor, {
+const AssistantModalAnchor = withDefaults(AssistantModalPrimitive.Anchor, {
   className: "aui-root aui-modal-anchor",
 });
 
 AssistantModalAnchor.displayName = "AssistantModalAnchor";
 
-const ModalButtonStyled = styled(TooltipIconButton, {
+const ModalButtonStyled = withDefaults(TooltipIconButton, {
   variant: "default",
   className: "aui-modal-button",
 });
@@ -112,9 +112,12 @@ const AssistantModalButton = forwardRef<
 
 AssistantModalButton.displayName = "AssistantModalButton";
 
-export const AssistantModalContent = styled(AssistantModalPrimitive.Content, {
-  className: "aui-modal-content",
-  sideOffset: 16,
-});
+export const AssistantModalContent = withDefaults(
+  AssistantModalPrimitive.Content,
+  {
+    className: "aui-modal-content",
+    sideOffset: 16,
+  },
+);
 
 AssistantModalContent.displayName = "AssistantModalContent";

@@ -2,7 +2,7 @@
 import { ComposerPrimitive } from "@assistant-ui/react";
 import { forwardRef, type FC } from "react";
 import { Button, ButtonProps } from "./base/button";
-import { styled } from "../styled";
+import { withDefaults } from "../utils/withDefaults";
 import { useThreadConfig } from "./thread-config";
 
 export const EditComposer: FC = () => {
@@ -20,19 +20,19 @@ export const EditComposer: FC = () => {
 
 EditComposer.displayName = "EditComposer";
 
-export const EditComposerRoot = styled(ComposerPrimitive.Root, {
+export const EditComposerRoot = withDefaults(ComposerPrimitive.Root, {
   className: "aui-edit-composer-root",
 });
 
 EditComposerRoot.displayName = "EditComposerRoot";
 
-export const EditComposerInput = styled(ComposerPrimitive.Input, {
+export const EditComposerInput = withDefaults(ComposerPrimitive.Input, {
   className: "aui-edit-composer-input",
 });
 
 EditComposerInput.displayName = "EditComposerInput";
 
-export const EditComposerFooter = styled("div", {
+export const EditComposerFooter = withDefaults("div", {
   className: "aui-edit-composer-footer",
 });
 

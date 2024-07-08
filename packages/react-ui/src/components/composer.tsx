@@ -8,7 +8,7 @@ import {
 import { ComponentPropsWithoutRef, forwardRef, type FC } from "react";
 
 import { SendHorizonalIcon } from "lucide-react";
-import { styled } from "../styled";
+import { withDefaults } from "../utils/withDefaults";
 import { useThreadConfig } from "./thread-config";
 import {
   TooltipIconButton,
@@ -27,13 +27,13 @@ export const Composer: FC = () => {
 
 Composer.displayName = "Composer";
 
-export const ComposerRoot = styled(ComposerPrimitive.Root, {
+export const ComposerRoot = withDefaults(ComposerPrimitive.Root, {
   className: "aui-composer-root",
 });
 
 ComposerRoot.displayName = "ComposerRoot";
 
-const ComposerInputStyled = styled(ComposerPrimitive.Input, {
+const ComposerInputStyled = withDefaults(ComposerPrimitive.Input, {
   rows: 1,
   autoFocus: true,
   className: "aui-composer-input",
@@ -77,7 +77,7 @@ export const ComposerAction: FC = () => {
 
 ComposerAction.displayName = "ComposerAction";
 
-const ComposerSendButton = styled(TooltipIconButton, {
+const ComposerSendButton = withDefaults(TooltipIconButton, {
   variant: "default",
   className: "aui-composer-send",
 });
@@ -100,7 +100,7 @@ export const ComposerSend = forwardRef<
 
 ComposerSend.displayName = "ComposerSend";
 
-const ComposerCancelButton = styled(TooltipIconButton, {
+const ComposerCancelButton = withDefaults(TooltipIconButton, {
   variant: "default",
   className: "aui-composer-cancel",
 });

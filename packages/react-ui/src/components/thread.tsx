@@ -3,7 +3,7 @@
 import { ThreadPrimitive } from "@assistant-ui/react";
 import { ComponentType, forwardRef, type FC } from "react";
 import { ArrowDownIcon } from "lucide-react";
-import { styled } from "../styled";
+import { withDefaults } from "../utils/withDefaults";
 import { Composer } from "./composer";
 import { ThreadWelcome } from "./thread-welcome";
 import {
@@ -39,7 +39,7 @@ export const Thread: FC<ThreadConfig> = (config) => {
 export type ThreadRootProps = ThreadPrimitiveRootProps &
   ThreadConfigProviderProps;
 
-const ThreadRootStyled = styled(ThreadPrimitive.Root, {
+const ThreadRootStyled = withDefaults(ThreadPrimitive.Root, {
   className: "aui-root aui-thread-root",
 });
 
@@ -55,13 +55,13 @@ export const ThreadRoot = forwardRef<HTMLDivElement, ThreadRootProps>(
 
 ThreadRoot.displayName = "ThreadRoot";
 
-export const ThreadViewport = styled(ThreadPrimitive.Viewport, {
+export const ThreadViewport = withDefaults(ThreadPrimitive.Viewport, {
   className: "aui-thread-viewport",
 });
 
 ThreadViewport.displayName = "ThreadViewport";
 
-export const ThreadViewportFooter = styled("div", {
+export const ThreadViewportFooter = withDefaults("div", {
   className: "aui-thread-viewport-footer",
 });
 
@@ -88,7 +88,7 @@ export const ThreadMessages: FC<{
 
 ThreadMessages.displayName = "ThreadMessages";
 
-const ThreadScrollToBottomIconButton = styled(TooltipIconButton, {
+const ThreadScrollToBottomIconButton = withDefaults(TooltipIconButton, {
   variant: "outline",
   className: "aui-thread-scroll-to-bottom",
 });

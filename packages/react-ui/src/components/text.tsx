@@ -3,13 +3,15 @@ import {
   ContentPartPrimitive,
   TextContentPartProps,
 } from "@assistant-ui/react";
+import { classNames } from "../utils/withDefaults";
 
 export const Text: FC<TextContentPartProps> = ({ status }) => {
   return (
     <p
-      className={
-        "aui-text" + (status === "in_progress" ? " aui-text-in-progress" : "")
-      }
+      className={classNames(
+        "aui-text",
+        status === "in_progress" && "aui-text-in-progress",
+      )}
     >
       <ContentPartPrimitive.Text />
     </p>

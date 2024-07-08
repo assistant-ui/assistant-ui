@@ -2,7 +2,7 @@
 
 import { ThreadPrimitive } from "@assistant-ui/react";
 import { ComponentPropsWithoutRef, forwardRef, type FC } from "react";
-import { styled } from "../styled";
+import { withDefaults } from "../utils/withDefaults";
 import { Avatar } from "./base/avatar";
 import { SuggestionConfig, useThreadConfig } from "./thread-config";
 
@@ -20,11 +20,11 @@ export const ThreadWelcome: FC = () => {
 
 ThreadWelcome.displayName = "ThreadWelcome";
 
-const ThreadWelcomeRootStyled = styled("div", {
+const ThreadWelcomeRootStyled = withDefaults("div", {
   className: "aui-thread-welcome-root",
 });
 
-export const ThreadWelcomeCenter = styled("div", {
+export const ThreadWelcomeCenter = withDefaults("div", {
   className: "aui-thread-welcome-center",
 });
 
@@ -48,7 +48,7 @@ export const ThreadWelcomeAvatar: FC = () => {
   return <Avatar {...avatar} />;
 };
 
-const ThreadWelcomeMessageStyled = styled("p", {
+const ThreadWelcomeMessageStyled = withDefaults("p", {
   className: "aui-thread-welcome-message",
 });
 
@@ -72,11 +72,11 @@ export const ThreadWelcomeMessage = forwardRef<
 
 ThreadWelcomeMessage.displayName = "ThreadWelcomeMessage";
 
-const ThreadWelcomeSuggestionContainer = styled("div", {
+const ThreadWelcomeSuggestionContainer = withDefaults("div", {
   className: "aui-thread-welcome-suggestion-container",
 });
 
-const ThreadWelcomeSuggestionStyled = styled(ThreadPrimitive.Suggestion, {
+const ThreadWelcomeSuggestionStyled = withDefaults(ThreadPrimitive.Suggestion, {
   className: "aui-thread-welcome-suggestion",
 });
 

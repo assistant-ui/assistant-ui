@@ -5,7 +5,6 @@ import {
   useContext,
   useMemo,
 } from "react";
-import { Slot } from "@radix-ui/react-slot";
 import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
 import { PreContext } from "./PreOverride";
 import {
@@ -15,6 +14,7 @@ import {
   SyntaxHighlighterProps,
 } from "./types";
 import { DefaultSyntaxHighlighter } from "./defaultComponents";
+import { withDefaultProps } from "./withDefaults";
 
 type CodeOverrideProps = ComponentPropsWithoutRef<CodeComponent> & {
   components: {
@@ -30,16 +30,15 @@ const CodeBlockOverride: FC<CodeOverrideProps> = ({
   children,
   ...codeProps
 }) => {
-  const preProps = useContext(PreContext);
+  const preProps = useContext(PreContext)!;
+  const getPreProps = withDefaultProps<any>(preProps);
   const WrappedPre: PreComponent = useCallbackRef((props) => (
-    <Slot {...(preProps as any)}>
-      <Pre {...props} />
-    </Slot>
+    <Pre {...getPreProps(props)} />
   ));
+
+  const getCodeProps = withDefaultProps<any>(codeProps);
   const WrappedCode: CodeComponent = useCallbackRef((props) => (
-    <Slot {...(codeProps as any)}>
-      <Code {...props} />
-    </Slot>
+    <Code {...getCodeProps(props)} />
   ));
 
   const components = useMemo(

@@ -6,7 +6,7 @@ import {
   TooltipIconButton,
   TooltipIconButtonProps,
 } from "./base/tooltip-icon-button";
-import { styled } from "../styled";
+import { withDefaults } from "../utils/withDefaults";
 import { useThreadConfig } from "./thread-config";
 
 export const BranchPicker: FC = () => {
@@ -21,7 +21,7 @@ export const BranchPicker: FC = () => {
 
 BranchPicker.displayName = "BranchPicker";
 
-export const BranchPickerRoot = styled(BranchPickerPrimitive.Root, {
+export const BranchPickerRoot = withDefaults(BranchPickerPrimitive.Root, {
   className: "aui-branch-picker-root",
 });
 
@@ -47,7 +47,7 @@ export const BranchPickerPrevious = forwardRef<
 
 BranchPickerPrevious.displayName = "BranchPickerPrevious";
 
-const BranchPickerStateWrapper = styled("span", {
+const BranchPickerStateWrapper = withDefaults("span", {
   className: "aui-branch-picker-state",
 });
 

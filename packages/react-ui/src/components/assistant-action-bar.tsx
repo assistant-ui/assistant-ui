@@ -11,7 +11,7 @@ import {
   TooltipIconButton,
   TooltipIconButtonProps,
 } from "./base/tooltip-icon-button";
-import { styled } from "../styled";
+import { withDefaults } from "../utils/withDefaults";
 import { useThreadConfig } from "./thread-config";
 
 const useAllowCopy = () => {
@@ -46,7 +46,7 @@ export const AssistantActionBar: FC = () => {
 
 AssistantActionBar.displayName = "AssistantActionBar";
 
-export const AssistantActionBarRoot = styled(ActionBarPrimitive.Root, {
+export const AssistantActionBarRoot = withDefaults(ActionBarPrimitive.Root, {
   className: "aui-assistant-action-bar-root",
 });
 

@@ -3,6 +3,7 @@ import { TextContentPartProps } from "@assistant-ui/react";
 import { CodeHeader } from "./code-header";
 import { MarkdownTextPrimitiveProps } from "@assistant-ui/react-markdown";
 import { FC, memo } from "react";
+import { classNames } from "../utils/withDefaults";
 
 type MakeMarkdownTextProps = MarkdownTextPrimitiveProps;
 
@@ -19,11 +20,11 @@ export const makeMarkdownText = ({
   const MarkdownTextImpl: FC<TextContentPartProps> = ({ status }) => {
     return (
       <div
-        className={
-          "aui-md-root" +
-          (status === "in_progress" ? " aui-md-in-progress" : "") +
-          (!!className ? " " + className : "")
-        }
+        className={classNames(
+          "aui-md-root",
+          status === "in_progress" && "aui-md-in-progress",
+          className,
+        )}
       >
         <MarkdownTextPrimitive components={components} {...rest} />
       </div>

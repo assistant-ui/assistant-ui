@@ -7,7 +7,7 @@ import {
 import { ComponentPropsWithoutRef, forwardRef, type FC } from "react";
 import { BranchPicker } from "./branch-picker";
 import { Avatar } from "./base/avatar";
-import { styled } from "../styled";
+import { withDefaults } from "../utils/withDefaults";
 import { useThreadConfig } from "./thread-config";
 import { AssistantActionBar } from "./assistant-action-bar";
 import { Text } from "./text";
@@ -30,13 +30,13 @@ export const AssistantAvatar: FC = () => {
   return <Avatar {...avatar} />;
 };
 
-export const AssistantMessageRoot = styled(MessagePrimitive.Root, {
+export const AssistantMessageRoot = withDefaults(MessagePrimitive.Root, {
   className: "aui-assistant-message-root",
 });
 
 AssistantMessageRoot.displayName = "AssistantMessageRoot";
 
-const AssistantMessageContentWrapper = styled("div", {
+const AssistantMessageContentWrapper = withDefaults("div", {
   className: "aui-assistant-message-content",
 });
 

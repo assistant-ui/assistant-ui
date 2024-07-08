@@ -3,7 +3,7 @@
 import type { FC } from "react";
 import * as AvatarPrimitive from "@radix-ui/react-avatar";
 
-import { styled } from "../../styled";
+import { withDefaults } from "../../utils/withDefaults";
 
 export type AvatarProps = {
   src?: string | undefined;
@@ -24,19 +24,19 @@ export const Avatar: FC<AvatarProps> = ({ src, alt, fallback }) => {
 
 Avatar.displayName = "Avatar";
 
-export const AvatarRoot = styled(AvatarPrimitive.Root, {
+export const AvatarRoot = withDefaults(AvatarPrimitive.Root, {
   className: "aui-avatar-root",
 });
 
 AvatarRoot.displayName = "AvatarRoot";
 
-export const AvatarImage = styled(AvatarPrimitive.Image, {
+export const AvatarImage = withDefaults(AvatarPrimitive.Image, {
   className: "aui-avatar-image",
 });
 
 AvatarImage.displayName = "AvatarImage";
 
-export const AvatarFallback = styled(AvatarPrimitive.Fallback, {
+export const AvatarFallback = withDefaults(AvatarPrimitive.Fallback, {
   className: "aui-avatar-fallback",
 });
 

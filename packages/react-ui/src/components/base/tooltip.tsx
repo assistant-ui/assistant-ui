@@ -1,7 +1,7 @@
 "use client";
 
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import { styled } from "../../styled";
+import { withDefaults } from "../../utils/withDefaults";
 import { FC } from "react";
 
 export const Tooltip: FC<TooltipPrimitive.TooltipProps> = (props) => {
@@ -16,7 +16,7 @@ Tooltip.displayName = "Tooltip";
 
 export const TooltipTrigger = TooltipPrimitive.Trigger;
 
-export const TooltipContent = styled(TooltipPrimitive.Content, {
+export const TooltipContent = withDefaults(TooltipPrimitive.Content, {
   sideOffset: 4,
   className: "aui-tooltip-content",
 });

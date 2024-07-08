@@ -6,7 +6,7 @@ import {
   TooltipIconButton,
   TooltipIconButtonProps,
 } from "./base/tooltip-icon-button";
-import { styled } from "../styled";
+import { withDefaults } from "../utils/withDefaults";
 import { useThreadConfig } from "./thread-config";
 
 const useAllowEdit = () => {
@@ -28,7 +28,7 @@ export const UserActionBar: FC = () => {
 
 UserActionBar.displayName = "UserActionBar";
 
-export const UserActionBarRoot = styled(ActionBarPrimitive.Root, {
+export const UserActionBarRoot = withDefaults(ActionBarPrimitive.Root, {
   className: "aui-user-action-bar-root",
 });
 
