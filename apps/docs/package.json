@@ -3,7 +3,8 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "build": "next build",
+    "build": "pnpm run build:registry && next build",
+    "build:registry": "pnpm --filter @assistant-ui/shadcn-registry run build:registry",
     "dev": "next dev",
     "start": "next start"
   },
