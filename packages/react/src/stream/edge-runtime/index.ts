@@ -1,0 +1,1 @@
+export { useEdgeRuntime } from "./useEdgeRuntime";

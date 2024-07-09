@@ -5,5 +5,6 @@ export * from "./primitive-hooks";
 export * from "./primitives";
 export * from "./runtime";
 export * from "./types";
+export * from "./stream/edge-runtime";
 
 export * as INTERNAL from "./internal";

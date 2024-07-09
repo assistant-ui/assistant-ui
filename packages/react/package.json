@@ -41,6 +41,16 @@
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
       }
+    },
+    "./edge": {
+      "import": {
+        "types": "./dist/edge.d.mts",
+        "default": "./dist/edge.mjs"
+      },
+      "require": {
+        "types": "./dist/edge.d.ts",
+        "default": "./dist/edge.js"
+      }
     }
   },
   "source": "./src/index.ts",
@@ -53,9 +63,10 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts --sourcemap --clean"
+    "build": "tsup src/index.ts src/server.ts --format cjs,esm --dts --sourcemap --clean"
   },
   "dependencies": {
+    "@ai-sdk/provider": "^0.0.11",
     "@radix-ui/primitive": "^1.1.0",
     "@radix-ui/react-compose-refs": "^1.1.0",
     "@radix-ui/react-context": "^1.1.0",
