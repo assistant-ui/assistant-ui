@@ -1,5 +1,5 @@
-import { useContext, useMemo } from "react";
-import { MessageContext } from "./MessageContext";
+import { useMemo } from "react";
+import { useMessageContext } from "./MessageContext";
 import { useThreadContext } from "./ThreadContext";
 import type { ComposerState } from "../stores/Composer";
 import type { EditComposerState } from "../stores/EditComposer";
@@ -12,7 +12,7 @@ export type ComposerContextValue = {
 
 export const useComposerContext = (): ComposerContextValue => {
   const { useComposer } = useThreadContext();
-  const { useEditComposer } = useContext(MessageContext) ?? {};
+  const { useEditComposer } = useMessageContext({ optional: true }) ?? {};
   return useMemo(
     () => ({
       useComposer: (useEditComposer ?? useComposer) as ReadonlyStore<

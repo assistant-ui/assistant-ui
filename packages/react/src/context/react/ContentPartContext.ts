@@ -12,11 +12,15 @@ export const ContentPartContext = createContext<ContentPartContextValue | null>(
   null,
 );
 
-export const useContentPartContext = (): ContentPartContextValue => {
+export function useContentPartContext(): ContentPartContextValue;
+export function useContentPartContext(options: {
+  optional: true;
+}): ContentPartContextValue | null;
+export function useContentPartContext(options?: { optional: true }) {
   const context = useContext(ContentPartContext);
-  if (!context)
+  if (!options?.optional && !context)
     throw new Error(
       "This component can only be used inside a component passed to <MessagePrimitive.Content components={...} >.",
     );
   return context;
-};
+}

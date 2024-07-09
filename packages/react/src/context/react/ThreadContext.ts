@@ -18,11 +18,15 @@ export type ThreadContextValue = {
 
 export const ThreadContext = createContext<ThreadContextValue | null>(null);
 
-export const useThreadContext = (): ThreadContextValue => {
+export function useThreadContext(): ThreadContextValue;
+export function useThreadContext(options: {
+  optional: true;
+}): ThreadContextValue | null;
+export function useThreadContext(options?: { optional: true }) {
   const context = useContext(ThreadContext);
-  if (!context)
+  if (!options?.optional && !context)
     throw new Error(
       "This component must be used within an AssistantRuntimeProvider.",
     );
   return context;
-};
+}

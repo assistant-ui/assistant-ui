@@ -14,11 +14,15 @@ export type MessageContextValue = {
 
 export const MessageContext = createContext<MessageContextValue | null>(null);
 
-export const useMessageContext = () => {
+export function useMessageContext(): MessageContextValue;
+export function useMessageContext(options: {
+  optional: true;
+}): MessageContextValue | null;
+export function useMessageContext(options?: { optional: true }) {
   const context = useContext(MessageContext);
-  if (!context)
+  if (!options?.optional && !context)
     throw new Error(
       "This component can only be used inside a component passed to <ThreadPrimitive.Messages components={...} />.",
     );
   return context;
-};
+}

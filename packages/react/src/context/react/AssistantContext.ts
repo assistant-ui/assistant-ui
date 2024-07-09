@@ -16,11 +16,15 @@ export const AssistantContext = createContext<AssistantContextValue | null>(
   null,
 );
 
-export const useAssistantContext = (): AssistantContextValue => {
+export function useAssistantContext(): AssistantContextValue;
+export function useAssistantContext(options: {
+  optional: true;
+}): AssistantContextValue | null;
+export function useAssistantContext(options?: { optional: true }) {
   const context = useContext(AssistantContext);
-  if (!context)
+  if (!options?.optional && !context)
     throw new Error(
       "This component must be used within an AssistantRuntimeProvider.",
     );
   return context;
-};
+}
