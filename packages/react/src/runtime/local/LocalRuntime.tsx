@@ -104,7 +104,7 @@ class LocalThreadRuntime implements ThreadRuntime {
     const message: AssistantMessage = {
       id,
       role: "assistant",
-      status: "in_progress",
+      status: { type: "in_progress" },
       content: [{ type: "text", text: "" }],
       createdAt: new Date(),
     };
@@ -132,11 +132,10 @@ class LocalThreadRuntime implements ThreadRuntime {
         updateHandler(result);
       }
 
-      message.status = "done";
+      message.status = { type: "done" };
       this.repository.addOrUpdateMessage(parentId, { ...message });
     } catch (e) {
-      (message as any).status = "error";
-      (message as any).error = e;
+      message.status = { type: "error", error: e };
       this.repository.addOrUpdateMessage(parentId, { ...message });
       console.error(e);
     } finally {

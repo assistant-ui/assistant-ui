@@ -10,6 +10,7 @@ export type {
   ImageContentPart,
   ToolCallContentPart,
   UIContentPart,
+  MessageStatus,
 
   // core message types
   CoreUserContentPart,

@@ -10,7 +10,7 @@ export const Text: FC<TextContentPartProps> = ({ status }) => {
     <p
       className={classNames(
         "aui-text",
-        status === "in_progress" && "aui-text-in-progress",
+        status.type === "in_progress" && "aui-text-in-progress",
       )}
     >
       <ContentPartPrimitive.Text />

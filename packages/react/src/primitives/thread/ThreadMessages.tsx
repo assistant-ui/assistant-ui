@@ -13,14 +13,18 @@ export type ThreadPrimitiveMessagesProps = {
         UserMessage?: ComponentType | undefined;
         EditComposer?: ComponentType | undefined;
         AssistantMessage?: ComponentType | undefined;
+        SystemMessage?: ComponentType | undefined;
       }
     | {
         Message?: ComponentType | undefined;
         UserMessage: ComponentType;
         EditComposer?: ComponentType | undefined;
         AssistantMessage: ComponentType;
+        SystemMessage?: ComponentType | undefined;
       };
 };
+
+const DEFAULT_SYSTEM_MESSAGE = () => null;
 
 const getComponents = (
   components: ThreadPrimitiveMessagesProps["components"],
@@ -34,6 +38,7 @@ const getComponents = (
       components.UserMessage ?? (components.Message as ComponentType),
     AssistantMessage:
       components.AssistantMessage ?? (components.Message as ComponentType),
+    SystemMessage: components.SystemMessage ?? DEFAULT_SYSTEM_MESSAGE,
   };
 };
 
@@ -46,7 +51,7 @@ const ThreadMessageImpl: FC<ThreadMessageProps> = ({
   messageIndex,
   components,
 }) => {
-  const { UserMessage, EditComposer, AssistantMessage } =
+  const { UserMessage, EditComposer, AssistantMessage, SystemMessage } =
     getComponents(components);
   return (
     <MessageProvider messageIndex={messageIndex}>
@@ -61,6 +66,9 @@ const ThreadMessageImpl: FC<ThreadMessageProps> = ({
       <MessagePrimitiveIf assistant>
         <AssistantMessage />
       </MessagePrimitiveIf>
+      <MessagePrimitiveIf system>
+        <SystemMessage />
+      </MessagePrimitiveIf>
     </MessageProvider>
   );
 };
@@ -72,7 +80,8 @@ const ThreadMessage = memo(
     prev.components.Message === next.components.Message &&
     prev.components.UserMessage === next.components.UserMessage &&
     prev.components.EditComposer === next.components.EditComposer &&
-    prev.components.AssistantMessage === next.components.AssistantMessage,
+    prev.components.AssistantMessage === next.components.AssistantMessage &&
+    prev.components.SystemMessage === next.components.SystemMessage,
 );
 
 export const ThreadPrimitiveMessagesImpl: FC<ThreadPrimitiveMessagesProps> = ({
@@ -103,5 +112,6 @@ export const ThreadPrimitiveMessages = memo(
     prev.components?.Message === next.components?.Message &&
     prev.components?.UserMessage === next.components?.UserMessage &&
     prev.components?.EditComposer === next.components?.EditComposer &&
-    prev.components?.AssistantMessage === next.components?.AssistantMessage,
+    prev.components?.AssistantMessage === next.components?.AssistantMessage &&
+    prev.components?.SystemMessage === next.components?.SystemMessage,
 );

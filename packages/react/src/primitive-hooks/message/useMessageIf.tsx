@@ -6,6 +6,7 @@ import { useCombinedStore } from "../../utils/combined/useCombinedStore";
 type MessageIfFilters = {
   user: boolean | undefined;
   assistant: boolean | undefined;
+  system: boolean | undefined;
   hasBranches: boolean | undefined;
   copied: boolean | undefined;
   lastOrHover: boolean | undefined;
@@ -22,6 +23,7 @@ export const useMessageIf = (props: UseMessageIfProps) => {
 
       if (props.user && message.role !== "user") return false;
       if (props.assistant && message.role !== "assistant") return false;
+      if (props.system && message.role !== "system") return false;
 
       if (props.lastOrHover === true && !isHovering && !isLast) return false;
 

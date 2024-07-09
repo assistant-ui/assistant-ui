@@ -3,11 +3,11 @@ import { useContentPartContext } from "../../context";
 
 export type ContentPartPrimitiveInProgressProps = PropsWithChildren;
 
-export const ContentPartPrimitiveInProgress: FC<ContentPartPrimitiveInProgressProps> = ({
-  children,
-}) => {
+export const ContentPartPrimitiveInProgress: FC<
+  ContentPartPrimitiveInProgressProps
+> = ({ children }) => {
   const { useContentPart } = useContentPartContext();
-  const isInProgress = useContentPart((c) => c.status === "in_progress");
+  const isInProgress = useContentPart((c) => c.status.type === "in_progress");
 
   return isInProgress ? children : null;
 };

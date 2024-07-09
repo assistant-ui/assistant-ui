@@ -2,34 +2,33 @@
 import type { ComponentType } from "react";
 import type {
   ImageContentPart,
+  MessageStatus,
   TextContentPart,
   ToolCallContentPart,
   UIContentPart,
 } from "./AssistantTypes";
 
-type ContentPartStatus = "done" | "in_progress" | "error";
-
 export type TextContentPartProps = {
   part: TextContentPart;
-  status: ContentPartStatus;
+  status: MessageStatus;
 };
 export type TextContentPartComponent = ComponentType<TextContentPartProps>;
 
 export type ImageContentPartProps = {
   part: ImageContentPart;
-  status: ContentPartStatus;
+  status: MessageStatus;
 };
 export type ImageContentPartComponent = ComponentType<ImageContentPartProps>;
 
 export type UIContentPartProps = {
   part: UIContentPart;
-  status: ContentPartStatus;
+  status: MessageStatus;
 };
 export type UIContentPartComponent = ComponentType<UIContentPartProps>;
 
 export type ToolCallContentPartProps<TArgs = any, TResult = any> = {
   part: ToolCallContentPart<TArgs, TResult>;
-  status: ContentPartStatus;
+  status: MessageStatus;
   addResult: (result: any) => void;
 };
 

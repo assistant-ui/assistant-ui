@@ -3,6 +3,7 @@ import type {
   TextContentPart,
   ThreadMessage,
   ToolCallContentPart,
+  MessageStatus,
 } from "@assistant-ui/react";
 import type { Message } from "ai";
 import { useEffect, useMemo } from "react";
@@ -23,7 +24,7 @@ const getIsRunning = (vercel: VercelHelpers) => {
 
 const vercelToThreadMessage = (
   messages: Message[],
-  status: "in_progress" | "done" | "error",
+  status: MessageStatus,
 ): VercelAIThreadMessage => {
   const firstMessage = messages[0];
   if (!firstMessage) throw new Error("No messages found");
@@ -34,7 +35,8 @@ const vercelToThreadMessage = (
     [symbolInnerAIMessage]: messages,
   };
 
-  switch (firstMessage.role) {
+  const role = firstMessage.role;
+  switch (role) {
     case "user":
       if (messages.length > 1) {
         throw new Error(
@@ -45,6 +47,13 @@ const vercelToThreadMessage = (
       return {
         ...common,
         role: "user",
+        content: [{ type: "text", text: firstMessage.content }],
+      };
+
+    case "system":
+      return {
+        ...common,
+        role: "system",
         content: [{ type: "text", text: firstMessage.content }],
       };
 
@@ -97,8 +106,9 @@ const vercelToThreadMessage = (
     }
 
     default:
+      const _unsupported: "function" | "tool" = role;
       throw new Error(
-        `123 You have a message with an unsupported role. The role ${firstMessage.role} is not supported.`,
+        `You have a message with an unsupported role. The role ${_unsupported} is not supported.`,
       );
   }
 };
@@ -151,13 +161,17 @@ export const useVercelAIThreadSync = (
   useEffect(() => {
     const lastMessageId = vercel.messages.at(-1)?.id;
     const convertCallback: ConverterCallback<Chunk> = (messages, cache) => {
-      const status =
-        lastMessageId === messages[0].id && isRunning ? "in_progress" : "done";
+      const status: MessageStatus = {
+        type:
+          lastMessageId === messages[0].id && isRunning
+            ? "in_progress"
+            : "done",
+      };
 
       if (
         cache &&
         shallowArrayEqual(cache.content, messages) &&
-        (cache.role === "user" || cache.status === status)
+        (cache.role !== "assistant" || cache.status.type === status.type)
       )
         return cache;
 

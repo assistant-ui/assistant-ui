@@ -334,9 +334,28 @@ export const ContentPartState: ParametersTableProps = {
     },
     {
       name: "status",
-      type: "'done' | 'in_progress' | 'error'",
+      type: "MessageStatus",
       required: true,
       description: "The current content part status.",
+      children: [
+        {
+          type: "MessageStatus",
+          parameters: [
+            {
+              name: "type",
+              type: "'in_progress' | 'done' | 'error'",
+              required: true,
+              description: "The status.",
+            },
+            {
+              name: "error",
+              type: "unknown",
+              required: false,
+              description: "The error object if the status is 'error'.",
+            },
+          ],
+        },
+      ],
     },
   ],
 };

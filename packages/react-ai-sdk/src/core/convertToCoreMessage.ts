@@ -8,6 +8,10 @@ import type {
 } from "ai";
 
 export const convertToCoreMessage = (message: ThreadMessage): CoreMessage[] => {
+  if (message.role === "system") {
+    return [{ role: "system", content: message.content[0].text }];
+  }
+
   const expandedMessages: CoreMessage[] = [
     {
       role: message.role,

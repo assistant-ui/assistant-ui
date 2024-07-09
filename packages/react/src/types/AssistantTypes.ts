@@ -40,13 +40,13 @@ type MessageCommonProps = {
   createdAt: Date;
 };
 
-type MessageStatusProps =
+export type MessageStatus =
   | {
-      status: "in_progress" | "done";
+      type: "in_progress" | "done";
       error?: undefined;
     }
   | {
-      status: "error";
+      type: "error";
       error: unknown;
     };
 
@@ -60,11 +60,11 @@ export type UserMessage = MessageCommonProps & {
   content: UserContentPart[];
 };
 
-export type AssistantMessage = MessageCommonProps &
-  MessageStatusProps & {
-    role: "assistant";
-    content: AssistantContentPart[];
-  };
+export type AssistantMessage = MessageCommonProps & {
+  role: "assistant";
+  content: AssistantContentPart[];
+  status: MessageStatus;
+};
 
 export type AppendMessage = {
   parentId: string | null;
@@ -84,11 +84,11 @@ export type CoreUserMessage = MessageCommonProps & {
   content: CoreUserContentPart[];
 };
 
-export type CoreAssistantMessage = MessageCommonProps &
-  MessageStatusProps & {
-    role: "assistant";
-    content: CoreAssistantContentPart[];
-  };
+export type CoreAssistantMessage = MessageCommonProps & {
+  role: "assistant";
+  content: CoreAssistantContentPart[];
+  status: MessageStatus;
+};
 
 export type CoreThreadMessage =
   | SystemMessage

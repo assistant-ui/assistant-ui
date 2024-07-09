@@ -67,11 +67,14 @@ export const ThreadViewportFooter = withDefaults("div", {
 
 ThreadViewportFooter.displayName = "ThreadViewportFooter";
 
+const SystemMessage = () => null;
+
 export const ThreadMessages: FC<{
   components?: {
     UserMessage?: ComponentType | undefined;
     EditComposer?: ComponentType | undefined;
     AssistantMessage?: ComponentType | undefined;
+    SystemMessage?: ComponentType | undefined;
   };
 }> = ({ components, ...rest }) => {
   return (
@@ -80,6 +83,7 @@ export const ThreadMessages: FC<{
         UserMessage: components?.UserMessage ?? UserMessage,
         EditComposer: components?.EditComposer ?? EditComposer,
         AssistantMessage: components?.AssistantMessage ?? AssistantMessage,
+        SystemMessage: components?.SystemMessage ?? SystemMessage,
       }}
       {...rest}
     />

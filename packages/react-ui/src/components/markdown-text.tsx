@@ -22,7 +22,7 @@ export const makeMarkdownText = ({
       <div
         className={classNames(
           "aui-md-root",
-          status === "in_progress" && "aui-md-in-progress",
+          status.type === "in_progress" && "aui-md-in-progress",
           className,
         )}
       >
@@ -32,5 +32,8 @@ export const makeMarkdownText = ({
   };
   MarkdownTextImpl.displayName = "MarkdownText";
 
-  return memo(MarkdownTextImpl, (prev, next) => prev.status === next.status);
+  return memo(
+    MarkdownTextImpl,
+    (prev, next) => prev.status.type === next.status.type,
+  );
 };
