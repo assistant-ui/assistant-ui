@@ -1,3 +1,5 @@
+"use client";
+
 import { createContext, useContext } from "react";
 import type { ContentPartState } from "../stores/ContentPart";
 import { ReadonlyStore } from "../ReadonlyStore";

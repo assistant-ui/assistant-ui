@@ -10,7 +10,7 @@ import {
 import type { Unsubscribe } from "../../types/Unsubscribe";
 import { ThreadRuntime } from "../core";
 import { MessageRepository } from "../utils/MessageRepository";
-import { generateId } from "../utils/idUtils";
+import { generateId } from "../../utils/idUtils";
 import { BaseAssistantRuntime } from "../core/BaseAssistantRuntime";
 import type { ChatModelAdapter, ChatModelRunResult } from "./ChatModelAdapter";
 
@@ -128,12 +128,15 @@ class LocalThreadRuntime implements ThreadRuntime {
         config: mergeModelConfigs(this._configProviders),
         onUpdate: updateHandler,
       });
-      updateHandler(result);
+      if (result !== undefined) {
+        updateHandler(result);
+      }
 
       message.status = "done";
       this.repository.addOrUpdateMessage(parentId, { ...message });
     } catch (e) {
-      message.status = "error";
+      (message as any).status = "error";
+      (message as any).error = e;
       this.repository.addOrUpdateMessage(parentId, { ...message });
       console.error(e);
     } finally {

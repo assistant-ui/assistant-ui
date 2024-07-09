@@ -1,3 +1,5 @@
+"use client";
+
 import type { FC, PropsWithChildren } from "react";
 import { useEffect, useInsertionEffect, useRef, useState } from "react";
 import type { AssistantRuntime } from "../../runtime";

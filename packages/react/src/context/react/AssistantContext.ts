@@ -1,3 +1,5 @@
+"use client";
+
 import { createContext, useContext } from "react";
 import type { AssistantModelConfigState } from "../stores/AssistantModelConfig";
 import type { AssistantToolUIsState } from "../stores/AssistantToolUIs";

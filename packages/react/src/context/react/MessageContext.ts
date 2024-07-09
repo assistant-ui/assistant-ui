@@ -1,3 +1,5 @@
+"use client";
+
 import { createContext, useContext } from "react";
 import type { MessageState } from "../stores/Message";
 import type { EditComposerState } from "../stores/EditComposer";

@@ -10,6 +10,13 @@ export type {
   ImageContentPart,
   ToolCallContentPart,
   UIContentPart,
+
+  // core message types
+  CoreUserContentPart,
+  CoreAssistantContentPart,
+  CoreUserMessage,
+  CoreAssistantMessage,
+  CoreThreadMessage,
 } from "./AssistantTypes";
 
 export type {

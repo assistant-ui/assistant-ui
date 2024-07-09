@@ -1,5 +1,5 @@
 import type { ThreadMessage } from "../../types/AssistantTypes";
-import { generateOptimisticId } from "./idUtils";
+import { generateOptimisticId } from "../../utils/idUtils";
 
 type RepositoryParent = {
   children: string[];

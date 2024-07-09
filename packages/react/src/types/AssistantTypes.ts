@@ -35,21 +35,36 @@ export type AssistantContentPart =
 
 export type AppendContentPart = TextContentPart | ImageContentPart;
 
-export type BaseMessage = {
+type MessageCommonProps = {
   id: string;
   createdAt: Date;
 };
 
-export type UserMessage = BaseMessage & {
+type MessageStatusProps =
+  | {
+      status: "in_progress" | "done";
+      error?: undefined;
+    }
+  | {
+      status: "error";
+      error: unknown;
+    };
+
+export type SystemMessage = MessageCommonProps & {
+  role: "system";
+  content: [TextContentPart];
+};
+
+export type UserMessage = MessageCommonProps & {
   role: "user";
   content: UserContentPart[];
 };
 
-export type AssistantMessage = BaseMessage & {
-  role: "assistant";
-  content: AssistantContentPart[];
-  status: "in_progress" | "done" | "error";
-};
+export type AssistantMessage = MessageCommonProps &
+  MessageStatusProps & {
+    role: "assistant";
+    content: AssistantContentPart[];
+  };
 
 export type AppendMessage = {
   parentId: string | null;
@@ -57,4 +72,25 @@ export type AppendMessage = {
   content: AppendContentPart[];
 };
 
-export type ThreadMessage = UserMessage | AssistantMessage;
+export type ThreadMessage = SystemMessage | UserMessage | AssistantMessage;
+
+/** Core Message Types (without UI content parts) */
+
+export type CoreUserContentPart = TextContentPart | ImageContentPart;
+export type CoreAssistantContentPart = TextContentPart | ToolCallContentPart;
+
+export type CoreUserMessage = MessageCommonProps & {
+  role: "user";
+  content: CoreUserContentPart[];
+};
+
+export type CoreAssistantMessage = MessageCommonProps &
+  MessageStatusProps & {
+    role: "assistant";
+    content: CoreAssistantContentPart[];
+  };
+
+export type CoreThreadMessage =
+  | SystemMessage
+  | CoreUserMessage
+  | CoreAssistantMessage;

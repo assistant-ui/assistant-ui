@@ -1,3 +1,5 @@
+"use client";
+
 import { createContext, useContext } from "react";
 import type { ComposerState } from "../stores/Composer";
 import type { ThreadState } from "../stores/Thread";
