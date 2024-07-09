@@ -1,6 +1,7 @@
 import {
   AssistantRuntimeProvider,
   TextContentPartComponent,
+  useAssistantContext,
 } from "@assistant-ui/react";
 import { FC, PropsWithChildren, createContext, useContext } from "react";
 import { AvatarProps } from "./base/avatar";
@@ -127,6 +128,8 @@ export const ThreadConfigProvider: FC<ThreadConfigProviderProps> = ({
   children,
   config,
 }) => {
+  const assistant = useAssistantContext({ optional: true });
+
   const configProvider =
     config && Object.keys(config ?? {}).length > 0 ? (
       <ThreadConfigContext.Provider value={config}>
@@ -136,6 +139,12 @@ export const ThreadConfigProvider: FC<ThreadConfigProviderProps> = ({
       <>{children}</>
     );
   if (!config?.runtime) return configProvider;
+
+  if (assistant) {
+    throw new Error(
+      "You provided a runtime to <Thread> while simulataneously using <AssistantRuntimeProvider>. This is not allowed.",
+    );
+  }
   return (
     <AssistantRuntimeProvider runtime={config.runtime}>
       {configProvider}
