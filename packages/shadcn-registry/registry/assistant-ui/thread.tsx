@@ -6,38 +6,29 @@ import {
   ThreadPrimitive,
 } from "@assistant-ui/react";
 import type { FC } from "react";
+import { SendHorizonalIcon } from "lucide-react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-  TooltipProvider,
-} from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
-import { SendHorizonalIcon } from "lucide-react";
+import { TooltipIconButton } from "@/components/ui/assistant-ui/tooltip-icon-button";
 
 export const Thread: FC = () => {
   return (
-    <TooltipProvider>
-      <ThreadPrimitive.Root className="bg-background h-full">
-        <ThreadPrimitive.Viewport className="flex h-full flex-col items-center overflow-y-scroll scroll-smooth px-4 pt-8">
-          <ThreadWelcome />
+    <ThreadPrimitive.Root className="bg-background h-full">
+      <ThreadPrimitive.Viewport className="flex h-full flex-col items-center overflow-y-scroll scroll-smooth px-4 pt-8">
+        <ThreadWelcome />
 
-          <ThreadPrimitive.Messages
-            components={{
-              UserMessage,
-              AssistantMessage,
-            }}
-          />
+        <ThreadPrimitive.Messages
+          components={{
+            UserMessage,
+            AssistantMessage,
+          }}
+        />
 
-          <div className="sticky bottom-0 mt-4 flex w-full max-w-2xl flex-grow flex-col items-center justify-end rounded-t-lg bg-inherit pb-4">
-            <Composer />
-          </div>
-        </ThreadPrimitive.Viewport>
-      </ThreadPrimitive.Root>
-    </TooltipProvider>
+        <div className="sticky bottom-0 mt-4 flex w-full max-w-2xl flex-grow flex-col items-center justify-end rounded-t-lg bg-inherit pb-4">
+          <Composer />
+        </div>
+      </ThreadPrimitive.Viewport>
+    </ThreadPrimitive.Root>
   );
 };
 
@@ -63,22 +54,15 @@ const Composer: FC = () => {
         rows={1}
         className="placeholder:text-muted-foreground size-full max-h-40 resize-none bg-transparent p-4 pr-12 text-sm outline-none"
       />
-      <Tooltip>
-        <ComposerPrimitive.Send asChild>
-          <TooltipTrigger asChild>
-            <Button
-              size="icon"
-              className={cn(
-                "absolute bottom-0 right-0 m-2.5 size-8 p-2 transition-opacity",
-              )}
-            >
-              <SendHorizonalIcon />
-              <span className="sr-only">Send</span>
-            </Button>
-          </TooltipTrigger>
-        </ComposerPrimitive.Send>
-        <TooltipContent side="bottom">Send</TooltipContent>
-      </Tooltip>
+      <ComposerPrimitive.Send asChild>
+        <TooltipIconButton
+          tooltip="Send"
+          variant="default"
+          className="absolute bottom-0 right-0 m-2.5 size-8 p-2 transition-opacity"
+        >
+          <SendHorizonalIcon />
+        </TooltipIconButton>
+      </ComposerPrimitive.Send>
     </ComposerPrimitive.Root>
   );
 };

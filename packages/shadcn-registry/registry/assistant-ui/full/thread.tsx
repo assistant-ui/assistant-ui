@@ -11,14 +11,7 @@ import {
 import type { FC } from "react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Button, type ButtonProps } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-  TooltipProvider,
-} from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import {
   ArrowDownIcon,
   CheckIcon,
@@ -30,29 +23,29 @@ import {
   SendHorizonalIcon,
 } from "lucide-react";
 import { MarkdownText } from "@/components/ui/assistant-ui/markdown-text";
+import { TooltipIconButton } from "@/components/ui/assistant-ui/tooltip-icon-button";
+import { cn } from "@/lib/utils";
 
 export const Thread: FC = () => {
   return (
-    <TooltipProvider>
-      <ThreadPrimitive.Root className="bg-background h-full">
-        <ThreadPrimitive.Viewport className="flex h-full flex-col items-center overflow-y-scroll scroll-smooth px-4 pt-8">
-          <ThreadWelcome />
+    <ThreadPrimitive.Root className="bg-background h-full">
+      <ThreadPrimitive.Viewport className="flex h-full flex-col items-center overflow-y-scroll scroll-smooth px-4 pt-8">
+        <ThreadWelcome />
 
-          <ThreadPrimitive.Messages
-            components={{
-              UserMessage,
-              EditComposer,
-              AssistantMessage,
-            }}
-          />
+        <ThreadPrimitive.Messages
+          components={{
+            UserMessage,
+            EditComposer,
+            AssistantMessage,
+          }}
+        />
 
-          <div className="sticky bottom-0 mt-4 flex w-full max-w-2xl flex-grow flex-col items-center justify-end rounded-t-lg bg-inherit pb-4">
-            <ThreadScrollToBottom />
-            <Composer />
-          </div>
-        </ThreadPrimitive.Viewport>
-      </ThreadPrimitive.Root>
-    </TooltipProvider>
+        <div className="sticky bottom-0 mt-4 flex w-full max-w-2xl flex-grow flex-col items-center justify-end rounded-t-lg bg-inherit pb-4">
+          <ThreadScrollToBottom />
+          <Composer />
+        </div>
+      </ThreadPrimitive.Viewport>
+    </ThreadPrimitive.Root>
   );
 };
 
@@ -225,32 +218,6 @@ const BranchPicker: FC<BranchPickerPrimitiveRootProps> = ({
         </TooltipIconButton>
       </BranchPickerPrimitive.Next>
     </BranchPickerPrimitive.Root>
-  );
-};
-
-type TooltipIconButtonProps = ButtonProps & { tooltip: string };
-
-const TooltipIconButton: FC<TooltipIconButtonProps> = ({
-  children,
-  tooltip,
-  className,
-  ...rest
-}) => {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn("size-6 p-1", className)}
-          {...rest}
-        >
-          {children}
-          <span className="sr-only">{tooltip}</span>
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent side="bottom">{tooltip}</TooltipContent>
-    </Tooltip>
   );
 };
 

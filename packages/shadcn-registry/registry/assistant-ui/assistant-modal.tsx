@@ -2,16 +2,11 @@
 
 import { BotIcon, ChevronDownIcon } from "lucide-react";
 
-import { Thread } from "@/components/ui/assistant-ui/thread";
-import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { type FC, forwardRef } from "react";
 import { AssistantModalPrimitive } from "@assistant-ui/react";
+
+import { Thread } from "@/components/ui/assistant-ui/thread";
+import { TooltipIconButton } from "@/components/ui/assistant-ui/tooltip-icon-button";
 
 export const AssistantModal: FC = () => {
   return (
@@ -40,31 +35,25 @@ const FloatingAssistantButton = forwardRef<
   const tooltip = state === "open" ? "Close Assistant" : "Open Assistant";
 
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant="default"
-            size="icon"
-            {...rest}
-            className="size-full rounded-full shadow transition-transform hover:scale-110 active:scale-90"
-            ref={ref}
-          >
-            <BotIcon
-              data-state={state}
-              className="absolute size-6 transition-all data-[state=closed]:rotate-0 data-[state=open]:rotate-90 data-[state=closed]:scale-100 data-[state=open]:scale-0"
-            />
+    <TooltipIconButton
+      variant="default"
+      tooltip={tooltip}
+      side="left"
+      {...rest}
+      className="size-full rounded-full shadow transition-transform hover:scale-110 active:scale-90"
+      ref={ref}
+    >
+      <BotIcon
+        data-state={state}
+        className="absolute size-6 transition-all data-[state=closed]:rotate-0 data-[state=open]:rotate-90 data-[state=closed]:scale-100 data-[state=open]:scale-0"
+      />
 
-            <ChevronDownIcon
-              data-state={state}
-              className="absolute size-6 transition-all data-[state=closed]:-rotate-90 data-[state=open]:rotate-0 data-[state=closed]:scale-0 data-[state=open]:scale-100"
-            />
-            <span className="sr-only">{tooltip}</span>
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side="left">{tooltip}</TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+      <ChevronDownIcon
+        data-state={state}
+        className="absolute size-6 transition-all data-[state=closed]:-rotate-90 data-[state=open]:rotate-0 data-[state=closed]:scale-0 data-[state=open]:scale-100"
+      />
+      <span className="sr-only">{tooltip}</span>
+    </TooltipIconButton>
   );
 });
 
