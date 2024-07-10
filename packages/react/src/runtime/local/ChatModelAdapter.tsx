@@ -1,12 +1,12 @@
 "use client";
 import type {
-  AssistantContentPart,
+  ThreadAssistantContentPart,
   ThreadMessage,
 } from "../../types/AssistantTypes";
 import type { ModelConfig } from "../../types/ModelConfigTypes";
 
 export type ChatModelRunResult = {
-  content: AssistantContentPart[];
+  content: ThreadAssistantContentPart[];
 };
 
 export type ChatModelRunOptions = {

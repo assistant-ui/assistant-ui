@@ -1,7 +1,7 @@
 import type {
   AppendMessage,
-  AssistantMessage,
-  UserMessage,
+  ThreadAssistantMessage,
+  ThreadUserMessage,
 } from "../../types/AssistantTypes";
 import {
   type ModelConfigProvider,
@@ -83,7 +83,7 @@ class LocalThreadRuntime implements ThreadRuntime {
   public async append(message: AppendMessage): Promise<void> {
     // add user message
     const userMessageId = generateId();
-    const userMessage: UserMessage = {
+    const userMessage: ThreadUserMessage = {
       id: userMessageId,
       role: "user",
       content: message.content,
@@ -101,7 +101,7 @@ class LocalThreadRuntime implements ThreadRuntime {
     const messages = this.repository.getMessages();
 
     // add assistant message
-    const message: AssistantMessage = {
+    const message: ThreadAssistantMessage = {
       id,
       role: "assistant",
       status: { type: "in_progress" },

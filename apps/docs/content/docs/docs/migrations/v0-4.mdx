@@ -1,0 +1,40 @@
+---
+title: Migration to v0.4
+---
+
+## ThreadAssistantMessage / ThreadUserMessage
+
+The type `AssistantMessage` has been renamed to `ThreadAssistantMessage`.
+
+```diff
+- import { AssistantMessage } from "@assistant-ui/react";
++ import { ThreadAssistantMessage } from "@assistant-ui/react";
+```
+
+The type `UserMessage` has been renamed to `ThreadUserMessage`.
+
+```diff
+- import { UserMessage } from "@assistant-ui/react";
++ import { ThreadUserMessage } from "@assistant-ui/react";
+```
+
+The type `AssistantContentPart` has been renamed to `ThreadAssistantContentPart`.
+
+```diff
+- import { AssistantContentPart } from "@assistant-ui/react";
++ import { ThreadAssistantContentPart } from "@assistant-ui/react";
+```
+
+The type `UserContentPart` has been renamed to `ThreadUserContentPart`.
+
+```diff
+- import { UserContentPart } from "@assistant-ui/react";
++ import { ThreadUserContentPart } from "@assistant-ui/react";
+```
+
+## `@assistant-ui/react-ui` is now `@assistant-ui/react`
+
+```diff
+- import { Thread } from "@assistant-ui/react-ui";
++ import { Thread } from "@assistant-ui/react";
+```

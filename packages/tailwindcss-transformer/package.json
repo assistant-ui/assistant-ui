@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
+  "main": "./src/index.ts",
   "dependencies": {
     "postcss": "^8.4.39",
     "postcss-value-parser": "^4.2.0"

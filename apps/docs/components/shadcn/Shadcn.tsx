@@ -1,14 +1,17 @@
 import { ArchiveIcon, EditIcon, MenuIcon, ShareIcon } from "lucide-react";
 import Link from "next/link";
+import { Thread, useSwitchToNewThread } from "@assistant-ui/react";
+import { makeMarkdownText } from "@assistant-ui/react-markdown";
 import remarkGfm from "remark-gfm";
+import { makePrismAsyncSyntaxHighlighter } from "@assistant-ui/react-syntax-highlighter";
+import { coldarkDark } from "react-syntax-highlighter/dist/cjs/styles/prism";
+import type { TooltipContentProps } from "@radix-ui/react-tooltip";
+import Image from "next/image";
+import { type FC } from "react";
 
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import icon from "@/public/favicon/favicon.svg";
-import type { TooltipContentProps } from "@radix-ui/react-tooltip";
-import Image from "next/image";
-import { type FC } from "react";
-import { makeMarkdownText, Thread } from "@assistant-ui/react-ui";
 import { Sheet, SheetContent, SheetTrigger } from "../ui/sheet";
 import {
   TooltipProvider,
@@ -17,9 +20,6 @@ import {
   TooltipTrigger,
 } from "../ui/tooltip";
 import { ModelPicker } from "./ModelPicker";
-import { useSwitchToNewThread } from "@assistant-ui/react";
-import { coldarkDark } from "react-syntax-highlighter/dist/cjs/styles/prism";
-import { makePrismAsyncSyntaxHighlighter } from "@assistant-ui/react-syntax-highlighter";
 
 const MarkdownText = makeMarkdownText({
   remarkPlugins: [remarkGfm],

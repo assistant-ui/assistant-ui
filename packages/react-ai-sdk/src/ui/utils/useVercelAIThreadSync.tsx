@@ -1,9 +1,9 @@
 import type {
-  AssistantMessage,
   TextContentPart,
   ThreadMessage,
   ToolCallContentPart,
   MessageStatus,
+  ThreadAssistantMessage,
 } from "@assistant-ui/react";
 import type { Message } from "ai";
 import { useEffect, useMemo } from "react";
@@ -59,7 +59,7 @@ const vercelToThreadMessage = (
 
     case "data":
     case "assistant": {
-      const res: AssistantMessage = {
+      const res: ThreadAssistantMessage = {
         ...common,
         role: "assistant",
         content: messages.flatMap((message) => {

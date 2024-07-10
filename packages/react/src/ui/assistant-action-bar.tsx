@@ -1,0 +1,110 @@
+"use client";
+
+import { forwardRef, type FC } from "react";
+import { CheckIcon, CopyIcon, RefreshCwIcon } from "lucide-react";
+import { ActionBarPrimitive, MessagePrimitive } from "../primitives";
+import {
+  TooltipIconButton,
+  TooltipIconButtonProps,
+} from "./base/tooltip-icon-button";
+import { withDefaults } from "./utils/withDefaults";
+import { useThreadConfig } from "./thread-config";
+import { useThreadContext } from "../context";
+
+const useAllowCopy = () => {
+  const { assistantMessage: { allowCopy = true } = {} } = useThreadConfig();
+  const { useThreadActions } = useThreadContext();
+  const copySupported = useThreadActions((t) => t.capabilities.copy);
+  return copySupported && allowCopy;
+};
+
+const useAllowReload = () => {
+  const { assistantMessage: { allowReload = true } = {} } = useThreadConfig();
+  const { useThreadActions } = useThreadContext();
+  const reloadSupported = useThreadActions((t) => t.capabilities.reload);
+  return reloadSupported && allowReload;
+};
+
+const AssistantActionBar: FC = () => {
+  const allowCopy = useAllowCopy();
+  const allowReload = useAllowReload();
+  if (!allowCopy && !allowReload) return null;
+  return (
+    <AssistantActionBarRoot
+      hideWhenRunning
+      autohide="not-last"
+      autohideFloat="single-branch"
+    >
+      <AssistantActionBarCopy />
+      <AssistantActionBarReload />
+    </AssistantActionBarRoot>
+  );
+};
+
+AssistantActionBar.displayName = "AssistantActionBar";
+
+const AssistantActionBarRoot = withDefaults(ActionBarPrimitive.Root, {
+  className: "aui-assistant-action-bar-root",
+});
+
+AssistantActionBarRoot.displayName = "AssistantActionBarRoot";
+
+const AssistantActionBarCopy = forwardRef<
+  HTMLButtonElement,
+  Partial<TooltipIconButtonProps>
+>((props, ref) => {
+  const {
+    strings: {
+      assistantMessage: { reload: { tooltip = "Copy" } = {} } = {},
+    } = {},
+  } = useThreadConfig();
+  const allowCopy = useAllowCopy();
+  if (!allowCopy) return null;
+  return (
+    <ActionBarPrimitive.Copy asChild>
+      <TooltipIconButton tooltip={tooltip} {...props} ref={ref}>
+        <MessagePrimitive.If copied>
+          <CheckIcon />
+        </MessagePrimitive.If>
+        <MessagePrimitive.If copied={false}>
+          <CopyIcon />
+        </MessagePrimitive.If>
+      </TooltipIconButton>
+    </ActionBarPrimitive.Copy>
+  );
+});
+
+AssistantActionBarCopy.displayName = "AssistantActionBarCopy";
+
+const AssistantActionBarReload = forwardRef<
+  HTMLButtonElement,
+  Partial<TooltipIconButtonProps>
+>((props, ref) => {
+  const {
+    strings: {
+      assistantMessage: { reload: { tooltip = "Refresh" } = {} } = {},
+    } = {},
+  } = useThreadConfig();
+  const allowReload = useAllowReload();
+  if (!allowReload) return null;
+  return (
+    <ActionBarPrimitive.Reload asChild>
+      <TooltipIconButton tooltip={tooltip} {...props} ref={ref}>
+        <RefreshCwIcon />
+      </TooltipIconButton>
+    </ActionBarPrimitive.Reload>
+  );
+});
+
+AssistantActionBarReload.displayName = "AssistantActionBarReload";
+
+const exports = {
+  Root: AssistantActionBarRoot,
+  Reload: AssistantActionBarReload,
+  Copy: AssistantActionBarCopy,
+};
+
+export default Object.assign(
+  AssistantActionBar,
+  exports,
+) as typeof AssistantActionBar & typeof exports;

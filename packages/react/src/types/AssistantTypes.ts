@@ -23,12 +23,12 @@ export type ToolCallContentPart<TArgs = unknown, TResult = unknown> = {
   result?: TResult;
 };
 
-export type UserContentPart =
+export type ThreadUserContentPart =
   | TextContentPart
   | ImageContentPart
   | UIContentPart;
 
-export type AssistantContentPart =
+export type ThreadAssistantContentPart =
   | TextContentPart
   | ToolCallContentPart
   | UIContentPart;
@@ -50,19 +50,19 @@ export type MessageStatus =
       error: unknown;
     };
 
-export type SystemMessage = MessageCommonProps & {
+export type ThreadSystemMessage = MessageCommonProps & {
   role: "system";
   content: [TextContentPart];
 };
 
-export type UserMessage = MessageCommonProps & {
+export type ThreadUserMessage = MessageCommonProps & {
   role: "user";
-  content: UserContentPart[];
+  content: ThreadUserContentPart[];
 };
 
-export type AssistantMessage = MessageCommonProps & {
+export type ThreadAssistantMessage = MessageCommonProps & {
   role: "assistant";
-  content: AssistantContentPart[];
+  content: ThreadAssistantContentPart[];
   status: MessageStatus;
 };
 
@@ -72,7 +72,10 @@ export type AppendMessage = {
   content: AppendContentPart[];
 };
 
-export type ThreadMessage = SystemMessage | UserMessage | AssistantMessage;
+export type ThreadMessage =
+  | ThreadSystemMessage
+  | ThreadUserMessage
+  | ThreadAssistantMessage;
 
 /** Core Message Types (without UI content parts) */
 
@@ -91,6 +94,6 @@ export type CoreAssistantMessage = MessageCommonProps & {
 };
 
 export type CoreThreadMessage =
-  | SystemMessage
+  | ThreadSystemMessage
   | CoreUserMessage
   | CoreAssistantMessage;

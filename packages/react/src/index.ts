@@ -6,5 +6,6 @@ export * from "./primitives";
 export * from "./runtime";
 export * from "./types";
 export * from "./stream/edge-runtime";
+export * from "./ui";
 
 export * as INTERNAL from "./internal";

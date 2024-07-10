@@ -51,6 +51,19 @@
         "types": "./dist/edge.d.ts",
         "default": "./dist/edge.js"
       }
+    },
+    "./tailwindcss": {
+      "import": {
+        "types": "./dist/tailwindcss/index.d.mts",
+        "default": "./dist/tailwindcss/index.mjs"
+      },
+      "require": {
+        "types": "./dist/tailwindcss/index.d.ts",
+        "default": "./dist/tailwindcss/index.js"
+      }
+    },
+    "./styles/*": {
+      "default": "./dist/styles/*"
     }
   },
   "source": "./src/index.ts",
@@ -63,19 +76,23 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsup src/index.ts src/server.ts --format cjs,esm --dts --sourcemap --clean"
+    "build": "tsx scripts/build.mts"
   },
   "dependencies": {
     "@ai-sdk/provider": "^0.0.11",
     "@radix-ui/primitive": "^1.1.0",
+    "@radix-ui/react-avatar": "^1.1.0",
     "@radix-ui/react-compose-refs": "^1.1.0",
     "@radix-ui/react-context": "^1.1.0",
     "@radix-ui/react-popover": "^1.1.1",
     "@radix-ui/react-primitive": "^2.0.0",
     "@radix-ui/react-slot": "^1.1.0",
+    "@radix-ui/react-tooltip": "^1.1.2",
     "@radix-ui/react-use-callback-ref": "^1.1.0",
     "@radix-ui/react-use-escape-keydown": "^1.1.0",
-    "@radix-ui/react-use-layout-effect": "^1.1.0",
+    "class-variance-authority": "^0.7.0",
+    "classnames": "^2.5.1",
+    "lucide-react": "^0.400.0",
     "nanoid": "^5.0.7",
     "react-textarea-autosize": "^8.5.3",
     "zod": "^3.23.8",
@@ -85,7 +102,8 @@
     "@types/react": "*",
     "@types/react-dom": "*",
     "react": "^18",
-    "react-dom": "^18"
+    "react-dom": "^18",
+    "tailwindcss": "^3.4.4"
   },
   "peerDependenciesMeta": {
     "@types/react": {
@@ -93,13 +111,23 @@
     },
     "@types/react-dom": {
       "optional": true
+    },
+    "tailwindcss": {
+      "optional": true
     }
   },
   "devDependencies": {
-    "@ai-sdk/react": "^0.0.16",
+    "@assistant-ui/tailwindcss-transformer": "workspace:*",
     "@assistant-ui/tsconfig": "workspace:*",
     "@types/node": "^20.14.9",
-    "tsup": "^8.1.0"
+    "autoprefixer": "^10.4.19",
+    "eslint-config-next": "14.2.4",
+    "postcss": "^8.4.39",
+    "postcss-nested": "^6.0.1",
+    "tailwindcss": "^3.4.4",
+    "tailwindcss-animate": "^1.0.7",
+    "tsup": "^8.1.0",
+    "tsx": "^4.16.0"
   },
   "publishConfig": {
     "access": "public",
