@@ -1,5 +1,3 @@
-// TODO figure out the export format
-
 export {
   ThreadConfigProvider,
   useThreadConfig,

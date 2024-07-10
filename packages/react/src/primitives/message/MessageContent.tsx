@@ -93,7 +93,8 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
       return <Tool part={part} status={status} addResult={addResult} />;
     }
     default:
-      throw new Error(`Unknown content part type: ${type}`);
+      const unhandledType: never = type;
+      throw new Error(`Unknown content part type: ${unhandledType}`);
   }
 };
 

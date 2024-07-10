@@ -35,8 +35,7 @@ const vercelToThreadMessage = (
     [symbolInnerAIMessage]: messages,
   };
 
-  const role = firstMessage.role;
-  switch (role) {
+  switch (firstMessage.role) {
     case "user":
       if (messages.length > 1) {
         throw new Error(
@@ -106,7 +105,7 @@ const vercelToThreadMessage = (
     }
 
     default:
-      const _unsupported: "function" | "tool" = role;
+      const _unsupported: "function" | "tool" = firstMessage.role;
       throw new Error(
         `You have a message with an unsupported role. The role ${_unsupported} is not supported.`,
       );

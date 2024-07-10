@@ -106,29 +106,19 @@ export function convertToLanguageModelMessage(
     case "user": {
       const msg: LanguageModelV1Message = {
         role: "user",
-        content:
-          // TODO testing
-          typeof message.content === "string"
-            ? [
-                {
-                  type: "text",
-                  text: message.content,
-                },
-              ]
-            : message.content.map((part): LanguageModelV1TextPart => {
-                switch (part.type) {
-                  case "text": {
-                    return part;
-                  }
+        content: message.content.map((part): LanguageModelV1TextPart => {
+          switch (part.type) {
+            case "text": {
+              return part;
+            }
 
-                  // TODO support image parts
-                  default: {
-                    throw new Error(
-                      `Unspported content part type: ${part.type}`,
-                    );
-                  }
-                }
-              }),
+            // TODO support image parts
+            default: {
+              const unhandledType: "image" = part.type;
+              throw new Error(`Unspported content part type: ${unhandledType}`);
+            }
+          }
+        }),
       };
       return [msg];
     }
@@ -204,8 +194,8 @@ export function convertToLanguageModelMessage(
     }
 
     default: {
-      const _exhaustiveCheck: never = role;
-      throw new Error(`Invalid message role: ${_exhaustiveCheck}`);
+      const unhandledRole: never = role;
+      throw new Error(`Unknown message role: ${unhandledRole}`);
     }
   }
 }

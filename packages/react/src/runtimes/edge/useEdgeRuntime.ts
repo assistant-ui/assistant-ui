@@ -5,22 +5,22 @@ import { runResultStream } from "./streams/runResultStream";
 import { useLocalRuntime } from "..";
 import { useMemo } from "react";
 
-export type AsyncIterableStream<T> = AsyncIterable<T> & ReadableStream<T>;
-
 export function asAsyncIterable<T>(
   source: ReadableStream<T>,
-): AsyncIterableStream<T> {
-  const ais: AsyncIterableStream<T> = source as AsyncIterableStream<T>;
-  ais[Symbol.asyncIterator] = () => {
-    const reader = source.getReader();
-    return {
-      async next(): Promise<IteratorResult<T, undefined>> {
-        const { done, value } = await reader.read();
-        return done ? { done: true, value: undefined } : { done: false, value };
-      },
-    };
+): AsyncIterable<T> {
+  return {
+    [Symbol.asyncIterator]: () => {
+      const reader = source.getReader();
+      return {
+        async next(): Promise<IteratorResult<T, undefined>> {
+          const { done, value } = await reader.read();
+          return done
+            ? { done: true, value: undefined }
+            : { done: false, value };
+        },
+      };
+    },
   };
-  return ais;
 }
 
 type EdgeRuntimeOptions = { api: string };

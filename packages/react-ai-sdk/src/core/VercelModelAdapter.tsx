@@ -1,11 +1,5 @@
-// @ts-nocheck TOOD
-
 "use client";
 
-import type {
-  AssistantContentPart,
-  TextContentPart,
-} from "@assistant-ui/react";
 import type {
   ChatModelAdapter,
   ChatModelRunOptions,
@@ -13,6 +7,7 @@ import type {
 import type { ToolCallContentPart } from "@assistant-ui/react";
 import { type CoreTool, type LanguageModel, streamText } from "ai";
 import { convertToCoreMessage } from "./convertToCoreMessage";
+import { CoreAssistantContentPart } from "@assistant-ui/react";
 
 // TODO multiple roundtrip support
 export class VercelModelAdapter implements ChatModelAdapter {
@@ -31,9 +26,10 @@ export class VercelModelAdapter implements ChatModelAdapter {
         : {}),
     });
 
-    const content: AssistantContentPart[] = [];
+    const content: CoreAssistantContentPart[] = [];
     for await (const aiPart of fullStream) {
-      switch (aiPart.type) {
+      const partType = aiPart.type;
+      switch (partType) {
         case "text-delta": {
           let part = content.at(-1);
           if (!part || part.type !== "text") {
@@ -58,22 +54,31 @@ export class VercelModelAdapter implements ChatModelAdapter {
           break;
         }
 
+        // @ts-expect-error
         case "tool-result": {
           const toolCall = content.findIndex(
+            // @ts-expect-error
             (c) => c.type === "tool-call" && c.toolCallId === aiPart.toolCallId,
           );
           if (toolCall === -1) {
             throw new Error(
+              // @ts-expect-error
               `Tool call ${aiPart.toolCallId} not found in the content stream. This is likely an internal bug in assistant-ui.`,
             );
           }
 
           content[toolCall] = {
             ...(content[toolCall] as ToolCallContentPart),
+            // @ts-expect-error
             result: aiPart.result,
           };
 
           break;
+        }
+
+        default: {
+          const unhandledType: "error" | "finish" = partType;
+          throw new Error(`Unknown content part type: ${unhandledType}`);
         }
       }
 

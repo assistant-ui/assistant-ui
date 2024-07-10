@@ -27,8 +27,8 @@ export function assistantStream() {
         }
 
         default: {
-          const _exhaustiveCheck: never = chunkType;
-          throw new Error(`Unhandled chunk type: ${_exhaustiveCheck}`);
+          const unhandledType: never = chunkType;
+          throw new Error(`Unhandled chunk type: ${unhandledType}`);
         }
       }
     },

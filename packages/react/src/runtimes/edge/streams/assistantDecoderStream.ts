@@ -41,8 +41,8 @@ export function assistantDecoderStream() {
           break;
         }
         default: {
-          const _exhaustiveCheck: never = code;
-          throw new Error(`Unhandled chunk type: ${_exhaustiveCheck}`);
+          const unhandledType: never = code;
+          throw new Error(`Unhandled chunk type: ${unhandledType}`);
         }
       }
     },
