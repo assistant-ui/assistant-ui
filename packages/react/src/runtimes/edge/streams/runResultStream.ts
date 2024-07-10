@@ -1,5 +1,5 @@
 import { AssistantStreamPart } from "./AssistantStreamPart";
-import { ChatModelRunResult } from "../../runtime/local/ChatModelAdapter";
+import { ChatModelRunResult } from "../../local/ChatModelAdapter";
 
 export function runResultStream() {
   let message: ChatModelRunResult = {

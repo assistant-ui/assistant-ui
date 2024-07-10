@@ -1,7 +1,7 @@
 import type { MutableRefObject } from "react";
 import { create } from "zustand";
 import type { AppendMessage } from "../../types/AssistantTypes";
-import { ThreadRuntime } from "../../runtime";
+import { ThreadRuntime } from "../../runtimes";
 
 export type ThreadActionsState = Readonly<{
   capabilities: Readonly<{

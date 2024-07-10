@@ -1,1 +1,1 @@
-export { createEdgeRuntimeAPI } from "./stream/edge-runtime/createEdgeRuntimeAPI";
+export { createEdgeRuntimeAPI } from "./runtimes/edge/createEdgeRuntimeAPI";

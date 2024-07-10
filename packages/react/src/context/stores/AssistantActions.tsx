@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { AssistantRuntime } from "../../runtime";
+import { AssistantRuntime } from "../../runtimes";
 import { MutableRefObject } from "react";
 
 export type AssistantActionsState = Readonly<{

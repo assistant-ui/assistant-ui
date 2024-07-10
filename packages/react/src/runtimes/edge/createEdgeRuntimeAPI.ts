@@ -11,8 +11,8 @@ import {
   LanguageModelV1ToolResultPart,
 } from "@ai-sdk/provider";
 import { CoreThreadMessage } from "../../types/AssistantTypes";
-import { assistantStream } from "../streams/assistantStream";
-import { assistantEncoderStream } from "../streams/assistantEncoderStream";
+import { assistantStream } from "./streams/assistantStream";
+import { assistantEncoderStream } from "./streams/assistantEncoderStream";
 
 export const createEdgeRuntimeAPI = ({ model }: { model: LanguageModelV1 }) => {
   const POST = async (request: Request) => {

@@ -2,7 +2,7 @@ import { FC, PropsWithChildren, createContext, useContext } from "react";
 
 import { AvatarProps } from "./base/avatar";
 import { TextContentPartComponent } from "../types";
-import { AssistantRuntime } from "../runtime";
+import { AssistantRuntime } from "../runtimes";
 import { AssistantRuntimeProvider, useAssistantContext } from "../context";
 
 export type SuggestionConfig = {

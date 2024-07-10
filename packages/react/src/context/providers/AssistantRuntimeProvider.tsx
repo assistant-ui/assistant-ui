@@ -1,6 +1,6 @@
 import type { FC, PropsWithChildren } from "react";
 import { memo } from "react";
-import type { AssistantRuntime } from "../../runtime/core/AssistantRuntime";
+import type { AssistantRuntime } from "../../runtimes/core/AssistantRuntime";
 import { AssistantProvider } from "./AssistantProvider";
 
 type AssistantRuntimeProviderProps = {

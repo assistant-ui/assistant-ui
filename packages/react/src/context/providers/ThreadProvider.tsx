@@ -7,8 +7,8 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import type { ReactThreadRuntime } from "../../runtime/core/ReactThreadRuntime";
-import type { ThreadRuntime } from "../../runtime/core/ThreadRuntime";
+import type { ReactThreadRuntime } from "../../runtimes/core/ReactThreadRuntime";
+import type { ThreadRuntime } from "../../runtimes/core/ThreadRuntime";
 import type { ThreadContextValue } from "../react/ThreadContext";
 import { ThreadContext } from "../react/ThreadContext";
 import { makeComposerStore } from "../stores/Composer";

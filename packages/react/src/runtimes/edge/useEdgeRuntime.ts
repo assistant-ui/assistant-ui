@@ -1,8 +1,8 @@
-import { assistantDecoderStream } from "../streams/assistantDecoderStream";
-import { chunkByLineStream } from "../streams/chunkByLineStream";
-import { ChatModelAdapter } from "../../runtime/local/ChatModelAdapter";
-import { runResultStream } from "../streams/runResultStream";
-import { useLocalRuntime } from "../../runtime";
+import { assistantDecoderStream } from "./streams/assistantDecoderStream";
+import { chunkByLineStream } from "./streams/chunkByLineStream";
+import { ChatModelAdapter } from "../local/ChatModelAdapter";
+import { runResultStream } from "./streams/runResultStream";
+import { useLocalRuntime } from "..";
 import { useMemo } from "react";
 
 export type AsyncIterableStream<T> = AsyncIterable<T> & ReadableStream<T>;

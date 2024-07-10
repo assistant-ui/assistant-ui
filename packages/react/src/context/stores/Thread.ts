@@ -1,6 +1,6 @@
 import type { MutableRefObject } from "react";
 import { create } from "zustand";
-import { ThreadRuntime } from "../../runtime";
+import { ThreadRuntime } from "../../runtimes";
 
 export type ThreadState = Readonly<{
   isRunning: boolean;
