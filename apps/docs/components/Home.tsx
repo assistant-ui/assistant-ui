@@ -4,7 +4,7 @@ import { Claude } from "@/components/claude/Claude";
 import { Shadcn } from "@/components/shadcn/Shadcn";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useChat } from "@ai-sdk/react";
+import { useChat } from "ai/react";
 import { AssistantRuntimeProvider, useEdgeRuntime } from "@assistant-ui/react";
 import Link from "next/link";
 import { useState } from "react";

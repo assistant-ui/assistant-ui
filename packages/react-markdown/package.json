@@ -42,7 +42,7 @@
   "dependencies": {
     "@radix-ui/react-use-callback-ref": "^1.1.0",
     "classnames": "^2.5.1",
-    "lucide-react": "^0.400.0",
+    "lucide-react": "^0.407.0",
     "react-markdown": "^9.0.1"
   },
   "peerDependencies": {
@@ -61,10 +61,10 @@
   },
   "devDependencies": {
     "@assistant-ui/tsconfig": "workspace:*",
-    "eslint-config-next": "14.2.4",
+    "eslint-config-next": "14.2.5",
     "tailwindcss": "^3.4.4",
     "tsup": "^8.1.0",
-    "tsx": "^4.16.0"
+    "tsx": "^4.16.2"
   },
   "publishConfig": {
     "access": "public",

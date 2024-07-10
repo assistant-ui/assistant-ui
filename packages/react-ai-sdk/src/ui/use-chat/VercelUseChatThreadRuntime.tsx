@@ -11,7 +11,7 @@ import { getVercelAIMessage } from "../getVercelAIMessage";
 import { sliceMessagesUntil } from "../utils/sliceMessagesUntil";
 import { useVercelAIComposerSync } from "../utils/useVercelAIComposerSync";
 import { useVercelAIThreadSync } from "../utils/useVercelAIThreadSync";
-import { useChat } from "@ai-sdk/react";
+import { useChat } from "ai/react";
 
 const { MessageRepository } = INTERNAL;
 

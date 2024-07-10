@@ -1,3 +1,5 @@
-import type { UseAssistantHelpers, useChat } from "@ai-sdk/react";
+import type { useAssistant, useChat } from "ai/react";
 
-export type VercelHelpers = ReturnType<typeof useChat> | UseAssistantHelpers;
+export type VercelHelpers =
+  | ReturnType<typeof useChat>
+  | ReturnType<typeof useAssistant>;

@@ -1,6 +1,6 @@
 import { INTERNAL } from "@assistant-ui/react";
 import { ModelConfigProvider } from "@assistant-ui/react";
-import { useChat } from "@ai-sdk/react";
+import { useChat } from "ai/react";
 import { VercelUseChatThreadRuntime } from "./VercelUseChatThreadRuntime";
 
 const { ProxyConfigProvider, BaseAssistantRuntime } = INTERNAL;

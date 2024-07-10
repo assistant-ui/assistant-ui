@@ -26,7 +26,7 @@ cd my-app
 ### Install Vercel AI SDK and `@assistant-ui/react-ai-sdk`
 
 ```sh npm2yarn
-npm install @assistant-ui/react @assistant-ui/react-ai-sdk ai @ai-sdk/react openai
+npm install @assistant-ui/react @assistant-ui/react-ai-sdk ai openai
 ```
 
   </Step>
@@ -120,7 +120,7 @@ export async function POST(req: Request) {
 ```tsx
 "use client";
 
-import { useAssistant } from "@ai-sdk/react";
+import { useAssistant } from "ai/react";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useVercelUseAssistantRuntime } from "@assistant-ui/react-ai-sdk";
 

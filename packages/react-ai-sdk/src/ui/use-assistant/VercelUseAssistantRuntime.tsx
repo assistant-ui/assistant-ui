@@ -1,6 +1,6 @@
 import { type ThreadMessage, INTERNAL } from "@assistant-ui/react";
 import { ModelConfigProvider } from "@assistant-ui/react";
-import { UseAssistantHelpers } from "@ai-sdk/react";
+import { useAssistant } from "ai/react";
 import { VercelUseAssistantThreadRuntime } from "./VercelUseAssistantThreadRuntime";
 
 const { ProxyConfigProvider, BaseAssistantRuntime } = INTERNAL;
@@ -15,11 +15,11 @@ export const hasUpcomingMessage = (
 export class VercelUseAssistantRuntime extends BaseAssistantRuntime<VercelUseAssistantThreadRuntime> {
   private readonly _proxyConfigProvider = new ProxyConfigProvider();
 
-  constructor(vercel: UseAssistantHelpers) {
+  constructor(vercel: ReturnType<typeof useAssistant>) {
     super(new VercelUseAssistantThreadRuntime(vercel));
   }
 
-  public set vercel(vercel: UseAssistantHelpers) {
+  public set vercel(vercel: ReturnType<typeof useAssistant>) {
     this.thread.vercel = vercel;
   }
 

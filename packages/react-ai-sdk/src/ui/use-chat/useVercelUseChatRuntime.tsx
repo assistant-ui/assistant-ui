@@ -1,4 +1,4 @@
-import type { useChat } from "@ai-sdk/react";
+import type { useChat } from "ai/react";
 import { useEffect, useInsertionEffect, useState } from "react";
 import { VercelUseChatRuntime } from "./VercelUseChatRuntime";
 

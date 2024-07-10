@@ -7,7 +7,7 @@ import {
 import { type StoreApi, type UseBoundStore, create } from "zustand";
 import { useVercelAIComposerSync } from "../utils/useVercelAIComposerSync";
 import { useVercelAIThreadSync } from "../utils/useVercelAIThreadSync";
-import { UseAssistantHelpers } from "@ai-sdk/react";
+import { useAssistant } from "ai/react";
 import { hasUpcomingMessage } from "./VercelUseAssistantRuntime";
 
 const EMPTY_BRANCHES: readonly string[] = Object.freeze([]);
@@ -24,12 +24,14 @@ export class VercelUseAssistantThreadRuntime implements ReactThreadRuntime {
 
   public readonly capabilities = CAPABILITIES;
 
-  private useVercel: UseBoundStore<StoreApi<{ vercel: UseAssistantHelpers }>>;
+  private useVercel: UseBoundStore<
+    StoreApi<{ vercel: ReturnType<typeof useAssistant> }>
+  >;
 
   public messages: readonly ThreadMessage[] = [];
   public isRunning = false;
 
-  constructor(public vercel: UseAssistantHelpers) {
+  constructor(public vercel: ReturnType<typeof useAssistant>) {
     this.useVercel = create(() => ({
       vercel,
     }));
