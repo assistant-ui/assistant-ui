@@ -44,7 +44,7 @@ const auiPlugin = plugin.withOptions<AssisstantTailwindPluginOptions>(
       }
     },
   ({ shadcn = false } = {}) => {
-    const prefix = shadcn ? "--aui-" : "--";
+    const prefix = !shadcn ? "--aui-" : "--";
     return {
       theme: {
         extend: {

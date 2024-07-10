@@ -1,5 +1,6 @@
 import type { Config } from "tailwindcss";
 import { createPreset } from "fumadocs-ui/tailwind-plugin";
+import assistantuiPlugin from "@assistant-ui/react-ui/tailwindcss";
 
 const config = {
   darkMode: ["class"],
@@ -78,7 +79,8 @@ const config = {
   presets: [createPreset()],
   plugins: [
     require("tailwindcss-animate"),
-    require("@assistant-ui/react-ui/tailwindcss")({
+    assistantuiPlugin({
+      shadcn: true,
       components: ["thread", "assistant-modal", "markdown"],
     }),
   ],
