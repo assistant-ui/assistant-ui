@@ -1,0 +1,53 @@
+.aui-root {
+  @apply bg-aui-background text-aui-foreground border-aui-border;
+}
+
+/* button */
+.aui-root .aui-button {
+  @apply focus-visible:ring-aui-ring inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 disabled:pointer-events-none disabled:opacity-50;
+}
+
+.aui-root .aui-button-primary {
+  @apply bg-aui-primary text-aui-primary-foreground hover:bg-aui-primary/90 shadow;
+}
+
+.aui-root .aui-button-outline {
+  @apply border-aui-input bg-aui-background hover:bg-aui-accent hover:text-aui-accent-foreground border shadow-sm;
+}
+
+.aui-root .aui-button-ghost {
+  @apply hover:bg-aui-accent hover:text-aui-accent-foreground;
+}
+
+.aui-root .aui-button-medium {
+  @apply h-9 px-4 py-2;
+}
+
+/** tooltip icon button */
+.aui-root .aui-button-icon {
+  @apply size-6 p-1;
+}
+
+.aui-root .aui-sr-only {
+  @apply sr-only;
+}
+
+/* shadcn-ui/avatar */
+
+.aui-root .aui-avatar-root {
+  @apply relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full;
+}
+
+.aui-root .aui-avatar-image {
+  @apply aspect-square h-full w-full;
+}
+
+.aui-root .aui-avatar-fallback {
+  @apply bg-aui-muted flex h-full w-full items-center justify-center rounded-full;
+}
+
+/* shadcn-ui/tooltip */
+
+.aui-root .aui-tooltip-content {
+  @apply fade-in-0 zoom-in-95 data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 animate-in bg-aui-primary text-aui-primary-foreground data-[state=closed]:animate-out z-50 overflow-hidden rounded-md px-3 py-1.5 text-xs;
+}

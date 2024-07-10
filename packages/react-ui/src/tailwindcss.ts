@@ -15,19 +15,31 @@ const auiPlugin = plugin.withOptions<AssisstantTailwindPluginOptions>(
 
       if (thread) {
         addComponents({
-          '@import "@assistant-ui/react-ui/styles.css"': "",
+          '@import "@assistant-ui/react-ui/tailwindcss/styles/base-components.css"':
+            "",
+        });
+        addComponents({
+          '@import "@assistant-ui/react-ui/tailwindcss/styles/thread.css"': "",
         });
 
         if (!shadcn) {
           addComponents({
-            '@import "@assistant-ui/react-ui/themes/default.css"': "",
+            '@import "@assistant-ui/react-ui/tailwindcss/themes/default.css"':
+              "",
           });
         }
       }
 
+      if (assistantModal) {
+        addComponents({
+          '@import "@assistant-ui/react-ui/tailwindcss/styles/modal.css"': "",
+        });
+      }
+
       if (markdown) {
         addComponents({
-          '@import "@assistant-ui/react-ui/markdown-styles.css"': "",
+          '@import "@assistant-ui/react-ui/tailwindcss/styles/markdown.css"':
+            "",
         });
       }
     },

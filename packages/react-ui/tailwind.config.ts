@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import auiPlugin from "./src/tailwindcss";
 
 const config = {
   content: ["./src/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
@@ -48,7 +49,7 @@ const config = {
       },
     },
   },
-  plugins: [require("tailwindcss-animate"), require("./src/tailwindcss")],
+  plugins: [require("tailwindcss-animate"), auiPlugin],
 } satisfies Config;
 
 export default config;

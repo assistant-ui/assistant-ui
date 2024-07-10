@@ -4,7 +4,9 @@
     "paths": {
       "@assistant-ui/*": ["../../packages/*/src"],
       "@assistant-ui/react/*": ["../../packages/react/src/*"]
-    }
+    },
+    "moduleResolution": "Node",
+    "module": "CommonJS"
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
   "exclude": ["node_modules"]

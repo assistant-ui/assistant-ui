@@ -23,21 +23,17 @@
         "default": "./dist/tailwindcss.js"
       }
     },
-    "./styles.css": {
-      "types": "./dist/styles.css.d.ts",
-      "default": "./dist/styles.css"
+    "./styles": {
+      "default": "./dist/styles/index.css"
     },
-    "./markdown-styles.css": {
-      "types": "./dist/markdown-styles.css.d.ts",
-      "default": "./dist/markdown-styles.css"
+    "./styles/*": {
+      "default": "./dist/styles/*.css"
     },
-    "./themes/default.css": {
-      "types": "./dist/themes/default.css.d.ts",
-      "default": "./dist/themes/default.css"
+    "./tailwindcss/styles/*.css": {
+      "default": "./dist/tailwindcss/styles/*.css"
     },
-    "./themes/shadcn.css": {
-      "types": "./dist/themes/shadcn.css.d.ts",
-      "default": "./dist/themes/shadcn.css"
+    "./tailwindcss/themes/*.css": {
+      "default": "./dist/tailwindcss/themes/*.css"
     }
   },
   "source": "./src/index.ts",
@@ -49,7 +45,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsup && tsup --config tsup.plugin.config.ts"
+    "build": "tsx scripts/build.mts"
   },
   "dependencies": {
     "@assistant-ui/react-markdown": "workspace:*",
@@ -66,15 +62,20 @@
   "peerDependencies": {
     "@assistant-ui/react": "^0.3.5",
     "@types/react": "*",
-    "react": "^18"
+    "react": "^18",
+    "tailwindcss": "^3.4.4"
   },
   "peerDependenciesMeta": {
     "@types/react": {
+      "optional": true
+    },
+    "tailwindcss": {
       "optional": true
     }
   },
   "devDependencies": {
     "@assistant-ui/tsconfig": "workspace:*",
+    "@assistant-ui/tailwindcss-transformer": "workspace:*",
     "@types/node": "^20.14.9",
     "@types/react-syntax-highlighter": "^15.5.13",
     "autoprefixer": "^10.4.19",
@@ -84,6 +85,7 @@
     "tailwindcss": "^3.4.4",
     "tailwindcss-animate": "^1.0.7",
     "tsup": "^8.1.0",
+    "tsx": "^4.16.0",
     "typescript": "^5.5.3"
   },
   "publishConfig": {

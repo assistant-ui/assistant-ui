@@ -5,6 +5,6 @@
       "@assistant-ui/*": ["../../packages/*/src"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", "scripts/build.mts"],
   "exclude": ["node_modules"]
 }
