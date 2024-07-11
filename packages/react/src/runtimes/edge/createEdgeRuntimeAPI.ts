@@ -9,8 +9,13 @@ import {
   LanguageModelV1CallWarning,
   LanguageModelV1ToolCallPart,
   LanguageModelV1ToolResultPart,
+  LanguageModelV1ImagePart,
 } from "@ai-sdk/provider";
-import { CoreThreadMessage } from "../../types/AssistantTypes";
+import {
+  CoreThreadMessage,
+  TextContentPart,
+  ToolCallContentPart,
+} from "../../types/AssistantTypes";
 import { assistantStream } from "./streams/assistantStream";
 import { assistantEncoderStream } from "./streams/assistantEncoderStream";
 
@@ -56,7 +61,6 @@ async function streamMessage({
   tools?: LanguageModelV1FunctionTool[];
   toolChoice?: LanguageModelV1ToolChoice;
 }): Promise<StreamMessageResult> {
-  // TODO retry support
   const { stream, warnings, rawResponse } = await model.doStream({
     inputFormat: "messages",
     mode: {
@@ -94,6 +98,66 @@ export function convertToLanguageModelPrompt(
   return languageModelMessages;
 }
 
+const assistantMessageSplitter = () => {
+  const stash: LanguageModelV1Message[] = [];
+  let assistantMessage = {
+    role: "assistant" as const,
+    content: [] as (LanguageModelV1TextPart | LanguageModelV1ToolCallPart)[],
+  };
+  let toolMessage = {
+    role: "tool" as const,
+    content: [] as LanguageModelV1ToolResultPart[],
+  };
+
+  return {
+    addTextContentPart: (part: TextContentPart) => {
+      if (toolMessage.content.length > 0) {
+        stash.push(assistantMessage);
+        stash.push(toolMessage);
+
+        assistantMessage = {
+          role: "assistant" as const,
+          content: [] as (
+            | LanguageModelV1TextPart
+            | LanguageModelV1ToolCallPart
+          )[],
+        };
+
+        toolMessage = {
+          role: "tool" as const,
+          content: [] as LanguageModelV1ToolResultPart[],
+        };
+      }
+
+      assistantMessage.content.push(part);
+    },
+    addToolCallPart: (part: ToolCallContentPart) => {
+      assistantMessage.content.push({
+        type: "tool-call",
+        toolCallId: part.toolCallId,
+        toolName: part.toolName,
+        args: part.args,
+      });
+      if (part.result) {
+        toolMessage.content.push({
+          type: "tool-result",
+          toolCallId: part.toolCallId,
+          toolName: part.toolName,
+          result: part.result,
+          // isError
+        });
+      }
+    },
+    getMessages: () => {
+      if (toolMessage.content.length > 0) {
+        return [...stash, assistantMessage, toolMessage];
+      }
+
+      return [...stash, assistantMessage];
+    },
+  };
+};
+
 export function convertToLanguageModelMessage(
   message: CoreThreadMessage,
 ): LanguageModelV1Message[] {
@@ -106,78 +170,45 @@ export function convertToLanguageModelMessage(
     case "user": {
       const msg: LanguageModelV1Message = {
         role: "user",
-        content: message.content.map((part): LanguageModelV1TextPart => {
-          switch (part.type) {
-            case "text": {
-              return part;
-            }
+        content: message.content.map(
+          (part): LanguageModelV1TextPart | LanguageModelV1ImagePart => {
+            const type = part.type;
+            switch (type) {
+              case "text": {
+                return part;
+              }
 
-            // TODO support image parts
-            default: {
-              const unhandledType: "image" = part.type;
-              throw new Error(`Unspported content part type: ${unhandledType}`);
+              case "image": {
+                return {
+                  type: "image",
+                  image: new URL(part.image),
+                };
+              }
+
+              default: {
+                const unhandledType: never = type;
+                throw new Error(
+                  `Unspported content part type: ${unhandledType}`,
+                );
+              }
             }
-          }
-        }),
+          },
+        ),
       };
       return [msg];
     }
 
     case "assistant": {
-      const stash: LanguageModelV1Message[] = [];
-      let assistantMessage = {
-        role: "assistant" as const,
-        content: [] as (
-          | LanguageModelV1TextPart
-          | LanguageModelV1ToolCallPart
-        )[],
-      };
-      let toolMessage = {
-        role: "tool" as const,
-        content: [] as LanguageModelV1ToolResultPart[],
-      };
-
+      const splitter = assistantMessageSplitter();
       for (const part of message.content) {
         const type = part.type;
         switch (type) {
           case "text": {
-            if (toolMessage.content.length > 0) {
-              stash.push(assistantMessage);
-              stash.push(toolMessage);
-
-              assistantMessage = {
-                role: "assistant" as const,
-                content: [] as (
-                  | LanguageModelV1TextPart
-                  | LanguageModelV1ToolCallPart
-                )[],
-              };
-
-              toolMessage = {
-                role: "tool" as const,
-                content: [] as LanguageModelV1ToolResultPart[],
-              };
-            }
-
-            assistantMessage.content.push(part);
+            splitter.addTextContentPart(part);
             break;
           }
           case "tool-call": {
-            assistantMessage.content.push({
-              type: "tool-call",
-              toolCallId: part.toolCallId,
-              toolName: part.toolName,
-              args: part.args,
-            });
-            if (part.result) {
-              toolMessage.content.push({
-                type: "tool-result",
-                toolCallId: part.toolCallId,
-                toolName: part.toolName,
-                result: part.result,
-                // isError
-              });
-            }
+            splitter.addToolCallPart(part);
             break;
           }
           default: {
@@ -186,11 +217,7 @@ export function convertToLanguageModelMessage(
           }
         }
       }
-      if (toolMessage.content.length > 0) {
-        return [...stash, assistantMessage, toolMessage];
-      }
-
-      return [...stash, assistantMessage];
+      return splitter.getMessages();
     }
 
     default: {

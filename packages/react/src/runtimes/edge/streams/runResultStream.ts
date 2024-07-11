@@ -3,6 +3,7 @@ import {
   AssistantStreamPart,
 } from "./AssistantStreamPart";
 import { ChatModelRunResult } from "../../local/ChatModelAdapter";
+import { parsePartialJson } from "../partial-json/parse-partial-json";
 
 export function runResultStream() {
   let message: ChatModelRunResult = {
@@ -32,7 +33,7 @@ export function runResultStream() {
             message,
             toolCallId,
             toolName,
-            JSON.parse(currentToolCall.argsText),
+            parsePartialJson(currentToolCall.argsText),
           );
           controller.enqueue(message);
           break;

@@ -1,6 +1,9 @@
 import { assistantDecoderStream } from "./streams/assistantDecoderStream";
 import { chunkByLineStream } from "./streams/chunkByLineStream";
-import { ChatModelAdapter } from "../local/ChatModelAdapter";
+import {
+  ChatModelAdapter,
+  ChatModelRunResult,
+} from "../local/ChatModelAdapter";
 import { runResultStream } from "./streams/runResultStream";
 import { useLocalRuntime } from "..";
 import { useMemo } from "react";
@@ -48,9 +51,12 @@ const createEdgeChatAdapter = ({
       .pipeThrough(assistantDecoderStream())
       .pipeThrough(runResultStream());
 
-    for await (const update of asAsyncIterable(stream)) {
+    let update: ChatModelRunResult | undefined;
+    for await (update of asAsyncIterable(stream)) {
       onUpdate(update);
     }
+    if (update === undefined) throw new Error("No data received from Edge Runtime");
+    return update;
   },
 });
 
