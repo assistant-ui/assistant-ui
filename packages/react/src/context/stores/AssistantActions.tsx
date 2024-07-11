@@ -4,6 +4,7 @@ import { MutableRefObject } from "react";
 
 export type AssistantActionsState = Readonly<{
   switchToThread: (threadId: string | null) => void;
+  getRuntime: () => AssistantRuntime;
 }>;
 
 export const makeAssistantActionsStore = (
@@ -12,5 +13,6 @@ export const makeAssistantActionsStore = (
   create<AssistantActionsState>(() =>
     Object.freeze({
       switchToThread: () => runtimeRef.current.switchToThread(null),
+      getRuntime: () => runtimeRef.current,
     }),
   );

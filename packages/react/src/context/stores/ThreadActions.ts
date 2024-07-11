@@ -24,6 +24,7 @@ export type ThreadActionsState = Readonly<{
   cancelRun: () => void;
 
   addToolResult: (options: AddToolResultOptions) => void;
+  getRuntime: () => ThreadRuntime;
 }>;
 
 export const makeThreadActionStore = (
@@ -40,6 +41,7 @@ export const makeThreadActionStore = (
       append: (message) => runtimeRef.current.append(message),
       cancelRun: () => runtimeRef.current.cancelRun(),
       addToolResult: (options) => runtimeRef.current.addToolResult(options),
+      getRuntime: () => runtimeRef.current,
     }),
   );
 };
