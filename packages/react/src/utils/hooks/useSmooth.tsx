@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useState } from "react";
 
 class TextStreamAnimator {
@@ -7,7 +9,8 @@ class TextStreamAnimator {
   public targetText: string = "";
 
   constructor(
-    private setText: (callback: (prevText: string) => string) => void,
+    public currentText: string,
+    private setText: (newText: string) => void,
   ) {}
 
   start() {
@@ -28,40 +31,35 @@ class TextStreamAnimator {
     const deltaTime = currentTime - this.lastUpdateTime;
     let timeToConsume = deltaTime;
 
-    this.setText((currentText) => {
-      const targetText = this.targetText;
+    const remainingChars = this.targetText.length - this.currentText.length;
+    const baseTimePerChar = Math.min(5, 250 / remainingChars);
 
-      if (currentText === targetText) {
-        this.animationFrameId = null;
-        return currentText;
-      }
+    let charsToAdd = 0;
+    while (timeToConsume >= baseTimePerChar && charsToAdd < remainingChars) {
+      charsToAdd++;
+      timeToConsume -= baseTimePerChar;
+    }
 
-      const remainingChars = targetText.length - currentText.length;
-      const baseTimePerChar = Math.min(5, 250 / remainingChars);
-
-      let charsToAdd = 0;
-      while (timeToConsume >= baseTimePerChar && charsToAdd < remainingChars) {
-        charsToAdd++;
-        timeToConsume -= baseTimePerChar;
-      }
-
+    if (charsToAdd !== remainingChars) {
       this.animationFrameId = requestAnimationFrame(this.animate);
+    } else {
+      this.animationFrameId = null;
+    }
+    if (charsToAdd === 0) return;
 
-      if (charsToAdd === 0) {
-        return currentText;
-      }
-
-      const newText = targetText.slice(0, currentText.length + charsToAdd);
-      this.lastUpdateTime = currentTime - timeToConsume;
-      return newText;
-    });
+    this.currentText = this.targetText.slice(
+      0,
+      this.currentText.length + charsToAdd,
+    );
+    this.lastUpdateTime = currentTime - timeToConsume;
+    this.setText(this.currentText);
   };
 }
 
 export const useSmooth = (text: string, smooth: boolean = false) => {
   const [displayedText, setDisplayedText] = useState(text);
   const [animatorRef] = useState<TextStreamAnimator>(
-    new TextStreamAnimator(setDisplayedText),
+    new TextStreamAnimator(text, setDisplayedText),
   );
 
   useEffect(() => {
@@ -72,8 +70,10 @@ export const useSmooth = (text: string, smooth: boolean = false) => {
 
     if (!text.startsWith(animatorRef.targetText)) {
       setDisplayedText(text);
+      animatorRef.currentText = text;
       animatorRef.targetText = text;
       animatorRef.stop();
+
       return;
     }
 

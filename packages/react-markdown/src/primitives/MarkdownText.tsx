@@ -1,3 +1,5 @@
+"use client";
+
 import { INTERNAL, useContentPartText } from "@assistant-ui/react";
 import type { ComponentType, FC } from "react";
 import ReactMarkdown, { type Options } from "react-markdown";

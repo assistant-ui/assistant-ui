@@ -1,3 +1,5 @@
+"use client";
+
 import { Primitive } from "@radix-ui/react-primitive";
 import { type ElementRef, forwardRef, ComponentPropsWithoutRef } from "react";
 import { useContentPartText } from "../../primitive-hooks/contentPart/useContentPartText";
