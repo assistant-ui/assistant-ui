@@ -1,4 +1,5 @@
 import type { z } from "zod";
+import type { JSONSchema7 } from "json-schema";
 
 type ToolExecuteFunction<TArgs, TResult> = (
   args: TArgs,
@@ -6,7 +7,7 @@ type ToolExecuteFunction<TArgs, TResult> = (
 
 export type Tool<TArgs = unknown, TResult = unknown> = {
   description?: string | undefined;
-  parameters: z.ZodSchema<TArgs>;
+  parameters: z.ZodSchema<TArgs> | JSONSchema7;
   execute: ToolExecuteFunction<TArgs, TResult>;
 };
 

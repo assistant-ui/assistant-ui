@@ -1,9 +1,9 @@
-import { AssistantStreamPart } from "./AssistantStreamPart";
 import { AssistantStreamChunkType } from "./AssistantStreamChunkType";
+import { LanguageModelV1StreamPart } from "@ai-sdk/provider";
 
 export function assistantEncoderStream() {
   const toolCalls = new Set<string>();
-  return new TransformStream<AssistantStreamPart, string>({
+  return new TransformStream<LanguageModelV1StreamPart, string>({
     transform(chunk, controller) {
       const chunkType = chunk.type;
       switch (chunkType) {
@@ -35,6 +35,10 @@ export function assistantEncoderStream() {
           );
           break;
         }
+
+        // ignore
+        case "tool-call":
+          break;
 
         case "finish": {
           const { type, ...rest } = chunk;

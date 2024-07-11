@@ -1,9 +1,7 @@
-import {
-  AssistantStreamFinishPart,
-  AssistantStreamPart,
-} from "./AssistantStreamPart";
 import { ChatModelRunResult } from "../../local/ChatModelAdapter";
 import { parsePartialJson } from "../partial-json/parse-partial-json";
+import { LanguageModelV1StreamPart } from "@ai-sdk/provider";
+import { ToolResultStreamPart } from "./toolResultStream";
 
 export function runResultStream() {
   let message: ChatModelRunResult = {
@@ -11,7 +9,7 @@ export function runResultStream() {
   };
   const currentToolCall = { toolCallId: "", argsText: "" };
 
-  return new TransformStream<AssistantStreamPart, ChatModelRunResult>({
+  return new TransformStream<ToolResultStreamPart, ChatModelRunResult>({
     transform(chunk, controller) {
       const chunkType = chunk.type;
       switch (chunkType) {
@@ -34,6 +32,19 @@ export function runResultStream() {
             toolCallId,
             toolName,
             parsePartialJson(currentToolCall.argsText),
+          );
+          controller.enqueue(message);
+          break;
+        }
+        case "tool-call": {
+          break;
+        }
+        case "tool-result": {
+          message = appendOrUpdateToolResult(
+            message,
+            chunk.toolCallId,
+            chunk.toolName,
+            chunk.result,
           );
           controller.enqueue(message);
           break;
@@ -101,9 +112,42 @@ const appendOrUpdateToolCall = (
   };
 };
 
+const appendOrUpdateToolResult = (
+  message: ChatModelRunResult,
+  toolCallId: string,
+  toolName: string,
+  result: any,
+) => {
+  let found = false;
+  const newContentParts = message.content.map((part) => {
+    if (part.type !== "tool-call" || part.toolCallId !== toolCallId)
+      return part;
+    found = true;
+
+    if (part.toolName !== toolName)
+      throw new Error(
+        `Tool call ${toolCallId} found with tool name ${part.toolName}, but expected ${toolName}`,
+      );
+
+    return {
+      ...part,
+      result,
+    };
+  });
+  if (!found)
+    throw new Error(
+      `Received tool result for unknown tool call "${toolName}" / "${toolCallId}". This is likely an internal bug in assistant-ui.`,
+    );
+
+  return {
+    ...message,
+    content: newContentParts,
+  };
+};
+
 const appendOrUpdateFinish = (
   message: ChatModelRunResult,
-  chunk: AssistantStreamFinishPart,
+  chunk: LanguageModelV1StreamPart & { type: "finish" },
 ): ChatModelRunResult => {
   const { type, ...rest } = chunk;
   return {

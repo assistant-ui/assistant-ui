@@ -92,11 +92,13 @@
     "@radix-ui/react-use-escape-keydown": "^1.1.0",
     "class-variance-authority": "^0.7.0",
     "classnames": "^2.5.1",
+    "json-schema": "^0.4.0",
     "lucide-react": "^0.407.0",
     "nanoid": "^5.0.7",
     "react-textarea-autosize": "^8.5.3",
     "secure-json-parse": "^2.7.0",
     "zod": "^3.23.8",
+    "zod-to-json-schema": "^3.23.1",
     "zustand": "^4.5.4"
   },
   "peerDependencies": {
@@ -120,6 +122,7 @@
   "devDependencies": {
     "@assistant-ui/tailwindcss-transformer": "workspace:*",
     "@assistant-ui/tsconfig": "workspace:*",
+    "@types/json-schema": "^7.0.15",
     "@types/node": "^20.14.10",
     "autoprefixer": "^10.4.19",
     "eslint-config-next": "14.2.5",

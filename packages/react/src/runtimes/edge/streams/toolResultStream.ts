@@ -1,0 +1,87 @@
+import { Tool } from "../../../types/ModelConfigTypes";
+import { LanguageModelV1StreamPart } from "@ai-sdk/provider";
+import { z } from "zod";
+import sjson from "secure-json-parse";
+
+export type ToolResultStreamPart =
+  | LanguageModelV1StreamPart
+  | {
+      type: "tool-result";
+      toolCallType: "function";
+      toolCallId: string;
+      toolName: string;
+      result: any;
+    };
+
+export function toolResultStream(tools: Record<string, Tool> | undefined) {
+  const toolCallExecutions = new Map<string, Promise<any>>();
+
+  return new TransformStream<LanguageModelV1StreamPart, ToolResultStreamPart>({
+    transform(chunk, controller) {
+      // forward everything
+      controller.enqueue(chunk);
+
+      // handle tool calls
+      const chunkType = chunk.type;
+      switch (chunkType) {
+        case "tool-call": {
+          const { toolCallId, toolCallType, toolName, args: argsText } = chunk;
+          const tool = tools?.[toolName];
+          if (!tool) return;
+
+          const args = sjson.parse(argsText);
+          if (tool.parameters instanceof z.ZodType) {
+            const result = tool.parameters.safeParse(args);
+            if (!result.success) {
+              controller.enqueue({
+                type: "error",
+                error: new Error("Invalid tool call arguments"),
+              });
+              return;
+            } else {
+              toolCallExecutions.set(
+                toolCallId,
+                (async () => {
+                  try {
+                    const result = await tool.execute(args);
+
+                    controller.enqueue({
+                      type: "tool-result",
+                      toolCallType,
+                      toolCallId,
+                      toolName,
+                      result,
+                    });
+                  } catch (error) {
+                    controller.enqueue({
+                      type: "error",
+                      error,
+                    });
+                  } finally {
+                    toolCallExecutions.delete(toolCallId);
+                  }
+                })(),
+              );
+            }
+          }
+          break;
+        }
+
+        // ignore other parts
+        case "text-delta":
+        case "tool-call-delta":
+        case "finish":
+        case "error":
+          break;
+
+        default: {
+          const unhandledType: never = chunkType;
+          throw new Error(`Unhandled chunk type: ${unhandledType}`);
+        }
+      }
+    },
+    async flush() {
+      await Promise.all(toolCallExecutions.values());
+    },
+  });
+}

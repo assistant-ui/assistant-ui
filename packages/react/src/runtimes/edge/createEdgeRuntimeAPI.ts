@@ -16,7 +16,6 @@ import {
   TextContentPart,
   ToolCallContentPart,
 } from "../../types/AssistantTypes";
-import { assistantStream } from "./streams/assistantStream";
 import { assistantEncoderStream } from "./streams/assistantEncoderStream";
 
 export const createEdgeRuntimeAPI = ({ model }: { model: LanguageModelV1 }) => {
@@ -74,7 +73,6 @@ async function streamMessage({
 
   return {
     stream: stream
-      .pipeThrough(assistantStream())
       .pipeThrough(assistantEncoderStream())
       .pipeThrough(new TextEncoderStream()),
     warnings,
