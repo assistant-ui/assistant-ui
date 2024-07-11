@@ -8,13 +8,9 @@ import { runResultStream } from "./streams/runResultStream";
 import { useLocalRuntime } from "..";
 import { useMemo } from "react";
 import { toolResultStream } from "./streams/toolResultStream";
-import { Tool } from "../../types/ModelConfigTypes";
-import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import { CoreThreadMessage } from "../../types";
 import { EdgeRuntimeRequestOptions } from "./EdgeRuntimeRequestOptions";
-import { LanguageModelV1FunctionTool } from "@ai-sdk/provider";
-import { JSONSchema7 } from "json-schema";
+import { toLanguageModelTools } from "./converters/toLanguageModelTools";
+import { toCoreMessage } from "./converters/toCoreMessage";
 
 export function asAsyncIterable<T>(
   source: ReadableStream<T>,
@@ -34,20 +30,6 @@ export function asAsyncIterable<T>(
   };
 }
 
-const toSerializableTools = (
-  tools: Record<string, Tool<any, any>> | undefined,
-): LanguageModelV1FunctionTool[] => {
-  if (!tools) return [];
-  return Object.entries(tools).map(([name, tool]) => ({
-    type: "function",
-    name,
-    ...(tool.description ? { description: tool.description } : undefined),
-    parameters: (tool.parameters instanceof z.ZodType
-      ? zodToJsonSchema(tool.parameters)
-      : tool.parameters) as JSONSchema7,
-  }));
-};
-
 type EdgeRuntimeOptions = { api: string };
 
 const createEdgeChatAdapter = ({
@@ -61,8 +43,8 @@ const createEdgeChatAdapter = ({
       },
       body: JSON.stringify({
         system: config.system,
-        messages: messages as CoreThreadMessage[],
-        tools: toSerializableTools(
+        messages: messages.map(toCoreMessage),
+        tools: toLanguageModelTools(
           config.tools,
         ) as EdgeRuntimeRequestOptions["tools"],
       } satisfies EdgeRuntimeRequestOptions),

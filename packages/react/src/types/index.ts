@@ -1,11 +1,5 @@
 export type {
-  ThreadMessage,
-  ThreadSystemMessage,
-  ThreadAssistantMessage,
-  ThreadUserMessage,
   AppendMessage,
-  ThreadAssistantContentPart,
-  ThreadUserContentPart,
   AppendContentPart,
   TextContentPart,
   ImageContentPart,
@@ -13,12 +7,21 @@ export type {
   UIContentPart,
   MessageStatus,
 
+  // thread message types
+  ThreadUserContentPart,
+  ThreadAssistantContentPart,
+  ThreadSystemMessage,
+  ThreadAssistantMessage,
+  ThreadUserMessage,
+  ThreadMessage,
+
   // core message types
   CoreUserContentPart,
   CoreAssistantContentPart,
+  CoreSystemMessage,
   CoreUserMessage,
   CoreAssistantMessage,
-  CoreThreadMessage,
+  CoreMessage,
 } from "./AssistantTypes";
 
 export type {

@@ -1,4 +1,7 @@
-import { LanguageModelV1FinishReason, LanguageModelV1LogProbs } from "@ai-sdk/provider";
+import {
+  LanguageModelV1FinishReason,
+  LanguageModelV1LogProbs,
+} from "@ai-sdk/provider";
 import type { ReactNode } from "react";
 
 export type TextContentPart = {
@@ -91,18 +94,22 @@ export type ThreadMessage =
 export type CoreUserContentPart = TextContentPart | ImageContentPart;
 export type CoreAssistantContentPart = TextContentPart | ToolCallContentPart;
 
-export type CoreUserMessage = MessageCommonProps & {
+export type CoreSystemMessage = {
+  role: "system";
+  content: [TextContentPart];
+};
+
+export type CoreUserMessage = {
   role: "user";
   content: CoreUserContentPart[];
 };
 
-export type CoreAssistantMessage = MessageCommonProps & {
+export type CoreAssistantMessage = {
   role: "assistant";
   content: CoreAssistantContentPart[];
-  status: MessageStatus;
 };
 
-export type CoreThreadMessage =
-  | ThreadSystemMessage
+export type CoreMessage =
+  | CoreSystemMessage
   | CoreUserMessage
   | CoreAssistantMessage;
