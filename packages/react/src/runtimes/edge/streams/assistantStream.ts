@@ -9,19 +9,14 @@ export function assistantStream() {
       switch (chunkType) {
         // forward
         case "text-delta":
-        case "error": {
+        case "error":
+        case "tool-call-delta":
+        case "finish": {
           controller.enqueue(chunk);
           break;
         }
 
-        case "tool-call-delta": {
-          const { toolCallType, ...rest } = chunk;
-          controller.enqueue(rest);
-          break;
-        }
-
         // ignore
-        case "finish":
         case "tool-call": {
           break;
         }

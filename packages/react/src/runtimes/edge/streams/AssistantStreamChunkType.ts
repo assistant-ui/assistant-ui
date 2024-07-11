@@ -3,4 +3,5 @@ export enum AssistantStreamChunkType {
   ToolCallBegin = "1",
   ToolCallArgsTextDelta = "2",
   Error = "E",
+  Finish = "F",
 }

@@ -1,4 +1,7 @@
-import { AssistantStreamPart } from "./AssistantStreamPart";
+import {
+  AssistantStreamFinishPart,
+  AssistantStreamPart,
+} from "./AssistantStreamPart";
 import { ChatModelRunResult } from "../../local/ChatModelAdapter";
 
 export function runResultStream() {
@@ -31,6 +34,11 @@ export function runResultStream() {
             toolName,
             JSON.parse(currentToolCall.argsText),
           );
+          controller.enqueue(message);
+          break;
+        }
+        case "finish": {
+          message = appendOrUpdateFinish(message, chunk);
           controller.enqueue(message);
           break;
         }
@@ -89,5 +97,19 @@ const appendOrUpdateToolCall = (
   return {
     ...message,
     content: contentParts.concat([contentPart]),
+  };
+};
+
+const appendOrUpdateFinish = (
+  message: ChatModelRunResult,
+  chunk: AssistantStreamFinishPart,
+): ChatModelRunResult => {
+  const { type, ...rest } = chunk;
+  return {
+    ...message,
+    status: {
+      type: "done",
+      ...rest,
+    },
   };
 };

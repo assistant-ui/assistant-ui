@@ -1,3 +1,4 @@
+import { LanguageModelV1FinishReason, LanguageModelV1LogProbs } from "@ai-sdk/provider";
 import type { ReactNode } from "react";
 
 export type TextContentPart = {
@@ -42,8 +43,16 @@ type MessageCommonProps = {
 
 export type MessageStatus =
   | {
-      type: "in_progress" | "done";
-      error?: undefined;
+      type: "in_progress";
+    }
+  | {
+      type: "done";
+      finishReason?: LanguageModelV1FinishReason;
+      logprops?: LanguageModelV1LogProbs;
+      usage?: {
+        promptTokens: number;
+        completionTokens: number;
+      };
     }
   | {
       type: "error";

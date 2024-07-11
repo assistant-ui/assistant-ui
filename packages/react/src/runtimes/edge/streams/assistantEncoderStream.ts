@@ -35,6 +35,18 @@ export function assistantEncoderStream() {
           );
           break;
         }
+
+        case "finish": {
+          const { type, ...rest } = chunk;
+          controller.enqueue(
+            formatStreamPart(
+              AssistantStreamChunkType.Finish,
+              JSON.stringify(rest),
+            ),
+          );
+          break;
+        }
+
         case "error": {
           controller.enqueue(
             formatStreamPart(

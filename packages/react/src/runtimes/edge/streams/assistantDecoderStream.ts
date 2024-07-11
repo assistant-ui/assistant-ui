@@ -27,9 +27,17 @@ export function assistantDecoderStream() {
           const delta = JSON.parse(value);
           controller.enqueue({
             type: "tool-call-delta",
+            toolCallType: "function",
             toolCallId: currentToolCall!.id,
             toolName: currentToolCall!.name,
             argsTextDelta: delta,
+          });
+          break;
+        }
+        case AssistantStreamChunkType.Finish: {
+          controller.enqueue({
+            type: "finish",
+            ...JSON.parse(value),
           });
           break;
         }
