@@ -9,6 +9,12 @@ export const AssistantActionsState: ParametersTableProps = {
       description: "Switch to a new thread.",
       required: true,
     },
+    {
+      name: "getRuntime",
+      type: "() => AssistantRuntime",
+      description: "Get the current runtime.",
+      required: true,
+    },
   ],
 };
 
@@ -194,9 +200,15 @@ export const ThreadActionsState: ParametersTableProps = {
     },
     {
       name: "addToolResult",
-      type: "(toolCallId: string, result: any) => void",
+      type: "(options: AddToolResultOptions) => void",
       required: true,
       description: "A function to add a tool result.",
+    },
+    {
+      name: "getRuntime",
+      type: "() => AssistantRuntime",
+      description: "Get the current runtime.",
+      required: true,
     },
   ],
 };
