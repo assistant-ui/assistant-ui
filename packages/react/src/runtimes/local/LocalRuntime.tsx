@@ -170,7 +170,7 @@ class LocalThreadRuntime implements ThreadRuntime {
     const { parentId, message } = this.repository.getMessage(messageId);
 
     if (message.role !== "assistant")
-      throw new Error("Tried to add tool re^sult to non-assistant message");
+      throw new Error("Tried to add tool result to non-assistant message");
 
     let found = false;
     const newContent = message.content.map((c) => {
