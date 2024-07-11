@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useMessageContext } from "../../context";
 
 class TextStreamAnimator {
   private animationFrameId: number | null = null;
@@ -57,6 +58,10 @@ class TextStreamAnimator {
 }
 
 export const useSmooth = (text: string, smooth: boolean = false) => {
+  const { useMessage } = useMessageContext();
+  const id = useMessage((m) => m.message.id);
+
+  const idRef = useRef(id);
   const [displayedText, setDisplayedText] = useState(text);
   const [animatorRef] = useState<TextStreamAnimator>(
     new TextStreamAnimator(text, setDisplayedText),
@@ -68,8 +73,10 @@ export const useSmooth = (text: string, smooth: boolean = false) => {
       return;
     }
 
-    if (!text.startsWith(animatorRef.targetText)) {
+    if (idRef.current !== id || !text.startsWith(animatorRef.targetText)) {
+      idRef.current = id;
       setDisplayedText(text);
+
       animatorRef.currentText = text;
       animatorRef.targetText = text;
       animatorRef.stop();
@@ -79,7 +86,7 @@ export const useSmooth = (text: string, smooth: boolean = false) => {
 
     animatorRef.targetText = text;
     animatorRef.start();
-  }, [animatorRef, smooth, text]);
+  }, [animatorRef, id, smooth, text]);
 
   useEffect(() => {
     return () => {
