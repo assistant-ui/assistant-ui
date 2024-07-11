@@ -1,5 +1,17 @@
 # @assistant-ui/react-markdown
 
+## 0.1.0
+
+### Patch Changes
+
+- e0e51cf: feat: add styled UI components
+- Updated dependencies [e0e51cf]
+- Updated dependencies [c7ba6a2]
+- Updated dependencies [e0e51cf]
+- Updated dependencies [e0e51cf]
+- Updated dependencies [679cd54]
+  - @assistant-ui/react@0.4.0
+
 ## 0.0.5
 
 ### Patch Changes

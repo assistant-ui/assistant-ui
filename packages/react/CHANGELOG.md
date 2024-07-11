@@ -1,5 +1,18 @@
 # @assistant-ui/react
 
+## 0.4.0
+
+### Minor Changes
+
+- e0e51cf: refactor!: Rename AssistantMessage to ThreadAssistantMessage
+- e0e51cf: refactor!: Rename UserMessage to ThreadUserMessage
+- 679cd54: feat: system message support
+
+### Patch Changes
+
+- c7ba6a2: feat: Edge Runtime API
+- e0e51cf: feat: add styled UI components
+
 ## 0.3.5
 
 ### Patch Changes

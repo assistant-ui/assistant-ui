@@ -1,5 +1,20 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.4.0
+
+### Minor Changes
+
+- 679cd54: feat: system message support
+
+### Patch Changes
+
+- Updated dependencies [e0e51cf]
+- Updated dependencies [c7ba6a2]
+- Updated dependencies [e0e51cf]
+- Updated dependencies [e0e51cf]
+- Updated dependencies [679cd54]
+  - @assistant-ui/react@0.4.0
+
 ## 0.3.1
 
 ### Patch Changes
