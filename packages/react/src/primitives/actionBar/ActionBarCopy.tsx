@@ -13,4 +13,5 @@ export type ActionBarPrimitiveCopyProps = ActionButtonProps<
 export const ActionBarPrimitiveCopy = createActionButton(
   "ActionBarPrimitive.Copy",
   useActionBarCopy,
+  ["copiedDuration"],
 );

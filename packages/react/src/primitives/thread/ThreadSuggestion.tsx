@@ -13,4 +13,5 @@ export type ThreadPrimitiveSuggestionProps = ActionButtonProps<
 export const ThreadPrimitiveSuggestion = createActionButton(
   "ThreadPrimitive.Suggestion",
   useThreadSuggestion,
+  ["prompt", "autoSend", "method"],
 );

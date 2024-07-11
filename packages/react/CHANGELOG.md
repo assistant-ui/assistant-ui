@@ -1,5 +1,17 @@
 # @assistant-ui/react
 
+## 0.4.2
+
+### Minor Changes
+
+- fix: issue with forwarding props to primitives
+
+## 0.4.1
+
+### Minor Changes
+
+- fix: useSmooth scrolling performance in dev mode
+
 ## 0.4.0
 
 ### Minor Changes
