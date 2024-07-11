@@ -1,4 +1,7 @@
-import { AssistantStreamChunkType } from "./AssistantStreamChunkType";
+import {
+  AssistantStreamChunkTuple,
+  AssistantStreamChunkType,
+} from "./AssistantStreamChunkType";
 import { LanguageModelV1StreamPart } from "@ai-sdk/provider";
 
 export function assistantEncoderStream() {
@@ -43,20 +46,14 @@ export function assistantEncoderStream() {
         case "finish": {
           const { type, ...rest } = chunk;
           controller.enqueue(
-            formatStreamPart(
-              AssistantStreamChunkType.Finish,
-              JSON.stringify(rest),
-            ),
+            formatStreamPart(AssistantStreamChunkType.Finish, rest),
           );
           break;
         }
 
         case "error": {
           controller.enqueue(
-            formatStreamPart(
-              AssistantStreamChunkType.Error,
-              JSON.stringify(chunk.error),
-            ),
+            formatStreamPart(AssistantStreamChunkType.Error, chunk.error),
           );
           break;
         }
@@ -70,8 +67,7 @@ export function assistantEncoderStream() {
 }
 
 export function formatStreamPart(
-  code: AssistantStreamChunkType,
-  value: any,
+  ...[code, value]: AssistantStreamChunkTuple
 ): string {
   return `${code}:${JSON.stringify(value)}\n`;
 }

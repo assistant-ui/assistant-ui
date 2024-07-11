@@ -1,5 +1,8 @@
 import { LanguageModelV1StreamPart } from "@ai-sdk/provider";
-import { AssistantStreamChunkType } from "./AssistantStreamChunkType";
+import {
+  AssistantStreamChunkTuple,
+  AssistantStreamChunkType,
+} from "./AssistantStreamChunkType";
 
 export function assistantDecoderStream() {
   let currentToolCall:
@@ -8,8 +11,7 @@ export function assistantDecoderStream() {
 
   return new TransformStream<string, LanguageModelV1StreamPart>({
     transform(chunk, controller) {
-      const [code, valueJson] = parseStreamPart(chunk);
-      const value = JSON.parse(valueJson);
+      const [code, value] = parseStreamPart(chunk);
 
       if (
         currentToolCall &&
@@ -21,7 +23,7 @@ export function assistantDecoderStream() {
           toolCallType: "function",
           toolCallId: currentToolCall.id,
           toolName: currentToolCall.name,
-          args: JSON.parse(currentToolCall.argsText),
+          args: currentToolCall.argsText,
         });
         currentToolCall = undefined;
       }
@@ -35,12 +37,12 @@ export function assistantDecoderStream() {
           break;
         }
         case AssistantStreamChunkType.ToolCallBegin: {
-          const { id, name } = JSON.parse(value);
+          const { id, name } = value;
           currentToolCall = { id, name, argsText: "" };
           break;
         }
         case AssistantStreamChunkType.ToolCallArgsTextDelta: {
-          const delta = JSON.parse(value);
+          const delta = value;
           currentToolCall!.argsText += delta;
           controller.enqueue({
             type: "tool-call-delta",
@@ -54,14 +56,14 @@ export function assistantDecoderStream() {
         case AssistantStreamChunkType.Finish: {
           controller.enqueue({
             type: "finish",
-            ...JSON.parse(value),
+            ...value,
           });
           break;
         }
         case AssistantStreamChunkType.Error: {
           controller.enqueue({
             type: "error",
-            error: JSON.parse(value),
+            error: value,
           });
           break;
         }
@@ -74,11 +76,11 @@ export function assistantDecoderStream() {
   });
 }
 
-const parseStreamPart = (part: string): [AssistantStreamChunkType, string] => {
+const parseStreamPart = (part: string): AssistantStreamChunkTuple => {
   const index = part.indexOf(":");
   if (index === -1) throw new Error("Invalid stream part");
   return [
     part.slice(0, index) as AssistantStreamChunkType,
-    part.slice(index + 1),
+    JSON.parse(part.slice(index + 1)),
   ] as const;
 };

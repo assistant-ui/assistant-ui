@@ -142,7 +142,7 @@ class LocalThreadRuntime implements ThreadRuntime {
     } catch (e) {
       message.status = { type: "error", error: e };
       this.repository.addOrUpdateMessage(parentId, { ...message });
-      console.error(e);
+      throw e;
     } finally {
       this.abortController = null;
       this.notifySubscribers();
