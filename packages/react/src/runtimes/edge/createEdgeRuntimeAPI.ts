@@ -17,16 +17,18 @@ import {
   ToolCallContentPart,
 } from "../../types/AssistantTypes";
 import { assistantEncoderStream } from "./streams/assistantEncoderStream";
+import { EdgeRuntimeRequestOptions } from "./EdgeRuntimeRequestOptions";
 
 export const createEdgeRuntimeAPI = ({ model }: { model: LanguageModelV1 }) => {
   const POST = async (request: Request) => {
-    const { system, messages, tools } = await request.json();
+    const { system, messages, tools } =
+      (await request.json()) as EdgeRuntimeRequestOptions;
 
     const { stream } = await streamMessage({
       model,
       abortSignal: request.signal,
 
-      system,
+      ...(system ? { system } : undefined),
       messages,
       tools,
     });
