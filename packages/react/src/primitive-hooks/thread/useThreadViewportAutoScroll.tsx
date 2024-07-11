@@ -19,19 +19,15 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
 
   const { useViewport } = useThreadContext();
 
-  const firstRenderRef = useRef(true);
   const lastScrollTop = useRef<number>(0);
 
   // bug: when ScrollToBottom's button changes its disabled state, the scroll stops
   // fix: delay the state change until the scroll is done
   const isScrollingToBottomRef = useRef(false);
 
-  const scrollToBottom = () => {
+  const scrollToBottom = (behavior: ScrollBehavior) => {
     const div = divRef.current;
     if (!div || !autoScroll) return;
-
-    const behavior = firstRenderRef.current ? "instant" : "auto";
-    firstRenderRef.current = false;
 
     isScrollingToBottomRef.current = true;
     div.scrollTo({ top: div.scrollHeight, behavior });
@@ -47,7 +43,9 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     if (!newIsAtBottom && lastScrollTop.current < div.scrollTop) {
       // ignore scroll down
     } else {
-      isScrollingToBottomRef.current = newIsAtBottom;
+      if (newIsAtBottom) {
+        isScrollingToBottomRef.current = false;
+      }
 
       if (newIsAtBottom !== isAtBottom) {
         (useViewport as unknown as StoreApi<ThreadViewportState>).setState({
@@ -60,15 +58,11 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   };
 
   const resizeRef = useOnResizeContent(() => {
-    if (
-      !isScrollingToBottomRef.current &&
-      !useViewport.getState().isAtBottom &&
-      !firstRenderRef.current
-    ) {
-      handleScroll();
-    } else {
-      scrollToBottom();
+    if (isScrollingToBottomRef.current || useViewport.getState().isAtBottom) {
+      scrollToBottom("instant");
     }
+
+    handleScroll();
   });
 
   const scrollRef = useManagedRef<HTMLElement>((el) => {
@@ -81,7 +75,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   const autoScrollRef = useComposedRefs<TElement>(resizeRef, scrollRef, divRef);
 
   useOnScrollToBottom(() => {
-    scrollToBottom();
+    scrollToBottom("auto");
   });
 
   return autoScrollRef;
