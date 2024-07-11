@@ -8,10 +8,7 @@ export function assistantDecoderStream() {
 
   return new TransformStream<string, LanguageModelV1StreamPart>({
     transform(chunk, controller) {
-      const [code, valueJson] = chunk.split(":") as [
-        AssistantStreamChunkType,
-        string,
-      ];
+      const [code, valueJson] = parseStreamPart(chunk);
       const value = JSON.parse(valueJson);
 
       if (
@@ -76,3 +73,12 @@ export function assistantDecoderStream() {
     },
   });
 }
+
+const parseStreamPart = (part: string): [AssistantStreamChunkType, string] => {
+  const index = part.indexOf(":");
+  if (index === -1) throw new Error("Invalid stream part");
+  return [
+    part.slice(0, index) as AssistantStreamChunkType,
+    part.slice(index + 1),
+  ] as const;
+};
