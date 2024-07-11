@@ -373,64 +373,6 @@ importers:
         specifier: ^5
         version: 5.5.3
 
-  examples/with-playground:
-    dependencies:
-      '@ai-sdk/openai':
-        specifier: ^0.0.36
-        version: 0.0.36(zod@3.23.8)
-      '@ai-sdk/react':
-        specifier: ^0.0.20
-        version: 0.0.20(react@18.3.1)(zod@3.23.8)
-      '@assistant-ui/react':
-        specifier: workspace:*
-        version: link:../../packages/react
-      '@assistant-ui/react-ai-sdk':
-        specifier: workspace:*
-        version: link:../../packages/react-ai-sdk
-      ai:
-        specifier: ^3.2.22
-        version: 3.2.22(openai@4.52.7)(react@18.3.1)(svelte@4.2.18)(vue@3.4.31(typescript@5.5.3))(zod@3.23.8)
-      next:
-        specifier: 14.2.5
-        version: 14.2.5(@opentelemetry/api@1.9.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      react:
-        specifier: ^18
-        version: 18.3.1
-      react-dom:
-        specifier: ^18
-        version: 18.3.1(react@18.3.1)
-      tailwindcss-animate:
-        specifier: ^1.0.7
-        version: 1.0.7(tailwindcss@3.4.4)
-    devDependencies:
-      '@assistant-ui/tsconfig':
-        specifier: workspace:^
-        version: link:../../packages/tsconfig
-      '@types/node':
-        specifier: ^20
-        version: 20.14.10
-      '@types/react':
-        specifier: ^18
-        version: 18.3.3
-      '@types/react-dom':
-        specifier: ^18
-        version: 18.3.0
-      eslint:
-        specifier: ^8
-        version: 8.57.0
-      eslint-config-next:
-        specifier: 14.2.5
-        version: 14.2.5(eslint@8.57.0)(typescript@5.5.3)
-      postcss:
-        specifier: ^8
-        version: 8.4.39
-      tailwindcss:
-        specifier: ^3.4.4
-        version: 3.4.4
-      typescript:
-        specifier: ^5
-        version: 5.5.3
-
   examples/with-react-hook-form:
     dependencies:
       '@ai-sdk/openai':
