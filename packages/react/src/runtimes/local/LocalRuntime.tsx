@@ -13,6 +13,7 @@ import { MessageRepository } from "../utils/MessageRepository";
 import { generateId } from "../../utils/idUtils";
 import { BaseAssistantRuntime } from "../core/BaseAssistantRuntime";
 import type { ChatModelAdapter, ChatModelRunResult } from "./ChatModelAdapter";
+import { AddToolResultOptions } from "../../context";
 
 export class LocalRuntime extends BaseAssistantRuntime<LocalThreadRuntime> {
   private readonly _configProviders: Set<ModelConfigProvider>;
@@ -131,8 +132,12 @@ class LocalThreadRuntime implements ThreadRuntime {
       if (result !== undefined) {
         updateHandler(result);
       }
+      if (result.status?.type === "in_progress")
+        throw new Error(
+          "Unexpected in_progress status returned from ChatModelAdapter",
+        );
 
-      message.status = { type: "done" };
+      message.status = result.status ?? { type: "done" };
       this.repository.addOrUpdateMessage(parentId, { ...message });
     } catch (e) {
       message.status = { type: "error", error: e };
@@ -161,7 +166,29 @@ class LocalThreadRuntime implements ThreadRuntime {
     return () => this._subscriptions.delete(callback);
   }
 
-  addToolResult() {
-    throw new Error("LocalRuntime does not yet support adding tool results");
+  addToolResult({ messageId, toolCallId, result }: AddToolResultOptions) {
+    const { parentId, message } = this.repository.getMessage(messageId);
+
+    if (message.role !== "assistant")
+      throw new Error("Tried to add tool re^sult to non-assistant message");
+
+    let found = false;
+    const newContent = message.content.map((c) => {
+      if (c.type !== "tool-call") return c;
+      if (c.toolCallId !== toolCallId) return c;
+      found = true;
+      return {
+        ...c,
+        result,
+      };
+    });
+
+    if (!found)
+      throw new Error("Tried to add tool result to non-existing tool call");
+
+    this.repository.addOrUpdateMessage(parentId, {
+      ...message,
+      content: newContent,
+    });
   }
 }

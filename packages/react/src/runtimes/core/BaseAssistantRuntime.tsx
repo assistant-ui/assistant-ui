@@ -1,3 +1,4 @@
+import { AddToolResultOptions } from "../../context";
 import type { AppendMessage } from "../../types/AssistantTypes";
 import { type ModelConfigProvider } from "../../types/ModelConfigTypes";
 import type { Unsubscribe } from "../../types/Unsubscribe";
@@ -63,8 +64,8 @@ export abstract class BaseAssistantRuntime<
     return this.thread.cancelRun();
   }
 
-  public addToolResult(toolCallId: string, result: any) {
-    return this.thread.addToolResult(toolCallId, result);
+  public addToolResult(options: AddToolResultOptions) {
+    return this.thread.addToolResult(options);
   }
 
   private _subscriptions = new Set<() => void>();

@@ -4,6 +4,7 @@ import {
   type AppendMessage,
   type ThreadMessage,
   INTERNAL,
+  AddToolResultOptions,
 } from "@assistant-ui/react";
 import type { Message } from "ai";
 import { type StoreApi, type UseBoundStore, create } from "zustand";
@@ -171,7 +172,7 @@ export class VercelUseChatThreadRuntime implements ReactThreadRuntime {
     return null;
   };
 
-  addToolResult(toolCallId: string, result: any) {
+  addToolResult({ toolCallId, result }: AddToolResultOptions) {
     this.vercel.addToolResult({ toolCallId, result });
   }
 }

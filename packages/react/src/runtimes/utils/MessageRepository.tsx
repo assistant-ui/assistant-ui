@@ -109,6 +109,19 @@ export class MessageRepository {
     }
   }
 
+  getMessage(messageId: string) {
+    const message = this.messages.get(messageId);
+    if (!message)
+      throw new Error(
+        "MessageRepository(updateMessage): Message not found. This is likely an internal bug in assistant-ui.",
+      );
+
+    return {
+      parentId: message.prev?.current.id ?? null,
+      message: message.current,
+    };
+  }
+
   appendOptimisticMessage(
     parentId: string | null,
     message: Omit<ThreadMessage, "id" | "createdAt">,

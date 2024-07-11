@@ -3,6 +3,12 @@ import { create } from "zustand";
 import type { AppendMessage } from "../../types/AssistantTypes";
 import { ThreadRuntime } from "../../runtimes";
 
+export type AddToolResultOptions = {
+  messageId: string;
+  toolCallId: string;
+  result: any;
+};
+
 export type ThreadActionsState = Readonly<{
   capabilities: Readonly<{
     edit: boolean;
@@ -17,7 +23,7 @@ export type ThreadActionsState = Readonly<{
   startRun: (parentId: string | null) => void;
   cancelRun: () => void;
 
-  addToolResult: (toolCallId: string, result: any) => void;
+  addToolResult: (options: AddToolResultOptions) => void;
 }>;
 
 export const makeThreadActionStore = (
@@ -33,8 +39,7 @@ export const makeThreadActionStore = (
       startRun: (parentId) => runtimeRef.current.startRun(parentId),
       append: (message) => runtimeRef.current.append(message),
       cancelRun: () => runtimeRef.current.cancelRun(),
-      addToolResult: (toolCallId, result) =>
-        runtimeRef.current.addToolResult(toolCallId, result),
+      addToolResult: (options) => runtimeRef.current.addToolResult(options),
     }),
   );
 };

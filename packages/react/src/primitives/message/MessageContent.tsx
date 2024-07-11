@@ -70,6 +70,7 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
   } = {},
 }) => {
   const { useThreadActions } = useThreadContext();
+  const { useMessage } = useMessageContext();
   const addToolResult = useThreadActions((t) => t.addToolResult);
 
   const { useContentPart } = useContentPartContext();
@@ -89,7 +90,12 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
 
     case "tool-call": {
       const Tool = by_name[part.toolName] || Fallback;
-      const addResult = (result: any) => addToolResult(part.toolCallId, result);
+      const addResult = (result: any) =>
+        addToolResult({
+          messageId: useMessage.getState().message.id,
+          toolCallId: part.toolCallId,
+          result,
+        });
       return <Tool part={part} status={status} addResult={addResult} />;
     }
     default:
