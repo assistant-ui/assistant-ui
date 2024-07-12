@@ -2,7 +2,7 @@
 
 import { ComponentPropsWithoutRef, forwardRef, type FC } from "react";
 
-import { SendHorizonalIcon } from "lucide-react";
+import { SendHorizontalIcon } from "lucide-react";
 import { withDefaults } from "./utils/withDefaults";
 import { useThreadConfig } from "./thread-config";
 import {
@@ -92,7 +92,7 @@ const ComposerSend = forwardRef<
   return (
     <ComposerPrimitive.Send asChild>
       <ComposerSendButton tooltip={tooltip} {...props} ref={ref}>
-        {props.children ?? <SendHorizonalIcon />}
+        {props.children ?? <SendHorizontalIcon />}
       </ComposerSendButton>
     </ComposerPrimitive.Send>
   );

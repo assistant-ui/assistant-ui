@@ -15,7 +15,7 @@ import {
   TooltipProvider,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { SendHorizonalIcon } from "lucide-react";
+import { SendHorizontalIcon } from "lucide-react";
 import AI_ThreadSuggestion from "./AI_ThreadSuggestion";
 import ThreadSuggestion from "./ThreadSuggestion";
 
@@ -98,7 +98,7 @@ const Composer: FC = () => {
                 "absolute bottom-0 right-0 m-2.5 size-8 p-2 transition-opacity",
               )}
             >
-              <SendHorizonalIcon />
+              <SendHorizontalIcon />
               <span className="sr-only">Send</span>
             </Button>
           </TooltipTrigger>

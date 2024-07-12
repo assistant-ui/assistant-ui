@@ -15,7 +15,7 @@ import {
   TooltipProvider,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { ArrowDownIcon, SendHorizonalIcon } from "lucide-react";
+import { ArrowDownIcon, SendHorizontalIcon } from "lucide-react";
 import Image from "next/image";
 
 export const Thread: FC = () => {
@@ -128,7 +128,7 @@ const Composer: FC = () => {
         className="placeholder:text-foreground/50 h-12 max-h-40 flex-grow resize-none bg-transparent p-3.5 text-sm outline-none"
       />
       <ComposerPrimitive.Send className="bg-foreground m-2 flex h-8 w-8 items-center justify-center rounded-md text-2xl font-bold shadow transition-opacity disabled:opacity-10">
-        <SendHorizonalIcon className="text-background size-4" />
+        <SendHorizontalIcon className="text-background size-4" />
       </ComposerPrimitive.Send>
     </ComposerPrimitive.Root>
   );

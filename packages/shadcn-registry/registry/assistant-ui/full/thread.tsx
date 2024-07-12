@@ -20,7 +20,7 @@ import {
   CopyIcon,
   PencilIcon,
   RefreshCwIcon,
-  SendHorizonalIcon,
+  SendHorizontalIcon,
 } from "lucide-react";
 import { MarkdownText } from "@/components/ui/assistant-ui/markdown-text";
 import { TooltipIconButton } from "@/components/ui/assistant-ui/tooltip-icon-button";
@@ -92,7 +92,7 @@ const Composer: FC = () => {
             variant="default"
             className="absolute bottom-0 right-0 m-2.5 size-8 p-2 transition-opacity"
           >
-            <SendHorizonalIcon />
+            <SendHorizontalIcon />
           </TooltipIconButton>
         </ComposerPrimitive.Send>
       </ThreadPrimitive.If>

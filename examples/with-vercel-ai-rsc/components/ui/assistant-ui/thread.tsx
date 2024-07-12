@@ -15,7 +15,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { SendHorizonalIcon } from "lucide-react";
+import { SendHorizontalIcon } from "lucide-react";
 
 export const Thread: FC = () => {
   return (
@@ -58,7 +58,7 @@ const Composer: FC = () => {
       />
       <ThreadPrimitive.If running={false}>
         <ComposerPrimitive.Send className="bg-foreground m-2 flex h-8 w-8 items-center justify-center rounded-md text-2xl font-bold shadow disabled:opacity-10">
-          <SendHorizonalIcon className="text-background size-4" />
+          <SendHorizontalIcon className="text-background size-4" />
         </ComposerPrimitive.Send>
       </ThreadPrimitive.If>
       <ThreadPrimitive.If running>
