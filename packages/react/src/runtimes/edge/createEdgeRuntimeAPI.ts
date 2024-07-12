@@ -9,7 +9,7 @@ import {
 import { CoreMessage } from "../../types/AssistantTypes";
 import { assistantEncoderStream } from "./streams/assistantEncoderStream";
 import { EdgeRuntimeRequestOptions } from "./EdgeRuntimeRequestOptions";
-import { toLanguageModelMessage } from "./converters/toLanguageModelMessage";
+import { toLanguageModelMessages } from "./converters/toLanguageModelMessages";
 
 export const createEdgeRuntimeAPI = ({ model }: { model: LanguageModelV1 }) => {
   const POST = async (request: Request) => {
@@ -83,7 +83,7 @@ export function convertToLanguageModelPrompt(
   if (system != null) {
     languageModelMessages.push({ role: "system", content: system });
   }
-  languageModelMessages.push(...messages.flatMap(toLanguageModelMessage));
+  languageModelMessages.push(...toLanguageModelMessages(messages));
 
   return languageModelMessages;
 }
