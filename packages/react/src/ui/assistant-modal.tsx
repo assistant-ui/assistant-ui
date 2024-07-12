@@ -101,13 +101,18 @@ const AssistantModalButton = forwardRef<
       {...rest}
       ref={ref}
     >
-      <BotIcon data-state={state} className="aui-modal-button-closed-icon" />
-
-      <ChevronDownIcon
-        data-state={state}
-        className="aui-modal-button-open-icon"
-      />
-      <span className="aui-sr-only">{tooltip}</span>
+      {rest.children ?? (
+        <>
+          <BotIcon
+            data-state={state}
+            className="aui-modal-button-closed-icon"
+          />
+          <ChevronDownIcon
+            data-state={state}
+            className="aui-modal-button-open-icon"
+          />
+        </>
+      )}
     </ModalButtonStyled>
   );
 });

@@ -50,7 +50,7 @@ const EditComposerCancel = forwardRef<HTMLButtonElement, Partial<ButtonProps>>(
     return (
       <ComposerPrimitive.Cancel asChild>
         <Button variant="ghost" {...props} ref={ref}>
-          {label}
+          {props.children ?? label}
         </Button>
       </ComposerPrimitive.Cancel>
     );
@@ -67,7 +67,7 @@ const EditComposerSend = forwardRef<HTMLButtonElement, Partial<ButtonProps>>(
     return (
       <ComposerPrimitive.Send asChild>
         <Button {...props} ref={ref}>
-          {label}
+          {props.children ?? label}
         </Button>
       </ComposerPrimitive.Send>
     );

@@ -63,12 +63,16 @@ const AssistantActionBarCopy = forwardRef<
   return (
     <ActionBarPrimitive.Copy asChild>
       <TooltipIconButton tooltip={tooltip} {...props} ref={ref}>
-        <MessagePrimitive.If copied>
-          <CheckIcon />
-        </MessagePrimitive.If>
-        <MessagePrimitive.If copied={false}>
-          <CopyIcon />
-        </MessagePrimitive.If>
+        {props.children ?? (
+          <>
+            <MessagePrimitive.If copied>
+              <CheckIcon />
+            </MessagePrimitive.If>
+            <MessagePrimitive.If copied={false}>
+              <CopyIcon />
+            </MessagePrimitive.If>
+          </>
+        )}
       </TooltipIconButton>
     </ActionBarPrimitive.Copy>
   );

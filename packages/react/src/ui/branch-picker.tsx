@@ -41,7 +41,7 @@ const BranchPickerPrevious = forwardRef<
   return (
     <BranchPickerPrimitive.Previous asChild>
       <TooltipIconButton tooltip={tooltip} {...props} ref={ref}>
-        <ChevronLeftIcon />
+        {props.children ?? <ChevronLeftIcon />}
       </TooltipIconButton>
     </BranchPickerPrimitive.Previous>
   );
@@ -76,7 +76,7 @@ const BranchPickerNext = forwardRef<
   return (
     <BranchPickerPrimitive.Next asChild>
       <TooltipIconButton tooltip={tooltip} {...props} ref={ref}>
-        <ChevronRightIcon />
+        {props.children ?? <ChevronRightIcon />}
       </TooltipIconButton>
     </BranchPickerPrimitive.Next>
   );

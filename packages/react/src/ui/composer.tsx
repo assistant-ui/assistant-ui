@@ -92,7 +92,7 @@ const ComposerSend = forwardRef<
   return (
     <ComposerPrimitive.Send asChild>
       <ComposerSendButton tooltip={tooltip} {...props} ref={ref}>
-        <SendHorizonalIcon />
+        {props.children ?? <SendHorizonalIcon />}
       </ComposerSendButton>
     </ComposerPrimitive.Send>
   );
@@ -115,7 +115,7 @@ const ComposerCancel = forwardRef<
   return (
     <ComposerPrimitive.Cancel asChild>
       <ComposerCancelButton tooltip={tooltip} {...props} ref={ref}>
-        <CircleStopIcon />
+        {props.children ?? <CircleStopIcon />}
       </ComposerCancelButton>
     </ComposerPrimitive.Cancel>
   );

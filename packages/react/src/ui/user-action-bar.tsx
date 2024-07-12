@@ -49,7 +49,7 @@ const UserActionBarEdit = forwardRef<
   return (
     <ActionBarPrimitive.Edit asChild>
       <TooltipIconButton tooltip={tooltip} {...props} ref={ref}>
-        <PencilIcon />
+        {props.children ?? <PencilIcon />}
       </TooltipIconButton>
     </ActionBarPrimitive.Edit>
   );
