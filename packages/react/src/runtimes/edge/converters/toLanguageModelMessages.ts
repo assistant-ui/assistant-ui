@@ -69,7 +69,7 @@ const assistantMessageSplitter = () => {
 };
 
 export function toLanguageModelMessages(
-  message: CoreMessage[] | ThreadMessage[],
+  message: readonly CoreMessage[] | readonly ThreadMessage[],
 ): LanguageModelV1Message[] {
   return message.flatMap((message) => {
     const role = message.role;

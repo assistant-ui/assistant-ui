@@ -4,4 +4,4 @@ export type { EdgeRuntimeOptions } from "./EdgeChatAdapter";
 
 export { toLanguageModelMessages } from "./converters/toLanguageModelMessages";
 export { fromLanguageModelMessages } from "./converters/fromLanguageModelMessages";
-export { toCoreMessage } from "./converters/toCoreMessage";
+export { fromCoreMessages } from "./converters/fromCoreMessage";

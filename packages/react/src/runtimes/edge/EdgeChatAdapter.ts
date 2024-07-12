@@ -1,6 +1,6 @@
 import { ChatModelAdapter, ChatModelRunOptions } from "../local";
 import { ChatModelRunResult } from "../local/ChatModelAdapter";
-import { toCoreMessage } from "./converters/toCoreMessage";
+import { toCoreMessages } from "./converters/toCoreMessages";
 import { toLanguageModelTools } from "./converters/toLanguageModelTools";
 import { EdgeRuntimeRequestOptions } from "./EdgeRuntimeRequestOptions";
 import { assistantDecoderStream } from "./streams/assistantDecoderStream";
@@ -38,7 +38,7 @@ export class EdgeChatAdapter implements ChatModelAdapter {
       },
       body: JSON.stringify({
         system: config.system,
-        messages: messages.map(toCoreMessage),
+        messages: toCoreMessages(messages),
         tools: toLanguageModelTools(
           config.tools,
         ) as EdgeRuntimeRequestOptions["tools"],
