@@ -25,7 +25,9 @@ export const useAssistantTool = <TArgs, TResult>(
         [tool.toolName]: rest,
       },
     };
-    const unsub1 = registerModelConfigProvider(() => config);
+    const unsub1 = registerModelConfigProvider({
+      getModelConfig: () => config,
+    });
     const unsub2 = render ? setToolUI(toolName, render) : undefined;
     return () => {
       unsub1();

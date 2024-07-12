@@ -56,6 +56,10 @@ export class VercelRSCThreadRuntime<T extends WeakKey = VercelRSCMessage>
   }
 
   public async append(message: AppendMessage): Promise<void> {
+    if (message.role !== "user")
+      throw new Error(
+        "Only appending user messages are supported in VercelRSCRuntime. This is likely an internal bug in assistant-ui.",
+      );
     if (message.parentId !== (this.messages.at(-1)?.id ?? null)) {
       if (!this.adapter.edit)
         throw new Error(

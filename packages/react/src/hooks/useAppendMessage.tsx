@@ -27,7 +27,7 @@ const toAppendMessage = (
       message.parentId ?? useThreadMessages.getState().at(-1)?.id ?? null,
     role: message.role ?? "user",
     content: message.content,
-  };
+  } as AppendMessage;
 };
 
 export const useAppendMessage = () => {

@@ -17,13 +17,13 @@ export type ModelConfig = {
   tools?: Record<string, Tool<any, any>> | undefined;
 };
 
-export type ModelConfigProvider = () => ModelConfig;
+export type ModelConfigProvider = { getModelConfig: () => ModelConfig };
 
 export const mergeModelConfigs = (
   configSet: Set<ModelConfigProvider>,
 ): ModelConfig => {
   const configs = Array.from(configSet)
-    .map((c) => c())
+    .map((c) => c.getModelConfig())
     .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
 
   return configs.reduce((acc, config) => {

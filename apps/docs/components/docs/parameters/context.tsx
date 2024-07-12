@@ -68,7 +68,7 @@ export const AssistantModelConfigState: ParametersTableProps = {
     },
     {
       name: "registerModelConfigProvider",
-      type: "(provider: () => ModelConfig) => Unsubscribe",
+      type: "(provider: ModelConfigProvider) => Unsubscribe",
       description:
         "Registers a model config provider to update the model config.",
       required: true,

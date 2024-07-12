@@ -49,6 +49,10 @@ export class VercelUseAssistantThreadRuntime implements ReactThreadRuntime {
 
   public async append(message: AppendMessage): Promise<void> {
     // add user message
+    if (message.role !== "user")
+      throw new Error(
+        "Only appending user messages are supported in VercelUseAssistantRuntime. This is likely an internal bug in assistant-ui.",
+      );
     if (message.content.length !== 1 || message.content[0]?.type !== "text")
       throw new Error("VercelUseAssistantRuntime only supports text content.");
 

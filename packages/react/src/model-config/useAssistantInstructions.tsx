@@ -12,6 +12,6 @@ export const useAssistantInstructions = (instruction: string) => {
     const config = {
       system: instruction,
     };
-    return registerModelConfigProvider(() => config);
+    return registerModelConfigProvider({ getModelConfig: () => config });
   }, [registerModelConfigProvider, instruction]);
 };

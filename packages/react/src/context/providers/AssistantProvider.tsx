@@ -29,7 +29,7 @@ export const AssistantProvider: FC<
     return { useModelConfig, useToolUIs, useAssistantActions };
   });
 
-  const getModelConfig = context.useModelConfig((c) => c.getModelConfig);
+  const getModelConfig = context.useModelConfig();
   useEffect(() => {
     return runtime.registerModelConfigProvider(getModelConfig);
   }, [runtime, getModelConfig]);

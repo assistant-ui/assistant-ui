@@ -4,7 +4,7 @@ import {
   mergeModelConfigs,
 } from "../types/ModelConfigTypes";
 
-export class ProxyConfigProvider {
+export class ProxyConfigProvider implements ModelConfigProvider {
   private _providers = new Set<ModelConfigProvider>();
 
   getModelConfig() {

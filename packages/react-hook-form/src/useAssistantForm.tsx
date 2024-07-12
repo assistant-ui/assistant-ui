@@ -109,7 +109,7 @@ export const useAssistantForm = <
         },
       },
     };
-    return registerModelConfigProvider(() => value);
+    return registerModelConfigProvider({ getModelConfig: () => value });
   }, [control, setValue, getValues, registerModelConfigProvider]);
 
   const renderFormFieldTool = props?.assistant?.tools?.set_form_field?.render;

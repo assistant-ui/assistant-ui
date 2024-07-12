@@ -4,10 +4,11 @@ import { create } from "zustand";
 import type { ModelConfigProvider } from "../../types/ModelConfigTypes";
 import { ProxyConfigProvider } from "../../utils/ProxyConfigProvider";
 
-export type AssistantModelConfigState = Readonly<{
-  getModelConfig: ModelConfigProvider;
-  registerModelConfigProvider: (provider: ModelConfigProvider) => () => void;
-}>;
+export type AssistantModelConfigState = Readonly<
+  ModelConfigProvider & {
+    registerModelConfigProvider: (provider: ModelConfigProvider) => () => void;
+  }
+>;
 
 export const makeAssistantModelConfigStore = () =>
   create<AssistantModelConfigState>(() => {

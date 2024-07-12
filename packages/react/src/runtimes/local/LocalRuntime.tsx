@@ -3,10 +3,7 @@ import type {
   ThreadAssistantMessage,
   ThreadUserMessage,
 } from "../../types/AssistantTypes";
-import {
-  type ModelConfigProvider,
-  mergeModelConfigs,
-} from "../../types/ModelConfigTypes";
+import { type ModelConfigProvider } from "../../types/ModelConfigTypes";
 import type { Unsubscribe } from "../../types/Unsubscribe";
 import { ThreadRuntime } from "../core";
 import { MessageRepository } from "../utils/MessageRepository";
@@ -14,14 +11,15 @@ import { generateId } from "../../utils/idUtils";
 import { BaseAssistantRuntime } from "../core/BaseAssistantRuntime";
 import type { ChatModelAdapter, ChatModelRunResult } from "./ChatModelAdapter";
 import { AddToolResultOptions } from "../../context";
+import { ProxyConfigProvider } from "../../internal";
 
 export class LocalRuntime extends BaseAssistantRuntime<LocalThreadRuntime> {
-  private readonly _configProviders: Set<ModelConfigProvider>;
+  private readonly _proxyConfigProvider: ProxyConfigProvider;
 
   constructor(adapter: ChatModelAdapter) {
-    const configProviders = new Set<ModelConfigProvider>();
-    super(new LocalThreadRuntime(configProviders, adapter));
-    this._configProviders = configProviders;
+    const proxyConfigProvider = new ProxyConfigProvider();
+    super(new LocalThreadRuntime(proxyConfigProvider, adapter));
+    this._proxyConfigProvider = proxyConfigProvider;
   }
 
   public set adapter(adapter: ChatModelAdapter) {
@@ -29,8 +27,7 @@ export class LocalRuntime extends BaseAssistantRuntime<LocalThreadRuntime> {
   }
 
   registerModelConfigProvider(provider: ModelConfigProvider) {
-    this._configProviders.add(provider);
-    return () => this._configProviders.delete(provider);
+    return this._proxyConfigProvider.registerModelConfigProvider(provider);
   }
 
   public switchToThread(threadId: string | null) {
@@ -39,7 +36,7 @@ export class LocalRuntime extends BaseAssistantRuntime<LocalThreadRuntime> {
     }
 
     return (this.thread = new LocalThreadRuntime(
-      this._configProviders,
+      this._proxyConfigProvider,
       this.thread.adapter,
     ));
   }
@@ -68,7 +65,7 @@ class LocalThreadRuntime implements ThreadRuntime {
   }
 
   constructor(
-    private _configProviders: Set<ModelConfigProvider>,
+    private configProvider: ModelConfigProvider,
     public adapter: ChatModelAdapter,
   ) {}
 
@@ -82,6 +79,11 @@ class LocalThreadRuntime implements ThreadRuntime {
   }
 
   public async append(message: AppendMessage): Promise<void> {
+    if (message.role !== "user")
+      throw new Error(
+        "Only appending user messages are supported in LocalRuntime. This is likely an internal bug in assistant-ui.",
+      );
+
     // add user message
     const userMessageId = generateId();
     const userMessage: ThreadUserMessage = {
@@ -96,14 +98,12 @@ class LocalThreadRuntime implements ThreadRuntime {
   }
 
   public async startRun(parentId: string | null): Promise<void> {
-    const id = generateId();
-
     this.repository.resetHead(parentId);
     const messages = this.repository.getMessages();
 
     // add assistant message
     const message: ThreadAssistantMessage = {
-      id,
+      id: generateId(),
       role: "assistant",
       status: { type: "in_progress" },
       content: [{ type: "text", text: "" }],
@@ -126,7 +126,7 @@ class LocalThreadRuntime implements ThreadRuntime {
       const result = await this.adapter.run({
         messages,
         abortSignal: this.abortController.signal,
-        config: mergeModelConfigs(this._configProviders),
+        config: this.configProvider.getModelConfig(),
         onUpdate: updateHandler,
       });
       if (result !== undefined) {
@@ -154,7 +154,6 @@ class LocalThreadRuntime implements ThreadRuntime {
 
     this.abortController.abort();
     this.abortController = null;
-    this.notifySubscribers();
   }
 
   private notifySubscribers() {

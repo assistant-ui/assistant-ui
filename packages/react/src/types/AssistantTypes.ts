@@ -37,8 +37,6 @@ export type ThreadAssistantContentPart =
   | ToolCallContentPart
   | UIContentPart;
 
-export type AppendContentPart = TextContentPart | ImageContentPart;
-
 type MessageCommonProps = {
   id: string;
   createdAt: Date;
@@ -78,10 +76,8 @@ export type ThreadAssistantMessage = MessageCommonProps & {
   status: MessageStatus;
 };
 
-export type AppendMessage = {
+export type AppendMessage = CoreMessage & {
   parentId: string | null;
-  role: "user";
-  content: AppendContentPart[];
 };
 
 export type ThreadMessage =
