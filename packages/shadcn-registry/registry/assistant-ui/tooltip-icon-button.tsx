@@ -9,6 +9,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Button, ButtonProps } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export type TooltipIconButtonProps = ButtonProps & {
   tooltip: string;
@@ -18,7 +19,7 @@ export type TooltipIconButtonProps = ButtonProps & {
 export const TooltipIconButton = forwardRef<
   HTMLButtonElement,
   TooltipIconButtonProps
->(({ children, tooltip, side = "bottom", ...rest }, ref) => {
+>(({ children, tooltip, side = "bottom", className, ...rest }, ref) => {
   return (
     <TooltipProvider>
       <Tooltip>
@@ -26,8 +27,8 @@ export const TooltipIconButton = forwardRef<
           <Button
             variant="ghost"
             size="icon"
-            className="size-6 p-1"
             {...rest}
+            className={cn("size-6 p-1", className)}
             ref={ref}
           >
             {children}
