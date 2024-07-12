@@ -8,7 +8,6 @@ import {
   useSyncExternalStore,
 } from "react";
 import type { ReactThreadRuntime } from "../../runtimes/core/ReactThreadRuntime";
-import type { ThreadRuntime } from "../../runtimes/core/ThreadRuntime";
 import type { ThreadContextValue } from "../react/ThreadContext";
 import { ThreadContext } from "../react/ThreadContext";
 import { makeComposerStore } from "../stores/Composer";
@@ -20,19 +19,17 @@ import {
   ThreadMessagesState,
   makeThreadMessagesStore,
 } from "../stores/ThreadMessages";
+import { ThreadRuntimeWithSubscribe } from "../../runtimes/core/AssistantRuntime";
 
 type ThreadProviderProps = {
-  runtime: ThreadRuntime;
+  runtime: ThreadRuntimeWithSubscribe;
 };
 
 export const ThreadProvider: FC<PropsWithChildren<ThreadProviderProps>> = ({
   children,
   runtime,
 }) => {
-  const runtimeRef = useRef(runtime);
-  useInsertionEffect(() => {
-    runtimeRef.current = runtime;
-  });
+  const runtimeRef = useRef(runtime.thread);
 
   const [context] = useState<ThreadContextValue>(() => {
     const useThread = makeThreadStore(runtimeRef);
@@ -50,9 +47,20 @@ export const ThreadProvider: FC<PropsWithChildren<ThreadProviderProps>> = ({
     };
   });
 
-  // subscribe to runtime updates
+  // subscribe to thread replacements
+  const thread = useSyncExternalStore(
+    useCallback((c) => runtime.subscribe(c), [runtime]),
+    () => runtime.thread as ReactThreadRuntime,
+    () => runtime.thread as ReactThreadRuntime,
+  );
+
+  useInsertionEffect(() => {
+    runtimeRef.current = thread;
+  });
+
+  // subscribe to thread updates
   useEffect(() => {
-    const onRuntimeUpdate = () => {
+    const onThreadUpdate = () => {
       (context.useThread as unknown as StoreApi<ThreadState>).setState(
         Object.freeze({
           isRunning: runtimeRef.current.isRunning,
@@ -63,24 +71,14 @@ export const ThreadProvider: FC<PropsWithChildren<ThreadProviderProps>> = ({
         context.useThreadMessages as unknown as StoreApi<ThreadMessagesState>
       ).setState(Object.freeze(runtimeRef.current.messages), true);
     };
-    onRuntimeUpdate();
-    return runtime.subscribe(onRuntimeUpdate);
-  }, [context, runtime]);
 
-  const subscribe = useCallback(
-    (c: () => void) => runtime.subscribe(c),
-    [runtime],
-  );
-
-  const RuntimeSynchronizer = useSyncExternalStore(
-    subscribe,
-    () => (runtime as ReactThreadRuntime).unstable_synchronizer,
-    () => undefined,
-  );
+    onThreadUpdate();
+    return thread.subscribe(onThreadUpdate);
+  }, [context, thread]);
 
   return (
     <ThreadContext.Provider value={context}>
-      {RuntimeSynchronizer && <RuntimeSynchronizer />}
+      {thread.unstable_synchronizer && <thread.unstable_synchronizer />}
       {children}
     </ThreadContext.Provider>
   );
