@@ -3,7 +3,7 @@
 import { type FC, type PropsWithChildren, useEffect, useState } from "react";
 import { StoreApi, create } from "zustand";
 import type {
-  AppendUserContentPart,
+  CoreUserContentPart,
   ThreadMessage,
 } from "../../types/AssistantTypes";
 import { getMessageText } from "../../utils/getMessageText";
@@ -81,7 +81,7 @@ const useMessageContext = (messageIndex: number) => {
           );
 
         const nonTextParts = message.content.filter(
-          (part): part is AppendUserContentPart =>
+          (part): part is CoreUserContentPart =>
             part.type !== "text" && part.type !== "ui",
         );
         useThreadActions.getState().append({
