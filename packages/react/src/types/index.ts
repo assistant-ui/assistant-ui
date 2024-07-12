@@ -1,6 +1,5 @@
 export type {
   AppendMessage,
-  AppendUserContentPart as AppendContentPart,
   TextContentPart,
   ImageContentPart,
   ToolCallContentPart,
