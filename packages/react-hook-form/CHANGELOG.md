@@ -1,5 +1,13 @@
 # @assistant-ui/react-hook-form
 
+## 0.3.1
+
+### Patch Changes
+
+- 998081b: fix: reduce specificity of built-in CSS styles
+- Updated dependencies [998081b]
+  - @assistant-ui/react@0.4.4
+
 ## 0.3.0
 
 ### Patch Changes

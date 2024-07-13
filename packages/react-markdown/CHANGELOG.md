@@ -1,5 +1,13 @@
 # @assistant-ui/react-markdown
 
+## 0.1.1
+
+### Patch Changes
+
+- 998081b: fix: reduce specificity of built-in CSS styles
+- Updated dependencies [998081b]
+  - @assistant-ui/react@0.4.4
+
 ## 0.1.0
 
 ### Patch Changes

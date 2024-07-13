@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.4.4
+
+### Patch Changes
+
+- 998081b: fix: reduce specificity of built-in CSS styles
+
 ## 0.4.3
 
 ### Minor Changes
