@@ -4,6 +4,7 @@ export enum AssistantStreamChunkType {
   TextDelta = "0",
   ToolCallBegin = "1",
   ToolCallArgsTextDelta = "2",
+  ToolCallResult = "3",
   Error = "E",
   Finish = "F",
 }
@@ -18,6 +19,13 @@ export type AssistantStreamChunkTuple =
       },
     ]
   | [AssistantStreamChunkType.ToolCallArgsTextDelta, string]
+  | [
+      AssistantStreamChunkType.ToolCallResult,
+      {
+        id: string;
+        result: any;
+      },
+    ]
   | [AssistantStreamChunkType.Error, unknown]
   | [
       AssistantStreamChunkType.Finish,

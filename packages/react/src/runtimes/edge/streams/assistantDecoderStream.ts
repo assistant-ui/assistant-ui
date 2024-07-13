@@ -1,15 +1,16 @@
-import { LanguageModelV1StreamPart } from "@ai-sdk/provider";
 import {
   AssistantStreamChunkTuple,
   AssistantStreamChunkType,
 } from "./AssistantStreamChunkType";
+import { ToolResultStreamPart } from "./toolResultStream";
 
 export function assistantDecoderStream() {
+  const toolCallNames = new Map<string, string>();
   let currentToolCall:
     | { id: string; name: string; argsText: string }
     | undefined;
 
-  return new TransformStream<string, LanguageModelV1StreamPart>({
+  return new TransformStream<string, ToolResultStreamPart>({
     transform(chunk, controller) {
       const [code, value] = parseStreamPart(chunk);
 
@@ -38,6 +39,7 @@ export function assistantDecoderStream() {
         }
         case AssistantStreamChunkType.ToolCallBegin: {
           const { id, name } = value;
+          toolCallNames.set(id, name);
           currentToolCall = { id, name, argsText: "" };
           break;
         }
@@ -50,6 +52,16 @@ export function assistantDecoderStream() {
             toolCallId: currentToolCall!.id,
             toolName: currentToolCall!.name,
             argsTextDelta: delta,
+          });
+          break;
+        }
+        case AssistantStreamChunkType.ToolCallResult: {
+          controller.enqueue({
+            type: "tool-result",
+            toolCallType: "function",
+            toolCallId: value.id,
+            toolName: toolCallNames.get(value.id)!,
+            result: value.result,
           });
           break;
         }

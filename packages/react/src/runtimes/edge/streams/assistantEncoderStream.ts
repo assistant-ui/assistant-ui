@@ -2,11 +2,11 @@ import {
   AssistantStreamChunkTuple,
   AssistantStreamChunkType,
 } from "./AssistantStreamChunkType";
-import { LanguageModelV1StreamPart } from "@ai-sdk/provider";
+import { ToolResultStreamPart } from "./toolResultStream";
 
 export function assistantEncoderStream() {
   const toolCalls = new Set<string>();
-  return new TransformStream<LanguageModelV1StreamPart, string>({
+  return new TransformStream<ToolResultStreamPart, string>({
     transform(chunk, controller) {
       const chunkType = chunk.type;
       switch (chunkType) {
@@ -42,6 +42,16 @@ export function assistantEncoderStream() {
         // ignore
         case "tool-call":
           break;
+
+        case "tool-result": {
+          controller.enqueue(
+            formatStreamPart(AssistantStreamChunkType.ToolCallResult, {
+              id: chunk.toolCallId,
+              result: chunk.result,
+            }),
+          );
+          break;
+        }
 
         case "finish": {
           const { type, ...rest } = chunk;

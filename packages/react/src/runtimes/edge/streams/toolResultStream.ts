@@ -16,7 +16,7 @@ export type ToolResultStreamPart =
 export function toolResultStream(tools: Record<string, Tool> | undefined) {
   const toolCallExecutions = new Map<string, Promise<any>>();
 
-  return new TransformStream<LanguageModelV1StreamPart, ToolResultStreamPart>({
+  return new TransformStream<ToolResultStreamPart, ToolResultStreamPart>({
     transform(chunk, controller) {
       // forward everything
       controller.enqueue(chunk);
@@ -70,6 +70,7 @@ export function toolResultStream(tools: Record<string, Tool> | undefined) {
         // ignore other parts
         case "text-delta":
         case "tool-call-delta":
+        case "tool-result":
         case "finish":
         case "error":
           break;
