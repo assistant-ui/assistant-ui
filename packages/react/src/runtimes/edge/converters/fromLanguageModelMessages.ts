@@ -53,17 +53,30 @@ export const fromLanguageModelMessages = (
         break;
       }
       case "assistant": {
+        const newContent = lmMessage.content.map((part) => {
+          if (part.type === "tool-call") {
+            return {
+              type: "tool-call",
+              toolCallId: part.toolCallId,
+              toolName: part.toolName,
+              argsText: JSON.stringify(part.args),
+              args: typeof part.args === "string" ? part.args : part.args,
+            } satisfies ToolCallContentPart;
+          }
+          return part;
+        });
+
         if (mergeRoundtrips) {
           const previousMessage = messages[messages.length - 1];
           if (previousMessage?.role === "assistant") {
-            previousMessage.content.push(...lmMessage.content);
+            previousMessage.content.push(...newContent);
             break;
           }
         }
 
         messages.push({
           role: "assistant",
-          content: lmMessage.content,
+          content: newContent,
         });
         break;
       }
@@ -85,6 +98,9 @@ export const fromLanguageModelMessages = (
             throw new Error("Tool call name mismatch.");
 
           toolCall.result = tool.result;
+          if (tool.isError) {
+            toolCall.isError = true;
+          }
         }
 
         break;
