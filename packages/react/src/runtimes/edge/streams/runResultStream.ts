@@ -2,10 +2,11 @@ import { ChatModelRunResult } from "../../local/ChatModelAdapter";
 import { parsePartialJson } from "../partial-json/parse-partial-json";
 import { LanguageModelV1StreamPart } from "@ai-sdk/provider";
 import { ToolResultStreamPart } from "./toolResultStream";
+import { ThreadAssistantContentPart } from "../../../types";
 
-export function runResultStream() {
+export function runResultStream(initialContent: ThreadAssistantContentPart[]) {
   let message: ChatModelRunResult = {
-    content: [],
+    content: initialContent,
   };
   const currentToolCall = { toolCallId: "", argsText: "" };
 

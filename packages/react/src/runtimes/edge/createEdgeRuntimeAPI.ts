@@ -128,29 +128,31 @@ export const createEdgeRuntimeAPI = ({
       let serverStream = tees[1];
 
       if (onFinish) {
-        serverStream = serverStream.pipeThrough(runResultStream()).pipeThrough(
-          new TransformStream({
-            transform(chunk) {
-              if (chunk.status?.type !== "done") return;
-              const resultingMessages = [
-                ...messages,
-                {
-                  role: "assistant",
-                  content: chunk.content,
-                } as CoreAssistantMessage,
-              ];
-              onFinish({
-                finishReason: chunk.status.finishReason!,
-                usage: chunk.status.usage!,
-                messages: resultingMessages,
-                logProbs: chunk.status.logprops,
-                warnings: streamResult.warnings,
-                rawCall: streamResult.rawCall,
-                rawResponse: streamResult.rawResponse,
-              });
-            },
-          }),
-        );
+        serverStream = serverStream
+          .pipeThrough(runResultStream([]))
+          .pipeThrough(
+            new TransformStream({
+              transform(chunk) {
+                if (chunk.status?.type !== "done") return;
+                const resultingMessages = [
+                  ...messages,
+                  {
+                    role: "assistant",
+                    content: chunk.content,
+                  } as CoreAssistantMessage,
+                ];
+                onFinish({
+                  finishReason: chunk.status.finishReason!,
+                  usage: chunk.status.usage!,
+                  messages: resultingMessages,
+                  logProbs: chunk.status.logprops,
+                  warnings: streamResult.warnings,
+                  rawCall: streamResult.rawCall,
+                  rawResponse: streamResult.rawResponse,
+                });
+              },
+            }),
+          );
       }
 
       // drain the server stream

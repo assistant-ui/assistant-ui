@@ -136,8 +136,10 @@ class LocalThreadRuntime implements ThreadRuntime {
     try {
       const updateHandler = ({ content }: ChatModelRunResult) => {
         message.content = content;
-        this.repository.addOrUpdateMessage(parentId, { ...message });
+        const newMessage = { ...message };
+        this.repository.addOrUpdateMessage(parentId, newMessage);
         this.notifySubscribers();
+        return newMessage;
       };
       const result = await this.adapter.run({
         messages,

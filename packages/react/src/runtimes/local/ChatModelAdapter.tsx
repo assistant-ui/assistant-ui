@@ -19,7 +19,7 @@ export type ChatModelRunOptions = {
   messages: ThreadMessage[];
   abortSignal: AbortSignal;
   config: ModelConfig;
-  onUpdate: (result: ChatModelRunUpdate) => void;
+  onUpdate: (result: ChatModelRunUpdate) => ThreadMessage;
 };
 
 export type ChatModelAdapter = {
