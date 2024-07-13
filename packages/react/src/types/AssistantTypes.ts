@@ -23,8 +23,10 @@ export type ToolCallContentPart<TArgs = unknown, TResult = unknown> = {
   type: "tool-call";
   toolCallId: string;
   toolName: string;
+  argsText: string;
   args: TArgs;
   result?: TResult;
+  isError?: boolean;
 };
 
 export type ThreadUserContentPart =

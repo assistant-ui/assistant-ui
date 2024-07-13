@@ -31,7 +31,7 @@ export function runResultStream() {
             message,
             toolCallId,
             toolName,
-            parsePartialJson(currentToolCall.argsText),
+            currentToolCall.argsText,
           );
           controller.enqueue(message);
           break;
@@ -85,7 +85,7 @@ const appendOrUpdateToolCall = (
   message: ChatModelRunResult,
   toolCallId: string,
   toolName: string,
-  args: unknown,
+  argsText: string,
 ) => {
   let contentParts = message.content;
   let contentPart = message.content.at(-1);
@@ -97,13 +97,15 @@ const appendOrUpdateToolCall = (
       type: "tool-call",
       toolCallId,
       toolName,
-      args,
+      argsText,
+      args: parsePartialJson(argsText),
     };
   } else {
     contentParts = contentParts.slice(0, -1);
     contentPart = {
       ...contentPart,
-      args,
+      argsText,
+      args: parsePartialJson(argsText),
     };
   }
   return {

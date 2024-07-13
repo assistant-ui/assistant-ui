@@ -72,6 +72,7 @@ const vercelToThreadMessage = (
                   type: "tool-call",
                   toolName: t.toolName,
                   toolCallId: t.toolCallId,
+                  argsText: JSON.stringify(t.args),
                   args: t.args,
                   result: "result" in t ? t.result : undefined,
                 }) satisfies ToolCallContentPart,
