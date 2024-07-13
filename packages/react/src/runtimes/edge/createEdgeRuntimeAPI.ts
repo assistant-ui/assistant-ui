@@ -10,7 +10,10 @@ import {
 } from "@ai-sdk/provider";
 import { CoreAssistantMessage, CoreMessage } from "../../types/AssistantTypes";
 import { assistantEncoderStream } from "./streams/assistantEncoderStream";
-import { EdgeRuntimeRequestOptions } from "./EdgeRuntimeRequestOptions";
+import {
+  EdgeRuntimeRequestOptions,
+  LanguageModelConfig,
+} from "./EdgeRuntimeRequestOptions";
 import { toLanguageModelMessages } from "./converters/toLanguageModelMessages";
 import { z } from "zod";
 import { Tool } from "../../types";
@@ -53,8 +56,12 @@ type FinishResult = {
     | undefined;
 };
 
+type LanguageModelCreator = (
+  config: LanguageModelConfig,
+) => Promise<LanguageModelV1> | LanguageModelV1;
+
 type CreateEdgeRuntimeAPIOptions = LanguageModelSettings & {
-  model: LanguageModelV1;
+  model: LanguageModelV1 | LanguageModelCreator;
   system?: string;
   tools?: Record<string, Tool<any, any>>;
   toolChoice?: LanguageModelV1ToolChoice;
@@ -70,7 +77,7 @@ const voidStream = () => {
 };
 
 export const createEdgeRuntimeAPI = ({
-  model,
+  model: modelOrCreator,
   system: serverSystem,
   tools: serverTools = {},
   toolChoice,
@@ -86,6 +93,9 @@ export const createEdgeRuntimeAPI = ({
       system: clientSystem,
       tools: clientTools,
       messages,
+      apiKey,
+      baseUrl,
+      modelName,
     } = (await request.json()) as EdgeRuntimeRequestOptions;
 
     const systemMessages = [];
@@ -100,6 +110,11 @@ export const createEdgeRuntimeAPI = ({
         );
       }
     }
+
+    const model =
+      typeof modelOrCreator === "function"
+        ? await modelOrCreator({ apiKey, baseUrl, modelName })
+        : modelOrCreator;
 
     let stream: ReadableStream<ToolResultStreamPart>;
     const streamResult = await streamMessage({
