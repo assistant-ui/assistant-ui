@@ -109,7 +109,7 @@ const ThreadScrollToBottom = forwardRef<
   return (
     <ThreadPrimitive.ScrollToBottom asChild>
       <ThreadScrollToBottomIconButton tooltip={tooltip} {...props} ref={ref}>
-       |{props.children ?? <ArrowDownIcon />}
+        {props.children ?? <ArrowDownIcon />}
       </ThreadScrollToBottomIconButton>
     </ThreadPrimitive.ScrollToBottom>
   );
