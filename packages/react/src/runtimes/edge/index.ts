@@ -1,6 +1,5 @@
-export { useEdgeRuntime } from "./useEdgeRuntime";
+export { useEdgeRuntime, type EdgeRuntimeOptions } from "./useEdgeRuntime";
 export { EdgeChatAdapter } from "./EdgeChatAdapter";
-export type { EdgeRuntimeOptions } from "./EdgeChatAdapter";
 
 export { toLanguageModelMessages } from "./converters/toLanguageModelMessages";
 export { fromLanguageModelMessages } from "./converters/fromLanguageModelMessages";

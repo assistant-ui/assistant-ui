@@ -1,5 +1,6 @@
 import type {
   AppendMessage,
+  CoreMessage,
   ThreadAssistantMessage,
   ThreadUserMessage,
 } from "../../types/AssistantTypes";
@@ -12,13 +13,18 @@ import { BaseAssistantRuntime } from "../core/BaseAssistantRuntime";
 import type { ChatModelAdapter, ChatModelRunResult } from "./ChatModelAdapter";
 import { AddToolResultOptions } from "../../context";
 import { ProxyConfigProvider } from "../../internal";
+import { fromCoreMessages } from "../edge";
+
+export type LocalRuntimeOptions = {
+  initialMessages?: readonly CoreMessage[] | undefined;
+};
 
 export class LocalRuntime extends BaseAssistantRuntime<LocalThreadRuntime> {
   private readonly _proxyConfigProvider: ProxyConfigProvider;
 
-  constructor(adapter: ChatModelAdapter) {
+  constructor(adapter: ChatModelAdapter, options?: LocalRuntimeOptions) {
     const proxyConfigProvider = new ProxyConfigProvider();
-    super(new LocalThreadRuntime(proxyConfigProvider, adapter));
+    super(new LocalThreadRuntime(proxyConfigProvider, adapter, options));
     this._proxyConfigProvider = proxyConfigProvider;
   }
 
@@ -67,7 +73,17 @@ class LocalThreadRuntime implements ThreadRuntime {
   constructor(
     private configProvider: ModelConfigProvider,
     public adapter: ChatModelAdapter,
-  ) {}
+    options?: LocalRuntimeOptions,
+  ) {
+    if (options?.initialMessages) {
+      let parentId: string | null = null;
+      const messages = fromCoreMessages(options.initialMessages);
+      for (const message of messages) {
+        this.repository.addOrUpdateMessage(parentId, message);
+        parentId = message.id;
+      }
+    }
+  }
 
   public getBranches(messageId: string): string[] {
     return this.repository.getBranches(messageId);

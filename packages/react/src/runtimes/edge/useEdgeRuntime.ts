@@ -1,8 +1,13 @@
-import { useLocalRuntime } from "..";
+import { LocalRuntimeOptions, useLocalRuntime } from "..";
 import { useState } from "react";
-import { EdgeRuntimeOptions, EdgeChatAdapter } from "./EdgeChatAdapter";
+import { EdgeChatAdapterOptions, EdgeChatAdapter } from "./EdgeChatAdapter";
 
-export const useEdgeRuntime = (options: EdgeRuntimeOptions) => {
+export type EdgeRuntimeOptions = EdgeChatAdapterOptions & LocalRuntimeOptions;
+
+export const useEdgeRuntime = ({
+  initialMessages,
+  ...options
+}: EdgeRuntimeOptions) => {
   const [adapter] = useState(() => new EdgeChatAdapter(options));
-  return useLocalRuntime(adapter);
+  return useLocalRuntime(adapter, { initialMessages });
 };

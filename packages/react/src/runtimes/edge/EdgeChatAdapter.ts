@@ -25,10 +25,12 @@ export function asAsyncIterable<T>(
     },
   };
 }
-export type EdgeRuntimeOptions = { api: string };
+export type EdgeChatAdapterOptions = {
+  api: string;
+};
 
 export class EdgeChatAdapter implements ChatModelAdapter {
-  constructor(private options: EdgeRuntimeOptions) {}
+  constructor(private options: EdgeChatAdapterOptions) {}
 
   async run({ messages, abortSignal, config, onUpdate }: ChatModelRunOptions) {
     const result = await fetch(this.options.api, {
