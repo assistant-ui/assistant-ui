@@ -34,6 +34,10 @@ export type {
   ToolCallContentPartComponent,
 } from "./ContentPartComponentTypes";
 
-export type { ModelConfig, ModelConfigProvider } from "./ModelConfigTypes";
+export type {
+  ModelConfig,
+  ModelConfigProvider,
+  Tool,
+} from "./ModelConfigTypes";
 
 export type { Unsubscribe } from "./Unsubscribe";

@@ -8,7 +8,7 @@ type ToolExecuteFunction<TArgs, TResult> = (
 export type Tool<TArgs = unknown, TResult = unknown> = {
   description?: string | undefined;
   parameters: z.ZodSchema<TArgs> | JSONSchema7;
-  execute: ToolExecuteFunction<TArgs, TResult>;
+  execute?: ToolExecuteFunction<TArgs, TResult>;
 };
 
 export type ModelConfig = {

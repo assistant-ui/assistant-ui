@@ -27,7 +27,7 @@ export function toolResultStream(tools: Record<string, Tool> | undefined) {
         case "tool-call": {
           const { toolCallId, toolCallType, toolName, args: argsText } = chunk;
           const tool = tools?.[toolName];
-          if (!tool) return;
+          if (!tool || !tool.execute) return;
 
           const args = sjson.parse(argsText);
           if (tool.parameters instanceof z.ZodType) {
@@ -43,7 +43,7 @@ export function toolResultStream(tools: Record<string, Tool> | undefined) {
                 toolCallId,
                 (async () => {
                   try {
-                    const result = await tool.execute(args);
+                    const result = await tool.execute!(args);
 
                     controller.enqueue({
                       type: "tool-result",
