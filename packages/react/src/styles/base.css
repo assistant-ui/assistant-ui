@@ -1,4 +1,4 @@
-.aui-root {
+:where(.aui-root) {
   @tailwind base;
 }
 
