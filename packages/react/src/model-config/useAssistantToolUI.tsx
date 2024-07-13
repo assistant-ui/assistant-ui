@@ -4,7 +4,10 @@ import { useEffect } from "react";
 import { useAssistantContext } from "../context/react/AssistantContext";
 import type { ToolCallContentPartComponent } from "../types/ContentPartComponentTypes";
 
-export type AssistantToolUIProps<TArgs, TResult> = {
+export type AssistantToolUIProps<
+  TArgs extends Record<string | number, unknown>,
+  TResult,
+> = {
   toolName: string;
   render: ToolCallContentPartComponent<TArgs, TResult>;
 };

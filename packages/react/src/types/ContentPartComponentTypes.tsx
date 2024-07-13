@@ -26,13 +26,16 @@ export type UIContentPartProps = {
 };
 export type UIContentPartComponent = ComponentType<UIContentPartProps>;
 
-export type ToolCallContentPartProps<TArgs = any, TResult = any> = {
+export type ToolCallContentPartProps<
+  TArgs extends Record<string | number, unknown> = any,
+  TResult = unknown,
+> = {
   part: ToolCallContentPart<TArgs, TResult>;
   status: MessageStatus;
   addResult: (result: any) => void;
 };
 
 export type ToolCallContentPartComponent<
-  TArgs = any,
+  TArgs extends Record<string | number, unknown> = any,
   TResult = any,
 > = ComponentType<ToolCallContentPartProps<TArgs, TResult>>;

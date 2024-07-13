@@ -19,14 +19,29 @@ export type UIContentPart = {
   display: ReactNode;
 };
 
-export type ToolCallContentPart<TArgs = unknown, TResult = unknown> = {
+export type CoreToolCallContentPart<
+  TArgs extends Record<string | number, unknown> = Record<
+    string | number,
+    unknown
+  >,
+  TResult = unknown,
+> = {
   type: "tool-call";
   toolCallId: string;
   toolName: string;
-  argsText: string;
   args: TArgs;
-  result?: TResult;
-  isError?: boolean;
+  result?: TResult | undefined;
+  isError?: boolean | undefined;
+};
+
+export type ToolCallContentPart<
+  TArgs extends Record<string | number, unknown> = Record<
+    string | number,
+    unknown
+  >,
+  TResult = unknown,
+> = CoreToolCallContentPart<TArgs, TResult> & {
+  argsText: string;
 };
 
 export type ThreadUserContentPart =
@@ -90,7 +105,9 @@ export type ThreadMessage =
 /** Core Message Types (without UI content parts) */
 
 export type CoreUserContentPart = TextContentPart | ImageContentPart;
-export type CoreAssistantContentPart = TextContentPart | ToolCallContentPart;
+export type CoreAssistantContentPart =
+  | TextContentPart
+  | CoreToolCallContentPart;
 
 export type CoreSystemMessage = {
   role: "system";

@@ -28,7 +28,9 @@ export type UseAssistantFormProps<
                 | {
                     render?:
                       | ToolCallContentPartComponent<
-                          z.ZodType<typeof formTools.set_form_field>,
+                          z.infer<
+                            (typeof formTools.set_form_field)["parameters"]
+                          >,
                           unknown
                         >
                       | undefined;
@@ -38,7 +40,7 @@ export type UseAssistantFormProps<
                 | {
                     render?:
                       | ToolCallContentPartComponent<
-                          z.ZodType<typeof formTools.submit_form>,
+                          z.infer<(typeof formTools.submit_form)["parameters"]>,
                           unknown
                         >
                       | undefined;

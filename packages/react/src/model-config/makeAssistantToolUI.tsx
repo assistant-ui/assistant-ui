@@ -4,7 +4,10 @@ import {
   useAssistantToolUI,
 } from "./useAssistantToolUI";
 
-export const makeAssistantToolUI = <TArgs, TResult>(
+export const makeAssistantToolUI = <
+  TArgs extends Record<string | number, unknown>,
+  TResult,
+>(
   tool: AssistantToolUIProps<TArgs, TResult>,
 ) => {
   const ToolUI = () => {

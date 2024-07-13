@@ -5,8 +5,12 @@ import {
   LanguageModelV1ToolCallPart,
   LanguageModelV1ToolResultPart,
 } from "@ai-sdk/provider";
-import { CoreMessage, ThreadMessage } from "../../../types";
-import { TextContentPart, ToolCallContentPart } from "../../../types";
+import {
+  CoreMessage,
+  ThreadMessage,
+  TextContentPart,
+  CoreToolCallContentPart,
+} from "../../../types/AssistantTypes";
 
 const assistantMessageSplitter = () => {
   const stash: LanguageModelV1Message[] = [];
@@ -41,7 +45,7 @@ const assistantMessageSplitter = () => {
 
       assistantMessage.content.push(part);
     },
-    addToolCallPart: (part: ToolCallContentPart) => {
+    addToolCallPart: (part: CoreToolCallContentPart) => {
       assistantMessage.content.push({
         type: "tool-call",
         toolCallId: part.toolCallId,

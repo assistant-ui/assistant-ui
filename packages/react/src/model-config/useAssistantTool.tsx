@@ -5,12 +5,18 @@ import { useAssistantContext } from "../context/react/AssistantContext";
 import type { ToolCallContentPartComponent } from "../types/ContentPartComponentTypes";
 import type { Tool } from "../types/ModelConfigTypes";
 
-export type AssistantToolProps<TArgs, TResult> = Tool<TArgs, TResult> & {
+export type AssistantToolProps<
+  TArgs extends Record<string | number, unknown>,
+  TResult,
+> = Tool<TArgs, TResult> & {
   toolName: string;
   render?: ToolCallContentPartComponent<TArgs, TResult> | undefined;
 };
 
-export const useAssistantTool = <TArgs, TResult>(
+export const useAssistantTool = <
+  TArgs extends Record<string | number, unknown>,
+  TResult,
+>(
   tool: AssistantToolProps<TArgs, TResult>,
 ) => {
   const { useModelConfig, useToolUIs } = useAssistantContext();

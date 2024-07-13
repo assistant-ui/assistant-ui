@@ -1,7 +1,10 @@
 "use client";
 import { type AssistantToolProps, useAssistantTool } from "./useAssistantTool";
 
-export const makeAssistantTool = <TArgs, TResult>(
+export const makeAssistantTool = <
+  TArgs extends Record<string | number, unknown>,
+  TResult,
+>(
   tool: AssistantToolProps<TArgs, TResult>,
 ) => {
   const Tool = () => {

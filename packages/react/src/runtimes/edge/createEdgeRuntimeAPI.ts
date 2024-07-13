@@ -10,12 +10,8 @@ import {
 } from "@ai-sdk/provider";
 import { CoreAssistantMessage, CoreMessage } from "../../types/AssistantTypes";
 import { assistantEncoderStream } from "./streams/assistantEncoderStream";
-import {
-  EdgeRuntimeRequestOptions,
-  LanguageModelConfig,
-} from "./EdgeRuntimeRequestOptions";
+import { EdgeRuntimeRequestOptionsSchema } from "./EdgeRuntimeRequestOptions";
 import { toLanguageModelMessages } from "./converters/toLanguageModelMessages";
-import { z } from "zod";
 import { Tool } from "../../types";
 import { toLanguageModelTools } from "./converters/toLanguageModelTools";
 import {
@@ -23,18 +19,11 @@ import {
   ToolResultStreamPart,
 } from "./streams/toolResultStream";
 import { runResultStream } from "./streams/runResultStream";
-
-const LanguageModelSettingsSchema = z.object({
-  maxTokens: z.number().int().positive().optional(),
-  temperature: z.number().optional(),
-  topP: z.number().optional(),
-  presencePenalty: z.number().optional(),
-  frequencyPenalty: z.number().optional(),
-  seed: z.number().int().optional(),
-  headers: z.record(z.string().optional()).optional(),
-});
-
-type LanguageModelSettings = z.infer<typeof LanguageModelSettingsSchema>;
+import {
+  LanguageModelConfig,
+  LanguageModelV1CallSettings,
+  LanguageModelV1CallSettingsSchema,
+} from "../../types/ModelConfigTypes";
 
 type FinishResult = {
   finishReason: LanguageModelV1FinishReason;
@@ -60,7 +49,7 @@ type LanguageModelCreator = (
   config: LanguageModelConfig,
 ) => Promise<LanguageModelV1> | LanguageModelV1;
 
-type CreateEdgeRuntimeAPIOptions = LanguageModelSettings & {
+type CreateEdgeRuntimeAPIOptions = LanguageModelV1CallSettings & {
   model: LanguageModelV1 | LanguageModelCreator;
   system?: string;
   tools?: Record<string, Tool<any, any>>;
@@ -84,7 +73,7 @@ export const createEdgeRuntimeAPI = ({
   onFinish,
   ...unsafeSettings
 }: CreateEdgeRuntimeAPIOptions) => {
-  const settings = LanguageModelSettingsSchema.parse(unsafeSettings);
+  const settings = LanguageModelV1CallSettingsSchema.parse(unsafeSettings);
   const lmServerTools = toLanguageModelTools(serverTools);
   const hasServerTools = Object.values(serverTools).some((v) => !!v.execute);
 
@@ -96,7 +85,8 @@ export const createEdgeRuntimeAPI = ({
       apiKey,
       baseUrl,
       modelName,
-    } = (await request.json()) as EdgeRuntimeRequestOptions;
+      ...callSettings
+    } = EdgeRuntimeRequestOptionsSchema.parse(await request.json());
 
     const systemMessages = [];
     if (serverSystem) systemMessages.push(serverSystem);
@@ -119,13 +109,14 @@ export const createEdgeRuntimeAPI = ({
     let stream: ReadableStream<ToolResultStreamPart>;
     const streamResult = await streamMessage({
       ...(settings as Partial<StreamMessageOptions>),
+      ...callSettings,
 
       model,
       abortSignal: request.signal,
 
       ...(!!system ? { system } : undefined),
       messages,
-      tools: lmServerTools.concat(clientTools),
+      tools: lmServerTools.concat(clientTools as LanguageModelV1FunctionTool[]),
       ...(toolChoice ? { toolChoice } : undefined),
     });
     stream = streamResult.stream;
@@ -190,15 +181,13 @@ export const createEdgeRuntimeAPI = ({
   return { POST };
 };
 
-type StreamMessageOptions = Omit<
-  LanguageModelV1CallOptions,
-  "inputFormat" | "mode" | "prompt"
-> & {
+type StreamMessageOptions = LanguageModelV1CallSettings & {
   model: LanguageModelV1;
   system?: string;
   messages: CoreMessage[];
   tools?: LanguageModelV1FunctionTool[];
   toolChoice?: LanguageModelV1ToolChoice;
+  abortSignal: AbortSignal;
 };
 
 async function streamMessage({
@@ -217,7 +206,7 @@ async function streamMessage({
       ...(toolChoice ? { toolChoice } : undefined),
     },
     prompt: convertToLanguageModelPrompt(system, messages),
-    ...options,
+    ...(options as Partial<LanguageModelV1CallOptions>),
   });
 }
 

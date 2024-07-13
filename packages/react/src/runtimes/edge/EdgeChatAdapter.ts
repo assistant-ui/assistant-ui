@@ -49,6 +49,8 @@ export class EdgeChatAdapter implements ChatModelAdapter {
         tools: toLanguageModelTools(
           config.tools,
         ) as EdgeRuntimeRequestOptions["tools"],
+        ...config.callSettings,
+        ...config.config,
       } satisfies EdgeRuntimeRequestOptions),
       signal: abortSignal,
     });
