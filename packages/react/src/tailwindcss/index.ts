@@ -1,7 +1,7 @@
 import plugin from "tailwindcss/plugin";
 
 type AssisstantTailwindPluginOptions = {
-  components?: ("thread" | "assistant-modal")[];
+  components?: ("base" | "thread" | "assistant-modal")[];
   shadcn?: boolean;
 };
 
@@ -10,14 +10,12 @@ const auiPlugin = plugin.withOptions<AssisstantTailwindPluginOptions>(
     ({ addComponents }) => {
       const assistantModal = components.includes("assistant-modal");
       const thread = assistantModal || components.includes("thread");
+      const base = thread || components.includes("base");
 
-      if (thread) {
+      if (base) {
         addComponents({
           '@import "@assistant-ui/react/styles/tailwindcss/base-components.css"':
             "",
-        });
-        addComponents({
-          '@import "@assistant-ui/react/styles/tailwindcss/thread.css"': "",
         });
 
         if (!shadcn) {
@@ -25,6 +23,12 @@ const auiPlugin = plugin.withOptions<AssisstantTailwindPluginOptions>(
             '@import "@assistant-ui/react/styles/themes/default.css"': "",
           });
         }
+      }
+
+      if (thread) {
+        addComponents({
+          '@import "@assistant-ui/react/styles/tailwindcss/thread.css"': "",
+        });
       }
 
       if (assistantModal) {

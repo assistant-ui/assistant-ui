@@ -59,7 +59,7 @@ export async function POST(req: Request) {
                       type: "tool-call",
                       toolCallId: toolCall.id,
                       toolName: toolCall.function.name,
-                      args: args,
+                      args,
                     },
                   });
 
