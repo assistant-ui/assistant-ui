@@ -53,14 +53,14 @@ const auiPlugin = plugin.withOptions<AssisstantTailwindPluginOptions>(
                 DEFAULT: `hsl(var(${prefix}primary))`,
                 foreground: `hsl(var(${prefix}primary-foreground))`,
               },
-              //   secondary: {
-              //     DEFAULT: "hsl(var(--aui-secondary))",
-              //     foreground: "hsl(var(--aui-secondary-foreground))",
-              //   },
-              //   destructive: {
-              //     DEFAULT: "hsl(var(--aui-destructive))",
-              //     foreground: "hsl(var(--aui-destructive-foreground))",
-              //   },
+              secondary: {
+                DEFAULT: `hsl(var(${prefix}secondary))`,
+                foreground: `hsl(var(${prefix}secondary-foreground))`,
+              },
+              destructive: {
+                DEFAULT: `hsl(var(${prefix}destructive))`,
+                foreground: `hsl(var(${prefix}destructive-foreground))`,
+              },
               muted: {
                 DEFAULT: `hsl(var(${prefix}muted))`,
                 foreground: `hsl(var(${prefix}muted-foreground))`,
