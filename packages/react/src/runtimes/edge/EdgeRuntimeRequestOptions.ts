@@ -1,3 +1,4 @@
+import { JSONSchema7 } from "json-schema";
 import {
   LanguageModelConfigSchema,
   LanguageModelV1CallSettingsSchema,
@@ -8,7 +9,9 @@ const LanguageModelV1FunctionToolSchema = z.object({
   type: z.literal("function"),
   name: z.string(),
   description: z.string().optional(),
-  parameters: z.record(z.unknown()),
+  parameters: z.custom<JSONSchema7>(
+    (val) => typeof val === "object" && val !== null,
+  ),
 });
 
 const TextContentPartSchema = z.object({
