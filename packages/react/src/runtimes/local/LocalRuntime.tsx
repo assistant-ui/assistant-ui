@@ -118,52 +118,56 @@ class LocalThreadRuntime implements ThreadRuntime {
     const messages = this.repository.getMessages();
 
     // add assistant message
-    const message: ThreadAssistantMessage = {
+    let message: ThreadAssistantMessage = {
       id: generateId(),
       role: "assistant",
       status: { type: "in_progress" },
       content: [{ type: "text", text: "" }],
       createdAt: new Date(),
     };
-    this.repository.addOrUpdateMessage(parentId, { ...message });
 
     // abort existing run
     this.abortController?.abort();
     this.abortController = new AbortController();
 
+    this.repository.addOrUpdateMessage(parentId, { ...message });
     this.notifySubscribers();
 
-    try {
-      const updateHandler = ({ content }: ChatModelRunResult) => {
-        message.content = content;
-        const newMessage = { ...message };
-        this.repository.addOrUpdateMessage(parentId, newMessage);
-        this.notifySubscribers();
-        return newMessage;
+    const updateMessage = (m: Partial<ChatModelRunResult>) => {
+      message = {
+        ...message,
+        ...m,
       };
+      this.repository.addOrUpdateMessage(parentId, message);
+      this.notifySubscribers();
+      return message;
+    };
+
+    try {
       const result = await this.adapter.run({
         messages,
         abortSignal: this.abortController.signal,
         config: this.configProvider.getModelConfig(),
-        onUpdate: updateHandler,
+        onUpdate: updateMessage,
       });
-      if (result !== undefined) {
-        updateHandler(result);
-      }
       if (result.status?.type === "in_progress")
         throw new Error(
           "Unexpected in_progress status returned from ChatModelAdapter",
         );
 
-      message.status = result.status ?? { type: "done" };
+      this.abortController = null;
+      updateMessage({ status: { type: "done" }, ...result });
       this.repository.addOrUpdateMessage(parentId, { ...message });
     } catch (e) {
-      message.status = { type: "error", error: e };
-      this.repository.addOrUpdateMessage(parentId, { ...message });
-      throw e;
-    } finally {
+      const isAbortError = e instanceof Error && e.name === "AbortError";
       this.abortController = null;
-      this.notifySubscribers();
+      updateMessage({
+        status: isAbortError
+          ? { type: "cancelled" }
+          : { type: "error", error: e },
+      });
+
+      if (!isAbortError) throw e;
     }
   }
 

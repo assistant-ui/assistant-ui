@@ -10,7 +10,8 @@ export type ToolResultStreamPart =
       toolCallType: "function";
       toolCallId: string;
       toolName: string;
-      result: any;
+      result: unknown;
+      isError?: boolean;
     };
 
 export function toolResultStream(tools: Record<string, Tool> | undefined) {
@@ -34,8 +35,14 @@ export function toolResultStream(tools: Record<string, Tool> | undefined) {
             const result = tool.parameters.safeParse(args);
             if (!result.success) {
               controller.enqueue({
-                type: "error",
-                error: new Error("Invalid tool call arguments"),
+                type: "tool-result",
+                toolCallType,
+                toolCallId,
+                toolName,
+                result:
+                  "Function parameter validation failed. " +
+                  JSON.stringify(result.error.issues),
+                isError: true,
               });
               return;
             } else {
@@ -53,9 +60,14 @@ export function toolResultStream(tools: Record<string, Tool> | undefined) {
                       result,
                     });
                   } catch (error) {
+                    console.error("Error: ", error);
                     controller.enqueue({
-                      type: "error",
-                      error,
+                      type: "tool-result",
+                      toolCallType,
+                      toolCallId,
+                      toolName,
+                      result: "Error: " + error,
+                      isError: true,
                     });
                   } finally {
                     toolCallExecutions.delete(toolCallId);
@@ -81,6 +93,7 @@ export function toolResultStream(tools: Record<string, Tool> | undefined) {
         }
       }
     },
+
     async flush() {
       await Promise.all(toolCallExecutions.values());
     },

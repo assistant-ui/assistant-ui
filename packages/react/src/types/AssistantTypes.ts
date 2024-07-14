@@ -61,7 +61,7 @@ type MessageCommonProps = {
 
 export type MessageStatus =
   | {
-      type: "in_progress";
+      type: "in_progress" | "cancelled";
     }
   | {
       type: "done";
