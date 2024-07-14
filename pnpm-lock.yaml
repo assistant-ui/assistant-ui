@@ -750,7 +750,7 @@ importers:
   packages/react-hook-form:
     dependencies:
       '@assistant-ui/react':
-        specifier: ^0.4.4
+        specifier: ^0.4.6
         version: link:../react
       '@types/react':
         specifier: '*'
@@ -778,7 +778,7 @@ importers:
   packages/react-markdown:
     dependencies:
       '@assistant-ui/react':
-        specifier: ^0.4.4
+        specifier: ^0.4.6
         version: link:../react
       '@radix-ui/react-use-callback-ref':
         specifier: ^1.1.0

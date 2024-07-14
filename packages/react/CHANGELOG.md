@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.4.6
+
+### Patch Changes
+
+- bc77b4f: feat(runtimes/edge): dynamic model creator functions
+- e220617: feat(runtimes/edge): client side API key, model name, model parameters specification
+
 ## 0.4.4
 
 ### Patch Changes

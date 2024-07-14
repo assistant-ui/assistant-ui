@@ -1,5 +1,14 @@
 # @assistant-ui/react-hook-form
 
+## 0.3.2
+
+### Patch Changes
+
+- e220617: feat(runtimes/edge): client side API key, model name, model parameters specification
+- Updated dependencies [bc77b4f]
+- Updated dependencies [e220617]
+  - @assistant-ui/react@0.4.6
+
 ## 0.3.1
 
 ### Patch Changes

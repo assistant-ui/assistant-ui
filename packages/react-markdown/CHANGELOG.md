@@ -1,5 +1,14 @@
 # @assistant-ui/react-markdown
 
+## 0.1.2
+
+### Patch Changes
+
+- 0bc5d9f: feat(markdown): usage without tailwindcss
+- Updated dependencies [bc77b4f]
+- Updated dependencies [e220617]
+  - @assistant-ui/react@0.4.6
+
 ## 0.1.1
 
 ### Patch Changes
