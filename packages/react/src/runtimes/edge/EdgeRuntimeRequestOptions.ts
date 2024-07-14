@@ -8,7 +8,7 @@ const LanguageModelV1FunctionToolSchema = z.object({
   type: z.literal("function"),
   name: z.string(),
   description: z.string().optional(),
-  parameters: z.unknown(),
+  parameters: z.record(z.unknown()),
 });
 
 const TextContentPartSchema = z.object({
@@ -25,7 +25,7 @@ const CoreToolCallContentPartSchema = z.object({
   type: z.literal("tool-call"),
   toolCallId: z.string(),
   toolName: z.string(),
-  args: z.record(z.union([z.string(), z.number()]), z.unknown()),
+  args: z.record(z.unknown()),
   result: z.unknown().optional(),
   isError: z.boolean().optional(),
 });

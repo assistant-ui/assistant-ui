@@ -125,6 +125,7 @@
     "@types/json-schema": "^7.0.15",
     "@types/node": "^20.14.10",
     "autoprefixer": "^10.4.19",
+    "eslint": "^8",
     "eslint-config-next": "14.2.5",
     "postcss": "^8.4.39",
     "postcss-nested": "^6.0.1",

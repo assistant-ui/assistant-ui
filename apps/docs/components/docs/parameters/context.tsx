@@ -141,6 +141,48 @@ export const AssistantContextValue: ParametersTableProps = {
   ],
 };
 
+export const ThreadContextValue: ParametersTableProps = {
+  type: "ThreadContextValue",
+  parameters: [
+    {
+      name: "useThread",
+      type: "ReadonlyStore<ThreadState>",
+      required: true,
+      description: "Provides functions to perform actions on the thread.",
+    },
+    {
+      name: "useThreadMessages",
+      type: "ReadonlyStore<ThreadMessagesState>",
+      required: true,
+      description: "Provides functions to perform actions on the thread.",
+    },
+    {
+      name: "useThreadActions",
+      type: "ReadonlyStore<ThreadActionsState>",
+      required: true,
+      description: "Provides functions to perform actions on the thread.",
+    },
+    {
+      name: "useThreadRuntime",
+      type: "ReadonlyStore<ThreadRuntimeState>",
+      required: true,
+      description: "Get the current runtime.",
+    },
+    {
+      name: "useComposer",
+      type: "ReadonlyStore<ComposerState>",
+      required: true,
+      description: "Provides functions to perform actions on the composer.",
+    },
+    {
+      name: "useViewport",
+      type: "ReadonlyStore<ThreadViewportState>",
+      required: true,
+      description: "Provides functions to perform actions on the viewport.",
+    },
+  ],
+};
+
 export const ThreadState: ParametersTableProps = {
   type: "ThreadState",
   parameters: [
@@ -203,12 +245,6 @@ export const ThreadActionsState: ParametersTableProps = {
       type: "(options: AddToolResultOptions) => void",
       required: true,
       description: "A function to add a tool result.",
-    },
-    {
-      name: "getRuntime",
-      type: "() => AssistantRuntime",
-      description: "Get the current runtime.",
-      required: true,
     },
   ],
 };

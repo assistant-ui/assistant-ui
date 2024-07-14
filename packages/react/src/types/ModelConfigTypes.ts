@@ -28,10 +28,7 @@ type ToolExecuteFunction<TArgs, TResult> = (
 ) => TResult | Promise<TResult>;
 
 export type Tool<
-  TArgs extends Record<string | number, unknown> = Record<
-    string | number,
-    unknown
-  >,
+  TArgs extends Record<string, unknown> = Record<string | number, unknown>,
   TResult = unknown,
 > = {
   description?: string | undefined;

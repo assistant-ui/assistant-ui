@@ -60,7 +60,7 @@ export const fromLanguageModelMessages = (
               toolCallId: part.toolCallId,
               toolName: part.toolName,
               argsText: JSON.stringify(part.args),
-              args: part.args as Record<string | number, unknown>,
+              args: part.args as Record<string, unknown>,
             } satisfies ToolCallContentPart;
           }
           return part;

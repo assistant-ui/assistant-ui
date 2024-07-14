@@ -2,7 +2,7 @@
 import { type AssistantToolProps, useAssistantTool } from "./useAssistantTool";
 
 export const makeAssistantTool = <
-  TArgs extends Record<string | number, unknown>,
+  TArgs extends Record<string, unknown>,
   TResult,
 >(
   tool: AssistantToolProps<TArgs, TResult>,

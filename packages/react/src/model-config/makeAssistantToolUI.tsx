@@ -5,7 +5,7 @@ import {
 } from "./useAssistantToolUI";
 
 export const makeAssistantToolUI = <
-  TArgs extends Record<string | number, unknown>,
+  TArgs extends Record<string, unknown>,
   TResult,
 >(
   tool: AssistantToolUIProps<TArgs, TResult>,

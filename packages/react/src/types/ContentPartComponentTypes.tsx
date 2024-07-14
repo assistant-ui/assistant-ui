@@ -27,7 +27,7 @@ export type UIContentPartProps = {
 export type UIContentPartComponent = ComponentType<UIContentPartProps>;
 
 export type ToolCallContentPartProps<
-  TArgs extends Record<string | number, unknown> = any,
+  TArgs extends Record<string, unknown> = any,
   TResult = unknown,
 > = {
   part: ToolCallContentPart<TArgs, TResult>;
@@ -36,6 +36,6 @@ export type ToolCallContentPartProps<
 };
 
 export type ToolCallContentPartComponent<
-  TArgs extends Record<string | number, unknown> = any,
+  TArgs extends Record<string, unknown> = any,
   TResult = any,
 > = ComponentType<ToolCallContentPartProps<TArgs, TResult>>;

@@ -1,15 +1,15 @@
-import type { MutableRefObject } from "react";
 import { create } from "zustand";
-import { ThreadRuntime } from "../../runtimes";
+import { ReadonlyStore } from "../ReadonlyStore";
+import { ThreadRuntimeStore } from "./ThreadRuntime";
 
 export type ThreadState = Readonly<{
   isRunning: boolean;
 }>;
 
 export const makeThreadStore = (
-  runtimeRef: MutableRefObject<ThreadRuntime>,
+  runtimeRef: ReadonlyStore<ThreadRuntimeStore>,
 ) => {
   return create<ThreadState>(() => ({
-    isRunning: runtimeRef.current.isRunning,
+    isRunning: runtimeRef.getState().isRunning,
   }));
 };

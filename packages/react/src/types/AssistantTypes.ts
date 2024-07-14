@@ -20,10 +20,7 @@ export type UIContentPart = {
 };
 
 export type CoreToolCallContentPart<
-  TArgs extends Record<string | number, unknown> = Record<
-    string | number,
-    unknown
-  >,
+  TArgs extends Record<string, unknown> = Record<string | number, unknown>,
   TResult = unknown,
 > = {
   type: "tool-call";
@@ -35,10 +32,7 @@ export type CoreToolCallContentPart<
 };
 
 export type ToolCallContentPart<
-  TArgs extends Record<string | number, unknown> = Record<
-    string | number,
-    unknown
-  >,
+  TArgs extends Record<string, unknown> = Record<string | number, unknown>,
   TResult = unknown,
 > = CoreToolCallContentPart<TArgs, TResult> & {
   argsText: string;

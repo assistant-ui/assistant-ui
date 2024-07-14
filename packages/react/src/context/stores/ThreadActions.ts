@@ -1,7 +1,7 @@
-import type { MutableRefObject } from "react";
 import { create } from "zustand";
 import type { AppendMessage } from "../../types/AssistantTypes";
-import { ThreadRuntime } from "../../runtimes";
+import { ReadonlyStore } from "../ReadonlyStore";
+import { ThreadRuntimeStore } from "./ThreadRuntime";
 
 export type AddToolResultOptions = {
   messageId: string;
@@ -24,24 +24,25 @@ export type ThreadActionsState = Readonly<{
   cancelRun: () => void;
 
   addToolResult: (options: AddToolResultOptions) => void;
-  getRuntime: () => ThreadRuntime;
 }>;
 
 export const makeThreadActionStore = (
-  runtimeRef: MutableRefObject<ThreadRuntime>,
+  runtimeStore: ReadonlyStore<ThreadRuntimeStore>,
 ) => {
   return create<ThreadActionsState>(() =>
     Object.freeze({
       get capabilities() {
-        return runtimeRef.current.capabilities;
+        return runtimeStore.getState().capabilities;
       },
-      getBranches: (messageId) => runtimeRef.current.getBranches(messageId),
-      switchToBranch: (branchId) => runtimeRef.current.switchToBranch(branchId),
-      startRun: (parentId) => runtimeRef.current.startRun(parentId),
-      append: (message) => runtimeRef.current.append(message),
-      cancelRun: () => runtimeRef.current.cancelRun(),
-      addToolResult: (options) => runtimeRef.current.addToolResult(options),
-      getRuntime: () => runtimeRef.current,
+      getBranches: (messageId) =>
+        runtimeStore.getState().getBranches(messageId),
+      switchToBranch: (branchId) =>
+        runtimeStore.getState().switchToBranch(branchId),
+      startRun: (parentId) => runtimeStore.getState().startRun(parentId),
+      append: (message) => runtimeStore.getState().append(message),
+      cancelRun: () => runtimeStore.getState().cancelRun(),
+      addToolResult: (options) =>
+        runtimeStore.getState().addToolResult(options),
     }),
   );
 };

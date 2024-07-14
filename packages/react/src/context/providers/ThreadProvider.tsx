@@ -1,12 +1,5 @@
 import type { FC, PropsWithChildren } from "react";
-import {
-  useCallback,
-  useEffect,
-  useInsertionEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useCallback, useInsertionEffect, useState } from "react";
 import type { ReactThreadRuntime } from "../../runtimes/core/ReactThreadRuntime";
 import type { ThreadContextValue } from "../react/ThreadContext";
 import { ThreadContext } from "../react/ThreadContext";
@@ -20,26 +13,31 @@ import {
   makeThreadMessagesStore,
 } from "../stores/ThreadMessages";
 import { ThreadRuntimeWithSubscribe } from "../../runtimes/core/AssistantRuntime";
+import {
+  makeThreadRuntimeStore,
+  ThreadRuntimeStore,
+} from "../stores/ThreadRuntime";
+import { useManagedRef } from "../../utils/hooks/useManagedRef";
 
 type ThreadProviderProps = {
-  runtime: ThreadRuntimeWithSubscribe;
+  provider: ThreadRuntimeWithSubscribe;
 };
 
 export const ThreadProvider: FC<PropsWithChildren<ThreadProviderProps>> = ({
   children,
-  runtime,
+  provider,
 }) => {
-  const runtimeRef = useRef(runtime.thread);
-
   const [context] = useState<ThreadContextValue>(() => {
-    const useThread = makeThreadStore(runtimeRef);
-    const useThreadMessages = makeThreadMessagesStore(runtimeRef);
-    const useThreadActions = makeThreadActionStore(runtimeRef);
+    const useThreadRuntime = makeThreadRuntimeStore(provider.thread);
+    const useThread = makeThreadStore(useThreadRuntime);
+    const useThreadMessages = makeThreadMessagesStore(useThreadRuntime);
+    const useThreadActions = makeThreadActionStore(useThreadRuntime);
     const useViewport = makeThreadViewportStore();
     const useComposer = makeComposerStore(useThreadMessages, useThreadActions);
 
     return {
       useThread,
+      useThreadRuntime,
       useThreadMessages,
       useThreadActions,
       useComposer,
@@ -47,38 +45,50 @@ export const ThreadProvider: FC<PropsWithChildren<ThreadProviderProps>> = ({
     };
   });
 
-  // subscribe to thread replacements
-  const thread = useSyncExternalStore(
-    useCallback((c) => runtime.subscribe(c), [runtime]),
-    () => runtime.thread as ReactThreadRuntime,
-    () => runtime.thread as ReactThreadRuntime,
+  const threadRef = useManagedRef(
+    useCallback(
+      (thread: ReactThreadRuntime) => {
+        const onThreadUpdate = () => {
+          (context.useThread as unknown as StoreApi<ThreadState>).setState(
+            Object.freeze({
+              isRunning: context.useThreadRuntime.getState().isRunning,
+            }) satisfies ThreadState,
+            true,
+          );
+          (
+            context.useThreadMessages as unknown as StoreApi<ThreadMessagesState>
+          ).setState(thread.messages, true);
+        };
+
+        onThreadUpdate();
+        return thread.subscribe(onThreadUpdate);
+      },
+      [context],
+    ),
   );
 
   useInsertionEffect(() => {
-    runtimeRef.current = thread;
-  });
+    const unsubscribe = provider.subscribe(() => {
+      (
+        context.useThreadRuntime as unknown as StoreApi<ThreadRuntimeStore>
+      ).setState(provider.thread, true);
+      threadRef(provider.thread);
+    });
+    threadRef(provider.thread);
+    return () => {
+      unsubscribe();
+      threadRef(null);
+    };
+  }, [provider, context]);
 
   // subscribe to thread updates
-  useEffect(() => {
-    const onThreadUpdate = () => {
-      (context.useThread as unknown as StoreApi<ThreadState>).setState(
-        Object.freeze({
-          isRunning: runtimeRef.current.isRunning,
-        }) satisfies ThreadState,
-        true,
-      );
-      (
-        context.useThreadMessages as unknown as StoreApi<ThreadMessagesState>
-      ).setState(Object.freeze(runtimeRef.current.messages), true);
-    };
-
-    onThreadUpdate();
-    return thread.subscribe(onThreadUpdate);
-  }, [context, thread]);
+  const Synchronizer = context.useThreadRuntime(
+    (t) => (t as ReactThreadRuntime).unstable_synchronizer,
+  );
 
   return (
     <ThreadContext.Provider value={context}>
-      {thread.unstable_synchronizer && <thread.unstable_synchronizer />}
+      {Synchronizer && <Synchronizer />}
       {children}
     </ThreadContext.Provider>
   );

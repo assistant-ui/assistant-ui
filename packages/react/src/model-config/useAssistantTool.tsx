@@ -6,7 +6,7 @@ import type { ToolCallContentPartComponent } from "../types/ContentPartComponent
 import type { Tool } from "../types/ModelConfigTypes";
 
 export type AssistantToolProps<
-  TArgs extends Record<string | number, unknown>,
+  TArgs extends Record<string, unknown>,
   TResult,
 > = Tool<TArgs, TResult> & {
   toolName: string;
@@ -14,7 +14,7 @@ export type AssistantToolProps<
 };
 
 export const useAssistantTool = <
-  TArgs extends Record<string | number, unknown>,
+  TArgs extends Record<string, unknown>,
   TResult,
 >(
   tool: AssistantToolProps<TArgs, TResult>,

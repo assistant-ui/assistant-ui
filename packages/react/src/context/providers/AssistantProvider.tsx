@@ -36,7 +36,7 @@ export const AssistantProvider: FC<
 
   return (
     <AssistantContext.Provider value={context}>
-      <ThreadProvider runtime={runtime}>{children}</ThreadProvider>
+      <ThreadProvider provider={runtime}>{children}</ThreadProvider>
     </AssistantContext.Provider>
   );
 };
