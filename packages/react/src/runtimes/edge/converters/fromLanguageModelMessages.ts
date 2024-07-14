@@ -1,9 +1,13 @@
 import { LanguageModelV1Message } from "@ai-sdk/provider";
 import { CoreMessage, ToolCallContentPart } from "../../../types";
 
+type fromLanguageModelMessagesOptions = {
+  mergeRoundtrips: boolean;
+};
+
 export const fromLanguageModelMessages = (
   lm: LanguageModelV1Message[],
-  mergeRoundtrips: boolean,
+  { mergeRoundtrips }: fromLanguageModelMessagesOptions,
 ): CoreMessage[] => {
   const messages: CoreMessage[] = [];
 
