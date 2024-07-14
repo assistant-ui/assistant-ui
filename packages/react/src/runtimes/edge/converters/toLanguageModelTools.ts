@@ -5,9 +5,8 @@ import zodToJsonSchema from "zod-to-json-schema";
 import { Tool } from "../../../types/ModelConfigTypes";
 
 export const toLanguageModelTools = (
-  tools: Record<string, Tool<any, any>> | undefined,
+  tools: Record<string, Tool<any, any>>,
 ): LanguageModelV1FunctionTool[] => {
-  if (!tools) return [];
   return Object.entries(tools).map(([name, tool]) => ({
     type: "function",
     name,

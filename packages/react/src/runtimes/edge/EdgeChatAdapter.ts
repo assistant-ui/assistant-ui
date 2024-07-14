@@ -46,9 +46,7 @@ export class EdgeChatAdapter implements ChatModelAdapter {
       body: JSON.stringify({
         system: config.system,
         messages: toCoreMessages(messages),
-        tools: toLanguageModelTools(
-          config.tools,
-        ) as EdgeRuntimeRequestOptions["tools"],
+        tools: config.tools ? toLanguageModelTools(config.tools) : [],
         ...config.callSettings,
         ...config.config,
       } satisfies EdgeRuntimeRequestOptions),

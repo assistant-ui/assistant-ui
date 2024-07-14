@@ -14,7 +14,7 @@ export default function RootLayout({
   return (
     <MyRuntimeProvider>
       <html lang="en">
-        <body className={cn(montserrat.className, "h-[calc(100dvh)]")}>
+        <body className={cn(montserrat.className, "h-dvh")}>
           {children}
         </body>
       </html>

@@ -13,7 +13,7 @@ import { useVercelRSCRuntime } from "@assistant-ui/react-ai-sdk";
 
 export default function Home() {
   return (
-    <main className="h-[calc(100dvh)]">
+    <main className="h-dvh">
       <MyRuntimeProvider>
         <Thread />
       </MyRuntimeProvider>
