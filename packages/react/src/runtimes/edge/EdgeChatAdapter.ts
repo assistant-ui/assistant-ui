@@ -53,6 +53,12 @@ export class EdgeChatAdapter implements ChatModelAdapter {
       signal: abortSignal,
     });
 
+    if (result.status !== 200) {
+      throw new Error(
+        `Edge runtime returned status ${result.status}: ${await result.text()}`,
+      );
+    }
+
     const stream = result
       .body!.pipeThrough(new TextDecoderStream())
       .pipeThrough(chunkByLineStream())
