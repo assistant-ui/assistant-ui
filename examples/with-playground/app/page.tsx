@@ -47,7 +47,7 @@ export default function Home() {
           </button>
         </div>
         <div className="flex-grow overflow-hidden">
-          <div className="flex h-full flex-col overflow-scroll">
+          <div className="flex h-full flex-col">
             <AssistantPlayground />
           </div>
         </div>

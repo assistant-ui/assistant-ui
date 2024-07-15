@@ -10,8 +10,8 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^0.0.36",
-    "@assistant-ui/react": "^0.4.7",
-    "@assistant-ui/react-playground": "^0.0.0-alpha.1",
+    "@assistant-ui/react": "workspace:*",
+    "@assistant-ui/react-playground": "workspace:*",
     "next": "14.2.5",
     "prismjs": "^1.29.0",
     "react": "^18",

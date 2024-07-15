@@ -1,7 +1,7 @@
 import plugin from "tailwindcss/plugin";
 
 type AssisstantTailwindPluginOptions = {
-  components?: ("base" | "thread" | "assistant-modal")[];
+  components?: ("default-theme" | "base" | "thread" | "assistant-modal")[];
   shadcn?: boolean;
 };
 
@@ -11,18 +11,22 @@ const auiPlugin = plugin.withOptions<AssisstantTailwindPluginOptions>(
       const assistantModal = components.includes("assistant-modal");
       const thread = assistantModal || components.includes("thread");
       const base = thread || components.includes("base");
+      const defaultTheme = components.includes("default-theme");
+
+      if (defaultTheme && shadcn)
+        throw new Error("default-theme cannot be used with shadcn");
+
+      if (defaultTheme || (base && !shadcn)) {
+        addComponents({
+          '@import "@assistant-ui/react/styles/themes/default.css"': "",
+        });
+      }
 
       if (base) {
         addComponents({
           '@import "@assistant-ui/react/styles/tailwindcss/base-components.css"':
             "",
         });
-
-        if (!shadcn) {
-          addComponents({
-            '@import "@assistant-ui/react/styles/themes/default.css"': "",
-          });
-        }
       }
 
       if (thread) {
