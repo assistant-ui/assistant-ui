@@ -37,7 +37,7 @@ export default function Home() {
         <div className="mx-4 flex items-center justify-between border-b py-4">
           <h1 className="text-2xl font-bold">Playground</h1>
           <button
-            className="bg-aui-foreground px-4 py-2"
+            className="bg-aui-primary text-aui-primary-foreground rounded-md px-4 py-2"
             onClick={handleLoadTestData}
           >
             Load Test Data
