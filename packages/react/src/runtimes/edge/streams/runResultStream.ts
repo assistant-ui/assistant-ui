@@ -2,7 +2,7 @@ import { ChatModelRunResult } from "../../local/ChatModelAdapter";
 import { parsePartialJson } from "../partial-json/parse-partial-json";
 import { LanguageModelV1StreamPart } from "@ai-sdk/provider";
 import { ToolResultStreamPart } from "./toolResultStream";
-import { ThreadAssistantContentPart } from "../../../types";
+import { MessageStatus, ThreadAssistantContentPart } from "../../../types";
 
 export function runResultStream(initialContent: ThreadAssistantContentPart[]) {
   let message: ChatModelRunResult = {
@@ -56,7 +56,16 @@ export function runResultStream(initialContent: ThreadAssistantContentPart[]) {
           break;
         }
         case "error": {
-          throw chunk.error;
+          if (
+            chunk.error instanceof Error &&
+            chunk.error.name === "AbortError"
+          ) {
+            message = appendOrUpdateCancel(message);
+            controller.enqueue(message);
+            break;
+          } else {
+            throw chunk.error;
+          }
         }
         default: {
           const unhandledType: never = chunkType;
@@ -156,8 +165,26 @@ const appendOrUpdateFinish = (
   return {
     ...message,
     status: {
-      type: "done",
+      type:
+        rest.finishReason === "stop" || rest.finishReason === "unknown"
+          ? "complete"
+          : "incomplete",
       ...rest,
+      ...(rest.finishReason === "error"
+        ? { error: new Error("Unknown error") }
+        : undefined),
+    } as MessageStatus,
+  };
+};
+
+const appendOrUpdateCancel = (
+  message: ChatModelRunResult,
+): ChatModelRunResult => {
+  return {
+    ...message,
+    status: {
+      type: "incomplete",
+      finishReason: "cancelled",
     },
   };
 };

@@ -92,19 +92,23 @@ export class EdgeChatAdapter implements ChatModelAdapter {
         config,
         onUpdate,
       });
-      if (result.status?.type === "done") {
+      if (result.status && result.status?.type !== "running") {
         usage.promptTokens += result.status.usage?.promptTokens ?? 0;
         usage.completionTokens += result.status.usage?.completionTokens ?? 0;
       }
     } while (
-      result.status?.type === "done" &&
+      result.status?.type === "requires-action" &&
       result.status.finishReason === "tool-calls" &&
       result.content.every((c) => c.type !== "tool-call" || !!c.result) &&
       roundtripAllowance-- > 0
     );
 
     // add usage across all roundtrips
-    if (result.status?.type === "done" && usage.promptTokens > 0) {
+    if (
+      result.status &&
+      result.status?.type !== "running" &&
+      usage.promptTokens > 0
+    ) {
       result = {
         ...result,
         status: {

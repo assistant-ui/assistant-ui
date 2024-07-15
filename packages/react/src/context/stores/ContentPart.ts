@@ -1,33 +1,34 @@
 import type {
+  ContentPartStatus,
   ImageContentPart,
-  MessageStatus,
   TextContentPart,
   ToolCallContentPart,
+  ToolContentPartStatus,
   UIContentPart,
 } from "../../types/AssistantTypes";
 
 export type TextContentPartState = Readonly<{
-  status: MessageStatus;
+  status: ContentPartStatus;
   part: TextContentPart;
 }>;
 
 export type ImageContentPartState = Readonly<{
-  status: MessageStatus;
+  status: ContentPartStatus;
   part: ImageContentPart;
 }>;
 
 export type UIContentPartState = Readonly<{
-  status: MessageStatus;
+  status: ContentPartStatus;
   part: UIContentPart;
 }>;
 
 export type ToolCallContentPartState = Readonly<{
-  status: MessageStatus;
+  status: ToolContentPartStatus;
   part: ToolCallContentPart;
 }>;
 
 export type ContentPartState = Readonly<{
-  status: MessageStatus;
+  status: ToolContentPartStatus;
   part:
     | TextContentPart
     | ImageContentPart

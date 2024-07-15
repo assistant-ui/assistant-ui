@@ -1,28 +1,29 @@
 "use client";
 import type { ComponentType } from "react";
 import type {
+  ContentPartStatus,
   ImageContentPart,
-  MessageStatus,
   TextContentPart,
   ToolCallContentPart,
+  ToolContentPartStatus,
   UIContentPart,
 } from "./AssistantTypes";
 
 export type TextContentPartProps = {
   part: TextContentPart;
-  status: MessageStatus;
+  status: ContentPartStatus;
 };
 export type TextContentPartComponent = ComponentType<TextContentPartProps>;
 
 export type ImageContentPartProps = {
   part: ImageContentPart;
-  status: MessageStatus;
+  status: ContentPartStatus;
 };
 export type ImageContentPartComponent = ComponentType<ImageContentPartProps>;
 
 export type UIContentPartProps = {
   part: UIContentPart;
-  status: MessageStatus;
+  status: ContentPartStatus;
 };
 export type UIContentPartComponent = ComponentType<UIContentPartProps>;
 
@@ -31,7 +32,7 @@ export type ToolCallContentPartProps<
   TResult = unknown,
 > = {
   part: ToolCallContentPart<TArgs, TResult>;
-  status: MessageStatus;
+  status: ToolContentPartStatus;
   addResult: (result: any) => void;
 };
 

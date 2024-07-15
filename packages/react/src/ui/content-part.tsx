@@ -9,7 +9,7 @@ const Text: FC<TextContentPartProps> = ({ status }) => {
     <p
       className={classNames(
         "aui-text",
-        status.type === "in_progress" && "aui-text-in-progress",
+        status.type === "running" && "aui-text-in-progress",
       )}
     >
       <ContentPartPrimitive.Text />

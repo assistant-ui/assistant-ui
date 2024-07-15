@@ -1,5 +1,6 @@
-import type { ThreadMessage } from "../../types/AssistantTypes";
+import type { CoreMessage, ThreadMessage } from "../../types/AssistantTypes";
 import { generateOptimisticId } from "../../utils/idUtils";
+import { fromCoreMessage } from "../edge/converters/fromCoreMessage";
 
 type RepositoryParent = {
   children: string[];
@@ -122,21 +123,19 @@ export class MessageRepository {
     };
   }
 
-  appendOptimisticMessage(
-    parentId: string | null,
-    message: Omit<ThreadMessage, "id" | "createdAt">,
-  ) {
+  appendOptimisticMessage(parentId: string | null, message: CoreMessage) {
     let optimisticId: string;
     do {
       optimisticId = generateOptimisticId();
     } while (this.messages.has(optimisticId));
 
-    this.addOrUpdateMessage(parentId, {
-      ...message,
-      id: optimisticId,
-      createdAt: new Date(),
-      ...(message.role === "assistant" ? { status: "in_progress" } : undefined),
-    } as ThreadMessage);
+    this.addOrUpdateMessage(
+      parentId,
+      fromCoreMessage(message, {
+        id: optimisticId,
+        status: { type: "running" },
+      }),
+    );
 
     return optimisticId;
   }

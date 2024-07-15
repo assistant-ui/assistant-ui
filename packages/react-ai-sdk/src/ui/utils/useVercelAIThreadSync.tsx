@@ -161,12 +161,15 @@ export const useVercelAIThreadSync = (
   useEffect(() => {
     const lastMessageId = vercel.messages.at(-1)?.id;
     const convertCallback: ConverterCallback<Chunk> = (messages, cache) => {
-      const status: MessageStatus = {
-        type:
-          lastMessageId === messages[0].id && isRunning
-            ? "in_progress"
-            : "done",
-      };
+      const status: MessageStatus =
+        lastMessageId === messages[0].id && isRunning
+          ? {
+              type: "running",
+            }
+          : {
+              type: "complete",
+              finishReason: "unknown",
+            };
 
       if (
         cache &&

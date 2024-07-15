@@ -7,7 +7,7 @@ export const ContentPartPrimitiveInProgress: FC<
   ContentPartPrimitiveInProgressProps
 > = ({ children }) => {
   const { useContentPart } = useContentPartContext();
-  const isInProgress = useContentPart((c) => c.status.type === "in_progress");
+  const isInProgress = useContentPart((c) => c.status.type === "running");
 
   return isInProgress ? children : null;
 };

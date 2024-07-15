@@ -121,7 +121,7 @@ class LocalThreadRuntime implements ThreadRuntime {
     let message: ThreadAssistantMessage = {
       id: generateId(),
       role: "assistant",
-      status: { type: "in_progress" },
+      status: { type: "running" },
       content: [{ type: "text", text: "" }],
       createdAt: new Date(),
     };
@@ -150,24 +150,24 @@ class LocalThreadRuntime implements ThreadRuntime {
         config: this.configProvider.getModelConfig(),
         onUpdate: updateMessage,
       });
-      if (result.status?.type === "in_progress")
+      if (result.status?.type === "running")
         throw new Error(
-          "Unexpected in_progress status returned from ChatModelAdapter",
+          "Unexpected running status returned from ChatModelAdapter",
         );
 
       this.abortController = null;
-      updateMessage({ status: { type: "done" }, ...result });
+      updateMessage({
+        status: { type: "complete", finishReason: "unknown" },
+        ...result,
+      });
       this.repository.addOrUpdateMessage(parentId, { ...message });
     } catch (e) {
-      const isAbortError = e instanceof Error && e.name === "AbortError";
       this.abortController = null;
       updateMessage({
-        status: isAbortError
-          ? { type: "cancelled" }
-          : { type: "error", error: e },
+        status: { type: "incomplete", finishReason: "error", error: e },
       });
 
-      if (!isAbortError) throw e;
+      throw e;
     }
   }
 

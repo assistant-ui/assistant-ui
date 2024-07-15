@@ -95,7 +95,7 @@ export const AssistantToolUIsState: ParametersTableProps = {
             },
             {
               name: "status",
-              type: "'in_progress' | 'done' | 'error'",
+              type: "ContentPartStatus",
               description: "The tool call status.",
             },
             {
@@ -391,9 +391,15 @@ export const ContentPartState: ParametersTableProps = {
           parameters: [
             {
               name: "type",
-              type: "'in_progress' | 'done' | 'error'",
+              type: "'running' | 'requires-action' | 'complete' | 'incomplete'",
               required: true,
               description: "The status.",
+            },
+            {
+              name: "finish-reason",
+              type: "'stop' | 'cancelled' | 'length' | 'content-filter' | 'tool-calls' | 'other' | 'unknown'",
+              required: false,
+              description: "The finish reason if the status is 'incomplete'.",
             },
             {
               name: "error",

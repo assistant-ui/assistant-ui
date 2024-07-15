@@ -7,13 +7,15 @@ import type { ContentPartContextValue } from "../react/ContentPartContext";
 import { useMessageContext } from "../react/MessageContext";
 import type { MessageState } from "../stores";
 import type { ContentPartState } from "../stores/ContentPart";
-import { MessageStatus } from "../../types";
+import { ContentPartStatus } from "../../types/AssistantTypes";
 
 type ContentPartProviderProps = PropsWithChildren<{
   partIndex: number;
 }>;
 
-const DONE_STATUS: MessageStatus = { type: "done" };
+const COMPLETE_STATUS: ContentPartStatus = {
+  type: "complete",
+};
 
 const syncContentPart = (
   { message }: MessageState,
@@ -24,9 +26,9 @@ const syncContentPart = (
   if (!part) return;
 
   const messageStatus =
-    message.role === "assistant" ? message.status : DONE_STATUS;
+    message.role === "assistant" ? message.status : COMPLETE_STATUS;
   const status =
-    partIndex === message.content.length - 1 ? messageStatus : DONE_STATUS;
+    partIndex === message.content.length - 1 ? messageStatus : COMPLETE_STATUS;
 
   // if the content part is the same, don't update
   const currentState = useContentPart.getState();

@@ -20,7 +20,7 @@ const WeatherTool = makeAssistantToolUI<WeatherArgs, WeatherResult>({
       <p
         className={cn(
           "my-4 text-center font-mono text-sm font-bold text-blue-500 first:mt-0",
-          status.type === "in_progress" && "animate-pulse",
+          status.type === "running" && "animate-pulse",
         )}
       >
         get_weather({JSON.stringify(part.args)})

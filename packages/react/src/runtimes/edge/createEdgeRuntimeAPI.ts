@@ -8,7 +8,7 @@ import {
   LanguageModelV1FinishReason,
   LanguageModelV1LogProbs,
 } from "@ai-sdk/provider";
-import { CoreAssistantMessage, CoreMessage } from "../../types/AssistantTypes";
+import { CoreMessage, ThreadMessage } from "../../types/AssistantTypes";
 import { assistantEncoderStream } from "./streams/assistantEncoderStream";
 import { EdgeRuntimeRequestOptionsSchema } from "./EdgeRuntimeRequestOptions";
 import { toLanguageModelMessages } from "./converters/toLanguageModelMessages";
@@ -24,14 +24,16 @@ import {
   LanguageModelV1CallSettings,
   LanguageModelV1CallSettingsSchema,
 } from "../../types/ModelConfigTypes";
+import { ChatModelRunResult } from "../local";
+import { toCoreMessage } from "./converters/toCoreMessages";
 
 type FinishResult = {
-  finishReason: LanguageModelV1FinishReason;
+  finishReason: LanguageModelV1FinishReason | "cancelled";
   usage: {
     promptTokens: number;
     completionTokens: number;
   };
-  logProbs?: LanguageModelV1LogProbs | undefined;
+  logprobs?: LanguageModelV1LogProbs | undefined;
   messages: CoreMessage[];
   rawCall: {
     rawPrompt: unknown;
@@ -134,24 +136,30 @@ export const createEdgeRuntimeAPI = ({
       let serverStream = tees[1];
 
       if (onFinish) {
+        let lastChunk: ChatModelRunResult;
         serverStream = serverStream
           .pipeThrough(runResultStream([]))
           .pipeThrough(
             new TransformStream({
               transform(chunk) {
-                if (chunk.status?.type !== "done") return;
+                lastChunk = chunk;
+              },
+              flush() {
+                if (!lastChunk?.status || lastChunk.status.type === "running")
+                  return;
+
                 const resultingMessages = [
                   ...messages,
-                  {
+                  toCoreMessage({
                     role: "assistant",
-                    content: chunk.content,
-                  } as CoreAssistantMessage,
+                    content: lastChunk.content,
+                  } as ThreadMessage),
                 ];
                 onFinish({
-                  finishReason: chunk.status.finishReason!,
-                  usage: chunk.status.usage!,
+                  finishReason: lastChunk.status.finishReason,
+                  usage: lastChunk.status.usage!,
+                  logprobs: lastChunk.status.logprobs,
                   messages: resultingMessages,
-                  logProbs: chunk.status.logprops,
                   warnings: streamResult.warnings,
                   rawCall: streamResult.rawCall,
                   rawResponse: streamResult.rawResponse,

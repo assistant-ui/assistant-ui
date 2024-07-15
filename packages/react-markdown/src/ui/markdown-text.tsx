@@ -24,7 +24,7 @@ export const makeMarkdownText = ({
       <div
         className={classNames(
           "aui-md-root",
-          status.type === "in_progress" && "aui-md-in-progress",
+          status.type === "running" && "aui-md-in-progress",
           className,
         )}
       >

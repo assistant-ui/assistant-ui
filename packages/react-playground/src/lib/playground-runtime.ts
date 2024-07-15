@@ -25,6 +25,7 @@ import {
 import { useState } from "react";
 import { create } from "zustand";
 import { LanguageModelV1FunctionTool } from "@ai-sdk/provider";
+import { fromCoreMessage } from "../../../react/src/runtimes/edge/converters/fromCoreMessage";
 
 const { BaseAssistantRuntime, ProxyConfigProvider, generateId } = INTERNAL;
 
@@ -156,26 +157,14 @@ export class PlaygroundThreadRuntime implements ReactThreadRuntime {
     if (parentId !== (this.messages.at(-1)?.id ?? null))
       throw new Error("Message editing is not supported..");
 
-    this.setMessages([
-      ...this.messages,
-      {
-        id: generateId(),
-        createdAt: new Date(),
-        ...message,
-        ...(message.role === "assistant"
-          ? {
-              status: { type: "done" },
-            }
-          : undefined),
-      } as ThreadMessage,
-    ]);
+    this.setMessages([...this.messages, fromCoreMessage(message)]);
   }
 
   public async startRun(): Promise<void> {
     let message: ThreadAssistantMessage = {
       id: generateId(),
       role: "assistant",
-      status: { type: "in_progress" },
+      status: { type: "running" },
       content: [{ type: "text", text: "" }],
       createdAt: new Date(),
     };
@@ -201,22 +190,22 @@ export class PlaygroundThreadRuntime implements ReactThreadRuntime {
         config: this.configProvider.getModelConfig(),
         onUpdate: updateMessage,
       });
-      if (result.status?.type === "in_progress")
+      if (result.status?.type === "running")
         throw new Error(
-          "Unexpected in_progress status returned from ChatModelAdapter",
+          "Unexpected running status returned from ChatModelAdapter",
         );
       this.abortController = null;
-      updateMessage({ status: { type: "done" }, ...result });
+      updateMessage({
+        status: { type: "complete", finishReason: "unknown" },
+        ...result,
+      });
     } catch (e) {
       this.abortController = null;
-      const isAbortError = e instanceof Error && e.name === "AbortError";
       updateMessage({
-        status: isAbortError
-          ? { type: "cancelled" }
-          : { type: "error", error: e },
+        status: { type: "incomplete", finishReason: "error", error: e },
       });
 
-      if (!isAbortError) throw e;
+      throw e;
     }
   }
 

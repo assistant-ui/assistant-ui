@@ -79,13 +79,19 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
   const type = part.type;
   switch (type) {
     case "text":
+      if (status.type === "requires-action")
+        throw new Error("Encountered unexpected requires-action status");
       return <Text part={part} status={status} />;
 
     case "image":
-      // eslint-disable-next-line jsx-a11y/alt-text -- not a real image
+      if (status.type === "requires-action")
+        throw new Error("Encountered unexpected requires-action status");
+      // eslint-disable-next-line jsx-a11y/alt-text
       return <Image part={part} status={status} />;
 
     case "ui":
+      if (status.type === "requires-action")
+        throw new Error("Encountered unexpected requires-action status");
       return <UI part={part} status={status} />;
 
     case "tool-call": {

@@ -96,7 +96,7 @@ export class VercelUseAssistantThreadRuntime implements ReactThreadRuntime {
       vm.push({
         id: "__optimistic__result",
         createdAt: new Date(),
-        status: { type: "in_progress" },
+        status: { type: "running" },
         role: "assistant",
         content: [{ type: "text", text: "" }],
       });

@@ -1,7 +1,4 @@
-import {
-  LanguageModelV1FinishReason,
-  LanguageModelV1LogProbs,
-} from "@ai-sdk/provider";
+import { LanguageModelV1LogProbs } from "@ai-sdk/provider";
 import type { ReactNode } from "react";
 
 export type TextContentPart = {
@@ -53,23 +50,62 @@ type MessageCommonProps = {
   createdAt: Date;
 };
 
+type MessageStatusBase = {
+  logprobs?: LanguageModelV1LogProbs;
+  usage?: {
+    promptTokens: number;
+    completionTokens: number;
+  };
+};
+
+export type ContentPartStatus =
+  | {
+      type: "running";
+    }
+  | {
+      type: "complete";
+    }
+  | {
+      type: "incomplete";
+      finishReason: "cancelled" | "length" | "content-filter" | "other";
+    }
+  | {
+      type: "incomplete";
+      finishReason: "error";
+      error?: unknown;
+    };
+
+export type ToolContentPartStatus =
+  | {
+      type: "requires-action";
+      finishReason: "tool-calls";
+    }
+  | ContentPartStatus;
+
 export type MessageStatus =
   | {
-      type: "in_progress" | "cancelled";
+      type: "running";
     }
-  | {
-      type: "done";
-      finishReason?: LanguageModelV1FinishReason;
-      logprops?: LanguageModelV1LogProbs;
-      usage?: {
-        promptTokens: number;
-        completionTokens: number;
-      };
-    }
-  | {
-      type: "error";
-      error: unknown;
-    };
+  | (MessageStatusBase &
+      (
+        | {
+            type: "requires-action";
+            finishReason: "tool-calls";
+          }
+        | {
+            type: "complete";
+            finishReason: "stop" | "unknown";
+          }
+        | {
+            type: "incomplete";
+            finishReason: "cancelled" | "length" | "content-filter" | "other";
+          }
+        | {
+            type: "incomplete";
+            finishReason: "error";
+            error: unknown;
+          }
+      ));
 
 export type ThreadSystemMessage = MessageCommonProps & {
   role: "system";
