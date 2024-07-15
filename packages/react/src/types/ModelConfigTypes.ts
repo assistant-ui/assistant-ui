@@ -73,6 +73,18 @@ export const mergeModelConfigs = (
         acc.tools[name] = tool;
       }
     }
+    if (config.config) {
+      acc.config = {
+        ...acc.config,
+        ...config.config,
+      };
+    }
+    if (config.callSettings) {
+      acc.callSettings = {
+        ...acc.callSettings,
+        ...config.callSettings,
+      };
+    }
     return acc;
   }, {} as ModelConfig);
 };
