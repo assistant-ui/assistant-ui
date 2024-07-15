@@ -379,10 +379,10 @@ importers:
         specifier: ^0.0.36
         version: 0.0.36(zod@3.23.8)
       '@assistant-ui/react':
-        specifier: ^0.4.7
+        specifier: workspace:*
         version: link:../../packages/react
       '@assistant-ui/react-playground':
-        specifier: ^0.0.0-alpha.1
+        specifier: workspace:*
         version: link:../../packages/react-playground
       next:
         specifier: 14.2.5
