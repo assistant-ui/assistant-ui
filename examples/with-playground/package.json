@@ -10,9 +10,10 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^0.0.36",
-    "@assistant-ui/react": "workspace:*",
-    "@assistant-ui/react-playground": "workspace:*",
+    "@assistant-ui/react": "^0.4.7",
+    "@assistant-ui/react-playground": "^0.0.0-alpha.1",
     "next": "14.2.5",
+    "prismjs": "^1.29.0",
     "react": "^18",
     "react-dom": "^18",
     "tailwindcss-animate": "^1.0.7"

@@ -7,6 +7,9 @@ import {
 import { usePlaygroundRuntime } from "@assistant-ui/react-playground";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 
+import "prismjs/components/prism-json";
+import "prismjs/themes/prism.css";
+
 export default function Home() {
   const runtime = usePlaygroundRuntime({
     api: "/api/chat",

@@ -379,14 +379,17 @@ importers:
         specifier: ^0.0.36
         version: 0.0.36(zod@3.23.8)
       '@assistant-ui/react':
-        specifier: workspace:*
+        specifier: ^0.4.7
         version: link:../../packages/react
       '@assistant-ui/react-playground':
-        specifier: workspace:*
+        specifier: ^0.0.0-alpha.1
         version: link:../../packages/react-playground
       next:
         specifier: 14.2.5
         version: 14.2.5(@opentelemetry/api@1.9.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      prismjs:
+        specifier: ^1.29.0
+        version: 1.29.0
       react:
         specifier: ^18
         version: 18.3.1

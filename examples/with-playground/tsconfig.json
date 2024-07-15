@@ -9,8 +9,7 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"],
-
+      "@/*": ["./*"]
     },
     "allowJs": true,
     "strictNullChecks": true,
