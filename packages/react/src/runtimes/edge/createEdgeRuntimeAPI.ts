@@ -80,7 +80,7 @@ export const createEdgeRuntimeAPI = ({
   const POST = async (request: Request) => {
     const {
       system: clientSystem,
-      tools: clientTools,
+      tools: clientTools = [],
       messages,
       apiKey,
       baseUrl,

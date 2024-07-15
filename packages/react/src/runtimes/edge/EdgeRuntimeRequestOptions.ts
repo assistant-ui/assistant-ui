@@ -73,7 +73,7 @@ export const EdgeRuntimeRequestOptionsSchema = z
   .object({
     system: z.string().optional(),
     messages: z.array(CoreMessageSchema).min(1),
-    tools: z.array(LanguageModelV1FunctionToolSchema),
+    tools: z.array(LanguageModelV1FunctionToolSchema).optional(),
   })
   .merge(LanguageModelV1CallSettingsSchema)
   .merge(LanguageModelConfigSchema);
