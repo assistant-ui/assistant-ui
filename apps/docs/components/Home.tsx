@@ -10,6 +10,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { ChatGPT } from "./chatgpt/ChatGPT";
 import { GenUI } from "./genui/GenUI";
+import { Artifacts } from "./artifacts/Artifacts";
 import { ModalChat } from "./modal/ModalChat";
 
 const supportedModels = [
@@ -24,6 +25,10 @@ const supportedModels = [
   {
     name: "Tool UI",
     component: GenUI,
+  },
+  {
+    name: "Artifacts",
+    component: Artifacts,
   },
   {
     name: "ChatGPT Theme",
