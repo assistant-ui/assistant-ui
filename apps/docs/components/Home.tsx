@@ -48,7 +48,7 @@ export default function Home() {
     <main className="container mx-auto flex flex-col gap-6 self-stretch py-4">
       <div className="mt-12 flex flex-col gap-4 self-center">
         <h1 className="text-center text-4xl font-extrabold">
-          Your own AI app in minutes
+          A frontend for your AI app in minutes
         </h1>
         <p className="text-foreground/85 text-center text-xl">
           Chatbot UI for React, production ready, customizable.
