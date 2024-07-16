@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.5.1
+
+### Patch Changes
+
+- ee38c0c: feat: message status v2
+- ee38c0c: fix(runtimes/edge): wait for serverside tool call results before reporting onFinish
+- 2baa898: chore: v5
+
 ## 0.4.6
 
 ### Patch Changes

@@ -777,7 +777,7 @@ importers:
   packages/react-ai-sdk:
     dependencies:
       '@assistant-ui/react':
-        specifier: ^0.5.0
+        specifier: ^0.5.1
         version: link:../react
       '@types/react':
         specifier: '*'
@@ -808,7 +808,7 @@ importers:
   packages/react-hook-form:
     dependencies:
       '@assistant-ui/react':
-        specifier: ^0.5.0
+        specifier: ^0.5.1
         version: link:../react
       '@types/react':
         specifier: '*'
@@ -836,7 +836,7 @@ importers:
   packages/react-markdown:
     dependencies:
       '@assistant-ui/react':
-        specifier: ^0.5.0
+        specifier: ^0.5.1
         version: link:../react
       '@radix-ui/react-use-callback-ref':
         specifier: ^1.1.0
@@ -897,7 +897,7 @@ importers:
         specifier: ^0.0.12
         version: 0.0.12
       '@assistant-ui/react':
-        specifier: ^0.5.0
+        specifier: ^0.5.1
         version: link:../react
       '@radix-ui/react-avatar':
         specifier: ^1.1.0
@@ -985,10 +985,10 @@ importers:
   packages/react-syntax-highlighter:
     dependencies:
       '@assistant-ui/react':
-        specifier: ^0.5.0
+        specifier: ^0.5.1
         version: link:../react
       '@assistant-ui/react-markdown':
-        specifier: ^0.2.0
+        specifier: ^0.2.1
         version: link:../react-markdown
       '@types/react':
         specifier: '*'
