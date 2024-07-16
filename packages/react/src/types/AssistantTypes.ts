@@ -50,12 +50,14 @@ type MessageCommonProps = {
   createdAt: Date;
 };
 
-type MessageStatusBase = {
-  logprobs?: LanguageModelV1LogProbs;
-  usage?: {
-    promptTokens: number;
-    completionTokens: number;
-  };
+export type ThreadRoundtrip = {
+  logprobs?: LanguageModelV1LogProbs | undefined;
+  usage?:
+    | {
+        promptTokens: number;
+        completionTokens: number;
+      }
+    | undefined;
 };
 
 export type ContentPartStatus =
@@ -67,18 +69,14 @@ export type ContentPartStatus =
     }
   | {
       type: "incomplete";
-      finishReason: "cancelled" | "length" | "content-filter" | "other";
-    }
-  | {
-      type: "incomplete";
-      finishReason: "error";
+      reason: "cancelled" | "length" | "content-filter" | "other" | "error";
       error?: unknown;
     };
 
 export type ToolContentPartStatus =
   | {
       type: "requires-action";
-      finishReason: "tool-calls";
+      reason: "tool-calls";
     }
   | ContentPartStatus;
 
@@ -86,26 +84,25 @@ export type MessageStatus =
   | {
       type: "running";
     }
-  | (MessageStatusBase &
-      (
-        | {
-            type: "requires-action";
-            finishReason: "tool-calls";
-          }
-        | {
-            type: "complete";
-            finishReason: "stop" | "unknown";
-          }
-        | {
-            type: "incomplete";
-            finishReason: "cancelled" | "length" | "content-filter" | "other";
-          }
-        | {
-            type: "incomplete";
-            finishReason: "error";
-            error: unknown;
-          }
-      ));
+  | {
+      type: "requires-action";
+      reason: "tool-calls";
+    }
+  | {
+      type: "complete";
+      reason: "stop" | "unknown";
+    }
+  | {
+      type: "incomplete";
+      reason:
+        | "cancelled"
+        | "tool-calls"
+        | "length"
+        | "content-filter"
+        | "other"
+        | "error";
+      error?: unknown;
+    };
 
 export type ThreadSystemMessage = MessageCommonProps & {
   role: "system";
@@ -121,6 +118,7 @@ export type ThreadAssistantMessage = MessageCommonProps & {
   role: "assistant";
   content: ThreadAssistantContentPart[];
   status: MessageStatus;
+  roundtrips?: ThreadRoundtrip[] | undefined;
 };
 
 export type AppendMessage = CoreMessage & {

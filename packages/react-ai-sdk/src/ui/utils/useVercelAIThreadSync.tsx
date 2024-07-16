@@ -168,7 +168,7 @@ export const useVercelAIThreadSync = (
             }
           : {
               type: "complete",
-              finishReason: "unknown",
+              reason: "unknown",
             };
 
       if (

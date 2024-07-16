@@ -15,8 +15,14 @@ import { AddToolResultOptions } from "../../context";
 import { ProxyConfigProvider } from "../../internal";
 import { fromCoreMessages } from "../edge";
 
+const shouldContinue = (result: ThreadAssistantMessage) =>
+  result.status?.type === "requires-action" &&
+  result.status.reason === "tool-calls" &&
+  result.content.every((c) => c.type !== "tool-call" || !!c.result);
+
 export type LocalRuntimeOptions = {
   initialMessages?: readonly CoreMessage[] | undefined;
+  maxToolRoundtrips?: number;
 };
 
 export class LocalRuntime extends BaseAssistantRuntime<LocalThreadRuntime> {
@@ -73,7 +79,7 @@ class LocalThreadRuntime implements ThreadRuntime {
   constructor(
     private configProvider: ModelConfigProvider,
     public adapter: ChatModelAdapter,
-    options?: LocalRuntimeOptions,
+    private options?: LocalRuntimeOptions,
   ) {
     if (options?.initialMessages) {
       let parentId: string | null = null;
@@ -115,33 +121,67 @@ class LocalThreadRuntime implements ThreadRuntime {
 
   public async startRun(parentId: string | null): Promise<void> {
     this.repository.resetHead(parentId);
-    const messages = this.repository.getMessages();
 
     // add assistant message
+    const id = generateId();
     let message: ThreadAssistantMessage = {
-      id: generateId(),
+      id,
       role: "assistant",
       status: { type: "running" },
       content: [{ type: "text", text: "" }],
       createdAt: new Date(),
     };
 
+    do {
+      message = await this.performRoundtrip(parentId, message);
+    } while (shouldContinue(message));
+  }
+
+  private async performRoundtrip(
+    parentId: string | null,
+    message: ThreadAssistantMessage,
+  ) {
+    const messages = this.repository.getMessages();
+
     // abort existing run
     this.abortController?.abort();
     this.abortController = new AbortController();
 
-    this.repository.addOrUpdateMessage(parentId, { ...message });
-    this.notifySubscribers();
-
+    const initialContent = message.content;
+    const initialRoundtrips = message.roundtrips;
     const updateMessage = (m: Partial<ChatModelRunResult>) => {
       message = {
         ...message,
-        ...m,
+        ...(m.content
+          ? { content: [...initialContent, ...(m.content ?? [])] }
+          : undefined),
+        status: m.status ?? message.status,
+        ...(m.roundtrips?.length
+          ? { roundtrips: [...(initialRoundtrips ?? []), ...m.roundtrips] }
+          : undefined),
       };
       this.repository.addOrUpdateMessage(parentId, message);
       this.notifySubscribers();
-      return message;
     };
+
+    const maxToolRoundtrips = this.options?.maxToolRoundtrips ?? 1;
+    const toolRoundtrips = message.roundtrips?.length ?? 0;
+    if (toolRoundtrips > maxToolRoundtrips) {
+      // reached max tool roundtrips
+      updateMessage({
+        status: {
+          type: "incomplete",
+          reason: "tool-calls",
+        },
+      });
+      return message;
+    } else {
+      updateMessage({
+        status: {
+          type: "running",
+        },
+      });
+    }
 
     try {
       const result = await this.adapter.run({
@@ -157,18 +197,26 @@ class LocalThreadRuntime implements ThreadRuntime {
 
       this.abortController = null;
       updateMessage({
-        status: { type: "complete", finishReason: "unknown" },
+        status: { type: "complete", reason: "unknown" },
         ...result,
       });
-      this.repository.addOrUpdateMessage(parentId, { ...message });
     } catch (e) {
       this.abortController = null;
-      updateMessage({
-        status: { type: "incomplete", finishReason: "error", error: e },
-      });
 
-      throw e;
+      // TODO this should be handled by the run result stream
+      if (e instanceof Error && e.name === "AbortError") {
+        updateMessage({
+          status: { type: "incomplete", reason: "cancelled" },
+        });
+      } else {
+        updateMessage({
+          status: { type: "incomplete", reason: "error", error: e },
+        });
+
+        throw e;
+      }
     }
+    return message;
   }
 
   cancelRun(): void {
@@ -188,16 +236,18 @@ class LocalThreadRuntime implements ThreadRuntime {
   }
 
   addToolResult({ messageId, toolCallId, result }: AddToolResultOptions) {
-    const { parentId, message } = this.repository.getMessage(messageId);
+    let { parentId, message } = this.repository.getMessage(messageId);
 
     if (message.role !== "assistant")
       throw new Error("Tried to add tool result to non-assistant message");
 
+    let added = false;
     let found = false;
     const newContent = message.content.map((c) => {
       if (c.type !== "tool-call") return c;
       if (c.toolCallId !== toolCallId) return c;
       found = true;
+      if (!c.result) added = true;
       return {
         ...c,
         result,
@@ -207,9 +257,14 @@ class LocalThreadRuntime implements ThreadRuntime {
     if (!found)
       throw new Error("Tried to add tool result to non-existing tool call");
 
-    this.repository.addOrUpdateMessage(parentId, {
+    message = {
       ...message,
       content: newContent,
-    });
+    };
+    this.repository.addOrUpdateMessage(parentId, message);
+
+    if (added && shouldContinue(message)) {
+      this.performRoundtrip(parentId, message);
+    }
   }
 }

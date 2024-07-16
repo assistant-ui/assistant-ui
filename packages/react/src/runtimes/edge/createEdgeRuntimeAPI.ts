@@ -4,11 +4,12 @@ import {
   LanguageModelV1FunctionTool,
   LanguageModelV1Prompt,
   LanguageModelV1CallOptions,
-  LanguageModelV1CallWarning,
-  LanguageModelV1FinishReason,
-  LanguageModelV1LogProbs,
 } from "@ai-sdk/provider";
-import { CoreMessage, ThreadMessage } from "../../types/AssistantTypes";
+import {
+  CoreMessage,
+  ThreadMessage,
+  ThreadRoundtrip,
+} from "../../types/AssistantTypes";
 import { assistantEncoderStream } from "./streams/assistantEncoderStream";
 import { EdgeRuntimeRequestOptionsSchema } from "./EdgeRuntimeRequestOptions";
 import { toLanguageModelMessages } from "./converters/toLanguageModelMessages";
@@ -28,23 +29,8 @@ import { ChatModelRunResult } from "../local";
 import { toCoreMessage } from "./converters/toCoreMessages";
 
 type FinishResult = {
-  finishReason: LanguageModelV1FinishReason | "cancelled";
-  usage: {
-    promptTokens: number;
-    completionTokens: number;
-  };
-  logprobs?: LanguageModelV1LogProbs | undefined;
   messages: CoreMessage[];
-  rawCall: {
-    rawPrompt: unknown;
-    rawSettings: Record<string, unknown>;
-  };
-  warnings?: LanguageModelV1CallWarning[] | undefined;
-  rawResponse?:
-    | {
-        headers?: Record<string, string>;
-      }
-    | undefined;
+  roundtrips: ThreadRoundtrip[];
 };
 
 type LanguageModelCreator = (
@@ -137,36 +123,29 @@ export const createEdgeRuntimeAPI = ({
 
       if (onFinish) {
         let lastChunk: ChatModelRunResult;
-        serverStream = serverStream
-          .pipeThrough(runResultStream([]))
-          .pipeThrough(
-            new TransformStream({
-              transform(chunk) {
-                lastChunk = chunk;
-              },
-              flush() {
-                if (!lastChunk?.status || lastChunk.status.type === "running")
-                  return;
+        serverStream = serverStream.pipeThrough(runResultStream()).pipeThrough(
+          new TransformStream({
+            transform(chunk) {
+              lastChunk = chunk;
+            },
+            flush() {
+              if (!lastChunk?.status || lastChunk.status.type === "running")
+                return;
 
-                const resultingMessages = [
-                  ...messages,
-                  toCoreMessage({
-                    role: "assistant",
-                    content: lastChunk.content,
-                  } as ThreadMessage),
-                ];
-                onFinish({
-                  finishReason: lastChunk.status.finishReason,
-                  usage: lastChunk.status.usage!,
-                  logprobs: lastChunk.status.logprobs,
-                  messages: resultingMessages,
-                  warnings: streamResult.warnings,
-                  rawCall: streamResult.rawCall,
-                  rawResponse: streamResult.rawResponse,
-                });
-              },
-            }),
-          );
+              const resultingMessages = [
+                ...messages,
+                toCoreMessage({
+                  role: "assistant",
+                  content: lastChunk.content,
+                } as ThreadMessage),
+              ];
+              onFinish({
+                messages: resultingMessages,
+                roundtrips: lastChunk.roundtrips!,
+              });
+            },
+          }),
+        );
       }
 
       // drain the server stream

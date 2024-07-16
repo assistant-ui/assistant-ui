@@ -7,7 +7,13 @@ import type { ContentPartContextValue } from "../react/ContentPartContext";
 import { useMessageContext } from "../react/MessageContext";
 import type { MessageState } from "../stores";
 import type { ContentPartState } from "../stores/ContentPart";
-import { ContentPartStatus } from "../../types/AssistantTypes";
+import {
+  ContentPartStatus,
+  ThreadAssistantContentPart,
+  ThreadMessage,
+  ThreadUserContentPart,
+  ToolContentPartStatus,
+} from "../../types/AssistantTypes";
 
 type ContentPartProviderProps = PropsWithChildren<{
   partIndex: number;
@@ -15,6 +21,34 @@ type ContentPartProviderProps = PropsWithChildren<{
 
 const COMPLETE_STATUS: ContentPartStatus = {
   type: "complete",
+};
+
+const toContentPartStatus = (
+  message: ThreadMessage,
+  partIndex: number,
+  part: ThreadUserContentPart | ThreadAssistantContentPart,
+): ToolContentPartStatus => {
+  if (message.role !== "assistant") return COMPLETE_STATUS;
+
+  const isLastPart = partIndex === message.content.length - 1;
+  if (part.type !== "tool-call") {
+    if (
+      "reason" in message.status &&
+      message.status.reason === "tool-calls" &&
+      isLastPart
+    )
+      throw new Error(
+        "Encountered unexpected requires-action status. This is likely an internal bug in assistant-ui.",
+      );
+
+    return isLastPart ? (message.status as ContentPartStatus) : COMPLETE_STATUS;
+  }
+
+  if (!!part.result) {
+    return COMPLETE_STATUS;
+  }
+
+  return message.status as ToolContentPartStatus;
 };
 
 const syncContentPart = (
@@ -25,12 +59,8 @@ const syncContentPart = (
   const part = message.content[partIndex];
   if (!part) return;
 
-  const messageStatus =
-    message.role === "assistant" ? message.status : COMPLETE_STATUS;
-  const status =
-    partIndex === message.content.length - 1 ? messageStatus : COMPLETE_STATUS;
-
   // if the content part is the same, don't update
+  const status = toContentPartStatus(message, partIndex, part);
   const currentState = useContentPart.getState();
   if (currentState.part === part && currentState.status === status) return;
 

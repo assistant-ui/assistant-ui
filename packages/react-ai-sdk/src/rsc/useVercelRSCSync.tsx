@@ -22,7 +22,7 @@ const vercelToThreadMessage = <T,>(
     role: message.role,
     content: [{ type: "ui", display: message.display }],
     createdAt: message.createdAt ?? new Date(),
-    ...{ status: { type: "complete", finishReason: "unknown" } },
+    ...{ status: { type: "complete", reason: "unknown" } },
     [symbolInnerRSCMessage]: rawMessage,
   };
 };

@@ -16,7 +16,7 @@ export const fromCoreMessage = (
   message: CoreMessage,
   {
     id = generateId(),
-    status = { type: "complete", finishReason: "unknown" } as MessageStatus,
+    status = { type: "complete", reason: "unknown" } as MessageStatus,
   } = {},
 ): ThreadMessage => {
   const commonProps = {

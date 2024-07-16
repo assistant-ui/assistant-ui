@@ -3,6 +3,7 @@ import type {
   MessageStatus,
   ThreadAssistantContentPart,
   ThreadMessage,
+  ThreadRoundtrip,
 } from "../../types/AssistantTypes";
 import type { ModelConfig } from "../../types/ModelConfigTypes";
 
@@ -13,13 +14,14 @@ export type ChatModelRunUpdate = {
 export type ChatModelRunResult = {
   content: ThreadAssistantContentPart[];
   status?: MessageStatus;
+  roundtrips?: ThreadRoundtrip[];
 };
 
 export type ChatModelRunOptions = {
   messages: ThreadMessage[];
   abortSignal: AbortSignal;
   config: ModelConfig;
-  onUpdate: (result: ChatModelRunUpdate) => ThreadMessage;
+  onUpdate: (result: ChatModelRunUpdate) => void;
 };
 
 export type ChatModelAdapter = {

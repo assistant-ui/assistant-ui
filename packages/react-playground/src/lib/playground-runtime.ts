@@ -25,7 +25,7 @@ import {
 import { useState } from "react";
 import { create } from "zustand";
 import { LanguageModelV1FunctionTool } from "@ai-sdk/provider";
-import { fromCoreMessage } from "../../../react/src/runtimes/edge/converters/fromCoreMessage";
+import { fromCoreMessage } from "@assistant-ui/react";
 
 const { BaseAssistantRuntime, ProxyConfigProvider, generateId } = INTERNAL;
 
@@ -180,7 +180,6 @@ export class PlaygroundThreadRuntime implements ReactThreadRuntime {
         ...m,
       };
       this.setMessages([...this.messages.slice(0, -1), message]);
-      return message;
     };
 
     try {
@@ -196,16 +195,24 @@ export class PlaygroundThreadRuntime implements ReactThreadRuntime {
         );
       this.abortController = null;
       updateMessage({
-        status: { type: "complete", finishReason: "unknown" },
+        status: { type: "complete", reason: "unknown" },
         ...result,
       });
     } catch (e) {
       this.abortController = null;
-      updateMessage({
-        status: { type: "incomplete", finishReason: "error", error: e },
-      });
 
-      throw e;
+      // TODO this should be handled by the run result stream
+      if (e instanceof Error && e.name === "AbortError") {
+        updateMessage({
+          status: { type: "incomplete", reason: "cancelled" },
+        });
+      } else {
+        updateMessage({
+          status: { type: "incomplete", reason: "error", error: e },
+        });
+
+        throw e;
+      }
     }
   }
 
@@ -446,7 +453,6 @@ export class PlaygroundThreadRuntime implements ReactThreadRuntime {
 
 export const usePlaygroundRuntime = ({
   initialMessages,
-  maxToolRoundtrips = 0,
   ...runtimeOptions
 }: EdgeRuntimeOptions & {
   initialMessages: ThreadMessage[];
@@ -455,10 +461,7 @@ export const usePlaygroundRuntime = ({
     () =>
       new PlaygroundRuntime(
         initialMessages,
-        new EdgeChatAdapter({
-          maxToolRoundtrips,
-          ...runtimeOptions,
-        }),
+        new EdgeChatAdapter(runtimeOptions),
       ),
   );
 

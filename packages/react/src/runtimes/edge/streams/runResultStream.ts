@@ -2,11 +2,12 @@ import { ChatModelRunResult } from "../../local/ChatModelAdapter";
 import { parsePartialJson } from "../partial-json/parse-partial-json";
 import { LanguageModelV1StreamPart } from "@ai-sdk/provider";
 import { ToolResultStreamPart } from "./toolResultStream";
-import { MessageStatus, ThreadAssistantContentPart } from "../../../types";
+import { MessageStatus } from "../../../types";
 
-export function runResultStream(initialContent: ThreadAssistantContentPart[]) {
+export function runResultStream() {
   let message: ChatModelRunResult = {
-    content: initialContent,
+    content: [],
+    status: { type: "running" },
   };
   const currentToolCall = { toolCallId: "", argsText: "" };
 
@@ -164,17 +165,39 @@ const appendOrUpdateFinish = (
   const { type, ...rest } = chunk;
   return {
     ...message,
-    status: {
-      type:
-        rest.finishReason === "stop" || rest.finishReason === "unknown"
-          ? "complete"
-          : "incomplete",
-      ...rest,
-      ...(rest.finishReason === "error"
-        ? { error: new Error("Unknown error") }
-        : undefined),
-    } as MessageStatus,
+    status: getStatus(chunk),
+    roundtrips: [
+      ...(message.roundtrips ?? []),
+      {
+        logprobs: rest.logprobs,
+        usage: rest.usage,
+      },
+    ],
   };
+};
+
+const getStatus = (
+  chunk: LanguageModelV1StreamPart & { type: "finish" },
+): MessageStatus => {
+  if (chunk.finishReason === "tool-calls") {
+    return {
+      type: "requires-action",
+      reason: "tool-calls",
+    };
+  } else if (
+    chunk.finishReason === "stop" ||
+    chunk.finishReason === "unknown"
+  ) {
+    return {
+      type: "complete",
+      reason: chunk.finishReason,
+    };
+  } else {
+    return {
+      type: "incomplete",
+      reason: chunk.finishReason,
+    };
+  }
 };
 
 const appendOrUpdateCancel = (
@@ -184,7 +207,7 @@ const appendOrUpdateCancel = (
     ...message,
     status: {
       type: "incomplete",
-      finishReason: "cancelled",
+      reason: "cancelled",
     },
   };
 };
