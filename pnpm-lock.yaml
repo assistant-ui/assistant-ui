@@ -777,7 +777,7 @@ importers:
   packages/react-ai-sdk:
     dependencies:
       '@assistant-ui/react':
-        specifier: ^0.4.4
+        specifier: ^0.5.0
         version: link:../react
       '@types/react':
         specifier: '*'
@@ -808,7 +808,7 @@ importers:
   packages/react-hook-form:
     dependencies:
       '@assistant-ui/react':
-        specifier: ^0.4.6
+        specifier: ^0.5.0
         version: link:../react
       '@types/react':
         specifier: '*'
@@ -836,7 +836,7 @@ importers:
   packages/react-markdown:
     dependencies:
       '@assistant-ui/react':
-        specifier: ^0.4.6
+        specifier: ^0.5.0
         version: link:../react
       '@radix-ui/react-use-callback-ref':
         specifier: ^1.1.0
@@ -898,7 +898,7 @@ importers:
         version: 0.0.12
       '@assistant-ui/react':
         specifier: ^0.4.4
-        version: link:../react
+        version: 0.4.8(@types/react-dom@18.3.0)(@types/react@18.3.3)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(tailwindcss@3.4.4)
       '@radix-ui/react-avatar':
         specifier: ^1.1.0
         version: 1.1.0(@types/react-dom@18.3.0)(@types/react@18.3.3)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -985,11 +985,11 @@ importers:
   packages/react-syntax-highlighter:
     dependencies:
       '@assistant-ui/react':
-        specifier: ^0.4.0
+        specifier: ^0.5.0
         version: link:../react
       '@assistant-ui/react-markdown':
         specifier: ^0.1.0
-        version: link:../react-markdown
+        version: 0.1.2(@assistant-ui/react@packages+react)(@types/react@18.3.3)(react@18.3.1)(tailwindcss@3.4.4)
       '@types/react':
         specifier: '*'
         version: 18.3.3
@@ -1263,6 +1263,35 @@ packages:
   '@antfu/ni@0.21.12':
     resolution: {integrity: sha512-2aDL3WUv8hMJb2L3r/PIQWsTLyq7RQr3v9xD16fiz6O8ys1xEyLhhTOv8gxtZvJiTzjTF5pHoArvRdesGL1DMQ==}
     hasBin: true
+
+  '@assistant-ui/react-markdown@0.1.2':
+    resolution: {integrity: sha512-8ohmNACeN+s+obBLdaaBUQlNH0iwsuMpwKhc8oWmjRHge8bqefwTckl4legRnscxw6wfUSaH6iRYY8DvdHVN5g==}
+    peerDependencies:
+      '@assistant-ui/react': ^0.4.6
+      '@types/react': '*'
+      react: ^18
+      tailwindcss: ^3.4.4
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+      tailwindcss:
+        optional: true
+
+  '@assistant-ui/react@0.4.8':
+    resolution: {integrity: sha512-LapgtquUahuv3SVVFnBVSk6AFx9rkSzrGDTQhKSp7mbyoeMV4eE+GAoMp8KiSx8BondjG5fY0H41vFR53IquhA==}
+    peerDependencies:
+      '@types/react': '*'
+      '@types/react-dom': '*'
+      react: ^18
+      react-dom: ^18
+      tailwindcss: ^3.4.4
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+      '@types/react-dom':
+        optional: true
+      tailwindcss:
+        optional: true
 
   '@babel/code-frame@7.24.7':
     resolution: {integrity: sha512-BcYH1CVJBO9tvyIZ2jVeXgSIMvGZ2FDRvDdOIVQyuklNKSsx+eppDEBq/g47Ayw+RqNFE+URvOShmf+f/qwAlA==}
@@ -5998,6 +6027,52 @@ snapshots:
       '@jridgewell/trace-mapping': 0.3.25
 
   '@antfu/ni@0.21.12': {}
+
+  '@assistant-ui/react-markdown@0.1.2(@assistant-ui/react@packages+react)(@types/react@18.3.3)(react@18.3.1)(tailwindcss@3.4.4)':
+    dependencies:
+      '@assistant-ui/react': link:packages/react
+      '@radix-ui/react-use-callback-ref': 1.1.0(@types/react@18.3.3)(react@18.3.1)
+      classnames: 2.5.1
+      lucide-react: 0.407.0(react@18.3.1)
+      react: 18.3.1
+      react-markdown: 9.0.1(@types/react@18.3.3)(react@18.3.1)
+    optionalDependencies:
+      '@types/react': 18.3.3
+      tailwindcss: 3.4.4
+    transitivePeerDependencies:
+      - supports-color
+
+  '@assistant-ui/react@0.4.8(@types/react-dom@18.3.0)(@types/react@18.3.3)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(tailwindcss@3.4.4)':
+    dependencies:
+      '@ai-sdk/provider': 0.0.12
+      '@radix-ui/primitive': 1.1.0
+      '@radix-ui/react-avatar': 1.1.0(@types/react-dom@18.3.0)(@types/react@18.3.3)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@radix-ui/react-compose-refs': 1.1.0(@types/react@18.3.3)(react@18.3.1)
+      '@radix-ui/react-context': 1.1.0(@types/react@18.3.3)(react@18.3.1)
+      '@radix-ui/react-popover': 1.1.1(@types/react-dom@18.3.0)(@types/react@18.3.3)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@radix-ui/react-primitive': 2.0.0(@types/react-dom@18.3.0)(@types/react@18.3.3)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@radix-ui/react-slot': 1.1.0(@types/react@18.3.3)(react@18.3.1)
+      '@radix-ui/react-tooltip': 1.1.2(@types/react-dom@18.3.0)(@types/react@18.3.3)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@radix-ui/react-use-callback-ref': 1.1.0(@types/react@18.3.3)(react@18.3.1)
+      '@radix-ui/react-use-escape-keydown': 1.1.0(@types/react@18.3.3)(react@18.3.1)
+      class-variance-authority: 0.7.0
+      classnames: 2.5.1
+      json-schema: 0.4.0
+      lucide-react: 0.407.0(react@18.3.1)
+      nanoid: 5.0.7
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+      react-textarea-autosize: 8.5.3(@types/react@18.3.3)(react@18.3.1)
+      secure-json-parse: 2.7.0
+      zod: 3.23.8
+      zod-to-json-schema: 3.23.1(zod@3.23.8)
+      zustand: 4.5.4(@types/react@18.3.3)(react@18.3.1)
+    optionalDependencies:
+      '@types/react': 18.3.3
+      '@types/react-dom': 18.3.0
+      tailwindcss: 3.4.4
+    transitivePeerDependencies:
+      - immer
 
   '@babel/code-frame@7.24.7':
     dependencies:
