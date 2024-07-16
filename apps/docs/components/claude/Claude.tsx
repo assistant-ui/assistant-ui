@@ -11,6 +11,7 @@ import { useMessageContext } from "@assistant-ui/react";
 import * as Avatar from "@radix-ui/react-avatar";
 import { ArrowUpIcon, ClipboardIcon, ReloadIcon } from "@radix-ui/react-icons";
 import type { FC } from "react";
+import { MarkdownText } from "../shadcn/Shadcn";
 
 export const Claude: FC = () => {
   return (
@@ -76,7 +77,7 @@ const ChatMessage: FC = () => {
           </MessagePrimitive.If>
 
           <p className="text-[#eee]">
-            <MessagePrimitive.Content />
+            <MessagePrimitive.Content components={{ Text: MarkdownText }} />
           </p>
         </div>
       </div>

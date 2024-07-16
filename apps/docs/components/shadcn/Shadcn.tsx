@@ -21,7 +21,7 @@ import {
 } from "../ui/tooltip";
 import { ModelPicker } from "./ModelPicker";
 
-const MarkdownText = makeMarkdownText({
+export const MarkdownText = makeMarkdownText({
   remarkPlugins: [remarkGfm],
   components: {
     SyntaxHighlighter: makePrismAsyncSyntaxHighlighter({
