@@ -836,7 +836,7 @@ importers:
   packages/react-markdown:
     dependencies:
       '@assistant-ui/react':
-        specifier: ^0.5.1
+        specifier: ^0.5.2
         version: link:../react
       '@radix-ui/react-use-callback-ref':
         specifier: ^1.1.0

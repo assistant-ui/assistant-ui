@@ -1,5 +1,15 @@
 # @assistant-ui/react-markdown
 
+## 0.2.2
+
+### Patch Changes
+
+- 2d7a8bd: fix: markdown loading indicator
+- Updated dependencies [2d7a8bd]
+- Updated dependencies [2d7a8bd]
+- Updated dependencies [2d7a8bd]
+  - @assistant-ui/react@0.5.2
+
 ## 0.2.1
 
 ### Patch Changes

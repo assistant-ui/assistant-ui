@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.5.2
+
+### Patch Changes
+
+- 2d7a8bd: fix: markdown loading indicator
+- 2d7a8bd: fix: ScrollToBottom visbility bug
+- 2d7a8bd: fix: text content part data-status field
+
 ## 0.5.1
 
 ### Patch Changes
