@@ -141,7 +141,7 @@ export const MessagePrimitiveContent: FC<MessagePrimitiveContentProps> = ({
 }) => {
   const { useMessage } = useMessageContext();
 
-  const contentLength = useMessage((s) => s.message.content.length);
+  const contentLength = useMessage((s) => s.message.content.length) || 1;
 
   return new Array(contentLength).fill(null).map((_, idx) => {
     const partIndex = idx; // use the index as key, as message is generally append only

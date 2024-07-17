@@ -24,7 +24,7 @@ export const ContentPartPrimitiveText = forwardRef<
   const smoothText = useSmooth(text, smooth);
 
   return (
-    <Primitive.span data-status={status} {...rest} ref={forwardedRef}>
+    <Primitive.span data-status={status.type} {...rest} ref={forwardedRef}>
       {smoothText}
     </Primitive.span>
   );

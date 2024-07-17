@@ -34,7 +34,7 @@ export const MarkdownTextPrimitive: FC<MarkdownTextPrimitiveProps> = ({
   const {
     part: { text },
   } = useContentPartText();
-  const smoothText = useSmooth(text, smooth);
+  const smoothText = useSmooth(text, smooth); // TODO loading indicator disappears before smooth animation ends
 
   const {
     pre = DefaultPre,

@@ -1,18 +1,22 @@
 /* in progress indicator */
-.aui-md-in-progress:where(:empty)::after,
-.aui-md-in-progress:where(> :not(ol):not(ul):not(pre):last-child)::after,
-.aui-md-in-progress:where(> pre:last-child code)::after,
-.aui-md-in-progress:where(
-    > :is(ol, ul):last-child > li:last-child:not(:has(* > li))
+:where(.aui-md-in-progress:empty)::after,
+:where(.aui-md-in-progress > :not(ol):not(ul):not(pre):last-child)::after,
+:where(.aui-md-in-progress > pre:last-child code)::after,
+:where(
+    .aui-md-in-progress
+      > :is(ol, ul):last-child
+      > li:last-child:not(:has(* > li))
   )::after,
-.aui-md-in-progress:where(
-    > :is(ol, ul):last-child
+:where(
+    .aui-md-in-progress
+      > :is(ol, ul):last-child
       > li:last-child
       > :is(ol, ul):last-child
       > li:last-child:not(:has(* > li))
   )::after,
-.aui-md-in-progress:where(
-    > :is(ol, ul):last-child
+:where(
+    .aui-md-in-progress
+      > :is(ol, ul):last-child
       > li:last-child
       > :is(ol, ul):last-child
       > li:last-child

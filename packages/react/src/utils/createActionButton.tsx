@@ -33,7 +33,6 @@ export const createActionButton = <TProps,>(
     });
 
     const callback = useActionButton(forwardedProps as TProps);
-
     return (
       <Primitive.button
         type="button"

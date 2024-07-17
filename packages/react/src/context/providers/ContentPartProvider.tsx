@@ -30,7 +30,7 @@ const toContentPartStatus = (
 ): ToolContentPartStatus => {
   if (message.role !== "assistant") return COMPLETE_STATUS;
 
-  const isLastPart = partIndex === message.content.length - 1;
+  const isLastPart = partIndex === Math.max(0, message.content.length - 1);
   if (part.type !== "tool-call") {
     if (
       "reason" in message.status &&
@@ -51,13 +51,22 @@ const toContentPartStatus = (
   return message.status as ToolContentPartStatus;
 };
 
+const EMPTY_CONTENT = Object.freeze({ type: "text", text: "" });
+
 const syncContentPart = (
   { message }: MessageState,
   useContentPart: ContentPartContextValue["useContentPart"],
   partIndex: number,
 ) => {
-  const part = message.content[partIndex];
-  if (!part) return;
+  let part = message.content[partIndex];
+  if (!part) {
+    // for empty messages, show an empty text content part
+    if (message.content.length === 0 && partIndex === 0) {
+      part = EMPTY_CONTENT;
+    } else {
+      return;
+    }
+  }
 
   // if the content part is the same, don't update
   const status = toContentPartStatus(message, partIndex, part);

@@ -153,7 +153,7 @@ export class VercelUseChatThreadRuntime implements ReactThreadRuntime {
         vm.at(-1)?.id ?? null,
         {
           role: "assistant",
-          content: [{ type: "text", text: "" }],
+          content: [],
         },
       );
     }

@@ -2,8 +2,8 @@
 
 import { useInsertionEffect, useState } from "react";
 import type { ChatModelAdapter } from "./ChatModelAdapter";
-import { LocalRuntime, LocalRuntimeOptions } from "./LocalRuntime";
-
+import { LocalRuntime } from "./LocalRuntime";
+import { LocalRuntimeOptions } from "./LocalRuntimeOptions";
 
 export const useLocalRuntime = (
   adapter: ChatModelAdapter,

@@ -38,7 +38,8 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     if (!div) return;
 
     const isAtBottom = useViewport.getState().isAtBottom;
-    const newIsAtBottom = div.scrollHeight - div.scrollTop <= div.clientHeight;
+    const newIsAtBottom =
+      div.scrollHeight - div.scrollTop <= div.clientHeight + 1; // TODO figure out why +1 is needed
 
     if (!newIsAtBottom && lastScrollTop.current < div.scrollTop) {
       // ignore scroll down

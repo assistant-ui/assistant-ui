@@ -98,7 +98,7 @@ export class VercelUseAssistantThreadRuntime implements ReactThreadRuntime {
         createdAt: new Date(),
         status: { type: "running" },
         role: "assistant",
-        content: [{ type: "text", text: "" }],
+        content: [],
       });
     }
 

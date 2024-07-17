@@ -165,7 +165,7 @@ export class PlaygroundThreadRuntime implements ReactThreadRuntime {
       id: generateId(),
       role: "assistant",
       status: { type: "running" },
-      content: [{ type: "text", text: "" }],
+      content: [],
       createdAt: new Date(),
     };
 
