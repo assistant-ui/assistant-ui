@@ -38,7 +38,7 @@
     "class-variance-authority": "^0.7.0",
     "classnames": "^2.5.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^0.407.0",
+    "lucide-react": "^0.408.0",
     "openai": "^4.52.7",
     "prismjs": "^1.29.0",
     "react-simple-code-editor": "^0.14.1",
@@ -65,9 +65,9 @@
     "@types/prismjs": "^1.26.4",
     "eslint": "^8",
     "eslint-config-next": "14.2.5",
-    "tailwindcss": "^3.4.4",
+    "tailwindcss": "^3.4.6",
     "tailwindcss-animate": "^1.0.7",
-    "tsup": "^8.1.0",
+    "tsup": "^8.1.1",
     "tsx": "^4.16.2"
   },
   "publishConfig": {

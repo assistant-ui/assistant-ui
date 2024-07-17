@@ -27,7 +27,7 @@
     "build": "tsup src/index.ts --format cjs,esm --dts --sourcemap --clean"
   },
   "dependencies": {
-    "tsup": "^8.1.0",
+    "tsup": "^8.1.1",
     "zod": "^3.23.8",
     "zustand": "^4.5.4"
   },
