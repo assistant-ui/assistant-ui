@@ -1,0 +1,18 @@
+---
+title: Migration to v0.5
+---
+
+## Assistant Message Status / Content Part Status
+
+The previous `AssistantMessage.status` field has been reworked:
+
+- `in_progress` is now `{ type: "running" }`
+- `error` is now `{ type: "incomplete", reason: "error", error: unknown }`
+
+The previous value `done` now maps to one of the following values:
+
+- `{ type: "requires-action", reason: "tool-calls" }`
+- `{ type: "complete", reason: "stop" | "unknown" }`
+- `{ type: "incomplete", reason: "cancelled" | "tool-calls" | "length" | "content-filter" | "other" }`
+
+The same applies to `ContentPart` status fields.
