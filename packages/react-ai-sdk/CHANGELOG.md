@@ -1,5 +1,13 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.5.2
+
+### Patch Changes
+
+- 1acdf45: feat: external store runtime
+- Updated dependencies [1acdf45]
+  - @assistant-ui/react@0.5.3
+
 ## 0.5.1
 
 ### Patch Changes

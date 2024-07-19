@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.3
+
+### Patch Changes
+
+- 1acdf45: feat: external store runtime
+
 ## 0.5.2
 
 ### Patch Changes
