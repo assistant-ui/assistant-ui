@@ -172,6 +172,7 @@ export class PlaygroundThreadRuntime implements ReactThreadRuntime {
     this.abortController?.abort();
     this.abortController = new AbortController();
 
+    const messages = this.messages;
     this.setMessages([...this.messages, message]);
 
     const updateMessage = (m: Partial<ChatModelRunResult>) => {
@@ -184,7 +185,7 @@ export class PlaygroundThreadRuntime implements ReactThreadRuntime {
 
     try {
       const result = await this.adapter.run({
-        messages: this.messages,
+        messages,
         abortSignal: this.abortController.signal,
         config: this.configProvider.getModelConfig(),
         onUpdate: updateMessage,

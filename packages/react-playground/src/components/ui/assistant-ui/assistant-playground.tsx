@@ -206,7 +206,13 @@ const APIKeyInput: FC = () => {
   );
 };
 
-const ModelSelector: FC = () => {
+type ModelSelectorProps = {
+  models?: string[];
+};
+
+const ModelSelector: FC<ModelSelectorProps> = ({
+  models = ["gpt-4", "gpt-4o"],
+}) => {
   const { useModelConfig } = usePlaygroundRuntime();
   const value = useModelConfig((c) => c.config?.modelName ?? "");
   const setValue = (value: string) => {
@@ -226,8 +232,11 @@ const ModelSelector: FC = () => {
           <SelectValue placeholder="Select a model" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="gpt-4o">GPT-4o</SelectItem>
-          <SelectItem value="gpt-4">GPT-4</SelectItem>
+          {models.map((model) => (
+            <SelectItem key={model} value={model}>
+              {model}
+            </SelectItem>
+          ))}
         </SelectContent>
       </Select>
     </div>
@@ -308,7 +317,9 @@ const MaxTokensSlider: FC = () => {
   );
 };
 
-const Sidebar: FC = () => {
+const Sidebar: FC<AssistantPlaygroundProps> = ({
+  modelSelector: modelSelector,
+}) => {
   const { useAssistantActions } = useAssistantContext();
   const handleReset = () => {
     useAssistantActions.getState().switchToThread(null);
@@ -319,7 +330,7 @@ const Sidebar: FC = () => {
       <PayloadEditorButton />
       <Button onClick={handleReset}>Reset</Button>
 
-      <ModelSelector />
+      <ModelSelector {...modelSelector} />
       <APIKeyInput />
       <TemperatureSlider />
       <MaxTokensSlider />
@@ -332,13 +343,21 @@ const Sidebar: FC = () => {
   );
 };
 
-export const AssistantPlayground: FC = () => {
+type AssistantPlaygroundProps = {
+  modelSelector: {
+    models?: string[];
+  };
+};
+
+export const AssistantPlayground: FC<AssistantPlaygroundProps> = ({
+  modelSelector,
+}) => {
   return (
     <div className="flex h-full overflow-hidden">
       <div className="flex flex-grow flex-col">
         <Thread />
       </div>
-      <Sidebar />
+      <Sidebar modelSelector={modelSelector} />
     </div>
   );
 };

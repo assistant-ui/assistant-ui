@@ -12,6 +12,7 @@ import { useState, type FC, type KeyboardEvent, type MouseEvent } from "react";
 import {
   CheckIcon,
   CopyIcon,
+  InfoIcon,
   PlusIcon,
   SendHorizontalIcon,
   SquareFunction,
@@ -269,6 +270,9 @@ const Message: FC = () => {
   const getPlaygroundRuntime = useGetPlaygroundRuntime();
   const { useMessage } = useMessageContext();
   const role = useMessage((m) => m.message.role);
+  const status = useMessage((m) =>
+    m.message.role === "assistant" ? m.message.status : null,
+  );
 
   const handleDelete = () => {
     getPlaygroundRuntime().deleteMessage(useMessage.getState().message.id);
@@ -311,6 +315,15 @@ const Message: FC = () => {
           components={{ Text, Image, tools: { Fallback: ToolUI } }}
         />
       </div>
+      {status?.type === "incomplete" && status.reason === "error" && (
+        <p className="text-aui-destructive flex items-center gap-2">
+          <InfoIcon className="size-4" />
+          <span>
+            Encountered an error:{" "}
+            {(status.error as Error).message ?? "<unknown error>"}
+          </span>
+        </p>
+      )}
       <div>
         {role === "user" && <AddImageButton />}
         {role === "assistant" && <AddToolCallButton />}

@@ -49,9 +49,7 @@ export class EdgeChatAdapter implements ChatModelAdapter {
     });
 
     if (result.status !== 200) {
-      throw new Error(
-        `Edge runtime returned status ${result.status}: ${await result.text()}`,
-      );
+      throw new Error(`Status ${result.status}: ${await result.text()}`);
     }
 
     const stream = result

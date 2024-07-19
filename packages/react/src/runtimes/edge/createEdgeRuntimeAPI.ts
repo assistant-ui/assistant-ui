@@ -89,10 +89,27 @@ export const createEdgeRuntimeAPI = ({
       }
     }
 
-    const model =
-      typeof modelOrCreator === "function"
-        ? await modelOrCreator({ apiKey, baseUrl, modelName })
-        : modelOrCreator;
+    let model;
+
+    try {
+      model =
+        typeof modelOrCreator === "function"
+          ? await modelOrCreator({ apiKey, baseUrl, modelName })
+          : modelOrCreator;
+    } catch (e) {
+      return new Response(
+        JSON.stringify({
+          type: "error",
+          error: (e as Error).message,
+        }),
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      );
+    }
 
     let stream: ReadableStream<ToolResultStreamPart>;
     const streamResult = await streamMessage({
