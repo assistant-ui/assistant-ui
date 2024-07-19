@@ -1,4 +1,10 @@
 {
   "title": "Runtime",
-  "pages": ["pick-a-runtime", "vercel-ai-sdk", "langserve", "custom-rest"]
+  "pages": [
+    "pick-a-runtime",
+    "vercel-ai-sdk",
+    "langserve",
+    "external-store",
+    "custom-rest"
+  ]
 }
