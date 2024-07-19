@@ -1,5 +1,11 @@
 # @assistant-ui/react-playground
 
+## 0.0.2
+
+### Patch Changes
+
+- 69ed202: feat: allow hiding apiKey input
+
 ## 0.0.0
 
 ### Patch Changes
