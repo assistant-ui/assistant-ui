@@ -317,7 +317,10 @@ const MaxTokensSlider: FC = () => {
   );
 };
 
-const Sidebar: FC<AssistantPlaygroundProps> = ({ modelSelector }) => {
+const Sidebar: FC<AssistantPlaygroundProps> = ({
+  modelSelector,
+  apiKey = true,
+}) => {
   const { useAssistantActions } = useAssistantContext();
   const handleReset = () => {
     useAssistantActions.getState().switchToThread(null);
@@ -329,7 +332,7 @@ const Sidebar: FC<AssistantPlaygroundProps> = ({ modelSelector }) => {
       <Button onClick={handleReset}>Reset</Button>
 
       <ModelSelector {...modelSelector} />
-      <APIKeyInput />
+      {apiKey && <APIKeyInput />}
       <TemperatureSlider />
       <MaxTokensSlider />
 
@@ -347,17 +350,19 @@ type AssistantPlaygroundProps = {
         models?: string[] | undefined;
       }
     | undefined;
+  apiKey?: boolean | undefined;
 };
 
 export const AssistantPlayground: FC<AssistantPlaygroundProps> = ({
   modelSelector,
+  apiKey,
 }) => {
   return (
     <div className="flex h-full overflow-hidden">
       <div className="flex flex-grow flex-col">
         <Thread />
       </div>
-      <Sidebar modelSelector={modelSelector} />
+      <Sidebar modelSelector={modelSelector} apiKey={apiKey} />
     </div>
   );
 };
