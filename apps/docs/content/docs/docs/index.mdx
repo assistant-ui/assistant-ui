@@ -60,27 +60,55 @@ npm install @assistant-ui/react
 
 ### Setup Backend Endpoint
 
-<Tabs id="provider" items={["OpenAI", "Anthropic", "Groq", "Fireworks"]}>
+Install provider SDK:
 
-```sh tab="OpenAI"
+<Tabs id="provider" items={["OpenAI", "Anthropic", "AWS", "Azure",  "GCP", "Groq", "Fireworks", "Cohere", "Ollama", "Chrome AI"]}>
+
+```sh title="Terminal" tab="OpenAI"
 npm install @ai-sdk/openai
 ```
 
-```sh tab="Anthropic"
+```sh title="Terminal" tab="Anthropic"
 npm install @ai-sdk/anthropic
 ```
 
-```sh tab="Groq"
+```sh title="Terminal" tab="AWS"
+npm install @ai-sdk/amazon-bedrock
+```
+
+```sh title="Terminal" tab="Azure"
+npm install @ai-sdk/azure
+```
+
+```sh title="Terminal" tab="GCP"
+npm install @ai-sdk/google-vertex
+```
+
+```sh title="Terminal" tab="Groq"
 npm install @ai-sdk/openai
 ```
 
-```sh tab="Fireworks"
+```sh title="Terminal" tab="Fireworks"
 npm install @ai-sdk/openai
+```
+
+```sh title="Terminal" tab="Cohere"
+npm install @ai-sdk/cohere
+```
+
+```sh title="Terminal" tab="Ollama"
+npm install ollama-ai-provider
+```
+
+```sh title="Terminal" tab="Chrome AI"
+npm install chrome-ai
 ```
 
 </Tabs>
 
-<Tabs id="provider" items={["OpenAI", "Azure", "Anthropic", "Groq", "Fireworks"]}>
+Add an API endpoint:
+
+<Tabs id="provider" items={["OpenAI", "Anthropic", "Azure", "AWS", "GCP", "Groq", "Fireworks", "Cohere", "Ollama", "Chrome AI"]}>
 ```ts title="/app/api/chat/route.ts" tab="OpenAI"
 import { openai } from "@ai-sdk/openai";
 import { createEdgeRuntimeAPI } from "@assistant-ui/react/edge";
@@ -96,6 +124,33 @@ import { createEdgeRuntimeAPI } from "@assistant-ui/react/edge";
 
 export const { POST } = createEdgeRuntimeAPI({
   model: anthropic("claude-3-5-sonnet-20240620"),
+});
+```
+
+```ts title="/app/api/chat/route.ts" tab="Azure"
+import { azure } from "@ai-sdk/azure";
+import { createEdgeRuntimeAPI } from "@assistant-ui/react/edge";
+
+export const { POST } = createEdgeRuntimeAPI({
+  model: azure("your-deployment-name"),
+});
+```
+
+```ts title="/app/api/chat/route.ts" tab="AWS"
+import { bedrock } from "@ai-sdk/amazon-bedrock";
+import { createEdgeRuntimeAPI } from "@assistant-ui/react/edge";
+
+export const { POST } = createEdgeRuntimeAPI({
+  model: bedrock("anthropic.claude-3-5-sonnet-20240620-v1:0"),
+});
+```
+
+```ts title="/app/api/chat/route.ts" tab="GCP"
+import { vertex } from "@ai-sdk/google-vertex";
+import { createEdgeRuntimeAPI } from "@assistant-ui/react/edge";
+
+export const { POST } = createEdgeRuntimeAPI({
+  model: vertex("gemini-1.5-pro"),
 });
 ```
 
@@ -125,6 +180,84 @@ const fireworks = createOpenAI({
 export const { POST } = createEdgeRuntimeAPI({
   model: fireworks("accounts/fireworks/models/firefunction-v2"),
 });
+```
+
+```ts title="/app/api/chat/route.ts" tab="Cohere"
+import { cohere } from "@ai-sdk/cohere";
+import { createEdgeRuntimeAPI } from "@assistant-ui/react/edge";
+
+export const { POST } = createEdgeRuntimeAPI({
+  model: cohere("command-r-plus"),
+});
+```
+
+```ts title="/app/api/chat/route.ts" tab="Ollama"
+import { ollama } from "ollama-ai-provider";
+import { createEdgeRuntimeAPI } from "@assistant-ui/react/edge";
+
+export const { POST } = createEdgeRuntimeAPI({
+  model: ollama("llama3"),
+});
+```
+
+```ts title="/app/api/chat/route.ts" tab="Chrome AI"
+import { chromeai } from "chrome-ai";
+import { createEdgeRuntimeAPI } from "@assistant-ui/react/edge";
+
+export const { POST } = createEdgeRuntimeAPI({
+  model: chromeai(),
+});
+```
+
+</Tabs>
+
+Define environment variables:
+
+<Tabs id="provider" items={["OpenAI", "Anthropic", "AWS", "Azure",  "GCP", "Groq", "Fireworks", "Cohere", "Ollama", "Chrome AI"]}>
+
+```sh title="/.env.local" tab="OpenAI"
+OPENAI_API_KEY="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+```sh title="/.env.local" tab="Anthropic"
+ANTHROPIC_API_KEY="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+```sh title="/.env.local" tab="AWS"
+AWS_ACCESS_KEY_ID="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+AWS_SECRET_ACCESS_KEY="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+AWS_REGION="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+```sh title="/.env.local" tab="Azure"
+AZURE_RESOURCE_NAME="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+AZURE_API_KEY="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+```sh title="/.env.local" tab="GCP"
+GOOGLE_VERTEX_LOCATION="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+GOOGLE_VERTEX_LOCATION="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+GOOGLE_APPLICATION_CREDENTIALS="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+```sh title="/.env.local" tab="Groq"
+GROQ_API_KEY="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+```sh title="/.env.local" tab="Fireworks"
+FIREWORKS_API_KEY="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+```sh title="/.env.local" tab="Cohere"
+COHERE_API_KEY="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+```sh tab="Ollama"
+<none>
+```
+
+```sh tab="Chrome AI"
+<none>
 ```
 
 </Tabs>
