@@ -16,7 +16,7 @@
     "@assistant-ui/tsconfig": "workspace:*",
     "@types/cross-spawn": "^6.0.6",
     "@types/node": "^20.14.11",
-    "tsup": "8.1.0"
+    "tsup": "8.1.2"
   },
   "files": [
     "dist",

@@ -207,7 +207,7 @@ const APIKeyInput: FC = () => {
 };
 
 type ModelSelectorProps = {
-  models?: string[];
+  models?: string[] | undefined;
 };
 
 const ModelSelector: FC<ModelSelectorProps> = ({
@@ -317,9 +317,7 @@ const MaxTokensSlider: FC = () => {
   );
 };
 
-const Sidebar: FC<AssistantPlaygroundProps> = ({
-  modelSelector: modelSelector,
-}) => {
+const Sidebar: FC<AssistantPlaygroundProps> = ({ modelSelector }) => {
   const { useAssistantActions } = useAssistantContext();
   const handleReset = () => {
     useAssistantActions.getState().switchToThread(null);
@@ -344,9 +342,11 @@ const Sidebar: FC<AssistantPlaygroundProps> = ({
 };
 
 type AssistantPlaygroundProps = {
-  modelSelector: {
-    models?: string[];
-  };
+  modelSelector?:
+    | {
+        models?: string[] | undefined;
+      }
+    | undefined;
 };
 
 export const AssistantPlayground: FC<AssistantPlaygroundProps> = ({
