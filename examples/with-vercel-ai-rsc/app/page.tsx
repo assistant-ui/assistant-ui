@@ -25,7 +25,7 @@ const MyRuntimeProvider = ({ children }: { children: React.ReactNode }) => {
   const { continueConversation } = useActions();
   const [messages, setMessages] = useUIState<typeof AI>();
 
-  const append = async (m: AppendMessage) => {
+  const onNew = async (m: AppendMessage) => {
     if (m.content[0]?.type !== "text")
       throw new Error("Only text messages are supported");
 
@@ -40,7 +40,7 @@ const MyRuntimeProvider = ({ children }: { children: React.ReactNode }) => {
     setMessages((currentConversation) => [...currentConversation, message]);
   };
 
-  const runtime = useVercelRSCRuntime({ messages, append });
+  const runtime = useVercelRSCRuntime({ messages, onNew });
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>

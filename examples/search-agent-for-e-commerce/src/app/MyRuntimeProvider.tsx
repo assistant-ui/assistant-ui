@@ -18,7 +18,7 @@ export function MyRuntimeProvider({
   const { continueConversation } = useActions();
   const [messages, setMessages] = useUIState<typeof AI>();
 
-  const append = async (m: AppendMessage) => {
+  const onNew = async (m: AppendMessage) => {
     if (m.content[0]?.type !== "text")
       throw new Error("Only text messages are supported");
 
@@ -33,7 +33,7 @@ export function MyRuntimeProvider({
     setMessages((currentConversation) => [...currentConversation, message]);
   };
 
-  const runtime = useVercelRSCRuntime({ messages, append });
+  const runtime = useVercelRSCRuntime({ messages, onNew });
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>

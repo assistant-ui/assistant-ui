@@ -76,7 +76,7 @@ import { useVercelRSCRuntime } from "@assistant-ui/react-ai-sdk";
 const MyRuntimeProvider = ({ children }: { children: React.ReactNode }) => {
   const [messages, setMessages] = useUIState<typeof AI>();
 
-  const append = async (m: AppendMessage) => {
+  const onNew = async (m: AppendMessage) => {
     if (m.content[0]?.type !== "text")
       throw new Error("Only text messages are supported");
 
@@ -91,7 +91,7 @@ const MyRuntimeProvider = ({ children }: { children: React.ReactNode }) => {
     setMessages((currentConversation) => [...currentConversation, message]);
   };
 
-  const runtime = useVercelRSCRuntime({ messages, append });
+  const runtime = useVercelRSCRuntime({ messages, onNew });
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
@@ -117,17 +117,17 @@ const MyRuntimeProvider = ({ children }: { children: React.ReactNode }) => {
               description: "The messages in the thread.",
             },
             {
-              name: "append",
+              name: "onNew",
               type: "(message: AppendMessage) => Promise<void>",
               description: "A function to append a message to the thread.",
             },
             {
-              name: "edit",
+              name: "onEdit",
               type: "(message: AppendMessage) => Promise<void>",
               description: "A function to edit a message.",
             },
             {
-              name: "reload",
+              name: "onReload",
               type: "(parentId: string | null) => Promise<void>",
               description: "A function to reload a message.",
             },
