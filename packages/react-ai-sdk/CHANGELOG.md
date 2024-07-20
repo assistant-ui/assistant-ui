@@ -1,5 +1,11 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.5.3
+
+### Patch Changes
+
+- 7e9e774: refactor: align RSC adapter function names with useExternalStore
+
 ## 0.5.2
 
 ### Patch Changes
