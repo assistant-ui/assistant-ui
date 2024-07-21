@@ -791,9 +791,6 @@ importers:
       react:
         specifier: ^18
         version: 18.3.1
-      tsup:
-        specifier: 8.2.1
-        version: 8.2.1(jiti@1.21.6)(postcss@8.4.39)(tsx@4.16.2)(typescript@5.5.3)(yaml@2.4.5)
       zod:
         specifier: ^3.23.8
         version: 3.23.8
@@ -807,6 +804,9 @@ importers:
       eslint-config-next:
         specifier: 14.2.5
         version: 14.2.5(eslint@8.57.0)(typescript@5.5.3)
+      tsup:
+        specifier: 8.2.1
+        version: 8.2.1(jiti@1.21.6)(postcss@8.4.39)(tsx@4.16.2)(typescript@5.5.3)(yaml@2.4.5)
 
   packages/react-hook-form:
     dependencies:

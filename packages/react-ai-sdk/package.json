@@ -27,14 +27,13 @@
     "build": "tsup src/index.ts --format cjs,esm --dts --sourcemap --clean"
   },
   "dependencies": {
-    "tsup": "8.2.1",
     "zod": "^3.23.8",
     "zustand": "^4.5.4"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.5.4",
     "@types/react": "*",
-    "ai": "^3.1.x",
+    "ai": "^3.2.x",
     "react": "^18"
   },
   "peerDependenciesMeta": {
@@ -44,7 +43,8 @@
   },
   "devDependencies": {
     "@assistant-ui/tsconfig": "workspace:*",
-    "eslint-config-next": "14.2.5"
+    "eslint-config-next": "14.2.5",
+    "tsup": "8.2.1"
   },
   "publishConfig": {
     "access": "public",
