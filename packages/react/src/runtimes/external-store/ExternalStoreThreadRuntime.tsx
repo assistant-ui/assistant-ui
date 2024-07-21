@@ -25,6 +25,7 @@ export class ExternalStoreThreadRuntime implements ReactThreadRuntime {
 
   public get capabilities() {
     return {
+      switchToBranch: this.store.setMessages !== undefined,
       edit: this.store.onEdit !== undefined,
       reload: this.store.onReload !== undefined,
       cancel: this.store.onCancel !== undefined,
@@ -46,6 +47,9 @@ export class ExternalStoreThreadRuntime implements ReactThreadRuntime {
   }
 
   public switchToBranch(branchId: string): void {
+    if (!this.store.setMessages)
+      throw new Error("Runtime does not support switching branches.");
+
     this.repository.switchToBranch(branchId);
     this.updateMessages(this.repository.getMessages());
   }

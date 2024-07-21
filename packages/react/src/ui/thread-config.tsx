@@ -37,6 +37,10 @@ export type AssistantMessageConfig = {
     | undefined;
 };
 
+export type BranchPickerConfig = {
+  allowBranchPicker?: boolean | undefined;
+};
+
 export type StringsConfig = {
   assistantModal?: {
     open: {
@@ -118,6 +122,8 @@ export type ThreadConfig = {
   welcome?: ThreadWelcomeConfig;
   assistantMessage?: AssistantMessageConfig;
   userMessage?: UserMessageConfig;
+
+  branchPicker?: BranchPickerConfig;
 
   strings?: StringsConfig;
 };

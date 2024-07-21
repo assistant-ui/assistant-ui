@@ -15,6 +15,7 @@ import { shouldContinue } from "./shouldContinue";
 import { LocalRuntimeOptions } from "./LocalRuntimeOptions";
 
 const CAPABILITIES = Object.freeze({
+  switchToBranch: true,
   edit: true,
   reload: true,
   cancel: true,

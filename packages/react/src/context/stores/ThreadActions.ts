@@ -9,13 +9,17 @@ export type AddToolResultOptions = {
   result: any;
 };
 
+export type RuntimeCapabilities = {
+  switchToBranch: boolean;
+  edit: boolean;
+  reload: boolean;
+  cancel: boolean;
+  copy: boolean;
+};
+
 export type ThreadActionsState = Readonly<{
-  capabilities: Readonly<{
-    edit: boolean;
-    reload: boolean;
-    cancel: boolean;
-    copy: boolean;
-  }>;
+  capabilities: Readonly<RuntimeCapabilities>;
+
   getBranches: (messageId: string) => readonly string[];
   switchToBranch: (branchId: string) => void;
 

@@ -24,6 +24,7 @@ export const hasUpcomingMessage = (
 };
 
 const CAPABILITIES = Object.freeze({
+  switchToBranch: true,
   edit: true,
   reload: true,
   cancel: true,

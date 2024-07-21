@@ -13,6 +13,7 @@ import { hasUpcomingMessage } from "./VercelUseAssistantRuntime";
 const EMPTY_BRANCHES: readonly string[] = Object.freeze([]);
 
 const CAPABILITIES = Object.freeze({
+  switchToBranch: false,
   edit: false,
   reload: false,
   cancel: false,

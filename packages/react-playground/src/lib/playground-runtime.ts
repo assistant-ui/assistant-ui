@@ -73,6 +73,7 @@ class PlaygroundRuntime
 }
 
 const CAPABILITIES = Object.freeze({
+  switchToBranch: false,
   edit: false,
   reload: false,
   cancel: true,
