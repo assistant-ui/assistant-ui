@@ -88,11 +88,11 @@ const ThreadWelcomeSuggestion: FC<ThreadWelcomeSuggestionProps> = ({
 }) => {
   return (
     <ThreadWelcomeSuggestionStyled
-      prompt={prompt ?? text}
+      prompt={prompt}
       method="replace"
       autoSend
     >
-      <span className="aui-thread-welcome-suggestion-text">{text}</span>
+      <span className="aui-thread-welcome-suggestion-text">{text ?? prompt}</span>
     </ThreadWelcomeSuggestionStyled>
   );
 };

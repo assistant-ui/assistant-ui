@@ -1,6 +1,12 @@
 "use client";
 
-import { FC, PropsWithChildren, createContext, useContext } from "react";
+import {
+  FC,
+  PropsWithChildren,
+  ReactNode,
+  createContext,
+  useContext,
+} from "react";
 
 import { AvatarProps } from "./base/avatar";
 import { TextContentPartComponent } from "../types";
@@ -8,8 +14,8 @@ import { AssistantRuntime } from "../runtimes";
 import { AssistantRuntimeProvider, useAssistantContext } from "../context";
 
 export type SuggestionConfig = {
-  text: string;
-  prompt?: string;
+  text?: ReactNode;
+  prompt: string;
 };
 
 export type ThreadWelcomeConfig = {
