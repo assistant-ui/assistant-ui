@@ -21,14 +21,14 @@ importers:
         specifier: ^0.6.5
         version: 0.6.5(prettier@3.3.3)
       turbo:
-        specifier: ^2.0.7
-        version: 2.0.7
+        specifier: ^2.0.9
+        version: 2.0.9
 
   apps/docs:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^0.0.36
-        version: 0.0.36(zod@3.23.8)
+        specifier: ^0.0.37
+        version: 0.0.37(zod@3.23.8)
       '@ai-sdk/provider':
         specifier: ^0.0.12
         version: 0.0.12
@@ -69,8 +69,8 @@ importers:
         specifier: ^3.1.1
         version: 3.1.1(@types/react-dom@18.3.0)(@types/react@18.3.3)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       ai:
-        specifier: ^3.2.29
-        version: 3.2.29(openai@4.52.7)(react@18.3.1)(svelte@4.2.18)(vue@3.4.32(typescript@5.5.3))(zod@3.23.8)
+        specifier: ^3.2.32
+        version: 3.2.32(openai@4.52.7)(react@18.3.1)(svelte@4.2.18)(vue@3.4.32(typescript@5.5.3))(zod@3.23.8)
       class-variance-authority:
         specifier: ^0.7.0
         version: 0.7.0
@@ -90,8 +90,8 @@ importers:
         specifier: ^1.3.1
         version: 1.3.1(next@14.2.5(@opentelemetry/api@1.9.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))
       lucide-react:
-        specifier: ^0.408.0
-        version: 0.408.0(react@18.3.1)
+        specifier: ^0.412.0
+        version: 0.412.0(react@18.3.1)
       next:
         specifier: ^14.2.5
         version: 14.2.5(@opentelemetry/api@1.9.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -142,8 +142,8 @@ importers:
   examples/search-agent-for-e-commerce:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^0.0.36
-        version: 0.0.36(zod@3.23.8)
+        specifier: ^0.0.37
+        version: 0.0.37(zod@3.23.8)
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
@@ -163,8 +163,8 @@ importers:
         specifier: ^1.1.2
         version: 1.1.2(@types/react-dom@18.3.0)(@types/react@18.3.3)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       ai:
-        specifier: ^3.2.29
-        version: 3.2.29(openai@4.52.7)(react@18.3.1)(svelte@4.2.18)(vue@3.4.32(typescript@5.5.3))(zod@3.23.8)
+        specifier: ^3.2.32
+        version: 3.2.32(openai@4.52.7)(react@18.3.1)(svelte@4.2.18)(vue@3.4.32(typescript@5.5.3))(zod@3.23.8)
       class-variance-authority:
         specifier: ^0.7.0
         version: 0.7.0
@@ -172,14 +172,14 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       embla-carousel-autoplay:
-        specifier: ^8.1.6
-        version: 8.1.6(embla-carousel@8.1.6)
+        specifier: ^8.1.7
+        version: 8.1.7(embla-carousel@8.1.7)
       embla-carousel-react:
-        specifier: ^8.1.6
-        version: 8.1.6(react@18.3.1)
+        specifier: ^8.1.7
+        version: 8.1.7(react@18.3.1)
       lucide-react:
-        specifier: ^0.408.0
-        version: 0.408.0(react@18.3.1)
+        specifier: ^0.412.0
+        version: 0.412.0(react@18.3.1)
       nanoid:
         specifier: ^5.0.7
         version: 5.0.7
@@ -202,6 +202,9 @@ importers:
         specifier: ^3.23.8
         version: 3.23.8
     devDependencies:
+      '@assistant-ui/tsconfig':
+        specifier: workspace:*
+        version: link:../../packages/tsconfig
       '@types/node':
         specifier: ^20.14.11
         version: 20.14.11
@@ -230,8 +233,8 @@ importers:
   examples/with-inline-suggestions:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^0.0.36
-        version: 0.0.36(zod@3.23.8)
+        specifier: ^0.0.37
+        version: 0.0.37(zod@3.23.8)
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
@@ -248,8 +251,8 @@ importers:
         specifier: ^1.1.2
         version: 1.1.2(@types/react-dom@18.3.0)(@types/react@18.3.3)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       ai:
-        specifier: ^3.2.29
-        version: 3.2.29(openai@4.52.7)(react@18.3.1)(svelte@4.2.18)(vue@3.4.32(typescript@5.5.3))(zod@3.23.8)
+        specifier: ^3.2.32
+        version: 3.2.32(openai@4.52.7)(react@18.3.1)(svelte@4.2.18)(vue@3.4.32(typescript@5.5.3))(zod@3.23.8)
       class-variance-authority:
         specifier: ^0.7.0
         version: 0.7.0
@@ -257,8 +260,8 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^0.408.0
-        version: 0.408.0(react@18.3.1)
+        specifier: ^0.412.0
+        version: 0.412.0(react@18.3.1)
       next:
         specifier: 14.2.5
         version: 14.2.5(@opentelemetry/api@1.9.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -303,8 +306,8 @@ importers:
   examples/with-openai-assistants:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^0.0.36
-        version: 0.0.36(zod@3.23.8)
+        specifier: ^0.0.37
+        version: 0.0.37(zod@3.23.8)
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
@@ -315,8 +318,8 @@ importers:
         specifier: ^1.1.0
         version: 1.1.0(@types/react-dom@18.3.0)(@types/react@18.3.3)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       ai:
-        specifier: ^3.2.29
-        version: 3.2.29(openai@4.52.7)(react@18.3.1)(svelte@4.2.18)(vue@3.4.32(typescript@5.5.3))(zod@3.23.8)
+        specifier: ^3.2.32
+        version: 3.2.32(openai@4.52.7)(react@18.3.1)(svelte@4.2.18)(vue@3.4.32(typescript@5.5.3))(zod@3.23.8)
       class-variance-authority:
         specifier: ^0.7.0
         version: 0.7.0
@@ -324,8 +327,8 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^0.408.0
-        version: 0.408.0(react@18.3.1)
+        specifier: ^0.412.0
+        version: 0.412.0(react@18.3.1)
       next:
         specifier: 14.2.5
         version: 14.2.5(@opentelemetry/api@1.9.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -376,8 +379,8 @@ importers:
   examples/with-playground:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^0.0.36
-        version: 0.0.36(zod@3.23.8)
+        specifier: ^0.0.37
+        version: 0.0.37(zod@3.23.8)
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
@@ -431,8 +434,8 @@ importers:
   examples/with-react-hook-form:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^0.0.36
-        version: 0.0.36(zod@3.23.8)
+        specifier: ^0.0.37
+        version: 0.0.37(zod@3.23.8)
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
@@ -473,8 +476,8 @@ importers:
         specifier: ^2.3.1
         version: 2.3.1
       lucide-react:
-        specifier: ^0.408.0
-        version: 0.408.0(react@18.3.1)
+        specifier: ^0.412.0
+        version: 0.412.0(react@18.3.1)
       next:
         specifier: 14.2.5
         version: 14.2.5(@opentelemetry/api@1.9.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -537,8 +540,8 @@ importers:
   examples/with-vercel-ai-rsc:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^0.0.36
-        version: 0.0.36(zod@3.23.8)
+        specifier: ^0.0.37
+        version: 0.0.37(zod@3.23.8)
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
@@ -558,8 +561,8 @@ importers:
         specifier: ^1.1.2
         version: 1.1.2(@types/react-dom@18.3.0)(@types/react@18.3.3)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       ai:
-        specifier: 3.2.29
-        version: 3.2.29(openai@4.52.7)(react@18.3.1)(svelte@4.2.18)(vue@3.4.32(typescript@5.5.3))(zod@3.23.8)
+        specifier: 3.2.32
+        version: 3.2.32(openai@4.52.7)(react@18.3.1)(svelte@4.2.18)(vue@3.4.32(typescript@5.5.3))(zod@3.23.8)
       class-variance-authority:
         specifier: ^0.7.0
         version: 0.7.0
@@ -567,8 +570,8 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^0.408.0
-        version: 0.408.0(react@18.3.1)
+        specifier: ^0.412.0
+        version: 0.412.0(react@18.3.1)
       nanoid:
         specifier: ^5.0.7
         version: 5.0.7
@@ -653,8 +656,8 @@ importers:
         specifier: ^20.14.11
         version: 20.14.11
       tsup:
-        specifier: 8.1.2
-        version: 8.1.2(jiti@1.21.6)(postcss@8.4.39)(tsx@4.16.2)(typescript@5.5.3)(yaml@2.4.5)
+        specifier: 8.2.1
+        version: 8.2.1(jiti@1.21.6)(postcss@8.4.39)(tsx@4.16.2)(typescript@5.5.3)(yaml@2.4.5)
 
   packages/react:
     dependencies:
@@ -707,8 +710,8 @@ importers:
         specifier: ^0.4.0
         version: 0.4.0
       lucide-react:
-        specifier: ^0.408.0
-        version: 0.408.0(react@18.3.1)
+        specifier: ^0.412.0
+        version: 0.412.0(react@18.3.1)
       nanoid:
         specifier: ^5.0.7
         version: 5.0.7
@@ -759,8 +762,8 @@ importers:
         specifier: ^8.4.39
         version: 8.4.39
       postcss-nested:
-        specifier: ^6.0.1
-        version: 6.0.1(postcss@8.4.39)
+        specifier: ^6.2.0
+        version: 6.2.0(postcss@8.4.39)
       tailwindcss:
         specifier: ^3.4.6
         version: 3.4.6
@@ -768,8 +771,8 @@ importers:
         specifier: ^1.0.7
         version: 1.0.7(tailwindcss@3.4.6)
       tsup:
-        specifier: 8.1.2
-        version: 8.1.2(jiti@1.21.6)(postcss@8.4.39)(tsx@4.16.2)(typescript@5.5.3)(yaml@2.4.5)
+        specifier: 8.2.1
+        version: 8.2.1(jiti@1.21.6)(postcss@8.4.39)(tsx@4.16.2)(typescript@5.5.3)(yaml@2.4.5)
       tsx:
         specifier: ^4.16.2
         version: 4.16.2
@@ -789,8 +792,8 @@ importers:
         specifier: ^18
         version: 18.3.1
       tsup:
-        specifier: 8.1.2
-        version: 8.1.2(jiti@1.21.6)(postcss@8.4.39)(tsx@4.16.2)(typescript@5.5.3)(yaml@2.4.5)
+        specifier: 8.2.1
+        version: 8.2.1(jiti@1.21.6)(postcss@8.4.39)(tsx@4.16.2)(typescript@5.5.3)(yaml@2.4.5)
       zod:
         specifier: ^3.23.8
         version: 3.23.8
@@ -830,8 +833,8 @@ importers:
         specifier: 14.2.5
         version: 14.2.5(eslint@8.57.0)(typescript@5.5.3)
       tsup:
-        specifier: 8.1.2
-        version: 8.1.2(jiti@1.21.6)(postcss@8.4.39)(tsx@4.16.2)(typescript@5.5.3)(yaml@2.4.5)
+        specifier: 8.2.1
+        version: 8.2.1(jiti@1.21.6)(postcss@8.4.39)(tsx@4.16.2)(typescript@5.5.3)(yaml@2.4.5)
 
   packages/react-markdown:
     dependencies:
@@ -848,8 +851,8 @@ importers:
         specifier: ^2.5.1
         version: 2.5.1
       lucide-react:
-        specifier: ^0.408.0
-        version: 0.408.0(react@18.3.1)
+        specifier: ^0.412.0
+        version: 0.412.0(react@18.3.1)
       react:
         specifier: ^18
         version: 18.3.1
@@ -885,8 +888,8 @@ importers:
         specifier: ^1.0.7
         version: 1.0.7(tailwindcss@3.4.6)
       tsup:
-        specifier: 8.1.2
-        version: 8.1.2(jiti@1.21.6)(postcss@8.4.39)(tsx@4.16.2)(typescript@5.5.3)(yaml@2.4.5)
+        specifier: 8.2.1
+        version: 8.2.1(jiti@1.21.6)(postcss@8.4.39)(tsx@4.16.2)(typescript@5.5.3)(yaml@2.4.5)
       tsx:
         specifier: ^4.16.2
         version: 4.16.2
@@ -933,8 +936,8 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^0.408.0
-        version: 0.408.0(react@18.3.1)
+        specifier: ^0.412.0
+        version: 0.412.0(react@18.3.1)
       openai:
         specifier: ^4.52.7
         version: 4.52.7
@@ -976,8 +979,8 @@ importers:
         specifier: ^1.0.7
         version: 1.0.7(tailwindcss@3.4.6)
       tsup:
-        specifier: 8.1.2
-        version: 8.1.2(jiti@1.21.6)(postcss@8.4.39)(tsx@4.16.2)(typescript@5.5.3)(yaml@2.4.5)
+        specifier: 8.2.1
+        version: 8.2.1(jiti@1.21.6)(postcss@8.4.39)(tsx@4.16.2)(typescript@5.5.3)(yaml@2.4.5)
       tsx:
         specifier: ^4.16.2
         version: 4.16.2
@@ -1010,8 +1013,8 @@ importers:
         specifier: 14.2.5
         version: 14.2.5(eslint@8.57.0)(typescript@5.5.3)
       tsup:
-        specifier: 8.1.2
-        version: 8.1.2(jiti@1.21.6)(postcss@8.4.39)(tsx@4.16.2)(typescript@5.5.3)(yaml@2.4.5)
+        specifier: 8.2.1
+        version: 8.2.1(jiti@1.21.6)(postcss@8.4.39)(tsx@4.16.2)(typescript@5.5.3)(yaml@2.4.5)
 
   packages/shadcn-registry:
     devDependencies:
@@ -1061,8 +1064,8 @@ importers:
         specifier: ^8
         version: 8.57.0
       lucide-react:
-        specifier: ^0.408.0
-        version: 0.408.0(react@18.3.1)
+        specifier: ^0.412.0
+        version: 0.412.0(react@18.3.1)
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -1124,8 +1127,8 @@ importers:
 
 packages:
 
-  '@ai-sdk/openai@0.0.36':
-    resolution: {integrity: sha512-6IcvR35UMuuQEQPkVjzUtqDAuz6vy+PMCEL0PAS2ufHXdPPm81OTKVetqjgOPjebsikhVP0soK1pKPEe2cztAQ==}
+  '@ai-sdk/openai@0.0.37':
+    resolution: {integrity: sha512-OBhnvptzOEn+jy75vySnhbH5ezidn4WI/yftc0C1MiWkS/m4CmRV9P5zFGKHOgC1vxtw6691gASGYpQbof/JoQ==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.0.0
@@ -1168,8 +1171,29 @@ packages:
       zod:
         optional: true
 
+  '@ai-sdk/react@0.0.25':
+    resolution: {integrity: sha512-79jFOpFRJs0vn9vOTlq0+jSFW8ztTJEXfUYTk+EwCymuGaSdbQQEKEMIDuRpaeOicNjVXZzbkKlQl9bv2l1R/w==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      react: ^18 || ^19
+      zod: ^3.0.0
+    peerDependenciesMeta:
+      react:
+        optional: true
+      zod:
+        optional: true
+
   '@ai-sdk/solid@0.0.17':
     resolution: {integrity: sha512-5T+Yv3VeIwDBbnS8vxYVOVbI410GBn+qmU7On33CBG2Rh7xa8yqTYM33QfuKOrKEs+DFViyMsXkVpy3btsYFSA==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      solid-js: ^1.7.7
+    peerDependenciesMeta:
+      solid-js:
+        optional: true
+
+  '@ai-sdk/solid@0.0.18':
+    resolution: {integrity: sha512-XHPegleEdbTnb+B1dKsYB8E2oauHr3WP4W4VJ/8xYe7gaJK6Tl88Z8dcIo4szSYgAjJGzOsm0Air3vExTEtO6A==}
     engines: {node: '>=18'}
     peerDependencies:
       solid-js: ^1.7.7
@@ -1186,6 +1210,15 @@ packages:
       svelte:
         optional: true
 
+  '@ai-sdk/svelte@0.0.19':
+    resolution: {integrity: sha512-eRBNXUshfwzYm3iaPCIZeV+XHZ0Hkrgj+V0Jy3bGvVzDX0cAs0EAxGPqYFArLFhuEBqiTQrW3QYL540GWYPl6g==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      svelte: ^3.0.0 || ^4.0.0
+    peerDependenciesMeta:
+      svelte:
+        optional: true
+
   '@ai-sdk/ui-utils@0.0.15':
     resolution: {integrity: sha512-NzdAkFPTq+qJ6D1u4VQpyDg2TIF2XeTPTCBZiU8pqP0Mkpj8hMeVKjbRACq0lOXyFNMCvUiLoF05fKuuC0Ak/A==}
     engines: {node: '>=18'}
@@ -1195,8 +1228,26 @@ packages:
       zod:
         optional: true
 
+  '@ai-sdk/ui-utils@0.0.16':
+    resolution: {integrity: sha512-DWPj2gPtY+MfEwxPeUZ/pLlKzfvL2u0p2fZLCYDJhJJgFWkvjvKUejRYH9M5uj8zTkZlwi92Gy+vZ20jto5zwQ==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.0.0
+    peerDependenciesMeta:
+      zod:
+        optional: true
+
   '@ai-sdk/vue@0.0.18':
     resolution: {integrity: sha512-WmxUYyXzFpPr5gyjgFqqoc+JwNZYNUpoKf3XtTjubk0nbJsbQv22Xv+2E1DrsoV8ApJnbSUHUYaq6XU2k8Pcxg==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      vue: ^3.3.4
+    peerDependenciesMeta:
+      vue:
+        optional: true
+
+  '@ai-sdk/vue@0.0.20':
+    resolution: {integrity: sha512-yI1fIy2hjDy2vCTVcs4vatJ/Pn7UDFUynE6RLOH+K1FRwGEOYLmGO7s3Z59YHe4ZJuPQqWZEjG3dYSGyUJUJYg==}
     engines: {node: '>=18'}
     peerDependencies:
       vue: ^3.3.4
@@ -2938,6 +2989,24 @@ packages:
       zod:
         optional: true
 
+  ai@3.2.32:
+    resolution: {integrity: sha512-1TmEY6jkgouP/OYLdt4rBZAUg6mFSfwLPUEwk0D7pLKy3tYB3OYz/XvZ5X8NShG3wNTv7pMzE8znM0vg5RIdoA==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      openai: ^4.42.0
+      react: ^18 || ^19
+      svelte: ^3.0.0 || ^4.0.0
+      zod: ^3.0.0
+    peerDependenciesMeta:
+      openai:
+        optional: true
+      react:
+        optional: true
+      svelte:
+        optional: true
+      zod:
+        optional: true
+
   ajv@6.12.6:
     resolution: {integrity: sha512-j3fVLgvTo527anyYyJOGTYJbG+vnnQYvE0m5mmkc1TK+nxAppkCLMIL0aZ4dblVCNoGShhm+kzE4ZUykBoMg4g==}
 
@@ -3426,23 +3495,23 @@ packages:
   electron-to-chromium@1.4.830:
     resolution: {integrity: sha512-TrPKKH20HeN0J1LHzsYLs2qwXrp8TF4nHdu4sq61ozGbzMpWhI7iIOPYPPkxeq1azMT9PZ8enPFcftbs/Npcjg==}
 
-  embla-carousel-autoplay@8.1.6:
-    resolution: {integrity: sha512-e5n9f4q+DVeBPiPPT3gwzqpiqfae8aP8fQACS4OZkPFvFLdsVhnWcw+cwtewryP7snWJGKPXEMA1GOjieEKv+w==}
+  embla-carousel-autoplay@8.1.7:
+    resolution: {integrity: sha512-UXt1XvCNwzC/Sqd7iU8nYd1CjuDLweIwJClfBL3gVTzHQBVwb68GBBfC/oPFsEeIWNUZe8NO5xDQSI9aTnYO7Q==}
     peerDependencies:
-      embla-carousel: 8.1.6
+      embla-carousel: 8.1.7
 
-  embla-carousel-react@8.1.6:
-    resolution: {integrity: sha512-DHxwFzF63yVrU95Eo58E9Xr5b6Y9ul6TTsqb/rtwMi+jXudAmIqN1i9iBxQ73i8jKuUVxll/ziNYMmnWvrdQJQ==}
+  embla-carousel-react@8.1.7:
+    resolution: {integrity: sha512-ermMKzQ46LhXE4f81VBCVGxCJWvZfsu504dkyiUDO+cnEEPW8NlC2PpKULmiOWugusYWRLhQLjmyQs3b8vvOjA==}
     peerDependencies:
       react: ^16.8.0 || ^17.0.1 || ^18.0.0
 
-  embla-carousel-reactive-utils@8.1.6:
-    resolution: {integrity: sha512-Wg+J2YoqLqkaqsXi7fTJaLmXm6BpgDRJ0EfTdvQ4KE/ip5OsUuKGpJsEQDTt4waGXSDyZhIBlfoQtgGJeyYQ1Q==}
+  embla-carousel-reactive-utils@8.1.7:
+    resolution: {integrity: sha512-FDPcWjNtW04KSuvSfGbVeoB8yl5no3E0++HikO/uW12cNkMnWt68C4OBOakZQZlpUdRQSA9KCYoBuQzfpVGvZQ==}
     peerDependencies:
-      embla-carousel: 8.1.6
+      embla-carousel: 8.1.7
 
-  embla-carousel@8.1.6:
-    resolution: {integrity: sha512-9n7FVsbPAs1KD+JmO84DnEDOZMXPBQbLujjMQqvsBRN2CDWwgZ9hRSNapztdPnyJfzOIxowGmj0BUQ8ACYAPkA==}
+  embla-carousel@8.1.7:
+    resolution: {integrity: sha512-b3kBr2H+S1gx4neki0P+aqN6cA5Ibjqy4CR3Ufi3X+Q3JpoNXJgOmJMSPkoP9DKcDREwADN6UWZzRwF2oo0y9Q==}
 
   emoji-regex@8.0.0:
     resolution: {integrity: sha512-MSjYzcWNOA0ewAHpz0MxpYFvwg6yjy1NG3xteoqz644VCo/RPgnr1/GGt+ic3iJTzQ8Eu3TdM14SawnVUmGE6A==}
@@ -3707,6 +3776,14 @@ packages:
 
   fault@1.0.4:
     resolution: {integrity: sha512-CJ0HCB5tL5fYTEA7ToAq5+kTwd++Borf1/bifxd9iT70QcXr4MRrO3Llf8Ifs70q+SJcGHFtnIE/Nw6giCtECA==}
+
+  fdir@6.1.1:
+    resolution: {integrity: sha512-QfKBVg453Dyn3mr0Q0O+Tkr1r79lOTAKSi9f/Ot4+qVEwxWhav2Z+SudrG9vQjM2aYRMQQZ2/Q1zdA8ACM1pDg==}
+    peerDependencies:
+      picomatch: 3.x
+    peerDependenciesMeta:
+      picomatch:
+        optional: true
 
   fetch-blob@3.2.0:
     resolution: {integrity: sha512-7yAQpD2UMJzLi1Dqv7qFYnPbaPx7ZfFK6PiIxQ4PfkGPyNyl2Ugx+a/umUonmKqjhM4DnfbMvdX6otXq83soQQ==}
@@ -4415,6 +4492,11 @@ packages:
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
+  lucide-react@0.412.0:
+    resolution: {integrity: sha512-m7argY/PhSfjhwP2Dxey+VzFBvusfd8ULt+vWWFnzQhURLOtNyD1qWmMVdtJ4Nn+d+DTcoOiILrjThSjY9kaow==}
+    peerDependencies:
+      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
   magic-string@0.30.10:
     resolution: {integrity: sha512-iIRwTIf0QKV3UAnYK4PU8uiEc4SRh5jX0mwpIwETPpHdhVM4f53RSwS/vXvN1JhGX+Cs7B8qIq3d6AH49O5fAQ==}
 
@@ -4906,6 +4988,10 @@ packages:
     resolution: {integrity: sha512-JU3teHTNjmE2VCGFzuY8EXzCDVwEqB2a8fsIvwaStHhAWJEeVd1o1QD80CU6+ZdEXXSLbSsuLwJjkCBWqRQUVA==}
     engines: {node: '>=8.6'}
 
+  picomatch@4.0.2:
+    resolution: {integrity: sha512-M7BAV6Rlcy5u+m6oPhAPFgJTzAioX/6B0DxyvDlo9l8+T3nLKbrczg2WLUyzd45L8RqfUMyGPzekbMvX2Ldkwg==}
+    engines: {node: '>=12'}
+
   pify@2.3.0:
     resolution: {integrity: sha512-udgsAY+fTnvv7kI7aaxbqwWNb0AHiB0qBO89PZKPkoTmGOgdbrHDKD+0B2X4uTfJ/FT1R09r9gTsjUjNJotuog==}
     engines: {node: '>=0.10.0'}
@@ -4970,6 +5056,12 @@ packages:
 
   postcss-nested@6.0.1:
     resolution: {integrity: sha512-mEp4xPMi5bSWiMbsgoPfcP74lsWLHkQbZc3sY+jWYd65CUwXrUaTp0fmNpa01ZcETKlIgUdFN/MpS2xZtqL9dQ==}
+    engines: {node: '>=12.0'}
+    peerDependencies:
+      postcss: ^8.2.14
+
+  postcss-nested@6.2.0:
+    resolution: {integrity: sha512-HQbt28KulC5AJzG+cZtj9kvKB93CFCdLvog1WFLf1D+xmMvPGlBstkpTEZfK5+AN9hfJocyBFCNiqyS48bpgzQ==}
     engines: {node: '>=12.0'}
     peerDependencies:
       postcss: ^8.2.14
@@ -5644,8 +5736,8 @@ packages:
   tslib@2.6.3:
     resolution: {integrity: sha512-xNvxJEOUiWPGhUuUdQgAJPKOOJfGnIyKySOc09XkKsgdUV/3E2zvwZYdejjmRgPCgcym1juLH3226yA7sEFJKQ==}
 
-  tsup@8.1.2:
-    resolution: {integrity: sha512-Gzw/PXSX/z0aYMNmkcI54bKKFVFJQbLne+EqTJZeQ3lNT3QpumjtMU4rl+ZwTTp8oRF3ahMbEAxT2sZPJLFSrg==}
+  tsup@8.2.1:
+    resolution: {integrity: sha512-ArA/s1GvXbovrnNeTtLphz7D2+OiFVCARviT8RmnWxFdH44dFt8v2tqz54MjJyqZC+QgjKjRuTlWKvC3CkAq3Q==}
     engines: {node: '>=18'}
     hasBin: true
     peerDependencies:
@@ -5668,38 +5760,38 @@ packages:
     engines: {node: '>=18.0.0'}
     hasBin: true
 
-  turbo-darwin-64@2.0.7:
-    resolution: {integrity: sha512-J1RBvQGqKeUwLJrZbfrm4tHshagdMeGAwd7rpLpfUrw0PNmGfcBazJf6dIGXG59/GHzJmS0/eAZ8qDchfVbIFA==}
+  turbo-darwin-64@2.0.9:
+    resolution: {integrity: sha512-owlGsOaExuVGBUfrnJwjkL1BWlvefjSKczEAcpLx4BI7Oh6ttakOi+JyomkPkFlYElRpjbvlR2gP8WIn6M/+xQ==}
     cpu: [x64]
     os: [darwin]
 
-  turbo-darwin-arm64@2.0.7:
-    resolution: {integrity: sha512-h1JK8uuEjoHx1SvvTZiottj+4kDmiv+hivnLUzNwO75qKblMsd38IsFB0J2sMRz7JacFlf+3ry8SItznBW67Xw==}
+  turbo-darwin-arm64@2.0.9:
+    resolution: {integrity: sha512-XAXkKkePth5ZPPE/9G9tTnPQx0C8UTkGWmNGYkpmGgRr8NedW+HrPsi9N0HcjzzIH9A4TpNYvtiV+WcwdaEjKA==}
     cpu: [arm64]
     os: [darwin]
 
-  turbo-linux-64@2.0.7:
-    resolution: {integrity: sha512-dsr7GFeHAYVMnXWDDjhpsAQetejU4OlkNBRA5hfmnIcl2sSyOYa3EvoeJ6j5z5vTNIJ9VO4I1h0jK3lTjEoonA==}
+  turbo-linux-64@2.0.9:
+    resolution: {integrity: sha512-l9wSgEjrCFM1aG16zItBsZ206ZlhSSx1owB8Cgskfv0XyIXRGHRkluihiaxkp+UeU5WoEfz4EN5toc+ICA0q0w==}
     cpu: [x64]
     os: [linux]
 
-  turbo-linux-arm64@2.0.7:
-    resolution: {integrity: sha512-bJbwXvyX1XPzY1jHgkqggls/L4yFyHVK8GGACF3kcg6x7lYV2SXkUYRyOC3WqzW7euqa9Zw/32jrIPP4Qy31Vw==}
+  turbo-linux-arm64@2.0.9:
+    resolution: {integrity: sha512-gRnjxXRne18B27SwxXMqL3fJu7jw/8kBrOBTBNRSmZZiG1Uu3nbnP7b4lgrA/bCku6C0Wligwqurvtpq6+nFHA==}
     cpu: [arm64]
     os: [linux]
 
-  turbo-windows-64@2.0.7:
-    resolution: {integrity: sha512-aBH+5A7IN957MqXMrw8xN0CWtH/fPFL+xTlloO6074Eaa8WfnctSAnaSujm6f4xF2T8lFx+ZprBvnO9oKvLQQQ==}
+  turbo-windows-64@2.0.9:
+    resolution: {integrity: sha512-ZVo0apxUvaRq4Vm1qhsfqKKhtRgReYlBVf9MQvVU1O9AoyydEQvLDO1ryqpXDZWpcHoFxHAQc9msjAMtE5K2lA==}
     cpu: [x64]
     os: [win32]
 
-  turbo-windows-arm64@2.0.7:
-    resolution: {integrity: sha512-ButUCpO5nTi+jyTSIY2mQ9dVz+mCGxJ6sHyn0xGlNoJWdisKXb0BtWCLAjM26gg/yp9Kt1MBowMQyYVruPV0Qw==}
+  turbo-windows-arm64@2.0.9:
+    resolution: {integrity: sha512-sGRz7c5Pey6y7y9OKi8ypbWNuIRPF9y8xcMqL56OZifSUSo+X2EOsOleR9MKxQXVaqHPGOUKWsE6y8hxBi9pag==}
     cpu: [arm64]
     os: [win32]
 
-  turbo@2.0.7:
-    resolution: {integrity: sha512-76iNWZpmKAKjj+yL0Wtcu2LpDIM5Nz7JS3fHOZPYS0AKuC2boJ24276VAiK4PKwbpBB//TYKDpSLuQ6cfR49pg==}
+  turbo@2.0.9:
+    resolution: {integrity: sha512-QaLaUL1CqblSKKPgLrFW3lZWkWG4pGBQNW+q1ScJB5v1D/nFWtsrD/yZljW/bdawg90ihi4/ftQJ3h6fz1FamA==}
     hasBin: true
 
   type-check@0.4.0:
@@ -5975,7 +6067,7 @@ packages:
 
 snapshots:
 
-  '@ai-sdk/openai@0.0.36(zod@3.23.8)':
+  '@ai-sdk/openai@0.0.37(zod@3.23.8)':
     dependencies:
       '@ai-sdk/provider': 0.0.12
       '@ai-sdk/provider-utils': 1.0.2(zod@3.23.8)
@@ -6016,9 +6108,24 @@ snapshots:
       react: 18.3.1
       zod: 3.23.8
 
+  '@ai-sdk/react@0.0.25(react@18.3.1)(zod@3.23.8)':
+    dependencies:
+      '@ai-sdk/provider-utils': 1.0.2(zod@3.23.8)
+      '@ai-sdk/ui-utils': 0.0.16(zod@3.23.8)
+      swr: 2.2.5(react@18.3.1)
+    optionalDependencies:
+      react: 18.3.1
+      zod: 3.23.8
+
   '@ai-sdk/solid@0.0.17(zod@3.23.8)':
     dependencies:
       '@ai-sdk/ui-utils': 0.0.15(zod@3.23.8)
+    transitivePeerDependencies:
+      - zod
+
+  '@ai-sdk/solid@0.0.18(zod@3.23.8)':
+    dependencies:
+      '@ai-sdk/ui-utils': 0.0.16(zod@3.23.8)
     transitivePeerDependencies:
       - zod
 
@@ -6032,7 +6139,24 @@ snapshots:
     transitivePeerDependencies:
       - zod
 
+  '@ai-sdk/svelte@0.0.19(svelte@4.2.18)(zod@3.23.8)':
+    dependencies:
+      '@ai-sdk/provider-utils': 1.0.2(zod@3.23.8)
+      '@ai-sdk/ui-utils': 0.0.16(zod@3.23.8)
+      sswr: 2.1.0(svelte@4.2.18)
+    optionalDependencies:
+      svelte: 4.2.18
+    transitivePeerDependencies:
+      - zod
+
   '@ai-sdk/ui-utils@0.0.15(zod@3.23.8)':
+    dependencies:
+      '@ai-sdk/provider-utils': 1.0.2(zod@3.23.8)
+      secure-json-parse: 2.7.0
+    optionalDependencies:
+      zod: 3.23.8
+
+  '@ai-sdk/ui-utils@0.0.16(zod@3.23.8)':
     dependencies:
       '@ai-sdk/provider-utils': 1.0.2(zod@3.23.8)
       secure-json-parse: 2.7.0
@@ -6043,6 +6167,16 @@ snapshots:
     dependencies:
       '@ai-sdk/provider-utils': 0.0.14(zod@3.23.8)
       '@ai-sdk/ui-utils': 0.0.15(zod@3.23.8)
+      swrv: 1.0.4(vue@3.4.32(typescript@5.5.3))
+    optionalDependencies:
+      vue: 3.4.32(typescript@5.5.3)
+    transitivePeerDependencies:
+      - zod
+
+  '@ai-sdk/vue@0.0.20(vue@3.4.32(typescript@5.5.3))(zod@3.23.8)':
+    dependencies:
+      '@ai-sdk/provider-utils': 0.0.14(zod@3.23.8)
+      '@ai-sdk/ui-utils': 0.0.16(zod@3.23.8)
       swrv: 1.0.4(vue@3.4.32(typescript@5.5.3))
     optionalDependencies:
       vue: 3.4.32(typescript@5.5.3)
@@ -7905,6 +8039,32 @@ snapshots:
       - solid-js
       - vue
 
+  ai@3.2.32(openai@4.52.7)(react@18.3.1)(svelte@4.2.18)(vue@3.4.32(typescript@5.5.3))(zod@3.23.8):
+    dependencies:
+      '@ai-sdk/provider': 0.0.12
+      '@ai-sdk/provider-utils': 1.0.2(zod@3.23.8)
+      '@ai-sdk/react': 0.0.25(react@18.3.1)(zod@3.23.8)
+      '@ai-sdk/solid': 0.0.18(zod@3.23.8)
+      '@ai-sdk/svelte': 0.0.19(svelte@4.2.18)(zod@3.23.8)
+      '@ai-sdk/ui-utils': 0.0.16(zod@3.23.8)
+      '@ai-sdk/vue': 0.0.20(vue@3.4.32(typescript@5.5.3))(zod@3.23.8)
+      '@opentelemetry/api': 1.9.0
+      eventsource-parser: 1.1.2
+      json-schema: 0.4.0
+      jsondiffpatch: 0.6.0
+      nanoid: 3.3.6
+      secure-json-parse: 2.7.0
+      sswr: 2.1.0(svelte@4.2.18)
+      zod-to-json-schema: 3.22.5(zod@3.23.8)
+    optionalDependencies:
+      openai: 4.52.7
+      react: 18.3.1
+      svelte: 4.2.18
+      zod: 3.23.8
+    transitivePeerDependencies:
+      - solid-js
+      - vue
+
   ajv@6.12.6:
     dependencies:
       fast-deep-equal: 3.1.3
@@ -8404,21 +8564,21 @@ snapshots:
 
   electron-to-chromium@1.4.830: {}
 
-  embla-carousel-autoplay@8.1.6(embla-carousel@8.1.6):
+  embla-carousel-autoplay@8.1.7(embla-carousel@8.1.7):
     dependencies:
-      embla-carousel: 8.1.6
+      embla-carousel: 8.1.7
 
-  embla-carousel-react@8.1.6(react@18.3.1):
+  embla-carousel-react@8.1.7(react@18.3.1):
     dependencies:
-      embla-carousel: 8.1.6
-      embla-carousel-reactive-utils: 8.1.6(embla-carousel@8.1.6)
+      embla-carousel: 8.1.7
+      embla-carousel-reactive-utils: 8.1.7(embla-carousel@8.1.7)
       react: 18.3.1
 
-  embla-carousel-reactive-utils@8.1.6(embla-carousel@8.1.6):
+  embla-carousel-reactive-utils@8.1.7(embla-carousel@8.1.7):
     dependencies:
-      embla-carousel: 8.1.6
+      embla-carousel: 8.1.7
 
-  embla-carousel@8.1.6: {}
+  embla-carousel@8.1.7: {}
 
   emoji-regex@8.0.0: {}
 
@@ -8902,6 +9062,10 @@ snapshots:
   fault@1.0.4:
     dependencies:
       format: 0.2.2
+
+  fdir@6.1.1(picomatch@4.0.2):
+    optionalDependencies:
+      picomatch: 4.0.2
 
   fetch-blob@3.2.0:
     dependencies:
@@ -9710,6 +9874,10 @@ snapshots:
     dependencies:
       react: 18.3.1
 
+  lucide-react@0.412.0(react@18.3.1):
+    dependencies:
+      react: 18.3.1
+
   magic-string@0.30.10:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.0
@@ -10485,6 +10653,8 @@ snapshots:
 
   picomatch@2.3.1: {}
 
+  picomatch@4.0.2: {}
+
   pify@2.3.0: {}
 
   pify@4.0.1: {}
@@ -10526,6 +10696,11 @@ snapshots:
       yaml: 2.4.5
 
   postcss-nested@6.0.1(postcss@8.4.39):
+    dependencies:
+      postcss: 8.4.39
+      postcss-selector-parser: 6.1.1
+
+  postcss-nested@6.2.0(postcss@8.4.39):
     dependencies:
       postcss: 8.4.39
       postcss-selector-parser: 6.1.1
@@ -11298,7 +11473,7 @@ snapshots:
 
   tslib@2.6.3: {}
 
-  tsup@8.1.2(jiti@1.21.6)(postcss@8.4.39)(tsx@4.16.2)(typescript@5.5.3)(yaml@2.4.5):
+  tsup@8.2.1(jiti@1.21.6)(postcss@8.4.39)(tsx@4.16.2)(typescript@5.5.3)(yaml@2.4.5):
     dependencies:
       bundle-require: 5.0.0(esbuild@0.23.0)
       cac: 6.7.14
@@ -11307,8 +11482,10 @@ snapshots:
       debug: 4.3.5
       esbuild: 0.23.0
       execa: 5.1.1
-      globby: 11.1.0
+      fdir: 6.1.1(picomatch@4.0.2)
       joycon: 3.1.1
+      picocolors: 1.0.1
+      picomatch: 4.0.2
       postcss-load-config: 6.0.1(jiti@1.21.6)(postcss@8.4.39)(tsx@4.16.2)(yaml@2.4.5)
       resolve-from: 5.0.0
       rollup: 4.18.1
@@ -11331,32 +11508,32 @@ snapshots:
     optionalDependencies:
       fsevents: 2.3.3
 
-  turbo-darwin-64@2.0.7:
+  turbo-darwin-64@2.0.9:
     optional: true
 
-  turbo-darwin-arm64@2.0.7:
+  turbo-darwin-arm64@2.0.9:
     optional: true
 
-  turbo-linux-64@2.0.7:
+  turbo-linux-64@2.0.9:
     optional: true
 
-  turbo-linux-arm64@2.0.7:
+  turbo-linux-arm64@2.0.9:
     optional: true
 
-  turbo-windows-64@2.0.7:
+  turbo-windows-64@2.0.9:
     optional: true
 
-  turbo-windows-arm64@2.0.7:
+  turbo-windows-arm64@2.0.9:
     optional: true
 
-  turbo@2.0.7:
+  turbo@2.0.9:
     optionalDependencies:
-      turbo-darwin-64: 2.0.7
-      turbo-darwin-arm64: 2.0.7
-      turbo-linux-64: 2.0.7
-      turbo-linux-arm64: 2.0.7
-      turbo-windows-64: 2.0.7
-      turbo-windows-arm64: 2.0.7
+      turbo-darwin-64: 2.0.9
+      turbo-darwin-arm64: 2.0.9
+      turbo-linux-64: 2.0.9
+      turbo-linux-arm64: 2.0.9
+      turbo-windows-64: 2.0.9
+      turbo-windows-arm64: 2.0.9
 
   type-check@0.4.0:
     dependencies:

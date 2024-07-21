@@ -45,7 +45,7 @@
   "devDependencies": {
     "@assistant-ui/tsconfig": "workspace:*",
     "eslint-config-next": "14.2.5",
-    "tsup": "8.1.2"
+    "tsup": "8.2.1"
   },
   "publishConfig": {
     "access": "public",
