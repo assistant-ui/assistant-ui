@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.6
+
+### Patch Changes
+
+- e5e6b20: feat(runtime): BranchPicker feature detection
+
 ## 0.5.5
 
 ### Patch Changes

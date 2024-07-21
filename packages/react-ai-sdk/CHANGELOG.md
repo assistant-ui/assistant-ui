@@ -1,5 +1,13 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.5.6
+
+### Patch Changes
+
+- e5e6b20: feat(runtime): BranchPicker feature detection
+- Updated dependencies [e5e6b20]
+  - @assistant-ui/react@0.5.6
+
 ## 0.5.5
 
 ### Patch Changes

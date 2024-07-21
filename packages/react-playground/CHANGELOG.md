@@ -1,5 +1,13 @@
 # @assistant-ui/react-playground
 
+## 0.0.3
+
+### Patch Changes
+
+- e5e6b20: feat(runtime): BranchPicker feature detection
+- Updated dependencies [e5e6b20]
+  - @assistant-ui/react@0.5.6
+
 ## 0.0.2
 
 ### Patch Changes
