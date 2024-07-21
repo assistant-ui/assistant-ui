@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.4
+
+### Patch Changes
+
+- f2d7590: fix(rsc): hide copy message button
+
 ## 0.5.3
 
 ### Patch Changes

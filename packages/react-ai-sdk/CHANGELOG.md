@@ -1,5 +1,13 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.5.4
+
+### Patch Changes
+
+- f2d7590: fix(rsc): hide copy message button
+- Updated dependencies [f2d7590]
+  - @assistant-ui/react@0.5.4
+
 ## 0.5.3
 
 ### Patch Changes
