@@ -14,14 +14,19 @@ type ExternalStoreAdapterBase<T> = {
   threadId?: string;
   isRunning?: boolean;
   messages: T[];
-  setMessages?: (messages: T[]) => void;
+  setMessages?: ((messages: T[]) => void) | undefined;
   onNew: (message: AppendMessage) => Promise<void>;
   onEdit?: ((message: AppendMessage) => Promise<void>) | undefined;
   onReload?: ((parentId: string | null) => Promise<void>) | undefined;
   onCancel?: (() => Promise<void>) | undefined;
-  onNewThread?: () => Promise<void> | void;
-  onAddToolResult?: (options: AddToolResultOptions) => Promise<void> | void;
-  onSwitchThread?: (threadId: string | null) => Promise<void> | void;
+  onCopy?: (() => Promise<void>) | null | undefined;
+  onNewThread?: (() => Promise<void> | void) | undefined;
+  onAddToolResult?:
+    | ((options: AddToolResultOptions) => Promise<void> | void)
+    | undefined;
+  onSwitchThread?:
+    | ((threadId: string | null) => Promise<void> | void)
+    | undefined;
   convertMessage?: ExternalStoreMessageConverter<T> | undefined;
 };
 

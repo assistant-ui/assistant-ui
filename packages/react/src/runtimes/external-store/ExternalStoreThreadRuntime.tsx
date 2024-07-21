@@ -28,7 +28,7 @@ export class ExternalStoreThreadRuntime implements ReactThreadRuntime {
       edit: this.store.onEdit !== undefined,
       reload: this.store.onReload !== undefined,
       cancel: this.store.onCancel !== undefined,
-      copy: true,
+      copy: this.store.onCopy !== null,
     };
   }
 
