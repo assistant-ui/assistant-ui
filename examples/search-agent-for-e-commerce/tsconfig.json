@@ -9,7 +9,7 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"],
+      "@/*": ["./src/*"],
       "@assistant-ui/*": ["../../packages/*/src"],
       "@assistant-ui/react/*": ["../../packages/react/src/*"]
     },
