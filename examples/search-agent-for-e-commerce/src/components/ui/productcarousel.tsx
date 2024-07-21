@@ -53,15 +53,6 @@ const productPriceStyle = {
   marginTop: "0.5rem",
 };
 
-const actionGroupStyle = {
-  marginTop: "0.5rem",
-};
-
-const seeMoreProductsStyle = {
-  marginTop: "1rem",
-  cursor: "pointer",
-};
-
 export function CarouselPlugin({ products }: ProductCarouselProps) {
   const plugin = React.useRef(
     Autoplay({ delay: 2000, stopOnInteraction: true }),
@@ -94,6 +85,7 @@ export function CarouselPlugin({ products }: ProductCarouselProps) {
                         data-intent="product_search"
                         data-order={index}
                       >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           className="img-fluid mb-3"
                           src={product.thumbnail}
