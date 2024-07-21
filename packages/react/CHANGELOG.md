@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.5
+
+### Patch Changes
+
+- f26783a: feat(ui): allow ReactNode in SuggestionConfig.text
+
 ## 0.5.4
 
 ### Patch Changes

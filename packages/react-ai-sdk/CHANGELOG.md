@@ -1,5 +1,13 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.5.5
+
+### Patch Changes
+
+- cb74cac: fix: move tsup dependency to devDependencies
+- Updated dependencies [f26783a]
+  - @assistant-ui/react@0.5.5
+
 ## 0.5.4
 
 ### Patch Changes
