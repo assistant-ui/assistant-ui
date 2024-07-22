@@ -2,6 +2,7 @@
   "name": "@assistant-ui/monorepo",
   "private": true,
   "scripts": {
+    "docs:dev": "pnpm --filter=@assistant-ui/docs dev",
     "ci:version": "changeset version && pnpm install --no-frozen-lockfile",
     "ci:publish": "turbo build && changeset publish"
   },
