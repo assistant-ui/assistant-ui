@@ -17,6 +17,7 @@ const convertMessage = (message: MyMessage): ThreadMessage => {
     id: message.id,
     role: message.role,
     content: [{ type: "text", text: message.text }],
+    createdAt: message.createdAt,
   };
 };
 
