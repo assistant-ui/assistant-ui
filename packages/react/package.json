@@ -29,7 +29,7 @@
     "conversational-ui",
     "conversational-ai"
   ],
-  "version": "0.5.7",
+  "version": "0.5.8",
   "license": "MIT",
   "exports": {
     ".": {
@@ -73,6 +73,7 @@
   "files": [
     "dist",
     "edge",
+    "tailwindcss",
     "README.md"
   ],
   "sideEffects": false,
