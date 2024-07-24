@@ -1,7 +1,10 @@
 import Editor from "react-simple-code-editor";
-import { highlight, languages } from "prismjs";
+import Prism from "prismjs";
 import { FC } from "react";
 import { cn } from "../../../lib/utils";
+
+// TODO identify cause: using ESM imports of prism does not work for some users
+const { highlight, languages } = Prism;
 
 // https://github.com/react-simple-code-editor/react-simple-code-editor/issues/106
 const EditorComponent =
