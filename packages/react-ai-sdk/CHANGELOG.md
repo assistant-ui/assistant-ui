@@ -1,5 +1,13 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.5.7
+
+### Patch Changes
+
+- a216fbf: chore: update deps
+- Updated dependencies [a216fbf]
+  - @assistant-ui/react@0.5.9
+
 ## 0.5.6
 
 ### Patch Changes

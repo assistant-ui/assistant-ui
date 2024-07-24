@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.9
+
+### Patch Changes
+
+- a216fbf: chore: update deps
+
 ## 0.5.6
 
 ### Patch Changes
