@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^0.0.37",
+    "@ai-sdk/openai": "^0.0.38",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-playground": "workspace:*",
     "next": "14.2.5",
