@@ -23,31 +23,30 @@ const getIsLast = (messages: ThreadMessagesState, message: ThreadMessage) => {
   return messages[messages.length - 1]?.id === message.id;
 };
 
-const syncMessage = (
+const getMessageState = (
   messages: ThreadMessagesState,
   getBranches: (messageId: string) => readonly string[],
-  useMessage: MessageContextValue["useMessage"],
+  useMessage: MessageContextValue["useMessage"] | undefined,
   messageIndex: number,
 ) => {
   const parentId = messages[messageIndex - 1]?.id ?? null;
-  const message = messages[messageIndex];
-  if (!message) return;
+  const message = messages[messageIndex]!;
 
   const isLast = getIsLast(messages, message);
   const branches = getBranches(message.id);
 
   // if the message is the same, don't update
-  const currentState = useMessage.getState();
+  const currentState = useMessage?.getState();
   if (
+    currentState &&
     currentState.message === message &&
     currentState.parentId === parentId &&
     currentState.branches === branches &&
     currentState.isLast === isLast
   )
-    return;
+    return null;
 
-  // sync useMessage
-  (useMessage as unknown as StoreApi<MessageState>).setState({
+  return Object.freeze({
     message,
     parentId,
     branches,
@@ -59,7 +58,15 @@ const useMessageContext = (messageIndex: number) => {
   const { useThreadMessages, useThreadActions } = useThreadContext();
 
   const [context] = useState<MessageContextValue>(() => {
-    const useMessage = create<MessageState>(() => ({}) as MessageState);
+    const useMessage = create<MessageState>(
+      () =>
+        getMessageState(
+          useThreadMessages.getState(),
+          useThreadActions.getState().getBranches,
+          undefined,
+          messageIndex,
+        )!,
+    );
     const useMessageUtils = makeMessageUtilsStore();
     const useEditComposer = makeEditComposerStore({
       onEdit: () => {
@@ -92,25 +99,27 @@ const useMessageContext = (messageIndex: number) => {
       },
     });
 
-    syncMessage(
-      useThreadMessages.getState(),
-      useThreadActions.getState().getBranches,
-      useMessage,
-      messageIndex,
-    );
-
     return { useMessage, useMessageUtils, useEditComposer };
   });
 
   useEffect(() => {
-    return useThreadMessages.subscribe((thread) => {
-      syncMessage(
+    const syncMessage = (thread: ThreadMessagesState) => {
+      const newState = getMessageState(
         thread,
         useThreadActions.getState().getBranches,
         context.useMessage,
         messageIndex,
       );
-    });
+      if (!newState) return;
+      (context.useMessage as unknown as StoreApi<MessageState>).setState(
+        newState,
+        true,
+      );
+    };
+
+    syncMessage(useThreadMessages.getState());
+
+    return useThreadMessages.subscribe(syncMessage);
   }, [useThreadMessages, useThreadActions, context, messageIndex]);
 
   return context;

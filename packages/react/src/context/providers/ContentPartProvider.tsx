@@ -53,9 +53,9 @@ const toContentPartStatus = (
 
 const EMPTY_CONTENT = Object.freeze({ type: "text", text: "" });
 
-const syncContentPart = (
+const getContentPartState = (
   { message }: MessageState,
-  useContentPart: ContentPartContextValue["useContentPart"],
+  useContentPart: ContentPartContextValue["useContentPart"] | undefined,
   partIndex: number,
 ) => {
   let part = message.content[partIndex];
@@ -70,35 +70,44 @@ const syncContentPart = (
 
   // if the content part is the same, don't update
   const status = toContentPartStatus(message, partIndex, part);
-  const currentState = useContentPart.getState();
-  if (currentState.part === part && currentState.status === status) return;
+  const currentState = useContentPart?.getState();
+  if (
+    currentState &&
+    currentState.part === part &&
+    currentState.status === status
+  )
+    return null;
 
-  // sync useContentPart
-  (useContentPart as unknown as StoreApi<ContentPartState>).setState(
-    Object.freeze({
-      part,
-      status,
-    }),
-  );
+  return Object.freeze({ part, status });
 };
 
 const useContentPartContext = (partIndex: number) => {
   const { useMessage } = useMessageContext();
   const [context] = useState<ContentPartContextValue>(() => {
     const useContentPart = create<ContentPartState>(
-      () => ({}) as ContentPartState,
+      () => getContentPartState(useMessage.getState(), undefined, partIndex)!,
     );
 
-    syncContentPart(useMessage.getState(), useContentPart, partIndex);
+    getContentPartState(useMessage.getState(), useContentPart, partIndex);
 
     return { useContentPart };
   });
 
   useEffect(() => {
-    syncContentPart(useMessage.getState(), context.useContentPart, partIndex);
-    return useMessage.subscribe((message) => {
-      syncContentPart(message, context.useContentPart, partIndex);
-    });
+    const syncContentPart = (message: MessageState) => {
+      const newState = getContentPartState(
+        message,
+        context.useContentPart,
+        partIndex,
+      );
+      if (!newState) return;
+      (
+        context.useContentPart as unknown as StoreApi<ContentPartState>
+      ).setState(newState, true);
+    };
+
+    syncContentPart(useMessage.getState());
+    return useMessage.subscribe(syncContentPart);
   }, [context, useMessage, partIndex]);
 
   return context;
