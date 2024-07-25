@@ -1,7 +1,44 @@
 import plugin from "tailwindcss/plugin";
 
+type AssistantTailwindPluginColors = {
+  border: string;
+  input: string;
+  ring: string;
+  background: string;
+  foreground: string;
+  primary: {
+    DEFAULT: string;
+    foreground: string;
+  };
+  secondary: {
+    DEFAULT: string;
+    foreground: string;
+  };
+  destructive: {
+    DEFAULT: string;
+    foreground: string;
+  };
+  muted: {
+    DEFAULT: string;
+    foreground: string;
+  };
+  accent: {
+    DEFAULT: string;
+    foreground: string;
+  };
+  popover: {
+    DEFAULT: string;
+    foreground: string;
+  };
+  card: {
+    DEFAULT: string;
+    foreground: string;
+  };
+};
+
 type AssisstantTailwindPluginOptions = {
   components?: ("default-theme" | "base" | "thread" | "assistant-modal")[];
+  colors?: AssistantTailwindPluginColors;
   shadcn?: boolean;
 };
 
@@ -41,45 +78,62 @@ const auiPlugin = plugin.withOptions<AssisstantTailwindPluginOptions>(
         });
       }
     },
-  ({ shadcn = false } = {}) => {
+  ({ shadcn = false, colors = {} } = {}) => {
     const prefix = !shadcn ? "--aui-" : "--";
     return {
       theme: {
         extend: {
           colors: {
             aui: {
-              border: `hsl(var(${prefix}border))`,
-              input: `hsl(var(${prefix}input))`,
-              ring: `hsl(var(${prefix}ring))`,
-              background: `hsl(var(${prefix}background))`,
-              foreground: `hsl(var(${prefix}foreground))`,
+              border: colors.border ?? `hsl(var(${prefix}border))`,
+              input: colors.input ?? `hsl(var(${prefix}input))`,
+              ring: colors.ring ?? `hsl(var(${prefix}ring))`,
+              background: colors.background ?? `hsl(var(${prefix}background))`,
+              foreground: colors.foreground ?? `hsl(var(${prefix}foreground))`,
               primary: {
-                DEFAULT: `hsl(var(${prefix}primary))`,
-                foreground: `hsl(var(${prefix}primary-foreground))`,
+                DEFAULT:
+                  colors.primary?.DEFAULT ?? `hsl(var(${prefix}primary))`,
+                foreground:
+                  colors.primary?.foreground ??
+                  `hsl(var(${prefix}primary-foreground))`,
               },
               secondary: {
-                DEFAULT: `hsl(var(${prefix}secondary))`,
-                foreground: `hsl(var(${prefix}secondary-foreground))`,
+                DEFAULT:
+                  colors.secondary?.DEFAULT ?? `hsl(var(${prefix}secondary))`,
+                foreground:
+                  colors.secondary?.foreground ??
+                  `hsl(var(${prefix}secondary-foreground))`,
               },
               destructive: {
-                DEFAULT: `hsl(var(${prefix}destructive))`,
+                DEFAULT:
+                  colors.destructive?.DEFAULT ??
+                  `hsl(var(${prefix}destructive))`,
                 foreground: `hsl(var(${prefix}destructive-foreground))`,
               },
               muted: {
                 DEFAULT: `hsl(var(${prefix}muted))`,
-                foreground: `hsl(var(${prefix}muted-foreground))`,
+                foreground:
+                  colors.muted?.foreground ??
+                  `hsl(var(${prefix}muted-foreground))`,
               },
               accent: {
-                DEFAULT: `hsl(var(${prefix}accent))`,
-                foreground: `hsl(var(${prefix}accent-foreground))`,
+                DEFAULT: colors.accent?.DEFAULT ?? `hsl(var(${prefix}accent))`,
+                foreground:
+                  colors.accent?.foreground ??
+                  `hsl(var(${prefix}accent-foreground))`,
               },
               popover: {
-                DEFAULT: `hsl(var(${prefix}popover))`,
-                foreground: `hsl(var(${prefix}popover-foreground))`,
+                DEFAULT:
+                  colors.popover?.DEFAULT ?? `hsl(var(${prefix}popover))`,
+                foreground:
+                  colors.popover?.foreground ??
+                  `hsl(var(${prefix}popover-foreground))`,
               },
               card: {
-                DEFAULT: `hsl(var(${prefix}card))`,
-                foreground: `hsl(var(${prefix}card-foreground))`,
+                DEFAULT: colors.card?.DEFAULT ?? `hsl(var(${prefix}card))`,
+                foreground:
+                  colors.card?.foreground ??
+                  `hsl(var(${prefix}card-foreground))`,
               },
             },
           },
