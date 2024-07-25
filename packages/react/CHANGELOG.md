@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.11
+
+### Patch Changes
+
+- fc6bc35: feat: initialMessages SSR support
+
 ## 0.5.10
 
 ### Patch Changes
