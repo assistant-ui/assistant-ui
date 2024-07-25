@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.10
+
+### Patch Changes
+
+- 1c6bf72: feat(tailwindcss): allow customizing colors directly in tailwind config
+
 ## 0.5.9
 
 ### Patch Changes
