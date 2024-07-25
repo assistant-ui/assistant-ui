@@ -1,5 +1,11 @@
 # @assistant-ui/react-playground
 
+## 0.0.8
+
+### Patch Changes
+
+- 209939d: fix: message text content textarea initial size
+
 ## 0.0.6
 
 ### Patch Changes
