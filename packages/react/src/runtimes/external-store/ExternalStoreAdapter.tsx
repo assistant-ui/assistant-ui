@@ -1,10 +1,11 @@
 import { AddToolResultOptions } from "../../context";
 import { AppendMessage, ThreadMessage } from "../../types";
+import { ThreadMessageLike } from "./ThreadMessageLike";
 
 export type ExternalStoreMessageConverter<T> = (
   message: T,
   idx: number,
-) => ThreadMessage;
+) => ThreadMessageLike;
 
 type ExternalStoreMessageConverterAdapter<T> = {
   convertMessage: ExternalStoreMessageConverter<T>;
