@@ -1,5 +1,11 @@
 # @assistant-ui/react-playground
 
+## 0.0.6
+
+### Patch Changes
+
+- c8211c1: feat: @tailwindcss/forms compat
+
 ## 0.0.5
 
 ### Patch Changes

@@ -1,5 +1,12 @@
 # @assistant-ui/react-markdown
 
+## 0.2.4
+
+### Patch Changes
+
+- 6fdbf47: feat: by_language API
+- 6fdbf47: fix: handle non-string code content
+
 ## 0.2.3
 
 ### Patch Changes
