@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.12
+
+### Patch Changes
+
+- 8688a9f: feat(runtimes/external-store): loosen the return type for convertMessage callback
+
 ## 0.5.11
 
 ### Patch Changes
