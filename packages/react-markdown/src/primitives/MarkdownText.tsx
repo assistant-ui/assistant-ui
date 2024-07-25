@@ -8,7 +8,7 @@ import { PreOverride } from "../overrides/PreOverride";
 import {
   DefaultPre,
   DefaultCode,
-  DefaultSyntaxHighlighter,
+  DefaultCodeBlockContent,
   DefaultCodeHeader,
 } from "../overrides/defaultComponents";
 import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
@@ -23,6 +23,13 @@ export type MarkdownTextPrimitiveProps = Omit<
   components?: NonNullable<Options["components"]> & {
     SyntaxHighlighter?: ComponentType<SyntaxHighlighterProps>;
     CodeHeader?: ComponentType<CodeHeaderProps>;
+    by_language?: Record<
+      string,
+      {
+        CodeHeader?: ComponentType<CodeHeaderProps>;
+        SyntaxHighlighter?: ComponentType<SyntaxHighlighterProps>;
+      }
+    >;
   };
   smooth?: boolean;
 };
@@ -39,8 +46,9 @@ export const MarkdownTextPrimitive: FC<MarkdownTextPrimitiveProps> = ({
   const {
     pre = DefaultPre,
     code = DefaultCode,
-    SyntaxHighlighter = DefaultSyntaxHighlighter,
+    SyntaxHighlighter = DefaultCodeBlockContent,
     CodeHeader = DefaultCodeHeader,
+    by_language,
     ...componentsRest
   } = userComponents ?? {};
   const components: typeof userComponents = {
@@ -48,7 +56,13 @@ export const MarkdownTextPrimitive: FC<MarkdownTextPrimitiveProps> = ({
     pre: PreOverride,
     code: useCallbackRef((props) => (
       <CodeOverride
-        components={{ Pre: pre, Code: code, SyntaxHighlighter, CodeHeader }}
+        components={{
+          Pre: pre,
+          Code: code,
+          SyntaxHighlighter,
+          CodeHeader,
+          by_language,
+        }}
         {...props}
       />
     )),
