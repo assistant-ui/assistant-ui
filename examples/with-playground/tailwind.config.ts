@@ -11,7 +11,10 @@ const config = {
   ],
   plugins: [
     require("tailwindcss-animate"),
-    require("@assistant-ui/react/tailwindcss")({ components: ["default-theme"] }),
+    require("@tailwindcss/forms"),
+    require("@assistant-ui/react/tailwindcss")({
+      components: ["default-theme"],
+    }),
   ],
 } satisfies Config;
 

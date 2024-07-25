@@ -12,6 +12,7 @@
     "@ai-sdk/openai": "^0.0.38",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-playground": "workspace:*",
+    "@tailwindcss/forms": "^0.5.7",
     "next": "14.2.5",
     "prismjs": "^1.29.0",
     "react": "^18",

@@ -22,7 +22,7 @@ export const Text: TextContentPartComponent = ({ part }) => {
 
   return (
     <TextareaAutosize
-      className="w-full resize-none outline-none"
+      className="w-full resize-none border-none p-0 outline-none focus:ring-0"
       onChange={handleChange}
       value={part.text}
     />

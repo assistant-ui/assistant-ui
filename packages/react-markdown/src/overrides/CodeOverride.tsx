@@ -6,7 +6,7 @@ import {
   PreComponent,
   SyntaxHighlighterProps,
 } from "./types";
-import { CodeBlockProps, DefaultCodeBlock } from "./CodeBlock";
+import { DefaultCodeBlock } from "./CodeBlock";
 import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
 import { withDefaultProps } from "./withDefaults";
 import { DefaultCodeBlockContent } from "./defaultComponents";

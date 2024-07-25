@@ -154,7 +154,7 @@ const Composer: FC = () => {
         autoFocus
         placeholder="Write a message..."
         rows={1}
-        className="placeholder:text-aui-muted-foreground size-full max-h-40 resize-none bg-transparent p-4 pr-24 text-sm outline-none"
+        className="placeholder:text-aui-muted-foreground size-full max-h-40 resize-none border-none bg-transparent p-4 pr-24 text-sm outline-none focus:ring-0"
         onKeyDown={handleKeyDown}
       />
       <div className="mx-3 mb-3 mt-0 flex items-end gap-2">
