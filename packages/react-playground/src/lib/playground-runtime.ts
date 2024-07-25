@@ -21,6 +21,7 @@ import {
   INTERNAL,
   AssistantRuntime,
   ChatModelRunResult,
+  CoreMessage,
 } from "@assistant-ui/react";
 import { useState } from "react";
 import { create } from "zustand";
@@ -48,9 +49,15 @@ class PlaygroundRuntime
     typeof ProxyConfigProvider
   >;
 
-  constructor(initialMessages: ThreadMessage[], adapter: ChatModelAdapter) {
+  constructor(initialMessages: CoreMessage[], adapter: ChatModelAdapter) {
     const cp = new ProxyConfigProvider();
-    super(new PlaygroundThreadRuntime(cp, initialMessages, adapter));
+    super(
+      new PlaygroundThreadRuntime(
+        cp,
+        fromCoreMessages(initialMessages),
+        adapter,
+      ),
+    );
     this._proxyConfigProvider = cp;
   }
 
@@ -457,7 +464,7 @@ export const usePlaygroundRuntime = ({
   initialMessages,
   ...runtimeOptions
 }: EdgeRuntimeOptions & {
-  initialMessages: ThreadMessage[];
+  initialMessages: CoreMessage[];
 }) => {
   const [runtime] = useState(
     () =>
