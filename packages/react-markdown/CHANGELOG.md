@@ -1,5 +1,11 @@
 # @assistant-ui/react-markdown
 
+## 0.2.5
+
+### Patch Changes
+
+- 5114a8f: feat: useIsMarkdownCodeBlock hook
+
 ## 0.2.4
 
 ### Patch Changes
