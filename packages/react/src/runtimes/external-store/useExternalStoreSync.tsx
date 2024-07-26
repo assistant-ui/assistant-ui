@@ -6,7 +6,7 @@ import {
 } from "./ThreadMessageConverter";
 import { ThreadMessage } from "../../types";
 import { symbolInnerMessage } from "./getExternalStoreMessage";
-import { getAutoStatus, isAutoStatus } from "./auto-status";
+import { getAutoStatus } from "./auto-status";
 import { fromThreadMessageLike } from "./ThreadMessageLike";
 
 type UpdateDataCallback = (
@@ -32,15 +32,8 @@ export const useExternalStoreSync = <T extends WeakKey>(
         adapterRef.current.isRunning ?? false,
       );
 
-      if (
-        cache &&
-        (cache.role !== "assistant" ||
-          !isAutoStatus(cache.status) ||
-          cache.status.type === autoStatus.type)
-      )
+      if (cache && (cache.role !== "assistant" || cache.status === autoStatus))
         return cache;
-
-      if (cache) return cache;
 
       const newMessage = fromThreadMessageLike(
         converter(m, idx),
