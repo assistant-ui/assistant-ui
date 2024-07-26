@@ -1,5 +1,13 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.5.8
+
+### Patch Changes
+
+- 461bf80: feat(rsc): isRunning support
+- Updated dependencies [0418c73]
+  - @assistant-ui/react@0.5.15
+
 ## 0.5.7
 
 ### Patch Changes

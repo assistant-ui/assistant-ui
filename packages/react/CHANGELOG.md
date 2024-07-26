@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.15
+
+### Patch Changes
+
+- 0418c73: fix(runtimes/external-store): invalidate cache when isRunning changes during autoStatus
+
 ## 0.5.12
 
 ### Patch Changes
