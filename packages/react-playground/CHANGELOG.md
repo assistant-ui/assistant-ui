@@ -1,5 +1,11 @@
 # @assistant-ui/react-playground
 
+## 0.0.10
+
+### Patch Changes
+
+- 02e0152: refactor: make view payload / reset buttons less prominent
+
 ## 0.0.8
 
 ### Patch Changes
