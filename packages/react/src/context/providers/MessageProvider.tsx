@@ -30,7 +30,8 @@ const getMessageState = (
   messageIndex: number,
 ) => {
   const parentId = messages[messageIndex - 1]?.id ?? null;
-  const message = messages[messageIndex]!;
+  const message = messages[messageIndex];
+  if (!message) return null;
 
   const isLast = getIsLast(messages, message);
   const branches = getBranches(message.id);
