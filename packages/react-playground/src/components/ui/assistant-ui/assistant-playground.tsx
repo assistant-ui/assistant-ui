@@ -198,7 +198,8 @@ const APIKeyInput: FC = () => {
     <div className="flex flex-col gap-2">
       <label>Provider API Key</label>
       <Input
-        placeholder="Enter your OpenAI API key"
+        placeholder="Enter your provider API key"
+        type="password"
         value={value}
         onChange={setValue}
       />
