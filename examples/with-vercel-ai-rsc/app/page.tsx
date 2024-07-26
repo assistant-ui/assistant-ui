@@ -10,6 +10,7 @@ import {
   AssistantRuntimeProvider,
 } from "@assistant-ui/react";
 import { useVercelRSCRuntime } from "@assistant-ui/react-ai-sdk";
+import { useState } from "react";
 
 export default function Home() {
   return (
@@ -23,6 +24,7 @@ export default function Home() {
 
 const MyRuntimeProvider = ({ children }: { children: React.ReactNode }) => {
   const { continueConversation } = useActions();
+  const [isRunning, setIsRunning] = useState(false);
   const [messages, setMessages] = useUIState<typeof AI>();
 
   const onNew = async (m: AppendMessage) => {
@@ -35,12 +37,16 @@ const MyRuntimeProvider = ({ children }: { children: React.ReactNode }) => {
       { id: nanoid(), role: "user", display: input },
     ]);
 
-    const message = await continueConversation(input);
-
-    setMessages((currentConversation) => [...currentConversation, message]);
+    try {
+      setIsRunning(true);
+      const message = await continueConversation(input);
+      setMessages((currentConversation) => [...currentConversation, message]);
+    } finally {
+      setIsRunning(false);
+    }
   };
 
-  const runtime = useVercelRSCRuntime({ messages, onNew });
+  const runtime = useVercelRSCRuntime({ messages, isRunning, onNew });
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>

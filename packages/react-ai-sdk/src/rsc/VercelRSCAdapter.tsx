@@ -7,7 +7,9 @@ type RSCMessageConverter<T> = {
 };
 
 type VercelRSCAdapterBase<T> = {
+  isRunning: boolean;
   messages: T[];
+
   onNew?: (message: AppendMessage) => Promise<void>;
   onEdit?: ((message: AppendMessage) => Promise<void>) | undefined;
   onReload?: ((parentId: string | null) => Promise<void>) | undefined;

@@ -29,6 +29,7 @@ export const useVercelRSCRuntime = <T extends WeakKey>(
   if (!onNew)
     throw new Error("You must pass a onNew function to useVercelRSCRuntime");
   const eAdapter: ExternalStoreAdapter<any> = {
+    isRunning: adapter.isRunning,
     messages: adapter.messages,
     onNew,
     onEdit: adapter.onEdit ?? adapter.edit,
