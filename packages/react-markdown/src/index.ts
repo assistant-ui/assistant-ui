@@ -8,6 +8,8 @@ export type {
   SyntaxHighlighterProps,
 } from "./overrides/types";
 
+export { useIsMarkdownCodeBlock } from "./overrides/PreOverride";
+
 export {
   makeMarkdownText,
   type MakeMarkdownTextProps,

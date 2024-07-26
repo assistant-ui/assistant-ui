@@ -3,6 +3,7 @@
 import {
   CodeHeaderProps,
   MarkdownTextPrimitive,
+  useIsMarkdownCodeBlock,
 } from "@assistant-ui/react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeKatex from "rehype-katex";
@@ -155,11 +156,21 @@ const MarkdownTextImpl = () => {
             {...props}
           />
         ),
-        code: ({ node, className, ...props }) => {
+        pre: ({ node, className, ...props }) => (
+          <pre
+            className={cn(
+              "overflow-x-auto rounded-b-lg bg-black p-4 text-white",
+              className,
+            )}
+            {...props}
+          />
+        ),
+        code: function Code({ node, className, ...props }) {
+          const isCodeBlock = useIsMarkdownCodeBlock();
           return (
             <code
               className={cn(
-                "overflow-x-auto rounded-b-lg bg-black p-4 text-white",
+                !isCodeBlock && "bg-aui-muted rounded border font-semibold",
                 className,
               )}
               {...props}
