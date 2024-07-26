@@ -22,9 +22,9 @@ export type ThreadMessageLike = {
     | CoreToolCallContentPart<any, any>
     | UIContentPart
   )[];
-  id?: string;
-  createdAt?: Date;
-  status?: MessageStatus;
+  id?: string | undefined;
+  createdAt?: Date | undefined;
+  status?: MessageStatus | undefined;
 };
 
 export const fromThreadMessageLike = (

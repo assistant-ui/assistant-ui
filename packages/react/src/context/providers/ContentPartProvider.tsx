@@ -64,7 +64,7 @@ const getContentPartState = (
     if (message.content.length === 0 && partIndex === 0) {
       part = EMPTY_CONTENT;
     } else {
-      return;
+      return null;
     }
   }
 

@@ -2,7 +2,6 @@
 
 import { openai } from "@ai-sdk/openai";
 import { createAI, getMutableAIState, streamUI } from "ai/rsc";
-import { nanoid } from "nanoid";
 import type { ReactNode } from "react";
 import { z } from "zod";
 
@@ -12,7 +11,6 @@ export interface ServerMessage {
 }
 
 export interface ClientMessage {
-  id: string;
   role: "user" | "assistant";
   display: ReactNode;
 }
@@ -65,7 +63,6 @@ export async function continueConversation(
   });
 
   return {
-    id: nanoid(),
     role: "assistant",
     display: result.value,
   };
