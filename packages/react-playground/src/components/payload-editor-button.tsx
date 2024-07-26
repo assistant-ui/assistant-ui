@@ -16,6 +16,8 @@ import {
 import { useGetPlaygroundRuntime } from "../lib/usePlaygroundRuntime";
 import { toCoreMessages, toLanguageModelTools } from "@assistant-ui/react";
 import { JSONEditor } from "./ui/assistant-ui/json-editor";
+import { TooltipIconButton } from "./ui/assistant-ui/tooltip-icon-button";
+import { EyeIcon } from "lucide-react";
 
 export const PayloadEditorButton: FC = () => {
   const getPlaygroundRuntime = useGetPlaygroundRuntime();
@@ -56,7 +58,13 @@ export const PayloadEditorButton: FC = () => {
   return (
     <Dialog open={isOpen} onOpenChange={handleOpen}>
       <DialogTrigger asChild>
-        <Button>View Payload</Button>
+        <TooltipIconButton
+          tooltip="View Payload"
+          variant="outline"
+          className="size-8 p-2"
+        >
+          <EyeIcon />
+        </TooltipIconButton>
       </DialogTrigger>
       <DialogContent
         className="max-w-2xl"

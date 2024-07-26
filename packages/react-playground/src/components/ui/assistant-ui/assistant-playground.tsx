@@ -24,7 +24,7 @@ import {
 } from "../select";
 import { Slider } from "../slider";
 import { usePlaygroundRuntime } from "../../../lib/usePlaygroundRuntime";
-import { CircleXIcon, FunctionSquareIcon } from "lucide-react";
+import { CircleXIcon, FunctionSquareIcon, TrashIcon } from "lucide-react";
 import { TooltipIconButton } from "./tooltip-icon-button";
 import { JSONEditor } from "./json-editor";
 
@@ -328,18 +328,28 @@ const Sidebar: FC<AssistantPlaygroundProps> = ({
   };
 
   return (
-    <div className="flex w-[300px] min-w-[300px] flex-col gap-4 px-4 py-4">
-      <PayloadEditorButton />
-      <Button onClick={handleReset}>Reset</Button>
+    <div className="flex w-[300px] min-w-[300px] flex-col px-4 py-4">
+      <div className="flex justify-end gap-2">
+        <PayloadEditorButton />
+        <TooltipIconButton
+          onClick={handleReset}
+          tooltip="Reset"
+          variant="outline"
+          className="size-8 p-2"
+        >
+          <TrashIcon />
+        </TooltipIconButton>
+      </div>
+      <div className="flex flex-col gap-4">
+        <ModelSelector {...modelSelector} />
+        {apiKey && <APIKeyInput />}
+        <TemperatureSlider />
+        <MaxTokensSlider />
 
-      <ModelSelector {...modelSelector} />
-      {apiKey && <APIKeyInput />}
-      <TemperatureSlider />
-      <MaxTokensSlider />
-
-      <div className="flex flex-col gap-2">
-        <p className="font-medium">Tools</p>
-        <ToolManager />
+        <div className="flex flex-col gap-2">
+          <p className="font-medium">Tools</p>
+          <ToolManager />
+        </div>
       </div>
     </div>
   );
