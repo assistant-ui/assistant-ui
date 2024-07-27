@@ -1,5 +1,13 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.5.9
+
+### Patch Changes
+
+- 9dc942f: feat: useThread.isDisabled flag
+- Updated dependencies [9dc942f]
+  - @assistant-ui/react@0.5.16
+
 ## 0.5.8
 
 ### Patch Changes

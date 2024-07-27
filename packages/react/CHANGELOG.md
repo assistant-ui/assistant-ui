@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.16
+
+### Patch Changes
+
+- 9dc942f: feat: useThread.isDisabled flag
+
 ## 0.5.15
 
 ### Patch Changes

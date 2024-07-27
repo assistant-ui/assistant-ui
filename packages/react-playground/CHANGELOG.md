@@ -1,5 +1,13 @@
 # @assistant-ui/react-playground
 
+## 0.0.11
+
+### Patch Changes
+
+- 9dc942f: feat: useThread.isDisabled flag
+- Updated dependencies [9dc942f]
+  - @assistant-ui/react@0.5.16
+
 ## 0.0.10
 
 ### Patch Changes
