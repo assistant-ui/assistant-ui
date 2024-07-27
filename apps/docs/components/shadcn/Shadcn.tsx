@@ -11,7 +11,7 @@ import { type FC } from "react";
 
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import icon from "@/public/favicon/favicon.svg";
+import icon from "@/public/favicon/icon.svg";
 import { Sheet, SheetContent, SheetTrigger } from "../ui/sheet";
 import {
   TooltipProvider,
@@ -72,7 +72,11 @@ const TopLeft: FC = () => {
       side="right"
     >
       <div className="flex items-center gap-2 text-sm font-semibold">
-        <Image src={icon} alt="logo" className="inline size-4" />
+        <Image
+          src={icon}
+          alt="logo"
+          className="inline size-4 dark:hue-rotate-180 dark:invert"
+        />
         <span>assistant-ui</span>
       </div>
 

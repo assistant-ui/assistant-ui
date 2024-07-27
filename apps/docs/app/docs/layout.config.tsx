@@ -3,7 +3,7 @@ import { pageTree } from "@/app/source";
 import { RootToggle } from "fumadocs-ui/components/layout/root-toggle";
 import { BookIcon, LayoutTemplateIcon, PhoneCallIcon } from "lucide-react";
 import { LibraryIcon, type LucideIcon } from "lucide-react";
-import icon from "@/public/favicon/favicon.svg";
+import icon from "@/public/favicon/icon.svg";
 import Image from "next/image";
 
 type Mode = {
@@ -52,7 +52,11 @@ export const baseOptions: BaseLayoutProps = {
   nav: {
     title: (
       <>
-        <Image src={icon} alt="logo" className="inline size-4" />
+        <Image
+          src={icon}
+          alt="logo"
+          className="inline size-4 dark:hue-rotate-180 dark:invert"
+        />
         <span className="font-medium">assistant-ui</span>
       </>
     ),
