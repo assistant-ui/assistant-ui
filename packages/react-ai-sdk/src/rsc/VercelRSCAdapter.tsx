@@ -7,7 +7,7 @@ type RSCMessageConverter<T> = {
 };
 
 type VercelRSCAdapterBase<T> = {
-  isRunning: boolean;
+  isRunning?: boolean | undefined;
   messages: T[];
 
   onNew?: (message: AppendMessage) => Promise<void>;

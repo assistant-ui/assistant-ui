@@ -12,8 +12,8 @@ type ExternalStoreMessageConverterAdapter<T> = {
 };
 
 type ExternalStoreAdapterBase<T> = {
-  threadId?: string;
-  isRunning?: boolean;
+  threadId?: string | undefined;
+  isRunning?: boolean | undefined;
   messages: T[];
   setMessages?: ((messages: T[]) => void) | undefined;
   onNew: (message: AppendMessage) => Promise<void>;
