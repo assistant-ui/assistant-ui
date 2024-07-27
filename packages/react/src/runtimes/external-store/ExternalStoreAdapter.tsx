@@ -13,6 +13,7 @@ type ExternalStoreMessageConverterAdapter<T> = {
 
 type ExternalStoreAdapterBase<T> = {
   threadId?: string | undefined;
+  isDisabled?: boolean | undefined;
   isRunning?: boolean | undefined;
   messages: T[];
   setMessages?: ((messages: T[]) => void) | undefined;

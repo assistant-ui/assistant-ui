@@ -49,14 +49,20 @@ export const ThreadProvider: FC<PropsWithChildren<ThreadProviderProps>> = ({
     useCallback(
       (thread: ReactThreadRuntime) => {
         const onThreadUpdate = () => {
-          if (thread.isRunning !== context.useThread.getState().isRunning) {
+          const threadState = context.useThread.getState();
+          if (
+            thread.isRunning !== threadState.isRunning ||
+            thread.isDisabled !== threadState.isDisabled
+          ) {
             (context.useThread as unknown as StoreApi<ThreadState>).setState(
               Object.freeze({
                 isRunning: thread.isRunning,
+                isDisabled: thread.isDisabled,
               }) satisfies ThreadState,
               true,
             );
           }
+
           if (thread.messages !== context.useThreadMessages.getState()) {
             (
               context.useThreadMessages as unknown as StoreApi<ThreadMessagesState>

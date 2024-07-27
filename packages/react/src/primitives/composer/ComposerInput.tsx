@@ -27,7 +27,14 @@ export const ComposerPrimitiveInput = forwardRef<
   ComposerPrimitiveInputProps
 >(
   (
-    { autoFocus = false, asChild, disabled, onChange, onKeyDown, ...rest },
+    {
+      autoFocus = false,
+      asChild,
+      disabled: disabledProp,
+      onChange,
+      onKeyDown,
+      ...rest
+    },
     forwardedRef,
   ) => {
     const { useThread } = useThreadContext();
@@ -40,6 +47,7 @@ export const ComposerPrimitiveInput = forwardRef<
 
     const Component = asChild ? Slot : TextareaAutosize;
 
+    const isDisabled = useThread((t) => t.isDisabled) ?? disabledProp ?? false;
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const ref = useComposedRefs(forwardedRef, textareaRef);
 
@@ -52,7 +60,7 @@ export const ComposerPrimitiveInput = forwardRef<
     });
 
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (disabled) return;
+      if (isDisabled) return;
 
       if (e.key === "Enter" && e.shiftKey === false) {
         const isRunning = useThread.getState().isRunning;
@@ -64,7 +72,7 @@ export const ComposerPrimitiveInput = forwardRef<
       }
     };
 
-    const autoFocusEnabled = autoFocus && !disabled;
+    const autoFocusEnabled = autoFocus && !isDisabled;
     const focus = useCallback(() => {
       const textarea = textareaRef.current;
       if (!textarea || !autoFocusEnabled) return;
@@ -90,7 +98,7 @@ export const ComposerPrimitiveInput = forwardRef<
         value={value}
         {...rest}
         ref={ref}
-        disabled={disabled}
+        disabled={isDisabled}
         onChange={composeEventHandlers(onChange, (e) => {
           const composerState = useComposer.getState();
           if (!composerState.isEditing) return;

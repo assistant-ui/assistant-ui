@@ -29,6 +29,8 @@ export class LocalThreadRuntime implements ThreadRuntime {
 
   public readonly capabilities = CAPABILITIES;
 
+  public readonly isDisabled = true;
+
   public get messages() {
     return this.repository.getMessages();
   }

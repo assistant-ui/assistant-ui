@@ -1,4 +1,4 @@
-import { type StoreApi, type UseBoundStore, create } from "zustand";
+import { create } from "zustand";
 import { ReactThreadRuntime } from "../core";
 import { MessageRepository } from "../utils/MessageRepository";
 import { AppendMessage, ThreadMessage, Unsubscribe } from "../../types";
@@ -19,9 +19,7 @@ export class ExternalStoreThreadRuntime implements ReactThreadRuntime {
   private repository = new MessageRepository();
   private assistantOptimisticId: string | null = null;
 
-  private useStore: UseBoundStore<
-    StoreApi<{ store: ExternalStoreAdapter<any> }>
-  >;
+  private useStore;
 
   public get capabilities() {
     return {
@@ -33,10 +31,15 @@ export class ExternalStoreThreadRuntime implements ReactThreadRuntime {
     };
   }
 
-  public messages: ThreadMessage[] = [];
-  public isRunning = false;
+  public messages;
+  public isDisabled;
+  public isRunning;
 
   constructor(public store: ExternalStoreAdapter<any>) {
+    this.isDisabled = store.isDisabled ?? false;
+    this.isRunning = store.isRunning ?? false;
+    this.messages = store.messages;
+
     this.useStore = create(() => ({
       store,
     }));
@@ -107,7 +110,11 @@ export class ExternalStoreThreadRuntime implements ReactThreadRuntime {
     }
   }
 
-  private updateData = (isRunning: boolean, vm: ThreadMessage[]) => {
+  private updateData = (
+    isDisabled: boolean,
+    isRunning: boolean,
+    vm: ThreadMessage[],
+  ) => {
     for (let i = 0; i < vm.length; i++) {
       const message = vm[i]!;
       const parent = vm[i - 1];
@@ -134,6 +141,7 @@ export class ExternalStoreThreadRuntime implements ReactThreadRuntime {
     );
 
     this.messages = this.repository.getMessages();
+    this.isDisabled = isDisabled;
     this.isRunning = isRunning;
 
     for (const callback of this._subscriptions) callback();

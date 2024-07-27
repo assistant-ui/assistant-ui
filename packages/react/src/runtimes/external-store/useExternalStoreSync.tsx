@@ -10,6 +10,7 @@ import { getAutoStatus } from "./auto-status";
 import { fromThreadMessageLike } from "./ThreadMessageLike";
 
 type UpdateDataCallback = (
+  isDisabled: boolean,
   isRunning: boolean,
   messages: ThreadMessage[],
 ) => void;
@@ -50,6 +51,7 @@ export const useExternalStoreSync = <T extends WeakKey>(
 
   useEffect(() => {
     updateData(
+      adapter.isDisabled ?? false,
       adapter.isRunning ?? false,
       converter.convertMessages(adapter.messages, convertCallback),
     );
@@ -57,7 +59,8 @@ export const useExternalStoreSync = <T extends WeakKey>(
     updateData,
     converter,
     convertCallback,
-    adapter.messages,
+    adapter.isDisabled,
     adapter.isRunning,
+    adapter.messages,
   ]);
 };

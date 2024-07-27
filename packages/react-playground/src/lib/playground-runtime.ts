@@ -96,6 +96,7 @@ export class PlaygroundThreadRuntime implements ReactThreadRuntime {
 
   public tools: Record<string, Tool<any, any>> = {};
 
+  public readonly isDisabled = false;
   public get isRunning() {
     return this.abortController != null;
   }

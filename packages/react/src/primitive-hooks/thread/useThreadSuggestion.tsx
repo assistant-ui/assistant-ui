@@ -15,7 +15,7 @@ export const useThreadSuggestion = ({
   const { useThread, useComposer } = useThreadContext();
 
   const append = useAppendMessage();
-  const disabled = useThread((t) => t.isRunning);
+  const disabled = useThread((t) => t.isDisabled);
   const callback = useCallback(() => {
     const thread = useThread.getState();
     const composer = useComposer.getState();

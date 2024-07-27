@@ -43,6 +43,7 @@ export class VercelUseChatThreadRuntime implements ReactThreadRuntime {
   public readonly capabilities = CAPABILITIES;
 
   public messages: ThreadMessage[] = [];
+  public readonly isDisabled = false;
   public isRunning = false;
 
   constructor(public vercel: ReturnType<typeof useChat>) {
