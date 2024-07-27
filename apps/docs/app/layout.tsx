@@ -5,6 +5,14 @@ import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { Body } from "./layout.client";
 
+export const metadata = {
+  title: {
+    template: "%s | assistant-ui",
+    default: "assistant-ui",
+  },
+  description: "Build in-app AI chatbots in days, not weeks.",
+};
+
 export default function Layout({ children }: { children: ReactNode }) {
   return (
     <html
