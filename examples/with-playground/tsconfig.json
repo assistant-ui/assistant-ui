@@ -1,16 +1,7 @@
 {
   "extends": "@assistant-ui/tsconfig/base.json",
   "compilerOptions": {
-    "target": "es5",
-    "lib": ["dom", "dom.iterable", "esnext"],
-    "skipLibCheck": true,
-    "strict": true,
-    "forceConsistentCasingInFileNames": true,
-    "noEmit": true,
-    "esModuleInterop": true,
-    "module": "esnext",
-    "moduleResolution": "node",
-
+    "target": "ES6",
     "incremental": true,
     "plugins": [
       {
@@ -18,7 +9,9 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@assistant-ui/*": ["../../packages/*/src"],
+      "@assistant-ui/react/*": ["../../packages/react/src/*"]
     },
     "allowJs": true,
     "strictNullChecks": true,
