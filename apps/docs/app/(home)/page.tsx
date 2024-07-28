@@ -51,7 +51,7 @@ export default function HomePage() {
   const ChatComponent = selectedModel.component;
 
   return (
-    <main className="container mx-auto flex flex-col gap-6 self-stretch py-4">
+    <main className="mx-auto p-4 flex flex-col gap-6 self-stretch py-4">
       <div className="mt-12 flex flex-col gap-4 self-center">
         <h1 className="text-center text-4xl font-extrabold">
           Build in-app AI chatbots
@@ -116,7 +116,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="relative max-h-[500px] overflow-hidden">
+        <div className="relative mx-auto max-h-[500px] max-w-screen-xl overflow-hidden">
           <div className="relative columns-1 gap-4 overflow-hidden sm:columns-2 lg:columns-3 xl:columns-4">
             {TESTIMONIALS.map((testimonial, idx) => (
               <TestimonialView key={idx} {...testimonial} />
