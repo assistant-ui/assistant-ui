@@ -120,3 +120,29 @@ export default function RootLayout({
 
   </Step>
 </Steps>
+
+## Streaming
+
+You can declare the `run` function as an AsyncGenerator (`async *run`) and `yield` updates as you receive them.
+
+```ts
+const MyModelAdapter: ChatModelAdapter = {
+  async *run({ messages, abortSignal }) {
+    const stream = await openai.chat.completions.create({
+      model: 'gpt-4',
+      messages: [{ role: 'user', content: 'Say this is a test' }],
+      stream: true,
+    });
+
+    let text = '';
+    for await (const part of stream) {
+      text += part.choices[0]?.delta?.content
+
+      // send an update to assistant-ui
+      yield {
+        content: [{ type: "text", text }]
+      }
+    }
+  },
+};
+```
