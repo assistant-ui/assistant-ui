@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.17
+
+### Patch Changes
+
+- 4b4f9c8: feat(local-runtime): AsyncGenerator support
+
 ## 0.5.16
 
 ### Patch Changes
