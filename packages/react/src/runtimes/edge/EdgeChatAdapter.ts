@@ -32,7 +32,7 @@ export type EdgeChatAdapterOptions = {
 export class EdgeChatAdapter implements ChatModelAdapter {
   constructor(private options: EdgeChatAdapterOptions) {}
 
-  async run({ messages, abortSignal, config, onUpdate }: ChatModelRunOptions) {
+  async *run({ messages, abortSignal, config }: ChatModelRunOptions) {
     const result = await fetch(this.options.api, {
       method: "POST",
       headers: {
@@ -61,11 +61,10 @@ export class EdgeChatAdapter implements ChatModelAdapter {
 
     let update: ChatModelRunResult | undefined;
     for await (update of asAsyncIterable(stream)) {
-      onUpdate(update);
+      yield update;
     }
+
     if (update === undefined)
       throw new Error("No data received from Edge Runtime");
-
-    return update;
   }
 }

@@ -123,25 +123,24 @@ export default function RootLayout({
 
 ## Streaming
 
-You can declare the `run` function as an AsyncGenerator (`async *run`) and `yield` updates as you receive them.
+Declare the `run` function as an `AsyncGenerator` (`async *run`). This allows you to `yield` the results as they are generated.
 
-```ts
+```tsx {2, 11-13}
 const MyModelAdapter: ChatModelAdapter = {
-  async *run({ messages, abortSignal }) {
+  async *run({ messages, abortSignal, config }) {
     const stream = await openai.chat.completions.create({
-      model: 'gpt-4',
-      messages: [{ role: 'user', content: 'Say this is a test' }],
+      model: "gpt-4o",
+      messages: [{ role: "user", content: "Say this is a test" }],
       stream: true,
     });
 
-    let text = '';
+    let text = "";
     for await (const part of stream) {
-      text += part.choices[0]?.delta?.content
+      text += part.choices[0]?.delta?.content || "";
 
-      // send an update to assistant-ui
       yield {
-        content: [{ type: "text", text }]
-      }
+        content: [{ type: "text", text }],
+      };
     }
   },
 };
