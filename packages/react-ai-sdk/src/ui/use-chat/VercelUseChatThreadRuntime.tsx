@@ -70,7 +70,7 @@ export class VercelUseChatThreadRuntime implements ReactThreadRuntime {
 
     if (message.content.length !== 1 || message.content[0]?.type !== "text")
       throw new Error(
-        "Only text content is supported by VercelUseChatRuntime.",
+        "Only text content is supported by VercelUseChatRuntime. Use the Edge runtime for image support.",
       );
 
     const newMessages = sliceMessagesUntil(
