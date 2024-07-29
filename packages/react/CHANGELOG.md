@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.19
+
+### Patch Changes
+
+- 2534938: feat: Message.Content Empty component
+
 ## 0.5.18
 
 ### Patch Changes
