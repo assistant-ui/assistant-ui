@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.18
+
+### Patch Changes
+
+- 0302235: fix(external-store): add initial messages to message repository
+
 ## 0.5.17
 
 ### Patch Changes
