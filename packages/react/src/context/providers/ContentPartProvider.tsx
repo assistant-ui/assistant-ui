@@ -51,7 +51,7 @@ const toContentPartStatus = (
   return message.status as ToolContentPartStatus;
 };
 
-const EMPTY_CONTENT = Object.freeze({ type: "text", text: "" });
+export const EMPTY_CONTENT = Object.freeze({ type: "text", text: "" });
 
 const getContentPartState = (
   { message }: MessageState,

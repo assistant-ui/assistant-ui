@@ -7,7 +7,10 @@ import {
   useThreadContext,
 } from "../../context";
 import { useMessageContext } from "../../context/react/MessageContext";
-import { ContentPartProvider } from "../../context/providers/ContentPartProvider";
+import {
+  ContentPartProvider,
+  EMPTY_CONTENT,
+} from "../../context/providers/ContentPartProvider";
 import { ContentPartPrimitiveText } from "../contentPart/ContentPartText";
 import { ContentPartPrimitiveImage } from "../contentPart/ContentPartImage";
 import { ContentPartPrimitiveDisplay } from "../contentPart/ContentPartDisplay";
@@ -23,6 +26,7 @@ import { ContentPartPrimitiveInProgress } from "../contentPart/ContentPartInProg
 export type MessagePrimitiveContentProps = {
   components?:
     | {
+        Empty?: TextContentPartComponent | undefined;
         Text?: TextContentPartComponent | undefined;
         Image?: ImageContentPartComponent | undefined;
         UI?: UIContentPartComponent | undefined;
@@ -63,6 +67,7 @@ type MessageContentPartComponentProps = {
 
 const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
   components: {
+    Empty = defaultComponents.Text,
     Text = defaultComponents.Text,
     Image = defaultComponents.Image,
     UI = defaultComponents.UI,
@@ -81,6 +86,8 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
     case "text":
       if (status.type === "requires-action")
         throw new Error("Encountered unexpected requires-action status");
+      if (part === EMPTY_CONTENT) return <Empty part={part} status={status} />;
+
       return <Text part={part} status={status} />;
 
     case "image":
