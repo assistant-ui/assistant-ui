@@ -1,7 +1,7 @@
 import { type BaseLayoutProps, type DocsLayoutProps } from "fumadocs-ui/layout";
 import { pageTree } from "@/app/source";
 import { RootToggle } from "fumadocs-ui/components/layout/root-toggle";
-import { BookIcon, LayoutTemplateIcon, PhoneCallIcon } from "lucide-react";
+import { BookIcon, LayoutTemplateIcon, NewspaperIcon } from "lucide-react";
 import { LibraryIcon, type LucideIcon } from "lucide-react";
 import icon from "@/public/favicon/icon.svg";
 import Image from "next/image";
@@ -81,10 +81,9 @@ export const baseOptions: BaseLayoutProps = {
       icon: <LayoutTemplateIcon />,
     },
     {
-      text: "Enterprise Inquiry",
-      url: "https://cal.com/simon-farshid/assistant-ui",
-      icon: <PhoneCallIcon />,
-      external: true,
+      text: "Blog",
+      url: "/blog",
+      icon: <NewspaperIcon />,
     },
     {
       type: "secondary",

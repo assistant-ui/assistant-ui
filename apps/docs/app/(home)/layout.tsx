@@ -20,7 +20,7 @@ export default function Layout({
 function Footer(): React.ReactElement {
   return (
     <footer className="relative border-t px-8 pb-32 pt-20">
-      <div className="mx-auto flex max-w-screen-xl flex-col items-start justify-between sm:flex-row">
+      <div className="mx-auto flex w-full max-w-screen-xl flex-col items-start justify-between sm:flex-row">
         <div className="mb-4 mr-4 sm:flex">
           <a
             className="mr-4 flex items-center gap-2 text-sm font-normal text-black"
@@ -41,6 +41,7 @@ function Footer(): React.ReactElement {
             <p className="text-sm">Product</p>
             <FooterLink href="/docs">Documentation</FooterLink>
             <FooterLink href="/examples">Examples</FooterLink>
+            <FooterLink href="/blog">Blog</FooterLink>
           </div>
           <div className="flex flex-col justify-center gap-4">
             <p className="text-sm">Support</p>
