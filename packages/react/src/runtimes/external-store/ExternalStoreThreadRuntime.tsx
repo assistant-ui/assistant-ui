@@ -31,14 +31,16 @@ export class ExternalStoreThreadRuntime implements ReactThreadRuntime {
     };
   }
 
-  public messages;
-  public isDisabled;
-  public isRunning;
+  public messages: ThreadMessage[] = [];
+  public isDisabled = false;
+  public isRunning = false;
 
   constructor(public store: ExternalStoreAdapter<any>) {
-    this.isDisabled = store.isDisabled ?? false;
-    this.isRunning = store.isRunning ?? false;
-    this.messages = store.messages;
+    this.updateData(
+      store.isDisabled ?? false,
+      store.isRunning ?? false,
+      store.messages,
+    );
 
     this.useStore = create(() => ({
       store,
