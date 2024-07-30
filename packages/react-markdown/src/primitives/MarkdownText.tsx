@@ -28,9 +28,9 @@ type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;
 
 export type MarkdownTextPrimitiveProps = Omit<
   Options,
-  "components" | "children" | "asChild"
+  "components" | "children"
 > & {
-  containerProps?: Omit<PrimitiveDivProps, "children">;
+  containerProps?: Omit<PrimitiveDivProps, "children" | "asChild">;
   containerComponent?: ElementType;
   components?: NonNullable<Options["components"]> & {
     SyntaxHighlighter?: ComponentType<SyntaxHighlighterProps>;
