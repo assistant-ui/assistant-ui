@@ -16,7 +16,7 @@ await build({
 });
 
 await build({
-  entry: ["src/edge.ts", "src/tailwindcss/index.ts"],
+  entry: ["src/edge.ts", "src/tailwindcss/index.ts", "src/internal.ts"],
   format: ["cjs", "esm"],
   dts: true,
   sourcemap: true,

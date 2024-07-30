@@ -3,18 +3,16 @@ import {
   type Unsubscribe,
   type AppendMessage,
   type ThreadMessage,
-  INTERNAL,
   AddToolResultOptions,
 } from "@assistant-ui/react";
+import { MessageRepository } from "@assistant-ui/react/internal";
 import type { Message } from "ai";
 import { type StoreApi, type UseBoundStore, create } from "zustand";
+import { useChat } from "ai/react";
 import { getVercelAIMessage } from "../getVercelAIMessage";
 import { sliceMessagesUntil } from "../utils/sliceMessagesUntil";
 import { useVercelAIComposerSync } from "../utils/useVercelAIComposerSync";
 import { useVercelAIThreadSync } from "../utils/useVercelAIThreadSync";
-import { useChat } from "ai/react";
-
-const { MessageRepository } = INTERNAL;
 
 export const hasUpcomingMessage = (
   isRunning: boolean,

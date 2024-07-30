@@ -1,6 +1,7 @@
 "use client";
 
-import { INTERNAL, useContentPartText } from "@assistant-ui/react";
+import { useContentPartText } from "@assistant-ui/react";
+import { useSmooth } from "@assistant-ui/react/internal";
 import type { ComponentType, FC } from "react";
 import ReactMarkdown, { type Options } from "react-markdown";
 import { SyntaxHighlighterProps, CodeHeaderProps } from "../overrides/types";
@@ -13,8 +14,6 @@ import {
 } from "../overrides/defaultComponents";
 import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
 import { CodeOverride } from "../overrides/CodeOverride";
-
-const { useSmooth } = INTERNAL;
 
 export type MarkdownTextPrimitiveProps = Omit<
   Options,
