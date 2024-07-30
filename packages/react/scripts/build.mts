@@ -3,7 +3,12 @@ import { copyFileSync, mkdirSync } from "node:fs";
 
 // JS
 await build({
-  entry: ["src/index.ts"],
+  entry: [
+    "src/index.ts",
+    "src/edge.ts",
+    "src/tailwindcss/index.ts",
+    "src/internal.ts",
+  ],
   format: ["cjs", "esm"],
   dts: true,
   sourcemap: true,
@@ -13,13 +18,6 @@ await build({
       js: '"use client";',
     };
   },
-});
-
-await build({
-  entry: ["src/edge.ts", "src/tailwindcss/index.ts", "src/internal.ts"],
-  format: ["cjs", "esm"],
-  dts: true,
-  sourcemap: true,
 });
 
 // css
