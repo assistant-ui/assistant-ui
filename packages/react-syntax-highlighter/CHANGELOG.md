@@ -1,5 +1,15 @@
 # @assistant-ui/react-syntax-highlighter
 
+## 0.0.7
+
+### Patch Changes
+
+- 3cc67f2: refactor: move internal utilities to @assistant-ui/react/internal
+- Updated dependencies [de04d92]
+- Updated dependencies [3cc67f2]
+  - @assistant-ui/react-markdown@0.2.6
+  - @assistant-ui/react@0.5.20
+
 ## 0.0.6
 
 ### Patch Changes

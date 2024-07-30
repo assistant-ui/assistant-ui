@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.5.20
+
+### Patch Changes
+
+- de04d92: feat: loading status & smooth streaming interop
+- 3cc67f2: refactor: move internal utilities to @assistant-ui/react/internal
+
 ## 0.5.19
 
 ### Patch Changes

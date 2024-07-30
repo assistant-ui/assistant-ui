@@ -1,5 +1,14 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.5.10
+
+### Patch Changes
+
+- 3cc67f2: refactor: move internal utilities to @assistant-ui/react/internal
+- Updated dependencies [de04d92]
+- Updated dependencies [3cc67f2]
+  - @assistant-ui/react@0.5.20
+
 ## 0.5.9
 
 ### Patch Changes

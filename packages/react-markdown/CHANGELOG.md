@@ -1,5 +1,15 @@
 # @assistant-ui/react-markdown
 
+## 0.2.6
+
+### Patch Changes
+
+- de04d92: feat: loading status & smooth streaming interop
+- 3cc67f2: refactor: move internal utilities to @assistant-ui/react/internal
+- Updated dependencies [de04d92]
+- Updated dependencies [3cc67f2]
+  - @assistant-ui/react@0.5.20
+
 ## 0.2.5
 
 ### Patch Changes
