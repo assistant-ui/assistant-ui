@@ -88,8 +88,6 @@ const useContentPartContext = (partIndex: number) => {
       () => getContentPartState(useMessage.getState(), undefined, partIndex)!,
     );
 
-    getContentPartState(useMessage.getState(), useContentPart, partIndex);
-
     return { useContentPart };
   });
 
