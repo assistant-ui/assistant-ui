@@ -5,6 +5,8 @@ import {
   ElementRef,
   ElementType,
   forwardRef,
+  ForwardRefExoticComponent,
+  RefAttributes,
   type ComponentPropsWithoutRef,
   type ComponentType,
 } from "react";
@@ -45,7 +47,9 @@ export type MarkdownTextPrimitiveProps = Omit<
   };
   smooth?: boolean;
 };
-export const MarkdownTextPrimitive = forwardRef<
+
+export const MarkdownTextPrimitive: ForwardRefExoticComponent<MarkdownTextPrimitiveProps> &
+  RefAttributes<MarkdownTextPrimitiveElement> = forwardRef<
   MarkdownTextPrimitiveElement,
   MarkdownTextPrimitiveProps
 >(
