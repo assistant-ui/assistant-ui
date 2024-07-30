@@ -73,7 +73,7 @@ export type ContentPartStatus =
       error?: unknown;
     };
 
-export type ToolContentPartStatus =
+export type ToolCallContentPartStatus =
   | {
       type: "requires-action";
       reason: "tool-calls";

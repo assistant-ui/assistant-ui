@@ -1,22 +1,21 @@
 import { FC } from "react";
-
 import { ContentPartPrimitive } from "../primitives";
-import { TextContentPartProps } from "../types";
+import { useSmoothStatus, withSmoothContextProvider } from "../utils/smooth";
 import classNames from "classnames";
 
-const Text: FC<TextContentPartProps> = ({ status }) => {
+export const Text: FC = () => {
+  const status = useSmoothStatus();
   return (
-    <p
+    <ContentPartPrimitive.Text
       className={classNames(
         "aui-text",
-        status.type === "running" && "aui-text-in-progress",
+        status.type === "running" && "aui-text-running",
       )}
-    >
-      <ContentPartPrimitive.Text />
-    </p>
+      component="p"
+    />
   );
 };
 
-const exports = { Text };
+const exports = { Text: withSmoothContextProvider(Text) };
 
 export default exports;

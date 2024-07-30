@@ -40,6 +40,7 @@
     "build": "tsx scripts/build.mts"
   },
   "dependencies": {
+    "@radix-ui/react-primitive": "^2.0.0",
     "@radix-ui/react-use-callback-ref": "^1.1.0",
     "classnames": "^2.5.1",
     "lucide-react": "^0.416.0",

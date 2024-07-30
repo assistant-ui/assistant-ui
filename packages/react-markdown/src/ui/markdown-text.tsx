@@ -1,4 +1,3 @@
-import { TextContentPartProps } from "@assistant-ui/react";
 import { FC, memo } from "react";
 import { CodeHeader } from "./code-header";
 import classNames from "classnames";
@@ -6,6 +5,10 @@ import {
   MarkdownTextPrimitive,
   MarkdownTextPrimitiveProps,
 } from "../primitives/MarkdownText";
+import {
+  withSmoothContextProvider,
+  useSmoothStatus,
+} from "@assistant-ui/react/internal";
 
 export type MakeMarkdownTextProps = MarkdownTextPrimitiveProps;
 
@@ -19,23 +22,21 @@ export const makeMarkdownText = ({
     CodeHeader: userComponents?.CodeHeader ?? CodeHeader,
   };
 
-  const MarkdownTextImpl: FC<TextContentPartProps> = ({ status }) => {
+  const MarkdownTextImpl: FC = () => {
+    const status = useSmoothStatus();
     return (
-      <div
+      <MarkdownTextPrimitive
+        components={components}
+        {...rest}
         className={classNames(
           "aui-md-root",
-          status.type === "running" && "aui-md-in-progress",
+          status.type === "running" && "aui-md-running",
           className,
         )}
-      >
-        <MarkdownTextPrimitive components={components} {...rest} />
-      </div>
+      />
     );
   };
   MarkdownTextImpl.displayName = "MarkdownText";
 
-  return memo(
-    MarkdownTextImpl,
-    (prev, next) => prev.status.type === next.status.type,
-  );
+  return memo(withSmoothContextProvider(MarkdownTextImpl), () => true);
 };

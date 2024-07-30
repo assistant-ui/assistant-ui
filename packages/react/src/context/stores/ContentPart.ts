@@ -3,7 +3,7 @@ import type {
   ImageContentPart,
   TextContentPart,
   ToolCallContentPart,
-  ToolContentPartStatus,
+  ToolCallContentPartStatus,
   UIContentPart,
 } from "../../types/AssistantTypes";
 
@@ -23,12 +23,12 @@ export type UIContentPartState = Readonly<{
 }>;
 
 export type ToolCallContentPartState = Readonly<{
-  status: ToolContentPartStatus;
+  status: ToolCallContentPartStatus;
   part: ToolCallContentPart;
 }>;
 
 export type ContentPartState = Readonly<{
-  status: ToolContentPartStatus;
+  status: ContentPartStatus | ToolCallContentPartStatus;
   part:
     | TextContentPart
     | ImageContentPart

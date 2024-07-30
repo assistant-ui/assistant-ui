@@ -5,7 +5,7 @@ import type {
   ImageContentPart,
   TextContentPart,
   ToolCallContentPart,
-  ToolContentPartStatus,
+  ToolCallContentPartStatus,
   UIContentPart,
 } from "./AssistantTypes";
 
@@ -32,7 +32,7 @@ export type ToolCallContentPartProps<
   TResult = unknown,
 > = {
   part: ToolCallContentPart<TArgs, TResult>;
-  status: ToolContentPartStatus;
+  status: ToolCallContentPartStatus;
   addResult: (result: any) => void;
 };
 

@@ -1,7 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMessageContext } from "../../context";
+import {
+  ContentPartStatus,
+  ToolCallContentPartStatus,
+} from "../../types/AssistantTypes";
+import { TextContentPartState } from "../../context/stores/ContentPart";
+import { useSmoothContext } from "./SmoothContext";
+import { StoreApi } from "zustand";
+import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
 
 class TextStreamAnimator {
   private animationFrameId: number | null = null;
@@ -57,14 +65,36 @@ class TextStreamAnimator {
   };
 }
 
-export const useSmooth = (text: string, smooth: boolean = false) => {
+const SMOOTH_STATUS: ContentPartStatus = Object.freeze({
+  type: "running",
+});
+
+export const useSmooth = (
+  state: TextContentPartState,
+  smooth: boolean = false,
+): TextContentPartState => {
+  const { useSmoothStatus } = useSmoothContext({ optional: true }) ?? {};
+
+  const {
+    part: { text },
+  } = state;
   const { useMessage } = useMessageContext();
   const id = useMessage((m) => m.message.id);
 
   const idRef = useRef(id);
   const [displayedText, setDisplayedText] = useState(text);
+
+  const setText = useCallbackRef((text: string) => {
+    setDisplayedText(text);
+    (
+      useSmoothStatus as unknown as
+        | StoreApi<ToolCallContentPartStatus>
+        | undefined
+    )?.setState(text !== state.part.text ? SMOOTH_STATUS : state.status);
+  });
+
   const [animatorRef] = useState<TextStreamAnimator>(
-    new TextStreamAnimator(text, setDisplayedText),
+    new TextStreamAnimator(text, setText),
   );
 
   useEffect(() => {
@@ -75,7 +105,7 @@ export const useSmooth = (text: string, smooth: boolean = false) => {
 
     if (idRef.current !== id || !text.startsWith(animatorRef.targetText)) {
       idRef.current = id;
-      setDisplayedText(text);
+      setText(text);
 
       animatorRef.currentText = text;
       animatorRef.targetText = text;
@@ -86,7 +116,7 @@ export const useSmooth = (text: string, smooth: boolean = false) => {
 
     animatorRef.targetText = text;
     animatorRef.start();
-  }, [animatorRef, id, smooth, text]);
+  }, [setText, animatorRef, id, smooth, text]);
 
   useEffect(() => {
     return () => {
@@ -94,5 +124,14 @@ export const useSmooth = (text: string, smooth: boolean = false) => {
     };
   }, [animatorRef]);
 
-  return smooth ? displayedText : text;
+  return useMemo(
+    () =>
+      smooth
+        ? {
+            part: { type: "text", text: displayedText },
+            status: text === displayedText ? state.status : SMOOTH_STATUS,
+          }
+        : state,
+    [smooth, displayedText, state, text],
+  );
 };

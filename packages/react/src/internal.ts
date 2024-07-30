@@ -1,6 +1,6 @@
 export { ProxyConfigProvider } from "./utils/ProxyConfigProvider";
 export { MessageRepository } from "./runtimes/utils/MessageRepository";
 export { BaseAssistantRuntime } from "./runtimes/core/BaseAssistantRuntime";
-export { useSmooth } from "./utils/hooks/useSmooth";
+export * from "./utils/smooth";
 export { TooltipIconButton } from "./ui/base/tooltip-icon-button";
 export { generateId } from "./utils/idUtils";

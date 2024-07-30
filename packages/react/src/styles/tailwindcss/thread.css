@@ -154,6 +154,6 @@
   @apply whitespace-pre-line;
 }
 
-.aui-text-in-progress::after {
+.aui-text-running::after {
   @apply animate-pulse font-sans content-['\25CF'] ltr:ml-1 rtl:mr-1;
 }

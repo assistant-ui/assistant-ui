@@ -12,7 +12,7 @@ import {
   ThreadAssistantContentPart,
   ThreadMessage,
   ThreadUserContentPart,
-  ToolContentPartStatus,
+  ToolCallContentPartStatus,
 } from "../../types/AssistantTypes";
 
 type ContentPartProviderProps = PropsWithChildren<{
@@ -27,7 +27,7 @@ const toContentPartStatus = (
   message: ThreadMessage,
   partIndex: number,
   part: ThreadUserContentPart | ThreadAssistantContentPart,
-): ToolContentPartStatus => {
+): ToolCallContentPartStatus => {
   if (message.role !== "assistant") return COMPLETE_STATUS;
 
   const isLastPart = partIndex === Math.max(0, message.content.length - 1);
@@ -48,7 +48,7 @@ const toContentPartStatus = (
     return COMPLETE_STATUS;
   }
 
-  return message.status as ToolContentPartStatus;
+  return message.status as ToolCallContentPartStatus;
 };
 
 export const EMPTY_CONTENT = Object.freeze({ type: "text", text: "" });
