@@ -22,15 +22,13 @@ import {
   ChatModelRunResult,
   CoreMessage,
   fromCoreMessage,
+  INTERNAL,
 } from "@assistant-ui/react";
-import {
-  BaseAssistantRuntime,
-  ProxyConfigProvider,
-  generateId,
-} from "@assistant-ui/react/internal";
 import { LanguageModelV1FunctionTool } from "@ai-sdk/provider";
 import { useState } from "react";
 import { create } from "zustand";
+
+const { BaseAssistantRuntime, ProxyConfigProvider, generateId } = INTERNAL;
 
 const makeModelConfigStore = () =>
   create<ModelConfig>(() => ({

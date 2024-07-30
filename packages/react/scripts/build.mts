@@ -3,21 +3,25 @@ import { copyFileSync, mkdirSync } from "node:fs";
 
 // JS
 await build({
-  entry: [
-    "src/index.ts",
-    "src/edge.ts",
-    "src/tailwindcss/index.ts",
-    "src/internal.ts",
-  ],
+  entry: ["src/index.ts", "src/edge.ts", "src/tailwindcss/index.ts"],
   format: ["cjs", "esm"],
   dts: true,
   sourcemap: true,
   clean: true,
+  splitting: true,
   esbuildOptions: (options) => {
     options.banner = {
       js: '"use client";',
     };
   },
+});
+
+// TODO find a way to bundle edge with the rest of the package
+await build({
+  entry: ["src/edge.ts"],
+  format: ["cjs", "esm"],
+  dts: true,
+  sourcemap: true,
 });
 
 // css

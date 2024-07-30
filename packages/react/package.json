@@ -52,16 +52,6 @@
         "default": "./dist/edge.js"
       }
     },
-    "./internal": {
-      "import": {
-        "types": "./dist/internal.d.mts",
-        "default": "./dist/internal.mjs"
-      },
-      "require": {
-        "types": "./dist/internal.d.ts",
-        "default": "./dist/internal.js"
-      }
-    },
     "./tailwindcss": {
       "import": {
         "types": "./dist/tailwindcss/index.d.mts",
@@ -83,7 +73,6 @@
   "files": [
     "dist",
     "edge",
-    "internal",
     "tailwindcss",
     "README.md"
   ],

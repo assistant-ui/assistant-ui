@@ -1,10 +1,12 @@
-import { type ThreadMessage, ModelConfigProvider } from "@assistant-ui/react";
-import { useAssistant } from "ai/react";
 import {
-  ProxyConfigProvider,
-  BaseAssistantRuntime,
-} from "@assistant-ui/react/internal";
+  type ThreadMessage,
+  INTERNAL,
+  ModelConfigProvider,
+} from "@assistant-ui/react";
+import { useAssistant } from "ai/react";
 import { VercelUseAssistantThreadRuntime } from "./VercelUseAssistantThreadRuntime";
+
+const { ProxyConfigProvider, BaseAssistantRuntime } = INTERNAL;
 
 export const hasUpcomingMessage = (
   isRunning: boolean,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useContentPartText } from "@assistant-ui/react";
+import { INTERNAL, useContentPartText } from "@assistant-ui/react";
 import {
   ElementRef,
   ElementType,
@@ -21,9 +21,10 @@ import {
 } from "../overrides/defaultComponents";
 import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
 import { CodeOverride } from "../overrides/CodeOverride";
-import { useSmooth } from "@assistant-ui/react/internal";
 import { Primitive } from "@radix-ui/react-primitive";
 import classNames from "classnames";
+
+const { useSmooth } = INTERNAL;
 
 type MarkdownTextPrimitiveElement = ElementRef<typeof Primitive.div>;
 type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;

@@ -1,10 +1,11 @@
 import { FC } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
-import { useThreadConfig } from "@assistant-ui/react";
-import { TooltipIconButton } from "@assistant-ui/react/internal";
+import { INTERNAL, useThreadConfig } from "@assistant-ui/react";
 
 import { CodeHeaderProps } from "../overrides/types";
 import { useCopyToClipboard } from "./useCopyToClipboard";
+
+const { TooltipIconButton } = INTERNAL;
 
 export const CodeHeader: FC<CodeHeaderProps> = ({ language, code }) => {
   const {

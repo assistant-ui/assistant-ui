@@ -5,10 +5,9 @@ import {
   MarkdownTextPrimitive,
   MarkdownTextPrimitiveProps,
 } from "../primitives/MarkdownText";
-import {
-  withSmoothContextProvider,
-  useSmoothStatus,
-} from "@assistant-ui/react/internal";
+import { INTERNAL } from "@assistant-ui/react";
+
+const { withSmoothContextProvider, useSmoothStatus } = INTERNAL;
 
 export type MakeMarkdownTextProps = MarkdownTextPrimitiveProps;
 
