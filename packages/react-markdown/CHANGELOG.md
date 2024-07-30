@@ -1,5 +1,13 @@
 # @assistant-ui/react-markdown
 
+## 0.2.7
+
+### Patch Changes
+
+- 134d39e: fix: undo moving internal utilities to /react/internal
+- Updated dependencies [134d39e]
+  - @assistant-ui/react@0.5.22
+
 ## 0.2.6
 
 ### Patch Changes

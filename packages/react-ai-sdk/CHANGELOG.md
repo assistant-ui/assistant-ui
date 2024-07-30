@@ -1,5 +1,13 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.5.11
+
+### Patch Changes
+
+- 134d39e: fix: undo moving internal utilities to /react/internal
+- Updated dependencies [134d39e]
+  - @assistant-ui/react@0.5.22
+
 ## 0.5.10
 
 ### Patch Changes

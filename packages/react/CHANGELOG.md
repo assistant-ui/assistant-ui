@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.22
+
+### Patch Changes
+
+- 134d39e: fix: undo moving internal utilities to /react/internal
+
 ## 0.5.20
 
 ### Patch Changes

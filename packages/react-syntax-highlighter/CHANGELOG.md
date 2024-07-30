@@ -1,5 +1,14 @@
 # @assistant-ui/react-syntax-highlighter
 
+## 0.0.8
+
+### Patch Changes
+
+- 134d39e: fix: undo moving internal utilities to /react/internal
+- Updated dependencies [134d39e]
+  - @assistant-ui/react-markdown@0.2.7
+  - @assistant-ui/react@0.5.22
+
 ## 0.0.7
 
 ### Patch Changes

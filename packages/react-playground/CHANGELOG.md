@@ -1,5 +1,13 @@
 # @assistant-ui/react-playground
 
+## 0.0.14
+
+### Patch Changes
+
+- 134d39e: fix: undo moving internal utilities to /react/internal
+- Updated dependencies [134d39e]
+  - @assistant-ui/react@0.5.22
+
 ## 0.0.13
 
 ### Patch Changes
