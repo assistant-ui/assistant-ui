@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.23
+
+### Patch Changes
+
+- f83e4d1: feat: LocalRuntime export / import
+
 ## 0.5.22
 
 ### Patch Changes
