@@ -29,7 +29,7 @@ import { cn } from "@/lib/utils";
 export const Thread: FC = () => {
   return (
     <ThreadPrimitive.Root className="bg-background h-full">
-      <ThreadPrimitive.Viewport className="flex h-full flex-col items-center overflow-y-scroll scroll-smooth px-4 pt-8">
+      <ThreadPrimitive.Viewport className="flex h-full flex-col items-center overflow-y-scroll scroll-smooth bg-inherit px-4 pt-8">
         <ThreadWelcome />
 
         <ThreadPrimitive.Messages
