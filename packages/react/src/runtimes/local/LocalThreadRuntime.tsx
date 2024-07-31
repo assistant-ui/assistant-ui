@@ -9,7 +9,7 @@ import type {
   Unsubscribe,
 } from "../../types";
 import { fromCoreMessages } from "../edge";
-import { MessageRepository } from "../utils/MessageRepository";
+import { ExportedMessageRepository, MessageRepository } from "../utils/MessageRepository";
 import type { ChatModelAdapter, ChatModelRunResult } from "./ChatModelAdapter";
 import { shouldContinue } from "./shouldContinue";
 import { LocalRuntimeOptions } from "./LocalRuntimeOptions";
@@ -238,5 +238,14 @@ export class LocalThreadRuntime implements ThreadRuntime {
     if (added && shouldContinue(message)) {
       this.performRoundtrip(parentId, message);
     }
+  }
+
+  export() {
+    return this.repository.export();
+  }
+
+  import(data: ExportedMessageRepository) {
+    this.repository.import(data);
+    this.notifySubscribers()
   }
 }

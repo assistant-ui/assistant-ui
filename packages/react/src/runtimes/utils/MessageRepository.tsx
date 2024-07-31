@@ -13,6 +13,14 @@ type RepositoryMessage = RepositoryParent & {
   level: number;
 };
 
+export interface ExportedMessageRepository {
+  headId?: string | null;
+  messages: Array<{
+    message: ThreadMessage;
+    parentId: string | null;
+  }>;
+}
+
 const findHead = (message: RepositoryMessage): RepositoryMessage => {
   if (message.next) return findHead(message.next);
   return message;
@@ -223,5 +231,32 @@ export class MessageRepository {
         current.prev.next = current;
       }
     }
+  }
+
+  export(): ExportedMessageRepository {
+    const exportItems: ExportedMessageRepository["messages"] = [];
+
+    // hint: we are relying on the insertion order of the messages
+    // this is important for the import function to properly link the messages
+    for (const [, message] of this.messages) {
+      exportItems.push({
+        message: message.current,
+        parentId: message.prev?.current.id ?? null,
+      });
+    }
+
+    return {
+      headId: this.head?.current.id ?? null,
+      messages: exportItems,
+    };
+  }
+
+  import({ headId, messages }: ExportedMessageRepository) {
+    for (const { message, parentId } of messages) {
+      this.addOrUpdateMessage(parentId, message);
+    }
+
+    // switch to the saved head id if it is not the most recent message
+    this.resetHead(headId ?? messages.at(-1)?.message.id ?? null);
   }
 }
