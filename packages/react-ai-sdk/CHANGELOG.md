@@ -1,5 +1,11 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.5.12
+
+### Patch Changes
+
+- 3ddfde5: feat: assistant message append support
+
 ## 0.5.11
 
 ### Patch Changes
