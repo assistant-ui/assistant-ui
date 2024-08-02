@@ -63,11 +63,6 @@ export class VercelUseChatThreadRuntime implements ReactThreadRuntime {
 
   public async append(message: AppendMessage): Promise<void> {
     // add user message
-    if (message.role !== "user")
-      throw new Error(
-        "Only appending user messages are supported in VercelUseChatRuntime. This is likely an internal bug in assistant-ui.",
-      );
-
     if (message.content.length !== 1 || message.content[0]?.type !== "text")
       throw new Error(
         "Only text content is supported by VercelUseChatRuntime. Use the Edge runtime for image support.",
@@ -80,7 +75,7 @@ export class VercelUseChatThreadRuntime implements ReactThreadRuntime {
     this.vercel.setMessages(newMessages);
 
     await this.vercel.append({
-      role: "user",
+      role: message.role,
       content: message.content[0].text,
     });
   }
