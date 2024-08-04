@@ -38,8 +38,8 @@
     "class-variance-authority": "^0.7.0",
     "classnames": "^2.5.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^0.416.0",
-    "openai": "^4.53.2",
+    "lucide-react": "^0.424.0",
+    "openai": "^4.54.0",
     "prismjs": "^1.29.0",
     "react-simple-code-editor": "^0.14.1",
     "react-textarea-autosize": "^8.5.3",
@@ -67,8 +67,8 @@
     "eslint-config-next": "14.2.5",
     "tailwindcss": "^3.4.7",
     "tailwindcss-animate": "^1.0.7",
-    "tsup": "8.2.3",
-    "tsx": "^4.16.2"
+    "tsup": "8.2.4",
+    "tsx": "^4.16.5"
   },
   "publishConfig": {
     "access": "public",
