@@ -14,10 +14,6 @@ export class ExternalStoreRuntime extends BaseAssistantRuntime<ExternalStoreThre
     this.thread.store = store;
   }
 
-  public onStoreUpdated() {
-    return this.thread.onStoreUpdated();
-  }
-
   public getModelConfig() {
     return this._proxyConfigProvider.getModelConfig();
   }
