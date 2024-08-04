@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.5.24
+
+### Patch Changes
+
+- a7e8ef6: refactor: rewrite external store sync
+- 6629dd8: fix: render loop if a message ID is used twice
+
 ## 0.5.23
 
 ### Patch Changes
