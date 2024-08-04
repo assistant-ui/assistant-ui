@@ -6,7 +6,7 @@ import type {
   CoreUserContentPart,
   ThreadMessage,
 } from "../../types/AssistantTypes";
-import { getMessageText } from "../../utils/getMessageText";
+import { getThreadMessageText } from "../../utils/getThreadMessageText";
 import { MessageContext } from "../react/MessageContext";
 import type { MessageContextValue } from "../react/MessageContext";
 import { useThreadContext } from "../react/ThreadContext";
@@ -77,7 +77,7 @@ const useMessageContext = (messageIndex: number) => {
             "Tried to edit a non-user message. Editing is only supported for user messages. This is likely an internal bug in assistant-ui.",
           );
 
-        const text = getMessageText(message);
+        const text = getThreadMessageText(message);
 
         return text;
       },

@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { useMessageContext } from "../../context/react/MessageContext";
 import { useCombinedStore } from "../../utils/combined/useCombinedStore";
-import { getMessageText } from "../../utils/getMessageText";
+import { getThreadMessageText } from "../../utils/getThreadMessageText";
 
 export type UseActionBarCopyProps = {
   copiedDuration?: number | undefined;
@@ -27,7 +27,9 @@ export const useActionBarCopy = ({
     const { setIsCopied } = useMessageUtils.getState();
     const { isEditing, value: composerValue } = useEditComposer.getState();
 
-    const valueToCopy = isEditing ? composerValue : getMessageText(message);
+    const valueToCopy = isEditing
+      ? composerValue
+      : getThreadMessageText(message);
 
     navigator.clipboard.writeText(valueToCopy).then(() => {
       setIsCopied(true);
