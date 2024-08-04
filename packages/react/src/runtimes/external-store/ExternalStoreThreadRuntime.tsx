@@ -41,28 +41,30 @@ export class ExternalStoreThreadRuntime implements ReactThreadRuntime {
   public isRunning = false;
   public converter = new ThreadMessageConverter();
 
-  private _store;
+  private _store!: ExternalStoreAdapter<any>;
 
   constructor(store: ExternalStoreAdapter<any>) {
-    this._store = store;
+    this.store = store;
   }
 
   public set store(store: ExternalStoreAdapter<any>) {
-    const oldStore = this._store;
-    this._store = store;
+    const oldStore = this._store as ExternalStoreAdapter<any> | undefined;
 
     // flush the converter cache when the convertMessage prop changes
-    if (oldStore.convertMessage !== store.convertMessage) {
-      this.converter = new ThreadMessageConverter();
-    } else if (
-      oldStore.isDisabled === store.isDisabled &&
-      oldStore.isRunning === store.isRunning &&
-      oldStore.messages === store.messages
-    ) {
-      // no update needed
-      return;
+    if (oldStore) {
+      if (oldStore.convertMessage !== store.convertMessage) {
+        this.converter = new ThreadMessageConverter();
+      } else if (
+        oldStore.isDisabled === store.isDisabled &&
+        oldStore.isRunning === store.isRunning &&
+        oldStore.messages === store.messages
+      ) {
+        // no update needed
+        return;
+      }
     }
 
+    this._store = store;
     const isRunning = store.isRunning ?? false;
     const isDisabled = store.isDisabled ?? false;
 
@@ -122,7 +124,6 @@ export class ExternalStoreThreadRuntime implements ReactThreadRuntime {
     this.messages = this.repository.getMessages();
     this.isDisabled = isDisabled;
     this.isRunning = isRunning;
-
     for (const callback of this._subscriptions) callback();
   }
 
