@@ -1,1 +1,0 @@
-../packages/react/README.md
