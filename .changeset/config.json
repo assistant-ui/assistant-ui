@@ -14,6 +14,7 @@
     "with-react-hook-form",
     "with-playground",
     "with-openai-assistants",
-    "with-vercel-ai-rsc"
+    "with-vercel-ai-rsc",
+    "with-external-store"
   ]
 }
