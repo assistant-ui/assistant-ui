@@ -1,10 +1,11 @@
-import { type BaseLayoutProps, type DocsLayoutProps } from "fumadocs-ui/layout";
+import { type DocsLayoutProps } from "fumadocs-ui/layout";
 import { pageTree } from "@/app/source";
 import { RootToggle } from "fumadocs-ui/components/layout/root-toggle";
 import { BookIcon, LayoutTemplateIcon, NewspaperIcon } from "lucide-react";
 import { LibraryIcon, type LucideIcon } from "lucide-react";
 import icon from "@/public/favicon/icon.svg";
 import Image from "next/image";
+import { HomeLayoutProps } from "fumadocs-ui/home-layout";
 
 type Mode = {
   url: string;
@@ -47,7 +48,7 @@ const DiscordIcon = () => {
 };
 
 // shared configuration
-export const baseOptions: BaseLayoutProps = {
+export const baseOptions: HomeLayoutProps = {
   githubUrl: "https://github.com/Yonom/assistant-ui",
   nav: {
     title: (
@@ -86,7 +87,7 @@ export const baseOptions: BaseLayoutProps = {
       icon: <NewspaperIcon />,
     },
     {
-      type: "secondary",
+      type: "icon",
       text: "Discord",
       url: "https://discord.gg/S9dwgCNEFs",
       icon: <DiscordIcon />,
