@@ -835,7 +835,7 @@ importers:
   packages/react-ai-sdk:
     dependencies:
       '@assistant-ui/react':
-        specifier: ^0.5.22
+        specifier: ^0.5.25
         version: link:../react
       '@types/react':
         specifier: '*'
@@ -958,7 +958,7 @@ importers:
         specifier: ^0.0.14
         version: 0.0.14
       '@assistant-ui/react':
-        specifier: ^0.5.22
+        specifier: ^0.5.25
         version: link:../react
       '@radix-ui/react-avatar':
         specifier: ^1.1.0

@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.5.25
+
+### Patch Changes
+
+- 0445cdf: fix: disallow sending new messages when last message is in requires-action state
+- 0445cdf: refactor: remove Runtime.isRunning / auto-infer isRunning state from last message state
+- 71f4b77: feat: update Tooltip styles
+
 ## 0.5.24
 
 ### Patch Changes

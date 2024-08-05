@@ -1,5 +1,15 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.5.13
+
+### Patch Changes
+
+- 0445cdf: refactor: remove Runtime.isRunning / auto-infer isRunning state from last message state
+- Updated dependencies [0445cdf]
+- Updated dependencies [0445cdf]
+- Updated dependencies [71f4b77]
+  - @assistant-ui/react@0.5.25
+
 ## 0.5.12
 
 ### Patch Changes

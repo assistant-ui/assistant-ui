@@ -1,5 +1,15 @@
 # @assistant-ui/react-playground
 
+## 0.0.15
+
+### Patch Changes
+
+- 0445cdf: refactor: remove Runtime.isRunning / auto-infer isRunning state from last message state
+- Updated dependencies [0445cdf]
+- Updated dependencies [0445cdf]
+- Updated dependencies [71f4b77]
+  - @assistant-ui/react@0.5.25
+
 ## 0.0.14
 
 ### Patch Changes
