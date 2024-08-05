@@ -97,10 +97,6 @@ export class PlaygroundThreadRuntime implements ReactThreadRuntime {
   public tools: Record<string, Tool<any, any>> = {};
 
   public readonly isDisabled = false;
-  public get isRunning() {
-    return this.abortController != null;
-  }
-
   public readonly capabilities = CAPABILITIES;
 
   private configProvider = new ProxyConfigProvider();
@@ -214,9 +210,6 @@ export class PlaygroundThreadRuntime implements ReactThreadRuntime {
         updateMessage({
           status: { type: "complete", reason: "unknown" },
         });
-      } else {
-        // notify subscribers that isRunning is now false
-        this.notifySubscribers();
       }
     } catch (e) {
       this.abortController = null;

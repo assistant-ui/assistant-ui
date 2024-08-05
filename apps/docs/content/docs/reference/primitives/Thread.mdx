@@ -262,8 +262,8 @@ Renders children if a condition is met.
 import { useThreadIf } from "@assistant-ui/react";
 
 const ThreadIf = () => {
-  const isRunning = useThreadIf({ empty: true });
+  const isEmpty = useThreadIf({ empty: true });
 
-  return isRunning ? <Running /> : <NotRunning />;
+  return isEmpty ? <Empty /> : <NotEmpty />;
 };
 ```

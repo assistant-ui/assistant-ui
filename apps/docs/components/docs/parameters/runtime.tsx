@@ -62,10 +62,10 @@ export const AssistantRuntimeProviderProps = () => {
                   description: "The messages in the thread.",
                 },
                 {
-                  name: "isRunning",
+                  name: "isDisabled",
                   type: "boolean",
                   required: true,
-                  description: "Whether the thread is running.",
+                  description: "Whether the thread is disabled.",
                 },
                 {
                   name: "getBranches",

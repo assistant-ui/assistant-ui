@@ -31,7 +31,6 @@ export class VercelUseAssistantThreadRuntime implements ReactThreadRuntime {
 
   public messages: readonly ThreadMessage[] = [];
   public readonly isDisabled = false;
-  public isRunning = false;
 
   constructor(public vercel: ReturnType<typeof useAssistant>) {
     this.useVercel = create(() => ({
@@ -105,7 +104,6 @@ export class VercelUseAssistantThreadRuntime implements ReactThreadRuntime {
     }
 
     this.messages = vm;
-    this.isRunning = isRunning;
 
     for (const callback of this._subscriptions) callback();
   };

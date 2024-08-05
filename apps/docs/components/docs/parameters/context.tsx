@@ -192,6 +192,12 @@ export const ThreadState: ParametersTableProps = {
       required: true,
       description: "Whether the thread is running.",
     },
+    {
+      name: "isDisabled",
+      type: "boolean",
+      required: true,
+      description: "Whether the thread is disabled.",
+    },
   ],
 };
 

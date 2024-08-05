@@ -109,6 +109,9 @@ const { useThread } = useThreadContext();
 
 const isRunning = useThread((m) => m.isRunning);
 const isRunning = useThread.getState().isRunning;
+
+const isDisabled = useThread((m) => m.isDisabled);
+const isDisabled = useThread.getState().isDisabled;
 ```
 
 <ParametersTable {...ThreadState} />

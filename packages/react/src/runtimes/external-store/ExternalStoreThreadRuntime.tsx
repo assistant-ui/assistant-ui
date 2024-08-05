@@ -38,7 +38,6 @@ export class ExternalStoreThreadRuntime implements ReactThreadRuntime {
 
   public messages: ThreadMessage[] = [];
   public isDisabled = false;
-  public isRunning = false;
   public converter = new ThreadMessageConverter();
 
   private _store!: ExternalStoreAdapter<any>;
@@ -123,7 +122,6 @@ export class ExternalStoreThreadRuntime implements ReactThreadRuntime {
 
     this.messages = this.repository.getMessages();
     this.isDisabled = isDisabled;
-    this.isRunning = isRunning;
     for (const callback of this._subscriptions) callback();
   }
 

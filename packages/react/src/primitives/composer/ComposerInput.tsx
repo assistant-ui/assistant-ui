@@ -63,8 +63,9 @@ export const ComposerPrimitiveInput = forwardRef<
       if (isDisabled) return;
 
       if (e.key === "Enter" && e.shiftKey === false) {
-        const isRunning = useThread.getState().isRunning;
-        if (!isRunning) {
+        const { unstable_canAppendNew } = useThread.getState();
+
+        if (unstable_canAppendNew) {
           e.preventDefault();
 
           textareaRef.current?.closest("form")?.requestSubmit();

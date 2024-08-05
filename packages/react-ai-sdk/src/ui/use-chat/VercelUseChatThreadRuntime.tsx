@@ -44,7 +44,6 @@ export class VercelUseChatThreadRuntime implements ReactThreadRuntime {
 
   public messages: ThreadMessage[] = [];
   public readonly isDisabled = false;
-  public isRunning = false;
 
   constructor(public vercel: ReturnType<typeof useChat>) {
     this.useVercel = create(() => ({
@@ -160,7 +159,6 @@ export class VercelUseChatThreadRuntime implements ReactThreadRuntime {
     );
 
     this.messages = this.repository.getMessages();
-    this.isRunning = isRunning;
 
     for (const callback of this._subscriptions) callback();
   };

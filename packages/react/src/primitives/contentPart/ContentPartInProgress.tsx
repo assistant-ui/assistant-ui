@@ -3,6 +3,7 @@ import { useContentPartContext } from "../../context";
 
 export type ContentPartPrimitiveInProgressProps = PropsWithChildren;
 
+// TODO should this be renamed to IsRunning?
 export const ContentPartPrimitiveInProgress: FC<
   ContentPartPrimitiveInProgressProps
 > = ({ children }) => {

@@ -103,7 +103,8 @@ const Composer: FC = () => {
   const [role, setRole] = useState<"user" | "assistant" | "system">("user");
   const { useThread, useThreadActions, useComposer, useThreadMessages } =
     useThreadContext();
-  const isRunning = useThread((t) => t.isRunning);
+
+  const unstable_canAppendNew = useThread((t) => t.unstable_canAppendNew);
   const hasValue = useComposer((c) => c.value.length > 0);
 
   const performAdd = () => {
@@ -166,7 +167,7 @@ const Composer: FC = () => {
         <div className="flex-grow" />
         <Button
           onClick={handleAdd}
-          disabled={isRunning || !hasValue}
+          disabled={!unstable_canAppendNew || !hasValue}
           variant="default"
           size="sm"
           className="transition-opacity"
@@ -175,7 +176,7 @@ const Composer: FC = () => {
         </Button>
         <Button
           onClick={handleSubmit}
-          disabled={isRunning}
+          disabled={!unstable_canAppendNew}
           variant="default"
           size="sm"
           className="transition-opacity"
