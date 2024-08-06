@@ -11,6 +11,9 @@ const withMDX = createMDX({
           twoslashOptions: {
             compilerOptions: {
               jsx: 12,
+              paths: {
+                "@/*": ["./*"],
+              },
             },
           },
         }),

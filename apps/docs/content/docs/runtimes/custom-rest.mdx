@@ -35,9 +35,7 @@ npm install @assistant-ui/react
 
 Update the `MyModelAdapter` below to integrate with your own custom API.
 
-`@/app/MyRuntimeProvider.tsx`
-
-```tsx twoslash
+```tsx twoslash {1,11,17} title="@/app/MyRuntimeProvider.tsx"
 "use client";
 
 import type { ReactNode } from "react";
@@ -97,25 +95,31 @@ export function MyRuntimeProvider({
 
 `@/app/layout.tsx`
 
-```tsx {1,11,17}
-import { MyRuntimeProvider } from '@/app/MyRuntimeProvider';
+```tsx {1,11,17} twoslash
+// @filename: /app/MyRuntimeProvider.tsx
 
-...
+import type { FC, PropsWithChildren } from "react";
+
+export const MyRuntimeProvider: FC<PropsWithChildren> = () => null;
+
+// @filename: index.tsx
+
+// ---cut---
+import type { ReactNode } from "react";
+import { MyRuntimeProvider } from "@/app/MyRuntimeProvider";
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: ReactNode;
 }>) {
   return (
     <MyRuntimeProvider>
       <html lang="en">
-        <body className={inter.className}>
-          {children}
-        </body>
+        <body>{children}</body>
       </html>
     </MyRuntimeProvider>
-  )
+  );
 }
 ```
 
@@ -126,7 +130,13 @@ export default function RootLayout({
 
 Declare the `run` function as an `AsyncGenerator` (`async *run`). This allows you to `yield` the results as they are generated.
 
-```tsx {2, 11-13}
+```tsx twoslash {2, 11-13} title="@/app/MyRuntimeProvider.tsx"
+import { ChatModelAdapter } from "@assistant-ui/react";
+import { OpenAI } from "openai";
+
+const openai = new OpenAI();
+
+// ---cut---
 const MyModelAdapter: ChatModelAdapter = {
   async *run({ messages, abortSignal, config }) {
     const stream = await openai.chat.completions.create({
