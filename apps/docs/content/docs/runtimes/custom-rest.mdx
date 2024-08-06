@@ -37,9 +37,10 @@ Update the `MyModelAdapter` below to integrate with your own custom API.
 
 `@/app/MyRuntimeProvider.tsx`
 
-```tsx
+```tsx twoslash
 "use client";
 
+import type { ReactNode } from "react";
 import {
   AssistantRuntimeProvider,
   useLocalRuntime,
@@ -77,7 +78,7 @@ const MyModelAdapter: ChatModelAdapter = {
 export function MyRuntimeProvider({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: ReactNode;
 }>) {
   const runtime = useLocalRuntime(MyModelAdapter);
 
