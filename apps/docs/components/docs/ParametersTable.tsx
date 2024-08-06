@@ -29,7 +29,7 @@ const COMMON_PARAMS: Record<string, ParameterDef> = {
         Read the{" "}
         <a
           className="font-semibold underline"
-          href="/reference/primitives/composition"
+          href="/docs/ui/primitives/composition"
         >
           Composition
         </a>{" "}

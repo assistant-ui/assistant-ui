@@ -1,36 +1,9 @@
 import { type DocsLayoutProps } from "fumadocs-ui/layout";
 import { pageTree } from "@/app/source";
-import { RootToggle } from "fumadocs-ui/components/layout/root-toggle";
 import { BookIcon, LayoutTemplateIcon, NewspaperIcon } from "lucide-react";
-import { LibraryIcon, type LucideIcon } from "lucide-react";
 import icon from "@/public/favicon/icon.svg";
 import Image from "next/image";
 import { HomeLayoutProps } from "fumadocs-ui/home-layout";
-
-type Mode = {
-  url: string;
-  title: string;
-  description: string;
-  icon: LucideIcon;
-  param: string;
-};
-
-export const modes: Mode[] = [
-  {
-    icon: LibraryIcon,
-    title: "Documentation",
-    description: "@assistant-ui/react",
-    url: "/docs",
-    param: "docs",
-  },
-  {
-    icon: LibraryIcon,
-    title: "Reference",
-    description: "@assistant-ui/react",
-    url: "/reference",
-    param: "reference",
-  },
-];
 
 const DiscordIcon = () => {
   return (
@@ -71,12 +44,6 @@ export const baseOptions: HomeLayoutProps = {
       active: "nested-url",
     },
     {
-      text: "Reference",
-      url: "/reference",
-      icon: <BookIcon />,
-      active: "nested-url",
-    },
-    {
       text: "Examples",
       url: "/examples",
       icon: <LayoutTemplateIcon />,
@@ -100,24 +67,6 @@ export const sharedDocsOptions: Partial<DocsLayoutProps> = {
   ...baseOptions,
   sidebar: {
     defaultOpenLevel: 0,
-    banner: (
-      <RootToggle
-        options={modes.map((mode) => ({
-          url: mode.url,
-          icon: (
-            <mode.icon
-              className="from-background/80 size-9 shrink-0 rounded-md bg-gradient-to-t p-1.5"
-              style={{
-                backgroundColor: `hsl(var(--${mode.param}-color)/.3)`,
-                color: `hsl(var(--${mode.param}-color))`,
-              }}
-            />
-          ),
-          title: mode.title,
-          description: mode.description,
-        }))}
-      />
-    ),
   },
 };
 

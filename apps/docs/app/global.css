@@ -75,15 +75,8 @@
   }
 }
 
-.mode-docs {
-  --primary: var(--docs-color);
-}
-
-.mode-reference {
-  --primary: var(--reference-color);
-}
-
 :root {
+  --primary: var(--docs-color);
   --docs-color: 220deg 91% 54%;
   --reference-color: 250 80% 54%;
 }

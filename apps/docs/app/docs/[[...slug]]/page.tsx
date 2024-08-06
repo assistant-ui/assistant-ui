@@ -11,7 +11,7 @@ export default async function Page({
 }: {
   params: { slug?: string[] };
 }) {
-  const page = getPage(["docs", ...(params.slug ?? [])]);
+  const page = getPage(params.slug ?? []);
 
   if (page == null) {
     notFound();
@@ -62,7 +62,7 @@ export async function generateStaticParams() {
 }
 
 export function generateMetadata({ params }: { params: { slug?: string[] } }) {
-  const page = getPage(["docs", ...(params.slug ?? [])]);
+  const page = getPage(params.slug ?? []);
 
   if (page == null) notFound();
 

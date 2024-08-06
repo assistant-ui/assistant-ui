@@ -16,7 +16,7 @@ export const blogFrontmatterSchema = frontmatterSchema.extend({
 });
 
 export const { getPages, getPage, pageTree } = loader({
-  baseUrl: "/",
+  baseUrl: "/docs",
   rootDir: "docs",
   source: createMDXSource<typeof frontmatterSchema>(map, {
     schema: {
