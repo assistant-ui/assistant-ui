@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.26
+
+### Patch Changes
+
+- 440b051: fix: sending messages when thread is empty
+
 ## 0.5.25
 
 ### Patch Changes
