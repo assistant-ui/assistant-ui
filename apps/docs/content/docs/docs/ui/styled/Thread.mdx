@@ -1,0 +1,74 @@
+---
+title: Thread
+---
+
+import { Steps, Step } from "fumadocs-ui/components/steps";
+import { Tabs, Tab } from "fumadocs-ui/components/tabs";
+
+## Overview
+
+The raw message list and message composer UI. Useful for full screen chat use cases.
+
+## Getting Started
+
+<Steps>
+  <Step>
+
+### Import CSS styles
+
+Add the following to your `tailwind.config.ts`:
+
+<Tabs items={["Tailwind", "Tailwind + shadcn-ui", "Not using Tailwind"]}>
+
+```ts title="/tailwind.config.ts" tab="Tailwind"
+{
+  plugins: [
+    require("tailwindcss-animate"), // make sure to "npm install tailwindcss-animate"
+    require("@assistant-ui/react/tailwindcss")({
+      components: ["thread"],
+    })
+  ],
+}
+```
+
+```ts title="/tailwind.config.ts" tab="Tailwind + shadcn-ui"
+{
+  plugins: [
+    require("tailwindcss-animate"), // make sure to "npm install tailwindcss-animate"
+    require("@assistant-ui/react/tailwindcss")({ 
+      components: ["thread"],
+      shadcn: true 
+    })
+  ],
+}
+```
+
+```ts title="/app/layout.tsx" tab="Not using Tailwind"
+import "@assistant-ui/react/styles/index.css";
+```
+
+</Tabs>
+
+  </Step>
+  <Step>
+
+### Use it in your app
+
+```tsx title="/app/page.tsx"
+import { Thread, useEdgeRuntime } from "@assistant-ui/react";
+
+const MyApp = () => {
+  const runtime = useEdgeRuntime({
+    api: "/api/chat",
+  });
+
+  return (
+    <div className="h-full">
+      <Thread runtime={runtime} />
+    </div>
+  );
+};
+```
+
+  </Step>
+</Steps>

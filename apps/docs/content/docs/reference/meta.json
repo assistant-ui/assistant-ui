@@ -1,12 +1,5 @@
 {
   "title": "Reference",
   "root": true,
-  "pages": [
-    "runtime",
-    "context",
-    "integrations",
-    "---Primitives---",
-    "...primitives",
-    "..."
-  ]
+  "pages": ["runtime", "context", "integrations", "..."]
 }

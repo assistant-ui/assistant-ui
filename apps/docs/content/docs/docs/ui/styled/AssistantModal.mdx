@@ -1,0 +1,75 @@
+---
+title: AssistantModal
+---
+
+import { Steps, Step } from "fumadocs-ui/components/steps";
+import { Tabs, Tab } from "fumadocs-ui/components/tabs";
+
+## Overview
+
+A chat bubble shown in the bottom right corner of the screen. Useful for support or Q&A use cases.
+
+## Getting Started
+
+<Steps>
+  <Step>
+
+### Import CSS styles
+
+Add the following to your `tailwind.config.ts`:
+
+<Tabs items={["Tailwind", "Tailwind + shadcn-ui", "Not using Tailwind"]}>
+
+```ts title="/tailwind.config.ts" tab="Tailwind"
+{
+  plugins: [
+    require("tailwindcss-animate"), // make sure to "npm install tailwindcss-animate"
+    require("@assistant-ui/react/tailwindcss")({
+      components: ["assistant-modal"],
+    })
+  ],
+}
+```
+
+```ts title="/tailwind.config.ts" tab="Tailwind + shadcn-ui"
+{
+  plugins: [
+    require("tailwindcss-animate"), // make sure to "npm install tailwindcss-animate"
+    require("@assistant-ui/react/tailwindcss")({
+      components: ["assistant-modal"],
+      shadcn: true
+    })
+  ],
+}
+```
+
+```ts title="/app/layout.tsx" tab="Not using Tailwind"
+import "@assistant-ui/react/styles/index.css";
+import "@assistant-ui/react/styles/modal.css";
+```
+
+</Tabs>
+
+  </Step>
+  <Step>
+
+### Use it in your app
+
+```tsx title="/app/page.tsx"
+import { Thread, useEdgeRuntime } from "@assistant-ui/react";
+
+const MyApp = () => {
+  const runtime = useEdgeRuntime({
+    api: "/api/chat",
+  });
+
+  return (
+    <div>
+      <AssistantModal runtime={runtime} />
+    </div>
+  );
+};
+```
+
+  </Step>
+</Steps>

@@ -1,3 +1,4 @@
 {
-  "title": "UI"
+  "title": "UI",
+  "pages": ["choosing-ui", "styled", "shadcn-ui", "primitives"]
 }

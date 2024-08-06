@@ -1,0 +1,509 @@
+---
+title: Decomposition
+---
+
+## Overview
+
+The Baseline components can be decomposed into smaller components. At each level, you can swap out a specific component with your own custom component.
+
+## Thread
+
+Renders an entire conversation thread.
+
+```tsx
+import {
+  Thread,
+  ThreadWelcome,
+  Composer,
+  type ThreadConfig,
+} from "@assistant-ui/react";
+
+const MyThread: FC<ThreadConfig> = (config) => {
+  return (
+    <Thread.Root config={config}>
+      <Thread.Viewport>
+        <ThreadWelcome />
+        <Thread.Messages />
+        <Thread.ViewportFooter>
+          <Thread.ScrollToBottom />
+          <Composer />
+        </Thread.ViewportFooter>
+      </Thread.Viewport>
+    </Thread.Root>
+  );
+};
+```
+
+**Usage:**
+
+```ts
+<MyThread />
+```
+
+### Thread.Root
+
+Contains all parts of the thread. Accepts a `config` prop which is used by many other styled components.
+
+### Thread.Viewport
+
+The scrollable area containing all messages. Anchors scroll to the bottom as new messages are added.
+
+### Thread.Messages
+
+Renders all messages. This renders a separate component for each message (passed to the `components` prop).
+
+### Thread.ViewportFooter
+
+Renders the footer of the thread viewport. This is the sticky footer that does not scroll with the messages.
+
+### Thread.ScrollToBottom
+
+A button to scroll the viewport to the bottom. Hidden when the viewport is already at bottom.
+
+## ThreadWelcome
+
+Renders the welcome message when no messages are present.
+
+```tsx
+import { ThreadWelcome } from "@assistant-ui/react";
+
+const MyThreadWelcome: FC = () => {
+  return (
+    <ThreadWelcome.Root>
+      <ThreadWelcome.Center>
+        <ThreadWelcome.Avatar />
+        <ThreadWelcome.Message />
+      </ThreadWelcome.Center>
+      <ThreadWelcome.Suggestions />
+    </ThreadWelcome.Root>
+  );
+};
+```
+
+**Usage:**
+
+Decompose `Thread` into `MyThread` and use `MyThreadWelcome` instead of `ThreadWelcome`.
+
+```ts
+const MyThread: FC<ThreadConfig> = (config) => {
+  ...
+  <MyThreadWelcome />
+  ...
+};
+```
+
+### ThreadWelcome.Root
+
+Contains all parts of the welcome message.
+
+### ThreadWelcome.Center
+
+The centered content of the welcome message.
+
+### ThreadWelcome.Avatar
+
+The avatar of the assistant.
+
+### ThreadWelcome.Message
+
+The welcome message.
+
+### ThreadWelcome.Suggestions
+
+Conversation starter suggestions.
+
+```tsx
+import { ThreadWelcome } from "@assistant-ui/react";
+
+const MyThreadWelcomeSuggestions: FC = () => {
+  return (
+    <div className="aui-thread-welcome-suggestion-container">
+      <ThreadWelcome.Suggestion prompt="Write me a poem about the weather" />
+      <ThreadWelcome.Suggestion prompt="What is assistant-ui?" />
+    </div>
+  );
+};
+```
+
+### ThreadWelcome.Suggestion
+
+A conversation starter suggestion.
+
+## Composer
+
+Renders the composer.
+
+```tsx
+import { Composer } from "@assistant-ui/react";
+
+const MyComposer: FC = () => {
+  return (
+    <Composer.Root>
+      <Composer.Input autoFocus />
+      <Composer.Action />
+    </Composer.Root>
+  );
+};
+```
+
+**Usage:**
+
+Decompose `Thread` into `MyThread` and use `MyComposer` instead of `Composer`.
+
+```ts
+const MyThread: FC<ThreadConfig> = (config) => {
+  ...
+  <MyComposer />
+  ...
+};
+```
+
+### Composer.Root
+
+Contains all parts of the composer.
+
+### Composer.Input
+
+The text input field for the user to type a new message.
+
+### Composer.Action
+
+The button to send or cancel the message.
+
+```tsx
+import { Composer, ThreadPrimitive } from "@assistant-ui/react";
+
+const MyComposerAction: FC = () => {
+  return (
+    <>
+      <ThreadPrimitive.If running={false}>
+        <ComposerSend />
+      </ThreadPrimitive.If>
+      <ThreadPrimitive.If running>
+        <ComposerCancel />
+      </ThreadPrimitive.If>
+    </>
+  );
+};
+```
+
+### Composer.Send
+
+The button to send the message.
+
+### Composer.Cancel
+
+Sends a cancel action.
+
+## AssistantMessage
+
+Renders an assistant message.
+
+```tsx
+import { AssistantMessage } from "@assistant-ui/react";
+
+const MyAssistantMessage: FC = () => {
+  return (
+    <AssistantMessage.Root>
+      <AssistantMessage.Avatar />
+      <AssistantMessage.Content />
+      <BranchPicker />
+      <AssistantActionBar />
+    </AssistantMessage.Root>
+  );
+};
+```
+
+**Usage:**
+
+Decompose `Thread` into `MyThread` and pass `MyAssistantMessage` to Thread.MEssages
+
+```ts
+const MyThread: FC<ThreadConfig> = (config) => {
+  ...
+  <Thread.Messages components={{ AssistantMessage: MyAssistantMessage }} />
+  ...
+};
+```
+
+### AssistantMessage.Root
+
+Contains all parts of the assistant message.
+
+### AssistantMessage.Avatar
+
+The avatar of the assistant.
+
+### AssistantMessage.Content
+
+The content of the assistant message.
+
+## AssistantActionBar
+
+Renders the action bar for the assistant message.
+
+```tsx
+import { AssistantActionBar } from "@assistant-ui/react";
+
+const MyAssistantActionBar: FC = () => {
+  return (
+    <AssistantActionBar.Root
+      hideWhenRunning
+      autohide="not-last"
+      autohideFloat="single-branch"
+    >
+      <AssistantActionBar.Reload />
+      <AssistantActionBar.Copy />
+    </AssistantActionBar.Root>
+  );
+};
+```
+
+**Usage:**
+
+Decompose `AssistantMessage` into `MyAssistantMessage` and use `MyAssistantActionBar` instead of `AssistantActionBar`.
+
+```ts
+const MyAssistantMessage: FC = () => {
+  ...
+  <MyAssistantActionBar />
+  ...
+};
+```
+
+### AssistantActionBar.Root
+
+Contains all parts of the assistant action bar.
+
+### AssistantActionBar.Reload
+
+Shows a reload button.
+
+### AssistantActionBar.Copy
+
+Shows a copy button.
+
+## BranchPicker
+
+Renders the branch picker.
+
+```tsx
+import { BranchPicker } from "@assistant-ui/react";
+
+const MyBranchPicker: FC = () => {
+  return (
+    <BranchPicker.Root hideWhenSingleBranch>
+      <BranchPicker.Previous />
+      <BranchPicker.State />
+      <BranchPicker.Next />
+    </BranchPicker.Root>
+  );
+};
+```
+
+**Usage:**
+
+Decompose `AssistantMessage` and `UserMessage` and use `MyBranchPicker` instead of `BranchPicker`.
+
+```ts
+const MyAssistantMessage: FC = () => {
+  ...
+  <MyBranchPicker />
+  ...
+};
+```
+
+```ts
+const MyUserMessage: FC = () => {
+  ...
+  <MyBranchPicker />
+  ...
+};
+```
+
+### BranchPicker.Root
+
+Contains all parts of the branch picker.
+
+### BranchPicker.Previous
+
+Shows a previous button.
+
+### BranchPicker.Next
+
+Shows a next button.
+
+### BranchPicker.State
+
+Shows the current branch number and total number of branches.
+
+```tsx
+import { BranchPicker } from "@assistant-ui/react";
+
+const MyBranchPickerState: FC = () => {
+  return (
+    <span className="aui-branch-picker-state">
+      <BranchPicker.Number /> / <BranchPicker.Count />
+    </span>
+  );
+};
+```
+
+### BranchPicker.Number
+
+The current branch number.
+
+### BranchPicker.Count
+
+The total number of branches.
+
+## UserMessage
+
+Renders a user message.
+
+```tsx
+import { UserMessage } from "@assistant-ui/react";
+
+const MyUserMessage: FC = () => {
+  return (
+    <UserMessage.Root>
+      <UserMessage.Content />
+      <UserActionBar />
+      <BranchPicker />
+    </UserMessage.Root>
+  );
+};
+```
+
+**Usage:**
+
+Decompose `Thread` into `MyThread` and pass `MyUserMessage` to Thread.Messages
+
+```ts
+const MyThread: FC<ThreadConfig> = (config) => {
+  ...
+  <Thread.Messages components={{ UserMessage: MyUserMessage }} />
+  ...
+};
+```
+
+### UserMessage.Root
+
+Contains all parts of the user message.
+
+### UserMessage.Content
+
+The content of the user message.
+
+## UserActionBar
+
+Renders the action bar for the user message.
+
+```tsx
+import { UserActionBar } from "@assistant-ui/react";
+
+const MyUserActionBar: FC = () => {
+  return (
+    <UserActionBar.Root hideWhenRunning autohide="not-last">
+      <UserActionBar.Edit />
+    </UserActionBar.Root>
+  );
+};
+```
+
+**Usage:**
+
+Decompose `UserMessage` into `MyUserMessage` and use `MyUserActionBar` instead of `UserActionBar`.
+
+```ts
+const MyUserMessage: FC = () => {
+  ...
+  <MyUserActionBar />
+  ...
+};
+```
+
+### UserActionBar.Root
+
+Contains all parts of the user action bar.
+
+### UserActionBar.Edit
+
+Shows an edit button.
+
+## EditComposer
+
+Renders a user message being edited.
+
+```tsx
+import { EditComposer } from "@assistant-ui/react";
+
+const MyEditComposer: FC = () => {
+  return (
+    <EditComposer.Root>
+      <EditComposer.Input />
+      <EditComposer.Footer>
+        <EditComposer.Cancel />
+        <EditComposer.Send />
+      </EditComposer.Footer>
+    </EditComposer.Root>
+  );
+};
+```
+
+**Usage:**
+
+Decompose `Thread` into `MyThread` and pass `MyEditComposer` to `Thread.Messages`.
+
+```ts
+const MyThread: FC<ThreadConfig> = (config) => {
+  ...
+  <Thread.Messages components={{ EditComposer: MyEditComposer }} />
+  ...
+};
+```
+
+### EditComposer.Root
+
+Contains all parts of the edit composer.
+
+### EditComposer.Input
+
+The text input field for the user to type a new message.
+
+### EditComposer.Footer
+
+The footer of the edit composer.
+
+### EditComposer.Cancel
+
+Sends a cancel action.
+
+### EditComposer.Send
+
+Sends the message.
+
+## AssistantModal
+
+Renders the assistant modal.
+
+```tsx
+import { AssistantModal, Thread, type ThreadConfig } from "@assistant-ui/react";
+
+const MyAssistantModal: FC<ThreadConfig> = (config) => {
+  return (
+    <AssistantModal.Root config={config}>
+      <AssistantModal.Trigger />
+      <AssistantModal.Content>
+        <Thread />
+      </AssistantModal.Content>
+    </AssistantModal.Root>
+  );
+};
+```
+
+**Usage:**
+
+```ts
+<MyAssistantModal />
+```
