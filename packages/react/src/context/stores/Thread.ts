@@ -17,7 +17,7 @@ export const getThreadStateFromRuntime = (
     return Object.freeze({
       isDisabled: runtime.isDisabled,
       isRunning: false,
-      unstable_canAppendNew: runtime.isDisabled,
+      unstable_canAppendNew: !runtime.isDisabled,
     });
   return Object.freeze({
     isDisabled: runtime.isDisabled,
