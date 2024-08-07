@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.5.27
+
+### Patch Changes
+
+- dbf1042: fix: minor styling fixes
+- dbf1042: chore: update deps
+
 ## 0.5.26
 
 ### Patch Changes

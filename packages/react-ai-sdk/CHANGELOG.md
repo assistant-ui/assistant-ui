@@ -1,5 +1,14 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.5.14
+
+### Patch Changes
+
+- dbf1042: chore: update deps
+- Updated dependencies [dbf1042]
+- Updated dependencies [dbf1042]
+  - @assistant-ui/react@0.5.27
+
 ## 0.5.13
 
 ### Patch Changes

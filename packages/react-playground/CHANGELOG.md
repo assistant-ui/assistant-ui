@@ -1,5 +1,14 @@
 # @assistant-ui/react-playground
 
+## 0.0.16
+
+### Patch Changes
+
+- dbf1042: chore: update deps
+- Updated dependencies [dbf1042]
+- Updated dependencies [dbf1042]
+  - @assistant-ui/react@0.5.27
+
 ## 0.0.15
 
 ### Patch Changes

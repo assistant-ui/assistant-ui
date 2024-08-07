@@ -1,5 +1,14 @@
 # @assistant-ui/react-markdown
 
+## 0.2.8
+
+### Patch Changes
+
+- dbf1042: chore: update deps
+- Updated dependencies [dbf1042]
+- Updated dependencies [dbf1042]
+  - @assistant-ui/react@0.5.27
+
 ## 0.2.7
 
 ### Patch Changes
