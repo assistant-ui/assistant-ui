@@ -81,7 +81,7 @@
     "build": "tsx scripts/build.mts"
   },
   "dependencies": {
-    "@ai-sdk/provider": "^0.0.14",
+    "@ai-sdk/provider": "^0.0.15",
     "@radix-ui/primitive": "^1.1.0",
     "@radix-ui/react-avatar": "^1.1.0",
     "@radix-ui/react-compose-refs": "^1.1.0",
@@ -129,7 +129,7 @@
     "autoprefixer": "^10.4.20",
     "eslint": "^8",
     "eslint-config-next": "14.2.5",
-    "postcss": "^8.4.40",
+    "postcss": "^8.4.41",
     "postcss-nested": "^6.2.0",
     "tailwindcss": "^3.4.7",
     "tailwindcss-animate": "^1.0.7",

@@ -27,7 +27,7 @@
     "build": "tsx scripts/build.mts"
   },
   "dependencies": {
-    "@ai-sdk/provider": "^0.0.14",
+    "@ai-sdk/provider": "^0.0.15",
     "@radix-ui/react-avatar": "^1.1.0",
     "@radix-ui/react-dialog": "^1.1.1",
     "@radix-ui/react-dropdown-menu": "^2.1.1",
@@ -39,7 +39,7 @@
     "classnames": "^2.5.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.424.0",
-    "openai": "^4.54.0",
+    "openai": "^4.55.0",
     "prismjs": "^1.29.0",
     "react-simple-code-editor": "^0.14.1",
     "react-textarea-autosize": "^8.5.3",
