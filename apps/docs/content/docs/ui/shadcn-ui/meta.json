@@ -1,4 +1,4 @@
 {
   "title": "shadcn-ui",
-  "pages": ["Thread", "AssistantModal", "AssistantSidebar"]
+  "pages": ["Thread", "AssistantModal", "AssistantSidebar", "Markdown", "..."]
 }
