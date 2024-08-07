@@ -1,5 +1,6 @@
 "use client";
 
+import { FC } from "react";
 import {
   AssistantModal,
   ChatModelAdapter,
@@ -9,6 +10,7 @@ import { makeMarkdownText } from "@assistant-ui/react-markdown";
 import { makePrismAsyncSyntaxHighlighter } from "@assistant-ui/react-syntax-highlighter";
 import { coldarkDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import remarkGfm from "remark-gfm";
+import { Thread, type ThreadConfig } from "@assistant-ui/react";
 
 function asAsyncIterable<T>(source: ReadableStream<T>): AsyncIterable<T> {
   return {
@@ -75,12 +77,23 @@ export const DocsChat = () => {
   const runtime = useLocalRuntime(MyCustomAdapter);
 
   return (
-    <AssistantModal
+    <MyAssistantModal
       runtime={runtime}
       welcome={{
         message: "Ask me anything about the docs!",
       }}
       assistantMessage={{ components: { Text: MarkdownText } }}
     />
+  );
+};
+
+const MyAssistantModal: FC<ThreadConfig> = (config) => {
+  return (
+    <AssistantModal.Root config={config}>
+      <AssistantModal.Trigger />
+      <AssistantModal.Content className="h-[800px] w-[600px]">
+        <Thread />
+      </AssistantModal.Content>
+    </AssistantModal.Root>
   );
 };
