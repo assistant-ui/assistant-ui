@@ -10,7 +10,7 @@ import { makePrismAsyncSyntaxHighlighter } from "@assistant-ui/react-syntax-high
 import { coldarkDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import remarkGfm from "remark-gfm";
 
-co asAsyncIterable<T>(source: ReadableStream<T>): AsyncIterable<T> {
+function asAsyncIterable<T>(source: ReadableStream<T>): AsyncIterable<T> {
   return {
     [Symbol.asyncIterator]: () => {
       const reader = source.getReader();
