@@ -130,6 +130,8 @@ const exports = {
   Root: AssistantModalRoot,
   Trigger: AssistantModalTrigger,
   Content: AssistantModalContent,
+  Button: AssistantModalButton,
+  Anchor: AssistantModalAnchor,
 };
 
 export default Object.assign(AssistantModal, exports) as typeof AssistantModal &
