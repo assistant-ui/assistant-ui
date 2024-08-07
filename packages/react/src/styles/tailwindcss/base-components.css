@@ -1,5 +1,5 @@
 .aui-root {
-  @apply bg-aui-background text-aui-foreground border-aui-border;
+  @apply text-aui-foreground border-aui-border;
 }
 
 /* button */
