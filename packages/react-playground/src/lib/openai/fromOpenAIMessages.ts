@@ -16,7 +16,13 @@ export const fromOpenAIMessages = (
     const { role, content } = message;
     switch (role) {
       case "system": {
-        lmMessages.push({ role: "system", content });
+        lmMessages.push({
+          role: "system",
+          content:
+            typeof content === "string"
+              ? content
+              : content.map((c) => c.text).join("\n"),
+        });
         break;
       }
 
@@ -57,7 +63,31 @@ export const fromOpenAIMessages = (
         )[] = [];
 
         if (content != null) {
-          lmContent.push({ type: "text", text: content });
+          lmContent.push(
+            ...(typeof content === "string"
+              ? [{ type: "text" as const, text: content }]
+              : content.map((part) => {
+                  const type = part.type;
+                  switch (type) {
+                    case "text": {
+                      return part;
+                    }
+
+                    case "refusal": {
+                      // TODO handle refusals
+                      return {
+                        type: "text" as const,
+                        text: part.refusal,
+                      };
+                    }
+
+                    default: {
+                      const unsupportedPart: "refusal" = type;
+                      throw new Error(`Unsupported part: ${unsupportedPart}`);
+                    }
+                  }
+                })),
+          );
         }
 
         if (message.tool_calls) {
