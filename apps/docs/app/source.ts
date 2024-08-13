@@ -1,14 +1,9 @@
 import { map } from "@/.map";
-import { createMDXSource } from "fumadocs-mdx";
+import { createMDXSource, defaultSchemas } from "fumadocs-mdx";
 import { loader, Page } from "fumadocs-core/source";
 import { z } from "zod";
 
-const frontmatterSchema = z.object({
-  title: z.string(),
-  description: z.string().optional(),
-  icon: z.string().optional(),
-  full: z.boolean().optional(),
-});
+const frontmatterSchema = defaultSchemas.frontmatter;
 
 export const blogFrontmatterSchema = frontmatterSchema.extend({
   author: z.string(),
