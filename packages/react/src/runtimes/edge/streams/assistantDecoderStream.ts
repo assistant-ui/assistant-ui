@@ -1,7 +1,8 @@
 import {
-  AssistantStreamChunkTuple,
+  AssistantStreamChunk,
   AssistantStreamChunkType,
 } from "./AssistantStreamChunkType";
+import { StreamPart } from "./utils/StreamPart";
 import { ToolResultStreamPart } from "./toolResultStream";
 
 export function assistantDecoderStream() {
@@ -10,14 +11,15 @@ export function assistantDecoderStream() {
     | { id: string; name: string; argsText: string }
     | undefined;
 
-  return new TransformStream<string, ToolResultStreamPart>({
-    transform(chunk, controller) {
-      const [code, value] = parseStreamPart(chunk);
-
+  return new TransformStream<
+    StreamPart<AssistantStreamChunk>,
+    ToolResultStreamPart
+  >({
+    transform({ type, value }, controller) {
       if (
         currentToolCall &&
-        code !== AssistantStreamChunkType.ToolCallArgsTextDelta &&
-        code !== AssistantStreamChunkType.Error
+        type !== AssistantStreamChunkType.ToolCallArgsTextDelta &&
+        type !== AssistantStreamChunkType.Error
       ) {
         controller.enqueue({
           type: "tool-call",
@@ -29,7 +31,7 @@ export function assistantDecoderStream() {
         currentToolCall = undefined;
       }
 
-      switch (code) {
+      switch (type) {
         case AssistantStreamChunkType.TextDelta: {
           controller.enqueue({
             type: "text-delta",
@@ -80,19 +82,10 @@ export function assistantDecoderStream() {
           break;
         }
         default: {
-          const unhandledType: never = code;
+          const unhandledType: never = type;
           throw new Error(`Unhandled chunk type: ${unhandledType}`);
         }
       }
     },
   });
 }
-
-const parseStreamPart = (part: string): AssistantStreamChunkTuple => {
-  const index = part.indexOf(":");
-  if (index === -1) throw new Error("Invalid stream part");
-  return [
-    part.slice(0, index) as AssistantStreamChunkType,
-    JSON.parse(part.slice(index + 1)),
-  ] as const;
-};

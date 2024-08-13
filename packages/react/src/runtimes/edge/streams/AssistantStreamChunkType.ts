@@ -9,30 +9,22 @@ export enum AssistantStreamChunkType {
   Finish = "F",
 }
 
-export type AssistantStreamChunkTuple =
-  | [AssistantStreamChunkType.TextDelta, string]
-  | [
-      AssistantStreamChunkType.ToolCallBegin,
-      {
-        id: string;
-        name: string;
-      },
-    ]
-  | [AssistantStreamChunkType.ToolCallArgsTextDelta, string]
-  | [
-      AssistantStreamChunkType.ToolCallResult,
-      {
-        id: string;
-        result: any;
-      },
-    ]
-  | [AssistantStreamChunkType.Error, unknown]
-  | [
-      AssistantStreamChunkType.Finish,
-      Omit<
-        LanguageModelV1StreamPart & {
-          type: "finish";
-        },
-        "type"
-      >,
-    ];
+export type AssistantStreamChunk = {
+  [AssistantStreamChunkType.TextDelta]: string;
+  [AssistantStreamChunkType.ToolCallBegin]: {
+    id: string;
+    name: string;
+  };
+  [AssistantStreamChunkType.ToolCallArgsTextDelta]: string;
+  [AssistantStreamChunkType.ToolCallResult]: {
+    id: string;
+    result: any;
+  };
+  [AssistantStreamChunkType.Error]: unknown;
+  [AssistantStreamChunkType.Finish]: Omit<
+    LanguageModelV1StreamPart & {
+      type: "finish";
+    },
+    "type"
+  >;
+};

@@ -4,7 +4,7 @@ import { toCoreMessages } from "./converters/toCoreMessages";
 import { toLanguageModelTools } from "./converters/toLanguageModelTools";
 import { EdgeRuntimeRequestOptions } from "./EdgeRuntimeRequestOptions";
 import { assistantDecoderStream } from "./streams/assistantDecoderStream";
-import { chunkByLineStream } from "./streams/chunkByLineStream";
+import { streamPartDecoderStream } from "./streams/utils/streamPartDecoderStream";
 import { runResultStream } from "./streams/runResultStream";
 import { toolResultStream } from "./streams/toolResultStream";
 
@@ -53,8 +53,7 @@ export class EdgeChatAdapter implements ChatModelAdapter {
     }
 
     const stream = result
-      .body!.pipeThrough(new TextDecoderStream())
-      .pipeThrough(chunkByLineStream())
+      .body!.pipeThrough(streamPartDecoderStream())
       .pipeThrough(assistantDecoderStream())
       .pipeThrough(toolResultStream(config.tools))
       .pipeThrough(runResultStream());

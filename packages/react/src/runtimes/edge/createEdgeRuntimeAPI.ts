@@ -27,6 +27,7 @@ import {
 } from "../../types/ModelConfigTypes";
 import { ChatModelRunResult } from "../local";
 import { toCoreMessage } from "./converters/toCoreMessages";
+import { streamPartEncoderStream } from "./streams/utils/streamPartEncoderStream";
 
 type FinishResult = {
   messages: CoreMessage[];
@@ -174,7 +175,7 @@ export const createEdgeRuntimeAPI = ({
     return new Response(
       stream
         .pipeThrough(assistantEncoderStream())
-        .pipeThrough(new TextEncoderStream()),
+        .pipeThrough(streamPartEncoderStream()),
       {
         headers: {
           contentType: "text/plain; charset=utf-8",
