@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.5.28
+
+### Patch Changes
+
+- 915b5b7: feat: expose streamUtils
+- 9a55735: chore: update deps
+
 ## 0.5.27
 
 ### Patch Changes
