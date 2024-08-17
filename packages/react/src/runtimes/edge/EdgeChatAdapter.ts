@@ -55,7 +55,7 @@ export class EdgeChatAdapter implements ChatModelAdapter {
     const stream = result
       .body!.pipeThrough(streamPartDecoderStream())
       .pipeThrough(assistantDecoderStream())
-      .pipeThrough(toolResultStream(config.tools))
+      .pipeThrough(toolResultStream(config.tools, abortSignal))
       .pipeThrough(runResultStream());
 
     let update: ChatModelRunResult | undefined;

@@ -1,4 +1,4 @@
-import { ThreadMessage, CoreMessage } from "../../../types";
+  import { ThreadMessage, CoreMessage } from "../../../types";
 
 export const toCoreMessages = (message: ThreadMessage[]): CoreMessage[] => {
   return message.map(toCoreMessage);

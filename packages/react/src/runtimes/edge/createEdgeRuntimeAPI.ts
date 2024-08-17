@@ -130,7 +130,9 @@ export const createEdgeRuntimeAPI = ({
     // add tool results if we have server tools
     const canExecuteTools = hasServerTools && toolChoice?.type !== "none";
     if (canExecuteTools) {
-      stream = stream.pipeThrough(toolResultStream(serverTools));
+      stream = stream.pipeThrough(
+        toolResultStream(serverTools, request.signal),
+      );
     }
 
     if (canExecuteTools || onFinish) {

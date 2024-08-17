@@ -52,15 +52,14 @@ const assistantMessageSplitter = () => {
         toolName: part.toolName,
         args: part.args,
       });
-      if (part.result) {
-        toolMessage.content.push({
-          type: "tool-result",
-          toolCallId: part.toolCallId,
-          toolName: part.toolName,
-          result: part.result,
-          // isError
-        });
-      }
+
+      toolMessage.content.push({
+        type: "tool-result",
+        toolCallId: part.toolCallId,
+        toolName: part.toolName,
+        result: part.result ?? "<no result>",
+        isError: part.isError ?? false,
+      });
     },
     getMessages: () => {
       if (toolMessage.content.length > 0) {

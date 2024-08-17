@@ -14,7 +14,10 @@ export type ToolResultStreamPart =
       isError?: boolean;
     };
 
-export function toolResultStream(tools: Record<string, Tool> | undefined) {
+export function toolResultStream(
+  tools: Record<string, Tool> | undefined,
+  abortSignal: AbortSignal,
+) {
   const toolCallExecutions = new Map<string, Promise<any>>();
 
   return new TransformStream<ToolResultStreamPart, ToolResultStreamPart>({
@@ -49,8 +52,10 @@ export function toolResultStream(tools: Record<string, Tool> | undefined) {
               toolCallExecutions.set(
                 toolCallId,
                 (async () => {
+                  if (!tool.execute) return;
+
                   try {
-                    const result = await tool.execute!(args);
+                    const result = await tool.execute(args, { abortSignal });
 
                     controller.enqueue({
                       type: "tool-result",
@@ -60,7 +65,6 @@ export function toolResultStream(tools: Record<string, Tool> | undefined) {
                       result,
                     });
                   } catch (error) {
-                    console.error("Error: ", error);
                     controller.enqueue({
                       type: "tool-result",
                       toolCallType,

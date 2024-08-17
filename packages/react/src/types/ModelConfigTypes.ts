@@ -25,6 +25,9 @@ export type LanguageModelConfig = z.infer<typeof LanguageModelConfigSchema>;
 
 type ToolExecuteFunction<TArgs, TResult> = (
   args: TArgs,
+  context: {
+    abortSignal: AbortSignal;
+  },
 ) => TResult | Promise<TResult>;
 
 export type Tool<
