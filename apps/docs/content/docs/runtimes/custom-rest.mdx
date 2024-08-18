@@ -35,7 +35,10 @@ npm install @assistant-ui/react
 
 Update the `MyModelAdapter` below to integrate with your own custom API.
 
-```tsx twoslash {1,11,17} title="@/app/MyRuntimeProvider.tsx"
+```tsx twoslash include MyRuntimeProvider title="@/app/MyRuntimeProvider.tsx"
+// @filename: /app/MyRuntimeProvider.tsx
+
+// ---cut---
 "use client";
 
 import type { ReactNode } from "react";
@@ -93,17 +96,9 @@ export function MyRuntimeProvider({
 
 ### Wrap your app in `MyRuntimeProvider`
 
-`@/app/layout.tsx`
-
-```tsx {1,11,17} twoslash
-// @filename: /app/MyRuntimeProvider.tsx
-
-import type { FC, PropsWithChildren } from "react";
-
-export const MyRuntimeProvider: FC<PropsWithChildren> = () => null;
-
-// @filename: index.tsx
-
+```tsx {1,11,17} twoslash title="@/app/layout.tsx"
+// @include: MyRuntimeProvider
+// @filename: /app/layout.tsx
 // ---cut---
 import type { ReactNode } from "react";
 import { MyRuntimeProvider } from "@/app/MyRuntimeProvider";
