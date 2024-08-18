@@ -33,19 +33,23 @@ npm install @assistant-ui/react @assistant-ui/react-ai-sdk ai ai/react @langchai
 
 ### Setup a backend route under `/api/chat`
 
-`@/app/api/chat/route.ts`
-
-```tsx
+```tsx twoslash title="@/app/api/chat/route.ts"
+// @errors: 2558 2345
 import { RemoteRunnable } from "@langchain/core/runnables/remote";
-import { streamText } from "ai";
+import type { RunnableConfig } from "@langchain/core/runnables";
+import { streamText, LangChainAdapter, type Message } from "ai";
 
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
   const { messages } = await req.json();
 
-  // TODO replace with your own API URL
-  const remoteChain = new RemoteRunnable({
+  // TODO replace with your own langserve URL
+  const remoteChain = new RemoteRunnable<
+    { messages: Message },
+    string,
+    RunnableConfig
+  >({
     url: "<YOUR_LANGSERVE_URL>",
   });
 
@@ -53,9 +57,7 @@ export async function POST(req: Request) {
     messages,
   });
 
-  const aiStream = LangChainAdapter.toAIStream(stream);
-
-  return new StreamingTextResponse(aiStream);
+  return LangChainAdapter.toDataStreamResponse(stream);
 }
 ```
 
@@ -64,9 +66,9 @@ export async function POST(req: Request) {
 
 ### Define a `MyRuntimeProvider` component
 
-`@/app/MyRuntimeProvider.tsx`
-
-```tsx
+```tsx twoslash include MyRuntimeProvider title="@/app/MyRuntimeProvider.tsx"
+// @filename: /app/MyRuntimeProvider.tsx
+// ---cut---
 "use client";
 
 import { useChat } from "ai/react";
@@ -97,27 +99,25 @@ export function MyRuntimeProvider({
 
 ### Wrap your app in `MyRuntimeProvider`
 
-`@/app/layout.tsx`
-
-```tsx {1,11,17}
-import { MyRuntimeProvider } from '@/app/MyRuntimeProvider';
-
-...
+```tsx twoslash title="@/app/layout.tsx"
+// @include: MyRuntimeProvider
+// @filename: /app/layout.tsx
+// ---cut---
+import type { ReactNode } from "react";
+import { MyRuntimeProvider } from "@/app/MyRuntimeProvider";
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: ReactNode;
 }>) {
   return (
     <MyRuntimeProvider>
       <html lang="en">
-        <body className={inter.className}>
-          {children}
-        </body>
+        <body>{children}</body>
       </html>
     </MyRuntimeProvider>
-  )
+  );
 }
 ```
 
