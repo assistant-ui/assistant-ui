@@ -81,7 +81,7 @@
     "build": "tsx scripts/build.mts"
   },
   "dependencies": {
-    "@ai-sdk/provider": "^0.0.18",
+    "@ai-sdk/provider": "^0.0.20",
     "@radix-ui/primitive": "^1.1.0",
     "@radix-ui/react-avatar": "^1.1.0",
     "@radix-ui/react-compose-refs": "^1.1.0",
@@ -95,13 +95,13 @@
     "class-variance-authority": "^0.7.0",
     "classnames": "^2.5.1",
     "json-schema": "^0.4.0",
-    "lucide-react": "^0.427.0",
+    "lucide-react": "^0.428.0",
     "nanoid": "^5.0.7",
     "react-textarea-autosize": "^8.5.3",
     "secure-json-parse": "^2.7.0",
     "zod": "^3.23.8",
     "zod-to-json-schema": "^3.23.2",
-    "zustand": "^4.5.4"
+    "zustand": "^4.5.5"
   },
   "peerDependencies": {
     "@types/react": "*",
@@ -125,7 +125,7 @@
     "@assistant-ui/tailwindcss-transformer": "workspace:*",
     "@assistant-ui/tsconfig": "workspace:*",
     "@types/json-schema": "^7.0.15",
-    "@types/node": "^22.2.0",
+    "@types/node": "^22.4.0",
     "autoprefixer": "^10.4.20",
     "eslint": "^8",
     "eslint-config-next": "14.2.5",

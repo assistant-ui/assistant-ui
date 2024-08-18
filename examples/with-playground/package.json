@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^0.0.45",
+    "@ai-sdk/openai": "^0.0.48",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-playground": "workspace:*",
     "@tailwindcss/forms": "^0.5.7",
@@ -30,5 +30,5 @@
     "tailwindcss": "^3.4.10",
     "typescript": "^5"
   },
-  "packageManager": "pnpm@9.7.0"
+  "packageManager": "pnpm@9.7.1"
 }
