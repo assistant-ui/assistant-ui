@@ -9,8 +9,23 @@ Use the `ExternalStoreRuntime` if you want to manage the message state yourself 
 This runtime requires a `ExternalStoreAdapter<TMessage>` handles communication between `assistant-ui`and your state.
 Unless you are storing messages as `ThreadMessage`, you need to define a `convertMessage` function to convert your messages to `ThreadMessage`.
 
-```tsx
-import { useExternalStoreRuntime, ThreadMessageLike } from "@assistant-ui/react";
+```tsx twoslash title="@/app/MyRuntimeProvider.tsx"
+type MyMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+const backendApi = async (input: string): Promise<MyMessage> => {
+  return { role: "assistant", content: "Hello, world!" };
+};
+
+// ---cut---
+import { useState, ReactNode } from "react";
+import {
+  useExternalStoreRuntime,
+  ThreadMessageLike,
+  AppendMessage,
+  AssistantRuntimeProvider,
+} from "@assistant-ui/react";
 
 const convertMessage = (message: MyMessage): ThreadMessageLike => {
   return {
@@ -22,24 +37,27 @@ const convertMessage = (message: MyMessage): ThreadMessageLike => {
 export function MyRuntimeProvider({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: ReactNode;
 }>) {
   const [isRunning, setIsRunning] = useState(false);
   const [messages, setMessages] = useState<MyMessage[]>([]);
 
   const onNew = async (message: AppendMessage) => {
-    if (m.content[0]?.type !== "text")
+    if (message.content[0]?.type !== "text")
       throw new Error("Only text messages are supported");
 
-    const input = m.content[0].text;
+    const input = message.content[0].text;
     setMessages((currentConversation) => [
       ...currentConversation,
-      { id: nanoid(), role: "user", display: input },
+      { role: "user", content: input },
     ]);
 
     setIsRunning(true);
-    const message = await backendApi(input);
-    setMessages((currentConversation) => [...currentConversation, message]);
+    const assistantMessage = await backendApi(input);
+    setMessages((currentConversation) => [
+      ...currentConversation,
+      assistantMessage,
+    ]);
     setIsRunning(false);
   };
 
