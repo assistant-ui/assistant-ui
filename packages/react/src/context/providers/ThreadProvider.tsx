@@ -37,12 +37,7 @@ export const ThreadProvider: FC<PropsWithChildren<ThreadProviderProps>> = ({
     const useThreadMessages = makeThreadMessagesStore(useThreadRuntime);
     const useThreadActions = makeThreadActionStore(useThreadRuntime);
     const useViewport = makeThreadViewportStore();
-    const useComposer = makeComposerStore(
-      useThreadMessages,
-      useThreadActions,
-      provider.thread.capabilities.cancel,
-      provider.thread.composer,
-    );
+    const useComposer = makeComposerStore(useThreadRuntime);
 
     return {
       useThread,
@@ -54,6 +49,7 @@ export const ThreadProvider: FC<PropsWithChildren<ThreadProviderProps>> = ({
     };
   });
 
+  // TODO it might make sense to move this into the make* functions
   const threadRef = useManagedRef(
     useCallback(
       (thread: ReactThreadRuntime) => {

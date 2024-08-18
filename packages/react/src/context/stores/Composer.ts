@@ -2,7 +2,6 @@ import { create } from "zustand";
 import { ReadonlyStore } from "../ReadonlyStore";
 import { Unsubscribe } from "../../types/Unsubscribe";
 import { ThreadContextValue } from "../react";
-import { ThreadRuntime } from "../../runtimes";
 
 export type ComposerState = Readonly<{
   /** @deprecated Use `text` instead. */
@@ -23,51 +22,52 @@ export type ComposerState = Readonly<{
 }>;
 
 export const makeComposerStore = (
-  useThreadMessages: ThreadContextValue["useThreadMessages"],
-  useThreadActions: ThreadContextValue["useThreadActions"],
-  canCancel: boolean,
-  composerState: ThreadRuntime.Composer,
+  useThreadRuntime: ThreadContextValue["useThreadRuntime"],
 ): ReadonlyStore<ComposerState> => {
   const focusListeners = new Set<() => void>();
-  return create<ComposerState>()((_, get) => ({
-    get value() {
-      return get().text;
-    },
-    setValue(value) {
-      get().setText(value);
-    },
+  return create<ComposerState>()((_, get) => {
+    const runtime = useThreadRuntime.getState();
+    return {
+      get value() {
+        return get().text;
+      },
+      setValue(value) {
+        get().setText(value);
+      },
 
-    text: composerState.text,
-    setText: (value) => {
-      composerState.setText(value);
-    },
+      text: runtime.composer.text,
+      setText: (value) => {
+        useThreadRuntime.getState().composer.setText(value);
+      },
 
-    canCancel,
-    isEditing: true,
+      canCancel: runtime.capabilities.cancel,
+      isEditing: true,
 
-    send: () => {
-      const text = composerState.text;
-      composerState.setText("");
+      send: () => {
+        const runtime = useThreadRuntime.getState();
+        const text = runtime.composer.text;
+        runtime.composer.setText("");
 
-      useThreadActions.getState().append({
-        parentId: useThreadMessages.getState().at(-1)?.id ?? null,
-        role: "user",
-        content: [{ type: "text", text }],
-      });
-    },
-    cancel: () => {
-      useThreadActions.getState().cancelRun();
-    },
-    focus: () => {
-      for (const listener of focusListeners) {
-        listener();
-      }
-    },
-    onFocus: (listener) => {
-      focusListeners.add(listener);
-      return () => {
-        focusListeners.delete(listener);
-      };
-    },
-  }));
+        runtime.append({
+          parentId: runtime.messages.at(-1)?.id ?? null,
+          role: "user",
+          content: [{ type: "text", text }],
+        });
+      },
+      cancel: () => {
+        useThreadRuntime.getState().cancelRun();
+      },
+      focus: () => {
+        for (const listener of focusListeners) {
+          listener();
+        }
+      },
+      onFocus: (listener) => {
+        focusListeners.add(listener);
+        return () => {
+          focusListeners.delete(listener);
+        };
+      },
+    };
+  });
 };
