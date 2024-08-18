@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.5.29
+
+### Patch Changes
+
+- 556001f: chore: update deps
+- 556001f: feat: tool call cancellation support
+
 ## 0.5.28
 
 ### Patch Changes
