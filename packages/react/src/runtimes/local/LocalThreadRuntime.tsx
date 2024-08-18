@@ -39,6 +39,14 @@ export class LocalThreadRuntime implements ThreadRuntime {
     return this.repository.getMessages();
   }
 
+  public readonly composer = {
+    text: "",
+    setText: (value: string) => {
+      this.composer.text = value;
+      this.notifySubscribers();
+    },
+  };
+
   constructor(
     private configProvider: ModelConfigProvider,
     public adapter: ChatModelAdapter,

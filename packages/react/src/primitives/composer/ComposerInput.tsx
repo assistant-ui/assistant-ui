@@ -42,7 +42,7 @@ export const ComposerPrimitiveInput = forwardRef<
 
     const value = useComposer((c) => {
       if (!c.isEditing) return "";
-      return c.value;
+      return c.text;
     });
 
     const Component = asChild ? Slot : TextareaAutosize;
@@ -106,7 +106,7 @@ export const ComposerPrimitiveInput = forwardRef<
         onChange={composeEventHandlers(onChange, (e) => {
           const composerState = useComposer.getState();
           if (!composerState.isEditing) return;
-          return composerState.setValue(e.target.value);
+          return composerState.setText(e.target.value);
         })}
         onKeyDown={composeEventHandlers(onKeyDown, handleKeyPress)}
       />

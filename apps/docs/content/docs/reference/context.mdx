@@ -169,8 +169,8 @@ const { useComposer } = useThreadContext();
 const value = useComposer((m) => m.value);
 const value = useComposer.getState().value;
 
-const setValue = useComposer((m) => m.setValue);
-const setValue = useComposer.getState().setValue;
+const setText = useComposer((m) => m.setText);
+const setText = useComposer.getState().setText;
 ```
 
 <ParametersTable {...ComposerState} />
@@ -254,8 +254,8 @@ const { useEditComposer } = useMessageContext();
 const value = useEditComposer((m) => m.value);
 const value = useEditComposer.getState().value;
 
-const setValue = useEditComposer((m) => m.setValue);
-const setValue = useEditComposer.getState().setValue;
+const setText = useEditComposer((m) => m.setText);
+const setText = useEditComposer.getState().setText;
 ```
 
 <ParametersTable {...EditComposerState} />
@@ -328,6 +328,6 @@ const { useComposer } = useComposerContext();
 const value = useComposer((m) => m.value);
 const value = useComposer.getState().value;
 
-const setValue = useComposer((m) => m.setValue);
-const setValue = useComposer.getState().setValue;
+const setText = useComposer((m) => m.setText);
+const setText = useComposer.getState().setText;
 ```

@@ -13,15 +13,15 @@ import { useThreadContext } from "../context";
 
 const useAllowCopy = () => {
   const { assistantMessage: { allowCopy = true } = {} } = useThreadConfig();
-  const { useThreadActions } = useThreadContext();
-  const copySupported = useThreadActions((t) => t.capabilities.copy);
+  const { useThread } = useThreadContext();
+  const copySupported = useThread((t) => t.capabilities.copy);
   return copySupported && allowCopy;
 };
 
 const useAllowReload = () => {
   const { assistantMessage: { allowReload = true } = {} } = useThreadConfig();
-  const { useThreadActions } = useThreadContext();
-  const reloadSupported = useThreadActions((t) => t.capabilities.reload);
+  const { useThread } = useThreadContext();
+  const reloadSupported = useThread((t) => t.capabilities.reload);
   return reloadSupported && allowReload;
 };
 

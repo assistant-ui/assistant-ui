@@ -9,8 +9,8 @@ export const useVercelAIComposerSync = (vercel: VercelHelpers) => {
 
   useEffect(() => {
     (useComposer as unknown as StoreApi<ComposerState>).setState({
-      value: vercel.input,
-      setValue: vercel.setInput,
+      text: vercel.input,
+      setText: vercel.setInput,
     });
   }, [useComposer, vercel.input, vercel.setInput]);
 };

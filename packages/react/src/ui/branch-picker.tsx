@@ -14,8 +14,8 @@ import { useThreadContext } from "../context";
 
 const useAllowBranchPicker = () => {
   const { branchPicker: { allowBranchPicker = true } = {} } = useThreadConfig();
-  const { useThreadActions } = useThreadContext();
-  const branchPickerSupported = useThreadActions((t) => t.capabilities.edit);
+  const { useThread } = useThreadContext();
+  const branchPickerSupported = useThread((t) => t.capabilities.edit);
   return branchPickerSupported && allowBranchPicker;
 };
 

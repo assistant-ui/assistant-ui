@@ -25,7 +25,7 @@ export const useActionBarCopy = ({
   const callback = useCallback(() => {
     const { message } = useMessage.getState();
     const { setIsCopied } = useMessageUtils.getState();
-    const { isEditing, value: composerValue } = useEditComposer.getState();
+    const { isEditing, text: composerValue } = useEditComposer.getState();
 
     const valueToCopy = isEditing
       ? composerValue

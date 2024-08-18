@@ -14,8 +14,8 @@ import { ActionBarPrimitive } from "../primitives";
 
 const useAllowEdit = () => {
   const { userMessage: { allowEdit = true } = {} } = useThreadConfig();
-  const { useThreadActions } = useThreadContext();
-  const editSupported = useThreadActions((t) => t.capabilities.edit);
+  const { useThread } = useThreadContext();
+  const editSupported = useThread((t) => t.capabilities.edit);
   return editSupported && allowEdit;
 };
 

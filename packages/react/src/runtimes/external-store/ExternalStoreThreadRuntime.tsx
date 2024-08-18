@@ -13,6 +13,7 @@ import {
 } from "./ThreadMessageConverter";
 import { getAutoStatus, isAutoStatus } from "./auto-status";
 import { fromThreadMessageLike } from "./ThreadMessageLike";
+import { RuntimeCapabilities } from "../../context/stores/Thread";
 
 export const hasUpcomingMessage = (
   isRunning: boolean,
@@ -26,14 +27,16 @@ export class ExternalStoreThreadRuntime implements ReactThreadRuntime {
   private repository = new MessageRepository();
   private assistantOptimisticId: string | null = null;
 
+  private _capabilities: RuntimeCapabilities = {
+    switchToBranch: false,
+    edit: false,
+    reload: false,
+    cancel: false,
+    copy: false,
+  };
+
   public get capabilities() {
-    return {
-      switchToBranch: this._store.setMessages !== undefined,
-      edit: this._store.onEdit !== undefined,
-      reload: this._store.onReload !== undefined,
-      cancel: this._store.onCancel !== undefined,
-      copy: this._store.onCopy !== null,
-    };
+    return this._capabilities;
   }
 
   public messages: ThreadMessage[] = [];
@@ -42,30 +45,47 @@ export class ExternalStoreThreadRuntime implements ReactThreadRuntime {
 
   private _store!: ExternalStoreAdapter<any>;
 
+  public readonly composer = {
+    text: "",
+    setText: (value: string) => {
+      this.composer.text = value;
+      this.notifySubscribers();
+    },
+  };
+
   constructor(store: ExternalStoreAdapter<any>) {
     this.store = store;
   }
 
   public set store(store: ExternalStoreAdapter<any>) {
-    const oldStore = this._store as ExternalStoreAdapter<any> | undefined;
+    if (this._store === store) return;
 
-    // flush the converter cache when the convertMessage prop changes
+    const isRunning = store.isRunning ?? false;
+    this.isDisabled = store.isDisabled ?? false;
+
+    const oldStore = this._store as ExternalStoreAdapter<any> | undefined;
+    this._store = store;
+    this._capabilities = {
+      switchToBranch: this._store.setMessages !== undefined,
+      edit: this._store.onEdit !== undefined,
+      reload: this._store.onReload !== undefined,
+      cancel: this._store.onCancel !== undefined,
+      copy: this._store.onCopy !== null,
+    };
+
     if (oldStore) {
+      // flush the converter cache when the convertMessage prop changes
       if (oldStore.convertMessage !== store.convertMessage) {
         this.converter = new ThreadMessageConverter();
       } else if (
-        oldStore.isDisabled === store.isDisabled &&
         oldStore.isRunning === store.isRunning &&
         oldStore.messages === store.messages
       ) {
-        // no update needed
+        this.notifySubscribers();
+        // no conversion update
         return;
       }
     }
-
-    this._store = store;
-    const isRunning = store.isRunning ?? false;
-    const isDisabled = store.isDisabled ?? false;
 
     const convertCallback: ConverterCallback<any> = (cache, m, idx) => {
       if (!store.convertMessage) return m;
@@ -121,7 +141,10 @@ export class ExternalStoreThreadRuntime implements ReactThreadRuntime {
     );
 
     this.messages = this.repository.getMessages();
-    this.isDisabled = isDisabled;
+    this.notifySubscribers();
+  }
+
+  private notifySubscribers() {
     for (const callback of this._subscriptions) callback();
   }
 

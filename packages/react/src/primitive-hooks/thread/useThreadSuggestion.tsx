@@ -21,9 +21,9 @@ export const useThreadSuggestion = ({
     const composer = useComposer.getState();
     if (autoSend && !thread.isRunning) {
       append(prompt);
-      composer.setValue("");
+      composer.setText("");
     } else {
-      composer.setValue(prompt);
+      composer.setText(prompt);
     }
   }, [useThread, useComposer, autoSend, append, prompt]);
 

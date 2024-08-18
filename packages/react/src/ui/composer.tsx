@@ -55,8 +55,8 @@ const ComposerInput = forwardRef<HTMLTextAreaElement, ComposerInputProps>(
 ComposerInput.displayName = "ComposerInput";
 
 const useAllowCancel = () => {
-  const { useThreadActions } = useThreadContext();
-  const cancelSupported = useThreadActions((t) => t.capabilities.cancel);
+  const { useThread } = useThreadContext();
+  const cancelSupported = useThread((t) => t.capabilities.cancel);
   return cancelSupported;
 };
 

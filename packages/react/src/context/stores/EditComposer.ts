@@ -1,38 +1,55 @@
 import { create } from "zustand";
-import { type BaseComposerState, makeBaseComposer } from "./BaseComposer";
 import { ReadonlyStore } from "../ReadonlyStore";
 
-export type EditComposerState = BaseComposerState &
-  Readonly<{
-    canCancel: boolean;
-    isEditing: boolean;
+export type EditComposerState = Readonly<{
+  // TODO 
+  /** @deprecated Use `text` instead. */
+  value: string;
+  /** @deprecated Use `setText` instead. */
+  setValue: (value: string) => void;
 
-    edit: () => void;
-    send: () => void;
-    cancel: () => void;
-  }>;
+  text: string;
+  setText: (value: string) => void;
+
+  canCancel: boolean;
+  isEditing: boolean;
+
+  edit: () => void;
+  send: () => void;
+  cancel: () => void;
+}>;
 
 export const makeEditComposerStore = ({
   onEdit,
   onSend,
 }: {
   onEdit: () => string;
-  onSend: (value: string) => void;
+  onSend: (text: string) => void;
 }): ReadonlyStore<EditComposerState> =>
-  create<EditComposerState>()((set, get, store) => ({
-    ...makeBaseComposer(set, get, store),
+  create<EditComposerState>()((set, get) => ({
+    get value() {
+      return get().text;
+    },
+    setValue(value) {
+      get().setText(value);
+    },
+
+    text: "",
+    setText: (text) => {
+      set({ text });
+    },
 
     canCancel: false,
     isEditing: false,
 
     edit: () => {
-      const value = onEdit();
-      set({ isEditing: true, canCancel: true, value });
+      const text = onEdit();
+      set({ isEditing: true, canCancel: true, text });
     },
     send: () => {
-      const value = get().value;
+      const text = get().text;
       set({ isEditing: false, canCancel: false });
-      onSend(value);
+      onSend(text);
     },
     cancel: () => {
       set({ isEditing: false, canCancel: false });

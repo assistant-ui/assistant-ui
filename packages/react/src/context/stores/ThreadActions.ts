@@ -9,17 +9,7 @@ export type AddToolResultOptions = {
   result: any;
 };
 
-export type RuntimeCapabilities = {
-  switchToBranch: boolean;
-  edit: boolean;
-  reload: boolean;
-  cancel: boolean;
-  copy: boolean;
-};
-
 export type ThreadActionsState = Readonly<{
-  capabilities: Readonly<RuntimeCapabilities>;
-
   getBranches: (messageId: string) => readonly string[];
   switchToBranch: (branchId: string) => void;
 
@@ -35,9 +25,6 @@ export const makeThreadActionStore = (
 ) => {
   return create<ThreadActionsState>(() =>
     Object.freeze({
-      get capabilities() {
-        return runtimeStore.getState().capabilities;
-      },
       getBranches: (messageId) =>
         runtimeStore.getState().getBranches(messageId),
       switchToBranch: (branchId) =>

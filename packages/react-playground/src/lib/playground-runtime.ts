@@ -101,6 +101,14 @@ export class PlaygroundThreadRuntime implements ReactThreadRuntime {
 
   private configProvider = new ProxyConfigProvider();
 
+  public readonly composer = {
+    text: "",
+    setText: (value: string) => {
+      this.composer.text = value;
+      this.notifySubscribers();
+    },
+  };
+
   constructor(
     configProvider: ModelConfigProvider,
     private _messages: ThreadMessage[],

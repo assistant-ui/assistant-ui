@@ -45,6 +45,15 @@ export class VercelUseChatThreadRuntime implements ReactThreadRuntime {
   public messages: ThreadMessage[] = [];
   public readonly isDisabled = false;
 
+  public readonly composer = {
+    text: "",
+    setText: (value: string) => {
+      this.composer.text = value;
+
+      for (const callback of this._subscriptions) callback();
+    },
+  };
+
   constructor(public vercel: ReturnType<typeof useChat>) {
     this.useVercel = create(() => ({
       vercel,

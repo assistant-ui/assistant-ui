@@ -14,7 +14,7 @@ export const ComposerPrimitiveSend = forwardRef<
   ComposerPrimitiveSendProps
 >(({ disabled, ...rest }, ref) => {
   const { useComposer } = useComposerContext();
-  const hasValue = useComposer((c) => c.isEditing && c.value.length > 0);
+  const hasValue = useComposer((c) => c.isEditing && c.text.length > 0);
 
   return (
     <Primitive.button

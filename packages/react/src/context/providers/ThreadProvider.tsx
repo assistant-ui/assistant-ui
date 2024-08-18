@@ -3,7 +3,7 @@ import { useCallback, useInsertionEffect, useState } from "react";
 import type { ReactThreadRuntime } from "../../runtimes/core/ReactThreadRuntime";
 import type { ThreadContextValue } from "../react/ThreadContext";
 import { ThreadContext } from "../react/ThreadContext";
-import { makeComposerStore } from "../stores/Composer";
+import { ComposerState, makeComposerStore } from "../stores/Composer";
 import {
   ThreadState,
   getThreadStateFromRuntime,
@@ -37,7 +37,12 @@ export const ThreadProvider: FC<PropsWithChildren<ThreadProviderProps>> = ({
     const useThreadMessages = makeThreadMessagesStore(useThreadRuntime);
     const useThreadActions = makeThreadActionStore(useThreadRuntime);
     const useViewport = makeThreadViewportStore();
-    const useComposer = makeComposerStore(useThreadMessages, useThreadActions);
+    const useComposer = makeComposerStore(
+      useThreadMessages,
+      useThreadActions,
+      provider.thread.capabilities.cancel,
+      provider.thread.composer,
+    );
 
     return {
       useThread,
@@ -57,10 +62,12 @@ export const ThreadProvider: FC<PropsWithChildren<ThreadProviderProps>> = ({
           const state = getThreadStateFromRuntime(thread);
           if (
             oldState.isDisabled !== state.isDisabled ||
-            oldState.isRunning !== state.isRunning
+            oldState.isRunning !== state.isRunning ||
+            // TODO ensure capabilities is memoized
+            oldState.capabilities !== state.capabilities
           ) {
             (context.useThread as unknown as StoreApi<ThreadState>).setState(
-              getThreadStateFromRuntime(thread),
+              state,
               true,
             );
           }
@@ -69,6 +76,19 @@ export const ThreadProvider: FC<PropsWithChildren<ThreadProviderProps>> = ({
             (
               context.useThreadMessages as unknown as StoreApi<ThreadMessagesState>
             ).setState(thread.messages, true);
+          }
+
+          const composerState = context.useComposer.getState();
+          if (
+            thread.composer.text !== composerState.text ||
+            state.capabilities.cancel !== composerState.canCancel
+          ) {
+            (
+              context.useComposer as unknown as StoreApi<ComposerState>
+            ).setState({
+              text: thread.composer.text,
+              canCancel: state.capabilities.cancel,
+            });
           }
         };
 

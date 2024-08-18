@@ -3,22 +3,30 @@ import { ReadonlyStore } from "../ReadonlyStore";
 import { ThreadRuntimeStore } from "./ThreadRuntime";
 
 export type ThreadState = Readonly<{
+  capabilities: Readonly<RuntimeCapabilities>;
   isRunning: boolean;
   isDisabled: boolean;
 }>;
+
+export type RuntimeCapabilities = {
+  switchToBranch: boolean;
+  edit: boolean;
+  reload: boolean;
+  cancel: boolean;
+  copy: boolean;
+};
 
 export const getThreadStateFromRuntime = (
   runtime: ThreadRuntimeStore,
 ): ThreadState => {
   const lastMessage = runtime.messages.at(-1);
-  if (lastMessage?.role !== "assistant")
-    return Object.freeze({
-      isDisabled: runtime.isDisabled,
-      isRunning: false,
-    });
   return Object.freeze({
+    capabilities: runtime.capabilities,
     isDisabled: runtime.isDisabled,
-    isRunning: lastMessage.status.type === "running",
+    isRunning:
+      lastMessage?.role !== "assistant"
+        ? false
+        : lastMessage.status.type === "running",
   });
 };
 

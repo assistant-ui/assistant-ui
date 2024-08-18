@@ -30,6 +30,16 @@ export class VercelUseAssistantThreadRuntime implements ReactThreadRuntime {
   >;
 
   public messages: readonly ThreadMessage[] = [];
+
+  public readonly composer = {
+    text: "",
+    setText: (value: string) => {
+      this.composer.text = value;
+
+      for (const callback of this._subscriptions) callback();
+    },
+  };
+
   public readonly isDisabled = false;
 
   constructor(public vercel: ReturnType<typeof useAssistant>) {

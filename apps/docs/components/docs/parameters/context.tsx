@@ -259,16 +259,16 @@ export const BaseComposerState: ParametersTableProps = {
   type: "BaseComposerState",
   parameters: [
     {
-      name: "value",
+      name: "text",
       type: "string",
       required: true,
-      description: "The current value of the composer.",
+      description: "The current text of the composer.",
     },
     {
-      name: "setValue",
-      type: "(value: string) => void",
+      name: "setText",
+      type: "(text: string) => void",
       required: true,
-      description: "A function to set the value of the composer.",
+      description: "A function to set the text of the composer.",
     },
   ],
 };

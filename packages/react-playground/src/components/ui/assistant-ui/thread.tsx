@@ -105,19 +105,19 @@ const Composer: FC = () => {
     useThreadContext();
 
   const isRunning = useThread((t) => t.isRunning);
-  const hasValue = useComposer((c) => c.value.length > 0);
+  const hasText = useComposer((c) => c.text.length > 0);
 
   const performAdd = () => {
     const composer = useComposer.getState();
-    const value = composer.value;
-    if (!value) return;
+    const text = composer.text;
+    if (!text) return;
 
-    composer.setValue("");
+    composer.setText("");
 
     useThreadActions.getState().append({
       parentId: useThreadMessages.getState().at(-1)?.id ?? null,
       role,
-      content: [{ type: "text", text: value }],
+      content: [{ type: "text", text }],
     });
 
     setRole("user");
@@ -167,7 +167,7 @@ const Composer: FC = () => {
         <div className="flex-grow" />
         <Button
           onClick={handleAdd}
-          disabled={isRunning || !hasValue}
+          disabled={isRunning || !hasText}
           variant="default"
           size="sm"
           className="transition-opacity"
