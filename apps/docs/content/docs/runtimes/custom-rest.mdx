@@ -126,19 +126,34 @@ export default function RootLayout({
 Declare the `run` function as an `AsyncGenerator` (`async *run`). This allows you to `yield` the results as they are generated.
 
 ```tsx twoslash {2, 11-13} title="@/app/MyRuntimeProvider.tsx"
-import { ChatModelAdapter } from "@assistant-ui/react";
+import {
+  ChatModelAdapter,
+  ThreadMessage,
+  ModelConfig,
+} from "@assistant-ui/react";
 import { OpenAI } from "openai";
 
 const openai = new OpenAI();
+const backendApi = async ({
+  messages,
+  abortSignal,
+  config,
+}: {
+  messages: ThreadMessage[];
+  abortSignal: AbortSignal;
+  config: ModelConfig;
+}) => {
+  return openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [{ role: "user", content: "Say this is a test" }],
+    stream: true,
+  });
+};
 
 // ---cut---
 const MyModelAdapter: ChatModelAdapter = {
   async *run({ messages, abortSignal, config }) {
-    const stream = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{ role: "user", content: "Say this is a test" }],
-      stream: true,
-    });
+    const stream = await backendApi({ messages, abortSignal, config });
 
     let text = "";
     for await (const part of stream) {
