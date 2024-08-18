@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.30
+
+### Patch Changes
+
+- ccf5fef: fix: do not capture enter key during IME composition events
+
 ## 0.5.29
 
 ### Patch Changes
