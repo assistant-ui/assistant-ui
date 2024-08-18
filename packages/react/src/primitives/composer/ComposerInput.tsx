@@ -62,6 +62,9 @@ export const ComposerPrimitiveInput = forwardRef<
     const handleKeyPress = (e: KeyboardEvent) => {
       if (isDisabled) return;
 
+      // ignore IME composition events
+      if (e.nativeEvent.isComposing) return;
+
       if (e.key === "Enter" && e.shiftKey === false) {
         const { isRunning } = useThread.getState();
 
