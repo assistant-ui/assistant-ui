@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.35
+
+### Patch Changes
+
+- 53cf707: fix: do not require content in ChatModelRunResult
+
 ## 0.5.34
 
 ### Patch Changes
