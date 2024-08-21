@@ -12,13 +12,11 @@ export class ThreadMessageConverter {
   convertMessages<TIn extends WeakKey>(
     messages: TIn[],
     converter: ConverterCallback<TIn>,
-    keyMapper: (m: TIn) => WeakKey = (key) => key,
   ): ThreadMessage[] {
     return messages.map((m, idx) => {
-      const key = keyMapper(m);
-      const cached = this.cache.get(key);
+      const cached = this.cache.get(m);
       const newMessage = converter(cached, m, idx);
-      this.cache.set(key, newMessage);
+      this.cache.set(m, newMessage);
       return newMessage;
     });
   }

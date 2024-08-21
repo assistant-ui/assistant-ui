@@ -7,13 +7,11 @@ import {
   getExternalStoreMessage,
   symbolInnerMessage,
 } from "./getExternalStoreMessage";
-import {
-  ConverterCallback,
-  ThreadMessageConverter,
-} from "./ThreadMessageConverter";
+import { ThreadMessageConverter } from "./ThreadMessageConverter";
 import { getAutoStatus, isAutoStatus } from "./auto-status";
 import { fromThreadMessageLike } from "./ThreadMessageLike";
 import { RuntimeCapabilities } from "../../context/stores/Thread";
+import { getThreadMessageText } from "../../utils/getThreadMessageText";
 
 export const hasUpcomingMessage = (
   isRunning: boolean,
@@ -87,33 +85,30 @@ export class ExternalStoreThreadRuntime implements ReactThreadRuntime {
       }
     }
 
-    const convertCallback: ConverterCallback<any> = (cache, m, idx) => {
-      if (!store.convertMessage) return m;
+    const messages = !store.convertMessage
+      ? store.messages
+      : this.converter.convertMessages(store.messages, (cache, m, idx) => {
+          if (!store.convertMessage) return m;
 
-      const isLast = idx === store.messages.length - 1;
-      const autoStatus = getAutoStatus(isLast, isRunning);
+          const isLast = idx === store.messages.length - 1;
+          const autoStatus = getAutoStatus(isLast, isRunning);
 
-      if (
-        cache &&
-        (cache.role !== "assistant" ||
-          !isAutoStatus(cache.status) ||
-          cache.status === autoStatus)
-      )
-        return cache;
+          if (
+            cache &&
+            (cache.role !== "assistant" ||
+              !isAutoStatus(cache.status) ||
+              cache.status === autoStatus)
+          )
+            return cache;
 
-      const newMessage = fromThreadMessageLike(
-        store.convertMessage(m, idx),
-        idx.toString(),
-        autoStatus,
-      );
-      (newMessage as any)[symbolInnerMessage] = m;
-      return newMessage;
-    };
-
-    const messages = this.converter.convertMessages(
-      store.messages,
-      convertCallback,
-    );
+          const newMessage = fromThreadMessageLike(
+            store.convertMessage(m, idx),
+            idx.toString(),
+            autoStatus,
+          );
+          (newMessage as any)[symbolInnerMessage] = m;
+          return newMessage;
+        });
 
     for (let i = 0; i < messages.length; i++) {
       const message = messages[i]!;
@@ -189,6 +184,20 @@ export class ExternalStoreThreadRuntime implements ReactThreadRuntime {
     }
 
     let messages = this.repository.getMessages();
+    const previousMessage = messages[messages.length - 1];
+    if (
+      previousMessage?.role === "user" &&
+      previousMessage.id === messages.at(-1)?.id // ensure the previous message is a leaf node
+    ) {
+      this.repository.deleteMessage(previousMessage.id);
+      if (!this.composer.text.trim()) {
+        this.composer.setText(getThreadMessageText(previousMessage));
+      }
+
+      messages = this.repository.getMessages();
+    } else {
+      this.notifySubscribers();
+    }
 
     // resync messages (for reloading, to restore the previous branch)
     setTimeout(() => {

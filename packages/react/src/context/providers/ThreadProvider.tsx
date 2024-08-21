@@ -1,5 +1,5 @@
 import type { FC, PropsWithChildren } from "react";
-import { useCallback, useInsertionEffect, useState } from "react";
+import { useEffect, useInsertionEffect, useState } from "react";
 import type { ReactThreadRuntime } from "../../runtimes/core/ReactThreadRuntime";
 import type { ThreadContextValue } from "../react/ThreadContext";
 import { ThreadContext } from "../react/ThreadContext";
@@ -21,7 +21,7 @@ import {
   makeThreadRuntimeStore,
   ThreadRuntimeStore,
 } from "../stores/ThreadRuntime";
-import { useManagedRef } from "../../utils/hooks/useManagedRef";
+import { subscribeToMainThread } from "../../runtimes";
 
 type ThreadProviderProps = {
   provider: ThreadRuntimeWithSubscribe;
@@ -50,64 +50,55 @@ export const ThreadProvider: FC<PropsWithChildren<ThreadProviderProps>> = ({
   });
 
   // TODO it might make sense to move this into the make* functions
-  const threadRef = useManagedRef(
-    useCallback(
-      (thread: ReactThreadRuntime) => {
-        const onThreadUpdate = () => {
-          const oldState = context.useThread.getState();
-          const state = getThreadStateFromRuntime(thread);
-          if (
-            oldState.isDisabled !== state.isDisabled ||
-            oldState.isRunning !== state.isRunning ||
-            // TODO ensure capabilities is memoized
-            oldState.capabilities !== state.capabilities
-          ) {
-            (context.useThread as unknown as StoreApi<ThreadState>).setState(
-              state,
-              true,
-            );
-          }
+  useEffect(() => {
+    const onThreadUpdate = () => {
+      const thread = provider.thread;
 
-          if (thread.messages !== context.useThreadMessages.getState()) {
-            (
-              context.useThreadMessages as unknown as StoreApi<ThreadMessagesState>
-            ).setState(thread.messages, true);
-          }
+      const oldState = context.useThread.getState();
+      const state = getThreadStateFromRuntime(thread);
+      if (
+        oldState.isDisabled !== state.isDisabled ||
+        oldState.isRunning !== state.isRunning ||
+        // TODO ensure capabilities is memoized
+        oldState.capabilities !== state.capabilities
+      ) {
+        (context.useThread as unknown as StoreApi<ThreadState>).setState(
+          state,
+          true,
+        );
+      }
 
-          const composerState = context.useComposer.getState();
-          if (
-            thread.composer.text !== composerState.text ||
-            state.capabilities.cancel !== composerState.canCancel
-          ) {
-            (
-              context.useComposer as unknown as StoreApi<ComposerState>
-            ).setState({
-              text: thread.composer.text,
-              canCancel: state.capabilities.cancel,
-            });
-          }
-        };
+      if (thread.messages !== context.useThreadMessages.getState()) {
+        (
+          context.useThreadMessages as unknown as StoreApi<ThreadMessagesState>
+        ).setState(thread.messages, true);
+      }
 
-        onThreadUpdate();
-        return thread.subscribe(onThreadUpdate);
-      },
-      [context],
-    ),
-  );
-
-  useInsertionEffect(() => {
-    const unsubscribe = provider.subscribe(() => {
-      (
-        context.useThreadRuntime as unknown as StoreApi<ThreadRuntimeStore>
-      ).setState(provider.thread, true);
-      threadRef(provider.thread);
-    });
-    threadRef(provider.thread);
-    return () => {
-      unsubscribe();
-      threadRef(null);
+      const composerState = context.useComposer.getState();
+      if (
+        thread.composer.text !== composerState.text ||
+        state.capabilities.cancel !== composerState.canCancel
+      ) {
+        (context.useComposer as unknown as StoreApi<ComposerState>).setState({
+          text: thread.composer.text,
+          canCancel: state.capabilities.cancel,
+        });
+      }
     };
+
+    onThreadUpdate();
+    return subscribeToMainThread(provider, onThreadUpdate);
   }, [provider, context]);
+
+  useInsertionEffect(
+    () =>
+      provider.subscribe(() => {
+        (
+          context.useThreadRuntime as unknown as StoreApi<ThreadRuntimeStore>
+        ).setState(provider.thread, true);
+      }),
+    [provider, context],
+  );
 
   // subscribe to thread updates
   const Synchronizer = context.useThreadRuntime(
