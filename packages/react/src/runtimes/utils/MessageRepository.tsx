@@ -4,12 +4,12 @@ import { fromCoreMessage } from "../edge/converters/fromCoreMessage";
 
 type RepositoryParent = {
   children: string[];
+  next: RepositoryMessage | null;
 };
 
 type RepositoryMessage = RepositoryParent & {
   prev: RepositoryMessage | null;
   current: ThreadMessage;
-  next: RepositoryMessage | null;
   level: number;
 };
 
@@ -21,9 +21,12 @@ export interface ExportedMessageRepository {
   }>;
 }
 
-const findHead = (message: RepositoryMessage): RepositoryMessage => {
+const findHead = (
+  message: RepositoryMessage | RepositoryParent,
+): RepositoryMessage | null => {
   if (message.next) return findHead(message.next);
-  return message;
+  if ("current" in message) return message;
+  return null;
 };
 
 export class MessageRepository {
@@ -31,6 +34,7 @@ export class MessageRepository {
   private head: RepositoryMessage | null = null;
   private root: RepositoryParent = {
     children: [],
+    next: null,
   };
 
   private performOp(
@@ -45,19 +49,21 @@ export class MessageRepository {
 
     // cut
     if (operation !== "link") {
+      // remove from parentOrRoot.children
       parentOrRoot.children = parentOrRoot.children.filter(
         (m) => m !== child.current.id,
       );
 
-      if (child.prev?.next === child) {
-        const fallbackId = child.prev.children.at(-1);
+      // update parentOrRoot.next
+      if (parentOrRoot.next === child) {
+        const fallbackId = parentOrRoot.children.at(-1);
         const fallback = fallbackId ? this.messages.get(fallbackId) : null;
         if (fallback === undefined) {
           throw new Error(
             "MessageRepository(performOp/cut): Fallback sibling message not found. This is likely an internal bug in assistant-ui.",
           );
         }
-        child.prev.next = fallback;
+        parentOrRoot.next = fallback;
       }
     }
 
@@ -76,16 +82,15 @@ export class MessageRepository {
         }
       }
 
+      // add to parentOrRoot.children
       newParentOrRoot.children = [
         ...newParentOrRoot.children,
         child.current.id,
       ];
 
-      if (
-        newParent &&
-        (findHead(child) === this.head || newParent.next === null)
-      ) {
-        newParent.next = child;
+      // update parentOrRoot.next
+      if (findHead(child) === this.head || newParentOrRoot.next === null) {
+        newParentOrRoot.next = child;
       }
 
       child.prev = newParent;
@@ -193,7 +198,7 @@ export class MessageRepository {
     this.messages.delete(messageId);
 
     if (this.head === message) {
-      this.head = replacement ? findHead(replacement) : null;
+      this.head = findHead(replacement ?? this.root);
     }
   }
 
@@ -215,9 +220,8 @@ export class MessageRepository {
         "MessageRepository(switchToBranch): Branch not found. This is likely an internal bug in assistant-ui.",
       );
 
-    if (message.prev) {
-      message.prev.next = message;
-    }
+    const prevOrRoot = message.prev ?? this.root;
+    prevOrRoot.next = message;
 
     this.head = findHead(message);
   }
