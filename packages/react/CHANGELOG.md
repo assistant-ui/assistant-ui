@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.33
+
+### Patch Changes
+
+- c154b8f: feat(runtime/edge): allow extra headers & body
+
 ## 0.5.32
 
 ### Patch Changes
