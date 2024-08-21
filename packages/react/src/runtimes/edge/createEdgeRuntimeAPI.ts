@@ -28,6 +28,7 @@ import {
 import { ChatModelRunResult } from "../local";
 import { toCoreMessage } from "./converters/toCoreMessages";
 import { streamPartEncoderStream } from "./streams/utils/streamPartEncoderStream";
+import { z } from "zod";
 
 type FinishResult = {
   messages: CoreMessage[];
@@ -54,139 +55,149 @@ const voidStream = () => {
   });
 };
 
-export const createEdgeRuntimeAPI = ({
-  model: modelOrCreator,
-  system: serverSystem,
-  tools: serverTools = {},
-  toolChoice,
-  onFinish,
-  ...unsafeSettings
-}: CreateEdgeRuntimeAPIOptions) => {
+type GetEdgeRuntimeStreamOptions = {
+  abortSignal: AbortSignal;
+  requestData: z.infer<typeof EdgeRuntimeRequestOptionsSchema>;
+  options: CreateEdgeRuntimeAPIOptions;
+};
+
+const getEdgeRuntimeStream = async ({
+  abortSignal,
+  requestData: unsafeRequest,
+  options: {
+    model: modelOrCreator,
+    system: serverSystem,
+    tools: serverTools = {},
+    toolChoice,
+    onFinish,
+    ...unsafeSettings
+  },
+}: GetEdgeRuntimeStreamOptions) => {
   const settings = LanguageModelV1CallSettingsSchema.parse(unsafeSettings);
   const lmServerTools = toLanguageModelTools(serverTools);
   const hasServerTools = Object.values(serverTools).some((v) => !!v.execute);
 
-  const POST = async (request: Request) => {
-    const {
-      system: clientSystem,
-      tools: clientTools = [],
-      messages,
-      apiKey,
-      baseUrl,
-      modelName,
-      ...callSettings
-    } = EdgeRuntimeRequestOptionsSchema.parse(await request.json());
+  const {
+    system: clientSystem,
+    tools: clientTools = [],
+    messages,
+    apiKey,
+    baseUrl,
+    modelName,
+    ...callSettings
+  } = EdgeRuntimeRequestOptionsSchema.parse(unsafeRequest);
 
-    const systemMessages = [];
-    if (serverSystem) systemMessages.push(serverSystem);
-    if (clientSystem) systemMessages.push(clientSystem);
-    const system = systemMessages.join("\n\n");
+  const systemMessages = [];
+  if (serverSystem) systemMessages.push(serverSystem);
+  if (clientSystem) systemMessages.push(clientSystem);
+  const system = systemMessages.join("\n\n");
 
-    for (const clientTool of clientTools) {
-      if (serverTools?.[clientTool.name]) {
-        throw new Error(
-          `Tool ${clientTool.name} was defined in both the client and server tools. This is not allowed.`,
-        );
-      }
+  for (const clientTool of clientTools) {
+    if (serverTools?.[clientTool.name]) {
+      throw new Error(
+        `Tool ${clientTool.name} was defined in both the client and server tools. This is not allowed.`,
+      );
     }
+  }
 
-    let model;
+  let model;
 
-    try {
-      model =
-        typeof modelOrCreator === "function"
-          ? await modelOrCreator({ apiKey, baseUrl, modelName })
-          : modelOrCreator;
-    } catch (e) {
-      return new Response(
-        JSON.stringify({
-          type: "error",
-          error: (e as Error).message,
-        }),
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
+  model =
+    typeof modelOrCreator === "function"
+      ? await modelOrCreator({ apiKey, baseUrl, modelName })
+      : modelOrCreator;
+
+  let stream: ReadableStream<ToolResultStreamPart>;
+  const streamResult = await streamMessage({
+    ...(settings as Partial<StreamMessageOptions>),
+    ...callSettings,
+
+    model,
+    abortSignal,
+
+    ...(!!system ? { system } : undefined),
+    messages,
+    tools: lmServerTools.concat(clientTools as LanguageModelV1FunctionTool[]),
+    ...(toolChoice ? { toolChoice } : undefined),
+  });
+  stream = streamResult.stream;
+
+  // add tool results if we have server tools
+  const canExecuteTools = hasServerTools && toolChoice?.type !== "none";
+  if (canExecuteTools) {
+    stream = stream.pipeThrough(toolResultStream(serverTools, abortSignal));
+  }
+
+  if (canExecuteTools || onFinish) {
+    // tee the stream to process server tools and onFinish asap
+    const tees = stream.tee();
+    stream = tees[0];
+    let serverStream = tees[1];
+
+    if (onFinish) {
+      let lastChunk: ChatModelRunResult;
+      serverStream = serverStream.pipeThrough(runResultStream()).pipeThrough(
+        new TransformStream({
+          transform(chunk) {
+            lastChunk = chunk;
           },
-        },
+          flush() {
+            if (!lastChunk?.status || lastChunk.status.type === "running")
+              return;
+
+            const resultingMessages = [
+              ...messages,
+              toCoreMessage({
+                role: "assistant",
+                content: lastChunk.content,
+              } as ThreadMessage),
+            ];
+            onFinish({
+              messages: resultingMessages,
+              roundtrips: lastChunk.roundtrips!,
+            });
+          },
+        }),
       );
     }
 
-    let stream: ReadableStream<ToolResultStreamPart>;
-    const streamResult = await streamMessage({
-      ...(settings as Partial<StreamMessageOptions>),
-      ...callSettings,
-
-      model,
-      abortSignal: request.signal,
-
-      ...(!!system ? { system } : undefined),
-      messages,
-      tools: lmServerTools.concat(clientTools as LanguageModelV1FunctionTool[]),
-      ...(toolChoice ? { toolChoice } : undefined),
+    // drain the server stream
+    serverStream.pipeTo(voidStream()).catch((e) => {
+      console.error("Server stream processing error:", e);
     });
-    stream = streamResult.stream;
+  }
 
-    // add tool results if we have server tools
-    const canExecuteTools = hasServerTools && toolChoice?.type !== "none";
-    if (canExecuteTools) {
-      stream = stream.pipeThrough(
-        toolResultStream(serverTools, request.signal),
-      );
-    }
-
-    if (canExecuteTools || onFinish) {
-      // tee the stream to process server tools and onFinish asap
-      const tees = stream.tee();
-      stream = tees[0];
-      let serverStream = tees[1];
-
-      if (onFinish) {
-        let lastChunk: ChatModelRunResult;
-        serverStream = serverStream.pipeThrough(runResultStream()).pipeThrough(
-          new TransformStream({
-            transform(chunk) {
-              lastChunk = chunk;
-            },
-            flush() {
-              if (!lastChunk?.status || lastChunk.status.type === "running")
-                return;
-
-              const resultingMessages = [
-                ...messages,
-                toCoreMessage({
-                  role: "assistant",
-                  content: lastChunk.content,
-                } as ThreadMessage),
-              ];
-              onFinish({
-                messages: resultingMessages,
-                roundtrips: lastChunk.roundtrips!,
-              });
-            },
-          }),
-        );
-      }
-
-      // drain the server stream
-      serverStream.pipeTo(voidStream()).catch((e) => {
-        console.error("Server stream processing error:", e);
-      });
-    }
-
-    return new Response(
-      stream
-        .pipeThrough(assistantEncoderStream())
-        .pipeThrough(streamPartEncoderStream()),
-      {
-        headers: {
-          contentType: "text/plain; charset=utf-8",
-        },
-      },
-    );
-  };
-  return { POST };
+  return stream;
 };
+
+export declare namespace getEdgeRuntimeResponse {
+  export type { GetEdgeRuntimeStreamOptions as Options };
+}
+
+export const getEdgeRuntimeResponse = async (
+  options: getEdgeRuntimeResponse.Options,
+) => {
+  const stream = await getEdgeRuntimeStream(options);
+  return new Response(
+    stream
+      .pipeThrough(assistantEncoderStream())
+      .pipeThrough(streamPartEncoderStream()),
+    {
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+      },
+    },
+  );
+};
+
+export const createEdgeRuntimeAPI = (options: CreateEdgeRuntimeAPIOptions) => ({
+  POST: async (request: Request) =>
+    getEdgeRuntimeResponse({
+      abortSignal: request.signal,
+      requestData: await request.json(),
+      options,
+    }),
+});
 
 type StreamMessageOptions = LanguageModelV1CallSettings & {
   model: LanguageModelV1;

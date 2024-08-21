@@ -1,1 +1,1 @@
-export { createEdgeRuntimeAPI } from "./runtimes/edge/createEdgeRuntimeAPI";
+export { createEdgeRuntimeAPI, getEdgeRuntimeResponse } from "./runtimes/edge/createEdgeRuntimeAPI";
