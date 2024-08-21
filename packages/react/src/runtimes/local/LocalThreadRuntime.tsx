@@ -119,7 +119,8 @@ export class LocalThreadRuntime implements ThreadRuntime {
     this.abortController = new AbortController();
 
     const initialContent = message.content;
-    const initialRoundtrips = message.roundtrips;
+    const initialRoundtrips = message.metadata?.roundtrips;
+    const initalCustom = message.metadata?.custom;
     const updateMessage = (m: Partial<ChatModelRunResult>) => {
       message = {
         ...message,
@@ -127,8 +128,34 @@ export class LocalThreadRuntime implements ThreadRuntime {
           ? { content: [...initialContent, ...(m.content ?? [])] }
           : undefined),
         status: m.status ?? message.status,
-        ...(m.roundtrips?.length
-          ? { roundtrips: [...(initialRoundtrips ?? []), ...m.roundtrips] }
+        // TODO deprecated, remove in v0.6
+        ...(m.metadata?.roundtrips
+          ? {
+              roundtrips: [
+                ...(initialRoundtrips ?? []),
+                ...m.metadata.roundtrips,
+              ],
+            }
+          : undefined),
+        ...(m.metadata
+          ? {
+              metadata: {
+                ...message.metadata,
+                ...(m.metadata.roundtrips
+                  ? {
+                      roundtrips: [
+                        ...(initialRoundtrips ?? []),
+                        ...m.metadata.roundtrips,
+                      ],
+                    }
+                  : undefined),
+                ...(m.metadata?.custom
+                  ? {
+                      custom: { ...(initalCustom ?? {}), ...m.metadata.custom },
+                    }
+                  : undefined),
+              },
+            }
           : undefined),
       };
       this.repository.addOrUpdateMessage(parentId, message);
@@ -136,7 +163,7 @@ export class LocalThreadRuntime implements ThreadRuntime {
     };
 
     const maxToolRoundtrips = this.options?.maxToolRoundtrips ?? 1;
-    const toolRoundtrips = message.roundtrips?.length ?? 0;
+    const toolRoundtrips = message.metadata?.roundtrips?.length ?? 0;
     if (toolRoundtrips > maxToolRoundtrips) {
       // reached max tool roundtrips
       updateMessage({

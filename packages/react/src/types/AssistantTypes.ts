@@ -118,7 +118,14 @@ export type ThreadAssistantMessage = MessageCommonProps & {
   role: "assistant";
   content: ThreadAssistantContentPart[];
   status: MessageStatus;
+  /**
+   * @deprecated Use `metadata.roundtrips` instead.
+   */
   roundtrips?: ThreadRoundtrip[] | undefined;
+  metadata?: {
+    roundtrips?: ThreadRoundtrip[] | undefined;
+    custom?: Record<string, unknown> | undefined;
+  };
 };
 
 export type AppendMessage = CoreMessage & {

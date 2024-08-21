@@ -32,7 +32,9 @@ import { z } from "zod";
 
 type FinishResult = {
   messages: CoreMessage[];
-  roundtrips: ThreadRoundtrip[];
+  metadata: {
+    roundtrips: ThreadRoundtrip[];
+  };
 };
 
 type LanguageModelCreator = (
@@ -154,7 +156,9 @@ const getEdgeRuntimeStream = async ({
             ];
             onFinish({
               messages: resultingMessages,
-              roundtrips: lastChunk.roundtrips!,
+              metadata: {
+                roundtrips: lastChunk.metadata?.roundtrips!,
+              },
             });
           },
         }),

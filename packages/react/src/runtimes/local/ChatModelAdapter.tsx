@@ -9,12 +9,16 @@ import type { ModelConfig } from "../../types/ModelConfigTypes";
 
 export type ChatModelRunUpdate = {
   content: ThreadAssistantContentPart[];
+  metadata?: Record<string, unknown>;
 };
 
 export type ChatModelRunResult = {
   content: ThreadAssistantContentPart[];
   status?: MessageStatus;
-  roundtrips?: ThreadRoundtrip[];
+  metadata?: {
+    roundtrips?: ThreadRoundtrip[];
+    custom?: Record<string, unknown>;
+  };
 };
 
 export type ChatModelRunOptions = {
@@ -29,5 +33,7 @@ export type ChatModelRunOptions = {
 };
 
 export type ChatModelAdapter = {
-  run: (options: ChatModelRunOptions) => Promise<ChatModelRunResult> | AsyncGenerator<ChatModelRunResult, void>;
+  run: (
+    options: ChatModelRunOptions,
+  ) => Promise<ChatModelRunResult> | AsyncGenerator<ChatModelRunResult, void>;
 };

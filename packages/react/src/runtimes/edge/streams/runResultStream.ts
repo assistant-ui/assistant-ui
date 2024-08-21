@@ -166,13 +166,16 @@ const appendOrUpdateFinish = (
   return {
     ...message,
     status: getStatus(chunk),
-    roundtrips: [
-      ...(message.roundtrips ?? []),
-      {
-        logprobs: rest.logprobs,
-        usage: rest.usage,
-      },
-    ],
+    metadata: {
+      ...message.metadata,
+      roundtrips: [
+        ...(message.metadata?.roundtrips ?? []),
+        {
+          logprobs: rest.logprobs,
+          usage: rest.usage,
+        },
+      ],
+    },
   };
 };
 
