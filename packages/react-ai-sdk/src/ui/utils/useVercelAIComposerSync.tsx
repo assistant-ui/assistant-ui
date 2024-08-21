@@ -5,12 +5,18 @@ import { StoreApi } from "zustand";
 
 // two way sync between vercel helpers input state and composer text state
 export const useVercelAIComposerSync = (vercel: VercelHelpers) => {
-  const { useComposer } = useThreadContext();
+  const { useComposer, useThreadRuntime } = useThreadContext();
+
+  useEffect(() => {
+    useThreadRuntime.getState().composer.setText(vercel.input);
+  }, [useComposer, useThreadRuntime, vercel.input]);
 
   useEffect(() => {
     (useComposer as unknown as StoreApi<ComposerState>).setState({
-      text: vercel.input,
-      setText: vercel.setInput,
+      setText: (t) => {
+        vercel.setInput(t);
+        useThreadRuntime.getState().composer.setText(t);
+      },
     });
-  }, [useComposer, vercel.input, vercel.setInput]);
+  }, [useComposer, useThreadRuntime, vercel]);
 };
