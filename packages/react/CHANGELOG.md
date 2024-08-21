@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.5.31
+
+### Patch Changes
+
+- 34621cc: feat(runtimes/edge): getEdgeRuntimeResponse API
+- 2df3e73: fix: CircleStopIcon invisible on safari
+- 1b9ded0: feat: lift thread composer state to ThreadRuntime.Composer
+
 ## 0.5.30
 
 ### Patch Changes

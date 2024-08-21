@@ -1,5 +1,15 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.5.16
+
+### Patch Changes
+
+- 1b9ded0: feat: lift thread composer state to ThreadRuntime.Composer
+- Updated dependencies [34621cc]
+- Updated dependencies [2df3e73]
+- Updated dependencies [1b9ded0]
+  - @assistant-ui/react@0.5.31
+
 ## 0.5.15
 
 ### Patch Changes
