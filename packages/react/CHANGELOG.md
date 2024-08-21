@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.32
+
+### Patch Changes
+
+- cd70d4f: refactor: rewrite ai-sdk integration to use external runtime
+
 ## 0.5.31
 
 ### Patch Changes

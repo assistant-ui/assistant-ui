@@ -844,7 +844,7 @@ importers:
   packages/react-ai-sdk:
     dependencies:
       '@assistant-ui/react':
-        specifier: ^0.5.31
+        specifier: ^0.5.32
         version: link:../react
       '@types/react':
         specifier: '*'
