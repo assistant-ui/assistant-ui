@@ -78,8 +78,8 @@ export function runResultStream() {
 }
 
 const appendOrUpdateText = (message: ChatModelRunResult, textDelta: string) => {
-  let contentParts = message.content;
-  let contentPart = message.content.at(-1);
+  let contentParts = message.content ?? [];
+  let contentPart = message.content?.at(-1);
   if (contentPart?.type !== "text") {
     contentPart = { type: "text", text: textDelta };
   } else {
@@ -98,8 +98,8 @@ const appendOrUpdateToolCall = (
   toolName: string,
   argsText: string,
 ) => {
-  let contentParts = message.content;
-  let contentPart = message.content.at(-1);
+  let contentParts = message.content ?? [];
+  let contentPart = message.content?.at(-1);
   if (
     contentPart?.type !== "tool-call" ||
     contentPart.toolCallId !== toolCallId
@@ -132,7 +132,7 @@ const appendOrUpdateToolResult = (
   result: any,
 ) => {
   let found = false;
-  const newContentParts = message.content.map((part) => {
+  const newContentParts = message.content?.map((part) => {
     if (part.type !== "tool-call" || part.toolCallId !== toolCallId)
       return part;
     found = true;
@@ -154,7 +154,7 @@ const appendOrUpdateToolResult = (
 
   return {
     ...message,
-    content: newContentParts,
+    content: newContentParts!,
   };
 };
 

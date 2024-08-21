@@ -13,7 +13,7 @@ export type ChatModelRunUpdate = {
 };
 
 export type ChatModelRunResult = {
-  content: ThreadAssistantContentPart[];
+  content?: ThreadAssistantContentPart[];
   status?: MessageStatus;
   metadata?: {
     roundtrips?: ThreadRoundtrip[];
