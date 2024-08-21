@@ -27,23 +27,31 @@ export function asAsyncIterable<T>(
 }
 export type EdgeChatAdapterOptions = {
   api: string;
+
+  credentials?: RequestCredentials;
+  headers?: Record<string, string> | Headers;
+  body?: object;
 };
 
 export class EdgeChatAdapter implements ChatModelAdapter {
   constructor(private options: EdgeChatAdapterOptions) {}
 
   async *run({ messages, abortSignal, config }: ChatModelRunOptions) {
+    const headers = new Headers(this.options.headers);
+    headers.set("Content-Type", "application/json");
+
     const result = await fetch(this.options.api, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers,
+      credentials: this.options.credentials ?? "same-origin",
       body: JSON.stringify({
         system: config.system,
         messages: toCoreMessages(messages),
         tools: config.tools ? toLanguageModelTools(config.tools) : [],
         ...config.callSettings,
         ...config.config,
+
+        ...this.options.body,
       } satisfies EdgeRuntimeRequestOptions),
       signal: abortSignal,
     });
