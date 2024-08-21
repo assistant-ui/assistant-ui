@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.34
+
+### Patch Changes
+
+- 3178788: feat: custom AssistantMessage metadata
+
 ## 0.5.33
 
 ### Patch Changes
