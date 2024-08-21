@@ -1,5 +1,11 @@
 # @assistant-ui/react-playground
 
+## 0.0.19
+
+### Patch Changes
+
+- 4d38f8c: feat: lift thread composer state to ThreadRuntime.Composer
+
 ## 0.0.18
 
 ### Patch Changes
