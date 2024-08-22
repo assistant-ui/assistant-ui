@@ -41,7 +41,7 @@ type LanguageModelCreator = (
   config: LanguageModelConfig,
 ) => Promise<LanguageModelV1> | LanguageModelV1;
 
-type CreateEdgeRuntimeAPIOptions = LanguageModelV1CallSettings & {
+export type CreateEdgeRuntimeAPIOptions = LanguageModelV1CallSettings & {
   model: LanguageModelV1 | LanguageModelCreator;
   system?: string;
   tools?: Record<string, Tool<any, any>>;
@@ -63,7 +63,7 @@ type GetEdgeRuntimeStreamOptions = {
   options: CreateEdgeRuntimeAPIOptions;
 };
 
-const getEdgeRuntimeStream = async ({
+export const getEdgeRuntimeStream = async ({
   abortSignal,
   requestData: unsafeRequest,
   options: {
