@@ -52,7 +52,7 @@ const Composer: FC = () => {
         autoFocus
         placeholder="Write a message..."
         rows={1}
-        className="placeholder:text-muted-foreground size-full max-h-40 resize-none bg-transparent p-4 pr-12 text-sm outline-none"
+        className="placeholder:text-muted-foreground size-full max-h-40 resize-none border-none bg-transparent p-4 pr-12 text-sm outline-none"
       />
       <ComposerPrimitive.Send asChild>
         <TooltipIconButton
