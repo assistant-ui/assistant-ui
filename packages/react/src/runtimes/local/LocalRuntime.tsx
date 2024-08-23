@@ -1,9 +1,11 @@
 import { type ModelConfigProvider } from "../../types/ModelConfigTypes";
+import type { CoreMessage } from "../../types/AssistantTypes";
 import { BaseAssistantRuntime } from "../core/BaseAssistantRuntime";
 import type { ChatModelAdapter } from "./ChatModelAdapter";
 import { ProxyConfigProvider } from "../../internal";
 import { LocalThreadRuntime } from "./LocalThreadRuntime";
 import { LocalRuntimeOptions } from "./LocalRuntimeOptions";
+import { fromCoreMessages } from "../edge/converters/fromCoreMessage";
 
 export class LocalRuntime extends BaseAssistantRuntime<LocalThreadRuntime> {
   private readonly _proxyConfigProvider: ProxyConfigProvider;
@@ -31,5 +33,22 @@ export class LocalRuntime extends BaseAssistantRuntime<LocalThreadRuntime> {
       this._proxyConfigProvider,
       this.thread.adapter,
     ));
+  }
+
+  public reset({
+    initialMessages,
+  }: {
+    initialMessages?: readonly CoreMessage[] | undefined;
+  } = {}) {
+    this.switchToThread(null);
+    if (!initialMessages) return;
+
+    const messages = fromCoreMessages(initialMessages);
+    this.thread.import({
+      messages: messages.map((m, idx) => ({
+        parentId: messages[idx - 1]?.id ?? null,
+        message: m,
+      })),
+    });
   }
 }
