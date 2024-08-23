@@ -5,10 +5,12 @@ import type { AssistantModelConfigState } from "../stores/AssistantModelConfig";
 import type { AssistantToolUIsState } from "../stores/AssistantToolUIs";
 import { ReadonlyStore } from "../ReadonlyStore";
 import { AssistantActionsState } from "../stores/AssistantActions";
+import { AssistantRuntime } from "../../runtimes";
 
 export type AssistantContextValue = {
   useModelConfig: ReadonlyStore<AssistantModelConfigState>;
   useToolUIs: ReadonlyStore<AssistantToolUIsState>;
+  useAssistantRuntime: ReadonlyStore<AssistantRuntime>;
   useAssistantActions: ReadonlyStore<AssistantActionsState>;
 };
 
