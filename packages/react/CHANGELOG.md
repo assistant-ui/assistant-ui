@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.5.37
+
+### Patch Changes
+
+- 60c0fdc: fix: remove Composer focus ring when using @tailwindcss/forms
+- edbab24: feat(runtimes/local): reset thread
+
 ## 0.5.36
 
 ### Patch Changes
