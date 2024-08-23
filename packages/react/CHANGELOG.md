@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.5.36
+
+### Patch Changes
+
+- edb5a16: feat: DangerousInBrowserRuntime
+- f8e2cf1: fix: @tailwindcss/forms input border
+
 ## 0.5.35
 
 ### Patch Changes
