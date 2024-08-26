@@ -1,5 +1,14 @@
 # @assistant-ui/react-syntax-highlighter
 
+## 0.0.10
+
+### Patch Changes
+
+- 554a423: chore: update deps
+- Updated dependencies [554a423]
+  - @assistant-ui/react-markdown@0.2.11
+  - @assistant-ui/react@0.5.38
+
 ## 0.0.9
 
 ### Patch Changes

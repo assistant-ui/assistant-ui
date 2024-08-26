@@ -1,5 +1,13 @@
 # @assistant-ui/react-playground
 
+## 0.0.20
+
+### Patch Changes
+
+- 554a423: chore: update deps
+- Updated dependencies [554a423]
+  - @assistant-ui/react@0.5.38
+
 ## 0.0.19
 
 ### Patch Changes

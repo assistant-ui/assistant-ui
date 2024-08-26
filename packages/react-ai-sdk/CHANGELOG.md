@@ -1,5 +1,13 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.6.1
+
+### Patch Changes
+
+- 554a423: chore: update deps
+- Updated dependencies [554a423]
+  - @assistant-ui/react@0.5.38
+
 ## 0.6.0
 
 ### Minor Changes
