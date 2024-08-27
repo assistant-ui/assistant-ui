@@ -474,6 +474,7 @@ export class PlaygroundThreadRuntime implements ReactThreadRuntime {
 
 export const usePlaygroundRuntime = ({
   initialMessages,
+  maxToolRoundtrips,
   ...runtimeOptions
 }: EdgeRuntimeOptions & {
   initialMessages: CoreMessage[];
