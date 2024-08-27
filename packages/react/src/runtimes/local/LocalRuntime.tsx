@@ -10,7 +10,7 @@ import { fromCoreMessages } from "../edge/converters/fromCoreMessage";
 export class LocalRuntime extends BaseAssistantRuntime<LocalThreadRuntime> {
   private readonly _proxyConfigProvider: ProxyConfigProvider;
 
-  constructor(adapter: ChatModelAdapter, options?: LocalRuntimeOptions) {
+  constructor(adapter: ChatModelAdapter, options: LocalRuntimeOptions) {
     const proxyConfigProvider = new ProxyConfigProvider();
     super(new LocalThreadRuntime(proxyConfigProvider, adapter, options));
     this._proxyConfigProvider = proxyConfigProvider;
@@ -18,6 +18,10 @@ export class LocalRuntime extends BaseAssistantRuntime<LocalThreadRuntime> {
 
   public set adapter(adapter: ChatModelAdapter) {
     this.thread.adapter = adapter;
+  }
+
+  public set options(options: LocalRuntimeOptions) {
+    this.thread.options = options;
   }
 
   registerModelConfigProvider(provider: ModelConfigProvider) {
@@ -29,9 +33,12 @@ export class LocalRuntime extends BaseAssistantRuntime<LocalThreadRuntime> {
       throw new Error("LocalRuntime does not yet support switching threads");
     }
 
+    const { initialMessages, ...options } = this.thread.options;
+
     return (this.thread = new LocalThreadRuntime(
       this._proxyConfigProvider,
       this.thread.adapter,
+      options,
     ));
   }
 

@@ -7,12 +7,13 @@ import { LocalRuntimeOptions } from "./LocalRuntimeOptions";
 
 export const useLocalRuntime = (
   adapter: ChatModelAdapter,
-  options?: LocalRuntimeOptions,
+  options: LocalRuntimeOptions = {},
 ) => {
   const [runtime] = useState(() => new LocalRuntime(adapter, options));
 
   useInsertionEffect(() => {
     runtime.adapter = adapter;
+    runtime.options = options;
   });
 
   return runtime;

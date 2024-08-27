@@ -50,9 +50,9 @@ export class LocalThreadRuntime implements ThreadRuntime {
   constructor(
     private configProvider: ModelConfigProvider,
     public adapter: ChatModelAdapter,
-    private options?: LocalRuntimeOptions,
+    public options: LocalRuntimeOptions,
   ) {
-    if (options?.initialMessages) {
+    if (options.initialMessages) {
       let parentId: string | null = null;
       const messages = fromCoreMessages(options.initialMessages);
       for (const message of messages) {
@@ -162,7 +162,7 @@ export class LocalThreadRuntime implements ThreadRuntime {
       this.notifySubscribers();
     };
 
-    const maxToolRoundtrips = this.options?.maxToolRoundtrips ?? 1;
+    const maxToolRoundtrips = this.options.maxToolRoundtrips ?? 1;
     const toolRoundtrips = message.metadata?.roundtrips?.length ?? 0;
     if (toolRoundtrips > maxToolRoundtrips) {
       // reached max tool roundtrips
