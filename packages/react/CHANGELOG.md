@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.39
+
+### Patch Changes
+
+- ab1160c: fix: switchToThread should persist maxToolRoundtrips
+
 ## 0.5.38
 
 ### Patch Changes
