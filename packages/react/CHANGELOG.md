@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.40
+
+### Patch Changes
+
+- 4333382: fix(runtime/edge): handle maxToolRoundtrips
+
 ## 0.5.39
 
 ### Patch Changes
