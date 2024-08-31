@@ -1186,6 +1186,31 @@ importers:
         specifier: 14.2.6
         version: 14.2.6(eslint@8.57.0)(typescript@5.5.4)
 
+  packages/tool-ui-weather:
+    dependencies:
+      '@types/react':
+        specifier: '*'
+        version: 18.3.4
+      react:
+        specifier: ^18
+        version: 18.3.1
+    devDependencies:
+      '@assistant-ui/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@types/node':
+        specifier: ^22.5.0
+        version: 22.5.0
+      eslint:
+        specifier: ^8
+        version: 8.57.0
+      eslint-config-next:
+        specifier: 14.2.6
+        version: 14.2.6(eslint@8.57.0)(typescript@5.5.4)
+      tsup:
+        specifier: 8.2.4
+        version: 8.2.4(jiti@1.21.6)(postcss@8.4.41)(tsx@4.18.0)(typescript@5.5.4)(yaml@2.5.0)
+
   packages/tsconfig:
     dependencies:
       '@tsconfig/strictest':
