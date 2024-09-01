@@ -34,12 +34,14 @@ export const useVercelRSCRuntime = <T extends WeakKey>(
     onNew,
     onEdit: adapter.onEdit ?? adapter.edit,
     onReload: adapter.onReload ?? adapter.reload,
-    onCopy: null,
     convertMessage: (m: T) =>
       vercelToThreadMessage(
         adapter.convertMessage ?? ((m) => m as VercelRSCMessage),
         m,
       ),
+    unstable_capabilities: {
+      copy: false,
+    },
   };
 
   const runtime = useExternalStoreRuntime(eAdapter);

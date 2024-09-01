@@ -14,7 +14,7 @@ import { useThreadContext } from "../context";
 const useAllowCopy = () => {
   const { assistantMessage: { allowCopy = true } = {} } = useThreadConfig();
   const { useThread } = useThreadContext();
-  const copySupported = useThread((t) => t.capabilities.copy);
+  const copySupported = useThread((t) => t.capabilities.unstable_copy);
   return copySupported && allowCopy;
 };
 

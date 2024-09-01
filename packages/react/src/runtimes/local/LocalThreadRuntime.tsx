@@ -22,7 +22,7 @@ const CAPABILITIES = Object.freeze({
   edit: true,
   reload: true,
   cancel: true,
-  copy: true,
+  unstable_copy: true,
 });
 
 export class LocalThreadRuntime implements ThreadRuntime {

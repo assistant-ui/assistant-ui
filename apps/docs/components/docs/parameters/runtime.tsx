@@ -45,7 +45,7 @@ export const AssistantRuntimeProviderProps = () => {
                             "Whether the runtime supports cancelling runs.",
                         },
                         {
-                          name: "copy",
+                          name: "unstable_copy",
                           type: "boolean",
                           required: true,
                           description:

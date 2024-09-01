@@ -21,7 +21,6 @@ type ExternalStoreAdapterBase<T> = {
   onEdit?: ((message: AppendMessage) => Promise<void>) | undefined;
   onReload?: ((parentId: string | null) => Promise<void>) | undefined;
   onCancel?: (() => Promise<void>) | undefined;
-  onCopy?: (() => Promise<void>) | null | undefined;
   onNewThread?: (() => Promise<void> | void) | undefined;
   onAddToolResult?:
     | ((options: AddToolResultOptions) => Promise<void> | void)
@@ -30,6 +29,11 @@ type ExternalStoreAdapterBase<T> = {
     | ((threadId: string | null) => Promise<void> | void)
     | undefined;
   convertMessage?: ExternalStoreMessageConverter<T> | undefined;
+  unstable_capabilities?:
+    | {
+        copy?: boolean | undefined;
+      }
+    | undefined;
 };
 
 export type ExternalStoreAdapter<T = ThreadMessage> =

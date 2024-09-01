@@ -13,7 +13,7 @@ export type RuntimeCapabilities = {
   edit: boolean;
   reload: boolean;
   cancel: boolean;
-  copy: boolean;
+  unstable_copy: boolean;
 };
 
 export const getThreadStateFromRuntime = (
