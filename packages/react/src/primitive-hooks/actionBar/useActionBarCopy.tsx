@@ -14,10 +14,11 @@ export const useActionBarCopy = ({
 
   const hasCopyableContent = useCombinedStore(
     [useMessage, useEditComposer],
-    (m, c) => {
+    ({ message }, c) => {
       return (
         !c.isEditing &&
-        m.message.content.some((c) => c.type === "text" && c.text.length > 0)
+        (message.role !== "assistant" || message.status.type !== "running") &&
+        message.content.some((c) => c.type === "text" && c.text.length > 0)
       );
     },
   );

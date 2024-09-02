@@ -10,6 +10,7 @@ type MessageIfFilters = {
   hasBranches: boolean | undefined;
   copied: boolean | undefined;
   lastOrHover: boolean | undefined;
+  speaking: boolean | undefined;
 };
 export type UseMessageIfProps = RequireAtLeastOne<MessageIfFilters>;
 
@@ -18,7 +19,7 @@ export const useMessageIf = (props: UseMessageIfProps) => {
 
   return useCombinedStore(
     [useMessage, useMessageUtils],
-    ({ message, branches, isLast }, { isCopied, isHovering }) => {
+    ({ message, branches, isLast }, { isCopied, isHovering, isSpeaking }) => {
       if (props.hasBranches === true && branches.length < 2) return false;
 
       if (props.user && message.role !== "user") return false;
@@ -29,6 +30,9 @@ export const useMessageIf = (props: UseMessageIfProps) => {
 
       if (props.copied === true && !isCopied) return false;
       if (props.copied === false && isCopied) return false;
+      
+      if (props.speaking === true && !isSpeaking) return false;
+      if (props.speaking === false && isSpeaking) return false;
 
       return true;
     },

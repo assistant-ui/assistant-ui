@@ -31,6 +31,7 @@ export class ExternalStoreThreadRuntime implements ReactThreadRuntime {
     reload: false,
     cancel: false,
     unstable_copy: false,
+    speak: false,
   };
 
   public get capabilities() {
@@ -69,6 +70,7 @@ export class ExternalStoreThreadRuntime implements ReactThreadRuntime {
       reload: this._store.onReload !== undefined,
       cancel: this._store.onCancel !== undefined,
       unstable_copy: this._store.unstable_capabilities?.copy !== null,
+      speak: this._store.onSpeak !== undefined,
     };
 
     if (oldStore) {
@@ -205,6 +207,20 @@ export class ExternalStoreThreadRuntime implements ReactThreadRuntime {
     }, 0);
   }
 
+  public addToolResult(options: AddToolResultOptions) {
+    if (!this._store.onAddToolResult)
+      throw new Error("Runtime does not support tool results.");
+    this._store.onAddToolResult(options);
+  }
+
+  public speak(messageId: string) {
+    if (!this._store.onSpeak)
+      throw new Error("Runtime does not support speaking.");
+
+    const { message } = this.repository.getMessage(messageId);
+    return this._store.onSpeak(message);
+  }
+
   public subscribe(callback: () => void): Unsubscribe {
     this._subscriptions.add(callback);
     return () => this._subscriptions.delete(callback);
@@ -215,10 +231,4 @@ export class ExternalStoreThreadRuntime implements ReactThreadRuntime {
       messages.flatMap(getExternalStoreMessage).filter((m) => m != null),
     );
   };
-
-  addToolResult(options: AddToolResultOptions) {
-    if (!this._store.onAddToolResult)
-      throw new Error("Runtime does not support tool results.");
-    this._store.onAddToolResult(options);
-  }
 }

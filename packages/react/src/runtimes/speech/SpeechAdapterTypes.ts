@@ -1,23 +1,23 @@
 import { ThreadMessage, Unsubscribe } from "../../types";
 
-export namespace SpeechSynthesisRuntime {
+export namespace SpeechSynthesisAdapter {
   export type Utterance = {
     stop: () => void;
     onEnd: (callback: () => void) => Unsubscribe;
   };
 }
 
-export type SpeechSynthesisRuntime = {
-  speak: (message: ThreadMessage) => Promise<SpeechSynthesisRuntime.Utterance>;
+export type SpeechSynthesisAdapter = {
+  speak: (message: ThreadMessage) => SpeechSynthesisAdapter.Utterance;
 };
 
-export namespace SpeechRecognitionRuntime {
+export namespace SpeechRecognitionAdapter {
   export type Status = {
     type: "stopped" | "starting" | "running";
   };
 }
-export type SpeechRecognitionRuntime = {
-  status: SpeechRecognitionRuntime.Status;
+export type SpeechRecognitionAdapter = {
+  status: SpeechRecognitionAdapter.Status;
   start: () => Promise<void>;
   stop: () => Promise<void>;
   onMessage: (callback: (message: ThreadMessage) => void) => Unsubscribe;

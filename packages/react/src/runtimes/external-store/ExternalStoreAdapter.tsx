@@ -1,5 +1,6 @@
 import { AddToolResultOptions } from "../../context";
 import { AppendMessage, ThreadMessage } from "../../types";
+import { SpeechSynthesisAdapter } from "../speech/SpeechAdapterTypes";
 import { ThreadMessageLike } from "./ThreadMessageLike";
 
 export type ExternalStoreMessageConverter<T> = (
@@ -27,6 +28,9 @@ type ExternalStoreAdapterBase<T> = {
     | undefined;
   onSwitchThread?:
     | ((threadId: string | null) => Promise<void> | void)
+    | undefined;
+  onSpeak?:
+    | ((message: ThreadMessage) => SpeechSynthesisAdapter.Utterance)
     | undefined;
   convertMessage?: ExternalStoreMessageConverter<T> | undefined;
   unstable_capabilities?:

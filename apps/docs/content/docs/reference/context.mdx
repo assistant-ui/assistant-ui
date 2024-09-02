@@ -242,6 +242,15 @@ const isHovering = useMessageUtils.getState().isHovering;
 
 const setIsHovering = useMessageUtils((m) => m.setIsHovering);
 const setIsHovering = useMessageUtils.getState().setIsHovering;
+
+const isSpeaking = useMessageUtils((m) => m.isSpeaking);
+const isSpeaking = useMessageUtils.getState().isSpeaking;
+
+const stopSpeaking = useMessageUtils((m) => m.stopSpeaking);
+const stopSpeaking = useMessageUtils.getState().stopSpeaking;
+
+const addUtterance = useMessageUtils((m) => m.addUtterance);
+const addUtterance = useMessageUtils.getState().addUtterance;
 ```
 
 <ParametersTable {...MessageUtilsState} />

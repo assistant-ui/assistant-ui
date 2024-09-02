@@ -30,6 +30,7 @@ export type UserMessageConfig = {
 export type AssistantMessageConfig = {
   allowReload?: boolean | undefined;
   allowCopy?: boolean | undefined;
+  allowSpeak?: boolean | undefined;
   components?:
     | {
         Text?: TextContentPartComponent | undefined;
@@ -70,6 +71,12 @@ export type StringsConfig = {
     };
     copy?: {
       tooltip?: string | undefined;
+    };
+    speak?: {
+      tooltip?: string | undefined;
+      stop?: {
+        tooltip?: string | undefined;
+      };
     };
   };
   branchPicker?: {

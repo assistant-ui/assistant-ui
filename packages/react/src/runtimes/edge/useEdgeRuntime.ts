@@ -7,8 +7,13 @@ export type EdgeRuntimeOptions = EdgeChatAdapterOptions & LocalRuntimeOptions;
 export const useEdgeRuntime = ({
   initialMessages,
   maxToolRoundtrips,
+  adapters,
   ...options
 }: EdgeRuntimeOptions) => {
   const [adapter] = useState(() => new EdgeChatAdapter(options));
-  return useLocalRuntime(adapter, { initialMessages, maxToolRoundtrips });
+  return useLocalRuntime(adapter, {
+    initialMessages,
+    maxToolRoundtrips,
+    adapters,
+  });
 };

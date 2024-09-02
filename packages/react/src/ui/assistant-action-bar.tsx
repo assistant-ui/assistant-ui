@@ -1,7 +1,13 @@
 "use client";
 
 import { forwardRef, type FC } from "react";
-import { CheckIcon, CopyIcon, RefreshCwIcon } from "lucide-react";
+import {
+  AudioLinesIcon,
+  CheckIcon,
+  CopyIcon,
+  RefreshCwIcon,
+  StopCircleIcon,
+} from "lucide-react";
 import { ActionBarPrimitive, MessagePrimitive } from "../primitives";
 import {
   TooltipIconButton,
@@ -16,6 +22,13 @@ const useAllowCopy = () => {
   const { useThread } = useThreadContext();
   const copySupported = useThread((t) => t.capabilities.unstable_copy);
   return copySupported && allowCopy;
+};
+
+const useAllowSpeak = () => {
+  const { assistantMessage: { allowSpeak = true } = {} } = useThreadConfig();
+  const { useThread } = useThreadContext();
+  const speakSupported = useThread((t) => t.capabilities.speak);
+  return speakSupported && allowSpeak;
 };
 
 const useAllowReload = () => {
@@ -35,6 +48,7 @@ const AssistantActionBar: FC = () => {
       autohide="not-last"
       autohideFloat="single-branch"
     >
+      <AssistantActionBarSpeechControl />
       <AssistantActionBarCopy />
       <AssistantActionBarReload />
     </AssistantActionBarRoot>
@@ -55,7 +69,7 @@ const AssistantActionBarCopy = forwardRef<
 >((props, ref) => {
   const {
     strings: {
-      assistantMessage: { reload: { tooltip = "Copy" } = {} } = {},
+      assistantMessage: { copy: { tooltip = "Copy" } = {} } = {},
     } = {},
   } = useThreadConfig();
   const allowCopy = useAllowCopy();
@@ -79,6 +93,65 @@ const AssistantActionBarCopy = forwardRef<
 });
 
 AssistantActionBarCopy.displayName = "AssistantActionBarCopy";
+
+const AssistantActionBarSpeechControl: FC = () => {
+  return (
+    <>
+      <MessagePrimitive.If speaking={false}>
+        <AssistantActionBarSpeak />
+      </MessagePrimitive.If>
+      <MessagePrimitive.If speaking>
+        <AssistantActionBarStopSpeaking />
+      </MessagePrimitive.If>
+    </>
+  );
+};
+
+const AssistantActionBarSpeak = forwardRef<
+  HTMLButtonElement,
+  Partial<TooltipIconButtonProps>
+>((props, ref) => {
+  const {
+    strings: {
+      assistantMessage: { speak: { tooltip = "Read aloud" } = {} } = {},
+    } = {},
+  } = useThreadConfig();
+  const allowSpeak = useAllowSpeak();
+  if (!allowSpeak) return null;
+  return (
+    <ActionBarPrimitive.Speak asChild>
+      <TooltipIconButton tooltip={tooltip} {...props} ref={ref}>
+        {props.children ?? <AudioLinesIcon />}
+      </TooltipIconButton>
+    </ActionBarPrimitive.Speak>
+  );
+});
+
+AssistantActionBarSpeak.displayName = "AssistantActionBarSpeak";
+
+const AssistantActionBarStopSpeaking = forwardRef<
+  HTMLButtonElement,
+  Partial<TooltipIconButtonProps>
+>((props, ref) => {
+  const {
+    strings: {
+      assistantMessage: {
+        speak: { stop: { tooltip: stopTooltip = "Stop" } = {} } = {},
+      } = {},
+    } = {},
+  } = useThreadConfig();
+  const allowSpeak = useAllowSpeak();
+  if (!allowSpeak) return null;
+  return (
+    <ActionBarPrimitive.StopSpeaking asChild>
+      <TooltipIconButton tooltip={stopTooltip} {...props} ref={ref}>
+        {props.children ?? <StopCircleIcon />}
+      </TooltipIconButton>
+    </ActionBarPrimitive.StopSpeaking>
+  );
+});
+
+AssistantActionBarStopSpeaking.displayName = "AssistantActionBarStopSpeaking";
 
 const AssistantActionBarReload = forwardRef<
   HTMLButtonElement,
@@ -106,6 +179,9 @@ const exports = {
   Root: AssistantActionBarRoot,
   Reload: AssistantActionBarReload,
   Copy: AssistantActionBarCopy,
+  Speak: AssistantActionBarSpeak,
+  StopSpeaking: AssistantActionBarStopSpeaking,
+  SpeechControl: AssistantActionBarSpeechControl,
 };
 
 export default Object.assign(

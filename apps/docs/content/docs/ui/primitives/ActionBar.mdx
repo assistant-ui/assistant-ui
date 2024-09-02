@@ -230,3 +230,67 @@ const Copy = () => {
     },
   ]}
 />
+
+### Speak
+
+Plays the message text as speech.
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+<ParametersTable
+  type="ActionBarPrimitiveSpeakProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+  ]}
+/>
+
+#### `useActionBarSpeak`
+
+Provides the `Speak` functionality as a hook.
+
+```tsx
+import { useActionBarSpeak } from "@assistant-ui/react";
+
+const Speak = () => {
+  const speak = useActionBarSpeak();
+
+  // speak action is not available
+  if (!speak) return null;
+
+  return <button onClick={speak}>Speak</button>;
+};
+```
+
+### StopSpeaking
+
+Stops the message text from being played as speech.
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+<ParametersTable
+  type="ActionBarPrimitiveStopSpeakingProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+  ]}
+/>
+
+#### `useActionBarStopSpeaking`
+
+Provides the `StopSpeaking` functionality as a hook.
+
+```tsx
+import { useActionBarStopSpeaking } from "@assistant-ui/react";
+
+const StopSpeaking = () => {
+  const stopSpeaking = useActionBarStopSpeaking();
+
+  // stopSpeaking action is not available
+  if (!stopSpeaking) return null;
+
+  return <button onClick={stopSpeaking}>Stop speaking</button>;
+};
+```

@@ -14,6 +14,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   ArrowDownIcon,
+  AudioLinesIcon,
   CheckIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -21,6 +22,7 @@ import {
   PencilIcon,
   RefreshCwIcon,
   SendHorizontalIcon,
+  StopCircleIcon,
 } from "lucide-react";
 import { MarkdownText } from "@/components/ui/assistant-ui/markdown-text";
 import { TooltipIconButton } from "@/components/ui/assistant-ui/tooltip-icon-button";
@@ -171,6 +173,20 @@ const AssistantMessage: FC = () => {
         autohideFloat="single-branch"
         className="text-muted-foreground data-[floating]:bg-background col-start-3 row-start-2 -ml-1 flex gap-1 data-[floating]:absolute data-[floating]:rounded-md data-[floating]:border data-[floating]:p-1 data-[floating]:shadow-sm"
       >
+        <MessagePrimitive.If speaking={false}>
+          <ActionBarPrimitive.Speak asChild>
+            <TooltipIconButton tooltip="Read aloud">
+              <AudioLinesIcon />
+            </TooltipIconButton>
+          </ActionBarPrimitive.Speak>
+        </MessagePrimitive.If>
+        <MessagePrimitive.If speaking>
+          <ActionBarPrimitive.StopSpeaking asChild>
+            <TooltipIconButton tooltip="Stop">
+              <StopCircleIcon />
+            </TooltipIconButton>
+          </ActionBarPrimitive.StopSpeaking>
+        </MessagePrimitive.If>
         <ActionBarPrimitive.Copy asChild>
           <TooltipIconButton tooltip="Copy">
             <MessagePrimitive.If copied>

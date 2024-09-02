@@ -477,5 +477,23 @@ export const MessageUtilsState: ParametersTableProps = {
       required: true,
       description: "A function to set the is hovering.",
     },
+    {
+      name: "isSpeaking",
+      type: "boolean",
+      required: true,
+      description: "Whether the message is currently being spoken.",
+    },
+    {
+      name: "stopSpeaking",
+      type: "() => void",
+      required: true,
+      description: "A function to stop the message from being spoken.",
+    },
+    {
+      name: "addUtterance",
+      type: "(utterance: SpeechSynthesisAdapter.Utterance) => void",
+      required: true,
+      description: "A function to add a speech utterance.",
+    },
   ],
 };

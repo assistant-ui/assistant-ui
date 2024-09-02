@@ -16,14 +16,7 @@ import {
 import type { ChatModelAdapter, ChatModelRunResult } from "./ChatModelAdapter";
 import { shouldContinue } from "./shouldContinue";
 import { LocalRuntimeOptions } from "./LocalRuntimeOptions";
-
-const CAPABILITIES = Object.freeze({
-  switchToBranch: true,
-  edit: true,
-  reload: true,
-  cancel: true,
-  unstable_copy: true,
-});
+import { WebSpeechSynthesisAdapter } from "../speech/WebSpeechSynthesisAdapter";
 
 export class LocalThreadRuntime implements ThreadRuntime {
   private _subscriptions = new Set<() => void>();
@@ -31,7 +24,14 @@ export class LocalThreadRuntime implements ThreadRuntime {
   private abortController: AbortController | null = null;
   private readonly repository = new MessageRepository();
 
-  public readonly capabilities = CAPABILITIES;
+  public readonly capabilities = {
+    switchToBranch: true,
+    edit: true,
+    reload: true,
+    cancel: true,
+    unstable_copy: true,
+    speak: false,
+  };
 
   public readonly isDisabled = false;
 
@@ -50,15 +50,28 @@ export class LocalThreadRuntime implements ThreadRuntime {
   constructor(
     private configProvider: ModelConfigProvider,
     public adapter: ChatModelAdapter,
-    public options: LocalRuntimeOptions,
+    { initialMessages, ...options }: LocalRuntimeOptions,
   ) {
-    if (options.initialMessages) {
+    this.options = options;
+    if (initialMessages) {
       let parentId: string | null = null;
-      const messages = fromCoreMessages(options.initialMessages);
+      const messages = fromCoreMessages(initialMessages);
       for (const message of messages) {
         this.repository.addOrUpdateMessage(parentId, message);
         parentId = message.id;
       }
+    }
+  }
+
+  private _options!: LocalRuntimeOptions;
+
+  public set options({ initialMessages, ...options }: LocalRuntimeOptions) {
+    this._options = options;
+
+    const canSpeak = options.adapters?.speech !== undefined;
+    if (this.capabilities.speak !== canSpeak) {
+      this.capabilities.speak = canSpeak;
+      this.notifySubscribers();
     }
   }
 
@@ -162,7 +175,7 @@ export class LocalThreadRuntime implements ThreadRuntime {
       this.notifySubscribers();
     };
 
-    const maxToolRoundtrips = this.options.maxToolRoundtrips ?? 1;
+    const maxToolRoundtrips = this._options.maxToolRoundtrips ?? 1;
     const toolRoundtrips = message.metadata?.roundtrips?.length ?? 0;
     if (toolRoundtrips > maxToolRoundtrips) {
       // reached max tool roundtrips
@@ -240,7 +253,11 @@ export class LocalThreadRuntime implements ThreadRuntime {
     return () => this._subscriptions.delete(callback);
   }
 
-  addToolResult({ messageId, toolCallId, result }: AddToolResultOptions) {
+  public addToolResult({
+    messageId,
+    toolCallId,
+    result,
+  }: AddToolResultOptions) {
     let { parentId, message } = this.repository.getMessage(messageId);
 
     if (message.role !== "assistant")
@@ -273,11 +290,17 @@ export class LocalThreadRuntime implements ThreadRuntime {
     }
   }
 
-  export() {
+  public speak(messageId: string) {
+    const { message } = this.repository.getMessage(messageId);
+    const adapter = new WebSpeechSynthesisAdapter();
+    return adapter.speak(message);
+  }
+
+  public export() {
     return this.repository.export();
   }
 
-  import(data: ExportedMessageRepository) {
+  public import(data: ExportedMessageRepository) {
     this.repository.import(data);
     this.notifySubscribers();
   }
