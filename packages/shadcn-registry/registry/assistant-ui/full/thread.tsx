@@ -80,19 +80,19 @@ const ThreadWelcome: FC = () => {
 
 const Composer: FC = () => {
   return (
-    <ComposerPrimitive.Root className="relative flex w-full items-end rounded-lg border transition-shadow focus-within:shadow-sm">
+    <ComposerPrimitive.Root className="flex w-full flex-wrap items-end rounded-lg border px-2.5 transition-shadow focus-within:shadow-sm">
       <ComposerPrimitive.Input
         autoFocus
         placeholder="Write a message..."
         rows={1}
-        className="placeholder:text-muted-foreground size-full max-h-40 resize-none border-none bg-transparent p-4 pr-12 text-sm outline-none focus:ring-0"
+        className="placeholder:text-muted-foreground max-h-40 flex-grow resize-none border-none bg-transparent px-2 py-4 text-sm outline-none focus:ring-0"
       />
       <ThreadPrimitive.If running={false}>
         <ComposerPrimitive.Send asChild>
           <TooltipIconButton
             tooltip="Send"
             variant="default"
-            className="absolute bottom-0 right-0 m-2.5 size-8 p-2 transition-opacity"
+            className="my-2.5 size-8 p-2 transition-opacity"
           >
             <SendHorizontalIcon />
           </TooltipIconButton>
@@ -103,7 +103,7 @@ const Composer: FC = () => {
           <TooltipIconButton
             tooltip="Cancel"
             variant="default"
-            className="absolute bottom-0 right-0 m-2.5 size-8 p-2 transition-opacity"
+            className="my-2.5 size-8 p-2 transition-opacity"
           >
             <CircleStopIcon />
           </TooltipIconButton>

@@ -35,7 +35,7 @@
 }
 
 .aui-thread-welcome-suggestion {
-  @apply flex max-w-sm grow basis-0 flex-col items-center justify-center rounded-lg border px-3 py-3;
+  @apply flex max-w-sm grow basis-0 flex-col items-center justify-center rounded-lg border p-3;
 }
 
 .aui-thread-welcome-suggestion-text {
@@ -45,16 +45,16 @@
 /* composer */
 
 .aui-composer-root {
-  @apply relative flex w-full items-end rounded-lg border transition-shadow focus-within:shadow-sm;
+  @apply flex w-full flex-wrap items-end rounded-lg border px-2.5 transition-shadow focus-within:shadow-sm;
 }
 
 .aui-composer-input {
-  @apply placeholder:text-aui-muted-foreground size-full max-h-40 resize-none border-none bg-transparent p-4 pr-12 text-sm outline-none focus:ring-0;
+  @apply placeholder:text-aui-muted-foreground max-h-40 flex-grow resize-none border-none bg-transparent px-2 py-4 text-sm outline-none focus:ring-0;
 }
 
 .aui-composer-send,
 .aui-composer-cancel {
-  @apply absolute bottom-0 right-0 m-2.5 size-8 p-2 transition-opacity;
+  @apply my-2.5 size-8 p-2 transition-opacity;
 }
 
 /* user message */
