@@ -1,5 +1,15 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.6.2
+
+### Patch Changes
+
+- f526279: feat: SpeechSyntehsis
+- e8aa697: refactor: remove unsupported external runtime onCopy callback
+- Updated dependencies [f526279]
+- Updated dependencies [e8aa697]
+  - @assistant-ui/react@0.5.41
+
 ## 0.6.1
 
 ### Patch Changes
