@@ -7,15 +7,15 @@ import {
 } from "@/components/ui/resizable";
 import type { FC, PropsWithChildren } from "react";
 
-import { Thread } from "@/components/ui/assistant-ui/thread";
+import { MyThread } from "@/components/ui/assistant-ui/thread";
 
-export const AssistantSidebar: FC<PropsWithChildren> = ({ children }) => {
+export const MyAssistantSidebar: FC<PropsWithChildren> = ({ children }) => {
   return (
     <ResizablePanelGroup direction="horizontal">
       <ResizablePanel>{children}</ResizablePanel>
       <ResizableHandle />
       <ResizablePanel>
-        <Thread />
+        <MyThread />
       </ResizablePanel>
     </ResizablePanelGroup>
   );
