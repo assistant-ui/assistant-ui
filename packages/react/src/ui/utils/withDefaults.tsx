@@ -28,7 +28,7 @@ export const withDefaults = <TComponent extends ElementType>(
   const WithDefaults = forwardRef<ElementRef<TComponent>, TComponentProps>(
     (props, ref) => {
       const ComponentAsAny = Component as any;
-      return <ComponentAsAny {...getProps(props)} ref={ref} />;
+      return <ComponentAsAny {...getProps(props as any)} ref={ref} />;
     },
   );
   WithDefaults.displayName =

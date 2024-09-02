@@ -43,7 +43,7 @@
   },
   "devDependencies": {
     "@assistant-ui/tsconfig": "workspace:*",
-    "eslint-config-next": "14.2.6",
+    "eslint-config-next": "14.2.7",
     "tsup": "8.2.4"
   },
   "publishConfig": {
