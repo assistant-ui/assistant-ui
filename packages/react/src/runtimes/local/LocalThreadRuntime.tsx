@@ -1,4 +1,3 @@
-import { ThreadRuntime } from "..";
 import { AddToolResultOptions } from "../../context";
 import { generateId } from "../../internal";
 import type {
@@ -16,7 +15,8 @@ import {
 import type { ChatModelAdapter, ChatModelRunResult } from "./ChatModelAdapter";
 import { shouldContinue } from "./shouldContinue";
 import { LocalRuntimeOptions } from "./LocalRuntimeOptions";
-import { WebSpeechSynthesisAdapter } from "../speech/WebSpeechSynthesisAdapter";
+import { ThreadRuntime } from "../core";
+import { SpeechSynthesisAdapter } from "../speech";
 
 export class LocalThreadRuntime implements ThreadRuntime {
   private _subscriptions = new Set<() => void>();
@@ -290,10 +290,29 @@ export class LocalThreadRuntime implements ThreadRuntime {
     }
   }
 
+  // TODO lift utterance state to thread runtime
+  private _utterance: SpeechSynthesisAdapter.Utterance | undefined;
+
   public speak(messageId: string) {
+    const adapter = this._options.adapters?.speech;
+    if (!adapter) throw new Error("Speech adapter not configured");
+
     const { message } = this.repository.getMessage(messageId);
-    const adapter = new WebSpeechSynthesisAdapter();
-    return adapter.speak(message);
+
+    if (this._utterance) {
+      this._utterance.stop();
+      this._utterance = undefined;
+    }
+
+    const utterance = adapter.speak(message);
+    utterance.onEnd(() => {
+      if (this._utterance === utterance) {
+        this._utterance = undefined;
+      }
+    });
+    this._utterance = utterance;
+
+    return this._utterance;
   }
 
   public export() {
