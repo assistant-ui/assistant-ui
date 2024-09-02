@@ -17,40 +17,41 @@ import { withDefaults } from "./utils/withDefaults";
 import { useThreadConfig } from "./thread-config";
 import { useThreadContext } from "../context";
 
-const useAllowCopy = () => {
+const useAllowCopy = (ensureCapability = false) => {
   const { assistantMessage: { allowCopy = true } = {} } = useThreadConfig();
   const { useThread } = useThreadContext();
   const copySupported = useThread((t) => t.capabilities.unstable_copy);
-  return copySupported && allowCopy;
+  return allowCopy && (!ensureCapability || copySupported);
 };
 
-const useAllowSpeak = () => {
+const useAllowSpeak = (ensureCapability = false) => {
   const { assistantMessage: { allowSpeak = true } = {} } = useThreadConfig();
   const { useThread } = useThreadContext();
   const speakSupported = useThread((t) => t.capabilities.speak);
-  return speakSupported && allowSpeak;
+  return allowSpeak && (!ensureCapability || speakSupported);
 };
 
-const useAllowReload = () => {
+const useAllowReload = (ensureCapability = false) => {
   const { assistantMessage: { allowReload = true } = {} } = useThreadConfig();
   const { useThread } = useThreadContext();
   const reloadSupported = useThread((t) => t.capabilities.reload);
-  return reloadSupported && allowReload;
+  return allowReload && (!ensureCapability || reloadSupported);
 };
 
 const AssistantActionBar: FC = () => {
-  const allowCopy = useAllowCopy();
-  const allowReload = useAllowReload();
-  if (!allowCopy && !allowReload) return null;
+  const allowCopy = useAllowCopy(true);
+  const allowReload = useAllowReload(true);
+  const allowSpeak = useAllowSpeak(true);
+  if (!allowCopy && !allowReload && !allowSpeak) return null;
   return (
     <AssistantActionBarRoot
       hideWhenRunning
       autohide="not-last"
       autohideFloat="single-branch"
     >
-      <AssistantActionBarSpeechControl />
-      <AssistantActionBarCopy />
-      <AssistantActionBarReload />
+      {allowSpeak && <AssistantActionBarSpeechControl />}
+      {allowCopy && <AssistantActionBarCopy />}
+      {allowReload && <AssistantActionBarReload />}
     </AssistantActionBarRoot>
   );
 };
@@ -72,8 +73,7 @@ const AssistantActionBarCopy = forwardRef<
       assistantMessage: { copy: { tooltip = "Copy" } = {} } = {},
     } = {},
   } = useThreadConfig();
-  const allowCopy = useAllowCopy();
-  if (!allowCopy) return null;
+
   return (
     <ActionBarPrimitive.Copy asChild>
       <TooltipIconButton tooltip={tooltip} {...props} ref={ref}>

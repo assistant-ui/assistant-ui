@@ -12,15 +12,15 @@ import { useThreadConfig } from "./thread-config";
 import { useThreadContext } from "../context";
 import { ActionBarPrimitive } from "../primitives";
 
-const useAllowEdit = () => {
+const useAllowEdit = (ensureCapability = false) => {
   const { userMessage: { allowEdit = true } = {} } = useThreadConfig();
   const { useThread } = useThreadContext();
   const editSupported = useThread((t) => t.capabilities.edit);
-  return editSupported && allowEdit;
+  return allowEdit && (!ensureCapability || editSupported);
 };
 
 const UserActionBar: FC = () => {
-  const allowEdit = useAllowEdit();
+  const allowEdit = useAllowEdit(true);
   if (!allowEdit) return null;
   return (
     <UserActionBarRoot hideWhenRunning autohide="not-last">
