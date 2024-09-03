@@ -1,8 +1,19 @@
 import { ThreadMessage, Unsubscribe } from "../../types";
 
 export namespace SpeechSynthesisAdapter {
+  export type Status =
+    | {
+        type: "starting" | "running";
+      }
+    | {
+        type: "ended";
+        reason: "finished" | "cancelled" | "error";
+        error?: unknown;
+      };
+
   export type Utterance = {
-    stop: () => void;
+    status: Status;
+    cancel: () => void;
     onEnd: (callback: () => void) => Unsubscribe;
   };
 }
@@ -12,13 +23,29 @@ export type SpeechSynthesisAdapter = {
 };
 
 export namespace SpeechRecognitionAdapter {
-  export type Status = {
-    type: "stopped" | "starting" | "running";
+  export type Status =
+    | {
+        type: "starting" | "running";
+      }
+    | {
+        type: "ended";
+        reason: "stopped" | "cancelled" | "error";
+      };
+
+  export type Result = {
+    transcript: string;
+  };
+
+  export type Session = {
+    status: Status;
+    stop: () => Promise<void>;
+    cancel: () => void;
+    onSpeechStart: (callback: () => void) => Unsubscribe;
+    onSpeechEnd: (callback: (result: Result) => void) => Unsubscribe;
+    onSpeech: (callback: (result: Result) => void) => Unsubscribe;
   };
 }
+
 export type SpeechRecognitionAdapter = {
-  status: SpeechRecognitionAdapter.Status;
-  start: () => Promise<void>;
-  stop: () => Promise<void>;
-  onMessage: (callback: (message: ThreadMessage) => void) => Unsubscribe;
+  listen: () => SpeechRecognitionAdapter.Session;
 };

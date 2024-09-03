@@ -7,27 +7,30 @@ export class WebSpeechSynthesisAdapter implements SpeechSynthesisAdapter {
     const text = getThreadMessageText(message);
     const utterance = new SpeechSynthesisUtterance(text);
 
-    let ended = false;
     const endHandlers = new Set<() => void>();
-    const handleEnd = () => {
-      if (ended) return;
+    const handleEnd = (
+      reason: "finished" | "error" | "cancelled",
+      error?: unknown,
+    ) => {
+      if (res.status.type === "ended") return;
 
-      ended = true;
+      res.status = { type: "ended", reason, error };
       endHandlers.forEach((handler) => handler());
     };
 
-    utterance.addEventListener("end", handleEnd);
-    utterance.addEventListener("error", handleEnd);
+    utterance.addEventListener("end", () => handleEnd("finished"));
+    utterance.addEventListener("error", (e) => handleEnd("error", e.error));
 
     window.speechSynthesis.speak(utterance);
 
-    return {
-      stop: () => {
+    const res: SpeechSynthesisAdapter.Utterance = {
+      status: { type: "running" },
+      cancel: () => {
         window.speechSynthesis.cancel();
-        handleEnd();
+        handleEnd("cancelled");
       },
       onEnd: (callback) => {
-        if (ended) {
+        if (res.status.type === "ended") {
           let cancelled = false;
           queueMicrotask(() => {
             if (!cancelled) callback();
@@ -43,5 +46,6 @@ export class WebSpeechSynthesisAdapter implements SpeechSynthesisAdapter {
         }
       },
     };
+    return res;
   }
 }

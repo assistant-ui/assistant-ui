@@ -26,7 +26,7 @@ export const makeMessageUtilsStore = () =>
       },
       isSpeaking: false,
       stopSpeaking: () => {
-        utterance?.stop();
+        utterance?.cancel();
       },
       addUtterance: (utt) => {
         utterance = utt;

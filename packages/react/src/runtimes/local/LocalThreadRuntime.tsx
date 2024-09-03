@@ -300,7 +300,7 @@ export class LocalThreadRuntime implements ThreadRuntime {
     const { message } = this.repository.getMessage(messageId);
 
     if (this._utterance) {
-      this._utterance.stop();
+      this._utterance.cancel();
       this._utterance = undefined;
     }
 
