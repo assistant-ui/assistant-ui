@@ -45,7 +45,7 @@
 /* composer */
 
 .aui-composer-root {
-  @apply flex w-full flex-wrap items-end rounded-lg border px-2.5 transition-shadow focus-within:shadow-sm;
+  @apply focus-within:border-aui-ring/20 flex w-full flex-wrap items-end rounded-lg border px-2.5 shadow-sm transition-colors ease-in;
 }
 
 .aui-composer-input {
@@ -54,7 +54,7 @@
 
 .aui-composer-send,
 .aui-composer-cancel {
-  @apply my-2.5 size-8 p-2 transition-opacity;
+  @apply my-2.5 size-8 p-2 transition-opacity ease-in;
 }
 
 /* user message */
