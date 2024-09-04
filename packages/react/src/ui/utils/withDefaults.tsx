@@ -21,7 +21,7 @@ export const withDefaultProps =
 
 export const withDefaults = <TComponent extends ElementType>(
   Component: TComponent,
-  defaultProps: Partial<Omit<ComponentPropsWithoutRef<TComponent>, "asChild">>,
+  defaultProps: Partial<ComponentPropsWithoutRef<TComponent>>,
 ) => {
   type TComponentProps = typeof defaultProps;
   const getProps = withDefaultProps<TComponentProps>(defaultProps);
