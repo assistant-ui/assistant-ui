@@ -65,6 +65,10 @@ export class LocalThreadRuntime implements ThreadRuntime {
 
   private _options!: LocalRuntimeOptions;
 
+  public get options() {
+    return this._options;
+  }
+
   public set options({ initialMessages, ...options }: LocalRuntimeOptions) {
     this._options = options;
 
@@ -175,7 +179,7 @@ export class LocalThreadRuntime implements ThreadRuntime {
       this.notifySubscribers();
     };
 
-    const maxToolRoundtrips = this._options.maxToolRoundtrips ?? 1;
+    const maxToolRoundtrips = this.options.maxToolRoundtrips ?? 1;
     const toolRoundtrips = message.metadata?.roundtrips?.length ?? 0;
     if (toolRoundtrips > maxToolRoundtrips) {
       // reached max tool roundtrips
@@ -294,7 +298,7 @@ export class LocalThreadRuntime implements ThreadRuntime {
   private _utterance: SpeechSynthesisAdapter.Utterance | undefined;
 
   public speak(messageId: string) {
-    const adapter = this._options.adapters?.speech;
+    const adapter = this.options.adapters?.speech;
     if (!adapter) throw new Error("Speech adapter not configured");
 
     const { message } = this.repository.getMessage(messageId);
