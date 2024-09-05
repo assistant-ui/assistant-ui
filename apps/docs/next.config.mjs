@@ -1,12 +1,14 @@
 import createMDX from "fumadocs-mdx/config";
 import { rehypeCodeDefaultOptions } from "fumadocs-core/mdx-plugins";
 import { transformerTwoslash } from "fumadocs-twoslash";
+import { transformerMetaHighlight } from "@shikijs/transformers";
 
 const withMDX = createMDX({
   mdxOptions: {
     rehypeCodeOptions: {
       transformers: [
         ...rehypeCodeDefaultOptions.transformers,
+        transformerMetaHighlight(),
         transformerTwoslash({
           twoslashOptions: {
             compilerOptions: {

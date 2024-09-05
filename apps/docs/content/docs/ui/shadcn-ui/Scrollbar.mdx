@@ -38,22 +38,22 @@ Add the following CSS to your `globals.css`:
 
 The resulting MyThread component should look like this:
 
-```tsx
-import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area"; // [!code highlight]
-import { ScrollBar } from "@/components/ui/scroll-area"; // [!code highlight]
+```tsx {1-2,6,8,12-13,15}
+import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area";
+import { ScrollBar } from "@/components/ui/scroll-area";
 
 const MyThread: FC = () => {
   return (
-    <ScrollAreaPrimitive.Root asChild> /* [!code highlight] */
+    <ScrollAreaPrimitive.Root asChild>
       <ThreadPrimitive.Root className="...">
-        <ScrollAreaPrimitive.Viewport className="thread-viewport" asChild>  /* [!code highlight] */
+        <ScrollAreaPrimitive.Viewport className="thread-viewport" asChild>
           <ThreadPrimitive.Viewport className="...">
             ...
           </ThreadPrimitive.Viewport>
-        </ScrollAreaPrimitive.Viewport> /* [!code highlight] */
-        <ScrollBar /> /* [!code highlight] */
+        </ScrollAreaPrimitive.Viewport>
+        <ScrollBar />
       </ThreadPrimitive.Root>
-    </ScrollAreaPrimitive.Root>  /* [!code highlight] */
+    </ScrollAreaPrimitive.Root>
   );
 };
 ```
