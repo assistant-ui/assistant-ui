@@ -25,7 +25,7 @@ The radix-ui Viewport component adds an intermediate `<div data-radix-scroll-are
 Add the following CSS to your `globals.css`:
 
 ```css title="@/app/globals.css"
-.aui-thread-viewport > [data-radix-scroll-area-content] {
+.thread-viewport > [data-radix-scroll-area-content] {
   @apply flex flex-col items-center self-stretch bg-inherit;
 }
 ```
@@ -34,38 +34,27 @@ Add the following CSS to your `globals.css`:
 
 - Decompose `Thread` into `MyThread` (see [Decomposition](/docs/ui/styled/Decomposition))
 - Wrap `Thread.Root` with `<ScrollAreaPrimitive.Root asChild>`
-- Wrap `Thread.Viewport` with `<ScrollAreaPrimitive.Viewport asChild>`
+- Wrap `Thread.Viewport` with `<ScrollAreaPrimitive.Viewport className="thread-viewport" asChild>`
 - Add shadcn's `<ScrollBar />` to `Thread.Root`
 
 The resulting MyThread component should look like this:
 
 ```tsx
-import {
-  Thread,
-  ThreadWelcome,
-  Composer,
-  type ThreadConfig,
-} from "@assistant-ui/react";
 import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area";
 import { ScrollBar } from "@/components/ui/scroll-area";
 
 const MyThread: FC<ThreadConfig> = (config) => {
   return (
     <ScrollAreaPrimitive.Root asChild> // [!code highlight]
-      <Thread.Root config={config}>
-        <ScrollAreaPrimitive.Viewport asChild> // [!code highlight]
-          <Thread.Viewport>
-            <ThreadWelcome />
-            <Thread.Messages />
-            <Thread.ViewportFooter>
-              <Thread.ScrollToBottom />
-              <Composer />
-            </Thread.ViewportFooter>
-          </Thread.Viewport>
-        </ScrollAreaPrimitive.Viewport> // [!code highlight]
+      <ThreadPrimitive.Root className="...">
+        <ScrollAreaPrimitive.Viewport className="thread-viewport" asChild>  // [!code highlight]
+          <ThreadPrimitive.Viewport className="...">
+            ...
+          </ThreadPrimitive.Viewport>
+        </ScrollAreaPrimitive.Viewport>  // [!code highlight]
         <ScrollBar /> // [!code highlight]
-      </Thread.Root>
-    </ScrollAreaPrimitive.Root> // [!code highlight]
+      </ThreadPrimitive.Root>
+    </ScrollAreaPrimitive.Root>  // [!code highlight]
   );
 };
 ```
