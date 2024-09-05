@@ -967,7 +967,7 @@ importers:
         specifier: ^0.0.22
         version: 0.0.22
       '@assistant-ui/react':
-        specifier: ^0.5.41
+        specifier: ^0.5.42
         version: link:../react
       '@radix-ui/react-avatar':
         specifier: ^1.1.0

@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.5.42
+
+### Patch Changes
+
+- c8b98b6: feat: animate composer border color on focus
+- 800eb9e: fix: error on switchToThread / switchToNewThread
+- 8768c67: feat: support shadcn scroll area
+
 ## 0.5.41
 
 ### Patch Changes

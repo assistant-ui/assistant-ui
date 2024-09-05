@@ -1,5 +1,15 @@
 # @assistant-ui/react-playground
 
+## 0.0.22
+
+### Patch Changes
+
+- c8b98b6: feat: animate composer border color on focus
+- Updated dependencies [c8b98b6]
+- Updated dependencies [800eb9e]
+- Updated dependencies [8768c67]
+  - @assistant-ui/react@0.5.42
+
 ## 0.0.21
 
 ### Patch Changes
