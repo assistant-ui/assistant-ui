@@ -32,7 +32,6 @@ Add the following CSS to your `globals.css`:
 
 ## Integration
 
-- Decompose `Thread` into `MyThread` (see [Decomposition](/docs/ui/styled/Decomposition))
 - Wrap `Thread.Root` with `<ScrollAreaPrimitive.Root asChild>`
 - Wrap `Thread.Viewport` with `<ScrollAreaPrimitive.Viewport className="thread-viewport" asChild>`
 - Add shadcn's `<ScrollBar />` to `Thread.Root`
@@ -40,21 +39,21 @@ Add the following CSS to your `globals.css`:
 The resulting MyThread component should look like this:
 
 ```tsx
-import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area";
-import { ScrollBar } from "@/components/ui/scroll-area";
+import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area"; // [!code highlight]
+import { ScrollBar } from "@/components/ui/scroll-area"; // [!code highlight]
 
-const MyThread: FC<ThreadConfig> = (config) => {
+const MyThread: FC = () => {
   return (
-    <ScrollAreaPrimitive.Root asChild> // [!code highlight]
+    <ScrollAreaPrimitive.Root asChild> /* [!code highlight] */
       <ThreadPrimitive.Root className="...">
-        <ScrollAreaPrimitive.Viewport className="thread-viewport" asChild>  // [!code highlight]
+        <ScrollAreaPrimitive.Viewport className="thread-viewport" asChild>  /* [!code highlight] */
           <ThreadPrimitive.Viewport className="...">
             ...
           </ThreadPrimitive.Viewport>
-        </ScrollAreaPrimitive.Viewport>  // [!code highlight]
-        <ScrollBar /> // [!code highlight]
+        </ScrollAreaPrimitive.Viewport> /* [!code highlight] */
+        <ScrollBar /> /* [!code highlight] */
       </ThreadPrimitive.Root>
-    </ScrollAreaPrimitive.Root>  // [!code highlight]
+    </ScrollAreaPrimitive.Root>  /* [!code highlight] */
   );
 };
 ```

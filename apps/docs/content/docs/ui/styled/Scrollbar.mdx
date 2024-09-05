@@ -46,14 +46,14 @@ import {
   Composer,
   type ThreadConfig,
 } from "@assistant-ui/react";
-import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area";
-import { ScrollBar } from "@/components/ui/scroll-area";
+import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area"; // [!code highlight]
+import { ScrollBar } from "@/components/ui/scroll-area"; // [!code highlight]
 
 const MyThread: FC<ThreadConfig> = (config) => {
   return (
-    <ScrollAreaPrimitive.Root asChild> // [!code highlight]
+    <ScrollAreaPrimitive.Root asChild> /* [!code highlight] */
       <Thread.Root config={config}>
-        <ScrollAreaPrimitive.Viewport asChild> // [!code highlight]
+        <ScrollAreaPrimitive.Viewport asChild> /* [!code highlight] */
           <Thread.Viewport>
             <ThreadWelcome />
             <Thread.Messages />
@@ -62,10 +62,10 @@ const MyThread: FC<ThreadConfig> = (config) => {
               <Composer />
             </Thread.ViewportFooter>
           </Thread.Viewport>
-        </ScrollAreaPrimitive.Viewport> // [!code highlight]
-        <ScrollBar /> // [!code highlight]
+        </ScrollAreaPrimitive.Viewport> /* [!code highlight] */
+        <ScrollBar /> /* [!code highlight] */
       </Thread.Root>
-    </ScrollAreaPrimitive.Root> // [!code highlight]
+    </ScrollAreaPrimitive.Root> /* [!code highlight] */
   );
 };
 ```
