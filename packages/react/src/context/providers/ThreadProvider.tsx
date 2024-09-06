@@ -57,6 +57,7 @@ export const ThreadProvider: FC<PropsWithChildren<ThreadProviderProps>> = ({
       const oldState = context.useThread.getState();
       const state = getThreadStateFromRuntime(thread);
       if (
+        oldState.threadId !== state.threadId ||
         oldState.isDisabled !== state.isDisabled ||
         oldState.isRunning !== state.isRunning ||
         // TODO ensure capabilities is memoized
