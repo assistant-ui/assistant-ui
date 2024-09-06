@@ -1,5 +1,14 @@
 # @assistant-ui/react
 
+## 0.5.43
+
+### Patch Changes
+
+- 3962831: feat: useExternalMessageConverter API
+- 85defe1: feat: allow string content in ThreadMessageLike
+- 6f7ccf7: feat: add toolName to addToolResult callback
+- 6f7ccf7: feat: thread converter should ignore empty text parts
+
 ## 0.5.42
 
 ### Patch Changes
