@@ -1,5 +1,13 @@
 # @assistant-ui/react-playground
 
+## 0.0.23
+
+### Patch Changes
+
+- fb8e58f: feat: add thread runtime threadId
+- Updated dependencies [fb8e58f]
+  - @assistant-ui/react@0.5.45
+
 ## 0.0.22
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.45
+
+### Patch Changes
+
+- fb8e58f: feat: add thread runtime threadId
+
 ## 0.5.44
 
 ### Patch Changes
