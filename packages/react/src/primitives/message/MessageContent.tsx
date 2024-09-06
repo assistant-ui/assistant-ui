@@ -40,6 +40,18 @@ export type MessagePrimitiveContentProps = {
     | undefined;
 };
 
+const ToolUIDisplay = ({
+  UI,
+  ...props
+}: {
+  UI: ToolCallContentPartComponent | undefined;
+} & ToolCallContentPartProps) => {
+  const { useToolUIs } = useAssistantContext();
+  const Render = useToolUIs((s) => s.getToolUI(props.part.toolName)) ?? UI;
+  if (!Render) return null;
+  return <Render {...props} />;
+};
+
 const defaultComponents = {
   Text: () => (
     <p style={{ whiteSpace: "pre-line" }}>
@@ -51,14 +63,6 @@ const defaultComponents = {
   ),
   Image: () => <ContentPartPrimitiveImage />,
   UI: () => <ContentPartPrimitiveDisplay />,
-  tools: {
-    Fallback: (props) => {
-      const { useToolUIs } = useAssistantContext();
-      const Render = useToolUIs((s) => s.getToolUI(props.part.toolName));
-      if (!Render) return null;
-      return <Render {...props} />;
-    },
-  },
 } satisfies MessagePrimitiveContentProps["components"];
 
 type MessageContentPartComponentProps = {
@@ -71,7 +75,7 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
     Text = defaultComponents.Text,
     Image = defaultComponents.Image,
     UI = defaultComponents.UI,
-    tools: { by_name = {}, Fallback = defaultComponents.tools.Fallback } = {},
+    tools: { by_name = {}, Fallback = undefined } = {},
   } = {},
 }) => {
   const { useThreadActions } = useThreadContext();
@@ -110,7 +114,14 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
           toolCallId: part.toolCallId,
           result,
         });
-      return <Tool part={part} status={status} addResult={addResult} />;
+      return (
+        <ToolUIDisplay
+          UI={Tool}
+          part={part}
+          status={status}
+          addResult={addResult}
+        />
+      );
     }
     default:
       const unhandledType: never = type;
