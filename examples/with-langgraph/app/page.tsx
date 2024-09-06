@@ -7,7 +7,24 @@ import { PurchaseStockTool } from "@/components/tools/purchase-stock/PurchaseSto
 export default function Home() {
   return (
     <div className="flex h-full flex-col">
-      <Thread />
+      <Thread
+        welcome={{
+          suggestions: [
+            {
+              prompt: "What're some facts about Google?",
+            },
+            {
+              prompt: "How much revenue did Apple make last year?",
+            },
+            {
+              prompt: "Is McDonald's profitable?",
+            },
+            {
+              prompt: "What's the current stock price of Tesla?",
+            },
+          ],
+        }}
+      />
       <PriceSnapshotTool />
       <PurchaseStockTool />
     </div>
