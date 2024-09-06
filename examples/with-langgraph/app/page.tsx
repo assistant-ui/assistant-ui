@@ -11,9 +11,6 @@ export default function Home() {
         welcome={{
           suggestions: [
             {
-              prompt: "What're some facts about Google?",
-            },
-            {
               prompt: "How much revenue did Apple make last year?",
             },
             {
