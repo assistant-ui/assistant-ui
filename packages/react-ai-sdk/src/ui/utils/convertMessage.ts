@@ -35,7 +35,7 @@ export const convertMessage = (messages: Message[]): ThreadMessageLike => {
 
     case "data":
     case "assistant": {
-      const res: ThreadMessageLike = {
+      const res: ThreadMessageLike & { content: any[] } = {
         ...common,
         role: "assistant",
         content: messages.flatMap((message) => {
