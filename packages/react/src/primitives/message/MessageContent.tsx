@@ -106,6 +106,7 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
       const addResult = (result: any) =>
         addToolResult({
           messageId: useMessage.getState().message.id,
+          toolName: part.toolName,
           toolCallId: part.toolCallId,
           result,
         });

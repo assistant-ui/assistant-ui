@@ -6,6 +6,7 @@ import { SpeechSynthesisAdapter } from "../../runtimes/speech/SpeechAdapterTypes
 
 export type AddToolResultOptions = {
   messageId: string;
+  toolName: string;
   toolCallId: string;
   result: any;
 };
