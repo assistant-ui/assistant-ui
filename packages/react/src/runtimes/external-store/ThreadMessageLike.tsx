@@ -42,27 +42,32 @@ export const fromThreadMessageLike = (
       return {
         ...common,
         role,
-        content: content.map((part): ThreadAssistantContentPart => {
-          const type = part.type;
-          switch (type) {
-            case "text":
-            case "ui":
-              return part;
+        content: content
+          .map((part): ThreadAssistantContentPart | null => {
+            const type = part.type;
+            switch (type) {
+              case "text":
+                if (part.text.trim().length === 0) return null;
+                return part;
 
-            case "tool-call": {
-              if ("argsText" in part) return part;
-              return {
-                ...part,
-                argsText: JSON.stringify(part.args),
-              };
-            }
+              case "ui":
+                return part;
 
-            default: {
-              const unhandledType: "image" = type;
-              throw new Error(`Unknown content part type: ${unhandledType}`);
+              case "tool-call": {
+                if ("argsText" in part) return part;
+                return {
+                  ...part,
+                  argsText: JSON.stringify(part.args),
+                };
+              }
+
+              default: {
+                const unhandledType: "image" = type;
+                throw new Error(`Unknown content part type: ${unhandledType}`);
+              }
             }
-          }
-        }),
+          })
+          .filter((c) => !!c),
         status: status ?? fallbackStatus,
       } satisfies ThreadAssistantMessage;
 
