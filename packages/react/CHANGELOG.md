@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.5.44
+
+### Patch Changes
+
+- b2801ce: feat(styling): cursor-not-allowed when composer input is disabled
+- 0aa4e6b: fix: use-smooth-state should notdesync
+
 ## 0.5.43
 
 ### Patch Changes
