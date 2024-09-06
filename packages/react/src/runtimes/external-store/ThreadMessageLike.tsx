@@ -15,13 +15,15 @@ import { CoreToolCallContentPart } from "../../types/AssistantTypes";
 
 export type ThreadMessageLike = {
   role: "assistant" | "user" | "system";
-  content: (
-    | TextContentPart
-    | ImageContentPart
-    | ToolCallContentPart<any, any>
-    | CoreToolCallContentPart<any, any>
-    | UIContentPart
-  )[];
+  content:
+    | string
+    | (
+        | TextContentPart
+        | ImageContentPart
+        | ToolCallContentPart<any, any>
+        | CoreToolCallContentPart<any, any>
+        | UIContentPart
+      )[];
   id?: string | undefined;
   createdAt?: Date | undefined;
   status?: MessageStatus | undefined;
@@ -32,11 +34,17 @@ export const fromThreadMessageLike = (
   fallbackId: string,
   fallbackStatus: MessageStatus,
 ): ThreadMessage => {
-  const { role, content, id, createdAt, status } = like;
+  const { role, id, createdAt, status } = like;
   const common = {
     id: id ?? fallbackId,
     createdAt: createdAt ?? new Date(),
   };
+
+  const content =
+    typeof like.content === "string"
+      ? [{ type: "text" as const, text: like.content }]
+      : like.content;
+
   switch (role) {
     case "assistant":
       return {
