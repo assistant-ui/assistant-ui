@@ -1,0 +1,155 @@
+---
+title: LangChain LangGraph
+---
+
+## Overview
+
+Integration with LangChain's LangGraph server.
+
+## Requirements
+
+The state of the graph you are using must have a `messages` key with a list of LangChain-alike messages.
+
+## Getting Started
+
+import { Steps, Step } from "fumadocs-ui/components/steps";
+
+<Steps>
+  <Step>
+  ### Create a new assistant-ui project
+
+```sh
+npx assistant-ui@latest create my-app
+```
+
+You can delete `/app/api/chat/route.ts` from the template, as it is not needed for this example.
+
+  </Step>
+  <Step>
+
+### Install dependencies
+
+```sh npm2yarn
+npm install @assistant-ui/react @assistant-ui/react-langgraph @langchain/langgraph-sdk
+```
+
+  </Step>
+  <Step>
+
+### Setup helper functions
+
+<Callout type="warn">
+  This example connects to the LangGraph server directly from the browser. For
+  production use-cases, you should use a proxy server to connect to the
+  LangGraph server in order to not expose your API key.
+</Callout>
+
+```tsx twoslash include chatApi title="@/lib/chatApi.ts"
+// @filename: /lib/chatApi.ts
+
+// ---cut---
+import { Client } from "@langchain/langgraph-sdk";
+import { LangChainMessage } from "@assistant-ui/react-langgraph";
+
+const createClient = () => {
+  const apiUrl = "https://localhost:8123/api";
+  return new Client({
+    apiUrl,
+  });
+};
+
+export const createThread = async () => {
+  const client = createClient();
+  return client.threads.create();
+};
+
+export const sendMessage = async (params: {
+  threadId: string;
+  assistantId: string;
+  message: LangChainMessage;
+}) => {
+  const client = createClient();
+  return client.runs.stream(params.threadId, params.assistantId, {
+    input: {
+      messages: [params.message],
+    },
+    streamMode: "messages",
+  });
+};
+```
+
+  </Step>
+  <Step>
+
+### Define a `MyRuntimeProvider` component
+
+```tsx twoslash include MyRuntimeProvider title="@/app/MyRuntimeProvider.tsx"
+// @filename: /app/MyRuntimeProvider.tsx
+// @include: chatApi
+
+// ---cut---
+"use client";
+
+import { useRef } from "react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useLangChainLangGraphRuntime } from "@assistant-ui/react-langgraph";
+import { createThread, sendMessage } from "@/lib/chatApi";
+
+export function MyRuntimeProvider({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  const threadIdRef = useRef<string | undefined>();
+  const assistant = useLangChainLangGraphRuntime({
+    threadId: threadIdRef.current,
+    stream: async (message) => {
+      if (!threadIdRef.current) {
+        const { thread_id } = await createThread();
+        threadIdRef.current = thread_id;
+      }
+      const threadId = threadIdRef.current;
+      return sendMessage({
+        threadId,
+        assistantId: process.env["NEXT_PUBLIC_LANGGRAPH_GRAPH_ID"]!,
+        message,
+      });
+    },
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Wrap your app in `MyRuntimeProvider`
+
+```tsx twoslash title="@/app/layout.tsx" {1,11,17}
+// @include: MyRuntimeProvider
+// @filename: /app/layout.tsx
+// ---cut---
+import { MyRuntimeProvider } from "@/app/MyRuntimeProvider";
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <MyRuntimeProvider>
+      <html lang="en">
+        <body>{children}</body>
+      </html>
+    </MyRuntimeProvider>
+  );
+}
+```
+
+  </Step>
+</Steps>

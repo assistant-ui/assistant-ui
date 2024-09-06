@@ -38,6 +38,9 @@ importers:
       '@assistant-ui/react-ai-sdk':
         specifier: workspace:^
         version: link:../../packages/react-ai-sdk
+      '@assistant-ui/react-langgraph':
+        specifier: workspace:^
+        version: link:../../packages/react-langgraph
       '@assistant-ui/react-markdown':
         specifier: workspace:^
         version: link:../../packages/react-markdown
@@ -50,6 +53,9 @@ importers:
       '@langchain/core':
         specifier: ^0.2.31
         version: 0.2.31(openai@4.57.0(zod@3.23.8))
+      '@langchain/langgraph-sdk':
+        specifier: ^0.0.8
+        version: 0.0.8
       '@radix-ui/react-avatar':
         specifier: ^1.1.0
         version: 1.1.0(@types/react-dom@18.3.0)(@types/react@18.3.5)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -365,6 +371,79 @@ importers:
         version: 3.4.10
       typescript:
         specifier: ^5
+        version: 5.5.4
+
+  examples/with-langgraph:
+    dependencies:
+      '@assistant-ui/react':
+        specifier: workspace:*
+        version: link:../../packages/react
+      '@assistant-ui/react-langgraph':
+        specifier: workspace:*
+        version: link:../../packages/react-langgraph
+      '@langchain/langgraph-sdk':
+        specifier: ^0.0.8
+        version: 0.0.8
+      '@radix-ui/react-slot':
+        specifier: ^1.1.0
+        version: 1.1.0(@types/react@18.3.5)(react@18.3.1)
+      class-variance-authority:
+        specifier: ^0.7.0
+        version: 0.7.0
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
+      js-cookie:
+        specifier: ^3.0.5
+        version: 3.0.5
+      lucide-react:
+        specifier: ^0.438.0
+        version: 0.438.0(react@18.3.1)
+      next:
+        specifier: 14.2.7
+        version: 14.2.7(@opentelemetry/api@1.9.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      react:
+        specifier: ^18
+        version: 18.3.1
+      react-dom:
+        specifier: ^18
+        version: 18.3.1(react@18.3.1)
+      tailwind-merge:
+        specifier: ^2.5.2
+        version: 2.5.2
+      tailwindcss-animate:
+        specifier: ^1.0.7
+        version: 1.0.7(tailwindcss@3.4.10)
+    devDependencies:
+      '@assistant-ui/tsconfig':
+        specifier: workspace:*
+        version: link:../../packages/tsconfig
+      '@types/js-cookie':
+        specifier: ^3.0.6
+        version: 3.0.6
+      '@types/node':
+        specifier: ^22
+        version: 22.5.2
+      '@types/react':
+        specifier: ^18
+        version: 18.3.5
+      '@types/react-dom':
+        specifier: ^18
+        version: 18.3.0
+      eslint:
+        specifier: ^8
+        version: 8.57.0
+      eslint-config-next:
+        specifier: 14.2.7
+        version: 14.2.7(eslint@8.57.0)(typescript@5.5.4)
+      postcss:
+        specifier: ^8
+        version: 8.4.43
+      tailwindcss:
+        specifier: ^3.4.10
+        version: 3.4.10
+      typescript:
+        specifier: ^5.5.4
         version: 5.5.4
 
   examples/with-openai-assistants:
@@ -876,6 +955,34 @@ importers:
         version: 8.2.4(jiti@1.21.6)(postcss@8.4.43)(tsx@4.19.0)(typescript@5.5.4)(yaml@2.5.0)
 
   packages/react-hook-form:
+    dependencies:
+      '@assistant-ui/react':
+        specifier: ^0.5.38
+        version: link:../react
+      '@types/react':
+        specifier: '*'
+        version: 18.3.5
+      react:
+        specifier: ^18
+        version: 18.3.1
+      react-hook-form:
+        specifier: ^7.x.x
+        version: 7.53.0(react@18.3.1)
+      zod:
+        specifier: ^3.23.8
+        version: 3.23.8
+    devDependencies:
+      '@assistant-ui/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      eslint-config-next:
+        specifier: 14.2.7
+        version: 14.2.7(eslint@8.57.0)(typescript@5.5.4)
+      tsup:
+        specifier: 8.2.4
+        version: 8.2.4(jiti@1.21.6)(postcss@8.4.43)(tsx@4.19.0)(typescript@5.5.4)(yaml@2.5.0)
+
+  packages/react-langgraph:
     dependencies:
       '@assistant-ui/react':
         specifier: ^0.5.38
@@ -1701,6 +1808,9 @@ packages:
   '@langchain/core@0.2.31':
     resolution: {integrity: sha512-qGfeaACST7dvovgHItzuag9fEBGK7IjCE9vRuTu/y8/WYGJi28WPD/AwWxnu7YdW1vZSuIXO6ZA76t2G9B/oKg==}
     engines: {node: '>=18'}
+
+  '@langchain/langgraph-sdk@0.0.8':
+    resolution: {integrity: sha512-ogpfRJum2KYhMXqP8CoA1tN8HlX5+gcnWHNRJiFy2/119jGRTtvPyBO6M3Uj2mtOkPSgQQP/Ova4DOQXKygkXw==}
 
   '@manypkg/find-root@1.1.0':
     resolution: {integrity: sha512-mki5uBvhHzO8kYYix/WRy2WX8S3B5wdVSc9D6KcU5lQNglP2yt58/VfLuAK49glRXChosY8ap2oJ1qgma3GUVA==}
@@ -2739,6 +2849,9 @@ packages:
 
   '@types/hast@3.0.4':
     resolution: {integrity: sha512-WPs+bbQw5aCj+x6laNGWLH3wviHtoCv/P3+otBhbOhJgG8qtpdAMlTCxLtsTWA7LH1Oh/bFCHsBn0TPS5m30EQ==}
+
+  '@types/js-cookie@3.0.6':
+    resolution: {integrity: sha512-wkw9yd1kEXOPnvEeEV1Go1MmxtBJL0RR79aOTAApecWFVu7w0NNXNqhcWgvw2YgZDYadliXkl14pa3WXw5jlCQ==}
 
   '@types/json-schema@7.0.15':
     resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
@@ -4246,6 +4359,10 @@ packages:
   joycon@3.1.1:
     resolution: {integrity: sha512-34wB/Y7MW7bzjKRjUKTa46I2Z7eV62Rkhva+KkopW7Qvv/OSWBqvkSY7vusOPrNuZcUG3tApvdVgNB8POj3SPw==}
     engines: {node: '>=10'}
+
+  js-cookie@3.0.5:
+    resolution: {integrity: sha512-cEiJEAEoIbWfCZYKWhVwFuvPX1gETRYPw6LlaTKoxD3s2AkXzkCjnp6h0V77ozyqj0jakteJ4YqDJT830+lVGw==}
+    engines: {node: '>=14'}
 
   js-tiktoken@1.0.14:
     resolution: {integrity: sha512-Pk3l3WOgM9joguZY2k52+jH82RtABRgB5RdGFZNUGbOKGMVlNmafcPA3b0ITcCZPu1L9UclP1tne6aw7ZI4Myg==}
@@ -5913,6 +6030,10 @@ packages:
     resolution: {integrity: sha512-8XkAphELsDnEGrDxUOHB3RGvXz6TeuYSGEZBOjtTtPm2lwhGBjLgOzLHB63IUWfBpNucQjND6d3AOudO+H3RWQ==}
     hasBin: true
 
+  uuid@9.0.1:
+    resolution: {integrity: sha512-b+1eJOlsR9K8HJpow9Ok3fiWOWSIcIzXodvv0rQjVoOVNpWMpxf1wZNpt4y9h10odCNrqnYp1OBzRktckBe3sA==}
+    hasBin: true
+
   vfile-location@5.0.3:
     resolution: {integrity: sha512-5yXvWDEgqeiYiBe1lbxYF7UMAIm/IcopxMHrMQDq3nvKcjPKIhZklUKL+AE7J7uApI4kwe2snsK+eI6UTj9EHg==}
 
@@ -6628,6 +6749,14 @@ snapshots:
     transitivePeerDependencies:
       - langchain
       - openai
+
+  '@langchain/langgraph-sdk@0.0.8':
+    dependencies:
+      '@types/json-schema': 7.0.15
+      eventsource-parser: 1.1.2
+      p-queue: 6.6.2
+      p-retry: 4.6.2
+      uuid: 9.0.1
 
   '@manypkg/find-root@1.1.0':
     dependencies:
@@ -7725,6 +7854,8 @@ snapshots:
   '@types/hast@3.0.4':
     dependencies:
       '@types/unist': 3.0.3
+
+  '@types/js-cookie@3.0.6': {}
 
   '@types/json-schema@7.0.15': {}
 
@@ -9579,6 +9710,8 @@ snapshots:
   jiti@1.21.6: {}
 
   joycon@3.1.1: {}
+
+  js-cookie@3.0.5: {}
 
   js-tiktoken@1.0.14:
     dependencies:
@@ -11600,6 +11733,8 @@ snapshots:
   util-deprecate@1.0.2: {}
 
   uuid@10.0.0: {}
+
+  uuid@9.0.1: {}
 
   vfile-location@5.0.3:
     dependencies:
