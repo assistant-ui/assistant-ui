@@ -93,6 +93,16 @@ export const useSmooth = (
     )?.setState(text !== state.part.text ? SMOOTH_STATUS : state.status);
   });
 
+  // TODO this is hacky
+  useEffect(() => {
+    // TODO add a helper function so we don't have to override the types
+    (
+      useSmoothStatus as unknown as
+        | StoreApi<ToolCallContentPartStatus>
+        | undefined
+    )?.setState(text !== displayedText ? SMOOTH_STATUS : state.status);
+  }, [useSmoothStatus, text, displayedText, state.status]);
+
   const [animatorRef] = useState<TextStreamAnimator>(
     new TextStreamAnimator(text, setText),
   );
