@@ -49,7 +49,7 @@
 }
 
 .aui-composer-input {
-  @apply placeholder:text-aui-muted-foreground max-h-40 flex-grow resize-none border-none bg-transparent px-2 py-4 text-sm outline-none focus:ring-0;
+  @apply placeholder:text-aui-muted-foreground max-h-40 flex-grow resize-none border-none bg-transparent px-2 py-4 text-sm outline-none focus:ring-0 disabled:cursor-not-allowed;
 }
 
 .aui-composer-send,
