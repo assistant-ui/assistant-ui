@@ -11,8 +11,6 @@
     "assistant-ui",
     "@assistant-ui/docs",
     "@assistant-ui/shadcn-registry",
-    "@assistant-ui/tailwindcss-transformer",
-    "@assistant-ui/tsconfig",
     "search-agent-for-e-commerce",
     "with-inline-suggestions",
     "with-react-hook-form",
