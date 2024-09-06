@@ -97,6 +97,7 @@ export class PlaygroundThreadRuntime implements ReactThreadRuntime {
 
   public tools: Record<string, Tool<any, any>> = {};
 
+  public readonly threadId = generateId();
   public readonly isDisabled = false;
   public readonly capabilities = CAPABILITIES;
 

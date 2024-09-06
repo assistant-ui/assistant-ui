@@ -10,6 +10,10 @@ export class ExternalStoreRuntime extends BaseAssistantRuntime<ExternalStoreThre
     super(new ExternalStoreThreadRuntime(store));
   }
 
+  public get store() {
+    return this.thread.store;
+  }
+
   public set store(store: ExternalStoreAdapter<any>) {
     this.thread.store = store;
   }

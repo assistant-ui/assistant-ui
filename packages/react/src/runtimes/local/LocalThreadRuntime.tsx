@@ -33,6 +33,7 @@ export class LocalThreadRuntime implements ThreadRuntime {
     speak: false,
   };
 
+  public readonly threadId: string;
   public readonly isDisabled = false;
 
   public get messages() {
@@ -52,6 +53,7 @@ export class LocalThreadRuntime implements ThreadRuntime {
     public adapter: ChatModelAdapter,
     { initialMessages, ...options }: LocalRuntimeOptions,
   ) {
+    this.threadId = generateId();
     this.options = options;
     if (initialMessages) {
       let parentId: string | null = null;

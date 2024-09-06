@@ -7,6 +7,7 @@ export type ThreadRuntime = ThreadActionsState &
   Readonly<{
     composer: ThreadRuntime.Composer;
     capabilities: Readonly<RuntimeCapabilities>;
+    threadId: string;
     isDisabled: boolean;
     messages: readonly ThreadMessage[];
     subscribe: (callback: () => void) => Unsubscribe;

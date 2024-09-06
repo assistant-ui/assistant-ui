@@ -12,6 +12,7 @@ import { getAutoStatus, isAutoStatus } from "./auto-status";
 import { fromThreadMessageLike } from "./ThreadMessageLike";
 import { RuntimeCapabilities } from "../../context/stores/Thread";
 import { getThreadMessageText } from "../../utils/getThreadMessageText";
+import { generateId } from "../../internal";
 
 export const hasUpcomingMessage = (
   isRunning: boolean,
@@ -38,8 +39,9 @@ export class ExternalStoreThreadRuntime implements ReactThreadRuntime {
     return this._capabilities;
   }
 
-  public messages: ThreadMessage[] = [];
-  public isDisabled = false;
+  public threadId!: string;
+  public messages!: ThreadMessage[];
+  public isDisabled!: boolean;
   public converter = new ThreadMessageConverter();
 
   private _store!: ExternalStoreAdapter<any>;
@@ -56,9 +58,14 @@ export class ExternalStoreThreadRuntime implements ReactThreadRuntime {
     this.store = store;
   }
 
+  public get store() {
+    return this._store;
+  }
+
   public set store(store: ExternalStoreAdapter<any>) {
     if (this._store === store) return;
 
+    this.threadId = store.threadId ?? this.threadId ?? generateId();
     const isRunning = store.isRunning ?? false;
     this.isDisabled = store.isDisabled ?? false;
 
