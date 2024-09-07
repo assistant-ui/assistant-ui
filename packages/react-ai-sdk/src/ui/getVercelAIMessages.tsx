@@ -4,6 +4,6 @@ import {
 } from "@assistant-ui/react";
 import type { Message } from "ai";
 
-export const getVercelAIMessage = (message: ThreadMessage) => {
+export const getVercelAIMessages = (message: ThreadMessage) => {
   return getExternalStoreMessage(message) as Message[];
 };
