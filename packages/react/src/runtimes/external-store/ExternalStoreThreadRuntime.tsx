@@ -34,6 +34,7 @@ export class ExternalStoreThreadRuntime implements ReactThreadRuntime {
     cancel: false,
     unstable_copy: false,
     speak: false,
+    attachments: false,
   };
 
   public get capabilities() {
@@ -75,6 +76,7 @@ export class ExternalStoreThreadRuntime implements ReactThreadRuntime {
       cancel: this._store.onCancel !== undefined,
       unstable_copy: this._store.unstable_capabilities?.copy !== null,
       speak: this._store.onSpeak !== undefined,
+      attachments: false,
     };
 
     if (oldStore) {

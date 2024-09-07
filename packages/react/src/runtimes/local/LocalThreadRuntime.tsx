@@ -32,6 +32,7 @@ export class LocalThreadRuntime implements ThreadRuntime {
     cancel: true,
     unstable_copy: true,
     speak: false,
+    attachments: false,
   };
 
   public readonly threadId: string;

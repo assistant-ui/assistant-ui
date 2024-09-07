@@ -91,6 +91,7 @@ const CAPABILITIES = Object.freeze({
   cancel: true,
   unstable_copy: false,
   speak: false,
+  attachments: false,
 });
 
 const EMPTY_BRANCHES: readonly string[] = Object.freeze([]);

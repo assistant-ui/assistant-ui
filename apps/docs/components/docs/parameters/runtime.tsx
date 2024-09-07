@@ -51,6 +51,20 @@ export const AssistantRuntimeProviderProps = () => {
                           description:
                             "Whether the runtime supports copying messages.",
                         },
+                        {
+                          name: "speak",
+                          type: "boolean",
+                          required: true,
+                          description:
+                            "Whether the runtime supports speaking messages.",
+                        },
+                        {
+                          name: "attachments",
+                          type: "boolean",
+                          required: true,
+                          description:
+                            "Whether the runtime supports attachments.",
+                        },
                       ],
                     },
                   ],
