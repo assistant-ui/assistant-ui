@@ -1,7 +1,7 @@
 "use client";
 
 import { type FC, type PropsWithChildren, useEffect, useState } from "react";
-import { StoreApi, create } from "zustand";
+import { create } from "zustand";
 import { ContentPartContext } from "../react/ContentPartContext";
 import type { ContentPartContextValue } from "../react/ContentPartContext";
 import { useMessageContext } from "../react/MessageContext";
@@ -14,6 +14,7 @@ import {
   ThreadUserContentPart,
   ToolCallContentPartStatus,
 } from "../../types/AssistantTypes";
+import { writableStore } from "../ReadonlyStore";
 
 type ContentPartProviderProps = PropsWithChildren<{
   partIndex: number;
@@ -99,9 +100,7 @@ const useContentPartContext = (partIndex: number) => {
         partIndex,
       );
       if (!newState) return;
-      (
-        context.useContentPart as unknown as StoreApi<ContentPartState>
-      ).setState(newState, true);
+      writableStore(context.useContentPart).setState(newState, true);
     };
 
     syncContentPart(useMessage.getState());

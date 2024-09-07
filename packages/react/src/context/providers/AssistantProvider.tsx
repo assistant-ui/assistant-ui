@@ -8,11 +8,8 @@ import { makeAssistantModelConfigStore } from "../stores/AssistantModelConfig";
 import { makeAssistantToolUIsStore } from "../stores/AssistantToolUIs";
 import { ThreadProvider } from "./ThreadProvider";
 import { makeAssistantActionsStore } from "../stores/AssistantActions";
-import {
-  AssistantRuntimeStore,
-  makeAssistantRuntimeStore,
-} from "../stores/AssistantRuntime";
-import { StoreApi } from "zustand";
+import { makeAssistantRuntimeStore } from "../stores/AssistantRuntime";
+import { writableStore } from "../ReadonlyStore";
 
 type AssistantProviderProps = {
   runtime: AssistantRuntime;
@@ -46,10 +43,7 @@ export const AssistantProvider: FC<
   }, [runtime, getModelConfig]);
 
   useEffect(
-    () =>
-      (
-        context.useAssistantRuntime as unknown as StoreApi<AssistantRuntimeStore>
-      ).setState(runtime, true),
+    () => writableStore(context.useAssistantRuntime).setState(runtime, true),
     [runtime, context],
   );
 

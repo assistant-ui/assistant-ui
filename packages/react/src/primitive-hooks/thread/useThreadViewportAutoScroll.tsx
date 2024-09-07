@@ -4,9 +4,8 @@ import { useRef } from "react";
 import { useThreadContext } from "../../context/react/ThreadContext";
 import { useOnResizeContent } from "../../utils/hooks/useOnResizeContent";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
-import { StoreApi } from "zustand";
-import { ThreadViewportState } from "../../context";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
+import { writableStore } from "../../context/ReadonlyStore";
 
 export type UseThreadViewportAutoScrollProps = {
   autoScroll?: boolean | undefined;
@@ -49,9 +48,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
       }
 
       if (newIsAtBottom !== isAtBottom) {
-        (useViewport as unknown as StoreApi<ThreadViewportState>).setState({
-          isAtBottom: newIsAtBottom,
-        });
+        writableStore(useViewport).setState({ isAtBottom: newIsAtBottom });
       }
     }
 

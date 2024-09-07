@@ -1,7 +1,7 @@
 "use client";
 
 import { type FC, type PropsWithChildren, useEffect, useState } from "react";
-import { StoreApi, create } from "zustand";
+import { create } from "zustand";
 import type {
   CoreUserContentPart,
   ThreadMessage,
@@ -14,6 +14,7 @@ import type { MessageState } from "../stores/Message";
 import { makeEditComposerStore } from "../stores/EditComposer";
 import { makeMessageUtilsStore } from "../stores/MessageUtils";
 import { ThreadMessagesState } from "../stores/ThreadMessages";
+import { writableStore } from "../ReadonlyStore";
 
 type MessageProviderProps = PropsWithChildren<{
   messageIndex: number;
@@ -113,10 +114,7 @@ const useMessageContext = (messageIndex: number) => {
         messageIndex,
       );
       if (!newState) return;
-      (context.useMessage as unknown as StoreApi<MessageState>).setState(
-        newState,
-        true,
-      );
+      writableStore(context.useMessage).setState(newState, true);
     };
 
     syncMessage(useThreadMessages.getState());

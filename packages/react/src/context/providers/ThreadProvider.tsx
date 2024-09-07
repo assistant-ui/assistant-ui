@@ -3,25 +3,15 @@ import { useEffect, useInsertionEffect, useState } from "react";
 import type { ReactThreadRuntime } from "../../runtimes/core/ReactThreadRuntime";
 import type { ThreadContextValue } from "../react/ThreadContext";
 import { ThreadContext } from "../react/ThreadContext";
-import { ComposerState, makeComposerStore } from "../stores/Composer";
-import {
-  ThreadState,
-  getThreadStateFromRuntime,
-  makeThreadStore,
-} from "../stores/Thread";
+import { makeComposerStore } from "../stores/Composer";
+import { getThreadStateFromRuntime, makeThreadStore } from "../stores/Thread";
 import { makeThreadViewportStore } from "../stores/ThreadViewport";
 import { makeThreadActionStore } from "../stores/ThreadActions";
-import { StoreApi } from "zustand";
-import {
-  ThreadMessagesState,
-  makeThreadMessagesStore,
-} from "../stores/ThreadMessages";
+import { makeThreadMessagesStore } from "../stores/ThreadMessages";
 import { ThreadRuntimeWithSubscribe } from "../../runtimes/core/AssistantRuntime";
-import {
-  makeThreadRuntimeStore,
-  ThreadRuntimeStore,
-} from "../stores/ThreadRuntime";
+import { makeThreadRuntimeStore } from "../stores/ThreadRuntime";
 import { subscribeToMainThread } from "../../runtimes";
+import { writableStore } from "../ReadonlyStore";
 
 type ThreadProviderProps = {
   provider: ThreadRuntimeWithSubscribe;
@@ -63,16 +53,14 @@ export const ThreadProvider: FC<PropsWithChildren<ThreadProviderProps>> = ({
         // TODO ensure capabilities is memoized
         oldState.capabilities !== state.capabilities
       ) {
-        (context.useThread as unknown as StoreApi<ThreadState>).setState(
-          state,
-          true,
-        );
+        writableStore(context.useThread).setState(state, true);
       }
 
       if (thread.messages !== context.useThreadMessages.getState()) {
-        (
-          context.useThreadMessages as unknown as StoreApi<ThreadMessagesState>
-        ).setState(thread.messages, true);
+        writableStore(context.useThreadMessages).setState(
+          thread.messages,
+          true,
+        );
       }
 
       const composerState = context.useComposer.getState();
@@ -81,7 +69,7 @@ export const ThreadProvider: FC<PropsWithChildren<ThreadProviderProps>> = ({
         thread.composer.attachments !== composerState.attachments ||
         state.capabilities.cancel !== composerState.canCancel
       ) {
-        (context.useComposer as unknown as StoreApi<ComposerState>).setState({
+        writableStore(context.useComposer).setState({
           text: thread.composer.text,
           attachments: thread.composer.attachments,
           canCancel: state.capabilities.cancel,
@@ -96,9 +84,7 @@ export const ThreadProvider: FC<PropsWithChildren<ThreadProviderProps>> = ({
   useInsertionEffect(
     () =>
       provider.subscribe(() => {
-        (
-          context.useThreadRuntime as unknown as StoreApi<ThreadRuntimeStore>
-        ).setState(provider.thread, true);
+        writableStore(context.useThreadRuntime).setState(provider.thread, true);
       }),
     [provider, context],
   );
