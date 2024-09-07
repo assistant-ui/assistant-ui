@@ -4,6 +4,9 @@ import { Thread } from "@assistant-ui/react";
 import { PriceSnapshotTool } from "@/components/tools/price-snapshot/PriceSnapshotTool";
 import { PurchaseStockTool } from "@/components/tools/purchase-stock/PurchaseStockTool";
 import { ToolFallback } from "@/components/tools/ToolFallback";
+import { makeMarkdownText } from "@assistant-ui/react-markdown";
+
+const MarkdownText = makeMarkdownText({});
 
 export default function Home() {
   return (
@@ -22,7 +25,7 @@ export default function Home() {
             },
           ],
         }}
-        assistantMessage={{ components: { ToolFallback } }}
+        assistantMessage={{ components: { Text: MarkdownText, ToolFallback } }}
         tools={[PriceSnapshotTool, PurchaseStockTool]}
       />
     </div>

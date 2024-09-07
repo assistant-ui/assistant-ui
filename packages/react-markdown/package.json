@@ -61,7 +61,7 @@
     }
   },
   "devDependencies": {
-    "@assistant-ui/tailwindcss-transformer": "workspace:^",
+    "@assistant-ui/tailwindcss-transformer": "workspace:*",
     "@assistant-ui/tsconfig": "workspace:*",
     "@types/node": "^22.5.2",
     "autoprefixer": "^10.4.20",
