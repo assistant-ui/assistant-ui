@@ -521,3 +521,27 @@ export const MessageUtilsState: ParametersTableProps = {
     },
   ],
 };
+
+export const AttachmentContextValue: ParametersTableProps = {
+  type: "AttachmentContextValue",
+  parameters: [
+    {
+      name: "useAttachment",
+      type: "ReadonlyStore<AttachmentState>",
+      required: true,
+      description: "Provides functions to perform actions on the attachment.",
+    },
+  ],
+};
+
+export const AttachmentState: ParametersTableProps = {
+  type: "AttachmentState",
+  parameters: [
+    {
+      name: "attachment",
+      type: "Attachment",
+      required: true,
+      description: "The current attachment.",
+    },
+  ],
+};

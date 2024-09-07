@@ -27,6 +27,8 @@ import {
   ContentPartState,
   MessageState,
   MessageUtilsState,
+  AttachmentContextValue,
+  AttachmentState,
 } from "@/components/docs/parameters/context";
 
 ## Assistant Context
@@ -352,3 +354,30 @@ const value = useComposer.getState().value;
 const setText = useComposer((m) => m.setText);
 const setText = useComposer.getState().setText;
 ```
+
+## Attachment Context
+
+Provides access to the current attachment state.
+
+### `useAttachmentContext`
+
+This hook provides access to the context stores.
+
+```tsx
+import { useAttachmentContext } from "@assistant-ui/react";
+
+const { useAttachment } = useAttachmentContext();
+```
+
+<ParametersTable {...AttachmentContextValue} />
+
+### `useAttachment`
+
+```tsx
+const { useAttachment } = useAttachmentContext();
+
+const attachment = useAttachment((m) => m.attachment);
+const attachment = useAttachment.getState().attachment;
+```
+
+<ParametersTable {...AttachmentState} />
