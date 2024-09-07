@@ -3,6 +3,7 @@ import { useExternalStoreRuntime } from "@assistant-ui/react";
 import { useCachedChunkedMessages } from "../utils/useCachedChunkedMessages";
 import { convertMessage } from "../utils/convertMessage";
 import { useInputSync } from "../utils/useInputSync";
+import { toCreateMessage } from "../utils/toCreateMessage";
 
 export const useVercelUseAssistantRuntime = (
   assistantHelpers: ReturnType<typeof useAssistant>,
@@ -13,15 +14,7 @@ export const useVercelUseAssistantRuntime = (
     messages,
     onCancel: async () => assistantHelpers.stop(),
     onNew: async (message) => {
-      if (message.content.length !== 1 || message.content[0]?.type !== "text")
-        throw new Error(
-          "VercelUseAssistantRuntime only supports text content.",
-        );
-
-      await assistantHelpers.append({
-        role: message.role,
-        content: message.content[0].text,
-      });
+      await assistantHelpers.append(await toCreateMessage(message));
     },
     onNewThread: () => {
       assistantHelpers.messages = [];
