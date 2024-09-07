@@ -92,16 +92,9 @@ export const ThreadPrimitiveMessagesImpl: FC<ThreadPrimitiveMessagesProps> = ({
   const messagesLength = useThreadMessages((t) => t.length);
   if (messagesLength === 0) return null;
 
-  return new Array(messagesLength).fill(null).map((_, idx) => {
-    const messageIndex = idx; // keep the same key when switching branches for better a11y support
-    return (
-      <ThreadMessage
-        key={messageIndex}
-        messageIndex={messageIndex}
-        components={components}
-      />
-    );
-  });
+  return Array.from({ length: messagesLength }, (_, index) => (
+    <ThreadMessage key={index} messageIndex={index} components={components} />
+  ));
 };
 
 ThreadPrimitiveMessagesImpl.displayName = "ThreadPrimitive.Messages";

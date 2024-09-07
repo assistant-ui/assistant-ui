@@ -164,16 +164,9 @@ export const MessagePrimitiveContent: FC<MessagePrimitiveContentProps> = ({
 
   const contentLength = useMessage((s) => s.message.content.length) || 1;
 
-  return new Array(contentLength).fill(null).map((_, idx) => {
-    const partIndex = idx; // use the index as key, as message is generally append only
-    return (
-      <MessageContentPart
-        key={partIndex}
-        partIndex={partIndex}
-        components={components}
-      />
-    );
-  });
+  return Array.from({ length: contentLength }, (_, index) => (
+    <MessageContentPart key={index} partIndex={index} components={components} />
+  ));
 };
 
 MessagePrimitiveContent.displayName = "MessagePrimitive.Content";
