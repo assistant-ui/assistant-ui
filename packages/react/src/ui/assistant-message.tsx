@@ -1,6 +1,6 @@
 "use client";
 
-import { ComponentPropsWithoutRef, forwardRef, type FC } from "react";
+import { ComponentPropsWithoutRef, forwardRef, useMemo, type FC } from "react";
 import { MessagePrimitive, MessagePrimitiveContentProps } from "../primitives";
 import BranchPicker from "./branch-picker";
 import { Avatar } from "./base/avatar";
@@ -47,23 +47,29 @@ const AssistantMessageContent = forwardRef<
   const { tools, assistantMessage: { components = {} } = {} } =
     useThreadConfig();
 
+  const toolsComponents = useMemo(
+    () => ({
+      by_name: !tools
+        ? undefined
+        : Object.fromEntries(
+            tools.map((t) => [
+              t.unstable_tool.toolName,
+              t.unstable_tool.render,
+            ]),
+          ),
+      Fallback: components.ToolFallback,
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [...(tools ?? []), components.ToolFallback],
+  );
+
   return (
     <AssistantMessageContentWrapper {...rest} ref={ref}>
       <MessagePrimitive.Content
         components={{
           ...componentsProp,
           Text: componentsProp?.Text ?? components.Text ?? ContentPart.Text,
-          tools: {
-            by_name: !tools
-              ? undefined
-              : Object.fromEntries(
-                  tools.map((t) => [
-                    t.unstable_tool.toolName,
-                    t.unstable_tool.render,
-                  ]),
-                ),
-            Fallback: components.ToolFallback,
-          },
+          tools: toolsComponents,
         }}
       />
     </AssistantMessageContentWrapper>
