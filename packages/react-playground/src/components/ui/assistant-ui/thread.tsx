@@ -112,12 +112,13 @@ const Composer: FC = () => {
     const text = composer.text;
     if (!text) return;
 
-    composer.setText("");
+    composer.reset();
 
     useThreadActions.getState().append({
       parentId: useThreadMessages.getState().at(-1)?.id ?? null,
       role,
       content: [{ type: "text", text }],
+      attachments: composer.attachments,
     });
 
     setRole("user");

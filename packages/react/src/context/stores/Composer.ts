@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { ReadonlyStore } from "../ReadonlyStore";
 import { Unsubscribe } from "../../types/Unsubscribe";
 import { ThreadContextValue } from "../react";
+import { Attachment } from "./Attachment";
 
 export type ComposerState = Readonly<{
   /** @deprecated Use `text` instead. */
@@ -9,8 +10,14 @@ export type ComposerState = Readonly<{
   /** @deprecated Use `setText` instead. */
   setValue: (value: string) => void;
 
+  attachments: readonly Attachment[];
+  addAttachment: (attachment: Attachment) => void;
+  removeAttachment: (attachmentId: string) => void;
+
   text: string;
   setText: (value: string) => void;
+
+  reset: () => void;
 
   canCancel: boolean;
   isEditing: true;
@@ -35,9 +42,20 @@ export const makeComposerStore = (
         get().setText(value);
       },
 
+      attachments: runtime.composer.attachments,
+      addAttachment: (attachment) => {
+        useThreadRuntime.getState().composer.addAttachment(attachment);
+      },
+      removeAttachment: (attachmentId) => {
+        useThreadRuntime.getState().composer.removeAttachment(attachmentId);
+      },
+      reset: () => {
+        useThreadRuntime.getState().composer.reset();
+      },
+
       text: runtime.composer.text,
-      setText: (value) => {
-        useThreadRuntime.getState().composer.setText(value);
+      setText: (text) => {
+        useThreadRuntime.getState().composer.setText(text);
       },
 
       canCancel: runtime.capabilities.cancel,
@@ -46,12 +64,14 @@ export const makeComposerStore = (
       send: () => {
         const runtime = useThreadRuntime.getState();
         const text = runtime.composer.text;
-        runtime.composer.setText("");
+        const attachments = runtime.composer.attachments;
+        runtime.composer.reset();
 
         runtime.append({
           parentId: runtime.messages.at(-1)?.id ?? null,
           role: "user",
-          content: [{ type: "text", text }],
+          content: text ? [{ type: "text", text }] : [],
+          attachments,
         });
       },
       cancel: () => {

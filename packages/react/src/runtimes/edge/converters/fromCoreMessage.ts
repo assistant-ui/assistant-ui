@@ -1,3 +1,4 @@
+import { Attachment } from "../../../context/stores/Attachment";
 import { generateId } from "../../../internal";
 import {
   ThreadMessage,
@@ -13,7 +14,8 @@ export const fromCoreMessages = (
 };
 
 export const fromCoreMessage = (
-  message: CoreMessage,
+  // TODO clean up this type
+  message: CoreMessage & { attachments?: readonly Attachment[] | undefined },
   {
     id = generateId(),
     status = { type: "complete", reason: "unknown" } as MessageStatus,
@@ -47,6 +49,7 @@ export const fromCoreMessage = (
         ...commonProps,
         role,
         content: message.content,
+        attachments: message.attachments ?? [],
       } satisfies ThreadMessage;
 
     case "system":

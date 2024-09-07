@@ -96,6 +96,7 @@ const useMessageContext = (messageIndex: number) => {
           parentId,
           role: "user",
           content: [{ type: "text", text }, ...nonTextParts],
+          attachments: message.attachments,
         });
       },
     });

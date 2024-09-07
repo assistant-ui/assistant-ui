@@ -28,7 +28,12 @@ import { LanguageModelV1FunctionTool } from "@ai-sdk/provider";
 import { useState } from "react";
 import { create } from "zustand";
 
-const { BaseAssistantRuntime, ProxyConfigProvider, generateId } = INTERNAL;
+const {
+  BaseAssistantRuntime,
+  ProxyConfigProvider,
+  generateId,
+  ThreadRuntimeComposer,
+} = INTERNAL;
 
 const makeModelConfigStore = () =>
   create<ModelConfig>(() => ({
@@ -103,13 +108,9 @@ export class PlaygroundThreadRuntime implements ReactThreadRuntime {
 
   private configProvider = new ProxyConfigProvider();
 
-  public readonly composer = {
-    text: "",
-    setText: (value: string) => {
-      this.composer.text = value;
-      this.notifySubscribers();
-    },
-  };
+  public readonly composer = new ThreadRuntimeComposer(
+    this.notifySubscribers.bind(this),
+  );
 
   constructor(
     configProvider: ModelConfigProvider,

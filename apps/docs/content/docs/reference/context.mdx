@@ -166,11 +166,23 @@ const runtime = useThreadRuntime();
 ```tsx
 const { useComposer } = useThreadContext();
 
-const value = useComposer((m) => m.value);
-const value = useComposer.getState().value;
+const text = useComposer((m) => m.text);
+const text = useComposer.getState().text;
 
 const setText = useComposer((m) => m.setText);
 const setText = useComposer.getState().setText;
+
+const attachments = useComposer((m) => m.attachments);
+const attachments = useComposer.getState().attachments;
+
+const addAttachment = useComposer((m) => m.addAttachment);
+const addAttachment = useComposer.getState().addAttachment;
+
+const removeAttachment = useComposer((m) => m.removeAttachment);
+const removeAttachment = useComposer.getState().removeAttachment;
+
+const reset = useComposer((m) => m.reset);
+const reset = useComposer.getState().reset;
 ```
 
 <ParametersTable {...ComposerState} />

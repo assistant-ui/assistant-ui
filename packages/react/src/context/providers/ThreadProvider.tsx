@@ -78,10 +78,12 @@ export const ThreadProvider: FC<PropsWithChildren<ThreadProviderProps>> = ({
       const composerState = context.useComposer.getState();
       if (
         thread.composer.text !== composerState.text ||
+        thread.composer.attachments !== composerState.attachments ||
         state.capabilities.cancel !== composerState.canCancel
       ) {
         (context.useComposer as unknown as StoreApi<ComposerState>).setState({
           text: thread.composer.text,
+          attachments: thread.composer.attachments,
           canCancel: state.capabilities.cancel,
         });
       }

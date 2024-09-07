@@ -1,3 +1,4 @@
+import { Attachment } from "../../context/stores/Attachment";
 import {
   MessageStatus,
   TextContentPart,
@@ -27,6 +28,7 @@ export type ThreadMessageLike = {
   id?: string | undefined;
   createdAt?: Date | undefined;
   status?: MessageStatus | undefined;
+  attachments?: Attachment[] | undefined;
 };
 
 export const fromThreadMessageLike = (
@@ -34,7 +36,7 @@ export const fromThreadMessageLike = (
   fallbackId: string,
   fallbackStatus: MessageStatus,
 ): ThreadMessage => {
-  const { role, id, createdAt, status } = like;
+  const { role, id, createdAt, attachments, status } = like;
   const common = {
     id: id ?? fallbackId,
     createdAt: createdAt ?? new Date(),
@@ -44,6 +46,12 @@ export const fromThreadMessageLike = (
     typeof like.content === "string"
       ? [{ type: "text" as const, text: like.content }]
       : like.content;
+
+  if (role !== "user" && attachments)
+    throw new Error("Attachments are only supported for user messages");
+  // TODO add in 0.6
+  // if (role !== "assistant" && status)
+  //   throw new Error("Status is only supported for assistant messages");
 
   switch (role) {
     case "assistant":
@@ -97,6 +105,7 @@ export const fromThreadMessageLike = (
             }
           }
         }),
+        attachments: attachments ?? [],
       } satisfies ThreadUserMessage;
 
     case "system":

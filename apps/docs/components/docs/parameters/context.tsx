@@ -270,6 +270,30 @@ export const BaseComposerState: ParametersTableProps = {
       required: true,
       description: "A function to set the text of the composer.",
     },
+    {
+      name: "attachments",
+      type: "readonly Attachment[]",
+      required: true,
+      description: "The current attachments of the composer.",
+    },
+    {
+      name: "addAttachment",
+      type: "(attachment: Attachment) => void",
+      required: true,
+      description: "A function to add an attachment to the composer.",
+    },
+    {
+      name: "removeAttachment",
+      type: "(attachmentId: string) => void",
+      required: true,
+      description: "A function to remove an attachment from the composer.",
+    },
+    {
+      name: "reset",
+      type: "() => void",
+      required: true,
+      description: "A function to reset the composer.",
+    },
   ],
 };
 

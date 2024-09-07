@@ -13,6 +13,7 @@ import { fromThreadMessageLike } from "./ThreadMessageLike";
 import { RuntimeCapabilities } from "../../context/stores/Thread";
 import { getThreadMessageText } from "../../utils/getThreadMessageText";
 import { generateId } from "../../internal";
+import { ThreadRuntimeComposer } from "../utils/ThreadRuntimeComposer";
 
 export const hasUpcomingMessage = (
   isRunning: boolean,
@@ -46,13 +47,9 @@ export class ExternalStoreThreadRuntime implements ReactThreadRuntime {
 
   private _store!: ExternalStoreAdapter<any>;
 
-  public readonly composer = {
-    text: "",
-    setText: (value: string) => {
-      this.composer.text = value;
-      this.notifySubscribers();
-    },
-  };
+  public readonly composer = new ThreadRuntimeComposer(
+    this.notifySubscribers.bind(this),
+  );
 
   constructor(store: ExternalStoreAdapter<any>) {
     this.store = store;

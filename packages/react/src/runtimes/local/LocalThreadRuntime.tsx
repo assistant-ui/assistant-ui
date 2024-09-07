@@ -13,6 +13,7 @@ import {
   MessageRepository,
 } from "../utils/MessageRepository";
 import type { ChatModelAdapter, ChatModelRunResult } from "./ChatModelAdapter";
+import { ThreadRuntimeComposer } from "../utils/ThreadRuntimeComposer";
 import { shouldContinue } from "./shouldContinue";
 import { LocalRuntimeOptions } from "./LocalRuntimeOptions";
 import { ThreadRuntime } from "../core";
@@ -40,13 +41,9 @@ export class LocalThreadRuntime implements ThreadRuntime {
     return this.repository.getMessages();
   }
 
-  public readonly composer = {
-    text: "",
-    setText: (value: string) => {
-      this.composer.text = value;
-      this.notifySubscribers();
-    },
-  };
+  public readonly composer = new ThreadRuntimeComposer(
+    this.notifySubscribers.bind(this),
+  );
 
   constructor(
     private configProvider: ModelConfigProvider,
@@ -91,6 +88,7 @@ export class LocalThreadRuntime implements ThreadRuntime {
   }
 
   public async append(message: AppendMessage): Promise<void> {
+    // TODO add support for assistant appends
     if (message.role !== "user")
       throw new Error(
         "Only appending user messages are supported in LocalRuntime. This is likely an internal bug in assistant-ui.",
@@ -102,6 +100,7 @@ export class LocalThreadRuntime implements ThreadRuntime {
       id: userMessageId,
       role: "user",
       content: message.content,
+      attachments: message.attachments ?? [],
       createdAt: new Date(),
     };
     this.repository.addOrUpdateMessage(message.parentId, userMessage);
