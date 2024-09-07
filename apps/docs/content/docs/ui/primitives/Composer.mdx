@@ -22,6 +22,8 @@ import { ComposerPrimitive } from "@assistant-ui/react";
 // creating a new message
 const Composer = () => (
   <ComposerPrimitive.Root>
+    <ComposerPrimitive.Attachments />
+    <ComposerPrimitive.AddAttachment />
     <ComposerPrimitive.Input />
     <ComposerPrimitive.Send />
   </ComposerPrimitive.Root>
@@ -151,6 +153,64 @@ const Cancel = () => {
   return <button onClick={cancel}>Cancel</button>;
 };
 ```
+
+### Attachments
+
+Renders attachments. This primitive renders a separate component for each attachment.
+
+<ParametersTable
+  type="ComposerPrimitiveAttachmentsProps"
+  parameters={[
+    {
+      name: "components",
+      type: "ComposerAttachmentsComponents",
+      description: "The component to render for each attachment.",
+      children: [
+        {
+          type: "ComposerPrimitiveAttachmentsProps['components']",
+          parameters: [
+            {
+              name: "Image",
+              type: "ComponentType",
+              description: "The component to render for each image attachment.",
+            },
+            {
+              name: "Document",
+              type: "ComponentType",
+              description:
+                "The component to render for each document attachment.",
+            },
+            {
+              name: "File",
+              type: "ComponentType",
+              description: "The component to render for each file attachment.",
+            },
+            {
+              name: "Fallback",
+              type: "ComponentType",
+              description: "The component to render for each attachment type.",
+            },
+          ],
+        },
+      ],
+    },
+  ]}
+/>
+
+### AddAttachment
+
+Renders a button to add an attachment.
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+<ParametersTable
+  type="ComposerPrimitiveAddAttachmentProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+  ]}
+/>
 
 ### If
 
