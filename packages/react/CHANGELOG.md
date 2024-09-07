@@ -1,5 +1,14 @@
 # @assistant-ui/react
 
+## 0.5.46
+
+### Patch Changes
+
+- 0a4b8d7: feat: adjust the override order of tool UIs
+- 34ad491: feat: ThreadConfig.ToolFallback
+- 34ad491: feat: ThreadConfig.tools
+- 0a4b8d7: fix: tool UI fallback should not override makeAssistantToolUI definitions
+
 ## 0.5.45
 
 ### Patch Changes
