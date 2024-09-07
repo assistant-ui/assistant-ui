@@ -1,5 +1,8 @@
-export { makeAssistantTool } from "./makeAssistantTool";
-export { makeAssistantToolUI } from "./makeAssistantToolUI";
+export { makeAssistantTool, type AssistantTool } from "./makeAssistantTool";
+export {
+  type AssistantToolUI,
+  makeAssistantToolUI,
+} from "./makeAssistantToolUI";
 export { useAssistantInstructions } from "./useAssistantInstructions";
 export { useAssistantTool, type AssistantToolProps } from "./useAssistantTool";
 export {
