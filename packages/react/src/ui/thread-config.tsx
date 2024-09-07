@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ComponentType,
   FC,
   PropsWithChildren,
   ReactNode,
@@ -9,9 +10,10 @@ import {
 } from "react";
 
 import { AvatarProps } from "./base/avatar";
-import { TextContentPartComponent } from "../types";
+import { TextContentPartComponent, ToolCallContentPartProps } from "../types";
 import { AssistantRuntime } from "../runtimes";
 import { AssistantRuntimeProvider, useAssistantContext } from "../context";
+import { AssistantToolUI } from "../model-config";
 
 export type SuggestionConfig = {
   text?: ReactNode;
@@ -34,6 +36,7 @@ export type AssistantMessageConfig = {
   components?:
     | {
         Text?: TextContentPartComponent | undefined;
+        ToolFallback?: ComponentType<ToolCallContentPartProps> | undefined;
       }
     | undefined;
 };
@@ -133,6 +136,8 @@ export type ThreadConfig = {
   branchPicker?: BranchPickerConfig;
 
   strings?: StringsConfig;
+
+  tools?: AssistantToolUI[]; // TODO add AssistantTool support
 };
 
 export const useThreadConfig = (): Omit<ThreadConfig, "runtime"> => {

@@ -44,13 +44,26 @@ const AssistantMessageContent = forwardRef<
   HTMLDivElement,
   AssistantMessageContentProps
 >(({ components: componentsProp, ...rest }, ref) => {
-  const { assistantMessage: { components = {} } = {} } = useThreadConfig();
+  const { tools, assistantMessage: { components = {} } = {} } =
+    useThreadConfig();
+
   return (
     <AssistantMessageContentWrapper {...rest} ref={ref}>
       <MessagePrimitive.Content
         components={{
           ...componentsProp,
           Text: componentsProp?.Text ?? components.Text ?? ContentPart.Text,
+          tools: {
+            by_name: !tools
+              ? undefined
+              : Object.fromEntries(
+                  tools.map((t) => [
+                    t.unstable_tool.toolName,
+                    t.unstable_tool.render,
+                  ]),
+                ),
+            Fallback: components.ToolFallback,
+          },
         }}
       />
     </AssistantMessageContentWrapper>

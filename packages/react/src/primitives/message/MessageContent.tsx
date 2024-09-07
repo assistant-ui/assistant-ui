@@ -30,12 +30,14 @@ export type MessagePrimitiveContentProps = {
         Text?: TextContentPartComponent | undefined;
         Image?: ImageContentPartComponent | undefined;
         UI?: UIContentPartComponent | undefined;
-        tools?: {
-          by_name?:
-            | Record<string, ToolCallContentPartComponent | undefined>
-            | undefined;
-          Fallback?: ComponentType<ToolCallContentPartProps> | undefined;
-        };
+        tools?:
+          | {
+              by_name?:
+                | Record<string, ToolCallContentPartComponent | undefined>
+                | undefined;
+              Fallback?: ComponentType<ToolCallContentPartProps> | undefined;
+            }
+          | undefined;
       }
     | undefined;
 };
