@@ -18,6 +18,8 @@ export const useComposerAddAttachment = () => {
       if (!file) return;
       addAttachment({
         id: generateId(),
+        type: "file", // TODO infer type from file extension or mimetype
+        name: file.name,
         file,
       });
     };
