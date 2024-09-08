@@ -17,6 +17,7 @@ const attachmentAdapter: AttachmentAdapter = {
   },
   async send(attachment) {
     return {
+      ...attachment,
       content: [
         {
           type: "text",
