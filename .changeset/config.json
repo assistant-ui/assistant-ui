@@ -18,6 +18,7 @@
     "with-openai-assistants",
     "with-vercel-ai-rsc",
     "with-external-store",
-    "with-langgraph"
+    "with-langgraph",
+    "with-ffmpeg"
   ]
 }
