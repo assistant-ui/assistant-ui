@@ -17,12 +17,14 @@ export type ThreadRuntime = ThreadActionsState &
 export declare namespace ThreadRuntime {
   export type Composer = Readonly<{
     attachments: Attachment[];
-    addAttachment: (attachment: Attachment) => void;
-    removeAttachment: (attachmentId: string) => void;
+    addAttachment: (file: File) => Promise<void>;
+    removeAttachment: (attachmentId: string) => Promise<void>;
 
     text: string;
     setText: (value: string) => void;
 
     reset: () => void;
+
+    send: () => void;
   }>;
 }

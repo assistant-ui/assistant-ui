@@ -11,7 +11,7 @@ export type ComposerState = Readonly<{
   setValue: (value: string) => void;
 
   attachments: readonly Attachment[];
-  addAttachment: (attachment: Attachment) => void;
+  addAttachment: (file: File) => void;
   removeAttachment: (attachmentId: string) => void;
 
   text: string;
@@ -43,8 +43,8 @@ export const makeComposerStore = (
       },
 
       attachments: runtime.composer.attachments,
-      addAttachment: (attachment) => {
-        useThreadRuntime.getState().composer.addAttachment(attachment);
+      addAttachment: (file) => {
+        useThreadRuntime.getState().composer.addAttachment(file);
       },
       removeAttachment: (attachmentId) => {
         useThreadRuntime.getState().composer.removeAttachment(attachmentId);
@@ -63,16 +63,7 @@ export const makeComposerStore = (
 
       send: () => {
         const runtime = useThreadRuntime.getState();
-        const text = runtime.composer.text;
-        const attachments = runtime.composer.attachments;
-        runtime.composer.reset();
-
-        runtime.append({
-          parentId: runtime.messages.at(-1)?.id ?? null,
-          role: "user",
-          content: text ? [{ type: "text", text }] : [],
-          attachments,
-        });
+        runtime.composer.send();
       },
       cancel: () => {
         useThreadRuntime.getState().cancelRun();

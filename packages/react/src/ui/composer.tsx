@@ -106,12 +106,13 @@ const ComposerRemoveAttachment = forwardRef<
   } = useThreadConfig();
 
   const { useComposer } = useThreadContext();
+  const { useAttachment } = useAttachmentContext();
   const handleRemoveAttachment = () => {
-    // TODO delete the correct attachment
     useComposer
       .getState()
-      .removeAttachment(useComposer.getState().attachments[0]?.id!);
+      .removeAttachment(useAttachment.getState().attachment.id);
   };
+
   return (
     <TooltipIconButton
       tooltip={tooltip}

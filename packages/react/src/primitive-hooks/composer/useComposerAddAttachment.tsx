@@ -1,6 +1,5 @@
 import { useCallback } from "react";
 import { useThreadContext } from "../../context";
-import { generateId } from "../../internal";
 
 export const useComposerAddAttachment = () => {
   const { useComposer } = useThreadContext();
@@ -16,12 +15,7 @@ export const useComposerAddAttachment = () => {
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
-      addAttachment({
-        id: generateId(),
-        type: "file", // TODO infer type from file extension or mimetype
-        name: file.name,
-        file,
-      });
+      addAttachment(file);
     };
 
     input.click();

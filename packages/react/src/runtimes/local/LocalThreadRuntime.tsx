@@ -43,6 +43,7 @@ export class LocalThreadRuntime implements ThreadRuntime {
   }
 
   public readonly composer = new ThreadRuntimeComposer(
+    this,
     this.notifySubscribers.bind(this),
   );
 
@@ -72,11 +73,22 @@ export class LocalThreadRuntime implements ThreadRuntime {
   public set options({ initialMessages, ...options }: LocalRuntimeOptions) {
     this._options = options;
 
+    let hasUpdates = false;
+
     const canSpeak = options.adapters?.speech !== undefined;
     if (this.capabilities.speak !== canSpeak) {
       this.capabilities.speak = canSpeak;
-      this.notifySubscribers();
+      hasUpdates = true;
     }
+
+    this.composer.adapter = options.adapters?.attachments;
+    const canAttach = this.composer.adapter !== undefined;
+    if (this.capabilities.attachments !== canAttach) {
+      this.capabilities.attachments = canAttach;
+      hasUpdates = true;
+    }
+
+    if (hasUpdates) this.notifySubscribers();
   }
 
   public getBranches(messageId: string): string[] {
