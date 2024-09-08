@@ -101,25 +101,14 @@ const RoleSelect: FC<RoleSelectProps> = ({ role, setRole, children }) => {
 
 const Composer: FC = () => {
   const [role, setRole] = useState<"user" | "assistant" | "system">("user");
-  const { useThread, useThreadActions, useComposer, useThreadMessages } =
-    useThreadContext();
+  const { useThread, useThreadActions, useComposer } = useThreadContext();
 
   const isRunning = useThread((t) => t.isRunning);
   const hasText = useComposer((c) => c.text.length > 0);
 
   const performAdd = () => {
     const composer = useComposer.getState();
-    const text = composer.text;
-    if (!text) return;
-
-    composer.reset();
-
-    useThreadActions.getState().append({
-      parentId: useThreadMessages.getState().at(-1)?.id ?? null,
-      role,
-      content: [{ type: "text", text }],
-      attachments: composer.attachments,
-    });
+    composer.send();
 
     setRole("user");
   };
