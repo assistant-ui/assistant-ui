@@ -8,11 +8,15 @@ export const vercelAttachmentAdapter: AttachmentAdapter = {
       type: "file",
       name: file.name,
       file,
+      content: [],
     };
   },
-  async send() {
+  async send(attachment) {
     // noop
-    return { content: [] };
+    return {
+      ...attachment,
+      content: [],
+    };
   },
   async remove() {
     // noop

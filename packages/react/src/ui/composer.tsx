@@ -82,7 +82,7 @@ const ComposerAttachmentContainer = withDefaults("div", {
 });
 
 const ComposerAttachment: FC = () => {
-  const { useAttachment } = useAttachmentContext();
+  const { useAttachment } = useAttachmentContext({ type: "composer" });
   const attachment = useAttachment((a) => a.attachment);
 
   return (

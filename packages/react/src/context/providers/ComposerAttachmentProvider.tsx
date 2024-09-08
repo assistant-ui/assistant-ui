@@ -1,14 +1,15 @@
 "use client";
 
 import { type FC, type PropsWithChildren, useEffect, useState } from "react";
-import { StoreApi, create } from "zustand";
+import { create } from "zustand";
 import type { ComposerState } from "../stores";
 import { useThreadContext } from "../react";
-import { AttachmentState } from "../stores/Attachment";
+import { ComposerAttachmentState } from "../stores/Attachment";
 import {
   AttachmentContext,
   AttachmentContextValue,
 } from "../react/AttachmentContext";
+import { writableStore } from "../ReadonlyStore";
 
 type ComposerAttachmentProviderProps = PropsWithChildren<{
   attachmentIndex: number;
@@ -31,13 +32,15 @@ const getAttachment = (
 
 const useComposerAttachmentContext = (partIndex: number) => {
   const { useComposer } = useThreadContext();
-  const [context] = useState<AttachmentContextValue>(() => {
-    const useAttachment = create<AttachmentState>(
-      () => getAttachment(useComposer.getState(), undefined, partIndex)!,
-    );
+  const [context] = useState<AttachmentContextValue & { type: "composer" }>(
+    () => {
+      const useAttachment = create<ComposerAttachmentState>(
+        () => getAttachment(useComposer.getState(), undefined, partIndex)!,
+      );
 
-    return { useAttachment };
-  });
+      return { type: "composer", useAttachment };
+    },
+  );
 
   useEffect(() => {
     const syncAttachment = (composer: ComposerState) => {
@@ -47,10 +50,7 @@ const useComposerAttachmentContext = (partIndex: number) => {
         partIndex,
       );
       if (!newState) return;
-      (context.useAttachment as unknown as StoreApi<AttachmentState>).setState(
-        newState,
-        true,
-      );
+      writableStore(context.useAttachment).setState(newState, true);
     };
 
     syncAttachment(useComposer.getState());

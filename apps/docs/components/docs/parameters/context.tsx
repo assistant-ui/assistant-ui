@@ -526,22 +526,40 @@ export const AttachmentContextValue: ParametersTableProps = {
   type: "AttachmentContextValue",
   parameters: [
     {
+      name: "type",
+      type: "'composer' | 'message'",
+      required: true,
+      description: "The type of attachment.",
+    },
+    {
       name: "useAttachment",
-      type: "ReadonlyStore<AttachmentState>",
+      type: "ReadonlyStore<ComposerAttachmentState | MessageAttachmentState>",
       required: true,
       description: "Provides functions to perform actions on the attachment.",
     },
   ],
 };
 
-export const AttachmentState: ParametersTableProps = {
-  type: "AttachmentState",
+export const ComposerAttachmentState: ParametersTableProps = {
+  type: "ComposerAttachmentState",
   parameters: [
     {
       name: "attachment",
-      type: "Attachment",
+      type: "ComposerAttachment",
       required: true,
-      description: "The current attachment.",
+      description: "The current composer attachment.",
+    },
+  ],
+};
+
+export const MessageAttachmentState: ParametersTableProps = {
+  type: "MessageAttachmentState",
+  parameters: [
+    {
+      name: "attachment",
+      type: "MessageAttachment",
+      required: true,
+      description: "The current message attachment.",
     },
   ],
 };

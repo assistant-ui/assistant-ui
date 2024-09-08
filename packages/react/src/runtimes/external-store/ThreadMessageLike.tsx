@@ -1,4 +1,4 @@
-import { Attachment } from "../../context/stores/Attachment";
+import { MessageAttachment } from "../../context/stores/Attachment";
 import {
   MessageStatus,
   TextContentPart,
@@ -28,7 +28,7 @@ export type ThreadMessageLike = {
   id?: string | undefined;
   createdAt?: Date | undefined;
   status?: MessageStatus | undefined;
-  attachments?: Attachment[] | undefined;
+  attachments?: MessageAttachment[] | undefined;
 };
 
 export const fromThreadMessageLike = (

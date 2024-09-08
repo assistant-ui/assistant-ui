@@ -1,4 +1,4 @@
-import { Attachment } from "../../context/stores/Attachment";
+import { ComposerAttachment } from "../../context/stores/Attachment";
 import { AppendMessage } from "../../types";
 import { AttachmentAdapter } from "../attachment/AttachmentAdapter";
 import { ThreadRuntime } from "../core";
@@ -14,7 +14,7 @@ export class ThreadRuntimeComposer implements ThreadRuntime.Composer {
     private notifySubscribers: () => void,
   ) {}
 
-  private _attachments: Attachment[] = [];
+  private _attachments: ComposerAttachment[] = [];
 
   get attachments() {
     return this._attachments;
@@ -62,12 +62,11 @@ export class ThreadRuntimeComposer implements ThreadRuntime.Composer {
   }
 
   public async send() {
-    const attachmentContentParts = this.attachmentAdapter
+    const attachments = this.attachmentAdapter
       ? await Promise.all(
-          this.attachments.map(async (a) => {
-            const { content } = await this.attachmentAdapter!.send(a);
-            return content;
-          }),
+          this.attachments.map(
+            async (a) => await this.attachmentAdapter!.send(a),
+          ),
         )
       : [];
 
@@ -75,9 +74,9 @@ export class ThreadRuntimeComposer implements ThreadRuntime.Composer {
       parentId: this.runtime.messages.at(-1)?.id ?? null,
       role: "user",
       content: this.text
-        ? [{ type: "text", text: this.text }, ...attachmentContentParts.flat()]
+        ? [{ type: "text", text: this.text }]
         : [],
-      attachments: this.attachments,
+      attachments,
     });
     this.reset();
   }

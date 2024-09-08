@@ -4,7 +4,7 @@ import { ComponentType, type FC, memo } from "react";
 import { useThreadContext } from "../../context";
 import { useAttachmentContext } from "../../context/react/AttachmentContext";
 import { ComposerAttachmentProvider } from "../../context/providers/ComposerAttachmentProvider";
-import { Attachment } from "../../context/stores/Attachment";
+import type { ComposerAttachment } from "../../context/stores/Attachment";
 
 export type ComposerPrimitiveAttachmentsProps = {
   components:
@@ -19,7 +19,7 @@ export type ComposerPrimitiveAttachmentsProps = {
 
 const getComponent = (
   components: ComposerPrimitiveAttachmentsProps["components"],
-  attachment: Attachment,
+  attachment: ComposerAttachment,
 ) => {
   const type = attachment.type;
   switch (type) {
@@ -38,7 +38,7 @@ const getComponent = (
 const AttachmentComponent: FC<{
   components: ComposerPrimitiveAttachmentsProps["components"];
 }> = ({ components }) => {
-  const { useAttachment } = useAttachmentContext();
+  const { useAttachment } = useAttachmentContext({ type: "composer" });
   const Component = useAttachment((a) =>
     getComponent(components, a.attachment),
   );

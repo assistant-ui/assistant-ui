@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { ReadonlyStore } from "../ReadonlyStore";
 import { Unsubscribe } from "../../types/Unsubscribe";
 import { ThreadContextValue } from "../react";
-import { Attachment } from "./Attachment";
+import { ComposerAttachment } from "./Attachment";
 
 export type ComposerState = Readonly<{
   /** @deprecated Use `text` instead. */
@@ -10,7 +10,7 @@ export type ComposerState = Readonly<{
   /** @deprecated Use `setText` instead. */
   setValue: (value: string) => void;
 
-  attachments: readonly Attachment[];
+  attachments: readonly ComposerAttachment[];
   addAttachment: (file: File) => void;
   removeAttachment: (attachmentId: string) => void;
 

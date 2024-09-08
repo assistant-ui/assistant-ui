@@ -1,6 +1,6 @@
 import { LanguageModelV1LogProbs } from "@ai-sdk/provider";
 import type { ReactNode } from "react";
-import { Attachment } from "../context/stores/Attachment";
+import { MessageAttachment } from "../context/stores/Attachment";
 
 export type TextContentPart = {
   type: "text";
@@ -113,7 +113,7 @@ export type ThreadSystemMessage = MessageCommonProps & {
 export type ThreadUserMessage = MessageCommonProps & {
   role: "user";
   content: ThreadUserContentPart[];
-  attachments: readonly Attachment[];
+  attachments: readonly MessageAttachment[];
   // TODO metadata
 };
 
@@ -133,7 +133,7 @@ export type ThreadAssistantMessage = MessageCommonProps & {
 
 export type AppendMessage = CoreMessage & {
   parentId: string | null;
-  attachments: readonly Attachment[];
+  attachments: readonly MessageAttachment[];
 };
 
 export type ThreadMessage =

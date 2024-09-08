@@ -28,7 +28,8 @@ import {
   MessageState,
   MessageUtilsState,
   AttachmentContextValue,
-  AttachmentState,
+  ComposerAttachmentState,
+  MessageAttachmentState,
 } from "@/components/docs/parameters/context";
 
 ## Assistant Context
@@ -380,4 +381,10 @@ const attachment = useAttachment((m) => m.attachment);
 const attachment = useAttachment.getState().attachment;
 ```
 
-<ParametersTable {...AttachmentState} />
+#### `useAttachment` (Composer)
+
+<ParametersTable {...ComposerAttachmentState} />
+
+#### `useAttachment` (Message)
+
+<ParametersTable {...MessageAttachmentState} />
