@@ -139,6 +139,8 @@ import { Composer } from "@assistant-ui/react";
 const MyComposer: FC = () => {
   return (
     <Composer.Root>
+      <Composer.Attachments />
+      <Composer.AddAttachment />
       <Composer.Input autoFocus />
       <Composer.Action />
     </Composer.Root>

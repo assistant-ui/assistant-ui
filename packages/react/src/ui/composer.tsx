@@ -2,7 +2,7 @@
 
 import { ComponentPropsWithoutRef, forwardRef, type FC } from "react";
 
-import { SendHorizontalIcon } from "lucide-react";
+import { CircleXIcon, PaperclipIcon, SendHorizontalIcon } from "lucide-react";
 import { withDefaults } from "./utils/withDefaults";
 import { useThreadConfig } from "./thread-config";
 import {
@@ -11,11 +11,22 @@ import {
 } from "./base/tooltip-icon-button";
 import { CircleStopIcon } from "./base/CircleStopIcon";
 import { ComposerPrimitive, ThreadPrimitive } from "../primitives";
-import { useThreadContext } from "../context";
+import { useThreadContext } from "../context/react/ThreadContext";
+import { useAttachmentContext } from "../context/react/AttachmentContext";
+
+const useAllowAttachments = (ensureCapability = false) => {
+  const { composer: { allowAttachments = true } = {} } = useThreadConfig();
+  const { useThread } = useThreadContext();
+  const attachmentsSupported = useThread((t) => t.capabilities.attachments);
+  return allowAttachments && (!ensureCapability || attachmentsSupported);
+};
 
 const Composer: FC = () => {
+  const allowAttachments = useAllowAttachments(true);
   return (
     <ComposerRoot>
+      {allowAttachments && <ComposerAttachments />}
+      {allowAttachments && <ComposerAddAttachment />}
       <ComposerInput autoFocus />
       <ComposerAction />
     </ComposerRoot>
@@ -52,7 +63,103 @@ const ComposerInput = forwardRef<HTMLTextAreaElement, ComposerInputProps>(
   },
 );
 
+const ComposerAttachmentsContainer = withDefaults("div", {
+  className: "aui-composer-attachments-container",
+});
+
+const ComposerAttachments: FC = () => {
+  return (
+    <ComposerAttachmentsContainer>
+      <ComposerPrimitive.Attachments
+        components={{ Fallback: ComposerAttachment }}
+      />
+    </ComposerAttachmentsContainer>
+  );
+};
+
+const ComposerAttachmentContainer = withDefaults("div", {
+  className: "aui-composer-attachment-container",
+});
+
+const ComposerAttachment: FC = () => {
+  const { useAttachment } = useAttachmentContext();
+  const attachment = useAttachment((a) => a.attachment);
+
+  return (
+    <ComposerAttachmentContainer>
+      .{attachment.name.split(".").pop()}
+      <ComposerRemoveAttachment />
+    </ComposerAttachmentContainer>
+  );
+};
+
+ComposerAttachment.displayName = "ComposerAttachment";
+
+const ComposerRemoveAttachment = forwardRef<
+  HTMLButtonElement,
+  Partial<TooltipIconButtonProps>
+>((props, ref) => {
+  const {
+    strings: {
+      composer: { removeAttachment: { tooltip = "Remove file" } = {} } = {},
+    } = {},
+  } = useThreadConfig();
+
+  const { useComposer } = useThreadContext();
+  const handleRemoveAttachment = () => {
+    // TODO delete the correct attachment
+    useComposer
+      .getState()
+      .removeAttachment(useComposer.getState().attachments[0]?.id!);
+  };
+  return (
+    <TooltipIconButton
+      tooltip={tooltip}
+      className="aui-composer-attachment-remove"
+      side="top"
+      {...props}
+      onClick={handleRemoveAttachment}
+      ref={ref}
+    >
+      {props.children ?? <CircleXIcon />}
+    </TooltipIconButton>
+  );
+});
+
+ComposerRemoveAttachment.displayName = "ComposerRemoveAttachment";
+
 ComposerInput.displayName = "ComposerInput";
+
+const ComposerAttachButton = withDefaults(TooltipIconButton, {
+  variant: "default",
+  className: "aui-composer-attach",
+});
+
+const ComposerAddAttachment = forwardRef<
+  HTMLButtonElement,
+  Partial<TooltipIconButtonProps>
+>((props, ref) => {
+  const {
+    strings: {
+      composer: { addAttachment: { tooltip = "Attach file" } = {} } = {},
+    } = {},
+  } = useThreadConfig();
+  const allowAttachments = useAllowAttachments();
+  return (
+    <ComposerPrimitive.AddAttachment disabled={!allowAttachments} asChild>
+      <ComposerAttachButton
+        tooltip={tooltip}
+        variant={"ghost"}
+        {...props}
+        ref={ref}
+      >
+        {props.children ?? <PaperclipIcon />}
+      </ComposerAttachButton>
+    </ComposerPrimitive.AddAttachment>
+  );
+});
+
+ComposerAddAttachment.displayName = "ComposerAddAttachment";
 
 const useAllowCancel = () => {
   const { useThread } = useThreadContext();
@@ -129,6 +236,10 @@ const exports = {
   Action: ComposerAction,
   Send: ComposerSend,
   Cancel: ComposerCancel,
+  AddAttachment: ComposerAddAttachment,
+  Attachments: ComposerAttachments,
+  Attachment: ComposerAttachment,
+  RemoveAttachment: ComposerRemoveAttachment,
 };
 
 export default Object.assign(Composer, exports) as typeof Composer &

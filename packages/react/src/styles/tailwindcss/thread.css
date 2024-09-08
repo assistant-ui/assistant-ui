@@ -53,8 +53,21 @@
 }
 
 .aui-composer-send,
-.aui-composer-cancel {
+.aui-composer-cancel,
+.aui-composer-attach {
   @apply my-2.5 size-8 p-2 transition-opacity ease-in;
+}
+
+.aui-composer-attachments-container {
+  @apply flex w-full flex-row gap-3 px-10;
+}
+
+.aui-composer-attachment-container {
+  @apply bg-aui-muted relative mt-4 flex size-20 items-center justify-center rounded-lg p-2;
+}
+
+.aui-composer-attachment-remove {
+  @apply absolute -right-3 -top-3 size-7;
 }
 
 /* user message */

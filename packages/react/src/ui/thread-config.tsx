@@ -45,6 +45,10 @@ export type BranchPickerConfig = {
   allowBranchPicker?: boolean | undefined;
 };
 
+export type ComposerConfig = {
+  allowAttachments?: boolean | undefined;
+};
+
 export type StringsConfig = {
   assistantModal?: {
     open: {
@@ -101,6 +105,14 @@ export type StringsConfig = {
           tooltip?: string | undefined;
         }
       | undefined;
+    addAttachment?:
+      | {
+          tooltip?: string | undefined;
+        }
+      | undefined;
+    removeAttachment?: {
+      tooltip?: string | undefined;
+    };
     input?: {
       placeholder?: string | undefined;
     };
@@ -134,6 +146,8 @@ export type ThreadConfig = {
   userMessage?: UserMessageConfig;
 
   branchPicker?: BranchPickerConfig;
+
+  composer?: ComposerConfig;
 
   strings?: StringsConfig;
 
