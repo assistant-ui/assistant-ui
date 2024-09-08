@@ -4,6 +4,7 @@ import { useCachedChunkedMessages } from "../utils/useCachedChunkedMessages";
 import { convertMessage } from "../utils/convertMessage";
 import { useInputSync } from "../utils/useInputSync";
 import { toCreateMessage } from "../utils/toCreateMessage";
+import { vercelAttachmentAdapter } from "../utils/vercelAttachmentAdapter";
 
 export const useVercelUseAssistantRuntime = (
   assistantHelpers: ReturnType<typeof useAssistant>,
@@ -23,6 +24,9 @@ export const useVercelUseAssistantRuntime = (
       assistantHelpers.setInput("");
     },
     convertMessage,
+    adapters: {
+      attachments: vercelAttachmentAdapter,
+    },
   });
 
   useInputSync(assistantHelpers, runtime);

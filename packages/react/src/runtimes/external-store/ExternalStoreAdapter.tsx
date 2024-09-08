@@ -1,5 +1,6 @@
 import { AddToolResultOptions } from "../../context";
 import { AppendMessage, ThreadMessage } from "../../types";
+import { AttachmentAdapter } from "../attachment";
 import { SpeechSynthesisAdapter } from "../speech/SpeechAdapterTypes";
 import { ThreadMessageLike } from "./ThreadMessageLike";
 
@@ -33,6 +34,9 @@ type ExternalStoreAdapterBase<T> = {
     | ((message: ThreadMessage) => SpeechSynthesisAdapter.Utterance)
     | undefined;
   convertMessage?: ExternalStoreMessageConverter<T> | undefined;
+  adapters?: {
+    attachments?: AttachmentAdapter | undefined;
+  };
   unstable_capabilities?:
     | {
         copy?: boolean | undefined;

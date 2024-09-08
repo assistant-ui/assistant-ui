@@ -75,10 +75,12 @@ export class ExternalStoreThreadRuntime implements ReactThreadRuntime {
       edit: this._store.onEdit !== undefined,
       reload: this._store.onReload !== undefined,
       cancel: this._store.onCancel !== undefined,
-      unstable_copy: this._store.unstable_capabilities?.copy !== null,
       speak: this._store.onSpeak !== undefined,
-      attachments: false,
+      unstable_copy: this._store.unstable_capabilities?.copy !== false, // default true
+      attachments: !!this.store.adapters?.attachments,
     };
+
+    this.composer.attachmentAdapter = this._store.adapters?.attachments;
 
     if (oldStore) {
       // flush the converter cache when the convertMessage prop changes

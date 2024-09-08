@@ -89,7 +89,7 @@ const CAPABILITIES = Object.freeze({
   edit: false,
   reload: false,
   cancel: true,
-  unstable_copy: false,
+  unstable_copy: true,
   speak: false,
   attachments: false,
 });

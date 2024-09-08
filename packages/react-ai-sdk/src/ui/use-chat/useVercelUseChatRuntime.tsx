@@ -5,6 +5,7 @@ import { useExternalStoreRuntime } from "@assistant-ui/react";
 import { useInputSync } from "../utils/useInputSync";
 import { sliceMessagesUntil } from "../utils/sliceMessagesUntil";
 import { toCreateMessage } from "../utils/toCreateMessage";
+import { vercelAttachmentAdapter } from "../utils/vercelAttachmentAdapter";
 
 export const useVercelUseChatRuntime = (
   chatHelpers: ReturnType<typeof useChat>,
@@ -44,6 +45,9 @@ export const useVercelUseChatRuntime = (
       chatHelpers.setInput("");
     },
     convertMessage,
+    adapters: {
+      attachments: vercelAttachmentAdapter,
+    },
   });
 
   useInputSync(chatHelpers, runtime);
