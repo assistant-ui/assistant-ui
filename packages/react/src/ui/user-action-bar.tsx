@@ -45,9 +45,8 @@ const UserActionBarEdit = forwardRef<
     strings: { userMessage: { edit: { tooltip = "Edit" } = {} } = {} } = {},
   } = useThreadConfig();
   const allowEdit = useAllowEdit();
-  if (!allowEdit) return null;
   return (
-    <ActionBarPrimitive.Edit asChild>
+    <ActionBarPrimitive.Edit disabled={!allowEdit} asChild>
       <TooltipIconButton tooltip={tooltip} {...props} ref={ref}>
         {props.children ?? <PencilIcon />}
       </TooltipIconButton>

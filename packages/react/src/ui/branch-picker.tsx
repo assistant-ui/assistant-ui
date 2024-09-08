@@ -12,11 +12,11 @@ import { useThreadConfig } from "./thread-config";
 import { BranchPickerPrimitive } from "../primitives";
 import { useThreadContext } from "../context";
 
-const useAllowBranchPicker = () => {
+const useAllowBranchPicker = (ensureCapability = false) => {
   const { branchPicker: { allowBranchPicker = true } = {} } = useThreadConfig();
   const { useThread } = useThreadContext();
   const branchPickerSupported = useThread((t) => t.capabilities.edit);
-  return branchPickerSupported && allowBranchPicker;
+  return allowBranchPicker && (!ensureCapability || branchPickerSupported);
 };
 
 const BranchPicker: FC = () => {
@@ -48,8 +48,9 @@ const BranchPickerPrevious = forwardRef<
       branchPicker: { previous: { tooltip = "Previous" } = {} } = {},
     } = {},
   } = useThreadConfig();
+  const allowBranchPicker = useAllowBranchPicker();
   return (
-    <BranchPickerPrimitive.Previous asChild>
+    <BranchPickerPrimitive.Previous disabled={!allowBranchPicker} asChild>
       <TooltipIconButton tooltip={tooltip} {...props} ref={ref}>
         {props.children ?? <ChevronLeftIcon />}
       </TooltipIconButton>
@@ -83,8 +84,9 @@ const BranchPickerNext = forwardRef<
   const {
     strings: { branchPicker: { next: { tooltip = "Next" } = {} } = {} } = {},
   } = useThreadConfig();
+  const allowBranchPicker = useAllowBranchPicker();
   return (
-    <BranchPickerPrimitive.Next asChild>
+    <BranchPickerPrimitive.Next disabled={!allowBranchPicker} asChild>
       <TooltipIconButton tooltip={tooltip} {...props} ref={ref}>
         {props.children ?? <ChevronRightIcon />}
       </TooltipIconButton>

@@ -117,9 +117,9 @@ const AssistantActionBarSpeak = forwardRef<
     } = {},
   } = useThreadConfig();
   const allowSpeak = useAllowSpeak();
-  if (!allowSpeak) return null;
+
   return (
-    <ActionBarPrimitive.Speak asChild>
+    <ActionBarPrimitive.Speak disabled={!allowSpeak} asChild>
       <TooltipIconButton tooltip={tooltip} {...props} ref={ref}>
         {props.children ?? <AudioLinesIcon />}
       </TooltipIconButton>
@@ -141,9 +141,9 @@ const AssistantActionBarStopSpeaking = forwardRef<
     } = {},
   } = useThreadConfig();
   const allowSpeak = useAllowSpeak();
-  if (!allowSpeak) return null;
+
   return (
-    <ActionBarPrimitive.StopSpeaking asChild>
+    <ActionBarPrimitive.StopSpeaking disabled={!allowSpeak} asChild>
       <TooltipIconButton tooltip={stopTooltip} {...props} ref={ref}>
         {props.children ?? <StopCircleIcon />}
       </TooltipIconButton>
@@ -163,9 +163,8 @@ const AssistantActionBarReload = forwardRef<
     } = {},
   } = useThreadConfig();
   const allowReload = useAllowReload();
-  if (!allowReload) return null;
   return (
-    <ActionBarPrimitive.Reload asChild>
+    <ActionBarPrimitive.Reload disabled={!allowReload} asChild>
       <TooltipIconButton tooltip={tooltip} {...props} ref={ref}>
         <RefreshCwIcon />
       </TooltipIconButton>
