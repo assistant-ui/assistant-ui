@@ -78,7 +78,7 @@
 }
 
 :where(.aui-user-message-root) > .aui-user-action-bar-root {
-  @apply col-start-1 mr-3 mt-2.5;
+  @apply col-start-1 row-start-2 mr-3 mt-2.5;
 }
 
 :where(.aui-user-message-root) > .aui-user-message-attachments {
