@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.48
+
+### Patch Changes
+
+- 25a711d: fix: user message action bar css
+
 ## 0.5.47
 
 ### Patch Changes
