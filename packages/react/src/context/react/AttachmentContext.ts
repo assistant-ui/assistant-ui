@@ -7,7 +7,11 @@ import {
   MessageAttachmentState,
 } from "../stores/Attachment";
 
-export type AttachmentContextValue =
+export type AttachmentContextValue = {
+  useAttachment: ReadonlyStore<
+    ComposerAttachmentState | MessageAttachmentState
+  >;
+} & (
   | {
       type: "composer";
       useAttachment: ReadonlyStore<ComposerAttachmentState>;
@@ -15,7 +19,8 @@ export type AttachmentContextValue =
   | {
       type: "message";
       useAttachment: ReadonlyStore<MessageAttachmentState>;
-    };
+    }
+);
 
 export const AttachmentContext = createContext<AttachmentContextValue | null>(
   null,

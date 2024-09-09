@@ -2,7 +2,7 @@
 
 import { ComponentPropsWithoutRef, forwardRef, type FC } from "react";
 
-import { CircleXIcon, PaperclipIcon, SendHorizontalIcon } from "lucide-react";
+import { PaperclipIcon, SendHorizontalIcon } from "lucide-react";
 import { withDefaults } from "./utils/withDefaults";
 import { useThreadConfig } from "./thread-config";
 import {
@@ -12,7 +12,7 @@ import {
 import { CircleStopIcon } from "./base/CircleStopIcon";
 import { ComposerPrimitive, ThreadPrimitive } from "../primitives";
 import { useThreadContext } from "../context/react/ThreadContext";
-import { useAttachmentContext } from "../context/react/AttachmentContext";
+import ComposerAttachment from "./composer-attachment";
 
 const useAllowAttachments = (ensureCapability = false) => {
   const { composer: { allowAttachments = true } = {} } = useThreadConfig();
@@ -63,73 +63,21 @@ const ComposerInput = forwardRef<HTMLTextAreaElement, ComposerInputProps>(
   },
 );
 
+ComposerInput.displayName = "ComposerInput";
+
 const ComposerAttachmentsContainer = withDefaults("div", {
-  className: "aui-composer-attachments-container",
+  className: "aui-composer-attachments",
 });
 
 const ComposerAttachments: FC = () => {
   return (
     <ComposerAttachmentsContainer>
       <ComposerPrimitive.Attachments
-        components={{ Fallback: ComposerAttachment }}
+        components={{ Attachment: ComposerAttachment }}
       />
     </ComposerAttachmentsContainer>
   );
 };
-
-const ComposerAttachmentContainer = withDefaults("div", {
-  className: "aui-composer-attachment-container",
-});
-
-const ComposerAttachment: FC = () => {
-  const { useAttachment } = useAttachmentContext({ type: "composer" });
-  const attachment = useAttachment((a) => a.attachment);
-
-  return (
-    <ComposerAttachmentContainer>
-      .{attachment.name.split(".").pop()}
-      <ComposerRemoveAttachment />
-    </ComposerAttachmentContainer>
-  );
-};
-
-ComposerAttachment.displayName = "ComposerAttachment";
-
-const ComposerRemoveAttachment = forwardRef<
-  HTMLButtonElement,
-  Partial<TooltipIconButtonProps>
->((props, ref) => {
-  const {
-    strings: {
-      composer: { removeAttachment: { tooltip = "Remove file" } = {} } = {},
-    } = {},
-  } = useThreadConfig();
-
-  const { useComposer } = useThreadContext();
-  const { useAttachment } = useAttachmentContext();
-  const handleRemoveAttachment = () => {
-    useComposer
-      .getState()
-      .removeAttachment(useAttachment.getState().attachment.id);
-  };
-
-  return (
-    <TooltipIconButton
-      tooltip={tooltip}
-      className="aui-composer-attachment-remove"
-      side="top"
-      {...props}
-      onClick={handleRemoveAttachment}
-      ref={ref}
-    >
-      {props.children ?? <CircleXIcon />}
-    </TooltipIconButton>
-  );
-});
-
-ComposerRemoveAttachment.displayName = "ComposerRemoveAttachment";
-
-ComposerInput.displayName = "ComposerInput";
 
 const ComposerAttachButton = withDefaults(TooltipIconButton, {
   variant: "default",
@@ -239,8 +187,6 @@ const exports = {
   Cancel: ComposerCancel,
   AddAttachment: ComposerAddAttachment,
   Attachments: ComposerAttachments,
-  Attachment: ComposerAttachment,
-  RemoveAttachment: ComposerRemoveAttachment,
 };
 
 export default Object.assign(Composer, exports) as typeof Composer &

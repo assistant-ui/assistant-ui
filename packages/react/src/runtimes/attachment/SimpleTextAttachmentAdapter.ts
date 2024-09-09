@@ -1,5 +1,5 @@
 import {
-  ComposerAttachment,
+  ThreadComposerAttachment,
   MessageAttachment,
 } from "../../context/stores/Attachment";
 import { AttachmentAdapter } from "./AttachmentAdapter";
@@ -8,7 +8,7 @@ export class SimpleTextAttachmentAdapter implements AttachmentAdapter {
   public accept =
     "text/plain,text/html,text/markdown,text/csv,text/xml,text/json,text/css";
 
-  public async add(state: { file: File }): Promise<ComposerAttachment> {
+  public async add(state: { file: File }): Promise<ThreadComposerAttachment> {
     return {
       id: state.file.name,
       type: "document",
@@ -18,7 +18,7 @@ export class SimpleTextAttachmentAdapter implements AttachmentAdapter {
   }
 
   public async send(
-    attachment: ComposerAttachment,
+    attachment: ThreadComposerAttachment,
   ): Promise<MessageAttachment> {
     return {
       ...attachment,

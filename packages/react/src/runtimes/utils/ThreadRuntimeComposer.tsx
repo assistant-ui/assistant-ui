@@ -1,4 +1,4 @@
-import { ComposerAttachment } from "../../context/stores/Attachment";
+import { ThreadComposerAttachment } from "../../context/stores/Attachment";
 import { AppendMessage } from "../../types";
 import { AttachmentAdapter } from "../attachment/AttachmentAdapter";
 import { ThreadRuntime } from "../core";
@@ -30,7 +30,7 @@ export class ThreadRuntimeComposer implements ThreadRuntime.Composer {
     return false;
   }
 
-  private _attachments: ComposerAttachment[] = [];
+  private _attachments: ThreadComposerAttachment[] = [];
 
   public get attachments() {
     return this._attachments;

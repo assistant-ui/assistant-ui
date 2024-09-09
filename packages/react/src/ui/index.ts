@@ -23,6 +23,8 @@ export { default as BranchPicker } from "./branch-picker";
 
 export { default as Composer, type ComposerInputProps } from "./composer";
 
+export { default as ComposerAttachment } from "./composer-attachment";
+
 export { default as EditComposer } from "./edit-composer";
 
 export { default as Thread, type ThreadRootProps } from "./thread";

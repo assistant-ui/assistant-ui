@@ -6,7 +6,7 @@ export type BaseAttachment = {
   name: string;
 };
 
-export type ComposerAttachment = BaseAttachment & {
+export type ThreadComposerAttachment = BaseAttachment & {
   file: File;
 };
 
@@ -16,7 +16,7 @@ export type MessageAttachment = BaseAttachment & {
 };
 
 export type ComposerAttachmentState = Readonly<{
-  attachment: ComposerAttachment;
+  attachment: ThreadComposerAttachment;
 }>;
 
 export type MessageAttachmentState = Readonly<{

@@ -1,5 +1,5 @@
 import {
-  ComposerAttachment,
+  ThreadComposerAttachment,
   MessageAttachment,
 } from "../../context/stores/Attachment";
 import { AttachmentAdapter } from "./AttachmentAdapter";
@@ -65,7 +65,7 @@ export class ComposedAttachmentAdapter implements AttachmentAdapter {
     }
   }
 
-  public async add(state: { file: File }): Promise<ComposerAttachment> {
+  public async add(state: { file: File }): Promise<ThreadComposerAttachment> {
     for (const adapter of this._adapters) {
       if (fileMatchesAccept(state.file, adapter.accept)) {
         return adapter.add(state);
@@ -75,7 +75,7 @@ export class ComposedAttachmentAdapter implements AttachmentAdapter {
   }
 
   public async send(
-    attachment: ComposerAttachment,
+    attachment: ThreadComposerAttachment,
   ): Promise<MessageAttachment> {
     const adapters = this._adapters.slice();
     for (const adapter of adapters) {
@@ -86,7 +86,7 @@ export class ComposedAttachmentAdapter implements AttachmentAdapter {
     throw new Error("No matching adapter found for attachment");
   }
 
-  public async remove(attachment: ComposerAttachment): Promise<void> {
+  public async remove(attachment: ThreadComposerAttachment): Promise<void> {
     const adapters = this._adapters.slice();
     for (const adapter of adapters) {
       if (fileMatchesAccept(attachment.file, adapter.accept)) {

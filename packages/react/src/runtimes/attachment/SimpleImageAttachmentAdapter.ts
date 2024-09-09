@@ -1,5 +1,5 @@
 import {
-  ComposerAttachment,
+  ThreadComposerAttachment,
   MessageAttachment,
 } from "../../context/stores/Attachment";
 import { AttachmentAdapter } from "./AttachmentAdapter";
@@ -7,7 +7,7 @@ import { AttachmentAdapter } from "./AttachmentAdapter";
 export class SimpleImageAttachmentAdapter implements AttachmentAdapter {
   public accept = "image/*";
 
-  public async add(state: { file: File }): Promise<ComposerAttachment> {
+  public async add(state: { file: File }): Promise<ThreadComposerAttachment> {
     return {
       id: state.file.name,
       type: "image",
@@ -17,7 +17,7 @@ export class SimpleImageAttachmentAdapter implements AttachmentAdapter {
   }
 
   public async send(
-    attachment: ComposerAttachment,
+    attachment: ThreadComposerAttachment,
   ): Promise<MessageAttachment> {
     return {
       ...attachment,
