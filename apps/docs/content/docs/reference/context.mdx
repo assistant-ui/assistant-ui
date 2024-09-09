@@ -275,8 +275,8 @@ const addUtterance = useMessageUtils.getState().addUtterance;
 ```tsx
 const { useEditComposer } = useMessageContext();
 
-const value = useEditComposer((m) => m.value);
-const value = useEditComposer.getState().value;
+const text = useEditComposer((m) => m.text);
+const text = useEditComposer.getState().text;
 
 const setText = useEditComposer((m) => m.setText);
 const setText = useEditComposer.getState().setText;
@@ -349,8 +349,8 @@ const { useComposer } = useComposerContext();
 ```tsx
 const { useComposer } = useComposerContext();
 
-const value = useComposer((m) => m.value);
-const value = useComposer.getState().value;
+const text = useComposer((m) => m.text);
+const text = useComposer.getState().text;
 
 const setText = useComposer((m) => m.setText);
 const setText = useComposer.getState().setText;
