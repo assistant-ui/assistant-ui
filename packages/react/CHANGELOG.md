@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.49
+
+### Patch Changes
+
+- 7ed296b: fix: make AppendMessage attachments field optional for now
+
 ## 0.5.48
 
 ### Patch Changes
