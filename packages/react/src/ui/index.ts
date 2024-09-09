@@ -36,6 +36,8 @@ export {
 
 export { default as UserActionBar } from "./user-action-bar";
 
+export { default as UserMessageAttachment } from "./user-message-attachment";
+
 export {
   default as ThreadWelcome,
   type ThreadWelcomeMessageProps,

@@ -81,12 +81,17 @@
   @apply col-start-1 mr-3 mt-2.5;
 }
 
+:where(.aui-user-message-root) > .aui-user-message-attachments {
+  @apply col-span-full col-start-1 row-start-1;
+  @apply justify-end;
+}
+
 :where(.aui-user-message-root) > .aui-user-message-content {
-  @apply col-start-2 row-start-1;
+  @apply col-start-2 row-start-2;
 }
 
 :where(.aui-user-message-root) > .aui-branch-picker-root {
-  @apply col-span-full col-start-1 row-start-2;
+  @apply col-span-full col-start-1 row-start-3;
   @apply -mr-1 justify-end;
 }
 
@@ -94,11 +99,21 @@
   @apply bg-aui-muted text-aui-foreground max-w-xl break-words rounded-3xl px-5 py-2.5;
 }
 
-/* thread action bar */
+.aui-user-message-attachments {
+  @apply flex w-full flex-row gap-3;
+}
+
+.aui-user-message-attachment-root {
+  @apply bg-aui-muted relative flex size-20 items-center justify-center rounded-lg p-2;
+}
+
+/* user action bar */
 
 .aui-user-action-bar-root {
   @apply flex flex-col items-end;
 }
+
+/* edit composer */
 
 .aui-edit-composer-root {
   @apply bg-aui-muted my-4 flex w-full max-w-2xl flex-col gap-2 rounded-xl;

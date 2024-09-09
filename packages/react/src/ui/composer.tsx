@@ -13,6 +13,7 @@ import { CircleStopIcon } from "./base/CircleStopIcon";
 import { ComposerPrimitive, ThreadPrimitive } from "../primitives";
 import { useThreadContext } from "../context/react/ThreadContext";
 import ComposerAttachment from "./composer-attachment";
+import { ComposerPrimitiveAttachmentsProps } from "../primitives/composer/ComposerAttachments";
 
 const useAllowAttachments = (ensureCapability = false) => {
   const { composer: { allowAttachments = true } = {} } = useThreadConfig();
@@ -69,11 +70,16 @@ const ComposerAttachmentsContainer = withDefaults("div", {
   className: "aui-composer-attachments",
 });
 
-const ComposerAttachments: FC = () => {
+type ComposerAttachmentsProps = Partial<ComposerPrimitiveAttachmentsProps>;
+
+const ComposerAttachments: FC<ComposerAttachmentsProps> = ({ components }) => {
   return (
     <ComposerAttachmentsContainer>
       <ComposerPrimitive.Attachments
-        components={{ Attachment: ComposerAttachment }}
+        components={{
+          ...components,
+          Attachment: components?.Attachment ?? ComposerAttachment,
+        }}
       />
     </ComposerAttachmentsContainer>
   );
