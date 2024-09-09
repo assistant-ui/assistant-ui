@@ -21,6 +21,8 @@ export declare namespace ThreadRuntime {
     addAttachment: (file: File) => Promise<void>;
     removeAttachment: (attachmentId: string) => Promise<void>;
 
+    isEmpty: boolean;
+
     text: string;
     setText: (value: string) => void;
 

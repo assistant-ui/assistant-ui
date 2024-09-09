@@ -21,6 +21,7 @@ export type ComposerState = Readonly<{
 
   canCancel: boolean;
   isEditing: true;
+  isEmpty: boolean;
 
   send: () => void;
   cancel: () => void;
@@ -60,6 +61,7 @@ export const makeComposerStore = (
 
       canCancel: runtime.capabilities.cancel,
       isEditing: true,
+      isEmpty: runtime.composer.isEmpty,
 
       send: () => {
         const runtime = useThreadRuntime.getState();

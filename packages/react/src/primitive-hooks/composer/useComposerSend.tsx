@@ -12,7 +12,7 @@ export const useComposerSend = () => {
 
   const disabled = useCombinedStore(
     [useThread, useComposer],
-    (t, c) => t.isRunning || !c.isEditing || c.text.length === 0,
+    (t, c) => t.isRunning || !c.isEditing || c.isEmpty,
   );
 
   const callback = useCallback(() => {

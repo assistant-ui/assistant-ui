@@ -8,6 +8,10 @@ export class ThreadRuntimeComposer implements ThreadRuntime.Composer {
 
   public attachmentAccept: string = "*";
 
+  public get isEmpty() {
+    return !this.text.trim() && !this.attachments.length;
+  }
+
   constructor(
     private runtime: {
       messages: ThreadRuntime["messages"];

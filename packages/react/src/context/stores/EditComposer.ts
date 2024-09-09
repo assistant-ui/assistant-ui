@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { ReadonlyStore } from "../ReadonlyStore";
 
 export type EditComposerState = Readonly<{
-  // TODO 
+  // TODO
   /** @deprecated Use `text` instead. */
   value: string;
   /** @deprecated Use `setText` instead. */
@@ -13,6 +13,7 @@ export type EditComposerState = Readonly<{
 
   canCancel: boolean;
   isEditing: boolean;
+  isEmpty: boolean;
 
   edit: () => void;
   send: () => void;
@@ -36,15 +37,21 @@ export const makeEditComposerStore = ({
 
     text: "",
     setText: (text) => {
-      set({ text });
+      set({ text, isEmpty: text.trim().length === 0 });
     },
 
     canCancel: false,
     isEditing: false,
+    isEmpty: true,
 
     edit: () => {
       const text = onEdit();
-      set({ isEditing: true, canCancel: true, text });
+      set({
+        isEditing: true,
+        canCancel: true,
+        isEmpty: text.trim().length === 0,
+        text,
+      });
     },
     send: () => {
       const text = get().text;
