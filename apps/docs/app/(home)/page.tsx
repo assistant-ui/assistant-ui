@@ -5,7 +5,13 @@ import { Shadcn } from "@/components/shadcn/Shadcn";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useChat } from "ai/react";
-import { AssistantRuntimeProvider, useEdgeRuntime } from "@assistant-ui/react";
+import {
+  AssistantRuntimeProvider,
+  CompositeAttachmentAdapter,
+  SimpleImageAttachmentAdapter,
+  SimpleTextAttachmentAdapter,
+  useEdgeRuntime,
+} from "@assistant-ui/react";
 import Link from "next/link";
 import { useState } from "react";
 import { ChatGPT } from "../../components/chatgpt/ChatGPT";
@@ -130,7 +136,15 @@ export type AssistantProps = {
 };
 
 const MyRuntimeProvider = ({ children }: { children: React.ReactNode }) => {
-  const runtime = useEdgeRuntime({ api: "/api/chat" });
+  const runtime = useEdgeRuntime({
+    api: "/api/chat",
+    adapters: {
+      attachments: new CompositeAttachmentAdapter([
+        new SimpleImageAttachmentAdapter(),
+        new SimpleTextAttachmentAdapter(),
+      ]),
+    },
+  });
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       {children}

@@ -2,4 +2,4 @@
 "@assistant-ui/react": patch
 ---
 
-feat: ComposedAttachmentAdapter
+feat: CompositeAttachmentAdapter

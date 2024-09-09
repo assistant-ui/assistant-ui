@@ -44,7 +44,7 @@ function fileMatchesAccept(file: File, acceptString: string) {
   return false;
 }
 
-export class ComposedAttachmentAdapter implements AttachmentAdapter {
+export class CompositeAttachmentAdapter implements AttachmentAdapter {
   private _adapters: AttachmentAdapter[];
 
   public accept: string;

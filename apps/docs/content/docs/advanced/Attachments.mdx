@@ -1,0 +1,31 @@
+---
+title: Attachments
+---
+
+Allow the user to attach files to their messages.
+
+## Enabling attachments
+
+In order to enable attachments, you need to pass a `AttachmentAdapter` to the `useEdgeRuntime` hook.
+
+In this example, we use a `CompositeAttachmentAdapter` that allows the user to attach images and text.
+The CompositeAttachmentAdapter allows you to combine multiple attachment adapters into one.
+
+```tsx title="/app/MyRuntimeProvider.tsx"
+import { useEdgeRuntime } from "@assistant-ui/react";
+import {
+  CompositeAttachmentAdapter,
+  SimpleImageAttachmentAdapter,
+  SimpleTextAttachmentAdapter,
+} from "@assistant-ui/react";
+
+const runtime = useEdgeRuntime({
+  api: "/api/chat",
+  adapters: {
+    attachments: new CompositeAttachmentAdapter([
+      new SimpleImageAttachmentAdapter(),
+      new SimpleTextAttachmentAdapter(),
+    ]),
+  },
+});
+```
