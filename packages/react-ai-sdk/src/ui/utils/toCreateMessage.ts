@@ -19,7 +19,7 @@ export const toCreateMessage = async (
     experimental_attachments: [
       ...images,
       ...(await Promise.all(
-        message.attachments.map(async (m) => {
+        (message.attachments ?? []).map(async (m) => {
           if (m.file == null)
             throw new Error("Attachment did not contain a file");
           return {
