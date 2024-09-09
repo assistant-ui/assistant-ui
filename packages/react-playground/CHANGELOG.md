@@ -1,5 +1,31 @@
 # @assistant-ui/react-playground
 
+## 0.0.24
+
+### Patch Changes
+
+- bdd3084: feat: allow runtimes to signal support for attachments
+- 7dcab47: fix: message copy handling for runtimes
+- 9e00772: feat: add composer attachments state
+- 44d08bd: feat: Edge/Local runtime AttachmentAdapter support
+- Updated dependencies [a81b18f]
+- Updated dependencies [44d08bd]
+- Updated dependencies [b48fbcc]
+- Updated dependencies [cc5e7d4]
+- Updated dependencies [bdd3084]
+- Updated dependencies [7dcab47]
+- Updated dependencies [a22e6bb]
+- Updated dependencies [9e00772]
+- Updated dependencies [d2580d3]
+- Updated dependencies [c845fcf]
+- Updated dependencies [3ba193e]
+- Updated dependencies [d2580d3]
+- Updated dependencies [3b0f20b]
+- Updated dependencies [3ba193e]
+- Updated dependencies [d2580d3]
+- Updated dependencies [44d08bd]
+  - @assistant-ui/react@0.5.47
+
 ## 0.0.23
 
 ### Patch Changes

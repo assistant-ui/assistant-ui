@@ -1,5 +1,35 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.6.3
+
+### Patch Changes
+
+- bdd3084: feat: allow runtimes to signal support for attachments
+- 7dcab47: feat: add AttachmentAdapter for AI SDK
+- 7dcab47: fix: message copy handling for runtimes
+- a22e6bb: feat: AttachmentAdapter.accept allow attachment adapters to specify supported file types
+- 9e00772: feat: add composer attachments state
+- 7809584: feat: allow image content types
+- 3ab5a6b: refactor: rename `getVercelAIMessage` to `getVercelAIMessages`
+- 7809584: feat: AI SDK attachments support
+- Updated dependencies [a81b18f]
+- Updated dependencies [44d08bd]
+- Updated dependencies [b48fbcc]
+- Updated dependencies [cc5e7d4]
+- Updated dependencies [bdd3084]
+- Updated dependencies [7dcab47]
+- Updated dependencies [a22e6bb]
+- Updated dependencies [9e00772]
+- Updated dependencies [d2580d3]
+- Updated dependencies [c845fcf]
+- Updated dependencies [3ba193e]
+- Updated dependencies [d2580d3]
+- Updated dependencies [3b0f20b]
+- Updated dependencies [3ba193e]
+- Updated dependencies [d2580d3]
+- Updated dependencies [44d08bd]
+  - @assistant-ui/react@0.5.47
+
 ## 0.6.2
 
 ### Patch Changes

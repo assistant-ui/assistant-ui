@@ -1,5 +1,26 @@
 # @assistant-ui/react
 
+## 0.5.47
+
+### Patch Changes
+
+- a81b18f: feat: ComposerPrimitive.AddAttachment
+- 44d08bd: feat: styled components for attachments
+- b48fbcc: feat: UserMessageAttachment UI
+- cc5e7d4: perf: memoize tool Ul components
+- bdd3084: feat: allow runtimes to signal support for attachments
+- 7dcab47: fix: message copy handling for runtimes
+- a22e6bb: feat: AttachmentAdapter.accept allow attachment adapters to specify supported file types
+- 9e00772: feat: add composer attachments state
+- d2580d3: feat: SimpleImageAttachmentAdapter
+- c845fcf: feat: allow sending attachment-only messages
+- 3ba193e: feat: AttachmentContext
+- d2580d3: feat: SimpleTextAttachmentAdapter
+- 3b0f20b: feat: MessagePrimitive.Attachments
+- 3ba193e: feat: ComposerPrimitive.Attachments
+- d2580d3: feat: CompositeAttachmentAdapter
+- 44d08bd: feat: Edge/Local runtime AttachmentAdapter support
+
 ## 0.5.46
 
 ### Patch Changes
