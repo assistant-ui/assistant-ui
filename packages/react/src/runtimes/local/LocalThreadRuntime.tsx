@@ -81,8 +81,9 @@ export class LocalThreadRuntime implements ThreadRuntime {
       hasUpdates = true;
     }
 
-    this.composer.attachmentAdapter = options.adapters?.attachments;
-    const canAttach = this.composer.attachmentAdapter !== undefined;
+    this.composer.setAttachmentAdapter(options.adapters?.attachments);
+
+    const canAttach = options.adapters?.attachments !== undefined;
     if (this.capabilities.attachments !== canAttach) {
       this.capabilities.attachments = canAttach;
       hasUpdates = true;

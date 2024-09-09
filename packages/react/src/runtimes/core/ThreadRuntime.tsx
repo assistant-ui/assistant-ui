@@ -16,6 +16,7 @@ export type ThreadRuntime = ThreadActionsState &
 
 export declare namespace ThreadRuntime {
   export type Composer = Readonly<{
+    attachmentAccept: string;
     attachments: ComposerAttachment[];
     addAttachment: (file: File) => Promise<void>;
     removeAttachment: (attachmentId: string) => Promise<void>;

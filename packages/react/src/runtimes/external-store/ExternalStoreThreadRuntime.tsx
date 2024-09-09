@@ -80,7 +80,7 @@ export class ExternalStoreThreadRuntime implements ReactThreadRuntime {
       attachments: !!this.store.adapters?.attachments,
     };
 
-    this.composer.attachmentAdapter = this._store.adapters?.attachments;
+    this.composer.setAttachmentAdapter(this._store.adapters?.attachments);
 
     if (oldStore) {
       // flush the converter cache when the convertMessage prop changes

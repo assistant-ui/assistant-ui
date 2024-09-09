@@ -4,7 +4,9 @@ import { AttachmentAdapter } from "../attachment/AttachmentAdapter";
 import { ThreadRuntime } from "../core";
 
 export class ThreadRuntimeComposer implements ThreadRuntime.Composer {
-  public attachmentAdapter?: AttachmentAdapter | undefined;
+  private _attachmentAdapter?: AttachmentAdapter | undefined;
+
+  public attachmentAccept: string = "*";
 
   constructor(
     private runtime: {
@@ -14,31 +16,41 @@ export class ThreadRuntimeComposer implements ThreadRuntime.Composer {
     private notifySubscribers: () => void,
   ) {}
 
+  public setAttachmentAdapter(adapter: AttachmentAdapter | undefined) {
+    this._attachmentAdapter = adapter;
+    const accept = adapter?.accept ?? "*";
+    if (this.attachmentAccept !== accept) {
+      this.attachmentAccept = accept;
+      return true;
+    }
+    return false;
+  }
+
   private _attachments: ComposerAttachment[] = [];
 
-  get attachments() {
+  public get attachments() {
     return this._attachments;
   }
 
   async addAttachment(file: File) {
-    if (!this.attachmentAdapter)
+    if (!this._attachmentAdapter)
       throw new Error("Attachments are not supported");
 
-    const attachment = await this.attachmentAdapter.add({ file });
+    const attachment = await this._attachmentAdapter.add({ file });
 
     this._attachments = [...this._attachments, attachment];
     this.notifySubscribers();
   }
 
   async removeAttachment(attachmentId: string) {
-    if (!this.attachmentAdapter)
+    if (!this._attachmentAdapter)
       throw new Error("Attachments are not supported");
 
     const index = this._attachments.findIndex((a) => a.id === attachmentId);
     if (index === -1) throw new Error("Attachment not found");
     const attachment = this._attachments[index]!;
 
-    await this.attachmentAdapter.remove(attachment);
+    await this._attachmentAdapter.remove(attachment);
 
     this._attachments = this._attachments.toSpliced(index, 1);
     this.notifySubscribers();
@@ -62,10 +74,10 @@ export class ThreadRuntimeComposer implements ThreadRuntime.Composer {
   }
 
   public async send() {
-    const attachments = this.attachmentAdapter
+    const attachments = this._attachmentAdapter
       ? await Promise.all(
           this.attachments.map(
-            async (a) => await this.attachmentAdapter!.send(a),
+            async (a) => await this._attachmentAdapter!.send(a),
           ),
         )
       : [];
@@ -73,9 +85,7 @@ export class ThreadRuntimeComposer implements ThreadRuntime.Composer {
     this.runtime.append({
       parentId: this.runtime.messages.at(-1)?.id ?? null,
       role: "user",
-      content: this.text
-        ? [{ type: "text", text: this.text }]
-        : [],
+      content: this.text ? [{ type: "text", text: this.text }] : [],
       attachments,
     });
     this.reset();

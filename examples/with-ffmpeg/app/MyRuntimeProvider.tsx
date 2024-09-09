@@ -7,6 +7,7 @@ import { INTERNAL } from "@assistant-ui/react";
 const { generateId } = INTERNAL;
 
 const attachmentAdapter: AttachmentAdapter = {
+  accept: "image/*,video/*,audio/*",
   async add({ file }) {
     return {
       id: generateId(),
