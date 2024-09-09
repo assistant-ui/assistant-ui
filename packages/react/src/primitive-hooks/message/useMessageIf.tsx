@@ -11,6 +11,7 @@ type MessageIfFilters = {
   copied: boolean | undefined;
   lastOrHover: boolean | undefined;
   speaking: boolean | undefined;
+  hasAttachments: boolean | undefined;
 };
 export type UseMessageIfProps = RequireAtLeastOne<MessageIfFilters>;
 
@@ -30,9 +31,21 @@ export const useMessageIf = (props: UseMessageIfProps) => {
 
       if (props.copied === true && !isCopied) return false;
       if (props.copied === false && isCopied) return false;
-      
+
       if (props.speaking === true && !isSpeaking) return false;
       if (props.speaking === false && isSpeaking) return false;
+
+      if (
+        props.hasAttachments === true &&
+        (message.role !== "user" || !message.attachments.length)
+      )
+        return false;
+      if (
+        props.hasAttachments === false &&
+        message.role === "user" &&
+        !!message.attachments.length
+      )
+        return false;
 
       return true;
     },
