@@ -197,6 +197,39 @@ The button to send the message.
 
 Sends a cancel action.
 
+### Composer.Attachments
+
+Renders attachments.
+
+### Composer.AddAttachment
+
+Renders an add attachment button.
+
+## ComposerAttachment
+
+Renders an attachment.
+
+```tsx
+import { ComposerAttachment } from "@assistant-ui/react";
+
+const MyComposerAttachment: FC = () => {
+  return (
+    <ComposerAttachment.Root>
+      attachment
+      <ComposerAttachment.Remove />
+    </ComposerAttachment.Root>
+  );
+};
+```
+
+### ComposerAttachment.Root
+
+Contains all parts of the composer attachment.
+
+### ComposerAttachment.Remvoe
+
+Renders a remove attachment button.
+
 ## AssistantMessage
 
 Renders an assistant message.
@@ -382,6 +415,7 @@ import { UserMessage } from "@assistant-ui/react";
 const MyUserMessage: FC = () => {
   return (
     <UserMessage.Root>
+      <UserMessage.Attachments />
       <UserMessage.Content />
       <UserActionBar />
       <BranchPicker />
@@ -409,6 +443,10 @@ Contains all parts of the user message.
 ### UserMessage.Content
 
 The content of the user message.
+
+### UserMessage.Attachments
+
+Renders attachments.
 
 ## UserActionBar
 
@@ -445,6 +483,22 @@ Contains all parts of the user action bar.
 ### UserActionBar.Edit
 
 Shows an edit button.
+
+## UserAttachment
+
+Renders an attachment.
+
+```tsx
+import { UserAttachment } from "@assistant-ui/react";
+
+const MyUserAttachment: FC = () => {
+  return <UserAttachment.Root>attachment</UserAttachment.Root>;
+};
+```
+
+### UserAttachment.Root
+
+Contains all parts of the user attachment.
 
 ## EditComposer
 
