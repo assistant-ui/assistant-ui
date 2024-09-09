@@ -8,28 +8,33 @@ import {
 } from "../stores/Attachment";
 
 export type AttachmentContextValue = {
+  type: "composer" | "message";
   useAttachment: ReadonlyStore<
     ComposerAttachmentState | MessageAttachmentState
   >;
-} & (
-  | {
-      type: "composer";
-      useAttachment: ReadonlyStore<ComposerAttachmentState>;
-    }
-  | {
-      type: "message";
-      useAttachment: ReadonlyStore<MessageAttachmentState>;
-    }
-);
+};
+
+type ComposerAttachmentContextValue = {
+  type: "composer";
+  useAttachment: ReadonlyStore<ComposerAttachmentState>;
+};
+
+type MessageAttachmentContextValue = {
+  type: "message";
+  useAttachment: ReadonlyStore<MessageAttachmentState>;
+};
 
 export const AttachmentContext = createContext<AttachmentContextValue | null>(
   null,
 );
 
 export function useAttachmentContext(): AttachmentContextValue;
-export function useAttachmentContext<
-  TType extends AttachmentContextValue["type"],
->(options: { type: TType }): AttachmentContextValue & { type: TType };
+export function useAttachmentContext(options: {
+  type: "composer";
+}): ComposerAttachmentContextValue;
+export function useAttachmentContext(options: {
+  type: "message";
+}): MessageAttachmentContextValue;
 export function useAttachmentContext(options: {
   optional: true;
 }): AttachmentContextValue | null;
