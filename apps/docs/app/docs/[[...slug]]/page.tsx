@@ -40,12 +40,12 @@ export default async function Page({
 
   return (
     <DocsPage
-      toc={(page.data as any).exports.toc}
-      full={(page.data as any).full}
+      toc={page.data.toc}
+      full={page.data.full ?? false}
       tableOfContent={{ footer }}
     >
       <DocsBody>
-        <h1>{(page.data as any).title}</h1>
+        <h1>{page.data.title}</h1>
         <page.data.body components={defaultMdxComponents} />
       </DocsBody>
     </DocsPage>
@@ -66,7 +66,7 @@ export function generateMetadata({ params }: { params: { slug?: string[] } }) {
   if (page == null) notFound();
 
   return {
-    title: (page.data as any).title,
-    description: (page.data as any).description,
+    title: page.data.title,
+    description: page.data.description ?? null,
   } satisfies Metadata;
 }
