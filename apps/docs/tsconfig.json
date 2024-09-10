@@ -3,6 +3,7 @@
   "compilerOptions": {
     "target": "ES6",
     "incremental": true,
+    "exactOptionalPropertyTypes": false,
     "plugins": [
       {
         "name": "next"

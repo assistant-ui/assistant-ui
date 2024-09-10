@@ -1,4 +1,4 @@
-import { CoreUserContentPart } from "../../types";
+import { CoreUserContentPart } from "../../types/AssistantTypes";
 
 export type BaseAttachment = {
   id: string;

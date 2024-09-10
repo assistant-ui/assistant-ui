@@ -38,9 +38,11 @@ export function runResultStream() {
           controller.enqueue(message);
           break;
         }
-        case "tool-call": {
+
+        case "tool-call":
+        case "response-metadata":
           break;
-        }
+
         case "tool-result": {
           message = appendOrUpdateToolResult(
             message,

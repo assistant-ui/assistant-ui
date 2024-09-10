@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { EditIcon } from "lucide-react";
+import defaultMdxComponents from "fumadocs-ui/mdx";
 
 export default async function Page({
   params,
@@ -37,8 +38,6 @@ export default async function Page({
     </a>
   );
 
-  const MDX = (page.data as any).exports.default;
-
   return (
     <DocsPage
       toc={(page.data as any).exports.toc}
@@ -47,7 +46,7 @@ export default async function Page({
     >
       <DocsBody>
         <h1>{(page.data as any).title}</h1>
-        <MDX />
+        <page.data.body components={defaultMdxComponents} />
       </DocsBody>
     </DocsPage>
   );

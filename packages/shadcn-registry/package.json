@@ -14,13 +14,13 @@
     "@radix-ui/react-popover": "^1.1.1",
     "@radix-ui/react-slot": "^1.1.0",
     "@radix-ui/react-tooltip": "^1.1.2",
-    "@types/node": "^22.5.2",
+    "@types/node": "^22.5.4",
     "@types/react": "^18",
     "@types/react-syntax-highlighter": "^15.5.13",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "eslint": "^8",
-    "lucide-react": "^0.438.0",
+    "lucide-react": "^0.439.0",
     "react": "^18.3.1",
     "react-resizable-panels": "^2.1.2",
     "react-syntax-highlighter": "^15.5.0",
@@ -32,7 +32,7 @@
     "tailwindcss": "^3.4.10",
     "tailwindcss-animate": "^1.0.7",
     "tsx": "^4.19.0",
-    "typescript": "^5.5.4"
+    "typescript": "^5.6.2"
   },
   "scripts": {
     "build:registry": "tsx ./scripts/build-registry.ts"

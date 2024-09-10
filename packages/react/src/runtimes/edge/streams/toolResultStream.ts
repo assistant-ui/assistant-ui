@@ -89,6 +89,7 @@ export function toolResultStream(
         case "tool-result":
         case "finish":
         case "error":
+        case "response-metadata":
           break;
 
         default: {

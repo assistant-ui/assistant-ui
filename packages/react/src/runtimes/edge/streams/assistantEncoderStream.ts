@@ -42,6 +42,7 @@ export function assistantEncoderStream() {
 
         // ignore
         case "tool-call":
+        case "response-metadata":
           break;
 
         case "tool-result": {

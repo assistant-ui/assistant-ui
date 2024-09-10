@@ -3,8 +3,8 @@ import Link from "next/link";
 import { blog, BlogPage } from "@/app/source";
 import { buttonVariants } from "@/components/ui/button";
 import Image from "next/image";
-
 import profilePic from "../../../../components/testimonials/profiles/Mc0m3zkD_400x400.jpg";
+import defaultMdxComponents from "fumadocs-ui/mdx";
 
 interface Param {
   slug: string;
@@ -19,8 +19,6 @@ export default function Page({
 
   if (!page) notFound();
 
-  const MDX = (page.data as any).exports.default;
-
   return (
     <main className="px-4">
       <div className="mx-auto flex w-full max-w-screen-xl items-center justify-between py-4">
@@ -30,13 +28,15 @@ export default function Page({
         >
           Back
         </Link>
-        <p className="text-xs text-gray-500">
-          {(page.data.date as Date).toLocaleString("en-US", {
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-          })}
-        </p>
+        {!!page.data.date && (
+          <p className="text-xs text-gray-500">
+            {(page.data.date as Date).toLocaleString("en-US", {
+              year: "numeric",
+              month: "2-digit",
+              day: "2-digit",
+            })}
+          </p>
+        )}
       </div>
       <div
         className="mx-auto w-full max-w-screen-xl rounded-xl border py-12 md:px-8"
@@ -60,7 +60,7 @@ export default function Page({
         </div>
       </div>
       <article className="prose lg:prose-lg mx-auto w-full max-w-screen-sm py-8">
-        <MDX />
+        <page.data.body components={defaultMdxComponents} />
       </article>
       <div className="mx-auto mb-20 flex w-full max-w-screen-sm items-start gap-3">
         <Image
