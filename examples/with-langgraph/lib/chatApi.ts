@@ -59,7 +59,7 @@ export const sendMessage = async (params: {
 
   return client.runs.stream(
     params.threadId,
-    process.env["NEXT_PUBLIC_LANGGRAPH_GRAPH_ID"] as string,
+    process.env["NEXT_PUBLIC_LANGGRAPH_GRAPH_ID"]!,
     {
       input,
       config,

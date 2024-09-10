@@ -4,7 +4,7 @@ import { blog, BlogPage } from "@/app/source";
 import { buttonVariants } from "@/components/ui/button";
 import Image from "next/image";
 import profilePic from "../../../../components/testimonials/profiles/Mc0m3zkD_400x400.jpg";
-import defaultMdxComponents from "fumadocs-ui/mdx";
+import { useMDXComponents } from "@/mdx-components";
 
 interface Param {
   slug: string;
@@ -16,6 +16,7 @@ export default function Page({
   params: Param;
 }): React.ReactElement {
   const page = blog.getPage([params.slug]) as BlogPage;
+  const mdxComponents = useMDXComponents({});
 
   if (!page) notFound();
 
@@ -60,7 +61,7 @@ export default function Page({
         </div>
       </div>
       <article className="prose lg:prose-lg mx-auto w-full max-w-screen-sm py-8">
-        <page.data.body components={defaultMdxComponents} />
+        <page.data.body components={mdxComponents} />
       </article>
       <div className="mx-auto mb-20 flex w-full max-w-screen-sm items-start gap-3">
         <Image

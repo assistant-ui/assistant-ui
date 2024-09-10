@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { EditIcon } from "lucide-react";
-import defaultMdxComponents from "fumadocs-ui/mdx";
+import { useMDXComponents } from "@/mdx-components";
 
 export default async function Page({
   params,
@@ -13,6 +13,7 @@ export default async function Page({
   params: { slug?: string[] };
 }) {
   const page = getPage(params.slug ?? []);
+  const mdxComponents = useMDXComponents({});
 
   if (page == null) {
     notFound();
@@ -46,7 +47,7 @@ export default async function Page({
     >
       <DocsBody>
         <h1>{page.data.title}</h1>
-        <page.data.body components={defaultMdxComponents} />
+        <page.data.body components={mdxComponents} />
       </DocsBody>
     </DocsPage>
   );
