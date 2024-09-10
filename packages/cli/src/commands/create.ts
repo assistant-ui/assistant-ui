@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import chalk from "chalk";
-import { spawn } from "child_process";
+import { spawn } from "cross-spawn";
 
 export const create = new Command()
   .name("create")

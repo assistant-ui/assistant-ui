@@ -8,7 +8,6 @@
   "baseBranch": "main",
   "updateInternalDependencies": "minor",
   "ignore": [
-    "assistant-ui",
     "@assistant-ui/docs",
     "@assistant-ui/shadcn-registry",
     "search-agent-for-e-commerce",
