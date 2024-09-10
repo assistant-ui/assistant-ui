@@ -89,6 +89,9 @@ const useMessageContext = (messageIndex: number) => {
             "Tried to edit a non-user message. Editing is only supported for user messages. This is likely an internal bug in assistant-ui.",
           );
 
+        const previousText = getThreadMessageText(message);
+        if (previousText === text) return;
+
         const nonTextParts = message.content.filter(
           (part): part is CoreUserContentPart =>
             part.type !== "text" && part.type !== "ui",
