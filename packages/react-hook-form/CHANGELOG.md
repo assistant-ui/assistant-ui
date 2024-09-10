@@ -1,5 +1,13 @@
 # @assistant-ui/react-hook-form
 
+## 0.4.7
+
+### Patch Changes
+
+- 04f6fc8: chore: update deps
+- Updated dependencies [04f6fc8]
+  - @assistant-ui/react@0.5.50
+
 ## 0.4.6
 
 ### Patch Changes
