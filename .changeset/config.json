@@ -7,18 +7,5 @@
   "access": "public",
   "baseBranch": "main",
   "privatePackages": { "version": false },
-  "updateInternalDependencies": "minor",
-  "ignore": [
-    "@assistant-ui/docs",
-    "@assistant-ui/shadcn-registry",
-    "search-agent-for-e-commerce",
-    "with-inline-suggestions",
-    "with-react-hook-form",
-    "with-playground",
-    "with-openai-assistants",
-    "with-vercel-ai-rsc",
-    "with-external-store",
-    "with-langgraph",
-    "with-ffmpeg"
-  ]
+  "updateInternalDependencies": "minor"
 }
