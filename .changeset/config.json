@@ -6,6 +6,7 @@
   "linked": [],
   "access": "public",
   "baseBranch": "main",
+  "privatePackages": { "version": false },
   "updateInternalDependencies": "minor",
   "ignore": [
     "@assistant-ui/docs",
