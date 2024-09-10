@@ -1,10 +1,10 @@
 ---
-title: LangChain LangGraph
+title: LangGraph Cloud
 ---
 
 ## Overview
 
-Integration with LangChain's LangGraph server.
+Integration with LangChain's LangGraph Cloud server.
 
 ## Requirements
 
@@ -92,7 +92,7 @@ export const sendMessage = async (params: {
 
 import { useRef } from "react";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
-import { useLangChainLangGraphRuntime } from "@assistant-ui/react-langgraph";
+import { useLangGraphRuntime } from "@assistant-ui/react-langgraph";
 import { createThread, sendMessage } from "@/lib/chatApi";
 
 export function MyRuntimeProvider({
@@ -101,7 +101,7 @@ export function MyRuntimeProvider({
   children: React.ReactNode;
 }>) {
   const threadIdRef = useRef<string | undefined>();
-  const assistant = useLangChainLangGraphRuntime({
+  const assistant = useLangGraphRuntime({
     threadId: threadIdRef.current,
     stream: async (message) => {
       if (!threadIdRef.current) {

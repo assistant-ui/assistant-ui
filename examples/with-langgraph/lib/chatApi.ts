@@ -41,11 +41,7 @@ export const updateState = async (
 
 export const sendMessage = async (params: {
   threadId: string;
-  assistantId: string;
   message: LangChainMessage | null;
-  model: string;
-  userId: string;
-  systemInstructions: string;
 }) => {
   const client = createClient();
 
@@ -53,19 +49,21 @@ export const sendMessage = async (params: {
   if (params.message !== null) {
     input = {
       messages: [params.message],
-      userId: params.userId,
     };
   }
   const config = {
     configurable: {
-      model_name: params.model,
-      system_instructions: params.systemInstructions,
+      model_name: "openai",
     },
   };
 
-  return client.runs.stream(params.threadId, params.assistantId, {
-    input,
-    config,
-    streamMode: "messages",
-  });
+  return client.runs.stream(
+    params.threadId,
+    process.env["NEXT_PUBLIC_LANGGRAPH_GRAPH_ID"] as string,
+    {
+      input,
+      config,
+      streamMode: "messages",
+    },
+  );
 };

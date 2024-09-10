@@ -8,7 +8,7 @@ import { convertLangchainMessages } from "./convertLangchainMessages";
 import { useLangGraphMessages } from "./useLangGraphMessages";
 import { ExternalStoreRuntime } from "@assistant-ui/react";
 
-export const useLangChainLangGraphRuntime = ({
+export const useLangGraphRuntime = ({
   threadId,
   stream,
 }: {
