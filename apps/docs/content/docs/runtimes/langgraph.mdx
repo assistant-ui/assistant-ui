@@ -16,15 +16,29 @@ import { Steps, Step } from "fumadocs-ui/components/steps";
 
 <Steps>
   <Step>
-  ### Create a new assistant-ui project
+  ### Create a new project based on te LangGraph assistant-ui template
 
 ```sh
-npx assistant-ui@latest create my-app
+npx assistant-ui@latest create -t langgraph my-app
 ```
 
-You can delete `/app/api/chat/route.ts` from the template, as it is not needed for this example.
+  </Step>
+  <Step>
+  ### Set environment variables
+
+Create a `.env.local` file in your project with the following variables:
+
+```sh
+NEXT_PUBLIC_LANGGRAPH_API_URL=your_api_url
+NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID=your_graph_id
+```
 
   </Step>
+</Steps>
+
+## Installation in existing React project
+
+<Steps>
   <Step>
 
 ### Install dependencies
@@ -52,7 +66,9 @@ import { Client } from "@langchain/langgraph-sdk";
 import { LangChainMessage } from "@assistant-ui/react-langgraph";
 
 const createClient = () => {
-  const apiUrl = "https://localhost:8123/api";
+  const apiUrl =
+    process.env["NEXT_PUBLIC_LANGGRAPH_API_URL"] ||
+    "https://localhost:8123/api";
   return new Client({
     apiUrl,
   });
@@ -65,16 +81,19 @@ export const createThread = async () => {
 
 export const sendMessage = async (params: {
   threadId: string;
-  assistantId: string;
   message: LangChainMessage;
 }) => {
   const client = createClient();
-  return client.runs.stream(params.threadId, params.assistantId, {
-    input: {
-      messages: [params.message],
+  return client.runs.stream(
+    params.threadId,
+    process.env["NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID"]!,
+    {
+      input: {
+        messages: [params.message],
+      },
+      streamMode: "messages",
     },
-    streamMode: "messages",
-  });
+  );
 };
 ```
 
@@ -101,7 +120,7 @@ export function MyRuntimeProvider({
   children: React.ReactNode;
 }>) {
   const threadIdRef = useRef<string | undefined>();
-  const assistant = useLangGraphRuntime({
+  const runtime = useLangGraphRuntime({
     threadId: threadIdRef.current,
     stream: async (message) => {
       if (!threadIdRef.current) {
@@ -111,7 +130,6 @@ export function MyRuntimeProvider({
       const threadId = threadIdRef.current;
       return sendMessage({
         threadId,
-        assistantId: process.env["NEXT_PUBLIC_LANGGRAPH_GRAPH_ID"]!,
         message,
       });
     },
@@ -130,17 +148,16 @@ export function MyRuntimeProvider({
 
 ### Wrap your app in `MyRuntimeProvider`
 
-```tsx twoslash title="@/app/layout.tsx" {1,11,17}
+```tsx twoslash title="@/app/layout.tsx" {1,9,13}
 // @include: MyRuntimeProvider
 // @filename: /app/layout.tsx
 // ---cut---
+import { ReactNode } from "react";
 import { MyRuntimeProvider } from "@/app/MyRuntimeProvider";
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: ReactNode }>) {
   return (
     <MyRuntimeProvider>
       <html lang="en">
@@ -150,6 +167,25 @@ export default function RootLayout({
   );
 }
 ```
+
+  </Step>
+  <Step>
+
+### Setup environment variables
+
+Create a `.env.local` file in your project with the following variables:
+
+```sh
+NEXT_PUBLIC_LANGGRAPH_API_URL=your_api_url
+NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID=your_graph_id
+```
+
+  </Step>
+  <Step>
+
+### Setup UI components
+
+Follow the [UI Components](/docs/ui/styled/Thread) guide to setup the UI components.
 
   </Step>
 </Steps>

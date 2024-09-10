@@ -8,6 +8,13 @@ export const create = new Command()
   .argument("[project-directory]")
   .usage(`${chalk.green("[project-directory]")} [options]`)
   .option(
+    "-t, --template <template>",
+    `
+
+  The template to use for the project, e.g. default, langgraph
+`,
+  )
+  .option(
     "--use-npm",
     `
 
@@ -42,15 +49,22 @@ export const create = new Command()
   Explicitly tell the CLI to skip installing packages
 `,
   )
-  .action(() => {
+  .action((_, opts) => {
+    const templates = {
+      default: "https://github.com/Yonom/assistant-ui-starter",
+      langgraph: "https://github.com/Yonom/assistant-ui-starter-langgraph",
+    };
+
+    const templateUrl =
+      templates[(opts.template as keyof typeof templates) ?? "default"];
+    if (!templateUrl) {
+      console.error(`Unknown template: ${opts.template}`);
+      process.exit(1);
+    }
+
     const child = spawn(
       "npx",
-      [
-        `create-next-app@latest`,
-        ...process.argv.slice(3),
-        "-e",
-        "https://github.com/Yonom/assistant-ui-starter",
-      ],
+      [`create-next-app@latest`, ...process.argv.slice(3), "-e", templateUrl],
       {
         stdio: "inherit",
       },

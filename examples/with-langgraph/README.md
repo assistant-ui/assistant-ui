@@ -10,7 +10,7 @@ You need to set the following environment variables:
 
 ```env
 NEXT_PUBLIC_API_URL=https://stockbrokeragent-bracesprouls-projects.vercel.app/api
-NEXT_PUBLIC_LANGGRAPH_GRAPH_ID=stockbroker
+NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID=stockbroker
 ```
 
 To run the example, run the following commands:
