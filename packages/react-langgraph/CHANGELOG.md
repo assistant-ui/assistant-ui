@@ -1,5 +1,14 @@
 # @assistant-ui/react-langgraph
 
+## 0.0.3
+
+### Patch Changes
+
+- c1c0440: refactor: rename to useLangGraphRuntime
+- Updated dependencies [164e46c]
+- Updated dependencies [5eccae7]
+  - @assistant-ui/react@0.5.51
+
 ## 0.0.2
 
 ### Patch Changes

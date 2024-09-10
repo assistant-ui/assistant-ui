@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.5.51
+
+### Patch Changes
+
+- 164e46c: feat: ignore edits with text part unchanged
+- 5eccae7: fix: createActionButton disabled handling
+
 ## 0.5.50
 
 ### Patch Changes
