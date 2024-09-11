@@ -1,5 +1,11 @@
 # @assistant-ui/react-langgraph
 
+## 0.0.4
+
+### Patch Changes
+
+- 184d836: feat: allow multiple message sends to support pending tool call cancellations
+
 ## 0.0.3
 
 ### Patch Changes
