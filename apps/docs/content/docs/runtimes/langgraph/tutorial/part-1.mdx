@@ -1,0 +1,131 @@
+---
+title: "Part 1: Setup frontend"
+---
+
+## Create a new project
+
+Run the following command to create a new Next.js project with the LangGraph assistant-ui template:
+
+```sh
+npx create-next-app@latest -t langgraph my-app
+cd my-app
+```
+
+You should see the following files in your project:
+
+import { File, Folder, Files } from "fumadocs-ui/components/files";
+
+<Files>
+  <Folder name="my-app" defaultOpen>
+    <Folder name="app" defaultOpen>
+      <Folder name="api" defaultOpen>
+        <Folder name="[...path]" defaultOpen>
+          <File name="route.ts" />
+        </Folder>
+      </Folder>
+      <File name="globals.css" />
+      <File name="layout.tsx" />
+      <File name="MyRuntimeProvider.tsx" />
+      <File name="page.tsx" />
+    </Folder>
+    <Folder name="lib">
+      <File name="chatApi.ts" />
+    </Folder>
+    <File name="next.config.mjs" />
+    <File name="package.json" />
+    <File name="postcss.config.mjs" />
+    <File name="tailwind.config.ts" />
+    <File name="tsconfig.json" />
+  </Folder>
+</Files>
+
+### Setup environment variables
+
+Create a `.env.local` file in your project with the following variables:
+
+```sh title="@/.env.local"
+LANGGRAPH_API_URL=https://assistant-ui-stockbroker.vercel.app/api
+NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID=stockbroker
+```
+
+This connects the frontend to a LangGraph Cloud endpoint running under  
+`https://assistant-ui-stockbroker.vercel.app/api`.  
+This endpoint is running the LangGraph agent defined [in this repository](https://github.com/Yonom/assistant-ui-stockbroker/blob/main/backend).
+
+### Start the server
+
+You can start the server by running the following command:
+
+```sh
+npm run dev
+```
+
+The server will start and you can view the frontend by opening a browser tab to http://localhost:3000.
+
+You should be able to chat with the assistant and see LLM responses streaming in real-time.
+
+## Explore features
+
+### Streaming
+
+Streaming message support is enabled by default. Tokens are streamed in real-time as the LLM generates them.
+
+### Markdown support
+
+Rich text rendering using Markdown is enabled by default. You can view `/app/page.tsx` to see how this is implemented. The `makeMarkdownText` function accepts a configuration object to customize the markdown parser.
+
+```tsx title="@/app/page.tsx" {4,6,11}
+"use client";
+
+import { Thread } from "@assistant-ui/react";
+import { makeMarkdownText } from "@assistant-ui/react-markdown";
+
+const MarkdownText = makeMarkdownText();
+
+export default function Home() {
+  return (
+    <main className="h-full">
+      <Thread assistantMessage={{ components: { Text: MarkdownText } }} />
+    </main>
+  );
+}
+```
+
+## Add conversation starter messages
+
+In order to help users understand what the assistant can do, we can add some conversation starter messages.
+
+import Image from "next/image";
+import starter from "./images/conversation-starters.png";
+
+<Image
+  src={starter}
+  alt="Conversation starters"
+  width={600}
+  className="mx-auto rounded-lg border shadow"
+/>
+
+```tsx title="@/app/page.tsx" {5-17}
+export default function Home() {
+  return (
+    <div className="flex h-full flex-col">
+      <Thread
+        welcome={{
+          suggestions: [
+            {
+              prompt: "How much revenue did Apple make last year?",
+            },
+            {
+              prompt: "Is McDonald's profitable?",
+            },
+            {
+              prompt: "What's the current stock price of Tesla?",
+            },
+          ],
+        }}
+        assistantMessage={{ components: { Text: MarkdownText } }}
+      />
+    </div>
+  );
+}
+```

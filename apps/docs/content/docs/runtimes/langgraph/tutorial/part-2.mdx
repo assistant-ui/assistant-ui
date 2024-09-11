@@ -1,0 +1,332 @@
+---
+title: "Part 2: Generative UI"
+---
+
+In the previous step, we set up the frontend to connect to a LangGraph Cloud endpoint.
+
+In this step, we will set up a component to display stock ticker information.
+
+import Image from "next/image";
+import price from "./images/acme-price.png";
+
+<Image
+  src={price}
+  alt="Price snapshot"
+  width={600}
+  className="mx-auto rounded-lg border shadow"
+/>
+
+For reference, this the corresponding code in the backend:
+
+https://github.com/Yonom/assistant-ui-stockbroker/blob/main/backend/src/tools.ts#L193C1-L216C3
+
+```ts title="assistant-ui-stockbroker/backend/tools/PriceSnapshotTool.ts"
+export const priceSnapshotTool = tool(
+  async (input) => {
+    const data = await callFinancialDatasetAPI<SnapshotResponse>({
+      endpoint: "/prices/snapshot",
+      params: {
+        ticker: input.ticker,
+      },
+    });
+    return JSON.stringify(data, null);
+  },
+  {
+    name: "price_snapshot",
+    description:
+      "Retrieves the current stock price and related market data for a given company.",
+    schema: z.object({
+      ticker: z.string().describe("The ticker of the company. Example: 'AAPL'"),
+    }),
+  },
+);
+```
+
+## PriceSnapshotTool
+
+We create a new file under `/components/tools/price-snapshot/PriceSnapshotTool.tsx` to define the tool.
+
+First, we define the tool arguments and result types:
+
+```ts title="@/components/tools/price-snapshot/PriceSnapshotTool.tsx"
+type PriceSnapshotToolArgs = {
+  ticker: string;
+};
+
+type PriceSnapshotToolResult = {
+  snapshot: {
+    price: number;
+    day_change: number;
+    day_change_percent: number;
+    time: string;
+  };
+};
+```
+
+Then, we use `makeAssistantToolUI` to define the tool UI:
+
+```tsx title="@/components/tools/price-snapshot/PriceSnapshotTool.tsx"
+"use client";
+
+import { makeAssistantToolUI } from "@assistant-ui/react";
+
+export const PriceSnapshotTool = makeAssistantToolUI<
+  PriceSnapshotToolArgs,
+  string
+>({
+  toolName: "price_snapshot",
+  render: function PriceSnapshotUI({ part: { args, result } }) {
+    return (
+      <div className="mb-4 flex flex-col items-center">
+        <pre className="whitespace-pre-wrap break-all text-center">
+          price_snapshot({JSON.stringify(args)})
+        </pre>
+      </div>
+    );
+  },
+});
+```
+
+This simply displays the tool name and arguments passed to it, but not the result.
+
+### Bind tool UI
+
+```tsx title="@/app/page.tsx" {1,8}
+import { PriceSnapshotTool } from "@/components/tools/price-snapshot/PriceSnapshotTool";
+
+export default function Home() {
+  return (
+    <div className="flex h-full flex-col">
+      <Thread
+        ...
+        tools={[PriceSnapshotTool]}
+      />
+    </div>
+  );
+}
+```
+
+### Try it out!
+
+Ask the assistant for the current stock price of Tesla. You should see the following text appear:
+
+```
+price_snapshot({ticker: "TSLA"})
+```
+
+Next, we will visualize the function's result.
+
+## Visualizing tool results
+
+### Install dependencies
+
+The tool result component relies on shadcn-ui's `Card` component. We will install it as a dependency.
+
+```sh
+npx shadcn@latest add card
+```
+
+You will be prompted to setup a `components.json` file, after this step, a `card` UI component will be installed in your project.
+
+### Add `PriceSnapshot`
+
+We create a new file under `/components/tools/price-snapshot/price-snapshot.tsx` to define the new tool result UI.
+
+```tsx title="@/components/tools/price-snapshot/price-snapshot.tsx"
+"use client";
+
+import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+type PriceSnapshotToolArgs = {
+  ticker: string;
+};
+
+type PriceSnapshotToolResult = {
+  price: number;
+  day_change: number;
+  day_change_percent: number;
+  time: string;
+};
+
+export function PriceSnapshot({
+  ticker,
+  price,
+  day_change,
+  day_change_percent,
+  time,
+}: PriceSnapshotToolArgs & PriceSnapshotToolResult) {
+  const isPositiveChange = day_change >= 0;
+  const changeColor = isPositiveChange ? "text-green-600" : "text-red-600";
+  const ArrowIcon = isPositiveChange ? ArrowUpIcon : ArrowDownIcon;
+
+  return (
+    <Card className="mx-auto w-full max-w-md">
+      <CardHeader>
+        <CardTitle className="text-2xl font-bold">{ticker}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="col-span-2">
+            <p className="text-3xl font-semibold">${price?.toFixed(2)}</p>
+          </div>
+          <div>
+            <p className="text-muted-foreground text-sm">Day Change</p>
+            <p
+              className={`flex items-center text-lg font-medium ${changeColor}`}
+            >
+              <ArrowIcon className="mr-1 h-4 w-4" />$
+              {Math.abs(day_change)?.toFixed(2)} (
+              {Math.abs(day_change_percent)?.toFixed(2)}%)
+            </p>
+          </div>
+          <div>
+            <p className="text-muted-foreground text-sm">Last Updated</p>
+            <p className="text-lg font-medium">
+              {new Date(time).toLocaleTimeString()}
+            </p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+```
+
+### Update `PriceSnapshotTool`
+
+We will import the new `<PriceSnapshot />` component and use it in the `render` function whenever a tool result is available.
+
+```tsx title="@/components/tools/price-snapshot/PriceSnapshotTool.tsx" {3,25-30,37-42}
+"use client";
+
+import { PriceSnapshot } from "./price-snapshot";
+import { makeAssistantToolUI } from "@assistant-ui/react";
+
+type PriceSnapshotToolArgs = {
+  ticker: string;
+};
+
+type PriceSnapshotToolResult = {
+  snapshot: {
+    price: number;
+    day_change: number;
+    day_change_percent: number;
+    time: string;
+  };
+};
+
+export const PriceSnapshotTool = makeAssistantToolUI<
+  PriceSnapshotToolArgs,
+  string
+>({
+  toolName: "price_snapshot",
+  render: function PriceSnapshotUI({ part: { args, result } }) {
+    let resultObj: PriceSnapshotToolResult | { error: string };
+    try {
+      resultObj = result ? JSON.parse(result) : {};
+    } catch (e) {
+      resultObj = { error: result! };
+    }
+
+    return (
+      <div className="mb-4 flex flex-col items-center gap-2">
+        <pre className="whitespace-pre-wrap break-all text-center">
+          price_snapshot({JSON.stringify(args)})
+        </pre>
+        {"snapshot" in resultObj && (
+          <PriceSnapshot ticker={args.ticker} {...resultObj.snapshot} />
+        )}
+        {"error" in resultObj && (
+          <p className="text-red-500">{resultObj.error}</p>
+        )}
+      </div>
+    );
+  },
+});
+```
+
+### Try it out!
+
+Ask the assistant for the current stock price of Tesla. You should see the tool result appear:
+
+import price2 from "./images/tsla-price.png";
+
+<Image
+  src={price2}
+  alt="Price snapshot result"
+  width={600}
+  className="mx-auto rounded-lg border shadow"
+/>
+
+## Fallback tool UI
+
+Instead of defining a custom tool UI for every tool, we can also define a fallback UI for all tools that are not explicitly defined.
+
+This requires shadcn-ui's `Button` component. We will install it as a dependency.
+
+```sh
+npx shadcn@latest add button
+```
+
+Then create a new file under `/components/tools/ToolFallback.tsx` to define the fallback UI.
+
+```tsx title="@/components/tools/ToolFallback.tsx"
+import { ToolCallContentPartComponent } from "@assistant-ui/react";
+import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
+import { useState } from "react";
+import { Button } from "../ui/button";
+
+export const ToolFallback: ToolCallContentPartComponent = ({ part }) => {
+  const [isCollapsed, setIsCollapsed] = useState(true);
+  return (
+    <div className="mb-4 flex w-full flex-col gap-3 rounded-lg border py-3">
+      <div className="flex items-center gap-2 px-4">
+        <CheckIcon className="size-4" />
+        <p className="">
+          Used tool: <b>{part.toolName}</b>
+        </p>
+        <div className="flex-grow" />
+        <Button onClick={() => setIsCollapsed(!isCollapsed)}>
+          {isCollapsed ? <ChevronUpIcon /> : <ChevronDownIcon />}
+        </Button>
+      </div>
+      {!isCollapsed && (
+        <div className="flex flex-col gap-2 border-t pt-2">
+          <div className="px-4">
+            <pre className="whitespace-pre-wrap">{part.argsText}</pre>
+          </div>
+          {part.result !== undefined && (
+            <div className="border-t border-dashed px-4 pt-2">
+              <p className="font-semibold">Result:</p>
+              <pre className="whitespace-pre-wrap">
+                {typeof part.result === "string"
+                  ? part.result
+                  : JSON.stringify(part.result, null, 2)}
+              </pre>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+```
+
+### Bind fallback UI
+
+```tsx title="@/app/page.tsx" {1,8}
+import { ToolFallback } from "@/components/tools/ToolFallback";
+
+export default function Home() {
+  return (
+    <div className="flex h-full flex-col">
+      <Thread
+        ...
+        assistantMessage={{ components: { Text: MarkdownText, ToolFallback } }}
+      />
+    </div>
+  );
+}
+```
