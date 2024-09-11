@@ -1,5 +1,11 @@
 # @assistant-ui/react-langgraph
 
+## 0.0.5
+
+### Patch Changes
+
+- 934758b: feat: automatically cancel tool calls if user sends a new message
+
 ## 0.0.4
 
 ### Patch Changes
