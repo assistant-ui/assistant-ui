@@ -81,7 +81,7 @@ export const createThread = async () => {
 
 export const sendMessage = async (params: {
   threadId: string;
-  message: LangChainMessage;
+  messages: LangChainMessage;
 }) => {
   const client = createClient();
   return client.runs.stream(
@@ -89,7 +89,7 @@ export const sendMessage = async (params: {
     process.env["NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID"]!,
     {
       input: {
-        messages: [params.message],
+        messages: params.messages,
       },
       streamMode: "messages",
     },
@@ -122,7 +122,7 @@ export function MyRuntimeProvider({
   const threadIdRef = useRef<string | undefined>();
   const runtime = useLangGraphRuntime({
     threadId: threadIdRef.current,
-    stream: async (message) => {
+    stream: async (messages) => {
       if (!threadIdRef.current) {
         const { thread_id } = await createThread();
         threadIdRef.current = thread_id;
@@ -130,7 +130,7 @@ export function MyRuntimeProvider({
       const threadId = threadIdRef.current;
       return sendMessage({
         threadId,
-        message,
+        messages,
       });
     },
   });

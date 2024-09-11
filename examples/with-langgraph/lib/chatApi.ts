@@ -41,16 +41,13 @@ export const updateState = async (
 
 export const sendMessage = async (params: {
   threadId: string;
-  message: LangChainMessage | null;
+  messages: LangChainMessage[];
 }) => {
   const client = createClient();
 
-  let input: Record<string, any> | null = null;
-  if (params.message !== null) {
-    input = {
-      messages: [params.message],
-    };
-  }
+  let input: Record<string, any> | null = {
+    messages: params.messages,
+  };
   const config = {
     configurable: {
       model_name: "openai",
