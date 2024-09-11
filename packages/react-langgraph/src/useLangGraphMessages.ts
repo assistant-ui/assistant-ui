@@ -3,7 +3,7 @@ import { useState, useCallback } from "react";
 export const useLangGraphMessages = <TMessage>({
   stream,
 }: {
-  stream: (message: TMessage) => Promise<
+  stream: (messages: TMessage[]) => Promise<
     AsyncGenerator<{
       event: string;
       data: any;
@@ -13,12 +13,12 @@ export const useLangGraphMessages = <TMessage>({
   const [messages, setMessages] = useState<TMessage[]>([]);
 
   const sendMessage = useCallback(
-    async (message: TMessage) => {
-      if (message !== null) {
-        setMessages((currentMessages) => [...currentMessages, message]);
+    async (messages: TMessage[]) => {
+      if (messages.length > 0) {
+        setMessages((currentMessages) => [...currentMessages, ...messages]);
       }
 
-      const response = await stream(message);
+      const response = await stream(messages);
 
       const completeMessages: TMessage[] = [];
       let partialMessages: Map<string, TMessage> = new Map();

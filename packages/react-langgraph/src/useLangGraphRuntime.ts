@@ -13,7 +13,7 @@ export const useLangGraphRuntime = ({
   stream,
 }: {
   threadId?: string | undefined;
-  stream: (message: LangChainMessage) => Promise<
+  stream: (messages: LangChainMessage[]) => Promise<
     AsyncGenerator<{
       event: string;
       data: any;
@@ -25,10 +25,10 @@ export const useLangGraphRuntime = ({
   });
 
   const [isRunning, setIsRunning] = useState(false);
-  const handleSendMessage = async (message: LangChainMessage) => {
+  const handleSendMessage = async (messages: LangChainMessage[]) => {
     try {
       setIsRunning(true);
-      await sendMessage(message);
+      await sendMessage(messages);
     } catch (error) {
       console.error("Error streaming messages:", error);
     } finally {
@@ -49,18 +49,22 @@ export const useLangGraphRuntime = ({
     onNew: (msg) => {
       if (msg.content.length !== 1 || msg.content[0]?.type !== "text")
         throw new Error("Only text messages are supported");
-      return handleSendMessage({
-        type: "human",
-        content: msg.content[0].text,
-      });
+      return handleSendMessage([
+        {
+          type: "human",
+          content: msg.content[0].text,
+        },
+      ]);
     },
     onAddToolResult: async ({ toolCallId, toolName, result }) => {
-      await handleSendMessage({
-        type: "tool",
-        name: toolName,
-        tool_call_id: toolCallId,
-        content: JSON.stringify(result),
-      });
+      await handleSendMessage([
+        {
+          type: "tool",
+          name: toolName,
+          tool_call_id: toolCallId,
+          content: JSON.stringify(result),
+        },
+      ]);
     },
   });
 };
