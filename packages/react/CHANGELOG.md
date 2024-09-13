@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.52
+
+### Patch Changes
+
+- c0f975a: feat: TextContentPartProvider
+
 ## 0.5.51
 
 ### Patch Changes
