@@ -52,8 +52,7 @@ npm install @assistant-ui/react @assistant-ui/react-langgraph @langchain/langgra
 
 <Callout type="warn">
   This example connects to the LangGraph server directly from the browser. For
-  production use-cases, you should use a proxy server to connect to the
-  LangGraph server in order to not expose your API key.
+  production use-cases, you should use a proxy server (see below).
 </Callout>
 
 ```tsx twoslash include chatApi title="@/lib/chatApi.ts"
@@ -64,9 +63,7 @@ import { Client } from "@langchain/langgraph-sdk";
 import { LangChainMessage } from "@assistant-ui/react-langgraph";
 
 const createClient = () => {
-  const apiUrl =
-    process.env["NEXT_PUBLIC_LANGGRAPH_API_URL"] ||
-    "https://localhost:8123/api";
+  const apiUrl = process.env["NEXT_PUBLIC_LANGGRAPH_API_URL"] || "/api";
   return new Client({
     apiUrl,
   });
@@ -92,6 +89,87 @@ export const sendMessage = async (params: {
       streamMode: "messages",
     },
   );
+};
+```
+
+  </Step>
+    <Step>
+
+### Setup a proxy backend endpoint (optional, for production)
+
+<Callout type="warn">
+  This example forwards every request to the LangGraph server directly from the
+  browser. For production use-cases, you should limit the API calls to the
+  subset of endpoints that you need and perform authorization checks.
+</Callout>
+
+```tsx twoslash title="@/api/api/[...path]/route.ts"
+import { NextRequest, NextResponse } from "next/server";
+
+export const runtime = "edge";
+
+function getCorsHeaders() {
+  return {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers": "*",
+  };
+}
+
+async function handleRequest(req: NextRequest, method: string) {
+  try {
+    const path = req.nextUrl.pathname.replace(/^\/?api\//, "");
+    const url = new URL(req.url);
+    const searchParams = new URLSearchParams(url.search);
+    searchParams.delete("_path");
+    searchParams.delete("nxtP_path");
+    const queryString = searchParams.toString()
+      ? `?${searchParams.toString()}`
+      : "";
+
+    const options: RequestInit = {
+      method,
+      headers: {
+        "x-api-key": process.env["LANGCHAIN_API_KEY"] || "",
+      },
+    };
+
+    if (["POST", "PUT", "PATCH"].includes(method)) {
+      options.body = await req.text();
+    }
+
+    const res = await fetch(
+      `${process.env["LANGGRAPH_API_URL"]}/${path}${queryString}`,
+      options,
+    );
+
+    return new NextResponse(res.body, {
+      status: res.status,
+      statusText: res.statusText,
+      headers: {
+        ...res.headers,
+        ...getCorsHeaders(),
+      },
+    });
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: e.status ?? 500 });
+  }
+}
+
+export const GET = (req: NextRequest) => handleRequest(req, "GET");
+export const POST = (req: NextRequest) => handleRequest(req, "POST");
+export const PUT = (req: NextRequest) => handleRequest(req, "PUT");
+export const PATCH = (req: NextRequest) => handleRequest(req, "PATCH");
+export const DELETE = (req: NextRequest) => handleRequest(req, "DELETE");
+
+// Add a new OPTIONS handler
+export const OPTIONS = () => {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      ...getCorsHeaders(),
+    },
+  });
 };
 ```
 
@@ -174,7 +252,9 @@ export default function RootLayout({
 Create a `.env.local` file in your project with the following variables:
 
 ```sh
-NEXT_PUBLIC_LANGGRAPH_API_URL=your_api_url
+# LANGCHAIN_API_KEY=your_api_key # for production
+# LANGGRAPH_API_URL=your_api_url # for production
+NEXT_PUBLIC_LANGGRAPH_API_URL=your_api_url # for development (no api key required)
 NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID=your_graph_id
 ```
 
