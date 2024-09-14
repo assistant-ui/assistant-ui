@@ -3,11 +3,10 @@ import { generateId } from "../../internal";
 import type {
   ModelConfigProvider,
   AppendMessage,
-  ThreadUserMessage,
   ThreadAssistantMessage,
   Unsubscribe,
 } from "../../types";
-import { fromCoreMessages } from "../edge";
+import { fromCoreMessage, fromCoreMessages } from "../edge";
 import {
   ExportedMessageRepository,
   MessageRepository,
@@ -102,24 +101,17 @@ export class LocalThreadRuntime implements ThreadRuntime {
   }
 
   public async append(message: AppendMessage): Promise<void> {
-    // TODO add support for assistant appends
-    if (message.role !== "user")
-      throw new Error(
-        "Only appending user messages are supported in LocalRuntime. This is likely an internal bug in assistant-ui.",
-      );
+    const newMessage = fromCoreMessage(message, {
+      attachments: message.attachments,
+    });
+    this.repository.addOrUpdateMessage(message.parentId, newMessage);
 
-    // add user message
-    const userMessageId = generateId();
-    const userMessage: ThreadUserMessage = {
-      id: userMessageId,
-      role: "user",
-      content: message.content,
-      attachments: message.attachments ?? [],
-      createdAt: new Date(),
-    };
-    this.repository.addOrUpdateMessage(message.parentId, userMessage);
-
-    await this.startRun(userMessageId);
+    if (message.role === "user") {
+      await this.startRun(newMessage.id);
+    } else {
+      this.repository.resetHead(newMessage.id);
+      this.notifySubscribers();
+    }
   }
 
   public async startRun(parentId: string | null): Promise<void> {

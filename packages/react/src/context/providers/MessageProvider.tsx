@@ -73,22 +73,12 @@ const useMessageContext = (messageIndex: number) => {
     const useEditComposer = makeEditComposerStore({
       onEdit: () => {
         const message = useMessage.getState().message;
-        if (message.role !== "user")
-          throw new Error(
-            "Tried to edit a non-user message. Editing is only supported for user messages. This is likely an internal bug in assistant-ui.",
-          );
-
         const text = getThreadMessageText(message);
 
         return text;
       },
       onSend: (text) => {
         const { message, parentId } = useMessage.getState();
-        if (message.role !== "user")
-          throw new Error(
-            "Tried to edit a non-user message. Editing is only supported for user messages. This is likely an internal bug in assistant-ui.",
-          );
-
         const previousText = getThreadMessageText(message);
         if (previousText === text) return;
 
@@ -96,11 +86,13 @@ const useMessageContext = (messageIndex: number) => {
           (part): part is CoreUserContentPart =>
             part.type !== "text" && part.type !== "ui",
         );
+
+        // TODO fix types here
         useThreadActions.getState().append({
           parentId,
-          role: "user",
-          content: [{ type: "text", text }, ...nonTextParts],
-          attachments: message.attachments,
+          role: message.role,
+          content: [{ type: "text", text }, ...nonTextParts] as any,
+          attachments: (message as any).attachments,
         });
       },
     });
