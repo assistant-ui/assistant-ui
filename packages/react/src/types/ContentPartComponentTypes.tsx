@@ -9,6 +9,11 @@ import type {
   UIContentPart,
 } from "./AssistantTypes";
 
+export type EmptyContentPartProps = {
+  status: ContentPartStatus;
+};
+export type EmptyContentPartComponent = ComponentType<EmptyContentPartProps>;
+
 export type TextContentPartProps = {
   part: TextContentPart;
   status: ContentPartStatus;

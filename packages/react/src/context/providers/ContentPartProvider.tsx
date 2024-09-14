@@ -67,6 +67,13 @@ const getContentPartState = (
     } else {
       return null;
     }
+  } else if (
+    message.content.length === 1 &&
+    part.type === "text" &&
+    part.text.length === 0
+  ) {
+    // ensure reference equality for equivalent empty text parts
+    part = EMPTY_CONTENT;
   }
 
   // if the content part is the same, don't update

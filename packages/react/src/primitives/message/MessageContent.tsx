@@ -15,6 +15,7 @@ import { ContentPartPrimitiveText } from "../contentPart/ContentPartText";
 import { ContentPartPrimitiveImage } from "../contentPart/ContentPartImage";
 import { ContentPartPrimitiveDisplay } from "../contentPart/ContentPartDisplay";
 import type {
+  EmptyContentPartComponent,
   ImageContentPartComponent,
   TextContentPartComponent,
   ToolCallContentPartComponent,
@@ -26,7 +27,7 @@ import { ContentPartPrimitiveInProgress } from "../contentPart/ContentPartInProg
 export type MessagePrimitiveContentProps = {
   components?:
     | {
-        Empty?: TextContentPartComponent | undefined;
+        Empty?: EmptyContentPartComponent | undefined;
         Text?: TextContentPartComponent | undefined;
         Image?: ImageContentPartComponent | undefined;
         UI?: UIContentPartComponent | undefined;
@@ -92,7 +93,7 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
     case "text":
       if (status.type === "requires-action")
         throw new Error("Encountered unexpected requires-action status");
-      if (part === EMPTY_CONTENT) return <Empty part={part} status={status} />;
+      if (part === EMPTY_CONTENT) return <Empty status={status} />;
 
       return <Text part={part} status={status} />;
 

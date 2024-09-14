@@ -24,6 +24,8 @@ export type {
 } from "./AssistantTypes";
 
 export type {
+  EmptyContentPartProps,
+  EmptyContentPartComponent,
   TextContentPartProps,
   TextContentPartComponent,
   ImageContentPartProps,
