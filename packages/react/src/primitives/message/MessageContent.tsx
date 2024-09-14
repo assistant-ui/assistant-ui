@@ -74,8 +74,8 @@ type MessageContentPartComponentProps = {
 
 const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
   components: {
-    Empty = defaultComponents.Text,
     Text = defaultComponents.Text,
+    Empty = Text,
     Image = defaultComponents.Image,
     UI = defaultComponents.UI,
     tools: { by_name = {}, Fallback = undefined } = {},
@@ -93,7 +93,7 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
     case "text":
       if (status.type === "requires-action")
         throw new Error("Encountered unexpected requires-action status");
-      if (part === EMPTY_CONTENT) return <Empty status={status} />;
+      if (part === EMPTY_CONTENT) return <Empty part={part} status={status} />;
 
       return <Text part={part} status={status} />;
 
