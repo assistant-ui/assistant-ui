@@ -1,88 +1,106 @@
 import { Message } from "ai";
-import { ThreadMessageLike } from "@assistant-ui/react";
+import { useExternalMessageConverter } from "@assistant-ui/react";
 import { ToolCallContentPart } from "@assistant-ui/react";
 import { TextContentPart } from "@assistant-ui/react";
+import { MessageAttachment } from "../../../../react/src/context/stores/Attachment";
 
-export const convertMessage = (messages: Message[]): ThreadMessageLike => {
-  const firstMessage = messages[0];
-  if (!firstMessage) throw new Error("No messages found");
-
-  const common = {
-    id: firstMessage.id,
-    createdAt: firstMessage.createdAt ?? new Date(),
-  };
-
-  switch (firstMessage.role) {
+export const convertMessage: useExternalMessageConverter.Callback<Message> = (
+  message,
+) => {
+  switch (message.role) {
     case "user":
-      if (messages.length > 1) {
-        throw new Error(
-          "Multiple user messages found. This is likely an internal bug in assistant-ui.",
-        );
-      }
-
       return {
-        ...common,
         role: "user",
-        content: [{ type: "text", text: firstMessage.content }],
+        id: message.id,
+        createdAt: message.createdAt,
+        content: message.content,
+
+        attachments: message.experimental_attachments?.map(
+          (attachment, idx) =>
+            ({
+              id: idx.toString(),
+              type: "file",
+              name: attachment.name ?? attachment.url,
+              content: [],
+            }) satisfies MessageAttachment,
+        ),
       };
 
     case "system":
       return {
-        ...common,
         role: "system",
-        content: [{ type: "text", text: firstMessage.content }],
+        id: message.id,
+        createdAt: message.createdAt,
+        content: message.content,
       };
 
-    case "data":
-    case "assistant": {
-      const res: ThreadMessageLike & { content: any[] } = {
-        ...common,
+    case "assistant":
+      return {
         role: "assistant",
-        content: messages.flatMap((message) => {
-          return [
-            ...(message.content
-              ? [{ type: "text", text: message.content } as TextContentPart]
-              : []),
-            ...(message.toolInvocations?.map(
-              (t) =>
-                ({
-                  type: "tool-call",
-                  toolName: t.toolName,
-                  toolCallId: t.toolCallId,
-                  argsText: JSON.stringify(t.args),
-                  args: t.args,
-                  result: "result" in t ? t.result : undefined,
-                }) satisfies ToolCallContentPart,
-            ) ?? []),
-            ...(typeof message.data === "object" &&
-            !Array.isArray(message.data) &&
-            message.data?.["type"] === "tool-call"
-              ? [message.data as ToolCallContentPart]
-              : []),
-          ];
-        }),
+        id: message.id,
+        createdAt: message.createdAt,
+        content: [
+          ...(message.content
+            ? [
+                {
+                  type: "text",
+                  text: message.content,
+                } satisfies TextContentPart,
+              ]
+            : []),
+          ...(message.toolInvocations?.map(
+            (t) =>
+              ({
+                type: "tool-call",
+                toolName: t.toolName,
+                toolCallId: t.toolCallId,
+                argsText: JSON.stringify(t.args),
+                args: t.args,
+                result: "result" in t ? t.result : undefined,
+              }) satisfies ToolCallContentPart,
+          ) ?? []),
+        ],
       };
 
-      for (const message of messages) {
-        if (
-          typeof message.data === "object" &&
-          !Array.isArray(message.data) &&
-          message.data?.["type"] === "tool-result"
-        ) {
-          const toolCallId = message.data["toolCallId"];
-          const toolContent = res.content.find(
-            (c) => c.type === "tool-call" && c.toolCallId === toolCallId,
-          ) as ToolCallContentPart | undefined;
-          if (!toolContent) throw new Error("Tool call not found");
-          toolContent.result = message.data["result"];
-        }
-      }
+    case "data": {
+      type MaybeSupportedDataMessage =
+        | { type?: "unsafe_other" }
+        | ToolCallContentPart
+        | {
+            type: "tool-result";
+            toolCallId: string;
+            result: any;
+          };
 
-      return res;
+      if (
+        !message.data ||
+        !(typeof message.data === "object") ||
+        Array.isArray(message.data)
+      )
+        return [];
+
+      const data = message.data as MaybeSupportedDataMessage;
+
+      if (data.type === "tool-call") {
+        return {
+          role: "assistant",
+          id: message.id,
+          createdAt: message.createdAt,
+          content: [data],
+        };
+      } else if (data.type === "tool-result") {
+        return {
+          role: "tool",
+          toolCallId: data.toolCallId,
+          result: data.result,
+        };
+      }
+      return [];
     }
 
     default:
-      const _unsupported: "function" | "tool" = firstMessage.role;
+      // TODO handle tool and function messages
+      const _unsupported: "function" | "tool" = message.role;
       throw new Error(
         `You have a message with an unsupported role. The role ${_unsupported} is not supported.`,
       );

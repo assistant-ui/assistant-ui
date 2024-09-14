@@ -1,21 +1,29 @@
 import type { useChat } from "ai/react";
-import { useCachedChunkedMessages } from "../utils/useCachedChunkedMessages";
 import { convertMessage } from "../utils/convertMessage";
-import { useExternalStoreRuntime } from "@assistant-ui/react";
+import {
+  useExternalMessageConverter,
+  useExternalStoreRuntime,
+} from "@assistant-ui/react";
 import { useInputSync } from "../utils/useInputSync";
 import { sliceMessagesUntil } from "../utils/sliceMessagesUntil";
 import { toCreateMessage } from "../utils/toCreateMessage";
 import { vercelAttachmentAdapter } from "../utils/vercelAttachmentAdapter";
+import { getVercelAIMessages } from "../getVercelAIMessages";
 
 export const useVercelUseChatRuntime = (
   chatHelpers: ReturnType<typeof useChat>,
 ) => {
-  const messages = useCachedChunkedMessages(chatHelpers.messages);
+  const messages = useExternalMessageConverter({
+    callback: convertMessage,
+    isRunning: chatHelpers.isLoading,
+    messages: chatHelpers.messages,
+  });
 
   const runtime = useExternalStoreRuntime({
     isRunning: chatHelpers.isLoading,
     messages,
-    setMessages: (messages) => chatHelpers.setMessages(messages.flat()),
+    setMessages: (messages) =>
+      chatHelpers.setMessages(messages.map(getVercelAIMessages).flat()),
     onCancel: async () => chatHelpers.stop(),
     onNew: async (message) => {
       await chatHelpers.append(await toCreateMessage(message));
@@ -44,7 +52,6 @@ export const useVercelUseChatRuntime = (
       chatHelpers.setMessages([]);
       chatHelpers.setInput("");
     },
-    convertMessage,
     adapters: {
       attachments: vercelAttachmentAdapter,
     },
