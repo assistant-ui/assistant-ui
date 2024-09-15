@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.5.53
+
+### Patch Changes
+
+- f0f7497: feat: MessageContent Empty should be displayed for empty messages with empty text part
+- 8555685: feat: allow editing assistant/system messages
+- 892b019: fix: Empty should default to the provided Text component
+
 ## 0.5.52
 
 ### Patch Changes

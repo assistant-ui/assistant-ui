@@ -1,5 +1,16 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.6.5
+
+### Patch Changes
+
+- 132b796: feat: improve AI SDK attachments support
+- 132b796: refactor: AI SDK message converter
+- Updated dependencies [f0f7497]
+- Updated dependencies [8555685]
+- Updated dependencies [892b019]
+  - @assistant-ui/react@0.5.53
+
 ## 0.6.4
 
 ### Patch Changes
