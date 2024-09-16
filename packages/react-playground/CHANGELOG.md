@@ -1,5 +1,15 @@
 # @assistant-ui/react-playground
 
+## 0.0.26
+
+### Patch Changes
+
+- 0f99aa6: feat: New Context API
+- c348553: chore: update dependencies
+- Updated dependencies [0f99aa6]
+- Updated dependencies [c348553]
+  - @assistant-ui/react@0.5.54
+
 ## 0.0.25
 
 ### Patch Changes

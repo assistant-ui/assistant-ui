@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.5.54
+
+### Patch Changes
+
+- 0f99aa6: feat: New Context API
+- c348553: chore: update dependencies
+
 ## 0.5.53
 
 ### Patch Changes

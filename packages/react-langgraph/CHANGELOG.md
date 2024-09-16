@@ -1,5 +1,14 @@
 # @assistant-ui/react-langgraph
 
+## 0.0.6
+
+### Patch Changes
+
+- c348553: chore: update dependencies
+- Updated dependencies [0f99aa6]
+- Updated dependencies [c348553]
+  - @assistant-ui/react@0.5.54
+
 ## 0.0.5
 
 ### Patch Changes
