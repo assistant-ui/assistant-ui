@@ -11,7 +11,7 @@ export const useActionBarEdit = () => {
   const callback = useCallback(() => {
     const { edit } = editComposerStore.getState();
     edit();
-  }, [useEditComposer]);
+  }, [editComposerStore]);
 
   if (disabled) return null;
   return callback;

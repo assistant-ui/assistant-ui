@@ -16,7 +16,7 @@ export function createContextStoreHook<T, K extends keyof T & string>(
 
   // Define useStoreStoreHook with overloads
   function useStoreStoreHook(): ReadonlyStore<StateType>;
-  function useStoreStoreHook<TSelected>(options: {
+  function useStoreStoreHook(options: {
     optional: true;
   }): ReadonlyStore<StateType> | null;
   function useStoreStoreHook(options?: {

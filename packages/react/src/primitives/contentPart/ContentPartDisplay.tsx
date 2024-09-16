@@ -1,11 +1,9 @@
 import type { FC } from "react";
 import { useContentPartDisplay } from "../../primitive-hooks/contentPart/useContentPartDisplay";
 
-export type ContentPartPrimitiveDisplayProps = {};
+export type ContentPartPrimitiveDisplayProps = Record<string, never>;
 
-export const ContentPartPrimitiveDisplay: FC<
-  ContentPartPrimitiveDisplayProps
-> = () => {
+export const ContentPartPrimitiveDisplay: FC = () => {
   const {
     part: { display },
   } = useContentPartDisplay();

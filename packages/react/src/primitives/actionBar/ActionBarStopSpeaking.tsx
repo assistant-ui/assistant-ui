@@ -37,3 +37,5 @@ export const ActionBarPrimitiveStopSpeaking = forwardRef<
     />
   );
 });
+
+ActionBarPrimitiveStopSpeaking.displayName = "ActionBarPrimitive.StopSpeaking";

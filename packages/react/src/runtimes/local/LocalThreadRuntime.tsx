@@ -269,7 +269,9 @@ export class LocalThreadRuntime implements ThreadRuntime {
     toolCallId,
     result,
   }: AddToolResultOptions) {
-    let { parentId, message } = this.repository.getMessage(messageId);
+    const messageData = this.repository.getMessage(messageId);
+    const { parentId } = messageData;
+    let { message } = messageData;
 
     if (message.role !== "assistant")
       throw new Error("Tried to add tool result to non-assistant message");

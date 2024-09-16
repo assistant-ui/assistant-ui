@@ -47,11 +47,11 @@ export type MessagePrimitiveRootProps = PrimitiveDivProps;
 export const MessagePrimitiveRoot = forwardRef<
   MessagePrimitiveRootElement,
   MessagePrimitiveRootProps
->(({ onMouseEnter, onMouseLeave, ...rest }, forwardRef) => {
+>((props, forwardRef) => {
   const isHoveringRef = useIsHoveringRef();
   const ref = useComposedRefs<HTMLDivElement>(forwardRef, isHoveringRef);
 
-  return <Primitive.div {...rest} ref={ref} />;
+  return <Primitive.div {...props} ref={ref} />;
 });
 
 MessagePrimitiveRoot.displayName = "MessagePrimitive.Root";

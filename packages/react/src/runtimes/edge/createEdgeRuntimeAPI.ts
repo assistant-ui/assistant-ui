@@ -102,9 +102,7 @@ export const getEdgeRuntimeStream = async ({
     }
   }
 
-  let model;
-
-  model =
+  const model =
     typeof modelOrCreator === "function"
       ? await modelOrCreator({ apiKey, baseUrl, modelName })
       : modelOrCreator;
@@ -157,6 +155,8 @@ export const getEdgeRuntimeStream = async ({
             onFinish({
               messages: resultingMessages,
               metadata: {
+                // TODO
+                // eslint-disable-next-line @typescript-eslint/no-non-null-asserted-optional-chain
                 roundtrips: lastChunk.metadata?.roundtrips!,
               },
             });

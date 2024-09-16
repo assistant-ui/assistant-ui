@@ -23,7 +23,7 @@ const getAttachment = (
   if (message.role !== "user") return null;
 
   const attachments = message.attachments;
-  let attachment = attachments[partIndex];
+  const attachment = attachments[partIndex];
   if (!attachment) return null;
 
   // if the attachment is the same, don't update

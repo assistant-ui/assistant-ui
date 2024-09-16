@@ -3,7 +3,7 @@
 import type { FC } from "react";
 import { useBranchPickerCount } from "../../primitive-hooks/branchPicker/useBranchPickerCount";
 
-export type BranchPickerPrimitiveCountProps = {};
+export type BranchPickerPrimitiveCountProps = Record<string, never>;
 
 export const BranchPickerPrimitiveCount: FC<
   BranchPickerPrimitiveCountProps

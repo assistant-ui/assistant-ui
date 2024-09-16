@@ -17,7 +17,7 @@ export type ThreadPrimitiveViewportProps = PrimitiveDivProps &
 export const ThreadPrimitiveViewport = forwardRef<
   ThreadPrimitiveViewportElement,
   ThreadPrimitiveViewportProps
->(({ autoScroll, onScroll, children, ...rest }, forwardedRef) => {
+>(({ autoScroll, children, ...rest }, forwardedRef) => {
   const autoScrollRef = useThreadViewportAutoScroll<HTMLDivElement>({
     autoScroll,
   });

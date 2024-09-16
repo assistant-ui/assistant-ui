@@ -20,7 +20,7 @@ const getAttachment = (
   useAttachment: AttachmentContextValue["useAttachment"] | undefined,
   partIndex: number,
 ) => {
-  let attachment = attachments[partIndex];
+  const attachment = attachments[partIndex];
   if (!attachment) return null;
 
   // if the attachment is the same, don't update

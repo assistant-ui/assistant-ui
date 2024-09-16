@@ -5,7 +5,7 @@ import { useMessage } from "../../context";
 import { ContentPartStatus } from "../../types/AssistantTypes";
 import { TextContentPartState } from "../../context/stores/ContentPart";
 import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
-import { useSmoothStatus, useSmoothStatusStore } from "./SmoothContext";
+import { useSmoothStatusStore } from "./SmoothContext";
 import { writableStore } from "../../context/ReadonlyStore";
 
 class TextStreamAnimator {
@@ -95,7 +95,7 @@ export const useSmooth = (
         text !== state.part.text ? SMOOTH_STATUS : state.status,
       );
     }
-  }, [useSmoothStatus, text, displayedText, state.status]);
+  }, [smoothStatusStore, text, displayedText, state.status, state.part.text]);
 
   const [animatorRef] = useState<TextStreamAnimator>(
     new TextStreamAnimator(text, setText),
