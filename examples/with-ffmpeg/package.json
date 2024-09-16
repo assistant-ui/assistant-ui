@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^0.0.58",
+    "@ai-sdk/openai": "^0.0.60",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-hook-form": "workspace:*",
     "@ffmpeg/ffmpeg": "^0.12.10",
@@ -25,12 +25,12 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "json-schema-to-zod": "^2.4.1",
-    "lucide-react": "^0.439.0",
-    "next": "14.2.9",
+    "lucide-react": "^0.441.0",
+    "next": "14.2.11",
     "react": "^18",
     "react-dom": "^18",
     "react-hook-form": "^7.53.0",
-    "react-resizable-panels": "^2.1.2",
+    "react-resizable-panels": "^2.1.3",
     "tailwind-merge": "^2.5.2",
     "tailwindcss-animate": "^1.0.7",
     "zod": "^3.23.8",
@@ -43,9 +43,9 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "eslint": "^8",
-    "eslint-config-next": "14.2.9",
+    "eslint-config-next": "14.2.11",
     "postcss": "^8",
-    "tailwindcss": "^3.4.10",
+    "tailwindcss": "^3.4.11",
     "typescript": "^5.6.2"
   }
 }

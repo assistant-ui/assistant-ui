@@ -11,7 +11,7 @@
     "eslint": "^8",
     "prettier": "^3.3.3",
     "prettier-plugin-tailwindcss": "^0.6.6",
-    "turbo": "^2.1.1"
+    "turbo": "^2.1.2"
   },
   "prettier": {
     "trailingComma": "all",
