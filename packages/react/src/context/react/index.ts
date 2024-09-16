@@ -3,8 +3,6 @@ export {
   useAssistantActionsStore,
   useAssistantRuntime,
   useAssistantRuntimeStore,
-  useModelConfig,
-  useModelConfigStore,
   useToolUIs,
   useToolUIsStore,
 

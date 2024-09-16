@@ -1,7 +1,6 @@
 "use client";
 
 import { createContext } from "react";
-import type { AssistantModelConfigState } from "../stores/AssistantModelConfig";
 import type { AssistantToolUIsState } from "../stores/AssistantToolUIs";
 import { ReadonlyStore } from "../ReadonlyStore";
 import { AssistantActionsState } from "../stores/AssistantActions";
@@ -11,7 +10,6 @@ import { createContextStoreHook } from "./utils/createContextStoreHook";
 import { UseBoundStore } from "zustand";
 
 export type AssistantContextValue = {
-  useModelConfig: UseBoundStore<ReadonlyStore<AssistantModelConfigState>>;
   useToolUIs: UseBoundStore<ReadonlyStore<AssistantToolUIsState>>;
   useAssistantRuntime: UseBoundStore<ReadonlyStore<AssistantRuntime>>;
   useAssistantActions: UseBoundStore<ReadonlyStore<AssistantActionsState>>;
@@ -28,11 +26,6 @@ export const useAssistantContext = createContextHook(
 
 export const { useAssistantRuntime, useAssistantRuntimeStore } =
   createContextStoreHook(useAssistantContext, "useAssistantRuntime");
-
-export const { useModelConfig, useModelConfigStore } = createContextStoreHook(
-  useAssistantContext,
-  "useModelConfig",
-);
 
 export const { useToolUIs, useToolUIsStore } = createContextStoreHook(
   useAssistantContext,
