@@ -4,10 +4,9 @@ import { ReadonlyStore } from "../ReadonlyStore";
 export type EditComposerState = Readonly<{
   type: "edit";
 
-  // TODO
-  /** @deprecated Use `text` instead. */
+  /** @deprecated Use `text` instead. This will be removed in 0.6.0. */
   value: string;
-  /** @deprecated Use `setText` instead. */
+  /** @deprecated Use `setText` instead. This will be removed in 0.6.0. */
   setValue: (value: string) => void;
 
   text: string;
