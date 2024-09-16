@@ -10,11 +10,10 @@ import {
 import { withDefaults } from "./utils/withDefaults";
 import { useThreadConfig } from "./thread-config";
 import { BranchPickerPrimitive } from "../primitives";
-import { useThreadContext } from "../context";
+import { useThread } from "../context";
 
 const useAllowBranchPicker = (ensureCapability = false) => {
   const { branchPicker: { allowBranchPicker = true } = {} } = useThreadConfig();
-  const { useThread } = useThreadContext();
   const branchPickerSupported = useThread((t) => t.capabilities.edit);
   return allowBranchPicker && (!ensureCapability || branchPickerSupported);
 };

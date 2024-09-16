@@ -13,11 +13,9 @@ The context is split into four hierarchies:
 
 import { ParametersTable } from "@/components/docs";
 import {
-  AssistantContextValue,
   AssistantActionsState,
   AssistantModelConfigState,
   AssistantToolUIsState,
-  ThreadContextValue,
   ThreadState,
   ThreadMessagesState,
   ThreadActionsState,
@@ -27,35 +25,19 @@ import {
   ContentPartState,
   MessageState,
   MessageUtilsState,
-  AttachmentContextValue,
   ComposerAttachmentState,
   MessageAttachmentState,
 } from "@/components/docs/parameters/context";
 
 ## Assistant Context
 
-The **Assistant Context** provides access for ModelConfigState and ToolUIsState.
-
-### `useAssistantContext`
-
-This hook providers access to the context stores.
-
-```tsx
-import { useAssistantContext } from "@assistant-ui/react";
-
-const { useAssistantActions, useModelConfig, useToolUIs } =
-  useAssistantContext();
-```
-
-<ParametersTable {...AssistantContextValue} />{" "}
-
 #### `useAssistantActions`
 
 ```tsx
 import { useAssistantActions } from "@assistant-ui/react";
 
+const actions = useAssistantActions();
 const switchToNewThread = useAssistantActions((m) => m.switchToThread);
-const switchToNewThread = useAssistantActions.getState().switchToThread;
 ```
 
 <ParametersTable {...AssistantActionsState} />
@@ -63,10 +45,10 @@ const switchToNewThread = useAssistantActions.getState().switchToThread;
 ### `useModelConfig`
 
 ```tsx
-const { useModelConfig } = useAssistantContext();
+import { useModelConfig } from "@assistant-ui/react";
 
+const modelConfig = useModelConfig();
 const getModelConfig = useModelConfig((m) => m.getModelConfig);
-const getModelConfig = useModelConfig.getState().getModelConfig;
 ```
 
 <ParametersTable {...AssistantModelConfigState} />{" "}
@@ -74,47 +56,23 @@ const getModelConfig = useModelConfig.getState().getModelConfig;
 ### `useToolUIs`
 
 ```tsx
-const { useToolUIs } = useAssistantContext();
+import { useToolUIs } from "@assistant-ui/react";
 
+const toolUIs = useToolUIs();
 const getToolUI = useToolUIs((m) => m.getToolUI);
-const getToolUI = useToolUIs.getState().getToolUI;
 ```
 
 <ParametersTable {...AssistantToolUIsState} />
 
 ## Thread Context
 
-The **Thread Context** provides access to ThreadState, ThreadActionsState, ComposerState and ThreadViewportState.
-
-### `useThreadContext`
-
-This hook provides access to the context stores.
-
-```tsx
-import { useThreadContext } from "@assistant-ui/react";
-
-const {
-  useThread,
-  useThreadMessages,
-  useThreadActions,
-  useThreadRuntime,
-  useComposer,
-  useViewport,
-} = useThreadContext();
-```
-
-<ParametersTable {...ThreadContextValue} />
-
 ### `useThread`
 
 ```tsx
-const { useThread } = useThreadContext();
+import { useThread } from "@assistant-ui/react";
 
+const thread = useThread();
 const isRunning = useThread((m) => m.isRunning);
-const isRunning = useThread.getState().isRunning;
-
-const isDisabled = useThread((m) => m.isDisabled);
-const isDisabled = useThread.getState().isDisabled;
 ```
 
 <ParametersTable {...ThreadState} />
@@ -122,10 +80,10 @@ const isDisabled = useThread.getState().isDisabled;
 ### `useThreadMessages`
 
 ```tsx
-const { useThreadMessages } = useThreadContext();
+import { useThreadMessages } from "@assistant-ui/react";
 
+const messages = useThreadMessages();
 const firstMessage = useThreadMessages((m) => m[0]);
-const firstMessage = useThreadMessages.getState()[0];
 ```
 
 <ParametersTable {...ThreadMessagesState} />
@@ -133,25 +91,10 @@ const firstMessage = useThreadMessages.getState()[0];
 ### `useThreadActions`
 
 ```tsx
-const { useThreadActions } = useThreadContext();
+import { useThreadActions } from "@assistant-ui/react";
 
+const actions = useThreadActions();
 const getBranches = useThreadActions((m) => m.getBranches);
-const getBranches = useThreadActions.getState().getBranches;
-
-const switchToBranch = useThreadActions((m) => m.switchToBranch);
-const switchToBranch = useThreadActions.getState().switchToBranch;
-
-const append = useThreadActions((m) => m.append);
-const append = useThreadActions.getState().append;
-
-const startRun = useThreadActions((m) => m.startRun);
-const startRun = useThreadActions.getState().startRun;
-
-const cancelRun = useThreadActions((m) => m.cancelRun);
-const cancelRun = useThreadActions.getState().cancelRun;
-
-const addToolResult = useThreadActions((m) => m.addToolResult);
-const addToolResult = useThreadActions.getState().addToolResult;
 ```
 
 <ParametersTable {...ThreadActionsState} />
@@ -159,84 +102,42 @@ const addToolResult = useThreadActions.getState().addToolResult;
 ### `useThreadRuntime`
 
 ```tsx
-const { useThreadRuntime } = useThreadContext();
+import { useThreadRuntime } from "@assistant-ui/react";
 
 const runtime = useThreadRuntime();
 ```
 
-### `useComposer`
+### `useThreadComposer`
 
 ```tsx
-const { useComposer } = useThreadContext();
+import { useThreadComposer } from "@assistant-ui/react";
 
-const text = useComposer((m) => m.text);
-const text = useComposer.getState().text;
-
-const setText = useComposer((m) => m.setText);
-const setText = useComposer.getState().setText;
-
-const attachments = useComposer((m) => m.attachments);
-const attachments = useComposer.getState().attachments;
-
-const addAttachment = useComposer((m) => m.addAttachment);
-const addAttachment = useComposer.getState().addAttachment;
-
-const removeAttachment = useComposer((m) => m.removeAttachment);
-const removeAttachment = useComposer.getState().removeAttachment;
-
-const reset = useComposer((m) => m.reset);
-const reset = useComposer.getState().reset;
+const composer = useThreadComposer();
+const text = useThreadComposer((m) => m.text);
 ```
 
 <ParametersTable {...ComposerState} />
 
-### `useViewport`
+### `useThreadViewport`
 
 ```tsx
-const { useViewport } = useThreadContext();
+import { useThreadViewport } from "@assistant-ui/react";
 
-const isAtBottom = useViewport((m) => m.isAtBottom);
-const isAtBottom = useViewport.getState().isAtBottom;
-
-const scrollToBottom = useViewport((m) => m.scrollToBottom);
-const scrollToBottom = useViewport.getState().scrollToBottom;
-
-const onScrollToBottom = useViewport((m) => m.onScrollToBottom);
-const onScrollToBottom = useViewport.getState().onScrollToBottom;
+const threadViewport = useThreadViewport();
+const isAtBottom = useThreadViewport((m) => m.isAtBottom);
 ```
 
 <ParametersTable {...ThreadViewportState} />
 
 ## Message Context
 
-The **Message Context** provides access to MessageState, EditComposerState and MessageUtilsState.
-
-### `useMessageContext`
-
-This hook provides access to the context stores.
-
-```tsx
-import { useMessageContext } from "@assistant-ui/react";
-
-const { useMessage, useMessageUtils, useEditComposer } = useMessageContext();
-```
-
 ### `useMessage`
 
 ```tsx
-const { useMessage } = useMessageContext();
+import { useMessage } from "@assistant-ui/react";
 
+const { message } = useMessage();
 const message = useMessage((m) => m.message);
-const message = useMessage.getState().message;
-
-const parentId = useMessage((m) => m.parentId);
-const parentId = useMessage.getState().parentId;
-
-const branches = useMessage((m) => m.branches);
-const branches = useMessage.getState().branches;
-
-const isLast = useMessage((m) => m.isLast);
-const isLast = useMessage.getState().isLast;
 ```
 
 <ParametersTable {...MessageState} />
@@ -244,28 +145,10 @@ const isLast = useMessage.getState().isLast;
 ### `useMessageUtils`
 
 ```tsx
-const { useMessageUtils } = useMessageContext();
+import { useMessageUtils } from "@assistant-ui/react";
 
+const messageUtils = useMessageUtils();
 const isCopied = useMessageUtils((m) => m.isCopied);
-const isCopied = useMessageUtils.getState().isCopied;
-
-const setIsCopied = useMessageUtils((m) => m.setIsCopied);
-const setIsCopied = useMessageUtils.getState().setIsCopied;
-
-const isHovering = useMessageUtils((m) => m.isHovering);
-const isHovering = useMessageUtils.getState().isHovering;
-
-const setIsHovering = useMessageUtils((m) => m.setIsHovering);
-const setIsHovering = useMessageUtils.getState().setIsHovering;
-
-const isSpeaking = useMessageUtils((m) => m.isSpeaking);
-const isSpeaking = useMessageUtils.getState().isSpeaking;
-
-const stopSpeaking = useMessageUtils((m) => m.stopSpeaking);
-const stopSpeaking = useMessageUtils.getState().stopSpeaking;
-
-const addUtterance = useMessageUtils((m) => m.addUtterance);
-const addUtterance = useMessageUtils.getState().addUtterance;
 ```
 
 <ParametersTable {...MessageUtilsState} />
@@ -273,35 +156,20 @@ const addUtterance = useMessageUtils.getState().addUtterance;
 ### `useEditComposer`
 
 ```tsx
-const { useEditComposer } = useMessageContext();
+import { useEditComposer } from "@assistant-ui/react";
 
+const editComposer = useEditComposer();
 const text = useEditComposer((m) => m.text);
-const text = useEditComposer.getState().text;
-
-const setText = useEditComposer((m) => m.setText);
-const setText = useEditComposer.getState().setText;
 ```
 
 <ParametersTable {...EditComposerState} />
 
 ## Content Part Context
 
-The **Content Part Context** provides access to ContentPartState.
-
-### `useContentPartContext`
-
-This hook provides access to the context stores.
-
-```tsx
-import { useContentPartContext } from "@assistant-ui/react";
-
-const { useContentPart } = useContentPartContext();
-```
-
 ### `useContentPart`
 
 ```tsx
-const { useContentPart } = useContentPartContext();
+import { useContentPart } from "@assistant-ui/react";
 
 const part = useContentPart((m) => m.part);
 const part = useContentPart.getState().part;
@@ -314,77 +182,48 @@ const status = useContentPart.getState().status;
 
 ## Composer Context
 
-The **Composer Context** provides access to the nearest composer state (either the edit composer or the thread's new message composer).
-
-### `useComposerContext`
-
-This hook provides access to the context stores.
-
-```tsx
-import { useComposerContext } from "@assistant-ui/react";
-
-const { useComposer } = useComposerContext();
-```
-
-<ParametersTable
-  type="ComposerContextValue"
-  parameters={[
-    {
-      name: "useComposer",
-      type: "ReadonlyStore<ComposerState | EditComposerState>",
-      required: true,
-      description: "The composer state.",
-    },
-    {
-      name: "type",
-      type: "'edit' | 'new'",
-      required: true,
-      description: "The type of composer.",
-    },
-  ]}
-/>
+Grabs the nearest composer state (either the edit composer or the thread's new message composer).
 
 ### `useComposer`
 
 ```tsx
-const { useComposer } = useComposerContext();
+import { useComposer } from "@assistant-ui/react";
 
+const composer = useComposer();
 const text = useComposer((m) => m.text);
-const text = useComposer.getState().text;
-
-const setText = useComposer((m) => m.setText);
-const setText = useComposer.getState().setText;
 ```
 
 ## Attachment Context
 
-Provides access to the current attachment state.
-
-### `useAttachmentContext`
-
-This hook provides access to the context stores.
-
-```tsx
-import { useAttachmentContext } from "@assistant-ui/react";
-
-const { useAttachment } = useAttachmentContext();
-```
-
-<ParametersTable {...AttachmentContextValue} />
+Grabs the attachment state (either the composer or message attachment).
 
 ### `useAttachment`
 
 ```tsx
-const { useAttachment } = useAttachmentContext();
+import { useAttachment } from "@assistant-ui/react";
 
+const { attachment } = useAttachment();
 const attachment = useAttachment((m) => m.attachment);
-const attachment = useAttachment.getState().attachment;
 ```
 
-#### `useAttachment` (Composer)
+#### `useComposerAttachment` (Composer)
+
+```tsx
+import { useComposerAttachment } from "@assistant-ui/react";
+
+const { attachment } = useComposerAttachment();
+const attachment = useComposerAttachment((m) => m.attachment);
+```
 
 <ParametersTable {...ComposerAttachmentState} />
 
-#### `useAttachment` (Message)
+#### `useMessageAttachment` (Message)
+
+```tsx
+import { useMessageAttachment } from "@assistant-ui/react";
+
+const { attachment } = useMessageAttachment();
+const attachment = useMessageAttachment((m) => m.attachment);
+```
 
 <ParametersTable {...MessageAttachmentState} />

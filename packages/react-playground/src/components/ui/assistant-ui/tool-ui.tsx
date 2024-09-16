@@ -1,7 +1,7 @@
 import {
   ToolCallContentPart,
   ToolCallContentPartComponent,
-  useContentPartContext,
+  useContentPart,
 } from "@assistant-ui/react";
 import { FC, useEffect, useState } from "react";
 import { CornerDownRightIcon } from "lucide-react";
@@ -30,7 +30,6 @@ export const ToolUI: ToolCallContentPartComponent = ({ part }) => {
 };
 
 const useContentPartTool = () => {
-  const { useContentPart } = useContentPartContext();
   const part = useContentPart((c) => c.part);
   return part as ToolCallContentPart;
 };

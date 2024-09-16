@@ -9,8 +9,11 @@ import {
   TooltipIconButton,
   TooltipIconButtonProps,
 } from "./base/tooltip-icon-button";
-import { useThreadContext } from "../context/react/ThreadContext";
-import { useAttachmentContext } from "../context/react/AttachmentContext";
+import { useThreadComposerStore } from "../context/react/ThreadContext";
+import {
+  useAttachmentStore,
+  useComposerAttachment,
+} from "../context/react/AttachmentContext";
 
 const ComposerAttachmentRoot = withDefaults("div", {
   className: "aui-composer-attachment-root",
@@ -19,8 +22,7 @@ const ComposerAttachmentRoot = withDefaults("div", {
 ComposerAttachmentRoot.displayName = "ComposerAttachmentRoot";
 
 const ComposerAttachment: FC = () => {
-  const { useAttachment } = useAttachmentContext({ type: "composer" });
-  const attachment = useAttachment((a) => a.attachment);
+  const attachment = useComposerAttachment((a) => a.attachment);
 
   return (
     <ComposerAttachmentRoot>
@@ -42,12 +44,12 @@ const ComposerAttachmentRemove = forwardRef<
     } = {},
   } = useThreadConfig();
 
-  const { useComposer } = useThreadContext();
-  const { useAttachment } = useAttachmentContext();
+  const composerStore = useThreadComposerStore();
+  const attachmentStore = useAttachmentStore();
   const handleRemoveAttachment = () => {
-    useComposer
+    composerStore
       .getState()
-      .removeAttachment(useAttachment.getState().attachment.id);
+      .removeAttachment(attachmentStore.getState().attachment.id);
   };
 
   return (

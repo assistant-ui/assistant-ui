@@ -1,7 +1,9 @@
 import { ToolCallContentPartComponent } from "@assistant-ui/react";
-import { TooltipIconButton } from "@assistant-ui/react/internal";
+import { INTERNAL } from "@assistant-ui/react";
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import { useState } from "react";
+
+const { TooltipIconButton } = INTERNAL;
 
 export const ToolFallback: ToolCallContentPartComponent = ({ part }) => {
   const [isCollapsed, setIsCollapsed] = useState(true);

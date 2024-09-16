@@ -1,10 +1,10 @@
 "use client";
 
 import { ComponentType, type FC, memo } from "react";
-import { useThreadContext } from "../../context";
-import { useAttachmentContext } from "../../context/react/AttachmentContext";
+import { useComposerAttachment } from "../../context/react/AttachmentContext";
 import { ComposerAttachmentProvider } from "../../context/providers/ComposerAttachmentProvider";
 import type { ThreadComposerAttachment } from "../../context/stores/Attachment";
+import { useThreadComposer } from "../../context/react/ThreadContext";
 
 export type ComposerPrimitiveAttachmentsProps = {
   components:
@@ -38,8 +38,7 @@ const getComponent = (
 const AttachmentComponent: FC<{
   components: ComposerPrimitiveAttachmentsProps["components"];
 }> = ({ components }) => {
-  const { useAttachment } = useAttachmentContext({ type: "composer" });
-  const Component = useAttachment((a) =>
+  const Component = useComposerAttachment((a) =>
     getComponent(components, a.attachment),
   );
 
@@ -70,8 +69,7 @@ const ComposerAttachment = memo(
 export const ComposerPrimitiveAttachments: FC<
   ComposerPrimitiveAttachmentsProps
 > = ({ components }) => {
-  const { useComposer } = useThreadContext();
-  const attachmentsCount = useComposer((s) => s.attachments.length);
+  const attachmentsCount = useThreadComposer((s) => s.attachments.length);
 
   return Array.from({ length: attachmentsCount }, (_, index) => (
     <ComposerAttachment

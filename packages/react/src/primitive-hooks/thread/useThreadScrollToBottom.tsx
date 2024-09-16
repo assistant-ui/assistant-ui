@@ -1,15 +1,20 @@
 import { useCallback } from "react";
-import { useThreadContext } from "../../context";
+import { useThreadViewport } from "../../context";
+import {
+  useThreadComposerStore,
+  useThreadViewportStore,
+} from "../../context/react/ThreadContext";
 
 export const useThreadScrollToBottom = () => {
-  const { useComposer, useViewport } = useThreadContext();
+  const isAtBottom = useThreadViewport((s) => s.isAtBottom);
 
-  const isAtBottom = useViewport((s) => s.isAtBottom);
+  const threadViewportStore = useThreadViewportStore();
+  const threadComposerStore = useThreadComposerStore();
 
   const handleScrollToBottom = useCallback(() => {
-    useViewport.getState().scrollToBottom();
-    useComposer.getState().focus();
-  }, [useViewport, useComposer]);
+    threadViewportStore.getState().scrollToBottom();
+    threadComposerStore.getState().focus();
+  }, [threadViewportStore, threadComposerStore]);
 
   if (isAtBottom) return null;
   return handleScrollToBottom;

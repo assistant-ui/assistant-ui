@@ -1,8 +1,8 @@
 "use client";
 
 import { ComponentType, type FC, memo } from "react";
-import { useMessageContext } from "../../context";
-import { useAttachmentContext } from "../../context/react/AttachmentContext";
+import { useMessage } from "../../context";
+import { useMessageAttachment } from "../../context/react/AttachmentContext";
 import { MessageAttachmentProvider } from "../../context/providers/MessageAttachmentProvider";
 import type { MessageAttachment } from "../../context/stores/Attachment";
 
@@ -38,8 +38,7 @@ const getComponent = (
 const AttachmentComponent: FC<{
   components: MessagePrimitiveAttachmentsProps["components"];
 }> = ({ components }) => {
-  const { useAttachment } = useAttachmentContext({ type: "message" });
-  const Component = useAttachment((a) =>
+  const Component = useMessageAttachment((a) =>
     getComponent(components, a.attachment),
   );
 
@@ -70,7 +69,6 @@ const MessageAttachment = memo(
 export const MessagePrimitiveAttachments: FC<
   MessagePrimitiveAttachmentsProps
 > = ({ components }) => {
-  const { useMessage } = useMessageContext();
   const attachmentsCount = useMessage(({ message }) => {
     if (message.role !== "user") return 0;
     return message.attachments.length;

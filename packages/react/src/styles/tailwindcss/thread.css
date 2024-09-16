@@ -42,7 +42,9 @@
   @apply line-clamp-2 text-ellipsis text-sm font-semibold;
 }
 
-/* composer */
+/* TODO rename classes to .aui-thread-composer-root ? */
+/* rename composer to thread composer everywhere */
+/* thread composer */
 
 .aui-composer-root {
   @apply focus-within:border-aui-ring/20 flex w-full flex-wrap items-end rounded-lg border px-2.5 shadow-sm transition-colors ease-in;

@@ -1,7 +1,7 @@
 "use client";
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
 import { useRef } from "react";
-import { useThreadContext } from "../../context/react/ThreadContext";
+import { useThreadViewportStore } from "../../context/react/ThreadContext";
 import { useOnResizeContent } from "../../utils/hooks/useOnResizeContent";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
@@ -16,7 +16,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
 }: UseThreadViewportAutoScrollProps) => {
   const divRef = useRef<TElement>(null);
 
-  const { useViewport } = useThreadContext();
+  const threadViewportStore = useThreadViewportStore();
 
   const lastScrollTop = useRef<number>(0);
 
@@ -36,7 +36,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     const div = divRef.current;
     if (!div) return;
 
-    const isAtBottom = useViewport.getState().isAtBottom;
+    const isAtBottom = threadViewportStore.getState().isAtBottom;
     const newIsAtBottom =
       div.scrollHeight - div.scrollTop <= div.clientHeight + 1; // TODO figure out why +1 is needed
 
@@ -48,7 +48,9 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
       }
 
       if (newIsAtBottom !== isAtBottom) {
-        writableStore(useViewport).setState({ isAtBottom: newIsAtBottom });
+        writableStore(threadViewportStore).setState({
+          isAtBottom: newIsAtBottom,
+        });
       }
     }
 
@@ -56,7 +58,10 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   };
 
   const resizeRef = useOnResizeContent(() => {
-    if (isScrollingToBottomRef.current || useViewport.getState().isAtBottom) {
+    if (
+      isScrollingToBottomRef.current ||
+      threadViewportStore.getState().isAtBottom
+    ) {
       scrollToBottom("instant");
     }
 

@@ -6,6 +6,7 @@ import {
   ComposerAttachmentState,
   MessageAttachmentState,
 } from "../stores/Attachment";
+import { createContextStoreHook } from "./utils/createContextStoreHook";
 
 export type AttachmentContextValue = {
   type: "composer" | "message";
@@ -28,29 +29,16 @@ export const AttachmentContext = createContext<AttachmentContextValue | null>(
   null,
 );
 
-export function useAttachmentContext(): AttachmentContextValue;
-export function useAttachmentContext(options: {
-  type: "composer";
-}): ComposerAttachmentContextValue;
-export function useAttachmentContext(options: {
-  type: "message";
-}): MessageAttachmentContextValue;
-export function useAttachmentContext(options: {
-  optional: true;
+export function useAttachmentContext(options?: {
+  optional?: false | undefined;
+}): AttachmentContextValue;
+export function useAttachmentContext(options?: {
+  optional?: boolean | undefined;
 }): AttachmentContextValue | null;
 export function useAttachmentContext(options?: {
-  type?: AttachmentContextValue["type"];
-  optional?: true;
+  optional?: boolean | undefined;
 }) {
   const context = useContext(AttachmentContext);
-  if (options?.type === "composer" && context?.type !== "composer")
-    throw new Error(
-      "This component must be used within a ComposerPrimitive.Attachments component.",
-    );
-  if (options?.type === "message" && context?.type !== "message")
-    throw new Error(
-      "This component must be used within a MessagePrimitive.Attachments component.",
-    );
   if (!options?.optional && !context)
     throw new Error(
       "This component must be used within a ComposerPrimitive.Attachments or MessagePrimitive.Attachments component.",
@@ -58,3 +46,46 @@ export function useAttachmentContext(options?: {
 
   return context;
 }
+
+function useComposerAttachmentContext(): ComposerAttachmentContextValue;
+function useComposerAttachmentContext(options: {
+  optional: true;
+}): ComposerAttachmentContextValue | null;
+function useComposerAttachmentContext(options?: { optional?: true }) {
+  const context = useAttachmentContext(options);
+  if (!context) return null;
+  if (context.type !== "composer")
+    throw new Error(
+      "This component must be used within a ComposerPrimitive.Attachments component.",
+    );
+  return context;
+}
+
+function useMessageAttachmentContext(): MessageAttachmentContextValue;
+function useMessageAttachmentContext(options: {
+  optional: true;
+}): MessageAttachmentContextValue | null;
+function useMessageAttachmentContext(options?: { optional?: true }) {
+  const context = useAttachmentContext(options);
+  if (!context) return null;
+  if (context.type !== "message")
+    throw new Error(
+      "This component must be used within a MessagePrimitive.Attachments component.",
+    );
+  return context;
+}
+
+export const { useAttachment, useAttachmentStore } = createContextStoreHook(
+  useAttachmentContext,
+  "useAttachment",
+);
+
+export const {
+  useAttachment: useComposerAttachment,
+  useAttachmentStore: useComposerAttachmentStore,
+} = createContextStoreHook(useComposerAttachmentContext, "useAttachment");
+
+export const {
+  useAttachment: useMessageAttachment,
+  useAttachmentStore: useMessageAttachmentStore,
+} = createContextStoreHook(useMessageAttachmentContext, "useAttachment");

@@ -9,7 +9,10 @@ import type {
 import { getThreadMessageText } from "../../utils/getThreadMessageText";
 import { MessageContext } from "../react/MessageContext";
 import type { MessageContextValue } from "../react/MessageContext";
-import { useThreadContext } from "../react/ThreadContext";
+import {
+  useThreadActionsStore,
+  useThreadMessagesStore,
+} from "../react/ThreadContext";
 import type { MessageState } from "../stores/Message";
 import { makeEditComposerStore } from "../stores/EditComposer";
 import { makeMessageUtilsStore } from "../stores/MessageUtils";
@@ -57,14 +60,14 @@ const getMessageState = (
 };
 
 const useMessageContext = (messageIndex: number) => {
-  const { useThreadMessages, useThreadActions } = useThreadContext();
-
+  const threadMessagesStore = useThreadMessagesStore();
+  const threadActionsStore = useThreadActionsStore();
   const [context] = useState<MessageContextValue>(() => {
     const useMessage = create<MessageState>(
       () =>
         getMessageState(
-          useThreadMessages.getState(),
-          useThreadActions.getState().getBranches,
+          threadMessagesStore.getState(),
+          threadActionsStore.getState().getBranches,
           undefined,
           messageIndex,
         )!,
@@ -88,7 +91,7 @@ const useMessageContext = (messageIndex: number) => {
         );
 
         // TODO fix types here
-        useThreadActions.getState().append({
+        threadActionsStore.getState().append({
           parentId,
           role: message.role,
           content: [{ type: "text", text }, ...nonTextParts] as any,
@@ -104,7 +107,7 @@ const useMessageContext = (messageIndex: number) => {
     const syncMessage = (thread: ThreadMessagesState) => {
       const newState = getMessageState(
         thread,
-        useThreadActions.getState().getBranches,
+        threadActionsStore.getState().getBranches,
         context.useMessage,
         messageIndex,
       );
@@ -112,10 +115,10 @@ const useMessageContext = (messageIndex: number) => {
       writableStore(context.useMessage).setState(newState, true);
     };
 
-    syncMessage(useThreadMessages.getState());
+    syncMessage(threadMessagesStore.getState());
 
-    return useThreadMessages.subscribe(syncMessage);
-  }, [useThreadMessages, useThreadActions, context, messageIndex]);
+    return threadMessagesStore.subscribe(syncMessage);
+  }, [threadMessagesStore, threadActionsStore, context, messageIndex]);
 
   return context;
 };

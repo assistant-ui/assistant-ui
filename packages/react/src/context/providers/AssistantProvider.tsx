@@ -37,10 +37,10 @@ export const AssistantProvider: FC<
     };
   });
 
-  const getModelConfig = context.useModelConfig();
+  const modelConfigProvider = context.useModelConfig();
   useEffect(() => {
-    return runtime.registerModelConfigProvider(getModelConfig);
-  }, [runtime, getModelConfig]);
+    return runtime.registerModelConfigProvider(modelConfigProvider);
+  }, [runtime, modelConfigProvider]);
 
   useEffect(
     () => writableStore(context.useAssistantRuntime).setState(runtime, true),

@@ -2,21 +2,21 @@
 
 import { type FC, type PropsWithChildren, useEffect, useState } from "react";
 import { create } from "zustand";
-import type { ComposerState } from "../stores";
-import { useThreadContext } from "../react";
+import type { ThreadComposerState } from "../stores";
 import { ComposerAttachmentState } from "../stores/Attachment";
 import {
   AttachmentContext,
   AttachmentContextValue,
 } from "../react/AttachmentContext";
 import { writableStore } from "../ReadonlyStore";
+import { useThreadComposerStore } from "../react/ThreadContext";
 
 type ComposerAttachmentProviderProps = PropsWithChildren<{
   attachmentIndex: number;
 }>;
 
 const getAttachment = (
-  { attachments }: ComposerState,
+  { attachments }: ThreadComposerState,
   useAttachment: AttachmentContextValue["useAttachment"] | undefined,
   partIndex: number,
 ) => {
@@ -31,11 +31,12 @@ const getAttachment = (
 };
 
 const useComposerAttachmentContext = (partIndex: number) => {
-  const { useComposer } = useThreadContext();
+  const threadComposerStore = useThreadComposerStore();
   const [context] = useState<AttachmentContextValue & { type: "composer" }>(
     () => {
       const useAttachment = create<ComposerAttachmentState>(
-        () => getAttachment(useComposer.getState(), undefined, partIndex)!,
+        () =>
+          getAttachment(threadComposerStore.getState(), undefined, partIndex)!,
       );
 
       return { type: "composer", useAttachment };
@@ -43,7 +44,7 @@ const useComposerAttachmentContext = (partIndex: number) => {
   );
 
   useEffect(() => {
-    const syncAttachment = (composer: ComposerState) => {
+    const syncAttachment = (composer: ThreadComposerState) => {
       const newState = getAttachment(
         composer,
         context.useAttachment,
@@ -53,9 +54,9 @@ const useComposerAttachmentContext = (partIndex: number) => {
       writableStore(context.useAttachment).setState(newState, true);
     };
 
-    syncAttachment(useComposer.getState());
-    return useComposer.subscribe(syncAttachment);
-  }, [context, useComposer, partIndex]);
+    syncAttachment(threadComposerStore.getState());
+    return threadComposerStore.subscribe(syncAttachment);
+  }, [context, threadComposerStore, partIndex]);
 
   return context;
 };

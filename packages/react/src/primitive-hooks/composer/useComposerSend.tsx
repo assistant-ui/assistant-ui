@@ -1,29 +1,32 @@
 import { useCallback } from "react";
-import { useComposerContext, useThreadContext } from "../../context";
+import { useComposerStore } from "../../context";
 import { useCombinedStore } from "../../utils/combined/useCombinedStore";
+import {
+  useThreadComposerStore,
+  useThreadStore,
+  useThreadViewportStore,
+} from "../../context/react/ThreadContext";
 
 export const useComposerSend = () => {
-  const {
-    useThread,
-    useViewport,
-    useComposer: useNewComposer,
-  } = useThreadContext();
-  const { useComposer } = useComposerContext();
+  const threadStore = useThreadStore();
+  const threadViewportStore = useThreadViewportStore();
+  const composerStore = useComposerStore();
+  const threadComposerStore = useThreadComposerStore();
 
   const disabled = useCombinedStore(
-    [useThread, useComposer],
+    [threadStore, composerStore],
     (t, c) => t.isRunning || !c.isEditing || c.isEmpty,
   );
 
   const callback = useCallback(() => {
-    const composerState = useComposer.getState();
+    const composerState = composerStore.getState();
     if (!composerState.isEditing) return;
 
     composerState.send();
 
-    useViewport.getState().scrollToBottom();
-    useNewComposer.getState().focus();
-  }, [useNewComposer, useComposer, useViewport]);
+    threadViewportStore.getState().scrollToBottom();
+    threadComposerStore.getState().focus();
+  }, [threadComposerStore, composerStore, threadViewportStore]);
 
   if (disabled) return null;
   return callback;

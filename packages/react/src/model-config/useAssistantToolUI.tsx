@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useAssistantContext } from "../context/react/AssistantContext";
+import { useToolUIsStore } from "../context/react/AssistantContext";
 import type { ToolCallContentPartComponent } from "../types/ContentPartComponentTypes";
 
 export type AssistantToolUIProps<
@@ -15,11 +15,10 @@ export type AssistantToolUIProps<
 export const useAssistantToolUI = (
   tool: AssistantToolUIProps<any, any> | null,
 ) => {
-  const { useToolUIs } = useAssistantContext();
-  const setToolUI = useToolUIs((s) => s.setToolUI);
+  const toolUIsStore = useToolUIsStore();
   useEffect(() => {
     if (!tool) return;
     const { toolName, render } = tool;
-    return setToolUI(toolName, render);
-  }, [setToolUI, tool]);
+    return toolUIsStore.getState().setToolUI(toolName, render);
+  }, [toolUIsStore, tool]);
 };

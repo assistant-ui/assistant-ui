@@ -1,6 +1,7 @@
 import { useCallback } from "react";
-import { useThreadContext } from "../../context";
+import { useThread, useThreadStore } from "../../context";
 import { useAppendMessage } from "../../hooks";
+import { useThreadComposerStore } from "../../context/react/ThreadContext";
 
 export type UseApplyThreadSuggestionProps = {
   prompt: string;
@@ -12,20 +13,21 @@ export const useThreadSuggestion = ({
   prompt,
   autoSend,
 }: UseApplyThreadSuggestionProps) => {
-  const { useThread, useComposer } = useThreadContext();
+  const threadStore = useThreadStore();
+  const composerStore = useThreadComposerStore();
 
   const append = useAppendMessage();
   const disabled = useThread((t) => t.isDisabled);
   const callback = useCallback(() => {
-    const thread = useThread.getState();
-    const composer = useComposer.getState();
+    const thread = threadStore.getState();
+    const composer = composerStore.getState();
     if (autoSend && !thread.isRunning) {
       append(prompt);
       composer.setText("");
     } else {
       composer.setText(prompt);
     }
-  }, [useThread, useComposer, autoSend, append, prompt]);
+  }, [threadStore, composerStore, autoSend, append, prompt]);
 
   if (disabled) return null;
   return callback;

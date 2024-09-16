@@ -1,12 +1,13 @@
 import { useMemo } from "react";
 import { useMessageContext } from "./MessageContext";
 import { useThreadContext } from "./ThreadContext";
-import type { ComposerState } from "../stores/Composer";
+import type { ThreadComposerState } from "../stores/ThreadComposer";
 import type { EditComposerState } from "../stores/EditComposer";
 import { ReadonlyStore } from "../ReadonlyStore";
+import { createContextStoreHook } from "./utils/createContextStoreHook";
 
 export type ComposerContextValue = {
-  useComposer: ReadonlyStore<EditComposerState | ComposerState>;
+  useComposer: ReadonlyStore<EditComposerState | ThreadComposerState>;
   type: "edit" | "new";
 };
 
@@ -16,10 +17,15 @@ export const useComposerContext = (): ComposerContextValue => {
   return useMemo(
     () => ({
       useComposer: (useEditComposer ?? useComposer) as ReadonlyStore<
-        EditComposerState | ComposerState
+        EditComposerState | ThreadComposerState
       >,
       type: useEditComposer ? ("edit" as const) : ("new" as const),
     }),
     [useEditComposer, useComposer],
   );
 };
+
+export const { useComposer, useComposerStore } = createContextStoreHook(
+  useComposerContext,
+  "useComposer",
+);

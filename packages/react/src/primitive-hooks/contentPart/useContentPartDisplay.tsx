@@ -1,9 +1,7 @@
-import { useContentPartContext } from "../../context/react/ContentPartContext";
+import { useContentPart } from "../../context/react/ContentPartContext";
 import { UIContentPartState } from "../../context/stores/ContentPart";
 
 export const useContentPartDisplay = () => {
-  const { useContentPart } = useContentPartContext();
-
   const display = useContentPart((c) => {
     if (c.part.type !== "ui")
       throw new Error(

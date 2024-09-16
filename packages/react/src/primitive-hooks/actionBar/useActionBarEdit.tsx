@@ -1,13 +1,15 @@
 import { useCallback } from "react";
-import { useMessageContext } from "../../context/react/MessageContext";
+import {
+  useEditComposer,
+  useEditComposerStore,
+} from "../../context/react/MessageContext";
 
 export const useActionBarEdit = () => {
-  const { useEditComposer } = useMessageContext();
-
+  const editComposerStore = useEditComposerStore();
   const disabled = useEditComposer((c) => c.isEditing);
 
   const callback = useCallback(() => {
-    const { edit } = useEditComposer.getState();
+    const { edit } = editComposerStore.getState();
     edit();
   }, [useEditComposer]);
 

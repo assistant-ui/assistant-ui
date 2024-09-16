@@ -1,7 +1,9 @@
-import { create } from "zustand";
+import { create, UseBoundStore } from "zustand";
 import { ReadonlyStore } from "../ReadonlyStore";
 
 export type EditComposerState = Readonly<{
+  type: "edit";
+
   // TODO
   /** @deprecated Use `text` instead. */
   value: string;
@@ -26,8 +28,10 @@ export const makeEditComposerStore = ({
 }: {
   onEdit: () => string;
   onSend: (text: string) => void;
-}): ReadonlyStore<EditComposerState> =>
+}): UseBoundStore<ReadonlyStore<EditComposerState>> =>
   create<EditComposerState>()((set, get) => ({
+    type: "edit",
+
     get value() {
       return get().text;
     },

@@ -1,5 +1,8 @@
 "use client";
-import { useMessageContext } from "../../context/react/MessageContext";
+import {
+  useMessageStore,
+  useMessageUtilsStore,
+} from "../../context/react/MessageContext";
 import type { RequireAtLeastOne } from "../../utils/RequireAtLeastOne";
 import { useCombinedStore } from "../../utils/combined/useCombinedStore";
 
@@ -16,10 +19,11 @@ type MessageIfFilters = {
 export type UseMessageIfProps = RequireAtLeastOne<MessageIfFilters>;
 
 export const useMessageIf = (props: UseMessageIfProps) => {
-  const { useMessage, useMessageUtils } = useMessageContext();
+  const messageStore = useMessageStore();
+  const messageUtilsStore = useMessageUtilsStore();
 
   return useCombinedStore(
-    [useMessage, useMessageUtils],
+    [messageStore, messageUtilsStore],
     ({ message, branches, isLast }, { isCopied, isHovering, isSpeaking }) => {
       if (props.hasBranches === true && branches.length < 2) return false;
 

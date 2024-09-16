@@ -1,7 +1,7 @@
 export type { AssistantActionsState } from "./AssistantActions";
 export type { AssistantModelConfigState } from "./AssistantModelConfig";
 export type { AssistantToolUIsState } from "./AssistantToolUIs";
-export type { ComposerState } from "./Composer";
+export type { ThreadComposerState } from "./ThreadComposer";
 export type { ContentPartState } from "./ContentPart";
 export type { EditComposerState } from "./EditComposer";
 export type { MessageState } from "./Message";

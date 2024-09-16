@@ -11,13 +11,12 @@ import {
 } from "./base/tooltip-icon-button";
 import { CircleStopIcon } from "./base/CircleStopIcon";
 import { ComposerPrimitive, ThreadPrimitive } from "../primitives";
-import { useThreadContext } from "../context/react/ThreadContext";
+import { useThread } from "../context/react/ThreadContext";
 import ComposerAttachment from "./composer-attachment";
 import { ComposerPrimitiveAttachmentsProps } from "../primitives/composer/ComposerAttachments";
 
 const useAllowAttachments = (ensureCapability = false) => {
   const { composer: { allowAttachments = true } = {} } = useThreadConfig();
-  const { useThread } = useThreadContext();
   const attachmentsSupported = useThread((t) => t.capabilities.attachments);
   return allowAttachments && (!ensureCapability || attachmentsSupported);
 };
@@ -117,7 +116,6 @@ const ComposerAddAttachment = forwardRef<
 ComposerAddAttachment.displayName = "ComposerAddAttachment";
 
 const useAllowCancel = () => {
-  const { useThread } = useThreadContext();
   const cancelSupported = useThread((t) => t.capabilities.cancel);
   return cancelSupported;
 };

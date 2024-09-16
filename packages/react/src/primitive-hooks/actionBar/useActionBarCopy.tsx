@@ -1,5 +1,9 @@
 import { useCallback } from "react";
-import { useMessageContext } from "../../context/react/MessageContext";
+import {
+  useEditComposerStore,
+  useMessageStore,
+  useMessageUtilsStore,
+} from "../../context/react/MessageContext";
 import { useCombinedStore } from "../../utils/combined/useCombinedStore";
 import { getThreadMessageText } from "../../utils/getThreadMessageText";
 
@@ -10,10 +14,11 @@ export type UseActionBarCopyProps = {
 export const useActionBarCopy = ({
   copiedDuration = 3000,
 }: UseActionBarCopyProps = {}) => {
-  const { useMessage, useMessageUtils, useEditComposer } = useMessageContext();
-
+  const messageStore = useMessageStore();
+  const messageUtilsStore = useMessageUtilsStore();
+  const editComposerStore = useEditComposerStore();
   const hasCopyableContent = useCombinedStore(
-    [useMessage, useEditComposer],
+    [messageStore, editComposerStore],
     ({ message }, c) => {
       return (
         !c.isEditing &&
@@ -24,9 +29,9 @@ export const useActionBarCopy = ({
   );
 
   const callback = useCallback(() => {
-    const { message } = useMessage.getState();
-    const { setIsCopied } = useMessageUtils.getState();
-    const { isEditing, text: composerValue } = useEditComposer.getState();
+    const { message } = messageStore.getState();
+    const { setIsCopied } = messageUtilsStore.getState();
+    const { isEditing, text: composerValue } = editComposerStore.getState();
 
     const valueToCopy = isEditing
       ? composerValue
@@ -36,7 +41,7 @@ export const useActionBarCopy = ({
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), copiedDuration);
     });
-  }, [useMessage, useMessageUtils, useEditComposer, copiedDuration]);
+  }, [messageStore, messageUtilsStore, editComposerStore, copiedDuration]);
 
   if (!hasCopyableContent) return null;
   return callback;

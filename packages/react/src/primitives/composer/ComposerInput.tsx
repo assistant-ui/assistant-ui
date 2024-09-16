@@ -13,8 +13,11 @@ import {
 import TextareaAutosize, {
   type TextareaAutosizeProps,
 } from "react-textarea-autosize";
-import { useComposerContext } from "../../context/react/ComposerContext";
-import { useThreadContext } from "../../context/react/ThreadContext";
+import {
+  useComposer,
+  useComposerStore,
+} from "../../context/react/ComposerContext";
+import { useThread, useThreadStore } from "../../context/react/ThreadContext";
 import { useEscapeKeydown } from "@radix-ui/react-use-escape-keydown";
 import { useOnComposerFocus } from "../../utils/hooks/useOnComposerFocus";
 
@@ -37,8 +40,8 @@ export const ComposerPrimitiveInput = forwardRef<
     },
     forwardedRef,
   ) => {
-    const { useThread } = useThreadContext();
-    const { useComposer, type } = useComposerContext();
+    const threadStore = useThreadStore();
+    const composerStore = useComposerStore();
 
     const value = useComposer((c) => {
       if (!c.isEditing) return "";
@@ -52,7 +55,7 @@ export const ComposerPrimitiveInput = forwardRef<
     const ref = useComposedRefs(forwardedRef, textareaRef);
 
     useEscapeKeydown((e) => {
-      const composer = useComposer.getState();
+      const composer = composerStore.getState();
       if (composer.canCancel) {
         composer.cancel();
         e.preventDefault();
@@ -66,7 +69,7 @@ export const ComposerPrimitiveInput = forwardRef<
       if (e.nativeEvent.isComposing) return;
 
       if (e.key === "Enter" && e.shiftKey === false) {
-        const { isRunning } = useThread.getState();
+        const { isRunning } = threadStore.getState();
 
         if (!isRunning) {
           e.preventDefault();
@@ -91,7 +94,7 @@ export const ComposerPrimitiveInput = forwardRef<
     useEffect(() => focus(), [focus]);
 
     useOnComposerFocus(() => {
-      if (type === "new") {
+      if (composerStore.getState().type === "thread") {
         focus();
       }
     });
@@ -104,7 +107,7 @@ export const ComposerPrimitiveInput = forwardRef<
         ref={ref}
         disabled={isDisabled}
         onChange={composeEventHandlers(onChange, (e) => {
-          const composerState = useComposer.getState();
+          const composerState = composerStore.getState();
           if (!composerState.isEditing) return;
           return composerState.setText(e.target.value);
         })}

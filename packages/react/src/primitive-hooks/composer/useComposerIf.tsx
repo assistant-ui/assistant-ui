@@ -1,5 +1,6 @@
 "use client";
-import { useComposerContext } from "../../context/react/ComposerContext";
+
+import { useComposer } from "../../context/react/ComposerContext";
 import type { RequireAtLeastOne } from "../../utils/RequireAtLeastOne";
 
 type ComposerIfFilters = {
@@ -9,7 +10,6 @@ type ComposerIfFilters = {
 export type UseComposerIfProps = RequireAtLeastOne<ComposerIfFilters>;
 
 export const useComposerIf = (props: UseComposerIfProps) => {
-  const { useComposer } = useComposerContext();
   return useComposer((composer) => {
     if (props.editing === true && !composer.isEditing) return false;
     if (props.editing === false && composer.isEditing) return false;

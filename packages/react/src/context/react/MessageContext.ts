@@ -1,28 +1,39 @@
 "use client";
 
-import { createContext, useContext } from "react";
+import { createContext } from "react";
 import type { MessageState } from "../stores/Message";
 import type { EditComposerState } from "../stores/EditComposer";
 import { ReadonlyStore } from "../ReadonlyStore";
 import { MessageUtilsState } from "../stores/MessageUtils";
+import { createContextHook } from "./utils/createContextHook";
+import { createContextStoreHook } from "./utils/createContextStoreHook";
+import { UseBoundStore } from "zustand";
 
 export type MessageContextValue = {
-  useMessage: ReadonlyStore<MessageState>;
-  useMessageUtils: ReadonlyStore<MessageUtilsState>;
-  useEditComposer: ReadonlyStore<EditComposerState>;
+  useMessage: UseBoundStore<ReadonlyStore<MessageState>>;
+  useMessageUtils: UseBoundStore<ReadonlyStore<MessageUtilsState>>;
+  useEditComposer: UseBoundStore<ReadonlyStore<EditComposerState>>;
 };
 
 export const MessageContext = createContext<MessageContextValue | null>(null);
 
-export function useMessageContext(): MessageContextValue;
-export function useMessageContext(options: {
-  optional: true;
-}): MessageContextValue | null;
-export function useMessageContext(options?: { optional: true }) {
-  const context = useContext(MessageContext);
-  if (!options?.optional && !context)
-    throw new Error(
-      "This component can only be used inside a component passed to <ThreadPrimitive.Messages components={...} />.",
-    );
-  return context;
-}
+export const useMessageContext = createContextHook(
+  MessageContext,
+  "a component passed to <ThreadPrimitive.Messages components={...} />",
+);
+
+// TODO make this only return the message itself?
+export const { useMessage, useMessageStore } = createContextStoreHook(
+  useMessageContext,
+  "useMessage",
+);
+
+export const { useMessageUtils, useMessageUtilsStore } = createContextStoreHook(
+  useMessageContext,
+  "useMessageUtils",
+);
+
+export const { useEditComposer, useEditComposerStore } = createContextStoreHook(
+  useMessageContext,
+  "useEditComposer",
+);

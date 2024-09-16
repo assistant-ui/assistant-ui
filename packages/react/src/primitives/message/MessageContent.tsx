@@ -2,11 +2,14 @@
 
 import { type ComponentType, type FC, memo } from "react";
 import {
-  useAssistantContext,
-  useContentPartContext,
-  useThreadContext,
+  useContentPart,
+  useThreadActionsStore,
+  useToolUIs,
 } from "../../context";
-import { useMessageContext } from "../../context/react/MessageContext";
+import {
+  useMessage,
+  useMessageStore,
+} from "../../context/react/MessageContext";
 import {
   ContentPartProvider,
   EMPTY_CONTENT,
@@ -49,7 +52,6 @@ const ToolUIDisplay = ({
 }: {
   UI: ToolCallContentPartComponent | undefined;
 } & ToolCallContentPartProps) => {
-  const { useToolUIs } = useAssistantContext();
   const Render = useToolUIs((s) => s.getToolUI(props.part.toolName)) ?? UI;
   if (!Render) return null;
   return <Render {...props} />;
@@ -81,11 +83,9 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
     tools: { by_name = {}, Fallback = undefined } = {},
   } = {},
 }) => {
-  const { useThreadActions } = useThreadContext();
-  const { useMessage } = useMessageContext();
-  const addToolResult = useThreadActions((t) => t.addToolResult);
+  const messageStore = useMessageStore();
+  const threadActionsStore = useThreadActionsStore();
 
-  const { useContentPart } = useContentPartContext();
   const { part, status } = useContentPart();
 
   const type = part.type;
@@ -113,8 +113,8 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
     case "tool-call": {
       const Tool = by_name[part.toolName] || Fallback;
       const addResult = (result: any) =>
-        addToolResult({
-          messageId: useMessage.getState().message.id,
+        threadActionsStore.getState().addToolResult({
+          messageId: messageStore.getState().message.id,
           toolName: part.toolName,
           toolCallId: part.toolCallId,
           result,
@@ -163,8 +163,6 @@ const MessageContentPart = memo(
 export const MessagePrimitiveContent: FC<MessagePrimitiveContentProps> = ({
   components,
 }) => {
-  const { useMessage } = useMessageContext();
-
   const contentLength = useMessage((s) => s.message.content.length) || 1;
 
   return Array.from({ length: contentLength }, (_, index) => (

@@ -8,7 +8,7 @@ type PrimitiveSpanProps = ComponentPropsWithoutRef<typeof Primitive.span>;
 export type MessagePrimitiveInProgressProps = PrimitiveSpanProps;
 
 /**
- * @deprecated Define a custom Text renderer via ContentPartPrimitiveInProgress instead.
+ * @deprecated Define a custom Text renderer via ContentPartPrimitiveInProgress instead. This will be removed in 0.6.
  */
 export const MessagePrimitiveInProgress: FC<
   MessagePrimitiveInProgressProps

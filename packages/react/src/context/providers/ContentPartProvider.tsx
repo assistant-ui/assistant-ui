@@ -4,7 +4,7 @@ import { type FC, type PropsWithChildren, useEffect, useState } from "react";
 import { create } from "zustand";
 import { ContentPartContext } from "../react/ContentPartContext";
 import type { ContentPartContextValue } from "../react/ContentPartContext";
-import { useMessageContext } from "../react/MessageContext";
+import { useMessageStore } from "../react/MessageContext";
 import type { MessageState } from "../stores";
 import type { ContentPartState } from "../stores/ContentPart";
 import {
@@ -90,10 +90,10 @@ const getContentPartState = (
 };
 
 const useContentPartContext = (partIndex: number) => {
-  const { useMessage } = useMessageContext();
+  const messageStore = useMessageStore();
   const [context] = useState<ContentPartContextValue>(() => {
     const useContentPart = create<ContentPartState>(
-      () => getContentPartState(useMessage.getState(), undefined, partIndex)!,
+      () => getContentPartState(messageStore.getState(), undefined, partIndex)!,
     );
 
     return { useContentPart };
@@ -110,9 +110,9 @@ const useContentPartContext = (partIndex: number) => {
       writableStore(context.useContentPart).setState(newState, true);
     };
 
-    syncContentPart(useMessage.getState());
-    return useMessage.subscribe(syncContentPart);
-  }, [context, useMessage, partIndex]);
+    syncContentPart(messageStore.getState());
+    return messageStore.subscribe(syncContentPart);
+  }, [context, messageStore, partIndex]);
 
   return context;
 };

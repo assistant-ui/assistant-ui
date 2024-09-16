@@ -1,14 +1,14 @@
 import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
 import { useEffect } from "react";
-import { useThreadContext } from "../../context/react/ThreadContext";
+import { useThreadViewportStore } from "../../context/react/ThreadContext";
 
 export const useOnScrollToBottom = (callback: () => void) => {
   const callbackRef = useCallbackRef(callback);
+  const threadViewportStore = useThreadViewportStore();
 
-  const { useViewport } = useThreadContext();
   useEffect(() => {
-    return useViewport.getState().onScrollToBottom(() => {
+    return threadViewportStore.getState().onScrollToBottom(() => {
       callbackRef();
     });
-  }, [useViewport, callbackRef]);
+  }, [threadViewportStore, callbackRef]);
 };

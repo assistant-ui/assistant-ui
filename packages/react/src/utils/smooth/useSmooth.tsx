@@ -1,15 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useMessageContext } from "../../context";
-import {
-  ContentPartStatus,
-  ToolCallContentPartStatus,
-} from "../../types/AssistantTypes";
+import { useMessage } from "../../context";
+import { ContentPartStatus } from "../../types/AssistantTypes";
 import { TextContentPartState } from "../../context/stores/ContentPart";
-import { useSmoothContext } from "./SmoothContext";
-import { StoreApi } from "zustand";
 import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
+import { useSmoothStatus, useSmoothStatusStore } from "./SmoothContext";
+import { writableStore } from "../../context/ReadonlyStore";
 
 class TextStreamAnimator {
   private animationFrameId: number | null = null;
@@ -73,34 +70,31 @@ export const useSmooth = (
   state: TextContentPartState,
   smooth: boolean = false,
 ): TextContentPartState => {
-  const { useSmoothStatus } = useSmoothContext({ optional: true }) ?? {};
-
   const {
     part: { text },
   } = state;
-  const { useMessage } = useMessageContext();
   const id = useMessage((m) => m.message.id);
 
   const idRef = useRef(id);
   const [displayedText, setDisplayedText] = useState(text);
 
+  const smoothStatusStore = useSmoothStatusStore({ optional: true });
   const setText = useCallbackRef((text: string) => {
     setDisplayedText(text);
-    (
-      useSmoothStatus as unknown as
-        | StoreApi<ToolCallContentPartStatus>
-        | undefined
-    )?.setState(text !== state.part.text ? SMOOTH_STATUS : state.status);
+    if (smoothStatusStore) {
+      writableStore(smoothStatusStore).setState(
+        text !== state.part.text ? SMOOTH_STATUS : state.status,
+      );
+    }
   });
 
   // TODO this is hacky
   useEffect(() => {
-    // TODO add a helper function so we don't have to override the types
-    (
-      useSmoothStatus as unknown as
-        | StoreApi<ToolCallContentPartStatus>
-        | undefined
-    )?.setState(text !== displayedText ? SMOOTH_STATUS : state.status);
+    if (smoothStatusStore) {
+      writableStore(smoothStatusStore).setState(
+        text !== state.part.text ? SMOOTH_STATUS : state.status,
+      );
+    }
   }, [useSmoothStatus, text, displayedText, state.status]);
 
   const [animatorRef] = useState<TextStreamAnimator>(

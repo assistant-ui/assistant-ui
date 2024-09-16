@@ -3,8 +3,8 @@
 import {
   type ModelConfig,
   type ToolCallContentPartComponent,
-  useAssistantContext,
   useAssistantToolUI,
+  useModelConfigStore,
 } from "@assistant-ui/react";
 import { useEffect } from "react";
 import {
@@ -62,11 +62,7 @@ export const useAssistantForm = <
   const form = useForm<TFieldValues, TContext, TTransformedValues>(props);
   const { control, getValues, setValue } = form;
 
-  const { useModelConfig } = useAssistantContext();
-  const registerModelConfigProvider = useModelConfig(
-    (c) => c.registerModelConfigProvider,
-  );
-
+  const modelConfigStore = useModelConfigStore();
   useEffect(() => {
     const value: ModelConfig = {
       system: `Form State:\n${JSON.stringify(getValues())}`,
@@ -111,8 +107,10 @@ export const useAssistantForm = <
         },
       },
     };
-    return registerModelConfigProvider({ getModelConfig: () => value });
-  }, [control, setValue, getValues, registerModelConfigProvider]);
+    return modelConfigStore.getState().registerModelConfigProvider({
+      getModelConfig: () => value,
+    });
+  }, [control, setValue, getValues, modelConfigStore]);
 
   const renderFormFieldTool = props?.assistant?.tools?.set_form_field?.render;
   useAssistantToolUI(

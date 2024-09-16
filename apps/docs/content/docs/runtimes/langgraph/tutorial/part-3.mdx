@@ -87,7 +87,7 @@ Then we use `makeAssistantToolUI` to define the tool UI:
 
 import { TransactionConfirmationPending } from "./transaction-confirmation-pending";
 import { TransactionConfirmationFinal } from "./transaction-confirmation-final";
-import { makeAssistantToolUI, useThreadContext } from "@assistant-ui/react";
+import { makeAssistantToolUI } from "@assistant-ui/react";
 import { updateState } from "@/lib/chatApi";
 
 export const PurchaseStockTool = makeAssistantToolUI<PurchaseStockArgs, string>(
@@ -312,7 +312,7 @@ We will import the new `<TransactionConfirmationFinal />` component and use it i
 
 import { TransactionConfirmationPending } from "./transaction-confirmation-pending";
 import { TransactionConfirmationFinal } from "./transaction-confirmation-final";
-import { makeAssistantToolUI, useThreadContext } from "@assistant-ui/react";
+import { makeAssistantToolUI } from "@assistant-ui/react";
 import { updateState } from "@/lib/chatApi";
 
 type PurchaseStockArgs = {

@@ -15,25 +15,22 @@ import {
 } from "./base/tooltip-icon-button";
 import { withDefaults } from "./utils/withDefaults";
 import { useThreadConfig } from "./thread-config";
-import { useThreadContext } from "../context";
+import { useThread } from "../context";
 
 const useAllowCopy = (ensureCapability = false) => {
   const { assistantMessage: { allowCopy = true } = {} } = useThreadConfig();
-  const { useThread } = useThreadContext();
   const copySupported = useThread((t) => t.capabilities.unstable_copy);
   return allowCopy && (!ensureCapability || copySupported);
 };
 
 const useAllowSpeak = (ensureCapability = false) => {
   const { assistantMessage: { allowSpeak = true } = {} } = useThreadConfig();
-  const { useThread } = useThreadContext();
   const speakSupported = useThread((t) => t.capabilities.speak);
   return allowSpeak && (!ensureCapability || speakSupported);
 };
 
 const useAllowReload = (ensureCapability = false) => {
   const { assistantMessage: { allowReload = true } = {} } = useThreadConfig();
-  const { useThread } = useThreadContext();
   const reloadSupported = useThread((t) => t.capabilities.reload);
   return allowReload && (!ensureCapability || reloadSupported);
 };

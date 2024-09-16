@@ -6,16 +6,19 @@ import {
   useContext,
   useState,
 } from "react";
-import { useContentPartContext } from "../../context";
 import { ReadonlyStore } from "../../context/ReadonlyStore";
-import { create } from "zustand";
+import { create, UseBoundStore } from "zustand";
 import {
   ContentPartStatus,
   ToolCallContentPartStatus,
 } from "../../types/AssistantTypes";
+import { useContentPartStore } from "../../context/react/ContentPartContext";
+import { createContextStoreHook } from "../../context/react/utils/createContextStoreHook";
 
 type SmoothContextValue = {
-  useSmoothStatus: ReadonlyStore<ToolCallContentPartStatus | ContentPartStatus>;
+  useSmoothStatus: UseBoundStore<
+    ReadonlyStore<ContentPartStatus | ToolCallContentPartStatus>
+  >;
 };
 
 const SmoothContext = createContext<SmoothContextValue | null>(null);
@@ -29,10 +32,10 @@ const makeSmoothContext = (
 
 export const SmoothContextProvider: FC<PropsWithChildren> = ({ children }) => {
   const outer = useSmoothContext({ optional: true });
-  const { useContentPart } = useContentPartContext();
+  const contentPartStore = useContentPartStore();
 
   const [context] = useState(() =>
-    makeSmoothContext(useContentPart.getState().status),
+    makeSmoothContext(contentPartStore.getState().status),
   );
 
   // do not wrap if there is an outer SmoothContextProvider
@@ -57,11 +60,13 @@ export const withSmoothContextProvider = <C extends React.ComponentType<any>>(
   return Wrapped as any;
 };
 
-export function useSmoothContext(): SmoothContextValue;
-export function useSmoothContext(options: {
-  optional: true;
+function useSmoothContext(options?: {
+  optional?: false | undefined;
+}): SmoothContextValue;
+function useSmoothContext(options?: {
+  optional?: boolean | undefined;
 }): SmoothContextValue | null;
-export function useSmoothContext(options?: { optional: true }) {
+function useSmoothContext(options?: { optional?: boolean | undefined }) {
   const context = useContext(SmoothContext);
   if (!options?.optional && !context)
     throw new Error(
@@ -70,7 +75,7 @@ export function useSmoothContext(options?: { optional: true }) {
   return context;
 }
 
-export const useSmoothStatus = () => {
-  const { useSmoothStatus } = useSmoothContext();
-  return useSmoothStatus();
-};
+export const { useSmoothStatus, useSmoothStatusStore } = createContextStoreHook(
+  useSmoothContext,
+  "useSmoothStatus",
+);

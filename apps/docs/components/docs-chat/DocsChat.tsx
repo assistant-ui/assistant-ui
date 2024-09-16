@@ -15,8 +15,7 @@ import { Thread, type ThreadConfig } from "@assistant-ui/react";
 import entelligenceLogoLight from "./entelligence-light.png";
 import entelligenceLogoDark from "./entelligence-dark.png";
 import Image from "next/image";
-import Composer from "@assistant-ui/react/ui/composer";
-import ThreadWelcome from "@assistant-ui/react/ui/thread-welcome";
+import { Composer, ThreadWelcome } from "@assistant-ui/react";
 
 function asAsyncIterable<T>(source: ReadableStream<T>): AsyncIterable<T> {
   return {

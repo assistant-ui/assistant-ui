@@ -3,7 +3,7 @@ import { useEffect, useInsertionEffect, useState } from "react";
 import type { ReactThreadRuntime } from "../../runtimes/core/ReactThreadRuntime";
 import type { ThreadContextValue } from "../react/ThreadContext";
 import { ThreadContext } from "../react/ThreadContext";
-import { makeComposerStore } from "../stores/Composer";
+import { makeThreadComposerStore } from "../stores/ThreadComposer";
 import { getThreadStateFromRuntime, makeThreadStore } from "../stores/Thread";
 import { makeThreadViewportStore } from "../stores/ThreadViewport";
 import { makeThreadActionStore } from "../stores/ThreadActions";
@@ -27,7 +27,7 @@ export const ThreadProvider: FC<PropsWithChildren<ThreadProviderProps>> = ({
     const useThreadMessages = makeThreadMessagesStore(useThreadRuntime);
     const useThreadActions = makeThreadActionStore(useThreadRuntime);
     const useViewport = makeThreadViewportStore();
-    const useComposer = makeComposerStore(useThreadRuntime);
+    const useComposer = makeThreadComposerStore(useThreadRuntime);
 
     return {
       useThread,

@@ -1,14 +1,14 @@
 import { useCallback } from "react";
-import { useAssistantContext, useThreadContext } from "../context";
+import { useAssistantActionsStore } from "../context";
+import { useThreadComposerStore } from "../context/react/ThreadContext";
 
 export const useSwitchToNewThread = () => {
-  const { useAssistantActions } = useAssistantContext();
-  const { useComposer } = useThreadContext();
-
+  const assistantActionsStore = useAssistantActionsStore();
+  const threadComposerStore = useThreadComposerStore();
   const switchToNewThread = useCallback(() => {
-    useAssistantActions.getState().switchToThread(null);
-    useComposer.getState().focus();
-  }, [useAssistantActions, useComposer]);
+    assistantActionsStore.getState().switchToThread(null);
+    threadComposerStore.getState().focus();
+  }, [assistantActionsStore, threadComposerStore]);
 
   return switchToNewThread;
 };

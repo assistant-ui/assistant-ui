@@ -3,7 +3,7 @@
 import { type FC, type PropsWithChildren, useEffect, useState } from "react";
 import { create } from "zustand";
 import type { MessageState } from "../stores";
-import { useMessageContext } from "../react";
+import { useMessageStore } from "../react";
 import { MessageAttachmentState } from "../stores/Attachment";
 import {
   AttachmentContext,
@@ -34,11 +34,11 @@ const getAttachment = (
 };
 
 const useMessageAttachmentContext = (partIndex: number) => {
-  const { useMessage } = useMessageContext();
+  const messageStore = useMessageStore();
   const [context] = useState<AttachmentContextValue & { type: "message" }>(
     () => {
       const useAttachment = create<MessageAttachmentState>(
-        () => getAttachment(useMessage.getState(), undefined, partIndex)!,
+        () => getAttachment(messageStore.getState(), undefined, partIndex)!,
       );
 
       return { type: "message", useAttachment };
@@ -56,9 +56,9 @@ const useMessageAttachmentContext = (partIndex: number) => {
       writableStore(context.useAttachment).setState(newState, true);
     };
 
-    syncAttachment(useMessage.getState());
-    return useMessage.subscribe(syncAttachment);
-  }, [context, useMessage, partIndex]);
+    syncAttachment(messageStore.getState());
+    return messageStore.subscribe(syncAttachment);
+  }, [context, messageStore, partIndex]);
 
   return context;
 };

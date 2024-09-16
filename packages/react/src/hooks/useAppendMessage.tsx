@@ -1,6 +1,13 @@
 import { useCallback } from "react";
-import { ThreadContextValue, useThreadContext } from "../context";
+import {
+  ThreadMessagesState,
+  useThreadActionsStore,
+  useThreadMessagesStore,
+  useThreadViewportStore,
+} from "../context";
 import { AppendMessage } from "../types";
+import { useThreadComposerStore } from "../context/react/ThreadContext";
+import { ReadonlyStore } from "../context/ReadonlyStore";
 
 type CreateAppendMessage =
   | string
@@ -12,7 +19,7 @@ type CreateAppendMessage =
     };
 
 const toAppendMessage = (
-  useThreadMessages: ThreadContextValue["useThreadMessages"],
+  useThreadMessages: ReadonlyStore<ThreadMessagesState>,
   message: CreateAppendMessage,
 ): AppendMessage => {
   if (typeof message === "string") {
@@ -34,18 +41,25 @@ const toAppendMessage = (
 };
 
 export const useAppendMessage = () => {
-  const { useThreadMessages, useThreadActions, useViewport, useComposer } =
-    useThreadContext();
+  const threadMessagesStore = useThreadMessagesStore();
+  const threadActionsStore = useThreadActionsStore();
+  const threadViewportStore = useThreadViewportStore();
+  const threadComposerStore = useThreadComposerStore();
 
   const append = useCallback(
     (message: CreateAppendMessage) => {
-      const appendMessage = toAppendMessage(useThreadMessages, message);
-      useThreadActions.getState().append(appendMessage);
+      const appendMessage = toAppendMessage(threadMessagesStore, message);
+      threadActionsStore.getState().append(appendMessage);
 
-      useViewport.getState().scrollToBottom();
-      useComposer.getState().focus();
+      threadViewportStore.getState().scrollToBottom();
+      threadComposerStore.getState().focus();
     },
-    [useThreadMessages, useThreadActions, useViewport, useComposer],
+    [
+      threadMessagesStore,
+      threadActionsStore,
+      threadViewportStore,
+      threadComposerStore,
+    ],
   );
 
   return append;

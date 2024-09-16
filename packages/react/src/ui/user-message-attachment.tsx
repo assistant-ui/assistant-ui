@@ -3,7 +3,7 @@
 import { type FC } from "react";
 
 import { withDefaults } from "./utils/withDefaults";
-import { useAttachmentContext } from "../context/react/AttachmentContext";
+import { useAttachment } from "../context/react/AttachmentContext";
 
 const UserMessageAttachmentRoot = withDefaults("div", {
   className: "aui-user-message-attachment-root",
@@ -12,7 +12,6 @@ const UserMessageAttachmentRoot = withDefaults("div", {
 UserMessageAttachmentRoot.displayName = "UserMessageAttachmentRoot";
 
 const UserMessageAttachment: FC = () => {
-  const { useAttachment } = useAttachmentContext();
   const attachment = useAttachment((a) => a.attachment);
 
   return (

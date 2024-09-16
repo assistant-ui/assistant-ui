@@ -1,10 +1,12 @@
-import { create } from "zustand";
+import { create, UseBoundStore } from "zustand";
 import { ReadonlyStore } from "../ReadonlyStore";
 import { Unsubscribe } from "../../types/Unsubscribe";
 import { ThreadContextValue } from "../react";
 import { ThreadComposerAttachment } from "./Attachment";
 
-export type ComposerState = Readonly<{
+export type ThreadComposerState = Readonly<{
+  type: "thread";
+
   /** @deprecated Use `text` instead. */
   value: string;
   /** @deprecated Use `setText` instead. */
@@ -29,13 +31,15 @@ export type ComposerState = Readonly<{
   onFocus: (listener: () => void) => Unsubscribe;
 }>;
 
-export const makeComposerStore = (
+export const makeThreadComposerStore = (
   useThreadRuntime: ThreadContextValue["useThreadRuntime"],
-): ReadonlyStore<ComposerState> => {
+): UseBoundStore<ReadonlyStore<ThreadComposerState>> => {
   const focusListeners = new Set<() => void>();
-  return create<ComposerState>()((_, get) => {
+  return create<ThreadComposerState>()((_, get) => {
     const runtime = useThreadRuntime.getState();
     return {
+      type: "thread",
+
       get value() {
         return get().text;
       },
