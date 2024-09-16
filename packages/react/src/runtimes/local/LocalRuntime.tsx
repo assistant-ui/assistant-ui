@@ -28,11 +28,7 @@ export class LocalRuntime extends BaseAssistantRuntime<LocalThreadRuntime> {
     return this._proxyConfigProvider.registerModelConfigProvider(provider);
   }
 
-  public switchToThread(threadId: string | null) {
-    if (threadId) {
-      throw new Error("LocalRuntime does not yet support switching threads");
-    }
-
+  public switchToNewThread() {
     const { initialMessages, ...options } = this.thread.options;
 
     return (this.thread = new LocalThreadRuntime(
@@ -40,6 +36,14 @@ export class LocalRuntime extends BaseAssistantRuntime<LocalThreadRuntime> {
       this.thread.adapter,
       options,
     ));
+  }
+
+  public switchToThread(threadId: string | null) {
+    if (threadId !== null) {
+      throw new Error("LocalRuntime does not yet support switching threads");
+    }
+
+    this.switchToNewThread();
   }
 
   public reset({

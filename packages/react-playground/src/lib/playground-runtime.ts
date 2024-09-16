@@ -66,15 +66,19 @@ class PlaygroundRuntime
     this._proxyConfigProvider = cp;
   }
 
-  public switchToThread(threadId: string | null) {
-    if (threadId)
-      throw new Error("PlaygroundRuntime does not support switching threads");
-
+  public switchToNewThread() {
     this.thread = new PlaygroundThreadRuntime(
       this._proxyConfigProvider,
       [],
       this.thread.adapter,
     );
+  }
+
+  public switchToThread(threadId: string | null) {
+    if (threadId !== null)
+      throw new Error("PlaygroundRuntime does not support switching threads");
+
+    this.switchToNewThread();
   }
 
   public override registerModelConfigProvider(

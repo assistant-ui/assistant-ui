@@ -20,6 +20,8 @@ export abstract class BaseAssistantRuntime<
     this.subscriptionHandler();
   }
 
+  public abstract switchToNewThread(): void;
+
   public abstract registerModelConfigProvider(
     provider: ModelConfigProvider,
   ): Unsubscribe;

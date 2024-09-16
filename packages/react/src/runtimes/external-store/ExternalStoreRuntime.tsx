@@ -26,8 +26,19 @@ export class ExternalStoreRuntime extends BaseAssistantRuntime<ExternalStoreThre
     return this._proxyConfigProvider.registerModelConfigProvider(provider);
   }
 
+  public async switchToNewThread() {
+    if (!this.store.onNewThread)
+      throw new Error("Runtime does not support switching to new threads.");
+
+    this.thread = new ExternalStoreThreadRuntime({
+      messages: [],
+      onNew: this.store.onNew,
+    });
+    await this.store.onNewThread();
+  }
+
   public async switchToThread(threadId: string | null) {
-    if (threadId) {
+    if (threadId !== null) {
       if (!this.store.onSwitchThread)
         throw new Error("Runtime does not support switching threads.");
 
@@ -37,14 +48,7 @@ export class ExternalStoreRuntime extends BaseAssistantRuntime<ExternalStoreThre
       });
       this.store.onSwitchThread(threadId);
     } else {
-      if (!this.store.onNewThread)
-        throw new Error("Runtime does not support switching to new threads.");
-
-      this.thread = new ExternalStoreThreadRuntime({
-        messages: [],
-        onNew: this.store.onNew,
-      });
-      await this.store.onNewThread();
+      this.switchToNewThread();
     }
   }
 }
