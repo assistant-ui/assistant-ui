@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.5.55
+
+### Patch Changes
+
+- b0a22e3: feat: runtime.switchToNewThread()
+- 11ca453: refactor: drop useModelConfig Context - use useAssistantActions instead
+
 ## 0.5.54
 
 ### Patch Changes
