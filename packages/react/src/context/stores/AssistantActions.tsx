@@ -7,7 +7,9 @@ export type AssistantActionsState = Readonly<{
   /**
    * @deprecated Use `switchToNewThread` instead. This will be removed in 0.6.0.
    */
-  switchToThread: (threadId: string | null) => void;
+  switchToThread(threadId: null): void;
+  switchToThread(threadId: string): void;
+
   switchToNewThread: () => void;
   registerModelConfigProvider: (provider: ModelConfigProvider) => Unsubscribe;
 }>;

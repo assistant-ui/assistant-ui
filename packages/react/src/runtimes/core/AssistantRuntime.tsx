@@ -12,6 +12,7 @@ export type AssistantRuntime = ThreadRuntimeWithSubscribe & {
   /**
    * @deprecated Use `switchToNewThread` instead. This will be removed in 0.6.0.
    */
-  switchToThread: (threadId: string | null) => void;
+  switchToThread(threadId: null): void;
+  switchToThread(threadId: string): void;
   registerModelConfigProvider: (provider: ModelConfigProvider) => Unsubscribe;
 };
