@@ -23,13 +23,11 @@ type ExternalStoreAdapterBase<T> = {
   onEdit?: ((message: AppendMessage) => Promise<void>) | undefined;
   onReload?: ((parentId: string | null) => Promise<void>) | undefined;
   onCancel?: (() => Promise<void>) | undefined;
-  onNewThread?: (() => Promise<void> | void) | undefined;
   onAddToolResult?:
     | ((options: AddToolResultOptions) => Promise<void> | void)
     | undefined;
-  onSwitchThread?:
-    | ((threadId: string | null) => Promise<void> | void)
-    | undefined;
+  onSwitchToThread?: ((threadId: string) => Promise<void> | void) | undefined;
+  onSwitchToNewThread?: (() => Promise<void> | void) | undefined;
   onSpeak?:
     | ((message: ThreadMessage) => SpeechSynthesisAdapter.Utterance)
     | undefined;

@@ -46,7 +46,7 @@ export const useVercelUseChatRuntime = (
     onAddToolResult: ({ toolCallId, result }) => {
       chatHelpers.addToolResult({ toolCallId, result });
     },
-    onNewThread: () => {
+    onSwitchToNewThread: () => {
       chatHelpers.messages = [];
       chatHelpers.input = "";
       chatHelpers.setMessages([]);

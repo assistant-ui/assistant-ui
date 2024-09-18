@@ -23,7 +23,7 @@ export const useVercelUseAssistantRuntime = (
     onNew: async (message) => {
       await assistantHelpers.append(await toCreateMessage(message));
     },
-    onNewThread: () => {
+    onSwitchToNewThread: () => {
       assistantHelpers.messages = [];
       assistantHelpers.input = "";
       assistantHelpers.setMessages([]);

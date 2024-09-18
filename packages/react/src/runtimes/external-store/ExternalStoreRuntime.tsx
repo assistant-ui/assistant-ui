@@ -27,26 +27,26 @@ export class ExternalStoreRuntime extends BaseAssistantRuntime<ExternalStoreThre
   }
 
   public async switchToNewThread() {
-    if (!this.store.onNewThread)
+    if (!this.store.onSwitchToNewThread)
       throw new Error("Runtime does not support switching to new threads.");
 
     this.thread = new ExternalStoreThreadRuntime({
       messages: [],
       onNew: this.store.onNew,
     });
-    await this.store.onNewThread();
+    await this.store.onSwitchToNewThread();
   }
 
   public async switchToThread(threadId: string | null) {
     if (threadId !== null) {
-      if (!this.store.onSwitchThread)
+      if (!this.store.onSwitchToThread)
         throw new Error("Runtime does not support switching threads.");
 
       this.thread = new ExternalStoreThreadRuntime({
         messages: [],
         onNew: this.store.onNew,
       });
-      this.store.onSwitchThread(threadId);
+      this.store.onSwitchToThread(threadId);
     } else {
       this.switchToNewThread();
     }

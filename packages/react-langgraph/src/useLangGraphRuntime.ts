@@ -27,6 +27,8 @@ const getPendingToolCalls = (messages: LangChainMessage[]) => {
 export const useLangGraphRuntime = ({
   threadId,
   stream,
+  onSwitchToNewThread,
+  onSwitchToThread,
 }: {
   threadId?: string | undefined;
   stream: (messages: LangChainMessage[]) => Promise<
@@ -35,8 +37,12 @@ export const useLangGraphRuntime = ({
       data: any;
     }>
   >;
+  onSwitchToNewThread?: () => Promise<void> | void;
+  onSwitchToThread?: (
+    threadId: string,
+  ) => Promise<{ messages: LangChainMessage[] }>;
 }): ExternalStoreRuntime => {
-  const { messages, sendMessage } = useLangGraphMessages({
+  const { messages, sendMessage, setMessages } = useLangGraphMessages({
     stream,
   });
 
@@ -93,5 +99,17 @@ export const useLangGraphRuntime = ({
         },
       ]);
     },
+    onSwitchToNewThread: !onSwitchToNewThread
+      ? undefined
+      : async () => {
+          await onSwitchToNewThread();
+          setMessages([]);
+        },
+    onSwitchToThread: !onSwitchToThread
+      ? undefined
+      : async (threadId) => {
+          const { messages } = await onSwitchToThread(threadId);
+          setMessages(messages);
+        },
   });
 };

@@ -49,5 +49,5 @@ export const useLangGraphMessages = <TMessage>({
     [stream],
   );
 
-  return { messages, sendMessage };
+  return { messages, sendMessage, setMessages };
 };
