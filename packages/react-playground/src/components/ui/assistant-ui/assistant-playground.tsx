@@ -324,7 +324,7 @@ const Sidebar: FC<AssistantPlaygroundProps> = ({
 }) => {
   const assistantActionsStore = useAssistantActionsStore();
   const handleReset = () => {
-    assistantActionsStore.getState().switchToThread(null);
+    assistantActionsStore.getState().switchToNewThread();
   };
 
   return (

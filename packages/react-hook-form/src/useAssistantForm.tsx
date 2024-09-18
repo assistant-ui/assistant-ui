@@ -3,7 +3,6 @@
 import {
   type ModelConfig,
   type ToolCallContentPartComponent,
-  useAssistantActionsStore,
   useAssistantToolUI,
 } from "@assistant-ui/react";
 import { useEffect } from "react";
@@ -15,6 +14,7 @@ import {
 } from "react-hook-form";
 import type { z } from "zod";
 import { formTools } from "./formTools";
+import { useAssistantActionsStore } from "@assistant-ui/react";
 
 export type UseAssistantFormProps<
   TFieldValues extends FieldValues,

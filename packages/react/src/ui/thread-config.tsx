@@ -14,7 +14,7 @@ import { TextContentPartComponent, ToolCallContentPartProps } from "../types";
 import { AssistantRuntime } from "../runtimes";
 import { AssistantRuntimeProvider } from "../context";
 import { AssistantToolUI } from "../model-config";
-import { useAssistantRuntimeStore } from "../context/react/AssistantContext";
+import { useAssistantRuntimeStore as useAssistantActionsStore } from "../context/react/AssistantContext";
 
 export type SuggestionConfig = {
   text?: ReactNode;
@@ -167,7 +167,7 @@ export const ThreadConfigProvider: FC<ThreadConfigProviderProps> = ({
   children,
   config,
 }) => {
-  const hasAssistant = !!useAssistantRuntimeStore({ optional: true });
+  const hasAssistant = !!useAssistantActionsStore({ optional: true });
 
   const configProvider =
     config && Object.keys(config ?? {}).length > 0 ? (

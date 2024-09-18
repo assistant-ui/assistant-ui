@@ -4,9 +4,12 @@ import { MutableRefObject } from "react";
 import { ModelConfigProvider, Unsubscribe } from "../../types";
 
 export type AssistantActionsState = Readonly<{
+  /**
+   * @deprecated Use `switchToNewThread` instead. This will be removed in 0.6.0.
+   */
   switchToThread: (threadId: string | null) => void;
+  switchToNewThread: () => void;
   registerModelConfigProvider: (provider: ModelConfigProvider) => Unsubscribe;
-  getRuntime: () => AssistantRuntime;
 }>;
 
 export const makeAssistantActionsStore = (
@@ -15,6 +18,7 @@ export const makeAssistantActionsStore = (
   create<AssistantActionsState>(() =>
     Object.freeze({
       switchToThread: () => runtimeRef.current.switchToThread(null),
+      switchToNewThread: () => runtimeRef.current.switchToNewThread(),
       registerModelConfigProvider: (provider: ModelConfigProvider) =>
         runtimeRef.current.registerModelConfigProvider(provider),
       getRuntime: () => runtimeRef.current,

@@ -67,12 +67,14 @@ export const ThreadProvider: FC<PropsWithChildren<ThreadProviderProps>> = ({
       if (
         thread.composer.isEmpty !== composerState.isEmpty ||
         thread.composer.text !== composerState.text ||
+        thread.composer.attachmentAccept !== composerState.attachmentAccept ||
         thread.composer.attachments !== composerState.attachments ||
         state.capabilities.cancel !== composerState.canCancel
       ) {
         writableStore(context.useComposer).setState({
           isEmpty: thread.composer.isEmpty,
           text: thread.composer.text,
+          attachmentAccept: thread.composer.attachmentAccept,
           attachments: thread.composer.attachments,
           canCancel: state.capabilities.cancel,
         });

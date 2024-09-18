@@ -12,6 +12,8 @@ export type ThreadComposerState = Readonly<{
   /** @deprecated Use `setText` instead. */
   setValue: (value: string) => void;
 
+  attachmentAccept: string;
+
   attachments: readonly ThreadComposerAttachment[];
   addAttachment: (file: File) => void;
   removeAttachment: (attachmentId: string) => void;
@@ -46,6 +48,8 @@ export const makeThreadComposerStore = (
       setValue(value) {
         get().setText(value);
       },
+
+      attachmentAccept: runtime.composer.attachmentAccept,
 
       attachments: runtime.composer.attachments,
       addAttachment: (file) => {
