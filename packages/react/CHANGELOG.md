@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.5.56
+
+### Patch Changes
+
+- e4863bb: feat(runtimes/external): add onSwitchToNewThread callback
+- e4863bb: feat: add attachmentAccept to ThreadComposer
+
 ## 0.5.55
 
 ### Patch Changes

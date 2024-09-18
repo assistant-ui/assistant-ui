@@ -1,5 +1,14 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.6.7
+
+### Patch Changes
+
+- e4863bb: feat(runtimes/external): add onSwitchToNewThread callback
+- Updated dependencies [e4863bb]
+- Updated dependencies [e4863bb]
+  - @assistant-ui/react@0.5.56
+
 ## 0.6.6
 
 ### Patch Changes

@@ -1,5 +1,14 @@
 # @assistant-ui/react-langgraph
 
+## 0.0.7
+
+### Patch Changes
+
+- e4863bb: feat(langgraph): add support for switching threads
+- Updated dependencies [e4863bb]
+- Updated dependencies [e4863bb]
+  - @assistant-ui/react@0.5.56
+
 ## 0.0.6
 
 ### Patch Changes
