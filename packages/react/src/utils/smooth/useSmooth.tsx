@@ -73,7 +73,10 @@ export const useSmooth = (
   const {
     part: { text },
   } = state;
-  const id = useMessage((m) => m.message.id);
+  const id = useMessage({
+    optional: true,
+    selector: (m: { message: { id: string } }) => m.message.id,
+  });
 
   const idRef = useRef(id);
   const [displayedText, setDisplayedText] = useState(text);
