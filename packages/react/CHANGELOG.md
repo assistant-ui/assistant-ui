@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.59
+
+### Patch Changes
+
+- 0f547a9: fix: useSmooth should work inside TextContentPartProvider
+
 ## 0.5.58
 
 ### Patch Changes
