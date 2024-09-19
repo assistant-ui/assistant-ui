@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.5.57
+
+### Patch Changes
+
+- 745d6e1: fix(runtimes/external-store): switch to thread should correctly copy the entire store
+- 745d6e1: fix: only deprecate the null usage of switchToThread
+
 ## 0.5.56
 
 ### Patch Changes
