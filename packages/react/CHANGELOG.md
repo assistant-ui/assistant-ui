@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.5.58
+
+### Patch Changes
+
+- 6507071: fix: TextContentPartProvider text streaming support
+- 6507071: feat: TextContentPartProvider isRunning
+
 ## 0.5.57
 
 ### Patch Changes
