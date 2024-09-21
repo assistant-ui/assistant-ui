@@ -16,7 +16,7 @@
   "devDependencies": {
     "@assistant-ui/tsconfig": "workspace:*",
     "@types/node": "^22.5.5",
-    "tsup": "8.2.4"
+    "tsup": "8.3.0"
   },
   "files": [
     "dist",

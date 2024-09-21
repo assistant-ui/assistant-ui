@@ -39,8 +39,8 @@
     "@assistant-ui/tsconfig": "workspace:*",
     "@types/node": "^22.5.5",
     "eslint": "^8",
-    "eslint-config-next": "14.2.11",
-    "tsup": "8.2.4",
+    "eslint-config-next": "14.2.13",
+    "tsup": "8.3.0",
     "tsx": "^4.19.1"
   },
   "publishConfig": {

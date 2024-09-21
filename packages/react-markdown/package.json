@@ -43,7 +43,7 @@
     "@radix-ui/react-primitive": "^2.0.0",
     "@radix-ui/react-use-callback-ref": "^1.1.0",
     "classnames": "^2.5.1",
-    "lucide-react": "^0.441.0",
+    "lucide-react": "^0.445.0",
     "react-markdown": "^9.0.1"
   },
   "peerDependencies": {
@@ -66,11 +66,11 @@
     "@types/node": "^22.5.5",
     "autoprefixer": "^10.4.20",
     "eslint": "^8",
-    "eslint-config-next": "14.2.11",
+    "eslint-config-next": "14.2.13",
     "postcss": "^8.4.47",
-    "tailwindcss": "^3.4.11",
+    "tailwindcss": "^3.4.12",
     "tailwindcss-animate": "^1.0.7",
-    "tsup": "8.2.4",
+    "tsup": "8.3.0",
     "tsx": "^4.19.1"
   },
   "publishConfig": {
