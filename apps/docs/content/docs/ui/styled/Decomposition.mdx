@@ -288,8 +288,10 @@ const MyAssistantActionBar: FC = () => {
       autohideFloat="single-branch"
     >
       <AssistantActionBar.SpeechControl />
-      <AssistantActionBar.Reload />
       <AssistantActionBar.Copy />
+      <AssistantActionBar.Reload />
+      <AssistantActionBar.FeedbackPositive />
+      <AssistantActionBar.FeedbackNegative />
     </AssistantActionBar.Root>
   );
 };
@@ -330,6 +332,14 @@ Shows a speak button.
 ### AssistantActionBar.StopSpeaking
 
 Shows a stop speaking button.
+
+### AssistantActionBar.FeedbackPositive
+
+Shows a positive feedback button.
+
+### AssistantActionBar.FeedbackNegative
+
+Shows a negative feedback button.
 
 ## BranchPicker
 

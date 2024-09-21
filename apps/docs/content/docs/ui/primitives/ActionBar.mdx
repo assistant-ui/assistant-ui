@@ -186,6 +186,15 @@ This primitive renders a `<button>` element unless `asChild` is set.
   ]}
 />
 
+<DataAttributesTable
+  data={[
+    {
+      attribute: "[data-copied]",
+      values: "Present when the message was recently copied.",
+    },
+  ]}
+/>
+
 #### Copied state
 
 Show a different icon for a few seconds after the message is copied.
@@ -198,6 +207,15 @@ Show a different icon for a few seconds after the message is copied.
   <MessagePrimitive.If copied>
     <CopySuccessIcon />
   </MessagePrimitive.If>
+</ActionBarPrimitive.Copy>
+```
+
+or using the `data-copied` attribute:
+
+```tsx
+<ActionBarPrimitive.Copy className="group">
+  <CopyIcon className="group-data-[copied]:hidden" />
+  <CheckIcon className="hidden group-data-[copied]:block" />
 </ActionBarPrimitive.Copy>
 ```
 
@@ -292,5 +310,87 @@ const StopSpeaking = () => {
   if (!stopSpeaking) return null;
 
   return <button onClick={stopSpeaking}>Stop speaking</button>;
+};
+```
+
+### Feedback Positive
+
+Shows a positive feedback submission button.
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+<ParametersTable
+  type="ActionBarPrimitiveFeedbackPositiveProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+  ]}
+/>
+
+<DataAttributesTable
+  data={[
+    {
+      attribute: "[data-submitted]",
+      values: "Present when positive feedback was submitted.",
+    },
+  ]}
+/>
+
+#### `useActionBarFeedbackPositive`
+
+Provides the `FeedbackPositive` functionality as a hook.
+
+```tsx
+import { useActionBarFeedbackPositive } from "@assistant-ui/react";
+
+const FeedbackPositive = () => {
+  const feedbackPositive = useActionBarFeedbackPositive();
+
+  // feedbackPositive action is not available
+  if (!feedbackPositive) return null;
+
+  return <button onClick={feedbackPositive}>Feedback Positive</button>;
+};
+```
+
+### Feedback Negative
+
+Shows a negative feedback submission button.
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+<ParametersTable
+  type="ActionBarPrimitiveFeedbackNegativeProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+  ]}
+/>
+
+<DataAttributesTable
+  data={[
+    {
+      attribute: "[data-submitted]",
+      values: "Present when negative feedback was submitted.",
+    },
+  ]}
+/>
+
+#### `useActionBarFeedbackNegative`
+
+Provides the `FeedbackNegative` functionality as a hook.
+
+```tsx
+import { useActionBarFeedbackNegative } from "@assistant-ui/react";
+
+const FeedbackNegative = () => {
+  const feedbackNegative = useActionBarFeedbackNegative();
+
+  // feedbackNegative action is not available
+  if (!feedbackNegative) return null;
+
+  return <button onClick={feedbackNegative}>Feedback Negative</button>;
 };
 ```

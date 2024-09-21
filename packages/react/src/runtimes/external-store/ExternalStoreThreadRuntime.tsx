@@ -14,6 +14,7 @@ import { RuntimeCapabilities } from "../../context/stores/Thread";
 import { getThreadMessageText } from "../../utils/getThreadMessageText";
 import { generateId } from "../../internal";
 import { ThreadRuntimeComposer } from "../utils/ThreadRuntimeComposer";
+import { SubmitFeedbackOptions } from "../../context/stores/ThreadActions";
 
 export const hasUpcomingMessage = (
   isRunning: boolean,
@@ -35,6 +36,7 @@ export class ExternalStoreThreadRuntime implements ReactThreadRuntime {
     unstable_copy: false,
     speak: false,
     attachments: false,
+    feedback: false,
   };
 
   public get capabilities() {
@@ -78,6 +80,7 @@ export class ExternalStoreThreadRuntime implements ReactThreadRuntime {
       speak: this._store.onSpeak !== undefined,
       unstable_copy: this._store.unstable_capabilities?.copy !== false, // default true
       attachments: !!this.store.adapters?.attachments,
+      feedback: !!this.store.adapters?.feedback,
     };
 
     this.composer.setAttachmentAdapter(this._store.adapters?.attachments);
@@ -228,6 +231,14 @@ export class ExternalStoreThreadRuntime implements ReactThreadRuntime {
 
     const { message } = this.repository.getMessage(messageId);
     return this._store.onSpeak(message);
+  }
+
+  public submitFeedback({ messageId, type }: SubmitFeedbackOptions) {
+    const adapter = this._store.adapters?.feedback;
+    if (!adapter) throw new Error("Feedback adapter not configured");
+
+    const { message } = this.repository.getMessage(messageId);
+    adapter.submit({ message, type });
   }
 
   public subscribe(callback: () => void): Unsubscribe {

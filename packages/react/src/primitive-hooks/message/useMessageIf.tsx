@@ -15,6 +15,7 @@ type MessageIfFilters = {
   lastOrHover: boolean | undefined;
   speaking: boolean | undefined;
   hasAttachments: boolean | undefined;
+  submittedFeedback: "positive" | "negative" | null | undefined;
 };
 export type UseMessageIfProps = RequireAtLeastOne<MessageIfFilters>;
 
@@ -24,7 +25,10 @@ export const useMessageIf = (props: UseMessageIfProps) => {
 
   return useCombinedStore(
     [messageStore, messageUtilsStore],
-    ({ message, branches, isLast }, { isCopied, isHovering, isSpeaking }) => {
+    (
+      { message, branches, isLast },
+      { isCopied, isHovering, isSpeaking, submittedFeedback },
+    ) => {
       if (props.hasBranches === true && branches.length < 2) return false;
 
       if (props.user && message.role !== "user") return false;
@@ -48,6 +52,12 @@ export const useMessageIf = (props: UseMessageIfProps) => {
         props.hasAttachments === false &&
         message.role === "user" &&
         !!message.attachments.length
+      )
+        return false;
+
+      if (
+        props.submittedFeedback !== undefined &&
+        submittedFeedback !== props.submittedFeedback
       )
         return false;
 

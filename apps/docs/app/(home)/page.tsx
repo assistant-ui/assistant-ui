@@ -143,6 +143,11 @@ const MyRuntimeProvider = ({ children }: { children: React.ReactNode }) => {
         new SimpleImageAttachmentAdapter(),
         new SimpleTextAttachmentAdapter(),
       ]),
+      feedback: {
+        submit: ({ message, type }) => {
+          console.log({ message, type });
+        },
+      },
     },
   });
   return (

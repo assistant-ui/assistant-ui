@@ -10,6 +10,9 @@ export type MessageUtilsState = Readonly<{
   isSpeaking: boolean;
   stopSpeaking: () => void;
   addUtterance: (utterance: SpeechSynthesisAdapter.Utterance) => void;
+
+  submittedFeedback: "positive" | "negative" | null;
+  setSubmittedFeedback: (feedback: "positive" | "negative" | null) => void;
 }>;
 
 export const makeMessageUtilsStore = () =>
@@ -34,6 +37,10 @@ export const makeMessageUtilsStore = () =>
         utt.onEnd(() => {
           set({ isSpeaking: false });
         });
+      },
+      submittedFeedback: null,
+      setSubmittedFeedback: (feedback) => {
+        set({ submittedFeedback: feedback });
       },
     };
   });

@@ -96,6 +96,7 @@ const CAPABILITIES = Object.freeze({
   unstable_copy: true,
   speak: false,
   attachments: false,
+  feedback: false,
 });
 
 const EMPTY_BRANCHES: readonly string[] = Object.freeze([]);
@@ -264,6 +265,10 @@ export class PlaygroundThreadRuntime implements ReactThreadRuntime {
 
   public speak(): never {
     throw new Error("PlaygroundRuntime does not support speaking.");
+  }
+
+  public submitFeedback(): never {
+    throw new Error("PlaygroundRuntime does not support feedback.");
   }
 
   public deleteMessage(messageId: string) {

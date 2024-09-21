@@ -17,6 +17,7 @@ export type RuntimeCapabilities = {
   unstable_copy: boolean;
   speak: boolean;
   attachments: boolean;
+  feedback: boolean;
 };
 
 export const getThreadStateFromRuntime = (

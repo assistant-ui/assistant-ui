@@ -17,6 +17,7 @@ import { shouldContinue } from "./shouldContinue";
 import { LocalRuntimeOptions } from "./LocalRuntimeOptions";
 import { ThreadRuntime } from "../core";
 import { SpeechSynthesisAdapter } from "../speech";
+import { SubmitFeedbackOptions } from "../../context/stores/ThreadActions";
 
 export class LocalThreadRuntime implements ThreadRuntime {
   private _subscriptions = new Set<() => void>();
@@ -32,6 +33,7 @@ export class LocalThreadRuntime implements ThreadRuntime {
     unstable_copy: true,
     speak: false,
     attachments: false,
+    feedback: false,
   };
 
   public readonly threadId: string;
@@ -85,6 +87,12 @@ export class LocalThreadRuntime implements ThreadRuntime {
     const canAttach = options.adapters?.attachments !== undefined;
     if (this.capabilities.attachments !== canAttach) {
       this.capabilities.attachments = canAttach;
+      hasUpdates = true;
+    }
+
+    const canFeedback = options.adapters?.feedback !== undefined;
+    if (this.capabilities.feedback !== canFeedback) {
+      this.capabilities.feedback = canFeedback;
       hasUpdates = true;
     }
 
@@ -326,6 +334,14 @@ export class LocalThreadRuntime implements ThreadRuntime {
     this._utterance = utterance;
 
     return this._utterance;
+  }
+
+  public submitFeedback({ messageId, type }: SubmitFeedbackOptions) {
+    const adapter = this.options.adapters?.feedback;
+    if (!adapter) throw new Error("Feedback adapter not configured");
+
+    const { message } = this.repository.getMessage(messageId);
+    adapter.submit({ message, type });
   }
 
   public export() {

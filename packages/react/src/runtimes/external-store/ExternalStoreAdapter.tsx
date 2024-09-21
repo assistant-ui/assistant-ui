@@ -1,6 +1,7 @@
 import { AddToolResultOptions } from "../../context";
 import { AppendMessage, ThreadMessage } from "../../types";
 import { AttachmentAdapter } from "../attachment";
+import { FeedbackAdapter } from "../feedback/FeedbackAdapter";
 import { SpeechSynthesisAdapter } from "../speech/SpeechAdapterTypes";
 import { ThreadMessageLike } from "./ThreadMessageLike";
 
@@ -34,6 +35,7 @@ type ExternalStoreAdapterBase<T> = {
   convertMessage?: ExternalStoreMessageConverter<T> | undefined;
   adapters?: {
     attachments?: AttachmentAdapter | undefined;
+    feedback?: FeedbackAdapter | undefined;
   };
   unstable_capabilities?:
     | {

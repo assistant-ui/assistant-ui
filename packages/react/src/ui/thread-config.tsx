@@ -34,6 +34,8 @@ export type AssistantMessageConfig = {
   allowReload?: boolean | undefined;
   allowCopy?: boolean | undefined;
   allowSpeak?: boolean | undefined;
+  allowFeedbackPositive?: boolean | undefined;
+  allowFeedbackNegative?: boolean | undefined;
   components?:
     | {
         Text?: TextContentPartComponent | undefined;
@@ -83,6 +85,14 @@ export type StringsConfig = {
     speak?: {
       tooltip?: string | undefined;
       stop?: {
+        tooltip?: string | undefined;
+      };
+    };
+    feedback?: {
+      positive?: {
+        tooltip?: string | undefined;
+      };
+      negative?: {
         tooltip?: string | undefined;
       };
     };

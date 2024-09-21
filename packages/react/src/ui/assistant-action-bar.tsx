@@ -7,6 +7,8 @@ import {
   CopyIcon,
   RefreshCwIcon,
   StopCircleIcon,
+  ThumbsDownIcon,
+  ThumbsUpIcon,
 } from "lucide-react";
 import { ActionBarPrimitive, MessagePrimitive } from "../primitives";
 import {
@@ -35,11 +37,35 @@ const useAllowReload = (ensureCapability = false) => {
   return allowReload && (!ensureCapability || reloadSupported);
 };
 
+const useAllowFeedbackPositive = (ensureCapability = false) => {
+  const { assistantMessage: { allowFeedbackPositive = true } = {} } =
+    useThreadConfig();
+  const feedbackSupported = useThread((t) => t.capabilities.feedback);
+  return allowFeedbackPositive && (!ensureCapability || feedbackSupported);
+};
+
+const useAllowFeedbackNegative = (ensureCapability = false) => {
+  const { assistantMessage: { allowFeedbackNegative = true } = {} } =
+    useThreadConfig();
+  const feedbackSupported = useThread((t) => t.capabilities.feedback);
+  return allowFeedbackNegative && (!ensureCapability || feedbackSupported);
+};
+
 const AssistantActionBar: FC = () => {
   const allowCopy = useAllowCopy(true);
   const allowReload = useAllowReload(true);
   const allowSpeak = useAllowSpeak(true);
-  if (!allowCopy && !allowReload && !allowSpeak) return null;
+  const allowFeedbackPositive = useAllowFeedbackPositive(true);
+  const allowFeedbackNegative = useAllowFeedbackNegative(true);
+  if (
+    !allowCopy &&
+    !allowReload &&
+    !allowSpeak &&
+    !allowFeedbackPositive &&
+    !allowFeedbackNegative
+  )
+    return null;
+
   return (
     <AssistantActionBarRoot
       hideWhenRunning
@@ -49,6 +75,8 @@ const AssistantActionBar: FC = () => {
       {allowSpeak && <AssistantActionBarSpeechControl />}
       {allowCopy && <AssistantActionBarCopy />}
       {allowReload && <AssistantActionBarReload />}
+      {allowFeedbackPositive && <AssistantActionBarFeedbackPositive />}
+      {allowFeedbackNegative && <AssistantActionBarFeedbackNegative />}
     </AssistantActionBarRoot>
   );
 };
@@ -163,13 +191,69 @@ const AssistantActionBarReload = forwardRef<
   return (
     <ActionBarPrimitive.Reload disabled={!allowReload} asChild>
       <TooltipIconButton tooltip={tooltip} {...props} ref={ref}>
-        <RefreshCwIcon />
+        {props.children ?? <RefreshCwIcon />}
       </TooltipIconButton>
     </ActionBarPrimitive.Reload>
   );
 });
 
 AssistantActionBarReload.displayName = "AssistantActionBarReload";
+
+const AssistantActionBarFeedbackPositive = forwardRef<
+  HTMLButtonElement,
+  Partial<TooltipIconButtonProps>
+>((props, ref) => {
+  const {
+    strings: {
+      assistantMessage: {
+        feedback: { positive: { tooltip = "Good response" } = {} } = {},
+      } = {},
+    } = {},
+  } = useThreadConfig();
+  const allowFeedbackPositive = useAllowFeedbackPositive();
+  return (
+    <ActionBarPrimitive.FeedbackPositive
+      disabled={!allowFeedbackPositive}
+      className="aui-assistant-action-bar-feedback-positive"
+      asChild
+    >
+      <TooltipIconButton tooltip={tooltip} {...props} ref={ref}>
+        {props.children ?? <ThumbsUpIcon />}
+      </TooltipIconButton>
+    </ActionBarPrimitive.FeedbackPositive>
+  );
+});
+
+AssistantActionBarFeedbackPositive.displayName =
+  "AssistantActionBarFeedbackPositive";
+
+const AssistantActionBarFeedbackNegative = forwardRef<
+  HTMLButtonElement,
+  Partial<TooltipIconButtonProps>
+>((props, ref) => {
+  const {
+    strings: {
+      assistantMessage: {
+        feedback: { negative: { tooltip = "Bad response" } = {} } = {},
+      } = {},
+    } = {},
+  } = useThreadConfig();
+  const allowFeedbackNegative = useAllowFeedbackNegative();
+  return (
+    <ActionBarPrimitive.FeedbackNegative
+      disabled={!allowFeedbackNegative}
+      className="aui-assistant-action-bar-feedback-negative"
+      asChild
+    >
+      <TooltipIconButton tooltip={tooltip} {...props} ref={ref}>
+        {props.children ?? <ThumbsDownIcon />}
+      </TooltipIconButton>
+    </ActionBarPrimitive.FeedbackNegative>
+  );
+});
+
+AssistantActionBarFeedbackNegative.displayName =
+  "AssistantActionBarFeedbackNegative";
 
 const exports = {
   Root: AssistantActionBarRoot,
@@ -178,6 +262,8 @@ const exports = {
   Speak: AssistantActionBarSpeak,
   StopSpeaking: AssistantActionBarStopSpeaking,
   SpeechControl: AssistantActionBarSpeechControl,
+  FeedbackPositive: AssistantActionBarFeedbackPositive,
+  FeedbackNegative: AssistantActionBarFeedbackNegative,
 };
 
 export default Object.assign(

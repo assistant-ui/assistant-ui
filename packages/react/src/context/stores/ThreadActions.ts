@@ -11,6 +11,11 @@ export type AddToolResultOptions = {
   result: any;
 };
 
+export type SubmitFeedbackOptions = {
+  messageId: string;
+  type: "negative" | "positive";
+};
+
 export type ThreadActionsState = Readonly<{
   getBranches: (messageId: string) => readonly string[];
   switchToBranch: (branchId: string) => void;
@@ -22,6 +27,8 @@ export type ThreadActionsState = Readonly<{
   addToolResult: (options: AddToolResultOptions) => void;
 
   speak: (messageId: string) => SpeechSynthesisAdapter.Utterance;
+
+  submitFeedback: (feedback: SubmitFeedbackOptions) => void;
 }>;
 
 export const makeThreadActionStore = (
@@ -42,6 +49,9 @@ export const makeThreadActionStore = (
         runtimeStore.getState().addToolResult(options),
 
       speak: (messageId) => runtimeStore.getState().speak(messageId),
+
+      submitFeedback: ({ messageId, type }) =>
+        runtimeStore.getState().submitFeedback({ messageId, type }),
     }),
   );
 };
