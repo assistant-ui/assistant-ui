@@ -1,0 +1,31 @@
+{
+  "name": "with-local-ollama",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@assistant-ui/react": "^0.5",
+    "@assistant-ui/react-markdown": "^0.2",
+    "next": "14.2.11",
+    "ollama-ai-provider": "^0.15.0",
+    "react": "^18",
+    "react-dom": "^18",
+    "tailwindcss-animate": "^1.0.7",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "eslint": "^8",
+    "eslint-config-next": "14.2.11",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.11",
+    "typescript": "^5"
+  }
+}
