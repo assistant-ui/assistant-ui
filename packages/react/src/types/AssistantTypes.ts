@@ -108,12 +108,17 @@ export type MessageStatus =
 export type ThreadSystemMessage = MessageCommonProps & {
   role: "system";
   content: [TextContentPart];
+  status?: undefined;
+  attachments?: undefined;
+  metadata?: undefined;
 };
 
 export type ThreadUserMessage = MessageCommonProps & {
   role: "user";
   content: ThreadUserContentPart[];
   attachments: readonly MessageAttachment[];
+  status?: undefined;
+  metadata?: undefined;
   // TODO metadata
 };
 
@@ -121,6 +126,7 @@ export type ThreadAssistantMessage = MessageCommonProps & {
   role: "assistant";
   content: ThreadAssistantContentPart[];
   status: MessageStatus;
+  attachments?: undefined;
   /**
    * @deprecated Use `metadata.roundtrips` instead.
    */
