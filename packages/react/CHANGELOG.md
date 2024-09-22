@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.5.60
+
+### Patch Changes
+
+- 926dce5: feat: Feedback Primtives, UI and Adapter
+- 155d6e7: chore: update dependencies
+- f80226f: feat: ThreadActions.getModelConfig
+
 ## 0.5.59
 
 ### Patch Changes

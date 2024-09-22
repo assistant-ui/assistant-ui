@@ -1,5 +1,17 @@
 # @assistant-ui/react-playground
 
+## 0.0.27
+
+### Patch Changes
+
+- 926dce5: feat: Feedback Primtives, UI and Adapter
+- 155d6e7: chore: update dependencies
+- f80226f: feat: ThreadActions.getModelConfig
+- Updated dependencies [926dce5]
+- Updated dependencies [155d6e7]
+- Updated dependencies [f80226f]
+  - @assistant-ui/react@0.5.60
+
 ## 0.0.26
 
 ### Patch Changes
