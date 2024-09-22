@@ -1,5 +1,5 @@
 import { ThreadComposerAttachment } from "../../context/stores/Attachment";
-import { AppendMessage } from "../../types";
+import { AppendMessage, Unsubscribe } from "../../types";
 import { AttachmentAdapter } from "../attachment/AttachmentAdapter";
 import { ThreadRuntime } from "../core";
 
@@ -17,7 +17,6 @@ export class ThreadRuntimeComposer implements ThreadRuntime.Composer {
       messages: ThreadRuntime["messages"];
       append: (message: AppendMessage) => void;
     },
-    private notifySubscribers: () => void,
   ) {}
 
   public setAttachmentAdapter(adapter: AttachmentAdapter | undefined) {
@@ -93,5 +92,15 @@ export class ThreadRuntimeComposer implements ThreadRuntime.Composer {
       attachments,
     });
     this.reset();
+  }
+
+  private _subscriptions = new Set<() => void>();
+  private notifySubscribers() {
+    for (const callback of this._subscriptions) callback();
+  }
+
+  public subscribe(callback: () => void): Unsubscribe {
+    this._subscriptions.add(callback);
+    return () => this._subscriptions.delete(callback);
   }
 }

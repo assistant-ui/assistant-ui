@@ -29,5 +29,7 @@ export declare namespace ThreadRuntime {
     reset: () => void;
 
     send: () => void;
+
+    subscribe: (callback: () => void) => Unsubscribe;
   }>;
 }

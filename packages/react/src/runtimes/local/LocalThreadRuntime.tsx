@@ -43,10 +43,7 @@ export class LocalThreadRuntime implements ThreadRuntime {
     return this.repository.getMessages();
   }
 
-  public readonly composer = new ThreadRuntimeComposer(
-    this,
-    this.notifySubscribers.bind(this),
-  );
+  public readonly composer = new ThreadRuntimeComposer(this);
 
   constructor(
     private configProvider: ModelConfigProvider,

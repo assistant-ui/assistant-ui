@@ -12,6 +12,7 @@ import { ThreadRuntimeWithSubscribe } from "../../runtimes/core/AssistantRuntime
 import { makeThreadRuntimeStore } from "../stores/ThreadRuntime";
 import { subscribeToMainThread } from "../../runtimes";
 import { writableStore } from "../ReadonlyStore";
+import { subscribeToMainThreadComposer } from "../../runtimes/core/subscribeToMainThread";
 
 type ThreadProviderProps = {
   provider: ThreadRuntimeWithSubscribe;
@@ -64,18 +65,8 @@ export const ThreadProvider: FC<PropsWithChildren<ThreadProviderProps>> = ({
       }
 
       const composerState = context.useComposer.getState();
-      if (
-        thread.composer.isEmpty !== composerState.isEmpty ||
-        thread.composer.text !== composerState.text ||
-        thread.composer.attachmentAccept !== composerState.attachmentAccept ||
-        thread.composer.attachments !== composerState.attachments ||
-        state.capabilities.cancel !== composerState.canCancel
-      ) {
+      if (state.capabilities.cancel !== composerState.canCancel) {
         writableStore(context.useComposer).setState({
-          isEmpty: thread.composer.isEmpty,
-          text: thread.composer.text,
-          attachmentAccept: thread.composer.attachmentAccept,
-          attachments: thread.composer.attachments,
           canCancel: state.capabilities.cancel,
         });
       }
@@ -83,6 +74,30 @@ export const ThreadProvider: FC<PropsWithChildren<ThreadProviderProps>> = ({
 
     onThreadUpdate();
     return subscribeToMainThread(provider, onThreadUpdate);
+  }, [provider, context]);
+
+  useEffect(() => {
+    const onComposerUpdate = () => {
+      const composer = provider.thread.composer;
+
+      const composerState = context.useComposer.getState();
+      if (
+        composer.isEmpty !== composerState.isEmpty ||
+        composer.text !== composerState.text ||
+        composer.attachmentAccept !== composerState.attachmentAccept ||
+        composer.attachments !== composerState.attachments
+      ) {
+        writableStore(context.useComposer).setState({
+          isEmpty: composer.isEmpty,
+          text: composer.text,
+          attachmentAccept: composer.attachmentAccept,
+          attachments: composer.attachments,
+        });
+      }
+    };
+
+    onComposerUpdate();
+    return subscribeToMainThreadComposer(provider, onComposerUpdate);
   }, [provider, context]);
 
   useInsertionEffect(

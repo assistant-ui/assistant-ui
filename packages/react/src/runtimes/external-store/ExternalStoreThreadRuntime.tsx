@@ -55,10 +55,7 @@ export class ExternalStoreThreadRuntime implements ReactThreadRuntime {
 
   private _store!: ExternalStoreAdapter<any>;
 
-  public readonly composer = new ThreadRuntimeComposer(
-    this,
-    this.notifySubscribers.bind(this),
-  );
+  public readonly composer = new ThreadRuntimeComposer(this);
 
   constructor(
     private configProvider: ModelConfigProvider,

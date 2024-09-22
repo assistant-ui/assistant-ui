@@ -25,3 +25,22 @@ export const subscribeToMainThread = (
     cleanup?.();
   };
 };
+
+export const subscribeToMainThreadComposer = (
+  runtime: ThreadRuntimeWithSubscribe,
+  callback: () => void,
+) => {
+  let cleanup = runtime.thread.composer.subscribe(callback);
+  const inner = () => {
+    cleanup?.();
+    cleanup = runtime.thread.composer.subscribe(callback);
+
+    callback();
+  };
+
+  const unsubscribe = runtime.subscribe(inner);
+  return () => {
+    unsubscribe();
+    cleanup?.();
+  };
+};
