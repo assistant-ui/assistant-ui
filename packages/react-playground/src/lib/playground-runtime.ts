@@ -130,6 +130,10 @@ export class PlaygroundThreadRuntime implements ReactThreadRuntime {
     });
   }
 
+  public getModelConfig() {
+    return this.configProvider.getModelConfig();
+  }
+
   public setRequestData({
     apiKey,
     baseUrl,

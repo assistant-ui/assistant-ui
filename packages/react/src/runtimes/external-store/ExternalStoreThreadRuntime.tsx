@@ -1,6 +1,11 @@
 import { ReactThreadRuntime } from "../core";
 import { MessageRepository } from "../utils/MessageRepository";
-import { AppendMessage, ThreadMessage, Unsubscribe } from "../../types";
+import {
+  AppendMessage,
+  ModelConfigProvider,
+  ThreadMessage,
+  Unsubscribe,
+} from "../../types";
 import { ExternalStoreAdapter } from "./ExternalStoreAdapter";
 import { AddToolResultOptions } from "../../context";
 import {
@@ -55,7 +60,10 @@ export class ExternalStoreThreadRuntime implements ReactThreadRuntime {
     this.notifySubscribers.bind(this),
   );
 
-  constructor(store: ExternalStoreAdapter<any>) {
+  constructor(
+    private configProvider: ModelConfigProvider,
+    store: ExternalStoreAdapter<any>,
+  ) {
     this.store = store;
   }
 
@@ -151,6 +159,10 @@ export class ExternalStoreThreadRuntime implements ReactThreadRuntime {
 
     this.messages = this.repository.getMessages();
     this.notifySubscribers();
+  }
+
+  public getModelConfig() {
+    return this.configProvider.getModelConfig();
   }
 
   private notifySubscribers() {

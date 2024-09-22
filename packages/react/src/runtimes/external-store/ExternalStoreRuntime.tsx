@@ -4,10 +4,12 @@ import { ExternalStoreAdapter } from "./ExternalStoreAdapter";
 import { ExternalStoreThreadRuntime } from "./ExternalStoreThreadRuntime";
 
 export class ExternalStoreRuntime extends BaseAssistantRuntime<ExternalStoreThreadRuntime> {
-  private readonly _proxyConfigProvider = new ProxyConfigProvider();
+  private readonly _proxyConfigProvider;
 
   constructor(store: ExternalStoreAdapter<any>) {
-    super(new ExternalStoreThreadRuntime(store));
+    const provider = new ProxyConfigProvider();
+    super(new ExternalStoreThreadRuntime(provider, store));
+    this._proxyConfigProvider = provider;
   }
 
   public get store() {
@@ -30,7 +32,7 @@ export class ExternalStoreRuntime extends BaseAssistantRuntime<ExternalStoreThre
     if (!this.store.onSwitchToNewThread)
       throw new Error("Runtime does not support switching to new threads.");
 
-    this.thread = new ExternalStoreThreadRuntime({
+    this.thread = new ExternalStoreThreadRuntime(this._proxyConfigProvider, {
       ...this.store,
       messages: [],
     });
@@ -42,7 +44,7 @@ export class ExternalStoreRuntime extends BaseAssistantRuntime<ExternalStoreThre
       if (!this.store.onSwitchToThread)
         throw new Error("Runtime does not support switching threads.");
 
-      this.thread = new ExternalStoreThreadRuntime({
+      this.thread = new ExternalStoreThreadRuntime(this._proxyConfigProvider, {
         ...this.store,
         messages: [], // ignore messages until rerender
       });

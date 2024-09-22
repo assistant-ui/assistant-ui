@@ -65,6 +65,10 @@ export class LocalThreadRuntime implements ThreadRuntime {
     }
   }
 
+  public getModelConfig() {
+    return this.configProvider.getModelConfig();
+  }
+
   private _options!: LocalRuntimeOptions;
 
   public get options() {

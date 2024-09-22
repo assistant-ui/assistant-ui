@@ -3,6 +3,7 @@ import type { AppendMessage } from "../../types/AssistantTypes";
 import { ReadonlyStore } from "../ReadonlyStore";
 import { ThreadRuntimeStore } from "./ThreadRuntime";
 import { SpeechSynthesisAdapter } from "../../runtimes/speech/SpeechAdapterTypes";
+import { ModelConfig } from "../../types";
 
 export type AddToolResultOptions = {
   messageId: string;
@@ -29,6 +30,8 @@ export type ThreadActionsState = Readonly<{
   speak: (messageId: string) => SpeechSynthesisAdapter.Utterance;
 
   submitFeedback: (feedback: SubmitFeedbackOptions) => void;
+
+  getModelConfig: () => ModelConfig;
 }>;
 
 export const makeThreadActionStore = (
@@ -52,6 +55,8 @@ export const makeThreadActionStore = (
 
       submitFeedback: ({ messageId, type }) =>
         runtimeStore.getState().submitFeedback({ messageId, type }),
+
+      getModelConfig: () => runtimeStore.getState().getModelConfig(),
     }),
   );
 };
