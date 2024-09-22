@@ -34,10 +34,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "../dropdown-menu";
-import {
-  useGetPlaygroundRuntime,
-  usePlaygroundRuntime,
-} from "../../../lib/usePlaygroundRuntime";
+import { usePlaygroundRuntime } from "../../../lib/usePlaygroundRuntime";
 import { ToolUI } from "./tool-ui";
 import { Text } from "./text";
 import {
@@ -222,13 +219,13 @@ const AddToolCallButton = () => {
 };
 
 const AddImageButton = () => {
-  const getPlaygroundRuntime = useGetPlaygroundRuntime();
+  const runtime = usePlaygroundRuntime();
   const messageStore = useMessageStore();
 
   const [isOpen, setIsOpen] = useState(false);
   const [imageUrl, setImageUrl] = useState("");
   const handleAddImage = () => {
-    getPlaygroundRuntime().addImage({
+    runtime.addImage({
       image: new URL(imageUrl).href,
       messageId: messageStore.getState().message.id,
     });
@@ -264,7 +261,7 @@ const AddImageButton = () => {
 };
 
 const Message: FC = () => {
-  const getPlaygroundRuntime = useGetPlaygroundRuntime();
+  const runtime = usePlaygroundRuntime();
   const messageStore = useMessageStore();
   const role = useMessage((m) => m.message.role);
   const status = useMessage((m) =>
@@ -272,11 +269,11 @@ const Message: FC = () => {
   );
 
   const handleDelete = () => {
-    getPlaygroundRuntime().deleteMessage(messageStore.getState().message.id);
+    runtime.deleteMessage(messageStore.getState().message.id);
   };
 
   const setRole = (role: "system" | "assistant" | "user") => {
-    getPlaygroundRuntime().setRole({
+    runtime.setRole({
       messageId: messageStore.getState().message.id,
       role,
     });

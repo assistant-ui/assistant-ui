@@ -13,14 +13,14 @@ import {
   requestOptionsFromOpenAI,
   requestOptionsToOpenAI,
 } from "../lib/converters";
-import { useGetPlaygroundRuntime } from "../lib/usePlaygroundRuntime";
 import { toCoreMessages, toLanguageModelTools } from "@assistant-ui/react";
 import { JSONEditor } from "./ui/assistant-ui/json-editor";
 import { TooltipIconButton } from "./ui/assistant-ui/tooltip-icon-button";
 import { EyeIcon } from "lucide-react";
+import { usePlaygroundRuntime } from "../lib/usePlaygroundRuntime";
 
 export const PayloadEditorButton: FC = () => {
-  const getPlaygroundRuntime = useGetPlaygroundRuntime();
+  const runtime = usePlaygroundRuntime();
 
   const [isOpen, setIsOpen] = useState(false);
   const [value, setValue] = useState("");
@@ -29,7 +29,6 @@ export const PayloadEditorButton: FC = () => {
     setIsOpen(open);
     if (!open) return;
 
-    const runtime = getPlaygroundRuntime();
     const config = runtime.useModelConfig.getState();
     const options: EdgeRuntimeRequestOptions = {
       modelName: config.config?.modelName ?? "gpt-4o",
@@ -51,7 +50,7 @@ export const PayloadEditorButton: FC = () => {
     }
 
     const options = requestOptionsFromOpenAI(jsonValue);
-    getPlaygroundRuntime().setRequestData(options);
+    runtime.setRequestData(options);
     setIsOpen(false);
   };
 
