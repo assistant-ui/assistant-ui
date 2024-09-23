@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import {
-  useAssistantActionsStore,
+  useAssistantRuntime,
   useToolUIsStore,
 } from "../context/react/AssistantContext";
 import type { ToolCallContentPartComponent } from "../types/ContentPartComponentTypes";
@@ -22,7 +22,7 @@ export const useAssistantTool = <
 >(
   tool: AssistantToolProps<TArgs, TResult>,
 ) => {
-  const assistantActionsStore = useAssistantActionsStore();
+  const assistantRuntime = useAssistantRuntime();
   const toolUIsStore = useToolUIsStore();
   useEffect(() => {
     const { toolName, render, ...rest } = tool;
@@ -31,11 +31,9 @@ export const useAssistantTool = <
         [tool.toolName]: rest,
       },
     };
-    const unsub1 = assistantActionsStore
-      .getState()
-      .registerModelConfigProvider({
-        getModelConfig: () => config,
-      });
+    const unsub1 = assistantRuntime.registerModelConfigProvider({
+      getModelConfig: () => config,
+    });
     const unsub2 = render
       ? toolUIsStore.getState().setToolUI(toolName, render)
       : undefined;
@@ -43,5 +41,5 @@ export const useAssistantTool = <
       unsub1();
       unsub2?.();
     };
-  }, [assistantActionsStore, toolUIsStore, tool]);
+  }, [assistantRuntime, toolUIsStore, tool]);
 };

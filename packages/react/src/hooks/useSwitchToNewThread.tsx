@@ -1,17 +1,17 @@
 import { useCallback } from "react";
-import { useAssistantActionsStore } from "../context";
 import { useThreadComposerStore } from "../context/react/ThreadContext";
+import { useAssistantRuntime } from "../context";
 
 /**
  * @deprecated Use `useRuntimeActions().switchToNewThread()` instead. This will be removed in 0.6.0.
  */
 export const useSwitchToNewThread = () => {
-  const assistantActionsStore = useAssistantActionsStore();
+  const assistantRuntime = useAssistantRuntime();
   const threadComposerStore = useThreadComposerStore();
   const switchToNewThread = useCallback(() => {
-    assistantActionsStore.getState().switchToNewThread();
+    assistantRuntime.switchToNewThread();
     threadComposerStore.getState().focus();
-  }, [assistantActionsStore, threadComposerStore]);
+  }, [assistantRuntime, threadComposerStore]);
 
   return switchToNewThread;
 };

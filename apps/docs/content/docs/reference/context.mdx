@@ -13,11 +13,11 @@ The context is split into four hierarchies:
 
 import { ParametersTable } from "@/components/docs";
 import {
-  AssistantActionsState,
+  AssistantRuntimeState,
   AssistantToolUIsState,
   ThreadState,
   ThreadMessagesState,
-  ThreadActionsState,
+  ThreadRuntimeState,
   ComposerState,
   EditComposerState,
   ThreadViewportState,
@@ -30,16 +30,15 @@ import {
 
 ## Assistant Context
 
-#### `useAssistantActions`
+#### `useAssistantRuntime`
 
 ```tsx
-import { useAssistantActions } from "@assistant-ui/react";
+import { useAssistantRuntime } from "@assistant-ui/react";
 
-const actions = useAssistantActions();
-const switchToNewThread = useAssistantActions((m) => m.switchToThread);
+const runtime = useAssistantRuntime();
 ```
 
-<ParametersTable {...AssistantActionsState} />
+<ParametersTable {...AssistantRuntimeState} />
 
 ### `useToolUIs`
 
@@ -53,6 +52,16 @@ const getToolUI = useToolUIs((m) => m.getToolUI);
 <ParametersTable {...AssistantToolUIsState} />
 
 ## Thread Context
+
+### `useThreadRuntime`
+
+```tsx
+import { useThreadRuntime } from "@assistant-ui/react";
+
+const thread = useThreadRuntime();
+```
+
+<ParametersTable {...ThreadRuntimeState} />
 
 ### `useThread`
 
@@ -75,25 +84,6 @@ const firstMessage = useThreadMessages((m) => m[0]);
 ```
 
 <ParametersTable {...ThreadMessagesState} />
-
-### `useThreadActions`
-
-```tsx
-import { useThreadActions } from "@assistant-ui/react";
-
-const actions = useThreadActions();
-const getBranches = useThreadActions((m) => m.getBranches);
-```
-
-<ParametersTable {...ThreadActionsState} />
-
-### `useThreadRuntime`
-
-```tsx
-import { useThreadRuntime } from "@assistant-ui/react";
-
-const runtime = useThreadRuntime();
-```
 
 ### `useThreadComposer`
 

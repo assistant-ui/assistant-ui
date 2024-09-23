@@ -2,13 +2,12 @@
 
 import type { FC, PropsWithChildren } from "react";
 import { useEffect, useInsertionEffect, useRef, useState } from "react";
-import type { AssistantRuntime } from "../../runtimes";
 import { AssistantContext } from "../react/AssistantContext";
 import { makeAssistantToolUIsStore } from "../stores/AssistantToolUIs";
 import { ThreadProvider } from "./ThreadProvider";
-import { makeAssistantActionsStore } from "../stores/AssistantActions";
-import { makeAssistantRuntimeStore } from "../stores/AssistantRuntime";
 import { writableStore } from "../ReadonlyStore";
+import { AssistantRuntime } from "../../api/AssistantRuntime";
+import { create } from "zustand";
 
 type AssistantProviderProps = {
   runtime: AssistantRuntime;
@@ -23,14 +22,13 @@ export const AssistantProvider: FC<
   });
 
   const [context] = useState(() => {
-    const useAssistantRuntime = makeAssistantRuntimeStore(runtime);
+    const useAssistantRuntime = create(() => runtime);
     const useToolUIs = makeAssistantToolUIsStore();
-    const useAssistantActions = makeAssistantActionsStore(runtimeRef);
 
     return {
       useToolUIs,
       useAssistantRuntime,
-      useAssistantActions,
+      useAssistantActions: useAssistantRuntime,
     };
   });
 
@@ -41,7 +39,7 @@ export const AssistantProvider: FC<
 
   return (
     <AssistantContext.Provider value={context}>
-      <ThreadProvider provider={runtime}>{children}</ThreadProvider>
+      <ThreadProvider provider={runtime.thread}>{children}</ThreadProvider>
     </AssistantContext.Provider>
   );
 };

@@ -1,11 +1,11 @@
 import { type ModelConfigProvider } from "../../types/ModelConfigTypes";
 import type { Unsubscribe } from "../../types/Unsubscribe";
-import type { AssistantRuntime } from "./AssistantRuntime";
-import { ReactThreadRuntime } from "./ReactThreadRuntime";
+import type { AssistantRuntimeCore } from "./AssistantRuntimeCore";
+import { ReactThreadRuntimeCore } from "./ReactThreadRuntimeCore";
 
-export abstract class BaseAssistantRuntime<
-  TThreadRuntime extends ReactThreadRuntime,
-> implements AssistantRuntime
+export abstract class BaseAssistantRuntimeCore<
+  TThreadRuntime extends ReactThreadRuntimeCore,
+> implements AssistantRuntimeCore
 {
   constructor(private _thread: TThreadRuntime) {
     this._thread = _thread;

@@ -24,7 +24,7 @@ const COMPLETE_STATUS: ContentPartStatus = {
   type: "complete",
 };
 
-const toContentPartStatus = (
+export const toContentPartStatus = (
   message: ThreadMessage,
   partIndex: number,
   part: ThreadUserContentPart | ThreadAssistantContentPart,

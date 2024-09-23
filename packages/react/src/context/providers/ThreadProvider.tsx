@@ -1,32 +1,28 @@
 import type { FC, PropsWithChildren } from "react";
-import { useEffect, useInsertionEffect, useState } from "react";
-import type { ReactThreadRuntime } from "../../runtimes/core/ReactThreadRuntime";
+import { useEffect, useState } from "react";
+import type { ReactThreadRuntimeCore } from "../../runtimes/core/ReactThreadRuntimeCore";
 import type { ThreadContextValue } from "../react/ThreadContext";
 import { ThreadContext } from "../react/ThreadContext";
 import { makeThreadComposerStore } from "../stores/ThreadComposer";
 import { getThreadStateFromRuntime, makeThreadStore } from "../stores/Thread";
 import { makeThreadViewportStore } from "../stores/ThreadViewport";
-import { makeThreadActionStore } from "../stores/ThreadActions";
 import { makeThreadMessagesStore } from "../stores/ThreadMessages";
-import { ThreadRuntimeWithSubscribe } from "../../runtimes/core/AssistantRuntime";
-import { makeThreadRuntimeStore } from "../stores/ThreadRuntime";
-import { subscribeToMainThread } from "../../runtimes";
 import { writableStore } from "../ReadonlyStore";
-import { subscribeToMainThreadComposer } from "../../runtimes/core/subscribeToMainThread";
+import { ThreadRuntime } from "../../api/ThreadRuntime";
+import { create } from "zustand";
 
 type ThreadProviderProps = {
-  provider: ThreadRuntimeWithSubscribe;
+  provider: ThreadRuntime;
 };
 
 export const ThreadProvider: FC<PropsWithChildren<ThreadProviderProps>> = ({
   children,
-  provider,
+  provider: thread,
 }) => {
   const [context] = useState<ThreadContextValue>(() => {
-    const useThreadRuntime = makeThreadRuntimeStore(provider.thread);
+    const useThreadRuntime = create(() => thread);
     const useThread = makeThreadStore(useThreadRuntime);
     const useThreadMessages = makeThreadMessagesStore(useThreadRuntime);
-    const useThreadActions = makeThreadActionStore(useThreadRuntime);
     const useViewport = makeThreadViewportStore();
     const useComposer = makeThreadComposerStore(useThreadRuntime);
 
@@ -34,24 +30,21 @@ export const ThreadProvider: FC<PropsWithChildren<ThreadProviderProps>> = ({
       useThread,
       useThreadRuntime,
       useThreadMessages,
-      useThreadActions,
+      useThreadActions: useThreadRuntime,
       useComposer,
       useViewport,
     };
   });
 
-  // TODO it might make sense to move this into the make* functions
+  // TODO remove after 0.6.0
   useEffect(() => {
     const onThreadUpdate = () => {
-      const thread = provider.thread;
-
       const oldState = context.useThread.getState();
       const state = getThreadStateFromRuntime(thread);
       if (
         oldState.threadId !== state.threadId ||
         oldState.isDisabled !== state.isDisabled ||
         oldState.isRunning !== state.isRunning ||
-        // TODO ensure capabilities is memoized
         oldState.capabilities !== state.capabilities
       ) {
         writableStore(context.useThread).setState(state, true);
@@ -73,12 +66,12 @@ export const ThreadProvider: FC<PropsWithChildren<ThreadProviderProps>> = ({
     };
 
     onThreadUpdate();
-    return subscribeToMainThread(provider, onThreadUpdate);
-  }, [provider, context]);
+    return thread.subscribe(onThreadUpdate);
+  }, [thread, context]);
 
   useEffect(() => {
     const onComposerUpdate = () => {
-      const composer = provider.thread.composer;
+      const composer = thread.composer;
 
       const composerState = context.useComposer.getState();
       if (
@@ -97,20 +90,20 @@ export const ThreadProvider: FC<PropsWithChildren<ThreadProviderProps>> = ({
     };
 
     onComposerUpdate();
-    return subscribeToMainThreadComposer(provider, onComposerUpdate);
-  }, [provider, context]);
+    return thread.composer.subscribe(onComposerUpdate);
+  }, [thread, context]);
 
-  useInsertionEffect(
+  useEffect(
     () =>
-      provider.subscribe(() => {
-        writableStore(context.useThreadRuntime).setState(provider.thread, true);
+      thread.subscribe(() => {
+        writableStore(context.useThreadRuntime).setState(thread, true);
       }),
-    [provider, context],
+    [thread, context],
   );
 
   // subscribe to thread updates
   const Synchronizer = context.useThreadRuntime(
-    (t) => (t as ReactThreadRuntime).unstable_synchronizer,
+    (t) => (t as ReactThreadRuntimeCore).unstable_synchronizer,
   );
 
   return (

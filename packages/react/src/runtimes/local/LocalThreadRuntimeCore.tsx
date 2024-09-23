@@ -1,4 +1,3 @@
-import { AddToolResultOptions } from "../../context";
 import { generateId } from "../../internal";
 import type {
   ModelConfigProvider,
@@ -12,14 +11,17 @@ import {
   MessageRepository,
 } from "../utils/MessageRepository";
 import type { ChatModelAdapter, ChatModelRunResult } from "./ChatModelAdapter";
-import { ThreadRuntimeComposer } from "../utils/ThreadRuntimeComposer";
+import { BaseThreadComposerRuntimeCore } from "../utils/BaseThreadComposerRuntimeCore";
 import { shouldContinue } from "./shouldContinue";
 import { LocalRuntimeOptions } from "./LocalRuntimeOptions";
-import { ThreadRuntime } from "../core";
 import { SpeechSynthesisAdapter } from "../speech";
-import { SubmitFeedbackOptions } from "../../context/stores/ThreadActions";
+import {
+  AddToolResultOptions,
+  SubmitFeedbackOptions,
+  ThreadRuntimeCore,
+} from "../core/ThreadRuntimeCore";
 
-export class LocalThreadRuntime implements ThreadRuntime {
+export class LocalThreadRuntimeCore implements ThreadRuntimeCore {
   private _subscriptions = new Set<() => void>();
 
   private abortController: AbortController | null = null;
@@ -43,7 +45,7 @@ export class LocalThreadRuntime implements ThreadRuntime {
     return this.repository.getMessages();
   }
 
-  public readonly composer = new ThreadRuntimeComposer(this);
+  public readonly composer = new BaseThreadComposerRuntimeCore(this);
 
   constructor(
     private configProvider: ModelConfigProvider,

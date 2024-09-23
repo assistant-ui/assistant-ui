@@ -1,9 +1,7 @@
-import { useRef, useEffect } from "react";
-import {
-  ExternalStoreRuntime,
-  subscribeToMainThread,
-} from "@assistant-ui/react";
+import { useEffect } from "react";
 import { useAssistant, useChat } from "ai/react";
+import { AssistantRuntime } from "@assistant-ui/react";
+import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
 
 type VercelHelpers =
   | ReturnType<typeof useChat>
@@ -11,23 +9,23 @@ type VercelHelpers =
 
 export const useInputSync = (
   helpers: VercelHelpers,
-  runtime: ExternalStoreRuntime,
+  runtime: AssistantRuntime,
 ) => {
   // sync input from vercel to assistant-ui
-  const helpersRef = useRef(helpers);
   useEffect(() => {
-    helpersRef.current = helpers;
-    if (runtime.thread.composer.text !== helpers.input) {
+    if (runtime.thread.composer.getState().text !== helpers.input) {
       runtime.thread.composer.setText(helpers.input);
     }
   }, [helpers, runtime]);
 
   // sync input from assistant-ui to vercel
+  const handleThreadUpdate = useCallbackRef(() => {
+    if (runtime.thread.composer.getState().text !== helpers.input) {
+      helpers.setInput(runtime.thread.composer.getState().text);
+    }
+  });
+
   useEffect(() => {
-    return subscribeToMainThread(runtime, () => {
-      if (runtime.thread.composer.text !== helpersRef.current.input) {
-        helpersRef.current.setInput(runtime.thread.composer.text);
-      }
-    });
-  }, [runtime]);
+    return runtime.thread.subscribe(handleThreadUpdate);
+  }, [runtime, handleThreadUpdate]);
 };

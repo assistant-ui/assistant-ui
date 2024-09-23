@@ -27,6 +27,7 @@
     "build": "tsup src/index.ts --format cjs,esm --dts --sourcemap --clean"
   },
   "dependencies": {
+    "@radix-ui/react-use-callback-ref": "^1.1.0",
     "zod": "^3.23.8",
     "zustand": "^4.5.5"
   },

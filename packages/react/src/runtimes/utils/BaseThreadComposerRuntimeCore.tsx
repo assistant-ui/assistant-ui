@@ -1,9 +1,12 @@
 import { ThreadComposerAttachment } from "../../context/stores/Attachment";
 import { AppendMessage, Unsubscribe } from "../../types";
 import { AttachmentAdapter } from "../attachment/AttachmentAdapter";
-import { ThreadRuntime } from "../core";
+import { ThreadRuntimeCore } from "../core/ThreadRuntimeCore";
+import { ThreadComposerRuntimeCore } from "../core/ThreadComposerRuntimeCore";
 
-export class ThreadRuntimeComposer implements ThreadRuntime.Composer {
+export class BaseThreadComposerRuntimeCore
+  implements ThreadComposerRuntimeCore
+{
   private _attachmentAdapter?: AttachmentAdapter | undefined;
 
   public attachmentAccept: string = "*";
@@ -14,7 +17,7 @@ export class ThreadRuntimeComposer implements ThreadRuntime.Composer {
 
   constructor(
     private runtime: {
-      messages: ThreadRuntime["messages"];
+      messages: ThreadRuntimeCore["messages"];
       append: (message: AppendMessage) => void;
     },
   ) {}

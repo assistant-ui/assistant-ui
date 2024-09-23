@@ -1,12 +1,12 @@
 import { create } from "zustand";
 import type { ThreadMessage } from "../../types/AssistantTypes";
 import { ReadonlyStore } from "../ReadonlyStore";
-import { ThreadRuntimeStore } from "./ThreadRuntime";
+import { ThreadRuntime } from "../../api";
 
 export type ThreadMessagesState = readonly ThreadMessage[];
 
 export const makeThreadMessagesStore = (
-  runtimeRef: ReadonlyStore<ThreadRuntimeStore>,
+  runtimeRef: ReadonlyStore<ThreadRuntime>,
 ) => {
   return create<ThreadMessagesState>(() => runtimeRef.getState().messages);
 };

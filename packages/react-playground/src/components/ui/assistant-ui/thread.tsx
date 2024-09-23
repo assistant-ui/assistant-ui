@@ -10,7 +10,7 @@ import {
   useMessage,
   useMessageStore,
   useThread,
-  useThreadActionsStore,
+  useThreadRuntime,
 } from "@assistant-ui/react";
 import { useState, type FC, type KeyboardEvent, type MouseEvent } from "react";
 import {
@@ -106,7 +106,7 @@ const Composer: FC = () => {
   const isRunning = useThread((t) => t.isRunning);
   const hasText = useComposer((c) => c.text.length > 0);
 
-  const threadActionsStore = useThreadActionsStore();
+  const threadRuntime = useThreadRuntime();
   const composerStore = useComposerStore();
 
   const performAdd = () => {
@@ -118,7 +118,7 @@ const Composer: FC = () => {
 
   const performSubmit = () => {
     performAdd();
-    threadActionsStore.getState().startRun(null);
+    threadRuntime.startRun(null);
   };
 
   const handleAdd = (e: MouseEvent) => {

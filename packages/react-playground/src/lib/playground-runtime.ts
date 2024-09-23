@@ -8,7 +8,6 @@ import {
   fromLanguageModelTools,
   ModelConfig,
   ModelConfigProvider,
-  ReactThreadRuntime,
   TextContentPart,
   ThreadAssistantContentPart,
   ThreadUserContentPart,
@@ -18,21 +17,22 @@ import {
   ThreadAssistantMessage,
   ChatModelAdapter,
   Unsubscribe,
-  AssistantRuntime,
   ChatModelRunResult,
   CoreMessage,
   fromCoreMessage,
   INTERNAL,
 } from "@assistant-ui/react";
 import { LanguageModelV1FunctionTool } from "@ai-sdk/provider";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { create } from "zustand";
 
 const {
-  BaseAssistantRuntime,
+  BaseAssistantRuntimeCore,
   ProxyConfigProvider,
   generateId,
-  ThreadRuntimeComposer,
+  BaseThreadRuntimeComposerCore,
+  AssistantRuntime,
+  ThreadRuntime,
 } = INTERNAL;
 
 const makeModelConfigStore = () =>
@@ -46,10 +46,7 @@ const makeModelConfigStore = () =>
     config: {},
   }));
 
-class PlaygroundRuntime
-  extends BaseAssistantRuntime<PlaygroundThreadRuntime>
-  implements AssistantRuntime
-{
+class PlaygroundRuntimeCore extends BaseAssistantRuntimeCore<PlaygroundThreadRuntimeCore> {
   private readonly _proxyConfigProvider: InstanceType<
     typeof ProxyConfigProvider
   >;
@@ -57,7 +54,7 @@ class PlaygroundRuntime
   constructor(initialMessages: CoreMessage[], adapter: ChatModelAdapter) {
     const cp = new ProxyConfigProvider();
     super(
-      new PlaygroundThreadRuntime(
+      new PlaygroundThreadRuntimeCore(
         cp,
         fromCoreMessages(initialMessages),
         adapter,
@@ -67,7 +64,7 @@ class PlaygroundRuntime
   }
 
   public switchToNewThread() {
-    this.thread = new PlaygroundThreadRuntime(
+    this.thread = new PlaygroundThreadRuntimeCore(
       this._proxyConfigProvider,
       [],
       this.thread.adapter,
@@ -101,7 +98,9 @@ const CAPABILITIES = Object.freeze({
 
 const EMPTY_BRANCHES: readonly string[] = Object.freeze([]);
 
-export class PlaygroundThreadRuntime implements ReactThreadRuntime {
+export class PlaygroundThreadRuntimeCore
+  implements INTERNAL.ReactThreadRuntimeCore
+{
   private _subscriptions = new Set<() => void>();
 
   private abortController: AbortController | null = null;
@@ -114,7 +113,7 @@ export class PlaygroundThreadRuntime implements ReactThreadRuntime {
 
   private configProvider = new ProxyConfigProvider();
 
-  public readonly composer = new ThreadRuntimeComposer(this);
+  public readonly composer = new BaseThreadRuntimeComposerCore(this);
 
   constructor(
     configProvider: ModelConfigProvider,
@@ -489,6 +488,26 @@ export class PlaygroundThreadRuntime implements ReactThreadRuntime {
       }),
     );
   }
+
+  public import() {
+    throw new Error("Playground does not support importing messages.");
+  }
+
+  public export(): never {
+    throw new Error("Playground does not support exporting messages.");
+  }
+}
+
+class PlaygroundThreadRuntime extends ThreadRuntime {
+  constructor(private binding: INTERNAL.ThreadRuntimeCoreBinding) {
+    super(binding);
+  }
+
+  public setRequestData(options: EdgeRuntimeRequestOptions) {
+    return (
+      this.binding.getState() as PlaygroundThreadRuntimeCore
+    ).setRequestData(options);
+  }
 }
 
 export const usePlaygroundRuntime = ({
@@ -500,11 +519,14 @@ export const usePlaygroundRuntime = ({
 }) => {
   const [runtime] = useState(
     () =>
-      new PlaygroundRuntime(
+      new PlaygroundRuntimeCore(
         initialMessages,
         new EdgeChatAdapter(runtimeOptions),
       ),
   );
 
-  return runtime;
+  return useMemo(
+    () => new AssistantRuntime(runtime, PlaygroundThreadRuntime),
+    [runtime],
+  );
 };

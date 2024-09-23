@@ -4,19 +4,21 @@ import { createContext } from "react";
 import type { ThreadComposerState } from "../stores/ThreadComposer";
 import type { ThreadState } from "../stores/Thread";
 import type { ThreadViewportState } from "../stores/ThreadViewport";
-import { ThreadActionsState } from "../stores/ThreadActions";
 import { ReadonlyStore } from "../ReadonlyStore";
 import { ThreadMessagesState } from "../stores/ThreadMessages";
-import { ThreadRuntimeStore } from "../stores/ThreadRuntime";
 import { UseBoundStore } from "zustand";
 import { createContextHook } from "./utils/createContextHook";
 import { createContextStoreHook } from "./utils/createContextStoreHook";
+import { ThreadRuntime } from "../../api";
 
 export type ThreadContextValue = {
   useThread: UseBoundStore<ReadonlyStore<ThreadState>>;
-  useThreadRuntime: UseBoundStore<ReadonlyStore<ThreadRuntimeStore>>;
+  /**
+   * @deprecated Use `useThreadRuntime` instead. This will be removed in 0.6.0.
+   */
+  useThreadActions: UseBoundStore<ReadonlyStore<ThreadRuntime>>;
+  useThreadRuntime: UseBoundStore<ReadonlyStore<ThreadRuntime>>;
   useThreadMessages: UseBoundStore<ReadonlyStore<ThreadMessagesState>>;
-  useThreadActions: UseBoundStore<ReadonlyStore<ThreadActionsState>>;
   useComposer: UseBoundStore<ReadonlyStore<ThreadComposerState>>;
   useViewport: UseBoundStore<ReadonlyStore<ThreadViewportState>>;
 };
@@ -28,8 +30,37 @@ export const useThreadContext = createContextHook(
   "AssistantRuntimeProvider",
 );
 
-export const { useThreadRuntime, useThreadRuntimeStore } =
-  createContextStoreHook(useThreadContext, "useThreadRuntime");
+export function useThreadRuntime(options?: {
+  optional?: false | undefined;
+}): ThreadRuntime;
+export function useThreadRuntime(options?: {
+  optional?: boolean | undefined;
+}): ThreadRuntime | null;
+export function useThreadRuntime(options?: { optional?: boolean | undefined }) {
+  const context = useThreadContext(options);
+  if (!context) return null;
+  return context.useThreadRuntime();
+}
+
+export const actions = createContextStoreHook(
+  useThreadContext,
+  "useThreadActions",
+);
+
+/**
+ * @deprecated Use `useThreadRuntime` instead. This will be removed in 0.6.0.
+ */
+export const useThreadActionsStore = actions.useThreadActionsStore;
+
+/**
+ * @deprecated Use `useThreadRuntime` instead. This will be removed in 0.6.0.
+ */
+export const useThreadActions = actions.useThreadActions;
+
+/**
+ * @deprecated Use `useThreadRuntime` instead. This will be removed in 0.6.0.
+ */
+export const useThreadRuntimeStore = useThreadActionsStore;
 
 export const { useThread, useThreadStore } = createContextStoreHook(
   useThreadContext,
@@ -38,9 +69,6 @@ export const { useThread, useThreadStore } = createContextStoreHook(
 
 export const { useThreadMessages, useThreadMessagesStore } =
   createContextStoreHook(useThreadContext, "useThreadMessages");
-
-export const { useThreadActions, useThreadActionsStore } =
-  createContextStoreHook(useThreadContext, "useThreadActions");
 
 export const {
   useComposer: useThreadComposer,

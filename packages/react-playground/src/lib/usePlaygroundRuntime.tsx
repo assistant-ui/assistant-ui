@@ -1,7 +1,7 @@
 "use client";
 import { useThreadRuntime } from "@assistant-ui/react";
-import { PlaygroundThreadRuntime } from "./playground-runtime";
+import { PlaygroundThreadRuntimeCore } from "./playground-runtime";
 
 export const usePlaygroundRuntime = () => {
-  return useThreadRuntime() as PlaygroundThreadRuntime;
+  return useThreadRuntime().unstable_getCore() as PlaygroundThreadRuntimeCore;
 };

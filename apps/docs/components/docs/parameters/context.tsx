@@ -1,18 +1,12 @@
 import { ParametersTableProps } from "../ParametersTable";
 
-export const AssistantActionsState: ParametersTableProps = {
-  type: "AssistantActionsState",
+export const AssistantRuntimeState: ParametersTableProps = {
+  type: "AssistantRuntime",
   parameters: [
     {
-      name: "switchToThread",
-      type: "(threadId: string | null) => void",
+      name: "switchToNewThread",
+      type: "() => void",
       description: "Switch to a new thread.",
-      required: true,
-    },
-    {
-      name: "getRuntime",
-      type: "() => AssistantRuntime",
-      description: "Get the current runtime.",
       required: true,
     },
   ],
@@ -88,8 +82,8 @@ export const ThreadMessagesState: ParametersTableProps = {
   ],
 };
 
-export const ThreadActionsState: ParametersTableProps = {
-  type: "ThreadActionsState",
+export const ThreadRuntimeState: ParametersTableProps = {
+  type: "ThreadRuntime",
   parameters: [
     {
       name: "getBranches",

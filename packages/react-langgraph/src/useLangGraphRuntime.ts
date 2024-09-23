@@ -6,7 +6,6 @@ import {
 } from "@assistant-ui/react";
 import { convertLangchainMessages } from "./convertLangchainMessages";
 import { useLangGraphMessages } from "./useLangGraphMessages";
-import { ExternalStoreRuntime } from "@assistant-ui/react";
 
 const getPendingToolCalls = (messages: LangChainMessage[]) => {
   const pendingToolCalls = new Map<string, LangChainToolCall>();
@@ -41,7 +40,7 @@ export const useLangGraphRuntime = ({
   onSwitchToThread?: (
     threadId: string,
   ) => Promise<{ messages: LangChainMessage[] }>;
-}): ExternalStoreRuntime => {
+}) => {
   const { messages, sendMessage, setMessages } = useLangGraphMessages({
     stream,
   });

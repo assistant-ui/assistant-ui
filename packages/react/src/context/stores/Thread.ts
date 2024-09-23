@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { ReadonlyStore } from "../ReadonlyStore";
-import { ThreadRuntimeStore } from "./ThreadRuntime";
+import { ThreadRuntime } from "../../api";
 
 export type ThreadState = Readonly<{
   capabilities: Readonly<RuntimeCapabilities>;
@@ -21,7 +21,7 @@ export type RuntimeCapabilities = {
 };
 
 export const getThreadStateFromRuntime = (
-  runtime: ThreadRuntimeStore,
+  runtime: ThreadRuntime,
 ): ThreadState => {
   const lastMessage = runtime.messages.at(-1);
   return Object.freeze({
@@ -35,9 +35,7 @@ export const getThreadStateFromRuntime = (
   });
 };
 
-export const makeThreadStore = (
-  runtimeRef: ReadonlyStore<ThreadRuntimeStore>,
-) => {
+export const makeThreadStore = (runtimeRef: ReadonlyStore<ThreadRuntime>) => {
   const runtime = runtimeRef.getState();
   return create<ThreadState>(() => getThreadStateFromRuntime(runtime));
 };

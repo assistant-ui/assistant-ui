@@ -1,16 +1,16 @@
 "use client";
 
 import { useEffect } from "react";
-import { useAssistantActionsStore } from "../context";
+import { useAssistantRuntime } from "../context";
 
 export const useAssistantInstructions = (instruction: string) => {
-  const actionsStore = useAssistantActionsStore();
+  const assistantRuntime = useAssistantRuntime();
   useEffect(() => {
     const config = {
       system: instruction,
     };
-    return actionsStore
-      .getState()
-      .registerModelConfigProvider({ getModelConfig: () => config });
-  }, [actionsStore, instruction]);
+    return assistantRuntime.registerModelConfigProvider({
+      getModelConfig: () => config,
+    });
+  }, [assistantRuntime, instruction]);
 };

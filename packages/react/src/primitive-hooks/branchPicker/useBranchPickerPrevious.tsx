@@ -3,13 +3,13 @@ import {
   useEditComposerStore,
   useMessageStore,
 } from "../../context/react/MessageContext";
-import { useThreadActionsStore } from "../../context/react/ThreadContext";
+import { useThreadRuntime } from "../../context/react/ThreadContext";
 import { useCombinedStore } from "../../utils/combined/useCombinedStore";
 
 export const useBranchPickerPrevious = () => {
   const messageStore = useMessageStore();
   const editComposerStore = useEditComposerStore();
-  const threadActionsStore = useThreadActionsStore();
+  const threadRuntime = useThreadRuntime();
 
   const disabled = useCombinedStore(
     [messageStore, editComposerStore],
@@ -18,10 +18,8 @@ export const useBranchPickerPrevious = () => {
 
   const callback = useCallback(() => {
     const { message, branches } = messageStore.getState();
-    threadActionsStore
-      .getState()
-      .switchToBranch(branches[branches.indexOf(message.id) - 1]!);
-  }, [threadActionsStore, messageStore]);
+    threadRuntime.switchToBranch(branches[branches.indexOf(message.id) - 1]!);
+  }, [threadRuntime, messageStore]);
 
   if (disabled) return null;
   return callback;

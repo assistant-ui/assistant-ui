@@ -1,12 +1,14 @@
 import { useCallback } from "react";
 import {
   ThreadMessagesState,
-  useThreadActionsStore,
   useThreadMessagesStore,
   useThreadViewportStore,
 } from "../context";
 import { AppendMessage } from "../types";
-import { useThreadComposerStore } from "../context/react/ThreadContext";
+import {
+  useThreadComposerStore,
+  useThreadRuntime,
+} from "../context/react/ThreadContext";
 import { ReadonlyStore } from "../context/ReadonlyStore";
 
 type CreateAppendMessage =
@@ -42,21 +44,21 @@ const toAppendMessage = (
 
 export const useAppendMessage = () => {
   const threadMessagesStore = useThreadMessagesStore();
-  const threadActionsStore = useThreadActionsStore();
+  const threadRuntime = useThreadRuntime();
   const threadViewportStore = useThreadViewportStore();
   const threadComposerStore = useThreadComposerStore();
 
   const append = useCallback(
     (message: CreateAppendMessage) => {
       const appendMessage = toAppendMessage(threadMessagesStore, message);
-      threadActionsStore.getState().append(appendMessage);
+      threadRuntime.append(appendMessage);
 
       threadViewportStore.getState().scrollToBottom();
       threadComposerStore.getState().focus();
     },
     [
       threadMessagesStore,
-      threadActionsStore,
+      threadRuntime,
       threadViewportStore,
       threadComposerStore,
     ],

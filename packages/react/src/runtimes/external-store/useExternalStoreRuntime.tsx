@@ -1,13 +1,15 @@
-import { useEffect, useState } from "react";
-import { ExternalStoreRuntime } from "./ExternalStoreRuntime";
+import { useEffect, useMemo, useState } from "react";
+import { ExternalStoreRuntimeCore } from "./ExternalStoreRuntimeCore";
 import { ExternalStoreAdapter } from "./ExternalStoreAdapter";
+import { AssistantRuntime } from "../../api/AssistantRuntime";
+import { ThreadRuntime } from "../../api/ThreadRuntime";
 
 export const useExternalStoreRuntime = <T,>(store: ExternalStoreAdapter<T>) => {
-  const [runtime] = useState(() => new ExternalStoreRuntime(store));
+  const [runtime] = useState(() => new ExternalStoreRuntimeCore(store));
 
   useEffect(() => {
-    runtime.store = store;
+    runtime.thread.store = store;
   });
 
-  return runtime;
+  return useMemo(() => new AssistantRuntime(runtime, ThreadRuntime), [runtime]);
 };

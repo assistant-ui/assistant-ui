@@ -1,13 +1,10 @@
+import { ThreadRuntimeCore } from "./ThreadRuntimeCore";
 import type { ModelConfigProvider } from "../../types/ModelConfigTypes";
 import type { Unsubscribe } from "../../types/Unsubscribe";
-import type { ThreadRuntime } from "./ThreadRuntime";
 
-export type ThreadRuntimeWithSubscribe = {
-  readonly thread: ThreadRuntime;
-  subscribe: (callback: () => void) => Unsubscribe;
-};
+export type AssistantRuntimeCore = {
+  readonly thread: ThreadRuntimeCore;
 
-export type AssistantRuntime = ThreadRuntimeWithSubscribe & {
   switchToNewThread: () => void;
 
   switchToThread(threadId: string): void;
@@ -17,4 +14,6 @@ export type AssistantRuntime = ThreadRuntimeWithSubscribe & {
   switchToThread(threadId: string | null): void;
 
   registerModelConfigProvider: (provider: ModelConfigProvider) => Unsubscribe;
+
+  subscribe: (callback: () => void) => Unsubscribe;
 };

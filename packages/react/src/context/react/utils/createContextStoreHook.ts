@@ -23,12 +23,7 @@ export function createContextStoreHook<T, K extends keyof T & string>(
     optional?: boolean;
   }): ReadonlyStore<StateType> | null {
     const context = contextHook(options);
-    if (!context) {
-      if (!options?.optional) {
-        throw new Error(`This component must be used within a ${contextKey}.`);
-      }
-      return null;
-    }
+    if (!context) return null;
     return context[contextKey] as ReadonlyStore<StateType>;
   }
 

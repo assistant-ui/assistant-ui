@@ -9,12 +9,12 @@ import {
   useContext,
 } from "react";
 
+import { AssistantRuntime } from "../api/AssistantRuntime";
 import { AvatarProps } from "./base/avatar";
 import { TextContentPartComponent, ToolCallContentPartProps } from "../types";
-import { AssistantRuntime } from "../runtimes";
 import { AssistantRuntimeProvider } from "../context";
 import { AssistantToolUI } from "../model-config";
-import { useAssistantRuntimeStore as useAssistantActionsStore } from "../context/react/AssistantContext";
+import { useAssistantRuntime } from "../context/react/AssistantContext";
 
 export type SuggestionConfig = {
   text?: ReactNode;
@@ -177,7 +177,7 @@ export const ThreadConfigProvider: FC<ThreadConfigProviderProps> = ({
   children,
   config,
 }) => {
-  const hasAssistant = !!useAssistantActionsStore({ optional: true });
+  const hasAssistant = !!useAssistantRuntime({ optional: true });
 
   const configProvider =
     config && Object.keys(config ?? {}).length > 0 ? (

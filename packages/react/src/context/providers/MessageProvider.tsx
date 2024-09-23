@@ -10,8 +10,8 @@ import { getThreadMessageText } from "../../utils/getThreadMessageText";
 import { MessageContext } from "../react/MessageContext";
 import type { MessageContextValue } from "../react/MessageContext";
 import {
-  useThreadActionsStore,
   useThreadMessagesStore,
+  useThreadRuntime,
 } from "../react/ThreadContext";
 import type { MessageState } from "../stores/Message";
 import { makeEditComposerStore } from "../stores/EditComposer";
@@ -61,13 +61,13 @@ const getMessageState = (
 
 const useMessageContext = (messageIndex: number) => {
   const threadMessagesStore = useThreadMessagesStore();
-  const threadActionsStore = useThreadActionsStore();
+  const threadRuntime = useThreadRuntime();
   const [context] = useState<MessageContextValue>(() => {
     const useMessage = create<MessageState>(
       () =>
         getMessageState(
           threadMessagesStore.getState(),
-          threadActionsStore.getState().getBranches,
+          threadRuntime.getBranches.bind(threadRuntime),
           undefined,
           messageIndex,
         )!,
@@ -91,7 +91,7 @@ const useMessageContext = (messageIndex: number) => {
         );
 
         // TODO fix types here
-        threadActionsStore.getState().append({
+        threadRuntime.append({
           parentId,
           role: message.role,
           content: [{ type: "text", text }, ...nonTextParts] as any,
@@ -107,7 +107,7 @@ const useMessageContext = (messageIndex: number) => {
     const syncMessage = (thread: ThreadMessagesState) => {
       const newState = getMessageState(
         thread,
-        threadActionsStore.getState().getBranches,
+        threadRuntime.getBranches.bind(threadRuntime),
         context.useMessage,
         messageIndex,
       );
@@ -118,7 +118,7 @@ const useMessageContext = (messageIndex: number) => {
     syncMessage(threadMessagesStore.getState());
 
     return threadMessagesStore.subscribe(syncMessage);
-  }, [threadMessagesStore, threadActionsStore, context, messageIndex]);
+  }, [threadMessagesStore, threadRuntime, context, messageIndex]);
 
   return context;
 };

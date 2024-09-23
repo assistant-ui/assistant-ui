@@ -5,13 +5,13 @@ import {
   useEditComposerStore,
   useMessageStore,
   useMessageUtilsStore,
-  useThreadActionsStore,
+  useThreadRuntime,
 } from "../../context";
 
 export const useActionBarSpeak = () => {
   const messageStore = useMessageStore();
   const editComposerStore = useEditComposerStore();
-  const threadActionsStore = useThreadActionsStore();
+  const threadRuntime = useThreadRuntime();
   const messageUtilsStore = useMessageUtilsStore();
 
   const hasSpeakableContent = useCombinedStore(
@@ -27,9 +27,9 @@ export const useActionBarSpeak = () => {
 
   const callback = useCallback(async () => {
     const { message } = messageStore.getState();
-    const utt = threadActionsStore.getState().speak(message.id);
+    const utt = threadRuntime.speak(message.id);
     messageUtilsStore.getState().addUtterance(utt);
-  }, [threadActionsStore, messageStore, messageUtilsStore]);
+  }, [threadRuntime, messageStore, messageUtilsStore]);
 
   if (!hasSpeakableContent) return null;
   return callback;

@@ -1,8 +1,8 @@
 import { useCallback } from "react";
 import { useMessageStore } from "../../context/react/MessageContext";
 import {
-  useThreadActionsStore,
   useThreadComposerStore,
+  useThreadRuntime,
   useThreadStore,
   useThreadViewportStore,
 } from "../../context/react/ThreadContext";
@@ -11,7 +11,7 @@ import { useCombinedStore } from "../../utils/combined/useCombinedStore";
 export const useActionBarReload = () => {
   const messageStore = useMessageStore();
   const threadStore = useThreadStore();
-  const threadActionsStore = useThreadActionsStore();
+  const threadRuntime = useThreadRuntime();
   const threadComposerStore = useThreadComposerStore();
   const threadViewportStore = useThreadViewportStore();
 
@@ -22,15 +22,10 @@ export const useActionBarReload = () => {
 
   const callback = useCallback(() => {
     const { parentId } = messageStore.getState();
-    threadActionsStore.getState().startRun(parentId);
+    threadRuntime.startRun(parentId);
     threadViewportStore.getState().scrollToBottom();
     threadComposerStore.getState().focus();
-  }, [
-    threadActionsStore,
-    threadComposerStore,
-    threadViewportStore,
-    messageStore,
-  ]);
+  }, [threadRuntime, threadComposerStore, threadViewportStore, messageStore]);
 
   if (disabled) return null;
   return callback;
