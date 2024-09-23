@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.62
+
+### Patch Changes
+
+- cd1b286: fix: BranchPicker styles
+
 ## 0.5.61
 
 ### Patch Changes
