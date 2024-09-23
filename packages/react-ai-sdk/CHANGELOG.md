@@ -1,5 +1,15 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.6.9
+
+### Patch Changes
+
+- 88957ac: feat: New unified Runtime API (part 1/n)
+- Updated dependencies [88957ac]
+- Updated dependencies [1a99132]
+- Updated dependencies [3187013]
+  - @assistant-ui/react@0.5.61
+
 ## 0.6.8
 
 ### Patch Changes

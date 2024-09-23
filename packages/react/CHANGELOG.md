@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.5.61
+
+### Patch Changes
+
+- 88957ac: feat: New unified Runtime API (part 1/n)
+- 1a99132: feat: ThreadRuntime.Composer subscribe
+- 3187013: feat: add status, attachments and metadata fields to all messages
+
 ## 0.5.60
 
 ### Patch Changes

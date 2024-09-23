@@ -1093,7 +1093,7 @@ importers:
   packages/react-ai-sdk:
     dependencies:
       '@assistant-ui/react':
-        specifier: ^0.5.60
+        specifier: ^0.5.61
         version: link:../react
       '@radix-ui/react-use-callback-ref':
         specifier: ^1.1.0
@@ -1127,7 +1127,7 @@ importers:
   packages/react-hook-form:
     dependencies:
       '@assistant-ui/react':
-        specifier: ^0.5.60
+        specifier: ^0.5.61
         version: link:../react
       '@types/react':
         specifier: '*'
@@ -1155,7 +1155,7 @@ importers:
   packages/react-langgraph:
     dependencies:
       '@assistant-ui/react':
-        specifier: ^0.5.60
+        specifier: ^0.5.61
         version: link:../react
       '@types/react':
         specifier: '*'
@@ -1247,7 +1247,7 @@ importers:
         specifier: ^0.0.23
         version: 0.0.23
       '@assistant-ui/react':
-        specifier: ^0.5.60
+        specifier: ^0.5.61
         version: link:../react
       '@radix-ui/react-avatar':
         specifier: ^1.1.0

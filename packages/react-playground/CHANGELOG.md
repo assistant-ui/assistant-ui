@@ -1,5 +1,17 @@
 # @assistant-ui/react-playground
 
+## 0.0.28
+
+### Patch Changes
+
+- 88957ac: feat: New unified Runtime API (part 1/n)
+- 3970adc: refactor: remove useGetPlaygroundRuntime
+- 1a99132: feat: ThreadRuntime.Composer subscribe
+- Updated dependencies [88957ac]
+- Updated dependencies [1a99132]
+- Updated dependencies [3187013]
+  - @assistant-ui/react@0.5.61
+
 ## 0.0.27
 
 ### Patch Changes
