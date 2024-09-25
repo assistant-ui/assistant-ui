@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.5.63
+
+### Patch Changes
+
+- c438773: feat: allow disabling ComposerInput keyboard shortcuts
+- e1ae3d0: chore: update dependencies
+
 ## 0.5.62
 
 ### Patch Changes

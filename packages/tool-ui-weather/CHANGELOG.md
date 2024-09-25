@@ -1,5 +1,12 @@
 # @tool-ui/weather
 
+## 0.0.6
+
+### Patch Changes
+
+- c438773: feat: allow disabling ComposerInput keyboard shortcuts
+- e1ae3d0: chore: update dependencies
+
 ## 0.0.5
 
 ### Patch Changes

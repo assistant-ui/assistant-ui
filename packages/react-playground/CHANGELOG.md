@@ -1,5 +1,15 @@
 # @assistant-ui/react-playground
 
+## 0.0.29
+
+### Patch Changes
+
+- c438773: feat: allow disabling ComposerInput keyboard shortcuts
+- e1ae3d0: chore: update dependencies
+- Updated dependencies [c438773]
+- Updated dependencies [e1ae3d0]
+  - @assistant-ui/react@0.5.63
+
 ## 0.0.28
 
 ### Patch Changes

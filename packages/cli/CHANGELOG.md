@@ -1,5 +1,12 @@
 # assistant-ui
 
+## 0.0.12
+
+### Patch Changes
+
+- c438773: feat: allow disabling ComposerInput keyboard shortcuts
+- e1ae3d0: chore: update dependencies
+
 ## 0.0.11
 
 ### Patch Changes
