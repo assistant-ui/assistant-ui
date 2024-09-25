@@ -1,4 +1,5 @@
 import {
+  ComponentType,
   createContext,
   FC,
   forwardRef,
@@ -46,7 +47,7 @@ export const SmoothContextProvider: FC<PropsWithChildren> = ({ children }) => {
   );
 };
 
-export const withSmoothContextProvider = <C extends React.ComponentType<any>>(
+export const withSmoothContextProvider = <C extends ComponentType<any>>(
   Component: C,
 ): C => {
   const Wrapped = forwardRef((props, ref) => {
