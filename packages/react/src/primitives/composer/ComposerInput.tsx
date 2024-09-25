@@ -23,6 +23,8 @@ import { useOnComposerFocus } from "../../utils/hooks/useOnComposerFocus";
 
 export type ComposerPrimitiveInputProps = TextareaAutosizeProps & {
   asChild?: boolean | undefined;
+  submitOnEnter?: boolean | undefined;
+  cancelOnEscape?: boolean | undefined;
 };
 
 export const ComposerPrimitiveInput = forwardRef<
@@ -36,6 +38,8 @@ export const ComposerPrimitiveInput = forwardRef<
       disabled: disabledProp,
       onChange,
       onKeyDown,
+      submitOnEnter = true,
+      cancelOnEscape = true,
       ...rest
     },
     forwardedRef,
@@ -55,6 +59,8 @@ export const ComposerPrimitiveInput = forwardRef<
     const ref = useComposedRefs(forwardedRef, textareaRef);
 
     useEscapeKeydown((e) => {
+      if (!cancelOnEscape) return;
+      
       const composer = composerStore.getState();
       if (composer.canCancel) {
         composer.cancel();
@@ -63,7 +69,7 @@ export const ComposerPrimitiveInput = forwardRef<
     });
 
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (isDisabled) return;
+      if (isDisabled || !submitOnEnter) return;
 
       // ignore IME composition events
       if (e.nativeEvent.isComposing) return;
