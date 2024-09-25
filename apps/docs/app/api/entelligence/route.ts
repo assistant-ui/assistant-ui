@@ -1,3 +1,5 @@
+export const maxDuration = 30;
+
 export const POST = async (req: Request) => {
   const { messages } = (await req.json()) as {
     messages: { role: "user" | "assistant"; content: string }[];
