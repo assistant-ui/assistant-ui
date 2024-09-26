@@ -12,7 +12,7 @@ export const useBranchPickerPrevious = () => {
   const editComposerStore = useEditComposerStore();
   const disabled = useCombinedStore(
     [messageStore, editComposerStore],
-    (m, c) => c.isEditing || m.branchNumber >= m.branchCount,
+    (m, c) => c.isEditing || m.branchNumber <= 1,
   );
 
   const callback = useCallback(() => {

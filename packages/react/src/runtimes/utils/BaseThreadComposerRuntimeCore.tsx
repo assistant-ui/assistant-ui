@@ -31,7 +31,9 @@ export class BaseThreadComposerRuntimeCore
       cancelRun: () => void;
       subscribe: (callback: () => void) => Unsubscribe;
     },
-  ) {}
+  ) {
+    this.connect();
+  }
 
   public connect() {
     return this.runtime.subscribe(() => {

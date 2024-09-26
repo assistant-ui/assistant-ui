@@ -30,7 +30,7 @@ const {
   BaseAssistantRuntimeCore,
   ProxyConfigProvider,
   generateId,
-  BaseThreadRuntimeComposerCore,
+  BaseThreadComposerRuntimeCore,
   AssistantRuntime,
   ThreadRuntime,
 } = INTERNAL;
@@ -113,7 +113,7 @@ export class PlaygroundThreadRuntimeCore
 
   private configProvider = new ProxyConfigProvider();
 
-  public readonly composer = new BaseThreadRuntimeComposerCore(this);
+  public readonly composer = new BaseThreadComposerRuntimeCore(this);
 
   constructor(
     configProvider: ModelConfigProvider,
