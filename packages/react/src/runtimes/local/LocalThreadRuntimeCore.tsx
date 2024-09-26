@@ -11,7 +11,7 @@ import {
   MessageRepository,
 } from "../utils/MessageRepository";
 import type { ChatModelAdapter, ChatModelRunResult } from "./ChatModelAdapter";
-import { BaseThreadComposerRuntimeCore } from "../utils/BaseThreadComposerRuntimeCore";
+import { DefaultThreadComposerRuntimeCore } from "../composer/DefaultThreadComposerRuntimeCore";
 import { shouldContinue } from "./shouldContinue";
 import { LocalRuntimeOptions } from "./LocalRuntimeOptions";
 import { SpeechSynthesisAdapter } from "../speech";
@@ -20,6 +20,7 @@ import {
   SubmitFeedbackOptions,
   ThreadRuntimeCore,
 } from "../core/ThreadRuntimeCore";
+import { DefaultEditComposerRuntimeCore } from "../composer/DefaultEditComposerRuntimeCore";
 
 export class LocalThreadRuntimeCore implements ThreadRuntimeCore {
   private _subscriptions = new Set<() => void>();
@@ -45,7 +46,7 @@ export class LocalThreadRuntimeCore implements ThreadRuntimeCore {
     return this.repository.getMessages();
   }
 
-  public readonly composer = new BaseThreadComposerRuntimeCore(this);
+  public readonly composer = new DefaultThreadComposerRuntimeCore(this);
 
   constructor(
     private configProvider: ModelConfigProvider,
@@ -100,6 +101,25 @@ export class LocalThreadRuntimeCore implements ThreadRuntimeCore {
     }
 
     if (hasUpdates) this.notifySubscribers();
+  }
+
+  private _editComposers = new Map<string, DefaultEditComposerRuntimeCore>();
+  public getEditComposer(messageId: string) {
+    return this._editComposers.get(messageId);
+  }
+  public beginEdit(messageId: string) {
+    if (this._editComposers.has(messageId))
+      throw new Error("Edit already in progress");
+
+    this._editComposers.set(
+      messageId,
+      new DefaultEditComposerRuntimeCore(
+        this,
+        () => this._editComposers.delete(messageId),
+        this.repository.getMessage(messageId),
+      ),
+    );
+    this.notifySubscribers();
   }
 
   public getBranches(messageId: string): string[] {

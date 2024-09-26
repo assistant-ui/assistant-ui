@@ -3,6 +3,6 @@ export type { ThreadRuntime, ThreadState } from "./ThreadRuntime";
 export type { MessageRuntime, MessageState } from "./MessageRuntime";
 export type { ContentPartRuntime } from "./ContentPartRuntime";
 export type {
-  ThreadComposerRuntime,
+  ComposerRuntime,
   UnstableThreadComposerStateV2,
-} from "./ThreadComposerRuntime";
+} from "./ComposerRuntime";

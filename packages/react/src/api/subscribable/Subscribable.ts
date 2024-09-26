@@ -8,5 +8,5 @@ export type SubscribableWithState<TState> = Subscribable & {
   getState: () => TState;
 };
 
-export type NestedSubscribable<TState extends Subscribable> =
+export type NestedSubscribable<TState extends Subscribable | undefined> =
   SubscribableWithState<TState>;

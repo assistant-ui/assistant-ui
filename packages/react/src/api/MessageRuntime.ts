@@ -1,7 +1,9 @@
 import { toContentPartStatus } from "../context/providers/ContentPartProvider";
 import { ThreadMessage, AppendMessage } from "../types";
+import { ComposerRuntime } from "./ComposerRuntime";
 import { ContentPartRuntime } from "./ContentPartRuntime";
 import { ThreadRuntimeCoreBinding } from "./ThreadRuntime";
+import { NestedSubscriptionSubject } from "./subscribable/NestedSubscriptionSubject";
 import { ShallowMemoizeSubject } from "./subscribable/ShallowMemoizeSubject";
 import { SubscribableWithState } from "./subscribable/Subscribable";
 
@@ -29,12 +31,23 @@ export class MessageRuntime {
     private _threadBinding: ThreadRuntimeCoreBinding,
   ) {}
 
+  public composer = new ComposerRuntime(
+    new NestedSubscriptionSubject({
+      getState: () =>
+        this._threadBinding
+          .getState()
+          .getEditComposer(this._core.getState().id),
+      subscribe: (callback) => this._threadBinding.subscribe(callback),
+    }),
+    () => this._threadBinding.getState().beginEdit(this._core.getState().id),
+  ) as ComposerRuntime & { type: "edit" };
+
   public getState() {
     return this._core.getState();
   }
 
   // TODO improve type
-  public edit(message: Omit<AppendMessage, "parentId">) {
+  public unstable_edit(message: Omit<AppendMessage, "parentId">) {
     const state = this._core.getState();
     if (!state) throw new Error("Message is not available");
 

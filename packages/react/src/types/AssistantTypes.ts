@@ -140,7 +140,7 @@ export type ThreadAssistantMessage = MessageCommonProps & {
 export type AppendMessage = CoreMessage & {
   parentId: string | null;
   // TODO make required in the next major version
-  attachments?: readonly MessageAttachment[];
+  attachments?: readonly MessageAttachment[] | undefined;
 };
 
 export type ThreadMessage =

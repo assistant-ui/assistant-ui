@@ -2,11 +2,8 @@
 
 import { type FC, type PropsWithChildren, useEffect, useState } from "react";
 import { create } from "zustand";
-import type { CoreUserContentPart } from "../../types/AssistantTypes";
-import { getThreadMessageText } from "../../utils/getThreadMessageText";
 import { MessageContext } from "../react/MessageContext";
 import type { MessageContextValue } from "../react/MessageContext";
-import { makeEditComposerStore } from "../stores/EditComposer";
 import { makeMessageUtilsStore } from "../stores/MessageUtils";
 import { ReadonlyStore, writableStore } from "../ReadonlyStore";
 import { MessageRuntime } from "../../api";
@@ -45,33 +42,15 @@ const useMessageUtilsStore = () => {
 const useEditComposerStore = (
   useMessageRuntime: ReadonlyStore<MessageRuntime>,
 ) => {
-  const [store] = useState(() =>
-    makeEditComposerStore({
-      onEdit: () => {
-        const text = getThreadMessageText(
-          useMessageRuntime.getState().getState(),
-        );
+  const runtime = useMessageRuntime.getState().composer;
+  const [store] = useState(() => create(() => runtime.getState()));
 
-        return text;
-      },
-      onSend: (text) => {
-        const message = useMessageRuntime.getState().getState();
-        const previousText = getThreadMessageText(message);
-        if (previousText === text) return;
+  useEffect(() => {
+    const updateState = () => writableStore(store).setState(runtime.getState());
+    updateState();
+    return runtime.subscribe(updateState);
+  }, [runtime, store]);
 
-        const nonTextParts = message.content.filter(
-          (part): part is CoreUserContentPart =>
-            part.type !== "text" && part.type !== "ui",
-        );
-
-        useMessageRuntime.getState().edit({
-          role: message.role,
-          content: [{ type: "text", text }, ...nonTextParts],
-          attachments: message.attachments ?? [],
-        });
-      },
-    }),
-  );
   return store;
 };
 

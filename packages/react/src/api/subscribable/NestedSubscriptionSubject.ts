@@ -6,7 +6,7 @@ import {
   SubscribableWithState,
 } from "./Subscribable";
 
-export class NestedSubscriptionSubject<TState extends Subscribable>
+export class NestedSubscriptionSubject<TState extends Subscribable | undefined>
   extends BaseSubject
   implements SubscribableWithState<TState>, NestedSubscribable<TState>
 {
@@ -24,14 +24,14 @@ export class NestedSubscriptionSubject<TState extends Subscribable>
     };
 
     let lastState = this.binding.getState();
-    let innerUnsubscribe = lastState.subscribe(callback);
+    let innerUnsubscribe = lastState?.subscribe(callback);
     const onRuntimeUpdate = () => {
       const newState = this.binding.getState();
       if (newState === lastState) return;
       lastState = newState;
 
       innerUnsubscribe?.();
-      innerUnsubscribe = this.binding.getState().subscribe(callback);
+      innerUnsubscribe = this.binding.getState()?.subscribe(callback);
 
       callback();
     };
@@ -39,7 +39,7 @@ export class NestedSubscriptionSubject<TState extends Subscribable>
     const outerUnsubscribe = this.binding.subscribe(onRuntimeUpdate);
     return () => {
       outerUnsubscribe?.();
-      innerUnsubscribe();
+      innerUnsubscribe?.();
     };
   }
 }

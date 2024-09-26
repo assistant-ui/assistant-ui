@@ -1,7 +1,6 @@
 "use client";
 
 import { createContext } from "react";
-import type { EditComposerState } from "../stores/EditComposer";
 import { ReadonlyStore } from "../ReadonlyStore";
 import { MessageUtilsState } from "../stores/MessageUtils";
 import { createContextHook } from "./utils/createContextHook";
@@ -9,6 +8,7 @@ import { createContextStoreHook } from "./utils/createContextStoreHook";
 import { UseBoundStore } from "zustand";
 import { MessageRuntime } from "../../api";
 import { MessageState } from "../../api/MessageRuntime";
+import { EditComposerState } from "../../api/ComposerRuntime";
 
 export type MessageContextValue = {
   useMessageRuntime: UseBoundStore<ReadonlyStore<MessageRuntime>>;

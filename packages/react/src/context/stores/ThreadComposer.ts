@@ -1,10 +1,10 @@
 import { create } from "zustand";
 import { Unsubscribe } from "../../types/Unsubscribe";
 import { ThreadComposerAttachment } from "./Attachment";
-import { ThreadComposerRuntime } from "../../api";
+import { ComposerRuntime } from "../../api";
 
 export type ThreadComposerState = Readonly<{
-  type: "thread";
+  type: "thread" | "edit";
 
   /** @deprecated Use `text` instead. This will be removed in 0.6.0. */
   value: string;
@@ -28,7 +28,7 @@ export type ThreadComposerState = Readonly<{
   reset: () => void;
 
   canCancel: boolean;
-  isEditing: true;
+  isEditing: boolean;
   isEmpty: boolean;
 
   /** @deprecated Use `useComposerRuntime().send` instead. This will be removed in 0.6.0. */
@@ -41,23 +41,13 @@ export type ThreadComposerState = Readonly<{
   onFocus: (listener: () => void) => Unsubscribe;
 }>;
 
-export const makeThreadComposerStore = (runtime: ThreadComposerRuntime) => {
+export const makeThreadComposerStore = (
+  runtime: ComposerRuntime & { type: "thread" },
+) => {
   const focusListeners = new Set<() => void>();
-  return create<ThreadComposerState>()((_, get) => {
+  return create<ThreadComposerState>()(() => {
     return {
-      type: "thread",
-
-      get value() {
-        return get().text;
-      },
-      setValue(value) {
-        get().setText(value);
-      },
-
       ...runtime.getState(),
-
-      canCancel: false, // "TODO",
-      isEditing: true,
 
       addAttachment: (file) => {
         runtime.addAttachment(file);
@@ -69,16 +59,6 @@ export const makeThreadComposerStore = (runtime: ThreadComposerRuntime) => {
         runtime.reset();
       },
 
-      setText: (text) => {
-        runtime.setText(text);
-      },
-
-      send: () => {
-        runtime.send();
-      },
-      cancel: () => {
-        runtime.cancel(); // TODO
-      },
       focus: () => {
         for (const listener of focusListeners) {
           listener();

@@ -30,7 +30,7 @@ const {
   BaseAssistantRuntimeCore,
   ProxyConfigProvider,
   generateId,
-  BaseThreadComposerRuntimeCore,
+  DefaultThreadComposerRuntimeCore,
   AssistantRuntime,
   ThreadRuntime,
 } = INTERNAL;
@@ -113,7 +113,15 @@ export class PlaygroundThreadRuntimeCore
 
   private configProvider = new ProxyConfigProvider();
 
-  public readonly composer = new BaseThreadComposerRuntimeCore(this);
+  public readonly composer = new DefaultThreadComposerRuntimeCore(this);
+
+  public getEditComposer() {
+    return undefined;
+  }
+
+  public beginEdit() {
+    throw new Error("Playground does not support edit mode.");
+  }
 
   constructor(
     configProvider: ModelConfigProvider,

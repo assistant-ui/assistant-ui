@@ -1,5 +1,5 @@
 export type { ReactThreadRuntimeCore } from "./runtimes/core/ReactThreadRuntimeCore";
-export { BaseThreadComposerRuntimeCore  } from "./runtimes/utils/BaseThreadComposerRuntimeCore";
+export { DefaultThreadComposerRuntimeCore } from "./runtimes/composer/DefaultThreadComposerRuntimeCore";
 export { ProxyConfigProvider } from "./utils/ProxyConfigProvider";
 export { MessageRepository } from "./runtimes/utils/MessageRepository";
 export { BaseAssistantRuntimeCore } from "./runtimes/core/BaseAssistantRuntimeCore";

@@ -19,12 +19,13 @@ import { getAutoStatus, isAutoStatus } from "./auto-status";
 import { fromThreadMessageLike } from "./ThreadMessageLike";
 import { getThreadMessageText } from "../../utils/getThreadMessageText";
 import { generateId } from "../../internal";
-import { BaseThreadComposerRuntimeCore } from "../utils/BaseThreadComposerRuntimeCore";
+import { DefaultThreadComposerRuntimeCore } from "../composer/DefaultThreadComposerRuntimeCore";
 import {
   RuntimeCapabilities,
   SubmitFeedbackOptions,
 } from "../core/ThreadRuntimeCore";
 import { ReactThreadRuntimeCore } from "../core/ReactThreadRuntimeCore";
+import { DefaultEditComposerRuntimeCore } from "../composer/DefaultEditComposerRuntimeCore";
 
 export const hasUpcomingMessage = (
   isRunning: boolean,
@@ -60,7 +61,25 @@ export class ExternalStoreThreadRuntimeCore implements ReactThreadRuntimeCore {
 
   private _store!: ExternalStoreAdapter<any>;
 
-  public readonly composer = new BaseThreadComposerRuntimeCore(this);
+  public readonly composer = new DefaultThreadComposerRuntimeCore(this);
+  private _editComposers = new Map<string, DefaultEditComposerRuntimeCore>();
+  public getEditComposer(messageId: string) {
+    return this._editComposers.get(messageId);
+  }
+  public beginEdit(messageId: string) {
+    if (this._editComposers.has(messageId))
+      throw new Error("Edit already in progress");
+
+    this._editComposers.set(
+      messageId,
+      new DefaultEditComposerRuntimeCore(
+        this,
+        () => this._editComposers.delete(messageId),
+        this.repository.getMessage(messageId),
+      ),
+    );
+    this.notifySubscribers();
+  }
 
   constructor(
     private configProvider: ModelConfigProvider,

@@ -12,7 +12,7 @@ import { MessageRuntime, MessageState } from "./MessageRuntime";
 import { NestedSubscriptionSubject } from "./subscribable/NestedSubscriptionSubject";
 import { ShallowMemoizeSubject } from "./subscribable/ShallowMemoizeSubject";
 import { SubscribableWithState } from "./subscribable/Subscribable";
-import { ThreadComposerRuntime } from "./ThreadComposerRuntime";
+import { ComposerRuntime } from "./ComposerRuntime";
 
 export type CreateAppendMessage =
   | string
@@ -118,7 +118,7 @@ export class ThreadRuntime implements ThreadRuntimeCore {
 
   constructor(private _threadBinding: ThreadRuntimeCoreBinding) {}
 
-  public readonly composer = new ThreadComposerRuntime(
+  public readonly composer = new ComposerRuntime(
     new NestedSubscriptionSubject({
       getState: () => this._threadBinding.getState().composer,
       subscribe: (callback) => this._threadBinding.subscribe(callback),
@@ -186,6 +186,20 @@ export class ThreadRuntime implements ThreadRuntimeCore {
   //  */
   public submitFeedback(options: SubmitFeedbackOptions) {
     return this._threadBinding.getState().submitFeedback(options);
+  }
+
+  /**
+   * @deprecated This is a temporary API. This will be removed in 0.6.0.
+   */
+  public getEditComposer(messageId: string) {
+    return this._threadBinding.getState().getEditComposer(messageId);
+  }
+
+  /**
+   * @deprecated This is a temporary API. This will be removed in 0.6.0.
+   */
+  public beginEdit(messageId: string) {
+    return this._threadBinding.getState().beginEdit(messageId);
   }
 
   public export() {
