@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.65
+
+### Patch Changes
+
+- 27208fb: fix: only include "use client" banner in ESM builds
+
 ## 0.5.64
 
 ### Patch Changes

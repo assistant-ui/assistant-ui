@@ -1,5 +1,11 @@
 # @tool-ui/weather
 
+## 0.0.8
+
+### Patch Changes
+
+- 27208fb: fix: only include "use client" banner in ESM builds
+
 ## 0.0.7
 
 ### Patch Changes

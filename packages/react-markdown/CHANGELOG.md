@@ -1,5 +1,13 @@
 # @assistant-ui/react-markdown
 
+## 0.2.17
+
+### Patch Changes
+
+- 27208fb: fix: only include "use client" banner in ESM builds
+- Updated dependencies [27208fb]
+  - @assistant-ui/react@0.5.65
+
 ## 0.2.16
 
 ### Patch Changes
