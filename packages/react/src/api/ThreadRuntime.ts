@@ -1,38 +1,80 @@
+import { ComponentType } from "react";
+import { ReactThreadRuntimeCore } from "../runtimes/core/ReactThreadRuntimeCore";
 import {
   AddToolResultOptions,
+  RuntimeCapabilities,
   SubmitFeedbackOptions,
   ThreadRuntimeCore,
 } from "../runtimes/core/ThreadRuntimeCore";
 import { ExportedMessageRepository } from "../runtimes/utils/MessageRepository";
-import { AppendMessage } from "../types";
+import { AppendMessage, ThreadMessage } from "../types";
 import { MessageRuntime, MessageSnapshot } from "./MessageRuntime";
 import { NestedSubscriptionSubject } from "./subscribable/NestedSubscriptionSubject";
 import { ShallowMemoizeSubject } from "./subscribable/ShallowMemoizeSubject";
 import { SubscribableWithState } from "./subscribable/Subscribable";
 import { ThreadComposerRuntime } from "./ThreadComposerRuntime";
 
+export type CreateAppendMessage =
+  | string
+  | {
+      parentId?: string | null | undefined;
+      role?: AppendMessage["role"] | undefined;
+      content: AppendMessage["content"];
+      attachments?: AppendMessage["attachments"] | undefined;
+    };
+
+const toAppendMessage = (
+  messages: readonly ThreadMessage[],
+  message: CreateAppendMessage,
+): AppendMessage => {
+  if (typeof message === "string") {
+    return {
+      parentId: messages.at(-1)?.id ?? null,
+      role: "user",
+      content: [{ type: "text", text: message }],
+      attachments: [],
+    };
+  }
+
+  if (message.role && message.parentId && message.attachments) {
+    return message as AppendMessage;
+  }
+
+  return {
+    parentId: message.parentId ?? messages.at(-1)?.id ?? null,
+    role: message.role ?? "user",
+    content: message.content,
+    attachments: message.attachments ?? [],
+  } as AppendMessage;
+};
+
 export type ThreadRuntimeCoreBinding = SubscribableWithState<ThreadRuntimeCore>;
 
-class ThreadState {
-  constructor(private _core: ThreadRuntimeCore) {}
+export type ThreadState = Readonly<{
+  threadId: string;
+  isDisabled: boolean;
+  isRunning: boolean;
+  capabilities: RuntimeCapabilities;
+}>;
 
-  get threadId() {
-    return this._core.threadId;
-  }
-  get isDisabled() {
-    return this._core.isDisabled;
-  }
-  get isRunning() {
-    const messages = this._core.messages;
-    const lastMessage = messages[messages.length - 1];
-    return lastMessage?.role !== "assistant"
-      ? false
-      : lastMessage.status.type === "running";
-  }
-  get capabilities() {
-    return this._core.capabilities;
-  }
-}
+export type ReactThreadState = ThreadState & {
+  readonly unstable_synchronizer?: ComponentType | undefined;
+};
+
+export const getThreadState = (runtime: ThreadRuntimeCore): ThreadState => {
+  const lastMessage = runtime.messages.at(-1);
+  return Object.freeze({
+    threadId: runtime.threadId,
+    capabilities: runtime.capabilities,
+    isDisabled: runtime.isDisabled,
+    isRunning:
+      lastMessage?.role !== "assistant"
+        ? false
+        : lastMessage.status.type === "running",
+    unstable_synchronizer: (runtime as ReactThreadRuntimeCore)
+      .unstable_synchronizer,
+  });
+};
 
 export class ThreadRuntime implements ThreadRuntimeCore {
   // public path = "assistant.threads[main]"; // TODO
@@ -84,11 +126,15 @@ export class ThreadRuntime implements ThreadRuntimeCore {
   );
 
   public getState() {
-    return new ThreadState(this._threadBinding.getState());
+    return getThreadState(this._threadBinding.getState());
   }
 
-  public append(message: AppendMessage) {
-    this._threadBinding.getState().append(message);
+  public append(message: CreateAppendMessage) {
+    this._threadBinding
+      .getState()
+      .append(
+        toAppendMessage(this._threadBinding.getState().messages, message),
+      );
   }
 
   public subscribe(callback: () => void) {

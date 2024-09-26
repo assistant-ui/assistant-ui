@@ -2,14 +2,14 @@
 
 import { createContext } from "react";
 import type { ThreadComposerState } from "../stores/ThreadComposer";
-import type { ThreadState } from "../stores/Thread";
 import type { ThreadViewportState } from "../stores/ThreadViewport";
 import { ReadonlyStore } from "../ReadonlyStore";
-import { ThreadMessagesState } from "../stores/ThreadMessages";
 import { UseBoundStore } from "zustand";
 import { createContextHook } from "./utils/createContextHook";
 import { createContextStoreHook } from "./utils/createContextStoreHook";
 import { ThreadRuntime } from "../../api";
+import { ThreadState } from "../../api/ThreadRuntime";
+import { ThreadMessage } from "../../types";
 
 export type ThreadContextValue = {
   useThread: UseBoundStore<ReadonlyStore<ThreadState>>;
@@ -18,7 +18,7 @@ export type ThreadContextValue = {
    */
   useThreadActions: UseBoundStore<ReadonlyStore<ThreadRuntime>>;
   useThreadRuntime: UseBoundStore<ReadonlyStore<ThreadRuntime>>;
-  useThreadMessages: UseBoundStore<ReadonlyStore<ThreadMessagesState>>;
+  useThreadMessages: UseBoundStore<ReadonlyStore<readonly ThreadMessage[]>>;
   useComposer: UseBoundStore<ReadonlyStore<ThreadComposerState>>;
   useViewport: UseBoundStore<ReadonlyStore<ThreadViewportState>>;
 };

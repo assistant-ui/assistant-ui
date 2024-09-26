@@ -4,6 +4,4 @@ export type { ContentPartState } from "./ContentPart";
 export type { EditComposerState } from "./EditComposer";
 export type { MessageState } from "./Message";
 export type { MessageUtilsState } from "./MessageUtils";
-export type { ThreadState } from "./Thread";
-export type { ThreadMessagesState } from "./ThreadMessages";
 export type { ThreadViewportState } from "./ThreadViewport";

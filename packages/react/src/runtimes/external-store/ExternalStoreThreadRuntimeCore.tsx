@@ -17,11 +17,13 @@ import {
 import { ThreadMessageConverter } from "./ThreadMessageConverter";
 import { getAutoStatus, isAutoStatus } from "./auto-status";
 import { fromThreadMessageLike } from "./ThreadMessageLike";
-import { RuntimeCapabilities } from "../../context/stores/Thread";
 import { getThreadMessageText } from "../../utils/getThreadMessageText";
 import { generateId } from "../../internal";
 import { BaseThreadComposerRuntimeCore } from "../utils/BaseThreadComposerRuntimeCore";
-import { SubmitFeedbackOptions } from "../core/ThreadRuntimeCore";
+import {
+  RuntimeCapabilities,
+  SubmitFeedbackOptions,
+} from "../core/ThreadRuntimeCore";
 import { ReactThreadRuntimeCore } from "../core/ReactThreadRuntimeCore";
 
 export const hasUpcomingMessage = (

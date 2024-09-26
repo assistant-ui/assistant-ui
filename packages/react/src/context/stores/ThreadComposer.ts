@@ -1,44 +1,49 @@
-import { create, UseBoundStore } from "zustand";
-import { ReadonlyStore } from "../ReadonlyStore";
+import { create } from "zustand";
 import { Unsubscribe } from "../../types/Unsubscribe";
-import { ThreadContextValue } from "../react";
 import { ThreadComposerAttachment } from "./Attachment";
+import { ThreadComposerRuntime } from "../../api";
 
 export type ThreadComposerState = Readonly<{
   type: "thread";
 
-  /** @deprecated Use `text` instead. */
+  /** @deprecated Use `text` instead. This will be removed in 0.6.0. */
   value: string;
-  /** @deprecated Use `setText` instead. */
+  /** @deprecated Use `useComposerRuntime().setText` instead. This will be removed in 0.6.0. */
   setValue: (value: string) => void;
 
   attachmentAccept: string;
 
   attachments: readonly ThreadComposerAttachment[];
+
+  /** @deprecated Use `useComposerRuntime().addAttachment` instead. This will be removed in 0.6.0. */
   addAttachment: (file: File) => void;
+  /** @deprecated Use `useComposerRuntime().removeAttachment` instead. This will be removed in 0.6.0. */
   removeAttachment: (attachmentId: string) => void;
 
   text: string;
+  /** @deprecated Use `useComposerRuntime().setText` instead. This will be removed in 0.6.0. */
   setText: (value: string) => void;
 
+  /** @deprecated Use `useComposerRuntime().reset` instead. This will be removed in 0.6.0. */
   reset: () => void;
 
   canCancel: boolean;
   isEditing: true;
   isEmpty: boolean;
 
+  /** @deprecated Use `useComposerRuntime().send` instead. This will be removed in 0.6.0. */
   send: () => void;
+  /** @deprecated Use `useComposerRuntime().cancel` instead. This will be removed in 0.6.0. */
   cancel: () => void;
+
+  // TODO replace with events
   focus: () => void;
   onFocus: (listener: () => void) => Unsubscribe;
 }>;
 
-export const makeThreadComposerStore = (
-  useThreadRuntime: ThreadContextValue["useThreadRuntime"],
-): UseBoundStore<ReadonlyStore<ThreadComposerState>> => {
+export const makeThreadComposerStore = (runtime: ThreadComposerRuntime) => {
   const focusListeners = new Set<() => void>();
   return create<ThreadComposerState>()((_, get) => {
-    const runtime = useThreadRuntime.getState();
     return {
       type: "thread",
 
@@ -49,34 +54,30 @@ export const makeThreadComposerStore = (
         get().setText(value);
       },
 
-      attachmentAccept: runtime.composer.attachmentAccept,
+      ...runtime.getState(),
 
-      attachments: runtime.composer.attachments,
+      canCancel: false, // "TODO",
+      isEditing: true,
+
       addAttachment: (file) => {
-        useThreadRuntime.getState().composer.addAttachment(file);
+        runtime.addAttachment(file);
       },
       removeAttachment: (attachmentId) => {
-        useThreadRuntime.getState().composer.removeAttachment(attachmentId);
+        runtime.removeAttachment(attachmentId);
       },
       reset: () => {
-        useThreadRuntime.getState().composer.reset();
+        runtime.reset();
       },
 
-      text: runtime.composer.text,
       setText: (text) => {
-        useThreadRuntime.getState().composer.setText(text);
+        runtime.setText(text);
       },
-
-      canCancel: runtime.capabilities.cancel,
-      isEditing: true,
-      isEmpty: runtime.composer.isEmpty,
 
       send: () => {
-        const runtime = useThreadRuntime.getState();
-        runtime.composer.send();
+        runtime.send();
       },
       cancel: () => {
-        useThreadRuntime.getState().cancelRun();
+        runtime.cancel(); // TODO
       },
       focus: () => {
         for (const listener of focusListeners) {

@@ -1,11 +1,10 @@
 "use client";
 
 import type { FC, PropsWithChildren } from "react";
-import { useEffect, useInsertionEffect, useRef, useState } from "react";
+import { useMemo } from "react";
 import { AssistantContext } from "../react/AssistantContext";
 import { makeAssistantToolUIsStore } from "../stores/AssistantToolUIs";
 import { ThreadProvider } from "./ThreadProvider";
-import { writableStore } from "../ReadonlyStore";
 import { AssistantRuntime } from "../../api/AssistantRuntime";
 import { create } from "zustand";
 
@@ -13,29 +12,26 @@ type AssistantProviderProps = {
   runtime: AssistantRuntime;
 };
 
+const useAssistantRuntimeStore = (runtime: AssistantRuntime) => {
+  return useMemo(() => create(() => runtime), [runtime]);
+};
+
+const useAssistantToolUIsStore = () => {
+  return useMemo(() => makeAssistantToolUIsStore(), []);
+};
+
 export const AssistantProvider: FC<
   PropsWithChildren<AssistantProviderProps>
 > = ({ children, runtime }) => {
-  const runtimeRef = useRef(runtime);
-  useInsertionEffect(() => {
-    runtimeRef.current = runtime;
-  });
-
-  const [context] = useState(() => {
-    const useAssistantRuntime = create(() => runtime);
-    const useToolUIs = makeAssistantToolUIsStore();
-
+  const useAssistantRuntime = useAssistantRuntimeStore(runtime);
+  const useToolUIs = useAssistantToolUIsStore();
+  const context = useMemo(() => {
     return {
       useToolUIs,
       useAssistantRuntime,
       useAssistantActions: useAssistantRuntime,
     };
-  });
-
-  useEffect(
-    () => writableStore(context.useAssistantRuntime).setState(runtime, true),
-    [runtime, context],
-  );
+  }, [useAssistantRuntime, useToolUIs]);
 
   return (
     <AssistantContext.Provider value={context}>

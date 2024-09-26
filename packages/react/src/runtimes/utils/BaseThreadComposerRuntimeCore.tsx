@@ -1,7 +1,10 @@
 import { ThreadComposerAttachment } from "../../context/stores/Attachment";
 import { AppendMessage, Unsubscribe } from "../../types";
 import { AttachmentAdapter } from "../attachment/AttachmentAdapter";
-import { ThreadRuntimeCore } from "../core/ThreadRuntimeCore";
+import {
+  RuntimeCapabilities,
+  ThreadRuntimeCore,
+} from "../core/ThreadRuntimeCore";
 import { ThreadComposerRuntimeCore } from "../core/ThreadComposerRuntimeCore";
 
 export class BaseThreadComposerRuntimeCore
@@ -15,12 +18,29 @@ export class BaseThreadComposerRuntimeCore
     return !this.text.trim() && !this.attachments.length;
   }
 
+  private _canCancel = false;
+  public get canCancel() {
+    return this._canCancel;
+  }
+
   constructor(
     private runtime: {
+      capabilities: Readonly<RuntimeCapabilities>;
       messages: ThreadRuntimeCore["messages"];
       append: (message: AppendMessage) => void;
+      cancelRun: () => void;
+      subscribe: (callback: () => void) => Unsubscribe;
     },
   ) {}
+
+  public connect() {
+    return this.runtime.subscribe(() => {
+      if (this.canCancel !== this.runtime.capabilities.cancel) {
+        this._canCancel = this.runtime.capabilities.cancel;
+        this.notifySubscribers();
+      }
+    });
+  }
 
   public setAttachmentAdapter(adapter: AttachmentAdapter | undefined) {
     this._attachmentAdapter = adapter;
@@ -95,6 +115,10 @@ export class BaseThreadComposerRuntimeCore
       attachments,
     });
     this.reset();
+  }
+
+  public async cancel() {
+    this.runtime.cancelRun();
   }
 
   private _subscriptions = new Set<() => void>();

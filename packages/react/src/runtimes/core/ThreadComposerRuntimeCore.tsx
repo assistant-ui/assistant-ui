@@ -7,6 +7,7 @@ export type ThreadComposerRuntimeCore = Readonly<{
   addAttachment: (file: File) => Promise<void>;
   removeAttachment: (attachmentId: string) => Promise<void>;
 
+  canCancel: boolean;
   isEmpty: boolean;
 
   text: string;
@@ -15,6 +16,7 @@ export type ThreadComposerRuntimeCore = Readonly<{
   reset: () => void;
 
   send: () => void;
+  cancel: () => void;
 
   subscribe: (callback: () => void) => Unsubscribe;
 }>;

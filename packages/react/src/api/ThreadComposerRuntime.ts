@@ -1,39 +1,45 @@
+import { ThreadComposerAttachment } from "../context/stores/Attachment";
 import { ThreadComposerRuntimeCore } from "../runtimes/core/ThreadComposerRuntimeCore";
 import { SubscribableWithState } from "./subscribable/Subscribable";
 
 export type ThreadComposerRuntimeCoreBinding =
   SubscribableWithState<ThreadComposerRuntimeCore>;
 
-export class ComposerState {
-  constructor(private _composerBinding: ThreadComposerRuntimeCoreBinding) {}
+export type UnstableThreadComposerStateV2 = Readonly<{
+  isEmpty: boolean;
+  text: string;
+  attachments: readonly ThreadComposerAttachment[];
+  attachmentAccept: string;
+  canCancel: boolean;
+}>;
 
-  public get isEmpty() {
-    return this._composerBinding.getState().isEmpty;
-  }
-
-  public get text() {
-    return this._composerBinding.getState().text;
-  }
-
-  public get attachmentAccept() {
-    return this._composerBinding.getState().attachmentAccept;
-  }
-
-  public get attachments() {
-    return this._composerBinding.getState().attachments;
-  }
-}
+const getThreadComposerState = (
+  runtime: ThreadComposerRuntimeCore,
+): UnstableThreadComposerStateV2 => {
+  return Object.freeze({
+    canCancel: runtime.canCancel,
+    isEmpty: runtime.isEmpty,
+    text: runtime.text,
+    attachments: runtime.attachments,
+    attachmentAccept: runtime.attachmentAccept,
+  });
+};
 
 export class ThreadComposerRuntime implements ThreadComposerRuntimeCore {
-  constructor(private _core: ThreadComposerRuntimeCoreBinding) {
-    this._state = new ComposerState(_core);
-  }
+  constructor(private _core: ThreadComposerRuntimeCoreBinding) {}
 
   /**
    * @deprecated Use `getState().isEmpty` instead. This will be removed in 0.6.0.
    */
   public get isEmpty() {
     return this._core.getState().isEmpty;
+  }
+
+  /**
+   * @deprecated Use `getState().canCancel` instead. This will be removed in 0.6.0.
+   */
+  public get canCancel() {
+    return this._core.getState().canCancel;
   }
 
   /**
@@ -58,9 +64,8 @@ export class ThreadComposerRuntime implements ThreadComposerRuntimeCore {
     return this._core.getState().attachments;
   }
 
-  private _state;
   public getState() {
-    return this._state;
+    return getThreadComposerState(this._core.getState());
   }
 
   public setText(text: string) {
@@ -87,6 +92,10 @@ export class ThreadComposerRuntime implements ThreadComposerRuntimeCore {
 
   public send() {
     this._core.getState().send();
+  }
+
+  public cancel() {
+    this._core.getState().cancel();
   }
 
   public subscribe(callback: () => void) {

@@ -1,9 +1,19 @@
-import { RuntimeCapabilities } from "../../context/stores/Thread";
 import { AppendMessage, ModelConfig, ThreadMessage } from "../../types";
 import type { Unsubscribe } from "../../types/Unsubscribe";
 import { SpeechSynthesisAdapter } from "../speech";
 import { ExportedMessageRepository } from "../utils/MessageRepository";
 import { ThreadComposerRuntimeCore } from "./ThreadComposerRuntimeCore";
+
+export type RuntimeCapabilities = Readonly<{
+  switchToBranch: boolean;
+  edit: boolean;
+  reload: boolean;
+  cancel: boolean;
+  unstable_copy: boolean;
+  speak: boolean;
+  attachments: boolean;
+  feedback: boolean;
+}>;
 
 export type AddToolResultOptions = {
   messageId: string;

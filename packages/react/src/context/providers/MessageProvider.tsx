@@ -16,19 +16,21 @@ import {
 import type { MessageState } from "../stores/Message";
 import { makeEditComposerStore } from "../stores/EditComposer";
 import { makeMessageUtilsStore } from "../stores/MessageUtils";
-import { ThreadMessagesState } from "../stores/ThreadMessages";
 import { writableStore } from "../ReadonlyStore";
 
 type MessageProviderProps = PropsWithChildren<{
   messageIndex: number;
 }>;
 
-const getIsLast = (messages: ThreadMessagesState, message: ThreadMessage) => {
+const getIsLast = (
+  messages: readonly ThreadMessage[],
+  message: ThreadMessage,
+) => {
   return messages[messages.length - 1]?.id === message.id;
 };
 
 const getMessageState = (
-  messages: ThreadMessagesState,
+  messages: readonly ThreadMessage[],
   getBranches: (messageId: string) => readonly string[],
   useMessage: MessageContextValue["useMessage"] | undefined,
   messageIndex: number,
@@ -104,7 +106,7 @@ const useMessageContext = (messageIndex: number) => {
   });
 
   useEffect(() => {
-    const syncMessage = (thread: ThreadMessagesState) => {
+    const syncMessage = (thread: readonly ThreadMessage[]) => {
       const newState = getMessageState(
         thread,
         threadRuntime.getBranches.bind(threadRuntime),
