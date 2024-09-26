@@ -63,12 +63,11 @@ const joinExternalMessages = (
         );
       }
     } else {
-      const content = output.content;
       const role = output.role;
       switch (role) {
         case "system":
         case "user":
-          return { role, content };
+          return output;
         case "assistant":
           if (assistantMessage.content.length === 0) {
             assistantMessage.id = output.id;
@@ -76,7 +75,7 @@ const joinExternalMessages = (
             assistantMessage.status ??= output.status;
             // TODO keep this in sync
           }
-          assistantMessage.content.push(...content);
+          assistantMessage.content.push(...output.content);
           break;
         default: {
           const unsupportedRole: never = role;
