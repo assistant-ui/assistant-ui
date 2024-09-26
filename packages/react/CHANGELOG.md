@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.64
+
+### Patch Changes
+
+- ed24305: fix: add newline after "use client" for .js builds
+
 ## 0.5.63
 
 ### Patch Changes

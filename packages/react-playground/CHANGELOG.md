@@ -1,5 +1,13 @@
 # @assistant-ui/react-playground
 
+## 0.0.30
+
+### Patch Changes
+
+- ed24305: fix: add newline after "use client" for .js builds
+- Updated dependencies [ed24305]
+  - @assistant-ui/react@0.5.64
+
 ## 0.0.29
 
 ### Patch Changes

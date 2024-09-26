@@ -1,5 +1,13 @@
 # @assistant-ui/react-markdown
 
+## 0.2.16
+
+### Patch Changes
+
+- ed24305: fix: add newline after "use client" for .js builds
+- Updated dependencies [ed24305]
+  - @assistant-ui/react@0.5.64
+
 ## 0.2.15
 
 ### Patch Changes

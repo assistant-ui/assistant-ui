@@ -1,5 +1,11 @@
 # @tool-ui/weather
 
+## 0.0.7
+
+### Patch Changes
+
+- ed24305: fix: add newline after "use client" for .js builds
+
 ## 0.0.6
 
 ### Patch Changes
