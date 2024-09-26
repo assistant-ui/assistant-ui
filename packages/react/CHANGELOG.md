@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.5.66
+
+### Patch Changes
+
+- 325b049: fix: include attachments prop in the useExternalMessageConverter
+- df9ec8f: feat: new Runtime API rollout part 2
+- 3f549b2: refactor: rename internal export
+
 ## 0.5.65
 
 ### Patch Changes

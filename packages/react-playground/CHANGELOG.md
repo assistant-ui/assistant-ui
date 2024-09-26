@@ -1,5 +1,15 @@
 # @assistant-ui/react-playground
 
+## 0.0.32
+
+### Patch Changes
+
+- 3f549b2: refactor: rename internal export
+- Updated dependencies [325b049]
+- Updated dependencies [df9ec8f]
+- Updated dependencies [3f549b2]
+  - @assistant-ui/react@0.5.66
+
 ## 0.0.31
 
 ### Patch Changes
