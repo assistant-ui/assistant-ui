@@ -8,7 +8,7 @@ export const Text: TextContentPartComponent = ({ part }) => {
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     try {
       runtime.setMessageText({
-        messageId: messageStore.getState().message.id,
+        messageId: messageStore.getState().id,
         contentPart: part,
         text: e.target.value,
       });

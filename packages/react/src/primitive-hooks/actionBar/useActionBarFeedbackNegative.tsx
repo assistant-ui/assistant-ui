@@ -9,7 +9,7 @@ export const useActionBarFeedbackNegative = () => {
 
   const callback = useCallback(() => {
     threadRuntime.submitFeedback({
-      messageId: messageStore.getState().message.id,
+      messageId: messageStore.getState().id,
       type: "negative",
     });
     messageUtilsStore.getState().setSubmittedFeedback("negative");

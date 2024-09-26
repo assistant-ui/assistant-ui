@@ -7,69 +7,66 @@ import { makeThreadViewportStore } from "../stores/ThreadViewport";
 import { writableStore } from "../ReadonlyStore";
 import { ReactThreadState, ThreadRuntime } from "../../api/ThreadRuntime";
 import { create } from "zustand";
+import { ThreadComposerRuntime } from "../../api";
 
 type ThreadProviderProps = {
-  provider: ThreadRuntime;
+  runtime: ThreadRuntime;
 };
 
-const useThreadRuntimeStore = (thread: ThreadRuntime) => {
-  const [store] = useState(() => create(() => thread));
+const useThreadRuntimeStore = (runtime: ThreadRuntime) => {
+  const [store] = useState(() => create(() => runtime));
 
   useEffect(() => {
-    const updateState = () => writableStore(store).setState(thread, true);
-    updateState();
-    return thread.subscribe(updateState);
-  }, [thread, store]);
+    writableStore(store).setState(runtime, true);
+  }, [runtime, store]);
 
   return store;
 };
 
-const useThreadStore = (thread: ThreadRuntime) => {
-  const [store] = useState(() => create(() => thread.getState()));
+const useThreadStore = (runtime: ThreadRuntime) => {
+  const [store] = useState(() => create(() => runtime.getState()));
   useEffect(() => {
     const updateState = () =>
-      writableStore(store).setState(thread.getState(), true);
+      writableStore(store).setState(runtime.getState(), true);
     updateState();
-    return thread.subscribe(updateState);
-  }, [thread, store]);
+    return runtime.subscribe(updateState);
+  }, [runtime, store]);
 
   return store;
 };
 
-const useThreadMessagesStore = (thread: ThreadRuntime) => {
-  const [store] = useState(() => create(() => thread.messages));
+const useThreadMessagesStore = (runtime: ThreadRuntime) => {
+  const [store] = useState(() => create(() => runtime.messages));
 
   useEffect(() => {
     const updateState = () =>
-      writableStore(store).setState(thread.messages, true);
+      writableStore(store).setState(runtime.messages, true);
     updateState();
-    return thread.subscribe(updateState);
-  }, [thread, store]);
+    return runtime.subscribe(updateState);
+  }, [runtime, store]);
 
   return store;
 };
 
-const useThreadComposerStore = (thread: ThreadRuntime) => {
-  const [store] = useState(() => makeThreadComposerStore(thread.composer));
+const useThreadComposerStore = (runtime: ThreadComposerRuntime) => {
+  const [store] = useState(() => makeThreadComposerStore(runtime));
 
   useEffect(() => {
-    const updateState = () =>
-      writableStore(store).setState(thread.composer.getState());
+    const updateState = () => writableStore(store).setState(runtime.getState());
     updateState();
-    return thread.subscribe(updateState);
-  }, [thread, store]);
+    return runtime.subscribe(updateState);
+  }, [runtime, store]);
 
   return store;
 };
 
-export const ThreadProvider: FC<PropsWithChildren<ThreadProviderProps>> = ({
-  children,
-  provider: thread,
-}) => {
-  const useThreadRuntime = useThreadRuntimeStore(thread);
-  const useThread = useThreadStore(thread);
-  const useThreadMessages = useThreadMessagesStore(thread);
-  const useThreadComposer = useThreadComposerStore(thread);
+export const ThreadRuntimeProvider: FC<
+  PropsWithChildren<ThreadProviderProps>
+> = ({ children, runtime }) => {
+  const useThreadRuntime = useThreadRuntimeStore(runtime);
+  const useThread = useThreadStore(runtime);
+  const useThreadMessages = useThreadMessagesStore(runtime);
+  const useThreadComposer = useThreadComposerStore(runtime.composer);
 
   const context = useMemo<ThreadContextValue>(() => {
     const useViewport = makeThreadViewportStore();

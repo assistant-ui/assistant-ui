@@ -1,8 +1,11 @@
 "use client";
 
-import { type ComponentType, type FC, memo } from "react";
-import { useThreadMessages } from "../../context/react/ThreadContext";
-import { MessageProvider } from "../../context/providers/MessageProvider";
+import { type ComponentType, type FC, memo, useMemo } from "react";
+import {
+  useThreadMessages,
+  useThreadRuntime,
+} from "../../context/react/ThreadContext";
+import { MessageRuntimeProvider } from "../../context/providers/MessageRuntimeProvider";
 import { useEditComposer, useMessage } from "../../context";
 import { ThreadMessage as ThreadMessageType } from "../../types";
 
@@ -102,7 +105,7 @@ type ThreadMessageComponentProps = {
 const ThreadMessageComponent: FC<ThreadMessageComponentProps> = ({
   components,
 }) => {
-  const role = useMessage((m) => m.message.role);
+  const role = useMessage((m) => m.role);
   const isEditing = useEditComposer((c) => c.isEditing);
   const Component = getComponent(components, role, isEditing);
 
@@ -118,10 +121,16 @@ const ThreadMessageImpl: FC<ThreadMessageProps> = ({
   messageIndex,
   components,
 }) => {
+  const threadRuntime = useThreadRuntime();
+  const runtime = useMemo(
+    () => threadRuntime.unstable_getMesssageByIndex(messageIndex),
+    [threadRuntime, messageIndex],
+  );
+
   return (
-    <MessageProvider messageIndex={messageIndex}>
+    <MessageRuntimeProvider runtime={runtime}>
       <ThreadMessageComponent components={components} />
-    </MessageProvider>
+    </MessageRuntimeProvider>
   );
 };
 

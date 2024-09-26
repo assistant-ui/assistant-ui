@@ -11,7 +11,7 @@ export const RemoveContentPartButton: FC = () => {
   const contentPartStore = useContentPartStore();
   const handleRemove = () => {
     runtime.deleteContentPart(
-      messageStore.getState().message.id,
+      messageStore.getState().id,
       contentPartStore.getState().part,
     );
   };

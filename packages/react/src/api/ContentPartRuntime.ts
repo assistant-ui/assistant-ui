@@ -106,7 +106,7 @@ export class ContentPartRuntime {
     const toolCallId = state.part.toolCallId;
 
     this.threadApi.getState().addToolResult({
-      messageId: message.message.id,
+      messageId: message.id,
       toolName,
       toolCallId,
       result,

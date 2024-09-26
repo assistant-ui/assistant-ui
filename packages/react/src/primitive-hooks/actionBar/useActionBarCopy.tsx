@@ -19,7 +19,7 @@ export const useActionBarCopy = ({
   const editComposerStore = useEditComposerStore();
   const hasCopyableContent = useCombinedStore(
     [messageStore, editComposerStore],
-    ({ message }, c) => {
+    (message, c) => {
       return (
         !c.isEditing &&
         (message.role !== "assistant" || message.status.type !== "running") &&
@@ -29,7 +29,7 @@ export const useActionBarCopy = ({
   );
 
   const callback = useCallback(() => {
-    const { message } = messageStore.getState();
+    const message = messageStore.getState();
     const { setIsCopied } = messageUtilsStore.getState();
     const { isEditing, text: composerValue } = editComposerStore.getState();
 

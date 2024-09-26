@@ -5,7 +5,10 @@ import { ThreadRuntimeCoreBinding } from "./ThreadRuntime";
 import { ShallowMemoizeSubject } from "./subscribable/ShallowMemoizeSubject";
 import { SubscribableWithState } from "./subscribable/Subscribable";
 
-export type MessageSnapshot = {
+export type MessageState = ThreadMessage & {
+  /**
+   * @deprecated You can directly access message fields in the state. Replace `.message.content` with `.content` etc. This will be removed in 0.6.0.
+   */
   message: ThreadMessage;
   parentId: string | null;
   isLast: boolean;
@@ -18,74 +21,7 @@ export type MessageSnapshot = {
   branchCount: number;
 };
 
-export type MessageSnapshotBinding = SubscribableWithState<MessageSnapshot>;
-
-type MessageState = ThreadMessage &
-  MessageSnapshot & {
-    /**
-     * @deprecated You can directly access message fields in the state. Replace `.message.content` with `.content` etc. This will be removed in 0.6.0.
-     */
-    message: ThreadMessage;
-  };
-
-const MessageState = class {
-  constructor(private snapshot: MessageSnapshot) {}
-
-  /**
-   * @deprecated Replace `.message.content` with `.content` etc. This will be removed in 0.6.0.
-   */
-  get message() {
-    return this.snapshot.message;
-  }
-
-  get id() {
-    return this.snapshot.message.id;
-  }
-
-  get createdAt() {
-    return this.snapshot.message.createdAt;
-  }
-
-  get role() {
-    return this.snapshot.message.role;
-  }
-
-  get content() {
-    return this.snapshot.message.content;
-  }
-
-  get attachments() {
-    return this.snapshot.message.attachments;
-  }
-
-  get metadata() {
-    return this.snapshot.message.metadata;
-  }
-
-  get status() {
-    return this.snapshot.message.status;
-  }
-
-  get parentId() {
-    return this.snapshot.parentId;
-  }
-
-  get isLast() {
-    return this.snapshot.isLast;
-  }
-
-  get branches() {
-    return this.snapshot.branches;
-  }
-
-  get branchNumber() {
-    return this.snapshot.branchNumber;
-  }
-
-  get branchCount() {
-    return this.snapshot.branchCount;
-  }
-} as new (snapshot: MessageSnapshot) => MessageState;
+export type MessageSnapshotBinding = SubscribableWithState<MessageState>;
 
 export class MessageRuntime {
   constructor(
@@ -94,7 +30,7 @@ export class MessageRuntime {
   ) {}
 
   public getState() {
-    return new MessageState(this._core.getState());
+    return this._core.getState();
   }
 
   // TODO improve type
@@ -119,7 +55,7 @@ export class MessageRuntime {
     const state = this._core.getState();
     if (!state) throw new Error("Message is not available");
 
-    this._threadBinding.getState().speak(state.message.id);
+    this._threadBinding.getState().speak(state.id);
   }
 
   public submitFeedback({ type }: { type: "positive" | "negative" }) {
@@ -127,7 +63,7 @@ export class MessageRuntime {
     if (!state) throw new Error("Message is not available");
 
     this._threadBinding.getState().submitFeedback({
-      messageId: state.message.id,
+      messageId: state.id,
       type,
     });
   }
@@ -149,7 +85,7 @@ export class MessageRuntime {
     }
 
     const thread = this._threadBinding.getState();
-    const branches = thread.getBranches(state.message.id);
+    const branches = thread.getBranches(state.id);
     let targetBranch = branchId;
     if (position === "previous") {
       targetBranch = branches[state.branchNumber - 2];

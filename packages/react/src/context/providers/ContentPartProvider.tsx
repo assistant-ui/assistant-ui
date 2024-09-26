@@ -5,7 +5,6 @@ import { create } from "zustand";
 import { ContentPartContext } from "../react/ContentPartContext";
 import type { ContentPartContextValue } from "../react/ContentPartContext";
 import { useMessageStore } from "../react/MessageContext";
-import type { MessageState } from "../stores";
 import type { ContentPartState } from "../stores/ContentPart";
 import {
   ContentPartStatus,
@@ -15,6 +14,7 @@ import {
   ToolCallContentPartStatus,
 } from "../../types/AssistantTypes";
 import { writableStore } from "../ReadonlyStore";
+import { MessageState } from "../../api";
 
 type ContentPartProviderProps = PropsWithChildren<{
   partIndex: number;

@@ -110,7 +110,7 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
       const Tool = by_name[part.toolName] || Fallback;
       const addResult = (result: any) =>
         threadRuntime.addToolResult({
-          messageId: messageStore.getState().message.id,
+          messageId: messageStore.getState().id,
           toolName: part.toolName,
           toolCallId: part.toolCallId,
           result,
@@ -159,7 +159,7 @@ const MessageContentPart = memo(
 export const MessagePrimitiveContent: FC<MessagePrimitiveContentProps> = ({
   components,
 }) => {
-  const contentLength = useMessage((s) => s.message.content.length) || 1;
+  const contentLength = useMessage((s) => s.content.length) || 1;
 
   return Array.from({ length: contentLength }, (_, index) => (
     <MessageContentPart key={index} partIndex={index} components={components} />

@@ -1,15 +1,17 @@
 "use client";
 
 import { createContext } from "react";
-import type { MessageState } from "../stores/Message";
 import type { EditComposerState } from "../stores/EditComposer";
 import { ReadonlyStore } from "../ReadonlyStore";
 import { MessageUtilsState } from "../stores/MessageUtils";
 import { createContextHook } from "./utils/createContextHook";
 import { createContextStoreHook } from "./utils/createContextStoreHook";
 import { UseBoundStore } from "zustand";
+import { MessageRuntime } from "../../api";
+import { MessageState } from "../../api/MessageRuntime";
 
 export type MessageContextValue = {
+  useMessageRuntime: UseBoundStore<ReadonlyStore<MessageRuntime>>;
   useMessage: UseBoundStore<ReadonlyStore<MessageState>>;
   useMessageUtils: UseBoundStore<ReadonlyStore<MessageUtilsState>>;
   useEditComposer: UseBoundStore<ReadonlyStore<EditComposerState>>;
@@ -22,7 +24,20 @@ export const useMessageContext = createContextHook(
   "a component passed to <ThreadPrimitive.Messages components={...} />",
 );
 
-// TODO make this only return the message itself?
+export function useMessageRuntime(options?: {
+  optional?: false | undefined;
+}): MessageRuntime;
+export function useMessageRuntime(options?: {
+  optional?: boolean | undefined;
+}): MessageRuntime | null;
+export function useMessageRuntime(options?: {
+  optional?: boolean | undefined;
+}) {
+  const context = useMessageContext(options);
+  if (!context) return null;
+  return context.useMessageRuntime();
+}
+
 export const { useMessage, useMessageStore } = createContextStoreHook(
   useMessageContext,
   "useMessage",

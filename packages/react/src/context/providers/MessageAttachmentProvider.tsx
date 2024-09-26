@@ -2,7 +2,6 @@
 
 import { type FC, type PropsWithChildren, useEffect, useState } from "react";
 import { create } from "zustand";
-import type { MessageState } from "../stores";
 import { useMessageStore } from "../react";
 import { MessageAttachmentState } from "../stores/Attachment";
 import {
@@ -10,13 +9,14 @@ import {
   AttachmentContextValue,
 } from "../react/AttachmentContext";
 import { writableStore } from "../ReadonlyStore";
+import { MessageState } from "../../api";
 
 type MessageAttachmentProviderProps = PropsWithChildren<{
   attachmentIndex: number;
 }>;
 
 const getAttachment = (
-  { message }: MessageState,
+  message: MessageState,
   useAttachment: AttachmentContextValue["useAttachment"] | undefined,
   partIndex: number,
 ) => {

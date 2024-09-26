@@ -8,7 +8,7 @@ import {
 } from "../runtimes/core/ThreadRuntimeCore";
 import { ExportedMessageRepository } from "../runtimes/utils/MessageRepository";
 import { AppendMessage, ThreadMessage } from "../types";
-import { MessageRuntime, MessageSnapshot } from "./MessageRuntime";
+import { MessageRuntime, MessageState } from "./MessageRuntime";
 import { NestedSubscriptionSubject } from "./subscribable/NestedSubscriptionSubject";
 import { ShallowMemoizeSubject } from "./subscribable/ShallowMemoizeSubject";
 import { SubscribableWithState } from "./subscribable/Subscribable";
@@ -210,6 +210,8 @@ export class ThreadRuntime implements ThreadRuntimeCore {
             .getState()
             .getBranches(message.id);
           return {
+            ...message,
+
             message,
             isLast: idx === messages.length - 1,
             parentId: messages[idx - 1]?.id ?? null,
@@ -217,7 +219,7 @@ export class ThreadRuntime implements ThreadRuntimeCore {
             branches,
             branchNumber: branches.indexOf(message.id) + 1,
             branchCount: branches.length,
-          } satisfies MessageSnapshot;
+          } satisfies MessageState;
         },
         subscribe: (callback) => this._threadBinding.subscribe(callback),
       }),

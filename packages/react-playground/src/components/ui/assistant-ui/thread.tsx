@@ -204,7 +204,7 @@ const AddToolCallButton = () => {
             className="gap-2"
             onClick={() => {
               runtime.addTool({
-                messageId: messageStore.getState().message.id,
+                messageId: messageStore.getState().id,
                 toolName,
               });
             }}
@@ -227,7 +227,7 @@ const AddImageButton = () => {
   const handleAddImage = () => {
     runtime.addImage({
       image: new URL(imageUrl).href,
-      messageId: messageStore.getState().message.id,
+      messageId: messageStore.getState().id,
     });
     setIsOpen(false);
   };
@@ -263,18 +263,16 @@ const AddImageButton = () => {
 const Message: FC = () => {
   const runtime = usePlaygroundRuntime();
   const messageStore = useMessageStore();
-  const role = useMessage((m) => m.message.role);
-  const status = useMessage((m) =>
-    m.message.role === "assistant" ? m.message.status : null,
-  );
+  const role = useMessage((m) => m.role);
+  const status = useMessage((m) => (m.role === "assistant" ? m.status : null));
 
   const handleDelete = () => {
-    runtime.deleteMessage(messageStore.getState().message.id);
+    runtime.deleteMessage(messageStore.getState().id);
   };
 
   const setRole = (role: "system" | "assistant" | "user") => {
     runtime.setRole({
-      messageId: messageStore.getState().message.id,
+      messageId: messageStore.getState().id,
       role,
     });
   };

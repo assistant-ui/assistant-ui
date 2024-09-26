@@ -40,6 +40,7 @@ export {
   useThreadContext,
 } from "./ThreadContext";
 export {
+  useMessageRuntime,
   useMessage,
   useMessageStore,
   useMessageUtils,
