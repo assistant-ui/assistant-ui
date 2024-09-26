@@ -9,10 +9,12 @@ await build({
   sourcemap: true,
   clean: true,
   splitting: true,
-  esbuildOptions: (options) => {
-    options.banner = {
-      js: '"use client";\n',
-    };
+  esbuildOptions: (options, { format }) => {
+    if (format === "esm") {
+      options.banner = {
+        js: '"use client";',
+      };
+    }
   },
 });
 
