@@ -11,7 +11,7 @@ await build({
   splitting: true,
   esbuildOptions: (options) => {
     options.banner = {
-      js: '"use client";',
+      js: '"use client";\n',
     };
   },
 });

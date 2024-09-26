@@ -9,7 +9,7 @@ await build({
   clean: true,
   esbuildOptions: (options) => {
     options.banner = {
-      js: '"use client";',
+      js: '"use client";\n',
     };
   },
 });
