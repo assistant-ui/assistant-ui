@@ -96,10 +96,8 @@ const FfmpegTool: FC<{ file: File }> = ({ file }) => {
       };
     },
     render: function RenderFfmpeg({
-      part: {
-        args: { command, outputFileName, outputMimeType },
-        result: { success } = {},
-      },
+      args: { command, outputFileName, outputMimeType },
+      result: { success } = {},
     }) {
       const handleDownload = async () => {
         const ffmpeg = ffmpegRef.current;

@@ -11,9 +11,7 @@ export const ContentPartPrimitiveImage = forwardRef<
   ContentPartPrimitiveImageElement,
   ContentPartPrimitiveImageProps
 >((props, forwardedRef) => {
-  const {
-    part: { image },
-  } = useContentPartImage();
+  const { image } = useContentPartImage();
   return <Primitive.img src={image} {...props} ref={forwardedRef} />;
 });
 

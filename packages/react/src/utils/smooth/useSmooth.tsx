@@ -2,11 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMessage } from "../../context";
-import { ContentPartStatus } from "../../types/AssistantTypes";
-import { TextContentPartState } from "../../context/stores/ContentPart";
+import { ContentPartStatus, TextContentPart } from "../../types/AssistantTypes";
 import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
 import { useSmoothStatusStore } from "./SmoothContext";
 import { writableStore } from "../../context/ReadonlyStore";
+import { ContentPartState } from "../../api/ContentPartRuntime";
 
 class TextStreamAnimator {
   private animationFrameId: number | null = null;
@@ -67,12 +67,10 @@ const SMOOTH_STATUS: ContentPartStatus = Object.freeze({
 });
 
 export const useSmooth = (
-  state: TextContentPartState,
+  state: ContentPartState & TextContentPart,
   smooth: boolean = false,
-): TextContentPartState => {
-  const {
-    part: { text },
-  } = state;
+): ContentPartState & TextContentPart => {
+  const { text } = state;
   const id = useMessage({
     optional: true,
     selector: (m: { id: string }) => m.id,
@@ -86,7 +84,7 @@ export const useSmooth = (
     setDisplayedText(text);
     if (smoothStatusStore) {
       writableStore(smoothStatusStore).setState(
-        text !== state.part.text ? SMOOTH_STATUS : state.status,
+        text !== state.text ? SMOOTH_STATUS : state.status,
       );
     }
   });
@@ -95,10 +93,10 @@ export const useSmooth = (
   useEffect(() => {
     if (smoothStatusStore) {
       writableStore(smoothStatusStore).setState(
-        text !== state.part.text ? SMOOTH_STATUS : state.status,
+        text !== state.text ? SMOOTH_STATUS : state.status,
       );
     }
-  }, [smoothStatusStore, text, displayedText, state.status, state.part.text]);
+  }, [smoothStatusStore, text, displayedText, state.status, state.text]);
 
   const [animatorRef] = useState<TextStreamAnimator>(
     new TextStreamAnimator(text, setText),
@@ -135,6 +133,8 @@ export const useSmooth = (
     () =>
       smooth
         ? {
+            type: "text",
+            text: displayedText,
             part: { type: "text", text: displayedText },
             status: text === displayedText ? state.status : SMOOTH_STATUS,
           }

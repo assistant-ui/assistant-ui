@@ -1,14 +1,15 @@
+import { ContentPartState } from "../../api/ContentPartRuntime";
 import { useContentPart } from "../../context/react/ContentPartContext";
-import { UIContentPartState } from "../../context/stores/ContentPart";
+import { UIContentPart } from "../../types";
 
 export const useContentPartDisplay = () => {
   const display = useContentPart((c) => {
-    if (c.part.type !== "ui")
+    if (c.type !== "ui")
       throw new Error(
         "This component can only be used inside ui content parts.",
       );
 
-    return c as UIContentPartState;
+    return c as ContentPartState & UIContentPart;
   });
 
   return display;

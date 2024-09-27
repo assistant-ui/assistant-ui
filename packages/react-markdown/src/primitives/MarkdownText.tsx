@@ -65,10 +65,7 @@ export const MarkdownTextPrimitive: ForwardRefExoticComponent<MarkdownTextPrimit
     forwardedRef,
     smooth = true,
   ) => {
-    const {
-      part: { text },
-      status,
-    } = useSmooth(useContentPartText(), smooth);
+    const { text, status } = useSmooth(useContentPartText(), smooth);
 
     const {
       pre = DefaultPre,

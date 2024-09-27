@@ -223,6 +223,7 @@ export class ThreadRuntime implements ThreadRuntimeCore {
           const branches = this._threadBinding
             .getState()
             .getBranches(message.id);
+
           return {
             ...message,
 

@@ -12,7 +12,7 @@ export const RemoveContentPartButton: FC = () => {
   const handleRemove = () => {
     runtime.deleteContentPart(
       messageStore.getState().id,
-      contentPartStore.getState().part,
+      contentPartStore.getState(),
     );
   };
 

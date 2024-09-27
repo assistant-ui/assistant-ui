@@ -25,10 +25,7 @@ export const ContentPartPrimitiveText = forwardRef<
   ContentPartPrimitiveTextElement,
   ContentPartPrimitiveTextProps
 >(({ smooth = true, component: Component = "span", ...rest }, forwardedRef) => {
-  const {
-    part: { text },
-    status,
-  } = useSmooth(useContentPartText(), smooth);
+  const { text, status } = useSmooth(useContentPartText(), smooth);
 
   return (
     <Component data-status={status.type} {...rest} ref={forwardedRef}>

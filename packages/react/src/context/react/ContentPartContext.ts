@@ -1,13 +1,15 @@
 "use client";
 
 import { createContext } from "react";
-import type { ContentPartState } from "../stores/ContentPart";
 import { ReadonlyStore } from "../ReadonlyStore";
 import { createContextStoreHook } from "./utils/createContextStoreHook";
 import { createContextHook } from "./utils/createContextHook";
 import { UseBoundStore } from "zustand";
+import { ContentPartRuntime } from "../../api";
+import { ContentPartState } from "../../api/ContentPartRuntime";
 
 export type ContentPartContextValue = {
+  useContentPartRuntime: UseBoundStore<ReadonlyStore<ContentPartRuntime>>;
   useContentPart: UseBoundStore<ReadonlyStore<ContentPartState>>;
 };
 
@@ -19,6 +21,20 @@ export const useContentPartContext = createContextHook(
   ContentPartContext,
   "a component passed to <MessagePrimitive.Content components={...}>",
 );
+
+export function useContentPartRuntime(options?: {
+  optional?: false | undefined;
+}): ContentPartRuntime;
+export function useContentPartRuntime(options?: {
+  optional?: boolean | undefined;
+}): ContentPartRuntime | null;
+export function useContentPartRuntime(options?: {
+  optional?: boolean | undefined;
+}) {
+  const context = useContentPartContext(options);
+  if (!context) return null;
+  return context.useContentPartRuntime();
+}
 
 export const { useContentPart, useContentPartStore } = createContextStoreHook(
   useContentPartContext,

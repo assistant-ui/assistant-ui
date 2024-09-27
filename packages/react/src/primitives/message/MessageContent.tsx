@@ -1,15 +1,13 @@
 "use client";
 
-import { type ComponentType, type FC, memo } from "react";
+import { type ComponentType, type FC, memo, useMemo } from "react";
 import { useContentPart, useThreadRuntime, useToolUIs } from "../../context";
 import {
   useMessage,
+  useMessageRuntime,
   useMessageStore,
 } from "../../context/react/MessageContext";
-import {
-  ContentPartProvider,
-  EMPTY_CONTENT,
-} from "../../context/providers/ContentPartProvider";
+import { ContentPartRuntimeProvider } from "../../context/providers/ContentPartRuntimeProvider";
 import { ContentPartPrimitiveText } from "../contentPart/ContentPartText";
 import { ContentPartPrimitiveImage } from "../contentPart/ContentPartImage";
 import { ContentPartPrimitiveDisplay } from "../contentPart/ContentPartDisplay";
@@ -22,6 +20,7 @@ import type {
   UIContentPartComponent,
 } from "../../types/ContentPartComponentTypes";
 import { ContentPartPrimitiveInProgress } from "../contentPart/ContentPartInProgress";
+import { EMPTY_CONTENT } from "../../api/MessageRuntime";
 
 export type MessagePrimitiveContentProps = {
   components?:
@@ -48,7 +47,7 @@ const ToolUIDisplay = ({
 }: {
   UI: ToolCallContentPartComponent | undefined;
 } & ToolCallContentPartProps) => {
-  const Render = useToolUIs((s) => s.getToolUI(props.part.toolName)) ?? UI;
+  const Render = useToolUIs((s) => s.getToolUI(props.toolName)) ?? UI;
   if (!Render) return null;
   return <Render {...props} />;
 };
@@ -82,29 +81,29 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
   const messageStore = useMessageStore();
   const threadRuntime = useThreadRuntime();
 
-  const { part, status } = useContentPart();
+  const part = useContentPart();
 
   const type = part.type;
   switch (type) {
     case "text":
-      if (status.type === "requires-action")
+      if (part.status.type === "requires-action")
         throw new Error("Encountered unexpected requires-action status");
-      if (part === EMPTY_CONTENT && !!Empty) {
-        return <Empty status={status} />;
+      if (part.part === EMPTY_CONTENT && !!Empty) {
+        return <Empty status={part.status} />;
       }
 
-      return <Text part={part} status={status} />;
+      return <Text {...part} part={part} />;
 
     case "image":
-      if (status.type === "requires-action")
+      if (part.status.type === "requires-action")
         throw new Error("Encountered unexpected requires-action status");
       // eslint-disable-next-line jsx-a11y/alt-text
-      return <Image part={part} status={status} />;
+      return <Image {...part} part={part} />;
 
     case "ui":
-      if (status.type === "requires-action")
+      if (part.status.type === "requires-action")
         throw new Error("Encountered unexpected requires-action status");
-      return <UI part={part} status={status} />;
+      return <UI {...part} part={part} />;
 
     case "tool-call": {
       const Tool = by_name[part.toolName] || Fallback;
@@ -116,12 +115,7 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
           result,
         });
       return (
-        <ToolUIDisplay
-          UI={Tool}
-          part={part}
-          status={status}
-          addResult={addResult}
-        />
+        <ToolUIDisplay {...part} part={part} UI={Tool} addResult={addResult} />
       );
     }
     default:
@@ -139,10 +133,16 @@ const MessageContentPartImpl: FC<MessageContentPartProps> = ({
   partIndex,
   components,
 }) => {
+  const messageRuntime = useMessageRuntime();
+  const runtime = useMemo(
+    () => messageRuntime.unstable_getContentPartByIndex(partIndex),
+    [messageRuntime, partIndex],
+  );
+
   return (
-    <ContentPartProvider partIndex={partIndex}>
+    <ContentPartRuntimeProvider runtime={runtime}>
       <MessageContentPartComponent components={components} />
-    </ContentPartProvider>
+    </ContentPartRuntimeProvider>
   );
 };
 

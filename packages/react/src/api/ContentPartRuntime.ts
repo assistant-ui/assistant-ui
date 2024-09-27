@@ -3,88 +3,28 @@ import {
   ThreadUserContentPart,
   ContentPartStatus,
   ToolCallContentPartStatus,
-  ToolCallContentPart,
-  TextContentPart,
-  ImageContentPart,
-  UIContentPart,
 } from "../types/AssistantTypes";
 import { ThreadRuntimeCoreBinding } from "./ThreadRuntime";
-import { MessageSnapshotBinding } from "./MessageRuntime";
+import { MessageStateBinding } from "./MessageRuntime";
 import { SubscribableWithState } from "./subscribable/Subscribable";
 
-type ContentPartSnapshot = {
+export type ContentPartState = (
+  | ThreadUserContentPart
+  | ThreadAssistantContentPart
+) & {
+  /**
+   * @deprecated You can directly access content part fields in the state. Replace `.part.type` with `.type` etc. This will be removed in 0.6.0.
+   */
   part: ThreadUserContentPart | ThreadAssistantContentPart;
   status: ContentPartStatus | ToolCallContentPartStatus;
 };
 
-type ContentPartSnapshotBinding = SubscribableWithState<
-  ContentPartSnapshot | undefined
->;
-
-type ContentPartState = (ThreadUserContentPart | ThreadAssistantContentPart) &
-  ContentPartSnapshot & {
-    /**
-     * @deprecated You can directly access content part fields in the state. Replace `.part.type` with `.type` etc. This will be removed in 0.6.0.
-     */
-    part: ThreadUserContentPart | ThreadAssistantContentPart;
-  };
-
-const ContentPartState = class {
-  constructor(private snapshot: ContentPartSnapshot) {}
-
-  get part() {
-    return this.snapshot.part;
-  }
-
-  get status() {
-    return this.snapshot.status;
-  }
-
-  get type() {
-    return this.snapshot.part.type;
-  }
-
-  get text() {
-    return (this.snapshot.part as TextContentPart).text;
-  }
-
-  get image() {
-    return (this.snapshot.part as ImageContentPart).image;
-  }
-
-  get display() {
-    return (this.snapshot.part as UIContentPart).display;
-  }
-
-  get toolCallId() {
-    return (this.snapshot.part as ToolCallContentPart).toolCallId;
-  }
-
-  get toolName() {
-    return (this.snapshot.part as ToolCallContentPart).toolName;
-  }
-
-  get args() {
-    return (this.snapshot.part as ToolCallContentPart).args;
-  }
-
-  get argsText() {
-    return (this.snapshot.part as ToolCallContentPart).argsText;
-  }
-
-  get result() {
-    return (this.snapshot.part as ToolCallContentPart).result;
-  }
-
-  get isError() {
-    return (this.snapshot.part as ToolCallContentPart).isError;
-  }
-} as new (snapshot: ContentPartSnapshot) => ContentPartState;
+type ContentPartSnapshotBinding = SubscribableWithState<ContentPartState>;
 
 export class ContentPartRuntime {
   constructor(
     private contentBinding: ContentPartSnapshotBinding,
-    private messageApi: MessageSnapshotBinding,
+    private messageApi: MessageStateBinding,
     private threadApi: ThreadRuntimeCoreBinding,
   ) {}
 
@@ -99,11 +39,11 @@ export class ContentPartRuntime {
     const state = this.contentBinding.getState();
     if (!state) throw new Error("Content part is not available");
 
-    if (state.part.type !== "tool-call")
+    if (state.type !== "tool-call")
       throw new Error("Tried to add tool result to non-tool content part");
 
-    const toolName = state.part.toolName;
-    const toolCallId = state.part.toolCallId;
+    const toolName = state.toolName;
+    const toolCallId = state.toolCallId;
 
     this.threadApi.getState().addToolResult({
       messageId: message.id,
@@ -111,5 +51,9 @@ export class ContentPartRuntime {
       toolCallId,
       result,
     });
+  }
+
+  public subscribe(callback: () => void) {
+    return this.contentBinding.subscribe(callback);
   }
 }

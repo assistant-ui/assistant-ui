@@ -4,9 +4,7 @@ import { useContentPartDisplay } from "../../primitive-hooks/contentPart/useCont
 export type ContentPartPrimitiveDisplayProps = Record<string, never>;
 
 export const ContentPartPrimitiveDisplay: FC = () => {
-  const {
-    part: { display },
-  } = useContentPartDisplay();
+  const { display } = useContentPartDisplay();
   return display ?? null;
 };
 

@@ -149,8 +149,8 @@ const text = useEditComposer((m) => m.text);
 ```tsx
 import { useContentPart } from "@assistant-ui/react";
 
-const part = useContentPart((m) => m.part);
-const part = useContentPart.getState().part;
+const part = useContentPart();
+const part = useContentPart.getState();
 
 const status = useContentPart((m) => m.status);
 const status = useContentPart.getState().status;

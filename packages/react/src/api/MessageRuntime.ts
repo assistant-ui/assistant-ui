@@ -1,11 +1,79 @@
-import { toContentPartStatus } from "../context/providers/ContentPartProvider";
-import { ThreadMessage, AppendMessage } from "../types";
+import {
+  ThreadMessage,
+  AppendMessage,
+  ThreadAssistantContentPart,
+  ThreadUserContentPart,
+} from "../types";
+import {
+  ContentPartStatus,
+  ToolCallContentPartStatus,
+} from "../types/AssistantTypes";
 import { ComposerRuntime } from "./ComposerRuntime";
-import { ContentPartRuntime } from "./ContentPartRuntime";
+import { ContentPartRuntime, ContentPartState } from "./ContentPartRuntime";
 import { ThreadRuntimeCoreBinding } from "./ThreadRuntime";
 import { NestedSubscriptionSubject } from "./subscribable/NestedSubscriptionSubject";
 import { ShallowMemoizeSubject } from "./subscribable/ShallowMemoizeSubject";
 import { SubscribableWithState } from "./subscribable/Subscribable";
+
+const COMPLETE_STATUS: ContentPartStatus = {
+  type: "complete",
+};
+
+export const toContentPartStatus = (
+  message: ThreadMessage,
+  partIndex: number,
+  part: ThreadUserContentPart | ThreadAssistantContentPart,
+): ToolCallContentPartStatus => {
+  if (message.role !== "assistant") return COMPLETE_STATUS;
+
+  const isLastPart = partIndex === Math.max(0, message.content.length - 1);
+  if (part.type !== "tool-call") {
+    if (
+      "reason" in message.status &&
+      message.status.reason === "tool-calls" &&
+      isLastPart
+    )
+      throw new Error(
+        "Encountered unexpected requires-action status. This is likely an internal bug in assistant-ui.",
+      );
+
+    return isLastPart ? (message.status as ContentPartStatus) : COMPLETE_STATUS;
+  }
+
+  if (!!part.result) {
+    return COMPLETE_STATUS;
+  }
+
+  return message.status as ToolCallContentPartStatus;
+};
+
+export const EMPTY_CONTENT = Object.freeze({ type: "text", text: "" });
+
+const getContentPartState = (
+  message: MessageState,
+  partIndex: number,
+): ContentPartState | undefined => {
+  let part = message.content[partIndex];
+  if (!part) {
+    // for empty messages, show an empty text content part
+    if (message.content.length === 0 && partIndex === 0) {
+      part = EMPTY_CONTENT;
+    } else {
+      return undefined;
+    }
+  } else if (
+    message.content.length === 1 &&
+    part.type === "text" &&
+    part.text.length === 0
+  ) {
+    // ensure reference equality for equivalent empty text parts
+    part = EMPTY_CONTENT;
+  }
+
+  // if the content part is the same, don't update
+  const status = toContentPartStatus(message, partIndex, part);
+  return Object.freeze({ ...part, part, status });
+};
 
 export type MessageState = ThreadMessage & {
   /**
@@ -23,11 +91,11 @@ export type MessageState = ThreadMessage & {
   branchCount: number;
 };
 
-export type MessageSnapshotBinding = SubscribableWithState<MessageState>;
+export type MessageStateBinding = SubscribableWithState<MessageState>;
 
 export class MessageRuntime {
   constructor(
-    private _core: MessageSnapshotBinding,
+    private _core: MessageStateBinding,
     private _threadBinding: ThreadRuntimeCoreBinding,
   ) {}
 
@@ -114,22 +182,12 @@ export class MessageRuntime {
     return this._core.subscribe(callback);
   }
 
-  public getContentPartByIdx(idx: number) {
+  public unstable_getContentPartByIndex(idx: number) {
     if (idx < 0) throw new Error("Message index must be >= 0");
     return new ContentPartRuntime(
       new ShallowMemoizeSubject({
         getState: () => {
-          const state = this.getState();
-          if (!state) return undefined;
-
-          const message = state.message;
-          const part = message.content[idx];
-          if (!part) return undefined;
-
-          return {
-            part,
-            status: toContentPartStatus(message, idx, part),
-          };
+          return getContentPartState(this.getState(), idx);
         },
         subscribe: (callback) => this._core.subscribe(callback),
       }),
