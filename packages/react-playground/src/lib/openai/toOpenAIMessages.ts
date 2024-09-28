@@ -22,7 +22,8 @@ export function toOpenAIChatMessages(
         messages.push({
           role: "user",
           content: content.map((part) => {
-            switch (part.type) {
+            const type = part.type;
+            switch (type) {
               case "text": {
                 return { type: "text", text: part.text };
               }
@@ -36,6 +37,14 @@ export function toOpenAIChatMessages(
                     url: part.image.href,
                   },
                 };
+              }
+              case "file": {
+                throw new Error("File content parts are not supported");
+              }
+
+              default: {
+                const unhandledType: never = type;
+                throw new Error(`Unknown content part type: ${unhandledType}`);
               }
             }
           }),

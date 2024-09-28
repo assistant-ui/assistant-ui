@@ -43,7 +43,7 @@
     "@radix-ui/react-primitive": "^2.0.0",
     "@radix-ui/react-use-callback-ref": "^1.1.0",
     "classnames": "^2.5.1",
-    "lucide-react": "^0.445.0",
+    "lucide-react": "^0.446.0",
     "react-markdown": "^9.0.1"
   },
   "peerDependencies": {
@@ -63,7 +63,7 @@
   "devDependencies": {
     "@assistant-ui/tailwindcss-transformer": "workspace:*",
     "@assistant-ui/tsconfig": "workspace:*",
-    "@types/node": "^22.6.1",
+    "@types/node": "^22.7.4",
     "autoprefixer": "^10.4.20",
     "eslint": "^8",
     "eslint-config-next": "14.2.13",

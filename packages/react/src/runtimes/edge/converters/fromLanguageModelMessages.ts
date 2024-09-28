@@ -47,6 +47,10 @@ export const fromLanguageModelMessages = (
                 }
                 throw new Error("Only images with URL data are supported");
               }
+              case "file": {
+                // TODO
+                throw new Error("File content parts are not supported");
+              }
               default: {
                 const unhandledType: never = type;
                 throw new Error(`Unknown content part type: ${unhandledType}`);
