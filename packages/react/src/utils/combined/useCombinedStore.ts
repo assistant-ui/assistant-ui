@@ -2,11 +2,11 @@ import { useMemo } from "react";
 import {
   type CombinedSelector,
   createCombinedStore,
+  StoreOrRuntime,
 } from "./createCombinedStore";
-import { ReadonlyStore } from "../../context/ReadonlyStore";
 
 export const useCombinedStore = <T extends Array<unknown>, R>(
-  stores: { [K in keyof T]: ReadonlyStore<T[K]> },
+  stores: { [K in keyof T]: StoreOrRuntime<T[K]> },
   selector: CombinedSelector<T, R>,
 ): R => {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- shallow-compare the store array

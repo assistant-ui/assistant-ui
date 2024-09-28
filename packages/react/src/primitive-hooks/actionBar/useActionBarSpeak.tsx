@@ -3,20 +3,20 @@ import { useCallback } from "react";
 import { useCombinedStore } from "../../utils/combined/useCombinedStore";
 import {
   useEditComposerStore,
+  useMessageRuntime,
   useMessageStore,
   useMessageUtilsStore,
-  useThreadRuntime,
 } from "../../context";
 
 export const useActionBarSpeak = () => {
   const messageStore = useMessageStore();
   const editComposerStore = useEditComposerStore();
-  const threadRuntime = useThreadRuntime();
+  const messageRunime = useMessageRuntime();
   const messageUtilsStore = useMessageUtilsStore();
 
   const hasSpeakableContent = useCombinedStore(
     [messageStore, editComposerStore],
-    ({ message }, c) => {
+    (message, c) => {
       return (
         !c.isEditing &&
         (message.role !== "assistant" || message.status.type !== "running") &&
@@ -26,10 +26,9 @@ export const useActionBarSpeak = () => {
   );
 
   const callback = useCallback(async () => {
-    const { message } = messageStore.getState();
-    const utt = threadRuntime.speak(message.id);
+    const utt = messageRunime.speak();
     messageUtilsStore.getState().addUtterance(utt);
-  }, [threadRuntime, messageStore, messageUtilsStore]);
+  }, [messageRunime, messageUtilsStore]);
 
   if (!hasSpeakableContent) return null;
   return callback;

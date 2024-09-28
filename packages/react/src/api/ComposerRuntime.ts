@@ -26,7 +26,7 @@ type LegacyEditComposerState = Readonly<{
   isEmpty: boolean;
 
   /**
-   * @deprecated Use `useComposerRuntime().beginEdit()` instead. This will be removed in 0.6.0.
+   * @deprecated Use useComposerRuntime().beginEdit() instead. This will be removed in 0.6.0.
    */
   edit: () => void;
   /**
@@ -66,7 +66,9 @@ type LegacyThreadComposerState = Readonly<{
   isEditing: boolean;
   isEmpty: boolean;
 
-  /** @deprecated Use `useComposerRuntime().send` instead. This will be removed in 0.6.0. */
+  /**
+   * @deprecated Use `useComposerRuntime().send` instead. This will be removed in 0.6.0.
+   **/
   send: () => void;
   /** @deprecated Use `useComposerRuntime().cancel` instead. This will be removed in 0.6.0. */
   cancel: () => void;
@@ -252,9 +254,6 @@ export class ComposerRuntime implements ComposerRuntimeCore {
   }
 
   public beginEdit() {
-    const core = this._core.getState();
-    if (!core) throw new Error("Composer is not available");
-
     this._beginEdit?.();
   }
 

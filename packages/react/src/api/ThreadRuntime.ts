@@ -13,6 +13,7 @@ import { NestedSubscriptionSubject } from "./subscribable/NestedSubscriptionSubj
 import { ShallowMemoizeSubject } from "./subscribable/ShallowMemoizeSubject";
 import { SubscribableWithState } from "./subscribable/Subscribable";
 import { ComposerRuntime } from "./ComposerRuntime";
+import { LazyMemoizeSubject } from "./subscribable/LazyMemoizeSubject";
 
 export type CreateAppendMessage =
   | string
@@ -55,6 +56,7 @@ export type ThreadState = Readonly<{
   isDisabled: boolean;
   isRunning: boolean;
   capabilities: RuntimeCapabilities;
+  messages: readonly ThreadMessage[];
 }>;
 
 export type ReactThreadState = ThreadState & {
@@ -71,6 +73,7 @@ export const getThreadState = (runtime: ThreadRuntimeCore): ThreadState => {
       lastMessage?.role !== "assistant"
         ? false
         : lastMessage.status.type === "running",
+    messages: runtime.messages,
     unstable_synchronizer: (runtime as ReactThreadRuntimeCore)
       .unstable_synchronizer,
   });
@@ -107,7 +110,9 @@ export class ThreadRuntime implements ThreadRuntimeCore {
     return this.getState().capabilities;
   }
 
-  // TODO this should instead return getMessageByIndex([idx])
+  /**
+   * @deprecated Use `getState().messages` instead. This will be removed in 0.6.0.
+   */
   public get messages() {
     return this._threadBinding.getState().messages;
   }
@@ -116,7 +121,21 @@ export class ThreadRuntime implements ThreadRuntimeCore {
     return this._threadBinding.getState();
   }
 
-  constructor(private _threadBinding: ThreadRuntimeCoreBinding) {}
+  private _threadBinding: ThreadRuntimeCoreBinding & {
+    getStateState(): ThreadState;
+  };
+  constructor(threadBinding: ThreadRuntimeCoreBinding) {
+    const stateBinding = new LazyMemoizeSubject({
+      getState: () => getThreadState(threadBinding.getState()),
+      subscribe: (callback) => threadBinding.subscribe(callback),
+    });
+
+    this._threadBinding = {
+      getState: () => threadBinding.getState(),
+      getStateState: () => stateBinding.getState(),
+      subscribe: (callback) => threadBinding.subscribe(callback),
+    };
+  }
 
   public readonly composer = new ComposerRuntime(
     new NestedSubscriptionSubject({
@@ -126,7 +145,7 @@ export class ThreadRuntime implements ThreadRuntimeCore {
   );
 
   public getState() {
-    return getThreadState(this._threadBinding.getState());
+    return this._threadBinding.getStateState();
   }
 
   public append(message: CreateAppendMessage) {

@@ -128,6 +128,8 @@ export class MessageRuntime {
   public reload() {
     const state = this._core.getState();
     if (!state) throw new Error("Message is not available");
+    if (state.role !== "assistant")
+      throw new Error("Can only reload assistant messages");
 
     this._threadBinding.getState().startRun(state.parentId);
   }
@@ -136,7 +138,7 @@ export class MessageRuntime {
     const state = this._core.getState();
     if (!state) throw new Error("Message is not available");
 
-    this._threadBinding.getState().speak(state.id);
+    return this._threadBinding.getState().speak(state.id);
   }
 
   public submitFeedback({ type }: { type: "positive" | "negative" }) {

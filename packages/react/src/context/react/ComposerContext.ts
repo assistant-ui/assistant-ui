@@ -36,10 +36,9 @@ export function useComposerRuntime(options?: {
 export function useComposerRuntime(options?: {
   optional?: boolean | undefined;
 }) {
-  const context = useComposerRuntime(options);
-  if (!context) return null;
-  return (
-    useMessageRuntime({ optional: true })?.composer ??
-    useThreadRuntime(options)?.composer
-  );
+  const messageRuntime = useMessageRuntime({ optional: true });
+  const threadRuntime = useThreadRuntime(options);
+  return messageRuntime
+    ? messageRuntime.composer
+    : (threadRuntime?.composer ?? null);
 }

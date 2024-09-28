@@ -1,10 +1,7 @@
 "use client";
 
 import { type ComponentType, type FC, memo, useMemo } from "react";
-import {
-  useThreadMessages,
-  useThreadRuntime,
-} from "../../context/react/ThreadContext";
+import { useThread, useThreadRuntime } from "../../context/react/ThreadContext";
 import { MessageRuntimeProvider } from "../../context/providers/MessageRuntimeProvider";
 import { useEditComposer, useMessage } from "../../context";
 import { ThreadMessage as ThreadMessageType } from "../../types";
@@ -144,7 +141,7 @@ const ThreadMessage = memo(
 export const ThreadPrimitiveMessagesImpl: FC<ThreadPrimitiveMessagesProps> = ({
   components,
 }) => {
-  const messagesLength = useThreadMessages((t) => t.length);
+  const messagesLength = useThread((t) => t.messages.length);
   if (messagesLength === 0) return null;
 
   return Array.from({ length: messagesLength }, (_, index) => (

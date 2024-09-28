@@ -67,8 +67,17 @@ export const { useThread, useThreadStore } = createContextStoreHook(
   "useThread",
 );
 
-export const { useThreadMessages, useThreadMessagesStore } =
-  createContextStoreHook(useThreadContext, "useThreadMessages");
+const messages = createContextStoreHook(useThreadContext, "useThreadMessages");
+
+/**
+ * @deprecated Use `useThread().messages` instead. This will be removed in 0.6.0.
+ */
+export const useThreadMessages = messages.useThreadMessages;
+
+/**
+ * @deprecated Use `useThreadRuntime().getState().messages` instead. This will be removed in 0.6.0.
+ */
+export const useThreadMessagesStore = messages.useThreadMessagesStore;
 
 export const {
   useComposer: useThreadComposer,

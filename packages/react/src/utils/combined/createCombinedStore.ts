@@ -2,12 +2,16 @@
 
 import { useSyncExternalStore } from "react";
 import type { Unsubscribe } from "../../types/Unsubscribe";
-import { ReadonlyStore } from "../../context/ReadonlyStore";
+
+export type StoreOrRuntime<T> = {
+  getState: () => T;
+  subscribe: (callback: () => void) => Unsubscribe;
+};
 
 export type CombinedSelector<T extends Array<unknown>, R> = (...args: T) => R;
 
 export const createCombinedStore = <T extends Array<unknown>, R>(stores: {
-  [K in keyof T]: ReadonlyStore<T[K]>;
+  [K in keyof T]: StoreOrRuntime<T[K]>;
 }) => {
   const subscribe = (callback: () => void): Unsubscribe => {
     const unsubscribes = stores.map((store) => store.subscribe(callback));
