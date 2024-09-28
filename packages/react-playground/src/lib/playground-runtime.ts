@@ -98,9 +98,7 @@ const CAPABILITIES = Object.freeze({
 
 const EMPTY_BRANCHES: readonly string[] = Object.freeze([]);
 
-export class PlaygroundThreadRuntimeCore
-  implements INTERNAL.ReactThreadRuntimeCore
-{
+export class PlaygroundThreadRuntimeCore implements INTERNAL.ThreadRuntimeCore {
   private _subscriptions = new Set<() => void>();
 
   private abortController: AbortController | null = null;

@@ -1,5 +1,3 @@
-import { ComponentType } from "react";
-import { ReactThreadRuntimeCore } from "../runtimes/core/ReactThreadRuntimeCore";
 import {
   AddToolResultOptions,
   RuntimeCapabilities,
@@ -59,10 +57,6 @@ export type ThreadState = Readonly<{
   messages: readonly ThreadMessage[];
 }>;
 
-export type ReactThreadState = ThreadState & {
-  readonly unstable_synchronizer?: ComponentType | undefined;
-};
-
 export const getThreadState = (runtime: ThreadRuntimeCore): ThreadState => {
   const lastMessage = runtime.messages.at(-1);
   return Object.freeze({
@@ -74,8 +68,6 @@ export const getThreadState = (runtime: ThreadRuntimeCore): ThreadState => {
         ? false
         : lastMessage.status.type === "running",
     messages: runtime.messages,
-    unstable_synchronizer: (runtime as ReactThreadRuntimeCore)
-      .unstable_synchronizer,
   });
 };
 

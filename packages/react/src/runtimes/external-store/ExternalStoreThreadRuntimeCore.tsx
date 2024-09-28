@@ -23,8 +23,8 @@ import { DefaultThreadComposerRuntimeCore } from "../composer/DefaultThreadCompo
 import {
   RuntimeCapabilities,
   SubmitFeedbackOptions,
+  ThreadRuntimeCore,
 } from "../core/ThreadRuntimeCore";
-import { ReactThreadRuntimeCore } from "../core/ReactThreadRuntimeCore";
 import { DefaultEditComposerRuntimeCore } from "../composer/DefaultEditComposerRuntimeCore";
 
 export const hasUpcomingMessage = (
@@ -34,7 +34,7 @@ export const hasUpcomingMessage = (
   return isRunning && messages[messages.length - 1]?.role !== "assistant";
 };
 
-export class ExternalStoreThreadRuntimeCore implements ReactThreadRuntimeCore {
+export class ExternalStoreThreadRuntimeCore implements ThreadRuntimeCore {
   private _subscriptions = new Set<() => void>();
   private repository = new MessageRepository();
   private assistantOptimisticId: string | null = null;
