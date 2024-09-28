@@ -4,5 +4,6 @@ export type { MessageRuntime, MessageState } from "./MessageRuntime";
 export type { ContentPartRuntime } from "./ContentPartRuntime";
 export type {
   ComposerRuntime,
-  UnstableThreadComposerStateV2,
+  EditComposerState,
+  ComposerState,
 } from "./ComposerRuntime";

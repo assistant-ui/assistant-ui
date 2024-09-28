@@ -1,12 +1,13 @@
 import { ThreadComposerAttachment } from "../context/stores/Attachment";
 import { ComposerRuntimeCore } from "../runtimes/core/ComposerRuntimeCore";
+import { Unsubscribe } from "../types";
 import { SubscribableWithState } from "./subscribable/Subscribable";
 
 export type ThreadComposerRuntimeCoreBinding = SubscribableWithState<
   ComposerRuntimeCore | undefined
 >;
 
-export type EditComposerState = Readonly<{
+type LegacyEditComposerState = Readonly<{
   type: "edit" | "thread";
 
   /** @deprecated Use `text` instead. This will be removed in 0.6.0. */
@@ -38,11 +39,64 @@ export type EditComposerState = Readonly<{
   cancel: () => void;
 }>;
 
-export type UnstableThreadComposerStateV2 = EditComposerState &
+type LegacyThreadComposerState = Readonly<{
+  type: "thread" | "edit";
+
+  /** @deprecated Use `text` instead. This will be removed in 0.6.0. */
+  value: string;
+  /** @deprecated Use `useComposerRuntime().setText` instead. This will be removed in 0.6.0. */
+  setValue: (value: string) => void;
+
+  attachmentAccept: string;
+  attachments: readonly ThreadComposerAttachment[];
+
+  /** @deprecated Use `useComposerRuntime().addAttachment` instead. This will be removed in 0.6.0. */
+  addAttachment: (file: File) => void;
+  /** @deprecated Use `useComposerRuntime().removeAttachment` instead. This will be removed in 0.6.0. */
+  removeAttachment: (attachmentId: string) => void;
+
+  text: string;
+  /** @deprecated Use `useComposerRuntime().setText` instead. This will be removed in 0.6.0. */
+  setText: (value: string) => void;
+
+  /** @deprecated Use `useComposerRuntime().reset` instead. This will be removed in 0.6.0. */
+  reset: () => void;
+
+  canCancel: boolean;
+  isEditing: boolean;
+  isEmpty: boolean;
+
+  /** @deprecated Use `useComposerRuntime().send` instead. This will be removed in 0.6.0. */
+  send: () => void;
+  /** @deprecated Use `useComposerRuntime().cancel` instead. This will be removed in 0.6.0. */
+  cancel: () => void;
+
+  // TODO replace with events
+  /** @deprecated This feature is being removed in 0.6.0. Submit feedback if you need it. */
+  focus: () => void;
+  /** @deprecated This feature is being removed in 0.6.0. Submit feedback if you need it. */
+  onFocus: (listener: () => void) => Unsubscribe;
+}>;
+
+export type ComposerState = LegacyThreadComposerState &
+  LegacyEditComposerState &
   Readonly<{
-    attachments: readonly ThreadComposerAttachment[];
+    type: "thread" | "edit";
+
+    text: string;
+
     attachmentAccept: string;
+    attachments: readonly ThreadComposerAttachment[];
+
+    canCancel: boolean;
+    isEditing: boolean;
+    isEmpty: boolean;
   }>;
+
+/** @deprecated Use `ComposerState` instead. */
+export type ThreadComposerState = ComposerState;
+/** @deprecated Use `ComposerState` instead. */
+export type EditComposerState = ComposerState;
 
 const METHOD_NOT_SUPPORTED = () => {
   throw new Error("Composer is not available");
@@ -52,7 +106,9 @@ const getThreadComposerState = (
   type: "edit" | "thread",
   runtime: ComposerRuntimeCore | undefined,
   beginEdit: () => void,
-): UnstableThreadComposerStateV2 => {
+  focus?: () => void,
+  onFocus?: (listener: () => void) => Unsubscribe,
+): ComposerState => {
   return Object.freeze({
     type,
 
@@ -69,6 +125,13 @@ const getThreadComposerState = (
     edit: beginEdit,
     send: runtime?.send.bind(runtime) ?? METHOD_NOT_SUPPORTED,
     cancel: runtime?.cancel.bind(runtime) ?? METHOD_NOT_SUPPORTED,
+    focus: focus ?? METHOD_NOT_SUPPORTED,
+    onFocus: onFocus ?? METHOD_NOT_SUPPORTED,
+    reset: runtime?.reset.bind(runtime) ?? METHOD_NOT_SUPPORTED,
+
+    addAttachment: runtime?.addAttachment.bind(runtime) ?? METHOD_NOT_SUPPORTED,
+    removeAttachment:
+      runtime?.removeAttachment.bind(runtime) ?? METHOD_NOT_SUPPORTED,
   });
 };
 
@@ -137,6 +200,8 @@ export class ComposerRuntime implements ComposerRuntimeCore {
       this.type,
       this._core.getState(),
       this._beginEdit?.bind(this) ?? METHOD_NOT_SUPPORTED,
+      this.focus.bind(this),
+      this.onFocus.bind(this),
     );
   }
 
@@ -202,5 +267,16 @@ export class ComposerRuntime implements ComposerRuntimeCore {
 
   public subscribe(callback: () => void) {
     return this._core.subscribe(callback);
+  }
+
+  private _focusListeners = new Set<() => void>();
+
+  private focus() {
+    this._focusListeners.forEach((callback) => callback());
+  }
+
+  private onFocus(callback: () => void) {
+    this._focusListeners.add(callback);
+    return () => this._focusListeners.delete(callback);
   }
 }

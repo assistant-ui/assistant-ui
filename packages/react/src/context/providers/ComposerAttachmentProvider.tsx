@@ -2,7 +2,6 @@
 
 import { type FC, type PropsWithChildren, useEffect, useState } from "react";
 import { create } from "zustand";
-import type { ThreadComposerState } from "../stores";
 import { ComposerAttachmentState } from "../stores/Attachment";
 import {
   AttachmentContext,
@@ -10,13 +9,14 @@ import {
 } from "../react/AttachmentContext";
 import { writableStore } from "../ReadonlyStore";
 import { useThreadComposerStore } from "../react/ThreadContext";
+import { ComposerState } from "../../api/ComposerRuntime";
 
 type ComposerAttachmentProviderProps = PropsWithChildren<{
   attachmentIndex: number;
 }>;
 
 const getAttachment = (
-  { attachments }: ThreadComposerState,
+  { attachments }: ComposerState,
   useAttachment: AttachmentContextValue["useAttachment"] | undefined,
   partIndex: number,
 ) => {
@@ -44,7 +44,7 @@ const useComposerAttachmentContext = (partIndex: number) => {
   );
 
   useEffect(() => {
-    const syncAttachment = (composer: ThreadComposerState) => {
+    const syncAttachment = (composer: ComposerState) => {
       const newState = getAttachment(
         composer,
         context.useAttachment,

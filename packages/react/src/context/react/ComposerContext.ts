@@ -1,27 +1,24 @@
 import { useMemo } from "react";
-import { useMessageContext } from "./MessageContext";
-import { useThreadContext } from "./ThreadContext";
-import type { ThreadComposerState } from "../stores/ThreadComposer";
+import { useMessageContext, useMessageRuntime } from "./MessageContext";
+import { useThreadContext, useThreadRuntime } from "./ThreadContext";
 import { ReadonlyStore } from "../ReadonlyStore";
 import { createContextStoreHook } from "./utils/createContextStoreHook";
-import { EditComposerState } from "../../api/ComposerRuntime";
+import { ComposerRuntime, ComposerState } from "../../api/ComposerRuntime";
 
 export type ComposerContextValue = {
-  useComposer: ReadonlyStore<EditComposerState | ThreadComposerState>;
+  useComposer: ReadonlyStore<ComposerState>;
   type: "edit" | "new";
 };
 
 export const useComposerContext = (): ComposerContextValue => {
-  const { useComposer } = useThreadContext();
+  const { useComposer: useThreadComposer } = useThreadContext();
   const { useEditComposer } = useMessageContext({ optional: true }) ?? {};
   return useMemo(
     () => ({
-      useComposer: (useEditComposer ?? useComposer) as ReadonlyStore<
-        EditComposerState | ThreadComposerState
-      >,
+      useComposer: useEditComposer ?? useThreadComposer,
       type: useEditComposer ? ("edit" as const) : ("new" as const),
     }),
-    [useEditComposer, useComposer],
+    [useEditComposer, useThreadComposer],
   );
 };
 
@@ -29,3 +26,20 @@ export const { useComposer, useComposerStore } = createContextStoreHook(
   useComposerContext,
   "useComposer",
 );
+
+export function useComposerRuntime(options?: {
+  optional?: false | undefined;
+}): ComposerRuntime;
+export function useComposerRuntime(options?: {
+  optional?: boolean | undefined;
+}): ComposerRuntime | null;
+export function useComposerRuntime(options?: {
+  optional?: boolean | undefined;
+}) {
+  const context = useComposerRuntime(options);
+  if (!context) return null;
+  return (
+    useMessageRuntime({ optional: true })?.composer ??
+    useThreadRuntime(options)?.composer
+  );
+}

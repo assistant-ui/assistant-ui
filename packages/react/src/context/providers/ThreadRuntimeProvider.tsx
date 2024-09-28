@@ -2,7 +2,6 @@ import type { FC, PropsWithChildren } from "react";
 import { useEffect, useMemo, useState } from "react";
 import type { ThreadContextValue } from "../react/ThreadContext";
 import { ThreadContext } from "../react/ThreadContext";
-import { makeThreadComposerStore } from "../stores/ThreadComposer";
 import { makeThreadViewportStore } from "../stores/ThreadViewport";
 import { writableStore } from "../ReadonlyStore";
 import { ReactThreadState, ThreadRuntime } from "../../api/ThreadRuntime";
@@ -51,10 +50,11 @@ const useThreadMessagesStore = (runtime: ThreadRuntime) => {
 const useThreadComposerStore = (
   runtime: ComposerRuntime & { type: "thread" },
 ) => {
-  const [store] = useState(() => makeThreadComposerStore(runtime));
+  const [store] = useState(() => create(() => runtime.getState()));
 
   useEffect(() => {
-    const updateState = () => writableStore(store).setState(runtime.getState());
+    const updateState = () =>
+      writableStore(store).setState(runtime.getState(), true);
     updateState();
     return runtime.subscribe(updateState);
   }, [runtime, store]);

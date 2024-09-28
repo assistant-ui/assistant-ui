@@ -1,7 +1,6 @@
 "use client";
 
 import { createContext } from "react";
-import type { ThreadComposerState } from "../stores/ThreadComposer";
 import type { ThreadViewportState } from "../stores/ThreadViewport";
 import { ReadonlyStore } from "../ReadonlyStore";
 import { UseBoundStore } from "zustand";
@@ -10,6 +9,7 @@ import { createContextStoreHook } from "./utils/createContextStoreHook";
 import { ThreadRuntime } from "../../api";
 import { ThreadState } from "../../api/ThreadRuntime";
 import { ThreadMessage } from "../../types";
+import { ThreadComposerState } from "../../api/ComposerRuntime";
 
 export type ThreadContextValue = {
   useThread: UseBoundStore<ReadonlyStore<ThreadState>>;
