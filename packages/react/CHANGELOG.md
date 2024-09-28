@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.5.67
+
+### Patch Changes
+
+- cfa8844: feat: useComposerRuntime hook
+- 70720ba: feat: lift EditComposer to runtime layer
+
 ## 0.5.66
 
 ### Patch Changes

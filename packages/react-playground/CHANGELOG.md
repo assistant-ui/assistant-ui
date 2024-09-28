@@ -1,5 +1,14 @@
 # @assistant-ui/react-playground
 
+## 0.0.33
+
+### Patch Changes
+
+- 70720ba: feat: lift EditComposer to runtime layer
+- Updated dependencies [cfa8844]
+- Updated dependencies [70720ba]
+  - @assistant-ui/react@0.5.67
+
 ## 0.0.32
 
 ### Patch Changes
