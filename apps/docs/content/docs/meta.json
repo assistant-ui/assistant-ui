@@ -2,7 +2,7 @@
   "title": "mdx",
   "root": true,
   "pages": [
-    "index",
+    "getting-started",
     "architecture",
     "---UI---",
     "...ui",
