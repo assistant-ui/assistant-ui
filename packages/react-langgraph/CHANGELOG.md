@@ -1,5 +1,11 @@
 # @assistant-ui/react-langgraph
 
+## 0.0.10
+
+### Patch Changes
+
+- 51c5dff: fix: LangGraph python compatibility
+
 ## 0.0.9
 
 ### Patch Changes
