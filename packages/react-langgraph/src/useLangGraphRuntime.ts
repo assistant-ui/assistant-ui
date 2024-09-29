@@ -25,11 +25,13 @@ const getPendingToolCalls = (messages: LangChainMessage[]) => {
 
 export const useLangGraphRuntime = ({
   threadId,
+  autoCancelPendingToolCalls,
   stream,
   onSwitchToNewThread,
   onSwitchToThread,
 }: {
   threadId?: string | undefined;
+  autoCancelPendingToolCalls?: boolean | undefined;
   stream: (messages: LangChainMessage[]) => Promise<
     AsyncGenerator<{
       event: string;
@@ -71,15 +73,19 @@ export const useLangGraphRuntime = ({
       if (msg.content.length !== 1 || msg.content[0]?.type !== "text")
         throw new Error("Only text messages are supported");
 
-      const cancellations = getPendingToolCalls(messages).map(
-        (t) =>
-          ({
-            type: "tool",
-            name: t.name,
-            tool_call_id: t.id,
-            content: JSON.stringify({ cancelled: true }),
-          }) satisfies LangChainMessage & { type: "tool" },
-      );
+      const cancellations =
+        autoCancelPendingToolCalls !== false
+          ? getPendingToolCalls(messages).map(
+              (t) =>
+                ({
+                  type: "tool",
+                  name: t.name,
+                  tool_call_id: t.id,
+                  content: JSON.stringify({ cancelled: true }),
+                }) satisfies LangChainMessage & { type: "tool" },
+            )
+          : [];
+
       return handleSendMessage([
         ...cancellations,
         {
