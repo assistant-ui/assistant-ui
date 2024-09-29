@@ -1,5 +1,11 @@
 # @tool-ui/weather
 
+## 0.0.9
+
+### Patch Changes
+
+- d8bd40b: chore: update dependencies
+
 ## 0.0.8
 
 ### Patch Changes

@@ -1,5 +1,18 @@
 # @assistant-ui/react-playground
 
+## 0.0.34
+
+### Patch Changes
+
+- 96b9d1f: feat: new Runtime API part 8
+- d8bd40b: chore: update dependencies
+- 42156cf: refactor: drop ReactThreadRuntimeCore, unstable_synchronizer
+- Updated dependencies [96b9d1f]
+- Updated dependencies [9fd85da]
+- Updated dependencies [d8bd40b]
+- Updated dependencies [42156cf]
+  - @assistant-ui/react@0.5.68
+
 ## 0.0.33
 
 ### Patch Changes

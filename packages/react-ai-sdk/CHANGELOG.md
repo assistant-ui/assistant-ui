@@ -1,5 +1,16 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.6.10
+
+### Patch Changes
+
+- 96b9d1f: feat: new Runtime API part 8
+- Updated dependencies [96b9d1f]
+- Updated dependencies [9fd85da]
+- Updated dependencies [d8bd40b]
+- Updated dependencies [42156cf]
+  - @assistant-ui/react@0.5.68
+
 ## 0.6.9
 
 ### Patch Changes

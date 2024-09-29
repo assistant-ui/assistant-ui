@@ -1,5 +1,14 @@
 # @assistant-ui/react
 
+## 0.5.68
+
+### Patch Changes
+
+- 96b9d1f: feat: new Runtime API part 8
+- 9fd85da: fix: ensure branch picker is supported before showing it
+- d8bd40b: chore: update dependencies
+- 42156cf: refactor: drop ReactThreadRuntimeCore, unstable_synchronizer
+
 ## 0.5.67
 
 ### Patch Changes
