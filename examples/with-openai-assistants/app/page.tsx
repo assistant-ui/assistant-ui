@@ -15,7 +15,7 @@ type WeatherResult = {
 
 const WeatherTool = makeAssistantToolUI<WeatherArgs, WeatherResult>({
   toolName: "get_weather",
-  render: ({ part, status }) => {
+  render: ({ args, result, status }) => {
     return (
       <p
         className={cn(
@@ -23,8 +23,8 @@ const WeatherTool = makeAssistantToolUI<WeatherArgs, WeatherResult>({
           status.type === "running" && "animate-pulse",
         )}
       >
-        get_weather({JSON.stringify(part.args)})
-        {!!part.result && <> =&gt; {JSON.stringify(part.result)}</>}
+        get_weather({JSON.stringify(args)})
+        {!!result && <> =&gt; {JSON.stringify(result)}</>}
       </p>
     );
   },

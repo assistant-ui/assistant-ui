@@ -21,8 +21,8 @@ type WebSearchResult = {
 
 const WebSearchToolUI = makeAssistantToolUI<WebSearchArgs, WebSearchResult>({
   toolName: "web_search",
-  render: ({ part, status }) => {
-    return <p>web_search({part.args.query})</p>;
+  render: ({ args, status }) => {
+    return <p>web_search({args.query})</p>;
   },
 });
 ```
@@ -61,8 +61,8 @@ type WebSearchResult = {
 
 const useWebSearchToolUI = makeAssistantToolUI<WebSearchArgs, WebSearchResult>({
   toolName: "web_search",
-  render: ({ part, status }) => {
-    return <p>web_search({part.args.query})</p>;
+  render: ({ args, status }) => {
+    return <p>web_search({args.query})</p>;
   },
 });
 ```
@@ -101,7 +101,7 @@ import { useCallback } from "react";
 const MyComponent = ({ product_id }) => {
   useAssistantToolUI({
     toolName: "current_product_info",
-    render: useCallback(({ part, status }) => {
+    render: useCallback(({ args, status }) => {
       // you can access component props here
       return <p>product_info({ product_id })</p>;
     }, [product_id]),
@@ -132,9 +132,9 @@ import { DatePicker } from "@/components/datepicker";
 
 const DatePickerToolUI = makeAssistantToolUI<{}, { date: string }>({
   toolName: "date_picker",
-  render: ({ part, status, addResult }) => {
-    if (part.result) {
-      return <p>You picked {part.result.date}</p>;
+  render: ({ result, status, addResult }) => {
+    if (result) {
+      return <p>You picked {result.date}</p>;
     }
 
     const handleSubmit = (date: Date) => {
