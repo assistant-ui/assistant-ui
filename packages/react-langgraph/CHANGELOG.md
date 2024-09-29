@@ -1,5 +1,11 @@
 # @assistant-ui/react-langgraph
 
+## 0.0.11
+
+### Patch Changes
+
+- 0a8202e: fix: tool UI result can arrive before assistant message is marked as complete
+
 ## 0.0.10
 
 ### Patch Changes
