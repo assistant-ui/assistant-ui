@@ -211,7 +211,8 @@ export class MessageRuntime {
           return {
             ...attachment,
             attachment: attachment,
-          } as AttachmentState & { source: "message" };
+            source: "message",
+          } satisfies AttachmentState & { source: "message" };
         },
         subscribe: (callback) => this._core.subscribe(callback),
       }),

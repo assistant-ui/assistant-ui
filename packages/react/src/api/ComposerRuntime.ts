@@ -345,7 +345,8 @@ export class ThreadComposerRuntime
           return {
             ...attachment,
             attachment: attachment,
-          } as AttachmentState & { source: "thread-composer" };
+            source: "thread-composer",
+          } satisfies AttachmentState & { source: "thread-composer" };
         },
         subscribe: (callback) => this._core.subscribe(callback),
       }),
@@ -406,7 +407,8 @@ export class EditComposerRuntime
           return {
             ...attachment,
             attachment: attachment,
-          } as AttachmentState & { source: "edit-composer" };
+            source: "edit-composer",
+          } satisfies AttachmentState & { source: "edit-composer" };
         },
         subscribe: (callback) => this._core.subscribe(callback),
       }),
