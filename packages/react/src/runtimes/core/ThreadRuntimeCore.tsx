@@ -2,7 +2,10 @@ import { AppendMessage, ModelConfig, ThreadMessage } from "../../types";
 import type { Unsubscribe } from "../../types/Unsubscribe";
 import { SpeechSynthesisAdapter } from "../speech";
 import { ExportedMessageRepository } from "../utils/MessageRepository";
-import { ComposerRuntimeCore } from "./ComposerRuntimeCore";
+import {
+  ComposerRuntimeCore,
+  ThreadComposerRuntimeCore,
+} from "./ComposerRuntimeCore";
 
 export type RuntimeCapabilities = Readonly<{
   switchToBranch: boolean;
@@ -43,7 +46,7 @@ export type ThreadRuntimeCore = Readonly<{
 
   getModelConfig: () => ModelConfig;
 
-  composer: ComposerRuntimeCore;
+  composer: ThreadComposerRuntimeCore;
   getEditComposer: (messageId: string) => ComposerRuntimeCore | undefined;
   beginEdit: (messageId: string) => void;
 

@@ -1,10 +1,10 @@
-import {
-  ThreadComposerAttachment,
-  MessageAttachment,
-} from "../../context/stores/Attachment";
+import { Attachment, PendingAttachment } from "../../types/AttachmentTypes";
 import { AttachmentAdapter } from "./AttachmentAdapter";
 
-function fileMatchesAccept(file: File, acceptString: string) {
+function fileMatchesAccept(
+  file: { name: string; type: string },
+  acceptString: string,
+) {
   // Check if the accept string is "*", which allows any file
   if (acceptString === "*") {
     return true;
@@ -65,7 +65,7 @@ export class CompositeAttachmentAdapter implements AttachmentAdapter {
     }
   }
 
-  public async add(state: { file: File }): Promise<ThreadComposerAttachment> {
+  public async add(state: { file: File }) {
     for (const adapter of this._adapters) {
       if (fileMatchesAccept(state.file, adapter.accept)) {
         return adapter.add(state);
@@ -74,9 +74,7 @@ export class CompositeAttachmentAdapter implements AttachmentAdapter {
     throw new Error("No matching adapter found for file");
   }
 
-  public async send(
-    attachment: ThreadComposerAttachment,
-  ): Promise<MessageAttachment> {
+  public async send(attachment: PendingAttachment) {
     const adapters = this._adapters.slice();
     for (const adapter of adapters) {
       if (fileMatchesAccept(attachment.file, adapter.accept)) {
@@ -86,10 +84,18 @@ export class CompositeAttachmentAdapter implements AttachmentAdapter {
     throw new Error("No matching adapter found for attachment");
   }
 
-  public async remove(attachment: ThreadComposerAttachment): Promise<void> {
+  public async remove(attachment: Attachment) {
     const adapters = this._adapters.slice();
     for (const adapter of adapters) {
-      if (fileMatchesAccept(attachment.file, adapter.accept)) {
+      if (
+        fileMatchesAccept(
+          {
+            name: attachment.name,
+            type: attachment.contentType ?? "unknown/unknown", // TODO remove after 0.6.0
+          },
+          adapter.accept,
+        )
+      ) {
         return adapter.remove(attachment);
       }
     }

@@ -1,10 +1,10 @@
-import { MessageAttachment } from "../../../context/stores/Attachment";
 import { generateId } from "../../../internal";
 import {
   ThreadMessage,
   CoreMessage,
   ToolCallContentPart,
   MessageStatus,
+  CompleteAttachment,
 } from "../../../types";
 
 export const fromCoreMessages = (
@@ -18,7 +18,7 @@ export const fromCoreMessage = (
   {
     id = generateId(),
     status = { type: "complete", reason: "unknown" } as MessageStatus,
-    attachments = [] as readonly MessageAttachment[],
+    attachments = [] as readonly CompleteAttachment[],
   } = {},
 ): ThreadMessage => {
   const commonProps = {

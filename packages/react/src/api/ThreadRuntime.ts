@@ -10,8 +10,9 @@ import { MessageRuntime, MessageState } from "./MessageRuntime";
 import { NestedSubscriptionSubject } from "./subscribable/NestedSubscriptionSubject";
 import { ShallowMemoizeSubject } from "./subscribable/ShallowMemoizeSubject";
 import { SubscribableWithState } from "./subscribable/Subscribable";
-import { ComposerRuntime } from "./ComposerRuntime";
+import { ThreadComposerRuntime } from "./ComposerRuntime";
 import { LazyMemoizeSubject } from "./subscribable/LazyMemoizeSubject";
+import { SKIP_UPDATE } from "./subscribable/SKIP_UPDATE";
 
 export type CreateAppendMessage =
   | string
@@ -129,7 +130,7 @@ export class ThreadRuntime implements ThreadRuntimeCore {
     };
   }
 
-  public readonly composer = new ComposerRuntime(
+  public readonly composer = new ThreadComposerRuntime(
     new NestedSubscriptionSubject({
       getState: () => this._threadBinding.getState().composer,
       subscribe: (callback) => this._threadBinding.subscribe(callback),
@@ -200,14 +201,14 @@ export class ThreadRuntime implements ThreadRuntimeCore {
   }
 
   /**
-   * @deprecated This is a temporary API. This will be removed in 0.6.0.
+   * @deprecated Use `getMesssageById(id).unstable_getMessageByIndex(idx).composer` instead. This will be removed in 0.6.0.
    */
   public getEditComposer(messageId: string) {
     return this._threadBinding.getState().getEditComposer(messageId);
   }
 
   /**
-   * @deprecated This is a temporary API. This will be removed in 0.6.0.
+   * @deprecated Use `getMesssageById(id).unstable_getMessageByIndex(idx).composer.beginEdit()` instead. This will be removed in 0.6.0.
    */
   public beginEdit(messageId: string) {
     return this._threadBinding.getState().beginEdit(messageId);
@@ -227,9 +228,9 @@ export class ThreadRuntime implements ThreadRuntimeCore {
     return new MessageRuntime(
       new ShallowMemoizeSubject({
         getState: () => {
-          const messages = this.messages;
+          const messages = this.getState().messages;
           const message = messages[idx];
-          if (!message) return undefined;
+          if (!message) return SKIP_UPDATE;
 
           const branches = this._threadBinding
             .getState()

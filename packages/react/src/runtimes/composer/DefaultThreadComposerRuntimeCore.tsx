@@ -1,11 +1,19 @@
-import { AppendMessage } from "../../types";
+import { AppendMessage, PendingAttachment } from "../../types";
+import { ThreadComposerRuntimeCore } from "../core/ComposerRuntimeCore";
 import { ThreadRuntimeCore } from "../core/ThreadRuntimeCore";
 import { BaseComposerRuntimeCore } from "./BaseComposerRuntimeCore";
 
-export class DefaultThreadComposerRuntimeCore extends BaseComposerRuntimeCore {
+export class DefaultThreadComposerRuntimeCore
+  extends BaseComposerRuntimeCore
+  implements ThreadComposerRuntimeCore
+{
   private _canCancel = false;
   public get canCancel() {
     return this._canCancel;
+  }
+
+  public override get attachments(): readonly PendingAttachment[] {
+    return super.attachments as readonly PendingAttachment[];
   }
 
   constructor(private runtime: Omit<ThreadRuntimeCore, "composer">) {

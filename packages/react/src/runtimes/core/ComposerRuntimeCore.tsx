@@ -1,9 +1,8 @@
-import { ThreadComposerAttachment } from "../../context/stores/Attachment";
-import type { Unsubscribe } from "../../types";
+import type { Attachment, PendingAttachment, Unsubscribe } from "../../types";
 
 export type ComposerRuntimeCore = Readonly<{
   attachmentAccept: string;
-  attachments: readonly ThreadComposerAttachment[];
+  attachments: readonly Attachment[];
   addAttachment: (file: File) => Promise<void>;
   removeAttachment: (attachmentId: string) => Promise<void>;
 
@@ -25,3 +24,8 @@ export type ComposerRuntimeCore = Readonly<{
 
   subscribe: (callback: () => void) => Unsubscribe;
 }>;
+
+export type ThreadComposerRuntimeCore = ComposerRuntimeCore &
+  Readonly<{
+    attachments: readonly PendingAttachment[];
+  }>;

@@ -1,4 +1,3 @@
-import { MessageAttachment } from "../../context/stores/Attachment";
 import {
   MessageStatus,
   TextContentPart,
@@ -11,6 +10,7 @@ import {
   ThreadUserContentPart,
   ThreadUserMessage,
   ThreadSystemMessage,
+  CompleteAttachment,
 } from "../../types";
 import { CoreToolCallContentPart } from "../../types/AssistantTypes";
 
@@ -28,7 +28,7 @@ export type ThreadMessageLike = {
   id?: string | undefined;
   createdAt?: Date | undefined;
   status?: MessageStatus | undefined;
-  attachments?: MessageAttachment[] | undefined;
+  attachments?: CompleteAttachment[] | undefined;
 };
 
 export const fromThreadMessageLike = (

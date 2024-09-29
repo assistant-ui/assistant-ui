@@ -1,16 +1,13 @@
 import { useCallback } from "react";
-import {
-  useComposer,
-  useComposerRuntime,
-} from "../../context/react/ComposerContext";
+import { useEditComposer, useMessageRuntime } from "../../context";
 
 export const useActionBarEdit = () => {
-  const composerRuntime = useComposerRuntime();
-  const disabled = useComposer((c) => c.isEditing);
+  const messageRuntime = useMessageRuntime();
+  const disabled = useEditComposer((c) => c.isEditing);
 
   const callback = useCallback(() => {
-    composerRuntime.beginEdit();
-  }, [composerRuntime]);
+    messageRuntime.composer.beginEdit();
+  }, [messageRuntime]);
 
   if (disabled) return null;
   return callback;

@@ -1,4 +1,11 @@
 export type {
+  Attachment,
+  PendingAttachment,
+  CompleteAttachment,
+  AttachmentStatus,
+} from "./AttachmentTypes";
+
+export type {
   AppendMessage,
   TextContentPart,
   ImageContentPart,

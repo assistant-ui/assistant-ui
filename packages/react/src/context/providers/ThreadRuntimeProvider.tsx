@@ -6,7 +6,7 @@ import { makeThreadViewportStore } from "../stores/ThreadViewport";
 import { writableStore } from "../ReadonlyStore";
 import { ThreadRuntime } from "../../api/ThreadRuntime";
 import { create } from "zustand";
-import { ComposerRuntime } from "../../api";
+import { ThreadComposerRuntime } from "../../api";
 
 type ThreadProviderProps = {
   runtime: ThreadRuntime;
@@ -47,9 +47,7 @@ const useThreadMessagesStore = (runtime: ThreadRuntime) => {
   return store;
 };
 
-const useThreadComposerStore = (
-  runtime: ComposerRuntime & { type: "thread" },
-) => {
+const useThreadComposerStore = (runtime: ThreadComposerRuntime) => {
   const [store] = useState(() => create(() => runtime.getState()));
 
   useEffect(() => {
@@ -68,7 +66,7 @@ export const ThreadRuntimeProvider: FC<
   const useThreadRuntime = useThreadRuntimeStore(runtime);
   const useThread = useThreadStore(runtime);
   const useThreadMessages = useThreadMessagesStore(runtime);
-  const useThreadComposer = useThreadComposerStore(runtime.composer as any); // TODO
+  const useThreadComposer = useThreadComposerStore(runtime.composer);
 
   const context = useMemo<ThreadContextValue>(() => {
     const useViewport = makeThreadViewportStore();

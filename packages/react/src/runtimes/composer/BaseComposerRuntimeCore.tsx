@@ -1,15 +1,22 @@
-import { ThreadComposerAttachment } from "../../context/stores/Attachment";
+import {
+  Attachment,
+  CompleteAttachment,
+  PendingAttachment,
+} from "../../types/AttachmentTypes";
 import { AppendMessage, Unsubscribe } from "../../types";
 import { AttachmentAdapter } from "../attachment";
 import { ComposerRuntimeCore } from "../core/ComposerRuntimeCore";
+
+const isAttachmentComplete = (a: Attachment): a is CompleteAttachment =>
+  a.status.type === "complete";
 
 export abstract class BaseComposerRuntimeCore implements ComposerRuntimeCore {
   public readonly isEditing = true;
 
   public attachmentAccept: string = "*";
 
-  private _attachments: readonly ThreadComposerAttachment[] = [];
-  protected set attachments(value: readonly ThreadComposerAttachment[]) {
+  private _attachments: readonly Attachment[] = [];
+  protected set attachments(value: readonly Attachment[]) {
     this._attachments = value;
     this.notifySubscribers();
   }
@@ -43,9 +50,15 @@ export abstract class BaseComposerRuntimeCore implements ComposerRuntimeCore {
   public async send() {
     const attachments = this._attachmentAdapter
       ? await Promise.all(
-          this.attachments.map(
-            async (a) => await this._attachmentAdapter!.send(a),
-          ),
+          this.attachments.map(async (a) => {
+            if (isAttachmentComplete(a)) return a;
+            const result = await this._attachmentAdapter!.send(a);
+            // TODO remove after 0.6.0
+            if (result.status?.type !== "complete") {
+              result.status = { type: "complete" };
+            }
+            return result as CompleteAttachment;
+          }),
         )
       : [];
 
@@ -76,8 +89,12 @@ export abstract class BaseComposerRuntimeCore implements ComposerRuntimeCore {
       throw new Error("Attachments are not supported");
 
     const attachment = await this._attachmentAdapter.add({ file });
+    // TODO remove after 0.6.0
+    if (attachment.status === undefined) {
+      attachment.status = { type: "requires-action", reason: "composer-send" };
+    }
 
-    this._attachments = [...this._attachments, attachment];
+    this._attachments = [...this._attachments, attachment as PendingAttachment];
     this.notifySubscribers();
   }
 

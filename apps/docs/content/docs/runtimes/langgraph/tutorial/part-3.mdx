@@ -93,11 +93,7 @@ import { updateState } from "@/lib/chatApi";
 export const PurchaseStockTool = makeAssistantToolUI<PurchaseStockArgs, string>(
   {
     toolName: "purchase_stock",
-    render: function PurchaseStockUI({
-      part: { args, result },
-      status,
-      addResult,
-    }) {
+    render: function PurchaseStockUI({ args, result, status, addResult }) {
       const handleReject = async () => {
         addResult({ approve: false });
       };
@@ -331,11 +327,7 @@ type PurchaseStockResult = {
 export const PurchaseStockTool = makeAssistantToolUI<PurchaseStockArgs, string>(
   {
     toolName: "purchase_stock",
-    render: function PurchaseStockUI({
-      part: { args, result },
-      status,
-      addResult,
-    }) {
+    render: function PurchaseStockUI({ args, result, status, addResult }) {
       let resultObj: PurchaseStockResult;
       try {
         resultObj = result ? JSON.parse(result) : {};

@@ -1,10 +1,10 @@
 "use client";
 
-import { ComponentType, type FC, memo } from "react";
-import { useComposerAttachment } from "../../context/react/AttachmentContext";
-import { ComposerAttachmentProvider } from "../../context/providers/ComposerAttachmentProvider";
-import type { ThreadComposerAttachment } from "../../context/stores/Attachment";
-import { useThreadComposer } from "../../context/react/ThreadContext";
+import { ComponentType, type FC, memo, useMemo } from "react";
+import { Attachment } from "../../types";
+import { useComposer, useComposerRuntime } from "../../context";
+import { useThreadComposerAttachment } from "../../context/react/AttachmentContext";
+import { AttachmentRuntimeProvider } from "../../context/providers/AttachmentRuntimeProvider";
 
 export type ComposerPrimitiveAttachmentsProps = {
   components:
@@ -19,7 +19,7 @@ export type ComposerPrimitiveAttachmentsProps = {
 
 const getComponent = (
   components: ComposerPrimitiveAttachmentsProps["components"],
-  attachment: ThreadComposerAttachment,
+  attachment: Attachment,
 ) => {
   const type = attachment.type;
   switch (type) {
@@ -38,8 +38,8 @@ const getComponent = (
 const AttachmentComponent: FC<{
   components: ComposerPrimitiveAttachmentsProps["components"];
 }> = ({ components }) => {
-  const Component = useComposerAttachment((a) =>
-    getComponent(components, a.attachment),
+  const Component = useThreadComposerAttachment((a) =>
+    getComponent(components, a),
   );
 
   if (!Component) return null;
@@ -49,10 +49,16 @@ const AttachmentComponent: FC<{
 const ComposerAttachmentImpl: FC<
   ComposerPrimitiveAttachmentsProps & { attachmentIndex: number }
 > = ({ components, attachmentIndex }) => {
+  const composerRuntime = useComposerRuntime();
+  const runtime = useMemo(
+    () => composerRuntime.unstable_getAttachmentByIndex(attachmentIndex),
+    [composerRuntime, attachmentIndex],
+  );
+
   return (
-    <ComposerAttachmentProvider attachmentIndex={attachmentIndex}>
+    <AttachmentRuntimeProvider runtime={runtime}>
       <AttachmentComponent components={components} />
-    </ComposerAttachmentProvider>
+    </AttachmentRuntimeProvider>
   );
 };
 
@@ -69,7 +75,7 @@ const ComposerAttachment = memo(
 export const ComposerPrimitiveAttachments: FC<
   ComposerPrimitiveAttachmentsProps
 > = ({ components }) => {
-  const attachmentsCount = useThreadComposer((s) => s.attachments.length);
+  const attachmentsCount = useComposer((s) => s.attachments.length);
 
   return Array.from({ length: attachmentsCount }, (_, index) => (
     <ComposerAttachment

@@ -10,13 +10,16 @@ export const vercelAttachmentAdapter: AttachmentAdapter = {
       type: "file",
       name: file.name,
       file,
+      contentType: file.type,
       content: [],
+      status: { type: "requires-action", reason: "composer-send" },
     };
   },
   async send(attachment) {
     // noop
     return {
       ...attachment,
+      status: { type: "complete" },
       content: [],
     };
   },

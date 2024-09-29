@@ -11,9 +11,11 @@ const attachmentAdapter: AttachmentAdapter = {
   async add({ file }) {
     return {
       id: generateId(),
+      file,
       type: "file",
       name: file.name,
-      file,
+      contentType: file.type,
+      status: { type: "requires-action", reason: "composer-send" },
     };
   },
   async send(attachment) {
@@ -25,6 +27,7 @@ const attachmentAdapter: AttachmentAdapter = {
           text: `[User attached a file: ${attachment.name}]`,
         },
       ],
+      status: { type: "complete" },
     };
   },
   async remove() {

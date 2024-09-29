@@ -1,27 +1,30 @@
 import {
-  ThreadComposerAttachment,
-  MessageAttachment,
-} from "../../context/stores/Attachment";
+  CompleteAttachment,
+  PendingAttachment,
+} from "../../types/AttachmentTypes";
 import { AttachmentAdapter } from "./AttachmentAdapter";
 
 export class SimpleTextAttachmentAdapter implements AttachmentAdapter {
   public accept =
     "text/plain,text/html,text/markdown,text/csv,text/xml,text/json,text/css";
 
-  public async add(state: { file: File }): Promise<ThreadComposerAttachment> {
+  public async add(state: { file: File }): Promise<PendingAttachment> {
     return {
       id: state.file.name,
       type: "document",
       name: state.file.name,
+      contentType: state.file.type,
       file: state.file,
+      status: { type: "requires-action", reason: "composer-send" },
     };
   }
 
   public async send(
-    attachment: ThreadComposerAttachment,
-  ): Promise<MessageAttachment> {
+    attachment: PendingAttachment,
+  ): Promise<CompleteAttachment> {
     return {
       ...attachment,
+      status: { type: "complete" },
       content: [
         {
           type: "text",

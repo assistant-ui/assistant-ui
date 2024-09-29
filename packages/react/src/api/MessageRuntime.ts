@@ -8,10 +8,12 @@ import {
   ContentPartStatus,
   ToolCallContentPartStatus,
 } from "../types/AssistantTypes";
-import { ComposerRuntime } from "./ComposerRuntime";
+import { AttachmentState, MessageAttachmentRuntime } from "./AttachmentRuntime";
+import { EditComposerRuntime } from "./ComposerRuntime";
 import { ContentPartRuntime, ContentPartState } from "./ContentPartRuntime";
 import { ThreadRuntimeCoreBinding } from "./ThreadRuntime";
 import { NestedSubscriptionSubject } from "./subscribable/NestedSubscriptionSubject";
+import { SKIP_UPDATE } from "./subscribable/SKIP_UPDATE";
 import { ShallowMemoizeSubject } from "./subscribable/ShallowMemoizeSubject";
 import { SubscribableWithState } from "./subscribable/Subscribable";
 
@@ -52,14 +54,14 @@ export const EMPTY_CONTENT = Object.freeze({ type: "text", text: "" });
 const getContentPartState = (
   message: MessageState,
   partIndex: number,
-): ContentPartState | undefined => {
+): ContentPartState | SKIP_UPDATE => {
   let part = message.content[partIndex];
   if (!part) {
     // for empty messages, show an empty text content part
     if (message.content.length === 0 && partIndex === 0) {
       part = EMPTY_CONTENT;
     } else {
-      return undefined;
+      return SKIP_UPDATE;
     }
   } else if (
     message.content.length === 1 &&
@@ -99,7 +101,7 @@ export class MessageRuntime {
     private _threadBinding: ThreadRuntimeCoreBinding,
   ) {}
 
-  public composer = new ComposerRuntime(
+  public composer = new EditComposerRuntime(
     new NestedSubscriptionSubject({
       getState: () =>
         this._threadBinding
@@ -108,7 +110,7 @@ export class MessageRuntime {
       subscribe: (callback) => this._threadBinding.subscribe(callback),
     }),
     () => this._threadBinding.getState().beginEdit(this._core.getState().id),
-  ) as ComposerRuntime & { type: "edit" };
+  );
 
   public getState() {
     return this._core.getState();
@@ -195,6 +197,24 @@ export class MessageRuntime {
       }),
       this._core,
       this._threadBinding,
+    );
+  }
+
+  public unstable_getAttachmentByIndex(idx: number) {
+    return new MessageAttachmentRuntime(
+      new ShallowMemoizeSubject({
+        getState: () => {
+          const attachments = this.getState().attachments;
+          const attachment = attachments?.[idx];
+          if (!attachment) return SKIP_UPDATE;
+
+          return {
+            ...attachment,
+            attachment: attachment,
+          } as AttachmentState & { source: "message" };
+        },
+        subscribe: (callback) => this._core.subscribe(callback),
+      }),
     );
   }
 }

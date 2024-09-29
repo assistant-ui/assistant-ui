@@ -19,7 +19,7 @@ export const PriceSnapshotTool = makeAssistantToolUI<
   string
 >({
   toolName: "price_snapshot",
-  render: function PriceSnapshotUI({ part: { args, argsText, result } }) {
+  render: function PriceSnapshotUI({ args, argsText, result }) {
     const resultObj = result
       ? (JSON.parse(result) as PriceSnapshotToolResult)
       : undefined;

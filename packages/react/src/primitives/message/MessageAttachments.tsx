@@ -1,10 +1,10 @@
 "use client";
 
-import { ComponentType, type FC, memo } from "react";
-import { useMessage } from "../../context";
+import { ComponentType, type FC, memo, useMemo } from "react";
+import { useMessage, useMessageRuntime } from "../../context";
 import { useMessageAttachment } from "../../context/react/AttachmentContext";
-import { MessageAttachmentProvider } from "../../context/providers/MessageAttachmentProvider";
-import type { MessageAttachment } from "../../context/stores/Attachment";
+import { AttachmentRuntimeProvider } from "../../context/providers/AttachmentRuntimeProvider";
+import { CompleteAttachment } from "../../types";
 
 export type MessagePrimitiveAttachmentsProps = {
   components:
@@ -19,7 +19,7 @@ export type MessagePrimitiveAttachmentsProps = {
 
 const getComponent = (
   components: MessagePrimitiveAttachmentsProps["components"],
-  attachment: MessageAttachment,
+  attachment: CompleteAttachment,
 ) => {
   const type = attachment.type;
   switch (type) {
@@ -49,10 +49,16 @@ const AttachmentComponent: FC<{
 const MessageAttachmentImpl: FC<
   MessagePrimitiveAttachmentsProps & { attachmentIndex: number }
 > = ({ components, attachmentIndex }) => {
+  const messageRuntime = useMessageRuntime();
+  const runtime = useMemo(
+    () => messageRuntime.unstable_getAttachmentByIndex(attachmentIndex),
+    [messageRuntime, attachmentIndex],
+  );
+
   return (
-    <MessageAttachmentProvider attachmentIndex={attachmentIndex}>
+    <AttachmentRuntimeProvider runtime={runtime}>
       <AttachmentComponent components={components} />
-    </MessageAttachmentProvider>
+    </AttachmentRuntimeProvider>
   );
 };
 

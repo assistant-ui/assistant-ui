@@ -2,7 +2,7 @@ import { Message } from "ai";
 import { useExternalMessageConverter } from "@assistant-ui/react";
 import { ToolCallContentPart } from "@assistant-ui/react";
 import { TextContentPart } from "@assistant-ui/react";
-import { MessageAttachment } from "../../../../react/src/context/stores/Attachment";
+import { CompleteAttachment } from "@assistant-ui/react";
 
 export const convertMessage: useExternalMessageConverter.Callback<Message> = (
   message,
@@ -22,7 +22,8 @@ export const convertMessage: useExternalMessageConverter.Callback<Message> = (
               type: "file",
               name: attachment.name ?? attachment.url,
               content: [],
-            }) satisfies MessageAttachment,
+              status: { type: "complete" },
+            }) satisfies CompleteAttachment,
         ),
       };
 

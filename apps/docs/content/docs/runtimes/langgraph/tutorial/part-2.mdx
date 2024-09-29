@@ -75,7 +75,7 @@ export const PriceSnapshotTool = makeAssistantToolUI<
   string
 >({
   toolName: "price_snapshot",
-  render: function PriceSnapshotUI({ part: { args, result } }) {
+  render: function PriceSnapshotUI({ args, result }) {
     return (
       <div className="mb-4 flex flex-col items-center">
         <pre className="whitespace-pre-wrap break-all text-center">
@@ -222,7 +222,7 @@ export const PriceSnapshotTool = makeAssistantToolUI<
   string
 >({
   toolName: "price_snapshot",
-  render: function PriceSnapshotUI({ part: { args, result } }) {
+  render: function PriceSnapshotUI({ args, result }) {
     let resultObj: PriceSnapshotToolResult | { error: string };
     try {
       resultObj = result ? JSON.parse(result) : {};

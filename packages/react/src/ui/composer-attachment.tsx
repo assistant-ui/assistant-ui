@@ -1,7 +1,6 @@
 "use client";
 
 import { forwardRef, type FC } from "react";
-
 import { CircleXIcon } from "lucide-react";
 import { withDefaults } from "./utils/withDefaults";
 import { useThreadConfig } from "./thread-config";
@@ -9,10 +8,9 @@ import {
   TooltipIconButton,
   TooltipIconButtonProps,
 } from "./base/tooltip-icon-button";
-import { useThreadComposerStore } from "../context/react/ThreadContext";
 import {
-  useAttachmentStore,
-  useComposerAttachment,
+  useAttachmentRuntime,
+  useThreadComposerAttachment,
 } from "../context/react/AttachmentContext";
 
 const ComposerAttachmentRoot = withDefaults("div", {
@@ -22,7 +20,7 @@ const ComposerAttachmentRoot = withDefaults("div", {
 ComposerAttachmentRoot.displayName = "ComposerAttachmentRoot";
 
 const ComposerAttachment: FC = () => {
-  const attachment = useComposerAttachment((a) => a.attachment);
+  const attachment = useThreadComposerAttachment((a) => a.attachment);
 
   return (
     <ComposerAttachmentRoot>
@@ -44,12 +42,9 @@ const ComposerAttachmentRemove = forwardRef<
     } = {},
   } = useThreadConfig();
 
-  const composerStore = useThreadComposerStore();
-  const attachmentStore = useAttachmentStore();
+  const attachmentRuntime = useAttachmentRuntime();
   const handleRemoveAttachment = () => {
-    composerStore
-      .getState()
-      .removeAttachment(attachmentStore.getState().attachment.id);
+    attachmentRuntime.remove();
   };
 
   return (

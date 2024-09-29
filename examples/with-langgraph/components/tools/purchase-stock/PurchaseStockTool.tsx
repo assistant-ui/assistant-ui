@@ -22,7 +22,9 @@ export const PurchaseStockTool = makeAssistantToolUI<PurchaseStockArgs, string>(
   {
     toolName: "purchase_stock",
     render: function PurchaseStockUI({
-      part: { args, argsText, result },
+      args,
+      argsText,
+      result,
       status,
       addResult,
     }) {
