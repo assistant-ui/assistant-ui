@@ -13,12 +13,13 @@ export const useLangGraphMessages = <TMessage>({
   const [messages, setMessages] = useState<TMessage[]>([]);
 
   const sendMessage = useCallback(
-    async (messages: TMessage[]) => {
-      if (messages.length > 0) {
-        setMessages((currentMessages) => [...currentMessages, ...messages]);
+    async (newMessages: TMessage[]) => {
+      const optimisticMessages = [...messages, ...newMessages];
+      if (newMessages.length > 0) {
+        setMessages(optimisticMessages);
       }
 
-      const response = await stream(messages);
+      const response = await stream(newMessages);
 
       const completeMessages: TMessage[] = [];
       let partialMessages: Map<string, TMessage> = new Map();
@@ -40,7 +41,11 @@ export const useLangGraphMessages = <TMessage>({
           continue;
         }
 
-        setMessages([...completeMessages, ...partialMessages.values()]);
+        const prevMessages = completeMessages.length
+          ? completeMessages
+          : optimisticMessages;
+
+        setMessages([...prevMessages, ...partialMessages.values()]);
       }
       if (partialMessages.size > 0) {
         throw new Error("A partial message was not marked as complete");
