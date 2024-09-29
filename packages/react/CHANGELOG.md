@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.70
+
+### Patch Changes
+
+- 3df0061: fix: TextContentPartProvider missing fields
+
 ## 0.5.69
 
 ### Patch Changes
