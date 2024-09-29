@@ -46,11 +46,11 @@ export const TextContentPartProvider: FC<
   });
 
   useEffect(() => {
-    const state = context.useContentPart.getState();
+    const state = context.useContentPart.getState() as ContentPartState & {
+      type: "text";
+    };
+
     const textUpdated = (state as TextContentPart).text !== text;
-    const targetTextPart = textUpdated
-      ? { type: "text" as const, text }
-      : state;
     const targetStatus = isRunning ? RUNNING_STATUS : COMPLETE_STATUS;
     const statusUpdated = state.status !== targetStatus;
 
@@ -58,9 +58,11 @@ export const TextContentPartProvider: FC<
 
     writableStore(context.useContentPart).setState(
       {
-        part: targetTextPart,
+        type: "text",
+        text,
+        part: { type: "text", text },
         status: targetStatus,
-      },
+      } satisfies ContentPartState,
       true,
     );
   }, [context, isRunning, text]);
