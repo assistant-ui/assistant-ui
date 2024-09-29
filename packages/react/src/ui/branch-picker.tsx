@@ -19,7 +19,7 @@ const useAllowBranchPicker = (ensureCapability = false) => {
 };
 
 const BranchPicker: FC = () => {
-  const allowBranchPicker = useAllowBranchPicker();
+  const allowBranchPicker = useAllowBranchPicker(true);
   if (!allowBranchPicker) return null;
   return (
     <BranchPickerRoot hideWhenSingleBranch>
