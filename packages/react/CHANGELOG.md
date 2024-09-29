@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.69
+
+### Patch Changes
+
+- 46f91c2: feat(langgraph): allow disabling autocancellation of pending tool calls
+
 ## 0.5.68
 
 ### Patch Changes
