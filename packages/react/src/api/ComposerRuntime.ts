@@ -284,7 +284,7 @@ export abstract class ComposerRuntime implements ComposerRuntimeCore {
     return this._core.subscribe(callback);
   }
 
-  public abstract unstable_getAttachmentByIndex(idx: number): AttachmentRuntime;
+  public abstract getAttachmentByIndex(idx: number): AttachmentRuntime;
 }
 
 export class ThreadComposerRuntime
@@ -334,7 +334,7 @@ export class ThreadComposerRuntime
     return () => this._focusListeners.delete(callback);
   }
 
-  public unstable_getAttachmentByIndex(idx: number) {
+  public getAttachmentByIndex(idx: number) {
     return new ThreadComposerAttachmentRuntime(
       new ShallowMemoizeSubject({
         getState: () => {
@@ -396,7 +396,7 @@ export class EditComposerRuntime
     this.beginEdit();
   }
 
-  public unstable_getAttachmentByIndex(idx: number) {
+  public getAttachmentByIndex(idx: number) {
     return new EditComposerAttachmentRuntime(
       new ShallowMemoizeSubject({
         getState: () => {

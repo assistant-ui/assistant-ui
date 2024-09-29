@@ -51,7 +51,7 @@ const ComposerAttachmentImpl: FC<
 > = ({ components, attachmentIndex }) => {
   const composerRuntime = useComposerRuntime();
   const runtime = useMemo(
-    () => composerRuntime.unstable_getAttachmentByIndex(attachmentIndex),
+    () => composerRuntime.getAttachmentByIndex(attachmentIndex),
     [composerRuntime, attachmentIndex],
   );
 

@@ -135,7 +135,7 @@ const MessageContentPartImpl: FC<MessageContentPartProps> = ({
 }) => {
   const messageRuntime = useMessageRuntime();
   const runtime = useMemo(
-    () => messageRuntime.unstable_getContentPartByIndex(partIndex),
+    () => messageRuntime.getContentPartByIndex(partIndex),
     [messageRuntime, partIndex],
   );
 

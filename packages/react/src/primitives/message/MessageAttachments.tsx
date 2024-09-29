@@ -51,7 +51,7 @@ const MessageAttachmentImpl: FC<
 > = ({ components, attachmentIndex }) => {
   const messageRuntime = useMessageRuntime();
   const runtime = useMemo(
-    () => messageRuntime.unstable_getAttachmentByIndex(attachmentIndex),
+    () => messageRuntime.getAttachmentByIndex(attachmentIndex),
     [messageRuntime, attachmentIndex],
   );
 

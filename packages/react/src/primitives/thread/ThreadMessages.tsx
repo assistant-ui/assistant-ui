@@ -120,7 +120,7 @@ const ThreadMessageImpl: FC<ThreadMessageProps> = ({
 }) => {
   const threadRuntime = useThreadRuntime();
   const runtime = useMemo(
-    () => threadRuntime.unstable_getMesssageByIndex(messageIndex),
+    () => threadRuntime.getMesssageByIndex(messageIndex),
     [threadRuntime, messageIndex],
   );
 

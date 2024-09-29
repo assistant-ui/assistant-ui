@@ -1,6 +1,5 @@
 import {
   ThreadMessage,
-  AppendMessage,
   ThreadAssistantContentPart,
   ThreadUserContentPart,
 } from "../types";
@@ -116,17 +115,6 @@ export class MessageRuntime {
     return this._core.getState();
   }
 
-  // TODO improve type
-  public unstable_edit(message: Omit<AppendMessage, "parentId">) {
-    const state = this._core.getState();
-    if (!state) throw new Error("Message is not available");
-
-    this._threadBinding.getState().append({
-      ...(message as AppendMessage),
-      parentId: state.parentId,
-    });
-  }
-
   public reload() {
     const state = this._core.getState();
     if (!state) throw new Error("Message is not available");
@@ -186,7 +174,7 @@ export class MessageRuntime {
     return this._core.subscribe(callback);
   }
 
-  public unstable_getContentPartByIndex(idx: number) {
+  public getContentPartByIndex(idx: number) {
     if (idx < 0) throw new Error("Message index must be >= 0");
     return new ContentPartRuntime(
       new ShallowMemoizeSubject({
@@ -200,7 +188,7 @@ export class MessageRuntime {
     );
   }
 
-  public unstable_getAttachmentByIndex(idx: number) {
+  public getAttachmentByIndex(idx: number) {
     return new MessageAttachmentRuntime(
       new ShallowMemoizeSubject({
         getState: () => {

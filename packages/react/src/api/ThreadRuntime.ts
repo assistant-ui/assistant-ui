@@ -201,14 +201,14 @@ export class ThreadRuntime implements ThreadRuntimeCore {
   }
 
   /**
-   * @deprecated Use `getMesssageById(id).unstable_getMessageByIndex(idx).composer` instead. This will be removed in 0.6.0.
+   * @deprecated Use `getMesssageById(id).getMessageByIndex(idx).composer` instead. This will be removed in 0.6.0.
    */
   public getEditComposer(messageId: string) {
     return this._threadBinding.getState().getEditComposer(messageId);
   }
 
   /**
-   * @deprecated Use `getMesssageById(id).unstable_getMessageByIndex(idx).composer.beginEdit()` instead. This will be removed in 0.6.0.
+   * @deprecated Use `getMesssageById(id).getMessageByIndex(idx).composer.beginEdit()` instead. This will be removed in 0.6.0.
    */
   public beginEdit(messageId: string) {
     return this._threadBinding.getState().beginEdit(messageId);
@@ -222,7 +222,7 @@ export class ThreadRuntime implements ThreadRuntimeCore {
     this._threadBinding.getState().import(data);
   }
 
-  public unstable_getMesssageByIndex(idx: number) {
+  public getMesssageByIndex(idx: number) {
     if (idx < 0) throw new Error("Message index must be >= 0");
 
     return new MessageRuntime(
