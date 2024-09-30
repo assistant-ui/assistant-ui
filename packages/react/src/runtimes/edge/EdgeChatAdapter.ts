@@ -56,7 +56,7 @@ export class EdgeChatAdapter implements ChatModelAdapter {
       signal: abortSignal,
     });
 
-    if (result.status !== 200) {
+    if (!result.ok) {
       throw new Error(`Status ${result.status}: ${await result.text()}`);
     }
 
