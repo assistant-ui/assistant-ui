@@ -1,4 +1,4 @@
-import plugin from "tailwindcss/plugin";
+import plugin from "tailwindcss/plugin.js";
 
 const auiPlugin = plugin.withOptions<{}>(() => ({ addComponents }) => {
   addComponents({
