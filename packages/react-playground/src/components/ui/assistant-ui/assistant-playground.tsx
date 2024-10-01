@@ -5,7 +5,6 @@ import { Tool, useAssistantRuntime } from "@assistant-ui/react";
 import { PayloadEditorButton } from "../../payload-editor-button";
 import { Thread } from "./thread";
 import { Button } from "../button";
-
 import {
   Dialog,
   DialogContent,

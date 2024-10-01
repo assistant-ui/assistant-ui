@@ -6,9 +6,9 @@ import {
   MessagePrimitive,
   ThreadPrimitive,
   useComposer,
-  useComposerStore,
+  useComposerRuntime,
   useMessage,
-  useMessageStore,
+  useMessageRuntime,
   useThread,
   useThreadRuntime,
 } from "@assistant-ui/react";
@@ -107,11 +107,10 @@ const Composer: FC = () => {
   const hasText = useComposer((c) => c.text.length > 0);
 
   const threadRuntime = useThreadRuntime();
-  const composerStore = useComposerStore();
+  const composerRuntime = useComposerRuntime();
 
   const performAdd = () => {
-    const composer = composerStore.getState();
-    composer.send();
+    composerRuntime.send();
 
     setRole("user");
   };
@@ -183,7 +182,7 @@ const Composer: FC = () => {
 };
 
 const AddToolCallButton = () => {
-  const messageStore = useMessageStore();
+  const messageRuntime = useMessageRuntime();
   const runtime = usePlaygroundRuntime();
   const toolNames = runtime.useModelConfig((c) => Object.keys(c.tools ?? {}));
   return (
@@ -204,7 +203,7 @@ const AddToolCallButton = () => {
             className="gap-2"
             onClick={() => {
               runtime.addTool({
-                messageId: messageStore.getState().id,
+                messageId: messageRuntime.getState().id,
                 toolName,
               });
             }}
@@ -220,14 +219,14 @@ const AddToolCallButton = () => {
 
 const AddImageButton = () => {
   const runtime = usePlaygroundRuntime();
-  const messageStore = useMessageStore();
+  const messageRuntime = useMessageRuntime();
 
   const [isOpen, setIsOpen] = useState(false);
   const [imageUrl, setImageUrl] = useState("");
   const handleAddImage = () => {
     runtime.addImage({
       image: new URL(imageUrl).href,
-      messageId: messageStore.getState().id,
+      messageId: messageRuntime.getState().id,
     });
     setIsOpen(false);
   };
@@ -262,17 +261,17 @@ const AddImageButton = () => {
 
 const Message: FC = () => {
   const runtime = usePlaygroundRuntime();
-  const messageStore = useMessageStore();
+  const messageRuntime = useMessageRuntime();
   const role = useMessage((m) => m.role);
   const status = useMessage((m) => (m.role === "assistant" ? m.status : null));
 
   const handleDelete = () => {
-    runtime.deleteMessage(messageStore.getState().id);
+    runtime.deleteMessage(messageRuntime.getState().id);
   };
 
   const setRole = (role: "system" | "assistant" | "user") => {
     runtime.setRole({
-      messageId: messageStore.getState().id,
+      messageId: messageRuntime.getState().id,
       role,
     });
   };
