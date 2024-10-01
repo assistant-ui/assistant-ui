@@ -138,11 +138,6 @@ export type AppendMessage = CoreMessage & {
 };
 
 type BaseThreadMessage = {
-  role: "user" | "system" | "assistant";
-  content:
-    | ThreadUserMessage["content"]
-    | ThreadSystemMessage["content"]
-    | ThreadAssistantMessage["content"];
   status?: ThreadAssistantMessage["status"];
   metadata?: ThreadAssistantMessage["metadata"];
   attachments?: ThreadUserMessage["attachments"];
