@@ -108,17 +108,12 @@ export type MessageStatus =
 export type ThreadSystemMessage = MessageCommonProps & {
   role: "system";
   content: [TextContentPart];
-  status?: undefined;
-  attachments?: undefined;
-  metadata?: undefined;
 };
 
 export type ThreadUserMessage = MessageCommonProps & {
   role: "user";
   content: ThreadUserContentPart[];
   attachments: readonly CompleteAttachment[];
-  status?: undefined;
-  metadata?: undefined;
   // TODO metadata
 };
 
@@ -126,7 +121,6 @@ export type ThreadAssistantMessage = MessageCommonProps & {
   role: "assistant";
   content: ThreadAssistantContentPart[];
   status: MessageStatus;
-  attachments?: undefined;
   /**
    * @deprecated Use `metadata.roundtrips` instead.
    */
@@ -143,10 +137,19 @@ export type AppendMessage = CoreMessage & {
   attachments?: readonly CompleteAttachment[] | undefined;
 };
 
-export type ThreadMessage =
-  | ThreadSystemMessage
-  | ThreadUserMessage
-  | ThreadAssistantMessage;
+type BaseThreadMessage = {
+  role: "user" | "system" | "assistant";
+  content:
+    | ThreadUserMessage["content"]
+    | ThreadSystemMessage["content"]
+    | ThreadAssistantMessage["content"];
+  status?: ThreadAssistantMessage["status"];
+  metadata?: ThreadAssistantMessage["metadata"];
+  attachments?: ThreadUserMessage["attachments"];
+};
+
+export type ThreadMessage = BaseThreadMessage &
+  (ThreadSystemMessage | ThreadUserMessage | ThreadAssistantMessage);
 
 /** Core Message Types (without UI content parts) */
 
