@@ -88,6 +88,11 @@ export class ExternalStoreThreadRuntimeCore implements ThreadRuntimeCore {
     this.store = store;
   }
 
+  private _extras: unknown;
+  public get extras() {
+    return this._extras;
+  }
+
   public get store() {
     return this._store;
   }
@@ -101,6 +106,7 @@ export class ExternalStoreThreadRuntimeCore implements ThreadRuntimeCore {
 
     const oldStore = this._store as ExternalStoreAdapter<any> | undefined;
     this._store = store;
+    this._extras = store.extras;
     this._capabilities = {
       switchToBranch: this._store.setMessages !== undefined,
       edit: this._store.onEdit !== undefined,

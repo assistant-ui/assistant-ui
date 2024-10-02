@@ -10,7 +10,7 @@ import {
 import { ContentPartStatus, TextContentPart } from "../../types/AssistantTypes";
 import { writableStore } from "../ReadonlyStore";
 import {
-  ContentPartRuntime,
+  ContentPartRuntimeImpl,
   ContentPartState,
 } from "../../api/ContentPartRuntime";
 
@@ -33,7 +33,7 @@ export const TextContentPartProvider: FC<
   const [context] = useState<ContentPartContextValue>(() => {
     const useContentPartRuntime = create(
       // TODO
-      () => new ContentPartRuntime(null as any, null as any, null as any),
+      () => new ContentPartRuntimeImpl(null as any, null as any, null as any),
     );
     const useContentPart = create<ContentPartState>(() => ({
       status: isRunning ? RUNNING_STATUS : COMPLETE_STATUS,

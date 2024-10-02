@@ -7,6 +7,7 @@ import {
 import { ThreadRuntimeCoreBinding } from "./ThreadRuntime";
 import { MessageStateBinding } from "./MessageRuntime";
 import { SubscribableWithState } from "./subscribable/Subscribable";
+import { Unsubscribe } from "../types";
 
 export type ContentPartState = (
   | ThreadUserContentPart
@@ -21,7 +22,13 @@ export type ContentPartState = (
 
 type ContentPartSnapshotBinding = SubscribableWithState<ContentPartState>;
 
-export class ContentPartRuntime {
+export type ContentPartRuntime = {
+  getState(): ContentPartState;
+  addToolResult(result: any): void;
+  subscribe(callback: () => void): Unsubscribe;
+};
+
+export class ContentPartRuntimeImpl implements ContentPartRuntime {
   constructor(
     private contentBinding: ContentPartSnapshotBinding,
     private messageApi: MessageStateBinding,

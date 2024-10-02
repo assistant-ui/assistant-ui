@@ -2,10 +2,31 @@ import { AssistantRuntimeCore } from "../runtimes/core/AssistantRuntimeCore";
 import { NestedSubscriptionSubject } from "./subscribable/NestedSubscriptionSubject";
 import { ModelConfigProvider } from "../types/ModelConfigTypes";
 import { ThreadRuntime, ThreadRuntimeCoreBinding } from "./ThreadRuntime";
+import { Unsubscribe } from "../types";
 
-export class AssistantRuntime<
-  TThreadRuntime extends ThreadRuntime = ThreadRuntime,
-> implements AssistantRuntimeCore
+export type AssistantRuntime = {
+  thread: ThreadRuntime;
+
+  switchToNewThread(): void;
+
+  switchToThread(threadId: string): void;
+  /**
+   * @deprecated Use `switchToNewThread` instead. This will be removed in 0.6.0.
+   */
+  switchToThread(threadId: string | null): void;
+
+  registerModelConfigProvider(provider: ModelConfigProvider): Unsubscribe;
+
+  /**
+   * @deprecated Thread is now static and never gets updated. This will be removed in 0.6.0.
+   */
+  subscribe(callback: () => void): Unsubscribe;
+};
+
+export class AssistantRuntimeImpl<
+    TThreadRuntime extends ThreadRuntime = ThreadRuntime,
+  >
+  implements AssistantRuntimeCore, AssistantRuntime
 {
   constructor(
     private _core: AssistantRuntimeCore,

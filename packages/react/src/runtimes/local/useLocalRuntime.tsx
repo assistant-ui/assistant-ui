@@ -4,12 +4,12 @@ import { useInsertionEffect, useMemo, useState } from "react";
 import type { ChatModelAdapter } from "./ChatModelAdapter";
 import { LocalRuntimeCore } from "./LocalRuntimeCore";
 import { LocalRuntimeOptions } from "./LocalRuntimeOptions";
-import { AssistantRuntime } from "../../api/AssistantRuntime";
-import { ThreadRuntime } from "../../api/ThreadRuntime";
+import { AssistantRuntimeImpl } from "../../api/AssistantRuntime";
+import { ThreadRuntimeImpl } from "../../api/ThreadRuntime";
 
-export class LocalRuntime extends AssistantRuntime {
+export class LocalRuntime extends AssistantRuntimeImpl {
   constructor(private core: LocalRuntimeCore) {
-    super(core, ThreadRuntime);
+    super(core, ThreadRuntimeImpl);
   }
 
   public reset(options?: Parameters<LocalRuntimeCore["reset"]>[0]) {

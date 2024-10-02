@@ -1,15 +1,28 @@
+import { SpeechSynthesisAdapter } from "../runtimes";
 import {
   ThreadMessage,
   ThreadAssistantContentPart,
   ThreadUserContentPart,
+  Unsubscribe,
 } from "../types";
 import {
   ContentPartStatus,
   ToolCallContentPartStatus,
 } from "../types/AssistantTypes";
-import { AttachmentState, MessageAttachmentRuntime } from "./AttachmentRuntime";
-import { EditComposerRuntime } from "./ComposerRuntime";
-import { ContentPartRuntime, ContentPartState } from "./ContentPartRuntime";
+import {
+  AttachmentRuntime,
+  AttachmentState,
+  MessageAttachmentRuntimeImpl,
+} from "./AttachmentRuntime";
+import {
+  EditComposerRuntime,
+  EditComposerRuntimeImpl,
+} from "./ComposerRuntime";
+import {
+  ContentPartRuntime,
+  ContentPartRuntimeImpl,
+  ContentPartState,
+} from "./ContentPartRuntime";
 import { ThreadRuntimeCoreBinding } from "./ThreadRuntime";
 import { NestedSubscriptionSubject } from "./subscribable/NestedSubscriptionSubject";
 import { SKIP_UPDATE } from "./subscribable/SKIP_UPDATE";
@@ -94,13 +107,34 @@ export type MessageState = ThreadMessage & {
 
 export type MessageStateBinding = SubscribableWithState<MessageState>;
 
-export class MessageRuntime {
+export type MessageRuntime = {
+  composer: EditComposerRuntime;
+
+  getState(): MessageState;
+  reload(): void;
+  speak(): SpeechSynthesisAdapter.Utterance;
+  submitFeedback({ type }: { type: "positive" | "negative" }): void;
+  switchToBranch({
+    position,
+    branchId,
+  }: {
+    position?: "previous" | "next" | undefined;
+    branchId?: string | undefined;
+  }): void;
+
+  subscribe(callback: () => void): Unsubscribe;
+
+  getContentPartByIndex(idx: number): ContentPartRuntime;
+  getAttachmentByIndex(idx: number): AttachmentRuntime & { source: "message" };
+};
+
+export class MessageRuntimeImpl implements MessageRuntime {
   constructor(
     private _core: MessageStateBinding,
     private _threadBinding: ThreadRuntimeCoreBinding,
   ) {}
 
-  public composer = new EditComposerRuntime(
+  public composer = new EditComposerRuntimeImpl(
     new NestedSubscriptionSubject({
       getState: () =>
         this._threadBinding
@@ -176,7 +210,7 @@ export class MessageRuntime {
 
   public getContentPartByIndex(idx: number) {
     if (idx < 0) throw new Error("Message index must be >= 0");
-    return new ContentPartRuntime(
+    return new ContentPartRuntimeImpl(
       new ShallowMemoizeSubject({
         getState: () => {
           return getContentPartState(this.getState(), idx);
@@ -189,7 +223,7 @@ export class MessageRuntime {
   }
 
   public getAttachmentByIndex(idx: number) {
-    return new MessageAttachmentRuntime(
+    return new MessageAttachmentRuntimeImpl(
       new ShallowMemoizeSubject({
         getState: () => {
           const attachments = this.getState().attachments;

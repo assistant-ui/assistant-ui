@@ -42,6 +42,7 @@ type ExternalStoreAdapterBase<T> = {
         copy?: boolean | undefined;
       }
     | undefined;
+  extras?: unknown;
 };
 
 export type ExternalStoreAdapter<T = ThreadMessage> =

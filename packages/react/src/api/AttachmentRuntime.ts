@@ -1,7 +1,12 @@
 import { SubscribableWithState } from "./subscribable/Subscribable";
 
 import { ComposerRuntimeCoreBinding } from "./ComposerRuntime";
-import { Attachment, CompleteAttachment, PendingAttachment } from "../types";
+import {
+  Attachment,
+  CompleteAttachment,
+  PendingAttachment,
+  Unsubscribe,
+} from "../types";
 
 type MessageAttachmentState = CompleteAttachment & {
   source: "message";
@@ -37,9 +42,19 @@ type AttachmentSnapshotBinding<Source extends AttachmentRuntimeSource> =
 
 type AttachmentRuntimeSource = AttachmentState["source"];
 
-export abstract class AttachmentRuntime<
+export type AttachmentRuntime<
+  TSource extends AttachmentRuntimeSource = AttachmentRuntimeSource,
+> = {
+  readonly source: TSource;
+  getState(): AttachmentState & { source: TSource };
+  remove(): Promise<void>;
+  subscribe(callback: () => void): Unsubscribe;
+};
+
+export abstract class AttachmentRuntimeImpl<
   Source extends AttachmentRuntimeSource = AttachmentRuntimeSource,
-> {
+> implements AttachmentRuntime
+{
   public abstract get source(): Source;
 
   constructor(private _core: AttachmentSnapshotBinding<Source>) {}
@@ -57,7 +72,7 @@ export abstract class AttachmentRuntime<
 
 abstract class ComposerAttachmentRuntime<
   Source extends "thread-composer" | "edit-composer",
-> extends AttachmentRuntime<Source> {
+> extends AttachmentRuntimeImpl<Source> {
   constructor(
     core: AttachmentSnapshotBinding<Source>,
     private _composerApi: ComposerRuntimeCoreBinding,
@@ -72,19 +87,19 @@ abstract class ComposerAttachmentRuntime<
   }
 }
 
-export class ThreadComposerAttachmentRuntime extends ComposerAttachmentRuntime<"thread-composer"> {
+export class ThreadComposerAttachmentRuntimeImpl extends ComposerAttachmentRuntime<"thread-composer"> {
   public get source(): "thread-composer" {
     return "thread-composer";
   }
 }
 
-export class EditComposerAttachmentRuntime extends ComposerAttachmentRuntime<"edit-composer"> {
+export class EditComposerAttachmentRuntimeImpl extends ComposerAttachmentRuntime<"edit-composer"> {
   public get source(): "edit-composer" {
     return "edit-composer";
   }
 }
 
-export class MessageAttachmentRuntime extends AttachmentRuntime<"message"> {
+export class MessageAttachmentRuntimeImpl extends AttachmentRuntimeImpl<"message"> {
   public get source(): "message" {
     return "message";
   }

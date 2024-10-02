@@ -7,5 +7,6 @@ export type {
   ThreadComposerRuntime,
   EditComposerRuntime,
   EditComposerState,
+  ThreadComposerState,
   ComposerState,
 } from "./ComposerRuntime";

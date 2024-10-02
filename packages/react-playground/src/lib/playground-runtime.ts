@@ -31,8 +31,8 @@ const {
   ProxyConfigProvider,
   generateId,
   DefaultThreadComposerRuntimeCore,
-  AssistantRuntime,
-  ThreadRuntime,
+  AssistantRuntimeImpl,
+  ThreadRuntimeImpl,
 } = INTERNAL;
 
 const makeModelConfigStore = () =>
@@ -108,6 +108,7 @@ export class PlaygroundThreadRuntimeCore implements INTERNAL.ThreadRuntimeCore {
   public readonly threadId = generateId();
   public readonly isDisabled = false;
   public readonly capabilities = CAPABILITIES;
+  public readonly extras = undefined;
 
   private configProvider = new ProxyConfigProvider();
 
@@ -504,7 +505,7 @@ export class PlaygroundThreadRuntimeCore implements INTERNAL.ThreadRuntimeCore {
   }
 }
 
-class PlaygroundThreadRuntime extends ThreadRuntime {
+class PlaygroundThreadRuntime extends ThreadRuntimeImpl {
   constructor(private binding: INTERNAL.ThreadRuntimeCoreBinding) {
     super(binding);
   }
@@ -532,7 +533,7 @@ export const usePlaygroundRuntime = ({
   );
 
   return useMemo(
-    () => new AssistantRuntime(runtime, PlaygroundThreadRuntime),
+    () => new AssistantRuntimeImpl(runtime, PlaygroundThreadRuntime),
     [runtime],
   );
 };

@@ -5,9 +5,9 @@ export { MessageRepository } from "./runtimes/utils/MessageRepository";
 export { BaseAssistantRuntimeCore } from "./runtimes/core/BaseAssistantRuntimeCore";
 export { TooltipIconButton } from "./ui/base/tooltip-icon-button";
 export { generateId } from "./utils/idUtils";
-export { AssistantRuntime } from "./api/AssistantRuntime";
+export { AssistantRuntimeImpl } from "./api/AssistantRuntime";
 export {
-  ThreadRuntime,
+  ThreadRuntimeImpl,
   type ThreadRuntimeCoreBinding,
 } from "./api/ThreadRuntime";
 

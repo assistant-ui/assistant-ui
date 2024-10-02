@@ -5,14 +5,28 @@ import {
   ThreadRuntimeCore,
 } from "../runtimes/core/ThreadRuntimeCore";
 import { ExportedMessageRepository } from "../runtimes/utils/MessageRepository";
-import { AppendMessage, ThreadMessage } from "../types";
-import { MessageRuntime, MessageState } from "./MessageRuntime";
+import {
+  AppendMessage,
+  ModelConfig,
+  ThreadMessage,
+  Unsubscribe,
+} from "../types";
+import {
+  MessageRuntime,
+  MessageRuntimeImpl,
+  MessageState,
+} from "./MessageRuntime";
 import { NestedSubscriptionSubject } from "./subscribable/NestedSubscriptionSubject";
 import { ShallowMemoizeSubject } from "./subscribable/ShallowMemoizeSubject";
 import { SubscribableWithState } from "./subscribable/Subscribable";
-import { ThreadComposerRuntime } from "./ComposerRuntime";
+import {
+  ThreadComposerRuntime,
+  ThreadComposerRuntimeImpl,
+} from "./ComposerRuntime";
 import { LazyMemoizeSubject } from "./subscribable/LazyMemoizeSubject";
 import { SKIP_UPDATE } from "./subscribable/SKIP_UPDATE";
+import { SpeechSynthesisAdapter } from "../runtimes/speech/SpeechAdapterTypes";
+import { ComposerRuntimeCore } from "../runtimes/core/ComposerRuntimeCore";
 
 export type CreateAppendMessage =
   | string
@@ -56,6 +70,7 @@ export type ThreadState = Readonly<{
   isRunning: boolean;
   capabilities: RuntimeCapabilities;
   messages: readonly ThreadMessage[];
+  extras: unknown;
 }>;
 
 export const getThreadState = (runtime: ThreadRuntimeCore): ThreadState => {
@@ -69,10 +84,96 @@ export const getThreadState = (runtime: ThreadRuntimeCore): ThreadState => {
         ? false
         : lastMessage.status.type === "running",
     messages: runtime.messages,
+    extras: runtime.extras,
   });
 };
+export type ThreadRuntime = ThreadRuntimeCore & {
+  composer: ThreadComposerRuntime;
+  getState(): ThreadState;
 
-export class ThreadRuntime implements ThreadRuntimeCore {
+  /**
+   * @deprecated This method will be removed in 0.6.0. Submit feedback if you need this functionality.
+   */
+  unstable_getCore(): ThreadRuntimeCore;
+
+  append(message: CreateAppendMessage): void;
+  startRun(parentId: string | null): void;
+  subscribe(callback: () => void): Unsubscribe;
+  cancelRun(): void;
+  getModelConfig(): ModelConfig;
+  export(): ExportedMessageRepository;
+  import(repository: ExportedMessageRepository): void;
+  getMesssageByIndex(idx: number): MessageRuntime;
+
+  // Legacy methods with deprecations
+
+  /**
+   * @deprecated Use `getState().capabilities` instead. This will be removed in 0.6.0.
+   */
+  capabilities: Readonly<RuntimeCapabilities>;
+
+  /**
+   * @deprecated Use `getState().threadId` instead. This will be removed in 0.6.0.
+   */
+  threadId: string;
+
+  /**
+   * @deprecated Use `getState().isDisabled` instead. This will be removed in 0.6.0.
+   */
+  isDisabled: boolean;
+
+  /**
+   * @deprecated Use `getState().isRunning` instead. This will be removed in 0.6.0.
+   */
+  isRunning: boolean;
+
+  /**
+   * @deprecated Use `getState().messages` instead. This will be removed in 0.6.0.
+   */
+  messages: readonly ThreadMessage[];
+
+  /**
+   * @deprecated Use `getState().extras` instead. This will be removed in 0.6.0.
+   */
+  extras: unknown;
+
+  /**
+   * @deprecated Use `getMesssageById(id).getState().branchNumber` / `getMesssageById(id).getState().branchCount` instead. This will be removed in 0.6.0.
+   */
+  getBranches: (messageId: string) => readonly string[];
+
+  /**
+   * @deprecated Use `getMesssageById(id).switchToBranch({ options })` instead. This will be removed in 0.6.0.
+   */
+  switchToBranch: (branchId: string) => void;
+
+  /**
+   * @deprecated Use `getMesssageById(id).getContentPartByToolCallId(toolCallId).addToolResult({ result })` instead. This will be removed in 0.6.0.
+   */
+  addToolResult: (options: AddToolResultOptions) => void;
+
+  /**
+   * @deprecated Use `getMesssageById(id).speak()` instead. This will be removed in 0.6.0.
+   */
+  speak: (messageId: string) => SpeechSynthesisAdapter.Utterance;
+
+  /**
+   * @deprecated Use `getMesssageById(id).submitFeedback({ type })` instead. This will be removed in 0.6.0.
+   */
+  submitFeedback: (feedback: SubmitFeedbackOptions) => void;
+
+  /**
+   * @deprecated Use `getMesssageById(id).getMessageByIndex(idx).composer` instead. This will be removed in 0.6.0.
+   */
+  getEditComposer: (messageId: string) => ComposerRuntimeCore | undefined;
+
+  /**
+   * @deprecated Use `getMesssageById(id).getMessageByIndex(idx).composer.beginEdit()` instead. This will be removed in 0.6.0.
+   */
+  beginEdit: (messageId: string) => void;
+};
+
+export class ThreadRuntimeImpl implements ThreadRuntime {
   // public path = "assistant.threads[main]"; // TODO
 
   /**
@@ -104,6 +205,13 @@ export class ThreadRuntime implements ThreadRuntimeCore {
   }
 
   /**
+   * @deprecated Use `getState().extras` instead. This will be removed in 0.6.0.
+   */
+  public get extras() {
+    return this._threadBinding.getState().extras;
+  }
+
+  /**
    * @deprecated Use `getState().messages` instead. This will be removed in 0.6.0.
    */
   public get messages() {
@@ -130,7 +238,7 @@ export class ThreadRuntime implements ThreadRuntimeCore {
     };
   }
 
-  public readonly composer = new ThreadComposerRuntime(
+  public readonly composer = new ThreadComposerRuntimeImpl(
     new NestedSubscriptionSubject({
       getState: () => this._threadBinding.getState().composer,
       subscribe: (callback) => this._threadBinding.subscribe(callback),
@@ -153,9 +261,9 @@ export class ThreadRuntime implements ThreadRuntimeCore {
     return this._threadBinding.subscribe(callback);
   }
 
-  // /**
-  //  * @derprecated Use `getMesssageById(id).getState().branchNumber` / `getMesssageById(id).getState().branchCount` instead. This will be removed in 0.6.0.
-  //  */
+  /**
+   * @derprecated Use `getMesssageById(id).getState().branchNumber` / `getMesssageById(id).getState().branchCount` instead. This will be removed in 0.6.0.
+   */
   public getBranches(messageId: string) {
     return this._threadBinding.getState().getBranches(messageId);
   }
@@ -169,19 +277,20 @@ export class ThreadRuntime implements ThreadRuntimeCore {
     return this._threadBinding.getState().startRun(parentId);
   }
 
-  // TODO
   public cancelRun() {
     this._threadBinding.getState().cancelRun();
   }
 
-  // /**
-  //  * @deprecated Use `getMesssageById(id).getContentPartByToolCallId(toolCallId).addToolResult({ result })` instead. This will be removed in 0.6.0.
-  //  */
+  /**
+   * @deprecated Use `getMesssageById(id).getContentPartByToolCallId(toolCallId).addToolResult({ result })` instead. This will be removed in 0.6.0.
+   */
   public addToolResult(options: AddToolResultOptions) {
     this._threadBinding.getState().addToolResult(options);
   }
 
-  // TODO
+  /**
+   * @deprecated Use `getMesssageById(id).switchToBranch({ options })` instead. This will be removed in 0.6.0.
+   */
   public switchToBranch(branchId: string) {
     return this._threadBinding.getState().switchToBranch(branchId);
   }
@@ -225,7 +334,7 @@ export class ThreadRuntime implements ThreadRuntimeCore {
   public getMesssageByIndex(idx: number) {
     if (idx < 0) throw new Error("Message index must be >= 0");
 
-    return new MessageRuntime(
+    return new MessageRuntimeImpl(
       new ShallowMemoizeSubject({
         getState: () => {
           const messages = this.getState().messages;

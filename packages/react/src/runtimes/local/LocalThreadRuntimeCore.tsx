@@ -75,6 +75,10 @@ export class LocalThreadRuntimeCore implements ThreadRuntimeCore {
     return this._options;
   }
 
+  public get extras() {
+    return undefined;
+  }
+
   public set options({ initialMessages, ...options }: LocalRuntimeOptions) {
     this._options = options;
 

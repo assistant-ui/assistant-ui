@@ -54,6 +54,7 @@ export type ThreadRuntimeCore = Readonly<{
   threadId: string;
   isDisabled: boolean;
   messages: readonly ThreadMessage[];
+  extras: unknown;
 
   subscribe: (callback: () => void) => Unsubscribe;
 
