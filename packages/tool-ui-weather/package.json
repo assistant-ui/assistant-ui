@@ -39,7 +39,7 @@
     "@assistant-ui/tsconfig": "workspace:*",
     "@types/node": "^22.7.4",
     "eslint": "^8",
-    "eslint-config-next": "14.2.13",
+    "eslint-config-next": "14.2.14",
     "tsup": "8.3.0",
     "tsx": "^4.19.1"
   },
