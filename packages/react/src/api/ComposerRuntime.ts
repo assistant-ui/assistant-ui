@@ -67,9 +67,9 @@ type LegacyThreadComposerState = Readonly<{
   attachments: readonly Attachment[];
 
   /** @deprecated Use `useComposerRuntime().addAttachment` instead. This will be removed in 0.6.0. */
-  addAttachment: (file: File) => void;
+  addAttachment: (file: File) => Promise<void>;
   /** @deprecated Use `useComposerRuntime().removeAttachment` instead. This will be removed in 0.6.0. */
-  removeAttachment: (attachmentId: string) => void;
+  removeAttachment: (attachmentId: string) => Promise<void>;
 
   text: string;
   /** @deprecated Use `useComposerRuntime().setText` instead. This will be removed in 0.6.0. */
@@ -205,10 +205,10 @@ export type ComposerRuntime = {
 
   setText(text: string): void;
   setValue(text: string): void;
-  addAttachment(file: File): void;
+  addAttachment(file: File): Promise<void>;
 
   /** @deprecated Use `getAttachmentById(id).removeAttachment()` instead. This will be removed in 0.6.0. */
-  removeAttachment(attachmentId: string): void;
+  removeAttachment(attachmentId: string): Promise<void>;
 
   /** @deprecated This method will be removed in 0.6.0. Submit feedback if you need this functionality. */
   reset(): void;
@@ -337,6 +337,11 @@ export type ThreadComposerRuntime = Omit<
   readonly type: "thread";
   getState(): ThreadComposerState;
 
+  /**
+   * @deprecated Use `getState().attachments` instead. This will be removed in 0.6.0.
+   */
+  attachments: readonly PendingAttachment[];
+
   /** @deprecated This feature is being removed in 0.6.0. Submit feedback if you need it. */
   focus(): void;
 
@@ -427,6 +432,7 @@ export type EditComposerRuntime = Omit<
   "getState" | "getAttachmentByIndex"
 > & {
   readonly type: "edit";
+
   getState(): EditComposerState;
   beginEdit(): void;
 
