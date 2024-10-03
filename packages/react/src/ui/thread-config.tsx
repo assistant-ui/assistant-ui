@@ -163,6 +163,10 @@ export type ThreadConfig = {
   strings?: StringsConfig;
 
   tools?: AssistantToolUI[]; // TODO add AssistantTool support
+
+  components?: {
+    Composer: ComponentType;
+  };
 };
 
 export const useThreadConfig = (): Omit<ThreadConfig, "runtime"> => {

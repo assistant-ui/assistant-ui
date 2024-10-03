@@ -23,6 +23,8 @@ import { ThreadPrimitive, ThreadPrimitiveRootProps } from "../primitives";
 import { useThread } from "../context";
 
 const Thread: FC<ThreadConfig> = (config) => {
+  const { components: { Composer: ComposerComponent = Composer } = {} } =
+    config;
   return (
     <ThreadRoot config={config}>
       <ThreadViewport>
@@ -31,7 +33,7 @@ const Thread: FC<ThreadConfig> = (config) => {
         <ThreadFollowupSuggestions />
         <ThreadViewportFooter>
           <ThreadScrollToBottom />
-          <Composer />
+          <ComposerComponent />
         </ThreadViewportFooter>
       </ThreadViewport>
     </ThreadRoot>
@@ -103,24 +105,24 @@ const ThreadMessages: FC<{
 ThreadMessages.displayName = "ThreadMessages";
 
 const ThreadFollowupSuggestions: FC = () => {
-  const suggestions = useThread((t) =>
-    t.messages.length === 0 ? undefined : t.suggestions,
-  );
+  const suggestions = useThread((t) => t.suggestions);
 
   return (
-    <div className="aui-thread-followup-suggestions">
-      {suggestions?.map((suggestion, idx) => (
-        <ThreadPrimitive.Suggestion
-          key={idx}
-          className="aui-thread-followup-suggestion"
-          prompt={suggestion.prompt}
-          method="replace"
-          autoSend
-        >
-          {suggestion.prompt}
-        </ThreadPrimitive.Suggestion>
-      ))}
-    </div>
+    <ThreadPrimitive.If empty={false}>
+      <div className="aui-thread-followup-suggestions">
+        {suggestions?.map((suggestion, idx) => (
+          <ThreadPrimitive.Suggestion
+            key={idx}
+            className="aui-thread-followup-suggestion"
+            prompt={suggestion.prompt}
+            method="replace"
+            autoSend
+          >
+            {suggestion.prompt}
+          </ThreadPrimitive.Suggestion>
+        ))}
+      </div>
+    </ThreadPrimitive.If>
   );
 };
 
