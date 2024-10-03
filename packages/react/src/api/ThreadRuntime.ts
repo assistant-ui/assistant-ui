@@ -1,5 +1,6 @@
 import {
   AddToolResultOptions,
+  ThreadSuggestion,
   RuntimeCapabilities,
   SubmitFeedbackOptions,
   ThreadRuntimeCore,
@@ -70,6 +71,7 @@ export type ThreadState = Readonly<{
   isRunning: boolean;
   capabilities: RuntimeCapabilities;
   messages: readonly ThreadMessage[];
+  suggestions: readonly ThreadSuggestion[];
   extras: unknown;
 }>;
 
@@ -84,10 +86,11 @@ export const getThreadState = (runtime: ThreadRuntimeCore): ThreadState => {
         ? false
         : lastMessage.status.type === "running",
     messages: runtime.messages,
+    suggestions: runtime.suggestions,
     extras: runtime.extras,
   });
 };
-export type ThreadRuntime = ThreadRuntimeCore & {
+export type ThreadRuntime = {
   composer: ThreadComposerRuntime;
   getState(): ThreadState;
 
@@ -133,6 +136,11 @@ export type ThreadRuntime = ThreadRuntimeCore & {
   messages: readonly ThreadMessage[];
 
   /**
+   * @deprecated Use `getState().followupSuggestions` instead. This will be removed in 0.6.0.
+   */
+  suggestions: readonly ThreadSuggestion[];
+
+  /**
    * @deprecated Use `getState().extras` instead. This will be removed in 0.6.0.
    */
   extras: unknown;
@@ -173,7 +181,7 @@ export type ThreadRuntime = ThreadRuntimeCore & {
   beginEdit: (messageId: string) => void;
 };
 
-export class ThreadRuntimeImpl implements ThreadRuntime {
+export class ThreadRuntimeImpl implements ThreadRuntimeCore, ThreadRuntime {
   // public path = "assistant.threads[main]"; // TODO
 
   /**
@@ -209,6 +217,13 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
    */
   public get extras() {
     return this._threadBinding.getState().extras;
+  }
+
+  /**
+   * @deprecated Use `getState().followupSuggestions` instead. This will be removed in 0.6.0.
+   */
+  public get suggestions() {
+    return this._threadBinding.getState().suggestions;
   }
 
   /**

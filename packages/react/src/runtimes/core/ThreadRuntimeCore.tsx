@@ -30,6 +30,10 @@ export type SubmitFeedbackOptions = {
   type: "negative" | "positive";
 };
 
+export type ThreadSuggestion = {
+  prompt: string;
+};
+
 export type ThreadRuntimeCore = Readonly<{
   getBranches: (messageId: string) => readonly string[];
   switchToBranch: (branchId: string) => void;
@@ -54,6 +58,7 @@ export type ThreadRuntimeCore = Readonly<{
   threadId: string;
   isDisabled: boolean;
   messages: readonly ThreadMessage[];
+  suggestions: readonly ThreadSuggestion[];
   extras: unknown;
 
   subscribe: (callback: () => void) => Unsubscribe;

@@ -9,17 +9,25 @@
 }
 
 .aui-thread-viewport-footer {
-  @apply sticky bottom-0 mt-4 flex w-full max-w-2xl flex-grow flex-col items-center justify-end rounded-t-lg bg-inherit pb-4;
+  @apply sticky bottom-0 mt-3 flex w-full max-w-2xl flex-col items-center justify-end rounded-t-lg bg-inherit pb-4;
 }
 
 .aui-thread-scroll-to-bottom {
   @apply absolute -top-8 rounded-full disabled:invisible;
 }
 
+.aui-thread-followup-suggestions {
+  @apply flex min-h-8 items-center justify-center gap-2;
+}
+
+.aui-thread-followup-suggestion {
+  @apply bg-aui-background hover:bg-aui-muted/80 rounded-full border px-3 py-1 text-sm transition-colors ease-in;
+}
+
 /* thread welcome */
 
 .aui-thread-welcome-root {
-  @apply flex w-full max-w-2xl flex-grow basis-full flex-col;
+  @apply flex w-full max-w-2xl flex-grow flex-col;
 }
 
 .aui-thread-welcome-center {
@@ -35,7 +43,7 @@
 }
 
 .aui-thread-welcome-suggestion {
-  @apply flex max-w-sm grow basis-0 flex-col items-center justify-center rounded-lg border p-3;
+  @apply hover:bg-aui-muted/80 flex max-w-sm grow basis-0 flex-col items-center justify-center rounded-lg border p-3 transition-colors ease-in;
 }
 
 .aui-thread-welcome-suggestion-text {

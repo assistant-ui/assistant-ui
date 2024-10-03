@@ -1,4 +1,4 @@
-import { AddToolResultOptions } from "../core";
+import { AddToolResultOptions, ThreadSuggestion } from "../core";
 import {
   ExportedMessageRepository,
   MessageRepository,
@@ -26,6 +26,8 @@ import {
   ThreadRuntimeCore,
 } from "../core/ThreadRuntimeCore";
 import { DefaultEditComposerRuntimeCore } from "../composer/DefaultEditComposerRuntimeCore";
+
+const EMPTY_ARRAY = Object.freeze([]);
 
 export const hasUpcomingMessage = (
   isRunning: boolean,
@@ -57,7 +59,11 @@ export class ExternalStoreThreadRuntimeCore implements ThreadRuntimeCore {
   public threadId!: string;
   public messages!: ThreadMessage[];
   public isDisabled!: boolean;
-  public converter = new ThreadMessageConverter();
+
+  public suggestions: readonly ThreadSuggestion[] = [];
+  public extras: unknown = undefined;
+
+  private _converter = new ThreadMessageConverter();
 
   private _store!: ExternalStoreAdapter<any>;
 
@@ -88,11 +94,6 @@ export class ExternalStoreThreadRuntimeCore implements ThreadRuntimeCore {
     this.store = store;
   }
 
-  private _extras: unknown;
-  public get extras() {
-    return this._extras;
-  }
-
   public get store() {
     return this._store;
   }
@@ -106,7 +107,8 @@ export class ExternalStoreThreadRuntimeCore implements ThreadRuntimeCore {
 
     const oldStore = this._store as ExternalStoreAdapter<any> | undefined;
     this._store = store;
-    this._extras = store.extras;
+    this.extras = store.extras;
+    this.suggestions = store.suggestions ?? EMPTY_ARRAY;
     this._capabilities = {
       switchToBranch: this._store.setMessages !== undefined,
       edit: this._store.onEdit !== undefined,
@@ -123,7 +125,7 @@ export class ExternalStoreThreadRuntimeCore implements ThreadRuntimeCore {
     if (oldStore) {
       // flush the converter cache when the convertMessage prop changes
       if (oldStore.convertMessage !== store.convertMessage) {
-        this.converter = new ThreadMessageConverter();
+        this._converter = new ThreadMessageConverter();
       } else if (
         oldStore.isRunning === store.isRunning &&
         oldStore.messages === store.messages
@@ -136,7 +138,7 @@ export class ExternalStoreThreadRuntimeCore implements ThreadRuntimeCore {
 
     const messages = !store.convertMessage
       ? store.messages
-      : this.converter.convertMessages(store.messages, (cache, m, idx) => {
+      : this._converter.convertMessages(store.messages, (cache, m, idx) => {
           if (!store.convertMessage) return m;
 
           const isLast = idx === store.messages.length - 1;

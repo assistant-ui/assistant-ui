@@ -17,6 +17,7 @@ import { LocalRuntimeOptions } from "./LocalRuntimeOptions";
 import { SpeechSynthesisAdapter } from "../speech";
 import {
   AddToolResultOptions,
+  ThreadSuggestion,
   SubmitFeedbackOptions,
   ThreadRuntimeCore,
 } from "../core/ThreadRuntimeCore";
@@ -41,6 +42,7 @@ export class LocalThreadRuntimeCore implements ThreadRuntimeCore {
 
   public readonly threadId: string;
   public readonly isDisabled = false;
+  public readonly suggestions: readonly ThreadSuggestion[] = [];
 
   public get messages() {
     return this.repository.getMessages();

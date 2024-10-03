@@ -21,6 +21,7 @@ import {
   CoreMessage,
   fromCoreMessage,
   INTERNAL,
+  ThreadSuggestion,
 } from "@assistant-ui/react";
 import { LanguageModelV1FunctionTool } from "@ai-sdk/provider";
 import { useMemo, useState } from "react";
@@ -109,6 +110,7 @@ export class PlaygroundThreadRuntimeCore implements INTERNAL.ThreadRuntimeCore {
   public readonly isDisabled = false;
   public readonly capabilities = CAPABILITIES;
   public readonly extras = undefined;
+  public readonly suggestions: readonly ThreadSuggestion[] = [];
 
   private configProvider = new ProxyConfigProvider();
 

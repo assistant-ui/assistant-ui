@@ -1,6 +1,6 @@
 import { AppendMessage, ThreadMessage } from "../../types";
 import { AttachmentAdapter } from "../attachment";
-import { AddToolResultOptions } from "../core";
+import { AddToolResultOptions, ThreadSuggestion } from "../core";
 import { FeedbackAdapter } from "../feedback/FeedbackAdapter";
 import { SpeechSynthesisAdapter } from "../speech/SpeechAdapterTypes";
 import { ThreadMessageLike } from "./ThreadMessageLike";
@@ -19,6 +19,9 @@ type ExternalStoreAdapterBase<T> = {
   isDisabled?: boolean | undefined;
   isRunning?: boolean | undefined;
   messages: T[];
+  suggestions?: readonly ThreadSuggestion[] | undefined;
+  extras?: unknown;
+
   setMessages?: ((messages: T[]) => void) | undefined;
   onNew: (message: AppendMessage) => Promise<void>;
   onEdit?: ((message: AppendMessage) => Promise<void>) | undefined;
@@ -42,7 +45,6 @@ type ExternalStoreAdapterBase<T> = {
         copy?: boolean | undefined;
       }
     | undefined;
-  extras?: unknown;
 };
 
 export type ExternalStoreAdapter<T = ThreadMessage> =

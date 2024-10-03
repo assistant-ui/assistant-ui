@@ -20,6 +20,7 @@ import {
   useThreadConfig,
 } from "./thread-config";
 import { ThreadPrimitive, ThreadPrimitiveRootProps } from "../primitives";
+import { useThread } from "../context";
 
 const Thread: FC<ThreadConfig> = (config) => {
   return (
@@ -27,6 +28,7 @@ const Thread: FC<ThreadConfig> = (config) => {
       <ThreadViewport>
         <ThreadWelcome />
         <ThreadMessages />
+        <ThreadFollowupSuggestions />
         <ThreadViewportFooter>
           <ThreadScrollToBottom />
           <Composer />
@@ -70,27 +72,57 @@ ThreadViewportFooter.displayName = "ThreadViewportFooter";
 const SystemMessage = () => null;
 
 const ThreadMessages: FC<{
+  unstable_flexGrowDiv?: boolean;
   components?: {
     UserMessage?: ComponentType | undefined;
     EditComposer?: ComponentType | undefined;
     AssistantMessage?: ComponentType | undefined;
     SystemMessage?: ComponentType | undefined;
   };
-}> = ({ components, ...rest }) => {
+}> = ({ components, unstable_flexGrowDiv: flexGrowDiv = true, ...rest }) => {
   return (
-    <ThreadPrimitive.Messages
-      components={{
-        UserMessage: components?.UserMessage ?? UserMessage,
-        EditComposer: components?.EditComposer ?? EditComposer,
-        AssistantMessage: components?.AssistantMessage ?? AssistantMessage,
-        SystemMessage: components?.SystemMessage ?? SystemMessage,
-      }}
-      {...rest}
-    />
+    <>
+      <ThreadPrimitive.Messages
+        components={{
+          UserMessage: components?.UserMessage ?? UserMessage,
+          EditComposer: components?.EditComposer ?? EditComposer,
+          AssistantMessage: components?.AssistantMessage ?? AssistantMessage,
+          SystemMessage: components?.SystemMessage ?? SystemMessage,
+        }}
+        {...rest}
+      />
+      {flexGrowDiv && (
+        <ThreadPrimitive.If empty={false}>
+          <div style={{ flexGrow: 1 }} />
+        </ThreadPrimitive.If>
+      )}
+    </>
   );
 };
 
 ThreadMessages.displayName = "ThreadMessages";
+
+const ThreadFollowupSuggestions: FC = () => {
+  const suggestions = useThread((t) =>
+    t.messages.length === 0 ? undefined : t.suggestions,
+  );
+
+  return (
+    <div className="aui-thread-followup-suggestions">
+      {suggestions?.map((suggestion, idx) => (
+        <ThreadPrimitive.Suggestion
+          key={idx}
+          className="aui-thread-followup-suggestion"
+          prompt={suggestion.prompt}
+          method="replace"
+          autoSend
+        >
+          {suggestion.prompt}
+        </ThreadPrimitive.Suggestion>
+      ))}
+    </div>
+  );
+};
 
 const ThreadScrollToBottomIconButton = withDefaults(TooltipIconButton, {
   variant: "outline",
@@ -121,6 +153,7 @@ const exports = {
   Root: ThreadRoot,
   Viewport: ThreadViewport,
   Messages: ThreadMessages,
+  FollowupSuggestions: ThreadFollowupSuggestions,
   ScrollToBottom: ThreadScrollToBottom,
   ViewportFooter: ThreadViewportFooter,
 };

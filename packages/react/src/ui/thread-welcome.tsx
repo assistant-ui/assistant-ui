@@ -5,6 +5,7 @@ import { withDefaults } from "./utils/withDefaults";
 import { Avatar } from "./base/avatar";
 import { SuggestionConfig, useThreadConfig } from "./thread-config";
 import { ThreadPrimitive } from "../primitives";
+import { useThread } from "../context";
 
 const ThreadWelcome: FC = () => {
   return (
@@ -87,21 +88,23 @@ const ThreadWelcomeSuggestion: FC<ThreadWelcomeSuggestionProps> = ({
   suggestion: { text, prompt },
 }) => {
   return (
-    <ThreadWelcomeSuggestionStyled
-      prompt={prompt}
-      method="replace"
-      autoSend
-    >
-      <span className="aui-thread-welcome-suggestion-text">{text ?? prompt}</span>
+    <ThreadWelcomeSuggestionStyled prompt={prompt} method="replace" autoSend>
+      <span className="aui-thread-welcome-suggestion-text">
+        {text ?? prompt}
+      </span>
     </ThreadWelcomeSuggestionStyled>
   );
 };
 
 const ThreadWelcomeSuggestions: FC = () => {
+  const suggestions2 = useThread((t) => t.suggestions);
   const { welcome: { suggestions } = {} } = useThreadConfig();
+
+  const finalSuggestions = suggestions2.length ? suggestions2 : suggestions;
+
   return (
     <ThreadWelcomeSuggestionContainer>
-      {suggestions?.map((suggestion, idx) => {
+      {finalSuggestions?.map((suggestion, idx) => {
         const key = `${suggestion.prompt}-${idx}`;
         return <ThreadWelcomeSuggestion key={key} suggestion={suggestion} />;
       })}

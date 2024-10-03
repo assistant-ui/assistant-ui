@@ -24,7 +24,9 @@ export const MyThread: FC = () => {
           }}
         />
 
-        <div className="sticky bottom-0 mt-4 flex w-full max-w-2xl flex-grow flex-col items-center justify-end rounded-t-lg bg-inherit pb-4">
+        <div className="min-h-8 flex-grow" />
+
+        <div className="sticky bottom-0 mt-3 flex w-full max-w-2xl flex-col items-center justify-end rounded-t-lg bg-inherit pb-4">
           <MyComposer />
         </div>
       </ThreadPrimitive.Viewport>
@@ -35,7 +37,7 @@ export const MyThread: FC = () => {
 const MyThreadWelcome: FC = () => {
   return (
     <ThreadPrimitive.Empty>
-      <div className="flex flex-grow basis-full flex-col items-center justify-center">
+      <div className="flex flex-grow flex-col items-center justify-center">
         <Avatar>
           <AvatarFallback>C</AvatarFallback>
         </Avatar>
