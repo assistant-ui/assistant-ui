@@ -1,5 +1,15 @@
 # @assistant-ui/react
 
+## 0.5.71
+
+### Patch Changes
+
+- 55942d8: fix: useContentPartText backwards compat type
+- e455aff: feat: FollowupSuggestions
+- f7c156b: feat: mark new runtime API methods as stable
+- f6a832e: chore: update dependencies
+- 2b7c6fe: refactor: define interface types for the new runtime API
+
 ## 0.5.70
 
 ### Patch Changes

@@ -1,5 +1,17 @@
 # @assistant-ui/react-playground
 
+## 0.0.35
+
+### Patch Changes
+
+- e455aff: feat: FollowupSuggestions
+- Updated dependencies [55942d8]
+- Updated dependencies [e455aff]
+- Updated dependencies [f7c156b]
+- Updated dependencies [f6a832e]
+- Updated dependencies [2b7c6fe]
+  - @assistant-ui/react@0.5.71
+
 ## 0.0.34
 
 ### Patch Changes
