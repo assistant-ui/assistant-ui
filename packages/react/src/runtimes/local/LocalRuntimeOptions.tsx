@@ -14,3 +14,13 @@ export type LocalRuntimeOptions = {
       }
     | undefined;
 };
+
+export const splitLocalRuntimeOptions = <T extends LocalRuntimeOptions>(
+  options: T,
+) => {
+  const { initialMessages, maxToolRoundtrips, adapters, ...rest } = options;
+  return {
+    localRuntimeOptions: { initialMessages, maxToolRoundtrips, adapters },
+    otherOptions: rest,
+  };
+};

@@ -4,14 +4,16 @@ import {
   DangerousInBrowserAdapter,
   DangerousInBrowserAdapterOptions,
 } from "./DangerousInBrowserAdapter";
+import { splitLocalRuntimeOptions } from "../local/LocalRuntimeOptions";
 
 export type DangerousInBrowserRuntimeOptions =
   DangerousInBrowserAdapterOptions & LocalRuntimeOptions;
 
-export const useDangerousInBrowserRuntime = ({
-  initialMessages,
-  ...options
-}: DangerousInBrowserRuntimeOptions) => {
-  const [adapter] = useState(() => new DangerousInBrowserAdapter(options));
-  return useLocalRuntime(adapter, { initialMessages });
+export const useDangerousInBrowserRuntime = (
+  options: DangerousInBrowserRuntimeOptions,
+) => {
+  const { localRuntimeOptions, otherOptions } =
+    splitLocalRuntimeOptions(options);
+  const [adapter] = useState(() => new DangerousInBrowserAdapter(otherOptions));
+  return useLocalRuntime(adapter, localRuntimeOptions);
 };
