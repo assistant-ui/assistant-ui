@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.72
+
+### Patch Changes
+
+- d0db602: fix: useDangerousInBrowserRuntime correct options forwarding
+
 ## 0.5.71
 
 ### Patch Changes
