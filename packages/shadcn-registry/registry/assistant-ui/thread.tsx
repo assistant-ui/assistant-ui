@@ -49,7 +49,7 @@ const MyThreadWelcome: FC = () => {
 
 const MyComposer: FC = () => {
   return (
-    <ComposerPrimitive.Root className="focus-within:border-aui-ring/20 flex w-full flex-wrap items-end rounded-lg border px-2.5 shadow-sm transition-colors ease-in">
+    <ComposerPrimitive.Root className="focus-within:border-aui-ring/20 flex w-full flex-wrap items-end rounded-lg border bg-inherit px-2.5 shadow-sm transition-colors ease-in">
       <ComposerPrimitive.Input
         autoFocus
         placeholder="Write a message..."

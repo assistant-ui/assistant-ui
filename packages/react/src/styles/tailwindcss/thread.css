@@ -55,7 +55,7 @@
 /* thread composer */
 
 .aui-composer-root {
-  @apply focus-within:border-aui-ring/20 flex w-full flex-wrap items-end rounded-lg border px-2.5 shadow-sm transition-colors ease-in;
+  @apply focus-within:border-aui-ring/20 flex w-full flex-wrap items-end rounded-lg border bg-inherit px-2.5 shadow-sm transition-colors ease-in;
 }
 
 .aui-composer-input {
