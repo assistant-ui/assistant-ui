@@ -108,7 +108,7 @@ const ThreadFollowupSuggestions: FC = () => {
   const suggestions = useThread((t) => t.suggestions);
 
   return (
-    <ThreadPrimitive.If empty={false}>
+    <ThreadPrimitive.If empty={false} running={false}>
       <div className="aui-thread-followup-suggestions">
         {suggestions?.map((suggestion, idx) => (
           <ThreadPrimitive.Suggestion
