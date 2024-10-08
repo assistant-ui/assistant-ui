@@ -1,0 +1,31 @@
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[project]
+name = "assistant-stream"
+version = "0.0.1"
+authors = [
+  { name="Simon Farshid", email="simon.farshid@outlook.com" },
+]
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/Yonom/assistant-ui"
+Issues = "https://github.com/Yonom/assistant-ui/issues"
+
+[tool.poetry]
+name = "assistant-stream"
+version = "0.0.1"
+description = ""
+authors = ["Simon Farshid <simon@assistant-ui.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.8.0"
+fastapi = "^0.115.0"

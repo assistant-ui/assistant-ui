@@ -1,0 +1,10 @@
+{
+  "extends": "@assistant-ui/tsconfig/base.json",
+  "compilerOptions": {
+    "paths": {
+      "@assistant-stream/*": ["../*/src"]
+    }
+  },
+  "include": ["**/*.ts", "**/*.tsx"],
+  "exclude": ["node_modules", "dist"]
+}
