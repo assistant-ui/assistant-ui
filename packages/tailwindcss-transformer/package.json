@@ -10,6 +10,6 @@
   },
   "devDependencies": {
     "@assistant-ui/tsconfig": "workspace:*",
-    "eslint-config-next": "14.2.14"
+    "eslint-config-next": "14.2.15"
   }
 }
