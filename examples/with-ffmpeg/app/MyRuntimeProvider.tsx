@@ -42,7 +42,7 @@ export function MyRuntimeProvider({
 }>) {
   const runtime = useEdgeRuntime({
     api: "/api/chat",
-    maxToolRoundtrips: 3,
+    maxSteps: 4,
     adapters: {
       attachments: attachmentAdapter,
     },

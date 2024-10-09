@@ -2,12 +2,12 @@ import { LanguageModelV1Message } from "@ai-sdk/provider";
 import { CoreMessage, ToolCallContentPart } from "../../../types";
 
 type fromLanguageModelMessagesOptions = {
-  mergeRoundtrips: boolean;
+  mergeSteps: boolean;
 };
 
 export const fromLanguageModelMessages = (
   lm: LanguageModelV1Message[],
-  { mergeRoundtrips }: fromLanguageModelMessagesOptions,
+  { mergeSteps }: fromLanguageModelMessagesOptions,
 ): CoreMessage[] => {
   const messages: CoreMessage[] = [];
 
@@ -74,7 +74,7 @@ export const fromLanguageModelMessages = (
           return part;
         });
 
-        if (mergeRoundtrips) {
+        if (mergeSteps) {
           const previousMessage = messages[messages.length - 1];
           if (previousMessage?.role === "assistant") {
             previousMessage.content.push(...newContent);

@@ -8,7 +8,7 @@ import {
 import {
   CoreMessage,
   ThreadMessage,
-  ThreadRoundtrip,
+  ThreadStep,
 } from "../../types/AssistantTypes";
 import { assistantEncoderStream } from "./streams/assistantEncoderStream";
 import { EdgeRuntimeRequestOptionsSchema } from "./EdgeRuntimeRequestOptions";
@@ -33,7 +33,11 @@ import { z } from "zod";
 type FinishResult = {
   messages: CoreMessage[];
   metadata: {
-    roundtrips: ThreadRoundtrip[];
+    /**
+     * @deprecated Use `steps` instead. This field will be removed in v0.6.
+     */
+    roundtrips: ThreadStep[];
+    steps: ThreadStep[];
   };
 };
 
@@ -157,7 +161,9 @@ export const getEdgeRuntimeStream = async ({
               metadata: {
                 // TODO
                 // eslint-disable-next-line @typescript-eslint/no-non-null-asserted-optional-chain
-                roundtrips: lastChunk.metadata?.roundtrips!,
+                roundtrips: lastChunk.metadata?.steps!,
+                // eslint-disable-next-line @typescript-eslint/no-non-null-asserted-optional-chain
+                steps: lastChunk.metadata?.steps!,
               },
             });
           },

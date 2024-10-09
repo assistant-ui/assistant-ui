@@ -180,9 +180,14 @@ export class LocalThreadRuntimeCore implements ThreadRuntimeCore {
     this.abortController = new AbortController();
 
     const initialContent = message.content;
-    const initialRoundtrips = message.metadata?.roundtrips;
+    const initialSteps = message.metadata?.steps;
     const initalCustom = message.metadata?.custom;
     const updateMessage = (m: Partial<ChatModelRunResult>) => {
+      const newSteps = m.metadata?.steps || m.metadata?.roundtrips;
+      const steps = newSteps
+        ? [...(initialSteps ?? []), ...newSteps]
+        : undefined;
+
       message = {
         ...message,
         ...(m.content
@@ -190,26 +195,12 @@ export class LocalThreadRuntimeCore implements ThreadRuntimeCore {
           : undefined),
         status: m.status ?? message.status,
         // TODO deprecated, remove in v0.6
-        ...(m.metadata?.roundtrips
-          ? {
-              roundtrips: [
-                ...(initialRoundtrips ?? []),
-                ...m.metadata.roundtrips,
-              ],
-            }
-          : undefined),
+        ...(steps ? { roundtrips: steps } : undefined),
         ...(m.metadata
           ? {
               metadata: {
                 ...message.metadata,
-                ...(m.metadata.roundtrips
-                  ? {
-                      roundtrips: [
-                        ...(initialRoundtrips ?? []),
-                        ...m.metadata.roundtrips,
-                      ],
-                    }
-                  : undefined),
+                ...(steps ? { roundtrips: steps, steps } : undefined),
                 ...(m.metadata?.custom
                   ? {
                       custom: { ...(initalCustom ?? {}), ...m.metadata.custom },
@@ -223,10 +214,13 @@ export class LocalThreadRuntimeCore implements ThreadRuntimeCore {
       this.notifySubscribers();
     };
 
-    const maxToolRoundtrips = this.options.maxToolRoundtrips ?? 1;
-    const toolRoundtrips = message.metadata?.roundtrips?.length ?? 0;
-    if (toolRoundtrips > maxToolRoundtrips) {
-      // reached max tool roundtrips
+    const maxSteps = this.options.maxSteps
+      ? this.options.maxSteps
+      : (this.options.maxToolRoundtrips ?? 1) + 1;
+
+    const steps = message.metadata?.steps?.length ?? 0;
+    if (steps >= maxSteps) {
+      // reached max tool steps
       updateMessage({
         status: {
           type: "incomplete",

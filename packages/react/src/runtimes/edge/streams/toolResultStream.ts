@@ -12,6 +12,22 @@ export type ToolResultStreamPart =
       toolName: string;
       result: unknown;
       isError?: boolean;
+    }
+  | {
+      type: "step-finish";
+      finishReason:
+        | "stop"
+        | "length"
+        | "content-filter"
+        | "tool-calls"
+        | "error"
+        | "other"
+        | "unknown";
+      usage: {
+        promptTokens: number;
+        completionTokens: number;
+      };
+      isContinued: boolean;
     };
 
 export function toolResultStream(
@@ -87,6 +103,7 @@ export function toolResultStream(
         case "text-delta":
         case "tool-call-delta":
         case "tool-result":
+        case "step-finish":
         case "finish":
         case "error":
         case "response-metadata":

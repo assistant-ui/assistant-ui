@@ -87,6 +87,39 @@ export function assistantDecoderStream() {
           });
           break;
         }
+
+        case AssistantStreamChunkType.ToolCall: {
+          const { toolCallId, toolName, args } = value;
+          const argsText = JSON.stringify(args);
+          controller.enqueue({
+            type: "tool-call-delta",
+            toolCallType: "function",
+            toolCallId,
+            toolName,
+            argsTextDelta: argsText,
+          });
+          controller.enqueue({
+            type: "tool-call",
+            toolCallType: "function",
+            toolCallId: toolCallId,
+            toolName: toolName,
+            args: argsText,
+          });
+          break;
+        }
+
+        case AssistantStreamChunkType.StepFinish: {
+          controller.enqueue({
+            type: "step-finish",
+            ...value,
+          });
+          break;
+        }
+
+        // TODO
+        case AssistantStreamChunkType.Data:
+          break;
+
         default: {
           const unhandledType: never = type;
           throw new Error(`Unhandled chunk type: ${unhandledType}`);

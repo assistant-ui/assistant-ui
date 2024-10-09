@@ -2,15 +2,24 @@ import { LanguageModelV1StreamPart } from "@ai-sdk/provider";
 
 export enum AssistantStreamChunkType {
   TextDelta = "0",
+  Data = "2",
+  Error = "3",
+  ToolCall = "9",
+  ToolCallResult = "a",
   ToolCallBegin = "b",
   ToolCallDelta = "c",
-  ToolCallResult = "a",
-  Error = "3",
   Finish = "d",
+  StepFinish = "e",
 }
 
 export type AssistantStreamChunk = {
   [AssistantStreamChunkType.TextDelta]: string;
+  [AssistantStreamChunkType.Data]: unknown;
+  [AssistantStreamChunkType.ToolCall]: {
+    toolCallId: string;
+    toolName: string;
+    args: unknown;
+  };
   [AssistantStreamChunkType.ToolCallBegin]: {
     toolCallId: string;
     toolName: string;
@@ -24,6 +33,21 @@ export type AssistantStreamChunk = {
     result: any;
   };
   [AssistantStreamChunkType.Error]: unknown;
+  [AssistantStreamChunkType.StepFinish]: {
+    finishReason:
+      | "stop"
+      | "length"
+      | "content-filter"
+      | "tool-calls"
+      | "error"
+      | "other"
+      | "unknown";
+    usage: {
+      promptTokens: number;
+      completionTokens: number;
+    };
+    isContinued: boolean;
+  };
   [AssistantStreamChunkType.Finish]: Omit<
     LanguageModelV1StreamPart & {
       type: "finish";
@@ -31,3 +55,4 @@ export type AssistantStreamChunk = {
     "type"
   >;
 };
+ 

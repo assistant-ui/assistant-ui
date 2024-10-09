@@ -76,7 +76,7 @@ const threadMessagesFromOpenAI = (
   messages: OpenAI.ChatCompletionMessageParam[],
 ) => {
   const lms = fromOpenAIMessages(messages);
-  return fromLanguageModelMessages(lms, { mergeRoundtrips: false });
+  return fromLanguageModelMessages(lms, { mergeSteps: false });
 };
 
 const threadMessagesToOpenAI = (

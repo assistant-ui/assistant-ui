@@ -53,6 +53,11 @@ export function runResultStream() {
           controller.enqueue(message);
           break;
         }
+        case "step-finish": {
+          message = appendOrUpdateStepFinish(message, chunk);
+          controller.enqueue(message);
+          break;
+        }
         case "finish": {
           message = appendOrUpdateFinish(message, chunk);
           controller.enqueue(message);
@@ -160,29 +165,56 @@ const appendOrUpdateToolResult = (
   };
 };
 
-const appendOrUpdateFinish = (
+const appendOrUpdateStepFinish = (
   message: ChatModelRunResult,
-  chunk: LanguageModelV1StreamPart & { type: "finish" },
+  chunk: ToolResultStreamPart & { type: "step-finish" },
 ): ChatModelRunResult => {
   const { type, ...rest } = chunk;
+  const steps = [
+    ...(message.metadata?.steps ?? []),
+    {
+      usage: rest.usage,
+    },
+  ];
   return {
     ...message,
     status: getStatus(chunk),
     metadata: {
       ...message.metadata,
-      roundtrips: [
-        ...(message.metadata?.roundtrips ?? []),
-        {
-          logprobs: rest.logprobs,
-          usage: rest.usage,
-        },
-      ],
+      roundtrips: steps,
+      steps,
+    },
+  };
+};
+
+const appendOrUpdateFinish = (
+  message: ChatModelRunResult,
+  chunk: LanguageModelV1StreamPart & { type: "finish" },
+): ChatModelRunResult => {
+  const { type, ...rest } = chunk;
+
+  const steps = [
+    ...(message.metadata?.steps ?? []),
+    {
+      logprobs: rest.logprobs,
+      usage: rest.usage,
+    },
+  ];
+  return {
+    ...message,
+    status: getStatus(chunk),
+    metadata: {
+      ...message.metadata,
+      roundtrips: steps,
+      steps,
     },
   };
 };
 
 const getStatus = (
-  chunk: LanguageModelV1StreamPart & { type: "finish" },
+  chunk:
+    | (LanguageModelV1StreamPart & { type: "finish" })
+    | (ToolResultStreamPart & { type: "step-finish" }),
 ): MessageStatus => {
   if (chunk.finishReason === "tool-calls") {
     return {

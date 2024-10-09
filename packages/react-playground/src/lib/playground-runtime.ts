@@ -522,6 +522,7 @@ class PlaygroundThreadRuntime extends ThreadRuntimeImpl {
 export const usePlaygroundRuntime = ({
   initialMessages,
   maxToolRoundtrips,
+  maxSteps,
   ...runtimeOptions
 }: EdgeRuntimeOptions & {
   initialMessages: CoreMessage[];

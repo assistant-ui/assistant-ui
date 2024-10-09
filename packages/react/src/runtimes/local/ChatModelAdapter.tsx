@@ -1,9 +1,10 @@
 "use client";
+
 import type {
   MessageStatus,
   ThreadAssistantContentPart,
   ThreadMessage,
-  ThreadRoundtrip,
+  ThreadStep,
 } from "../../types/AssistantTypes";
 import type { ModelConfig } from "../../types/ModelConfigTypes";
 
@@ -16,7 +17,11 @@ export type ChatModelRunResult = {
   content?: ThreadAssistantContentPart[];
   status?: MessageStatus;
   metadata?: {
-    roundtrips?: ThreadRoundtrip[];
+    /**
+     * @deprecated Use `steps` instead. This field will be removed in v0.6.
+     */
+    roundtrips?: ThreadStep[];
+    steps?: ThreadStep[];
     custom?: Record<string, unknown>;
   };
 };
