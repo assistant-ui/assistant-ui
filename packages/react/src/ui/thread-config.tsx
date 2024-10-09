@@ -17,7 +17,7 @@ import { AssistantToolUI } from "../model-config";
 import { useAssistantRuntime } from "../context/react/AssistantContext";
 
 export type SuggestionConfig = {
-  text?: ReactNode;
+  text?: ReactNode | undefined;
   prompt: string;
 };
 
@@ -148,25 +148,28 @@ export type StringsConfig = {
 const ThreadConfigContext = createContext<ThreadConfig>({});
 
 export type ThreadConfig = {
-  runtime?: AssistantRuntime;
+  runtime?: AssistantRuntime | undefined;
 
-  assistantAvatar?: AvatarProps;
+  assistantAvatar?: AvatarProps | undefined;
 
-  welcome?: ThreadWelcomeConfig;
-  assistantMessage?: AssistantMessageConfig;
-  userMessage?: UserMessageConfig;
+  welcome?: ThreadWelcomeConfig | undefined;
+  assistantMessage?: AssistantMessageConfig | undefined;
+  userMessage?: UserMessageConfig | undefined;
 
-  branchPicker?: BranchPickerConfig;
+  branchPicker?: BranchPickerConfig | undefined;
 
-  composer?: ComposerConfig;
+  composer?: ComposerConfig | undefined;
 
-  strings?: StringsConfig;
+  strings?: StringsConfig | undefined;
 
-  tools?: AssistantToolUI[]; // TODO add AssistantTool support
+  tools?: AssistantToolUI[] | undefined; // TODO add AssistantTool support
 
-  components?: {
-    Composer: ComponentType;
-  };
+  components?:
+    | {
+        Composer?: ComponentType | undefined;
+        ThreadWelcome?: ComponentType | undefined;
+      }
+    | undefined;
 };
 
 export const useThreadConfig = (): Omit<ThreadConfig, "runtime"> => {

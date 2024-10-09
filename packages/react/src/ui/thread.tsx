@@ -23,12 +23,16 @@ import { ThreadPrimitive, ThreadPrimitiveRootProps } from "../primitives";
 import { useThread } from "../context";
 
 const Thread: FC<ThreadConfig> = (config) => {
-  const { components: { Composer: ComposerComponent = Composer } = {} } =
-    config;
+  const {
+    components: {
+      Composer: ComposerComponent = Composer,
+      ThreadWelcome: ThreadWelcomeComponent = ThreadWelcome,
+    } = {},
+  } = config;
   return (
     <ThreadRoot config={config}>
       <ThreadViewport>
-        <ThreadWelcome />
+        <ThreadWelcomeComponent />
         <ThreadMessages />
         <ThreadFollowupSuggestions />
         <ThreadViewportFooter>

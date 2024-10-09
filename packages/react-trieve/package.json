@@ -1,0 +1,97 @@
+{
+  "name": "@assistant-ui/react-trieve",
+  "version": "0.0.1",
+  "license": "MIT",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    },
+    "./tailwindcss": {
+      "import": {
+        "types": "./dist/tailwindcss/index.d.mts",
+        "default": "./dist/tailwindcss/index.mjs"
+      },
+      "require": {
+        "types": "./dist/tailwindcss/index.d.ts",
+        "default": "./dist/tailwindcss/index.js"
+      }
+    },
+    "./styles/*": {
+      "default": "./dist/styles/*"
+    }
+  },
+  "source": "./src/index.ts",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsx scripts/build.mts"
+  },
+  "dependencies": {
+    "@radix-ui/react-hover-card": "^1.1.2",
+    "@radix-ui/react-use-callback-ref": "^1.1.0",
+    "classnames": "^2.5.1",
+    "lucide-react": "^0.447.0",
+    "rehype-parse": "^9.0.1",
+    "rehype-react": "^8.0.0",
+    "rehype-sanitize": "^6.0.0",
+    "remark-gfm": "^4.0.0",
+    "trieve-ts-sdk": "^0.0.12",
+    "unified": "^11.0.5",
+    "unist-util-visit": "^5.0.0"
+  },
+  "peerDependencies": {
+    "@assistant-ui/react": "^0.5.68",
+    "@assistant-ui/react-markdown": "^0.2.18",
+    "@types/react": "*",
+    "react": "^18",
+    "tailwindcss": "^3.4.4"
+  },
+  "peerDependenciesMeta": {
+    "@types/react": {
+      "optional": true
+    },
+    "tailwindcss": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@assistant-ui/tailwindcss-transformer": "workspace:*",
+    "@assistant-ui/tsconfig": "workspace:*",
+    "@types/hast": "^3.0.4",
+    "@types/mdast": "^4.0.4",
+    "@types/node": "^22.7.4",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^8",
+    "eslint-config-next": "14.2.14",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.13",
+    "tailwindcss-animate": "^1.0.7",
+    "tsup": "8.3.0",
+    "tsx": "^4.19.1"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "homepage": "https://assistant-ui.com/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Yonom/assistant-ui.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Yonom/assistant-ui/issues"
+  }
+}

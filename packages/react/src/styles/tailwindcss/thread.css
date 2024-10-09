@@ -39,7 +39,7 @@
 }
 
 .aui-thread-welcome-suggestion-container {
-  @apply mt-4 flex w-full items-stretch justify-center gap-4;
+  @apply mt-3 flex w-full items-stretch justify-center gap-4;
 }
 
 .aui-thread-welcome-suggestion {
