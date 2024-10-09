@@ -39,7 +39,7 @@ export const baseOptions: HomeLayoutProps = {
   links: [
     {
       text: "Documentation",
-      url: "/docs",
+      url: "/docs/getting-started",
       icon: <BookIcon />,
       active: "nested-url",
     },

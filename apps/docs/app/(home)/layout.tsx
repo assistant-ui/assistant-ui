@@ -39,7 +39,7 @@ function Footer(): React.ReactElement {
         <div className="mt-10 grid grid-cols-2 items-start gap-10 sm:mt-0">
           <div className="flex w-[160px] flex-col justify-center gap-4">
             <p className="text-sm">Product</p>
-            <FooterLink href="/docs">Documentation</FooterLink>
+            <FooterLink href="/docs/getting-started">Documentation</FooterLink>
             <FooterLink href="/examples">Examples</FooterLink>
             <FooterLink href="/blog">Blog</FooterLink>
           </div>
