@@ -1,5 +1,15 @@
 # @assistant-ui/react
 
+## 0.5.73
+
+### Patch Changes
+
+- fb46305: chore: update dependencies
+- e225116: feat(ui): add component override option for ThreadWelcome
+- 0ff22a7: feat: switch to DataStream transfer protocol for edge runtime
+- 378ee99: refactor: rename maxToolRoundtrips to maxSteps
+- 378ee99: feat: server-side tool roundtrips support
+
 ## 0.5.72
 
 ### Patch Changes

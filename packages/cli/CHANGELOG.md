@@ -1,5 +1,11 @@
 # assistant-ui
 
+## 0.0.14
+
+### Patch Changes
+
+- fb46305: chore: update dependencies
+
 ## 0.0.13
 
 ### Patch Changes
