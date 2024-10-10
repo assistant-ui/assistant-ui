@@ -1,5 +1,14 @@
 # @assistant-ui/react-playground
 
+## 0.0.37
+
+### Patch Changes
+
+- 31702b2: feat: MessageRuntime.stopSpeaking MessageState.speech state
+- Updated dependencies [31702b2]
+- Updated dependencies [44bfecd]
+  - @assistant-ui/react@0.5.75
+
 ## 0.0.36
 
 ### Patch Changes

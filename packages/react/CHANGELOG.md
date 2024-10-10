@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.5.75
+
+### Patch Changes
+
+- 31702b2: feat: MessageRuntime.stopSpeaking MessageState.speech state
+- 44bfecd: refactor: move primitive types under the same namespace as the primitive components
+
 ## 0.5.74
 
 ### Patch Changes
