@@ -1,16 +1,16 @@
 import { useCallback } from "react";
 import {
-  useMessageUtils,
-  useMessageUtilsStore,
+  useMessage,
+  useMessageRuntime,
 } from "../../context/react/MessageContext";
 
 export const useActionBarStopSpeaking = () => {
-  const messageUtilsStore = useMessageUtilsStore();
-  const isSpeaking = useMessageUtils((u) => u.isSpeaking);
+  const messageRuntime = useMessageRuntime();
+  const isSpeaking = useMessage((u) => u.speech != null);
 
   const callback = useCallback(async () => {
-    messageUtilsStore.getState().stopSpeaking();
-  }, [messageUtilsStore]);
+    messageRuntime.stopSpeaking();
+  }, [messageRuntime]);
 
   if (!isSpeaking) return null;
 

@@ -115,6 +115,7 @@ export type MessageRuntime = {
   getState(): MessageState;
   reload(): void;
   speak(): void;
+  stopSpeaking(): void;
   submitFeedback({ type }: { type: "positive" | "negative" }): void;
   switchToBranch({
     position,
