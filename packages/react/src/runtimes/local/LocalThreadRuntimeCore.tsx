@@ -14,12 +14,12 @@ import type { ChatModelAdapter, ChatModelRunResult } from "./ChatModelAdapter";
 import { DefaultThreadComposerRuntimeCore } from "../composer/DefaultThreadComposerRuntimeCore";
 import { shouldContinue } from "./shouldContinue";
 import { LocalRuntimeOptions } from "./LocalRuntimeOptions";
-import { SpeechSynthesisAdapter } from "../speech";
 import {
   AddToolResultOptions,
   ThreadSuggestion,
   SubmitFeedbackOptions,
   ThreadRuntimeCore,
+  SpeechState,
 } from "../core/ThreadRuntimeCore";
 import { DefaultEditComposerRuntimeCore } from "../composer/DefaultEditComposerRuntimeCore";
 
@@ -334,8 +334,9 @@ export class LocalThreadRuntimeCore implements ThreadRuntimeCore {
     }
   }
 
-  // TODO lift utterance state to thread runtime
-  private _utterance: SpeechSynthesisAdapter.Utterance | undefined;
+  // TODO speech runtime?
+  private _stopSpeaking: Unsubscribe | undefined;
+  public speech: SpeechState | null = null;
 
   public speak(messageId: string) {
     const adapter = this.options.adapters?.speech;
@@ -343,20 +344,31 @@ export class LocalThreadRuntimeCore implements ThreadRuntimeCore {
 
     const { message } = this.repository.getMessage(messageId);
 
-    if (this._utterance) {
-      this._utterance.cancel();
-      this._utterance = undefined;
-    }
+    this._stopSpeaking?.();
 
     const utterance = adapter.speak(message);
-    utterance.onEnd(() => {
-      if (this._utterance === utterance) {
-        this._utterance = undefined;
+    const unsub = utterance.subscribe(() => {
+      if (utterance.status.type === "ended") {
+        this._stopSpeaking = undefined;
+        this.speech = null;
+      } else {
+        this.speech = { messageId, status: utterance.status };
       }
+      this.notifySubscribers();
     });
-    this._utterance = utterance;
 
-    return this._utterance;
+    this.speech = { messageId, status: utterance.status };
+    this._stopSpeaking = () => {
+      utterance.cancel();
+      unsub();
+      this.speech = null;
+      this._stopSpeaking = undefined;
+    };
+  }
+
+  public stopSpeaking() {
+    if (!this._stopSpeaking) throw new Error("No message is being spoken");
+    this._stopSpeaking();
   }
 
   public submitFeedback({ messageId, type }: SubmitFeedbackOptions) {

@@ -26,8 +26,8 @@ export const useMessageIf = (props: UseMessageIfProps) => {
   return useCombinedStore(
     [messageStore, messageUtilsStore],
     (
-      { role, attachments, branchCount, isLast },
-      { isCopied, isHovering, isSpeaking, submittedFeedback },
+      { role, attachments, branchCount, isLast, speech },
+      { isCopied, isHovering, submittedFeedback },
     ) => {
       if (props.hasBranches === true && branchCount < 2) return false;
 
@@ -40,8 +40,8 @@ export const useMessageIf = (props: UseMessageIfProps) => {
       if (props.copied === true && !isCopied) return false;
       if (props.copied === false && isCopied) return false;
 
-      if (props.speaking === true && !isSpeaking) return false;
-      if (props.speaking === false && isSpeaking) return false;
+      if (props.speaking === true && speech == null) return false;
+      if (props.speaking === false && speech != null) return false;
 
       if (
         props.hasAttachments === true &&

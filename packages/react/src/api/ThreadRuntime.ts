@@ -4,6 +4,7 @@ import {
   RuntimeCapabilities,
   SubmitFeedbackOptions,
   ThreadRuntimeCore,
+  SpeechState,
 } from "../runtimes/core/ThreadRuntimeCore";
 import { ExportedMessageRepository } from "../runtimes/utils/MessageRepository";
 import {
@@ -26,7 +27,6 @@ import {
 } from "./ComposerRuntime";
 import { LazyMemoizeSubject } from "./subscribable/LazyMemoizeSubject";
 import { SKIP_UPDATE } from "./subscribable/SKIP_UPDATE";
-import { SpeechSynthesisAdapter } from "../runtimes/speech/SpeechAdapterTypes";
 import { ComposerRuntimeCore } from "../runtimes/core/ComposerRuntimeCore";
 
 export type CreateAppendMessage =
@@ -73,6 +73,7 @@ export type ThreadState = Readonly<{
   messages: readonly ThreadMessage[];
   suggestions: readonly ThreadSuggestion[];
   extras: unknown;
+  speech: SpeechState | null;
 }>;
 
 export const getThreadState = (runtime: ThreadRuntimeCore): ThreadState => {
@@ -88,6 +89,7 @@ export const getThreadState = (runtime: ThreadRuntimeCore): ThreadState => {
     messages: runtime.messages,
     suggestions: runtime.suggestions,
     extras: runtime.extras,
+    speech: runtime.speech,
   });
 };
 export type ThreadRuntime = {
@@ -107,6 +109,7 @@ export type ThreadRuntime = {
   export(): ExportedMessageRepository;
   import(repository: ExportedMessageRepository): void;
   getMesssageByIndex(idx: number): MessageRuntime;
+  stopSpeaking: () => void;
 
   // Legacy methods with deprecations
 
@@ -141,6 +144,11 @@ export type ThreadRuntime = {
   suggestions: readonly ThreadSuggestion[];
 
   /**
+   * @deprecated Use `getState().speechState` instead. This will be removed in 0.6.0.
+   */
+  speech: SpeechState | null;
+
+  /**
    * @deprecated Use `getState().extras` instead. This will be removed in 0.6.0.
    */
   extras: unknown;
@@ -163,7 +171,7 @@ export type ThreadRuntime = {
   /**
    * @deprecated Use `getMesssageById(id).speak()` instead. This will be removed in 0.6.0.
    */
-  speak: (messageId: string) => SpeechSynthesisAdapter.Utterance;
+  speak: (messageId: string) => void;
 
   /**
    * @deprecated Use `getMesssageById(id).submitFeedback({ type })` instead. This will be removed in 0.6.0.
@@ -231,6 +239,13 @@ export class ThreadRuntimeImpl implements ThreadRuntimeCore, ThreadRuntime {
    */
   public get messages() {
     return this._threadBinding.getState().messages;
+  }
+
+  /**
+   * @deprecated Use `getState().speechState` instead. This will be removed in 0.6.0.
+   */
+  public get speech() {
+    return this._threadBinding.getState().speech;
   }
 
   public unstable_getCore() {
@@ -310,16 +325,20 @@ export class ThreadRuntimeImpl implements ThreadRuntimeCore, ThreadRuntime {
     return this._threadBinding.getState().switchToBranch(branchId);
   }
 
-  // /**
-  //  * @deprecated Use `getMesssageById(id).speak()` instead. This will be removed in 0.6.0.
-  //  */
+  /**
+   * @deprecated Use `getMesssageById(id).speak()` instead. This will be removed in 0.6.0.
+   */
   public speak(messageId: string) {
     return this._threadBinding.getState().speak(messageId);
   }
 
-  // /**
-  //  * @deprecated Use `getMesssageById(id).submitFeedback({ type })` instead. This will be removed in 0.6.0.
-  //  */
+  public stopSpeaking() {
+    return this._threadBinding.getState().stopSpeaking();
+  }
+
+  /**
+   * @deprecated Use `getMesssageById(id).submitFeedback({ type })` instead. This will be removed in 0.6.0.
+   */
   public submitFeedback(options: SubmitFeedbackOptions) {
     return this._threadBinding.getState().submitFeedback(options);
   }
@@ -352,7 +371,7 @@ export class ThreadRuntimeImpl implements ThreadRuntimeCore, ThreadRuntime {
     return new MessageRuntimeImpl(
       new ShallowMemoizeSubject({
         getState: () => {
-          const messages = this.getState().messages;
+          const { messages, speech: speechState } = this.getState();
           const message = messages[idx];
           if (!message) return SKIP_UPDATE;
 
@@ -370,6 +389,8 @@ export class ThreadRuntimeImpl implements ThreadRuntimeCore, ThreadRuntime {
             branches,
             branchNumber: branches.indexOf(message.id) + 1,
             branchCount: branches.length,
+
+            speech: speechState?.messageId === message.id ? speechState : null,
           } satisfies MessageState;
         },
         subscribe: (callback) => this._threadBinding.subscribe(callback),

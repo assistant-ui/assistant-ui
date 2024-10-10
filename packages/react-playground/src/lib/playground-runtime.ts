@@ -111,6 +111,7 @@ export class PlaygroundThreadRuntimeCore implements INTERNAL.ThreadRuntimeCore {
   public readonly capabilities = CAPABILITIES;
   public readonly extras = undefined;
   public readonly suggestions: readonly ThreadSuggestion[] = [];
+  public readonly speech = null;
 
   private configProvider = new ProxyConfigProvider();
 
@@ -273,6 +274,10 @@ export class PlaygroundThreadRuntimeCore implements INTERNAL.ThreadRuntimeCore {
   }
 
   public speak(): never {
+    throw new Error("PlaygroundRuntime does not support speaking.");
+  }
+
+  public stopSpeaking(): never {
     throw new Error("PlaygroundRuntime does not support speaking.");
   }
 

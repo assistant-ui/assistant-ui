@@ -14,7 +14,7 @@ export namespace SpeechSynthesisAdapter {
   export type Utterance = {
     status: Status;
     cancel: () => void;
-    onEnd: (callback: () => void) => Unsubscribe;
+    subscribe: (callback: () => void) => Unsubscribe;
   };
 }
 

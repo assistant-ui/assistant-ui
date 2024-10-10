@@ -1,4 +1,4 @@
-import { SpeechSynthesisAdapter } from "../runtimes";
+import { SpeechState } from "../runtimes/core/ThreadRuntimeCore";
 import {
   ThreadMessage,
   ThreadAssistantContentPart,
@@ -103,6 +103,8 @@ export type MessageState = ThreadMessage & {
 
   branchNumber: number;
   branchCount: number;
+
+  speech: SpeechState | null;
 };
 
 export type MessageStateBinding = SubscribableWithState<MessageState>;
@@ -112,7 +114,7 @@ export type MessageRuntime = {
 
   getState(): MessageState;
   reload(): void;
-  speak(): SpeechSynthesisAdapter.Utterance;
+  speak(): void;
   submitFeedback({ type }: { type: "positive" | "negative" }): void;
   switchToBranch({
     position,
@@ -163,6 +165,18 @@ export class MessageRuntimeImpl implements MessageRuntime {
     if (!state) throw new Error("Message is not available");
 
     return this._threadBinding.getState().speak(state.id);
+  }
+
+  public stopSpeaking() {
+    const state = this._core.getState();
+    if (!state) throw new Error("Message is not available");
+
+    const thread = this._threadBinding.getState();
+    if (thread.speech?.messageId === state.id) {
+      this._threadBinding.getState().stopSpeaking();
+    } else {
+      throw new Error("Message is not being spoken");
+    }
   }
 
   public submitFeedback({ type }: { type: "positive" | "negative" }) {

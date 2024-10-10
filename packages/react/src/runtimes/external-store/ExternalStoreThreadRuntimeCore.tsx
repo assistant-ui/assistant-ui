@@ -22,6 +22,7 @@ import { generateId } from "../../internal";
 import { DefaultThreadComposerRuntimeCore } from "../composer/DefaultThreadComposerRuntimeCore";
 import {
   RuntimeCapabilities,
+  SpeechState,
   SubmitFeedbackOptions,
   ThreadRuntimeCore,
 } from "../core/ThreadRuntimeCore";
@@ -266,12 +267,44 @@ export class ExternalStoreThreadRuntimeCore implements ThreadRuntimeCore {
     this._store.onAddToolResult(options);
   }
 
+  // TODO speech runtime?
+  private _stopSpeaking: Unsubscribe | undefined;
+  public speech: SpeechState | null = null;
+
   public speak(messageId: string) {
-    if (!this._store.onSpeak)
-      throw new Error("Runtime does not support speaking.");
+    let adapter = this.store.adapters?.speech;
+    if (!adapter && this.store.onSpeak) {
+      adapter = { speak: this.store.onSpeak };
+    }
+    if (!adapter) throw new Error("Speech adapter not configured");
 
     const { message } = this.repository.getMessage(messageId);
-    return this._store.onSpeak(message);
+
+    this._stopSpeaking?.();
+
+    const utterance = adapter.speak(message);
+    const unsub = utterance.subscribe(() => {
+      if (utterance.status.type === "ended") {
+        this._stopSpeaking = undefined;
+        this.speech = null;
+      } else {
+        this.speech = { messageId, status: utterance.status };
+      }
+      this.notifySubscribers();
+    });
+
+    this.speech = { messageId, status: utterance.status };
+    this._stopSpeaking = () => {
+      utterance.cancel();
+      unsub();
+      this.speech = null;
+      this._stopSpeaking = undefined;
+    };
+  }
+
+  public stopSpeaking() {
+    if (!this._stopSpeaking) throw new Error("No message is being spoken");
+    this._stopSpeaking();
   }
 
   public submitFeedback({ messageId, type }: SubmitFeedbackOptions) {

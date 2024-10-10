@@ -34,6 +34,11 @@ export type ThreadSuggestion = {
   prompt: string;
 };
 
+export type SpeechState = Readonly<{
+  messageId: string;
+  status: SpeechSynthesisAdapter.Status;
+}>;
+
 export type ThreadRuntimeCore = Readonly<{
   getBranches: (messageId: string) => readonly string[];
   switchToBranch: (branchId: string) => void;
@@ -44,7 +49,8 @@ export type ThreadRuntimeCore = Readonly<{
 
   addToolResult: (options: AddToolResultOptions) => void;
 
-  speak: (messageId: string) => SpeechSynthesisAdapter.Utterance;
+  speak: (messageId: string) => void;
+  stopSpeaking: () => void;
 
   submitFeedback: (feedback: SubmitFeedbackOptions) => void;
 
@@ -53,6 +59,8 @@ export type ThreadRuntimeCore = Readonly<{
   composer: ThreadComposerRuntimeCore;
   getEditComposer: (messageId: string) => ComposerRuntimeCore | undefined;
   beginEdit: (messageId: string) => void;
+
+  speech: SpeechState | null;
 
   capabilities: Readonly<RuntimeCapabilities>;
   threadId: string;
