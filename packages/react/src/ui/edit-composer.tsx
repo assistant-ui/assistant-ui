@@ -40,39 +40,49 @@ const EditComposerFooter = withDefaults("div", {
 
 EditComposerFooter.displayName = "EditComposerFooter";
 
-const EditComposerCancel = forwardRef<HTMLButtonElement, Partial<ButtonProps>>(
-  (props, ref) => {
-    const {
-      strings: {
-        editComposer: { cancel: { label = "Cancel" } = {} } = {},
-      } = {},
-    } = useThreadConfig();
-    return (
-      <ComposerPrimitive.Cancel asChild>
-        <Button variant="ghost" {...props} ref={ref}>
-          {props.children ?? label}
-        </Button>
-      </ComposerPrimitive.Cancel>
-    );
-  },
-);
+namespace EditComposerCancel {
+  export type Element = HTMLButtonElement;
+  export type Props = Partial<ButtonProps>;
+}
+
+const EditComposerCancel = forwardRef<
+  EditComposerCancel.Element,
+  EditComposerCancel.Props
+>((props, ref) => {
+  const {
+    strings: { editComposer: { cancel: { label = "Cancel" } = {} } = {} } = {},
+  } = useThreadConfig();
+  return (
+    <ComposerPrimitive.Cancel asChild>
+      <Button variant="ghost" {...props} ref={ref}>
+        {props.children ?? label}
+      </Button>
+    </ComposerPrimitive.Cancel>
+  );
+});
 
 EditComposerCancel.displayName = "EditComposerCancel";
 
-const EditComposerSend = forwardRef<HTMLButtonElement, Partial<ButtonProps>>(
-  (props, ref) => {
-    const {
-      strings: { editComposer: { send: { label = "Send" } = {} } = {} } = {},
-    } = useThreadConfig();
-    return (
-      <ComposerPrimitive.Send asChild>
-        <Button {...props} ref={ref}>
-          {props.children ?? label}
-        </Button>
-      </ComposerPrimitive.Send>
-    );
-  },
-);
+namespace EditComposerSend {
+  export type Element = HTMLButtonElement;
+  export type Props = Partial<ButtonProps>;
+}
+
+const EditComposerSend = forwardRef<
+  EditComposerSend.Element,
+  EditComposerSend.Props
+>((props, ref) => {
+  const {
+    strings: { editComposer: { send: { label = "Send" } = {} } = {} } = {},
+  } = useThreadConfig();
+  return (
+    <ComposerPrimitive.Send asChild>
+      <Button {...props} ref={ref}>
+        {props.children ?? label}
+      </Button>
+    </ComposerPrimitive.Send>
+  );
+});
 
 EditComposerSend.displayName = "EditComposerSend";
 

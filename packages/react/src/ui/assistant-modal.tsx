@@ -3,10 +3,7 @@
 import { type FC, forwardRef } from "react";
 import { BotIcon, ChevronDownIcon } from "lucide-react";
 
-import {
-  AssistantModalPrimitive,
-  AssistantModalPrimitiveRootProps,
-} from "../primitives";
+import { AssistantModalPrimitive } from "../primitives";
 import Thread from "./thread";
 import { withDefaults } from "./utils/withDefaults";
 import {
@@ -33,9 +30,15 @@ const AssistantModal: FC<ThreadConfig> = (config) => {
 
 AssistantModal.displayName = "AssistantModal";
 
-const AssistantModalRoot: FC<
-  AssistantModalPrimitiveRootProps & ThreadConfigProviderProps
-> = ({ config, ...props }) => {
+namespace AssistantModalRoot {
+  export type Props = AssistantModalPrimitive.Root.Props &
+    ThreadConfigProviderProps;
+}
+
+const AssistantModalRoot: FC<AssistantModalRoot.Props> = ({
+  config,
+  ...props
+}) => {
   return (
     <ThreadConfigProvider config={config}>
       <AssistantModalPrimitive.Root {...props} />
@@ -45,9 +48,14 @@ const AssistantModalRoot: FC<
 
 AssistantModalRoot.displayName = "AssistantModalRoot";
 
+namespace AssistantModalTrigger {
+  export type Element = HTMLButtonElement;
+  export type Props = Partial<TooltipIconButtonProps>;
+}
+
 const AssistantModalTrigger = forwardRef<
-  HTMLButtonElement,
-  Partial<TooltipIconButtonProps>
+  AssistantModalTrigger.Element,
+  AssistantModalTrigger.Props
 >((props, ref) => {
   return (
     <AssistantModalAnchor>
@@ -71,13 +79,16 @@ const ModalButtonStyled = withDefaults(TooltipIconButton, {
   className: "aui-modal-button",
 });
 
-type AssistantModalButtonProps = TooltipIconButtonProps & {
-  "data-state"?: "open" | "closed";
-};
+namespace AssistantModalButton {
+  export type Element = HTMLButtonElement;
+  export type Props = Partial<TooltipIconButtonProps> & {
+    "data-state"?: "open" | "closed";
+  };
+}
 
 const AssistantModalButton = forwardRef<
-  HTMLButtonElement,
-  Partial<AssistantModalButtonProps>
+  AssistantModalButton.Element,
+  AssistantModalButton.Props
 >(({ "data-state": state, ...rest }, ref) => {
   const {
     strings: {

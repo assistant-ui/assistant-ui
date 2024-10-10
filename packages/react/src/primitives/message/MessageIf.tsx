@@ -6,9 +6,16 @@ import {
   useMessageIf,
 } from "../../primitive-hooks/message/useMessageIf";
 
-export type MessagePrimitiveIfProps = PropsWithChildren<UseMessageIfProps>;
+/**
+ * @deprecated Use `MessagePrimitive.If.Props` instead. This will be removed in 0.6.
+ */
+export type MessagePrimitiveIfProps = MessagePrimitiveIf.Props;
 
-export const MessagePrimitiveIf: FC<MessagePrimitiveIfProps> = ({
+export namespace MessagePrimitiveIf {
+  export type Props = PropsWithChildren<UseMessageIfProps>;
+}
+
+export const MessagePrimitiveIf: FC<MessagePrimitiveIf.Props> = ({
   children,
   ...query
 }) => {

@@ -27,9 +27,14 @@ const ComposerAttachment: FC = () => {
 
 ComposerAttachment.displayName = "ComposerAttachment";
 
+namespace ComposerAttachmentRemove {
+  export type Element = HTMLButtonElement;
+  export type Props = Partial<TooltipIconButtonProps>;
+}
+
 const ComposerAttachmentRemove = forwardRef<
-  HTMLButtonElement,
-  Partial<TooltipIconButtonProps>
+  ComposerAttachmentRemove.Element,
+  ComposerAttachmentRemove.Props
 >((props, ref) => {
   const {
     strings: {

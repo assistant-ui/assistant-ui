@@ -89,10 +89,17 @@ const AssistantActionBarRoot = withDefaults(ActionBarPrimitive.Root, {
 
 AssistantActionBarRoot.displayName = "AssistantActionBarRoot";
 
+namespace AssistantActionBarCopy {
+  export type Element = ActionBarPrimitive.Copy.Element;
+  export type Props = Partial<TooltipIconButtonProps> & {
+    copiedDuration?: number | undefined;
+  };
+}
+
 const AssistantActionBarCopy = forwardRef<
-  HTMLButtonElement,
-  Partial<TooltipIconButtonProps>
->((props, ref) => {
+  AssistantActionBarCopy.Element,
+  AssistantActionBarCopy.Props
+>(({ copiedDuration, ...props }, ref) => {
   const {
     strings: {
       assistantMessage: { copy: { tooltip = "Copy" } = {} } = {},
@@ -100,7 +107,7 @@ const AssistantActionBarCopy = forwardRef<
   } = useThreadConfig();
 
   return (
-    <ActionBarPrimitive.Copy asChild>
+    <ActionBarPrimitive.Copy copiedDuration={copiedDuration} asChild>
       <TooltipIconButton tooltip={tooltip} {...props} ref={ref}>
         {props.children ?? (
           <>
@@ -132,9 +139,14 @@ const AssistantActionBarSpeechControl: FC = () => {
   );
 };
 
+namespace AssistantActionBarSpeak {
+  export type Element = ActionBarPrimitive.Speak.Element;
+  export type Props = Partial<TooltipIconButtonProps>;
+}
+
 const AssistantActionBarSpeak = forwardRef<
-  HTMLButtonElement,
-  Partial<TooltipIconButtonProps>
+  AssistantActionBarSpeak.Element,
+  AssistantActionBarSpeak.Props
 >((props, ref) => {
   const {
     strings: {
@@ -154,9 +166,14 @@ const AssistantActionBarSpeak = forwardRef<
 
 AssistantActionBarSpeak.displayName = "AssistantActionBarSpeak";
 
+namespace AssistantActionBarStopSpeaking {
+  export type Element = ActionBarPrimitive.StopSpeaking.Element;
+  export type Props = Partial<TooltipIconButtonProps>;
+}
+
 const AssistantActionBarStopSpeaking = forwardRef<
-  HTMLButtonElement,
-  Partial<TooltipIconButtonProps>
+  AssistantActionBarStopSpeaking.Element,
+  AssistantActionBarStopSpeaking.Props
 >((props, ref) => {
   const {
     strings: {
@@ -178,9 +195,14 @@ const AssistantActionBarStopSpeaking = forwardRef<
 
 AssistantActionBarStopSpeaking.displayName = "AssistantActionBarStopSpeaking";
 
+namespace AssistantActionBarReload {
+  export type Element = ActionBarPrimitive.Reload.Element;
+  export type Props = Partial<TooltipIconButtonProps>;
+}
+
 const AssistantActionBarReload = forwardRef<
-  HTMLButtonElement,
-  Partial<TooltipIconButtonProps>
+  AssistantActionBarReload.Element,
+  AssistantActionBarReload.Props
 >((props, ref) => {
   const {
     strings: {
@@ -199,9 +221,14 @@ const AssistantActionBarReload = forwardRef<
 
 AssistantActionBarReload.displayName = "AssistantActionBarReload";
 
+namespace AssistantActionBarFeedbackPositive {
+  export type Element = ActionBarPrimitive.FeedbackPositive.Element;
+  export type Props = Partial<TooltipIconButtonProps>;
+}
+
 const AssistantActionBarFeedbackPositive = forwardRef<
-  HTMLButtonElement,
-  Partial<TooltipIconButtonProps>
+  AssistantActionBarFeedbackPositive.Element,
+  AssistantActionBarFeedbackPositive.Props
 >((props, ref) => {
   const {
     strings: {
@@ -227,9 +254,14 @@ const AssistantActionBarFeedbackPositive = forwardRef<
 AssistantActionBarFeedbackPositive.displayName =
   "AssistantActionBarFeedbackPositive";
 
+namespace AssistantActionBarFeedbackNegative {
+  export type Element = ActionBarPrimitive.FeedbackNegative.Element;
+  export type Props = Partial<TooltipIconButtonProps>;
+}
+
 const AssistantActionBarFeedbackNegative = forwardRef<
-  HTMLButtonElement,
-  Partial<TooltipIconButtonProps>
+  AssistantActionBarFeedbackNegative.Element,
+  AssistantActionBarFeedbackNegative.Props
 >((props, ref) => {
   const {
     strings: {

@@ -12,6 +12,18 @@ This guide serves as a reference for users facing breaking changes during upgrad
 
 All breaking changes in v0.6 are renames or removals of existing APIs. Therefore, all breaking changes should cause a Typescript error, so you can simply check for errors after upgrading.
 
+# Component Property Types moved to `Component.Props`
+
+Component property types are now neatly organized under the component itself.
+
+```diff
+-import { ThreadPrimitiveMessagesProps } from "@assistant-ui/react";
++import { ThreadPrimitive } from "@assistant-ui/react";
+
+-type Props = ThreadPrimitiveMessagesProps;
++type Props = ThreadPrimitive.Messages.Props;
+```
+
 # Context API simplifications
 
 ## `useThreadContext`, `useMessageContext`, ... replaced with direct imports of stores
@@ -43,11 +55,27 @@ All breaking changes in v0.6 are renames or removals of existing APIs. Therefore
 +useThreadRuntime().switchToNewThread();
 ```
 
+## useSwtichToNewThread() moved to useRuntimeActions().switchToNewThread()
+
+```diff
+-useSwitchToNewThread();
++useRuntimeActions().switchToNewThread();
+```
+
 ## `runtime.subscribe` removed, `subscribeToMainThread` removed
 
 Previously, you needed to subscribe to the runtime to receive updates whenever the main thread changed and resubscribe to the main thread whenever you switched to a new thread. The `runtime.thread` value now always refers to the current main thread, there is no need to subscribe to the runtime anymore.
 
 # ThreadRuntime API simplifications
+
+## `useAppendMessage` moved to `useThreadRuntime().append()`
+
+```diff
+-const append = useAppendMessage();
++const threadRuntime = useThreadRuntime();
+-append("hello world");
++threadRuntime.append("hello world");
+```
 
 ## `useThreadActions` replaced with `useThreadRuntime`
 

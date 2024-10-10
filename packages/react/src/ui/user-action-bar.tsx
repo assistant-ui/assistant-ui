@@ -36,9 +36,14 @@ const UserActionBarRoot = withDefaults(ActionBarPrimitive.Root, {
 
 UserActionBarRoot.displayName = "UserActionBarRoot";
 
+namespace UserActionBarEdit {
+  export type Element = ActionBarPrimitive.Edit.Element;
+  export type Props = Partial<TooltipIconButtonProps>;
+}
+
 const UserActionBarEdit = forwardRef<
-  HTMLButtonElement,
-  Partial<TooltipIconButtonProps>
+  UserActionBarEdit.Element,
+  UserActionBarEdit.Props
 >((props, ref) => {
   const {
     strings: { userMessage: { edit: { tooltip = "Edit" } = {} } = {} } = {},

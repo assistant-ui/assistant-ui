@@ -38,9 +38,14 @@ const BranchPickerRoot = withDefaults(BranchPickerPrimitive.Root, {
 
 BranchPickerRoot.displayName = "BranchPickerRoot";
 
+namespace BranchPickerPrevious {
+  export type Element = BranchPickerPrimitive.Previous.Element;
+  export type Props = Partial<TooltipIconButtonProps>;
+}
+
 const BranchPickerPrevious = forwardRef<
-  HTMLButtonElement,
-  Partial<TooltipIconButtonProps>
+  BranchPickerPrevious.Element,
+  BranchPickerPrevious.Props
 >((props, ref) => {
   const {
     strings: {
@@ -63,9 +68,14 @@ const BranchPickerStateWrapper = withDefaults("span", {
   className: "aui-branch-picker-state",
 });
 
+namespace BranchPickerState {
+  export type Element = HTMLSpanElement;
+  export type Props = ComponentPropsWithoutRef<"span">;
+}
+
 const BranchPickerState = forwardRef<
-  HTMLSpanElement,
-  ComponentPropsWithoutRef<"span">
+  BranchPickerState.Element,
+  BranchPickerState.Props
 >((props, ref) => {
   return (
     <BranchPickerStateWrapper {...props} ref={ref}>
@@ -76,9 +86,14 @@ const BranchPickerState = forwardRef<
 
 BranchPickerState.displayName = "BranchPickerState";
 
+namespace BranchPickerNext {
+  export type Element = BranchPickerPrimitive.Next.Element;
+  export type Props = Partial<TooltipIconButtonProps>;
+}
+
 const BranchPickerNext = forwardRef<
-  HTMLButtonElement,
-  Partial<TooltipIconButtonProps>
+  BranchPickerNext.Element,
+  BranchPickerNext.Props
 >((props, ref) => {
   const {
     strings: { branchPicker: { next: { tooltip = "Next" } = {} } = {} } = {},

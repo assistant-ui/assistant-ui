@@ -10,20 +10,25 @@ import {
 import { useContentPartText } from "../../primitive-hooks/contentPart/useContentPartText";
 import { useSmooth } from "../../utils/smooth/useSmooth";
 
-type ContentPartPrimitiveTextElement = ElementRef<typeof Primitive.span>;
-type PrimitiveSpanProps = ComponentPropsWithoutRef<typeof Primitive.span>;
+/**
+ * @deprecated Use `ContentPartPrimitive.Text.Props` instead. This will be removed in 0.6.
+ */
+export type ContentPartPrimitiveTextProps = ContentPartPrimitiveText.Props;
 
-export type ContentPartPrimitiveTextProps = Omit<
-  PrimitiveSpanProps,
-  "children" | "asChild"
-> & {
-  smooth?: boolean;
-  component?: ElementType;
-};
+export namespace ContentPartPrimitiveText {
+  export type Element = ElementRef<typeof Primitive.span>;
+  export type Props = Omit<
+    ComponentPropsWithoutRef<typeof Primitive.span>,
+    "children" | "asChild"
+  > & {
+    smooth?: boolean;
+    component?: ElementType;
+  };
+}
 
 export const ContentPartPrimitiveText = forwardRef<
-  ContentPartPrimitiveTextElement,
-  ContentPartPrimitiveTextProps
+  ContentPartPrimitiveText.Element,
+  ContentPartPrimitiveText.Props
 >(({ smooth = true, component: Component = "span", ...rest }, forwardedRef) => {
   const { text, status } = useSmooth(useContentPartText(), smooth);
 

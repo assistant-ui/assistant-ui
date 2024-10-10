@@ -21,15 +21,23 @@ import { useThread, useThreadStore } from "../../context/react/ThreadContext";
 import { useEscapeKeydown } from "@radix-ui/react-use-escape-keydown";
 import { useOnComposerFocus } from "../../utils/hooks/useOnComposerFocus";
 
-export type ComposerPrimitiveInputProps = TextareaAutosizeProps & {
-  asChild?: boolean | undefined;
-  submitOnEnter?: boolean | undefined;
-  cancelOnEscape?: boolean | undefined;
-};
+/**
+ * @deprecated Use `ComposerPrimitive.Input.Props` instead. This will be removed in 0.6.
+ */
+export type ComposerPrimitiveInputProps = ComposerPrimitiveInput.Props;
+
+export namespace ComposerPrimitiveInput {
+  export type Element = HTMLTextAreaElement;
+  export type Props = TextareaAutosizeProps & {
+    asChild?: boolean | undefined;
+    submitOnEnter?: boolean | undefined;
+    cancelOnEscape?: boolean | undefined;
+  };
+}
 
 export const ComposerPrimitiveInput = forwardRef<
-  HTMLTextAreaElement,
-  ComposerPrimitiveInputProps
+  ComposerPrimitiveInput.Element,
+  ComposerPrimitiveInput.Props
 >(
   (
     {
@@ -60,7 +68,7 @@ export const ComposerPrimitiveInput = forwardRef<
 
     useEscapeKeydown((e) => {
       if (!cancelOnEscape) return;
-      
+
       const composer = composerStore.getState();
       if (composer.canCancel) {
         composer.cancel();

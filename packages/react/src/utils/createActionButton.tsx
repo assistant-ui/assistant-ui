@@ -6,11 +6,12 @@ import { composeEventHandlers } from "@radix-ui/primitive";
 
 type ActionButtonCallback<TProps> = (props: TProps) => null | (() => void);
 
-type PrimitiveButtonElement = ElementRef<typeof Primitive.button>;
 type PrimitiveButtonProps = ComponentPropsWithoutRef<typeof Primitive.button>;
 
 export type ActionButtonProps<THook> = PrimitiveButtonProps &
   (THook extends (props: infer TProps) => unknown ? TProps : never);
+
+export type ActionButtonElement = ElementRef<typeof Primitive.button>;
 
 export const createActionButton = <TProps,>(
   displayName: string,
@@ -18,7 +19,7 @@ export const createActionButton = <TProps,>(
   forwardProps: (keyof NonNullable<TProps>)[] = [],
 ) => {
   const ActionButton = forwardRef<
-    PrimitiveButtonElement,
+    ActionButtonElement,
     PrimitiveButtonProps & TProps
   >((props, forwardedRef) => {
     const forwardedProps = {} as TProps;

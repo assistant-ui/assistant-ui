@@ -22,24 +22,31 @@ import type {
 import { ContentPartPrimitiveInProgress } from "../contentPart/ContentPartInProgress";
 import { EMPTY_CONTENT } from "../../api/MessageRuntime";
 
-export type MessagePrimitiveContentProps = {
-  components?:
-    | {
-        Empty?: EmptyContentPartComponent | undefined;
-        Text?: TextContentPartComponent | undefined;
-        Image?: ImageContentPartComponent | undefined;
-        UI?: UIContentPartComponent | undefined;
-        tools?:
-          | {
-              by_name?:
-                | Record<string, ToolCallContentPartComponent | undefined>
-                | undefined;
-              Fallback?: ComponentType<ToolCallContentPartProps> | undefined;
-            }
-          | undefined;
-      }
-    | undefined;
-};
+/**
+ * @deprecated Use `MessagePrimitive.Content.Props` instead. This will be removed in 0.6.
+ */
+export type MessagePrimitiveContentProps = MessagePrimitiveContent.Props;
+
+export namespace MessagePrimitiveContent {
+  export type Props = {
+    components?:
+      | {
+          Empty?: EmptyContentPartComponent | undefined;
+          Text?: TextContentPartComponent | undefined;
+          Image?: ImageContentPartComponent | undefined;
+          UI?: UIContentPartComponent | undefined;
+          tools?:
+            | {
+                by_name?:
+                  | Record<string, ToolCallContentPartComponent | undefined>
+                  | undefined;
+                Fallback?: ComponentType<ToolCallContentPartProps> | undefined;
+              }
+            | undefined;
+        }
+      | undefined;
+  };
+}
 
 const ToolUIDisplay = ({
   UI,
@@ -63,10 +70,10 @@ const defaultComponents = {
   ),
   Image: () => <ContentPartPrimitiveImage />,
   UI: () => <ContentPartPrimitiveDisplay />,
-} satisfies MessagePrimitiveContentProps["components"];
+} satisfies MessagePrimitiveContent.Props["components"];
 
 type MessageContentPartComponentProps = {
-  components: MessagePrimitiveContentProps["components"];
+  components: MessagePrimitiveContent.Props["components"];
 };
 
 const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
@@ -126,7 +133,7 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
 
 type MessageContentPartProps = {
   partIndex: number;
-  components: MessagePrimitiveContentProps["components"];
+  components: MessagePrimitiveContent.Props["components"];
 };
 
 const MessageContentPartImpl: FC<MessageContentPartProps> = ({
@@ -156,7 +163,7 @@ const MessageContentPart = memo(
     prev.components?.tools === next.components?.tools,
 );
 
-export const MessagePrimitiveContent: FC<MessagePrimitiveContentProps> = ({
+export const MessagePrimitiveContent: FC<MessagePrimitiveContent.Props> = ({
   components,
 }) => {
   const contentLength = useMessage((s) => s.content.length) || 1;

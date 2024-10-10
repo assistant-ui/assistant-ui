@@ -7,13 +7,20 @@ import { composeEventHandlers } from "@radix-ui/primitive";
 import { useMessageUtils } from "../../context";
 import { Primitive } from "@radix-ui/react-primitive";
 
-export type ActionBarPrimitiveFeedbackPositiveProps = ActionButtonProps<
-  typeof useActionBarFeedbackPositive
->;
+/**
+ * @deprecated Use `ActionBarPrimitive.FeedbackPositive.Props` instead. This will be removed in 0.6.
+ */
+export type ActionBarPrimitiveFeedbackPositiveProps =
+  ActionBarPrimitiveFeedbackPositive.Props;
+
+export namespace ActionBarPrimitiveFeedbackPositive {
+  export type Element = HTMLButtonElement;
+  export type Props = ActionButtonProps<typeof useActionBarFeedbackPositive>;
+}
 
 export const ActionBarPrimitiveFeedbackPositive = forwardRef<
-  HTMLButtonElement,
-  Partial<ActionBarPrimitiveFeedbackPositiveProps>
+  ActionBarPrimitiveFeedbackPositive.Element,
+  ActionBarPrimitiveFeedbackPositive.Props
 >(({ onClick, disabled, ...props }, forwardedRef) => {
   const isSubmitted = useMessageUtils(
     (u) => u.submittedFeedback === "positive",

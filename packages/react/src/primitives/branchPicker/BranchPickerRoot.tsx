@@ -4,16 +4,21 @@ import { Primitive } from "@radix-ui/react-primitive";
 import { type ElementRef, forwardRef, ComponentPropsWithoutRef } from "react";
 import { If } from "../message";
 
-type BranchPickerPrimitiveRootElement = ElementRef<typeof Primitive.div>;
-type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;
+/**
+ * @deprecated Use `BranchPickerPrimitive.Root.Props` instead. This will be removed in 0.6.
+ */
+export type BranchPickerPrimitiveRootProps = BranchPickerPrimitiveRoot.Props;
 
-export type BranchPickerPrimitiveRootProps = PrimitiveDivProps & {
-  hideWhenSingleBranch?: boolean | undefined;
-};
+export namespace BranchPickerPrimitiveRoot {
+  export type Element = ElementRef<typeof Primitive.div>;
+  export type Props = ComponentPropsWithoutRef<typeof Primitive.div> & {
+    hideWhenSingleBranch?: boolean | undefined;
+  };
+}
 
 export const BranchPickerPrimitiveRoot = forwardRef<
-  BranchPickerPrimitiveRootElement,
-  BranchPickerPrimitiveRootProps
+  BranchPickerPrimitiveRoot.Element,
+  BranchPickerPrimitiveRoot.Props
 >(({ hideWhenSingleBranch, ...rest }, ref) => {
   return (
     <If hasBranches={hideWhenSingleBranch ? true : undefined}>

@@ -6,9 +6,16 @@ import {
   useComposerIf,
 } from "../../primitive-hooks/composer/useComposerIf";
 
-export type ComposerPrimitiveIfProps = PropsWithChildren<UseComposerIfProps>;
+/**
+ * @deprecated Use `ComposerPrimitive.If.Props` instead. This will be removed in 0.6.
+ */
+export type ComposerPrimitiveIfProps = ComposerPrimitiveIf.Props;
 
-export const ComposerPrimitiveIf: FC<ComposerPrimitiveIfProps> = ({
+export namespace ComposerPrimitiveIf {
+  export type Props = PropsWithChildren<UseComposerIfProps>;
+}
+
+export const ComposerPrimitiveIf: FC<ComposerPrimitiveIf.Props> = ({
   children,
   ...query
 }) => {

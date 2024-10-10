@@ -8,15 +8,21 @@ import {
   UseActionBarFloatStatusProps,
 } from "./useActionBarFloatStatus";
 
-type ActionBarPrimitiveRootElement = ElementRef<typeof Primitive.div>;
 type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;
 
-export type ActionBarPrimitiveRootProps = PrimitiveDivProps &
-  UseActionBarFloatStatusProps;
+/**
+ * @deprecated Use `ActionBarPrimitive.Root.Props` instead. This will be removed in 0.6.
+ */
+export type ActionBarPrimitiveRootProps = ActionBarPrimitiveRoot.Props;
+
+export namespace ActionBarPrimitiveRoot {
+  export type Element = ElementRef<typeof Primitive.div>;
+  export type Props = PrimitiveDivProps & UseActionBarFloatStatusProps;
+}
 
 export const ActionBarPrimitiveRoot = forwardRef<
-  ActionBarPrimitiveRootElement,
-  ActionBarPrimitiveRootProps
+  ActionBarPrimitiveRoot.Element,
+  ActionBarPrimitiveRoot.Props
 >(({ hideWhenRunning, autohide, autohideFloat, ...rest }, ref) => {
   const hideAndfloatStatus = useActionBarFloatStatus({
     hideWhenRunning,

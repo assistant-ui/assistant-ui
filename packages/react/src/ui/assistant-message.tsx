@@ -1,7 +1,7 @@
 "use client";
 
 import { ComponentPropsWithoutRef, forwardRef, useMemo, type FC } from "react";
-import { MessagePrimitive, MessagePrimitiveContentProps } from "../primitives";
+import { MessagePrimitive } from "../primitives";
 import BranchPicker from "./branch-picker";
 import { Avatar } from "./base/avatar";
 import { withDefaults } from "./utils/withDefaults";
@@ -37,12 +37,20 @@ const AssistantMessageContentWrapper = withDefaults("div", {
   className: "aui-assistant-message-content",
 });
 
-export type AssistantMessageContentProps = MessagePrimitiveContentProps &
-  ComponentPropsWithoutRef<"div">;
+/**
+ * @deprecated Use `AssistantMessage.Content.Props` instead. This will be removed in 0.6.
+ */
+export type AssistantMessageContentProps = AssistantMessageContent.Props;
+
+namespace AssistantMessageContent {
+  export type Element = HTMLDivElement;
+  export type Props = MessagePrimitive.Content.Props &
+    ComponentPropsWithoutRef<"div">;
+}
 
 const AssistantMessageContent = forwardRef<
-  HTMLDivElement,
-  AssistantMessageContentProps
+  AssistantMessageContent.Element,
+  AssistantMessageContent.Props
 >(({ components: componentsProp, ...rest }, ref) => {
   const { tools, assistantMessage: { components = {} } = {} } =
     useThreadConfig();

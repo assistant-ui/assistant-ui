@@ -1,14 +1,21 @@
 import { FC, PropsWithChildren } from "react";
 import { useContentPart } from "../../context";
 
-export type ContentPartPrimitiveInProgressProps = PropsWithChildren;
+/**
+ * @deprecated Use `ContentPartPrimitive.InProgress.Props` instead. This will be removed in 0.6.
+ */
+export type ContentPartPrimitiveInProgressProps =
+  ContentPartPrimitiveInProgress.Props;
 
+export namespace ContentPartPrimitiveInProgress {
+  export type Props = PropsWithChildren;
+}
+
+// TODO should this be renamed to IsRunning?
 export const ContentPartPrimitiveInProgress: FC<
-  ContentPartPrimitiveInProgressProps
+  ContentPartPrimitiveInProgress.Props
 > = ({ children }) => {
-  const isInProgress = useContentPart(
-    (c) => c.status.type === "running" || c.status.type === "requires-action",
-  );
+  const isInProgress = useContentPart((c) => c.status.type === "running");
 
   return isInProgress ? children : null;
 };
