@@ -8,23 +8,18 @@ import {
   TooltipIconButton,
   TooltipIconButtonProps,
 } from "./base/tooltip-icon-button";
-import {
-  useAttachmentRuntime,
-  useThreadComposerAttachment,
-} from "../context/react/AttachmentContext";
+import { AttachmentPrimitive } from "../primitives";
 
-const ComposerAttachmentRoot = withDefaults("div", {
+const ComposerAttachmentRoot = withDefaults(AttachmentPrimitive.Root, {
   className: "aui-composer-attachment-root",
 });
 
 ComposerAttachmentRoot.displayName = "ComposerAttachmentRoot";
 
 const ComposerAttachment: FC = () => {
-  const attachment = useThreadComposerAttachment((a) => a.attachment);
-
   return (
     <ComposerAttachmentRoot>
-      .{attachment.name.split(".").pop()}
+      <AttachmentPrimitive.unstable_Thumb />
       <ComposerAttachmentRemove />
     </ComposerAttachmentRoot>
   );
@@ -42,22 +37,18 @@ const ComposerAttachmentRemove = forwardRef<
     } = {},
   } = useThreadConfig();
 
-  const attachmentRuntime = useAttachmentRuntime();
-  const handleRemoveAttachment = () => {
-    attachmentRuntime.remove();
-  };
-
   return (
-    <TooltipIconButton
-      tooltip={tooltip}
-      className="aui-composer-attachment-remove"
-      side="top"
-      {...props}
-      onClick={handleRemoveAttachment}
-      ref={ref}
-    >
-      {props.children ?? <CircleXIcon />}
-    </TooltipIconButton>
+    <AttachmentPrimitive.Remove asChild>
+      <TooltipIconButton
+        tooltip={tooltip}
+        className="aui-composer-attachment-remove"
+        side="top"
+        {...props}
+        ref={ref}
+      >
+        {props.children ?? <CircleXIcon />}
+      </TooltipIconButton>
+    </AttachmentPrimitive.Remove>
   );
 });
 

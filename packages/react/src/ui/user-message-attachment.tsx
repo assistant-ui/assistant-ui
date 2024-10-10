@@ -3,20 +3,18 @@
 import { type FC } from "react";
 
 import { withDefaults } from "./utils/withDefaults";
-import { useAttachment } from "../context/react/AttachmentContext";
+import { AttachmentPrimitive } from "../primitives";
 
-const UserMessageAttachmentRoot = withDefaults("div", {
+const UserMessageAttachmentRoot = withDefaults(AttachmentPrimitive.Root, {
   className: "aui-user-message-attachment-root",
 });
 
 UserMessageAttachmentRoot.displayName = "UserMessageAttachmentRoot";
 
 const UserMessageAttachment: FC = () => {
-  const attachment = useAttachment((a) => a.attachment);
-
   return (
     <UserMessageAttachmentRoot>
-      .{attachment.name.split(".").pop()}
+      <AttachmentPrimitive.unstable_Thumb />
     </UserMessageAttachmentRoot>
   );
 };
