@@ -10,11 +10,30 @@ export type LangChainToolCall = {
   args: Record<string, unknown>;
 };
 
+type MessageContentText = {
+  type: "text";
+  text: string;
+};
+
+type MessageContentImageUrl = {
+  type: "image_url";
+  image_url: string | { url: string };
+};
+
+type MessageContentComplex = MessageContentText | MessageContentImageUrl;
+
+type MessageContent = string | MessageContentComplex[];
+
 export type LangChainMessage =
   | {
       id?: string;
-      type: "human" | "system";
+      type: "system";
       content: string;
+    }
+  | {
+      id?: string;
+      type: "human";
+      content: MessageContent;
     }
   | {
       id?: string;
