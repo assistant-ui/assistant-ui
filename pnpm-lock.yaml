@@ -1244,7 +1244,7 @@ importers:
   packages/react-langgraph:
     dependencies:
       '@assistant-ui/react':
-        specifier: ^0.5.73
+        specifier: ^0.5.74
         version: link:../react
       '@types/react':
         specifier: '*'

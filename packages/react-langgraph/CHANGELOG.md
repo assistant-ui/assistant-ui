@@ -1,5 +1,14 @@
 # @assistant-ui/react-langgraph
 
+## 0.0.14
+
+### Patch Changes
+
+- ce93e73: feat: handle MessageContentComplex types
+- Updated dependencies [3d31f10]
+- Updated dependencies [cf872da]
+  - @assistant-ui/react@0.5.74
+
 ## 0.0.13
 
 ### Patch Changes

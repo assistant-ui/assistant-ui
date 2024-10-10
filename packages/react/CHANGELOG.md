@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.5.74
+
+### Patch Changes
+
+- 3d31f10: refactor: deprecate primitive-hooks
+- cf872da: feat: AttachmentPrimitive
+
 ## 0.5.73
 
 ### Patch Changes
