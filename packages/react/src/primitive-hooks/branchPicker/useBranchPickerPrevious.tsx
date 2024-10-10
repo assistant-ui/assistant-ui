@@ -1,19 +1,12 @@
 import { useCallback } from "react";
 import {
-  useEditComposerStore,
+  useMessage,
   useMessageRuntime,
-  useMessageStore,
 } from "../../context/react/MessageContext";
-import { useCombinedStore } from "../../utils/combined/useCombinedStore";
 
 export const useBranchPickerPrevious = () => {
   const messageRuntime = useMessageRuntime();
-  const messageStore = useMessageStore();
-  const editComposerStore = useEditComposerStore();
-  const disabled = useCombinedStore(
-    [messageStore, editComposerStore],
-    (m, c) => c.isEditing || m.branchNumber <= 1,
-  );
+  const disabled = useMessage((m) => m.branchNumber <= 1);
 
   const callback = useCallback(() => {
     messageRuntime.switchToBranch({ position: "previous" });
