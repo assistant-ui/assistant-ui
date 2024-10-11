@@ -5,6 +5,7 @@ import {
   SubmitFeedbackOptions,
   ThreadRuntimeCore,
   SpeechState,
+  SubmittedFeedback,
 } from "../runtimes/core/ThreadRuntimeCore";
 import { ExportedMessageRepository } from "../runtimes/utils/MessageRepository";
 import {
@@ -73,7 +74,7 @@ export type ThreadState = Readonly<{
   messages: readonly ThreadMessage[];
   suggestions: readonly ThreadSuggestion[];
   extras: unknown;
-  speech: SpeechState | null;
+  speech: SpeechState | undefined;
 }>;
 
 export const getThreadState = (runtime: ThreadRuntimeCore): ThreadState => {
@@ -92,6 +93,7 @@ export const getThreadState = (runtime: ThreadRuntimeCore): ThreadState => {
     speech: runtime.speech,
   });
 };
+
 export type ThreadRuntime = {
   composer: ThreadComposerRuntime;
   getState(): ThreadState;
@@ -146,7 +148,7 @@ export type ThreadRuntime = {
   /**
    * @deprecated Use `getState().speechState` instead. This will be removed in 0.6.0.
    */
-  speech: SpeechState | null;
+  speech: SpeechState | undefined;
 
   /**
    * @deprecated Use `getState().extras` instead. This will be removed in 0.6.0.
@@ -172,6 +174,11 @@ export type ThreadRuntime = {
    * @deprecated Use `getMesssageById(id).speak()` instead. This will be removed in 0.6.0.
    */
   speak: (messageId: string) => void;
+
+  /**
+   * @deprecated Use `getMesssageById(id).getState().submittedFeedback` instead. This will be removed in 0.6.0.
+   */
+  getSubmittedFeedback: (messageId: string) => SubmittedFeedback | undefined;
 
   /**
    * @deprecated Use `getMesssageById(id).submitFeedback({ type })` instead. This will be removed in 0.6.0.
@@ -336,6 +343,10 @@ export class ThreadRuntimeImpl implements ThreadRuntimeCore, ThreadRuntime {
     return this._threadBinding.getState().stopSpeaking();
   }
 
+  public getSubmittedFeedback(messageId: string) {
+    return this._threadBinding.getState().getSubmittedFeedback(messageId);
+  }
+
   /**
    * @deprecated Use `getMesssageById(id).submitFeedback({ type })` instead. This will be removed in 0.6.0.
    */
@@ -375,9 +386,10 @@ export class ThreadRuntimeImpl implements ThreadRuntimeCore, ThreadRuntime {
           const message = messages[idx];
           if (!message) return SKIP_UPDATE;
 
-          const branches = this._threadBinding
-            .getState()
-            .getBranches(message.id);
+          const thread = this._threadBinding.getState();
+
+          const branches = thread.getBranches(message.id);
+          const submittedFeedback = thread.getSubmittedFeedback(message.id);
 
           return {
             ...message,
@@ -390,7 +402,10 @@ export class ThreadRuntimeImpl implements ThreadRuntimeCore, ThreadRuntime {
             branchNumber: branches.indexOf(message.id) + 1,
             branchCount: branches.length,
 
-            speech: speechState?.messageId === message.id ? speechState : null,
+            speech:
+              speechState?.messageId === message.id ? speechState : undefined,
+
+            submittedFeedback,
           } satisfies MessageState;
         },
         subscribe: (callback) => this._threadBinding.subscribe(callback),

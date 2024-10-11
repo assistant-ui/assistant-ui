@@ -26,8 +26,8 @@ export const useMessageIf = (props: UseMessageIfProps) => {
   return useCombinedStore(
     [messageStore, messageUtilsStore],
     (
-      { role, attachments, branchCount, isLast, speech },
-      { isCopied, isHovering, submittedFeedback },
+      { role, attachments, branchCount, isLast, speech, submittedFeedback },
+      { isCopied, isHovering },
     ) => {
       if (props.hasBranches === true && branchCount < 2) return false;
 
@@ -57,7 +57,7 @@ export const useMessageIf = (props: UseMessageIfProps) => {
 
       if (
         props.submittedFeedback !== undefined &&
-        submittedFeedback !== props.submittedFeedback
+        (   submittedFeedback?.type ?? null) !== props.submittedFeedback
       )
         return false;
 

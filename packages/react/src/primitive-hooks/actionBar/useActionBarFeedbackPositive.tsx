@@ -1,16 +1,12 @@
 import { useCallback } from "react";
-import { useMessageRuntime, useMessageUtilsStore } from "../../context";
+import { useMessageRuntime } from "../../context";
 
 export const useActionBarFeedbackPositive = () => {
   const messageRuntime = useMessageRuntime();
-  const messageUtilsStore = useMessageUtilsStore();
 
   const callback = useCallback(() => {
-    messageRuntime.submitFeedback({
-      type: "positive",
-    });
-    messageUtilsStore.getState().setSubmittedFeedback("positive");
-  }, [messageUtilsStore, messageRuntime]);
+    messageRuntime.submitFeedback({ type: "positive" });
+  }, [messageRuntime]);
 
   return callback;
 };

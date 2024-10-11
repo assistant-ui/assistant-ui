@@ -44,7 +44,7 @@ export const useActionBarFloatStatus = ({
       // floating status
       if (
         autohideFloat === "always" ||
-        (autohideFloat === "single-branch" && m.branches.length <= 1)
+        (autohideFloat === "single-branch" && m.branchCount <= 1)
       )
         return HideAndFloatStatus.Floating;
 

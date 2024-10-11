@@ -15,6 +15,7 @@ import {
   ThreadRuntimeCore,
   SpeechState,
   RuntimeCapabilities,
+  SubmittedFeedback,
 } from "../core/ThreadRuntimeCore";
 import { DefaultEditComposerRuntimeCore } from "../composer/DefaultEditComposerRuntimeCore";
 import { SpeechSynthesisAdapter } from "../speech";
@@ -93,17 +94,23 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
     return () => this._subscriptions.delete(callback);
   }
 
+  private _submittedFeedback: Record<string, SubmittedFeedback> = {};
+
+  public getSubmittedFeedback(messageId: string) {
+    return this._submittedFeedback[messageId];
+  }
+
   public submitFeedback({ messageId, type }: SubmitFeedbackOptions) {
     const adapter = this.adapters?.feedback;
     if (!adapter) throw new Error("Feedback adapter not configured");
 
     const { message } = this.repository.getMessage(messageId);
     adapter.submit({ message, type });
+    this._submittedFeedback[messageId] = { type };
   }
 
-  // TODO speech runtime?
   private _stopSpeaking: Unsubscribe | undefined;
-  public speech: SpeechState | null = null;
+  public speech: SpeechState | undefined;
 
   public speak(messageId: string) {
     const adapter = this.adapters?.speech;
@@ -117,7 +124,7 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
     const unsub = utterance.subscribe(() => {
       if (utterance.status.type === "ended") {
         this._stopSpeaking = undefined;
-        this.speech = null;
+        this.speech = undefined;
       } else {
         this.speech = { messageId, status: utterance.status };
       }
@@ -128,7 +135,7 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
     this._stopSpeaking = () => {
       utterance.cancel();
       unsub();
-      this.speech = null;
+      this.speech = undefined;
       this._stopSpeaking = undefined;
     };
   }

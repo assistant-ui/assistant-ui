@@ -4,7 +4,7 @@ import { forwardRef } from "react";
 import { useActionBarFeedbackPositive } from "../../primitive-hooks/actionBar/useActionBarFeedbackPositive";
 import { ActionButtonProps } from "../../utils/createActionButton";
 import { composeEventHandlers } from "@radix-ui/primitive";
-import { useMessageUtils } from "../../context";
+import { useMessage } from "../../context";
 import { Primitive } from "@radix-ui/react-primitive";
 
 /**
@@ -22,8 +22,8 @@ export const ActionBarPrimitiveFeedbackPositive = forwardRef<
   ActionBarPrimitiveFeedbackPositive.Element,
   ActionBarPrimitiveFeedbackPositive.Props
 >(({ onClick, disabled, ...props }, forwardedRef) => {
-  const isSubmitted = useMessageUtils(
-    (u) => u.submittedFeedback === "positive",
+  const isSubmitted = useMessage(
+    (u) => u.submittedFeedback?.type === "positive",
   );
   const callback = useActionBarFeedbackPositive();
   return (

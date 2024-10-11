@@ -1,4 +1,7 @@
-import { SpeechState } from "../runtimes/core/ThreadRuntimeCore";
+import {
+  SpeechState,
+  SubmittedFeedback,
+} from "../runtimes/core/ThreadRuntimeCore";
 import {
   ThreadMessage,
   ThreadAssistantContentPart,
@@ -104,7 +107,8 @@ export type MessageState = ThreadMessage & {
   branchNumber: number;
   branchCount: number;
 
-  speech: SpeechState | null;
+  speech: SpeechState | undefined;
+  submittedFeedback: SubmittedFeedback | undefined;
 };
 
 export type MessageStateBinding = SubscribableWithState<MessageState>;

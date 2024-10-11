@@ -39,6 +39,10 @@ export type SpeechState = Readonly<{
   status: SpeechSynthesisAdapter.Status;
 }>;
 
+export type SubmittedFeedback = Readonly<{
+  type: "negative" | "positive";
+}>;
+
 export type ThreadRuntimeCore = Readonly<{
   getBranches: (messageId: string) => readonly string[];
   switchToBranch: (branchId: string) => void;
@@ -52,6 +56,7 @@ export type ThreadRuntimeCore = Readonly<{
   speak: (messageId: string) => void;
   stopSpeaking: () => void;
 
+  getSubmittedFeedback: (messageId: string) => SubmittedFeedback | undefined;
   submitFeedback: (feedback: SubmitFeedbackOptions) => void;
 
   getModelConfig: () => ModelConfig;
@@ -60,7 +65,7 @@ export type ThreadRuntimeCore = Readonly<{
   getEditComposer: (messageId: string) => ComposerRuntimeCore | undefined;
   beginEdit: (messageId: string) => void;
 
-  speech: SpeechState | null;
+  speech: SpeechState | undefined;
 
   capabilities: Readonly<RuntimeCapabilities>;
   threadId: string;
