@@ -106,7 +106,9 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
 
     const { message } = this.repository.getMessage(messageId);
     adapter.submit({ message, type });
+
     this._submittedFeedback[messageId] = { type };
+    this.notifySubscribers();
   }
 
   private _stopSpeaking: Unsubscribe | undefined;
@@ -132,6 +134,8 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
     });
 
     this.speech = { messageId, status: utterance.status };
+    this.notifySubscribers();
+
     this._stopSpeaking = () => {
       utterance.cancel();
       unsub();
@@ -143,6 +147,7 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
   public stopSpeaking() {
     if (!this._stopSpeaking) throw new Error("No message is being spoken");
     this._stopSpeaking();
+    this.notifySubscribers();
   }
 
   public export() {
