@@ -1,5 +1,6 @@
 import { AppendMessage, ThreadMessage } from "../../types";
 import { getThreadMessageText } from "../../utils/getThreadMessageText";
+import { AttachmentAdapter } from "../attachment";
 import { ThreadRuntimeCore } from "../core/ThreadRuntimeCore";
 import { BaseComposerRuntimeCore } from "./BaseComposerRuntimeCore";
 
@@ -8,11 +9,17 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
     return true;
   }
 
+  protected getAttachmentAdapter() {
+    return this.runtime.adapters?.attachments;
+  }
+
   private _nonTextParts;
   private _previousText;
   private _parentId;
   constructor(
-    private runtime: Omit<ThreadRuntimeCore, "composer">,
+    private runtime: Omit<ThreadRuntimeCore, "composer"> & {
+      adapters?: { attachments?: AttachmentAdapter | undefined } | undefined;
+    },
     private endEditCallback: () => void,
     { parentId, message }: { parentId: string | null; message: ThreadMessage },
   ) {
@@ -25,8 +32,7 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
       (part) => part.type !== "text" && part.type !== "ui",
     );
 
-    // TODO differentiate between "sent" and "pending" attachments instead of Composer/Message Attachments
-    // this.attachments = message.attachments ?? [];
+    this.attachments = message.attachments ?? [];
   }
 
   public async handleSend(message: Omit<AppendMessage, "parentId">) {

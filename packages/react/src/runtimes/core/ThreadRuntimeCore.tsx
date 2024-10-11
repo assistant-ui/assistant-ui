@@ -13,7 +13,7 @@ export type RuntimeCapabilities = Readonly<{
   reload: boolean;
   cancel: boolean;
   unstable_copy: boolean;
-  speak: boolean;
+  speech: boolean;
   attachments: boolean;
   feedback: boolean;
 }>;

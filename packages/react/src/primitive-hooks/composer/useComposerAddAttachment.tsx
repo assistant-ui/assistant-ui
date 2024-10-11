@@ -1,18 +1,15 @@
 import { useCallback } from "react";
-import { useComposer } from "../../context";
-import { useThreadComposerStore } from "../../context/react/ThreadContext";
+import { useComposer, useComposerRuntime } from "../../context";
 
 export const useComposerAddAttachment = () => {
   const disabled = useComposer((c) => !c.isEditing);
 
-  const threadComposerStore = useThreadComposerStore();
-  const threadRuntimeStore = useThreadComposerStore();
+  const composerRuntime = useComposerRuntime();
   const callback = useCallback(() => {
-    const { addAttachment } = threadComposerStore.getState();
-    const { attachmentAccept } = threadRuntimeStore.getState();
-
     const input = document.createElement("input");
     input.type = "file";
+
+    const attachmentAccept = composerRuntime.getAttachmentAccept();
     if (attachmentAccept !== "*") {
       input.accept = attachmentAccept;
     }
@@ -20,11 +17,11 @@ export const useComposerAddAttachment = () => {
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
-      addAttachment(file);
+      composerRuntime.addAttachment(file);
     };
 
     input.click();
-  }, [threadComposerStore, threadRuntimeStore]);
+  }, [composerRuntime]);
 
   if (disabled) return null;
   return callback;

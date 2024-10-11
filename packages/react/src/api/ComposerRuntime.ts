@@ -63,7 +63,6 @@ type LegacyThreadComposerState = Readonly<{
   /** @deprecated Use `useComposerRuntime().setText` instead. This will be removed in 0.6.0. */
   setValue: (value: string) => void;
 
-  attachmentAccept: string;
   attachments: readonly Attachment[];
 
   /** @deprecated Use `useComposerRuntime().addAttachment` instead. This will be removed in 0.6.0. */
@@ -98,7 +97,6 @@ type LegacyThreadComposerState = Readonly<{
 
 type BaseComposerState = {
   text: string;
-  attachmentAccept: string;
   attachments: readonly Attachment[];
 
   canCancel: boolean;
@@ -137,7 +135,6 @@ const getThreadComposerState = (
     isEmpty: runtime?.isEmpty ?? true,
     text: runtime?.text ?? "",
     attachments: runtime?.attachments ?? EMPTY_ARRAY,
-    attachmentAccept: runtime?.attachmentAccept ?? "*",
 
     value: runtime?.text ?? "",
     setValue: runtime?.setText.bind(runtime) ?? METHOD_NOT_SUPPORTED,
@@ -167,7 +164,6 @@ const getEditComposerState = (
     isEmpty: runtime?.isEmpty ?? true,
     text: runtime?.text ?? "",
     attachments: runtime?.attachments ?? EMPTY_ARRAY,
-    attachmentAccept: runtime?.attachmentAccept ?? "*",
 
     value: runtime?.text ?? "",
     setValue: runtime?.setText.bind(runtime) ?? METHOD_NOT_SUPPORTED,
@@ -194,9 +190,6 @@ export type ComposerRuntime = {
   /** @deprecated Use `getState().text` instead. This will be removed in 0.6.0. */
   readonly text: string;
 
-  /** @deprecated Use `getState().attachmentAccept` instead. This will be removed in 0.6.0. */
-  readonly attachmentAccept: string;
-
   /** @deprecated Use `getState().attachments` instead. This will be removed in 0.6.0. */
   readonly attachments: readonly Attachment[];
 
@@ -205,6 +198,8 @@ export type ComposerRuntime = {
 
   setText(text: string): void;
   setValue(text: string): void;
+
+  getAttachmentAccept(): string;
   addAttachment(file: File): Promise<void>;
 
   /** @deprecated Use `getAttachmentById(id).removeAttachment()` instead. This will be removed in 0.6.0. */
@@ -252,13 +247,6 @@ export abstract class ComposerRuntimeImpl
    */
   public get text() {
     return this.getState().text;
-  }
-
-  /**
-   * @deprecated Use `getState().attachmentAccept` instead. This will be removed in 0.6.0.
-   */
-  public get attachmentAccept() {
-    return this.getState().attachmentAccept;
   }
 
   /**
@@ -325,6 +313,12 @@ export abstract class ComposerRuntimeImpl
 
   public subscribe(callback: () => void) {
     return this._core.subscribe(callback);
+  }
+
+  public getAttachmentAccept(): string {
+    const core = this._core.getState();
+    if (!core) throw new Error("Composer is not available");
+    return core.getAttachmentAccept();
   }
 
   public abstract getAttachmentByIndex(idx: number): AttachmentRuntime;

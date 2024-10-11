@@ -92,7 +92,7 @@ const CAPABILITIES = Object.freeze({
   reload: false,
   cancel: true,
   unstable_copy: true,
-  speak: false,
+  speech: false,
   attachments: false,
   feedback: false,
 });
@@ -112,6 +112,7 @@ export class PlaygroundThreadRuntimeCore implements INTERNAL.ThreadRuntimeCore {
   public readonly extras = undefined;
   public readonly suggestions: readonly ThreadSuggestion[] = [];
   public readonly speech = null;
+  public readonly adapters = undefined;
 
   private configProvider = new ProxyConfigProvider();
 

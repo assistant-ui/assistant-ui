@@ -13,7 +13,11 @@ const isAttachmentComplete = (a: Attachment): a is CompleteAttachment =>
 export abstract class BaseComposerRuntimeCore implements ComposerRuntimeCore {
   public readonly isEditing = true;
 
-  public attachmentAccept: string = "*";
+  protected abstract getAttachmentAdapter(): AttachmentAdapter | undefined;
+
+  public getAttachmentAccept(): string {
+    return this.getAttachmentAdapter()?.accept ?? "*";
+  }
 
   private _attachments: readonly Attachment[] = [];
   protected set attachments(value: readonly Attachment[]) {
@@ -48,19 +52,21 @@ export abstract class BaseComposerRuntimeCore implements ComposerRuntimeCore {
   }
 
   public async send() {
-    const attachments = this._attachmentAdapter
-      ? await Promise.all(
-          this.attachments.map(async (a) => {
-            if (isAttachmentComplete(a)) return a;
-            const result = await this._attachmentAdapter!.send(a);
-            // TODO remove after 0.6.0
-            if (result.status?.type !== "complete") {
-              result.status = { type: "complete" };
-            }
-            return result as CompleteAttachment;
-          }),
-        )
-      : [];
+    const adapter = this.getAttachmentAdapter();
+    const attachments =
+      adapter && this.attachments.length > 0
+        ? await Promise.all(
+            this.attachments.map(async (a) => {
+              if (isAttachmentComplete(a)) return a;
+              const result = await adapter.send(a);
+              // TODO remove after 0.6.0
+              if (result.status?.type !== "complete") {
+                result.status = { type: "complete" };
+              }
+              return result as CompleteAttachment;
+            }),
+          )
+        : [];
 
     const message: Omit<AppendMessage, "parentId"> = {
       role: "user",
@@ -74,21 +80,11 @@ export abstract class BaseComposerRuntimeCore implements ComposerRuntimeCore {
   public abstract handleSend(message: Omit<AppendMessage, "parentId">): void;
   public abstract cancel(): void;
 
-  protected _attachmentAdapter?: AttachmentAdapter | undefined;
-  public setAttachmentAdapter(adapter: AttachmentAdapter | undefined) {
-    this._attachmentAdapter = adapter;
-    const accept = adapter?.accept ?? "*";
-    if (this.attachmentAccept !== accept) {
-      this.attachmentAccept = accept;
-      this.notifySubscribers();
-    }
-  }
-
   async addAttachment(file: File) {
-    if (!this._attachmentAdapter)
-      throw new Error("Attachments are not supported");
+    const adapter = this.getAttachmentAdapter();
+    if (!adapter) throw new Error("Attachments are not supported");
 
-    const attachment = await this._attachmentAdapter.add({ file });
+    const attachment = await adapter.add({ file });
     // TODO remove after 0.6.0
     if (attachment.status === undefined) {
       attachment.status = { type: "requires-action", reason: "composer-send" };
@@ -99,14 +95,14 @@ export abstract class BaseComposerRuntimeCore implements ComposerRuntimeCore {
   }
 
   async removeAttachment(attachmentId: string) {
-    if (!this._attachmentAdapter)
-      throw new Error("Attachments are not supported");
+    const adapter = this.getAttachmentAdapter();
+    if (!adapter) throw new Error("Attachments are not supported");
 
     const index = this._attachments.findIndex((a) => a.id === attachmentId);
     if (index === -1) throw new Error("Attachment not found");
     const attachment = this._attachments[index]!;
 
-    await this._attachmentAdapter.remove(attachment);
+    await adapter.remove(attachment);
 
     this._attachments = this._attachments.toSpliced(index, 1);
     this.notifySubscribers();

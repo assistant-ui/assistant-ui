@@ -1,8 +1,9 @@
 import type { Attachment, PendingAttachment, Unsubscribe } from "../../types";
 
 export type ComposerRuntimeCore = Readonly<{
-  attachmentAccept: string;
   attachments: readonly Attachment[];
+
+  getAttachmentAccept(): string;
   addAttachment: (file: File) => Promise<void>;
   removeAttachment: (attachmentId: string) => Promise<void>;
 

@@ -3,58 +3,50 @@ import type {
   ModelConfigProvider,
   AppendMessage,
   ThreadAssistantMessage,
-  Unsubscribe,
 } from "../../types";
 import { fromCoreMessage, fromCoreMessages } from "../edge";
-import {
-  ExportedMessageRepository,
-  MessageRepository,
-} from "../utils/MessageRepository";
 import type { ChatModelAdapter, ChatModelRunResult } from "./ChatModelAdapter";
-import { DefaultThreadComposerRuntimeCore } from "../composer/DefaultThreadComposerRuntimeCore";
 import { shouldContinue } from "./shouldContinue";
 import { LocalRuntimeOptions } from "./LocalRuntimeOptions";
 import {
   AddToolResultOptions,
   ThreadSuggestion,
-  SubmitFeedbackOptions,
   ThreadRuntimeCore,
-  SpeechState,
 } from "../core/ThreadRuntimeCore";
-import { DefaultEditComposerRuntimeCore } from "../composer/DefaultEditComposerRuntimeCore";
+import { BaseThreadRuntimeCore } from "../core/BaseThreadRuntimeCore";
 
-export class LocalThreadRuntimeCore implements ThreadRuntimeCore {
-  private _subscriptions = new Set<() => void>();
-
-  private abortController: AbortController | null = null;
-  private readonly repository = new MessageRepository();
-
+export class LocalThreadRuntimeCore
+  extends BaseThreadRuntimeCore
+  implements ThreadRuntimeCore
+{
   public readonly capabilities = {
     switchToBranch: true,
     edit: true,
     reload: true,
     cancel: true,
     unstable_copy: true,
-    speak: false,
+    speech: false,
     attachments: false,
     feedback: false,
   };
+
+  private abortController: AbortController | null = null;
 
   public readonly threadId: string;
   public readonly isDisabled = false;
   public readonly suggestions: readonly ThreadSuggestion[] = [];
 
-  public get messages() {
-    return this.repository.getMessages();
+  public get adapters() {
+    return this.options.adapters;
   }
 
-  public readonly composer = new DefaultThreadComposerRuntimeCore(this);
-
   constructor(
-    private configProvider: ModelConfigProvider,
+    configProvider: ModelConfigProvider,
     public adapter: ChatModelAdapter,
     { initialMessages, ...options }: LocalRuntimeOptions,
   ) {
+    super(configProvider);
+
     this.threadId = generateId();
     this.options = options;
     if (initialMessages) {
@@ -65,10 +57,6 @@ export class LocalThreadRuntimeCore implements ThreadRuntimeCore {
         parentId = message.id;
       }
     }
-  }
-
-  public getModelConfig() {
-    return this.configProvider.getModelConfig();
   }
 
   private _options!: LocalRuntimeOptions;
@@ -87,12 +75,10 @@ export class LocalThreadRuntimeCore implements ThreadRuntimeCore {
     let hasUpdates = false;
 
     const canSpeak = options.adapters?.speech !== undefined;
-    if (this.capabilities.speak !== canSpeak) {
-      this.capabilities.speak = canSpeak;
+    if (this.capabilities.speech !== canSpeak) {
+      this.capabilities.speech = canSpeak;
       hasUpdates = true;
     }
-
-    this.composer.setAttachmentAdapter(options.adapters?.attachments);
 
     const canAttach = options.adapters?.attachments !== undefined;
     if (this.capabilities.attachments !== canAttach) {
@@ -107,34 +93,6 @@ export class LocalThreadRuntimeCore implements ThreadRuntimeCore {
     }
 
     if (hasUpdates) this.notifySubscribers();
-  }
-
-  private _editComposers = new Map<string, DefaultEditComposerRuntimeCore>();
-  public getEditComposer(messageId: string) {
-    return this._editComposers.get(messageId);
-  }
-  public beginEdit(messageId: string) {
-    if (this._editComposers.has(messageId))
-      throw new Error("Edit already in progress");
-
-    this._editComposers.set(
-      messageId,
-      new DefaultEditComposerRuntimeCore(
-        this,
-        () => this._editComposers.delete(messageId),
-        this.repository.getMessage(messageId),
-      ),
-    );
-    this.notifySubscribers();
-  }
-
-  public getBranches(messageId: string): string[] {
-    return this.repository.getBranches(messageId);
-  }
-
-  public switchToBranch(branchId: string): void {
-    this.repository.switchToBranch(branchId);
-    this.notifySubscribers();
   }
 
   public async append(message: AppendMessage): Promise<void> {
@@ -240,7 +198,7 @@ export class LocalThreadRuntimeCore implements ThreadRuntimeCore {
       const promiseOrGenerator = this.adapter.run({
         messages,
         abortSignal: this.abortController.signal,
-        config: this.configProvider.getModelConfig(),
+        config: this.getModelConfig(),
         onUpdate: updateMessage,
       });
 
@@ -279,20 +237,9 @@ export class LocalThreadRuntimeCore implements ThreadRuntimeCore {
     return message;
   }
 
-  cancelRun(): void {
-    if (!this.abortController) return;
-
-    this.abortController.abort();
+  public cancelRun() {
+    this.abortController?.abort();
     this.abortController = null;
-  }
-
-  private notifySubscribers() {
-    for (const callback of this._subscriptions) callback();
-  }
-
-  public subscribe(callback: () => void): Unsubscribe {
-    this._subscriptions.add(callback);
-    return () => this._subscriptions.delete(callback);
   }
 
   public addToolResult({
@@ -332,59 +279,5 @@ export class LocalThreadRuntimeCore implements ThreadRuntimeCore {
     if (added && shouldContinue(message)) {
       this.performRoundtrip(parentId, message);
     }
-  }
-
-  // TODO speech runtime?
-  private _stopSpeaking: Unsubscribe | undefined;
-  public speech: SpeechState | null = null;
-
-  public speak(messageId: string) {
-    const adapter = this.options.adapters?.speech;
-    if (!adapter) throw new Error("Speech adapter not configured");
-
-    const { message } = this.repository.getMessage(messageId);
-
-    this._stopSpeaking?.();
-
-    const utterance = adapter.speak(message);
-    const unsub = utterance.subscribe(() => {
-      if (utterance.status.type === "ended") {
-        this._stopSpeaking = undefined;
-        this.speech = null;
-      } else {
-        this.speech = { messageId, status: utterance.status };
-      }
-      this.notifySubscribers();
-    });
-
-    this.speech = { messageId, status: utterance.status };
-    this._stopSpeaking = () => {
-      utterance.cancel();
-      unsub();
-      this.speech = null;
-      this._stopSpeaking = undefined;
-    };
-  }
-
-  public stopSpeaking() {
-    if (!this._stopSpeaking) throw new Error("No message is being spoken");
-    this._stopSpeaking();
-  }
-
-  public submitFeedback({ messageId, type }: SubmitFeedbackOptions) {
-    const adapter = this.options.adapters?.feedback;
-    if (!adapter) throw new Error("Feedback adapter not configured");
-
-    const { message } = this.repository.getMessage(messageId);
-    adapter.submit({ message, type });
-  }
-
-  public export() {
-    return this.repository.export();
-  }
-
-  public import(data: ExportedMessageRepository) {
-    this.repository.import(data);
-    this.notifySubscribers();
   }
 }

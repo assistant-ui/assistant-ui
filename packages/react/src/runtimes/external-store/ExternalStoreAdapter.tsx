@@ -32,12 +32,6 @@ type ExternalStoreAdapterBase<T> = {
     | undefined;
   onSwitchToThread?: ((threadId: string) => Promise<void> | void) | undefined;
   onSwitchToNewThread?: (() => Promise<void> | void) | undefined;
-  /**
-   * @deprecated Provide a speech adapter to `ExternalStoreAdapter.adapters.speech` instead. This will be removed in 0.6.
-   */
-  onSpeak?:
-    | ((message: ThreadMessage) => SpeechSynthesisAdapter.Utterance)
-    | undefined;
   convertMessage?: ExternalStoreMessageConverter<T> | undefined;
   adapters?: {
     attachments?: AttachmentAdapter | undefined;

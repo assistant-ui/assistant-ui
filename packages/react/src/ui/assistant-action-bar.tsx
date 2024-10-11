@@ -27,8 +27,8 @@ const useAllowCopy = (ensureCapability = false) => {
 
 const useAllowSpeak = (ensureCapability = false) => {
   const { assistantMessage: { allowSpeak = true } = {} } = useThreadConfig();
-  const speakSupported = useThread((t) => t.capabilities.speak);
-  return allowSpeak && (!ensureCapability || speakSupported);
+  const speechSupported = useThread((t) => t.capabilities.speech);
+  return allowSpeak && (!ensureCapability || speechSupported);
 };
 
 const useAllowReload = (ensureCapability = false) => {
