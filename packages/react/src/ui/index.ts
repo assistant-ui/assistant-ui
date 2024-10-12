@@ -23,7 +23,17 @@ export { default as BranchPicker } from "./branch-picker";
 
 export { default as Composer, type ComposerInputProps } from "./composer";
 
-export { default as ComposerAttachment } from "./composer-attachment";
+export {
+  default as AttachmentUI, // TODO name collision with Attachment
+  /**
+   * @deprecated Use `AttachmentUI` instead. This will be removed in 0.6.0.
+   */
+  default as UserMessageAttachment,
+  /**
+   * @deprecated Use `AttachmentUI` instead. This will be removed in 0.6.0.
+   */
+  default as ComposerAttachment,
+} from "./attachment";
 
 export { default as EditComposer } from "./edit-composer";
 
@@ -35,8 +45,6 @@ export {
 } from "./user-message";
 
 export { default as UserActionBar } from "./user-action-bar";
-
-export { default as UserMessageAttachment } from "./user-message-attachment";
 
 export {
   default as ThreadWelcome,

@@ -7,7 +7,7 @@ import { withDefaults } from "./utils/withDefaults";
 import UserActionBar from "./user-action-bar";
 import ContentPart from "./content-part";
 import { MessagePrimitive } from "../primitives";
-import UserMessageAttachment from "./user-message-attachment";
+import Attachment from "./attachment";
 
 const UserMessage: FC = () => {
   return (
@@ -83,10 +83,10 @@ const UserMessageAttachments: FC<UserMessageAttachmentsProps> = ({
   return (
     <MessagePrimitive.If hasAttachments>
       <UserMessageAttachmentsContainer>
-        <MessagePrimitive.Attachments
+        <MessagePrimitive.Attachments 
           components={{
             ...components,
-            Attachment: components?.Attachment ?? UserMessageAttachment,
+            Attachment: components?.Attachment ?? Attachment,
           }}
         />
       </UserMessageAttachmentsContainer>

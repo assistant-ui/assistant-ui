@@ -50,8 +50,6 @@
   @apply line-clamp-2 text-ellipsis text-sm font-semibold;
 }
 
-/* TODO rename classes to .aui-thread-composer-root ? */
-/* rename composer to thread composer everywhere */
 /* thread composer */
 
 .aui-composer-root {
@@ -72,8 +70,14 @@
   @apply flex w-full flex-row gap-3 px-10;
 }
 
+/* attachment */
+
 .aui-attachment-root {
   @apply relative mt-3 flex h-12 w-40 items-center justify-center gap-2 rounded-lg border p-1;
+}
+
+.aui-attachment-preview-trigger {
+  @apply hover:bg-aui-accent/50 cursor-pointer transition-colors;
 }
 
 .aui-attachment-thumb {
@@ -92,8 +96,8 @@
   @apply text-aui-muted-foreground text-xs;
 }
 
-.aui-composer-attachment-remove {
-  @apply text-aui-muted-foreground [&>svg]:bg-aui-background absolute -right-3 -top-3 size-6 [&>svg]:rounded-full [&>svg]:size-4;
+.aui-attachment-remove {
+  @apply text-aui-muted-foreground [&>svg]:bg-aui-background absolute -right-3 -top-3 size-6 [&>svg]:size-4 [&>svg]:rounded-full;
 }
 
 /* user message */
