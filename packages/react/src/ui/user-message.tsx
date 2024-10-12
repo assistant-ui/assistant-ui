@@ -13,8 +13,11 @@ const UserMessage: FC = () => {
   return (
     <UserMessageRoot>
       <UserMessageAttachments />
-      <UserActionBar />
-      <UserMessageContent />
+      {/* TODO this is temporary until we place the UserActionBar in a better place */}
+      <MessagePrimitive.If hasContent>
+        <UserActionBar />
+        <UserMessageContent />
+      </MessagePrimitive.If>
       <BranchPicker />
     </UserMessageRoot>
   );
