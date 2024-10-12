@@ -12,7 +12,7 @@ export const useExternalStoreRuntime = <T,>(store: ExternalStoreAdapter<T>) => {
   });
 
   return useMemo(
-    () => new AssistantRuntimeImpl(runtime, ThreadRuntimeImpl),
+    () => AssistantRuntimeImpl.create(runtime, ThreadRuntimeImpl),
     [runtime],
   );
 };

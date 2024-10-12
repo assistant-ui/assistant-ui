@@ -1,7 +1,11 @@
 import { AssistantRuntimeCore } from "../runtimes/core/AssistantRuntimeCore";
 import { NestedSubscriptionSubject } from "./subscribable/NestedSubscriptionSubject";
 import { ModelConfigProvider } from "../types/ModelConfigTypes";
-import { ThreadRuntime, ThreadRuntimeCoreBinding } from "./ThreadRuntime";
+import {
+  ThreadRuntime,
+  ThreadRuntimeCoreBinding,
+  ThreadRuntimeImpl,
+} from "./ThreadRuntime";
 import { Unsubscribe } from "../types";
 
 export type AssistantRuntime = {
@@ -23,26 +27,17 @@ export type AssistantRuntime = {
   subscribe(callback: () => void): Unsubscribe;
 };
 
-export class AssistantRuntimeImpl<
-    TThreadRuntime extends ThreadRuntime = ThreadRuntime,
-  >
+export class AssistantRuntimeImpl
   implements AssistantRuntimeCore, AssistantRuntime
 {
-  constructor(
-    private _core: AssistantRuntimeCore,
-    CustomThreadRuntime: new (
-      binding: ThreadRuntimeCoreBinding,
-    ) => TThreadRuntime,
-  ) {
-    this.thread = new CustomThreadRuntime(
-      new NestedSubscriptionSubject({
-        getState: () => this._core.thread,
-        subscribe: (callback) => this._core.subscribe(callback),
-      }),
-    );
-  }
+  protected constructor(
+    private readonly _core: AssistantRuntimeCore,
+    private readonly _thread: ThreadRuntime,
+  ) {}
 
-  public readonly thread;
+  public get thread() {
+    return this._thread;
+  }
 
   public switchToNewThread() {
     return this._core.switchToNewThread();
@@ -67,5 +62,31 @@ export class AssistantRuntimeImpl<
    */
   public subscribe(callback: () => void) {
     return this._core.subscribe(callback);
+  }
+
+  protected static createThreadRuntime(
+    _core: AssistantRuntimeCore,
+    CustomThreadRuntime: new (
+      binding: ThreadRuntimeCoreBinding,
+    ) => ThreadRuntime = ThreadRuntimeImpl,
+  ) {
+    return new CustomThreadRuntime(
+      new NestedSubscriptionSubject({
+        getState: () => _core.thread,
+        subscribe: (callback) => _core.subscribe(callback),
+      }),
+    );
+  }
+
+  public static create(
+    _core: AssistantRuntimeCore,
+    CustomThreadRuntime: new (
+      binding: ThreadRuntimeCoreBinding,
+    ) => ThreadRuntime = ThreadRuntimeImpl,
+  ) {
+    return new AssistantRuntimeImpl(
+      _core,
+      AssistantRuntimeImpl.createThreadRuntime(_core, CustomThreadRuntime),
+    ) as AssistantRuntime;
   }
 }

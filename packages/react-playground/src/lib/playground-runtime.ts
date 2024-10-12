@@ -22,6 +22,8 @@ import {
   fromCoreMessage,
   INTERNAL,
   ThreadSuggestion,
+  ThreadRuntime,
+  AssistantRuntime,
 } from "@assistant-ui/react";
 import { LanguageModelV1FunctionTool } from "@ai-sdk/provider";
 import { useMemo, useState } from "react";
@@ -517,7 +519,14 @@ export class PlaygroundThreadRuntimeCore implements INTERNAL.ThreadRuntimeCore {
   }
 }
 
-class PlaygroundThreadRuntime extends ThreadRuntimeImpl {
+type PlaygroundThreadRuntime = ThreadRuntime & {
+  setRequestData: (options: EdgeRuntimeRequestOptions) => void;
+};
+
+class PlaygroundThreadRuntimeImpl
+  extends ThreadRuntimeImpl
+  implements PlaygroundThreadRuntime
+{
   constructor(private binding: INTERNAL.ThreadRuntimeCoreBinding) {
     super(binding);
   }
@@ -526,6 +535,29 @@ class PlaygroundThreadRuntime extends ThreadRuntimeImpl {
     return (
       this.binding.getState() as PlaygroundThreadRuntimeCore
     ).setRequestData(options);
+  }
+}
+
+export type PlaygroundRuntime = AssistantRuntime & {
+  thread: PlaygroundThreadRuntime;
+};
+
+class PlaygroundRuntimeImpl
+  extends AssistantRuntimeImpl
+  implements PlaygroundRuntime
+{
+  public override get thread() {
+    return super.thread as PlaygroundThreadRuntime;
+  }
+
+  public static override create(_core: PlaygroundRuntimeCore) {
+    return new PlaygroundRuntimeImpl(
+      _core,
+      AssistantRuntimeImpl.createThreadRuntime(
+        _core,
+        PlaygroundThreadRuntimeImpl,
+      ),
+    ) as PlaygroundRuntime;
   }
 }
 
@@ -545,8 +577,5 @@ export const usePlaygroundRuntime = ({
       ),
   );
 
-  return useMemo(
-    () => new AssistantRuntimeImpl(runtime, PlaygroundThreadRuntime),
-    [runtime],
-  );
+  return useMemo(() => PlaygroundRuntimeImpl.create(runtime), [runtime]);
 };
