@@ -14,9 +14,13 @@ export namespace AttachmentPrimitiveThumb {
 export const AttachmentPrimitiveThumb = forwardRef<
   AttachmentPrimitiveThumb.Element,
   AttachmentPrimitiveThumb.Props
->(() => {
+>((props, ref) => {
   const ext = useAttachment((a) => a.name.split(".").pop());
-  return <Primitive.div>.{ext}</Primitive.div>;
+  return (
+    <Primitive.div {...props} ref={ref}>
+      .{ext}
+    </Primitive.div>
+  );
 });
 
 AttachmentPrimitiveThumb.displayName = "AttachmentPrimitive.Thumb";

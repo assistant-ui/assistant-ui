@@ -9,17 +9,38 @@ import {
   TooltipIconButtonProps,
 } from "./base/tooltip-icon-button";
 import { AttachmentPrimitive } from "../primitives";
+import { useAttachment } from "../context/react/AttachmentContext";
 
 const ComposerAttachmentRoot = withDefaults(AttachmentPrimitive.Root, {
-  className: "aui-composer-attachment-root",
+  className: "aui-attachment-root",
 });
 
 ComposerAttachmentRoot.displayName = "ComposerAttachmentRoot";
 
 const ComposerAttachment: FC = () => {
+  const typeLabel = useAttachment((a) => {
+    const type = a.type;
+    switch (type) {
+      case "image":
+        return "Image";
+      case "document":
+        return "Document";
+      case "file":
+        return "File";
+      default:
+        const _exhaustiveCheck: never = type;
+        throw new Error(`Unknown attachment type: ${_exhaustiveCheck}`);
+    }
+  });
   return (
     <ComposerAttachmentRoot>
-      <AttachmentPrimitive.unstable_Thumb />
+      <AttachmentPrimitive.unstable_Thumb className="aui-attachment-thumb" />
+      <div className="aui-attachment-text">
+        <p className="aui-attachment-name">
+          <AttachmentPrimitive.Name />
+        </p>
+        <p className="aui-attachment-type">{typeLabel}</p>
+      </div>
       <ComposerAttachmentRemove />
     </ComposerAttachmentRoot>
   );
