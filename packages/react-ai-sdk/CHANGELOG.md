@@ -1,5 +1,18 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.6.12
+
+### Patch Changes
+
+- c3806f8: fix: do not export internal Runtime types
+- Updated dependencies [c3806f8]
+- Updated dependencies [899b963]
+- Updated dependencies [899b963]
+- Updated dependencies [899b963]
+- Updated dependencies [8c80f2a]
+- Updated dependencies [809c5c1]
+  - @assistant-ui/react@0.5.76
+
 ## 0.6.11
 
 ### Patch Changes

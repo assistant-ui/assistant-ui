@@ -1,5 +1,16 @@
 # @assistant-ui/react
 
+## 0.5.76
+
+### Patch Changes
+
+- c3806f8: fix: do not export internal Runtime types
+- 899b963: refactor: add BaseThreadRuntimeCore class
+- 899b963: feat: work towards Edit Composer attachment support
+- 899b963: refactor: remove composerState.attachmentAccept, add composerRuntime.getAttachmentAccept()
+- 8c80f2a: feat: MessageState.submittedFeedback state
+- 809c5c1: feat: New Attachment UI
+
 ## 0.5.75
 
 ### Patch Changes

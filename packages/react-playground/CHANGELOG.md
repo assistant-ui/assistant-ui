@@ -1,5 +1,19 @@
 # @assistant-ui/react-playground
 
+## 0.0.38
+
+### Patch Changes
+
+- c3806f8: fix: do not export internal Runtime types
+- 899b963: refactor: add BaseThreadRuntimeCore class
+- Updated dependencies [c3806f8]
+- Updated dependencies [899b963]
+- Updated dependencies [899b963]
+- Updated dependencies [899b963]
+- Updated dependencies [8c80f2a]
+- Updated dependencies [809c5c1]
+  - @assistant-ui/react@0.5.76
+
 ## 0.0.37
 
 ### Patch Changes
