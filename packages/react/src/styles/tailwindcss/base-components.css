@@ -1,5 +1,5 @@
 .aui-root {
-  @apply text-aui-foreground bg-aui-background;
+  @apply text-aui-foreground;
 }
 
 .aui-root * {
