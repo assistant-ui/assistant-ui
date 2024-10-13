@@ -1,5 +1,11 @@
 # @assistant-ui/react-langgraph
 
+## 0.0.17
+
+### Patch Changes
+
+- 851c10a: fix(langgraph): content part type check should output the content type
+
 ## 0.0.16
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @assistant-ui/react-playground
 
+## 0.0.39
+
+### Patch Changes
+
+- e2d3e56: fix: compat with latest main package version
+
 ## 0.0.38
 
 ### Patch Changes
