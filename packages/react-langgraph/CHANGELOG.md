@@ -1,5 +1,13 @@
 # @assistant-ui/react-langgraph
 
+## 0.0.16
+
+### Patch Changes
+
+- ea90b84: fix(langgraph): allow complex content in ai messages
+- Updated dependencies [0a3bd06]
+  - @assistant-ui/react@0.5.77
+
 ## 0.0.15
 
 ### Patch Changes

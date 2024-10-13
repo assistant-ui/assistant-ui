@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.77
+
+### Patch Changes
+
+- 0a3bd06: feat: Attachment image thumbnail and previews
+
 ## 0.5.76
 
 ### Patch Changes
