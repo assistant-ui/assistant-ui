@@ -5,6 +5,29 @@ import { LangChainMessage } from "./types";
 import { ToolCallContentPart } from "@assistant-ui/react";
 import { ThreadUserMessage } from "@assistant-ui/react";
 
+const contentToParts = (content: LangChainMessage["content"]) => {
+  if (typeof content === "string")
+    return [{ type: "text" as const, text: content }];
+  return content.map((part): ThreadUserMessage["content"][number] => {
+    switch (part.type) {
+      case "text":
+        return { type: "text", text: part.text };
+      case "image_url":
+        if (typeof part.image_url === "string") {
+          return { type: "image", image: part.image_url };
+        } else {
+          return {
+            type: "image",
+            image: part.image_url.url,
+          };
+        }
+      default:
+        const _exhaustiveCheck: never = part;
+        throw new Error(`Unknown content part type: ${_exhaustiveCheck}`);
+    }
+  });
+};
+
 export const convertLangchainMessages: useExternalMessageConverter.Callback<
   LangChainMessage
 > = (message) => {
@@ -16,52 +39,17 @@ export const convertLangchainMessages: useExternalMessageConverter.Callback<
         content: [{ type: "text", text: message.content }],
       };
     case "human":
-      let content: ThreadUserMessage["content"];
-
-      if (typeof message.content === "string") {
-        content = [{ type: "text" as const, text: message.content }];
-      } else {
-        content = message.content.map((part) => {
-          if (typeof part === "string") {
-            return { type: "text", text: part };
-          } else {
-            const type = part.type;
-            switch (type) {
-              case "text":
-                return { type: "text" as const, text: part.text };
-
-              case "image_url":
-                return {
-                  type: "image" as const,
-                  image:
-                    typeof part.image_url === "string"
-                      ? part.image_url
-                      : part.image_url.url,
-                };
-              default:
-                const unhandledType: never = type;
-                throw new Error(
-                  `Unhandled content part type: ${unhandledType}`,
-                );
-            }
-          }
-        });
-      }
-
       return {
         role: "user",
         id: message.id,
-        content,
+        content: contentToParts(message.content),
       };
     case "ai":
       return {
         role: "assistant",
         id: message.id,
         content: [
-          {
-            type: "text",
-            text: message.content,
-          },
+          ...contentToParts(message.content),
           ...(message.tool_calls?.map(
             (chunk): ToolCallContentPart => ({
               type: "tool-call",

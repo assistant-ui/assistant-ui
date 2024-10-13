@@ -20,9 +20,11 @@ type MessageContentImageUrl = {
   image_url: string | { url: string };
 };
 
-type MessageContentComplex = MessageContentText | MessageContentImageUrl;
+type UserMessageContentComplex = MessageContentText | MessageContentImageUrl;
+type AssistantMessageContentComplex = MessageContentText;
 
-type MessageContent = string | MessageContentComplex[];
+type UserMessageContent = string | UserMessageContentComplex[];
+type AssistantMessageContent = string | AssistantMessageContentComplex[];
 
 export type LangChainMessage =
   | {
@@ -33,7 +35,7 @@ export type LangChainMessage =
   | {
       id?: string;
       type: "human";
-      content: MessageContent;
+      content: UserMessageContent;
     }
   | {
       id?: string;
@@ -45,7 +47,7 @@ export type LangChainMessage =
   | {
       id?: string;
       type: "ai";
-      content: string;
+      content: AssistantMessageContent;
       tool_call_chunks?: LangChainToolCallChunk[];
       tool_calls?: LangChainToolCall[];
     };
