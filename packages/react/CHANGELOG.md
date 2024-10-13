@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.5.78
+
+### Patch Changes
+
+- dba0082: fix: border should apply to all aui-root children
+- b182ea5: feat: Events API (experimental)
+
 ## 0.5.77
 
 ### Patch Changes
