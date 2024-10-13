@@ -43,6 +43,14 @@ export function assistantDecoderStream() {
           const { toolCallId: id, toolName: name } = value;
           toolCallNames.set(id, name);
           currentToolCall = { id, name, argsText: "" };
+
+          controller.enqueue({
+            type: "tool-call-delta",
+            toolCallType: "function",
+            toolCallId: id,
+            toolName: name,
+            argsTextDelta: "",
+          });
           break;
         }
         case AssistantStreamChunkType.ToolCallDelta: {

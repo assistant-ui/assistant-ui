@@ -19,6 +19,7 @@ export function runResultStream() {
           controller.enqueue(message);
           break;
         }
+
         case "tool-call-delta": {
           const { toolCallId, toolName, argsTextDelta } = chunk;
 
