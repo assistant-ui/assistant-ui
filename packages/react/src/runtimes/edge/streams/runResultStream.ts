@@ -2,14 +2,13 @@ import { ChatModelRunResult } from "../../local/ChatModelAdapter";
 import { parsePartialJson } from "../partial-json/parse-partial-json";
 import { LanguageModelV1StreamPart } from "@ai-sdk/provider";
 import { ToolResultStreamPart } from "./toolResultStream";
-import { MessageStatus } from "../../../types";
+import { MessageStatus, ToolCallContentPart } from "../../../types";
 
 export function runResultStream() {
   let message: ChatModelRunResult = {
     content: [],
     status: { type: "running" },
   };
-  const currentToolCall = { toolCallId: "", argsText: "" };
 
   return new TransformStream<ToolResultStreamPart, ChatModelRunResult>({
     transform(chunk, controller) {
@@ -22,18 +21,12 @@ export function runResultStream() {
         }
         case "tool-call-delta": {
           const { toolCallId, toolName, argsTextDelta } = chunk;
-          if (currentToolCall.toolCallId !== toolCallId) {
-            currentToolCall.toolCallId = toolCallId;
-            currentToolCall.argsText = argsTextDelta;
-          } else {
-            currentToolCall.argsText += argsTextDelta;
-          }
 
           message = appendOrUpdateToolCall(
             message,
             toolCallId,
             toolName,
-            currentToolCall.argsText,
+            argsTextDelta,
           );
           controller.enqueue(message);
           break;
@@ -103,32 +96,43 @@ const appendOrUpdateToolCall = (
   message: ChatModelRunResult,
   toolCallId: string,
   toolName: string,
-  argsText: string,
-) => {
+  argsTextDelta: string,
+): ChatModelRunResult => {
   let contentParts = message.content ?? [];
-  let contentPart = message.content?.at(-1);
-  if (
-    contentPart?.type !== "tool-call" ||
-    contentPart.toolCallId !== toolCallId
-  ) {
+  let contentPartIdx = contentParts.findIndex(
+    (c) => c.type === "tool-call" && c.toolCallId === toolCallId,
+  );
+  let contentPart =
+    contentPartIdx === -1
+      ? null
+      : (contentParts[contentPartIdx] as ToolCallContentPart);
+
+  if (contentPart == null) {
     contentPart = {
       type: "tool-call",
       toolCallId,
       toolName,
-      argsText,
-      args: parsePartialJson(argsText),
+      argsText: argsTextDelta,
+      args: parsePartialJson(argsTextDelta),
     };
+    contentParts = [...contentParts, contentPart];
   } else {
-    contentParts = contentParts.slice(0, -1);
+    const argsText = contentPart.argsText + argsTextDelta;
     contentPart = {
       ...contentPart,
       argsText,
       args: parsePartialJson(argsText),
     };
+    contentParts = [
+      ...contentParts.slice(0, contentPartIdx),
+      contentPart,
+      ...contentParts.slice(contentPartIdx + 1),
+    ];
   }
+
   return {
     ...message,
-    content: contentParts.concat([contentPart]),
+    content: contentParts,
   };
 };
 

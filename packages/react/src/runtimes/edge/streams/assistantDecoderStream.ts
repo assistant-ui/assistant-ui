@@ -49,7 +49,9 @@ export function assistantDecoderStream() {
           const { toolCallId, argsTextDelta } = value;
 
           const toolName = toolCallNames.get(toolCallId)!;
-          currentToolCall!.argsText += argsTextDelta;
+          if (currentToolCall?.id === toolCallId) {
+            currentToolCall.argsText += argsTextDelta;
+          }
           controller.enqueue({
             type: "tool-call-delta",
             toolCallType: "function",
