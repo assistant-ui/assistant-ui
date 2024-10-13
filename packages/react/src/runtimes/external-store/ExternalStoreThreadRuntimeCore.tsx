@@ -115,7 +115,7 @@ export class ExternalStoreThreadRuntimeCore
         oldStore.isRunning === store.isRunning &&
         oldStore.messages === store.messages
       ) {
-        this.notifySubscribers();
+        this._notifySubscribers();
         // no conversion update
         return;
       }
@@ -172,7 +172,7 @@ export class ExternalStoreThreadRuntimeCore
     );
 
     this._messages = this.repository.getMessages();
-    this.notifySubscribers();
+    this._notifySubscribers();
   }
 
   public override switchToBranch(branchId: string): void {
@@ -224,7 +224,7 @@ export class ExternalStoreThreadRuntimeCore
 
       messages = this.repository.getMessages();
     } else {
-      this.notifySubscribers();
+      this._notifySubscribers();
     }
 
     // resync messages (for reloading, to restore the previous branch)

@@ -18,6 +18,10 @@ export class NestedSubscriptionSubject<TState extends Subscribable | undefined>
     return this.binding.getState();
   }
 
+  public outerSubscribe(callback: () => void) {
+    return this.binding.subscribe(callback);
+  }
+
   protected _connect(): Unsubscribe {
     const callback = () => {
       this.notifySubscribers();
@@ -36,7 +40,7 @@ export class NestedSubscriptionSubject<TState extends Subscribable | undefined>
       callback();
     };
 
-    const outerUnsubscribe = this.binding.subscribe(onRuntimeUpdate);
+    const outerUnsubscribe = this.outerSubscribe(onRuntimeUpdate);
     return () => {
       outerUnsubscribe?.();
       innerUnsubscribe?.();

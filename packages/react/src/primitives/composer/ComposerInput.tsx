@@ -17,13 +17,9 @@ import {
   useComposer,
   useComposerRuntime,
 } from "../../context/react/ComposerContext";
-import {
-  useThread,
-  useThreadRuntime,
-  useThreadViewportStore,
-} from "../../context/react/ThreadContext";
+import { useThread, useThreadRuntime } from "../../context/react/ThreadContext";
 import { useEscapeKeydown } from "@radix-ui/react-use-escape-keydown";
-import { useOnComposerFocus } from "../../utils/hooks/useOnComposerFocus";
+import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 
 /**
  * @deprecated Use `ComposerPrimitive.Input.Props` instead. This will be removed in 0.6.
@@ -36,6 +32,9 @@ export namespace ComposerPrimitiveInput {
     asChild?: boolean | undefined;
     submitOnEnter?: boolean | undefined;
     cancelOnEscape?: boolean | undefined;
+    unstable_focusOnRunStart?: boolean | undefined;
+    unstable_focusOnScrollToBottom?: boolean | undefined;
+    unstable_focusOnThreadSwitched?: boolean | undefined;
   };
 }
 
@@ -52,13 +51,15 @@ export const ComposerPrimitiveInput = forwardRef<
       onKeyDown,
       submitOnEnter = true,
       cancelOnEscape = true,
+      unstable_focusOnRunStart = true,
+      unstable_focusOnScrollToBottom = true,
+      unstable_focusOnThreadSwitched = true,
       ...rest
     },
     forwardedRef,
   ) => {
     const threadRuntime = useThreadRuntime();
     const composerRuntime = useComposerRuntime();
-    const threadViewportStore = useThreadViewportStore({ optional: true });
 
     const value = useComposer((c) => {
       if (!c.isEditing) return "";
@@ -111,11 +112,25 @@ export const ComposerPrimitiveInput = forwardRef<
 
     useEffect(() => focus(), [focus]);
 
-    useOnComposerFocus(() => {
-      if (composerRuntime.type === "thread") {
+    useOnScrollToBottom(() => {
+      if (composerRuntime.type === "thread" && unstable_focusOnScrollToBottom) {
         focus();
       }
     });
+
+    useEffect(() => {
+      if (composerRuntime.type !== "thread" || !unstable_focusOnRunStart)
+        return undefined;
+
+      return threadRuntime.unstable_on("run-start", focus);
+    }, [unstable_focusOnRunStart]);
+
+    useEffect(() => {
+      if (composerRuntime.type !== "thread" || !unstable_focusOnThreadSwitched)
+        return undefined;
+
+      return threadRuntime.unstable_on("switched-to", focus);
+    }, [unstable_focusOnThreadSwitched]);
 
     return (
       <Component

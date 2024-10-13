@@ -32,6 +32,7 @@ export class ExternalStoreRuntimeCore extends BaseAssistantRuntimeCore<ExternalS
       },
     );
     await this.thread.store.onSwitchToNewThread!();
+    this.thread._notifyEventSubscribers("switched-to");
   }
 
   public async switchToThread(threadId: string | null) {
@@ -46,7 +47,8 @@ export class ExternalStoreRuntimeCore extends BaseAssistantRuntimeCore<ExternalS
           messages: [], // ignore messages until rerender
         },
       );
-      this.thread.store.onSwitchToThread!(threadId);
+      await this.thread.store.onSwitchToThread!(threadId);
+      this.thread._notifyEventSubscribers("switched-to");
     } else {
       this.switchToNewThread();
     }

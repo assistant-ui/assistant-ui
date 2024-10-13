@@ -73,7 +73,7 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
         this.repository.getMessage(messageId),
       ),
     );
-    this.notifySubscribers();
+    this._notifySubscribers();
   }
 
   public getBranches(messageId: string): string[] {
@@ -82,11 +82,18 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
 
   public switchToBranch(branchId: string): void {
     this.repository.switchToBranch(branchId);
-    this.notifySubscribers();
+    this._notifySubscribers();
   }
 
-  protected notifySubscribers() {
+  protected _notifySubscribers() {
     for (const callback of this._subscriptions) callback();
+  }
+
+  public _notifyEventSubscribers(event: "switched-to" | "run-start") {
+    const subscribers = this._eventSubscribers.get(event);
+    if (!subscribers) return;
+
+    for (const callback of subscribers) callback();
   }
 
   public subscribe(callback: () => void): Unsubscribe {
@@ -108,7 +115,7 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
     adapter.submit({ message, type });
 
     this._submittedFeedback[messageId] = { type };
-    this.notifySubscribers();
+    this._notifySubscribers();
   }
 
   private _stopSpeaking: Unsubscribe | undefined;
@@ -130,11 +137,11 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
       } else {
         this.speech = { messageId, status: utterance.status };
       }
-      this.notifySubscribers();
+      this._notifySubscribers();
     });
 
     this.speech = { messageId, status: utterance.status };
-    this.notifySubscribers();
+    this._notifySubscribers();
 
     this._stopSpeaking = () => {
       utterance.cancel();
@@ -147,7 +154,7 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
   public stopSpeaking() {
     if (!this._stopSpeaking) throw new Error("No message is being spoken");
     this._stopSpeaking();
-    this.notifySubscribers();
+    this._notifySubscribers();
   }
 
   public export() {
@@ -156,6 +163,22 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
 
   public import(data: ExportedMessageRepository) {
     this.repository.import(data);
-    this.notifySubscribers();
+    this._notifySubscribers();
+  }
+
+  private _eventSubscribers = new Map<string, Set<() => void>>();
+
+  public unstable_on(event: "switched-to" | "run-start", callback: () => void) {
+    const subscribers = this._eventSubscribers.get(event);
+    if (!subscribers) {
+      this._eventSubscribers.set(event, new Set([callback]));
+    } else {
+      subscribers.add(callback);
+    }
+
+    return () => {
+      const subscribers = this._eventSubscribers.get(event)!;
+      subscribers.delete(callback);
+    };
   }
 }

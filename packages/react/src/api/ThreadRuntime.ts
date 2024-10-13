@@ -21,7 +21,10 @@ import {
 } from "./MessageRuntime";
 import { NestedSubscriptionSubject } from "./subscribable/NestedSubscriptionSubject";
 import { ShallowMemoizeSubject } from "./subscribable/ShallowMemoizeSubject";
-import { SubscribableWithState } from "./subscribable/Subscribable";
+import {
+  Subscribable,
+  SubscribableWithState,
+} from "./subscribable/Subscribable";
 import {
   ThreadComposerRuntime,
   ThreadComposerRuntimeImpl,
@@ -64,7 +67,10 @@ const toAppendMessage = (
   } as AppendMessage;
 };
 
-export type ThreadRuntimeCoreBinding = SubscribableWithState<ThreadRuntimeCore>;
+export type ThreadRuntimeCoreBinding =
+  SubscribableWithState<ThreadRuntimeCore> & {
+    outerSubscribe(callback: () => void): Unsubscribe;
+  };
 
 export type ThreadState = Readonly<{
   threadId: string;
@@ -112,6 +118,10 @@ export type ThreadRuntime = {
   import(repository: ExportedMessageRepository): void;
   getMesssageByIndex(idx: number): MessageRuntime;
   stopSpeaking: () => void;
+  unstable_on(
+    event: "switched-to" | "run-start",
+    callback: () => void,
+  ): Unsubscribe;
 
   // Legacy methods with deprecations
 
@@ -271,6 +281,7 @@ export class ThreadRuntimeImpl implements ThreadRuntimeCore, ThreadRuntime {
     this._threadBinding = {
       getState: () => threadBinding.getState(),
       getStateState: () => stateBinding.getState(),
+      outerSubscribe: (callback) => threadBinding.outerSubscribe(callback),
       subscribe: (callback) => threadBinding.subscribe(callback),
     };
   }
@@ -412,5 +423,28 @@ export class ThreadRuntimeImpl implements ThreadRuntimeCore, ThreadRuntime {
       }),
       this._threadBinding,
     );
+  }
+
+  private _eventListenerNestedSubscriptions = new Map<
+    string,
+    NestedSubscriptionSubject<Subscribable>
+  >();
+
+  public unstable_on(
+    event: "switched-to" | "run-start",
+    callback: () => void,
+  ): Unsubscribe {
+    let subject = this._eventListenerNestedSubscriptions.get(event);
+    if (!subject) {
+      subject = new NestedSubscriptionSubject({
+        getState: () => ({
+          subscribe: (callback) =>
+            this._threadBinding.getState().unstable_on(event, callback),
+        }),
+        subscribe: (callback) => this._threadBinding.outerSubscribe(callback),
+      });
+      this._eventListenerNestedSubscriptions.set(event, subject);
+    }
+    return subject.subscribe(callback);
   }
 }

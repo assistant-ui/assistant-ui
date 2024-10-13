@@ -27,6 +27,7 @@ export class LocalRuntimeCore extends BaseAssistantRuntimeCore<LocalThreadRuntim
       this.thread.adapter,
       options,
     );
+    this.thread._notifyEventSubscribers("switched-to");
   }
 
   public switchToThread(threadId: string | null) {

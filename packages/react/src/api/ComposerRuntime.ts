@@ -87,12 +87,6 @@ type LegacyThreadComposerState = Readonly<{
   send: () => void;
   /** @deprecated Use `useComposerRuntime().cancel` instead. This will be removed in 0.6.0. */
   cancel: () => void;
-
-  // TODO replace with events
-  /** @deprecated This feature is being removed in 0.6.0. Submit feedback if you need it. */
-  focus: () => void;
-  /** @deprecated This feature is being removed in 0.6.0. Submit feedback if you need it. */
-  onFocus: (listener: () => void) => Unsubscribe;
 }>;
 
 type BaseComposerState = {
@@ -124,8 +118,6 @@ const METHOD_NOT_SUPPORTED = () => {
 const EMPTY_ARRAY = Object.freeze([]);
 const getThreadComposerState = (
   runtime: ThreadComposerRuntimeCore | undefined,
-  focus: () => void,
-  onFocus: (listener: () => void) => Unsubscribe,
 ): ThreadComposerState => {
   return Object.freeze({
     type: "thread",
@@ -142,8 +134,6 @@ const getThreadComposerState = (
     // edit: beginEdit,
     send: runtime?.send.bind(runtime) ?? METHOD_NOT_SUPPORTED,
     cancel: runtime?.cancel.bind(runtime) ?? METHOD_NOT_SUPPORTED,
-    focus: focus,
-    onFocus: onFocus,
     reset: runtime?.reset.bind(runtime) ?? METHOD_NOT_SUPPORTED,
 
     addAttachment: runtime?.addAttachment.bind(runtime) ?? METHOD_NOT_SUPPORTED,
@@ -336,12 +326,6 @@ export type ThreadComposerRuntime = Omit<
    */
   attachments: readonly PendingAttachment[];
 
-  /** @deprecated This feature is being removed in 0.6.0. Submit feedback if you need it. */
-  focus(): void;
-
-  /** @deprecated This feature is being removed in 0.6.0. Submit feedback if you need it. */
-  onFocus(callback: () => void): Unsubscribe;
-
   getAttachmentByIndex(
     idx: number,
   ): AttachmentRuntime & { source: "thread-composer" };
@@ -359,12 +343,7 @@ export class ThreadComposerRuntimeImpl
 
   constructor(core: ThreadComposerRuntimeCoreBinding) {
     const stateBinding = new LazyMemoizeSubject({
-      getState: () =>
-        getThreadComposerState(
-          core.getState(),
-          this.focus.bind(this),
-          this.onFocus.bind(this),
-        ),
+      getState: () => getThreadComposerState(core.getState()),
       subscribe: (callback) => core.subscribe(callback),
     });
     super({
@@ -380,24 +359,6 @@ export class ThreadComposerRuntimeImpl
 
   public override getState(): ThreadComposerState {
     return this._getState();
-  }
-
-  // TODO replace with events
-  private _focusListeners = new Set<() => void>();
-
-  /**
-   * @deprecated This feature is being removed in 0.6.0. Submit feedback if you need it.
-   */
-  public focus() {
-    this._focusListeners.forEach((callback) => callback());
-  }
-
-  /**
-   * @deprecated This feature is being removed in 0.6.0. Submit feedback if you need it.
-   */
-  public onFocus(callback: () => void) {
-    this._focusListeners.add(callback);
-    return () => this._focusListeners.delete(callback);
   }
 
   public getAttachmentByIndex(idx: number) {

@@ -92,7 +92,7 @@ export class LocalThreadRuntimeCore
       hasUpdates = true;
     }
 
-    if (hasUpdates) this.notifySubscribers();
+    if (hasUpdates) this._notifySubscribers();
   }
 
   public async append(message: AppendMessage): Promise<void> {
@@ -105,7 +105,7 @@ export class LocalThreadRuntimeCore
       await this.startRun(newMessage.id);
     } else {
       this.repository.resetHead(newMessage.id);
-      this.notifySubscribers();
+      this._notifySubscribers();
     }
   }
 
@@ -121,6 +121,8 @@ export class LocalThreadRuntimeCore
       content: [],
       createdAt: new Date(),
     };
+
+    this._notifyEventSubscribers("run-start");
 
     do {
       message = await this.performRoundtrip(parentId, message);
@@ -169,7 +171,7 @@ export class LocalThreadRuntimeCore
           : undefined),
       };
       this.repository.addOrUpdateMessage(parentId, message);
-      this.notifySubscribers();
+      this._notifySubscribers();
     };
 
     const maxSteps = this.options.maxSteps

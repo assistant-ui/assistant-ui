@@ -1,6 +1,6 @@
 import { ArchiveIcon, EditIcon, MenuIcon, ShareIcon } from "lucide-react";
 import Link from "next/link";
-import { Thread, useSwitchToNewThread } from "@assistant-ui/react";
+import { Thread, useAssistantRuntime } from "@assistant-ui/react";
 import { makeMarkdownText } from "@assistant-ui/react-markdown";
 import remarkGfm from "remark-gfm";
 import { makePrismAsyncSyntaxHighlighter } from "@assistant-ui/react-syntax-highlighter";
@@ -61,11 +61,11 @@ const ButtonWithTooltip: FC<ButtonWithTooltipProps> = ({
 };
 
 const TopLeft: FC = () => {
-  const switchToNewThread = useSwitchToNewThread();
+  const runtime = useAssistantRuntime();
 
   return (
     <ButtonWithTooltip
-      onClick={switchToNewThread}
+      onClick={() => runtime.switchToNewThread()}
       variant="ghost"
       className="flex w-full justify-between px-3"
       tooltip="New Chat"

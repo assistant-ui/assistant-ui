@@ -78,4 +78,9 @@ export type ThreadRuntimeCore = Readonly<{
 
   import(repository: ExportedMessageRepository): void;
   export(): ExportedMessageRepository;
+
+  unstable_on(
+    event: "switched-to" | "run-start",
+    callback: () => void,
+  ): Unsubscribe;
 }>;

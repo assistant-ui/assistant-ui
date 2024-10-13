@@ -1,7 +1,10 @@
 "use client";
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
-import { useRef } from "react";
-import { useThreadViewportStore } from "../../context/react/ThreadContext";
+import { useEffect, useRef } from "react";
+import {
+  useThreadRuntime,
+  useThreadViewportStore,
+} from "../../context/react/ThreadContext";
 import { useOnResizeContent } from "../../utils/hooks/useOnResizeContent";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
@@ -9,10 +12,12 @@ import { writableStore } from "../../context/ReadonlyStore";
 
 export type UseThreadViewportAutoScrollProps = {
   autoScroll?: boolean | undefined;
+  unstable_scrollToBottomOnRunStart?: boolean | undefined;
 };
 
 export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   autoScroll = true,
+  unstable_scrollToBottomOnRunStart = true,
 }: UseThreadViewportAutoScrollProps) => {
   const divRef = useRef<TElement>(null);
 
@@ -80,6 +85,14 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   useOnScrollToBottom(() => {
     scrollToBottom("auto");
   });
+
+  // autoscroll on run start
+  const threadRuntime = useThreadRuntime();
+  useEffect(() => {
+    if (!unstable_scrollToBottomOnRunStart) return undefined;
+
+    return threadRuntime.unstable_on("run-start", focus);
+  }, [unstable_scrollToBottomOnRunStart]);
 
   return autoScrollRef;
 };

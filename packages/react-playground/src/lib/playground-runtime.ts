@@ -292,6 +292,11 @@ export class PlaygroundThreadRuntimeCore implements INTERNAL.ThreadRuntimeCore {
     throw new Error("PlaygroundRuntime does not support feedback.");
   }
 
+  public unstable_on() {
+    // events not supported in playground
+    return () => {};
+  }
+
   public deleteMessage(messageId: string) {
     this.setMessages(this.messages.filter((m) => m.id !== messageId));
   }
