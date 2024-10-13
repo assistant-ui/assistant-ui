@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.79
+
+### Patch Changes
+
+- feat: allow out of order tool args streaming
+
 ## 0.5.78
 
 ### Patch Changes
