@@ -1,5 +1,9 @@
 .aui-root {
-  @apply text-aui-foreground border-aui-border;
+  @apply text-aui-foreground bg-aui-background;
+}
+
+.aui-root * {
+  @apply border-aui-border;
 }
 
 /* shadcn-ui/button */
