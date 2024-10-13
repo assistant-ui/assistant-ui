@@ -1,9 +1,9 @@
 "use client";
 import {
-  useMessageStore,
+  useMessageRuntime,
   useMessageUtilsStore,
 } from "../../context/react/MessageContext";
-import { useThreadStore } from "../../context/react/ThreadContext";
+import { useThreadRuntime } from "../../context/react/ThreadContext";
 import { useCombinedStore } from "../../utils/combined/useCombinedStore";
 
 export enum HideAndFloatStatus {
@@ -23,12 +23,12 @@ export const useActionBarFloatStatus = ({
   autohide,
   autohideFloat,
 }: UseActionBarFloatStatusProps) => {
-  const threadStore = useThreadStore();
-  const messageStore = useMessageStore();
+  const threadRuntime = useThreadRuntime();
+  const messageRuntime = useMessageRuntime();
   const messageUtilsStore = useMessageUtilsStore();
 
   return useCombinedStore(
-    [threadStore, messageStore, messageUtilsStore],
+    [threadRuntime, messageRuntime, messageUtilsStore],
     (t, m, mu) => {
       if (hideWhenRunning && t.isRunning) return HideAndFloatStatus.Hidden;
 

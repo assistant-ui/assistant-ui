@@ -186,12 +186,12 @@ export type ThreadRuntime = {
   submitFeedback: (feedback: SubmitFeedbackOptions) => void;
 
   /**
-   * @deprecated Use `getMesssageById(id).getMessageByIndex(idx).composer` instead. This will be removed in 0.6.0.
+   * @deprecated Use `getMesssageById(id).composer` instead. This will be removed in 0.6.0.
    */
   getEditComposer: (messageId: string) => ComposerRuntimeCore | undefined;
 
   /**
-   * @deprecated Use `getMesssageById(id).getMessageByIndex(idx).composer.beginEdit()` instead. This will be removed in 0.6.0.
+   * @deprecated Use `getMesssageById(id).composer.beginEdit()` instead. This will be removed in 0.6.0.
    */
   beginEdit: (messageId: string) => void;
 };

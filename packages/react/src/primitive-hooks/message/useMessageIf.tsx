@@ -1,6 +1,6 @@
 "use client";
 import {
-  useMessageStore,
+  useMessageRuntime,
   useMessageUtilsStore,
 } from "../../context/react/MessageContext";
 import type { RequireAtLeastOne } from "../../utils/RequireAtLeastOne";
@@ -21,11 +21,11 @@ type MessageIfFilters = {
 export type UseMessageIfProps = RequireAtLeastOne<MessageIfFilters>;
 
 export const useMessageIf = (props: UseMessageIfProps) => {
-  const messageStore = useMessageStore();
+  const messageRuntime = useMessageRuntime();
   const messageUtilsStore = useMessageUtilsStore();
 
   return useCombinedStore(
-    [messageStore, messageUtilsStore],
+    [messageRuntime, messageUtilsStore],
     (
       {
         role,

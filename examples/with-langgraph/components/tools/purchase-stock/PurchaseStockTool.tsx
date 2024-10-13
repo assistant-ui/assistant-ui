@@ -2,7 +2,7 @@
 
 import { TransactionConfirmationPending } from "./transaction-confirmation-pending";
 import { TransactionConfirmationFinal } from "./transaction-confirmation-final";
-import { makeAssistantToolUI, useThreadStore } from "@assistant-ui/react";
+import { makeAssistantToolUI, useThreadRuntime } from "@assistant-ui/react";
 import { updateState } from "@/lib/chatApi";
 
 type PurchaseStockArgs = {
@@ -32,9 +32,9 @@ export const PurchaseStockTool = makeAssistantToolUI<PurchaseStockArgs, string>(
         ? (JSON.parse(result) as { transactionId: string })
         : undefined;
 
-      const threadStore = useThreadStore();
+      const threadRuntime = useThreadRuntime();
       const handleConfirm = async () => {
-        await updateState(threadStore.getState().threadId, {
+        await updateState(threadRuntime.getState().threadId, {
           newState: CONFIRM_PURCHASE,
           asNode: PREPARE_PURCHASE_DETAILS_NODE,
         });

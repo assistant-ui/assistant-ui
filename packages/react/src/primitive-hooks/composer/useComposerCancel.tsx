@@ -1,14 +1,13 @@
 import { useCallback } from "react";
-import { useComposer, useComposerStore } from "../../context";
+import { useComposer, useComposerRuntime } from "../../context";
 
 export const useComposerCancel = () => {
-  const composerStore = useComposerStore();
+  const composerRuntime = useComposerRuntime();
   const disabled = useComposer((c) => !c.canCancel);
 
   const callback = useCallback(() => {
-    const { cancel } = composerStore.getState();
-    cancel();
-  }, [composerStore]);
+    composerRuntime.cancel();
+  }, [composerRuntime]);
 
   if (disabled) return null;
   return callback;

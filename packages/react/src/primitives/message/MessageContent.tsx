@@ -1,11 +1,14 @@
 "use client";
 
 import { type ComponentType, type FC, memo, useMemo } from "react";
-import { useContentPart, useThreadRuntime, useToolUIs } from "../../context";
+import {
+  useContentPart,
+  useContentPartRuntime,
+  useToolUIs,
+} from "../../context";
 import {
   useMessage,
   useMessageRuntime,
-  useMessageStore,
 } from "../../context/react/MessageContext";
 import { ContentPartRuntimeProvider } from "../../context/providers/ContentPartRuntimeProvider";
 import { ContentPartPrimitiveText } from "../contentPart/ContentPartText";
@@ -85,8 +88,7 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
     tools: { by_name = {}, Fallback = undefined } = {},
   } = {},
 }) => {
-  const messageStore = useMessageStore();
-  const threadRuntime = useThreadRuntime();
+  const contentPartRuntime = useContentPartRuntime();
 
   const part = useContentPart();
 
@@ -115,12 +117,7 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
     case "tool-call": {
       const Tool = by_name[part.toolName] || Fallback;
       const addResult = (result: any) =>
-        threadRuntime.addToolResult({
-          messageId: messageStore.getState().id,
-          toolName: part.toolName,
-          toolCallId: part.toolCallId,
-          result,
-        });
+        contentPartRuntime.addToolResult(result);
       return (
         <ToolUIDisplay {...part} part={part} UI={Tool} addResult={addResult} />
       );
