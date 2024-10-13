@@ -5,28 +5,35 @@ import { LangChainMessage } from "./types";
 import { ToolCallContentPart } from "@assistant-ui/react";
 import { ThreadUserMessage } from "@assistant-ui/react";
 
-const contentToParts = (content: LangChainMessage["content"]) => {
+const contentToParts = (
+  content: LangChainMessage["content"],
+) => {
   if (typeof content === "string")
     return [{ type: "text" as const, text: content }];
-  return content.map((part): ThreadUserMessage["content"][number] => {
-    const type = part.type;
-    switch (type) {
-      case "text":
-        return { type: "text", text: part.text };
-      case "image_url":
-        if (typeof part.image_url === "string") {
-          return { type: "image", image: part.image_url };
-        } else {
-          return {
-            type: "image",
-            image: part.image_url.url,
-          };
-        }
-      default:
-        const _exhaustiveCheck: never = type;
-        throw new Error(`Unknown content part type: ${_exhaustiveCheck}`);
-    }
-  });
+  return content
+    .map((part): ThreadUserMessage["content"][number] | null => {
+      const type = part.type;
+      switch (type) {
+        case "text":
+          return { type: "text", text: part.text };
+        case "image_url":
+          if (typeof part.image_url === "string") {
+            return { type: "image", image: part.image_url };
+          } else {
+            return {
+              type: "image",
+              image: part.image_url.url,
+            };
+          }
+
+        case "tool_use":
+          return null;
+        default:
+          const _exhaustiveCheck: never = type;
+          throw new Error(`Unknown content part type: ${_exhaustiveCheck}`);
+      }
+    })
+    .filter((a) => a !== null);
 };
 
 export const convertLangchainMessages: useExternalMessageConverter.Callback<

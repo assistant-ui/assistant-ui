@@ -1,5 +1,11 @@
 # @assistant-ui/react-langgraph
 
+## 0.0.18
+
+### Patch Changes
+
+- fix(langgraph): ignore tool_use content parts
+
 ## 0.0.17
 
 ### Patch Changes

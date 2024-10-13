@@ -20,8 +20,14 @@ type MessageContentImageUrl = {
   image_url: string | { url: string };
 };
 
+type MessageContentToolUse = {
+  type: "tool_use";
+};
+
 type UserMessageContentComplex = MessageContentText | MessageContentImageUrl;
-type AssistantMessageContentComplex = MessageContentText;
+type AssistantMessageContentComplex =
+  | MessageContentText
+  | MessageContentToolUse;
 
 type UserMessageContent = string | UserMessageContentComplex[];
 type AssistantMessageContent = string | AssistantMessageContentComplex[];
