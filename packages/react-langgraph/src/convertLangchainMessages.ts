@@ -9,7 +9,8 @@ const contentToParts = (content: LangChainMessage["content"]) => {
   if (typeof content === "string")
     return [{ type: "text" as const, text: content }];
   return content.map((part): ThreadUserMessage["content"][number] => {
-    switch (part.type) {
+    const type = part.type;
+    switch (type) {
       case "text":
         return { type: "text", text: part.text };
       case "image_url":
@@ -22,7 +23,7 @@ const contentToParts = (content: LangChainMessage["content"]) => {
           };
         }
       default:
-        const _exhaustiveCheck: never = part;
+        const _exhaustiveCheck: never = type;
         throw new Error(`Unknown content part type: ${_exhaustiveCheck}`);
     }
   });
