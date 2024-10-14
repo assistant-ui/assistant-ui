@@ -6,24 +6,24 @@ from typing import Any, Union
 @dataclass
 class TextDeltaChunk:
     type: str  # "text-delta"
-    textDelta: str
+    text_delta: str
 
 @dataclass
 class ToolCallBeginChunk:
     type: str  # "tool-call-begin"
-    toolCallId: str
-    toolName: str
+    tool_call_id: str
+    tool_name: str
 
 @dataclass
 class ToolCallDeltaChunk:
     type: str  # "tool-call-delta"
-    toolCallId: str
-    argsTextDelta: str
+    tool_call_id: str
+    args_text_delta: str
 
 @dataclass
 class ToolResultChunk:
     type: str  # "tool-result"
-    toolCallId: str
+    tool_call_id: str
     result: Any
 
 # Define the union type for AssistantStreamChunk
