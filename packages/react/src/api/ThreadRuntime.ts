@@ -80,6 +80,10 @@ export type ThreadState = Readonly<{
   messages: readonly ThreadMessage[];
   suggestions: readonly ThreadSuggestion[];
   extras: unknown;
+
+  /**
+   * @deprecated This API is still under active development and might change without notice.
+   */
   speech: SpeechState | undefined;
 }>;
 
@@ -117,7 +121,13 @@ export type ThreadRuntime = {
   export(): ExportedMessageRepository;
   import(repository: ExportedMessageRepository): void;
   getMesssageByIndex(idx: number): MessageRuntime;
+  getMesssageById(messageId: string): MessageRuntime;
+
+  /**
+   * @deprecated This API is still under active development and might change without notice.
+   */
   stopSpeaking: () => void;
+
   unstable_on(
     event: "switched-to" | "run-start",
     callback: () => void,
@@ -206,7 +216,9 @@ export type ThreadRuntime = {
   beginEdit: (messageId: string) => void;
 };
 
-export class ThreadRuntimeImpl implements ThreadRuntimeCore, ThreadRuntime {
+export class ThreadRuntimeImpl
+  implements Omit<ThreadRuntimeCore, "getMessageById">, ThreadRuntime
+{
   // public path = "assistant.threads[main]"; // TODO
 
   /**
@@ -390,12 +402,37 @@ export class ThreadRuntimeImpl implements ThreadRuntimeCore, ThreadRuntime {
   public getMesssageByIndex(idx: number) {
     if (idx < 0) throw new Error("Message index must be >= 0");
 
+    return this._getMessageRuntime(() => {
+      const messages = this._threadBinding.getState().messages;
+      const message = messages[idx];
+      if (!message) return undefined;
+      return {
+        message,
+        parentId: messages[idx - 1]?.id ?? null,
+      };
+    });
+  }
+
+  public getMesssageById(messageId: string) {
+    return this._getMessageRuntime(() =>
+      this._threadBinding.getState().getMessageById(messageId),
+    );
+  }
+
+  private _getMessageRuntime(
+    callback: () =>
+      | { parentId: string | null; message: ThreadMessage }
+      | undefined,
+  ) {
     return new MessageRuntimeImpl(
       new ShallowMemoizeSubject({
         getState: () => {
-          const { messages, speech: speechState } = this.getState();
-          const message = messages[idx];
-          if (!message) return SKIP_UPDATE;
+          const { message, parentId } = callback() ?? {};
+
+          const { messages, speech: speechState } =
+            this._threadBinding.getState();
+
+          if (!message || !parentId) return SKIP_UPDATE;
 
           const thread = this._threadBinding.getState();
 
@@ -406,8 +443,8 @@ export class ThreadRuntimeImpl implements ThreadRuntimeCore, ThreadRuntime {
             ...message,
 
             message,
-            isLast: idx === messages.length - 1,
-            parentId: messages[idx - 1]?.id ?? null,
+            isLast: messages.at(-1)?.id === message.id,
+            parentId,
 
             branches,
             branchNumber: branches.indexOf(message.id) + 1,

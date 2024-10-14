@@ -108,6 +108,9 @@ export type MessageState = ThreadMessage & {
   branchNumber: number;
   branchCount: number;
 
+  /**
+   * @deprecated This API is still under active development and might change without notice.
+   */
   speech: SpeechState | undefined;
   submittedFeedback: SubmittedFeedback | undefined;
 };
@@ -119,7 +122,13 @@ export type MessageRuntime = {
 
   getState(): MessageState;
   reload(): void;
+  /**
+   * @deprecated This API is still under active development and might change without notice.
+   */
   speak(): void;
+  /**
+   * @deprecated This API is still under active development and might change without notice.
+   */
   stopSpeaking(): void;
   submitFeedback({ type }: { type: "positive" | "negative" }): void;
   switchToBranch({

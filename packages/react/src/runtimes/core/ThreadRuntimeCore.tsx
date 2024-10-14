@@ -44,6 +44,13 @@ export type SubmittedFeedback = Readonly<{
 }>;
 
 export type ThreadRuntimeCore = Readonly<{
+  getMessageById: (messageId: string) =>
+    | {
+        parentId: string | null;
+        message: ThreadMessage;
+      }
+    | undefined;
+
   getBranches: (messageId: string) => readonly string[];
   switchToBranch: (branchId: string) => void;
 
