@@ -1,5 +1,11 @@
 # @assistant-ui/react-langgraph
 
+## 0.0.21
+
+### Patch Changes
+
+- 359db5c: fix: hook dependency array inside useLangGraphMessages
+
 ## 0.0.20
 
 ### Patch Changes

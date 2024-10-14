@@ -1,5 +1,11 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.6.13
+
+### Patch Changes
+
+- fa9a441: feat(ai-sdk): replace ai package dependency with @ai-sdk/react
+
 ## 0.6.12
 
 ### Patch Changes
