@@ -1,5 +1,5 @@
 import { AppendMessage } from "@assistant-ui/react";
-import { CreateMessage } from "ai";
+import { CreateMessage } from "@ai-sdk/ui-utils";
 
 export const toCreateMessage = async (
   message: AppendMessage,

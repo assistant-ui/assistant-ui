@@ -1,4 +1,4 @@
-import type { useChat } from "ai/react";
+import type { useChat } from "@ai-sdk/react";
 import { convertMessage } from "../utils/convertMessage";
 import {
   useExternalMessageConverter,

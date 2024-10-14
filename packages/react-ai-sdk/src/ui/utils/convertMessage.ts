@@ -1,4 +1,4 @@
-import { Message } from "ai";
+import { Message } from "@ai-sdk/ui-utils";
 import { useExternalMessageConverter } from "@assistant-ui/react";
 import { ToolCallContentPart } from "@assistant-ui/react";
 import { TextContentPart } from "@assistant-ui/react";

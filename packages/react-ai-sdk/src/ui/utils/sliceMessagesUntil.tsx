@@ -1,4 +1,4 @@
-import type { Message } from "ai";
+import type { Message } from "@ai-sdk/ui-utils";
 
 export const sliceMessagesUntil = (
   messages: Message[],

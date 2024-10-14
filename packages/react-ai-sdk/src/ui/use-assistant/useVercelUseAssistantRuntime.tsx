@@ -1,4 +1,4 @@
-import type { useAssistant } from "ai/react";
+import type { useAssistant } from "@ai-sdk/react";
 import {
   useExternalMessageConverter,
   useExternalStoreRuntime,
