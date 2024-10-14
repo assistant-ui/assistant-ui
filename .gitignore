@@ -39,3 +39,5 @@ apps/docs/public/registry/
 .turbo
 
 
+# python
+__pycache__
