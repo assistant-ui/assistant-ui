@@ -106,7 +106,7 @@ export const useLangGraphRuntime = ({
               case "text":
                 return { type: "text", text: part.text };
               case "image":
-                return { type: "image_url", image_url: part.image };
+                return { type: "image_url", image_url: { url: part.image } };
 
               case "tool-call":
                 throw new Error("Tool call appends are not supported yet.");

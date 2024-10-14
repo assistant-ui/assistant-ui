@@ -1,5 +1,11 @@
 # @assistant-ui/react-langgraph
 
+## 0.0.20
+
+### Patch Changes
+
+- fix(langgraph): use correct image_url format
+
 ## 0.0.19
 
 ### Patch Changes
