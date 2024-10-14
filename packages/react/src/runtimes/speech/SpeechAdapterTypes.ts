@@ -1,4 +1,4 @@
-import { ThreadMessage, Unsubscribe } from "../../types";
+import { Unsubscribe } from "../../types";
 
 export namespace SpeechSynthesisAdapter {
   export type Status =
@@ -19,7 +19,7 @@ export namespace SpeechSynthesisAdapter {
 }
 
 export type SpeechSynthesisAdapter = {
-  speak: (message: ThreadMessage) => SpeechSynthesisAdapter.Utterance;
+  speak: (text: string) => SpeechSynthesisAdapter.Utterance;
 };
 
 export namespace SpeechRecognitionAdapter {

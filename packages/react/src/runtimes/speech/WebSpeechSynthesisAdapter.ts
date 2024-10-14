@@ -1,10 +1,7 @@
-import { ThreadMessage } from "../../types";
-import { getThreadMessageText } from "../../utils/getThreadMessageText";
 import { SpeechSynthesisAdapter } from "./SpeechAdapterTypes";
 
 export class WebSpeechSynthesisAdapter implements SpeechSynthesisAdapter {
-  speak(message: ThreadMessage): SpeechSynthesisAdapter.Utterance {
-    const text = getThreadMessageText(message);
+  speak(text: string): SpeechSynthesisAdapter.Utterance {
     const utterance = new SpeechSynthesisUtterance(text);
 
     const subscribers = new Set<() => void>();
