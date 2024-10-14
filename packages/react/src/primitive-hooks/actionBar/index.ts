@@ -1,10 +1,10 @@
 export {
   /**
-   * @deprecated Use `useMessageRuntime().copy()` instead. This will be removed in 0.6.
+   * @deprecated Use `useMessageRuntime().unstable_getCopyText()` instead. This will be removed in 0.6.
    */
   useActionBarCopy,
   /**
-   * @deprecated Use `useMessageRuntime().copy()` instead. This will be removed in 0.6.
+   * @deprecated Use `useMessageRuntime().unstable_getCopyText()` instead. This will be removed in 0.6.
    */
   type UseActionBarCopyProps,
 } from "./useActionBarCopy";

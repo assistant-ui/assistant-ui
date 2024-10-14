@@ -12,6 +12,7 @@ import {
   ContentPartStatus,
   ToolCallContentPartStatus,
 } from "../types/AssistantTypes";
+import { getThreadMessageText } from "../utils/getThreadMessageText";
 import {
   AttachmentRuntime,
   AttachmentState,
@@ -128,6 +129,7 @@ export type MessageRuntime = {
     position?: "previous" | "next" | undefined;
     branchId?: string | undefined;
   }): void;
+  unstable_getCopyText(): string;
 
   subscribe(callback: () => void): Unsubscribe;
 
@@ -221,6 +223,10 @@ export class MessageRuntimeImpl implements MessageRuntime {
     if (!targetBranch) throw new Error("Branch not found");
 
     this._threadBinding.getState().switchToBranch(targetBranch);
+  }
+
+  public unstable_getCopyText() {
+    return getThreadMessageText(this.getState());
   }
 
   public subscribe(callback: () => void) {
