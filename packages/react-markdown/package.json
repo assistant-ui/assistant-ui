@@ -43,7 +43,7 @@
     "@radix-ui/react-primitive": "^2.0.0",
     "@radix-ui/react-use-callback-ref": "^1.1.0",
     "classnames": "^2.5.1",
-    "lucide-react": "^0.451.0",
+    "lucide-react": "^0.452.0",
     "react-markdown": "^9.0.1"
   },
   "peerDependencies": {

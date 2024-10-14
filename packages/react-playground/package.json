@@ -38,11 +38,11 @@
     "class-variance-authority": "^0.7.0",
     "classnames": "^2.5.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^0.451.0",
+    "lucide-react": "^0.452.0",
     "openai": "^4.67.3",
     "prismjs": "^1.29.0",
     "react-simple-code-editor": "^0.14.1",
-    "react-textarea-autosize": "^8.5.3",
+    "react-textarea-autosize": "^8.5.4",
     "tailwind-merge": "^2.5.3",
     "zustand": "^4.5.5"
   },
