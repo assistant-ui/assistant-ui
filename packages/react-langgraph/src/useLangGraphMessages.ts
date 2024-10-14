@@ -62,8 +62,8 @@ export const useLangGraphMessages = <TMessage>({
       //   throw new Error("A partial message was not marked as complete");
       // }
     },
-    [stream],
+    [messages, stream],
   );
-  console.log("messages", messages);
+
   return { messages, sendMessage, setMessages };
 };
