@@ -6,6 +6,7 @@ import {
 } from "@assistant-ui/react";
 import { convertLangchainMessages } from "./convertLangchainMessages";
 import { useLangGraphMessages } from "./useLangGraphMessages";
+import { SimpleImageAttachmentAdapter } from "@assistant-ui/react";
 
 const getPendingToolCalls = (messages: LangChainMessage[]) => {
   const pendingToolCalls = new Map<string, LangChainToolCall>();
@@ -26,12 +27,14 @@ const getPendingToolCalls = (messages: LangChainMessage[]) => {
 export const useLangGraphRuntime = ({
   threadId,
   autoCancelPendingToolCalls,
+  unstable_allowImageAttachments,
   stream,
   onSwitchToNewThread,
   onSwitchToThread,
 }: {
   threadId?: string | undefined;
   autoCancelPendingToolCalls?: boolean | undefined;
+  unstable_allowImageAttachments?: boolean | undefined;
   stream: (messages: LangChainMessage[]) => Promise<
     AsyncGenerator<{
       event: string;
@@ -69,10 +72,12 @@ export const useLangGraphRuntime = ({
     threadId,
     isRunning,
     messages: threadMessages,
+    adapters: {
+      attachments: unstable_allowImageAttachments
+        ? new SimpleImageAttachmentAdapter()
+        : undefined,
+    },
     onNew: (msg) => {
-      if (msg.content.length !== 1 || msg.content[0]?.type !== "text")
-        throw new Error("Only text messages are supported");
-
       const cancellations =
         autoCancelPendingToolCalls !== false
           ? getPendingToolCalls(messages).map(
@@ -86,11 +91,33 @@ export const useLangGraphRuntime = ({
             )
           : [];
 
+      const allContent = [
+        ...msg.content,
+        ...(msg.attachments?.flatMap((a) => a.content) ?? []),
+      ];
+
       return handleSendMessage([
         ...cancellations,
         {
           type: "human",
-          content: msg.content[0].text,
+          content: allContent.map((part) => {
+            const type = part.type;
+            switch (type) {
+              case "text":
+                return { type: "text", text: part.text };
+              case "image":
+                return { type: "image_url", image_url: part.image };
+
+              case "tool-call":
+                throw new Error("Tool call appends are not supported yet.");
+
+              default:
+                const _exhaustiveCheck: never = type;
+                throw new Error(
+                  `Unknown content part type: ${_exhaustiveCheck}`,
+                );
+            }
+          }),
         },
       ]);
     },

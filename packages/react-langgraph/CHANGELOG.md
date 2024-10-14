@@ -1,5 +1,11 @@
 # @assistant-ui/react-langgraph
 
+## 0.0.19
+
+### Patch Changes
+
+- feat(langgraph): image attachment support
+
 ## 0.0.18
 
 ### Patch Changes
