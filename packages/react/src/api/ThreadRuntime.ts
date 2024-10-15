@@ -6,6 +6,7 @@ import {
   ThreadRuntimeCore,
   SpeechState,
   SubmittedFeedback,
+  ThreadRuntimeEventType,
 } from "../runtimes/core/ThreadRuntimeCore";
 import { ExportedMessageRepository } from "../runtimes/utils/MessageRepository";
 import {
@@ -133,10 +134,7 @@ export type ThreadRuntime = {
    */
   stopSpeaking: () => void;
 
-  unstable_on(
-    event: "switched-to" | "run-start",
-    callback: () => void,
-  ): Unsubscribe;
+  unstable_on(event: ThreadRuntimeEventType, callback: () => void): Unsubscribe;
 
   // Legacy methods with deprecations
 
@@ -501,7 +499,7 @@ export class ThreadRuntimeImpl
   >();
 
   public unstable_on(
-    event: "switched-to" | "run-start",
+    event: ThreadRuntimeEventType,
     callback: () => void,
   ): Unsubscribe {
     let subject = this._eventListenerNestedSubscriptions.get(event);

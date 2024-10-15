@@ -30,6 +30,7 @@ export {
   useThreadRuntime,
   useThread,
   useThreadComposer,
+  useThreadModelConfig,
 
   /**
    * @deprecated Use `useThread().messages` instead. This will be removed in 0.6.0.

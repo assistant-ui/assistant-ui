@@ -43,6 +43,11 @@ export type SubmittedFeedback = Readonly<{
   type: "negative" | "positive";
 }>;
 
+export type ThreadRuntimeEventType =
+  | "switched-to"
+  | "run-start"
+  | "model-config-update";
+
 export type ThreadRuntimeCore = Readonly<{
   getMessageById: (messageId: string) =>
     | {
@@ -86,8 +91,5 @@ export type ThreadRuntimeCore = Readonly<{
   import(repository: ExportedMessageRepository): void;
   export(): ExportedMessageRepository;
 
-  unstable_on(
-    event: "switched-to" | "run-start",
-    callback: () => void,
-  ): Unsubscribe;
+  unstable_on(event: ThreadRuntimeEventType, callback: () => void): Unsubscribe;
 }>;

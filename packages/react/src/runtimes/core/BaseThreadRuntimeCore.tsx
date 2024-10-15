@@ -16,6 +16,7 @@ import {
   SpeechState,
   RuntimeCapabilities,
   SubmittedFeedback,
+  ThreadRuntimeEventType,
 } from "../core/ThreadRuntimeCore";
 import { DefaultEditComposerRuntimeCore } from "../composer/DefaultEditComposerRuntimeCore";
 import { SpeechSynthesisAdapter } from "../speech";
@@ -52,7 +53,11 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
 
   public readonly composer = new DefaultThreadComposerRuntimeCore(this);
 
-  constructor(private configProvider: ModelConfigProvider) {}
+  constructor(private configProvider: ModelConfigProvider) {
+    this.configProvider.subscribe?.(() => {
+      this._notifyEventSubscribers("model-config-update");
+    });
+  }
 
   public getModelConfig() {
     return this.configProvider.getModelConfig();
@@ -94,7 +99,7 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
     for (const callback of this._subscriptions) callback();
   }
 
-  public _notifyEventSubscribers(event: "switched-to" | "run-start") {
+  public _notifyEventSubscribers(event: ThreadRuntimeEventType) {
     const subscribers = this._eventSubscribers.get(event);
     if (!subscribers) return;
 
@@ -173,7 +178,7 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
 
   private _eventSubscribers = new Map<string, Set<() => void>>();
 
-  public unstable_on(event: "switched-to" | "run-start", callback: () => void) {
+  public unstable_on(event: ThreadRuntimeEventType, callback: () => void) {
     const subscribers = this._eventSubscribers.get(event);
     if (!subscribers) {
       this._eventSubscribers.set(event, new Set([callback]));

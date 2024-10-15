@@ -56,7 +56,6 @@ export class AssistantRuntimeImpl
     return this._core.registerModelConfigProvider(provider);
   }
 
-  // TODO events for thread switching
   /**
    * @deprecated Thread is now static and never gets updated. This will be removed in 0.6.0.
    */

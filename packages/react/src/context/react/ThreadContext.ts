@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext } from "react";
+import { createContext, useEffect, useState } from "react";
 import type { ThreadViewportState } from "../stores/ThreadViewport";
 import { ReadonlyStore } from "../ReadonlyStore";
 import { UseBoundStore } from "zustand";
@@ -8,7 +8,7 @@ import { createContextHook } from "./utils/createContextHook";
 import { createContextStoreHook } from "./utils/createContextStoreHook";
 import { ThreadRuntime } from "../../api";
 import { ThreadState } from "../../api/ThreadRuntime";
-import { ThreadMessage } from "../../types";
+import { ModelConfig, ThreadMessage } from "../../types";
 import { ThreadComposerState } from "../../api/ComposerRuntime";
 
 export type ThreadContextValue = {
@@ -88,3 +88,23 @@ export const {
   useViewport: useThreadViewport,
   useViewportStore: useThreadViewportStore,
 } = createContextStoreHook(useThreadContext, "useViewport");
+
+export function useThreadModelConfig(options?: {
+  optional?: false | undefined;
+}): ModelConfig;
+export function useThreadModelConfig(options?: {
+  optional?: boolean | undefined;
+}): ModelConfig | null;
+export function useThreadModelConfig(options?: {
+  optional?: boolean | undefined;
+}): ModelConfig | null {
+  const [, rerender] = useState({});
+
+  const runtime = useThreadRuntime(options);
+  useEffect(() => {
+    return runtime?.unstable_on("model-config-update", () => rerender({}));
+  }, [runtime]);
+
+  if (!runtime) return null;
+  return runtime?.getModelConfig();
+}

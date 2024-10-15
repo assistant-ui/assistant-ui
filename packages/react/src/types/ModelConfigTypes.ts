@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { JSONSchema7 } from "json-schema";
+import { Unsubscribe } from "./Unsubscribe";
 
 export const LanguageModelV1CallSettingsSchema = z.object({
   maxTokens: z.number().int().positive().optional(),
@@ -47,7 +48,10 @@ export type ModelConfig = {
   config?: LanguageModelConfig | undefined;
 };
 
-export type ModelConfigProvider = { getModelConfig: () => ModelConfig };
+export type ModelConfigProvider = {
+  getModelConfig: () => ModelConfig;
+  subscribe?: (callback: () => void) => Unsubscribe;
+};
 
 export const mergeModelConfigs = (
   configSet: Set<ModelConfigProvider>,
