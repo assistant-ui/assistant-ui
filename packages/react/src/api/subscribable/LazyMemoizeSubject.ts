@@ -2,16 +2,22 @@ import { BaseSubject } from "./BaseSubject";
 import { SKIP_UPDATE } from "./SKIP_UPDATE";
 import { SubscribableWithState } from "./Subscribable";
 
-export class LazyMemoizeSubject<T extends object>
+export class LazyMemoizeSubject<TState extends object, TPath>
   extends BaseSubject
-  implements SubscribableWithState<T>
+  implements SubscribableWithState<TState, TPath>
 {
-  constructor(private binding: SubscribableWithState<T | SKIP_UPDATE>) {
+  public get path() {
+    return this.binding.path;
+  }
+
+  constructor(
+    private binding: SubscribableWithState<TState | SKIP_UPDATE, TPath>,
+  ) {
     super();
   }
 
   private _previousStateDirty = true;
-  private _previousState: T | undefined;
+  private _previousState: TState | undefined;
   public getState = () => {
     if (!this.isConnected || this._previousStateDirty) {
       const newState = this.binding.getState();

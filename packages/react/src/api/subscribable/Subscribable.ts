@@ -4,9 +4,12 @@ export type Subscribable = {
   subscribe: (callback: () => void) => Unsubscribe;
 };
 
-export type SubscribableWithState<TState> = Subscribable & {
+export type SubscribableWithState<TState, TPath> = Subscribable & {
+  path: TPath;
   getState: () => TState;
 };
 
-export type NestedSubscribable<TState extends Subscribable | undefined> =
-  SubscribableWithState<TState>;
+export type NestedSubscribable<
+  TState extends Subscribable | undefined,
+  TPath,
+> = SubscribableWithState<TState, TPath>;

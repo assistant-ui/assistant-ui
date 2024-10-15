@@ -3,11 +3,17 @@ import { BaseSubject } from "./BaseSubject";
 import { SubscribableWithState } from "./Subscribable";
 import { SKIP_UPDATE } from "./SKIP_UPDATE";
 
-export class ShallowMemoizeSubject<T extends object>
+export class ShallowMemoizeSubject<TState extends object, TPath>
   extends BaseSubject
-  implements SubscribableWithState<T>
+  implements SubscribableWithState<TState, TPath>
 {
-  constructor(private binding: SubscribableWithState<T | SKIP_UPDATE>) {
+  public get path() {
+    return this.binding.path;
+  }
+
+  constructor(
+    private binding: SubscribableWithState<TState | SKIP_UPDATE, TPath>,
+  ) {
     super();
     const state = binding.getState();
     if (state === SKIP_UPDATE)
@@ -15,7 +21,7 @@ export class ShallowMemoizeSubject<T extends object>
     this._previousState = state;
   }
 
-  private _previousState: T;
+  private _previousState: TState;
   public getState = () => {
     if (!this.isConnected) this._syncState();
     return this._previousState;

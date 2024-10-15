@@ -8,6 +8,7 @@ import { ThreadRuntimeCoreBinding } from "./ThreadRuntime";
 import { MessageStateBinding } from "./MessageRuntime";
 import { SubscribableWithState } from "./subscribable/Subscribable";
 import { Unsubscribe } from "../types";
+import { ContentPartRuntimePath } from "./PathTypes";
 
 export type ContentPartState = (
   | ThreadUserContentPart
@@ -20,15 +21,24 @@ export type ContentPartState = (
   status: ContentPartStatus | ToolCallContentPartStatus;
 };
 
-type ContentPartSnapshotBinding = SubscribableWithState<ContentPartState>;
+type ContentPartSnapshotBinding = SubscribableWithState<
+  ContentPartState,
+  ContentPartRuntimePath
+>;
 
 export type ContentPartRuntime = {
+  path: ContentPartRuntimePath;
+
   getState(): ContentPartState;
   addToolResult(result: any): void;
   subscribe(callback: () => void): Unsubscribe;
 };
 
 export class ContentPartRuntimeImpl implements ContentPartRuntime {
+  public get path() {
+    return this.contentBinding.path;
+  }
+
   constructor(
     private contentBinding: ContentPartSnapshotBinding,
     private messageApi: MessageStateBinding,

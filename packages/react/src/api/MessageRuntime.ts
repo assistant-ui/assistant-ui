@@ -149,6 +149,10 @@ export type MessageRuntime = {
 };
 
 export class MessageRuntimeImpl implements MessageRuntime {
+  public get path() {
+    return this._core.path;
+  }
+
   constructor(
     private _core: MessageStateBinding,
     private _threadBinding: ThreadRuntimeCoreBinding,

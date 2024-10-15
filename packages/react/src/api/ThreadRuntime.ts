@@ -32,6 +32,7 @@ import {
 import { LazyMemoizeSubject } from "./subscribable/LazyMemoizeSubject";
 import { SKIP_UPDATE } from "./subscribable/SKIP_UPDATE";
 import { ComposerRuntimeCore } from "../runtimes/core/ComposerRuntimeCore";
+import { MessageRuntimePath, ThreadRuntimePath } from "./PathTypes";
 
 export type CreateAppendMessage =
   | string
@@ -67,10 +68,12 @@ const toAppendMessage = (
   } as AppendMessage;
 };
 
-export type ThreadRuntimeCoreBinding =
-  SubscribableWithState<ThreadRuntimeCore> & {
-    outerSubscribe(callback: () => void): Unsubscribe;
-  };
+export type ThreadRuntimeCoreBinding = SubscribableWithState<
+  ThreadRuntimeCore,
+  ThreadRuntimePath
+> & {
+  outerSubscribe(callback: () => void): Unsubscribe;
+};
 
 export type ThreadState = Readonly<{
   threadId: string;
@@ -105,7 +108,9 @@ export const getThreadState = (runtime: ThreadRuntimeCore): ThreadState => {
 };
 
 export type ThreadRuntime = {
-  composer: ThreadComposerRuntime;
+  readonly path: ThreadRuntimePath;
+
+  readonly composer: ThreadComposerRuntime;
   getState(): ThreadState;
 
   /**
@@ -219,7 +224,9 @@ export type ThreadRuntime = {
 export class ThreadRuntimeImpl
   implements Omit<ThreadRuntimeCore, "getMessageById">, ThreadRuntime
 {
-  // public path = "assistant.threads[main]"; // TODO
+  public get path() {
+    return this._threadBinding.path;
+  }
 
   /**
    * @deprecated Use `getState().threadId` instead. This will be removed in 0.6.0.
@@ -284,13 +291,16 @@ export class ThreadRuntimeImpl
   private _threadBinding: ThreadRuntimeCoreBinding & {
     getStateState(): ThreadState;
   };
+
   constructor(threadBinding: ThreadRuntimeCoreBinding) {
     const stateBinding = new LazyMemoizeSubject({
+      path: threadBinding.path,
       getState: () => getThreadState(threadBinding.getState()),
       subscribe: (callback) => threadBinding.subscribe(callback),
     });
 
     this._threadBinding = {
+      path: threadBinding.path,
       getState: () => threadBinding.getState(),
       getStateState: () => stateBinding.getState(),
       outerSubscribe: (callback) => threadBinding.outerSubscribe(callback),
@@ -300,6 +310,11 @@ export class ThreadRuntimeImpl
 
   public readonly composer = new ThreadComposerRuntimeImpl(
     new NestedSubscriptionSubject({
+      path: {
+        ...this.path,
+        ref: this.path.ref + `${this.path.ref}.composer`,
+        composerSource: "thread",
+      },
       getState: () => this._threadBinding.getState().composer,
       subscribe: (callback) => this._threadBinding.subscribe(callback),
     }),
@@ -402,30 +417,46 @@ export class ThreadRuntimeImpl
   public getMesssageByIndex(idx: number) {
     if (idx < 0) throw new Error("Message index must be >= 0");
 
-    return this._getMessageRuntime(() => {
-      const messages = this._threadBinding.getState().messages;
-      const message = messages[idx];
-      if (!message) return undefined;
-      return {
-        message,
-        parentId: messages[idx - 1]?.id ?? null,
-      };
-    });
+    return this._getMessageRuntime(
+      {
+        ...this.path,
+        ref: this.path.ref + `${this.path.ref}.messages[${idx}]`,
+        messageSelector: { type: "index", index: idx },
+      },
+      () => {
+        const messages = this._threadBinding.getState().messages;
+        const message = messages[idx];
+        if (!message) return undefined;
+        return {
+          message,
+          parentId: messages[idx - 1]?.id ?? null,
+        };
+      },
+    );
   }
 
   public getMesssageById(messageId: string) {
-    return this._getMessageRuntime(() =>
-      this._threadBinding.getState().getMessageById(messageId),
+    return this._getMessageRuntime(
+      {
+        ...this.path,
+        ref:
+          this.path.ref +
+          `${this.path.ref}.messages[messageId=${JSON.stringify(messageId)}]`,
+        messageSelector: { type: "messageId", messageId: messageId },
+      },
+      () => this._threadBinding.getState().getMessageById(messageId),
     );
   }
 
   private _getMessageRuntime(
+    path: MessageRuntimePath,
     callback: () =>
       | { parentId: string | null; message: ThreadMessage }
       | undefined,
   ) {
     return new MessageRuntimeImpl(
       new ShallowMemoizeSubject({
+        path,
         getState: () => {
           const { message, parentId } = callback() ?? {};
 
@@ -464,7 +495,7 @@ export class ThreadRuntimeImpl
 
   private _eventListenerNestedSubscriptions = new Map<
     string,
-    NestedSubscriptionSubject<Subscribable>
+    NestedSubscriptionSubject<Subscribable, ThreadRuntimePath>
   >();
 
   public unstable_on(
@@ -474,6 +505,7 @@ export class ThreadRuntimeImpl
     let subject = this._eventListenerNestedSubscriptions.get(event);
     if (!subject) {
       subject = new NestedSubscriptionSubject({
+        path: this.path,
         getState: () => ({
           subscribe: (callback) =>
             this._threadBinding.getState().unstable_on(event, callback),

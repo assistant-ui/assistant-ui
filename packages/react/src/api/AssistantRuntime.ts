@@ -28,7 +28,7 @@ export type AssistantRuntime = {
 };
 
 export class AssistantRuntimeImpl
-  implements AssistantRuntimeCore, AssistantRuntime
+  implements Omit<AssistantRuntimeCore, "thread">, AssistantRuntime
 {
   protected constructor(
     private readonly _core: AssistantRuntimeCore,
@@ -64,7 +64,7 @@ export class AssistantRuntimeImpl
     return this._core.subscribe(callback);
   }
 
-  protected static createThreadRuntime(
+  protected static createMainThreadRuntime(
     _core: AssistantRuntimeCore,
     CustomThreadRuntime: new (
       binding: ThreadRuntimeCoreBinding,
@@ -72,6 +72,10 @@ export class AssistantRuntimeImpl
   ) {
     return new CustomThreadRuntime(
       new NestedSubscriptionSubject({
+        path: {
+          ref: "threads.main",
+          threadSelector: { type: "main" },
+        },
         getState: () => _core.thread,
         subscribe: (callback) => _core.subscribe(callback),
       }),
@@ -86,7 +90,7 @@ export class AssistantRuntimeImpl
   ) {
     return new AssistantRuntimeImpl(
       _core,
-      AssistantRuntimeImpl.createThreadRuntime(_core, CustomThreadRuntime),
+      AssistantRuntimeImpl.createMainThreadRuntime(_core, CustomThreadRuntime),
     ) as AssistantRuntime;
   }
 }

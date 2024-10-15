@@ -522,6 +522,15 @@ export class PlaygroundThreadRuntimeCore implements INTERNAL.ThreadRuntimeCore {
   public export(): never {
     throw new Error("Playground does not support exporting messages.");
   }
+
+  public getMessageById(messageId: string) {
+    const idx = this.messages.findIndex((m) => m.id === messageId);
+    if (idx === -1) return undefined;
+    return {
+      message: this.messages[idx]!,
+      parentId: this.messages[idx - 1]?.id ?? null,
+    };
+  }
 }
 
 type PlaygroundThreadRuntime = ThreadRuntime & {
@@ -558,7 +567,7 @@ class PlaygroundRuntimeImpl
   public static override create(_core: PlaygroundRuntimeCore) {
     return new PlaygroundRuntimeImpl(
       _core,
-      AssistantRuntimeImpl.createThreadRuntime(
+      AssistantRuntimeImpl.createMainThreadRuntime(
         _core,
         PlaygroundThreadRuntimeImpl,
       ),

@@ -30,7 +30,7 @@ class LocalRuntimeImpl extends AssistantRuntimeImpl implements LocalRuntime {
   public static override create(_core: LocalRuntimeCore) {
     return new LocalRuntimeImpl(
       _core,
-      AssistantRuntimeImpl.createThreadRuntime(_core, ThreadRuntimeImpl),
+      AssistantRuntimeImpl.createMainThreadRuntime(_core, ThreadRuntimeImpl),
     ) as LocalRuntime;
   }
 }

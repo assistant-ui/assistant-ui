@@ -14,13 +14,21 @@ import {
 } from "./AttachmentRuntime";
 import { ShallowMemoizeSubject } from "./subscribable/ShallowMemoizeSubject";
 import { SKIP_UPDATE } from "./subscribable/SKIP_UPDATE";
+import { ComposerRuntimePath } from "./PathTypes";
 
 export type ThreadComposerRuntimeCoreBinding = SubscribableWithState<
-  ThreadComposerRuntimeCore | undefined
+  ThreadComposerRuntimeCore | undefined,
+  ComposerRuntimePath & { composerSource: "thread" }
+>;
+
+export type EditComposerRuntimeCoreBinding = SubscribableWithState<
+  ComposerRuntimeCore | undefined,
+  ComposerRuntimePath & { composerSource: "edit" }
 >;
 
 export type ComposerRuntimeCoreBinding = SubscribableWithState<
-  ComposerRuntimeCore | undefined
+  ComposerRuntimeCore | undefined,
+  ComposerRuntimePath
 >;
 
 type LegacyEditComposerState = Readonly<{
@@ -165,6 +173,7 @@ const getEditComposerState = (
 };
 
 export type ComposerRuntime = {
+  path: ComposerRuntimePath;
   readonly type: "edit" | "thread";
   getState(): ComposerState;
 
@@ -207,6 +216,10 @@ export type ComposerRuntime = {
 export abstract class ComposerRuntimeImpl
   implements ComposerRuntimeCore, ComposerRuntime
 {
+  public get path() {
+    return this._core.path;
+  }
+
   public abstract get type(): "edit" | "thread";
 
   constructor(protected _core: ComposerRuntimeCoreBinding) {}
@@ -318,6 +331,7 @@ export type ThreadComposerRuntime = Omit<
   ComposerRuntime,
   "getState" | "getAttachmentByIndex"
 > & {
+  readonly path: ComposerRuntimePath & { composerSource: "thread" };
   readonly type: "thread";
   getState(): ThreadComposerState;
 
@@ -335,6 +349,12 @@ export class ThreadComposerRuntimeImpl
   extends ComposerRuntimeImpl
   implements ThreadComposerRuntime, ThreadComposerState
 {
+  public override get path() {
+    return this._core.path as ComposerRuntimePath & {
+      composerSource: "thread";
+    };
+  }
+
   public get type() {
     return "thread" as const;
   }
@@ -343,10 +363,12 @@ export class ThreadComposerRuntimeImpl
 
   constructor(core: ThreadComposerRuntimeCoreBinding) {
     const stateBinding = new LazyMemoizeSubject({
+      path: core.path,
       getState: () => getThreadComposerState(core.getState()),
       subscribe: (callback) => core.subscribe(callback),
     });
     super({
+      path: core.path,
       getState: () => core.getState(),
       subscribe: (callback) => stateBinding.subscribe(callback),
     });
@@ -364,6 +386,12 @@ export class ThreadComposerRuntimeImpl
   public getAttachmentByIndex(idx: number) {
     return new ThreadComposerAttachmentRuntimeImpl(
       new ShallowMemoizeSubject({
+        path: {
+          ...this.path,
+          attachmentSource: "thread-composer",
+          attachmentSelector: { type: "index", index: idx },
+          ref: this.path.ref + `${this.path.ref}.attachments[${idx}]`,
+        },
         getState: () => {
           const attachments = this.getState().attachments;
           const attachment = attachments[idx];
@@ -386,6 +414,7 @@ export type EditComposerRuntime = Omit<
   ComposerRuntime,
   "getState" | "getAttachmentByIndex"
 > & {
+  readonly path: ComposerRuntimePath & { composerSource: "edit" };
   readonly type: "edit";
 
   getState(): EditComposerState;
@@ -405,21 +434,27 @@ export class EditComposerRuntimeImpl
   extends ComposerRuntimeImpl
   implements EditComposerRuntime, EditComposerState
 {
+  public override get path() {
+    return this._core.path as ComposerRuntimePath & { composerSource: "edit" };
+  }
+
   public get type() {
     return "edit" as const;
   }
 
   private _getState;
   constructor(
-    core: ComposerRuntimeCoreBinding,
+    core: EditComposerRuntimeCoreBinding,
     private _beginEdit: () => void,
   ) {
     const stateBinding = new LazyMemoizeSubject({
+      path: core.path,
       getState: () => getEditComposerState(core.getState(), this._beginEdit),
       subscribe: (callback) => core.subscribe(callback),
     });
 
     super({
+      path: core.path,
       getState: () => core.getState(),
       subscribe: (callback) => stateBinding.subscribe(callback),
     });
@@ -445,6 +480,12 @@ export class EditComposerRuntimeImpl
   public getAttachmentByIndex(idx: number) {
     return new EditComposerAttachmentRuntimeImpl(
       new ShallowMemoizeSubject({
+        path: {
+          ...this.path,
+          attachmentSource: "edit-composer",
+          attachmentSelector: { type: "index", index: idx },
+          ref: this.path.ref + `${this.path.ref}.attachments[${idx}]`,
+        },
         getState: () => {
           const attachments = this.getState().attachments;
           const attachment = attachments[idx];

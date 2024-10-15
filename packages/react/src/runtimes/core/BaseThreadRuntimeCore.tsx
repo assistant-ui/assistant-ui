@@ -21,6 +21,7 @@ import { DefaultEditComposerRuntimeCore } from "../composer/DefaultEditComposerR
 import { SpeechSynthesisAdapter } from "../speech";
 import { FeedbackAdapter } from "../feedback/FeedbackAdapter";
 import { AttachmentAdapter } from "../attachment";
+import { getThreadMessageText } from "../../utils/getThreadMessageText";
 
 type BaseThreadAdapters = {
   speech?: SpeechSynthesisAdapter | undefined;
@@ -76,6 +77,10 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
     this._notifySubscribers();
   }
 
+  public getMessageById(messageId: string) {
+    return this.repository.getMessage(messageId);
+  }
+
   public getBranches(messageId: string): string[] {
     return this.repository.getBranches(messageId);
   }
@@ -129,7 +134,7 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
 
     this._stopSpeaking?.();
 
-    const utterance = adapter.speak(message);
+    const utterance = adapter.speak(getThreadMessageText(message));
     const unsub = utterance.subscribe(() => {
       if (utterance.status.type === "ended") {
         this._stopSpeaking = undefined;

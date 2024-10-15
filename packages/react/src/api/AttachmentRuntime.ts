@@ -7,6 +7,7 @@ import {
   PendingAttachment,
   Unsubscribe,
 } from "../types";
+import { AttachmentRuntimePath } from "./PathTypes";
 
 type MessageAttachmentState = CompleteAttachment & {
   source: "message";
@@ -38,13 +39,17 @@ export type AttachmentState =
   | MessageAttachmentState;
 
 type AttachmentSnapshotBinding<Source extends AttachmentRuntimeSource> =
-  SubscribableWithState<AttachmentState & { source: Source }>;
+  SubscribableWithState<
+    AttachmentState & { source: Source },
+    AttachmentRuntimePath & { attachmentSource: Source }
+  >;
 
 type AttachmentRuntimeSource = AttachmentState["source"];
 
 export type AttachmentRuntime<
   TSource extends AttachmentRuntimeSource = AttachmentRuntimeSource,
 > = {
+  path: AttachmentRuntimePath & { attachmentSource: TSource };
   readonly source: TSource;
   getState(): AttachmentState & { source: TSource };
   remove(): Promise<void>;
@@ -55,6 +60,10 @@ export abstract class AttachmentRuntimeImpl<
   Source extends AttachmentRuntimeSource = AttachmentRuntimeSource,
 > implements AttachmentRuntime
 {
+  public get path() {
+    return this._core.path;
+  }
+
   public abstract get source(): Source;
 
   constructor(private _core: AttachmentSnapshotBinding<Source>) {}

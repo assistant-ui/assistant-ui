@@ -6,11 +6,15 @@ import {
   SubscribableWithState,
 } from "./Subscribable";
 
-export class NestedSubscriptionSubject<TState extends Subscribable | undefined>
+export class NestedSubscriptionSubject<TState extends Subscribable | undefined, TPath>
   extends BaseSubject
-  implements SubscribableWithState<TState>, NestedSubscribable<TState>
+  implements SubscribableWithState<TState, TPath>, NestedSubscribable<TState, TPath>
 {
-  constructor(private binding: NestedSubscribable<TState>) {
+  public get path() {
+    return this.binding.path;
+  }
+
+  constructor(private binding: NestedSubscribable<TState, TPath>) {
     super();
   }
 
