@@ -27,6 +27,7 @@ import {
   ContentPartRuntimeImpl,
   ContentPartState,
 } from "./ContentPartRuntime";
+import { MessageRuntimePath } from "./PathTypes";
 import { ThreadRuntimeCoreBinding } from "./ThreadRuntime";
 import { NestedSubscriptionSubject } from "./subscribable/NestedSubscriptionSubject";
 import { SKIP_UPDATE } from "./subscribable/SKIP_UPDATE";
@@ -115,10 +116,15 @@ export type MessageState = ThreadMessage & {
   submittedFeedback: SubmittedFeedback | undefined;
 };
 
-export type MessageStateBinding = SubscribableWithState<MessageState>;
+export type MessageStateBinding = SubscribableWithState<
+  MessageState,
+  MessageRuntimePath
+>;
 
 export type MessageRuntime = {
-  composer: EditComposerRuntime;
+  readonly path: MessageRuntimePath;
+
+  readonly composer: EditComposerRuntime;
 
   getState(): MessageState;
   reload(): void;
@@ -160,6 +166,11 @@ export class MessageRuntimeImpl implements MessageRuntime {
 
   public composer = new EditComposerRuntimeImpl(
     new NestedSubscriptionSubject({
+      path: {
+        ...this.path,
+        ref: this.path.ref + `${this.path.ref}.composer`,
+        composerSource: "edit",
+      },
       getState: () =>
         this._threadBinding
           .getState()
@@ -252,6 +263,11 @@ export class MessageRuntimeImpl implements MessageRuntime {
     if (idx < 0) throw new Error("Content part index must be >= 0");
     return new ContentPartRuntimeImpl(
       new ShallowMemoizeSubject({
+        path: {
+          ...this.path,
+          ref: this.path.ref + `${this.path.ref}.content[${idx}]`,
+          contentPartSelector: { type: "index", index: idx },
+        },
         getState: () => {
           return getContentPartState(this.getState(), idx);
         },
@@ -265,6 +281,13 @@ export class MessageRuntimeImpl implements MessageRuntime {
   public getContentPartByToolCallId(toolCallId: string) {
     return new ContentPartRuntimeImpl(
       new ShallowMemoizeSubject({
+        path: {
+          ...this.path,
+          ref:
+            this.path.ref +
+            `${this.path.ref}.content[toolCallId=${JSON.stringify(toolCallId)}]`,
+          contentPartSelector: { type: "toolCallId", toolCallId },
+        },
         getState: () => {
           const state = this._core.getState();
           const idx = state.content.findIndex(
@@ -284,6 +307,12 @@ export class MessageRuntimeImpl implements MessageRuntime {
   public getAttachmentByIndex(idx: number) {
     return new MessageAttachmentRuntimeImpl(
       new ShallowMemoizeSubject({
+        path: {
+          ...this.path,
+          ref: this.path.ref + `${this.path.ref}.attachments[${idx}]`,
+          attachmentSource: "message",
+          attachmentSelector: { type: "index", index: idx },
+        },
         getState: () => {
           const attachments = this.getState().attachments;
           const attachment = attachments?.[idx];
