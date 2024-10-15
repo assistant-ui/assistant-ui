@@ -143,6 +143,8 @@ export type MessageRuntime = {
   subscribe(callback: () => void): Unsubscribe;
 
   getContentPartByIndex(idx: number): ContentPartRuntime;
+  getContentPartByToolCallId(toolCallId: string): ContentPartRuntime;
+
   getAttachmentByIndex(idx: number): AttachmentRuntime & { source: "message" };
 };
 
@@ -243,11 +245,30 @@ export class MessageRuntimeImpl implements MessageRuntime {
   }
 
   public getContentPartByIndex(idx: number) {
-    if (idx < 0) throw new Error("Message index must be >= 0");
+    if (idx < 0) throw new Error("Content part index must be >= 0");
     return new ContentPartRuntimeImpl(
       new ShallowMemoizeSubject({
         getState: () => {
           return getContentPartState(this.getState(), idx);
+        },
+        subscribe: (callback) => this._core.subscribe(callback),
+      }),
+      this._core,
+      this._threadBinding,
+    );
+  }
+
+  public getContentPartByToolCallId(toolCallId: string) {
+    return new ContentPartRuntimeImpl(
+      new ShallowMemoizeSubject({
+        getState: () => {
+          const state = this._core.getState();
+          const idx = state.content.findIndex(
+            (part) =>
+              part.type === "tool-call" && part.toolCallId === toolCallId,
+          );
+          if (idx === -1) return SKIP_UPDATE;
+          return getContentPartState(state, idx);
         },
         subscribe: (callback) => this._core.subscribe(callback),
       }),
