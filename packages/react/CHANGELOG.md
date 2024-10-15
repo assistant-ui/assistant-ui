@@ -1,5 +1,16 @@
 # @assistant-ui/react
 
+## 0.5.82
+
+### Patch Changes
+
+- 0edadd1: feat: useThreadModelConfig API
+- 1aeda53: feat: Runtime.path API
+- 0c8277e: feat: MessageRuntime.unstable_getCopyText API
+- 91d3951: feat: MessageRuntime.getContentPartByToolCallId
+- cf6861c: refactor!: simplify SpeechSynthesisAdapter to accept a text string
+- 7c76939: feat: ThreadRuntime.getMesssageById
+
 ## 0.5.79
 
 ### Patch Changes

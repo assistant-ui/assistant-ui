@@ -1,5 +1,18 @@
 # @assistant-ui/react-playground
 
+## 0.0.40
+
+### Patch Changes
+
+- 1aeda53: feat: Runtime.path API
+- Updated dependencies [0edadd1]
+- Updated dependencies [1aeda53]
+- Updated dependencies [0c8277e]
+- Updated dependencies [91d3951]
+- Updated dependencies [cf6861c]
+- Updated dependencies [7c76939]
+  - @assistant-ui/react@0.5.82
+
 ## 0.0.39
 
 ### Patch Changes
