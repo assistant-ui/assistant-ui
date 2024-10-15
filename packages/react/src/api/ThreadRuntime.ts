@@ -306,19 +306,21 @@ export class ThreadRuntimeImpl
       outerSubscribe: (callback) => threadBinding.outerSubscribe(callback),
       subscribe: (callback) => threadBinding.subscribe(callback),
     };
+
+    this.composer = new ThreadComposerRuntimeImpl(
+      new NestedSubscriptionSubject({
+        path: {
+          ...this.path,
+          ref: this.path.ref + `${this.path.ref}.composer`,
+          composerSource: "thread",
+        },
+        getState: () => this._threadBinding.getState().composer,
+        subscribe: (callback) => this._threadBinding.subscribe(callback),
+      }),
+    );
   }
 
-  public readonly composer = new ThreadComposerRuntimeImpl(
-    new NestedSubscriptionSubject({
-      path: {
-        ...this.path,
-        ref: this.path.ref + `${this.path.ref}.composer`,
-        composerSource: "thread",
-      },
-      getState: () => this._threadBinding.getState().composer,
-      subscribe: (callback) => this._threadBinding.subscribe(callback),
-    }),
-  );
+  public readonly composer;
 
   public getState() {
     return this._threadBinding.getStateState();
@@ -463,7 +465,7 @@ export class ThreadRuntimeImpl
           const { messages, speech: speechState } =
             this._threadBinding.getState();
 
-          if (!message || !parentId) return SKIP_UPDATE;
+          if (!message || parentId === undefined) return SKIP_UPDATE;
 
           const thread = this._threadBinding.getState();
 

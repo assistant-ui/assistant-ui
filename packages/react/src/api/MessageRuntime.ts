@@ -162,23 +162,25 @@ export class MessageRuntimeImpl implements MessageRuntime {
   constructor(
     private _core: MessageStateBinding,
     private _threadBinding: ThreadRuntimeCoreBinding,
-  ) {}
+  ) {
+    this.composer = new EditComposerRuntimeImpl(
+      new NestedSubscriptionSubject({
+        path: {
+          ...this.path,
+          ref: this.path.ref + `${this.path.ref}.composer`,
+          composerSource: "edit",
+        },
+        getState: () =>
+          this._threadBinding
+            .getState()
+            .getEditComposer(this._core.getState().id),
+        subscribe: (callback) => this._threadBinding.subscribe(callback),
+      }),
+      () => this._threadBinding.getState().beginEdit(this._core.getState().id),
+    );
+  }
 
-  public composer = new EditComposerRuntimeImpl(
-    new NestedSubscriptionSubject({
-      path: {
-        ...this.path,
-        ref: this.path.ref + `${this.path.ref}.composer`,
-        composerSource: "edit",
-      },
-      getState: () =>
-        this._threadBinding
-          .getState()
-          .getEditComposer(this._core.getState().id),
-      subscribe: (callback) => this._threadBinding.subscribe(callback),
-    }),
-    () => this._threadBinding.getState().beginEdit(this._core.getState().id),
-  );
+  public composer;
 
   public getState() {
     return this._core.getState();
