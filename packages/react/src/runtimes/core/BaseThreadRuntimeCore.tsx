@@ -53,11 +53,7 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
 
   public readonly composer = new DefaultThreadComposerRuntimeCore(this);
 
-  constructor(private configProvider: ModelConfigProvider) {
-    this.configProvider.subscribe?.(() => {
-      this._notifyEventSubscribers("model-config-update");
-    });
-  }
+  constructor(private configProvider: ModelConfigProvider) {}
 
   public getModelConfig() {
     return this.configProvider.getModelConfig();
@@ -179,6 +175,10 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
   private _eventSubscribers = new Map<string, Set<() => void>>();
 
   public unstable_on(event: ThreadRuntimeEventType, callback: () => void) {
+    if (event === "model-config-update") {
+      return this.configProvider.subscribe?.(callback) ?? (() => {});
+    }
+
     const subscribers = this._eventSubscribers.get(event);
     if (!subscribers) {
       this._eventSubscribers.set(event, new Set([callback]));
