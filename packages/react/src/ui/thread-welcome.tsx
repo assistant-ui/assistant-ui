@@ -73,11 +73,15 @@ const ThreadWelcomeMessage = forwardRef<
   ThreadWelcomeMessage.Element,
   ThreadWelcomeMessage.Props
 >(({ message: messageProp, ...rest }, ref) => {
-  const { welcome: { message = "How can I help you today?" } = {} } =
-    useThreadConfig();
+  const {
+    welcome: { message } = {},
+    strings: {
+      welcome: { message: defaultMessage = "How can I help you today?" } = {},
+    } = {},
+  } = useThreadConfig();
   return (
     <ThreadWelcomeMessageStyled {...rest} ref={ref}>
-      {messageProp ?? message}
+      {messageProp ?? message ?? defaultMessage}
     </ThreadWelcomeMessageStyled>
   );
 });

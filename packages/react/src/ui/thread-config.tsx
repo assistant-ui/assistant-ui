@@ -70,6 +70,9 @@ export type StringsConfig = {
       tooltip?: string | undefined;
     };
   };
+  welcome?: {
+    message?: string | undefined;
+  };
   userMessage?: {
     edit?: {
       tooltip?: string | undefined;
