@@ -4,10 +4,10 @@ import type {
   AppendMessage,
   ThreadAssistantMessage,
 } from "../../types";
-import { fromCoreMessage, fromCoreMessages } from "../edge";
-import type { ChatModelAdapter, ChatModelRunResult } from "./ChatModelAdapter";
+import { fromCoreMessage } from "../edge";
+import type { ChatModelRunResult } from "./ChatModelAdapter";
 import { shouldContinue } from "./shouldContinue";
-import { LocalRuntimeOptions } from "./LocalRuntimeOptions";
+import { LocalRuntimeOptionsBase } from "./LocalRuntimeOptions";
 import {
   AddToolResultOptions,
   ThreadSuggestion,
@@ -32,44 +32,32 @@ export class LocalThreadRuntimeCore
 
   private abortController: AbortController | null = null;
 
-  public readonly threadId: string;
   public readonly isDisabled = false;
   public readonly suggestions: readonly ThreadSuggestion[] = [];
 
   public get adapters() {
-    return this.options.adapters;
+    return this._options.adapters;
   }
 
   constructor(
     configProvider: ModelConfigProvider,
-    public adapter: ChatModelAdapter,
-    { initialMessages, ...options }: LocalRuntimeOptions,
+    public readonly threadId: string,
+    options: LocalRuntimeOptionsBase,
   ) {
     super(configProvider);
 
-    this.threadId = generateId();
-    this.options = options;
-    if (initialMessages) {
-      let parentId: string | null = null;
-      const messages = fromCoreMessages(initialMessages);
-      for (const message of messages) {
-        this.repository.addOrUpdateMessage(parentId, message);
-        parentId = message.id;
-      }
-    }
+    this._options = options;
   }
 
-  private _options!: LocalRuntimeOptions;
-
-  public get options() {
-    return this._options;
-  }
+  private _options: LocalRuntimeOptionsBase;
 
   public get extras() {
     return undefined;
   }
 
-  public set options({ initialMessages, ...options }: LocalRuntimeOptions) {
+  public setOptions(options: LocalRuntimeOptionsBase) {
+    if (this._options === options) return;
+
     this._options = options;
 
     let hasUpdates = false;
@@ -174,9 +162,9 @@ export class LocalThreadRuntimeCore
       this._notifySubscribers();
     };
 
-    const maxSteps = this.options.maxSteps
-      ? this.options.maxSteps
-      : (this.options.maxToolRoundtrips ?? 1) + 1;
+    const maxSteps = this._options.maxSteps
+      ? this._options.maxSteps
+      : (this._options.maxToolRoundtrips ?? 1) + 1;
 
     const steps = message.metadata?.steps?.length ?? 0;
     if (steps >= maxSteps) {
@@ -197,7 +185,7 @@ export class LocalThreadRuntimeCore
     }
 
     try {
-      const promiseOrGenerator = this.adapter.run({
+      const promiseOrGenerator = this.adapters.chatModel.run({
         messages,
         abortSignal: this.abortController.signal,
         config: this.getModelConfig(),

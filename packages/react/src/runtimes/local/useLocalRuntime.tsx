@@ -1,6 +1,6 @@
 "use client";
 
-import { useInsertionEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ChatModelAdapter } from "./ChatModelAdapter";
 import { LocalRuntimeCore } from "./LocalRuntimeCore";
 import { LocalRuntimeOptions } from "./LocalRuntimeOptions";
@@ -39,11 +39,18 @@ export const useLocalRuntime = (
   adapter: ChatModelAdapter,
   options: LocalRuntimeOptions = {},
 ) => {
-  const [runtime] = useState(() => new LocalRuntimeCore(adapter, options));
+  const opt = {
+    ...options,
+    adapters: {
+      ...options.adapters,
+      chatModel: adapter,
+    },
+  };
 
-  useInsertionEffect(() => {
-    runtime.thread.adapter = adapter;
-    runtime.thread.options = options;
+  const [runtime] = useState(() => new LocalRuntimeCore(opt));
+
+  useEffect(() => {
+    runtime.setOptions(opt);
   });
 
   return useMemo(() => LocalRuntimeImpl.create(runtime), [runtime]);

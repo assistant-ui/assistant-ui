@@ -8,7 +8,7 @@ import { ThreadRuntimeCoreBinding } from "./ThreadRuntime";
 import { MessageStateBinding } from "./MessageRuntime";
 import { SubscribableWithState } from "./subscribable/Subscribable";
 import { Unsubscribe } from "../types";
-import { ContentPartRuntimePath } from "./PathTypes";
+import { ContentPartRuntimePath } from "./RuntimePathTypes";
 
 export type ContentPartState = (
   | ThreadUserContentPart

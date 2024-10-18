@@ -14,7 +14,7 @@ import {
 } from "./AttachmentRuntime";
 import { ShallowMemoizeSubject } from "./subscribable/ShallowMemoizeSubject";
 import { SKIP_UPDATE } from "./subscribable/SKIP_UPDATE";
-import { ComposerRuntimePath } from "./PathTypes";
+import { ComposerRuntimePath } from "./RuntimePathTypes";
 
 export type ThreadComposerRuntimeCoreBinding = SubscribableWithState<
   ThreadComposerRuntimeCore | undefined,

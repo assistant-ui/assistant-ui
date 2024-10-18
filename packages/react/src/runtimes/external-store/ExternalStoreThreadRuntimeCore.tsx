@@ -10,7 +10,6 @@ import { ThreadMessageConverter } from "./ThreadMessageConverter";
 import { getAutoStatus, isAutoStatus } from "./auto-status";
 import { fromThreadMessageLike } from "./ThreadMessageLike";
 import { getThreadMessageText } from "../../utils/getThreadMessageText";
-import { generateId } from "../../internal";
 import {
   RuntimeCapabilities,
   ThreadRuntimeCore,
@@ -67,7 +66,7 @@ export class ExternalStoreThreadRuntimeCore
   private _store!: ExternalStoreAdapter<any>;
 
   public override beginEdit(messageId: string) {
-    if (!this.store.onEdit)
+    if (!this._store.onEdit)
       throw new Error("Runtime does not support editing.");
 
     super.beginEdit(messageId);
@@ -75,20 +74,17 @@ export class ExternalStoreThreadRuntimeCore
 
   constructor(
     configProvider: ModelConfigProvider,
+    threadId: string,
     store: ExternalStoreAdapter<any>,
   ) {
     super(configProvider);
-    this.store = store;
+    this.threadId = threadId;
+    this.setStore(store);
   }
 
-  public get store() {
-    return this._store;
-  }
-
-  public set store(store: ExternalStoreAdapter<any>) {
+  public setStore(store: ExternalStoreAdapter<any>) {
     if (this._store === store) return;
 
-    this.threadId = store.threadId ?? this.threadId ?? generateId();
     const isRunning = store.isRunning ?? false;
     this.isDisabled = store.isDisabled ?? false;
 
@@ -103,8 +99,8 @@ export class ExternalStoreThreadRuntimeCore
       cancel: this._store.onCancel !== undefined,
       speech: this._store.adapters?.speech !== undefined,
       unstable_copy: this._store.unstable_capabilities?.copy !== false, // default true
-      attachments: !!this.store.adapters?.attachments,
-      feedback: !!this.store.adapters?.feedback,
+      attachments: !!this._store.adapters?.attachments,
+      feedback: !!this._store.adapters?.feedback,
     };
 
     if (oldStore) {

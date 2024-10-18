@@ -1,19 +1,9 @@
-import { ThreadRuntimeCore } from "./ThreadRuntimeCore";
 import type { ModelConfigProvider } from "../../types/ModelConfigTypes";
 import type { Unsubscribe } from "../../types/Unsubscribe";
+import { ThreadManagerRuntimeCore } from "./ThreadManagerRuntimeCore";
 
 export type AssistantRuntimeCore = {
-  readonly thread: ThreadRuntimeCore;
-
-  switchToNewThread: () => void;
-
-  switchToThread(threadId: string): void;
-  /**
-   * @deprecated Use `switchToNewThread` instead. This will be removed in 0.6.0.
-   */
-  switchToThread(threadId: string | null): void;
+  readonly threadManager: ThreadManagerRuntimeCore;
 
   registerModelConfigProvider: (provider: ModelConfigProvider) => Unsubscribe;
-
-  subscribe: (callback: () => void) => Unsubscribe;
 };

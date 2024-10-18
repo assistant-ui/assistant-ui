@@ -49,36 +49,83 @@ const makeModelConfigStore = () =>
     config: {},
   }));
 
-class PlaygroundRuntimeCore extends BaseAssistantRuntimeCore<PlaygroundThreadRuntimeCore> {
-  private readonly _proxyConfigProvider: InstanceType<
-    typeof ProxyConfigProvider
-  >;
+type PlaygroundThreadFactory = (
+  threadId: string,
+) => PlaygroundThreadRuntimeCore;
 
-  constructor(initialMessages: CoreMessage[], adapter: ChatModelAdapter) {
-    const cp = new ProxyConfigProvider();
-    super(
-      new PlaygroundThreadRuntimeCore(
-        cp,
+const EMPTY_ARRAY = [] as never[];
+
+class PlaygroundThreadManagerRuntimeCore
+  implements INTERNAL.ThreadManagerRuntimeCore
+{
+  private _mainThread: PlaygroundThreadRuntimeCore;
+
+  public get mainThread() {
+    return this._mainThread;
+  }
+
+  public get threads() {
+    return EMPTY_ARRAY;
+  }
+
+  public get archivedThreads() {
+    return EMPTY_ARRAY;
+  }
+
+  constructor(private threadFactory: PlaygroundThreadFactory) {
+    this._mainThread = this.threadFactory(generateId());
+  }
+
+  public switchToThread(): void {
+    throw new Error("Method not implemented.");
+  }
+
+  public switchToNewThread(): void {
+    this._mainThread = this.threadFactory(generateId());
+    this.notifySubscribers();
+  }
+
+  public rename(): Promise<void> {
+    throw new Error("Method not implemented.");
+  }
+  public archive(): Promise<void> {
+    throw new Error("Method not implemented.");
+  }
+  public unarchive(): Promise<void> {
+    throw new Error("Method not implemented.");
+  }
+  public delete(): Promise<void> {
+    throw new Error("Method not implemented.");
+  }
+
+  private _subscriptions = new Set<() => void>();
+
+  private notifySubscribers() {
+    for (const callback of this._subscriptions) callback();
+  }
+
+  public subscribe(callback: () => void): Unsubscribe {
+    this._subscriptions.add(callback);
+    return () => this._subscriptions.delete(callback);
+  }
+}
+
+class PlaygroundRuntimeCore extends BaseAssistantRuntimeCore {
+  public readonly threadManager;
+
+  constructor(adapter: ChatModelAdapter, initialMessages: CoreMessage[]) {
+    super();
+
+    this.threadManager = new PlaygroundThreadManagerRuntimeCore((threadId) => {
+      const thread = new PlaygroundThreadRuntimeCore(
+        this._proxyConfigProvider,
+        threadId,
         fromCoreMessages(initialMessages),
         adapter,
-      ),
-    );
-    this._proxyConfigProvider = cp;
-  }
-
-  public switchToNewThread() {
-    this.thread = new PlaygroundThreadRuntimeCore(
-      this._proxyConfigProvider,
-      [],
-      this.thread.adapter,
-    );
-  }
-
-  public switchToThread(threadId: string | null) {
-    if (threadId !== null)
-      throw new Error("PlaygroundRuntime does not support switching threads");
-
-    this.switchToNewThread();
+      );
+      initialMessages = [];
+      return thread;
+    });
   }
 
   public override registerModelConfigProvider(
@@ -108,7 +155,6 @@ export class PlaygroundThreadRuntimeCore implements INTERNAL.ThreadRuntimeCore {
 
   public tools: Record<string, Tool<any, any>> = {};
 
-  public readonly threadId = generateId();
   public readonly isDisabled = false;
   public readonly capabilities = CAPABILITIES;
   public readonly extras = undefined;
@@ -130,6 +176,7 @@ export class PlaygroundThreadRuntimeCore implements INTERNAL.ThreadRuntimeCore {
 
   constructor(
     configProvider: ModelConfigProvider,
+    public readonly threadId: string,
     private _messages: ThreadMessage[],
     public readonly adapter: ChatModelAdapter,
   ) {
@@ -586,8 +633,8 @@ export const usePlaygroundRuntime = ({
   const [runtime] = useState(
     () =>
       new PlaygroundRuntimeCore(
-        initialMessages,
         new EdgeChatAdapter(runtimeOptions),
+        initialMessages,
       ),
   );
 

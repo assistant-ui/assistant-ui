@@ -33,7 +33,7 @@ import {
 import { LazyMemoizeSubject } from "./subscribable/LazyMemoizeSubject";
 import { SKIP_UPDATE } from "./subscribable/SKIP_UPDATE";
 import { ComposerRuntimeCore } from "../runtimes/core/ComposerRuntimeCore";
-import { MessageRuntimePath, ThreadRuntimePath } from "./PathTypes";
+import { MessageRuntimePath, ThreadRuntimePath } from "./RuntimePathTypes";
 
 export type CreateAppendMessage =
   | string
@@ -108,7 +108,7 @@ export const getThreadState = (runtime: ThreadRuntimeCore): ThreadState => {
   });
 };
 
-export type ThreadRuntime = {
+export type ThreadRuntime = Readonly<{
   readonly path: ThreadRuntimePath;
 
   readonly composer: ThreadComposerRuntime;
@@ -217,7 +217,7 @@ export type ThreadRuntime = {
    * @deprecated Use `getMesssageById(id).composer.beginEdit()` instead. This will be removed in 0.6.0.
    */
   beginEdit: (messageId: string) => void;
-};
+}>;
 
 export class ThreadRuntimeImpl
   implements Omit<ThreadRuntimeCore, "getMessageById">, ThreadRuntime

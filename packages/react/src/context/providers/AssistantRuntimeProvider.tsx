@@ -27,18 +27,35 @@ const useAssistantToolUIsStore = () => {
   return useMemo(() => makeAssistantToolUIsStore(), []);
 };
 
+const useThreadManagerStore = (runtime: AssistantRuntime) => {
+  const [store] = useState(() =>
+    create(() => runtime.threadManager.getState()),
+  );
+
+  useEffect(() => {
+    const updateState = () =>
+      writableStore(store).setState(runtime.threadManager.getState(), true);
+    updateState();
+    return runtime.threadManager.subscribe(updateState);
+  }, [runtime, store]);
+
+  return store;
+};
+
 export const AssistantRuntimeProviderImpl: FC<
   PropsWithChildren<AssistantRuntimeProviderProps>
 > = ({ children, runtime }) => {
   const useAssistantRuntime = useAssistantRuntimeStore(runtime);
   const useToolUIs = useAssistantToolUIsStore();
+  const useThreadManager = useThreadManagerStore(runtime);
   const context = useMemo(() => {
     return {
       useToolUIs,
       useAssistantRuntime,
       useAssistantActions: useAssistantRuntime,
+      useThreadManager,
     };
-  }, [useAssistantRuntime, useToolUIs]);
+  }, [useAssistantRuntime, useToolUIs, useThreadManager]);
 
   return (
     <AssistantContext.Provider value={context}>

@@ -12,7 +12,7 @@ export const subscribeToMainThread = (
   let cleanup: Unsubscribe | undefined;
   const inner = () => {
     cleanup?.();
-    cleanup = runtime.thread.subscribe(callback);
+    cleanup = runtime.threadManager.mainThread.subscribe(callback);
 
     if (!first) {
       callback();
@@ -20,7 +20,7 @@ export const subscribeToMainThread = (
     first = false;
   };
 
-  const unsubscribe = runtime.subscribe(inner);
+  const unsubscribe = runtime.threadManager.mainThread.subscribe(inner);
   inner();
 
   return () => {

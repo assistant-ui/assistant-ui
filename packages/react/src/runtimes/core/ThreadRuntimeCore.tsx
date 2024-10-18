@@ -45,6 +45,7 @@ export type SubmittedFeedback = Readonly<{
 
 export type ThreadRuntimeEventType =
   | "switched-to"
+  | "switched-away"
   | "run-start"
   | "model-config-update";
 

@@ -27,7 +27,7 @@ import {
   ContentPartRuntimeImpl,
   ContentPartState,
 } from "./ContentPartRuntime";
-import { MessageRuntimePath } from "./PathTypes";
+import { MessageRuntimePath } from "./RuntimePathTypes";
 import { ThreadRuntimeCoreBinding } from "./ThreadRuntime";
 import { NestedSubscriptionSubject } from "./subscribable/NestedSubscriptionSubject";
 import { SKIP_UPDATE } from "./subscribable/SKIP_UPDATE";

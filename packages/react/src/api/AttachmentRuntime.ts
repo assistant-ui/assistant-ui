@@ -7,7 +7,7 @@ import {
   PendingAttachment,
   Unsubscribe,
 } from "../types";
-import { AttachmentRuntimePath } from "./PathTypes";
+import { AttachmentRuntimePath } from "./RuntimePathTypes";
 
 type MessageAttachmentState = CompleteAttachment & {
   source: "message";

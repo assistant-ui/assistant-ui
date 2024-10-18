@@ -1,41 +1,57 @@
-import { type ModelConfigProvider } from "../../types/ModelConfigTypes";
 import type { CoreMessage } from "../../types/AssistantTypes";
 import { BaseAssistantRuntimeCore } from "../core/BaseAssistantRuntimeCore";
-import type { ChatModelAdapter } from "./ChatModelAdapter";
-import { ProxyConfigProvider } from "../../internal";
 import { LocalThreadRuntimeCore } from "./LocalThreadRuntimeCore";
-import { LocalRuntimeOptions } from "./LocalRuntimeOptions";
+import { LocalRuntimeOptionsBase } from "./LocalRuntimeOptions";
 import { fromCoreMessages } from "../edge/converters/fromCoreMessage";
+import { LocalThreadManagerRuntimeCore } from "./LocalThreadManagerRuntimeCore";
+import { ExportedMessageRepository } from "../utils/MessageRepository";
 
-export class LocalRuntimeCore extends BaseAssistantRuntimeCore<LocalThreadRuntimeCore> {
-  private readonly _proxyConfigProvider: ProxyConfigProvider;
+const getExportFromInitialMessages = (
+  initialMessages: readonly CoreMessage[],
+): ExportedMessageRepository => {
+  const messages = fromCoreMessages(initialMessages);
+  return {
+    messages: messages.map((m, idx) => ({
+      parentId: messages[idx - 1]?.id ?? null,
+      message: m,
+    })),
+  };
+};
 
-  constructor(adapter: ChatModelAdapter, options: LocalRuntimeOptions) {
-    const proxyConfigProvider = new ProxyConfigProvider();
-    super(new LocalThreadRuntimeCore(proxyConfigProvider, adapter, options));
-    this._proxyConfigProvider = proxyConfigProvider;
-  }
-  public registerModelConfigProvider(provider: ModelConfigProvider) {
-    return this._proxyConfigProvider.registerModelConfigProvider(provider);
-  }
+export class LocalRuntimeCore extends BaseAssistantRuntimeCore {
+  public readonly threadManager;
 
-  public switchToNewThread() {
-    const { initialMessages, ...options } = this.thread.options;
+  private _options: LocalRuntimeOptionsBase;
 
-    this.thread = new LocalThreadRuntimeCore(
-      this._proxyConfigProvider,
-      this.thread.adapter,
-      options,
-    );
-    this.thread._notifyEventSubscribers("switched-to");
-  }
+  constructor(
+    options: LocalRuntimeOptionsBase,
+    initialMessages?: CoreMessage[],
+  ) {
+    super();
 
-  public switchToThread(threadId: string | null) {
-    if (threadId !== null) {
-      throw new Error("LocalRuntime does not yet support switching threads");
+    this._options = options;
+
+    this.threadManager = new LocalThreadManagerRuntimeCore((threadId, data) => {
+      const thread = new LocalThreadRuntimeCore(
+        this._proxyConfigProvider,
+        threadId,
+        this._options,
+      );
+      thread.import(data);
+      return thread;
+    });
+
+    if (initialMessages) {
+      this.threadManager.mainThread.import(
+        getExportFromInitialMessages(initialMessages),
+      );
     }
+  }
 
-    this.switchToNewThread();
+  public setOptions(options: LocalRuntimeOptionsBase) {
+    this._options = options;
+
+    this.threadManager.mainThread.setOptions(options);
   }
 
   public reset({
@@ -43,15 +59,11 @@ export class LocalRuntimeCore extends BaseAssistantRuntimeCore<LocalThreadRuntim
   }: {
     initialMessages?: readonly CoreMessage[] | undefined;
   } = {}) {
-    this.switchToThread(null);
+    this.threadManager.switchToNewThread();
     if (!initialMessages) return;
 
-    const messages = fromCoreMessages(initialMessages);
-    this.thread.import({
-      messages: messages.map((m, idx) => ({
-        parentId: messages[idx - 1]?.id ?? null,
-        message: m,
-      })),
-    });
+    this.threadManager.mainThread.import(
+      getExportFromInitialMessages(initialMessages),
+    );
   }
 }

@@ -3,7 +3,23 @@ import { AttachmentAdapter } from "../attachment";
 import { AddToolResultOptions, ThreadSuggestion } from "../core";
 import { FeedbackAdapter } from "../feedback/FeedbackAdapter";
 import { SpeechSynthesisAdapter } from "../speech/SpeechAdapterTypes";
+import { ThreadManagerMetadata } from "../core/ThreadManagerRuntimeCore";
 import { ThreadMessageLike } from "./ThreadMessageLike";
+
+export type ExternalStoreThreadManagerAdapter = {
+  threadId?: string | undefined;
+  threads?: readonly ThreadManagerMetadata[] | undefined;
+  archivedThreads?: readonly ThreadManagerMetadata[] | undefined;
+  onSwitchToNewThread?: (() => Promise<void> | void) | undefined;
+  onSwitchToThread?: ((threadId: string) => Promise<void> | void) | undefined;
+  onRename?: (
+    threadId: string,
+    newTitle: string,
+  ) => (Promise<void> | void) | undefined;
+  onArchive?: ((threadId: string) => Promise<void> | void) | undefined;
+  onUnarchive?: ((threadId: string) => Promise<void> | void) | undefined;
+  onDelete?: ((threadId: string) => Promise<void> | void) | undefined;
+};
 
 export type ExternalStoreMessageConverter<T> = (
   message: T,
@@ -15,7 +31,20 @@ type ExternalStoreMessageConverterAdapter<T> = {
 };
 
 type ExternalStoreAdapterBase<T> = {
+  /**
+   * @deprecated Use `adapters.threadManager.threadId` instead. This will be removed in 0.6.0.
+   */
   threadId?: string | undefined;
+
+  /**
+   * @deprecated Use `adapters.threadManager.onSwitchToThread` instead. This will be removed in 0.6.0.
+   */
+  onSwitchToThread?: ((threadId: string) => Promise<void> | void) | undefined;
+  /**
+   * @deprecated Use `adapters.threadManager.onSwitchToNewThread` instead. This will be removed in 0.6.0.
+   */
+  onSwitchToNewThread?: (() => Promise<void> | void) | undefined;
+
   isDisabled?: boolean | undefined;
   isRunning?: boolean | undefined;
   messages: T[];
@@ -30,13 +59,12 @@ type ExternalStoreAdapterBase<T> = {
   onAddToolResult?:
     | ((options: AddToolResultOptions) => Promise<void> | void)
     | undefined;
-  onSwitchToThread?: ((threadId: string) => Promise<void> | void) | undefined;
-  onSwitchToNewThread?: (() => Promise<void> | void) | undefined;
   convertMessage?: ExternalStoreMessageConverter<T> | undefined;
   adapters?: {
     attachments?: AttachmentAdapter | undefined;
     speech?: SpeechSynthesisAdapter | undefined;
     feedback?: FeedbackAdapter | undefined;
+    threadManager?: ExternalStoreThreadManagerAdapter | undefined;
   };
   unstable_capabilities?:
     | {

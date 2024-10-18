@@ -1,56 +1,39 @@
-import { BaseAssistantRuntimeCore, ProxyConfigProvider } from "../../internal";
-import { ModelConfigProvider } from "../../types";
+import { BaseAssistantRuntimeCore } from "../../internal";
+import { ExternalStoreThreadManagerRuntimeCore } from "./ExternalStoreThreadManagementAdapter";
 import { ExternalStoreAdapter } from "./ExternalStoreAdapter";
 import { ExternalStoreThreadRuntimeCore } from "./ExternalStoreThreadRuntimeCore";
 
-export class ExternalStoreRuntimeCore extends BaseAssistantRuntimeCore<ExternalStoreThreadRuntimeCore> {
-  private readonly _proxyConfigProvider;
+const getThreadManagerAdapter = (store: ExternalStoreAdapter<any>) => {
+  return {
+    threadId: store.threadId,
+    onSwitchToNewThread: store.onSwitchToNewThread,
+    onSwitchToThread: store.onSwitchToThread,
+    ...store.adapters?.threadManager,
+  };
+};
+
+export class ExternalStoreRuntimeCore extends BaseAssistantRuntimeCore {
+  public readonly threadManager;
+
+  private _store: ExternalStoreAdapter<any>;
 
   constructor(store: ExternalStoreAdapter<any>) {
-    const provider = new ProxyConfigProvider();
-    super(new ExternalStoreThreadRuntimeCore(provider, store));
-    this._proxyConfigProvider = provider;
-  }
-
-  public getModelConfig() {
-    return this._proxyConfigProvider.getModelConfig();
-  }
-
-  public registerModelConfigProvider(provider: ModelConfigProvider) {
-    return this._proxyConfigProvider.registerModelConfigProvider(provider);
-  }
-
-  public async switchToNewThread() {
-    if (!this.thread.store.onSwitchToNewThread)
-      throw new Error("Runtime does not support switching to new threads.");
-
-    this.thread = new ExternalStoreThreadRuntimeCore(
-      this._proxyConfigProvider,
-      {
-        ...this.thread.store,
-        messages: [],
-      },
+    super();
+    this._store = store;
+    this.threadManager = new ExternalStoreThreadManagerRuntimeCore(
+      getThreadManagerAdapter(store),
+      (threadId) =>
+        new ExternalStoreThreadRuntimeCore(
+          this._proxyConfigProvider,
+          threadId,
+          this._store,
+        ),
     );
-    await this.thread.store.onSwitchToNewThread!();
-    this.thread._notifyEventSubscribers("switched-to");
   }
 
-  public async switchToThread(threadId: string | null) {
-    if (threadId !== null) {
-      if (!this.thread.store.onSwitchToThread)
-        throw new Error("Runtime does not support switching threads.");
-
-      this.thread = new ExternalStoreThreadRuntimeCore(
-        this._proxyConfigProvider,
-        {
-          ...this.thread.store,
-          messages: [], // ignore messages until rerender
-        },
-      );
-      await this.thread.store.onSwitchToThread!(threadId);
-      this.thread._notifyEventSubscribers("switched-to");
-    } else {
-      this.switchToNewThread();
-    }
+  public setStore(store: ExternalStoreAdapter<any>) {
+    this._store = store;
+    this.threadManager.setAdapter(getThreadManagerAdapter(store));
+    this.threadManager.mainThread.setStore(store);
   }
 }

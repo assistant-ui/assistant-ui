@@ -7,10 +7,12 @@ import { createContextHook } from "./utils/createContextHook";
 import { createContextStoreHook } from "./utils/createContextStoreHook";
 import { UseBoundStore } from "zustand";
 import { AssistantRuntime } from "../../api/AssistantRuntime";
+import { ThreadManagerState } from "../../api/ThreadManagerRuntime";
 
 export type AssistantContextValue = {
   useToolUIs: UseBoundStore<ReadonlyStore<AssistantToolUIsState>>;
   useAssistantRuntime: UseBoundStore<ReadonlyStore<AssistantRuntime>>;
+  useThreadManager: UseBoundStore<ReadonlyStore<ThreadManagerState>>;
 
   /**
    * @deprecated Use `useAssistantRuntime` instead. This will be removed in 0.6.0.
@@ -64,4 +66,9 @@ export const useAssistantRuntimeStore = useAssistantActionsStore;
 export const { useToolUIs, useToolUIsStore } = createContextStoreHook(
   useAssistantContext,
   "useToolUIs",
+);
+
+export const { useThreadManager } = createContextStoreHook(
+  useAssistantContext,
+  "useThreadManager",
 );

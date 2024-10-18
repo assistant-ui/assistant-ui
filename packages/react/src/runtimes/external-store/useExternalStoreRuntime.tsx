@@ -8,7 +8,7 @@ export const useExternalStoreRuntime = <T,>(store: ExternalStoreAdapter<T>) => {
   const [runtime] = useState(() => new ExternalStoreRuntimeCore(store));
 
   useEffect(() => {
-    runtime.thread.store = store;
+    runtime.setStore(store);
   });
 
   return useMemo(
