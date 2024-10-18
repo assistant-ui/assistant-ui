@@ -1,5 +1,13 @@
 # @assistant-ui/react-playground
 
+## 0.0.41
+
+### Patch Changes
+
+- c38a018: feat: ThreadManagerRuntime
+- Updated dependencies [c38a018]
+  - @assistant-ui/react@0.5.83
+
 ## 0.0.40
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.83
+
+### Patch Changes
+
+- c38a018: feat: ThreadManagerRuntime
+
 ## 0.5.82
 
 ### Patch Changes
