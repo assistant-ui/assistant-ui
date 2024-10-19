@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.84
+
+### Patch Changes
+
+- ba5116f: feat: useInlineRender hook
+
 ## 0.5.83
 
 ### Patch Changes
