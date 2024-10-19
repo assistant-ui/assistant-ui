@@ -39,7 +39,14 @@ export class LocalThreadManagerRuntimeCore implements ThreadManagerRuntimeCore {
   }
 
   constructor(private _threadFactory: LocalThreadFactory) {
-    this._mainThread = this._threadFactory(generateId(), { messages: [] });
+    const threadId = generateId();
+    this._threadData.set(threadId, {
+      data: { messages: [] },
+      metadata: { threadId },
+      isArchived: false,
+    });
+    this._threads = [{ threadId }];
+    this._mainThread = this._threadFactory(threadId, { messages: [] });
   }
 
   public switchToThread(threadId: string): void {
@@ -53,20 +60,23 @@ export class LocalThreadManagerRuntimeCore implements ThreadManagerRuntimeCore {
   }
 
   public switchToNewThread(): void {
-    if (!this._mainThread) return;
-
-    const thread = this._threadFactory(generateId(), { messages: [] });
+    const threadId = generateId();
+    this._threadData.set(threadId, {
+      data: { messages: [] },
+      metadata: { threadId },
+      isArchived: false,
+    });
+    this._threads = [{ threadId }];
+    const thread = this._threadFactory(threadId, { messages: [] });
     this._performThreadSwitch(thread);
   }
 
   private _performThreadSwitch(newThreadCore: LocalThreadRuntimeCore) {
-    if (this._mainThread) {
-      const data = this._threadData.get(this._mainThread.threadId);
-      if (!data) throw new Error("Thread not found");
+    const data = this._threadData.get(this._mainThread.threadId);
+    if (!data) throw new Error("Thread not found");
 
-      const exprt = this._mainThread.export();
-      data.data = exprt;
-    }
+    const exprt = this._mainThread.export();
+    data.data = exprt;
 
     this._mainThread._notifyEventSubscribers("switched-away");
     this._mainThread = newThreadCore;
