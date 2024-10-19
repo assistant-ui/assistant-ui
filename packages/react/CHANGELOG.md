@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.85
+
+### Patch Changes
+
+- 3a602b9: fix: correctly handle new thread creation
+
 ## 0.5.84
 
 ### Patch Changes
