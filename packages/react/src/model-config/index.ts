@@ -9,3 +9,4 @@ export {
   useAssistantToolUI,
   type AssistantToolUIProps,
 } from "./useAssistantToolUI";
+export { useInlineRender } from "./useInlineRender";

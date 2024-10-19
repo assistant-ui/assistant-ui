@@ -2,13 +2,14 @@
 
 import { create } from "zustand";
 import type { ToolCallContentPartComponent } from "../../types/ContentPartComponentTypes";
+import { Unsubscribe } from "../../types";
 
 export type AssistantToolUIsState = Readonly<{
   getToolUI: (toolName: string) => ToolCallContentPartComponent | null;
   setToolUI: (
     toolName: string,
     render: ToolCallContentPartComponent,
-  ) => () => void;
+  ) => Unsubscribe;
 }>;
 
 export const makeAssistantToolUIsStore = () =>

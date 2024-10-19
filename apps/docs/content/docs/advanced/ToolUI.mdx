@@ -92,19 +92,18 @@ const MyApp = () => {
 
 ### Inline Tool UI Hooks
 
-If you need access to component props, you can use the `useAssistantToolUI` hook.
+If you need access to component props, you can use the `useAssistantToolUI` hook. If you are passing a component inline, you should use the `useInlineRender` hook to prevent the component from being re-mounted on every render.
 
 ```tsx {5-11}
-import { useAssistantToolUI } from "@assistant-ui/react";
-import { useCallback } from "react";
+import { useAssistantToolUI, useInlineRender } from "@assistant-ui/react";
 
 const MyComponent = ({ product_id }) => {
   useAssistantToolUI({
     toolName: "current_product_info",
-    render: useCallback(({ args, status }) => {
+    render: useInlineRender(({ args, status }) => {
       // you can access component props here
       return <p>product_info({ product_id })</p>;
-    }, [product_id]),
+    }),
   });
 
   ...

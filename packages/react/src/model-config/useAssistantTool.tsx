@@ -24,22 +24,22 @@ export const useAssistantTool = <
 ) => {
   const assistantRuntime = useAssistantRuntime();
   const toolUIsStore = useToolUIsStore();
+
+  useEffect(() => {
+    return tool.render
+      ? toolUIsStore.getState().setToolUI(tool.toolName, tool.render)
+      : undefined;
+  }, [toolUIsStore, tool.toolName, tool.render]);
+
   useEffect(() => {
     const { toolName, render, ...rest } = tool;
     const config = {
       tools: {
-        [tool.toolName]: rest,
+        [toolName]: rest,
       },
     };
-    const unsub1 = assistantRuntime.registerModelConfigProvider({
+    return assistantRuntime.registerModelConfigProvider({
       getModelConfig: () => config,
     });
-    const unsub2 = render
-      ? toolUIsStore.getState().setToolUI(toolName, render)
-      : undefined;
-    return () => {
-      unsub1();
-      unsub2?.();
-    };
-  }, [assistantRuntime, toolUIsStore, tool]);
+  }, [assistantRuntime, tool]);
 };
