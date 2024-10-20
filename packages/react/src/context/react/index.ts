@@ -145,3 +145,16 @@ export {
    */
   useComposerContext,
 } from "./ComposerContext";
+
+export {
+  useAttachment,
+  useAttachmentRuntime,
+
+  // TODO decide if we want to export/drop these? 
+  // useEditComposerAttachment,
+  // useEditComposerAttachmentRuntime,
+  // useMessageAttachment,
+  // useMessageAttachmentRuntime,
+  // useThreadComposerAttachment,
+  // useThreadComposerAttachmentRuntime,
+} from "./AttachmentContext";
