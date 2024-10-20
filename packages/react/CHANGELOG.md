@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.86
+
+### Patch Changes
+
+- fix: do not cache adapter in useEdgeRuntime
+
 ## 0.5.85
 
 ### Patch Changes
