@@ -64,12 +64,12 @@ export default function Home() {
               href="https://github.com/Yonom/assistant-ui"
               className="text-blue-600 underline"
             >
-              Assistant UI
+              assistant-ui
             </Link>
             .
           </div>
 
-          <Form {...form}>
+          <Form {...(form as any)}>
             <SignupForm />
           </Form>
         </main>

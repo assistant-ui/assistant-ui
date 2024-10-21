@@ -7,11 +7,12 @@ import { buttonVariants } from "@/components/ui/button";
 import { EditIcon } from "lucide-react";
 import { useMDXComponents } from "@/mdx-components";
 
-export default async function Page({
-  params,
-}: {
-  params: { slug?: string[] };
-}) {
+export default async function Page(
+  props: {
+    params: Promise<{ slug?: string[] }>;
+  }
+) {
+  const params = await props.params;
   const page = getPage(params.slug ?? []);
   const mdxComponents = useMDXComponents({});
 
@@ -61,7 +62,8 @@ export async function generateStaticParams() {
     }));
 }
 
-export function generateMetadata({ params }: { params: { slug?: string[] } }) {
+export async function generateMetadata(props: { params: Promise<{ slug?: string[] }> }) {
+  const params = await props.params;
   const page = getPage(params.slug ?? []);
 
   if (page == null) notFound();

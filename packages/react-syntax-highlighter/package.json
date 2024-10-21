@@ -31,7 +31,7 @@
     "@assistant-ui/react-markdown": "^0.2.19",
     "@types/react": "*",
     "@types/react-syntax-highlighter": "*",
-    "react": "^18",
+    "react": "^18 || ^19",
     "react-syntax-highlighter": "^15.5.0"
   },
   "peerDependenciesMeta": {
@@ -44,7 +44,7 @@
   },
   "devDependencies": {
     "@assistant-ui/tsconfig": "workspace:*",
-    "eslint-config-next": "14.2.15",
+    "eslint-config-next": "15.0.0",
     "tsup": "8.3.0"
   },
   "publishConfig": {

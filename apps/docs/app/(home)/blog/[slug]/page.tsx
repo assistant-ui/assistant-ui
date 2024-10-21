@@ -1,3 +1,4 @@
+import { use } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { blog, BlogPage } from "@/app/source";
@@ -10,11 +11,12 @@ interface Param {
   slug: string;
 }
 
-export default function Page({
-  params,
-}: {
-  params: Param;
-}): React.ReactElement {
+export default function Page(
+  props: {
+    params: Promise<Param>;
+  }
+): React.ReactElement {
+  const params = use(props.params);
   const page = blog.getPage([params.slug]) as BlogPage;
   const mdxComponents = useMDXComponents({});
 

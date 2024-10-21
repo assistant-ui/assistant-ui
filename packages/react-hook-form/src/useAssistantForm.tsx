@@ -82,7 +82,7 @@ export const useAssistantForm = <
             const { _names, _fields } = control;
             for (const name of _names.mount) {
               const field = _fields[name];
-              if (field?._f) {
+              if (field?._f && "refs" in field._f) {
                 const fieldReference = Array.isArray(field._f.refs)
                   ? field._f.refs[0]
                   : field._f.ref;

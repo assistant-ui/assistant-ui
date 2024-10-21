@@ -32,8 +32,8 @@
   "peerDependencies": {
     "@assistant-ui/react": "^0.5.73",
     "@types/react": "*",
-    "react": "^18",
-    "react-hook-form": "^7.x.x"
+    "react": "^18 || ^19",
+    "react-hook-form": "^7"
   },
   "peerDependenciesMeta": {
     "@types/react": {
@@ -42,7 +42,7 @@
   },
   "devDependencies": {
     "@assistant-ui/tsconfig": "workspace:*",
-    "eslint-config-next": "14.2.15",
+    "eslint-config-next": "15.0.0",
     "tsup": "8.3.0"
   },
   "publishConfig": {
