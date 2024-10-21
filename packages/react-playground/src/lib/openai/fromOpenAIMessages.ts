@@ -8,6 +8,9 @@ import { tryJsonParse } from "./tryJsonParse";
 
 export const fromOpenAIMessages = (
   messages: OpenAI.ChatCompletionMessageParam[],
+  options?: {
+    strict?: boolean | undefined;
+  },
 ) => {
   const lmMessages: LanguageModelV1Prompt = [];
   const toolNames = new Map<string, string>();
@@ -32,26 +35,33 @@ export const fromOpenAIMessages = (
           content:
             typeof content === "string"
               ? [{ type: "text", text: content }]
-              : content.map((part) => {
-                  const type = part.type;
-                  switch (type) {
-                    case "text": {
-                      return part;
-                    }
-                    case "image_url": {
-                      return {
-                        type: "image",
-                        image: new URL(part.image_url.url),
-                        // detail: part.image_url.detail,
-                      };
-                    }
+              : content
+                  .map((part) => {
+                    const type = part.type;
+                    switch (type) {
+                      case "text": {
+                        return part;
+                      }
+                      case "image_url": {
+                        return {
+                          type: "image" as const,
+                          image: new URL(part.image_url.url),
+                          // detail: part.image_url.detail,
+                        };
+                      }
 
-                    default: {
-                      const unsupportedPart: never = type;
-                      throw new Error(`Unsupported part: ${unsupportedPart}`);
+                      default: {
+                        const unsupportedPart: "input_audio" = type;
+                        if (options?.strict) {
+                          throw new Error(
+                            `Unsupported part: ${unsupportedPart}`,
+                          );
+                        }
+                        return null;
+                      }
                     }
-                  }
-                }),
+                  })
+                  .filter((part): part is NonNullable<typeof part> => !!part),
         });
         break;
       }
@@ -82,11 +92,15 @@ export const fromOpenAIMessages = (
                     }
 
                     default: {
-                      const unsupportedPart: "refusal" = type;
-                      throw new Error(`Unsupported part: ${unsupportedPart}`);
+                      const unsupportedPart: never = type;
+                      if (options?.strict) {
+                        throw new Error(`Unsupported part: ${unsupportedPart}`);
+                      }
+                      return null;
                     }
                   }
-                })),
+                })
+            ).filter((part): part is NonNullable<typeof part> => !!part),
           );
         }
 
@@ -105,16 +119,19 @@ export const fromOpenAIMessages = (
               }
               default: {
                 const _exhaustiveCheck: never = toolCall.type;
-                throw new Error(
-                  `Unsupported tool call type: ${_exhaustiveCheck}`,
-                );
+                if (options?.strict) {
+                  throw new Error(
+                    `Unsupported tool call type: ${_exhaustiveCheck}`,
+                  );
+                }
+                break;
               }
             }
           }
         }
 
         // TODO handle function_call?
-        if (message.function_call)
+        if (message.function_call && options?.strict)
           throw new Error("Function call is not supported");
 
         lmMessages.push({
@@ -135,7 +152,11 @@ export const fromOpenAIMessages = (
         }
 
         const toolName = toolNames.get(message.tool_call_id);
-        if (!toolName) throw new Error("Encountered unknown tool call id");
+        if (!toolName) {
+          if (options?.strict)
+            throw new Error("Encountered unknown tool call id");
+          break;
+        }
 
         toolMessage.content.push({
           type: "tool-result",
@@ -148,7 +169,10 @@ export const fromOpenAIMessages = (
 
       default: {
         const unsupportedRole: "function" = role;
-        throw new Error(`Unsupported role: ${unsupportedRole}`);
+        if (options?.strict) {
+          throw new Error(`Unsupported role: ${unsupportedRole}`);
+        }
+        break;
       }
     }
   }
