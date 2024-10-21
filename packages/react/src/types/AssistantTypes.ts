@@ -12,6 +12,14 @@ export type ImageContentPart = {
   image: string;
 };
 
+export type Unstable_AudioContentPart = {
+  type: "audio";
+  audio: {
+    data: string;
+    format: "mp3" | "wav";
+  };
+};
+
 export type UIContentPart = {
   type: "ui";
   display: ReactNode;
@@ -39,6 +47,7 @@ export type ToolCallContentPart<
 export type ThreadUserContentPart =
   | TextContentPart
   | ImageContentPart
+  | Unstable_AudioContentPart
   | UIContentPart;
 
 export type ThreadAssistantContentPart =
@@ -160,7 +169,10 @@ export type ThreadMessage = BaseThreadMessage &
 
 /** Core Message Types (without UI content parts) */
 
-export type CoreUserContentPart = TextContentPart | ImageContentPart;
+export type CoreUserContentPart =
+  | TextContentPart
+  | ImageContentPart
+  | Unstable_AudioContentPart;
 export type CoreAssistantContentPart =
   | TextContentPart
   | CoreToolCallContentPart;

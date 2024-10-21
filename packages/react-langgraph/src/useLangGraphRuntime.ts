@@ -108,6 +108,8 @@ export const useLangGraphRuntime = ({
               case "image":
                 return { type: "image_url", image_url: { url: part.image } };
 
+              case "audio":
+                throw new Error("Audio appends are not supported yet.");
               case "tool-call":
                 throw new Error("Tool call appends are not supported yet.");
 

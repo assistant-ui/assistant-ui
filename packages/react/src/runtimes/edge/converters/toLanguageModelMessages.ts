@@ -100,7 +100,7 @@ export function toLanguageModelMessages(
                 }
 
                 default: {
-                  const unhandledType: "ui" = type;
+                  const unhandledType: "ui" | "audio" = type;
                   throw new Error(
                     `Unspported content part type: ${unhandledType}`,
                   );

@@ -28,6 +28,9 @@ export type {
   CoreUserMessage,
   CoreAssistantMessage,
   CoreMessage,
+
+  // TODO
+  Unstable_AudioContentPart,
 } from "./AssistantTypes";
 
 export type {
@@ -41,6 +44,8 @@ export type {
   UIContentPartComponent,
   ToolCallContentPartProps,
   ToolCallContentPartComponent,
+  Unstable_AudioContentPartProps,
+  Unstable_AudioContentPartComponent,
 } from "./ContentPartComponentTypes";
 
 export type {

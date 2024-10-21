@@ -6,6 +6,7 @@ import type {
   TextContentPart,
   ToolCallContentPart,
   UIContentPart,
+  Unstable_AudioContentPart,
 } from "./AssistantTypes";
 import { ContentPartState } from "../api/ContentPartRuntime";
 
@@ -31,6 +32,16 @@ export type ImageContentPartProps = ContentPartState &
     part: ImageContentPart;
   };
 export type ImageContentPartComponent = ComponentType<ImageContentPartProps>;
+
+export type Unstable_AudioContentPartProps = ContentPartState &
+  Unstable_AudioContentPart & {
+    /**
+     * @deprecated You can directly access content part fields in the state. Replace `.part.type` with `.type` etc. This will be removed in 0.6.0.
+     */
+    part: Unstable_AudioContentPart;
+  };
+export type Unstable_AudioContentPartComponent =
+  ComponentType<Unstable_AudioContentPartProps>;
 
 export type UIContentPartProps = ContentPartState &
   UIContentPart & {

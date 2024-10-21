@@ -15,6 +15,7 @@ import { ContentPartPrimitiveText } from "../contentPart/ContentPartText";
 import { ContentPartPrimitiveImage } from "../contentPart/ContentPartImage";
 import { ContentPartPrimitiveDisplay } from "../contentPart/ContentPartDisplay";
 import type {
+  Unstable_AudioContentPartComponent,
   EmptyContentPartComponent,
   ImageContentPartComponent,
   TextContentPartComponent,
@@ -37,6 +38,7 @@ export namespace MessagePrimitiveContent {
           Empty?: EmptyContentPartComponent | undefined;
           Text?: TextContentPartComponent | undefined;
           Image?: ImageContentPartComponent | undefined;
+          Unstable_Audio?: Unstable_AudioContentPartComponent | undefined;
           UI?: UIContentPartComponent | undefined;
           tools?:
             | {
@@ -72,6 +74,7 @@ const defaultComponents = {
     </p>
   ),
   Image: () => <ContentPartPrimitiveImage />,
+  Unstable_Audio: () => null,
   UI: () => <ContentPartPrimitiveDisplay />,
 } satisfies MessagePrimitiveContent.Props["components"];
 
@@ -85,6 +88,7 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
     Empty,
     Image = defaultComponents.Image,
     UI = defaultComponents.UI,
+    Unstable_Audio: Audio = defaultComponents.Unstable_Audio,
     tools: { by_name = {}, Fallback = undefined } = {},
   } = {},
 }) => {
@@ -93,10 +97,20 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
   const part = useContentPart();
 
   const type = part.type;
+  if (type === "tool-call") {
+    const Tool = by_name[part.toolName] || Fallback;
+    const addResult = (result: any) => contentPartRuntime.addToolResult(result);
+    return (
+      <ToolUIDisplay {...part} part={part} UI={Tool} addResult={addResult} />
+    );
+  }
+
+  if (part.status.type === "requires-action")
+    throw new Error("Encountered unexpected requires-action status");
+
   switch (type) {
     case "text":
-      if (part.status.type === "requires-action")
-        throw new Error("Encountered unexpected requires-action status");
+      // TODO this relies on deprecated .part field
       if (part.part === EMPTY_CONTENT && !!Empty) {
         return <Empty status={part.status} />;
       }
@@ -104,24 +118,15 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
       return <Text {...part} part={part} />;
 
     case "image":
-      if (part.status.type === "requires-action")
-        throw new Error("Encountered unexpected requires-action status");
       // eslint-disable-next-line jsx-a11y/alt-text
       return <Image {...part} part={part} />;
 
+    case "audio":
+      return <Audio {...part} part={part} />;
+
     case "ui":
-      if (part.status.type === "requires-action")
-        throw new Error("Encountered unexpected requires-action status");
       return <UI {...part} part={part} />;
 
-    case "tool-call": {
-      const Tool = by_name[part.toolName] || Fallback;
-      const addResult = (result: any) =>
-        contentPartRuntime.addToolResult(result);
-      return (
-        <ToolUIDisplay {...part} part={part} UI={Tool} addResult={addResult} />
-      );
-    }
     default:
       const unhandledType: never = type;
       throw new Error(`Unknown content part type: ${unhandledType}`);
@@ -156,6 +161,7 @@ const MessageContentPart = memo(
     prev.partIndex === next.partIndex &&
     prev.components?.Text === next.components?.Text &&
     prev.components?.Image === next.components?.Image &&
+    prev.components?.Unstable_Audio === next.components?.Unstable_Audio &&
     prev.components?.UI === next.components?.UI &&
     prev.components?.tools === next.components?.tools,
 );

@@ -24,6 +24,14 @@ const ImageContentPartSchema = z.object({
   image: z.string(),
 });
 
+const Unstable_AudioContentPart = z.object({
+  type: z.literal("audio"),
+  audio: z.object({
+    data: z.string(),
+    format: z.union([z.literal("mp3"), z.literal("wav")]),
+  }),
+});
+
 const CoreToolCallContentPartSchema = z.object({
   type: z.literal("tool-call"),
   toolCallId: z.string(),
@@ -41,6 +49,7 @@ const CoreUserMessageSchema = z.object({
       z.discriminatedUnion("type", [
         TextContentPartSchema,
         ImageContentPartSchema,
+        Unstable_AudioContentPart,
       ]),
     )
     .min(1),
