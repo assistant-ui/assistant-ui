@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.88
+
+### Patch Changes
+
+- 0afecda: fix(ai-sdk): server-side maxSteps interop
+
 ## 0.5.87
 
 ### Patch Changes
