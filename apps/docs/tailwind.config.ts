@@ -78,8 +78,10 @@ const config = {
   presets: [createPreset()],
   plugins: [
     require("tailwindcss-animate"),
-    require("@assistant-ui/react/tailwindcss")({ shadcn: true }),
-    require("@assistant-ui/react-markdown/tailwindcss"),
+    require("@assistant-ui/react/tailwindcss")({
+      shadcn: true,
+      components: [],
+    }),
   ],
 } satisfies Config;
 
