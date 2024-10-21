@@ -183,7 +183,6 @@ const appendOrUpdateStepFinish = (
   ];
   return {
     ...message,
-    status: getStatus(chunk),
     metadata: {
       ...message.metadata,
       roundtrips: steps,
