@@ -46,10 +46,10 @@ export class LocalThreadRuntimeCore
   ) {
     super(configProvider);
 
-    this._options = options;
+    this.setOptions(options);
   }
 
-  private _options: LocalRuntimeOptionsBase;
+  private _options!: LocalRuntimeOptionsBase;
 
   public get extras() {
     return undefined;
