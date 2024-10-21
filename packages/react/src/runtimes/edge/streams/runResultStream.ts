@@ -100,7 +100,7 @@ const appendOrUpdateToolCall = (
   argsTextDelta: string,
 ): ChatModelRunResult => {
   let contentParts = message.content ?? [];
-  let contentPartIdx = contentParts.findIndex(
+  const contentPartIdx = contentParts.findIndex(
     (c) => c.type === "tool-call" && c.toolCallId === toolCallId,
   );
   let contentPart =

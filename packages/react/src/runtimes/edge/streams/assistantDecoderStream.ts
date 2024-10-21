@@ -42,6 +42,7 @@ export function assistantDecoderStream() {
         case AssistantStreamChunkType.ToolCallBegin: {
           const { toolCallId: id, toolName: name } = value;
           toolCallNames.set(id, name);
+
           currentToolCall = { id, name, argsText: "" };
 
           controller.enqueue({
@@ -96,6 +97,8 @@ export function assistantDecoderStream() {
 
         case AssistantStreamChunkType.ToolCall: {
           const { toolCallId, toolName, args } = value;
+          toolCallNames.set(toolCallId, toolName);
+
           const argsText = JSON.stringify(args);
           controller.enqueue({
             type: "tool-call-delta",
