@@ -25,6 +25,8 @@ import {
 } from "./base";
 import { Dialog, DialogTrigger, DialogContent } from "./base/dialog";
 import { AvatarFallback } from "@radix-ui/react-avatar";
+import { useShallow } from "zustand/shallow";
+import { DialogTitle } from "@radix-ui/react-dialog";
 
 const AttachmentRoot = withDefaults(AttachmentPrimitive.Root, {
   className: "aui-attachment-root",
@@ -53,13 +55,15 @@ const useFileSrc = (file: File | undefined) => {
 };
 
 const useAttachmentSrc = () => {
-  const { file, src } = useAttachment((a): { file?: File; src?: string } => {
-    if (a.type !== "image") return {};
-    if (a.file) return { file: a.file };
-    const src = a.content?.filter((c) => c.type === "image")[0]?.image;
-    if (!src) return {};
-    return { src };
-  });
+  const { file, src } = useAttachment(
+    useShallow((a): { file?: File; src?: string } => {
+      if (a.type !== "image") return {};
+      if (a.file) return { file: a.file };
+      const src = a.content?.filter((c) => c.type === "image")[0]?.image;
+      if (!src) return {};
+      return { src };
+    }),
+  );
 
   return useFileSrc(file) ?? src;
 };
@@ -100,6 +104,9 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
         {children}
       </DialogTrigger>
       <DialogContent>
+        <DialogTitle className="aui-sr-only">
+          Image Attachment Preview
+        </DialogTitle>
         <AttachmentPreview src={src} />
       </DialogContent>
     </Dialog>
