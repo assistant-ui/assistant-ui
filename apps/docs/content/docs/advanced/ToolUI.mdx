@@ -19,12 +19,13 @@ type WebSearchResult = {
   url: string;
 };
 
-const WebSearchToolUI = makeAssistantToolUI<WebSearchArgs, WebSearchResult>({
+export const WebSearchToolUI = makeAssistantToolUI<WebSearchArgs, WebSearchResult>({
   toolName: "web_search",
   render: ({ args, status }) => {
     return <p>web_search({args.query})</p>;
   },
 });
+
 ```
 
 You can put this component anywhere in your app inside the `<AssistantRuntimeProvider />` component.
@@ -59,7 +60,7 @@ type WebSearchResult = {
   url: string;
 };
 
-const useWebSearchToolUI = makeAssistantToolUI<WebSearchArgs, WebSearchResult>({
+export const useWebSearchToolUI = makeAssistantToolUI<WebSearchArgs, WebSearchResult>({
   toolName: "web_search",
   render: ({ args, status }) => {
     return <p>web_search({args.query})</p>;
