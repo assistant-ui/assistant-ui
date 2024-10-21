@@ -1,5 +1,11 @@
 # assistant-ui
 
+## 0.0.15
+
+### Patch Changes
+
+- fb32e61: chore: update deps
+
 ## 0.0.14
 
 ### Patch Changes

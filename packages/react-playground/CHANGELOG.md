@@ -1,5 +1,19 @@
 # @assistant-ui/react-playground
 
+## 0.0.42
+
+### Patch Changes
+
+- b89ebd5: feat: loosen parsing strictness, add new converter strict mode flag
+- fb32e61: chore: update deps
+- fb32e61: feat: react-19 support
+- Updated dependencies [2090544]
+- Updated dependencies [be04b5b]
+- Updated dependencies [2090544]
+- Updated dependencies [fb32e61]
+- Updated dependencies [fb32e61]
+  - @assistant-ui/react@0.5.90
+
 ## 0.0.41
 
 ### Patch Changes

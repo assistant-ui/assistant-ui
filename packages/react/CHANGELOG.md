@@ -1,5 +1,15 @@
 # @assistant-ui/react
 
+## 0.5.90
+
+### Patch Changes
+
+- 2090544: fix: attachments infinite rerender bug
+- be04b5b: feat: Unstable_AudioContentPart (wip)
+- 2090544: fix: Attachment preview accessibility
+- fb32e61: chore: update deps
+- fb32e61: feat: react-19 support
+
 ## 0.5.89
 
 ### Patch Changes

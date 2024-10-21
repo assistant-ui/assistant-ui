@@ -1,5 +1,12 @@
 # @tool-ui/weather
 
+## 0.0.11
+
+### Patch Changes
+
+- fb32e61: chore: update deps
+- fb32e61: feat: react-19 support
+
 ## 0.0.10
 
 ### Patch Changes
