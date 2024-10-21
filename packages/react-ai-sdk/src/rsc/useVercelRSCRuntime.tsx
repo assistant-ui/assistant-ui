@@ -39,6 +39,7 @@ export const useVercelRSCRuntime = <T extends WeakKey>(
         adapter.convertMessage ?? ((m) => m as VercelRSCMessage),
         m,
       ),
+    adapters: adapter.adapters,
     unstable_capabilities: {
       copy: false,
     },

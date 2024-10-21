@@ -1,6 +1,7 @@
 "use client";
 import type { AppendMessage } from "@assistant-ui/react";
 import type { VercelRSCMessage } from "./VercelRSCMessage";
+import { ExternalStoreAdapter } from "@assistant-ui/react";
 
 type RSCMessageConverter<T> = {
   convertMessage: (message: T) => VercelRSCMessage;
@@ -14,6 +15,8 @@ type VercelRSCAdapterBase<T> = {
   onEdit?: ((message: AppendMessage) => Promise<void>) | undefined;
   onReload?: ((parentId: string | null) => Promise<void>) | undefined;
   convertMessage?: ((message: T) => VercelRSCMessage) | undefined;
+
+  adapters?: ExternalStoreAdapter["adapters"] | undefined;
 
   /**
    * @deprecated Use `onNew` instead. This will be removed in 0.6.0.

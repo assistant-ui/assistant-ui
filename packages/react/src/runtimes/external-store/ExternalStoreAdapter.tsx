@@ -60,12 +60,14 @@ type ExternalStoreAdapterBase<T> = {
     | ((options: AddToolResultOptions) => Promise<void> | void)
     | undefined;
   convertMessage?: ExternalStoreMessageConverter<T> | undefined;
-  adapters?: {
-    attachments?: AttachmentAdapter | undefined;
-    speech?: SpeechSynthesisAdapter | undefined;
-    feedback?: FeedbackAdapter | undefined;
-    threadManager?: ExternalStoreThreadManagerAdapter | undefined;
-  };
+  adapters?:
+    | {
+        attachments?: AttachmentAdapter | undefined;
+        speech?: SpeechSynthesisAdapter | undefined;
+        feedback?: FeedbackAdapter | undefined;
+        threadManager?: ExternalStoreThreadManagerAdapter | undefined;
+      }
+    | undefined;
   unstable_capabilities?:
     | {
         copy?: boolean | undefined;

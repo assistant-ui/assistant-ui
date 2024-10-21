@@ -7,9 +7,15 @@ import { convertMessage } from "../utils/convertMessage";
 import { useInputSync } from "../utils/useInputSync";
 import { toCreateMessage } from "../utils/toCreateMessage";
 import { vercelAttachmentAdapter } from "../utils/vercelAttachmentAdapter";
+import { ExternalStoreAdapter } from "@assistant-ui/react";
+
+export type VercelUseChatAdapter = {
+  adapters?: Omit<ExternalStoreAdapter["adapters"], "attachments"> | undefined;
+};
 
 export const useVercelUseAssistantRuntime = (
   assistantHelpers: ReturnType<typeof useAssistant>,
+  adapter: VercelUseChatAdapter = {},
 ) => {
   const messages = useExternalMessageConverter({
     callback: convertMessage,
@@ -31,6 +37,7 @@ export const useVercelUseAssistantRuntime = (
     },
     adapters: {
       attachments: vercelAttachmentAdapter,
+      ...adapter.adapters,
     },
   });
 

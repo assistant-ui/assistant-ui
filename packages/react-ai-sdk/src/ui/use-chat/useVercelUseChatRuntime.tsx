@@ -9,9 +9,15 @@ import { sliceMessagesUntil } from "../utils/sliceMessagesUntil";
 import { toCreateMessage } from "../utils/toCreateMessage";
 import { vercelAttachmentAdapter } from "../utils/vercelAttachmentAdapter";
 import { getVercelAIMessages } from "../getVercelAIMessages";
+import { ExternalStoreAdapter } from "@assistant-ui/react";
+
+export type VercelUseChatAdapter = {
+  adapters?: Omit<ExternalStoreAdapter["adapters"], "attachments"> | undefined;
+};
 
 export const useVercelUseChatRuntime = (
   chatHelpers: ReturnType<typeof useChat>,
+  adapter: VercelUseChatAdapter = {},
 ) => {
   const messages = useExternalMessageConverter({
     callback: convertMessage,
@@ -54,6 +60,7 @@ export const useVercelUseChatRuntime = (
     },
     adapters: {
       attachments: vercelAttachmentAdapter,
+      ...adapter.adapters,
     },
   });
 
