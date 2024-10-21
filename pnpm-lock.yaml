@@ -1191,7 +1191,7 @@ importers:
         specifier: '*'
         version: 0.0.46(zod@3.23.8)
       '@assistant-ui/react':
-        specifier: ^0.5.76
+        specifier: ^0.5.87
         version: link:../react
       '@radix-ui/react-use-callback-ref':
         specifier: ^1.1.0

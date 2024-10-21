@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.5.87
+
+### Patch Changes
+
+- b38165d: feat: export useAttachmentRuntime, useAttachment, FeedbackAdapter
+- a1bfd26: fix(ai-sdk): DataStream interop without tool call streaming
+- b38165d: feat(ai-sdk): Adapters support (attachment, feedback, speech, threadManager)
+
 ## 0.5.86
 
 ### Patch Changes

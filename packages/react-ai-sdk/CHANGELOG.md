@@ -1,5 +1,15 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.6.14
+
+### Patch Changes
+
+- b38165d: feat(ai-sdk): Adapters support (attachment, feedback, speech, threadManager)
+- Updated dependencies [b38165d]
+- Updated dependencies [a1bfd26]
+- Updated dependencies [b38165d]
+  - @assistant-ui/react@0.5.87
+
 ## 0.6.13
 
 ### Patch Changes
