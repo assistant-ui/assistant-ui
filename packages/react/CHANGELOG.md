@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.89
+
+### Patch Changes
+
+- fd9ff67: fix(local-runtime): update capabilities on initial render
+
 ## 0.5.88
 
 ### Patch Changes
