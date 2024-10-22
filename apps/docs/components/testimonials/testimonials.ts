@@ -9,10 +9,11 @@ import profileGardeninggnome from "./profiles/uuRXSsia_400x400.jpg";
 import profileAditya_advani from "./profiles/_5AVrIjJ_400x400.jpg";
 import profileMahmudisalim from "./profiles/Y7hXHG3i_400x400.jpg";
 import profileSimonfarshid from "./profiles/Mc0m3zkD_400x400.jpg";
+import { StaticImageData } from "next/image";
 
 export type Testimonial = {
   platform: "X";
-  avatar: any;
+  avatar: StaticImageData;
   username: string;
   message: string;
   url: string;

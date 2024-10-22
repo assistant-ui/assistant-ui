@@ -12,7 +12,7 @@ import { useLastAssistantMessage } from "./LastMessageHook";
 import { generate } from "./actions";
 import { readStreamableValue } from "ai/rsc";
 
-const AI_ThreadSuggestion: FC<PropsWithChildren<{}>> = ({ children }) => {
+const AI_ThreadSuggestion: FC<PropsWithChildren> = ({ children }) => {
   const lastAssistantMessage = useLastAssistantMessage();
   const [output, setOutput] = useState<string | null>(null);
   const [output2, setOutput2] = useState<string | null>(null);

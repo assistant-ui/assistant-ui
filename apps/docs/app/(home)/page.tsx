@@ -99,7 +99,7 @@ export default function HomePage() {
         <div className="flex flex-col items-center gap-3 self-center">
           <h1 className="text-2xl font-medium">Be part of the community</h1>
           <p>
-            400+ developers are building with assistant-ui, you're in good
+            400+ developers are building with assistant-ui, you&apos;re in good
             company!
           </p>
 

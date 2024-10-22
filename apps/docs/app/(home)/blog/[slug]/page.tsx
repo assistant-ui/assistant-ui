@@ -5,20 +5,18 @@ import { blog, BlogPage } from "@/app/source";
 import { buttonVariants } from "@/components/ui/button";
 import Image from "next/image";
 import profilePic from "../../../../components/testimonials/profiles/Mc0m3zkD_400x400.jpg";
-import { useMDXComponents } from "@/mdx-components";
+import { getMDXComponents } from "@/mdx-components";
 
 interface Param {
   slug: string;
 }
 
-export default function Page(
-  props: {
-    params: Promise<Param>;
-  }
-): React.ReactElement {
+export default function Page(props: {
+  params: Promise<Param>;
+}): React.ReactElement {
   const params = use(props.params);
   const page = blog.getPage([params.slug]) as BlogPage;
-  const mdxComponents = useMDXComponents({});
+  const mdxComponents = getMDXComponents({});
 
   if (!page) notFound();
 

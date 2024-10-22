@@ -26,9 +26,9 @@ interface ProductCarouselProps {
 
 const productStyle = {
   display: "flex",
-  flexDirection: "column" as "column", // Type assertion
+  flexDirection: "column" as const,
   alignItems: "center",
-  textAlign: "center" as "center", // Type assertion
+  textAlign: "center" as const,
 };
 
 const imageContainerStyle = {

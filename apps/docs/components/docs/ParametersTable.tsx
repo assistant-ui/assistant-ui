@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 import type { FC, ReactNode } from "react";
 
 type ParameterDef = {
@@ -27,12 +28,12 @@ const COMMON_PARAMS: Record<string, ParameterDef> = {
         <br />
         <br />
         Read the{" "}
-        <a
+        <Link
           className="font-semibold underline"
           href="/docs/ui/primitives/composition"
         >
           Composition
-        </a>{" "}
+        </Link>{" "}
         guide for more details.
       </>
     ),

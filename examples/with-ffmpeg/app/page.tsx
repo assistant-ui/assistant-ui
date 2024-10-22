@@ -101,7 +101,7 @@ const FfmpegTool: FC<{ file: File }> = ({ file }) => {
     }) {
       const handleDownload = async () => {
         const ffmpeg = ffmpegRef.current;
-        const data = (await ffmpeg.readFile(outputFileName)) as any;
+        const data = (await ffmpeg.readFile(outputFileName)) as Uint8Array;
         window.open(
           URL.createObjectURL(
             new Blob([data.buffer], { type: outputMimeType }),

@@ -63,8 +63,10 @@
   "devDependencies": {
     "@assistant-ui/tsconfig": "workspace:*",
     "@types/prismjs": "^1.26.4",
-    "eslint": "^8",
+    "eslint": "^9",
     "eslint-config-next": "15.0.0",
+    "react": "19.0.0-rc-65a56d0e-20241020",
+    "react-dom": "19.0.0-rc-65a56d0e-20241020",
     "tailwindcss": "^3.4.14",
     "tailwindcss-animate": "^1.0.7",
     "tsup": "8.3.0",

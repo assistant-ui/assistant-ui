@@ -69,6 +69,7 @@ export default function Home() {
             .
           </div>
 
+          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           <Form {...(form as any)}>
             <SignupForm />
           </Form>

@@ -80,10 +80,18 @@ export async function continueConversation(
             const response = await fetch(
               `https://dummyjson.com/products/search?q=${query}`,
             );
-            const data = await response.json();
+            const data = (await response.json()) as {
+              products: {
+                thumbnail: string;
+                title: string;
+                description: string;
+                price: string;
+                url: string;
+              }[];
+            };
             console.log("data=", data);
             if (data.products && data.products.length > 0) {
-              const products = data.products.map((item: any) => ({
+              const products = data.products.map((item) => ({
                 thumbnail: item.thumbnail,
                 title: item.title,
                 description: item.description,
@@ -94,7 +102,7 @@ export async function continueConversation(
             } else {
               return <p>No products found.</p>;
             }
-          } catch (error) {
+          } catch {
             return (
               <p>
                 Sorry, we are experiencing some error. Please refresh the chat

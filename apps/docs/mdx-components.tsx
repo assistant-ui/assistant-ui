@@ -11,7 +11,7 @@ import {
 } from "fumadocs-ui/components/codeblock";
 import { Popup, PopupContent, PopupTrigger } from "fumadocs-ui/twoslash/popup";
 
-export function useMDXComponents(components: MDXComponents): MDXComponents {
+export function getMDXComponents(components: MDXComponents): MDXComponents {
   return {
     ...defaultComponents,
     Popup,

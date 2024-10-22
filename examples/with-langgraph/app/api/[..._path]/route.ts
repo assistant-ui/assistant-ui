@@ -45,8 +45,14 @@ async function handleRequest(req: NextRequest, method: string) {
         ...getCorsHeaders(),
       },
     });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: e.status ?? 500 });
+  } catch (e: unknown) {
+    if (e instanceof Error) {
+      return NextResponse.json(
+        { error: e.message },
+        { status: (e as { status?: number }).status ?? 500 },
+      );
+    }
+    return NextResponse.json({ error: "Unknown error" }, { status: 500 });
   }
 }
 

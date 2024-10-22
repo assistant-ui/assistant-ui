@@ -22,7 +22,7 @@ export const createThread = async () => {
 
 export const getThreadState = async (
   threadId: string,
-): Promise<ThreadState<Record<string, any>>> => {
+): Promise<ThreadState<Record<string, unknown>>> => {
   const client = createClient();
   return client.threads.getState(threadId);
 };
@@ -30,7 +30,7 @@ export const getThreadState = async (
 export const updateState = async (
   threadId: string,
   fields: {
-    newState: Record<string, any>;
+    newState: Record<string, unknown>;
     asNode?: string;
   },
 ) => {
@@ -47,7 +47,7 @@ export const sendMessage = async (params: {
 }) => {
   const client = createClient();
 
-  let input: Record<string, any> | null = {
+  const input: Record<string, unknown> | null = {
     messages: params.messages,
   };
   const config = {

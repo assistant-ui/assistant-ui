@@ -19,7 +19,7 @@
     "@types/react-syntax-highlighter": "^15.5.13",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
-    "eslint": "^8",
+    "eslint": "^9",
     "lucide-react": "^0.453.0",
     "react": "19.0.0-rc-65a56d0e-20241020",
     "react-resizable-panels": "^2.1.4",

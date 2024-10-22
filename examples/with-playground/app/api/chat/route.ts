@@ -7,6 +7,6 @@ export const { POST } = createEdgeRuntimeAPI({
   model: ({ apiKey, modelName }) => {
     if (!apiKey) throw new Error("apiKey is required");
     if (!modelName) throw new Error("modelName is required");
-    return createOpenAI({ apiKey })(modelName as any);
+    return createOpenAI({ apiKey })(modelName);
   },
 });
