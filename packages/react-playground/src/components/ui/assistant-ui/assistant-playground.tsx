@@ -245,7 +245,7 @@ const ModelSelector: FC<ModelSelectorProps> = ({
 
 const TemperatureSlider: FC = () => {
   const { useModelConfig } = usePlaygroundRuntime();
-  const values = useModelConfig((c) => [c.callSettings?.temperature ?? 1]);
+  const value = useModelConfig((c) => c.callSettings?.temperature ?? 1);
   const setValues = ([value]: number[]) => {
     useModelConfig.setState({
       callSettings: {
@@ -264,7 +264,7 @@ const TemperatureSlider: FC = () => {
       <div className="flex justify-between">
         <label>Temperature</label>
         <Input
-          value={values[0]!.toFixed(2)}
+          value={value!.toFixed(2)}
           onChange={setValue}
           className="inline h-6 w-16 py-0"
         />
@@ -273,7 +273,7 @@ const TemperatureSlider: FC = () => {
         min={0}
         max={2}
         step={0.01}
-        value={values}
+        value={[value]}
         onValueChange={setValues}
       />
     </div>
@@ -282,7 +282,7 @@ const TemperatureSlider: FC = () => {
 
 const MaxTokensSlider: FC = () => {
   const { useModelConfig } = usePlaygroundRuntime();
-  const values = useModelConfig((c) => [c.callSettings?.maxTokens ?? 256]);
+  const value = useModelConfig((c) => c.callSettings?.maxTokens ?? 256);
   const setValues = ([value]: number[]) => {
     useModelConfig.setState({
       callSettings: {
@@ -301,7 +301,7 @@ const MaxTokensSlider: FC = () => {
       <div className="flex justify-between">
         <label>Max Tokens</label>
         <Input
-          value={values[0]!.toString()}
+          value={value!.toString()}
           onChange={setValue}
           className="inline h-6 w-16 py-0"
         />
@@ -310,7 +310,7 @@ const MaxTokensSlider: FC = () => {
         min={1}
         max={4095}
         step={1}
-        value={values}
+        value={[value]}
         onValueChange={setValues}
       />
     </div>

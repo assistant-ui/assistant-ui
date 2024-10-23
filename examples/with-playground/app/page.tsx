@@ -7,6 +7,7 @@ import {
 import { usePlaygroundRuntime } from "@assistant-ui/react-playground";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 
+import "prismjs";
 import "prismjs/components/prism-json";
 import "prismjs/themes/prism.css";
 
