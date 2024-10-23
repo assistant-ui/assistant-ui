@@ -1,5 +1,40 @@
 import { build } from "tsup";
 import { copyFileSync, mkdirSync } from "node:fs";
+import fs from "fs";
+import postcss from "postcss";
+import postcssJs from "postcss-js";
+
+// tailwind-plugin-resources
+
+const files = [
+  "./src/styles/tailwindcss/base-components.css",
+  "./src/styles/tailwindcss/modal.css",
+  "./src/styles/tailwindcss/thread.css",
+  "./src/styles/themes/default.css",
+];
+
+const replaceNullWithObject = (obj: object) => {
+  return Object.fromEntries(
+    Object.entries(obj).map(([key, value]) => {
+      if (value === true) return [key, {}];
+      if (typeof value === "object" && value !== null)
+        return [key, replaceNullWithObject(value)];
+      return [key, value];
+    }),
+  );
+};
+
+mkdirSync("./src/tailwindcss/data", { recursive: true });
+for (const file of files) {
+  const cssContent = fs.readFileSync(file, "utf8");
+  const root = postcss.parse(cssContent);
+  const formattedComponents = replaceNullWithObject(postcssJs.objectify(root));
+
+  const outputFile =
+    "./src/tailwindcss/data/" + file.split("/").pop() + ".json";
+  const outputContent = JSON.stringify(formattedComponents, null, 2);
+  fs.writeFileSync(outputFile, outputContent);
+}
 
 // JS
 await build({

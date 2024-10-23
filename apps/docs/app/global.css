@@ -1,8 +1,3 @@
-@import "@assistant-ui/react/styles/tailwindcss/base-components.css";
-@import "@assistant-ui/react/styles/tailwindcss/thread.css";
-@import "@assistant-ui/react/styles/tailwindcss/modal.css";
-@import "@assistant-ui/react-markdown/styles/tailwindcss/markdown.css";
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

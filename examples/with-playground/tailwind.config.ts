@@ -13,7 +13,7 @@ const config = {
     require("tailwindcss-animate"),
     require("@tailwindcss/forms"),
     require("@assistant-ui/react/tailwindcss")({
-      components: [],
+      components: ["default-theme"],
     }),
   ],
 } satisfies Config;

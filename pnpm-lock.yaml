@@ -1172,6 +1172,9 @@ importers:
       postcss:
         specifier: ^8.4.47
         version: 8.4.47
+      postcss-js:
+        specifier: ^4.0.1
+        version: 4.0.1(postcss@8.4.47)
       postcss-nested:
         specifier: ^6.2.0
         version: 6.2.0(postcss@8.4.47)
@@ -1323,6 +1326,9 @@ importers:
       postcss:
         specifier: ^8.4.47
         version: 8.4.47
+      postcss-js:
+        specifier: ^4.0.1
+        version: 4.0.1(postcss@8.4.47)
       react:
         specifier: 19.0.0-rc-65a56d0e-20241020
         version: 19.0.0-rc-65a56d0e-20241020
@@ -1539,6 +1545,9 @@ importers:
       postcss:
         specifier: ^8.4.47
         version: 8.4.47
+      postcss-js:
+        specifier: ^4.0.1
+        version: 4.0.1(postcss@8.4.47)
       react:
         specifier: 19.0.0-rc-65a56d0e-20241020
         version: 19.0.0-rc-65a56d0e-20241020

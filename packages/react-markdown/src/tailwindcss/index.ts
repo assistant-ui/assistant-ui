@@ -1,10 +1,8 @@
 import plugin from "tailwindcss/plugin.js";
+import markdownCSS from "./data/markdown.css.json";
 
 const auiPlugin = plugin.withOptions<{}>(() => ({ addComponents }) => {
-  addComponents({
-    '@import "@assistant-ui/react-markdown/styles/tailwindcss/markdown.css"':
-      "",
-  });
+  addComponents(markdownCSS);
 });
 
 export default auiPlugin;
