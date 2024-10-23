@@ -32,6 +32,8 @@ export const POST = async (req: Request) => {
       vectorDBUrl: "Yonom&assistant-ui",
       advancedAgent: false,
       githubUsername: "Yonom",
+      limitSources: 3,
+      enableArtifacts: false,
     }),
   });
 };
