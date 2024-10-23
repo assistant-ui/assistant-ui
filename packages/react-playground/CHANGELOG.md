@@ -1,5 +1,11 @@
 # @assistant-ui/react-playground
 
+## 0.0.43
+
+### Patch Changes
+
+- bf8425c: fix: infinite rerender loop
+
 ## 0.0.42
 
 ### Patch Changes
