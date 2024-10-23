@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.91
+
+### Patch Changes
+
+- 56f80fa: fix: tailwind plugin turbopack interop
+
 ## 0.5.90
 
 ### Patch Changes

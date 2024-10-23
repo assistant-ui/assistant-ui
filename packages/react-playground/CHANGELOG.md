@@ -1,5 +1,13 @@
 # @assistant-ui/react-playground
 
+## 0.0.44
+
+### Patch Changes
+
+- 56f80fa: fix: tailwind plugin turbopack interop
+- Updated dependencies [56f80fa]
+  - @assistant-ui/react@0.5.91
+
 ## 0.0.43
 
 ### Patch Changes

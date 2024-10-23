@@ -1,5 +1,13 @@
 # @assistant-ui/react-markdown
 
+## 0.2.21
+
+### Patch Changes
+
+- 56f80fa: fix: tailwind plugin turbopack interop
+- Updated dependencies [56f80fa]
+  - @assistant-ui/react@0.5.91
+
 ## 0.2.20
 
 ### Patch Changes

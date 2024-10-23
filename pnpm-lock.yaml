@@ -1284,7 +1284,7 @@ importers:
   packages/react-markdown:
     dependencies:
       '@assistant-ui/react':
-        specifier: ^0.5.90
+        specifier: ^0.5.91
         version: link:../react
       '@radix-ui/react-primitive':
         specifier: ^2.0.0
@@ -1354,7 +1354,7 @@ importers:
         specifier: ^0.0.24
         version: 0.0.24
       '@assistant-ui/react':
-        specifier: ^0.5.90
+        specifier: ^0.5.91
         version: link:../react
       '@radix-ui/react-avatar':
         specifier: ^1.1.1
@@ -1476,10 +1476,10 @@ importers:
   packages/react-trieve:
     dependencies:
       '@assistant-ui/react':
-        specifier: ^0.5.90
+        specifier: ^0.5.91
         version: link:../react
       '@assistant-ui/react-markdown':
-        specifier: ^0.2.20
+        specifier: ^0.2.21
         version: link:../react-markdown
       '@radix-ui/react-hover-card':
         specifier: ^1.1.2

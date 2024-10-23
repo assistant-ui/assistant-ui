@@ -1,5 +1,14 @@
 # @assistant-ui/react-trieve
 
+## 0.0.3
+
+### Patch Changes
+
+- 56f80fa: fix: tailwind plugin turbopack interop
+- Updated dependencies [56f80fa]
+  - @assistant-ui/react-markdown@0.2.21
+  - @assistant-ui/react@0.5.91
+
 ## 0.0.2
 
 ### Patch Changes
