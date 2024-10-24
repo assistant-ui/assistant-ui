@@ -31,12 +31,22 @@ export type EdgeChatAdapterOptions = {
   credentials?: RequestCredentials;
   headers?: Record<string, string> | Headers;
   body?: object;
+
+  /**
+   * When enabled, the adapter will not strip `id` from messages in the messages array.
+   */
+  unstable_sendMessageIds?: boolean;
 };
 
 export class EdgeChatAdapter implements ChatModelAdapter {
   constructor(private options: EdgeChatAdapterOptions) {}
 
-  async *run({ messages, abortSignal, config }: ChatModelRunOptions) {
+  async *run({
+    messages,
+    abortSignal,
+    config,
+    unstable_assistantMessageId,
+  }: ChatModelRunOptions) {
     const headers = new Headers(this.options.headers);
     headers.set("Content-Type", "application/json");
 
@@ -46,8 +56,11 @@ export class EdgeChatAdapter implements ChatModelAdapter {
       credentials: this.options.credentials ?? "same-origin",
       body: JSON.stringify({
         system: config.system,
-        messages: toCoreMessages(messages),
+        messages: toCoreMessages(messages, {
+          unstable_includeId: this.options.unstable_sendMessageIds,
+        }),
         tools: config.tools ? toLanguageModelTools(config.tools) : [],
+        unstable_assistantMessageId,
         ...config.callSettings,
         ...config.config,
 

@@ -190,6 +190,7 @@ export class LocalThreadRuntimeCore
         abortSignal: this.abortController.signal,
         config: this.getModelConfig(),
         onUpdate: updateMessage,
+        unstable_assistantMessageId: message.id,
       });
 
       // handle async iterator for streaming results

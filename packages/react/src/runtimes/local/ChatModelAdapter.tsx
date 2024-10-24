@@ -31,6 +31,8 @@ export type ChatModelRunOptions = {
   abortSignal: AbortSignal;
   config: ModelConfig;
 
+  unstable_assistantMessageId?: string;
+
   /**
    * @deprecated Declare the run function as an AsyncGenerator instead. This method will be removed in v0.6
    */

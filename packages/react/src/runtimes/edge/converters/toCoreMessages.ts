@@ -1,10 +1,21 @@
 import { ThreadMessage, CoreMessage } from "../../../types";
 
-export const toCoreMessages = (message: ThreadMessage[]): CoreMessage[] => {
-  return message.map(toCoreMessage);
+type CoreMessageWithConditionalId<T extends boolean> = T extends false
+  ? CoreMessage
+  : CoreMessage & { unstable_id?: string };
+
+export const toCoreMessages = <T extends boolean = false>(
+  messages: ThreadMessage[],
+  options: { unstable_includeId?: T | undefined } = {},
+): CoreMessageWithConditionalId<T>[] => {
+  return messages.map((message) => toCoreMessage(message, options));
 };
 
-export const toCoreMessage = (message: ThreadMessage): CoreMessage => {
+export const toCoreMessage = <T extends boolean = false>(
+  message: ThreadMessage,
+  options: { unstable_includeId?: T | undefined } = {},
+): CoreMessageWithConditionalId<T> => {
+  const includeId = options.unstable_includeId ?? false;
   const role = message.role;
   switch (role) {
     case "assistant":
@@ -18,6 +29,7 @@ export const toCoreMessage = (message: ThreadMessage): CoreMessage => {
           }
           return part;
         }),
+        ...(includeId ? { unstable_id: message.id } : {}),
       };
 
     case "user":
@@ -31,12 +43,14 @@ export const toCoreMessage = (message: ThreadMessage): CoreMessage => {
           }),
           ...message.attachments.map((a) => a.content).flat(),
         ],
+        ...(includeId ? { unstable_id: message.id } : {}),
       };
 
     case "system":
       return {
         role,
         content: message.content,
+        ...(includeId ? { unstable_id: message.id } : {}),
       };
 
     default: {
