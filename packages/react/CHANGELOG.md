@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.92
+
+### Patch Changes
+
+- f6d197a: feat: Edge Runtime Server Accessible Ids (temp)
+
 ## 0.5.91
 
 ### Patch Changes
