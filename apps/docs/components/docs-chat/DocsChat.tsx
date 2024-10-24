@@ -140,7 +140,7 @@ const MyThread: FC = () => {
       </Thread.Viewport>
 
       <a
-        href="https://entelligence.ai"
+        href="https://entelligence.ai/Yonom&assistant-ui"
         className="text-muted-foreground flex w-full items-center justify-center gap-2 border-t py-2 text-xs"
       >
         In partnership with{" "}
