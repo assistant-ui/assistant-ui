@@ -10,6 +10,7 @@ import { transformerMetaHighlight } from "@shikijs/transformers";
 import { z } from "zod";
 
 export const { docs, meta } = defineDocs({
+  dir: "content/docs",
   docs: {
     schema: frontmatterSchema,
   },

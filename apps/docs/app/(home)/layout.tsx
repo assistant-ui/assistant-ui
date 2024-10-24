@@ -1,5 +1,5 @@
 import { FC, ReactNode } from "react";
-import { HomeLayout } from "fumadocs-ui/home-layout";
+import { HomeLayout } from "fumadocs-ui/layouts/home";
 import { baseOptions } from "../docs/layout.config";
 import Image from "next/image";
 import icon from "../../public/favicon/icon.svg";
