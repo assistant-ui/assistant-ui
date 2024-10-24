@@ -9,9 +9,14 @@ import { AssistantRuntime } from "../../api/AssistantRuntime";
 import { create } from "zustand";
 import { writableStore } from "../ReadonlyStore";
 
-type AssistantRuntimeProviderProps = {
-  runtime: AssistantRuntime;
-};
+export namespace AssistantRuntimeProvider {
+  export type Props = PropsWithChildren<{
+    /**
+     * The runtime to provide to the rest of your app.
+     */
+    runtime: AssistantRuntime;
+  }>;
+}
 
 const useAssistantRuntimeStore = (runtime: AssistantRuntime) => {
   const [store] = useState(() => create(() => runtime));
@@ -43,7 +48,7 @@ const useThreadManagerStore = (runtime: AssistantRuntime) => {
 };
 
 export const AssistantRuntimeProviderImpl: FC<
-  PropsWithChildren<AssistantRuntimeProviderProps>
+  AssistantRuntimeProvider.Props
 > = ({ children, runtime }) => {
   const useAssistantRuntime = useAssistantRuntimeStore(runtime);
   const useToolUIs = useAssistantToolUIsStore();

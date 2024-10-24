@@ -34,6 +34,7 @@ out/
 build
 dist
 apps/docs/public/registry/
+apps/docs/content/auto-generated/*.json
 packages/react/src/tailwindcss/data
 packages/react-markdown/src/tailwindcss/data
 packages/react-trieve/src/tailwindcss/data

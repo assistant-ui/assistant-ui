@@ -98,6 +98,9 @@ importers:
       fumadocs-twoslash:
         specifier: ^1.1.3
         version: 1.1.3(fumadocs-ui@13.4.10(@types/react-dom@18.3.1)(@types/react@18.3.11)(next@15.0.0(@opentelemetry/api@1.9.0)(react-dom@19.0.0-rc-65a56d0e-20241020(react@19.0.0-rc-65a56d0e-20241020))(react@19.0.0-rc-65a56d0e-20241020))(react-dom@19.0.0-rc-65a56d0e-20241020(react@19.0.0-rc-65a56d0e-20241020))(react@19.0.0-rc-65a56d0e-20241020)(tailwindcss@3.4.14))(shiki@1.22.0)(typescript@5.6.3)
+      fumadocs-typescript:
+        specifier: ^3.0.0
+        version: 3.0.0(typescript@5.6.3)
       fumadocs-ui:
         specifier: 13.4.10
         version: 13.4.10(@types/react-dom@18.3.1)(@types/react@18.3.11)(next@15.0.0(@opentelemetry/api@1.9.0)(react-dom@19.0.0-rc-65a56d0e-20241020(react@19.0.0-rc-65a56d0e-20241020))(react@19.0.0-rc-65a56d0e-20241020))(react-dom@19.0.0-rc-65a56d0e-20241020(react@19.0.0-rc-65a56d0e-20241020))(react@19.0.0-rc-65a56d0e-20241020)(tailwindcss@3.4.14)
@@ -159,6 +162,12 @@ importers:
       tailwindcss:
         specifier: ^3.4.14
         version: 3.4.14
+      ts-morph:
+        specifier: ^24.0.0
+        version: 24.0.0
+      tsx:
+        specifier: ^4.19.1
+        version: 4.19.1
       typescript:
         specifier: ^5.6.3
         version: 5.6.3
@@ -3523,6 +3532,9 @@ packages:
   '@ts-morph/common@0.19.0':
     resolution: {integrity: sha512-Unz/WHmd4pGax91rdIKWi51wnVUW11QttMEPpBiBgIewnc9UQIX7UDLxr5vRlqeByXCwhkF6VabSsI0raWcyAQ==}
 
+  '@ts-morph/common@0.25.0':
+    resolution: {integrity: sha512-kMnZz+vGGHi4GoHnLmMhGNjm44kGtKUXGnOvrKmMwAuvNjM/PgKVGfUnL7IDvK7Jb2QQ82jq3Zmp04Gy+r3Dkg==}
+
   '@tsconfig/strictest@2.0.5':
     resolution: {integrity: sha512-ec4tjL2Rr0pkZ5hww65c+EEPYwxOi4Ryv+0MtjeaSQRJyq322Q27eOQiFbuNgw2hpL4hB1/W/HBGk3VKS43osg==}
 
@@ -4033,6 +4045,9 @@ packages:
 
   code-block-writer@12.0.0:
     resolution: {integrity: sha512-q4dMFMlXtKR3XNBHyMHt/3pwYNA69EDk00lloMOaaUMKPUXBw6lpXtbu3MMVG6/uOihGnRDOlkyqsONEUj60+w==}
+
+  code-block-writer@13.0.3:
+    resolution: {integrity: sha512-Oofo0pq3IKnsFtuHqSF7TqBfr71aeyZDVJ0HpmqB7FBM2qEigL0iPONSCZSO9pE9dZTAxANe5XHG9Uy0YMv8cg==}
 
   code-red@1.0.4:
     resolution: {integrity: sha512-7qJWqItLA8/VPVlKJlFXU+NBlo/qyfs39aJcuMT/2ere32ZqvF5OSxgdM5xOfJJ7O429gg2HM47y8v9P+9wrNw==}
@@ -4650,6 +4665,11 @@ packages:
     peerDependencies:
       fumadocs-ui: 13.x.x
       shiki: 1.x.x
+
+  fumadocs-typescript@3.0.0:
+    resolution: {integrity: sha512-8CCYhxiv7dOt5cCExLZCzm3U0vuHTXEQfLZVOFLkqXqhNbOlaM6Wtn6j1lkJ0relHfR+K8CoPesKEujH/8ablA==}
+    peerDependencies:
+      typescript: '*'
 
   fumadocs-ui@13.4.10:
     resolution: {integrity: sha512-aHN9sUHwKTSu+37bxx8KDbMNGolG5iNsKdvK40VKiTbNz5p495uzui8aLPGKTV96TS53oPQzPdk6YoCqWZTE+A==}
@@ -6574,6 +6594,9 @@ packages:
 
   ts-morph@18.0.0:
     resolution: {integrity: sha512-Kg5u0mk19PIIe4islUI/HWRvm9bC1lHejK4S0oh1zaZ77TMZAEmQC0sHQYiu2RgCQFZKXz1fMVi/7nOOeirznA==}
+
+  ts-morph@24.0.0:
+    resolution: {integrity: sha512-2OAOg/Ob5yx9Et7ZX4CvTCc0UFoZHwLEJ+dpDPSUi5TgwwlTlX47w+iFRrEwzUZwYACjq83cgjS/Da50Ga37uw==}
 
   tsconfig-paths@3.15.0:
     resolution: {integrity: sha512-2Ac2RgzDe/cn48GvOe3M+o82pEFewD3UPbyoUHHdKasHwJKjds4fLXWf/Ux5kATBKN20oaFGu+jbElp1pos0mg==}
@@ -9179,6 +9202,12 @@ snapshots:
       mkdirp: 2.1.6
       path-browserify: 1.0.1
 
+  '@ts-morph/common@0.25.0':
+    dependencies:
+      minimatch: 9.0.5
+      path-browserify: 1.0.1
+      tinyglobby: 0.2.9
+
   '@tsconfig/strictest@2.0.5': {}
 
   '@types/acorn@4.0.6':
@@ -9772,6 +9801,8 @@ snapshots:
       - '@types/react-dom'
 
   code-block-writer@12.0.0: {}
+
+  code-block-writer@13.0.3: {}
 
   code-red@1.0.4:
     dependencies:
@@ -10595,6 +10626,20 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
       - typescript
+
+  fumadocs-typescript@3.0.0(typescript@5.6.3):
+    dependencies:
+      '@types/node': 22.7.7
+      fast-glob: 3.3.2
+      hast-util-to-jsx-runtime: 2.3.2
+      mdast-util-from-markdown: 2.0.1
+      mdast-util-gfm: 3.0.0
+      mdast-util-to-hast: 13.2.0
+      shiki: 1.22.0
+      ts-morph: 24.0.0
+      typescript: 5.6.3
+    transitivePeerDependencies:
+      - supports-color
 
   fumadocs-ui@13.4.10(@types/react-dom@18.3.1)(@types/react@18.3.11)(next@15.0.0(@opentelemetry/api@1.9.0)(react-dom@19.0.0-rc-65a56d0e-20241020(react@19.0.0-rc-65a56d0e-20241020))(react@19.0.0-rc-65a56d0e-20241020))(react-dom@19.0.0-rc-65a56d0e-20241020(react@19.0.0-rc-65a56d0e-20241020))(react@19.0.0-rc-65a56d0e-20241020)(tailwindcss@3.4.14):
     dependencies:
@@ -13036,6 +13081,11 @@ snapshots:
     dependencies:
       '@ts-morph/common': 0.19.0
       code-block-writer: 12.0.0
+
+  ts-morph@24.0.0:
+    dependencies:
+      '@ts-morph/common': 0.25.0
+      code-block-writer: 13.0.3
 
   tsconfig-paths@3.15.0:
     dependencies:

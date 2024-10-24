@@ -18,7 +18,7 @@ export type ChatModelRunResult = {
   status?: MessageStatus;
   metadata?: {
     /**
-     * @deprecated Use `steps` instead. This field will be removed in v0.6.
+     * @internal Use `steps` instead. This field will be removed in v0.6.
      */
     roundtrips?: ThreadStep[];
     steps?: ThreadStep[];

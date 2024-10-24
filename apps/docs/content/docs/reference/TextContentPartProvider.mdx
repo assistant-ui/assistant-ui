@@ -1,0 +1,28 @@
+---
+title: <AssistantRuntimeProvider />
+---
+
+import { ParametersTable } from "@/components/docs";
+import { AssistantRuntimeProvider } from "@/content/auto-generated/typeDocs.json";
+
+The `TextContentPartProvider` provides data and APIs for `TextContentPart` components.
+
+This is useful if you want to reuse the same `Text` component outside of a message text, e.g. with the `@assistant-ui/react-markdown` package.
+
+```tsx {1, 8, 10}
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+
+const MyApp = () => {
+  const runtime = useEdgeRuntime({ api: "/api/chat" });
+
+  return (
+    <TextContentPartProvider text={"Hello!"}>
+      <MyMarkdownText />
+    </AssistantRuntimeProvider>
+  );
+};
+```
+
+#### Properties
+
+<ParametersTable {...AssistantRuntimeProvider} />
