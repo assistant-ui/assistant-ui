@@ -1,5 +1,11 @@
 # @assistant-ui/react-markdown
 
+## 0.2.24
+
+### Patch Changes
+
+- fix: correctly include types
+
 ## 0.2.23
 
 ### Patch Changes

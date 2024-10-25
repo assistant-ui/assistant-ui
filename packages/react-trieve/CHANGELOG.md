@@ -1,5 +1,13 @@
 # @assistant-ui/react-trieve
 
+## 0.0.7
+
+### Patch Changes
+
+- fix: correctly include types
+- Updated dependencies
+  - @assistant-ui/react-markdown@0.2.24
+
 ## 0.0.6
 
 ### Patch Changes
