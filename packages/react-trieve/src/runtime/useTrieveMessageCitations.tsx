@@ -1,4 +1,4 @@
-import { useMessage, getExternalStoreMessage } from "../../../react/src";
+import { useMessage, getExternalStoreMessage } from "@assistant-ui/react";
 import { TrieveMessage } from "../trieve/TrieveMessage";
 
 export const useTrieveMessageCitations = () => {
