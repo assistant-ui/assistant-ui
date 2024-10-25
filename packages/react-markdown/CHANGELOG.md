@@ -1,5 +1,11 @@
 # @assistant-ui/react-markdown
 
+## 0.2.22
+
+### Patch Changes
+
+- feat: use separate classes for markdown elements, drop aui-md-root class
+
 ## 0.2.21
 
 ### Patch Changes
