@@ -1,5 +1,11 @@
 # assistant-ui
 
+## 0.0.16
+
+### Patch Changes
+
+- d2375cd: build: disable bundling in UI package releases
+
 ## 0.0.15
 
 ### Patch Changes

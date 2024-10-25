@@ -1,5 +1,11 @@
 # @tool-ui/weather
 
+## 0.0.12
+
+### Patch Changes
+
+- d2375cd: build: disable bundling in UI package releases
+
 ## 0.0.11
 
 ### Patch Changes

@@ -1,5 +1,14 @@
 # @assistant-ui/react-syntax-highlighter
 
+## 0.0.16
+
+### Patch Changes
+
+- d2375cd: build: disable bundling in UI package releases
+- Updated dependencies [d2375cd]
+  - @assistant-ui/react-markdown@0.2.23
+  - @assistant-ui/react@0.5.93
+
 ## 0.0.15
 
 ### Patch Changes

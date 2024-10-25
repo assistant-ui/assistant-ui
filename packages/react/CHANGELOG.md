@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.93
+
+### Patch Changes
+
+- d2375cd: build: disable bundling in UI package releases
+
 ## 0.5.92
 
 ### Patch Changes

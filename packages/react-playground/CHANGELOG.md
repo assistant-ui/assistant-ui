@@ -1,5 +1,13 @@
 # @assistant-ui/react-playground
 
+## 0.0.45
+
+### Patch Changes
+
+- d2375cd: build: disable bundling in UI package releases
+- Updated dependencies [d2375cd]
+  - @assistant-ui/react@0.5.93
+
 ## 0.0.44
 
 ### Patch Changes

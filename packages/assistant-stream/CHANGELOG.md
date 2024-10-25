@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.0.3
+
+### Patch Changes
+
+- d2375cd: build: disable bundling in UI package releases
+
 ## 0.0.1
 
 ### Patch Changes
