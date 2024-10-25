@@ -3,6 +3,7 @@ export {
   useTrieveExtras,
   type TrieveExtras,
 } from "./runtime/useTrieveRuntime";
+export { useTrieveMessageCitations } from "./runtime/useTrieveMessageCitations";
 export { makeTrieveMarkdownText } from "./runtime/TrieveMarkdown";
 export { default as TrieveComposer } from "./ui/trieve-composer";
 export { default as TrieveThreadWelcome } from "./ui/trieve-thread-welcome";
