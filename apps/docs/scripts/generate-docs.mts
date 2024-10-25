@@ -32,10 +32,8 @@ sourceFile.getExportedDeclarations().forEach((declarations, name) => {
   });
 });
 
-fs.writeFileSync(
-  "./content/auto-generated/typeDocs.json",
-  JSON.stringify(types, null, 2),
-);
+fs.mkdirSync("./generated", { recursive: true });
+fs.writeFileSync("./generated/typeDocs.json", JSON.stringify(types, null, 2));
 
 // Function to resolve aliased declarations
 function resolveAliasedDeclaration(declaration: any) {

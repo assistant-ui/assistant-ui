@@ -1,5 +1,5 @@
 import plugin from "tailwindcss/plugin.js";
-import markdownCSS from "./data/markdown.css.json";
+import markdownCSS from "../../generated/markdown.css.json";
 
 const auiPlugin = plugin.withOptions<{}>(() => ({ addComponents }) => {
   addComponents(markdownCSS);
