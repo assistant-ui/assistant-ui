@@ -19,7 +19,7 @@ import {
   ThreadRuntimeEventType,
 } from "../core/ThreadRuntimeCore";
 import { DefaultEditComposerRuntimeCore } from "../composer/DefaultEditComposerRuntimeCore";
-import { SpeechSynthesisAdapter } from "../speech";
+import { SpeechSynthesisAdapter } from "../speech/SpeechAdapterTypes";
 import { FeedbackAdapter } from "../feedback/FeedbackAdapter";
 import { AttachmentAdapter } from "../attachment";
 import { getThreadMessageText } from "../../utils/getThreadMessageText";

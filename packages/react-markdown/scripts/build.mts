@@ -31,26 +31,12 @@ for (const file of files) {
 
 // JS
 await build({
-  entry: ["src/index.ts"],
+  entry: ["./src/**/*.{ts,tsx,js,jsx}", "!./src/**/*.test.{ts,tsx}"],
   format: ["cjs", "esm"],
-  dts: true,
+  bundle: false,
+  minify: false,
   sourcemap: true,
   clean: true,
-  esbuildOptions: (options, { format }) => {
-    if (format === "esm") {
-      options.banner = {
-        js: '"use client";',
-      };
-    }
-  },
-});
-
-await build({
-  entry: ["src/tailwindcss/index.ts"],
-  outDir: "dist/tailwindcss",
-  format: ["cjs", "esm"],
-  dts: true,
-  sourcemap: true,
 });
 
 // css
@@ -58,6 +44,7 @@ await build({
 await build({
   entry: ["src/styles/tailwindcss/markdown.css"],
   outDir: "dist/styles",
+  sourcemap: true,
 });
 
 fs.mkdirSync("dist/styles/tailwindcss", { recursive: true });

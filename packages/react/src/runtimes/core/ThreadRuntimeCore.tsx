@@ -1,6 +1,6 @@
 import { AppendMessage, ModelConfig, ThreadMessage } from "../../types";
 import type { Unsubscribe } from "../../types/Unsubscribe";
-import { SpeechSynthesisAdapter } from "../speech";
+import { SpeechSynthesisAdapter } from "../speech/SpeechAdapterTypes";
 import { ExportedMessageRepository } from "../utils/MessageRepository";
 import {
   ComposerRuntimeCore,

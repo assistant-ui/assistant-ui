@@ -6,7 +6,7 @@ import { MessageUtilsState } from "../stores/MessageUtils";
 import { createContextHook } from "./utils/createContextHook";
 import { createContextStoreHook } from "./utils/createContextStoreHook";
 import { UseBoundStore } from "zustand";
-import { MessageRuntime } from "../../api";
+import { MessageRuntime } from "../../api/MessageRuntime";
 import { MessageState } from "../../api/MessageRuntime";
 import { EditComposerState } from "../../api/ComposerRuntime";
 

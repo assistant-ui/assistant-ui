@@ -1,4 +1,7 @@
-import { ChatModelAdapter, ChatModelRunOptions } from "../local";
+import {
+  ChatModelAdapter,
+  ChatModelRunOptions,
+} from "../local/ChatModelAdapter";
 import { ChatModelRunResult } from "../local/ChatModelAdapter";
 import { toCoreMessages } from "./converters/toCoreMessages";
 import { toLanguageModelTools } from "./converters/toLanguageModelTools";

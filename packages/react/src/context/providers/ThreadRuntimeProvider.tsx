@@ -6,7 +6,7 @@ import { makeThreadViewportStore } from "../stores/ThreadViewport";
 import { writableStore } from "../ReadonlyStore";
 import { ThreadRuntime } from "../../api/ThreadRuntime";
 import { create } from "zustand";
-import { ThreadComposerRuntime } from "../../api";
+import { ThreadComposerRuntime } from "../../api/ComposerRuntime";
 
 type ThreadProviderProps = {
   runtime: ThreadRuntime;

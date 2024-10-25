@@ -15,6 +15,7 @@ export function assistantEncoderStream() {
       const chunkType = chunk.type;
       switch (chunkType) {
         case "text-delta": {
+          if (!chunk.textDelta) break; // ignore empty text deltas
           controller.enqueue({
             type: AssistantStreamChunkType.TextDelta,
             value: chunk.textDelta,

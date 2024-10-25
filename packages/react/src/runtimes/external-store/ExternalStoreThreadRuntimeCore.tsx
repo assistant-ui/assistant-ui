@@ -1,4 +1,7 @@
-import { AddToolResultOptions, ThreadSuggestion } from "../core";
+import {
+  AddToolResultOptions,
+  ThreadSuggestion,
+} from "../core/ThreadRuntimeCore";
 
 import { AppendMessage, ModelConfigProvider, ThreadMessage } from "../../types";
 import { ExternalStoreAdapter } from "./ExternalStoreAdapter";

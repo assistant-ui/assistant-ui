@@ -6,7 +6,7 @@ import { ReadonlyStore } from "../ReadonlyStore";
 import { UseBoundStore } from "zustand";
 import { createContextHook } from "./utils/createContextHook";
 import { createContextStoreHook } from "./utils/createContextStoreHook";
-import { ThreadRuntime } from "../../api";
+import { ThreadRuntime } from "../../api/ThreadRuntime";
 import { ThreadState } from "../../api/ThreadRuntime";
 import { ModelConfig, ThreadMessage } from "../../types";
 import { ThreadComposerState } from "../../api/ComposerRuntime";

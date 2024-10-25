@@ -1,6 +1,9 @@
 import { AppendMessage, ThreadMessage } from "../../types";
 import { AttachmentAdapter } from "../attachment";
-import { AddToolResultOptions, ThreadSuggestion } from "../core";
+import {
+  AddToolResultOptions,
+  ThreadSuggestion,
+} from "../core/ThreadRuntimeCore";
 import { FeedbackAdapter } from "../feedback/FeedbackAdapter";
 import { SpeechSynthesisAdapter } from "../speech/SpeechAdapterTypes";
 import { ThreadManagerMetadata } from "../core/ThreadManagerRuntimeCore";

@@ -33,34 +33,19 @@
   "license": "MIT",
   "exports": {
     ".": {
-      "import": {
-        "types": "./dist/index.d.mts",
-        "default": "./dist/index.mjs"
-      },
-      "require": {
-        "types": "./dist/index.d.ts",
-        "default": "./dist/index.js"
-      }
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
     },
     "./edge": {
-      "import": {
-        "types": "./dist/edge.d.mts",
-        "default": "./dist/edge.mjs"
-      },
-      "require": {
-        "types": "./dist/edge.d.ts",
-        "default": "./dist/edge.js"
-      }
+      "types": "./dist/edge.d.ts",
+      "import": "./dist/edge.mjs",
+      "require": "./dist/edge.js"
     },
     "./tailwindcss": {
-      "import": {
-        "types": "./dist/tailwindcss/index.d.mts",
-        "default": "./dist/tailwindcss/index.mjs"
-      },
-      "require": {
-        "types": "./dist/tailwindcss/index.d.ts",
-        "default": "./dist/tailwindcss/index.js"
-      }
+      "types": "./dist/tailwindcss/index.d.ts",
+      "import": "./dist/tailwindcss/index.mjs",
+      "require": "./dist/tailwindcss/index.js"
     },
     "./styles/*": {
       "default": "./dist/styles/*"
@@ -74,11 +59,13 @@
     "dist",
     "edge",
     "tailwindcss",
+    "src",
     "README.md"
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsx scripts/build.mts"
+    "build": "tsx scripts/build.mts && pnpm run build:declarations",
+    "build:declarations": "tsc -p tsconfig.declarations.json"
   },
   "dependencies": {
     "@ai-sdk/provider": "^0.0.24",

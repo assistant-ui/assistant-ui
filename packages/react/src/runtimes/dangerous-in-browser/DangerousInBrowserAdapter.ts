@@ -1,4 +1,7 @@
-import { ChatModelAdapter, ChatModelRunOptions } from "../local";
+import {
+  ChatModelAdapter,
+  ChatModelRunOptions,
+} from "../local/ChatModelAdapter";
 import { toCoreMessages } from "../edge/converters/toCoreMessages";
 import { toLanguageModelTools } from "../edge/converters/toLanguageModelTools";
 import { EdgeRuntimeRequestOptions } from "../edge/EdgeRuntimeRequestOptions";

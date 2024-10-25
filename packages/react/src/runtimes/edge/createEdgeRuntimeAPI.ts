@@ -25,7 +25,7 @@ import {
   LanguageModelV1CallSettings,
   LanguageModelV1CallSettingsSchema,
 } from "../../types/ModelConfigTypes";
-import { ChatModelRunResult } from "../local";
+import { ChatModelRunResult } from "../local/ChatModelAdapter";
 import { toCoreMessage } from "./converters/toCoreMessages";
 import { streamPartEncoderStream } from "./streams/utils/streamPartEncoderStream";
 import { z } from "zod";

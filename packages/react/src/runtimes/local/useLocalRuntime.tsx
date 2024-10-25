@@ -9,7 +9,7 @@ import {
   AssistantRuntimeImpl,
 } from "../../api/AssistantRuntime";
 import { ThreadRuntimeImpl } from "../../internal";
-import { ThreadRuntime } from "../../api";
+import { ThreadRuntime } from "../../api/ThreadRuntime";
 
 export type LocalRuntime = AssistantRuntime & {
   reset: (options?: Parameters<LocalRuntimeCore["reset"]>[0]) => void;

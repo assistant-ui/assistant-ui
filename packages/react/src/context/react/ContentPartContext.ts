@@ -5,7 +5,7 @@ import { ReadonlyStore } from "../ReadonlyStore";
 import { createContextStoreHook } from "./utils/createContextStoreHook";
 import { createContextHook } from "./utils/createContextHook";
 import { UseBoundStore } from "zustand";
-import { ContentPartRuntime } from "../../api";
+import { ContentPartRuntime } from "../../api/ContentPartRuntime";
 import { ContentPartState } from "../../api/ContentPartRuntime";
 
 export type ContentPartContextValue = {

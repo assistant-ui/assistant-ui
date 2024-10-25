@@ -5,7 +5,7 @@ import { create } from "zustand";
 import { ContentPartContext } from "../react/ContentPartContext";
 import type { ContentPartContextValue } from "../react/ContentPartContext";
 import { writableStore } from "../ReadonlyStore";
-import { ContentPartRuntime } from "../../api";
+import { ContentPartRuntime } from "../../api/ContentPartRuntime";
 
 type ContentPartProviderProps = PropsWithChildren<{
   runtime: ContentPartRuntime;

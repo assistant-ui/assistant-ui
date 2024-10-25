@@ -6,7 +6,7 @@ import { MessageContext } from "../react/MessageContext";
 import type { MessageContextValue } from "../react/MessageContext";
 import { makeMessageUtilsStore } from "../stores/MessageUtils";
 import { ReadonlyStore, writableStore } from "../ReadonlyStore";
-import { MessageRuntime } from "../../api";
+import { MessageRuntime } from "../../api/MessageRuntime";
 
 type MessageProviderProps = PropsWithChildren<{
   runtime: MessageRuntime;

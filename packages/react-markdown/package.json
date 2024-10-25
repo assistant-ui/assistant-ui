@@ -4,24 +4,14 @@
   "license": "MIT",
   "exports": {
     ".": {
-      "import": {
-        "types": "./dist/index.d.mts",
-        "default": "./dist/index.mjs"
-      },
-      "require": {
-        "types": "./dist/index.d.ts",
-        "default": "./dist/index.js"
-      }
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
     },
     "./tailwindcss": {
-      "import": {
-        "types": "./dist/tailwindcss/index.d.mts",
-        "default": "./dist/tailwindcss/index.mjs"
-      },
-      "require": {
-        "types": "./dist/tailwindcss/index.d.ts",
-        "default": "./dist/tailwindcss/index.js"
-      }
+      "types": "./dist/tailwindcss/index.d.mts",
+      "import": "./dist/tailwindcss/index.mjs",
+      "require": "./dist/tailwindcss/index.js"
     },
     "./styles/*": {
       "default": "./dist/styles/*"
@@ -33,11 +23,14 @@
   "types": "./dist/index.d.ts",
   "files": [
     "dist",
+    "tailwindcss",
+    "src",
     "README.md"
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsx scripts/build.mts"
+    "build": "tsx scripts/build.mts && pnpm run build:declarations",
+    "build:declarations": "tsc -p tsconfig.declarations.json"
   },
   "dependencies": {
     "@radix-ui/react-primitive": "^2.0.0",

@@ -1,5 +1,5 @@
 import type { TextStreamPart, CoreTool, ObjectStreamPart } from "ai";
-import { AssistantStream, AssistantStreamChunk } from "../core";
+import { AssistantStream, AssistantStreamChunk } from "../core/AssistantStream";
 import { generateId } from "../core/utils/generateId";
 
 export const fromAISDKStreamText = (
