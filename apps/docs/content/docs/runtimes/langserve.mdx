@@ -42,7 +42,7 @@ import { streamText, LangChainAdapter, type Message } from "ai";
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
-  const { messages } = await req.json();
+  const { messages } = (await req.json()) as { messages: Message[] };
 
   // TODO replace with your own langserve URL
   const remoteChain = new RemoteRunnable<
@@ -82,6 +82,7 @@ export function MyRuntimeProvider({
 }>) {
   const chat = useChat({
     api: "/api/chat",
+    unstable_AISDKInterop: true,
   });
 
   const runtime = useVercelUseChatRuntime(chat);

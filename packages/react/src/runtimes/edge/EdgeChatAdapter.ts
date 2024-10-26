@@ -10,6 +10,7 @@ import { assistantDecoderStream } from "./streams/assistantDecoderStream";
 import { streamPartDecoderStream } from "./streams/utils/streamPartDecoderStream";
 import { runResultStream } from "./streams/runResultStream";
 import { toolResultStream } from "./streams/toolResultStream";
+import { toLanguageModelMessages } from "./converters";
 
 export function asAsyncIterable<T>(
   source: ReadableStream<T>,
@@ -39,6 +40,12 @@ export type EdgeChatAdapterOptions = {
    * When enabled, the adapter will not strip `id` from messages in the messages array.
    */
   unstable_sendMessageIds?: boolean;
+
+  /**
+   * When enabled, the adapter will send messages in the format expected by the Vercel AI SDK Core.
+   * This feature will be removed in the future in favor of a better solution.
+   */
+  unstable_AISDKInterop?: boolean | undefined;
 };
 
 export class EdgeChatAdapter implements ChatModelAdapter {
@@ -59,9 +66,13 @@ export class EdgeChatAdapter implements ChatModelAdapter {
       credentials: this.options.credentials ?? "same-origin",
       body: JSON.stringify({
         system: config.system,
-        messages: toCoreMessages(messages, {
-          unstable_includeId: this.options.unstable_sendMessageIds,
-        }),
+        messages: this.options.unstable_AISDKInterop
+          ? (toLanguageModelMessages(
+              messages,
+            ) as EdgeRuntimeRequestOptions["messages"]) // TODO figure out a better way to do this
+          : toCoreMessages(messages, {
+              unstable_includeId: this.options.unstable_sendMessageIds,
+            }),
         tools: config.tools ? toLanguageModelTools(config.tools) : [],
         unstable_assistantMessageId,
         ...config.callSettings,
