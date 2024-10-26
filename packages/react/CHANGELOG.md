@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.97
+
+### Patch Changes
+
+- 9a9c01d: feat(edge-runtime): add unstable_AISDKInterop flag
+
 ## 0.5.96
 
 ### Patch Changes

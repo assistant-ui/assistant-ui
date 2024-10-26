@@ -1,5 +1,15 @@
 # @assistant-ui/react-playground
 
+## 0.0.46
+
+### Patch Changes
+
+- b6e7301: feat: dark mode support
+- b6e7301: fix: crash on message send
+- b6e7301: fix: role switcher
+- Updated dependencies [9a9c01d]
+  - @assistant-ui/react@0.5.97
+
 ## 0.0.45
 
 ### Patch Changes
