@@ -4,12 +4,12 @@
   "license": "MIT",
   "exports": {
     ".": {
-      "types": "./dist/index.d.mts",
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
     },
     "./tailwindcss": {
-      "types": "./dist/tailwindcss/index.d.mts",
+      "types": "./dist/tailwindcss/index.d.ts",
       "import": "./dist/tailwindcss/index.mjs",
       "require": "./dist/tailwindcss/index.js"
     },

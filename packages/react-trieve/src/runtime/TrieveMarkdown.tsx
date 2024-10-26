@@ -11,7 +11,7 @@ import { visit, SKIP } from "unist-util-visit";
 import remarkGfm from "remark-gfm";
 import { TrieveMessage } from "../trieve/TrieveMessage";
 import { Root } from "mdast";
-import { MakeMarkdownTextProps } from "@assistant-ui/react-markdown";
+import type { MakeMarkdownTextProps } from "@assistant-ui/react-markdown";
 import { CitationHoverContentProps } from "./TrieveCitationHoverContent";
 import { ComponentType } from "react";
 import { TrieveCitation } from "./TrieveCitation";
