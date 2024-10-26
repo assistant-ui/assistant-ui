@@ -25,7 +25,7 @@ export class LocalRuntimeCore extends BaseAssistantRuntimeCore {
 
   constructor(
     options: LocalRuntimeOptionsBase,
-    initialMessages?: CoreMessage[],
+    initialMessages: readonly CoreMessage[] | undefined,
   ) {
     super();
 

@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.96
+
+### Patch Changes
+
+- fix: properly pass initialMessages to LocalRuntime
+
 ## 0.5.95
 
 ### Patch Changes

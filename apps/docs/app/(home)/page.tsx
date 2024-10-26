@@ -138,6 +138,17 @@ export type AssistantProps = {
 const MyRuntimeProvider = ({ children }: { children: React.ReactNode }) => {
   const runtime = useEdgeRuntime({
     api: "/api/chat",
+    initialMessages: [
+      {
+        role: "system",
+        content: [{ type: "text", text: "You are weather assistant" }],
+      },
+      {
+        role: "user",
+        content: [{ type: "text", text: "What's the weather in Paris?" }],
+      },
+      { role: "assistant", content: [{ type: "text", text: "It's sunny." }] },
+    ],
     adapters: {
       attachments: new CompositeAttachmentAdapter([
         new SimpleImageAttachmentAdapter(),

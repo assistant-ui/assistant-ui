@@ -37,7 +37,7 @@ class LocalRuntimeImpl extends AssistantRuntimeImpl implements LocalRuntime {
 
 export const useLocalRuntime = (
   adapter: ChatModelAdapter,
-  options: LocalRuntimeOptions = {},
+  { initialMessages, ...options }: LocalRuntimeOptions = {},
 ) => {
   const opt = {
     ...options,
@@ -47,7 +47,7 @@ export const useLocalRuntime = (
     },
   };
 
-  const [runtime] = useState(() => new LocalRuntimeCore(opt));
+  const [runtime] = useState(() => new LocalRuntimeCore(opt, initialMessages));
 
   useEffect(() => {
     runtime.setOptions(opt);
