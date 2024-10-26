@@ -1,0 +1,168 @@
+---
+title: Custom REST API
+---
+
+## Overview
+
+`assistant-ui` integrates with [Trieve.ai](https://trieve.ai).
+
+## Getting Started
+
+import { Steps, Step } from "fumadocs-ui/components/steps";
+
+<Steps>
+  <Step>
+  ### Create a Next.JS project
+
+```sh
+npx create-next-app@latest my-app
+cd my-app
+```
+
+  </Step>
+  <Step>
+
+### Install `@assistant-ui/react`
+
+```sh npm2yarn
+npm install @assistant-ui/react
+```
+
+  </Step>
+  <Step>
+
+### Define a `MyRuntimeProvider` component
+
+Update the `MyModelAdapter` below to integrate with your own custom API.
+
+```tsx twoslash include MyRuntimeProvider title="@/app/MyRuntimeProvider.tsx"
+// @filename: /app/MyRuntimeProvider.tsx
+
+// ---cut---
+"use client";
+
+import type { ReactNode } from "react";
+import {
+  AssistantRuntimeProvider,
+  useLocalRuntime,
+  type ChatModelAdapter,
+} from "@assistant-ui/react";
+
+const MyModelAdapter: ChatModelAdapter = {
+  async run({ messages, abortSignal }) {
+    // TODO replace with your own API
+    const result = await fetch("<YOUR_API_ENDPOINT>", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      // forward the messages in the chat to the API
+      body: JSON.stringify({
+        messages,
+      }),
+      // if the user hits the "cancel" button or escape keyboard key, cancel the request
+      signal: abortSignal,
+    });
+
+    const data = await result.json();
+    return {
+      content: [
+        {
+          type: "text",
+          text: data.text,
+        },
+      ],
+    };
+  },
+};
+
+export function MyRuntimeProvider({
+  children,
+}: Readonly<{
+  children: ReactNode;
+}>) {
+  const runtime = useLocalRuntime(MyModelAdapter);
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Wrap your app in `MyRuntimeProvider`
+
+```tsx {1,11,17} twoslash title="@/app/layout.tsx"
+// @include: MyRuntimeProvider
+// @filename: /app/layout.tsx
+// ---cut---
+import type { ReactNode } from "react";
+import { MyRuntimeProvider } from "@/app/MyRuntimeProvider";
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: ReactNode;
+}>) {
+  return (
+    <MyRuntimeProvider>
+      <html lang="en">
+        <body>{children}</body>
+      </html>
+    </MyRuntimeProvider>
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+## Streaming
+
+Declare the `run` function as an `AsyncGenerator` (`async *run`). This allows you to `yield` the results as they are generated.
+
+```tsx twoslash {2, 11-13} title="@/app/MyRuntimeProvider.tsx"
+import {
+  ChatModelAdapter,
+  ThreadMessage,
+  ModelConfig,
+} from "@assistant-ui/react";
+import { OpenAI } from "openai";
+
+const openai = new OpenAI();
+const backendApi = async ({
+  messages,
+  abortSignal,
+  config,
+}: {
+  messages: ThreadMessage[];
+  abortSignal: AbortSignal;
+  config: ModelConfig;
+}) => {
+  return openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [{ role: "user", content: "Say this is a test" }],
+    stream: true,
+  });
+};
+
+// ---cut---
+const MyModelAdapter: ChatModelAdapter = {
+  async *run({ messages, abortSignal, config }) {
+    const stream = await backendApi({ messages, abortSignal, config });
+
+    let text = "";
+    for await (const part of stream) {
+      text += part.choices[0]?.delta?.content || "";
+
+      yield {
+        content: [{ type: "text", text }],
+      };
+    }
+  },
+};
+```

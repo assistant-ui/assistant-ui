@@ -33,7 +33,7 @@ out/
 # production
 build
 dist
-apps/docs/public/registry/
+apps/docs/public/b/
 generated
 
 # turbo

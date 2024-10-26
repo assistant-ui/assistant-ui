@@ -1,0 +1,92 @@
+---
+title: User Authorization
+---
+
+The assistant-ui API can be directly accessed by your frontend. This elliminates the need for a backend server from your side, except for authorization of your users.
+
+This document explains how you can setup your server to authorize users to access the assistant-ui API.
+
+## Workspaces
+
+Authorization is granted to a workspace. Depending on the structure of your app, you might want to use user_ids as the workspace_id, or you might want to use a more complex structure.
+For example,if your app supports multiple "projects", you might want to use the project_id + user_id as the workspace id (thread history scoped to user+project pairs).
+
+## Workspace Auth Tokens
+
+assistant-ui issues workspace auth tokens. These tokens give access to the assistant-ui API for a specific workspace.
+Tokens are short lived (5 minutes), so the client needs to periodically request a new token (handled by assistant-ui).
+
+There are two supported approaches to obtain a workspace auth token:
+
+- Direct integration with your auth provider
+- From a backend server / serverless function
+
+### Choosing the right approach
+
+Direct integration with your auth provider:
+
+- simpler to setup and maintain
+- assigns a workspace_id to every user (by using the user_id as the workspace_id)
+- requires a supported auth provider (Clerk, Auth0, Supabase, Firebase, Stytch, Kinde, ...)
+
+Backend server:
+
+- more complex to setup
+- more flexible workspace structure (multi-user workspaces, workspaces per project, etc.)
+- supports self hosted auth solutions, e.g. Auth.js
+- requires a backend server / serverless function
+
+You can always switch between the two approaches without any downtime or necessary database migrations.
+Choose direct integration with your auth provider if you can. Otherwise, use a backend server.
+
+### Auth Provider Integration
+
+In the dashboard, go to the "Auth Integrations" tab and add a new integration.
+Follow the steps to add your auth provider.
+
+Then, pass in a function to `authToken` that returns an ID token from your auth provider.
+The following is an example for Clerk:
+
+```ts
+import { AssistantCloud } from "@assistant-ui/cloud";
+
+const assistantCloud = new AssistantCloud({
+  authToken: () => clerkClient.sessions.getToken(auth(), "assistant-ui"),
+});
+```
+
+### Backend Integration
+
+In the dashboard, go to the "API Keys" tab and add a new API key.
+
+Then, in a backend route, call `assistantCloud.auth.getToken({ workspaceId })`.
+
+The following is an example to get auth tokens for Clerk based on the org_id and user_id:
+
+```ts title="/app/api/assistant-ui/token.ts"
+import { AssistantCloud } from "@assistant-ui/cloud";
+
+const assistantCloud = new AssistantCloud({
+  apiKey: <your api key>,
+});
+
+export const POST = async (req: Request) => {
+  const { org_id, user_id } = auth();
+
+  if (!user_id) throw new Error("User not authenticated");
+
+  const workspaceId = org_id ? `${org_id}:${user_id}` : user_id;
+  const authToken = assistantCloud.auth.getToken({ workspaceId });
+
+  return new Response(token);
+};
+```
+
+```ts title="client.ts"
+import { AssistantCloud } from "@assistant-ui/cloud";
+
+const assistantCloud = new AssistantCloud({
+  authToken: () =>
+    fetch("/api/assistant-ui/token", { method: "POST" }).then((r) => r.json()),
+});
+```

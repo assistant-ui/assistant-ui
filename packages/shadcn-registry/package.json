@@ -5,6 +5,7 @@
   "license": "MIT",
   "type": "module",
   "devDependencies": {
+    "@ai-sdk/openai": "^0.0.68",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
     "@assistant-ui/react-syntax-highlighter": "workspace:*",
@@ -24,18 +25,18 @@
     "react": "19.0.0-rc-69d4b800-20241021",
     "react-resizable-panels": "^2.1.5",
     "react-syntax-highlighter": "^15.6.1",
+    "rehype-katex": "^7.0.1",
     "remark-gfm": "^4.0.0",
     "remark-math": "^6.0.0",
-    "rehype-katex": "^7.0.1",
     "rimraf": "^6.0.1",
     "tailwind-merge": "^2.5.4",
     "tailwindcss": "^3.4.14",
     "tailwindcss-animate": "^1.0.7",
     "tsx": "^4.19.1",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "zod": "^3.23.8"
   },
   "scripts": {
     "build:registry": "tsx ./scripts/build-registry.ts"
-  },
-  "dependencies": {}
+  }
 }

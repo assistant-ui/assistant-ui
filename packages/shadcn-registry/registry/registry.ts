@@ -1,68 +1,56 @@
-import type { RegistryIndex } from "./schema";
+import { RegistryItem } from "./schema";
 
-export const registry: RegistryIndex = [
+export const registry: RegistryItem[] = [
   {
-    name: "sidebar",
-    type: "components:ui",
-    files: ["assistant-ui/assistant-sidebar.tsx"],
-    registryDependencies: ["thread", "resizable"],
-    dependencies: ["@assistant-ui/react", "lucide-react"],
+    name: "assistant-ui",
+    type: "registry:component",
+    registryDependencies: [],
+    tailwind: {
+      config: {
+        plugins: [
+          `require("tailwindcss-animate")`,
+          `require("@assistant-ui/react/tailwindcss")({ shadcn: true })`,
+        ],
+      },
+    },
+    dependencies: ["tailwindcss-animate", "@assistant-ui/react"],
   },
   {
-    name: "modal",
-    type: "components:ui",
-    files: ["assistant-ui/assistant-modal.tsx"],
-    registryDependencies: ["thread", "tooltip-icon-button"],
-    dependencies: ["@assistant-ui/react", "lucide-react"],
+    name: "markdown",
+    type: "registry:component",
+    registryDependencies: ["https://assistant-ui.com/r/assistant-ui"],
+    tailwind: {
+      config: {
+        plugins: [`require("@assistant-ui/react-markdown/tailwindcss")`],
+      },
+    },
+    dependencies: ["@assistant-ui/react-markdown"],
   },
   {
-    name: "thread",
-    type: "components:ui",
-    files: ["assistant-ui/thread.tsx"],
-    registryDependencies: ["avatar", "tooltip-icon-button"],
-    dependencies: ["@assistant-ui/react", "lucide-react"],
-  },
-  {
-    name: "syntax-highlighter",
-    type: "components:ui",
-    files: ["assistant-ui/syntax-highlighter.tsx"],
-    dependencies: [
-      "@assistant-ui/react-syntax-highlighter",
-      "react-syntax-highlighter",
-      "@types/react-syntax-highlighter",
+    name: "edge-backend",
+    type: "registry:block",
+    files: [
+      {
+        type: "registry:page",
+        path: "routes/api/chat/route.ts",
+      },
     ],
+    registryDependencies: ["https://assistant-ui.com/r/assistant-ui"],
+    dependencies: ["@ai-sdk/openai"],
   },
   {
-    name: "markdown-text",
-    type: "components:ui",
-    files: ["assistant-ui/markdown-text.tsx"],
-    registryDependencies: ["tooltip-icon-button", "syntax-highlighter"],
-    dependencies: [
-      "@assistant-ui/react",
-      "@assistant-ui/react-markdown",
-      "lucide-react",
-      "remark-gfm",
-      "remark-math",
-      "rehype-katex",
+    name: "chat/quick-start",
+    type: "registry:block",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/thread.tsx",
+      },
     ],
-  },
-  {
-    name: "thread-full",
-    type: "components:ui",
-    files: ["assistant-ui/full/thread.tsx"],
     registryDependencies: [
-      "markdown-text",
-      "button",
-      "avatar",
-      "tooltip-icon-button",
+      "https://assistant-ui.com/r/assistant-ui",
+      "https://assistant-ui.com/r/markdown",
+      "https://assistant-ui.com/r/edge-backend",
     ],
-    dependencies: ["@assistant-ui/react", "lucide-react"],
-  },
-  {
-    name: "tooltip-icon-button",
-    type: "components:ui",
-    files: ["assistant-ui/tooltip-icon-button.tsx"],
-    registryDependencies: ["button", "tooltip"],
-    dependencies: ["@assistant-ui/react", "lucide-react"],
   },
 ];

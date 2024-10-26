@@ -1,0 +1,18 @@
+{
+  "name": "thread",
+  "type": "components:ui",
+  "files": [
+    {
+      "name": "assistant-ui/thread.tsx",
+      "content": "\"use client\";\n\nimport {\n  ComposerPrimitive,\n  MessagePrimitive,\n  ThreadPrimitive,\n} from \"@assistant-ui/react\";\nimport type { FC } from \"react\";\nimport { SendHorizontalIcon } from \"lucide-react\";\n\nimport { Avatar, AvatarFallback } from \"@/components/ui/avatar\";\nimport { TooltipIconButton } from \"@/components/ui/assistant-ui/tooltip-icon-button\";\n\nexport const MyThread: FC = () => {\n  return (\n    <ThreadPrimitive.Root className=\"bg-background h-full\">\n      <ThreadPrimitive.Viewport className=\"flex h-full flex-col items-center overflow-y-scroll scroll-smooth bg-inherit px-4 pt-8\">\n        <MyThreadWelcome />\n\n        <ThreadPrimitive.Messages\n          components={{\n            UserMessage: MyUserMessage,\n            AssistantMessage: MyAssistantMessage,\n          }}\n        />\n\n        <div className=\"min-h-8 flex-grow\" />\n\n        <div className=\"sticky bottom-0 mt-3 flex w-full max-w-2xl flex-col items-center justify-end rounded-t-lg bg-inherit pb-4\">\n          <MyComposer />\n        </div>\n      </ThreadPrimitive.Viewport>\n    </ThreadPrimitive.Root>\n  );\n};\n\nconst MyThreadWelcome: FC = () => {\n  return (\n    <ThreadPrimitive.Empty>\n      <div className=\"flex flex-grow flex-col items-center justify-center\">\n        <Avatar>\n          <AvatarFallback>C</AvatarFallback>\n        </Avatar>\n        <p className=\"mt-4 font-medium\">How can I help you today?</p>\n      </div>\n    </ThreadPrimitive.Empty>\n  );\n};\n\nconst MyComposer: FC = () => {\n  return (\n    <ComposerPrimitive.Root className=\"focus-within:border-aui-ring/20 flex w-full flex-wrap items-end rounded-lg border bg-inherit px-2.5 shadow-sm transition-colors ease-in\">\n      <ComposerPrimitive.Input\n        autoFocus\n        placeholder=\"Write a message...\"\n        rows={1}\n        className=\"placeholder:text-muted-foreground size-full max-h-40 resize-none border-none bg-transparent p-4 pr-12 text-sm outline-none focus:ring-0 disabled:cursor-not-allowed\"\n      />\n      <ComposerPrimitive.Send asChild>\n        <TooltipIconButton\n          tooltip=\"Send\"\n          variant=\"default\"\n          className=\"my-2.5 size-8 p-2 transition-opacity ease-in\"\n        >\n          <SendHorizontalIcon />\n        </TooltipIconButton>\n      </ComposerPrimitive.Send>\n    </ComposerPrimitive.Root>\n  );\n};\n\nconst MyUserMessage: FC = () => {\n  return (\n    <MessagePrimitive.Root className=\"grid w-full max-w-2xl auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] gap-y-2 py-4\">\n      <div className=\"bg-muted text-foreground col-start-2 row-start-1 max-w-xl break-words rounded-3xl px-5 py-2.5\">\n        <MessagePrimitive.Content />\n      </div>\n    </MessagePrimitive.Root>\n  );\n};\n\nconst MyAssistantMessage: FC = () => {\n  return (\n    <MessagePrimitive.Root className=\"relative grid w-full max-w-2xl grid-cols-[auto_1fr] grid-rows-[auto_1fr] py-4\">\n      <Avatar className=\"col-start-1 row-span-full row-start-1 mr-4\">\n        <AvatarFallback>A</AvatarFallback>\n      </Avatar>\n\n      <div className=\"text-foreground col-start-2 row-start-1 my-1.5 max-w-xl break-words leading-7\">\n        <MessagePrimitive.Content />\n      </div>\n    </MessagePrimitive.Root>\n  );\n};\n"
+    }
+  ],
+  "registryDependencies": [
+    "avatar",
+    "tooltip-icon-button"
+  ],
+  "dependencies": [
+    "@assistant-ui/react",
+    "lucide-react"
+  ]
+}

@@ -8,7 +8,7 @@
         "dist",
         ".next/**",
         "!.next/cache/**",
-        "public/registry/**",
+        "public/b/**",
         "generated/**"
       ],
       "env": ["OPENAI_*", "ASSISTANT_UI_*", "ENTELLIGENCE_API_*"]

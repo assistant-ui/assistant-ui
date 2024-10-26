@@ -2,6 +2,49 @@
 title: Picking a Runtime
 ---
 
-If you are already using the Vercel AI SDK, assistant-ui can be used as a drop-in replacement for your existing UI. Simply follow the instructions for the API you are using (`useChat`, `useAssistant` or `ai/rsc`).
+assistant-ui offers a variety of runtimes for different use cases.
 
-If you are not using the Vercel AI SDK, it is currently recommended to start with Vercel AI SDK UI `useChat`. Simply follow the [useChat](/docs/runtimes/vercel-ai-sdk/use-chat) guide.
+## New Chatbot
+
+The following runtimes are recommended for new apps:
+
+- [Edge](/docs/runtimes/edge)
+- [LangGraph Cloud](/docs/runtimes/langgraph)
+- [Trieve](/docs/runtimes/trieve)
+
+### Edge Runtime
+
+The Edge Runtime is assistant-ui's native runtime. It
+
+### LangGraph Cloud
+
+The LangGraph Cloud runtime lets you build stateful agents with LangGraph.
+
+### Trieve
+
+Trieve.ai is
+
+### Vercel AI SDK
+
+If you are already using the Vercel AI SDK, there are four ways to integrate:
+
+- [Edge Runtime with Data Stream Protocol](/docs/runtimes/edge)
+- [useChat Runtime]
+- [useAssistant Runtime]
+- [RSC Runtime]
+
+## Already using one of our supported backends
+
+We have native integrations for the following backends:
+
+- [LangGraph](/docs/runtimes/langgraph)
+- [Trieve](/docs/runtimes/trieve)
+- [Vercel AI SDK](/docs/runtimes/vercel-ai-sdk)
+
+## Already using a custom backend
+
+For custom backends, we have two entrypoints for integration:
+
+- [Custom REST API](/docs/runtimes/custom-rest)
+- [External Store](/docs/runtimes/external-store)
+

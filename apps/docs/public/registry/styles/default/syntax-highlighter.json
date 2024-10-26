@@ -1,0 +1,15 @@
+{
+  "name": "syntax-highlighter",
+  "type": "components:ui",
+  "files": [
+    {
+      "name": "assistant-ui/syntax-highlighter.tsx",
+      "content": "import { PrismAsyncLight } from \"react-syntax-highlighter\";\nimport { makePrismAsyncLightSyntaxHighlighter } from \"@assistant-ui/react-syntax-highlighter\";\n\nimport tsx from \"react-syntax-highlighter/dist/esm/languages/prism/tsx\";\nimport python from \"react-syntax-highlighter/dist/esm/languages/prism/python\";\n\nimport { coldarkDark } from \"react-syntax-highlighter/dist/cjs/styles/prism\";\n\n// register languages you want to support\nPrismAsyncLight.registerLanguage(\"js\", tsx);\nPrismAsyncLight.registerLanguage(\"jsx\", tsx);\nPrismAsyncLight.registerLanguage(\"ts\", tsx);\nPrismAsyncLight.registerLanguage(\"tsx\", tsx);\nPrismAsyncLight.registerLanguage(\"python\", python);\n\nexport const SyntaxHighlighter = makePrismAsyncLightSyntaxHighlighter({\n  style: coldarkDark,\n  customStyle: {\n    margin: 0,\n    width: \"100%\",\n    background: \"transparent\",\n    padding: \"1.5rem 1rem\",\n  },\n});\n"
+    }
+  ],
+  "dependencies": [
+    "@assistant-ui/react-syntax-highlighter",
+    "react-syntax-highlighter",
+    "@types/react-syntax-highlighter"
+  ]
+}
