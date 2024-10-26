@@ -46,7 +46,7 @@ export async function POST(req: Request) {
 
   // TODO replace with your own langserve URL
   const remoteChain = new RemoteRunnable<
-    { messages: Message },
+    { messages: Message[] },
     string,
     RunnableConfig
   >({
