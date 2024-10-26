@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.94
+
+### Patch Changes
+
+- fix: toContentPartStatus support for parallel tool calls
+
 ## 0.5.93
 
 ### Patch Changes

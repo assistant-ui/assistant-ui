@@ -34,7 +34,7 @@
     "zustand": "^5.0.0"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.5.93",
+    "@assistant-ui/react": "^0.5.94",
     "@types/react": "*",
     "react": "^18 || ^19"
   },

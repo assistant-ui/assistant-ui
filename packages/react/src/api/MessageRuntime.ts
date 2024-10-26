@@ -45,25 +45,17 @@ export const toContentPartStatus = (
 ): ToolCallContentPartStatus => {
   if (message.role !== "assistant") return COMPLETE_STATUS;
 
+  if (part.type === "tool-call") {
+    if (!part.result) {
+      return message.status as ToolCallContentPartStatus;
+    } else {
+      return COMPLETE_STATUS;
+    }
+  }
+
   const isLastPart = partIndex === Math.max(0, message.content.length - 1);
-  if (part.type !== "tool-call") {
-    if (
-      "reason" in message.status &&
-      message.status.reason === "tool-calls" &&
-      isLastPart
-    )
-      throw new Error(
-        "Encountered unexpected requires-action status. This is likely an internal bug in assistant-ui.",
-      );
-
-    return isLastPart ? (message.status as ContentPartStatus) : COMPLETE_STATUS;
-  }
-
-  if (!!part.result) {
-    return COMPLETE_STATUS;
-  }
-
-  return message.status as ToolCallContentPartStatus;
+  if (message.status.type === "requires-action") return COMPLETE_STATUS;
+  return isLastPart ? (message.status as ContentPartStatus) : COMPLETE_STATUS;
 };
 
 export const EMPTY_CONTENT = Object.freeze({ type: "text", text: "" });
