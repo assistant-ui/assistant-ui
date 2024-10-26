@@ -134,6 +134,9 @@ importers:
       tailwindcss-animate:
         specifier: ^1.0.7
         version: 1.0.7(tailwindcss@3.4.14)
+      trieve-ts-sdk:
+        specifier: ^0.0.13
+        version: 0.0.13
       zod:
         specifier: ^3.23.8
         version: 3.23.8
@@ -141,6 +144,9 @@ importers:
       '@types/mdx':
         specifier: ^2.0.13
         version: 2.0.13
+      '@types/node':
+        specifier: ^22.8.0
+        version: 22.8.0
       '@types/react':
         specifier: ^18.3.12
         version: 18.3.12
@@ -3860,6 +3866,9 @@ packages:
 
   '@types/node@22.7.9':
     resolution: {integrity: sha512-jrTfRC7FM6nChvU7X2KqcrgquofrWLFDeYC1hKfwNWomVvrn7JIksqf344WN2X/y8xrgqBd2dJATZV4GbatBfg==}
+
+  '@types/node@22.8.0':
+    resolution: {integrity: sha512-84rafSBHC/z1i1E3p0cJwKA+CfYDNSXX9WSZBRopjIzLET8oNt6ht2tei4C7izwDeEiLLfdeSVBv1egOH916hg==}
 
   '@types/prismjs@1.26.5':
     resolution: {integrity: sha512-AUZTa7hQ2KY5L7AmtSiqxlhWxb4ina0yd8hNbl4TWuqnv/pFP0nDMb3YrfSBf4hJVGLh2YEIBfKaBW/9UEl6IQ==}
@@ -9753,7 +9762,7 @@ snapshots:
 
   '@types/node-fetch@2.6.11':
     dependencies:
-      '@types/node': 22.7.9
+      '@types/node': 22.8.0
       form-data: 4.0.1
 
   '@types/node@12.20.55': {}
@@ -9767,6 +9776,10 @@ snapshots:
       undici-types: 6.19.8
 
   '@types/node@22.7.9':
+    dependencies:
+      undici-types: 6.19.8
+
+  '@types/node@22.8.0':
     dependencies:
       undici-types: 6.19.8
 

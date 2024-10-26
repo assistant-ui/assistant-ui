@@ -5,6 +5,7 @@
     "vercel-ai-sdk",
     "langgraph",
     "langserve",
+    "trieve",
     "external-store",
     "custom-rest",
     "..."

@@ -46,10 +46,12 @@
     "remark-gfm": "^4.0.0",
     "tailwind-merge": "^2.5.4",
     "tailwindcss-animate": "^1.0.7",
+    "trieve-ts-sdk": "^0.0.13",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/mdx": "^2.0.13",
+    "@types/node": "^22.8.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "autoprefixer": "^10.4.20",

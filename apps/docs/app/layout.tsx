@@ -1,9 +1,9 @@
 import "./global.css";
-import { RootProvider } from "fumadocs-ui/provider";
 import type { ReactNode } from "react";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import Script from "next/script";
+import { Provider } from "./provider";
 
 export const metadata = {
   title: {
@@ -21,7 +21,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       suppressHydrationWarning
     >
       <body className={"flex min-h-screen flex-col"}>
-        <RootProvider>{children}</RootProvider>
+        <Provider>{children}</Provider>
         <script
           defer
           src="/umami/script.js"
