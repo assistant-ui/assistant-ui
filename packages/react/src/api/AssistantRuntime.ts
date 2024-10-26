@@ -13,17 +13,37 @@ import {
 } from "./ThreadManagerRuntime";
 
 export type AssistantRuntime = {
+  /**
+   * The currently selected main thread.
+   */
   thread: ThreadRuntime;
+
+  /**
+   * The thread manager, to rename, archive and delete threads.
+   */
   threadManager: ThreadManagerRuntime;
 
+  /**
+   * Switch to a new thread.
+   */
   switchToNewThread(): void;
 
+  /**
+   * Switch to a thread.
+   *
+   * @param threadId The thread ID to switch to.
+   */
   switchToThread(threadId: string): void;
   /**
    * @deprecated Use `switchToNewThread` instead. This will be removed in 0.6.0.
    */
   switchToThread(threadId: string | null): void;
 
+  /**
+   * Register a model config provider. Model config providers are configuration such as system message, temperature, etc. that are set in the frontend.
+   *
+   * @param provider The model config provider to register.
+   */
   registerModelConfigProvider(provider: ModelConfigProvider): Unsubscribe;
 
   /**

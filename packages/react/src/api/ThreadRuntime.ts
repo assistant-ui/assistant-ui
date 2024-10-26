@@ -77,12 +77,38 @@ export type ThreadRuntimeCoreBinding = SubscribableWithState<
 };
 
 export type ThreadState = Readonly<{
+  /**
+   * The thread ID.
+   */
   threadId: string;
+  /**
+   * Whether the thread is disabled. Disabled threads cannot receive new messages.
+   */
   isDisabled: boolean;
+
+  /**
+   * Whether the thread is running. A thread is considered running when there is an active stream connection to the backend.
+   */
   isRunning: boolean;
+
+  /**
+   * The capabilities of the thread, such as whether the thread supports editing, branch switching, etc.
+   */
   capabilities: RuntimeCapabilities;
+
+  /**
+   * The messages in the currently selected branch of the thread.
+   */
   messages: readonly ThreadMessage[];
+
+  /**
+   * Follow up message suggestions to show the user.
+   */
   suggestions: readonly ThreadSuggestion[];
+
+  /**
+   * Custom extra information provided by the runtime.
+   */
   extras: unknown;
 
   /**
