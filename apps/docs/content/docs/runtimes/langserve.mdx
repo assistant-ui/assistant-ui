@@ -34,7 +34,7 @@ npm install @assistant-ui/react @assistant-ui/react-ai-sdk ai ai/react @langchai
 ### Setup a backend route under `/api/chat`
 
 ```tsx twoslash title="@/app/api/chat/route.ts"
-// @errors: 2558 2345 2739
+// @errors: 2558 2345
 import { RemoteRunnable } from "@langchain/core/runnables/remote";
 import type { RunnableConfig } from "@langchain/core/runnables";
 import { streamText, LangChainAdapter, type Message } from "ai";

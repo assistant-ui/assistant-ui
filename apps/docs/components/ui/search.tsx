@@ -29,7 +29,7 @@ export type SearchResults = {
 };
 
 export default function TrieveSearchDialog(props: SharedProps) {
-  let trieveSDK = new TrieveSDK({
+  const trieveSDK = new TrieveSDK({
     apiKey: "tr-94tqT16o97Txym7OZc1CRaJOpsyUD1ul",
     datasetId: "72dba745-7748-46ac-8102-f5765f1ba9ac",
   });
@@ -54,7 +54,7 @@ export default function TrieveSearchDialog(props: SharedProps) {
   };
 
   const parseChunk = (item: ChunkWithHighlights) => {
-    let descriptionHtml = item.highlights
+    const descriptionHtml = item.highlights
       ? item.highlights.join("...")
       : item.chunk.chunk_html || "";
     const $descriptionHtml = document.createElement("div");
@@ -62,7 +62,7 @@ export default function TrieveSearchDialog(props: SharedProps) {
     $descriptionHtml.querySelectorAll("b").forEach((b) => {
       return b.replaceWith(b.textContent || "");
     });
-    let descriptionText = Array.from($descriptionHtml.children)
+    const descriptionText = Array.from($descriptionHtml.children)
       .map((element) => element.textContent || "")
       .filter((text) => text.trim() !== "")
       .filter((text, index, array) => array.indexOf(text) === index)
@@ -81,7 +81,7 @@ export default function TrieveSearchDialog(props: SharedProps) {
 
     const cleanFirstHeading = $firstHeading?.innerHTML;
 
-    let title = `${
+    const title = `${
       cleanFirstHeading ||
       item.chunk.metadata?.["title"] ||
       item.chunk.metadata?.["page_title"] ||
@@ -108,7 +108,7 @@ export default function TrieveSearchDialog(props: SharedProps) {
       })
       .join(" > ");
 
-    let results: SortedResult[] = [
+    const results: SortedResult[] = [
       {
         id: `${link}`,
         content: pageTitle || title,
@@ -138,7 +138,7 @@ export default function TrieveSearchDialog(props: SharedProps) {
       return;
     }
 
-    let request: AutocompleteReqPayload = {
+    const request: AutocompleteReqPayload = {
       query: search,
       search_type: "fulltext",
       extend_results: true,
