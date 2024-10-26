@@ -44,6 +44,7 @@ export const registry: RegistryItem[] = [
       {
         type: "registry:page",
         path: "routes/api/chat/route.ts",
+        target: "routes/api/chat/route.ts",
       },
     ],
     registryDependencies: ["https://r.assistant-ui.com/assistant-ui"],
@@ -56,6 +57,7 @@ export const registry: RegistryItem[] = [
       {
         type: "registry:component",
         path: "components/assistant-ui/thread.tsx",
+        target: "components/assistant-ui/thread.tsx",
       },
     ],
     registryDependencies: [
