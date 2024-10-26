@@ -3,9 +3,8 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "build": "pnpm run build:registry && pnpm build:docs && next build",
+    "build": "pnpm build:docs && next build",
     "build:docs": "tsx ./scripts/generate-docs.mts",
-    "build:registry": "pnpm --filter @assistant-ui/shadcn-registry run build:registry",
     "dev": "next dev --turbo",
     "start": "next start",
     "lint": "next lint"

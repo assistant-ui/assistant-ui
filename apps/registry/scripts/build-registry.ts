@@ -1,9 +1,9 @@
 import { promises as fs, readFileSync } from "node:fs";
-import path from "node:path";
+import * as path from "node:path";
 import { registry } from "../registry/registry";
 import { RegistryItem } from "@/registry/schema";
 
-const REGISTRY_PATH = path.join(process.cwd(), "../../apps/docs/public/b");
+const REGISTRY_PATH = path.join(process.cwd(), "dist");
 
 async function buildRegistry(registry: RegistryItem[]) {
   await fs.mkdir(REGISTRY_PATH, { recursive: true });

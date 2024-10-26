@@ -1,0 +1,17 @@
+{
+  "name": "assistant-ui",
+  "type": "registry:component",
+  "registryDependencies": [],
+  "tailwind": {
+    "config": {
+      "plugins": [
+        "require(\"tailwindcss-animate\")",
+        "require(\"@assistant-ui/react/tailwindcss\")({ shadcn: true })"
+      ]
+    }
+  },
+  "dependencies": [
+    "tailwindcss-animate",
+    "@assistant-ui/react"
+  ]
+}

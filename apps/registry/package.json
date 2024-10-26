@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/shadcn-registry",
-  "version": "0.0.2",
+  "version": "0.0.1",
   "private": true,
   "license": "MIT",
   "type": "module",
@@ -37,6 +37,6 @@
     "zod": "^3.23.8"
   },
   "scripts": {
-    "build:registry": "tsx ./scripts/build-registry.ts"
+    "build": "tsx ./scripts/build-registry.ts"
   }
 }

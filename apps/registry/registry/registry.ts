@@ -18,13 +18,24 @@ export const registry: RegistryItem[] = [
   {
     name: "markdown",
     type: "registry:component",
-    registryDependencies: ["https://assistant-ui.com/r/assistant-ui"],
+    registryDependencies: ["https://r.assistant-ui.com/assistant-ui"],
     tailwind: {
       config: {
         plugins: [`require("@assistant-ui/react-markdown/tailwindcss")`],
       },
     },
     dependencies: ["@assistant-ui/react-markdown"],
+  },
+  {
+    name: "trieve",
+    type: "registry:component",
+    registryDependencies: ["https://r.assistant-ui.com/assistant-ui"],
+    tailwind: {
+      config: {
+        plugins: [`require("@assistant-ui/react-trieve/tailwindcss")`],
+      },
+    },
+    dependencies: ["@assistant-ui/react-trieve"],
   },
   {
     name: "edge-backend",
@@ -35,11 +46,11 @@ export const registry: RegistryItem[] = [
         path: "routes/api/chat/route.ts",
       },
     ],
-    registryDependencies: ["https://assistant-ui.com/r/assistant-ui"],
+    registryDependencies: ["https://r.assistant-ui.com/assistant-ui"],
     dependencies: ["@ai-sdk/openai"],
   },
   {
-    name: "chat/quick-start",
+    name: "quick-start",
     type: "registry:block",
     files: [
       {
@@ -48,9 +59,9 @@ export const registry: RegistryItem[] = [
       },
     ],
     registryDependencies: [
-      "https://assistant-ui.com/r/assistant-ui",
-      "https://assistant-ui.com/r/markdown",
-      "https://assistant-ui.com/r/edge-backend",
+      "https://r.assistant-ui.com/assistant-ui",
+      "https://r.assistant-ui.com/markdown",
+      "https://r.assistant-ui.com/edge-backend",
     ],
   },
 ];

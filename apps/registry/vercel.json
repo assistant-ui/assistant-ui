@@ -1,0 +1,9 @@
+{
+  "rewrites": [
+    {
+      "source": "/:name",
+      "destination": "/:name.json"
+    }
+  ],
+  "outputDirectory": "dist"
+}

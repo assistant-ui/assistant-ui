@@ -1,0 +1,16 @@
+{
+  "name": "chat/quick-start",
+  "type": "registry:block",
+  "files": [
+    {
+      "content": "\"use client\";\n\nimport { useEdgeRuntime, Thread } from \"@assistant-ui/react\";\n\nexport const MyAssistant = () => {\n  const runtime = useEdgeRuntime({\n    api: \"/api/chat\",\n  });\n\n  return <Thread runtime={runtime} />;\n};\n",
+      "type": "registry:component",
+      "path": "components/assistant-ui/thread.tsx"
+    }
+  ],
+  "registryDependencies": [
+    "https://assistant-ui.com/r/assistant-ui",
+    "https://assistant-ui.com/r/markdown",
+    "https://assistant-ui.com/r/edge-backend"
+  ]
+}

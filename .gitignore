@@ -33,7 +33,7 @@ out/
 # production
 build
 dist
-apps/docs/public/b/
+apps/shadcn-registry/dist/
 generated
 
 # turbo
