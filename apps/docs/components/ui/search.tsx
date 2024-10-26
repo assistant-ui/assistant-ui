@@ -187,6 +187,13 @@ export default function TrieveSearchDialog(props: SharedProps) {
       onSearchChange={setSearch}
       results={results}
       isLoading={isLoading}
+      footer={
+        <a href="https://trieve.ai/?ref=assistant-ui" target="_blank">
+          <div className="text-muted-foreground text-end text-xs">
+            Powered by <span className="font-semibold">Trieve.ai</span>
+          </div>
+        </a>
+      }
       {...props}
     />
   );
