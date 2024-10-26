@@ -43,8 +43,8 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:page",
-        path: "routes/api/chat/route.ts",
-        target: "app/routes/api/chat/route.ts",
+        path: "app/api/chat/route.ts",
+        target: "app/api/chat/route.ts",
       },
     ],
     registryDependencies: ["https://r.assistant-ui.com/assistant-ui"],
@@ -57,7 +57,23 @@ export const registry: RegistryItem[] = [
       {
         type: "registry:component",
         path: "components/assistant-ui/thread.tsx",
-        target: "components/assistant-ui/thread.tsx",
+        target: "components/assistant-ui/my-assistant.tsx",
+      },
+    ],
+    registryDependencies: [
+      "https://r.assistant-ui.com/assistant-ui",
+      "https://r.assistant-ui.com/markdown",
+      "https://r.assistant-ui.com/edge-backend",
+    ],
+  },
+  {
+    name: "b/chat/quick-start",
+    type: "registry:block",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/thread.tsx",
+        target: "components/assistant-ui/my-assistant.tsx",
       },
     ],
     registryDependencies: [
