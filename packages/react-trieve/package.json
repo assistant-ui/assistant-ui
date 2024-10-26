@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-trieve",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "license": "MIT",
   "exports": {
     ".": {
@@ -23,6 +23,7 @@
   "types": "./dist/index.d.ts",
   "files": [
     "dist",
+    "generated",
     "tailwindcss",
     "src",
     "README.md"
@@ -45,8 +46,8 @@
     "unist-util-visit": "^5.0.0"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.5.94",
-    "@assistant-ui/react-markdown": "^0.2.24",
+    "@assistant-ui/react": "^0.5.95",
+    "@assistant-ui/react-markdown": "^0.2.25",
     "trieve-ts-sdk": "^0.0.13",
     "@types/react": "*",
     "react": "^18 || ^19",

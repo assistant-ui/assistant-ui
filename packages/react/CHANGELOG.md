@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.95
+
+### Patch Changes
+
+- fix: include generated css files in bundle
+
 ## 0.5.94
 
 ### Patch Changes

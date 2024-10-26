@@ -1,5 +1,14 @@
 # @assistant-ui/react-trieve
 
+## 0.0.8
+
+### Patch Changes
+
+- fix: include generated css files in bundle
+- Updated dependencies
+  - @assistant-ui/react-markdown@0.2.25
+  - @assistant-ui/react@0.5.95
+
 ## 0.0.7
 
 ### Patch Changes

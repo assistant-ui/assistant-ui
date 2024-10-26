@@ -1,5 +1,13 @@
 # @assistant-ui/react-markdown
 
+## 0.2.25
+
+### Patch Changes
+
+- fix: include generated css files in bundle
+- Updated dependencies
+  - @assistant-ui/react@0.5.95
+
 ## 0.2.24
 
 ### Patch Changes
