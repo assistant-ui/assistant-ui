@@ -29,7 +29,7 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsx scripts/build.mts && pnpm run build:declarations",
+    "build": "tsx scripts/build.mts && pnpm build:declarations",
     "build:declarations": "tsc -p tsconfig.declarations.json"
   },
   "dependencies": {
@@ -61,6 +61,8 @@
     }
   },
   "devDependencies": {
+    "@assistant-ui/react": "workspace:*",
+    "@assistant-ui/react-markdown": "workspace:*",
     "@assistant-ui/tailwindcss-transformer": "workspace:*",
     "@assistant-ui/tsconfig": "workspace:*",
     "@types/hast": "^3.0.4",

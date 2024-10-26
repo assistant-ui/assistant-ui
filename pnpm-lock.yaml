@@ -1208,9 +1208,6 @@ importers:
       '@ai-sdk/ui-utils':
         specifier: '*'
         version: 0.0.46(zod@3.23.8)
-      '@assistant-ui/react':
-        specifier: ^0.5.93
-        version: link:../react
       '@radix-ui/react-use-callback-ref':
         specifier: ^1.1.0
         version: 1.1.0(@types/react@18.3.12)(react@18.3.1)
@@ -1227,6 +1224,9 @@ importers:
         specifier: ^5.0.0
         version: 5.0.0(@types/react@18.3.12)(react@18.3.1)(use-sync-external-store@1.2.2(react@18.3.1))
     devDependencies:
+      '@assistant-ui/react':
+        specifier: workspace:*
+        version: link:../react
       '@assistant-ui/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
@@ -1239,9 +1239,6 @@ importers:
 
   packages/react-hook-form:
     dependencies:
-      '@assistant-ui/react':
-        specifier: ^0.5.93
-        version: link:../react
       '@types/react':
         specifier: '*'
         version: 18.3.12
@@ -1255,6 +1252,9 @@ importers:
         specifier: ^3.23.8
         version: 3.23.8
     devDependencies:
+      '@assistant-ui/react':
+        specifier: workspace:*
+        version: link:../react
       '@assistant-ui/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
@@ -1267,9 +1267,6 @@ importers:
 
   packages/react-langgraph:
     dependencies:
-      '@assistant-ui/react':
-        specifier: ^0.5.93
-        version: link:../react
       '@types/react':
         specifier: '*'
         version: 18.3.12
@@ -1280,6 +1277,9 @@ importers:
         specifier: ^3.23.8
         version: 3.23.8
     devDependencies:
+      '@assistant-ui/react':
+        specifier: workspace:*
+        version: link:../react
       '@assistant-ui/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
@@ -1292,9 +1292,6 @@ importers:
 
   packages/react-markdown:
     dependencies:
-      '@assistant-ui/react':
-        specifier: ^0.5.93
-        version: link:../react
       '@radix-ui/react-primitive':
         specifier: ^2.0.0
         version: 2.0.0(@types/react-dom@18.3.1)(@types/react@18.3.12)(react-dom@19.0.0-rc-69d4b800-20241021(react@19.0.0-rc-69d4b800-20241021))(react@19.0.0-rc-69d4b800-20241021)
@@ -1314,6 +1311,9 @@ importers:
         specifier: ^9.0.1
         version: 9.0.1(@types/react@18.3.12)(react@19.0.0-rc-69d4b800-20241021)
     devDependencies:
+      '@assistant-ui/react':
+        specifier: workspace:*
+        version: link:../react
       '@assistant-ui/tailwindcss-transformer':
         specifier: workspace:*
         version: link:../tailwindcss-transformer
@@ -1362,9 +1362,6 @@ importers:
       '@ai-sdk/provider':
         specifier: ^0.0.24
         version: 0.0.24
-      '@assistant-ui/react':
-        specifier: ^0.5.93
-        version: link:../react
       '@radix-ui/react-avatar':
         specifier: ^1.1.1
         version: 1.1.1(@types/react-dom@18.3.1)(@types/react@18.3.12)(react-dom@19.0.0-rc-69d4b800-20241021(react@19.0.0-rc-69d4b800-20241021))(react@19.0.0-rc-69d4b800-20241021)
@@ -1420,6 +1417,9 @@ importers:
         specifier: ^5.0.0
         version: 5.0.0(@types/react@18.3.12)(react@19.0.0-rc-69d4b800-20241021)(use-sync-external-store@1.2.2(react@19.0.0-rc-69d4b800-20241021))
     devDependencies:
+      '@assistant-ui/react':
+        specifier: workspace:*
+        version: link:../react
       '@assistant-ui/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
@@ -1453,12 +1453,6 @@ importers:
 
   packages/react-syntax-highlighter:
     dependencies:
-      '@assistant-ui/react':
-        specifier: ^0.5.93
-        version: link:../react
-      '@assistant-ui/react-markdown':
-        specifier: ^0.2.23
-        version: link:../react-markdown
       '@types/react':
         specifier: '*'
         version: 18.3.12
@@ -1472,6 +1466,12 @@ importers:
         specifier: ^15.5.0
         version: 15.6.1(react@18.3.1)
     devDependencies:
+      '@assistant-ui/react':
+        specifier: workspace:*
+        version: link:../react
+      '@assistant-ui/react-markdown':
+        specifier: workspace:*
+        version: link:../react-markdown
       '@assistant-ui/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
@@ -1484,12 +1484,6 @@ importers:
 
   packages/react-trieve:
     dependencies:
-      '@assistant-ui/react':
-        specifier: ^0.5.93
-        version: link:../react
-      '@assistant-ui/react-markdown':
-        specifier: ^0.2.24
-        version: link:../react-markdown
       '@radix-ui/react-hover-card':
         specifier: ^1.1.2
         version: 1.1.2(@types/react-dom@18.3.1)(@types/react@18.3.12)(react-dom@19.0.0-rc-69d4b800-20241021(react@19.0.0-rc-69d4b800-20241021))(react@19.0.0-rc-69d4b800-20241021)
@@ -1527,6 +1521,12 @@ importers:
         specifier: ^5.0.0
         version: 5.0.0
     devDependencies:
+      '@assistant-ui/react':
+        specifier: workspace:*
+        version: link:../react
+      '@assistant-ui/react-markdown':
+        specifier: workspace:*
+        version: link:../react-markdown
       '@assistant-ui/tailwindcss-transformer':
         specifier: workspace:*
         version: link:../tailwindcss-transformer

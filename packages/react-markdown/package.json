@@ -54,6 +54,7 @@
     }
   },
   "devDependencies": {
+    "@assistant-ui/react": "workspace:*",
     "@assistant-ui/tailwindcss-transformer": "workspace:*",
     "@assistant-ui/tsconfig": "workspace:*",
     "@types/node": "^22.7.9",

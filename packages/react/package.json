@@ -64,7 +64,7 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsx scripts/build.mts && pnpm run build:declarations",
+    "build": "tsx scripts/build.mts && pnpm build:declarations",
     "build:declarations": "tsc -p tsconfig.declarations.json"
   },
   "dependencies": {
