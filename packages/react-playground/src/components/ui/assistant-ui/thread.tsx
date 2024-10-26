@@ -47,6 +47,7 @@ import {
 } from "../dialog";
 import { Input } from "../input";
 import { Image } from "./image";
+import { useShallow } from "zustand/shallow";
 
 export const Thread: FC = () => {
   return (
@@ -110,7 +111,11 @@ const Composer: FC = () => {
   const composerRuntime = useComposerRuntime();
 
   const performAdd = () => {
-    composerRuntime.send();
+    threadRuntime.append({
+      role,
+      content: [{ type: "text", text: composerRuntime.text }],
+    });
+    composerRuntime.reset();
 
     setRole("user");
   };
@@ -184,7 +189,9 @@ const Composer: FC = () => {
 const AddToolCallButton = () => {
   const messageRuntime = useMessageRuntime();
   const runtime = usePlaygroundRuntime();
-  const toolNames = runtime.useModelConfig((c) => Object.keys(c.tools ?? {}));
+  const toolNames = runtime.useModelConfig(
+    useShallow((c) => Object.keys(c.tools ?? {})),
+  );
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -307,7 +314,7 @@ const Message: FC = () => {
         />
       </div>
       {status?.type === "incomplete" && status.reason === "error" && (
-        <p className="text-aui-destructive flex items-center gap-2">
+        <p className="!border-aui-destructive flex items-center gap-2 rounded-lg border px-4 py-2">
           <InfoIcon className="size-4" />
           <span>
             Encountered an error:{" "}

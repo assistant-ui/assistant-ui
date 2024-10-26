@@ -523,6 +523,11 @@ export class PlaygroundThreadRuntimeCore implements INTERNAL.ThreadRuntimeCore {
           return {
             ...m,
             role,
+            ...(role === "assistant"
+              ? {
+                  status: m.status ?? { type: "complete", reason: "unknown" },
+                }
+              : undefined),
             content: m.content
               .filter((part) => {
                 const assistantAllowed =

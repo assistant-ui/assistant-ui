@@ -30,7 +30,7 @@ export const ToolUI: ToolCallContentPartComponent = ({ toolName }) => {
 };
 
 const useContentPartTool = () => {
-  const part = useContentPart((c) => c.part);
+  const part = useContentPart();
   return part as ToolCallContentPart;
 };
 
