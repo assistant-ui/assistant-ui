@@ -34,6 +34,16 @@ export class ExternalStoreThreadManagerRuntimeCore
     this._mainThread = this.threadFactory(DEFAULT_THREAD_ID);
   }
 
+  public getThreadMetadataById(threadId: string) {
+    for (const thread of this.threads) {
+      if (thread.threadId === threadId) return thread;
+    }
+    for (const thread of this.archivedThreads) {
+      if (thread.threadId === threadId) return thread;
+    }
+    return undefined;
+  }
+
   public setAdapter(adapter: ExternalStoreThreadManagerAdapter) {
     const previousAdapter = this.adapter;
     this.adapter = adapter;

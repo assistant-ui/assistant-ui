@@ -12,9 +12,11 @@ import { AttachmentContext } from "../react/AttachmentContext";
 import { writableStore } from "../ReadonlyStore";
 import { AttachmentRuntime } from "../../api/AttachmentRuntime";
 
-type AttachmentRuntimeProviderProps = PropsWithChildren<{
-  runtime: AttachmentRuntime;
-}>;
+export namespace AttachmentRuntimeProvider {
+  export type Props = PropsWithChildren<{
+    runtime: AttachmentRuntime;
+  }>;
+}
 
 const useAttachmentRuntimeStore = (runtime: AttachmentRuntime) => {
   const [store] = useState(() => create(() => runtime));
@@ -37,7 +39,7 @@ const useAttachmentStore = (runtime: AttachmentRuntime) => {
   return store;
 };
 
-export const AttachmentRuntimeProvider: FC<AttachmentRuntimeProviderProps> = ({
+export const AttachmentRuntimeProvider: FC<AttachmentRuntimeProvider.Props> = ({
   runtime,
   children,
 }) => {

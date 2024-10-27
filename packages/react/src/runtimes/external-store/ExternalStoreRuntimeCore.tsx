@@ -1,5 +1,5 @@
 import { BaseAssistantRuntimeCore } from "../../internal";
-import { ExternalStoreThreadManagerRuntimeCore } from "./ExternalStoreThreadManagementAdapter";
+import { ExternalStoreThreadManagerRuntimeCore } from "./ExternalStoreThreadManagerRuntimeCore";
 import { ExternalStoreAdapter } from "./ExternalStoreAdapter";
 import { ExternalStoreThreadRuntimeCore } from "./ExternalStoreThreadRuntimeCore";
 

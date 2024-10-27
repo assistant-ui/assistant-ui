@@ -14,10 +14,12 @@ import {
   ContentPartState,
 } from "../../api/ContentPartRuntime";
 
-type TextContentPartProviderProps = {
-  text: string;
-  isRunning?: boolean | undefined;
-};
+export namespace TextContentPartProvider {
+  export type Props = PropsWithChildren<{
+    text: string;
+    isRunning?: boolean | undefined;
+  }>;
+}
 
 const COMPLETE_STATUS: ContentPartStatus = {
   type: "complete",
@@ -27,9 +29,11 @@ const RUNNING_STATUS: ContentPartStatus = {
   type: "running",
 };
 
-export const TextContentPartProvider: FC<
-  PropsWithChildren<TextContentPartProviderProps>
-> = ({ children, text, isRunning }) => {
+export const TextContentPartProvider: FC<TextContentPartProvider.Props> = ({
+  children,
+  text,
+  isRunning,
+}) => {
   const [context] = useState<ContentPartContextValue>(() => {
     const useContentPartRuntime = create(
       // TODO

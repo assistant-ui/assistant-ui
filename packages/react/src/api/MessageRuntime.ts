@@ -180,7 +180,6 @@ export class MessageRuntimeImpl implements MessageRuntime {
 
   public reload() {
     const state = this._core.getState();
-    if (!state) throw new Error("Message is not available");
     if (state.role !== "assistant")
       throw new Error("Can only reload assistant messages");
 
@@ -189,15 +188,11 @@ export class MessageRuntimeImpl implements MessageRuntime {
 
   public speak() {
     const state = this._core.getState();
-    if (!state) throw new Error("Message is not available");
-
     return this._threadBinding.getState().speak(state.id);
   }
 
   public stopSpeaking() {
     const state = this._core.getState();
-    if (!state) throw new Error("Message is not available");
-
     const thread = this._threadBinding.getState();
     if (thread.speech?.messageId === state.id) {
       this._threadBinding.getState().stopSpeaking();
@@ -208,8 +203,6 @@ export class MessageRuntimeImpl implements MessageRuntime {
 
   public submitFeedback({ type }: { type: "positive" | "negative" }) {
     const state = this._core.getState();
-    if (!state) throw new Error("Message is not available");
-
     this._threadBinding.getState().submitFeedback({
       messageId: state.id,
       type,
@@ -224,8 +217,6 @@ export class MessageRuntimeImpl implements MessageRuntime {
     branchId?: string | undefined;
   }) {
     const state = this._core.getState();
-    if (!state) throw new Error("Message is not available");
-
     if (branchId && position) {
       throw new Error("May not specify both branchId and position");
     } else if (!branchId && !position) {

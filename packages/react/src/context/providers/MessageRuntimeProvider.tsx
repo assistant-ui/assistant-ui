@@ -8,9 +8,11 @@ import { makeMessageUtilsStore } from "../stores/MessageUtils";
 import { ReadonlyStore, writableStore } from "../ReadonlyStore";
 import { MessageRuntime } from "../../api/MessageRuntime";
 
-type MessageProviderProps = PropsWithChildren<{
-  runtime: MessageRuntime;
-}>;
+export namespace MessageRuntimeProvider {
+  export type Props = PropsWithChildren<{
+    runtime: MessageRuntime;
+  }>;
+}
 
 const useMessageRuntimeStore = (runtime: MessageRuntime) => {
   const [store] = useState(() => create(() => runtime));
@@ -54,7 +56,7 @@ const useEditComposerStore = (
   return store;
 };
 
-export const MessageRuntimeProvider: FC<MessageProviderProps> = ({
+export const MessageRuntimeProvider: FC<MessageRuntimeProvider.Props> = ({
   runtime,
   children,
 }) => {

@@ -7,9 +7,11 @@ import type { ContentPartContextValue } from "../react/ContentPartContext";
 import { writableStore } from "../ReadonlyStore";
 import { ContentPartRuntime } from "../../api/ContentPartRuntime";
 
-type ContentPartProviderProps = PropsWithChildren<{
-  runtime: ContentPartRuntime;
-}>;
+export namespace ContentPartRuntimeProvider {
+  export type Props = PropsWithChildren<{
+    runtime: ContentPartRuntime;
+  }>;
+}
 
 const useContentPartRuntimeStore = (runtime: ContentPartRuntime) => {
   const [store] = useState(() => create(() => runtime));
@@ -33,10 +35,9 @@ export const useContentPartStore = (runtime: ContentPartRuntime) => {
   return store;
 };
 
-export const ContentPartRuntimeProvider: FC<ContentPartProviderProps> = ({
-  runtime,
-  children,
-}) => {
+export const ContentPartRuntimeProvider: FC<
+  ContentPartRuntimeProvider.Props
+> = ({ runtime, children }) => {
   const useContentPartRuntime = useContentPartRuntimeStore(runtime);
   const useContentPart = useContentPartStore(runtime);
   const [context] = useState<ContentPartContextValue>(() => {

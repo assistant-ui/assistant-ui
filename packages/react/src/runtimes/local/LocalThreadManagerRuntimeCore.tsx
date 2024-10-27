@@ -49,6 +49,10 @@ export class LocalThreadManagerRuntimeCore implements ThreadManagerRuntimeCore {
     this._mainThread = this._threadFactory(threadId, { messages: [] });
   }
 
+  public getThreadMetadataById(threadId: string) {
+    return this._threadData.get(threadId)?.metadata;
+  }
+
   public switchToThread(threadId: string): void {
     if (this._mainThread.threadId === threadId) return;
 
