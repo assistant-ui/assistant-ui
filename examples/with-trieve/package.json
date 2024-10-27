@@ -18,7 +18,7 @@
     "react-dom": "19.0.0-rc-69d4b800-20241021",
     "tailwind-merge": "^2.5.4",
     "tailwindcss-animate": "^1.0.7",
-    "trieve-ts-sdk": "^0.0.13"
+    "trieve-ts-sdk": "^0.0.14"
   },
   "devDependencies": {
     "@assistant-ui/tsconfig": "workspace:*",

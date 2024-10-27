@@ -1,8 +1,8 @@
 import plugin from "tailwindcss/plugin.js";
-import baseComponentsCSS from "../../generated/base-components.css.json";
-import threadCSS from "../../generated/thread.css.json";
-import modalCSS from "../../generated/modal.css.json";
-import defaultThemeCSS from "../../generated/default.css.json";
+import baseComponentsCSS from "../../dist/styles/tailwindcss/base-components.css.json";
+import threadCSS from "../../dist/styles/tailwindcss/thread.css.json";
+import modalCSS from "../../dist/styles/tailwindcss/modal.css.json";
+import defaultThemeCSS from "../../dist/styles/themes/default.css.json";
 
 type AssistantTailwindPluginColors = {
   border: string;

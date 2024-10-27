@@ -37,10 +37,10 @@
   },
   "devDependencies": {
     "@assistant-ui/tsconfig": "workspace:*",
-    "@types/node": "^22.7.9",
+    "@types/node": "^22.8.1",
     "eslint": "^9",
     "eslint-config-next": "15.0.1",
-    "tsup": "8.3.0",
+    "tsup": "8.3.5",
     "tsx": "^4.19.1"
   },
   "publishConfig": {

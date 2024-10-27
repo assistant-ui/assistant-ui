@@ -30,8 +30,7 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsx scripts/build.mts && pnpm run build:declarations",
-    "build:declarations": "tsc -p tsconfig.declarations.json"
+    "build": "tsx scripts/build.mts"
   },
   "dependencies": {
     "@radix-ui/react-primitive": "^2.0.0",
@@ -57,8 +56,9 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/tailwindcss-transformer": "workspace:*",
+    "@assistant-ui/tsbuildutils": "workspace:^",
     "@assistant-ui/tsconfig": "workspace:*",
-    "@types/node": "^22.7.9",
+    "@types/node": "^22.8.1",
     "autoprefixer": "^10.4.20",
     "eslint": "^9",
     "eslint-config-next": "15.0.1",
@@ -68,7 +68,7 @@
     "react-dom": "19.0.0-rc-69d4b800-20241021",
     "tailwindcss": "^3.4.14",
     "tailwindcss-animate": "^1.0.7",
-    "tsup": "8.3.0",
+    "tsup": "8.3.5",
     "tsx": "^4.19.1"
   },
   "publishConfig": {

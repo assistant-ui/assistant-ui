@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^0.0.68",
+    "@ai-sdk/openai": "^0.0.70",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-hook-form": "workspace:*",
     "@ffmpeg/ffmpeg": "^0.12.10",
@@ -34,7 +34,7 @@
     "tailwind-merge": "^2.5.4",
     "tailwindcss-animate": "^1.0.7",
     "zod": "^3.23.8",
-    "zod-to-json-schema": "^3.23.3",
+    "zod-to-json-schema": "^3.23.5",
     "zustand": "^5.0.0"
   },
   "devDependencies": {

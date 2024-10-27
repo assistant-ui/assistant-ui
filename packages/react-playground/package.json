@@ -27,7 +27,7 @@
     "build": "tsx scripts/build.mts"
   },
   "dependencies": {
-    "@ai-sdk/provider": "^0.0.24",
+    "@ai-sdk/provider": "^0.0.26",
     "@radix-ui/react-avatar": "^1.1.1",
     "@radix-ui/react-dialog": "^1.1.2",
     "@radix-ui/react-dropdown-menu": "^2.1.2",
@@ -70,7 +70,7 @@
     "react-dom": "19.0.0-rc-69d4b800-20241021",
     "tailwindcss": "^3.4.14",
     "tailwindcss-animate": "^1.0.7",
-    "tsup": "8.3.0",
+    "tsup": "8.3.5",
     "tsx": "^4.19.1"
   },
   "publishConfig": {

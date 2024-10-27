@@ -4,7 +4,6 @@
   "license": "MIT",
   "type": "module",
   "dependencies": {
-    "@types/cross-spawn": "^6.0.6",
     "chalk": "^5.3.0",
     "commander": "^12.1.0",
     "cosmiconfig": "^9.0.0",
@@ -15,8 +14,9 @@
   },
   "devDependencies": {
     "@assistant-ui/tsconfig": "workspace:*",
-    "@types/node": "^22.7.9",
-    "tsup": "8.3.0"
+    "@types/cross-spawn": "^6.0.6",
+    "@types/node": "^22.8.1",
+    "tsup": "8.3.5"
   },
   "files": [
     "dist",
