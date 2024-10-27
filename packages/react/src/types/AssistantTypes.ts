@@ -158,6 +158,7 @@ export type AppendMessage = CoreMessage & {
   parentId: string | null;
   // TODO make required in the next major version
   attachments?: readonly CompleteAttachment[] | undefined;
+  startRun?: boolean | undefined;
 };
 
 type BaseThreadMessage = {

@@ -89,7 +89,8 @@ export class LocalThreadRuntimeCore
     });
     this.repository.addOrUpdateMessage(message.parentId, newMessage);
 
-    if (message.role === "user") {
+    const startRun = message.startRun ?? message.role === "user";
+    if (startRun) {
       await this.startRun(newMessage.id);
     } else {
       this.repository.resetHead(newMessage.id);

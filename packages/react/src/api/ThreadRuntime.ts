@@ -42,6 +42,7 @@ export type CreateAppendMessage =
       role?: AppendMessage["role"] | undefined;
       content: AppendMessage["content"];
       attachments?: AppendMessage["attachments"] | undefined;
+      startRun?: boolean | undefined;
     };
 
 const toAppendMessage = (
@@ -62,9 +63,9 @@ const toAppendMessage = (
   }
 
   return {
+    ...message,
     parentId: message.parentId ?? messages.at(-1)?.id ?? null,
     role: message.role ?? "user",
-    content: message.content,
     attachments: message.attachments ?? [],
   } as AppendMessage;
 };
