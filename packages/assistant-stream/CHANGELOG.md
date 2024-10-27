@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.0.4
+
+### Patch Changes
+
+- ff5b86c: chore: update deps
+
 ## 0.0.3
 
 ### Patch Changes

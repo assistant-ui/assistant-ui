@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.5.98
+
+### Patch Changes
+
+- ff5b86c: build: refactor build script into @assistant-ui/tsbuildutils
+- ff5b86c: fix: better ESM compatibility
+- ff5b86c: chore: update deps
+
 ## 0.5.97
 
 ### Patch Changes

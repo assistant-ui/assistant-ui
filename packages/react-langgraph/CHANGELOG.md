@@ -1,5 +1,15 @@
 # @assistant-ui/react-langgraph
 
+## 0.0.24
+
+### Patch Changes
+
+- ff5b86c: chore: update deps
+- Updated dependencies [ff5b86c]
+- Updated dependencies [ff5b86c]
+- Updated dependencies [ff5b86c]
+  - @assistant-ui/react@0.5.98
+
 ## 0.0.23
 
 ### Patch Changes

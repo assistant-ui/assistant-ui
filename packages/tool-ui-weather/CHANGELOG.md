@@ -1,5 +1,11 @@
 # @tool-ui/weather
 
+## 0.0.13
+
+### Patch Changes
+
+- ff5b86c: chore: update deps
+
 ## 0.0.12
 
 ### Patch Changes

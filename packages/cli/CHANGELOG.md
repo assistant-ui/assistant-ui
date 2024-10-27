@@ -1,5 +1,11 @@
 # assistant-ui
 
+## 0.0.17
+
+### Patch Changes
+
+- ff5b86c: chore: update deps
+
 ## 0.0.16
 
 ### Patch Changes
