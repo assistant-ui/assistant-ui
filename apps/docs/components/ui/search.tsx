@@ -28,108 +28,108 @@ export type SearchResults = {
   requestID: string;
 };
 
-export default function TrieveSearchDialog(props: SharedProps) {
-  const trieveSDK = new TrieveSDK({
-    apiKey: "tr-94tqT16o97Txym7OZc1CRaJOpsyUD1ul",
-    datasetId: "72dba745-7748-46ac-8102-f5765f1ba9ac",
+const trieveSDK = new TrieveSDK({
+  apiKey: "tr-94tqT16o97Txym7OZc1CRaJOpsyUD1ul",
+  datasetId: "72dba745-7748-46ac-8102-f5765f1ba9ac",
+});
+
+const capitalizeWord = (word: string): string => {
+  // If the word is 2-4 characters and all uppercase, keep it uppercase
+  if (word.length <= 3 && word.toUpperCase() === word) {
+    return word;
+  }
+
+  // If word is likely an acronym (all caps, possibly with numbers)
+  if (word.length <= 3 && /^[A-Z0-9]+$/i.test(word)) {
+    return word.toUpperCase();
+  }
+
+  // Handle regular words
+  return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+};
+
+const parseChunk = (item: ChunkWithHighlights) => {
+  const descriptionHtml = item.highlights
+    ? item.highlights.join("...")
+    : item.chunk.chunk_html || "";
+  const $descriptionHtml = document.createElement("div");
+  $descriptionHtml.innerHTML = descriptionHtml;
+  $descriptionHtml.querySelectorAll("b").forEach((b) => {
+    return b.replaceWith(b.textContent || "");
+  });
+  const descriptionText = Array.from($descriptionHtml.children)
+    .map((element) => element.textContent || "")
+    .filter((text) => text.trim() !== "")
+    .filter((text, index, array) => array.indexOf(text) === index)
+    .filter((text) => !text.includes("Next") && !text.includes("Previous"));
+
+  const chunkHtmlHeadingsDiv = document.createElement("div");
+  chunkHtmlHeadingsDiv.innerHTML = item.chunk.chunk_html || "";
+  const chunkHtmlHeadings = chunkHtmlHeadingsDiv.querySelectorAll(
+    "h1, h2, h3, h4, h5, h6",
+  );
+
+  const $firstHeading = chunkHtmlHeadings[0] ?? document.createElement("h1");
+  $firstHeading?.querySelectorAll(":not(mark)")?.forEach((tag) => {
+    return tag.replaceWith(tag.textContent || "");
   });
 
+  const cleanFirstHeading = $firstHeading?.innerHTML;
+
+  const title = `${
+    cleanFirstHeading ||
+    item.chunk.metadata?.["title"] ||
+    item.chunk.metadata?.["page_title"] ||
+    item.chunk.metadata?.["name"]
+  }`.replace("#", "");
+
+  if (!title.trim() || title == "undefined") {
+    return null;
+  }
+
+  const linkSuffix = (text: string) => `#:~:text=${encodeURIComponent(text)}`;
+
+  const link = `${
+    item.chunk.link?.endsWith("/")
+      ? item.chunk.link.slice(0, -1)
+      : item.chunk.link
+  }`;
+
+  const pageTitle = item.chunk.link
+    ?.split("/")
+    .slice(3, -1)
+    .map((word) => {
+      return word.split("-").map(capitalizeWord).join(" ");
+    })
+    .join(" > ");
+
+  const results: SortedResult[] = [
+    {
+      id: `${link}`,
+      content: pageTitle || title,
+      type: "page",
+      url: `${link}`,
+    },
+  ];
+
+  descriptionText.forEach((description) => {
+    if (description.trim() !== "") {
+      results.push({
+        id: `${link}${linkSuffix(description)}`,
+        content: description,
+        type: "text",
+        url: `${link}${linkSuffix(description)}`,
+      });
+    }
+  });
+
+  return results as SortedResult[];
+};
+
+export default function TrieveSearchDialog(props: SharedProps) {
   const [results, setResults] = useState<SortedResult[]>([]);
   const [search, setSearch] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-
-  const capitalizeWord = (word: string): string => {
-    // If the word is 2-4 characters and all uppercase, keep it uppercase
-    if (word.length <= 3 && word.toUpperCase() === word) {
-      return word;
-    }
-
-    // If word is likely an acronym (all caps, possibly with numbers)
-    if (word.length <= 3 && /^[A-Z0-9]+$/i.test(word)) {
-      return word.toUpperCase();
-    }
-
-    // Handle regular words
-    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-  };
-
-  const parseChunk = (item: ChunkWithHighlights) => {
-    const descriptionHtml = item.highlights
-      ? item.highlights.join("...")
-      : item.chunk.chunk_html || "";
-    const $descriptionHtml = document.createElement("div");
-    $descriptionHtml.innerHTML = descriptionHtml;
-    $descriptionHtml.querySelectorAll("b").forEach((b) => {
-      return b.replaceWith(b.textContent || "");
-    });
-    const descriptionText = Array.from($descriptionHtml.children)
-      .map((element) => element.textContent || "")
-      .filter((text) => text.trim() !== "")
-      .filter((text, index, array) => array.indexOf(text) === index)
-      .filter((text) => !text.includes("Next") && !text.includes("Previous"));
-
-    const chunkHtmlHeadingsDiv = document.createElement("div");
-    chunkHtmlHeadingsDiv.innerHTML = item.chunk.chunk_html || "";
-    const chunkHtmlHeadings = chunkHtmlHeadingsDiv.querySelectorAll(
-      "h1, h2, h3, h4, h5, h6",
-    );
-
-    const $firstHeading = chunkHtmlHeadings[0] ?? document.createElement("h1");
-    $firstHeading?.querySelectorAll(":not(mark)")?.forEach((tag) => {
-      return tag.replaceWith(tag.textContent || "");
-    });
-
-    const cleanFirstHeading = $firstHeading?.innerHTML;
-
-    const title = `${
-      cleanFirstHeading ||
-      item.chunk.metadata?.["title"] ||
-      item.chunk.metadata?.["page_title"] ||
-      item.chunk.metadata?.["name"]
-    }`.replace("#", "");
-
-    if (!title.trim() || title == "undefined") {
-      return null;
-    }
-
-    const linkSuffix = (text: string) => `#:~:text=${encodeURIComponent(text)}`;
-
-    const link = `${
-      item.chunk.link?.endsWith("/")
-        ? item.chunk.link.slice(0, -1)
-        : item.chunk.link
-    }`;
-
-    const pageTitle = item.chunk.link
-      ?.split("/")
-      .slice(3, -1)
-      .map((word) => {
-        return word.split("-").map(capitalizeWord).join(" ");
-      })
-      .join(" > ");
-
-    const results: SortedResult[] = [
-      {
-        id: `${link}`,
-        content: pageTitle || title,
-        type: "page",
-        url: `${link}`,
-      },
-    ];
-
-    descriptionText.forEach((description) => {
-      if (description.trim() !== "") {
-        results.push({
-          id: `${link}${linkSuffix(description)}`,
-          content: description,
-          type: "text",
-          url: `${link}${linkSuffix(description)}`,
-        });
-      }
-    });
-
-    return results as SortedResult[];
-  };
 
   useEffect(() => {
     if (!search) {
