@@ -61,18 +61,6 @@ const MyCustomAdapter: ChatModelAdapter = {
       text += chunk;
       yield { content: [{ type: "text", text }] };
     }
-
-    void fetch("/api/entelligence-history", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        question: messagesToSend.at(-1)?.content,
-        answer: text,
-        previousQuestion: messagesToSend.at(-3)?.content,
-      }),
-    });
   },
 };
 
