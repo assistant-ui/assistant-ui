@@ -51,7 +51,7 @@ export type AssistantRuntime = {
 
 export class AssistantRuntimeImpl
   implements
-    Omit<AssistantRuntimeCore, "thread" | "ThreadList">,
+    Omit<AssistantRuntimeCore, "thread" | "threadList">,
     AssistantRuntime
 {
   public readonly threadList;
