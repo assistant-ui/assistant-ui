@@ -2,6 +2,8 @@ import { LanguageModelV1LogProbs } from "@ai-sdk/provider";
 import type { ReactNode } from "react";
 import { CompleteAttachment } from "./AttachmentTypes";
 
+export type MessageRole = "user" | "assistant" | "system";
+
 export type TextContentPart = {
   type: "text";
   text: string;

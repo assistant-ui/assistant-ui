@@ -6,6 +6,7 @@ import {
 import { AppendMessage, Unsubscribe } from "../../types";
 import { AttachmentAdapter } from "../attachment";
 import { ComposerRuntimeCore } from "../core/ComposerRuntimeCore";
+import { MessageRole } from "../../types/AssistantTypes";
 
 const isAttachmentComplete = (a: Attachment): a is CompleteAttachment =>
   a.status.type === "complete";
@@ -20,12 +21,13 @@ export abstract class BaseComposerRuntimeCore implements ComposerRuntimeCore {
   }
 
   private _attachments: readonly Attachment[] = [];
-  protected set attachments(value: readonly Attachment[]) {
-    this._attachments = value;
-    this.notifySubscribers();
-  }
   public get attachments() {
     return this._attachments;
+  }
+
+  protected setAttachments(value: readonly Attachment[]) {
+    this._attachments = value;
+    this.notifySubscribers();
   }
 
   public abstract get canCancel(): boolean;
@@ -40,6 +42,17 @@ export abstract class BaseComposerRuntimeCore implements ComposerRuntimeCore {
     return this._text;
   }
 
+  private _role: MessageRole = "user";
+
+  get role() {
+    return this._role;
+  }
+
+  setRole(role: MessageRole) {
+    this._role = role;
+    this.notifySubscribers();
+  }
+
   setText(value: string) {
     this._text = value;
     this.notifySubscribers();
@@ -47,6 +60,7 @@ export abstract class BaseComposerRuntimeCore implements ComposerRuntimeCore {
 
   reset() {
     this._text = "";
+    this._role = "user";
     this._attachments = [];
     this.notifySubscribers();
   }
@@ -69,7 +83,7 @@ export abstract class BaseComposerRuntimeCore implements ComposerRuntimeCore {
         : [];
 
     const message: Omit<AppendMessage, "parentId"> = {
-      role: "user",
+      role: this.role,
       content: this.text ? [{ type: "text", text: this.text }] : [],
       attachments,
     };

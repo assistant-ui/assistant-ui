@@ -1,4 +1,5 @@
 import type { Attachment, PendingAttachment, Unsubscribe } from "../../types";
+import { MessageRole } from "../../types/AssistantTypes";
 
 export type ComposerRuntimeCore = Readonly<{
   attachments: readonly Attachment[];
@@ -14,6 +15,9 @@ export type ComposerRuntimeCore = Readonly<{
 
   text: string;
   setText: (value: string) => void;
+
+  role: MessageRole;
+  setRole: (role: MessageRole) => void;
 
   /**
    * @deprecated This method will be removed in 0.6.0. Submit feedback if you need this functionality.

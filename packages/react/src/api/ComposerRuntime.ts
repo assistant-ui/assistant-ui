@@ -15,6 +15,7 @@ import {
 import { ShallowMemoizeSubject } from "./subscribable/ShallowMemoizeSubject";
 import { SKIP_UPDATE } from "./subscribable/SKIP_UPDATE";
 import { ComposerRuntimePath } from "./RuntimePathTypes";
+import { MessageRole } from "../types/AssistantTypes";
 
 export type ThreadComposerRuntimeCoreBinding = SubscribableWithState<
   ThreadComposerRuntimeCore | undefined,
@@ -99,6 +100,7 @@ type LegacyThreadComposerState = Readonly<{
 
 type BaseComposerState = {
   text: string;
+  role: MessageRole;
   attachments: readonly Attachment[];
 
   canCancel: boolean;
@@ -135,6 +137,7 @@ const getThreadComposerState = (
     isEmpty: runtime?.isEmpty ?? true,
     text: runtime?.text ?? "",
     attachments: runtime?.attachments ?? EMPTY_ARRAY,
+    role: runtime?.role ?? "user",
 
     value: runtime?.text ?? "",
     setValue: runtime?.setText.bind(runtime) ?? METHOD_NOT_SUPPORTED,
@@ -162,6 +165,7 @@ const getEditComposerState = (
     isEmpty: runtime?.isEmpty ?? true,
     text: runtime?.text ?? "",
     attachments: runtime?.attachments ?? EMPTY_ARRAY,
+    role: runtime?.role ?? "user",
 
     value: runtime?.text ?? "",
     setValue: runtime?.setText.bind(runtime) ?? METHOD_NOT_SUPPORTED,
@@ -253,6 +257,13 @@ export abstract class ComposerRuntimeImpl
   }
 
   /**
+   * @deprecated Use `getState().role` instead. This will be removed in 0.6.0.
+   */
+  public get role() {
+    return this.getState().role;
+  }
+
+  /**
    * @deprecated Use `getState().attachments` instead. This will be removed in 0.6.0.
    */
   public get attachments() {
@@ -312,6 +323,12 @@ export abstract class ComposerRuntimeImpl
     const core = this._core.getState();
     if (!core) throw new Error("Composer is not available");
     core.cancel();
+  }
+
+  public setRole(role: MessageRole) {
+    const core = this._core.getState();
+    if (!core) throw new Error("Composer is not available");
+    core.setRole(role);
   }
 
   public subscribe(callback: () => void) {

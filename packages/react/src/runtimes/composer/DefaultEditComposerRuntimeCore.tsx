@@ -28,11 +28,12 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
     this._previousText = getThreadMessageText(message);
     this.setText(this._previousText);
 
+    this.setRole(message.role);
+    this.setAttachments(message.attachments ?? []);
+
     this._nonTextParts = message.content.filter(
       (part) => part.type !== "text" && part.type !== "ui",
     );
-
-    this.attachments = message.attachments ?? [];
   }
 
   public async handleSend(message: Omit<AppendMessage, "parentId">) {
