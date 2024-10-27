@@ -2,11 +2,11 @@ import { type ModelConfigProvider } from "../../types/ModelConfigTypes";
 import type { Unsubscribe } from "../../types/Unsubscribe";
 import type { AssistantRuntimeCore } from "./AssistantRuntimeCore";
 import { ProxyConfigProvider } from "../../utils/ProxyConfigProvider";
-import { ThreadManagerRuntimeCore } from "./ThreadManagerRuntimeCore";
+import { ThreadListRuntimeCore } from "./ThreadListRuntimeCore";
 
 export abstract class BaseAssistantRuntimeCore implements AssistantRuntimeCore {
   protected readonly _proxyConfigProvider = new ProxyConfigProvider();
-  public abstract get threadManager(): ThreadManagerRuntimeCore;
+  public abstract get threadList(): ThreadListRuntimeCore;
 
   constructor() {}
 

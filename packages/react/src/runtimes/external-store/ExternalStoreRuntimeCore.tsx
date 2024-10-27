@@ -1,27 +1,27 @@
 import { BaseAssistantRuntimeCore } from "../../internal";
-import { ExternalStoreThreadManagerRuntimeCore } from "./ExternalStoreThreadManagerRuntimeCore";
+import { ExternalStoreThreadListRuntimeCore } from "./ExternalStoreThreadListRuntimeCore";
 import { ExternalStoreAdapter } from "./ExternalStoreAdapter";
 import { ExternalStoreThreadRuntimeCore } from "./ExternalStoreThreadRuntimeCore";
 
-const getThreadManagerAdapter = (store: ExternalStoreAdapter<any>) => {
+const getThreadListAdapter = (store: ExternalStoreAdapter<any>) => {
   return {
     threadId: store.threadId,
     onSwitchToNewThread: store.onSwitchToNewThread,
     onSwitchToThread: store.onSwitchToThread,
-    ...store.adapters?.threadManager,
+    ...store.adapters?.threadList,
   };
 };
 
 export class ExternalStoreRuntimeCore extends BaseAssistantRuntimeCore {
-  public readonly threadManager;
+  public readonly threadList;
 
   private _store: ExternalStoreAdapter<any>;
 
   constructor(store: ExternalStoreAdapter<any>) {
     super();
     this._store = store;
-    this.threadManager = new ExternalStoreThreadManagerRuntimeCore(
-      getThreadManagerAdapter(store),
+    this.threadList = new ExternalStoreThreadListRuntimeCore(
+      getThreadListAdapter(store),
       (threadId) =>
         new ExternalStoreThreadRuntimeCore(
           this._proxyConfigProvider,
@@ -33,7 +33,7 @@ export class ExternalStoreRuntimeCore extends BaseAssistantRuntimeCore {
 
   public setStore(store: ExternalStoreAdapter<any>) {
     this._store = store;
-    this.threadManager.setAdapter(getThreadManagerAdapter(store));
-    this.threadManager.mainThread.setStore(store);
+    this.threadList.setAdapter(getThreadListAdapter(store));
+    this.threadList.mainThread.setStore(store);
   }
 }

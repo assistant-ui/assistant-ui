@@ -1,7 +1,7 @@
 import type { Unsubscribe } from "../../types";
 import { ExternalStoreThreadRuntimeCore } from "./ExternalStoreThreadRuntimeCore";
-import { ThreadManagerRuntimeCore } from "../core/ThreadManagerRuntimeCore";
-import { ExternalStoreThreadManagerAdapter } from "./ExternalStoreAdapter";
+import { ThreadListRuntimeCore } from "../core/ThreadListRuntimeCore";
+import { ExternalStoreThreadListAdapter } from "./ExternalStoreAdapter";
 
 export type ExternalStoreThreadFactory = (
   threadId: string,
@@ -10,8 +10,8 @@ export type ExternalStoreThreadFactory = (
 const EMPTY_ARRAY = Object.freeze([]);
 const DEFAULT_THREAD_ID = "DEFAULT_THREAD_ID";
 
-export class ExternalStoreThreadManagerRuntimeCore
-  implements ThreadManagerRuntimeCore
+export class ExternalStoreThreadListRuntimeCore
+  implements ThreadListRuntimeCore
 {
   public get threads() {
     return this.adapter.threads ?? EMPTY_ARRAY;
@@ -28,7 +28,7 @@ export class ExternalStoreThreadManagerRuntimeCore
   }
 
   constructor(
-    private adapter: ExternalStoreThreadManagerAdapter = {},
+    private adapter: ExternalStoreThreadListAdapter = {},
     private threadFactory: ExternalStoreThreadFactory,
   ) {
     this._mainThread = this.threadFactory(DEFAULT_THREAD_ID);
@@ -44,7 +44,7 @@ export class ExternalStoreThreadManagerRuntimeCore
     return undefined;
   }
 
-  public setAdapter(adapter: ExternalStoreThreadManagerAdapter) {
+  public setAdapter(adapter: ExternalStoreThreadListAdapter) {
     const previousAdapter = this.adapter;
     this.adapter = adapter;
 

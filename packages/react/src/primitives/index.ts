@@ -6,7 +6,7 @@ export * as ComposerPrimitive from "./composer";
 export * as ContentPartPrimitive from "./contentPart";
 export * as MessagePrimitive from "./message";
 export * as ThreadPrimitive from "./thread";
-export * as ThreadManagerPrimitive from "./thread-manager";
+export * as ThreadListPrimitive from "./thread-manager";
 
 export type * from "./actionBar/types";
 export type * from "./assistantModal/types";

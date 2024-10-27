@@ -1,2 +1,2 @@
-export { ThreadManagerPrimitiveNew as New } from "./ThreadManagerNew";
-export { ThreadManagerPrimitiveItems as Items } from "./ThreadManagerItems";
+export { ThreadListPrimitiveNew as New } from "./ThreadListNew";
+export { ThreadListPrimitiveItems as Items } from "./ThreadListItems";

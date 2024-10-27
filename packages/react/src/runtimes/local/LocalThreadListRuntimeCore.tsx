@@ -1,15 +1,15 @@
 import type { Unsubscribe } from "../../types";
 import {
-  ThreadManagerMetadata,
-  ThreadManagerRuntimeCore,
-} from "../core/ThreadManagerRuntimeCore";
+  ThreadListMetadata,
+  ThreadListRuntimeCore,
+} from "../core/ThreadListRuntimeCore";
 import { ExportedMessageRepository } from "../utils/MessageRepository";
 import { generateId } from "../../utils/idUtils";
 import { LocalThreadRuntimeCore } from "./LocalThreadRuntimeCore";
 
 export type LocalThreadData = {
   data: ExportedMessageRepository;
-  metadata: ThreadManagerMetadata;
+  metadata: ThreadListMetadata;
   isArchived: boolean;
 };
 
@@ -18,11 +18,11 @@ export type LocalThreadFactory = (
   data: ExportedMessageRepository,
 ) => LocalThreadRuntimeCore;
 
-export class LocalThreadManagerRuntimeCore implements ThreadManagerRuntimeCore {
+export class LocalThreadListRuntimeCore implements ThreadListRuntimeCore {
   private _threadData = new Map<string, LocalThreadData>();
 
-  private _threads: readonly ThreadManagerMetadata[] = [];
-  private _archivedThreads: readonly ThreadManagerMetadata[] = [];
+  private _threads: readonly ThreadListMetadata[] = [];
+  private _archivedThreads: readonly ThreadListMetadata[] = [];
 
   public get threads() {
     return this._threads;

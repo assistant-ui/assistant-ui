@@ -1,6 +1,6 @@
 export {
   useAssistantRuntime,
-  useThreadManager,
+  useThreadList,
   useToolUIs,
   useToolUIsStore,
 
@@ -150,7 +150,7 @@ export {
   useAttachment,
   useAttachmentRuntime,
 
-  // TODO decide if we want to export/drop these? 
+  // TODO decide if we want to export/drop these?
   // useEditComposerAttachment,
   // useEditComposerAttachmentRuntime,
   // useMessageAttachment,

@@ -102,7 +102,7 @@
 
 ### Patch Changes
 
-- c38a018: feat: ThreadManagerRuntime
+- c38a018: feat: ThreadListRuntime
 
 ## 0.5.82
 

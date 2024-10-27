@@ -1,9 +1,9 @@
 import type { ModelConfigProvider } from "../../types/ModelConfigTypes";
 import type { Unsubscribe } from "../../types/Unsubscribe";
-import { ThreadManagerRuntimeCore } from "./ThreadManagerRuntimeCore";
+import { ThreadListRuntimeCore } from "./ThreadListRuntimeCore";
 
 export type AssistantRuntimeCore = {
-  readonly threadManager: ThreadManagerRuntimeCore;
+  readonly threadList: ThreadListRuntimeCore;
 
   registerModelConfigProvider: (provider: ModelConfigProvider) => Unsubscribe;
 };

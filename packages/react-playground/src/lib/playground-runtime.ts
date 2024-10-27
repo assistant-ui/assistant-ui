@@ -28,6 +28,7 @@ import {
 import { LanguageModelV1FunctionTool } from "@ai-sdk/provider";
 import { useMemo, useState } from "react";
 import { create } from "zustand";
+import { ThreadListMetadata } from "../../../react/src/runtimes/core/ThreadListRuntimeCore";
 
 const {
   BaseAssistantRuntimeCore,
@@ -55,8 +56,8 @@ type PlaygroundThreadFactory = (
 
 const EMPTY_ARRAY = [] as never[];
 
-class PlaygroundThreadManagerRuntimeCore
-  implements INTERNAL.ThreadManagerRuntimeCore
+class PlaygroundThreadListRuntimeCore
+  implements INTERNAL.ThreadListRuntimeCore
 {
   private _mainThread: PlaygroundThreadRuntimeCore;
 
@@ -74,6 +75,10 @@ class PlaygroundThreadManagerRuntimeCore
 
   constructor(private threadFactory: PlaygroundThreadFactory) {
     this._mainThread = this.threadFactory(generateId());
+  }
+
+  getThreadMetadataById(): ThreadListMetadata | undefined {
+    throw new Error("Method not implemented.");
   }
 
   public switchToThread(): void {
@@ -111,12 +116,12 @@ class PlaygroundThreadManagerRuntimeCore
 }
 
 class PlaygroundRuntimeCore extends BaseAssistantRuntimeCore {
-  public readonly threadManager;
+  public readonly threadList;
 
   constructor(adapter: ChatModelAdapter, initialMessages: CoreMessage[]) {
     super();
 
-    this.threadManager = new PlaygroundThreadManagerRuntimeCore((threadId) => {
+    this.threadList = new PlaygroundThreadListRuntimeCore((threadId) => {
       const thread = new PlaygroundThreadRuntimeCore(
         this._proxyConfigProvider,
         threadId,

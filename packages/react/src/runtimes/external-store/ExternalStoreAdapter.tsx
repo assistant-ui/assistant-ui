@@ -6,13 +6,13 @@ import {
 } from "../core/ThreadRuntimeCore";
 import { FeedbackAdapter } from "../feedback/FeedbackAdapter";
 import { SpeechSynthesisAdapter } from "../speech/SpeechAdapterTypes";
-import { ThreadManagerMetadata } from "../core/ThreadManagerRuntimeCore";
+import { ThreadListMetadata } from "../core/ThreadListRuntimeCore";
 import { ThreadMessageLike } from "./ThreadMessageLike";
 
-export type ExternalStoreThreadManagerAdapter = {
+export type ExternalStoreThreadListAdapter = {
   threadId?: string | undefined;
-  threads?: readonly ThreadManagerMetadata[] | undefined;
-  archivedThreads?: readonly ThreadManagerMetadata[] | undefined;
+  threads?: readonly ThreadListMetadata[] | undefined;
+  archivedThreads?: readonly ThreadListMetadata[] | undefined;
   onSwitchToNewThread?: (() => Promise<void> | void) | undefined;
   onSwitchToThread?: ((threadId: string) => Promise<void> | void) | undefined;
   onRename?: (
@@ -35,16 +35,16 @@ type ExternalStoreMessageConverterAdapter<T> = {
 
 type ExternalStoreAdapterBase<T> = {
   /**
-   * @deprecated Use `adapters.threadManager.threadId` instead. This will be removed in 0.6.0.
+   * @deprecated Use `adapterst.threadList.threadId` instead. This will be removed in 0.6.0.
    */
   threadId?: string | undefined;
 
   /**
-   * @deprecated Use `adapters.threadManager.onSwitchToThread` instead. This will be removed in 0.6.0.
+   * @deprecated Use `adapters..threadList.onSwitchToThread` instead. This will be removed in 0.6.0.
    */
   onSwitchToThread?: ((threadId: string) => Promise<void> | void) | undefined;
   /**
-   * @deprecated Use `adapters.threadManager.onSwitchToNewThread` instead. This will be removed in 0.6.0.
+   * @deprecated Use `adapters.threadList.onSwitchToNewThread` instead. This will be removed in 0.6.0.
    */
   onSwitchToNewThread?: (() => Promise<void> | void) | undefined;
 
@@ -68,7 +68,7 @@ type ExternalStoreAdapterBase<T> = {
         attachments?: AttachmentAdapter | undefined;
         speech?: SpeechSynthesisAdapter | undefined;
         feedback?: FeedbackAdapter | undefined;
-        threadManager?: ExternalStoreThreadManagerAdapter | undefined;
+        threadList?: ExternalStoreThreadListAdapter | undefined;
       }
     | undefined;
   unstable_capabilities?:

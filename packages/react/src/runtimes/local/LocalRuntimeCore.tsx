@@ -3,7 +3,7 @@ import { BaseAssistantRuntimeCore } from "../core/BaseAssistantRuntimeCore";
 import { LocalThreadRuntimeCore } from "./LocalThreadRuntimeCore";
 import { LocalRuntimeOptionsBase } from "./LocalRuntimeOptions";
 import { fromCoreMessages } from "../edge/converters/fromCoreMessage";
-import { LocalThreadManagerRuntimeCore } from "./LocalThreadManagerRuntimeCore";
+import { LocalThreadListRuntimeCore } from "./LocalThreadListRuntimeCore";
 import { ExportedMessageRepository } from "../utils/MessageRepository";
 
 const getExportFromInitialMessages = (
@@ -19,7 +19,7 @@ const getExportFromInitialMessages = (
 };
 
 export class LocalRuntimeCore extends BaseAssistantRuntimeCore {
-  public readonly threadManager;
+  public readonly threadList;
 
   private _options: LocalRuntimeOptionsBase;
 
@@ -31,7 +31,7 @@ export class LocalRuntimeCore extends BaseAssistantRuntimeCore {
 
     this._options = options;
 
-    this.threadManager = new LocalThreadManagerRuntimeCore((threadId, data) => {
+    this.threadList = new LocalThreadListRuntimeCore((threadId, data) => {
       const thread = new LocalThreadRuntimeCore(
         this._proxyConfigProvider,
         threadId,
@@ -42,7 +42,7 @@ export class LocalRuntimeCore extends BaseAssistantRuntimeCore {
     });
 
     if (initialMessages) {
-      this.threadManager.mainThread.import(
+      this.threadList.mainThread.import(
         getExportFromInitialMessages(initialMessages),
       );
     }
@@ -51,7 +51,7 @@ export class LocalRuntimeCore extends BaseAssistantRuntimeCore {
   public setOptions(options: LocalRuntimeOptionsBase) {
     this._options = options;
 
-    this.threadManager.mainThread.setOptions(options);
+    this.threadList.mainThread.setOptions(options);
   }
 
   public reset({
@@ -59,10 +59,10 @@ export class LocalRuntimeCore extends BaseAssistantRuntimeCore {
   }: {
     initialMessages?: readonly CoreMessage[] | undefined;
   } = {}) {
-    this.threadManager.switchToNewThread();
+    this.threadList.switchToNewThread();
     if (!initialMessages) return;
 
-    this.threadManager.mainThread.import(
+    this.threadList.mainThread.import(
       getExportFromInitialMessages(initialMessages),
     );
   }

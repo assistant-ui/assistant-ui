@@ -1,8 +1,8 @@
-export type ThreadManagerRuntimePath = {
+export type ThreadListRuntimePath = {
   ref: string;
 };
 
-export type ThreadManagerItemRuntimePath = {
+export type ThreadListItemRuntimePath = {
   ref: string;
   threadSelector:
     | { type: "main" }

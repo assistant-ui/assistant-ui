@@ -35,7 +35,7 @@
 
 ### Patch Changes
 
-- b38165d: feat(ai-sdk): Adapters support (attachment, feedback, speech, threadManager)
+- b38165d: feat(ai-sdk): Adapters support (attachment, feedback, speech, ThreadList)
 - Updated dependencies [b38165d]
 - Updated dependencies [a1bfd26]
 - Updated dependencies [b38165d]

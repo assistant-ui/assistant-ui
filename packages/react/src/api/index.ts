@@ -14,7 +14,4 @@ export type {
   ComposerState,
 } from "./ComposerRuntime";
 export type { AttachmentRuntime, AttachmentState } from "./AttachmentRuntime";
-export type {
-  ThreadManagerRuntime,
-  ThreadManagerState,
-} from "./ThreadManagerRuntime";
+export type { ThreadListRuntime, ThreadListState } from "./ThreadListRuntime";

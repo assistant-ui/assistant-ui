@@ -61,7 +61,7 @@
 
 ### Patch Changes
 
-- c38a018: feat: ThreadManagerRuntime
+- c38a018: feat: ThreadListRuntime
 - Updated dependencies [c38a018]
   - @assistant-ui/react@0.5.83
 

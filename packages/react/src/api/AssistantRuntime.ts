@@ -7,10 +7,7 @@ import {
   ThreadRuntimeImpl,
 } from "./ThreadRuntime";
 import { Unsubscribe } from "../types";
-import {
-  ThreadManagerRuntime,
-  ThreadManagerRuntimeImpl,
-} from "./ThreadManagerRuntime";
+import { ThreadListRuntime, ThreadListRuntimeImpl } from "./ThreadListRuntime";
 
 export type AssistantRuntime = {
   /**
@@ -21,7 +18,7 @@ export type AssistantRuntime = {
   /**
    * The thread manager, to rename, archive and delete threads.
    */
-  threadManager: ThreadManagerRuntime;
+  threadList: ThreadListRuntime;
 
   /**
    * Switch to a new thread.
@@ -54,16 +51,16 @@ export type AssistantRuntime = {
 
 export class AssistantRuntimeImpl
   implements
-    Omit<AssistantRuntimeCore, "thread" | "threadManager">,
+    Omit<AssistantRuntimeCore, "thread" | "ThreadList">,
     AssistantRuntime
 {
-  public readonly threadManager;
+  public readonly threadList;
 
   protected constructor(
     private readonly _core: AssistantRuntimeCore,
     private readonly _thread: ThreadRuntime,
   ) {
-    this.threadManager = new ThreadManagerRuntimeImpl(_core.threadManager);
+    this.threadList = new ThreadListRuntimeImpl(_core.threadList);
   }
 
   public get thread() {
@@ -71,7 +68,7 @@ export class AssistantRuntimeImpl
   }
 
   public switchToNewThread() {
-    return this._core.threadManager.switchToNewThread();
+    return this._core.threadList.switchToNewThread();
   }
 
   public switchToThread(threadId: string): void;
@@ -81,7 +78,7 @@ export class AssistantRuntimeImpl
   public switchToThread(threadId: string | null): void;
   public switchToThread(threadId: string | null) {
     if (threadId === null) return this.switchToNewThread();
-    return this._core.threadManager.switchToThread(threadId);
+    return this._core.threadList.switchToThread(threadId);
   }
 
   public registerModelConfigProvider(provider: ModelConfigProvider) {
@@ -107,8 +104,8 @@ export class AssistantRuntimeImpl
           ref: "threads.main",
           threadSelector: { type: "main" },
         },
-        getState: () => _core.threadManager.mainThread,
-        subscribe: (callback) => _core.threadManager.subscribe(callback),
+        getState: () => _core.threadList.mainThread,
+        subscribe: (callback) => _core.threadList.subscribe(callback),
       }),
     );
   }

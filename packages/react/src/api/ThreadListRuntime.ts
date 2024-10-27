@@ -1,81 +1,81 @@
 import { LazyMemoizeSubject } from "./subscribable/LazyMemoizeSubject";
 import {
-  ThreadManagerMetadata,
-  ThreadManagerRuntimeCore,
-} from "../runtimes/core/ThreadManagerRuntimeCore";
+  ThreadListMetadata,
+  ThreadListRuntimeCore,
+} from "../runtimes/core/ThreadListRuntimeCore";
 import { Unsubscribe } from "../types";
-import { ThreadManagerRuntimePath } from "./RuntimePathTypes";
+import { ThreadListRuntimePath } from "./RuntimePathTypes";
 import {
-  ThreadManagerItemRuntime,
-  ThreadManagerItemRuntimeImpl,
-} from "./ThreadManagerItemRuntime";
+  ThreadListItemRuntime,
+  ThreadListItemRuntimeImpl,
+} from "./ThreadListItemRuntime";
 import { SKIP_UPDATE } from "./subscribable/SKIP_UPDATE";
 
-export type ThreadManagerState = Readonly<{
-  threads: readonly ThreadManagerMetadata[];
-  archivedThreads: readonly ThreadManagerMetadata[];
+export type ThreadListState = Readonly<{
+  threads: readonly ThreadListMetadata[];
+  archivedThreads: readonly ThreadListMetadata[];
 }>;
 
-export type ThreadManagerRuntime = Readonly<{
-  path: ThreadManagerRuntimePath;
-  getState(): ThreadManagerState;
+export type ThreadListRuntime = Readonly<{
+  path: ThreadListRuntimePath;
+  getState(): ThreadListState;
 
   /**
-   * @deprecated Use `getThreadManagerItemById(idx).rename(newTitle)` instead. This will be removed in 0.6.0.
+   * @deprecated Use `getThreadListItemById(idx).rename(newTitle)` instead. This will be removed in 0.6.0.
    */
   rename(threadId: string, newTitle: string): Promise<void>;
   /**
-   * @deprecated Use `getThreadManagerItemById(idx).archive()` instead. This will be removed in 0.6.0.
+   * @deprecated Use `getThreadListItemById(idx).archive()` instead. This will be removed in 0.6.0.
    */
   archive(threadId: string): Promise<void>;
   /**
-   * @deprecated Use `getThreadManagerItemById(idx).unarchive()` instead. This will be removed in 0.6.0.
+   * @deprecated Use `getThreadListItemById(idx).unarchive()` instead. This will be removed in 0.6.0.
    */
   unarchive(threadId: string): Promise<void>;
   /**
-   * @deprecated Use `getThreadManagerItemById(idx).delete()` instead. This will be removed in 0.6.0.
+   * @deprecated Use `getThreadListItemById(idx).delete()` instead. This will be removed in 0.6.0.
    */
   delete(threadId: string): Promise<void>;
 
   subscribe(callback: () => void): Unsubscribe;
 
-  getThreadManagerItemById(threadId: string): ThreadManagerItemRuntime;
-  getThreadManagerItemByIndex(idx: number): ThreadManagerItemRuntime;
-  getThreadManagerArchivedItemByIndex(idx: number): ThreadManagerItemRuntime;
+  getThreadListItemById(threadId: string): ThreadListItemRuntime;
+  getThreadListItemByIndex(idx: number): ThreadListItemRuntime;
+  getThreadListArchivedItemByIndex(idx: number): ThreadListItemRuntime;
 }>;
 
-const getThreadManagerState = (
-  threadManager: ThreadManagerRuntimeCore,
-): ThreadManagerState => {
+const getThreadListState = (
+  threadList: ThreadListRuntimeCore,
+): ThreadListState => {
   return {
-    threads: threadManager.threads,
-    archivedThreads: threadManager.archivedThreads,
+    threads: threadList.threads,
+    archivedThreads: threadList.archivedThreads,
   };
 };
 
 const THREAD_MANAGER_PATH = {
-  ref: "threadManager",
+  ref: "ThreadList",
 };
 
-export type ThreadManagerRuntimeCoreBinding = ThreadManagerRuntimeCore;
+export type ThreadListRuntimeCoreBinding = ThreadListRuntimeCore;
 
-export class ThreadManagerRuntimeImpl implements ThreadManagerRuntime {
+export class ThreadListRuntimeImpl implements ThreadListRuntime {
   public get path() {
     return THREAD_MANAGER_PATH;
   }
 
   private _getState;
-  constructor(private _core: ThreadManagerRuntimeCoreBinding) {
+  constructor(private _core: ThreadListRuntimeCoreBinding) {
     const stateBinding = new LazyMemoizeSubject({
       path: THREAD_MANAGER_PATH,
-      getState: () => getThreadManagerState(_core),
+      getState: () => getThreadListState(_core),
       subscribe: (callback) => _core.subscribe(callback),
     });
 
     this._getState = stateBinding.getState.bind(stateBinding);
   }
 
-  public getState(): ThreadManagerState {
+  public getState(): ThreadListState {
     return this._getState();
   }
 
@@ -99,8 +99,8 @@ export class ThreadManagerRuntimeImpl implements ThreadManagerRuntime {
     return this._core.subscribe(callback);
   }
 
-  public getThreadManagerItemByIndex(idx: number) {
-    return new ThreadManagerItemRuntimeImpl(
+  public getThreadListItemByIndex(idx: number) {
+    return new ThreadListItemRuntimeImpl(
       new LazyMemoizeSubject({
         path: {
           ref: this.path.ref + `${this.path.ref}.threadItems[${idx}]`,
@@ -118,8 +118,8 @@ export class ThreadManagerRuntimeImpl implements ThreadManagerRuntime {
     );
   }
 
-  public getThreadManagerArchivedItemByIndex(idx: number) {
-    return new ThreadManagerItemRuntimeImpl(
+  public getThreadListArchivedItemByIndex(idx: number) {
+    return new ThreadListItemRuntimeImpl(
       new LazyMemoizeSubject({
         path: {
           ref: this.path.ref + `${this.path.ref}.archivedThreadItems[${idx}]`,
@@ -137,8 +137,8 @@ export class ThreadManagerRuntimeImpl implements ThreadManagerRuntime {
     );
   }
 
-  public getThreadManagerItemById(threadId: string) {
-    return new ThreadManagerItemRuntimeImpl(
+  public getThreadListItemById(threadId: string) {
+    return new ThreadListItemRuntimeImpl(
       new LazyMemoizeSubject({
         path: {
           ref:

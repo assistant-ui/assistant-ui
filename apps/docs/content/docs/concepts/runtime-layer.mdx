@@ -62,7 +62,7 @@ import { File, Folder, Files } from "fumadocs-ui/components/files";
 
 <Files>
   <Folder name="AssistantRuntime" defaultOpen>
-    <Folder name="ThreadManagerRuntime" defaultOpen>
+    <Folder name="ThreadListRuntime" defaultOpen>
       <Folder name="ThreadRuntime" defaultOpen>
         <Folder name="MessageRuntime" defaultOpen>
           <Folder
@@ -89,7 +89,7 @@ The AssistantRuntime (which encompasses everything), is sometimes simply called 
 The following components provide the runtime APIs:
 
 ```tsx
-// provides AssistantRuntime, ThreadManagerRuntime, ThreadRuntime, ComposerRuntime (ThreadComposer)
+// provides AssistantRuntime, ThreadListRuntime, ThreadRuntime, ComposerRuntime (ThreadComposer)
 <AssistantRuntimeProvider runtime={runtime} />
 
 // renders every message, provides MessageRuntime, ComposerRuntime (EditComposer)
@@ -119,7 +119,7 @@ const messageRuntime = useMessageRuntime();
 const contentPartRuntime = useContentPartRuntime();
 
 // thread manager has no separate hook (1:1 relationship with assistant runtime)
-const threadManagerRuntime = useAssistantRuntime().threadManager;
+const ThreadListRuntime = useAssistantRuntime().threadList;
 
 // composer runtime is multi-use
 const composerRuntime = useComposerRuntime(); // refers to edit composer if available, otherwise thread composer
@@ -142,7 +142,7 @@ const messageAttachmentRuntime = useMessageAttachmentRuntime();
 Most runtimes also expose a state through two methods `getState` and `subscribe`. The following helper hooks subscribe to the state, so that your component is updated when the state changes:
 
 ```tsx
-useThreadManager(); // get thread manager state
+useThreadList(); // get thread manager state
 useThread(); // get thread state
 useMessage(); // get message state
 useContentPart(); // get content part state

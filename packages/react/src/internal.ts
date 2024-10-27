@@ -1,5 +1,5 @@
 export type { ThreadRuntimeCore } from "./runtimes/core/ThreadRuntimeCore";
-export type { ThreadManagerRuntimeCore } from "./runtimes/core/ThreadManagerRuntimeCore";
+export type { ThreadListRuntimeCore } from "./runtimes/core/ThreadListRuntimeCore";
 export { DefaultThreadComposerRuntimeCore } from "./runtimes/composer/DefaultThreadComposerRuntimeCore";
 export { ProxyConfigProvider } from "./utils/ProxyConfigProvider";
 export { MessageRepository } from "./runtimes/utils/MessageRepository";
