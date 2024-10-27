@@ -43,12 +43,19 @@ const transpileTypescript = async () => {
     minify: false,
     sourcemap: true,
     splitting: false,
+    silent: true,
+
     esbuildPlugins: [esbuildPluginFilePathExtensions()],
   });
 };
 
 const transpileTypescriptDts = async () => {
-  const child = spawn("npx", ["tsc", "-p", "tsconfig.declarations.json"]);
+  const child = spawn("pnpm", [
+    "exec",
+    "tsc",
+    "-p",
+    "tsconfig.declarations.json",
+  ]);
   child.stdout.pipe(process.stdout);
   child.stderr.pipe(process.stderr);
   return new Promise((r, e) => {
