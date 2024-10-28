@@ -5,7 +5,6 @@ import {
   ActionButtonProps,
   createActionButton,
 } from "../../utils/createActionButton";
-import { useThreadScrollToBottom } from "../../primitive-hooks/thread/useThreadScrollToBottom";
 import { useAssistantRuntime } from "../../context";
 
 const useThreadListNew = () => {
@@ -17,7 +16,7 @@ const useThreadListNew = () => {
 
 export namespace ThreadListPrimitiveNew {
   export type Element = ActionButtonElement;
-  export type Props = ActionButtonProps<typeof useThreadScrollToBottom>;
+  export type Props = ActionButtonProps<typeof useThreadListNew>;
 }
 
 export const ThreadListPrimitiveNew = createActionButton(
