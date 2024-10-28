@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-syntax-highlighter",
-  "version": "0.0.17",
+  "version": "0.0.18",
   "license": "MIT",
   "exports": {
     ".": {
@@ -27,8 +27,8 @@
     "build": "tsup src/index.ts --format cjs,esm --dts --sourcemap --clean"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.5.98",
-    "@assistant-ui/react-markdown": "^0.2.26",
+    "@assistant-ui/react": "^0.5.99",
+    "@assistant-ui/react-markdown": "^0.2.27",
     "@types/react": "*",
     "@types/react-syntax-highlighter": "*",
     "react": "^18 || ^19 || ^19.0.0-rc",

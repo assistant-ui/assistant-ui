@@ -1,5 +1,16 @@
 # @assistant-ui/react
 
+## 0.5.99
+
+### Patch Changes
+
+- cdcfe1e: feat: ThreadListItemPrimitive (wip)
+- cdcfe1e: fix: add React 19 RC to peerDeps
+- 94feab2: feat: ComposerState.role / ComposerRuntime.setRole
+- 472c548: feat: ThreadListPrimitive
+- 14da684: feat: AppendMessage.startRun flag
+- 1ada091: chore: update deps
+
 ## 0.5.98
 
 ### Patch Changes
