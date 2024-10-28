@@ -73,7 +73,7 @@ export default function HomePage() {
       </div>
       <div className="mx-auto flex w-full max-w-screen-xl flex-col">
         <p className="font-bold">Examples:</p>
-        <div className="mt-2 flex overflow-x-scroll">
+        <div className="mt-2 flex overflow-x-auto">
           <div className="flex flex-grow gap-3">
             {supportedModels.map((model) => (
               <Badge
