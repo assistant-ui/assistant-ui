@@ -38,11 +38,11 @@
   },
   "devDependencies": {
     "@assistant-ui/tsconfig": "workspace:*",
-    "ai": "^3.4.20",
+    "ai": "^3.4.23",
     "eslint": "^9",
     "eslint-config-next": "15.0.1",
     "tsup": "8.3.5",
-    "tsx": "^4.19.1"
+    "tsx": "^4.19.2"
   },
   "publishConfig": {
     "access": "public"
@@ -56,7 +56,7 @@
     "url": "https://github.com/Yonom/assistant-ui/issues"
   },
   "dependencies": {
-    "nanoid": "^5.0.7",
+    "nanoid": "^5.0.8",
     "secure-json-parse": "^2.7.0"
   }
 }

@@ -38,7 +38,7 @@
     "class-variance-authority": "^0.7.0",
     "classnames": "^2.5.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^0.453.0",
+    "lucide-react": "^0.454.0",
     "openai": "^4.68.4",
     "prismjs": "^1.29.0",
     "react-simple-code-editor": "^0.14.1",
@@ -49,7 +49,7 @@
   "peerDependencies": {
     "@assistant-ui/react": "^0.5.98",
     "@types/react": "*",
-    "react": "^18 || ^19 || ^19.0.0-rc",
+    "react": "^18 || ^19 || ^19.0.0-rc",
     "tailwindcss": "^3.4.4"
   },
   "peerDependenciesMeta": {
@@ -71,7 +71,7 @@
     "tailwindcss": "^3.4.14",
     "tailwindcss-animate": "^1.0.7",
     "tsup": "8.3.5",
-    "tsx": "^4.19.1"
+    "tsx": "^4.19.2"
   },
   "publishConfig": {
     "access": "public",

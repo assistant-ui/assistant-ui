@@ -36,13 +36,13 @@
     "@radix-ui/react-primitive": "^2.0.0",
     "@radix-ui/react-use-callback-ref": "^1.1.0",
     "classnames": "^2.5.1",
-    "lucide-react": "^0.453.0",
+    "lucide-react": "^0.454.0",
     "react-markdown": "^9.0.1"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.5.98",
     "@types/react": "*",
-    "react": "^18 || ^19 || ^19.0.0-rc",
+    "react": "^18 || ^19 || ^19.0.0-rc",
     "tailwindcss": "^3.4.4"
   },
   "peerDependenciesMeta": {
@@ -58,7 +58,7 @@
     "@assistant-ui/tailwindcss-transformer": "workspace:*",
     "@assistant-ui/tsbuildutils": "workspace:^",
     "@assistant-ui/tsconfig": "workspace:*",
-    "@types/node": "^22.8.1",
+    "@types/node": "^22.8.2",
     "autoprefixer": "^10.4.20",
     "eslint": "^9",
     "eslint-config-next": "15.0.1",
@@ -69,7 +69,7 @@
     "tailwindcss": "^3.4.14",
     "tailwindcss-animate": "^1.0.7",
     "tsup": "8.3.5",
-    "tsx": "^4.19.1"
+    "tsx": "^4.19.2"
   },
   "publishConfig": {
     "access": "public",
