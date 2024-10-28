@@ -50,18 +50,17 @@ const Parameter: FC<ParameterProps> = ({
   };
 
   return (
-    <div className={cn("flex flex-col gap-1 px-3 py-3", !isLast && "border-b")}>
+    <div className={cn("flex flex-col gap-1 px-3.5 py-3.5", !isLast && "border-b")}>
       <div className="relative flex gap-2">
         <h3 className="font-mono text-sm font-semibold">
           {parameter.name}
           {!parameter.required && !parameter.default && "?"}
           {!!parameter.type && ":"}
         </h3>
-        <div className="no-scrollbar text-foreground/70 w-full overflow-x-scroll text-nowrap pr-12 font-mono text-sm">
+        <div className="text-foreground/70 w-full font-mono text-sm">
           {parameter.type}
           {parameter.default && ` = ${parameter.default}`}
         </div>
-        <div className="to-background/100 pointer-events-none absolute right-0 top-0 h-5 w-12 bg-gradient-to-r from-white/0" />
       </div>
       <div>
         <p className="text-foreground/70 text-sm">{parameter.description}</p>
@@ -88,9 +87,14 @@ const ParametersList = ({
 };
 const ParametersBox: FC<ParametersTableProps> = ({ type, parameters }) => {
   return (
-    <div className="relative m-2 mb-1 flex flex-col rounded-lg border">
+    <div
+      className={cn(
+        "relative m-2 mb-1 flex flex-col rounded-lg border",
+        type && "pt-3 mt-4",
+      )}
+    >
       {!!type && (
-        <h3 className="bg-background text-foreground/70 absolute right-3 z-50 -translate-y-1/2 rounded-md border px-4 py-2 font-mono text-xs font-semibold">
+        <h3 className="bg-background text-foreground/70 absolute right-3 top-0 z-50 -translate-y-1/2 rounded-md border px-4 py-2 font-mono text-xs font-semibold">
           {type}
         </h3>
       )}
