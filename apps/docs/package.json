@@ -31,6 +31,7 @@
     "ai": "^3.4.20",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
+    "dotenv": "^16.4.5",
     "fumadocs-core": "14.0.2",
     "fumadocs-mdx": "11.1.0",
     "fumadocs-twoslash": "^2.0.0",

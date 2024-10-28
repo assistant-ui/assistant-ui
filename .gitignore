@@ -34,10 +34,13 @@ out/
 build
 dist
 apps/docs/generated
+packages/*/generated
 
 # turbo
 .turbo
 
+# env files
+.env
 
 # python
 __pycache__

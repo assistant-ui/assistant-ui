@@ -1,0 +1,39 @@
+name: Update Trieve Index
+env:
+  TRIEVE_ADMIN_API_KEY: ${{ secrets.TRIEVE_ADMIN_API_KEY }}
+  TRIEVE_DATASET_ID: ${{ secrets.TRIEVE_DATASET_ID }}
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - apps/docs/content/**
+
+jobs:
+  Upload-Trieve:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build docs
+        working-directory: apps/docs
+        run: pnpm build
+
+      - name: Update Index
+        working-directory: apps/docs
+        run: node lib/update-index.mjs

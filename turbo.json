@@ -5,7 +5,13 @@
       "dependsOn": ["^build"],
       "inputs": ["**/*.*", "!.next", "!.turbo"],
       "outputs": ["dist", ".next/**", "!.next/cache/**", "generated/**"],
-      "env": ["OPENAI_*", "ASSISTANT_UI_*", "ENTELLIGENCE_API_*"]
+      "env": [
+        "OPENAI_*",
+        "ASSISTANT_UI_*",
+        "ENTELLIGENCE_API_*",
+        "NEXT_PUBLIC_*",
+        "TRIEVE_*"
+      ]
     },
     "lint": {},
     "deploy": {
