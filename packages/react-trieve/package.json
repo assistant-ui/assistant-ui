@@ -48,7 +48,7 @@
     "@assistant-ui/react": "^0.5.98",
     "@assistant-ui/react-markdown": "^0.2.26",
     "@types/react": "*",
-    "react": "^18 || ^19",
+    "react": "^18 || ^19 || ^19.0.0-rc",
     "tailwindcss": "^3.4.4",
     "trieve-ts-sdk": "^0.0.13"
   },

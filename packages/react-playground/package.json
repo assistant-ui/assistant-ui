@@ -49,7 +49,7 @@
   "peerDependencies": {
     "@assistant-ui/react": "^0.5.98",
     "@types/react": "*",
-    "react": "^18 || ^19",
+    "react": "^18 || ^19 || ^19.0.0-rc",
     "tailwindcss": "^3.4.4"
   },
   "peerDependenciesMeta": {
