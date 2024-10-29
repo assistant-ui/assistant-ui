@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.5.100
+
+### Patch Changes
+
+- b5f92fe: fix(external-store): crash on cancel when using separate converter, fix branching
+
 ## 0.5.99
 
 ### Patch Changes

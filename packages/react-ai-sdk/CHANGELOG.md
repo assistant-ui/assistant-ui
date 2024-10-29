@@ -1,5 +1,13 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.6.19
+
+### Patch Changes
+
+- b5f92fe: fix(external-store): crash on cancel when using separate converter, fix branching
+- Updated dependencies [b5f92fe]
+  - @assistant-ui/react@0.5.100
+
 ## 0.6.18
 
 ### Patch Changes
