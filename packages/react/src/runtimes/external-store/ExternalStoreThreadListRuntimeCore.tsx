@@ -52,10 +52,15 @@ export class ExternalStoreThreadListRuntimeCore
     const newThreads = adapter.threads ?? EMPTY_ARRAY;
     const newArchivedThreads = adapter.archivedThreads ?? EMPTY_ARRAY;
 
+    const previousThreadId = previousAdapter.threadId ?? DEFAULT_THREAD_ID;
+    const previousThreads = previousAdapter.threads ?? EMPTY_ARRAY;
+    const previousArchivedThreads =
+      previousAdapter.archivedThreads ?? EMPTY_ARRAY;
+
     if (
-      previousAdapter.threadId === newThreadId &&
-      previousAdapter.threads === newThreads &&
-      previousAdapter.archivedThreads === newArchivedThreads
+      previousThreadId === newThreadId &&
+      previousThreads === newThreads &&
+      previousArchivedThreads === newArchivedThreads
     ) {
       return;
     }

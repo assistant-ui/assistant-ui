@@ -92,6 +92,7 @@ export const convertMessage: useExternalMessageConverter.Callback<Message> = (
       } else if (data.type === "tool-result") {
         return {
           role: "tool",
+          id: message.id,
           toolCallId: data.toolCallId,
           result: data.result,
         };

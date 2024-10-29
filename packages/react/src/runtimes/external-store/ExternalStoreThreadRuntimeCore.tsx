@@ -239,8 +239,13 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   private updateMessages = (messages: ThreadMessage[]) => {
-    this._store.setMessages?.(
-      messages.flatMap(getExternalStoreMessage).filter((m) => m != null),
-    );
+    const hasConverter = this._store.convertMessage !== undefined;
+    if (hasConverter) {
+      this._store.setMessages?.(
+        messages.flatMap(getExternalStoreMessage).filter((m) => m != null),
+      );
+    } else {
+      this._store.setMessages?.(messages);
+    }
   };
 }
