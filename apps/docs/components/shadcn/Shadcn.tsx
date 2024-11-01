@@ -1,6 +1,9 @@
 import { ArchiveIcon, EditIcon, MenuIcon, ShareIcon } from "lucide-react";
-import Link from "next/link";
-import { Thread, useAssistantRuntime } from "@assistant-ui/react";
+import {
+  Thread,
+  ThreadListItemPrimitive,
+  ThreadListPrimitive,
+} from "@assistant-ui/react";
 import { makeMarkdownText } from "@assistant-ui/react-markdown";
 import remarkGfm from "remark-gfm";
 import { makePrismAsyncSyntaxHighlighter } from "@assistant-ui/react-syntax-highlighter";
@@ -20,6 +23,7 @@ import {
   TooltipTrigger,
 } from "../ui/tooltip";
 import { ModelPicker } from "./ModelPicker";
+import { useThreadListItem } from "@assistant-ui/react/context/react/ThreadListItemContext";
 
 export const MarkdownText = makeMarkdownText({
   remarkPlugins: [remarkGfm],
@@ -61,46 +65,52 @@ const ButtonWithTooltip: FC<ButtonWithTooltipProps> = ({
 };
 
 const TopLeft: FC = () => {
-  const runtime = useAssistantRuntime();
-
   return (
-    <ButtonWithTooltip
-      onClick={() => runtime.switchToNewThread()}
-      variant="ghost"
-      className="flex w-full justify-between px-3"
-      tooltip="New Chat"
-      side="right"
-    >
-      <div className="flex items-center gap-2 text-sm font-semibold">
-        <Image
-          src={icon}
-          alt="logo"
-          className="inline size-4 dark:hue-rotate-180 dark:invert"
-        />
-        <span>assistant-ui</span>
-      </div>
+    <ThreadListPrimitive.New asChild>
+      <ButtonWithTooltip
+        variant="ghost"
+        className="flex w-full justify-between px-3"
+        tooltip="New Chat"
+        side="right"
+      >
+        <div className="flex items-center gap-2 text-sm font-semibold">
+          <Image
+            src={icon}
+            alt="logo"
+            className="inline size-4 dark:hue-rotate-180 dark:invert"
+          />
+          <span>assistant-ui</span>
+        </div>
 
-      <EditIcon className="size-4" />
-    </ButtonWithTooltip>
+        <EditIcon className="size-4" />
+      </ButtonWithTooltip>
+    </ThreadListPrimitive.New>
+  );
+};
+
+const ThreadListItem: FC = () => {
+  return (
+    <ThreadListItemPrimitive.Root className="hover:text-primary data-[active]:bg-muted data-[active]:text-primary flex items-center gap-2 rounded-lg px-3 py-2 transition-all">
+      <ThreadListItemPrimitive.Trigger className="flex-grow text-start">
+        <ThreadListItemPrimitive.Title fallback="New Chat" />
+      </ThreadListItemPrimitive.Trigger>
+      <ThreadListItemPrimitive.Archive asChild>
+        <ButtonWithTooltip
+          variant="ghost"
+          className="hover:text-foreground/60 ml-auto h-auto p-0"
+          tooltip="Archive"
+        >
+          <ArchiveIcon className="size-4" />
+        </ButtonWithTooltip>
+      </ThreadListItemPrimitive.Archive>
+    </ThreadListItemPrimitive.Root>
   );
 };
 
 const MainLeft: FC = () => {
   return (
     <nav className="flex flex-col items-stretch gap-1 text-sm font-medium">
-      <Link
-        href="#"
-        className="bg-muted text-primary hover:text-primary flex items-center gap-3 rounded-lg px-3 py-2 transition-all"
-      >
-        New Chat
-        <ButtonWithTooltip
-          variant={"ghost"}
-          className="hover:text-foreground/60 ml-auto h-auto p-0"
-          tooltip="Archive"
-        >
-          <ArchiveIcon className="size-4" />
-        </ButtonWithTooltip>
-      </Link>
+      <ThreadListPrimitive.Items components={{ ThreadListItem }} />
     </nav>
   );
 };

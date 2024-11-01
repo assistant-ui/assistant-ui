@@ -10,6 +10,7 @@ import {
   ThreadListItemRuntimeImpl,
 } from "./ThreadListItemRuntime";
 import { SKIP_UPDATE } from "./subscribable/SKIP_UPDATE";
+import { ShallowMemoizeSubject } from "./subscribable/ShallowMemoizeSubject";
 
 export type ThreadListState = Readonly<{
   threads: readonly ThreadListMetadata[];
@@ -101,7 +102,7 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
 
   public getThreadListItemByIndex(idx: number) {
     return new ThreadListItemRuntimeImpl(
-      new LazyMemoizeSubject({
+      new ShallowMemoizeSubject({
         path: {
           ref: this.path.ref + `${this.path.ref}.threadItems[${idx}]`,
           threadSelector: { type: "index", index: idx },
@@ -110,7 +111,10 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
           const threads = this._core.threads;
           const thread = threads[idx];
           if (!thread) return SKIP_UPDATE;
-          return thread;
+          return {
+            ...thread,
+            isMain: this._core.mainThread.threadId === thread.threadId,
+          };
         },
         subscribe: (callback) => this._core.subscribe(callback),
       }),
@@ -120,7 +124,7 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
 
   public getThreadListArchivedItemByIndex(idx: number) {
     return new ThreadListItemRuntimeImpl(
-      new LazyMemoizeSubject({
+      new ShallowMemoizeSubject({
         path: {
           ref: this.path.ref + `${this.path.ref}.archivedThreadItems[${idx}]`,
           threadSelector: { type: "archiveIndex", index: idx },
@@ -129,7 +133,10 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
           const threads = this._core.archivedThreads;
           const thread = threads[idx];
           if (!thread) return SKIP_UPDATE;
-          return thread;
+          return {
+            ...thread,
+            isMain: this._core.mainThread.threadId === thread.threadId,
+          };
         },
         subscribe: (callback) => this._core.subscribe(callback),
       }),
@@ -139,7 +146,7 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
 
   public getThreadListItemById(threadId: string) {
     return new ThreadListItemRuntimeImpl(
-      new LazyMemoizeSubject({
+      new ShallowMemoizeSubject({
         path: {
           ref:
             this.path.ref +
@@ -147,9 +154,12 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
           threadSelector: { type: "threadId", threadId },
         },
         getState: () => {
-          const threadItem = this._core.getThreadMetadataById(threadId);
-          if (!threadItem) return SKIP_UPDATE;
-          return threadItem;
+          const thread = this._core.getThreadMetadataById(threadId);
+          if (!thread) return SKIP_UPDATE;
+          return {
+            ...thread,
+            isMain: this._core.mainThread.threadId === thread.threadId,
+          };
         },
         subscribe: (callback) => this._core.subscribe(callback),
       }),

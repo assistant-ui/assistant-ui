@@ -53,46 +53,47 @@ export class LocalThreadListRuntimeCore implements ThreadListRuntimeCore {
     return this._threadData.get(threadId)?.metadata;
   }
 
-  public switchToThread(threadId: string): void {
+  public async switchToThread(threadId: string): Promise<void> {
+    console.log("switchToThread", threadId);
     if (this._mainThread.threadId === threadId) return;
 
     const data = this._threadData.get(threadId);
     if (!data) throw new Error("Thread not found");
 
-    const thread = this._threadFactory(threadId, data.data);
-    this._performThreadSwitch(thread);
+    if (data.isArchived) await this._performMoveOp(threadId, "unarchive");
+
+    const newThreadCore = this._threadFactory(threadId, data.data);
+
+    const mainThreadData = this._threadData.get(this._mainThread.threadId);
+    if (!mainThreadData) throw new Error("Main thread not found");
+
+    const exprt = this._mainThread.export();
+    mainThreadData.data = exprt;
+
+    this._mainThread._notifyEventSubscribers("switched-away");
+    this._mainThread = newThreadCore;
+    this._notifySubscribers();
+
+    newThreadCore._notifyEventSubscribers("switched-to");
   }
 
-  public switchToNewThread(): void {
+  public async switchToNewThread(): Promise<void> {
     const threadId = generateId();
     this._threadData.set(threadId, {
       data: { messages: [] },
       metadata: { threadId },
       isArchived: false,
     });
-    this._threads = [{ threadId }];
-    const thread = this._threadFactory(threadId, { messages: [] });
-    this._performThreadSwitch(thread);
+    this._threads = [{ threadId }, ...this._threads];
+    await this.switchToThread(threadId);
   }
 
-  private _performThreadSwitch(newThreadCore: LocalThreadRuntimeCore) {
-    const data = this._threadData.get(this._mainThread.threadId);
-    if (!data) throw new Error("Thread not found");
-
-    const exprt = this._mainThread.export();
-    data.data = exprt;
-
-    this._mainThread._notifyEventSubscribers("switched-away");
-    this._mainThread = newThreadCore;
-    newThreadCore._notifyEventSubscribers("switched-to");
-
-    this._notifySubscribers();
-  }
-
-  private _performMoveOp(
+  private async _performMoveOp(
     threadId: string,
     operation: "archive" | "unarchive" | "delete",
   ) {
+    console.log("_performMoveOp", threadId, operation);
+
     const data = this._threadData.get(threadId);
     if (!data) throw new Error("Thread not found");
 
@@ -113,6 +114,13 @@ export class LocalThreadListRuntimeCore implements ThreadListRuntimeCore {
 
     if (
       operation === "archive" ||
+      (operation === "delete" && !data.isArchived)
+    ) {
+      this._threads = this._threads.filter((t) => t.threadId !== threadId);
+    }
+
+    if (
+      operation === "unarchive" ||
       (operation === "delete" && data.isArchived)
     ) {
       this._archivedThreads = this._archivedThreads.filter(
@@ -121,13 +129,18 @@ export class LocalThreadListRuntimeCore implements ThreadListRuntimeCore {
     }
 
     if (
-      operation === "unarchive" ||
-      (operation === "delete" && !data.isArchived)
+      threadId === this._mainThread.threadId &&
+      (operation === "archive" || operation === "delete")
     ) {
-      this._threads = this._threads.filter((t) => t.threadId !== threadId);
+      const lastThread = this._threads[0]?.threadId;
+      console.log("reset", this.threads, threadId, lastThread);
+      if (lastThread) {
+        await this.switchToThread(lastThread);
+      } else {
+        await this.switchToNewThread();
+      }
+      console.log("reset2", this.threads, this._mainThread.threadId);
     }
-
-    this._notifySubscribers();
   }
 
   public async rename(threadId: string, newTitle: string): Promise<void> {
@@ -151,15 +164,18 @@ export class LocalThreadListRuntimeCore implements ThreadListRuntimeCore {
   }
 
   public async archive(threadId: string): Promise<void> {
-    this._performMoveOp(threadId, "archive");
+    await this._performMoveOp(threadId, "archive");
+    this._notifySubscribers();
   }
 
   public async unarchive(threadId: string): Promise<void> {
-    this._performMoveOp(threadId, "unarchive");
+    await this._performMoveOp(threadId, "unarchive");
+    this._notifySubscribers();
   }
 
   public async delete(threadId: string): Promise<void> {
-    this._performMoveOp(threadId, "delete");
+    await this._performMoveOp(threadId, "delete");
+    this._notifySubscribers();
   }
 
   private _subscriptions = new Set<() => void>();

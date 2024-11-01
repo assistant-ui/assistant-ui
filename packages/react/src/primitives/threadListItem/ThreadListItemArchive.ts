@@ -6,12 +6,13 @@ import {
   createActionButton,
 } from "../../utils/createActionButton";
 import { useThreadListItemRuntime } from "../../context/react/ThreadListItemContext";
+import { useCallback } from "react";
 
 const useThreadListItemArchive = () => {
   const runtime = useThreadListItemRuntime();
-  return () => {
+  return useCallback(() => {
     runtime.archive();
-  };
+  }, [runtime]);
 };
 
 export namespace ThreadListItemPrimitiveArchive {

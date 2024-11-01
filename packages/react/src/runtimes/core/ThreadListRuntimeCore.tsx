@@ -14,8 +14,8 @@ export type ThreadListRuntimeCore = {
 
   getThreadMetadataById(threadId: string): ThreadListMetadata | undefined;
 
-  switchToThread(threadId: string): void;
-  switchToNewThread(): void;
+  switchToThread(threadId: string): Promise<void>;
+  switchToNewThread(): Promise<void>;
 
   // getLoadThreadsPromise(): Promise<void>;
   // getLoadArchivedThreadsPromise(): Promise<void>;
