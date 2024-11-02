@@ -51,19 +51,19 @@ export const Claude: FC = () => {
 };
 
 const ChatMessage: FC = () => {
-  const { message } = useMessage();
+  const role = useMessage((m) => m.role);
 
   return (
     <MessagePrimitive.Root className="relative mx-auto mb-4 flex w-full max-w-screen-md flex-col gap-3">
       <div
         className={cn(
           "relative flex gap-2 rounded-2xl bg-gradient-to-b from-[#21201c] from-50% to-[#1a1915] px-3 py-2.5",
-          message.role === "user" && "self-start",
-          message.role === "assistant" &&
+          role === "user" && "self-start",
+          role === "assistant" &&
             "bg-[linear-gradient(to_bottom,_hsla(60_1.8%_22%_/_0.75)_0%,_hsla(60_1.8%_22%_/_0)_90%)] pb-4 font-serif",
         )}
       >
-        {message.role === "assistant" && (
+        {role === "assistant" && (
           <div className="absolute inset-0 rounded-2xl border-[0.5px] border-[hsla(50_5.8%_40%/0.15)] bg-[radial-gradient(ellipse_at_left_top,_hsla(60_1.8%_22%/0.5)_0%,_hsla(60_1.8%_22%/0.3)_60%)] shadow-[0_4px_24px_rgba(0,0,0,0.015)]" />
         )}
         <div className="relative flex gap-2">

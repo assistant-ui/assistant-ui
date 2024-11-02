@@ -19,9 +19,6 @@ export type ComposerRuntimeCore = Readonly<{
   role: MessageRole;
   setRole: (role: MessageRole) => void;
 
-  /**
-   * @deprecated This method will be removed in 0.6.0. Submit feedback if you need this functionality.
-   */
   reset: () => void;
 
   send: () => void;

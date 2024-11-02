@@ -41,7 +41,6 @@ export const TextContentPartProvider: FC<TextContentPartProvider.Props> = ({
     );
     const useContentPart = create<ContentPartState>(() => ({
       status: isRunning ? RUNNING_STATUS : COMPLETE_STATUS,
-      part: { type: "text", text },
       type: "text",
       text,
     }));
@@ -64,7 +63,6 @@ export const TextContentPartProvider: FC<TextContentPartProvider.Props> = ({
       {
         type: "text",
         text,
-        part: { type: "text", text },
         status: targetStatus,
       } satisfies ContentPartState,
       true,

@@ -1,4 +1,3 @@
-import { LanguageModelV1LogProbs } from "@ai-sdk/provider";
 import type { ReactNode } from "react";
 import { CompleteAttachment } from "./AttachmentTypes";
 
@@ -62,16 +61,7 @@ type MessageCommonProps = {
   createdAt: Date;
 };
 
-/**
- * @deprecated Use `ThreadStep` instead. This type will be removed in v0.6.
- */
-export type ThreadRoundtrip = ThreadStep;
-
 export type ThreadStep = {
-  /**
-   * @deprecated This field will be removed in v0.6. Submit feedback if you need this functionality.
-   */
-  logprobs?: LanguageModelV1LogProbs | undefined;
   usage?:
     | {
         promptTokens: number;
@@ -140,15 +130,7 @@ export type ThreadAssistantMessage = MessageCommonProps & {
   role: "assistant";
   content: ThreadAssistantContentPart[];
   status: MessageStatus;
-  /**
-   * @deprecated Use `metadata.steps` instead.
-   */
-  roundtrips?: ThreadStep[] | undefined;
   metadata?: {
-    /**
-     * @deprecated Use `steps` instead. This field will be removed in v0.6.
-     */
-    roundtrips?: ThreadStep[] | undefined;
     steps?: ThreadStep[] | undefined;
     custom?: Record<string, unknown> | undefined;
   };
@@ -156,8 +138,7 @@ export type ThreadAssistantMessage = MessageCommonProps & {
 
 export type AppendMessage = CoreMessage & {
   parentId: string | null;
-  // TODO make required in the next major version
-  attachments?: readonly CompleteAttachment[] | undefined;
+  attachments: readonly CompleteAttachment[];
   startRun?: boolean | undefined;
 };
 

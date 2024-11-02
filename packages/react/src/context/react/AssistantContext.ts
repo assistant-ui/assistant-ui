@@ -13,11 +13,6 @@ export type AssistantContextValue = {
   useToolUIs: UseBoundStore<ReadonlyStore<AssistantToolUIsState>>;
   useAssistantRuntime: UseBoundStore<ReadonlyStore<AssistantRuntime>>;
   useThreadList: UseBoundStore<ReadonlyStore<ThreadListState>>;
-
-  /**
-   * @deprecated Use `useAssistantRuntime` instead. This will be removed in 0.6.0.
-   */
-  useAssistantActions: UseBoundStore<ReadonlyStore<AssistantRuntime>>;
 };
 
 export const AssistantContext = createContext<AssistantContextValue | null>(
@@ -42,26 +37,6 @@ export function useAssistantRuntime(options?: {
   if (!context) return null;
   return context.useAssistantRuntime();
 }
-
-export const actions = createContextStoreHook(
-  useAssistantContext,
-  "useAssistantActions",
-);
-
-/**
- * @deprecated Use `useAssistantRuntime` instead. This will be removed in 0.6.0.
- */
-export const useAssistantActionsStore = actions.useAssistantActionsStore;
-
-/**
- * @deprecated Use `useAssistantRuntime` instead. This will be removed in 0.6.0.
- */
-export const useAssistantActions = actions.useAssistantActions;
-
-/**
- * @deprecated Use `useAssistantRuntime` instead. This will be removed in 0.6.0.
- */
-export const useAssistantRuntimeStore = useAssistantActionsStore;
 
 export const { useToolUIs, useToolUIsStore } = createContextStoreHook(
   useAssistantContext,

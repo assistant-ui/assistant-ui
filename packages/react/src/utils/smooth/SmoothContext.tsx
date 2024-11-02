@@ -13,7 +13,7 @@ import {
   ContentPartStatus,
   ToolCallContentPartStatus,
 } from "../../types/AssistantTypes";
-import { useContentPartStore } from "../../context/react/ContentPartContext";
+import { useContentPartRuntime } from "../../context/react/ContentPartContext";
 import { createContextStoreHook } from "../../context/react/utils/createContextStoreHook";
 
 type SmoothContextValue = {
@@ -33,10 +33,10 @@ const makeSmoothContext = (
 
 export const SmoothContextProvider: FC<PropsWithChildren> = ({ children }) => {
   const outer = useSmoothContext({ optional: true });
-  const contentPartStore = useContentPartStore();
+  const contentPartRuntime = useContentPartRuntime();
 
   const [context] = useState(() =>
-    makeSmoothContext(contentPartStore.getState().status),
+    makeSmoothContext(contentPartRuntime.getState().status),
   );
 
   // do not wrap if there is an outer SmoothContextProvider

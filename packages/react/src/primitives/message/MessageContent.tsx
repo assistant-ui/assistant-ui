@@ -24,12 +24,7 @@ import type {
   UIContentPartComponent,
 } from "../../types/ContentPartComponentTypes";
 import { ContentPartPrimitiveInProgress } from "../contentPart/ContentPartInProgress";
-import { EMPTY_CONTENT } from "../../api/MessageRuntime";
-
-/**
- * @deprecated Use `MessagePrimitive.Content.Props` instead. This will be removed in 0.6.
- */
-export type MessagePrimitiveContentProps = MessagePrimitiveContent.Props;
+import { EMPTY_CONTENT_SYMBOL } from "../../api/MessageRuntime";
 
 export namespace MessagePrimitiveContent {
   export type Props = {
@@ -100,9 +95,7 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
   if (type === "tool-call") {
     const Tool = by_name[part.toolName] || Fallback;
     const addResult = (result: any) => contentPartRuntime.addToolResult(result);
-    return (
-      <ToolUIDisplay {...part} part={part} UI={Tool} addResult={addResult} />
-    );
+    return <ToolUIDisplay {...part} UI={Tool} addResult={addResult} />;
   }
 
   if (part.status.type === "requires-action")
@@ -110,22 +103,21 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
 
   switch (type) {
     case "text":
-      // TODO this relies on deprecated .part field
-      if (part.part === EMPTY_CONTENT && !!Empty) {
+      if ((part as any)[EMPTY_CONTENT_SYMBOL] && !!Empty) {
         return <Empty status={part.status} />;
       }
 
-      return <Text {...part} part={part} />;
+      return <Text {...part} />;
 
     case "image":
       // eslint-disable-next-line jsx-a11y/alt-text
-      return <Image {...part} part={part} />;
+      return <Image {...part} />;
 
     case "audio":
-      return <Audio {...part} part={part} />;
+      return <Audio {...part} />;
 
     case "ui":
-      return <UI {...part} part={part} />;
+      return <UI {...part} />;
 
     default:
       const unhandledType: never = type;

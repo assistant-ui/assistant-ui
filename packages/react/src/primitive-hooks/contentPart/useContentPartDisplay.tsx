@@ -9,7 +9,7 @@ export const useContentPartDisplay = () => {
         "This component can only be used inside ui content parts.",
       );
 
-    return c as ContentPartState & UIContentPart & { part: UIContentPart };
+    return c as ContentPartState & UIContentPart;
   });
 
   return display;

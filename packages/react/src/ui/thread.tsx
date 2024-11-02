@@ -44,11 +44,6 @@ const Thread: FC<ThreadConfig> = (config) => {
   );
 };
 
-/**
- * @deprecated Use `Thread.Root.Props` instead. This will be removed in 0.6.
- */
-export type ThreadRootProps = ThreadRoot.Props;
-
 namespace ThreadRoot {
   export type Element = HTMLDivElement;
   export type Props = ThreadPrimitive.Root.Props & ThreadConfigProviderProps;

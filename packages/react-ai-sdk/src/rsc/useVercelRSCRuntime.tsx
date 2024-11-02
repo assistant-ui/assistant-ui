@@ -25,15 +25,15 @@ const vercelToThreadMessage = <T,>(
 export const useVercelRSCRuntime = <T extends WeakKey>(
   adapter: VercelRSCAdapter<T>,
 ) => {
-  const onNew = adapter.onNew ?? adapter.append;
+  const onNew = adapter.onNew;
   if (!onNew)
     throw new Error("You must pass a onNew function to useVercelRSCRuntime");
   const eAdapter: ExternalStoreAdapter<any> = {
     isRunning: adapter.isRunning,
     messages: adapter.messages,
     onNew,
-    onEdit: adapter.onEdit ?? adapter.edit,
-    onReload: adapter.onReload ?? adapter.reload,
+    onEdit: adapter.onEdit,
+    onReload: adapter.onReload,
     convertMessage: (m: T) =>
       vercelToThreadMessage(
         adapter.convertMessage ?? ((m) => m as VercelRSCMessage),

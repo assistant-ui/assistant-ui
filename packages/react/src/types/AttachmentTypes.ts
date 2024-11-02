@@ -27,8 +27,7 @@ type BaseAttachment = {
   id: string;
   type: "image" | "document" | "file";
   name: string;
-  // TODO mark as required in 0.6.0
-  contentType?: string;
+  contentType: string;
   file?: File;
   content?: CoreUserContentPart[];
 };

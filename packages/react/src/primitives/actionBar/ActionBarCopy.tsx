@@ -7,11 +7,6 @@ import { composeEventHandlers } from "@radix-ui/primitive";
 import { Primitive } from "@radix-ui/react-primitive";
 import { useMessageUtils } from "../../context";
 
-/**
- * @deprecated Use `ActionBarPrimitive.Copy.Props` instead. This will be removed in 0.6.
- */
-export type ActionBarPrimitiveCopyProps = ActionBarPrimitiveCopy.Props;
-
 export namespace ActionBarPrimitiveCopy {
   export type Element = HTMLButtonElement;
   export type Props = ActionButtonProps<typeof useActionBarCopy>;

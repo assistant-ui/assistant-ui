@@ -1,12 +1,6 @@
 import { FC, PropsWithChildren } from "react";
 import { useContentPart } from "../../context";
 
-/**
- * @deprecated Use `ContentPartPrimitive.InProgress.Props` instead. This will be removed in 0.6.
- */
-export type ContentPartPrimitiveInProgressProps =
-  ContentPartPrimitiveInProgress.Props;
-
 export namespace ContentPartPrimitiveInProgress {
   export type Props = PropsWithChildren;
 }

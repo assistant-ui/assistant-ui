@@ -6,11 +6,6 @@ import { MessageRuntimeProvider } from "../../context/providers/MessageRuntimePr
 import { useEditComposer, useMessage } from "../../context";
 import { ThreadMessage as ThreadMessageType } from "../../types";
 
-/**
- * @deprecated Use `ThreadPrimitive.Messages.Props` instead. This will be removed in 0.6.
- */
-export type ThreadPrimitiveMessagesProps = ThreadPrimitiveMessages.Props;
-
 export namespace ThreadPrimitiveMessages {
   export type Props = {
     components:

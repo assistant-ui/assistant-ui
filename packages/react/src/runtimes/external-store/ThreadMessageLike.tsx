@@ -33,6 +33,7 @@ export type ThreadMessageLike = {
   createdAt?: Date | undefined;
   status?: MessageStatus | undefined;
   attachments?: CompleteAttachment[] | undefined;
+  // TODO metadata
 };
 
 export const fromThreadMessageLike = (
@@ -53,9 +54,9 @@ export const fromThreadMessageLike = (
 
   if (role !== "user" && attachments)
     throw new Error("Attachments are only supported for user messages");
-  // TODO add in 0.6
-  // if (role !== "assistant" && status)
-  //   throw new Error("Status is only supported for assistant messages");
+
+  if (role !== "assistant" && status)
+    throw new Error("Status is only supported for assistant messages");
 
   switch (role) {
     case "assistant":

@@ -3,5 +3,3 @@ export type {
   SubmitFeedbackOptions,
   ThreadSuggestion,
 } from "./ThreadRuntimeCore";
-
-export { subscribeToMainThread } from "./subscribeToMainThread";

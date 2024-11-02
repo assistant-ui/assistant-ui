@@ -33,10 +33,6 @@ import { z } from "zod";
 type FinishResult = {
   messages: CoreMessage[];
   metadata: {
-    /**
-     * @deprecated Use `steps` instead. This field will be removed in v0.6.
-     */
-    roundtrips: ThreadStep[];
     steps: ThreadStep[];
   };
 };
@@ -160,8 +156,6 @@ export const getEdgeRuntimeStream = async ({
               messages: resultingMessages,
               metadata: {
                 // TODO
-                // eslint-disable-next-line @typescript-eslint/no-non-null-asserted-optional-chain
-                roundtrips: lastChunk.metadata?.steps!,
                 // eslint-disable-next-line @typescript-eslint/no-non-null-asserted-optional-chain
                 steps: lastChunk.metadata?.steps!,
               },

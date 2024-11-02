@@ -5,12 +5,7 @@ import {
   ActionButtonProps,
   createActionButton,
 } from "../../utils/createActionButton";
-import { useComposerAddAttachment } from "../../primitive-hooks/composer";
-
-/**
- * @deprecated Use `ComposerPrimitive.AddAttachment.Props` instead. This will be removed in 0.6.
- */
-export type ComposerPrimitiveAddAttachmentProps = ComposerPrimitiveAddAttachment.Props;
+import { useComposerAddAttachment } from "../../primitive-hooks/composer/useComposerAddAttachment";
 
 export namespace ComposerPrimitiveAddAttachment {
   export type Element = ActionButtonElement;
@@ -19,5 +14,5 @@ export namespace ComposerPrimitiveAddAttachment {
 
 export const ComposerPrimitiveAddAttachment = createActionButton(
   "ComposerPrimitive.AddAttachment",
-  useComposerAddAttachment
+  useComposerAddAttachment,
 );

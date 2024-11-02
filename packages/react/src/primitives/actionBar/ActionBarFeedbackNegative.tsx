@@ -7,12 +7,6 @@ import { composeEventHandlers } from "@radix-ui/primitive";
 import { useMessage } from "../../context";
 import { Primitive } from "@radix-ui/react-primitive";
 
-/**
- * @deprecated Use `ActionBarPrimitive.FeedbackNegative.Props` instead. This will be removed in 0.6.
- */
-export type ActionBarPrimitiveFeedbackNegativeProps =
-  ActionBarPrimitiveFeedbackNegative.Props;
-
 export namespace ActionBarPrimitiveFeedbackNegative {
   export type Element = HTMLButtonElement;
   export type Props = ActionButtonProps<typeof useActionBarFeedbackNegative>;

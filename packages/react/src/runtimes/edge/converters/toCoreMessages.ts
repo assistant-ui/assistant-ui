@@ -5,7 +5,7 @@ type CoreMessageWithConditionalId<T extends boolean> = T extends false
   : CoreMessage & { unstable_id?: string };
 
 export const toCoreMessages = <T extends boolean = false>(
-  messages: ThreadMessage[],
+  messages: readonly ThreadMessage[],
   options: { unstable_includeId?: T | undefined } = {},
 ): CoreMessageWithConditionalId<T>[] => {
   return messages.map((message) => toCoreMessage(message, options));

@@ -5,12 +5,6 @@ import * as PopoverPrimitive from "@radix-ui/react-popover";
 import { ScopedProps, usePopoverScope } from "./scope";
 import { composeEventHandlers } from "@radix-ui/primitive";
 
-/**
- * @deprecated Use `AssistantModalPrimitive.Content.Props` instead. This will be removed in 0.6.
- */
-export type AssistantModalPrimitiveContentProps =
-  AssistantModalPrimitiveContent.Props;
-
 export namespace AssistantModalPrimitiveContent {
   export type Element = ElementRef<typeof PopoverPrimitive.Content>;
   export type Props = ComponentPropsWithoutRef<
@@ -32,7 +26,7 @@ export const AssistantModalPrimitiveContent = forwardRef<
       onInteractOutside,
       dissmissOnInteractOutside = false,
       ...props
-    }: ScopedProps<AssistantModalPrimitiveContentProps>,
+    }: ScopedProps<AssistantModalPrimitiveContent.Props>,
     forwardedRef,
   ) => {
     const scope = usePopoverScope(__scopeAssistantModal);

@@ -51,11 +51,6 @@ namespace ComposerInput {
   export type Props = ComponentPropsWithoutRef<typeof ComposerInputStyled>;
 }
 
-/**
- * @deprecated Use `ComposerInput.Props` instead. This will be removed in 0.6.
- */
-export type ComposerInputProps = ComposerInput.Props;
-
 const ComposerInput = forwardRef<ComposerInput.Element, ComposerInput.Props>(
   (props, ref) => {
     const {

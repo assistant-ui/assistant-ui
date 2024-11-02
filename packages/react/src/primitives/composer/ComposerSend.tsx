@@ -5,12 +5,7 @@ import {
   ActionButtonProps,
   createActionButton,
 } from "../../utils/createActionButton";
-import { useComposerSend } from "../../primitive-hooks";
-
-/**
- * @deprecated Use `ComposerPrimitive.Send.Props` instead. This will be removed in 0.6.
- */
-export type ComposerPrimitiveSendProps = ComposerPrimitiveSend.Props;
+import { useComposerSend } from "../../primitive-hooks/composer/useComposerSend";
 
 export namespace ComposerPrimitiveSend {
   export type Element = ActionButtonElement;
@@ -19,5 +14,5 @@ export namespace ComposerPrimitiveSend {
 
 export const ComposerPrimitiveSend = createActionButton(
   "ComposerPrimitive.Send",
-  useComposerSend
+  useComposerSend,
 );

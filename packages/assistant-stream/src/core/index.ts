@@ -11,9 +11,3 @@ export {
   toAssistantMessageStream,
   type AsyncIterableStream,
 } from "./accumulators/assistant-message";
-
-
-/**
- * @deprecated Use `createAssistantRun` instead. This will be removed in 0.0.1.
- */
-export { createAssistantRun as createRun } from "./modules/runs";

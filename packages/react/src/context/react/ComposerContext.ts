@@ -23,7 +23,7 @@ export const useComposerContext = (): ComposerContextValue => {
   );
 };
 
-export const { useComposer, useComposerStore } = createContextStoreHook(
+export const { useComposer } = createContextStoreHook(
   useComposerContext,
   "useComposer",
 );

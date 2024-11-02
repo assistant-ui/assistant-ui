@@ -8,11 +8,3 @@ export * as MessagePrimitive from "./message";
 export * as ThreadPrimitive from "./thread";
 export * as ThreadListPrimitive from "./threadList";
 export * as ThreadListItemPrimitive from "./threadListItem";
-
-export type * from "./actionBar/types";
-export type * from "./assistantModal/types";
-export type * from "./branchPicker/types";
-export type * from "./composer/types";
-export type * from "./contentPart/types";
-export type * from "./message/types";
-export type * from "./thread/types";

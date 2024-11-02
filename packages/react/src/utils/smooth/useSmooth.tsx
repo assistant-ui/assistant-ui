@@ -135,7 +135,6 @@ export const useSmooth = (
         ? {
             type: "text",
             text: displayedText,
-            part: { type: "text", text: displayedText },
             status: text === displayedText ? state.status : SMOOTH_STATUS,
           }
         : state,

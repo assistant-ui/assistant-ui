@@ -14,10 +14,6 @@ export type ContentPartState = (
   | ThreadUserContentPart
   | ThreadAssistantContentPart
 ) & {
-  /**
-   * @deprecated You can directly access content part fields in the state. Replace `.part.type` with `.type` etc. This will be removed in 0.6.0.
-   */
-  part: ThreadUserContentPart | ThreadAssistantContentPart;
   status: ContentPartStatus | ToolCallContentPartStatus;
 };
 

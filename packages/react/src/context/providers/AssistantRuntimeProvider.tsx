@@ -55,7 +55,6 @@ export const AssistantRuntimeProviderImpl: FC<
     return {
       useToolUIs,
       useAssistantRuntime,
-      useAssistantActions: useAssistantRuntime,
       useThreadList,
     };
   }, [useAssistantRuntime, useToolUIs, useThreadList]);

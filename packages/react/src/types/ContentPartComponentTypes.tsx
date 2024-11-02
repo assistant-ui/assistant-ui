@@ -15,41 +15,18 @@ export type EmptyContentPartProps = {
 };
 export type EmptyContentPartComponent = ComponentType<EmptyContentPartProps>;
 
-export type TextContentPartProps = ContentPartState &
-  TextContentPart & {
-    /**
-     * @deprecated You can directly access content part fields in the state. Replace `.part.type` with `.type` etc. This will be removed in 0.6.0.
-     */
-    part: TextContentPart;
-  };
+export type TextContentPartProps = ContentPartState & TextContentPart;
 export type TextContentPartComponent = ComponentType<TextContentPartProps>;
 
-export type ImageContentPartProps = ContentPartState &
-  ImageContentPart & {
-    /**
-     * @deprecated You can directly access content part fields in the state. Replace `.part.type` with `.type` etc. This will be removed in 0.6.0.
-     */
-    part: ImageContentPart;
-  };
+export type ImageContentPartProps = ContentPartState & ImageContentPart;
 export type ImageContentPartComponent = ComponentType<ImageContentPartProps>;
 
 export type Unstable_AudioContentPartProps = ContentPartState &
-  Unstable_AudioContentPart & {
-    /**
-     * @deprecated You can directly access content part fields in the state. Replace `.part.type` with `.type` etc. This will be removed in 0.6.0.
-     */
-    part: Unstable_AudioContentPart;
-  };
+  Unstable_AudioContentPart;
 export type Unstable_AudioContentPartComponent =
   ComponentType<Unstable_AudioContentPartProps>;
 
-export type UIContentPartProps = ContentPartState &
-  UIContentPart & {
-    /**
-     * @deprecated You can directly access content part fields in the state. Replace `.part.type` with `.type` etc. This will be removed in 0.6.0.
-     */
-    part: UIContentPart;
-  };
+export type UIContentPartProps = ContentPartState & UIContentPart;
 export type UIContentPartComponent = ComponentType<UIContentPartProps>;
 
 export type ToolCallContentPartProps<
@@ -57,10 +34,6 @@ export type ToolCallContentPartProps<
   TResult = unknown,
 > = ContentPartState &
   ToolCallContentPart<TArgs, TResult> & {
-    /**
-     * @deprecated You can directly access content part fields in the state. Replace `.part.type` with `.type` etc. This will be removed in 0.6.0.
-     */
-    part: ToolCallContentPart<TArgs, TResult>;
     addResult: (result: any) => void;
   };
 

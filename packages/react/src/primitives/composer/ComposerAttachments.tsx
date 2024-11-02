@@ -6,12 +6,6 @@ import { useComposer, useComposerRuntime } from "../../context";
 import { useThreadComposerAttachment } from "../../context/react/AttachmentContext";
 import { AttachmentRuntimeProvider } from "../../context/providers/AttachmentRuntimeProvider";
 
-/**
- * @deprecated Use `ComposerPrimitive.Attachments.Props` instead. This will be removed in 0.6.
- */
-export type ComposerPrimitiveAttachmentsProps =
-  ComposerPrimitiveAttachments.Props;
-
 export namespace ComposerPrimitiveAttachments {
   export type Props = {
     components:

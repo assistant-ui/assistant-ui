@@ -8,11 +8,6 @@ import {
   useThreadViewportAutoScroll,
 } from "../../primitive-hooks/thread/useThreadViewportAutoScroll";
 
-/**
- * @deprecated Use `ThreadPrimitive.Viewport.Props` instead. This will be removed in 0.6.
- */
-export type ThreadPrimitiveViewportProps = ThreadPrimitiveViewport.Props;
-
 export namespace ThreadPrimitiveViewport {
   export type Element = ElementRef<typeof Primitive.div>;
   export type Props = ComponentPropsWithoutRef<typeof Primitive.div> &

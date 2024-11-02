@@ -74,7 +74,7 @@ export class ExternalStoreThreadListRuntimeCore
     this._notifySubscribers();
   }
 
-  public switchToThread(threadId: string): void {
+  public async switchToThread(threadId: string): Promise<void> {
     if (this._mainThread?.threadId === threadId) return;
     const onSwitchToThread = this.adapter.onSwitchToThread;
     if (!onSwitchToThread)
@@ -84,7 +84,7 @@ export class ExternalStoreThreadListRuntimeCore
     onSwitchToThread(threadId);
   }
 
-  public switchToNewThread(): void {
+  public async switchToNewThread(): Promise<void> {
     const onSwitchToNewThread = this.adapter.onSwitchToNewThread;
     if (!onSwitchToNewThread)
       throw new Error(

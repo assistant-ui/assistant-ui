@@ -32,7 +32,7 @@ export const PayloadEditorButton: FC = () => {
     const config = runtime.useModelConfig.getState();
     const options: EdgeRuntimeRequestOptions = {
       modelName: config.config?.modelName ?? "gpt-4o",
-      messages: toCoreMessages(runtime.messages),
+      messages: toCoreMessages(runtime.getState().messages),
       tools: toLanguageModelTools(config.tools ?? {}),
       ...config.callSettings,
     };

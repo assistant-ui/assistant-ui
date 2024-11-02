@@ -22,6 +22,7 @@ export const convertMessage: useExternalMessageConverter.Callback<Message> = (
               type: "file",
               name: attachment.name ?? attachment.url,
               content: [],
+              contentType: attachment.contentType ?? "unknown/unknown",
               status: { type: "complete" },
             }) satisfies CompleteAttachment,
         ),

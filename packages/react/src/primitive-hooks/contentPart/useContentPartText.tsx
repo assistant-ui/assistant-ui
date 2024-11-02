@@ -9,7 +9,7 @@ export const useContentPartText = () => {
         "ContentPartText can only be used inside text content parts.",
       );
 
-    return c as ContentPartState & TextContentPart & { part: TextContentPart };
+    return c as ContentPartState & TextContentPart;
   });
 
   return text;

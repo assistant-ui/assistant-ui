@@ -113,7 +113,7 @@ const Composer: FC = () => {
   const performAdd = () => {
     threadRuntime.append({
       role,
-      content: [{ type: "text", text: composerRuntime.text }],
+      content: [{ type: "text", text: composerRuntime.getState().text }],
     });
     composerRuntime.reset();
 

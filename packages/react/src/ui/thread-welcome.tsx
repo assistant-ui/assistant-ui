@@ -56,11 +56,6 @@ const ThreadWelcomeMessageStyled = withDefaults("p", {
   className: "aui-thread-welcome-message",
 });
 
-/**
- * @deprecated Use `ThreadWelcome.Message.Props` instead. This will be removed in 0.6.
- */
-export type ThreadWelcomeMessageProps = ThreadWelcomeMessage.Props;
-
 namespace ThreadWelcomeMessage {
   export type Element = HTMLParagraphElement;
   export type Props = Omit<
@@ -96,11 +91,13 @@ const ThreadWelcomeSuggestionStyled = withDefaults(ThreadPrimitive.Suggestion, {
   className: "aui-thread-welcome-suggestion",
 });
 
-export type ThreadWelcomeSuggestionProps = {
-  suggestion: SuggestionConfig;
-};
+export namespace ThreadWelcomeSuggestion {
+  export type Props = {
+    suggestion: SuggestionConfig;
+  };
+}
 
-const ThreadWelcomeSuggestion: FC<ThreadWelcomeSuggestionProps> = ({
+const ThreadWelcomeSuggestion: FC<ThreadWelcomeSuggestion.Props> = ({
   suggestion: { text, prompt },
 }) => {
   return (

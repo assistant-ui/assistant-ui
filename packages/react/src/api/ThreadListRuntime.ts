@@ -21,23 +21,6 @@ export type ThreadListRuntime = Readonly<{
   path: ThreadListRuntimePath;
   getState(): ThreadListState;
 
-  /**
-   * @deprecated Use `getThreadListItemById(idx).rename(newTitle)` instead. This will be removed in 0.6.0.
-   */
-  rename(threadId: string, newTitle: string): Promise<void>;
-  /**
-   * @deprecated Use `getThreadListItemById(idx).archive()` instead. This will be removed in 0.6.0.
-   */
-  archive(threadId: string): Promise<void>;
-  /**
-   * @deprecated Use `getThreadListItemById(idx).unarchive()` instead. This will be removed in 0.6.0.
-   */
-  unarchive(threadId: string): Promise<void>;
-  /**
-   * @deprecated Use `getThreadListItemById(idx).delete()` instead. This will be removed in 0.6.0.
-   */
-  delete(threadId: string): Promise<void>;
-
   subscribe(callback: () => void): Unsubscribe;
 
   getThreadListItemById(threadId: string): ThreadListItemRuntime;
@@ -78,22 +61,6 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
 
   public getState(): ThreadListState {
     return this._getState();
-  }
-
-  public rename(threadId: string, newTitle: string): Promise<void> {
-    return this._core.rename(threadId, newTitle);
-  }
-
-  public archive(threadId: string): Promise<void> {
-    return this._core.archive(threadId);
-  }
-
-  public unarchive(threadId: string): Promise<void> {
-    return this._core.unarchive(threadId);
-  }
-
-  public delete(threadId: string): Promise<void> {
-    return this._core.delete(threadId);
   }
 
   public subscribe(callback: () => void): Unsubscribe {

@@ -1,11 +1,8 @@
 import {
-  AddToolResultOptions,
   ThreadSuggestion,
   RuntimeCapabilities,
-  SubmitFeedbackOptions,
   ThreadRuntimeCore,
   SpeechState,
-  SubmittedFeedback,
   ThreadRuntimeEventType,
 } from "../runtimes/core/ThreadRuntimeCore";
 import { ExportedMessageRepository } from "../runtimes/utils/MessageRepository";
@@ -32,7 +29,6 @@ import {
 } from "./ComposerRuntime";
 import { LazyMemoizeSubject } from "./subscribable/LazyMemoizeSubject";
 import { SKIP_UPDATE } from "./subscribable/SKIP_UPDATE";
-import { ComposerRuntimeCore } from "../runtimes/core/ComposerRuntimeCore";
 import { MessageRuntimePath, ThreadRuntimePath } from "./RuntimePathTypes";
 
 export type CreateAppendMessage =
@@ -141,11 +137,6 @@ export type ThreadRuntime = Readonly<{
   readonly composer: ThreadComposerRuntime;
   getState(): ThreadState;
 
-  /**
-   * @deprecated This method will be removed in 0.6.0. Submit feedback if you need this functionality.
-   */
-  unstable_getCore(): ThreadRuntimeCore;
-
   append(message: CreateAppendMessage): void;
   startRun(parentId: string | null): void;
   subscribe(callback: () => void): Unsubscribe;
@@ -162,151 +153,11 @@ export type ThreadRuntime = Readonly<{
   stopSpeaking: () => void;
 
   unstable_on(event: ThreadRuntimeEventType, callback: () => void): Unsubscribe;
-
-  // Legacy methods with deprecations
-
-  /**
-   * @deprecated Use `getState().capabilities` instead. This will be removed in 0.6.0.
-   */
-  capabilities: Readonly<RuntimeCapabilities>;
-
-  /**
-   * @deprecated Use `getState().threadId` instead. This will be removed in 0.6.0.
-   */
-  threadId: string;
-
-  /**
-   * @deprecated Use `getState().isDisabled` instead. This will be removed in 0.6.0.
-   */
-  isDisabled: boolean;
-
-  /**
-   * @deprecated Use `getState().isRunning` instead. This will be removed in 0.6.0.
-   */
-  isRunning: boolean;
-
-  /**
-   * @deprecated Use `getState().messages` instead. This will be removed in 0.6.0.
-   */
-  messages: readonly ThreadMessage[];
-
-  /**
-   * @deprecated Use `getState().followupSuggestions` instead. This will be removed in 0.6.0.
-   */
-  suggestions: readonly ThreadSuggestion[];
-
-  /**
-   * @deprecated Use `getState().speechState` instead. This will be removed in 0.6.0.
-   */
-  speech: SpeechState | undefined;
-
-  /**
-   * @deprecated Use `getState().extras` instead. This will be removed in 0.6.0.
-   */
-  extras: unknown;
-
-  /**
-   * @deprecated Use `getMesssageById(id).getState().branchNumber` / `getMesssageById(id).getState().branchCount` instead. This will be removed in 0.6.0.
-   */
-  getBranches: (messageId: string) => readonly string[];
-
-  /**
-   * @deprecated Use `getMesssageById(id).switchToBranch({ options })` instead. This will be removed in 0.6.0.
-   */
-  switchToBranch: (branchId: string) => void;
-
-  /**
-   * @deprecated Use `getMesssageById(id).getContentPartByToolCallId(toolCallId).addToolResult({ result })` instead. This will be removed in 0.6.0.
-   */
-  addToolResult: (options: AddToolResultOptions) => void;
-
-  /**
-   * @deprecated Use `getMesssageById(id).speak()` instead. This will be removed in 0.6.0.
-   */
-  speak: (messageId: string) => void;
-
-  /**
-   * @deprecated Use `getMesssageById(id).getState().submittedFeedback` instead. This will be removed in 0.6.0.
-   */
-  getSubmittedFeedback: (messageId: string) => SubmittedFeedback | undefined;
-
-  /**
-   * @deprecated Use `getMesssageById(id).submitFeedback({ type })` instead. This will be removed in 0.6.0.
-   */
-  submitFeedback: (feedback: SubmitFeedbackOptions) => void;
-
-  /**
-   * @deprecated Use `getMesssageById(id).composer` instead. This will be removed in 0.6.0.
-   */
-  getEditComposer: (messageId: string) => ComposerRuntimeCore | undefined;
-
-  /**
-   * @deprecated Use `getMesssageById(id).composer.beginEdit()` instead. This will be removed in 0.6.0.
-   */
-  beginEdit: (messageId: string) => void;
 }>;
 
-export class ThreadRuntimeImpl
-  implements Omit<ThreadRuntimeCore, "getMessageById">, ThreadRuntime
-{
+export class ThreadRuntimeImpl implements ThreadRuntime {
   public get path() {
     return this._threadBinding.path;
-  }
-
-  /**
-   * @deprecated Use `getState().threadId` instead. This will be removed in 0.6.0.
-   */
-  public get threadId() {
-    return this.getState().threadId;
-  }
-
-  /**
-   * @deprecated Use `getState().isDisabled` instead. This will be removed in 0.6.0.
-   */
-  public get isDisabled() {
-    return this.getState().isDisabled;
-  }
-
-  /**
-   * @deprecated Use `getState().isRunning` instead. This will be removed in 0.6.0.
-   */
-  public get isRunning() {
-    return this.getState().isRunning;
-  }
-
-  /**
-   * @deprecated Use `getState().capabilities` instead. This will be removed in 0.6.0.
-   */
-  public get capabilities() {
-    return this.getState().capabilities;
-  }
-
-  /**
-   * @deprecated Use `getState().extras` instead. This will be removed in 0.6.0.
-   */
-  public get extras() {
-    return this._threadBinding.getState().extras;
-  }
-
-  /**
-   * @deprecated Use `getState().followupSuggestions` instead. This will be removed in 0.6.0.
-   */
-  public get suggestions() {
-    return this._threadBinding.getState().suggestions;
-  }
-
-  /**
-   * @deprecated Use `getState().messages` instead. This will be removed in 0.6.0.
-   */
-  public get messages() {
-    return this._threadBinding.getState().messages;
-  }
-
-  /**
-   * @deprecated Use `getState().speechState` instead. This will be removed in 0.6.0.
-   */
-  public get speech() {
-    return this._threadBinding.getState().speech;
   }
 
   public unstable_getCore() {
@@ -363,18 +214,10 @@ export class ThreadRuntimeImpl
     return this._threadBinding.subscribe(callback);
   }
 
-  /**
-   * @derprecated Use `getMesssageById(id).getState().branchNumber` / `getMesssageById(id).getState().branchCount` instead. This will be removed in 0.6.0.
-   */
-  public getBranches(messageId: string) {
-    return this._threadBinding.getState().getBranches(messageId);
-  }
-
   public getModelConfig() {
     return this._threadBinding.getState().getModelConfig();
   }
 
-  // TODO sometimes you want to continue when there is no child message
   public startRun(parentId: string | null) {
     return this._threadBinding.getState().startRun(parentId);
   }
@@ -383,54 +226,12 @@ export class ThreadRuntimeImpl
     this._threadBinding.getState().cancelRun();
   }
 
-  /**
-   * @deprecated Use `getMesssageById(id).getContentPartByToolCallId(toolCallId).addToolResult({ result })` instead. This will be removed in 0.6.0.
-   */
-  public addToolResult(options: AddToolResultOptions) {
-    this._threadBinding.getState().addToolResult(options);
-  }
-
-  /**
-   * @deprecated Use `getMesssageById(id).switchToBranch({ options })` instead. This will be removed in 0.6.0.
-   */
-  public switchToBranch(branchId: string) {
-    return this._threadBinding.getState().switchToBranch(branchId);
-  }
-
-  /**
-   * @deprecated Use `getMesssageById(id).speak()` instead. This will be removed in 0.6.0.
-   */
-  public speak(messageId: string) {
-    return this._threadBinding.getState().speak(messageId);
-  }
-
   public stopSpeaking() {
     return this._threadBinding.getState().stopSpeaking();
   }
 
   public getSubmittedFeedback(messageId: string) {
     return this._threadBinding.getState().getSubmittedFeedback(messageId);
-  }
-
-  /**
-   * @deprecated Use `getMesssageById(id).submitFeedback({ type })` instead. This will be removed in 0.6.0.
-   */
-  public submitFeedback(options: SubmitFeedbackOptions) {
-    return this._threadBinding.getState().submitFeedback(options);
-  }
-
-  /**
-   * @deprecated Use `getMesssageById(id).getMessageByIndex(idx).composer` instead. This will be removed in 0.6.0.
-   */
-  public getEditComposer(messageId: string) {
-    return this._threadBinding.getState().getEditComposer(messageId);
-  }
-
-  /**
-   * @deprecated Use `getMesssageById(id).getMessageByIndex(idx).composer.beginEdit()` instead. This will be removed in 0.6.0.
-   */
-  public beginEdit(messageId: string) {
-    return this._threadBinding.getState().beginEdit(messageId);
   }
 
   public export() {
@@ -500,11 +301,9 @@ export class ThreadRuntimeImpl
           return {
             ...message,
 
-            message,
             isLast: messages.at(-1)?.id === message.id,
             parentId,
 
-            branches,
             branchNumber: branches.indexOf(message.id) + 1,
             branchCount: branches.length,
 

@@ -34,19 +34,6 @@ const useThreadStore = (runtime: ThreadRuntime) => {
   return store;
 };
 
-const useThreadMessagesStore = (runtime: ThreadRuntime) => {
-  const [store] = useState(() => create(() => runtime.messages));
-
-  useEffect(() => {
-    const updateState = () =>
-      writableStore(store).setState(runtime.messages, true);
-    updateState();
-    return runtime.subscribe(updateState);
-  }, [runtime, store]);
-
-  return store;
-};
-
 const useThreadComposerStore = (runtime: ThreadComposerRuntime) => {
   const [store] = useState(() => create(() => runtime.getState()));
 
@@ -65,7 +52,6 @@ export const ThreadRuntimeProvider: FC<
 > = ({ children, runtime }) => {
   const useThreadRuntime = useThreadRuntimeStore(runtime);
   const useThread = useThreadStore(runtime);
-  const useThreadMessages = useThreadMessagesStore(runtime);
   const useThreadComposer = useThreadComposerStore(runtime.composer);
 
   const context = useMemo<ThreadContextValue>(() => {
@@ -74,12 +60,10 @@ export const ThreadRuntimeProvider: FC<
     return {
       useThread,
       useThreadRuntime,
-      useThreadMessages,
-      useThreadActions: useThreadRuntime,
       useComposer: useThreadComposer,
       useViewport,
     };
-  }, [useThread, useThreadRuntime, useThreadMessages, useThreadComposer]);
+  }, [useThread, useThreadRuntime, useThreadComposer]);
 
   return (
     <ThreadContext.Provider value={context}>{children}</ThreadContext.Provider>

@@ -12,44 +12,26 @@ export {
 
 export { default as AssistantActionBar } from "./assistant-action-bar";
 
-export {
-  default as AssistantMessage,
-  type AssistantMessageContentProps,
-} from "./assistant-message";
+export { default as AssistantMessage } from "./assistant-message";
 
 export { default as AssistantModal } from "./assistant-modal";
 
 export { default as BranchPicker } from "./branch-picker";
 
-export { default as Composer, type ComposerInputProps } from "./composer";
+export { default as Composer } from "./composer";
 
 export {
   default as AttachmentUI, // TODO name collision with Attachment
-  /**
-   * @deprecated Use `AttachmentUI` instead. This will be removed in 0.6.0.
-   */
-  default as UserMessageAttachment,
-  /**
-   * @deprecated Use `AttachmentUI` instead. This will be removed in 0.6.0.
-   */
-  default as ComposerAttachment,
 } from "./attachment";
 
 export { default as EditComposer } from "./edit-composer";
 
-export { default as Thread, type ThreadRootProps } from "./thread";
+export { default as Thread } from "./thread";
 
-export {
-  default as UserMessage,
-  type UserMessageContentProps,
-} from "./user-message";
+export { default as UserMessage } from "./user-message";
 
 export { default as UserActionBar } from "./user-action-bar";
 
-export {
-  default as ThreadWelcome,
-  type ThreadWelcomeMessageProps,
-  type ThreadWelcomeSuggestionProps,
-} from "./thread-welcome";
+export { default as ThreadWelcome } from "./thread-welcome";
 
 export { default as ContentPart } from "./content-part";

@@ -37,11 +37,6 @@ const AssistantMessageContentWrapper = withDefaults("div", {
   className: "aui-assistant-message-content",
 });
 
-/**
- * @deprecated Use `AssistantMessage.Content.Props` instead. This will be removed in 0.6.
- */
-export type AssistantMessageContentProps = AssistantMessageContent.Props;
-
 namespace AssistantMessageContent {
   export type Element = HTMLDivElement;
   export type Props = MessagePrimitive.Content.Props &

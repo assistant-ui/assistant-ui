@@ -132,7 +132,7 @@ export class LocalThreadRuntimeCore
     const initialSteps = message.metadata?.steps;
     const initalCustom = message.metadata?.custom;
     const updateMessage = (m: Partial<ChatModelRunResult>) => {
-      const newSteps = m.metadata?.steps || m.metadata?.roundtrips;
+      const newSteps = m.metadata?.steps;
       const steps = newSteps
         ? [...(initialSteps ?? []), ...newSteps]
         : undefined;
@@ -143,13 +143,11 @@ export class LocalThreadRuntimeCore
           ? { content: [...initialContent, ...(m.content ?? [])] }
           : undefined),
         status: m.status ?? message.status,
-        // TODO deprecated, remove in v0.6
-        ...(steps ? { roundtrips: steps } : undefined),
         ...(m.metadata
           ? {
               metadata: {
                 ...message.metadata,
-                ...(steps ? { roundtrips: steps, steps } : undefined),
+                ...(steps ? { steps } : undefined),
                 ...(m.metadata?.custom
                   ? {
                       custom: { ...(initalCustom ?? {}), ...m.metadata.custom },
@@ -163,9 +161,7 @@ export class LocalThreadRuntimeCore
       this._notifySubscribers();
     };
 
-    const maxSteps = this._options.maxSteps
-      ? this._options.maxSteps
-      : (this._options.maxToolRoundtrips ?? 1) + 1;
+    const maxSteps = this._options.maxSteps ?? 2;
 
     const steps = message.metadata?.steps?.length ?? 0;
     if (steps >= maxSteps) {
@@ -190,7 +186,6 @@ export class LocalThreadRuntimeCore
         messages,
         abortSignal: this.abortController.signal,
         config: this.getModelConfig(),
-        onUpdate: updateMessage,
         unstable_assistantMessageId: message.id,
       });
 

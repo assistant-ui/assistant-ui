@@ -6,12 +6,6 @@ import { composeEventHandlers } from "@radix-ui/primitive";
 import { ScopedProps, usePopoverScope } from "./scope";
 import { useThreadRuntime } from "../../context";
 
-/**
- * @deprecated Use `AssistantModalPrimitive.Root.Props` instead. This will be removed in 0.6.
- */
-export type AssistantModalPrimitiveRootProps =
-  AssistantModalPrimitiveRoot.Props;
-
 export namespace AssistantModalPrimitiveRoot {
   export type Props = PopoverPrimitive.PopoverProps & {
     unstable_openOnRunStart?: boolean | undefined;

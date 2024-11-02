@@ -12,7 +12,9 @@ import { getVercelAIMessages } from "../getVercelAIMessages";
 import { ExternalStoreAdapter } from "@assistant-ui/react";
 
 export type VercelUseChatAdapter = {
-  adapters?: Omit<ExternalStoreAdapter["adapters"], "attachments"> | undefined;
+  adapters?:
+    | Omit<NonNullable<ExternalStoreAdapter["adapters"]>, "attachments">
+    | undefined;
 };
 
 export const useVercelUseChatRuntime = (
@@ -52,15 +54,27 @@ export const useVercelUseChatRuntime = (
     onAddToolResult: ({ toolCallId, result }) => {
       chatHelpers.addToolResult({ toolCallId, result });
     },
-    onSwitchToNewThread: () => {
-      chatHelpers.messages = [];
-      chatHelpers.input = "";
-      chatHelpers.setMessages([]);
-      chatHelpers.setInput("");
-    },
     adapters: {
       attachments: vercelAttachmentAdapter,
       ...adapter.adapters,
+      threadList: new Proxy(adapter.adapters?.threadList ?? {}, {
+        get(target, prop, receiver) {
+          if (prop === "onSwitchToNewThread") {
+            return () => {
+              chatHelpers.messages = [];
+              chatHelpers.input = "";
+              chatHelpers.setMessages([]);
+              chatHelpers.setInput("");
+
+              if (typeof target.onSwitchToNewThread === "function") {
+                return target.onSwitchToNewThread.call(target);
+              }
+            };
+          }
+
+          return Reflect.get(target, prop, receiver);
+        },
+      }),
     },
   });
 

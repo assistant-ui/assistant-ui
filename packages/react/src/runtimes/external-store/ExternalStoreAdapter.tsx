@@ -34,20 +34,6 @@ type ExternalStoreMessageConverterAdapter<T> = {
 };
 
 type ExternalStoreAdapterBase<T> = {
-  /**
-   * @deprecated Use `adapterst.threadList.threadId` instead. This will be removed in 0.6.0.
-   */
-  threadId?: string | undefined;
-
-  /**
-   * @deprecated Use `adapters..threadList.onSwitchToThread` instead. This will be removed in 0.6.0.
-   */
-  onSwitchToThread?: ((threadId: string) => Promise<void> | void) | undefined;
-  /**
-   * @deprecated Use `adapters.threadList.onSwitchToNewThread` instead. This will be removed in 0.6.0.
-   */
-  onSwitchToNewThread?: (() => Promise<void> | void) | undefined;
-
   isDisabled?: boolean | undefined;
   isRunning?: boolean | undefined;
   messages: T[];

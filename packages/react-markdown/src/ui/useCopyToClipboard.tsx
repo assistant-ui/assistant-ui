@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { UseActionBarCopyProps } from "@assistant-ui/react";
 
-export type useCopyToClipboardProps = UseActionBarCopyProps;
+export type useCopyToClipboardProps = {
+  copiedDuration?: number;
+};
 
 export const useCopyToClipboard = ({
   copiedDuration = 3000,

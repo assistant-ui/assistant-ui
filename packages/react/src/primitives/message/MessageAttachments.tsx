@@ -6,12 +6,6 @@ import { useMessageAttachment } from "../../context/react/AttachmentContext";
 import { AttachmentRuntimeProvider } from "../../context/providers/AttachmentRuntimeProvider";
 import { CompleteAttachment } from "../../types";
 
-/**
- * @deprecated Use `MessagePrimitive.Attachments.Props` instead. This will be removed in 0.6.
- */
-export type MessagePrimitiveAttachmentsProps =
-  MessagePrimitiveAttachments.Props;
-
 export namespace MessagePrimitiveAttachments {
   export type Props = {
     components:
@@ -46,9 +40,7 @@ const getComponent = (
 const AttachmentComponent: FC<{
   components: MessagePrimitiveAttachments.Props["components"];
 }> = ({ components }) => {
-  const Component = useMessageAttachment((a) =>
-    getComponent(components, a.attachment),
-  );
+  const Component = useMessageAttachment((a) => getComponent(components, a));
 
   if (!Component) return null;
   return <Component />;
@@ -83,7 +75,7 @@ const MessageAttachment = memo(
 export const MessagePrimitiveAttachments: FC<
   MessagePrimitiveAttachments.Props
 > = ({ components }) => {
-  const attachmentsCount = useMessage(({ message }) => {
+  const attachmentsCount = useMessage((message) => {
     if (message.role !== "user") return 0;
     return message.attachments.length;
   });

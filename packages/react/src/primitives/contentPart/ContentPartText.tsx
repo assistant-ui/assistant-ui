@@ -10,11 +10,6 @@ import {
 import { useContentPartText } from "../../primitive-hooks/contentPart/useContentPartText";
 import { useSmooth } from "../../utils/smooth/useSmooth";
 
-/**
- * @deprecated Use `ContentPartPrimitive.Text.Props` instead. This will be removed in 0.6.
- */
-export type ContentPartPrimitiveTextProps = ContentPartPrimitiveText.Props;
-
 export namespace ContentPartPrimitiveText {
   export type Element = ElementRef<typeof Primitive.span>;
   export type Props = Omit<

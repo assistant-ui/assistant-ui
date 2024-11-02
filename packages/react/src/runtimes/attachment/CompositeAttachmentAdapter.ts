@@ -91,7 +91,7 @@ export class CompositeAttachmentAdapter implements AttachmentAdapter {
         fileMatchesAccept(
           {
             name: attachment.name,
-            type: attachment.contentType ?? "unknown/unknown", // TODO remove after 0.6.0
+            type: attachment.contentType,
           },
           adapter.accept,
         )

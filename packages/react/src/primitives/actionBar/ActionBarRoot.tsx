@@ -10,11 +10,6 @@ import {
 
 type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;
 
-/**
- * @deprecated Use `ActionBarPrimitive.Root.Props` instead. This will be removed in 0.6.
- */
-export type ActionBarPrimitiveRootProps = ActionBarPrimitiveRoot.Props;
-
 export namespace ActionBarPrimitiveRoot {
   export type Element = ElementRef<typeof Primitive.div>;
   export type Props = PrimitiveDivProps & UseActionBarFloatStatusProps;

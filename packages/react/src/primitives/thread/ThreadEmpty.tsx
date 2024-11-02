@@ -1,12 +1,7 @@
 "use client";
 
 import type { FC, PropsWithChildren } from "react";
-import { useThreadEmpty } from "../../primitive-hooks";
-
-/**
- * @deprecated Use `ThreadPrimitive.Empty.Props` instead. This will be removed in 0.6.
- */
-export type ThreadPrimitiveEmptyProps = ThreadPrimitiveEmpty.Props;
+import { useThreadEmpty } from "../../primitive-hooks/thread/useThreadEmpty";
 
 export namespace ThreadPrimitiveEmpty {
   export type Props = PropsWithChildren;

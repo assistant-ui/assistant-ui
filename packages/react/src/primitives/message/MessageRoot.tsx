@@ -39,11 +39,6 @@ const useIsHoveringRef = () => {
   return useManagedRef(callbackRef);
 };
 
-/**
- * @deprecated Use `MessagePrimitive.Root.Props` instead. This will be removed in 0.6.
- */
-export type MessagePrimitiveRootProps = MessagePrimitiveRoot.Props;
-
 export namespace MessagePrimitiveRoot {
   export type Element = ElementRef<typeof Primitive.div>;
   export type Props = ComponentPropsWithoutRef<typeof Primitive.div>;

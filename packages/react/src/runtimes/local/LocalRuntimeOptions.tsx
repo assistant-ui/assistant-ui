@@ -6,10 +6,6 @@ import { ChatModelAdapter } from "./ChatModelAdapter";
 
 export type LocalRuntimeOptionsBase = {
   maxSteps?: number | undefined;
-  /**
-   * @deprecated Use `maxSteps` (which is `maxToolRoundtrips` + 1; if you set `maxToolRoundtrips` to 2, set `maxSteps` to 3) instead. This field will be removed in v0.6.
-   */
-  maxToolRoundtrips?: number | undefined;
   adapters: {
     chatModel: ChatModelAdapter;
     attachments?: AttachmentAdapter | undefined;
@@ -27,13 +23,11 @@ export type LocalRuntimeOptions = Omit<LocalRuntimeOptionsBase, "adapters"> & {
 export const splitLocalRuntimeOptions = <T extends LocalRuntimeOptions>(
   options: T,
 ) => {
-  const { initialMessages, maxToolRoundtrips, maxSteps, adapters, ...rest } =
-    options;
+  const { initialMessages, maxSteps, adapters, ...rest } = options;
 
   return {
     localRuntimeOptions: {
       initialMessages,
-      maxToolRoundtrips,
       maxSteps,
       adapters,
     },

@@ -36,7 +36,7 @@ export function useContentPartRuntime(options?: {
   return context.useContentPartRuntime();
 }
 
-export const { useContentPart, useContentPartStore } = createContextStoreHook(
+export const { useContentPart } = createContextStoreHook(
   useContentPartContext,
   "useContentPart",
 );

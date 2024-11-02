@@ -17,19 +17,6 @@ type VercelRSCAdapterBase<T> = {
   convertMessage?: ((message: T) => VercelRSCMessage) | undefined;
 
   adapters?: ExternalStoreAdapter["adapters"] | undefined;
-
-  /**
-   * @deprecated Use `onNew` instead. This will be removed in 0.6.0.
-   */
-  append?: (message: AppendMessage) => Promise<void>;
-  /**
-   * @deprecated Use `onEdit` instead. This will be removed in 0.6.0.
-   */
-  edit?: ((message: AppendMessage) => Promise<void>) | undefined;
-  /**
-   * @deprecated Use `onReload` instead. This will be removed in 0.6.0.
-   */
-  reload?: ((parentId: string | null) => Promise<void>) | undefined;
 };
 
 export type VercelRSCAdapter<T = VercelRSCMessage> = VercelRSCAdapterBase<T> &

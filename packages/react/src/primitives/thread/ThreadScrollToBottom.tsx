@@ -7,12 +7,6 @@ import {
 } from "../../utils/createActionButton";
 import { useThreadScrollToBottom } from "../../primitive-hooks/thread/useThreadScrollToBottom";
 
-/**
- * @deprecated Use `ThreadPrimitive.ScrollToBottom.Props` instead. This will be removed in 0.6.
- */
-export type ThreadPrimitiveScrollToBottomProps =
-  ThreadPrimitiveScrollToBottom.Props;
-
 export namespace ThreadPrimitiveScrollToBottom {
   export type Element = ActionButtonElement;
   export type Props = ActionButtonProps<typeof useThreadScrollToBottom>;

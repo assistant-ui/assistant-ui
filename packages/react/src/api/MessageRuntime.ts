@@ -58,7 +58,12 @@ export const toContentPartStatus = (
   return isLastPart ? (message.status as ContentPartStatus) : COMPLETE_STATUS;
 };
 
-export const EMPTY_CONTENT = Object.freeze({ type: "text", text: "" });
+export const EMPTY_CONTENT_SYMBOL = Symbol("empty-content");
+const EMPTY_CONTENT = Object.freeze({
+  type: "text",
+  text: "",
+  [EMPTY_CONTENT_SYMBOL]: true,
+});
 
 const getContentPartState = (
   message: MessageState,
@@ -83,20 +88,12 @@ const getContentPartState = (
 
   // if the content part is the same, don't update
   const status = toContentPartStatus(message, partIndex, part);
-  return Object.freeze({ ...part, part, status });
+  return Object.freeze({ ...part, status });
 };
 
 export type MessageState = ThreadMessage & {
-  /**
-   * @deprecated You can directly access message fields in the state. Replace `.message.content` with `.content` etc. This will be removed in 0.6.0.
-   */
-  message: ThreadMessage;
   parentId: string | null;
   isLast: boolean;
-  /**
-   * @deprecated Use `branchNumber` and `branchCount` instead. This will be removed in 0.6.0.
-   */
-  branches: readonly string[];
 
   branchNumber: number;
   branchCount: number;
@@ -305,7 +302,6 @@ export class MessageRuntimeImpl implements MessageRuntime {
 
           return {
             ...attachment,
-            attachment: attachment,
             source: "message",
           } satisfies AttachmentState & { source: "message" };
         },

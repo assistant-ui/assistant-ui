@@ -73,10 +73,6 @@ export abstract class BaseComposerRuntimeCore implements ComposerRuntimeCore {
             this.attachments.map(async (a) => {
               if (isAttachmentComplete(a)) return a;
               const result = await adapter.send(a);
-              // TODO remove after 0.6.0
-              if (result.status?.type !== "complete") {
-                result.status = { type: "complete" };
-              }
               return result as CompleteAttachment;
             }),
           )
@@ -99,10 +95,6 @@ export abstract class BaseComposerRuntimeCore implements ComposerRuntimeCore {
     if (!adapter) throw new Error("Attachments are not supported");
 
     const attachment = await adapter.add({ file });
-    // TODO remove after 0.6.0
-    if (attachment.status === undefined) {
-      attachment.status = { type: "requires-action", reason: "composer-send" };
-    }
 
     this._attachments = [...this._attachments, attachment as PendingAttachment];
     this.notifySubscribers();

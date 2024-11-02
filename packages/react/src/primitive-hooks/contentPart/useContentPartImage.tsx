@@ -9,8 +9,7 @@ export const useContentPartImage = () => {
         "ContentPartImage can only be used inside image content parts.",
       );
 
-    return c as ContentPartState &
-      ImageContentPart & { part: ImageContentPart };
+    return c as ContentPartState & ImageContentPart;
   });
 
   return image;

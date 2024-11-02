@@ -13,7 +13,6 @@ export type AssistantToolUIProps<
 };
 
 export const useAssistantToolUI = (
-  // TODO remove null option in 0.6
   tool: AssistantToolUIProps<any, any> | null,
 ) => {
   const toolUIsStore = useToolUIsStore();

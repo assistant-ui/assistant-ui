@@ -23,7 +23,6 @@ import {
   TooltipTrigger,
 } from "../ui/tooltip";
 import { ModelPicker } from "./ModelPicker";
-import { useThreadListItem } from "@assistant-ui/react/context/react/ThreadListItemContext";
 
 export const MarkdownText = makeMarkdownText({
   remarkPlugins: [remarkGfm],

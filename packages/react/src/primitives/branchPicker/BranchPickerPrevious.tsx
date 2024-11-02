@@ -7,11 +7,6 @@ import {
   createActionButton,
 } from "../../utils/createActionButton";
 
-/**
- * @deprecated Use `BranchPickerPrimitive.Previous.Props` instead. This will be removed in 0.6.
- */
-export type BranchPickerPrimitivePreviousProps = BranchPickerPrimitivePrevious.Props;
-
 export namespace BranchPickerPrimitivePrevious {
   export type Element = ActionButtonElement;
   export type Props = ActionButtonProps<typeof useBranchPickerPrevious>;
@@ -19,5 +14,5 @@ export namespace BranchPickerPrimitivePrevious {
 
 export const BranchPickerPrimitivePrevious = createActionButton(
   "BranchPickerPrimitive.Previous",
-  useBranchPickerPrevious
+  useBranchPickerPrevious,
 );

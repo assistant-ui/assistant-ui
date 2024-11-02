@@ -38,7 +38,7 @@ export function useMessageRuntime(options?: {
   return context.useMessageRuntime();
 }
 
-export const { useMessage, useMessageStore } = createContextStoreHook(
+export const { useMessage } = createContextStoreHook(
   useMessageContext,
   "useMessage",
 );
@@ -48,7 +48,7 @@ export const { useMessageUtils, useMessageUtilsStore } = createContextStoreHook(
   "useMessageUtils",
 );
 
-export const { useEditComposer, useEditComposerStore } = createContextStoreHook(
+export const { useEditComposer } = createContextStoreHook(
   useMessageContext,
   "useEditComposer",
 );

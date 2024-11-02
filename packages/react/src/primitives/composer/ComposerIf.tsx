@@ -6,11 +6,6 @@ import {
   useComposerIf,
 } from "../../primitive-hooks/composer/useComposerIf";
 
-/**
- * @deprecated Use `ComposerPrimitive.If.Props` instead. This will be removed in 0.6.
- */
-export type ComposerPrimitiveIfProps = ComposerPrimitiveIf.Props;
-
 export namespace ComposerPrimitiveIf {
   export type Props = PropsWithChildren<UseComposerIfProps>;
 }

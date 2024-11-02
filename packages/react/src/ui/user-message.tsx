@@ -35,11 +35,6 @@ const UserMessageContentWrapper = withDefaults("div", {
   className: "aui-user-message-content",
 });
 
-/**
- * @deprecated Use `UserMessage.Content.Props` instead. This will be removed in 0.6.
- */
-export type UserMessageContentProps = UserMessageContent.Props;
-
 namespace UserMessageContent {
   export type Element = HTMLDivElement;
   export type Props = MessagePrimitive.Content.Props &
@@ -68,22 +63,17 @@ const UserMessageAttachmentsContainer = withDefaults("div", {
   className: "aui-user-message-attachments",
 });
 
-/**
- * @deprecated Use `UserMessage.Attachments.Props` instead. This will be removed in 0.6.
- */
-export type UserMessageAttachmentsProps = UserMessageAttachments.Props;
-
 namespace UserMessageAttachments {
   export type Props = Partial<MessagePrimitive.Attachments.Props>;
 }
 
-const UserMessageAttachments: FC<UserMessageAttachmentsProps> = ({
+const UserMessageAttachments: FC<UserMessageAttachments.Props> = ({
   components,
 }) => {
   return (
     <MessagePrimitive.If hasAttachments>
       <UserMessageAttachmentsContainer>
-        <MessagePrimitive.Attachments 
+        <MessagePrimitive.Attachments
           components={{
             ...components,
             Attachment: components?.Attachment ?? Attachment,

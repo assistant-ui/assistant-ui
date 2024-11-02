@@ -11,26 +11,14 @@ import { AttachmentRuntimePath } from "./RuntimePathTypes";
 
 type MessageAttachmentState = CompleteAttachment & {
   source: "message";
-  /**
-   * @deprecated You can directly access content part fields in the state. Replace `.attachment.type` with `.type` etc. This will be removed in 0.6.0.
-   */
-  attachment: CompleteAttachment;
 };
 
 type ThreadComposerAttachmentState = PendingAttachment & {
   source: "thread-composer";
-  /**
-   * @deprecated You can directly access content part fields in the state. Replace `.attachment.type` with `.type` etc. This will be removed in 0.6.0.
-   */
-  attachment: PendingAttachment;
 };
 
 type EditComposerAttachmentState = Attachment & {
   source: "edit-composer";
-  /**
-   * @deprecated You can directly access content part fields in the state. Replace `.attachment.type` with `.type` etc. This will be removed in 0.6.0.
-   */
-  attachment: Attachment;
 };
 
 export type AttachmentState =

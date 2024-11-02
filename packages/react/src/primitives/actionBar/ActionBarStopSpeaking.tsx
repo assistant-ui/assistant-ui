@@ -7,12 +7,6 @@ import { useEscapeKeydown } from "@radix-ui/react-use-escape-keydown";
 import { Primitive } from "@radix-ui/react-primitive";
 import { composeEventHandlers } from "@radix-ui/primitive";
 
-/**
- * @deprecated Use `ActionBarPrimitive.StopSpeaking.Props` instead. This will be removed in 0.6.
- */
-export type ActionBarPrimitiveStopSpeakingProps =
-  ActionBarPrimitiveStopSpeaking.Props;
-
 export namespace ActionBarPrimitiveStopSpeaking {
   export type Element = HTMLButtonElement;
   export type Props = ActionButtonProps<typeof useActionBarStopSpeaking>;

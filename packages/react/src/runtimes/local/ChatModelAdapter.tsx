@@ -17,10 +17,6 @@ export type ChatModelRunResult = {
   content?: ThreadAssistantContentPart[];
   status?: MessageStatus;
   metadata?: {
-    /**
-     * @internal Use `steps` instead. This field will be removed in v0.6.
-     */
-    roundtrips?: ThreadStep[];
     steps?: ThreadStep[];
     custom?: Record<string, unknown>;
   };
@@ -32,11 +28,6 @@ export type ChatModelRunOptions = {
   config: ModelConfig;
 
   unstable_assistantMessageId?: string;
-
-  /**
-   * @deprecated Declare the run function as an AsyncGenerator instead. This method will be removed in v0.6
-   */
-  onUpdate: (result: ChatModelRunUpdate) => void;
 };
 
 export type ChatModelAdapter = {

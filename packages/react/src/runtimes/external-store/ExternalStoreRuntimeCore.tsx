@@ -5,9 +5,6 @@ import { ExternalStoreThreadRuntimeCore } from "./ExternalStoreThreadRuntimeCore
 
 const getThreadListAdapter = (store: ExternalStoreAdapter<any>) => {
   return {
-    threadId: store.threadId,
-    onSwitchToNewThread: store.onSwitchToNewThread,
-    onSwitchToThread: store.onSwitchToThread,
     ...store.adapters?.threadList,
   };
 };
