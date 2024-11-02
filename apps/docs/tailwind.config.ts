@@ -8,6 +8,7 @@ const config = {
     "./app/**/*.{ts,tsx}",
     "./content/**/*.mdx",
     "./node_modules/fumadocs-ui/dist/**/*.js",
+    "./node_modules/trieve-fumadocs-adapter/dist/**/*.mjs",
   ],
   prefix: "",
   theme: {
