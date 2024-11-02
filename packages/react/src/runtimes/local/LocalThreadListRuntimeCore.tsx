@@ -8,7 +8,7 @@ import { generateId } from "../../utils/idUtils";
 import { LocalThreadRuntimeCore } from "./LocalThreadRuntimeCore";
 
 export type LocalThreadData = {
-  data: ExportedMessageRepository;
+  runtime: LocalThreadRuntimeCore;
   metadata: ThreadListMetadata;
   isArchived: boolean;
 };
@@ -40,13 +40,14 @@ export class LocalThreadListRuntimeCore implements ThreadListRuntimeCore {
 
   constructor(private _threadFactory: LocalThreadFactory) {
     const threadId = generateId();
+    const runtime = this._threadFactory(threadId, { messages: [] });
     this._threadData.set(threadId, {
-      data: { messages: [] },
+      runtime,
       metadata: { threadId },
       isArchived: false,
     });
     this._threads = [{ threadId }];
-    this._mainThread = this._threadFactory(threadId, { messages: [] });
+    this._mainThread = runtime;
   }
 
   public getThreadMetadataById(threadId: string) {
@@ -62,25 +63,17 @@ export class LocalThreadListRuntimeCore implements ThreadListRuntimeCore {
 
     if (data.isArchived) await this._performMoveOp(threadId, "unarchive");
 
-    const newThreadCore = this._threadFactory(threadId, data.data);
-
-    const mainThreadData = this._threadData.get(this._mainThread.threadId);
-    if (!mainThreadData) throw new Error("Main thread not found");
-
-    const exprt = this._mainThread.export();
-    mainThreadData.data = exprt;
-
     this._mainThread._notifyEventSubscribers("switched-away");
-    this._mainThread = newThreadCore;
+    this._mainThread = data.runtime;
     this._notifySubscribers();
 
-    newThreadCore._notifyEventSubscribers("switched-to");
+    data.runtime._notifyEventSubscribers("switched-to");
   }
 
   public async switchToNewThread(): Promise<void> {
     const threadId = generateId();
     this._threadData.set(threadId, {
-      data: { messages: [] },
+      runtime: this._threadFactory(threadId, { messages: [] }),
       metadata: { threadId },
       isArchived: false,
     });
