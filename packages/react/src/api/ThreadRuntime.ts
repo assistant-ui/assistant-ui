@@ -4,6 +4,7 @@ import {
   ThreadRuntimeCore,
   SpeechState,
   ThreadRuntimeEventType,
+  ThreadMetadata,
 } from "../runtimes/core/ThreadRuntimeCore";
 import { ExportedMessageRepository } from "../runtimes/utils/MessageRepository";
 import {
@@ -76,8 +77,15 @@ export type ThreadRuntimeCoreBinding = SubscribableWithState<
 export type ThreadState = Readonly<{
   /**
    * The thread ID.
+   * @deprecated This field is deprecated and will be removed in 0.7.0. Use `metadata.threadId` instead.  
    */
   threadId: string;
+
+  /**
+   * The thread metadata.
+   */
+  metadata: ThreadMetadata;
+
   /**
    * Whether the thread is disabled. Disabled threads cannot receive new messages.
    */
@@ -117,7 +125,8 @@ export type ThreadState = Readonly<{
 export const getThreadState = (runtime: ThreadRuntimeCore): ThreadState => {
   const lastMessage = runtime.messages.at(-1);
   return Object.freeze({
-    threadId: runtime.threadId,
+    threadId: runtime.metadata.threadId,
+    metadata: runtime.metadata,
     capabilities: runtime.capabilities,
     isDisabled: runtime.isDisabled,
     isRunning:

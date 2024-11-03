@@ -1,10 +1,10 @@
-import { ThreadListMetadata } from "../runtimes/core/ThreadListRuntimeCore";
+import { ThreadMetadata } from "../runtimes/core/ThreadRuntimeCore";
 import { Unsubscribe } from "../types";
 import { ThreadListItemRuntimePath } from "./RuntimePathTypes";
 import { SubscribableWithState } from "./subscribable/Subscribable";
 import { ThreadListRuntimeCoreBinding } from "./ThreadListRuntime";
 
-export type ThreadListItemState = ThreadListMetadata & {
+export type ThreadListItemState = ThreadMetadata & {
   isMain: boolean;
 };
 

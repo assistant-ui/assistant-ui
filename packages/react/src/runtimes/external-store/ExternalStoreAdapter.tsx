@@ -2,17 +2,17 @@ import { AppendMessage, ThreadMessage } from "../../types";
 import { AttachmentAdapter } from "../attachment";
 import {
   AddToolResultOptions,
+  ThreadMetadata,
   ThreadSuggestion,
 } from "../core/ThreadRuntimeCore";
 import { FeedbackAdapter } from "../feedback/FeedbackAdapter";
 import { SpeechSynthesisAdapter } from "../speech/SpeechAdapterTypes";
-import { ThreadListMetadata } from "../core/ThreadListRuntimeCore";
 import { ThreadMessageLike } from "./ThreadMessageLike";
 
 export type ExternalStoreThreadListAdapter = {
   threadId?: string | undefined;
-  threads?: readonly ThreadListMetadata[] | undefined;
-  archivedThreads?: readonly ThreadListMetadata[] | undefined;
+  threads?: readonly ThreadMetadata[] | undefined;
+  archivedThreads?: readonly ThreadMetadata[] | undefined;
   onSwitchToNewThread?: (() => Promise<void> | void) | undefined;
   onSwitchToThread?: ((threadId: string) => Promise<void> | void) | undefined;
   onRename?: (

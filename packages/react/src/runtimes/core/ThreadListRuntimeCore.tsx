@@ -1,18 +1,14 @@
 import { Unsubscribe } from "../../types";
-import { ThreadRuntimeCore } from "./ThreadRuntimeCore";
-
-export type ThreadListMetadata = Readonly<{
-  threadId: string;
-  title?: string;
-}>;
+import { ThreadMetadata, ThreadRuntimeCore } from "./ThreadRuntimeCore";
 
 export type ThreadListRuntimeCore = {
   mainThread: ThreadRuntimeCore;
 
-  threads: readonly ThreadListMetadata[];
-  archivedThreads: readonly ThreadListMetadata[];
+  newThread: string | undefined;
+  threads: readonly string[];
+  archivedThreads: readonly string[];
 
-  getThreadMetadataById(threadId: string): ThreadListMetadata | undefined;
+  getThreadMetadataById(threadId: string): ThreadMetadata | undefined;
 
   switchToThread(threadId: string): Promise<void>;
   switchToNewThread(): Promise<void>;

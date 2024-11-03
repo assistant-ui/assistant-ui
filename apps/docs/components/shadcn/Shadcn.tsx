@@ -3,6 +3,7 @@ import {
   Thread,
   ThreadListItemPrimitive,
   ThreadListPrimitive,
+  useThreadList,
 } from "@assistant-ui/react";
 import { makeMarkdownText } from "@assistant-ui/react-markdown";
 import remarkGfm from "remark-gfm";
@@ -64,11 +65,15 @@ const ButtonWithTooltip: FC<ButtonWithTooltipProps> = ({
 };
 
 const TopLeft: FC = () => {
+  const isNewSelected = useThreadList((t) => t.newThread === t.mainThreadId);
   return (
     <ThreadListPrimitive.New asChild>
       <ButtonWithTooltip
         variant="ghost"
-        className="flex w-full justify-between px-3"
+        className={cn(
+          "flex w-full justify-between px-3",
+          isNewSelected && "bg-aui-muted",
+        )}
         tooltip="New Chat"
         side="right"
       >

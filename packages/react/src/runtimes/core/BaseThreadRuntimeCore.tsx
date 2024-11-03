@@ -17,6 +17,7 @@ import {
   RuntimeCapabilities,
   SubmittedFeedback,
   ThreadRuntimeEventType,
+  ThreadMetadata,
 } from "../core/ThreadRuntimeCore";
 import { DefaultEditComposerRuntimeCore } from "../composer/DefaultEditComposerRuntimeCore";
 import { SpeechSynthesisAdapter } from "../speech/SpeechAdapterTypes";
@@ -35,8 +36,6 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
 
   protected readonly repository = new MessageRepository();
   public abstract get adapters(): BaseThreadAdapters | undefined;
-
-  public abstract get threadId(): string;
   public abstract get isDisabled(): boolean;
   public abstract get suggestions(): readonly ThreadSuggestion[];
   public abstract get extras(): unknown;
@@ -47,16 +46,29 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
   public abstract addToolResult(options: AddToolResultOptions): void;
   public abstract cancelRun(): void;
 
+  public get metadata() {
+    return this._metadata;
+  }
+
   public get messages() {
     return this.repository.getMessages();
   }
 
   public readonly composer = new DefaultThreadComposerRuntimeCore(this);
 
-  constructor(private configProvider: ModelConfigProvider) {}
+  constructor(
+    private configProvider: ModelConfigProvider,
+    private _metadata: ThreadMetadata,
+  ) {}
 
   public getModelConfig() {
     return this.configProvider.getModelConfig();
+  }
+
+  public updateMetadata(metadata: Partial<ThreadMetadata>) {
+    this._metadata = { ...this._metadata, ...metadata };
+    this._notifyEventSubscribers("metadata-update");
+    this._notifySubscribers();
   }
 
   private _editComposers = new Map<string, DefaultEditComposerRuntimeCore>();

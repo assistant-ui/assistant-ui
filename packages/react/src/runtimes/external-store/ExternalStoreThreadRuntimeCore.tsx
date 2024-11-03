@@ -80,7 +80,7 @@ export class ExternalStoreThreadRuntimeCore
     threadId: string,
     store: ExternalStoreAdapter<any>,
   ) {
-    super(configProvider);
+    super(configProvider, { threadId, state: "new" });
     this.threadId = threadId;
     this.setStore(store);
   }

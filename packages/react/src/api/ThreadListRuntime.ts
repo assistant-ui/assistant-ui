@@ -1,20 +1,20 @@
 import { LazyMemoizeSubject } from "./subscribable/LazyMemoizeSubject";
-import {
-  ThreadListMetadata,
-  ThreadListRuntimeCore,
-} from "../runtimes/core/ThreadListRuntimeCore";
+import { ThreadListRuntimeCore } from "../runtimes/core/ThreadListRuntimeCore";
 import { Unsubscribe } from "../types";
 import { ThreadListRuntimePath } from "./RuntimePathTypes";
 import {
   ThreadListItemRuntime,
   ThreadListItemRuntimeImpl,
+  ThreadListItemState,
 } from "./ThreadListItemRuntime";
 import { SKIP_UPDATE } from "./subscribable/SKIP_UPDATE";
 import { ShallowMemoizeSubject } from "./subscribable/ShallowMemoizeSubject";
 
 export type ThreadListState = Readonly<{
-  threads: readonly ThreadListMetadata[];
-  archivedThreads: readonly ThreadListMetadata[];
+  mainThreadId: string;
+  newThread: string | undefined;
+  threads: readonly string[];
+  archivedThreads: readonly string[];
 }>;
 
 export type ThreadListRuntime = Readonly<{
@@ -32,8 +32,24 @@ const getThreadListState = (
   threadList: ThreadListRuntimeCore,
 ): ThreadListState => {
   return {
+    mainThreadId: threadList.mainThread.metadata.threadId,
+    newThread: threadList.newThread,
     threads: threadList.threads,
     archivedThreads: threadList.archivedThreads,
+  };
+};
+
+const getThreadListItemState = (
+  threadList: ThreadListRuntimeCore,
+  threadId: string | undefined,
+): ThreadListItemState | SKIP_UPDATE => {
+  if (threadId === undefined) return SKIP_UPDATE;
+
+  const threadData = threadList.getThreadMetadataById(threadId);
+  if (!threadData) return SKIP_UPDATE;
+  return {
+    ...threadData,
+    isMain: threadList.mainThread.metadata.threadId === threadId,
   };
 };
 
@@ -75,13 +91,7 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
           threadSelector: { type: "index", index: idx },
         },
         getState: () => {
-          const threads = this._core.threads;
-          const thread = threads[idx];
-          if (!thread) return SKIP_UPDATE;
-          return {
-            ...thread,
-            isMain: this._core.mainThread.threadId === thread.threadId,
-          };
+          return getThreadListItemState(this._core, this._core.threads[idx]);
         },
         subscribe: (callback) => this._core.subscribe(callback),
       }),
@@ -97,13 +107,10 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
           threadSelector: { type: "archiveIndex", index: idx },
         },
         getState: () => {
-          const threads = this._core.archivedThreads;
-          const thread = threads[idx];
-          if (!thread) return SKIP_UPDATE;
-          return {
-            ...thread,
-            isMain: this._core.mainThread.threadId === thread.threadId,
-          };
+          return getThreadListItemState(
+            this._core,
+            this._core.archivedThreads[idx],
+          );
         },
         subscribe: (callback) => this._core.subscribe(callback),
       }),
@@ -121,12 +128,7 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
           threadSelector: { type: "threadId", threadId },
         },
         getState: () => {
-          const thread = this._core.getThreadMetadataById(threadId);
-          if (!thread) return SKIP_UPDATE;
-          return {
-            ...thread,
-            isMain: this._core.mainThread.threadId === thread.threadId,
-          };
+          return getThreadListItemState(this._core, threadId);
         },
         subscribe: (callback) => this._core.subscribe(callback),
       }),

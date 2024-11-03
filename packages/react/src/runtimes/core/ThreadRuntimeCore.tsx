@@ -43,13 +43,24 @@ export type SubmittedFeedback = Readonly<{
   type: "negative" | "positive";
 }>;
 
+export type ThreadMetadata = Readonly<{
+  threadId: string;
+  state: "archived" | "regular" | "new" | "deleted";
+  title?: string;
+}>;
+
 export type ThreadRuntimeEventType =
   | "switched-to"
   | "switched-away"
   | "run-start"
-  | "model-config-update";
+  | "model-config-update"
+  | "metadata-update";
 
 export type ThreadRuntimeCore = Readonly<{
+  metadata: ThreadMetadata;
+
+  updateMetadata: (metadata: Partial<ThreadMetadata>) => void;
+
   getMessageById: (messageId: string) =>
     | {
         parentId: string | null;
@@ -81,7 +92,6 @@ export type ThreadRuntimeCore = Readonly<{
   speech: SpeechState | undefined;
 
   capabilities: Readonly<RuntimeCapabilities>;
-  threadId: string;
   isDisabled: boolean;
   messages: readonly ThreadMessage[];
   suggestions: readonly ThreadSuggestion[];

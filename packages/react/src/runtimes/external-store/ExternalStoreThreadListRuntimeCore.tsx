@@ -13,12 +13,16 @@ const DEFAULT_THREAD_ID = "DEFAULT_THREAD_ID";
 export class ExternalStoreThreadListRuntimeCore
   implements ThreadListRuntimeCore
 {
+  public get newThread() {
+    return undefined;
+  }
+
   public get threads() {
-    return this.adapter.threads ?? EMPTY_ARRAY;
+    return this.adapter.threads?.map((t) => t.threadId) ?? EMPTY_ARRAY;
   }
 
   public get archivedThreads() {
-    return this.adapter.archivedThreads ?? EMPTY_ARRAY;
+    return this.adapter.archivedThreads?.map((t) => t.threadId) ?? EMPTY_ARRAY;
   }
 
   private _mainThread: ExternalStoreThreadRuntimeCore;
@@ -35,10 +39,10 @@ export class ExternalStoreThreadListRuntimeCore
   }
 
   public getThreadMetadataById(threadId: string) {
-    for (const thread of this.threads) {
+    for (const thread of this.adapter.threads ?? []) {
       if (thread.threadId === threadId) return thread;
     }
-    for (const thread of this.archivedThreads) {
+    for (const thread of this.adapter.archivedThreads ?? []) {
       if (thread.threadId === threadId) return thread;
     }
     return undefined;

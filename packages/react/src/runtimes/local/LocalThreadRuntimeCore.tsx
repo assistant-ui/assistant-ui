@@ -41,11 +41,10 @@ export class LocalThreadRuntimeCore
 
   constructor(
     configProvider: ModelConfigProvider,
-    public readonly threadId: string,
+    threadId: string,
     options: LocalRuntimeOptionsBase,
   ) {
-    super(configProvider);
-
+    super(configProvider, { threadId, state: "new" });
     this.setOptions(options);
   }
 
@@ -83,7 +82,15 @@ export class LocalThreadRuntimeCore
     if (hasUpdates) this._notifySubscribers();
   }
 
+  private _transitionAwayFromNewState() {
+    if (this.metadata.state === "new") {
+      this.updateMetadata({ state: "regular" });
+    }
+  }
+
   public async append(message: AppendMessage): Promise<void> {
+    this._transitionAwayFromNewState();
+
     const newMessage = fromCoreMessage(message, {
       attachments: message.attachments,
     });
@@ -99,6 +106,8 @@ export class LocalThreadRuntimeCore
   }
 
   public async startRun(parentId: string | null): Promise<void> {
+    this._transitionAwayFromNewState();
+
     this.repository.resetHead(parentId);
 
     // add assistant message

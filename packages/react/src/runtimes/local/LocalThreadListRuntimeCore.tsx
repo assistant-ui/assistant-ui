@@ -1,16 +1,14 @@
 import type { Unsubscribe } from "../../types";
-import {
-  ThreadListMetadata,
-  ThreadListRuntimeCore,
-} from "../core/ThreadListRuntimeCore";
+import { ThreadListRuntimeCore } from "../core/ThreadListRuntimeCore";
 import { ExportedMessageRepository } from "../utils/MessageRepository";
 import { generateId } from "../../utils/idUtils";
 import { LocalThreadRuntimeCore } from "./LocalThreadRuntimeCore";
+import { ThreadMetadata } from "../core/ThreadRuntimeCore";
 
 export type LocalThreadData = {
   runtime: LocalThreadRuntimeCore;
-  metadata: ThreadListMetadata;
-  isArchived: boolean;
+  lastState: ThreadMetadata["state"];
+  dispose: Unsubscribe;
 };
 
 export type LocalThreadFactory = (
@@ -20,9 +18,13 @@ export type LocalThreadFactory = (
 
 export class LocalThreadListRuntimeCore implements ThreadListRuntimeCore {
   private _threadData = new Map<string, LocalThreadData>();
+  private _threads: readonly string[] = [];
+  private _archivedThreads: readonly string[] = [];
+  private _newThread: string | undefined;
 
-  private _threads: readonly ThreadListMetadata[] = [];
-  private _archivedThreads: readonly ThreadListMetadata[] = [];
+  public get newThread() {
+    return this._newThread;
+  }
 
   public get threads() {
     return this._threads;
@@ -32,107 +34,111 @@ export class LocalThreadListRuntimeCore implements ThreadListRuntimeCore {
     return this._archivedThreads;
   }
 
-  private _mainThread: LocalThreadRuntimeCore;
+  private _mainThread!: LocalThreadRuntimeCore;
 
   public get mainThread(): LocalThreadRuntimeCore {
     return this._mainThread;
   }
 
   constructor(private _threadFactory: LocalThreadFactory) {
-    const threadId = generateId();
-    const runtime = this._threadFactory(threadId, { messages: [] });
-    this._threadData.set(threadId, {
-      runtime,
-      metadata: { threadId },
-      isArchived: false,
-    });
-    this._threads = [{ threadId }];
-    this._mainThread = runtime;
+    this.switchToNewThread();
   }
 
   public getThreadMetadataById(threadId: string) {
-    return this._threadData.get(threadId)?.metadata;
+    return this._threadData.get(threadId)?.runtime.metadata;
   }
 
-  public async switchToThread(threadId: string): Promise<void> {
-    console.log("switchToThread", threadId);
-    if (this._mainThread.threadId === threadId) return;
+  public switchToThread(threadId: string): Promise<void> {
+    if (this._mainThread?.metadata.threadId === threadId)
+      return Promise.resolve();
 
     const data = this._threadData.get(threadId);
     if (!data) throw new Error("Thread not found");
 
-    if (data.isArchived) await this._performMoveOp(threadId, "unarchive");
+    if (data.runtime.metadata.state === "archived") this.unarchive(threadId);
 
-    this._mainThread._notifyEventSubscribers("switched-away");
+    this._mainThread?._notifyEventSubscribers("switched-away");
     this._mainThread = data.runtime;
     this._notifySubscribers();
 
     data.runtime._notifyEventSubscribers("switched-to");
+    return Promise.resolve();
   }
 
-  public async switchToNewThread(): Promise<void> {
-    const threadId = generateId();
-    this._threadData.set(threadId, {
-      runtime: this._threadFactory(threadId, { messages: [] }),
-      metadata: { threadId },
-      isArchived: false,
-    });
-    this._threads = [{ threadId }, ...this._threads];
-    await this.switchToThread(threadId);
+  public switchToNewThread(): Promise<void> {
+    if (this._newThread === undefined) {
+      let threadId;
+      do {
+        threadId = generateId();
+      } while (this._threadData.has(threadId));
+
+      const runtime = this._threadFactory(threadId, { messages: [] });
+      const dispose = runtime.unstable_on("metadata-update", () => {
+        this._syncState(threadId, runtime.metadata.state);
+      });
+      this._threadData.set(threadId, { runtime, lastState: "new", dispose });
+      this._newThread = threadId;
+    }
+
+    this.switchToThread(this._newThread);
+    return Promise.resolve();
   }
 
-  private async _performMoveOp(
+  private async _syncState(
     threadId: string,
-    operation: "archive" | "unarchive" | "delete",
+    state: "archived" | "regular" | "new" | "deleted",
   ) {
-    console.log("_performMoveOp", threadId, operation);
-
     const data = this._threadData.get(threadId);
     if (!data) throw new Error("Thread not found");
+    if (data.lastState === state) return;
 
-    if (operation === "archive" && data.isArchived) return;
-    if (operation === "unarchive" && !data.isArchived) return;
-
-    if (operation === "archive") {
-      data.isArchived = true;
-      this._archivedThreads = [...this._archivedThreads, data.metadata];
+    if (state === "archived") {
+      this._archivedThreads = [
+        ...this._archivedThreads,
+        data.runtime.metadata.threadId,
+      ];
     }
-    if (operation === "unarchive") {
-      data.isArchived = false;
-      this._threads = [...this._threads, data.metadata];
+    if (state === "regular") {
+      this._threads = [...this._threads, data.runtime.metadata.threadId];
     }
-    if (operation === "delete") {
+    if (state === "deleted") {
+      data.dispose();
       this._threadData.delete(threadId);
     }
-
-    if (
-      operation === "archive" ||
-      (operation === "delete" && !data.isArchived)
-    ) {
-      this._threads = this._threads.filter((t) => t.threadId !== threadId);
+    if (state === "new") {
+      if (this._newThread) {
+        this.delete(this._newThread);
+      }
+      this._newThread = threadId;
     }
 
-    if (
-      operation === "unarchive" ||
-      (operation === "delete" && data.isArchived)
-    ) {
+    if (data.lastState === "regular") {
+      this._threads = this._threads.filter((t) => t !== threadId);
+    }
+
+    if (data.lastState === "archived") {
       this._archivedThreads = this._archivedThreads.filter(
-        (t) => t.threadId !== threadId,
+        (t) => t !== threadId,
       );
     }
 
+    if (data.lastState === "new") {
+      this._newThread = undefined;
+    }
+
+    data.lastState = state;
+    this._notifySubscribers();
+
     if (
-      threadId === this._mainThread.threadId &&
-      (operation === "archive" || operation === "delete")
+      threadId === this._mainThread.metadata.threadId &&
+      (state === "archived" || state === "deleted")
     ) {
-      const lastThread = this._threads[0]?.threadId;
-      console.log("reset", this.threads, threadId, lastThread);
+      const lastThread = this._threads[0];
       if (lastThread) {
         await this.switchToThread(lastThread);
       } else {
         await this.switchToNewThread();
       }
-      console.log("reset2", this.threads, this._mainThread.threadId);
     }
   }
 
@@ -140,35 +146,33 @@ export class LocalThreadListRuntimeCore implements ThreadListRuntimeCore {
     const data = this._threadData.get(threadId);
     if (!data) throw new Error("Thread not found");
 
-    data.metadata = {
-      ...data.metadata,
-      title: newTitle,
-    };
-
-    const threadList = data.isArchived ? this.archivedThreads : this.threads;
-    const idx = threadList.findIndex((t) => t.threadId === threadId);
-    const updatedThreadList = threadList.toSpliced(idx, 1, data.metadata);
-    if (data.isArchived) {
-      this._archivedThreads = updatedThreadList;
-    } else {
-      this._threads = updatedThreadList;
-    }
-    this._notifySubscribers();
+    data.runtime.updateMetadata({ title: newTitle });
   }
 
   public async archive(threadId: string): Promise<void> {
-    await this._performMoveOp(threadId, "archive");
-    this._notifySubscribers();
+    const data = this._threadData.get(threadId);
+    if (!data) throw new Error("Thread not found");
+    if (data.lastState !== "regular")
+      throw new Error("Thread is not yet created or archived");
+    data.runtime.updateMetadata({ state: "archived" });
   }
 
-  public async unarchive(threadId: string): Promise<void> {
-    await this._performMoveOp(threadId, "unarchive");
-    this._notifySubscribers();
+  public unarchive(threadId: string): Promise<void> {
+    const data = this._threadData.get(threadId);
+    if (!data) throw new Error("Thread not found");
+    if (data.lastState !== "archived")
+      throw new Error("Thread is not archived");
+    data.runtime.updateMetadata({ state: "regular" });
+
+    return Promise.resolve();
   }
 
   public async delete(threadId: string): Promise<void> {
-    await this._performMoveOp(threadId, "delete");
-    this._notifySubscribers();
+    const data = this._threadData.get(threadId);
+    if (!data) throw new Error("Thread not found");
+    if (data.lastState !== "regular" && data.lastState !== "archived")
+      throw new Error("Thread is not yet created or already deleted");
+    data.runtime.updateMetadata({ state: "deleted" });
   }
 
   private _subscriptions = new Set<() => void>();
