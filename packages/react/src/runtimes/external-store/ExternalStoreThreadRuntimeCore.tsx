@@ -18,6 +18,7 @@ import {
   ThreadRuntimeCore,
 } from "../core/ThreadRuntimeCore";
 import { BaseThreadRuntimeCore } from "../core/BaseThreadRuntimeCore";
+import { LocalThreadMetadataRuntimeCore } from "../local/LocalThreadMetadataRuntimeCore";
 
 const EMPTY_ARRAY = Object.freeze([]);
 
@@ -49,7 +50,6 @@ export class ExternalStoreThreadRuntimeCore
     return this._capabilities;
   }
 
-  public threadId!: string;
   private _messages!: ThreadMessage[];
   public isDisabled!: boolean;
 
@@ -80,8 +80,9 @@ export class ExternalStoreThreadRuntimeCore
     threadId: string,
     store: ExternalStoreAdapter<any>,
   ) {
-    super(configProvider, { threadId, state: "new" });
-    this.threadId = threadId;
+    const metadata = new LocalThreadMetadataRuntimeCore(threadId);
+    metadata.create();
+    super(configProvider, metadata);
     this.setStore(store);
   }
 

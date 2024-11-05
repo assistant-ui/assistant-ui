@@ -48,7 +48,9 @@ const getThreadListItemState = (
   const threadData = threadList.getThreadMetadataById(threadId);
   if (!threadData) return SKIP_UPDATE;
   return {
-    ...threadData,
+    threadId: threadData.threadId,
+    title: threadData.title,
+    state: threadData.state,
     isMain: threadList.mainThread.metadata.threadId === threadId,
   };
 };

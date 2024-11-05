@@ -13,16 +13,19 @@ const DEFAULT_THREAD_ID = "DEFAULT_THREAD_ID";
 export class ExternalStoreThreadListRuntimeCore
   implements ThreadListRuntimeCore
 {
+  private _threads: readonly string[] = [];
+  private _archivedThreads: readonly string[] = [];
+
   public get newThread() {
     return undefined;
   }
 
   public get threads() {
-    return this.adapter.threads?.map((t) => t.threadId) ?? EMPTY_ARRAY;
+    return this._threads;
   }
 
   public get archivedThreads() {
-    return this.adapter.archivedThreads?.map((t) => t.threadId) ?? EMPTY_ARRAY;
+    return this._archivedThreads;
   }
 
   private _mainThread: ExternalStoreThreadRuntimeCore;
@@ -69,17 +72,42 @@ export class ExternalStoreThreadListRuntimeCore
       return;
     }
 
+    if (previousAdapter.threads !== newThreads) {
+      this._threads =
+        this.adapter.threads?.map((t) => t.threadId) ?? EMPTY_ARRAY;
+    }
+
+    if (previousAdapter.archivedThreads !== newArchivedThreads) {
+      this._archivedThreads =
+        this.adapter.archivedThreads?.map((t) => t.threadId) ?? EMPTY_ARRAY;
+    }
+
     if (previousAdapter.threadId !== newThreadId) {
       this._mainThread._notifyEventSubscribers("switched-away");
       this._mainThread = this.threadFactory(newThreadId);
       this._mainThread._notifyEventSubscribers("switched-to");
     }
 
+    const previousMainState = this._mainThread.metadata.state;
+    const mainState = this.archivedThreads.includes(
+      this._mainThread.metadata.threadId,
+    )
+      ? "archived"
+      : "regular";
+
+    if (previousMainState !== mainState) {
+      if (mainState === "archived") {
+        this._mainThread.metadata.archive();
+      } else {
+        this._mainThread.metadata.unarchive();
+      }
+    }
+
     this._notifySubscribers();
   }
 
   public async switchToThread(threadId: string): Promise<void> {
-    if (this._mainThread?.threadId === threadId) return;
+    if (this._mainThread?.metadata.threadId === threadId) return;
     const onSwitchToThread = this.adapter.onSwitchToThread;
     if (!onSwitchToThread)
       throw new Error(

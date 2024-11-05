@@ -42,7 +42,6 @@ export class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
 
   public switchTo(): Promise<void> {
     const state = this._core.getState();
-
     return this._threadListBinding.switchToThread(state.threadId);
   }
 

@@ -46,20 +46,27 @@ export type SubmittedFeedback = Readonly<{
 export type ThreadMetadata = Readonly<{
   threadId: string;
   state: "archived" | "regular" | "new" | "deleted";
-  title?: string;
+  title?: string | undefined;
 }>;
 
 export type ThreadRuntimeEventType =
   | "switched-to"
   | "switched-away"
   | "run-start"
-  | "model-config-update"
-  | "metadata-update";
+  | "model-config-update";
+
+export type ThreadMetadataRuntimeCore = ThreadMetadata &
+  Readonly<{
+    create(title?: string): Promise<void>;
+    rename(newTitle: string): Promise<void>;
+    archive(): Promise<void>;
+    unarchive(): Promise<void>;
+    delete(): Promise<void>;
+    subscribe(callback: () => void): Unsubscribe;
+  }>;
 
 export type ThreadRuntimeCore = Readonly<{
-  metadata: ThreadMetadata;
-
-  updateMetadata: (metadata: Partial<ThreadMetadata>) => void;
+  metadata: ThreadMetadataRuntimeCore;
 
   getMessageById: (messageId: string) =>
     | {

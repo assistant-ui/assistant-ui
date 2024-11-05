@@ -14,6 +14,7 @@ import {
   ThreadRuntimeCore,
 } from "../core/ThreadRuntimeCore";
 import { BaseThreadRuntimeCore } from "../core/BaseThreadRuntimeCore";
+import { LocalThreadMetadataRuntimeCore } from "./LocalThreadMetadataRuntimeCore";
 
 export class LocalThreadRuntimeCore
   extends BaseThreadRuntimeCore
@@ -44,7 +45,7 @@ export class LocalThreadRuntimeCore
     threadId: string,
     options: LocalRuntimeOptionsBase,
   ) {
-    super(configProvider, { threadId, state: "new" });
+    super(configProvider, new LocalThreadMetadataRuntimeCore(threadId));
     this.setOptions(options);
   }
 
@@ -84,7 +85,7 @@ export class LocalThreadRuntimeCore
 
   private _transitionAwayFromNewState() {
     if (this.metadata.state === "new") {
-      this.updateMetadata({ state: "regular" });
+      this.metadata.create();
     }
   }
 

@@ -5,6 +5,10 @@ import { generateId } from "../../utils/idUtils";
 import { LocalThreadRuntimeCore } from "./LocalThreadRuntimeCore";
 import { ThreadMetadata } from "../core/ThreadRuntimeCore";
 
+export type ThreadListAdapter = {
+  subscribe(callback: () => void): Unsubscribe;
+};
+
 export type LocalThreadData = {
   runtime: LocalThreadRuntimeCore;
   lastState: ThreadMetadata["state"];
@@ -67,14 +71,15 @@ export class LocalThreadListRuntimeCore implements ThreadListRuntimeCore {
 
   public switchToNewThread(): Promise<void> {
     if (this._newThread === undefined) {
-      let threadId;
+      let threadId: string;
       do {
         threadId = generateId();
       } while (this._threadData.has(threadId));
 
       const runtime = this._threadFactory(threadId, { messages: [] });
-      const dispose = runtime.unstable_on("metadata-update", () => {
-        this._syncState(threadId, runtime.metadata.state);
+      const dispose = runtime.metadata.subscribe(() => {
+        this._syncState(threadId, runtime.metadata);
+        threadId = runtime.metadata.threadId;
       });
       this._threadData.set(threadId, { runtime, lastState: "new", dispose });
       this._newThread = threadId;
@@ -85,48 +90,69 @@ export class LocalThreadListRuntimeCore implements ThreadListRuntimeCore {
   }
 
   private async _syncState(
-    threadId: string,
-    state: "archived" | "regular" | "new" | "deleted",
+    lastThreadId: string,
+    { state, threadId }: ThreadMetadata,
   ) {
-    const data = this._threadData.get(threadId);
+    const data = this._threadData.get(lastThreadId);
     if (!data) throw new Error("Thread not found");
-    if (data.lastState === state) return;
+    const lastState = data.lastState;
+    if (lastState === state && lastThreadId === threadId) return;
 
-    if (state === "archived") {
-      this._archivedThreads = [
-        ...this._archivedThreads,
-        data.runtime.metadata.threadId,
-      ];
-    }
-    if (state === "regular") {
-      this._threads = [...this._threads, data.runtime.metadata.threadId];
-    }
-    if (state === "deleted") {
-      data.dispose();
-      this._threadData.delete(threadId);
-    }
-    if (state === "new") {
-      if (this._newThread) {
-        this.delete(this._newThread);
+    if (lastThreadId !== threadId) {
+      this._threadData.delete(lastThreadId);
+      if (lastState === "new") {
+        this._newThread = threadId;
       }
-      this._newThread = threadId;
+      if (lastState === "regular") {
+        this._threads = this._threads.map((t) =>
+          t === lastThreadId ? threadId : t,
+        );
+      }
+      if (lastState === "archived") {
+        this._archivedThreads = this._archivedThreads.map((t) =>
+          t === lastThreadId ? threadId : t,
+        );
+      }
     }
 
-    if (data.lastState === "regular") {
-      this._threads = this._threads.filter((t) => t !== threadId);
+    if (lastState !== state) {
+      if (lastState === "new") {
+        this._newThread = undefined;
+      }
+
+      if (lastState === "regular") {
+        this._threads = this._threads.filter((t) => t !== threadId);
+      }
+
+      if (lastState === "archived") {
+        this._archivedThreads = this._archivedThreads.filter(
+          (t) => t !== threadId,
+        );
+      }
+
+      if (state === "new") {
+        if (this._newThread) {
+          this.delete(this._newThread);
+        }
+        this._newThread = threadId;
+      }
+      if (state === "archived") {
+        this._archivedThreads = [
+          ...this._archivedThreads,
+          data.runtime.metadata.threadId,
+        ];
+      }
+      if (state === "regular") {
+        this._threads = [...this._threads, data.runtime.metadata.threadId];
+      }
+      if (state === "deleted") {
+        data.dispose();
+        this._threadData.delete(threadId);
+      }
+
+      data.lastState = state;
     }
 
-    if (data.lastState === "archived") {
-      this._archivedThreads = this._archivedThreads.filter(
-        (t) => t !== threadId,
-      );
-    }
-
-    if (data.lastState === "new") {
-      this._newThread = undefined;
-    }
-
-    data.lastState = state;
     this._notifySubscribers();
 
     if (
@@ -142,19 +168,22 @@ export class LocalThreadListRuntimeCore implements ThreadListRuntimeCore {
     }
   }
 
-  public async rename(threadId: string, newTitle: string): Promise<void> {
+  public rename(threadId: string, newTitle: string): Promise<void> {
     const data = this._threadData.get(threadId);
     if (!data) throw new Error("Thread not found");
+    data.runtime.metadata.rename(newTitle);
 
-    data.runtime.updateMetadata({ title: newTitle });
+    return Promise.resolve();
   }
 
-  public async archive(threadId: string): Promise<void> {
+  public archive(threadId: string): Promise<void> {
     const data = this._threadData.get(threadId);
     if (!data) throw new Error("Thread not found");
     if (data.lastState !== "regular")
       throw new Error("Thread is not yet created or archived");
-    data.runtime.updateMetadata({ state: "archived" });
+    data.runtime.metadata.archive();
+
+    return Promise.resolve();
   }
 
   public unarchive(threadId: string): Promise<void> {
@@ -162,17 +191,19 @@ export class LocalThreadListRuntimeCore implements ThreadListRuntimeCore {
     if (!data) throw new Error("Thread not found");
     if (data.lastState !== "archived")
       throw new Error("Thread is not archived");
-    data.runtime.updateMetadata({ state: "regular" });
+    data.runtime.metadata.unarchive();
 
     return Promise.resolve();
   }
 
-  public async delete(threadId: string): Promise<void> {
+  public delete(threadId: string): Promise<void> {
     const data = this._threadData.get(threadId);
     if (!data) throw new Error("Thread not found");
     if (data.lastState !== "regular" && data.lastState !== "archived")
       throw new Error("Thread is not yet created or already deleted");
-    data.runtime.updateMetadata({ state: "deleted" });
+    data.runtime.metadata.delete();
+
+    return Promise.resolve();
   }
 
   private _subscriptions = new Set<() => void>();

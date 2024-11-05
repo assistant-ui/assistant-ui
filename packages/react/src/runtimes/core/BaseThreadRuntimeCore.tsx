@@ -17,7 +17,7 @@ import {
   RuntimeCapabilities,
   SubmittedFeedback,
   ThreadRuntimeEventType,
-  ThreadMetadata,
+  ThreadMetadataRuntimeCore,
 } from "../core/ThreadRuntimeCore";
 import { DefaultEditComposerRuntimeCore } from "../composer/DefaultEditComposerRuntimeCore";
 import { SpeechSynthesisAdapter } from "../speech/SpeechAdapterTypes";
@@ -57,18 +57,12 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
   public readonly composer = new DefaultThreadComposerRuntimeCore(this);
 
   constructor(
-    private configProvider: ModelConfigProvider,
-    private _metadata: ThreadMetadata,
+    private readonly _configProvider: ModelConfigProvider,
+    private readonly _metadata: ThreadMetadataRuntimeCore,
   ) {}
 
   public getModelConfig() {
-    return this.configProvider.getModelConfig();
-  }
-
-  public updateMetadata(metadata: Partial<ThreadMetadata>) {
-    this._metadata = { ...this._metadata, ...metadata };
-    this._notifyEventSubscribers("metadata-update");
-    this._notifySubscribers();
+    return this._configProvider.getModelConfig();
   }
 
   private _editComposers = new Map<string, DefaultEditComposerRuntimeCore>();
@@ -188,7 +182,7 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
 
   public unstable_on(event: ThreadRuntimeEventType, callback: () => void) {
     if (event === "model-config-update") {
-      return this.configProvider.subscribe?.(callback) ?? (() => {});
+      return this._configProvider.subscribe?.(callback) ?? (() => {});
     }
 
     const subscribers = this._eventSubscribers.get(event);
