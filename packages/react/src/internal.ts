@@ -11,5 +11,6 @@ export {
   ThreadRuntimeImpl,
   type ThreadRuntimeCoreBinding,
 } from "./api/ThreadRuntime";
+export { LocalThreadMetadataRuntimeCore } from "./runtimes/local/LocalThreadMetadataRuntimeCore";
 
 export * from "./utils/smooth";

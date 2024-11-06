@@ -24,11 +24,11 @@ import {
   ThreadSuggestion,
   ThreadRuntime,
   AssistantRuntime,
+  ThreadMetadataRuntimeCore,
 } from "@assistant-ui/react";
 import { LanguageModelV1FunctionTool } from "@ai-sdk/provider";
 import { useMemo, useState } from "react";
 import { create } from "zustand";
-import { ThreadListMetadata } from "../../../react/src/runtimes/core/ThreadListRuntimeCore";
 
 const {
   BaseAssistantRuntimeCore,
@@ -37,6 +37,7 @@ const {
   DefaultThreadComposerRuntimeCore,
   AssistantRuntimeImpl,
   ThreadRuntimeImpl,
+  LocalThreadMetadataRuntimeCore,
 } = INTERNAL;
 
 const makeModelConfigStore = () =>
@@ -65,6 +66,10 @@ class PlaygroundThreadListRuntimeCore
     return this._mainThread;
   }
 
+  public get newThread() {
+    return undefined;
+  }
+
   public get threads() {
     return EMPTY_ARRAY;
   }
@@ -77,7 +82,7 @@ class PlaygroundThreadListRuntimeCore
     this._mainThread = this.threadFactory(generateId());
   }
 
-  getThreadMetadataById(): ThreadListMetadata | undefined {
+  getThreadMetadataById(): never {
     throw new Error("Method not implemented.");
   }
 
@@ -157,6 +162,12 @@ const CAPABILITIES = Object.freeze({
 const EMPTY_BRANCHES: readonly string[] = Object.freeze([]);
 
 export class PlaygroundThreadRuntimeCore implements INTERNAL.ThreadRuntimeCore {
+  private _metadata: ThreadMetadataRuntimeCore;
+
+  public get metadata() {
+    return this._metadata;
+  }
+
   private _subscriptions = new Set<() => void>();
 
   private abortController: AbortController | null = null;
@@ -184,10 +195,11 @@ export class PlaygroundThreadRuntimeCore implements INTERNAL.ThreadRuntimeCore {
 
   constructor(
     configProvider: ModelConfigProvider,
-    public readonly threadId: string,
+    threadId: string,
     private _messages: ThreadMessage[],
     public readonly adapter: ChatModelAdapter,
   ) {
+    this._metadata = new LocalThreadMetadataRuntimeCore(threadId);
     this.configProvider.registerModelConfigProvider(configProvider);
     this.configProvider.registerModelConfigProvider({
       getModelConfig: () => this.useModelConfig.getState(),
