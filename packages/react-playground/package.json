@@ -39,12 +39,12 @@
     "classnames": "^2.5.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.454.0",
-    "openai": "^4.68.4",
+    "openai": "^4.71.1",
     "prismjs": "^1.29.0",
     "react-simple-code-editor": "^0.14.1",
     "react-textarea-autosize": "^8.5.4",
     "tailwind-merge": "^2.5.4",
-    "zustand": "^5.0.0"
+    "zustand": "^5.0.1"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.5.100",
@@ -65,7 +65,7 @@
     "@assistant-ui/tsconfig": "workspace:*",
     "@types/prismjs": "^1.26.5",
     "eslint": "^9",
-    "eslint-config-next": "15.0.1",
+    "eslint-config-next": "15.0.2",
     "react": "19.0.0-rc-69d4b800-20241021",
     "react-dom": "19.0.0-rc-69d4b800-20241021",
     "tailwindcss": "^3.4.14",

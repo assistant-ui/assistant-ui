@@ -50,7 +50,7 @@
     "@types/react": "*",
     "react": "^18 || ^19 || ^19.0.0-rc",
     "tailwindcss": "^3.4.4",
-    "trieve-ts-sdk": "^0.0.14"
+    "trieve-ts-sdk": ">= 0.0.14"
   },
   "peerDependenciesMeta": {
     "@types/react": {
@@ -68,10 +68,10 @@
     "@assistant-ui/tsconfig": "workspace:*",
     "@types/hast": "^3.0.4",
     "@types/mdast": "^4.0.4",
-    "@types/node": "^22.8.2",
+    "@types/node": "^22.9.0",
     "autoprefixer": "^10.4.20",
     "eslint": "^9",
-    "eslint-config-next": "15.0.1",
+    "eslint-config-next": "15.0.2",
     "postcss": "^8.4.47",
     "postcss-js": "^4.0.1",
     "react": "19.0.0-rc-69d4b800-20241021",

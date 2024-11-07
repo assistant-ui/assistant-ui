@@ -11,7 +11,7 @@
   "dependencies": {
     "@assistant-ui/react": "^0.5",
     "@assistant-ui/react-markdown": "^0.2",
-    "next": "15.0.1",
+    "next": "15.0.2",
     "ollama-ai-provider": "^0.16.0",
     "react": "19.0.0-rc-69d4b800-20241021",
     "react-dom": "19.0.0-rc-69d4b800-20241021",
@@ -23,7 +23,7 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "eslint": "^9",
-    "eslint-config-next": "15.0.1",
+    "eslint-config-next": "15.0.2",
     "postcss": "^8",
     "tailwindcss": "^3.4.14",
     "typescript": "^5"
