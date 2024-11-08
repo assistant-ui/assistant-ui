@@ -62,9 +62,18 @@ export const create = new Command()
       process.exit(1);
     }
 
+    const filteredArgs = process.argv.slice(3).filter((arg, index, arr) => {
+      return !(
+        arg === "-t" ||
+        arg === "--template" ||
+        arr[index - 1] === "-t" ||
+        arr[index - 1] === "--template"
+      );
+    });
+
     const child = spawn(
       "npx",
-      [`create-next-app@latest`, ...process.argv.slice(3), "-e", templateUrl],
+      [`create-next-app@latest`, ...filteredArgs, "-e", templateUrl],
       {
         stdio: "inherit",
       },
