@@ -8,6 +8,7 @@ on:
       - main
     paths:
       - apps/registry/**
+      - .github/workflows/**
 
 jobs:
   Deploy-Production:
@@ -26,6 +27,14 @@ jobs:
         with:
           node-version: 20
           cache: "pnpm"
+
+      - name: Cache turbo build setup
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
 
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
