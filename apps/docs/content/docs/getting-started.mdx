@@ -62,7 +62,7 @@ npm install @assistant-ui/react
 
 Install provider SDK:
 
-<Tabs id="provider" items={["OpenAI", "Anthropic", "AWS", "Azure",  "GCP", "Groq", "Fireworks", "Cohere", "Ollama", "Chrome AI"]}>
+<Tabs id="provider" items={["OpenAI", "Anthropic", "AWS", "Azure", "Gemini", "GCP", "Groq", "Fireworks", "Cohere", "Ollama", "Chrome AI"]}>
 
 ```sh title="Terminal" tab="OpenAI"
 npm install @ai-sdk/openai
@@ -78,6 +78,10 @@ npm install @ai-sdk/amazon-bedrock
 
 ```sh title="Terminal" tab="Azure"
 npm install @ai-sdk/azure
+```
+
+```sh title="Terminal" tab="Gemini"
+npm install @ai-sdk/google
 ```
 
 ```sh title="Terminal" tab="GCP"
@@ -108,7 +112,7 @@ npm install chrome-ai
 
 Add an API endpoint:
 
-<Tabs id="provider" items={["OpenAI", "Anthropic", "Azure", "AWS", "GCP", "Groq", "Fireworks", "Cohere", "Ollama", "Chrome AI"]}>
+<Tabs id="provider" items={["OpenAI", "Anthropic", "Azure", "AWS", "Gemini", "GCP", "Groq", "Fireworks", "Cohere", "Ollama", "Chrome AI"]}>
 ```ts title="/app/api/chat/route.ts" tab="OpenAI"
 import { openai } from "@ai-sdk/openai";
 import { createEdgeRuntimeAPI } from "@assistant-ui/react/edge";
@@ -142,6 +146,15 @@ import { createEdgeRuntimeAPI } from "@assistant-ui/react/edge";
 
 export const { POST } = createEdgeRuntimeAPI({
   model: bedrock("anthropic.claude-3-5-sonnet-20240620-v1:0"),
+});
+```
+
+```ts title="/app/api/chat/route.ts" tab="Gemini"
+import { google } from "@ai-sdk/google";
+import { createEdgeRuntimeAPI } from "@assistant-ui/react/edge";
+
+export const { POST } = createEdgeRuntimeAPI({
+  model: google("gemini-1.5-flash"),
 });
 ```
 
@@ -213,7 +226,7 @@ export const { POST } = createEdgeRuntimeAPI({
 
 Define environment variables:
 
-<Tabs id="provider" items={["OpenAI", "Anthropic", "AWS", "Azure",  "GCP", "Groq", "Fireworks", "Cohere", "Ollama", "Chrome AI"]}>
+<Tabs id="provider" items={["OpenAI", "Anthropic", "AWS", "Azure", "Gemini", "GCP", "Groq", "Fireworks", "Cohere", "Ollama", "Chrome AI"]}>
 
 ```sh title="/.env.local" tab="OpenAI"
 OPENAI_API_KEY="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
@@ -232,6 +245,10 @@ AWS_REGION="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 ```sh title="/.env.local" tab="Azure"
 AZURE_RESOURCE_NAME="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 AZURE_API_KEY="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+```sh title="/.env.local" tab="Gemini"
+GOOGLE_GENERATIVE_AI_API_KEY="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 ```
 
 ```sh title="/.env.local" tab="GCP"
