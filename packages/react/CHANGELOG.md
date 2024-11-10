@@ -1,5 +1,15 @@
 # @assistant-ui/react
 
+## 0.7.0
+
+### Breaking Changes
+
+- c6e886b: refactor!: drop deprecated features
+
+### Patch Changes
+
+- 2912fda: feat: ThreadListItemPrimitive
+
 ## 0.5.100
 
 ### Patch Changes
