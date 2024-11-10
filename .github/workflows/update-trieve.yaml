@@ -1,4 +1,4 @@
- buname: Update Trieve Index
+name: Update Trieve Index
 env:
   TRIEVE_ADMIN_API_KEY: ${{ secrets.TRIEVE_ADMIN_API_KEY }}
   TRIEVE_DATASET_ID: ${{ secrets.TRIEVE_DATASET_ID }}
