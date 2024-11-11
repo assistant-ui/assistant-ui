@@ -7,6 +7,7 @@ import {
 import { convertLangchainMessages } from "./convertLangchainMessages";
 import { useLangGraphMessages } from "./useLangGraphMessages";
 import { SimpleImageAttachmentAdapter } from "@assistant-ui/react";
+import { AttachmentAdapter } from "@assistant-ui/react";
 
 const getPendingToolCalls = (messages: LangChainMessage[]) => {
   const pendingToolCalls = new Map<string, LangChainToolCall>();
@@ -31,9 +32,13 @@ export const useLangGraphRuntime = ({
   stream,
   onSwitchToNewThread,
   onSwitchToThread,
+  adapters: { attachments },
 }: {
   threadId?: string | undefined;
   autoCancelPendingToolCalls?: boolean | undefined;
+  /**
+   * @deprecated Use `adapters: { attachments: new SimpleImageAttachmentAdapter() }` instead. This option will be removed in a future version.
+   */
   unstable_allowImageAttachments?: boolean | undefined;
   stream: (messages: LangChainMessage[]) => Promise<
     AsyncGenerator<{
@@ -45,6 +50,9 @@ export const useLangGraphRuntime = ({
   onSwitchToThread?: (
     threadId: string,
   ) => Promise<{ messages: LangChainMessage[] }>;
+  adapters: {
+    attachments?: AttachmentAdapter;
+  };
 }) => {
   const { messages, sendMessage, setMessages } = useLangGraphMessages({
     stream,
@@ -68,13 +76,18 @@ export const useLangGraphRuntime = ({
     isRunning,
   });
 
+  if (attachments && unstable_allowImageAttachments)
+    throw new Error(
+      "Replace unstable_allowImageAttachments with `adapters: { attachments: new SimpleImageAttachmentAdapter() }`.",
+    );
+  if (unstable_allowImageAttachments)
+    attachments = new SimpleImageAttachmentAdapter();
+
   return useExternalStoreRuntime({
     isRunning,
     messages: threadMessages,
     adapters: {
-      attachments: unstable_allowImageAttachments
-        ? new SimpleImageAttachmentAdapter()
-        : undefined,
+      attachments,
       threadList: {
         threadId,
         onSwitchToNewThread: !onSwitchToNewThread
