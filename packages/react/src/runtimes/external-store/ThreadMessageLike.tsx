@@ -14,6 +14,7 @@ import {
 } from "../../types";
 import {
   CoreToolCallContentPart,
+  ThreadStep,
   Unstable_AudioContentPart,
 } from "../../types/AssistantTypes";
 
@@ -33,7 +34,10 @@ export type ThreadMessageLike = {
   createdAt?: Date | undefined;
   status?: MessageStatus | undefined;
   attachments?: CompleteAttachment[] | undefined;
-  // TODO metadata
+  metadata?: {
+    steps?: ThreadStep[] | undefined;
+    custom?: Record<string, unknown> | undefined;
+  };
 };
 
 export const fromThreadMessageLike = (
@@ -41,7 +45,7 @@ export const fromThreadMessageLike = (
   fallbackId: string,
   fallbackStatus: MessageStatus,
 ): ThreadMessage => {
-  const { role, id, createdAt, attachments, status } = like;
+  const { role, id, createdAt, attachments, status, metadata } = like;
   const common = {
     id: id ?? fallbackId,
     createdAt: createdAt ?? new Date(),
@@ -53,10 +57,13 @@ export const fromThreadMessageLike = (
       : like.content;
 
   if (role !== "user" && attachments)
-    throw new Error("Attachments are only supported for user messages");
+    throw new Error("attachments are only supported for user messages");
 
   if (role !== "assistant" && status)
-    throw new Error("Status is only supported for assistant messages");
+    throw new Error("status is only supported for assistant messages");
+
+  if (role !== "assistant" && metadata?.steps)
+    throw new Error("metadata.steps is only supported for assistant messages");
 
   switch (role) {
     case "assistant":
@@ -90,6 +97,10 @@ export const fromThreadMessageLike = (
           })
           .filter((c) => !!c),
         status: status ?? fallbackStatus,
+        metadata: {
+          custom: metadata?.custom ?? {},
+          steps: metadata?.steps ?? [],
+        },
       } satisfies ThreadAssistantMessage;
 
     case "user":
