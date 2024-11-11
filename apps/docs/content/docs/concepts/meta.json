@@ -1,4 +1,4 @@
 {
   "title": "Concepts",
-  "pages": ["runtime-layer"]
+  "pages": ["architecture", "runtime-layer"]
 }

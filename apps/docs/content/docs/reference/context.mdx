@@ -13,7 +13,6 @@ The context is split into four hierarchies:
 
 import { ParametersTable } from "@/components/docs";
 import {
-  AssistantRuntimeState,
   AssistantToolUIsState,
   ThreadState,
   ThreadMessagesState,
@@ -27,10 +26,11 @@ import {
   ComposerAttachmentState,
   MessageAttachmentState,
 } from "@/components/docs/parameters/context";
+import { AssistantRuntime, ThreadRuntime } from "@/generated/typeDocs";
 
 ## Assistant Context
 
-#### `useAssistantRuntime`
+### `useAssistantRuntime`
 
 ```tsx
 import { useAssistantRuntime } from "@assistant-ui/react";
@@ -38,7 +38,7 @@ import { useAssistantRuntime } from "@assistant-ui/react";
 const runtime = useAssistantRuntime();
 ```
 
-<ParametersTable {...AssistantRuntimeState} />
+<ParametersTable {...AssistantRuntime} />
 
 ### `useToolUIs`
 
@@ -46,7 +46,7 @@ const runtime = useAssistantRuntime();
 import { useToolUIs } from "@assistant-ui/react";
 
 const toolUIs = useToolUIs();
-const getToolUI = useToolUIs((m) => m.getToolUI);
+const webSearchToolUI = useToolUIs((m) => m.getToolUI("web_search"));
 ```
 
 <ParametersTable {...AssistantToolUIsState} />
@@ -61,7 +61,7 @@ import { useThreadRuntime } from "@assistant-ui/react";
 const thread = useThreadRuntime();
 ```
 
-<ParametersTable {...ThreadRuntimeState} />
+<ParametersTable {...ThreadRuntime} />
 
 ### `useThread`
 
