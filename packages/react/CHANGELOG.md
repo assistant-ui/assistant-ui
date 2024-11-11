@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.7.2
+
+### Patch Changes
+
+- 7fa9a1b: feat: ThreadMessageLike metadata support
+- 1a1f4a5: feat: message metadata for all message types
+
 ## 0.7.1
 
 ### Patch Changes
