@@ -32,8 +32,14 @@ sourceFile.getExportedDeclarations().forEach((declarations, name) => {
   });
 });
 
+const typesSrc = Object.entries(types)
+  .map(([name, type]) => {
+    return `export const ${name} = ${JSON.stringify(type, null, 2)};\n`;
+  })
+  .join("\n");
+
 fs.mkdirSync("./generated", { recursive: true });
-fs.writeFileSync("./generated/typeDocs.json", JSON.stringify(types, null, 2));
+fs.writeFileSync("./generated/typeDocs.ts", typesSrc);
 
 // Function to resolve aliased declarations
 function resolveAliasedDeclaration(declaration: any) {
