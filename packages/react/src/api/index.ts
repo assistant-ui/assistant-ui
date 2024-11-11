@@ -15,3 +15,7 @@ export type {
 } from "./ComposerRuntime";
 export type { AttachmentRuntime, AttachmentState } from "./AttachmentRuntime";
 export type { ThreadListRuntime, ThreadListState } from "./ThreadListRuntime";
+export type {
+  ThreadListItemRuntime,
+  ThreadListItemState,
+} from "./ThreadListItemRuntime";
