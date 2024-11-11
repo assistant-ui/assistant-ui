@@ -1,5 +1,11 @@
 # @assistant-ui/react-langgraph
 
+## 0.1.1
+
+### Patch Changes
+
+- ba3ea31: feat: AttachmentAdapter support
+
 ## 0.1.0
 
 ### Patch Changes
