@@ -269,6 +269,7 @@ export class PlaygroundThreadRuntimeCore implements INTERNAL.ThreadRuntimeCore {
       role: "assistant",
       status: { type: "running" },
       content: [],
+      metadata: { steps: [], custom: {} },
       createdAt: new Date(),
     };
 
@@ -281,7 +282,12 @@ export class PlaygroundThreadRuntimeCore implements INTERNAL.ThreadRuntimeCore {
     const updateMessage = (m: Partial<ChatModelRunResult>) => {
       message = {
         ...message,
-        ...m,
+        content: m.content ?? message.content,
+        status: m.status ?? message.status,
+        metadata: {
+          steps: m.metadata?.steps ?? message.metadata?.steps,
+          custom: m.metadata?.custom ?? message.metadata?.custom,
+        },
       };
       this.setMessages([...this.messages.slice(0, -1), message]);
     };

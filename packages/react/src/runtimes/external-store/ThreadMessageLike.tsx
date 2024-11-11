@@ -123,6 +123,9 @@ export const fromThreadMessageLike = (
           }
         }),
         attachments: attachments ?? [],
+        metadata: {
+          custom: metadata?.custom ?? {},
+        },
       } satisfies ThreadUserMessage;
 
     case "system":
@@ -135,6 +138,9 @@ export const fromThreadMessageLike = (
         ...common,
         role,
         content: content as [TextContentPart],
+        metadata: {
+          custom: metadata?.custom ?? {},
+        },
       } satisfies ThreadSystemMessage;
 
     default: {

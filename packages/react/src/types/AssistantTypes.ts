@@ -117,22 +117,27 @@ export type MessageStatus =
 export type ThreadSystemMessage = MessageCommonProps & {
   role: "system";
   content: [TextContentPart];
+  metadata: {
+    custom: Record<string, unknown>;
+  };
 };
 
 export type ThreadUserMessage = MessageCommonProps & {
   role: "user";
   content: ThreadUserContentPart[];
   attachments: readonly CompleteAttachment[];
-  // TODO metadata
+  metadata: {
+    custom: Record<string, unknown>;
+  };
 };
 
 export type ThreadAssistantMessage = MessageCommonProps & {
   role: "assistant";
   content: ThreadAssistantContentPart[];
   status: MessageStatus;
-  metadata?: {
-    steps?: ThreadStep[] | undefined;
-    custom?: Record<string, unknown> | undefined;
+  metadata: {
+    steps: ThreadStep[];
+    custom: Record<string, unknown>;
   };
 };
 
@@ -144,7 +149,10 @@ export type AppendMessage = CoreMessage & {
 
 type BaseThreadMessage = {
   status?: ThreadAssistantMessage["status"];
-  metadata?: ThreadAssistantMessage["metadata"];
+  metadata: {
+    steps?: ThreadStep[];
+    custom: Record<string, unknown>;
+  };
   attachments?: ThreadUserMessage["attachments"];
 };
 

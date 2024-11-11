@@ -42,6 +42,8 @@ export const fromCoreMessage = (
           return part;
         }),
         status,
+
+        metadata: { steps: [], custom: {} },
       } satisfies ThreadMessage;
 
     case "user":
@@ -50,6 +52,7 @@ export const fromCoreMessage = (
         role,
         content: message.content,
         attachments,
+        metadata: { custom: {} },
       } satisfies ThreadMessage;
 
     case "system":
@@ -57,6 +60,7 @@ export const fromCoreMessage = (
         ...commonProps,
         role,
         content: message.content,
+        metadata: { custom: {} },
       } satisfies ThreadMessage;
 
     default: {

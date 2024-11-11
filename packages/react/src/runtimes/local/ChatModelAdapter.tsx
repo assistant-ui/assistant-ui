@@ -14,11 +14,11 @@ export type ChatModelRunUpdate = {
 };
 
 export type ChatModelRunResult = {
-  content?: ThreadAssistantContentPart[];
-  status?: MessageStatus;
+  content?: ThreadAssistantContentPart[] | undefined;
+  status?: MessageStatus | undefined;
   metadata?: {
-    steps?: ThreadStep[];
-    custom?: Record<string, unknown>;
+    steps?: ThreadStep[] | undefined;
+    custom?: Record<string, unknown> | undefined;
   };
 };
 
