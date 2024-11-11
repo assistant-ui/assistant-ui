@@ -10,15 +10,15 @@ import {
 import { AttachmentRuntimePath } from "./RuntimePathTypes";
 
 type MessageAttachmentState = CompleteAttachment & {
-  source: "message";
+  readonly source: "message";
 };
 
 type ThreadComposerAttachmentState = PendingAttachment & {
-  source: "thread-composer";
+  readonly source: "thread-composer";
 };
 
 type EditComposerAttachmentState = Attachment & {
-  source: "edit-composer";
+  readonly source: "edit-composer";
 };
 
 export type AttachmentState =
@@ -37,7 +37,7 @@ type AttachmentRuntimeSource = AttachmentState["source"];
 export type AttachmentRuntime<
   TSource extends AttachmentRuntimeSource = AttachmentRuntimeSource,
 > = {
-  path: AttachmentRuntimePath & { attachmentSource: TSource };
+  readonly path: AttachmentRuntimePath & { attachmentSource: TSource };
   readonly source: TSource;
   getState(): AttachmentState & { source: TSource };
   remove(): Promise<void>;

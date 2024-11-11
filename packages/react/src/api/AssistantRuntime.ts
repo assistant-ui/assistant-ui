@@ -13,12 +13,12 @@ export type AssistantRuntime = {
   /**
    * The currently selected main thread.
    */
-  thread: ThreadRuntime;
+  readonly thread: ThreadRuntime;
 
   /**
    * The thread manager, to rename, archive and delete threads.
    */
-  threadList: ThreadListRuntime;
+  readonly threadList: ThreadListRuntime;
 
   /**
    * Switch to a new thread.

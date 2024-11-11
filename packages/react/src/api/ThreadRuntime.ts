@@ -74,53 +74,53 @@ export type ThreadRuntimeCoreBinding = SubscribableWithState<
   outerSubscribe(callback: () => void): Unsubscribe;
 };
 
-export type ThreadState = Readonly<{
+export type ThreadState = {
   /**
    * The thread ID.
-   * @deprecated This field is deprecated and will be removed in 0.7.0. Use `metadata.threadId` instead.  
+   * @deprecated This field is deprecated and will be removed in 0.8.0. Use `metadata.threadId` instead.
    */
-  threadId: string;
+  readonly threadId: string;
 
   /**
    * The thread metadata.
    */
-  metadata: ThreadMetadata;
+  readonly metadata: ThreadMetadata;
 
   /**
    * Whether the thread is disabled. Disabled threads cannot receive new messages.
    */
-  isDisabled: boolean;
+  readonly isDisabled: boolean;
 
   /**
    * Whether the thread is running. A thread is considered running when there is an active stream connection to the backend.
    */
-  isRunning: boolean;
+  readonly isRunning: boolean;
 
   /**
    * The capabilities of the thread, such as whether the thread supports editing, branch switching, etc.
    */
-  capabilities: RuntimeCapabilities;
+  readonly capabilities: RuntimeCapabilities;
 
   /**
    * The messages in the currently selected branch of the thread.
    */
-  messages: readonly ThreadMessage[];
+  readonly messages: readonly ThreadMessage[];
 
   /**
    * Follow up message suggestions to show the user.
    */
-  suggestions: readonly ThreadSuggestion[];
+  readonly suggestions: readonly ThreadSuggestion[];
 
   /**
    * Custom extra information provided by the runtime.
    */
-  extras: unknown;
+  readonly extras: unknown;
 
   /**
    * @deprecated This API is still under active development and might change without notice.
    */
-  speech: SpeechState | undefined;
-}>;
+  readonly speech: SpeechState | undefined;
+};
 
 export const getThreadState = (runtime: ThreadRuntimeCore): ThreadState => {
   const lastMessage = runtime.messages.at(-1);
@@ -140,13 +140,44 @@ export const getThreadState = (runtime: ThreadRuntimeCore): ThreadState => {
   });
 };
 
-export type ThreadRuntime = Readonly<{
+export type ThreadRuntime = {
+  /**
+   * The selector for the thread runtime.
+   */
   readonly path: ThreadRuntimePath;
 
+  /**
+   * The thread composer runtime.
+   */
   readonly composer: ThreadComposerRuntime;
+
+  /**
+   * Gets a snapshot of the thread state.
+   */
   getState(): ThreadState;
 
+  /**
+   * Append a new message to the thread.
+   *
+   * @example ```ts
+   * // append a new user message with the text "Hello, world!"
+   * threadRuntime.append("Hello, world!");
+   * ```
+   *
+   * @example ```ts
+   * // append a new assistant message with the text "Hello, world!"
+   * threadRuntime.append({
+   *   role: "assistant",
+   *   content: [{ type: "text", text: "Hello, world!" }],
+   * });
+   * ```
+   */
   append(message: CreateAppendMessage): void;
+
+  /**
+   *
+   * @param parentId
+   */
   startRun(parentId: string | null): void;
   subscribe(callback: () => void): Unsubscribe;
   cancelRun(): void;
@@ -162,7 +193,7 @@ export type ThreadRuntime = Readonly<{
   stopSpeaking: () => void;
 
   unstable_on(event: ThreadRuntimeEventType, callback: () => void): Unsubscribe;
-}>;
+};
 
 export class ThreadRuntimeImpl implements ThreadRuntime {
   public get path() {

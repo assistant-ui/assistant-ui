@@ -7,16 +7,16 @@ import {
   ThreadComposerRuntimeCore,
 } from "./ComposerRuntimeCore";
 
-export type RuntimeCapabilities = Readonly<{
-  switchToBranch: boolean;
-  edit: boolean;
-  reload: boolean;
-  cancel: boolean;
-  unstable_copy: boolean;
-  speech: boolean;
-  attachments: boolean;
-  feedback: boolean;
-}>;
+export type RuntimeCapabilities = {
+  readonly switchToBranch: boolean;
+  readonly edit: boolean;
+  readonly reload: boolean;
+  readonly cancel: boolean;
+  readonly unstable_copy: boolean;
+  readonly speech: boolean;
+  readonly attachments: boolean;
+  readonly feedback: boolean;
+};
 
 export type AddToolResultOptions = {
   messageId: string;
@@ -34,19 +34,19 @@ export type ThreadSuggestion = {
   prompt: string;
 };
 
-export type SpeechState = Readonly<{
-  messageId: string;
-  status: SpeechSynthesisAdapter.Status;
-}>;
+export type SpeechState = {
+  readonly messageId: string;
+  readonly status: SpeechSynthesisAdapter.Status;
+};
 
-export type SubmittedFeedback = Readonly<{
-  type: "negative" | "positive";
-}>;
+export type SubmittedFeedback = {
+  readonly type: "negative" | "positive";
+};
 
 export type ThreadMetadata = Readonly<{
-  threadId: string;
-  state: "archived" | "regular" | "new" | "deleted";
-  title?: string | undefined;
+  readonly threadId: string;
+  readonly state: "archived" | "regular" | "new" | "deleted";
+  readonly title?: string | undefined;
 }>;
 
 export type ThreadRuntimeEventType =
@@ -55,15 +55,14 @@ export type ThreadRuntimeEventType =
   | "run-start"
   | "model-config-update";
 
-export type ThreadMetadataRuntimeCore = ThreadMetadata &
-  Readonly<{
-    create(title?: string): Promise<void>;
-    rename(newTitle: string): Promise<void>;
-    archive(): Promise<void>;
-    unarchive(): Promise<void>;
-    delete(): Promise<void>;
-    subscribe(callback: () => void): Unsubscribe;
-  }>;
+export type ThreadMetadataRuntimeCore = ThreadMetadata & {
+  create(title?: string): Promise<void>;
+  rename(newTitle: string): Promise<void>;
+  archive(): Promise<void>;
+  unarchive(): Promise<void>;
+  delete(): Promise<void>;
+  subscribe(callback: () => void): Unsubscribe;
+};
 
 export type ThreadRuntimeCore = Readonly<{
   metadata: ThreadMetadataRuntimeCore;

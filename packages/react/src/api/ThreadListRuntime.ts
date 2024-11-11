@@ -10,15 +10,15 @@ import {
 import { SKIP_UPDATE } from "./subscribable/SKIP_UPDATE";
 import { ShallowMemoizeSubject } from "./subscribable/ShallowMemoizeSubject";
 
-export type ThreadListState = Readonly<{
-  mainThreadId: string;
-  newThread: string | undefined;
-  threads: readonly string[];
-  archivedThreads: readonly string[];
-}>;
+export type ThreadListState = {
+  readonly mainThreadId: string;
+  readonly newThread: string | undefined;
+  readonly threads: readonly string[];
+  readonly archivedThreads: readonly string[];
+};
 
-export type ThreadListRuntime = Readonly<{
-  path: ThreadListRuntimePath;
+export type ThreadListRuntime = {
+  readonly path: ThreadListRuntimePath;
   getState(): ThreadListState;
 
   subscribe(callback: () => void): Unsubscribe;
@@ -26,7 +26,7 @@ export type ThreadListRuntime = Readonly<{
   getThreadListItemById(threadId: string): ThreadListItemRuntime;
   getThreadListItemByIndex(idx: number): ThreadListItemRuntime;
   getThreadListArchivedItemByIndex(idx: number): ThreadListItemRuntime;
-}>;
+};
 
 const getThreadListState = (
   threadList: ThreadListRuntimeCore,

@@ -1,12 +1,12 @@
 import { create } from "zustand";
 
-export type MessageUtilsState = Readonly<{
-  isCopied: boolean;
-  setIsCopied: (value: boolean) => void;
+export type MessageUtilsState = {
+  readonly isCopied: boolean;
+  readonly setIsCopied: (value: boolean) => void;
 
-  isHovering: boolean;
-  setIsHovering: (value: boolean) => void;
-}>;
+  readonly isHovering: boolean;
+  readonly setIsHovering: (value: boolean) => void;
+};
 
 export const makeMessageUtilsStore = () =>
   create<MessageUtilsState>((set) => {

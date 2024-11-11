@@ -33,23 +33,23 @@ export type ComposerRuntimeCoreBinding = SubscribableWithState<
 >;
 
 type BaseComposerState = {
-  text: string;
-  role: MessageRole;
-  attachments: readonly Attachment[];
+  readonly text: string;
+  readonly role: MessageRole;
+  readonly attachments: readonly Attachment[];
 
-  canCancel: boolean;
-  isEditing: boolean;
-  isEmpty: boolean;
+  readonly canCancel: boolean;
+  readonly isEditing: boolean;
+  readonly isEmpty: boolean;
 };
 
 export type ThreadComposerState = BaseComposerState & {
-  type: "thread";
+  readonly type: "thread";
 
-  attachments: readonly PendingAttachment[];
+  readonly attachments: readonly PendingAttachment[];
 };
 
 export type EditComposerState = BaseComposerState & {
-  type: "edit";
+  readonly type: "edit";
 };
 
 export type ComposerState = ThreadComposerState | EditComposerState;
@@ -90,7 +90,7 @@ const getEditComposerState = (
 };
 
 export type ComposerRuntime = {
-  path: ComposerRuntimePath;
+  readonly path: ComposerRuntimePath;
   readonly type: "edit" | "thread";
   getState(): ComposerState;
 

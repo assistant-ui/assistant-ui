@@ -14,7 +14,7 @@ export type ContentPartState = (
   | ThreadUserContentPart
   | ThreadAssistantContentPart
 ) & {
-  status: ContentPartStatus | ToolCallContentPartStatus;
+  readonly status: ContentPartStatus | ToolCallContentPartStatus;
 };
 
 type ContentPartSnapshotBinding = SubscribableWithState<
@@ -23,7 +23,7 @@ type ContentPartSnapshotBinding = SubscribableWithState<
 >;
 
 export type ContentPartRuntime = {
-  path: ContentPartRuntimePath;
+  readonly path: ContentPartRuntimePath;
 
   getState(): ContentPartState;
   addToolResult(result: any): void;

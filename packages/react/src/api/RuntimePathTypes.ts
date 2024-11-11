@@ -1,60 +1,60 @@
 export type ThreadListRuntimePath = {
-  ref: string;
+  readonly ref: string;
 };
 
 export type ThreadListItemRuntimePath = {
-  ref: string;
-  threadSelector:
-    | { type: "main" }
-    | { type: "index"; index: number }
-    | { type: "archiveIndex"; index: number }
-    | { type: "threadId"; threadId: string };
+  readonly ref: string;
+  readonly threadSelector:
+    | { readonly type: "main" }
+    | { readonly type: "index"; readonly index: number }
+    | { readonly type: "archiveIndex"; readonly index: number }
+    | { readonly type: "threadId"; readonly threadId: string };
 };
 
 export type ThreadRuntimePath = {
-  ref: string;
-  threadSelector: { type: "main" };
+  readonly ref: string;
+  readonly threadSelector: { type: "main" };
 };
 
 export type MessageRuntimePath = ThreadRuntimePath & {
-  messageSelector:
-    | { type: "messageId"; messageId: string }
-    | { type: "index"; index: number };
+  readonly messageSelector:
+    | { readonly type: "messageId"; readonly messageId: string }
+    | { readonly type: "index"; readonly index: number };
 };
 
 export type ContentPartRuntimePath = MessageRuntimePath & {
-  contentPartSelector:
-    | { type: "index"; index: number }
-    | { type: "toolCallId"; toolCallId: string };
+  readonly contentPartSelector:
+    | { readonly type: "index"; readonly index: number }
+    | { readonly type: "toolCallId"; readonly toolCallId: string };
 };
 
 export type AttachmentRuntimePath = (
   | (MessageRuntimePath & {
-      attachmentSource: "message" | "edit-composer";
+      readonly attachmentSource: "message" | "edit-composer";
     })
   | (ThreadRuntimePath & {
-      attachmentSource: "thread-composer";
+      readonly attachmentSource: "thread-composer";
     })
 ) & {
-  attachmentSelector:
+  readonly attachmentSelector:
     | {
-        type: "index";
-        index: number;
+        readonly type: "index";
+        readonly index: number;
       }
     | {
-        type: "index";
-        index: number;
+        readonly type: "index";
+        readonly index: number;
       }
     | {
-        type: "index";
-        index: number;
+        readonly type: "index";
+        readonly index: number;
       };
 };
 
 export type ComposerRuntimePath =
   | (ThreadRuntimePath & {
-      composerSource: "thread";
+      readonly composerSource: "thread";
     })
   | (MessageRuntimePath & {
-      composerSource: "edit";
+      readonly composerSource: "edit";
     });

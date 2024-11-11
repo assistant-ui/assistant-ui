@@ -5,11 +5,11 @@ import { SubscribableWithState } from "./subscribable/Subscribable";
 import { ThreadListRuntimeCoreBinding } from "./ThreadListRuntime";
 
 export type ThreadListItemState = ThreadMetadata & {
-  isMain: boolean;
+  readonly isMain: boolean;
 };
 
-export type ThreadListItemRuntime = Readonly<{
-  path: ThreadListItemRuntimePath;
+export type ThreadListItemRuntime = {
+  readonly path: ThreadListItemRuntimePath;
   getState(): ThreadListItemState;
 
   switchTo(): Promise<void>;
@@ -19,7 +19,7 @@ export type ThreadListItemRuntime = Readonly<{
   delete(): Promise<void>;
 
   subscribe(callback: () => void): Unsubscribe;
-}>;
+};
 
 export type ThreadListItemStateBinding = SubscribableWithState<
   ThreadListItemState,

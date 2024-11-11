@@ -34,9 +34,9 @@ import { SKIP_UPDATE } from "./subscribable/SKIP_UPDATE";
 import { ShallowMemoizeSubject } from "./subscribable/ShallowMemoizeSubject";
 import { SubscribableWithState } from "./subscribable/Subscribable";
 
-const COMPLETE_STATUS: ContentPartStatus = {
+const COMPLETE_STATUS: ContentPartStatus = Object.freeze({
   type: "complete",
-};
+});
 
 export const toContentPartStatus = (
   message: ThreadMessage,
@@ -92,17 +92,17 @@ const getContentPartState = (
 };
 
 export type MessageState = ThreadMessage & {
-  parentId: string | null;
-  isLast: boolean;
+  readonly parentId: string | null;
+  readonly isLast: boolean;
 
-  branchNumber: number;
-  branchCount: number;
+  readonly branchNumber: number;
+  readonly branchCount: number;
 
   /**
    * @deprecated This API is still under active development and might change without notice.
    */
-  speech: SpeechState | undefined;
-  submittedFeedback: SubmittedFeedback | undefined;
+  readonly speech: SpeechState | undefined;
+  readonly submittedFeedback: SubmittedFeedback | undefined;
 };
 
 export type MessageStateBinding = SubscribableWithState<
@@ -169,7 +169,7 @@ export class MessageRuntimeImpl implements MessageRuntime {
     );
   }
 
-  public composer;
+  public readonly composer;
 
   public getState() {
     return this._core.getState();
