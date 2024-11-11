@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.1
+
+### Patch Changes
+
+- c2f75e5: feat: ThreadListRuntime API types
+
 ## 0.7.0
 
 ### Breaking Changes
