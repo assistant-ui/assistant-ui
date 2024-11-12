@@ -206,28 +206,32 @@ Renders attachments.
 
 Renders an add attachment button.
 
-## ComposerAttachment
+## AttachmentUI
+
+<Callout type="info" emoji="💡">
+  `AttachmentUI` is still experimental.
+</Callout>
 
 Renders an attachment.
 
 ```tsx
-import { ComposerAttachment } from "@assistant-ui/react";
+import { AttachmentUI } from "@assistant-ui/react";
 
-const MyComposerAttachment: FC = () => {
+const MyAttachmentUI: FC = () => {
   return (
-    <ComposerAttachment.Root>
+    <AttachmentUI.Root>
       attachment
-      <ComposerAttachment.Remove />
-    </ComposerAttachment.Root>
+      <AttachmentUI.Remove />
+    </AttachmentUI.Root>
   );
 };
 ```
 
-### ComposerAttachment.Root
+### AttachmentUI.Root
 
 Contains all parts of the composer attachment.
 
-### ComposerAttachment.Remvoe
+### AttachmentUI.Remove
 
 Renders a remove attachment button.
 

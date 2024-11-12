@@ -12,7 +12,7 @@ import {
 import { CircleStopIcon } from "./base/CircleStopIcon";
 import { ComposerPrimitive, ThreadPrimitive } from "../primitives";
 import { useThread } from "../context/react/ThreadContext";
-import Attachment from "./attachment";
+import Attachment from "./attachment-ui";
 
 const useAllowAttachments = (ensureCapability = false) => {
   const { composer: { allowAttachments = true } = {} } = useThreadConfig();

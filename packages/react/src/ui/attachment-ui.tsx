@@ -126,7 +126,7 @@ const AttachmentThumb: FC = () => {
   );
 };
 
-const Attachment: FC = () => {
+const AttachmentUI: FC = () => {
   const canRemove = useAttachment((a) => a.source !== "message");
   const typeLabel = useAttachment((a) => {
     const type = a.type;
@@ -165,7 +165,7 @@ const Attachment: FC = () => {
   );
 };
 
-Attachment.displayName = "Attachment";
+AttachmentUI.displayName = "Attachment";
 
 namespace AttachmentRemove {
   export type Element = HTMLButtonElement;
@@ -204,5 +204,5 @@ const exports = {
   Remove: AttachmentRemove,
 };
 
-export default Object.assign(Attachment, exports) as typeof Attachment &
+export default Object.assign(AttachmentUI, exports) as typeof AttachmentUI &
   typeof exports;

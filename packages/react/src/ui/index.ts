@@ -22,7 +22,7 @@ export { default as Composer } from "./composer";
 
 export {
   default as AttachmentUI, // TODO name collision with Attachment
-} from "./attachment";
+} from "./attachment-ui";
 
 export { default as EditComposer } from "./edit-composer";
 

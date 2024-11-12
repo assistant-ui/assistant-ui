@@ -7,7 +7,7 @@ import { withDefaults } from "./utils/withDefaults";
 import UserActionBar from "./user-action-bar";
 import ContentPart from "./content-part";
 import { MessagePrimitive } from "../primitives";
-import Attachment from "./attachment";
+import Attachment from "./attachment-ui";
 
 const UserMessage: FC = () => {
   return (
