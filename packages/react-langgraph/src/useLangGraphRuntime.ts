@@ -32,7 +32,7 @@ export const useLangGraphRuntime = ({
   stream,
   onSwitchToNewThread,
   onSwitchToThread,
-  adapters: { attachments },
+  adapters: { attachments } = {},
 }: {
   threadId?: string | undefined;
   autoCancelPendingToolCalls?: boolean | undefined;
@@ -50,9 +50,11 @@ export const useLangGraphRuntime = ({
   onSwitchToThread?: (
     threadId: string,
   ) => Promise<{ messages: LangChainMessage[] }>;
-  adapters: {
-    attachments?: AttachmentAdapter;
-  };
+  adapters?:
+    | {
+        attachments?: AttachmentAdapter;
+      }
+    | undefined;
 }) => {
   const { messages, sendMessage, setMessages } = useLangGraphMessages({
     stream,
