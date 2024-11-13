@@ -1,7 +1,6 @@
 import { LazyMemoizeSubject } from "./subscribable/LazyMemoizeSubject";
 import { ThreadListRuntimeCore } from "../runtimes/core/ThreadListRuntimeCore";
 import { Unsubscribe } from "../types";
-import { ThreadListRuntimePath } from "./RuntimePathTypes";
 import {
   ThreadListItemRuntime,
   ThreadListItemRuntimeImpl,
@@ -18,7 +17,6 @@ export type ThreadListState = {
 };
 
 export type ThreadListRuntime = {
-  readonly path: ThreadListRuntimePath;
   getState(): ThreadListState;
 
   subscribe(callback: () => void): Unsubscribe;
@@ -55,21 +53,13 @@ const getThreadListItemState = (
   };
 };
 
-const THREAD_MANAGER_PATH = {
-  ref: "ThreadList",
-};
-
 export type ThreadListRuntimeCoreBinding = ThreadListRuntimeCore;
 
 export class ThreadListRuntimeImpl implements ThreadListRuntime {
-  public get path() {
-    return THREAD_MANAGER_PATH;
-  }
-
   private _getState;
   constructor(private _core: ThreadListRuntimeCoreBinding) {
     const stateBinding = new LazyMemoizeSubject({
-      path: THREAD_MANAGER_PATH,
+      path: {},
       getState: () => getThreadListState(_core),
       subscribe: (callback) => _core.subscribe(callback),
     });
@@ -89,7 +79,7 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
     return new ThreadListItemRuntimeImpl(
       new ShallowMemoizeSubject({
         path: {
-          ref: this.path.ref + `${this.path.ref}.threadItems[${idx}]`,
+          ref: `threadItems[${idx}]`,
           threadSelector: { type: "index", index: idx },
         },
         getState: () => {
@@ -105,7 +95,7 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
     return new ThreadListItemRuntimeImpl(
       new ShallowMemoizeSubject({
         path: {
-          ref: this.path.ref + `${this.path.ref}.archivedThreadItems[${idx}]`,
+          ref: `archivedThreadItems[${idx}]`,
           threadSelector: { type: "archiveIndex", index: idx },
         },
         getState: () => {
@@ -124,9 +114,7 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
     return new ThreadListItemRuntimeImpl(
       new ShallowMemoizeSubject({
         path: {
-          ref:
-            this.path.ref +
-            `${this.path.ref}.threadItems[threadId=${threadId}]`,
+          ref: `threadItems[threadId=${threadId}]`,
           threadSelector: { type: "threadId", threadId },
         },
         getState: () => {

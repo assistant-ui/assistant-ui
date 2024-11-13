@@ -1,7 +1,3 @@
-export type ThreadListRuntimePath = {
-  readonly ref: string;
-};
-
 export type ThreadListItemRuntimePath = {
   readonly ref: string;
   readonly threadSelector:
