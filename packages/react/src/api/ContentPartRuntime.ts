@@ -23,10 +23,14 @@ type ContentPartSnapshotBinding = SubscribableWithState<
 >;
 
 export type ContentPartRuntime = {
-  readonly path: ContentPartRuntimePath;
-
-  getState(): ContentPartState;
+  /**
+   * Add tool result to a tool call content part that has no tool result yet.
+   * This is useful when you are collecting a tool result via user input ("human tool calls").
+   */
   addToolResult(result: any): void;
+
+  readonly path: ContentPartRuntimePath;
+  getState(): ContentPartState;
   subscribe(callback: () => void): Unsubscribe;
 };
 

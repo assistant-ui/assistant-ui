@@ -1,0 +1,144 @@
+---
+title: ContentPart
+---
+
+import { ParametersTable } from "@/components/docs";
+import {
+  ContentPartRuntime,
+  TextContentPartState,
+  AudioContentPartState,
+  ImageContentPartState,
+  UIContentPartState,
+  ToolCallContentPartState,
+} from "@/generated/typeDocs";
+
+Each message (user or assistant) can have any number of content parts.
+Content parts are usually one of text, audio or tool-call.
+Additionally, image and file content parts are available, but rarely used, since these are usually included as content parts of message attachments.
+
+## Styled Components
+
+Plain text is usually used for user messages.
+Markdown text is usually used for assistant messages.
+
+### Plain Text
+
+```tsx
+import { ContentPart } from "@assistant/react";
+
+<ContentPart.Text />;
+```
+
+### Markdown Text
+
+```tsx
+import { makeMarkdownText } from "@assistant-ui/react-markdown";
+
+const MarkdownText = makeMarkdownText();
+
+<MarkdownText />;
+```
+
+## Thread Config
+
+The `<Thread />` compoonent allows customization of content part UI in the following ways:
+
+```tsx
+<Thread
+  tools={[MyToolUI]}
+  assistantMessage={{
+    components: { Text: MarkdownText, ToolFallback: MyToolFallback }
+  }}
+/>
+```
+
+## Primitives
+
+### Plain Text
+
+```tsx
+import { ContentPartPrimitive } from "@assistant/react";
+
+<ContentPartPrimitive.Text />;
+````
+
+### Markdown Text
+
+```tsx
+import { MarkdownTextPrimitive } from "@assistant-ui/react-markdown";
+
+const MarkdownTextPrimitive = makeMarkdownTextPrimitive();
+
+<MarkdownTextPrimitive />;
+```
+
+## Context Provider
+
+Content part context is provided by `MessagePrimitive.Content` or `TextContentPartProvider`
+
+### MessagePrimitive.Content
+
+```tsx
+import { MessagePrimitive } from "@assistant/react";
+
+<MessagePrimitive.Content
+  components={{
+    Text: MyText,
+    Audio: MyAudio,
+    tools: {
+      by_name: {
+        get_weather: MyWeatherToolUI,
+      },
+      Fallback: MyFallbackToolUI,
+    },
+  }}
+/>;
+```
+
+### TextContentPartProvider
+
+This is a helper context provider to allow you to reuse the content part components outside of a message content part.
+
+```tsx
+import { TextContentPartProvider } from "@assistant/react";
+
+<TextContentPartProvider text="Hello world" isRunning={false}>
+  <ContentPart.Text />
+</TextContentPartProvider>;
+```
+
+## Runtime API
+
+### `useContentPartRuntime`
+
+```tsx
+import { useContentPartRuntime } from "@assistant/react";
+
+const contentPartRuntime = useContentPartRuntime();
+```
+
+<ParametersTable {...ContentPartRuntime} />
+
+### `useContentPart`
+
+```tsx
+import { useContentPart } from "@assistant/react";
+
+const contentPart = useContentPart();
+```
+
+<ParametersTable {...TextContentPartState} />
+<ParametersTable {...AudioContentPartState} />
+<ParametersTable {...ImageContentPartState} />
+<ParametersTable {...UIContentPartState} />
+<ParametersTable {...ToolCallContentPartState} />
+
+### `useContentPartText`
+
+```tsx
+import { useContentPartText } from "@assistant/react";
+
+const contentPartText = useContentPartText();
+```
+
+<ParametersTable {...TextContentPartState} />
