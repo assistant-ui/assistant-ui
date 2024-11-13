@@ -1,6 +1,6 @@
 "use client";
 
-import { ComponentType, forwardRef, type FC } from "react";
+import { forwardRef, type FC } from "react";
 import { ArrowDownIcon } from "lucide-react";
 
 import { withDefaults } from "./utils/withDefaults";
@@ -27,13 +27,14 @@ const Thread: FC<ThreadConfig> = (config) => {
     components: {
       Composer: ComposerComponent = Composer,
       ThreadWelcome: ThreadWelcomeComponent = ThreadWelcome,
+      ...messageComponents
     } = {},
   } = config;
   return (
     <ThreadRoot config={config}>
       <ThreadViewport>
         <ThreadWelcomeComponent />
-        <ThreadMessages />
+        <ThreadMessages components={messageComponents} />
         <ThreadFollowupSuggestions />
         <ThreadViewportFooter>
           <ThreadScrollToBottom />
@@ -77,11 +78,9 @@ const ThreadViewportFooter = withDefaults("div", {
 
 ThreadViewportFooter.displayName = "ThreadViewportFooter";
 
-const SystemMessage = () => null;
-
 const ThreadMessages: FC<{
   unstable_flexGrowDiv?: boolean;
-  components?: ThreadPrimitive.Messages.Props["components"];
+  components?: Partial<ThreadPrimitive.Messages.Props["components"]>;
 }> = ({ components, unstable_flexGrowDiv: flexGrowDiv = true, ...rest }) => {
   return (
     <>
@@ -90,7 +89,6 @@ const ThreadMessages: FC<{
           ...components,
           UserMessage: components?.UserMessage ?? UserMessage,
           AssistantMessage: components?.AssistantMessage ?? AssistantMessage,
-          SystemMessage: components?.SystemMessage ?? SystemMessage,
           EditComposer: components?.EditComposer ?? EditComposer,
         }}
         {...rest}

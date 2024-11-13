@@ -169,6 +169,9 @@ export type ThreadConfig = {
 
   components?:
     | {
+        UserMessage?: ComponentType | undefined;
+        AssistantMessage?: ComponentType | undefined;
+        EditComposer?: ComponentType | undefined;
         Composer?: ComponentType | undefined;
         ThreadWelcome?: ComponentType | undefined;
       }
