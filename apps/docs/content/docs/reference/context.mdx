@@ -1,20 +1,12 @@
 ---
-title: Context API
+title: Runtime API
 ---
 
-assistant-ui components and APIs use React Context to store information and interact with the runtime.
-
-The context is split into four hierarchies:
-
-- **Assistant Context**: Wraps your entire app. An app can contain multiple threads.
-- **Thread Context**: Provides access to the thread state. A thread can contain multiple messages.
-- **Message Context**: Provides access to the message state. A message can contain multiple content parts.
-- **Content Part Context**: Provides access to the content part state.
+The runtime API allows you to interact with the runtime in a standardized way.
+This API is used internaly by the components. You can also use it to build your own UI components or functionality.
 
 import { ParametersTable } from "@/components/docs";
 import {
-  AssistantToolUIsState,
-  ThreadState,
   ThreadMessagesState,
   ThreadRuntimeState,
   ComposerState,
@@ -26,9 +18,20 @@ import {
   ComposerAttachmentState,
   MessageAttachmentState,
 } from "@/components/docs/parameters/context";
-import { AssistantRuntime, ThreadRuntime } from "@/generated/typeDocs";
+import {
+  AssistantRuntime,
+  ThreadListRuntime,
+  ThreadListState,
+  ThreadListItemRuntime,
+  ThreadListItemState,
+  ThreadRuntime,
+  ThreadState,
+  AssistantToolUIsState,
+} from "@/generated/typeDocs";
 
-## Assistant Context
+## AssistantRuntime
+
+The `AssistantRuntime` is the root runtime.
 
 ### `useAssistantRuntime`
 
@@ -40,6 +43,10 @@ const runtime = useAssistantRuntime();
 
 <ParametersTable {...AssistantRuntime} />
 
+## Tool UI Registry
+
+The tool UI registry is used to display custom UI for tool calls, enabling generative UI.
+
 ### `useToolUIs`
 
 ```tsx
@@ -50,6 +57,50 @@ const webSearchToolUI = useToolUIs((m) => m.getToolUI("web_search"));
 ```
 
 <ParametersTable {...AssistantToolUIsState} />
+
+## ThreadListRuntime
+
+### `threadList`
+
+```tsx
+import { useAssistantRuntime } from "@assistant-ui/react";
+
+const threadListRuntime = useAssistantRuntime().threadList;
+```
+
+<ParametersTable {...ThreadListRuntime} />
+
+### `useThreadList`
+
+```tsx
+import { useThreadList } from "@assistant-ui/react";
+
+const threadList = useThreadList();
+const threads = useThreadList((m) => m.threads);
+```
+
+## ThreadListItemRuntime
+
+### `useThreadListItemRuntime`
+
+```tsx
+import { useThreadListItemRuntime } from "@assistant-ui/react";
+
+const threadListItemRuntime = useThreadListItemRuntime();
+```
+
+<ParametersTable {...ThreadListItemRuntime} />
+
+### `useThreadListItem`
+
+```tsx
+import { useThreadListItem } from "@assistant-ui/react";
+
+const threadListItem = useThreadListItem();
+const title = useThreadListItem((m) => m.title);
+```
+
+<ParametersTable {...ThreadListItemState} />
 
 ## Thread Context
 
