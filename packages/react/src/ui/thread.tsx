@@ -81,21 +81,17 @@ const SystemMessage = () => null;
 
 const ThreadMessages: FC<{
   unstable_flexGrowDiv?: boolean;
-  components?: {
-    UserMessage?: ComponentType | undefined;
-    EditComposer?: ComponentType | undefined;
-    AssistantMessage?: ComponentType | undefined;
-    SystemMessage?: ComponentType | undefined;
-  };
+  components?: ThreadPrimitive.Messages.Props["components"];
 }> = ({ components, unstable_flexGrowDiv: flexGrowDiv = true, ...rest }) => {
   return (
     <>
       <ThreadPrimitive.Messages
         components={{
+          ...components,
           UserMessage: components?.UserMessage ?? UserMessage,
-          EditComposer: components?.EditComposer ?? EditComposer,
           AssistantMessage: components?.AssistantMessage ?? AssistantMessage,
           SystemMessage: components?.SystemMessage ?? SystemMessage,
+          EditComposer: components?.EditComposer ?? EditComposer,
         }}
         {...rest}
       />
