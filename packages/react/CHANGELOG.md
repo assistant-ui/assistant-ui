@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.3
+
+### Patch Changes
+
+- 0dcd9cf: feat: mark message types as readonly
+
 ## 0.7.2
 
 ### Patch Changes

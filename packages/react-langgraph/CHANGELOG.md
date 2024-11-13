@@ -1,5 +1,13 @@
 # @assistant-ui/react-langgraph
 
+## 0.1.2
+
+### Patch Changes
+
+- 147a8a2: fix: types for adapters
+- Updated dependencies [0dcd9cf]
+  - @assistant-ui/react@0.7.3
+
 ## 0.1.1
 
 ### Patch Changes
