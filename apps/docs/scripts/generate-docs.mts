@@ -88,8 +88,8 @@ function getPropertiesFromType(type: any) {
       type: cleanType,
     };
 
-    if (!required) {
-      param.required = false;
+    if (required) {
+      param.required = true;
     }
 
     if (description) {
