@@ -1,5 +1,6 @@
 import { LanguageModelV1Message } from "@ai-sdk/provider";
 import { CoreMessage, ToolCallContentPart } from "../../../types";
+import { Writable } from "stream";
 
 type fromLanguageModelMessagesOptions = {
   mergeSteps: boolean;
@@ -105,9 +106,11 @@ export const fromLanguageModelMessages = (
           if (toolCall.toolName !== tool.toolName)
             throw new Error("Tool call name mismatch.");
 
-          toolCall.result = tool.result;
+          type Writable<T> = { -readonly [P in keyof T]: T[P] };
+          const writable = toolCall as Writable<ToolCallContentPart>;
+          writable.result = tool.result;
           if (tool.isError) {
-            toolCall.isError = true;
+            writable.isError = true;
           }
         }
 
