@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.7.4
+
+### Patch Changes
+
+- 5462390: fix: Thread.Messages AssistantEditComposer support
+- 0fb80c1: feat: ThreadConfig.UserMessage / AssistantMessage / EditComposer
+
 ## 0.7.3
 
 ### Patch Changes

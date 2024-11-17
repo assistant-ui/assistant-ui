@@ -1,5 +1,14 @@
 # @assistant-ui/react-langgraph
 
+## 0.1.3
+
+### Patch Changes
+
+- b63fff1: feat: pass a string instead of an array content for text-only messages
+- Updated dependencies [5462390]
+- Updated dependencies [0fb80c1]
+  - @assistant-ui/react@0.7.4
+
 ## 0.1.2
 
 ### Patch Changes
