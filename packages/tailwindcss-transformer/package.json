@@ -5,11 +5,11 @@
   "license": "MIT",
   "main": "./src/index.ts",
   "dependencies": {
-    "postcss": "^8.4.47",
+    "postcss": "^8.4.49",
     "postcss-value-parser": "^4.2.0"
   },
   "devDependencies": {
     "@assistant-ui/tsconfig": "workspace:*",
-    "eslint-config-next": "15.0.2"
+    "eslint-config-next": "15.0.3"
   }
 }

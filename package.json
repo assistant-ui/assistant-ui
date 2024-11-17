@@ -11,7 +11,7 @@
     "eslint": "^9",
     "prettier": "^3.3.3",
     "prettier-plugin-tailwindcss": "^0.6.8",
-    "turbo": "^2.2.3"
+    "turbo": "^2.3.0"
   },
   "prettier": {
     "trailingComma": "all",
@@ -19,5 +19,8 @@
       "prettier-plugin-tailwindcss"
     ]
   },
-  "packageManager": "pnpm@9.12.3"
+  "packageManager": "pnpm@9.13.2",
+  "resolutions": {
+    "trieve-ts-sdk": "0.0.30"
+  }
 }
