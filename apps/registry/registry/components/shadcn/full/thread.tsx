@@ -3,7 +3,6 @@
 import {
   ActionBarPrimitive,
   BranchPickerPrimitive,
-  BranchPickerPrimitiveRootProps,
   ComposerPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
@@ -24,8 +23,8 @@ import {
   SendHorizontalIcon,
   StopCircleIcon,
 } from "lucide-react";
-import { MarkdownText } from "@/components/ui/assistant-ui/markdown-text";
-import { TooltipIconButton } from "@/components/ui/assistant-ui/tooltip-icon-button";
+import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { cn } from "@/lib/utils";
 
 export const MyThread: FC = () => {
@@ -221,7 +220,7 @@ const MyAssistantActionBar: FC = () => {
   );
 };
 
-const MyBranchPicker: FC<BranchPickerPrimitiveRootProps> = ({
+const MyBranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({
   className,
   ...rest
 }) => {

@@ -9,7 +9,7 @@ import type { FC } from "react";
 import { SendHorizontalIcon } from "lucide-react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { TooltipIconButton } from "@/components/ui/assistant-ui/tooltip-icon-button";
+import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 
 export const MyThread: FC = () => {
   return (
