@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.5
+
+### Patch Changes
+
+- c59d8b5: chore: update dependencies
+
 ## 0.7.4
 
 ### Patch Changes

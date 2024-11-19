@@ -1,5 +1,13 @@
 # @assistant-ui/react-playground
 
+## 0.1.1
+
+### Patch Changes
+
+- c59d8b5: chore: update dependencies
+- Updated dependencies [c59d8b5]
+  - @assistant-ui/react@0.7.5
+
 ## 0.1.0
 
 ### Patch Changes
