@@ -4,13 +4,6 @@ This project configures `assistant-ui` to work with Ollama hosted on a local ins
 
 This source code was generated using the `Getting Started` guide hosted on [assistant-ui.com/docs](https://www.assistant-ui.com/docs).
 
-```bash
-npx assistant-ui@latest create my-app
-cd my-app
-```
-
-
-
 ## Prerequisites
 
 Ensure you have the following installed:
@@ -34,9 +27,11 @@ npm install
 ```
 
 ## Configuration
+
 Copy the `.env.local.example` file to `.env`:
 
 Add `OLLAMA_API_URL` to the `.env` file:
+
 ```
 OLLAMA_API_URL=http:/x.x.x.x:11434/api
 ```
@@ -58,7 +53,6 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 ## Changing the Theme to Dark Mode
 
 The theme has been set to dark mode by default. You can customize the theme by annotating html with the className `dark`.
-
 
 ## License
 

@@ -21,7 +21,7 @@ Wide model provider support (OpenAI, Anthropic, Mistral, Perplexity, AWS Bedrock
 Step 1: Create a new project with `assistant-ui` pre-configured:
 
 ```sh
-npx assistant-ui@latest create my-app
+npx create-assistant-ui@latest my-app
 cd my-app
 ```
 
