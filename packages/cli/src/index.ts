@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
-import { add } from "@/src/commands/add";
 import { Command } from "commander";
 
 import packageJson from "../package.json";
 import { create } from "./commands/create";
+import { shadcnAdd } from "./commands/shadcn/add";
 
 process.on("SIGINT", () => process.exit(0));
 process.on("SIGTERM", () => process.exit(0));
@@ -19,7 +19,7 @@ async function main() {
       "display the version number",
     );
 
-  program.addCommand(add);
+  program.addCommand(shadcnAdd);
   program.addCommand(create);
 
   program.parse();
