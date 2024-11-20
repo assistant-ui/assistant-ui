@@ -1,7 +1,6 @@
 import { pageTree } from "@/app/source";
 import {
   BookIcon,
-  LayoutTemplateIcon,
   NewspaperIcon,
   ProjectorIcon,
   SparklesIcon,
