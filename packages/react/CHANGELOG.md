@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.7.7
+
+### Patch Changes
+
+- 10d70db: fix: remove console.log
+- c3027a0: fix: disallow nested ThreadConfigs
+
 ## 0.7.6
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # assistant-ui
 
+## 0.0.22
+
+### Patch Changes
+
+- 938e734: fix: correctly pass component URLs to shadcn CLI
+
 ## 0.0.21
 
 ### Patch Changes
