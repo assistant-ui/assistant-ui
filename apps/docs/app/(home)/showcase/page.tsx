@@ -1,11 +1,3 @@
-import {
-  ChevronDown,
-  Code,
-  MessageSquare,
-  Pen,
-  Settings2,
-  Sparkles,
-} from "lucide-react";
 import Image from "next/image";
 
 import { Card } from "@/components/ui/card";
