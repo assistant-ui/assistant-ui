@@ -118,6 +118,7 @@ export const useTrieveRuntime = ({
     const suggestions = (
       await trieve.suggestedQueries({
         query,
+        search_type,
       })
     ).queries;
     setSuggestions(suggestions.slice(0, 3).map((d) => ({ prompt: d })));
