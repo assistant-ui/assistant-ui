@@ -122,7 +122,7 @@ export async function continueConversation(
         generate: async function* ({ user_question }) {
           const filePath = path.resolve(process.cwd(), "public/shop_info.txt");
           const generalInfo = fs.readFileSync(filePath, "utf-8");
-          const result = await streamText({
+          const result = streamText({
             model: openai("gpt-3.5-turbo"),
             temperature: 0,
             prompt: `Generate response to user question ${user_question} based on the context ${generalInfo}`,
