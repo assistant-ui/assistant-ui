@@ -1,5 +1,11 @@
 import { pageTree } from "@/app/source";
-import { BookIcon, LayoutTemplateIcon, NewspaperIcon } from "lucide-react";
+import {
+  BookIcon,
+  LayoutTemplateIcon,
+  NewspaperIcon,
+  ProjectorIcon,
+  SparklesIcon,
+} from "lucide-react";
 import icon from "@/public/favicon/icon.svg";
 import Image from "next/image";
 import { DocsLayoutProps } from "fumadocs-ui/layouts/docs";
@@ -44,9 +50,14 @@ export const baseOptions: HomeLayoutProps = {
       active: "nested-url",
     },
     {
+      text: "Showcase",
+      url: "/showcase",
+      icon: <ProjectorIcon />,
+    },
+    {
       text: "Examples",
       url: "/examples",
-      icon: <LayoutTemplateIcon />,
+      icon: <SparklesIcon />,
     },
     {
       text: "Blog",

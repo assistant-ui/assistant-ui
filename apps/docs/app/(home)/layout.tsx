@@ -41,6 +41,7 @@ function Footer(): React.ReactElement {
           <div className="flex w-[160px] flex-col justify-center gap-4">
             <p className="text-sm">Product</p>
             <FooterLink href="/docs/getting-started">Documentation</FooterLink>
+            <FooterLink href="/showcase">Showcase</FooterLink>
             <FooterLink href="/examples">Examples</FooterLink>
             <FooterLink href="/blog">Blog</FooterLink>
           </div>
