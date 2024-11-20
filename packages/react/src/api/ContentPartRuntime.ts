@@ -41,23 +41,30 @@ export class ContentPartRuntimeImpl implements ContentPartRuntime {
 
   constructor(
     private contentBinding: ContentPartSnapshotBinding,
-    private messageApi: MessageStateBinding,
-    private threadApi: ThreadRuntimeCoreBinding,
+    private messageApi?: MessageStateBinding,
+    private threadApi?: ThreadRuntimeCoreBinding,
   ) {}
 
   public getState() {
+    console.log(this.contentBinding);
     return this.contentBinding.getState();
   }
 
   public addToolResult(result: any) {
-    const message = this.messageApi.getState();
-    if (!message) throw new Error("Message is not available");
-
     const state = this.contentBinding.getState();
     if (!state) throw new Error("Content part is not available");
 
     if (state.type !== "tool-call")
       throw new Error("Tried to add tool result to non-tool content part");
+
+    if (!this.messageApi)
+      throw new Error(
+        "Message API is not available. This is likely a bug in assistant-ui.",
+      );
+    if (!this.threadApi) throw new Error("Thread API is not available");
+
+    const message = this.messageApi.getState();
+    if (!message) throw new Error("Message is not available");
 
     const toolName = state.toolName;
     const toolCallId = state.toolCallId;

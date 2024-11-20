@@ -35,15 +35,25 @@ export const TextContentPartProvider: FC<TextContentPartProvider.Props> = ({
   isRunning,
 }) => {
   const [context] = useState<ContentPartContextValue>(() => {
-    const useContentPartRuntime = create(
-      // TODO
-      () => new ContentPartRuntimeImpl(null as any, null as any, null as any),
-    );
     const useContentPart = create<ContentPartState>(() => ({
       status: isRunning ? RUNNING_STATUS : COMPLETE_STATUS,
       type: "text",
       text,
     }));
+
+    const useContentPartRuntime = create(
+      () =>
+        new ContentPartRuntimeImpl({
+          path: {
+            ref: "text",
+            threadSelector: { type: "main" },
+            messageSelector: { type: "messageId", messageId: "" },
+            contentPartSelector: { type: "index", index: 0 },
+          },
+          getState: useContentPart.getState,
+          subscribe: useContentPart.subscribe,
+        }),
+    );
 
     return { useContentPartRuntime, useContentPart };
   });
