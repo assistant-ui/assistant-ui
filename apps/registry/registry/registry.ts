@@ -166,7 +166,7 @@ export const registry: RegistryItem[] = [
     ],
   },
   {
-    name: "shadcn/assistant-modal",
+    name: "shadcn/modal",
     type: "registry:component",
     files: [
       {
@@ -182,7 +182,7 @@ export const registry: RegistryItem[] = [
     ],
   },
   {
-    name: "shadcn/assistant-sidebar",
+    name: "shadcn/sidebar",
     type: "registry:component",
     files: [
       {
