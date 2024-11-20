@@ -38,7 +38,7 @@
   },
   "devDependencies": {
     "@assistant-ui/tsconfig": "workspace:*",
-    "ai": "^3.4.33",
+    "ai": "^4.0.1",
     "eslint": "^9",
     "eslint-config-next": "15.0.3",
     "tsup": "8.3.5",
@@ -57,6 +57,6 @@
   },
   "dependencies": {
     "nanoid": "^5.0.8",
-    "secure-json-parse": "^2.7.0"
+    "secure-json-parse": "^3.0.1"
   }
 }

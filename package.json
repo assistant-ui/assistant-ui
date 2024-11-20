@@ -10,7 +10,7 @@
     "@changesets/cli": "^2.27.9",
     "eslint": "^9",
     "prettier": "^3.3.3",
-    "prettier-plugin-tailwindcss": "^0.6.8",
+    "prettier-plugin-tailwindcss": "^0.6.9",
     "turbo": "^2.3.0"
   },
   "prettier": {

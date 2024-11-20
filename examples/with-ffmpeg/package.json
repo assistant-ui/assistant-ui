@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^0.0.72",
+    "@ai-sdk/openai": "^1.0.1",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-hook-form": "workspace:*",
     "@ffmpeg/ffmpeg": "^0.12.10",

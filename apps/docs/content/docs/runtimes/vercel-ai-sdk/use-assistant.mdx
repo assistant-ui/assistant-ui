@@ -39,6 +39,7 @@ npm install @assistant-ui/react @assistant-ui/react-ai-sdk ai openai
 ```tsx
 import { AssistantResponse } from "ai";
 import OpenAI from "openai";
+import type { Run } from 'openai/resources/beta/threads/runs/runs';
 
 const openai = new OpenAI();
 
@@ -74,7 +75,7 @@ export async function POST(req: Request) {
       });
 
       // forward run status would stream message deltas
-      let runResult = await forwardStream(runStream);
+      let runResult: Run = await forwardStream(runStream);
 
       // status can be: queued, in_progress, requires_action, cancelling, cancelled, failed, completed, or expired
       while (

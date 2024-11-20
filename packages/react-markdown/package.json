@@ -58,7 +58,7 @@
     "@assistant-ui/tailwindcss-transformer": "workspace:*",
     "@assistant-ui/tsbuildutils": "workspace:^",
     "@assistant-ui/tsconfig": "workspace:*",
-    "@types/node": "^22.9.0",
+    "@types/node": "^22.9.1",
     "autoprefixer": "^10.4.20",
     "eslint": "^9",
     "eslint-config-next": "15.0.3",

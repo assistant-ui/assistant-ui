@@ -1,5 +1,6 @@
 import { AssistantResponse } from "ai";
 import OpenAI from "openai";
+import type { Run } from 'openai/resources/beta/threads/runs/runs';
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
@@ -35,7 +36,7 @@ export async function POST(req: Request) {
       });
 
       // forward run status would stream message deltas
-      let runResult = await forwardStream(runStream);
+      let runResult: Run = await forwardStream(runStream);
 
       // status can be: queued, in_progress, requires_action, cancelling, cancelled, failed, completed, or expired
       while (

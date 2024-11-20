@@ -9,8 +9,8 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@assistant-ui/react": "^0.7.4",
-    "@assistant-ui/react-markdown": "^0.7.0",
+    "@assistant-ui/react": "^0.7.5",
+    "@assistant-ui/react-markdown": "^0.7.1",
     "next": "15.0.3",
     "ollama-ai-provider": "^0.16.1",
     "react": "19.0.0-rc-66855b96-20241106",
