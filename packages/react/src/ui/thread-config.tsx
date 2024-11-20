@@ -192,14 +192,23 @@ export const ThreadConfigProvider: FC<ThreadConfigProviderProps> = ({
 }) => {
   const hasAssistant = !!useAssistantRuntime({ optional: true });
 
-  const configProvider =
-    config && Object.keys(config ?? {}).length > 0 ? (
-      <ThreadConfigContext.Provider value={config}>
-        {children}
-      </ThreadConfigContext.Provider>
-    ) : (
-      <>{children}</>
+  const hasConfig = config && Object.keys(config).length > 0;
+  const outerConfig = useThreadConfig();
+
+  if (hasConfig && Object.keys(outerConfig).length > 0) {
+    throw new Error(
+      "You are providing ThreadConfig to several nested components. Please provide all configuration to the same component.",
     );
+  }
+
+  const configProvider = hasConfig ? (
+    <ThreadConfigContext.Provider value={config}>
+      {children}
+    </ThreadConfigContext.Provider>
+  ) : (
+    <>{children}</>
+  );
+
   if (!config?.runtime) return configProvider;
 
   if (hasAssistant) {
