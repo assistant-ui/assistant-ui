@@ -13,7 +13,7 @@ export const shadcnAdd = new Command()
     process.cwd(),
   )
   .option("-p, --path <path>", "the path to add the component to.")
-  .action(async (components: string[], opts) => {
+  .action((components: string[], opts) => {
     const componentsToAdd = components.map(
       (c) => `"https://r.assistant-ui.com/shadcn/${c}"`,
     );

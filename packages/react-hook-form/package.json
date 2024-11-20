@@ -50,7 +50,7 @@
     "access": "public",
     "provenance": true
   },
-  "homepage": "https://assistant-ui.com/",
+  "homepage": "https://www.assistant-ui.com/",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Yonom/assistant-ui.git"

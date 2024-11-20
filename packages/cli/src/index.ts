@@ -9,7 +9,7 @@ import { shadcnAdd } from "./commands/shadcn/add";
 process.on("SIGINT", () => process.exit(0));
 process.on("SIGTERM", () => process.exit(0));
 
-async function main() {
+function main() {
   const program = new Command()
     .name("assistant-ui")
     .description("add components and dependencies to your project")

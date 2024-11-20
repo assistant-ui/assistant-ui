@@ -131,7 +131,7 @@
     "access": "public",
     "provenance": true
   },
-  "homepage": "https://assistant-ui.com/",
+  "homepage": "https://www.assistant-ui.com/",
   "repository": {
     "type": "git",
     "url": "https://github.com/Yonom/assistant-ui/tree/main/packages/react"
