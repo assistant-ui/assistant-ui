@@ -1,5 +1,16 @@
 # @assistant-ui/react-trieve
 
+## 0.1.2
+
+### Patch Changes
+
+- 933b8c0: chore: update deps
+- 11f3ca4: feat: add search_type config parameter
+- Updated dependencies [933b8c0]
+- Updated dependencies [09a2a38]
+  - @assistant-ui/react-markdown@0.7.2
+  - @assistant-ui/react@0.7.6
+
 ## 0.1.1
 
 ### Patch Changes

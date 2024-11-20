@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.7.6
+
+### Patch Changes
+
+- 933b8c0: chore: update deps
+- 09a2a38: fix: TextContentPartProvider should support contentPartRuntime.getState()
+
 ## 0.7.5
 
 ### Patch Changes

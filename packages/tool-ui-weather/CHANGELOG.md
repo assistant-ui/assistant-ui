@@ -1,5 +1,11 @@
 # @tool-ui/weather
 
+## 0.0.16
+
+### Patch Changes
+
+- 933b8c0: chore: update deps
+
 ## 0.0.15
 
 ### Patch Changes
