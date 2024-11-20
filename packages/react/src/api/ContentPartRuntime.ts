@@ -46,7 +46,6 @@ export class ContentPartRuntimeImpl implements ContentPartRuntime {
   ) {}
 
   public getState() {
-    console.log(this.contentBinding);
     return this.contentBinding.getState();
   }
 
