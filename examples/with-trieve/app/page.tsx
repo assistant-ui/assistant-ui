@@ -48,6 +48,7 @@ const RuntimeProvider = () => {
         value: "poll",
       },
     ],
+    search_type: "fulltext",
   });
 
   return (

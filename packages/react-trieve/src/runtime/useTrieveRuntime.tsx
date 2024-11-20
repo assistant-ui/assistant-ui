@@ -12,7 +12,7 @@ import {
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toTrieveStream, TrieveStreamPart } from "../trieve/trieveStream";
-import { ChunkMetadata, TrieveSDK } from "trieve-ts-sdk";
+import { ChunkMetadata, SearchMethod, TrieveSDK } from "trieve-ts-sdk";
 import { TrieveMessage } from "../trieve/TrieveMessage";
 import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
 
@@ -78,10 +78,12 @@ export const useTrieveRuntime = ({
   trieve,
   ownerId,
   tags,
+  search_type,
 }: {
   trieve: TrieveSDK;
   ownerId: string;
   tags?: TrieveTag[];
+  search_type: SearchMethod;
 }) => {
   const [title, setTitle] = useState("");
   const threadIdRef = useRef<string | undefined>();
@@ -227,6 +229,7 @@ export const useTrieveRuntime = ({
           .createMessageReader({
             topic_id: threadIdRef.current,
             new_message_content: userMessage,
+            search_type,
             filters: getFilter(),
           })
           .then(toTrieveStream)
