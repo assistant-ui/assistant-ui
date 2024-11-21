@@ -51,6 +51,13 @@ const SHOWCASE_ITEMS: ShowcaseItem[] = [
     secondaryTag: "OSS",
   },
   {
+    title: "Komodo",
+    image: "/screenshot/komodo.png",
+    tag: "Developer Tools",
+    link: "https://www.komodo.io/",
+    description: "Build, train, and deploy AI models",
+  },
+  {
     title: "Open Canvas",
     image: "/screenshot/open-canvas.png",
     tag: "AI Assistant",
@@ -64,8 +71,24 @@ const SHOWCASE_ITEMS: ShowcaseItem[] = [
     image: "/screenshot/portal.png",
     tag: "Browser",
     link: "https://www.portal.so/",
-    description:
-      "AI executive assistant in the form of a browser",
+    description: "AI executive assistant in the form of a browser",
+  },
+  {
+    title: "Relta",
+    image: "/screenshot/relta.png",
+    tag: "Developer Tools",
+    link: "https://www.relta.dev/",
+    description: "Accurate, secure AI assistants for relational data",
+  },
+  {
+    title: "LangGraph Stockbroker",
+    image: "/screenshot/stockbroker.png",
+    tag: "Developer Tools",
+    link: "https://assistant-ui-stockbroker.vercel.app/",
+    announcementLink: "https://blog.langchain.dev/assistant-ui/",
+    repositoryLink: "https://github.com/Yonom/assistant-ui-stockbroker",
+    description: "Research financial data about public companies",
+    secondaryTag: "OSS",
   },
 ];
 
