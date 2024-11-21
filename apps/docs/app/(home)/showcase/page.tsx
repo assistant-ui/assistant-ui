@@ -111,6 +111,13 @@ export default function Component() {
             <ShowcaseCard key={item.title} {...item} />
           ))}
         </div>
+
+        <div className="my-20 flex flex-col items-center gap-6">
+          <h2 className="text-4xl font-bold">Building something cool?</h2>
+          <Button asChild>
+            <a href="mailto:showcase@assistant-ui.com">Let us know about it!</a>
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -127,7 +134,7 @@ function ShowcaseCard({
   description,
 }: ShowcaseItem) {
   return (
-    <Card className="group relative flex max-h-[350px] flex-col overflow-hidden rounded-lg border-zinc-800 bg-zinc-950">
+    <Card className="bg-card group relative flex max-h-[350px] flex-col overflow-hidden rounded-lg">
       <div className="overflow-hidden">
         <Image
           src={image}
@@ -141,11 +148,11 @@ function ShowcaseCard({
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold">{title}</h3>
           <div className="flex gap-2">
-            <span className="rounded bg-purple-900/50 px-2 py-1 text-xs">
+            <span className="rounded bg-purple-300/50 px-2 py-1 text-xs dark:bg-purple-900/50">
               {tag}
             </span>
             {secondaryTag && (
-              <span className="rounded bg-zinc-800 px-2 py-1 text-xs">
+              <span className="rounded bg-green-100 px-2 py-1 text-xs dark:bg-green-800">
                 {secondaryTag}
               </span>
             )}
