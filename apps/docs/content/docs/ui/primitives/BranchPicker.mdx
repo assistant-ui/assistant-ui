@@ -50,35 +50,11 @@ The current branch number.
 
 This primitive renders the raw number as a string.
 
-#### `useBranchPickerNumber`
-
-```tsx
-import { useBranchPickerNumber } from "@assistant-ui/react";
-
-const Number = () => {
-  const number = useBranchPickerNumber();
-
-  return <span>{number}</span>;
-};
-```
-
 ### Count
 
 The total number of branches.
 
 This primitive renders the raw number as a string.
-
-#### `useBranchPickerCount`
-
-```tsx
-import { useBranchPickerCount } from "@assistant-ui/react";
-
-const Count = () => {
-  const count = useBranchPickerCount();
-
-  return <span>{count}</span>;
-};
-```
 
 ### Previous
 
@@ -95,21 +71,6 @@ This primitive renders a `<button>` element unless `asChild` is set.
   ]}
 />
 
-#### `useBranchPickerPrevious`
-
-```tsx
-import { useBranchPickerPrevious } from "@assistant-ui/react";
-
-const Previous = () => {
-  const previous = useBranchPickerPrevious();
-
-  // previous action is not available
-  if (!previous) return null;
-
-  return <button onClick={previous}>Previous</button>;
-};
-```
-
 ### Next
 
 Navigates to the next branch.
@@ -124,18 +85,3 @@ This primitive renders a `<button>` element unless `asChild` is set.
     },
   ]}
 />
-
-#### `useBranchPickerNext`
-
-```tsx
-import { useBranchPickerNext } from "@assistant-ui/react";
-
-const Next = () => {
-  const next = useBranchPickerNext();
-
-  // next action is not available
-  if (!next) return null;
-
-  return <button onClick={next}>Next</button>;
-};
-```

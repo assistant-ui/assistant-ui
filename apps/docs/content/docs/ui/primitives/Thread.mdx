@@ -61,21 +61,6 @@ This primitive renders a `<div>` element unless `asChild` is set.
   ]}
 />
 
-#### `useThreadViewportAutoScroll`
-
-Returns a ref, which when set, will implement the viewport auto scroll behavior.
-Only useful you are creating a custom viewport component.
-
-```tsx
-import { useThreadViewportAutoScroll } from "@assistant-ui/react";
-
-const Viewport = () => {
-  const autoScrollRef = useThreadViewportAutoScroll();
-
-  return <div ref={autoScrollRef}>...</div>;
-};
-```
-
 ### Messages
 
 Renders all messages. This primitive renders a separate component for each message.
@@ -123,18 +108,6 @@ Renders all messages. This primitive renders a separate component for each messa
 
 Renders children only when there are no messages.
 
-#### `useThreadEmpty`
-
-```tsx
-import { useThreadEmpty } from "@assistant-ui/react";
-
-const ThreadEmpty = () => {
-  const isEmpty = useThreadEmpty();
-
-  return isEmpty ? <Empty /> : <NotEmpty />;
-};
-```
-
 ### ScrollToBottom
 
 A button to scroll the viewport to the bottom. Disabled when the viewport is already at bottom.
@@ -149,21 +122,6 @@ This primitive renders a `<button>` element unless `asChild` is set.
     },
   ]}
 />
-
-#### `useThreadScrollToBottom`
-
-```tsx
-import { useThreadScrollToBottom } from "@assistant-ui/react";
-
-const ScrollToBottom = () => {
-  const scrollToBottom = useThreadScrollToBottom();
-
-  // scroll to bottom action is not available
-  if (!scrollToBottom) return null;
-
-  return <button onClick={scrollToBottom}>Scroll to bottom</button>;
-};
-```
 
 ### `ThreadPrimitive.Suggestion`
 
@@ -209,24 +167,6 @@ const Suggestion = () => {
 />;
 ```
 
-#### `useThreadSuggestion`
-
-```tsx
-import { useThreadSuggestion } from "@assistant-ui/react";
-
-const Suggestion = () => {
-  const suggestion = useThreadSuggestion({
-    prompt: "Write me a poem about the weather",
-    method: "replace",
-    autoSend: true,
-  });
-
-  return (
-    <button onClick={suggestion}>Write me a poem about the weather</button>
-  );
-};
-```
-
 ### If
 
 Renders children if a condition is met.
@@ -254,16 +194,4 @@ Renders children if a condition is met.
 <Thread.If empty={false}>
   {/* rendered if thread is not empty */}
 </Thread.If>
-```
-
-#### `useThreadIf`
-
-```tsx
-import { useThreadIf } from "@assistant-ui/react";
-
-const ThreadIf = () => {
-  const isEmpty = useThreadIf({ empty: true });
-
-  return isEmpty ? <Empty /> : <NotEmpty />;
-};
 ```

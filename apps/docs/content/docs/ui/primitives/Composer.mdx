@@ -56,26 +56,6 @@ This primitive renders a `<form>` element unless `asChild` is set.
   ]}
 />
 
-#### `useComposerSend`
-
-```tsx
-import { useComposerSend } from "@assistant-ui/react";
-
-const Send = () => {
-  const send = useComposerSend();
-
-  const handleSubmit = (e: FormEvent) => {
-    // send action is not available
-    if (!send) return;
-
-    e.preventDefault();
-    send();
-  };
-
-  return <form onSubmit={handleSubmit}>...</form>;
-};
-```
-
 ### Input
 
 The text input field for the user to type a new message.
@@ -138,21 +118,6 @@ This primitive renders a `<button>` element unless `asChild` is set.
     },
   ]}
 />
-
-#### `useComposerCancel`
-
-```tsx
-import { useComposerCancel } from "@assistant-ui/react";
-
-const Cancel = () => {
-  const cancel = useComposerCancel();
-
-  // cancel action is not available
-  if (!cancel) return null;
-
-  return <button onClick={cancel}>Cancel</button>;
-};
-```
 
 ### Attachments
 
@@ -230,16 +195,4 @@ Renders children if a condition is met.
 
 ```tsx
 <Composer.If editing>{/* rendered if message is being edited */}</Composer.If>
-```
-
-#### `useComposerIf`
-
-```tsx
-import { useComposerIf } from "@assistant-ui/react";
-
-const Composer = () => {
-  const isEditing = useComposerIf((c) => c.isEditing);
-
-  return isEditing ? <Editing /> : <NotEditing />;
-};
 ```

@@ -115,23 +115,6 @@ This primitive renders a `<button>` element unless `asChild` is set.
   ]}
 />
 
-#### `useActionBarEdit`
-
-Provides the `Edit` functionality as a hook.
-
-```tsx
-import { useActionBarEdit } from "@assistant-ui/react";
-
-const Edit = () => {
-  const edit = useActionBarEdit();
-
-  // edit action is not available
-  if (!edit) return null;
-
-  return <button onClick={edit}>Edit</button>;
-};
-```
-
 ### Reload
 
 Regenerates the assistant message.
@@ -145,24 +128,7 @@ This primitive renders a `<button>` element unless `asChild` is set.
       name: "asChild",
     },
   ]}
-/>
-
-#### `useActionBarReload`
-
-Provides the `Reload` functionality as a hook.
-
-```tsx
-import { useActionBarReload } from "@assistant-ui/react";
-
-const Reload = () => {
-  const reload = useActionBarReload();
-
-  // reload action is not available
-  if (!reload) return null;
-
-  return <button onClick={reload}>Reload</button>;
-};
-```
+/>{" "}
 
 ### Copy
 
@@ -219,36 +185,6 @@ or using the `data-copied` attribute:
 </ActionBarPrimitive.Copy>
 ```
 
-#### `useActionBarCopy`
-
-Provides the `Copy` functionality as a hook.
-
-```tsx
-import { useActionBarCopy } from "@assistant-ui/react";
-
-const Copy = () => {
-  const copy = useActionBarCopy({ copiedDuration: 3000 });
-
-  // copy action is not available
-  if (!copy) return null;
-
-  return <button onClick={copy}>Copy</button>;
-};
-```
-
-<ParametersTable
-  type="UseActionBarCopyProps"
-  parameters={[
-    {
-      name: "copiedDuration",
-      type: "number",
-      description:
-        "The duration in milliseconds in which the message status is set to 'copied'.",
-      default: "3000",
-    },
-  ]}
-/>
-
 ### Speak
 
 Plays the message text as speech.
@@ -264,23 +200,6 @@ This primitive renders a `<button>` element unless `asChild` is set.
   ]}
 />
 
-#### `useActionBarSpeak`
-
-Provides the `Speak` functionality as a hook.
-
-```tsx
-import { useActionBarSpeak } from "@assistant-ui/react";
-
-const Speak = () => {
-  const speak = useActionBarSpeak();
-
-  // speak action is not available
-  if (!speak) return null;
-
-  return <button onClick={speak}>Speak</button>;
-};
-```
-
 ### StopSpeaking
 
 Stops the message text from being played as speech.
@@ -295,23 +214,6 @@ This primitive renders a `<button>` element unless `asChild` is set.
     },
   ]}
 />
-
-#### `useActionBarStopSpeaking`
-
-Provides the `StopSpeaking` functionality as a hook.
-
-```tsx
-import { useActionBarStopSpeaking } from "@assistant-ui/react";
-
-const StopSpeaking = () => {
-  const stopSpeaking = useActionBarStopSpeaking();
-
-  // stopSpeaking action is not available
-  if (!stopSpeaking) return null;
-
-  return <button onClick={stopSpeaking}>Stop speaking</button>;
-};
-```
 
 ### Feedback Positive
 
@@ -337,23 +239,6 @@ This primitive renders a `<button>` element unless `asChild` is set.
   ]}
 />
 
-#### `useActionBarFeedbackPositive`
-
-Provides the `FeedbackPositive` functionality as a hook.
-
-```tsx
-import { useActionBarFeedbackPositive } from "@assistant-ui/react";
-
-const FeedbackPositive = () => {
-  const feedbackPositive = useActionBarFeedbackPositive();
-
-  // feedbackPositive action is not available
-  if (!feedbackPositive) return null;
-
-  return <button onClick={feedbackPositive}>Feedback Positive</button>;
-};
-```
-
 ### Feedback Negative
 
 Shows a negative feedback submission button.
@@ -377,20 +262,3 @@ This primitive renders a `<button>` element unless `asChild` is set.
     },
   ]}
 />
-
-#### `useActionBarFeedbackNegative`
-
-Provides the `FeedbackNegative` functionality as a hook.
-
-```tsx
-import { useActionBarFeedbackNegative } from "@assistant-ui/react";
-
-const FeedbackNegative = () => {
-  const feedbackNegative = useActionBarFeedbackNegative();
-
-  // feedbackNegative action is not available
-  if (!feedbackNegative) return null;
-
-  return <button onClick={feedbackNegative}>Feedback Negative</button>;
-};
-```

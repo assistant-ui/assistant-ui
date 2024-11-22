@@ -14,7 +14,6 @@ import { MessagePrimitive } from "@assistant-ui/react";
 const UserMessage = () => (
   <MessagePrimitive.Root>
     User: <MessagePrimitive.Content />
-
     <BranchPicker />
     <ActionBar />
   </MessagePrimitive.Root>
@@ -23,7 +22,6 @@ const UserMessage = () => (
 const AssistantMessage = () => (
   <MessagePrimitive.Root>
     Assistant: <MessagePrimitive.Content />
-
     <BranchPicker />
     <ActionBar />
   </MessagePrimitive.Root>
@@ -160,16 +158,4 @@ Renders children if a condition is met.
 <Message.If assistant>
   {/* rendered if message is from the assistant */}
 </Message.If>
-```
-
-#### `useMessageIf`
-
-```tsx
-import { useMessageIf } from "@assistant-ui/react";
-
-const Message = () => {
-  const isUser = useMessageIf({ user: true });
-
-  return isUser ? <UserMessage /> : <AssistantMessage />;
-};
 ```

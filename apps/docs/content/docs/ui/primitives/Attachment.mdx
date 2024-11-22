@@ -94,20 +94,3 @@ This primitive renders a `<button>` element unless `asChild` is set.
     },
   ]}
 />
-
-#### `useAttachmentRemove`
-
-Provides the `Remove` functionality as a hook.
-
-```tsx
-import { useAttachmentRemove } from "@assistant-ui/react";
-
-const Remove = () => {
-  const remove = useAttachmentRemove();
-
-  // remove action is not available
-  if (!remove) return null;
-
-  return <button onClick={remove}>Remove</button>;
-};
-```
