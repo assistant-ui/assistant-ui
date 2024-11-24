@@ -4,14 +4,16 @@ import { forwardRef } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip";
 import { Button, ButtonProps } from "./button";
 
-export type TooltipIconButtonProps = ButtonProps & {
-  tooltip: string;
-  side?: "top" | "bottom" | "left" | "right";
-};
+export namespace TooltipIconButton {
+  export type Props = ButtonProps & {
+    tooltip: string;
+    side?: "top" | "bottom" | "left" | "right";
+  };
+}
 
 export const TooltipIconButton = forwardRef<
   HTMLButtonElement,
-  TooltipIconButtonProps
+  TooltipIconButton.Props
 >(({ children, tooltip, side = "bottom", ...rest }, ref) => {
   return (
     <Tooltip>

@@ -10,10 +10,7 @@ import {
 import { CircleXIcon, FileIcon } from "lucide-react";
 import { withDefaults } from "./utils/withDefaults";
 import { useThreadConfig } from "./thread-config";
-import {
-  TooltipIconButton,
-  TooltipIconButtonProps,
-} from "./base/tooltip-icon-button";
+import { TooltipIconButton } from "./base/tooltip-icon-button";
 import { AttachmentPrimitive } from "../primitives";
 import { useAttachment } from "../context/react/AttachmentContext";
 import {
@@ -169,7 +166,7 @@ AttachmentUI.displayName = "Attachment";
 
 namespace AttachmentRemove {
   export type Element = HTMLButtonElement;
-  export type Props = Partial<TooltipIconButtonProps>;
+  export type Props = Partial<TooltipIconButton.Props>;
 }
 
 const AttachmentRemove = forwardRef<

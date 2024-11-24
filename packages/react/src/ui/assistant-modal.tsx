@@ -6,10 +6,7 @@ import { BotIcon, ChevronDownIcon } from "lucide-react";
 import { AssistantModalPrimitive } from "../primitives";
 import Thread from "./thread";
 import { withDefaults } from "./utils/withDefaults";
-import {
-  TooltipIconButton,
-  TooltipIconButtonProps,
-} from "./base/tooltip-icon-button";
+import { TooltipIconButton } from "./base/tooltip-icon-button";
 import {
   ThreadConfig,
   ThreadConfigProvider,
@@ -50,7 +47,7 @@ AssistantModalRoot.displayName = "AssistantModalRoot";
 
 namespace AssistantModalTrigger {
   export type Element = HTMLButtonElement;
-  export type Props = Partial<TooltipIconButtonProps>;
+  export type Props = Partial<TooltipIconButton.Props>;
 }
 
 const AssistantModalTrigger = forwardRef<
@@ -81,7 +78,7 @@ const ModalButtonStyled = withDefaults(TooltipIconButton, {
 
 namespace AssistantModalButton {
   export type Element = HTMLButtonElement;
-  export type Props = Partial<TooltipIconButtonProps> & {
+  export type Props = Partial<TooltipIconButton.Props> & {
     "data-state"?: "open" | "closed";
   };
 }

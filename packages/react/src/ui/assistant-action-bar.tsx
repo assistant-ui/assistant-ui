@@ -11,10 +11,7 @@ import {
   ThumbsUpIcon,
 } from "lucide-react";
 import { ActionBarPrimitive, MessagePrimitive } from "../primitives";
-import {
-  TooltipIconButton,
-  TooltipIconButtonProps,
-} from "./base/tooltip-icon-button";
+import { TooltipIconButton } from "./base/tooltip-icon-button";
 import { withDefaults } from "./utils/withDefaults";
 import { useThreadConfig } from "./thread-config";
 import { useThread } from "../context";
@@ -91,7 +88,7 @@ AssistantActionBarRoot.displayName = "AssistantActionBarRoot";
 
 namespace AssistantActionBarCopy {
   export type Element = ActionBarPrimitive.Copy.Element;
-  export type Props = Partial<TooltipIconButtonProps> & {
+  export type Props = Partial<TooltipIconButton.Props> & {
     copiedDuration?: number | undefined;
   };
 }
@@ -141,7 +138,7 @@ const AssistantActionBarSpeechControl: FC = () => {
 
 namespace AssistantActionBarSpeak {
   export type Element = ActionBarPrimitive.Speak.Element;
-  export type Props = Partial<TooltipIconButtonProps>;
+  export type Props = Partial<TooltipIconButton.Props>;
 }
 
 const AssistantActionBarSpeak = forwardRef<
@@ -168,7 +165,7 @@ AssistantActionBarSpeak.displayName = "AssistantActionBarSpeak";
 
 namespace AssistantActionBarStopSpeaking {
   export type Element = ActionBarPrimitive.StopSpeaking.Element;
-  export type Props = Partial<TooltipIconButtonProps>;
+  export type Props = Partial<TooltipIconButton.Props>;
 }
 
 const AssistantActionBarStopSpeaking = forwardRef<
@@ -197,7 +194,7 @@ AssistantActionBarStopSpeaking.displayName = "AssistantActionBarStopSpeaking";
 
 namespace AssistantActionBarReload {
   export type Element = ActionBarPrimitive.Reload.Element;
-  export type Props = Partial<TooltipIconButtonProps>;
+  export type Props = Partial<TooltipIconButton.Props>;
 }
 
 const AssistantActionBarReload = forwardRef<
@@ -223,7 +220,7 @@ AssistantActionBarReload.displayName = "AssistantActionBarReload";
 
 namespace AssistantActionBarFeedbackPositive {
   export type Element = ActionBarPrimitive.FeedbackPositive.Element;
-  export type Props = Partial<TooltipIconButtonProps>;
+  export type Props = Partial<TooltipIconButton.Props>;
 }
 
 const AssistantActionBarFeedbackPositive = forwardRef<
@@ -256,7 +253,7 @@ AssistantActionBarFeedbackPositive.displayName =
 
 namespace AssistantActionBarFeedbackNegative {
   export type Element = ActionBarPrimitive.FeedbackNegative.Element;
-  export type Props = Partial<TooltipIconButtonProps>;
+  export type Props = Partial<TooltipIconButton.Props>;
 }
 
 const AssistantActionBarFeedbackNegative = forwardRef<

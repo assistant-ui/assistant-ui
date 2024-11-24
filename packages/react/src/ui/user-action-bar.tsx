@@ -3,10 +3,7 @@
 import { forwardRef, type FC } from "react";
 import { PencilIcon } from "lucide-react";
 
-import {
-  TooltipIconButton,
-  TooltipIconButtonProps,
-} from "./base/tooltip-icon-button";
+import { TooltipIconButton } from "./base/tooltip-icon-button";
 import { withDefaults } from "./utils/withDefaults";
 import { useThreadConfig } from "./thread-config";
 import { useThread } from "../context";
@@ -38,7 +35,7 @@ UserActionBarRoot.displayName = "UserActionBarRoot";
 
 namespace UserActionBarEdit {
   export type Element = ActionBarPrimitive.Edit.Element;
-  export type Props = Partial<TooltipIconButtonProps>;
+  export type Props = Partial<TooltipIconButton.Props>;
 }
 
 const UserActionBarEdit = forwardRef<

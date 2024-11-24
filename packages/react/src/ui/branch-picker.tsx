@@ -3,10 +3,7 @@
 import { ComponentPropsWithoutRef, forwardRef, type FC } from "react";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 
-import {
-  TooltipIconButton,
-  TooltipIconButtonProps,
-} from "./base/tooltip-icon-button";
+import { TooltipIconButton } from "./base/tooltip-icon-button";
 import { withDefaults } from "./utils/withDefaults";
 import { useThreadConfig } from "./thread-config";
 import { BranchPickerPrimitive } from "../primitives";
@@ -40,7 +37,7 @@ BranchPickerRoot.displayName = "BranchPickerRoot";
 
 namespace BranchPickerPrevious {
   export type Element = BranchPickerPrimitive.Previous.Element;
-  export type Props = Partial<TooltipIconButtonProps>;
+  export type Props = Partial<TooltipIconButton.Props>;
 }
 
 const BranchPickerPrevious = forwardRef<
@@ -88,7 +85,7 @@ BranchPickerState.displayName = "BranchPickerState";
 
 namespace BranchPickerNext {
   export type Element = BranchPickerPrimitive.Next.Element;
-  export type Props = Partial<TooltipIconButtonProps>;
+  export type Props = Partial<TooltipIconButton.Props>;
 }
 
 const BranchPickerNext = forwardRef<

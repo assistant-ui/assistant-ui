@@ -5,10 +5,7 @@ import { ComponentPropsWithoutRef, forwardRef, type FC } from "react";
 import { PaperclipIcon, SendHorizontalIcon } from "lucide-react";
 import { withDefaults } from "./utils/withDefaults";
 import { useThreadConfig } from "./thread-config";
-import {
-  TooltipIconButton,
-  TooltipIconButtonProps,
-} from "./base/tooltip-icon-button";
+import { TooltipIconButton } from "./base/tooltip-icon-button";
 import { CircleStopIcon } from "./base/CircleStopIcon";
 import { ComposerPrimitive, ThreadPrimitive } from "../primitives";
 import { useThread } from "../context/react/ThreadContext";
@@ -94,7 +91,7 @@ const ComposerAttachButton = withDefaults(TooltipIconButton, {
 
 namespace ComposerAddAttachment {
   export type Element = HTMLButtonElement;
-  export type Props = Partial<TooltipIconButtonProps>;
+  export type Props = Partial<TooltipIconButton.Props>;
 }
 
 const ComposerAddAttachment = forwardRef<
@@ -152,7 +149,7 @@ const ComposerSendButton = withDefaults(TooltipIconButton, {
 
 namespace ComposerSend {
   export type Element = HTMLButtonElement;
-  export type Props = Partial<TooltipIconButtonProps>;
+  export type Props = Partial<TooltipIconButton.Props>;
 }
 
 const ComposerSend = forwardRef<ComposerSend.Element, ComposerSend.Props>(
@@ -179,7 +176,7 @@ const ComposerCancelButton = withDefaults(TooltipIconButton, {
 
 namespace ComposerCancel {
   export type Element = HTMLButtonElement;
-  export type Props = Partial<TooltipIconButtonProps>;
+  export type Props = Partial<TooltipIconButton.Props>;
 }
 
 const ComposerCancel = forwardRef<ComposerCancel.Element, ComposerCancel.Props>(

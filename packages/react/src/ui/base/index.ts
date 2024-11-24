@@ -10,9 +10,6 @@ export { Button, buttonVariants, type ButtonProps } from "./button";
 
 export { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip";
 
-export {
-  TooltipIconButton,
-  type TooltipIconButtonProps,
-} from "./tooltip-icon-button";
+export { TooltipIconButton } from "./tooltip-icon-button";
 
 export { CircleStopIcon } from "./CircleStopIcon";

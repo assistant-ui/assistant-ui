@@ -6,10 +6,7 @@ import { ArrowDownIcon } from "lucide-react";
 import { withDefaults } from "./utils/withDefaults";
 import Composer from "./composer";
 import ThreadWelcome from "./thread-welcome";
-import {
-  TooltipIconButton,
-  TooltipIconButtonProps,
-} from "./base/tooltip-icon-button";
+import { TooltipIconButton } from "./base/tooltip-icon-button";
 import AssistantMessage from "./assistant-message";
 import UserMessage from "./user-message";
 import EditComposer from "./edit-composer";
@@ -133,7 +130,7 @@ const ThreadScrollToBottomIconButton = withDefaults(TooltipIconButton, {
 
 namespace ThreadScrollToBottom {
   export type Element = HTMLButtonElement;
-  export type Props = Partial<TooltipIconButtonProps>;
+  export type Props = Partial<TooltipIconButton.Props>;
 }
 
 const ThreadScrollToBottom = forwardRef<
