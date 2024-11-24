@@ -1,3 +1,6 @@
+@import "../../../packages/react/src/styles/index.css";
+@import "../../../packages/react/src/styles/modal.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
