@@ -14,7 +14,7 @@
   "devDependencies": {
     "@assistant-ui/tsconfig": "workspace:*",
     "@types/cross-spawn": "^6.0.6",
-    "@types/node": "^22.9.1",
+    "@types/node": "^22.9.3",
     "tsup": "8.3.5"
   },
   "files": [

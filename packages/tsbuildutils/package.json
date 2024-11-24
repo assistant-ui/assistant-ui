@@ -11,11 +11,11 @@
     "postcss": "^8.4.49",
     "postcss-js": "^4.0.1",
     "tsup": "8.3.5",
-    "typescript": "^5.6.3"
+    "typescript": "^5.7.2"
   },
   "devDependencies": {
     "@types/cross-spawn": "^6.0.6",
-    "@types/node": "^22.9.1",
+    "@types/node": "^22.9.3",
     "@types/postcss-js": "^4.0.4"
   }
 }

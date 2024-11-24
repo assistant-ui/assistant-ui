@@ -27,7 +27,7 @@
     "build": "tsx scripts/build.mts"
   },
   "dependencies": {
-    "@ai-sdk/provider": "^1.0.0",
+    "@ai-sdk/provider": "^1.0.1",
     "@radix-ui/react-avatar": "^1.1.1",
     "@radix-ui/react-dialog": "^1.1.2",
     "@radix-ui/react-dropdown-menu": "^2.1.2",
@@ -39,11 +39,11 @@
     "classnames": "^2.5.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.460.0",
-    "openai": "^4.72.0",
+    "openai": "^4.73.0",
     "prismjs": "^1.29.0",
     "react-simple-code-editor": "^0.14.1",
     "react-textarea-autosize": "^8.5.5",
-    "tailwind-merge": "^2.5.4",
+    "tailwind-merge": "^2.5.5",
     "zustand": "^5.0.1"
   },
   "peerDependencies": {

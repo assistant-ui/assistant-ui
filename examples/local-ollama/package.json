@@ -9,10 +9,10 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@assistant-ui/react": "^0.7.5",
-    "@assistant-ui/react-markdown": "^0.7.1",
+    "@assistant-ui/react": "^0.7.7",
+    "@assistant-ui/react-markdown": "^0.7.2",
     "next": "15.0.3",
-    "ollama-ai-provider": "^0.16.1",
+    "ollama-ai-provider": "^1.0.0",
     "react": "19.0.0-rc-66855b96-20241106",
     "react-dom": "19.0.0-rc-66855b96-20241106",
     "tailwindcss-animate": "^1.0.7",

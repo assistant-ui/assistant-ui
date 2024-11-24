@@ -104,7 +104,8 @@ const FfmpegTool: FC<{ file: File }> = ({ file }) => {
         const data = (await ffmpeg.readFile(outputFileName)) as Uint8Array;
         window.open(
           URL.createObjectURL(
-            new Blob([data.buffer], { type: outputMimeType }),
+            // https://github.com/microsoft/TypeScript/issues/60579
+            new Blob([data.buffer as BlobPart], { type: outputMimeType }),
           ),
           "_blank",
         );
