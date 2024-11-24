@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.7.8
+
+### Patch Changes
+
+- 589d37b: feat: ThreadList / ThreadListItem UI
+- 2112ce8: chore: update dependencies
+
 ## 0.7.7
 
 ### Patch Changes
