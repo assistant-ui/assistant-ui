@@ -21,6 +21,7 @@
   },
   "packageManager": "pnpm@9.14.2",
   "resolutions": {
-    "trieve-ts-sdk": "0.0.30"
+    "trieve-ts-sdk": "0.0.33",
+    "next": "15.0.3"
   }
 }
