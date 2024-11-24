@@ -219,3 +219,33 @@
 .aui-text-running::after {
   @apply animate-pulse font-sans content-['\25CF'] ltr:ml-1 rtl:mr-1;
 }
+
+/* thread-list */
+
+.aui-thread-list-root {
+  @apply flex flex-col items-stretch gap-1.5;
+}
+
+.aui-thread-list-item {
+  @apply data-[active]:bg-aui-muted hover:bg-aui-muted flex items-center gap-2 rounded-lg transition-all;
+}
+
+.aui-thread-list-new {
+  @apply data-[active]:bg-aui-muted hover:bg-aui-muted flex items-center justify-start gap-1 rounded-lg px-2.5 py-2 text-start;
+}
+
+.aui-thread-list-new > .lucide-plus {
+  @apply size-5;
+}
+
+.aui-thread-list-item-trigger {
+  @apply flex-grow px-3 py-2 text-start;
+}
+
+.aui-thread-list-item-title {
+  @apply text-sm;
+}
+
+.aui-thread-list-item-archive {
+  @apply hover:text-aui-primary text-aui-foreground ml-auto mr-3 size-4 p-0;
+}

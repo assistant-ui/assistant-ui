@@ -1,6 +1,7 @@
 import { ArchiveIcon, EditIcon, MenuIcon, ShareIcon } from "lucide-react";
 import {
   Thread,
+  ThreadList,
   ThreadListItemPrimitive,
   ThreadListPrimitive,
   useThreadList,
@@ -65,58 +66,20 @@ const ButtonWithTooltip: FC<ButtonWithTooltipProps> = ({
 };
 
 const TopLeft: FC = () => {
-  const isNewSelected = useThreadList((t) => t.newThread === t.mainThreadId);
   return (
-    <ThreadListPrimitive.New asChild>
-      <ButtonWithTooltip
-        variant="ghost"
-        className={cn(
-          "flex w-full justify-between px-3",
-          isNewSelected && "bg-aui-muted",
-        )}
-        tooltip="New Chat"
-        side="right"
-      >
-        <div className="flex items-center gap-2 text-sm font-semibold">
-          <Image
-            src={icon}
-            alt="logo"
-            className="inline size-4 dark:hue-rotate-180 dark:invert"
-          />
-          <span>assistant-ui</span>
-        </div>
-
-        <EditIcon className="size-4" />
-      </ButtonWithTooltip>
-    </ThreadListPrimitive.New>
-  );
-};
-
-const ThreadListItem: FC = () => {
-  return (
-    <ThreadListItemPrimitive.Root className="hover:text-primary data-[active]:bg-muted data-[active]:text-primary flex items-center gap-2 rounded-lg px-3 py-2 transition-all">
-      <ThreadListItemPrimitive.Trigger className="flex-grow text-start">
-        <ThreadListItemPrimitive.Title fallback="New Chat" />
-      </ThreadListItemPrimitive.Trigger>
-      <ThreadListItemPrimitive.Archive asChild>
-        <ButtonWithTooltip
-          variant="ghost"
-          className="hover:text-foreground/60 ml-auto h-auto p-0"
-          tooltip="Archive"
-        >
-          <ArchiveIcon className="size-4" />
-        </ButtonWithTooltip>
-      </ThreadListItemPrimitive.Archive>
-    </ThreadListItemPrimitive.Root>
+    <div className="flex h-full w-full items-center gap-2 px-3 text-sm font-semibold">
+      <Image
+        src={icon}
+        alt="logo"
+        className="inline size-4 dark:hue-rotate-180 dark:invert"
+      />
+      <span>assistant-ui</span>
+    </div>
   );
 };
 
 const MainLeft: FC = () => {
-  return (
-    <nav className="flex flex-col items-stretch gap-1 text-sm font-medium">
-      <ThreadListPrimitive.Items components={{ ThreadListItem }} />
-    </nav>
-  );
+  return <ThreadList />;
 };
 
 const LeftBarSheet: FC = () => {

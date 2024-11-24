@@ -65,6 +65,19 @@ export type StringsConfig = {
       };
     };
   };
+  threadList?: {
+    new?: {
+      label?: string | undefined;
+    };
+    item?: {
+      title?: {
+        fallback?: string | undefined;
+      };
+      archive?: {
+        label?: string | undefined;
+      };
+    };
+  };
   thread?: {
     scrollToBottom?: {
       tooltip?: string | undefined;

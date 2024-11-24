@@ -591,3 +591,39 @@ const MyAssistantModal: FC<ThreadConfig> = (config) => {
 ```ts
 <MyAssistantModal />
 ```
+
+## ThreadList
+
+Renders a thread list.
+
+```tsx
+import { ThreadList, ThreadListItem } from "@assistant-ui/react";
+
+const MyThreadList = () => {
+  return (
+    <ThreadList.Root>
+      <ThreadList.New />
+      <ThreadList.Items />
+    </ThreadList.Root>
+  );
+};
+```
+
+### ThreadListItem
+
+Renders a thread list item.
+
+```tsx
+import { ThreadListItem, ThreadListItemPrimitive } from "@assistant-ui/react";
+
+const MyThreadListItem = () => {
+  return (
+    <ThreadListItem.Root>
+      <ThreadListItemTrigger>
+        <ThreadListItemTitle />
+      </ThreadListItemTrigger>
+      <ThreadListItem.Archive />
+    </ThreadListItem.Root>
+  );
+};
+```
