@@ -46,7 +46,10 @@ export class AssistantStream {
     response: Response,
     transformer: ReadableWritablePair<AssistantStreamChunk, Uint8Array>,
   ) {
-    return AssistantStream.fromByteStream(response.body!, transformer);
+    if (!response.body) {
+      throw new Error('Response body is null');
+    }
+    return AssistantStream.fromByteStream(response.body, transformer);
   }
 
   toByteStream(
