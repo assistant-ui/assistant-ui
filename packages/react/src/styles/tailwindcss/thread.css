@@ -227,7 +227,7 @@
 }
 
 .aui-thread-list-item {
-  @apply data-[active]:bg-aui-muted hover:bg-aui-muted flex items-center gap-2 rounded-lg transition-all;
+  @apply data-[active]:bg-aui-muted hover:bg-aui-muted focus-visible:bg-aui-muted focus-visible:ring-aui-ring flex items-center gap-2 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2;
 }
 
 .aui-thread-list-new {

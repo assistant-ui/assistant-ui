@@ -27,17 +27,16 @@ const ThreadListNew = forwardRef<
   HTMLButtonElement,
   ThreadListPrimitive.New.Props & ButtonProps
 >((props, ref) => {
-  const {
-    strings: { threadList: { new: { label = "New Thread" } = {} } = {} } = {},
-  } = useThreadConfig();
+  const config = useThreadConfig();
+  const label = config.strings?.threadList?.new?.label ?? "New Thread";
 
   return (
     <ThreadListPrimitive.New asChild>
       <Button
-        {...props}
         ref={ref}
         className="aui-thread-list-new"
         variant="ghost"
+        {...props}
       >
         <PlusIcon />
         {label}
@@ -47,9 +46,16 @@ const ThreadListNew = forwardRef<
 });
 ThreadListNew.displayName = "ThreadListNew";
 
-const ThreadListItems: FC<{
-  components?: Partial<ThreadListPrimitive.Items.Props["components"]>;
-}> = ({ components }) => {
+namespace ThreadListItems {
+  export type Props = {
+    /**
+     * Optional custom components to override default thread list items
+     */
+    components?: Partial<ThreadListPrimitive.Items.Props["components"]>;
+  };
+}
+
+const ThreadListItems: FC<ThreadListItems.Props> = ({ components }) => {
   return (
     <ThreadListPrimitive.Items
       components={{

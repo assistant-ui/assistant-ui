@@ -31,7 +31,7 @@ export const ThreadListPrimitiveNew = forwardRef<
   return (
     <Primitive.button
       type="button"
-      {...(isMain ? { "data-active": "true" } : null)}
+      {...(isMain ? { "data-active": "true", "aria-current": "true" } : null)}
       {...props}
       ref={forwardedRef}
       disabled={disabled || !callback}

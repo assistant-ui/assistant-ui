@@ -39,11 +39,9 @@ const ThreadListItemTitle = forwardRef<
   ThreadListItemPrimitiveTitle.Element,
   ThreadListItemPrimitiveTitle.Props
 >(({ className, ...props }, ref) => {
-  const {
-    strings: {
-      threadList: { item: { title: { fallback = "New Chat" } = {} } = {} } = {},
-    } = {},
-  } = useThreadConfig();
+  const config = useThreadConfig();
+  const fallback =
+    config.strings?.threadList?.item?.title?.fallback ?? "New Chat";
 
   return (
     <p
@@ -58,34 +56,28 @@ const ThreadListItemTitle = forwardRef<
 
 ThreadListItemTitle.displayName = "ThreadListItemTitle";
 
-const ThreadListItemArchive = withDefaults(
-  forwardRef<HTMLButtonElement, TooltipIconButton.Props>(
-    ({ className, ...props }, ref) => {
-      const {
-        strings: {
-          threadList: {
-            item: { archive: { label = "Archive thread" } = {} } = {},
-          } = {},
-        } = {},
-      } = useThreadConfig();
+const ThreadListItemArchive = forwardRef<
+  HTMLButtonElement,
+  Partial<TooltipIconButton.Props>
+>(({ className, ...props }, ref) => {
+  const config = useThreadConfig();
+  const tooltip =
+    config.strings?.threadList?.item?.archive?.tooltip ?? "Archive thread";
 
-      return (
-        <ThreadListItemPrimitive.Archive asChild>
-          <TooltipIconButton
-            {...props}
-            ref={ref}
-            className={classNames("aui-thread-list-item-archive", className)}
-            variant="ghost"
-            tooltip={label}
-          >
-            <ArchiveIcon />
-          </TooltipIconButton>
-        </ThreadListItemPrimitive.Archive>
-      );
-    },
-  ),
-  {},
-);
+  return (
+    <ThreadListItemPrimitive.Archive asChild>
+      <TooltipIconButton
+        ref={ref}
+        className={classNames("aui-thread-list-item-archive", className)}
+        variant="ghost"
+        tooltip={tooltip}
+        {...props}
+      >
+        <ArchiveIcon />
+      </TooltipIconButton>
+    </ThreadListItemPrimitive.Archive>
+  );
+});
 
 ThreadListItemArchive.displayName = "ThreadListItemArchive";
 

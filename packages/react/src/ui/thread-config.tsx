@@ -74,7 +74,7 @@ export type StringsConfig = {
         fallback?: string | undefined;
       };
       archive?: {
-        label?: string | undefined;
+        tooltip?: string | undefined;
       };
     };
   };

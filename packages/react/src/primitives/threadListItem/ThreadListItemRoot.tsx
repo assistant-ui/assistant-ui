@@ -19,7 +19,7 @@ export const ThreadListItemPrimitiveRoot = forwardRef<
 
   return (
     <Primitive.div
-      {...(isMain ? { "data-active": "true" } : null)}
+      {...(isMain ? { "data-active": "true", "aria-current": "true" } : null)}
       {...props}
       ref={ref}
     />
