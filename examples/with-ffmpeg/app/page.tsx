@@ -101,11 +101,12 @@ const FfmpegTool: FC<{ file: File }> = ({ file }) => {
     }) {
       const handleDownload = async () => {
         const ffmpeg = ffmpegRef.current;
-        const data = (await ffmpeg.readFile(outputFileName)) as Uint8Array;
+        const data = (await ffmpeg.readFile(
+          outputFileName,
+        )) as Uint8Array<ArrayBuffer>;
         window.open(
           URL.createObjectURL(
-            // https://github.com/microsoft/TypeScript/issues/60579
-            new Blob([data.buffer as BlobPart], { type: outputMimeType }),
+            new Blob([data.buffer], { type: outputMimeType }),
           ),
           "_blank",
         );
