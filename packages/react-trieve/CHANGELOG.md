@@ -1,5 +1,15 @@
 # @assistant-ui/react-trieve
 
+## 0.1.4
+
+### Patch Changes
+
+- 2276e57: fix: cjs builds
+- Updated dependencies [2276e57]
+- Updated dependencies [e8752ac]
+  - @assistant-ui/react-markdown@0.7.4
+  - @assistant-ui/react@0.7.9
+
 ## 0.1.3
 
 ### Patch Changes

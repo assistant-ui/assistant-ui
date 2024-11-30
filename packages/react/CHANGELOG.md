@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.7.9
+
+### Patch Changes
+
+- 2276e57: fix: cjs builds
+- e8752ac: fix: ThreadList a11y improvements
+
 ## 0.7.8
 
 ### Patch Changes
