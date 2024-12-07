@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.10
+
+### Patch Changes
+
+- 1eab7b4: refactor: ThreadList
+
 ## 0.7.9
 
 ### Patch Changes
