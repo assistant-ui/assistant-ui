@@ -18,7 +18,6 @@ import {
   ThreadRuntimeCore,
 } from "../core/ThreadRuntimeCore";
 import { BaseThreadRuntimeCore } from "../core/BaseThreadRuntimeCore";
-import { LocalThreadMetadataRuntimeCore } from "../local/LocalThreadMetadataRuntimeCore";
 
 const EMPTY_ARRAY = Object.freeze([]);
 
@@ -77,16 +76,13 @@ export class ExternalStoreThreadRuntimeCore
 
   constructor(
     configProvider: ModelConfigProvider,
-    threadId: string,
     store: ExternalStoreAdapter<any>,
   ) {
-    const metadata = new LocalThreadMetadataRuntimeCore(threadId);
-    metadata.create();
-    super(configProvider, metadata);
-    this.setStore(store);
+    super(configProvider);
+    this.__internal_setStore(store);
   }
 
-  public setStore(store: ExternalStoreAdapter<any>) {
+  public __internal_setStore(store: ExternalStoreAdapter<any>) {
     if (this._store === store) return;
 
     const isRunning = store.isRunning ?? false;

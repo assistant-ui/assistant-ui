@@ -9,29 +9,22 @@ import {
   AssistantRuntimeImpl,
 } from "../../api/AssistantRuntime";
 import { ThreadRuntimeImpl } from "../../internal";
-import { ThreadRuntime } from "../../api/ThreadRuntime";
 
 export type LocalRuntime = AssistantRuntime & {
   reset: (options?: Parameters<LocalRuntimeCore["reset"]>[0]) => void;
 };
 
 class LocalRuntimeImpl extends AssistantRuntimeImpl implements LocalRuntime {
-  private constructor(
-    private core: LocalRuntimeCore,
-    thread: ThreadRuntime,
-  ) {
-    super(core, thread);
+  private constructor(private core: LocalRuntimeCore) {
+    super(core, ThreadRuntimeImpl);
   }
 
   public reset(options?: Parameters<LocalRuntimeCore["reset"]>[0]) {
     this.core.reset(options);
   }
 
-  public static override create(_core: LocalRuntimeCore) {
-    return new LocalRuntimeImpl(
-      _core,
-      AssistantRuntimeImpl.createMainThreadRuntime(_core, ThreadRuntimeImpl),
-    ) as LocalRuntime;
+  public static override create(_core: LocalRuntimeCore): LocalRuntime {
+    return new LocalRuntimeImpl(_core);
   }
 }
 
@@ -50,7 +43,7 @@ export const useLocalRuntime = (
   const [runtime] = useState(() => new LocalRuntimeCore(opt, initialMessages));
 
   useEffect(() => {
-    runtime.setOptions(opt);
+    runtime.threadList.getMainThreadRuntimeCore().__internal_setOptions(opt);
   });
 
   return useMemo(() => LocalRuntimeImpl.create(runtime), [runtime]);

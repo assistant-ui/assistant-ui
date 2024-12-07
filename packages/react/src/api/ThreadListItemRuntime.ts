@@ -1,11 +1,22 @@
-import { ThreadMetadata } from "../runtimes/core/ThreadRuntimeCore";
 import { Unsubscribe } from "../types";
 import { ThreadListItemRuntimePath } from "./RuntimePathTypes";
 import { SubscribableWithState } from "./subscribable/Subscribable";
 import { ThreadListRuntimeCoreBinding } from "./ThreadListRuntime";
 
-export type ThreadListItemState = ThreadMetadata & {
+export type ThreadListItemEventType = "switched-to" | "switched-away";
+
+export type ThreadListItemState = {
   readonly isMain: boolean;
+
+  readonly id: string;
+
+  /**
+   * @deprecated This field was renamed to `id`. This field will be removed in 0.8.0.
+   */
+  readonly threadId: string;
+
+  readonly state: "archived" | "regular" | "new" | "deleted";
+  readonly title?: string | undefined;
 };
 
 export type ThreadListItemRuntime = {
@@ -19,6 +30,11 @@ export type ThreadListItemRuntime = {
   delete(): Promise<void>;
 
   subscribe(callback: () => void): Unsubscribe;
+
+  unstable_on(
+    event: ThreadListItemEventType,
+    callback: () => void,
+  ): Unsubscribe;
 };
 
 export type ThreadListItemStateBinding = SubscribableWithState<
@@ -42,31 +58,44 @@ export class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
 
   public switchTo(): Promise<void> {
     const state = this._core.getState();
-    return this._threadListBinding.switchToThread(state.threadId);
+    return this._threadListBinding.switchToThread(state.id);
   }
 
   public rename(newTitle: string): Promise<void> {
     const state = this._core.getState();
 
-    return this._threadListBinding.rename(state.threadId, newTitle);
+    return this._threadListBinding.rename(state.id, newTitle);
   }
 
   public archive(): Promise<void> {
     const state = this._core.getState();
 
-    return this._threadListBinding.archive(state.threadId);
+    return this._threadListBinding.archive(state.id);
   }
 
   public unarchive(): Promise<void> {
     const state = this._core.getState();
 
-    return this._threadListBinding.unarchive(state.threadId);
+    return this._threadListBinding.unarchive(state.id);
   }
 
   public delete(): Promise<void> {
     const state = this._core.getState();
 
-    return this._threadListBinding.delete(state.threadId);
+    return this._threadListBinding.delete(state.id);
+  }
+
+  public unstable_on(event: ThreadListItemEventType, callback: () => void) {
+    let prevIsMain = this._core.getState().isMain;
+    return this.subscribe(() => {
+      const newIsMain = this._core.getState().isMain;
+      if (prevIsMain === newIsMain) return;
+      prevIsMain = newIsMain;
+
+      if (event === "switched-to" && !newIsMain) return;
+      if (event === "switched-away" && newIsMain) return;
+      callback();
+    });
   }
 
   public subscribe(callback: () => void): Unsubscribe {

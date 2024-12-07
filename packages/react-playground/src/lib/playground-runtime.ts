@@ -24,7 +24,6 @@ import {
   ThreadSuggestion,
   ThreadRuntime,
   AssistantRuntime,
-  ThreadMetadataRuntimeCore,
 } from "@assistant-ui/react";
 import { LanguageModelV1FunctionTool } from "@ai-sdk/provider";
 import { useMemo, useState } from "react";
@@ -37,7 +36,6 @@ const {
   DefaultThreadComposerRuntimeCore,
   AssistantRuntimeImpl,
   ThreadRuntimeImpl,
-  LocalThreadMetadataRuntimeCore,
 } = INTERNAL;
 
 const makeModelConfigStore = () =>
@@ -51,9 +49,7 @@ const makeModelConfigStore = () =>
     config: {},
   }));
 
-type PlaygroundThreadFactory = (
-  threadId: string,
-) => PlaygroundThreadRuntimeCore;
+type PlaygroundThreadFactory = () => PlaygroundThreadRuntimeCore;
 
 const EMPTY_ARRAY = [] as never[];
 
@@ -62,28 +58,38 @@ class PlaygroundThreadListRuntimeCore
 {
   private _mainThread: PlaygroundThreadRuntimeCore;
 
-  public get mainThread() {
-    return this._mainThread;
+  public get mainThreadId() {
+    return "default";
   }
 
-  public get newThread() {
+  public get newThreadId() {
     return undefined;
   }
 
-  public get threads() {
+  public get threadIds() {
     return EMPTY_ARRAY;
   }
 
-  public get archivedThreads() {
+  public get archivedThreadIds() {
     return EMPTY_ARRAY;
   }
 
   constructor(private threadFactory: PlaygroundThreadFactory) {
-    this._mainThread = this.threadFactory(generateId());
+    this._mainThread = this.threadFactory();
   }
 
-  getThreadMetadataById(): never {
-    throw new Error("Method not implemented.");
+  public getMainThreadRuntimeCore() {
+    return this._mainThread;
+  }
+
+  public getItemById(id: string) {
+    if (id !== "default") return undefined;
+
+    return {
+      threadId: "default",
+      state: "regular",
+      runtime: this._mainThread,
+    } as const;
   }
 
   public switchToThread(): Promise<void> {
@@ -91,7 +97,7 @@ class PlaygroundThreadListRuntimeCore
   }
 
   public async switchToNewThread(): Promise<void> {
-    this._mainThread = this.threadFactory(generateId());
+    this._mainThread = this.threadFactory();
     this.notifySubscribers();
   }
 
@@ -129,10 +135,9 @@ class PlaygroundRuntimeCore extends BaseAssistantRuntimeCore {
   ) {
     super();
 
-    this.threadList = new PlaygroundThreadListRuntimeCore((threadId) => {
+    this.threadList = new PlaygroundThreadListRuntimeCore(() => {
       const thread = new PlaygroundThreadRuntimeCore(
         this._proxyConfigProvider,
-        threadId,
         fromCoreMessages(initialMessages),
         adapter,
       );
@@ -162,10 +167,8 @@ const CAPABILITIES = Object.freeze({
 const EMPTY_BRANCHES: readonly string[] = Object.freeze([]);
 
 export class PlaygroundThreadRuntimeCore implements INTERNAL.ThreadRuntimeCore {
-  private _metadata: ThreadMetadataRuntimeCore;
-
   public get metadata() {
-    return this._metadata;
+    return { isMain: true, threadId: "default", state: "regular" } as const;
   }
 
   private _subscriptions = new Set<() => void>();
@@ -195,11 +198,9 @@ export class PlaygroundThreadRuntimeCore implements INTERNAL.ThreadRuntimeCore {
 
   constructor(
     configProvider: ModelConfigProvider,
-    threadId: string,
     private _messages: ThreadMessage[],
     public readonly adapter: ChatModelAdapter,
   ) {
-    this._metadata = new LocalThreadMetadataRuntimeCore(threadId);
     this.configProvider.registerModelConfigProvider(configProvider);
     this.configProvider.registerModelConfigProvider({
       getModelConfig: () => this.useModelConfig.getState(),
@@ -625,8 +626,11 @@ class PlaygroundThreadRuntimeImpl
   extends ThreadRuntimeImpl
   implements PlaygroundThreadRuntime
 {
-  constructor(private binding: INTERNAL.ThreadRuntimeCoreBinding) {
-    super(binding);
+  constructor(
+    private binding: INTERNAL.ThreadRuntimeCoreBinding,
+    threadListItemBinding: INTERNAL.ThreadListItemRuntimeBinding,
+  ) {
+    super(binding, threadListItemBinding);
   }
 
   private _getState() {
@@ -688,10 +692,7 @@ class PlaygroundRuntimeImpl
   public static override create(_core: PlaygroundRuntimeCore) {
     return new PlaygroundRuntimeImpl(
       _core,
-      AssistantRuntimeImpl.createMainThreadRuntime(
-        _core,
-        PlaygroundThreadRuntimeImpl,
-      ),
+      PlaygroundThreadRuntimeImpl,
     ) as PlaygroundRuntime;
   }
 }

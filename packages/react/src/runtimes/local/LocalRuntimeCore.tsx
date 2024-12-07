@@ -31,10 +31,9 @@ export class LocalRuntimeCore extends BaseAssistantRuntimeCore {
 
     this._options = options;
 
-    this.threadList = new LocalThreadListRuntimeCore((threadId, data) => {
+    this.threadList = new LocalThreadListRuntimeCore((data) => {
       const thread = new LocalThreadRuntimeCore(
         this._proxyConfigProvider,
-        threadId,
         this._options,
       );
       thread.import(data);
@@ -42,16 +41,10 @@ export class LocalRuntimeCore extends BaseAssistantRuntimeCore {
     });
 
     if (initialMessages) {
-      this.threadList.mainThread.import(
-        getExportFromInitialMessages(initialMessages),
-      );
+      this.threadList
+        .getMainThreadRuntimeCore()
+        .import(getExportFromInitialMessages(initialMessages));
     }
-  }
-
-  public setOptions(options: LocalRuntimeOptionsBase) {
-    this._options = options;
-
-    this.threadList.mainThread.setOptions(options);
   }
 
   public reset({
@@ -62,8 +55,8 @@ export class LocalRuntimeCore extends BaseAssistantRuntimeCore {
     this.threadList.switchToNewThread();
     if (!initialMessages) return;
 
-    this.threadList.mainThread.import(
-      getExportFromInitialMessages(initialMessages),
-    );
+    this.threadList
+      .getMainThreadRuntimeCore()
+      .import(getExportFromInitialMessages(initialMessages));
   }
 }

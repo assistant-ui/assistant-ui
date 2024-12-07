@@ -7,8 +7,11 @@ import { writableStore } from "../ReadonlyStore";
 import { ThreadRuntime } from "../../api/ThreadRuntime";
 import { create } from "zustand";
 import { ThreadComposerRuntime } from "../../api/ComposerRuntime";
+import { ThreadListItemRuntime } from "../../api/ThreadListItemRuntime";
+import { ThreadListItemRuntimeProvider } from "./ThreadListItemRuntimeProvider";
 
 type ThreadProviderProps = {
+  listItemRuntime: ThreadListItemRuntime;
   runtime: ThreadRuntime;
 };
 
@@ -49,7 +52,7 @@ const useThreadComposerStore = (runtime: ThreadComposerRuntime) => {
 
 export const ThreadRuntimeProvider: FC<
   PropsWithChildren<ThreadProviderProps>
-> = ({ children, runtime }) => {
+> = ({ children, listItemRuntime: threadListItemRuntime, runtime }) => {
   const useThreadRuntime = useThreadRuntimeStore(runtime);
   const useThread = useThreadStore(runtime);
   const useThreadComposer = useThreadComposerStore(runtime.composer);
@@ -66,6 +69,10 @@ export const ThreadRuntimeProvider: FC<
   }, [useThread, useThreadRuntime, useThreadComposer]);
 
   return (
-    <ThreadContext.Provider value={context}>{children}</ThreadContext.Provider>
+    <ThreadListItemRuntimeProvider runtime={threadListItemRuntime}>
+      <ThreadContext.Provider value={context}>
+        {children}
+      </ThreadContext.Provider>
+    </ThreadListItemRuntimeProvider>
   );
 };

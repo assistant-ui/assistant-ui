@@ -9,6 +9,7 @@ import { useLangGraphMessages } from "./useLangGraphMessages";
 import { SimpleImageAttachmentAdapter } from "@assistant-ui/react";
 import { AttachmentAdapter } from "@assistant-ui/react";
 import { AppendMessage } from "@assistant-ui/react";
+import { ExternalStoreAdapter } from "@assistant-ui/react";
 
 const getPendingToolCalls = (messages: LangChainMessage[]) => {
   const pendingToolCalls = new Map<string, LangChainToolCall>();
@@ -117,26 +118,30 @@ export const useLangGraphRuntime = ({
   if (unstable_allowImageAttachments)
     attachments = new SimpleImageAttachmentAdapter();
 
+  const threadList: NonNullable<
+    ExternalStoreAdapter["adapters"]
+  >["threadList"] = {
+    threadId,
+    onSwitchToNewThread: !onSwitchToNewThread
+      ? undefined
+      : async () => {
+          await onSwitchToNewThread();
+          setMessages([]);
+        },
+    onSwitchToThread: !onSwitchToThread
+      ? undefined
+      : async (threadId) => {
+          const { messages } = await onSwitchToThread(threadId);
+          setMessages(messages);
+        },
+  };
+
   return useExternalStoreRuntime({
     isRunning,
     messages: threadMessages,
     adapters: {
       attachments,
-      threadList: {
-        threadId,
-        onSwitchToNewThread: !onSwitchToNewThread
-          ? undefined
-          : async () => {
-              await onSwitchToNewThread();
-              setMessages([]);
-            },
-        onSwitchToThread: !onSwitchToThread
-          ? undefined
-          : async (threadId) => {
-              const { messages } = await onSwitchToThread(threadId);
-              setMessages(messages);
-            },
-      },
+      threadList,
     },
     onNew: (msg) => {
       const cancellations =

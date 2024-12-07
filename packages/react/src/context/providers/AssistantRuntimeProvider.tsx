@@ -61,7 +61,10 @@ export const AssistantRuntimeProviderImpl: FC<
 
   return (
     <AssistantContext.Provider value={context}>
-      <ThreadRuntimeProvider runtime={runtime.thread}>
+      <ThreadRuntimeProvider
+        runtime={runtime.thread}
+        listItemRuntime={runtime.threadList.mainThreadListItem}
+      >
         {children}
       </ThreadRuntimeProvider>
     </AssistantContext.Provider>

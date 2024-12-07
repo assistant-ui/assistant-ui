@@ -3,206 +3,213 @@ import { ThreadListRuntimeCore } from "../core/ThreadListRuntimeCore";
 import { ExportedMessageRepository } from "../utils/MessageRepository";
 import { generateId } from "../../utils/idUtils";
 import { LocalThreadRuntimeCore } from "./LocalThreadRuntimeCore";
-import { ThreadMetadata } from "../core/ThreadRuntimeCore";
 
 export type ThreadListAdapter = {
   subscribe(callback: () => void): Unsubscribe;
 };
 
 export type LocalThreadData = {
-  runtime: LocalThreadRuntimeCore;
-  lastState: ThreadMetadata["state"];
-  dispose: Unsubscribe;
+  readonly runtime: LocalThreadRuntimeCore;
+  readonly state: "new" | "regular" | "archived";
+  readonly threadId: string;
+  readonly title?: string | undefined;
+
+  dispose(): void;
 };
 
 export type LocalThreadFactory = (
-  threadId: string,
   data: ExportedMessageRepository,
 ) => LocalThreadRuntimeCore;
 
 export class LocalThreadListRuntimeCore implements ThreadListRuntimeCore {
   private _threadData = new Map<string, LocalThreadData>();
-  private _threads: readonly string[] = [];
-  private _archivedThreads: readonly string[] = [];
-  private _newThread: string | undefined;
+  private _threadIds: readonly string[] = [];
+  private _archivedThreadIds: readonly string[] = [];
+  private _newThreadId: string | undefined;
 
-  public get newThread() {
-    return this._newThread;
+  public get newThreadId() {
+    return this._newThreadId;
   }
 
-  public get threads() {
-    return this._threads;
+  public get threadIds() {
+    return this._threadIds;
   }
 
-  public get archivedThreads() {
-    return this._archivedThreads;
+  public get archivedThreadIds() {
+    return this._archivedThreadIds;
   }
 
-  private _mainThread!: LocalThreadRuntimeCore;
+  private _mainThreadId!: string;
 
-  public get mainThread(): LocalThreadRuntimeCore {
-    return this._mainThread;
+  public get mainThreadId(): string {
+    return this._mainThreadId;
   }
 
   constructor(private _threadFactory: LocalThreadFactory) {
     this.switchToNewThread();
   }
 
-  public getThreadMetadataById(threadId: string) {
-    return this._threadData.get(threadId)?.runtime.metadata;
+  public getMainThreadRuntimeCore() {
+    const result = this._threadData.get(this._mainThreadId)?.runtime;
+    if (!result)
+      throw new Error("Main thread not found. This is a bug in assistant-ui.");
+    return result;
   }
 
-  public switchToThread(threadId: string): Promise<void> {
-    if (this._mainThread?.metadata.threadId === threadId)
-      return Promise.resolve();
+  public getItemById(threadId: string) {
+    return this._threadData.get(threadId);
+  }
+
+  public async switchToThread(threadId: string): Promise<void> {
+    if (this._mainThreadId === threadId) return;
 
     const data = this._threadData.get(threadId);
     if (!data) throw new Error("Thread not found");
 
-    if (data.runtime.metadata.state === "archived") this.unarchive(threadId);
+    if (data.state === "archived") await this.unarchive(threadId);
 
-    this._mainThread?._notifyEventSubscribers("switched-away");
-    this._mainThread = data.runtime;
+    this._mainThreadId = data.threadId;
     this._notifySubscribers();
-
-    data.runtime._notifyEventSubscribers("switched-to");
-    return Promise.resolve();
   }
 
   public switchToNewThread(): Promise<void> {
-    if (this._newThread === undefined) {
+    if (this._newThreadId === undefined) {
       let threadId: string;
       do {
         threadId = generateId();
       } while (this._threadData.has(threadId));
 
-      const runtime = this._threadFactory(threadId, { messages: [] });
-      const dispose = runtime.metadata.subscribe(() => {
-        this._syncState(threadId, runtime.metadata);
-        threadId = runtime.metadata.threadId;
+      const runtime = this._threadFactory({ messages: [] });
+      const dispose = runtime.unstable_on("initialize", () => {
+        const data = this._threadData.get(threadId);
+        if (!data) throw new Error("Thread not found");
+
+        this._stateOp(threadId, "regular");
       });
-      this._threadData.set(threadId, { runtime, lastState: "new", dispose });
-      this._newThread = threadId;
+      this._threadData.set(threadId, {
+        runtime,
+        state: "new",
+        threadId,
+        dispose,
+      });
+      this._newThreadId = threadId;
     }
 
-    this.switchToThread(this._newThread);
+    this.switchToThread(this._newThreadId);
     return Promise.resolve();
   }
 
-  private async _syncState(
-    lastThreadId: string,
-    { state, threadId }: ThreadMetadata,
+  private async _stateOp(
+    threadId: string,
+    newState: "regular" | "archived" | "deleted",
   ) {
-    const data = this._threadData.get(lastThreadId);
+    const data = this._threadData.get(threadId);
     if (!data) throw new Error("Thread not found");
-    const lastState = data.lastState;
-    if (lastState === state && lastThreadId === threadId) return;
 
-    if (lastThreadId !== threadId) {
-      this._threadData.delete(lastThreadId);
-      if (lastState === "new") {
-        this._newThread = threadId;
-      }
-      if (lastState === "regular") {
-        this._threads = this._threads.map((t) =>
-          t === lastThreadId ? threadId : t,
-        );
-      }
-      if (lastState === "archived") {
-        this._archivedThreads = this._archivedThreads.map((t) =>
-          t === lastThreadId ? threadId : t,
-        );
-      }
-    }
+    const { state: lastState } = data;
+    if (lastState === newState) return;
 
-    if (lastState !== state) {
-      if (lastState === "new") {
-        this._newThread = undefined;
-      }
-
-      if (lastState === "regular") {
-        this._threads = this._threads.filter((t) => t !== threadId);
-      }
-
-      if (lastState === "archived") {
-        this._archivedThreads = this._archivedThreads.filter(
+    // lastState
+    switch (lastState) {
+      case "new":
+        this._newThreadId = undefined;
+        break;
+      case "regular":
+        this._threadIds = this._threadIds.filter((t) => t !== threadId);
+        break;
+      case "archived":
+        this._archivedThreadIds = this._archivedThreadIds.filter(
           (t) => t !== threadId,
         );
-      }
+        break;
 
-      if (state === "new") {
-        if (this._newThread) {
-          this.delete(this._newThread);
-        }
-        this._newThread = threadId;
+      default: {
+        const _exhaustiveCheck: never = lastState;
+        throw new Error(`Unsupported state: ${_exhaustiveCheck}`);
       }
-      if (state === "archived") {
-        this._archivedThreads = [
-          ...this._archivedThreads,
-          data.runtime.metadata.threadId,
-        ];
-      }
-      if (state === "regular") {
-        this._threads = [...this._threads, data.runtime.metadata.threadId];
-      }
-      if (state === "deleted") {
-        data.dispose();
-        this._threadData.delete(threadId);
-      }
-
-      data.lastState = state;
     }
 
-    this._notifySubscribers();
+    // newState
+    switch (newState) {
+      case "regular":
+        this._threadIds = [...this._threadIds, data.threadId];
+        break;
+
+      case "archived":
+        this._archivedThreadIds = [...this._archivedThreadIds, data.threadId];
+        break;
+
+      case "deleted":
+        this._threadData.delete(threadId);
+        data.dispose();
+        break;
+
+      default: {
+        const _exhaustiveCheck: never = newState;
+        throw new Error(`Unsupported state: ${_exhaustiveCheck}`);
+      }
+    }
+
+    if (newState !== "deleted") {
+      this._threadData.set(threadId, {
+        ...data,
+        state: newState,
+      });
+    }
 
     if (
-      threadId === this._mainThread.metadata.threadId &&
-      (state === "archived" || state === "deleted")
+      threadId === this._mainThreadId &&
+      (newState === "archived" || newState === "deleted")
     ) {
-      const lastThread = this._threads[0];
-      if (lastThread) {
-        await this.switchToThread(lastThread);
+      const lastThreadId = this._threadIds[0];
+      if (lastThreadId) {
+        await this.switchToThread(lastThreadId);
       } else {
         await this.switchToNewThread();
       }
+    } else {
+      this._notifySubscribers();
     }
   }
 
   public rename(threadId: string, newTitle: string): Promise<void> {
     const data = this._threadData.get(threadId);
     if (!data) throw new Error("Thread not found");
-    data.runtime.metadata.rename(newTitle);
 
+    this._threadData.set(threadId, {
+      ...data,
+      title: newTitle,
+    });
+    this._notifySubscribers();
     return Promise.resolve();
   }
 
   public archive(threadId: string): Promise<void> {
     const data = this._threadData.get(threadId);
     if (!data) throw new Error("Thread not found");
-    if (data.lastState !== "regular")
-      throw new Error("Thread is not yet created or archived");
-    data.runtime.metadata.archive();
+    if (data.state !== "regular")
+      throw new Error("Thread is not yet initialized or already archived");
 
+    this._stateOp(threadId, "archived");
     return Promise.resolve();
   }
 
   public unarchive(threadId: string): Promise<void> {
     const data = this._threadData.get(threadId);
     if (!data) throw new Error("Thread not found");
-    if (data.lastState !== "archived")
-      throw new Error("Thread is not archived");
-    data.runtime.metadata.unarchive();
+    if (data.state !== "archived") throw new Error("Thread is not archived");
 
+    this._stateOp(threadId, "regular");
     return Promise.resolve();
   }
 
   public delete(threadId: string): Promise<void> {
     const data = this._threadData.get(threadId);
     if (!data) throw new Error("Thread not found");
-    if (data.lastState !== "regular" && data.lastState !== "archived")
-      throw new Error("Thread is not yet created or already deleted");
-    data.runtime.metadata.delete();
+    if (data.state !== "regular" && data.state !== "archived")
+      throw new Error("Thread is not yet initalized");
 
+    this._stateOp(threadId, "deleted");
     return Promise.resolve();
   }
 

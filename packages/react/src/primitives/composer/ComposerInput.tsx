@@ -20,6 +20,7 @@ import {
 import { useThread, useThreadRuntime } from "../../context/react/ThreadContext";
 import { useEscapeKeydown } from "@radix-ui/react-use-escape-keydown";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
+import { useThreadListItemRuntime } from "../../context/react/ThreadListItemContext";
 
 export namespace ComposerPrimitiveInput {
   export type Element = HTMLTextAreaElement;
@@ -53,6 +54,7 @@ export const ComposerPrimitiveInput = forwardRef<
     },
     forwardedRef,
   ) => {
+    const threadListItemRuntime = useThreadListItemRuntime();
     const threadRuntime = useThreadRuntime();
     const composerRuntime = useComposerRuntime();
 
@@ -124,7 +126,7 @@ export const ComposerPrimitiveInput = forwardRef<
       if (composerRuntime.type !== "thread" || !unstable_focusOnThreadSwitched)
         return undefined;
 
-      return threadRuntime.unstable_on("switched-to", focus);
+      return threadListItemRuntime.unstable_on("switched-to", focus);
     }, [unstable_focusOnThreadSwitched]);
 
     return (

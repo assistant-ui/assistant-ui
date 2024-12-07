@@ -17,7 +17,6 @@ import {
   RuntimeCapabilities,
   SubmittedFeedback,
   ThreadRuntimeEventType,
-  ThreadMetadataRuntimeCore,
 } from "../core/ThreadRuntimeCore";
 import { DefaultEditComposerRuntimeCore } from "../composer/DefaultEditComposerRuntimeCore";
 import { SpeechSynthesisAdapter } from "../speech/SpeechAdapterTypes";
@@ -46,20 +45,13 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
   public abstract addToolResult(options: AddToolResultOptions): void;
   public abstract cancelRun(): void;
 
-  public get metadata() {
-    return this._metadata;
-  }
-
   public get messages() {
     return this.repository.getMessages();
   }
 
   public readonly composer = new DefaultThreadComposerRuntimeCore(this);
 
-  constructor(
-    private readonly _configProvider: ModelConfigProvider,
-    private readonly _metadata: ThreadMetadataRuntimeCore,
-  ) {}
+  constructor(private readonly _configProvider: ModelConfigProvider) {}
 
   public getModelConfig() {
     return this._configProvider.getModelConfig();

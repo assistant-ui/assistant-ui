@@ -3,9 +3,7 @@ import { ExternalStoreThreadRuntimeCore } from "./ExternalStoreThreadRuntimeCore
 import { ThreadListRuntimeCore } from "../core/ThreadListRuntimeCore";
 import { ExternalStoreThreadListAdapter } from "./ExternalStoreAdapter";
 
-export type ExternalStoreThreadFactory = (
-  threadId: string,
-) => ExternalStoreThreadRuntimeCore;
+export type ExternalStoreThreadFactory = () => ExternalStoreThreadRuntimeCore;
 
 const EMPTY_ARRAY = Object.freeze([]);
 const DEFAULT_THREAD_ID = "DEFAULT_THREAD_ID";
@@ -13,35 +11,40 @@ const DEFAULT_THREAD_ID = "DEFAULT_THREAD_ID";
 export class ExternalStoreThreadListRuntimeCore
   implements ThreadListRuntimeCore
 {
-  private _threads: readonly string[] = [];
-  private _archivedThreads: readonly string[] = [];
+  private _mainThreadId: string = DEFAULT_THREAD_ID;
+  private _threads: readonly string[] = EMPTY_ARRAY;
+  private _archivedThreads: readonly string[] = EMPTY_ARRAY;
 
-  public get newThread() {
+  public get newThreadId() {
     return undefined;
   }
 
-  public get threads() {
+  public get threadIds() {
     return this._threads;
   }
 
-  public get archivedThreads() {
+  public get archivedThreadIds() {
     return this._archivedThreads;
   }
 
   private _mainThread: ExternalStoreThreadRuntimeCore;
 
-  public get mainThread() {
-    return this._mainThread;
+  public get mainThreadId() {
+    return this._mainThreadId;
   }
 
   constructor(
     private adapter: ExternalStoreThreadListAdapter = {},
     private threadFactory: ExternalStoreThreadFactory,
   ) {
-    this._mainThread = this.threadFactory(DEFAULT_THREAD_ID);
+    this._mainThread = this.threadFactory();
   }
 
-  public getThreadMetadataById(threadId: string) {
+  public getMainThreadRuntimeCore() {
+    return this._mainThread;
+  }
+
+  public getItemById(threadId: string) {
     for (const thread of this.adapter.threads ?? []) {
       if (thread.threadId === threadId) return thread;
     }
@@ -51,7 +54,7 @@ export class ExternalStoreThreadListRuntimeCore
     return undefined;
   }
 
-  public setAdapter(adapter: ExternalStoreThreadListAdapter) {
+  public __internal_setAdapter(adapter: ExternalStoreThreadListAdapter) {
     const previousAdapter = this.adapter;
     this.adapter = adapter;
 
@@ -72,42 +75,26 @@ export class ExternalStoreThreadListRuntimeCore
       return;
     }
 
-    if (previousAdapter.threads !== newThreads) {
+    if (previousThreads !== newThreads) {
       this._threads =
         this.adapter.threads?.map((t) => t.threadId) ?? EMPTY_ARRAY;
     }
 
-    if (previousAdapter.archivedThreads !== newArchivedThreads) {
+    if (previousArchivedThreads !== newArchivedThreads) {
       this._archivedThreads =
         this.adapter.archivedThreads?.map((t) => t.threadId) ?? EMPTY_ARRAY;
     }
 
-    if (previousAdapter.threadId !== newThreadId) {
-      this._mainThread._notifyEventSubscribers("switched-away");
-      this._mainThread = this.threadFactory(newThreadId);
-      this._mainThread._notifyEventSubscribers("switched-to");
-    }
-
-    const previousMainState = this._mainThread.metadata.state;
-    const mainState = this.archivedThreads.includes(
-      this._mainThread.metadata.threadId,
-    )
-      ? "archived"
-      : "regular";
-
-    if (previousMainState !== mainState) {
-      if (mainState === "archived") {
-        this._mainThread.metadata.archive();
-      } else {
-        this._mainThread.metadata.unarchive();
-      }
+    if (previousThreadId !== newThreadId) {
+      this._mainThreadId = newThreadId;
+      this._mainThread = this.threadFactory();
     }
 
     this._notifySubscribers();
   }
 
   public async switchToThread(threadId: string): Promise<void> {
-    if (this._mainThread?.metadata.threadId === threadId) return;
+    if (this._mainThreadId === threadId) return;
     const onSwitchToThread = this.adapter.onSwitchToThread;
     if (!onSwitchToThread)
       throw new Error(

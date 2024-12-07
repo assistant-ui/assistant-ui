@@ -10,7 +10,7 @@ export { AssistantRuntimeImpl } from "./api/AssistantRuntime";
 export {
   ThreadRuntimeImpl,
   type ThreadRuntimeCoreBinding,
+  type ThreadListItemRuntimeBinding,
 } from "./api/ThreadRuntime";
-export { LocalThreadMetadataRuntimeCore } from "./runtimes/local/LocalThreadMetadataRuntimeCore";
 
 export * from "./utils/smooth";

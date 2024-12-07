@@ -2,6 +2,7 @@ import { AssistantRuntimeCore } from "../runtimes/core/AssistantRuntimeCore";
 import { NestedSubscriptionSubject } from "./subscribable/NestedSubscriptionSubject";
 import { ModelConfigProvider } from "../types/ModelConfigTypes";
 import {
+  ThreadListItemRuntimeBinding,
   ThreadRuntime,
   ThreadRuntimeCoreBinding,
   ThreadRuntimeImpl,
@@ -46,12 +47,27 @@ export class AssistantRuntimeImpl
     AssistantRuntime
 {
   public readonly threadList;
+  public readonly _thread: ThreadRuntime;
 
   protected constructor(
     private readonly _core: AssistantRuntimeCore,
-    private readonly _thread: ThreadRuntime,
+    runtimeFactory: new (
+      binding: ThreadRuntimeCoreBinding,
+      threadListItemBinding: ThreadListItemRuntimeBinding,
+    ) => ThreadRuntime = ThreadRuntimeImpl,
   ) {
     this.threadList = new ThreadListRuntimeImpl(_core.threadList);
+    this._thread = new runtimeFactory(
+      new NestedSubscriptionSubject({
+        path: {
+          ref: "threads.main",
+          threadSelector: { type: "main" },
+        },
+        getState: () => _core.threadList.getMainThreadRuntimeCore(),
+        subscribe: (callback) => _core.threadList.subscribe(callback),
+      }),
+      this.threadList.mainThreadListItem, // TODO capture "main" threadListItem from context around useLocalRuntime / useExternalStoreRuntime
+    );
   }
 
   public get thread() {
@@ -70,33 +86,13 @@ export class AssistantRuntimeImpl
     return this._core.registerModelConfigProvider(provider);
   }
 
-  protected static createMainThreadRuntime(
-    _core: AssistantRuntimeCore,
-    CustomThreadRuntime: new (
-      binding: ThreadRuntimeCoreBinding,
-    ) => ThreadRuntime = ThreadRuntimeImpl,
-  ) {
-    return new CustomThreadRuntime(
-      new NestedSubscriptionSubject({
-        path: {
-          ref: "threads.main",
-          threadSelector: { type: "main" },
-        },
-        getState: () => _core.threadList.mainThread,
-        subscribe: (callback) => _core.threadList.subscribe(callback),
-      }),
-    );
-  }
-
   public static create(
     _core: AssistantRuntimeCore,
-    CustomThreadRuntime: new (
+    runtimeFactory: new (
       binding: ThreadRuntimeCoreBinding,
+      threadListItemBinding: ThreadListItemRuntimeBinding,
     ) => ThreadRuntime = ThreadRuntimeImpl,
-  ) {
-    return new AssistantRuntimeImpl(
-      _core,
-      AssistantRuntimeImpl.createMainThreadRuntime(_core, CustomThreadRuntime),
-    ) as AssistantRuntime;
+  ): AssistantRuntime {
+    return new AssistantRuntimeImpl(_core, runtimeFactory);
   }
 }
