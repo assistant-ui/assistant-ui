@@ -1,18 +1,26 @@
 import type { Unsubscribe } from "../../types";
 import { ExternalStoreThreadRuntimeCore } from "./ExternalStoreThreadRuntimeCore";
 import { ThreadListRuntimeCore } from "../core/ThreadListRuntimeCore";
-import { ExternalStoreThreadListAdapter } from "./ExternalStoreAdapter";
+import {
+  ExternalStoreThreadData,
+  ExternalStoreThreadListAdapter,
+} from "./ExternalStoreAdapter";
 
 export type ExternalStoreThreadFactory = () => ExternalStoreThreadRuntimeCore;
 
 const EMPTY_ARRAY = Object.freeze([]);
 const DEFAULT_THREAD_ID = "DEFAULT_THREAD_ID";
+const DEFAULT_THREADS = Object.freeze([DEFAULT_THREAD_ID]);
+const DEFAULT_THREAD: ExternalStoreThreadData<"regular"> = Object.freeze({
+  threadId: DEFAULT_THREAD_ID,
+  state: "regular",
+});
 
 export class ExternalStoreThreadListRuntimeCore
   implements ThreadListRuntimeCore
 {
   private _mainThreadId: string = DEFAULT_THREAD_ID;
-  private _threads: readonly string[] = EMPTY_ARRAY;
+  private _threads: readonly string[] = DEFAULT_THREADS;
   private _archivedThreads: readonly string[] = EMPTY_ARRAY;
 
   public get newThreadId() {
@@ -51,6 +59,7 @@ export class ExternalStoreThreadListRuntimeCore
     for (const thread of this.adapter.archivedThreads ?? []) {
       if (thread.threadId === threadId) return thread;
     }
+    if (threadId === DEFAULT_THREAD_ID) return DEFAULT_THREAD;
     return undefined;
   }
 
