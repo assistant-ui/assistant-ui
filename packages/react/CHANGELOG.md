@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.11
+
+### Patch Changes
+
+- 0f88efb: fix: external store thread list should not crash
+
 ## 0.7.10
 
 ### Patch Changes
