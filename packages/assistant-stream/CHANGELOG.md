@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.0.10
+
+### Patch Changes
+
+- interop with module resolution node
+
 ## 0.0.8
 
 ### Patch Changes

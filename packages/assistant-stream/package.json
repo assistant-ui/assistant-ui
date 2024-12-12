@@ -1,6 +1,6 @@
 {
   "name": "assistant-stream",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "license": "MIT",
   "exports": {
     ".": {
@@ -30,6 +30,7 @@
   "types": "./dist/index.d.ts",
   "files": [
     "dist",
+    "ai-sdk",
     "README.md"
   ],
   "sideEffects": false,
