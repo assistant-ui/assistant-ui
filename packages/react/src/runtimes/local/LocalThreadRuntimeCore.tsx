@@ -19,8 +19,6 @@ export class LocalThreadRuntimeCore
   extends BaseThreadRuntimeCore
   implements ThreadRuntimeCore
 {
-  private _isInitialized = false;
-
   public readonly capabilities = {
     switchToBranch: true,
     edit: true,
@@ -83,15 +81,8 @@ export class LocalThreadRuntimeCore
     if (hasUpdates) this._notifySubscribers();
   }
 
-  private _ensureInitialized() {
-    if (!this._isInitialized) {
-      this._isInitialized = true;
-      this._notifyEventSubscribers("initialize");
-    }
-  }
-
   public async append(message: AppendMessage): Promise<void> {
-    this._ensureInitialized();
+    this.ensureInitialized();
 
     const newMessage = fromCoreMessage(message, {
       attachments: message.attachments,
@@ -108,7 +99,7 @@ export class LocalThreadRuntimeCore
   }
 
   public async startRun(parentId: string | null): Promise<void> {
-    this._ensureInitialized();
+    this.ensureInitialized();
 
     this.repository.resetHead(parentId);
 

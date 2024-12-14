@@ -133,14 +133,17 @@ export class ExternalStoreThreadRuntimeCore
           )
             return cache;
 
+          const messageLike = store.convertMessage(m, idx);
           const newMessage = fromThreadMessageLike(
-            store.convertMessage(m, idx),
+            messageLike,
             idx.toString(),
             autoStatus,
           );
           (newMessage as any)[symbolInnerMessage] = m;
           return newMessage;
         });
+
+    if (messages.length > 0) this.ensureInitialized();
 
     for (let i = 0; i < messages.length; i++) {
       const message = messages[i]!;

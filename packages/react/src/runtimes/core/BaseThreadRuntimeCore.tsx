@@ -32,6 +32,7 @@ type BaseThreadAdapters = {
 
 export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
   private _subscriptions = new Set<() => void>();
+  private _isInitialized = false;
 
   protected readonly repository = new MessageRepository();
   public abstract get adapters(): BaseThreadAdapters | undefined;
@@ -161,11 +162,20 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
     this._notifySubscribers();
   }
 
+  protected ensureInitialized() {
+    if (!this._isInitialized) {
+      this._isInitialized = true;
+      this._notifyEventSubscribers("initialize");
+    }
+  }
+
   public export() {
     return this.repository.export();
   }
 
   public import(data: ExportedMessageRepository) {
+    this.ensureInitialized();
+
     this.repository.import(data);
     this._notifySubscribers();
   }
