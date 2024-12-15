@@ -104,10 +104,10 @@ export const TrieveCitationHoverContent: FC<CitationHoverContentProps> = ({
         .use(rehypeWrapFirstHeading, { headerUrl: citation.link ?? undefined })
         .use(rehypeReact, {
           Fragment: prod.Fragment,
-          jsx: prod.jsx as any,
-          jsxs: prod.jsxs as any,
+          jsx: prod.jsx,
+          jsxs: prod.jsxs,
           components: {
-            a: ({ node, ...rest }) => (
+            a: ({ node, ...rest }: { node: unknown }) => (
               <TrieveLink citation={citation} position={position} {...rest} />
             ),
           },

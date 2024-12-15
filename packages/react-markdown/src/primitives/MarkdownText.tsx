@@ -2,7 +2,7 @@
 
 import { INTERNAL, useContentPartText } from "@assistant-ui/react";
 import {
-  ElementRef,
+  ComponentRef,
   ElementType,
   forwardRef,
   ForwardRefExoticComponent,
@@ -26,27 +26,35 @@ import classNames from "classnames";
 
 const { useSmooth } = INTERNAL;
 
-type MarkdownTextPrimitiveElement = ElementRef<typeof Primitive.div>;
+type MarkdownTextPrimitiveElement = ComponentRef<typeof Primitive.div>;
 type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;
 
 export type MarkdownTextPrimitiveProps = Omit<
   Options,
   "components" | "children"
 > & {
-  containerProps?: Omit<PrimitiveDivProps, "children" | "asChild">;
-  containerComponent?: ElementType;
-  components?: NonNullable<Options["components"]> & {
-    SyntaxHighlighter?: ComponentType<SyntaxHighlighterProps>;
-    CodeHeader?: ComponentType<CodeHeaderProps>;
-    by_language?: Record<
-      string,
-      {
-        CodeHeader?: ComponentType<CodeHeaderProps>;
-        SyntaxHighlighter?: ComponentType<SyntaxHighlighterProps>;
-      }
-    >;
-  };
-  smooth?: boolean;
+  containerProps?: Omit<PrimitiveDivProps, "children" | "asChild"> | undefined;
+  containerComponent?: ElementType | undefined;
+  components?:
+    | (NonNullable<Options["components"]> & {
+        SyntaxHighlighter?: ComponentType<SyntaxHighlighterProps> | undefined;
+        CodeHeader?: ComponentType<CodeHeaderProps> | undefined;
+        /**
+         * @deprecated Use `componentsByLanguage` instead of `components.by_language`. This will be removed in the next major version.
+         **/
+        by_language?: undefined;
+      })
+    | undefined;
+  componentsByLanguage?:
+    | Record<
+        string,
+        {
+          CodeHeader?: ComponentType<CodeHeaderProps> | undefined;
+          SyntaxHighlighter?: ComponentType<SyntaxHighlighterProps> | undefined;
+        }
+      >
+    | undefined;
+  smooth?: boolean | undefined;
 };
 
 export const MarkdownTextPrimitive: ForwardRefExoticComponent<MarkdownTextPrimitiveProps> &
@@ -57,6 +65,7 @@ export const MarkdownTextPrimitive: ForwardRefExoticComponent<MarkdownTextPrimit
   (
     {
       components: userComponents,
+      componentsByLanguage = userComponents?.by_language,
       className,
       containerProps,
       containerComponent: Container = "div",
@@ -85,8 +94,8 @@ export const MarkdownTextPrimitive: ForwardRefExoticComponent<MarkdownTextPrimit
             Code: code,
             SyntaxHighlighter,
             CodeHeader,
-            by_language,
           }}
+          componentsByLanguage={componentsByLanguage}
           {...props}
         />
       )),

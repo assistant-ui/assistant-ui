@@ -39,9 +39,9 @@
   },
   "devDependencies": {
     "@assistant-ui/tsconfig": "workspace:*",
-    "ai": "^4.0.3",
+    "ai": "^4.0.18",
     "eslint": "^9",
-    "eslint-config-next": "15.0.3",
+    "eslint-config-next": "15.1.0",
     "tsup": "8.3.5",
     "tsx": "^4.19.2"
   },
@@ -57,7 +57,7 @@
     "url": "https://github.com/Yonom/assistant-ui/issues"
   },
   "dependencies": {
-    "nanoid": "^5.0.8",
+    "nanoid": "^5.0.9",
     "secure-json-parse": "^3.0.1"
   }
 }

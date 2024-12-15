@@ -17,9 +17,10 @@ const CodeBlockOverride: FC<CodeOverrideProps> = ({
     Code,
     SyntaxHighlighter: FallbackSyntaxHighlighter,
     CodeHeader: FallbackCodeHeader,
-    by_language = {},
   },
+  componentsByLanguage = {},
   children,
+  node,
   ...codeProps
 }) => {
   const preProps = useContext(PreContext)!;
@@ -41,15 +42,17 @@ const CodeBlockOverride: FC<CodeOverrideProps> = ({
       <DefaultCodeBlockContent
         components={{ Pre: WrappedPre, Code: WrappedCode }}
         code={children}
+        node={node}
       />
     );
   }
 
   const SyntaxHighlighter: ComponentType<SyntaxHighlighterProps> =
-    by_language[language]?.SyntaxHighlighter ?? FallbackSyntaxHighlighter;
+    componentsByLanguage[language]?.SyntaxHighlighter ??
+    FallbackSyntaxHighlighter;
 
   const CodeHeader: ComponentType<CodeHeaderProps> =
-    by_language[language]?.CodeHeader ?? FallbackCodeHeader;
+    componentsByLanguage[language]?.CodeHeader ?? FallbackCodeHeader;
 
   return (
     <DefaultCodeBlock
@@ -61,6 +64,7 @@ const CodeBlockOverride: FC<CodeOverrideProps> = ({
       }}
       language={language || "unknown"}
       code={children}
+      node={node}
     />
   );
 };
@@ -71,14 +75,14 @@ export type CodeOverrideProps = ComponentPropsWithoutRef<CodeComponent> & {
     Code: CodeComponent;
     CodeHeader: ComponentType<CodeHeaderProps>;
     SyntaxHighlighter: ComponentType<SyntaxHighlighterProps>;
-    by_language?: Record<
-      string,
-      {
-        CodeHeader?: ComponentType<CodeHeaderProps>;
-        SyntaxHighlighter?: ComponentType<SyntaxHighlighterProps>;
-      }
-    >;
   };
+  componentsByLanguage?: Record<
+    string,
+    {
+      CodeHeader?: ComponentType<CodeHeaderProps>;
+      SyntaxHighlighter?: ComponentType<SyntaxHighlighterProps>;
+    }
+  >;
 };
 
 export const CodeOverride: FC<CodeOverrideProps> = ({
@@ -86,6 +90,6 @@ export const CodeOverride: FC<CodeOverrideProps> = ({
   ...props
 }) => {
   const preProps = useContext(PreContext);
-  if (!preProps) return <components.Code {...(props as any)} />;
+  if (!preProps) return <components.Code {...props} />;
   return <CodeBlockOverride components={components} {...props} />;
 };

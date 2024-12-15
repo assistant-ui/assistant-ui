@@ -86,7 +86,7 @@ export const useTrieveRuntime = ({
   search_type: SearchMethod;
 }) => {
   const [title, setTitle] = useState("");
-  const threadIdRef = useRef<string | undefined>();
+  const threadIdRef = useRef<string | undefined>(undefined);
   const [isRunning, setIsRunning] = useState(false);
   const [messages, setMessages] = useState<TrieveMessage[]>([]);
   const [suggestions, setSuggestions] = useState<ThreadSuggestion[]>([]);

@@ -11,8 +11,8 @@
   "devDependencies": {
     "@assistant-ui/tsconfig": "workspace:*",
     "@types/cross-spawn": "^6.0.6",
-    "@types/node": "^22.9.3",
-    "eslint-config-next": "15.0.3",
+    "@types/node": "^22.10.2",
+    "eslint-config-next": "15.1.0",
     "tsup": "8.3.5"
   },
   "files": [

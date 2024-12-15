@@ -18,7 +18,7 @@ export type UseThreadViewportAutoScrollProps = {
 export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   autoScroll = true,
   unstable_scrollToBottomOnRunStart = true,
-}: UseThreadViewportAutoScrollProps) => {
+}: UseThreadViewportAutoScrollProps): React.RefCallback<TElement> => {
   const divRef = useRef<TElement>(null);
 
   const threadViewportStore = useThreadViewportStore();

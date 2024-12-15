@@ -39,9 +39,13 @@ export type TrieveMarkdownTextProps = Omit<
   MakeMarkdownTextProps,
   "components"
 > & {
-  components?: NonNullable<MakeMarkdownTextProps["components"]> & {
-    CitationHoverContent?: ComponentType<CitationHoverContentProps>;
-  };
+  components?:
+    | (NonNullable<MakeMarkdownTextProps["components"]> & {
+        CitationHoverContent?:
+          | ComponentType<CitationHoverContentProps>
+          | undefined;
+      })
+    | undefined;
   smooth?: boolean;
 };
 
