@@ -1,5 +1,15 @@
 # @assistant-ui/react-markdown
 
+## 0.7.5
+
+### Patch Changes
+
+- 4c54273: chore: update dependencies
+- 4c54273: refactor: rename components.by_language to componentsByLanguage for react 19 types compat
+- Updated dependencies [4c54273]
+- Updated dependencies [4c54273]
+  - @assistant-ui/react@0.7.12
+
 ## 0.7.4
 
 ### Patch Changes

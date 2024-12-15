@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.7.12
+
+### Patch Changes
+
+- 4c54273: chore: update dependencies
+- 4c54273: fix: initialize thread on import
+
 ## 0.7.11
 
 ### Patch Changes

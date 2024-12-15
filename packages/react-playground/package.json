@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-playground",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "license": "MIT",
   "exports": {
     ".": {
@@ -47,7 +47,7 @@
     "zustand": "^5.0.2"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.7.11",
+    "@assistant-ui/react": "^0.7.12",
     "@types/react": "*",
     "react": "^18 || ^19 || ^19.0.0-rc",
     "tailwindcss": "^3.4.4"
