@@ -37,7 +37,6 @@
     "@radix-ui/react-use-callback-ref": "^1.1.0",
     "@types/hast": "^3.0.4",
     "classnames": "^2.5.1",
-    "hast": "^1.0.0",
     "lucide-react": "^0.468.0",
     "react-markdown": "^9.0.1"
   },
