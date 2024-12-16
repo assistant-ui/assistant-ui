@@ -151,6 +151,33 @@ export class DataStreamDecoder {
               break;
             }
 
+            case "9": {
+              const { toolCallId, args } = value as {
+                toolCallId: string;
+                toolName: string;
+                args: object;
+              };
+              controller.enqueue({
+                type: "tool-call-begin",
+                toolCallId,
+                toolName: toolCallId,
+              });
+              controller.enqueue({
+                type: "tool-call-delta",
+                toolCallId,
+                argsTextDelta: JSON.stringify(args),
+              });
+              break;
+            }
+
+            case "2":
+            case "3":
+            case "8":
+            case "d":
+            case "e": {
+              break; // ignore
+            }
+
             default:
               const exhaustiveCheck: string = type;
               throw new Error(`unsupported chunk type: ${exhaustiveCheck}`);

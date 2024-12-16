@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.0.12
+
+### Patch Changes
+
+- ignore unsupported data stream parts
+
 ## 0.0.11
 
 ### Patch Changes
