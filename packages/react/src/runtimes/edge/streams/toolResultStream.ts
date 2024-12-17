@@ -64,38 +64,38 @@ export function toolResultStream(
                 isError: true,
               });
               return;
-            } else {
-              toolCallExecutions.set(
-                toolCallId,
-                (async () => {
-                  if (!tool.execute) return;
-
-                  try {
-                    const result = await tool.execute(args, { abortSignal });
-
-                    controller.enqueue({
-                      type: "tool-result",
-                      toolCallType,
-                      toolCallId,
-                      toolName,
-                      result,
-                    });
-                  } catch (error) {
-                    controller.enqueue({
-                      type: "tool-result",
-                      toolCallType,
-                      toolCallId,
-                      toolName,
-                      result: "Error: " + error,
-                      isError: true,
-                    });
-                  } finally {
-                    toolCallExecutions.delete(toolCallId);
-                  }
-                })(),
-              );
             }
           }
+
+          toolCallExecutions.set(
+            toolCallId,
+            (async () => {
+              if (!tool.execute) return;
+
+              try {
+                const result = await tool.execute(args, { abortSignal });
+
+                controller.enqueue({
+                  type: "tool-result",
+                  toolCallType,
+                  toolCallId,
+                  toolName,
+                  result,
+                });
+              } catch (error) {
+                controller.enqueue({
+                  type: "tool-result",
+                  toolCallType,
+                  toolCallId,
+                  toolName,
+                  result: "Error: " + error,
+                  isError: true,
+                });
+              } finally {
+                toolCallExecutions.delete(toolCallId);
+              }
+            })(),
+          );
           break;
         }
 

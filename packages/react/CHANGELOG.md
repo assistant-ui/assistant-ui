@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.15
+
+### Patch Changes
+
+- fix: toolResultStream should support JSONSchema params
+
 ## 0.7.14
 
 ### Patch Changes
