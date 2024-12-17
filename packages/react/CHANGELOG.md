@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.14
+
+### Patch Changes
+
+- fix: assistantDecoderStream should end current tool call on flush
+
 ## 0.7.12
 
 ### Patch Changes

@@ -11,24 +11,30 @@ export function assistantDecoderStream() {
     | { id: string; name: string; argsText: string }
     | undefined;
 
+  const endCurrentToolCall = (
+    controller: TransformStreamDefaultController<ToolResultStreamPart>,
+  ) => {
+    if (!currentToolCall) return;
+    controller.enqueue({
+      type: "tool-call",
+      toolCallType: "function",
+      toolCallId: currentToolCall.id,
+      toolName: currentToolCall.name,
+      args: currentToolCall.argsText,
+    });
+    currentToolCall = undefined;
+  };
+
   return new TransformStream<
     StreamPart<AssistantStreamChunk>,
     ToolResultStreamPart
   >({
     transform({ type, value }, controller) {
       if (
-        currentToolCall &&
         type !== AssistantStreamChunkType.ToolCallDelta &&
         type !== AssistantStreamChunkType.Error
       ) {
-        controller.enqueue({
-          type: "tool-call",
-          toolCallType: "function",
-          toolCallId: currentToolCall.id,
-          toolName: currentToolCall.name,
-          args: currentToolCall.argsText,
-        });
-        currentToolCall = undefined;
+        endCurrentToolCall(controller);
       }
 
       switch (type) {
@@ -134,6 +140,9 @@ export function assistantDecoderStream() {
           throw new Error(`Unhandled chunk type: ${unhandledType}`);
         }
       }
+    },
+    flush(controller) {
+      endCurrentToolCall(controller);
     },
   });
 }
