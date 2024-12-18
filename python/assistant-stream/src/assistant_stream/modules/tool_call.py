@@ -49,6 +49,10 @@ class ToolCallController:
             result=result,
         )
         self.loop.call_soon_threadsafe(self.queue.put_nowait, chunk)
+        self.close()
+
+    def close(self):
+        """Close the stream."""
         self.loop.call_soon_threadsafe(self.queue.put_nowait, None)
 
 
