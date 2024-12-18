@@ -15,7 +15,7 @@ class RunController:
         self._dispose_callbacks = []
         self._stream_tasks = []
 
-    def append_text(self, text_delta: str):
+    def append_text(self, text_delta: str) -> None:
         """Append a text delta to the stream."""
         chunk = TextDeltaChunk(type="text-delta", text_delta=text_delta)
         self._loop.call_soon_threadsafe(self._queue.put_nowait, chunk)
@@ -30,7 +30,7 @@ class RunController:
         self.add_stream(stream)
         return controller
 
-    def add_stream(self, stream: AsyncGenerator[AssistantStreamChunk, None]):
+    def add_stream(self, stream: AsyncGenerator[AssistantStreamChunk, None]) -> None:
         """Append a substream to the main stream."""
 
         async def reader():

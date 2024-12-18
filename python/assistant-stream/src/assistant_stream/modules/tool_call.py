@@ -31,7 +31,7 @@ class ToolCallController:
         )
         self.queue.put_nowait(begin_chunk)
 
-    def append_args_text(self, args_text_delta: str):
+    def append_args_text(self, args_text_delta: str) -> None:
         """Append an args text delta to the stream."""
         chunk = ToolCallDeltaChunk(
             type="tool-call-delta",
@@ -40,7 +40,7 @@ class ToolCallController:
         )
         self.loop.call_soon_threadsafe(self.queue.put_nowait, chunk)
 
-    def set_result(self, result: Any):
+    def set_result(self, result: Any) -> None:
         """Set the result of the tool call."""
 
         chunk = ToolResultChunk(
@@ -51,7 +51,7 @@ class ToolCallController:
         self.loop.call_soon_threadsafe(self.queue.put_nowait, chunk)
         self.close()
 
-    def close(self):
+    def close(self) -> None:
         """Close the stream."""
         self.loop.call_soon_threadsafe(self.queue.put_nowait, None)
 

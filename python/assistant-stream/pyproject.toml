@@ -6,7 +6,7 @@ build-backend = "poetry.core.masonry.api"
 name = "assistant-stream"
 version = "0.0.5"
 authors = [
-  { name="Simon Farshid", email="simon.farshid@outlook.com" },
+  { name="Simon Farshid", email="simon@assistant-ui.com" },
 ]
 readme = "README.md"
 requires-python = ">=3.8"
