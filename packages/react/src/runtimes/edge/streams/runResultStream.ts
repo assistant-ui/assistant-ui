@@ -75,6 +75,20 @@ export function runResultStream() {
         }
       }
     },
+    flush(controller) {
+      if (message.status?.type === "running") {
+        const requiresAction = message.content?.at(-1)?.type === "tool-call";
+        message = appendOrUpdateFinish(message, {
+          type: "finish",
+          finishReason: requiresAction ? "tool-calls" : "unknown",
+          usage: {
+            promptTokens: 0,
+            completionTokens: 0,
+          },
+        });
+        controller.enqueue(message);
+      }
+    },
   });
 }
 

@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.16
+
+### Patch Changes
+
+- fix: ensure message status is set on runResultStream flush
+
 ## 0.7.15
 
 ### Patch Changes
