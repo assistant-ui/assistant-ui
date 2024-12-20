@@ -82,9 +82,14 @@ export function toLanguageModelMessages(
       }
 
       case "user": {
+        const attachments = "attachments" in message ? message.attachments : [];
+        const content = [
+          ...message.content,
+          ...attachments.map((a) => a.content).flat(),
+        ];
         const msg: LanguageModelV1Message = {
           role: "user",
-          content: message.content.map(
+          content: content.map(
             (part): LanguageModelV1TextPart | LanguageModelV1ImagePart => {
               const type = part.type;
               switch (type) {
