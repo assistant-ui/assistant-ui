@@ -76,20 +76,29 @@ export type CodeOverrideProps = ComponentPropsWithoutRef<CodeComponent> & {
     CodeHeader: ComponentType<CodeHeaderProps>;
     SyntaxHighlighter: ComponentType<SyntaxHighlighterProps>;
   };
-  componentsByLanguage?: Record<
-    string,
-    {
-      CodeHeader?: ComponentType<CodeHeaderProps>;
-      SyntaxHighlighter?: ComponentType<SyntaxHighlighterProps>;
-    }
-  >;
+  componentsByLanguage?:
+    | Record<
+        string,
+        {
+          CodeHeader?: ComponentType<CodeHeaderProps>;
+          SyntaxHighlighter?: ComponentType<SyntaxHighlighterProps>;
+        }
+      >
+    | undefined;
 };
 
 export const CodeOverride: FC<CodeOverrideProps> = ({
   components,
+  componentsByLanguage,
   ...props
 }) => {
   const preProps = useContext(PreContext);
   if (!preProps) return <components.Code {...props} />;
-  return <CodeBlockOverride components={components} {...props} />;
+  return (
+    <CodeBlockOverride
+      components={components}
+      componentsByLanguage={componentsByLanguage}
+      {...props}
+    />
+  );
 };
