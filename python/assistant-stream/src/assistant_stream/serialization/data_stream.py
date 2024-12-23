@@ -15,11 +15,11 @@ class DataStreamEncoder(StreamEncoder):
         if chunk.type == "text-delta":
             return f"0:{json.dumps(chunk.text_delta)}\n"
         elif chunk.type == "tool-call-begin":
-            return f"b:{json.dumps({ "toolCallId": chunk.tool_call_id, "toolName": chunk.tool_name })}\n"
+            return f'b:{json.dumps({ "toolCallId": chunk.tool_call_id, "toolName": chunk.tool_name })}\n'
         elif chunk.type == "tool-call-delta":
-            return f"c:{json.dumps({ "toolCallId": chunk.tool_call_id, "argsTextDelta": chunk.args_text_delta })}\n"
+            return f'c:{json.dumps({ "toolCallId": chunk.tool_call_id, "argsTextDelta": chunk.args_text_delta })}\n'
         elif chunk.type == "tool-result":
-            return f"a:{json.dumps({ "toolCallId": chunk.tool_call_id, "result": chunk.result })}\n"
+            return f'a:{json.dumps({ "toolCallId": chunk.tool_call_id, "result": chunk.result })}\n'
         pass
 
     def get_media_type(self) -> str:
