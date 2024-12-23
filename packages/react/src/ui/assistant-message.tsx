@@ -72,6 +72,7 @@ const AssistantMessageContent = forwardRef<
         components={{
           ...componentsProp,
           Text: componentsProp?.Text ?? components.Text ?? ContentPart.Text,
+          Empty: componentsProp?.Empty ?? components.Empty,
           tools: toolsComponents,
         }}
       />

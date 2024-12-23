@@ -11,7 +11,11 @@ import {
 
 import { AssistantRuntime } from "../api/AssistantRuntime";
 import { AvatarProps } from "./base/avatar";
-import { TextContentPartComponent, ToolCallContentPartProps } from "../types";
+import {
+  EmptyContentPartComponent,
+  TextContentPartComponent,
+  ToolCallContentPartProps,
+} from "../types";
 import { AssistantRuntimeProvider } from "../context";
 import { AssistantToolUI } from "../model-config";
 import { useAssistantRuntime } from "../context/react/AssistantContext";
@@ -39,6 +43,7 @@ export type AssistantMessageConfig = {
   components?:
     | {
         Text?: TextContentPartComponent | undefined;
+        Empty?: EmptyContentPartComponent | undefined;
         ToolFallback?: ComponentType<ToolCallContentPartProps> | undefined;
       }
     | undefined;
