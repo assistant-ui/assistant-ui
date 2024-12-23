@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.7.18
+
+### Patch Changes
+
+- 1b16dce: fix: thread initialization
+- b0f309a: feat: allow specifying Empty component in thread-config
+
 ## 0.7.17
 
 ### Patch Changes

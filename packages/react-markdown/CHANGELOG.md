@@ -1,5 +1,15 @@
 # @assistant-ui/react-markdown
 
+## 0.7.6
+
+### Patch Changes
+
+- ee77267: fix: react warning about unsupported prop
+- 3214b18: fix: MarkdownText smooth prop not working
+- Updated dependencies [1b16dce]
+- Updated dependencies [b0f309a]
+  - @assistant-ui/react@0.7.18
+
 ## 0.7.5
 
 ### Patch Changes
