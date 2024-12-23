@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^1.0.8",
+    "@ai-sdk/openai": "^1.0.11",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-hook-form": "workspace:*",
     "@hookform/resolvers": "^3.9.1",
@@ -18,16 +18,16 @@
     "@radix-ui/react-label": "^2.1.1",
     "@radix-ui/react-slot": "^1.1.1",
     "@radix-ui/react-tabs": "^1.1.2",
-    "@radix-ui/react-tooltip": "^1.1.5",
+    "@radix-ui/react-tooltip": "^1.1.6",
     "@react-hook/media-query": "^1.1.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "json-schema-to-zod": "^2.5.0",
-    "lucide-react": "^0.468.0",
-    "next": "15.1.0",
+    "lucide-react": "^0.469.0",
+    "next": "15.1.2",
     "react": "19.0.0",
     "react-dom": "19.0.0",
-    "react-hook-form": "^7.54.1",
+    "react-hook-form": "^7.54.2",
     "react-resizable-panels": "^2.1.7",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
@@ -41,9 +41,9 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "15.1.0",
+    "eslint-config-next": "15.1.2",
     "postcss": "^8",
-    "tailwindcss": "^3.4.16",
+    "tailwindcss": "^3.4.17",
     "typescript": "^5.7.2"
   }
 }

@@ -1,10 +1,6 @@
-import {
-  ComponentPropsWithoutRef,
-  ElementRef,
-  ElementType,
-  forwardRef,
-} from "react";
+import { ComponentPropsWithoutRef, ElementType, forwardRef } from "react";
 import classNames from "classnames";
+import { ComponentRef } from "react";
 
 export const withDefaultProps =
   <TProps extends { className?: string }>({
@@ -25,7 +21,7 @@ export const withDefaults = <TComponent extends ElementType>(
 ) => {
   type TComponentProps = typeof defaultProps;
   const getProps = withDefaultProps<TComponentProps>(defaultProps);
-  const WithDefaults = forwardRef<ElementRef<TComponent>, TComponentProps>(
+  const WithDefaults = forwardRef<ComponentRef<TComponent>, TComponentProps>(
     (props, ref) => {
       const ComponentAsAny = Component as any;
       return <ComponentAsAny {...getProps(props as any)} ref={ref} />;

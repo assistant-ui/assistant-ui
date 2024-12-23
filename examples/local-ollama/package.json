@@ -9,9 +9,9 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@assistant-ui/react": "^0.7.11",
-    "@assistant-ui/react-markdown": "^0.7.4",
-    "next": "15.1.0",
+    "@assistant-ui/react": "^0.7.17",
+    "@assistant-ui/react-markdown": "^0.7.5",
+    "next": "15.1.2",
     "ollama-ai-provider": "^1.1.0",
     "react": "19.0.0",
     "react-dom": "19.0.0",
@@ -23,9 +23,9 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "15.1.0",
+    "eslint-config-next": "15.1.2",
     "postcss": "^8",
-    "tailwindcss": "^3.4.16",
+    "tailwindcss": "^3.4.17",
     "typescript": "^5"
   }
 }

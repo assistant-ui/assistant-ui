@@ -168,7 +168,7 @@ export const fromOpenAIMessages = (
       }
 
       default: {
-        const unsupportedRole: "function" = role;
+        const unsupportedRole: "function" | "developer" = role;
         if (options?.strict) {
           throw new Error(`Unsupported role: ${unsupportedRole}`);
         }
