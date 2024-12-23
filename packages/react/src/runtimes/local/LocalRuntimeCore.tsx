@@ -31,13 +31,11 @@ export class LocalRuntimeCore extends BaseAssistantRuntimeCore {
 
     this._options = options;
 
-    this.threadList = new LocalThreadListRuntimeCore((data) => {
-      const thread = new LocalThreadRuntimeCore(
+    this.threadList = new LocalThreadListRuntimeCore(() => {
+      return new LocalThreadRuntimeCore(
         this._proxyConfigProvider,
         this._options,
       );
-      thread.import(data);
-      return thread;
     });
 
     if (initialMessages) {

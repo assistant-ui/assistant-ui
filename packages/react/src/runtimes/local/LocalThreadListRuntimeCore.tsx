@@ -1,6 +1,5 @@
 import type { Unsubscribe } from "../../types";
 import { ThreadListRuntimeCore } from "../core/ThreadListRuntimeCore";
-import { ExportedMessageRepository } from "../utils/MessageRepository";
 import { generateId } from "../../utils/idUtils";
 import { LocalThreadRuntimeCore } from "./LocalThreadRuntimeCore";
 
@@ -13,13 +12,9 @@ export type LocalThreadData = {
   readonly state: "new" | "regular" | "archived";
   readonly threadId: string;
   readonly title?: string | undefined;
-
-  dispose(): void;
 };
 
-export type LocalThreadFactory = (
-  data: ExportedMessageRepository,
-) => LocalThreadRuntimeCore;
+export type LocalThreadFactory = () => LocalThreadRuntimeCore;
 
 export class LocalThreadListRuntimeCore implements ThreadListRuntimeCore {
   private _threadData = new Map<string, LocalThreadData>();
@@ -79,8 +74,9 @@ export class LocalThreadListRuntimeCore implements ThreadListRuntimeCore {
         threadId = generateId();
       } while (this._threadData.has(threadId));
 
-      const runtime = this._threadFactory({ messages: [] });
+      const runtime = this._threadFactory();
       const dispose = runtime.unstable_on("initialize", () => {
+        dispose();
         const data = this._threadData.get(threadId);
         if (!data) throw new Error("Thread not found");
 
@@ -90,7 +86,6 @@ export class LocalThreadListRuntimeCore implements ThreadListRuntimeCore {
         runtime,
         state: "new",
         threadId,
-        dispose,
       });
       this._newThreadId = threadId;
     }
@@ -141,7 +136,6 @@ export class LocalThreadListRuntimeCore implements ThreadListRuntimeCore {
 
       case "deleted":
         this._threadData.delete(threadId);
-        data.dispose();
         break;
 
       default: {
