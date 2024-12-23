@@ -69,10 +69,10 @@ export const MarkdownTextPrimitive: ForwardRefExoticComponent<MarkdownTextPrimit
       className,
       containerProps,
       containerComponent: Container = "div",
+      smooth = true,
       ...rest
     },
     forwardedRef,
-    smooth = true,
   ) => {
     const { text, status } = useSmooth(useContentPartText(), smooth);
 
