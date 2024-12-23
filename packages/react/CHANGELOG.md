@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.19
+
+### Patch Changes
+
+- ec3b8cc: chore: update dependencies
+
 ## 0.7.18
 
 ### Patch Changes

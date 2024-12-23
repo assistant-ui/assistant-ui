@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.0.13
+
+### Patch Changes
+
+- ec3b8cc: chore: update dependencies
+
 ## 0.0.12
 
 ### Patch Changes

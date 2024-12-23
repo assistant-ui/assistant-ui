@@ -1,5 +1,11 @@
 # assistant-ui
 
+## 0.0.25
+
+### Patch Changes
+
+- ec3b8cc: chore: update dependencies
+
 ## 0.0.24
 
 ### Patch Changes

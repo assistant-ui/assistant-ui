@@ -1,5 +1,11 @@
 # @tool-ui/weather
 
+## 0.0.19
+
+### Patch Changes
+
+- ec3b8cc: chore: update dependencies
+
 ## 0.0.18
 
 ### Patch Changes

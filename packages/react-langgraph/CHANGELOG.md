@@ -1,5 +1,13 @@
 # @assistant-ui/react-langgraph
 
+## 0.1.8
+
+### Patch Changes
+
+- ec3b8cc: chore: update dependencies
+- Updated dependencies [ec3b8cc]
+  - @assistant-ui/react@0.7.19
+
 ## 0.1.7
 
 ### Patch Changes

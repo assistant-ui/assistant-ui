@@ -1,5 +1,14 @@
 # @assistant-ui/react-syntax-highlighter
 
+## 0.7.5
+
+### Patch Changes
+
+- ec3b8cc: chore: update dependencies
+- Updated dependencies [ec3b8cc]
+  - @assistant-ui/react-markdown@0.7.7
+  - @assistant-ui/react@0.7.19
+
 ## 0.7.4
 
 ### Patch Changes
