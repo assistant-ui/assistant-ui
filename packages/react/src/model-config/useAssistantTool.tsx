@@ -14,6 +14,7 @@ export type AssistantToolProps<
 > = Tool<TArgs, TResult> & {
   toolName: string;
   render?: ToolCallContentPartComponent<TArgs, TResult> | undefined;
+  disabled?: boolean | undefined;
 };
 
 export const useAssistantTool = <
@@ -32,7 +33,9 @@ export const useAssistantTool = <
   }, [toolUIsStore, tool.toolName, tool.render]);
 
   useEffect(() => {
-    const { toolName, render, ...rest } = tool;
+    const { toolName, render, disabled, ...rest } = tool;
+    if (disabled) return;
+
     const config = {
       tools: {
         [toolName]: rest,
