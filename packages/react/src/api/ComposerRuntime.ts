@@ -1,6 +1,7 @@
 import { Attachment, PendingAttachment } from "../types/AttachmentTypes";
 import {
   ComposerRuntimeCore,
+  ComposerRuntimeEventType,
   ThreadComposerRuntimeCore,
 } from "../runtimes/core/ComposerRuntimeCore";
 import { Unsubscribe } from "../types";
@@ -160,6 +161,13 @@ export abstract class ComposerRuntimeImpl implements ComposerRuntime {
 
   public subscribe(callback: () => void) {
     return this._core.subscribe(callback);
+  }
+
+  public unstable_on(event: ComposerRuntimeEventType, callback: () => void) {
+    const core = this._core.getState();
+    if (!core) throw new Error("Composer is not available");
+
+    return core.unstable_on(event, callback);
   }
 
   public getAttachmentAccept(): string {

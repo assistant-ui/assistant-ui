@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.21
+
+### Patch Changes
+
+- feat: Composer.unstable_on("send", callback)
+
 ## 0.7.20
 
 ### Patch Changes

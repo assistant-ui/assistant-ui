@@ -5,7 +5,10 @@ import {
 } from "../../types/AttachmentTypes";
 import { AppendMessage, Unsubscribe } from "../../types";
 import { AttachmentAdapter } from "../attachment";
-import { ComposerRuntimeCore } from "../core/ComposerRuntimeCore";
+import {
+  ComposerRuntimeCore,
+  ComposerRuntimeEventType,
+} from "../core/ComposerRuntimeCore";
 import { MessageRole } from "../../types/AssistantTypes";
 
 const isAttachmentComplete = (a: Attachment): a is CompleteAttachment =>
@@ -48,21 +51,25 @@ export abstract class BaseComposerRuntimeCore implements ComposerRuntimeCore {
     return this._role;
   }
 
-  setRole(role: MessageRole) {
+  public setRole(role: MessageRole) {
     this._role = role;
     this.notifySubscribers();
   }
 
-  setText(value: string) {
+  public setText(value: string) {
     this._text = value;
     this.notifySubscribers();
   }
 
-  reset() {
+  private _resetInternal() {
     this._text = "";
     this._role = "user";
     this._attachments = [];
     this.notifySubscribers();
+  }
+
+  public reset() {
+    this._resetInternal();
   }
 
   public async send() {
@@ -83,12 +90,18 @@ export abstract class BaseComposerRuntimeCore implements ComposerRuntimeCore {
       content: this.text ? [{ type: "text", text: this.text }] : [],
       attachments,
     };
-    this.reset();
+    this._resetInternal();
 
     this.handleSend(message);
+    this._notifyEventSubscribers("send");
   }
-  public abstract handleSend(message: Omit<AppendMessage, "parentId">): void;
-  public abstract cancel(): void;
+
+  public cancel() {
+    this.handleCancel();
+  }
+
+  protected abstract handleSend(message: Omit<AppendMessage, "parentId">): void;
+  protected abstract handleCancel(): void;
 
   async addAttachment(file: File) {
     const adapter = this.getAttachmentAdapter();
@@ -115,6 +128,7 @@ export abstract class BaseComposerRuntimeCore implements ComposerRuntimeCore {
   }
 
   private _subscriptions = new Set<() => void>();
+
   protected notifySubscribers() {
     for (const callback of this._subscriptions) callback();
   }
@@ -122,5 +136,32 @@ export abstract class BaseComposerRuntimeCore implements ComposerRuntimeCore {
   public subscribe(callback: () => void): Unsubscribe {
     this._subscriptions.add(callback);
     return () => this._subscriptions.delete(callback);
+  }
+
+  private _eventSubscribers = new Map<
+    ComposerRuntimeEventType,
+    Set<() => void>
+  >();
+
+  protected _notifyEventSubscribers(event: ComposerRuntimeEventType) {
+    const subscribers = this._eventSubscribers.get(event);
+    if (!subscribers) return;
+
+    for (const callback of subscribers) callback();
+  }
+
+  public unstable_on(event: ComposerRuntimeEventType, callback: () => void) {
+    const subscribers = this._eventSubscribers.get(event);
+    if (!subscribers) {
+      this._eventSubscribers.set(event, new Set([callback]));
+    } else {
+      subscribers.add(callback);
+    }
+
+    return () => {
+      const subscribers = this._eventSubscribers.get(event);
+      if (!subscribers) return;
+      subscribers.delete(callback);
+    };
   }
 }

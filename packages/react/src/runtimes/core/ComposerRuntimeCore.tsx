@@ -1,6 +1,8 @@
 import type { Attachment, PendingAttachment, Unsubscribe } from "../../types";
 import { MessageRole } from "../../types/AssistantTypes";
 
+export type ComposerRuntimeEventType = "send";
+
 export type ComposerRuntimeCore = Readonly<{
   attachments: readonly Attachment[];
 
@@ -25,6 +27,11 @@ export type ComposerRuntimeCore = Readonly<{
   cancel: () => void;
 
   subscribe: (callback: () => void) => Unsubscribe;
+
+  unstable_on: (
+    event: ComposerRuntimeEventType,
+    callback: () => void,
+  ) => Unsubscribe;
 }>;
 
 export type ThreadComposerRuntimeCore = ComposerRuntimeCore &

@@ -46,7 +46,7 @@ export class DefaultThreadComposerRuntimeCore
     });
   }
 
-  public async cancel() {
+  public async handleCancel() {
     this.runtime.cancelRun();
   }
 }

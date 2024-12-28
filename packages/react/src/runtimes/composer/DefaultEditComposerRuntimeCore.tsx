@@ -50,7 +50,7 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
     this.notifySubscribers();
   }
 
-  public async cancel() {
+  public handleCancel() {
     this.endEditCallback();
     this.notifySubscribers();
   }

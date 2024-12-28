@@ -180,7 +180,10 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
     this._notifySubscribers();
   }
 
-  private _eventSubscribers = new Map<string, Set<() => void>>();
+  private _eventSubscribers = new Map<
+    ThreadRuntimeEventType,
+    Set<() => void>
+  >();
 
   public unstable_on(event: ThreadRuntimeEventType, callback: () => void) {
     if (event === "model-config-update") {
