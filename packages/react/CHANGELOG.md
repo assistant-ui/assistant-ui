@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.20
+
+### Patch Changes
+
+- 2c7dec0: feat: useAssistantTool allow disabling tools
+
 ## 0.7.19
 
 ### Patch Changes
