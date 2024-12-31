@@ -82,6 +82,11 @@ export const EdgeRuntimeRequestOptionsSchema = z
   .object({
     system: z.string().optional(),
     messages: z.array(CoreMessageSchema).min(1),
+    runConfig: z
+      .object({
+        custom: z.record(z.unknown()).optional(),
+      })
+      .optional(),
     tools: z.array(LanguageModelV1FunctionToolSchema).optional(),
     unstable_assistantMessageId: z.string().optional(),
   })

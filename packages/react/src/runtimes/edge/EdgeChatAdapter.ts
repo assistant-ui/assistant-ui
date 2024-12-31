@@ -53,6 +53,7 @@ export class EdgeChatAdapter implements ChatModelAdapter {
 
   async *run({
     messages,
+    runConfig,
     abortSignal,
     config,
     unstable_assistantMessageId,
@@ -75,6 +76,7 @@ export class EdgeChatAdapter implements ChatModelAdapter {
             }),
         tools: config.tools ? toLanguageModelTools(config.tools) : [],
         unstable_assistantMessageId,
+        runConfig,
         ...config.callSettings,
         ...config.config,
 

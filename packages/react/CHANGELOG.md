@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.23
+
+### Patch Changes
+
+- feat(edge-runtime): pass RunConfig to backend
+
 ## 0.7.22
 
 ### Patch Changes

@@ -148,7 +148,7 @@ export type ThreadAssistantMessage = MessageCommonProps & {
 
 export type RunConfig = {
   // TODO allow user customization via global type overrides
-  custom?: unknown;
+  readonly custom?: Record<string, unknown>;
 };
 
 export type AppendMessage = CoreMessage & {
