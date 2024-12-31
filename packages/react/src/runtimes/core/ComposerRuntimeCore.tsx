@@ -1,25 +1,28 @@
 import type { Attachment, PendingAttachment, Unsubscribe } from "../../types";
-import { MessageRole } from "../../types/AssistantTypes";
+import { MessageRole, RunConfig } from "../../types/AssistantTypes";
 
 export type ComposerRuntimeEventType = "send";
 
 export type ComposerRuntimeCore = Readonly<{
+  isEditing: boolean;
+
+  canCancel: boolean;
+  isEmpty: boolean;
+
   attachments: readonly Attachment[];
 
   getAttachmentAccept(): string;
   addAttachment: (file: File) => Promise<void>;
   removeAttachment: (attachmentId: string) => Promise<void>;
 
-  isEditing: boolean;
-
-  canCancel: boolean;
-  isEmpty: boolean;
-
   text: string;
   setText: (value: string) => void;
 
   role: MessageRole;
   setRole: (role: MessageRole) => void;
+
+  runConfig: RunConfig;
+  setRunConfig: (runConfig: RunConfig) => void;
 
   reset: () => void;
 

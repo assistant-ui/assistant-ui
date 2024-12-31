@@ -2,6 +2,7 @@
 
 import type {
   MessageStatus,
+  RunConfig,
   ThreadAssistantContentPart,
   ThreadMessage,
   ThreadStep,
@@ -24,6 +25,7 @@ export type ChatModelRunResult = {
 
 export type ChatModelRunOptions = {
   messages: ThreadMessage[];
+  runConfig: RunConfig;
   abortSignal: AbortSignal;
   config: ModelConfig;
 

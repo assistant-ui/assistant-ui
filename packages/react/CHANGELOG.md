@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.22
+
+### Patch Changes
+
+- feat: RunConfig
+
 ## 0.7.21
 
 ### Patch Changes

@@ -28,6 +28,7 @@ import {
 import { LanguageModelV1FunctionTool } from "@ai-sdk/provider";
 import { useMemo, useState } from "react";
 import { create } from "zustand";
+import { StartRunConfig } from "@assistant-ui/react/runtimes/core/ThreadRuntimeCore";
 
 const {
   BaseAssistantRuntimeCore,
@@ -264,7 +265,7 @@ export class PlaygroundThreadRuntimeCore implements INTERNAL.ThreadRuntimeCore {
     this.setMessages([...this.messages, fromCoreMessage(message)]);
   }
 
-  public async startRun(): Promise<void> {
+  public async startRun({ runConfig }: StartRunConfig): Promise<void> {
     let message: ThreadAssistantMessage = {
       id: generateId(),
       role: "assistant",
@@ -296,6 +297,7 @@ export class PlaygroundThreadRuntimeCore implements INTERNAL.ThreadRuntimeCore {
     try {
       const promiseOrGenerator = this.adapter.run({
         messages,
+        runConfig: runConfig ?? {},
         abortSignal: this.abortController.signal,
         config: this.configProvider.getModelConfig(),
       });

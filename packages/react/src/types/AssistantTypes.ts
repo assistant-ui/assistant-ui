@@ -146,10 +146,17 @@ export type ThreadAssistantMessage = MessageCommonProps & {
   };
 };
 
+export type RunConfig = {
+  // TODO allow user customization via global type overrides
+  custom?: unknown;
+};
+
 export type AppendMessage = CoreMessage & {
   parentId: string | null;
   attachments: readonly CompleteAttachment[];
   startRun?: boolean | undefined;
+  /** TODO: make required in 0.8.0 */
+  runConfig?: RunConfig | undefined;
 };
 
 type BaseThreadMessage = {

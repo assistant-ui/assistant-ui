@@ -10,6 +10,7 @@ import {
 } from "../types";
 import {
   ContentPartStatus,
+  RunConfig,
   ToolCallContentPartStatus,
 } from "../types/AssistantTypes";
 import { getThreadMessageText } from "../utils/getThreadMessageText";
@@ -110,13 +111,17 @@ export type MessageStateBinding = SubscribableWithState<
   MessageRuntimePath
 >;
 
+type ReloadConfig = {
+  runConfig?: RunConfig;
+};
+
 export type MessageRuntime = {
   readonly path: MessageRuntimePath;
 
   readonly composer: EditComposerRuntime;
 
   getState(): MessageState;
-  reload(): void;
+  reload(config?: ReloadConfig): void;
   /**
    * @deprecated This API is still under active development and might change without notice.
    */
@@ -175,12 +180,15 @@ export class MessageRuntimeImpl implements MessageRuntime {
     return this._core.getState();
   }
 
-  public reload() {
+  public reload({ runConfig = {} }: ReloadConfig = {}) {
     const state = this._core.getState();
     if (state.role !== "assistant")
       throw new Error("Can only reload assistant messages");
 
-    this._threadBinding.getState().startRun(state.parentId);
+    this._threadBinding.getState().startRun({
+      parentId: state.parentId,
+      runConfig,
+    });
   }
 
   public speak() {

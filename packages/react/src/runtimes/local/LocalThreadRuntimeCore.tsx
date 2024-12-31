@@ -12,8 +12,10 @@ import {
   AddToolResultOptions,
   ThreadSuggestion,
   ThreadRuntimeCore,
+  StartRunConfig,
 } from "../core/ThreadRuntimeCore";
 import { BaseThreadRuntimeCore } from "../core/BaseThreadRuntimeCore";
+import { RunConfig } from "../../types/AssistantTypes";
 
 export class LocalThreadRuntimeCore
   extends BaseThreadRuntimeCore
@@ -48,6 +50,8 @@ export class LocalThreadRuntimeCore
   }
 
   private _options!: LocalRuntimeOptionsBase;
+
+  private _lastRunConfig: RunConfig = {};
 
   public get extras() {
     return undefined;
@@ -91,14 +95,20 @@ export class LocalThreadRuntimeCore
 
     const startRun = message.startRun ?? message.role === "user";
     if (startRun) {
-      await this.startRun(newMessage.id);
+      await this.startRun({
+        parentId: newMessage.id,
+        runConfig: message.runConfig ?? {},
+      });
     } else {
       this.repository.resetHead(newMessage.id);
       this._notifySubscribers();
     }
   }
 
-  public async startRun(parentId: string | null): Promise<void> {
+  public async startRun({
+    parentId,
+    runConfig,
+  }: StartRunConfig): Promise<void> {
     this.ensureInitialized();
 
     this.repository.resetHead(parentId);
@@ -117,13 +127,14 @@ export class LocalThreadRuntimeCore
     this._notifyEventSubscribers("run-start");
 
     do {
-      message = await this.performRoundtrip(parentId, message);
+      message = await this.performRoundtrip(parentId, message, runConfig);
     } while (shouldContinue(message));
   }
 
   private async performRoundtrip(
     parentId: string | null,
     message: ThreadAssistantMessage,
+    runConfig: RunConfig | undefined,
   ) {
     const messages = this.repository.getMessages();
 
@@ -185,8 +196,10 @@ export class LocalThreadRuntimeCore
     }
 
     try {
+      this._lastRunConfig = runConfig ?? {};
       const promiseOrGenerator = this.adapters.chatModel.run({
         messages,
+        runConfig: this._lastRunConfig,
         abortSignal: this.abortController.signal,
         config: this.getModelConfig(),
         unstable_assistantMessageId: message.id,
@@ -267,7 +280,7 @@ export class LocalThreadRuntimeCore
     this.repository.addOrUpdateMessage(parentId, message);
 
     if (added && shouldContinue(message)) {
-      this.performRoundtrip(parentId, message);
+      this.performRoundtrip(parentId, message, this._lastRunConfig);
     }
   }
 }

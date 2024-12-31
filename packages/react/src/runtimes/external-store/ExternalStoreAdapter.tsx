@@ -2,6 +2,7 @@ import { AppendMessage, ThreadMessage } from "../../types";
 import { AttachmentAdapter } from "../attachment";
 import {
   AddToolResultOptions,
+  StartRunConfig,
   ThreadSuggestion,
 } from "../core/ThreadRuntimeCore";
 import { FeedbackAdapter } from "../feedback/FeedbackAdapter";
@@ -57,7 +58,9 @@ type ExternalStoreAdapterBase<T> = {
   setMessages?: ((messages: T[]) => void) | undefined;
   onNew: (message: AppendMessage) => Promise<void>;
   onEdit?: ((message: AppendMessage) => Promise<void>) | undefined;
-  onReload?: ((parentId: string | null) => Promise<void>) | undefined;
+  onReload?: // TODO: remove parentId in 0.8.0
+  | ((parentId: string | null, config: StartRunConfig) => Promise<void>)
+    | undefined;
   onCancel?: (() => Promise<void>) | undefined;
   onAddToolResult?:
     | ((options: AddToolResultOptions) => Promise<void> | void)

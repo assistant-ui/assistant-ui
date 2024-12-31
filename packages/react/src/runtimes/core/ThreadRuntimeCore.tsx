@@ -1,4 +1,5 @@
 import { AppendMessage, ModelConfig, ThreadMessage } from "../../types";
+import { RunConfig } from "../../types/AssistantTypes";
 import type { Unsubscribe } from "../../types/Unsubscribe";
 import { SpeechSynthesisAdapter } from "../speech/SpeechAdapterTypes";
 import { ExportedMessageRepository } from "../utils/MessageRepository";
@@ -48,6 +49,11 @@ export type ThreadRuntimeEventType =
   | "initialize"
   | "model-config-update";
 
+export type StartRunConfig = {
+  parentId: string | null;
+  runConfig?: RunConfig | undefined;
+};
+
 export type ThreadRuntimeCore = Readonly<{
   getMessageById: (messageId: string) =>
     | {
@@ -60,7 +66,7 @@ export type ThreadRuntimeCore = Readonly<{
   switchToBranch: (branchId: string) => void;
 
   append: (message: AppendMessage) => void;
-  startRun: (parentId: string | null) => void;
+  startRun: (config: StartRunConfig) => void;
   cancelRun: () => void;
 
   addToolResult: (options: AddToolResultOptions) => void;

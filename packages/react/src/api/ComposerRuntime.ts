@@ -16,7 +16,7 @@ import {
 import { ShallowMemoizeSubject } from "./subscribable/ShallowMemoizeSubject";
 import { SKIP_UPDATE } from "./subscribable/SKIP_UPDATE";
 import { ComposerRuntimePath } from "./RuntimePathTypes";
-import { MessageRole } from "../types/AssistantTypes";
+import { MessageRole, RunConfig } from "../types/AssistantTypes";
 
 export type ThreadComposerRuntimeCoreBinding = SubscribableWithState<
   ThreadComposerRuntimeCore | undefined,
@@ -34,13 +34,14 @@ export type ComposerRuntimeCoreBinding = SubscribableWithState<
 >;
 
 type BaseComposerState = {
-  readonly text: string;
-  readonly role: MessageRole;
-  readonly attachments: readonly Attachment[];
-
   readonly canCancel: boolean;
   readonly isEditing: boolean;
   readonly isEmpty: boolean;
+
+  readonly text: string;
+  readonly role: MessageRole;
+  readonly attachments: readonly Attachment[];
+  readonly runConfig: RunConfig;
 };
 
 export type ThreadComposerState = BaseComposerState & {
@@ -56,6 +57,7 @@ export type EditComposerState = BaseComposerState & {
 export type ComposerState = ThreadComposerState | EditComposerState;
 
 const EMPTY_ARRAY = Object.freeze([]);
+const EMPTY_OBJECT = Object.freeze({});
 const getThreadComposerState = (
   runtime: ThreadComposerRuntimeCore | undefined,
 ): ThreadComposerState => {
@@ -65,9 +67,11 @@ const getThreadComposerState = (
     isEditing: runtime?.isEditing ?? false,
     canCancel: runtime?.canCancel ?? false,
     isEmpty: runtime?.isEmpty ?? true,
-    text: runtime?.text ?? "",
+
     attachments: runtime?.attachments ?? EMPTY_ARRAY,
+    text: runtime?.text ?? "",
     role: runtime?.role ?? "user",
+    runConfig: runtime?.runConfig ?? EMPTY_OBJECT,
 
     value: runtime?.text ?? "",
   });
@@ -82,9 +86,11 @@ const getEditComposerState = (
     isEditing: runtime?.isEditing ?? false,
     canCancel: runtime?.canCancel ?? false,
     isEmpty: runtime?.isEmpty ?? true,
+
     text: runtime?.text ?? "",
-    attachments: runtime?.attachments ?? EMPTY_ARRAY,
     role: runtime?.role ?? "user",
+    attachments: runtime?.attachments ?? EMPTY_ARRAY,
+    runConfig: runtime?.runConfig ?? EMPTY_OBJECT,
 
     value: runtime?.text ?? "",
   });
@@ -95,11 +101,12 @@ export type ComposerRuntime = {
   readonly type: "edit" | "thread";
   getState(): ComposerState;
 
-  setText(text: string): void;
-  setValue(text: string): void;
-
   getAttachmentAccept(): string;
   addAttachment(file: File): Promise<void>;
+
+  setText(text: string): void;
+  setRole(role: MessageRole): void;
+  setRunConfig(runConfig: RunConfig): void;
 
   reset(): void;
   send(): void;
@@ -125,8 +132,10 @@ export abstract class ComposerRuntimeImpl implements ComposerRuntime {
     core.setText(text);
   }
 
-  public setValue(text: string) {
-    this.setText(text);
+  public setRunConfig(runConfig: RunConfig) {
+    const core = this._core.getState();
+    if (!core) throw new Error("Composer is not available");
+    core.setRunConfig(runConfig);
   }
 
   public addAttachment(file: File) {

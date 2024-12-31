@@ -4,6 +4,7 @@ import {
   ThreadRuntimeCore,
   SpeechState,
   ThreadRuntimeEventType,
+  StartRunConfig,
 } from "../runtimes/core/ThreadRuntimeCore";
 import { ExportedMessageRepository } from "../runtimes/utils/MessageRepository";
 import {
@@ -189,10 +190,10 @@ export type ThreadRuntime = {
   append(message: CreateAppendMessage): void;
 
   /**
-   *
-   * @param parentId
+   * @deprecated pass an object with `parentId` instead. This will be removed in 0.8.0.
    */
   startRun(parentId: string | null): void;
+  startRun(config: StartRunConfig): void;
   subscribe(callback: () => void): Unsubscribe;
   cancelRun(): void;
   getModelConfig(): ModelConfig;
@@ -286,8 +287,12 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     return this._threadBinding.getState().getModelConfig();
   }
 
-  public startRun(parentId: string | null) {
-    return this._threadBinding.getState().startRun(parentId);
+  public startRun(configOrParentId: string | null | StartRunConfig) {
+    const config =
+      configOrParentId === null || typeof configOrParentId === "string"
+        ? { parentId: configOrParentId }
+        : configOrParentId;
+    return this._threadBinding.getState().startRun(config);
   }
 
   public cancelRun() {

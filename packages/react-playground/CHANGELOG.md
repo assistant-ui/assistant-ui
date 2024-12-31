@@ -1,5 +1,13 @@
 # @assistant-ui/react-playground
 
+## 0.1.6
+
+### Patch Changes
+
+- feat: RunConfig
+- Updated dependencies
+  - @assistant-ui/react@0.7.22
+
 ## 0.1.5
 
 ### Patch Changes

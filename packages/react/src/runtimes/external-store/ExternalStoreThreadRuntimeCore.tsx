@@ -1,5 +1,6 @@
 import {
   AddToolResultOptions,
+  StartRunConfig,
   ThreadSuggestion,
 } from "../core/ThreadRuntimeCore";
 
@@ -192,11 +193,11 @@ export class ExternalStoreThreadRuntimeCore
     }
   }
 
-  public async startRun(parentId: string | null): Promise<void> {
+  public async startRun(config: StartRunConfig): Promise<void> {
     if (!this._store.onReload)
       throw new Error("Runtime does not support reloading messages.");
 
-    await this._store.onReload(parentId);
+    await this._store.onReload(config.parentId, config);
   }
 
   public cancelRun(): void {

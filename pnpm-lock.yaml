@@ -285,7 +285,7 @@ importers:
   examples/local-ollama:
     dependencies:
       '@assistant-ui/react':
-        specifier: ^0.7.17
+        specifier: ^0.7.22
         version: link:../../packages/react
       '@assistant-ui/react-markdown':
         specifier: ^0.7.5
@@ -431,7 +431,7 @@ importers:
         specifier: ^1.0.11
         version: 1.0.11(zod@3.24.1)
       '@assistant-ui/react':
-        specifier: ^0.7.17
+        specifier: ^0.7.22
         version: link:../../packages/react
       next:
         specifier: 15.1.2
