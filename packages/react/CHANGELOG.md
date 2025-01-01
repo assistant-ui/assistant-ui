@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.24
+
+### Patch Changes
+
+- fix: ComposerRuntime.send() should not reset role or runConfig
+
 ## 0.7.23
 
 ### Patch Changes
