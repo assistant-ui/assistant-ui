@@ -3,7 +3,7 @@ import { ThreadRuntimeCore } from "./ThreadRuntimeCore";
 
 type ThreadListItemCoreState = {
   readonly threadId: string;
-  readonly remoteId?: string;
+  readonly remoteId?: string | undefined;
 
   readonly status: "archived" | "regular" | "new" | "deleted";
   readonly title?: string | undefined;

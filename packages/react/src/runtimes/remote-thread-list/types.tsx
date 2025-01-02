@@ -18,10 +18,10 @@ export type RemoteThreadListAdapter = {
 
   list(): Promise<RemoteThreadListResponse>;
 
-  rename(threadId: string, newName: string): Promise<void>;
-  archive(threadId: string): Promise<void>;
-  unarchive(threadId: string): Promise<void>;
-  delete(threadId: string): Promise<void>;
+  rename(remoteId: string, newTitle: string): Promise<void>;
+  archive(remoteId: string): Promise<void>;
+  unarchive(remoteId: string): Promise<void>;
+  delete(remoteId: string): Promise<void>;
 
   onInitialize(
     callback: (task: Promise<{ remoteId: string }>) => Promise<void>,
