@@ -9,13 +9,14 @@ export type ThreadListAdapter = {
 
 export type LocalThreadData = {
   readonly runtime: LocalThreadRuntimeCore;
-  readonly state: "new" | "regular" | "archived";
+  readonly status: "new" | "regular" | "archived";
   readonly threadId: string;
   readonly title?: string | undefined;
 };
 
 export type LocalThreadFactory = () => LocalThreadRuntimeCore;
 
+const RESOLVED_PROMISE = Promise.resolve();
 export class LocalThreadListRuntimeCore implements ThreadListRuntimeCore {
   private _threadData = new Map<string, LocalThreadData>();
   private _threadIds: readonly string[] = [];
@@ -51,6 +52,10 @@ export class LocalThreadListRuntimeCore implements ThreadListRuntimeCore {
     return result;
   }
 
+  public getLoadThreadsPromise(): Promise<void> {
+    return RESOLVED_PROMISE;
+  }
+
   public getItemById(threadId: string) {
     return this._threadData.get(threadId);
   }
@@ -61,7 +66,7 @@ export class LocalThreadListRuntimeCore implements ThreadListRuntimeCore {
     const data = this._threadData.get(threadId);
     if (!data) throw new Error("Thread not found");
 
-    if (data.state === "archived") await this.unarchive(threadId);
+    if (data.status === "archived") await this.unarchive(threadId);
 
     this._mainThreadId = data.threadId;
     this._notifySubscribers();
@@ -84,7 +89,7 @@ export class LocalThreadListRuntimeCore implements ThreadListRuntimeCore {
       });
       this._threadData.set(threadId, {
         runtime,
-        state: "new",
+        status: "new",
         threadId,
       });
       this._newThreadId = threadId;
@@ -101,7 +106,7 @@ export class LocalThreadListRuntimeCore implements ThreadListRuntimeCore {
     const data = this._threadData.get(threadId);
     if (!data) throw new Error("Thread not found");
 
-    const { state: lastState } = data;
+    const { status: lastState } = data;
     if (lastState === newState) return;
 
     // lastState
@@ -147,7 +152,7 @@ export class LocalThreadListRuntimeCore implements ThreadListRuntimeCore {
     if (newState !== "deleted") {
       this._threadData.set(threadId, {
         ...data,
-        state: newState,
+        status: newState,
       });
     }
 
@@ -181,7 +186,7 @@ export class LocalThreadListRuntimeCore implements ThreadListRuntimeCore {
   public archive(threadId: string): Promise<void> {
     const data = this._threadData.get(threadId);
     if (!data) throw new Error("Thread not found");
-    if (data.state !== "regular")
+    if (data.status !== "regular")
       throw new Error("Thread is not yet initialized or already archived");
 
     this._stateOp(threadId, "archived");
@@ -191,7 +196,7 @@ export class LocalThreadListRuntimeCore implements ThreadListRuntimeCore {
   public unarchive(threadId: string): Promise<void> {
     const data = this._threadData.get(threadId);
     if (!data) throw new Error("Thread not found");
-    if (data.state !== "archived") throw new Error("Thread is not archived");
+    if (data.status !== "archived") throw new Error("Thread is not archived");
 
     this._stateOp(threadId, "regular");
     return Promise.resolve();
@@ -200,8 +205,8 @@ export class LocalThreadListRuntimeCore implements ThreadListRuntimeCore {
   public delete(threadId: string): Promise<void> {
     const data = this._threadData.get(threadId);
     if (!data) throw new Error("Thread not found");
-    if (data.state !== "regular" && data.state !== "archived")
-      throw new Error("Thread is not yet initalized");
+    if (data.status !== "regular" && data.status !== "archived")
+      throw new Error("Thread is not yet initialized");
 
     this._stateOp(threadId, "deleted");
     return Promise.resolve();

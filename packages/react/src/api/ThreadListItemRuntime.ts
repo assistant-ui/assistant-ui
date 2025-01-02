@@ -9,13 +9,14 @@ export type ThreadListItemState = {
   readonly isMain: boolean;
 
   readonly id: string;
+  readonly remoteId: string | undefined;
 
   /**
    * @deprecated This field was renamed to `id`. This field will be removed in 0.8.0.
    */
   readonly threadId: string;
 
-  readonly state: "archived" | "regular" | "new" | "deleted";
+  readonly status: "archived" | "regular" | "new" | "deleted";
   readonly title?: string | undefined;
 };
 

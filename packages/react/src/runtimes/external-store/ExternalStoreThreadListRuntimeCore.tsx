@@ -13,8 +13,9 @@ const DEFAULT_THREAD_ID = "DEFAULT_THREAD_ID";
 const DEFAULT_THREADS = Object.freeze([DEFAULT_THREAD_ID]);
 const DEFAULT_THREAD: ExternalStoreThreadData<"regular"> = Object.freeze({
   threadId: DEFAULT_THREAD_ID,
-  state: "regular",
+  status: "regular",
 });
+const RESOLVED_PROMISE = Promise.resolve();
 
 export class ExternalStoreThreadListRuntimeCore
   implements ThreadListRuntimeCore
@@ -33,6 +34,10 @@ export class ExternalStoreThreadListRuntimeCore
 
   public get archivedThreadIds() {
     return this._archivedThreads;
+  }
+
+  public getLoadThreadsPromise() {
+    return RESOLVED_PROMISE;
   }
 
   private _mainThread: ExternalStoreThreadRuntimeCore;

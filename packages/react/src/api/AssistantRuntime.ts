@@ -41,11 +41,7 @@ export type AssistantRuntime = {
   registerModelConfigProvider(provider: ModelConfigProvider): Unsubscribe;
 };
 
-export class AssistantRuntimeImpl
-  implements
-    Omit<AssistantRuntimeCore, "thread" | "threadList">,
-    AssistantRuntime
-{
+export class AssistantRuntimeImpl implements AssistantRuntime {
   public readonly threadList;
   public readonly _thread: ThreadRuntime;
 
@@ -66,7 +62,7 @@ export class AssistantRuntimeImpl
         getState: () => _core.threadList.getMainThreadRuntimeCore(),
         subscribe: (callback) => _core.threadList.subscribe(callback),
       }),
-      this.threadList.mainThreadListItem, // TODO capture "main" threadListItem from context around useLocalRuntime / useExternalStoreRuntime
+      this.threadList.mainItem, // TODO capture "main" threadListItem from context around useLocalRuntime / useExternalStoreRuntime
     );
   }
 

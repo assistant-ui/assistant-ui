@@ -10,7 +10,7 @@ import { SpeechSynthesisAdapter } from "../speech/SpeechAdapterTypes";
 import { ThreadMessageLike } from "./ThreadMessageLike";
 
 export type ExternalStoreThreadData<TState extends "regular" | "archived"> = {
-  state: TState;
+  status: TState;
   threadId: string;
   title?: string | undefined;
 };

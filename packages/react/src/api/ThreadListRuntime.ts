@@ -21,10 +21,10 @@ export type ThreadListRuntime = {
 
   subscribe(callback: () => void): Unsubscribe;
 
-  readonly mainThreadListItem: ThreadListItemRuntime;
-  getThreadListItemById(threadId: string): ThreadListItemRuntime;
-  getThreadListItemByIndex(idx: number): ThreadListItemRuntime;
-  getThreadListArchivedItemByIndex(idx: number): ThreadListItemRuntime;
+  readonly mainItem: ThreadListItemRuntime;
+  getItemById(threadId: string): ThreadListItemRuntime;
+  getItemByIndex(idx: number): ThreadListItemRuntime;
+  getArchivedItemByIndex(idx: number): ThreadListItemRuntime;
 };
 
 const getThreadListState = (
@@ -48,9 +48,10 @@ const getThreadListItemState = (
   if (!threadData) return SKIP_UPDATE;
   return {
     id: threadData.threadId,
+    remoteId: threadData.remoteId,
     threadId: threadData.threadId, // TODO remove in 0.8.0
     title: threadData.title,
-    state: threadData.state,
+    status: threadData.status,
     isMain: threadData.threadId === threadList.mainThreadId,
   };
 };
@@ -93,11 +94,11 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
 
   private _mainThreadListItemRuntime;
 
-  public get mainThreadListItem() {
+  public get mainItem() {
     return this._mainThreadListItemRuntime;
   }
 
-  public getThreadListItemByIndex(idx: number) {
+  public getItemByIndex(idx: number) {
     return new ThreadListItemRuntimeImpl(
       new ShallowMemoizeSubject({
         path: {
@@ -113,7 +114,7 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
     );
   }
 
-  public getThreadListArchivedItemByIndex(idx: number) {
+  public getArchivedItemByIndex(idx: number) {
     return new ThreadListItemRuntimeImpl(
       new ShallowMemoizeSubject({
         path: {
@@ -132,7 +133,7 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
     );
   }
 
-  public getThreadListItemById(threadId: string) {
+  public getItemById(threadId: string) {
     return new ThreadListItemRuntimeImpl(
       new ShallowMemoizeSubject({
         path: {

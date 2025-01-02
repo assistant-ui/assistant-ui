@@ -3,7 +3,9 @@ import { ThreadRuntimeCore } from "./ThreadRuntimeCore";
 
 type ThreadListItemCoreState = {
   readonly threadId: string;
-  readonly state: "archived" | "regular" | "new" | "deleted";
+  readonly remoteId?: string;
+
+  readonly status: "archived" | "regular" | "new" | "deleted";
   readonly title?: string | undefined;
 
   readonly runtime?: ThreadRuntimeCore | undefined;
@@ -22,7 +24,7 @@ export type ThreadListRuntimeCore = {
   switchToThread(threadId: string): Promise<void>;
   switchToNewThread(): Promise<void>;
 
-  // getLoadThreadsPromise(): Promise<void>;
+  getLoadThreadsPromise(): Promise<void>;
   // getLoadArchivedThreadsPromise(): Promise<void>;
 
   rename(threadId: string, newTitle: string): Promise<void>;

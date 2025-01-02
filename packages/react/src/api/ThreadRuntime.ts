@@ -215,11 +215,11 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     return this._threadBinding.path;
   }
 
-  public unstable_getCore() {
-    return this._threadBinding.getState();
+  public get __internal_threadBinding() {
+    return this._threadBinding;
   }
 
-  private _threadBinding: ThreadRuntimeCoreBinding & {
+  private readonly _threadBinding: ThreadRuntimeCoreBinding & {
     getStateState(): ThreadState;
   };
 

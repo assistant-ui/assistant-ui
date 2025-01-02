@@ -53,6 +53,7 @@ const makeModelConfigStore = () =>
 type PlaygroundThreadFactory = () => PlaygroundThreadRuntimeCore;
 
 const EMPTY_ARRAY = [] as never[];
+const RESOLVED_PROMISE = Promise.resolve();
 
 class PlaygroundThreadListRuntimeCore
   implements INTERNAL.ThreadListRuntimeCore
@@ -79,6 +80,10 @@ class PlaygroundThreadListRuntimeCore
     this._mainThread = this.threadFactory();
   }
 
+  public getLoadThreadsPromise(): Promise<void> {
+    return RESOLVED_PROMISE;
+  }
+
   public getMainThreadRuntimeCore() {
     return this._mainThread;
   }
@@ -88,7 +93,7 @@ class PlaygroundThreadListRuntimeCore
 
     return {
       threadId: "default",
-      state: "regular",
+      status: "regular",
       runtime: this._mainThread,
     } as const;
   }

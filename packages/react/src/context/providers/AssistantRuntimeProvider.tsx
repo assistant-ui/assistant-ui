@@ -8,6 +8,7 @@ import { ThreadRuntimeProvider } from "./ThreadRuntimeProvider";
 import { AssistantRuntime } from "../../api/AssistantRuntime";
 import { create } from "zustand";
 import { writableStore } from "../ReadonlyStore";
+import { AssistantRuntimeCore } from "../../runtimes/core/AssistantRuntimeCore";
 
 export namespace AssistantRuntimeProvider {
   export type Props = PropsWithChildren<{
@@ -45,6 +46,16 @@ const useThreadListStore = (runtime: AssistantRuntime) => {
   return store;
 };
 
+const DEFAULT_RENDER_COMPONENT: FC<PropsWithChildren> = ({ children }) =>
+  children;
+
+const getRenderComponent = (runtime: AssistantRuntime) => {
+  return (
+    (runtime as { _core?: AssistantRuntimeCore })._core
+      ?.__internal_RenderComponent ?? DEFAULT_RENDER_COMPONENT
+  );
+};
+
 export const AssistantRuntimeProviderImpl: FC<
   AssistantRuntimeProvider.Props
 > = ({ children, runtime }) => {
@@ -59,14 +70,18 @@ export const AssistantRuntimeProviderImpl: FC<
     };
   }, [useAssistantRuntime, useToolUIs, useThreadList]);
 
+  const RenderComponent = getRenderComponent(runtime);
+
   return (
     <AssistantContext.Provider value={context}>
-      <ThreadRuntimeProvider
-        runtime={runtime.thread}
-        listItemRuntime={runtime.threadList.mainThreadListItem}
-      >
-        {children}
-      </ThreadRuntimeProvider>
+      <RenderComponent>
+        <ThreadRuntimeProvider
+          runtime={runtime.thread}
+          listItemRuntime={runtime.threadList.mainItem}
+        >
+          {children}
+        </ThreadRuntimeProvider>
+      </RenderComponent>
     </AssistantContext.Provider>
   );
 };
