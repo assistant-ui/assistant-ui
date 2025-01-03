@@ -29,6 +29,10 @@ const AttachmentRoot = withDefaults(AttachmentPrimitive.Root, {
   className: "aui-attachment-root",
 });
 
+const AttachmentContent = withDefaults("div", {
+  className: "aui-attachment-content",
+});
+
 AttachmentRoot.displayName = "AttachmentRoot";
 
 const useFileSrc = (file: File | undefined) => {
@@ -141,20 +145,22 @@ const AttachmentUI: FC = () => {
   });
   return (
     <Tooltip>
-      <AttachmentPreviewDialog>
-        <TooltipTrigger asChild>
-          <AttachmentRoot>
-            <AttachmentThumb />
-            <div className="aui-attachment-text">
-              <p className="aui-attachment-name">
-                <AttachmentPrimitive.Name />
-              </p>
-              <p className="aui-attachment-type">{typeLabel}</p>
-            </div>
-            {canRemove && <AttachmentRemove />}
-          </AttachmentRoot>
-        </TooltipTrigger>
-      </AttachmentPreviewDialog>
+      <AttachmentRoot>
+        <AttachmentPreviewDialog>
+          <TooltipTrigger asChild>
+            <AttachmentContent>
+              <AttachmentThumb />
+              <div className="aui-attachment-text">
+                <p className="aui-attachment-name">
+                  <AttachmentPrimitive.Name />
+                </p>
+                <p className="aui-attachment-type">{typeLabel}</p>
+              </div>
+            </AttachmentContent>
+          </TooltipTrigger>
+        </AttachmentPreviewDialog>
+        {canRemove && <AttachmentRemove />}
+      </AttachmentRoot>
       <TooltipContent side="top">
         <AttachmentPrimitive.Name />
       </TooltipContent>

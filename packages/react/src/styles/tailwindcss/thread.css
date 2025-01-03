@@ -73,7 +73,11 @@
 /* attachment */
 
 .aui-attachment-root {
-  @apply relative mt-3 flex h-12 w-40 items-center justify-center gap-2 rounded-lg border p-1;
+  @apply relative mt-3;
+}
+
+.aui-attachment-content {
+  @apply flex h-12 w-40 items-center justify-center gap-2 rounded-lg border p-1;
 }
 
 .aui-attachment-preview-trigger {
