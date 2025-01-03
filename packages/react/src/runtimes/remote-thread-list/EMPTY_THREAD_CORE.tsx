@@ -90,8 +90,12 @@ export const EMPTY_THREAD_CORE: ThreadRuntimeCore = {
       throw EMPTY_THREAD_ERROR;
     },
 
-    reset() {
-      throw EMPTY_THREAD_ERROR;
+    async reset() {
+      // noop
+    },
+
+    async clearAttachments() {
+      // noop
     },
 
     send() {
@@ -99,7 +103,7 @@ export const EMPTY_THREAD_CORE: ThreadRuntimeCore = {
     },
 
     cancel() {
-      throw EMPTY_THREAD_ERROR;
+      // noop
     },
 
     subscribe() {
