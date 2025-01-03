@@ -100,6 +100,7 @@ export const useLangGraphRuntime = ({
   autoCancelPendingToolCalls,
   adapters: { attachments } = {},
   unstable_allowImageAttachments,
+  unstable_allowCancellation,
   stream,
   threadId,
   onSwitchToNewThread,
@@ -114,6 +115,7 @@ export const useLangGraphRuntime = ({
    * @deprecated Use `adapters: { attachments: new SimpleImageAttachmentAdapter() }` instead. This option will be removed in a future version.
    */
   unstable_allowImageAttachments?: boolean | undefined;
+  unstable_allowCancellation?: boolean | undefined;
   stream: (
     messages: LangChainMessage[],
     config: LangGraphSendMessageConfig,
@@ -136,7 +138,7 @@ export const useLangGraphRuntime = ({
       }
     | undefined;
 }) => {
-  const { messages, sendMessage, setMessages } = useLangGraphMessages({
+  const { messages, sendMessage, cancel, setMessages } = useLangGraphMessages({
     stream,
   });
 
@@ -255,5 +257,10 @@ export const useLangGraphRuntime = ({
         {},
       );
     },
+    onCancel: unstable_allowCancellation
+      ? async () => {
+          cancel();
+        }
+      : undefined,
   });
 };

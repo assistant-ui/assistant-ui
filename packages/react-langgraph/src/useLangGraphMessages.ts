@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { INTERNAL } from "@assistant-ui/react";
 
 const { generateId } = INTERNAL;
@@ -17,7 +17,7 @@ export const useLangGraphMessages = <TMessage>({
 }: {
   stream: (
     messages: TMessage[],
-    config: LangGraphSendMessageConfig,
+    config: LangGraphSendMessageConfig & { abortSignal: AbortSignal },
   ) => Promise<
     AsyncGenerator<{
       event: string;
@@ -26,6 +26,7 @@ export const useLangGraphMessages = <TMessage>({
   >;
 }) => {
   const [messages, setMessages] = useState<TMessage[]>([]);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const sendMessage = useCallback(
     async (newMessages: TMessage[], config: LangGraphSendMessageConfig) => {
@@ -34,7 +35,12 @@ export const useLangGraphMessages = <TMessage>({
         setMessages(optimisticMessages);
       }
 
-      const response = await stream(newMessages, config);
+      const abortController = new AbortController();
+      abortControllerRef.current = abortController;
+      const response = await stream(newMessages, {
+        ...config,
+        abortSignal: abortController.signal,
+      });
 
       const completeMessages: TMessage[] = [];
       let partialMessages: Map<string, TMessage> = new Map();
@@ -77,5 +83,11 @@ export const useLangGraphMessages = <TMessage>({
     [messages, stream],
   );
 
-  return { messages, sendMessage, setMessages };
+  const cancel = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+  }, [abortControllerRef]);
+
+  return { messages, sendMessage, cancel, setMessages };
 };
