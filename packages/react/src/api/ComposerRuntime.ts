@@ -108,7 +108,9 @@ export type ComposerRuntime = {
   setRole(role: MessageRole): void;
   setRunConfig(runConfig: RunConfig): void;
 
-  reset(): void;
+  reset(): Promise<void>;
+  clearAttachments(): Promise<void>;
+
   send(): void;
   cancel(): void;
   subscribe(callback: () => void): Unsubscribe;
@@ -147,7 +149,13 @@ export abstract class ComposerRuntimeImpl implements ComposerRuntime {
   public reset() {
     const core = this._core.getState();
     if (!core) throw new Error("Composer is not available");
-    core.reset();
+    return core.reset();
+  }
+
+  public clearAttachments() {
+    const core = this._core.getState();
+    if (!core) throw new Error("Composer is not available");
+    return core.clearAttachments();
   }
 
   public send() {

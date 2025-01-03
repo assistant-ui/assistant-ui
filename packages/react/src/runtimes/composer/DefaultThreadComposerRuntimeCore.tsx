@@ -34,7 +34,7 @@ export class DefaultThreadComposerRuntimeCore
     return this.runtime.subscribe(() => {
       if (this.canCancel !== this.runtime.capabilities.cancel) {
         this._canCancel = this.runtime.capabilities.cancel;
-        this.notifySubscribers();
+        this._notifySubscribers();
       }
     });
   }

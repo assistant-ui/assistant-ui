@@ -24,7 +24,8 @@ export type ComposerRuntimeCore = Readonly<{
   runConfig: RunConfig;
   setRunConfig: (runConfig: RunConfig) => void;
 
-  reset: () => void;
+  reset: () => Promise<void>;
+  clearAttachments: () => Promise<void>;
 
   send: () => void;
   cancel: () => void;

@@ -3,18 +3,22 @@ import {
   CompleteAttachment,
   PendingAttachment,
 } from "../../types/AttachmentTypes";
-import { AppendMessage, Unsubscribe } from "../../types";
+import { AppendMessage } from "../../types";
 import { AttachmentAdapter } from "../attachment";
 import {
   ComposerRuntimeCore,
   ComposerRuntimeEventType,
 } from "../core/ComposerRuntimeCore";
 import { MessageRole, RunConfig } from "../../types/AssistantTypes";
+import { BaseSubscribable } from "../remote-thread-list/BaseSubscribable";
 
 const isAttachmentComplete = (a: Attachment): a is CompleteAttachment =>
   a.status.type === "complete";
 
-export abstract class BaseComposerRuntimeCore implements ComposerRuntimeCore {
+export abstract class BaseComposerRuntimeCore
+  extends BaseSubscribable
+  implements ComposerRuntimeCore
+{
   public readonly isEditing = true;
 
   protected abstract getAttachmentAdapter(): AttachmentAdapter | undefined;
@@ -30,7 +34,7 @@ export abstract class BaseComposerRuntimeCore implements ComposerRuntimeCore {
 
   protected setAttachments(value: readonly Attachment[]) {
     this._attachments = value;
-    this.notifySubscribers();
+    this._notifySubscribers();
   }
 
   public abstract get canCancel(): boolean;
@@ -61,27 +65,34 @@ export abstract class BaseComposerRuntimeCore implements ComposerRuntimeCore {
     if (this._text === value) return;
 
     this._text = value;
-    this.notifySubscribers();
+    this._notifySubscribers();
   }
 
   public setRole(role: MessageRole) {
     if (this._role === role) return;
 
     this._role = role;
-    this.notifySubscribers();
+    this._notifySubscribers();
   }
 
   public setRunConfig(runConfig: RunConfig) {
     if (this._runConfig === runConfig) return;
 
     this._runConfig = runConfig;
-    this.notifySubscribers();
+    this._notifySubscribers();
   }
 
-  private _sendOrReset() {
+  private _emptyTextAndAttachments() {
     this._attachments = [];
     this._text = "";
-    this.notifySubscribers();
+    this._notifySubscribers();
+  }
+
+  private async _onClearAttachments() {
+    const adapter = this.getAttachmentAdapter();
+    if (adapter) {
+      await Promise.all(this._attachments.map((a) => adapter.remove(a)));
+    }
   }
 
   public async reset() {
@@ -94,16 +105,19 @@ export abstract class BaseComposerRuntimeCore implements ComposerRuntimeCore {
       return;
     }
 
-    const attachments = this._attachments;
     this._role = "user";
     this._runConfig = {};
 
-    this._sendOrReset();
+    const task = this._onClearAttachments();
+    this._emptyTextAndAttachments();
+    await task;
+  }
 
-    const adapter = this.getAttachmentAdapter();
-    if (adapter) {
-      await Promise.all(attachments.map((a) => adapter.remove(a)));
-    }
+  public async clearAttachments() {
+    const task = this._onClearAttachments();
+    this.setAttachments([]);
+
+    await task;
   }
 
   public async send() {
@@ -125,7 +139,7 @@ export abstract class BaseComposerRuntimeCore implements ComposerRuntimeCore {
       attachments,
       runConfig: this.runConfig,
     };
-    this._sendOrReset();
+    this._emptyTextAndAttachments();
 
     this.handleSend(message);
     this._notifyEventSubscribers("send");
@@ -145,7 +159,7 @@ export abstract class BaseComposerRuntimeCore implements ComposerRuntimeCore {
     const attachment = await adapter.add({ file });
 
     this._attachments = [...this._attachments, attachment as PendingAttachment];
-    this.notifySubscribers();
+    this._notifySubscribers();
   }
 
   async removeAttachment(attachmentId: string) {
@@ -159,18 +173,7 @@ export abstract class BaseComposerRuntimeCore implements ComposerRuntimeCore {
     await adapter.remove(attachment);
 
     this._attachments = this._attachments.toSpliced(index, 1);
-    this.notifySubscribers();
-  }
-
-  private _subscriptions = new Set<() => void>();
-
-  protected notifySubscribers() {
-    for (const callback of this._subscriptions) callback();
-  }
-
-  public subscribe(callback: () => void): Unsubscribe {
-    this._subscriptions.add(callback);
-    return () => this._subscriptions.delete(callback);
+    this._notifySubscribers();
   }
 
   private _eventSubscribers = new Map<
