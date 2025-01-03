@@ -27,7 +27,7 @@
     "build": "tsup src/index.ts --format cjs,esm --dts --sourcemap --clean"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.7.24",
+    "@assistant-ui/react": "^0.7.25",
     "@assistant-ui/react-markdown": "^0.7.7",
     "@types/react": "*",
     "@types/react-syntax-highlighter": "*",

@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.7.25
+
+### Patch Changes
+
+- 798e9f3: fix: AttachmentRemove should not trigger AttachmentPreviewDialog
+- 37e1abc: feat: ComposerRuntime.clearAttachments
+- d6b3b79: feat: useRemoteThreadListRuntime
+
 ## 0.7.24
 
 ### Patch Changes
