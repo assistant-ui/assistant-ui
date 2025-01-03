@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { LangChainMessage, LangChainToolCall } from "./types";
 import {
   useExternalMessageConverter,
@@ -10,6 +10,7 @@ import { SimpleImageAttachmentAdapter } from "@assistant-ui/react";
 import { AttachmentAdapter } from "@assistant-ui/react";
 import { AppendMessage } from "@assistant-ui/react";
 import { ExternalStoreAdapter } from "@assistant-ui/react";
+import { useThreadListItemRuntime } from "@assistant-ui/react/context/react/ThreadListItemContext";
 
 const getPendingToolCalls = (messages: LangChainMessage[]) => {
   const pendingToolCalls = new Map<string, LangChainToolCall>();
@@ -59,14 +60,17 @@ const getMessageContent = (msg: AppendMessage) => {
 };
 
 export const useLangGraphRuntime = ({
-  threadId,
   autoCancelPendingToolCalls,
+  adapters: { attachments } = {},
   unstable_allowImageAttachments,
   stream,
+  threadId,
   onSwitchToNewThread,
   onSwitchToThread,
-  adapters: { attachments } = {},
 }: {
+  /**
+   * @deprecated For thread management use `useCloudThreadListRuntime` instead. This option will be removed in a future version.
+   */
   threadId?: string | undefined;
   autoCancelPendingToolCalls?: boolean | undefined;
   /**
@@ -79,6 +83,9 @@ export const useLangGraphRuntime = ({
       data: any;
     }>
   >;
+  /**
+   * @deprecated For thread management use `useCloudThreadListRuntime` instead. This option will be removed in a future version.
+   */
   onSwitchToNewThread?: () => Promise<void> | void;
   onSwitchToThread?: (
     threadId: string,
@@ -118,6 +125,13 @@ export const useLangGraphRuntime = ({
   if (unstable_allowImageAttachments)
     attachments = new SimpleImageAttachmentAdapter();
 
+  const switchToThread = !onSwitchToThread
+    ? undefined
+    : async (threadId: string) => {
+        const { messages } = await onSwitchToThread(threadId);
+        setMessages(messages);
+      };
+
   const threadList: NonNullable<
     ExternalStoreAdapter["adapters"]
   >["threadList"] = {
@@ -128,13 +142,22 @@ export const useLangGraphRuntime = ({
           await onSwitchToNewThread();
           setMessages([]);
         },
-    onSwitchToThread: !onSwitchToThread
-      ? undefined
-      : async (threadId) => {
-          const { messages } = await onSwitchToThread(threadId);
-          setMessages(messages);
-        },
+    onSwitchToThread: switchToThread,
   };
+
+  const loadingRef = useRef(false);
+  const threadListItemRuntime = useThreadListItemRuntime({ optional: true });
+  useEffect(() => {
+    if (!threadListItemRuntime || !switchToThread || loadingRef.current) return;
+    console.log("switching to thread");
+    const externalId = threadListItemRuntime.getState().externalId;
+    if (externalId) {
+      loadingRef.current = true;
+      switchToThread(externalId).finally(() => {
+        loadingRef.current = false;
+      });
+    }
+  }, []);
 
   return useExternalStoreRuntime({
     isRunning,

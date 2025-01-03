@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, FC, PropsWithChildren } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { BaseAssistantRuntimeCore } from "../core/BaseAssistantRuntimeCore";
 import { RemoteThreadListThreadListRuntimeCore } from "./RemoteThreadListThreadListRuntimeCore";
 import { RemoteThreadListAdapter } from "./types";
@@ -12,14 +12,9 @@ class RemoteThreadListRuntimeCore extends BaseAssistantRuntimeCore {
     this.threadList = new RemoteThreadListThreadListRuntimeCore(adapter);
   }
 
-  public __internal_RenderComponent: FC<PropsWithChildren> = ({ children }) => {
-    return (
-      <>
-        <this.threadList.__internal_RenderThreadRuntimes />
-        {children}
-      </>
-    );
-  };
+  public get __internal_RenderComponent() {
+    return this.threadList.__internal_RenderComponent;
+  }
 }
 
 export const useRemoteThreadListRuntime = (
