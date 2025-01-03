@@ -1,6 +1,10 @@
 import asyncio
 from typing import Any, AsyncGenerator, Callable, Coroutine
-from assistant_stream.assistant_stream_chunk import AssistantStreamChunk, TextDeltaChunk
+from assistant_stream.assistant_stream_chunk import (
+    AssistantStreamChunk,
+    TextDeltaChunk,
+    ToolResultChunk,
+)
 from assistant_stream.modules.tool_call import (
     create_tool_call,
     ToolCallController,
@@ -29,6 +33,17 @@ class RunController:
         self._dispose_callbacks.append(controller.close)
         self.add_stream(stream)
         return controller
+
+    async def add_tool_result(self, tool_call_id: str, result: Any) -> None:
+        """Add a tool result to the stream."""
+
+        await self._queue.put(
+            ToolResultChunk(
+                type="tool-result",
+                tool_call_id=tool_call_id,
+                result=result,
+            ),
+        )
 
     def add_stream(self, stream: AsyncGenerator[AssistantStreamChunk, None]) -> None:
         """Append a substream to the main stream."""

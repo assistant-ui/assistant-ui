@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [project]
 name = "assistant-stream"
-version = "0.0.5"
+version = "0.0.6"
 authors = [
   { name="Simon Farshid", email="simon@assistant-ui.com" },
 ]
@@ -22,7 +22,7 @@ Issues = "https://github.com/Yonom/assistant-ui/issues"
 
 [tool.poetry]
 name = "assistant-stream"
-version = "0.0.5"
+version = "0.0.6"
 description = ""
 authors = ["Simon Farshid <simon@assistant-ui.com>"]
 
