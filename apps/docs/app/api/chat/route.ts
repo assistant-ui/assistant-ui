@@ -1,5 +1,5 @@
 import { createOpenAI } from "@ai-sdk/openai";
-import { createEdgeRuntimeAPI } from "@assistant-ui/react/edge";
+import { getEdgeRuntimeResponse } from "@assistant-ui/react/edge";
 
 const openai = createOpenAI({
   baseURL: process.env["OPENAI_BASE_URL"] as string,
@@ -7,6 +7,14 @@ const openai = createOpenAI({
 
 export const runtime = "edge";
 
-export const { POST } = createEdgeRuntimeAPI({
-  model: openai("gpt-3.5-turbo"),
-});
+export const POST = async (request: Request) => {
+  const requestData = await request.json();
+
+  return getEdgeRuntimeResponse({
+    options: {
+      model: openai("gpt-4o-mini"),
+    },
+    requestData,
+    abortSignal: request.signal,
+  });
+};
