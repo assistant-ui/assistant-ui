@@ -3,10 +3,22 @@ import { INTERNAL } from "@assistant-ui/react";
 
 const { generateId } = INTERNAL;
 
+export type LangGraphCommand = {
+  resume: string;
+};
+
+export type LangGraphSendMessageConfig = {
+  command?: LangGraphCommand;
+  runConfig?: unknown;
+};
+
 export const useLangGraphMessages = <TMessage>({
   stream,
 }: {
-  stream: (messages: TMessage[]) => Promise<
+  stream: (
+    messages: TMessage[],
+    config: LangGraphSendMessageConfig,
+  ) => Promise<
     AsyncGenerator<{
       event: string;
       data: any;
@@ -16,13 +28,13 @@ export const useLangGraphMessages = <TMessage>({
   const [messages, setMessages] = useState<TMessage[]>([]);
 
   const sendMessage = useCallback(
-    async (newMessages: TMessage[]) => {
+    async (newMessages: TMessage[], config: LangGraphSendMessageConfig) => {
       const optimisticMessages = [...messages, ...newMessages];
       if (newMessages.length > 0) {
         setMessages(optimisticMessages);
       }
 
-      const response = await stream(newMessages);
+      const response = await stream(newMessages, config);
 
       const completeMessages: TMessage[] = [];
       let partialMessages: Map<string, TMessage> = new Map();

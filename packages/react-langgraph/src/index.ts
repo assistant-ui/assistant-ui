@@ -1,4 +1,8 @@
-export { useLangGraphRuntime } from "./useLangGraphRuntime";
+export {
+  useLangGraphRuntime,
+  useLangGraphRuntimeSend,
+  useLangGraphRuntimeSendCommand,
+} from "./useLangGraphRuntime";
 
 export { useLangGraphMessages } from "./useLangGraphMessages";
 export { convertLangchainMessages } from "./convertLangchainMessages";

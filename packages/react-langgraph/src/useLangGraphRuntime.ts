@@ -3,9 +3,14 @@ import { LangChainMessage, LangChainToolCall } from "./types";
 import {
   useExternalMessageConverter,
   useExternalStoreRuntime,
+  useThread,
 } from "@assistant-ui/react";
 import { convertLangchainMessages } from "./convertLangchainMessages";
-import { useLangGraphMessages } from "./useLangGraphMessages";
+import {
+  LangGraphCommand,
+  LangGraphSendMessageConfig,
+  useLangGraphMessages,
+} from "./useLangGraphMessages";
 import { SimpleImageAttachmentAdapter } from "@assistant-ui/react";
 import { AttachmentAdapter } from "@assistant-ui/react";
 import { AppendMessage } from "@assistant-ui/react";
@@ -59,6 +64,38 @@ const getMessageContent = (msg: AppendMessage) => {
   return content;
 };
 
+const symbolLangGraphRuntimeExtras = Symbol("langgraph-runtime-extras");
+type LangGraphRuntimeExtras = {
+  [symbolLangGraphRuntimeExtras]: true;
+  send: (
+    messages: LangChainMessage[],
+    config: LangGraphSendMessageConfig,
+  ) => Promise<void>;
+};
+
+const asLangGraphRuntimeExtras = (extras: unknown): LangGraphRuntimeExtras => {
+  if (
+    typeof extras !== "object" ||
+    extras == null ||
+    !(symbolLangGraphRuntimeExtras in extras)
+  )
+    throw new Error(
+      "This method can only be called when you are using useLangGraphRuntime",
+    );
+
+  return extras as LangGraphRuntimeExtras;
+};
+
+export const useLangGraphRuntimeSend = () => {
+  const { send } = useThread((t) => asLangGraphRuntimeExtras(t.extras));
+  return send;
+};
+
+export const useLangGraphRuntimeSendCommand = (command: LangGraphCommand) => {
+  const send = useLangGraphRuntimeSend();
+  return () => send([], { command });
+};
+
 export const useLangGraphRuntime = ({
   autoCancelPendingToolCalls,
   adapters: { attachments } = {},
@@ -77,7 +114,10 @@ export const useLangGraphRuntime = ({
    * @deprecated Use `adapters: { attachments: new SimpleImageAttachmentAdapter() }` instead. This option will be removed in a future version.
    */
   unstable_allowImageAttachments?: boolean | undefined;
-  stream: (messages: LangChainMessage[]) => Promise<
+  stream: (
+    messages: LangChainMessage[],
+    config: LangGraphSendMessageConfig,
+  ) => Promise<
     AsyncGenerator<{
       event: string;
       data: any;
@@ -101,10 +141,13 @@ export const useLangGraphRuntime = ({
   });
 
   const [isRunning, setIsRunning] = useState(false);
-  const handleSendMessage = async (messages: LangChainMessage[]) => {
+  const handleSendMessage = async (
+    messages: LangChainMessage[],
+    config: LangGraphSendMessageConfig,
+  ) => {
     try {
       setIsRunning(true);
-      await sendMessage(messages);
+      await sendMessage(messages, config);
     } catch (error) {
       console.error("Error streaming messages:", error);
     } finally {
@@ -149,7 +192,7 @@ export const useLangGraphRuntime = ({
   const threadListItemRuntime = useThreadListItemRuntime({ optional: true });
   useEffect(() => {
     if (!threadListItemRuntime || !switchToThread || loadingRef.current) return;
-    console.log("switching to thread");
+
     const externalId = threadListItemRuntime.getState().externalId;
     if (externalId) {
       loadingRef.current = true;
@@ -166,6 +209,10 @@ export const useLangGraphRuntime = ({
       attachments,
       threadList,
     },
+    extras: {
+      [symbolLangGraphRuntimeExtras]: true,
+      send: handleSendMessage,
+    } satisfies LangGraphRuntimeExtras,
     onNew: (msg) => {
       const cancellations =
         autoCancelPendingToolCalls !== false
@@ -180,23 +227,33 @@ export const useLangGraphRuntime = ({
             )
           : [];
 
-      return handleSendMessage([
-        ...cancellations,
+      return handleSendMessage(
+        [
+          ...cancellations,
+          {
+            type: "human",
+            content: getMessageContent(msg),
+          },
+        ],
         {
-          type: "human",
-          content: getMessageContent(msg),
+          runConfig: msg.runConfig,
         },
-      ]);
+      );
     },
     onAddToolResult: async ({ toolCallId, toolName, result }) => {
-      await handleSendMessage([
-        {
-          type: "tool",
-          name: toolName,
-          tool_call_id: toolCallId,
-          content: JSON.stringify(result),
-        },
-      ]);
+      // TODO parallel human in the loop calls
+      await handleSendMessage(
+        [
+          {
+            type: "tool",
+            name: toolName,
+            tool_call_id: toolCallId,
+            content: JSON.stringify(result),
+          },
+        ],
+        // TODO reuse runconfig here!
+        {},
+      );
     },
   });
 };
