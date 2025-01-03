@@ -1,5 +1,15 @@
 # @assistant-ui/react-langgraph
 
+## 0.1.9
+
+### Patch Changes
+
+- 738ef3c: feat: manually trigger langgraph sends via useLangGraphRuntimeSend
+- 738ef3c: feat: support for Command
+- 738ef3c: feat: interrupt+Command support via useLangGraphRuntimeSendCommand
+- Updated dependencies [6a17ec2]
+  - @assistant-ui/react@0.7.26
+
 ## 0.1.8
 
 ### Patch Changes

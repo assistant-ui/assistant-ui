@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.26
+
+### Patch Changes
+
+- 6a17ec2: feat: useAssistantInstructions disable support
+
 ## 0.7.25
 
 ### Patch Changes
