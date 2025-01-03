@@ -37,7 +37,8 @@ class RunController:
     async def add_tool_result(self, tool_call_id: str, result: Any) -> None:
         """Add a tool result to the stream."""
 
-        await self._queue.put(
+        self._loop.call_soon_threadsafe(
+            self._queue.put_nowait,
             ToolResultChunk(
                 type="tool-result",
                 tool_call_id=tool_call_id,
