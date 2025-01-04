@@ -36,6 +36,8 @@
     --ring: 240 10% 3.9%;
 
     --radius: 0.5rem;
+
+    --aui-thread-max-width: infinity;
   }
 
   .dark {

@@ -3,6 +3,7 @@ import baseComponentsCSS from "../../dist/styles/tailwindcss/base-components.css
 import threadCSS from "../../dist/styles/tailwindcss/thread.css.json";
 import modalCSS from "../../dist/styles/tailwindcss/modal.css.json";
 import defaultThemeCSS from "../../dist/styles/themes/default.css.json";
+import shadcnExtrasCSS from "../../dist/styles/themes/shadcn-extras.css.json";
 
 type AssistantTailwindPluginColors = {
   border: string;
@@ -60,6 +61,9 @@ const auiPlugin = plugin.withOptions<AssisstantTailwindPluginOptions>(
       if (defaultTheme || (base && !shadcn)) {
         addComponents(defaultThemeCSS);
       }
+      if (!defaultTheme && base && shadcn) {
+        addComponents(shadcnExtrasCSS);
+      }
 
       if (base) {
         addComponents(baseComponentsCSS);
@@ -79,6 +83,9 @@ const auiPlugin = plugin.withOptions<AssisstantTailwindPluginOptions>(
       safelist: [{ pattern: /aui-/ }],
       theme: {
         extend: {
+          maxWidth: {
+            "aui-thread": "var(--aui-thread-max-width)",
+          },
           colors: {
             aui: {
               border: colors.border ?? `hsl(var(${prefix}border))`,

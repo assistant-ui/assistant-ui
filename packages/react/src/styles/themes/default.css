@@ -28,6 +28,9 @@
   --aui-ring: 240 10% 3.9%;
 
   --aui-radius: 0.5rem;
+
+  /* aui specific */
+  --aui-thread-max-width: 42rem;
 }
 
 .dark {

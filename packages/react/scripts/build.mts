@@ -7,6 +7,7 @@ await Build.start()
       "src/styles/tailwindcss/modal.css",
       "src/styles/tailwindcss/thread.css",
       "src/styles/themes/default.css",
+      "src/styles/themes/shadcn-extras.css",
     ],
     cssEntrypoints: ["src/styles/index.css", "src/styles/modal.css"],
   })

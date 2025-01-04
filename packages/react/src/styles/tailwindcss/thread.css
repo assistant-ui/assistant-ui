@@ -9,7 +9,7 @@
 }
 
 .aui-thread-viewport-footer {
-  @apply sticky bottom-0 mt-3 flex w-full max-w-2xl flex-col items-center justify-end rounded-t-lg bg-inherit pb-4;
+  @apply max-w-aui-thread sticky bottom-0 mt-3 flex w-full flex-col items-center justify-end rounded-t-lg bg-inherit pb-4;
 }
 
 .aui-thread-scroll-to-bottom {
@@ -27,7 +27,7 @@
 /* thread welcome */
 
 .aui-thread-welcome-root {
-  @apply flex w-full max-w-2xl flex-grow flex-col;
+  @apply max-w-aui-thread flex w-full flex-grow flex-col;
 }
 
 .aui-thread-welcome-center {
@@ -108,7 +108,7 @@
 
 .aui-user-message-root {
   @apply grid auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] gap-y-2 [&>*]:col-start-2;
-  @apply w-full max-w-2xl py-4;
+  @apply max-w-aui-thread w-full py-4;
 }
 
 :where(.aui-user-message-root) > .aui-user-action-bar-root {
@@ -130,7 +130,7 @@
 }
 
 .aui-user-message-content {
-  @apply bg-aui-muted text-aui-foreground max-w-xl break-words rounded-3xl px-5 py-2.5;
+  @apply bg-aui-muted text-aui-foreground max-w-[calc(var(--aui-thread-max-width)*0.8)] break-words rounded-3xl px-5 py-2.5;
 }
 
 .aui-user-message-attachments {
@@ -146,7 +146,7 @@
 /* edit composer */
 
 .aui-edit-composer-root {
-  @apply bg-aui-muted my-4 flex w-full max-w-2xl flex-col gap-2 rounded-xl;
+  @apply bg-aui-muted max-w-aui-thread my-4 flex w-full flex-col gap-2 rounded-xl;
 }
 
 .aui-edit-composer-input {
@@ -161,7 +161,7 @@
 
 .aui-assistant-message-root {
   @apply grid grid-cols-[auto_auto_1fr] grid-rows-[auto_1fr];
-  @apply relative w-full max-w-2xl py-4;
+  @apply max-w-aui-thread relative w-full py-4;
 }
 
 :where(.aui-assistant-message-root) > .aui-avatar-root {
@@ -183,7 +183,7 @@
 }
 
 .aui-assistant-message-content {
-  @apply text-aui-foreground max-w-xl break-words leading-7;
+  @apply text-aui-foreground max-w-[calc(var(--aui-thread-max-width)*0.8)] break-words leading-7;
 }
 
 /* assistant action bar */
