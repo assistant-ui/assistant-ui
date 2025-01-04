@@ -1,5 +1,13 @@
 # @assistant-ui/react-langgraph
 
+## 0.1.11
+
+### Patch Changes
+
+- 392188c: fix: wrong import path causing crash
+- Updated dependencies [a8ac203]
+  - @assistant-ui/react@0.7.28
+
 ## 0.1.10
 
 ### Patch Changes
