@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.7.27
+
+### Patch Changes
+
+- 528cfd3: feat: ExternalStoreAdapter.unstable_Provider
+- 3c70ea1: feat: allow customizing thread max width
+
 ## 0.7.26
 
 ### Patch Changes

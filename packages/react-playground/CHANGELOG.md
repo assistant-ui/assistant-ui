@@ -1,5 +1,14 @@
 # @assistant-ui/react-playground
 
+## 0.1.7
+
+### Patch Changes
+
+- 528cfd3: feat: ExternalStoreAdapter.unstable_Provider
+- Updated dependencies [528cfd3]
+- Updated dependencies [3c70ea1]
+  - @assistant-ui/react@0.7.27
+
 ## 0.1.6
 
 ### Patch Changes
