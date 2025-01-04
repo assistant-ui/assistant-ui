@@ -25,7 +25,6 @@ class ToolCallController:
         self.loop = asyncio.get_event_loop()
 
         begin_chunk = ToolCallBeginChunk(
-            type="tool-call-begin",
             tool_call_id=self.tool_call_id,
             tool_name=self.tool_name,
         )
@@ -34,7 +33,6 @@ class ToolCallController:
     def append_args_text(self, args_text_delta: str) -> None:
         """Append an args text delta to the stream."""
         chunk = ToolCallDeltaChunk(
-            type="tool-call-delta",
             tool_call_id=self.tool_call_id,
             args_text_delta=args_text_delta,
         )
@@ -44,7 +42,6 @@ class ToolCallController:
         """Set the result of the tool call."""
 
         chunk = ToolResultChunk(
-            type="tool-result",
             tool_call_id=self.tool_call_id,
             result=result,
         )

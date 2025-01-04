@@ -20,6 +20,8 @@ class DataStreamEncoder(StreamEncoder):
             return f'c:{json.dumps({ "toolCallId": chunk.tool_call_id, "argsTextDelta": chunk.args_text_delta })}\n'
         elif chunk.type == "tool-result":
             return f'a:{json.dumps({ "toolCallId": chunk.tool_call_id, "result": chunk.result })}\n'
+        elif chunk.type == "data":
+            return f"2:{json.dumps([chunk.data])}\n"
         pass
 
     def get_media_type(self) -> str:

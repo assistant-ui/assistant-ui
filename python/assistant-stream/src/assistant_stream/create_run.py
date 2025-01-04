@@ -4,6 +4,7 @@ from assistant_stream.assistant_stream_chunk import (
     AssistantStreamChunk,
     TextDeltaChunk,
     ToolResultChunk,
+    DataChunk,
 )
 from assistant_stream.modules.tool_call import (
     create_tool_call,
@@ -21,7 +22,7 @@ class RunController:
 
     def append_text(self, text_delta: str) -> None:
         """Append a text delta to the stream."""
-        chunk = TextDeltaChunk(type="text-delta", text_delta=text_delta)
+        chunk = TextDeltaChunk(text_delta=text_delta)
         self._loop.call_soon_threadsafe(self._queue.put_nowait, chunk)
 
     async def add_tool_call(
@@ -34,13 +35,12 @@ class RunController:
         self.add_stream(stream)
         return controller
 
-    async def add_tool_result(self, tool_call_id: str, result: Any) -> None:
+    def add_tool_result(self, tool_call_id: str, result: Any) -> None:
         """Add a tool result to the stream."""
 
         self._loop.call_soon_threadsafe(
             self._queue.put_nowait,
             ToolResultChunk(
-                type="tool-result",
                 tool_call_id=tool_call_id,
                 result=result,
             ),
@@ -55,6 +55,14 @@ class RunController:
 
         task = asyncio.create_task(reader())
         self._stream_tasks.append(task)
+
+    def add_data(self, data: Any) -> None:
+        """Emit an event to the main stream."""
+
+        self._loop.call_soon_threadsafe(
+            self._queue.put_nowait,
+            DataChunk(data=data),
+        )
 
 
 async def create_run(
