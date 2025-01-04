@@ -4,6 +4,7 @@ import {
   useExternalMessageConverter,
   useExternalStoreRuntime,
   useThread,
+  useThreadListItemRuntime,
 } from "@assistant-ui/react";
 import { convertLangchainMessages } from "./convertLangchainMessages";
 import {
@@ -15,7 +16,6 @@ import { SimpleImageAttachmentAdapter } from "@assistant-ui/react";
 import { AttachmentAdapter } from "@assistant-ui/react";
 import { AppendMessage } from "@assistant-ui/react";
 import { ExternalStoreAdapter } from "@assistant-ui/react";
-import { useThreadListItemRuntime } from "@assistant-ui/react/context/react/ThreadListItemContext";
 
 const getPendingToolCalls = (messages: LangChainMessage[]) => {
   const pendingToolCalls = new Map<string, LangChainToolCall>();
