@@ -13,6 +13,12 @@ export {
   useThreadViewport,
   useThreadViewportStore,
 } from "./ThreadContext";
+
+export {
+  useThreadListItemRuntime,
+  useThreadListItem,
+} from "./ThreadListItemContext";
+
 export {
   useMessageRuntime,
   useMessage,

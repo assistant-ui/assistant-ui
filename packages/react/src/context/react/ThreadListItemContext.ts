@@ -35,5 +35,7 @@ export function useThreadListItemRuntime(options?: {
   return context.useThreadListItemRuntime();
 }
 
-export const { useThreadListItem, useThreadListItemStore } =
-  createContextStoreHook(useThreadListItemContext, "useThreadListItem");
+export const { useThreadListItem } = createContextStoreHook(
+  useThreadListItemContext,
+  "useThreadListItem",
+);
