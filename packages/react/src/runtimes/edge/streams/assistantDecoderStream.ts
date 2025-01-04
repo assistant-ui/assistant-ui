@@ -133,6 +133,7 @@ export function assistantDecoderStream() {
 
         // TODO
         case AssistantStreamChunkType.Data:
+        case AssistantStreamChunkType.Annotation:
           break;
 
         default: {

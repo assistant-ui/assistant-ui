@@ -1,9 +1,10 @@
-import { LanguageModelV1StreamPart } from "@ai-sdk/provider";
+import { JSONValue, LanguageModelV1StreamPart } from "@ai-sdk/provider";
 
 export enum AssistantStreamChunkType {
   TextDelta = "0",
   Data = "2",
   Error = "3",
+  Annotation = "8",
   ToolCall = "9",
   ToolCallResult = "a",
   ToolCallBegin = "b",
@@ -14,7 +15,8 @@ export enum AssistantStreamChunkType {
 
 export type AssistantStreamChunk = {
   [AssistantStreamChunkType.TextDelta]: string;
-  [AssistantStreamChunkType.Data]: unknown;
+  [AssistantStreamChunkType.Data]: JSONValue[];
+  [AssistantStreamChunkType.Annotation]: JSONValue[];
   [AssistantStreamChunkType.ToolCall]: {
     toolCallId: string;
     toolName: string;
@@ -55,4 +57,3 @@ export type AssistantStreamChunk = {
     "type"
   >;
 };
- 
