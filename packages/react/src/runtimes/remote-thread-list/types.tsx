@@ -1,4 +1,4 @@
-import { FC, PropsWithChildren } from "react";
+import { ComponentType, PropsWithChildren } from "react";
 import { AssistantRuntime } from "../../api";
 import { Unsubscribe } from "../../types";
 import { CloudInitializeResponse } from "./cloud/CloudContext";
@@ -30,5 +30,5 @@ export type RemoteThreadListAdapter = {
     callback: (task: Promise<CloudInitializeResponse>) => Promise<void>,
   ): Unsubscribe;
 
-  __internal_RenderComponent?: FC<PropsWithChildren>;
+  unstable_Provider?: ComponentType<PropsWithChildren>;
 };

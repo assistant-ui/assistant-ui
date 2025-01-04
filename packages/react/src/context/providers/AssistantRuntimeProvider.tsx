@@ -1,7 +1,7 @@
 "use client";
 
 import type { FC, PropsWithChildren } from "react";
-import { memo, useEffect, useMemo, useState } from "react";
+import { Fragment, memo, useEffect, useMemo, useState } from "react";
 import { AssistantContext } from "../react/AssistantContext";
 import { makeAssistantToolUIsStore } from "../stores/AssistantToolUIs";
 import { ThreadRuntimeProvider } from "./ThreadRuntimeProvider";
@@ -46,13 +46,9 @@ const useThreadListStore = (runtime: AssistantRuntime) => {
   return store;
 };
 
-const DEFAULT_RENDER_COMPONENT: FC<PropsWithChildren> = ({ children }) =>
-  children;
-
 const getRenderComponent = (runtime: AssistantRuntime) => {
   return (
-    (runtime as { _core?: AssistantRuntimeCore })._core
-      ?.__internal_RenderComponent ?? DEFAULT_RENDER_COMPONENT
+    (runtime as { _core?: AssistantRuntimeCore })._core?.Provider ?? Fragment
   );
 };
 

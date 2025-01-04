@@ -12,8 +12,8 @@ class RemoteThreadListRuntimeCore extends BaseAssistantRuntimeCore {
     this.threadList = new RemoteThreadListThreadListRuntimeCore(adapter);
   }
 
-  public get __internal_RenderComponent() {
-    return this.threadList.__internal_RenderComponent;
+  public get Provider() {
+    return this.threadList.__internal_Provider;
   }
 }
 

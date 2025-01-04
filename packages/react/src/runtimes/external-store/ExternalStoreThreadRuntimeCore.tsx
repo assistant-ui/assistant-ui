@@ -80,10 +80,10 @@ export class ExternalStoreThreadRuntimeCore
     store: ExternalStoreAdapter<any>,
   ) {
     super(configProvider);
-    this.__internal_setStore(store);
+    this.__internal_setAdapter(store);
   }
 
-  public __internal_setStore(store: ExternalStoreAdapter<any>) {
+  public __internal_setAdapter(store: ExternalStoreAdapter<any>) {
     if (this._store === store) return;
 
     const isRunning = store.isRunning ?? false;

@@ -1,3 +1,4 @@
+import { PropsWithChildren } from "react";
 import { AppendMessage, ThreadMessage } from "../../types";
 import { AttachmentAdapter } from "../attachment";
 import {
@@ -53,6 +54,11 @@ type ExternalStoreAdapterBase<T> = {
   isRunning?: boolean | undefined;
   messages: T[];
   suggestions?: readonly ThreadSuggestion[] | undefined;
+
+  /**
+   * @deprecated This field is deprecated and will be removed in 0.8.0. 
+   * Please migrate to `Provider` and a custom react context provider component instead.
+   */
   extras?: unknown;
 
   setMessages?: ((messages: T[]) => void) | undefined;
@@ -82,6 +88,8 @@ type ExternalStoreAdapterBase<T> = {
         copy?: boolean | undefined;
       }
     | undefined;
+
+  unstable_Provider?: React.ComponentType<PropsWithChildren> | undefined;
 };
 
 export type ExternalStoreAdapter<T = ThreadMessage> =

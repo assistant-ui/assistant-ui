@@ -89,6 +89,11 @@ export type ThreadRuntimeCore = Readonly<{
   isDisabled: boolean;
   messages: readonly ThreadMessage[];
   suggestions: readonly ThreadSuggestion[];
+
+  /**
+   * @deprecated This field is deprecated and will be removed in 0.8.0.
+   * Please migrate to using `AssistantRuntimeCore.Provider` instead.
+   */
   extras: unknown;
 
   subscribe: (callback: () => void) => Unsubscribe;

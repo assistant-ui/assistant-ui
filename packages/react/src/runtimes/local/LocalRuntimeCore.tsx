@@ -20,6 +20,7 @@ const getExportFromInitialMessages = (
 
 export class LocalRuntimeCore extends BaseAssistantRuntimeCore {
   public readonly threadList;
+  public readonly Provider = undefined;
 
   private _options: LocalRuntimeOptionsBase;
 

@@ -5,7 +5,7 @@ import { RemoteThreadListHookInstanceManager } from "./RemoteThreadListHookInsta
 import { BaseSubscribable } from "./BaseSubscribable";
 import { EMPTY_THREAD_CORE } from "./EMPTY_THREAD_CORE";
 import { OptimisticState } from "./OptimisticState";
-import { FC, PropsWithChildren, useEffect, useId } from "react";
+import { FC, Fragment, PropsWithChildren, useEffect, useId } from "react";
 import { create } from "zustand";
 import { CloudInitializeResponse } from "./cloud/CloudContext";
 
@@ -24,10 +24,6 @@ type RemoteThreadData =
       readonly status: "regular" | "archived";
       readonly title?: string | undefined;
     };
-
-const DEFAULT_RENDER_COMPONENT: FC<PropsWithChildren> = ({ children }) => {
-  return children;
-};
 
 type THREAD_MAPPING_ID = string & { __brand: "THREAD_MAPPING_ID" };
 function createThreadMappingId(id: string): THREAD_MAPPING_ID {
@@ -157,8 +153,7 @@ export class RemoteThreadListThreadListRuntimeCore
       adapter.runtimeHook,
     );
     this.useRenderComponent = create(() => ({
-      RenderComponent:
-        adapter.__internal_RenderComponent ?? DEFAULT_RENDER_COMPONENT,
+      RenderComponent: adapter.unstable_Provider ?? Fragment,
     }));
     this.__internal_setAdapter(adapter);
 
@@ -234,8 +229,7 @@ export class RemoteThreadListThreadListRuntimeCore
     this._disposeOldAdapter?.();
     this._disposeOldAdapter = this._adapter.onInitialize(this._onInitialize);
 
-    const RenderComponent =
-      adapter.__internal_RenderComponent ?? DEFAULT_RENDER_COMPONENT;
+    const RenderComponent = adapter.unstable_Provider ?? Fragment;
     if (
       RenderComponent !== this.useRenderComponent.getState().RenderComponent
     ) {
@@ -460,7 +454,7 @@ export class RemoteThreadListThreadListRuntimeCore
 
   private useBoundIds = create<string[]>(() => []);
 
-  public __internal_RenderComponent: FC<PropsWithChildren> = ({ children }) => {
+  public __internal_Provider: FC<PropsWithChildren> = ({ children }) => {
     const id = useId();
     useEffect(() => {
       this.useBoundIds.setState((s) => [...s, id], true);

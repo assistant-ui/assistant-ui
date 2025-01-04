@@ -86,8 +86,7 @@ export const useCloudThreadListRuntime = (adapter: CloudThreadListAdapter) => {
     onInitialize: (callback) => {
       return cloudContextValue.subscribe(callback);
     },
-    __internal_RenderComponent: ({ children }: PropsWithChildren) => {
-      console.log("RENDER COMPONENT");
+    unstable_Provider: ({ children }: PropsWithChildren) => {
       return (
         <CloudContext.Provider value={cloudContextValue}>
           {children}

@@ -134,6 +134,7 @@ class PlaygroundThreadListRuntimeCore
 
 class PlaygroundRuntimeCore extends BaseAssistantRuntimeCore {
   public readonly threadList;
+  public readonly Provider = undefined;
 
   constructor(
     adapter: ChatModelAdapter,
