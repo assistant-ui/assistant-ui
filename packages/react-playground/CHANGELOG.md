@@ -1,5 +1,17 @@
 # @assistant-ui/react-playground
 
+## 0.1.8
+
+### Patch Changes
+
+- 75a274f: feat: AssistantRuntimeCore.RenderComponent
+- Updated dependencies [75a274f]
+- Updated dependencies [dcf51cb]
+- Updated dependencies [9ad9e75]
+- Updated dependencies [75a274f]
+- Updated dependencies [65de5d6]
+  - @assistant-ui/react@0.7.29
+
 ## 0.1.7
 
 ### Patch Changes

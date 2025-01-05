@@ -1,5 +1,15 @@
 # @assistant-ui/react
 
+## 0.7.29
+
+### Patch Changes
+
+- 75a274f: feat: AssistantRuntimeCore.RenderComponent
+- dcf51cb: fix: do not throw on AI SDK annotation packets
+- 9ad9e75: fix: mark arrays in message types as readonly
+- 75a274f: refactor: drop AssistantRuntimeCore.Provider due to causing app rerenders on runtime switch
+- 65de5d6: feat: message.metadata.unstable_data
+
 ## 0.7.28
 
 ### Patch Changes
