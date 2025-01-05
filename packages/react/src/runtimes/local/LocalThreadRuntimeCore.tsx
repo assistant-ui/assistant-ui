@@ -143,6 +143,7 @@ export class LocalThreadRuntimeCore
     this.abortController = new AbortController();
 
     const initialContent = message.content;
+    const initialData = message.metadata?.unstable_data;
     const initialSteps = message.metadata?.steps;
     const initalCustom = message.metadata?.custom;
     const updateMessage = (m: Partial<ChatModelRunResult>) => {
@@ -150,6 +151,9 @@ export class LocalThreadRuntimeCore
       const steps = newSteps
         ? [...(initialSteps ?? []), ...newSteps]
         : undefined;
+
+      const newData = m.metadata?.unstable_data;
+      const data = newData ? [...(initialData ?? []), ...newData] : undefined;
 
       message = {
         ...message,
@@ -161,6 +165,7 @@ export class LocalThreadRuntimeCore
           ? {
               metadata: {
                 ...message.metadata,
+                ...(data ? { unstable_data: data } : undefined),
                 ...(steps ? { steps } : undefined),
                 ...(m.metadata?.custom
                   ? {

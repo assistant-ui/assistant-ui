@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.31
+
+### Patch Changes
+
+- fix: data results should be forwarded via LocalThreadRuntime
+
 ## 0.7.30
 
 ### Patch Changes

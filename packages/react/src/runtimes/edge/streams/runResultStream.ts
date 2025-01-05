@@ -202,7 +202,10 @@ const appendData = (
     ...message,
     metadata: {
       ...message.metadata,
-      unstable_data: [...(message.metadata?.unstable_data ?? []), chunk.data],
+      unstable_data: [
+        ...(message.metadata?.unstable_data ?? []),
+        ...chunk.data,
+      ],
     },
   };
 };
