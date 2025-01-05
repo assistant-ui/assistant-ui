@@ -1,10 +1,14 @@
 import { Tool } from "../../../types/ModelConfigTypes";
-import { LanguageModelV1StreamPart } from "@ai-sdk/provider";
+import { JSONValue, LanguageModelV1StreamPart } from "@ai-sdk/provider";
 import { z } from "zod";
 import sjson from "secure-json-parse";
 
 export type ToolResultStreamPart =
   | LanguageModelV1StreamPart
+  | {
+      type: "data";
+      data: JSONValue[];
+    }
   | {
       type: "tool-result";
       toolCallType: "function";
@@ -107,6 +111,7 @@ export function toolResultStream(
         case "finish":
         case "error":
         case "response-metadata":
+        case "data":
           break;
 
         default: {

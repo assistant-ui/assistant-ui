@@ -78,7 +78,10 @@ export const fromLanguageModelMessages = (
         if (mergeSteps) {
           const previousMessage = messages[messages.length - 1];
           if (previousMessage?.role === "assistant") {
-            previousMessage.content.push(...newContent);
+            previousMessage.content = [
+              ...previousMessage.content,
+              ...newContent,
+            ];
             break;
           }
         }

@@ -44,6 +44,14 @@ export function assistantEncoderStream() {
           break;
         }
 
+        case "data": {
+          controller.enqueue({
+            type: AssistantStreamChunkType.Data,
+            value: chunk.data,
+          });
+          break;
+        }
+
         // ignore
         case "tool-call":
         case "response-metadata":

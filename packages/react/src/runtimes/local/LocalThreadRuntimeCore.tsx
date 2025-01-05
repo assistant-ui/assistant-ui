@@ -120,7 +120,7 @@ export class LocalThreadRuntimeCore
       role: "assistant",
       status: { type: "running" },
       content: [],
-      metadata: { steps: [], custom: {} },
+      metadata: { unstable_data: [], steps: [], custom: {} },
       createdAt: new Date(),
     };
 

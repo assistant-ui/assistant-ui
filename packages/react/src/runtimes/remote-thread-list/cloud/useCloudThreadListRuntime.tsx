@@ -1,10 +1,10 @@
 "use client";
 
-import { AssistantRuntime } from "@assistant-ui/react";
 import { PropsWithChildren, useEffect, useMemo, useRef } from "react";
 import { useRemoteThreadListRuntime } from "../useRemoteThreadListRuntime";
 import { AssistantCloud } from "./AssistantCloud";
 import { CloudContext, CloudInitializeResponse } from "./CloudContext";
+import { AssistantRuntime } from "../../../api";
 
 type ThreadData = {
   externalId: string;

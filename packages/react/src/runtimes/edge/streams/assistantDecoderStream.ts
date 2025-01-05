@@ -131,8 +131,14 @@ export function assistantDecoderStream() {
           break;
         }
 
-        // TODO
         case AssistantStreamChunkType.Data:
+          controller.enqueue({
+            type: "data",
+            data: value,
+          });
+          break;
+
+        // TODO
         case AssistantStreamChunkType.Annotation:
           break;
 

@@ -87,7 +87,7 @@ const threadMessagesFromOpenAI = (
 
 const threadMessagesToOpenAI = (
   system: string | undefined,
-  messages: CoreMessage[],
+  messages: readonly CoreMessage[],
 ) => {
   const systemMessage: CoreMessage | undefined = system
     ? { role: "system", content: [{ type: "text", text: system }] }

@@ -43,7 +43,7 @@ export const fromCoreMessage = (
         }),
         status,
 
-        metadata: { steps: [], custom: {} },
+        metadata: { unstable_data: [], steps: [], custom: {} },
       } satisfies ThreadMessage;
 
     case "user":
