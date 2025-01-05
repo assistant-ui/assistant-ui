@@ -3,8 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "build": "pnpm build:docs && next build",
-    "build:docs": "tsx ./scripts/generate-docs.mts",
+    "build": "next build",
     "dev": "next dev --turbo",
     "start": "next start",
     "lint": "next lint"
@@ -46,7 +45,6 @@
     "remark-gfm": "^4.0.0",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
-    "trieve-fumadocs-adapter": "^1.2.4",
     "trieve-ts-sdk": "^0.0.49",
     "zod": "^3.24.1"
   },
