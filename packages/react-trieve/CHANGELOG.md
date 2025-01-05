@@ -1,5 +1,14 @@
 # @assistant-ui/react-trieve
 
+## 0.1.7
+
+### Patch Changes
+
+- 982a6a2: chore: update dependencies
+- Updated dependencies [982a6a2]
+  - @assistant-ui/react-markdown@0.7.8
+  - @assistant-ui/react@0.7.30
+
 ## 0.1.6
 
 ### Patch Changes

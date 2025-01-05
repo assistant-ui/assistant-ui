@@ -1,5 +1,13 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.7.6
+
+### Patch Changes
+
+- 982a6a2: chore: update dependencies
+- Updated dependencies [982a6a2]
+  - @assistant-ui/react@0.7.30
+
 ## 0.7.5
 
 ### Patch Changes
