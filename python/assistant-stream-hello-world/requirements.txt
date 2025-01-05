@@ -1,2 +1,2 @@
-assistant-stream==0.0.2
+assistant-stream==0.0.7
 fastapi==0.115.0
