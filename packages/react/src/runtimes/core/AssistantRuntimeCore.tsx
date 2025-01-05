@@ -1,4 +1,4 @@
-import { ComponentType, PropsWithChildren } from "react";
+import { ComponentType } from "react";
 import type { ModelConfigProvider } from "../../types/ModelConfigTypes";
 import type { Unsubscribe } from "../../types/Unsubscribe";
 import { ThreadListRuntimeCore } from "./ThreadListRuntimeCore";
@@ -9,11 +9,10 @@ export type AssistantRuntimeCore = {
   registerModelConfigProvider: (provider: ModelConfigProvider) => Unsubscribe;
 
   /**
-   * A Provider component that wraps the app via `AssistantRuntimeProvider`.
+   * EXPERIMENTAL: A component that is rendered inside the AssistantRuntimeProvider.
    *
    * Note: This field is expected to never change.
-   * Refer to the source implementation of `ExternalStoreRuntimeCore`
-   * for an example of updating the provider via a zustand store.
+   * To update the component, use a zustand store.
    */
-  readonly Provider: ComponentType<PropsWithChildren> | undefined;
+  readonly RenderComponent?: ComponentType | undefined;
 };

@@ -90,10 +90,11 @@ export type ThreadRuntimeCore = Readonly<{
   messages: readonly ThreadMessage[];
   suggestions: readonly ThreadSuggestion[];
 
-  /**
-   * @deprecated This field is deprecated and will be removed in 0.8.0.
-   * Please migrate to using `AssistantRuntimeCore.Provider` instead.
-   */
+  // TODO deprecate for a more elegant solution
+  // /**
+  //  * @deprecated This field is deprecated and will be removed in 0.8.0.
+  //  * Please migrate to using `AssistantRuntimeCore.Provider` instead.
+  //  */
   extras: unknown;
 
   subscribe: (callback: () => void) => Unsubscribe;

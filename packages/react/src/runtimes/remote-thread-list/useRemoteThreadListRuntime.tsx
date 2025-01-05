@@ -3,8 +3,12 @@ import { BaseAssistantRuntimeCore } from "../core/BaseAssistantRuntimeCore";
 import { RemoteThreadListThreadListRuntimeCore } from "./RemoteThreadListThreadListRuntimeCore";
 import { RemoteThreadListAdapter } from "./types";
 import { AssistantRuntimeImpl } from "../../internal";
+import { AssistantRuntimeCore } from "../core/AssistantRuntimeCore";
 
-class RemoteThreadListRuntimeCore extends BaseAssistantRuntimeCore {
+class RemoteThreadListRuntimeCore
+  extends BaseAssistantRuntimeCore
+  implements AssistantRuntimeCore
+{
   public readonly threadList;
 
   constructor(adapter: RemoteThreadListAdapter) {
@@ -12,8 +16,8 @@ class RemoteThreadListRuntimeCore extends BaseAssistantRuntimeCore {
     this.threadList = new RemoteThreadListThreadListRuntimeCore(adapter);
   }
 
-  public get Provider() {
-    return this.threadList.__internal_Provider;
+  public get RenderComponent() {
+    return this.threadList.__internal_RenderComponent;
   }
 }
 

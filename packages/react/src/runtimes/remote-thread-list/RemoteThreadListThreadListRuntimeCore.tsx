@@ -5,7 +5,7 @@ import { RemoteThreadListHookInstanceManager } from "./RemoteThreadListHookInsta
 import { BaseSubscribable } from "./BaseSubscribable";
 import { EMPTY_THREAD_CORE } from "./EMPTY_THREAD_CORE";
 import { OptimisticState } from "./OptimisticState";
-import { FC, Fragment, PropsWithChildren, useEffect, useId } from "react";
+import { FC, Fragment, useEffect, useId } from "react";
 import { create } from "zustand";
 import { CloudInitializeResponse } from "./cloud/CloudContext";
 
@@ -152,8 +152,8 @@ export class RemoteThreadListThreadListRuntimeCore
     this._hookManager = new RemoteThreadListHookInstanceManager(
       adapter.runtimeHook,
     );
-    this.useRenderComponent = create(() => ({
-      RenderComponent: adapter.unstable_Provider ?? Fragment,
+    this.useProvider = create(() => ({
+      Provider: adapter.unstable_Provider ?? Fragment,
     }));
     this.__internal_setAdapter(adapter);
 
@@ -220,7 +220,7 @@ export class RemoteThreadListThreadListRuntimeCore
     this.switchToNewThread();
   }
 
-  private useRenderComponent;
+  private useProvider;
 
   public __internal_setAdapter(adapter: RemoteThreadListAdapter) {
     if (this._adapter === adapter) return;
@@ -229,11 +229,9 @@ export class RemoteThreadListThreadListRuntimeCore
     this._disposeOldAdapter?.();
     this._disposeOldAdapter = this._adapter.onInitialize(this._onInitialize);
 
-    const RenderComponent = adapter.unstable_Provider ?? Fragment;
-    if (
-      RenderComponent !== this.useRenderComponent.getState().RenderComponent
-    ) {
-      this.useRenderComponent.setState({ RenderComponent }, true);
+    const Provider = adapter.unstable_Provider ?? Fragment;
+    if (Provider !== this.useProvider.getState().Provider) {
+      this.useProvider.setState({ Provider }, true);
     }
 
     this._hookManager.setRuntimeHook(adapter.runtimeHook);
@@ -454,7 +452,7 @@ export class RemoteThreadListThreadListRuntimeCore
 
   private useBoundIds = create<string[]>(() => []);
 
-  public __internal_Provider: FC<PropsWithChildren> = ({ children }) => {
+  public __internal_RenderComponent: FC = () => {
     const id = useId();
     useEffect(() => {
       this.useBoundIds.setState((s) => [...s, id], true);
@@ -464,17 +462,15 @@ export class RemoteThreadListThreadListRuntimeCore
     }, []);
 
     const boundIds = this.useBoundIds();
-    const { RenderComponent } = this.useRenderComponent();
+    const { Provider } = this.useProvider();
 
     return (
-      <RenderComponent>
+      <Provider>
         {(boundIds.length === 0 || boundIds[0] === id) && (
           // only render if the component is the first one mounted
           <this._hookManager.__internal_RenderThreadRuntimes />
         )}
-
-        {children}
-      </RenderComponent>
+      </Provider>
     );
   };
 }
