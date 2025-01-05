@@ -52,7 +52,8 @@ const CoreUserMessageSchema = z.object({
         Unstable_AudioContentPart,
       ]),
     )
-    .min(1),
+    .min(1)
+    .readonly(),
 });
 
 const CoreAssistantMessageSchema = z.object({
@@ -64,12 +65,13 @@ const CoreAssistantMessageSchema = z.object({
         CoreToolCallContentPartSchema,
       ]),
     )
-    .min(1),
+    .min(1)
+    .readonly(),
 });
 
 const CoreSystemMessageSchema = z.object({
   role: z.literal("system"),
-  content: z.tuple([TextContentPartSchema]),
+  content: z.tuple([TextContentPartSchema]).readonly(),
 });
 
 const CoreMessageSchema = z.discriminatedUnion("role", [
@@ -81,13 +83,13 @@ const CoreMessageSchema = z.discriminatedUnion("role", [
 export const EdgeRuntimeRequestOptionsSchema = z
   .object({
     system: z.string().optional(),
-    messages: z.array(CoreMessageSchema).min(1),
+    messages: z.array(CoreMessageSchema).min(1).readonly(),
     runConfig: z
       .object({
         custom: z.record(z.unknown()).optional(),
       })
       .optional(),
-    tools: z.array(LanguageModelV1FunctionToolSchema).optional(),
+    tools: z.array(LanguageModelV1FunctionToolSchema).readonly().optional(),
     unstable_assistantMessageId: z.string().optional(),
   })
   .merge(LanguageModelV1CallSettingsSchema)

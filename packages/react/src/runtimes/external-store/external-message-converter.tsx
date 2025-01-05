@@ -32,7 +32,7 @@ type ChunkResult<T> = {
 };
 
 const joinExternalMessages = (
-  messages: useExternalMessageConverter.Message[],
+  messages: readonly useExternalMessageConverter.Message[],
 ): ThreadMessageLike => {
   const assistantMessage: ThreadMessageLike & { content: any[] } = {
     role: "assistant",

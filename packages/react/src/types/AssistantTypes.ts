@@ -121,7 +121,7 @@ export type MessageStatus =
 
 export type ThreadSystemMessage = MessageCommonProps & {
   readonly role: "system";
-  readonly content: [TextContentPart];
+  readonly content: readonly [TextContentPart];
   readonly metadata: {
     readonly custom: Record<string, unknown>;
   };
@@ -129,7 +129,7 @@ export type ThreadSystemMessage = MessageCommonProps & {
 
 export type ThreadUserMessage = MessageCommonProps & {
   readonly role: "user";
-  readonly content: ThreadUserContentPart[];
+  readonly content: readonly ThreadUserContentPart[];
   readonly attachments: readonly CompleteAttachment[];
   readonly metadata: {
     readonly custom: Record<string, unknown>;
@@ -138,10 +138,10 @@ export type ThreadUserMessage = MessageCommonProps & {
 
 export type ThreadAssistantMessage = MessageCommonProps & {
   readonly role: "assistant";
-  readonly content: ThreadAssistantContentPart[];
+  readonly content: readonly ThreadAssistantContentPart[];
   readonly status: MessageStatus;
   readonly metadata: {
-    readonly steps: ThreadStep[];
+    readonly steps: readonly ThreadStep[];
     readonly custom: Record<string, unknown>;
   };
 };
@@ -162,7 +162,7 @@ export type AppendMessage = CoreMessage & {
 type BaseThreadMessage = {
   readonly status?: ThreadAssistantMessage["status"];
   readonly metadata: {
-    readonly steps?: ThreadStep[];
+    readonly steps?: readonly ThreadStep[];
     readonly custom: Record<string, unknown>;
   };
   readonly attachments?: ThreadUserMessage["attachments"];
@@ -183,17 +183,17 @@ export type CoreAssistantContentPart =
 
 export type CoreSystemMessage = {
   role: "system";
-  content: [TextContentPart];
+  content: readonly [TextContentPart];
 };
 
 export type CoreUserMessage = {
   role: "user";
-  content: CoreUserContentPart[];
+  content: readonly CoreUserContentPart[];
 };
 
 export type CoreAssistantMessage = {
   role: "assistant";
-  content: CoreAssistantContentPart[];
+  content: readonly CoreAssistantContentPart[];
 };
 
 export type CoreMessage =

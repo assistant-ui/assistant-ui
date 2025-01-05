@@ -22,7 +22,7 @@ export type ThreadMessageLike = {
   role: "assistant" | "user" | "system";
   content:
     | string
-    | (
+    | readonly (
         | TextContentPart
         | ImageContentPart
         | Unstable_AudioContentPart
@@ -33,9 +33,9 @@ export type ThreadMessageLike = {
   id?: string | undefined;
   createdAt?: Date | undefined;
   status?: MessageStatus | undefined;
-  attachments?: CompleteAttachment[] | undefined;
+  attachments?: readonly CompleteAttachment[] | undefined;
   metadata?: {
-    steps?: ThreadStep[] | undefined;
+    steps?: readonly ThreadStep[] | undefined;
     custom?: Record<string, unknown> | undefined;
   };
 };
