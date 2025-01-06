@@ -67,6 +67,7 @@ export function toolResultStream(
                 JSON.stringify((e as Error).message),
               isError: true,
             });
+            return;
           }
 
           if (tool.parameters instanceof z.ZodType) {
