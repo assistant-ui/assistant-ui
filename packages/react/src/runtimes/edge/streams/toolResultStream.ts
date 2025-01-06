@@ -53,7 +53,22 @@ export function toolResultStream(
           const tool = tools?.[toolName];
           if (!tool || !tool.execute) return;
 
-          const args = sjson.parse(argsText);
+          let args;
+          try {
+            args = sjson.parse(argsText);
+          } catch (e) {
+            controller.enqueue({
+              type: "tool-result",
+              toolCallType,
+              toolCallId,
+              toolName,
+              result:
+                "Function parameter parsing failed. " +
+                JSON.stringify((e as Error).message),
+              isError: true,
+            });
+          }
+
           if (tool.parameters instanceof z.ZodType) {
             const result = tool.parameters.safeParse(args);
             if (!result.success) {
