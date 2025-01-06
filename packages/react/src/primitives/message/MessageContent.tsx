@@ -42,6 +42,9 @@ export namespace MessagePrimitiveContent {
                   | undefined;
                 Fallback?: ComponentType<ToolCallContentPartProps> | undefined;
               }
+            | {
+                Override: ComponentType<ToolCallContentPartProps>;
+              }
             | undefined;
         }
       | undefined;
@@ -49,12 +52,12 @@ export namespace MessagePrimitiveContent {
 }
 
 const ToolUIDisplay = ({
-  UI,
+  Fallback,
   ...props
 }: {
-  UI: ToolCallContentPartComponent | undefined;
+  Fallback: ToolCallContentPartComponent | undefined;
 } & ToolCallContentPartProps) => {
-  const Render = useToolUIs((s) => s.getToolUI(props.toolName)) ?? UI;
+  const Render = useToolUIs((s) => s.getToolUI(props.toolName)) ?? Fallback;
   if (!Render) return null;
   return <Render {...props} />;
 };
@@ -84,7 +87,7 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
     Image = defaultComponents.Image,
     UI = defaultComponents.UI,
     Unstable_Audio: Audio = defaultComponents.Unstable_Audio,
-    tools: { by_name = {}, Fallback = undefined } = {},
+    tools = {},
   } = {},
 }) => {
   const contentPartRuntime = useContentPartRuntime();
@@ -93,9 +96,11 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
 
   const type = part.type;
   if (type === "tool-call") {
-    const Tool = by_name[part.toolName] || Fallback;
     const addResult = (result: any) => contentPartRuntime.addToolResult(result);
-    return <ToolUIDisplay {...part} UI={Tool} addResult={addResult} />;
+    if ("Override" in tools)
+      return <tools.Override {...part} addResult={addResult} />;
+    const Tool = tools.by_name?.[part.toolName] ?? tools.Fallback;
+    return <ToolUIDisplay {...part} Fallback={Tool} addResult={addResult} />;
   }
 
   if (part.status.type === "requires-action")

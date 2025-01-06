@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.32
+
+### Patch Changes
+
+- feat: MessagePrimitive.tools.Override
+
 ## 0.7.31
 
 ### Patch Changes

@@ -45,7 +45,7 @@
     "unist-util-visit": "^5.0.0"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.7.31",
+    "@assistant-ui/react": "^0.7.32",
     "@assistant-ui/react-markdown": "^0.7.8",
     "@types/react": "*",
     "react": "^18 || ^19 || ^19.0.0-rc",
