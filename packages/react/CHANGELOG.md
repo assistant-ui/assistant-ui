@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.33
+
+### Patch Changes
+
+- bb47b90: fix: invalid JSON in argsText should be gracefully handled
+
 ## 0.7.32
 
 ### Patch Changes
