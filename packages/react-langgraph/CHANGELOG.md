@@ -1,5 +1,11 @@
 # @assistant-ui/react-langgraph
 
+## 0.1.13
+
+### Patch Changes
+
+- fix: missing type for abortSignal
+
 ## 0.1.12
 
 ### Patch Changes

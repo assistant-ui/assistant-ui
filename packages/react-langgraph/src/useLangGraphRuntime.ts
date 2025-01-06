@@ -10,6 +10,7 @@ import { convertLangchainMessages } from "./convertLangchainMessages";
 import {
   LangGraphCommand,
   LangGraphSendMessageConfig,
+  LangGraphStreamCallback,
   useLangGraphMessages,
 } from "./useLangGraphMessages";
 import { SimpleImageAttachmentAdapter } from "@assistant-ui/react";
@@ -116,15 +117,7 @@ export const useLangGraphRuntime = ({
    */
   unstable_allowImageAttachments?: boolean | undefined;
   unstable_allowCancellation?: boolean | undefined;
-  stream: (
-    messages: LangChainMessage[],
-    config: LangGraphSendMessageConfig,
-  ) => Promise<
-    AsyncGenerator<{
-      event: string;
-      data: any;
-    }>
-  >;
+  stream: LangGraphStreamCallback<LangChainMessage>;
   /**
    * @deprecated For thread management use `useCloudThreadListRuntime` instead. This option will be removed in a future version.
    */
