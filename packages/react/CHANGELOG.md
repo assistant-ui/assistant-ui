@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.7.34
+
+### Patch Changes
+
+- 9a3dc93: fix(external-store): metadata & attachments support
+- 4c2bf58: chore: update dependencies
+
 ## 0.7.33
 
 ### Patch Changes

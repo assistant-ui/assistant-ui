@@ -1,5 +1,11 @@
 # assistant-ui
 
+## 0.0.27
+
+### Patch Changes
+
+- 4c2bf58: chore: update dependencies
+
 ## 0.0.26
 
 ### Patch Changes
