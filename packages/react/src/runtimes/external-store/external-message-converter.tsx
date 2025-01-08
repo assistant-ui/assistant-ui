@@ -31,10 +31,17 @@ type ChunkResult<T> = {
   outputs: useExternalMessageConverter.Message[];
 };
 
+type Mutable<T> = {
+  -readonly [P in keyof T]: T[P];
+};
+
 const joinExternalMessages = (
   messages: readonly useExternalMessageConverter.Message[],
 ): ThreadMessageLike => {
-  const assistantMessage: ThreadMessageLike & { content: any[] } = {
+  const assistantMessage: Mutable<Omit<ThreadMessageLike, "metadata">> & {
+    content: Exclude<ThreadMessageLike["content"][0], string>[];
+    metadata?: Mutable<ThreadMessageLike["metadata"]>;
+  } = {
     role: "assistant",
     content: [],
   };
@@ -73,9 +80,44 @@ const joinExternalMessages = (
             assistantMessage.id = output.id;
             assistantMessage.createdAt ??= output.createdAt;
             assistantMessage.status ??= output.status;
+
+            if (output.attachments) {
+              assistantMessage.attachments = [
+                ...(assistantMessage.attachments ?? []),
+                ...output.attachments,
+              ];
+            }
+
+            if (output.metadata) {
+              assistantMessage.metadata ??= {};
+              if (output.metadata.unstable_data) {
+                assistantMessage.metadata.unstable_data = [
+                  ...(assistantMessage.metadata.unstable_data ?? []),
+                  ...output.metadata.unstable_data,
+                ];
+              }
+              if (output.metadata.steps) {
+                assistantMessage.metadata.steps = [
+                  ...(assistantMessage.metadata.steps ?? []),
+                  ...output.metadata.steps,
+                ];
+              }
+              if (output.metadata.custom) {
+                assistantMessage.metadata.custom = {
+                  ...(assistantMessage.metadata.custom ?? {}),
+                  ...output.metadata.custom,
+                };
+              }
+            }
             // TODO keep this in sync
           }
-          assistantMessage.content.push(...output.content);
+
+          const content =
+            typeof output.content === "string"
+              ? [{ type: "text" as const, text: output.content }]
+              : output.content;
+
+          assistantMessage.content.push(...content);
           break;
         default: {
           const unsupportedRole: never = role;
