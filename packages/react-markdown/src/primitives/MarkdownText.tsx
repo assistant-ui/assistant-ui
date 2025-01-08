@@ -84,7 +84,7 @@ export const MarkdownTextPrimitive: ForwardRefExoticComponent<MarkdownTextPrimit
       by_language,
       ...componentsRest
     } = userComponents ?? {};
-    const components: typeof userComponents = {
+    const components: Options["components"] = {
       ...componentsRest,
       pre: PreOverride,
       code: useCallbackRef((props) => (

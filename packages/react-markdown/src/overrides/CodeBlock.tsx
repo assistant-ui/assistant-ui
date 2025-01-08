@@ -18,7 +18,7 @@ export type CodeBlockProps = {
     CodeHeader: ComponentType<CodeHeaderProps>;
     SyntaxHighlighter: ComponentType<SyntaxHighlighterProps>;
   };
-  node: Element;
+  node: Element | undefined;
 };
 
 export const DefaultCodeBlock: FC<CodeBlockProps> = ({

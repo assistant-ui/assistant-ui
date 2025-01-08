@@ -8,7 +8,7 @@
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.11",
-    "eslint": "^9",
+    "eslint": "^9.17.0",
     "prettier": "^3.4.2",
     "prettier-plugin-tailwindcss": "^0.6.9",
     "turbo": "^2.3.3",
@@ -20,7 +20,7 @@
       "prettier-plugin-tailwindcss"
     ]
   },
-  "packageManager": "pnpm@9.15.1",
+  "packageManager": "pnpm@9.15.3",
   "resolutions": {
     "react": "19.0.0",
     "react-dom": "19.0.0"

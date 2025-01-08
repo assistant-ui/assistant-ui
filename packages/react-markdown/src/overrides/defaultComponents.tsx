@@ -13,7 +13,7 @@ export const DefaultCode: CodeComponent = ({ node, ...rest }) => (
 export const DefaultCodeBlockContent: ComponentType<{
   components: { Pre: PreComponent; Code: CodeComponent };
   code: string | ReactNode | undefined;
-  node: Element;
+  node: Element | undefined;
 }> = ({ components: { Pre, Code }, code, node }) => (
   <Pre node={node}>
     <Code node={node}>{code}</Code>

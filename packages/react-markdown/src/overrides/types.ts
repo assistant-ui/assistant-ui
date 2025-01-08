@@ -2,10 +2,10 @@ import { Element } from "hast";
 import { ComponentPropsWithoutRef, ComponentType } from "react";
 
 export type PreComponent = ComponentType<
-  ComponentPropsWithoutRef<"pre"> & { node: Element }
+  ComponentPropsWithoutRef<"pre"> & { node?: Element | undefined }
 >;
 export type CodeComponent = ComponentType<
-  ComponentPropsWithoutRef<"code"> & { node: Element }
+  ComponentPropsWithoutRef<"code"> & { node?: Element | undefined }
 >;
 
 export type CodeHeaderProps = {
