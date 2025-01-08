@@ -12,7 +12,9 @@ const Examples = () => {
           </a>
         </li>
         <li>
-          <a href="https://github.com/Yonom/assistant-ui-rsc-example">Code</a>
+          <a href="https://github.com/assistant-ui/assistant-ui-rsc-example">
+            Code
+          </a>
         </li>
       </ul>
 
@@ -28,7 +30,7 @@ const Examples = () => {
           </a>
         </li>
         <li>
-          <a href="https://github.com/Yonom/assistant-ui/tree/main/examples/search-agent-for-e-commerce">
+          <a href="https://github.com/assistant-ui/assistant-ui/tree/main/examples/search-agent-for-e-commerce">
             Code
           </a>
         </li>
@@ -38,7 +40,7 @@ const Examples = () => {
       <p>This is an example of how to use inline suggestions.</p>
       <ul>
         <li>
-          <a href="https://github.com/Yonom/assistant-ui/tree/main/examples/with-inline-suggestions">
+          <a href="https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-inline-suggestions">
             Code
           </a>
         </li>
@@ -53,7 +55,7 @@ const Examples = () => {
           </a>
         </li>
         <li>
-          <a href="https://github.com/Yonom/assistant-ui/tree/main/examples/with-react-hook-form">
+          <a href="https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-react-hook-form">
             Code
           </a>
         </li>
@@ -66,7 +68,9 @@ const Examples = () => {
       </p>
       <ul>
         <li>
-          <a href="https://github.com/Yonom/assistant-ui-custom-api">Code</a>
+          <a href="https://github.com/assistant-ui/assistant-ui-custom-api">
+            Code
+          </a>
         </li>
       </ul>
 
@@ -77,7 +81,7 @@ const Examples = () => {
       </p>
       <ul>
         <li>
-          <a href="https://github.com/Yonom/assistant-ui-assistant-api-history">
+          <a href="https://github.com/assistant-ui/assistant-ui-assistant-api-history">
             Code
           </a>
         </li>

@@ -61,7 +61,7 @@ export default function Home() {
           <div className="my-4 font-bold">
             Built with{" "}
             <Link
-              href="https://github.com/Yonom/assistant-ui"
+              href="https://github.com/assistant-ui/assistant-ui"
               className="text-blue-600 underline"
             >
               assistant-ui

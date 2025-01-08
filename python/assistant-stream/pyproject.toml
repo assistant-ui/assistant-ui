@@ -17,8 +17,8 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Yonom/assistant-ui"
-Issues = "https://github.com/Yonom/assistant-ui/issues"
+Homepage = "https://github.com/assistant-ui/assistant-ui"
+Issues = "https://github.com/assistant-ui/assistant-ui/issues"
 
 [tool.poetry]
 name = "assistant-stream"

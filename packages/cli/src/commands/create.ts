@@ -51,8 +51,9 @@ export const create = new Command()
   )
   .action((_, opts) => {
     const templates = {
-      default: "https://github.com/Yonom/assistant-ui-starter",
-      langgraph: "https://github.com/Yonom/assistant-ui-starter-langgraph",
+      default: "https://github.com/assistant-ui/assistant-ui-starter",
+      langgraph:
+        "https://github.com/assistant-ui/assistant-ui-starter-langgraph",
     };
 
     const templateUrl =

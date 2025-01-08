@@ -27,7 +27,7 @@ const DiscordIcon = () => {
 
 // shared configuration
 export const baseOptions: HomeLayoutProps = {
-  githubUrl: "https://github.com/Yonom/assistant-ui",
+  githubUrl: "https://github.com/assistant-ui/assistant-ui",
   nav: {
     title: (
       <>

@@ -22,7 +22,7 @@ export default async function Page(props: {
 
   const footer = (
     <a
-      href={`https://github.com/Yonom/assistant-ui/blob/main/${path}`}
+      href={`https://github.com/assistant-ui/assistant-ui/blob/main/${path}`}
       target="_blank"
       rel="noreferrer noopener"
       className={cn(

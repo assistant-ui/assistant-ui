@@ -86,7 +86,7 @@ const SHOWCASE_ITEMS: ShowcaseItem[] = [
     tag: "Developer Tools",
     link: "https://assistant-ui-stockbroker.vercel.app/",
     announcementLink: "https://blog.langchain.dev/assistant-ui/",
-    repositoryLink: "https://github.com/Yonom/assistant-ui-stockbroker",
+    repositoryLink: "https://github.com/assistant-ui/assistant-ui-stockbroker",
     description: "Research financial data about public companies",
     secondaryTag: "OSS",
   },

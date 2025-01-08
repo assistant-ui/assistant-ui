@@ -112,7 +112,7 @@ export default function HomePage() {
             </a>
             <a
               className={buttonVariants({ variant: "outline" })}
-              href="https://github.com/Yonom/assistant-ui"
+              href="https://github.com/assistant-ui/assistant-ui"
             >
               🌟 Star us on Github
             </a>

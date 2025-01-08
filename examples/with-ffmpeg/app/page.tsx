@@ -165,7 +165,10 @@ export default function Home() {
       <div className="border-b">
         <p className="my-4 ml-8 text-xl font-bold">
           ConvertGPT (built with{" "}
-          <a href="https://github.com/Yonom/assistant-ui" className="underline">
+          <a
+            href="https://github.com/assistant-ui/assistant-ui"
+            className="underline"
+          >
             assistant-ui
           </a>
           )

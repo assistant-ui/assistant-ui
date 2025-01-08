@@ -50,7 +50,7 @@ function Footer(): React.ReactElement {
             <FooterLink href="https://discord.gg/S9dwgCNEFs">
               Discord
             </FooterLink>
-            <FooterLink href="https://github.com/Yonom/assistant-ui">
+            <FooterLink href="https://github.com/assistant-ui/assistant-ui">
               GitHub
             </FooterLink>
             <FooterLink href="https://cal.com/simon-farshid/assistant-ui">

@@ -1,5 +1,5 @@
 <a href="https://www.assistant-ui.com">
-  <img src="https://raw.githubusercontent.com/Yonom/assistant-ui/main/.github/assets/header.svg" alt="assistant-ui Header" width="100%" style="width: 1000px" />
+  <img src="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/header.svg" alt="assistant-ui Header" width="100%" style="width: 1000px" />
 </a>
 
 <p align="center">
@@ -16,7 +16,7 @@ Wide model provider support (OpenAI, Anthropic, Mistral, Perplexity, AWS Bedrock
 
 ## Quick Start
 
-[![assistant-ui starter template](https://raw.githubusercontent.com/Yonom/assistant-ui/main/.github/assets/assistant-ui-starter.gif)](https://youtu.be/k6Dc8URmLjk)
+[![assistant-ui starter template](https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/assistant-ui-starter.gif)](https://youtu.be/k6Dc8URmLjk)
 
 Step 1: Create a new project with `assistant-ui` pre-configured:
 

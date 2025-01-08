@@ -52,9 +52,9 @@
   "homepage": "https://www.assistant-ui.com/",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Yonom/assistant-ui.git"
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git"
   },
   "bugs": {
-    "url": "https://github.com/Yonom/assistant-ui/issues"
+    "url": "https://github.com/assistant-ui/assistant-ui/issues"
   }
 }
