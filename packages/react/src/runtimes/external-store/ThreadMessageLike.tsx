@@ -19,8 +19,8 @@ import {
 } from "../../types/AssistantTypes";
 
 export type ThreadMessageLike = {
-  role: "assistant" | "user" | "system";
-  content:
+  readonly role: "assistant" | "user" | "system";
+  readonly content:
     | string
     | readonly (
         | TextContentPart
@@ -30,15 +30,17 @@ export type ThreadMessageLike = {
         | CoreToolCallContentPart<any, any>
         | UIContentPart
       )[];
-  id?: string | undefined;
-  createdAt?: Date | undefined;
-  status?: MessageStatus | undefined;
-  attachments?: readonly CompleteAttachment[] | undefined;
-  metadata?: {
-    unstable_data?: readonly Record<string, unknown>[] | undefined;
-    steps?: readonly ThreadStep[] | undefined;
-    custom?: Record<string, unknown> | undefined;
-  };
+  readonly id?: string | undefined;
+  readonly createdAt?: Date | undefined;
+  readonly status?: MessageStatus | undefined;
+  readonly attachments?: readonly CompleteAttachment[] | undefined;
+  readonly metadata?:
+    | {
+        readonly unstable_data?: readonly Record<string, unknown>[] | undefined;
+        readonly steps?: readonly ThreadStep[] | undefined;
+        readonly custom?: Record<string, unknown> | undefined;
+      }
+    | undefined;
 };
 
 export const fromThreadMessageLike = (
