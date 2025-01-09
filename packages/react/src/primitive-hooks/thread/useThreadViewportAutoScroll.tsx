@@ -10,15 +10,17 @@ import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
 import { writableStore } from "../../context/ReadonlyStore";
 
-export type UseThreadViewportAutoScrollProps = {
-  autoScroll?: boolean | undefined;
-  unstable_scrollToBottomOnRunStart?: boolean | undefined;
-};
+namespace useThreadViewportAutoScroll {
+  export type Options = {
+    autoScroll?: boolean | undefined;
+    unstable_scrollToBottomOnRunStart?: boolean | undefined;
+  };
+}
 
 export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   autoScroll = true,
   unstable_scrollToBottomOnRunStart = true,
-}: UseThreadViewportAutoScrollProps): React.RefCallback<TElement> => {
+}: useThreadViewportAutoScroll.Options): React.RefCallback<TElement> => {
   const divRef = useRef<TElement>(null);
 
   const threadViewportStore = useThreadViewportStore();

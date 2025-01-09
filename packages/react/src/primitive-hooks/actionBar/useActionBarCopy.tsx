@@ -6,13 +6,15 @@ import {
 } from "../../context/react/MessageContext";
 import { useComposerRuntime } from "../../context";
 
-export type UseActionBarCopyProps = {
-  copiedDuration?: number | undefined;
-};
+namespace useActionBarCopy {
+  export interface Options {
+    copiedDuration?: number | undefined;
+  }
+}
 
 export const useActionBarCopy = ({
   copiedDuration = 3000,
-}: UseActionBarCopyProps = {}) => {
+}: useActionBarCopy.Options = {}) => {
   const messageRuntime = useMessageRuntime();
   const composerRuntime = useComposerRuntime();
   const setIsCopied = useMessageUtils((s) => s.setIsCopied);

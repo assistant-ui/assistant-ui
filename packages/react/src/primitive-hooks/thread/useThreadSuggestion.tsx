@@ -2,16 +2,18 @@ import { useCallback } from "react";
 import { useThread } from "../../context";
 import { useThreadRuntime } from "../../context/react/ThreadContext";
 
-export type UseApplyThreadSuggestionProps = {
-  prompt: string;
-  method: "replace";
-  autoSend?: boolean | undefined;
-};
+namespace useThreadSuggestion {
+  export interface Options {
+    prompt: string;
+    method: "replace";
+    autoSend?: boolean | undefined;
+  }
+}
 
 export const useThreadSuggestion = ({
   prompt,
   autoSend,
-}: UseApplyThreadSuggestionProps) => {
+}: useThreadSuggestion.Options) => {
   const threadRuntime = useThreadRuntime();
 
   const disabled = useThread((t) => t.isDisabled);

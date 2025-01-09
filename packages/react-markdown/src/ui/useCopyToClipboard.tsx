@@ -1,12 +1,14 @@
 import { useState } from "react";
 
-export type useCopyToClipboardProps = {
-  copiedDuration?: number;
-};
+namespace useCopyToClipboard {
+  export interface Options {
+    copiedDuration?: number;
+  }
+}
 
 export const useCopyToClipboard = ({
   copiedDuration = 3000,
-}: useCopyToClipboardProps = {}) => {
+}: useCopyToClipboard.Options = {}) => {
   const [isCopied, setIsCopied] = useState<boolean>(false);
 
   const copyToClipboard = (value: string) => {

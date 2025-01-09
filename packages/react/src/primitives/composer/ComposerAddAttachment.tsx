@@ -15,4 +15,5 @@ export namespace ComposerPrimitiveAddAttachment {
 export const ComposerPrimitiveAddAttachment = createActionButton(
   "ComposerPrimitive.AddAttachment",
   useComposerAddAttachment,
+  ["multiple"],
 );
