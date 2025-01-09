@@ -29,9 +29,9 @@ export const POST = async (req: Request) => {
     body: JSON.stringify({
       history,
       question,
-      vectorDBUrl: "Yonom&assistant-ui",
+      vectorDBUrl: "assistant-ui&assistant-ui",
       advancedAgent: false,
-      githubUsername: "Yonom",
+      githubUsername: "assistant-ui",
       limitSources: 3,
       enableArtifacts: false,
     }),
