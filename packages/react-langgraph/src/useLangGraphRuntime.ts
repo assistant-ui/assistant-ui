@@ -17,6 +17,8 @@ import { SimpleImageAttachmentAdapter } from "@assistant-ui/react";
 import { AttachmentAdapter } from "@assistant-ui/react";
 import { AppendMessage } from "@assistant-ui/react";
 import { ExternalStoreAdapter } from "@assistant-ui/react";
+import { FeedbackAdapter } from "@assistant-ui/react";
+import { SpeechSynthesisAdapter } from "@assistant-ui/react";
 
 const getPendingToolCalls = (messages: LangChainMessage[]) => {
   const pendingToolCalls = new Map<string, LangChainToolCall>();
@@ -99,7 +101,7 @@ export const useLangGraphRuntimeSendCommand = (command: LangGraphCommand) => {
 
 export const useLangGraphRuntime = ({
   autoCancelPendingToolCalls,
-  adapters: { attachments } = {},
+  adapters: { attachments, feedback, speech } = {},
   unstable_allowImageAttachments,
   unstable_allowCancellation,
   stream,
@@ -128,6 +130,8 @@ export const useLangGraphRuntime = ({
   adapters?:
     | {
         attachments?: AttachmentAdapter;
+        speech?: SpeechSynthesisAdapter;
+        feedback?: FeedbackAdapter;
       }
     | undefined;
 }) => {
@@ -202,6 +206,8 @@ export const useLangGraphRuntime = ({
     messages: threadMessages,
     adapters: {
       attachments,
+      feedback,
+      speech,
       threadList,
     },
     extras: {

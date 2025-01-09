@@ -1,5 +1,11 @@
 # @assistant-ui/react-langgraph
 
+## 0.1.15
+
+### Patch Changes
+
+- feat: Feedback and Speech adapter support
+
 ## 0.1.14
 
 ### Patch Changes
