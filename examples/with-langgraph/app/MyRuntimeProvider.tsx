@@ -1,40 +1,59 @@
 "use client";
 
-import { useRef } from "react";
-import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import {
+  AssistantCloud,
+  AssistantRuntimeProvider,
+  useCloudGetOrCreateThread,
+  useCloudThreadListRuntime,
+} from "@assistant-ui/react";
 import { useLangGraphRuntime } from "@assistant-ui/react-langgraph";
 import { createThread, getThreadState, sendMessage } from "@/lib/chatApi";
 import { LangChainMessage } from "@assistant-ui/react-langgraph";
+
+const useMyLangGraphRuntime = () => {
+  const getOrCreateThread = useCloudGetOrCreateThread();
+  const runtime = useLangGraphRuntime({
+    stream: async (messages) => {
+      const { externalId } = await getOrCreateThread();
+      if (!externalId) throw new Error("Thread not found");
+
+      return sendMessage({
+        threadId: externalId,
+        messages,
+      });
+    },
+    onSwitchToThread: async (threadId) => {
+      const state = await getThreadState(threadId);
+      return {
+        messages:
+          (state.values as { messages?: LangChainMessage[] }).messages ?? [],
+      };
+    },
+  });
+
+  return runtime;
+};
+
+const cloud = new AssistantCloud({
+  baseUrl: "https://api.assistant-ui.com",
+  unstable_projectId: process.env["NEXT_PUBLIC_ASSISTANT_PROJECT_ID"]!,
+  authToken: () =>
+    fetch("/api/assistant-ui-token", { method: "POST" })
+      .then((r) => r.json())
+      .then((r) => r.token),
+});
 
 export function MyRuntimeProvider({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const threadIdRef = useRef<string | undefined>(undefined);
-  const runtime = useLangGraphRuntime({
-    threadId: threadIdRef.current,
-    stream: async (messages) => {
-      if (!threadIdRef.current) {
-        const { thread_id } = await createThread();
-        threadIdRef.current = thread_id;
-      }
-      const threadId = threadIdRef.current;
-      return sendMessage({
-        threadId,
-        messages,
-      });
-    },
-    onSwitchToNewThread: async () => {
+  const runtime = useCloudThreadListRuntime({
+    cloud,
+    runtimeHook: useMyLangGraphRuntime,
+    create: async () => {
       const { thread_id } = await createThread();
-      threadIdRef.current = thread_id;
-    },
-    onSwitchToThread: async (threadId) => {
-      const state = await getThreadState(threadId);
-      threadIdRef.current = threadId;
-      return {
-        messages: (state.values as { messages: LangChainMessage[] }).messages,
-      };
+      return { externalId: thread_id };
     },
   });
 
