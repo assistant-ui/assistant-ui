@@ -1,5 +1,5 @@
-import type { CoreMessage } from "../../types";
 import { AttachmentAdapter } from "../attachment/AttachmentAdapter";
+import { ThreadMessageLike } from "../external-store";
 import { FeedbackAdapter } from "../feedback/FeedbackAdapter";
 import { SpeechSynthesisAdapter } from "../speech/SpeechAdapterTypes";
 import { ChatModelAdapter } from "./ChatModelAdapter";
@@ -16,7 +16,7 @@ export type LocalRuntimeOptionsBase = {
 
 // TODO align LocalRuntimeOptions with LocalRuntimeOptionsBase
 export type LocalRuntimeOptions = Omit<LocalRuntimeOptionsBase, "adapters"> & {
-  initialMessages?: readonly CoreMessage[] | undefined;
+  initialMessages?: readonly ThreadMessageLike[] | undefined;
   adapters?: Omit<LocalRuntimeOptionsBase["adapters"], "chatModel"> | undefined;
 };
 

@@ -2,14 +2,20 @@ import type { CoreMessage } from "../../types/AssistantTypes";
 import { BaseAssistantRuntimeCore } from "../core/BaseAssistantRuntimeCore";
 import { LocalThreadRuntimeCore } from "./LocalThreadRuntimeCore";
 import { LocalRuntimeOptionsBase } from "./LocalRuntimeOptions";
-import { fromCoreMessages } from "../edge/converters/fromCoreMessage";
 import { LocalThreadListRuntimeCore } from "./LocalThreadListRuntimeCore";
 import { ExportedMessageRepository } from "../utils/MessageRepository";
+import { ThreadMessageLike } from "../external-store";
+import { fromThreadMessageLike } from "../external-store/ThreadMessageLike";
+import { generateId } from "../../internal";
+import { getAutoStatus } from "../external-store/auto-status";
 
 const getExportFromInitialMessages = (
-  initialMessages: readonly CoreMessage[],
+  initialMessages: readonly ThreadMessageLike[],
 ): ExportedMessageRepository => {
-  const messages = fromCoreMessages(initialMessages);
+  const messages = initialMessages.map((i, idx) => {
+    const isLast = idx === initialMessages.length - 1;
+    return fromThreadMessageLike(i, generateId(), getAutoStatus(isLast, false));
+  });
   return {
     messages: messages.map((m, idx) => ({
       parentId: messages[idx - 1]?.id ?? null,
@@ -26,7 +32,7 @@ export class LocalRuntimeCore extends BaseAssistantRuntimeCore {
 
   constructor(
     options: LocalRuntimeOptionsBase,
-    initialMessages: readonly CoreMessage[] | undefined,
+    initialMessages: readonly ThreadMessageLike[] | undefined,
   ) {
     super();
 
