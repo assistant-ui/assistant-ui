@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.7.35
+
+### Patch Changes
+
+- 345f3d5: chore: update dependencies
+- 345f3d5: fix: import errors in react server environments
+- 2846559: feat: allow selecting multiple files as attachments
+
 ## 0.7.34
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @tool-ui/weather
 
+## 0.0.22
+
+### Patch Changes
+
+- 345f3d5: chore: update dependencies
+
 ## 0.0.21
 
 ### Patch Changes
