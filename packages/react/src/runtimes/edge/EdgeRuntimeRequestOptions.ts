@@ -24,6 +24,12 @@ const ImageContentPartSchema = z.object({
   image: z.string(),
 });
 
+const FileContentPartSchema = z.object({
+  type: z.literal("file"),
+  data: z.string(),
+  mimeType: z.string(),
+});
+
 const Unstable_AudioContentPart = z.object({
   type: z.literal("audio"),
   audio: z.object({
@@ -49,6 +55,7 @@ const CoreUserMessageSchema = z.object({
       z.discriminatedUnion("type", [
         TextContentPartSchema,
         ImageContentPartSchema,
+        FileContentPartSchema,
         Unstable_AudioContentPart,
       ]),
     )

@@ -11,11 +11,12 @@ import {
   ThreadUserMessage,
   ThreadSystemMessage,
   CompleteAttachment,
+  FileContentPart,
+  Unstable_AudioContentPart,
 } from "../../types";
 import {
   CoreToolCallContentPart,
   ThreadStep,
-  Unstable_AudioContentPart,
 } from "../../types/AssistantTypes";
 
 export type ThreadMessageLike = {
@@ -25,6 +26,7 @@ export type ThreadMessageLike = {
     | readonly (
         | TextContentPart
         | ImageContentPart
+        | FileContentPart
         | Unstable_AudioContentPart
         | ToolCallContentPart<any, any>
         | CoreToolCallContentPart<any, any>
@@ -93,8 +95,10 @@ export const fromThreadMessageLike = (
               }
 
               default: {
-                const unhandledType: "image" | "audio" = type;
-                throw new Error(`Unknown content part type: ${unhandledType}`);
+                const unhandledType: "image" | "audio" | "file" = type;
+                throw new Error(
+                  `Unsupported assistant content part type: ${unhandledType}`,
+                );
               }
             }
           })
@@ -118,11 +122,14 @@ export const fromThreadMessageLike = (
             case "ui":
             case "image":
             case "audio":
+            case "file":
               return part;
 
             default: {
               const unhandledType: "tool-call" = type;
-              throw new Error(`Unknown content part type: ${unhandledType}`);
+              throw new Error(
+                `Unsupported user content part type: ${unhandledType}`,
+              );
             }
           }
         }),

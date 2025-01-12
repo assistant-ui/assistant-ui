@@ -1,6 +1,7 @@
 import type { ComponentType } from "react";
 import type {
   ContentPartStatus,
+  FileContentPart,
   ImageContentPart,
   TextContentPart,
   ToolCallContentPart,
@@ -19,6 +20,9 @@ export type TextContentPartComponent = ComponentType<TextContentPartProps>;
 
 export type ImageContentPartProps = ContentPartState & ImageContentPart;
 export type ImageContentPartComponent = ComponentType<ImageContentPartProps>;
+
+export type FileContentPartProps = ContentPartState & FileContentPart;
+export type FileContentPartComponent = ComponentType<FileContentPartProps>;
 
 export type Unstable_AudioContentPartProps = ContentPartState &
   Unstable_AudioContentPart;

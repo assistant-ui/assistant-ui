@@ -22,6 +22,7 @@ import type {
   ToolCallContentPartComponent,
   ToolCallContentPartProps,
   UIContentPartComponent,
+  FileContentPartComponent,
 } from "../../types/ContentPartComponentTypes";
 import { ContentPartPrimitiveInProgress } from "../contentPart/ContentPartInProgress";
 import { EMPTY_CONTENT_SYMBOL } from "../../api/MessageRuntime";
@@ -33,6 +34,7 @@ export namespace MessagePrimitiveContent {
           Empty?: EmptyContentPartComponent | undefined;
           Text?: TextContentPartComponent | undefined;
           Image?: ImageContentPartComponent | undefined;
+          File?: FileContentPartComponent | undefined;
           Unstable_Audio?: Unstable_AudioContentPartComponent | undefined;
           UI?: UIContentPartComponent | undefined;
           tools?:
@@ -72,6 +74,7 @@ const defaultComponents = {
     </p>
   ),
   Image: () => <ContentPartPrimitiveImage />,
+  File: () => null,
   Unstable_Audio: () => null,
   UI: () => <ContentPartPrimitiveDisplay />,
 } satisfies MessagePrimitiveContent.Props["components"];
@@ -85,8 +88,9 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
     Text = defaultComponents.Text,
     Empty,
     Image = defaultComponents.Image,
-    UI = defaultComponents.UI,
+    File = defaultComponents.File,
     Unstable_Audio: Audio = defaultComponents.Unstable_Audio,
+    UI = defaultComponents.UI,
     tools = {},
   } = {},
 }) => {
@@ -117,6 +121,9 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
     case "image":
       // eslint-disable-next-line jsx-a11y/alt-text
       return <Image {...part} />;
+
+    case "file":
+      return <File {...part} />;
 
     case "audio":
       return <Audio {...part} />;
@@ -158,6 +165,7 @@ const MessageContentPart = memo(
     prev.partIndex === next.partIndex &&
     prev.components?.Text === next.components?.Text &&
     prev.components?.Image === next.components?.Image &&
+    prev.components?.File === next.components?.File &&
     prev.components?.Unstable_Audio === next.components?.Unstable_Audio &&
     prev.components?.UI === next.components?.UI &&
     prev.components?.tools === next.components?.tools,

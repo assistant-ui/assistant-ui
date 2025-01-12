@@ -1,4 +1,5 @@
 import {
+  LanguageModelV1FilePart,
   LanguageModelV1ImagePart,
   LanguageModelV1Message,
   LanguageModelV1TextPart,
@@ -90,10 +91,16 @@ export function toLanguageModelMessages(
         const msg: LanguageModelV1Message = {
           role: "user",
           content: content.map(
-            (part): LanguageModelV1TextPart | LanguageModelV1ImagePart => {
+            (
+              part,
+            ):
+              | LanguageModelV1TextPart
+              | LanguageModelV1ImagePart
+              | LanguageModelV1FilePart => {
               const type = part.type;
               switch (type) {
-                case "text": {
+                case "text":
+                case "file": {
                   return part;
                 }
 

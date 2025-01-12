@@ -49,14 +49,14 @@ const getMessageContent = (msg: AppendMessage) => {
       case "image":
         return { type: "image_url" as const, image_url: { url: part.image } };
 
-      case "audio":
-        throw new Error("Audio appends are not supported yet.");
       case "tool-call":
-        throw new Error("Tool call appends are not supported yet.");
+        throw new Error("Tool call appends are not supported.");
 
       default:
-        const _exhaustiveCheck: never = type;
-        throw new Error(`Unknown content part type: ${_exhaustiveCheck}`);
+        const _exhaustiveCheck: "file" | "audio" = type;
+        throw new Error(
+          `Unsupported append content part type: ${_exhaustiveCheck}`,
+        );
     }
   });
 

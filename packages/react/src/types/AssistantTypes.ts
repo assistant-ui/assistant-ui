@@ -13,6 +13,12 @@ export type ImageContentPart = {
   readonly image: string;
 };
 
+export type FileContentPart = {
+  readonly type: "file";
+  readonly data: string;
+  readonly mimeType: string;
+};
+
 export type Unstable_AudioContentPart = {
   readonly type: "audio";
   readonly audio: {
@@ -85,6 +91,7 @@ export type ToolCallContentPart<
 export type ThreadUserContentPart =
   | TextContentPart
   | ImageContentPart
+  | FileContentPart
   | Unstable_AudioContentPart
   | UIContentPart;
 
@@ -215,6 +222,7 @@ export type ThreadMessage = BaseThreadMessage &
 export type CoreUserContentPart =
   | TextContentPart
   | ImageContentPart
+  | FileContentPart
   | Unstable_AudioContentPart;
 export type CoreAssistantContentPart =
   | TextContentPart

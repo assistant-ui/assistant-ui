@@ -9,6 +9,8 @@ export type {
   AppendMessage,
   TextContentPart,
   ImageContentPart,
+  FileContentPart,
+  Unstable_AudioContentPart,
   ToolCallContentPart,
   UIContentPart,
   MessageStatus,
@@ -28,9 +30,6 @@ export type {
   CoreUserMessage,
   CoreAssistantMessage,
   CoreMessage,
-
-  // TODO
-  Unstable_AudioContentPart,
 } from "./AssistantTypes";
 
 export type {
@@ -40,12 +39,14 @@ export type {
   TextContentPartComponent,
   ImageContentPartProps,
   ImageContentPartComponent,
+  FileContentPartProps,
+  FileContentPartComponent,
+  Unstable_AudioContentPartProps,
+  Unstable_AudioContentPartComponent,
   UIContentPartProps,
   UIContentPartComponent,
   ToolCallContentPartProps,
   ToolCallContentPartComponent,
-  Unstable_AudioContentPartProps,
-  Unstable_AudioContentPartComponent,
 } from "./ContentPartComponentTypes";
 
 export type {
