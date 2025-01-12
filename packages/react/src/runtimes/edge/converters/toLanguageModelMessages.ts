@@ -99,8 +99,7 @@ export function toLanguageModelMessages(
               | LanguageModelV1FilePart => {
               const type = part.type;
               switch (type) {
-                case "text":
-                case "file": {
+                case "text": {
                   return part;
                 }
 
@@ -108,6 +107,14 @@ export function toLanguageModelMessages(
                   return {
                     type: "image",
                     image: new URL(part.image),
+                  };
+                }
+
+                case "file": {
+                  return {
+                    type: "file",
+                    data: new URL(part.data),
+                    mimeType: part.mimeType,
                   };
                 }
 
