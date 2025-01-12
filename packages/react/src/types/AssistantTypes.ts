@@ -21,6 +21,43 @@ export type Unstable_AudioContentPart = {
   };
 };
 
+/**
+ * @deprecated UI content parts are deprecated and will be removed in v0.8.0.
+ * Migration guide for external-store users using UI content parts:
+ * If you must, store UI elements on your external store messages, update your
+ * external store converter:
+ * ```ts
+ * const UI_PLACEHOLDER = Object.freeze({ type: "text", text: "UI content placeholder" });
+ * const convertMessage = (message: TMessage): ThreadMessageLike => ({
+ *   content: [
+ *     // other content parts,
+ *     UI_PLACEHOLDER
+ *   ],
+ * });
+ * ```
+ *
+ * Then, define a custom `TextContentPartComponent`:
+ *
+ * ```tsx
+ * const MyText: FC = () => {
+ *   const isUIPlaceholder = useContentPart(p => p === UI_PLACEHOLDER);
+ *
+ *   // this assumes that you have a `display` field on your original message objects before conversion.
+ *   const ui = useMessage(m => isUIPlaceholder ? getExternalStoreMessage(m).display : undefined);
+ *   if (ui) {
+ *     return ui;
+ *   }
+ *
+ *   return <MarkdownText />; // your default text component
+ * }
+ * ```
+ *
+ *  Pass this component to your Thread:
+ *
+ * ```tsx
+ * <Thread assistantMessage={{ components: { Text: MyText } }} userMessage={{ components: { Text: MyText } }} />
+ * ```
+ */
 export type UIContentPart = {
   readonly type: "ui";
   readonly display: ReactNode;
