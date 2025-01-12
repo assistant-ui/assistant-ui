@@ -1,3 +1,5 @@
+"use client";
+
 import { ContentPartState } from "../../api/ContentPartRuntime";
 import { useContentPart } from "../../context/react/ContentPartContext";
 import { TextContentPart } from "../../types";

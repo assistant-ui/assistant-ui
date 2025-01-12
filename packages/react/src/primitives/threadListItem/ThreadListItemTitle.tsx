@@ -1,11 +1,11 @@
 "use client";
 
-import type { FC } from "react";
+import type { FC, ReactNode } from "react";
 import { useThreadListItem } from "../../context/react/ThreadListItemContext";
 
 export namespace ThreadListItemPrimitiveTitle {
   export type Props = {
-    fallback?: React.ReactNode;
+    fallback?: ReactNode;
   };
 }
 

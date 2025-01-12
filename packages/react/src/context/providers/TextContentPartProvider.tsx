@@ -1,7 +1,6 @@
 "use client";
 
-import type { FC, PropsWithChildren } from "react";
-import { useEffect, useState } from "react";
+import { FC, PropsWithChildren, useEffect, useState } from "react";
 import { create } from "zustand";
 import {
   ContentPartContext,

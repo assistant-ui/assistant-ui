@@ -1,3 +1,5 @@
+"use client";
+
 import { FC } from "react";
 import { ContentPartPrimitive } from "../primitives";
 import { useSmoothStatus, withSmoothContextProvider } from "../utils/smooth";

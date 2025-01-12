@@ -1,3 +1,5 @@
+"use client";
+
 import { useCallback } from "react";
 import { useMessageRuntime } from "../../context";
 

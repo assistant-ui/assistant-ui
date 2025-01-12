@@ -1,3 +1,5 @@
+"use client";
+
 import { useCallback } from "react";
 import { useThreadViewport } from "../../context";
 import { useThreadViewportStore } from "../../context/react/ThreadContext";

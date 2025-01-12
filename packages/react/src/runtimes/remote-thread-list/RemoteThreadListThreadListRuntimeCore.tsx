@@ -1,3 +1,5 @@
+"use client";
+
 import { ThreadListRuntimeCore } from "../core/ThreadListRuntimeCore";
 import { generateId } from "../../internal";
 import { RemoteThreadListAdapter } from "./types";

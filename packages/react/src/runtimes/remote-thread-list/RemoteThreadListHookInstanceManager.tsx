@@ -1,3 +1,5 @@
+"use client";
+
 import { FC, useCallback, useRef, useEffect, memo, useMemo } from "react";
 import { UseBoundStore, StoreApi, create } from "zustand";
 import { useAssistantRuntime } from "../../context";

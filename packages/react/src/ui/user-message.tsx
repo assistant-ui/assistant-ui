@@ -1,5 +1,3 @@
-"use client";
-
 import { ComponentPropsWithoutRef, forwardRef, type FC } from "react";
 
 import BranchPicker from "./branch-picker";

@@ -1,3 +1,5 @@
+"use client";
+
 import { LocalRuntimeOptions, useLocalRuntime } from "..";
 import { EdgeChatAdapterOptions, EdgeChatAdapter } from "./EdgeChatAdapter";
 import { splitLocalRuntimeOptions } from "../local/LocalRuntimeOptions";

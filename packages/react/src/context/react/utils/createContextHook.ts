@@ -1,3 +1,5 @@
+"use client";
+
 import { useContext, Context } from "react";
 
 /**

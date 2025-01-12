@@ -1,5 +1,3 @@
-"use client";
-
 import { create } from "zustand";
 import type { ToolCallContentPartComponent } from "../../types/ContentPartComponentTypes";
 import { Unsubscribe } from "../../types";

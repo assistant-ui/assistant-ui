@@ -1,5 +1,3 @@
-"use client";
-
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { withDefaults } from "../utils/withDefaults";
 import { FC } from "react";

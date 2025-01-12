@@ -1,6 +1,7 @@
 "use client";
+
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
-import { useEffect, useRef } from "react";
+import { RefCallback, useEffect, useRef } from "react";
 import {
   useThreadRuntime,
   useThreadViewportStore,
@@ -20,7 +21,7 @@ export namespace useThreadViewportAutoScroll {
 export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   autoScroll = true,
   unstable_scrollToBottomOnRunStart = true,
-}: useThreadViewportAutoScroll.Options): React.RefCallback<TElement> => {
+}: useThreadViewportAutoScroll.Options): RefCallback<TElement> => {
   const divRef = useRef<TElement>(null);
 
   const threadViewportStore = useThreadViewportStore();

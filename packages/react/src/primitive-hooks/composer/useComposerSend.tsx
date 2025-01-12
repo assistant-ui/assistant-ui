@@ -1,3 +1,5 @@
+"use client";
+
 import { useCallback } from "react";
 import { useCombinedStore } from "../../utils/combined/useCombinedStore";
 import { useThreadRuntime } from "../../context/react/ThreadContext";

@@ -1,3 +1,5 @@
+"use client";
+
 import { FC, useCallback, useEffect, useState } from "react";
 import { ToolCallContentPartProps } from "../types";
 import { create } from "zustand";

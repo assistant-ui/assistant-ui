@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useMemo, useState } from "react";
 import { ExternalStoreRuntimeCore } from "./ExternalStoreRuntimeCore";
 import { ExternalStoreAdapter } from "./ExternalStoreAdapter";

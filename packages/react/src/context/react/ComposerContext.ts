@@ -1,3 +1,5 @@
+"use client";
+
 import { useMemo } from "react";
 import { useMessageContext, useMessageRuntime } from "./MessageContext";
 import { useThreadContext, useThreadRuntime } from "./ThreadContext";

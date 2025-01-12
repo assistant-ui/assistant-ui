@@ -1,5 +1,3 @@
-"use client";
-
 import { forwardRef } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip";
 import { Button, ButtonProps } from "./button";

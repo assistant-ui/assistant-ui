@@ -1,3 +1,5 @@
+"use client";
+
 import { useCallback } from "react";
 import { useAttachmentRuntime } from "../../context/react/AttachmentContext";
 

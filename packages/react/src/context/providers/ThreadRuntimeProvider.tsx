@@ -1,3 +1,5 @@
+"use client";
+
 import type { FC, PropsWithChildren } from "react";
 import { useEffect, useMemo, useState } from "react";
 import type { ThreadContextValue } from "../react/ThreadContext";

@@ -1,3 +1,5 @@
+"use client";
+
 import type { FC } from "react";
 import { useContentPartDisplay } from "../../primitive-hooks/contentPart/useContentPartDisplay";
 

@@ -1,3 +1,5 @@
+"use client";
+
 import { useThreadIf } from "./useThreadIf";
 
 export const useThreadEmpty = () => {

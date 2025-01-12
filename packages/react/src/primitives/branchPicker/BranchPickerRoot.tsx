@@ -1,5 +1,3 @@
-"use client";
-
 import { Primitive } from "@radix-ui/react-primitive";
 import { type ElementRef, forwardRef, ComponentPropsWithoutRef } from "react";
 import { If } from "../message";

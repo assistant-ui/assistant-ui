@@ -1,3 +1,5 @@
+"use client";
+
 import { FC, PropsWithChildren } from "react";
 import { useContentPart } from "../../context";
 

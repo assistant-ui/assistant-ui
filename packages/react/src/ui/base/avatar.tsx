@@ -1,5 +1,3 @@
-"use client";
-
 import type { FC } from "react";
 import * as AvatarPrimitive from "@radix-ui/react-avatar";
 

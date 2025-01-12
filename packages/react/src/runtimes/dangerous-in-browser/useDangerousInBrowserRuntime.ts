@@ -1,3 +1,5 @@
+"use client";
+
 import { LocalRuntimeOptions, useLocalRuntime } from "..";
 import { useState } from "react";
 import {

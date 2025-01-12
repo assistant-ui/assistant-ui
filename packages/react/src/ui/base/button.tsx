@@ -1,6 +1,6 @@
 import { cva, type VariantProps } from "class-variance-authority";
 import { Primitive } from "@radix-ui/react-primitive";
-import { ElementRef, forwardRef } from "react";
+import { ComponentPropsWithoutRef, ElementRef, forwardRef } from "react";
 
 const buttonVariants = cva("aui-button", {
   variants: {
@@ -22,9 +22,7 @@ const buttonVariants = cva("aui-button", {
 
 type ButtonElement = ElementRef<typeof Primitive.button>;
 
-export type ButtonProps = React.ComponentPropsWithoutRef<
-  typeof Primitive.button
-> &
+export type ButtonProps = ComponentPropsWithoutRef<typeof Primitive.button> &
   VariantProps<typeof buttonVariants>;
 
 const Button = forwardRef<ButtonElement, ButtonProps>(

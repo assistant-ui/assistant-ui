@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { AssistantCloud } from "@assistant-ui/react";
 
-export const generateId = customAlphabet(
+const generateId = customAlphabet(
   "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
   32,
 );
