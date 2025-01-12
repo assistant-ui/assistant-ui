@@ -18,12 +18,12 @@ import {
   ChatModelAdapter,
   Unsubscribe,
   ChatModelRunResult,
-  CoreMessage,
   fromCoreMessage,
   INTERNAL,
   ThreadSuggestion,
   ThreadRuntime,
   AssistantRuntime,
+  ThreadMessageLike,
 } from "@assistant-ui/react";
 import { LanguageModelV1FunctionTool } from "@ai-sdk/provider";
 import { useMemo, useState } from "react";
@@ -37,6 +37,8 @@ const {
   DefaultThreadComposerRuntimeCore,
   AssistantRuntimeImpl,
   ThreadRuntimeImpl,
+  fromThreadMessageLike,
+  getAutoStatus,
 } = INTERNAL;
 
 const makeModelConfigStore = () =>
@@ -137,14 +139,22 @@ class PlaygroundRuntimeCore extends BaseAssistantRuntimeCore {
 
   constructor(
     adapter: ChatModelAdapter,
-    initialMessages: readonly CoreMessage[],
+    initialMessages: readonly ThreadMessageLike[],
   ) {
     super();
 
     this.threadList = new PlaygroundThreadListRuntimeCore(() => {
+      const messages = initialMessages.map((m, idx) => {
+        const isLast = idx === initialMessages.length - 1;
+        return fromThreadMessageLike(
+          m,
+          generateId(),
+          getAutoStatus(isLast, false),
+        );
+      });
       const thread = new PlaygroundThreadRuntimeCore(
         this._proxyConfigProvider,
-        fromCoreMessages(initialMessages),
+        messages,
         adapter,
       );
       initialMessages = [];

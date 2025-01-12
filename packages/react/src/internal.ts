@@ -12,5 +12,7 @@ export {
   type ThreadRuntimeCoreBinding,
   type ThreadListItemRuntimeBinding,
 } from "./api/ThreadRuntime";
+export { fromThreadMessageLike } from "./runtimes/external-store/ThreadMessageLike";
+export { getAutoStatus } from "./runtimes/external-store/auto-status";
 
 export * from "./utils/smooth";
