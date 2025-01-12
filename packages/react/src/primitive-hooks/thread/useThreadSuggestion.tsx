@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { useThread } from "../../context";
 import { useThreadRuntime } from "../../context/react/ThreadContext";
 
-namespace useThreadSuggestion {
+export namespace useThreadSuggestion {
   export interface Options {
     prompt: string;
     method: "replace";

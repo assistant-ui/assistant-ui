@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { useComposer, useComposerRuntime } from "../../context";
 
-namespace useComposerAddAttachment {
+export namespace useComposerAddAttachment {
   export interface Options {
     /** allow selecting multiple files */
     multiple?: boolean | undefined;

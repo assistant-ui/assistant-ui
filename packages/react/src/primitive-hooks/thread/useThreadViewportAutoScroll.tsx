@@ -10,7 +10,7 @@ import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
 import { writableStore } from "../../context/ReadonlyStore";
 
-namespace useThreadViewportAutoScroll {
+export namespace useThreadViewportAutoScroll {
   export type Options = {
     autoScroll?: boolean | undefined;
     unstable_scrollToBottomOnRunStart?: boolean | undefined;
