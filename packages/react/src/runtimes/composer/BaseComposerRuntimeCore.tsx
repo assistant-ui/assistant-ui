@@ -159,6 +159,7 @@ export abstract class BaseComposerRuntimeCore
     const attachment = await adapter.add({ file });
 
     this._attachments = [...this._attachments, attachment as PendingAttachment];
+    this._notifyEventSubscribers("attachment_add");
     this._notifySubscribers();
   }
 

@@ -1,7 +1,7 @@
 import type { Attachment, PendingAttachment, Unsubscribe } from "../../types";
 import { MessageRole, RunConfig } from "../../types/AssistantTypes";
 
-export type ComposerRuntimeEventType = "send";
+export type ComposerRuntimeEventType = "send" | "attachment_add";
 
 export type ComposerRuntimeCore = Readonly<{
   isEditing: boolean;
