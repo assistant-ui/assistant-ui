@@ -93,7 +93,7 @@
 }
 
 .aui-attachment-name {
-  @apply text-aui-muted-foreground line-clamp-1 text-ellipsis text-xs font-bold;
+  @apply text-aui-muted-foreground line-clamp-1 text-ellipsis break-all text-xs font-bold;
 }
 
 .aui-attachment-type {
