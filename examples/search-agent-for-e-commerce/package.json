@@ -9,19 +9,19 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^1.0.14",
+    "@ai-sdk/openai": "^1.0.18",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-ai-sdk": "workspace:*",
     "@radix-ui/react-avatar": "^1.1.2",
     "@radix-ui/react-popover": "^1.1.4",
     "@radix-ui/react-slot": "^1.1.1",
     "@radix-ui/react-tooltip": "^1.1.6",
-    "ai": "^4.0.29",
+    "ai": "^4.0.33",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "embla-carousel-autoplay": "^8.5.2",
     "embla-carousel-react": "^8.5.2",
-    "lucide-react": "^0.469.0",
+    "lucide-react": "^0.471.0",
     "nanoid": "^5.0.9",
     "next": "15.1.4",
     "react": "19.0.0",
@@ -33,12 +33,12 @@
   "devDependencies": {
     "@assistant-ui/tsconfig": "workspace:*",
     "@types/node": "^22.10.5",
-    "@types/react": "^19.0.3",
+    "@types/react": "^19.0.4",
     "@types/react-dom": "^19.0.2",
     "eslint": "^9",
     "eslint-config-next": "15.1.4",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.3"
   }
 }

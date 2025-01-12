@@ -12,7 +12,7 @@
     "postcss": "^8.4.49",
     "postcss-js": "^4.0.1",
     "tsup": "8.3.5",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.3"
   },
   "devDependencies": {
     "@types/cross-spawn": "^6.0.6",

@@ -1,5 +1,3 @@
-"use client";
-
 import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
 import { useCallback } from "react";
 import { useManagedRef } from "./useManagedRef";
