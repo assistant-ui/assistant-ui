@@ -170,7 +170,7 @@ const MarkdownTextImpl = () => {
           return (
             <code
               className={cn(
-                !isCodeBlock && "bg-aui-muted rounded border font-semibold",
+                !isCodeBlock && "bg-muted rounded border font-semibold",
                 className,
               )}
               {...props}
