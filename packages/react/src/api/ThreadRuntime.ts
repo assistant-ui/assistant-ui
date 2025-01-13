@@ -36,6 +36,21 @@ import {
   ThreadRuntimePath,
 } from "./RuntimePathTypes";
 import { ThreadListItemState } from "./ThreadListItemRuntime";
+import { RunConfig } from "../types/AssistantTypes";
+
+export type CreateStartRunConfig = {
+  parentId: string | null;
+  sourceId?: string | null | undefined;
+  runConfig?: RunConfig | undefined;
+};
+
+const toStartRunConfig = (message: CreateStartRunConfig): StartRunConfig => {
+  return {
+    parentId: message.parentId ?? null,
+    sourceId: message.sourceId ?? null,
+    runConfig: message.runConfig ?? {},
+  };
+};
 
 export type CreateAppendMessage =
   | string
@@ -197,7 +212,11 @@ export type ThreadRuntime = {
    * @deprecated pass an object with `parentId` instead. This will be removed in 0.8.0.
    */
   startRun(parentId: string | null): void;
-  startRun(config: StartRunConfig): void;
+  /**
+   * Start a new run with the given configuration.
+   * @param config The configuration for starting the run
+   */
+  startRun(config: CreateStartRunConfig): void;
   subscribe(callback: () => void): Unsubscribe;
   cancelRun(): void;
   getModelConfig(): ModelConfig;
@@ -291,17 +310,12 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     return this._threadBinding.getState().getModelConfig();
   }
 
-  public startRun(config: StartRunConfig): void;
-  /**
-   * @deprecated Use `startRun(parentId: string | null)` instead. This will be removed in 0.8.0.
-   */
-  public startRun(parentId: string | null): void;
-  public startRun(configOrParentId: string | null | StartRunConfig) {
+  public startRun(configOrParentId: string | null | CreateStartRunConfig) {
     const config =
       configOrParentId === null || typeof configOrParentId === "string"
-        ? { parentId: configOrParentId, sourceId: null, runConfig: {} }
+        ? { parentId: configOrParentId }
         : configOrParentId;
-    return this._threadBinding.getState().startRun(config);
+    return this._threadBinding.getState().startRun(toStartRunConfig(config));
   }
 
   public cancelRun() {
