@@ -3,38 +3,13 @@
 import type { VercelRSCAdapter } from "./VercelRSCAdapter";
 import {
   ExternalStoreAdapter,
-  getExternalStoreMessage,
-  TextContentPartComponent,
   ThreadMessageLike,
   useExternalMessageConverter,
   useExternalStoreRuntime,
-  useMessage,
-  useThread,
 } from "@assistant-ui/react";
 import { VercelRSCMessage } from "./VercelRSCMessage";
 import { useCallback, useMemo } from "react";
-
-const symbolInternalRSCExtras = Symbol("internal-rsc-extras");
-
-type RSCThreadExtras =
-  | {
-      [symbolInternalRSCExtras]?: {
-        convertFn: (message: any) => VercelRSCMessage;
-      };
-    }
-  | undefined;
-
-export const RSCDisplay: TextContentPartComponent = () => {
-  const convertFn = useThread((t) => {
-    const extras = (t.extras as RSCThreadExtras)?.[symbolInternalRSCExtras];
-    if (!extras)
-      throw new Error(
-        "This function can only be used inside a Vercel RSC runtime.",
-      );
-    return extras.convertFn;
-  });
-  return useMessage((m) => convertFn(getExternalStoreMessage(m)).display);
-};
+import { symbolInternalRSCExtras } from "./utils/RSCThreadExtras";
 
 const vercelToThreadMessage = <T,>(
   converter: (message: T) => VercelRSCMessage,
