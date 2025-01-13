@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.7.37
+
+### Patch Changes
+
+- 799dc79: feat: AppendMessage.sourceId
+- 799dc79: feat: StartRunConfig.sourceId
+
 ## 0.7.36
 
 ### Patch Changes
