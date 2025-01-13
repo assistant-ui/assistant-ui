@@ -198,10 +198,13 @@ export type RunConfig = {
 
 export type AppendMessage = CoreMessage & {
   parentId: string | null;
+
+  /** The ID of the message that was edited or undefined. */
+  sourceId: string | null;
+  runConfig: RunConfig | undefined;
+
   attachments: readonly CompleteAttachment[];
   startRun?: boolean | undefined;
-  /** TODO: make required in 0.8.0 */
-  runConfig?: RunConfig | undefined;
 };
 
 type BaseThreadMessage = {

@@ -41,6 +41,7 @@ export type CreateAppendMessage =
   | string
   | {
       parentId?: string | null | undefined;
+      sourceId?: string | null | undefined;
       role?: AppendMessage["role"] | undefined;
       content: AppendMessage["content"];
       attachments?: AppendMessage["attachments"] | undefined;
@@ -54,6 +55,8 @@ const toAppendMessage = (
   if (typeof message === "string") {
     return {
       parentId: messages.at(-1)?.id ?? null,
+      sourceId: null,
+      runConfig: {},
       role: "user",
       content: [{ type: "text", text: message }],
       attachments: [],
@@ -67,6 +70,7 @@ const toAppendMessage = (
   return {
     ...message,
     parentId: message.parentId ?? messages.at(-1)?.id ?? null,
+    sourceId: message.sourceId ?? null,
     role: message.role ?? "user",
     attachments: message.attachments ?? [],
   } as AppendMessage;
@@ -287,10 +291,15 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     return this._threadBinding.getState().getModelConfig();
   }
 
+  public startRun(config: StartRunConfig): void;
+  /**
+   * @deprecated Use `startRun(parentId: string | null)` instead. This will be removed in 0.8.0.
+   */
+  public startRun(parentId: string | null): void;
   public startRun(configOrParentId: string | null | StartRunConfig) {
     const config =
       configOrParentId === null || typeof configOrParentId === "string"
-        ? { parentId: configOrParentId }
+        ? { parentId: configOrParentId, sourceId: null, runConfig: {} }
         : configOrParentId;
     return this._threadBinding.getState().startRun(config);
   }

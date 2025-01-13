@@ -51,7 +51,8 @@ export type ThreadRuntimeEventType =
 
 export type StartRunConfig = {
   parentId: string | null;
-  runConfig?: RunConfig | undefined;
+  sourceId: string | null;
+  runConfig: RunConfig;
 };
 
 export type ThreadRuntimeCore = Readonly<{

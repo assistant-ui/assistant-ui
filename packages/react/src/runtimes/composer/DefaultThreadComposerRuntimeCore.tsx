@@ -39,10 +39,13 @@ export class DefaultThreadComposerRuntimeCore
     });
   }
 
-  public async handleSend(message: Omit<AppendMessage, "parentId">) {
+  public async handleSend(
+    message: Omit<AppendMessage, "parentId" | "sourceId">,
+  ) {
     this.runtime.append({
       ...(message as AppendMessage),
       parentId: this.runtime.messages.at(-1)?.id ?? null,
+      sourceId: null,
     });
   }
 

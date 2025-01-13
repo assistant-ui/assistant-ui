@@ -133,7 +133,7 @@ export abstract class BaseComposerRuntimeCore
           )
         : [];
 
-    const message: Omit<AppendMessage, "parentId"> = {
+    const message: Omit<AppendMessage, "parentId" | "sourceId"> = {
       role: this.role,
       content: this.text ? [{ type: "text", text: this.text }] : [],
       attachments,
@@ -149,7 +149,9 @@ export abstract class BaseComposerRuntimeCore
     this.handleCancel();
   }
 
-  protected abstract handleSend(message: Omit<AppendMessage, "parentId">): void;
+  protected abstract handleSend(
+    message: Omit<AppendMessage, "parentId" | "sourceId">,
+  ): void;
   protected abstract handleCancel(): void;
 
   async addAttachment(file: File) {

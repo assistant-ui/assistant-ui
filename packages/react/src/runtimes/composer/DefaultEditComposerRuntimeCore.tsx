@@ -16,6 +16,7 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
   private _nonTextParts;
   private _previousText;
   private _parentId;
+  private _sourceId;
   constructor(
     private runtime: Omit<ThreadRuntimeCore, "composer"> & {
       adapters?: { attachments?: AttachmentAdapter | undefined } | undefined;
@@ -25,6 +26,7 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
   ) {
     super();
     this._parentId = parentId;
+    this._sourceId = message.id;
     this._previousText = getThreadMessageText(message);
     this.setText(this._previousText);
 
@@ -36,13 +38,16 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
     );
   }
 
-  public async handleSend(message: Omit<AppendMessage, "parentId">) {
+  public async handleSend(
+    message: Omit<AppendMessage, "parentId" | "sourceId">,
+  ) {
     const text = getThreadMessageText(message as AppendMessage);
     if (text !== this._previousText) {
       this.runtime.append({
-        ...(message as AppendMessage),
+        ...message,
         content: [...message.content, ...this._nonTextParts] as any,
         parentId: this._parentId,
+        sourceId: this._sourceId,
       });
     }
 

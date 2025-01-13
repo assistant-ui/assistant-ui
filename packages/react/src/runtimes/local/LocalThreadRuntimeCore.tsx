@@ -97,6 +97,7 @@ export class LocalThreadRuntimeCore
     if (startRun) {
       await this.startRun({
         parentId: newMessage.id,
+        sourceId: message.sourceId,
         runConfig: message.runConfig ?? {},
       });
     } else {

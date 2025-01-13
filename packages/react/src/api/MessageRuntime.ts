@@ -187,6 +187,7 @@ export class MessageRuntimeImpl implements MessageRuntime {
 
     this._threadBinding.getState().startRun({
       parentId: state.parentId,
+      sourceId: state.id,
       runConfig,
     });
   }
