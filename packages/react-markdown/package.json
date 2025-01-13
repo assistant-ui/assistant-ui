@@ -38,6 +38,7 @@
     "@types/hast": "^3.0.4",
     "classnames": "^2.5.1",
     "lucide-react": "^0.471.0",
+    "marked": "^15.0.6",
     "react-markdown": "^9.0.3"
   },
   "peerDependencies": {
