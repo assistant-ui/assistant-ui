@@ -1,5 +1,15 @@
 # @assistant-ui/react
 
+## 0.7.36
+
+### Patch Changes
+
+- 34d2915: feat: widen initialMessages type to ThreadMessageLike
+- 4f3834a: refactor: deprecate UIContentPart
+- b8b11d3: feat: FileContentPart
+- 889a55e: fix: attachment filename should never overflow
+- a7d9e41: feat: ComposerRuntime.unstable_on("attachment_add", ...)
+
 ## 0.7.35
 
 ### Patch Changes

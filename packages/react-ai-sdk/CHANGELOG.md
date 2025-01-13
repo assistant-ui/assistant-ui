@@ -1,5 +1,17 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.7.9
+
+### Patch Changes
+
+- 9e1ce3b: refactor: deprecate getVercelRSCMessage
+- Updated dependencies [34d2915]
+- Updated dependencies [4f3834a]
+- Updated dependencies [b8b11d3]
+- Updated dependencies [889a55e]
+- Updated dependencies [a7d9e41]
+  - @assistant-ui/react@0.7.36
+
 ## 0.7.8
 
 ### Patch Changes

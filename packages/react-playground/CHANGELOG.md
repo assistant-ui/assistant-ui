@@ -1,5 +1,17 @@
 # @assistant-ui/react-playground
 
+## 0.1.12
+
+### Patch Changes
+
+- 84abdfe: feat: widen initialMessages type
+- Updated dependencies [34d2915]
+- Updated dependencies [4f3834a]
+- Updated dependencies [b8b11d3]
+- Updated dependencies [889a55e]
+- Updated dependencies [a7d9e41]
+  - @assistant-ui/react@0.7.36
+
 ## 0.1.11
 
 ### Patch Changes
