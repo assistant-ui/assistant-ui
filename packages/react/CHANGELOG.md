@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.38
+
+### Patch Changes
+
+- 5794b1b: feat: CreateStartRunConfig
+
 ## 0.7.37
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.7.10
+
+### Patch Changes
+
+- e8eedae: feat: RSCDisplay
+- Updated dependencies [5794b1b]
+  - @assistant-ui/react@0.7.38
+
 ## 0.7.9
 
 ### Patch Changes

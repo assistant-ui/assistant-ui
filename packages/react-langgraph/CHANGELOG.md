@@ -1,5 +1,13 @@
 # @assistant-ui/react-langgraph
 
+## 0.1.17
+
+### Patch Changes
+
+- 9dfa127: refactor: rewrite message stream parser
+- Updated dependencies [5794b1b]
+  - @assistant-ui/react@0.7.38
+
 ## 0.1.16
 
 ### Patch Changes
