@@ -169,8 +169,8 @@ export const useLangGraphRuntime = ({
 
   const switchToThread = !onSwitchToThread
     ? undefined
-    : async (threadId: string) => {
-        const { messages } = await onSwitchToThread(threadId);
+    : async (externalId: string) => {
+        const { messages } = await onSwitchToThread(externalId);
         setMessages(messages);
       };
 
