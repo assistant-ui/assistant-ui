@@ -1,8 +1,5 @@
 import { useState, useCallback, useRef } from "react";
-import { INTERNAL } from "@assistant-ui/react";
 import { v4 as uuidv4 } from "uuid";
-
-const { generateId } = INTERNAL;
 
 export type LangGraphCommand = {
   resume: string;
@@ -41,7 +38,7 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
       const addMessages = (newMessages: TMessage[]) => {
         if (newMessages.length === 0) return;
         for (const message of newMessages) {
-          messagesMap.set(message.id ?? generateId(), message);
+          messagesMap.set(message.id ?? uuidv4(), message);
         }
         setMessages([...messagesMap.values()]);
       };
