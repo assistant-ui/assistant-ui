@@ -10,7 +10,8 @@
     "jsx": "react-jsx",
     "lib": ["dom", "dom.iterable", "esnext"],
     "paths": {
-      "@assistant-ui/*": ["../../packages/*/src"]
+      "@assistant-ui/*": ["../../packages/*/src"],
+      "assistant-stream": ["../../packages/assistant-stream/src"],
     }
   }
 }

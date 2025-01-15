@@ -38,7 +38,7 @@
     "class-variance-authority": "^0.7.1",
     "classnames": "^2.5.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^0.471.0",
+    "lucide-react": "^0.471.1",
     "openai": "^4.78.1",
     "prismjs": "^1.29.0",
     "react-simple-code-editor": "^0.14.1",

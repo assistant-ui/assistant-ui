@@ -9,14 +9,14 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^1.0.18",
+    "@ai-sdk/openai": "^1.0.19",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-ai-sdk": "workspace:*",
     "@radix-ui/react-avatar": "^1.1.2",
-    "ai": "^4.0.33",
+    "ai": "^4.0.36",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^0.471.0",
+    "lucide-react": "^0.471.1",
     "next": "15.1.4",
     "openai": "^4.78.1",
     "react": "19.0.0",

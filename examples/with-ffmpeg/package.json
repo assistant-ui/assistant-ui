@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^1.0.18",
+    "@ai-sdk/openai": "^1.0.19",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-hook-form": "workspace:*",
     "@ffmpeg/ffmpeg": "^0.12.15",
@@ -25,7 +25,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "json-schema-to-zod": "^2.6.0",
-    "lucide-react": "^0.471.0",
+    "lucide-react": "^0.471.1",
     "next": "15.1.4",
     "react": "19.0.0",
     "react-dom": "19.0.0",

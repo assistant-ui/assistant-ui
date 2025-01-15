@@ -20,7 +20,7 @@
       "prettier-plugin-tailwindcss"
     ]
   },
-  "packageManager": "pnpm@9.15.3",
+  "packageManager": "pnpm@9.15.4",
   "resolutions": {
     "react": "19.0.0",
     "react-dom": "19.0.0"
