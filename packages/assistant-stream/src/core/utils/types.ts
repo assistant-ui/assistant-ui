@@ -35,7 +35,7 @@ type ToolCallStatus =
       reason: "cancelled" | "length" | "content-filter" | "other";
     };
 
-type ToolCallContentPart = {
+export type ToolCallContentPart = {
   type: "tool-call";
   status: ToolCallStatus;
   toolCallId: string;

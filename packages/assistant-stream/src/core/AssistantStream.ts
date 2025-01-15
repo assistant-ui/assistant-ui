@@ -1,15 +1,3 @@
-export type AssistantStream2 = {
-  // kind: AssistantStreamKind;
-  readable: ReadableStream<AssistantStreamChunk>;
-  toResponse(
-    format: ReadableWritablePair<Uint8Array, AssistantStreamChunk>,
-  ): Response;
-  toByteStream(
-    format: ReadableWritablePair<Uint8Array, AssistantStreamChunk>,
-  ): ReadableStream<Uint8Array>;
-  tee(): [AssistantStream, AssistantStream];
-};
-
 export type AssistantStreamChunk =
   | {
       type: "text-delta";

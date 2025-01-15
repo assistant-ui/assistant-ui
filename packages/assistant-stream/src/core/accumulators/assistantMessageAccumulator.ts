@@ -1,30 +1,8 @@
-import { AssistantStream, AssistantStreamChunk } from "../AssistantStream";
+import { AssistantStreamChunk } from "../AssistantStream";
 import { parsePartialJson } from "./partial-json/parse-partial-json";
-import { AssistantMessage, ToolCallContentPart } from "./types";
+import { AssistantMessage, ToolCallContentPart } from "../utils/types";
 
-export type AsyncIterableStream<T> = AsyncIterable<T, undefined> &
-  ReadableStream<T>;
-
-export function createAsyncIterableStream<S, T>(
-  source: ReadableStream<S>,
-  transform: TransformStream<S, T>,
-): AsyncIterableStream<T> {
-  const transformedStream: any = source.pipeThrough(transform);
-
-  transformedStream[Symbol.asyncIterator] = () => {
-    const reader = transformedStream.getReader();
-    return {
-      async next(): Promise<IteratorResult<T, undefined>> {
-        const { done, value } = await reader.read();
-        return done ? { done: true, value: undefined } : { done: false, value };
-      },
-    };
-  };
-
-  return transformedStream;
-}
-
-export const toAssistantMessageStream = (stream: AssistantStream) => {
+export const assistantMessageAccumulator = () => {
   let message: AssistantMessage = {
     role: "assistant",
     content: [],
@@ -77,7 +55,7 @@ export const toAssistantMessageStream = (stream: AssistantStream) => {
     },
   });
 
-  return createAsyncIterableStream(stream.readable, transformer);
+  return transformer;
 };
 
 const appendOrUpdateText = (message: AssistantMessage, textDelta: string) => {
