@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.0.17
+
+### Patch Changes
+
+- 70ccbe6: feat: AssistantMessageStream
+
 ## 0.0.16
 
 ### Patch Changes
