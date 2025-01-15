@@ -11,11 +11,9 @@ export class AssistantCloudJWTAuthStrategy
   private cachedToken: string | null = null;
   private tokenExpiry: number | null = null;
 
-  #projectId;
   #authTokenCallback;
 
-  constructor(projectId: string, authTokenCallback: () => Promise<string>) {
-    this.#projectId = projectId;
+  constructor(authTokenCallback: () => Promise<string>) {
     this.#authTokenCallback = authTokenCallback;
   }
 
@@ -56,7 +54,6 @@ export class AssistantCloudJWTAuthStrategy
     ) {
       return {
         Authorization: `Bearer ${this.cachedToken}`,
-        "Aui-Project-Id": this.#projectId,
       };
     }
 
@@ -69,7 +66,6 @@ export class AssistantCloudJWTAuthStrategy
 
     return {
       Authorization: `Bearer ${newToken}`,
-      "Aui-Project-Id": this.#projectId,
     };
   }
 }
@@ -79,16 +75,19 @@ export class AssistantCloudAPIKeyAuthStrategy
   public readonly strategy = "api-key";
 
   #apiKey;
+  #userId;
   #workspaceId;
 
-  constructor(apiKey: string, workspaceId: string) {
+  constructor(apiKey: string, userId: string, workspaceId: string) {
     this.#apiKey = apiKey;
+    this.#userId = userId;
     this.#workspaceId = workspaceId;
   }
 
   public async getAuthHeaders(): Promise<Record<string, string>> {
     return {
       Authorization: `Bearer ${this.#apiKey}`,
+      "Aui-User-Id": this.#userId,
       "Aui-Workspace-Id": this.#workspaceId,
     };
   }

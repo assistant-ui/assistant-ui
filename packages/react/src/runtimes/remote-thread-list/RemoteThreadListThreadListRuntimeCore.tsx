@@ -2,14 +2,17 @@
 
 import { ThreadListRuntimeCore } from "../core/ThreadListRuntimeCore";
 import { generateId } from "../../internal";
-import { RemoteThreadListAdapter } from "./types";
+import {
+  RemoteThreadInitializeResponse,
+  RemoteThreadListAdapter,
+} from "./types";
 import { RemoteThreadListHookInstanceManager } from "./RemoteThreadListHookInstanceManager";
 import { BaseSubscribable } from "./BaseSubscribable";
 import { EMPTY_THREAD_CORE } from "./EMPTY_THREAD_CORE";
 import { OptimisticState } from "./OptimisticState";
 import { FC, Fragment, useEffect, useId } from "react";
 import { create } from "zustand";
-import { CloudInitializeResponse } from "./cloud/CloudContext";
+import { AssistantStream, AssistantMessageStream } from "assistant-stream";
 
 type RemoteThreadData =
   | {
@@ -128,7 +131,6 @@ export class RemoteThreadListThreadListRuntimeCore
   implements ThreadListRuntimeCore
 {
   private _adapter!: RemoteThreadListAdapter;
-  private _disposeOldAdapter?: () => void;
   private readonly _hookManager: RemoteThreadListHookInstanceManager;
 
   private readonly _loadThreadsPromise: Promise<void>;
@@ -228,8 +230,6 @@ export class RemoteThreadListThreadListRuntimeCore
     if (this._adapter === adapter) return;
 
     this._adapter = adapter;
-    this._disposeOldAdapter?.();
-    this._disposeOldAdapter = this._adapter.onInitialize(this._onInitialize);
 
     const Provider = adapter.unstable_Provider ?? Fragment;
     if (Provider !== this.useProvider.getState().Provider) {
@@ -237,6 +237,13 @@ export class RemoteThreadListThreadListRuntimeCore
     }
 
     this._hookManager.setRuntimeHook(adapter.runtimeHook);
+  }
+
+  public __internal_bindAdapter() {
+    return this._adapter.subscribe({
+      onInitialize: this._onInitialize,
+      onGenerateTitle: this._onGenerateTitle,
+    });
   }
 
   public get threadIds() {
@@ -321,16 +328,16 @@ export class RemoteThreadListThreadListRuntimeCore
     return this.switchToThread(threadId);
   }
 
-  private _onInitialize = async (task: Promise<CloudInitializeResponse>) => {
-    const threadId = this._state.value.newThreadId;
-    if (!threadId)
-      throw new Error(
-        "ThreadListAdapter called onInitialize before switching to new thread",
-      );
+  private _onInitialize = async (
+    threadId: string,
+    begin: () => Promise<RemoteThreadInitializeResponse>,
+  ) => {
+    if (this._state.value.newThreadId !== threadId)
+      throw new Error("The provided thread is already initialized");
 
     await this._state.optimisticUpdate({
       execute: () => {
-        return task;
+        return begin();
       },
       optimistic: (state) => {
         return updateStatusReducer(state, threadId, "regular");
@@ -339,7 +346,7 @@ export class RemoteThreadListThreadListRuntimeCore
         const data = getThreadData(state, threadId);
         if (!data) return state;
 
-        const mappingId = createThreadMappingId(remoteId);
+        const mappingId = createThreadMappingId(threadId);
         return {
           ...state,
           threadIdMap: {
@@ -357,6 +364,34 @@ export class RemoteThreadListThreadListRuntimeCore
         };
       },
     });
+  };
+
+  private _onGenerateTitle = async (
+    remoteId: string,
+    begin: () => Promise<AssistantStream>,
+  ) => {
+    const data = this.getItemById(remoteId);
+    if (!data) throw new Error("Thread not found");
+    if (data.status === "new") throw new Error("Thread is not yet initialized");
+
+    const stream = await begin();
+    const messageStream = AssistantMessageStream.fromAssistantStream(stream);
+    for await (const result of messageStream) {
+      const newTitle =
+        result.content.filter((c) => c.type === "text")[0]?.text ??
+        "New Thread";
+      const state = this._state.baseValue;
+      this._state.update({
+        ...state,
+        threadData: {
+          ...state.threadData,
+          [data.threadId]: {
+            ...data,
+            title: newTitle,
+          },
+        },
+      });
+    }
   };
 
   public rename(threadIdOrRemoteId: string, newTitle: string): Promise<void> {
@@ -467,12 +502,12 @@ export class RemoteThreadListThreadListRuntimeCore
     const { Provider } = this.useProvider();
 
     return (
-      <Provider>
-        {(boundIds.length === 0 || boundIds[0] === id) && (
-          // only render if the component is the first one mounted
-          <this._hookManager.__internal_RenderThreadRuntimes />
-        )}
-      </Provider>
+      (boundIds.length === 0 || boundIds[0] === id) && (
+        // only render if the component is the first one mounted
+        <this._hookManager.__internal_RenderThreadRuntimes
+          provider={Provider}
+        />
+      )
     );
   };
 }

@@ -2,8 +2,7 @@
 
 import { TransactionConfirmationPending } from "./transaction-confirmation-pending";
 import { TransactionConfirmationFinal } from "./transaction-confirmation-final";
-import { makeAssistantToolUI, useThreadRuntime } from "@assistant-ui/react";
-import { updateState } from "@/lib/chatApi";
+import { makeAssistantToolUI } from "@assistant-ui/react";
 
 type PurchaseStockArgs = {
   ticker: string;
@@ -11,12 +10,6 @@ type PurchaseStockArgs = {
   quantity: number;
   maxPurchasePrice: number;
 };
-// The JSON to update state with if the user confirms the purchase.
-const CONFIRM_PURCHASE = {
-  purchaseConfirmed: true,
-};
-// The name of the node to update the state as
-const PREPARE_PURCHASE_DETAILS_NODE = "prepare_purchase_details";
 
 export const PurchaseStockTool = makeAssistantToolUI<PurchaseStockArgs, string>(
   {
@@ -32,13 +25,7 @@ export const PurchaseStockTool = makeAssistantToolUI<PurchaseStockArgs, string>(
         ? (JSON.parse(result) as { transactionId: string })
         : undefined;
 
-      const threadRuntime = useThreadRuntime();
       const handleConfirm = async () => {
-        await updateState(threadRuntime.getState().threadId, {
-          newState: CONFIRM_PURCHASE,
-          asNode: PREPARE_PURCHASE_DETAILS_NODE,
-        });
-
         addResult({ confirmed: true });
       };
 

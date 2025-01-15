@@ -29,6 +29,7 @@ export const useRemoteThreadListRuntime = (
   const [runtime] = useState(() => new RemoteThreadListRuntimeCore(adapter));
   useEffect(() => {
     runtime.threadList.__internal_setAdapter(adapter);
+    return runtime.threadList.__internal_bindAdapter();
   }, [runtime, adapter]);
   return useMemo(() => AssistantRuntimeImpl.create(runtime), [runtime]);
 };

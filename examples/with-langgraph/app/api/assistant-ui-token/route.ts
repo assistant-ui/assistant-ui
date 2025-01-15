@@ -47,6 +47,7 @@ export const POST = async () => {
 
   const client = new AssistantCloud({
     apiKey: process.env["ASSISTANT_API_KEY"]!,
+    userId,
     workspaceId: userId,
   });
   const { token } = await client.auth.tokens.create();

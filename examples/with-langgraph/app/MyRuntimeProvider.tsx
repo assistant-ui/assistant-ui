@@ -3,7 +3,7 @@
 import {
   AssistantCloud,
   AssistantRuntimeProvider,
-  useCloudGetOrCreateThread,
+  useCloudThreadListItemRuntime,
   useCloudThreadListRuntime,
 } from "@assistant-ui/react";
 import { useLangGraphRuntime } from "@assistant-ui/react-langgraph";
@@ -11,19 +11,26 @@ import { createThread, getThreadState, sendMessage } from "@/lib/chatApi";
 import { LangChainMessage } from "@assistant-ui/react-langgraph";
 
 const useMyLangGraphRuntime = () => {
-  const getOrCreateThread = useCloudGetOrCreateThread();
+  const cloudRuntime = useCloudThreadListItemRuntime();
   const runtime = useLangGraphRuntime({
-    stream: async (messages) => {
-      const { externalId } = await getOrCreateThread();
+    stream: async function* (messages) {
+      const { externalId } = await cloudRuntime.getOrCreateThread();
       if (!externalId) throw new Error("Thread not found");
 
-      return sendMessage({
+      const generator = await sendMessage({
         threadId: externalId,
         messages,
       });
+
+      for await (const message of generator) {
+        yield message;
+      }
+
+      // TODO only call this once during initializationa
+      await cloudRuntime.generateThreadTitle();
     },
-    onSwitchToThread: async (threadId) => {
-      const state = await getThreadState(threadId);
+    onSwitchToThread: async (externalId) => {
+      const state = await getThreadState(externalId);
       return {
         messages:
           (state.values as { messages?: LangChainMessage[] }).messages ?? [],
@@ -35,8 +42,7 @@ const useMyLangGraphRuntime = () => {
 };
 
 const cloud = new AssistantCloud({
-  baseUrl: "https://api.assistant-ui.com",
-  unstable_projectId: process.env["NEXT_PUBLIC_ASSISTANT_PROJECT_ID"]!,
+  baseUrl: process.env["NEXT_PUBLIC_ASSISTANT_BASE_URL"]!,
   authToken: () =>
     fetch("/api/assistant-ui-token", { method: "POST" })
       .then((r) => r.json())

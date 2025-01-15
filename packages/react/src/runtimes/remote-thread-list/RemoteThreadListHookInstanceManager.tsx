@@ -1,6 +1,15 @@
 "use client";
 
-import { FC, useCallback, useRef, useEffect, memo, useMemo } from "react";
+import {
+  FC,
+  useCallback,
+  useRef,
+  useEffect,
+  memo,
+  useMemo,
+  PropsWithChildren,
+  ComponentType,
+} from "react";
 import { UseBoundStore, StoreApi, create } from "zustand";
 import { useAssistantRuntime } from "../../context";
 import { ThreadListItemRuntimeProvider } from "../../context/providers/ThreadListItemRuntimeProvider";
@@ -104,31 +113,38 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     return null;
   };
 
-  private _OuterActiveThreadProvider: FC<{ threadId: string }> = memo(
-    ({ threadId }) => {
-      const assistantRuntime = useAssistantRuntime();
-      const threadListItemRuntime = useMemo(
-        () => assistantRuntime.threadList.getItemById(threadId),
-        [assistantRuntime, threadId],
-      );
+  private _OuterActiveThreadProvider: FC<{
+    threadId: string;
+    provider: ComponentType<PropsWithChildren>;
+  }> = memo(({ threadId, provider: Provider }) => {
+    const assistantRuntime = useAssistantRuntime();
+    const threadListItemRuntime = useMemo(
+      () => assistantRuntime.threadList.getItemById(threadId),
+      [assistantRuntime, threadId],
+    );
 
-      return (
-        <ThreadListItemRuntimeProvider runtime={threadListItemRuntime}>
+    return (
+      <ThreadListItemRuntimeProvider runtime={threadListItemRuntime}>
+        <Provider>
           <this._InnerActiveThreadProvider />
-        </ThreadListItemRuntimeProvider>
-      );
-    },
-  );
+        </Provider>
+      </ThreadListItemRuntimeProvider>
+    );
+  });
 
-  public __internal_RenderThreadRuntimes: FC = () => {
+  public __internal_RenderThreadRuntimes: FC<{
+    provider: ComponentType<PropsWithChildren>;
+  }> = ({ provider }) => {
     this.useAliveThreadsKeysChanged(); // trigger re-render on alive threads change
 
-    return [
-      ...this.instances
-        .keys()
-        .map((threadId) => (
-          <this._OuterActiveThreadProvider key={threadId} threadId={threadId} />
-        )),
-    ];
+    return this.instances
+      .keys()
+      .map((threadId) => (
+        <this._OuterActiveThreadProvider
+          key={threadId}
+          threadId={threadId}
+          provider={provider}
+        />
+      ));
   };
 }

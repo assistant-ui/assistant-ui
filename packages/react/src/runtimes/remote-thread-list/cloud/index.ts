@@ -1,3 +1,3 @@
 export { useCloudThreadListRuntime } from "./useCloudThreadListRuntime";
-export { useCloudGetOrCreateThread } from "./useCloudGetOrCreateThread";
+export { useCloudThreadListItemRuntime } from "./CloudThreadListItemRuntime";
 export { AssistantCloud } from "./AssistantCloud";

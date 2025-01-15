@@ -1,7 +1,12 @@
 import { ComponentType, PropsWithChildren } from "react";
 import { AssistantRuntime } from "../../api";
 import { Unsubscribe } from "../../types";
-import { CloudInitializeResponse } from "./cloud/CloudContext";
+import { AssistantStream } from "assistant-stream";
+
+export type RemoteThreadInitializeResponse = {
+  remoteId: string;
+  externalId: string | undefined;
+};
 
 export type RemoteThreadMetadata = {
   readonly status: "regular" | "archived";
@@ -16,6 +21,17 @@ export type RemoteThreadListResponse = {
 
 export type RemoteThreadListHook = () => AssistantRuntime;
 
+export type RemoteThreadListSubscriber = {
+  onInitialize: (
+    threadId: string,
+    begin: () => Promise<RemoteThreadInitializeResponse>,
+  ) => void;
+  onGenerateTitle: (
+    threadId: string,
+    begin: () => Promise<AssistantStream>,
+  ) => void;
+};
+
 export type RemoteThreadListAdapter = {
   runtimeHook: RemoteThreadListHook;
 
@@ -26,9 +42,7 @@ export type RemoteThreadListAdapter = {
   unarchive(remoteId: string): Promise<void>;
   delete(remoteId: string): Promise<void>;
 
-  onInitialize(
-    callback: (task: Promise<CloudInitializeResponse>) => Promise<void>,
-  ): Unsubscribe;
+  subscribe(subscriber: RemoteThreadListSubscriber): Unsubscribe;
 
   unstable_Provider?: ComponentType<PropsWithChildren>;
 };

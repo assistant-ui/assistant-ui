@@ -7,14 +7,27 @@ import {
 export type AssistantCloudConfig =
   | {
       baseUrl: string;
-      // TODO use baseUrl to construct the projectId
-      unstable_projectId: string;
       authToken(): Promise<string>;
     }
   | {
       apiKey: string;
+      userId: string;
       workspaceId: string;
     };
+
+class CloudAPIError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "APIError";
+  }
+}
+
+type MakeRequestOptions = {
+  method?: "POST" | "PUT" | "DELETE" | undefined;
+  headers?: Record<string, string> | undefined;
+  query?: Record<string, string | number | boolean> | undefined;
+  body?: object | undefined;
+};
 
 export class AssistantCloudAPI {
   private _tokenManager: AssistantCloudAuthStrategy;
@@ -23,30 +36,25 @@ export class AssistantCloudAPI {
   constructor(config: AssistantCloudConfig) {
     if ("authToken" in config) {
       this._baseUrl = config.baseUrl;
-      this._tokenManager = new AssistantCloudJWTAuthStrategy(
-        config.unstable_projectId,
-        config.authToken,
-      );
+      this._tokenManager = new AssistantCloudJWTAuthStrategy(config.authToken);
     } else {
-      this._baseUrl = "https://api.assistant-ui.com";
+      this._baseUrl = "https://backend.assistant-api.com";
       this._tokenManager = new AssistantCloudAPIKeyAuthStrategy(
         config.apiKey,
+        config.userId,
         config.workspaceId,
       );
     }
   }
 
-  public async makeRequest(
+  public async makeRawRequest(
     endpoint: string,
-    options: {
-      method?: "POST" | "PUT" | "DELETE" | undefined;
-      query?: Record<string, string | number | boolean> | undefined;
-      body?: object | undefined;
-    } = {},
+    options: MakeRequestOptions = {},
   ) {
     const authHeaders = await this._tokenManager.getAuthHeaders();
     const headers = {
       ...authHeaders,
+      ...options.headers,
       "Content-Type": "application/json",
     };
 
@@ -62,7 +70,7 @@ export class AssistantCloudAPI {
       }
     }
 
-    const url = new URL(`${this._baseUrl}${endpoint}`);
+    const url = new URL(`${this._baseUrl}/v1${endpoint}`);
     url.search = queryParams.toString();
 
     const response = await fetch(url, {
@@ -72,10 +80,22 @@ export class AssistantCloudAPI {
     });
 
     if (!response.ok) {
-      // TODO better error handling
-      throw new Error(`Request failed with status ${response.status}`);
+      const text = await response.text();
+      try {
+        const body = JSON.parse(text);
+        throw new CloudAPIError(body.message);
+      } catch {
+        throw new Error(
+          `Request failed with status ${response.status}, ${text}`,
+        );
+      }
     }
 
+    return response;
+  }
+
+  public async makeRequest(endpoint: string, options: MakeRequestOptions = {}) {
+    const response = await this.makeRawRequest(endpoint, options);
     return response.json();
   }
 }
