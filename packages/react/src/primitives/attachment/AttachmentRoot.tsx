@@ -1,10 +1,10 @@
 import { Primitive } from "@radix-ui/react-primitive";
-import { ComponentPropsWithoutRef, ElementRef, forwardRef } from "react";
+import { ComponentPropsWithoutRef, ComponentRef, forwardRef } from "react";
 
 type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;
 
 export namespace AttachmentPrimitiveRoot {
-  export type Element = ElementRef<typeof Primitive.div>;
+  export type Element = ComponentRef<typeof Primitive.div>;
   export type Props = PrimitiveDivProps;
 }
 

@@ -1,9 +1,9 @@
 import { Primitive } from "@radix-ui/react-primitive";
-import { type ElementRef, forwardRef, ComponentPropsWithoutRef } from "react";
+import { type ComponentRef, forwardRef, ComponentPropsWithoutRef } from "react";
 import { If } from "../message";
 
 export namespace BranchPickerPrimitiveRoot {
-  export type Element = ElementRef<typeof Primitive.div>;
+  export type Element = ComponentRef<typeof Primitive.div>;
   export type Props = ComponentPropsWithoutRef<typeof Primitive.div> & {
     hideWhenSingleBranch?: boolean | undefined;
   };

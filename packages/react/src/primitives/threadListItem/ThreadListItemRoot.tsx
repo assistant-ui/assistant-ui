@@ -1,13 +1,13 @@
 "use client";
 
 import { Primitive } from "@radix-ui/react-primitive";
-import { type ElementRef, forwardRef, ComponentPropsWithoutRef } from "react";
+import { type ComponentRef, forwardRef, ComponentPropsWithoutRef } from "react";
 import { useThreadListItem } from "../../context/react/ThreadListItemContext";
 
 type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;
 
 export namespace ThreadListItemPrimitiveRoot {
-  export type Element = ElementRef<typeof Primitive.div>;
+  export type Element = ComponentRef<typeof Primitive.div>;
   export type Props = PrimitiveDivProps;
 }
 

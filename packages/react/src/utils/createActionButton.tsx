@@ -1,5 +1,5 @@
 import {
-  ElementRef,
+  ComponentRef,
   forwardRef,
   ComponentPropsWithoutRef,
   MouseEventHandler,
@@ -16,7 +16,7 @@ type PrimitiveButtonProps = ComponentPropsWithoutRef<typeof Primitive.button>;
 export type ActionButtonProps<THook> = PrimitiveButtonProps &
   (THook extends (props: infer TProps) => unknown ? TProps : never);
 
-export type ActionButtonElement = ElementRef<typeof Primitive.button>;
+export type ActionButtonElement = ComponentRef<typeof Primitive.button>;
 
 export const createActionButton = <TProps,>(
   displayName: string,

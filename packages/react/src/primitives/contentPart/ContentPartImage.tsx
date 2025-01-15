@@ -1,11 +1,11 @@
 "use client";
 
 import { Primitive } from "@radix-ui/react-primitive";
-import { type ElementRef, forwardRef, ComponentPropsWithoutRef } from "react";
+import { type ComponentRef, forwardRef, ComponentPropsWithoutRef } from "react";
 import { useContentPartImage } from "../../primitive-hooks/contentPart/useContentPartImage";
 
 export namespace ContentPartPrimitiveImage {
-  export type Element = ElementRef<typeof Primitive.img>;
+  export type Element = ComponentRef<typeof Primitive.img>;
   export type Props = ComponentPropsWithoutRef<typeof Primitive.img>;
 }
 

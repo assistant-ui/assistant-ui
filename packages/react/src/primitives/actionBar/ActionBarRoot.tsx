@@ -1,7 +1,7 @@
 "use client";
 
 import { Primitive } from "@radix-ui/react-primitive";
-import { type ElementRef, forwardRef, ComponentPropsWithoutRef } from "react";
+import { type ComponentRef, forwardRef, ComponentPropsWithoutRef } from "react";
 import {
   useActionBarFloatStatus,
   HideAndFloatStatus,
@@ -11,7 +11,7 @@ import {
 type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;
 
 export namespace ActionBarPrimitiveRoot {
-  export type Element = ElementRef<typeof Primitive.div>;
+  export type Element = ComponentRef<typeof Primitive.div>;
   export type Props = PrimitiveDivProps & UseActionBarFloatStatusProps;
 }
 

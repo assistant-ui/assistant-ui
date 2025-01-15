@@ -3,7 +3,7 @@
 import { composeEventHandlers } from "@radix-ui/primitive";
 import { Primitive } from "@radix-ui/react-primitive";
 import {
-  type ElementRef,
+  type ComponentRef,
   type FormEvent,
   forwardRef,
   ComponentPropsWithoutRef,
@@ -11,7 +11,7 @@ import {
 import { useComposerSend } from "../../primitive-hooks/composer/useComposerSend";
 
 export namespace ComposerPrimitiveRoot {
-  export type Element = ElementRef<typeof Primitive.form>;
+  export type Element = ComponentRef<typeof Primitive.form>;
   export type Props = ComponentPropsWithoutRef<typeof Primitive.form>;
 }
 

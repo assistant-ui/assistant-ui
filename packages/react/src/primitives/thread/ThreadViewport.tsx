@@ -2,11 +2,11 @@
 
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
 import { Primitive } from "@radix-ui/react-primitive";
-import { type ElementRef, forwardRef, ComponentPropsWithoutRef } from "react";
+import { type ComponentRef, forwardRef, ComponentPropsWithoutRef } from "react";
 import { useThreadViewportAutoScroll } from "../../primitive-hooks/thread/useThreadViewportAutoScroll";
 
 export namespace ThreadPrimitiveViewport {
-  export type Element = ElementRef<typeof Primitive.div>;
+  export type Element = ComponentRef<typeof Primitive.div>;
   export type Props = ComponentPropsWithoutRef<typeof Primitive.div> &
     useThreadViewportAutoScroll.Options;
 }

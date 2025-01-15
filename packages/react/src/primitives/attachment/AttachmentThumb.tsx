@@ -1,13 +1,13 @@
 "use client";
 
-import { ComponentPropsWithoutRef, forwardRef, type ElementRef } from "react";
+import { ComponentPropsWithoutRef, forwardRef, type ComponentRef } from "react";
 import { useAttachment } from "../../context/react/AttachmentContext";
 import { Primitive } from "@radix-ui/react-primitive";
 
 type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;
 
 export namespace AttachmentPrimitiveThumb {
-  export type Element = ElementRef<typeof Primitive.div>;
+  export type Element = ComponentRef<typeof Primitive.div>;
   export type Props = PrimitiveDivProps;
 }
 
