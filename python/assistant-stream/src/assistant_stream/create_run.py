@@ -5,6 +5,7 @@ from assistant_stream.assistant_stream_chunk import (
     TextDeltaChunk,
     ToolResultChunk,
     DataChunk,
+    ErrorChunk,
 )
 from assistant_stream.modules.tool_call import (
     create_tool_call,
@@ -64,6 +65,14 @@ class RunController:
             DataChunk(data=data),
         )
 
+    def add_error(self, error: str) -> None:
+        """Emit an event to the main stream."""
+
+        self._loop.call_soon_threadsafe(
+            self._queue.put_nowait,
+            ErrorChunk(error=error),
+        )
+
 
 async def create_run(
     callback: Callable[[RunController], Coroutine[Any, Any, None]]
@@ -74,13 +83,16 @@ async def create_run(
     async def background_task():
         try:
             await callback(controller)
-
+        except Exception as e:
+            controller.add_error(str(e))
+        finally:
             for dispose in controller._dispose_callbacks:
                 dispose()
-            for task in controller._stream_tasks:
-                await task
-        finally:
-            asyncio.get_event_loop().call_soon_threadsafe(queue.put_nowait, None)
+            try:
+                for task in controller._stream_tasks:
+                    await task
+            finally:
+                asyncio.get_event_loop().call_soon_threadsafe(queue.put_nowait, None)
 
     task = asyncio.create_task(background_task())
 

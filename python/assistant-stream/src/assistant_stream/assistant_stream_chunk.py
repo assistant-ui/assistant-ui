@@ -35,8 +35,13 @@ class DataChunk:
     data: Any
     type: str = "data"
 
+@dataclass
+class ErrorChunk:
+    error: str
+    type: str = "error"
+
 
 # Define the union type for AssistantStreamChunk
 AssistantStreamChunk = Union[
-    TextDeltaChunk, ToolCallBeginChunk, ToolCallDeltaChunk, ToolResultChunk, DataChunk
+    TextDeltaChunk, ToolCallBeginChunk, ToolCallDeltaChunk, ToolResultChunk, DataChunk, ErrorChunk
 ]
