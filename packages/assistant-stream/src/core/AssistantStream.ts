@@ -17,6 +17,10 @@ export type AssistantStreamChunk =
       type: "tool-result";
       toolCallId: string;
       result: any;
+    }
+  | {
+      type: "error";
+      error: string;
     };
 
 export class AssistantStream {

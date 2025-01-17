@@ -168,6 +168,21 @@ class RunControllerImpl implements RunController {
     this.appendStep(toolCallStream);
     return controller!;
   }
+
+  addError(error: string) {
+    this._merge.addStream(
+      new AssistantStream(
+        new ReadableStream({
+          start(c) {
+            c.enqueue({
+              type: "error",
+              error,
+            });
+          },
+        }),
+      ),
+    );
+  }
 }
 
 export function createAssistantRun(
@@ -176,7 +191,12 @@ export function createAssistantRun(
   const controller = new RunControllerImpl();
   const promiseOrVoid = callback(controller);
   if (promiseOrVoid instanceof Promise) {
-    promiseOrVoid.finally(() => controller.close());
+    promiseOrVoid
+      .catch((e) => {
+        controller.addError(e instanceof Error ? e.message : String(e));
+        throw e;
+      })
+      .finally(() => controller.close());
   } else {
     controller.close();
   }

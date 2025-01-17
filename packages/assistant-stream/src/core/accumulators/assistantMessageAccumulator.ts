@@ -37,15 +37,24 @@ export const assistantMessageAccumulator = () => {
           controller.enqueue(message);
           break;
         }
-        case "tool-result" as string: {
-          const { toolCallId, result } = chunk as unknown as {
-            toolCallId: string;
-            result: unknown;
-          };
+        case "tool-result": {
+          const { toolCallId, result } = chunk;
           message = setToolResult(message, toolCallId, result);
           controller.enqueue(message);
 
           break;
+        }
+
+        case "error": {
+          const { error } = chunk;
+          message = setError(message, error);
+          controller.enqueue(message);
+          break;
+        }
+
+        default: {
+          const _exhaustiveCheck: never = type;
+          throw new Error(`Unsupported chunk type: ${_exhaustiveCheck}`);
         }
       }
     },
@@ -164,6 +173,20 @@ const appendOrUpdateFinish = (message: AssistantMessage): AssistantMessage => {
     status: {
       type: "complete",
       reason: "unknown",
+    },
+  };
+};
+
+const setError = (
+  message: AssistantMessage,
+  error: string,
+): AssistantMessage => {
+  return {
+    ...message,
+    status: {
+      type: "incomplete",
+      reason: "error",
+      error,
     },
   };
 };

@@ -27,16 +27,13 @@ export class PlainTextEncoder
               controller.enqueue(chunk.textDelta);
               break;
 
-            case "tool-call-begin":
-            case "tool-call-delta":
-            case "tool-result":
-              throw new Error(
-                `tool-call-begin and tool-call-delta are not supported in plain text serialization`,
-              );
-
             default:
-              const exhaustiveCheck: never = type;
-              throw new Error(`unsupported chunk type: ${exhaustiveCheck}`);
+              const unsupportedType:
+                | "tool-call-begin"
+                | "tool-call-delta"
+                | "tool-result"
+                | "error" = type;
+              throw new Error(`unsupported chunk type: ${unsupportedType}`);
           }
         },
       });

@@ -59,6 +59,10 @@ export class DataStreamEncoder {
               );
               break;
 
+            case "error":
+              controller.enqueue(`3:${JSON.stringify(chunk.error)}\n`);
+              break;
+
             default:
               const exhaustiveCheck: never = type;
               throw new Error(`unsupported chunk type: ${exhaustiveCheck}`);
