@@ -1,5 +1,11 @@
 # create-assistant-ui
 
+## 0.0.9
+
+### Patch Changes
+
+- 22272e6: chore: update dependencies
+
 ## 0.0.8
 
 ### Patch Changes

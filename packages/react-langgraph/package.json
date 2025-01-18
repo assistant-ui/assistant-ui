@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-langgraph",
-  "version": "0.1.17",
+  "version": "0.1.18",
   "license": "MIT",
   "exports": {
     ".": {
@@ -31,7 +31,7 @@
     "zod": "^3.24.1"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.7.38",
+    "@assistant-ui/react": "^0.7.39",
     "@types/react": "*",
     "react": "^18 || ^19 || ^19.0.0-rc"
   },

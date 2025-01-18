@@ -1,5 +1,14 @@
 # @assistant-ui/react-markdown
 
+## 0.7.11
+
+### Patch Changes
+
+- 22272e6: chore: update dependencies
+- Updated dependencies [0979334]
+- Updated dependencies [22272e6]
+  - @assistant-ui/react@0.7.39
+
 ## 0.7.10
 
 ### Patch Changes
