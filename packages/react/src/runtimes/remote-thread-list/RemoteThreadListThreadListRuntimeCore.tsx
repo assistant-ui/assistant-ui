@@ -133,7 +133,7 @@ export class RemoteThreadListThreadListRuntimeCore
   private _adapter!: RemoteThreadListAdapter;
   private readonly _hookManager: RemoteThreadListHookInstanceManager;
 
-  private readonly _loadThreadsPromise: Promise<void>;
+  private _loadThreadsPromise: Promise<void> | undefined;
 
   private _mainThreadId!: string;
   private readonly _state = new OptimisticState<RemoteThreadState>({
@@ -146,6 +146,69 @@ export class RemoteThreadListThreadListRuntimeCore
   });
 
   public getLoadThreadsPromise() {
+    // TODO this needs to be cached in case this promise is loaded during suspense
+    if (!this._loadThreadsPromise) {
+      this._loadThreadsPromise = this._state
+        .optimisticUpdate({
+          execute: () => this._adapter.list(),
+          loading: (state) => {
+            return {
+              ...state,
+              isLoading: true,
+            };
+          },
+          then: (state, l) => {
+            const newThreadIds = [];
+            const newArchivedThreadIds = [];
+            const newThreadIdMap = {} as Record<string, THREAD_MAPPING_ID>;
+            const newThreadData = {} as Record<
+              THREAD_MAPPING_ID,
+              RemoteThreadData
+            >;
+
+            for (const thread of l.threads) {
+              switch (thread.status) {
+                case "regular":
+                  newThreadIds.push(thread.remoteId);
+                  break;
+                case "archived":
+                  newArchivedThreadIds.push(thread.remoteId);
+                  break;
+                default: {
+                  const _exhaustiveCheck: never = thread.status;
+                  throw new Error(`Unsupported state: ${_exhaustiveCheck}`);
+                }
+              }
+
+              const mappingId = createThreadMappingId(thread.remoteId);
+              newThreadIdMap[thread.remoteId] = mappingId;
+              newThreadData[mappingId] = {
+                threadId: thread.remoteId,
+                remoteId: thread.remoteId,
+                externalId: thread.externalId,
+                status: thread.status,
+                title: thread.title,
+              };
+            }
+
+            return {
+              ...state,
+              threadIds: newThreadIds,
+              archivedThreadIds: newArchivedThreadIds,
+              threadIdMap: {
+                ...state.threadIdMap,
+                ...newThreadIdMap,
+              },
+              threadData: {
+                ...state.threadData,
+                ...newThreadData,
+              },
+            };
+          },
+        })
+        .then(() => {});
+    }
+
     return this._loadThreadsPromise;
   }
 
@@ -160,66 +223,6 @@ export class RemoteThreadListThreadListRuntimeCore
       Provider: adapter.unstable_Provider ?? Fragment,
     }));
     this.__internal_setAdapter(adapter);
-
-    this._loadThreadsPromise = this._state
-      .optimisticUpdate({
-        execute: () => adapter.list(),
-        loading: (state) => {
-          return {
-            ...state,
-            isLoading: true,
-          };
-        },
-        then: (state, l) => {
-          const newThreadIds = [];
-          const newArchivedThreadIds = [];
-          const newThreadIdMap = {} as Record<string, THREAD_MAPPING_ID>;
-          const newThreadData = {} as Record<
-            THREAD_MAPPING_ID,
-            RemoteThreadData
-          >;
-
-          for (const thread of l.threads) {
-            switch (thread.status) {
-              case "regular":
-                newThreadIds.push(thread.remoteId);
-                break;
-              case "archived":
-                newArchivedThreadIds.push(thread.remoteId);
-                break;
-              default: {
-                const _exhaustiveCheck: never = thread.status;
-                throw new Error(`Unsupported state: ${_exhaustiveCheck}`);
-              }
-            }
-
-            const mappingId = createThreadMappingId(thread.remoteId);
-            newThreadIdMap[thread.remoteId] = mappingId;
-            newThreadData[mappingId] = {
-              threadId: thread.remoteId,
-              remoteId: thread.remoteId,
-              externalId: thread.externalId,
-              status: thread.status,
-              title: thread.title,
-            };
-          }
-
-          return {
-            ...state,
-            threadIds: newThreadIds,
-            archivedThreadIds: newArchivedThreadIds,
-            threadIdMap: {
-              ...state.threadIdMap,
-              ...newThreadIdMap,
-            },
-            threadData: {
-              ...state.threadData,
-              ...newThreadData,
-            },
-          };
-        },
-      })
-      .then(() => {});
 
     this.switchToNewThread();
   }
@@ -240,6 +243,7 @@ export class RemoteThreadListThreadListRuntimeCore
   }
 
   public __internal_bindAdapter() {
+    this.getLoadThreadsPromise(); // begin loading on initial bind
     return this._adapter.subscribe({
       onInitialize: this._onInitialize,
       onGenerateTitle: this._onGenerateTitle,
