@@ -1230,9 +1230,6 @@ importers:
       '@radix-ui/react-compose-refs':
         specifier: ^1.1.1
         version: 1.1.1(@types/react@19.0.7)(react@19.0.0)
-      '@radix-ui/react-context':
-        specifier: ^1.1.1
-        version: 1.1.1(@types/react@19.0.7)(react@19.0.0)
       '@radix-ui/react-dialog':
         specifier: ^1.1.4
         version: 1.1.4(@types/react-dom@19.0.3(@types/react@19.0.7))(@types/react@19.0.7)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
@@ -1318,9 +1315,6 @@ importers:
       autoprefixer:
         specifier: ^10.4.20
         version: 10.4.20(postcss@8.5.1)
-      esbuild-plugin-file-path-extensions:
-        specifier: ^2.1.4
-        version: 2.1.4
       eslint:
         specifier: ^9
         version: 9.18.0(jiti@1.21.7)
@@ -1330,21 +1324,12 @@ importers:
       postcss:
         specifier: ^8.5.1
         version: 8.5.1
-      postcss-js:
-        specifier: ^4.0.1
-        version: 4.0.1(postcss@8.5.1)
-      postcss-nested:
-        specifier: ^7.0.2
-        version: 7.0.2(postcss@8.5.1)
       tailwindcss:
         specifier: ^3.4.17
         version: 3.4.17
       tailwindcss-animate:
         specifier: ^1.0.7
         version: 1.0.7(tailwindcss@3.4.17)
-      tsup:
-        specifier: 8.3.5
-        version: 8.3.5(jiti@1.21.7)(postcss@8.5.1)(tsx@4.19.2)(typescript@5.7.3)(yaml@2.7.0)
       tsx:
         specifier: ^4.19.2
         version: 4.19.2
@@ -1493,9 +1478,6 @@ importers:
       postcss:
         specifier: ^8.5.1
         version: 8.5.1
-      postcss-js:
-        specifier: ^4.0.1
-        version: 4.0.1(postcss@8.5.1)
       react:
         specifier: 19.0.0
         version: 19.0.0
@@ -1508,9 +1490,6 @@ importers:
       tailwindcss-animate:
         specifier: ^1.0.7
         version: 1.0.7(tailwindcss@3.4.17)
-      tsup:
-        specifier: 8.3.5
-        version: 8.3.5(jiti@1.21.7)(postcss@8.5.1)(tsx@4.19.2)(typescript@5.7.3)(yaml@2.7.0)
       tsx:
         specifier: ^4.19.2
         version: 4.19.2
@@ -1715,9 +1694,6 @@ importers:
       postcss:
         specifier: ^8.5.1
         version: 8.5.1
-      postcss-js:
-        specifier: ^4.0.1
-        version: 4.0.1(postcss@8.5.1)
       react:
         specifier: 19.0.0
         version: 19.0.0
@@ -1730,9 +1706,6 @@ importers:
       tailwindcss-animate:
         specifier: ^1.0.7
         version: 1.0.7(tailwindcss@3.4.17)
-      tsup:
-        specifier: 8.3.5
-        version: 8.3.5(jiti@1.21.7)(postcss@8.5.1)(tsx@4.19.2)(typescript@5.7.3)(yaml@2.7.0)
       tsx:
         specifier: ^4.19.2
         version: 4.19.2
@@ -5416,12 +5389,6 @@ packages:
   postcss-nested@6.2.0:
     resolution: {integrity: sha512-HQbt28KulC5AJzG+cZtj9kvKB93CFCdLvog1WFLf1D+xmMvPGlBstkpTEZfK5+AN9hfJocyBFCNiqyS48bpgzQ==}
     engines: {node: '>=12.0'}
-    peerDependencies:
-      postcss: ^8.2.14
-
-  postcss-nested@7.0.2:
-    resolution: {integrity: sha512-5osppouFc0VR9/VYzYxO03VaDa3e8F23Kfd6/9qcZTUI8P58GIYlArOET2Wq0ywSl2o2PjELhYOFI4W7l5QHKw==}
-    engines: {node: '>=18.0'}
     peerDependencies:
       postcss: ^8.2.14
 
@@ -10531,11 +10498,6 @@ snapshots:
     dependencies:
       postcss: 8.5.1
       postcss-selector-parser: 6.1.2
-
-  postcss-nested@7.0.2(postcss@8.5.1):
-    dependencies:
-      postcss: 8.5.1
-      postcss-selector-parser: 7.0.0
 
   postcss-selector-parser@6.1.2:
     dependencies:

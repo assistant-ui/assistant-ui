@@ -72,7 +72,6 @@
     "@radix-ui/primitive": "^1.1.1",
     "@radix-ui/react-avatar": "^1.1.2",
     "@radix-ui/react-compose-refs": "^1.1.1",
-    "@radix-ui/react-context": "^1.1.1",
     "@radix-ui/react-dialog": "^1.1.4",
     "@radix-ui/react-popover": "^1.1.4",
     "@radix-ui/react-primitive": "^2.0.1",
@@ -117,15 +116,11 @@
     "@types/json-schema": "^7.0.15",
     "@types/node": "^22.10.6",
     "autoprefixer": "^10.4.20",
-    "esbuild-plugin-file-path-extensions": "^2.1.4",
     "eslint": "^9",
     "eslint-config-next": "15.1.4",
     "postcss": "^8.5.1",
-    "postcss-js": "^4.0.1",
-    "postcss-nested": "^7.0.2",
     "tailwindcss": "^3.4.17",
     "tailwindcss-animate": "^1.0.7",
-    "tsup": "8.3.5",
     "tsx": "^4.19.2"
   },
   "publishConfig": {
