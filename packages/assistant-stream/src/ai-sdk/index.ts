@@ -64,6 +64,7 @@ export const fromAISDKStreamText = (
           });
           break;
         }
+        case "step-start":
         case "step-finish":
         case "error":
         case "finish": {

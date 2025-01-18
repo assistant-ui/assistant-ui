@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^1.0.19",
+    "@ai-sdk/openai": "^1.1.0",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-hook-form": "workspace:*",
     "@ffmpeg/ffmpeg": "^0.12.15",
@@ -25,8 +25,8 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "json-schema-to-zod": "^2.6.0",
-    "lucide-react": "^0.471.1",
-    "next": "15.1.4",
+    "lucide-react": "^0.473.0",
+    "next": "15.1.5",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-hook-form": "^7.54.2",
@@ -43,7 +43,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "15.1.4",
+    "eslint-config-next": "15.1.5",
     "postcss": "^8",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.3"
