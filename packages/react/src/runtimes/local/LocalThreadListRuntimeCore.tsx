@@ -132,11 +132,11 @@ export class LocalThreadListRuntimeCore implements ThreadListRuntimeCore {
     // newState
     switch (newState) {
       case "regular":
-        this._threadIds = [...this._threadIds, data.threadId];
+        this._threadIds = [data.threadId, ...this._threadIds];
         break;
 
       case "archived":
-        this._archivedThreadIds = [...this._archivedThreadIds, data.threadId];
+        this._archivedThreadIds = [data.threadId, ...this._archivedThreadIds];
         break;
 
       case "deleted":
