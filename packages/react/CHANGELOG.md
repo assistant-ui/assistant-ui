@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.42
+
+### Patch Changes
+
+- 9c3961d: fix: event subscriptions triggering on threadList changes
+
 ## 0.7.41
 
 ### Patch Changes

@@ -17,6 +17,7 @@ import { ShallowMemoizeSubject } from "./subscribable/ShallowMemoizeSubject";
 import { SKIP_UPDATE } from "./subscribable/SKIP_UPDATE";
 import { ComposerRuntimePath } from "./RuntimePathTypes";
 import { MessageRole, RunConfig } from "../types/AssistantTypes";
+import { EventSubscriptionSubject } from "./subscribable/EventSubscriptionSubject";
 
 export type ThreadComposerRuntimeCoreBinding = SubscribableWithState<
   ThreadComposerRuntimeCore | undefined,
@@ -180,11 +181,24 @@ export abstract class ComposerRuntimeImpl implements ComposerRuntime {
     return this._core.subscribe(callback);
   }
 
-  public unstable_on(event: ComposerRuntimeEventType, callback: () => void) {
-    const core = this._core.getState();
-    if (!core) throw new Error("Composer is not available");
+  private _eventSubscriptionSubjects = new Map<
+    string,
+    EventSubscriptionSubject<ComposerRuntimeEventType>
+  >();
 
-    return core.unstable_on(event, callback);
+  public unstable_on(
+    event: ComposerRuntimeEventType,
+    callback: () => void,
+  ): Unsubscribe {
+    let subject = this._eventSubscriptionSubjects.get(event);
+    if (!subject) {
+      subject = new EventSubscriptionSubject({
+        event: event,
+        binding: this._core,
+      });
+      this._eventSubscriptionSubjects.set(event, subject);
+    }
+    return subject.subscribe(callback);
   }
 
   public getAttachmentAccept(): string {

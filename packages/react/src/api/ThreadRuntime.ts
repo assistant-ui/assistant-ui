@@ -20,10 +20,7 @@ import {
 } from "./MessageRuntime";
 import { NestedSubscriptionSubject } from "./subscribable/NestedSubscriptionSubject";
 import { ShallowMemoizeSubject } from "./subscribable/ShallowMemoizeSubject";
-import {
-  Subscribable,
-  SubscribableWithState,
-} from "./subscribable/Subscribable";
+import { SubscribableWithState } from "./subscribable/Subscribable";
 import {
   ThreadComposerRuntime,
   ThreadComposerRuntimeImpl,
@@ -37,6 +34,7 @@ import {
 } from "./RuntimePathTypes";
 import { ThreadListItemState } from "./ThreadListItemRuntime";
 import { RunConfig } from "../types/AssistantTypes";
+import { EventSubscriptionSubject } from "./subscribable/EventSubscriptionSubject";
 
 export type CreateStartRunConfig = {
   parentId: string | null;
@@ -415,26 +413,22 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     );
   }
 
-  private _eventListenerNestedSubscriptions = new Map<
+  private _eventSubscriptionSubjects = new Map<
     string,
-    NestedSubscriptionSubject<Subscribable, ThreadRuntimePath>
+    EventSubscriptionSubject<ThreadRuntimeEventType>
   >();
 
   public unstable_on(
     event: ThreadRuntimeEventType,
     callback: () => void,
   ): Unsubscribe {
-    let subject = this._eventListenerNestedSubscriptions.get(event);
+    let subject = this._eventSubscriptionSubjects.get(event);
     if (!subject) {
-      subject = new NestedSubscriptionSubject({
-        path: this.path,
-        getState: () => ({
-          subscribe: (callback) =>
-            this._threadBinding.getState().unstable_on(event, callback),
-        }),
-        subscribe: (callback) => this._threadBinding.outerSubscribe(callback),
+      subject = new EventSubscriptionSubject({
+        event: event,
+        binding: this._threadBinding,
       });
-      this._eventListenerNestedSubscriptions.set(event, subject);
+      this._eventSubscriptionSubjects.set(event, subject);
     }
     return subject.subscribe(callback);
   }
