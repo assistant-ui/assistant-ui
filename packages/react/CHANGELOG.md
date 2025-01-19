@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.43
+
+### Patch Changes
+
+- feat: reverse order of threads in useRemoteThreadListRuntime
+
 ## 0.7.42
 
 ### Patch Changes

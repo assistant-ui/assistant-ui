@@ -89,11 +89,11 @@ const updateStatusReducer = (
   // newStatus
   switch (newStatus) {
     case "regular":
-      newState.threadIds = [...newState.threadIds, threadId];
+      newState.threadIds = [threadId, ...newState.threadIds];
       break;
 
     case "archived":
-      newState.archivedThreadIds = [...newState.archivedThreadIds, threadId];
+      newState.archivedThreadIds = [threadId, ...newState.archivedThreadIds];
       break;
 
     case "deleted":
