@@ -1,0 +1,144 @@
+---
+title: Walkthrough -Assistant Cloud with LangGraph Cloud
+---
+
+## Overview
+
+With the help of assistant-cloud, you can add thread management and thread history capabilities to assistant-ui.  
+This guide will walk you through the process of integrating assistant-cloud with LangGraph Cloud.
+
+### Prerequisites
+
+You need an assistant-cloud account to follow this guide.  
+You can sign up for the waitlist here: https://accounts.assistant-ui.com/waitlist
+
+### Setting up an assistant-cloud project
+
+To get started, follow the steps below:
+
+- Create a new project on the assistant-cloud dashboard.
+- Navigate to the "Settings" tab and copy the Frontend API URL.
+- Add this URL to your .env file
+
+```bash
+NEXT_PUBLIC_ASSISTANT_BASE_URL=https://<your-frontend-api-url>
+```
+
+### Setting up authorization
+
+This guide will use Clerk for authorization. For other options, refer to the [authorization guide](/docs/cloud/authorization).
+
+First, go to the Clerk dashboard and under "Configure" tab, "JWT Templates" section, create a new template. Choose a blank template and name it "assistant-ui".
+
+As the "Claims" field, enter the following:
+
+```json
+{
+  "aud": "assistant-ui"
+}
+```
+
+<Callout emoji="⚠️">
+  <b>Note:</b> The aud claim ensures that the JWT is only valid for the
+  assistant-ui API.
+</Callout>
+
+You can leave everything else as default. Take note of the "Issuer" and "JWKS Endpoint" fields.
+
+Then, In the assistant-cloud dashboard, navigate to the "Auth Rules" tab and create a new rule. Choose "Clerk" and enter the Issuer and JWKS Endpoint from the previous step. As the "Audience" field, enter "assistant-ui".
+
+### Connecting the runtime provider
+
+Now that we have everything set up, let's write the code for the runtime provider.
+
+The code below is a simple LangGraph runtime provider that uses the assistant-cloud API to create and manage threads.
+
+```tsx twoslash {1-2,5-6,19,27,29-36,38-45}
+// @errors: 2307
+
+"use client";
+
+import {
+  AssistantCloud,
+  AssistantRuntimeProvider,
+  useCloudThreadListRuntime,
+  useThreadListItemRuntime,
+} from "@assistant-ui/react";
+import { useLangGraphRuntime } from "@assistant-ui/react-langgraph";
+import { createThread, getThreadState, sendMessage } from "@/lib/chatApi";
+import { LangChainMessage } from "@assistant-ui/react-langgraph";
+import { useAuth } from "@clerk/nextjs";
+import { useMemo } from "react";
+
+// ---cut---
+const useMyLangGraphRuntime = () => {
+  const threadListItemRuntime = useThreadListItemRuntime();
+  const runtime = useLangGraphRuntime({
+    stream: async function* (messages) {
+      const { externalId } = await threadListItemRuntime.initialize();
+      if (!externalId) throw new Error("Thread not found");
+
+      return sendMessage({ threadId: externalId, messages });
+    },
+    onSwitchToThread: async (externalId) => {
+      const state = await getThreadState(externalId);
+      return {
+        messages:
+          (state.values as { messages?: LangChainMessage[] }).messages ?? [],
+      };
+    },
+  });
+
+  return runtime;
+};
+
+export function MyRuntimeProvider({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  const { getToken } = useAuth();
+
+  const cloud = useMemo(
+    () =>
+      new AssistantCloud({
+        baseUrl: process.env["NEXT_PUBLIC_ASSISTANT_BASE_URL"]!,
+        authToken: async () => getToken({ template: "assistant-ui" }),
+      }),
+    [getToken],
+  );
+
+  const runtime = useCloudThreadListRuntime({
+    cloud,
+    runtimeHook: useMyLangGraphRuntime,
+    create: async () => {
+      const { thread_id } = await createThread();
+      return { externalId: thread_id };
+    },
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+<Callout emoji="💡">
+  Observe that the `useMyLangGraphRuntime` hook is extracted into a separate
+  function. This hook will be mounted multiple times, once per active thread.
+</Callout>
+
+### Displaying a ThreadList component
+
+Now, you can add a ThreadList component to your application. This component will display a list of threads and allow users to switch between them.
+
+```tsx
+<div className="grid grid-cols-[250px_1fr]">
+  <ThreadList />
+  <Thread />
+</div>
+```
+
+Customization of this ThreadList component is possible, refer to the `Decomposition` guide [here](/docs/ui/styled/Decomposition#threadlist).

@@ -9,7 +9,7 @@ This document explains how you can setup your server to authorize users to acces
 ## Workspaces
 
 Authorization is granted to a workspace. Depending on the structure of your app, you might want to use user_ids as the workspace_id, or you might want to use a more complex structure.
-For example,if your app supports multiple "projects", you might want to use the project_id + user_id as the workspace id (thread history scoped to user+project pairs).
+For example, if your app supports multiple "projects", you might want to use the project_id + user_id as the workspace id (thread history scoped to user+project pairs).
 
 ## Workspace Auth Tokens
 
@@ -63,7 +63,7 @@ Then, in a backend route, call `assistantCloud.auth.getToken({ workspaceId })`.
 
 The following is an example to get auth tokens for Clerk based on the org_id and user_id:
 
-```ts title="/app/api/assistant-ui/token.ts"
+```ts title="/app/api/assistant-ui-token/route.ts"
 import { AssistantCloud } from "@assistant-ui/cloud";
 
 const assistantCloud = new AssistantCloud({
@@ -76,7 +76,7 @@ export const POST = async (req: Request) => {
   if (!user_id) throw new Error("User not authenticated");
 
   const workspaceId = org_id ? `${org_id}:${user_id}` : user_id;
-  const authToken = assistantCloud.auth.getToken({ workspaceId });
+  const authToken = assistantCloud.auth.tokens.create({ workspaceId });
 
   return new Response(token);
 };
@@ -87,6 +87,6 @@ import { AssistantCloud } from "@assistant-ui/cloud";
 
 const assistantCloud = new AssistantCloud({
   authToken: () =>
-    fetch("/api/assistant-ui/token", { method: "POST" }).then((r) => r.json()),
+    fetch("/api/assistant-ui-token", { method: "POST" }).then((r) => r.json()),
 });
 ```
