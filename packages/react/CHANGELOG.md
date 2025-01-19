@@ -1,5 +1,15 @@
 # @assistant-ui/react
 
+## 0.7.44
+
+### Patch Changes
+
+- 2f44e9e: refactor: move switchToThread / switchToNewThread to runtime.threads
+- 2f44e9e: refactor: rename runtime.threadList to runtime.threads
+- 2f44e9e: refactor: drop CloudThreadListItemRuntime
+- 2f44e9e: feat: add threads.getById and threads.main
+- 2f44e9e: feat: ThreadListItemRuntime.initialize()
+
 ## 0.7.43
 
 ### Patch Changes

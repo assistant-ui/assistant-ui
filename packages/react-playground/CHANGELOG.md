@@ -1,5 +1,17 @@
 # @assistant-ui/react-playground
 
+## 0.1.14
+
+### Patch Changes
+
+- 2f44e9e: feat: ThreadListItemRuntime.initialize()
+- Updated dependencies [2f44e9e]
+- Updated dependencies [2f44e9e]
+- Updated dependencies [2f44e9e]
+- Updated dependencies [2f44e9e]
+- Updated dependencies [2f44e9e]
+  - @assistant-ui/react@0.7.44
+
 ## 0.1.13
 
 ### Patch Changes
