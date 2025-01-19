@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.41
+
+### Patch Changes
+
+- 08de9c9: fix: RemoteThreadList should not return an iterator
+
 ## 0.7.40
 
 ### Patch Changes
