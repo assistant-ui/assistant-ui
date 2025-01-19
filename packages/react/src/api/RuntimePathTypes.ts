@@ -10,10 +10,10 @@ export type ThreadListItemRuntimePath = {
 export type ThreadRuntimePath = {
   readonly ref: string;
   readonly threadSelector:
-    | { type: "main" }
+    | { readonly type: "main" }
     | {
-        type: "threadId";
-        threadId: string;
+        readonly type: "threadId";
+        readonly threadId: string;
       };
 };
 

@@ -3,18 +3,18 @@
 import {
   AssistantCloud,
   AssistantRuntimeProvider,
-  useCloudThreadListItemRuntime,
   useCloudThreadListRuntime,
+  useThreadListItemRuntime,
 } from "@assistant-ui/react";
 import { useLangGraphRuntime } from "@assistant-ui/react-langgraph";
 import { createThread, getThreadState, sendMessage } from "@/lib/chatApi";
 import { LangChainMessage } from "@assistant-ui/react-langgraph";
 
 const useMyLangGraphRuntime = () => {
-  const cloudRuntime = useCloudThreadListItemRuntime();
+  const threadListItemRuntime = useThreadListItemRuntime();
   const runtime = useLangGraphRuntime({
     stream: async function* (messages) {
-      const { externalId } = await cloudRuntime.initialize();
+      const { externalId } = await threadListItemRuntime.initialize();
       if (!externalId) throw new Error("Thread not found");
 
       const generator = await sendMessage({

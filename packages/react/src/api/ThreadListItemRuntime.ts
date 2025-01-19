@@ -25,6 +25,7 @@ export type ThreadListItemRuntime = {
   readonly path: ThreadListItemRuntimePath;
   getState(): ThreadListItemState;
 
+  initialize(): Promise<{ remoteId: string; externalId: string | undefined }>;
   switchTo(): Promise<void>;
   rename(newTitle: string): Promise<void>;
   archive(): Promise<void>;
@@ -85,6 +86,14 @@ export class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
     const state = this._core.getState();
 
     return this._threadListBinding.delete(state.id);
+  }
+
+  public initialize(): Promise<{
+    remoteId: string;
+    externalId: string | undefined;
+  }> {
+    const state = this._core.getState();
+    return this._threadListBinding.initialize(state.id);
   }
 
   public unstable_on(event: ThreadListItemEventType, callback: () => void) {

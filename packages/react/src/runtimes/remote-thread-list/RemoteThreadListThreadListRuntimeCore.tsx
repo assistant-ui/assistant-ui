@@ -2,10 +2,7 @@
 
 import { ThreadListRuntimeCore } from "../core/ThreadListRuntimeCore";
 import { generateId } from "../../internal";
-import {
-  RemoteThreadInitializeResponse,
-  RemoteThreadListAdapter,
-} from "./types";
+import { RemoteThreadListAdapter } from "./types";
 import { RemoteThreadListHookInstanceManager } from "./RemoteThreadListHookInstanceManager";
 import { BaseSubscribable } from "./BaseSubscribable";
 import { EMPTY_THREAD_CORE } from "./EMPTY_THREAD_CORE";
@@ -244,8 +241,7 @@ export class RemoteThreadListThreadListRuntimeCore
 
   public __internal_bindAdapter() {
     this.getLoadThreadsPromise(); // begin loading on initial bind
-    return this._adapter.subscribe({
-      onInitialize: this._onInitialize,
+    return this._adapter.subscribe?.({
       onGenerateTitle: this._onGenerateTitle,
     });
   }
@@ -341,16 +337,13 @@ export class RemoteThreadListThreadListRuntimeCore
     return this.switchToThread(threadId);
   }
 
-  private _onInitialize = async (
-    threadId: string,
-    begin: () => Promise<RemoteThreadInitializeResponse>,
-  ) => {
+  public initialize = async (threadId: string) => {
     if (this._state.value.newThreadId !== threadId)
       throw new Error("The provided thread is already initialized");
 
-    await this._state.optimisticUpdate({
+    return this._state.optimisticUpdate({
       execute: () => {
-        return begin();
+        return this._adapter.initialize(threadId);
       },
       optimistic: (state) => {
         return updateStatusReducer(state, threadId, "regular");

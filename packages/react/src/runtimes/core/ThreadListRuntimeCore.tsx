@@ -35,5 +35,9 @@ export type ThreadListRuntimeCore = {
   unarchive(threadId: string): Promise<void>;
   delete(threadId: string): Promise<void>;
 
+  initialize(
+    threadId: string,
+  ): Promise<{ remoteId: string; externalId: string | undefined }>;
+
   subscribe(callback: () => void): Unsubscribe;
 };

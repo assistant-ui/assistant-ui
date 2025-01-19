@@ -163,6 +163,10 @@ export class ExternalStoreThreadListRuntimeCore
     onDelete(threadId);
   }
 
+  public initialize(): never {
+    throw new Error("Method not implemented.");
+  }
+
   private _subscriptions = new Set<() => void>();
 
   public subscribe(callback: () => void): Unsubscribe {

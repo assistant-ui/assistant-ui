@@ -1,18 +1,10 @@
 "use client";
 
-import {
-  PropsWithChildren,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRemoteThreadListRuntime } from "../useRemoteThreadListRuntime";
 import { AssistantCloud } from "./AssistantCloud";
 import { AssistantRuntime } from "../../../api";
 import { RemoteThreadListSubscriber } from "../types";
-import { CloudThreadListItemRuntimeProvider } from "./CloudThreadListItemRuntime";
 import { toCoreMessages } from "../../edge";
 
 type ThreadData = {
@@ -45,54 +37,6 @@ export const useCloudThreadListRuntime = (adapter: CloudThreadListAdapter) => {
 
   const [subscribers] = useState(() => new Set<RemoteThreadListSubscriber>());
 
-  const cloudThreadListItemRuntimeAdapter = useMemo(() => {
-    return {
-      initialize: async (threadId: string) => {
-        const begin = beginnable(async () => {
-          const createTask = adapterRef.current.create?.() ?? Promise.resolve();
-          const t = await createTask;
-          const external_id = t ? t.externalId : undefined;
-          const { thread_id: remoteId } =
-            await adapterRef.current.cloud.threads.create({
-              title: "New Thread",
-              last_message_at: new Date(),
-              external_id,
-            });
-
-          const dispose = runtime.threads
-            .getById(threadId)
-            .unstable_on("run-end", () => {
-              dispose();
-              cloudThreadListItemRuntimeAdapter.generateTitle(remoteId);
-            });
-
-          return { externalId: external_id, remoteId: remoteId };
-        });
-
-        for (const subscriber of subscribers) {
-          subscriber.onInitialize(threadId, begin);
-        }
-
-        // note: onInitialize immediately throws if there are any issues
-        // therefore begin is safe to call here
-        return begin();
-      },
-      generateTitle: async (remoteId: string) => {
-        const messages = runtime.thread.getState().messages;
-        const begin = beginnable(() => {
-          return adapterRef.current.cloud.runs.stream({
-            thread_id: remoteId,
-            assistant_id: "system/thread_title",
-            messages: toCoreMessages(messages),
-          });
-        });
-        for (const subscriber of subscribers) {
-          subscriber.onGenerateTitle(remoteId, begin);
-        }
-      },
-    };
-  }, [subscribers]);
-
   const runtime = useRemoteThreadListRuntime({
     runtimeHook: adapter.runtimeHook,
     list: async () => {
@@ -106,6 +50,39 @@ export const useCloudThreadListRuntime = (adapter: CloudThreadListAdapter) => {
         })),
       };
     },
+
+    initialize: async (threadId: string) => {
+      const createTask = adapterRef.current.create?.() ?? Promise.resolve();
+      const t = await createTask;
+      const external_id = t ? t.externalId : undefined;
+      const { thread_id: remoteId } =
+        await adapterRef.current.cloud.threads.create({
+          title: "New Thread",
+          last_message_at: new Date(),
+          external_id,
+        });
+
+      const dispose = runtime.threads
+        .getById(threadId)
+        .unstable_on("run-end", () => {
+          dispose();
+
+          const messages = runtime.thread.getState().messages;
+          const begin = beginnable(() => {
+            return adapterRef.current.cloud.runs.stream({
+              thread_id: remoteId,
+              assistant_id: "system/thread_title",
+              messages: toCoreMessages(messages),
+            });
+          });
+          for (const subscriber of subscribers) {
+            subscriber.onGenerateTitle(remoteId, begin);
+          }
+        });
+
+      return { externalId: external_id, remoteId: remoteId };
+    },
+
     rename: async (threadId, newTitle) => {
       return adapter.cloud.threads.update(threadId, { title: newTitle });
     },
@@ -125,18 +102,6 @@ export const useCloudThreadListRuntime = (adapter: CloudThreadListAdapter) => {
         subscribers.delete(callback);
       };
     },
-    unstable_Provider: useCallback(
-      ({ children }: PropsWithChildren) => {
-        return (
-          <CloudThreadListItemRuntimeProvider
-            adapter={cloudThreadListItemRuntimeAdapter}
-          >
-            {children}
-          </CloudThreadListItemRuntimeProvider>
-        );
-      },
-      [cloudThreadListItemRuntimeAdapter],
-    ),
   });
 
   return runtime;

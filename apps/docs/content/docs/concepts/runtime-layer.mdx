@@ -119,7 +119,7 @@ const messageRuntime = useMessageRuntime();
 const contentPartRuntime = useContentPartRuntime();
 
 // thread manager has no separate hook (1:1 relationship with assistant runtime)
-const ThreadListRuntime = useAssistantRuntime().threadList;
+const ThreadListRuntime = useAssistantRuntime().threads;
 
 // composer runtime is multi-use
 const composerRuntime = useComposerRuntime(); // refers to edit composer if available, otherwise thread composer

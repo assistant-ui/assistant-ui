@@ -125,6 +125,9 @@ class PlaygroundThreadListRuntimeCore
   public delete(): Promise<void> {
     throw new Error("Method not implemented.");
   }
+  public initialize(): never {
+    throw new Error("Method not implemented.");
+  }
 
   private _subscriptions = new Set<() => void>();
 
@@ -139,7 +142,7 @@ class PlaygroundThreadListRuntimeCore
 }
 
 class PlaygroundRuntimeCore extends BaseAssistantRuntimeCore {
-  public readonly threadList;
+  public readonly threads;
 
   constructor(
     adapter: ChatModelAdapter,
@@ -147,7 +150,7 @@ class PlaygroundRuntimeCore extends BaseAssistantRuntimeCore {
   ) {
     super();
 
-    this.threadList = new PlaygroundThreadListRuntimeCore(() => {
+    this.threads = new PlaygroundThreadListRuntimeCore(() => {
       const messages = initialMessages.map((m, idx) => {
         const isLast = idx === initialMessages.length - 1;
         return fromThreadMessageLike(

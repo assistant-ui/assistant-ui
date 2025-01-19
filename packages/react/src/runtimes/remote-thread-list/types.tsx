@@ -20,10 +20,6 @@ export type RemoteThreadListResponse = {
 };
 
 export type RemoteThreadListSubscriber = {
-  onInitialize: (
-    threadId: string,
-    begin: () => Promise<RemoteThreadInitializeResponse>,
-  ) => void;
   onGenerateTitle: (
     threadId: string,
     begin: () => Promise<AssistantStream>,
@@ -39,8 +35,9 @@ export type RemoteThreadListAdapter = {
   archive(remoteId: string): Promise<void>;
   unarchive(remoteId: string): Promise<void>;
   delete(remoteId: string): Promise<void>;
+  initialize(threadId: string): Promise<RemoteThreadInitializeResponse>;
 
-  subscribe(subscriber: RemoteThreadListSubscriber): Unsubscribe;
+  subscribe?(subscriber: RemoteThreadListSubscriber): Unsubscribe;
 
   unstable_Provider?: ComponentType<PropsWithChildren>;
 };

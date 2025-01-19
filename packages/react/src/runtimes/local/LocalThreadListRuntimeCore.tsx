@@ -218,6 +218,10 @@ export class LocalThreadListRuntimeCore implements ThreadListRuntimeCore {
     return Promise.resolve();
   }
 
+  public initialize(): never {
+    throw new Error("Method not implemented.");
+  }
+
   private _subscriptions = new Set<() => void>();
 
   public subscribe(callback: () => void): Unsubscribe {
