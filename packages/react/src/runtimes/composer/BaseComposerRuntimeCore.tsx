@@ -175,7 +175,11 @@ export abstract class BaseComposerRuntimeCore
 
     await adapter.remove(attachment);
 
-    this._attachments = this._attachments.toSpliced(index, 1);
+    // this._attachments.toSpliced(index, 1); - not yet widely supported
+    this._attachments = [
+      ...this._attachments.slice(0, index),
+      ...this._attachments.slice(index + 1),
+    ];
     this._notifySubscribers();
   }
 

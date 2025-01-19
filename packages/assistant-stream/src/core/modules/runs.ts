@@ -191,12 +191,17 @@ export function createAssistantRun(
   const controller = new RunControllerImpl();
   const promiseOrVoid = callback(controller);
   if (promiseOrVoid instanceof Promise) {
-    promiseOrVoid
-      .catch((e) => {
+    const runTask = async () => {
+      try {
+        await promiseOrVoid;
+      } catch (e) {
         controller.addError(e instanceof Error ? e.message : String(e));
         throw e;
-      })
-      .finally(() => controller.close());
+      } finally {
+        controller.close();
+      }
+    };
+    runTask();
   } else {
     controller.close();
   }

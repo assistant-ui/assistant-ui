@@ -139,14 +139,12 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   }> = ({ provider }) => {
     this.useAliveThreadsKeysChanged(); // trigger re-render on alive threads change
 
-    return this.instances
-      .keys()
-      .map((threadId) => (
-        <this._OuterActiveThreadProvider
-          key={threadId}
-          threadId={threadId}
-          provider={provider}
-        />
-      ));
+    return Array.from(this.instances.keys()).map((threadId) => (
+      <this._OuterActiveThreadProvider
+        key={threadId}
+        threadId={threadId}
+        provider={provider}
+      />
+    ));
   };
 }
