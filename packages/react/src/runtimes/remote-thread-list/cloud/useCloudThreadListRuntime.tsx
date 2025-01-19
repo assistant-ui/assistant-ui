@@ -67,7 +67,9 @@ export const useCloudThreadListRuntime = (adapter: CloudThreadListAdapter) => {
         .unstable_on("run-end", () => {
           dispose();
 
-          const messages = runtime.thread.getState().messages;
+          const messages = runtime.threads
+            .getById(threadId)
+            .getState().messages;
           const begin = beginnable(() => {
             return adapterRef.current.cloud.runs.stream({
               thread_id: remoteId,
