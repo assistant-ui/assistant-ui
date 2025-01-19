@@ -25,7 +25,7 @@ const getExportFromInitialMessages = (
 };
 
 export class LocalRuntimeCore extends BaseAssistantRuntimeCore {
-  public readonly threadList;
+  public readonly threads;
   public readonly Provider = undefined;
 
   private _options: LocalRuntimeOptionsBase;
@@ -38,7 +38,7 @@ export class LocalRuntimeCore extends BaseAssistantRuntimeCore {
 
     this._options = options;
 
-    this.threadList = new LocalThreadListRuntimeCore(() => {
+    this.threads = new LocalThreadListRuntimeCore(() => {
       return new LocalThreadRuntimeCore(
         this._proxyConfigProvider,
         this._options,
@@ -46,7 +46,7 @@ export class LocalRuntimeCore extends BaseAssistantRuntimeCore {
     });
 
     if (initialMessages) {
-      this.threadList
+      this.threads
         .getMainThreadRuntimeCore()
         .import(getExportFromInitialMessages(initialMessages));
     }
@@ -57,10 +57,10 @@ export class LocalRuntimeCore extends BaseAssistantRuntimeCore {
   }: {
     initialMessages?: readonly CoreMessage[] | undefined;
   } = {}) {
-    this.threadList.switchToNewThread();
+    this.threads.switchToNewThread();
     if (!initialMessages) return;
 
-    this.threadList
+    this.threads
       .getMainThreadRuntimeCore()
       .import(getExportFromInitialMessages(initialMessages));
   }

@@ -1,7 +1,7 @@
 import {
   CompleteAttachment,
   PendingAttachment,
-} from "../../types/AttachmentTypes";
+} from "../../../types/AttachmentTypes";
 import { AttachmentAdapter } from "./AttachmentAdapter";
 
 export class SimpleTextAttachmentAdapter implements AttachmentAdapter {

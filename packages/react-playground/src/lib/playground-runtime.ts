@@ -90,6 +90,10 @@ class PlaygroundThreadListRuntimeCore
     return this._mainThread;
   }
 
+  public getThreadRuntimeCore(): never {
+    throw new Error("Method not implemented.");
+  }
+
   public getItemById(id: string) {
     if (id !== "default") return undefined;
 

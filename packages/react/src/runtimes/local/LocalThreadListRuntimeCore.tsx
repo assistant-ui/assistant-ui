@@ -52,6 +52,12 @@ export class LocalThreadListRuntimeCore implements ThreadListRuntimeCore {
     return result;
   }
 
+  public getThreadRuntimeCore(threadId: string) {
+    const result = this._threadData.get(threadId)?.runtime;
+    if (!result) throw new Error("Thread not found.");
+    return result;
+  }
+
   public getLoadThreadsPromise(): Promise<void> {
     return RESOLVED_PROMISE;
   }

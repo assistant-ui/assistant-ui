@@ -4,7 +4,7 @@ import type { Unsubscribe } from "../../types/Unsubscribe";
 import { ThreadListRuntimeCore } from "./ThreadListRuntimeCore";
 
 export type AssistantRuntimeCore = {
-  readonly threadList: ThreadListRuntimeCore;
+  readonly threads: ThreadListRuntimeCore;
 
   registerModelConfigProvider: (provider: ModelConfigProvider) => Unsubscribe;
 

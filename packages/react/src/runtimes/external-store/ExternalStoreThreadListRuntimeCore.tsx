@@ -57,6 +57,10 @@ export class ExternalStoreThreadListRuntimeCore
     return this._mainThread;
   }
 
+  public getThreadRuntimeCore(): never {
+    throw new Error("Method not implemented.");
+  }
+
   public getItemById(threadId: string) {
     for (const thread of this.adapter.threads ?? []) {
       if (thread.threadId === threadId) return thread;

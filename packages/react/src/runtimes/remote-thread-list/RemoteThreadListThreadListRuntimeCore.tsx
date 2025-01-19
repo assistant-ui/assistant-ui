@@ -272,6 +272,15 @@ export class RemoteThreadListThreadListRuntimeCore
     return result;
   }
 
+  public getThreadRuntimeCore(threadIdOrRemoteId: string) {
+    const data = this.getItemById(threadIdOrRemoteId);
+    if (!data) throw new Error("Thread not found");
+
+    const result = this._hookManager.getThreadRuntimeCore(data.threadId);
+    if (!result) throw new Error("Thread not found");
+    return result;
+  }
+
   public getItemById(threadIdOrRemoteId: string) {
     return getThreadData(this._state.value, threadIdOrRemoteId);
   }

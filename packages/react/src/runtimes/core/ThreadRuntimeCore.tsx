@@ -1,7 +1,7 @@
 import { AppendMessage, ModelConfig, ThreadMessage } from "../../types";
 import { RunConfig } from "../../types/AssistantTypes";
 import type { Unsubscribe } from "../../types/Unsubscribe";
-import { SpeechSynthesisAdapter } from "../speech/SpeechAdapterTypes";
+import { SpeechSynthesisAdapter } from "../adapters/speech/SpeechAdapterTypes";
 import { ExportedMessageRepository } from "../utils/MessageRepository";
 import {
   ComposerRuntimeCore,
@@ -46,6 +46,7 @@ export type SubmittedFeedback = {
 
 export type ThreadRuntimeEventType =
   | "run-start"
+  | "run-end"
   | "initialize"
   | "model-config-update";
 

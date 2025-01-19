@@ -1,7 +1,7 @@
 import {
   PendingAttachment,
   CompleteAttachment,
-} from "../../types/AttachmentTypes";
+} from "../../../types/AttachmentTypes";
 import { AttachmentAdapter } from "./AttachmentAdapter";
 
 export class SimpleImageAttachmentAdapter implements AttachmentAdapter {

@@ -6,7 +6,7 @@ import { ThreadListRuntimeCore } from "./ThreadListRuntimeCore";
 
 export abstract class BaseAssistantRuntimeCore implements AssistantRuntimeCore {
   protected readonly _proxyConfigProvider = new ProxyConfigProvider();
-  public abstract get threadList(): ThreadListRuntimeCore;
+  public abstract get threads(): ThreadListRuntimeCore;
 
   constructor() {}
 

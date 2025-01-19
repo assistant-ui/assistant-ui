@@ -20,6 +20,8 @@ export type ThreadListRuntimeCore = {
   archivedThreadIds: readonly string[];
 
   getMainThreadRuntimeCore(): ThreadRuntimeCore;
+  getThreadRuntimeCore(threadId: string): ThreadRuntimeCore;
+
   getItemById(threadId: string): ThreadListItemCoreState | undefined;
 
   switchToThread(threadId: string): Promise<void>;

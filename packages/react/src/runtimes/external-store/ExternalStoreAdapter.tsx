@@ -1,12 +1,12 @@
 import { AppendMessage, ThreadMessage } from "../../types";
-import { AttachmentAdapter } from "../attachment";
+import { AttachmentAdapter } from "../adapters/attachment";
 import {
   AddToolResultOptions,
   StartRunConfig,
   ThreadSuggestion,
 } from "../core/ThreadRuntimeCore";
-import { FeedbackAdapter } from "../feedback/FeedbackAdapter";
-import { SpeechSynthesisAdapter } from "../speech/SpeechAdapterTypes";
+import { FeedbackAdapter } from "../adapters/feedback/FeedbackAdapter";
+import { SpeechSynthesisAdapter } from "../adapters/speech/SpeechAdapterTypes";
 import { ThreadMessageLike } from "./ThreadMessageLike";
 
 export type ExternalStoreThreadData<TState extends "regular" | "archived"> = {

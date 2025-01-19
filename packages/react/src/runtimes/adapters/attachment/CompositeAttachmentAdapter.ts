@@ -1,4 +1,4 @@
-import { Attachment, PendingAttachment } from "../../types/AttachmentTypes";
+import { Attachment, PendingAttachment } from "../../../types/AttachmentTypes";
 import { AttachmentAdapter } from "./AttachmentAdapter";
 
 function fileMatchesAccept(

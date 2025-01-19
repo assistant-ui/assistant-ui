@@ -11,15 +11,15 @@ class RemoteThreadListRuntimeCore
   extends BaseAssistantRuntimeCore
   implements AssistantRuntimeCore
 {
-  public readonly threadList;
+  public readonly threads;
 
   constructor(adapter: RemoteThreadListAdapter) {
     super();
-    this.threadList = new RemoteThreadListThreadListRuntimeCore(adapter);
+    this.threads = new RemoteThreadListThreadListRuntimeCore(adapter);
   }
 
   public get RenderComponent() {
-    return this.threadList.__internal_RenderComponent;
+    return this.threads.__internal_RenderComponent;
   }
 }
 
@@ -28,8 +28,8 @@ export const useRemoteThreadListRuntime = (
 ) => {
   const [runtime] = useState(() => new RemoteThreadListRuntimeCore(adapter));
   useEffect(() => {
-    runtime.threadList.__internal_setAdapter(adapter);
-    return runtime.threadList.__internal_bindAdapter();
+    runtime.threads.__internal_setAdapter(adapter);
+    return runtime.threads.__internal_bindAdapter();
   }, [runtime, adapter]);
   return useMemo(() => AssistantRuntimeImpl.create(runtime), [runtime]);
 };

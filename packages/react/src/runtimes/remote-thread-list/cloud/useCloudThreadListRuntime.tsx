@@ -52,12 +52,21 @@ export const useCloudThreadListRuntime = (adapter: CloudThreadListAdapter) => {
           const createTask = adapterRef.current.create?.() ?? Promise.resolve();
           const t = await createTask;
           const external_id = t ? t.externalId : undefined;
-          const { thread_id } = await adapterRef.current.cloud.threads.create({
-            title: "New Thread",
-            last_message_at: new Date(),
-            external_id,
-          });
-          return { externalId: external_id, remoteId: thread_id };
+          const { thread_id: remoteId } =
+            await adapterRef.current.cloud.threads.create({
+              title: "New Thread",
+              last_message_at: new Date(),
+              external_id,
+            });
+
+          const dispose = runtime.threads
+            .getById(threadId)
+            .unstable_on("run-end", () => {
+              dispose();
+              cloudThreadListItemRuntimeAdapter.generateTitle(remoteId);
+            });
+
+          return { externalId: external_id, remoteId: remoteId };
         });
 
         for (const subscriber of subscribers) {

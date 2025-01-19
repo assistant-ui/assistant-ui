@@ -14,7 +14,7 @@ const useMyLangGraphRuntime = () => {
   const cloudRuntime = useCloudThreadListItemRuntime();
   const runtime = useLangGraphRuntime({
     stream: async function* (messages) {
-      const { externalId } = await cloudRuntime.getOrCreateThread();
+      const { externalId } = await cloudRuntime.initialize();
       if (!externalId) throw new Error("Thread not found");
 
       const generator = await sendMessage({
@@ -25,9 +25,6 @@ const useMyLangGraphRuntime = () => {
       for await (const message of generator) {
         yield message;
       }
-
-      // TODO only call this once during initializationa
-      await cloudRuntime.generateThreadTitle();
     },
     onSwitchToThread: async (externalId) => {
       const state = await getThreadState(externalId);

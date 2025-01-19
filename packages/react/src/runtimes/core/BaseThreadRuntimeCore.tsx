@@ -20,9 +20,9 @@ import {
   StartRunConfig,
 } from "../core/ThreadRuntimeCore";
 import { DefaultEditComposerRuntimeCore } from "../composer/DefaultEditComposerRuntimeCore";
-import { SpeechSynthesisAdapter } from "../speech/SpeechAdapterTypes";
-import { FeedbackAdapter } from "../feedback/FeedbackAdapter";
-import { AttachmentAdapter } from "../attachment";
+import { SpeechSynthesisAdapter } from "../adapters/speech/SpeechAdapterTypes";
+import { FeedbackAdapter } from "../adapters/feedback/FeedbackAdapter";
+import { AttachmentAdapter } from "../adapters/attachment";
 import { getThreadMessageText } from "../../utils/getThreadMessageText";
 
 type BaseThreadAdapters = {

@@ -1,5 +1,4 @@
 import { AssistantRuntimeCore } from "../runtimes/core/AssistantRuntimeCore";
-import { NestedSubscriptionSubject } from "./subscribable/NestedSubscriptionSubject";
 import { ModelConfigProvider } from "../types/ModelConfigTypes";
 import {
   ThreadListItemRuntimeBinding,
@@ -12,17 +11,24 @@ import { ThreadListRuntime, ThreadListRuntimeImpl } from "./ThreadListRuntime";
 
 export type AssistantRuntime = {
   /**
-   * The currently selected main thread.
+   * The threads in this assistant.
+   */
+  readonly threads: ThreadListRuntime;
+
+  /**
+   * The currently selected main thread. Equivalent to `threads.main`.
    */
   readonly thread: ThreadRuntime;
 
   /**
-   * The thread manager, to rename, archive and delete threads.
+   * @deprecated This field was renamed to `threads.main`.
    */
   readonly threadList: ThreadListRuntime;
 
   /**
    * Switch to a new thread.
+   *
+   * @deprecated This field was moved to `threads.switchToNewThread`.
    */
   switchToNewThread(): void;
 
@@ -30,6 +36,7 @@ export type AssistantRuntime = {
    * Switch to a thread.
    *
    * @param threadId The thread ID to switch to.
+   * @deprecated This field was moved to `threads.switchToThread`.
    */
   switchToThread(threadId: string): void;
 
@@ -42,7 +49,11 @@ export type AssistantRuntime = {
 };
 
 export class AssistantRuntimeImpl implements AssistantRuntime {
-  public readonly threadList;
+  public readonly threads;
+  public get threadList() {
+    return this.threads;
+  }
+
   public readonly _thread: ThreadRuntime;
 
   protected constructor(
@@ -52,18 +63,8 @@ export class AssistantRuntimeImpl implements AssistantRuntime {
       threadListItemBinding: ThreadListItemRuntimeBinding,
     ) => ThreadRuntime = ThreadRuntimeImpl,
   ) {
-    this.threadList = new ThreadListRuntimeImpl(_core.threadList);
-    this._thread = new runtimeFactory(
-      new NestedSubscriptionSubject({
-        path: {
-          ref: "threads.main",
-          threadSelector: { type: "main" },
-        },
-        getState: () => _core.threadList.getMainThreadRuntimeCore(),
-        subscribe: (callback) => _core.threadList.subscribe(callback),
-      }),
-      this.threadList.mainItem, // TODO capture "main" threadListItem from context around useLocalRuntime / useExternalStoreRuntime
-    );
+    this.threads = new ThreadListRuntimeImpl(_core.threads, runtimeFactory);
+    this._thread = this.threadList.main;
   }
 
   public get thread() {
@@ -71,11 +72,11 @@ export class AssistantRuntimeImpl implements AssistantRuntime {
   }
 
   public switchToNewThread() {
-    return this._core.threadList.switchToNewThread();
+    return this._core.threads.switchToNewThread();
   }
 
   public switchToThread(threadId: string) {
-    return this._core.threadList.switchToThread(threadId);
+    return this._core.threads.switchToThread(threadId);
   }
 
   public registerModelConfigProvider(provider: ModelConfigProvider) {

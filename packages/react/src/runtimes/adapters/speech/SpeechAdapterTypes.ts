@@ -1,4 +1,4 @@
-import { Unsubscribe } from "../../types";
+import { Unsubscribe } from "../../../types";
 
 export namespace SpeechSynthesisAdapter {
   export type Status =

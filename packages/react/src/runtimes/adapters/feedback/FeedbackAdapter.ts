@@ -1,4 +1,4 @@
-import { ThreadMessage } from "../../types/AssistantTypes";
+import { ThreadMessage } from "../../../types/AssistantTypes";
 
 type FeedbackAdapterFeedback = {
   message: ThreadMessage;

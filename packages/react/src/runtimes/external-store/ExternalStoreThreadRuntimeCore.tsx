@@ -146,6 +146,14 @@ export class ExternalStoreThreadRuntimeCore
 
     if (messages.length > 0) this.ensureInitialized();
 
+    if (oldStore?.isRunning ?? false !== store.isRunning ?? false) {
+      if (store.isRunning) {
+        this._notifyEventSubscribers("run-start");
+      } else {
+        this._notifyEventSubscribers("run-end");
+      }
+    }
+
     for (let i = 0; i < messages.length; i++) {
       const message = messages[i]!;
       const parent = messages[i - 1];

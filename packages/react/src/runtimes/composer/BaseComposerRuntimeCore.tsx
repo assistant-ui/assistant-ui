@@ -4,7 +4,7 @@ import {
   PendingAttachment,
 } from "../../types/AttachmentTypes";
 import { AppendMessage } from "../../types";
-import { AttachmentAdapter } from "../attachment";
+import { AttachmentAdapter } from "../adapters/attachment";
 import {
   ComposerRuntimeCore,
   ComposerRuntimeEventType,

@@ -11,8 +11,7 @@ type CloudInitializeResponse = {
 };
 
 type CloudThreadListItemRuntime = {
-  getOrCreateThread: () => Promise<CloudInitializeResponse>;
-  generateThreadTitle: () => Promise<void>;
+  initialize: () => Promise<CloudInitializeResponse>;
 };
 
 export const useCloudThreadListItemRuntime = () => {
@@ -28,7 +27,6 @@ export const useCloudThreadListItemRuntime = () => {
 
 type CloudThreadListItemRuntimeAdapter = {
   initialize: (threadId: string) => Promise<RemoteThreadInitializeResponse>;
-  generateTitle: (remoteId: string) => Promise<void>;
 };
 
 class CloudThreadListItemRuntimeImpl implements CloudThreadListItemRuntime {
@@ -43,17 +41,11 @@ class CloudThreadListItemRuntimeImpl implements CloudThreadListItemRuntime {
     this.threadListItemRuntime = threadListItemRuntime;
   }
 
-  public async getOrCreateThread(): Promise<CloudInitializeResponse> {
+  public async initialize(): Promise<CloudInitializeResponse> {
     const threadData = this.threadListItemRuntime.getState();
     if (threadData.remoteId)
       return threadData as RemoteThreadInitializeResponse;
     return this.adapter.initialize(threadData.id);
-  }
-
-  public generateThreadTitle() {
-    const remoteId = this.threadListItemRuntime.getState().remoteId;
-    if (!remoteId) throw new Error("Thread not initialized yet");
-    return this.adapter.generateTitle(remoteId);
   }
 }
 

@@ -1,5 +1,5 @@
 import { AppendMessage, PendingAttachment } from "../../types";
-import { AttachmentAdapter } from "../attachment";
+import { AttachmentAdapter } from "../adapters/attachment";
 import { ThreadComposerRuntimeCore } from "../core/ComposerRuntimeCore";
 import { ThreadRuntimeCore } from "../core/ThreadRuntimeCore";
 import { BaseComposerRuntimeCore } from "./BaseComposerRuntimeCore";

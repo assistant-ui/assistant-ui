@@ -43,7 +43,7 @@ export const useLocalRuntime = (
   const [runtime] = useState(() => new LocalRuntimeCore(opt, initialMessages));
 
   useEffect(() => {
-    runtime.threadList.getMainThreadRuntimeCore().__internal_setOptions(opt);
+    runtime.threads.getMainThreadRuntimeCore().__internal_setOptions(opt);
   }, [runtime, opt]);
 
   return useMemo(() => LocalRuntimeImpl.create(runtime), [runtime]);

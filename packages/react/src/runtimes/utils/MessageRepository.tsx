@@ -13,6 +13,11 @@ type RepositoryMessage = RepositoryParent & {
   level: number;
 };
 
+export type ExportedMessageRepositoryItem = {
+  message: ThreadMessage;
+  parentId: string | null;
+};
+
 export interface ExportedMessageRepository {
   headId?: string | null;
   messages: Array<{

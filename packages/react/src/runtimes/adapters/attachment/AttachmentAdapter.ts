@@ -2,7 +2,7 @@ import {
   Attachment,
   PendingAttachment,
   CompleteAttachment,
-} from "../../types/AttachmentTypes";
+} from "../../../types/AttachmentTypes";
 
 export type AttachmentAdapter = {
   accept: string;

@@ -127,9 +127,13 @@ export class LocalThreadRuntimeCore
 
     this._notifyEventSubscribers("run-start");
 
-    do {
-      message = await this.performRoundtrip(parentId, message, runConfig);
-    } while (shouldContinue(message));
+    try {
+      do {
+        message = await this.performRoundtrip(parentId, message, runConfig);
+      } while (shouldContinue(message));
+    } finally {
+      this._notifyEventSubscribers("run-end");
+    }
   }
 
   private async performRoundtrip(

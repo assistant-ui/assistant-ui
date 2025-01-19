@@ -1,6 +1,6 @@
 import { AppendMessage, ThreadMessage } from "../../types";
 import { getThreadMessageText } from "../../utils/getThreadMessageText";
-import { AttachmentAdapter } from "../attachment";
+import { AttachmentAdapter } from "../adapters/attachment";
 import { ThreadRuntimeCore } from "../core/ThreadRuntimeCore";
 import { BaseComposerRuntimeCore } from "./BaseComposerRuntimeCore";
 

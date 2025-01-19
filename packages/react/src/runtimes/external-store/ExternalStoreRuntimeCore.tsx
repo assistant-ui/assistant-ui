@@ -10,11 +10,11 @@ const getThreadListAdapter = (store: ExternalStoreAdapter<any>) => {
 };
 
 export class ExternalStoreRuntimeCore extends BaseAssistantRuntimeCore {
-  public readonly threadList;
+  public readonly threads;
 
   constructor(adapter: ExternalStoreAdapter<any>) {
     super();
-    this.threadList = new ExternalStoreThreadListRuntimeCore(
+    this.threads = new ExternalStoreThreadListRuntimeCore(
       getThreadListAdapter(adapter),
       () =>
         new ExternalStoreThreadRuntimeCore(this._proxyConfigProvider, adapter),
@@ -23,7 +23,7 @@ export class ExternalStoreRuntimeCore extends BaseAssistantRuntimeCore {
 
   public setAdapter(adapter: ExternalStoreAdapter<any>) {
     // Update the thread list adapter and propagate store changes to the main thread
-    this.threadList.__internal_setAdapter(getThreadListAdapter(adapter));
-    this.threadList.getMainThreadRuntimeCore().__internal_setAdapter(adapter);
+    this.threads.__internal_setAdapter(getThreadListAdapter(adapter));
+    this.threads.getMainThreadRuntimeCore().__internal_setAdapter(adapter);
   }
 }
