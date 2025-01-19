@@ -16,7 +16,9 @@ import { ThreadListItemRuntimeProvider } from "../../context/providers/ThreadLis
 import { useThreadListItem } from "../../context/react/ThreadListItemContext";
 import { ThreadRuntimeCore, ThreadRuntimeImpl } from "../../internal";
 import { BaseSubscribable } from "./BaseSubscribable";
-import { RemoteThreadListHook } from "./types";
+import { AssistantRuntime } from "../../api";
+
+type RemoteThreadListHook = () => AssistantRuntime;
 
 type RemoteThreadListHookInstance = {
   runtime?: ThreadRuntimeCore;

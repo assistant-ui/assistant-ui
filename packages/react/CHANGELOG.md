@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.40
+
+### Patch Changes
+
+- feat: export useRemoteThreadListRuntime
+
 ## 0.7.39
 
 ### Patch Changes

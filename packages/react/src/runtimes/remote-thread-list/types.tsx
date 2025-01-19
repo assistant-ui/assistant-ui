@@ -19,8 +19,6 @@ export type RemoteThreadListResponse = {
   threads: RemoteThreadMetadata[];
 };
 
-export type RemoteThreadListHook = () => AssistantRuntime;
-
 export type RemoteThreadListSubscriber = {
   onInitialize: (
     threadId: string,
@@ -33,7 +31,7 @@ export type RemoteThreadListSubscriber = {
 };
 
 export type RemoteThreadListAdapter = {
-  runtimeHook: RemoteThreadListHook;
+  runtimeHook: () => AssistantRuntime;
 
   list(): Promise<RemoteThreadListResponse>;
 
