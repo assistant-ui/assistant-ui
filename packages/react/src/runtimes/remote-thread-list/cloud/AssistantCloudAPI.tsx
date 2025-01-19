@@ -7,7 +7,7 @@ import {
 export type AssistantCloudConfig =
   | {
       baseUrl: string;
-      authToken(): Promise<string>;
+      authToken: (() => Promise<string | null>) | undefined;
     }
   | {
       apiKey: string;
@@ -30,16 +30,16 @@ type MakeRequestOptions = {
 };
 
 export class AssistantCloudAPI {
-  private _tokenManager: AssistantCloudAuthStrategy;
+  private _auth: AssistantCloudAuthStrategy;
   private _baseUrl;
 
   constructor(config: AssistantCloudConfig) {
     if ("authToken" in config) {
       this._baseUrl = config.baseUrl;
-      this._tokenManager = new AssistantCloudJWTAuthStrategy(config.authToken);
+      this._auth = new AssistantCloudJWTAuthStrategy(config.authToken);
     } else {
       this._baseUrl = "https://backend.assistant-api.com";
-      this._tokenManager = new AssistantCloudAPIKeyAuthStrategy(
+      this._auth = new AssistantCloudAPIKeyAuthStrategy(
         config.apiKey,
         config.userId,
         config.workspaceId,
@@ -47,11 +47,17 @@ export class AssistantCloudAPI {
     }
   }
 
+  public async initializeAuth() {
+    return !!this._auth.getAuthHeaders();
+  }
+
   public async makeRawRequest(
     endpoint: string,
     options: MakeRequestOptions = {},
   ) {
-    const authHeaders = await this._tokenManager.getAuthHeaders();
+    const authHeaders = await this._auth.getAuthHeaders();
+    if (!authHeaders) throw new Error("Authronization failed");
+
     const headers = {
       ...authHeaders,
       ...options.headers,
@@ -78,6 +84,8 @@ export class AssistantCloudAPI {
       headers,
       body: options.body ? JSON.stringify(options.body) : null,
     });
+
+    this._auth.readAuthHeaders(response.headers);
 
     if (!response.ok) {
       const text = await response.text();

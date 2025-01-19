@@ -1,6 +1,7 @@
 export type AssistantCloudAuthStrategy = {
   readonly strategy: "jwt" | "api-key";
-  getAuthHeaders(): Promise<Record<string, string>>;
+  getAuthHeaders(): Promise<Record<string, string> | false>;
+  readAuthHeaders(headers: Headers): void;
 };
 
 export class AssistantCloudJWTAuthStrategy
@@ -13,7 +14,7 @@ export class AssistantCloudJWTAuthStrategy
 
   #authTokenCallback;
 
-  constructor(authTokenCallback: () => Promise<string>) {
+  constructor(authTokenCallback: (() => Promise<string | null>) | undefined) {
     this.#authTokenCallback = authTokenCallback;
   }
 
@@ -43,7 +44,7 @@ export class AssistantCloudJWTAuthStrategy
     }
   }
 
-  public async getAuthHeaders(): Promise<Record<string, string>> {
+  public async getAuthHeaders(): Promise<Record<string, string> | false> {
     const currentTime = Date.now();
 
     // Check if the cached token is valid for at least 30 seconds
@@ -58,7 +59,9 @@ export class AssistantCloudJWTAuthStrategy
     }
 
     // Fetch a new token
-    const newToken = await this.#authTokenCallback();
+    const newToken = await this.#authTokenCallback?.();
+    if (!newToken) return false;
+
     const expiry = this.getJwtExpiry(newToken);
 
     this.cachedToken = newToken;
@@ -68,7 +71,20 @@ export class AssistantCloudJWTAuthStrategy
       Authorization: `Bearer ${newToken}`,
     };
   }
+
+  public readAuthHeaders(headers: Headers) {
+    const authHeader = headers.get("Authorization");
+    if (!authHeader) return;
+
+    const [scheme, token] = authHeader.split(" ");
+    if (scheme !== "Bearer" || !token)
+      throw new Error("Invalid auth header received");
+
+    this.cachedToken = token;
+    this.tokenExpiry = this.getJwtExpiry(token);
+  }
 }
+
 export class AssistantCloudAPIKeyAuthStrategy
   implements AssistantCloudAuthStrategy
 {
@@ -90,5 +106,9 @@ export class AssistantCloudAPIKeyAuthStrategy
       "Aui-User-Id": this.#userId,
       "Aui-Workspace-Id": this.#workspaceId,
     };
+  }
+
+  public readAuthHeaders() {
+    // noop
   }
 }
