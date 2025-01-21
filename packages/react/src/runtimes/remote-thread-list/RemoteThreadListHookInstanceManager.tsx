@@ -13,7 +13,10 @@ import {
 import { UseBoundStore, StoreApi, create } from "zustand";
 import { useAssistantRuntime } from "../../context";
 import { ThreadListItemRuntimeProvider } from "../../context/providers/ThreadListItemRuntimeProvider";
-import { useThreadListItem } from "../../context/react/ThreadListItemContext";
+import {
+  useThreadListItem,
+  useThreadListItemRuntime,
+} from "../../context/react/ThreadListItemContext";
 import { ThreadRuntimeCore, ThreadRuntimeImpl } from "../../internal";
 import { BaseSubscribable } from "./BaseSubscribable";
 import { AssistantRuntime } from "../../api";
@@ -112,6 +115,16 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
       return threadBinding.outerSubscribe(updateRuntime);
     }, [threadBinding]);
 
+    // auto initialize thread
+    const threadListItemRuntime = useThreadListItemRuntime();
+    useEffect(() => {
+      return runtime.threads.main.unstable_on("initialize", () => {
+        if (threadListItemRuntime.getState().status === "new") {
+          threadListItemRuntime.initialize();
+        }
+      });
+    }, [runtime, threadListItemRuntime]);
+
     return null;
   };
 
@@ -121,7 +134,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   }> = memo(({ threadId, provider: Provider }) => {
     const assistantRuntime = useAssistantRuntime();
     const threadListItemRuntime = useMemo(
-      () => assistantRuntime.threadList.getItemById(threadId),
+      () => assistantRuntime.threads.getItemById(threadId),
       [assistantRuntime, threadId],
     );
 
