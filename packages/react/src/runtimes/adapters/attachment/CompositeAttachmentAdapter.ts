@@ -65,7 +65,7 @@ export class CompositeAttachmentAdapter implements AttachmentAdapter {
     }
   }
 
-  public async add(state: { file: File }) {
+  public add(state: { file: File }) {
     for (const adapter of this._adapters) {
       if (fileMatchesAccept(state.file, adapter.accept)) {
         return adapter.add(state);

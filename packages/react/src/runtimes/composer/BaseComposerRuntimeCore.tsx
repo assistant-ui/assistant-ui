@@ -158,9 +158,31 @@ export abstract class BaseComposerRuntimeCore
     const adapter = this.getAttachmentAdapter();
     if (!adapter) throw new Error("Attachments are not supported");
 
-    const attachment = await adapter.add({ file });
+    const upsertAttachment = (a: PendingAttachment) => {
+      const idx = this._attachments.findIndex((attachment) => attachment.id === a.id);
+      if (idx !== -1)
+        this._attachments = [
+          ...this._attachments.slice(0, idx),
+          a,
+          ...this._attachments.slice(idx + 1),
+        ];
+      else {
+        this._attachments = [...this._attachments, a];
+        this._notifyEventSubscribers("attachment_add");
+      }
 
-    this._attachments = [...this._attachments, attachment as PendingAttachment];
+      this._notifySubscribers();
+    };
+
+    const promiseOrGenerator = adapter.add({ file });
+    if (Symbol.asyncIterator in promiseOrGenerator) {
+      for await (const r of promiseOrGenerator) {
+        upsertAttachment(r);
+      }
+    } else {
+      upsertAttachment(await promiseOrGenerator);
+    }
+
     this._notifyEventSubscribers("attachment_add");
     this._notifySubscribers();
   }
