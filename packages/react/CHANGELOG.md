@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.7.47
+
+### Patch Changes
+
+- a3c6c1a: feat: ensure runtime methods are bound to the object
+- a76ea0e: feat: AttachmentAdapter file upload progress update support via generator add callback
+- a3c6c1a: feat: useRuntimeState API
+
 ## 0.7.46
 
 ### Patch Changes

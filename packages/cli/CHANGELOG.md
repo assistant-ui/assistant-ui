@@ -1,5 +1,11 @@
 # assistant-ui
 
+## 0.0.30
+
+### Patch Changes
+
+- f3368ad: feat: codemod for v0.8 migration
+
 ## 0.0.29
 
 ### Patch Changes
