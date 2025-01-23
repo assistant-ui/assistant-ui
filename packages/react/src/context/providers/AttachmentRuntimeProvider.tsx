@@ -1,16 +1,11 @@
 "use client";
 
-import {
-  type FC,
-  type PropsWithChildren,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { type FC, type PropsWithChildren, useEffect, useState } from "react";
 import { create } from "zustand";
 import { AttachmentContext } from "../react/AttachmentContext";
 import { writableStore } from "../ReadonlyStore";
 import { AttachmentRuntime } from "../../api/AttachmentRuntime";
+import { ensureBinding } from "../react/utils/ensureBinding";
 
 export namespace AttachmentRuntimeProvider {
   export type Props = PropsWithChildren<{
@@ -22,18 +17,9 @@ const useAttachmentRuntimeStore = (runtime: AttachmentRuntime) => {
   const [store] = useState(() => create(() => runtime));
 
   useEffect(() => {
-    writableStore(store).setState(runtime, true);
-  }, [runtime, store]);
+    ensureBinding(runtime);
 
-  return store;
-};
-const useAttachmentStore = (runtime: AttachmentRuntime) => {
-  const [store] = useState(() => create(() => runtime.getState()));
-  useEffect(() => {
-    const updateState = () =>
-      writableStore(store).setState(runtime.getState(), true);
-    updateState();
-    return runtime.subscribe(updateState);
+    writableStore(store).setState(runtime, true);
   }, [runtime, store]);
 
   return store;
@@ -44,15 +30,11 @@ export const AttachmentRuntimeProvider: FC<AttachmentRuntimeProvider.Props> = ({
   children,
 }) => {
   const useAttachmentRuntime = useAttachmentRuntimeStore(runtime);
-  const useAttachment = useAttachmentStore(runtime);
-  const source = useAttachment((s) => s.source);
-  const context = useMemo(() => {
+  const [context] = useState(() => {
     return {
-      source,
       useAttachmentRuntime,
-      useAttachment,
     };
-  }, [useAttachmentRuntime, useAttachment]);
+  });
 
   return (
     <AttachmentContext.Provider value={context}>

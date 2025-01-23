@@ -286,6 +286,21 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     );
   }
 
+  protected __internal_bindMethods() {
+    this.append = this.append.bind(this);
+    this.startRun = this.startRun.bind(this);
+    this.cancelRun = this.cancelRun.bind(this);
+    this.stopSpeaking = this.stopSpeaking.bind(this);
+    this.export = this.export.bind(this);
+    this.import = this.import.bind(this);
+    this.getMesssageByIndex = this.getMesssageByIndex.bind(this);
+    this.getMesssageById = this.getMesssageById.bind(this);
+    this.subscribe = this.subscribe.bind(this);
+    this.unstable_on = this.unstable_on.bind(this);
+    this.getModelConfig = this.getModelConfig.bind(this);
+    this.getState = this.getState.bind(this);
+  }
+
   public readonly composer;
 
   public getState() {

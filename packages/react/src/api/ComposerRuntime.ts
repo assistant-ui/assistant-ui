@@ -127,6 +127,22 @@ export abstract class ComposerRuntimeImpl implements ComposerRuntime {
 
   constructor(protected _core: ComposerRuntimeCoreBinding) {}
 
+  protected __internal_bindMethods() {
+    this.setText = this.setText.bind(this);
+    this.setRunConfig = this.setRunConfig.bind(this);
+    this.getState = this.getState.bind(this);
+    this.subscribe = this.subscribe.bind(this);
+    this.addAttachment = this.addAttachment.bind(this);
+    this.reset = this.reset.bind(this);
+    this.clearAttachments = this.clearAttachments.bind(this);
+    this.send = this.send.bind(this);
+    this.cancel = this.cancel.bind(this);
+    this.setRole = this.setRole.bind(this);
+    this.getAttachmentAccept = this.getAttachmentAccept.bind(this);
+    this.getAttachmentByIndex = this.getAttachmentByIndex.bind(this);
+    this.unstable_on = this.unstable_on.bind(this);
+  }
+
   public abstract getState(): ComposerState;
 
   public setText(text: string) {
@@ -328,6 +344,11 @@ export class EditComposerRuntimeImpl
     });
 
     this._getState = stateBinding.getState.bind(stateBinding);
+  }
+
+  public override __internal_bindMethods() {
+    super.__internal_bindMethods();
+    this.beginEdit = this.beginEdit.bind(this);
   }
 
   public override getState(): EditComposerState {

@@ -7,20 +7,18 @@ import { UseBoundStore } from "zustand";
 import { createContextHook } from "./utils/createContextHook";
 import { createContextStoreHook } from "./utils/createContextStoreHook";
 import { ThreadRuntime } from "../../api/ThreadRuntime";
-import { ThreadState } from "../../api/ThreadRuntime";
 import { ModelConfig } from "../../types";
-import { ThreadComposerState } from "../../api/ComposerRuntime";
+import { createStateHookForRuntime } from "./utils/createStateHookForRuntime";
+import { ThreadComposerRuntime } from "../../api";
 
 export type ThreadContextValue = {
-  useThread: UseBoundStore<ReadonlyStore<ThreadState>>;
   useThreadRuntime: UseBoundStore<ReadonlyStore<ThreadRuntime>>;
-  useComposer: UseBoundStore<ReadonlyStore<ThreadComposerState>>;
   useViewport: UseBoundStore<ReadonlyStore<ThreadViewportState>>;
 };
 
 export const ThreadContext = createContext<ThreadContextValue | null>(null);
 
-export const useThreadContext = createContextHook(
+const useThreadContext = createContextHook(
   ThreadContext,
   "AssistantRuntimeProvider",
 );
@@ -37,14 +35,13 @@ export function useThreadRuntime(options?: { optional?: boolean | undefined }) {
   return context.useThreadRuntime();
 }
 
-export const { useThread } = createContextStoreHook(
-  useThreadContext,
-  "useThread",
-);
+export const useThread = createStateHookForRuntime(useThreadRuntime);
 
-export const { useComposer: useThreadComposer } = createContextStoreHook(
-  useThreadContext,
-  "useComposer",
+const useThreadComposerRuntime = (opt: {
+  optional: boolean | undefined;
+}): ThreadComposerRuntime | null => useThreadRuntime(opt)?.composer ?? null;
+export const useThreadComposer = createStateHookForRuntime(
+  useThreadComposerRuntime,
 );
 
 export const {

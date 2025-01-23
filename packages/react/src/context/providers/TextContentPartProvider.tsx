@@ -1,7 +1,7 @@
 "use client";
 
 import { FC, PropsWithChildren, useEffect, useState } from "react";
-import { create } from "zustand";
+import { create, StoreApi, UseBoundStore } from "zustand";
 import {
   ContentPartContext,
   ContentPartContextValue,
@@ -12,6 +12,7 @@ import {
   ContentPartRuntimeImpl,
   ContentPartState,
 } from "../../api/ContentPartRuntime";
+import { ensureBinding } from "../react/utils/ensureBinding";
 
 export namespace TextContentPartProvider {
   export type Props = PropsWithChildren<{
@@ -33,36 +34,39 @@ export const TextContentPartProvider: FC<TextContentPartProvider.Props> = ({
   text,
   isRunning,
 }) => {
-  const [context] = useState<ContentPartContextValue>(() => {
-    const useContentPart = create<ContentPartState>(() => ({
+  const [context] = useState<
+    ContentPartContextValue & {
+      useContentPart: UseBoundStore<
+        StoreApi<ContentPartState & { type: "text" }>
+      >;
+    }
+  >(() => {
+    const useContentPart = create<ContentPartState & { type: "text" }>(() => ({
       status: isRunning ? RUNNING_STATUS : COMPLETE_STATUS,
       type: "text",
       text,
     }));
 
-    const useContentPartRuntime = create(
-      () =>
-        new ContentPartRuntimeImpl({
-          path: {
-            ref: "text",
-            threadSelector: { type: "main" },
-            messageSelector: { type: "messageId", messageId: "" },
-            contentPartSelector: { type: "index", index: 0 },
-          },
-          getState: useContentPart.getState,
-          subscribe: useContentPart.subscribe,
-        }),
-    );
+    const contentPartRuntime = new ContentPartRuntimeImpl({
+      path: {
+        ref: "text",
+        threadSelector: { type: "main" },
+        messageSelector: { type: "messageId", messageId: "" },
+        contentPartSelector: { type: "index", index: 0 },
+      },
+      getState: useContentPart.getState,
+      subscribe: useContentPart.subscribe,
+    });
+    ensureBinding(contentPartRuntime);
+
+    const useContentPartRuntime = create(() => contentPartRuntime);
 
     return { useContentPartRuntime, useContentPart };
   });
 
   useEffect(() => {
-    const state = context.useContentPart.getState() as ContentPartState & {
-      type: "text";
-    };
-
-    const textUpdated = (state as TextContentPart).text !== text;
+    const state = context.useContentPart.getState();
+    const textUpdated = state.text !== text;
     const targetStatus = isRunning ? RUNNING_STATUS : COMPLETE_STATUS;
     const statusUpdated = state.status !== targetStatus;
 

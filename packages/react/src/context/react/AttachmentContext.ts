@@ -1,124 +1,24 @@
 "use client";
 
-import { createContext, useContext } from "react";
+import { createContext } from "react";
 import { ReadonlyStore } from "../ReadonlyStore";
-import { createContextStoreHook } from "./utils/createContextStoreHook";
-import {
-  AttachmentRuntime,
-  AttachmentState,
-} from "../../api/AttachmentRuntime";
+import { AttachmentRuntime } from "../../api/AttachmentRuntime";
 import { UseBoundStore } from "zustand";
+import { createContextHook } from "./utils/createContextHook";
+import { createStateHookForRuntime } from "./utils/createStateHookForRuntime";
 
 export type AttachmentContextValue = {
-  source: "thread-composer" | "edit-composer" | "message";
-  useAttachment: UseBoundStore<ReadonlyStore<AttachmentState>>;
   useAttachmentRuntime: UseBoundStore<ReadonlyStore<AttachmentRuntime>>;
-};
-
-type ThreadComposerAttachmentContextValue = {
-  source: "thread-composer";
-  useAttachment: UseBoundStore<
-    ReadonlyStore<AttachmentState & { source: "thread-composer" }>
-  >;
-  useAttachmentRuntime: UseBoundStore<
-    ReadonlyStore<AttachmentRuntime & { type: "thread-composer" }>
-  >;
-};
-type EditComposerAttachmentContextValue = {
-  source: "edit-composer";
-  useAttachment: UseBoundStore<
-    ReadonlyStore<AttachmentState & { source: "edit-composer" }>
-  >;
-  useAttachmentRuntime: UseBoundStore<
-    ReadonlyStore<AttachmentRuntime & { type: "edit-composer" }>
-  >;
-};
-
-type MessageAttachmentContextValue = {
-  source: "message";
-  useAttachment: UseBoundStore<
-    ReadonlyStore<AttachmentState & { source: "message" }>
-  >;
-  useAttachmentRuntime: UseBoundStore<
-    ReadonlyStore<AttachmentRuntime & { type: "message" }>
-  >;
 };
 
 export const AttachmentContext = createContext<AttachmentContextValue | null>(
   null,
 );
 
-export function useAttachmentContext(options?: {
-  optional?: false | undefined;
-}): AttachmentContextValue;
-export function useAttachmentContext(options?: {
-  optional?: boolean | undefined;
-}): AttachmentContextValue | null;
-export function useAttachmentContext(options?: {
-  optional?: boolean | undefined;
-}) {
-  const context = useContext(AttachmentContext);
-  if (!options?.optional && !context)
-    throw new Error(
-      "This component must be used within a ComposerPrimitive.Attachments or MessagePrimitive.Attachments component.",
-    );
-
-  return context;
-}
-
-function useThreadComposerAttachmentContext(options?: {
-  optional?: false | undefined;
-}): ThreadComposerAttachmentContextValue;
-function useThreadComposerAttachmentContext(options?: {
-  optional?: boolean | undefined;
-}): ThreadComposerAttachmentContextValue | null;
-function useThreadComposerAttachmentContext(options?: {
-  optional?: boolean | undefined;
-}): ThreadComposerAttachmentContextValue | null {
-  const context = useAttachmentContext(options);
-  if (!context) return null;
-  if (context.source !== "thread-composer")
-    throw new Error(
-      "This component must be used within a thread's ComposerPrimitive.Attachments component.",
-    );
-  return context as ThreadComposerAttachmentContextValue;
-}
-
-function useEditComposerAttachmentContext(options?: {
-  optional?: false | undefined;
-}): EditComposerAttachmentContextValue;
-function useEditComposerAttachmentContext(options?: {
-  optional?: boolean | undefined;
-}): EditComposerAttachmentContextValue | null;
-function useEditComposerAttachmentContext(options?: {
-  optional?: boolean | undefined;
-}): EditComposerAttachmentContextValue | null {
-  const context = useAttachmentContext(options);
-  if (!context) return null;
-  if (context.source !== "edit-composer")
-    throw new Error(
-      "This component must be used within a messages's ComposerPrimitive.Attachments component.",
-    );
-  return context as EditComposerAttachmentContextValue;
-}
-
-function useMessageAttachmentContext(options?: {
-  optional?: false | undefined;
-}): MessageAttachmentContextValue;
-function useMessageAttachmentContext(options?: {
-  optional?: boolean | undefined;
-}): MessageAttachmentContextValue | null;
-function useMessageAttachmentContext(options?: {
-  optional?: boolean | undefined;
-}): MessageAttachmentContextValue | null {
-  const context = useAttachmentContext(options);
-  if (!context) return null;
-  if (context.source !== "message")
-    throw new Error(
-      "This component must be used within a MessagePrimitive.Attachments component.",
-    );
-  return context as MessageAttachmentContextValue;
-}
+const useAttachmentContext = createContextHook(
+  AttachmentContext,
+  "a ComposerPrimitive.Attachments or MessagePrimitive.Attachments component",
+);
 
 export function useAttachmentRuntime(options?: {
   optional?: false | undefined;
@@ -136,58 +36,67 @@ export function useAttachmentRuntime(options?: {
 
 export function useThreadComposerAttachmentRuntime(options?: {
   optional?: false | undefined;
-}): AttachmentRuntime;
+}): AttachmentRuntime<"thread-composer">;
 export function useThreadComposerAttachmentRuntime(options?: {
   optional?: boolean | undefined;
-}): AttachmentRuntime | null;
+}): AttachmentRuntime<"thread-composer"> | null;
 export function useThreadComposerAttachmentRuntime(options?: {
   optional?: boolean | undefined;
-}): AttachmentRuntime | null {
-  const attachmentRuntime = useThreadComposerAttachmentContext(options);
+}): AttachmentRuntime<"thread-composer"> | null {
+  const attachmentRuntime = useAttachmentRuntime(options);
   if (!attachmentRuntime) return null;
-  return attachmentRuntime.useAttachmentRuntime();
+  if (attachmentRuntime.source !== "thread-composer")
+    throw new Error(
+      "This component must be used within a thread's ComposerPrimitive.Attachments component.",
+    );
+  return attachmentRuntime as AttachmentRuntime<"thread-composer">;
 }
 
 export function useEditComposerAttachmentRuntime(options?: {
   optional?: false | undefined;
-}): AttachmentRuntime;
+}): AttachmentRuntime<"edit-composer">;
 export function useEditComposerAttachmentRuntime(options?: {
   optional?: boolean | undefined;
-}): AttachmentRuntime | null;
+}): AttachmentRuntime<"edit-composer"> | null;
 export function useEditComposerAttachmentRuntime(options?: {
   optional?: boolean | undefined;
-}): AttachmentRuntime | null {
-  const attachmentRuntime = useEditComposerAttachmentContext(options);
+}): AttachmentRuntime<"edit-composer"> | null {
+  const attachmentRuntime = useAttachmentRuntime(options);
   if (!attachmentRuntime) return null;
-  return attachmentRuntime.useAttachmentRuntime();
+  if (attachmentRuntime.source !== "edit-composer")
+    throw new Error(
+      "This component must be used within a message's ComposerPrimitive.Attachments component.",
+    );
+
+  return attachmentRuntime as AttachmentRuntime<"edit-composer">;
 }
 
 export function useMessageAttachmentRuntime(options?: {
   optional?: false | undefined;
-}): AttachmentRuntime;
+}): AttachmentRuntime<"message">;
 export function useMessageAttachmentRuntime(options?: {
   optional?: boolean | undefined;
-}): AttachmentRuntime | null;
+}): AttachmentRuntime<"message"> | null;
 export function useMessageAttachmentRuntime(options?: {
   optional?: boolean | undefined;
-}): AttachmentRuntime | null {
-  const attachmentRuntime = useMessageAttachmentContext(options);
+}): AttachmentRuntime<"message"> | null {
+  const attachmentRuntime = useAttachmentRuntime(options);
   if (!attachmentRuntime) return null;
-  return attachmentRuntime.useAttachmentRuntime();
+  if (attachmentRuntime.source !== "message")
+    throw new Error(
+      "This component must be used within a MessagePrimitive.Attachments component.",
+    );
+  return attachmentRuntime as AttachmentRuntime<"message">;
 }
 
-export const { useAttachment } = createContextStoreHook(
-  useAttachmentContext,
-  "useAttachment",
+export const useAttachment = createStateHookForRuntime(useAttachmentRuntime);
+
+export const useThreadComposerAttachment = createStateHookForRuntime(
+  useThreadComposerAttachmentRuntime,
 );
-
-export const { useAttachment: useThreadComposerAttachment } =
-  createContextStoreHook(useThreadComposerAttachmentContext, "useAttachment");
-
-export const { useAttachment: useEditComposerAttachment } =
-  createContextStoreHook(useEditComposerAttachmentContext, "useAttachment");
-
-export const { useAttachment: useMessageAttachment } = createContextStoreHook(
-  useMessageAttachmentContext,
-  "useAttachment",
+export const useEditComposerAttachment = createStateHookForRuntime(
+  useEditComposerAttachmentRuntime,
+);
+export const useMessageAttachment = createStateHookForRuntime(
+  useMessageAttachmentRuntime,
 );

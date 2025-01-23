@@ -45,3 +45,5 @@ export {
   // useThreadComposerAttachment,
   // useThreadComposerAttachmentRuntime,
 } from "./AttachmentContext";
+
+export { useRuntimeState } from "./utils/useRuntimeState";

@@ -2,21 +2,19 @@
 
 import { createContext } from "react";
 import { ReadonlyStore } from "../ReadonlyStore";
-import { createContextStoreHook } from "./utils/createContextStoreHook";
 import { createContextHook } from "./utils/createContextHook";
 import { UseBoundStore } from "zustand";
 import { ThreadListItemRuntime } from "../../api/ThreadListItemRuntime";
-import { ThreadListItemState } from "../../api/ThreadListItemRuntime";
+import { createStateHookForRuntime } from "./utils/createStateHookForRuntime";
 
 export type ThreadListItemContextValue = {
   useThreadListItemRuntime: UseBoundStore<ReadonlyStore<ThreadListItemRuntime>>;
-  useThreadListItem: UseBoundStore<ReadonlyStore<ThreadListItemState>>;
 };
 
 export const ThreadListItemContext =
   createContext<ThreadListItemContextValue | null>(null);
 
-export const useThreadListItemContext = createContextHook(
+const useThreadListItemContext = createContextHook(
   ThreadListItemContext,
   "a component passed to <ThreadListPrimitive.Items components={...}>",
 );
@@ -35,7 +33,6 @@ export function useThreadListItemRuntime(options?: {
   return context.useThreadListItemRuntime();
 }
 
-export const { useThreadListItem } = createContextStoreHook(
-  useThreadListItemContext,
-  "useThreadListItem",
+export const useThreadListItem = createStateHookForRuntime(
+  useThreadListItemRuntime,
 );

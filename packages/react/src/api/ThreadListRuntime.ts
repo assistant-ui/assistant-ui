@@ -116,6 +116,17 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
     );
   }
 
+  protected __internal_bindMethods() {
+    this.switchToThread = this.switchToThread.bind(this);
+    this.switchToNewThread = this.switchToNewThread.bind(this);
+    this.getState = this.getState.bind(this);
+    this.subscribe = this.subscribe.bind(this);
+    this.getById = this.getById.bind(this);
+    this.getItemById = this.getItemById.bind(this);
+    this.getItemByIndex = this.getItemByIndex.bind(this);
+    this.getArchivedItemByIndex = this.getArchivedItemByIndex.bind(this);
+  }
+
   public switchToThread(threadId: string): Promise<void> {
     return this._core.switchToThread(threadId);
   }

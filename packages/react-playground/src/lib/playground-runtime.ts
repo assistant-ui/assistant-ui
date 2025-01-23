@@ -663,8 +663,21 @@ class PlaygroundThreadRuntimeImpl
     super(binding, threadListItemBinding);
   }
 
+  public override __internal_bindMethods() {
+    super.__internal_bindMethods();
+
+    this.setRequestData = this.setRequestData.bind(this);
+    this.addImage = this.addImage.bind(this);
+    this.deleteMessage = this.deleteMessage.bind(this);
+    this.setRole = this.setRole.bind(this);
+    this.addTool = this.addTool.bind(this);
+    this.setMessageText = this.setMessageText.bind(this);
+    this.deleteContentPart = this.deleteContentPart.bind(this);
+  }
+
   private _getState() {
-    return this.binding.getState() as PlaygroundThreadRuntimeCore;
+    const state = this.binding.getState();
+    return state as PlaygroundThreadRuntimeCore;
   }
 
   public setRequestData(options: EdgeRuntimeRequestOptions) {

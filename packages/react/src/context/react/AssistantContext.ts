@@ -7,12 +7,12 @@ import { createContextHook } from "./utils/createContextHook";
 import { createContextStoreHook } from "./utils/createContextStoreHook";
 import { UseBoundStore } from "zustand";
 import { AssistantRuntime } from "../../api/AssistantRuntime";
-import { ThreadListState } from "../../api/ThreadListRuntime";
+import { ThreadListRuntime } from "../../api/ThreadListRuntime";
+import { createStateHookForRuntime } from "./utils/createStateHookForRuntime";
 
 export type AssistantContextValue = {
-  useToolUIs: UseBoundStore<ReadonlyStore<AssistantToolUIsState>>;
   useAssistantRuntime: UseBoundStore<ReadonlyStore<AssistantRuntime>>;
-  useThreadList: UseBoundStore<ReadonlyStore<ThreadListState>>;
+  useToolUIs: UseBoundStore<ReadonlyStore<AssistantToolUIsState>>;
 };
 
 export const AssistantContext = createContext<AssistantContextValue | null>(
@@ -43,7 +43,7 @@ export const { useToolUIs, useToolUIsStore } = createContextStoreHook(
   "useToolUIs",
 );
 
-export const { useThreadList } = createContextStoreHook(
-  useAssistantContext,
-  "useThreadList",
-);
+const useThreadListRuntime = (opt: {
+  optional: boolean | undefined;
+}): ThreadListRuntime | null => useAssistantRuntime(opt)?.threads ?? null;
+export const useThreadList = createStateHookForRuntime(useThreadListRuntime);

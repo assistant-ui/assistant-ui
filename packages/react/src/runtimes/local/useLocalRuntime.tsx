@@ -19,6 +19,11 @@ class LocalRuntimeImpl extends AssistantRuntimeImpl implements LocalRuntime {
     super(core, ThreadRuntimeImpl);
   }
 
+  public override __internal_bindMethods() {
+    super.__internal_bindMethods();
+    this.reset = this.reset.bind(this);
+  }
+
   public reset(options?: Parameters<LocalRuntimeCore["reset"]>[0]) {
     this.core.reset(options);
   }

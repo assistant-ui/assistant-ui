@@ -7,19 +7,17 @@ import { createContextHook } from "./utils/createContextHook";
 import { createContextStoreHook } from "./utils/createContextStoreHook";
 import { UseBoundStore } from "zustand";
 import { MessageRuntime } from "../../api/MessageRuntime";
-import { MessageState } from "../../api/MessageRuntime";
-import { EditComposerState } from "../../api/ComposerRuntime";
+import { createStateHookForRuntime } from "./utils/createStateHookForRuntime";
+import { EditComposerRuntime } from "../../api";
 
 export type MessageContextValue = {
   useMessageRuntime: UseBoundStore<ReadonlyStore<MessageRuntime>>;
-  useMessage: UseBoundStore<ReadonlyStore<MessageState>>;
   useMessageUtils: UseBoundStore<ReadonlyStore<MessageUtilsState>>;
-  useEditComposer: UseBoundStore<ReadonlyStore<EditComposerState>>;
 };
 
 export const MessageContext = createContext<MessageContextValue | null>(null);
 
-export const useMessageContext = createContextHook(
+const useMessageContext = createContextHook(
   MessageContext,
   "a component passed to <ThreadPrimitive.Messages components={...} />",
 );
@@ -38,17 +36,16 @@ export function useMessageRuntime(options?: {
   return context.useMessageRuntime();
 }
 
-export const { useMessage } = createContextStoreHook(
-  useMessageContext,
-  "useMessage",
+export const useMessage = createStateHookForRuntime(useMessageRuntime);
+
+const useEditComposerRuntime = (opt: {
+  optional: boolean | undefined;
+}): EditComposerRuntime | null => useMessageRuntime(opt)?.composer ?? null;
+export const useEditComposer = createStateHookForRuntime(
+  useEditComposerRuntime,
 );
 
 export const { useMessageUtils, useMessageUtilsStore } = createContextStoreHook(
   useMessageContext,
   "useMessageUtils",
-);
-
-export const { useEditComposer } = createContextStoreHook(
-  useMessageContext,
-  "useEditComposer",
 );

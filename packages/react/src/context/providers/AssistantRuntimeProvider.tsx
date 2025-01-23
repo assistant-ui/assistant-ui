@@ -15,6 +15,7 @@ import { AssistantRuntime } from "../../api/AssistantRuntime";
 import { create } from "zustand";
 import { writableStore } from "../ReadonlyStore";
 import { AssistantRuntimeCore } from "../../runtimes/core/AssistantRuntimeCore";
+import { ensureBinding } from "../react/utils/ensureBinding";
 
 export namespace AssistantRuntimeProvider {
   export type Props = PropsWithChildren<{
@@ -29,6 +30,8 @@ const useAssistantRuntimeStore = (runtime: AssistantRuntime) => {
   const [store] = useState(() => create(() => runtime));
 
   useEffect(() => {
+    ensureBinding(runtime);
+ 
     writableStore(store).setState(runtime, true);
   }, [runtime, store]);
 
@@ -37,19 +40,6 @@ const useAssistantRuntimeStore = (runtime: AssistantRuntime) => {
 
 const useAssistantToolUIsStore = () => {
   return useMemo(() => makeAssistantToolUIsStore(), []);
-};
-
-const useThreadListStore = (runtime: AssistantRuntime) => {
-  const [store] = useState(() => create(() => runtime.threadList.getState()));
-
-  useEffect(() => {
-    const updateState = () =>
-      writableStore(store).setState(runtime.threadList.getState(), true);
-    updateState();
-    return runtime.threadList.subscribe(updateState);
-  }, [runtime, store]);
-
-  return store;
 };
 
 const getRenderComponent = (runtime: AssistantRuntime) => {
@@ -61,14 +51,12 @@ export const AssistantRuntimeProviderImpl: FC<
 > = ({ children, runtime }) => {
   const useAssistantRuntime = useAssistantRuntimeStore(runtime);
   const useToolUIs = useAssistantToolUIsStore();
-  const useThreadList = useThreadListStore(runtime);
-  const context = useMemo(() => {
+  const [context] = useState(() => {
     return {
       useToolUIs,
       useAssistantRuntime,
-      useThreadList,
     };
-  }, [useAssistantRuntime, useToolUIs, useThreadList]);
+  });
 
   const RenderComponent = getRenderComponent(runtime);
 

@@ -174,6 +174,21 @@ export class MessageRuntimeImpl implements MessageRuntime {
     );
   }
 
+  protected __internal_bindMethods() {
+    this.reload = this.reload.bind(this);
+    this.getState = this.getState.bind(this);
+    this.subscribe = this.subscribe.bind(this);
+    this.getContentPartByIndex = this.getContentPartByIndex.bind(this);
+    this.getContentPartByToolCallId =
+      this.getContentPartByToolCallId.bind(this);
+    this.getAttachmentByIndex = this.getAttachmentByIndex.bind(this);
+    this.unstable_getCopyText = this.unstable_getCopyText.bind(this);
+    this.speak = this.speak.bind(this);
+    this.stopSpeaking = this.stopSpeaking.bind(this);
+    this.submitFeedback = this.submitFeedback.bind(this);
+    this.switchToBranch = this.switchToBranch.bind(this);
+  }
+
   public readonly composer;
 
   public getState() {
