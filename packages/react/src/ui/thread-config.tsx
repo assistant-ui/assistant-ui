@@ -45,6 +45,7 @@ export type AssistantMessageConfig = {
         Text?: TextContentPartComponent | undefined;
         Empty?: EmptyContentPartComponent | undefined;
         ToolFallback?: ComponentType<ToolCallContentPartProps> | undefined;
+        Footer?: ComponentType | undefined;
       }
     | undefined;
 };
