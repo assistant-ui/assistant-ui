@@ -6,7 +6,7 @@ import {
   ContentPartContext,
   ContentPartContextValue,
 } from "../react/ContentPartContext";
-import { ContentPartStatus, TextContentPart } from "../../types/AssistantTypes";
+import { ContentPartStatus } from "../../types/AssistantTypes";
 import { writableStore } from "../ReadonlyStore";
 import {
   ContentPartRuntimeImpl,
