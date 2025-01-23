@@ -85,6 +85,7 @@ async def create_run(
             await callback(controller)
         except Exception as e:
             controller.add_error(str(e))
+            raise
         finally:
             for dispose in controller._dispose_callbacks:
                 dispose()
