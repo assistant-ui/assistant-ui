@@ -1,5 +1,14 @@
 # @assistant-ui/react-langgraph
 
+## 0.2.1
+
+### Patch Changes
+
+- 177bcce: feat: interrupt state stream support
+- Updated dependencies [9934aef]
+- Updated dependencies [3a8b55a]
+  - @assistant-ui/react@0.7.45
+
 ## 0.1.18
 
 ### Patch Changes

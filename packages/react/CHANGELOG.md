@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.7.45
+
+### Patch Changes
+
+- 9934aef: feat(cloud-threadlist): auto initialize threads
+- 3a8b55a: feat: styled UI assistant message footer
+
 ## 0.7.44
 
 ### Patch Changes
