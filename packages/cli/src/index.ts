@@ -5,6 +5,7 @@ import { Command } from "commander";
 import packageJson from "../package.json";
 import { create } from "./commands/create";
 import { shadcnAdd } from "./commands/shadcn/add";
+import { codemodCommand, upgradeCommand } from "./commands/upgrade";
 
 process.on("SIGINT", () => process.exit(0));
 process.on("SIGTERM", () => process.exit(0));
@@ -21,6 +22,8 @@ function main() {
 
   program.addCommand(shadcnAdd);
   program.addCommand(create);
+  program.addCommand(codemodCommand);
+  program.addCommand(upgradeCommand);
 
   program.parse();
 }
