@@ -1156,9 +1156,6 @@ importers:
 
   packages/cli:
     dependencies:
-      '@assistant-ui/tsbuildutils':
-        specifier: workspace:^
-        version: link:../tsbuildutils
       chalk:
         specifier: ^5.4.1
         version: 5.4.1
@@ -1178,6 +1175,9 @@ importers:
         specifier: ^17.1.2
         version: 17.1.2
     devDependencies:
+      '@assistant-ui/tsbuildutils':
+        specifier: workspace:^
+        version: link:../tsbuildutils
       '@assistant-ui/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
