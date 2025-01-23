@@ -73,7 +73,7 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
         ) {
           addMessages(chunk.data);
         } else if (chunk.event === "updates") {
-          setInterrupt(chunk.data.__interrupt__);
+          setInterrupt(chunk.data.__interrupt__?.[0]);
         }
       }
     },

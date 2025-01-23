@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, type FC } from "react";
+import { ComponentType, forwardRef, type FC } from "react";
 import { ArrowDownIcon } from "lucide-react";
 
 import { withDefaults } from "./utils/withDefaults";
@@ -24,6 +24,7 @@ const Thread: FC<ThreadConfig> = (config) => {
     components: {
       Composer: ComposerComponent = Composer,
       ThreadWelcome: ThreadWelcomeComponent = ThreadWelcome,
+      MessagesFooter,
       ...messageComponents
     } = {},
   } = config;
@@ -31,7 +32,10 @@ const Thread: FC<ThreadConfig> = (config) => {
     <ThreadRoot config={config}>
       <ThreadViewport>
         <ThreadWelcomeComponent />
-        <ThreadMessages components={messageComponents} />
+        <ThreadMessages
+          MessagesFooter={MessagesFooter}
+          components={messageComponents}
+        />
         <ThreadFollowupSuggestions />
         <ThreadViewportFooter>
           <ThreadScrollToBottom />
@@ -78,7 +82,13 @@ ThreadViewportFooter.displayName = "ThreadViewportFooter";
 const ThreadMessages: FC<{
   unstable_flexGrowDiv?: boolean;
   components?: Partial<ThreadPrimitive.Messages.Props["components"]>;
-}> = ({ components, unstable_flexGrowDiv: flexGrowDiv = true, ...rest }) => {
+  MessagesFooter?: ComponentType | undefined;
+}> = ({
+  components,
+  MessagesFooter,
+  unstable_flexGrowDiv: flexGrowDiv = true,
+  ...rest
+}) => {
   return (
     <>
       <ThreadPrimitive.Messages
@@ -90,6 +100,7 @@ const ThreadMessages: FC<{
         }}
         {...rest}
       />
+      {MessagesFooter && <MessagesFooter />}
       {flexGrowDiv && (
         <ThreadPrimitive.If empty={false}>
           <div style={{ flexGrow: 1 }} />

@@ -101,9 +101,9 @@ export const useLangGraphSend = () => {
   return send;
 };
 
-export const useLangGraphSendCommand = (command: LangGraphCommand) => {
+export const useLangGraphSendCommand = () => {
   const send = useLangGraphSend();
-  return () => send([], { command });
+  return (command: LangGraphCommand) => send([], { command });
 };
 
 export const useLangGraphRuntime = ({

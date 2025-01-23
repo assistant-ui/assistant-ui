@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.7.46
+
+### Patch Changes
+
+- fix: improved interrupt+Command support
+- feat: MessagesFooter UI
+- 2713487: feat: styled UI assistant message footer
+
 ## 0.7.45
 
 ### Patch Changes

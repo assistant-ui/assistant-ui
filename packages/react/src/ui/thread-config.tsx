@@ -193,6 +193,7 @@ export type ThreadConfig = {
         EditComposer?: ComponentType | undefined;
         Composer?: ComponentType | undefined;
         ThreadWelcome?: ComponentType | undefined;
+        MessagesFooter?: ComponentType | undefined;
       }
     | undefined;
 };

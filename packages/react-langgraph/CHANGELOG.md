@@ -1,5 +1,15 @@
 # @assistant-ui/react-langgraph
 
+## 0.2.2
+
+### Patch Changes
+
+- fix: improved interrupt+Command support
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies [2713487]
+  - @assistant-ui/react@0.7.46
+
 ## 0.2.1
 
 ### Patch Changes
