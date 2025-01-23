@@ -339,10 +339,6 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     return this._threadBinding.getState().stopSpeaking();
   }
 
-  public getSubmittedFeedback(messageId: string) {
-    return this._threadBinding.getState().getSubmittedFeedback(messageId);
-  }
-
   public export() {
     return this._threadBinding.getState().export();
   }
