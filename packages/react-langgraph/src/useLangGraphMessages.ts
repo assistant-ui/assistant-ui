@@ -11,7 +11,12 @@ export type LangGraphSendMessageConfig = {
 };
 
 type LangGraphMessagesEvent<TMessage> = {
-  event: "messages/partial" | "messages/complete" | string;
+  event:
+    | "messages/partial"
+    | "messages/complete"
+    | "metadata"
+    | "updates"
+    | string;
   data: TMessage[] | any;
 };
 export type LangGraphStreamCallback<TMessage> = (
@@ -21,11 +26,21 @@ export type LangGraphStreamCallback<TMessage> = (
   | Promise<AsyncGenerator<LangGraphMessagesEvent<TMessage>>>
   | AsyncGenerator<LangGraphMessagesEvent<TMessage>>;
 
+export type LangGraphInterruptState = {
+  value: any;
+  resumable: boolean;
+  when: string;
+  ns: string[];
+};
+
 export const useLangGraphMessages = <TMessage extends { id?: string }>({
   stream,
 }: {
   stream: LangGraphStreamCallback<TMessage>;
 }) => {
+  const [interrupt, setInterrupt] = useState<
+    LangGraphInterruptState | undefined
+  >();
   const [messages, setMessages] = useState<TMessage[]>([]);
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -56,8 +71,9 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
           chunk.event === "messages/partial" ||
           chunk.event === "messages/complete"
         ) {
-          // TODO verify bugfix - if there are messages without IDs, they appear duplicated
           addMessages(chunk.data);
+        } else if (chunk.event === "updates") {
+          setInterrupt(chunk.data.__interrupt__);
         }
       }
     },
@@ -70,5 +86,5 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
     }
   }, [abortControllerRef]);
 
-  return { messages, sendMessage, cancel, setMessages };
+  return { interrupt, messages, sendMessage, cancel, setMessages };
 };

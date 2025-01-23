@@ -9,6 +9,7 @@ import {
 import { convertLangchainMessages } from "./convertLangchainMessages";
 import {
   LangGraphCommand,
+  LangGraphInterruptState,
   LangGraphSendMessageConfig,
   LangGraphStreamCallback,
   useLangGraphMessages,
@@ -74,6 +75,7 @@ type LangGraphRuntimeExtras = {
     messages: LangChainMessage[],
     config: LangGraphSendMessageConfig,
   ) => Promise<void>;
+  interrupt: LangGraphInterruptState | undefined;
 };
 
 const asLangGraphRuntimeExtras = (extras: unknown): LangGraphRuntimeExtras => {
@@ -89,13 +91,18 @@ const asLangGraphRuntimeExtras = (extras: unknown): LangGraphRuntimeExtras => {
   return extras as LangGraphRuntimeExtras;
 };
 
-export const useLangGraphRuntimeSend = () => {
+export const useLangGraphInterruptState = () => {
+  const { interrupt } = useThread((t) => asLangGraphRuntimeExtras(t.extras));
+  return interrupt;
+};
+
+export const useLangGraphSend = () => {
   const { send } = useThread((t) => asLangGraphRuntimeExtras(t.extras));
   return send;
 };
 
-export const useLangGraphRuntimeSendCommand = (command: LangGraphCommand) => {
-  const send = useLangGraphRuntimeSend();
+export const useLangGraphSendCommand = (command: LangGraphCommand) => {
+  const send = useLangGraphSend();
   return () => send([], { command });
 };
 
@@ -135,9 +142,10 @@ export const useLangGraphRuntime = ({
       }
     | undefined;
 }) => {
-  const { messages, sendMessage, cancel, setMessages } = useLangGraphMessages({
-    stream,
-  });
+  const { interrupt, messages, sendMessage, cancel, setMessages } =
+    useLangGraphMessages({
+      stream,
+    });
 
   const [isRunning, setIsRunning] = useState(false);
   const handleSendMessage = async (
@@ -212,6 +220,7 @@ export const useLangGraphRuntime = ({
     },
     extras: {
       [symbolLangGraphRuntimeExtras]: true,
+      interrupt,
       send: handleSendMessage,
     } satisfies LangGraphRuntimeExtras,
     onNew: (msg) => {
