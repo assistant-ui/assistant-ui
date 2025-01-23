@@ -35,6 +35,7 @@ export const codemodCommand = addTransformOptions(
     transform(codemod, source, options);
   } catch (err: any) {
     error(`Error transforming: ${err}`);
+    error(err.stack);
     process.exit(1);
   }
 });

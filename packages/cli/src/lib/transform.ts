@@ -23,15 +23,17 @@ function buildCommand(
 ): string[] {
   const command = [
     jscodeshift,
-    "-t", codemodPath,
+    "-t",
+    codemodPath,
     targetPath,
-    "--parser", "tsx",
+    "--parser",
+    "tsx",
     "--ignore-pattern=**/node_modules/**",
     "--ignore-pattern=**/.*/**",
     "--ignore-pattern=**/dist/**",
     "--ignore-pattern=**/build/**",
     "--ignore-pattern=**/*.min.js",
-    "--ignore-pattern=**/*.bundle.js"
+    "--ignore-pattern=**/*.bundle.js",
   ];
 
   if (options.dry) {
@@ -96,7 +98,10 @@ export function transform(
     jscodeshift,
     transformOptions,
   );
-  const stdout = execFileSync(command[0], command.slice(1), { encoding: "utf8", stdio: "pipe" });
+  const stdout = execFileSync(command[0]!, command.slice(1), {
+    encoding: "utf8",
+    stdio: "pipe",
+  });
   const errors = parseErrors(codemod, stdout);
   if (options.logStatus && errors.length > 0) {
     errors.forEach(({ transform, filename, summary }) => {

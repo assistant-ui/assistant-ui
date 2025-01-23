@@ -21,7 +21,7 @@ export function upgrade(options: TransformOptions) {
   );
   bar.start(modCount, 0, { codemod: "Starting..." });
   const allErrors: TransformErrors = [];
-  for (const codemod of bundle.values()) {
+  for (const codemod of bundle) {
     const errors = transform(codemod, cwd, options, { logStatus: false });
     allErrors.push(...errors);
     bar.increment(1, { codemod });
