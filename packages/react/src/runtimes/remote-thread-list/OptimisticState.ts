@@ -10,7 +10,11 @@ type Transform<TState, TResult> = {
   optimistic?: (state: TState) => TState;
 
   /** transform the state only while loading */
-  loading?: (state: TState) => TState;
+  loading?: (state: TState, task: Promise<TResult>) => TState;
+};
+
+type PendingTransform<TState, TResult> = Transform<TState, TResult> & {
+  task: Promise<TResult>;
 };
 
 const pipeTransforms = <TState, TExtra>(
@@ -24,7 +28,8 @@ const pipeTransforms = <TState, TExtra>(
 };
 
 export class OptimisticState<TState> extends BaseSubscribable {
-  private readonly _pendingTransforms: Array<Transform<TState, any>> = [];
+  private readonly _pendingTransforms: Array<PendingTransform<TState, any>> =
+    [];
   private _baseValue: TState;
   private _cachedValue: TState;
 
@@ -36,7 +41,7 @@ export class OptimisticState<TState> extends BaseSubscribable {
 
   private _updateState(): void {
     this._cachedValue = this._pendingTransforms.reduce((state, transform) => {
-      return pipeTransforms(state, undefined, [
+      return pipeTransforms(state, transform.task, [
         transform.loading,
         transform.optimistic,
       ]);
@@ -61,18 +66,20 @@ export class OptimisticState<TState> extends BaseSubscribable {
   public async optimisticUpdate<TResult>(
     transform: Transform<TState, TResult>,
   ): Promise<TResult> {
-    this._pendingTransforms.push(transform);
-    this._updateState();
-
+    const task = transform.execute();
+    const pendingTransform = { ...transform, task };
     try {
-      const result = await transform.execute();
+      this._pendingTransforms.push(pendingTransform);
+      this._updateState();
+
+      const result = await task;
       this._baseValue = pipeTransforms(this._baseValue, result, [
         transform.optimistic,
         transform.then,
       ]);
       return result;
     } finally {
-      const index = this._pendingTransforms.indexOf(transform);
+      const index = this._pendingTransforms.indexOf(pendingTransform);
       if (index > -1) {
         this._pendingTransforms.splice(index, 1);
       }
