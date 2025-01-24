@@ -31,7 +31,8 @@ const useAssistantRuntimeStore = (runtime: AssistantRuntime) => {
 
   useEffect(() => {
     ensureBinding(runtime);
- 
+    ensureBinding(runtime.threads);
+
     writableStore(store).setState(runtime, true);
   }, [runtime, store]);
 

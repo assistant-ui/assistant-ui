@@ -11,6 +11,9 @@ export function useRuntimeStateInternal<TState, TSelected>(
   runtime: SubscribableRuntime<TState>,
   selector: ((state: TState) => TSelected) | undefined = identity as any,
 ): TSelected | TState {
+  // TODO move to useRuntimeState
+  ensureBinding(runtime);
+
   const slice = useSyncExternalStore(
     runtime.subscribe,
     () => selector(runtime.getState()),
@@ -37,7 +40,7 @@ export function useRuntimeState<TState, TSelected>(
   selector?: ((state: TState) => TSelected) | undefined,
 ): TSelected | TState {
   // ensure that the runtime is bound
-  ensureBinding(runtime);
+  // ensureBinding(runtime);
 
   return useRuntimeStateInternal(runtime, selector);
 }

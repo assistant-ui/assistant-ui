@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.48
+
+### Patch Changes
+
+- fix: crash
+
 ## 0.7.47
 
 ### Patch Changes
