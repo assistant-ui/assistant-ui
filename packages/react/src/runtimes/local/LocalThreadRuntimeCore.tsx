@@ -130,7 +130,12 @@ export class LocalThreadRuntimeCore
     try {
       do {
         message = await this.performRoundtrip(parentId, message, runConfig);
-      } while (shouldContinue(message));
+      } while (
+        shouldContinue(
+          message,
+          this._options.unstable_shouldContinueIgnoreToolNames ?? [],
+        )
+      );
     } finally {
       this._notifyEventSubscribers("run-end");
     }
@@ -289,7 +294,13 @@ export class LocalThreadRuntimeCore
     };
     this.repository.addOrUpdateMessage(parentId, message);
 
-    if (added && shouldContinue(message)) {
+    if (
+      added &&
+      shouldContinue(
+        message,
+        this._options.unstable_shouldContinueIgnoreToolNames ?? [],
+      )
+    ) {
       this.performRoundtrip(parentId, message, this._lastRunConfig);
     }
   }

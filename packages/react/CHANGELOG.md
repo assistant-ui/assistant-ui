@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.49
+
+### Patch Changes
+
+- feat(local-runtime): add temporary shouldContinueIgnoreToolNames override
+
 ## 0.7.48
 
 ### Patch Changes

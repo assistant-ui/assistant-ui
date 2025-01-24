@@ -14,6 +14,12 @@ export type LocalRuntimeOptionsBase = {
     speech?: SpeechSynthesisAdapter | undefined;
     feedback?: FeedbackAdapter | undefined;
   };
+
+  /**
+   * @deprecated This is a temporary workaround for subgraph frontend function calls.
+   * This feature will be removed in a future version without notice. DO NOT USE.
+   */
+  unstable_shouldContinueIgnoreToolNames?: string[] | undefined;
 };
 
 // TODO align LocalRuntimeOptions with LocalRuntimeOptionsBase
