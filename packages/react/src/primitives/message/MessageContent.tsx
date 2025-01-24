@@ -25,7 +25,7 @@ import type {
   FileContentPartComponent,
 } from "../../types/ContentPartComponentTypes";
 import { ContentPartPrimitiveInProgress } from "../contentPart/ContentPartInProgress";
-import { EMPTY_CONTENT_SYMBOL } from "../../api/MessageRuntime";
+import { ContentPartStatus } from "../../types/AssistantTypes";
 
 export namespace MessagePrimitiveContent {
   export type Props = {
@@ -86,7 +86,6 @@ type MessageContentPartComponentProps = {
 const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
   components: {
     Text = defaultComponents.Text,
-    Empty,
     Image = defaultComponents.Image,
     File = defaultComponents.File,
     Unstable_Audio: Audio = defaultComponents.Unstable_Audio,
@@ -112,10 +111,6 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
 
   switch (type) {
     case "text":
-      if ((part as any)[EMPTY_CONTENT_SYMBOL] && !!Empty) {
-        return <Empty status={part.status} />;
-      }
-
       return <Text {...part} />;
 
     case "image":
@@ -171,10 +166,36 @@ const MessageContentPart = memo(
     prev.components?.tools === next.components?.tools,
 );
 
+const COMPLETE_STATUS: ContentPartStatus = Object.freeze({
+  type: "complete",
+});
+
+const EmptyContentImpl: FC<MessageContentPartComponentProps> = ({
+  components,
+}) => {
+  const status =
+    useMessage((s) => s.status as ContentPartStatus) ?? COMPLETE_STATUS;
+
+  const Component =
+    components?.Empty ?? components?.Text ?? defaultComponents.Text;
+  return <Component type="text" text="" status={status} />;
+};
+
+const EmptyContent = memo(
+  EmptyContentImpl,
+  (prev, next) =>
+    prev.components?.Empty === next.components?.Empty &&
+    prev.components?.Text === next.components?.Text,
+);
+
 export const MessagePrimitiveContent: FC<MessagePrimitiveContent.Props> = ({
   components,
 }) => {
-  const contentLength = useMessage((s) => s.content.length) || 1;
+  const contentLength = useMessage((s) => s.content.length);
+
+  if (contentLength === 0) {
+    return <EmptyContent components={components} />;
+  }
 
   return Array.from({ length: contentLength }, (_, index) => (
     <MessageContentPart key={index} partIndex={index} components={components} />

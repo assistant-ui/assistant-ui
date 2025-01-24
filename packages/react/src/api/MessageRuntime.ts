@@ -2,6 +2,7 @@ import {
   SpeechState,
   SubmittedFeedback,
 } from "../runtimes/core/ThreadRuntimeCore";
+import { symbolInnerMessage } from "../runtimes/external-store/getExternalStoreMessage";
 import {
   ThreadMessage,
   ThreadAssistantContentPart,
@@ -59,37 +60,22 @@ export const toContentPartStatus = (
   return isLastPart ? (message.status as ContentPartStatus) : COMPLETE_STATUS;
 };
 
-export const EMPTY_CONTENT_SYMBOL = Symbol("empty-content");
-const EMPTY_CONTENT = Object.freeze({
-  type: "text",
-  text: "",
-  [EMPTY_CONTENT_SYMBOL]: true,
-});
-
 const getContentPartState = (
   message: MessageState,
   partIndex: number,
 ): ContentPartState | SKIP_UPDATE => {
   let part = message.content[partIndex];
   if (!part) {
-    // for empty messages, show an empty text content part
-    if (message.content.length === 0 && partIndex === 0) {
-      part = EMPTY_CONTENT;
-    } else {
-      return SKIP_UPDATE;
-    }
-  } else if (
-    message.content.length === 1 &&
-    part.type === "text" &&
-    part.text.length === 0
-  ) {
-    // ensure reference equality for equivalent empty text parts
-    part = EMPTY_CONTENT;
+    return SKIP_UPDATE;
   }
 
   // if the content part is the same, don't update
   const status = toContentPartStatus(message, partIndex, part);
-  return Object.freeze({ ...part, status });
+  return Object.freeze({
+    ...part,
+    ...{ [symbolInnerMessage]: (part as any)[symbolInnerMessage] },
+    status,
+  });
 };
 
 export type MessageState = ThreadMessage & {

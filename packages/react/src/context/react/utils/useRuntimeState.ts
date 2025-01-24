@@ -9,7 +9,7 @@ export type SubscribableRuntime<TState> = {
 
 export function useRuntimeStateInternal<TState, TSelected>(
   runtime: SubscribableRuntime<TState>,
-  selector: ((state: TState) => TSelected) | undefined = identity as any,
+  selector: ((state: TState) => TSelected | TState) | undefined = identity,
 ): TSelected | TState {
   // TODO move to useRuntimeState
   ensureBinding(runtime);

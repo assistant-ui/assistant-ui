@@ -35,6 +35,7 @@ import {
 import { ThreadListItemState } from "./ThreadListItemRuntime";
 import { RunConfig } from "../types/AssistantTypes";
 import { EventSubscriptionSubject } from "./subscribable/EventSubscriptionSubject";
+import { symbolInnerMessage } from "../runtimes/external-store/getExternalStoreMessage";
 
 export type CreateStartRunConfig = {
   parentId: string | null;
@@ -405,6 +406,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
 
           return {
             ...message,
+            ...{ [symbolInnerMessage]: (message as any)[symbolInnerMessage] },
 
             isLast: messages.at(-1)?.id === message.id,
             parentId,

@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { ThreadMessageConverter } from "./ThreadMessageConverter";
 import {
-  getExternalStoreMessage,
+  getExternalStoreMessages,
   symbolInnerMessage,
 } from "./getExternalStoreMessage";
 import { fromThreadMessageLike, ThreadMessageLike } from "./ThreadMessageLike";
@@ -64,6 +64,12 @@ const joinExternalMessages = (
         }
         assistantMessage.content[toolCallIdx] = {
           ...toolCall,
+          ...{
+            [symbolInnerMessage]: [
+              ...((toolCall as any)[symbolInnerMessage] ?? []),
+              output,
+            ],
+          },
           result: output.result,
         };
       } else {
@@ -73,10 +79,21 @@ const joinExternalMessages = (
       }
     } else {
       const role = output.role;
+      const content = (
+        typeof output.content === "string"
+          ? [{ type: "text" as const, text: output.content }]
+          : output.content
+      ).map((c) => ({
+        ...c,
+        ...{ [symbolInnerMessage]: [output] },
+      }));
       switch (role) {
         case "system":
         case "user":
-          return output;
+          return {
+            ...output,
+            content,
+          };
         case "assistant":
           if (assistantMessage.content.length === 0) {
             assistantMessage.id = output.id;
@@ -113,11 +130,6 @@ const joinExternalMessages = (
             }
             // TODO keep this in sync
           }
-
-          const content =
-            typeof output.content === "string"
-              ? [{ type: "text" as const, text: output.content }]
-              : output.content;
 
           assistantMessage.content.push(...content);
           break;
@@ -222,7 +234,7 @@ export const useExternalMessageConverter = <T extends WeakKey>({
             !isAutoStatus(cache.status) ||
             cache.status === autoStatus)
         ) {
-          const inputs = getExternalStoreMessage(cache) as T[];
+          const inputs = getExternalStoreMessages<T>(cache);
           if (shallowArrayEqual(inputs, message.inputs)) {
             return cache;
           }
