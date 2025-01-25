@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.52
+
+### Patch Changes
+
+- fix: excessive number of classes included via tailwindcss plugin
+
 ## 0.7.51
 
 ### Patch Changes

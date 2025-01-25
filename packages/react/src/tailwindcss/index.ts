@@ -80,7 +80,7 @@ const auiPlugin = plugin.withOptions<AssisstantTailwindPluginOptions>(
   ({ shadcn = false, colors = {} } = {}) => {
     const prefix = !shadcn ? "--aui-" : "--";
     return {
-      safelist: [{ pattern: /aui-/ }],
+      safelist: [{ pattern: /^aui-/ }],
       theme: {
         extend: {
           maxWidth: {
