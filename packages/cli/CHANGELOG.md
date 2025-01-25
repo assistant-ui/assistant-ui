@@ -1,5 +1,11 @@
 # assistant-ui
 
+## 0.0.31
+
+### Patch Changes
+
+- cefd975: fix: use mjs entrypoint
+
 ## 0.0.30
 
 ### Patch Changes
