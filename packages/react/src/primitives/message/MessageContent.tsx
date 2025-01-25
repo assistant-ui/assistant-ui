@@ -2,6 +2,7 @@
 
 import { type ComponentType, type FC, memo, useMemo } from "react";
 import {
+  TextContentPartProvider,
   useContentPart,
   useContentPartRuntime,
   useToolUIs,
@@ -170,15 +171,31 @@ const COMPLETE_STATUS: ContentPartStatus = Object.freeze({
   type: "complete",
 });
 
+const EmptyContentFallback: FC<{
+  status: ContentPartStatus;
+  component: TextContentPartComponent;
+}> = ({ status, component: Component }) => {
+  return (
+    <TextContentPartProvider text="" isRunning={status.type === "running"}>
+      <Component type="text" text="" status={status} />
+    </TextContentPartProvider>
+  );
+};
+
 const EmptyContentImpl: FC<MessageContentPartComponentProps> = ({
   components,
 }) => {
   const status =
     useMessage((s) => s.status as ContentPartStatus) ?? COMPLETE_STATUS;
 
-  const Component =
-    components?.Empty ?? components?.Text ?? defaultComponents.Text;
-  return <Component type="text" text="" status={status} />;
+  if (components?.Empty) return <components.Empty status={status} />;
+
+  return (
+    <EmptyContentFallback
+      status={status}
+      component={components?.Text ?? defaultComponents.Text}
+    />
+  );
 };
 
 const EmptyContent = memo(

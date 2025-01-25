@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.51
+
+### Patch Changes
+
+- fix: crash when content part is empty
+
 ## 0.7.50
 
 ### Patch Changes
