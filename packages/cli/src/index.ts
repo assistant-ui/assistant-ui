@@ -2,7 +2,7 @@
 
 import { Command } from "commander";
 
-import packageJson from "../package.json";
+import packageJson from "../package.json" with { type: "json" };
 import { create } from "./commands/create";
 import { shadcnAdd } from "./commands/shadcn/add";
 import { codemodCommand, upgradeCommand } from "./commands/upgrade";
