@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.50
+
+### Patch Changes
+
+- fix: properly forward unstable_shouldContinueIgnoreToolNames
+
 ## 0.7.49
 
 ### Patch Changes

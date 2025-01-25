@@ -31,13 +31,20 @@ export type LocalRuntimeOptions = Omit<LocalRuntimeOptionsBase, "adapters"> & {
 export const splitLocalRuntimeOptions = <T extends LocalRuntimeOptions>(
   options: T,
 ) => {
-  const { initialMessages, maxSteps, adapters, ...rest } = options;
+  const {
+    initialMessages,
+    maxSteps,
+    adapters,
+    unstable_shouldContinueIgnoreToolNames,
+    ...rest
+  } = options;
 
   return {
     localRuntimeOptions: {
       initialMessages,
       maxSteps,
       adapters,
+      unstable_shouldContinueIgnoreToolNames,
     },
     otherOptions: rest,
   };
