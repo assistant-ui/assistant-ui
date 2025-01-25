@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.53
+
+### Patch Changes
+
+- 7618bf3: feat: AI SDK DataStream ReasoningDelta, StartStep support
+
 ## 0.7.52
 
 ### Patch Changes

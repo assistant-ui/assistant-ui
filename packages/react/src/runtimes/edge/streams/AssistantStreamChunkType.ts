@@ -9,8 +9,10 @@ export enum AssistantStreamChunkType {
   ToolCallResult = "a",
   ToolCallBegin = "b",
   ToolCallDelta = "c",
-  Finish = "d",
-  StepFinish = "e",
+  FinishMessage = "d",
+  FinishStep = "e",
+  StartStep = "f",
+  ReasoningDelta = "g",
 }
 
 export type AssistantStreamChunk = {
@@ -35,7 +37,7 @@ export type AssistantStreamChunk = {
     result: any;
   };
   [AssistantStreamChunkType.Error]: unknown;
-  [AssistantStreamChunkType.StepFinish]: {
+  [AssistantStreamChunkType.FinishStep]: {
     finishReason:
       | "stop"
       | "length"
@@ -50,10 +52,14 @@ export type AssistantStreamChunk = {
     };
     isContinued: boolean;
   };
-  [AssistantStreamChunkType.Finish]: Omit<
+  [AssistantStreamChunkType.FinishMessage]: Omit<
     LanguageModelV1StreamPart & {
       type: "finish";
     },
     "type"
   >;
+  [AssistantStreamChunkType.StartStep]: {
+    id: string;
+  };
+  [AssistantStreamChunkType.ReasoningDelta]: string;
 };

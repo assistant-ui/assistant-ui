@@ -86,7 +86,7 @@ export function assistantDecoderStream() {
           });
           break;
         }
-        case AssistantStreamChunkType.Finish: {
+        case AssistantStreamChunkType.FinishMessage: {
           controller.enqueue({
             type: "finish",
             ...value,
@@ -123,7 +123,7 @@ export function assistantDecoderStream() {
           break;
         }
 
-        case AssistantStreamChunkType.StepFinish: {
+        case AssistantStreamChunkType.FinishStep: {
           controller.enqueue({
             type: "step-finish",
             ...value,
@@ -139,6 +139,8 @@ export function assistantDecoderStream() {
           break;
 
         // TODO
+        case AssistantStreamChunkType.ReasoningDelta:
+        case AssistantStreamChunkType.StartStep:
         case AssistantStreamChunkType.Annotation:
           break;
 

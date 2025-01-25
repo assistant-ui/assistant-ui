@@ -71,7 +71,7 @@ export function assistantEncoderStream() {
         case "step-finish": {
           const { type, ...rest } = chunk;
           controller.enqueue({
-            type: AssistantStreamChunkType.StepFinish,
+            type: AssistantStreamChunkType.FinishStep,
             value: rest,
           });
           break;
@@ -80,7 +80,7 @@ export function assistantEncoderStream() {
         case "finish": {
           const { type, ...rest } = chunk;
           controller.enqueue({
-            type: AssistantStreamChunkType.Finish,
+            type: AssistantStreamChunkType.FinishMessage,
             value: rest,
           });
           break;
