@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.7.54
+
+### Patch Changes
+
+- 6cb7d10: refactor: rename ModelConfig to ModelContext
+- c302933: feat: convertExternalMessages
+
 ## 0.7.53
 
 ### Patch Changes

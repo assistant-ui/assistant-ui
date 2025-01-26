@@ -1,5 +1,14 @@
 # @assistant-ui/react-playground
 
+## 0.1.15
+
+### Patch Changes
+
+- 6cb7d10: refactor: rename ModelConfig to ModelContext
+- Updated dependencies [6cb7d10]
+- Updated dependencies [c302933]
+  - @assistant-ui/react@0.7.54
+
 ## 0.1.14
 
 ### Patch Changes
