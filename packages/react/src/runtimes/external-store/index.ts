@@ -5,4 +5,7 @@ export type {
 export type { ThreadMessageLike } from "./ThreadMessageLike";
 export { useExternalStoreRuntime } from "./useExternalStoreRuntime";
 export { getExternalStoreMessage } from "./getExternalStoreMessage";
-export { useExternalMessageConverter } from "./external-message-converter";
+export {
+  useExternalMessageConverter,
+  convertExternalMessages as unstable_convertExternalMessages,
+} from "./external-message-converter";

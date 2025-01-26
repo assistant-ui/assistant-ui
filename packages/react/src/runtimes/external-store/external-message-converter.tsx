@@ -177,6 +177,34 @@ const chunkExternalMessages = <T,>(callbackResults: CallbackResult<T>[]) => {
   return results;
 };
 
+export const convertExternalMessages = <T extends WeakKey>(
+  messages: T[],
+  callback: useExternalMessageConverter.Callback<T>,
+  isRunning: boolean,
+) => {
+  const callbackResults: CallbackResult<T>[] = [];
+  for (const message of messages) {
+    const output = callback(message);
+    const outputs = Array.isArray(output) ? output : [output];
+    const result = { input: message, outputs };
+    callbackResults.push(result);
+  }
+
+  const chunks = chunkExternalMessages(callbackResults);
+
+  return chunks.map((message, idx) => {
+    const isLast = idx === chunks.length - 1;
+    const autoStatus = getAutoStatus(isLast, isRunning);
+    const newMessage = fromThreadMessageLike(
+      joinExternalMessages(message.outputs),
+      idx.toString(),
+      autoStatus,
+    );
+    (newMessage as any)[symbolInnerMessage] = message.inputs;
+    return newMessage;
+  });
+};
+
 export const useExternalMessageConverter = <T extends WeakKey>({
   callback,
   messages,
