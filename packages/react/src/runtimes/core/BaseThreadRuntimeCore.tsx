@@ -1,8 +1,4 @@
-import type {
-  ModelConfigProvider,
-  AppendMessage,
-  Unsubscribe,
-} from "../../types";
+import type { AppendMessage, Unsubscribe } from "../../types";
 import {
   ExportedMessageRepository,
   MessageRepository,
@@ -24,6 +20,7 @@ import { SpeechSynthesisAdapter } from "../adapters/speech/SpeechAdapterTypes";
 import { FeedbackAdapter } from "../adapters/feedback/FeedbackAdapter";
 import { AttachmentAdapter } from "../adapters/attachment";
 import { getThreadMessageText } from "../../utils/getThreadMessageText";
+import { ModelContextProvider } from "../../model-context";
 
 type BaseThreadAdapters = {
   speech?: SpeechSynthesisAdapter | undefined;
@@ -53,10 +50,10 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
 
   public readonly composer = new DefaultThreadComposerRuntimeCore(this);
 
-  constructor(private readonly _configProvider: ModelConfigProvider) {}
+  constructor(private readonly _contextProvider: ModelContextProvider) {}
 
-  public getModelConfig() {
-    return this._configProvider.getModelConfig();
+  public getModelContext() {
+    return this._contextProvider.getModelContext();
   }
 
   private _editComposers = new Map<string, DefaultEditComposerRuntimeCore>();
@@ -187,8 +184,8 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
   >();
 
   public unstable_on(event: ThreadRuntimeEventType, callback: () => void) {
-    if (event === "model-config-update") {
-      return this._configProvider.subscribe?.(callback) ?? (() => {});
+    if (event === "model-context-update") {
+      return this._contextProvider.subscribe?.(callback) ?? (() => {});
     }
 
     const subscribers = this._eventSubscribers.get(event);

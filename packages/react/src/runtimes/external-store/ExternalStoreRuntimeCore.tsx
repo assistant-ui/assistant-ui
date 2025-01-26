@@ -16,8 +16,7 @@ export class ExternalStoreRuntimeCore extends BaseAssistantRuntimeCore {
     super();
     this.threads = new ExternalStoreThreadListRuntimeCore(
       getThreadListAdapter(adapter),
-      () =>
-        new ExternalStoreThreadRuntimeCore(this._proxyConfigProvider, adapter),
+      () => new ExternalStoreThreadRuntimeCore(this._contextProvider, adapter),
     );
   }
 

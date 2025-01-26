@@ -9,7 +9,6 @@ import { CoreMessage, ThreadStep } from "../../types/AssistantTypes";
 import { assistantEncoderStream } from "./streams/assistantEncoderStream";
 import { EdgeRuntimeRequestOptionsSchema } from "./EdgeRuntimeRequestOptions";
 import { toLanguageModelMessages } from "./converters/toLanguageModelMessages";
-import { Tool } from "../../types";
 import { toLanguageModelTools } from "./converters/toLanguageModelTools";
 import {
   toolResultStream,
@@ -20,7 +19,8 @@ import {
   LanguageModelConfig,
   LanguageModelV1CallSettings,
   LanguageModelV1CallSettingsSchema,
-} from "../../types/ModelConfigTypes";
+  Tool,
+} from "../../model-context/ModelContextTypes";
 import { CoreChatModelRunResult } from "../local/ChatModelAdapter";
 import { streamPartEncoderStream } from "./streams/utils/streamPartEncoderStream";
 import { z } from "zod";

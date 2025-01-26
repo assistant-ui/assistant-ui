@@ -29,7 +29,7 @@ export const PayloadEditorButton: FC = () => {
     setIsOpen(open);
     if (!open) return;
 
-    const config = runtime.useModelConfig.getState();
+    const config = runtime.useModelContext.getState();
     const options: EdgeRuntimeRequestOptions = {
       modelName: config.config?.modelName ?? "gpt-4o",
       messages: toCoreMessages(runtime.getState().messages),

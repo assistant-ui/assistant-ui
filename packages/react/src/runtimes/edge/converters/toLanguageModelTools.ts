@@ -2,7 +2,7 @@ import { LanguageModelV1FunctionTool } from "@ai-sdk/provider";
 import { JSONSchema7 } from "json-schema";
 import { z } from "zod";
 import zodToJsonSchema from "zod-to-json-schema";
-import { Tool } from "../../../types/ModelConfigTypes";
+import { Tool } from "../../../model-context/ModelContextTypes";
 
 export const toLanguageModelTools = (
   tools: Record<string, Tool<any, any>>,

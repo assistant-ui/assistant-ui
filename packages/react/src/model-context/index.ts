@@ -10,3 +10,17 @@ export {
   type AssistantToolUIProps,
 } from "./useAssistantToolUI";
 export { useInlineRender } from "./useInlineRender";
+
+export type {
+  /**
+   * @deprecated This type was renamed to `ModelContext`.
+   */
+  ModelContext as AssistantConfig,
+  /**
+   * @deprecated This type was renamed to `ModelContextProvider`.
+   */
+  ModelContextProvider as AssistantConfigProvider,
+  ModelContext,
+  ModelContextProvider,
+  Tool,
+} from "./ModelContextTypes";

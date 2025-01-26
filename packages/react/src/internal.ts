@@ -1,7 +1,7 @@
 export type { ThreadRuntimeCore } from "./runtimes/core/ThreadRuntimeCore";
 export type { ThreadListRuntimeCore } from "./runtimes/core/ThreadListRuntimeCore";
 export { DefaultThreadComposerRuntimeCore } from "./runtimes/composer/DefaultThreadComposerRuntimeCore";
-export { ProxyConfigProvider } from "./utils/ProxyConfigProvider";
+export { CompositeContextProvider } from "./utils/CompositeContextProvider";
 export { MessageRepository } from "./runtimes/utils/MessageRepository";
 export { BaseAssistantRuntimeCore } from "./runtimes/core/BaseAssistantRuntimeCore";
 export { TooltipIconButton } from "./ui/base/tooltip-icon-button";

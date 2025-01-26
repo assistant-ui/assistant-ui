@@ -189,7 +189,7 @@ const Composer: FC = () => {
 const AddToolCallButton = () => {
   const messageRuntime = useMessageRuntime();
   const runtime = usePlaygroundRuntime();
-  const toolNames = runtime.useModelConfig(
+  const toolNames = runtime.useModelContext(
     useShallow((c) => Object.keys(c.tools ?? {})),
   );
   return (

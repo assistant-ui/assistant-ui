@@ -27,8 +27,8 @@ export const useAssistantInstructions = (
     const config = {
       system: instruction,
     };
-    return assistantRuntime.registerModelConfigProvider({
-      getModelConfig: () => config,
+    return assistantRuntime.registerModelContextProvider({
+      getModelContext: () => config,
     });
   }, [assistantRuntime, instruction]);
 };

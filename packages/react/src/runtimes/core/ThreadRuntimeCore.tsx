@@ -1,4 +1,5 @@
-import { AppendMessage, ModelConfig, ThreadMessage } from "../../types";
+import { ModelContext } from "../../model-context";
+import { AppendMessage, ThreadMessage } from "../../types";
 import { RunConfig } from "../../types/AssistantTypes";
 import type { Unsubscribe } from "../../types/Unsubscribe";
 import { SpeechSynthesisAdapter } from "../adapters/speech/SpeechAdapterTypes";
@@ -48,7 +49,7 @@ export type ThreadRuntimeEventType =
   | "run-start"
   | "run-end"
   | "initialize"
-  | "model-config-update";
+  | "model-context-update";
 
 export type StartRunConfig = {
   parentId: string | null;
@@ -79,7 +80,7 @@ export type ThreadRuntimeCore = Readonly<{
   getSubmittedFeedback: (messageId: string) => SubmittedFeedback | undefined;
   submitFeedback: (feedback: SubmitFeedbackOptions) => void;
 
-  getModelConfig: () => ModelConfig;
+  getModelContext: () => ModelContext;
 
   composer: ThreadComposerRuntimeCore;
   getEditComposer: (messageId: string) => ComposerRuntimeCore | undefined;

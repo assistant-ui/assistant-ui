@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  type ModelConfig,
+  type ModelContext,
   type ToolCallContentPartComponent,
   useAssistantRuntime,
   useAssistantToolUI,
@@ -64,7 +64,7 @@ export const useAssistantForm = <
 
   const assistantRuntime = useAssistantRuntime();
   useEffect(() => {
-    const value: ModelConfig = {
+    const value: ModelContext = {
       system: `Form State:\n${JSON.stringify(getValues())}`,
 
       tools: {
@@ -107,8 +107,8 @@ export const useAssistantForm = <
         },
       },
     };
-    return assistantRuntime.registerModelConfigProvider({
-      getModelConfig: () => value,
+    return assistantRuntime.registerModelContextProvider({
+      getModelContext: () => value,
     });
   }, [control, setValue, getValues, assistantRuntime]);
 

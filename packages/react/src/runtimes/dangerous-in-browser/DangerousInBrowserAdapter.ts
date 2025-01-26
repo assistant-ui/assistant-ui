@@ -18,21 +18,21 @@ export type DangerousInBrowserAdapterOptions = CreateEdgeRuntimeAPIOptions;
 export class DangerousInBrowserAdapter implements ChatModelAdapter {
   constructor(private options: DangerousInBrowserAdapterOptions) {}
 
-  async *run({ messages, abortSignal, config }: ChatModelRunOptions) {
+  async *run({ messages, abortSignal, context }: ChatModelRunOptions) {
     const res = await getEdgeRuntimeStream({
       options: this.options,
       abortSignal,
       requestData: {
-        system: config.system,
+        system: context.system,
         messages: toCoreMessages(messages),
-        tools: config.tools ? toLanguageModelTools(config.tools) : [],
-        ...config.callSettings,
-        ...config.config,
+        tools: context.tools ? toLanguageModelTools(context.tools) : [],
+        ...context.callSettings,
+        ...context.config,
       } satisfies EdgeRuntimeRequestOptions,
     });
 
     const stream = res
-      .pipeThrough(toolResultStream(config.tools, abortSignal))
+      .pipeThrough(toolResultStream(context.tools, abortSignal))
       .pipeThrough(runResultStream());
 
     for await (const update of asAsyncIterable(stream)) {

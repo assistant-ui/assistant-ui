@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { JSONSchema7 } from "json-schema";
-import { Unsubscribe } from "./Unsubscribe";
+import { Unsubscribe } from "../types/Unsubscribe";
 
 export const LanguageModelV1CallSettingsSchema = z.object({
   maxTokens: z.number().int().positive().optional(),
@@ -40,7 +40,7 @@ export type Tool<
   execute?: ToolExecuteFunction<TArgs, TResult>;
 };
 
-export type ModelConfig = {
+export type ModelContext = {
   priority?: number | undefined;
   system?: string | undefined;
   tools?: Record<string, Tool<any, any>> | undefined;
@@ -48,16 +48,16 @@ export type ModelConfig = {
   config?: LanguageModelConfig | undefined;
 };
 
-export type ModelConfigProvider = {
-  getModelConfig: () => ModelConfig;
+export type ModelContextProvider = {
+  getModelContext: () => ModelContext;
   subscribe?: (callback: () => void) => Unsubscribe;
 };
 
-export const mergeModelConfigs = (
-  configSet: Set<ModelConfigProvider>,
-): ModelConfig => {
+export const mergeModelContexts = (
+  configSet: Set<ModelContextProvider>,
+): ModelContext => {
   const configs = Array.from(configSet)
-    .map((c) => c.getModelConfig())
+    .map((c) => c.getModelContext())
     .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
 
   return configs.reduce((acc, config) => {
@@ -93,5 +93,5 @@ export const mergeModelConfigs = (
       };
     }
     return acc;
-  }, {} as ModelConfig);
+  }, {} as ModelContext);
 };

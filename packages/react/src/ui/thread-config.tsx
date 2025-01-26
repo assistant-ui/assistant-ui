@@ -17,7 +17,7 @@ import {
   ToolCallContentPartProps,
 } from "../types";
 import { AssistantRuntimeProvider } from "../context";
-import { AssistantToolUI } from "../model-config";
+import { AssistantToolUI } from "../model-context";
 import { useAssistantRuntime } from "../context/react/AssistantContext";
 
 export type SuggestionConfig = {

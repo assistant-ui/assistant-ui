@@ -6,8 +6,8 @@ import {
   EdgeRuntimeRequestOptions,
   fromCoreMessages,
   fromLanguageModelTools,
-  ModelConfig,
-  ModelConfigProvider,
+  ModelContext,
+  ModelContextProvider,
   TextContentPart,
   ThreadAssistantContentPart,
   ThreadUserContentPart,
@@ -32,7 +32,7 @@ import { StartRunConfig } from "@assistant-ui/react/runtimes/core/ThreadRuntimeC
 
 const {
   BaseAssistantRuntimeCore,
-  ProxyConfigProvider,
+  CompositeContextProvider,
   generateId,
   DefaultThreadComposerRuntimeCore,
   AssistantRuntimeImpl,
@@ -41,8 +41,8 @@ const {
   getAutoStatus,
 } = INTERNAL;
 
-const makeModelConfigStore = () =>
-  create<ModelConfig>(() => ({
+const makeModelContextStore = () =>
+  create<ModelContext>(() => ({
     system: "",
     tools: {},
     callSettings: {
@@ -160,7 +160,7 @@ class PlaygroundRuntimeCore extends BaseAssistantRuntimeCore {
         );
       });
       const thread = new PlaygroundThreadRuntimeCore(
-        this._proxyConfigProvider,
+        this._contextProvider,
         messages,
         adapter,
       );
@@ -169,10 +169,10 @@ class PlaygroundRuntimeCore extends BaseAssistantRuntimeCore {
     });
   }
 
-  public override registerModelConfigProvider(
-    provider: ModelConfigProvider,
+  public override registerModelContextProvider(
+    provider: ModelContextProvider,
   ): Unsubscribe {
-    return this._proxyConfigProvider.registerModelConfigProvider(provider);
+    return this._contextProvider.registerModelContextProvider(provider);
   }
 }
 
@@ -207,7 +207,7 @@ export class PlaygroundThreadRuntimeCore implements INTERNAL.ThreadRuntimeCore {
   public readonly speech = undefined;
   public readonly adapters = undefined;
 
-  private configProvider = new ProxyConfigProvider();
+  private contextProvider = new CompositeContextProvider();
 
   public readonly composer = new DefaultThreadComposerRuntimeCore(this);
 
@@ -220,18 +220,18 @@ export class PlaygroundThreadRuntimeCore implements INTERNAL.ThreadRuntimeCore {
   }
 
   constructor(
-    configProvider: ModelConfigProvider,
+    contextProvider: ModelContextProvider,
     private _messages: ThreadMessage[],
     public readonly adapter: ChatModelAdapter,
   ) {
-    this.configProvider.registerModelConfigProvider(configProvider);
-    this.configProvider.registerModelConfigProvider({
-      getModelConfig: () => this.useModelConfig.getState(),
+    this.contextProvider.registerModelContextProvider(contextProvider);
+    this.contextProvider.registerModelContextProvider({
+      getModelContext: () => this.useModelContext.getState(),
     });
   }
 
-  public getModelConfig() {
-    return this.configProvider.getModelConfig();
+  public getModelContext() {
+    return this.contextProvider.getModelContext();
   }
 
   public setRequestData({
@@ -244,7 +244,7 @@ export class PlaygroundThreadRuntimeCore implements INTERNAL.ThreadRuntimeCore {
     ...callSettings
   }: EdgeRuntimeRequestOptions) {
     this.setMessages(fromCoreMessages(messages));
-    const config: ModelConfig = {
+    const context: ModelContext = {
       system,
       tools: tools
         ? fromLanguageModelTools(tools as LanguageModelV1FunctionTool[])
@@ -256,10 +256,10 @@ export class PlaygroundThreadRuntimeCore implements INTERNAL.ThreadRuntimeCore {
         modelName,
       },
     };
-    this.useModelConfig.setState(config);
+    this.useModelContext.setState(context);
   }
 
-  public readonly useModelConfig = makeModelConfigStore();
+  public readonly useModelContext = makeModelContextStore();
 
   public get messages() {
     return this._messages;
@@ -323,11 +323,13 @@ export class PlaygroundThreadRuntimeCore implements INTERNAL.ThreadRuntimeCore {
     };
 
     try {
+      const context = this.contextProvider.getModelContext();
       const promiseOrGenerator = this.adapter.run({
         messages,
         runConfig: runConfig ?? {},
         abortSignal: this.abortController.signal,
-        config: this.configProvider.getModelConfig(),
+        context,
+        config: context,
       });
 
       if (Symbol.asyncIterator in promiseOrGenerator) {
@@ -642,7 +644,7 @@ export class PlaygroundThreadRuntimeCore implements INTERNAL.ThreadRuntimeCore {
 }
 
 export type PlaygroundThreadRuntime = ThreadRuntime & {
-  useModelConfig: PlaygroundThreadRuntimeCore["useModelConfig"];
+  useModelContext: PlaygroundThreadRuntimeCore["useModelContext"];
   addImage: PlaygroundThreadRuntimeCore["addImage"];
   addTool: PlaygroundThreadRuntimeCore["addTool"];
   deleteMessage: PlaygroundThreadRuntimeCore["deleteMessage"];
@@ -715,8 +717,8 @@ class PlaygroundThreadRuntimeImpl
     return this._getState().deleteContentPart(messageId, part);
   }
 
-  public get useModelConfig() {
-    return this._getState().useModelConfig;
+  public get useModelContext() {
+    return this._getState().useModelContext;
   }
 }
 

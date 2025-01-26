@@ -129,7 +129,7 @@ Declare the `run` function as an `AsyncGenerator` (`async *run`). This allows yo
 import {
   ChatModelAdapter,
   ThreadMessage,
-  ModelConfig,
+  type ModelContext,
 } from "@assistant-ui/react";
 import { OpenAI } from "openai";
 
@@ -137,11 +137,11 @@ const openai = new OpenAI();
 const backendApi = async ({
   messages,
   abortSignal,
-  config,
+  context,
 }: {
   messages: ThreadMessage[];
   abortSignal: AbortSignal;
-  config: ModelConfig;
+  context: ModelContext;
 }) => {
   return openai.chat.completions.create({
     model: "gpt-4o",
@@ -152,8 +152,8 @@ const backendApi = async ({
 
 // ---cut---
 const MyModelAdapter: ChatModelAdapter = {
-  async *run({ messages, abortSignal, config }) {
-    const stream = await backendApi({ messages, abortSignal, config });
+  async *run({ messages, abortSignal, context }) {
+    const stream = await backendApi({ messages, abortSignal, context });
 
     let text = "";
     for await (const part of stream) {

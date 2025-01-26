@@ -2,7 +2,7 @@ import { JSONSchema7 } from "json-schema";
 import {
   LanguageModelConfigSchema,
   LanguageModelV1CallSettingsSchema,
-} from "../../types/ModelConfigTypes";
+} from "../../model-context/ModelContextTypes";
 import { z } from "zod";
 
 const LanguageModelV1FunctionToolSchema = z.object({

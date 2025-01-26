@@ -1,9 +1,5 @@
 import { generateId } from "../../internal";
-import type {
-  ModelConfigProvider,
-  AppendMessage,
-  ThreadAssistantMessage,
-} from "../../types";
+import type { AppendMessage, ThreadAssistantMessage } from "../../types";
 import { fromCoreMessage } from "../edge";
 import type { ChatModelRunResult } from "./ChatModelAdapter";
 import { shouldContinue } from "./shouldContinue";
@@ -16,6 +12,7 @@ import {
 } from "../core/ThreadRuntimeCore";
 import { BaseThreadRuntimeCore } from "../core/BaseThreadRuntimeCore";
 import { RunConfig } from "../../types/AssistantTypes";
+import { ModelContextProvider } from "../../model-context";
 
 export class LocalThreadRuntimeCore
   extends BaseThreadRuntimeCore
@@ -42,10 +39,10 @@ export class LocalThreadRuntimeCore
   }
 
   constructor(
-    configProvider: ModelConfigProvider,
+    contextProvider: ModelContextProvider,
     options: LocalRuntimeOptionsBase,
   ) {
-    super(configProvider);
+    super(contextProvider);
     this.__internal_setOptions(options);
   }
 
@@ -212,11 +209,13 @@ export class LocalThreadRuntimeCore
 
     try {
       this._lastRunConfig = runConfig ?? {};
+      const context = this.getModelContext();
       const promiseOrGenerator = this.adapters.chatModel.run({
         messages,
         runConfig: this._lastRunConfig,
         abortSignal: this.abortController.signal,
-        config: this.getModelConfig(),
+        context,
+        config: context,
         unstable_assistantMessageId: message.id,
       });
 

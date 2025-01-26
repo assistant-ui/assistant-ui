@@ -13,7 +13,11 @@ export {
   useThreadRuntime,
   useThread,
   useThreadComposer,
-  useThreadModelConfig,
+  useThreadModelContext,
+  /**
+   * @deprecated This method was renamed to `useThreadModelContext`.
+   */
+  useThreadModelContext as useThreadModelConfig,
   useThreadViewport,
   useThreadViewportStore,
 } from "./ThreadContext";

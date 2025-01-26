@@ -124,11 +124,11 @@ export const AssistantRuntimeProviderProps = () => {
                   description: "A function to subscribe to updates.",
                 },
                 {
-                  name: "registerModelConfigProvider",
-                  type: "(provider: ModelConfigProvider) => Unsubscribe",
+                  name: "registerModelContextProvider",
+                  type: "(provider: ModelContextProvider) => Unsubscribe",
                   required: true,
                   description:
-                    "A function to register a model config provider.",
+                    "A function to register a model context provider.",
                 },
               ],
             },

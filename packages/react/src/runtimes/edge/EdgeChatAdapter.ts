@@ -55,7 +55,7 @@ export class EdgeChatAdapter implements ChatModelAdapter {
     messages,
     runConfig,
     abortSignal,
-    config,
+    context,
     unstable_assistantMessageId,
   }: ChatModelRunOptions) {
     const headers = new Headers(this.options.headers);
@@ -66,7 +66,7 @@ export class EdgeChatAdapter implements ChatModelAdapter {
       headers,
       credentials: this.options.credentials ?? "same-origin",
       body: JSON.stringify({
-        system: config.system,
+        system: context.system,
         messages: this.options.unstable_AISDKInterop
           ? (toLanguageModelMessages(
               messages,
@@ -74,11 +74,11 @@ export class EdgeChatAdapter implements ChatModelAdapter {
           : toCoreMessages(messages, {
               unstable_includeId: this.options.unstable_sendMessageIds,
             }),
-        tools: config.tools ? toLanguageModelTools(config.tools) : [],
+        tools: context.tools ? toLanguageModelTools(context.tools) : [],
         unstable_assistantMessageId,
         runConfig,
-        ...config.callSettings,
-        ...config.config,
+        ...context.callSettings,
+        ...context.config,
 
         ...this.options.body,
       } satisfies EdgeRuntimeRequestOptions),
@@ -92,7 +92,7 @@ export class EdgeChatAdapter implements ChatModelAdapter {
     const stream = result
       .body!.pipeThrough(streamPartDecoderStream())
       .pipeThrough(assistantDecoderStream())
-      .pipeThrough(toolResultStream(config.tools, abortSignal))
+      .pipeThrough(toolResultStream(context.tools, abortSignal))
       .pipeThrough(runResultStream());
 
     let update: ChatModelRunResult | undefined;

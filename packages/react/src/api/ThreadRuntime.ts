@@ -7,12 +7,7 @@ import {
   StartRunConfig,
 } from "../runtimes/core/ThreadRuntimeCore";
 import { ExportedMessageRepository } from "../runtimes/utils/MessageRepository";
-import {
-  AppendMessage,
-  ModelConfig,
-  ThreadMessage,
-  Unsubscribe,
-} from "../types";
+import { AppendMessage, ThreadMessage, Unsubscribe } from "../types";
 import {
   MessageRuntime,
   MessageRuntimeImpl,
@@ -36,6 +31,7 @@ import { ThreadListItemState } from "./ThreadListItemRuntime";
 import { RunConfig } from "../types/AssistantTypes";
 import { EventSubscriptionSubject } from "./subscribable/EventSubscriptionSubject";
 import { symbolInnerMessage } from "../runtimes/external-store/getExternalStoreMessage";
+import { ModelContext } from "../model-context";
 
 export type CreateStartRunConfig = {
   parentId: string | null;
@@ -218,7 +214,13 @@ export type ThreadRuntime = {
   startRun(config: CreateStartRunConfig): void;
   subscribe(callback: () => void): Unsubscribe;
   cancelRun(): void;
-  getModelConfig(): ModelConfig;
+  getModelContext(): ModelContext;
+
+  /**
+   * @deprecated This method was renamed to `getModelContext`.
+   */
+  getModelConfig(): ModelContext;
+
   export(): ExportedMessageRepository;
   import(repository: ExportedMessageRepository): void;
   getMesssageByIndex(idx: number): MessageRuntime;
@@ -298,6 +300,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     this.getMesssageById = this.getMesssageById.bind(this);
     this.subscribe = this.subscribe.bind(this);
     this.unstable_on = this.unstable_on.bind(this);
+    this.getModelContext = this.getModelContext.bind(this);
     this.getModelConfig = this.getModelConfig.bind(this);
     this.getState = this.getState.bind(this);
   }
@@ -320,8 +323,12 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     return this._threadBinding.subscribe(callback);
   }
 
+  public getModelContext() {
+    return this._threadBinding.getState().getModelContext();
+  }
+
   public getModelConfig() {
-    return this._threadBinding.getState().getModelConfig();
+    return this.getModelContext();
   }
 
   public startRun(configOrParentId: string | null | CreateStartRunConfig) {

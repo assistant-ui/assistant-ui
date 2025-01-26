@@ -1,16 +1,16 @@
 import {
-  type ModelConfigProvider,
-  mergeModelConfigs,
-} from "../types/ModelConfigTypes";
+  type ModelContextProvider,
+  mergeModelContexts,
+} from "../model-context/ModelContextTypes";
 
-export class ProxyConfigProvider implements ModelConfigProvider {
-  private _providers = new Set<ModelConfigProvider>();
+export class CompositeContextProvider implements ModelContextProvider {
+  private _providers = new Set<ModelContextProvider>();
 
-  getModelConfig() {
-    return mergeModelConfigs(this._providers);
+  getModelContext() {
+    return mergeModelContexts(this._providers);
   }
 
-  registerModelConfigProvider(provider: ModelConfigProvider) {
+  registerModelContextProvider(provider: ModelContextProvider) {
     this._providers.add(provider);
     const unsubscribe = provider.subscribe?.(() => {
       this.notifySubscribers();

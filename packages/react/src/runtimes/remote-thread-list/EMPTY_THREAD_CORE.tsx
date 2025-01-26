@@ -48,7 +48,7 @@ export const EMPTY_THREAD_CORE: ThreadRuntimeCore = {
     throw EMPTY_THREAD_ERROR;
   },
 
-  getModelConfig() {
+  getModelContext() {
     return {};
   },
 

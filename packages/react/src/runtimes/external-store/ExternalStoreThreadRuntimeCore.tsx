@@ -4,7 +4,7 @@ import {
   ThreadSuggestion,
 } from "../core/ThreadRuntimeCore";
 
-import { AppendMessage, ModelConfigProvider, ThreadMessage } from "../../types";
+import { AppendMessage, ThreadMessage } from "../../types";
 import { ExternalStoreAdapter } from "./ExternalStoreAdapter";
 import {
   getExternalStoreMessage,
@@ -19,6 +19,7 @@ import {
   ThreadRuntimeCore,
 } from "../core/ThreadRuntimeCore";
 import { BaseThreadRuntimeCore } from "../core/BaseThreadRuntimeCore";
+import { ModelContextProvider } from "../../model-context";
 
 const EMPTY_ARRAY = Object.freeze([]);
 
@@ -76,10 +77,10 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   constructor(
-    configProvider: ModelConfigProvider,
+    contextProvider: ModelContextProvider,
     store: ExternalStoreAdapter<any>,
   ) {
-    super(configProvider);
+    super(contextProvider);
     this.__internal_setAdapter(store);
   }
 

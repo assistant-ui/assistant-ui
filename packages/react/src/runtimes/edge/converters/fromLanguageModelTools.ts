@@ -1,5 +1,5 @@
 import { LanguageModelV1FunctionTool } from "@ai-sdk/provider";
-import { Tool } from "../../../types/ModelConfigTypes";
+import { Tool } from "../../../model-context/ModelContextTypes";
 
 export const fromLanguageModelTools = (
   tools: LanguageModelV1FunctionTool[],

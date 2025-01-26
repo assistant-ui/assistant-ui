@@ -129,8 +129,8 @@ const DEFAULT_GET_WEATHER_TOOL: Tool = {
 };
 
 const ToolManager: FC = () => {
-  const { useModelConfig } = usePlaygroundRuntime();
-  const tools = useModelConfig((c) => c.tools) ?? {};
+  const { useModelContext } = usePlaygroundRuntime();
+  const tools = useModelContext((c) => c.tools) ?? {};
 
   return (
     <div className="flex flex-col gap-2">
@@ -140,12 +140,12 @@ const ToolManager: FC = () => {
           name={name}
           tool={tool}
           setTool={(newName, newTool) => {
-            if (useModelConfig.getState().tools?.[newName] && newName !== name)
+            if (useModelContext.getState().tools?.[newName] && newName !== name)
               throw new Error(
                 "A tool with the same name already exists. Tool names must be unique.",
               );
 
-            useModelConfig.setState({
+            useModelContext.setState({
               tools: Object.fromEntries(
                 Object.entries(tools).map(([k, v]) =>
                   k === name ? [newName, newTool] : [k, v],
@@ -155,7 +155,7 @@ const ToolManager: FC = () => {
           }}
           deleteTool={() => {
             const { [name]: _, ...otherTools } = tools;
-            useModelConfig.setState({
+            useModelContext.setState({
               tools: otherTools,
             });
           }}
@@ -165,12 +165,12 @@ const ToolManager: FC = () => {
         name={"get_weather"}
         tool={DEFAULT_GET_WEATHER_TOOL}
         setTool={(name, newTool) => {
-          if (useModelConfig.getState().tools?.[name])
+          if (useModelContext.getState().tools?.[name])
             throw new Error(
               "A tool with the same name already exists. Tool names must be unique.",
             );
 
-          useModelConfig.setState({
+          useModelContext.setState({
             tools: {
               ...tools,
               [name]: newTool,
@@ -185,11 +185,11 @@ const ToolManager: FC = () => {
 };
 
 const APIKeyInput: FC = () => {
-  const { useModelConfig } = usePlaygroundRuntime();
-  const value = useModelConfig((c) => c.config?.apiKey) ?? "";
+  const { useModelContext } = usePlaygroundRuntime();
+  const value = useModelContext((c) => c.config?.apiKey) ?? "";
   const setValue = (e: ChangeEvent<HTMLInputElement>) => {
-    useModelConfig.setState({
-      config: { ...useModelConfig.getState().config, apiKey: e.target.value },
+    useModelContext.setState({
+      config: { ...useModelContext.getState().config, apiKey: e.target.value },
     });
   };
 
@@ -213,12 +213,12 @@ type ModelSelectorProps = {
 const ModelSelector: FC<ModelSelectorProps> = ({
   models = ["gpt-4", "gpt-4o"],
 }) => {
-  const { useModelConfig } = usePlaygroundRuntime();
-  const value = useModelConfig((c) => c.config?.modelName) ?? "";
+  const { useModelContext } = usePlaygroundRuntime();
+  const value = useModelContext((c) => c.config?.modelName) ?? "";
   const setValue = (value: string) => {
-    useModelConfig.setState({
+    useModelContext.setState({
       config: {
-        ...useModelConfig.getState().config,
+        ...useModelContext.getState().config,
         modelName: value,
       },
     });
@@ -244,12 +244,12 @@ const ModelSelector: FC<ModelSelectorProps> = ({
 };
 
 const TemperatureSlider: FC = () => {
-  const { useModelConfig } = usePlaygroundRuntime();
-  const value = useModelConfig((c) => c.callSettings?.temperature) ?? 1;
+  const { useModelContext } = usePlaygroundRuntime();
+  const value = useModelContext((c) => c.callSettings?.temperature) ?? 1;
   const setValues = ([value]: number[]) => {
-    useModelConfig.setState({
+    useModelContext.setState({
       callSettings: {
-        ...useModelConfig.getState().callSettings,
+        ...useModelContext.getState().callSettings,
         temperature: value,
       },
     });
@@ -281,12 +281,12 @@ const TemperatureSlider: FC = () => {
 };
 
 const MaxTokensSlider: FC = () => {
-  const { useModelConfig } = usePlaygroundRuntime();
-  const value = useModelConfig((c) => c.callSettings?.maxTokens) ?? 256;
+  const { useModelContext } = usePlaygroundRuntime();
+  const value = useModelContext((c) => c.callSettings?.maxTokens) ?? 256;
   const setValues = ([value]: number[]) => {
-    useModelConfig.setState({
+    useModelContext.setState({
       callSettings: {
-        ...useModelConfig.getState().callSettings,
+        ...useModelContext.getState().callSettings,
         maxTokens: value,
       },
     });

@@ -39,10 +39,7 @@ export class LocalRuntimeCore extends BaseAssistantRuntimeCore {
     this._options = options;
 
     this.threads = new LocalThreadListRuntimeCore(() => {
-      return new LocalThreadRuntimeCore(
-        this._proxyConfigProvider,
-        this._options,
-      );
+      return new LocalThreadRuntimeCore(this._contextProvider, this._options);
     });
 
     if (initialMessages) {

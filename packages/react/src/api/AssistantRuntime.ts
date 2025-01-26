@@ -1,5 +1,5 @@
 import { AssistantRuntimeCore } from "../runtimes/core/AssistantRuntimeCore";
-import { ModelConfigProvider } from "../types/ModelConfigTypes";
+import { ModelContextProvider } from "../model-context/ModelContextTypes";
 import {
   ThreadListItemRuntimeBinding,
   ThreadRuntime,
@@ -28,7 +28,7 @@ export type AssistantRuntime = {
   /**
    * Switch to a new thread.
    *
-   * @deprecated This field was moved to `threads.switchToNewThread`.
+   * @deprecated This method was moved to `threads.switchToNewThread`.
    */
   switchToNewThread(): void;
 
@@ -36,16 +36,21 @@ export type AssistantRuntime = {
    * Switch to a thread.
    *
    * @param threadId The thread ID to switch to.
-   * @deprecated This field was moved to `threads.switchToThread`.
+   * @deprecated This method was moved to `threads.switchToThread`.
    */
   switchToThread(threadId: string): void;
 
   /**
-   * Register a model config provider. Model config providers are configuration such as system message, temperature, etc. that are set in the frontend.
+   * Register a model context provider. Model context providers are configuration such as system message, temperature, etc. that are set in the frontend.
    *
-   * @param provider The model config provider to register.
+   * @param provider The model context provider to register.
    */
-  registerModelConfigProvider(provider: ModelConfigProvider): Unsubscribe;
+  registerModelContextProvider(provider: ModelContextProvider): Unsubscribe;
+
+  /**
+   * @deprecated This method was renamed to `registerModelContextProvider`.
+   */
+  registerModelConfigProvider(provider: ModelContextProvider): Unsubscribe;
 };
 
 export class AssistantRuntimeImpl implements AssistantRuntime {
@@ -70,8 +75,8 @@ export class AssistantRuntimeImpl implements AssistantRuntime {
   protected __internal_bindMethods() {
     this.switchToNewThread = this.switchToNewThread.bind(this);
     this.switchToThread = this.switchToThread.bind(this);
-    this.registerModelConfigProvider =
-      this.registerModelConfigProvider.bind(this);
+    this.registerModelContextProvider =
+      this.registerModelContextProvider.bind(this);
   }
 
   public get thread() {
@@ -86,8 +91,12 @@ export class AssistantRuntimeImpl implements AssistantRuntime {
     return this._core.threads.switchToThread(threadId);
   }
 
-  public registerModelConfigProvider(provider: ModelConfigProvider) {
-    return this._core.registerModelConfigProvider(provider);
+  public registerModelContextProvider(provider: ModelContextProvider) {
+    return this._core.registerModelContextProvider(provider);
+  }
+
+  public registerModelConfigProvider(provider: ModelContextProvider) {
+    return this.registerModelContextProvider(provider);
   }
 
   public static create(

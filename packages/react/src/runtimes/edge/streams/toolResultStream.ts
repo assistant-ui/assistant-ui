@@ -1,4 +1,4 @@
-import { Tool } from "../../../types/ModelConfigTypes";
+import { Tool } from "../../../model-context/ModelContextTypes";
 import { JSONValue, LanguageModelV1StreamPart } from "@ai-sdk/provider";
 import { z } from "zod";
 import sjson from "secure-json-parse";

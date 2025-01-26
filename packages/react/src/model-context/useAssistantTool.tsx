@@ -6,7 +6,7 @@ import {
   useToolUIsStore,
 } from "../context/react/AssistantContext";
 import type { ToolCallContentPartComponent } from "../types/ContentPartComponentTypes";
-import type { Tool } from "../types/ModelConfigTypes";
+import type { Tool } from "./ModelContextTypes";
 
 export type AssistantToolProps<
   TArgs extends Record<string, unknown>,
@@ -36,13 +36,13 @@ export const useAssistantTool = <
     const { toolName, render, disabled, ...rest } = tool;
     if (disabled) return;
 
-    const config = {
+    const context = {
       tools: {
         [toolName]: rest,
       },
     };
-    return assistantRuntime.registerModelConfigProvider({
-      getModelConfig: () => config,
+    return assistantRuntime.registerModelContextProvider({
+      getModelContext: () => context,
     });
   }, [assistantRuntime, tool]);
 };

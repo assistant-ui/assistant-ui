@@ -7,7 +7,7 @@ import type {
   ThreadStep,
   ToolCallContentPart,
 } from "../../types/AssistantTypes";
-import type { ModelConfig } from "../../types/ModelConfigTypes";
+import type { ModelContext } from "../../model-context/ModelContextTypes";
 
 export type ChatModelRunUpdate = {
   content: ThreadAssistantContentPart[];
@@ -32,7 +32,12 @@ export type ChatModelRunOptions = {
   messages: ThreadMessage[];
   runConfig: RunConfig;
   abortSignal: AbortSignal;
-  config: ModelConfig;
+  context: ModelContext;
+
+  /**
+   * @deprecated This field was renamed to `context`.
+   */
+  config: ModelContext;
 
   unstable_assistantMessageId?: string;
 };

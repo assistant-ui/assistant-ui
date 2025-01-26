@@ -1,18 +1,16 @@
-import { type ModelConfigProvider } from "../../types/ModelConfigTypes";
+import { type ModelContextProvider } from "../../model-context/ModelContextTypes";
 import type { Unsubscribe } from "../../types/Unsubscribe";
 import type { AssistantRuntimeCore } from "./AssistantRuntimeCore";
-import { ProxyConfigProvider } from "../../utils/ProxyConfigProvider";
+import { CompositeContextProvider } from "../../utils/CompositeContextProvider";
 import { ThreadListRuntimeCore } from "./ThreadListRuntimeCore";
 
 export abstract class BaseAssistantRuntimeCore implements AssistantRuntimeCore {
-  protected readonly _proxyConfigProvider = new ProxyConfigProvider();
+  protected readonly _contextProvider = new CompositeContextProvider();
   public abstract get threads(): ThreadListRuntimeCore;
 
-  constructor() {}
-
-  public registerModelConfigProvider(
-    provider: ModelConfigProvider,
+  public registerModelContextProvider(
+    provider: ModelContextProvider,
   ): Unsubscribe {
-    return this._proxyConfigProvider.registerModelConfigProvider(provider);
+    return this._contextProvider.registerModelContextProvider(provider);
   }
 }
