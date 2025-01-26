@@ -1,11 +1,20 @@
 "use client";
 
-import { forwardRef } from "react";
-import { useActionBarFeedbackPositive } from "../../primitive-hooks/actionBar/useActionBarFeedbackPositive";
+import { forwardRef, useCallback } from "react";
 import { ActionButtonProps } from "../../utils/createActionButton";
 import { composeEventHandlers } from "@radix-ui/primitive";
-import { useMessage } from "../../context";
+import { useMessage, useMessageRuntime } from "../../context";
 import { Primitive } from "@radix-ui/react-primitive";
+
+const useActionBarFeedbackPositive = () => {
+  const messageRuntime = useMessageRuntime();
+
+  const callback = useCallback(() => {
+    messageRuntime.submitFeedback({ type: "positive" });
+  }, [messageRuntime]);
+
+  return callback;
+};
 
 export namespace ActionBarPrimitiveFeedbackPositive {
   export type Element = HTMLButtonElement;

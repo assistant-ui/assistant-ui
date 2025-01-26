@@ -1,11 +1,22 @@
 "use client";
 
 import { forwardRef } from "react";
-import { useActionBarFeedbackNegative } from "../../primitive-hooks/actionBar/useActionBarFeedbackNegative";
 import { ActionButtonProps } from "../../utils/createActionButton";
 import { composeEventHandlers } from "@radix-ui/primitive";
 import { useMessage } from "../../context";
 import { Primitive } from "@radix-ui/react-primitive";
+import { useCallback } from "react";
+import { useMessageRuntime } from "../../context";
+
+const useActionBarFeedbackNegative = () => {
+  const messageRuntime = useMessageRuntime();
+
+  const callback = useCallback(() => {
+    messageRuntime.submitFeedback({ type: "negative" });
+  }, [messageRuntime]);
+
+  return callback;
+};
 
 export namespace ActionBarPrimitiveFeedbackNegative {
   export type Element = HTMLButtonElement;

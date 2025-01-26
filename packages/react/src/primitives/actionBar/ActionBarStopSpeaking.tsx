@@ -1,11 +1,28 @@
 "use client";
 
 import { forwardRef } from "react";
-import { useActionBarStopSpeaking } from "../../primitive-hooks/actionBar/useActionBarStopSpeaking";
 import { ActionButtonProps } from "../../utils/createActionButton";
 import { useEscapeKeydown } from "@radix-ui/react-use-escape-keydown";
 import { Primitive } from "@radix-ui/react-primitive";
 import { composeEventHandlers } from "@radix-ui/primitive";
+import { useCallback } from "react";
+import {
+  useMessage,
+  useMessageRuntime,
+} from "../../context/react/MessageContext";
+
+const useActionBarStopSpeaking = () => {
+  const messageRuntime = useMessageRuntime();
+  const isSpeaking = useMessage((u) => u.speech != null);
+
+  const callback = useCallback(() => {
+    messageRuntime.stopSpeaking();
+  }, [messageRuntime]);
+
+  if (!isSpeaking) return null;
+
+  return callback;
+};
 
 export namespace ActionBarPrimitiveStopSpeaking {
   export type Element = HTMLButtonElement;

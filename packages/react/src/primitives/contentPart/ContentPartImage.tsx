@@ -2,7 +2,7 @@
 
 import { Primitive } from "@radix-ui/react-primitive";
 import { type ComponentRef, forwardRef, ComponentPropsWithoutRef } from "react";
-import { useContentPartImage } from "../../primitive-hooks/contentPart/useContentPartImage";
+import { useContentPartImage } from "./useContentPartImage";
 
 export namespace ContentPartPrimitiveImage {
   export type Element = ComponentRef<typeof Primitive.img>;

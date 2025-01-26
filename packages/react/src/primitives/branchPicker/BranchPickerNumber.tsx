@@ -1,7 +1,12 @@
 "use client";
 
 import type { FC } from "react";
-import { useBranchPickerNumber } from "../../primitive-hooks/branchPicker/useBranchPickerNumber";
+import { useMessage } from "../../context/react/MessageContext";
+
+const useBranchPickerNumber = () => {
+  const branchNumber = useMessage((s) => s.branchNumber);
+  return branchNumber;
+};
 
 export namespace BranchPickerPrimitiveNumber {
   export type Props = Record<string, never>;

@@ -1,7 +1,6 @@
 export * from "./api";
 export * from "./context";
 export * from "./model-context";
-export * from "./primitive-hooks";
 export * from "./primitives";
 export * from "./runtimes";
 export * from "./types";

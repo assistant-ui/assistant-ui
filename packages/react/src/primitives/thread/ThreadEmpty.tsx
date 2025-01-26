@@ -1,7 +1,7 @@
 "use client";
 
 import type { FC, PropsWithChildren } from "react";
-import { useThreadEmpty } from "../../primitive-hooks/thread/useThreadEmpty";
+import { useThread } from "../../context";
 
 export namespace ThreadPrimitiveEmpty {
   export type Props = PropsWithChildren;
@@ -10,7 +10,7 @@ export namespace ThreadPrimitiveEmpty {
 export const ThreadPrimitiveEmpty: FC<ThreadPrimitiveEmpty.Props> = ({
   children,
 }) => {
-  const empty = useThreadEmpty();
+  const empty = useThread((u) => u.messages.length === 0);
   return empty ? children : null;
 };
 

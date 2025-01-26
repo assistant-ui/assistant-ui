@@ -3,7 +3,7 @@
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
 import { Primitive } from "@radix-ui/react-primitive";
 import { type ComponentRef, forwardRef, ComponentPropsWithoutRef } from "react";
-import { useThreadViewportAutoScroll } from "../../primitive-hooks/thread/useThreadViewportAutoScroll";
+import { useThreadViewportAutoScroll } from "./useThreadViewportAutoScroll";
 
 export namespace ThreadPrimitiveViewport {
   export type Element = ComponentRef<typeof Primitive.div>;

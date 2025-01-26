@@ -1,11 +1,22 @@
 "use client";
 
-import { useAttachmentRemove } from "../../primitive-hooks/attachment/useAttachmentRemove";
 import {
   ActionButtonElement,
   ActionButtonProps,
   createActionButton,
 } from "../../utils/createActionButton";
+import { useCallback } from "react";
+import { useAttachmentRuntime } from "../../context/react/AttachmentContext";
+
+const useAttachmentRemove = () => {
+  const attachmentRuntime = useAttachmentRuntime();
+
+  const handleRemoveAttachment = useCallback(() => {
+    attachmentRuntime.remove();
+  }, [attachmentRuntime]);
+
+  return handleRemoveAttachment;
+};
 
 export namespace AttachmentPrimitiveRemove {
   export type Element = ActionButtonElement;

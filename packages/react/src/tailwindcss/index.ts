@@ -77,10 +77,16 @@ const auiPlugin = plugin.withOptions<AssisstantTailwindPluginOptions>(
         addComponents(modalCSS);
       }
     },
-  ({ shadcn = false, colors = {} } = {}) => {
+  ({
+    components = ["assistant-modal", "thread"],
+    colors = {},
+    shadcn = false,
+  }) => {
     const prefix = !shadcn ? "--aui-" : "--";
     return {
-      safelist: [{ pattern: /^aui-/ }],
+      ...(components.length > 0
+        ? { safelist: [{ pattern: /^aui-/ }] }
+        : undefined),
       theme: {
         extend: {
           maxWidth: {

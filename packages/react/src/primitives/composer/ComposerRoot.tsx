@@ -8,7 +8,7 @@ import {
   forwardRef,
   ComponentPropsWithoutRef,
 } from "react";
-import { useComposerSend } from "../../primitive-hooks/composer/useComposerSend";
+import { useComposerSend } from "./ComposerSend";
 
 export namespace ComposerPrimitiveRoot {
   export type Element = ComponentRef<typeof Primitive.form>;

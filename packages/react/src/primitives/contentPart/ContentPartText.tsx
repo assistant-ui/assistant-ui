@@ -7,7 +7,7 @@ import {
   ComponentPropsWithoutRef,
   ElementType,
 } from "react";
-import { useContentPartText } from "../../primitive-hooks/contentPart/useContentPartText";
+import { useContentPartText } from "./useContentPartText";
 import { useSmooth } from "../../utils/smooth/useSmooth";
 
 export namespace ContentPartPrimitiveText {
