@@ -66,7 +66,9 @@ export const convertMessage: useExternalMessageConverter.Callback<Message> = (
           unstable_annotations: message.annotations,
           unstable_data: Array.isArray(message.data)
             ? message.data
-            : [message.data],
+            : message.data
+              ? [message.data]
+              : undefined,
         },
       };
 
