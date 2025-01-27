@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.7.57
+
+### Patch Changes
+
+- 103efee: fix: mark ChatAdapter types as readonly
+- 60bb6ff: fix: memoize MessageRepository.getMessages()
+
 ## 0.7.56
 
 ### Patch Changes
