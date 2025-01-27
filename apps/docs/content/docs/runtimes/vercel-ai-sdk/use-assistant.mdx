@@ -39,7 +39,7 @@ npm install @assistant-ui/react @assistant-ui/react-ai-sdk ai openai
 ```tsx
 import { AssistantResponse } from "ai";
 import OpenAI from "openai";
-import type { Run } from 'openai/resources/beta/threads/runs/runs';
+import type { Run } from "openai/resources/beta/threads/runs/runs";
 
 const openai = new OpenAI();
 
@@ -175,3 +175,21 @@ export default function RootLayout({
 
   </Step>
 </Steps>
+
+## Accessing AI SDK Messages
+
+You can use `getExternalStoreMessages` utility to convert `ThreadMessage`s back to `Message`s from AI SDK.
+
+```tsx
+const MyAssistantMessage = () => {
+  const aiSDKMessages = useMessage((m) => getExternalStoreMessages(m));
+  // ...
+};
+
+const WeatherToolUI = makeAssistantToolUI({
+  render: () => {
+    const aiSDKMessage = useContentPart((p) => getExternalStoreMessages(p)[0]);
+    // ...
+  },
+});
+```

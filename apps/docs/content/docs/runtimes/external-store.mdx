@@ -75,3 +75,27 @@ export function MyRuntimeProvider({
   );
 }
 ```
+
+## Accessing External Store Messages
+
+You can use the `getExternalStoreMessages` utility to convert `ThreadMessage`s back to your own message type.
+
+```tsx
+const MyAssistantMessage = () => {
+  const myMessages = useMessage((m) => getExternalStoreMessages(m));
+  // ...
+};
+```
+
+Keep in mind that `getExternalStoreMessages` may return multiple messages. This is because assistant-ui merges adjacent assistant and tool messages into a single assistant message.
+
+You can do the same operation for individual content parts as well:
+
+```tsx
+const WeatherToolUI = makeAssistantToolUI({
+  render: () => {
+    const myMessages = useContentPart((p) => getExternalStoreMessages(p));
+    // ...
+  },
+});
+```

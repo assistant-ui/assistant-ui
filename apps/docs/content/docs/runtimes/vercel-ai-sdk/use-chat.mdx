@@ -118,3 +118,21 @@ export default function RootLayout({
 
   </Step>
 </Steps>
+
+## Accessing AI SDK Messages
+
+You can use the `getExternalStoreMessages` utility to convert `ThreadMessage`s back to `Message`s from AI SDK.
+
+```tsx
+const MyAssistantMessage = () => {
+  const aiSDKMessages = useMessage((m) => getExternalStoreMessages(m));
+  // ...
+};
+
+const WeatherToolUI = makeAssistantToolUI({
+  render: () => {
+    const aiSDKMessage = useContentPart((p) => getExternalStoreMessages(p)[0]);
+    // ...
+  },
+});
+```

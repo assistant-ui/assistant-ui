@@ -203,3 +203,14 @@ export default function RootLayout({
 
   </Step>
 </Steps>
+
+## Accessing AI SDK Messages
+
+You can use the `getExternalStoreMessages` utility to convert `ThreadMessage`s back to your message format.
+
+```tsx
+const MyAssistantMessage = () => {
+  const myMessage = useMessage((m) => getExternalStoreMessages(m)[0]);
+  // ...
+};
+```
