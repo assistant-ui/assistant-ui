@@ -34,6 +34,23 @@ const findHead = (
   return null;
 };
 
+class CachedValue<T> {
+  private _value: T | null = null;
+
+  constructor(private func: () => T) {}
+
+  get value() {
+    if (this._value === null) {
+      this._value = this.func();
+    }
+    return this._value;
+  }
+
+  dirty() {
+    this._value = null;
+  }
+}
+
 export class MessageRepository {
   private messages = new Map<string, RepositoryMessage>(); // message_id -> item
   private head: RepositoryMessage | null = null;
@@ -101,12 +118,17 @@ export class MessageRepository {
       child.prev = newParent;
     }
   }
-  getMessages() {
+
+  private _messages = new CachedValue<readonly ThreadMessage[]>(() => {
     const messages = new Array<ThreadMessage>(this.head?.level ?? 0);
     for (let current = this.head; current; current = current.prev) {
       messages[current.level] = current.current;
     }
     return messages;
+  });
+
+  getMessages() {
+    return this._messages.value;
   }
 
   addOrUpdateMessage(parentId: string | null, message: ThreadMessage) {
@@ -121,6 +143,7 @@ export class MessageRepository {
     if (existingItem) {
       existingItem.current = message;
       this.performOp(prev, existingItem, "relink");
+      this._messages.dirty();
       return;
     }
 
@@ -139,6 +162,8 @@ export class MessageRepository {
     if (this.head === prev) {
       this.head = newItem;
     }
+
+    this._messages.dirty();
   }
 
   getMessage(messageId: string) {
@@ -205,6 +230,8 @@ export class MessageRepository {
     if (this.head === message) {
       this.head = findHead(replacement ?? this.root);
     }
+
+    this._messages.dirty();
   }
 
   getBranches(messageId: string) {
@@ -229,11 +256,14 @@ export class MessageRepository {
     prevOrRoot.next = message;
 
     this.head = findHead(message);
+
+    this._messages.dirty();
   }
 
   resetHead(messageId: string | null) {
     if (messageId === null) {
       this.head = null;
+      this._messages.dirty();
       return;
     }
 
@@ -253,6 +283,8 @@ export class MessageRepository {
         current.prev.next = current;
       }
     }
+
+    this._messages.dirty();
   }
 
   export(): ExportedMessageRepository {
