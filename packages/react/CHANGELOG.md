@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.55
+
+### Patch Changes
+
+- 0bf5082: fix: tailwindcss plugin crashes without config
+
 ## 0.7.54
 
 ### Patch Changes

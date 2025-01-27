@@ -1,5 +1,13 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.7.12
+
+### Patch Changes
+
+- 7f8c27e: fix: useInputSync IME composition support
+- Updated dependencies [0bf5082]
+  - @assistant-ui/react@0.7.55
+
 ## 0.7.11
 
 ### Patch Changes
