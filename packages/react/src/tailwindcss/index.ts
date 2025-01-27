@@ -81,7 +81,7 @@ const auiPlugin = plugin.withOptions<AssisstantTailwindPluginOptions>(
     components = ["assistant-modal", "thread"],
     colors = {},
     shadcn = false,
-  }) => {
+  } = {}) => {
     const prefix = !shadcn ? "--aui-" : "--";
     return {
       ...(components.length > 0
