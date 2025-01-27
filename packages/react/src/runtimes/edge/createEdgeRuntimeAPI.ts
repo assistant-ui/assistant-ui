@@ -28,7 +28,7 @@ import { z } from "zod";
 type FinishResult = {
   messages: CoreMessage[];
   metadata: {
-    steps: ThreadStep[];
+    steps: readonly ThreadStep[];
   };
 };
 

@@ -17,7 +17,7 @@ export function MyRuntimeProvider({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [messages, setMessages] = useState<ThreadMessageLike[]>([]);
+  const [messages, setMessages] = useState<readonly ThreadMessageLike[]>([]);
 
   const onNew = async (message: AppendMessage) => {
     if (message.content.length !== 1 || message.content[0]?.type !== "text")

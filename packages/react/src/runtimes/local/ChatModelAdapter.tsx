@@ -10,41 +10,41 @@ import type {
 import type { ModelContext } from "../../model-context/ModelContextTypes";
 
 export type ChatModelRunUpdate = {
-  content: ThreadAssistantContentPart[];
-  metadata?: Record<string, unknown>;
+  readonly content: readonly ThreadAssistantContentPart[];
+  readonly metadata?: Record<string, unknown>;
 };
 
 export type ChatModelRunResult = {
-  content?: ThreadAssistantContentPart[] | undefined;
-  status?: MessageStatus | undefined;
-  metadata?: {
-    unstable_annotations?: unknown[] | undefined;
-    unstable_data?: unknown[] | undefined;
-    steps?: ThreadStep[] | undefined;
-    custom?: Record<string, unknown> | undefined;
+  readonly content?: readonly ThreadAssistantContentPart[] | undefined;
+  readonly status?: MessageStatus | undefined;
+  readonly metadata?: {
+    readonly unstable_annotations?: readonly unknown[] | undefined;
+    readonly unstable_data?: readonly unknown[] | undefined;
+    readonly steps?: readonly ThreadStep[] | undefined;
+    readonly custom?: Record<string, unknown> | undefined;
   };
 };
 
 export type CoreChatModelRunResult = Omit<ChatModelRunResult, "content"> & {
-  content: (TextContentPart | ToolCallContentPart)[];
+  readonly content: readonly (TextContentPart | ToolCallContentPart)[];
 };
 
 export type ChatModelRunOptions = {
-  messages: ThreadMessage[];
-  runConfig: RunConfig;
-  abortSignal: AbortSignal;
-  context: ModelContext;
+  readonly messages: readonly ThreadMessage[];
+  readonly runConfig: RunConfig;
+  readonly abortSignal: AbortSignal;
+  readonly context: ModelContext;
 
   /**
    * @deprecated This field was renamed to `context`.
    */
-  config: ModelContext;
+  readonly config: ModelContext;
 
-  unstable_assistantMessageId?: string;
+  readonly unstable_assistantMessageId?: string;
 };
 
 export type ChatModelAdapter = {
-  run: (
+  run(
     options: ChatModelRunOptions,
-  ) => Promise<ChatModelRunResult> | AsyncGenerator<ChatModelRunResult, void>;
+  ): Promise<ChatModelRunResult> | AsyncGenerator<ChatModelRunResult, void>;
 };

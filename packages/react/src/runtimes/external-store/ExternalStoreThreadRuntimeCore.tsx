@@ -25,7 +25,7 @@ const EMPTY_ARRAY = Object.freeze([]);
 
 export const hasUpcomingMessage = (
   isRunning: boolean,
-  messages: ThreadMessage[],
+  messages: readonly ThreadMessage[],
 ) => {
   return isRunning && messages[messages.length - 1]?.role !== "assistant";
 };
@@ -51,7 +51,7 @@ export class ExternalStoreThreadRuntimeCore
     return this._capabilities;
   }
 
-  private _messages!: ThreadMessage[];
+  private _messages!: readonly ThreadMessage[];
   public isDisabled!: boolean;
 
   public override get messages() {
@@ -248,14 +248,15 @@ export class ExternalStoreThreadRuntimeCore
     this._store.onAddToolResult(options);
   }
 
-  private updateMessages = (messages: ThreadMessage[]) => {
+  private updateMessages = (messages: readonly ThreadMessage[]) => {
     const hasConverter = this._store.convertMessage !== undefined;
     if (hasConverter) {
       this._store.setMessages?.(
         messages.flatMap(getExternalStoreMessage).filter((m) => m != null),
       );
     } else {
-      this._store.setMessages?.(messages);
+      // TODO mark this as readonly in v0.8.0
+      this._store.setMessages?.(messages as ThreadMessage[]);
     }
   };
 }

@@ -10,7 +10,7 @@ export class ThreadMessageConverter {
   private readonly cache = new WeakMap<WeakKey, ThreadMessage>();
 
   convertMessages<TIn extends WeakKey>(
-    messages: TIn[],
+    messages: readonly TIn[],
     converter: ConverterCallback<TIn>,
   ): ThreadMessage[] {
     return messages.map((m, idx) => {

@@ -51,7 +51,7 @@ type ExternalStoreMessageConverterAdapter<T> = {
 type ExternalStoreAdapterBase<T> = {
   isDisabled?: boolean | undefined;
   isRunning?: boolean | undefined;
-  messages: T[];
+  messages: readonly T[];
   suggestions?: readonly ThreadSuggestion[] | undefined;
   extras?: unknown;
 
