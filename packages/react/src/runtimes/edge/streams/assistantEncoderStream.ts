@@ -44,6 +44,14 @@ export function assistantEncoderStream() {
           break;
         }
 
+        case "annotations": {
+          controller.enqueue({
+            type: AssistantStreamChunkType.Annotation,
+            value: chunk.annotations,
+          });
+          break;
+        }
+
         case "data": {
           controller.enqueue({
             type: AssistantStreamChunkType.Data,

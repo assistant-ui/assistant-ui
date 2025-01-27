@@ -38,6 +38,12 @@ export function runResultStream() {
         case "response-metadata":
           break;
 
+        case "annotations": {
+          message = appendAnnotations(message, chunk);
+          controller.enqueue(message);
+          break;
+        }
+
         case "data": {
           message = appendData(message, chunk);
           controller.enqueue(message);
@@ -191,6 +197,22 @@ const appendOrUpdateToolResult = (
   return {
     ...message,
     content: newContentParts!,
+  };
+};
+
+const appendAnnotations = (
+  message: CoreChatModelRunResult,
+  chunk: ToolResultStreamPart & { type: "annotations" },
+): CoreChatModelRunResult => {
+  return {
+    ...message,
+    metadata: {
+      ...message.metadata,
+      unstable_annotations: [
+        ...(message.metadata?.unstable_annotations ?? []),
+        ...chunk.annotations,
+      ],
+    },
   };
 };
 

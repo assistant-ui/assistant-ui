@@ -62,6 +62,12 @@ export const convertMessage: useExternalMessageConverter.Callback<Message> = (
               }) satisfies ToolCallContentPart,
           ) ?? []),
         ],
+        metadata: {
+          unstable_annotations: message.annotations,
+          unstable_data: Array.isArray(message.data)
+            ? message.data
+            : [message.data],
+        },
       };
 
     case "data": {

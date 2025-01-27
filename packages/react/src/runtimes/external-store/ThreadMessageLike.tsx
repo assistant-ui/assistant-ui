@@ -38,7 +38,8 @@ export type ThreadMessageLike = {
   readonly attachments?: readonly CompleteAttachment[] | undefined;
   readonly metadata?:
     | {
-        readonly unstable_data?: readonly Record<string, unknown>[] | undefined;
+        readonly unstable_annotations?: readonly unknown[] | undefined;
+        readonly unstable_data?: readonly unknown[] | undefined;
         readonly steps?: readonly ThreadStep[] | undefined;
         readonly custom?: Record<string, unknown> | undefined;
       }
@@ -105,6 +106,7 @@ export const fromThreadMessageLike = (
           .filter((c) => !!c),
         status: status ?? fallbackStatus,
         metadata: {
+          unstable_annotations: metadata?.unstable_annotations ?? [],
           unstable_data: metadata?.unstable_data ?? [],
           custom: metadata?.custom ?? {},
           steps: metadata?.steps ?? [],

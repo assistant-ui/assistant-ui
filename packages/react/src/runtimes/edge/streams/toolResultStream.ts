@@ -6,6 +6,10 @@ import sjson from "secure-json-parse";
 export type ToolResultStreamPart =
   | LanguageModelV1StreamPart
   | {
+      type: "annotations";
+      annotations: JSONValue[];
+    }
+  | {
       type: "data";
       data: JSONValue[];
     }
@@ -127,6 +131,7 @@ export function toolResultStream(
         case "finish":
         case "error":
         case "response-metadata":
+        case "annotations":
         case "data":
           break;
 

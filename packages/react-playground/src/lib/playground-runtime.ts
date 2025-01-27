@@ -294,6 +294,7 @@ export class PlaygroundThreadRuntimeCore implements INTERNAL.ThreadRuntimeCore {
       status: { type: "running" },
       content: [],
       metadata: {
+        unstable_annotations: [],
         unstable_data: [],
         steps: [],
         custom: {},
@@ -313,6 +314,9 @@ export class PlaygroundThreadRuntimeCore implements INTERNAL.ThreadRuntimeCore {
         content: m.content ?? message.content,
         status: m.status ?? message.status,
         metadata: {
+          unstable_annotations:
+            m.metadata?.unstable_annotations ??
+            message.metadata?.unstable_annotations,
           unstable_data:
             m.metadata?.unstable_data ?? message.metadata?.unstable_data,
           steps: m.metadata?.steps ?? message.metadata?.steps,

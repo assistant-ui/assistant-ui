@@ -18,6 +18,7 @@ export type ChatModelRunResult = {
   content?: ThreadAssistantContentPart[] | undefined;
   status?: MessageStatus | undefined;
   metadata?: {
+    unstable_annotations?: unknown[] | undefined;
     unstable_data?: unknown[] | undefined;
     steps?: ThreadStep[] | undefined;
     custom?: Record<string, unknown> | undefined;

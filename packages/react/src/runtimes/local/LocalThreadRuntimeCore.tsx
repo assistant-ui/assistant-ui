@@ -118,7 +118,12 @@ export class LocalThreadRuntimeCore
       role: "assistant",
       status: { type: "running" },
       content: [],
-      metadata: { unstable_data: [], steps: [], custom: {} },
+      metadata: {
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
       createdAt: new Date(),
     };
 
@@ -150,6 +155,7 @@ export class LocalThreadRuntimeCore
     this.abortController = new AbortController();
 
     const initialContent = message.content;
+    const initialAnnotations = message.metadata?.unstable_annotations;
     const initialData = message.metadata?.unstable_data;
     const initialSteps = message.metadata?.steps;
     const initalCustom = message.metadata?.custom;
@@ -159,7 +165,11 @@ export class LocalThreadRuntimeCore
         ? [...(initialSteps ?? []), ...newSteps]
         : undefined;
 
+      const newAnnotations = m.metadata?.unstable_annotations;
       const newData = m.metadata?.unstable_data;
+      const annotations = newAnnotations
+        ? [...(initialAnnotations ?? []), ...newAnnotations]
+        : undefined;
       const data = newData ? [...(initialData ?? []), ...newData] : undefined;
 
       message = {
@@ -172,6 +182,9 @@ export class LocalThreadRuntimeCore
           ? {
               metadata: {
                 ...message.metadata,
+                ...(annotations
+                  ? { unstable_annotations: annotations }
+                  : undefined),
                 ...(data ? { unstable_data: data } : undefined),
                 ...(steps ? { steps } : undefined),
                 ...(m.metadata?.custom

@@ -109,6 +109,12 @@ const joinExternalMessages = (
 
             if (output.metadata) {
               assistantMessage.metadata ??= {};
+              if (output.metadata.unstable_annotations) {
+                assistantMessage.metadata.unstable_annotations = [
+                  ...(assistantMessage.metadata.unstable_annotations ?? []),
+                  ...output.metadata.unstable_annotations,
+                ];
+              }
               if (output.metadata.unstable_data) {
                 assistantMessage.metadata.unstable_data = [
                   ...(assistantMessage.metadata.unstable_data ?? []),

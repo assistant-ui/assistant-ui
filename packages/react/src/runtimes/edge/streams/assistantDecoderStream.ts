@@ -131,6 +131,13 @@ export function assistantDecoderStream() {
           break;
         }
 
+        case AssistantStreamChunkType.Annotation:
+          controller.enqueue({
+            type: "annotations",
+            annotations: value,
+          });
+          break;
+
         case AssistantStreamChunkType.Data:
           controller.enqueue({
             type: "data",
@@ -141,7 +148,6 @@ export function assistantDecoderStream() {
         // TODO
         case AssistantStreamChunkType.ReasoningDelta:
         case AssistantStreamChunkType.StartStep:
-        case AssistantStreamChunkType.Annotation:
           break;
 
         default: {
