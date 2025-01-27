@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.7.56
+
+### Patch Changes
+
+- dba4dde: feat(ai-sdk): message.metadata.annotations
+- efd60fe: fix(ai-sdk): onSwitchToThread
+
 ## 0.7.55
 
 ### Patch Changes
