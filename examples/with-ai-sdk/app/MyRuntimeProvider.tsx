@@ -1,6 +1,5 @@
 "use client";
 
-import { ThreadMessageLike } from "@assistant-ui/react";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useVercelUseChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { useChat } from "ai/react";

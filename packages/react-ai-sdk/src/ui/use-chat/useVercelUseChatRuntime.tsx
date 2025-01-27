@@ -10,6 +10,8 @@ import { toCreateMessage } from "../utils/toCreateMessage";
 import { vercelAttachmentAdapter } from "../utils/vercelAttachmentAdapter";
 import { getVercelAIMessages } from "../getVercelAIMessages";
 import { ExternalStoreAdapter } from "@assistant-ui/react";
+import { useState } from "react";
+import { generateId } from "@ai-sdk/ui-utils";
 
 export type VercelUseChatAdapter = {
   adapters?:
@@ -26,6 +28,8 @@ export const useVercelUseChatRuntime = (
     isRunning: chatHelpers.isLoading,
     messages: chatHelpers.messages,
   });
+
+  const [threadId, setThreadId] = useState<string>(generateId());
 
   const runtime = useExternalStoreRuntime({
     isRunning: chatHelpers.isLoading,
@@ -59,12 +63,16 @@ export const useVercelUseChatRuntime = (
       ...adapter.adapters,
       threadList: new Proxy(adapter.adapters?.threadList ?? {}, {
         get(target, prop, receiver) {
+          if (prop === "threadId") {
+            return target.threadId ?? threadId;
+          }
           if (prop === "onSwitchToNewThread") {
             return () => {
               chatHelpers.messages = [];
               chatHelpers.input = "";
               chatHelpers.setMessages([]);
               chatHelpers.setInput("");
+              setThreadId(generateId());
 
               if (typeof target.onSwitchToNewThread === "function") {
                 return target.onSwitchToNewThread.call(target);

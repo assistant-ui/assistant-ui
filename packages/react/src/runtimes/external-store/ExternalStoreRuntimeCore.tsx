@@ -4,9 +4,7 @@ import { ExternalStoreAdapter } from "./ExternalStoreAdapter";
 import { ExternalStoreThreadRuntimeCore } from "./ExternalStoreThreadRuntimeCore";
 
 const getThreadListAdapter = (store: ExternalStoreAdapter<any>) => {
-  return {
-    ...store.adapters?.threadList,
-  };
+  return store.adapters?.threadList ?? {};
 };
 
 export class ExternalStoreRuntimeCore extends BaseAssistantRuntimeCore {
