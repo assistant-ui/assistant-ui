@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.58
+
+### Patch Changes
+
+- 02996f9: fix: support AISDKInterop + sendMessageId for human+system messages
+
 ## 0.7.57
 
 ### Patch Changes

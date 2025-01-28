@@ -68,9 +68,9 @@ export class EdgeChatAdapter implements ChatModelAdapter {
       body: JSON.stringify({
         system: context.system,
         messages: this.options.unstable_AISDKInterop
-          ? (toLanguageModelMessages(
-              messages,
-            ) as EdgeRuntimeRequestOptions["messages"]) // TODO figure out a better way to do this
+          ? (toLanguageModelMessages(messages, {
+              unstable_includeId: this.options.unstable_sendMessageIds,
+            }) as EdgeRuntimeRequestOptions["messages"]) // TODO figure out a better way to do this
           : toCoreMessages(messages, {
               unstable_includeId: this.options.unstable_sendMessageIds,
             }),

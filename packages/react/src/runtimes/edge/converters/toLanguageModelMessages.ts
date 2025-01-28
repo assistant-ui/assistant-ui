@@ -74,12 +74,22 @@ const assistantMessageSplitter = () => {
 
 export function toLanguageModelMessages(
   message: readonly CoreMessage[] | readonly ThreadMessage[],
+  options: { unstable_includeId?: boolean | undefined } = {},
 ): LanguageModelV1Message[] {
+  const includeId = options.unstable_includeId ?? false;
   return message.flatMap((message) => {
     const role = message.role;
     switch (role) {
       case "system": {
-        return [{ role: "system", content: message.content[0].text }];
+        return [
+          {
+            ...(includeId
+              ? { unstable_id: (message as ThreadMessage).id }
+              : {}),
+            role: "system",
+            content: message.content[0].text,
+          },
+        ];
       }
 
       case "user": {
@@ -89,6 +99,7 @@ export function toLanguageModelMessages(
           ...attachments.map((a) => a.content).flat(),
         ];
         const msg: LanguageModelV1Message = {
+          ...(includeId ? { unstable_id: (message as ThreadMessage).id } : {}),
           role: "user",
           content: content.map(
             (
