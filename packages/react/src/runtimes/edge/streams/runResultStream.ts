@@ -1,5 +1,5 @@
 import { CoreChatModelRunResult } from "../../local/ChatModelAdapter";
-import { parsePartialJson } from "../partial-json/parse-partial-json";
+import { parsePartialJson } from "../../../utils/json/parse-partial-json";
 import { LanguageModelV1StreamPart } from "@ai-sdk/provider";
 import { ToolResultStreamPart } from "./toolResultStream";
 import { MessageStatus, ToolCallContentPart } from "../../../types";

@@ -8,6 +8,7 @@ import type {
   ToolCallContentPart,
 } from "../../types/AssistantTypes";
 import type { ModelContext } from "../../model-context/ModelContextTypes";
+import { ReadonlyJSONValue } from "../../utils/json/json-value";
 
 export type ChatModelRunUpdate = {
   readonly content: readonly ThreadAssistantContentPart[];
@@ -18,8 +19,8 @@ export type ChatModelRunResult = {
   readonly content?: readonly ThreadAssistantContentPart[] | undefined;
   readonly status?: MessageStatus | undefined;
   readonly metadata?: {
-    readonly unstable_annotations?: readonly unknown[] | undefined;
-    readonly unstable_data?: readonly unknown[] | undefined;
+    readonly unstable_annotations?: readonly ReadonlyJSONValue[] | undefined;
+    readonly unstable_data?: readonly ReadonlyJSONValue[] | undefined;
     readonly steps?: readonly ThreadStep[] | undefined;
     readonly custom?: Record<string, unknown> | undefined;
   };

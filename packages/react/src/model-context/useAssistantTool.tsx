@@ -7,9 +7,10 @@ import {
 } from "../context/react/AssistantContext";
 import type { ToolCallContentPartComponent } from "../types/ContentPartComponentTypes";
 import type { Tool } from "./ModelContextTypes";
+import { ReadonlyJSONObject } from "../utils/json/json-value";
 
 export type AssistantToolProps<
-  TArgs extends Record<string, unknown>,
+  TArgs extends ReadonlyJSONObject,
   TResult,
 > = Tool<TArgs, TResult> & {
   toolName: string;
@@ -17,10 +18,7 @@ export type AssistantToolProps<
   disabled?: boolean | undefined;
 };
 
-export const useAssistantTool = <
-  TArgs extends Record<string, unknown>,
-  TResult,
->(
+export const useAssistantTool = <TArgs extends ReadonlyJSONObject, TResult>(
   tool: AssistantToolProps<TArgs, TResult>,
 ) => {
   const assistantRuntime = useAssistantRuntime();

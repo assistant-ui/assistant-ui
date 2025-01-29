@@ -1,17 +1,18 @@
 import { Tool } from "../../../model-context/ModelContextTypes";
-import { JSONValue, LanguageModelV1StreamPart } from "@ai-sdk/provider";
+import { LanguageModelV1StreamPart } from "@ai-sdk/provider";
 import { z } from "zod";
 import sjson from "secure-json-parse";
+import { ReadonlyJSONValue } from "../../../utils/json/json-value";
 
 export type ToolResultStreamPart =
   | LanguageModelV1StreamPart
   | {
       type: "annotations";
-      annotations: JSONValue[];
+      annotations: ReadonlyJSONValue[];
     }
   | {
       type: "data";
-      data: JSONValue[];
+      data: ReadonlyJSONValue[];
     }
   | {
       type: "tool-result";

@@ -18,6 +18,8 @@ import {
   CoreToolCallContentPart,
   ThreadStep,
 } from "../../types/AssistantTypes";
+import { ReadonlyJSONValue } from "../../utils/json/json-value";
+import { parsePartialJson } from "../../utils/json/parse-partial-json";
 
 export type ThreadMessageLike = {
   readonly role: "assistant" | "user" | "system";
@@ -30,6 +32,14 @@ export type ThreadMessageLike = {
         | Unstable_AudioContentPart
         | ToolCallContentPart<any, any>
         | CoreToolCallContentPart<any, any>
+        | {
+            type: "tool-call";
+            toolCallId: string;
+            toolName: string;
+            argsText: string;
+            result?: unknown | undefined;
+            isError?: boolean | undefined;
+          }
         | UIContentPart
       )[];
   readonly id?: string | undefined;
@@ -38,8 +48,10 @@ export type ThreadMessageLike = {
   readonly attachments?: readonly CompleteAttachment[] | undefined;
   readonly metadata?:
     | {
-        readonly unstable_annotations?: readonly unknown[] | undefined;
-        readonly unstable_data?: readonly unknown[] | undefined;
+        readonly unstable_annotations?:
+          | readonly ReadonlyJSONValue[]
+          | undefined;
+        readonly unstable_data?: readonly ReadonlyJSONValue[] | undefined;
         readonly steps?: readonly ThreadStep[] | undefined;
         readonly custom?: Record<string, unknown> | undefined;
       }
@@ -88,7 +100,16 @@ export const fromThreadMessageLike = (
                 return part;
 
               case "tool-call": {
-                if ("argsText" in part) return part;
+                if ("argsText" in part) {
+                  if ("args" in part) {
+                    return part;
+                  }
+
+                  return {
+                    ...part,
+                    args: parsePartialJson(part.argsText),
+                  };
+                }
                 return {
                   ...part,
                   argsText: JSON.stringify(part.args),

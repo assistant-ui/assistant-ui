@@ -258,7 +258,11 @@ export class LocalThreadRuntimeCore
         });
       } else {
         updateMessage({
-          status: { type: "incomplete", reason: "error", error: e },
+          status: {
+            type: "incomplete",
+            reason: "error",
+            error: e instanceof Error ? e.message : `[${typeof e}] ${new String(e).toString()}`,
+          },
         });
 
         throw e;

@@ -144,7 +144,7 @@ const backendApi = async ({
   abortSignal,
   context,
 }: {
-  messages: ThreadMessage[];
+  messages: readonly ThreadMessage[];
   abortSignal: AbortSignal;
   context: ModelContext;
 }) => {

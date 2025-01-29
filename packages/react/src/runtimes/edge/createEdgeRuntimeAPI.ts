@@ -26,7 +26,7 @@ import { streamPartEncoderStream } from "./streams/utils/streamPartEncoderStream
 import { z } from "zod";
 
 type FinishResult = {
-  messages: CoreMessage[];
+  messages: readonly CoreMessage[];
   metadata: {
     steps: readonly ThreadStep[];
   };
@@ -111,7 +111,7 @@ export const getEdgeRuntimeStream = async ({
     abortSignal,
 
     ...(!!system ? { system } : undefined),
-    messages: [...messages],
+    messages,
     tools: lmServerTools.concat(clientTools as LanguageModelV1FunctionTool[]),
     ...(toolChoice ? { toolChoice } : undefined),
   });
@@ -201,7 +201,7 @@ export const createEdgeRuntimeAPI = (options: CreateEdgeRuntimeAPIOptions) => ({
 type StreamMessageOptions = LanguageModelV1CallSettings & {
   model: LanguageModelV1;
   system?: string;
-  messages: CoreMessage[];
+  messages: readonly CoreMessage[];
   tools?: LanguageModelV1FunctionTool[];
   toolChoice?: LanguageModelV1ToolChoice;
   abortSignal: AbortSignal;
@@ -229,7 +229,7 @@ async function streamMessage({
 
 export function convertToLanguageModelPrompt(
   system: string | undefined,
-  messages: CoreMessage[],
+  messages: readonly CoreMessage[],
 ): LanguageModelV1Prompt {
   const languageModelMessages: LanguageModelV1Prompt = [];
 
