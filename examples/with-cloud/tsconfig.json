@@ -2,6 +2,7 @@
   "extends": "@assistant-ui/tsconfig/base.json",
   "compilerOptions": {
     "target": "ES6",
+    "module": "ESNext",
     "incremental": true,
     "plugins": [
       {
@@ -14,6 +15,7 @@
       "@assistant-ui/react/*": ["../../packages/react/src/*"]
     },
     "allowJs": true,
+    "strictNullChecks": true,
     "jsx": "preserve"
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],

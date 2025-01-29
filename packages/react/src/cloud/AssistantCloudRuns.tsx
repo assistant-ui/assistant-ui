@@ -1,4 +1,4 @@
-import { CoreMessage } from "../../../types";
+import { CoreMessage } from "../types";
 import { AssistantCloudAPI } from "./AssistantCloudAPI";
 import { AssistantStream, PlainTextDecoder } from "assistant-stream";
 

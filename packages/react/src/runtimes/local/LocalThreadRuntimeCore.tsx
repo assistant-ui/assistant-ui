@@ -82,6 +82,21 @@ export class LocalThreadRuntimeCore
     if (hasUpdates) this._notifySubscribers();
   }
 
+  private _loadPromise: Promise<void> | undefined;
+  public __internal_load() {
+    if (this._loadPromise) return this._loadPromise;
+
+    const promise = this.adapters.history?.load() ?? Promise.resolve(null);
+
+    this._loadPromise = promise.then((repo) => {
+      if (!repo) return;
+      this.repository.import(repo);
+      this._notifySubscribers();
+    });
+
+    return this._loadPromise;
+  }
+
   public async append(message: AppendMessage): Promise<void> {
     this.ensureInitialized();
 
@@ -89,6 +104,10 @@ export class LocalThreadRuntimeCore
       attachments: message.attachments,
     });
     this.repository.addOrUpdateMessage(message.parentId, newMessage);
+    this._options.adapters.history?.append({
+      parentId: message.parentId,
+      message: newMessage,
+    });
 
     const startRun = message.startRun ?? message.role === "user";
     if (startRun) {
@@ -261,11 +280,24 @@ export class LocalThreadRuntimeCore
           status: {
             type: "incomplete",
             reason: "error",
-            error: e instanceof Error ? e.message : `[${typeof e}] ${new String(e).toString()}`,
+            error:
+              e instanceof Error
+                ? e.message
+                : `[${typeof e}] ${new String(e).toString()}`,
           },
         });
 
         throw e;
+      }
+    } finally {
+      if (
+        message.status.type === "complete" ||
+        message.status.type === "incomplete"
+      ) {
+        await this._options.adapters.history?.append({
+          parentId,
+          message: message,
+        });
       }
     }
     return message;

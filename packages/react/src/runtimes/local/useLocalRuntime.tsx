@@ -9,6 +9,7 @@ import {
   AssistantRuntimeImpl,
 } from "../../api/AssistantRuntime";
 import { ThreadRuntimeImpl } from "../../internal";
+import { useRuntimeAdapters } from "../adapters/RuntimeAdapterProvider";
 
 export type LocalRuntime = AssistantRuntime & {
   reset: (options?: Parameters<LocalRuntimeCore["reset"]>[0]) => void;
@@ -37,18 +38,24 @@ export const useLocalRuntime = (
   adapter: ChatModelAdapter,
   { initialMessages, ...options }: LocalRuntimeOptions = {},
 ) => {
-  const opt = {
-    ...options,
-    adapters: {
-      ...options.adapters,
-      chatModel: adapter,
-    },
-  };
+  const threadListAdapters = useRuntimeAdapters();
+  const opt = useMemo(
+    () => ({
+      ...options,
+      adapters: {
+        ...threadListAdapters,
+        ...options.adapters,
+        chatModel: adapter,
+      },
+    }),
+    [adapter, options, threadListAdapters],
+  );
 
   const [runtime] = useState(() => new LocalRuntimeCore(opt, initialMessages));
 
   useEffect(() => {
     runtime.threads.getMainThreadRuntimeCore().__internal_setOptions(opt);
+    runtime.threads.getMainThreadRuntimeCore().__internal_load();
   }, [runtime, opt]);
 
   return useMemo(() => LocalRuntimeImpl.create(runtime), [runtime]);

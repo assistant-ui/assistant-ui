@@ -465,12 +465,7 @@ export class RemoteThreadListThreadListRuntimeCore
   private async _ensureThreadIsNotMain(threadId: string) {
     // if thread is main thread, switch to another thread
     if (threadId === this._mainThreadId) {
-      const lastThreadId = this._state.value.threadIds[0];
-      if (lastThreadId) {
-        await this.switchToThread(lastThreadId);
-      } else {
-        await this.switchToNewThread();
-      }
+      await this.switchToNewThread();
     }
   }
 

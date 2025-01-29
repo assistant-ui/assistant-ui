@@ -1,4 +1,5 @@
 import { AssistantCloudAPI } from "./AssistantCloudAPI";
+import { AssistantCloudThreadMessages } from "./AssistantCloudThreadMessages";
 
 type AssistantCloudThreadsListQuery = {
   is_archived?: boolean;
@@ -42,7 +43,11 @@ type AssistantCloudThreadsUpdateBody = {
 };
 
 export class AssistantCloudThreads {
-  constructor(private cloud: AssistantCloudAPI) {}
+  public readonly messages: AssistantCloudThreadMessages;
+
+  constructor(private cloud: AssistantCloudAPI) {
+    this.messages = new AssistantCloudThreadMessages(cloud);
+  }
 
   public async list(
     query?: AssistantCloudThreadsListQuery,
@@ -60,13 +65,15 @@ export class AssistantCloudThreads {
     threadId: string,
     body: AssistantCloudThreadsUpdateBody,
   ): Promise<void> {
-    return this.cloud.makeRequest(`/threads/${threadId}`, {
+    return this.cloud.makeRequest(`/threads/${encodeURIComponent(threadId)}`, {
       method: "PUT",
       body,
     });
   }
 
   public async delete(threadId: string): Promise<void> {
-    return this.cloud.makeRequest(`/threads/${threadId}`, { method: "DELETE" });
+    return this.cloud.makeRequest(`/threads/${encodeURIComponent(threadId)}`, {
+      method: "DELETE",
+    });
   }
 }

@@ -8,7 +8,7 @@ const generateId = customAlphabet(
   32,
 );
 const randomUserId = () => {
-  const userId = "usr_anon_" + generateId();
+  const userId = `usr_anon_${generateId()}`;
   return userId;
 };
 
