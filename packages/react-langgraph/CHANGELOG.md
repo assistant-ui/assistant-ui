@@ -1,5 +1,15 @@
 # @assistant-ui/react-langgraph
 
+## 0.2.3
+
+### Patch Changes
+
+- 4f5d77f: feat: ToolCallContentPart.args should be JSONObject
+- Updated dependencies [8ec1f07]
+- Updated dependencies [4f5d77f]
+- Updated dependencies [8ec1f07]
+  - @assistant-ui/react@0.7.59
+
 ## 0.2.2
 
 ### Patch Changes

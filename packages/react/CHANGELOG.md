@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.7.59
+
+### Patch Changes
+
+- 8ec1f07: feat: AssistantCloudThreadHistoryAdapter
+- 4f5d77f: feat: ToolCallContentPart.args should be JSONObject
+- 8ec1f07: feat: auto-inject history adapter in local runtime
+
 ## 0.7.58
 
 ### Patch Changes
