@@ -5,7 +5,7 @@
   "scripts": {
     "build": "pnpm build:docs && next build",
     "build:docs": "tsx ./scripts/generate-docs.mts",
-    "dev": "next dev --turbo",
+    "dev": "next dev",
     "start": "next start",
     "lint": "next lint",
     "postinstall": "fumadocs-mdx"
@@ -28,6 +28,7 @@
     "@radix-ui/react-slot": "^1.1.1",
     "@radix-ui/react-tooltip": "^1.1.6",
     "@radix-ui/themes": "^3.1.6",
+    "@sentry/nextjs": "^8",
     "@shikijs/transformers": "^1.27.2",
     "ai": "^4.1.0",
     "class-variance-authority": "^0.7.1",
