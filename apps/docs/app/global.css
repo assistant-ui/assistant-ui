@@ -1,5 +1,5 @@
-@import "../../../packages/react/src/styles/index.css";
-@import "../../../packages/react/src/styles/modal.css";
+@import "../../../packages/react-ui/src/styles/index.css";
+@import "../../../packages/react-ui/src/styles/modal.css";
 
 @tailwind base;
 @tailwind components;

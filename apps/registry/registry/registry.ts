@@ -9,7 +9,7 @@ export const registry: RegistryItem[] = [
       config: {
         plugins: [
           `require("tailwindcss-animate")`,
-          `require("@assistant-ui/react/tailwindcss")({ shadcn: true })`,
+          `require("@assistant-ui/react-ui/tailwindcss")({ shadcn: true })`,
         ],
       },
     },

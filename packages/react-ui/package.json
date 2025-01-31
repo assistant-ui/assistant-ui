@@ -81,7 +81,7 @@
   "homepage": "https://www.assistant-ui.com/",
   "repository": {
     "type": "git",
-    "url": "https://github.com/assistant-ui/assistant-ui/tree/main/packages/react"
+    "url": "https://github.com/assistant-ui/assistant-ui/tree/main/packages/react-ui"
   },
   "bugs": {
     "url": "https://github.com/assistant-ui/assistant-ui/issues"
