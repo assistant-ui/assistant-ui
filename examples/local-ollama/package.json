@@ -11,6 +11,7 @@
   "dependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
+    "@assistant-ui/react-ui": "workspace:^",
     "next": "15.1.5",
     "ollama-ai-provider": "^1.2.0",
     "react": "19.0.0",

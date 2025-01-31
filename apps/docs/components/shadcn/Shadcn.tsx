@@ -1,5 +1,5 @@
 import { MenuIcon, ShareIcon } from "lucide-react";
-import { Thread, ThreadList } from "@assistant-ui/react";
+import { Thread, ThreadList } from "@assistant-ui/react-ui";
 import { makeMarkdownText } from "@assistant-ui/react-markdown";
 import remarkGfm from "remark-gfm";
 import { makePrismAsyncSyntaxHighlighter } from "@assistant-ui/react-syntax-highlighter";

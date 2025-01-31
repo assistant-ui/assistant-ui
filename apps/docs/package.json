@@ -18,6 +18,7 @@
     "@assistant-ui/react-langgraph": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
     "@assistant-ui/react-syntax-highlighter": "workspace:*",
+    "@assistant-ui/react-ui": "workspace:^",
     "@assistant-ui/tsconfig": "workspace:*",
     "@langchain/core": "^0.3.31",
     "@langchain/langgraph-sdk": "^0.0.36",

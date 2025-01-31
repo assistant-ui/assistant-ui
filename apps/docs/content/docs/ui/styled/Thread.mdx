@@ -14,6 +14,15 @@ The raw message list and message composer UI. Useful for full screen chat use ca
 <Steps>
   <Step>
 
+### Install `@assistant-ui/react-ui`
+
+```sh npm2yarn
+npm install @assistant-ui/react-ui
+```
+
+  </Step>
+  <Step>
+
 ### Import CSS styles
 
 Add the following to your `tailwind.config.ts`:
@@ -35,16 +44,16 @@ Add the following to your `tailwind.config.ts`:
 {
   plugins: [
     require("tailwindcss-animate"), // make sure to "npm install tailwindcss-animate"
-    require("@assistant-ui/react/tailwindcss")({ 
+    require("@assistant-ui/react-ui/tailwindcss")({
       components: ["thread"],
-      shadcn: true 
+      shadcn: true
     })
   ],
 }
 ```
 
 ```ts title="/app/layout.tsx" tab="Not using Tailwind"
-import "@assistant-ui/react/styles/index.css";
+import "@assistant-ui/react-ui/styles/index.css";
 ```
 
 </Tabs>
@@ -55,7 +64,8 @@ import "@assistant-ui/react/styles/index.css";
 ### Use it in your app
 
 ```tsx title="/app/page.tsx"
-import { Thread, useEdgeRuntime } from "@assistant-ui/react";
+import { useEdgeRuntime } from "@assistant-ui/react";
+import { Thread } from "@assistant-ui/react-ui";
 
 const MyApp = () => {
   const runtime = useEdgeRuntime({

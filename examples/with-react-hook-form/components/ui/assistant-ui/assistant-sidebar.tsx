@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/resizable";
 import { useMediaQuery } from "@react-hook/media-query";
 import type { FC, PropsWithChildren } from "react";
-import { Thread } from "@assistant-ui/react";
+import { Thread } from "@assistant-ui/react-ui";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../tabs";
 
 export const AssistantSidebar: FC<PropsWithChildren> = ({ children }) => {

@@ -12,6 +12,7 @@
     "@ai-sdk/openai": "^1.1.0",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-hook-form": "workspace:*",
+    "@assistant-ui/react-ui": "workspace:^",
     "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-avatar": "^1.1.2",
     "@radix-ui/react-icons": "^1.3.2",

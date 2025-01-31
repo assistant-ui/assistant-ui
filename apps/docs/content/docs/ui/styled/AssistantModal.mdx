@@ -14,6 +14,15 @@ A chat bubble shown in the bottom right corner of the screen. Useful for support
 <Steps>
   <Step>
 
+### Install `@assistant-ui/react-ui`
+
+```sh npm2yarn
+npm install @assistant-ui/react-ui
+```
+
+  </Step>
+  <Step>
+
 ### Import CSS styles
 
 Add the following to your `tailwind.config.ts`:
@@ -24,7 +33,7 @@ Add the following to your `tailwind.config.ts`:
 {
   plugins: [
     require("tailwindcss-animate"), // make sure to "npm install tailwindcss-animate"
-    require("@assistant-ui/react/tailwindcss")({
+    require("@assistant-ui/react-ui/tailwindcss")({
       components: ["assistant-modal"],
     })
   ],
@@ -35,7 +44,7 @@ Add the following to your `tailwind.config.ts`:
 {
   plugins: [
     require("tailwindcss-animate"), // make sure to "npm install tailwindcss-animate"
-    require("@assistant-ui/react/tailwindcss")({
+    require("@assistant-ui/react-ui/tailwindcss")({
       components: ["assistant-modal"],
       shadcn: true
     })
@@ -44,8 +53,8 @@ Add the following to your `tailwind.config.ts`:
 ```
 
 ```ts title="/app/layout.tsx" tab="Not using Tailwind"
-import "@assistant-ui/react/styles/index.css";
-import "@assistant-ui/react/styles/modal.css";
+import "@assistant-ui/react-ui/styles/index.css";
+import "@assistant-ui/react-ui/styles/modal.css";
 ```
 
 </Tabs>
@@ -56,7 +65,8 @@ import "@assistant-ui/react/styles/modal.css";
 ### Use it in your app
 
 ```tsx title="/app/page.tsx"
-import { AssistantModal, useEdgeRuntime } from "@assistant-ui/react";
+import { useEdgeRuntime } from "@assistant-ui/react";
+import { AssistantModal } from "@assistant-ui/react-ui";
 
 const MyApp = () => {
   const runtime = useEdgeRuntime({

@@ -11,11 +11,15 @@ import { makeMarkdownText } from "@assistant-ui/react-markdown";
 import { makePrismAsyncSyntaxHighlighter } from "@assistant-ui/react-syntax-highlighter";
 import { coldarkDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import remarkGfm from "remark-gfm";
-import { Thread, type ThreadConfig } from "@assistant-ui/react";
+import {
+  Thread,
+  type ThreadConfig,
+  Composer,
+  ThreadWelcome,
+} from "@assistant-ui/react-ui";
 import entelligenceLogoLight from "./entelligence-light.png";
 import entelligenceLogoDark from "./entelligence-dark.png";
 import Image from "next/image";
-import { Composer, ThreadWelcome } from "@assistant-ui/react";
 
 function asAsyncIterable<T>(source: ReadableStream<T>): AsyncIterable<T> {
   return {

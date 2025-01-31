@@ -44,7 +44,7 @@ NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID=your_graph_id
 ### Install dependencies
 
 ```sh npm2yarn
-npm install @assistant-ui/react @assistant-ui/react-langgraph @langchain/langgraph-sdk
+npm install @assistant-ui/react @assistant-ui/react-ui @assistant-ui/react-langgraph @langchain/langgraph-sdk
 ```
 
   </Step>
@@ -190,7 +190,7 @@ export const sendMessage = async (params: {
 "use client";
 
 import { useRef } from "react";
-import { Thread } from "@assistant-ui/react";
+import { Thread } from "@assistant-ui/react-ui";
 import { useLangGraphRuntime } from "@assistant-ui/react-langgraph";
 import { makeMarkdownText } from "@assistant-ui/react-markdown";
 

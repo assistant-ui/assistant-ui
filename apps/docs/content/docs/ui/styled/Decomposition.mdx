@@ -16,7 +16,7 @@ import {
   ThreadWelcome,
   Composer,
   type ThreadConfig,
-} from "@assistant-ui/react";
+} from "@assistant-ui/react-ui";
 
 const MyThread: FC<ThreadConfig> = (config) => {
   return (
@@ -66,7 +66,7 @@ A button to scroll the viewport to the bottom. Hidden when the viewport is alrea
 Renders the welcome message when no messages are present.
 
 ```tsx
-import { ThreadWelcome } from "@assistant-ui/react";
+import { ThreadWelcome } from "@assistant-ui/react-ui";
 
 const MyThreadWelcome: FC = () => {
   return (
@@ -114,7 +114,7 @@ The welcome message.
 Conversation starter suggestions.
 
 ```tsx
-import { ThreadWelcome } from "@assistant-ui/react";
+import { ThreadWelcome } from "@assistant-ui/react-ui";
 
 const MyThreadWelcomeSuggestions: FC = () => {
   return (
@@ -135,7 +135,7 @@ A conversation starter suggestion.
 Renders the composer.
 
 ```tsx
-import { Composer } from "@assistant-ui/react";
+import { Composer } from "@assistant-ui/react-ui";
 
 const MyComposer: FC = () => {
   return (
@@ -174,7 +174,7 @@ The text input field for the user to type a new message.
 The button to send or cancel the message.
 
 ```tsx
-import { Composer, ThreadPrimitive } from "@assistant-ui/react";
+import { Composer, ThreadPrimitive } from "@assistant-ui/react-ui";
 
 const MyComposerAction: FC = () => {
   return (
@@ -215,7 +215,7 @@ Renders an add attachment button.
 Renders an attachment.
 
 ```tsx
-import { AttachmentUI } from "@assistant-ui/react";
+import { AttachmentUI } from "@assistant-ui/react-ui";
 
 const MyAttachmentUI: FC = () => {
   return (
@@ -240,7 +240,7 @@ Renders a remove attachment button.
 Renders an assistant message.
 
 ```tsx
-import { AssistantMessage } from "@assistant-ui/react";
+import { AssistantMessage } from "@assistant-ui/react-ui";
 
 const MyAssistantMessage: FC = () => {
   return (
@@ -283,7 +283,7 @@ The content of the assistant message.
 Renders the action bar for the assistant message.
 
 ```tsx
-import { AssistantActionBar } from "@assistant-ui/react";
+import { AssistantActionBar } from "@assistant-ui/react-ui";
 
 const MyAssistantActionBar: FC = () => {
   return (
@@ -351,7 +351,7 @@ Shows a negative feedback button.
 Renders the branch picker.
 
 ```tsx
-import { BranchPicker } from "@assistant-ui/react";
+import { BranchPicker } from "@assistant-ui/react-ui";
 
 const MyBranchPicker: FC = () => {
   return (
@@ -401,7 +401,7 @@ Shows a next button.
 Shows the current branch number and total number of branches.
 
 ```tsx
-import { BranchPicker } from "@assistant-ui/react";
+import { BranchPicker } from "@assistant-ui/react-ui";
 
 const MyBranchPickerState: FC = () => {
   return (
@@ -425,7 +425,7 @@ The total number of branches.
 Renders a user message.
 
 ```tsx
-import { UserMessage } from "@assistant-ui/react";
+import { UserMessage } from "@assistant-ui/react-ui";
 
 const MyUserMessage: FC = () => {
   return (
@@ -468,7 +468,7 @@ Renders attachments.
 Renders the action bar for the user message.
 
 ```tsx
-import { UserActionBar } from "@assistant-ui/react";
+import { UserActionBar } from "@assistant-ui/react-ui";
 
 const MyUserActionBar: FC = () => {
   return (
@@ -504,7 +504,7 @@ Shows an edit button.
 Renders an attachment.
 
 ```tsx
-import { UserAttachment } from "@assistant-ui/react";
+import { UserAttachment } from "@assistant-ui/react-ui";
 
 const MyUserAttachment: FC = () => {
   return <UserAttachment.Root>attachment</UserAttachment.Root>;
@@ -520,7 +520,7 @@ Contains all parts of the user attachment.
 Renders a user message being edited.
 
 ```tsx
-import { EditComposer } from "@assistant-ui/react";
+import { EditComposer } from "@assistant-ui/react-ui";
 
 const MyEditComposer: FC = () => {
   return (
@@ -572,7 +572,11 @@ Sends the message.
 Renders the assistant modal.
 
 ```tsx
-import { AssistantModal, Thread, type ThreadConfig } from "@assistant-ui/react";
+import {
+  AssistantModal,
+  Thread,
+  type ThreadConfig,
+} from "@assistant-ui/react-ui";
 
 const MyAssistantModal: FC<ThreadConfig> = (config) => {
   return (
@@ -597,7 +601,7 @@ const MyAssistantModal: FC<ThreadConfig> = (config) => {
 Renders a thread list.
 
 ```tsx
-import { ThreadList, ThreadListItem } from "@assistant-ui/react";
+import { ThreadList, ThreadListItem } from "@assistant-ui/react-ui";
 
 const MyThreadList = () => {
   return (
@@ -614,7 +618,7 @@ const MyThreadList = () => {
 Renders a thread list item.
 
 ```tsx
-import { ThreadListItem, ThreadListItemPrimitive } from "@assistant-ui/react";
+import { ThreadListItem, ThreadListItemPrimitive } from "@assistant-ui/react-ui";
 
 const MyThreadListItem = () => {
   return (

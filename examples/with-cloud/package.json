@@ -12,6 +12,7 @@
     "@ai-sdk/openai": "^1.1.0",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-ai-sdk": "workspace:^",
+    "@assistant-ui/react-ui": "workspace:^",
     "ai": "^4.1.7",
     "jsonwebtoken": "^9.0.2",
     "nanoid": "^5.0.9",

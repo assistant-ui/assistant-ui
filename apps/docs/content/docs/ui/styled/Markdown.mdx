@@ -30,7 +30,7 @@ npm install @assistant-ui/react-markdown
 {
   plugins: [
     require("tailwindcss-animate"),
-    require("@assistant-ui/react/tailwindcss"),
+    require("@assistant-ui/react-ui/tailwindcss"),
     require("@assistant-ui/react-markdown/tailwindcss"),
   ],
 }
@@ -40,14 +40,14 @@ npm install @assistant-ui/react-markdown
 {
   plugins: [
     require("tailwindcss-animate"),
-    require("@assistant-ui/react/tailwindcss")({ shadcn: true }),
+    require("@assistant-ui/react-ui/tailwindcss")({ shadcn: true }),
     require("@assistant-ui/react-markdown/tailwindcss"),
   ],
 }
 ```
 
 ```ts title="/app/layout.tsx" tab="Not using Tailwind"
-import "@assistant-ui/react/styles/index.css";
+import "@assistant-ui/react-ui/styles/index.css";
 import "@assistant-ui/react-markdown/styles/markdown.css";
 ```
 

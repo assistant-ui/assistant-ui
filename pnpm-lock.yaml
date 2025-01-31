@@ -54,6 +54,9 @@ importers:
       '@assistant-ui/react-syntax-highlighter':
         specifier: workspace:*
         version: link:../../packages/react-syntax-highlighter
+      '@assistant-ui/react-ui':
+        specifier: workspace:^
+        version: link:../../packages/react-ui
       '@assistant-ui/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
@@ -289,6 +292,9 @@ importers:
       '@assistant-ui/react-markdown':
         specifier: workspace:*
         version: link:../../packages/react-markdown
+      '@assistant-ui/react-ui':
+        specifier: workspace:^
+        version: link:../../packages/react-ui
       next:
         specifier: 15.1.5
         version: 15.1.5(@opentelemetry/api@1.9.0)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
@@ -435,6 +441,9 @@ importers:
       '@assistant-ui/react-ai-sdk':
         specifier: workspace:^
         version: link:../../packages/react-ai-sdk
+      '@assistant-ui/react-ui':
+        specifier: workspace:^
+        version: link:../../packages/react-ui
       ai:
         specifier: ^4.1.7
         version: 4.1.7(react@19.0.0)(zod@3.24.1)
@@ -490,6 +499,9 @@ importers:
       '@assistant-ui/react-ai-sdk':
         specifier: workspace:^
         version: link:../../packages/react-ai-sdk
+      '@assistant-ui/react-ui':
+        specifier: workspace:^
+        version: link:../../packages/react-ui
       ai:
         specifier: ^4.1.7
         version: 4.1.7(react@19.0.0)(zod@3.24.1)
@@ -551,6 +563,9 @@ importers:
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
+      '@assistant-ui/react-ui':
+        specifier: workspace:^
+        version: link:../../packages/react-ui
       next:
         specifier: 15.1.5
         version: 15.1.5(@opentelemetry/api@1.9.0)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
@@ -791,6 +806,9 @@ importers:
       '@assistant-ui/react-markdown':
         specifier: workspace:*
         version: link:../../packages/react-markdown
+      '@assistant-ui/react-ui':
+        specifier: workspace:^
+        version: link:../../packages/react-ui
       '@langchain/langgraph-sdk':
         specifier: ^0.0.36
         version: 0.0.36
@@ -949,6 +967,9 @@ importers:
       '@assistant-ui/react-hook-form':
         specifier: workspace:*
         version: link:../../packages/react-hook-form
+      '@assistant-ui/react-ui':
+        specifier: workspace:^
+        version: link:../../packages/react-ui
       '@hookform/resolvers':
         specifier: ^3.10.0
         version: 3.10.0(react-hook-form@7.54.2(react@19.0.0))
@@ -1694,6 +1715,82 @@ importers:
       react-dom:
         specifier: 19.0.0
         version: 19.0.0(react@19.0.0)
+      tailwindcss:
+        specifier: ^3.4.17
+        version: 3.4.17
+      tailwindcss-animate:
+        specifier: ^1.0.7
+        version: 1.0.7(tailwindcss@3.4.17)
+      tsx:
+        specifier: ^4.19.2
+        version: 4.19.2
+
+  packages/react-ui:
+    dependencies:
+      '@assistant-ui/react':
+        specifier: workspace:^
+        version: link:../react
+      '@radix-ui/react-avatar':
+        specifier: ^1.1.2
+        version: 1.1.2(@types/react-dom@19.0.3(@types/react@19.0.7))(@types/react@19.0.7)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+      '@radix-ui/react-dialog':
+        specifier: ^1.1.4
+        version: 1.1.4(@types/react-dom@19.0.3(@types/react@19.0.7))(@types/react@19.0.7)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+      '@radix-ui/react-primitive':
+        specifier: ^2.0.1
+        version: 2.0.1(@types/react-dom@19.0.3(@types/react@19.0.7))(@types/react@19.0.7)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+      '@radix-ui/react-tooltip':
+        specifier: ^1.1.6
+        version: 1.1.6(@types/react-dom@19.0.3(@types/react@19.0.7))(@types/react@19.0.7)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+      '@types/react':
+        specifier: '*'
+        version: 19.0.7
+      '@types/react-dom':
+        specifier: '*'
+        version: 19.0.3(@types/react@19.0.7)
+      class-variance-authority:
+        specifier: ^0.7.1
+        version: 0.7.1
+      classnames:
+        specifier: ^2.5.1
+        version: 2.5.1
+      lucide-react:
+        specifier: ^0.473.0
+        version: 0.473.0(react@19.0.0)
+      react:
+        specifier: 19.0.0
+        version: 19.0.0
+      react-dom:
+        specifier: 19.0.0
+        version: 19.0.0(react@19.0.0)
+      zustand:
+        specifier: ^5.0.3
+        version: 5.0.3(@types/react@19.0.7)(react@19.0.0)(use-sync-external-store@1.4.0(react@19.0.0))
+    devDependencies:
+      '@assistant-ui/tailwindcss-transformer':
+        specifier: workspace:*
+        version: link:../tailwindcss-transformer
+      '@assistant-ui/tsbuildutils':
+        specifier: workspace:^
+        version: link:../tsbuildutils
+      '@assistant-ui/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@types/node':
+        specifier: ^22.10.7
+        version: 22.10.7
+      autoprefixer:
+        specifier: ^10.4.20
+        version: 10.4.20(postcss@8.5.1)
+      eslint:
+        specifier: ^9
+        version: 9.18.0(jiti@1.21.7)
+      eslint-config-next:
+        specifier: 15.1.5
+        version: 15.1.5(eslint@9.18.0(jiti@1.21.7))(typescript@5.7.3)
+      postcss:
+        specifier: ^8.5.1
+        version: 8.5.1
       tailwindcss:
         specifier: ^3.4.17
         version: 3.4.17
