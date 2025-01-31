@@ -10,8 +10,7 @@
         "ASSISTANT_UI_*",
         "ENTELLIGENCE_*",
         "SENTRY_*",
-        "NEXT_PUBLIC_*",
-        "TRIEVE_*"
+        "NEXT_PUBLIC_*"
       ]
     },
     "lint": {},

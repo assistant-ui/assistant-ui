@@ -1,2 +1,0 @@
-# Trieve Example
-
