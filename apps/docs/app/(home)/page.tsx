@@ -57,12 +57,10 @@ export default function HomePage() {
     <main className="container mx-auto flex flex-col gap-6 self-stretch p-4">
       <div className="mt-12 flex flex-col gap-4 self-center">
         <h1 className="text-center text-4xl font-extrabold">
-          Build in-app AI chatbots
-          <br />
-          in days, not weeks.
+          Typescript/React library for AI Chat
         </h1>
         <p className="text-foreground/85 text-center text-xl">
-          assistant-ui is a chatbot UI for your React app
+          Open Source, built on shadcn-ui, and Tailwind CSS
         </p>
       </div>
 
