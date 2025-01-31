@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.60
+
+### Patch Changes
+
+- 246ce4e: fix: export getExternalStoreMessages
+
 ## 0.7.59
 
 ### Patch Changes
