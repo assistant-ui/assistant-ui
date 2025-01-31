@@ -51,7 +51,8 @@ const config = {
   },
   plugins: [
     animatePlugin,
-    require("@assistant-ui/react-ui/tailwindcss")({ components: [] }),
+    // temp - move markdown styles to react-ui
+    require("@assistant-ui/react/tailwindcss")({ components: [] }),
   ],
 } satisfies Config;
 

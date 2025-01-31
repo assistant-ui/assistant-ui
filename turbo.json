@@ -8,7 +8,8 @@
       "env": [
         "OPENAI_*",
         "ASSISTANT_UI_*",
-        "ENTELLIGENCE_API_*",
+        "ENTELLIGENCE_*",
+        "SENTRY_*",
         "NEXT_PUBLIC_*",
         "TRIEVE_*"
       ]
