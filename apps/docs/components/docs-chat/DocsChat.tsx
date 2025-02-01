@@ -131,7 +131,16 @@ const MyAssistantModalTrigger: FC = () => {
 
 const MyThread: FC = () => {
   return (
-    <Thread.Root className="flex flex-col">
+    <Thread.Root
+      className="flex flex-col"
+      config={{
+        assistantMessage: {
+          components: {
+            Text: MarkdownText,
+          },
+        },
+      }}
+    >
       <Thread.Viewport>
         <ThreadWelcome />
 
