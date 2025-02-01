@@ -1,11 +1,10 @@
 /* thread */
 .aui-thread-root {
   @apply bg-aui-background box-border h-full;
-  @apply [&>.aui-thread-viewport]:bg-inherit;
 }
 
 .aui-thread-viewport {
-  @apply bg-aui-background flex h-full flex-col items-center overflow-y-scroll scroll-smooth px-4 pt-8;
+  @apply flex h-full flex-col items-center overflow-y-scroll scroll-smooth bg-inherit px-4 pt-8;
 }
 
 .aui-thread-viewport-footer {
@@ -60,8 +59,12 @@
   @apply placeholder:text-aui-muted-foreground max-h-40 flex-grow resize-none border-none bg-transparent px-2 py-4 text-sm outline-none focus:ring-0 disabled:cursor-not-allowed;
 }
 
-.aui-composer-send,
-.aui-composer-cancel,
+.aui-composer-send {
+  @apply my-2.5 size-8 p-2 transition-opacity ease-in;
+}
+.aui-composer-cancel {
+  @apply my-2.5 size-8 p-2 transition-opacity ease-in;
+}
 .aui-composer-attach {
   @apply my-2.5 size-8 p-2 transition-opacity ease-in;
 }
@@ -111,36 +114,35 @@
   @apply max-w-aui-thread w-full py-4;
 }
 
-:where(.aui-user-message-root) > .aui-user-action-bar-root {
-  @apply col-start-1 row-start-2 mr-3 mt-2.5;
-}
-
-:where(.aui-user-message-root) > .aui-user-message-attachments {
-  @apply col-span-full col-start-1 row-start-1;
-  @apply justify-end;
-}
-
-:where(.aui-user-message-root) > .aui-user-message-content {
-  @apply col-start-2 row-start-2;
-}
-
 :where(.aui-user-message-root) > .aui-branch-picker-root {
+  @apply col-span-full col-start-1 row-start-3;
+  @apply -mr-1 justify-end;
+}
+
+.aui-user-branch-picker {
   @apply col-span-full col-start-1 row-start-3;
   @apply -mr-1 justify-end;
 }
 
 .aui-user-message-content {
   @apply bg-aui-muted text-aui-foreground max-w-[calc(var(--aui-thread-max-width)*0.8)] break-words rounded-3xl px-5 py-2.5;
+
+  @apply col-start-2 row-start-2;
 }
 
 .aui-user-message-attachments {
   @apply flex w-full flex-row gap-3;
+
+  @apply col-span-full col-start-1 row-start-1;
+  @apply justify-end;
 }
 
 /* user action bar */
 
 .aui-user-action-bar-root {
   @apply flex flex-col items-end;
+
+  @apply col-start-1 row-start-2 mr-3 mt-2.5;
 }
 
 /* edit composer */
@@ -168,28 +170,33 @@
   @apply col-start-1 row-span-full row-start-1 mr-4;
 }
 
+.aui-assistant-avatar {
+  @apply col-start-1 row-span-full row-start-1 mr-4;
+}
+
 :where(.aui-assistant-message-root) > .aui-branch-picker-root {
   @apply col-start-2 row-start-2;
   @apply -ml-2 mr-2;
 }
 
-:where(.aui-assistant-message-root) > .aui-assistant-action-bar-root {
-  @apply col-start-3 row-start-2;
-  @apply -ml-1;
-}
-
-:where(.aui-assistant-message-root) > .aui-assistant-message-content {
-  @apply col-span-2 col-start-2 row-start-1 my-1.5;
+.aui-assistant-branch-picker {
+  @apply col-start-2 row-start-2;
+  @apply -ml-2 mr-2;
 }
 
 .aui-assistant-message-content {
   @apply text-aui-foreground max-w-[calc(var(--aui-thread-max-width)*0.8)] break-words leading-7;
+
+  @apply col-span-2 col-start-2 row-start-1 my-1.5;
 }
 
 /* assistant action bar */
 
 .aui-assistant-action-bar-root {
   @apply text-aui-muted-foreground flex gap-1;
+
+  @apply col-start-3 row-start-2;
+  @apply -ml-1;
 }
 
 :where(.aui-assistant-action-bar-root)[data-floating] {
