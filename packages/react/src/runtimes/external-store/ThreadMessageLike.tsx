@@ -1,8 +1,8 @@
+import { generateId } from "../../internal";
 import {
   MessageStatus,
   TextContentPart,
   ImageContentPart,
-  ToolCallContentPart,
   UIContentPart,
   ThreadMessage,
   ThreadAssistantContentPart,
@@ -14,11 +14,11 @@ import {
   FileContentPart,
   Unstable_AudioContentPart,
 } from "../../types";
+import { ThreadStep } from "../../types/AssistantTypes";
 import {
-  CoreToolCallContentPart,
-  ThreadStep,
-} from "../../types/AssistantTypes";
-import { ReadonlyJSONValue } from "../../utils/json/json-value";
+  ReadonlyJSONObject,
+  ReadonlyJSONValue,
+} from "../../utils/json/json-value";
 import { parsePartialJson } from "../../utils/json/parse-partial-json";
 
 export type ThreadMessageLike = {
@@ -30,15 +30,14 @@ export type ThreadMessageLike = {
         | ImageContentPart
         | FileContentPart
         | Unstable_AudioContentPart
-        | ToolCallContentPart<any, any>
-        | CoreToolCallContentPart<any, any>
         | {
-            type: "tool-call";
-            toolCallId: string;
-            toolName: string;
-            argsText: string;
-            result?: unknown | undefined;
-            isError?: boolean | undefined;
+            readonly type: "tool-call";
+            readonly toolCallId?: string;
+            readonly toolName: string;
+            readonly args?: ReadonlyJSONObject;
+            readonly argsText?: string;
+            readonly result?: any | undefined;
+            readonly isError?: boolean | undefined;
           }
         | UIContentPart
       )[];
@@ -100,19 +99,19 @@ export const fromThreadMessageLike = (
                 return part;
 
               case "tool-call": {
-                if ("argsText" in part) {
-                  if ("args" in part) {
-                    return part;
-                  }
-
+                if (part.args) {
                   return {
                     ...part,
-                    args: parsePartialJson(part.argsText),
+                    toolCallId: part.toolCallId ?? "tool-" + generateId(),
+                    args: part.args,
+                    argsText: JSON.stringify(part.args),
                   };
                 }
                 return {
                   ...part,
-                  argsText: JSON.stringify(part.args),
+                  toolCallId: part.toolCallId ?? "tool-" + generateId(),
+                  args: part.args ?? parsePartialJson(part.argsText ?? ""),
+                  argsText: part.argsText ?? "",
                 };
               }
 

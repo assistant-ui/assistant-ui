@@ -4,7 +4,10 @@ import { MessageStatus } from "../types/AssistantTypes";
 import { fromThreadMessageLike } from "../runtimes/external-store/ThreadMessageLike";
 import { CloudMessage } from "./AssistantCloudThreadMessages";
 import { isJSONValue } from "../utils/json/is-json";
-import { ReadonlyJSONValue } from "../utils/json/json-value";
+import {
+  ReadonlyJSONObject,
+  ReadonlyJSONValue,
+} from "../utils/json/json-value";
 import { ExportedMessageRepositoryItem } from "../runtimes/utils/MessageRepository";
 
 type AuiV0MessageContentPart =
@@ -16,7 +19,7 @@ type AuiV0MessageContentPart =
       readonly type: "tool-call";
       readonly toolCallId: string;
       readonly toolName: string;
-      readonly args: ReadonlyJSONValue;
+      readonly args: ReadonlyJSONObject;
       readonly result?: ReadonlyJSONValue;
       readonly isError?: true;
     }
