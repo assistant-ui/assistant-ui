@@ -39,3 +39,8 @@ export { default as ThreadWelcome } from "./thread-welcome";
 export { default as UserMessage } from "./user-message";
 
 export { default as UserActionBar } from "./user-action-bar";
+
+export {
+  makeMarkdownText,
+  type MakeMarkdownTextProps,
+} from "./markdown/markdown-text";

@@ -4,6 +4,7 @@ import threadCSS from "../../dist/styles/tailwindcss/thread.css.json";
 import modalCSS from "../../dist/styles/tailwindcss/modal.css.json";
 import defaultThemeCSS from "../../dist/styles/themes/default.css.json";
 import shadcnExtrasCSS from "../../dist/styles/themes/shadcn-extras.css.json";
+import markdownCSS from "../../dist/styles/tailwindcss/markdown.css.json";
 
 type AssistantTailwindPluginColors = {
   border: string;
@@ -42,16 +43,26 @@ type AssistantTailwindPluginColors = {
 };
 
 type AssisstantTailwindPluginOptions = {
-  components?: ("default-theme" | "base" | "thread" | "assistant-modal")[];
+  components?: (
+    | "default-theme"
+    | "base"
+    | "thread"
+    | "assistant-modal"
+    | "markdown"
+  )[];
   colors?: AssistantTailwindPluginColors;
   shadcn?: boolean;
 };
 
 const auiPlugin = plugin.withOptions<AssisstantTailwindPluginOptions>(
-  ({ components = ["assistant-modal", "thread"], shadcn = false } = {}) =>
+  ({
+    components = ["assistant-modal", "thread", "markdown"],
+    shadcn = false,
+  } = {}) =>
     ({ addComponents }) => {
       const assistantModal = components.includes("assistant-modal");
       const thread = assistantModal || components.includes("thread");
+      const markdown = components.includes("markdown");
       const base = thread || components.includes("base");
       const defaultTheme = components.includes("default-theme");
 
@@ -75,6 +86,10 @@ const auiPlugin = plugin.withOptions<AssisstantTailwindPluginOptions>(
 
       if (assistantModal) {
         addComponents(modalCSS);
+      }
+
+      if (markdown) {
+        addComponents(markdownCSS);
       }
     },
   ({
