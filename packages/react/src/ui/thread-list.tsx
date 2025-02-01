@@ -18,7 +18,7 @@ const ThreadList: FC = () => {
   );
 };
 
-const ThreadListRoot = withDefaults("div", {
+const ThreadListRoot = withDefaults(ThreadListPrimitive.Root, {
   className: "aui-root aui-thread-list-root",
 });
 ThreadListRoot.displayName = "ThreadListRoot";
