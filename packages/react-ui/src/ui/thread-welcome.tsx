@@ -83,7 +83,7 @@ const ThreadWelcomeMessage = forwardRef<
 ThreadWelcomeMessage.displayName = "ThreadWelcomeMessage";
 
 const ThreadWelcomeSuggestionContainer = withDefaults("div", {
-  className: "aui-thread-welcome-suggestion-container",
+  className: "aui-thread-welcome-suggestions",
 });
 
 const ThreadWelcomeSuggestionStyled = withDefaults(ThreadPrimitive.Suggestion, {

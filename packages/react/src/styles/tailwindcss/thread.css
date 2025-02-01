@@ -38,7 +38,7 @@
   @apply mt-4 font-medium;
 }
 
-.aui-thread-welcome-suggestion-container {
+.aui-thread-welcome-suggestions {
   @apply mt-3 flex w-full items-stretch justify-center gap-4;
 }
 
