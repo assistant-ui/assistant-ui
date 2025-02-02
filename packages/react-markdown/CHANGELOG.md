@@ -1,5 +1,11 @@
 # @assistant-ui/react-markdown
 
+## 0.7.14
+
+### Patch Changes
+
+- 4506653: feat: memoizeMarkdownComponents
+
 ## 0.7.13
 
 ### Patch Changes
