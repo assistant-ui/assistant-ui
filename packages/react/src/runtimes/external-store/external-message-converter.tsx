@@ -256,7 +256,7 @@ export const useExternalMessageConverter = <T extends WeakKey>({
       return m;
     });
 
-    return state.converterCache.convertMessages(
+    const threadMessages = state.converterCache.convertMessages(
       chunks,
       (cache, message, idx) => {
         const isLast = idx === chunks.length - 1;
@@ -283,6 +283,10 @@ export const useExternalMessageConverter = <T extends WeakKey>({
         return newMessage;
       },
     );
+
+    (threadMessages as unknown as { [symbolInnerMessage]: T[] })[
+      symbolInnerMessage
+    ] = messages;
   }, [state, messages, isRunning]);
 };
 

@@ -12,3 +12,4 @@ export {
   useExternalMessageConverter,
   convertExternalMessages as unstable_convertExternalMessages,
 } from "./external-message-converter";
+export { createMessageConverter as unstable_createMessageConverter } from "./createMessageConverter";
