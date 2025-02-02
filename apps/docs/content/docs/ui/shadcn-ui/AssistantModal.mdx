@@ -13,32 +13,21 @@ A chat bubble shown in the bottom right corner of the screen. Useful for support
 <Steps>
   <Step>
 
-### Initialize `shadcn-ui`
-
-```sh
-npx shadcn@latest init
-```
-
-  </Step>
-  <Step>
-
 ### Add `assistant-modal`
 
 ```sh
-npx assistant-ui@latest add modal
+npx shadcn@latest add "https://r.assistant-ui.com/assistant-modal"
 ```
 
-This adds `/components/ui/assistant-ui/assistant-modal.tsx` and `/components/ui/assistant-ui/thread.tsx` files to your project, which you can adjust as needed.
+This adds `/components/assistant-ui/assistant-modal.tsx` to your project, which you can adjust as needed.
 
   </Step>
   <Step>
 
 ### Use in your application
 
-`/app/page.tsx`
-
-```tsx {1, 6}
-import { AssistantModal } from "@/components/ui/assistant-ui/assistant-modal";
+```tsx title="/app/page.tsx" {1,6}
+import { AssistantModal } from "@/components/assistant-ui/assistant-modal";
 
 export default function Home() {
   return (

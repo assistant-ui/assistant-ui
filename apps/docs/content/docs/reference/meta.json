@@ -1,4 +1,4 @@
 {
   "title": "Reference",
-  "pages": ["runtime", "context", "integrations", "..."]
+  "pages": ["runtime", "context", "integrations", "legacy", "..."]
 }

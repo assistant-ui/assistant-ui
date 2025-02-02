@@ -8,8 +8,7 @@ import { Step, Steps } from "fumadocs-ui/components/steps";
 import { Callout } from "fumadocs-ui/components/callout";
 
 <Callout>
-  Markdown support is alraedy included in the `npx assistant-ui@latest add
-  thread-full` template.
+  Markdown support is already included by default in the `Thread` component.
 </Callout>
 
 ## Enabling markdown support
@@ -17,29 +16,51 @@ import { Callout } from "fumadocs-ui/components/callout";
 <Steps>
 
 <Step>
-### Add the `markdown-text` component to your project.
+### Add `markdown-text`
 
 ```tsx
-npx assistant-ui@latest add markdown-text
+npx shadcn@latest add "https://r.assistant-ui.com/markdown-text"
 ```
+
+This adds a `/components/assistant-ui/markdown-text.tsx` file to your project, which you can adjust as needed.
 
 </Step>
 
 <Step>
 
-### Use it in `Thread.tsx`
+### Use it in your application
 
 Pass the `MarkdownText` component to the `MessagePrimitive.Content` component
 
-```tsx {1, 7}
-import { MarkdownText } from "@/components/ui/assistant-ui/markdown-text";
+```tsx twoslash title="/components/assistant-ui/thread.tsx" {1,11}
+// @filename: /components/assistant-ui/thread.tsx
+import { FC } from "react";
+export const MarkdownText: FC = () => null;
 
-const AssistantMessage = () => {
+// @filename: ./thread.tsx
+import { FC } from "react";
+import { MessagePrimitive } from "@assistant-ui/react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+
+const AssistantActionBar: FC = () => null;
+const BranchPicker: FC<{ className?: string }> = () => null;
+
+// ---cut---
+import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+
+const AssistantMessage: FC = () => {
   return (
-    <MessagePrimitive.Root>
-      ...
-      <MessagePrimitive.Content components={{ Text: MarkdownText }} />
-      ...
+    <MessagePrimitive.Root className="...">
+      <Avatar className="...">
+        <AvatarFallback>A</AvatarFallback>
+      </Avatar>
+
+      <div className="...">
+        <MessagePrimitive.Content components={{ Text: MarkdownText }} />
+      </div>
+      <AssistantActionBar />
+
+      <BranchPicker className="..." />
     </MessagePrimitive.Root>
   );
 };

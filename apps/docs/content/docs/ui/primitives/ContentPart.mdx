@@ -3,6 +3,17 @@ title: ContentPart
 description: A part of a message's content. Content parts may be text, image, tool call or UI elements.
 ---
 
+import { ParametersTable } from "@/components/docs";
+import {
+  ContentPartRuntime,
+  TextContentPartState,
+  AudioContentPartState,
+  ToolCallContentPartState,
+} from "@/generated/typeDocs";
+
+Each message can have any number of content parts.  
+Content parts are usually one of text, audio or tool-call.
+
 ## Anatomy
 
 ```tsx
@@ -11,70 +22,133 @@ import { ContentPartPrimitive } from "@assistant-ui/react";
 const TextContentPart = () => {
   return <ContentPartPrimitive.Text />;
 };
-
-const ImageContentPart = () => {
-  return <ContentPartPrimitive.Image />;
-};
-
-const UIContentPart = () => {
-  return <ContentPartPrimitive.Display />;
-};
 ```
 
-## API Reference
+## Primitives
 
-### Text
+### Plain Text
 
-Renders the text content of a text content part.
+```tsx
+import { ContentPartPrimitive } from "@assistant/react";
 
-This primitive renders a `<span>` element.
+<ContentPartPrimitive.Text />;
+```
 
-#### `useContentPartText`
+### Markdown Text
+
+Renders the message's text as Markdown.
+
+```tsx
+import { MarkdownTextPrimitive } from "@assistant-ui/react-markdown";
+
+<MarkdownTextPrimitive />;
+```
+
+### Audio
+
+Coming soon.
+
+### InProgress
+
+Renders children only if the content part is in progress.
+
+```tsx
+import { ContentPartPrimitive } from "@assistant/react";
+
+<ContentPartPrimitive.InProgress>
+  <LoadingIndicator />
+</ContentPartPrimitive.InProgress>;
+```
+
+### Tool UI
+
+You can map tool calls to UI components. We provide a few utility functions to make this easier, such as `makeAssistantToolUI`.
+
+```tsx
+const MyWeatherToolUI = makeAssistantToolUI({
+  toolName: "get_weather",
+  render: function MyWeatherToolUI({ args, result }) {
+    return (
+      <div className="mb-4 flex flex-col items-center">
+        <pre className="whitespace-pre-wrap break-all text-center">
+          get_weather({JSON.stringify(args)})
+        </pre>
+        {"result" in result && (
+          <pre className="whitespace-pre-wrap break-all text-center">
+            {JSON.stringify(result.result)}
+          </pre>
+        )}
+      </div>
+    );
+  },
+});
+```
+
+## Context Provider
+
+Content part context is provided by `MessagePrimitive.Content` or `TextContentPartProvider`
+
+### MessagePrimitive.Content
+
+```tsx
+import { MessagePrimitive } from "@assistant/react";
+
+<MessagePrimitive.Content
+  components={{
+    Text: MyText,
+    Audio: MyAudio,
+    tools: {
+      by_name: {
+        get_weather: MyWeatherToolUI,
+      },
+      Fallback: MyFallbackToolUI,
+    },
+  }}
+/>;
+```
+
+### TextContentPartProvider
+
+This is a helper context provider to allow you to reuse the content part components outside a message content part.
+
+```tsx
+import { TextContentPartProvider } from "@assistant-ui/react";
+
+<TextContentPartProvider text="Hello world" isRunning={false}>
+  <ContentPart.Text />
+</TextContentPartProvider>;
+```
+
+## Runtime API
+
+### `useContentPartRuntime`
+
+```tsx
+import { useContentPartRuntime } from "@assistant-ui/react";
+
+const contentPartRuntime = useContentPartRuntime();
+```
+
+<ParametersTable {...ContentPartRuntime} />
+
+### `useContentPart`
+
+```tsx
+import { useContentPart } from "@assistant-ui/react";
+
+const contentPart = useContentPart();
+```
+
+<ParametersTable {...TextContentPartState} />
+<ParametersTable {...AudioContentPartState} />
+<ParametersTable {...ToolCallContentPartState} />
+
+### `useContentPartText`
 
 ```tsx
 import { useContentPartText } from "@assistant-ui/react";
 
-const Text = () => {
-  const text = useContentPartText();
-
-  return <span>{text}</span>;
-};
+const contentPartText = useContentPartText();
 ```
 
-### Image
-
-Renders the image content of an image content part.
-
-This primitive renders an `<img>` element.
-
-#### `useContentPartImage`
-
-```tsx
-import { useContentPartImage } from "@assistant-ui/react";
-
-const Image = () => {
-  const image = useContentPartImage();
-
-  return <img src={image} alt="AI" />;
-};
-```
-
-### Display
-
-Renders the display content of a UI content part. This feature is used by the Vercel RSC runtime.
-
-#### `useContentPartDisplay`
-
-```tsx
-import { useContentPartDisplay } from "@assistant-ui/react";
-
-const Display = () => {
-  const display = useContentPartDisplay();
-
-  return <div>{display}</div>;
-};
-```
-
-### InProgress
-
-Renders children only if the content part is in progress. While a message is in progress, the very last content part is considered to be in progress.
+<ParametersTable {...TextContentPartState} />

@@ -49,10 +49,10 @@ npm run dev
 <Steps>
   <Step>
 
-### Install `@assistant-ui/react`
+### Add assistant-ui
 
 ```sh npm2yarn
-npm install @assistant-ui/react @assistant-ui/react-ui
+npx shadcn@latest add "https://r.assistant-ui.com/thread"
 ```
 
   </Step>
@@ -282,40 +282,7 @@ COHERE_API_KEY="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 If you aren't using Next.js, you can also deploy this endpoint to Cloudflare Workers, or any other serverless platform.
 
   </Step>
-  <Step>
 
-### Import CSS styles
-
-Add the following to your `tailwind.config.ts`:
-
-<Tabs items={["Tailwind", "Tailwind + shadcn-ui", "Not using Tailwind"]}>
-
-```ts title="/tailwind.config.ts" tab="Tailwind"
-{
-  plugins: [
-    require("tailwindcss-animate"), // make sure to "npm install tailwindcss-animate"
-    require("@assistant-ui/react-ui/tailwindcss")
-  ],
-}
-```
-
-```ts title="/tailwind.config.ts" tab="Tailwind + shadcn-ui"
-{
-  plugins: [
-    require("tailwindcss-animate"), // make sure to "npm install tailwindcss-animate"
-    require("@assistant-ui/react-ui/tailwindcss")({ shadcn: true })
-  ],
-}
-```
-
-```ts title="/app/layout.tsx" tab="Not using Tailwind"
-import "@assistant-ui/react-ui/styles/index.css";
-import "@assistant-ui/react-ui/styles/modal.css"; // if using AssistantModal
-```
-
-</Tabs>
-
-  </Step>
   <Step>
 
 ### Use it in your app
@@ -323,8 +290,8 @@ import "@assistant-ui/react-ui/styles/modal.css"; // if using AssistantModal
 <Tabs items={["Thread", "AssistantModal"]}>
 
 ```tsx title="/app/page.tsx" tab="Thread"
-import { useEdgeRuntime } from "@assistant-ui/react";
-import { Thread } from "@assistant-ui/react-ui";
+import { useEdgeRuntime, AssistantRuntimeProvider } from "@assistant-ui/react";
+import { Thread } from "@/components/assistant-ui/thread";
 
 const MyApp = () => {
   const runtime = useEdgeRuntime({
@@ -332,22 +299,31 @@ const MyApp = () => {
   });
 
   return (
-    <div className="h-full">
-      <Thread runtime={runtime} />
-    </div>
+    <AssistantRuntimeProvider runtime={runtime}>
+      <div className="h-full">
+        <Thread />
+      </div>
+    </AssistantRuntimeProvider>
   );
 };
 ```
 
 ```tsx title="/app/page.tsx" tab="AssistantModal"
-import { AssistantModal, useEdgeRuntime } from "@assistant-ui/react";
+// run `npx shadcn@latest add "https://r.assistant-ui.com/assistant-modal"`
+
+import { useEdgeRuntime, AssistantRuntimeProvider } from "@assistant-ui/react";
+import { AssistantModal } from "@/components/assistant-ui/assistant-modal";
 
 const MyApp = () => {
   const runtime = useEdgeRuntime({
     api: "/api/chat",
   });
 
-  return <AssistantModal runtime={runtime} />;
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <AssistantModal />
+    </AssistantRuntimeProvider>
+  );
 };
 ```
 

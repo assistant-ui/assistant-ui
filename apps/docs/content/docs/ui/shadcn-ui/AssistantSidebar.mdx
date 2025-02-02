@@ -10,35 +10,24 @@ A chat sidebar show on the right side of the screen. Useful for co-pilot use cas
 
 ## Getting Started
 
-<Steps>
-  <Step>
-
-### Initialize `shadcn-ui`
-
-```sh
-npx shadcn@latest init
-```
-
-  </Step>
+<Steps> 
   <Step>
 
 ### Add `assistant-sidebar`
 
 ```sh
-npx assistant-ui@latest add sidebar
+npx shadcn@latest add "https://r.assistant-ui.com/assistant-sidebar"
 ```
 
-This adds `/components/ui/assistant-ui/assistant-sidebar.tsx` and `/components/ui/assistant-ui/thread.tsx` files to your project, which you can adjust as needed.
+This adds `/components/assistant-ui/assistant-sidebar.tsx` to your project, which you can adjust as needed.
 
   </Step>
   <Step>
 
 ### Use in your application
 
-`/app/page.tsx`
-
-```tsx {1, 6}
-import { AssistantSidebar } from "@/components/ui/assistant-ui/assistant-sidebar";
+```tsx title="/app/page.tsx" {1,6}
+import { AssistantSidebar } from "@/components/assistant-ui/assistant-sidebar";
 
 export default function Home() {
   return (

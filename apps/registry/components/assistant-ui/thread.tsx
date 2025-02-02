@@ -22,6 +22,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { ComposerAddAttachment, ComposerAttachments } from "./attachment";
 
 export const Thread: FC = () => {
   return (
@@ -110,12 +111,22 @@ const ThreadWelcomeSuggestions: FC = () => {
 const Composer: FC = () => {
   return (
     <ComposerPrimitive.Root className="aui-composer-root">
+      <ComposerAttachments />
+      <ComposerAddAttachment />
       <ComposerPrimitive.Input
+        rows={1}
         autoFocus
         placeholder="Write a message..."
-        rows={1}
         className="aui-composer-input"
       />
+      <ComposerAction />
+    </ComposerPrimitive.Root>
+  );
+};
+
+const ComposerAction: FC = () => {
+  return (
+    <>
       <ThreadPrimitive.If running={false}>
         <ComposerPrimitive.Send asChild>
           <TooltipIconButton
@@ -138,7 +149,7 @@ const Composer: FC = () => {
           </TooltipIconButton>
         </ComposerPrimitive.Cancel>
       </ThreadPrimitive.If>
-    </ComposerPrimitive.Root>
+    </>
   );
 };
 
@@ -146,8 +157,6 @@ const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="aui-user-message-root">
       <UserActionBar />
-
-      {/* <MessageAttachments > */}
 
       <div className="aui-user-message-content">
         <MessagePrimitive.Content />

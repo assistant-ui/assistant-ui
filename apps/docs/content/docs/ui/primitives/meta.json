@@ -1,4 +1,5 @@
 {
+  "title": "Radix UI Primitives",
   "pages": [
     "composition",
     "AssistantModal",

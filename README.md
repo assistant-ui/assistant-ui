@@ -10,7 +10,7 @@
   <a href="https://cal.com/simon-farshid/assistant-ui">Contact Sales</a>
 </p>
 
-**assistant-ui** is a set of React components for AI chat, with integrations Langchain, Vercel AI SDK, TailwindCSS, shadcn-ui, react-markdown, react-syntax-highlighter, React Hook Form and more!
+**assistant-ui** is a set of React components for AI chat, with integrations Langchain, Vercel AI SDK, TailwindCSS, shadcn/ui, react-markdown, react-syntax-highlighter, React Hook Form and more!
 
 Wide model provider support (OpenAI, Anthropic, Mistral, Perplexity, AWS Bedrock, Azure, Google Gemini, Hugging Face, Fireworks, Cohere, Replicate, Ollama) out of the box and the ability to integrate custom APIs.
 

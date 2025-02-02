@@ -20,6 +20,12 @@ export default function Layout({ children }: { children: ReactNode }) {
       className={`${GeistSans.variable} ${GeistMono.variable}`}
       suppressHydrationWarning
     >
+      {/* <head>
+        <script
+          crossOrigin="anonymous"
+          src="//unpkg.com/react-scan/dist/auto.global.js"
+        />
+      </head> */}
       <body className={"flex min-h-screen flex-col"}>
         <Provider>{children}</Provider>
         <script

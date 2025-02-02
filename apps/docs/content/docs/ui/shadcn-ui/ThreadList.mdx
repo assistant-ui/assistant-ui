@@ -1,0 +1,44 @@
+---
+title: ThreadList
+---
+
+import { Steps, Step } from "fumadocs-ui/components/steps";
+
+## Overview
+
+The ThreadList component lets the user switch between threads.
+
+## Getting Started
+
+<Steps>
+  <Step>
+
+### Add `thread-list`
+
+```sh
+npx shadcn@latest add "https://r.assistant-ui.com/thread-list"
+```
+
+This adds a `/components/assistant-ui/thread-list.tsx` file to your project, which you can adjust as needed.
+
+  </Step>
+  <Step>
+
+### Use in your application
+
+```tsx title="/app/page.tsx" {1,5-6}
+import { Thread } from "@/components/assistant-ui/thread";
+import { ThreadList } from "@/components/assistant-ui/thread-list";
+
+export default function Home() {
+  return (
+    <div className="grid h-full grid-cols-[200px_1fr]">
+      <ThreadList />
+      <Thread />
+    </div>
+  );
+}
+```
+
+  </Step>
+</Steps>

@@ -60,7 +60,7 @@ export default function HomePage() {
           Typescript/React library for AI Chat
         </h1>
         <p className="text-foreground/85 text-center text-xl">
-          Open Source, built on shadcn-ui, and Tailwind CSS
+          Open Source, built on shadcn/ui and Tailwind CSS
         </p>
       </div>
 

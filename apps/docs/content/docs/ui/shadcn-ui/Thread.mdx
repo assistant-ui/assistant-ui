@@ -7,55 +7,33 @@ import { Callout } from "fumadocs-ui/components/callout";
 
 ## Overview
 
-The raw message list and message composer UI. Useful for full screen chat use cases.
+The raw message list and message composer UI.
 
 ## Getting Started
 
 <Steps>
   <Step>
 
-### Initialize `shadcn-ui`
-
-```sh
-npx shadcn@latest init
-```
-
-  </Step>
-  <Step>
-
 ### Add `thread`
 
 ```sh
-npx assistant-ui@latest add thread
+npx shadcn@latest add "https://r.assistant-ui.com/thread"
 ```
 
-This adds a `/components/ui/assistant-ui/thread.tsx` file to your project, which you can adjust as needed.
-
-<Callout type="info" emoji="💡">
-  The `thread` template is minimal and does not include branching or editing support.
-
-Alternatively, you can add `thread-full`, which includes branching and editing enabled by default.
-
-```sh
-npx assistant-ui@latest add thread-full
-```
-
-</Callout>
+This adds a `/components/assistant-ui/thread.tsx` file to your project, which you can adjust as needed.
 
   </Step>
   <Step>
 
 ### Use in your application
 
-`/app/page.tsx`
-
-```tsx {1, 6}
-import { MyThread } from "@/components/ui/assistant-ui/thread";
+```tsx title="/app/page.tsx" {1,6}
+import { Thread } from "@/components/assistant-ui/thread";
 
 export default function Home() {
   return (
     <div className="h-full">
-      <MyThread />
+      <Thread />
     </div>
   );
 }

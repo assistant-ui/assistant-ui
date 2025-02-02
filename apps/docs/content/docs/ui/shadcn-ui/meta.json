@@ -1,4 +1,12 @@
 {
-  "title": "shadcn-ui",
-  "pages": ["Thread", "AssistantModal", "AssistantSidebar", "Markdown", "..."]
+  "title": "shadcn/ui",
+  "pages": [
+    "Thread",
+    "ThreadList",
+    "Attachment",
+    "AssistantModal",
+    "AssistantSidebar",
+    "Markdown",
+    "Scrollbar"
+  ]
 }

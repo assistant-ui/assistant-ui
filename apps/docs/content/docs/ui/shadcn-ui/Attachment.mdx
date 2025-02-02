@@ -1,0 +1,74 @@
+---
+title: Attachment
+---
+
+import { Steps, Step } from "fumadocs-ui/components/steps";
+
+## Overview
+
+The Attachment components let the user attach files and view the attachments.
+
+## Getting Started
+
+<Steps>
+  <Step>
+
+### Add `attachment`
+
+```sh
+npx shadcn@latest add "https://r.assistant-ui.com/attachment"
+```
+
+This adds a `/components/assistant-ui/attachment.tsx` file to your project, which you can adjust as needed.
+
+  </Step>
+  <Step>
+
+### Use in your application
+
+```tsx title="/components/assistant-ui/thread.tsx" {1-4,9-10}
+import {
+  ComposerAttachments,
+  ComposerAddAttachment,
+} from "@/components/assistant-ui/attachment";
+
+const Composer: FC = () => {
+  return (
+    <ComposerPrimitive.Root className="...">
+      <ComposerAttachments />
+      <ComposerAddAttachment />
+
+      <ComposerPrimitive.Input
+        autoFocus
+        placeholder="Write a message..."
+        rows={1}
+        className="..."
+      />
+      <ComposerAction />
+    </ComposerPrimitive.Root>
+  );
+};
+```
+
+```tsx title="/components/assistant-ui/thread.tsx" {1,8}
+import { UserMessageAttachments } from "@/components/assistant-ui/attachment";
+
+const UserMessage: FC = () => {
+  return (
+    <MessagePrimitive.Root className="...">
+      <UserActionBar />
+
+      <UserMessageAttachments />
+
+      <div className="...">
+        <MessagePrimitive.Content />
+      </div>
+
+      <BranchPicker className="..." />
+    </MessagePrimitive.Root>
+  );
+};
+```
+
+  </Step>
+</Steps>
