@@ -38,7 +38,7 @@ export const useLocalRuntime = (
   adapter: ChatModelAdapter,
   { initialMessages, ...options }: LocalRuntimeOptions = {},
 ) => {
-  const threadListAdapters = useRuntimeAdapters();
+  const { modelContext, ...threadListAdapters } = useRuntimeAdapters() ?? {};
   const opt = useMemo(
     () => ({
       ...options,
@@ -57,6 +57,11 @@ export const useLocalRuntime = (
     runtime.threads.getMainThreadRuntimeCore().__internal_setOptions(opt);
     runtime.threads.getMainThreadRuntimeCore().__internal_load();
   }, [runtime, opt]);
+
+  useEffect(() => {
+    if (!modelContext) return undefined;
+    return runtime.registerModelContextProvider(modelContext);
+  }, [modelContext, runtime]);
 
   return useMemo(() => LocalRuntimeImpl.create(runtime), [runtime]);
 };

@@ -15,7 +15,10 @@ class RemoteThreadListRuntimeCore
 
   constructor(adapter: RemoteThreadListAdapter) {
     super();
-    this.threads = new RemoteThreadListThreadListRuntimeCore(adapter);
+    this.threads = new RemoteThreadListThreadListRuntimeCore(
+      adapter,
+      this._contextProvider,
+    );
   }
 
   public get RenderComponent() {

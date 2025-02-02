@@ -1,8 +1,10 @@
 import { createContext, FC, useContext } from "react";
 import { ThreadHistoryAdapter } from "./thread-history/ThreadHistoryAdapter";
+import { ModelContextProvider } from "../../model-context";
 
 export type RuntimeAdapters = {
-  history: ThreadHistoryAdapter;
+  modelContext?: ModelContextProvider;
+  history?: ThreadHistoryAdapter;
 };
 
 const RuntimeAdaptersContext = createContext<RuntimeAdapters | null>(null);
@@ -18,8 +20,14 @@ export const RuntimeAdapterProvider: FC<RuntimeAdapterProvider.Props> = ({
   adapters,
   children,
 }) => {
+  const context = useContext(RuntimeAdaptersContext);
   return (
-    <RuntimeAdaptersContext.Provider value={adapters}>
+    <RuntimeAdaptersContext.Provider
+      value={{
+        ...context,
+        ...adapters,
+      }}
+    >
       {children}
     </RuntimeAdaptersContext.Provider>
   );

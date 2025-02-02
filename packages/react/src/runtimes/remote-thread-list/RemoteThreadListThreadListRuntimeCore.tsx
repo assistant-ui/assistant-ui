@@ -13,6 +13,8 @@ import { OptimisticState } from "./OptimisticState";
 import { FC, Fragment, useEffect, useId } from "react";
 import { create } from "zustand";
 import { AssistantStream, AssistantMessageStream } from "assistant-stream";
+import { ModelContextProvider } from "../../model-context";
+import { RuntimeAdapterProvider } from "../adapters/RuntimeAdapterProvider";
 
 type RemoteThreadData =
   | {
@@ -225,7 +227,10 @@ export class RemoteThreadListThreadListRuntimeCore
     return this._loadThreadsPromise;
   }
 
-  constructor(adapter: RemoteThreadListAdapter) {
+  constructor(
+    adapter: RemoteThreadListAdapter,
+    private readonly contextProvider: ModelContextProvider,
+  ) {
     super();
 
     this._state.subscribe(() => this._notifySubscribers());
@@ -540,12 +545,18 @@ export class RemoteThreadListThreadListRuntimeCore
     const boundIds = this.useBoundIds();
     const { Provider } = this.useProvider();
 
+    const adapters = {
+      modelContext: this.contextProvider,
+    };
+
     return (
       (boundIds.length === 0 || boundIds[0] === id) && (
         // only render if the component is the first one mounted
-        <this._hookManager.__internal_RenderThreadRuntimes
-          provider={Provider}
-        />
+        <RuntimeAdapterProvider adapters={adapters}>
+          <this._hookManager.__internal_RenderThreadRuntimes
+            provider={Provider}
+          />
+        </RuntimeAdapterProvider>
       )
     );
   };
