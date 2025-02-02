@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.7.61
+
+### Patch Changes
+
+- bd78a70: feat: ThreadListPrimitive.Root
+- 9ea8100: feat: ThreadMessageLike optional toolCallId + args
+
 ## 0.7.60
 
 ### Patch Changes

@@ -1,5 +1,14 @@
 # @assistant-ui/react-markdown
 
+## 0.7.12
+
+### Patch Changes
+
+- 7345713: feat: add /styles/dot.css
+- Updated dependencies [bd78a70]
+- Updated dependencies [9ea8100]
+  - @assistant-ui/react@0.7.61
+
 ## 0.7.11
 
 ### Patch Changes
