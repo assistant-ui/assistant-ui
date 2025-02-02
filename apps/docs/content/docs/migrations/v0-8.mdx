@@ -9,6 +9,17 @@ import { Callout } from "fumadocs-ui/components/callout";
   v0.8.0 is released.
 </Callout>
 
+## Styled Components moved to @assistant-ui/react-ui
+
+All styled components (Thread, ThreadList, AssistantModal, makeMarkdownText, etc.) have been moved to a new package, `@assistant-ui/react-ui`.
+
+To migrate, use the migration codemod:
+
+```sh
+# IMPORTANT: make sure to commit all changes to git / creating a backup before running the codemod
+npx assistant-ui upgrade
+```
+
 ## Vercel AI SDK RSC requires additional setup
 
 Built-in RSC support in assistant-ui has been removed, so an additional setup step is required.

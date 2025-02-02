@@ -44,3 +44,5 @@ export {
   makeMarkdownText,
   type MakeMarkdownTextProps,
 } from "./markdown/markdown-text";
+
+export { CodeHeader } from "./markdown/code-header";

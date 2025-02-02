@@ -11,6 +11,8 @@
     "commander": "^13.0.0",
     "cross-spawn": "^7.0.6",
     "debug": "^4.4.0",
+    "detect-package-manager": "^3.0.2",
+    "glob": "^11.0.1",
     "jscodeshift": "^17.1.2"
   },
   "devDependencies": {
