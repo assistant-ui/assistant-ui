@@ -287,6 +287,8 @@ export const useExternalMessageConverter = <T extends WeakKey>({
     (threadMessages as unknown as { [symbolInnerMessage]: T[] })[
       symbolInnerMessage
     ] = messages;
+
+    return threadMessages;
   }, [state, messages, isRunning]);
 };
 
