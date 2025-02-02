@@ -1,5 +1,14 @@
 # @assistant-ui/react-markdown
 
+## 0.7.16
+
+### Patch Changes
+
+- 6703842: feat: codemod to migrate to @assistant-ui/react-ui
+- Updated dependencies [6703842]
+- Updated dependencies [79f7120]
+  - @assistant-ui/react@0.7.64
+
 ## 0.7.15
 
 ### Patch Changes

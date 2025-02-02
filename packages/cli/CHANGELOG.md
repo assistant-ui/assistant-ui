@@ -1,5 +1,11 @@
 # assistant-ui
 
+## 0.0.32
+
+### Patch Changes
+
+- 6703842: feat: codemod to migrate to @assistant-ui/react-ui
+
 ## 0.0.31
 
 ### Patch Changes

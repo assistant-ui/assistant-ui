@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.7.64
+
+### Patch Changes
+
+- 6703842: feat: codemod to migrate to @assistant-ui/react-ui
+- 79f7120: feat: createMessageConverter API
+
 ## 0.7.63
 
 ### Patch Changes
