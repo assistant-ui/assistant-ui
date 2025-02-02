@@ -1,5 +1,14 @@
 # @assistant-ui/react-ui
 
+## 0.0.5
+
+### Patch Changes
+
+- 7e5f127: fix: useSmooth unnecessary re-renders
+- Updated dependencies [7e5f127]
+  - @assistant-ui/react-markdown@0.7.15
+  - @assistant-ui/react@0.7.62
+
 ## 0.0.4
 
 ### Patch Changes

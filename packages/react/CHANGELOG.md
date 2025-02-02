@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.62
+
+### Patch Changes
+
+- 7e5f127: fix: useSmooth unnecessary re-renders
+
 ## 0.7.61
 
 ### Patch Changes
