@@ -1,5 +1,11 @@
 # @assistant-ui/react-markdown
 
+## 0.7.13
+
+### Patch Changes
+
+- 90f6fee: fix: styles/dot.css import support
+
 ## 0.7.12
 
 ### Patch Changes
