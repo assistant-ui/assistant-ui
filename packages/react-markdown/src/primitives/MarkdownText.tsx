@@ -4,6 +4,7 @@ import { INTERNAL, useContentPartText } from "@assistant-ui/react";
 import {
   ComponentRef,
   ElementType,
+  FC,
   forwardRef,
   ForwardRefExoticComponent,
   RefAttributes,
@@ -25,7 +26,7 @@ import { CodeOverride } from "../overrides/CodeOverride";
 import { Primitive } from "@radix-ui/react-primitive";
 import classNames from "classnames";
 
-const { useSmooth } = INTERNAL;
+const { useSmooth, useSmoothStatus, withSmoothContextProvider } = INTERNAL;
 
 type MarkdownTextPrimitiveElement = ComponentRef<typeof Primitive.div>;
 type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;
@@ -58,63 +59,74 @@ export type MarkdownTextPrimitiveProps = Omit<
   smooth?: boolean | undefined;
 };
 
-export const MarkdownTextPrimitive: ForwardRefExoticComponent<MarkdownTextPrimitiveProps> &
+const MarkdownTextInner: FC<MarkdownTextPrimitiveProps> = ({
+  components: userComponents,
+  componentsByLanguage = userComponents?.by_language,
+  smooth = true,
+  ...rest
+}) => {
+  const { text } = useSmooth(useContentPartText(), smooth);
+
+  const {
+    pre = DefaultPre,
+    code = DefaultCode,
+    SyntaxHighlighter = DefaultCodeBlockContent,
+    CodeHeader = DefaultCodeHeader,
+  } = userComponents ?? {};
+  const useCodeOverrideComponents = useMemo(() => {
+    return {
+      Pre: pre,
+      Code: code,
+      SyntaxHighlighter,
+      CodeHeader,
+    };
+  }, [pre, code, SyntaxHighlighter, CodeHeader]);
+  const CodeComponent = useCallbackRef((props) => (
+    <CodeOverride
+      components={useCodeOverrideComponents}
+      componentsByLanguage={componentsByLanguage}
+      {...props}
+    />
+  ));
+
+  const components: Options["components"] = useMemo(() => {
+    const {
+      pre = DefaultPre,
+      code = DefaultCode,
+      SyntaxHighlighter = DefaultCodeBlockContent,
+      CodeHeader = DefaultCodeHeader,
+      by_language,
+      ...componentsRest
+    } = userComponents ?? {};
+    return {
+      ...componentsRest,
+      pre: PreOverride,
+      code: CodeComponent,
+    };
+  }, [CodeComponent, userComponents, componentsByLanguage]);
+
+  return (
+    <ReactMarkdown components={components} {...rest}>
+      {text}
+    </ReactMarkdown>
+  );
+};
+
+const MarkdownTextPrimitiveImpl: ForwardRefExoticComponent<MarkdownTextPrimitiveProps> &
   RefAttributes<MarkdownTextPrimitiveElement> = forwardRef<
   MarkdownTextPrimitiveElement,
   MarkdownTextPrimitiveProps
 >(
   (
     {
-      components: userComponents,
-      componentsByLanguage = userComponents?.by_language,
       className,
       containerProps,
       containerComponent: Container = "div",
-      smooth = true,
       ...rest
     },
     forwardedRef,
   ) => {
-    const { text, status } = useSmooth(useContentPartText(), smooth);
-
-    const {
-      pre = DefaultPre,
-      code = DefaultCode,
-      SyntaxHighlighter = DefaultCodeBlockContent,
-      CodeHeader = DefaultCodeHeader,
-    } = userComponents ?? {};
-    const useCodeOverrideComponents = useMemo(() => {
-      return {
-        Pre: pre,
-        Code: code,
-        SyntaxHighlighter,
-        CodeHeader,
-      };
-    }, [pre, code, SyntaxHighlighter, CodeHeader]);
-    const CodeComponent = useCallbackRef((props) => (
-      <CodeOverride
-        components={useCodeOverrideComponents}
-        componentsByLanguage={componentsByLanguage}
-        {...props}
-      />
-    ));
-
-    const components: Options["components"] = useMemo(() => {
-      const {
-        pre = DefaultPre,
-        code = DefaultCode,
-        SyntaxHighlighter = DefaultCodeBlockContent,
-        CodeHeader = DefaultCodeHeader,
-        by_language,
-        ...componentsRest
-      } = userComponents ?? {};
-      return {
-        ...componentsRest,
-        pre: PreOverride,
-        code: CodeComponent,
-      };
-    }, [CodeComponent, userComponents, componentsByLanguage]);
-
+    const status = useSmoothStatus();
     return (
       <Container
         data-status={status.type}
@@ -122,12 +134,14 @@ export const MarkdownTextPrimitive: ForwardRefExoticComponent<MarkdownTextPrimit
         className={classNames(className, containerProps?.className)}
         ref={forwardedRef}
       >
-        <ReactMarkdown components={components} {...rest}>
-          {text}
-        </ReactMarkdown>
+        <MarkdownTextInner {...rest}></MarkdownTextInner>
       </Container>
     );
   },
 );
 
-MarkdownTextPrimitive.displayName = "MarkdownTextPrimitive";
+MarkdownTextPrimitiveImpl.displayName = "MarkdownTextPrimitive";
+
+export const MarkdownTextPrimitive = withSmoothContextProvider(
+  MarkdownTextPrimitiveImpl,
+);

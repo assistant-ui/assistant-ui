@@ -83,20 +83,24 @@ export const useSmooth = (
   const setText = useCallbackRef((text: string) => {
     setDisplayedText(text);
     if (smoothStatusStore) {
-      writableStore(smoothStatusStore).setState(
-        text !== state.text ? SMOOTH_STATUS : state.status,
-      );
+      const target =
+        displayedText !== text || state.status.type === "running"
+          ? SMOOTH_STATUS
+          : state.status;
+      writableStore(smoothStatusStore).setState(target, true);
     }
   });
 
   // TODO this is hacky
   useEffect(() => {
     if (smoothStatusStore) {
-      writableStore(smoothStatusStore).setState(
-        text !== state.text ? SMOOTH_STATUS : state.status,
-      );
+      const target =
+        displayedText !== text || state.status.type === "running"
+          ? SMOOTH_STATUS
+          : state.status;
+      writableStore(smoothStatusStore).setState(target, true);
     }
-  }, [smoothStatusStore, text, displayedText, state.status, state.text]);
+  }, [smoothStatusStore, text, displayedText, state.status]);
 
   const [animatorRef] = useState<TextStreamAnimator>(
     new TextStreamAnimator(text, setText),
