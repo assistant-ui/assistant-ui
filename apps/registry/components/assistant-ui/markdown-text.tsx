@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 "use client";
 
 import "@assistant-ui/react-markdown/styles/dot.css";
@@ -118,7 +120,7 @@ const defaultComponents: MarkdownTextPrimitiveProps["components"] = {
   pre: ({ node, className, ...props }) => (
     <pre className={cn("aui-md-pre", className)} {...props} />
   ),
-  code: ({ node, className, ...props }) => {
+  code: function Code({ node, className, ...props }) {
     const isCodeBlock = useIsMarkdownCodeBlock();
     return (
       <code

@@ -8,7 +8,6 @@ import {
 import type { FC } from "react";
 import {
   ArrowDownIcon,
-  AudioLinesIcon,
   CheckIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -16,7 +15,6 @@ import {
   PencilIcon,
   RefreshCwIcon,
   SendHorizontalIcon,
-  StopCircleIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -76,8 +74,8 @@ const ThreadWelcome: FC = () => {
             How can I help you today?
           </p>
         </div>
+        <ThreadWelcomeSuggestions />
       </div>
-      <ThreadWelcomeSuggestions />
     </ThreadPrimitive.Empty>
   );
 };
@@ -219,7 +217,7 @@ const AssistantActionBar: FC = () => {
       autohideFloat="single-branch"
       className="aui-assistant-action-bar-root"
     >
-      <MessagePrimitive.If speaking={false}>
+      {/* <MessagePrimitive.If speaking={false}>
         <ActionBarPrimitive.Speak asChild>
           <TooltipIconButton tooltip="Read aloud">
             <AudioLinesIcon />
@@ -232,7 +230,7 @@ const AssistantActionBar: FC = () => {
             <StopCircleIcon />
           </TooltipIconButton>
         </ActionBarPrimitive.StopSpeaking>
-      </MessagePrimitive.If>
+      </MessagePrimitive.If> */}
       <ActionBarPrimitive.Copy asChild>
         <TooltipIconButton tooltip="Copy">
           <MessagePrimitive.If copied>

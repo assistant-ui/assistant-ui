@@ -13,6 +13,9 @@
       "import": "./dist/tailwindcss/index.mjs",
       "require": "./dist/tailwindcss/index.js"
     },
+    "./styles/dot.css": {
+      "default": "./styles/dot.css"
+    },
     "./styles/*": {
       "default": "./dist/styles/*"
     }
