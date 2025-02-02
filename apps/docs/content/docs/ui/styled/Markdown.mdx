@@ -30,8 +30,7 @@ npm install @assistant-ui/react-markdown
 {
   plugins: [
     require("tailwindcss-animate"),
-    require("@assistant-ui/react-ui/tailwindcss"),
-    require("@assistant-ui/react-markdown/tailwindcss"),
+    require("@assistant-ui/react-ui/tailwindcss")
   ],
 }
 ```
@@ -40,15 +39,14 @@ npm install @assistant-ui/react-markdown
 {
   plugins: [
     require("tailwindcss-animate"),
-    require("@assistant-ui/react-ui/tailwindcss")({ shadcn: true }),
-    require("@assistant-ui/react-markdown/tailwindcss"),
+    require("@assistant-ui/react-ui/tailwindcss")({ shadcn: true })
   ],
 }
 ```
 
 ```ts title="/app/layout.tsx" tab="Not using Tailwind"
 import "@assistant-ui/react-ui/styles/index.css";
-import "@assistant-ui/react-markdown/styles/markdown.css";
+import "@assistant-ui/react-ui/styles/markdown.css";
 ```
 
 </Tabs>
@@ -60,7 +58,7 @@ import "@assistant-ui/react-markdown/styles/markdown.css";
 ### Define a `MarkdownText` component
 
 ```tsx {1} twoslash title="@/components/markdown-text.tsx"
-import { makeMarkdownText } from "@assistant-ui/react-markdown";
+import { makeMarkdownText } from "@assistant-ui/react-ui";
 
 export const MarkdownText = makeMarkdownText();
 ```

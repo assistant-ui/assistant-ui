@@ -1,5 +1,11 @@
-import { ComponentPropsWithoutRef, ComponentType, FC, useContext } from "react";
-import { PreContext } from "./PreOverride";
+import {
+  ComponentPropsWithoutRef,
+  ComponentType,
+  FC,
+  memo,
+  useContext,
+} from "react";
+import { PreContext, useIsMarkdownCodeBlock } from "./PreOverride";
 import {
   CodeComponent,
   CodeHeaderProps,
@@ -10,6 +16,7 @@ import { DefaultCodeBlock } from "./CodeBlock";
 import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
 import { withDefaultProps } from "./withDefaults";
 import { DefaultCodeBlockContent } from "./defaultComponents";
+import { memoCompareNodes } from "../memoization";
 
 const CodeBlockOverride: FC<CodeOverrideProps> = ({
   components: {
@@ -20,7 +27,6 @@ const CodeBlockOverride: FC<CodeOverrideProps> = ({
   },
   componentsByLanguage = {},
   children,
-  node,
   ...codeProps
 }) => {
   const preProps = useContext(PreContext)!;
@@ -42,7 +48,6 @@ const CodeBlockOverride: FC<CodeOverrideProps> = ({
       <DefaultCodeBlockContent
         components={{ Pre: WrappedPre, Code: WrappedCode }}
         code={children}
-        node={node}
       />
     );
   }
@@ -64,7 +69,6 @@ const CodeBlockOverride: FC<CodeOverrideProps> = ({
       }}
       language={language || "unknown"}
       code={children}
-      node={node}
     />
   );
 };
@@ -87,13 +91,13 @@ export type CodeOverrideProps = ComponentPropsWithoutRef<CodeComponent> & {
     | undefined;
 };
 
-export const CodeOverride: FC<CodeOverrideProps> = ({
+const CodeOverrideImpl: FC<CodeOverrideProps> = ({
   components,
   componentsByLanguage,
   ...props
 }) => {
-  const preProps = useContext(PreContext);
-  if (!preProps) return <components.Code {...props} />;
+  const isCodeBlock = useIsMarkdownCodeBlock();
+  if (!isCodeBlock) return <components.Code {...props} />;
   return (
     <CodeBlockOverride
       components={components}
@@ -102,3 +106,11 @@ export const CodeOverride: FC<CodeOverrideProps> = ({
     />
   );
 };
+
+export const CodeOverride = memo(CodeOverrideImpl, (prev, next) => {
+  const isEqual =
+    prev.components === next.components &&
+    prev.componentsByLanguage === next.componentsByLanguage &&
+    memoCompareNodes(prev, next);
+  return isEqual;
+});

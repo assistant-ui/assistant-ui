@@ -190,9 +190,8 @@ export const sendMessage = async (params: {
 "use client";
 
 import { useRef } from "react";
-import { Thread } from "@assistant-ui/react-ui";
+import { Thread, makeMarkdownText } from "@assistant-ui/react-ui";
 import { useLangGraphRuntime } from "@assistant-ui/react-langgraph";
-import { makeMarkdownText } from "@assistant-ui/react-markdown";
 
 import { createThread, getThreadState, sendMessage } from "@/lib/chatApi";
 

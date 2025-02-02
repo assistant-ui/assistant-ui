@@ -7,7 +7,7 @@ import "@assistant-ui/react-markdown/styles/dot.css";
 import {
   CodeHeaderProps,
   MarkdownTextPrimitive,
-  MarkdownTextPrimitiveProps,
+  unstable_memoizeMarkdownComponents as memoizeMarkdownComponents,
   useIsMarkdownCodeBlock,
 } from "@assistant-ui/react-markdown";
 import remarkGfm from "remark-gfm";
@@ -65,62 +65,62 @@ const useCopyToClipboard = ({
   return { isCopied, copyToClipboard };
 };
 
-const defaultComponents: MarkdownTextPrimitiveProps["components"] = {
-  h1: ({ node, className, ...props }) => (
+const defaultComponents = memoizeMarkdownComponents({
+  h1: ({ className, ...props }) => (
     <h1 className={cn("aui-md-h1", className)} {...props} />
   ),
-  h2: ({ node, className, ...props }) => (
+  h2: ({ className, ...props }) => (
     <h2 className={cn("aui-md-h2", className)} {...props} />
   ),
-  h3: ({ node, className, ...props }) => (
+  h3: ({ className, ...props }) => (
     <h3 className={cn("aui-md-h3", className)} {...props} />
   ),
-  h4: ({ node, className, ...props }) => (
+  h4: ({ className, ...props }) => (
     <h4 className={cn("aui-md-h4", className)} {...props} />
   ),
-  h5: ({ node, className, ...props }) => (
+  h5: ({ className, ...props }) => (
     <h5 className={cn("aui-md-h5", className)} {...props} />
   ),
-  h6: ({ node, className, ...props }) => (
+  h6: ({ className, ...props }) => (
     <h6 className={cn("aui-md-h6", className)} {...props} />
   ),
-  p: ({ node, className, ...props }) => (
+  p: ({ className, ...props }) => (
     <p className={cn("aui-md-p", className)} {...props} />
   ),
-  a: ({ node, className, ...props }) => (
+  a: ({ className, ...props }) => (
     <a className={cn("aui-md-a", className)} {...props} />
   ),
-  blockquote: ({ node, className, ...props }) => (
+  blockquote: ({ className, ...props }) => (
     <blockquote className={cn("aui-md-blockquote", className)} {...props} />
   ),
-  ul: ({ node, className, ...props }) => (
+  ul: ({ className, ...props }) => (
     <ul className={cn("aui-md-ul", className)} {...props} />
   ),
-  ol: ({ node, className, ...props }) => (
+  ol: ({ className, ...props }) => (
     <ol className={cn("aui-md-ol", className)} {...props} />
   ),
-  hr: ({ node, className, ...props }) => (
+  hr: ({ className, ...props }) => (
     <hr className={cn("aui-md-hr", className)} {...props} />
   ),
-  table: ({ node, className, ...props }) => (
+  table: ({ className, ...props }) => (
     <table className={cn("aui-md-table", className)} {...props} />
   ),
-  th: ({ node, className, ...props }) => (
+  th: ({ className, ...props }) => (
     <th className={cn("aui-md-th", className)} {...props} />
   ),
-  td: ({ node, className, ...props }) => (
+  td: ({ className, ...props }) => (
     <td className={cn("aui-md-td", className)} {...props} />
   ),
-  tr: ({ node, className, ...props }) => (
+  tr: ({ className, ...props }) => (
     <tr className={cn("aui-md-tr", className)} {...props} />
   ),
-  sup: ({ node, className, ...props }) => (
+  sup: ({ className, ...props }) => (
     <sup className={cn("aui-md-sup", className)} {...props} />
   ),
-  pre: ({ node, className, ...props }) => (
+  pre: ({ className, ...props }) => (
     <pre className={cn("aui-md-pre", className)} {...props} />
   ),
-  code: function Code({ node, className, ...props }) {
+  code: function Code({ className, ...props }) {
     const isCodeBlock = useIsMarkdownCodeBlock();
     return (
       <code
@@ -130,4 +130,4 @@ const defaultComponents: MarkdownTextPrimitiveProps["components"] = {
     );
   },
   CodeHeader,
-};
+});

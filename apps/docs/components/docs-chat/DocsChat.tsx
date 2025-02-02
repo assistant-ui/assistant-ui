@@ -2,12 +2,10 @@
 
 import { FC } from "react";
 import {
-  AssistantModal,
   AssistantModalPrimitive,
   ChatModelAdapter,
   useLocalRuntime,
 } from "@assistant-ui/react";
-import { makeMarkdownText } from "@assistant-ui/react-markdown";
 import { makePrismAsyncSyntaxHighlighter } from "@assistant-ui/react-syntax-highlighter";
 import { coldarkDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import remarkGfm from "remark-gfm";
@@ -16,6 +14,8 @@ import {
   type ThreadConfig,
   Composer,
   ThreadWelcome,
+  AssistantModal,
+  makeMarkdownText,
 } from "@assistant-ui/react-ui";
 import entelligenceLogoLight from "./entelligence-light.png";
 import entelligenceLogoDark from "./entelligence-dark.png";

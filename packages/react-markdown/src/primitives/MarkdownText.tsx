@@ -7,6 +7,7 @@ import {
   forwardRef,
   ForwardRefExoticComponent,
   RefAttributes,
+  useMemo,
   type ComponentPropsWithoutRef,
   type ComponentType,
 } from "react";
@@ -81,25 +82,38 @@ export const MarkdownTextPrimitive: ForwardRefExoticComponent<MarkdownTextPrimit
       code = DefaultCode,
       SyntaxHighlighter = DefaultCodeBlockContent,
       CodeHeader = DefaultCodeHeader,
-      by_language,
-      ...componentsRest
     } = userComponents ?? {};
-    const components: Options["components"] = {
-      ...componentsRest,
-      pre: PreOverride,
-      code: useCallbackRef((props) => (
-        <CodeOverride
-          components={{
-            Pre: pre,
-            Code: code,
-            SyntaxHighlighter,
-            CodeHeader,
-          }}
-          componentsByLanguage={componentsByLanguage}
-          {...props}
-        />
-      )),
-    };
+    const useCodeOverrideComponents = useMemo(() => {
+      return {
+        Pre: pre,
+        Code: code,
+        SyntaxHighlighter,
+        CodeHeader,
+      };
+    }, [pre, code, SyntaxHighlighter, CodeHeader]);
+    const CodeComponent = useCallbackRef((props) => (
+      <CodeOverride
+        components={useCodeOverrideComponents}
+        componentsByLanguage={componentsByLanguage}
+        {...props}
+      />
+    ));
+
+    const components: Options["components"] = useMemo(() => {
+      const {
+        pre = DefaultPre,
+        code = DefaultCode,
+        SyntaxHighlighter = DefaultCodeBlockContent,
+        CodeHeader = DefaultCodeHeader,
+        by_language,
+        ...componentsRest
+      } = userComponents ?? {};
+      return {
+        ...componentsRest,
+        pre: PreOverride,
+        code: CodeComponent,
+      };
+    }, [CodeComponent, userComponents, componentsByLanguage]);
 
     return (
       <Container

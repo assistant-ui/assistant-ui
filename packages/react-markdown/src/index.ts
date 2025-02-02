@@ -16,3 +16,5 @@ export {
 } from "./ui/markdown-text";
 
 export { CodeHeader } from "./ui/code-header";
+
+export { memoizeMarkdownComponents as unstable_memoizeMarkdownComponents } from "./memoization";

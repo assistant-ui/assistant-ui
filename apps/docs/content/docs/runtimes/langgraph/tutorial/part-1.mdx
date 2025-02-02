@@ -77,8 +77,7 @@ Rich text rendering using Markdown is enabled by default. You can view `/app/pag
 ```tsx title="@/app/page.tsx" {4,6,11}
 "use client";
 
-import { makeMarkdownText } from "@assistant-ui/react-markdown";
-import { Thread } from "@assistant-ui/react-ui";
+import { Thread, makeMarkdownText } from "@assistant-ui/react-ui";
 
 const MarkdownText = makeMarkdownText();
 

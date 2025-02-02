@@ -18,14 +18,12 @@ export type CodeBlockProps = {
     CodeHeader: ComponentType<CodeHeaderProps>;
     SyntaxHighlighter: ComponentType<SyntaxHighlighterProps>;
   };
-  node: Element | undefined;
 };
 
 export const DefaultCodeBlock: FC<CodeBlockProps> = ({
   components: { Pre, Code, SyntaxHighlighter, CodeHeader },
   language,
   code,
-  node,
 }) => {
   const components = useMemo(() => ({ Pre, Code }), [Pre, Code]);
 
@@ -38,7 +36,6 @@ export const DefaultCodeBlock: FC<CodeBlockProps> = ({
         components={components}
         language={language ?? "unknown"}
         code={code}
-        node={node}
       />
     </>
   );
