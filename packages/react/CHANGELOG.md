@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.63
+
+### Patch Changes
+
+- 843047d: feat(thread-list): forward model context to thread runtimes
+
 ## 0.7.62
 
 ### Patch Changes
