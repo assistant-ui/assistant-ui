@@ -1,5 +1,11 @@
 # @assistant-ui/react-ui
 
+## 0.1.4
+
+### Patch Changes
+
+- d37ec8e: fix: move aui to peer deps
+
 ## 0.1.3
 
 ### Patch Changes

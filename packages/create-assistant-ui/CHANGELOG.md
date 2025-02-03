@@ -1,5 +1,11 @@
 # create-assistant-ui
 
+## 0.0.10
+
+### Patch Changes
+
+- c760cb3: fix: node 20 support
+
 ## 0.0.9
 
 ### Patch Changes
