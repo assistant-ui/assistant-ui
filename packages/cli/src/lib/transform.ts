@@ -1,32 +1,19 @@
 import { execFileSync } from "child_process";
 import debug from "debug";
-import fs from "fs";
 import path from "path";
 import { TransformOptions } from "./transform-options";
-import { fileURLToPath } from "url";
 
 const log = debug("codemod:transform");
 const error = debug("codemod:transform:error");
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-function getJscodeshift(): string {
-  const localJscodeshift = path.resolve(
-    __dirname,
-    "../../node_modules/.bin/jscodeshift",
-  );
-  return fs.existsSync(localJscodeshift) ? localJscodeshift : "npx jscodeshift";
-}
-
 function buildCommand(
   codemodPath: string,
   targetPath: string,
-  jscodeshift: string,
   options: TransformOptions,
 ): string[] {
   const command = [
-    jscodeshift,
+    "npx",
+    "jscodeshift",
     "-t",
     codemodPath,
     targetPath,
@@ -95,13 +82,7 @@ export function transform(
   const codemodPath = path.resolve(__dirname, `../codemods/${codemod}.js`);
 
   const targetPath = path.resolve(source);
-  const jscodeshift = getJscodeshift();
-  const command = buildCommand(
-    codemodPath,
-    targetPath,
-    jscodeshift,
-    transformOptions,
-  );
+  const command = buildCommand(codemodPath, targetPath, transformOptions);
   const stdout = execFileSync(command[0]!, command.slice(1), {
     encoding: "utf8",
     stdio: "pipe",

@@ -1,5 +1,11 @@
 # assistant-ui
 
+## 0.0.35
+
+### Patch Changes
+
+- 1a42993: fix: always use npx for jscodeshift
+
 ## 0.0.34
 
 ### Patch Changes
