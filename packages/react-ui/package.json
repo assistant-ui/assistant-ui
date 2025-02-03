@@ -1,7 +1,7 @@
 {
   "name": "@assistant-ui/react-ui",
   "description": "Pre-styled React components for @assistant-ui/react",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "MIT",
   "exports": {
     ".": {

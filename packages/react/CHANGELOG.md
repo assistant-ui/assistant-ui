@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.65
+
+### Patch Changes
+
+- a07d8c1: fix: thread auto-scroll reliability
+
 ## 0.7.64
 
 ### Patch Changes
