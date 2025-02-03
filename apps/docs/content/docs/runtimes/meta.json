@@ -2,7 +2,7 @@
   "title": "Runtime",
   "pages": [
     "pick-a-runtime",
-    "vercel-ai-sdk",
+    "ai-sdk",
     "langgraph",
     "langserve",
     "external-store",

@@ -1,8 +1,18 @@
 ---
-title: Custom REST API
+title: LocalRuntime
 ---
 
+import { Callout } from "fumadocs-ui/components/callout";
+
 ## Overview
+
+<Callout emoji="💡">
+  With LocalRuntime, the chat history state is managed by assistant-ui. This
+  gives you built-in support for thread management, message editing, reloading
+  and branch switching.
+
+If you need full control over the state of the messages on the frontend, use ExternalStoreRuntime instead.
+</Callout>
 
 `assistant-ui` integrates with any custom REST API. To do so, you define a custom `ChatModelAdapter` and pass it to the `useLocalRuntime` hook.
 

@@ -1,8 +1,19 @@
 ---
-title: External Store Runtime
+title: ExternalStoreRuntime
 ---
 
+import { Callout } from "fumadocs-ui/components/callout";
+
 ## Overview
+
+<Callout emoji="💡">
+If you need full control over the state of the messages on the frontend, use ExternalStoreRuntime.
+
+With LocalRuntime, the chat history state is managed by assistant-ui. This
+gives you built-in support for thread management, message editing, reloading
+and branch switching.
+
+</Callout>
 
 Use the `ExternalStoreRuntime` if you want to manage the message state yourself via any react state management library.
 
