@@ -26,6 +26,8 @@ export type ThreadListItemRuntime = {
   getState(): ThreadListItemState;
 
   initialize(): Promise<{ remoteId: string; externalId: string | undefined }>;
+  generateTitle(): Promise<void>;
+
   switchTo(): Promise<void>;
   rename(newTitle: string): Promise<void>;
   archive(): Promise<void>;
@@ -62,6 +64,7 @@ export class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
     this.unarchive = this.unarchive.bind(this);
     this.delete = this.delete.bind(this);
     this.initialize = this.initialize.bind(this);
+    this.generateTitle = this.generateTitle.bind(this);
     this.subscribe = this.subscribe.bind(this);
     this.unstable_on = this.unstable_on.bind(this);
     this.getState = this.getState.bind(this);
@@ -106,6 +109,11 @@ export class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
   }> {
     const state = this._core.getState();
     return this._threadListBinding.initialize(state.id);
+  }
+
+  public generateTitle(): Promise<void> {
+    const state = this._core.getState();
+    return this._threadListBinding.generateTitle(state.id);
   }
 
   public unstable_on(event: ThreadListItemEventType, callback: () => void) {

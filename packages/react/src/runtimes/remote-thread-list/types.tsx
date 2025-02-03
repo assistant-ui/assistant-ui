@@ -1,7 +1,7 @@
 import { ComponentType, PropsWithChildren } from "react";
 import { AssistantRuntime } from "../../api";
-import { Unsubscribe } from "../../types";
 import { AssistantStream } from "assistant-stream";
+import { ThreadMessage } from "../../types";
 
 export type RemoteThreadInitializeResponse = {
   remoteId: string;
@@ -19,16 +19,7 @@ export type RemoteThreadListResponse = {
   threads: RemoteThreadMetadata[];
 };
 
-export type RemoteThreadListSubscriber = {
-  onGenerateTitle: (
-    threadId: string,
-    begin: () => Promise<AssistantStream>,
-  ) => void;
-};
-
 export type RemoteThreadListAdapter = {
-  runtimeHook: () => AssistantRuntime;
-
   list(): Promise<RemoteThreadListResponse>;
 
   rename(remoteId: string, newTitle: string): Promise<void>;
@@ -36,8 +27,15 @@ export type RemoteThreadListAdapter = {
   unarchive(remoteId: string): Promise<void>;
   delete(remoteId: string): Promise<void>;
   initialize(threadId: string): Promise<RemoteThreadInitializeResponse>;
-
-  subscribe?(subscriber: RemoteThreadListSubscriber): Unsubscribe;
+  generateTitle(
+    remoteId: string,
+    unstable_messages: readonly ThreadMessage[],
+  ): Promise<AssistantStream>;
 
   unstable_Provider?: ComponentType<PropsWithChildren>;
+};
+
+export type RemoteThreadListOptions = {
+  runtimeHook: () => AssistantRuntime;
+  adapter: RemoteThreadListAdapter;
 };

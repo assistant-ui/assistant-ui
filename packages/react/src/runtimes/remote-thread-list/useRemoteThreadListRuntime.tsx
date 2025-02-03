@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { BaseAssistantRuntimeCore } from "../core/BaseAssistantRuntimeCore";
 import { RemoteThreadListThreadListRuntimeCore } from "./RemoteThreadListThreadListRuntimeCore";
-import { RemoteThreadListAdapter } from "./types";
+import { RemoteThreadListOptions } from "./types";
 import { AssistantRuntimeImpl } from "../../internal";
 import { AssistantRuntimeCore } from "../core/AssistantRuntimeCore";
 
@@ -13,10 +13,10 @@ class RemoteThreadListRuntimeCore
 {
   public readonly threads;
 
-  constructor(adapter: RemoteThreadListAdapter) {
+  constructor(options: RemoteThreadListOptions) {
     super();
     this.threads = new RemoteThreadListThreadListRuntimeCore(
-      adapter,
+      options,
       this._contextProvider,
     );
   }
@@ -27,12 +27,12 @@ class RemoteThreadListRuntimeCore
 }
 
 export const useRemoteThreadListRuntime = (
-  adapter: RemoteThreadListAdapter,
+  options: RemoteThreadListOptions,
 ) => {
-  const [runtime] = useState(() => new RemoteThreadListRuntimeCore(adapter));
+  const [runtime] = useState(() => new RemoteThreadListRuntimeCore(options));
   useEffect(() => {
-    runtime.threads.__internal_setAdapter(adapter);
-    return runtime.threads.__internal_bindAdapter();
-  }, [runtime, adapter]);
+    runtime.threads.__internal_setOptions(options);
+    runtime.threads.__internal_load();
+  }, [runtime, options]);
   return useMemo(() => AssistantRuntimeImpl.create(runtime), [runtime]);
 };

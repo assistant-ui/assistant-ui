@@ -1,21 +1,7 @@
 "use client";
 
-import {
-  AssistantCloud,
-  AssistantRuntimeProvider,
-  useCloudThreadListRuntime,
-  useEdgeRuntime,
-} from "@assistant-ui/react";
-
-const useThreadRuntime = () => {
-  const runtime = useEdgeRuntime({
-    api: "/api/chat",
-    unstable_AISDKInterop: true,
-    unstable_sendMessageIds: true,
-  });
-
-  return runtime;
-};
+import { AssistantCloud, AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
 const cloud = new AssistantCloud({
   baseUrl: process.env["NEXT_PUBLIC_ASSISTANT_BASE_URL"]!,
@@ -30,9 +16,9 @@ export function MyRuntimeProvider({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const runtime = useCloudThreadListRuntime({
+  const runtime = useChatRuntime({
     cloud,
-    runtimeHook: useThreadRuntime,
+    api: "/api/chat",
   });
 
   return (

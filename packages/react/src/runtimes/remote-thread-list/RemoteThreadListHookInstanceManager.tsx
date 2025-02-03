@@ -121,6 +121,13 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
       return runtime.threads.main.unstable_on("initialize", () => {
         if (threadListItemRuntime.getState().status === "new") {
           threadListItemRuntime.initialize();
+
+          // auto generate a title after first run
+          const dispose = runtime.thread.unstable_on("run-end", () => {
+            dispose();
+
+            threadListItemRuntime.generateTitle();
+          });
         }
       });
     }, [runtime, threadListItemRuntime]);

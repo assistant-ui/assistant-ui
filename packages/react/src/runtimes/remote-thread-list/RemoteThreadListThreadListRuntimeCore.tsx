@@ -4,7 +4,7 @@ import { ThreadListRuntimeCore } from "../core/ThreadListRuntimeCore";
 import { generateId } from "../../internal";
 import {
   RemoteThreadInitializeResponse,
-  RemoteThreadListAdapter,
+  RemoteThreadListOptions,
 } from "./types";
 import { RemoteThreadListHookInstanceManager } from "./RemoteThreadListHookInstanceManager";
 import { BaseSubscribable } from "./BaseSubscribable";
@@ -12,7 +12,7 @@ import { EMPTY_THREAD_CORE } from "./EMPTY_THREAD_CORE";
 import { OptimisticState } from "./OptimisticState";
 import { FC, Fragment, useEffect, useId } from "react";
 import { create } from "zustand";
-import { AssistantStream, AssistantMessageStream } from "assistant-stream";
+import { AssistantMessageStream } from "assistant-stream";
 import { ModelContextProvider } from "../../model-context";
 import { RuntimeAdapterProvider } from "../adapters/RuntimeAdapterProvider";
 
@@ -141,7 +141,7 @@ export class RemoteThreadListThreadListRuntimeCore
   extends BaseSubscribable
   implements ThreadListRuntimeCore
 {
-  private _adapter!: RemoteThreadListAdapter;
+  private _options!: RemoteThreadListOptions;
   private readonly _hookManager: RemoteThreadListHookInstanceManager;
 
   private _loadThreadsPromise: Promise<void> | undefined;
@@ -161,7 +161,7 @@ export class RemoteThreadListThreadListRuntimeCore
     if (!this._loadThreadsPromise) {
       this._loadThreadsPromise = this._state
         .optimisticUpdate({
-          execute: () => this._adapter.list(),
+          execute: () => this._options.adapter.list(),
           loading: (state) => {
             return {
               ...state,
@@ -228,43 +228,40 @@ export class RemoteThreadListThreadListRuntimeCore
   }
 
   constructor(
-    adapter: RemoteThreadListAdapter,
+    options: RemoteThreadListOptions,
     private readonly contextProvider: ModelContextProvider,
   ) {
     super();
 
     this._state.subscribe(() => this._notifySubscribers());
     this._hookManager = new RemoteThreadListHookInstanceManager(
-      adapter.runtimeHook,
+      options.runtimeHook,
     );
     this.useProvider = create(() => ({
-      Provider: adapter.unstable_Provider ?? Fragment,
+      Provider: options.adapter.unstable_Provider ?? Fragment,
     }));
-    this.__internal_setAdapter(adapter);
+    this.__internal_setOptions(options);
 
     this.switchToNewThread();
   }
 
   private useProvider;
 
-  public __internal_setAdapter(adapter: RemoteThreadListAdapter) {
-    if (this._adapter === adapter) return;
+  public __internal_setOptions(options: RemoteThreadListOptions) {
+    if (this._options === options) return;
 
-    this._adapter = adapter;
+    this._options = options;
 
-    const Provider = adapter.unstable_Provider ?? Fragment;
+    const Provider = options.adapter.unstable_Provider ?? Fragment;
     if (Provider !== this.useProvider.getState().Provider) {
       this.useProvider.setState({ Provider }, true);
     }
 
-    this._hookManager.setRuntimeHook(adapter.runtimeHook);
+    this._hookManager.setRuntimeHook(options.runtimeHook);
   }
 
-  public __internal_bindAdapter() {
+  public __internal_load() {
     this.getLoadThreadsPromise(); // begin loading on initial bind
-    return this._adapter.subscribe?.({
-      onGenerateTitle: this._onGenerateTitle,
-    });
   }
 
   public get threadIds() {
@@ -368,7 +365,7 @@ export class RemoteThreadListThreadListRuntimeCore
 
     return this._state.optimisticUpdate({
       execute: () => {
-        return this._adapter.initialize(threadId);
+        return this._options.adapter.initialize(threadId);
       },
       optimistic: (state) => {
         return updateStatusReducer(state, threadId, "regular");
@@ -411,15 +408,17 @@ export class RemoteThreadListThreadListRuntimeCore
     });
   };
 
-  private _onGenerateTitle = async (
-    remoteId: string,
-    begin: () => Promise<AssistantStream>,
-  ) => {
-    const data = this.getItemById(remoteId);
+  public generateTitle = async (threadId: string) => {
+    const data = this.getItemById(threadId);
     if (!data) throw new Error("Thread not found");
     if (data.status === "new") throw new Error("Thread is not yet initialized");
 
-    const stream = await begin();
+    const { remoteId } = await data.initializeTask;
+    const messages = this.getThreadRuntimeCore(threadId).messages;
+    const stream = await this._options.adapter.generateTitle(
+      remoteId,
+      messages,
+    );
     const messageStream = AssistantMessageStream.fromAssistantStream(stream);
     for await (const result of messageStream) {
       const newTitle =
@@ -447,7 +446,7 @@ export class RemoteThreadListThreadListRuntimeCore
     return this._state.optimisticUpdate({
       execute: async () => {
         const { remoteId } = await data.initializeTask;
-        return this._adapter.rename(remoteId, newTitle);
+        return this._options.adapter.rename(remoteId, newTitle);
       },
       optimistic: (state) => {
         const data = getThreadData(state, threadIdOrRemoteId);
@@ -484,7 +483,7 @@ export class RemoteThreadListThreadListRuntimeCore
       execute: async () => {
         await this._ensureThreadIsNotMain(data.threadId);
         const { remoteId } = await data.initializeTask;
-        return this._adapter.archive(remoteId);
+        return this._options.adapter.archive(remoteId);
       },
       optimistic: (state) => {
         return updateStatusReducer(state, data.threadId, "archived");
@@ -501,7 +500,7 @@ export class RemoteThreadListThreadListRuntimeCore
       execute: async () => {
         try {
           const { remoteId } = await data.initializeTask;
-          return await this._adapter.unarchive(remoteId);
+          return await this._options.adapter.unarchive(remoteId);
         } catch (error) {
           await this._ensureThreadIsNotMain(data.threadId);
           throw error;
@@ -523,7 +522,7 @@ export class RemoteThreadListThreadListRuntimeCore
       execute: async () => {
         await this._ensureThreadIsNotMain(data.threadId);
         const { remoteId } = await data.initializeTask;
-        return await this._adapter.delete(remoteId);
+        return await this._options.adapter.delete(remoteId);
       },
       optimistic: (state) => {
         return updateStatusReducer(state, data.threadId, "deleted");

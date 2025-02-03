@@ -38,6 +38,7 @@ export type ThreadListRuntimeCore = {
   initialize(
     threadId: string,
   ): Promise<{ remoteId: string; externalId: string | undefined }>;
+  generateTitle(threadId: string): Promise<void>;
 
   subscribe(callback: () => void): Unsubscribe;
 };

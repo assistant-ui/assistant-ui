@@ -167,6 +167,10 @@ export class ExternalStoreThreadListRuntimeCore
     throw new Error("Method not implemented.");
   }
 
+  public generateTitle(): never {
+    throw new Error("Method not implemented.");
+  }
+
   private _subscriptions = new Set<() => void>();
 
   public subscribe(callback: () => void): Unsubscribe {

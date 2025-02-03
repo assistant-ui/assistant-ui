@@ -10,6 +10,8 @@ import {
 } from "../../api/AssistantRuntime";
 import { ThreadRuntimeImpl } from "../../internal";
 import { useRuntimeAdapters } from "../adapters/RuntimeAdapterProvider";
+import { useRemoteThreadListRuntime } from "../remote-thread-list/useRemoteThreadListRuntime";
+import { useCloudThreadListAdapter } from "../remote-thread-list/adapter/cloud";
 
 export type LocalRuntime = AssistantRuntime & {
   reset: (options?: Parameters<LocalRuntimeCore["reset"]>[0]) => void;
@@ -34,9 +36,9 @@ class LocalRuntimeImpl extends AssistantRuntimeImpl implements LocalRuntime {
   }
 }
 
-export const useLocalRuntime = (
+const useLocalThreadRuntime = (
   adapter: ChatModelAdapter,
-  { initialMessages, ...options }: LocalRuntimeOptions = {},
+  { initialMessages, ...options }: LocalRuntimeOptions,
 ) => {
   const { modelContext, ...threadListAdapters } = useRuntimeAdapters() ?? {};
   const opt = useMemo(
@@ -64,4 +66,15 @@ export const useLocalRuntime = (
   }, [modelContext, runtime]);
 
   return useMemo(() => LocalRuntimeImpl.create(runtime), [runtime]);
+};
+
+export const useLocalRuntime = (
+  adapter: ChatModelAdapter,
+  { cloud, ...options }: LocalRuntimeOptions = {},
+) => {
+  const cloudAdapter = useCloudThreadListAdapter({ cloud });
+  return useRemoteThreadListRuntime({
+    runtimeHook: () => useLocalThreadRuntime(adapter, options),
+    adapter: cloudAdapter,
+  });
 };

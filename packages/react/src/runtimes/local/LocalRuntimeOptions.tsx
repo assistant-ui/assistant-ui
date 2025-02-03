@@ -4,6 +4,7 @@ import { ThreadMessageLike } from "../external-store";
 import { FeedbackAdapter } from "../adapters/feedback/FeedbackAdapter";
 import { SpeechSynthesisAdapter } from "../adapters/speech/SpeechAdapterTypes";
 import { ChatModelAdapter } from "./ChatModelAdapter";
+import { AssistantCloud } from "../../cloud";
 
 export type LocalRuntimeOptionsBase = {
   maxSteps?: number | undefined;
@@ -24,6 +25,7 @@ export type LocalRuntimeOptionsBase = {
 
 // TODO align LocalRuntimeOptions with LocalRuntimeOptionsBase
 export type LocalRuntimeOptions = Omit<LocalRuntimeOptionsBase, "adapters"> & {
+  cloud?: AssistantCloud | undefined;
   initialMessages?: readonly ThreadMessageLike[] | undefined;
   adapters?: Omit<LocalRuntimeOptionsBase["adapters"], "chatModel"> | undefined;
 };
@@ -32,6 +34,7 @@ export const splitLocalRuntimeOptions = <T extends LocalRuntimeOptions>(
   options: T,
 ) => {
   const {
+    cloud,
     initialMessages,
     maxSteps,
     adapters,
@@ -41,6 +44,7 @@ export const splitLocalRuntimeOptions = <T extends LocalRuntimeOptions>(
 
   return {
     localRuntimeOptions: {
+      cloud,
       initialMessages,
       maxSteps,
       adapters,
