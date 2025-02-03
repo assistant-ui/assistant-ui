@@ -42,6 +42,7 @@ export type ChatModelRunOptions = {
   readonly config: ModelContext;
 
   readonly unstable_assistantMessageId?: string;
+  unstable_getMessage(): ThreadMessage;
 };
 
 export type ChatModelAdapter = {

@@ -249,6 +249,9 @@ export class LocalThreadRuntimeCore
         context,
         config: context,
         unstable_assistantMessageId: message.id,
+        unstable_getMessage() {
+          return message;
+        },
       });
 
       // handle async iterator for streaming results
