@@ -1,5 +1,11 @@
 # assistant-ui
 
+## 0.0.33
+
+### Patch Changes
+
+- 0a23a70: fix: node 20 support
+
 ## 0.0.32
 
 ### Patch Changes

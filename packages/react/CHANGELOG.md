@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.67
+
+### Patch Changes
+
+- ddf468e: fix: import path
+
 ## 0.7.66
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @assistant-ui/react-ui
 
+## 0.1.3
+
+### Patch Changes
+
+- Updated dependencies [ddf468e]
+  - @assistant-ui/react@0.7.67
+  - @assistant-ui/react-markdown@0.7.16
+
 ## 0.1.2
 
 ### Patch Changes
