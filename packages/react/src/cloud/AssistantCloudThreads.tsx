@@ -25,7 +25,7 @@ type AssistantCloudThreadsListResponse = {
 };
 
 type AssistantCloudThreadsCreateBody = {
-  title: string;
+  title?: string | undefined;
   last_message_at: Date;
   metadata?: unknown | undefined;
   external_id?: string | undefined;
