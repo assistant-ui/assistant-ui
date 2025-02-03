@@ -5,14 +5,17 @@ import { type ComponentRef, forwardRef, ComponentPropsWithoutRef } from "react";
 import {
   useActionBarFloatStatus,
   HideAndFloatStatus,
-  UseActionBarFloatStatusProps,
 } from "./useActionBarFloatStatus";
 
 type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;
 
 export namespace ActionBarPrimitiveRoot {
   export type Element = ComponentRef<typeof Primitive.div>;
-  export type Props = PrimitiveDivProps & UseActionBarFloatStatusProps;
+  export type Props = PrimitiveDivProps & {
+    hideWhenRunning?: boolean | undefined;
+    autohide?: "always" | "not-last" | "never" | undefined;
+    autohideFloat?: "always" | "single-branch" | "never" | undefined;
+  };
 }
 
 export const ActionBarPrimitiveRoot = forwardRef<
