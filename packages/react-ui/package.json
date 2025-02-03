@@ -33,8 +33,6 @@
     "build": "tsx scripts/build.mts"
   },
   "dependencies": {
-    "@assistant-ui/react": "workspace:^",
-    "@assistant-ui/react-markdown": "workspace:^",
     "@radix-ui/react-avatar": "^1.1.2",
     "@radix-ui/react-dialog": "^1.1.4",
     "@radix-ui/react-primitive": "^2.0.1",
@@ -45,6 +43,8 @@
     "zustand": "^5.0.3"
   },
   "peerDependencies": {
+    "@assistant-ui/react": "*",
+    "@assistant-ui/react-markdown": "*",
     "@types/react": "*",
     "@types/react-dom": "*",
     "react": "^18 || ^19 || ^19.0.0-rc",
@@ -63,6 +63,8 @@
     }
   },
   "devDependencies": {
+    "@assistant-ui/react": "workspace:^",
+    "@assistant-ui/react-markdown": "workspace:^",
     "@assistant-ui/tailwindcss-transformer": "workspace:*",
     "@assistant-ui/tsbuildutils": "workspace:^",
     "@assistant-ui/tsconfig": "workspace:*",
