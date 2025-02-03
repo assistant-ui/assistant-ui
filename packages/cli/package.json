@@ -3,8 +3,6 @@
   "version": "0.0.32",
   "license": "MIT",
   "source": "./src/index.ts",
-  "main": "./dist/index.js",
-  "module": "./dist/index.mjs",
   "dependencies": {
     "chalk": "^5.4.1",
     "cli-progress": "^3.12.0",
@@ -30,7 +28,7 @@
     "dist",
     "README.md"
   ],
-  "bin": "./dist/index.mjs",
+  "bin": "./dist/index.js",
   "scripts": {
     "build": "tsx scripts/build.mts"
   },
