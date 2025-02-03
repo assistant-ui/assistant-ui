@@ -62,50 +62,50 @@ npx shadcn@latest add "https://r.assistant-ui.com/thread"
 
 Install provider SDK:
 
-<Tabs id="provider" items={["OpenAI", "Anthropic", "AWS", "Azure", "Gemini", "GCP", "Groq", "Fireworks", "Cohere", "Ollama", "Chrome AI"]}>
+<Tabs id="provider" items={["OpenAI", "Anthropic", "Azure", "AWS", "Gemini", "GCP", "Groq", "Fireworks", "Cohere", "Ollama", "Chrome AI"]}>
 
 ```sh title="Terminal" tab="OpenAI"
-npm install @ai-sdk/openai
+npm install ai @assistant-ui/react-ai-sdk @ai-sdk/openai
 ```
 
 ```sh title="Terminal" tab="Anthropic"
-npm install @ai-sdk/anthropic
-```
-
-```sh title="Terminal" tab="AWS"
-npm install @ai-sdk/amazon-bedrock
+npm install ai @assistant-ui/react-ai-sdk @ai-sdk/anthropic
 ```
 
 ```sh title="Terminal" tab="Azure"
-npm install @ai-sdk/azure
+npm install ai @assistant-ui/react-ai-sdk @ai-sdk/azure
+```
+
+```sh title="Terminal" tab="AWS"
+npm install ai @assistant-ui/react-ai-sdk @ai-sdk/amazon-bedrock
 ```
 
 ```sh title="Terminal" tab="Gemini"
-npm install @ai-sdk/google
+npm install ai @assistant-ui/react-ai-sdk @ai-sdk/google
 ```
 
 ```sh title="Terminal" tab="GCP"
-npm install @ai-sdk/google-vertex
+npm install ai @assistant-ui/react-ai-sdk @ai-sdk/google-vertex
 ```
 
 ```sh title="Terminal" tab="Groq"
-npm install @ai-sdk/openai
+npm install ai @assistant-ui/react-ai-sdk @ai-sdk/openai
 ```
 
 ```sh title="Terminal" tab="Fireworks"
-npm install @ai-sdk/openai
+npm install ai @assistant-ui/react-ai-sdk @ai-sdk/openai
 ```
 
 ```sh title="Terminal" tab="Cohere"
-npm install @ai-sdk/cohere
+npm install ai @assistant-ui/react-ai-sdk @ai-sdk/cohere
 ```
 
 ```sh title="Terminal" tab="Ollama"
-npm install ollama-ai-provider
+npm install ai @assistant-ui/react-ai-sdk ollama-ai-provider
 ```
 
 ```sh title="Terminal" tab="Chrome AI"
-npm install chrome-ai
+npm install ai @assistant-ui/react-ai-sdk chrome-ai
 ```
 
 </Tabs>
@@ -115,118 +115,195 @@ Add an API endpoint:
 <Tabs id="provider" items={["OpenAI", "Anthropic", "Azure", "AWS", "Gemini", "GCP", "Groq", "Fireworks", "Cohere", "Ollama", "Chrome AI"]}>
 ```ts title="/app/api/chat/route.ts" tab="OpenAI"
 import { openai } from "@ai-sdk/openai";
-import { createEdgeRuntimeAPI } from "@assistant-ui/react/edge";
+import { streamText } from "ai";
 
-export const { POST } = createEdgeRuntimeAPI({
-  model: openai("gpt-4o"),
-});
+export const maxDuration = 30;
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+  const result = streamText({
+    model: openai("gpt-4o"),
+    messages,
+  });
+  return result.toDataStreamResponse();
+}
 ```
 
 ```ts title="/app/api/chat/route.ts" tab="Anthropic"
 import { anthropic } from "@ai-sdk/anthropic";
-import { createEdgeRuntimeAPI } from "@assistant-ui/react/edge";
+import { streamText } from "ai";
 
-export const { POST } = createEdgeRuntimeAPI({
-  model: anthropic("claude-3-5-sonnet-20240620"),
-});
+export const maxDuration = 30;
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+  const result = streamText({
+    model: anthropic("claude-3-5-sonnet-20240620"),
+    messages,
+  });
+  return result.toDataStreamResponse();
+}
 ```
 
 ```ts title="/app/api/chat/route.ts" tab="Azure"
 import { azure } from "@ai-sdk/azure";
-import { createEdgeRuntimeAPI } from "@assistant-ui/react/edge";
+import { streamText } from "ai";
 
-export const { POST } = createEdgeRuntimeAPI({
-  model: azure("your-deployment-name"),
-});
+export const maxDuration = 30;
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+  const result = streamText({
+    model: azure("your-deployment-name"),
+    messages,
+  });
+  return result.toDataStreamResponse();
+}
 ```
 
 ```ts title="/app/api/chat/route.ts" tab="AWS"
 import { bedrock } from "@ai-sdk/amazon-bedrock";
-import { createEdgeRuntimeAPI } from "@assistant-ui/react/edge";
+import { streamText } from "ai";
 
-export const { POST } = createEdgeRuntimeAPI({
-  model: bedrock("anthropic.claude-3-5-sonnet-20240620-v1:0"),
-});
+export const maxDuration = 30;
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+  const result = streamText({
+    model: bedrock("anthropic.claude-3-5-sonnet-20240620-v1:0"),
+    messages,
+  });
+  return result.toDataStreamResponse();
+}
 ```
 
 ```ts title="/app/api/chat/route.ts" tab="Gemini"
 import { google } from "@ai-sdk/google";
-import { createEdgeRuntimeAPI } from "@assistant-ui/react/edge";
+import { streamText } from "ai";
 
-export const { POST } = createEdgeRuntimeAPI({
-  model: google("gemini-1.5-flash"),
-});
+export const maxDuration = 30;
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+  const result = streamText({
+    model: google("gemini-1.5-flash"),
+    messages,
+  });
+  return result.toDataStreamResponse();
+}
 ```
 
 ```ts title="/app/api/chat/route.ts" tab="GCP"
 import { vertex } from "@ai-sdk/google-vertex";
-import { createEdgeRuntimeAPI } from "@assistant-ui/react/edge";
+import { streamText } from "ai";
 
-export const { POST } = createEdgeRuntimeAPI({
-  model: vertex("gemini-1.5-pro"),
-});
+export const maxDuration = 30;
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+  const result = streamText({
+    model: vertex("gemini-1.5-pro"),
+    messages,
+  });
+  return result.toDataStreamResponse();
+}
 ```
 
 ```ts title="/app/api/chat/route.ts" tab="Groq"
 import { createOpenAI } from "@ai-sdk/openai";
-import { createEdgeRuntimeAPI } from "@assistant-ui/react/edge";
+import { streamText } from "ai";
+
+export const maxDuration = 30;
 
 const groq = createOpenAI({
   apiKey: process.env.GROQ_API_KEY ?? "",
   baseURL: "https://api.groq.com/openai/v1",
 });
 
-export const { POST } = createEdgeRuntimeAPI({
-  model: groq("llama3-70b-8192"),
-});
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+  const result = streamText({
+    model: groq("llama3-70b-8192"),
+    messages,
+  });
+  return result.toDataStreamResponse();
+}
 ```
 
 ```ts title="/app/api/chat/route.ts" tab="Fireworks"
 import { createOpenAI } from "@ai-sdk/openai";
-import { createEdgeRuntimeAPI } from "@assistant-ui/react/edge";
+import { streamText } from "ai";
+
+export const maxDuration = 30;
 
 const fireworks = createOpenAI({
   apiKey: process.env.FIREWORKS_API_KEY ?? "",
   baseURL: "https://api.fireworks.ai/inference/v1",
 });
 
-export const { POST } = createEdgeRuntimeAPI({
-  model: fireworks("accounts/fireworks/models/firefunction-v2"),
-});
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+  const result = streamText({
+    model: fireworks("accounts/fireworks/models/firefunction-v2"),
+    messages,
+  });
+  return result.toDataStreamResponse();
+}
 ```
 
 ```ts title="/app/api/chat/route.ts" tab="Cohere"
 import { cohere } from "@ai-sdk/cohere";
-import { createEdgeRuntimeAPI } from "@assistant-ui/react/edge";
+import { streamText } from "ai";
 
-export const { POST } = createEdgeRuntimeAPI({
-  model: cohere("command-r-plus"),
-});
+export const maxDuration = 30;
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+  const result = streamText({
+    model: cohere("command-r-plus"),
+    messages,
+  });
+  return result.toDataStreamResponse();
+}
 ```
 
 ```ts title="/app/api/chat/route.ts" tab="Ollama"
 import { ollama } from "ollama-ai-provider";
-import { createEdgeRuntimeAPI } from "@assistant-ui/react/edge";
+import { streamText } from "ai";
 
-export const { POST } = createEdgeRuntimeAPI({
-  model: ollama("llama3"),
-});
+export const maxDuration = 30;
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+  const result = streamText({
+    model: ollama("llama3"),
+    messages,
+  });
+  return result.toDataStreamResponse();
+}
 ```
 
 ```ts title="/app/api/chat/route.ts" tab="Chrome AI"
 import { chromeai } from "chrome-ai";
-import { createEdgeRuntimeAPI } from "@assistant-ui/react/edge";
+import { streamText } from "ai";
 
-export const { POST } = createEdgeRuntimeAPI({
-  model: chromeai(),
-});
+export const maxDuration = 30;
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+  const result = streamText({
+    model: chromeai(),
+    messages,
+  });
+  return result.toDataStreamResponse();
+}
 ```
 
 </Tabs>
 
 Define environment variables:
 
-<Tabs id="provider" items={["OpenAI", "Anthropic", "AWS", "Azure", "Gemini", "GCP", "Groq", "Fireworks", "Cohere", "Ollama", "Chrome AI"]}>
+<Tabs id="provider" items={["OpenAI", "Anthropic", "Azure", "AWS", "Gemini", "GCP", "Groq", "Fireworks", "Cohere", "Ollama", "Chrome AI"]}>
 
 ```sh title="/.env.local" tab="OpenAI"
 OPENAI_API_KEY="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
@@ -236,15 +313,15 @@ OPENAI_API_KEY="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 ANTHROPIC_API_KEY="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 ```
 
+```sh title="/.env.local" tab="Azure"
+AZURE_RESOURCE_NAME="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+AZURE_API_KEY="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
 ```sh title="/.env.local" tab="AWS"
 AWS_ACCESS_KEY_ID="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 AWS_SECRET_ACCESS_KEY="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 AWS_REGION="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-```
-
-```sh title="/.env.local" tab="Azure"
-AZURE_RESOURCE_NAME="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-AZURE_API_KEY="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 ```
 
 ```sh title="/.env.local" tab="Gemini"
@@ -290,11 +367,12 @@ If you aren't using Next.js, you can also deploy this endpoint to Cloudflare Wor
 <Tabs items={["Thread", "AssistantModal"]}>
 
 ```tsx title="/app/page.tsx" tab="Thread"
-import { useEdgeRuntime, AssistantRuntimeProvider } from "@assistant-ui/react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { Thread } from "@/components/assistant-ui/thread";
 
 const MyApp = () => {
-  const runtime = useEdgeRuntime({
+  const runtime = useChatRuntime({
     api: "/api/chat",
   });
 
@@ -311,11 +389,12 @@ const MyApp = () => {
 ```tsx title="/app/page.tsx" tab="AssistantModal"
 // run `npx shadcn@latest add "https://r.assistant-ui.com/assistant-modal"`
 
-import { useEdgeRuntime, AssistantRuntimeProvider } from "@assistant-ui/react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { AssistantModal } from "@/components/assistant-ui/assistant-modal";
 
 const MyApp = () => {
-  const runtime = useEdgeRuntime({
+  const runtime = useChatRuntime({
     api: "/api/chat",
   });
 
