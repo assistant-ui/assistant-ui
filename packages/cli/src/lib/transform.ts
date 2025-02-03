@@ -2,9 +2,13 @@ import { execFileSync } from "child_process";
 import debug from "debug";
 import path from "path";
 import { TransformOptions } from "./transform-options";
+import { fileURLToPath } from "url";
 
 const log = debug("codemod:transform");
 const error = debug("codemod:transform:error");
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 function buildCommand(
   codemodPath: string,
