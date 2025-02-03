@@ -1,11 +1,11 @@
 ---
-title: Walkthrough - assistant-cloud with AI SDK by Vercel
+title: Chat History for LangGraph Cloud
 ---
 
 ## Overview
 
 With the help of assistant-cloud, you can add thread management and thread history capabilities to assistant-ui.  
-This guide will walk you through the process of integrating assistant-cloud with the AI SDK by Vercel.
+This guide will walk you through the process of integrating assistant-cloud with LangGraph Cloud.
 
 ### Prerequisites
 
@@ -51,27 +51,9 @@ Then, In the assistant-cloud dashboard, navigate to the "Auth Rules" tab and cre
 
 Now that we have everything set up, let's write the code for the runtime provider.
 
-The code below is a simple AI SDK runtime provider that uses the assistant-cloud API to create and manage threads.
+The code below is a simple LangGraph runtime provider that uses the assistant-cloud API to create and manage threads.
 
-```tsx title="/app/api/chat/route.ts"
-import { openai } from "@ai-sdk/openai";
-import { streamText } from "ai";
-
-export const maxDuration = 30;
-
-export async function POST(req: Request) {
-  const { messages } = await req.json();
-
-  const result = streamText({
-    model: openai("gpt-4o"),
-    messages,
-  });
-
-  return result.toDataStreamResponse();
-}
-```
-
-```tsx twoslash {1-2,5-6,19,27,29-36,38-45} title="/app/MyRuntimeProvider.tsx"
+```tsx twoslash {1-2,5-6,19,27,29-36,38-45}
 // @errors: 2307
 
 "use client";
@@ -80,13 +62,36 @@ import {
   AssistantCloud,
   AssistantRuntimeProvider,
   useCloudThreadListRuntime,
+  useThreadListItemRuntime,
 } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useLangGraphRuntime } from "@assistant-ui/react-langgraph";
 import { createThread, getThreadState, sendMessage } from "@/lib/chatApi";
+import { LangChainMessage } from "@assistant-ui/react-langgraph";
 import { useAuth } from "@clerk/nextjs";
 import { useMemo } from "react";
 
 // ---cut---
+const useMyLangGraphRuntime = () => {
+  const threadListItemRuntime = useThreadListItemRuntime();
+  const runtime = useLangGraphRuntime({
+    stream: async function* (messages) {
+      const { externalId } = await threadListItemRuntime.initialize();
+      if (!externalId) throw new Error("Thread not found");
+
+      return sendMessage({ threadId: externalId, messages });
+    },
+    onSwitchToThread: async (externalId) => {
+      const state = await getThreadState(externalId);
+      return {
+        messages:
+          (state.values as { messages?: LangChainMessage[] }).messages ?? [],
+      };
+    },
+  });
+
+  return runtime;
+};
+
 export function MyRuntimeProvider({
   children,
 }: Readonly<{
@@ -103,9 +108,13 @@ export function MyRuntimeProvider({
     [getToken],
   );
 
-  const runtime = useChatRuntime({
+  const runtime = useCloudThreadListRuntime({
     cloud,
-    api: "/api/chat",
+    runtimeHook: useMyLangGraphRuntime,
+    create: async () => {
+      const { thread_id } = await createThread();
+      return { externalId: thread_id };
+    },
   });
 
   return (
@@ -117,7 +126,7 @@ export function MyRuntimeProvider({
 ```
 
 <Callout emoji="💡">
-  Observe that the `useMyAISDKRuntime` hook is extracted into a separate
+  Observe that the `useMyLangGraphRuntime` hook is extracted into a separate
   function. This hook will be mounted multiple times, once per active thread.
 </Callout>
 
