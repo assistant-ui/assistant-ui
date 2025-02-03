@@ -1596,12 +1596,6 @@ importers:
 
   packages/react-ui:
     dependencies:
-      '@assistant-ui/react':
-        specifier: workspace:^
-        version: link:../react
-      '@assistant-ui/react-markdown':
-        specifier: workspace:^
-        version: link:../react-markdown
       '@radix-ui/react-avatar':
         specifier: ^1.1.2
         version: 1.1.2(@types/react-dom@19.0.3(@types/react@19.0.7))(@types/react@19.0.7)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
@@ -1639,6 +1633,12 @@ importers:
         specifier: ^5.0.3
         version: 5.0.3(@types/react@19.0.7)(react@19.0.0)(use-sync-external-store@1.4.0(react@19.0.0))
     devDependencies:
+      '@assistant-ui/react':
+        specifier: workspace:^
+        version: link:../react
+      '@assistant-ui/react-markdown':
+        specifier: workspace:^
+        version: link:../react-markdown
       '@assistant-ui/tailwindcss-transformer':
         specifier: workspace:*
         version: link:../tailwindcss-transformer
