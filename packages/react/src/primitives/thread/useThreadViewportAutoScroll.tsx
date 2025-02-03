@@ -14,13 +14,11 @@ import { writableStore } from "../../context/ReadonlyStore";
 export namespace useThreadViewportAutoScroll {
   export type Options = {
     autoScroll?: boolean | undefined;
-    unstable_scrollToBottomOnRunStart?: boolean | undefined;
   };
 }
 
 export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   autoScroll = true,
-  unstable_scrollToBottomOnRunStart = true,
 }: useThreadViewportAutoScroll.Options): RefCallback<TElement> => {
   const divRef = useRef<TElement>(null);
 
@@ -83,8 +81,6 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     };
   });
 
-  const autoScrollRef = useComposedRefs<TElement>(resizeRef, scrollRef, divRef);
-
   useOnScrollToBottom(() => {
     scrollToBottom("auto");
   });
@@ -92,10 +88,9 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   // autoscroll on run start
   const threadRuntime = useThreadRuntime();
   useEffect(() => {
-    if (!unstable_scrollToBottomOnRunStart) return undefined;
+    return threadRuntime.unstable_on("run-start", () => scrollToBottom("auto"));
+  }, []);
 
-    return threadRuntime.unstable_on("run-start", focus);
-  }, [unstable_scrollToBottomOnRunStart]);
-
+  const autoScrollRef = useComposedRefs<TElement>(resizeRef, scrollRef, divRef);
   return autoScrollRef;
 };

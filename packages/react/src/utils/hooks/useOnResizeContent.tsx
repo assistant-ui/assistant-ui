@@ -11,31 +11,17 @@ export const useOnResizeContent = (callback: () => void) => {
         callbackRef();
       });
 
-      const mutationObserver = new MutationObserver((mutations) => {
-        for (const mutation of mutations) {
-          for (const node of mutation.addedNodes) {
-            if (node instanceof Element) {
-              resizeObserver.observe(node);
-            }
-          }
-
-          for (const node of mutation.removedNodes) {
-            if (node instanceof Element) {
-              resizeObserver.unobserve(node);
-            }
-          }
-        }
-
+      const mutationObserver = new MutationObserver(() => {
         callbackRef();
       });
 
       resizeObserver.observe(el);
-      mutationObserver.observe(el, { childList: true });
-
-      // Observe existing children
-      for (const child of el.children) {
-        resizeObserver.observe(child);
-      }
+      mutationObserver.observe(el, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        characterData: true,
+      });
 
       return () => {
         resizeObserver.disconnect();
