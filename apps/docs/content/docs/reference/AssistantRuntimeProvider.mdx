@@ -15,7 +15,7 @@ You must either wrap your app in an `AssistantRuntimeProvider` or pass a `runtim
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 
 const MyApp = () => {
-  const runtime = useEdgeRuntime({ api: "/api/chat" });
+  const runtime = useChatRuntime({ api: "/api/chat" });
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>

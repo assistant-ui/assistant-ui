@@ -3,8 +3,9 @@
 import { Shadcn } from "@/components/shadcn/Shadcn";
 import { Button } from "@/components/ui/button";
 import { useChat } from "ai/react";
-import { AssistantRuntimeProvider, useEdgeRuntime } from "@assistant-ui/react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import Link from "next/link";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
 export default function HomePage() {
   return (
@@ -36,7 +37,7 @@ export type AssistantProps = {
 };
 
 const MyRuntimeProvider = ({ children }: { children: React.ReactNode }) => {
-  const runtime = useEdgeRuntime({ api: "/api/chat" });
+  const runtime = useChatRuntime({ api: "/api/chat" });
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       {children}

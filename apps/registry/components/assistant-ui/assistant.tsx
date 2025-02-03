@@ -1,10 +1,11 @@
 "use client";
 
-import { AssistantRuntimeProvider, useEdgeRuntime } from "@assistant-ui/react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { Thread } from "@/components/assistant-ui/thread";
 
 export const Assistant = () => {
-  const runtime = useEdgeRuntime({
+  const runtime = useChatRuntime({
     api: "/api/chat",
   });
 

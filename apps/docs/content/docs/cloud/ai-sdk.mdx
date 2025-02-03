@@ -80,22 +80,13 @@ import {
   AssistantCloud,
   AssistantRuntimeProvider,
   useCloudThreadListRuntime,
-  useEdgeRuntime,
 } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { createThread, getThreadState, sendMessage } from "@/lib/chatApi";
 import { useAuth } from "@clerk/nextjs";
 import { useMemo } from "react";
 
 // ---cut---
-const useMyAISDKRuntime = () => {
-  const runtime = useEdgeRuntime({
-    api: "/api/chat",
-    unstable_AISDKInterop: true,
-  });
-
-  return runtime;
-};
-
 export function MyRuntimeProvider({
   children,
 }: Readonly<{
@@ -112,9 +103,9 @@ export function MyRuntimeProvider({
     [getToken],
   );
 
-  const runtime = useCloudThreadListRuntime({
+  const runtime = useChatRuntime({
     cloud,
-    runtimeHook: useMyAISDKRuntime,
+    api: "/api/chat",
   });
 
   return (

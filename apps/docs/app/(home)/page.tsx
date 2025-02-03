@@ -6,12 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useChat } from "ai/react";
 import {
+  AssistantCloud,
   AssistantRuntimeProvider,
   CompositeAttachmentAdapter,
   SimpleImageAttachmentAdapter,
   SimpleTextAttachmentAdapter,
-  useEdgeRuntime,
 } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import Link from "next/link";
 import { useState } from "react";
 import { ChatGPT } from "../../components/chatgpt/ChatGPT";
@@ -133,9 +134,18 @@ export type AssistantProps = {
   chat: ReturnType<typeof useChat>;
 };
 
+const cloud = new AssistantCloud({
+  baseUrl: process.env["NEXT_PUBLIC_ASSISTANT_BASE_URL"]!,
+  authToken: () =>
+    fetch("/api/assistant-ui-token", { method: "POST" })
+      .then((r) => r.json())
+      .then((r) => r.token),
+});
+
 const MyRuntimeProvider = ({ children }: { children: React.ReactNode }) => {
-  const runtime = useEdgeRuntime({
+  const runtime = useChatRuntime({
     api: "/api/chat",
+    cloud,
     adapters: {
       attachments: new CompositeAttachmentAdapter([
         new SimpleImageAttachmentAdapter(),

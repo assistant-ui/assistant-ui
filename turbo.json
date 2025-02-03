@@ -7,7 +7,8 @@
       "outputs": ["dist", ".next/**", "!.next/cache/**", "generated/**"],
       "env": [
         "OPENAI_*",
-        "ASSISTANT_UI_*",
+        "ASSISTANT_*",
+        "JWT_*",
         "ENTELLIGENCE_*",
         "SENTRY_*",
         "NEXT_PUBLIC_*"

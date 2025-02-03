@@ -4,7 +4,7 @@ title: Speech
 
 ## Text-to-Speech
 
-assistant-ui supports text-to-speech via the `SpeechSynthesisAdapter` interface and the Edge runtime.
+assistant-ui supports text-to-speech via the `SpeechSynthesisAdapter` interface.
 
 ### SpeechSynthesisAdapter
 
@@ -30,7 +30,7 @@ The following example uses the `WebSpeechSynthesisAdapter`.
 ```tsx
 import { WebSpeechSynthesisAdapter } from "@assistant-ui/react";
 
-const runtime = useEdgeRuntime({
+const runtime = useChatRuntime({
   api: "/api/chat",
   adapters: {
     speech: new WebSpeechSynthesisAdapter(),

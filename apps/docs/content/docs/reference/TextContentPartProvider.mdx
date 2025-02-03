@@ -13,8 +13,6 @@ This is useful if you want to reuse the same `Text` component outside of a messa
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 
 const MyApp = () => {
-  const runtime = useEdgeRuntime({ api: "/api/chat" });
-
   return (
     <TextContentPartProvider text={"Hello!"}>
       <MyMarkdownText />

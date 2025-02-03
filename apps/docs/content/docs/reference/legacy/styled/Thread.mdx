@@ -64,11 +64,11 @@ import "@assistant-ui/react-ui/styles/index.css";
 ### Use it in your app
 
 ```tsx title="/app/page.tsx"
-import { useEdgeRuntime } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { Thread } from "@assistant-ui/react-ui";
 
 const MyApp = () => {
-  const runtime = useEdgeRuntime({
+  const runtime = useChatRuntime({
     api: "/api/chat",
   });
 
