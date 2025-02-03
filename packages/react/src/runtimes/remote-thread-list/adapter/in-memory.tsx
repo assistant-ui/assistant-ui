@@ -1,7 +1,4 @@
-import {
-  AssistantStream,
-  AssistantStreamChunk,
-} from "@assistant-ui/assistant-stream";
+import { AssistantStream, AssistantStreamChunk } from "assistant-stream";
 import {
   RemoteThreadInitializeResponse,
   RemoteThreadListAdapter,
