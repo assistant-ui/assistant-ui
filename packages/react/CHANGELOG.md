@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.7.66
+
+### Patch Changes
+
+- f4d71da: feat: Edge Runtime onResponse/onError/onfinish, sendExtraMessageFields, unstable_AISDKInterop=v2 support
+- 16cd124: feat(local-runtime): native support for AssistantCloud
+
 ## 0.7.65
 
 ### Patch Changes

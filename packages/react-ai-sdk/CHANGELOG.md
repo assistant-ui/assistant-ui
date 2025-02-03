@@ -1,5 +1,14 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.7.14
+
+### Patch Changes
+
+- 483c360: feat: useChatRuntime
+- Updated dependencies [f4d71da]
+- Updated dependencies [16cd124]
+  - @assistant-ui/react@0.7.66
+
 ## 0.7.13
 
 ### Patch Changes
