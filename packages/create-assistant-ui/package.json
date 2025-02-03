@@ -12,6 +12,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@assistant-ui/tsbuildutils": "workspace:^",
     "@assistant-ui/tsconfig": "workspace:*",
     "@types/cross-spawn": "^6.0.6",
     "@types/node": "^22.10.7",
@@ -21,9 +22,9 @@
     "dist",
     "README.md"
   ],
-  "bin": "./dist/index.js",
+  "bin": "./dist/index.mjs",
   "scripts": {
-    "build": "tsup src/index.ts --format esm --sourcemap --clean"
+    "build": "tsx scripts/build.mts"
   },
   "publishConfig": {
     "access": "public",

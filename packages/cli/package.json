@@ -28,7 +28,7 @@
     "dist",
     "README.md"
   ],
-  "bin": "./dist/index.js",
+  "bin": "./dist/index.mjs",
   "scripts": {
     "build": "tsx scripts/build.mts"
   },

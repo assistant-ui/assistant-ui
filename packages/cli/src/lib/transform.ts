@@ -3,9 +3,13 @@ import debug from "debug";
 import fs from "fs";
 import path from "path";
 import { TransformOptions } from "./transform-options";
+import { fileURLToPath } from "url";
 
 const log = debug("codemod:transform");
 const error = debug("codemod:transform:error");
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 function getJscodeshift(): string {
   const localJscodeshift = path.resolve(

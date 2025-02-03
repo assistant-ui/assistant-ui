@@ -1269,6 +1269,9 @@ importers:
         specifier: ^3.24.1
         version: 3.24.1
     devDependencies:
+      '@assistant-ui/tsbuildutils':
+        specifier: workspace:^
+        version: link:../tsbuildutils
       '@assistant-ui/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
