@@ -12,7 +12,11 @@ import { ToolCallContentPart } from "../../types";
 
 export namespace useExternalMessageConverter {
   export type Message =
-    | ThreadMessageLike
+    | (ThreadMessageLike & {
+        readonly convertConfig?: {
+          readonly joinStrategy?: "concat-content" | "none";
+        };
+      })
     | {
         role: "tool";
         toolCallId: string;
@@ -149,9 +153,13 @@ const joinExternalMessages = (
   return assistantMessage;
 };
 
-const chunkExternalMessages = <T,>(callbackResults: CallbackResult<T>[]) => {
+const chunkExternalMessages = <T,>(
+  callbackResults: CallbackResult<T>[],
+  joinStrategy?: "concat-content" | "none",
+) => {
   const results: ChunkResult<T>[] = [];
   let isAssistant = false;
+  let pendingNone = false; // true if the previous assistant message had joinStrategy "none"
   let inputs: T[] = [];
   let outputs: useExternalMessageConverter.Message[] = [];
 
@@ -164,11 +172,18 @@ const chunkExternalMessages = <T,>(callbackResults: CallbackResult<T>[]) => {
     }
     inputs = [];
     outputs = [];
+    isAssistant = false;
+    pendingNone = false;
   };
 
   for (const callbackResult of callbackResults) {
     for (const output of callbackResult.outputs) {
-      if (!isAssistant || output.role === "user" || output.role === "system") {
+      if (
+        (pendingNone && output.role !== "tool") ||
+        !isAssistant ||
+        output.role === "user" ||
+        output.role === "system"
+      ) {
         flush();
       }
       isAssistant = output.role === "assistant" || output.role === "tool";
@@ -177,6 +192,14 @@ const chunkExternalMessages = <T,>(callbackResults: CallbackResult<T>[]) => {
         inputs.push(callbackResult.input);
       }
       outputs.push(output);
+
+      if (
+        output.role === "assistant" &&
+        (output.convertConfig?.joinStrategy === "none" ||
+          joinStrategy === "none")
+      ) {
+        pendingNone = true;
+      }
     }
   }
   flush();
@@ -215,10 +238,12 @@ export const useExternalMessageConverter = <T extends WeakKey>({
   callback,
   messages,
   isRunning,
+  joinStrategy,
 }: {
   callback: useExternalMessageConverter.Callback<T>;
   messages: T[];
   isRunning: boolean;
+  joinStrategy?: "concat-content" | "none";
 }) => {
   const state = useMemo(
     () => ({
@@ -246,15 +271,18 @@ export const useExternalMessageConverter = <T extends WeakKey>({
       callbackResults.push(result);
     }
 
-    const chunks = chunkExternalMessages(callbackResults).map((m) => {
-      const key = m.outputs[0];
-      if (!key) return m;
+    const chunks = chunkExternalMessages(callbackResults, joinStrategy).map(
+      (m) => {
+        const key = m.outputs[0];
+        if (!key) return m;
 
-      const cached = state.chunkCache.get(key);
-      if (cached && shallowArrayEqual(cached.outputs, m.outputs)) return cached;
-      state.chunkCache.set(key, m);
-      return m;
-    });
+        const cached = state.chunkCache.get(key);
+        if (cached && shallowArrayEqual(cached.outputs, m.outputs))
+          return cached;
+        state.chunkCache.set(key, m);
+        return m;
+      },
+    );
 
     const threadMessages = state.converterCache.convertMessages(
       chunks,
