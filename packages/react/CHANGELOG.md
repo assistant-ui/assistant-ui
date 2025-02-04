@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.68
+
+### Patch Changes
+
+- eb4e13c: feat: useExternalMessageConverter megeConfig.joinStrategy
+
 ## 0.7.67
 
 ### Patch Changes
