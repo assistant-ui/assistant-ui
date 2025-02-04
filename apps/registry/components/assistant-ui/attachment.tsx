@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { TooltipProvider } from "@radix-ui/react-tooltip";
 
 const useFileSrc = (file: File | undefined) => {
   const [src, setSrc] = useState<string | undefined>(undefined);
@@ -132,27 +133,29 @@ const AttachmentUI: FC = () => {
     }
   });
   return (
-    <Tooltip>
-      <AttachmentPrimitive.Root className="aui-attachment-root">
-        <AttachmentPreviewDialog>
-          <TooltipTrigger asChild>
-            <div className="aui-attachment-content">
-              <AttachmentThumb />
-              <div className="aui-attachment-text">
-                <p className="aui-attachment-name">
-                  <AttachmentPrimitive.Name />
-                </p>
-                <p className="aui-attachment-type">{typeLabel}</p>
+    <TooltipProvider>
+      <Tooltip>
+        <AttachmentPrimitive.Root className="aui-attachment-root">
+          <AttachmentPreviewDialog>
+            <TooltipTrigger asChild>
+              <div className="aui-attachment-content">
+                <AttachmentThumb />
+                <div className="aui-attachment-text">
+                  <p className="aui-attachment-name">
+                    <AttachmentPrimitive.Name />
+                  </p>
+                  <p className="aui-attachment-type">{typeLabel}</p>
+                </div>
               </div>
-            </div>
-          </TooltipTrigger>
-        </AttachmentPreviewDialog>
-        {canRemove && <AttachmentRemove />}
-      </AttachmentPrimitive.Root>
-      <TooltipContent side="top">
-        <AttachmentPrimitive.Name />
-      </TooltipContent>
-    </Tooltip>
+            </TooltipTrigger>
+          </AttachmentPreviewDialog>
+          {canRemove && <AttachmentRemove />}
+        </AttachmentPrimitive.Root>
+        <TooltipContent side="top">
+          <AttachmentPrimitive.Name />
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 };
 
