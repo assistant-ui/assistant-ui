@@ -28,7 +28,7 @@
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.7.68",
-    "@assistant-ui/react-markdown": "^0.7.16",
+    "@assistant-ui/react-markdown": "^0.7.17",
     "@types/react": "*",
     "@types/react-syntax-highlighter": "*",
     "react": "^18 || ^19 || ^19.0.0-rc",

@@ -1,5 +1,13 @@
 # @assistant-ui/react-ui
 
+## 0.1.5
+
+### Patch Changes
+
+- d35e72a: fix: missing "use client" directives
+- Updated dependencies [d35e72a]
+  - @assistant-ui/react-markdown@0.7.17
+
 ## 0.1.4
 
 ### Patch Changes
