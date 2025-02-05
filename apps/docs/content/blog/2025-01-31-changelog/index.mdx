@@ -1,0 +1,129 @@
+---
+title: January 2025 Changelog
+description: shadcn/ui, Thread Management, Improvements to AI SDK and LangGraph support
+author: Simon Farshid
+date: 2025-01-31T12:00:00
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+<Callout emoji="🎉">
+  This is the first edition of our changelog. We post these updates on a monthly
+  basis. If you want more frequent updates about our new features, join our
+  Discord where we have a `#changelog` channel that is updated on a daily basis.
+</Callout>
+
+## Summary
+
+In January, we shipped 36 new versions of our package `@assistant-ui/react`. We also crossed 10k weekly downloads on npm for the first time. 🎉
+
+## shadcn/ui CLI support
+
+You can now install all components using the shadcn CLI, e.g.
+
+```sh
+npx shadcn@latest add "https://r.assistant-ui.com/thread"
+```
+
+We began a migration towards distributing our components as unstyled primitives and using the shadcn CLI to drop styles in your project.
+
+## Styled components moved to @assistant-ui/react-ui
+
+All styled components (Thread, ThreadList, AssistantModal, makeMarkdownText, etc.) have been moved to a new package, `@assistant-ui/react-ui`.
+
+To ease the migration, we added a migration codemod:
+
+```sh
+npx assistant-ui upgrade
+```
+
+This will update your codebase to use the new package. This new package remains supported, however, based on the learnings from existing users, we recommend all new projects to use our shadcn/ui CLI instead.
+
+## Customizing the max-width of the Thread
+
+You can now customize the max-width of the thread via `--aui-thread-max-width` CSS variable.
+
+## Thread Management
+
+One of our main focus areas in this month was on the new Thread Management API. The new ThreadList API is available under `runtime.threads`. It allows you to create, switch to, rename, archive, and delete threads.
+
+We shipped a `<ThreadList />` component which gives the user the UI to manage their threads.
+
+We also shipped a few hooks `useThreadListItem()`, `useThreadListItemRuntime()`, `useRemoteThreadListRuntime()` and `useCloudThreadListRuntime()`.
+
+## Assistant Cloud
+
+We rolled out the new Assistant Cloud service to early users. This is a managed service for persistence, chat history, and thread management.
+Our runtimes are being upgraded to support Assistant Cloud natively by letting you pass a `cloud` object to the runtime hook.
+
+Keep an eye out for the public announcement of Assistant Cloud in a few days.
+
+## Improvements to our LangGraph Integration
+
+- We now have full support for LangGraph's `interrupt()`/`Command` API. You can check out the new example repository [here](https://github.com/assistant-ui/assistant-ui-langgraph-interrupt).
+- We now also support starting LangGraph runs without a user message (based on button input or other events).
+- Cancellation of runs is now supported via an `abortSignal` being passed to the LangGraph runtime adapter.
+
+## Improvements to our AI SDK Integration
+
+We now give you access to annotations and data packets in the assistant message:
+
+```tsx
+type AssistantMessage = {
+  metadata: {
+    unstable_annotations: [...],
+    unstable_data: [...],
+  }
+}
+```
+
+## AI SDK recommended for new projects
+
+For new projects, we recommend using the AI SDK integration. Previously, we recommended our custom SDK called `useEdgeRuntime`.  
+With our improved AI SDK integration, we believe it is time to recommend AI SDK for new projects, giving you access to the AI SDK ecosystem.
+
+The edge runtime remains maintained and supported for existing projects.
+
+## Misc
+
+- **Refactors & API Enhancements**:
+
+  - Renamed `ModelConfig` to `ModelContext`.
+  - Moved `switchToThread / switchToNewThread` under `runtime.threads`.
+  - Deprecated `UIContentPart`.
+  - `ToolCallContentPart.args` is now a `JSONObject`.
+  - `MessagePrimitive.tools.Override` introduced.
+  - Added `AppendMessage.sourceId` to provide better tracking.
+  - Reverse order of threads in `useRemoteThreadListRuntime` for better visibility.
+  - Added `threads.getById` and `threads.main` APIs.
+  - Introduced `AssistantCloudThreadHistoryAdapter` to handle cloud-based thread history.
+  - Auto-injection of history adapter in the local runtime.
+  - Tool call `id` + `args` are now optional in `ThreadMessageLike`.
+  - Added `ThreadListPrimitive.Root`.
+  - `ComposerRuntime.clearAttachments` API added.
+  - Improved input support for IME keyboards (e.g., Chinese, Japanese, Korean).
+  - Moved repository to a new GitHub organization (`assistant-ui/assistant-ui`).
+
+- **External Store & Data Handling**:
+
+  - Enhanced `ExternalStoreAdapter` to support metadata and attachments.
+  - Renamed `getExternalStoreMessage` to `getExternalStoreMessages`.
+  - Tool call `args` streaming support in our Python SDK.
+
+- **User Interface & Styling**:
+
+  - Styled UI assistant message footer.
+  - Improved attachment filename handling to prevent overflow.
+  - Renamed CSS class to `aui-thread-welcome-suggestions`.
+
+- **Performance Optimizations**:
+
+  - Memoized `MessageRepository.getMessages()` for better efficiency.
+  - Marked `ChatAdapter` types as readonly.
+
+- **Bug Fixes**:
+
+  - Fixed event subscription issues in thread lists.
+  - Fixed import errors in React server environments.
+  - Prevented excessive classes being included via TailwindCSS.
+  - Fixed AI SDK annotation packet errors.
