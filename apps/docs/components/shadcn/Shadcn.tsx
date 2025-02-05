@@ -1,3 +1,5 @@
+"use client";
+
 import { MenuIcon, ShareIcon } from "lucide-react";
 import { Thread, ThreadList, makeMarkdownText } from "@assistant-ui/react-ui";
 import remarkGfm from "remark-gfm";

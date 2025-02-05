@@ -2,7 +2,6 @@
 
 import { Shadcn } from "@/components/shadcn/Shadcn";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { useChat } from "ai/react";
 import Link from "next/link";
 import { TESTIMONIALS } from "@/components/testimonials/testimonials";
 import { ChatBubbleIcon } from "@radix-ui/react-icons";
