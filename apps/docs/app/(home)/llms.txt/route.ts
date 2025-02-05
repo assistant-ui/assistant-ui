@@ -19,15 +19,15 @@ export async function GET() {
     const fileContent = await fs.readFile(file);
     const { content, data } = matter(fileContent.toString());
 
-    if (data._mdx?.mirror) {
+    if (data["_mdx"]?.mirror) {
       return;
     }
 
     const processed = await processContent(content);
     return `file: ${file}
-# ${data.title}
+# ${data["title"]}
 
-${data.description ?? ""}
+${data["description"] ?? ""}
         
 ${processed}`;
   });
