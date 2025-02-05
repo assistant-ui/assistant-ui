@@ -22,7 +22,6 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { ComposerAddAttachment, ComposerAttachments } from "./attachment";
 
 export const Thread: FC = () => {
   return (
@@ -111,8 +110,6 @@ const ThreadWelcomeSuggestions: FC = () => {
 const Composer: FC = () => {
   return (
     <ComposerPrimitive.Root className="aui-composer-root">
-      <ComposerAttachments />
-      <ComposerAddAttachment />
       <ComposerPrimitive.Input
         rows={1}
         autoFocus
