@@ -1,7 +1,6 @@
 import * as fs from "node:fs/promises";
 import fg from "fast-glob";
 import matter from "gray-matter";
-import path from "node:path";
 import { remark } from "remark";
 import remarkGfm from "remark-gfm";
 import remarkStringify from "remark-stringify";
