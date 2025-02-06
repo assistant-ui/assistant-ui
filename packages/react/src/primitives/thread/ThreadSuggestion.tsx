@@ -14,7 +14,7 @@ const useThreadSuggestion = ({
   autoSend,
 }: {
   prompt: string;
-  method: "replace";
+  method?: "replace";
   autoSend?: boolean | undefined;
 }) => {
   const threadRuntime = useThreadRuntime();
@@ -23,7 +23,6 @@ const useThreadSuggestion = ({
   const callback = useCallback(() => {
     if (autoSend && !threadRuntime.getState().isRunning) {
       threadRuntime.append(prompt);
-      threadRuntime.composer.setText("");
     } else {
       threadRuntime.composer.setText(prompt);
     }
