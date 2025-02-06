@@ -25,7 +25,12 @@ import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button
 
 export const Thread: FC = () => {
   return (
-    <ThreadPrimitive.Root className="aui-root aui-thread-root">
+    <ThreadPrimitive.Root
+      className="aui-root aui-thread-root"
+      style={{
+        ["--aui-thread-max-width" as string]: "42rem",
+      }}
+    >
       <ThreadPrimitive.Viewport className="aui-thread-viewport">
         <ThreadWelcome />
 

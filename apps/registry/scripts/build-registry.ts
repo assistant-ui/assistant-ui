@@ -60,13 +60,13 @@ async function buildRegistry(registry: RegistryItem[]) {
       });
 
       return {
-        $schema: "https://ui.shadcn.com/schema/registry-item.json",
         content: transformedContent,
         ...file,
       };
     });
 
     const payload = {
+      $schema: "https://ui.shadcn.com/schema/registry-item.json",
       ...item,
       files,
     };

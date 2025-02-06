@@ -10,22 +10,6 @@ export const registry: RegistryItem[] = [
         path: "components/assistant-ui/thread.tsx",
       },
     ],
-    cssVars: {
-      light: {
-        "--aui-thread-max-width": "42rem",
-      },
-    },
-    tailwind: {
-      config: {
-        theme: {
-          extend: {
-            maxWidth: {
-              "aui-thread": "var(--aui-thread-max-width)",
-            },
-          },
-        },
-      },
-    },
     dependencies: ["@assistant-ui/react", "lucide-react"],
     registryDependencies: [
       "button",
