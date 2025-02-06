@@ -9,6 +9,8 @@ import icon from "@/public/favicon/icon.svg";
 import Image from "next/image";
 import { DocsLayoutProps } from "fumadocs-ui/layouts/docs";
 import { HomeLayoutProps } from "fumadocs-ui/layouts/home";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 const DiscordIcon = () => {
   return (
@@ -62,6 +64,15 @@ export const baseOptions: HomeLayoutProps = {
       text: "Blog",
       url: "/blog",
       icon: <NewspaperIcon />,
+    },
+    {
+      type: "custom",
+      children: (
+        <Button className="mr-2 rounded-full" asChild>
+          <Link href="https://dash.assistant-ui.com/">Dashboard</Link>
+        </Button>
+      ),
+      secondary: true,
     },
     {
       type: "icon",
