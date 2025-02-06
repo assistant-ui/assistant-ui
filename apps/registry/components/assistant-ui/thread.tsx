@@ -37,7 +37,9 @@ export const Thread: FC = () => {
           }}
         />
 
-        <div className="min-h-8 flex-grow" />
+        <ThreadPrimitive.If empty={false}>
+          <div className="min-h-8 flex-grow" />
+        </ThreadPrimitive.If>
 
         <div className="aui-thread-viewport-footer">
           <ThreadScrollToBottom />
