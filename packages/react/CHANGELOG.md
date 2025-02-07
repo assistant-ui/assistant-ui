@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.7.69
+
+### Patch Changes
+
+- a7a871e: feat: make ThreadPrimitive.Suggestion method optional
+- a7a871e: fix: ThreadPrimitive.Suggestion no longer clears the composer
+- a7a871e: feat: expose the useThreadViewportAutoScroll in the API
+
 ## 0.7.68
 
 ### Patch Changes
