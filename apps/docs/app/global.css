@@ -1,10 +1,10 @@
-@import 'tailwindcss';
-@import 'fumadocs-ui/css/neutral.css';
-@import 'fumadocs-ui/css/preset.css';
+@import "tailwindcss";
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
 
-@import '@assistant-ui/react-ui/styles/index.css';
-@import '@assistant-ui/react-ui/styles/modal.css';
- 
+@import "@assistant-ui/react-ui/styles/index.css";
+@import "@assistant-ui/react-ui/styles/modal.css";
+
 /* relative to the CSS file, make sure it's correct for your app */
 @source '../node_modules/fumadocs-ui/dist/**/*.js';
 @source '../../registry/components/**/*.js';
@@ -122,7 +122,6 @@
   --color-chart-4: hsl(var(--chart-4));
   --color-chart-5: hsl(var(--chart-5));
 
-
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
@@ -137,13 +136,32 @@
   }
 }
 
-:root {
-  --primary: var(--docs-color);
-  --docs-color: 220deg 91% 54%;
-  --reference-color: 250 80% 54%;
+@layer base {
+  :root {
+    --primary: var(--docs-color);
+    --docs-color: 220deg 91% 54%;
+    --reference-color: 250 80% 54%;
+  }
+
+  .dark {
+    --docs-color: 217deg 92% 76%;
+    --reference-color: 250 100% 80%;
+  }
 }
 
-.dark {
-  --docs-color: 217deg 92% 76%;
-  --reference-color: 250 100% 80%;
+@layer base {
+  /* Horizontal marquee keyframes */
+  @keyframes marquee {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(calc(-100% - var(--gap)));
+    }
+  }
+
+  /* Classes to apply the animations */
+  .animate-marquee {
+    animation: marquee var(--duration) linear infinite;
+  }
 }

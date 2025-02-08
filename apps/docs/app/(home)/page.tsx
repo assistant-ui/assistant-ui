@@ -16,6 +16,8 @@ import stack from "./logos/cust/stack.svg";
 import Image from "next/image";
 import { ArrowRight } from "lucide-react";
 import { MyRuntimeProvider } from "./MyRuntimeProvider";
+import { Marquee } from "@/components/magicui/marquee";
+import { useMediaQuery } from "@/lib/useMediaQuery";
 
 export default function HomePage() {
   return (
@@ -35,33 +37,7 @@ export default function HomePage() {
         <h1 className="text-2xl font-medium">
           Trusted by fast-growing companies
         </h1>
-        <div className="flex w-full items-center justify-between rounded pt-6">
-          <Image
-            src={langchain}
-            alt="Langchain"
-            className="inline-block h-[28px] w-auto opacity-50 transition-opacity hover:opacity-100"
-          />
-          <Image
-            src={athenaintel}
-            alt="Athena Intelligence"
-            className="inline-block h-11 w-auto opacity-50 transition-opacity hover:opacity-100"
-          />
-          <Image
-            src={browseruse}
-            alt="Browseruse"
-            className="inline-block h-[26px] w-auto opacity-50 transition-opacity hover:opacity-100"
-          />
-          <Image
-            src={entelligence}
-            alt="Entelligence"
-            className="mt-1 inline-block h-[22px] w-auto opacity-50 transition-opacity hover:opacity-100"
-          />
-          <Image
-            src={stack}
-            alt="Stack"
-            className="mt-0.5 inline-block h-[22px] w-auto opacity-50 transition-opacity hover:opacity-100"
-          />
-        </div>
+        <Logos />
       </div>
 
       <div className="my-20 flex flex-col gap-6">
@@ -123,9 +99,10 @@ function Hero() {
       <p className="text-muted-foreground mb-8 md:max-w-[80%] md:text-xl">
         assistant-ui is the Typescript/React library for{" "}
         <span className="text-foreground">AI Chat</span>.<br />
-        Open Source. Built on{" "}
-        <span className="text-foreground">shadcn/ui</span> and{" "}
-        <span className="text-foreground">Tailwind</span>.
+        Open Source. Built on <span className="text-foreground">
+          shadcn/ui
+        </span>{" "}
+        and <span className="text-foreground">Tailwind</span>.
       </p>
       <div className="inline-flex items-center gap-3 max-md:mx-auto">
         <Link
@@ -155,7 +132,50 @@ function Hero() {
         className="animate-in fade-in slide-in-from-bottom-12 mb-[-250px] mt-12 min-w-[800px] select-none duration-1000 md:mb-[-340px] md:min-w-[1100px]"
         priority
       /> */}
-
     </div>
   );
 }
+
+const Logos = () => {
+  const isMobile = useMediaQuery("(max-width: 768px)");
+
+  const content = (
+    <div className="flex w-full items-center justify-around rounded pt-6">
+      <Image
+        src={langchain}
+        alt="Langchain"
+        className="inline-block h-[28px] w-auto opacity-50 invert transition-opacity hover:opacity-100 dark:invert-0"
+      />
+      <Image
+        src={athenaintel}
+        alt="Athena Intelligence"
+        className="inline-block h-11 w-auto opacity-50 invert transition-opacity hover:opacity-100 dark:invert-0"
+      />
+      <Image
+        src={browseruse}
+        alt="Browseruse"
+        className="inline-block h-[26px] w-auto opacity-50 invert transition-opacity hover:opacity-100 dark:invert-0"
+      />
+      <Image
+        src={entelligence}
+        alt="Entelligence"
+        className="mt-1 inline-block h-[22px] w-auto opacity-50 invert transition-opacity hover:opacity-100 dark:invert-0"
+      />
+      <Image
+        src={stack}
+        alt="Stack"
+        className="mt-0.5 inline-block h-[22px] w-auto opacity-50 invert transition-opacity hover:opacity-100 dark:invert-0"
+      />
+    </div>
+  );
+
+  if (isMobile) {
+    return (
+      <Marquee repeat={4}>
+        <div className="flex w-[1000px]">{content}</div>
+      </Marquee>
+    );
+  }
+
+  return content;
+};
