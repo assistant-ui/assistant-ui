@@ -1,3 +1,5 @@
+"use client";
+
 import { create } from "zustand";
 import type { Unsubscribe } from "../../types/Unsubscribe";
 

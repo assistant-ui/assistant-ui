@@ -18,9 +18,12 @@ export {
    * @deprecated This method was renamed to `useThreadModelContext`.
    */
   useThreadModelContext as useThreadModelConfig,
+} from "./ThreadContext";
+
+export {
   useThreadViewport,
   useThreadViewportStore,
-} from "./ThreadContext";
+} from "./ThreadViewportContext";
 
 export {
   useThreadListItemRuntime,

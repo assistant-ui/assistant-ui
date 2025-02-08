@@ -2,14 +2,12 @@
 
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
 import { RefCallback, useEffect, useRef } from "react";
-import {
-  useThreadRuntime,
-  useThreadViewportStore,
-} from "../../context/react/ThreadContext";
+import { useThreadRuntime } from "../../context/react/ThreadContext";
 import { useOnResizeContent } from "../../utils/hooks/useOnResizeContent";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
 import { writableStore } from "../../context/ReadonlyStore";
+import { useThreadViewportStore } from "../../context/react/ThreadViewportContext";
 
 export namespace useThreadViewportAutoScroll {
   export type Options = {

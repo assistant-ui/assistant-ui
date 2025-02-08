@@ -4,6 +4,7 @@ import { useComposedRefs } from "@radix-ui/react-compose-refs";
 import { Primitive } from "@radix-ui/react-primitive";
 import { type ComponentRef, forwardRef, ComponentPropsWithoutRef } from "react";
 import { useThreadViewportAutoScroll } from "./useThreadViewportAutoScroll";
+import { ThreadViewportProvider } from "../../context/providers/ThreadViewportProvider";
 
 export namespace ThreadPrimitiveViewport {
   export type Element = ComponentRef<typeof Primitive.div>;
@@ -12,7 +13,7 @@ export namespace ThreadPrimitiveViewport {
   };
 }
 
-export const ThreadPrimitiveViewport = forwardRef<
+const ThreadPrimitiveViewportScrollable = forwardRef<
   ThreadPrimitiveViewport.Element,
   ThreadPrimitiveViewport.Props
 >(({ autoScroll, children, ...rest }, forwardedRef) => {
@@ -26,6 +27,17 @@ export const ThreadPrimitiveViewport = forwardRef<
     <Primitive.div {...rest} ref={ref}>
       {children}
     </Primitive.div>
+  );
+});
+
+export const ThreadPrimitiveViewport = forwardRef<
+  ThreadPrimitiveViewport.Element,
+  ThreadPrimitiveViewport.Props
+>((props, ref) => {
+  return (
+    <ThreadViewportProvider>
+      <ThreadPrimitiveViewportScrollable {...props} ref={ref} />
+    </ThreadViewportProvider>
   );
 });
 

@@ -6,8 +6,7 @@ import {
   createActionButton,
 } from "../../utils/createActionButton";
 import { useCallback } from "react";
-import { useThreadViewport } from "../../context";
-import { useThreadViewportStore } from "../../context/react/ThreadContext";
+import { useThreadViewport, useThreadViewportStore } from "../../context/react/ThreadViewportContext";
 
 const useThreadScrollToBottom = () => {
   const isAtBottom = useThreadViewport((s) => s.isAtBottom);

@@ -1,11 +1,9 @@
 "use client";
 
 import { createContext, useEffect, useState } from "react";
-import type { ThreadViewportState } from "../stores/ThreadViewport";
 import { ReadonlyStore } from "../ReadonlyStore";
 import { UseBoundStore } from "zustand";
 import { createContextHook } from "./utils/createContextHook";
-import { createContextStoreHook } from "./utils/createContextStoreHook";
 import { ThreadRuntime } from "../../api/ThreadRuntime";
 import { ModelContext } from "../../model-context";
 import { createStateHookForRuntime } from "./utils/createStateHookForRuntime";
@@ -13,7 +11,6 @@ import { ThreadComposerRuntime } from "../../api";
 
 export type ThreadContextValue = {
   useThreadRuntime: UseBoundStore<ReadonlyStore<ThreadRuntime>>;
-  useViewport: UseBoundStore<ReadonlyStore<ThreadViewportState>>;
 };
 
 export const ThreadContext = createContext<ThreadContextValue | null>(null);
@@ -43,11 +40,6 @@ const useThreadComposerRuntime = (opt: {
 export const useThreadComposer = createStateHookForRuntime(
   useThreadComposerRuntime,
 );
-
-export const {
-  useViewport: useThreadViewport,
-  useViewportStore: useThreadViewportStore,
-} = createContextStoreHook(useThreadContext, "useViewport");
 
 export function useThreadModelContext(options?: {
   optional?: false | undefined;
