@@ -28,7 +28,7 @@ export const Thread: FC = () => {
     <ThreadPrimitive.Root
       className="aui-root aui-thread-root"
       style={{
-        ["--aui-thread-max-width" as string]: "42rem",
+        ["--thread-max-width" as string]: "42rem",
       }}
     >
       <ThreadPrimitive.Viewport className="aui-thread-viewport">
