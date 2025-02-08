@@ -168,7 +168,7 @@ const appendOrUpdateToolCall = (
       toolCallId,
       toolName,
       argsText: argsTextDelta,
-      args: parsePartialJson(argsTextDelta),
+      args: argsTextDelta ? parsePartialJson(argsTextDelta) : {}, 
     };
     contentParts = [...contentParts, contentPart];
   } else {
@@ -176,7 +176,7 @@ const appendOrUpdateToolCall = (
     contentPart = {
       ...contentPart,
       argsText,
-      args: parsePartialJson(argsText),
+      args: argsTextDelta ? parsePartialJson(argsTextDelta) : {}, 
     };
     contentParts = [
       ...contentParts.slice(0, contentPartIdx),

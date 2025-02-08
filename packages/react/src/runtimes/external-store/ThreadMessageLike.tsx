@@ -112,7 +112,7 @@ export const fromThreadMessageLike = (
                 return {
                   ...part,
                   toolCallId: part.toolCallId ?? "tool-" + generateId(),
-                  args: part.args ?? parsePartialJson(part.argsText ?? ""),
+                  args: part.args ?? parsePartialJson(part.argsText ?? "{}"),
                   argsText: part.argsText ?? "",
                 };
               }
