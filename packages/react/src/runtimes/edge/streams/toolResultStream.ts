@@ -75,30 +75,32 @@ export function toolResultStream(
             return;
           }
 
-          if (tool.parameters instanceof z.ZodType) {
-            const result = tool.parameters.safeParse(args);
-            if (!result.success) {
-              controller.enqueue({
-                type: "tool-result",
-                toolCallType,
-                toolCallId,
-                toolName,
-                result:
-                  "Function parameter validation failed. " +
-                  JSON.stringify(result.error.issues),
-                isError: true,
-              });
-              return;
-            }
-          }
-
           toolCallExecutions.set(
             toolCallId,
             (async () => {
               if (!tool.execute) return;
 
+              let executeFn = tool.execute;
+
+              if (tool.parameters instanceof z.ZodType) {
+                const result = tool.parameters.safeParse(args);
+                if (!result.success) {
+                  executeFn =
+                    tool.experimental_onSchemaValidationError ??
+                    (() => {
+                      throw (
+                        "Function parameter validation failed. " +
+                        JSON.stringify(result.error.issues)
+                      );
+                    });
+                }
+              }
+
               try {
-                const result = await tool.execute(args, { abortSignal });
+                const result = await executeFn(args, {
+                  toolCallId,
+                  abortSignal,
+                });
 
                 controller.enqueue({
                   type: "tool-result",

@@ -27,9 +27,15 @@ export type LanguageModelConfig = z.infer<typeof LanguageModelConfigSchema>;
 type ToolExecuteFunction<TArgs, TResult> = (
   args: TArgs,
   context: {
+    toolCallId: string;
     abortSignal: AbortSignal;
   },
 ) => TResult | Promise<TResult>;
+
+type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<
+  unknown,
+  TResult
+>;
 
 export type Tool<
   TArgs extends Record<string, unknown> = Record<string | number, unknown>,
@@ -38,6 +44,7 @@ export type Tool<
   description?: string | undefined;
   parameters: z.ZodSchema<TArgs> | JSONSchema7;
   execute?: ToolExecuteFunction<TArgs, TResult>;
+  experimental_onSchemaValidationError?: OnSchemaValidationErrorFunction<TResult>;
 };
 
 export type ModelContext = {
