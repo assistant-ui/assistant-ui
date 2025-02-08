@@ -1,5 +1,14 @@
 # @assistant-ui/react
 
+## 0.7.70
+
+### Patch Changes
+
+- 55a9cb2: fix: runConfig for reload / edits
+- 2bc6781: feat: send toolCallId to the exeucte callback
+- 2bc6781: feat: Tool.experimental_onSchemaValidationError
+- 9fefc9d: feat: ThreadViewportContext & multiple renders of the same thread support
+
 ## 0.7.69
 
 ### Patch Changes
