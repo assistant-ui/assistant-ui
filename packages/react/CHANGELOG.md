@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.72
+
+### Patch Changes
+
+- 797ce9c: fix: ToolContentPart.args should never be null
+
 ## 0.7.71
 
 ### Patch Changes
