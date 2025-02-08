@@ -120,12 +120,12 @@ function Hero() {
       <h1 className="mb-8 max-w-[600px] text-4xl font-medium max-md:hidden">
         Build conversational AI interfaces
       </h1>
-      <p className="text-fd-muted-foreground mb-8 md:max-w-[80%] md:text-xl">
+      <p className="text-muted-foreground mb-8 md:max-w-[80%] md:text-xl">
         assistant-ui is the Typescript/React library for{" "}
-        <span className="text-fd-foreground">AI Chat</span>.<br />
+        <span className="text-foreground">AI Chat</span>.<br />
         Open Source. Built on{" "}
-        <span className="text-fd-foreground">shadcn/ui</span> and{" "}
-        <span className="text-fd-foreground">Tailwind</span>.
+        <span className="text-foreground">shadcn/ui</span> and{" "}
+        <span className="text-foreground">Tailwind</span>.
       </p>
       <div className="inline-flex items-center gap-3 max-md:mx-auto">
         <Link
@@ -142,7 +142,7 @@ function Hero() {
             buttonVariants({
               size: "lg",
               variant: "outline",
-              className: "bg-fd-background rounded-full",
+              className: "bg-background rounded-full",
             }),
           )}
         >
@@ -155,15 +155,7 @@ function Hero() {
         className="animate-in fade-in slide-in-from-bottom-12 mb-[-250px] mt-12 min-w-[800px] select-none duration-1000 md:mb-[-340px] md:min-w-[1100px]"
         priority
       /> */}
-      <div
-        className="absolute inset-0 z-[-1]"
-        style={{
-          backgroundImage: [
-            "radial-gradient(ellipse at top, transparent 80%, color-mix(in oklab, var(--color-fd-primary) 10%, transparent))",
-            "linear-gradient(to bottom, var(--color-fd-background) 80%, transparent)",
-          ].join(", "),
-        }}
-      />
+
     </div>
   );
 }

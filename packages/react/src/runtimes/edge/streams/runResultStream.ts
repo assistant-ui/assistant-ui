@@ -14,6 +14,12 @@ export function runResultStream() {
     transform(chunk, controller) {
       const chunkType = chunk.type;
       switch (chunkType) {
+        case "reasoning": {
+          message = appendOrUpdateReasoning(message, chunk.textDelta);
+          controller.enqueue(message);
+          break;
+        }
+
         case "text-delta": {
           message = appendOrUpdateText(message, chunk.textDelta);
           controller.enqueue(message);
@@ -104,6 +110,24 @@ export function runResultStream() {
     },
   });
 }
+
+const appendOrUpdateReasoning= (
+  message: CoreChatModelRunResult,
+  textDelta: string,
+) => {
+  let contentParts = message.content ?? [];
+  let contentPart = message.content?.at(-1);
+  if (contentPart?.type !== "reasoning") {
+    contentPart = { type: "reasoning", text: textDelta };
+  } else {
+    contentParts = contentParts.slice(0, -1);
+    contentPart = { type: "reasoning", text: contentPart.text + textDelta };
+  }
+  return {
+    ...message,
+    content: contentParts.concat([contentPart]),
+  };
+};
 
 const appendOrUpdateText = (
   message: CoreChatModelRunResult,

@@ -5,7 +5,7 @@
   "type": "module",
   "dependencies": {
     "chalk": "^5.4.1",
-    "commander": "^13.0.0",
+    "commander": "^13.1.0",
     "cosmiconfig": "^9.0.0",
     "cross-spawn": "^7.0.6",
     "tsconfig-paths": "^4.2.0",
@@ -15,7 +15,7 @@
     "@assistant-ui/tsbuildutils": "workspace:^",
     "@assistant-ui/tsconfig": "workspace:*",
     "@types/cross-spawn": "^6.0.6",
-    "@types/node": "^22.10.7",
+    "@types/node": "^22.13.1",
     "tsx": "^4.19.2"
   },
   "files": [

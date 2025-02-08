@@ -36,11 +36,11 @@
     "build": "tsx scripts/build.mts"
   },
   "dependencies": {
-    "@radix-ui/react-primitive": "^2.0.1",
+    "@radix-ui/react-primitive": "^2.0.2",
     "@radix-ui/react-use-callback-ref": "^1.1.0",
     "@types/hast": "^3.0.4",
     "classnames": "^2.5.1",
-    "lucide-react": "^0.473.0",
+    "lucide-react": "^0.475.0",
     "react-markdown": "^9.0.3"
   },
   "peerDependencies": {
@@ -62,10 +62,10 @@
     "@assistant-ui/tailwindcss-transformer": "workspace:*",
     "@assistant-ui/tsbuildutils": "workspace:^",
     "@assistant-ui/tsconfig": "workspace:*",
-    "@types/node": "^22.10.7",
+    "@types/node": "^22.13.1",
     "autoprefixer": "^10.4.20",
     "eslint": "^9",
-    "eslint-config-next": "15.1.5",
+    "eslint-config-next": "15.1.6",
     "postcss": "^8.5.1",
     "react": "19.0.0",
     "react-dom": "19.0.0",

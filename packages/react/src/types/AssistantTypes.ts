@@ -12,6 +12,12 @@ export type TextContentPart = {
   readonly text: string;
 };
 
+export type ReasoningContentPart = {
+  readonly type: "reasoning";
+  readonly text: string;
+};
+
+
 export type ImageContentPart = {
   readonly type: "image";
   readonly image: string;
@@ -101,6 +107,7 @@ export type ThreadUserContentPart =
 
 export type ThreadAssistantContentPart =
   | TextContentPart
+  | ReasoningContentPart
   | ToolCallContentPart
   | UIContentPart;
 

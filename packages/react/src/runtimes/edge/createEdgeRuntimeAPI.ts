@@ -5,7 +5,7 @@ import {
   LanguageModelV1Prompt,
   LanguageModelV1CallOptions,
 } from "@ai-sdk/provider";
-import { CoreMessage, ThreadStep } from "../../types/AssistantTypes";
+import { CoreMessage, ThreadMessage, ThreadStep } from "../../types/AssistantTypes";
 import { assistantEncoderStream } from "./streams/assistantEncoderStream";
 import { EdgeRuntimeRequestOptionsSchema } from "./EdgeRuntimeRequestOptions";
 import { toLanguageModelMessages } from "./converters/toLanguageModelMessages";
@@ -26,7 +26,7 @@ import { streamPartEncoderStream } from "./streams/utils/streamPartEncoderStream
 import { z } from "zod";
 
 type FinishResult = {
-  messages: readonly CoreMessage[];
+  messages: readonly (CoreMessage | ThreadMessage)[];
   metadata: {
     steps: readonly ThreadStep[];
   };
@@ -143,9 +143,18 @@ export const getEdgeRuntimeStream = async ({
             const resultingMessages = [
               ...messages,
               {
+                id: "DEFAULT",
+                createdAt: new Date(),
                 role: "assistant",
                 content: lastChunk.content,
-              } satisfies CoreMessage,
+                status: lastChunk.status,
+                metadata: {
+                  unstable_data: lastChunk.metadata?.unstable_data ?? [],
+                  unstable_annotations: lastChunk.metadata?.unstable_annotations ?? [],
+                  steps: lastChunk.metadata?.steps ?? [],
+                  custom: lastChunk.metadata?.custom ?? {},
+                }
+              } satisfies ThreadMessage,
             ];
             onFinish({
               messages: resultingMessages,

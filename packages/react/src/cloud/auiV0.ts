@@ -16,6 +16,10 @@ type AuiV0MessageContentPart =
       readonly text: string;
     }
   | {
+      readonly type: "reasoning";
+      readonly text: string;
+    }
+  | {
       readonly type: "tool-call";
       readonly toolCallId: string;
       readonly toolName: string;
@@ -60,6 +64,13 @@ export const auiV0Encode = (message: ThreadMessage): AuiV0Message => {
         case "text": {
           return {
             type: "text",
+            text: part.text,
+          };
+        }
+
+        case "reasoning": {
+          return {
+            type: "reasoning",
             text: part.text,
           };
         }

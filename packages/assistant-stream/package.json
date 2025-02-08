@@ -39,10 +39,10 @@
   },
   "devDependencies": {
     "@assistant-ui/tsconfig": "workspace:*",
-    "ai": "^4.1.0",
+    "ai": "^4.1.25",
     "eslint": "^9",
-    "eslint-config-next": "15.1.5",
-    "tsup": "8.3.5",
+    "eslint-config-next": "15.1.6",
+    "tsup": "8.3.6",
     "tsx": "^4.19.2"
   },
   "publishConfig": {

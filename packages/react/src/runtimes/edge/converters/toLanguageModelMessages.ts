@@ -147,6 +147,10 @@ export function toLanguageModelMessages(
         for (const part of message.content) {
           const type = part.type;
           switch (type) {
+            case "reasoning": {
+              break; // reasoning parts are omitted
+            }
+
             case "text": {
               splitter.addTextContentPart(part);
               break;

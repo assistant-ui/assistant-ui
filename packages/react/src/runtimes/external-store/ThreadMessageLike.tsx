@@ -14,7 +14,7 @@ import {
   FileContentPart,
   Unstable_AudioContentPart,
 } from "../../types";
-import { ThreadStep } from "../../types/AssistantTypes";
+import { ReasoningContentPart, ThreadStep } from "../../types/AssistantTypes";
 import {
   ReadonlyJSONObject,
   ReadonlyJSONValue,
@@ -27,6 +27,7 @@ export type ThreadMessageLike = {
     | string
     | readonly (
         | TextContentPart
+        | ReasoningContentPart
         | ImageContentPart
         | FileContentPart
         | Unstable_AudioContentPart
@@ -92,6 +93,7 @@ export const fromThreadMessageLike = (
             const type = part.type;
             switch (type) {
               case "text":
+              case "reasoning":
                 if (part.text.trim().length === 0) return null;
                 return part;
 
@@ -148,7 +150,7 @@ export const fromThreadMessageLike = (
               return part;
 
             default: {
-              const unhandledType: "tool-call" = type;
+              const unhandledType: "tool-call" | "reasoning" = type;
               throw new Error(
                 `Unsupported user content part type: ${unhandledType}`,
               );

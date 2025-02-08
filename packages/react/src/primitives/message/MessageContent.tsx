@@ -24,6 +24,7 @@ import type {
   ToolCallContentPartProps,
   UIContentPartComponent,
   FileContentPartComponent,
+  ReasoningContentPartComponent,
 } from "../../types/ContentPartComponentTypes";
 import { ContentPartPrimitiveInProgress } from "../contentPart/ContentPartInProgress";
 import { ContentPartStatus } from "../../types/AssistantTypes";
@@ -33,6 +34,7 @@ export namespace MessagePrimitiveContent {
     components?:
       | {
           Empty?: EmptyContentPartComponent | undefined;
+          Reasoning?: ReasoningContentPartComponent | undefined;
           Text?: TextContentPartComponent | undefined;
           Image?: ImageContentPartComponent | undefined;
           File?: FileContentPartComponent | undefined;
@@ -74,6 +76,7 @@ const defaultComponents = {
       </ContentPartPrimitiveInProgress>
     </p>
   ),
+  Reasoning: () => null,
   Image: () => <ContentPartPrimitiveImage />,
   File: () => null,
   Unstable_Audio: () => null,
@@ -87,6 +90,7 @@ type MessageContentPartComponentProps = {
 const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
   components: {
     Text = defaultComponents.Text,
+    Reasoning = defaultComponents.Reasoning,
     Image = defaultComponents.Image,
     File = defaultComponents.File,
     Unstable_Audio: Audio = defaultComponents.Unstable_Audio,
@@ -113,6 +117,9 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
   switch (type) {
     case "text":
       return <Text {...part} />;
+
+    case "reasoning":
+      return <Reasoning {...part} />;
 
     case "image":
       // eslint-disable-next-line jsx-a11y/alt-text
@@ -160,6 +167,7 @@ const MessageContentPart = memo(
   (prev, next) =>
     prev.partIndex === next.partIndex &&
     prev.components?.Text === next.components?.Text &&
+    prev.components?.Reasoning === next.components?.Reasoning &&
     prev.components?.Image === next.components?.Image &&
     prev.components?.File === next.components?.File &&
     prev.components?.Unstable_Audio === next.components?.Unstable_Audio &&

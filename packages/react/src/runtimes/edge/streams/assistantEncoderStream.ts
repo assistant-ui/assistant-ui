@@ -14,6 +14,14 @@ export function assistantEncoderStream() {
     transform(chunk, controller) {
       const chunkType = chunk.type;
       switch (chunkType) {
+        case "reasoning": {
+          controller.enqueue({
+            type: AssistantStreamChunkType.ReasoningDelta,
+            value: chunk.textDelta,
+          });
+          break;
+        }
+
         case "text-delta": {
           if (!chunk.textDelta) break; // ignore empty text deltas
           controller.enqueue({

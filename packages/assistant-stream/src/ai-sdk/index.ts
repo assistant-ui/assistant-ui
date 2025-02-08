@@ -65,6 +65,7 @@ export const fromAISDKStreamText = (
           break;
         }
 
+        case "reasoning":
         case "step-start":
         case "step-finish":
         case "error":

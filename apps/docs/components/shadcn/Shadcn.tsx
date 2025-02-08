@@ -1,7 +1,7 @@
 "use client";
 
 import { MenuIcon, ShareIcon } from "lucide-react";
-import { Thread, ThreadList, makeMarkdownText } from "@assistant-ui/react-ui";
+import { makeMarkdownText } from "@assistant-ui/react-ui";
 import remarkGfm from "remark-gfm";
 import { makePrismAsyncSyntaxHighlighter } from "@assistant-ui/react-syntax-highlighter";
 import { coldarkDark } from "react-syntax-highlighter/dist/cjs/styles/prism";
@@ -20,6 +20,8 @@ import {
   TooltipTrigger,
 } from "../ui/tooltip";
 import { ModelPicker } from "./ModelPicker";
+import { Thread } from "@/components/assistant-ui/thread";
+import { ThreadList } from "@/components/assistant-ui/thread-list";
 
 export const MarkdownText = makeMarkdownText({
   remarkPlugins: [remarkGfm],
@@ -131,22 +133,7 @@ export const Shadcn = () => {
         <Header />
       </div>
       <div className="bg-background overflow-hidden">
-        <Thread
-          assistantMessage={{ components: { Text: MarkdownText } }}
-          welcome={{
-            suggestions: [
-              {
-                text: "Write a poem",
-                prompt: "Write me a poem about the weather",
-              },
-              {
-                text: "What is assistant-ui?",
-                prompt:
-                  "Psst: assistant-ui is a react component library for AI chatbots.\n\nWhat is assistant-ui?",
-              },
-            ],
-          }}
-        />
+        <Thread />
       </div>
     </div>
   );

@@ -128,6 +128,7 @@ export function toolResultStream(
 
         // ignore other parts
         case "text-delta":
+        case "reasoning":
         case "tool-call-delta":
         case "tool-result":
         case "step-finish":

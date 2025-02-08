@@ -8,6 +8,7 @@ export type {
 export type {
   AppendMessage,
   TextContentPart,
+  ReasoningContentPart,
   ImageContentPart,
   FileContentPart,
   Unstable_AudioContentPart,
@@ -37,6 +38,8 @@ export type {
   EmptyContentPartComponent,
   TextContentPartProps,
   TextContentPartComponent,
+  ReasoningContentPartProps,
+  ReasoningContentPartComponent,
   ImageContentPartProps,
   ImageContentPartComponent,
   FileContentPartProps,

@@ -9,26 +9,26 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^1.1.0",
+    "@ai-sdk/openai": "^1.1.9",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-ai-sdk": "workspace:^",
     "@assistant-ui/react-ui": "workspace:^",
-    "ai": "^4.1.7",
+    "ai": "^4.1.25",
     "jsonwebtoken": "^9.0.2",
     "nanoid": "^5.0.9",
-    "next": "15.1.5",
+    "next": "15.1.6",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
     "@assistant-ui/tsconfig": "workspace:*",
-    "@types/jsonwebtoken": "^9.0.7",
+    "@types/jsonwebtoken": "^9.0.8",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "15.1.5",
+    "eslint-config-next": "15.1.6",
     "postcss": "^8",
     "tailwindcss": "^3.4.17",
     "typescript": "^5"

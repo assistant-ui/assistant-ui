@@ -1,5 +1,6 @@
 import type {
   MessageStatus,
+  ReasoningContentPart,
   RunConfig,
   TextContentPart,
   ThreadAssistantContentPart,
@@ -27,7 +28,7 @@ export type ChatModelRunResult = {
 };
 
 export type CoreChatModelRunResult = Omit<ChatModelRunResult, "content"> & {
-  readonly content: readonly (TextContentPart | ToolCallContentPart)[];
+  readonly content: readonly (TextContentPart | ReasoningContentPart | ToolCallContentPart)[];
 };
 
 export type ChatModelRunOptions = {
