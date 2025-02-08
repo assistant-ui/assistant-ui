@@ -122,6 +122,60 @@ const MyApp = () => {
 };
 ```
 
+### Tool Execution Context
+
+When implementing a tool's execute function, you have access to a context object that includes:
+
+- `toolCallId`: A unique identifier for the current tool execution
+- `abortSignal`: An AbortSignal for handling cancellation
+
+```tsx
+const searchTool = {
+  description: "Search the web",
+  parameters: z.object({
+    query: z.string(),
+  }),
+  execute: async (args, { toolCallId, abortSignal }) => {
+    // You can use toolCallId to track or log specific tool executions
+    console.log(`Executing search with ID: ${toolCallId}`);
+    
+    // Use abortSignal to handle cancellation
+    const response = await fetch(`/api/search?q=${encodeURIComponent(args.query)}`, {
+      signal: abortSignal,
+    });
+    
+    return response.json();
+  },
+};
+```
+
+### Schema Validation Error Handling
+
+Tools can now handle schema validation errors through the `experimental_onSchemaValidationError` property. This allows you to provide custom behavior when the tool's parameters fail validation:
+
+```tsx
+const searchTool = {
+  description: "Search the web",
+  parameters: z.object({
+    query: z.string().min(3),
+  }),
+  execute: async (args, context) => {
+    const response = await fetch(`/api/search?q=${args.query}`, {
+      signal: context.abortSignal,
+    });
+    return response.json();
+  },
+  experimental_onSchemaValidationError: async (invalidArgs, context) => {
+    // Handle validation errors gracefully
+    console.warn(`Invalid search query: ${JSON.stringify(invalidArgs)}`);
+    return {
+      error: "Search query must be at least 3 characters long",
+      suggestions: ["Try a longer search term"],
+    };
+  },
+};
+```
+
 ### Function Calling for User Input
 
 The following example shows a `date_picker` tool that the AI can call to collect a date from the user.
