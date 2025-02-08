@@ -150,10 +150,7 @@ export class MessageRuntimeImpl implements MessageRuntime {
           ref: this.path.ref + `${this.path.ref}.composer`,
           composerSource: "edit",
         },
-        getState: () =>
-          this._threadBinding
-            .getState()
-            .getEditComposer(this._core.getState().id),
+        getState: this._getEditComposerRuntimeCore,
         subscribe: (callback) => this._threadBinding.subscribe(callback),
       }),
       () => this._threadBinding.getState().beginEdit(this._core.getState().id),
@@ -177,11 +174,23 @@ export class MessageRuntimeImpl implements MessageRuntime {
 
   public readonly composer;
 
+  private _getEditComposerRuntimeCore = () => {
+    return this._threadBinding
+      .getState()
+      .getEditComposer(this._core.getState().id);
+  };
+
   public getState() {
     return this._core.getState();
   }
 
-  public reload({ runConfig = {} }: ReloadConfig = {}) {
+  public reload(reloadConfig: ReloadConfig = {}) {
+    const editComposerRuntimeCore = this._getEditComposerRuntimeCore();
+    const composerRuntimeCore =
+      editComposerRuntimeCore ?? this._threadBinding.getState().composer;
+    const composer = editComposerRuntimeCore ?? composerRuntimeCore;
+
+    const { runConfig = composer.runConfig } = reloadConfig;
     const state = this._core.getState();
     if (state.role !== "assistant")
       throw new Error("Can only reload assistant messages");
