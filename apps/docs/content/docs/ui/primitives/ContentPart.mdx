@@ -12,7 +12,25 @@ import {
 } from "@/generated/typeDocs";
 
 Each message can have any number of content parts.  
-Content parts are usually one of text, audio or tool-call.
+Content parts are usually one of text, reasoning, audio or tool-call.
+
+## Content Part Types
+
+### Text
+
+Standard text content, used for both user and assistant messages.
+
+### Reasoning
+
+Exposes the assistant's reasoning process, showing how it arrived at its responses. This is typically used only in assistant messages.
+
+### Audio
+
+Audio content that can be played back.
+
+### Tool Call
+
+Interactive elements that represent tool operations.
 
 ## Anatomy
 
@@ -96,6 +114,7 @@ import { MessagePrimitive } from "@assistant/react";
 <MessagePrimitive.Content
   components={{
     Text: MyText,
+    Reasoning: Myreasoning,
     Audio: MyAudio,
     tools: {
       by_name: {

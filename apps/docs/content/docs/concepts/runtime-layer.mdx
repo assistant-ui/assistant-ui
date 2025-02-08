@@ -65,7 +65,7 @@ import { File, Folder, Files } from "fumadocs-ui/components/files";
       <Folder name="ThreadRuntime" defaultOpen>
         <Folder name="MessageRuntime" defaultOpen>
           <Folder
-            name="ContentPartRuntime (Text / Image / Audio / Tool-Call / UI)"
+            name="ContentPartRuntime (Text / Reasoning / Image / Audio / Tool-Call / UI)"
             defaultOpen
           ></Folder>
           <Folder name="MessageAttachmentRuntime" defaultOpen></Folder>
@@ -95,7 +95,7 @@ The following components provide the runtime APIs:
 <ThreadPrimitive.Messages components={{ Message, ... }} />
 
 // renders every content part, provides ContentPartRuntime
-<MessagePrimitive.Content components={{ Text, Image, Audio, UI, tools }} />
+<MessagePrimitive.Content components={{ Text, Reasoning, Image, Audio, UI, tools }} />
 
 // renders every attachment, provides AttachmentRuntime (Thread or EditComposer)
 <ComposerPrimitive.Attachments components={{ Attachment, ... }} />
