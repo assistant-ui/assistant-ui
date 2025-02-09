@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-
 "use client";
 
 import "@assistant-ui/react-markdown/styles/dot.css";
@@ -21,6 +19,7 @@ const MarkdownTextImpl = () => {
   return (
     <MarkdownTextPrimitive
       remarkPlugins={[remarkGfm]}
+      className="aui-md"
       components={defaultComponents}
     />
   );

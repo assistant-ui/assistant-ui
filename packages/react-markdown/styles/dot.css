@@ -4,18 +4,19 @@
   }
 }
 
-:where(.aui-md-running):empty::after,
-:where(.aui-md-running) > :where(:not(ol):not(ul):not(pre)):last-child::after,
-:where(.aui-md-running) > pre:last-child code::after,
-:where(.aui-md-running)
+:where(.aui-md[data-status="running"]):empty::after,
+:where(.aui-md[data-status="running"])
+  > :where(:not(ol):not(ul):not(pre)):last-child::after,
+:where(.aui-md[data-status="running"]) > pre:last-child code::after,
+:where(.aui-md[data-status="running"])
   > :where(:is(ol, ul):last-child)
   > :where(li:last-child:not(:has(* > li)))::after,
-:where(.aui-md-running)
+:where(.aui-md[data-status="running"])
   > :where(:is(ol, ul):last-child)
   > :where(li:last-child)
   > :where(:is(ol, ul):last-child)
   > :where(li:last-child:not(:has(* > li)))::after,
-:where(.aui-md-running)
+:where(.aui-md[data-status="running"])
   > :where(:is(ol, ul):last-child)
   > :where(li:last-child)
   > :where(:is(ol, ul):last-child)
