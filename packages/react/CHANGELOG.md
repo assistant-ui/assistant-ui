@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.7.73
+
+### Patch Changes
+
+- fix: return from createMessageConverter
+- 86ba433: fix: ToolContentPart.args should never be null
+
 ## 0.7.72
 
 ### Patch Changes

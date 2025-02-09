@@ -52,4 +52,6 @@ export const createMessageConverter = <T extends object>(
       return messages;
     },
   };
+
+  return result;
 };
