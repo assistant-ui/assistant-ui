@@ -131,9 +131,10 @@ export const useLangGraphRuntime = ({
    * @deprecated For thread management use `useCloudThreadListRuntime` instead. This option will be removed in a future version.
    */
   onSwitchToNewThread?: () => Promise<void> | void;
-  onSwitchToThread?: (
-    threadId: string,
-  ) => Promise<{ messages: LangChainMessage[] }>;
+  onSwitchToThread?: (threadId: string) => Promise<{
+    messages: LangChainMessage[];
+    interrupts?: LangGraphInterruptState[];
+  }>;
   adapters?:
     | {
         attachments?: AttachmentAdapter;
@@ -142,10 +143,16 @@ export const useLangGraphRuntime = ({
       }
     | undefined;
 }) => {
-  const { interrupt, messages, sendMessage, cancel, setMessages } =
-    useLangGraphMessages({
-      stream,
-    });
+  const {
+    interrupt,
+    setInterrupt,
+    messages,
+    sendMessage,
+    cancel,
+    setMessages,
+  } = useLangGraphMessages({
+    stream,
+  });
 
   const [isRunning, setIsRunning] = useState(false);
   const handleSendMessage = async (
@@ -178,8 +185,9 @@ export const useLangGraphRuntime = ({
   const switchToThread = !onSwitchToThread
     ? undefined
     : async (externalId: string) => {
-        const { messages } = await onSwitchToThread(externalId);
+        const { messages, interrupts } = await onSwitchToThread(externalId);
         setMessages(messages);
+        setInterrupt(interrupts?.[0]);
       };
 
   const threadList: NonNullable<

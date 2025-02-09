@@ -31,6 +31,7 @@ const useMyLangGraphRuntime = () => {
       return {
         messages:
           (state.values as { messages?: LangChainMessage[] }).messages ?? [],
+        interrupts: state.tasks[0]?.interrupts ?? [],
       };
     },
   });

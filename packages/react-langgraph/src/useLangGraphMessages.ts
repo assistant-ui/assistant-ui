@@ -30,7 +30,7 @@ export type LangGraphInterruptState = {
   value: any;
   resumable: boolean;
   when: string;
-  ns: string[];
+  ns?: string[];
 };
 
 export const useLangGraphMessages = <TMessage extends { id?: string }>({
@@ -86,5 +86,12 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
     }
   }, [abortControllerRef]);
 
-  return { interrupt, messages, sendMessage, cancel, setMessages };
+  return {
+    interrupt,
+    messages,
+    sendMessage,
+    cancel,
+    setInterrupt,
+    setMessages,
+  };
 };
