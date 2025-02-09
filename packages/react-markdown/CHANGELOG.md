@@ -1,5 +1,13 @@
 # @assistant-ui/react-markdown
 
+## 0.7.19
+
+### Patch Changes
+
+- df35010: feat: use aui-md and data-status for dot animation
+- Updated dependencies [61f278b]
+  - @assistant-ui/react@0.7.74
+
 ## 0.7.18
 
 ### Patch Changes

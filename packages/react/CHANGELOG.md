@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.74
+
+### Patch Changes
+
+- 61f278b: fix: drop tailwind peer dependency
+
 ## 0.7.73
 
 ### Patch Changes
