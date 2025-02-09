@@ -48,17 +48,13 @@
     "@types/react": "*",
     "@types/react-dom": "*",
     "react": "^18 || ^19 || ^19.0.0-rc",
-    "react-dom": "^18 || ^19 || ^19.0.0-rc",
-    "tailwindcss": "^3.4.4"
+    "react-dom": "^18 || ^19 || ^19.0.0-rc"
   },
   "peerDependenciesMeta": {
     "@types/react": {
       "optional": true
     },
     "@types/react-dom": {
-      "optional": true
-    },
-    "tailwindcss": {
       "optional": true
     }
   },

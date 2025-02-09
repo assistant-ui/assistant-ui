@@ -104,9 +104,6 @@
     },
     "@types/react-dom": {
       "optional": true
-    },
-    "tailwindcss": {
-      "optional": true
     }
   },
   "devDependencies": {
