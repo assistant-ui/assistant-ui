@@ -219,7 +219,10 @@ export function MyAssistant() {
     onSwitchToThread: async (threadId) => {
       const state = await getThreadState(threadId);
       threadIdRef.current = threadId;
-      return { messages: state.values.messages };
+      return { 
+        messages: state.values.messages,
+        interrupts: state.tasks[0]?.interrupts,
+      };
     },
   });
 
@@ -275,3 +278,15 @@ Follow the [UI Components](/docs/ui/styled/Thread) guide to setup the UI compone
 
   </Step>
 </Steps>
+
+## Interrupt Persistence
+
+LangGraph supports interrupting the execution flow to request user input or handle specific interactions. These interrupts can be persisted and restored when switching between threads. This means that if a user switches away from a thread during an interaction (like waiting for user approval), the interaction state will be preserved when they return to that thread.
+
+To handle interrupts in your application:
+
+1. Make sure your thread state type includes the `interrupts` field
+2. Return the interrupts from `onSwitchToThread` along with the messages
+3. The runtime will automatically restore the interrupt state when switching threads
+
+This feature is particularly useful for applications that require user approval flows, multi-step forms, or any other interactive elements that might span multiple thread switches.
