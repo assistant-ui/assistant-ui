@@ -1,5 +1,11 @@
 # @assistant-ui/react-langgraph
 
+## 0.2.5
+
+### Patch Changes
+
+- a787c39: feat: LangGraph interrupt persistence support
+
 ## 0.2.4
 
 ### Patch Changes
