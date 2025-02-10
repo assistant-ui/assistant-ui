@@ -2,7 +2,7 @@ import { RegistryItem } from "./schema";
 
 export const registry: RegistryItem[] = [
   {
-    name: "b/chat/ai-sdk-quick-start",
+    name: "chat/b/ai-sdk-quick-start/json",
     type: "registry:block",
     files: [
       {
@@ -18,10 +18,10 @@ export const registry: RegistryItem[] = [
   },
   {
     name: "ai-sdk-backend",
-    type: "registry:block",
+    type: "registry:component",
     files: [
       {
-        type: "registry:page",
+        type: "registry:component",
         path: "app/api/chat/route.ts",
       },
     ],
