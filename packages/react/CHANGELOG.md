@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.75
+
+### Patch Changes
+
+- 87fa024: fix: remove tailwind from peerdeps
+
 ## 0.7.74
 
 ### Patch Changes
