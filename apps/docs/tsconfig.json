@@ -18,6 +18,6 @@
     "strictNullChecks": true,
     "jsx": "preserve"
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "content/docs/api-reference/runtimes/ThreadListItemRuntime.mdx", "content/docs/api-reference/runtimes/ContentPartRuntime.mdx"],
   "exclude": ["node_modules"]
 }

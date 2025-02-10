@@ -1,0 +1,587 @@
+---
+title: Overview
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+import { Component, ContextLevel, RuntimeHooks } from "./context";
+
+export const contextColors = {
+  "Assistant Context": "#4a86e8",
+  "Thread Context": "#45a049",
+  "Composer Context": "#ff9933",
+  "Message Context": "#bb2244",
+  "ContentPart Context": "#268bd2",
+  "Attachment Context": "#FFB6C1",
+  "ThreadListItem Context": "#c678dd",
+};
+
+<Callout title="Work in progress" type="warn">
+  This page is under construction. Most links will not work yet.
+</Callout>
+
+## Cloud
+
+- [`AssistantCloud`](#assistant-cloud)
+
+## Runtime API
+
+### AI SDK
+
+- [`useChatRuntime`](#use-chat-runtime)
+- [`useVercelUseChatRuntime`](#use-vercel-use-chat-runtime) (legacy)
+- [`useVercelUseAssistantRuntime`](#use-vercel-use-assistant-runtime)
+- [`useVercelRSCRuntime`](#use-vercel-rsc-runtime)
+
+### LangGraph
+
+- [`useLangGraphRuntime`](#use-lang-graph-runtime)
+
+### Local Runtime
+
+- [`useLocalRuntime`](#use-local-runtime)
+
+### External Store Runtime
+
+- [`useExternalStoreRuntime`](#use-external-store-runtime)
+- [`createMessageConverter`](#create-message-converter)
+
+### Thread List Runtime
+
+- [`useRemoteThreadListRuntime`](#use-remote-thread-list-runtime)
+- [`useCloudThreadListRuntime`](#use-cloud-thread-list-runtime)
+
+### Edge (Legacy)
+
+- [`useEdgeRuntime`](#use-edge-runtime)
+- [`useDangerousInBrowserRuntime`](#use-dangerous-in-browser-runtime)
+
+## Runtime Adapters
+
+### Attachment
+
+- [`AttachmentAdapter`](#attachment-adapter)
+- [`SimpleImageAttachmentAdapter`](#simple-image-attachment-adapter)
+- [`SimpleTextAttachmentAdapter`](#simple-text-attachment-adapter)
+- [`CompositeAttachmentAdapter`](#composite-attachment-adapter)
+
+### Feedback
+
+- [`FeedbackAdapter`](#feedback-adapter)
+
+### Speech
+
+- [`SpeechSynthesisAdapter`](#speech-synthesis-adapter)
+- [`WebSpeechSynthesisAdapter`](#web-speech-synthesis-adapter)
+
+## Highest Level Context Providers
+
+<Component
+  name="AssistantRuntimeProvider"
+  isContextProvider={true}
+  providedContexts={[
+    { name: "Assistant Context", color: contextColors["Assistant Context"] },
+    { name: "Thread Context", color: contextColors["Thread Context"] },
+    {
+      name: "Thread Composer Context",
+      color: contextColors["Composer Context"],
+      link: "#composer-context",
+    },
+  ]}
+  docsLink="./AssistantRuntimeProvider"
+  tooltip="Provides the highest level context for the Assistant UI"
+  props="runtime={runtime}"
+>
+  <Component name="Thread" isLink={true} />
+  <Component name="ThreadList" isLink={true} />
+</Component>
+
+<Component
+  name="TextContentPartProvider"
+  isContextProvider={true}
+  providedContexts={[
+    {
+      name: "Text ContentPart Context",
+      color: contextColors["ContentPart Context"],
+      link: "#contentpart-context",
+    },
+  ]}
+  docsLink="./TextContentPartProvider"
+  tooltip="Provides context for text content parts"
+  props="text={text}"
+>
+  <Component name="ContentPart" isLink={true} />
+</Component>
+
+<ContextLevel color={contextColors["Assistant Context"]}>
+
+## Assistant Context
+
+The context available to components inside `<AssistantRuntimeProvider />`. You usually wrap your entire application in this context.
+
+### AssistantRuntime
+
+Programmatically access the assistant's state and actions.
+
+- [`useAssistantRuntime`](#use-assistant-runtime)
+
+### Instructions
+
+Add system prompt instructions
+
+- [`useAssistantInstructions`](#use-assistant-instructions)
+
+### Tool UI
+
+Register tool UIs
+
+- [`makeAssistantTool`](#make-assistant-tool)
+- [`makeAssistantToolUI`](#make-assistant-tool-ui)
+- [`useAssistantTool`](#use-assistant-tool)
+- [`useAssistantToolUI`](#use-assistant-tool-ui)
+
+Programmatically access the list of registered tool UIs (Experimental)
+
+- [`useToolUIs`](#use-tool-uis)
+- [`useToolUIsStore`](#use-tool-uis-store)
+
+### ThreadListPrimitive
+
+Shows a list of threads and allows the user to switch between them.
+
+<Component
+  name="ThreadListPrimitive.Root"
+  docsLink="#thread-list-primitive-root"
+  tooltip="Root component for the thread list"
+>
+  <Component
+    name="ThreadListPrimitive.New"
+    docsLink="#thread-list-primitive-new"
+    tooltip="Component for creating a new thread"
+  />
+  <Component
+    name="ThreadListPrimitive.Items"
+    isContextProvider={true}
+    providedContexts={[
+      {
+        name: "ThreadListItem Context",
+        color: contextColors["ThreadListItem Context"],
+      },
+    ]}
+    docsLink="#thread-list-primitive-items"
+    tooltip="Container for thread list items, provides context for individual items"
+    props="components={...}"
+  />
+</Component>
+
+</ContextLevel>
+
+<ContextLevel color={contextColors["Thread Context"]}>
+
+## Thread Context
+
+The context for a single thread. Currently always corresponds to the runtime's main thread.
+
+### ThreadRuntime
+
+Programmatically access the thread's state and actions.
+
+- [`useThread`](#use-thread)
+- [`useThreadComposer`](#use-thread-composer)
+- [`useThreadRuntime`](#use-thread-runtime)
+
+### ModelContext
+
+- [`useThreadModelContext`](#use-thread-model-context)
+
+### ThreadViewportStore
+
+- [`useThreadViewport`](#use-thread-viewport)
+- [`useThreadViewportStore`](#use-thread-viewport-store)
+
+### ThreadPrimitive
+
+A conversation thread.
+
+<Component
+  name="ThreadPrimitive.Root"
+  docsLink="#thread-primitive-root"
+  tooltip="Root component for a thread"
+>
+  <Component
+    name="ThreadPrimitive.Viewport"
+    docsLink="#thread-primitive-viewport"
+    tooltip="Viewport for the thread content"
+  >
+    <Component
+      name="ThreadPrimitive.Messages"
+      isContextProvider={true}
+      providedContexts={[
+        { name: "Message Context", color: contextColors["Message Context"] },
+        {
+          name: "Edit Composer Context",
+          color: contextColors["Composer Context"],
+          link: "#composer-context",
+        },
+      ]}
+      docsLink="#thread-primitive-messages"
+      tooltip="Container for thread messages, provides context for messages and edit composer"
+    >
+      <Component name="Message" isLink={true} />
+    </Component>
+    <Component
+      name="ThreadPrimitive.ScrollToBottom"
+      docsLink="#thread-primitive-scroll-to-bottom"
+      tooltip="Scrolls to the bottom of the thread"
+    />
+    <Component
+      name="ThreadPrimitive.Empty"
+      docsLink="#thread-primitive-empty"
+      tooltip="Displayed when the thread is empty"
+    />
+    <Component
+      name="ThreadPrimitive.If"
+      docsLink="#thread-primitive-if"
+      tooltip="Conditional rendering within the thread"
+    />
+    <Component
+      name="ThreadPrimitive.Suggestion"
+      docsLink="#thread-primitive-suggestion"
+      tooltip="Displays suggestions in the thread"
+    />
+    <Component name="Composer" isLink={true} />
+  </Component>
+</Component>
+
+### AssistantModalPrimitive
+
+A floating modal that usually appears in the lower right corner of the screen. Common for support use cases.
+
+<Component
+  name="AssistantModalPrimitive.Root"
+  docsLink="#assistant-modal-primitive-root"
+  tooltip="Root component for the assistant modal"
+>
+  <Component
+    name="AssistantModalPrimitive.Trigger"
+    docsLink="#assistant-modal-primitive-trigger"
+    tooltip="Trigger to open the assistant modal"
+  />
+  <Component
+    name="AssistantModalPrimitive.Anchor"
+    docsLink="#assistant-modal-primitive-anchor"
+    tooltip="Anchor point for the assistant modal"
+  />
+  <Component
+    name="AssistantModalPrimitive.Content"
+    docsLink="#assistant-modal-primitive-content"
+    tooltip="Content of the assistant modal"
+  />
+</Component>
+
+</ContextLevel>
+
+<ContextLevel color={contextColors["Composer Context"]}>
+
+## Composer Context
+
+Manages the state and actions for the message composer
+
+### ComposerRuntime
+
+- [`useComposer`](#use-composer)
+- [`useComposerRuntime`](#use-composer-runtime)
+
+### ComposerPrimitive
+
+<Component
+  name="ComposerPrimitive.Root"
+  docsLink="#composer-primitive-root"
+  tooltip="Root component for the composer"
+>
+  <Component
+    name="ComposerPrimitive.Input"
+    docsLink="#composer-primitive-input"
+    tooltip="Input field for composing messages"
+  />
+  <Component
+    name="ComposerPrimitive.Send"
+    docsLink="#composer-primitive-send"
+    tooltip="Button to send the composed message"
+  />
+  <Component
+    name="ComposerPrimitive.Cancel"
+    docsLink="#composer-primitive-cancel"
+    tooltip="Button to cancel composing"
+  />
+  <Component
+    name="ComposerPrimitive.Attachments"
+    isContextProvider={true}
+    providedContexts={[
+      {
+        name: "Attachment Context",
+        color: contextColors["Attachment Context"],
+      },
+    ]}
+    docsLink="#composer-primitive-attachments"
+    tooltip="Manages attachments in the composer"
+  />
+  <Component
+    name="ComposerPrimitive.AddAttachment"
+    docsLink="#composer-primitive-add-attachment"
+    tooltip="Button to add an attachment"
+  />
+</Component>
+
+</ContextLevel>
+
+<ContextLevel color={contextColors["Message Context"]}>
+
+## Message Context
+
+Manages the state and actions for individual messages
+
+### MessageRuntime
+
+- [`useMessage`](#use-message)
+- [`useEditComposer`](#use-edit-composer)
+- [`useMessageRuntime`](#use-message-runtime)
+
+### MessageUtilsStore
+
+- [`useMessageUtils`](#use-message-utils)
+- [`useMessageUtilsStore`](#use-message-utils-store)
+
+### MessagePrimitive
+
+<Component
+  name="MessagePrimitive.Root"
+  docsLink="#message-primitive-root"
+  tooltip="Root component for a message"
+>
+  <Component
+    name="MessagePrimitive.Content"
+    isContextProvider={true}
+    providedContexts={[
+      {
+        name: "ContentPart Context",
+        color: contextColors["ContentPart Context"],
+      },
+    ]}
+    docsLink="#message-primitive-content"
+    tooltip="Displays the content of the message"
+  />
+  <Component
+    name="MessagePrimitive.Attachments"
+    isContextProvider={true}
+    providedContexts={[
+      {
+        name: "Attachment Context",
+        color: contextColors["Attachment Context"],
+      },
+    ]}
+    docsLink="#message-primitive-attachments"
+    tooltip="Displays attachments in the message"
+  />
+  <Component
+    name="MessagePrimitive.If"
+    docsLink="#message-primitive-if"
+    tooltip="Conditional rendering within the message"
+  />
+</Component>
+
+### ActionBarPrimitive
+
+<Component
+  name="ActionBarPrimitive.Root"
+  docsLink="#action-bar-primitive-root"
+  tooltip="Root component for the action bar"
+>
+  <Component
+    name="ActionBarPrimitive.Copy"
+    docsLink="#action-bar-primitive-copy"
+    tooltip="Copies the message content"
+  />
+  <Component
+    name="ActionBarPrimitive.Edit"
+    docsLink="#action-bar-primitive-edit"
+    tooltip="Edits the message"
+  />
+  <Component
+    name="ActionBarPrimitive.Reload"
+    docsLink="#action-bar-primitive-reload"
+    tooltip="Reloads the message"
+  />
+  <Component
+    name="ActionBarPrimitive.Speak"
+    docsLink="#action-bar-primitive-speak"
+    tooltip="Speaks the message content"
+  />
+  <Component
+    name="ActionBarPrimitive.StopSpeaking"
+    docsLink="#action-bar-primitive-stop-speaking"
+    tooltip="Stops speaking the message"
+  />
+  <Component
+    name="ActionBarPrimitive.FeedbackPositive"
+    docsLink="#action-bar-primitive-feedback-positive"
+    tooltip="Provides positive feedback"
+  />
+  <Component
+    name="ActionBarPrimitive.FeedbackNegative"
+    docsLink="#action-bar-primitive-feedback-negative"
+    tooltip="Provides negative feedback"
+  />
+</Component>
+
+### BranchPickerPrimitive
+
+<Component
+  name="BranchPickerPrimitive.Root"
+  docsLink="#branch-picker-primitive-root"
+  tooltip="Root component for the branch picker"
+>
+  <Component
+    name="BranchPickerPrimitive.Previous"
+    docsLink="#branch-picker-primitive-previous"
+    tooltip="Navigates to the previous branch"
+  />
+  <Component
+    name="BranchPickerPrimitive.Number"
+    docsLink="#branch-picker-primitive-number"
+    tooltip="Displays the current branch number"
+  />
+  <Component
+    name="BranchPickerPrimitive.Next"
+    docsLink="#branch-picker-primitive-next"
+    tooltip="Navigates to the next branch"
+  />
+</Component>
+
+</ContextLevel>
+
+<ContextLevel color={contextColors["ContentPart Context"]}>
+
+## ContentPart Context
+
+Manages the state and actions for content parts within messages
+
+### ContentPartRuntime
+
+- [`useContentPart`](#use-content-part)
+- [`useContentPartText`](#use-content-part-text)
+- [`useContentPartReasoning`](#use-content-part-reasoning)
+- [`useContentPartRuntime`](#use-content-part-runtime)
+
+### ContentPartPrimitive
+
+<Component
+  name="ContentPartPrimitive.Text"
+  docsLink="#content-part-text"
+  tooltip="Represents a text part of the message content"
+/>
+
+### MarkdownText
+
+<Component
+  name="MarkdownText"
+  docsLink="#markdown-text"
+  tooltip="Renders markdown text in the message"
+/>
+
+</ContextLevel>
+
+<ContextLevel color={contextColors["Attachment Context"]}>
+
+## Attachment Context
+
+Manages the state and actions for attachments in messages and composer
+
+### AttachmentRuntime
+
+- [`useAttachment`](#use-attachment)
+- [`useAttachmentRuntime`](#use-attachment-runtime)
+
+### AttachmentPrimitive
+
+<Component
+  name="AttachmentPrimitive.Root"
+  docsLink="#attachment-primitive-root"
+  tooltip="Root component for an attachment"
+>
+  <Component
+    name="AttachmentPrimitive.Name"
+    docsLink="#attachment-primitive-name"
+    tooltip="Displays the name of the attachment"
+  />
+  <Component
+    name="AttachmentPrimitive.Delete"
+    docsLink="#attachment-primitive-delete"
+    tooltip="Deletes the attachment"
+  />
+  <Component
+    name="AttachmentPrimitive.Thumb"
+    docsLink="#attachment-primitive-thumb"
+    tooltip="Displays a thumbnail of the attachment"
+  />
+</Component>
+
+</ContextLevel>
+
+<ContextLevel color={contextColors["ThreadListItem Context"]}>
+
+## ThreadListItem Context
+
+Manages the state and actions for individual thread list items
+
+### ThreadListItemRuntime
+
+- [`useThreadListItem`](#use-thread-list-item)
+- [`useThreadListItemRuntime`](#use-thread-list-item-runtime)
+
+### ThreadListItem
+
+<Component
+  name="ThreadListItemPrimitive.Root"
+  docsLink="#thread-list-item-primitive-root"
+  tooltip="Root component for a thread list item"
+>
+  <Component
+    name="ThreadListItemPrimitive.Trigger"
+    docsLink="#thread-list-item-primitive-trigger"
+    tooltip="Trigger for thread list item actions"
+  >
+    <Component
+      name="ThreadListItemPrimitive.Name"
+      docsLink="#thread-list-item-primitive-name"
+      tooltip="Displays the name of the thread"
+    />
+  </Component>
+  <Component
+    name="ThreadListItemPrimitive.Archive"
+    docsLink="#thread-list-item-primitive-archive"
+    tooltip="Archives the thread"
+  />
+  <Component
+    name="ThreadListItemPrimitive.Unarchive"
+    docsLink="#thread-list-item-primitive-unarchive"
+    tooltip="Unarchives the thread"
+  />
+  <Component
+    name="ThreadListItemPrimitive.Delete"
+    docsLink="#thread-list-item-primitive-delete"
+    tooltip="Deletes the thread"
+  />
+  <Component
+    name="ThreadListItemPrimitive.Rename"
+    docsLink="#thread-list-item-primitive-rename"
+    tooltip="Renames the thread"
+  />
+</Component>
+
+</ContextLevel>
+
+## Utilities
+
+- [`useThreadViewportAutoscroll`](#use-thread-viewport-autoscroll)
+- [`useInlineRender`](#use-inline-render)

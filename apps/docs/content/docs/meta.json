@@ -3,6 +3,7 @@
   "root": true,
   "pages": [
     "getting-started",
+    "api-reference",
     "guides",
     "concepts",
     "migrations",

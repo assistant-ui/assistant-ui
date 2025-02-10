@@ -1,0 +1,30 @@
+---
+title: ComposerRuntime
+---
+
+import { ParametersTable } from "@/components/docs";
+import { ComposerState } from "@/components/docs/parameters/context";
+
+### `useThreadComposer`
+
+Access the thread’s new message composer:
+
+```tsx
+import { useThreadComposer } from "@assistant-ui/react";
+
+const composer = useThreadComposer();
+const text = useThreadComposer((m) => m.text);
+```
+
+<ParametersTable {...ComposerState} />
+
+### `useComposer`
+
+Grabs the nearest composer state (whether it’s the edit composer or the thread’s new message composer):
+
+```tsx
+import { useComposer } from "@assistant-ui/react";
+
+const composer = useComposer();
+const text = useComposer((m) => m.text);
+```

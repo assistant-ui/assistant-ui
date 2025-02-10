@@ -1,0 +1,33 @@
+---
+title: AssistantRuntime
+---
+
+import { ParametersTable } from "@/components/docs";
+import { AssistantRuntime, AssistantToolUIsState } from "@/generated/typeDocs";
+
+The `AssistantRuntime` is the root runtime of the application.
+
+### `useAssistantRuntime`
+
+```tsx
+import { useAssistantRuntime } from "@assistant-ui/react";
+
+const runtime = useAssistantRuntime();
+```
+
+<ParametersTable {...AssistantRuntime} />
+
+### Tool UI Registry
+
+The tool UI registry is part of the assistant runtime. It allows you to display custom UI for tool calls, enabling generative UI.
+
+#### `useToolUIs`
+
+```tsx
+import { useToolUIs } from "@assistant-ui/react";
+
+const toolUIs = useToolUIs();
+const webSearchToolUI = useToolUIs((m) => m.getToolUI("web_search"));
+```
+
+<ParametersTable {...AssistantToolUIsState} />
