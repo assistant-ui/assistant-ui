@@ -1,5 +1,11 @@
 # assistant-ui
 
+## 0.0.38
+
+### Patch Changes
+
+- 65a2c7c: feat: assistant-ui init CLI
+
 ## 0.0.37
 
 ### Patch Changes

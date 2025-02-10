@@ -11,7 +11,9 @@ export const Assistant = () => {
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <Thread />
+      <div className="h-dvh">
+        <Thread />
+      </div>
     </AssistantRuntimeProvider>
   );
 };
