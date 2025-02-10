@@ -28,8 +28,8 @@ const ThreadListItemImpl: FC<ThreadListItemProps> = ({
   const runtime = useMemo(
     () =>
       archived
-        ? assistantRuntime.threadList.getArchivedItemByIndex(partIndex)
-        : assistantRuntime.threadList.getItemByIndex(partIndex),
+        ? assistantRuntime.threads.getArchivedItemByIndex(partIndex)
+        : assistantRuntime.threads.getItemByIndex(partIndex),
     [assistantRuntime, partIndex, archived],
   );
 

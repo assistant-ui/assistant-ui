@@ -21,7 +21,7 @@ export type AssistantRuntime = {
   readonly thread: ThreadRuntime;
 
   /**
-   * @deprecated This field was renamed to `threads.main`.
+   * @deprecated This field was renamed to `threads`.
    */
   readonly threadList: ThreadListRuntime;
 
@@ -69,7 +69,7 @@ export class AssistantRuntimeImpl implements AssistantRuntime {
     ) => ThreadRuntime = ThreadRuntimeImpl,
   ) {
     this.threads = new ThreadListRuntimeImpl(_core.threads, runtimeFactory);
-    this._thread = this.threadList.main;
+    this._thread = this.threads.main;
   }
 
   protected __internal_bindMethods() {

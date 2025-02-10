@@ -66,7 +66,7 @@ export const AssistantRuntimeProviderImpl: FC<
       {RenderComponent && <RenderComponent />}
       <ThreadRuntimeProvider
         runtime={runtime.thread}
-        listItemRuntime={runtime.threadList.mainItem}
+        listItemRuntime={runtime.threads.mainItem}
       >
         {children}
       </ThreadRuntimeProvider>
