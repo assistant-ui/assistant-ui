@@ -72,20 +72,20 @@ DialogContent.displayName = DialogPrimitive.Content.displayName;
 // );
 // DialogFooter.displayName = "DialogFooter";
 
-// const DialogTitle = forwardRef<
-//   ComponentRef<typeof DialogPrimitive.Title>,
-//   ComponentPropsWithoutRef<typeof DialogPrimitive.Title>
-// >(({ className, ...props }, ref) => (
-//   <DialogPrimitive.Title
-//     ref={ref}
-//     className={classNames(
-//       "text-lg font-semibold leading-none tracking-tight",
-//       className,
-//     )}
-//     {...props}
-//   />
-// ));
-// DialogTitle.displayName = DialogPrimitive.Title.displayName;
+const DialogTitle = forwardRef<
+  ComponentRef<typeof DialogPrimitive.Title>,
+  ComponentPropsWithoutRef<typeof DialogPrimitive.Title>
+>(({ className, ...props }, ref) => (
+  <DialogPrimitive.Title
+    ref={ref}
+    className={cn(
+      "text-lg font-semibold leading-none tracking-tight",
+      className,
+    )}
+    {...props}
+  />
+));
+DialogTitle.displayName = DialogPrimitive.Title.displayName;
 
 // const DialogDescription = forwardRef<
 //   ComponentRef<typeof DialogPrimitive.Description>,
@@ -108,6 +108,6 @@ export {
   DialogContent,
   // DialogHeader,
   // DialogFooter,
-  // DialogTitle,
+  DialogTitle,
   // DialogDescription,
 };

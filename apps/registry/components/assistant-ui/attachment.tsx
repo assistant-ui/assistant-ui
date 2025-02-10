@@ -17,12 +17,14 @@ import {
 import {
   Dialog,
   DialogTitle,
-  DialogContent,
   DialogTrigger,
+  DialogOverlay,
+  DialogPortal,
 } from "@/components/ui/dialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
+import { DialogContent as DialogPrimitiveContent } from "@radix-ui/react-dialog";
 
 const useFileSrc = (file: File | undefined) => {
   const [src, setSrc] = useState<string | undefined>(undefined);
@@ -93,12 +95,12 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
       <DialogTrigger className="aui-attachment-preview-trigger" asChild>
         {children}
       </DialogTrigger>
-      <DialogContent>
+      <AttachmentDialogContent>
         <DialogTitle className="aui-sr-only">
           Image Attachment Preview
         </DialogTitle>
         <AttachmentPreview src={src} />
-      </DialogContent>
+      </AttachmentDialogContent>
     </Dialog>
   );
 };
@@ -204,3 +206,12 @@ export const ComposerAddAttachment: FC = () => {
     </ComposerPrimitive.AddAttachment>
   );
 };
+
+const AttachmentDialogContent: FC<PropsWithChildren> = ({ children }) => (
+  <DialogPortal>
+    <DialogOverlay />
+    <DialogPrimitiveContent className="aui-dialog-content">
+      {children}
+    </DialogPrimitiveContent>
+  </DialogPortal>
+);
