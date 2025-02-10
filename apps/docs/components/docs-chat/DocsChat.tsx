@@ -17,8 +17,7 @@ import {
   AssistantModal,
   makeMarkdownText,
 } from "@assistant-ui/react-ui";
-import entelligenceLogoLight from "./entelligence-light.png";
-import entelligenceLogoDark from "./entelligence-dark.png";
+import entelligenceLogo from "@/app/(home)/logos/cust/entelligence.svg";
 import Image from "next/image";
 
 function asAsyncIterable<T>(source: ReadableStream<T>): AsyncIterable<T> {
@@ -145,22 +144,14 @@ const MyThread: FC = () => {
 
       <a
         href="https://entelligence.ai/assistant-ui&assistant-ui?ref=assistant-ui"
-        className="text-muted-foreground flex w-full items-center justify-center gap-2 border-t py-2 text-xs"
+        className="opacity-40 flex w-full items-center justify-center gap-1 border-t py-2 text-xs"
       >
         In partnership with{" "}
         <Image
-          src={entelligenceLogoLight}
-          className="dark:hidden"
+          src={entelligenceLogo}
+          className="pt-0.5 invert dark:invert-0"
           alt="Entelligence Logo"
-          height={14}
-          width={113}
-        />
-        <Image
-          src={entelligenceLogoDark}
-          className="hidden dark:block"
-          alt="Entelligence Logo"
-          height={14}
-          width={113}
+          width={70}
         />
       </a>
     </Thread.Root>
