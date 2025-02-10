@@ -41,5 +41,8 @@
   },
   "scripts": {
     "build": "tsx ./scripts/build-registry.ts"
+  },
+  "dependencies": {
+    "ai": "^4.1.34"
   }
 }
