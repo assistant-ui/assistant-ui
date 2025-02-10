@@ -53,3 +53,5 @@ const AssistantModalButton = forwardRef<
     </TooltipIconButton>
   );
 });
+
+AssistantModalButton.displayName = "AssistantModalButton";

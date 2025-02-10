@@ -18,7 +18,7 @@ export const AssistantModal: FC = () => {
       </AssistantModalPrimitive.Anchor>
       <AssistantModalPrimitive.Content
         sideOffset={16}
-        className="bg-popover text-popover-foreground z-50 h-[500px] w-[400px] overflow-clip rounded-xl border p-0 shadow-md outline-none [&>.aui-thread-root]:bg-inherit data-[state=closed]:animate-out data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out data-[state=open]:zoom-in data-[state=open]:slide-in-from-bottom-1/2 data-[state=open]:slide-in-from-right-1/2 data-[state=closed]:slide-out-to-bottom-1/2 data-[state=closed]:slide-out-to-right-1/2"
+        className="bg-popover text-popover-foreground data-[state=closed]:animate-out data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out data-[state=open]:zoom-in data-[state=open]:slide-in-from-bottom-1/2 data-[state=open]:slide-in-from-right-1/2 data-[state=closed]:slide-out-to-bottom-1/2 data-[state=closed]:slide-out-to-right-1/2 z-50 h-[500px] w-[400px] overflow-clip rounded-xl border p-0 shadow-md outline-none [&>.aui-thread-root]:bg-inherit"
       >
         <Thread />
       </AssistantModalPrimitive.Content>
@@ -43,7 +43,10 @@ const AssistantModalButton = forwardRef<
       className="size-full rounded-full shadow transition-transform hover:scale-110 active:scale-90"
       ref={ref}
     >
-      <BotIcon data-state={state} className="absolute size-6 transition-all data-[state=closed]:rotate-0 data-[state=open]:rotate-90 data-[state=closed]:scale-100 data-[state=open]:scale-0" />
+      <BotIcon
+        data-state={state}
+        className="absolute size-6 transition-all data-[state=closed]:rotate-0 data-[state=open]:rotate-90 data-[state=closed]:scale-100 data-[state=open]:scale-0"
+      />
 
       <ChevronDownIcon
         data-state={state}
@@ -53,3 +56,5 @@ const AssistantModalButton = forwardRef<
     </TooltipIconButton>
   );
 });
+
+AssistantModalButton.displayName = "AssistantModalButton";
