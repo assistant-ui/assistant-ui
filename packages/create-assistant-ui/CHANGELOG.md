@@ -1,5 +1,11 @@
 # create-assistant-ui
 
+## 0.0.12
+
+### Patch Changes
+
+- fix: create CLI
+
 ## 0.0.11
 
 ### Patch Changes
