@@ -8,7 +8,7 @@
 }
 
 .aui-thread-viewport-footer {
-  @apply max-w-[var(--aui-thread-max-width)] sticky bottom-0 mt-3 flex w-full flex-col items-center justify-end rounded-t-lg bg-inherit pb-4;
+  @apply sticky bottom-0 mt-3 flex w-full max-w-[var(--aui-thread-max-width)] flex-col items-center justify-end rounded-t-lg bg-inherit pb-4;
 }
 
 .aui-thread-scroll-to-bottom {
@@ -26,7 +26,7 @@
 /* thread welcome */
 
 .aui-thread-welcome-root {
-  @apply max-w-[var(--aui-thread-max-width)] flex w-full flex-grow flex-col;
+  @apply flex w-full max-w-[var(--aui-thread-max-width)] flex-grow flex-col;
 }
 
 .aui-thread-welcome-center {
@@ -110,8 +110,8 @@
 /* user message */
 
 .aui-user-message-root {
-  @apply grid auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] gap-y-2 [&>*]:col-start-2;
-  @apply max-w-[var(--aui-thread-max-width)] w-full py-4;
+  @apply grid auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] gap-y-2 [&:where(>*)]:col-start-2;
+  @apply w-full max-w-[var(--aui-thread-max-width)] py-4;
 }
 
 :where(.aui-user-message-root) > .aui-branch-picker-root {
@@ -126,7 +126,7 @@
 
 .aui-user-message-content {
   @apply bg-aui-muted text-aui-foreground max-w-[calc(var(--aui-thread-max-width)*0.8)] break-words rounded-3xl px-5 py-2.5;
-  
+
   @apply col-start-2 row-start-2;
 }
 
@@ -148,7 +148,7 @@
 /* edit composer */
 
 .aui-edit-composer-root {
-  @apply bg-aui-muted max-w-[var(--aui-thread-max-width)] my-4 flex w-full flex-col gap-2 rounded-xl;
+  @apply bg-aui-muted my-4 flex w-full max-w-[var(--aui-thread-max-width)] flex-col gap-2 rounded-xl;
 }
 
 .aui-edit-composer-input {
@@ -163,7 +163,7 @@
 
 .aui-assistant-message-root {
   @apply grid grid-cols-[auto_auto_1fr] grid-rows-[auto_1fr];
-  @apply max-w-[var(--aui-thread-max-width)] relative w-full py-4;
+  @apply relative w-full max-w-[var(--aui-thread-max-width)] py-4;
 }
 
 :where(.aui-assistant-message-root) > .aui-avatar-root {

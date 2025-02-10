@@ -164,7 +164,7 @@ const ComposerAction: FC = () => {
 
 const UserMessage: FC = () => {
   return (
-    <MessagePrimitive.Root className="grid w-full max-w-[var(--thread-max-width)] auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] gap-y-2 py-4 [&>*]:col-start-2">
+    <MessagePrimitive.Root className="grid w-full max-w-[var(--thread-max-width)] auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] gap-y-2 py-4 [&:where(>*)]:col-start-2">
       <UserActionBar />
 
       <UserMessageAttachments />
