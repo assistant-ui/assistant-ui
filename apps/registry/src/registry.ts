@@ -15,6 +15,11 @@ export const registry: RegistryItem[] = [
       "https://r.assistant-ui.com/thread",
       "https://r.assistant-ui.com/ai-sdk-backend",
     ],
+    meta: {
+      importSpecifier: "Assistant",
+      moduleSpecifier: "@/components/assistant-ui/assistant",
+      nextVersion: "15.1.6",
+    },
   },
   {
     name: "ai-sdk-backend",
