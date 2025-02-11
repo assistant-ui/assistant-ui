@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.76
+
+### Patch Changes
+
+- fix: README
+
 ## 0.7.75
 
 ### Patch Changes

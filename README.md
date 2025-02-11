@@ -23,7 +23,8 @@ Wide model provider support (OpenAI, Anthropic, Mistral, Perplexity, AWS Bedrock
 Step 1: Run `assistant-ui init` to install assistant-ui in a new or existing React.js project:
 
 ```sh
-npx assistant-ui@latest init
+npx assistant-ui@latest create # new project
+npx assistant-ui@latest init # existing project
 ```
 
 Step 2: Update the `.env` file with your OpenAI API key.
