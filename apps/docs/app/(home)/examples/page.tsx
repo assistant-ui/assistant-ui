@@ -37,6 +37,12 @@ const EXAMPLE_ITEMS: ShowcaseItem[] = [
     link: "/examples/claude",
   },
   {
+    title: "Perplexity Clone",
+    image: "/screenshot/examples/chatgpt.png",
+    description: "Customized colors and styles for a Perplexity look and feel.",
+    link: "/examples/perplexity",
+  },
+  {
     title: "AI SDK",
     image: "/screenshot/examples/ai-sdk.png",
     description: "Chat persistence with AI SDK.",
