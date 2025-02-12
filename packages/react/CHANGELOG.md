@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.77
+
+### Patch Changes
+
+- f2a1e86: feat: unstable_humanToolNames
+
 ## 0.7.76
 
 ### Patch Changes
