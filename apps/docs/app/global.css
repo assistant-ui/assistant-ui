@@ -151,19 +151,33 @@
   }
 }
 
-@layer base {
-  /* Horizontal marquee keyframes */
-  @keyframes marquee {
-    from {
-      transform: translateX(0);
-    }
-    to {
-      transform: translateX(calc(-100% - var(--gap)));
-    }
+/* Horizontal marquee keyframes */
+@keyframes marquee {
+  from {
+    transform: translateX(0);
   }
+  to {
+    transform: translateX(calc(-100% - var(--gap)));
+  }
+}
 
-  /* Classes to apply the animations */
-  .animate-marquee {
-    animation: marquee var(--duration) linear infinite;
+@utility animate-marquee {
+  animation: marquee var(--duration) linear infinite;
+}
+
+@keyframes shine {
+  0% {
+    background-position: 0% 0%;
   }
+  50% {
+    background-position: 100% 100%;
+  }
+  100% {
+    background-position: 0% 0%;
+  }
+}
+
+/* Create a utility class for the animation */
+@utility animate-shine {
+  animation: shine var(--duration) infinite linear;
 }

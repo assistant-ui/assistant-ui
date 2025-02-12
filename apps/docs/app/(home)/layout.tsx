@@ -74,13 +74,14 @@ function Footer(): React.ReactElement {
             <FooterLink href="/docs/getting-started">Documentation</FooterLink>
             <FooterLink href="/showcase">Showcase</FooterLink>
             <FooterLink href="/examples">Examples</FooterLink>
-            <FooterLink href="/blog">Blog</FooterLink>
+            <FooterLink href="/pricing">Pricing</FooterLink>
           </div>
           <div className="flex flex-col justify-center gap-4">
             <p className="text-sm">Company</p>
             <FooterLink href="https://cal.com/simon-farshid/assistant-ui">
               Contact Sales
             </FooterLink>
+            <FooterLink href="/blog">Blog</FooterLink>
             <FooterLink href="https://docs.google.com/document/d/1EhtzGCVOFGtDWaRP7uZ4gBpDVzUfuCF23U6ztRunNRo/view">
               Terms of Service
             </FooterLink>

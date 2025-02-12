@@ -4,6 +4,7 @@ import {
   NewspaperIcon,
   ProjectorIcon,
   SparklesIcon,
+  WalletIcon,
 } from "lucide-react";
 import icon from "@/public/favicon/icon.svg";
 import Image from "next/image";
@@ -59,6 +60,11 @@ export const baseOptions: HomeLayoutProps = {
       text: "Examples",
       url: "/examples",
       icon: <SparklesIcon />,
+    },
+    {
+      text: "Pricing",
+      url: "/pricing",
+      icon: <WalletIcon />,
     },
     {
       text: "Blog",
