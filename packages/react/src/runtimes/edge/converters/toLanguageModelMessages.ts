@@ -61,7 +61,7 @@ const assistantMessageSplitter = () => {
         result:
           part.result === undefined
             ? "Error: tool is has no configured code to run"
-            : undefined,
+            : part.result,
         isError: part.isError ?? part.result === undefined,
       });
     },

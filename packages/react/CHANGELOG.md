@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.78
+
+### Patch Changes
+
+- fix: result sometimes set to undefined
+
 ## 0.7.77
 
 ### Patch Changes
