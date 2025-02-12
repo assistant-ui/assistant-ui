@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.79
+
+### Patch Changes
+
+- fix: argsText parsing
+
 ## 0.7.78
 
 ### Patch Changes
