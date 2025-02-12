@@ -1,7 +1,6 @@
 import { CheckIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ShineBorder } from "@/components/magicui/shine-border";
-import { cn } from "@/lib/utils";
 import Link from "next/link";
 
 const pricingOptions = [
@@ -46,19 +45,8 @@ export default function PricingSection() {
       <div className="mb-6 grid grid-cols-1 gap-6 md:grid-cols-3">
         {pricingOptions.map((option) => {
           const isPro = option.title === "Pro";
-          const Wrapper = isPro ? ShineBorder : "div";
-          return (
-            <Wrapper
-              key={option.title}
-              className={cn(
-                "relative flex flex-col border-0 p-6",
-                !isPro && "rounded-lg border-2",
-              )}
-              {...({
-                borderRadius: 8,
-                color: isPro ? ["#A07CFE", "#FE8FB5", "#FFBE7B"] : undefined,
-              } as any)}
-            >
+          const content = (
+            <>
               <div className="flex-grow">
                 <h3 className="mb-2 text-2xl font-semibold">{option.title}</h3>
                 <p className="text-md mb-4">{option.price}</p>
@@ -78,7 +66,29 @@ export default function PricingSection() {
               >
                 <Link href={option.buttonLink}>{option.button}</Link>
               </Button>
-            </Wrapper>
+            </>
+          );
+
+          if (isPro) {
+            return (
+              <ShineBorder
+                key={option.title}
+                className={"relative flex flex-col border-0 p-6"}
+                borderRadius={8}
+                color={["#A07CFE", "#FE8FB5", "#FFBE7B"]}
+              >
+                {content}
+              </ShineBorder>
+            );
+          }
+
+          return (
+            <div
+              key={option.title}
+              className="relative flex flex-col rounded-lg border-2 p-6"
+            >
+              {content}
+            </div>
           );
         })}
       </div>
