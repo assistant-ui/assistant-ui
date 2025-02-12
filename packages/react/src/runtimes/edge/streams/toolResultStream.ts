@@ -107,7 +107,7 @@ export function toolResultStream(
                   toolCallType,
                   toolCallId,
                   toolName,
-                  result,
+                  result: result === undefined ? "<no result>" : result,
                 });
               } catch (error) {
                 controller.enqueue({

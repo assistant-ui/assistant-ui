@@ -17,10 +17,9 @@ export type LocalRuntimeOptionsBase = {
   };
 
   /**
-   * @deprecated This is a temporary workaround for subgraph frontend function calls.
-   * This feature will be removed in a future version without notice. DO NOT USE.
+   * Names of tools that are allowed to interrupt the run in order to wait for human/external approval.
    */
-  unstable_shouldContinueIgnoreToolNames?: string[] | undefined;
+  unstable_humanToolNames?: string[] | undefined;
 };
 
 // TODO align LocalRuntimeOptions with LocalRuntimeOptionsBase
@@ -38,7 +37,7 @@ export const splitLocalRuntimeOptions = <T extends LocalRuntimeOptions>(
     initialMessages,
     maxSteps,
     adapters,
-    unstable_shouldContinueIgnoreToolNames,
+    unstable_humanToolNames,
     ...rest
   } = options;
 
@@ -48,7 +47,7 @@ export const splitLocalRuntimeOptions = <T extends LocalRuntimeOptions>(
       initialMessages,
       maxSteps,
       adapters,
-      unstable_shouldContinueIgnoreToolNames,
+      unstable_humanToolNames,
     },
     otherOptions: rest,
   };
