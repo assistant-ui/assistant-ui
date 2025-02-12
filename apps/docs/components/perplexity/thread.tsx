@@ -17,18 +17,14 @@ import {
   ChevronRightIcon,
   CopyIcon,
   PaperclipIcon,
-  PencilIcon,
   RefreshCwIcon,
-  SendHorizontalIcon,
   SparkleIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-import { Button } from "@/components/ui/button";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import {
-  ComposerAddAttachment,
   ComposerAttachments,
   UserMessageAttachments,
 } from "@/components/assistant-ui/attachment";
@@ -195,7 +191,7 @@ const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="relative grid w-full max-w-[var(--thread-max-width)] grid-cols-[auto_auto_1fr] grid-rows-[auto_1fr] py-4">
       <div className="text-foreground col-span-2 col-start-2 row-start-1 my-1.5 max-w-[calc(var(--thread-max-width)*0.8)] break-words leading-7">
-        <h1 className="inline-flex items-center gap-2 text-2xl mb-4">
+        <h1 className="mb-4 inline-flex items-center gap-2 text-2xl">
           <SparkleIcon /> Answer
         </h1>
 
