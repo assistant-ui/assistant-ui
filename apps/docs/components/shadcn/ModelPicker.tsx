@@ -5,7 +5,7 @@ import type { FC } from "react";
 import anthropic from "../../assets/providers/anthropic.svg";
 import fireworks from "../../assets/providers/fireworks.svg";
 import google from "../../assets/providers/google.svg";
-import huggingface from "../../assets/providers/huggingface.svg";
+import deepseek from "../../assets/providers/deepseek.svg";
 import meta from "../../assets/providers/meta.svg";
 import mistral from "../../assets/providers/mistral.svg";
 import openai from "../../assets/providers/openai.svg";
@@ -19,24 +19,24 @@ import {
 
 const models = [
   {
-    name: "GPT 3.5 Turbo",
-    value: "gpt-3.5-turbo",
+    name: "GPT 4o-mini",
+    value: "gpt-4o-mini",
     icon: openai,
   },
   {
-    name: "Gemini 1.5 Pro",
-    value: "gemini-1.5-pro",
-    icon: google,
+    name: "Deepseek R1",
+    value: "deepseek-r1",
+    icon: deepseek,
   },
   {
-    name: "Gemma 7b",
-    value: "gemma-7b",
-    icon: google,
-  },
-  {
-    name: "Claude 3 Haiku",
-    value: "claude-3-haiku",
+    name: "Claude 3.5 Sonnet",
+    value: "claude-3.5-sonnet",
     icon: anthropic,
+  },
+  {
+    name: "Gemini 2.0 Flash",
+    value: "gemini-2.0-flash",
+    icon: google,
   },
   {
     name: "Llama 3 8b",
@@ -44,49 +44,14 @@ const models = [
     icon: meta,
   },
   {
-    name: "Llama 3 70b",
-    value: "llama-3-70b",
-    icon: meta,
-  },
-  {
-    name: "Codellama 70b",
-    value: "codellama-70b",
-    icon: meta,
+    name: "Firefunction V2",
+    value: "firefunction-v2",
+    icon: fireworks,
   },
   {
     name: "Mistral 7b",
     value: "mistral-7b",
     icon: mistral,
-  },
-  {
-    name: "Mixtral 8x7b",
-    value: "mixtral-8x7b",
-    icon: mistral,
-  },
-  {
-    name: "DBRX",
-    value: "dbrx",
-    icon: fireworks,
-  },
-  {
-    name: "Firefunction V1",
-    value: "firefunction-v1",
-    icon: fireworks,
-  },
-  {
-    name: "Firellava 13b",
-    value: "firellava-13b",
-    icon: fireworks,
-  },
-  {
-    name: "Hermes 2 Pro",
-    value: "hermes-2-pro",
-    icon: huggingface,
-  },
-  {
-    name: "Neural Hermes",
-    value: "neuralhermes",
-    icon: huggingface,
   },
 ];
 export const ModelPicker: FC = () => {
