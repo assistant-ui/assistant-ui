@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.80
+
+### Patch Changes
+
+- fix: relax ReadonlyJSONObject requirement on tool/toolUI
+
 ## 0.7.79
 
 ### Patch Changes

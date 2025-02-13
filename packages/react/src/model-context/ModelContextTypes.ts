@@ -37,10 +37,7 @@ type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<
   TResult
 >;
 
-export type Tool<
-  TArgs extends Record<string, unknown> = Record<string | number, unknown>,
-  TResult = unknown,
-> = {
+export type Tool<TArgs = unknown, TResult = unknown> = {
   description?: string | undefined;
   parameters: z.ZodSchema<TArgs> | JSONSchema7;
   execute?: ToolExecuteFunction<TArgs, TResult>;

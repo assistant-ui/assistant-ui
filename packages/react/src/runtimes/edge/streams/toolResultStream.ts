@@ -40,7 +40,7 @@ export type ToolResultStreamPart =
     };
 
 export function toolResultStream(
-  tools: Record<string, Tool> | undefined,
+  tools: Record<string, Tool<any, any>> | undefined,
   abortSignal: AbortSignal,
 ) {
   const toolCallExecutions = new Map<string, Promise<any>>();

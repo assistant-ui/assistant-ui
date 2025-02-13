@@ -17,7 +17,6 @@ export type ReasoningContentPart = {
   readonly text: string;
 };
 
-
 export type ImageContentPart = {
   readonly type: "image";
   readonly image: string;
@@ -80,7 +79,7 @@ export type UIContentPart = {
 };
 
 export type CoreToolCallContentPart<
-  TArgs extends ReadonlyJSONObject = ReadonlyJSONObject,
+  TArgs = ReadonlyJSONObject,
   TResult = unknown,
 > = {
   readonly type: "tool-call";
@@ -92,7 +91,7 @@ export type CoreToolCallContentPart<
 };
 
 export type ToolCallContentPart<
-  TArgs extends ReadonlyJSONObject = ReadonlyJSONObject,
+  TArgs = ReadonlyJSONObject,
   TResult = unknown,
 > = CoreToolCallContentPart<TArgs, TResult> & {
   readonly argsText: string;

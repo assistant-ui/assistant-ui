@@ -10,7 +10,6 @@ import type {
   Unstable_AudioContentPart,
 } from "./AssistantTypes";
 import { ContentPartState } from "../api/ContentPartRuntime";
-import { ReadonlyJSONObject } from "../utils/json/json-value";
 
 export type EmptyContentPartProps = {
   status: ContentPartStatus;
@@ -21,7 +20,8 @@ export type TextContentPartProps = ContentPartState & TextContentPart;
 export type TextContentPartComponent = ComponentType<TextContentPartProps>;
 
 export type ReasoningContentPartProps = ContentPartState & ReasoningContentPart;
-export type ReasoningContentPartComponent = ComponentType<ReasoningContentPartProps>;
+export type ReasoningContentPartComponent =
+  ComponentType<ReasoningContentPartProps>;
 
 export type ImageContentPartProps = ContentPartState & ImageContentPart;
 export type ImageContentPartComponent = ComponentType<ImageContentPartProps>;
@@ -38,7 +38,7 @@ export type UIContentPartProps = ContentPartState & UIContentPart;
 export type UIContentPartComponent = ComponentType<UIContentPartProps>;
 
 export type ToolCallContentPartProps<
-  TArgs extends ReadonlyJSONObject = any,
+  TArgs = any,
   TResult = unknown,
 > = ContentPartState &
   ToolCallContentPart<TArgs, TResult> & {
@@ -46,6 +46,6 @@ export type ToolCallContentPartProps<
   };
 
 export type ToolCallContentPartComponent<
-  TArgs extends ReadonlyJSONObject = any,
+  TArgs = any,
   TResult = any,
 > = ComponentType<ToolCallContentPartProps<TArgs, TResult>>;
