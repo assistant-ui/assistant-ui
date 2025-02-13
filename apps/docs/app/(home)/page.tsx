@@ -29,8 +29,10 @@ export default function HomePage() {
         </MyRuntimeProvider>
       </div>
 
-      <Button variant="outline" className="mx-auto mt-6 flex">
-        View our other examples <ArrowRight />
+      <Button variant="outline" className="mx-auto mt-6 flex" asChild>
+        <Link href="/examples">
+          View our other examples <ArrowRight />
+        </Link>
       </Button>
 
       <div className="mt-20 flex flex-col items-center gap-4">

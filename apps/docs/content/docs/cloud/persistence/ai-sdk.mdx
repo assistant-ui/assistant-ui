@@ -125,11 +125,13 @@ export function MyRuntimeProvider({
 
 Now, you can add a ThreadList component to your application. This component will display a list of threads and allow users to switch between them.
 
+```sh
+npx shadcn@latest add "https://r.assistant-ui.com/thread-list"
+```
+
 ```tsx
 <div className="grid grid-cols-[250px_1fr]">
   <ThreadList />
   <Thread />
 </div>
 ```
-
-Customization of this ThreadList component is possible, refer to the `Decomposition` guide [here](/docs/ui/styled/Decomposition#threadlist).
