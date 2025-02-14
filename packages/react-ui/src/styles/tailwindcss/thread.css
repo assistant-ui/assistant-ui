@@ -197,7 +197,7 @@
 
   @apply col-start-3 row-start-2;
   @apply -ml-1;
-  @apply data-[floating]:bg-aui-background data-[floating]:data-[floating]:rounded-md data-[floating]:border data-[floating]:p-1 data-[floating]:shadow-sm;
+  @apply data-[floating]:bg-aui-background data-[floating]:absolute data-[floating]:rounded-md data-[floating]:border data-[floating]:p-1 data-[floating]:shadow-sm;
 }
 
 .aui-assistant-action-bar-feedback-positive {
