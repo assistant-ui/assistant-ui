@@ -180,10 +180,10 @@ const MyComposerAction: FC = () => {
   return (
     <>
       <ThreadPrimitive.If running={false}>
-        <ComposerSend />
+        <Composer.Send />
       </ThreadPrimitive.If>
       <ThreadPrimitive.If running>
-        <ComposerCancel />
+        <Composer.Cancel />
       </ThreadPrimitive.If>
     </>
   );
