@@ -46,6 +46,7 @@ export const registry: RegistryItem[] = [
     registryDependencies: [
       "button",
       "avatar",
+      "scroll-area",
       "https://r.assistant-ui.com/markdown-text",
       "https://r.assistant-ui.com/tooltip-icon-button",
     ],
