@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.7.81
+
+### Patch Changes
+
+- 7f7ab5e: refactor: assitant-stream API
+- Updated dependencies [7f7ab5e]
+  - assistant-stream@0.0.20
+
 ## 0.7.80
 
 ### Patch Changes

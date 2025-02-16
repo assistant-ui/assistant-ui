@@ -1,6 +1,6 @@
 {
   "name": "assistant-ui",
-  "version": "0.0.38",
+  "version": "0.0.39",
   "license": "MIT",
   "source": "./src/index.ts",
   "dependencies": {
