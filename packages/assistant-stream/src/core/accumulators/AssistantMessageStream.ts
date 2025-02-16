@@ -9,7 +9,7 @@ export class AssistantMessageStream {
 
   static fromAssistantStream(stream: AssistantStream) {
     return new AssistantMessageStream(
-      stream.readable.pipeThrough(assistantMessageAccumulator()),
+      stream.pipeThrough(assistantMessageAccumulator()),
     );
   }
 

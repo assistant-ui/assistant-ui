@@ -33,8 +33,6 @@ export class InMemoryThreadListAdapter implements RemoteThreadListAdapter {
   }
 
   generateTitle(): Promise<AssistantStream> {
-    return Promise.resolve(
-      new AssistantStream(new ReadableStream<AssistantStreamChunk>()),
-    );
+    return Promise.resolve(new ReadableStream<AssistantStreamChunk>());
   }
 }

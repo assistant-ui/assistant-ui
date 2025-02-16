@@ -31,17 +31,15 @@ class TextStreamControllerImpl implements TextStreamController {
 export const createTextStream = (
   readable: UnderlyingReadable<TextStreamController>,
 ): AssistantStream => {
-  return new AssistantStream(
-    new ReadableStream({
-      start(c) {
-        return readable.start?.(new TextStreamControllerImpl(c));
-      },
-      pull(c) {
-        return readable.pull?.(new TextStreamControllerImpl(c));
-      },
-      cancel(c) {
-        return readable.cancel?.(c);
-      },
-    }),
-  );
+  return new ReadableStream({
+    start(c) {
+      return readable.start?.(new TextStreamControllerImpl(c));
+    },
+    pull(c) {
+      return readable.pull?.(new TextStreamControllerImpl(c));
+    },
+    cancel(c) {
+      return readable.cancel?.(c);
+    },
+  });
 };

@@ -1,4 +1,5 @@
 import { AssistantStream, AssistantStreamChunk } from "../AssistantStream";
+import { DataStreamEncoder } from "../serialization/DataStream";
 import { generateId } from "../utils/generateId";
 import { createTextStream, TextStreamController } from "./text";
 import { createToolCallStream, ToolCallStreamController } from "./tool-call";
@@ -89,7 +90,7 @@ const createMergeStream = () => {
           "Cannot add streams after the run callback has settled.",
         );
 
-      const item = { reader: stream.readable.getReader() };
+      const item = { reader: stream.getReader() };
       list.push(item);
       if (list.length === 1) {
         handlePull(item);
@@ -98,18 +99,21 @@ const createMergeStream = () => {
   };
 };
 
-export type RunController = {
+export type AssistantStreamController = {
   appendText(textDelta: string): void;
   // addTextPart(): TextStreamController;
-  // addToolCallPart(toolName: string): ToolCallStreamController;
-  // addToolCallPart(options: {
-  //   toolCallId: string;
-  //   toolName: string;
-  // }): ToolCallStreamController;
-  appendStep(stream: AssistantStream): void;
+  addToolCallPart(toolName: string): ToolCallStreamController;
+  addToolCallPart(options: {
+    toolCallId?: string;
+    toolName: string;
+    args?: Record<string, unknown>;
+    result?: unknown;
+  }): ToolCallStreamController;
+
+  merge(stream: AssistantStream): void;
 };
 
-class RunControllerImpl implements RunController {
+class RunControllerImpl implements AssistantStreamController {
   private _merge = createMergeStream();
   private _textPartController: TextStreamController | undefined;
 
@@ -122,7 +126,7 @@ class RunControllerImpl implements RunController {
     this._textPartController?.close();
   }
 
-  appendStep(stream: AssistantStream) {
+  merge(stream: AssistantStream) {
     this._merge.addStream(stream);
   }
 
@@ -140,7 +144,7 @@ class RunControllerImpl implements RunController {
         controller = c;
       },
     });
-    this.appendStep(textStream);
+    this.merge(textStream);
     return controller!;
   }
 
@@ -148,45 +152,51 @@ class RunControllerImpl implements RunController {
     options:
       | string
       | {
-          toolCallId: string;
           toolName: string;
+          toolCallId?: string;
+          args?: Record<string, unknown>;
+          result?: unknown;
         },
   ): ToolCallStreamController {
-    const opt =
-      typeof options === "string"
-        ? { toolName: options, toolCallId: generateId() }
-        : options;
+    const opt = typeof options === "string" ? { toolName: options } : options;
 
     let controller: ToolCallStreamController;
     const toolCallStream = createToolCallStream({
-      toolCallId: opt.toolCallId,
+      toolCallId: opt.toolCallId ?? generateId(),
       toolName: opt.toolName,
       start(c) {
         controller = c;
       },
     });
-    this.appendStep(toolCallStream);
+    this.merge(toolCallStream);
+
+    if (opt.args !== undefined) {
+      controller!.argsText.append(JSON.stringify(opt.args));
+      controller!.argsText.close();
+    }
+    if (opt !== undefined) {
+      controller!.setResult(opt.result);
+    }
+
     return controller!;
   }
 
   addError(error: string) {
     this._merge.addStream(
-      new AssistantStream(
-        new ReadableStream({
-          start(c) {
-            c.enqueue({
-              type: "error",
-              error,
-            });
-          },
-        }),
-      ),
+      new ReadableStream({
+        start(c) {
+          c.enqueue({
+            type: "error",
+            error,
+          });
+        },
+      }),
     );
   }
 }
 
-export function createAssistantRun(
-  callback: (controller: RunController) => Promise<void> | void,
+export function createAssistantStream(
+  callback: (controller: AssistantStreamController) => PromiseLike<void> | void,
 ): AssistantStream {
   const controller = new RunControllerImpl();
   const promiseOrVoid = callback(controller);
@@ -206,5 +216,14 @@ export function createAssistantRun(
     controller.close();
   }
 
-  return new AssistantStream(controller.getReadable());
+  return controller.getReadable();
+}
+
+export function createAssistantStreamResponse(
+  callback: (controller: AssistantStreamController) => PromiseLike<void> | void,
+) {
+  return AssistantStream.toResponse(
+    createAssistantStream(callback),
+    new DataStreamEncoder(),
+  );
 }

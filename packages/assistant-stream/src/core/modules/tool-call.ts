@@ -36,7 +36,7 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
         this._argsTextController = c;
       },
     });
-    stream.readable.pipeTo(
+    stream.pipeTo(
       new WritableStream({
         write: (chunk) => {
           if (chunk.type !== "text-delta")
@@ -84,17 +84,15 @@ export const createToolCallStream = (
     toolCallId: readable.toolCallId,
     toolName: readable.toolName,
   };
-  return new AssistantStream(
-    new ReadableStream({
-      start(c) {
-        return readable.start?.(new ToolCallStreamControllerImpl(c, options));
-      },
-      pull(c) {
-        return readable.pull?.(new ToolCallStreamControllerImpl(c, options));
-      },
-      cancel(c) {
-        return readable.cancel?.(c);
-      },
-    }),
-  );
+  return new ReadableStream({
+    start(c) {
+      return readable.start?.(new ToolCallStreamControllerImpl(c, options));
+    },
+    pull(c) {
+      return readable.pull?.(new ToolCallStreamControllerImpl(c, options));
+    },
+    cancel(c) {
+      return readable.cancel?.(c);
+    },
+  });
 };

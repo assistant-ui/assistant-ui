@@ -23,39 +23,34 @@ export type AssistantStreamChunk =
       error: string;
     };
 
-export class AssistantStream {
-  constructor(public readonly readable: ReadableStream<AssistantStreamChunk>) {
-    this.readable = readable;
-  }
+export type AssistantStream = ReadableStream<AssistantStreamChunk>;
 
+export const AssistantStream = {
   toResponse(
+    stream: AssistantStream,
     transformer: ReadableWritablePair<Uint8Array, AssistantStreamChunk>,
   ) {
-    return new Response(this.toByteStream(transformer));
-  }
+    return new Response(AssistantStream.toByteStream(stream, transformer));
+  },
 
-  static fromResponse(
+  fromResponse(
     response: Response,
     transformer: ReadableWritablePair<AssistantStreamChunk, Uint8Array>,
   ) {
     return AssistantStream.fromByteStream(response.body!, transformer);
-  }
+  },
 
   toByteStream(
+    stream: AssistantStream,
     transformer: ReadableWritablePair<Uint8Array, AssistantStreamChunk>,
   ) {
-    return this.readable.pipeThrough(transformer);
-  }
+    return stream.pipeThrough(transformer);
+  },
 
-  static fromByteStream(
+  fromByteStream(
     readable: ReadableStream<Uint8Array>,
     transformer: ReadableWritablePair<AssistantStreamChunk, Uint8Array>,
   ) {
-    return new AssistantStream(readable.pipeThrough(transformer));
-  }
-
-  tee(): [AssistantStream, AssistantStream] {
-    const [readable1, readable2] = this.readable.tee();
-    return [new AssistantStream(readable1), new AssistantStream(readable2)];
-  }
-}
+    return readable.pipeThrough(transformer);
+  },
+};

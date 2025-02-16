@@ -1,6 +1,9 @@
 // tools  type error
 
-export { createAssistantRun } from "./modules/runs";
+export {
+  createAssistantStream,
+  createAssistantStreamResponse,
+} from "./modules/runs";
 export { AssistantStream, type AssistantStreamChunk } from "./AssistantStream";
 export {
   DataStreamDecoder,
