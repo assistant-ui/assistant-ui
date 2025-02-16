@@ -23,6 +23,11 @@ type CloudThreadListAdapterOptions = {
   delete?(threadId: string): Promise<void>;
 };
 
+const baseUrl = process.env["NEXT_PUBLIC_ASSISTANT_BASE_URL"];
+const autoAdapter = baseUrl
+  ? new AssistantCloud({ baseUrl, authToken: null })
+  : undefined;
+
 export const useCloudThreadListAdapter = (
   adapter: CloudThreadListAdapterOptions,
 ): RemoteThreadListAdapter => {
