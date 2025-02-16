@@ -6,14 +6,15 @@ import { RemoteThreadListThreadListRuntimeCore } from "./RemoteThreadListThreadL
 import { RemoteThreadListOptions } from "./types";
 import { AssistantRuntimeImpl } from "../../internal";
 import { AssistantRuntimeCore } from "../core/AssistantRuntimeCore";
+import { AssistantRuntime } from "../../api/AssistantRuntime.js";
 
-class RemoteThreadListRuntimeCore
+class RemoteThreadListRuntimeCore<T extends AssistantRuntime>
   extends BaseAssistantRuntimeCore
   implements AssistantRuntimeCore
 {
   public readonly threads;
 
-  constructor(options: RemoteThreadListOptions) {
+  constructor(options: RemoteThreadListOptions<T>) {
     super();
     this.threads = new RemoteThreadListThreadListRuntimeCore(
       options,
@@ -26,13 +27,13 @@ class RemoteThreadListRuntimeCore
   }
 }
 
-export const useRemoteThreadListRuntime = (
-  options: RemoteThreadListOptions,
-) => {
+export const useRemoteThreadListRuntime = <T extends AssistantRuntime>(
+  options: RemoteThreadListOptions<T>,
+): T => {
   const [runtime] = useState(() => new RemoteThreadListRuntimeCore(options));
   useEffect(() => {
     runtime.threads.__internal_setOptions(options);
     runtime.threads.__internal_load();
   }, [runtime, options]);
-  return useMemo(() => AssistantRuntimeImpl.create(runtime), [runtime]);
+  return useMemo(() => AssistantRuntimeImpl.create(runtime) as T, [runtime]);
 };

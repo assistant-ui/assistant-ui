@@ -24,12 +24,12 @@ export const useAssistantContext = createContextHook(
   "AssistantRuntimeProvider",
 );
 
-export function useAssistantRuntime(options?: {
+export function useAssistantRuntime<T extends AssistantRuntime>(options?: {
   optional?: false | undefined;
-}): AssistantRuntime;
-export function useAssistantRuntime(options?: {
+}): T;
+export function useAssistantRuntime<T extends AssistantRuntime>(options?: {
   optional?: boolean | undefined;
-}): AssistantRuntime | null;
+}): T | null;
 export function useAssistantRuntime(options?: {
   optional?: boolean | undefined;
 }) {

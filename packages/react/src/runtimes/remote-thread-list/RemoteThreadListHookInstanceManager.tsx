@@ -21,19 +21,21 @@ import { ThreadRuntimeCore, ThreadRuntimeImpl } from "../../internal";
 import { BaseSubscribable } from "./BaseSubscribable";
 import { AssistantRuntime } from "../../api";
 
-type RemoteThreadListHook = () => AssistantRuntime;
+type RemoteThreadListHook<T extends AssistantRuntime> = () => T;
 
 type RemoteThreadListHookInstance = {
   runtime?: ThreadRuntimeCore;
 };
-export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
+export class RemoteThreadListHookInstanceManager<
+  T extends AssistantRuntime,
+> extends BaseSubscribable {
   private useRuntimeHook: UseBoundStore<
-    StoreApi<{ useRuntime: RemoteThreadListHook }>
+    StoreApi<{ useRuntime: RemoteThreadListHook<T> }>
   >;
   private instances = new Map<string, RemoteThreadListHookInstance>();
   private useAliveThreadsKeysChanged = create(() => ({}));
 
-  constructor(runtimeHook: RemoteThreadListHook) {
+  constructor(runtimeHook: RemoteThreadListHook<T>) {
     super();
     this.useRuntimeHook = create(() => ({ useRuntime: runtimeHook }));
   }
@@ -76,7 +78,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     this.useAliveThreadsKeysChanged.setState({}, true);
   }
 
-  public setRuntimeHook(newRuntimeHook: RemoteThreadListHook) {
+  public setRuntimeHook(newRuntimeHook: RemoteThreadListHook<T>) {
     const prevRuntimeHook = this.useRuntimeHook.getState().useRuntime;
     if (prevRuntimeHook !== newRuntimeHook) {
       this.useRuntimeHook.setState({ useRuntime: newRuntimeHook }, true);
