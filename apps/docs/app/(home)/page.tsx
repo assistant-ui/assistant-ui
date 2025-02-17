@@ -18,10 +18,12 @@ import { ArrowRight } from "lucide-react";
 import { MyRuntimeProvider } from "./MyRuntimeProvider";
 import { Marquee } from "@/components/magicui/marquee";
 import { useMediaQuery } from "@/lib/useMediaQuery";
+import { YCPill } from "./home/YCPill";
 
 export default function HomePage() {
   return (
     <main className="container relative z-[2] max-w-[1100px] px-2 py-16 lg:py-16">
+      <YCPill />
       <Hero />
       <div className="mx-auto mt-6 flex h-[650px] w-full max-w-screen-xl flex-col overflow-hidden rounded-lg border shadow">
         <MyRuntimeProvider>
