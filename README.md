@@ -69,13 +69,17 @@ Sample customization to make a perplexity lookalike:
 
 ## **Demo Video**
 
-[Demo Video](https://youtu.be/9eLKs9AM4tU?si=jm9GzoFAcyM_tPT-)
+[![Short Demo](https://img.youtube.com/vi/ZW56UHlqTCQ/hqdefault.jpg)](https://youtu.be/ZW56UHlqTCQ)
+
+[![Long Demo](https://img.youtube.com/vi/9eLKs9AM4tU/hqdefault.jpg)](https://youtu.be/9eLKs9AM4tU)
 
 ## Traction
 
 Hundreds of projects use assistant-ui to build in-app AI assistants, including companies like LangChain, AthenaIntelligence, Browser Use, and more.
 
 With >50k+ monthly downloads, assistant-ui is the most popular UI library for AI chat.
+
+![Growth](https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/growth.png)
 
 ## Next Steps
 
