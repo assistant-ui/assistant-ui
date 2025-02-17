@@ -8,7 +8,7 @@ import {
 export type AssistantCloudConfig =
   | {
       baseUrl: string;
-      authToken: (() => Promise<string | null>) | undefined;
+      authToken: () => Promise<string | null>;
     }
   | {
       apiKey: string;
