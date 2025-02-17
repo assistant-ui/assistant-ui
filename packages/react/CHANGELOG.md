@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.82
+
+### Patch Changes
+
+- 934ee4b: feat: anonymous login and auto-config for cloud
+
 ## 0.7.81
 
 ### Patch Changes
