@@ -79,7 +79,21 @@ Hundreds of projects use assistant-ui to build in-app AI assistants, including c
 
 With >50k+ monthly downloads, assistant-ui is the most popular UI library for AI chat.
 
-![Growth](https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/growth.png)
+<img src="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/growth.png" alt="Growth" style="max-width: 400px;">
+
+## 2025 Q1 Roadmap
+
+- [x] Assistant Cloud
+- [x] Chat Persistence
+- [x] React 19, Tailwind v4, NextJS 19 support
+- [x] Improved Markdown rendering performance
+- [x] LangGraph `interrupt()` support
+- [x] Open in v0 support
+- [ ] Improved documentation (work in progress)
+- [ ] OpenAI Realtime Voice (work in progress)
+- [ ] Resume interrupted LLM calls (work in progress)
+- [ ] Native PDF attachment support
+- [ ] Follow-up suggestions
 
 ## Next Steps
 
