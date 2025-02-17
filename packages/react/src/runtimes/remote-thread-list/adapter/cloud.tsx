@@ -23,6 +23,11 @@ type CloudThreadListAdapterOptions = {
   delete?(threadId: string): Promise<void>;
 };
 
+const baseUrl = process.env["NEXT_PUBLIC_ASSISTANT_BASE_URL"];
+const autoCloud = baseUrl
+  ? new AssistantCloud({ baseUrl, anonymous: true })
+  : undefined;
+
 export const useCloudThreadListAdapter = (
   adapter: CloudThreadListAdapterOptions,
 ): RemoteThreadListAdapter => {
@@ -31,7 +36,25 @@ export const useCloudThreadListAdapter = (
     adapterRef.current = adapter;
   }, [adapter]);
 
-  const cloud = adapter.cloud;
+  const unstable_Provider = useCallback<FC<PropsWithChildren>>(
+    ({ children }) => {
+      const history = useAssistantCloudThreadHistoryAdapter({
+        get current() {
+          return adapterRef.current.cloud ?? autoCloud!;
+        },
+      });
+      const adapters = useMemo(() => ({ history }), [history]);
+
+      return (
+        <RuntimeAdapterProvider adapters={adapters}>
+          {children}
+        </RuntimeAdapterProvider>
+      );
+    },
+    [],
+  );
+
+  const cloud = adapter.cloud ?? autoCloud;
   if (!cloud) return new InMemoryThreadListAdapter();
 
   return {
@@ -81,19 +104,6 @@ export const useCloudThreadListAdapter = (
       });
     },
 
-    unstable_Provider: useCallback<FC<PropsWithChildren>>(({ children }) => {
-      const history = useAssistantCloudThreadHistoryAdapter({
-        get current() {
-          return adapterRef.current.cloud!;
-        },
-      });
-      const adapters = useMemo(() => ({ history }), [history]);
-
-      return (
-        <RuntimeAdapterProvider adapters={adapters}>
-          {children}
-        </RuntimeAdapterProvider>
-      );
-    }, []),
+    unstable_Provider,
   };
 };

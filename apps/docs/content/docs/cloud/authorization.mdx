@@ -90,3 +90,24 @@ const assistantCloud = new AssistantCloud({
     fetch("/api/assistant-ui-token", { method: "POST" }).then((r) => r.json()),
 });
 ```
+
+### Clerk
+
+First, go to the Clerk dashboard and under "Configure" tab, "JWT Templates" section, create a new template. Choose a blank template and name it "assistant-ui".
+
+As the "Claims" field, enter the following:
+
+```json
+{
+  "aud": "assistant-ui"
+}
+```
+
+<Callout emoji="⚠️">
+  <b>Note:</b> The aud claim ensures that the JWT is only valid for the
+  assistant-ui API.
+</Callout>
+
+You can leave everything else as default. Take note of the "Issuer" and "JWKS Endpoint" fields.
+
+Then, In the assistant-cloud dashboard, navigate to the "Auth Rules" tab and create a new rule. Choose "Clerk" and enter the Issuer and JWKS Endpoint from the previous step. As the "Audience" field, enter "assistant-ui".

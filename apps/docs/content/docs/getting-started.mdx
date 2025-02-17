@@ -30,6 +30,9 @@ Add a new `.env` file to your project with your OpenAI API key:
 
 ```
 OPENAI_API_KEY="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# chat history -- sign up for free on https://cloud.assistant-ui.com
+# NEXT_PUBLIC_ASSISTANT_BASE_URL="https://..."
 ```
 
   </Step>
@@ -369,6 +372,7 @@ If you aren't using Next.js, you can also deploy this endpoint to Cloudflare Wor
 ```tsx title="/app/page.tsx" tab="Thread"
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { ThreadList } from "@/components/assistant-ui/thread";
 import { Thread } from "@/components/assistant-ui/thread";
 
 const MyApp = () => {
@@ -378,7 +382,8 @@ const MyApp = () => {
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <div className="h-full">
+      <div className="grid h-dvh grid-cols-[200px_1fr] gap-x-2 px-4 py-4">
+        <ThreadList />
         <Thread />
       </div>
     </AssistantRuntimeProvider>

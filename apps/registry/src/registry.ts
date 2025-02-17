@@ -14,6 +14,7 @@ export const registry: RegistryItem[] = [
     registryDependencies: [
       "https://r.assistant-ui.com/ai-sdk-backend",
       "https://r.assistant-ui.com/thread",
+      "https://r.assistant-ui.com/thread-list",
     ],
     meta: {
       importSpecifier: "Assistant",
