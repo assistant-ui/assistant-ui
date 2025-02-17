@@ -141,7 +141,7 @@ function Hero() {
 }
 
 const Logos = () => {
-  const isMobile = useMediaQuery("(max-width: 768px)");
+  const isMobile = useMediaQuery("(max-width: 1080px)");
 
   const content = (
     <div className="flex w-full items-center justify-around rounded pt-6">
@@ -175,9 +175,11 @@ const Logos = () => {
 
   if (isMobile) {
     return (
-      <Marquee repeat={4}>
-        <div className="flex w-[1000px]">{content}</div>
-      </Marquee>
+      <div className="w-full overflow-clip">
+        <Marquee repeat={4}>
+          <div className="flex w-[1000px]">{content}</div>
+        </Marquee>
+      </div>
     );
   }
 
