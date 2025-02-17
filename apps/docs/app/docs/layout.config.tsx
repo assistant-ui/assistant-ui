@@ -75,7 +75,7 @@ export const baseOptions: HomeLayoutProps = {
       type: "custom",
       children: (
         <Button className="mr-2 rounded-full" asChild>
-          <Link href="https://dash.assistant-ui.com/">Dashboard</Link>
+          <Link href="https://cloud.assistant-ui.com/">Dashboard</Link>
         </Button>
       ),
       secondary: true,

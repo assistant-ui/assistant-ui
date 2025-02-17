@@ -9,7 +9,7 @@ const pricingOptions = [
     price: "Up to 200 MAU",
     features: ["200 MAU", "Chat History", "Thread Management"],
     button: "Sign up",
-    buttonLink: "https://dash.assistant-ui.com/",
+    buttonLink: "https://cloud.assistant-ui.com/",
   },
   {
     title: "Pro",
@@ -21,7 +21,7 @@ const pricingOptions = [
       "Early Access To New Features",
     ],
     button: "Sign up",
-    buttonLink: "https://dash.assistant-ui.com/",
+    buttonLink: "https://cloud.assistant-ui.com/",
   },
   {
     title: "Enterprise",

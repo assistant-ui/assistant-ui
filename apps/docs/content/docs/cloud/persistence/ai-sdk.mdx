@@ -10,7 +10,7 @@ This guide will walk you through the process of integrating assistant-cloud with
 ### Prerequisites
 
 You need an assistant-cloud account to follow this guide.  
-You can sign up here: https://dash.assistant-ui.com/
+You can sign up here: https://cloud.assistant-ui.com/
 
 ### Setting up an assistant-cloud project
 
@@ -23,103 +23,6 @@ To get started, follow the steps below:
 ```bash
 NEXT_PUBLIC_ASSISTANT_BASE_URL=https://<your-frontend-api-url>
 ```
-
-### Setting up authorization
-
-This guide will use Clerk for authorization. For other options, refer to the [authorization guide](/docs/cloud/authorization).
-
-First, go to the Clerk dashboard and under "Configure" tab, "JWT Templates" section, create a new template. Choose a blank template and name it "assistant-ui".
-
-As the "Claims" field, enter the following:
-
-```json
-{
-  "aud": "assistant-ui"
-}
-```
-
-<Callout emoji="⚠️">
-  <b>Note:</b> The aud claim ensures that the JWT is only valid for the
-  assistant-ui API.
-</Callout>
-
-You can leave everything else as default. Take note of the "Issuer" and "JWKS Endpoint" fields.
-
-Then, In the assistant-cloud dashboard, navigate to the "Auth Rules" tab and create a new rule. Choose "Clerk" and enter the Issuer and JWKS Endpoint from the previous step. As the "Audience" field, enter "assistant-ui".
-
-### Connecting the runtime provider
-
-Now that we have everything set up, let's write the code for the runtime provider.
-
-The code below is a simple AI SDK runtime provider that uses the assistant-cloud API to create and manage threads.
-
-```tsx title="/app/api/chat/route.ts"
-import { openai } from "@ai-sdk/openai";
-import { streamText } from "ai";
-
-export const maxDuration = 30;
-
-export async function POST(req: Request) {
-  const { messages } = await req.json();
-
-  const result = streamText({
-    model: openai("gpt-4o"),
-    messages,
-  });
-
-  return result.toDataStreamResponse();
-}
-```
-
-```tsx twoslash {1-2,5-6,19,27,29-36,38-45} title="/app/MyRuntimeProvider.tsx"
-// @errors: 2307
-
-"use client";
-
-import {
-  AssistantCloud,
-  AssistantRuntimeProvider,
-  useCloudThreadListRuntime,
-} from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
-import { createThread, getThreadState, sendMessage } from "@/lib/chatApi";
-import { useAuth } from "@clerk/nextjs";
-import { useMemo } from "react";
-
-// ---cut---
-export function MyRuntimeProvider({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  const { getToken } = useAuth();
-
-  const cloud = useMemo(
-    () =>
-      new AssistantCloud({
-        baseUrl: process.env["NEXT_PUBLIC_ASSISTANT_BASE_URL"]!,
-        authToken: async () => getToken({ template: "assistant-ui" }),
-      }),
-    [getToken],
-  );
-
-  const runtime = useChatRuntime({
-    cloud,
-    api: "/api/chat",
-  });
-
-  return (
-    <AssistantRuntimeProvider runtime={runtime}>
-      {children}
-    </AssistantRuntimeProvider>
-  );
-}
-```
-
-<Callout emoji="💡">
-  Observe that the `useMyAISDKRuntime` hook is extracted into a separate
-  function. This hook will be mounted multiple times, once per active thread.
-</Callout>
 
 ### Displaying a ThreadList component
 
