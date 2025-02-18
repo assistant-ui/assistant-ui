@@ -1,5 +1,13 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.7.16
+
+### Patch Changes
+
+- ecde41d: feat: useVercelChatChat joinStrategy
+- Updated dependencies [3454871]
+  - @assistant-ui/react@0.7.85
+
 ## 0.7.15
 
 ### Patch Changes

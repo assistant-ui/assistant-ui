@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.85
+
+### Patch Changes
+
+- 3454871: fix: Vite bundler compat
+
 ## 0.7.84
 
 ### Patch Changes
