@@ -1,17 +1,17 @@
 import { generateId } from "../../internal";
 import {
-  MessageStatus,
-  TextContentPart,
-  ImageContentPart,
-  UIContentPart,
-  ThreadMessage,
-  ThreadAssistantContentPart,
-  ThreadAssistantMessage,
-  ThreadUserContentPart,
-  ThreadUserMessage,
-  ThreadSystemMessage,
   CompleteAttachment,
   FileContentPart,
+  ImageContentPart,
+  MessageStatus,
+  TextContentPart,
+  ThreadAssistantContentPart,
+  ThreadAssistantMessage,
+  ThreadMessage,
+  ThreadSystemMessage,
+  ThreadUserContentPart,
+  ThreadUserMessage,
+  UIContentPart,
   Unstable_AudioContentPart,
 } from "../../types";
 import { ReasoningContentPart, ThreadStep } from "../../types/AssistantTypes";
@@ -22,7 +22,7 @@ import {
 import { parsePartialJson } from "../../utils/json/parse-partial-json";
 
 export type ThreadMessageLike = {
-  readonly role: "assistant" | "user" | "system";
+  readonly role: "assistant" | "user" | "system" | "data";
   readonly content:
     | string
     | readonly (
