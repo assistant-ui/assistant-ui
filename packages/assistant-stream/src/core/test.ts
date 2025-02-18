@@ -6,9 +6,9 @@
 // spans have controllers to emit events
 // assistant-stream === span  (span: start, events, finish, errors?)
 
-import { createAssistantStreamResponse } from "./modules/runs";
+import { createAssistantStreamResponse } from "./modules/assistant-stream";
 import { AssistantStream } from "./AssistantStream";
-import { DataStreamDecoder } from "./serialization/DataStream";
+import { DataStreamDecoder } from "./serialization/data-stream/DataStream";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 

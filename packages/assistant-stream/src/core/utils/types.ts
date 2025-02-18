@@ -1,3 +1,5 @@
+import { ReadonlyJSONObject, ReadonlyJSONValue } from "./json/json-value";
+
 type TextStatus =
   | {
       type: "running";
@@ -11,7 +13,7 @@ type TextStatus =
       reason: "cancelled" | "length" | "content-filter" | "other";
     };
 
-type TextContentPart = {
+export type TextPart = {
   type: "text";
   text: string;
   status: TextStatus;
@@ -35,21 +37,53 @@ type ToolCallStatus =
       reason: "cancelled" | "length" | "content-filter" | "other";
     };
 
-export type ToolCallContentPart = {
+export type ToolCallPart = {
   type: "tool-call";
   status: ToolCallStatus;
   toolCallId: string;
   toolName: string;
   argsText: string;
-  args: Record<string, unknown>;
-  result?: unknown;
+  args: ReadonlyJSONObject;
+  result?: ReadonlyJSONValue;
+  isError?: boolean;
 };
 
-type AssistantMessageContentPart = TextContentPart | ToolCallContentPart;
+export type SourcePart = {
+  type: "source";
+  sourceType: "url";
+  id: string;
+  url: string;
+  title?: string;
+};
 
-type AssistantMessageStepMetadata = {};
+type AssistantMessagePart = TextPart | ToolCallPart | SourcePart;
 
-export type AssitantMessageStatus =
+type AssistantMessageStepUsage = {
+  promptTokens: number;
+  completionTokens: number;
+};
+
+type AssistantMessageStepMetadata =
+  | {
+      state: "started";
+      messageId: string;
+    }
+  | {
+      state: "finished";
+      messageId: string;
+      finishReason:
+        | "stop"
+        | "length"
+        | "content-filter"
+        | "tool-calls"
+        | "error"
+        | "other"
+        | "unknown";
+      usage?: AssistantMessageStepUsage;
+      isContinued: boolean;
+    };
+
+export type AssistantMessageStatus =
   | {
       type: "running";
     }
@@ -70,14 +104,16 @@ export type AssitantMessageStatus =
         | "content-filter"
         | "other"
         | "error";
-      error?: unknown;
+      error?: ReadonlyJSONValue;
     };
 
 export type AssistantMessage = {
   role: "assistant";
-  status: AssitantMessageStatus;
-  content: AssistantMessageContentPart[];
+  status: AssistantMessageStatus;
+  parts: AssistantMessagePart[];
   metadata: {
+    unstable_data: ReadonlyJSONValue[];
+    unstable_annotations: ReadonlyJSONValue[];
     steps: AssistantMessageStepMetadata[];
     custom: Record<string, unknown>;
   };
