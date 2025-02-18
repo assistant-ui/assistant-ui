@@ -29,7 +29,7 @@
     "conversational-ui",
     "conversational-ai"
   ],
-  "version": "0.7.83",
+  "version": "0.7.84",
   "license": "MIT",
   "exports": {
     ".": {
@@ -85,7 +85,7 @@
     "classnames": "^2.5.1",
     "json-schema": "^0.4.0",
     "lucide-react": "^0.475.0",
-    "nanoid": "^5.0.9",
+    "nanoid": "3.3.8",
     "react-textarea-autosize": "^8.5.7",
     "secure-json-parse": "^3.0.2",
     "zod": "^3.24.1",

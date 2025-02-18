@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.0.21
+
+### Patch Changes
+
+- fix: pin nanoid version for CJS compat
+
 ## 0.0.20
 
 ### Patch Changes

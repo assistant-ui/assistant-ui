@@ -136,8 +136,8 @@ importers:
         specifier: ^12.4.1
         version: 12.4.1(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       nanoid:
-        specifier: ^5.0.9
-        version: 5.0.9
+        specifier: 3.3.8
+        version: 3.3.8
       next:
         specifier: 15.1.6
         version: 15.1.6(@opentelemetry/api@1.9.0)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
@@ -424,8 +424,8 @@ importers:
         specifier: ^0.475.0
         version: 0.475.0(react@19.0.0)
       nanoid:
-        specifier: ^5.0.9
-        version: 5.0.9
+        specifier: 3.3.8
+        version: 3.3.8
       next:
         specifier: 15.1.6
         version: 15.1.6(@opentelemetry/api@1.9.0)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
@@ -552,8 +552,8 @@ importers:
         specifier: ^9.0.2
         version: 9.0.2
       nanoid:
-        specifier: ^5.0.9
-        version: 5.0.9
+        specifier: 3.3.8
+        version: 3.3.8
       next:
         specifier: 15.1.6
         version: 15.1.6(@opentelemetry/api@1.9.0)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
@@ -874,8 +874,8 @@ importers:
         specifier: ^0.475.0
         version: 0.475.0(react@19.0.0)
       nanoid:
-        specifier: ^5.0.9
-        version: 5.0.9
+        specifier: 3.3.8
+        version: 3.3.8
       next:
         specifier: 15.1.6
         version: 15.1.6(@opentelemetry/api@1.9.0)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
@@ -1144,8 +1144,8 @@ importers:
         specifier: ^0.475.0
         version: 0.475.0(react@19.0.0)
       nanoid:
-        specifier: ^5.0.9
-        version: 5.0.9
+        specifier: 3.3.8
+        version: 3.3.8
       next:
         specifier: 15.1.6
         version: 15.1.6(@opentelemetry/api@1.9.0)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
@@ -1196,8 +1196,8 @@ importers:
   packages/assistant-stream:
     dependencies:
       nanoid:
-        specifier: ^5.0.9
-        version: 5.0.9
+        specifier: 3.3.8
+        version: 3.3.8
       secure-json-parse:
         specifier: ^3.0.2
         version: 3.0.2
@@ -1373,8 +1373,8 @@ importers:
         specifier: ^0.475.0
         version: 0.475.0(react@19.0.0)
       nanoid:
-        specifier: ^5.0.9
-        version: 5.0.9
+        specifier: 3.3.8
+        version: 3.3.8
       react:
         specifier: 19.0.0
         version: 19.0.0
@@ -6186,11 +6186,6 @@ packages:
   nanoid@3.3.8:
     resolution: {integrity: sha512-WNLf5Sd8oZxOm+TzppcYk8gVOgP+l58xNy58D0nbUnOxOWRWvlcCV4kUF7ltmI6PsrLl/BgKEyS4mqsGChFN0w==}
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
-    hasBin: true
-
-  nanoid@5.0.9:
-    resolution: {integrity: sha512-Aooyr6MXU6HpvvWXKoVoXwKMs/KyVakWwg7xQfv5/S/RIgJMy0Ifa45H9qqYy7pTCszrHzP21Uk4PZq2HpEM8Q==}
-    engines: {node: ^18 || >=20}
     hasBin: true
 
   natural-compare@1.4.0:
@@ -12804,8 +12799,6 @@ snapshots:
       thenify-all: 1.6.0
 
   nanoid@3.3.8: {}
-
-  nanoid@5.0.9: {}
 
   natural-compare@1.4.0: {}
 

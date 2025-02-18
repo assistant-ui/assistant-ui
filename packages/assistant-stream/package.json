@@ -1,6 +1,6 @@
 {
   "name": "assistant-stream",
-  "version": "0.0.20",
+  "version": "0.0.21",
   "license": "MIT",
   "exports": {
     ".": {
@@ -57,7 +57,7 @@
     "url": "https://github.com/assistant-ui/assistant-ui/issues"
   },
   "dependencies": {
-    "nanoid": "^5.0.9",
+    "nanoid": "3.3.8",
     "secure-json-parse": "^3.0.2"
   }
 }

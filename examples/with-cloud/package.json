@@ -15,7 +15,7 @@
     "@assistant-ui/react-ui": "workspace:^",
     "ai": "^4.1.25",
     "jsonwebtoken": "^9.0.2",
-    "nanoid": "^5.0.9",
+    "nanoid": "3.3.8",
     "next": "15.1.6",
     "react": "19.0.0",
     "react-dom": "19.0.0",

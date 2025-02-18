@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.7.84
+
+### Patch Changes
+
+- fix: pin nanoid version for CJS compat
+- Updated dependencies
+  - assistant-stream@0.0.21
+
 ## 0.7.83
 
 ### Patch Changes
