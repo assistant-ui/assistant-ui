@@ -35,7 +35,9 @@ export type RemoteThreadListAdapter = {
   unstable_Provider?: ComponentType<PropsWithChildren>;
 };
 
-export type RemoteThreadListOptions = {
-  runtimeHook: () => AssistantRuntime;
+export type RemoteThreadListOptions<
+  T extends AssistantRuntime = AssistantRuntime,
+> = {
+  runtimeHook: () => T;
   adapter: RemoteThreadListAdapter;
 };

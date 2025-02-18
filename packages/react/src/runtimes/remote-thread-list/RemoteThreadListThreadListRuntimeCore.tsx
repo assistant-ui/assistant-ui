@@ -15,6 +15,7 @@ import { create } from "zustand";
 import { AssistantMessageStream } from "assistant-stream";
 import { ModelContextProvider } from "../../model-context";
 import { RuntimeAdapterProvider } from "../adapters/RuntimeAdapterProvider";
+import { AssistantRuntime } from "../../api/AssistantRuntime.js";
 
 type RemoteThreadData =
   | {
@@ -137,12 +138,12 @@ const updateStatusReducer = (
   return newState;
 };
 
-export class RemoteThreadListThreadListRuntimeCore
+export class RemoteThreadListThreadListRuntimeCore<T extends AssistantRuntime>
   extends BaseSubscribable
   implements ThreadListRuntimeCore
 {
-  private _options!: RemoteThreadListOptions;
-  private readonly _hookManager: RemoteThreadListHookInstanceManager;
+  private _options!: RemoteThreadListOptions<T>;
+  private readonly _hookManager: RemoteThreadListHookInstanceManager<T>;
 
   private _loadThreadsPromise: Promise<void> | undefined;
 
@@ -228,7 +229,7 @@ export class RemoteThreadListThreadListRuntimeCore
   }
 
   constructor(
-    options: RemoteThreadListOptions,
+    options: RemoteThreadListOptions<T>,
     private readonly contextProvider: ModelContextProvider,
   ) {
     super();
@@ -247,7 +248,7 @@ export class RemoteThreadListThreadListRuntimeCore
 
   private useProvider;
 
-  public __internal_setOptions(options: RemoteThreadListOptions) {
+  public __internal_setOptions(options: RemoteThreadListOptions<T>) {
     if (this._options === options) return;
 
     this._options = options;
