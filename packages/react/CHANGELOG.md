@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.83
+
+### Patch Changes
+
+- 54b631c: chore: update README
+
 ## 0.7.82
 
 ### Patch Changes
