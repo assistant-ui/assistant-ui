@@ -243,7 +243,7 @@ export const useExternalMessageConverter = <T extends WeakKey>({
   callback: useExternalMessageConverter.Callback<T>;
   messages: T[];
   isRunning: boolean;
-  joinStrategy?: "concat-content" | "none";
+  joinStrategy?: "concat-content" | "none" | undefined;
 }) => {
   const state = useMemo(
     () => ({

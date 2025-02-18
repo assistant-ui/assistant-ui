@@ -17,6 +17,7 @@ export type VercelUseChatAdapter = {
   adapters?:
     | Omit<NonNullable<ExternalStoreAdapter["adapters"]>, "attachments">
     | undefined;
+  unstable_joinStrategy?: "concat-content" | "none";
 };
 
 export const useVercelUseChatRuntime = (
@@ -27,6 +28,7 @@ export const useVercelUseChatRuntime = (
     callback: convertMessage,
     isRunning: chatHelpers.isLoading,
     messages: chatHelpers.messages,
+    joinStrategy: adapter.unstable_joinStrategy,
   });
 
   const [threadId, setThreadId] = useState<string>(generateId());
