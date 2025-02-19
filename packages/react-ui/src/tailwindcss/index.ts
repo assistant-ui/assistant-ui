@@ -1,10 +1,10 @@
 import plugin from "tailwindcss/plugin.js";
-import baseComponentsCSS from "../../dist/styles/tailwindcss/base-components.css.json";
-import threadCSS from "../../dist/styles/tailwindcss/thread.css.json";
-import modalCSS from "../../dist/styles/tailwindcss/modal.css.json";
-import defaultThemeCSS from "../../dist/styles/themes/default.css.json";
-import shadcnExtrasCSS from "../../dist/styles/themes/shadcn-extras.css.json";
-import markdownCSS from "../../dist/styles/tailwindcss/markdown.css.json";
+import baseComponentsCSS from "../../dist/styles/tailwindcss/base-components.css.json" with { type: "json" };
+import threadCSS from "../../dist/styles/tailwindcss/thread.css.json" with { type: "json" };
+import modalCSS from "../../dist/styles/tailwindcss/modal.css.json" with { type: "json" };
+import defaultThemeCSS from "../../dist/styles/themes/default.css.json" with { type: "json" };
+import shadcnExtrasCSS from "../../dist/styles/themes/shadcn-extras.css.json" with { type: "json" };
+import markdownCSS from "../../dist/styles/tailwindcss/markdown.css.json" with { type: "json" };
 
 type AssistantTailwindPluginColors = {
   border: string;
