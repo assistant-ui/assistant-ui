@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.86
+
+### Patch Changes
+
+- 4685652: feat: useToolArgsFieldStatus
+
 ## 0.7.85
 
 ### Patch Changes
