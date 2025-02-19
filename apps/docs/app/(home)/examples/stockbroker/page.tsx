@@ -10,7 +10,7 @@ export default function Component() {
           <iframe
             title="Stockbroker example"
             className="h-full w-full border-none"
-            src="https://assistant-ui-artifacts.vercel.app/"
+            src="https://assistant-ui-stockbroker.vercel.app/"
           />
         </div>
       </div>

@@ -8,9 +8,9 @@ export default function Component() {
 
         <div className="h-[700px]">
           <iframe
-            title="Stockbroker example"
+            title="Artifacts example"
             className="h-full w-full border-none"
-            src="https://assistant-ui-stockbroker.vercel.app/"
+            src="https://assistant-ui-artifacts.vercel.app/"
           />
         </div>
       </div>
