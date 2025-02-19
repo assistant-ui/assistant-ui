@@ -40,7 +40,7 @@ type State =
 // Please note that invalid JSON is not considered/covered, because it
 // is assumed that the resulting JSON will be processed by a standard
 // JSON parser that will detect any invalid JSON.
-export function fixJson(input: string): string {
+export function fixJson(input: string): [string, number] {
   const stack: State[] = ["ROOT"];
   let lastValidIndex = -1;
   let literalStart: number | null = null;
@@ -372,6 +372,7 @@ export function fixJson(input: string): string {
   }
 
   let result = input.slice(0, lastValidIndex + 1);
+  let partialCount = 0;
 
   for (let i = stack.length - 1; i >= 0; i--) {
     const state = stack[i];
@@ -379,6 +380,7 @@ export function fixJson(input: string): string {
     switch (state) {
       case "INSIDE_STRING": {
         result += '"';
+        partialCount++;
         break;
       }
 
@@ -389,6 +391,7 @@ export function fixJson(input: string): string {
       case "INSIDE_OBJECT_BEFORE_VALUE":
       case "INSIDE_OBJECT_AFTER_VALUE": {
         result += "}";
+        partialCount++;
         break;
       }
 
@@ -396,6 +399,7 @@ export function fixJson(input: string): string {
       case "INSIDE_ARRAY_AFTER_COMMA":
       case "INSIDE_ARRAY_AFTER_VALUE": {
         result += "]";
+        partialCount++;
         break;
       }
 
@@ -413,5 +417,5 @@ export function fixJson(input: string): string {
     }
   }
 
-  return result;
+  return [result, partialCount];
 }
