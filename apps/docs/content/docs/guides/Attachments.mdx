@@ -29,3 +29,138 @@ const runtime = useChatRuntime({
   },
 });
 ```
+
+# Tutorial: Mastering Attachment Handling with CompositeAttachmentAdapter
+
+In this tutorial, we'll explore how to handle attachments in your assistant-ui application using the CompositeAttachmentAdapter. This powerful feature allows users to attach various types of files to their messages, enhancing the functionality of your AI chat interface.
+
+## Introduction
+
+Attachments are a crucial part of many chat applications, allowing users to share images, documents, and other files. The assistant-ui library provides a flexible system for handling attachments through its AttachmentAdapter interface.
+
+## Prerequisites
+
+Before we begin, make sure you have:
+
+1.  A basic assistant-ui project set up
+2.  Familiarity with React and TypeScript
+3.  Node.js and npm/yarn installed
+
+## Step 1: Understanding AttachmentAdapter
+
+The AttachmentAdapter is an interface that defines how attachments are handled in your application. It includes methods for adding, sending, and removing attachments.
+
+## Step 2: Introducing CompositeAttachmentAdapter
+
+The CompositeAttachmentAdapter is a powerful tool that allows you to combine multiple attachment adapters into one. This is particularly useful when you want to support different types of attachments, such as images and text files.
+
+## Step 3: Setting up the CompositeAttachmentAdapter
+
+Let's create a CompositeAttachmentAdapter that supports both image and text attachments:
+
+```ts
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import {
+  CompositeAttachmentAdapter,
+  SimpleImageAttachmentAdapter,
+  SimpleTextAttachmentAdapter,
+} from "@assistant-ui/react";
+
+const MyRuntimeProvider = () => {
+  const runtime = useChatRuntime({
+    api: "/api/chat",
+    adapters: {
+      attachments: new CompositeAttachmentAdapter([
+        new SimpleImageAttachmentAdapter(),
+        new SimpleTextAttachmentAdapter(),
+      ]),
+    },
+  });
+
+  // ... rest of your component
+};
+```
+
+In this example, we're creating a CompositeAttachmentAdapter that combines a SimpleImageAttachmentAdapter and a SimpleTextAttachmentAdapter. This allows our application to handle both image and text file attachments.
+
+## Step 4: Implementing Attachment UI
+
+Now that we have our adapter set up, let's implement the UI components for attachments:
+
+```tsx
+import {
+  ComposerAttachments,
+  ComposerAddAttachment,
+  UserMessageAttachments,
+} from "@/components/assistant-ui/attachment";
+
+const Composer = () => {
+  return (
+    <ComposerPrimitive.Root className="...">
+      <ComposerAttachments />
+      <ComposerAddAttachment />
+      {/* ... other composer elements */}
+    </ComposerPrimitive.Root>
+  );
+};
+
+const UserMessage = () => {
+  return (
+    <MessagePrimitive.Root className="...">
+      <UserMessageAttachments />
+      {/* ... other message elements */}
+    </MessagePrimitive.Root>
+  );
+};
+```
+
+These components will handle the display of attachments in the composer and in user messages.
+
+## Step 5: Customizing Attachment Behavior
+
+You can customize the behavior of your attachments by modifying the AttachmentAdapter. For example, you might want to add support for a new file type or change how attachments are processed before sending.
+
+Here's an example of a custom attachment adapter:
+
+```ts
+import { AttachmentAdapter } from "@assistant-ui/react";
+
+class CustomAttachmentAdapter implements AttachmentAdapter {
+  accept = "image/*, .pdf";
+
+  async add({ file }) {
+    // Custom logic for adding an attachment
+    // ...
+  }
+
+  async send(attachment) {
+    // Custom logic for sending an attachment
+    // ...
+  }
+
+  async remove() {
+    // Custom logic for removing an attachment
+    // ...
+  }
+}
+
+// Use it in your CompositeAttachmentAdapter
+const compositeAdapter = new CompositeAttachmentAdapter([
+  new CustomAttachmentAdapter(),
+  new SimpleTextAttachmentAdapter(),
+]);
+```
+
+## Step 6: Handling Attachments in Your Backend
+
+Remember to update your backend API to handle the attachments sent by the frontend. The exact implementation will depend on your backend technology, but you'll need to:
+
+1.  Receive the attachment data
+2.  Process and store the attachments as needed
+3.  Associate the attachments with the correct messages or conversations
+
+## Conclusion
+
+By mastering the CompositeAttachmentAdapter, you've unlocked powerful attachment handling capabilities in your assistant-ui application. You can now support multiple types of attachments, customize their behavior, and create a rich, interactive chat experience for your users.
+
+Remember to test your attachment handling thoroughly, considering different file types, sizes, and potential error scenarios. Happy coding!
