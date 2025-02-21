@@ -14,6 +14,16 @@ import { CheckIcon, CopyIcon } from "lucide-react";
 
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { cn } from "@/lib/utils";
+import { makePrismAsyncSyntaxHighlighter } from "@assistant-ui/react-syntax-highlighter";
+import { coldarkDark } from "react-syntax-highlighter/dist/cjs/styles/prism";
+
+const SyntaxHighlighter = makePrismAsyncSyntaxHighlighter({
+  style: coldarkDark,
+  customStyle: {
+    margin: 0,
+    backgroundColor: "black",
+  },
+});
 
 const MarkdownTextImpl = () => {
   return (
@@ -216,4 +226,5 @@ const defaultComponents = memoizeMarkdownComponents({
     );
   },
   CodeHeader,
+  SyntaxHighlighter,
 });

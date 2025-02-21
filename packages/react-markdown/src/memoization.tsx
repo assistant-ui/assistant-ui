@@ -5,8 +5,10 @@ import { CodeHeaderProps, SyntaxHighlighterProps } from "./overrides/types";
 type Components = {
   [Key in Extract<ElementType, string>]?: ComponentType<ComponentProps<Key>>;
 } & {
-  SyntaxHighlighter?: ComponentType<SyntaxHighlighterProps> | undefined;
-  CodeHeader?: ComponentType<CodeHeaderProps> | undefined;
+  SyntaxHighlighter?:
+    | ComponentType<Omit<SyntaxHighlighterProps, "node">>
+    | undefined;
+  CodeHeader?: ComponentType<Omit<CodeHeaderProps, "node">> | undefined;
 };
 
 const areChildrenEqual = (prev: string | unknown, next: string | unknown) => {
@@ -18,7 +20,8 @@ export const areNodesEqual = (
   prev: Element | undefined,
   next: Element | undefined,
 ) => {
-  if (!prev || !next) return prev === next;
+  // TODO troubleshoot why this is triggering for code blocks
+  if (!prev || !next) return false;
   const isEqual =
     JSON.stringify(prev?.properties) === JSON.stringify(next?.properties) &&
     areChildrenEqual(prev?.children, next?.children);

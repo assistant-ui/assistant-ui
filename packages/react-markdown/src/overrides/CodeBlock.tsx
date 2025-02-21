@@ -7,8 +7,10 @@ import {
   SyntaxHighlighterProps,
 } from "./types";
 import { DefaultCodeBlockContent } from "./defaultComponents";
+import { Element } from "hast";
 
 export type CodeBlockProps = {
+  node: Element | undefined;
   language: string;
   code: string;
   components: {
@@ -20,6 +22,7 @@ export type CodeBlockProps = {
 };
 
 export const DefaultCodeBlock: FC<CodeBlockProps> = ({
+  node,
   components: { Pre, Code, SyntaxHighlighter, CodeHeader },
   language,
   code,
@@ -30,8 +33,9 @@ export const DefaultCodeBlock: FC<CodeBlockProps> = ({
 
   return (
     <>
-      <CodeHeader language={language} code={code} />
+      <CodeHeader node={node} language={language} code={code} />
       <SH
+        node={node}
         components={components}
         language={language ?? "unknown"}
         code={code}

@@ -9,11 +9,13 @@ export type CodeComponent = ComponentType<
 >;
 
 export type CodeHeaderProps = {
+  node?: Element | undefined;
   language: string | undefined;
   code: string;
 };
 
 export type SyntaxHighlighterProps = {
+  node?: Element | undefined;
   components: {
     Pre: PreComponent;
     Code: CodeComponent;

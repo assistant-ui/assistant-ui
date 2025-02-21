@@ -19,6 +19,7 @@ import { DefaultCodeBlockContent } from "./defaultComponents";
 import { memoCompareNodes } from "../memoization";
 
 const CodeBlockOverride: FC<CodeOverrideProps> = ({
+  node,
   components: {
     Pre,
     Code,
@@ -46,6 +47,7 @@ const CodeBlockOverride: FC<CodeOverrideProps> = ({
   if (typeof children !== "string") {
     return (
       <DefaultCodeBlockContent
+        node={node}
         components={{ Pre: WrappedPre, Code: WrappedCode }}
         code={children}
       />
@@ -61,6 +63,7 @@ const CodeBlockOverride: FC<CodeOverrideProps> = ({
 
   return (
     <DefaultCodeBlock
+      node={node}
       components={{
         Pre: WrappedPre,
         Code: WrappedCode,
@@ -92,6 +95,7 @@ export type CodeOverrideProps = ComponentPropsWithoutRef<CodeComponent> & {
 };
 
 const CodeOverrideImpl: FC<CodeOverrideProps> = ({
+  node,
   components,
   componentsByLanguage,
   ...props
@@ -100,6 +104,7 @@ const CodeOverrideImpl: FC<CodeOverrideProps> = ({
   if (!isCodeBlock) return <components.Code {...props} />;
   return (
     <CodeBlockOverride
+      node={node}
       components={components}
       componentsByLanguage={componentsByLanguage}
       {...props}

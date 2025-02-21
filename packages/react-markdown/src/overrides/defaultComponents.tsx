@@ -1,5 +1,6 @@
 import type { ComponentType, ReactNode } from "react";
 import { PreComponent, CodeComponent, CodeHeaderProps } from "./types";
+import { Element } from "hast";
 
 export const DefaultPre: PreComponent = ({ node, ...rest }) => (
   <pre {...rest} />
@@ -10,11 +11,12 @@ export const DefaultCode: CodeComponent = ({ node, ...rest }) => (
 );
 
 export const DefaultCodeBlockContent: ComponentType<{
+  node: Element | undefined;
   components: { Pre: PreComponent; Code: CodeComponent };
   code: string | ReactNode | undefined;
-}> = ({ components: { Pre, Code }, code }) => (
+}> = ({ node, components: { Pre, Code }, code }) => (
   <Pre>
-    <Code>{code}</Code>
+    <Code node={node}>{code}</Code>
   </Pre>
 );
 
