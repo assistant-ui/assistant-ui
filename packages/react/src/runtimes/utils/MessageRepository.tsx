@@ -287,6 +287,16 @@ export class MessageRepository {
     this._messages.dirty();
   }
 
+  clear(): void {
+    this.messages.clear();
+    this.head = null;
+    this.root = {
+      children: [],
+      next: null,
+    };
+    this._messages.dirty();
+  }
+
   export(): ExportedMessageRepository {
     const exportItems: ExportedMessageRepository["messages"] = [];
 

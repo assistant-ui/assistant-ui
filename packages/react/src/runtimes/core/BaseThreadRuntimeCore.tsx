@@ -167,13 +167,14 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
     }
   }
 
+  // TODO import()/export() on external store doesn't make much sense
   public export() {
     return this.repository.export();
   }
 
   public import(data: ExportedMessageRepository) {
     this.ensureInitialized();
-
+    this.repository.clear();
     this.repository.import(data);
     this._notifySubscribers();
   }
