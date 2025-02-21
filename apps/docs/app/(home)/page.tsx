@@ -18,12 +18,13 @@ import { ArrowRight } from "lucide-react";
 import { MyRuntimeProvider } from "./MyRuntimeProvider";
 import { Marquee } from "@/components/magicui/marquee";
 import { useMediaQuery } from "@/lib/useMediaQuery";
-import { YCPill } from "./home/YCPill";
+import { StarPill } from "./home/StarPill";
+import ycombinator from "./logos/ycombinator.svg";
 
 export default function HomePage() {
   return (
     <main className="container relative z-[2] max-w-[1100px] px-2 py-16 lg:py-16">
-      <YCPill />
+      <StarPill />
       <Hero />
       <div className="mx-auto mt-6 flex h-[650px] w-full max-w-screen-xl flex-col overflow-hidden rounded-lg border shadow">
         <MyRuntimeProvider>
@@ -48,7 +49,7 @@ export default function HomePage() {
         <div className="flex flex-col items-center gap-3 self-center">
           <h1 className="text-2xl font-medium">Be part of the community</h1>
           <p>
-            500+ developers are building with assistant-ui, you&apos;re in good
+            1000+ developers are building with assistant-ui, you&apos;re in good
             company!
           </p>
 
@@ -95,18 +96,16 @@ function Hero() {
   return (
     <div className="relative z-[2] flex flex-col overflow-hidden px-6 py-12 max-md:text-center md:pt-16">
       <h1 className="mb-8 text-4xl font-medium md:hidden">
-        Typescript/React library for AI Chat
+        UX of ChatGPT in your own app
       </h1>
-      <h1 className="mb-8 max-w-[600px] text-4xl font-medium max-md:hidden">
-        Build conversational AI interfaces
+      <h1 className="mb-8 max-w-[700px] text-5xl font-medium max-md:hidden">
+        UX of ChatGPT in your own app
       </h1>
       <p className="text-muted-foreground mb-8 md:max-w-[80%] md:text-xl">
         assistant-ui is the Typescript/React library for{" "}
         <span className="text-foreground">AI Chat</span>.<br />
-        Open Source. Built on <span className="text-foreground">
-          shadcn/ui
-        </span>{" "}
-        and <span className="text-foreground">Tailwind</span>.
+        Built on <span className="text-foreground">shadcn/ui</span> and{" "}
+        <span className="text-foreground">Tailwind</span>.
       </p>
       <div className="inline-flex items-center gap-3 max-md:mx-auto">
         <Link
@@ -115,20 +114,31 @@ function Hero() {
             buttonVariants({ size: "lg", className: "rounded-full" }),
           )}
         >
-          Getting Started
+          Get Started
         </Link>
         <a
-          href="/examples"
+          href="https://cal.com/simon-farshid/assistant-ui"
           className={cn(
             buttonVariants({
               size: "lg",
-              variant: "outline",
+              variant: "ghost",
               className: "bg-background rounded-full",
             }),
           )}
         >
-          View Examples
+          Contact Sales
         </a>
+      </div>
+      <div className="text-muted-foreground mt-8">
+        <p>
+          Backed by{" "}
+          <Image
+            src={ycombinator}
+            alt="Y Combinator"
+            className="mb-1 inline"
+            width={140}
+          />
+        </p>
       </div>
       {/* <Image
         // src={Img}

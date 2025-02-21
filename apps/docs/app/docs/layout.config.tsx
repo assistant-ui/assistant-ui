@@ -2,7 +2,6 @@ import { pageTree } from "@/app/source";
 import {
   BookIcon,
   CloudIcon,
-  NewspaperIcon,
   ProjectorIcon,
   SparklesIcon,
   WalletIcon,
@@ -45,7 +44,7 @@ export const baseOptions: HomeLayoutProps = {
   },
   links: [
     {
-      text: "Documentation",
+      text: "Docs",
       url: "/docs/getting-started",
       icon: <BookIcon />,
       active: "nested-url",
@@ -61,12 +60,7 @@ export const baseOptions: HomeLayoutProps = {
       icon: <SparklesIcon />,
     },
     {
-      text: "Blog",
-      url: "/blog",
-      icon: <NewspaperIcon />,
-    },
-    {
-      text: "Cloud Dashboard",
+      text: "Dashboard",
       url: "https://cloud.assistant-ui.com/",
       icon: <CloudIcon />,
     },
