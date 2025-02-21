@@ -24,7 +24,7 @@ export const LanguageModelConfigSchema = z.object({
 
 export type LanguageModelConfig = z.infer<typeof LanguageModelConfigSchema>;
 
-type ToolExecuteFunction<TArgs, TResult> = (
+export type ToolExecuteFunction<TArgs, TResult> = (
   args: TArgs,
   context: {
     toolCallId: string;
@@ -75,11 +75,13 @@ export const mergeModelContexts = (
     }
     if (config.tools) {
       for (const [name, tool] of Object.entries(config.tools)) {
-        if (acc.tools?.[name]) {
+        const existing = acc.tools?.[name];
+        if (existing && existing !== tool) {
           throw new Error(
             `You tried to define a tool with the name ${name}, but it already exists.`,
           );
         }
+
         if (!acc.tools) acc.tools = {};
         acc.tools[name] = tool;
       }

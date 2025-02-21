@@ -24,3 +24,6 @@ export type {
   ModelContextProvider,
   Tool,
 } from "./ModelContextTypes";
+
+export { tool } from "./tool";
+export { makeAssistantReadable } from "./makeAssistantReadable";
