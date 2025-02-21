@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.88
+
+### Patch Changes
+
+- a36fd9e: fix: bind reset method
+
 ## 0.7.87
 
 ### Patch Changes

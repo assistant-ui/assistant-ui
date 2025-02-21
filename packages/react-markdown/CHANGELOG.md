@@ -1,5 +1,13 @@
 # @assistant-ui/react-markdown
 
+## 0.7.21
+
+### Patch Changes
+
+- 7df4eef: fix: code block memoization
+- Updated dependencies [a36fd9e]
+  - @assistant-ui/react@0.7.88
+
 ## 0.7.20
 
 ### Patch Changes
