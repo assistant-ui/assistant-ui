@@ -74,6 +74,7 @@ export class AssistantRuntimeImpl implements AssistantRuntime {
       this.registerModelContextProvider.bind(this);
     this.registerModelConfigProvider =
       this.registerModelConfigProvider.bind(this);
+    this.reset = this.reset.bind(this);
   }
 
   public get thread() {
