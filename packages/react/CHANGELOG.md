@@ -1,5 +1,14 @@
 # @assistant-ui/react
 
+## 0.7.87
+
+### Patch Changes
+
+- e01b6cd: fix: remove reset() method on local-runtime
+- 2dd5abc: feat: makeAssistantReadable
+- 4531190: feat: ExportdMessageRepository.fromArray
+- 400ff97: feat:thread.import() should reset the MessageRepository
+
 ## 0.7.86
 
 ### Patch Changes
