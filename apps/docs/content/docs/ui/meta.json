@@ -1,4 +1,12 @@
 {
-  "title": "UI",
-  "pages": ["components", "shadcn-ui", "primitives"]
+  "title": "shadcn/ui",
+  "pages": [
+    "Thread",
+    "ThreadList",
+    "Attachment",
+    "AssistantModal",
+    "AssistantSidebar",
+    "Markdown",
+    "Scrollbar"
+  ]
 }

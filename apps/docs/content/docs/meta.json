@@ -3,18 +3,20 @@
   "root": true,
   "pages": [
     "getting-started",
-    "api-reference",
-    "guides",
-    "concepts",
-    "migrations",
-    "legacy",
-    "components",
-    "reference",
+    "---Guides---",
+    "...guides",
     "---UI---",
     "...ui",
     "---Runtimes---",
     "...runtimes",
     "---Cloud---",
-    "...cloud"
+    "...cloud",
+    "---Reference---",
+    "api-reference",
+    "concepts",
+    "migrations",
+    "legacy",
+    "components",
+    "reference"
   ]
 }
