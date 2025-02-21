@@ -34,5 +34,5 @@ export const useRemoteThreadListRuntime = (
     runtime.threads.__internal_setOptions(options);
     runtime.threads.__internal_load();
   }, [runtime, options]);
-  return useMemo(() => AssistantRuntimeImpl.create(runtime), [runtime]);
+  return useMemo(() => new AssistantRuntimeImpl(runtime), [runtime]);
 };
