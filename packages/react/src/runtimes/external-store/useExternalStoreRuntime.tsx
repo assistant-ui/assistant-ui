@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { ExternalStoreRuntimeCore } from "./ExternalStoreRuntimeCore";
 import { ExternalStoreAdapter } from "./ExternalStoreAdapter";
 import { AssistantRuntimeImpl } from "../../api/AssistantRuntime";
-import { ThreadRuntimeImpl } from "../../api/ThreadRuntime";
 import { useRuntimeAdapters } from "../adapters/RuntimeAdapterProvider";
 
 export const useExternalStoreRuntime = <T,>(store: ExternalStoreAdapter<T>) => {
@@ -21,8 +20,5 @@ export const useExternalStoreRuntime = <T,>(store: ExternalStoreAdapter<T>) => {
     return runtime.registerModelContextProvider(modelContext);
   }, [modelContext, runtime]);
 
-  return useMemo(
-    () => AssistantRuntimeImpl.create(runtime, ThreadRuntimeImpl),
-    [runtime],
-  );
+  return useMemo(() => new AssistantRuntimeImpl(runtime), [runtime]);
 };

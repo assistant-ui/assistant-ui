@@ -1,13 +1,9 @@
 import { AssistantRuntimeCore } from "../runtimes/core/AssistantRuntimeCore";
 import { ModelContextProvider } from "../model-context/ModelContextTypes";
-import {
-  ThreadListItemRuntimeBinding,
-  ThreadRuntime,
-  ThreadRuntimeCoreBinding,
-  ThreadRuntimeImpl,
-} from "./ThreadRuntime";
+import { ThreadRuntime } from "./ThreadRuntime";
 import { Unsubscribe } from "../types";
 import { ThreadListRuntime, ThreadListRuntimeImpl } from "./ThreadListRuntime";
+import { ExportedMessageRepository, ThreadMessageLike } from "../runtimes";
 
 export type AssistantRuntime = {
   /**
@@ -51,6 +47,11 @@ export type AssistantRuntime = {
    * @deprecated This method was renamed to `registerModelContextProvider`.
    */
   registerModelConfigProvider(provider: ModelContextProvider): Unsubscribe;
+
+  /**
+   * @deprecated Deprecated. Please use `runtime.threads.main.import(ExportedMessageRepository.fromArray(initialMessages))`.
+   */
+  reset: unknown; // make it a type error
 };
 
 export class AssistantRuntimeImpl implements AssistantRuntime {
@@ -61,14 +62,8 @@ export class AssistantRuntimeImpl implements AssistantRuntime {
 
   public readonly _thread: ThreadRuntime;
 
-  protected constructor(
-    private readonly _core: AssistantRuntimeCore,
-    runtimeFactory: new (
-      binding: ThreadRuntimeCoreBinding,
-      threadListItemBinding: ThreadListItemRuntimeBinding,
-    ) => ThreadRuntime = ThreadRuntimeImpl,
-  ) {
-    this.threads = new ThreadListRuntimeImpl(_core.threads, runtimeFactory);
+  public constructor(private readonly _core: AssistantRuntimeCore) {
+    this.threads = new ThreadListRuntimeImpl(_core.threads);
     this._thread = this.threads.main;
   }
 
@@ -101,13 +96,11 @@ export class AssistantRuntimeImpl implements AssistantRuntime {
     return this.registerModelContextProvider(provider);
   }
 
-  public static create(
-    _core: AssistantRuntimeCore,
-    runtimeFactory: new (
-      binding: ThreadRuntimeCoreBinding,
-      threadListItemBinding: ThreadListItemRuntimeBinding,
-    ) => ThreadRuntime = ThreadRuntimeImpl,
-  ): AssistantRuntime {
-    return new AssistantRuntimeImpl(_core, runtimeFactory);
+  public reset({
+    initialMessages,
+  }: { initialMessages?: ThreadMessageLike[] } = {}) {
+    return this._core.threads
+      .getMainThreadRuntimeCore()
+      .import(ExportedMessageRepository.fromArray(initialMessages ?? []));
   }
 }

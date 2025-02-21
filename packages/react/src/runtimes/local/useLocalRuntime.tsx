@@ -4,37 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import type { ChatModelAdapter } from "./ChatModelAdapter";
 import { LocalRuntimeCore } from "./LocalRuntimeCore";
 import { LocalRuntimeOptions } from "./LocalRuntimeOptions";
-import {
-  AssistantRuntime,
-  AssistantRuntimeImpl,
-} from "../../api/AssistantRuntime";
-import { ThreadRuntimeImpl } from "../../internal";
 import { useRuntimeAdapters } from "../adapters/RuntimeAdapterProvider";
 import { useRemoteThreadListRuntime } from "../remote-thread-list/useRemoteThreadListRuntime";
 import { useCloudThreadListAdapter } from "../remote-thread-list/adapter/cloud";
-
-export type LocalRuntime = AssistantRuntime & {
-  reset: (options?: Parameters<LocalRuntimeCore["reset"]>[0]) => void;
-};
-
-class LocalRuntimeImpl extends AssistantRuntimeImpl implements LocalRuntime {
-  private constructor(private core: LocalRuntimeCore) {
-    super(core, ThreadRuntimeImpl);
-  }
-
-  public override __internal_bindMethods() {
-    super.__internal_bindMethods();
-    this.reset = this.reset.bind(this);
-  }
-
-  public reset(options?: Parameters<LocalRuntimeCore["reset"]>[0]) {
-    this.core.reset(options);
-  }
-
-  public static override create(_core: LocalRuntimeCore): LocalRuntime {
-    return new LocalRuntimeImpl(_core);
-  }
-}
+import { AssistantRuntimeImpl } from "../../internal";
 
 const useLocalThreadRuntime = (
   adapter: ChatModelAdapter,
@@ -65,7 +38,7 @@ const useLocalThreadRuntime = (
     return runtime.registerModelContextProvider(modelContext);
   }, [modelContext, runtime]);
 
-  return useMemo(() => LocalRuntimeImpl.create(runtime), [runtime]);
+  return useMemo(() => new AssistantRuntimeImpl(runtime), [runtime]);
 };
 
 export const useLocalRuntime = (
