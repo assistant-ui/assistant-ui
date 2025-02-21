@@ -1,6 +1,9 @@
 import type { CoreMessage, ThreadMessage } from "../../types/AssistantTypes";
-import { generateOptimisticId } from "../../utils/idUtils";
+import { generateId, generateOptimisticId } from "../../utils/idUtils";
 import { fromCoreMessage } from "../edge/converters/fromCoreMessage";
+import { ThreadMessageLike } from "../external-store";
+import { getAutoStatus } from "../external-store/auto-status";
+import { fromThreadMessageLike } from "../external-store/ThreadMessageLike";
 
 type RepositoryParent = {
   children: string[];
@@ -18,13 +21,30 @@ export type ExportedMessageRepositoryItem = {
   parentId: string | null;
 };
 
-export interface ExportedMessageRepository {
+export type ExportedMessageRepository = {
   headId?: string | null;
   messages: Array<{
     message: ThreadMessage;
     parentId: string | null;
   }>;
-}
+};
+
+export const ExportedMessageRepository = {
+  fromArray: (
+    messages: readonly ThreadMessageLike[],
+  ): ExportedMessageRepository => {
+    const conv = messages.map((m) =>
+      fromThreadMessageLike(m, generateId(), getAutoStatus(false, false)),
+    );
+
+    return {
+      messages: conv.map((m, idx) => ({
+        parentId: idx > 0 ? conv[idx - 1]!.id : null,
+        message: m,
+      })),
+    };
+  },
+};
 
 const findHead = (
   message: RepositoryMessage | RepositoryParent,
