@@ -6,8 +6,6 @@ import { ChatModelRunResult } from "../local/ChatModelAdapter";
 import { toCoreMessages } from "./converters/toCoreMessages";
 import { toLanguageModelTools } from "./converters/toLanguageModelTools";
 import { EdgeRuntimeRequestOptions } from "./EdgeRuntimeRequestOptions";
-import { assistantDecoderStream } from "./streams/assistantDecoderStream";
-import { streamPartDecoderStream } from "./streams/utils/streamPartDecoderStream";
 import { runResultStream } from "./streams/runResultStream";
 import { toolResultStream } from "./streams/toolResultStream";
 import { toLanguageModelMessages } from "./converters";
@@ -16,6 +14,10 @@ import { Tool } from "../../model-context";
 import { z } from "zod";
 import zodToJsonSchema from "zod-to-json-schema";
 import { JSONSchema7 } from "json-schema";
+import {
+  AssistantMessageAccumulator,
+  DataStreamDecoder,
+} from "assistant-stream";
 
 export function asAsyncIterable<T>(
   source: ReadableStream<T>,
@@ -155,9 +157,9 @@ export class EdgeChatAdapter implements ChatModelAdapter {
       }
 
       const stream = result
-        .body!.pipeThrough(streamPartDecoderStream())
-        .pipeThrough(assistantDecoderStream())
+        .body!.pipeThrough(new DataStreamDecoder())
         .pipeThrough(toolResultStream(context.tools, abortSignal))
+        .pipeThrough(new AssistantMessageAccumulator())
         .pipeThrough(runResultStream());
 
       let update: ChatModelRunResult | undefined;

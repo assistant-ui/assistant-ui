@@ -23,6 +23,7 @@ export const toCoreMessage = <T extends boolean = false>(
         role,
         content: message.content.map((part) => {
           if (part.type === "reasoning") return null; // reasoning parts are omitted
+          if (part.type === "source") return null; // TODO source parts are omitted?
           if (part.type === "ui") throw new Error("UI parts are not supported");
           if (part.type === "tool-call") {
             const { argsText, ...rest } = part;
