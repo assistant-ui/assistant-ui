@@ -1,14 +1,15 @@
 "use client";
 
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
-import { Primitive } from "@radix-ui/react-primitive";
-import { type ComponentRef, forwardRef, ComponentPropsWithoutRef } from "react";
+import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area";
+import { type ComponentRef, forwardRef } from "react";
 import { useThreadViewportAutoScroll } from "./useThreadViewportAutoScroll";
 import { ThreadViewportProvider } from "../../context/providers/ThreadViewportProvider";
+import classNames from "classnames";
 
 export namespace ThreadPrimitiveViewport {
-  export type Element = ComponentRef<typeof Primitive.div>;
-  export type Props = ComponentPropsWithoutRef<typeof Primitive.div> & {
+  export type Element = ComponentRef<typeof ScrollAreaPrimitive.Viewport>;
+  export type Props = ScrollAreaPrimitive.ScrollAreaViewportProps & {
     autoScroll?: boolean | undefined;
   };
 }
@@ -16,7 +17,7 @@ export namespace ThreadPrimitiveViewport {
 const ThreadPrimitiveViewportScrollable = forwardRef<
   ThreadPrimitiveViewport.Element,
   ThreadPrimitiveViewport.Props
->(({ autoScroll, children, ...rest }, forwardedRef) => {
+>(({ autoScroll, children, className, ...rest }, forwardedRef) => {
   const autoScrollRef = useThreadViewportAutoScroll<HTMLDivElement>({
     autoScroll,
   });
@@ -24,9 +25,13 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
   const ref = useComposedRefs(forwardedRef, autoScrollRef);
 
   return (
-    <Primitive.div {...rest} ref={ref}>
+    <ScrollAreaPrimitive.Viewport
+      {...rest}
+      ref={ref}
+      className={classNames("h-full w-full rounded-[inherit]", className)}
+    >
       {children}
-    </Primitive.div>
+    </ScrollAreaPrimitive.Viewport>
   );
 });
 
