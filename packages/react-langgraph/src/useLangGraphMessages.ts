@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import { v4 as uuidv4 } from "uuid";
+import { LangGraphMessageAccumulator } from "./LangGraphMessageAccumulator";
 
 export type LangGraphCommand = {
   resume: string;
@@ -12,6 +13,7 @@ export type LangGraphSendMessageConfig = {
 
 type LangGraphMessagesEvent<TMessage> = {
   event:
+    | "messages"
     | "messages/partial"
     | "messages/complete"
     | "metadata"
@@ -33,10 +35,17 @@ export type LangGraphInterruptState = {
   ns?: string[];
 };
 
+const DEFAULT_APPEND_MESSAGE = <TMessage>(
+  _: TMessage | undefined,
+  curr: TMessage,
+) => curr;
+
 export const useLangGraphMessages = <TMessage extends { id?: string }>({
   stream,
+  appendMessage = DEFAULT_APPEND_MESSAGE,
 }: {
   stream: LangGraphStreamCallback<TMessage>;
+  appendMessage?: (prev: TMessage | undefined, curr: TMessage) => TMessage;
 }) => {
   const [interrupt, setInterrupt] = useState<
     LangGraphInterruptState | undefined
@@ -49,15 +58,11 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
       // ensure all messages have an ID
       newMessages = newMessages.map((m) => (m.id ? m : { ...m, id: uuidv4() }));
 
-      const messagesMap = new Map<string, TMessage>();
-      const addMessages = (newMessages: TMessage[]) => {
-        if (newMessages.length === 0) return;
-        for (const message of newMessages) {
-          messagesMap.set(message.id ?? uuidv4(), message);
-        }
-        setMessages([...messagesMap.values()]);
-      };
-      addMessages([...messages, ...newMessages]);
+      const accumulator = new LangGraphMessageAccumulator({
+        initialMessages: messages,
+        appendMessage,
+      });
+      setMessages(accumulator.addMessages(newMessages));
 
       const abortController = new AbortController();
       abortControllerRef.current = abortController;
@@ -71,13 +76,13 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
           chunk.event === "messages/partial" ||
           chunk.event === "messages/complete"
         ) {
-          addMessages(chunk.data);
+          setMessages(accumulator.addMessages(chunk.data));
         } else if (chunk.event === "updates") {
           setInterrupt(chunk.data.__interrupt__?.[0]);
         }
       }
     },
-    [messages, stream],
+    [messages, stream, appendMessage],
   );
 
   const cancel = useCallback(() => {

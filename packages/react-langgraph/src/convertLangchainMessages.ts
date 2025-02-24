@@ -5,9 +5,7 @@ import { LangChainMessage } from "./types";
 import { ToolCallContentPart } from "@assistant-ui/react";
 import { ThreadUserMessage } from "@assistant-ui/react";
 
-const contentToParts = (
-  content: LangChainMessage["content"],
-) => {
+const contentToParts = (content: LangChainMessage["content"]) => {
   if (typeof content === "string")
     return [{ type: "text" as const, text: content }];
   return content
@@ -36,7 +34,7 @@ const contentToParts = (
     .filter((a) => a !== null);
 };
 
-export const convertLangchainMessages: useExternalMessageConverter.Callback<
+export const convertLangChainMessages: useExternalMessageConverter.Callback<
   LangChainMessage
 > = (message) => {
   switch (message.type) {

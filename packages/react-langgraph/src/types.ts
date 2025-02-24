@@ -1,6 +1,7 @@
 import { ReadonlyJSONObject } from "../../react/src/utils/json/json-value";
 
 export type LangChainToolCallChunk = {
+  index: number;
   id: string;
   name: string;
   args: string;
@@ -9,6 +10,7 @@ export type LangChainToolCallChunk = {
 export type LangChainToolCall = {
   id: string;
   name: string;
+  argsText: string;
   args: ReadonlyJSONObject;
 };
 
@@ -51,6 +53,7 @@ export type LangChainMessage =
       content: string;
       tool_call_id: string;
       name: string;
+      artifact?: any;
     }
   | {
       id?: string;
@@ -59,6 +62,13 @@ export type LangChainMessage =
       tool_call_chunks?: LangChainToolCallChunk[];
       tool_calls?: LangChainToolCall[];
     };
+
+export type LangChainMessageChunk = {
+  id: string;
+  type: "AIMessageChunk";
+  content: (AssistantMessageContentComplex & { index: number })[];
+  tool_call_chunks: LangChainToolCallChunk[];
+};
 
 export type LangChainEvent = {
   event: "messages/partial" | "messages/complete";

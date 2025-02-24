@@ -6,7 +6,7 @@ import {
   useThread,
   useThreadListItemRuntime,
 } from "@assistant-ui/react";
-import { convertLangchainMessages } from "./convertLangchainMessages";
+import { convertLangChainMessages } from "./convertLangChainMessages";
 import {
   LangGraphCommand,
   LangGraphInterruptState,
@@ -20,6 +20,7 @@ import { AppendMessage } from "@assistant-ui/react";
 import { ExternalStoreAdapter } from "@assistant-ui/react";
 import { FeedbackAdapter } from "@assistant-ui/react";
 import { SpeechSynthesisAdapter } from "@assistant-ui/react";
+import { appendLangChainChunk } from "./appendLangChainChunk";
 
 const getPendingToolCalls = (messages: LangChainMessage[]) => {
   const pendingToolCalls = new Map<string, LangChainToolCall>();
@@ -151,6 +152,7 @@ export const useLangGraphRuntime = ({
     cancel,
     setMessages,
   } = useLangGraphMessages({
+    appendMessage: appendLangChainChunk,
     stream,
   });
 
@@ -170,7 +172,7 @@ export const useLangGraphRuntime = ({
   };
 
   const threadMessages = useExternalMessageConverter({
-    callback: convertLangchainMessages,
+    callback: convertLangChainMessages,
     messages,
     isRunning,
   });

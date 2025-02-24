@@ -12,7 +12,12 @@ export {
   type LangGraphSendMessageConfig,
   type LangGraphStreamCallback,
 } from "./useLangGraphMessages";
-export { convertLangchainMessages } from "./convertLangchainMessages";
+export { convertLangChainMessages as convertLangChainMessages } from "./convertLangChainMessages";
+
+/**
+ * @deprecated Use `convertLangChainMessages` instead.
+ */
+export { convertLangChainMessages as convertLangchainMessages } from "./convertLangChainMessages";
 
 export type {
   LangChainMessage,
@@ -20,3 +25,6 @@ export type {
   LangChainToolCall,
   LangChainToolCallChunk,
 } from "./types";
+
+export { LangGraphMessageAccumulator } from "./LangGraphMessageAccumulator";
+export { appendLangChainChunk } from "./appendLangChainChunk";
