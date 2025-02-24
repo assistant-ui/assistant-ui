@@ -1,11 +1,11 @@
 import type { ReactNode } from "react";
-import { CompleteAttachment } from "./AttachmentTypes";
 import {
   ReadonlyJSONObject,
   ReadonlyJSONValue,
 } from "../utils/json/json-value";
+import { CompleteAttachment } from "./AttachmentTypes";
 
-export type MessageRole = "user" | "assistant" | "system";
+export type MessageRole = "user" | "assistant" | "system" | "data";
 
 export type TextContentPart = {
   readonly type: "text";
