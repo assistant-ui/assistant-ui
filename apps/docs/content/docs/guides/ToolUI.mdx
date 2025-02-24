@@ -19,13 +19,15 @@ type WebSearchResult = {
   url: string;
 };
 
-export const WebSearchToolUI = makeAssistantToolUI<WebSearchArgs, WebSearchResult>({
+export const WebSearchToolUI = makeAssistantToolUI<
+  WebSearchArgs,
+  WebSearchResult
+>({
   toolName: "web_search",
   render: ({ args, status }) => {
     return <p>web_search({args.query})</p>;
   },
 });
-
 ```
 
 You can put this component anywhere in your app inside the `<AssistantRuntimeProvider />` component.
@@ -60,7 +62,10 @@ type WebSearchResult = {
   url: string;
 };
 
-export const useWebSearchToolUI = makeAssistantToolUI<WebSearchArgs, WebSearchResult>({
+export const useWebSearchToolUI = makeAssistantToolUI<
+  WebSearchArgs,
+  WebSearchResult
+>({
   toolName: "web_search",
   render: ({ args, status }) => {
     return <p>web_search({args.query})</p>;
@@ -138,12 +143,15 @@ const searchTool = {
   execute: async (args, { toolCallId, abortSignal }) => {
     // You can use toolCallId to track or log specific tool executions
     console.log(`Executing search with ID: ${toolCallId}`);
-    
+
     // Use abortSignal to handle cancellation
-    const response = await fetch(`/api/search?q=${encodeURIComponent(args.query)}`, {
-      signal: abortSignal,
-    });
-    
+    const response = await fetch(
+      `/api/search?q=${encodeURIComponent(args.query)}`,
+      {
+        signal: abortSignal,
+      },
+    );
+
     return response.json();
   },
 };
@@ -174,6 +182,28 @@ const searchTool = {
     };
   },
 };
+```
+
+### Field-Level Validation Status
+
+You can use the `useToolArgsFieldStatus` hook to check the validation status of individual tool argument fields. This is useful for providing real-time feedback about the validity of specific input fields in your tool UI:
+
+```tsx
+import { useToolArgsFieldStatus } from "@assistant-ui/react";
+
+const SearchToolUI = makeAssistantToolUI<{ query: string }, SearchResult>({
+  toolName: "search",
+  render: ({ args }) => {
+    const status = useToolArgsFieldStatus("query");
+    const isInProgress = status.type === "running";
+
+    return (
+      <div>
+        <QueryInput query={args.query} isInProgress={isInProgress} />
+      </div>
+    );
+  },
+});
 ```
 
 ### Function Calling for User Input
@@ -233,7 +263,10 @@ type WebSearchResult = {
   url: string;
 };
 
-export const WebSearchToolUI = makeAssistantToolUI<WebSearchArgs, WebSearchResult>({
+export const WebSearchToolUI = makeAssistantToolUI<
+  WebSearchArgs,
+  WebSearchResult
+>({
   toolName: "web_search",
   render: ({ args, status }) => {
     return <p>web_search({args.query})</p>;
@@ -244,7 +277,7 @@ export const WebSearchToolUI = makeAssistantToolUI<WebSearchArgs, WebSearchResul
 To use this component, place it inside the `<AssistantRuntimeProvider />`:
 
 ```tsx
-import { WebSearchToolUI } from '@/tools/WebSearchToolUI';
+import { WebSearchToolUI } from "@/tools/WebSearchToolUI";
 
 const MyApp = () => {
   return (
@@ -274,7 +307,10 @@ type WebSearchResult = {
   url: string;
 };
 
-export const useWebSearchToolUI = makeAssistantToolUI<WebSearchArgs, WebSearchResult>({
+export const useWebSearchToolUI = makeAssistantToolUI<
+  WebSearchArgs,
+  WebSearchResult
+>({
   toolName: "web_search",
   render: ({ args, status }) => {
     return <p>web_search({args.query})</p>;
@@ -285,7 +321,7 @@ export const useWebSearchToolUI = makeAssistantToolUI<WebSearchArgs, WebSearchRe
 Use the hook in a component within the `<AssistantRuntimeProvider />`:
 
 ```tsx
-import { useWebSearchToolUI } from '@/tools/useWebSearchToolUI';
+import { useWebSearchToolUI } from "@/tools/useWebSearchToolUI";
 
 const MyComponent = () => {
   useWebSearchToolUI();
@@ -312,7 +348,7 @@ const MyComponent = ({ product_id }) => {
   useAssistantToolUI({
     toolName: "current_product_info",
     render: useInlineRender(({ args, status }) => {
-      return <p>product_info({ product_id })</p>;
+      return <p>product_info({product_id})</p>;
     }),
   });
 
