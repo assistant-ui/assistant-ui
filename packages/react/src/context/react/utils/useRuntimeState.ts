@@ -1,4 +1,4 @@
-import { useDebugValue, useSyncExternalStore } from "react";
+import { useDebugValue, useSyncExternalStore, useRef, useCallback } from "react";
 import { Unsubscribe } from "../../../types";
 import { ensureBinding } from "./ensureBinding";
 
@@ -7,6 +7,25 @@ export type SubscribableRuntime<TState> = {
   subscribe: (callback: () => void) => Unsubscribe;
 };
 
+function shallowEqual(objA: any, objB: any): boolean {
+  if (objA === objB) return true;
+  if (
+    typeof objA !== "object" ||
+    objA === null ||
+    typeof objB !== "object" ||
+    objB === null
+  ) {
+    return false;
+  }
+  const keysA = Object.keys(objA);
+  const keysB = Object.keys(objB);
+  if (keysA.length !== keysB.length) return false;
+  for (const key of keysA) {
+    if (objA[key] !== objB[key]) return false;
+  }
+  return true;
+}
+
 export function useRuntimeStateInternal<TState, TSelected>(
   runtime: SubscribableRuntime<TState>,
   selector: ((state: TState) => TSelected | TState) | undefined = identity,
@@ -14,13 +33,28 @@ export function useRuntimeStateInternal<TState, TSelected>(
   // TODO move to useRuntimeState
   ensureBinding(runtime);
 
+  const lastSnapshot = useRef<TSelected | TState>(undefined);
+
+  const getSnapshot = useCallback(() => {
+    const newSnapshot = selector(runtime.getState());
+    if (
+      lastSnapshot.current !== undefined &&
+      shallowEqual(lastSnapshot.current, newSnapshot)
+    ) {
+      return lastSnapshot.current;
+    }
+    lastSnapshot.current = newSnapshot;
+    return newSnapshot;
+  }, [runtime, selector]);
+
   const slice = useSyncExternalStore(
     runtime.subscribe,
-    () => selector(runtime.getState()),
-    () => selector(runtime.getState()),
+    getSnapshot,
+    getSnapshot
   );
+
   useDebugValue(slice);
-  return slice;
+  return slice as TSelected | TState;
 }
 
 const identity = <T>(arg: T): T => arg;
