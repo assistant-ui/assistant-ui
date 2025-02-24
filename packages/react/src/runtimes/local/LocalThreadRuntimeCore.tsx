@@ -32,7 +32,12 @@ export class LocalThreadRuntimeCore
   private abortController: AbortController | null = null;
 
   public readonly isDisabled = false;
-  public readonly suggestions: readonly ThreadSuggestion[] = [];
+
+  private _suggestions: readonly ThreadSuggestion[] = [];
+  private _suggestionsController: AbortController | null = null;
+  public get suggestions(): readonly ThreadSuggestion[] {
+    return this._suggestions;
+  }
 
   public get adapters() {
     return this._options.adapters;
@@ -149,11 +154,37 @@ export class LocalThreadRuntimeCore
     this._notifyEventSubscribers("run-start");
 
     try {
+      this._suggestions = [];
+      this._suggestionsController?.abort();
+      this._suggestionsController = null;
+
       do {
         message = await this.performRoundtrip(parentId, message, runConfig);
       } while (shouldContinue(message, this._options.unstable_humanToolNames));
     } finally {
       this._notifyEventSubscribers("run-end");
+    }
+
+    this._suggestionsController = new AbortController();
+    const signal = this._suggestionsController.signal;
+    if (
+      this.adapters.suggestion &&
+      message.status?.type !== "requires-action"
+    ) {
+      const promiseOrGenerator = this.adapters.suggestion?.generate({
+        messages: this.messages,
+      });
+
+      if (Symbol.asyncIterator in promiseOrGenerator) {
+        for await (const r of promiseOrGenerator) {
+          if (signal.aborted) break;
+          this._suggestions = r;
+        }
+      } else {
+        const result = await promiseOrGenerator;
+        if (signal.aborted) return;
+        this._suggestions = result;
+      }
     }
   }
 

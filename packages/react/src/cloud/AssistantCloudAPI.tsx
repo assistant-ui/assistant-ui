@@ -68,7 +68,7 @@ export class AssistantCloudAPI {
     options: MakeRequestOptions = {},
   ) {
     const authHeaders = await this._auth.getAuthHeaders();
-    if (!authHeaders) throw new Error("Authronization failed");
+    if (!authHeaders) throw new Error("Authorization failed");
 
     const headers = {
       ...authHeaders,
