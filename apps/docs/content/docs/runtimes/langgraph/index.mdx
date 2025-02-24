@@ -279,6 +279,34 @@ Follow the [UI Components](/docs/ui/shadcn-ui/Thread) guide to setup the UI comp
   </Step>
 </Steps>
 
+## Advanced APIs
+
+### Message Accumulator
+
+The `LangGraphMessageAccumulator` lets you append messages incoming from the server to replicate the messages state client side.
+
+```typescript
+import { LangGraphMessageAccumulator, appendLangChainChunk } from "@assistant-ui/react-langgraph";
+
+const accumulator = new LangGraphMessageAccumulator({
+  appendMessage: appendLangChainChunk
+});
+
+// Add new chunks from the server
+if (event.event === "messages/partial")
+  accumulator.addMessages(event.data);
+```
+
+### Message Conversion
+
+Use `convertLangChainMessages` to transform LangChain messages to assistant-ui format:
+
+```typescript
+import { convertLangChainMessages } from "@assistant-ui/react-langgraph";
+
+const threadMessage = convertLangChainMessages(langChainMessage);
+```
+
 ## Interrupt Persistence
 
 LangGraph supports interrupting the execution flow to request user input or handle specific interactions. These interrupts can be persisted and restored when switching between threads. This means that if a user switches away from a thread during an interaction (like waiting for user approval), the interaction state will be preserved when they return to that thread.
