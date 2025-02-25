@@ -1,0 +1,135 @@
+---
+title: Model Context
+---
+
+Model Context is the foundation of intelligence in assistant-ui components. It provides configuration and capabilities to the assistant through a context provider system.
+
+## Core Concepts
+
+### System Instructions
+
+System instructions define the base behavior and knowledge available to the assistant. These can be provided in several ways:
+
+```tsx
+import {
+  useAssistantInstructions,
+  makeAssistantReadable,
+} from "@assistant-ui/react";
+
+// Via useAssistantInstructions
+useAssistantInstructions("You are a helpful assistant...");
+
+// Via makeAssistantReadable
+const ReadableComponent = makeAssistantReadable(MyComponent);
+// Automatically provides component HTML as system context
+```
+
+### Tools
+
+Tools are functions that the assistant can use to interact with your application. They can be provided through various mechanisms:
+
+```tsx
+import {
+  makeAssistantReadable,
+  makeAssistantTool,
+  tool,
+  useAssistantRuntime,
+} from "@assistant-ui/react";
+import { z } from "zod";
+
+// Via makeAssistantReadable's clickable option
+const ClickableButton = makeAssistantReadable(Button, {
+  clickable: true, // Provides a click tool
+});
+
+// Via makeAssistantTool
+const submitForm = tool({
+  parameters: z.object({
+    email: z.string().email(),
+    name: z.string(),
+  }),
+  execute: async ({ email, name }) => {
+    // Implementation
+    return { success: true };
+  },
+});
+
+const SubmitFormTool = makeAssistantTool(submitForm);
+
+// Use in your component
+function Form() {
+  return (
+    <div>
+      <form>{/* form fields */}</form>
+      <SubmitFormTool />
+    </div>
+  );
+}
+```
+
+## Context Provider System
+
+The context provider system allows components to contribute to the model context. Here's a typical usage pattern:
+
+```tsx
+import { useAssistantRuntime, tool } from "@assistant-ui/react";
+import { useEffect } from "react";
+import { z } from "zod";
+
+function MyComponent() {
+  const assistantRuntime = useAssistantRuntime();
+
+  // Define tool using the tool() helper
+  const myTool = tool({
+    parameters: z.object({
+      query: z.string(),
+    }),
+    execute: async ({ query }) => {
+      const result = await searchDatabase(query);
+      return { result };
+    },
+  });
+
+  useEffect(() => {
+    // Register context provider
+    return assistantRuntime.registerModelContextProvider({
+      getModelContext: () => ({
+        system: "You are a helpful search assistant...",
+        tools: { myTool },
+      }),
+    });
+  }, [assistantRuntime]); // Re-register if runtime changes
+
+  return <div>{/* component content */}</div>;
+}
+```
+
+### Provider Composition
+
+Multiple providers can be registered, and their contexts will be composed:
+
+- System instructions are concatenated
+- Tool sets are merged
+- Nested readable components only contribute their context at the outermost level
+
+## Best Practices
+
+1. **System Instructions**
+
+   - Keep them focused and specific to the component's purpose
+   - Use useAssistantInstructions for explicit instructions
+   - Let makeAssistantReadable handle component structure
+
+2. **Tools**
+
+   - Use the tool() helper to define tool schemas and behavior
+   - Prefer makeAssistantTool for reusable tools
+   - Handle errors gracefully
+   - Consider async operations and loading states
+   - Use the built-in click tool when possible
+
+3. **Context Management**
+   - Register providers in useEffect for proper cleanup
+   - Clean up providers when components unmount
+   - Avoid deeply nested readable components
+   - Consider performance implications of large HTML structures
