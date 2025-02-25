@@ -38,15 +38,15 @@ function TransactionHistory({ transactions }) {
 
 With assistant-ui, we can enhance this component with intelligence using four powerful APIs:
 
-### 1. Making Components Readable (makeAssistantReadable)
+### 1. Making Components Readable (makeAssistantVisible)
 
 First, let's make our buttons "readable" and interactive:
 
 ```tsx
-import { makeAssistantReadable } from "@assistant-ui/react";
+import { makeAssistantVisible } from "@assistant-ui/react";
 
 // Make the refund button intelligent
-const SmartButton = makeAssistantReadable(
+const SmartButton = makeAssistantVisible(
   ({ onClick, children }) => <button onClick={onClick}>{children}</button>,
   {
     clickable: true, // Allow the assistant to click the button
@@ -185,7 +185,7 @@ This creates a more intuitive and safer banking experience while maintaining the
 
 Learn more about each API:
 
-- [makeAssistantReadable](make-assistant-readable) for component understanding
+- [makeAssistantVisible](make-assistant-readable) for component understanding
 - [makeAssistantTool](make-assistant-tool) for transaction analysis
 - [useAssistantInstructions](use-assistant-instructions) for behavior guidance
 - [Model Context](model-context) for dynamic context management

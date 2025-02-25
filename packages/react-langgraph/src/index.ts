@@ -12,7 +12,7 @@ export {
   type LangGraphSendMessageConfig,
   type LangGraphStreamCallback,
 } from "./useLangGraphMessages";
-export { convertLangChainMessages as convertLangChainMessages } from "./convertLangChainMessages";
+export { convertLangChainMessages } from "./convertLangChainMessages";
 
 /**
  * @deprecated Use `convertLangChainMessages` instead.

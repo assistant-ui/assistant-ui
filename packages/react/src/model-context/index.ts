@@ -26,4 +26,9 @@ export type {
 } from "./ModelContextTypes";
 
 export { tool } from "./tool";
-export { makeAssistantReadable } from "./makeAssistantReadable";
+
+/**
+ * @deprecated This function was renamed to `makeAssistantVisible`.
+ */
+export { makeAssistantVisible as makeAssistantReadable } from "./makeAssistantVisible";
+export { makeAssistantVisible } from "./makeAssistantVisible";

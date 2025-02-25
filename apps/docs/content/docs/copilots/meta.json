@@ -2,7 +2,7 @@
   "title": "Copilots",
   "pages": [
     "motivation",
-    "make-assistant-readable",
+    "make-assistant-visible",
     "make-assistant-tool",
     "use-assistant-instructions",
     "model-context"

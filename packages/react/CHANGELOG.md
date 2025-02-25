@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.90
+
+### Patch Changes
+
+- feat: makeAssistantVisible editable
+
 ## 0.7.89
 
 ### Patch Changes

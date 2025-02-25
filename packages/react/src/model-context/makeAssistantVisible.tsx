@@ -34,15 +34,34 @@ const click = tool({
   },
 });
 
+const edit = tool({
+  parameters: z.object({
+    editId: z.string(),
+    value: z.string(),
+  }),
+  execute: async ({ editId, value }) => {
+    const escapedEditId = CSS.escape(editId);
+    const el = document.querySelector(`[data-edit-id='${escapedEditId}']`);
+    if (el instanceof HTMLInputElement) {
+      el.value = value;
+      // todo make adjustable
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      return {};
+    } else {
+      return "Element not found";
+    }
+  },
+});
+
 const ReadableContext = createContext<boolean>(false);
 
-export const makeAssistantReadable = <T extends ComponentType<any>>(
+export const makeAssistantVisible = <T extends ComponentType<any>>(
   Component: T,
-  config?: { clickable?: boolean | undefined },
+  config?: { clickable?: boolean | undefined; editable?: boolean | undefined },
 ) => {
   const ReadableComponent = forwardRef(
     (props: PropsWithoutRef<T>, outerRef: ForwardedRef<any>) => {
-      const isInReadable = useContext(ReadableContext);
+      const isNestedReadable = useContext(ReadableContext);
 
       const clickId = useId();
       const componentRef = useRef<HTMLElement>(null);
@@ -53,13 +72,14 @@ export const makeAssistantReadable = <T extends ComponentType<any>>(
           getModelContext: () => {
             return {
               ...(config?.clickable ? { tools: { click } } : {}),
-              system: !isInReadable // only pass content if this readable isn't nested in another readable
+              ...(config?.editable ? { tools: { edit } } : {}),
+              system: !isNestedReadable // only pass content if this readable isn't nested in another readable
                 ? componentRef.current?.outerHTML
                 : undefined,
             };
           },
         });
-      }, [config?.clickable, isInReadable]);
+      }, [config?.clickable, config?.editable, isNestedReadable]);
 
       const ref = useComposedRefs(componentRef, outerRef);
 
@@ -68,6 +88,7 @@ export const makeAssistantReadable = <T extends ComponentType<any>>(
           <Component
             {...(props as any)}
             {...(config?.clickable ? { "data-click-id": clickId } : {})}
+            {...(config?.editable ? { "data-edit-id": clickId } : {})}
             ref={ref}
           />
         </ReadableContext.Provider>
@@ -78,4 +99,4 @@ export const makeAssistantReadable = <T extends ComponentType<any>>(
   return ReadableComponent as unknown as T;
 };
 
-export default makeAssistantReadable;
+export default makeAssistantVisible;

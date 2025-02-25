@@ -13,14 +13,14 @@ System instructions define the base behavior and knowledge available to the assi
 ```tsx
 import {
   useAssistantInstructions,
-  makeAssistantReadable,
+  makeAssistantVisible,
 } from "@assistant-ui/react";
 
 // Via useAssistantInstructions
 useAssistantInstructions("You are a helpful assistant...");
 
-// Via makeAssistantReadable
-const ReadableComponent = makeAssistantReadable(MyComponent);
+// Via makeAssistantVisible
+const ReadableComponent = makeAssistantVisible(MyComponent);
 // Automatically provides component HTML as system context
 ```
 
@@ -30,15 +30,15 @@ Tools are functions that the assistant can use to interact with your application
 
 ```tsx
 import {
-  makeAssistantReadable,
+  makeAssistantVisible,
   makeAssistantTool,
   tool,
   useAssistantRuntime,
 } from "@assistant-ui/react";
 import { z } from "zod";
 
-// Via makeAssistantReadable's clickable option
-const ClickableButton = makeAssistantReadable(Button, {
+// Via makeAssistantVisible's clickable option
+const ClickableButton = makeAssistantVisible(Button, {
   clickable: true, // Provides a click tool
 });
 
@@ -118,7 +118,7 @@ Multiple providers can be registered, and their contexts will be composed:
 
    - Keep them focused and specific to the component's purpose
    - Use useAssistantInstructions for explicit instructions
-   - Let makeAssistantReadable handle component structure
+   - Let makeAssistantVisible handle component structure
 
 2. **Tools**
 
