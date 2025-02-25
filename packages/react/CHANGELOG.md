@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.89
+
+### Patch Changes
+
+- 5540aae: feat: local runtime SuggestionAdapter
+
 ## 0.7.88
 
 ### Patch Changes
