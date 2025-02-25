@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.7.91
+
+### Patch Changes
+
+- feat: dispatch events for edit action; allow text area
+
 ## 0.7.90
 
 ### Patch Changes

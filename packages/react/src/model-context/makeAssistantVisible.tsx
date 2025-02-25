@@ -25,6 +25,7 @@ const click = tool({
     const el = document.querySelector(`[data-click-id='${escapedClickId}']`);
     if (el instanceof HTMLElement) {
       el.click();
+
       // todo make adjustable
       await new Promise((resolve) => setTimeout(resolve, 2000));
       return {};
@@ -42,8 +43,11 @@ const edit = tool({
   execute: async ({ editId, value }) => {
     const escapedEditId = CSS.escape(editId);
     const el = document.querySelector(`[data-edit-id='${escapedEditId}']`);
-    if (el instanceof HTMLInputElement) {
+    if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
       el.value = value;
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+
       // todo make adjustable
       await new Promise((resolve) => setTimeout(resolve, 2000));
       return {};
