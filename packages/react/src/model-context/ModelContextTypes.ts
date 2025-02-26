@@ -32,6 +32,21 @@ export type ToolExecuteFunction<TArgs, TResult> = (
   },
 ) => TResult | Promise<TResult>;
 
+export type ToolStreamCallFunction<TArgs, TResult> = (
+  iterator: AsyncGenerator<
+    {
+      args: TArgs;
+      argsTextDelta: string;
+    },
+    void,
+    unknown
+  >,
+  context: {
+    toolCallId: string;
+    abortSignal: AbortSignal;
+  },
+) => TResult | Promise<TResult>;
+
 type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<
   unknown,
   TResult
@@ -41,6 +56,10 @@ export type Tool<TArgs = unknown, TResult = unknown> = {
   description?: string | undefined;
   parameters: z.ZodSchema<TArgs> | JSONSchema7;
   execute?: ToolExecuteFunction<TArgs, TResult>;
+  /**
+   * @deprecated TODO not yet implemented
+   */
+  experimental_streamCall?: ToolStreamCallFunction<TArgs, TResult>;
   experimental_onSchemaValidationError?: OnSchemaValidationErrorFunction<TResult>;
 };
 
