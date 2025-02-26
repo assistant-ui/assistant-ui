@@ -21,15 +21,16 @@ export const toCoreMessage = <T extends boolean = false>(
     case "assistant":
       return {
         role,
-        content: message.content.map((part) => {
-          if (part.type === "reasoning") return null; // reasoning parts are omitted
-          if (part.type === "ui") throw new Error("UI parts are not supported");
-          if (part.type === "tool-call") {
-            const { argsText, ...rest } = part;
-            return rest;
-          }
-          return part;
-        }).filter(c => !!c),
+        content: message.content
+          .map((part) => {
+            if (part.type === "reasoning") return null; // reasoning parts are omitted
+            if (part.type === "tool-call") {
+              const { argsText, ...rest } = part;
+              return rest;
+            }
+            return part;
+          })
+          .filter((c) => !!c),
         ...(includeId ? { unstable_id: message.id } : {}),
       };
 
@@ -37,11 +38,7 @@ export const toCoreMessage = <T extends boolean = false>(
       return {
         role,
         content: [
-          ...message.content.map((part) => {
-            if (part.type === "ui")
-              throw new Error("UI parts are not supported");
-            return part;
-          }),
+          ...message.content,
           ...message.attachments.map((a) => a.content).flat(),
         ],
         ...(includeId ? { unstable_id: message.id } : {}),

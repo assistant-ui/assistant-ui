@@ -4,7 +4,6 @@ export { DefaultThreadComposerRuntimeCore } from "./runtimes/composer/DefaultThr
 export { CompositeContextProvider } from "./utils/CompositeContextProvider";
 export { MessageRepository } from "./runtimes/utils/MessageRepository";
 export { BaseAssistantRuntimeCore } from "./runtimes/core/BaseAssistantRuntimeCore";
-export { TooltipIconButton } from "./ui/base/tooltip-icon-button";
 export { generateId } from "./utils/idUtils";
 export { AssistantRuntimeImpl } from "./api/AssistantRuntime";
 export {

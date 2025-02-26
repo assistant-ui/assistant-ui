@@ -20,7 +20,7 @@ const vercelToThreadMessage = <T,>(
   return {
     id: message.id,
     role: message.role,
-    content: [{ type: "ui", display: message.display }],
+    content: [{ type: "text", text: "[Developer: Please set up RSCDisplay]" }],
     createdAt: message.createdAt,
   };
 };

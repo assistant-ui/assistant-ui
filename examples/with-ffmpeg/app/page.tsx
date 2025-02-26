@@ -1,11 +1,11 @@
 "use client";
 
 import {
-  Thread,
   useAssistantInstructions,
   useAssistantTool,
   useThreadComposer,
 } from "@assistant-ui/react";
+import { Thread } from "@assistant-ui/react-ui";
 import { z } from "zod";
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { toBlobURL } from "@ffmpeg/util";

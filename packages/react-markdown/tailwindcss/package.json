@@ -1,5 +1,0 @@
-{
-  "main": "../dist/tailwindcss/index.js",
-  "module": "../dist/tailwindcss/index.mjs",
-  "types": "../dist/tailwindcss/index.d.ts"
-}

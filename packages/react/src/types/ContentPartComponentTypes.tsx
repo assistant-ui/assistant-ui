@@ -6,7 +6,6 @@ import type {
   ReasoningContentPart,
   TextContentPart,
   ToolCallContentPart,
-  UIContentPart,
   Unstable_AudioContentPart,
 } from "./AssistantTypes";
 import { ContentPartState } from "../api/ContentPartRuntime";
@@ -33,9 +32,6 @@ export type Unstable_AudioContentPartProps = ContentPartState &
   Unstable_AudioContentPart;
 export type Unstable_AudioContentPartComponent =
   ComponentType<Unstable_AudioContentPartProps>;
-
-export type UIContentPartProps = ContentPartState & UIContentPart;
-export type UIContentPartComponent = ComponentType<UIContentPartProps>;
 
 export type ToolCallContentPartProps<
   TArgs = any,

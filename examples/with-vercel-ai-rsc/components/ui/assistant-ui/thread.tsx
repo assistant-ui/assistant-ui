@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { SendHorizontalIcon } from "lucide-react";
+import { RSCDisplay } from "@assistant-ui/react-ai-sdk";
 
 export const Thread: FC = () => {
   return (
@@ -96,7 +97,7 @@ const AssistantMessage: FC = () => {
       <div className="flex-grow">
         <p className="font-semibold">Assistant</p>
 
-        <MessagePrimitive.Content />
+        <MessagePrimitive.Content components={{ Text: RSCDisplay }} />
       </div>
     </MessagePrimitive.Root>
   );

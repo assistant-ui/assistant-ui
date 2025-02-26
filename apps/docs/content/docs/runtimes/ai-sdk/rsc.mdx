@@ -204,6 +204,16 @@ export default function RootLayout({
   </Step>
 </Steps>
 
+## Set up RSCDisplay
+
+Pass the `RSCDisplay` component to your `MessagePrimitive.Content`:
+
+```tsx
+<MessagePrimitive.Content components={{ Text: RSCDisplay }} />
+```
+
+(if you are using react-ui: `<Thread assistantMessage={{ components: { Text: RSCDisplay } }} />`)
+
 ## Accessing AI SDK Messages
 
 You can use the `getExternalStoreMessages` utility to convert `ThreadMessage`s back to your message format.

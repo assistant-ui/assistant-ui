@@ -98,7 +98,7 @@ export const auiV0Encode = (message: ThreadMessage): AuiV0Message => {
         }
 
         default: {
-          const unhandledType: "ui" | "image" | "file" | "audio" = type;
+          const unhandledType: "image" | "file" | "audio" = type;
           throw new Error(
             `Content part type not supported by aui/v0: ${unhandledType}`,
           );

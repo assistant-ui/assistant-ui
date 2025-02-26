@@ -10,7 +10,6 @@ const config = {
   plugins: [
     require("tailwindcss-animate"),
     require("@assistant-ui/react-ui/tailwindcss"),
-    require("@assistant-ui/react-markdown/tailwindcss"),
   ],
 } satisfies Config;
 

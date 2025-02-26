@@ -75,8 +75,10 @@ export const makeAssistantVisible = <T extends ComponentType<any>>(
         return assistant.registerModelContextProvider({
           getModelContext: () => {
             return {
-              ...(config?.clickable ? { tools: { click } } : {}),
-              ...(config?.editable ? { tools: { edit } } : {}),
+              tools: {
+                ...(config?.clickable ? { click } : {}),
+                ...(config?.editable ? { edit } : {}),
+              },
               system: !isNestedReadable // only pass content if this readable isn't nested in another readable
                 ? componentRef.current?.outerHTML
                 : undefined,

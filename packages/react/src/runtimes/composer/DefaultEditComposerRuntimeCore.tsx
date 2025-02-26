@@ -33,9 +33,7 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
     this.setRole(message.role);
     this.setAttachments(message.attachments ?? []);
 
-    this._nonTextParts = message.content.filter(
-      (part) => part.type !== "text" && part.type !== "ui",
-    );
+    this._nonTextParts = message.content.filter((part) => part.type !== "text");
 
     // Use the runConfig from the regular (non-edit) composer as the initial runConfig for the edit composer
     this.setRunConfig({ ...runtime.composer.runConfig });

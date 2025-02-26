@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+
 import { CompleteAttachment } from "./AttachmentTypes";
 import {
   ReadonlyJSONObject,
@@ -73,10 +73,7 @@ export type Unstable_AudioContentPart = {
  * <Thread assistantMessage={{ components: { Text: MyText } }} userMessage={{ components: { Text: MyText } }} />
  * ```
  */
-export type UIContentPart = {
-  readonly type: "ui";
-  readonly display: ReactNode;
-};
+export type UIContentPart = never;
 
 export type CoreToolCallContentPart<
   TArgs = ReadonlyJSONObject,
@@ -101,14 +98,12 @@ export type ThreadUserContentPart =
   | TextContentPart
   | ImageContentPart
   | FileContentPart
-  | Unstable_AudioContentPart
-  | UIContentPart;
+  | Unstable_AudioContentPart;
 
 export type ThreadAssistantContentPart =
   | TextContentPart
   | ReasoningContentPart
-  | ToolCallContentPart
-  | UIContentPart;
+  | ToolCallContentPart;
 
 type MessageCommonProps = {
   readonly id: string;

@@ -14,7 +14,6 @@ import {
 import { ContentPartRuntimeProvider } from "../../context/providers/ContentPartRuntimeProvider";
 import { ContentPartPrimitiveText } from "../contentPart/ContentPartText";
 import { ContentPartPrimitiveImage } from "../contentPart/ContentPartImage";
-import { ContentPartPrimitiveDisplay } from "../contentPart/ContentPartDisplay";
 import type {
   Unstable_AudioContentPartComponent,
   EmptyContentPartComponent,
@@ -22,7 +21,6 @@ import type {
   TextContentPartComponent,
   ToolCallContentPartComponent,
   ToolCallContentPartProps,
-  UIContentPartComponent,
   FileContentPartComponent,
   ReasoningContentPartComponent,
 } from "../../types/ContentPartComponentTypes";
@@ -39,7 +37,6 @@ export namespace MessagePrimitiveContent {
           Image?: ImageContentPartComponent | undefined;
           File?: FileContentPartComponent | undefined;
           Unstable_Audio?: Unstable_AudioContentPartComponent | undefined;
-          UI?: UIContentPartComponent | undefined;
           tools?:
             | {
                 by_name?:
@@ -80,7 +77,6 @@ const defaultComponents = {
   Image: () => <ContentPartPrimitiveImage />,
   File: () => null,
   Unstable_Audio: () => null,
-  UI: () => <ContentPartPrimitiveDisplay />,
 } satisfies MessagePrimitiveContent.Props["components"];
 
 type MessageContentPartComponentProps = {
@@ -94,7 +90,6 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
     Image = defaultComponents.Image,
     File = defaultComponents.File,
     Unstable_Audio: Audio = defaultComponents.Unstable_Audio,
-    UI = defaultComponents.UI,
     tools = {},
   } = {},
 }) => {
@@ -130,9 +125,6 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
 
     case "audio":
       return <Audio {...part} />;
-
-    case "ui":
-      return <UI {...part} />;
 
     default:
       const unhandledType: never = type;
@@ -171,7 +163,6 @@ const MessageContentPart = memo(
     prev.components?.Image === next.components?.Image &&
     prev.components?.File === next.components?.File &&
     prev.components?.Unstable_Audio === next.components?.Unstable_Audio &&
-    prev.components?.UI === next.components?.UI &&
     prev.components?.tools === next.components?.tools,
 );
 

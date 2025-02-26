@@ -46,8 +46,6 @@ export type {
   FileContentPartComponent,
   Unstable_AudioContentPartProps,
   Unstable_AudioContentPartComponent,
-  UIContentPartProps,
-  UIContentPartComponent,
   ToolCallContentPartProps,
   ToolCallContentPartComponent,
 } from "./ContentPartComponentTypes";

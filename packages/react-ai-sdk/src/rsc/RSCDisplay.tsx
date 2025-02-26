@@ -1,6 +1,5 @@
 "use client";
 import {
-  TextContentPartComponent,
   useThread,
   useMessage,
   getExternalStoreMessage,
@@ -9,8 +8,9 @@ import {
   RSCThreadExtras,
   symbolInternalRSCExtras,
 } from "./utils/RSCThreadExtras";
+import { FC } from "react";
 
-export const RSCDisplay: TextContentPartComponent = () => {
+export const RSCDisplay: FC = () => {
   const convertFn = useThread((t) => {
     const extras = (t.extras as RSCThreadExtras)?.[symbolInternalRSCExtras];
     if (!extras)

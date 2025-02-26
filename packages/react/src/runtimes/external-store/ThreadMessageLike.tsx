@@ -3,7 +3,6 @@ import {
   MessageStatus,
   TextContentPart,
   ImageContentPart,
-  UIContentPart,
   ThreadMessage,
   ThreadAssistantContentPart,
   ThreadAssistantMessage,
@@ -40,7 +39,6 @@ export type ThreadMessageLike = {
             readonly result?: any | undefined;
             readonly isError?: boolean | undefined;
           }
-        | UIContentPart
       )[];
   readonly id?: string | undefined;
   readonly createdAt?: Date | undefined;
@@ -97,9 +95,6 @@ export const fromThreadMessageLike = (
                 if (part.text.trim().length === 0) return null;
                 return part;
 
-              case "ui":
-                return part;
-
               case "tool-call": {
                 if (part.args) {
                   return {
@@ -143,7 +138,6 @@ export const fromThreadMessageLike = (
           const type = part.type;
           switch (type) {
             case "text":
-            case "ui":
             case "image":
             case "audio":
             case "file":
