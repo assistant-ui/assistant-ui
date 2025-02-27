@@ -1,9 +1,5 @@
-import { createOpenAI } from "@ai-sdk/openai";
+import { openai } from "@ai-sdk/openai";
 import { jsonSchema, streamText } from "ai";
-
-const openai = createOpenAI({
-  baseURL: process.env["OPENAI_BASE_URL"] as string,
-});
 
 export const runtime = "edge";
 export const maxDuration = 30;
