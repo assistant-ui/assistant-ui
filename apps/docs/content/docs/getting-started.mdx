@@ -4,6 +4,7 @@ title: Getting Started
 
 import { Step, Steps } from "fumadocs-ui/components/steps";
 import { Tab, Tabs } from "fumadocs-ui/components/tabs";
+import { Callout } from "fumadocs-ui/components/callout";
 
 ## Start with a new project
 
@@ -47,7 +48,11 @@ npm run dev
   </Step>
 </Steps>
 
-## Install in an existing app
+## Manual installation
+
+<Callout>
+  We recommend `npx assistant-ui init` to setup existing projects.
+</Callout>
 
 <Steps>
   <Step>
@@ -55,7 +60,7 @@ npm run dev
 ### Add assistant-ui
 
 ```sh npm2yarn
-npx shadcn@latest add "https://r.assistant-ui.com/thread"
+npx assistant-ui add thread thread-list
 ```
 
   </Step>
