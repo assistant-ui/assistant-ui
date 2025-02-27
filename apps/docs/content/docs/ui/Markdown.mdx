@@ -33,7 +33,7 @@ This adds a `/components/assistant-ui/markdown-text.tsx` file to your project, w
 Pass the `MarkdownText` component to the `MessagePrimitive.Content` component
 
 ```tsx twoslash title="/components/assistant-ui/thread.tsx" {1,11}
-// @filename: /components/assistant-ui/thread.tsx
+// @filename: /components/assistant-ui/markdown-text.tsx
 import { FC } from "react";
 export const MarkdownText: FC = () => null;
 
@@ -51,10 +51,6 @@ import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="...">
-      <Avatar className="...">
-        <AvatarFallback>A</AvatarFallback>
-      </Avatar>
-
       <div className="...">
         <MessagePrimitive.Content components={{ Text: MarkdownText }} />
       </div>

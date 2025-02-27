@@ -18,7 +18,6 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
@@ -79,9 +78,6 @@ const ThreadWelcome: FC = () => {
     <ThreadPrimitive.Empty>
       <div className="flex w-full max-w-[var(--thread-max-width)] flex-grow flex-col">
         <div className="flex w-full flex-grow flex-col items-center justify-center">
-          <Avatar>
-            <AvatarFallback>C</AvatarFallback>
-          </Avatar>
           <p className="mt-4 font-medium">How can I help you today?</p>
         </div>
         <ThreadWelcomeSuggestions />
@@ -214,10 +210,6 @@ const EditComposer: FC = () => {
 const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="relative grid w-full max-w-[var(--thread-max-width)] grid-cols-[auto_auto_1fr] grid-rows-[auto_1fr] py-4">
-      <Avatar className="col-start-1 row-span-full row-start-1 mr-4">
-        <AvatarFallback>A</AvatarFallback>
-      </Avatar>
-
       <div className="text-foreground col-span-2 col-start-2 row-start-1 my-1.5 max-w-[calc(var(--thread-max-width)*0.8)] break-words leading-7">
         <MessagePrimitive.Content components={{ Text: MarkdownText }} />
       </div>
@@ -235,7 +227,7 @@ const AssistantActionBar: FC = () => {
       hideWhenRunning
       autohide="not-last"
       autohideFloat="single-branch"
-      className="text-muted-foreground col-start-3 row-start-2 -ml-1 flex gap-1"
+      className="text-muted-foreground data-[floating]:bg-aui-background col-start-3 row-start-2 -ml-1 flex gap-1 data-[floating]:absolute data-[floating]:rounded-md data-[floating]:border data-[floating]:p-1 data-[floating]:shadow-sm"
     >
       {/* <MessagePrimitive.If speaking={false}>
         <ActionBarPrimitive.Speak asChild>

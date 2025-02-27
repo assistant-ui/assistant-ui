@@ -18,11 +18,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-
 
 export const Thread: FC = () => {
   return (
@@ -75,9 +73,6 @@ const ThreadWelcome: FC = () => {
     <ThreadPrimitive.Empty>
       <div className="aui-thread-welcome-root">
         <div className="aui-thread-welcome-center">
-          <Avatar>
-            <AvatarFallback>C</AvatarFallback>
-          </Avatar>
           <p className="aui-thread-welcome-message">
             How can I help you today?
           </p>
@@ -208,10 +203,6 @@ const EditComposer: FC = () => {
 const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="aui-assistant-message-root">
-      <Avatar className="aui-assistant-avatar">
-        <AvatarFallback>A</AvatarFallback>
-      </Avatar>
-
       <div className="aui-assistant-message-content">
         <MessagePrimitive.Content components={{ Text: MarkdownText }} />
       </div>

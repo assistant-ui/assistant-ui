@@ -1,0 +1,64 @@
+---
+title: ToolFallback
+---
+
+import { Steps, Step } from "fumadocs-ui/components/steps";
+
+## Overview
+
+The ToolFallback component displays a default ToolUI for tools that do not have a dedicated ToolUI.
+
+## Getting Started
+
+<Steps>
+  <Step>
+
+### Add `tool-fallback`
+
+```sh
+npx shadcn@latest add "https://r.assistant-ui.com/tool-fallback"
+```
+
+This adds a `/components/assistant-ui/tool-fallback.tsx` file to your project, which you can adjust as needed.
+
+  </Step>
+  <Step>
+
+### Use it in your application
+
+Pass the `ToolFallback` component to the `MessagePrimitive.Content` component
+
+```tsx twoslash title="/components/assistant-ui/thread.tsx" {1,11}
+// @filename: /components/assistant-ui/tool-fallback.tsx
+import { FC } from "react";
+export const ToolFallback: FC = () => null;
+
+// @filename: ./thread.tsx
+import { FC } from "react";
+import { MessagePrimitive } from "@assistant-ui/react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+
+const AssistantActionBar: FC = () => null;
+const BranchPicker: FC<{ className?: string }> = () => null;
+
+// ---cut---
+import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
+
+const AssistantMessage: FC = () => {
+  return (
+    <MessagePrimitive.Root className="...">
+      <div className="...">
+        <MessagePrimitive.Content
+          components={{ tools: { Fallback: ToolFallback } }}
+        />
+      </div>
+      <AssistantActionBar />
+
+      <BranchPicker className="..." />
+    </MessagePrimitive.Root>
+  );
+};
+```
+
+  </Step>
+</Steps>
