@@ -15,6 +15,15 @@ export type ToolResultStreamPart =
       data: ReadonlyJSONValue[];
     }
   | {
+      type: "source";
+      source: {
+        readonly sourceType: "url";
+        readonly id: string;
+        readonly url: string;
+        readonly title?: string;
+      };
+    }
+  | {
       type: "tool-result";
       toolCallType: "function";
       toolCallId: string;
@@ -129,6 +138,7 @@ export function toolResultStream(
         // ignore other parts
         case "text-delta":
         case "reasoning":
+        case "source":
         case "tool-call-delta":
         case "tool-result":
         case "step-finish":

@@ -56,6 +56,12 @@ export function runResultStream() {
           break;
         }
 
+        case "source": {
+          message = appendSource(message, chunk);
+          controller.enqueue(message);
+          break;
+        }
+
         case "tool-result": {
           message = appendOrUpdateToolResult(
             message,
@@ -111,7 +117,7 @@ export function runResultStream() {
   });
 }
 
-const appendOrUpdateReasoning= (
+const appendOrUpdateReasoning = (
   message: CoreChatModelRunResult,
   textDelta: string,
 ) => {
@@ -168,7 +174,7 @@ const appendOrUpdateToolCall = (
       toolCallId,
       toolName,
       argsText: argsTextDelta,
-      args: argsTextDelta ? parsePartialJson(argsTextDelta) : {}, 
+      args: argsTextDelta ? parsePartialJson(argsTextDelta) : {},
     };
     contentParts = [...contentParts, contentPart];
   } else {
@@ -176,7 +182,7 @@ const appendOrUpdateToolCall = (
     contentPart = {
       ...contentPart,
       argsText,
-      args: argsTextDelta ? parsePartialJson(argsText) : {}, 
+      args: argsTextDelta ? parsePartialJson(argsText) : {},
     };
     contentParts = [
       ...contentParts.slice(0, contentPartIdx),
@@ -296,6 +302,22 @@ const appendOrUpdateFinish = (
       ...message.metadata,
       steps,
     },
+  };
+};
+
+const appendSource = (
+  message: CoreChatModelRunResult,
+  chunk: ToolResultStreamPart & { type: "source" },
+): CoreChatModelRunResult => {
+  return {
+    ...message,
+    content: [
+      ...message.content,
+      {
+        type: "source",
+        ...chunk.source,
+      },
+    ],
   };
 };
 

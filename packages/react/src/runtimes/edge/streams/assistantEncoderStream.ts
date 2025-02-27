@@ -22,6 +22,13 @@ export function assistantEncoderStream() {
           break;
         }
 
+        case "source":
+          controller.enqueue({
+            type: AssistantStreamChunkType.Source,
+            value: chunk.source,
+          });
+          break;
+
         case "text-delta": {
           if (!chunk.textDelta) break; // ignore empty text deltas
           controller.enqueue({

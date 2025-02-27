@@ -17,8 +17,9 @@ import { ContentPartPrimitiveImage } from "../contentPart/ContentPartImage";
 import type {
   Unstable_AudioContentPartComponent,
   EmptyContentPartComponent,
-  ImageContentPartComponent,
   TextContentPartComponent,
+  ImageContentPartComponent,
+  SourceContentPartComponent,
   ToolCallContentPartComponent,
   ToolCallContentPartProps,
   FileContentPartComponent,
@@ -32,8 +33,9 @@ export namespace MessagePrimitiveContent {
     components?:
       | {
           Empty?: EmptyContentPartComponent | undefined;
-          Reasoning?: ReasoningContentPartComponent | undefined;
           Text?: TextContentPartComponent | undefined;
+          Reasoning?: ReasoningContentPartComponent | undefined;
+          Source?: SourceContentPartComponent | undefined;
           Image?: ImageContentPartComponent | undefined;
           File?: FileContentPartComponent | undefined;
           Unstable_Audio?: Unstable_AudioContentPartComponent | undefined;
@@ -74,6 +76,7 @@ const defaultComponents = {
     </p>
   ),
   Reasoning: () => null,
+  Source: () => null,
   Image: () => <ContentPartPrimitiveImage />,
   File: () => null,
   Unstable_Audio: () => null,
@@ -88,6 +91,7 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
     Text = defaultComponents.Text,
     Reasoning = defaultComponents.Reasoning,
     Image = defaultComponents.Image,
+    Source = defaultComponents.Source,
     File = defaultComponents.File,
     Unstable_Audio: Audio = defaultComponents.Unstable_Audio,
     tools = {},
@@ -115,6 +119,9 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
 
     case "reasoning":
       return <Reasoning {...part} />;
+
+    case "source":
+      return <Source {...part} />;
 
     case "image":
       // eslint-disable-next-line jsx-a11y/alt-text
@@ -160,6 +167,7 @@ const MessageContentPart = memo(
     prev.partIndex === next.partIndex &&
     prev.components?.Text === next.components?.Text &&
     prev.components?.Reasoning === next.components?.Reasoning &&
+    prev.components?.Source === next.components?.Source &&
     prev.components?.Image === next.components?.Image &&
     prev.components?.File === next.components?.File &&
     prev.components?.Unstable_Audio === next.components?.Unstable_Audio &&

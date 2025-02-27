@@ -145,6 +145,13 @@ export function assistantDecoderStream() {
           });
           break;
 
+        case AssistantStreamChunkType.Source:
+          controller.enqueue({
+            type: "source",
+            source: value,
+          });
+          break;
+
         // TODO
         case AssistantStreamChunkType.ReasoningDelta:
         case AssistantStreamChunkType.StartStep:
