@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.8.1
+
+### Patch Changes
+
+- ba4a282: fix: cloud env variable loading
+
 ## 0.8.0
 
 ### Breaking changes
@@ -7,7 +13,8 @@
 - pre-styled UI components have moved to `@assistant-ui/react-ui`
 - run `npx assistant-ui upgrade` to update your codebase
 - manual upgrade: change styled component imports from `@assistant-ui/react` to `@assistant-ui/react-ui` (and same with markdown)
-+ manual upgrade: change styled component imports from `@assistant-ui/react` to `@assistant-ui/react-ui` (and same with Markdown)
+
+* manual upgrade: change styled component imports from `@assistant-ui/react` to `@assistant-ui/react-ui` (and same with Markdown)
 
 ## 0.7.91
 
