@@ -23,6 +23,7 @@ import type {
   ToolCallContentPartProps,
   FileContentPartComponent,
   ReasoningContentPartComponent,
+  SourceContentPartComponent,
 } from "../../types/ContentPartComponentTypes";
 import { ContentPartPrimitiveInProgress } from "../contentPart/ContentPartInProgress";
 import { ContentPartStatus } from "../../types/AssistantTypes";
@@ -33,6 +34,7 @@ export namespace MessagePrimitiveContent {
       | {
           Empty?: EmptyContentPartComponent | undefined;
           Reasoning?: ReasoningContentPartComponent | undefined;
+          Source?: SourceContentPartComponent | undefined;
           Text?: TextContentPartComponent | undefined;
           Image?: ImageContentPartComponent | undefined;
           File?: FileContentPartComponent | undefined;
@@ -74,6 +76,7 @@ const defaultComponents = {
     </p>
   ),
   Reasoning: () => null,
+  Source: () => null,
   Image: () => <ContentPartPrimitiveImage />,
   File: () => null,
   Unstable_Audio: () => null,
@@ -87,6 +90,7 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
   components: {
     Text = defaultComponents.Text,
     Reasoning = defaultComponents.Reasoning,
+    Source = defaultComponents.Source,
     Image = defaultComponents.Image,
     File = defaultComponents.File,
     Unstable_Audio: Audio = defaultComponents.Unstable_Audio,
@@ -115,6 +119,9 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
 
     case "reasoning":
       return <Reasoning {...part} />;
+
+    case "source":
+      return <Source {...part} />;
 
     case "image":
       // eslint-disable-next-line jsx-a11y/alt-text
@@ -160,6 +167,7 @@ const MessageContentPart = memo(
     prev.partIndex === next.partIndex &&
     prev.components?.Text === next.components?.Text &&
     prev.components?.Reasoning === next.components?.Reasoning &&
+    prev.components?.Source === next.components?.Source &&
     prev.components?.Image === next.components?.Image &&
     prev.components?.File === next.components?.File &&
     prev.components?.Unstable_Audio === next.components?.Unstable_Audio &&

@@ -4,6 +4,7 @@ import type {
   FileContentPart,
   ImageContentPart,
   ReasoningContentPart,
+  SourceContentPart,
   TextContentPart,
   ToolCallContentPart,
   Unstable_AudioContentPart,
@@ -17,6 +18,9 @@ export type EmptyContentPartComponent = ComponentType<EmptyContentPartProps>;
 
 export type TextContentPartProps = ContentPartState & TextContentPart;
 export type TextContentPartComponent = ComponentType<TextContentPartProps>;
+
+export type SourceContentPartProps = ContentPartState & SourceContentPart;
+export type SourceContentPartComponent = ComponentType<SourceContentPartProps>;
 
 export type ReasoningContentPartProps = ContentPartState & ReasoningContentPart;
 export type ReasoningContentPartComponent =

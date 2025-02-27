@@ -153,6 +153,9 @@ export function toLanguageModelMessages(
             case "reasoning": {
               break; // reasoning parts are omitted
             }
+            case "source": {
+              break; // TODO source parts are omitted?
+            }
 
             case "text": {
               splitter.addTextContentPart(part);

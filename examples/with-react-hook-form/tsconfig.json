@@ -10,6 +10,8 @@
     ],
     "paths": {
       "@/*": ["./*"],
+      "assistant-stream": ["../../packages/assistant-stream/src/index.ts"],
+      "assistant-stream/*": ["../../packages/assistant-stream/src/*"],
       "@assistant-ui/*": ["../../packages/*/src"],
       "@assistant-ui/react/*": ["../../packages/react/src/*"]
     },

@@ -1,4 +1,3 @@
-
 import { CompleteAttachment } from "./AttachmentTypes";
 import {
   ReadonlyJSONObject,
@@ -94,6 +93,14 @@ export type ToolCallContentPart<
   readonly argsText: string;
 };
 
+export type SourceContentPart = {
+  readonly type: "source";
+  readonly sourceType: "url";
+  readonly id: string;
+  readonly url: string;
+  readonly title?: string;
+};
+
 export type ThreadUserContentPart =
   | TextContentPart
   | ImageContentPart
@@ -103,7 +110,8 @@ export type ThreadUserContentPart =
 export type ThreadAssistantContentPart =
   | TextContentPart
   | ReasoningContentPart
-  | ToolCallContentPart;
+  | ToolCallContentPart
+  | SourceContentPart;
 
 type MessageCommonProps = {
   readonly id: string;
@@ -111,6 +119,7 @@ type MessageCommonProps = {
 };
 
 export type ThreadStep = {
+  readonly messageId?: string;
   readonly usage?:
     | {
         readonly promptTokens: number;
