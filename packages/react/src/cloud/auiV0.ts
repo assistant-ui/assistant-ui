@@ -41,6 +41,13 @@ type AuiV0MessageContentPart =
       readonly argsText: string;
       readonly result?: ReadonlyJSONValue;
       readonly isError?: true;
+    }
+  | {
+      readonly type: "source";
+      readonly sourceType: "url";
+      readonly id: string;
+      readonly url: string;
+      readonly title?: string;
     };
 
 type AuiV0Message = {
@@ -79,6 +86,16 @@ export const auiV0Encode = (message: ThreadMessage): AuiV0Message => {
           return {
             type: "reasoning",
             text: part.text,
+          };
+        }
+
+        case "source": {
+          return {
+            type: "source",
+            sourceType: part.sourceType,
+            id: part.id,
+            url: part.url,
+            ...(part.title ? { title: part.title } : undefined),
           };
         }
 

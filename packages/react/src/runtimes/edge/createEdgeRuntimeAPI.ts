@@ -10,14 +10,10 @@ import {
   ThreadMessage,
   ThreadStep,
 } from "../../types/AssistantTypes";
-import { assistantEncoderStream } from "./streams/assistantEncoderStream";
 import { EdgeRuntimeRequestOptionsSchema } from "./EdgeRuntimeRequestOptions";
 import { toLanguageModelMessages } from "./converters/toLanguageModelMessages";
 import { toLanguageModelTools } from "./converters/toLanguageModelTools";
-import {
-  toolResultStream,
-  ToolResultStreamPart,
-} from "./streams/toolResultStream";
+import { toolResultStream } from "./streams/toolResultStream";
 import { runResultStream } from "./streams/runResultStream";
 import {
   LanguageModelConfig,
@@ -26,8 +22,13 @@ import {
   Tool,
 } from "../../model-context/ModelContextTypes";
 import { CoreChatModelRunResult } from "../local/ChatModelAdapter";
-import { streamPartEncoderStream } from "./streams/utils/streamPartEncoderStream";
 import { z } from "zod";
+import {
+  AssistantMessageAccumulator,
+  AssistantStreamChunk,
+  DataStreamEncoder,
+} from "assistant-stream";
+import { LanguageModelV1StreamDecoder } from "assistant-stream/ai-sdk";
 
 type FinishResult = {
   messages: readonly (CoreMessage | ThreadMessage)[];
@@ -106,7 +107,7 @@ export const getEdgeRuntimeStream = async ({
       ? await modelOrCreator({ apiKey, baseUrl, modelName })
       : modelOrCreator;
 
-  let stream: ReadableStream<ToolResultStreamPart>;
+  let stream: ReadableStream<AssistantStreamChunk>;
   const streamResult = await streamMessage({
     ...(settings as Partial<StreamMessageOptions>),
     ...callSettings,
@@ -119,7 +120,29 @@ export const getEdgeRuntimeStream = async ({
     tools: lmServerTools.concat(clientTools as LanguageModelV1FunctionTool[]),
     ...(toolChoice ? { toolChoice } : undefined),
   });
-  stream = streamResult.stream;
+  stream = streamResult.stream.pipeThrough(new LanguageModelV1StreamDecoder());
+
+  const [t1, t2] = stream.tee();
+  stream = t1;
+
+  t2.pipeTo(
+    new WritableStream({
+      write(chunk) {
+        console.log(chunk);
+      },
+    }),
+  );
+
+  const [t1, t2] = stream.tee();
+  stream = t1;
+
+  t2.pipeTo(
+    new WritableStream({
+      write(chunk) {
+        console.log(chunk);
+      },
+    }),
+  );
 
   // add tool results if we have server tools
   const canExecuteTools = hasServerTools && toolChoice?.type !== "none";
@@ -135,43 +158,46 @@ export const getEdgeRuntimeStream = async ({
 
     if (onFinish) {
       let lastChunk: CoreChatModelRunResult | undefined;
-      serverStream = serverStream.pipeThrough(runResultStream()).pipeThrough(
-        new TransformStream({
-          transform(chunk) {
-            lastChunk = chunk;
-          },
-          flush() {
-            if (!lastChunk?.status || lastChunk.status.type === "running")
-              return;
+      serverStream = serverStream
+        .pipeThrough(new AssistantMessageAccumulator())
+        .pipeThrough(runResultStream())
+        .pipeThrough(
+          new TransformStream({
+            transform(chunk) {
+              lastChunk = chunk;
+            },
+            flush() {
+              if (!lastChunk?.status || lastChunk.status.type === "running")
+                return;
 
-            const resultingMessages = [
-              ...messages,
-              {
-                id: "DEFAULT",
-                createdAt: new Date(),
-                role: "assistant",
-                content: lastChunk.content,
-                status: lastChunk.status,
+              const resultingMessages = [
+                ...messages,
+                {
+                  id: "DEFAULT",
+                  createdAt: new Date(),
+                  role: "assistant",
+                  content: lastChunk.content,
+                  status: lastChunk.status,
+                  metadata: {
+                    unstable_data: lastChunk.metadata?.unstable_data ?? [],
+                    unstable_annotations:
+                      lastChunk.metadata?.unstable_annotations ?? [],
+                    steps: lastChunk.metadata?.steps ?? [],
+                    custom: lastChunk.metadata?.custom ?? {},
+                  },
+                } satisfies ThreadMessage,
+              ];
+              onFinish({
+                messages: resultingMessages,
                 metadata: {
-                  unstable_data: lastChunk.metadata?.unstable_data ?? [],
-                  unstable_annotations:
-                    lastChunk.metadata?.unstable_annotations ?? [],
-                  steps: lastChunk.metadata?.steps ?? [],
-                  custom: lastChunk.metadata?.custom ?? {},
+                  // TODO
+                  // eslint-disable-next-line @typescript-eslint/no-non-null-asserted-optional-chain
+                  steps: lastChunk.metadata?.steps!,
                 },
-              } satisfies ThreadMessage,
-            ];
-            onFinish({
-              messages: resultingMessages,
-              metadata: {
-                // TODO
-                // eslint-disable-next-line @typescript-eslint/no-non-null-asserted-optional-chain
-                steps: lastChunk.metadata?.steps!,
-              },
-            });
-          },
-        }),
-      );
+              });
+            },
+          }),
+        );
     }
 
     // drain the server stream
@@ -191,16 +217,11 @@ export const getEdgeRuntimeResponse = async (
   options: getEdgeRuntimeResponse.Options,
 ) => {
   const stream = await getEdgeRuntimeStream(options);
-  return new Response(
-    stream
-      .pipeThrough(assistantEncoderStream())
-      .pipeThrough(streamPartEncoderStream()),
-    {
-      headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-      },
+  return new Response(stream.pipeThrough(new DataStreamEncoder()), {
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
     },
-  );
+  });
 };
 
 export const createEdgeRuntimeAPI = (options: CreateEdgeRuntimeAPIOptions) => ({

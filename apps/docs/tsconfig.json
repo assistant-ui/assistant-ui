@@ -11,6 +11,8 @@
     ],
     "paths": {
       "@/*": ["./*"],
+      "assistant-stream": ["../../packages/assistant-stream/src/index.ts"],
+      "assistant-stream/*": ["../../packages/assistant-stream/src/*"],
       "@assistant-ui/*": ["../../packages/*/src"],
       "@assistant-ui/react/*": ["../../packages/react/src/*"]
     },
@@ -18,6 +20,6 @@
     "strictNullChecks": true,
     "jsx": "preserve"
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "content/docs/api-reference/runtimes/ThreadListItemRuntime.mdx", "content/docs/api-reference/runtimes/ContentPartRuntime.mdx"],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]
 }

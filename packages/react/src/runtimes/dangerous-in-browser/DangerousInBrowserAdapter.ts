@@ -12,6 +12,7 @@ import {
   CreateEdgeRuntimeAPIOptions,
   getEdgeRuntimeStream,
 } from "../edge/createEdgeRuntimeAPI";
+import { AssistantMessageAccumulator } from "assistant-stream";
 
 export type DangerousInBrowserAdapterOptions = CreateEdgeRuntimeAPIOptions;
 
@@ -33,6 +34,7 @@ export class DangerousInBrowserAdapter implements ChatModelAdapter {
 
     const stream = res
       .pipeThrough(toolResultStream(context.tools, abortSignal))
+      .pipeThrough(new AssistantMessageAccumulator())
       .pipeThrough(runResultStream());
 
     for await (const update of asAsyncIterable(stream)) {

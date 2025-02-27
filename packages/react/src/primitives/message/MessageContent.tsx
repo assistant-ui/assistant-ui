@@ -24,6 +24,7 @@ import type {
   ToolCallContentPartProps,
   FileContentPartComponent,
   ReasoningContentPartComponent,
+  SourceContentPartComponent,
 } from "../../types/ContentPartComponentTypes";
 import { ContentPartPrimitiveInProgress } from "../contentPart/ContentPartInProgress";
 import { ContentPartStatus } from "../../types/AssistantTypes";
@@ -33,6 +34,7 @@ export namespace MessagePrimitiveContent {
     components?:
       | {
           Empty?: EmptyContentPartComponent | undefined;
+          Source?: SourceContentPartComponent | undefined;
           Text?: TextContentPartComponent | undefined;
           Reasoning?: ReasoningContentPartComponent | undefined;
           Source?: SourceContentPartComponent | undefined;
@@ -90,6 +92,7 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
   components: {
     Text = defaultComponents.Text,
     Reasoning = defaultComponents.Reasoning,
+    Source = defaultComponents.Source,
     Image = defaultComponents.Image,
     Source = defaultComponents.Source,
     File = defaultComponents.File,
@@ -119,6 +122,9 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
 
     case "reasoning":
       return <Reasoning {...part} />;
+
+    case "source":
+      return <Source {...part} />;
 
     case "source":
       return <Source {...part} />;
