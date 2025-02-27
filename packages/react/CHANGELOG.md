@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.8.2
+
+### Patch Changes
+
+- feat: source content parts
+
 ## 0.8.1
 
 ### Patch Changes

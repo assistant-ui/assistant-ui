@@ -20,6 +20,13 @@ type AuiV0MessageContentPart =
       readonly text: string;
     }
   | {
+      readonly type: "source";
+      readonly sourceType: "url";
+      readonly id: string;
+      readonly url: string;
+      readonly title?: string;
+    }
+  | {
       readonly type: "tool-call";
       readonly toolCallId: string;
       readonly toolName: string;
@@ -74,6 +81,9 @@ export const auiV0Encode = (message: ThreadMessage): AuiV0Message => {
             text: part.text,
           };
         }
+
+        case "source":
+          return part;
 
         case "tool-call": {
           if (!isJSONValue(part.result)) {

@@ -33,6 +33,9 @@ export type AudioContentPartState = ContentPartState & {
 export type ImageContentPartState = ContentPartState & {
   readonly type: "image";
 };
+export type SourceContentPartState = ContentPartState & {
+  readonly type: "source";
+};
 export type ToolCallContentPartState = ContentPartState & {
   readonly type: "tool-call";
 };

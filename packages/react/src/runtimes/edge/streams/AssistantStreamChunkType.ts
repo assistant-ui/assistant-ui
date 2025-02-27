@@ -14,6 +14,7 @@ export enum AssistantStreamChunkType {
   FinishStep = "e",
   StartStep = "f",
   ReasoningDelta = "g",
+  Source = "h",
 }
 
 export type AssistantStreamChunk = {
@@ -63,4 +64,10 @@ export type AssistantStreamChunk = {
     id: string;
   };
   [AssistantStreamChunkType.ReasoningDelta]: string;
+  [AssistantStreamChunkType.Source]: {
+    readonly sourceType: "url";
+    readonly id: string;
+    readonly url: string;
+    readonly title?: string;
+  };
 };
