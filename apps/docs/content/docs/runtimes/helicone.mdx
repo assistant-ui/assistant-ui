@@ -1,0 +1,60 @@
+---
+title: Helicone
+---
+
+Helicone acts as a proxy for your OpenAI API calls, enabling detailed logging and monitoring. To integrate, update your API base URL and add the Helicone-Auth header.
+
+## AI SDK by vercel
+
+1. **Set Environment Variables:**
+
+   - `HELICONE_API_KEY`
+   - `OPENAI_API_KEY`
+
+2. **Configure the OpenAI client:**
+
+```ts
+import { createOpenAI } from "@ai-sdk/openai";
+import { streamText } from "ai";
+
+const openai = createOpenAI({
+  baseURL: "https://oai.helicone.ai/v1",
+  headers: {
+    "Helicone-Auth": `Bearer ${process.env.HELICONE_API_KEY}`,
+  },
+});
+
+export async function POST(req: Request) {
+  const { prompt } = await req.json();
+  return streamText({
+    model: openai("gpt-4o"),
+    prompt,
+  });
+}
+```
+
+## LangChain Integration (Python)
+
+1. **Set Environment Variables:**
+
+   - `HELICONE_API_KEY`
+   - `OPENAI_API_KEY`
+
+2. **Configure ChatOpenAI:**
+
+```python
+from langchain.chat_models import ChatOpenAI
+import os
+
+llm = ChatOpenAI(
+    model_name="gpt-3.5-turbo",
+    temperature=0,
+    openai_api_base="https://oai.helicone.ai/v1",
+    openai_api_key=os.environ["OPENAI_API_KEY"],
+    openai_api_headers={"Helicone-Auth": f"Bearer {os.environ['HELICONE_API_KEY']}"}
+)
+```
+
+## Summary
+
+Update your API base URL to `https://oai.helicone.ai/v1` and add the `Helicone-Auth` header with your API key either in your Vercel AI SDK or LangChain configuration.
