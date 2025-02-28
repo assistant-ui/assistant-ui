@@ -18,8 +18,8 @@ import {
   Pencil1Icon,
   ReloadIcon,
 } from "@radix-ui/react-icons";
-import type { FC } from "react";
-import { Button, type ButtonProps } from "../ui/button";
+import type { ComponentPropsWithoutRef, FC } from "react";
+import { Button } from "../ui/button";
 import {
   Tooltip,
   TooltipContent,
@@ -189,7 +189,9 @@ const BranchPicker: FC<{ className?: string }> = ({ className }) => {
   );
 };
 
-type ActionButtonProps = ButtonProps & { tooltip: string };
+type ActionButtonProps = ComponentPropsWithoutRef<typeof Button> & {
+  tooltip: string;
+};
 
 const ActionButton: FC<ActionButtonProps> = ({
   tooltip,
