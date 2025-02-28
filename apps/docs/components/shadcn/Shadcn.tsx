@@ -7,9 +7,9 @@ import { makePrismAsyncSyntaxHighlighter } from "@assistant-ui/react-syntax-high
 import { coldarkDark } from "react-syntax-highlighter/dist/cjs/styles/prism";
 import type { TooltipContentProps } from "@radix-ui/react-tooltip";
 import Image from "next/image";
-import { type FC } from "react";
+import { ComponentPropsWithRef, type FC } from "react";
 
-import { Button, type ButtonProps } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import icon from "@/public/favicon/icon.svg";
 import { Sheet, SheetContent, SheetTrigger } from "../ui/sheet";
@@ -36,7 +36,7 @@ export const MarkdownText = makeMarkdownText({
   },
 });
 
-type ButtonWithTooltipProps = ButtonProps & {
+type ButtonWithTooltipProps = ComponentPropsWithRef<typeof Button> & {
   tooltip: string;
   side?: TooltipContentProps["side"];
 };
