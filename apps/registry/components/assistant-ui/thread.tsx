@@ -222,20 +222,6 @@ const AssistantActionBar: FC = () => {
       autohideFloat="single-branch"
       className="aui-assistant-action-bar-root"
     >
-      {/* <MessagePrimitive.If speaking={false}>
-        <ActionBarPrimitive.Speak asChild>
-          <TooltipIconButton tooltip="Read aloud">
-            <AudioLinesIcon />
-          </TooltipIconButton>
-        </ActionBarPrimitive.Speak>
-      </MessagePrimitive.If>
-      <MessagePrimitive.If speaking>
-        <ActionBarPrimitive.StopSpeaking asChild>
-          <TooltipIconButton tooltip="Stop">
-            <StopCircleIcon />
-          </TooltipIconButton>
-        </ActionBarPrimitive.StopSpeaking>
-      </MessagePrimitive.If> */}
       <ActionBarPrimitive.Copy asChild>
         <TooltipIconButton tooltip="Copy">
           <MessagePrimitive.If copied>

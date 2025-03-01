@@ -1,6 +1,6 @@
 /* thread */
 .aui-thread-root {
-  @apply bg-aui-background box-border h-full;
+  @apply bg-aui-background box-border flex h-full flex-col overflow-hidden;
 }
 
 .aui-thread-viewport {
