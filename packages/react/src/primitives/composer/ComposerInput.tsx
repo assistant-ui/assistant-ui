@@ -101,10 +101,7 @@ export const ComposerPrimitiveInput = forwardRef<
       if (!textarea || !autoFocusEnabled) return;
 
       textarea.focus({ preventScroll: true });
-      textarea.setSelectionRange(
-        textarea.value.length,
-        textarea.value.length,
-      );
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
     }, [autoFocusEnabled]);
 
     useEffect(() => focus(), [focus]);

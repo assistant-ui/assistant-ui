@@ -7,7 +7,7 @@ import { TESTIMONIALS } from "@/components/testimonials/testimonials";
 import { ChatBubbleIcon } from "@radix-ui/react-icons";
 import { TestimonialContainer } from "../../components/testimonials/TestimonialContainer";
 import { cn } from "@/lib/utils";
-
+import { CheckIcon, CopyIcon } from "lucide-react";
 import athenaintel from "./logos/cust/athenaintel.png";
 import browseruse from "./logos/cust/browseruse.svg";
 import entelligence from "./logos/cust/entelligence.svg";
@@ -20,12 +20,14 @@ import { Marquee } from "@/components/magicui/marquee";
 import { useMediaQuery } from "@/lib/useMediaQuery";
 import { StarPill } from "./home/StarPill";
 import ycombinator from "./logos/ycombinator.svg";
+import { useState } from "react";
 
 export default function HomePage() {
   return (
     <main className="container relative z-[2] max-w-[1100px] px-2 py-16 lg:py-16">
       <StarPill />
       <Hero />
+
       <div className="mx-auto mt-6 flex h-[650px] w-full max-w-screen-xl flex-col overflow-hidden rounded-lg border shadow">
         <MyRuntimeProvider>
           <Shadcn />
@@ -94,41 +96,37 @@ export default function HomePage() {
 
 function Hero() {
   return (
-    <div className="relative z-[2] flex flex-col overflow-hidden px-6 py-12 max-md:text-center md:pt-16">
+    <div className="relative z-[2] flex flex-col overflow-hidden px-6 py-12 text-center md:pt-16">
       <h1 className="mb-8 text-4xl font-medium md:hidden">
         UX of ChatGPT in your own app
       </h1>
-      <h1 className="mb-8 max-w-[700px] text-5xl font-medium max-md:hidden">
+      <h1 className="mb-8 text-5xl font-medium max-md:hidden">
         UX of ChatGPT in your own app
       </h1>
-      <p className="text-muted-foreground mb-8 md:max-w-[80%] md:text-xl">
+      <p className="text-muted-foreground mb-8 md:text-xl">
         assistant-ui is the Typescript/React library for{" "}
         <span className="text-foreground">AI Chat</span>.<br />
         Built on <span className="text-foreground">shadcn/ui</span> and{" "}
         <span className="text-foreground">Tailwind</span>.
       </p>
-      <div className="inline-flex items-center gap-3 max-md:mx-auto">
-        <Link
-          href="/docs/getting-started"
-          className={cn(
-            buttonVariants({ size: "lg", className: "rounded-full" }),
-          )}
-        >
-          Get Started
-        </Link>
+
+      <div className="mx-auto mt-8 flex items-stretch justify-center gap-4">
+        <CopyCommandButton />
+
         <a
           href="https://cal.com/simon-farshid/assistant-ui"
           className={cn(
             buttonVariants({
               size: "lg",
-              variant: "ghost",
-              className: "bg-background rounded-full",
+              variant: "outline",
+              className: "bg-background h-12",
             }),
           )}
         >
           Contact Sales
         </a>
       </div>
+
       <div className="text-muted-foreground mt-8">
         <p>
           Backed by{" "}
@@ -195,3 +193,34 @@ const Logos = () => {
 
   return content;
 };
+
+function CopyCommandButton() {
+  const [copied, setCopied] = useState(false);
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText("npx assistant-ui init");
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <button
+      onClick={copyToClipboard}
+      className={buttonVariants({
+        size: "lg",
+        variant: "outline",
+        className:
+          "bg-background font-bold group relative flex h-12 items-center gap-2 rounded-lg border px-4 py-3 font-mono text-sm transition-all",
+      })}
+    >
+      <span>$ npx assistant-ui init</span>
+      <div className="text-muted-foreground ml-2 flex h-5 w-5 items-center justify-center">
+        {copied ? (
+          <CheckIcon className="h-3 w-3 text-green-500" />
+        ) : (
+          <CopyIcon className="h-3 w-3 opacity-70 transition-opacity group-hover:opacity-100" />
+        )}
+      </div>
+    </button>
+  );
+}
