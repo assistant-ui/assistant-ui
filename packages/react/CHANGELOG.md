@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.8.3
+
+### Patch Changes
+
+- 2e299b6: chore: update typescript
+
 ## 0.8.2
 
 ### Patch Changes
