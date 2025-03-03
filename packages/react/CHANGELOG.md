@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.8.4
+
+### Patch Changes
+
+- 4f22af9: fix: infinite rerender bug with useThread
+
 ## 0.8.3
 
 ### Patch Changes
