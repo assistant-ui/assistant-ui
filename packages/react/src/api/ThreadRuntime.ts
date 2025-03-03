@@ -20,7 +20,6 @@ import {
   ThreadComposerRuntime,
   ThreadComposerRuntimeImpl,
 } from "./ComposerRuntime";
-import { LazyMemoizeSubject } from "./subscribable/LazyMemoizeSubject";
 import { SKIP_UPDATE } from "./subscribable/SKIP_UPDATE";
 import {
   MessageRuntimePath,
@@ -251,7 +250,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     threadBinding: ThreadRuntimeCoreBinding,
     threadListItemBinding: ThreadListItemRuntimeBinding,
   ) {
-    const stateBinding = new LazyMemoizeSubject({
+    const stateBinding = new ShallowMemoizeSubject({
       path: threadBinding.path,
       getState: () =>
         getThreadState(
