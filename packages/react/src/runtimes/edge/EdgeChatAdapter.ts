@@ -35,6 +35,8 @@ export function asAsyncIterable<T>(
   };
 }
 
+type HeadersValue = Record<string, string> | Headers;
+
 export type EdgeChatAdapterOptions = {
   api: string;
 
@@ -65,7 +67,13 @@ export type EdgeChatAdapterOptions = {
   onError?: (error: Error) => void;
 
   credentials?: RequestCredentials;
-  headers?: Record<string, string> | Headers;
+  
+  /**
+   * Headers to be sent with the request.
+   * Can be a static headers object or a function that returns a Promise of headers.
+   */
+  headers?: HeadersValue | (() => Promise<HeadersValue>);
+  
   body?: object;
 
   /**
@@ -112,7 +120,11 @@ export class EdgeChatAdapter implements ChatModelAdapter {
     unstable_assistantMessageId,
     unstable_getMessage,
   }: ChatModelRunOptions) {
-    const headers = new Headers(this.options.headers);
+    const headersValue = typeof this.options.headers === 'function' 
+      ? await this.options.headers() 
+      : this.options.headers;
+    
+    const headers = new Headers(headersValue);
     headers.set("Content-Type", "application/json");
 
     const result = await fetch(this.options.api, {
