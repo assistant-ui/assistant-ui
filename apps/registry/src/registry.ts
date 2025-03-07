@@ -163,4 +163,16 @@ export const registry: RegistryItem[] = [
     dependencies: ["@assistant-ui/react"],
     registryDependencies: ["https://r.assistant-ui.com/thread", "resizable"],
   },
+  {
+    name: "tool-fallback",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/tool-fallback.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/react", "lucide-react"],
+    registryDependencies: ["button"],
+  },
 ];
