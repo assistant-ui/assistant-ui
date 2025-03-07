@@ -210,7 +210,7 @@ function CopyCommandButton() {
         size: "lg",
         variant: "outline",
         className:
-          "bg-background font-bold group relative flex h-12 items-center gap-2 rounded-lg border px-4 py-3 font-mono text-sm transition-all",
+          "bg-background group relative flex h-12 items-center gap-2 rounded-lg border px-4 py-3 font-mono text-sm font-bold transition-all",
       })}
     >
       <span>$ npx assistant-ui init</span>

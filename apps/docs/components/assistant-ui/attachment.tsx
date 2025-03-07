@@ -90,7 +90,10 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
 
   return (
     <Dialog>
-      <DialogTrigger className="hover:bg-accent/50 cursor-pointer transition-colors" asChild>
+      <DialogTrigger
+        className="hover:bg-accent/50 cursor-pointer transition-colors"
+        asChild
+      >
         {children}
       </DialogTrigger>
       <DialogContent>
@@ -175,7 +178,7 @@ const AttachmentRemove: FC = () => {
 
 export const UserMessageAttachments: FC = () => {
   return (
-    <div className="flex w-full flex-row gap-3 col-span-full col-start-1 row-start-1 justify-end">
+    <div className="col-span-full col-start-1 row-start-1 flex w-full flex-row justify-end gap-3">
       <MessagePrimitive.Attachments components={{ Attachment: AttachmentUI }} />
     </div>
   );

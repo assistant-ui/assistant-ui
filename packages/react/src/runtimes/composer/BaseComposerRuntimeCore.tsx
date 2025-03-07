@@ -159,7 +159,9 @@ export abstract class BaseComposerRuntimeCore
     if (!adapter) throw new Error("Attachments are not supported");
 
     const upsertAttachment = (a: PendingAttachment) => {
-      const idx = this._attachments.findIndex((attachment) => attachment.id === a.id);
+      const idx = this._attachments.findIndex(
+        (attachment) => attachment.id === a.id,
+      );
       if (idx !== -1)
         this._attachments = [
           ...this._attachments.slice(0, idx),

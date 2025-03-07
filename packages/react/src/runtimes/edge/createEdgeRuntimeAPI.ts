@@ -5,7 +5,11 @@ import {
   LanguageModelV1Prompt,
   LanguageModelV1CallOptions,
 } from "@ai-sdk/provider";
-import { CoreMessage, ThreadMessage, ThreadStep } from "../../types/AssistantTypes";
+import {
+  CoreMessage,
+  ThreadMessage,
+  ThreadStep,
+} from "../../types/AssistantTypes";
 import { assistantEncoderStream } from "./streams/assistantEncoderStream";
 import { EdgeRuntimeRequestOptionsSchema } from "./EdgeRuntimeRequestOptions";
 import { toLanguageModelMessages } from "./converters/toLanguageModelMessages";
@@ -26,7 +30,7 @@ import { streamPartEncoderStream } from "./streams/utils/streamPartEncoderStream
 import { z } from "zod";
 
 type FinishResult = {
-  messages: readonly (CoreMessage | ThreadMessage)[];
+  messages: readonly (CoreMessage | ThreadMessage)[];
   metadata: {
     steps: readonly ThreadStep[];
   };
@@ -150,10 +154,11 @@ export const getEdgeRuntimeStream = async ({
                 status: lastChunk.status,
                 metadata: {
                   unstable_data: lastChunk.metadata?.unstable_data ?? [],
-                  unstable_annotations: lastChunk.metadata?.unstable_annotations ?? [],
+                  unstable_annotations:
+                    lastChunk.metadata?.unstable_annotations ?? [],
                   steps: lastChunk.metadata?.steps ?? [],
                   custom: lastChunk.metadata?.custom ?? {},
-                }
+                },
               } satisfies ThreadMessage,
             ];
             onFinish({

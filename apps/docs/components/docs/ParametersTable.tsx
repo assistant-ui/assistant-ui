@@ -50,7 +50,9 @@ const Parameter: FC<ParameterProps> = ({
   };
 
   return (
-    <div className={cn("flex flex-col gap-1 px-3.5 py-3.5", !isLast && "border-b")}>
+    <div
+      className={cn("flex flex-col gap-1 px-3.5 py-3.5", !isLast && "border-b")}
+    >
       <div className="relative flex gap-2">
         <h3 className="font-mono text-sm font-semibold">
           {parameter.name}
@@ -90,7 +92,7 @@ const ParametersBox: FC<ParametersTableProps> = ({ type, parameters }) => {
     <div
       className={cn(
         "relative m-2 mb-1 flex flex-col rounded-lg border",
-        type && "pt-3 mt-4",
+        type && "mt-4 pt-3",
       )}
     >
       {!!type && (
