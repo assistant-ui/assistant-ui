@@ -49,6 +49,12 @@ const EXAMPLE_ITEMS: ShowcaseItem[] = [
     link: "/examples/ai-sdk",
   },
   {
+    title: "Mem0 - ChatGPT with memory",
+    image: "/screenshot/examples/mem0.png",
+    description: "A personalized AI chat app powered by Mem0 that remembers your preferences, facts, and memories.",
+    link: "/examples/mem0",
+  },
+  {
     title: "LangGraph Stockbroker",
     image: "/screenshot/stockbroker.png",
     description: "A stockbroker showing human in the loop with LangGraph",
