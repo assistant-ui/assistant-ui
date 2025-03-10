@@ -4,7 +4,7 @@ import { Shadcn } from "@/components/shadcn/Shadcn";
 import { Button, buttonVariants } from "@/components/ui/button";
 import Link from "next/link";
 import { TESTIMONIALS } from "@/components/testimonials/testimonials";
-import { ChatBubbleIcon } from "@radix-ui/react-icons";
+import { DiscordLogoIcon } from "@radix-ui/react-icons";
 import { TestimonialContainer } from "../../components/testimonials/TestimonialContainer";
 import { cn } from "@/lib/utils";
 import { CheckIcon, CopyIcon } from "lucide-react";
@@ -41,32 +41,35 @@ export default function HomePage() {
       </Button>
 
       <div className="mt-20 flex flex-col items-center gap-4">
-        <h1 className="text-2xl font-medium">
+        <h1 className="text-center text-2xl font-medium">
           Trusted by fast-growing companies
         </h1>
         <Logos />
       </div>
 
       <div className="my-20 flex flex-col gap-6">
-        <div className="flex flex-col items-center gap-3 self-center">
-          <h1 className="text-2xl font-medium">Be part of the community</h1>
+        <div className="flex flex-col items-center gap-3 self-center sm:w-full sm:self-start lg:w-[unset] lg:self-center">
+          <h1 className="self-start text-2xl font-medium sm:self-center">
+            Be part of the community
+          </h1>
           <p>
             1000+ developers are building with assistant-ui, you&apos;re in good
             company!
           </p>
 
-          <div className="my-2 flex gap-4">
+          <div className="my-2 flex w-full flex-col gap-4 sm:grid sm:grid-cols-2">
             <a
               className={buttonVariants({ variant: "outline" })}
               href="https://discord.gg/S9dwgCNEFs"
             >
-              <ChatBubbleIcon className="mr-2 size-4" /> Join our Discord
+              <DiscordLogoIcon className="mr-2 size-4 text-indigo-600" /> Join
+              our Discord
             </a>
             <a
               className={buttonVariants({ variant: "outline" })}
               href="https://github.com/assistant-ui/assistant-ui"
             >
-              🌟 Star us on Github
+              <span className="mr-2">🌟</span> Star us on Github
             </a>
           </div>
         </div>
@@ -79,12 +82,12 @@ export default function HomePage() {
           <div className="from-background via-background pointer-events-none absolute -bottom-8 left-0 z-10 h-[120px] w-full bg-gradient-to-t" />
         </div>
 
-        <div>
-          <div className="relative flex h-32 w-full items-center justify-between rounded-3xl border px-16">
-            <p className="text-2xl font-bold">
+        <div className="flex justify-center">
+          <div className="relative flex h-max w-full flex-col items-center justify-between gap-5 rounded-3xl border p-6 sm:w-max sm:flex-row sm:p-10 lg:h-32 lg:w-full lg:px-16">
+            <p className="text-center text-2xl font-bold">
               Build conversational AI interfaces
             </p>
-            <Button asChild>
+            <Button asChild className="w-full sm:w-[unset]">
               <Link href="/docs/getting-started">Get Started</Link>
             </Button>
           </div>
@@ -210,7 +213,7 @@ function CopyCommandButton() {
         size: "lg",
         variant: "outline",
         className:
-          "bg-background font-bold group relative flex h-12 items-center gap-2 rounded-lg border px-4 py-3 font-mono text-sm transition-all",
+          "bg-background group relative flex h-12 items-center gap-2 rounded-lg border px-4 py-3 font-mono text-sm font-bold transition-all",
       })}
     >
       <span>$ npx assistant-ui init</span>
