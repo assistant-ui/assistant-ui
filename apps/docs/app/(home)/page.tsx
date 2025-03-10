@@ -80,7 +80,7 @@ export default function HomePage() {
         </div>
 
         <div>
-          <div className="relative flex h-32 w-full items-center justify-between rounded-3xl border px-16">
+          <div className="relative flex h-32 w-full flex-wrap items-center justify-between rounded-3xl border px-16">
             <p className="text-2xl font-bold">
               Build conversational AI interfaces
             </p>
