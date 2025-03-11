@@ -3,7 +3,6 @@
 import { Shadcn } from "@/components/shadcn/Shadcn";
 import { Button } from "@/components/ui/button";
 import { useChat } from "ai/react";
-import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import Link from "next/link";
 import { MyRuntimeProvider } from "../MyRuntimeProvider";
 
