@@ -1,5 +1,11 @@
 # @assistant-ui/react-langgraph
 
+## 0.3.0
+
+### Minor Changes
+
+- a513099: chore: update langgraph package
+
 ## 0.2.6
 
 ### Patch Changes
