@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useChat } from "ai/react";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import Link from "next/link";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { MyRuntimeProvider } from "../MyRuntimeProvider";
 
 export default function HomePage() {
   return (
@@ -34,13 +34,4 @@ export default function HomePage() {
 
 export type AssistantProps = {
   chat: ReturnType<typeof useChat>;
-};
-
-const MyRuntimeProvider = ({ children }: { children: React.ReactNode }) => {
-  const runtime = useChatRuntime({ api: "/api/chat" });
-  return (
-    <AssistantRuntimeProvider runtime={runtime}>
-      {children}
-    </AssistantRuntimeProvider>
-  );
 };

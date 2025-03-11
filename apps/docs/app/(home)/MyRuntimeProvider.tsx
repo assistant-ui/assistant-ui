@@ -14,6 +14,9 @@ export const MyRuntimeProvider = ({
 }) => {
   const runtime = useChatRuntime({
     api: "/api/chat",
+    body: {
+      apiKey: process.env["NEXT_PUBLIC_BACKEND_API_KEY"],
+    },
     adapters: {
       attachments: new CompositeAttachmentAdapter([
         new SimpleImageAttachmentAdapter(),
