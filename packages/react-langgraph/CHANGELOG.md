@@ -6,6 +6,11 @@
 
 - a513099: chore: update langgraph package
 
+### Patch Changes
+
+- Updated dependencies
+  - @assistant-ui/react@0.8.5
+
 ## 0.2.6
 
 ### Patch Changes
