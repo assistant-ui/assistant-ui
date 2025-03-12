@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.8.6
+
+### Patch Changes
+
+- 2497388: fix: useAssistantInstructions should correctly update on disabled change
+
 ## 0.8.5
 
 ### Patch Changes
