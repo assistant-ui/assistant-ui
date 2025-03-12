@@ -87,7 +87,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   const threadRuntime = useThreadRuntime();
   useEffect(() => {
     return threadRuntime.unstable_on("run-start", () => scrollToBottom("auto"));
-  }, []);
+  }, [scrollToBottom, threadRuntime]);
 
   const autoScrollRef = useComposedRefs<TElement>(resizeRef, scrollRef, divRef);
   return autoScrollRef;

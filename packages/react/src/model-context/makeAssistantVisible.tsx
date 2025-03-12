@@ -85,7 +85,7 @@ export const makeAssistantVisible = <T extends ComponentType<any>>(
             };
           },
         });
-      }, [config?.clickable, config?.editable, isNestedReadable]);
+      }, [config?.clickable, config?.editable, isNestedReadable, assistant]);
 
       const ref = useComposedRefs(componentRef, outerRef);
 
@@ -101,6 +101,8 @@ export const makeAssistantVisible = <T extends ComponentType<any>>(
       );
     },
   );
+
+  ReadableComponent.displayName = Component.displayName;
 
   return ReadableComponent as unknown as T;
 };

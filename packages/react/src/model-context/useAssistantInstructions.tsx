@@ -30,5 +30,5 @@ export const useAssistantInstructions = (
     return assistantRuntime.registerModelContextProvider({
       getModelContext: () => config,
     });
-  }, [assistantRuntime, instruction]);
+  }, [assistantRuntime, instruction, disabled]);
 };

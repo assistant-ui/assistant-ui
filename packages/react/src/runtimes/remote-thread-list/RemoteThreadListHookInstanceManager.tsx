@@ -113,7 +113,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
       isMounted.current = true;
       updateRuntime();
       return threadBinding.outerSubscribe(updateRuntime);
-    }, [threadBinding]);
+    }, [threadBinding, updateRuntime]);
 
     // auto initialize thread
     const threadListItemRuntime = useThreadListItemRuntime();

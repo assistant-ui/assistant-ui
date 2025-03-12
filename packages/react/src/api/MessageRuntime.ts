@@ -64,7 +64,7 @@ const getContentPartState = (
   message: MessageState,
   partIndex: number,
 ): ContentPartState | SKIP_UPDATE => {
-  let part = message.content[partIndex];
+  const part = message.content[partIndex];
   if (!part) {
     return SKIP_UPDATE;
   }

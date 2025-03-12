@@ -40,6 +40,6 @@ export const ensureBinding = (r: unknown) => {
   runtime.__internal_bindMethods?.();
   runtime.__isBound = true;
 
-  // @ts-ignore - strip this out in production build
+  // @ts-expect-error - strip this out in production build
   DEV: debugVerifyPrototype(runtime, Object.getPrototypeOf(runtime));
 };

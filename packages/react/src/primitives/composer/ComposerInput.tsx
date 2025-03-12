@@ -117,14 +117,19 @@ export const ComposerPrimitiveInput = forwardRef<
         return undefined;
 
       return threadRuntime.unstable_on("run-start", focus);
-    }, [unstable_focusOnRunStart]);
+    }, [unstable_focusOnRunStart, focus, composerRuntime, threadRuntime]);
 
     useEffect(() => {
       if (composerRuntime.type !== "thread" || !unstable_focusOnThreadSwitched)
         return undefined;
 
       return threadListItemRuntime.unstable_on("switched-to", focus);
-    }, [unstable_focusOnThreadSwitched]);
+    }, [
+      unstable_focusOnThreadSwitched,
+      focus,
+      composerRuntime,
+      threadListItemRuntime,
+    ]);
 
     return (
       <Component

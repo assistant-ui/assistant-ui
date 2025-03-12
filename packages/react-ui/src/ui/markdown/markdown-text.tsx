@@ -71,7 +71,7 @@ const defaultComponents = unstable_memoizeMarkdownComponents({
   pre: ({ className, ...props }) => (
     <pre className={classNames("aui-md-pre", className)} {...props} />
   ),
-  code: ({ className, ...props }) => {
+  code: function Code({ className, ...props }) {
     const isCodeBlock = useIsMarkdownCodeBlock();
     return (
       <code

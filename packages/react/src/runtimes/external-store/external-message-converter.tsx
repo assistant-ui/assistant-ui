@@ -317,7 +317,7 @@ export const useExternalMessageConverter = <T extends WeakKey>({
     ] = messages;
 
     return threadMessages;
-  }, [state, messages, isRunning]);
+  }, [state, messages, isRunning, joinStrategy]);
 };
 
 const shallowArrayEqual = (a: unknown[], b: unknown[]) => {

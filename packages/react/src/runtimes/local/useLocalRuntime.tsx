@@ -47,7 +47,9 @@ export const useLocalRuntime = (
 ) => {
   const cloudAdapter = useCloudThreadListAdapter({ cloud });
   return useRemoteThreadListRuntime({
-    runtimeHook: () => useLocalThreadRuntime(adapter, options),
+    runtimeHook: function RuntimeHook() {
+      return useLocalThreadRuntime(adapter, options);
+    },
     adapter: cloudAdapter,
   });
 };

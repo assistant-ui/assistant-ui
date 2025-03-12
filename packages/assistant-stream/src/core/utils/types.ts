@@ -47,7 +47,7 @@ export type ToolCallContentPart = {
 
 type AssistantMessageContentPart = TextContentPart | ToolCallContentPart;
 
-type AssistantMessageStepMetadata = {};
+type AssistantMessageStepMetadata = Record<string, unknown>;
 
 export type AssitantMessageStatus =
   | {

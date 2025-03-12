@@ -40,7 +40,7 @@ export const useCloudThreadListAdapter = (
   }, [adapter]);
 
   const unstable_Provider = useCallback<FC<PropsWithChildren>>(
-    ({ children }) => {
+    function Provider({ children }) {
       const history = useAssistantCloudThreadHistoryAdapter({
         get current() {
           return adapterRef.current.cloud ?? autoCloud!;

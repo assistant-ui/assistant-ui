@@ -30,6 +30,9 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
   );
 });
 
+ThreadPrimitiveViewportScrollable.displayName =
+  "ThreadPrimitive.ViewportScrollable";
+
 export const ThreadPrimitiveViewport = forwardRef<
   ThreadPrimitiveViewport.Element,
   ThreadPrimitiveViewport.Props
