@@ -34,7 +34,7 @@
     "react-markdown": "^9.0.3"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.8.5",
+    "@assistant-ui/react": "^0.8.6",
     "@types/react": "*",
     "react": "^18 || ^19 || ^19.0.0-rc"
   },
