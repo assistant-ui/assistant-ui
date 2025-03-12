@@ -144,7 +144,7 @@ const MyThread: FC = () => {
 
       <a
         href="https://entelligence.ai/assistant-ui&assistant-ui?ref=assistant-ui"
-        className="opacity-40 flex w-full items-center justify-center gap-1 border-t py-2 text-xs"
+        className="flex w-full items-center justify-center gap-1 border-t py-2 text-xs opacity-40"
       >
         In partnership with{" "}
         <Image

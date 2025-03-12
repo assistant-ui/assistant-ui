@@ -1,15 +1,15 @@
-'use server';
+"use server";
 
-import { streamText } from 'ai';
-import { openai } from '@ai-sdk/openai';
-import { createStreamableValue } from 'ai/rsc';
+import { streamText } from "ai";
+import { openai } from "@ai-sdk/openai";
+import { createStreamableValue } from "ai/rsc";
 
 export async function generate(input: string) {
-  const stream = createStreamableValue('');
+  const stream = createStreamableValue("");
 
   (async () => {
     const { textStream } = streamText({
-      model: openai('gpt-3.5-turbo'),
+      model: openai("gpt-3.5-turbo"),
       prompt: input,
     });
 

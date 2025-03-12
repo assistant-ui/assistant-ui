@@ -14,7 +14,7 @@ import {
   ActionBarPrimitive,
   MessagePrimitive,
   useThread,
-  } from "@assistant-ui/react";
+} from "@assistant-ui/react";
 import { TooltipIconButton } from "./base/tooltip-icon-button";
 import { withDefaults } from "./utils/withDefaults";
 import { useThreadConfig } from "./thread-config";

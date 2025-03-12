@@ -1,6 +1,6 @@
 import { AssistantResponse } from "ai";
 import OpenAI from "openai";
-import type { Run } from 'openai/resources/beta/threads/runs/runs';
+import type { Run } from "openai/resources/beta/threads/runs/runs";
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
