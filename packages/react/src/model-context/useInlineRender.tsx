@@ -11,10 +11,13 @@ export const useInlineRender = <TArgs, TResult>(
 
   useEffect(() => {
     useToolUI.setState(toolUI);
-  });
+  }, [toolUI, useToolUI]);
 
-  return useCallback((args) => {
-    const toolUI = useToolUI();
-    return toolUI(args);
-  }, []);
+  return useCallback(
+    function ToolUI(args) {
+      const toolUI = useToolUI();
+      return toolUI(args);
+    },
+    [useToolUI],
+  );
 };

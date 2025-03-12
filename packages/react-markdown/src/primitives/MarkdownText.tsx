@@ -103,7 +103,7 @@ const MarkdownTextInner: FC<MarkdownTextPrimitiveProps> = ({
       pre: PreOverride,
       code: CodeComponent,
     };
-  }, [CodeComponent, userComponents, componentsByLanguage]);
+  }, [CodeComponent, userComponents]);
 
   return (
     <ReactMarkdown components={components} {...rest}>

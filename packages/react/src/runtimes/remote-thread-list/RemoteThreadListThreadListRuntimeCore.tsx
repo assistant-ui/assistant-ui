@@ -539,7 +539,7 @@ export class RemoteThreadListThreadListRuntimeCore
       return () => {
         this.useBoundIds.setState((s) => s.filter((i) => i !== id), true);
       };
-    }, []);
+    }, [id]);
 
     const boundIds = this.useBoundIds();
     const { Provider } = this.useProvider();
