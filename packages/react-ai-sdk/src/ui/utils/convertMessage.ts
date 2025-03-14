@@ -1,7 +1,7 @@
 import { Message } from "@ai-sdk/ui-utils";
 import { useExternalMessageConverter } from "@assistant-ui/react";
 import { ToolCallContentPart } from "@assistant-ui/react";
-import { TextContentPart } from "@assistant-ui/react";
+import { TextContentPart, ReasoningContentPart } from "@assistant-ui/react";
 import { CompleteAttachment } from "@assistant-ui/react";
 
 export const convertMessage: useExternalMessageConverter.Callback<Message> = (
@@ -42,6 +42,12 @@ export const convertMessage: useExternalMessageConverter.Callback<Message> = (
         id: message.id,
         createdAt: message.createdAt,
         content: [
+          ...(message.reasoning ? [
+            {
+              type: 'reasoning',
+              text: message.reasoning,
+            } satisfies ReasoningContentPart,
+          ] : []),
           ...(message.content
             ? [
                 {

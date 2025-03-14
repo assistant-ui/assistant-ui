@@ -20,6 +20,19 @@ export const Text: FC = () => {
   );
 };
 
-const exports = { Text: withSmoothContextProvider(Text) };
+export const Reasoning: FC = () => {
+  const status = useSmoothStatus();
+  return (
+    <ContentPartPrimitive.Reasoning
+      className={classNames(
+        "aui-text aui-reasoning",
+        status.type === "running" && "aui-text-running",
+      )}
+      component="p"
+    />
+  );
+};
+
+const exports = { Text: withSmoothContextProvider(Text), Reasoning: withSmoothContextProvider(Reasoning) };
 
 export default exports;
