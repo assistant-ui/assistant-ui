@@ -16,11 +16,15 @@ const vercelToThreadMessage = <T,>(
   rawMessage: T,
 ): ThreadMessageLike => {
   const message = converter(rawMessage);
-
   return {
     id: message.id,
     role: message.role,
-    content: [{ type: "text", text: "[Developer: Please set up RSCDisplay]" }],
+    content: [
+      {
+        type: "text",
+        text: String(message.display),
+      },
+    ],
     createdAt: message.createdAt,
   };
 };
