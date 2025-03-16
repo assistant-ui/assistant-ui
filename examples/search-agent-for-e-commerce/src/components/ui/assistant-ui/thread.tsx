@@ -17,6 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 import { ArrowDownIcon, SendHorizontalIcon } from "lucide-react";
 import Image from "next/image";
+import { RSCDisplay } from "@assistant-ui/react-ai-sdk";
 
 export const Thread: FC = () => {
   return (
@@ -155,7 +156,7 @@ const AssistantMessage: FC = () => {
 
       <div className="mt-2 flex-grow">
         <p className="text-foreground max-w-xl whitespace-pre-line break-words">
-          <MessagePrimitive.Content />
+          <MessagePrimitive.Content components={{ Text: RSCDisplay }} />
         </p>
       </div>
     </MessagePrimitive.Root>
