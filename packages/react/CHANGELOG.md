@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.8.6
+
+### Patch Changes
+
+- f8a157a: Add support for dynamic headers in EdgeChatAdapter
+- 2497388: fix: useAssistantInstructions should correctly update on disabled change
+
 ## 0.8.5
 
 ### Patch Changes
