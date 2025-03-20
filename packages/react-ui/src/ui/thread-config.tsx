@@ -18,6 +18,7 @@ import {
   AssistantRuntimeProvider,
   AssistantToolUI,
   useAssistantRuntime,
+  ReasoningContentPartComponent,
 } from "@assistant-ui/react";
 
 export type SuggestionConfig = {
@@ -43,6 +44,7 @@ export type AssistantMessageConfig = {
   components?:
     | {
         Text?: TextContentPartComponent | undefined;
+        Reasoning?: ReasoningContentPartComponent | undefined;
         Empty?: EmptyContentPartComponent | undefined;
         ToolFallback?: ComponentType<ToolCallContentPartProps> | undefined;
         Footer?: ComponentType | undefined;
