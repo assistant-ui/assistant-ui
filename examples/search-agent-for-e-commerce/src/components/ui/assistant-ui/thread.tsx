@@ -140,7 +140,7 @@ const UserMessage: FC = () => {
     <MessagePrimitive.Root className="relative mb-6 flex w-full max-w-2xl flex-col items-end gap-2 pl-24">
       <div className="relative mr-1 flex items-start gap-3">
         <p className="bg-foreground/5 text-foreground max-w-xl whitespace-pre-line break-words rounded-3xl px-5 py-2.5">
-          <MessagePrimitive.Content />
+          <MessagePrimitive.Content components={{ Text: RSCDisplay }} />
         </p>
       </div>
     </MessagePrimitive.Root>
