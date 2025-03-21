@@ -3,7 +3,6 @@ import { useThreadListItemRuntime } from "../context";
 import { ThreadHistoryAdapter } from "../runtimes/adapters/thread-history/ThreadHistoryAdapter";
 import { ExportedMessageRepositoryItem } from "../runtimes/utils/MessageRepository";
 import { AssistantCloud } from "./AssistantCloud";
-import { auiV0Decode, auiV0Encode } from "./auiV0";
 import { ThreadListItemRuntime } from "../api";
 
 class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
@@ -16,13 +15,16 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
 
   async append({ parentId, message }: ExportedMessageRepositoryItem) {
     const { remoteId } = await this.threadListItemRuntime.initialize();
-    const task = this.cloudRef.current.threads.messages
+    const cloud = this.cloudRef.current;
+    if (!cloud) throw new Error('Cloud reference is not initialized');
+    
+    const task = cloud.threads.messages
       .create(remoteId, {
         parent_id: parentId
           ? ((await this._getIdForLocalId[parentId]) ?? parentId)
           : null,
         format: "aui/v0",
-        content: auiV0Encode(message),
+        content: cloud.encodeMessage(message), // Use the cloud instance's encodeMessage
       })
       .then(({ message_id }) => {
         this._getIdForLocalId[message.id] = message_id;
@@ -37,14 +39,16 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   async load() {
     const remoteId = this.threadListItemRuntime.getState().remoteId;
     if (!remoteId) return { messages: [] };
-    const { messages } =
-      await this.cloudRef.current.threads.messages.list(remoteId);
+    
+    const cloud = this.cloudRef.current;
+    const { messages } = await cloud.threads.messages.list(remoteId);
+    
     const payload = {
       messages: messages
         .filter(
           (m): m is typeof m & { format: "aui/v0" } => m.format === "aui/v0",
         )
-        .map(auiV0Decode)
+        .map(cloud.decodeMessage) // Use the cloud instance's decodeMessage
         .reverse(),
     };
     return payload;
