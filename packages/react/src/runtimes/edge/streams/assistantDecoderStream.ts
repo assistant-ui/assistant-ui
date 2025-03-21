@@ -121,6 +121,10 @@ export function assistantDecoderStream() {
             toolName: toolName,
             args: argsText,
           });
+
+          if (currentToolCall?.id === toolCallId) {
+            currentToolCall = undefined;
+          }
           break;
         }
 
