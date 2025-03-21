@@ -31,7 +31,8 @@ export function assistantDecoderStream() {
   >({
     transform({ type, value }, controller) {
       if (
-        type !== AssistantStreamChunkType.ToolCallDelta &&
+        type !== AssistantStreamChunkType.ToolCall &&
+        type !== AssistantStreamChunkType.ToolCallDelta && 
         type !== AssistantStreamChunkType.Error
       ) {
         endCurrentToolCall(controller);
