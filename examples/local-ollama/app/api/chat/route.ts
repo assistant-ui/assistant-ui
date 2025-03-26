@@ -1,10 +1,15 @@
-import { createOllama } from "ollama-ai-provider";
-import { createEdgeRuntimeAPI } from "@assistant-ui/react/edge";
+import { ollama } from "ollama-ai-provider";
+import { streamText } from "ai";
 
-const local_ollama = createOllama({
-  baseURL: process.env.OLLAMA_API_URL,
-});
+const OLLAMA_MODEL = "llama3.1"
 
-export const { POST } = createEdgeRuntimeAPI({
-  model: local_ollama("llama3.1"),
-});
+export const maxDuration = 30;
+ 
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+  const result = streamText({
+    model: ollama(OLLAMA_MODEL),
+    messages,
+  });
+  return result.toDataStreamResponse();
+}
