@@ -70,7 +70,7 @@ npx assistant-ui add thread thread-list
 
 Install provider SDK:
 
-<Tabs id="provider" items={["OpenAI", "Anthropic", "Azure", "AWS", "Gemini", "GCP", "Groq", "Fireworks", "Cohere", "Ollama", "Chrome AI"]}>
+<Tabs id="provider" items={["OpenAI", "Anthropic", "Azure", "AWS", "Gemini", "GCP", "Groq", "Fireworks", "Cohere", "Ollama", "Chrome AI", "AI/ML API"]}>
 
 ```sh title="Terminal" tab="OpenAI"
 npm install ai @assistant-ui/react-ai-sdk @ai-sdk/openai
@@ -116,11 +116,16 @@ npm install ai @assistant-ui/react-ai-sdk ollama-ai-provider
 npm install ai @assistant-ui/react-ai-sdk chrome-ai
 ```
 
+```sh title="Terminal" tab="AI/ML API"
+npm install ai @assistant-ui/react-ai-sdk @ai-sdk/openai
+```
+
+
 </Tabs>
 
 Add an API endpoint:
 
-<Tabs id="provider" items={["OpenAI", "Anthropic", "Azure", "AWS", "Gemini", "GCP", "Groq", "Fireworks", "Cohere", "Ollama", "Chrome AI"]}>
+<Tabs id="provider" items={["OpenAI", "Anthropic", "Azure", "AWS", "Gemini", "GCP", "Groq", "Fireworks", "Cohere", "Ollama", "Chrome AI", "AI/ML API"]}>
 ```ts title="/app/api/chat/route.ts" tab="OpenAI"
 import { openai } from "@ai-sdk/openai";
 import { streamText } from "ai";
@@ -307,11 +312,32 @@ export async function POST(req: Request) {
 }
 ```
 
+```ts title="/app/api/chat/route.ts" tab="AI/ML API"
+import { createOpenAI } from "@ai-sdk/openai";
+import { streamText } from "ai";
+
+export const maxDuration = 30;
+
+const aimlapi = createOpenAI({
+  apiKey: process.env.AIMLAPI_API_KEY ?? "",
+  baseURL: "https://api.aimlapi.com/v1",
+});
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+  const result = streamText({
+    model: aimlapi("accounts/aimlapi/models/meta-llama/Llama-3.3-70B-Instruct-Turbo"),
+    messages,
+  });
+  return result.toDataStreamResponse();
+}
+```
+
 </Tabs>
 
 Define environment variables:
 
-<Tabs id="provider" items={["OpenAI", "Anthropic", "Azure", "AWS", "Gemini", "GCP", "Groq", "Fireworks", "Cohere", "Ollama", "Chrome AI"]}>
+<Tabs id="provider" items={["OpenAI", "Anthropic", "Azure", "AWS", "Gemini", "GCP", "Groq", "Fireworks", "Cohere", "Ollama", "Chrome AI", AI/ML API]}>
 
 ```sh title="/.env.local" tab="OpenAI"
 OPENAI_API_KEY="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
@@ -360,6 +386,10 @@ COHERE_API_KEY="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
 ```sh tab="Chrome AI"
 <none>
+```
+
+```sh title="/.env.local" tab="AI/ML API"
+AIMLAPI_API_KEY="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 ```
 
 </Tabs>
