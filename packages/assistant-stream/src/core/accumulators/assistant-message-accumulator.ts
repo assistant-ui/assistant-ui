@@ -374,7 +374,18 @@ export class AssistantMessageAccumulator extends TransformStream<
         hadChunks = true;
       },
       flush(controller) {
-        if (!hadChunks) {
+        if (message.status?.type === "running") {
+          // TODO this test isn't sound
+          const requiresAction = message.parts?.at(-1)?.type === "tool-call";
+          message = handleMessageFinish(message, {
+            type: "message-finish",
+            path: [],
+            finishReason: requiresAction ? "tool-calls" : "unknown",
+            usage: {
+              promptTokens: 0,
+              completionTokens: 0,
+            },
+          });
           controller.enqueue(message);
         }
       },

@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.8.9
+
+### Patch Changes
+
+- fix: adjust message status even if no message-finish event is emitted
+
 ## 0.8.8
 
 ### Patch Changes
