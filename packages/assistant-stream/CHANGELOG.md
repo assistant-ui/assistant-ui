@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.0.25
+
+### Patch Changes
+
+- fix: frontend tool call enqueue bug
+
 ## 0.0.24
 
 ### Patch Changes
