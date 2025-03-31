@@ -324,7 +324,6 @@ export class AssistantMessageAccumulator extends TransformStream<
 > {
   constructor() {
     let message: AssistantMessage = createInitialMessage();
-    let hadChunks = false;
     super({
       transform(chunk, controller) {
         const type = chunk.type;
@@ -371,7 +370,6 @@ export class AssistantMessageAccumulator extends TransformStream<
           }
         }
         controller.enqueue(message);
-        hadChunks = true;
       },
       flush(controller) {
         if (message.status?.type === "running") {
