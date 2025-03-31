@@ -20,6 +20,7 @@
     "@types/node": "^22.13.1",
     "@types/react": "^19",
     "@types/react-syntax-highlighter": "^15.5.13",
+    "ai": "^4.2.9",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "eslint": "^9",
@@ -41,8 +42,5 @@
   },
   "scripts": {
     "build": "tsx ./scripts/build-registry.ts"
-  },
-  "dependencies": {
-    "ai": "^4.1.34"
   }
 }

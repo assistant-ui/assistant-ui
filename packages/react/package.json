@@ -59,7 +59,7 @@
     "build": "tsx scripts/build.mts"
   },
   "dependencies": {
-    "@ai-sdk/provider": "^1.0.7",
+    "@ai-sdk/provider": "^1.1.0",
     "@radix-ui/primitive": "^1.1.1",
     "@radix-ui/react-compose-refs": "^1.1.1",
     "@radix-ui/react-context": "^1.1.1",

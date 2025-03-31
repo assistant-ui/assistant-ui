@@ -147,6 +147,10 @@ export class MessageRepository {
     return messages;
   });
 
+  get headId() {
+    return this.head?.current.id ?? null;
+  }
+
   getMessages() {
     return this._messages.value;
   }
