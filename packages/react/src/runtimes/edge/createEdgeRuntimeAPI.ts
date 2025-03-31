@@ -10,24 +10,24 @@ import {
   ThreadMessage,
   ThreadStep,
 } from "../../types/AssistantTypes";
-import { assistantEncoderStream } from "./streams/assistantEncoderStream";
 import { EdgeRuntimeRequestOptionsSchema } from "./EdgeRuntimeRequestOptions";
 import { toLanguageModelMessages } from "./converters/toLanguageModelMessages";
 import { toLanguageModelTools } from "./converters/toLanguageModelTools";
-import {
-  toolResultStream,
-  ToolResultStreamPart,
-} from "./streams/toolResultStream";
-import { runResultStream } from "./streams/runResultStream";
+import { toolResultStream } from "./streams/toolResultStream";
 import {
   LanguageModelConfig,
   LanguageModelV1CallSettings,
   LanguageModelV1CallSettingsSchema,
   Tool,
 } from "../../model-context/ModelContextTypes";
-import { CoreChatModelRunResult } from "../local/ChatModelAdapter";
-import { streamPartEncoderStream } from "./streams/utils/streamPartEncoderStream";
 import { z } from "zod";
+import {
+  AssistantMessage,
+  AssistantMessageAccumulator,
+  AssistantStreamChunk,
+  DataStreamEncoder,
+} from "assistant-stream";
+import { LanguageModelV1StreamDecoder } from "assistant-stream/ai-sdk";
 
 type FinishResult = {
   messages: readonly (CoreMessage | ThreadMessage)[];
@@ -46,14 +46,6 @@ export type CreateEdgeRuntimeAPIOptions = LanguageModelV1CallSettings & {
   tools?: Record<string, Tool<any, any>>;
   toolChoice?: LanguageModelV1ToolChoice;
   onFinish?: (result: FinishResult) => void;
-};
-
-const voidStream = () => {
-  return new WritableStream({
-    abort(reason) {
-      console.error("Server stream processing aborted:", reason);
-    },
-  });
 };
 
 type GetEdgeRuntimeStreamOptions = {
@@ -106,7 +98,7 @@ export const getEdgeRuntimeStream = async ({
       ? await modelOrCreator({ apiKey, baseUrl, modelName })
       : modelOrCreator;
 
-  let stream: ReadableStream<ToolResultStreamPart>;
+  let stream: ReadableStream<AssistantStreamChunk>;
   const streamResult = await streamMessage({
     ...(settings as Partial<StreamMessageOptions>),
     ...callSettings,
@@ -119,7 +111,7 @@ export const getEdgeRuntimeStream = async ({
     tools: lmServerTools.concat(clientTools as LanguageModelV1FunctionTool[]),
     ...(toolChoice ? { toolChoice } : undefined),
   });
-  stream = streamResult.stream;
+  stream = streamResult.stream.pipeThrough(new LanguageModelV1StreamDecoder());
 
   // add tool results if we have server tools
   const canExecuteTools = hasServerTools && toolChoice?.type !== "none";
@@ -134,13 +126,13 @@ export const getEdgeRuntimeStream = async ({
     let serverStream = tees[1];
 
     if (onFinish) {
-      let lastChunk: CoreChatModelRunResult | undefined;
-      serverStream = serverStream.pipeThrough(runResultStream()).pipeThrough(
-        new TransformStream({
-          transform(chunk) {
+      let lastChunk: AssistantMessage | undefined;
+      serverStream.pipeThrough(new AssistantMessageAccumulator()).pipeTo(
+        new WritableStream({
+          write(chunk) {
             lastChunk = chunk;
           },
-          flush() {
+          close() {
             if (!lastChunk?.status || lastChunk.status.type === "running")
               return;
 
@@ -152,32 +144,22 @@ export const getEdgeRuntimeStream = async ({
                 role: "assistant",
                 content: lastChunk.content,
                 status: lastChunk.status,
-                metadata: {
-                  unstable_data: lastChunk.metadata?.unstable_data ?? [],
-                  unstable_annotations:
-                    lastChunk.metadata?.unstable_annotations ?? [],
-                  steps: lastChunk.metadata?.steps ?? [],
-                  custom: lastChunk.metadata?.custom ?? {},
-                },
+                metadata: lastChunk.metadata,
               } satisfies ThreadMessage,
             ];
             onFinish({
               messages: resultingMessages,
               metadata: {
-                // TODO
-                // eslint-disable-next-line @typescript-eslint/no-non-null-asserted-optional-chain
-                steps: lastChunk.metadata?.steps!,
+                steps: lastChunk.metadata.steps,
               },
             });
+          },
+          abort(e) {
+            console.error("Server stream processing error:", e);
           },
         }),
       );
     }
-
-    // drain the server stream
-    serverStream.pipeTo(voidStream()).catch((e) => {
-      console.error("Server stream processing error:", e);
-    });
   }
 
   return stream;
@@ -191,16 +173,11 @@ export const getEdgeRuntimeResponse = async (
   options: getEdgeRuntimeResponse.Options,
 ) => {
   const stream = await getEdgeRuntimeStream(options);
-  return new Response(
-    stream
-      .pipeThrough(assistantEncoderStream())
-      .pipeThrough(streamPartEncoderStream()),
-    {
-      headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-      },
+  return new Response(stream.pipeThrough(new DataStreamEncoder()), {
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
     },
-  );
+  });
 };
 
 export const createEdgeRuntimeAPI = (options: CreateEdgeRuntimeAPIOptions) => ({

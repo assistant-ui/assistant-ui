@@ -1,5 +1,6 @@
 import { createOpenAI } from "@ai-sdk/openai";
-import { streamText } from "ai";
+import { streamText, tool } from "ai";
+import { z } from "zod";
 
 const openai = createOpenAI({
   baseURL: process.env["OPENAI_BASE_URL"] as string,
@@ -17,6 +18,17 @@ export async function POST(req: Request) {
   const result = streamText({
     model: openai("gpt-4o-mini"),
     messages,
+    tools: {
+      weather: tool({
+        description: "Get weather information",
+        parameters: z.object({
+          location: z.string().describe("Location to get weather for"),
+        }),
+        execute: async ({ location }) => {
+          return `The weather in ${location} is sunny.`;
+        },
+      }),
+    },
   });
 
   return result.toDataStreamResponse();

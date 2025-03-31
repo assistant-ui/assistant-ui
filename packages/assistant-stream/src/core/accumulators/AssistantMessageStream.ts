@@ -1,6 +1,6 @@
 import { AssistantStream } from "../AssistantStream";
 import { AssistantMessage } from "../utils/types";
-import { assistantMessageAccumulator } from "./assistantMessageAccumulator";
+import { AssistantMessageAccumulator } from "./assistant-message-accumulator";
 
 export class AssistantMessageStream {
   constructor(public readonly readable: ReadableStream<AssistantMessage>) {
@@ -9,7 +9,7 @@ export class AssistantMessageStream {
 
   static fromAssistantStream(stream: AssistantStream) {
     return new AssistantMessageStream(
-      stream.pipeThrough(assistantMessageAccumulator()),
+      stream.pipeThrough(new AssistantMessageAccumulator()),
     );
   }
 
@@ -23,8 +23,11 @@ export class AssistantMessageStream {
       return {
         role: "assistant",
         status: { type: "complete", reason: "unknown" },
+        parts: [],
         content: [],
         metadata: {
+          unstable_data: [],
+          unstable_annotations: [],
           steps: [],
           custom: {},
         },

@@ -1,27 +1,4 @@
-export type AssistantStreamChunk =
-  | {
-      type: "text-delta";
-      textDelta: string;
-    }
-  | {
-      type: "tool-call-begin";
-      toolCallId: string;
-      toolName: string;
-    }
-  | {
-      type: "tool-call-delta";
-      toolCallId: string;
-      argsTextDelta: string;
-    }
-  | {
-      type: "tool-result";
-      toolCallId: string;
-      result: any;
-    }
-  | {
-      type: "error";
-      error: string;
-    };
+import { AssistantStreamChunk } from "./AssistantStreamChunk";
 
 export type AssistantStream = ReadableStream<AssistantStreamChunk>;
 
