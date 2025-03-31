@@ -152,8 +152,14 @@ export function assistantDecoderStream() {
           });
           break;
 
-        // TODO
         case AssistantStreamChunkType.ReasoningDelta:
+          controller.enqueue({
+            type: "reasoning",
+            textDelta: value,
+          });
+          break;
+
+        // TODO
         case AssistantStreamChunkType.StartStep:
           break;
 
