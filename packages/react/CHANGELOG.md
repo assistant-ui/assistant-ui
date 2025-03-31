@@ -1,5 +1,15 @@
 # @assistant-ui/react
 
+## 0.8.7
+
+### Patch Changes
+
+- ecc6afd: feat: ThreadHistoryAdapter.resume
+- b07603d: feat: assistant-stream rewrite
+- b07603d: feat: use assistant-stream
+- Updated dependencies [b07603d]
+  - assistant-stream@0.0.22
+
 ## 0.8.6
 
 ### Patch Changes
