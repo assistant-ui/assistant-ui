@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.0.24
+
+### Patch Changes
+
+- chore: bump assistant-stream
+
 ## 0.0.23
 
 ### Patch Changes
