@@ -31,7 +31,7 @@
     "@radix-ui/themes": "^3.2.0",
     "@sentry/nextjs": "^8",
     "@shikijs/transformers": "^2.3.2",
-    "ai": "^4.2.8",
+    "ai": "^4.2.9",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dotenv": "^16.4.7",

@@ -4,12 +4,12 @@ import { Writable } from "stream";
 import { ReadonlyJSONObject } from "../../../utils/json/json-value";
 
 type fromLanguageModelMessagesOptions = {
-  mergeSteps: boolean;
+  mergeSteps?: boolean;
 };
 
 export const fromLanguageModelMessages = (
   lm: LanguageModelV1Message[],
-  { mergeSteps }: fromLanguageModelMessagesOptions,
+  { mergeSteps }: fromLanguageModelMessagesOptions = {},
 ): CoreMessage[] => {
   const messages: CoreMessage[] = [];
 
@@ -70,18 +70,28 @@ export const fromLanguageModelMessages = (
         break;
       }
       case "assistant": {
-        const newContent = lmMessage.content.map((part) => {
-          if (part.type === "tool-call") {
-            return {
-              type: "tool-call",
-              toolCallId: part.toolCallId,
-              toolName: part.toolName,
-              argsText: JSON.stringify(part.args),
-              args: part.args as ReadonlyJSONObject,
-            } satisfies ToolCallContentPart;
-          }
-          return part;
-        });
+        const newContent = lmMessage.content
+          .map((part) => {
+            if (part.type === "tool-call") {
+              return {
+                type: "tool-call",
+                toolCallId: part.toolCallId,
+                toolName: part.toolName,
+                argsText: JSON.stringify(part.args),
+                args: part.args as ReadonlyJSONObject,
+              } satisfies ToolCallContentPart;
+            }
+            // TODO handle these
+            if (
+              part.type === "redacted-reasoning" ||
+              part.type === "file" ||
+              part.type === "reasoning"
+            ) {
+              return null;
+            }
+            return part;
+          })
+          .filter((p) => !!p);
 
         if (mergeSteps) {
           const previousMessage = messages[messages.length - 1];

@@ -1,7 +1,7 @@
 import { generateId } from "../../internal";
 import type { AppendMessage, ThreadAssistantMessage } from "../../types";
 import { fromCoreMessage } from "../edge";
-import type { ChatModelRunResult } from "./ChatModelAdapter";
+import type { ChatModelAdapter, ChatModelRunResult } from "./ChatModelAdapter";
 import { shouldContinue } from "./shouldContinue";
 import { LocalRuntimeOptionsBase } from "./LocalRuntimeOptions";
 import {
@@ -97,6 +97,18 @@ export class LocalThreadRuntimeCore
       if (!repo) return;
       this.repository.import(repo);
       this._notifySubscribers();
+
+      const resume = this.adapters.history?.resume?.bind(this.adapters.history);
+      if (repo.unstable_resume && resume) {
+        this.startRun(
+          {
+            parentId: this.repository.headId,
+            sourceId: this.repository.headId,
+            runConfig: this._lastRunConfig,
+          },
+          resume,
+        );
+      }
     });
 
     return this._loadPromise;
@@ -127,10 +139,10 @@ export class LocalThreadRuntimeCore
     }
   }
 
-  public async startRun({
-    parentId,
-    runConfig,
-  }: StartRunConfig): Promise<void> {
+  public async startRun(
+    { parentId, runConfig }: StartRunConfig,
+    runCallback?: ChatModelAdapter["run"],
+  ): Promise<void> {
     this.ensureInitialized();
 
     this.repository.resetHead(parentId);
@@ -159,7 +171,13 @@ export class LocalThreadRuntimeCore
       this._suggestionsController = null;
 
       do {
-        message = await this.performRoundtrip(parentId, message, runConfig);
+        message = await this.performRoundtrip(
+          parentId,
+          message,
+          runConfig,
+          runCallback,
+        );
+        runCallback = undefined;
       } while (shouldContinue(message, this._options.unstable_humanToolNames));
     } finally {
       this._notifyEventSubscribers("run-end");
@@ -192,6 +210,7 @@ export class LocalThreadRuntimeCore
     parentId: string | null,
     message: ThreadAssistantMessage,
     runConfig: RunConfig | undefined,
+    runCallback?: ChatModelAdapter["run"],
   ) {
     const messages = this.repository.getMessages();
 
@@ -268,7 +287,12 @@ export class LocalThreadRuntimeCore
     try {
       this._lastRunConfig = runConfig ?? {};
       const context = this.getModelContext();
-      const promiseOrGenerator = this.adapters.chatModel.run({
+
+      runCallback =
+        runCallback ??
+        this.adapters.chatModel.run.bind(this.adapters.chatModel);
+
+      const promiseOrGenerator = runCallback({
         messages,
         runConfig: this._lastRunConfig,
         abortSignal: this.abortController.signal,
