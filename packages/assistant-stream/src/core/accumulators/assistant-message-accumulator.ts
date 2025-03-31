@@ -119,7 +119,7 @@ const handlePartStart = (
       },
     };
   } else {
-    throw new Error("Unsupported part type:", partInit.type);
+    throw new Error(`Unsupported part type: ${partInit.type}`);
   }
 };
 
