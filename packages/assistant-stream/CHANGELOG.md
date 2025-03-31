@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.0.22
+
+### Patch Changes
+
+- b07603d: feat: assistant-stream rewrite
+
 ## 0.0.21
 
 ### Patch Changes
