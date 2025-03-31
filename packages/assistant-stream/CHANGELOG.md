@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.0.23
+
+### Patch Changes
+
+- 439ae67: fix: properly emit tool-call args-text finish
+
 ## 0.0.22
 
 ### Patch Changes
