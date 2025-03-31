@@ -36,6 +36,9 @@ export type ImageContentPartState = ContentPartState & {
 export type SourceContentPartState = ContentPartState & {
   readonly type: "source";
 };
+export type FileContentPartState = ContentPartState & {
+  readonly type: "file";
+};
 export type ToolCallContentPartState = ContentPartState & {
   readonly type: "tool-call";
 };

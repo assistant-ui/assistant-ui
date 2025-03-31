@@ -100,6 +100,7 @@ export const fromThreadMessageLike = (
                 if (part.text.trim().length === 0) return null;
                 return part;
 
+              case "file":
               case "source":
                 return part;
 
@@ -121,7 +122,7 @@ export const fromThreadMessageLike = (
               }
 
               default: {
-                const unhandledType: "image" | "audio" | "file" = type;
+                const unhandledType: "image" | "audio" = type;
                 throw new Error(
                   `Unsupported assistant content part type: ${unhandledType}`,
                 );

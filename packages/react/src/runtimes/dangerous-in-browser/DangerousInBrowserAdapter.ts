@@ -5,13 +5,13 @@ import {
 import { toCoreMessages } from "../edge/converters/toCoreMessages";
 import { toLanguageModelTools } from "../edge/converters/toLanguageModelTools";
 import { EdgeRuntimeRequestOptions } from "../edge/EdgeRuntimeRequestOptions";
-import { runResultStream } from "../edge/streams/runResultStream";
 import { toolResultStream } from "../edge/streams/toolResultStream";
 import { asAsyncIterable } from "../edge/EdgeChatAdapter";
 import {
   CreateEdgeRuntimeAPIOptions,
   getEdgeRuntimeStream,
 } from "../edge/createEdgeRuntimeAPI";
+import { AssistantMessageAccumulator } from "assistant-stream";
 
 export type DangerousInBrowserAdapterOptions = CreateEdgeRuntimeAPIOptions;
 
@@ -33,7 +33,7 @@ export class DangerousInBrowserAdapter implements ChatModelAdapter {
 
     const stream = res
       .pipeThrough(toolResultStream(context.tools, abortSignal))
-      .pipeThrough(runResultStream());
+      .pipeThrough(new AssistantMessageAccumulator());
 
     for await (const update of asAsyncIterable(stream)) {
       yield update;

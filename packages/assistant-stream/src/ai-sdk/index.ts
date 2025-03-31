@@ -1,83 +1,147 @@
-import type { TextStreamPart, CoreTool, ObjectStreamPart } from "ai";
-import { AssistantStream, AssistantStreamChunk } from "../core/AssistantStream";
-import { generateId } from "../core/utils/generateId";
+import type { TextStreamPart, ObjectStreamPart, Tool } from "ai";
+import { AssistantStream } from "../core/AssistantStream";
+import { AssistantTransformStream } from "../core/utils/stream/AssistantTransformStream";
+import { ToolCallStreamController } from "../core/modules/tool-call";
+import { ReadonlyJSONValue } from "../core/utils/json/json-value";
 
 export const fromStreamText = (
-  stream: ReadableStream<TextStreamPart<Record<string, CoreTool>>>,
+  stream: ReadableStream<TextStreamPart<Record<string, Tool>>>,
 ): AssistantStream => {
-  const transformer = new TransformStream<
-    TextStreamPart<Record<string, CoreTool>>,
-    AssistantStreamChunk
+  const toolControllers = new Map<string, ToolCallStreamController>();
+  let currentToolCallArgsText: ToolCallStreamController | undefined;
+
+  const endCurrentToolCallArgsText = () => {
+    if (!currentToolCallArgsText) return;
+    currentToolCallArgsText.argsText.close();
+    currentToolCallArgsText = undefined;
+  };
+
+  const transformer = new AssistantTransformStream<
+    TextStreamPart<Record<string, Tool>>
   >({
     transform(chunk, controller) {
       const { type } = chunk;
+
+      if (type !== "tool-call-delta" && type !== "error") {
+        endCurrentToolCallArgsText();
+      }
+
       switch (type) {
         case "text-delta": {
           const { textDelta } = chunk;
-          controller.enqueue({
-            type: "text-delta",
-            textDelta,
-          });
+          controller.appendText(textDelta);
+          break;
+        }
+        case "reasoning": {
+          const { textDelta } = chunk;
+          controller.appendReasoning(textDelta);
           break;
         }
         case "tool-call-streaming-start": {
           const { toolCallId, toolName } = chunk;
-          controller.enqueue({
-            type: "tool-call-begin",
+          currentToolCallArgsText = controller.addToolCallPart({
             toolCallId,
             toolName,
           });
+          toolControllers.set(toolCallId, currentToolCallArgsText);
           break;
         }
         case "tool-call-delta": {
           const { toolCallId, argsTextDelta } = chunk;
-          controller.enqueue({
-            type: "tool-call-delta",
-            toolCallId,
-            argsTextDelta,
-          });
+          const toolController = toolControllers.get(toolCallId);
+          if (!toolController) throw new Error("Tool call not found");
+          toolController.argsText.append(argsTextDelta);
           break;
         }
         case "tool-result" as string: {
           const { toolCallId, result } = chunk as unknown as {
             toolCallId: string;
-            result: unknown;
+            result: ReadonlyJSONValue;
           };
-          controller.enqueue({
-            type: "tool-result",
-            toolCallId,
-            result,
-          });
+          const toolController = toolControllers.get(toolCallId);
+          if (!toolController) throw new Error("Tool call not found");
+          toolController.setResult(result);
+          toolController.close();
+          toolControllers.delete(toolCallId);
           break;
         }
         case "tool-call": {
           const { toolCallId, toolName, args } = chunk;
-          controller.enqueue({
-            type: "tool-call-begin",
+          const toolController = controller.addToolCallPart({
             toolCallId,
             toolName,
           });
+          toolController.argsText.append(JSON.stringify(args));
+          toolController.argsText.close();
+          toolControllers.set(toolCallId, toolController);
+          break;
+        }
+
+        case "step-start":
           controller.enqueue({
-            type: "tool-call-delta",
-            toolCallId,
-            argsTextDelta: JSON.stringify(args),
+            type: "step-start",
+            path: [],
+            messageId: chunk.messageId,
+          });
+          break;
+        case "step-finish":
+          controller.enqueue({
+            type: "step-finish",
+            path: [],
+            finishReason: chunk.finishReason,
+            usage: chunk.usage,
+            isContinued: chunk.isContinued,
+          });
+          break;
+        case "error":
+          controller.enqueue({
+            type: "error",
+            path: [],
+            error: String(chunk.error),
+          });
+          break;
+
+        case "finish": {
+          controller.enqueue({
+            type: "message-finish",
+            path: [],
+            finishReason: chunk.finishReason,
+            usage: chunk.usage,
           });
           break;
         }
 
-        case "reasoning":
-        case "step-start":
-        case "step-finish":
-        case "error":
-        case "finish": {
+        case "source":
+          controller.appendSource({
+            type: "source",
+            ...chunk.source,
+          });
           break;
-        }
+
+        case "file":
+          controller.appendFile({
+            type: "file",
+            mimeType: chunk.mimeType,
+            data: chunk.base64,
+          });
+          break;
+
+        case "reasoning-signature":
+        case "redacted-reasoning":
+          // ignore these for now
+          break;
 
         default: {
           const unhandledType: never = type;
           throw new Error(`Unhandled chunk type: ${unhandledType}`);
         }
       }
+    },
+    flush() {
+      for (const toolController of toolControllers.values()) {
+        toolController.close();
+      }
+      toolControllers.clear();
     },
   });
 
@@ -88,41 +152,34 @@ export const fromStreamObject = (
   stream: ReadableStream<ObjectStreamPart<unknown>>,
   toolName: string,
 ): AssistantStream => {
-  const toolCallId = generateId();
-  const transformer = new TransformStream<
-    ObjectStreamPart<unknown>,
-    AssistantStreamChunk
-  >({
+  let toolCall!: ToolCallStreamController;
+  const transformer = new AssistantTransformStream<ObjectStreamPart<unknown>>({
     start(controller) {
-      controller.enqueue({
-        type: "tool-call-begin",
-        toolName,
-        toolCallId,
-      });
+      toolCall = controller.addToolCallPart(toolName);
     },
     transform(chunk, controller) {
       const { type } = chunk;
       switch (type) {
         case "text-delta": {
           const { textDelta } = chunk;
-          controller.enqueue({
-            type: "tool-call-delta",
-            toolCallId,
-            argsTextDelta: textDelta,
-          });
+          toolCall.argsText.append(textDelta);
           break;
         }
         case "finish": {
-          controller.enqueue({
-            type: "tool-result",
-            toolCallId,
-            result: "",
-          });
+          toolCall.argsText.close();
+          toolCall.setResult("");
           break;
         }
 
         case "object":
+          break;
+
         case "error": {
+          controller.enqueue({
+            type: "error",
+            path: [],
+            error: String(chunk.error),
+          });
           break;
         }
 

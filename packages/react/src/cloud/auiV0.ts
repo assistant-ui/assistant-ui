@@ -82,8 +82,15 @@ export const auiV0Encode = (message: ThreadMessage): AuiV0Message => {
           };
         }
 
-        case "source":
-          return part;
+        case "source": {
+          return {
+            type: "source",
+            sourceType: part.sourceType,
+            id: part.id,
+            url: part.url,
+            ...(part.title ? { title: part.title } : undefined),
+          };
+        }
 
         case "tool-call": {
           if (!isJSONValue(part.result)) {

@@ -2,13 +2,9 @@ import {
   ChatModelAdapter,
   ChatModelRunOptions,
 } from "../local/ChatModelAdapter";
-import { ChatModelRunResult } from "../local/ChatModelAdapter";
 import { toCoreMessages } from "./converters/toCoreMessages";
 import { toLanguageModelTools } from "./converters/toLanguageModelTools";
 import { EdgeRuntimeRequestOptions } from "./EdgeRuntimeRequestOptions";
-import { assistantDecoderStream } from "./streams/assistantDecoderStream";
-import { streamPartDecoderStream } from "./streams/utils/streamPartDecoderStream";
-import { runResultStream } from "./streams/runResultStream";
 import { toolResultStream } from "./streams/toolResultStream";
 import { toLanguageModelMessages } from "./converters";
 import { ThreadMessage } from "../../types";
@@ -16,6 +12,10 @@ import { Tool } from "../../model-context";
 import { z } from "zod";
 import zodToJsonSchema from "zod-to-json-schema";
 import { JSONSchema7 } from "json-schema";
+import {
+  AssistantMessageAccumulator,
+  DataStreamDecoder,
+} from "assistant-stream";
 
 export function asAsyncIterable<T>(
   source: ReadableStream<T>,
@@ -67,13 +67,13 @@ export type EdgeChatAdapterOptions = {
   onError?: (error: Error) => void;
 
   credentials?: RequestCredentials;
-  
+
   /**
    * Headers to be sent with the request.
    * Can be a static headers object or a function that returns a Promise of headers.
    */
   headers?: HeadersValue | (() => Promise<HeadersValue>);
-  
+
   body?: object;
 
   /**
@@ -120,10 +120,11 @@ export class EdgeChatAdapter implements ChatModelAdapter {
     unstable_assistantMessageId,
     unstable_getMessage,
   }: ChatModelRunOptions) {
-    const headersValue = typeof this.options.headers === 'function' 
-      ? await this.options.headers() 
-      : this.options.headers;
-    
+    const headersValue =
+      typeof this.options.headers === "function"
+        ? await this.options.headers()
+        : this.options.headers;
+
     const headers = new Headers(headersValue);
     headers.set("Content-Type", "application/json");
 
@@ -165,20 +166,18 @@ export class EdgeChatAdapter implements ChatModelAdapter {
       if (!result.ok) {
         throw new Error(`Status ${result.status}: ${await result.text()}`);
       }
-
-      const stream = result
-        .body!.pipeThrough(streamPartDecoderStream())
-        .pipeThrough(assistantDecoderStream())
-        .pipeThrough(toolResultStream(context.tools, abortSignal))
-        .pipeThrough(runResultStream());
-
-      let update: ChatModelRunResult | undefined;
-      for await (update of asAsyncIterable(stream)) {
-        yield update;
+      if (!result.body) {
+        throw new Error("Response body is null");
       }
 
-      if (update === undefined)
-        throw new Error("No data received from Edge Runtime");
+      const stream = result.body
+        .pipeThrough(new DataStreamDecoder())
+        .pipeThrough(toolResultStream(context.tools, abortSignal))
+        .pipeThrough(new AssistantMessageAccumulator());
+
+      for await (const update of asAsyncIterable(stream)) {
+        yield update;
+      }
 
       this.options.onFinish?.(unstable_getMessage());
     } catch (error: unknown) {

@@ -1,13 +1,15 @@
-// tools  type error
-
 export {
   createAssistantStream,
   createAssistantStreamResponse,
-} from "./modules/runs";
-export { AssistantStream, type AssistantStreamChunk } from "./AssistantStream";
+} from "./modules/assistant-stream";
+export { ToolExecutionStream } from "./effects/ToolExecutionStream";
+export { AssistantMessageAccumulator } from "./accumulators/assistant-message-accumulator";
+export { AssistantStream } from "./AssistantStream";
+export type { AssistantStreamChunk } from "./AssistantStreamChunk";
 export {
   DataStreamDecoder,
   DataStreamEncoder,
-} from "./serialization/DataStream";
+} from "./serialization/data-stream/DataStream";
 export { PlainTextDecoder, PlainTextEncoder } from "./serialization/PlainText";
 export { AssistantMessageStream } from "./accumulators/AssistantMessageStream";
+export type { AssistantMessage } from "./utils/types";

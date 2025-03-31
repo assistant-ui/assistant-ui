@@ -1,36 +1,19 @@
-export type AssistantStreamChunk =
-  | {
-      type: "text-delta";
-      textDelta: string;
-    }
-  | {
-      type: "tool-call-begin";
-      toolCallId: string;
-      toolName: string;
-    }
-  | {
-      type: "tool-call-delta";
-      toolCallId: string;
-      argsTextDelta: string;
-    }
-  | {
-      type: "tool-result";
-      toolCallId: string;
-      result: any;
-    }
-  | {
-      type: "error";
-      error: string;
-    };
+import { AssistantStreamChunk } from "./AssistantStreamChunk";
 
 export type AssistantStream = ReadableStream<AssistantStreamChunk>;
 
+export type AssistantStreamEncoder = ReadableWritablePair<
+  Uint8Array,
+  AssistantStreamChunk
+> & {
+  headers?: Headers;
+};
+
 export const AssistantStream = {
-  toResponse(
-    stream: AssistantStream,
-    transformer: ReadableWritablePair<Uint8Array, AssistantStreamChunk>,
-  ) {
-    return new Response(AssistantStream.toByteStream(stream, transformer));
+  toResponse(stream: AssistantStream, transformer: AssistantStreamEncoder) {
+    return new Response(AssistantStream.toByteStream(stream, transformer), {
+      headers: transformer.headers ?? {},
+    });
   },
 
   fromResponse(

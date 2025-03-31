@@ -111,7 +111,8 @@ export type ThreadAssistantContentPart =
   | TextContentPart
   | ReasoningContentPart
   | ToolCallContentPart
-  | SourceContentPart;
+  | SourceContentPart
+  | FileContentPart;
 
 type MessageCommonProps = {
   readonly id: string;
