@@ -132,7 +132,7 @@ export class ToolExecutionStream extends PipeableTransformStream<
           }
         },
         async flush() {
-          await Promise.all(toolCallPromises);
+          await Promise.all(toolCallPromises.values());
         },
       });
 
