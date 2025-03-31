@@ -14,6 +14,7 @@ export type ToolCallStreamController = {
 class ToolCallStreamControllerImpl implements ToolCallStreamController {
   private _isClosed = false;
 
+  private _mergeTask: Promise<void>;
   constructor(
     private _controller: ReadableStreamDefaultController<AssistantStreamChunk>,
   ) {
@@ -22,7 +23,7 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
         this._argsTextController = c;
       },
     });
-    stream.pipeTo(
+    this._mergeTask = stream.pipeTo(
       new WritableStream({
         write: (chunk) => {
           switch (chunk.type) {
@@ -60,11 +61,12 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
     });
   }
 
-  close() {
+  async close() {
     if (this._isClosed) return;
 
     this._isClosed = true;
     this._argsTextController.close();
+    await this._mergeTask;
 
     this._controller.enqueue({
       type: "part-finish",
