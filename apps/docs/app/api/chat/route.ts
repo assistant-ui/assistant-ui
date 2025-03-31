@@ -1,5 +1,5 @@
 import { createOpenAI } from "@ai-sdk/openai";
-import { createDataStreamResponse, streamText, tool } from "ai";
+import { streamText, tool } from "ai";
 import { z } from "zod";
 
 const openai = createOpenAI({
