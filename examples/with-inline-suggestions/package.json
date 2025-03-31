@@ -15,7 +15,7 @@
     "@radix-ui/react-avatar": "^1.1.3",
     "@radix-ui/react-slot": "^1.1.2",
     "@radix-ui/react-tooltip": "^1.1.8",
-    "ai": "^4.1.25",
+    "ai": "^4.2.9",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.475.0",

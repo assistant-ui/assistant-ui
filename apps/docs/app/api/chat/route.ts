@@ -1,5 +1,5 @@
 import { createOpenAI } from "@ai-sdk/openai";
-import { streamText, tool } from "ai";
+import { createDataStreamResponse, streamText, tool } from "ai";
 import { z } from "zod";
 
 const openai = createOpenAI({
@@ -31,5 +31,16 @@ export async function POST(req: Request) {
     },
   });
 
-  return result.toDataStreamResponse();
+  return createDataStreamResponse({
+    execute: async (writer) => {
+      result.mergeIntoDataStream(writer);
+      writer.writeData("hello");
+      writer.writeMessageAnnotation("hello");
+      writer.writeSource({
+        sourceType: "url",
+        id: "1",
+        url: "https://example.com",
+      });
+    },
+  });
 }

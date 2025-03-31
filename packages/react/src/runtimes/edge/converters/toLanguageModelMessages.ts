@@ -151,8 +151,9 @@ export function toLanguageModelMessages(
           const type = part.type;
           switch (type) {
             case "reasoning":
-            case "source": {
-              break; // reasoning and source parts are omitted
+            case "source":
+            case "file": {
+              break; // reasoning, source, and file parts are omitted
             }
 
             case "text": {

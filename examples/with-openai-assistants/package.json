@@ -13,7 +13,7 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-ai-sdk": "workspace:*",
     "@radix-ui/react-avatar": "^1.1.3",
-    "ai": "^4.1.25",
+    "ai": "^4.2.9",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.475.0",

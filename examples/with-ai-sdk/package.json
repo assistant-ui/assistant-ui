@@ -13,7 +13,7 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-ai-sdk": "workspace:^",
     "@assistant-ui/react-ui": "workspace:^",
-    "ai": "^4.1.25",
+    "ai": "^4.2.9",
     "next": "15.1.6",
     "react": "19.0.0",
     "react-dom": "19.0.0",

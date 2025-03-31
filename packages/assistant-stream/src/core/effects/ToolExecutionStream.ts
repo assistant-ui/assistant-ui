@@ -11,7 +11,7 @@ type ToolCallback = (toolCall: {
   toolCallId: string;
   toolName: string;
   args: unknown;
-}) => Promise<ReadonlyJSONValue>;
+}) => Promise<ReadonlyJSONValue> | ReadonlyJSONValue | undefined;
 
 export class ToolExecutionStream extends PipeableTransformStream<
   AssistantStreamChunk,
@@ -53,7 +53,7 @@ export class ToolExecutionStream extends PipeableTransformStream<
               if (!argsText)
                 throw new Error("Unexpected tool call without args");
 
-              const executeTool = async () => {
+              const executeTool = () => {
                 let args;
                 try {
                   args = sjson.parse(argsText);
@@ -68,27 +68,49 @@ export class ToolExecutionStream extends PipeableTransformStream<
                 });
               };
 
-              const toolCallPromise = executeTool()
-                .then((c) => {
-                  if (c === undefined) return;
-
-                  controller.enqueue({
-                    type: "result",
-                    path: chunk.path,
-                    result: c,
-                    isError: false,
-                  });
-                })
-                .catch((e) => {
-                  controller.enqueue({
-                    type: "result",
-                    path: chunk.path,
-                    result: String(e),
-                    isError: true,
-                  });
+              let promiseOrUndefined;
+              try {
+                promiseOrUndefined = executeTool();
+              } catch (e) {
+                controller.enqueue({
+                  type: "result",
+                  path: chunk.path,
+                  result: String(e),
+                  isError: true,
                 });
+                break;
+              }
 
-              toolCallPromises.set(toolCallId, toolCallPromise);
+              if (promiseOrUndefined instanceof Promise) {
+                const toolCallPromise = promiseOrUndefined
+                  .then((c) => {
+                    if (c === undefined) return;
+
+                    controller.enqueue({
+                      type: "result",
+                      path: chunk.path,
+                      result: c,
+                      isError: false,
+                    });
+                  })
+                  .catch((e) => {
+                    controller.enqueue({
+                      type: "result",
+                      path: chunk.path,
+                      result: String(e),
+                      isError: true,
+                    });
+                  });
+
+                toolCallPromises.set(toolCallId, toolCallPromise);
+              } else if (promiseOrUndefined !== undefined) {
+                controller.enqueue({
+                  type: "result",
+                  path: chunk.path,
+                  result: promiseOrUndefined,
+                  isError: false,
+                });
+              }
               break;
             }
 

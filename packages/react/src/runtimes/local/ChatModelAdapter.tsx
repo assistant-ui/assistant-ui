@@ -1,4 +1,5 @@
 import type {
+  FileContentPart,
   MessageStatus,
   ReasoningContentPart,
   RunConfig,
@@ -34,6 +35,7 @@ export type CoreChatModelRunResult = Omit<ChatModelRunResult, "content"> & {
     | ReasoningContentPart
     | ToolCallContentPart
     | SourceContentPart
+    | FileContentPart
   )[];
 };
 

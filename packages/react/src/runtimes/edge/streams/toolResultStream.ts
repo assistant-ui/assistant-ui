@@ -6,7 +6,7 @@ export function toolResultStream(
   tools: Record<string, Tool<any, any>> | undefined,
   abortSignal: AbortSignal,
 ) {
-  return new ToolExecutionStream(async ({ toolCallId, toolName, args }) => {
+  return new ToolExecutionStream(({ toolCallId, toolName, args }) => {
     const tool = tools?.[toolName];
     if (!tool || !tool.execute) return undefined;
 
@@ -26,11 +26,14 @@ export function toolResultStream(
       }
     }
 
-    const result = await executeFn(args, {
-      toolCallId,
-      abortSignal,
-    });
+    const getResult = async () => {
+      const result = await executeFn(args, {
+        toolCallId,
+        abortSignal,
+      });
+      return result === undefined ? "<no result>" : result;
+    };
 
-    return result === undefined ? "<no result>" : result;
+    return getResult();
   });
 }

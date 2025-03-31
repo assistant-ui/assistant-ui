@@ -35,6 +35,9 @@ export enum DataStreamStreamChunkType {
   StartStep = "f",
   ReasoningDelta = "g",
   Source = "h",
+  RedactedReasoning = "i",
+  ReasoningSignature = "j",
+  File = "k",
 }
 type DataStreamStreamChunkValue = {
   [DataStreamStreamChunkType.TextDelta]: string;
@@ -77,4 +80,7 @@ type DataStreamStreamChunkValue = {
     url: string;
     title?: string;
   };
+  [DataStreamStreamChunkType.RedactedReasoning]: { data: string };
+  [DataStreamStreamChunkType.ReasoningSignature]: { signature: string };
+  [DataStreamStreamChunkType.File]: { data: string; mimeType: string };
 };

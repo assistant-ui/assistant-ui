@@ -9,7 +9,9 @@ export * as ThreadPrimitive from "./thread";
 export * as ThreadListPrimitive from "./threadList";
 export * as ThreadListItemPrimitive from "./threadListItem";
 
-export { useContentPartImage } from "./contentPart/useContentPartImage";
 export { useContentPartText } from "./contentPart/useContentPartText";
 export { useContentPartReasoning } from "./contentPart/useContentPartReasoning";
+export { useContentPartSource } from "./contentPart/useContentPartSource";
+export { useContentPartFile } from "./contentPart/useContentPartFile";
+export { useContentPartImage } from "./contentPart/useContentPartImage";
 export { useThreadViewportAutoScroll } from "./thread/useThreadViewportAutoScroll";

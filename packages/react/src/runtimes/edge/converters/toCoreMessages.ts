@@ -23,8 +23,12 @@ export const toCoreMessage = <T extends boolean = false>(
         role,
         content: message.content
           .map((part) => {
-            if (part.type === "reasoning" || part.type === "source")
-              return null; // reasoning and source parts are omitted
+            if (
+              part.type === "reasoning" ||
+              part.type === "source" ||
+              part.type === "file"
+            )
+              return null; // reasoning, source, and file parts are omitted
             if (part.type === "tool-call") {
               const { argsText, ...rest } = part;
               return rest;

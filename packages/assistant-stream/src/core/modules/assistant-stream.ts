@@ -12,11 +12,14 @@ import {
   PathMergeEncoder,
 } from "../utils/stream/path-utils";
 import { DataStreamEncoder } from "../serialization/data-stream/DataStream";
-import { generateId } from "ai";
+import { FilePart, SourcePart } from "../utils/types";
+import { generateId } from "../utils/generateId";
 
 export type AssistantStreamController = {
   appendText(textDelta: string): void;
   appendReasoning(reasoningDelta: string): void;
+  appendSource(options: SourcePart): void;
+  appendFile(options: FilePart): void;
   addTextPart(): TextStreamController;
   addToolCallPart(toolName: string): ToolCallStreamController;
   addToolCallPart(options: {
@@ -137,6 +140,36 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     }
 
     return controller;
+  }
+
+  appendSource(options: SourcePart) {
+    this._addPart(
+      options,
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue({
+            type: "part-finish",
+            path: [],
+          });
+          controller.close();
+        },
+      }),
+    );
+  }
+
+  appendFile(options: FilePart) {
+    this._addPart(
+      options,
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue({
+            type: "part-finish",
+            path: [],
+          });
+          controller.close();
+        },
+      }),
+    );
   }
 
   enqueue(chunk: AssistantStreamChunk) {

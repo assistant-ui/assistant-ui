@@ -67,11 +67,18 @@ export type SourcePart = {
   title?: string;
 };
 
+export type FilePart = {
+  type: "file";
+  data: string;
+  mimeType: string;
+};
+
 export type AssistantMessagePart =
   | TextPart
   | ReasoningPart
   | ToolCallPart
-  | SourcePart;
+  | SourcePart
+  | FilePart;
 
 type AssistantMessageStepUsage = {
   promptTokens: number;

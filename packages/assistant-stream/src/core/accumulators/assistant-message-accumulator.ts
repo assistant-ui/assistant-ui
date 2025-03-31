@@ -10,6 +10,7 @@ import {
   SourcePart,
   AssistantMessagePart,
   ReasoningPart,
+  FilePart,
 } from "../utils/types";
 
 const createInitialMessage = (): AssistantMessage => ({
@@ -36,7 +37,6 @@ const updatePartForPath = (
     throw new Error("No parts available to update.");
   }
 
-  console.log("Updating part for path:", chunk.path);
   if (chunk.path.length !== 1)
     throw new Error("Nested paths are not supported yet.");
 
@@ -101,6 +101,19 @@ const handlePartStart = (
     return {
       ...message,
       parts: [...message.parts, newSourcePart],
+      get content() {
+        return this.parts;
+      },
+    };
+  } else if (partInit.type === "file") {
+    const newFilePart: FilePart = {
+      type: "file",
+      mimeType: partInit.mimeType,
+      data: partInit.data,
+    };
+    return {
+      ...message,
+      parts: [...message.parts, newFilePart],
       get content() {
         return this.parts;
       },

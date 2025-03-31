@@ -289,17 +289,9 @@ export class DataStreamDecoder extends PipeableTransformStream<
               break;
 
             case DataStreamStreamChunkType.Source:
-              controller.enqueue({
-                type: "part-start",
-                path: [],
-                part: {
-                  type: "source",
-                  ...value,
-                },
-              });
-              controller.enqueue({
-                type: "part-finish",
-                path: [],
+              controller.appendSource({
+                type: "source",
+                ...value,
               });
               break;
 
@@ -309,6 +301,18 @@ export class DataStreamDecoder extends PipeableTransformStream<
                 path: [],
                 error: value,
               });
+              break;
+
+            case DataStreamStreamChunkType.File:
+              controller.appendFile({
+                type: "file",
+                ...value,
+              });
+              break;
+
+            case DataStreamStreamChunkType.ReasoningSignature:
+            case DataStreamStreamChunkType.RedactedReasoning:
+              // ignore these for now
               break;
 
             default: {

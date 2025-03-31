@@ -15,6 +15,11 @@ export type PartInit =
       readonly id: string;
       readonly url: string;
       readonly title?: string;
+    }
+  | {
+      readonly type: "file";
+      readonly data: string;
+      readonly mimeType: string;
     };
 
 export type AssistantStreamChunk = { readonly path: readonly number[] } & (

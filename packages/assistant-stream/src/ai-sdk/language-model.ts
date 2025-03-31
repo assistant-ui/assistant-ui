@@ -1,6 +1,10 @@
-import { LanguageModelV1StreamPart } from "ai";
+import type { LanguageModelV1StreamPart } from "ai";
 import { AssistantTransformStream } from "../core/utils/stream/AssistantTransformStream";
 import { ToolCallStreamController } from "../core/modules/tool-call";
+
+function bufferToBase64(buffer: Uint8Array) {
+  return btoa(new TextDecoder("utf8").decode(buffer));
+}
 
 export class LanguageModelV1StreamDecoder extends AssistantTransformStream<LanguageModelV1StreamPart> {
   constructor() {
@@ -31,6 +35,27 @@ export class LanguageModelV1StreamDecoder extends AssistantTransformStream<Langu
             controller.appendReasoning(chunk.textDelta);
             break;
           }
+
+          case "source": {
+            controller.appendSource({
+              type: "source",
+              ...chunk.source,
+            });
+            break;
+          }
+
+          case "file": {
+            controller.appendFile({
+              type: "file",
+              mimeType: chunk.mimeType,
+              data:
+                typeof chunk.data === "string"
+                  ? chunk.data
+                  : bufferToBase64(chunk.data),
+            });
+            break;
+          }
+
           case "tool-call-delta": {
             const { toolCallId, toolName, argsTextDelta } = chunk;
             if (currentToolCall?.toolCallId === toolCallId) {
@@ -74,6 +99,8 @@ export class LanguageModelV1StreamDecoder extends AssistantTransformStream<Langu
 
           case "error":
           case "response-metadata":
+          case "reasoning-signature":
+          case "redacted-reasoning":
             break;
 
           default: {

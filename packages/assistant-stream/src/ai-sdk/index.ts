@@ -1,4 +1,4 @@
-import { type TextStreamPart, type ObjectStreamPart, type Tool } from "ai";
+import type { TextStreamPart, ObjectStreamPart, Tool } from "ai";
 import { AssistantStream } from "../core/AssistantStream";
 import { AssistantTransformStream } from "../core/utils/stream/AssistantTransformStream";
 import { ToolCallStreamController } from "../core/modules/tool-call";
@@ -109,6 +109,26 @@ export const fromStreamText = (
           });
           break;
         }
+
+        case "source":
+          controller.appendSource({
+            type: "source",
+            ...chunk.source,
+          });
+          break;
+
+        case "file":
+          controller.appendFile({
+            type: "file",
+            mimeType: chunk.mimeType,
+            data: chunk.base64,
+          });
+          break;
+
+        case "reasoning-signature":
+        case "redacted-reasoning":
+          // ignore these for now
+          break;
 
         default: {
           const unhandledType: never = type;
