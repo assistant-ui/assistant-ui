@@ -58,7 +58,7 @@ type DataStreamStreamChunkValue = {
   };
   [DataStreamStreamChunkType.ToolCallResult]: {
     toolCallId: string;
-    result: unknown;
+    result: ReadonlyJSONValue;
   };
   [DataStreamStreamChunkType.Error]: string;
   [DataStreamStreamChunkType.FinishStep]: {

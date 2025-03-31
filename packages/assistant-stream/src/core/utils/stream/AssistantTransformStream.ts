@@ -4,27 +4,18 @@ import {
   createAssistantStreamController,
 } from "../../modules/assistant-stream";
 
-export interface AssistantTransformStreamController
-  extends AssistantStreamController {
-  // readonly desiredSize: number | null;
-  // error(reason?: any): void;
-  // terminate(): void;
-}
-
 type AssistantTransformerFlushCallback = (
-  controller: AssistantTransformStreamController,
+  controller: AssistantStreamController,
 ) => void | PromiseLike<void>;
 
 type AssistantTransformerStartCallback = (
-  controller: AssistantTransformStreamController,
+  controller: AssistantStreamController,
 ) => void | PromiseLike<void>;
 
-interface AssistantTransformerTransformCallback<I> {
-  (
-    chunk: I,
-    controller: AssistantTransformStreamController,
-  ): void | PromiseLike<void>;
-}
+type AssistantTransformerTransformCallback<I> = (
+  chunk: I,
+  controller: AssistantStreamController,
+) => void | PromiseLike<void>;
 
 type AssistantTransformer<I> = {
   flush?: AssistantTransformerFlushCallback;
@@ -47,19 +38,23 @@ export class AssistantTransformStream<I> extends TransformStream<
     super(
       {
         start(controller) {
-          runPipeTask = stream.pipeTo(
-            new WritableStream({
-              write(chunk) {
-                controller.enqueue(chunk);
-              },
-              abort(reason?: any) {
-                controller.error(reason);
-              },
-              close() {
-                controller.terminate();
-              },
-            }),
-          );
+          runPipeTask = stream
+            .pipeTo(
+              new WritableStream({
+                write(chunk) {
+                  controller.enqueue(chunk);
+                },
+                abort(reason?: any) {
+                  controller.error(reason);
+                },
+                close() {
+                  controller.terminate();
+                },
+              }),
+            )
+            .catch((error) => {
+              controller.error(error);
+            });
 
           return transformer.start?.(runController);
         },

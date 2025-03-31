@@ -2,6 +2,7 @@ import type { TextStreamPart, ObjectStreamPart, Tool } from "ai";
 import { AssistantStream } from "../core/AssistantStream";
 import { AssistantTransformStream } from "../core/utils/stream/AssistantTransformStream";
 import { ToolCallStreamController } from "../core/modules/tool-call";
+import { ReadonlyJSONValue } from "../core/utils/json/json-value";
 
 export const fromStreamText = (
   stream: ReadableStream<TextStreamPart<Record<string, Tool>>>,
@@ -55,7 +56,7 @@ export const fromStreamText = (
         case "tool-result" as string: {
           const { toolCallId, result } = chunk as unknown as {
             toolCallId: string;
-            result: unknown;
+            result: ReadonlyJSONValue;
           };
           const toolController = toolControllers.get(toolCallId);
           if (!toolController) throw new Error("Tool call not found");

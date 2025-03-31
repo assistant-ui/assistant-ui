@@ -14,6 +14,10 @@ import {
 import { DataStreamEncoder } from "../serialization/data-stream/DataStream";
 import { FilePart, SourcePart } from "../utils/types";
 import { generateId } from "../utils/generateId";
+import {
+  ReadonlyJSONObject,
+  ReadonlyJSONValue,
+} from "../utils/json/json-value";
 
 export type AssistantStreamController = {
   appendText(textDelta: string): void;
@@ -25,8 +29,9 @@ export type AssistantStreamController = {
   addToolCallPart(options: {
     toolCallId?: string;
     toolName: string;
-    args?: Record<string, unknown>;
-    result?: unknown;
+    args?: ReadonlyJSONObject;
+    result?: ReadonlyJSONValue;
+    isError?: boolean;
   }): ToolCallStreamController;
 
   enqueue(chunk: AssistantStreamChunk): void;
@@ -121,7 +126,8 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
           toolCallId?: string;
           toolName: string;
           args?: Record<string, unknown>;
-          result?: unknown;
+          result?: ReadonlyJSONValue;
+          isError?: boolean;
         },
   ): ToolCallStreamController {
     const opt = typeof options === "string" ? { toolName: options } : options;
@@ -136,7 +142,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
       controller.argsText.close();
     }
     if (opt.result !== undefined) {
-      controller.setResult(opt.result);
+      controller.setResult(opt.result, opt.isError);
     }
 
     return controller;

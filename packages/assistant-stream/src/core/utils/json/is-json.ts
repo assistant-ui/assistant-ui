@@ -35,6 +35,7 @@ export function isJSONObject(value: unknown): value is ReadonlyJSONObject {
   return (
     value != null &&
     typeof value === "object" &&
+    !Array.isArray(value) &&
     Object.entries(value).every(
       ([key, val]) => typeof key === "string" && isJSONValue(val),
     )

@@ -2,12 +2,18 @@ import { AssistantStreamChunk } from "./AssistantStreamChunk";
 
 export type AssistantStream = ReadableStream<AssistantStreamChunk>;
 
+export type AssistantStreamEncoder = ReadableWritablePair<
+  Uint8Array,
+  AssistantStreamChunk
+> & {
+  headers?: Headers;
+};
+
 export const AssistantStream = {
-  toResponse(
-    stream: AssistantStream,
-    transformer: ReadableWritablePair<Uint8Array, AssistantStreamChunk>,
-  ) {
-    return new Response(AssistantStream.toByteStream(stream, transformer));
+  toResponse(stream: AssistantStream, transformer: AssistantStreamEncoder) {
+    return new Response(AssistantStream.toByteStream(stream, transformer), {
+      headers: transformer.headers ?? {},
+    });
   },
 
   fromResponse(

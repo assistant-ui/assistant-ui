@@ -3,7 +3,7 @@ import { AssistantTransformStream } from "../core/utils/stream/AssistantTransfor
 import { ToolCallStreamController } from "../core/modules/tool-call";
 
 function bufferToBase64(buffer: Uint8Array) {
-  return btoa(new TextDecoder("utf8").decode(buffer));
+  return btoa(String.fromCharCode(...buffer));
 }
 
 export class LanguageModelV1StreamDecoder extends AssistantTransformStream<LanguageModelV1StreamPart> {

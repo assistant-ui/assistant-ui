@@ -4,23 +4,36 @@ import {
   ReadonlyJSONValue,
 } from "./json-value";
 
-export function isJSONValue(value: unknown): value is ReadonlyJSONValue {
+export function isJSONValue(
+  value: unknown,
+  currentDepth: number = 0,
+): value is ReadonlyJSONValue {
+  // Protect against too deep recursion
+  if (currentDepth > 100) {
+    return false;
+  }
+
   if (
     value === null ||
     typeof value === "string" ||
-    typeof value === "number" ||
     typeof value === "boolean"
   ) {
     return true;
   }
 
+  // Handle special number cases
+  if (typeof value === "number") {
+    return !Number.isNaN(value) && Number.isFinite(value);
+  }
+
   if (Array.isArray(value)) {
-    return value.every(isJSONValue);
+    return value.every((item) => isJSONValue(item, currentDepth + 1));
   }
 
   if (typeof value === "object") {
     return Object.entries(value).every(
-      ([key, val]) => typeof key === "string" && isJSONValue(val),
+      ([key, val]) =>
+        typeof key === "string" && isJSONValue(val, currentDepth + 1),
     );
   }
 

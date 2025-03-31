@@ -58,7 +58,9 @@ export class ToolExecutionStream extends PipeableTransformStream<
                 try {
                   args = sjson.parse(argsText);
                 } catch (e) {
-                  throw `Function parameter parsing failed. ${JSON.stringify((e as Error).message)}`;
+                  throw new Error(
+                    `Function parameter parsing failed. ${JSON.stringify((e as Error).message)}`,
+                  );
                 }
 
                 return toolCallback({

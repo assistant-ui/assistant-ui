@@ -13,11 +13,17 @@ import {
   AssistantMetaTransformStream,
 } from "../../utils/stream/AssistantMetaTransformStream";
 import { TextStreamController } from "../../modules/text";
+import { AssistantStreamEncoder } from "../../AssistantStream";
 
-export class DataStreamEncoder extends PipeableTransformStream<
-  AssistantStreamChunk,
-  Uint8Array
-> {
+export class DataStreamEncoder
+  extends PipeableTransformStream<AssistantStreamChunk, Uint8Array>
+  implements AssistantStreamEncoder
+{
+  headers = new Headers({
+    "Content-Type": "text/plain; charset=utf-8",
+    "x-vercel-ai-data-stream": "v1",
+  });
+
   constructor() {
     super((readable) => {
       const transform = new TransformStream<

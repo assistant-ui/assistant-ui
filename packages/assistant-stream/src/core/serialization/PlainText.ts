@@ -1,11 +1,17 @@
+import { AssistantStreamEncoder } from "../AssistantStream";
 import { AssistantStreamChunk } from "../AssistantStreamChunk";
 import { AssistantTransformStream } from "../utils/stream/AssistantTransformStream";
 import { PipeableTransformStream } from "../utils/stream/PipeableTransformStream";
 
-export class PlainTextEncoder extends PipeableTransformStream<
-  AssistantStreamChunk,
-  Uint8Array
-> {
+export class PlainTextEncoder
+  extends PipeableTransformStream<AssistantStreamChunk, Uint8Array>
+  implements AssistantStreamEncoder
+{
+  headers = new Headers({
+    "Content-Type": "text/plain; charset=utf-8",
+    "x-vercel-ai-data-stream": "v1",
+  });
+
   constructor() {
     super((readable) => {
       const transform = new TransformStream<AssistantStreamChunk, string>({

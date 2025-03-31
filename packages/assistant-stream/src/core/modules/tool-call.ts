@@ -7,7 +7,7 @@ import { createTextStream, TextStreamController } from "./text";
 export type ToolCallStreamController = {
   argsText: TextStreamController;
 
-  setResult(result: unknown): void;
+  setResult(result: ReadonlyJSONValue, isError?: boolean): void;
   close(): void;
 };
 

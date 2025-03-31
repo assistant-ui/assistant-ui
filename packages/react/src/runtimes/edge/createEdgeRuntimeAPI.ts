@@ -176,6 +176,7 @@ export const getEdgeRuntimeResponse = async (
   return new Response(stream.pipeThrough(new DataStreamEncoder()), {
     headers: {
       "Content-Type": "text/plain; charset=utf-8",
+      "x-vercel-ai-data-stream": "v1",
     },
   });
 };

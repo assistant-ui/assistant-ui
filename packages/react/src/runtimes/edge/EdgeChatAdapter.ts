@@ -166,9 +166,12 @@ export class EdgeChatAdapter implements ChatModelAdapter {
       if (!result.ok) {
         throw new Error(`Status ${result.status}: ${await result.text()}`);
       }
+      if (!result.body) {
+        throw new Error("Response body is null");
+      }
 
-      const stream = result
-        .body!.pipeThrough(new DataStreamDecoder())
+      const stream = result.body
+        .pipeThrough(new DataStreamDecoder())
         .pipeThrough(toolResultStream(context.tools, abortSignal))
         .pipeThrough(new AssistantMessageAccumulator());
 

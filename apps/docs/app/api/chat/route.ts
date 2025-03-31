@@ -31,16 +31,5 @@ export async function POST(req: Request) {
     },
   });
 
-  return createDataStreamResponse({
-    execute: async (writer) => {
-      result.mergeIntoDataStream(writer);
-      writer.writeData("hello");
-      writer.writeMessageAnnotation("hello");
-      writer.writeSource({
-        sourceType: "url",
-        id: "1",
-        url: "https://example.com",
-      });
-    },
-  });
+  return result.toDataStreamResponse();
 }
