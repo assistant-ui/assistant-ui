@@ -68,6 +68,7 @@ export function runResultStream() {
             chunk.toolCallId,
             chunk.toolName,
             chunk.result,
+            chunk.isError,
           );
           controller.enqueue(message);
           break;
@@ -202,6 +203,7 @@ const appendOrUpdateToolResult = (
   toolCallId: string,
   toolName: string,
   result: any,
+  isError: boolean | undefined
 ) => {
   let found = false;
   const newContentParts = message.content?.map((part) => {
@@ -217,6 +219,7 @@ const appendOrUpdateToolResult = (
     return {
       ...part,
       result,
+      isError,
     };
   });
   if (!found)
