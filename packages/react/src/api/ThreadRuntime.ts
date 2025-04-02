@@ -32,7 +32,7 @@ import { RunConfig } from "../types/AssistantTypes";
 import { EventSubscriptionSubject } from "./subscribable/EventSubscriptionSubject";
 import { symbolInnerMessage } from "../runtimes/external-store/getExternalStoreMessage";
 import { ModelContext } from "../model-context";
-import { ChatModelRunResult } from "../runtimes";
+import { ChatModelRunOptions, ChatModelRunResult } from "../runtimes";
 
 export type CreateStartRunConfig = {
   parentId: string | null;
@@ -41,7 +41,9 @@ export type CreateStartRunConfig = {
 };
 
 export type CreateResumeRunConfig = CreateStartRunConfig & {
-  stream: AsyncGenerator<ChatModelRunResult, void, unknown>;
+  stream: (
+    options: ChatModelRunOptions,
+  ) => AsyncGenerator<ChatModelRunResult, void, unknown>;
 };
 
 const toResumeRunConfig = (message: CreateResumeRunConfig): ResumeRunConfig => {

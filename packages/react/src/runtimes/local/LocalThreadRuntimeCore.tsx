@@ -141,7 +141,7 @@ export class LocalThreadRuntimeCore
   }
 
   public resumeRun({ stream, ...startConfig }: ResumeRunConfig): Promise<void> {
-    return this.startRun(startConfig, () => stream);
+    return this.startRun(startConfig, stream);
   }
 
   public async startRun(
