@@ -41,6 +41,7 @@ export type ThreadMessageLike = {
             readonly toolName: string;
             readonly args?: ReadonlyJSONObject;
             readonly argsText?: string;
+            readonly artifact?: any;
             readonly result?: any | undefined;
             readonly isError?: boolean | undefined;
           }

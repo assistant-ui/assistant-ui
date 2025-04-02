@@ -4,6 +4,7 @@ from assistant_stream.assistant_stream_chunk import (
     AssistantStreamChunk,
     TextDeltaChunk,
     ToolResultChunk,
+    ToolArtifactChunk,
     DataChunk,
     ErrorChunk,
 )
@@ -44,6 +45,17 @@ class RunController:
             ToolResultChunk(
                 tool_call_id=tool_call_id,
                 result=result,
+            ),
+        )
+
+    def unstable_add_tool_artifact(self, tool_call_id: str, artifact: Any) -> None:
+        """Add a tool artifact to the stream."""
+
+        self._loop.call_soon_threadsafe(
+            self._queue.put_nowait,
+            ToolArtifactChunk(
+                tool_call_id=tool_call_id,
+                artifact=artifact,
             ),
         )
 

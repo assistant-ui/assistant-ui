@@ -8,6 +8,7 @@ export type ToolCallStreamController = {
   argsText: TextStreamController;
 
   setResult(result: ReadonlyJSONValue, isError?: boolean): void;
+  unstable_setArtifact(artifact: ReadonlyJSONValue): void;
   close(): void;
 };
 
@@ -51,6 +52,14 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
   }
 
   private _argsTextController!: TextStreamController;
+
+  unstable_setArtifact(artifact: ReadonlyJSONValue) {
+    this._controller.enqueue({
+      type: "artifact",
+      path: [],
+      artifact,
+    });
+  }
 
   setResult(result: ReadonlyJSONValue, isError?: boolean) {
     this._controller.enqueue({
