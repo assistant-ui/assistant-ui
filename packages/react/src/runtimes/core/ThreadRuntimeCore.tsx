@@ -3,7 +3,7 @@ import { AppendMessage, ThreadMessage } from "../../types";
 import { RunConfig } from "../../types/AssistantTypes";
 import type { Unsubscribe } from "../../types/Unsubscribe";
 import { SpeechSynthesisAdapter } from "../adapters/speech/SpeechAdapterTypes";
-import { ChatModelRunResult } from "../local";
+import { ChatModelRunOptions, ChatModelRunResult } from "../local";
 import { ExportedMessageRepository } from "../utils/MessageRepository";
 import {
   ComposerRuntimeCore,
@@ -59,7 +59,9 @@ export type StartRunConfig = {
 };
 
 export type ResumeRunConfig = StartRunConfig & {
-  stream: AsyncGenerator<ChatModelRunResult, void, unknown>;
+  stream: (
+    options: ChatModelRunOptions,
+  ) => AsyncGenerator<ChatModelRunResult, void, unknown>;
 };
 
 export type ThreadRuntimeCore = Readonly<{

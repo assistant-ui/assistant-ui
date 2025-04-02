@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.8.14
+
+### Patch Changes
+
+- feat: update resumeRun signature
+
+
 ## 0.8.12
 
 ### Patch Changes
