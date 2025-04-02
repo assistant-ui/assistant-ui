@@ -29,7 +29,7 @@ export enum DataStreamStreamChunkType {
   ToolCall = "9",
   ToolCallResult = "a",
   StartToolCall = "b",
-  ToolCallDelta = "c",
+  ToolCallArgsTextDelta = "c",
   FinishMessage = "d",
   FinishStep = "e",
   StartStep = "f",
@@ -38,6 +38,9 @@ export enum DataStreamStreamChunkType {
   RedactedReasoning = "i",
   ReasoningSignature = "j",
   File = "k",
+
+  // aui-extensions (experimental)
+  AuiToolCallArtifact = "aui-tool-artifact",
 }
 type DataStreamStreamChunkValue = {
   [DataStreamStreamChunkType.TextDelta]: string;
@@ -52,7 +55,7 @@ type DataStreamStreamChunkValue = {
     toolCallId: string;
     toolName: string;
   };
-  [DataStreamStreamChunkType.ToolCallDelta]: {
+  [DataStreamStreamChunkType.ToolCallArgsTextDelta]: {
     toolCallId: string;
     argsTextDelta: string;
   };
@@ -83,4 +86,10 @@ type DataStreamStreamChunkValue = {
   [DataStreamStreamChunkType.RedactedReasoning]: { data: string };
   [DataStreamStreamChunkType.ReasoningSignature]: { signature: string };
   [DataStreamStreamChunkType.File]: { data: string; mimeType: string };
+
+  // aui-extensions (experimental)
+  [DataStreamStreamChunkType.AuiToolCallArtifact]: {
+    toolCallId: string;
+    artifact: ReadonlyJSONValue;
+  };
 };

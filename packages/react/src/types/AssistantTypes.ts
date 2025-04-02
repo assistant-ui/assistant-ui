@@ -99,6 +99,7 @@ export type ToolCallContentPart<
   TResult = unknown,
 > = CoreToolCallContentPart<TArgs, TResult> & {
   readonly argsText: string;
+  readonly artifact?: ReadonlyJSONValue;
 };
 
 export type ThreadUserContentPart =
