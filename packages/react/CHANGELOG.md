@@ -1,5 +1,14 @@
 # @assistant-ui/react
 
+## 0.8.12
+
+### Patch Changes
+
+- c4d7b29: feat: tool call artifacts
+- 0962274: feat: ThreadRuntime.unstable_resumeRun
+- Updated dependencies [c4d7b29]
+  - assistant-stream@0.0.26
+
 ## 0.8.11
 
 ### Patch Changes
