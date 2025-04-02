@@ -209,6 +209,10 @@ export class ExternalStoreThreadRuntimeCore
     await this._store.onReload(config.parentId, config);
   }
 
+  public async resumeRun(): Promise<void> {
+    throw new Error("Runtime does not support resuming runs.");
+  }
+
   public cancelRun(): void {
     if (!this._store.onCancel)
       throw new Error("Runtime does not support cancelling runs.");

@@ -14,6 +14,7 @@ import {
   SubmittedFeedback,
   ThreadRuntimeEventType,
   StartRunConfig,
+  ResumeRunConfig,
 } from "../core/ThreadRuntimeCore";
 import { DefaultEditComposerRuntimeCore } from "../composer/DefaultEditComposerRuntimeCore";
 import { SpeechSynthesisAdapter } from "../adapters/speech/SpeechAdapterTypes";
@@ -41,6 +42,7 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
   public abstract get capabilities(): RuntimeCapabilities;
   public abstract append(message: AppendMessage): void;
   public abstract startRun(config: StartRunConfig): void;
+  public abstract resumeRun(config: ResumeRunConfig): void;
   public abstract addToolResult(options: AddToolResultOptions): void;
   public abstract cancelRun(): void;
 
