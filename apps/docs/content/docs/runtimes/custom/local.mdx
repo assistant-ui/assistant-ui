@@ -176,3 +176,47 @@ const MyModelAdapter: ChatModelAdapter = {
   },
 };
 ```
+
+## Resuming a Run
+
+<Callout type="warning">
+  The `unstable_resumeRun` method is experimental and may change in future releases.
+</Callout>
+
+In some advanced scenarios, you might need to resume a run with a custom stream. The `ThreadRuntime.unstable_resumeRun` method allows you to do this by providing an async generator that yields chat model run results.
+
+```tsx
+import { useThreadRuntime, type ChatModelRunResult } from "@assistant-ui/react";
+
+// Get the thread runtime
+const thread = useThreadRuntime();
+
+// Create a custom stream
+async function* createCustomStream(): AsyncGenerator<ChatModelRunResult, void, unknown> {
+  let text = "Initial response";
+  yield {
+    content: [{ type: "text", text }]
+  };
+  
+  // Simulate delay
+  await new Promise(resolve => setTimeout(resolve, 500));
+  
+  text = "Initial response. And here's more content...";
+  yield {
+    content: [{ type: "text", text }]
+  };
+}
+
+// Resume a run with the custom stream
+thread.unstable_resumeRun({
+  parentId: "message-id", // ID of the message to respond to
+  stream: createCustomStream() // The stream to use for resuming
+});
+```
+
+This is particularly useful for:
+- Implementing custom streaming logic
+- Resuming conversations from external sources
+- Creating demo or testing environments with predefined response patterns
+
+For more detailed information, see the [ThreadRuntime.unstable_resumeRun](/docs/api-reference/runtimes/ThreadRuntime-unstable-resumeRun) API reference.
