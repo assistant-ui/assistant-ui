@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.0.26
+
+### Patch Changes
+
+- c4d7b29: feat: tool call artifacts
+
 ## 0.0.25
 
 ### Patch Changes
