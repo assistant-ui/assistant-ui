@@ -9,6 +9,7 @@ import {
   ThreadSuggestion,
   ThreadRuntimeCore,
   StartRunConfig,
+  ResumeRunConfig,
 } from "../core/ThreadRuntimeCore";
 import { BaseThreadRuntimeCore } from "../core/BaseThreadRuntimeCore";
 import { RunConfig } from "../../types/AssistantTypes";
@@ -137,6 +138,10 @@ export class LocalThreadRuntimeCore
       this.repository.resetHead(newMessage.id);
       this._notifySubscribers();
     }
+  }
+
+  public resumeRun({ stream, ...startConfig }: ResumeRunConfig): Promise<void> {
+    return this.startRun(startConfig, () => stream);
   }
 
   public async startRun(
