@@ -24,6 +24,10 @@ export const EMPTY_THREAD_CORE: ThreadRuntimeCore = {
     throw EMPTY_THREAD_ERROR;
   },
 
+  resumeRun() {
+    throw EMPTY_THREAD_ERROR;
+  },
+
   cancelRun() {
     throw EMPTY_THREAD_ERROR;
   },
