@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.0.27
+
+### Patch Changes
+
+- fix: assistant-stream appendText must only append to the very last part
+
 ## 0.0.26
 
 ### Patch Changes
