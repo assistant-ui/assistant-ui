@@ -63,6 +63,11 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
   }
 
   private _addPart(part: PartInit, stream: AssistantStream) {
+    if (this._append) {
+      this._append.controller.close();
+      this._append = undefined;
+    }
+
     this.enqueue({
       type: "part-start",
       part,
@@ -81,10 +86,6 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
 
   appendText(textDelta: string) {
     if (this._append?.kind !== "text") {
-      if (this._append) {
-        this._append.controller.close();
-      }
-
       this._append = {
         kind: "text",
         controller: this.addTextPart(),
@@ -95,10 +96,6 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
 
   appendReasoning(textDelta: string) {
     if (this._append?.kind !== "reasoning") {
-      if (this._append) {
-        this._append.controller.close();
-      }
-
       this._append = {
         kind: "reasoning",
         controller: this.addReasoningPart(),

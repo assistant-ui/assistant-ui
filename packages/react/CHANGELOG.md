@@ -1,11 +1,18 @@
 # @assistant-ui/react
 
+## 0.8.15
+
+### Patch Changes
+
+- fix: assistant-stream appendText must only append to the very last part
+- Updated dependencies
+  - assistant-stream@0.0.27
+
 ## 0.8.14
 
 ### Patch Changes
 
 - feat: update resumeRun signature
-
 
 ## 0.8.12
 
