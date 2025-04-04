@@ -6,6 +6,7 @@ import {
 } from "../utils/stream/AssistantMetaTransformStream";
 import { PipeableTransformStream } from "../utils/stream/PipeableTransformStream";
 import { ReadonlyJSONValue } from "../utils/json/json-value";
+import { ToolResponse } from "./ToolResponse";
 
 type ToolCallback = (toolCall: {
   toolCallId: string;
@@ -87,6 +88,24 @@ export class ToolExecutionStream extends PipeableTransformStream<
                 const toolCallPromise = promiseOrUndefined
                   .then((c) => {
                     if (c === undefined) return;
+                    if (c instanceof ToolResponse) {
+                      if (c.options.artifact !== undefined) {
+                        controller.enqueue({
+                          type: "artifact",
+                          path: chunk.path,
+                          artifact: c.options.artifact as ReadonlyJSONValue,
+                        });
+                      }
+                      if (c.options.result !== undefined) {
+                        controller.enqueue({
+                          type: "result",
+                          path: chunk.path,
+                          result: c.options.result,
+                          isError: false,
+                        });
+                      }
+                      return;
+                    }
 
                     controller.enqueue({
                       type: "result",
