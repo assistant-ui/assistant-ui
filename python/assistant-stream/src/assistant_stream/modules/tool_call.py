@@ -55,7 +55,6 @@ class ToolCallController:
             artifact=artifact,
         )
         self.loop.call_soon_threadsafe(self.queue.put_nowait, chunk)
-        self.close()
 
     def close(self) -> None:
         """Close the stream."""
