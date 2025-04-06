@@ -56,7 +56,10 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsx scripts/build.mts"
+    "build": "tsx scripts/build.mts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:mutation": "stryker run"
   },
   "dependencies": {
     "@ai-sdk/provider": "^1.1.0",
@@ -94,11 +97,14 @@
   "devDependencies": {
     "@assistant-ui/tsbuildutils": "workspace:^",
     "@assistant-ui/tsconfig": "workspace:*",
+    "@stryker-mutator/core": "^8.7.1",
+    "@stryker-mutator/vitest-runner": "^8.7.1",
     "@types/json-schema": "^7.0.15",
     "@types/node": "^22.13.1",
     "eslint": "^9",
     "eslint-config-next": "15.1.6",
-    "tsx": "^4.19.2"
+    "tsx": "^4.19.2",
+    "vitest": "^1.6.1"
   },
   "publishConfig": {
     "access": "public",
