@@ -22,6 +22,8 @@ ui-debug.log*
 
 # testing
 coverage
+.stryker-tmp/
+reports/mutation/
 
 # next.js
 .next/
