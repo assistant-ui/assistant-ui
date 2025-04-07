@@ -6,7 +6,7 @@ import {
 } from "../utils/stream/AssistantMetaTransformStream";
 import { PipeableTransformStream } from "../utils/stream/PipeableTransformStream";
 import { ReadonlyJSONValue } from "../utils/json/json-value";
-import { ToolResponse } from "./ToolResponse";
+import { ToolResponse } from "../ToolResponse";
 import { withPromiseOrValue } from "../utils/withPromiseOrValue";
 
 type ToolCallback = (toolCall: {
