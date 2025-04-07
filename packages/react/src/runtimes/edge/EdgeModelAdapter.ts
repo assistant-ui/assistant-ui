@@ -37,7 +37,7 @@ export function asAsyncIterable<T>(
 
 type HeadersValue = Record<string, string> | Headers;
 
-export type EdgeChatAdapterOptions = {
+export type EdgeModelAdapterOptions = {
   api: string;
 
   // experimental_prepareRequestBody?: (options: {
@@ -109,8 +109,8 @@ const toAISDKTools = (tools: Record<string, Tool<any, any>>) => {
   );
 };
 
-export class EdgeChatAdapter implements ChatModelAdapter {
-  constructor(private options: EdgeChatAdapterOptions) {}
+export class EdgeModelAdapter implements ChatModelAdapter {
+  constructor(private options: EdgeModelAdapterOptions) {}
 
   async *run({
     messages,
