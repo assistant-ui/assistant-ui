@@ -3,6 +3,7 @@ import { AssistantStream } from "../core/AssistantStream";
 import { AssistantTransformStream } from "../core/utils/stream/AssistantTransformStream";
 import { ToolCallStreamController } from "../core/modules/tool-call";
 import { ReadonlyJSONValue } from "../core/utils/json/json-value";
+import { ToolResponse } from "../core";
 
 export const fromStreamText = (
   stream: ReadableStream<TextStreamPart<Record<string, Tool>>>,
@@ -60,7 +61,9 @@ export const fromStreamText = (
           };
           const toolController = toolControllers.get(toolCallId);
           if (!toolController) throw new Error("Tool call not found");
-          toolController.setResult(result);
+          toolController.setResponse({
+            result,
+          });
           toolController.close();
           toolControllers.delete(toolCallId);
           break;
@@ -167,7 +170,9 @@ export const fromStreamObject = (
         }
         case "finish": {
           toolCall.argsText.close();
-          toolCall.setResult("");
+          toolCall.setResponse({
+            result: "{}",
+          });
           break;
         }
 

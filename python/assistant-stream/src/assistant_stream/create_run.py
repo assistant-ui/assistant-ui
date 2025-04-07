@@ -48,17 +48,6 @@ class RunController:
             ),
         )
 
-    def unstable_add_tool_artifact(self, tool_call_id: str, artifact: Any) -> None:
-        """Add a tool artifact to the stream."""
-
-        self._loop.call_soon_threadsafe(
-            self._queue.put_nowait,
-            ToolArtifactChunk(
-                tool_call_id=tool_call_id,
-                artifact=artifact,
-            ),
-        )
-
     def add_stream(self, stream: AsyncGenerator[AssistantStreamChunk, None]) -> None:
         """Append a substream to the main stream."""
 

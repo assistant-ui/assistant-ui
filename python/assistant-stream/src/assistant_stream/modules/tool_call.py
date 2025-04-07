@@ -5,7 +5,6 @@ from assistant_stream.assistant_stream_chunk import (
     ToolCallBeginChunk,
     ToolCallDeltaChunk,
     ToolResultChunk,
-    ToolArtifactChunk,
 )
 import string
 import random
@@ -39,22 +38,34 @@ class ToolCallController:
         )
         self.loop.call_soon_threadsafe(self.queue.put_nowait, chunk)
 
+    
     def set_result(self, result: Any) -> None:
+        """
+        Set the result of the tool call.
+        
+        Deprecated: Use set_response() instead.
+        """
+        import warnings
+        warnings.warn(
+            "set_result() is deprecated. Use set_response() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.set_response(result)
+
+    def set_response(
+        self, result: Any, *, artifact: Any | None = None, is_error: bool = False
+    ) -> None:
         """Set the result of the tool call."""
 
         chunk = ToolResultChunk(
             tool_call_id=self.tool_call_id,
             result=result,
+            artifact=artifact,
+            is_error=is_error,
         )
         self.loop.call_soon_threadsafe(self.queue.put_nowait, chunk)
         self.close()
-
-    def unstable_set_artifact(self, artifact: Any) -> None:
-        chunk = ToolArtifactChunk(
-            tool_call_id=self.tool_call_id,
-            artifact=artifact,
-        )
-        self.loop.call_soon_threadsafe(self.queue.put_nowait, chunk)
 
     def close(self) -> None:
         """Close the stream."""

@@ -98,23 +98,8 @@ export class DataStreamEncoder
                 value: {
                   toolCallId: part.toolCallId,
                   result: chunk.result,
-                },
-              });
-              break;
-            }
-            case "artifact": {
-              // Only tool-call parts can have artifacts.
-              const part = chunk.meta;
-              if (part.type !== "tool-call") {
-                throw new Error(
-                  `Artifact chunk on non-tool-call part not supported: ${part.type}`,
-                );
-              }
-              controller.enqueue({
-                type: DataStreamStreamChunkType.AuiToolCallArtifact,
-                value: {
-                  toolCallId: part.toolCallId,
                   artifact: chunk.artifact,
+                  ...(chunk.isError ? { isError: chunk.isError } : {}),
                 },
               });
               break;
@@ -248,25 +233,18 @@ export class DataStreamDecoder extends PipeableTransformStream<
               break;
             }
 
-            case DataStreamStreamChunkType.AuiToolCallArtifact: {
-              const { toolCallId, artifact } = value;
-              const toolCallController = toolCallControllers.get(toolCallId);
-              if (!toolCallController)
-                throw new Error(
-                  "Encountered tool call with unknown id: " + toolCallId,
-                );
-              toolCallController.unstable_setArtifact(artifact);
-              break;
-            }
-
             case DataStreamStreamChunkType.ToolCallResult: {
-              const { toolCallId, result } = value;
+              const { toolCallId, artifact, result, isError } = value;
               const toolCallController = toolCallControllers.get(toolCallId);
               if (!toolCallController)
                 throw new Error(
                   "Encountered tool call result with unknown id: " + toolCallId,
                 );
-              toolCallController.setResult(result);
+              toolCallController.setResponse({
+                artifact,
+                result,
+                isError,
+              });
               break;
             }
 

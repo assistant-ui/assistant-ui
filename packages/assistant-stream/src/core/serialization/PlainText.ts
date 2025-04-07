@@ -35,7 +35,6 @@ export class PlainTextEncoder
                 | "tool-call-begin"
                 | "tool-call-delta"
                 | "result"
-                | "artifact"
                 | "error" = type;
               throw new Error(`unsupported chunk type: ${unsupportedType}`);
           }

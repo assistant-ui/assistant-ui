@@ -18,6 +18,7 @@ import {
   ReadonlyJSONObject,
   ReadonlyJSONValue,
 } from "../utils/json/json-value";
+import { ToolResponseInit } from "../ToolResponse";
 
 export type AssistantStreamController = {
   appendText(textDelta: string): void;
@@ -123,8 +124,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
           toolCallId?: string;
           toolName: string;
           args?: Record<string, unknown>;
-          result?: ReadonlyJSONValue;
-          isError?: boolean;
+          response?: ToolResponseInit<ReadonlyJSONValue>;
         },
   ): ToolCallStreamController {
     const opt = typeof options === "string" ? { toolName: options } : options;
@@ -138,8 +138,8 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
       controller.argsText.append(JSON.stringify(opt.args));
       controller.argsText.close();
     }
-    if (opt.result !== undefined) {
-      controller.setResult(opt.result, opt.isError);
+    if (opt.response !== undefined) {
+      controller.setResponse(opt.response);
     }
 
     return controller;
