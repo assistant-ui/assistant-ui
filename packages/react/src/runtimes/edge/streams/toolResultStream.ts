@@ -1,7 +1,7 @@
 import { Tool } from "../../../model-context/ModelContextTypes";
 import { z } from "zod";
 import { AssistantMessage, ToolExecutionStream } from "assistant-stream";
-import { ToolResponse } from "assistant-stream/core/effects/ToolResponse";
+import { ToolResponse } from "assistant-stream";
 
 function getToolResponse(
   tools: Record<string, Tool<any, any>> | undefined,

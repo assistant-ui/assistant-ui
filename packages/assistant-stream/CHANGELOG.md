@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.0.29
+
+### Patch Changes
+
+- feat: expose assitant-stream ToolResponse API
+
 ## 0.0.28
 
 ### Patch Changes

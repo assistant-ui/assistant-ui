@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.8.17
+
+### Patch Changes
+
+- feat: expose assitant-stream ToolResponse API
+- Updated dependencies
+  - assistant-stream@0.0.29
+
 ## 0.8.16
 
 ### Patch Changes
