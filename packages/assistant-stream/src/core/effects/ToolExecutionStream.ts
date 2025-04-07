@@ -77,18 +77,12 @@ export class ToolExecutionStream extends PipeableTransformStream<
                 },
                 (c) => {
                   if (c === undefined) return;
-                  if (c.artifact !== undefined) {
-                    controller.enqueue({
-                      type: "artifact",
-                      path: chunk.path,
-                      artifact: c.artifact as ReadonlyJSONValue,
-                    });
-                  }
 
                   // TODO how to handle new ToolResult({ result: undefined })?
                   controller.enqueue({
                     type: "result",
                     path: chunk.path,
+                    artifact: c.artifact,
                     result: c.result,
                     isError: c.isError,
                   });

@@ -1,5 +1,6 @@
 import { AssistantStream } from "../AssistantStream";
 import { AssistantStreamChunk } from "../AssistantStreamChunk";
+import { ToolResponseInit } from "../ToolResponse";
 import { ReadonlyJSONValue } from "../utils/json/json-value";
 import { UnderlyingReadable } from "../utils/stream/UnderlyingReadable";
 import { createTextStream, TextStreamController } from "./text";
@@ -7,8 +8,7 @@ import { createTextStream, TextStreamController } from "./text";
 export type ToolCallStreamController = {
   argsText: TextStreamController;
 
-  setResult(result: ReadonlyJSONValue, isError?: boolean): void;
-  unstable_setArtifact(artifact: ReadonlyJSONValue): void;
+  setResponse(response: ToolResponseInit<ReadonlyJSONValue>): void;
   close(): void;
 };
 
@@ -53,20 +53,13 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
 
   private _argsTextController!: TextStreamController;
 
-  unstable_setArtifact(artifact: ReadonlyJSONValue) {
-    this._controller.enqueue({
-      type: "artifact",
-      path: [],
-      artifact,
-    });
-  }
-
-  setResult(result: ReadonlyJSONValue, isError?: boolean) {
+  setResponse(response: ToolResponseInit<ReadonlyJSONValue>) {
     this._controller.enqueue({
       type: "result",
       path: [],
-      result,
-      isError: isError ?? false,
+      artifact: response.artifact,
+      result: response.result,
+      isError: response.isError ?? false,
     });
   }
 

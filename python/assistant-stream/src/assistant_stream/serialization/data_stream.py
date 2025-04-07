@@ -19,9 +19,12 @@ class DataStreamEncoder(StreamEncoder):
         elif chunk.type == "tool-call-delta":
             return f'c:{json.dumps({ "toolCallId": chunk.tool_call_id, "argsTextDelta": chunk.args_text_delta })}\n'
         elif chunk.type == "tool-result":
-            return f'a:{json.dumps({ "toolCallId": chunk.tool_call_id, "result": chunk.result })}\n'
-        elif chunk.type == "tool-artifact":
-            return f'aui-tool-artifact:{json.dumps({ "toolCallId": chunk.tool_call_id, "artifact": chunk.artifact })}\n'
+            res = {"toolCallId": chunk.tool_call_id, "result": chunk.result}
+            if chunk.artifact is not None:
+                res["artifact"] = chunk.artifact
+            if chunk.is_error:
+                res["isError"] = chunk.is_error
+            return f"a:{json.dumps(res)}\n"
         elif chunk.type == "data":
             return f"2:{json.dumps([chunk.data])}\n"
         elif chunk.type == "error":
