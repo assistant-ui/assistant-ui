@@ -8,6 +8,8 @@ import { rehypeCodeDefaultOptions } from "fumadocs-core/mdx-plugins";
 import { transformerTwoslash } from "fumadocs-twoslash";
 import { transformerMetaHighlight } from "@shikijs/transformers";
 import { z } from "zod";
+import { remarkMermaid } from '@theguild/remark-mermaid';
+
 
 export const { docs, meta } = defineDocs({
   dir: "content/docs",
@@ -27,6 +29,7 @@ export const blog = defineCollections({
 
 export default defineConfig({
   mdxOptions: {
+    remarkPlugins: [remarkMermaid],
     rehypeCodeOptions: {
       themes: {
         light: "catppuccin-latte",
@@ -34,7 +37,6 @@ export default defineConfig({
       },
       transformers: [
         ...(rehypeCodeDefaultOptions.transformers ?? []),
-
         transformerMetaHighlight(),
         transformerTwoslash({
           twoslashOptions: {

@@ -1,0 +1,135 @@
+---
+title: Overview
+---
+
+Welcome to Assistant UI! This guide will help you understand what Assistant UI is, its key features, and how you can use it in your projects.
+
+## What is Assistant UI?
+
+Assistant UI is a powerful, performant, and flexible library for building AI chat interfaces. It provides a complete set of primitives and components that make it easy to create sophisticated chat experiences with minimal effort.
+
+## Key Features
+
+- 🚀 **High Performance**: One of the most performant AI chat implementations available
+- 🎨 **Beautiful UI Components**: Ready-to-use, customizable chat components
+- 🔄 **State Management**: Built-in state management for chat history and AI interactions
+- 🛠️ **Flexible Integration**: Works with various backends and AI providers
+- 📱 **Framework Agnostic**: Can be used with any React-based framework
+
+## Getting Started
+
+### Quick Start with Vercel AI SDK
+
+The simplest way to get started with Assistant UI is using it with the Vercel AI SDK:
+
+```tsx
+import { Chat } from '@assistant-ui/react'
+import { useChat } from 'ai/react'
+
+export default function ChatPage() {
+  const { messages, input, handleInputChange, handleSubmit } = useChat()
+
+  return (
+    <Chat
+      messages={messages}
+      input={input}
+      onInputChange={handleInputChange}
+      onSubmit={handleSubmit}
+    />
+  )
+}
+```
+
+### Using Assistant Cloud
+
+For a complete solution with backend services, you can use Assistant Cloud:
+
+```tsx
+import { Chat } from '@assistant-ui/react'
+import { useAssistantChat } from '@assistant-ui/cloud'
+
+export default function ChatPage() {
+  const { messages, input, handleInputChange, handleSubmit } = useAssistantChat()
+
+  return (
+    <Chat
+      messages={messages}
+      input={input}
+      onInputChange={handleInputChange}
+      onSubmit={handleSubmit}
+    />
+  )
+}
+```
+
+## Architecture
+
+Assistant UI can be used in three different ways:
+
+1. **Open Source (No Backend)**
+   - User ↔️ Assistant UI
+   - Perfect for custom implementations
+   - Full control over the backend
+
+2. **Assistant Cloud**
+   - User ↔️ Assistant UI ↔️ Assistant Cloud
+   - Managed backend service
+   - Built-in features like rate limiting and message storage
+
+3. **Custom Backend**
+   - User ↔️ Assistant UI ↔️ Your Backend
+   - Integrate with your existing infrastructure
+   - Support for multiple LLM providers
+
+## Core Concepts
+
+### Primitives
+
+Assistant UI provides several primitive components that you can use to build custom chat interfaces:
+
+- `Chat`: The main chat container component
+- `Message`: Individual message components
+- `Input`: Chat input component
+- `Composer`: Advanced message composition component
+
+### State Management
+
+Assistant UI handles all the complex state management for you:
+
+- Chat history
+- Message threading
+- AI state synchronization
+- UI state management
+
+## Advanced Features
+
+Once you're comfortable with the basics, you can explore advanced features:
+
+- Message editing
+- Chat history management
+- Custom tool integrations
+- Multi-model support
+- Rate limiting
+- Message persistence
+
+## Why Choose Assistant UI?
+
+1. **Performance**: Optimized for speed and efficiency
+2. **Flexibility**: Works with any backend or AI provider
+3. **Developer Experience**: Simple API, comprehensive documentation
+4. **Production Ready**: Built with best practices and scalability in mind
+
+## Next Steps
+
+- Check out our [Getting Started Guide](/docs/getting-started)
+- Explore our [API Documentation](/docs/api)
+- View our [GitHub Repository](https://github.com/assistant-ui/assistant-ui)
+- Join our community for support and updates
+
+## Support
+
+Need help? We're here for you:
+
+- [GitHub Issues](https://github.com/assistant-ui/assistant-ui/issues)
+- [Documentation](/docs)
+- [Community Discord](https://discord.gg/assistant-ui)

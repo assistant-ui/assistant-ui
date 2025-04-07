@@ -32,6 +32,7 @@
     "@sentry/nextjs": "^8",
     "@shikijs/transformers": "^2.3.2",
     "ai": "^4.1.25",
+    "assistant-stream": "workspace:^",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dotenv": "^16.4.7",
