@@ -7,12 +7,16 @@ import {
 import { PipeableTransformStream } from "../utils/stream/PipeableTransformStream";
 import { ReadonlyJSONValue } from "../utils/json/json-value";
 import { ToolResponse } from "./ToolResponse";
+import { withPromiseOrValue } from "../utils/withPromiseOrValue";
 
 type ToolCallback = (toolCall: {
   toolCallId: string;
   toolName: string;
   args: unknown;
-}) => Promise<ReadonlyJSONValue> | ReadonlyJSONValue | undefined;
+}) =>
+  | Promise<ToolResponse<ReadonlyJSONValue>>
+  | ToolResponse<ReadonlyJSONValue>
+  | undefined;
 
 export class ToolExecutionStream extends PipeableTransformStream<
   AssistantStreamChunk,
@@ -54,84 +58,50 @@ export class ToolExecutionStream extends PipeableTransformStream<
               if (!argsText)
                 throw new Error("Unexpected tool call without args");
 
-              const executeTool = () => {
-                let args;
-                try {
-                  args = sjson.parse(argsText);
-                } catch (e) {
-                  throw new Error(
-                    `Function parameter parsing failed. ${JSON.stringify((e as Error).message)}`,
-                  );
-                }
+              withPromiseOrValue(
+                () => {
+                  let args;
+                  try {
+                    args = sjson.parse(argsText);
+                  } catch (e) {
+                    throw new Error(
+                      `Function parameter parsing failed. ${JSON.stringify((e as Error).message)}`,
+                    );
+                  }
 
-                return toolCallback({
-                  toolCallId,
-                  toolName,
-                  args,
-                });
-              };
-
-              let promiseOrUndefined;
-              try {
-                promiseOrUndefined = executeTool();
-              } catch (e) {
-                controller.enqueue({
-                  type: "result",
-                  path: chunk.path,
-                  result: String(e),
-                  isError: true,
-                });
-                break;
-              }
-
-              if (promiseOrUndefined instanceof Promise) {
-                const toolCallPromise = promiseOrUndefined
-                  .then((c) => {
-                    if (c === undefined) return;
-                    if (c instanceof ToolResponse) {
-                      if (c.options.artifact !== undefined) {
-                        controller.enqueue({
-                          type: "artifact",
-                          path: chunk.path,
-                          artifact: c.options.artifact as ReadonlyJSONValue,
-                        });
-                      }
-                      if (c.options.result !== undefined) {
-                        controller.enqueue({
-                          type: "result",
-                          path: chunk.path,
-                          result: c.options.result,
-                          isError: false,
-                        });
-                      }
-                      return;
-                    }
-
-                    controller.enqueue({
-                      type: "result",
-                      path: chunk.path,
-                      result: c,
-                      isError: false,
-                    });
-                  })
-                  .catch((e) => {
-                    controller.enqueue({
-                      type: "result",
-                      path: chunk.path,
-                      result: String(e),
-                      isError: true,
-                    });
+                  return toolCallback({
+                    toolCallId,
+                    toolName,
+                    args,
                   });
-
-                toolCallPromises.set(toolCallId, toolCallPromise);
-              } else if (promiseOrUndefined !== undefined) {
-                controller.enqueue({
-                  type: "result",
-                  path: chunk.path,
-                  result: promiseOrUndefined,
-                  isError: false,
-                });
-              }
+                },
+                (c) => {
+                  if (c === undefined) return;
+                  if (c.artifact !== undefined) {
+                    controller.enqueue({
+                      type: "artifact",
+                      path: chunk.path,
+                      artifact: c.artifact as ReadonlyJSONValue,
+                    });
+                  }
+                  if (c.result !== undefined) {
+                    controller.enqueue({
+                      type: "result",
+                      path: chunk.path,
+                      result: c.result,
+                      isError: c.isError,
+                    });
+                  }
+                },
+                (e) => {
+                  controller.enqueue({
+                    type: "result",
+                    path: chunk.path,
+                    result: String(e),
+                    isError: true,
+                  });
+                },
+              );
               break;
             }
 

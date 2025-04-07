@@ -338,8 +338,11 @@ export class AssistantMessageAccumulator extends TransformStream<
   AssistantStreamChunk,
   AssistantMessage
 > {
-  constructor() {
-    let message: AssistantMessage = createInitialMessage();
+  constructor({
+    initialMessage: message = createInitialMessage(),
+  }: {
+    initialMessage?: AssistantMessage;
+  } = {}) {
     super({
       transform(chunk, controller) {
         const type = chunk.type;
