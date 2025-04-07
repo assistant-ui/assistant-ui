@@ -3,8 +3,7 @@
   "root": true,
   "pages": [
     "---Introduction---",
-    "...introduction",
-    "overview",
+    "about-assistantui",
     "getting-started",
     "---Guides---",
     "...guides",
