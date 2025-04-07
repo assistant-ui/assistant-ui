@@ -57,7 +57,7 @@ export const ExportedMessageRepository = {
   /**
    * Converts an array of messages to an ExportedMessageRepository format.
    * Creates parent-child relationships based on the order of messages in the array.
-   * 
+   *
    * @param messages - Array of message-like objects to convert
    * @returns ExportedMessageRepository with parent-child relationships established
    */
@@ -79,7 +79,7 @@ export const ExportedMessageRepository = {
 
 /**
  * Recursively finds the head (leaf) message in a branch.
- * 
+ *
  * @param message - The starting message or parent node
  * @returns The leaf message of the branch, or null if not found
  */
@@ -127,7 +127,7 @@ class CachedValue<T> {
  */
 export class MessageRepository {
   /** Map of message IDs to repository message objects */
-  private messages = new Map<string, RepositoryMessage>(); 
+  private messages = new Map<string, RepositoryMessage>();
   /** Reference to the current head (most recent) message in the active branch */
   private head: RepositoryMessage | null = null;
   /** Root node of the tree structure */
@@ -138,7 +138,7 @@ export class MessageRepository {
 
   /**
    * Performs link/unlink operations between messages in the tree.
-   * 
+   *
    * @param newParent - The new parent message, or null
    * @param child - The child message to operate on
    * @param operation - The type of operation to perform:
@@ -235,7 +235,7 @@ export class MessageRepository {
    * Adds a new message or updates an existing one in the repository.
    * If the message ID already exists, the message is updated and potentially relinked to a new parent.
    * If the message is new, it's added as a child of the specified parent.
-   * 
+   *
    * @param parentId - ID of the parent message, or null for root messages
    * @param message - The message to add or update
    * @throws Error if the parent message is not found
@@ -277,7 +277,7 @@ export class MessageRepository {
 
   /**
    * Gets a message and its parent ID by message ID.
-   * 
+   *
    * @param messageId - ID of the message to retrieve
    * @returns Object containing the message and its parent ID
    * @throws Error if the message is not found
@@ -298,7 +298,7 @@ export class MessageRepository {
   /**
    * Adds an optimistic message to the repository.
    * An optimistic message is a temporary placeholder that will be replaced by a real message later.
-   * 
+   *
    * @param parentId - ID of the parent message, or null for root messages
    * @param message - The core message to convert to an optimistic message
    * @returns The generated optimistic ID
@@ -322,7 +322,7 @@ export class MessageRepository {
 
   /**
    * Deletes a message from the repository and relinks its children.
-   * 
+   *
    * @param messageId - ID of the message to delete
    * @param replacementId - Optional ID of the message to become the new parent of the children,
    *                       undefined means use the deleted message's parent,
@@ -369,7 +369,7 @@ export class MessageRepository {
 
   /**
    * Gets all branch IDs (sibling messages) at the level of a specified message.
-   * 
+   *
    * @param messageId - ID of the message to find branches for
    * @returns Array of message IDs representing branches
    * @throws Error if the message is not found
@@ -387,7 +387,7 @@ export class MessageRepository {
 
   /**
    * Switches the active branch to the one containing the specified message.
-   * 
+   *
    * @param messageId - ID of the message in the branch to switch to
    * @throws Error if the branch is not found
    */
@@ -408,7 +408,7 @@ export class MessageRepository {
 
   /**
    * Resets the head to a specific message or null.
-   * 
+   *
    * @param messageId - ID of the message to set as head, or null to clear the head
    * @throws Error if the message is not found
    */
@@ -454,7 +454,7 @@ export class MessageRepository {
 
   /**
    * Exports the repository state for persistence.
-   * 
+   *
    * @returns Exportable repository state
    */
   export(): ExportedMessageRepository {
@@ -477,7 +477,7 @@ export class MessageRepository {
 
   /**
    * Imports repository state from an exported repository.
-   * 
+   *
    * @param repository - The exported repository state to import
    */
   import({ headId, messages }: ExportedMessageRepository) {
