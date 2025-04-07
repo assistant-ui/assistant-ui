@@ -8,7 +8,7 @@ export const init = new Command()
     const child = spawn(
       "npx",
       [
-        `shadcn@latest`,
+        `shadcn@2.3.0`, // TODO 2.4 does not init a project if run in an empty folder
         "add",
         "https://r.assistant-ui.com/chat/b/ai-sdk-quick-start/json",
       ],
