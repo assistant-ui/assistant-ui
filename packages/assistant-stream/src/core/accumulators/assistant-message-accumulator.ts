@@ -339,10 +339,11 @@ export class AssistantMessageAccumulator extends TransformStream<
   AssistantMessage
 > {
   constructor({
-    initialMessage: message = createInitialMessage(),
+    initialMessage,
   }: {
     initialMessage?: AssistantMessage;
   } = {}) {
+    let message = initialMessage ?? createInitialMessage();
     super({
       transform(chunk, controller) {
         const type = chunk.type;

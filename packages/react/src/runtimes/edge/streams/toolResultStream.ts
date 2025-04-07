@@ -23,9 +23,8 @@ function getToolResponse(
       executeFn =
         tool.experimental_onSchemaValidationError ??
         (() => {
-          throw (
-            "Function parameter validation failed. " +
-            JSON.stringify(result.error.issues)
+          throw new Error(
+            `Function parameter validation failed. ${JSON.stringify(result.error.issues)}`,
           );
         });
     }

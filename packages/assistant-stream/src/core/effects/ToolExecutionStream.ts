@@ -23,7 +23,7 @@ export class ToolExecutionStream extends PipeableTransformStream<
   AssistantStreamChunk
 > {
   constructor(toolCallback: ToolCallback) {
-    const toolCallPromises = new Map<string, Promise<unknown>>();
+    const toolCallPromises = new Map<string, PromiseLike<void>>();
     const toolCallArgsText: Record<string, string> = {};
     super((readable) => {
       const transform = new TransformStream<
@@ -58,7 +58,7 @@ export class ToolExecutionStream extends PipeableTransformStream<
               if (!argsText)
                 throw new Error("Unexpected tool call without args");
 
-              withPromiseOrValue(
+              const promise = withPromiseOrValue(
                 () => {
                   let args;
                   try {
@@ -84,14 +84,14 @@ export class ToolExecutionStream extends PipeableTransformStream<
                       artifact: c.artifact as ReadonlyJSONValue,
                     });
                   }
-                  if (c.result !== undefined) {
-                    controller.enqueue({
-                      type: "result",
-                      path: chunk.path,
-                      result: c.result,
-                      isError: c.isError,
-                    });
-                  }
+
+                  // TODO how to handle new ToolResult({ result: undefined })?
+                  controller.enqueue({
+                    type: "result",
+                    path: chunk.path,
+                    result: c.result,
+                    isError: c.isError,
+                  });
                 },
                 (e) => {
                   controller.enqueue({
@@ -102,6 +102,9 @@ export class ToolExecutionStream extends PipeableTransformStream<
                   });
                 },
               );
+              if (promise) {
+                toolCallPromises.set(toolCallId, promise);
+              }
               break;
             }
 
