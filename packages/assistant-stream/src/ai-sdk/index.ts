@@ -3,7 +3,6 @@ import { AssistantStream } from "../core/AssistantStream";
 import { AssistantTransformStream } from "../core/utils/stream/AssistantTransformStream";
 import { ToolCallStreamController } from "../core/modules/tool-call";
 import { ReadonlyJSONValue } from "../core/utils/json/json-value";
-import { ToolResponse } from "../core";
 
 export const fromStreamText = (
   stream: ReadableStream<TextStreamPart<Record<string, Tool>>>,
