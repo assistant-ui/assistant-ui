@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.8.16
+
+### Patch Changes
+
+- 40579cd: feat: ToolResponse support
+- Updated dependencies [40579cd]
+  - assistant-stream@0.0.28
+
 ## 0.8.15
 
 ### Patch Changes
