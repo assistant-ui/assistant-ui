@@ -22,7 +22,11 @@ export const fromStreamText = (
     transform(chunk, controller) {
       const { type } = chunk;
 
-      if (type !== "tool-call-delta" && type !== "error") {
+      if (
+        type !== "tool-call-delta" &&
+        type !== "error" &&
+        (type as string) !== "tool-result"
+      ) {
         endCurrentToolCallArgsText();
       }
 

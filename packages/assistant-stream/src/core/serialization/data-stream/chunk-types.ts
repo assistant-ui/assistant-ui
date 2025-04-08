@@ -1,4 +1,7 @@
-import { ReadonlyJSONValue } from "../../utils/json/json-value";
+import {
+  ReadonlyJSONObject,
+  ReadonlyJSONValue,
+} from "../../utils/json/json-value";
 
 export type DataStreamChunk = {
   [K in DataStreamStreamChunkType]: {
@@ -46,7 +49,7 @@ type DataStreamStreamChunkValue = {
   [DataStreamStreamChunkType.ToolCall]: {
     toolCallId: string;
     toolName: string;
-    args: unknown;
+    args: ReadonlyJSONObject;
   };
   [DataStreamStreamChunkType.StartToolCall]: {
     toolCallId: string;
