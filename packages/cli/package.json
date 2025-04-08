@@ -11,7 +11,7 @@
     "debug": "^4.4.0",
     "detect-package-manager": "^3.0.2",
     "glob": "^11.0.1",
-    "jscodeshift": "^17.1.2"
+    "jscodeshift": "^17.3.0"
   },
   "devDependencies": {
     "@assistant-ui/tsbuildutils": "workspace:^",
@@ -19,10 +19,10 @@
     "@types/cli-progress": "^3.11.6",
     "@types/cross-spawn": "^6.0.6",
     "@types/debug": "^4.1.12",
-    "@types/jscodeshift": "^0.12.0",
-    "@types/node": "^22.13.1",
-    "eslint-config-next": "15.1.6",
-    "tsx": "^4.19.2"
+    "@types/jscodeshift": "^17.3.0",
+    "@types/node": "^22.14.0",
+    "eslint-config-next": "15.2.4",
+    "tsx": "^4.19.3"
   },
   "files": [
     "dist",

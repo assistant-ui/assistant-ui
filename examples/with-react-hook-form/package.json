@@ -9,11 +9,11 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^1.1.9",
+    "@ai-sdk/openai": "^1.3.7",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-hook-form": "workspace:*",
-    "@assistant-ui/react-ui": "workspace:^",
-    "@hookform/resolvers": "^3.10.0",
+    "@assistant-ui/react-markdown": "workspace:^",
+    "@hookform/resolvers": "^5.0.1",
     "@radix-ui/react-avatar": "^1.1.3",
     "@radix-ui/react-icons": "^1.3.2",
     "@radix-ui/react-label": "^2.1.2",
@@ -23,17 +23,18 @@
     "@react-hook/media-query": "^1.1.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "json-schema-to-zod": "^2.6.0",
-    "lucide-react": "^0.475.0",
-    "next": "15.1.6",
-    "react": "19.0.0",
-    "react-dom": "19.0.0",
-    "react-hook-form": "^7.54.2",
+    "json-schema-to-zod": "^2.6.1",
+    "lucide-react": "^0.487.0",
+    "next": "15.2.4",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-hook-form": "^7.55.0",
     "react-resizable-panels": "^2.1.7",
-    "tailwind-merge": "^3.0.1",
+    "remark-gfm": "^4.0.1",
+    "tailwind-merge": "^3.2.0",
     "tailwindcss-animate": "^1.0.7",
-    "zod": "^3.24.1",
-    "zod-to-json-schema": "^3.24.1",
+    "zod": "^3.24.2",
+    "zod-to-json-schema": "^3.24.5",
     "zustand": "^5.0.3"
   },
   "devDependencies": {
@@ -42,9 +43,9 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "15.1.6",
+    "eslint-config-next": "15.2.4",
     "postcss": "^8",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5.7.3"
+    "typescript": "^5.8.3"
   }
 }

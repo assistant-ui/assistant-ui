@@ -45,7 +45,7 @@ const migrateAssistantUI = createTransformer(({ j, root, markAsChanged }) => {
       path.value.specifiers.forEach((specifier: any) => {
         if (
           j.ImportSpecifier.check(specifier) &&
-          reactUIExports.includes(specifier.imported.name)
+          reactUIExports.includes(specifier.imported.name as string)
         ) {
           movedSpecifiers.push(specifier);
           hadMigratedSpecifiers = true;

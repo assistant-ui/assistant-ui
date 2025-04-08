@@ -5,18 +5,17 @@
   "main": "./src/index.ts",
   "type": "module",
   "dependencies": {
-    "@assistant-ui/tailwindcss-transformer": "workspace:^",
     "@assistant-ui/tsconfig": "workspace:*",
     "cross-spawn": "^7.0.6",
     "esbuild-plugin-file-path-extensions": "^2.1.4",
-    "postcss": "^8.5.1",
+    "postcss": "^8.5.3",
     "postcss-js": "^4.0.1",
-    "tsup": "8.3.6",
-    "typescript": "^5.7.3"
+    "tsup": "8.4.0",
+    "typescript": "^5.8.3"
   },
   "devDependencies": {
     "@types/cross-spawn": "^6.0.6",
-    "@types/node": "^22.13.1",
+    "@types/node": "^22.14.0",
     "@types/postcss-js": "^4.0.4"
   }
 }

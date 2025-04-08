@@ -190,12 +190,11 @@ export const sendMessage = async (params: {
 "use client";
 
 import { useRef } from "react";
-import { Thread, makeMarkdownText } from "@assistant-ui/react-ui";
+import { Thread } from "@/components/assistant-ui";
+import { AssistantRuntimeProvider, useEdgeRuntime } from "@assistant-ui/react";
 import { useLangGraphRuntime } from "@assistant-ui/react-langgraph";
 
 import { createThread, getThreadState, sendMessage } from "@/lib/chatApi";
-
-const MarkdownText = makeMarkdownText();
 
 export function MyAssistant() {
   const threadIdRef = useRef<string | undefined>();
@@ -219,7 +218,7 @@ export function MyAssistant() {
     onSwitchToThread: async (threadId) => {
       const state = await getThreadState(threadId);
       threadIdRef.current = threadId;
-      return { 
+      return {
         messages: state.values.messages,
         interrupts: state.tasks[0]?.interrupts,
       };
@@ -227,10 +226,9 @@ export function MyAssistant() {
   });
 
   return (
-    <Thread
-      runtime={runtime}
-      assistantMessage={{ components: { Text: MarkdownText } }}
-    />
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
+    </AssistantRuntimeProvider>
   );
 }
 ```
@@ -286,15 +284,17 @@ Follow the [UI Components](/docs/ui/shadcn-ui/Thread) guide to setup the UI comp
 The `LangGraphMessageAccumulator` lets you append messages incoming from the server to replicate the messages state client side.
 
 ```typescript
-import { LangGraphMessageAccumulator, appendLangChainChunk } from "@assistant-ui/react-langgraph";
+import {
+  LangGraphMessageAccumulator,
+  appendLangChainChunk,
+} from "@assistant-ui/react-langgraph";
 
 const accumulator = new LangGraphMessageAccumulator({
-  appendMessage: appendLangChainChunk
+  appendMessage: appendLangChainChunk,
 });
 
 // Add new chunks from the server
-if (event.event === "messages/partial")
-  accumulator.addMessages(event.data);
+if (event.event === "messages/partial") accumulator.addMessages(event.data);
 ```
 
 ### Message Conversion

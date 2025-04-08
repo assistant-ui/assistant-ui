@@ -1,6 +1,6 @@
 "use client";
 
-import { Thread } from "@assistant-ui/react-ui";
+import { Thread } from "@/components/assistant-ui/thread";
 
 export default function Home() {
   return (

@@ -1,1 +1,0 @@
-export { Weather } from "./Weather";

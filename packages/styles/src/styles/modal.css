@@ -1,0 +1,4 @@
+@import "./config.css";
+@import "./tailwindcss/modal.css";
+
+@plugin "tailwindcss-animate";

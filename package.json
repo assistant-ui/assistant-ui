@@ -11,13 +11,13 @@
   },
   "devDependencies": {
     "@changesets/cli": "^2.28.1",
-    "@eslint/eslintrc": "^3.3.0",
-    "@eslint/js": "^9.21.0",
+    "@eslint/eslintrc": "^3.3.1",
+    "@eslint/js": "^9.24.0",
     "eslint": "^9",
     "prettier": "^3.5.3",
     "prettier-plugin-tailwindcss": "0.6.11",
-    "turbo": "^2.4.4",
-    "typescript": "^5.8.2"
+    "turbo": "^2.5.0",
+    "typescript": "^5.8.3"
   },
   "prettier": {
     "trailingComma": "all",
@@ -25,7 +25,7 @@
       "prettier-plugin-tailwindcss"
     ]
   },
-  "packageManager": "pnpm@10.6.2",
+  "packageManager": "pnpm@10.8.0",
   "resolutions": {
     "react": "19.0.0",
     "react-dom": "19.0.0"

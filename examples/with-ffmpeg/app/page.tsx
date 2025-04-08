@@ -5,7 +5,6 @@ import {
   useAssistantTool,
   useThreadComposer,
 } from "@assistant-ui/react";
-import { Thread } from "@assistant-ui/react-ui";
 import { z } from "zod";
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { toBlobURL } from "@ffmpeg/util";
@@ -15,6 +14,7 @@ import {
   RefreshCcwIcon,
   TriangleAlertIcon,
 } from "lucide-react";
+import { Thread } from "@/components/assistant-ui/thread";
 
 // MVP: upload file, enter command
 // MVP: convert command to tool call
