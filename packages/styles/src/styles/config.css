@@ -1,0 +1,45 @@
+:where(.aui-root) {
+  @import "tailwindcss/theme.css" layer(theme);
+}
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-aui-background: hsl(var(--aui-background));
+  --color-aui-foreground: hsl(var(--aui-foreground));
+
+  --color-aui-card: hsl(var(--aui-card));
+  --color-aui-card-foreground: hsl(var(--aui-card-foreground));
+
+  --color-aui-popover: hsl(var(--aui-popover));
+  --color-aui-popover-foreground: hsl(var(--aui-popover-foreground));
+
+  --color-aui-primary: hsl(var(--aui-primary));
+  --color-aui-primary-foreground: hsl(var(--aui-primary-foreground));
+
+  --color-aui-secondary: hsl(var(--aui-secondary));
+  --color-aui-secondary-foreground: hsl(var(--aui-secondary-foreground));
+
+  --color-aui-muted: hsl(var(--aui-muted));
+  --color-aui-muted-foreground: hsl(var(--aui-muted-foreground));
+
+  --color-aui-accent: hsl(var(--aui-accent));
+  --color-aui-accent-foreground: hsl(var(--aui-accent-foreground));
+
+  --color-aui-destructive: hsl(var(--aui-destructive));
+  --color-aui-destructive-foreground: hsl(var(--aui-destructive-foreground));
+
+  --color-aui-border: hsl(var(--aui-border));
+  --color-aui-input: hsl(var(--aui-input));
+  --color-aui-ring: hsl(var(--aui-ring));
+
+  --color-aui-chart-1: hsl(var(--aui-chart-1));
+  --color-aui-chart-2: hsl(var(--aui-chart-2));
+  --color-aui-chart-3: hsl(var(--aui-chart-3));
+  --color-aui-chart-4: hsl(var(--aui-chart-4));
+  --color-aui-chart-5: hsl(var(--aui-chart-5));
+
+  --radius-aui-lg: var(--aui-radius);
+  --radius-aui-md: calc(var(--aui-radius) - 2px);
+  --radius-aui-sm: calc(var(--aui-radius) - 4px);
+}

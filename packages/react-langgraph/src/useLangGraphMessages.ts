@@ -29,8 +29,8 @@ export type LangGraphStreamCallback<TMessage> = (
   | AsyncGenerator<LangGraphMessagesEvent<TMessage>>;
 
 export type LangGraphInterruptState = {
-  value: any;
-  resumable: boolean;
+  value?: any;
+  resumable?: boolean;
   when: string;
   ns?: string[];
 };

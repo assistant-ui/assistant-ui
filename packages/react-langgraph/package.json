@@ -27,8 +27,8 @@
     "build": "tsup src/index.ts --format cjs,esm --dts --sourcemap --clean"
   },
   "dependencies": {
-    "uuid": "^11.0.5",
-    "zod": "^3.24.1"
+    "uuid": "^11.1.0",
+    "zod": "^3.24.2"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.8.17",
@@ -43,8 +43,8 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/tsconfig": "workspace:*",
-    "eslint-config-next": "15.1.6",
-    "tsup": "8.3.6"
+    "eslint-config-next": "15.2.4",
+    "tsup": "8.4.0"
   },
   "publishConfig": {
     "access": "public",

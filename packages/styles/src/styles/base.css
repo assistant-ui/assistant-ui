@@ -1,0 +1,3 @@
+:where(.aui-root) {
+  @import "tailwindcss/preflight.css" layer(base);
+}

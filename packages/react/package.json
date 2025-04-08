@@ -73,11 +73,11 @@
     "@radix-ui/react-use-escape-keydown": "^1.1.0",
     "assistant-stream": "^0.0.29",
     "json-schema": "^0.4.0",
-    "nanoid": "3.3.8",
-    "react-textarea-autosize": "^8.5.7",
-    "secure-json-parse": "^3.0.2",
-    "zod": "^3.24.1",
-    "zod-to-json-schema": "^3.24.1",
+    "nanoid": "5.1.5",
+    "react-textarea-autosize": "^8.5.9",
+    "secure-json-parse": "^4.0.0",
+    "zod": "^3.24.2",
+    "zod-to-json-schema": "^3.24.5",
     "zustand": "^5.0.3"
   },
   "peerDependencies": {
@@ -100,11 +100,11 @@
     "@stryker-mutator/core": "^8.7.1",
     "@stryker-mutator/vitest-runner": "^8.7.1",
     "@types/json-schema": "^7.0.15",
-    "@types/node": "^22.13.1",
+    "@types/node": "^22.14.0",
     "eslint": "^9",
-    "eslint-config-next": "15.1.6",
-    "tsx": "^4.19.2",
-    "vitest": "^1.6.1"
+    "eslint-config-next": "15.2.4",
+    "tsx": "^4.19.3",
+    "vitest": "^3.1.1"
   },
   "publishConfig": {
     "access": "public",

@@ -1,11 +1,9 @@
 "use client";
 
-import { Thread, ThreadList, makeMarkdownText } from "@assistant-ui/react-ui";
+import { Thread } from "@/components/assistant-ui/thread";
 import { PriceSnapshotTool } from "@/components/tools/price-snapshot/PriceSnapshotTool";
 import { PurchaseStockTool } from "@/components/tools/purchase-stock/PurchaseStockTool";
-import { ToolFallback } from "@/components/tools/ToolFallback";
-
-const MarkdownText = makeMarkdownText({});
+import { ThreadList } from "@/components/assistant-ui/thread-list";
 
 export default function Home() {
   return (
@@ -14,25 +12,9 @@ export default function Home() {
         <ThreadList />
       </div>
       <div className="flex-grow">
-        <Thread
-          welcome={{
-            suggestions: [
-              {
-                prompt: "How much revenue did Apple make last year?",
-              },
-              {
-                prompt: "Is McDonald's profitable?",
-              },
-              {
-                prompt: "What's the current stock price of Tesla?",
-              },
-            ],
-          }}
-          assistantMessage={{
-            components: { Text: MarkdownText, ToolFallback },
-          }}
-          tools={[PriceSnapshotTool, PurchaseStockTool]}
-        />
+        <Thread />
+        <PriceSnapshotTool />
+        <PurchaseStockTool />
       </div>
     </div>
   );
