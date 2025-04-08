@@ -11,7 +11,7 @@ import {
 import * as Avatar from "@radix-ui/react-avatar";
 import { ArrowUpIcon, ClipboardIcon, ReloadIcon } from "@radix-ui/react-icons";
 import type { FC } from "react";
-import { MarkdownText } from "../shadcn/Shadcn";
+import { MarkdownText } from "../assistant-ui/markdown-text";
 
 export const Claude: FC = () => {
   return (
