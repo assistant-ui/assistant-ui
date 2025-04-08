@@ -29,7 +29,7 @@
     "conversational-ui",
     "conversational-ai"
   ],
-  "version": "0.8.18",
+  "version": "0.8.19",
   "license": "MIT",
   "exports": {
     ".": {
@@ -71,7 +71,7 @@
     "@radix-ui/react-slot": "^1.1.2",
     "@radix-ui/react-use-callback-ref": "^1.1.0",
     "@radix-ui/react-use-escape-keydown": "^1.1.0",
-    "assistant-stream": "^0.0.30",
+    "assistant-stream": "^0.0.31",
     "json-schema": "^0.4.0",
     "nanoid": "5.1.5",
     "react-textarea-autosize": "^8.5.9",
