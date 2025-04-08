@@ -1,5 +1,12 @@
 # assistant-stream
 
+## 0.0.30
+
+### Patch Changes
+
+- a22bc7a: refactor: merge setResult and setArtifact to setResponse
+- 39aecd7: chore: update dependencies
+
 ## 0.0.29
 
 ### Patch Changes

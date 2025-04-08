@@ -1,5 +1,15 @@
 # @assistant-ui/react
 
+## 0.8.18
+
+### Patch Changes
+
+- a22bc7a: refactor: merge setResult and setArtifact to setResponse
+- 39aecd7: chore: update dependencies
+- Updated dependencies [a22bc7a]
+- Updated dependencies [39aecd7]
+  - assistant-stream@0.0.30
+
 ## 0.8.17
 
 ### Patch Changes
