@@ -20,21 +20,22 @@ import {
 } from "../utils/json/json-value";
 import { ToolResponseInit } from "../ToolResponse";
 
+type ToolCallPartInit = {
+  toolCallId?: string;
+  toolName: string;
+  argsText?: string;
+  args?: ReadonlyJSONObject;
+  response?: ToolResponseInit<ReadonlyJSONValue>;
+};
+
 export type AssistantStreamController = {
   appendText(textDelta: string): void;
   appendReasoning(reasoningDelta: string): void;
   appendSource(options: SourcePart): void;
   appendFile(options: FilePart): void;
   addTextPart(): TextStreamController;
-  addToolCallPart(toolName: string): ToolCallStreamController;
-  addToolCallPart(options: {
-    toolCallId?: string;
-    toolName: string;
-    args?: ReadonlyJSONObject;
-    result?: ReadonlyJSONValue;
-    isError?: boolean;
-  }): ToolCallStreamController;
-
+  addToolCallPart(options: string): ToolCallStreamController;
+  addToolCallPart(options: ToolCallPartInit): ToolCallStreamController;
   enqueue(chunk: AssistantStreamChunk): void;
   merge(stream: AssistantStream): void;
   close(): void;
@@ -118,14 +119,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
   }
 
   addToolCallPart(
-    options:
-      | string
-      | {
-          toolCallId?: string;
-          toolName: string;
-          args?: Record<string, unknown>;
-          response?: ToolResponseInit<ReadonlyJSONValue>;
-        },
+    options: string | ToolCallPartInit,
   ): ToolCallStreamController {
     const opt = typeof options === "string" ? { toolName: options } : options;
     const toolName = opt.toolName;
@@ -134,6 +128,10 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     const [stream, controller] = createToolCallStreamController();
     this._addPart({ type: "tool-call", toolName, toolCallId }, stream);
 
+    if (opt.argsText !== undefined) {
+      controller.argsText.append(opt.argsText);
+      controller.argsText.close();
+    }
     if (opt.args !== undefined) {
       controller.argsText.append(JSON.stringify(opt.args));
       controller.argsText.close();

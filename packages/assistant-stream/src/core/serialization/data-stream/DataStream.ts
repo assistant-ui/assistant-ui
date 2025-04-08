@@ -254,10 +254,9 @@ export class DataStreamDecoder extends PipeableTransformStream<
               const toolCallController = controller.addToolCallPart({
                 toolCallId,
                 toolName,
+                args,
               });
               toolCallControllers.set(toolCallId, toolCallController);
-              toolCallController.argsText.append(JSON.stringify(args));
-              toolCallController.argsText.close();
               break;
             }
 
