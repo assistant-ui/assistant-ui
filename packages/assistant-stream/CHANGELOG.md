@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.0.31
+
+### Patch Changes
+
+- 93c3eb4: fix: drop ToolResponseBrand
+
 ## 0.0.30
 
 ### Patch Changes
