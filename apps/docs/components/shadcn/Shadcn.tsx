@@ -1,10 +1,6 @@
 "use client";
 
 import { MenuIcon, ShareIcon } from "lucide-react";
-import { makeMarkdownText } from "@assistant-ui/react-ui";
-import remarkGfm from "remark-gfm";
-import { makePrismAsyncSyntaxHighlighter } from "@assistant-ui/react-syntax-highlighter";
-import { coldarkDark } from "react-syntax-highlighter/dist/cjs/styles/prism";
 import type { TooltipContentProps } from "@radix-ui/react-tooltip";
 import Image from "next/image";
 import { ComponentPropsWithRef, type FC } from "react";
@@ -22,19 +18,6 @@ import {
 import { ModelPicker } from "./ModelPicker";
 import { Thread } from "@/components/assistant-ui/thread";
 import { ThreadList } from "@/components/assistant-ui/thread-list";
-
-export const MarkdownText = makeMarkdownText({
-  remarkPlugins: [remarkGfm],
-  components: {
-    SyntaxHighlighter: makePrismAsyncSyntaxHighlighter({
-      style: coldarkDark,
-      customStyle: {
-        margin: 0,
-        backgroundColor: "black",
-      },
-    }),
-  },
-});
 
 type ButtonWithTooltipProps = ComponentPropsWithRef<typeof Button> & {
   tooltip: string;

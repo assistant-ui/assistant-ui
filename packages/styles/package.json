@@ -4,7 +4,7 @@
   "version": "0.0.1",
   "license": "MIT",
   "exports": {
-    "./styles/*": {
+    "./*": {
       "default": "./dist/styles/*"
     }
   },

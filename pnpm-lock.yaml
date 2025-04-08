@@ -60,6 +60,9 @@ importers:
       '@assistant-ui/react-syntax-highlighter':
         specifier: workspace:*
         version: link:../../packages/react-syntax-highlighter
+      '@assistant-ui/styles':
+        specifier: workspace:*
+        version: link:../../packages/styles
       '@assistant-ui/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
