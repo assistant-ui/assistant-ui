@@ -2,7 +2,7 @@
 
 import { ComponentType, type FC } from "react";
 import ShikiHighlighter, { type ShikiHighlighterProps } from "react-shiki";
-import type { SyntaxHighlighterProps } from "../../react-markdown/src";
+import type { SyntaxHighlighterProps } from "@assistant-ui/react-markdown";
 
 type ShikiConfig = Omit<ShikiHighlighterProps, "language" | "children">;
 
