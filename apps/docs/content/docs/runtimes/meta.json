@@ -3,6 +3,7 @@
   "pages": [
     "pick-a-runtime",
     "ai-sdk",
+    "mastra",
     "langgraph",
     "langserve",
     "external-store",
