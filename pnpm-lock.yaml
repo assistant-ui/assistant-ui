@@ -1444,7 +1444,7 @@ importers:
         specifier: '*'
         version: 19.1.1(@types/react@19.1.0)
       assistant-stream:
-        specifier: ^0.0.31
+        specifier: ^0.0.32
         version: link:../assistant-stream
       json-schema:
         specifier: ^0.4.0
