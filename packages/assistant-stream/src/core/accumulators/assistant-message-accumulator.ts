@@ -155,7 +155,7 @@ const handleTextDelta = (
   chunk: AssistantStreamChunk & { type: "text-delta" },
 ): AssistantMessage => {
   return updatePartForPath(message, chunk, (part) => {
-    if (part.type === "text") {
+    if (part.type === "text" || part.type === "reasoning") {
       return { ...part, text: part.text + chunk.textDelta };
     } else if (part.type === "tool-call") {
       const newArgsText = part.argsText + chunk.textDelta;
