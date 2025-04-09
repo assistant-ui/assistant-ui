@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.0.32
+
+### Patch Changes
+
+- 545a17c: fix: do not crash on tool call with empty argsText
+
 ## 0.0.31
 
 ### Patch Changes
