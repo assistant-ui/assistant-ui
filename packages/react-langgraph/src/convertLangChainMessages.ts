@@ -75,6 +75,7 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
         toolName: message.name,
         toolCallId: message.tool_call_id,
         result: message.content,
+        artifact: message.artifact,
       };
   }
 };
