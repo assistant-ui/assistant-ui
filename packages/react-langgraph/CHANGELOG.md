@@ -1,5 +1,11 @@
 # @assistant-ui/react-langgraph
 
+## 0.3.2
+
+### Patch Changes
+
+- 4065dae: feat: artifact support
+
 ## 0.3.1
 
 ### Patch Changes
