@@ -55,11 +55,18 @@ export class ToolExecutionStream extends PipeableTransformStream<
 
               const { toolCallId, toolName } = chunk.meta;
               const argsText = toolCallArgsText[toolCallId];
-              if (!argsText)
-                throw new Error("Unexpected tool call without args");
 
               const promise = withPromiseOrValue(
                 () => {
+                  if (!argsText) {
+                    console.log(
+                      "Encountered tool call without argsText, this should never happen",
+                    );
+                    throw new Error(
+                      "Encountered tool call without argsText, this is unexpected.",
+                    );
+                  }
+
                   let args;
                   try {
                     args = sjson.parse(argsText);
