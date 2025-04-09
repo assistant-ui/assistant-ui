@@ -24,6 +24,7 @@ export const fromStreamText = (
 
       if (
         type !== "tool-call-delta" &&
+        type !== "tool-call" &&
         type !== "error" &&
         (type as string) !== "tool-result"
       ) {
