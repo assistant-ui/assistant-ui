@@ -1,5 +1,5 @@
-import { parsePartialJson } from "../../react/src/utils/json/parse-partial-json";
 import { LangChainMessage, LangChainMessageChunk } from "./types";
+import { parsePartialJson } from "assistant-stream/utils";
 
 export const appendLangChainChunk = (
   prev: LangChainMessage | undefined,

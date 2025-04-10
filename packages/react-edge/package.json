@@ -1,5 +1,5 @@
 {
-  "name": "@assistant-ui/react",
+  "name": "@assistant-ui/react-edge",
   "description": "Typescript/React library for AI Chat",
   "keywords": [
     "radix-ui",
@@ -50,6 +50,7 @@
   "files": [
     "dist",
     "generated",
+    "edge",
     "src",
     "README.md"
   ],
@@ -61,6 +62,8 @@
     "test:mutation": "stryker run"
   },
   "dependencies": {
+    "@ai-sdk/provider": "^1.1.0",
+    "@assistant-ui/react": "workspace:*",
     "@radix-ui/primitive": "^1.1.1",
     "@radix-ui/react-compose-refs": "^1.1.1",
     "@radix-ui/react-context": "^1.1.1",
@@ -70,9 +73,12 @@
     "@radix-ui/react-use-callback-ref": "^1.1.0",
     "@radix-ui/react-use-escape-keydown": "^1.1.0",
     "assistant-stream": "^0.0.32",
+    "json-schema": "^0.4.0",
     "nanoid": "5.1.5",
     "react-textarea-autosize": "^8.5.9",
+    "secure-json-parse": "^4.0.0",
     "zod": "^3.24.2",
+    "zod-to-json-schema": "^3.24.5",
     "zustand": "^5.0.3"
   },
   "peerDependencies": {

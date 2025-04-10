@@ -1,4 +1,5 @@
-import { ThreadMessage, CoreMessage } from "../../../types";
+import { ThreadMessage } from "@assistant-ui/react";
+import { CoreMessage } from "../edge/CoreTypes";
 
 type CoreMessageWithConditionalId<T extends boolean> = T extends false
   ? CoreMessage

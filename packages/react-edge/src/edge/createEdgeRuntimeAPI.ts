@@ -5,21 +5,10 @@ import {
   LanguageModelV1Prompt,
   LanguageModelV1CallOptions,
 } from "@ai-sdk/provider";
-import {
-  CoreMessage,
-  ThreadMessage,
-  ThreadStep,
-} from "../../types/AssistantTypes";
 import { EdgeRuntimeRequestOptionsSchema } from "./EdgeRuntimeRequestOptions";
-import { toLanguageModelMessages } from "./converters/toLanguageModelMessages";
-import { toLanguageModelTools } from "./converters/toLanguageModelTools";
-import { toolResultStream } from "./streams/toolResultStream";
-import {
-  LanguageModelConfig,
-  LanguageModelV1CallSettings,
-  LanguageModelV1CallSettingsSchema,
-  Tool,
-} from "../../model-context/ModelContextTypes";
+import { toLanguageModelMessages } from "../converters/toLanguageModelMessages";
+import { toLanguageModelTools } from "../converters/toLanguageModelTools";
+import { unstable_toolResultStream } from "@assistant-ui/react";
 import { z } from "zod";
 import {
   AssistantMessage,
@@ -28,6 +17,44 @@ import {
   DataStreamEncoder,
 } from "assistant-stream";
 import { LanguageModelV1StreamDecoder } from "assistant-stream/ai-sdk";
+import { ModelContext, ThreadMessage, Tool } from "@assistant-ui/react";
+import { CoreMessage } from "./CoreTypes";
+
+export const LanguageModelV1CallSettingsSchema = z.object({
+  maxTokens: z.number().int().positive().optional(),
+  temperature: z.number().optional(),
+  topP: z.number().optional(),
+  presencePenalty: z.number().optional(),
+  frequencyPenalty: z.number().optional(),
+  seed: z.number().int().optional(),
+  headers: z.record(z.string().optional()).optional(),
+});
+
+export type LanguageModelV1CallSettings = z.infer<
+  typeof LanguageModelV1CallSettingsSchema
+>;
+
+export const LanguageModelConfigSchema = z.object({
+  apiKey: z.string().optional(),
+  baseUrl: z.string().optional(),
+  modelName: z.string().optional(),
+});
+
+export type LanguageModelConfig = z.infer<typeof LanguageModelConfigSchema>;
+
+type LanguageModelCreator = (
+  config: LanguageModelConfig,
+) => Promise<LanguageModelV1> | LanguageModelV1;
+
+type ThreadStep = {
+  readonly messageId?: string;
+  readonly usage?:
+    | {
+        readonly promptTokens: number;
+        readonly completionTokens: number;
+      }
+    | undefined;
+};
 
 type FinishResult = {
   messages: readonly (CoreMessage | ThreadMessage)[];
@@ -36,11 +63,7 @@ type FinishResult = {
   };
 };
 
-type LanguageModelCreator = (
-  config: LanguageModelConfig,
-) => Promise<LanguageModelV1> | LanguageModelV1;
-
-export type CreateEdgeRuntimeAPIOptions = LanguageModelV1CallSettings & {
+export type CreateEdgeRuntimeAPIOptions = ModelContext & {
   model: LanguageModelV1 | LanguageModelCreator;
   system?: string;
   tools?: Record<string, Tool<any, any>>;
@@ -116,7 +139,9 @@ export const getEdgeRuntimeStream = async ({
   // add tool results if we have server tools
   const canExecuteTools = hasServerTools && toolChoice?.type !== "none";
   if (canExecuteTools) {
-    stream = stream.pipeThrough(toolResultStream(serverTools, abortSignal));
+    stream = stream.pipeThrough(
+      unstable_toolResultStream(serverTools, abortSignal),
+    );
   }
 
   if (canExecuteTools || onFinish) {

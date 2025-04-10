@@ -1,8 +1,13 @@
 "use client";
 
-import { LocalRuntimeOptions, useLocalRuntime } from "..";
 import { EdgeModelAdapterOptions, EdgeModelAdapter } from "./EdgeModelAdapter";
-import { splitLocalRuntimeOptions } from "../local/LocalRuntimeOptions";
+import {
+  INTERNAL,
+  LocalRuntimeOptions,
+  useLocalRuntime,
+} from "@assistant-ui/react";
+
+const { splitLocalRuntimeOptions } = INTERNAL;
 
 export type EdgeRuntimeOptions = EdgeModelAdapterOptions & LocalRuntimeOptions;
 

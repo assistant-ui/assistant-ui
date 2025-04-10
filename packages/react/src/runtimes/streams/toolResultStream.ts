@@ -1,4 +1,4 @@
-import { Tool } from "../../../model-context/ModelContextTypes";
+import { Tool } from "../../model-context/ModelContextTypes";
 import { z } from "zod";
 import { AssistantMessage, ToolExecutionStream } from "assistant-stream";
 import { ToolResponse } from "assistant-stream";

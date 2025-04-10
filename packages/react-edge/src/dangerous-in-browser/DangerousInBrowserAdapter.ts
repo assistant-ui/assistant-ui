@@ -1,17 +1,17 @@
-import {
-  ChatModelAdapter,
-  ChatModelRunOptions,
-} from "../local/ChatModelAdapter";
-import { toCoreMessages } from "../edge/converters/toCoreMessages";
-import { toLanguageModelTools } from "../edge/converters/toLanguageModelTools";
+import { toCoreMessages } from "../converters/toCoreMessages";
+import { toLanguageModelTools } from "../converters/toLanguageModelTools";
 import { EdgeRuntimeRequestOptions } from "../edge/EdgeRuntimeRequestOptions";
-import { toolResultStream } from "../edge/streams/toolResultStream";
 import { asAsyncIterable } from "../edge/EdgeModelAdapter";
 import {
   CreateEdgeRuntimeAPIOptions,
   getEdgeRuntimeStream,
 } from "../edge/createEdgeRuntimeAPI";
 import { AssistantMessageAccumulator } from "assistant-stream";
+import {
+  ChatModelAdapter,
+  ChatModelRunOptions,
+  unstable_toolResultStream,
+} from "@assistant-ui/react";
 
 export type DangerousInBrowserAdapterOptions = CreateEdgeRuntimeAPIOptions;
 
@@ -32,7 +32,7 @@ export class DangerousInBrowserAdapter implements ChatModelAdapter {
     });
 
     const stream = res
-      .pipeThrough(toolResultStream(context.tools, abortSignal))
+      .pipeThrough(unstable_toolResultStream(context.tools, abortSignal))
       .pipeThrough(new AssistantMessageAccumulator());
 
     for await (const update of asAsyncIterable(stream)) {

@@ -80,12 +80,14 @@ const toAppendMessage = (
 ): AppendMessage => {
   if (typeof message === "string") {
     return {
+      createdAt: new Date(),
       parentId: messages.at(-1)?.id ?? null,
       sourceId: null,
       runConfig: {},
       role: "user",
       content: [{ type: "text", text: message }],
       attachments: [],
+      metadata: { custom: {} },
     };
   }
 

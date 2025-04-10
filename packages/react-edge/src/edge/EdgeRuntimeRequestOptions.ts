@@ -1,10 +1,9 @@
 import { JSONSchema7 } from "json-schema";
+import { z } from "zod";
 import {
   LanguageModelConfigSchema,
   LanguageModelV1CallSettingsSchema,
-} from "../../model-context/ModelContextTypes";
-import { z } from "zod";
-import { ReadonlyJSONObject } from "../../utils/json/json-value";
+} from "./createEdgeRuntimeAPI";
 
 const LanguageModelV1FunctionToolSchema = z.object({
   type: z.literal("function"),
@@ -43,9 +42,7 @@ const CoreToolCallContentPartSchema = z.object({
   type: z.literal("tool-call"),
   toolCallId: z.string(),
   toolName: z.string(),
-  args: z
-    .record(z.unknown())
-    .refine((c): c is ReadonlyJSONObject => c !== undefined),
+  args: z.record(z.unknown()),
   result: z.unknown().optional(),
   isError: z.boolean().optional(),
 });

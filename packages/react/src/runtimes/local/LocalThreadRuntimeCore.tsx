@@ -1,6 +1,5 @@
-import { generateId } from "../../internal";
+import { fromThreadMessageLike, generateId } from "../../internal";
 import type { AppendMessage, ThreadAssistantMessage } from "../../types";
-import { fromCoreMessage } from "../edge";
 import type { ChatModelAdapter, ChatModelRunResult } from "./ChatModelAdapter";
 import { shouldContinue } from "./shouldContinue";
 import { LocalRuntimeOptionsBase } from "./LocalRuntimeOptions";
@@ -118,8 +117,9 @@ export class LocalThreadRuntimeCore
   public async append(message: AppendMessage): Promise<void> {
     this.ensureInitialized();
 
-    const newMessage = fromCoreMessage(message, {
-      attachments: message.attachments,
+    const newMessage = fromThreadMessageLike(message, generateId(), {
+      type: "complete",
+      reason: "unknown",
     });
     this.repository.addOrUpdateMessage(message.parentId, newMessage);
     this._options.adapters.history?.append({

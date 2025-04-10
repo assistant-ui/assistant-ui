@@ -1,7 +1,8 @@
 "use client";
 
-import { AssistantRuntimeProvider, useEdgeRuntime } from "@assistant-ui/react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { AttachmentAdapter } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { INTERNAL } from "@assistant-ui/react";
 
 const { generateId } = INTERNAL;
@@ -40,7 +41,7 @@ export function MyRuntimeProvider({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const runtime = useEdgeRuntime({
+  const runtime = useChatRuntime({
     api: "/api/chat",
     maxSteps: 4,
     adapters: {

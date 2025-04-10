@@ -7,12 +7,11 @@ import {
   LanguageModelV1ToolResultPart,
 } from "@ai-sdk/provider";
 import {
-  CoreMessage,
-  ThreadMessage,
   TextContentPart,
-  CoreToolCallContentPart,
+  ThreadMessage,
   ToolCallContentPart,
-} from "../../../types/AssistantTypes";
+} from "@assistant-ui/react";
+import { CoreMessage, CoreToolCallContentPart } from "../edge/CoreTypes";
 
 const assistantMessageSplitter = () => {
   const stash: LanguageModelV1Message[] = [];

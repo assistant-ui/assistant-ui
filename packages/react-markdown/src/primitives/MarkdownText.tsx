@@ -42,10 +42,6 @@ export type MarkdownTextPrimitiveProps = Omit<
     | (NonNullable<Options["components"]> & {
         SyntaxHighlighter?: ComponentType<SyntaxHighlighterProps> | undefined;
         CodeHeader?: ComponentType<CodeHeaderProps> | undefined;
-        /**
-         * @deprecated Use `componentsByLanguage` instead of `components.by_language`. This will be removed in the next major version.
-         **/
-        by_language?: undefined;
       })
     | undefined;
   componentsByLanguage?:
@@ -62,7 +58,7 @@ export type MarkdownTextPrimitiveProps = Omit<
 
 const MarkdownTextInner: FC<MarkdownTextPrimitiveProps> = ({
   components: userComponents,
-  componentsByLanguage = userComponents?.by_language,
+  componentsByLanguage,
   smooth = true,
   ...rest
 }) => {
@@ -96,7 +92,6 @@ const MarkdownTextInner: FC<MarkdownTextPrimitiveProps> = ({
       code = DefaultCode,
       SyntaxHighlighter = DefaultCodeBlockContent,
       CodeHeader = DefaultCodeHeader,
-      by_language,
       ...componentsRest
     } = userComponents ?? {};
     return {

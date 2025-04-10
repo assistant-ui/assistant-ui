@@ -1,11 +1,13 @@
-import { generateId } from "../../../internal";
 import {
-  ThreadMessage,
-  CoreMessage,
-  ToolCallContentPart,
-  MessageStatus,
   CompleteAttachment,
-} from "../../../types";
+  INTERNAL,
+  MessageStatus,
+  ThreadMessage,
+  ToolCallContentPart,
+} from "@assistant-ui/react";
+import { CoreMessage } from "../edge/CoreTypes";
+
+const { generateId } = INTERNAL;
 
 export const fromCoreMessages = (
   message: readonly CoreMessage[],
@@ -36,6 +38,7 @@ export const fromCoreMessage = (
           if (part.type === "tool-call") {
             return {
               ...part,
+              args: part.args as any,
               argsText: JSON.stringify(part.args),
             } satisfies ToolCallContentPart;
           }

@@ -13,6 +13,6 @@ export {
 } from "./api/ThreadRuntime";
 export { fromThreadMessageLike } from "./runtimes/external-store/ThreadMessageLike";
 export { getAutoStatus } from "./runtimes/external-store/auto-status";
-export { EdgeRuntimeRequestOptionsSchema } from "./runtimes/edge/EdgeRuntimeRequestOptions";
+export { splitLocalRuntimeOptions } from "./runtimes/local/LocalRuntimeOptions";
 
 export * from "./utils/smooth";

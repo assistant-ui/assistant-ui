@@ -1,14 +1,14 @@
+import { toCoreMessages } from "../converters/toCoreMessages";
+import { toLanguageModelTools } from "../converters/toLanguageModelTools";
+import { EdgeRuntimeRequestOptions } from "./EdgeRuntimeRequestOptions";
+import { toLanguageModelMessages } from "../converters";
 import {
   ChatModelAdapter,
   ChatModelRunOptions,
-} from "../local/ChatModelAdapter";
-import { toCoreMessages } from "./converters/toCoreMessages";
-import { toLanguageModelTools } from "./converters/toLanguageModelTools";
-import { EdgeRuntimeRequestOptions } from "./EdgeRuntimeRequestOptions";
-import { toolResultStream } from "./streams/toolResultStream";
-import { toLanguageModelMessages } from "./converters";
-import { ThreadMessage } from "../../types";
-import { Tool } from "../../model-context";
+  ThreadMessage,
+  Tool,
+  unstable_toolResultStream,
+} from "@assistant-ui/react";
 import { z } from "zod";
 import zodToJsonSchema from "zod-to-json-schema";
 import { JSONSchema7 } from "json-schema";
@@ -172,7 +172,7 @@ export class EdgeModelAdapter implements ChatModelAdapter {
 
       const stream = result.body
         .pipeThrough(new DataStreamDecoder())
-        .pipeThrough(toolResultStream(context.tools, abortSignal))
+        .pipeThrough(unstable_toolResultStream(context.tools, abortSignal))
         .pipeThrough(new AssistantMessageAccumulator());
 
       for await (const update of asAsyncIterable(stream)) {

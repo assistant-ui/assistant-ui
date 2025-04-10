@@ -22,6 +22,16 @@
         "types": "./dist/ai-sdk.d.ts",
         "default": "./dist/ai-sdk.js"
       }
+    },
+    "./utils": {
+      "import": {
+        "types": "./dist/utils.d.mts",
+        "default": "./dist/utils.mjs"
+      },
+      "require": {
+        "types": "./dist/utils.d.ts",
+        "default": "./dist/utils.js"
+      }
     }
   },
   "source": "./src/index.ts",
@@ -31,6 +41,7 @@
   "files": [
     "dist",
     "ai-sdk",
+    "utils",
     "README.md"
   ],
   "sideEffects": false,

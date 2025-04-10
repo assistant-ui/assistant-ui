@@ -1,12 +1,17 @@
 "use client";
 
-import { LocalRuntimeOptions, useLocalRuntime } from "..";
 import { useState } from "react";
 import {
   DangerousInBrowserAdapter,
   DangerousInBrowserAdapterOptions,
 } from "./DangerousInBrowserAdapter";
-import { splitLocalRuntimeOptions } from "../local/LocalRuntimeOptions";
+import {
+  INTERNAL,
+  LocalRuntimeOptions,
+  useLocalRuntime,
+} from "@assistant-ui/react";
+
+const { splitLocalRuntimeOptions } = INTERNAL;
 
 export type DangerousInBrowserRuntimeOptions =
   DangerousInBrowserAdapterOptions & LocalRuntimeOptions;
