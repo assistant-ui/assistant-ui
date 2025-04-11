@@ -14,7 +14,6 @@ export type {
   FileContentPart,
   Unstable_AudioContentPart,
   ToolCallContentPart,
-  UIContentPart,
   MessageStatus,
 
   // thread message types
@@ -24,14 +23,6 @@ export type {
   ThreadAssistantMessage,
   ThreadUserMessage,
   ThreadMessage,
-
-  // core message types
-  CoreUserContentPart,
-  CoreAssistantContentPart,
-  CoreSystemMessage,
-  CoreUserMessage,
-  CoreAssistantMessage,
-  CoreMessage,
 } from "./AssistantTypes";
 
 export type {

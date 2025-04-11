@@ -1,6 +1,5 @@
-import type { CoreMessage, ThreadMessage } from "../../types/AssistantTypes";
+import type { ThreadMessage } from "../../types";
 import { generateId, generateOptimisticId } from "../../utils/idUtils";
-import { fromCoreMessage } from "../edge/converters/fromCoreMessage";
 import { ThreadMessageLike } from "../external-store";
 import { getAutoStatus } from "../external-store/auto-status";
 import { fromThreadMessageLike } from "../external-store/ThreadMessageLike";
@@ -303,7 +302,7 @@ export class MessageRepository {
    * @param message - The core message to convert to an optimistic message
    * @returns The generated optimistic ID
    */
-  appendOptimisticMessage(parentId: string | null, message: CoreMessage) {
+  appendOptimisticMessage(parentId: string | null, message: ThreadMessageLike) {
     let optimisticId: string;
     do {
       optimisticId = generateOptimisticId();
@@ -311,10 +310,7 @@ export class MessageRepository {
 
     this.addOrUpdateMessage(
       parentId,
-      fromCoreMessage(message, {
-        id: optimisticId,
-        status: { type: "running" },
-      }),
+      fromThreadMessageLike(message, optimisticId, { type: "running" }),
     );
 
     return optimisticId;

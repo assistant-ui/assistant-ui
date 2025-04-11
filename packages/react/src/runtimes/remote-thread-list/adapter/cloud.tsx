@@ -10,7 +10,6 @@ import { AssistantCloud } from "../../../cloud";
 import { RemoteThreadListAdapter } from "../types";
 import { useAssistantCloudThreadHistoryAdapter } from "../../../cloud/AssistantCloudThreadHistoryAdapter";
 import { RuntimeAdapterProvider } from "../../adapters/RuntimeAdapterProvider";
-import { toCoreMessages } from "../../edge";
 import { InMemoryThreadListAdapter } from "./in-memory";
 
 type ThreadData = {
@@ -103,7 +102,7 @@ export const useCloudThreadListAdapter = (
       return cloud.runs.stream({
         thread_id: threadId,
         assistant_id: "system/thread_title",
-        messages: toCoreMessages(messages),
+        messages: messages, // TODO serialize these to a more efficient format
       });
     },
 

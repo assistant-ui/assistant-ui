@@ -27,6 +27,7 @@
     "build": "tsup src/index.ts --format cjs,esm --dts --sourcemap --clean"
   },
   "dependencies": {
+    "assistant-stream": "^0.0.32",
     "uuid": "^11.1.0",
     "zod": "^3.24.2"
   },

@@ -1,4 +1,3 @@
-import { JSONObject } from "@ai-sdk/provider";
 import { ThreadMessage } from "../types";
 import { MessageStatus } from "../types/AssistantTypes";
 import { fromThreadMessageLike } from "../runtimes/external-store/ThreadMessageLike";
@@ -56,7 +55,7 @@ type AuiV0Message = {
         readonly completionTokens: number;
       };
     }[];
-    readonly custom: Readonly<JSONObject>;
+    readonly custom: ReadonlyJSONObject;
   };
 };
 

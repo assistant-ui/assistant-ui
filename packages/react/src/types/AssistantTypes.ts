@@ -4,7 +4,7 @@ import {
   ReadonlyJSONValue,
 } from "../utils/json/json-value";
 
-export type MessageRole = "user" | "assistant" | "system";
+export type MessageRole = ThreadMessage["role"];
 
 export type TextContentPart = {
   readonly type: "text";
@@ -43,46 +43,7 @@ export type Unstable_AudioContentPart = {
   };
 };
 
-/**
- * @deprecated UI content parts are deprecated and will be removed in v0.8.0.
- * Migration guide for external-store users using UI content parts:
- * If you must, store UI elements on your external store messages, update your
- * external store converter:
- * ```ts
- * const UI_PLACEHOLDER = Object.freeze({ type: "text", text: "UI content placeholder" });
- * const convertMessage = (message: TMessage): ThreadMessageLike => ({
- *   content: [
- *     // other content parts,
- *     UI_PLACEHOLDER
- *   ],
- * });
- * ```
- *
- * Then, define a custom `TextContentPartComponent`:
- *
- * ```tsx
- * const MyText: FC = () => {
- *   const isUIPlaceholder = useContentPart(p => p === UI_PLACEHOLDER);
- *
- *   // this assumes that you have a `display` field on your original message objects before conversion.
- *   const ui = useMessage(m => isUIPlaceholder ? getExternalStoreMessage(m).display : undefined);
- *   if (ui) {
- *     return ui;
- *   }
- *
- *   return <MarkdownText />; // your default text component
- * }
- * ```
- *
- *  Pass this component to your Thread:
- *
- * ```tsx
- * <Thread assistantMessage={{ components: { Text: MyText } }} userMessage={{ components: { Text: MyText } }} />
- * ```
- */
-export type UIContentPart = never;
-
-export type CoreToolCallContentPart<
+export type ToolCallContentPart<
   TArgs = ReadonlyJSONObject,
   TResult = unknown,
 > = {
@@ -92,12 +53,6 @@ export type CoreToolCallContentPart<
   readonly args: TArgs;
   readonly result?: TResult | undefined;
   readonly isError?: boolean | undefined;
-};
-
-export type ToolCallContentPart<
-  TArgs = ReadonlyJSONObject,
-  TResult = unknown,
-> = CoreToolCallContentPart<TArgs, TResult> & {
   readonly argsText: string;
   readonly artifact?: unknown;
 };
@@ -213,14 +168,12 @@ export type RunConfig = {
   readonly custom?: Record<string, unknown>;
 };
 
-export type AppendMessage = CoreMessage & {
+export type AppendMessage = Omit<ThreadMessage, "id"> & {
   parentId: string | null;
 
   /** The ID of the message that was edited or undefined. */
   sourceId: string | null;
   runConfig: RunConfig | undefined;
-
-  attachments: readonly CompleteAttachment[];
   startRun?: boolean | undefined;
 };
 
@@ -237,34 +190,3 @@ type BaseThreadMessage = {
 
 export type ThreadMessage = BaseThreadMessage &
   (ThreadSystemMessage | ThreadUserMessage | ThreadAssistantMessage);
-
-/** Core Message Types (without UI content parts) */
-
-export type CoreUserContentPart =
-  | TextContentPart
-  | ImageContentPart
-  | FileContentPart
-  | Unstable_AudioContentPart;
-export type CoreAssistantContentPart =
-  | TextContentPart
-  | CoreToolCallContentPart;
-
-export type CoreSystemMessage = {
-  role: "system";
-  content: readonly [TextContentPart];
-};
-
-export type CoreUserMessage = {
-  role: "user";
-  content: readonly CoreUserContentPart[];
-};
-
-export type CoreAssistantMessage = {
-  role: "assistant";
-  content: readonly CoreAssistantContentPart[];
-};
-
-export type CoreMessage =
-  | CoreSystemMessage
-  | CoreUserMessage
-  | CoreAssistantMessage;

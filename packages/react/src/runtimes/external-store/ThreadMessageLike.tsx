@@ -1,3 +1,4 @@
+import { parsePartialJson } from "assistant-stream/utils";
 import { generateId } from "../../internal";
 import {
   MessageStatus,
@@ -22,7 +23,6 @@ import {
   ReadonlyJSONObject,
   ReadonlyJSONValue,
 } from "../../utils/json/json-value";
-import { parsePartialJson } from "../../utils/json/parse-partial-json";
 
 export type ThreadMessageLike = {
   readonly role: "assistant" | "user" | "system";

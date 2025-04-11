@@ -1,11 +1,11 @@
-import { CoreMessage } from "../types";
+import { ThreadMessage } from "../types";
 import { AssistantCloudAPI } from "./AssistantCloudAPI";
 import { AssistantStream, PlainTextDecoder } from "assistant-stream";
 
 type AssistantCloudRunsStreamBody = {
   thread_id: string;
   assistant_id: "system/thread_title";
-  messages: CoreMessage[];
+  messages: readonly ThreadMessage[];
 };
 
 export class AssistantCloudRuns {

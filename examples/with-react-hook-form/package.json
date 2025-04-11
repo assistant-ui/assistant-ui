@@ -11,6 +11,7 @@
   "dependencies": {
     "@ai-sdk/openai": "^1.3.7",
     "@assistant-ui/react": "workspace:*",
+    "@assistant-ui/react-ai-sdk": "workspace:^",
     "@assistant-ui/react-hook-form": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:^",
     "@hookform/resolvers": "^5.0.1",
@@ -21,6 +22,7 @@
     "@radix-ui/react-tabs": "^1.1.3",
     "@radix-ui/react-tooltip": "^1.1.8",
     "@react-hook/media-query": "^1.1.1",
+    "ai": "^4.3.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "json-schema-to-zod": "^2.6.1",

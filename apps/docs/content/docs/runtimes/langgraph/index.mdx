@@ -191,7 +191,7 @@ export const sendMessage = async (params: {
 
 import { useRef } from "react";
 import { Thread } from "@/components/assistant-ui";
-import { AssistantRuntimeProvider, useEdgeRuntime } from "@assistant-ui/react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useLangGraphRuntime } from "@assistant-ui/react-langgraph";
 
 import { createThread, getThreadState, sendMessage } from "@/lib/chatApi";
