@@ -4,6 +4,7 @@ import { TransformOptions } from "./transform-options";
 import { SingleBar, Presets } from "cli-progress";
 import installReactUILib from "./install-ui-lib";
 import installEdgeLib from "./install-edge-lib";
+import installAiSdkLib from "./install-ai-sdk-lib";
 
 const bundle = ["v0-8/ui-package-split", "v0-9/edge-package-split"];
 
@@ -47,6 +48,7 @@ export async function upgrade(options: TransformOptions) {
   // After codemods run, check if files import from the new packages and prompt for install.
   await installReactUILib();
   await installEdgeLib();
+  await installAiSdkLib();
 
   log("Upgrade complete.");
 }

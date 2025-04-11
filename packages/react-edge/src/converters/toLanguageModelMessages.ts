@@ -76,6 +76,9 @@ const assistantMessageSplitter = () => {
   };
 };
 
+/**
+ * @deprecated This is an internal API and may change without notice.
+ */
 export function toLanguageModelMessages(
   message: readonly CoreMessage[] | readonly ThreadMessage[],
   options: { unstable_includeId?: boolean | undefined } = {},
