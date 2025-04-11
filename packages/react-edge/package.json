@@ -1,0 +1,97 @@
+{
+  "name": "@assistant-ui/react-edge",
+  "description": "Typescript/React library for AI Chat",
+  "version": "0.8.20",
+  "license": "MIT",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./edge": {
+      "types": "./dist/edge.d.ts",
+      "import": "./dist/edge.mjs",
+      "require": "./dist/edge.js"
+    }
+  },
+  "source": "./src/index.ts",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "generated",
+    "edge",
+    "src",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsx scripts/build.mts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:mutation": "stryker run"
+  },
+  "dependencies": {
+    "@ai-sdk/provider": "^1.1.0",
+    "@assistant-ui/react": "workspace:*",
+    "@radix-ui/primitive": "^1.1.1",
+    "@radix-ui/react-compose-refs": "^1.1.1",
+    "@radix-ui/react-context": "^1.1.1",
+    "@radix-ui/react-popover": "^1.1.6",
+    "@radix-ui/react-primitive": "^2.0.2",
+    "@radix-ui/react-slot": "^1.1.2",
+    "@radix-ui/react-use-callback-ref": "^1.1.0",
+    "@radix-ui/react-use-escape-keydown": "^1.1.0",
+    "assistant-stream": "^0.0.32",
+    "json-schema": "^0.4.0",
+    "nanoid": "5.1.5",
+    "react-textarea-autosize": "^8.5.9",
+    "secure-json-parse": "^4.0.0",
+    "zod": "^3.24.2",
+    "zod-to-json-schema": "^3.24.5",
+    "zustand": "^5.0.3"
+  },
+  "peerDependencies": {
+    "@types/react": "*",
+    "@types/react-dom": "*",
+    "react": "^18 || ^19 || ^19.0.0-rc",
+    "react-dom": "^18 || ^19 || ^19.0.0-rc"
+  },
+  "peerDependenciesMeta": {
+    "@types/react": {
+      "optional": true
+    },
+    "@types/react-dom": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@assistant-ui/tsbuildutils": "workspace:^",
+    "@assistant-ui/tsconfig": "workspace:*",
+    "@stryker-mutator/core": "^8.7.1",
+    "@stryker-mutator/vitest-runner": "^8.7.1",
+    "@types/json-schema": "^7.0.15",
+    "@types/node": "^22.14.0",
+    "eslint": "^9",
+    "eslint-config-next": "15.2.4",
+    "tsx": "^4.19.3",
+    "vitest": "^3.1.1"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "homepage": "https://www.assistant-ui.com/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/assistant-ui/assistant-ui/tree/main/packages/react-edge"
+  },
+  "bugs": {
+    "url": "https://github.com/assistant-ui/assistant-ui/issues"
+  },
+  "engines": {
+    "node": ">=20.10.0"
+  }
+}

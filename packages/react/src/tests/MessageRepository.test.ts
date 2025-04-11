@@ -3,11 +3,8 @@ import {
   MessageRepository,
   ExportedMessageRepository,
 } from "../runtimes/utils/MessageRepository";
-import type {
-  CoreMessage,
-  ThreadMessage,
-  TextContentPart,
-} from "../types/AssistantTypes";
+import type { ThreadMessage, TextContentPart } from "../types/AssistantTypes";
+import { ThreadMessageLike } from "../runtimes";
 
 // Mock generateId and generateOptimisticId to make tests deterministic
 const mockGenerateId = vi.fn();
@@ -58,7 +55,7 @@ describe("MessageRepository", () => {
   /**
    * Creates a test CoreMessage with the given overrides.
    */
-  const createTestCoreMessage = (overrides = {}): CoreMessage => ({
+  const createThreadMessageLike = (overrides = {}): ThreadMessageLike => ({
     role: "assistant",
     content: [{ type: "text", text: "Test message" }],
     ...overrides,
@@ -333,7 +330,7 @@ describe("MessageRepository", () => {
     it("should create an optimistic message with a unique ID", () => {
       mockGenerateOptimisticId.mockReturnValue("__optimistic__generated-id");
 
-      const coreMessage = createTestCoreMessage();
+      const coreMessage = createThreadMessageLike();
       const optimisticId = repository.appendOptimisticMessage(
         null,
         coreMessage,
@@ -353,7 +350,7 @@ describe("MessageRepository", () => {
       const parent = createTestMessage({ id: "parent-id" });
       repository.addOrUpdateMessage(null, parent);
 
-      const coreMessage = createTestCoreMessage();
+      const coreMessage = createThreadMessageLike();
       const optimisticId = repository.appendOptimisticMessage(
         "parent-id",
         coreMessage,
@@ -381,7 +378,7 @@ describe("MessageRepository", () => {
       // Second call returns a unique ID
       mockGenerateOptimisticId.mockReturnValueOnce("__optimistic__unique-id");
 
-      const coreMessage = createTestCoreMessage();
+      const coreMessage = createThreadMessageLike();
       const optimisticId = repository.appendOptimisticMessage(
         null,
         coreMessage,
@@ -498,7 +495,7 @@ describe("MessageRepository", () => {
     it("should convert an array of messages to repository format", () => {
       mockGenerateId.mockReturnValue("generated-id");
 
-      const messages: CoreMessage[] = [
+      const messages: ThreadMessageLike[] = [
         {
           role: "user" as const,
           content: [

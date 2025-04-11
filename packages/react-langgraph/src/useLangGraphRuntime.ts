@@ -14,7 +14,6 @@ import {
   LangGraphStreamCallback,
   useLangGraphMessages,
 } from "./useLangGraphMessages";
-import { SimpleImageAttachmentAdapter } from "@assistant-ui/react";
 import { AttachmentAdapter } from "@assistant-ui/react";
 import { AppendMessage } from "@assistant-ui/react";
 import { ExternalStoreAdapter } from "@assistant-ui/react";
@@ -41,7 +40,7 @@ const getPendingToolCalls = (messages: LangChainMessage[]) => {
 const getMessageContent = (msg: AppendMessage) => {
   const allContent = [
     ...msg.content,
-    ...msg.attachments.flatMap((a) => a.content),
+    ...(msg.attachments?.flatMap((a) => a.content) ?? []),
   ];
   const content = allContent.map((part) => {
     const type = part.type;
@@ -55,7 +54,8 @@ const getMessageContent = (msg: AppendMessage) => {
         throw new Error("Tool call appends are not supported.");
 
       default:
-        const _exhaustiveCheck: "file" | "audio" = type;
+        const _exhaustiveCheck: "reasoning" | "source" | "file" | "audio" =
+          type;
         throw new Error(
           `Unsupported append content part type: ${_exhaustiveCheck}`,
         );
@@ -110,7 +110,6 @@ export const useLangGraphSendCommand = () => {
 export const useLangGraphRuntime = ({
   autoCancelPendingToolCalls,
   adapters: { attachments, feedback, speech } = {},
-  unstable_allowImageAttachments,
   unstable_allowCancellation,
   stream,
   threadId,
@@ -122,10 +121,6 @@ export const useLangGraphRuntime = ({
    */
   threadId?: string | undefined;
   autoCancelPendingToolCalls?: boolean | undefined;
-  /**
-   * @deprecated Use `adapters: { attachments: new SimpleImageAttachmentAdapter() }` instead. This option will be removed in a future version.
-   */
-  unstable_allowImageAttachments?: boolean | undefined;
   unstable_allowCancellation?: boolean | undefined;
   stream: LangGraphStreamCallback<LangChainMessage>;
   /**
@@ -176,13 +171,6 @@ export const useLangGraphRuntime = ({
     messages,
     isRunning,
   });
-
-  if (attachments && unstable_allowImageAttachments)
-    throw new Error(
-      "Replace unstable_allowImageAttachments with `adapters: { attachments: new SimpleImageAttachmentAdapter() }`.",
-    );
-  if (unstable_allowImageAttachments)
-    attachments = new SimpleImageAttachmentAdapter();
 
   const switchToThread = !onSwitchToThread
     ? undefined
