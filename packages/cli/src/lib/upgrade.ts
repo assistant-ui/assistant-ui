@@ -20,17 +20,17 @@ const error = debug("codemod:upgrade:error");
 export async function upgrade(options: TransformOptions) {
   const cwd = process.cwd();
   log("Starting upgrade...");
-  
+
   // Find relevant files once to avoid duplicate work
   console.log("Analyzing codebase...");
   const relevantFiles = getRelevantFiles(cwd);
   const fileCount = relevantFiles.length;
   console.log(`Found ${fileCount} files to process.`);
-  
+
   // Calculate total work units (files × codemods)
   const totalWork = fileCount * bundle.length;
   let completedWork = 0;
-  
+
   const bar = new SingleBar(
     {
       format: "Progress |{bar}| {percentage}% | ETA: {eta}s || {status}",
@@ -38,30 +38,30 @@ export async function upgrade(options: TransformOptions) {
     },
     Presets.shades_classic,
   );
-  
+
   bar.start(totalWork, 0, { status: "Starting..." });
   const allErrors: TransformErrors = [];
-  
+
   for (const codemod of bundle) {
     bar.update(completedWork, { status: `Running ${codemod}...` });
-    
+
     // Use a custom progress callback to update the progress bar
-    const errors = transform(codemod, cwd, options, { 
+    const errors = transform(codemod, cwd, options, {
       logStatus: false,
       onProgress: (processedFiles: number) => {
-        completedWork = (bundle.indexOf(codemod) * fileCount) + processedFiles;
-        bar.update(Math.min(completedWork, totalWork), { 
-          status: `Running ${codemod} (${processedFiles}/${fileCount} files)` 
+        completedWork = bundle.indexOf(codemod) * fileCount + processedFiles;
+        bar.update(Math.min(completedWork, totalWork), {
+          status: `Running ${codemod} (${processedFiles}/${fileCount} files)`,
         });
       },
-      relevantFiles // Pass the pre-computed relevant files
+      relevantFiles, // Pass the pre-computed relevant files
     });
-    
+
     allErrors.push(...errors);
     completedWork = (bundle.indexOf(codemod) + 1) * fileCount;
     bar.update(completedWork, { status: `Completed ${codemod}` });
   }
-  
+
   bar.update(totalWork, { status: "Checking dependencies..." });
   bar.stop();
 
