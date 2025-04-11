@@ -10,10 +10,6 @@ const reactEdgeExports: string[] = [
   "createEdgeRuntimeAPI",
   "getEdgeRuntimeResponse",
 
-  // Dangerous in Browser Runtime
-  "useDangerousInBrowserRuntime",
-  "DangerousInBrowserAdapter",
-
   // Core Types
   "CoreMessage",
   "CoreUserMessage",
@@ -22,7 +18,7 @@ const reactEdgeExports: string[] = [
   "CoreUserContentPart",
   "CoreAssistantContentPart",
   "CoreToolCallContentPart",
-  
+
   // Core message converters
   "fromCoreMessages",
   "fromCoreMessage",
@@ -36,6 +32,7 @@ const reactAiSdkExports: string[] = [
   "toLanguageModelTools",
   "fromLanguageModelMessages",
   "fromLanguageModelTools",
+  "useDangerousInBrowserRuntime",
 ];
 
 const migrateToEdgePackage = createTransformer(({ j, root, markAsChanged }) => {
@@ -168,7 +165,7 @@ const migrateToEdgePackage = createTransformer(({ j, root, markAsChanged }) => {
       markAsChanged();
     }
   });
-  
+
   // Migrate language model converter imports from react-edge to react-ai-sdk
   root.find(j.ImportDeclaration).forEach((path: any) => {
     const sourceValue: string = path.value.source.value;
@@ -176,7 +173,7 @@ const migrateToEdgePackage = createTransformer(({ j, root, markAsChanged }) => {
       let hasLanguageModelConverters = false;
       const remainingSpecifiers: any[] = [];
       const aiSdkSpecifiers: any[] = [];
-      
+
       path.value.specifiers.forEach((specifier: any) => {
         if (
           j.ImportSpecifier.check(specifier) &&
@@ -188,18 +185,18 @@ const migrateToEdgePackage = createTransformer(({ j, root, markAsChanged }) => {
           remainingSpecifiers.push(specifier);
         }
       });
-      
+
       if (hasLanguageModelConverters) {
         if (remainingSpecifiers.length === 0) {
           j(path).remove();
         } else {
           path.value.specifiers = remainingSpecifiers;
         }
-        
+
         const existingAiSdkImport = root.find(j.ImportDeclaration, {
           source: { value: "@assistant-ui/react-ai-sdk" },
         });
-        
+
         if (existingAiSdkImport.size() > 0) {
           existingAiSdkImport.forEach((importPath: any) => {
             aiSdkSpecifiers.forEach((specifier: any) => {
@@ -219,7 +216,7 @@ const migrateToEdgePackage = createTransformer(({ j, root, markAsChanged }) => {
           );
           j(path).insertAfter(newImport);
         }
-        
+
         markAsChanged();
       }
     }

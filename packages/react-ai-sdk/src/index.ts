@@ -7,4 +7,5 @@ export {
   toLanguageModelTools,
   fromLanguageModelMessages,
   fromLanguageModelTools,
+  useDangerousInBrowserRuntime,
 } from "@assistant-ui/react-edge";

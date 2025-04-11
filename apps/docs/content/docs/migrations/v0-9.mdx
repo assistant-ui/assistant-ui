@@ -6,6 +6,32 @@ title: Migration to v0.9
 
 The edge runtime, as well as the `CoreMessage` type, moved to `@assistant-ui/react-edge`.
 
+The following components and types have been moved to `@assistant-ui/react-edge`:
+
+- Edge Runtime
+
+  - `useEdgeRuntime`
+  - `EdgeRuntimeOptions`
+  - `EdgeModelAdapter`
+  - `EdgeChatAdapter`
+  - `EdgeRuntimeRequestOptions`
+  - `createEdgeRuntimeAPI`
+  - `getEdgeRuntimeResponse`
+
+- Core Types
+  - `CoreMessage`
+  - `CoreUserMessage`
+  - `CoreAssistantMessage`
+  - `CoreSystemMessage`
+  - `CoreUserContentPart`
+  - `CoreAssistantContentPart`
+  - `CoreToolCallContentPart`
+- Core message converters
+  - `fromCoreMessages`
+  - `fromCoreMessage`
+  - `toCoreMessages`
+  - `toCoreMessage`
+
 To migrate, use the migration codemod:
 
 ```sh
@@ -13,9 +39,17 @@ To migrate, use the migration codemod:
 npx assistant-ui upgrade
 ```
 
-## useDangerousInBrowserRuntime moved to @assistant-ui/react-ai-sdk
+## Language Model converters and useDangerousInBrowserRuntime moved to @assistant-ui/react-ai-sdk
 
-The `useDangerousInBrowserRuntime` hook has been moved to `@assistant-ui/react-ai-sdk`.
+The following methods have been moved to `@assistant-ui/react-ai-sdk`:
+
+- Language Model converters
+  - `toLanguageModelMessages`
+  - `toLanguageModelTools`
+  - `fromLanguageModelMessages`
+  - `fromLanguageModelTools`
+- Dangerous in Browser Runtime
+  - `useDangerousInBrowserRuntime`
 
 To migrate, use the migration codemod:
 
@@ -23,7 +57,6 @@ To migrate, use the migration codemod:
 # IMPORTANT: make sure to commit all changes to git / creating a backup before running the codemod
 npx assistant-ui upgrade
 ```
-
 
 ## LangGraph `unstable_allowImageAttachments` removed
 
