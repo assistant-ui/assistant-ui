@@ -20,20 +20,26 @@ export function getRelevantFiles(cwd: string): string[] {
   const pattern = "**/*.{js,jsx,ts,tsx}";
   const files = globSync(pattern, {
     cwd,
-    ignore: ["**/node_modules/**", "**/dist/**", "**/build/**", "**/*.min.js", "**/*.bundle.js"],
+    ignore: [
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/build/**",
+      "**/*.min.js",
+      "**/*.bundle.js",
+    ],
   });
-  
+
   // Filter files to only include those containing "assistant-ui"
-  const relevantFiles = files.filter(file => {
+  const relevantFiles = files.filter((file) => {
     try {
-      const content = fs.readFileSync(path.join(cwd, file), 'utf8');
+      const content = fs.readFileSync(path.join(cwd, file), "utf8");
       return content.includes("assistant-ui");
     } catch (err) {
       return false;
     }
   });
-  
-  return relevantFiles.map(file => path.join(cwd, file));
+
+  return relevantFiles.map((file) => path.join(cwd, file));
 }
 
 /**
@@ -105,10 +111,10 @@ export function transform(
   codemod: string,
   source: string,
   transformOptions: TransformOptions,
-  options: { 
+  options: {
     logStatus: boolean;
     onProgress?: (processedFiles: number) => void;
-    relevantFiles?: string[]; 
+    relevantFiles?: string[];
   } = { logStatus: true },
 ): TransformErrors {
   if (options.logStatus) {
@@ -118,31 +124,31 @@ export function transform(
 
   // Use pre-computed relevant files if provided, otherwise get them
   const targetFiles = options.relevantFiles || getRelevantFiles(source);
-  
+
   if (targetFiles.length === 0) {
     log(`No relevant files found for codemod '${codemod}'`);
     return [];
   }
-  
+
   log(`Found ${targetFiles.length} relevant files for codemod '${codemod}'`);
-  
+
   const command = buildCommand(codemodPath, targetFiles, transformOptions);
-  
+
   // Use spawn instead of execFileSync to capture output in real-time
   if (options.onProgress) {
     const result = spawnSync(command[0]!, command.slice(1), {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
     });
-    
+
     const stdout = result.stdout || "";
-    
+
     // Count the number of processed files from the output
     const processedFiles = (stdout.match(/Processing file/g) || []).length;
     if (options.onProgress) {
       options.onProgress(processedFiles);
     }
-    
+
     const errors = parseErrors(codemod, stdout);
     if (options.logStatus && errors.length > 0) {
       errors.forEach(({ transform, filename, summary }) => {
