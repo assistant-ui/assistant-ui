@@ -22,11 +22,7 @@ export class LanguageModelV1StreamDecoder extends AssistantTransformStream<Langu
     super({
       transform(chunk, controller) {
         const { type } = chunk;
-        if (
-          type === "text-delta" ||
-          type === "reasoning" ||
-          type === "tool-call"
-        ) {
+        if (type === "text-delta" || type === "reasoning") {
           endCurrentToolCall();
         }
 
