@@ -1,7 +1,7 @@
 {
   "name": "@assistant-ui/react-edge",
-  "description": "Typescript/React library for AI Chat",
-  "version": "0.8.20",
+  "description": "The legacy edge runtime for assistant-ui",
+  "version": "0.1.0",
   "license": "MIT",
   "exports": {
     ".": {
@@ -28,32 +28,17 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsx scripts/build.mts",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:mutation": "stryker run"
+    "build": "tsx scripts/build.mts"
   },
   "dependencies": {
     "@ai-sdk/provider": "^1.1.0",
-    "@assistant-ui/react": "workspace:*",
-    "@radix-ui/primitive": "^1.1.1",
-    "@radix-ui/react-compose-refs": "^1.1.1",
-    "@radix-ui/react-context": "^1.1.1",
-    "@radix-ui/react-popover": "^1.1.6",
-    "@radix-ui/react-primitive": "^2.0.2",
-    "@radix-ui/react-slot": "^1.1.2",
-    "@radix-ui/react-use-callback-ref": "^1.1.0",
-    "@radix-ui/react-use-escape-keydown": "^1.1.0",
-    "assistant-stream": "^0.0.32",
+    "assistant-stream": "^0.1.0",
     "json-schema": "^0.4.0",
-    "nanoid": "5.1.5",
-    "react-textarea-autosize": "^8.5.9",
-    "secure-json-parse": "^4.0.0",
     "zod": "^3.24.2",
-    "zod-to-json-schema": "^3.24.5",
-    "zustand": "^5.0.3"
+    "zod-to-json-schema": "^3.24.5"
   },
   "peerDependencies": {
+    "@assistant-ui/react": "*",
     "@types/react": "*",
     "@types/react-dom": "*",
     "react": "^18 || ^19 || ^19.0.0-rc",
@@ -68,16 +53,14 @@
     }
   },
   "devDependencies": {
+    "@assistant-ui/react": "workspace:*",
     "@assistant-ui/tsbuildutils": "workspace:^",
     "@assistant-ui/tsconfig": "workspace:*",
-    "@stryker-mutator/core": "^8.7.1",
-    "@stryker-mutator/vitest-runner": "^8.7.1",
     "@types/json-schema": "^7.0.15",
     "@types/node": "^22.14.0",
     "eslint": "^9",
     "eslint-config-next": "15.2.4",
-    "tsx": "^4.19.3",
-    "vitest": "^3.1.1"
+    "tsx": "^4.19.3"
   },
   "publishConfig": {
     "access": "public",

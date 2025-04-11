@@ -1,5 +1,15 @@
 # @assistant-ui/react
 
+## 0.9.0
+
+### Patch Changes
+
+- afae5c9: refactor!: edge package split
+- Updated dependencies [1f65c94]
+- Updated dependencies [8df35f6]
+- Updated dependencies [476cbfb]
+  - assistant-stream@0.0.33
+
 ## 0.8.20
 
 ### Patch Changes

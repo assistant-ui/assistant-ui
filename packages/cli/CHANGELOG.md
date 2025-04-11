@@ -1,5 +1,11 @@
 # assistant-ui
 
+## 0.0.41
+
+### Patch Changes
+
+- feat: add migration for v0-9
+
 ## 0.0.40
 
 ### Patch Changes
