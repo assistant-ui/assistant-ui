@@ -71,6 +71,7 @@
     "@radix-ui/react-slot": "^1.1.2",
     "@radix-ui/react-use-callback-ref": "^1.1.0",
     "@radix-ui/react-use-escape-keydown": "^1.1.0",
+    "ai": "^4.3.4",
     "assistant-stream": "^0.0.32",
     "json-schema": "^0.4.0",
     "nanoid": "5.1.5",

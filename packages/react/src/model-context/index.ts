@@ -25,7 +25,9 @@ export type {
   Tool,
 } from "./ModelContextTypes";
 
-export { tool } from "./tool";
+export { aiSDKAdapter, auiTool } from "./tool";
+export { getToolUI } from "./getToolUI";
+export { registerTool } from "./getTool";
 
 /**
  * @deprecated This function was renamed to `makeAssistantVisible`.
