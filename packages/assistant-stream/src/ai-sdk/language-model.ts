@@ -92,7 +92,7 @@ export class LanguageModelV1StreamDecoder extends AssistantTransformStream<Langu
               });
               toolController.close();
             }
-            
+
             break;
           }
           case "finish": {
