@@ -1,7 +1,7 @@
 {
   "name": "@assistant-ui/react-edge",
   "description": "The legacy edge runtime for assistant-ui",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "MIT",
   "exports": {
     ".": {
@@ -31,8 +31,8 @@
     "build": "tsx scripts/build.mts"
   },
   "dependencies": {
-    "@ai-sdk/provider": "^1.1.0",
-    "assistant-stream": "^0.1.0",
+    "@ai-sdk/provider": "^1.1.2",
+    "assistant-stream": "^0.1.1",
     "json-schema": "^0.4.0",
     "zod": "^3.24.2",
     "zod-to-json-schema": "^3.24.5"
@@ -59,7 +59,7 @@
     "@types/json-schema": "^7.0.15",
     "@types/node": "^22.14.0",
     "eslint": "^9",
-    "eslint-config-next": "15.2.4",
+    "eslint-config-next": "15.3.0",
     "tsx": "^4.19.3"
   },
   "publishConfig": {
