@@ -1,0 +1,88 @@
+name: Fix Prettier Issues
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  fix-prettier:
+    name: Fix Prettier Issues
+    if: ${{ github.event.issue.pull_request && contains(github.event.comment.body, '/fix-prettier') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Get PR branch
+        uses: actions/github-script@v7
+        id: get-pr
+        with:
+          script: |
+            const { owner, repo, number } = context.issue;
+            const pr = await github.rest.pulls.get({
+              owner,
+              repo,
+              pull_number: number
+            });
+            return {
+              head_ref: pr.data.head.ref,
+              head_sha: pr.data.head.sha,
+              base_ref: pr.data.base.ref
+            };
+          result-encoding: json
+
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ fromJson(steps.get-pr.outputs.result).head_ref }}
+          fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Prettier fix
+        run: pnpm prettier:fix
+
+      - name: Commit changes
+        id: commit
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add -A
+          if git diff --staged --quiet; then
+            echo "No prettier issues to fix"
+            echo "changes_made=false" >> $GITHUB_OUTPUT
+          else
+            git commit -m "style: fix prettier issues"
+            echo "changes_made=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Push changes
+        if: steps.commit.outputs.changes_made == 'true'
+        run: git push origin ${{ fromJson(steps.get-pr.outputs.result).head_ref }}
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo, number } = context.issue;
+            const changes_made = '${{ steps.commit.outputs.changes_made }}' === 'true';
+            const message = changes_made
+              ? '✅ Prettier issues fixed and committed to this PR!'
+              : '✅ No prettier issues found in this PR!';
+            
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: number,
+              body: message
+            });
