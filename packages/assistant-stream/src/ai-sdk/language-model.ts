@@ -81,12 +81,18 @@ export class LanguageModelV1StreamDecoder extends AssistantTransformStream<Langu
 
           case "tool-call": {
             const { toolCallId, toolName, args } = chunk;
-            const toolController = controller.addToolCallPart({
-              toolCallId,
-              toolName,
-              argsText: args,
-            });
-            toolController.close();
+
+            if (currentToolCall?.toolCallId === toolCallId) {
+              currentToolCall.controller.argsText.close();
+            } else {
+              const toolController = controller.addToolCallPart({
+                toolCallId,
+                toolName,
+                argsText: args,
+              });
+              toolController.close();
+            }
+
             break;
           }
           case "finish": {
