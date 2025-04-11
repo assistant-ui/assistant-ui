@@ -1,5 +1,13 @@
 # assistant-stream
 
+## 0.1.0
+
+### Patch Changes
+
+- 1f65c94: fix: ToolResponse instanceof check via named symbol
+- 8df35f6: feat: fix duplicate tool calls appearing from ai-sdk
+- 476cbfb: fix: make text-delta support reasoning part type
+
 ## 0.0.32
 
 ### Patch Changes

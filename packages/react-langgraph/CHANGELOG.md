@@ -1,5 +1,12 @@
 # @assistant-ui/react-langgraph
 
+## 0.4.0
+
+### Patch Changes
+
+- afae5c9: refactor!: drop deprecated unstable_allowImageAttachments
+
+
 ## 0.3.2
 
 ### Patch Changes

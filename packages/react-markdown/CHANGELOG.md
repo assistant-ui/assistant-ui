@@ -1,5 +1,13 @@
 # @assistant-ui/react-markdown
 
+## 0.9.0
+
+### Patch Changes
+
+- afae5c9: refactor!: drop deprecated by_language option
+- Updated dependencies [afae5c9]
+  - @assistant-ui/react@0.8.21
+
 ## 0.8.1
 
 ### Patch Changes

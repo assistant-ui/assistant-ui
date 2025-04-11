@@ -1456,7 +1456,7 @@ importers:
         specifier: '*'
         version: 19.1.1(@types/react@19.1.0)
       assistant-stream:
-        specifier: ^0.0.32
+        specifier: ^0.1.0
         version: link:../assistant-stream
       nanoid:
         specifier: 5.1.5
@@ -1553,33 +1553,6 @@ importers:
       '@ai-sdk/provider':
         specifier: ^1.1.0
         version: 1.1.0
-      '@assistant-ui/react':
-        specifier: workspace:*
-        version: link:../react
-      '@radix-ui/primitive':
-        specifier: ^1.1.1
-        version: 1.1.1
-      '@radix-ui/react-compose-refs':
-        specifier: ^1.1.1
-        version: 1.1.1(@types/react@19.1.0)(react@19.0.0)
-      '@radix-ui/react-context':
-        specifier: ^1.1.1
-        version: 1.1.1(@types/react@19.1.0)(react@19.0.0)
-      '@radix-ui/react-popover':
-        specifier: ^1.1.6
-        version: 1.1.6(@types/react-dom@19.1.1(@types/react@19.1.0))(@types/react@19.1.0)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
-      '@radix-ui/react-primitive':
-        specifier: ^2.0.2
-        version: 2.0.2(@types/react-dom@19.1.1(@types/react@19.1.0))(@types/react@19.1.0)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
-      '@radix-ui/react-slot':
-        specifier: ^1.1.2
-        version: 1.1.2(@types/react@19.1.0)(react@19.0.0)
-      '@radix-ui/react-use-callback-ref':
-        specifier: ^1.1.0
-        version: 1.1.0(@types/react@19.1.0)(react@19.0.0)
-      '@radix-ui/react-use-escape-keydown':
-        specifier: ^1.1.0
-        version: 1.1.0(@types/react@19.1.0)(react@19.0.0)
       '@types/react':
         specifier: '*'
         version: 19.1.0
@@ -1587,48 +1560,33 @@ importers:
         specifier: '*'
         version: 19.1.1(@types/react@19.1.0)
       assistant-stream:
-        specifier: ^0.0.32
+        specifier: ^0.1.0
         version: link:../assistant-stream
       json-schema:
         specifier: ^0.4.0
         version: 0.4.0
-      nanoid:
-        specifier: 5.1.5
-        version: 5.1.5
       react:
         specifier: 19.0.0
         version: 19.0.0
       react-dom:
         specifier: 19.0.0
         version: 19.0.0(react@19.0.0)
-      react-textarea-autosize:
-        specifier: ^8.5.9
-        version: 8.5.9(@types/react@19.1.0)(react@19.0.0)
-      secure-json-parse:
-        specifier: ^4.0.0
-        version: 4.0.0
       zod:
         specifier: ^3.24.2
         version: 3.24.2
       zod-to-json-schema:
         specifier: ^3.24.5
         version: 3.24.5(zod@3.24.2)
-      zustand:
-        specifier: ^5.0.3
-        version: 5.0.3(@types/react@19.1.0)(react@19.0.0)(use-sync-external-store@1.5.0(react@19.0.0))
     devDependencies:
+      '@assistant-ui/react':
+        specifier: workspace:*
+        version: link:../react
       '@assistant-ui/tsbuildutils':
         specifier: workspace:^
         version: link:../tsbuildutils
       '@assistant-ui/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
-      '@stryker-mutator/core':
-        specifier: ^8.7.1
-        version: 8.7.1
-      '@stryker-mutator/vitest-runner':
-        specifier: ^8.7.1
-        version: 8.7.1(@stryker-mutator/core@8.7.1)(vitest@3.1.1(@types/debug@4.1.12)(@types/node@22.14.0)(jiti@2.4.2)(lightningcss@1.29.2)(terser@5.39.0)(tsx@4.19.3)(yaml@2.7.1))
       '@types/json-schema':
         specifier: ^7.0.15
         version: 7.0.15
@@ -1644,9 +1602,6 @@ importers:
       tsx:
         specifier: ^4.19.3
         version: 4.19.3
-      vitest:
-        specifier: ^3.1.1
-        version: 3.1.1(@types/debug@4.1.12)(@types/node@22.14.0)(jiti@2.4.2)(lightningcss@1.29.2)(terser@5.39.0)(tsx@4.19.3)(yaml@2.7.1)
 
   packages/react-hook-form:
     dependencies:
@@ -1682,7 +1637,7 @@ importers:
         specifier: '*'
         version: 19.1.0
       assistant-stream:
-        specifier: ^0.0.32
+        specifier: ^0.1.0
         version: link:../assistant-stream
       react:
         specifier: 19.0.0
