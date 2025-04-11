@@ -15,10 +15,13 @@ export class LineDecoderStream extends TransformStream<string, string> {
         // Keep the last incomplete line in the buffer
         this.buffer = lines[lines.length - 1] || "";
       },
-      flush: (controller) => {
-        // flush any remaining content in the buffer
+      flush: () => {
+        // If there's content in the buffer when the stream ends, it means
+        // the stream ended with an incomplete line (no trailing newline)
         if (this.buffer) {
-          controller.enqueue(this.buffer);
+          throw new Error(
+            `Stream ended with an incomplete line: "${this.buffer}"`,
+          );
         }
       },
     });
