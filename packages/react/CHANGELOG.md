@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.8.21
+
+### Patch Changes
+
+- Updated dependencies [1f65c94]
+- Updated dependencies [8df35f6]
+  - assistant-stream@0.0.33
+
 ## 0.8.20
 
 ### Patch Changes

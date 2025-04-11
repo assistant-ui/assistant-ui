@@ -1,5 +1,12 @@
 # assistant-stream
 
+## 0.0.33
+
+### Patch Changes
+
+- 1f65c94: fix: ToolResponse instanceof check via named symbol
+- 8df35f6: feat: fix duplicate tool calls appearing from ai-sdk
+
 ## 0.0.32
 
 ### Patch Changes
