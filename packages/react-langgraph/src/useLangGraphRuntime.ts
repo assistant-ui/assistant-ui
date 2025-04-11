@@ -54,7 +54,8 @@ const getMessageContent = (msg: AppendMessage) => {
         throw new Error("Tool call appends are not supported.");
 
       default:
-        const _exhaustiveCheck: "reasoning" | "source" | "file" | "audio" = type;
+        const _exhaustiveCheck: "reasoning" | "source" | "file" | "audio" =
+          type;
         throw new Error(
           `Unsupported append content part type: ${_exhaustiveCheck}`,
         );

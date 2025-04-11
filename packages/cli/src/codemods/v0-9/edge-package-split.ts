@@ -9,11 +9,11 @@ const reactEdgeExports: string[] = [
   "EdgeRuntimeRequestOptions",
   "createEdgeRuntimeAPI",
   "getEdgeRuntimeResponse",
-  
+
   // Dangerous in Browser Runtime
   "useDangerousInBrowserRuntime",
   "DangerousInBrowserAdapter",
-  
+
   // Core Types
   "CoreMessage",
   "CoreUserMessage",
@@ -21,13 +21,11 @@ const reactEdgeExports: string[] = [
   "CoreSystemMessage",
   "CoreUserContentPart",
   "CoreAssistantContentPart",
-  "CoreToolCallContentPart"
+  "CoreToolCallContentPart",
 ];
 
 const migrateToEdgePackage = createTransformer(({ j, root, markAsChanged }) => {
-  const sourcesToMigrate: string[] = [
-    "@assistant-ui/react",
-  ];
+  const sourcesToMigrate: string[] = ["@assistant-ui/react"];
   const movedSpecifiers: any[] = [];
   let lastMigratedImportPath: any = null;
 
@@ -98,10 +96,16 @@ const migrateToEdgePackage = createTransformer(({ j, root, markAsChanged }) => {
   // Migrate imports from edge/converters
   root.find(j.ImportDeclaration).forEach((path: any) => {
     const sourceValue: string = path.value.source.value;
-    if (sourceValue.startsWith("@assistant-ui/react/") && 
-        (sourceValue.includes("edge/") || sourceValue.includes("dangerous-in-browser/"))) {
+    if (
+      sourceValue.startsWith("@assistant-ui/react/") &&
+      (sourceValue.includes("edge/") ||
+        sourceValue.includes("dangerous-in-browser/"))
+    ) {
       path.value.source = j.literal(
-        sourceValue.replace("@assistant-ui/react/", "@assistant-ui/react-edge/")
+        sourceValue.replace(
+          "@assistant-ui/react/",
+          "@assistant-ui/react-edge/",
+        ),
       );
       markAsChanged();
     }

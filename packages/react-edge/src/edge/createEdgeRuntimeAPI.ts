@@ -17,7 +17,7 @@ import {
   DataStreamEncoder,
 } from "assistant-stream";
 import { LanguageModelV1StreamDecoder } from "assistant-stream/ai-sdk";
-import { ModelContext, ThreadMessage, Tool } from "@assistant-ui/react";
+import { ThreadMessage, Tool } from "@assistant-ui/react";
 import { CoreMessage } from "./CoreTypes";
 
 export const LanguageModelV1CallSettingsSchema = z.object({
@@ -63,7 +63,7 @@ type FinishResult = {
   };
 };
 
-export type CreateEdgeRuntimeAPIOptions = ModelContext & {
+export type CreateEdgeRuntimeAPIOptions = LanguageModelV1CallSettings & {
   model: LanguageModelV1 | LanguageModelCreator;
   system?: string;
   tools?: Record<string, Tool<any, any>>;
