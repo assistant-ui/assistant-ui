@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-markdown",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "license": "MIT",
   "exports": {
     ".": {
@@ -27,14 +27,14 @@
     "build": "tsx scripts/build.mts"
   },
   "dependencies": {
-    "@radix-ui/react-primitive": "^2.0.2",
-    "@radix-ui/react-use-callback-ref": "^1.1.0",
+    "@radix-ui/react-primitive": "^2.0.3",
+    "@radix-ui/react-use-callback-ref": "^1.1.1",
     "@types/hast": "^3.0.4",
     "classnames": "^2.5.1",
     "react-markdown": "^10.1.0"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.9.0",
+    "@assistant-ui/react": "^0.9.1",
     "@types/react": "*",
     "react": "^18 || ^19 || ^19.0.0-rc"
   },
@@ -49,7 +49,7 @@
     "@assistant-ui/tsconfig": "workspace:*",
     "@types/node": "^22.14.0",
     "eslint": "^9",
-    "eslint-config-next": "15.2.4",
+    "eslint-config-next": "15.3.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "tsx": "^4.19.3"

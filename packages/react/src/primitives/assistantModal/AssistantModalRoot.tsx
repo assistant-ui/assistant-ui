@@ -2,7 +2,6 @@
 
 import { FC, useEffect, useState } from "react";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
-import { composeEventHandlers } from "@radix-ui/primitive";
 import { ScopedProps, usePopoverScope } from "./scope";
 import { useThreadRuntime } from "../../context";
 
@@ -56,11 +55,16 @@ export const AssistantModalPrimitiveRoot: FC<
     unstable_openOnRunStart,
   });
 
+  const openChangeHandler = (open: boolean) => {
+    onOpenChange?.(open);
+    setOpen(open);
+  };
+
   return (
     <PopoverPrimitive.Root
       {...scope}
       open={open === undefined ? modalOpen : open}
-      onOpenChange={composeEventHandlers(onOpenChange, setOpen)}
+      onOpenChange={openChangeHandler}
       {...rest}
     />
   );

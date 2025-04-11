@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-syntax-highlighter",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "license": "MIT",
   "exports": {
     ".": {
@@ -27,8 +27,8 @@
     "build": "tsup src/index.ts --format cjs,esm --dts --sourcemap --clean"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.9.0",
-    "@assistant-ui/react-markdown": "^0.9.0",
+    "@assistant-ui/react": "^0.9.1",
+    "@assistant-ui/react-markdown": "^0.9.1",
     "@types/react": "*",
     "@types/react-syntax-highlighter": "*",
     "react": "^18 || ^19 || ^19.0.0-rc",
@@ -46,7 +46,7 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
     "@assistant-ui/tsconfig": "workspace:*",
-    "eslint-config-next": "15.2.4",
+    "eslint-config-next": "15.3.0",
     "tsup": "8.4.0"
   },
   "publishConfig": {
