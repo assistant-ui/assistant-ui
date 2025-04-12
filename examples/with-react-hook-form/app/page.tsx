@@ -1,7 +1,7 @@
 "use client";
 
 import { SignupForm } from "@/components/SignupForm";
-import { AssistantSidebar } from "@/components/ui/assistant-ui/assistant-sidebar";
+import { AssistantSidebar } from "@/components/assistant-ui/assistant-sidebar";
 import { Form } from "@/components/ui/form";
 import { useAssistantForm } from "@assistant-ui/react-hook-form";
 import { useAssistantInstructions } from "@assistant-ui/react";
