@@ -11,8 +11,8 @@
   "dependencies": {
     "@ai-sdk/openai": "^1.3.10",
     "@assistant-ui/react": "workspace:*",
-    "@assistant-ui/react-ai-sdk": "workspace:^",
-    "@assistant-ui/react-markdown": "workspace:^",
+    "@assistant-ui/react-ai-sdk": "workspace:*",
+    "@assistant-ui/react-markdown": "workspace:*",
     "@radix-ui/react-slot": "^1.2.0",
     "@radix-ui/react-tooltip": "^1.2.0",
     "ai": "^4.3.5",
@@ -24,7 +24,7 @@
     "react-dom": "19.1.0",
     "remark-gfm": "^4.0.1",
     "tailwind-merge": "^3.2.0",
-    "tailwindcss-animate": "^1.0.7"
+    "tw-animate-css": "^1.2.5"
   },
   "devDependencies": {
     "@assistant-ui/tsconfig": "workspace:*",
@@ -34,7 +34,7 @@
     "eslint": "^9",
     "eslint-config-next": "15.3.0",
     "postcss": "^8",
-    "tailwindcss": "^3.4.17",
+    "tailwindcss": "^4.1.3",
     "typescript": "^5"
   }
 }

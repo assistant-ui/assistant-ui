@@ -45,7 +45,7 @@
   },
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
-    "@assistant-ui/tsbuildutils": "workspace:^",
+    "@assistant-ui/tsbuildutils": "workspace:*",
     "@assistant-ui/tsconfig": "workspace:*",
     "@types/node": "^22.14.0",
     "eslint": "^9",

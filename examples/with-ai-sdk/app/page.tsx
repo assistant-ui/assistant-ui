@@ -1,11 +1,11 @@
 "use client";
 
-import { Thread } from "@/components/assistant-ui/thread";
+import { Assistant } from "./assistant";
 
 export default function Home() {
   return (
-    <main className="h-full">
-      <Thread />
+    <main className="h-dvh">
+      <Assistant />
     </main>
   );
 }

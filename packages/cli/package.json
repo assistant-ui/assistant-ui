@@ -14,7 +14,7 @@
     "jscodeshift": "^17.3.0"
   },
   "devDependencies": {
-    "@assistant-ui/tsbuildutils": "workspace:^",
+    "@assistant-ui/tsbuildutils": "workspace:*",
     "@assistant-ui/tsconfig": "workspace:*",
     "@types/cli-progress": "^3.11.6",
     "@types/cross-spawn": "^6.0.6",

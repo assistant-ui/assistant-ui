@@ -89,7 +89,7 @@
     }
   },
   "devDependencies": {
-    "@assistant-ui/tsbuildutils": "workspace:^",
+    "@assistant-ui/tsbuildutils": "workspace:*",
     "@assistant-ui/tsconfig": "workspace:*",
     "@stryker-mutator/core": "^8.7.1",
     "@stryker-mutator/vitest-runner": "^8.7.1",
