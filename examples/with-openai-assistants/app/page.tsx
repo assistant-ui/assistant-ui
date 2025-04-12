@@ -1,6 +1,6 @@
 "use client";
 
-import { Thread } from "@/components/ui/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/thread";
 import { cn } from "@/lib/utils";
 import { makeAssistantToolUI } from "@assistant-ui/react";
 
@@ -32,7 +32,7 @@ const WeatherTool = makeAssistantToolUI<WeatherArgs, WeatherResult>({
 
 export default function Home() {
   return (
-    <main className="h-full">
+    <main className="h-dvh">
       <Thread />
       <WeatherTool />
     </main>
