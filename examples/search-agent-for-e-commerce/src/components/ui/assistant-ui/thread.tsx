@@ -6,8 +6,8 @@ import {
   ThreadPrimitive,
 } from "@assistant-ui/react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import type { FC, PropsWithChildren } from "react";
-import { Button, type ButtonProps } from "@/components/ui/button";
+import type { ComponentPropsWithRef, FC, PropsWithChildren } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
@@ -160,7 +160,7 @@ const AssistantMessage: FC = () => {
   );
 };
 
-type IconButton = ButtonProps & { tooltip: string };
+type IconButton = ComponentPropsWithRef<typeof Button> & { tooltip: string };
 
 const IconButton: FC<IconButton> = ({
   children,
