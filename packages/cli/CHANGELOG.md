@@ -1,5 +1,11 @@
 # assistant-ui
 
+## 0.0.43
+
+### Patch Changes
+
+- 94e9f71: feat(cli): add command tailwind v4 compat
+
 ## 0.0.42
 
 ### Patch Changes

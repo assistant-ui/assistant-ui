@@ -1,5 +1,11 @@
 # create-assistant-ui
 
+## 0.0.15
+
+### Patch Changes
+
+- 94e9f71: fix: make create CLI work
+
 ## 0.0.14
 
 ### Patch Changes
