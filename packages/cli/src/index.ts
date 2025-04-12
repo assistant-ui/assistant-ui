@@ -1,10 +1,15 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
+import fs from "fs";
+import path from "path";
 
-import packageJson from "../package.json" with { type: "json" };
+// Read package.json using fs instead of import assertions
+const packageJsonPath = path.resolve(__dirname, "../package.json");
+const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+
 import { create } from "./commands/create";
-import { shadcnAdd } from "./commands/shadcn/add";
+import { add } from "./commands/add";
 import { codemodCommand, upgradeCommand } from "./commands/upgrade";
 import { init } from "./commands/init";
 
@@ -21,7 +26,7 @@ function main() {
       "display the version number",
     );
 
-  program.addCommand(shadcnAdd);
+  program.addCommand(add);
   program.addCommand(create);
   program.addCommand(init);
   program.addCommand(codemodCommand);
