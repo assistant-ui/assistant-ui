@@ -7,7 +7,7 @@ import { ThreadList } from "@/components/assistant-ui/thread-list";
 
 export default function Home() {
   return (
-    <div className="flex h-full">
+    <div className="flex h-dvh">
       <div className="max-w-md">
         <ThreadList />
       </div>
