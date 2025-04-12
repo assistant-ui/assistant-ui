@@ -4,7 +4,7 @@ import { useActions, useUIState } from "ai/rsc";
 import { nanoid } from "nanoid";
 import type { AI } from "./actions";
 
-import { Thread } from "@/components/ui/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/thread";
 import {
   type AppendMessage,
   AssistantRuntimeProvider,
