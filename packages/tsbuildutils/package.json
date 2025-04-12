@@ -15,7 +15,7 @@
   },
   "devDependencies": {
     "@types/cross-spawn": "^6.0.6",
-    "@types/node": "^22.14.0",
+    "@types/node": "^22.14.1",
     "@types/postcss-js": "^4.0.4"
   }
 }
