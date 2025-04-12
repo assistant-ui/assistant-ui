@@ -8,7 +8,7 @@ import { create } from "./create";
 export const init = new Command()
   .name("init")
   .description("initialize assistant-ui in a new or existing project")
-  .action(() => {
+  .action(async () => {
     // Check if package.json exists in the current directory
     const packageJsonPath = path.join(process.cwd(), "package.json");
     const packageJsonExists = fs.existsSync(packageJsonPath);
