@@ -70,11 +70,11 @@ Button.displayName = "Button";
 
 ## React 17
 
-For React 17 compatibility, you need to apply all the steps for **React 18** above, plus add a polyfill for the `useExternalStore` hook that's used by zustand.
+For React 17 compatibility, you need to apply all the steps for **React 18** above, plus add a polyfill for the `useSyncExternalStore` hook that's used by zustand.
 
 ### Patching Zustand with patch-package
 
-Since the assistant-ui uses zustand internally, which depends on `useExternalStore`, you'll need to patch the zustand package directly:
+Since the assistant-ui uses zustand internally, which depends on `useSyncExternalStore`, you'll need to patch the zustand package directly:
 
 1. Install the required packages:
 
