@@ -4,4 +4,4 @@
 @import "./tailwindcss/thread.css";
 @import "./themes/default.css";
 
-@plugin "tailwindcss-animate";
+@import "tw-animate-css";

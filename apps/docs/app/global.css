@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 @import "fumadocs-ui/css/neutral.css";
 @import "fumadocs-ui/css/preset.css";
 
@@ -12,8 +13,6 @@
 @source '../../registry/components/**/*.js';
 
 @custom-variant dark (&:where(.dark, .dark *));
-
-@plugin "tailwindcss-animate";
 
 @layer base {
   :root {

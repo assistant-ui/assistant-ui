@@ -9,12 +9,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import icon from "@/public/favicon/icon.svg";
 import { Sheet, SheetContent, SheetTrigger } from "../ui/sheet";
-import {
-  TooltipProvider,
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "../ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { ModelPicker } from "./ModelPicker";
 import { Thread } from "@/components/assistant-ui/thread";
 import { ThreadList } from "@/components/assistant-ui/thread-list";
@@ -31,17 +26,15 @@ const ButtonWithTooltip: FC<ButtonWithTooltipProps> = ({
   ...rest
 }) => {
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button {...rest}>
-            {children}
-            <span className="sr-only">{tooltip}</span>
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side={side}>{tooltip}</TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button {...rest}>
+          {children}
+          <span className="sr-only">{tooltip}</span>
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side={side}>{tooltip}</TooltipContent>
+    </Tooltip>
   );
 };
 

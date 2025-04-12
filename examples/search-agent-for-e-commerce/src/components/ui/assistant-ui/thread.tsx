@@ -6,13 +6,12 @@ import {
   ThreadPrimitive,
 } from "@assistant-ui/react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import type { FC, PropsWithChildren } from "react";
-import { Button, type ButtonProps } from "@/components/ui/button";
+import type { ComponentPropsWithRef, FC, PropsWithChildren } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-  TooltipProvider,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { ArrowDownIcon, SendHorizontalIcon } from "lucide-react";
@@ -21,25 +20,23 @@ import { RSCDisplay } from "@assistant-ui/react-ai-sdk";
 
 export const Thread: FC = () => {
   return (
-    <TooltipProvider>
-      <ThreadPrimitive.Root className="flex h-full flex-col items-center pb-3">
-        <ThreadPrimitive.Viewport className="flex w-full flex-grow flex-col items-center overflow-y-scroll scroll-smooth px-4 pt-12">
-          <ThreadPrimitive.Empty>
-            <ThreadEmpty />
-          </ThreadPrimitive.Empty>
+    <ThreadPrimitive.Root className="flex h-full flex-col items-center pb-3">
+      <ThreadPrimitive.Viewport className="flex w-full flex-grow flex-col items-center overflow-y-scroll scroll-smooth px-4 pt-12">
+        <ThreadPrimitive.Empty>
+          <ThreadEmpty />
+        </ThreadPrimitive.Empty>
 
-          <ThreadPrimitive.Messages
-            components={{
-              UserMessage,
-              AssistantMessage,
-            }}
-          />
-          <ThreadScrollToBottom />
-        </ThreadPrimitive.Viewport>
+        <ThreadPrimitive.Messages
+          components={{
+            UserMessage,
+            AssistantMessage,
+          }}
+        />
+        <ThreadScrollToBottom />
+      </ThreadPrimitive.Viewport>
 
-        <Composer />
-      </ThreadPrimitive.Root>
-    </TooltipProvider>
+      <Composer />
+    </ThreadPrimitive.Root>
   );
 };
 
@@ -163,7 +160,7 @@ const AssistantMessage: FC = () => {
   );
 };
 
-type IconButton = ButtonProps & { tooltip: string };
+type IconButton = ComponentPropsWithRef<typeof Button> & { tooltip: string };
 
 const IconButton: FC<IconButton> = ({
   children,

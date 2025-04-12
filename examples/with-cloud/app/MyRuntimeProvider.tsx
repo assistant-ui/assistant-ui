@@ -5,10 +5,7 @@ import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
 const cloud = new AssistantCloud({
   baseUrl: process.env["NEXT_PUBLIC_ASSISTANT_BASE_URL"]!,
-  authToken: () =>
-    fetch("/api/assistant-ui-token", { method: "POST" })
-      .then((r) => r.json())
-      .then((r) => r.token),
+  anonymous: true,
 });
 
 export function MyRuntimeProvider({

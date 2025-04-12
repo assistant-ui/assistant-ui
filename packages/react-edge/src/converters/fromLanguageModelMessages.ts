@@ -7,6 +7,9 @@ type fromLanguageModelMessagesOptions = {
   mergeSteps?: boolean;
 };
 
+/**
+ * @deprecated This is an internal API and may change without notice.
+ */
 export const fromLanguageModelMessages = (
   lm: LanguageModelV1Message[],
   { mergeSteps }: fromLanguageModelMessagesOptions = {},
