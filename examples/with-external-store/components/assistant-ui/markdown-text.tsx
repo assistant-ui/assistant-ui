@@ -6,7 +6,6 @@ import {
   CodeHeaderProps,
   MarkdownTextPrimitive,
   unstable_memoizeMarkdownComponents as memoizeMarkdownComponents,
-  useIsMarkdownCodeBlock,
 } from "@assistant-ui/react-markdown";
 import remarkGfm from "remark-gfm";
 import { FC, memo, useState } from "react";
@@ -203,17 +202,14 @@ const defaultComponents = memoizeMarkdownComponents({
       {...props}
     />
   ),
-  code: function Code({ className, ...props }) {
-    const isCodeBlock = useIsMarkdownCodeBlock();
-    return (
-      <code
-        className={cn(
-          !isCodeBlock && "bg-muted rounded border font-semibold",
-          className,
-        )}
-        {...props}
-      />
-    );
-  },
+  code: ({ className, ...props }) => (
+    <code
+      className={cn(
+        "bg-muted relative rounded px-[0.3rem] py-[0.2rem] font-mono text-sm",
+        className,
+      )}
+      {...props}
+    />
+  ),
   CodeHeader,
 });
