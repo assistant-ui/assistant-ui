@@ -26,7 +26,7 @@
     "postcss": "^8.5.3",
     "postcss-nested": "^7.0.2",
     "tailwindcss": "^4.1.3",
-    "tailwindcss-animate": "^1.0.7",
+    "tw-animate-css": "^1.0.7",
     "tsx": "^4.19.3"
   },
   "publishConfig": {
