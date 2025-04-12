@@ -5,7 +5,6 @@ import { ChevronRight, Layers } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Fragment } from "react";
@@ -42,30 +41,28 @@ export const Component: React.FC<ComponentProps> = ({
           {name}
         </a>
       ) : (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <a href={docsLink}>
-                <code>
-                  &lt;
-                  {name
-                    ? name
-                        .split(".")
-                        .map((part, index) =>
-                          index === name.split(".").length - 1 ? (
-                            <strong key={index}>{part}</strong>
-                          ) : (
-                            <span key={index}>{part}.</span>
-                          ),
-                        )
-                    : name}
-                  {`${props ? ` ${props}` : ""} />`}
-                </code>
-              </a>
-            </TooltipTrigger>
-            <TooltipContent>{tooltip}</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <a href={docsLink}>
+              <code>
+                &lt;
+                {name
+                  ? name
+                      .split(".")
+                      .map((part, index) =>
+                        index === name.split(".").length - 1 ? (
+                          <strong key={index}>{part}</strong>
+                        ) : (
+                          <span key={index}>{part}.</span>
+                        ),
+                      )
+                  : name}
+                {`${props ? ` ${props}` : ""} />`}
+              </code>
+            </a>
+          </TooltipTrigger>
+          <TooltipContent>{tooltip}</TooltipContent>
+        </Tooltip>
       )}
       {isContextProvider && (
         <div className="ml-3 flex items-center">

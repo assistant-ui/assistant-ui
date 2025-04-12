@@ -20,59 +20,50 @@ import {
 } from "@radix-ui/react-icons";
 import type { ComponentPropsWithoutRef, FC } from "react";
 import { Button } from "../ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "../ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
 export const ChatGPT: FC = () => {
   return (
-    <TooltipProvider>
-      <ThreadPrimitive.Root className="text-foreground dark flex h-full flex-col items-stretch bg-[#212121] px-4">
-        <ThreadPrimitive.Viewport className="flex flex-grow flex-col gap-8 overflow-y-scroll pt-16">
-          <ThreadPrimitive.Empty>
-            <div className="flex flex-grow flex-col items-center justify-center">
-              <Avatar.Root className="flex h-12 w-12 items-center justify-center rounded-[24px] border border-white/15 shadow">
-                <Avatar.AvatarFallback>C</Avatar.AvatarFallback>
-              </Avatar.Root>
-              <p className="mt-4 text-xl text-white">
-                How can I help you today?
-              </p>
-            </div>
-          </ThreadPrimitive.Empty>
+    <ThreadPrimitive.Root className="text-foreground dark flex h-full flex-col items-stretch bg-[#212121] px-4">
+      <ThreadPrimitive.Viewport className="flex flex-grow flex-col gap-8 overflow-y-scroll pt-16">
+        <ThreadPrimitive.Empty>
+          <div className="flex flex-grow flex-col items-center justify-center">
+            <Avatar.Root className="flex h-12 w-12 items-center justify-center rounded-[24px] border border-white/15 shadow">
+              <Avatar.AvatarFallback>C</Avatar.AvatarFallback>
+            </Avatar.Root>
+            <p className="mt-4 text-xl text-white">How can I help you today?</p>
+          </div>
+        </ThreadPrimitive.Empty>
 
-          <ThreadPrimitive.Messages
-            components={{
-              UserMessage,
-              EditComposer,
-              AssistantMessage,
-            }}
-          />
-        </ThreadPrimitive.Viewport>
+        <ThreadPrimitive.Messages
+          components={{
+            UserMessage,
+            EditComposer,
+            AssistantMessage,
+          }}
+        />
+      </ThreadPrimitive.Viewport>
 
-        <ComposerPrimitive.Root className="mx-auto flex w-full max-w-screen-md items-end rounded-3xl bg-white/5 pl-2">
-          <ComposerPrimitive.Input
-            placeholder="Message ChatGPT"
-            className="h-12 max-h-40 flex-grow resize-none bg-transparent p-3.5 text-sm text-white outline-none placeholder:text-white/50"
-          />
-          <ThreadPrimitive.If running={false}>
-            <ComposerPrimitive.Send className="m-2 flex size-8 items-center justify-center rounded-full bg-white transition-opacity disabled:opacity-10">
-              <ArrowUpIcon className="size-5 text-black [&_path]:stroke-black [&_path]:stroke-[1]" />
-            </ComposerPrimitive.Send>
-          </ThreadPrimitive.If>
-          <ThreadPrimitive.If running>
-            <ComposerPrimitive.Cancel className="m-2 flex size-8 items-center justify-center rounded-full bg-white">
-              <div className="size-2.5 bg-black" />
-            </ComposerPrimitive.Cancel>
-          </ThreadPrimitive.If>
-        </ComposerPrimitive.Root>
-        <p className="p-2 text-center text-xs text-[#cdcdcd]">
-          ChatGPT can make mistakes. Check important info.
-        </p>
-      </ThreadPrimitive.Root>
-    </TooltipProvider>
+      <ComposerPrimitive.Root className="mx-auto flex w-full max-w-screen-md items-end rounded-3xl bg-white/5 pl-2">
+        <ComposerPrimitive.Input
+          placeholder="Message ChatGPT"
+          className="h-12 max-h-40 flex-grow resize-none bg-transparent p-3.5 text-sm text-white outline-none placeholder:text-white/50"
+        />
+        <ThreadPrimitive.If running={false}>
+          <ComposerPrimitive.Send className="m-2 flex size-8 items-center justify-center rounded-full bg-white transition-opacity disabled:opacity-10">
+            <ArrowUpIcon className="size-5 text-black [&_path]:stroke-black [&_path]:stroke-[1]" />
+          </ComposerPrimitive.Send>
+        </ThreadPrimitive.If>
+        <ThreadPrimitive.If running>
+          <ComposerPrimitive.Cancel className="m-2 flex size-8 items-center justify-center rounded-full bg-white">
+            <div className="size-2.5 bg-black" />
+          </ComposerPrimitive.Cancel>
+        </ThreadPrimitive.If>
+      </ComposerPrimitive.Root>
+      <p className="p-2 text-center text-xs text-[#cdcdcd]">
+        ChatGPT can make mistakes. Check important info.
+      </p>
+    </ThreadPrimitive.Root>
   );
 };
 

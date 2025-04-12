@@ -12,7 +12,6 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-  TooltipProvider,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { SendHorizontalIcon } from "lucide-react";
@@ -24,33 +23,31 @@ export const Thread: FC = () => {
     /* This is UI for ongoing chat */
   }
   return (
-    <TooltipProvider>
-      <ThreadPrimitive.Root className="bg-background h-full">
-        <ThreadPrimitive.Viewport className="flex h-full flex-col items-center overflow-y-scroll scroll-smooth px-4 pt-8">
-          <ThreadWelcome />
-          <ThreadPrimitive.Messages
-            components={{
-              UserMessage,
-              AssistantMessage,
-            }}
-          />
-          <div className="sticky bottom-0 mt-4 flex w-full max-w-2xl flex-grow flex-col items-center justify-end rounded-t-lg bg-inherit pb-4">
-            <ThreadPrimitive.If empty={false}>
-              <div className="mb-4 w-full px-4">
-                <div className="flex flex-wrap justify-center gap-4">
-                  <ThreadPrimitive.If running={false}>
-                    {" "}
-                    {/*Important to wrap Thread suggestion into if statement since the original message is streamed and we don't want to generate buttons ahead of time*/}
-                    <AI_ThreadSuggestion></AI_ThreadSuggestion>
-                  </ThreadPrimitive.If>
-                </div>
+    <ThreadPrimitive.Root className="bg-background h-full">
+      <ThreadPrimitive.Viewport className="flex h-full flex-col items-center overflow-y-scroll scroll-smooth px-4 pt-8">
+        <ThreadWelcome />
+        <ThreadPrimitive.Messages
+          components={{
+            UserMessage,
+            AssistantMessage,
+          }}
+        />
+        <div className="sticky bottom-0 mt-4 flex w-full max-w-2xl flex-grow flex-col items-center justify-end rounded-t-lg bg-inherit pb-4">
+          <ThreadPrimitive.If empty={false}>
+            <div className="mb-4 w-full px-4">
+              <div className="flex flex-wrap justify-center gap-4">
+                <ThreadPrimitive.If running={false}>
+                  {" "}
+                  {/*Important to wrap Thread suggestion into if statement since the original message is streamed and we don't want to generate buttons ahead of time*/}
+                  <AI_ThreadSuggestion></AI_ThreadSuggestion>
+                </ThreadPrimitive.If>
               </div>
-            </ThreadPrimitive.If>
-            <Composer />
-          </div>
-        </ThreadPrimitive.Viewport>
-      </ThreadPrimitive.Root>
-    </TooltipProvider>
+            </div>
+          </ThreadPrimitive.If>
+          <Composer />
+        </div>
+      </ThreadPrimitive.Viewport>
+    </ThreadPrimitive.Root>
   );
 };
 
