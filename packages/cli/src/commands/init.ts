@@ -45,6 +45,6 @@ export const init = new Command()
       console.log(chalk.blue("Creating a new assistant-ui project..."));
 
       // Execute the create command with default template
-      create.parseAsync([]);
+      await create.parseAsync([]);
     }
   });
