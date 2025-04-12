@@ -1,5 +1,11 @@
 # assistant-ui
 
+## 0.0.44
+
+### Patch Changes
+
+- cli: drop version option
+
 ## 0.0.43
 
 ### Patch Changes
