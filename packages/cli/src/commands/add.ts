@@ -3,7 +3,7 @@ import { spawn } from "cross-spawn";
 
 const REGISTRY_BASE_URL = "https://r.assistant-ui.com";
 
-export const shadcnAdd = new Command()
+export const add = new Command()
   .name("add")
   .description("add a component to your project")
   .argument("<components...>", "the components to add")
