@@ -61,7 +61,9 @@ const create = new Command()
     const templateUrl =
       templates[(opts.template as keyof typeof templates) ?? "default"];
     if (!templateUrl) {
-      console.error(`Unknown template: ${opts.template}\nAvailable templates: ${Object.keys(templates).join(', ')}`);
+      console.error(
+        `Unknown template: ${opts.template}\nAvailable templates: ${Object.keys(templates).join(", ")}`,
+      );
       process.exit(1);
     }
 

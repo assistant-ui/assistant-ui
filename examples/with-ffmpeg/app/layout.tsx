@@ -15,7 +15,7 @@ export default function RootLayout({
   return (
     <MyRuntimeProvider>
       <html lang="en" className="h-dvh">
-        <body className="font-sans h-dvh">{children}</body>
+        <body className="h-dvh font-sans">{children}</body>
       </html>
     </MyRuntimeProvider>
   );

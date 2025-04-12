@@ -12,14 +12,16 @@ export async function POST(req: Request) {
     messages,
     // forward system prompt and tools from the frontend
     system,
-    tools: tools && Object.fromEntries(
-      Object.entries<{ parameters: unknown }>(tools).map(([name, tool]) => [
-        name,
-        {
-          parameters: jsonSchema(tool.parameters!),
-        },
-      ]),
-    ),
+    tools:
+      tools &&
+      Object.fromEntries(
+        Object.entries<{ parameters: unknown }>(tools).map(([name, tool]) => [
+          name,
+          {
+            parameters: jsonSchema(tool.parameters!),
+          },
+        ]),
+      ),
   });
 
   return result.toDataStreamResponse();

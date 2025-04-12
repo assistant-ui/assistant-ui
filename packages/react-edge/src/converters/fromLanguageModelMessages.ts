@@ -7,7 +7,6 @@ type fromLanguageModelMessagesOptions = {
   mergeSteps?: boolean;
 };
 
-
 /**
  * @deprecated This is an internal API and may change without notice.
  */
