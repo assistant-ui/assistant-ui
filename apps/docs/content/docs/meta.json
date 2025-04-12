@@ -19,6 +19,7 @@
     "migrations",
     "legacy",
     "components",
-    "reference"
+    "reference",
+    "react-compatibility"
   ]
 }
