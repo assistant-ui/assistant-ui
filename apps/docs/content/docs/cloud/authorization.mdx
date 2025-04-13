@@ -48,7 +48,7 @@ Then, pass in a function to `authToken` that returns an ID token from your auth 
 The following is an example for Clerk:
 
 ```ts
-import { AssistantCloud } from "@assistant-ui/cloud";
+import { AssistantCloud } from "@assistant-ui/react";
 
 const assistantCloud = new AssistantCloud({
   authToken: () => clerkClient.sessions.getToken(auth(), "assistant-ui"),
@@ -64,7 +64,7 @@ Then, in a backend route, call `assistantCloud.auth.getToken({ workspaceId })`.
 The following is an example to get auth tokens for Clerk based on the org_id and user_id:
 
 ```ts title="/app/api/assistant-ui-token/route.ts"
-import { AssistantCloud } from "@assistant-ui/cloud";
+import { AssistantCloud } from "@assistant-ui/react";
 
 const assistantCloud = new AssistantCloud({
   apiKey: <your api key>,
@@ -83,7 +83,7 @@ export const POST = async (req: Request) => {
 ```
 
 ```ts title="client.ts"
-import { AssistantCloud } from "@assistant-ui/cloud";
+import { AssistantCloud } from "@assistant-ui/react";
 
 const assistantCloud = new AssistantCloud({
   authToken: () =>
