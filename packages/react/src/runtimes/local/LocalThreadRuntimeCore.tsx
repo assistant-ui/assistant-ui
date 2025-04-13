@@ -297,10 +297,11 @@ export class LocalThreadRuntimeCore
         runCallback ??
         this.adapters.chatModel.run.bind(this.adapters.chatModel);
 
+      const abortSignal = this.abortController.signal;
       const promiseOrGenerator = runCallback({
         messages,
         runConfig: this._lastRunConfig,
-        abortSignal: this.abortController.signal,
+        abortSignal,
         context,
         config: context,
         unstable_assistantMessageId: message.id,
@@ -312,13 +313,18 @@ export class LocalThreadRuntimeCore
       // handle async iterator for streaming results
       if (Symbol.asyncIterator in promiseOrGenerator) {
         for await (const r of promiseOrGenerator) {
+          if (abortSignal.aborted) {
+            updateMessage({
+              status: { type: "incomplete", reason: "cancelled" },
+            });
+            break;
+          }
+
           updateMessage(r);
         }
       } else {
         updateMessage(await promiseOrGenerator);
       }
-
-      this.abortController = null;
 
       if (message.status.type === "running") {
         updateMessage({
@@ -326,8 +332,6 @@ export class LocalThreadRuntimeCore
         });
       }
     } catch (e) {
-      this.abortController = null;
-
       // TODO this should be handled by the run result stream
       if (e instanceof Error && e.name === "AbortError") {
         updateMessage({
@@ -348,6 +352,8 @@ export class LocalThreadRuntimeCore
         throw e;
       }
     } finally {
+      this.abortController = null;
+
       if (
         message.status.type === "complete" ||
         message.status.type === "incomplete"
