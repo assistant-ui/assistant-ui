@@ -158,7 +158,10 @@ const handleTextDelta = (
       return { ...part, text: part.text + chunk.textDelta };
     } else if (part.type === "tool-call") {
       const newArgsText = part.argsText + chunk.textDelta;
+
+      // Fall back to existing args if parsing fails
       const newArgs = parsePartialJsonObject(newArgsText) ?? part.args;
+
       return { ...part, argsText: newArgsText, args: newArgs };
     } else {
       throw new Error(

@@ -203,7 +203,7 @@ const tests: PartialJsonTest[] = [
   },
   {
     input: `{"\\u25CF": "t`,
-    query: ['\u25CF'],
+    query: ["\u25CF"],
     result: "partial",
   },
 ];
@@ -219,8 +219,6 @@ describe("parsePartialJsonObject and getPartialJsonObjectFieldState", () => {
         args as Record<string, unknown>,
         testCase.query,
       );
-
-      console.log(getPartialJsonObjectMeta(args));
 
       expect(fieldState).toBe(testCase.result);
     });

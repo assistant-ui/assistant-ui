@@ -49,12 +49,31 @@ type State =
 // Please note that invalid JSON is not considered/covered, because it
 // is assumed that the resulting JSON will be processed by a standard
 // JSON parser that will detect any invalid JSON.
+
+// Returns a tuple of [fixedJson, partialPath]
+// partialPath is an array of object/array keys that represent
+// the currently partial values. An object is considered partial
+// if through appending extra characters to the JSON string, its
+// value could change.
+
+// Example input: '{"foo":[{"a":f'
+// Example output: ['{"foo":[{"a":false}]}', ['foo', '0']]
+// Example input: '{"foo":'
+// Example output: ['{}', []]
+
 export function fixJson(input: string): [string, string[]] {
   const stack: State[] = ["ROOT"];
   let lastValidIndex = -1;
   let literalStart: number | null = null;
   const path: string[] = [];
   let currentKey: string | undefined;
+
+  function pushCurrentKeyToPath(): void {
+    if (currentKey !== undefined) {
+      path.push(JSON.parse('"' + currentKey + '"'));
+      currentKey = undefined;
+    }
+  }
 
   function processValueStart(char: string, i: number, swapState: State) {
     {
@@ -65,10 +84,7 @@ export function fixJson(input: string): [string, string[]] {
           stack.push(swapState);
           stack.push("INSIDE_STRING");
 
-          if (currentKey !== undefined) {
-            path.push(JSON.parse('"' + currentKey + '"'));
-            currentKey = undefined;
-          }
+          pushCurrentKeyToPath();
           break;
         }
 
@@ -88,10 +104,7 @@ export function fixJson(input: string): [string, string[]] {
           stack.push(swapState);
           stack.push("INSIDE_NUMBER");
 
-          if (currentKey !== undefined) {
-            path.push(JSON.parse('"' + currentKey + '"'));
-            currentKey = undefined;
-          }
+          pushCurrentKeyToPath();
           break;
         }
         case "0":
@@ -109,10 +122,7 @@ export function fixJson(input: string): [string, string[]] {
           stack.push(swapState);
           stack.push("INSIDE_NUMBER");
 
-          if (currentKey !== undefined) {
-            path.push(JSON.parse('"' + currentKey + '"'));
-            currentKey = undefined;
-          }
+          pushCurrentKeyToPath();
           break;
         }
 
@@ -122,10 +132,7 @@ export function fixJson(input: string): [string, string[]] {
           stack.push(swapState);
           stack.push("INSIDE_OBJECT_START");
 
-          if (currentKey !== undefined) {
-            path.push(JSON.parse('"' + currentKey + '"'));
-            currentKey = undefined;
-          }
+          pushCurrentKeyToPath();
           break;
         }
 
@@ -135,10 +142,7 @@ export function fixJson(input: string): [string, string[]] {
           stack.push(swapState);
           stack.push("INSIDE_ARRAY_START");
 
-          if (currentKey !== undefined) {
-            path.push(JSON.parse('"' + currentKey + '"'));
-            currentKey = undefined;
-          }
+          pushCurrentKeyToPath();
           break;
         }
       }
@@ -439,20 +443,13 @@ export function fixJson(input: string): [string, string[]] {
   }
 
   let result = input.slice(0, lastValidIndex + 1);
-  let partialCount = 0;
 
   for (let i = stack.length - 1; i >= 0; i--) {
     const state = stack[i];
 
     switch (state) {
-      case "INSIDE_NUMBER": {
-        partialCount++;
-        break;
-      }
-
       case "INSIDE_STRING": {
         result += '"';
-        partialCount++;
         break;
       }
 
@@ -463,7 +460,6 @@ export function fixJson(input: string): [string, string[]] {
       case "INSIDE_OBJECT_BEFORE_VALUE":
       case "INSIDE_OBJECT_AFTER_VALUE": {
         result += "}";
-        partialCount++;
         break;
       }
 
@@ -471,7 +467,6 @@ export function fixJson(input: string): [string, string[]] {
       case "INSIDE_ARRAY_AFTER_COMMA":
       case "INSIDE_ARRAY_AFTER_VALUE": {
         result += "]";
-        partialCount++;
         break;
       }
 
@@ -488,8 +483,6 @@ export function fixJson(input: string): [string, string[]] {
       }
     }
   }
-
-  console.log(input, path, partialCount);
 
   return [result, path];
 }

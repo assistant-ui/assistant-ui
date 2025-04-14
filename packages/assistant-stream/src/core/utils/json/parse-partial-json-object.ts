@@ -14,11 +14,9 @@ type PartialJsonObjectMeta = {
 };
 
 export const getPartialJsonObjectMeta = (
-  obj: unknown,
+  obj: Record<symbol, unknown>,
 ): PartialJsonObjectMeta | undefined => {
-  return (obj as Record<symbol, unknown>)?.[
-    PARTIAL_JSON_OBJECT_META_SYMBOL
-  ] as PartialJsonObjectMeta;
+  return obj?.[PARTIAL_JSON_OBJECT_META_SYMBOL] as PartialJsonObjectMeta;
 };
 
 export const parsePartialJsonObject = (
