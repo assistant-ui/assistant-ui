@@ -156,14 +156,54 @@ const tests: PartialJsonTest[] = [
     result: "partial",
   },
   {
+    input: `{"1": "value","0":"`,
+    query: ["1"],
+    result: "complete",
+  },
+  {
     input: `{"foo": "value", "0": "`,
     query: ["0"],
     result: "partial",
+  },
+  {
+    input: `{"foo": "value", "0": "`,
+    query: ["foo"],
+    result: "complete",
   },
   // duplicate keys
   {
     input: `{"foo": "foo","bar":"bar","foo": "`,
     query: ["foo"],
+    result: "partial",
+  },
+  {
+    input: `{"foo": "foo","bar":"bar","foo": "`,
+    query: ["bar"],
+    result: "complete",
+  },
+  {
+    input: `{"foo": [1,"a",{"b":1},[],{},[1,[[2]]],{"1":1,"t":1`,
+    query: ["foo", 6, 1],
+    result: "complete",
+  },
+  {
+    input: `{"foo": [1,"\",{"b":1},[],{},[1,[[2]]],{"1":1,"t":1`,
+    query: ["foo", 6, "t"],
+    result: "partial",
+  },
+  {
+    input: `{"\\"": "t`,
+    query: ['"'],
+    result: "partial",
+  },
+  {
+    input: `{"\\"": "t"`,
+    query: ['"'],
+    result: "complete",
+  },
+  {
+    input: `{"\\u25CF": "t`,
+    query: ['\u25CF'],
     result: "partial",
   },
 ];

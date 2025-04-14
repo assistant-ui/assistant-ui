@@ -2,48 +2,58 @@ import sjson from "secure-json-parse";
 import { fixJson } from "./fix-json";
 import { ReadonlyJSONObject } from "./json-value";
 
-const PARTIAL_ARGS_META_SYMBOL = Symbol("aui.parse-partial-args.meta");
+const PARTIAL_JSON_OBJECT_META_SYMBOL = Symbol(
+  "aui.parse-partial-json-object.meta",
+);
 
 type FieldState = "complete" | "partial";
 
 type PartialJsonObjectMeta = {
   state: "complete" | "partial";
-  partialCount: number;
+  partialPath: string[];
 };
 
 export const getPartialJsonObjectMeta = (
   obj: unknown,
 ): PartialJsonObjectMeta | undefined => {
   return (obj as Record<symbol, unknown>)?.[
-    PARTIAL_ARGS_META_SYMBOL
+    PARTIAL_JSON_OBJECT_META_SYMBOL
   ] as PartialJsonObjectMeta;
 };
 
 export const parsePartialJsonObject = (
-  argsText: string,
+  json: string,
 ):
-  | (ReadonlyJSONObject & { [PARTIAL_ARGS_META_SYMBOL]: PartialJsonObjectMeta })
+  | (ReadonlyJSONObject & {
+      [PARTIAL_JSON_OBJECT_META_SYMBOL]: PartialJsonObjectMeta;
+    })
   | undefined => {
-  if (argsText.length === 0)
+  if (json.length === 0)
     return {
-      [PARTIAL_ARGS_META_SYMBOL]: { state: "partial", partialCount: 1 },
+      [PARTIAL_JSON_OBJECT_META_SYMBOL]: { state: "partial", partialPath: [] },
     };
 
   try {
-    const res = sjson.parse(argsText);
+    const res = sjson.parse(json);
     if (typeof res !== "object" || res === null)
       throw new Error("argsText is expected to be an object");
 
-    res[PARTIAL_ARGS_META_SYMBOL] = { state: "complete", partialCount: 0 };
+    res[PARTIAL_JSON_OBJECT_META_SYMBOL] = {
+      state: "complete",
+      partialPath: [],
+    };
     return res;
   } catch {
     try {
-      const [fixedJson, partialCount] = fixJson(argsText);
+      const [fixedJson, partialPath] = fixJson(json);
       const res = sjson.parse(fixedJson);
       if (typeof res !== "object" || res === null)
         throw new Error("argsText is expected to be an object");
 
-      res[PARTIAL_ARGS_META_SYMBOL] = { state: "partial", partialCount };
+      res[PARTIAL_JSON_OBJECT_META_SYMBOL] = {
+        state: "partial",
+        partialPath,
+      };
       return res;
     } catch {
       return undefined;
@@ -54,30 +64,27 @@ export const parsePartialJsonObject = (
 const getFieldState = (
   args: unknown,
   argsMeta: PartialJsonObjectMeta,
-  fieldPath: (string | number)[],
+  fieldPath: string[],
 ): FieldState => {
   if (typeof args !== "object" || args === null) return argsMeta.state;
 
   if (argsMeta.state === "complete") return "complete";
   if (fieldPath.length === 0) return "partial";
 
-  const [field, ...restFields] = fieldPath as [
-    string | number,
-    ...(string | number)[],
-  ];
+  const [field, ...restFields] = fieldPath as [string, ...string[]];
 
-  // Check if the current path exists in args
+  // ensure the current path exists in args
   if (!Object.prototype.hasOwnProperty.call(args, field)) return "partial";
 
-  const argsKeys = Object.keys(args);
-  const isLast = argsKeys[argsKeys.length - 1] === field;
-  if (!isLast) return "complete";
+  // ensure the current path is in the partial path
+  const [partialField, ...restPartialPath] = argsMeta.partialPath;
+  if (field !== partialField) return "complete";
 
-  const value = (args as Record<string | number, unknown>)[field];
+  const value = (args as Record<string, unknown>)[field];
 
   const innerState: PartialJsonObjectMeta = {
-    state: argsMeta.partialCount > 1 ? "partial" : "complete",
-    partialCount: argsMeta.partialCount - 1,
+    state: argsMeta.partialPath.length > 0 ? "partial" : "complete",
+    partialPath: restPartialPath,
   };
 
   return getFieldState(value, innerState, restFields);
@@ -90,5 +97,5 @@ export const getPartialJsonObjectFieldState = (
   const meta = getPartialJsonObjectMeta(args);
   if (!meta) throw new Error("unable to determine args state");
 
-  return getFieldState(args, meta, fieldPath);
+  return getFieldState(args, meta, fieldPath.map(String));
 };
