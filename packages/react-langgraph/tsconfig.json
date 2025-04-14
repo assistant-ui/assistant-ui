@@ -3,7 +3,9 @@
   "compilerOptions": {
     "paths": {
       "@assistant-ui/*": ["../../packages/*/src"],
-      "@assistant-ui/react/*": ["../../packages/react/src/*"]
+      "@assistant-ui/react/*": ["../../packages/react/src/*"],
+      "assistant-stream": ["../../packages/assistant-stream/src"],
+      "assistant-stream/*": ["../../packages/assistant-stream/src/*"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx"],

@@ -1,5 +1,5 @@
 import { LangChainMessage, LangChainMessageChunk } from "./types";
-import { parsePartialJson } from "assistant-stream/utils";
+import { parsePartialJsonObject } from "assistant-stream/utils";
 
 export const appendLangChainChunk = (
   prev: LangChainMessage | undefined,
@@ -41,7 +41,9 @@ export const appendLangChainChunk = (
       ...chunk,
       ...existing,
       argsText: newArgsText,
-      args: parsePartialJson(newArgsText),
+      args:
+        parsePartialJsonObject(newArgsText) ??
+        ("args" in existing ? existing.args : {}),
     };
   }
 

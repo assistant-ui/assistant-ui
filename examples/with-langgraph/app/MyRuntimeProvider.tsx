@@ -22,9 +22,7 @@ const useMyLangGraphRuntime = () => {
         messages,
       });
 
-      for await (const message of generator) {
-        yield message;
-      }
+      yield* generator;
     },
     onSwitchToThread: async (externalId) => {
       const state = await getThreadState(externalId);

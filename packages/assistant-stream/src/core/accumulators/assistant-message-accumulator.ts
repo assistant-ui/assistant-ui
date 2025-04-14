@@ -1,7 +1,6 @@
 import { AssistantStreamChunk } from "../AssistantStreamChunk";
 import { generateId } from "../utils/generateId";
-import { ReadonlyJSONObject } from "../utils/json/json-value";
-import { parsePartialJson } from "../utils/json/parse-partial-json";
+import { parsePartialJsonObject } from "../utils/json/parse-partial-json-object";
 import {
   AssistantMessage,
   AssistantMessageStatus,
@@ -159,12 +158,10 @@ const handleTextDelta = (
       return { ...part, text: part.text + chunk.textDelta };
     } else if (part.type === "tool-call") {
       const newArgsText = part.argsText + chunk.textDelta;
-      let newArgs: ReadonlyJSONObject;
-      try {
-        newArgs = parsePartialJson(newArgsText);
-      } catch (err) {
-        newArgs = part.args;
-      }
+
+      // Fall back to existing args if parsing fails
+      const newArgs = parsePartialJsonObject(newArgsText) ?? part.args;
+
       return { ...part, argsText: newArgsText, args: newArgs };
     } else {
       throw new Error(

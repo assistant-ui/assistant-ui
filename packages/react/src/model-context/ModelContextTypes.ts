@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { JSONSchema7 } from "json-schema";
 import { Unsubscribe } from "../types/Unsubscribe";
+import { TypePath, TypeAtPath, DeepPartial } from "./type-path-utils";
 
 export const LanguageModelV1CallSettingsSchema = z.object({
   maxTokens: z.number().int().positive().optional(),
@@ -24,27 +25,38 @@ export const LanguageModelConfigSchema = z.object({
 
 export type LanguageModelConfig = z.infer<typeof LanguageModelConfigSchema>;
 
+type ToolExecutionContext = {
+  toolCallId: string;
+  abortSignal: AbortSignal;
+};
+
+type ReadableStreamIterator<T> = ReadableStream<T> &
+  AsyncGenerator<T, void, unknown>;
+
+interface ToolCallReader<TArgs> {
+  get<PathT extends TypePath<TArgs>>(
+    ...fieldPath: PathT
+  ): Promise<TypeAtPath<TArgs, PathT>>;
+
+  stream<PathT extends TypePath<TArgs>>(
+    ...fieldPath: PathT
+  ): ReadableStreamIterator<DeepPartial<TypeAtPath<TArgs, PathT>>>;
+
+  forEach<PathT extends TypePath<TArgs>>(
+    ...fieldPath: PathT
+  ): TypeAtPath<TArgs, PathT> extends Array<infer U>
+    ? ReadableStreamIterator<U>
+    : never;
+}
+
 export type ToolExecuteFunction<TArgs, TResult> = (
   args: TArgs,
-  context: {
-    toolCallId: string;
-    abortSignal: AbortSignal;
-  },
+  context: ToolExecutionContext,
 ) => TResult | Promise<TResult>;
 
 export type ToolStreamCallFunction<TArgs, TResult> = (
-  iterator: AsyncGenerator<
-    {
-      args: TArgs;
-      argsTextDelta: string;
-    },
-    void,
-    unknown
-  >,
-  context: {
-    toolCallId: string;
-    abortSignal: AbortSignal;
-  },
+  controller: ToolCallReader<TArgs>,
+  context: ToolExecutionContext,
 ) => TResult | Promise<TResult>;
 
 type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<
