@@ -16,24 +16,7 @@ import {
   AssistantMessageAccumulator,
   DataStreamDecoder,
 } from "assistant-stream";
-
-export function asAsyncIterable<T>(
-  source: ReadableStream<T>,
-): AsyncIterable<T> {
-  return {
-    [Symbol.asyncIterator]: () => {
-      const reader = source.getReader();
-      return {
-        async next(): Promise<IteratorResult<T, undefined>> {
-          const { done, value } = await reader.read();
-          return done
-            ? { done: true, value: undefined }
-            : { done: false, value };
-        },
-      };
-    },
-  };
-}
+import { asAsyncIterableStream } from "assistant-stream/utils";
 
 type HeadersValue = Record<string, string> | Headers;
 
@@ -175,9 +158,7 @@ export class EdgeModelAdapter implements ChatModelAdapter {
         .pipeThrough(unstable_toolResultStream(context.tools, abortSignal))
         .pipeThrough(new AssistantMessageAccumulator());
 
-      for await (const update of asAsyncIterable(stream)) {
-        yield update;
-      }
+      yield* asAsyncIterableStream(stream);
 
       this.options.onFinish?.(unstable_getMessage());
     } catch (error: unknown) {

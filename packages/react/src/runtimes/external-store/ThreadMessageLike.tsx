@@ -1,4 +1,4 @@
-import { parsePartialJson } from "assistant-stream/utils";
+import { parsePartialJsonObject } from "assistant-stream/utils";
 import { generateId } from "../../internal";
 import {
   MessageStatus,
@@ -117,7 +117,10 @@ export const fromThreadMessageLike = (
                 return {
                   ...part,
                   toolCallId: part.toolCallId ?? "tool-" + generateId(),
-                  args: part.args ?? parsePartialJson(part.argsText ?? "{}"),
+                  args:
+                    part.args ??
+                    parsePartialJsonObject(part.argsText ?? "") ??
+                    {},
                   argsText: part.argsText ?? "",
                 };
               }
