@@ -2,7 +2,7 @@
 
 import { ContentPartState } from "../../api/ContentPartRuntime";
 import { useContentPart } from "../../context/react/ContentPartContext";
-import { TextContentPart } from "../../types";
+import { TextContentPart, ReasoningContentPart } from "../../types";
 
 export const useContentPartText = () => {
   const text = useContentPart((c) => {
@@ -11,7 +11,7 @@ export const useContentPartText = () => {
         "ContentPartText can only be used inside text or reasoning content parts.",
       );
 
-    return c as ContentPartState & TextContentPart;
+    return c as ContentPartState & (TextContentPart | ReasoningContentPart);
   });
 
   return text;
