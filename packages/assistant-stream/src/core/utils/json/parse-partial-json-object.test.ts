@@ -5,13 +5,13 @@ import {
   getPartialJsonObjectMeta,
 } from "./parse-partial-json-object";
 
-type PartialArgsText = {
+type PartialJsonTest = {
   input: string;
   query: (string | number)[];
   result: "partial" | "complete" | "undefined";
 };
 
-const tests: PartialArgsText[] = [
+const tests: PartialJsonTest[] = [
   // empty query
   {
     input: ``,
@@ -148,6 +148,23 @@ const tests: PartialArgsText[] = [
     input: `{"foo": fa`,
     query: ["foo", "bar", "baz"],
     result: "complete",
+  },
+  // numeric keys
+  {
+    input: `{"1": "value","0":"`,
+    query: ["0"],
+    result: "partial",
+  },
+  {
+    input: `{"foo": "value", "0": "`,
+    query: ["0"],
+    result: "partial",
+  },
+  // duplicate keys
+  {
+    input: `{"foo": "foo","bar":"bar","foo": "`,
+    query: ["foo"],
+    result: "partial",
   },
 ];
 
