@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import {
   parsePartialJsonObject,
   getPartialJsonObjectFieldState,
-  getPartialJsonObjectMeta,
 } from "./parse-partial-json-object";
 
 type PartialJsonTest = {

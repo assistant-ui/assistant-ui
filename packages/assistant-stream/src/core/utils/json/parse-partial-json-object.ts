@@ -60,32 +60,36 @@ export const parsePartialJsonObject = (
 };
 
 const getFieldState = (
-  args: unknown,
-  argsMeta: PartialJsonObjectMeta,
+  parent: unknown,
+  parentMeta: PartialJsonObjectMeta,
   fieldPath: string[],
 ): FieldState => {
-  if (typeof args !== "object" || args === null) return argsMeta.state;
+  if (typeof parent !== "object" || parent === null) return parentMeta.state;
 
-  if (argsMeta.state === "complete") return "complete";
-  if (fieldPath.length === 0) return "partial";
+  // 1) parent is complete: return "complete"
+  if (parentMeta.state === "complete") return "complete";
 
-  const [field, ...restFields] = fieldPath as [string, ...string[]];
+  // 2) we finished traversing: return parent state
+  if (fieldPath.length === 0) return parentMeta.state;
 
-  // ensure the current path exists in args
-  if (!Object.prototype.hasOwnProperty.call(args, field)) return "partial";
+  const [field, ...restPath] = fieldPath as [string, ...string[]];
 
-  // ensure the current path is in the partial path
-  const [partialField, ...restPartialPath] = argsMeta.partialPath;
+  // 3) field doesn't yet exist in parent: return "partial"
+  if (!Object.prototype.hasOwnProperty.call(parent, field)) return "partial";
+
+  const [partialField, ...restPartialPath] = parentMeta.partialPath;
+
+  // 4) field exists but is not partial: return "complete"
   if (field !== partialField) return "complete";
 
-  const value = (args as Record<string, unknown>)[field];
-
-  const innerState: PartialJsonObjectMeta = {
-    state: argsMeta.partialPath.length > 0 ? "partial" : "complete",
+  // 5) field exists and is partial: return child state
+  const child = (parent as Record<string, unknown>)[field];
+  const childMeta: PartialJsonObjectMeta = {
+    state: "partial",
     partialPath: restPartialPath,
   };
 
-  return getFieldState(value, innerState, restFields);
+  return getFieldState(child, childMeta, restPath);
 };
 
 export const getPartialJsonObjectFieldState = (
