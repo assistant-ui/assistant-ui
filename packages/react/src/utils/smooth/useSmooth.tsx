@@ -2,7 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMessage } from "../../context";
-import { ContentPartStatus, TextContentPart } from "../../types/AssistantTypes";
+import {
+  ContentPartStatus,
+  ReasoningContentPart,
+  TextContentPart,
+} from "../../types/AssistantTypes";
 import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
 import { useSmoothStatusStore } from "./SmoothContext";
 import { writableStore } from "../../context/ReadonlyStore";
@@ -67,9 +71,9 @@ const SMOOTH_STATUS: ContentPartStatus = Object.freeze({
 });
 
 export const useSmooth = (
-  state: ContentPartState & TextContentPart,
+  state: ContentPartState & (TextContentPart | ReasoningContentPart),
   smooth: boolean = false,
-): ContentPartState & TextContentPart => {
+): ContentPartState & (TextContentPart | ReasoningContentPart) => {
   const { text } = state;
   const id = useMessage({
     optional: true,
