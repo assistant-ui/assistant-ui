@@ -8,7 +8,7 @@ export const useContentPartText = () => {
   const text = useContentPart((c) => {
     if (c.type !== "text" && c.type !== "reasoning")
       throw new Error(
-        "ContentPartText can only be used inside text content parts.",
+        "ContentPartText can only be used inside text or reasoning content parts.",
       );
 
     return c as ContentPartState & TextContentPart;
