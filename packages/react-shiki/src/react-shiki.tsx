@@ -9,7 +9,6 @@ type ExtendedSyntaxHighlighterProps = SyntaxHighlighterProps & {
   className?: string;
 };
 
-// TODO: Figure out why addDefaultStyles is still showing up in autocomplete for ShikiOptions. Maybe types didn't update after omitting it?
 type ShikiConfig = Omit<
   ShikiHighlighterProps,
   "language" | "children" | "addDefaultStyles"

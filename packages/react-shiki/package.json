@@ -24,11 +24,12 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts --sourcemap --clean"
+    "build": "tsup src/index.ts --format cjs,esm --dts --sourcemap --clean",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --sourcemap --watch"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.8.17",
-    "@assistant-ui/react-markdown": "^0.8.0",
+    "@assistant-ui/react": "^0.9.1",
+    "@assistant-ui/react-markdown": "^0.9.1",
     "@types/react": "*",
     "react": "^18 || ^19 || ^19.0.0-rc",
     "react-shiki": "^0.5.0"
@@ -42,6 +43,6 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
     "@assistant-ui/tsconfig": "workspace:*",
-    "tsup": "8.3.6"
+    "tsup": "8.4.0"
   }
 }
