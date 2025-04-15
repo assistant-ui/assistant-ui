@@ -42,7 +42,7 @@ export type ToolCallContentPartProps<
   TResult = unknown,
 > = ContentPartState &
   ToolCallContentPart<TArgs, TResult> & {
-    addResult: (result: any) => void;
+    addResult: (result: TResult) => void;
   };
 
 export type ToolCallContentPartComponent<
