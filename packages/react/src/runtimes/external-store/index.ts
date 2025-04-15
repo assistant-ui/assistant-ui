@@ -1,6 +1,8 @@
 export type {
   ExternalStoreAdapter,
   ExternalStoreMessageConverter,
+  ExternalStoreThreadListAdapter,
+  ExternalStoreThreadData
 } from "./ExternalStoreAdapter";
 export type { ThreadMessageLike } from "./ThreadMessageLike";
 export { useExternalStoreRuntime } from "./useExternalStoreRuntime";
