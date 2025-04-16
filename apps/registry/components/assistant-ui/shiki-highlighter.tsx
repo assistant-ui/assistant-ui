@@ -5,8 +5,8 @@ import BaseShikiHighlighter, {
   type ShikiHighlighterProps as BaseShikiProps,
 } from "react-shiki";
 
-// Define props for our component based on Assistant UI's needs
-type ShikiHighlighterProps = Omit<BaseShikiProps, "addDefaultStyles">;
+// omit props used for internal config
+type ShikiHighlighterProps = Omit<BaseShikiProps, "addDefaultStyles" | "showLanguage">;
 
 export const ShikiHighlighter: FC<ShikiHighlighterProps> = ({
   children: code,
@@ -15,6 +15,7 @@ export const ShikiHighlighter: FC<ShikiHighlighterProps> = ({
   return (
     <BaseShikiHighlighter
       addDefaultStyles={false}
+      showLanguage={false}
       style={{
         margin: 0,
         width: "100%",
