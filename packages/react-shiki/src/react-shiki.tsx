@@ -11,7 +11,7 @@ type ExtendedSyntaxHighlighterProps = SyntaxHighlighterProps & {
 
 type ShikiConfig = Omit<
   ShikiHighlighterProps,
-  "language" | "children" | "addDefaultStyles"
+  "language" | "children" | "addDefaultStyles" | "showLanguage"
 >;
 
 const makeMakeShikiHighlighter =
@@ -32,6 +32,7 @@ const makeMakeShikiHighlighter =
             className,
           )}
           addDefaultStyles={false}
+          showLanguage={false}
         >
           {code}
         </BaseHighlighter>
