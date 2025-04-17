@@ -11,7 +11,6 @@ import {
   type ChatModelRunOptions,
   useLocalRuntime,
 } from "@assistant-ui/react";
-import { SpeechSynthesisAdapter } from "@assistant-ui/react";
 import { v4 as uuidv4 } from "uuid";
 
 async function* tokenByToken(str: string) {
