@@ -186,6 +186,9 @@ importers:
       tw-animate-css:
         specifier: ^1.0.7
         version: 1.2.5
+      uuid:
+        specifier: ^11.1.0
+        version: 11.1.0
       zod:
         specifier: ^3.24.2
         version: 3.24.2
