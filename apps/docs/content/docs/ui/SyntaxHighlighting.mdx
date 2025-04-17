@@ -1,0 +1,101 @@
+---
+title: Syntax Highlighting
+---
+
+import { Steps, Step } from "fumadocs-ui/components/steps";
+import { Callout } from "fumadocs-ui/components/callout";
+
+`assistant-ui` offers two ways to add syntax highlighting to your markdown: 
+
+- **react-shiki** (recommended for performance & dynamic language support)  
+- **react-syntax-highlighter** (legacy - Prism or Highlight.js based)
+
+---
+
+## react‑shiki
+
+<Steps>
+  <Step>
+
+#### Add the shiki‑highlighter component
+
+```bash
+npx shadcn@latest add "https://r.assistant-ui.com/shiki-highlighter"
+```
+
+Generates `/components/assistant-ui/shiki-highlighter.tsx` which uses [`react-shiki`](https://github.com/avgvstvs96/react-shiki).
+
+  </Step>
+  <Step>
+
+#### Add it to `defaultComponents` in `markdown-text.tsx`
+
+```tsx title="/components/assistant-ui/markdown-text.tsx"
+import { SyntaxHighlighter } from "./shiki-highlighter";
+
+export const defaultComponents = memoizeMarkdownComponents({
+  SyntaxHighlighter,
+  h1: /* ... */,
+  // ...other elements...
+});
+```
+
+  </Step>
+  <Step>
+
+#### Customize your Shiki highlighter
+
+<Callout>
+**ShikiHighlighter props**  
+- `theme` (string): Shiki theme name (default: `"vitesse-dark"`)  
+- `language` (string): the language for highlighting
+- _All other props from_ [`react-shiki`](https://github.com/shikijs/react-shiki#props)
+</Callout>
+
+  </Step>
+</Steps>
+
+---
+
+## react‑syntax‑highlighter (legacy)
+
+<Steps>
+  <Step>
+
+#### Add the syntax‑highlighter component
+
+```bash
+npx shadcn@latest add "https://r.assistant-ui.com/syntax-highlighter"
+```
+
+Generates `/components/assistant-ui/syntax-highlighter.tsx`, which uses `react-syntax-highlighter`.
+
+  </Step>
+  <Step>
+
+#### Add it to `defaultComponents` in `markdown-text.tsx`
+
+```tsx title="/components/assistant-ui/markdown-text.tsx"
+import { SyntaxHighlighter } from "./syntax-highlighter";
+
+export const defaultComponents = memoizeMarkdownComponents({
+  SyntaxHighlighter,
+  h1: /* ... */,
+  // ...other elements...
+});
+```
+
+  </Step>
+  <Step>
+
+#### Customize your Prism or Highlight.js highlighter
+
+<Callout>
+**SyntaxHighlighter props**  
+- `style` (object): Prism theme (e.g., `coldarkDark`) or Highlight.js theme object
+- `customStyle` (CSSProperties): inline styles for `<pre>`
+- _All props supported by_ [`react-syntax-highlighter`](https://github.com/react-syntax-highlighter/react-syntax-highlighter#props)  
+</Callout>
+
+  </Step>
+</Steps>
