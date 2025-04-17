@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { EditIcon } from "lucide-react";
 import { getMDXComponents } from "@/mdx-components";
+import { MyRuntimeProvider } from "@/app/(home)/MyRuntimeProvider";
 
 export default async function Page(props: {
   params: Promise<{ slug?: string[] }>;
@@ -39,16 +40,18 @@ export default async function Page(props: {
   );
 
   return (
-    <DocsPage
-      toc={page.data.toc}
-      full={page.data.full ?? false}
-      tableOfContent={{ footer }}
+      <DocsPage
+        toc={page.data.toc}
+        full={page.data.full ?? false}
+        tableOfContent={{ footer }}
     >
       <DocsBody>
         <h1>{page.data.title}</h1>
-        <page.data.body components={mdxComponents} />
-      </DocsBody>
-    </DocsPage>
+        <MyRuntimeProvider>
+          <page.data.body components={mdxComponents} />
+        </MyRuntimeProvider>
+        </DocsBody>
+      </DocsPage>
   );
 }
 
