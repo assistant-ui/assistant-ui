@@ -1,32 +1,37 @@
 "use client";
 
 import { FC } from "react";
-import ShikiHighlighter, { type ShikiHighlighterProps as BaseShikiProps } from "react-shiki";
-// import type { SyntaxHighlighterProps } from "@assistant-ui/react-markdown";
+import ShikiHighlighter, { type ShikiHighlighterProps } from "react-shiki";
+import type { SyntaxHighlighterProps as AUIProps } from "@assistant-ui/react-markdown";
 
-type ShikiSyntaxHighlighterProps = Omit<
-  BaseShikiProps,
-  "addDefaultStyles" | "showLanguage" | "children" | "theme"
-> & { code: string };
+export type ShikiSyntaxHighlighterProps = Omit<
+  ShikiHighlighterProps,
+  "children"
+> &
+  Pick<AUIProps, "node" | "components" | "language" | "code">;
 
-// Higher order component solves initialization issue
-export const SyntaxHighlighter: FC<ShikiSyntaxHighlighterProps> = (props) => {
-  return <SH {...props} />;
-};
-
-const SH: FC<ShikiSyntaxHighlighterProps> = ({
-  language,
+export const SyntaxHighlighter: FC<ShikiSyntaxHighlighterProps> = ({
   code,
+  language,
+  node,
+  components: _ignored,
+  theme = "vitesse-dark",
+  addDefaultStyles = false,
+  showLanguage = false,
+  ...shikiProps
 }) => {
   return (
     <ShikiHighlighter
+      {...shikiProps}
       language={language}
-      theme="andromeeda"
-      className="[&_pre]:px-4 [&_pre]:py-2 [&_pre]:overflow-x-auto [&_pre]:rounded-b-lg [&_pre]:bg-black [&_pre]:p-4 [&_pre]:text-white"
-      addDefaultStyles={false}
-      showLanguage={false}
+      theme={theme}
+      addDefaultStyles={addDefaultStyles}
+      showLanguage={showLanguage}
+      className="[&_pre]:overflow-x-auto [&_pre]:rounded-b-lg [&_pre]:bg-black [&_pre]:p-4 [&_pre]:text-white"
     >
       {code}
     </ShikiHighlighter>
   );
 };
+
+SyntaxHighlighter.displayName = "SyntaxHighlighter";
