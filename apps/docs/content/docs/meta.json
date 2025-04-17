@@ -2,7 +2,10 @@
   "title": "mdx",
   "root": true,
   "pages": [
+    "---Introduction---",
+    "about-assistantui",
     "getting-started",
+    "architecture",
     "---Guides---",
     "...guides",
     "---Copilots---",
