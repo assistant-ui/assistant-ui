@@ -4,25 +4,24 @@ import { FC } from "react";
 import ShikiHighlighter, { type ShikiHighlighterProps } from "react-shiki";
 import type { SyntaxHighlighterProps as AUIProps } from "@assistant-ui/react-markdown";
 
-export type ShikiSyntaxHighlighterProps = Omit<
+export type HighlighterProps = Omit<
   ShikiHighlighterProps,
-  "children"
-> &
-  Pick<AUIProps, "node" | "components" | "language" | "code">;
+  "children" | "theme"
+> & {
+  theme?: ShikiHighlighterProps["theme"];
+} & Pick<AUIProps, "node" | "components" | "language" | "code">;
 
-export const SyntaxHighlighter: FC<ShikiSyntaxHighlighterProps> = ({
+export const SyntaxHighlighter: FC<HighlighterProps> = ({
   code,
   language,
-  node,
-  components: _ignored,
   theme = "vitesse-dark",
   addDefaultStyles = false,
   showLanguage = false,
-  ...shikiProps
+  ...props
 }) => {
   return (
     <ShikiHighlighter
-      {...shikiProps}
+      {...props}
       language={language}
       theme={theme}
       addDefaultStyles={addDefaultStyles}
