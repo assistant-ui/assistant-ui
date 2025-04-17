@@ -1,5 +1,16 @@
 # @assistant-ui/react
 
+## 0.9.2
+
+### Patch Changes
+
+- 553bdff: feat: early return ChatModelAdapter.run on cancellation
+- c0c9422: feat: useToolArgsFieldStatus
+- 675fb20: feat: export types from `external-store`
+- 4e86ab4: fix: should allow sending assistant messages from the composer
+- e893985: fix: allow useContentPartText on reasoning parts
+- 0500584: fix: make addResult typesafe
+
 ## 0.9.1
 
 ### Patch Changes
