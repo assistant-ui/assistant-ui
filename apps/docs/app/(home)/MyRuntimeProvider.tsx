@@ -4,12 +4,15 @@ import {
   SimpleImageAttachmentAdapter,
   SimpleTextAttachmentAdapter,
   AssistantRuntimeProvider,
+  WebSpeechSynthesisAdapter,
 } from "@assistant-ui/react";
 import {
   type ChatModelAdapter,
   type ChatModelRunOptions,
   useLocalRuntime,
 } from "@assistant-ui/react";
+import { SpeechSynthesisAdapter } from "@assistant-ui/react";
+import { v4 as uuidv4 } from "uuid";
 
 async function* tokenByToken(str: string) {
   for (const token of str.split(" ")) {
@@ -24,7 +27,9 @@ class DummyChatAdapter implements ChatModelAdapter {
   async *run({ messages }: ChatModelRunOptions) {
     const text =
       messages.length === 1
-        ? "This is a mocked chat endpoint for testing purposes. \n\n" +
+        ? "This is a mocked chat endpoint for testing purposes. Unique Message ID: " +
+          uuidv4() +
+          "\n\n" +
           LOREM_IPSUM
         : LOREM_IPSUM;
     let output = "";
@@ -51,6 +56,7 @@ export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
         new SimpleImageAttachmentAdapter(),
         new SimpleTextAttachmentAdapter(),
       ]),
+      speech: new WebSpeechSynthesisAdapter(),
       feedback: {
         submit: ({ message, type }) => {
           console.log({ message, type });
