@@ -53,7 +53,7 @@ export const Thread: FC = () => {
           <Composer />
           <a
             href="https://entelligence.ai/assistant-ui&assistant-ui?ref=assistant-ui"
-            className="mt-2 flex self-center justify-center gap-1 text-xs opacity-25"
+            className="mt-2 flex justify-center gap-1 self-center text-xs opacity-25"
           >
             In partnership with{" "}
             <Image
