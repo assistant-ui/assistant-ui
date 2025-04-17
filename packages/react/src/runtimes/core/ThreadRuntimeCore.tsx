@@ -1,5 +1,15 @@
-import { ModelContext } from "../../model-context";
-import { AppendMessage, ThreadMessage } from "../../types";
+import { z } from "zod";
+import {
+  AssistantTool,
+  makeAssistantToolUI,
+  ModelContext,
+  useAssistantTool,
+} from "../../model-context";
+import {
+  AppendMessage,
+  ThreadMessage,
+  ToolCallContentPartComponent,
+} from "../../types";
 import { RunConfig } from "../../types/AssistantTypes";
 import type { Unsubscribe } from "../../types/Unsubscribe";
 import { SpeechSynthesisAdapter } from "../adapters/speech/SpeechAdapterTypes";
@@ -9,6 +19,7 @@ import {
   ComposerRuntimeCore,
   ThreadComposerRuntimeCore,
 } from "./ComposerRuntimeCore";
+import { Vercel_AI_SDK_Tool } from "@assistant-ui/react/types/vercel";
 
 export type RuntimeCapabilities = {
   readonly switchToBranch: boolean;
@@ -115,3 +126,85 @@ export type ThreadRuntimeCore = Readonly<{
 
   unstable_on(event: ThreadRuntimeEventType, callback: () => void): Unsubscribe;
 }>;
+
+// TODO: Add langchain / langgraph support.
+// type LangChainToolShim = {}
+
+export type ToolName = string;
+export type AssistantUITools = Record<ToolName, Vercel_AI_SDK_Tool<any, any>>;
+
+type InternalMakeAssistantToolArgs<TResult> = {
+  toolName: string;
+  parameters: z.ZodTypeAny;
+  // execute: (a: Vercel_AI_SDK_inferParameters<z.ZodTypeAny>) => TResult;
+};
+
+export const _internal_makeAssistantTool = <
+  TResult,
+  TArgs extends InternalMakeAssistantToolArgs<TResult>,
+>(
+  tool: TArgs,
+) => {
+  const Tool: AssistantTool = () => {
+    useAssistantTool({
+      toolName: tool.toolName,
+      parameters: tool.parameters,
+      // execute: tool.execute,
+    });
+    return null;
+  };
+  Tool.unstable_tool = tool;
+  return Tool;
+};
+
+type CustomReturnType<T> = T extends (...args: any[]) => infer R ? R : never;
+
+export const assistantUIToolBox = <T extends AssistantUITools>() => {
+  type ToolBox<T extends AssistantUITools> = {
+    [K in keyof T]: {
+      defineToolUI: <A>(a: {
+        // TODO: Add support for client side tool execution
+        // execute?: T[K]["execute"] extends undefined
+        //   ? (a: Vercel_AI_SDK_inferParameters<T[K]["parameters"]>) => A
+        //   : never;
+        render?: ToolCallContentPartComponent<
+          T[K]["execute"] extends undefined
+            ? Awaited<A>
+            : Awaited<CustomReturnType<T[K]["execute"]>> extends undefined
+              ? Awaited<A>
+              : Awaited<CustomReturnType<T[K]["execute"]>>,
+          T[K]["execute"] extends undefined
+            ? Awaited<A>
+            : Awaited<CustomReturnType<T[K]["execute"]>> extends undefined
+              ? Awaited<A>
+              : Awaited<CustomReturnType<T[K]["execute"]>>
+        >;
+      }) => ReturnType<typeof makeAssistantToolUI>;
+    };
+  };
+
+  return new Proxy({} as ToolBox<T>, {
+    get: (_, prop) => {
+      if (typeof prop !== "string") {
+        throw new Error("Invalid tool name");
+      }
+      return {
+        defineToolUI: (a) => {
+          if (a.render) {
+            return makeAssistantToolUI({
+              toolName: prop,
+              // ...(a.execute ? { execute: a.execute } : {}),
+              render: a.render,
+            });
+          } else {
+            return _internal_makeAssistantTool({
+              toolName: prop,
+              parameters: z.any(),
+              // execute: a.execute,
+            });
+          }
+        },
+      } as ToolBox<T>[typeof prop];
+    },
+  });
+};
