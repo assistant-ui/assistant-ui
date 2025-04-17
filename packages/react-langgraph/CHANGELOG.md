@@ -1,5 +1,18 @@
 # @assistant-ui/react-langgraph
 
+## 0.4.2
+
+### Patch Changes
+
+- c0c9422: feat: useToolArgsFieldStatus
+- Updated dependencies [553bdff]
+- Updated dependencies [c0c9422]
+- Updated dependencies [675fb20]
+- Updated dependencies [4e86ab4]
+- Updated dependencies [e893985]
+- Updated dependencies [0500584]
+  - @assistant-ui/react@0.9.2
+
 ## 0.4.1
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.1.3
+
+### Patch Changes
+
+- c0c9422: feat: useToolArgsFieldStatus
+
 ## 0.1.2
 
 ### Patch Changes
