@@ -78,7 +78,7 @@ export const fromThreadMessageLike = (
       ? [{ type: "text" as const, text: like.content }]
       : like.content;
 
-  if (role !== "user" && attachments)
+  if (role !== "user" && attachments?.length)
     throw new Error("attachments are only supported for user messages");
 
   if (role !== "assistant" && status)
