@@ -6,7 +6,6 @@ import {
 } from "../assistant-ui/attachment";
 import {
   ActionBarPrimitive,
-  BranchPickerPrimitive,
   ComposerPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
