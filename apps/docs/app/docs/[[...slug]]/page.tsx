@@ -40,18 +40,18 @@ export default async function Page(props: {
   );
 
   return (
-      <DocsPage
-        toc={page.data.toc}
-        full={page.data.full ?? false}
-        tableOfContent={{ footer }}
+    <DocsPage
+      toc={page.data.toc}
+      full={page.data.full ?? false}
+      tableOfContent={{ footer }}
     >
       <DocsBody>
         <h1>{page.data.title}</h1>
         <MyRuntimeProvider>
           <page.data.body components={mdxComponents} />
         </MyRuntimeProvider>
-        </DocsBody>
-      </DocsPage>
+      </DocsBody>
+    </DocsPage>
   );
 }
 

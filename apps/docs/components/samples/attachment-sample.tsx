@@ -1,5 +1,8 @@
 "use client";
-import { ComposerAddAttachment, ComposerAttachments } from "../assistant-ui/attachment";
+import {
+  ComposerAddAttachment,
+  ComposerAttachments,
+} from "../assistant-ui/attachment";
 import { ComposerPrimitive, ThreadPrimitive } from "@assistant-ui/react";
 import { SampleFrame } from "./sample-frame";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
@@ -45,7 +48,6 @@ const ThreadScrollToBottom: FC = () => {
     </ThreadPrimitive.ScrollToBottom>
   );
 };
-
 
 const Composer: FC = () => {
   return (

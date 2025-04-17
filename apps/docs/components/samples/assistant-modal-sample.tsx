@@ -22,9 +22,7 @@ export const AssistantModalSample = () => {
 export const AssistantModal: FC = () => {
   return (
     <AssistantModalPrimitive.Root>
-      <AssistantModalPrimitive.Anchor 
-        className="absolute bottom-4 right-4 size-11"      
-      >
+      <AssistantModalPrimitive.Anchor className="absolute bottom-4 right-4 size-11">
         <AssistantModalPrimitive.Trigger asChild>
           <AssistantModalButton />
         </AssistantModalPrimitive.Trigger>
