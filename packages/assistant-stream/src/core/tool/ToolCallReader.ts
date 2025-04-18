@@ -10,7 +10,7 @@ import {
 } from "./tool-types";
 import { TypeAtPath, TypePath } from "./type-path-utils";
 
-// TODO: remove dispose; emit initial value on handle init
+// TODO: remove dispose
 
 function getField<T>(obj: T, fieldPath: (string | number)[]): any {
   let current: any = obj;
@@ -76,6 +76,50 @@ class StreamValuesHandle<T> implements Handle {
   private controller: ReadableStreamDefaultController<any>;
   private disposed = false;
   private fieldPath: (string | number)[];
+
+  constructor(
+    controller: ReadableStreamDefaultController<any>,
+    fieldPath: (string | number)[],
+  ) {
+    this.controller = controller;
+    this.fieldPath = fieldPath;
+  }
+
+  update(args: unknown): void {
+    if (this.disposed) return;
+
+    try {
+      const value = getField(args as T, this.fieldPath);
+
+      if (value !== undefined) {
+        this.controller.enqueue(value);
+      }
+
+      // Check if the field is complete, if so close the stream
+      if (
+        getPartialJsonObjectFieldState(
+          args as Record<string, unknown>,
+          this.fieldPath,
+        ) === "complete"
+      ) {
+        this.controller.close();
+        this.dispose();
+      }
+    } catch (e) {
+      this.controller.error(e);
+      this.dispose();
+    }
+  }
+
+  dispose(): void {
+    this.disposed = true;
+  }
+}
+
+class StreamTextHandle<T> implements Handle {
+  private controller: ReadableStreamDefaultController<any>;
+  private disposed = false;
+  private fieldPath: (string | number)[];
   private lastValue: any = undefined;
 
   constructor(
@@ -92,13 +136,10 @@ class StreamValuesHandle<T> implements Handle {
     try {
       const value = getField(args as T, this.fieldPath);
 
-      // Only emit if the value is defined and different from the last emitted value
-      if (
-        value !== undefined &&
-        JSON.stringify(value) !== JSON.stringify(this.lastValue)
-      ) {
+      if (value !== undefined && typeof value === "string") {
+        const delta = value.substring(this.lastValue?.length || 0);
         this.lastValue = value;
-        this.controller.enqueue(value);
+        this.controller.enqueue(delta);
       }
 
       // Check if the field is complete, if so close the stream
@@ -108,14 +149,6 @@ class StreamValuesHandle<T> implements Handle {
           this.fieldPath,
         ) === "complete"
       ) {
-        // Ensure we make a final emit if needed
-        if (
-          value !== undefined &&
-          JSON.stringify(value) !== JSON.stringify(this.lastValue)
-        ) {
-          this.controller.enqueue(value);
-        }
-
         this.controller.close();
         this.dispose();
       }
@@ -291,7 +324,7 @@ export class ToolCallArgsReaderImpl<T> implements ToolCallArgsReader<T> {
 
     const stream = new ReadableStream<any>({
       start: (controller) => {
-        const handle = new StreamValuesHandle<T>(controller, simplePath);
+        const handle = new StreamTextHandle<T>(controller, simplePath);
         this.handles.add(handle);
 
         // Check current args immediately
@@ -300,7 +333,7 @@ export class ToolCallArgsReaderImpl<T> implements ToolCallArgsReader<T> {
       cancel: () => {
         // Find and dispose the corresponding handle
         for (const handle of this.handles) {
-          if (handle instanceof StreamValuesHandle) {
+          if (handle instanceof StreamTextHandle) {
             handle.dispose();
             this.handles.delete(handle);
             break;

@@ -80,7 +80,7 @@ export type ToolExecuteFunction<TArgs, TResult> = (
 export type ToolStreamCallFunction<TArgs, TResult> = (
   reader: ToolCallReader<TArgs, TResult>,
   context: ToolExecutionContext,
-) => TResult | Promise<TResult>;
+) => void;
 
 type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<
   unknown,
