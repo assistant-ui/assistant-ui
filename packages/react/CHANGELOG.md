@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.9.3
+
+### Patch Changes
+
+- 62c2af7: feat: tool.streamCall API
+- b9c731a: chore: update dependencies
+
 ## 0.9.2
 
 ### Patch Changes

@@ -1,5 +1,12 @@
 # assistant-stream
 
+## 0.1.4
+
+### Patch Changes
+
+- 62c2af7: feat: tool.streamCall API
+- b9c731a: chore: update dependencies
+
 ## 0.1.3
 
 ### Patch Changes
