@@ -17,8 +17,9 @@ import { generateId } from "../utils/generateId";
 import {
   ReadonlyJSONObject,
   ReadonlyJSONValue,
-} from "../utils/json/json-value";
-import { ToolResponseInit } from "../ToolResponse";
+} from "../../utils/json/json-value";
+import { ToolResponseInit } from "../tool/ToolResponse";
+import { promiseWithResolvers } from "../../utils/promiseWithResolvers";
 
 type ToolCallPartInit = {
   toolCallId?: string;
@@ -237,17 +238,6 @@ export function createAssistantStream(
 
   return controller.__internal_getReadable();
 }
-
-const promiseWithResolvers = function <T>() {
-  let resolve: ((value: T | PromiseLike<T>) => void) | undefined;
-  let reject: ((reason?: unknown) => void) | undefined;
-  const promise = new Promise<T>((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
-  if (!resolve || !reject) throw new Error("Failed to create promise");
-  return { promise, resolve, reject };
-};
 
 export function createAssistantStreamController() {
   const { resolve, promise } = promiseWithResolvers<void>();

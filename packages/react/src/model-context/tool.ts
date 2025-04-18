@@ -1,5 +1,5 @@
 import { Schema, z } from "zod";
-import { Tool } from "./ModelContextTypes";
+import { Tool } from "assistant-stream";
 
 export type inferParameters<PARAMETERS extends Tool<any, any>["parameters"]> =
   PARAMETERS extends Schema<any>

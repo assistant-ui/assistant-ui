@@ -1,25 +1,16 @@
 import { AssistantStreamChunk } from "../../AssistantStreamChunk";
+import { promiseWithResolvers } from "../../../utils/promiseWithResolvers";
 
 type MergeStreamItem = {
   reader: ReadableStreamDefaultReader<AssistantStreamChunk>;
   promise?: Promise<unknown> | undefined;
 };
 
-const promiseWithResolvers = () => {
-  let resolve: () => void;
-  let reject: (reason?: any) => void;
-  const promise = new Promise<void>((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
-  return { promise, resolve: resolve!, reject: reject! };
-};
-
 export const createMergeStream = () => {
   const list: MergeStreamItem[] = [];
   let sealed = false;
   let controller: ReadableStreamDefaultController<AssistantStreamChunk>;
-  let currentPull: ReturnType<typeof promiseWithResolvers> | undefined;
+  let currentPull: ReturnType<typeof promiseWithResolvers<void>> | undefined;
 
   const handlePull = (item: MergeStreamItem) => {
     if (!item.promise) {

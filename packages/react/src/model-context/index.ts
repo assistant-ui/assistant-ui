@@ -22,8 +22,9 @@ export type {
   ModelContextProvider as AssistantConfigProvider,
   ModelContext,
   ModelContextProvider,
-  Tool,
 } from "./ModelContextTypes";
+
+export type { Tool } from "assistant-stream";
 
 export { tool } from "./tool";
 

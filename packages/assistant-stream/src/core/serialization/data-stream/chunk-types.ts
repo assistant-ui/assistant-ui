@@ -1,7 +1,7 @@
 import {
   ReadonlyJSONObject,
   ReadonlyJSONValue,
-} from "../../utils/json/json-value";
+} from "../../../utils/json/json-value";
 
 export type DataStreamChunk = {
   [K in DataStreamStreamChunkType]: {

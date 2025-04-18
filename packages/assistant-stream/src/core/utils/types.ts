@@ -1,4 +1,7 @@
-import { ReadonlyJSONObject, ReadonlyJSONValue } from "./json/json-value";
+import {
+  ReadonlyJSONObject,
+  ReadonlyJSONValue,
+} from "../../utils/json/json-value";
 
 type TextStatus =
   | {

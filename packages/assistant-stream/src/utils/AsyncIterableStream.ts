@@ -17,7 +17,7 @@ async function* streamGeneratorPolyfill<T>(
 
 export function asAsyncIterableStream<T>(
   source: ReadableStream<T>,
-): AsyncIterable<T> {
+): AsyncIterableStream<T> {
   (source as AsyncIterableStream<T>)[Symbol.asyncIterator] ??=
     streamGeneratorPolyfill;
   return source as AsyncIterableStream<T>;

@@ -1,6 +1,6 @@
 import { AssistantStreamChunk } from "../AssistantStreamChunk";
 import { generateId } from "../utils/generateId";
-import { parsePartialJsonObject } from "../utils/json/parse-partial-json-object";
+import { parsePartialJsonObject } from "../../utils/json/parse-partial-json-object";
 import {
   AssistantMessage,
   AssistantMessageStatus,

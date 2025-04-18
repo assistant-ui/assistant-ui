@@ -555,6 +555,9 @@ importers:
       tw-animate-css:
         specifier: ^1.2.5
         version: 1.2.5
+      zod:
+        specifier: ^3.24.3
+        version: 3.24.3
     devDependencies:
       '@assistant-ui/tsconfig':
         specifier: workspace:*
@@ -1250,6 +1253,9 @@ importers:
 
   packages/assistant-stream:
     dependencies:
+      '@types/json-schema':
+        specifier: ^7.0.15
+        version: 7.0.15
       nanoid:
         specifier: 5.1.5
         version: 5.1.5
@@ -1260,6 +1266,9 @@ importers:
       '@assistant-ui/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@standard-schema/spec':
+        specifier: ^1.0.0
+        version: 1.0.0
       ai:
         specifier: ^4.3.9
         version: 4.3.9(react@19.0.0)(zod@3.24.3)

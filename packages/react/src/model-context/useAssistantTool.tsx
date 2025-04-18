@@ -6,7 +6,7 @@ import {
   useToolUIsStore,
 } from "../context/react/AssistantContext";
 import type { ToolCallContentPartComponent } from "../types/ContentPartComponentTypes";
-import type { Tool } from "./ModelContextTypes";
+import type { Tool } from "assistant-stream";
 
 export type AssistantToolProps<TArgs, TResult> = Tool<TArgs, TResult> & {
   toolName: string;

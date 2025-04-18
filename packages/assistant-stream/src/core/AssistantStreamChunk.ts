@@ -1,4 +1,4 @@
-import { ReadonlyJSONValue } from "./utils/json/json-value";
+import { ReadonlyJSONValue } from "../utils/json/json-value";
 
 export type PartInit =
   | {
