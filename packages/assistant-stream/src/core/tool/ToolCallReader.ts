@@ -374,8 +374,13 @@ export class ToolCallReaderImpl<TArgs, TResult>
 
   appendArgsTextDelta(text: string): void {
     const writer = this.writable.getWriter();
-    writer.write(text).catch(console.warn);
-    writer.releaseLock();
+    try {
+      await writer.write(text);
+    } catch (err) {
+      console.warn(err);
+    } finally {
+      writer.releaseLock();
+    }
 
     this.argsText += text;
   }
