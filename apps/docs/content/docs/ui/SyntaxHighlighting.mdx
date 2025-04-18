@@ -25,13 +25,15 @@ Syntax highlighting is not enabled by default.
 <Steps>
   <Step>
 
-#### Add the shiki‑highlighter component
+#### Add `shiki‑highlighter`
 
 ```bash
 npx shadcn@latest add "https://r.assistant-ui.com/shiki-highlighter"
 ```
 
-Generates `/components/assistant-ui/shiki-highlighter.tsx` which uses [`react-shiki`](https://github.com/avgvstvs96/react-shiki) and installs the `react-shiki` dependency.
+This adds a `/components/assistant-ui/shiki-highlighter.tsx` file to your project and 
+installs the `react-shiki` dependency. The highlighter can be customized by editing 
+the config in the `shiki-highlighter.tsx` file.
 
   </Step>
   <Step>
@@ -42,7 +44,7 @@ Generates `/components/assistant-ui/shiki-highlighter.tsx` which uses [`react-sh
 import { SyntaxHighlighter } from "./shiki-highlighter";
 
 export const defaultComponents = memoizeMarkdownComponents({
-  SyntaxHighlighter,
+  SyntaxHighlighter, // [!code ++]
   h1: /* ... */,
   // ...other elements...
 });
@@ -112,13 +114,13 @@ export const defaultComponents = memoizeMarkdownComponents({
 <Steps>
   <Step>
 
-#### Add the syntax-highlighter component
+#### Add `syntax-highlighter`
 
 ```bash
 npx shadcn@latest add "https://r.assistant-ui.com/syntax-highlighter"
 ```
 
-Generates `/components/assistant-ui/syntax-highlighter.tsx`, which uses `react-syntax-highlighter`.
+    Adds a `/components/assistant-ui/syntax-highlighter.tsx` file to your project and installs the `react-syntax-highlighter` dependency.
 
   </Step>
   <Step>
@@ -129,7 +131,7 @@ Generates `/components/assistant-ui/syntax-highlighter.tsx`, which uses `react-s
 import { SyntaxHighlighter } from "./syntax-highlighter";
 
 export const defaultComponents = memoizeMarkdownComponents({
-  SyntaxHighlighter,
+  SyntaxHighlighter, // [!code ++]
   h1: /* ... */,
   // ...other elements...
 });
