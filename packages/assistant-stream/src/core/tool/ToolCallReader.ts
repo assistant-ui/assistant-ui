@@ -379,10 +379,10 @@ export class ToolCallArgsReaderImpl<T> implements ToolCallArgsReader<T> {
 export class ToolCallResponseReaderImpl<TResult>
   implements ToolCallResponseReader<TResult>
 {
-  constructor(private readonly resultPromise: Promise<ToolResponse<TResult>>) {}
+  constructor(private readonly promise: Promise<ToolResponse<TResult>>) {}
 
   public get() {
-    return this.resultPromise;
+    return this.promise;
   }
 }
 

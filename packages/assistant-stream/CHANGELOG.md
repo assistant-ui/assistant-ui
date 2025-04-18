@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.1.5
+
+### Patch Changes
+
+- 2e4a7c1: fix: correctly forward tool result from data stream
+
 ## 0.1.4
 
 ### Patch Changes
