@@ -1,7 +1,7 @@
 import { AssistantStream } from "../AssistantStream";
 import { AssistantStreamChunk } from "../AssistantStreamChunk";
-import { ToolResponseInit } from "../ToolResponse";
-import { ReadonlyJSONValue } from "../utils/json/json-value";
+import { ToolResponseInit } from "../tool/ToolResponse";
+import { ReadonlyJSONValue } from "../../utils/json/json-value";
 import { UnderlyingReadable } from "../utils/stream/UnderlyingReadable";
 import { createTextStream, TextStreamController } from "./text";
 

@@ -6,12 +6,11 @@ import {
   CreateEdgeRuntimeAPIOptions,
   getEdgeRuntimeStream,
 } from "../edge/createEdgeRuntimeAPI";
-import { AssistantMessageAccumulator } from "assistant-stream";
 import {
-  ChatModelAdapter,
-  ChatModelRunOptions,
+  AssistantMessageAccumulator,
   unstable_toolResultStream,
-} from "@assistant-ui/react";
+} from "assistant-stream";
+import { ChatModelAdapter, ChatModelRunOptions } from "@assistant-ui/react";
 
 export type DangerousInBrowserAdapterOptions = CreateEdgeRuntimeAPIOptions;
 

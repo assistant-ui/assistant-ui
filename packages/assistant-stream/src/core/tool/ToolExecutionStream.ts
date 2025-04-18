@@ -5,9 +5,11 @@ import {
   AssistantMetaTransformStream,
 } from "../utils/stream/AssistantMetaTransformStream";
 import { PipeableTransformStream } from "../utils/stream/PipeableTransformStream";
-import { ReadonlyJSONValue } from "../utils/json/json-value";
-import { ToolResponse } from "../ToolResponse";
+import { ReadonlyJSONValue } from "../../utils/json/json-value";
+import { ToolResponse } from "./ToolResponse";
 import { withPromiseOrValue } from "../utils/withPromiseOrValue";
+import { ToolCallReaderImpl } from "./ToolCallReader";
+import { ToolCallReader } from "./tool-types";
 
 type ToolCallback = (toolCall: {
   toolCallId: string;
@@ -18,13 +20,28 @@ type ToolCallback = (toolCall: {
   | ToolResponse<ReadonlyJSONValue>
   | undefined;
 
+type ToolStreamCallback = <TArgs, TResult>(toolCall: {
+  reader: ToolCallReader<TArgs, TResult>;
+  toolCallId: string;
+  toolName: string;
+}) => void;
+
+type ToolExecutionOptions = {
+  execute: ToolCallback;
+  streamCall: ToolStreamCallback;
+};
+
 export class ToolExecutionStream extends PipeableTransformStream<
   AssistantStreamChunk,
   AssistantStreamChunk
 > {
-  constructor(toolCallback: ToolCallback) {
+  constructor(options: ToolExecutionOptions) {
     const toolCallPromises = new Map<string, PromiseLike<void>>();
-    const toolCallArgsText: Record<string, string> = {};
+    const toolCallControllers = new Map<
+      string,
+      ToolCallReaderImpl<unknown, unknown>
+    >();
+
     super((readable) => {
       const transform = new TransformStream<
         AssistantMetaStreamChunk,
@@ -39,14 +56,26 @@ export class ToolExecutionStream extends PipeableTransformStream<
           const type = chunk.type;
 
           switch (type) {
+            case "part-start":
+              if (chunk.part.type === "tool-call") {
+                const reader = new ToolCallReaderImpl<unknown, unknown>();
+                toolCallControllers.set(chunk.part.toolCallId, reader);
+
+                options.streamCall({
+                  reader,
+                  toolCallId: chunk.part.toolCallId,
+                  toolName: chunk.part.toolName,
+                });
+              }
+              break;
             case "text-delta": {
               if (chunk.meta.type === "tool-call") {
                 const toolCallId = chunk.meta.toolCallId;
-                if (toolCallArgsText[toolCallId] === undefined) {
-                  toolCallArgsText[toolCallId] = chunk.textDelta;
-                } else {
-                  toolCallArgsText[toolCallId] += chunk.textDelta;
-                }
+
+                const controller = toolCallControllers.get(toolCallId);
+                if (!controller)
+                  throw new Error("No controller found for tool call");
+                controller.appendArgsTextDelta(chunk.textDelta);
               }
               break;
             }
@@ -54,29 +83,28 @@ export class ToolExecutionStream extends PipeableTransformStream<
               if (chunk.meta.type !== "tool-call") break;
 
               const { toolCallId, toolName } = chunk.meta;
-              const argsText = toolCallArgsText[toolCallId];
-
               const promise = withPromiseOrValue(
                 () => {
-                  if (!argsText) {
+                  const controller = toolCallControllers.get(toolCallId);
+                  if (!controller) {
                     console.log(
-                      "Encountered tool call without argsText, this should never happen",
+                      "Encountered tool call without controller, this should never happen",
                     );
                     throw new Error(
-                      "Encountered tool call without argsText, this is unexpected.",
+                      "Encountered tool call without controller, this is unexpected.",
                     );
                   }
 
                   let args;
                   try {
-                    args = sjson.parse(argsText);
+                    args = sjson.parse(controller.argsText);
                   } catch (e) {
                     throw new Error(
                       `Function parameter parsing failed. ${JSON.stringify((e as Error).message)}`,
                     );
                   }
 
-                  return toolCallback({
+                  return options.execute({
                     toolCallId,
                     toolName,
                     args,
@@ -116,6 +144,9 @@ export class ToolExecutionStream extends PipeableTransformStream<
               const toolCallPromise = toolCallPromises.get(toolCallId);
               if (toolCallPromise) {
                 toolCallPromise.then(() => {
+                  toolCallPromises.delete(toolCallId);
+                  toolCallControllers.delete(toolCallId);
+
                   controller.enqueue(chunk);
                 });
               } else {

@@ -1,4 +1,4 @@
-import { ReadonlyJSONObject } from "../../react/src/utils/json/json-value";
+import { ReadonlyJSONObject } from "assistant-stream/utils";
 
 export type LangChainToolCallChunk = {
   index: number;

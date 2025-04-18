@@ -1,7 +1,6 @@
 import { z } from "zod";
-import type { JSONSchema7 } from "json-schema";
 import { Unsubscribe } from "../types/Unsubscribe";
-import { TypePath, TypeAtPath, DeepPartial } from "./type-path-utils";
+import { Tool } from "assistant-stream";
 
 export const LanguageModelV1CallSettingsSchema = z.object({
   maxTokens: z.number().int().positive().optional(),
@@ -24,56 +23,6 @@ export const LanguageModelConfigSchema = z.object({
 });
 
 export type LanguageModelConfig = z.infer<typeof LanguageModelConfigSchema>;
-
-type ToolExecutionContext = {
-  toolCallId: string;
-  abortSignal: AbortSignal;
-};
-
-type ReadableStreamIterator<T> = ReadableStream<T> &
-  AsyncGenerator<T, void, unknown>;
-
-interface ToolCallReader<TArgs> {
-  get<PathT extends TypePath<TArgs>>(
-    ...fieldPath: PathT
-  ): Promise<TypeAtPath<TArgs, PathT>>;
-
-  stream<PathT extends TypePath<TArgs>>(
-    ...fieldPath: PathT
-  ): ReadableStreamIterator<DeepPartial<TypeAtPath<TArgs, PathT>>>;
-
-  forEach<PathT extends TypePath<TArgs>>(
-    ...fieldPath: PathT
-  ): TypeAtPath<TArgs, PathT> extends Array<infer U>
-    ? ReadableStreamIterator<U>
-    : never;
-}
-
-export type ToolExecuteFunction<TArgs, TResult> = (
-  args: TArgs,
-  context: ToolExecutionContext,
-) => TResult | Promise<TResult>;
-
-export type ToolStreamCallFunction<TArgs, TResult> = (
-  controller: ToolCallReader<TArgs>,
-  context: ToolExecutionContext,
-) => TResult | Promise<TResult>;
-
-type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<
-  unknown,
-  TResult
->;
-
-export type Tool<TArgs = unknown, TResult = unknown> = {
-  description?: string | undefined;
-  parameters: z.ZodSchema<TArgs> | JSONSchema7;
-  execute?: ToolExecuteFunction<TArgs, TResult>;
-  /**
-   * @deprecated TODO not yet implemented
-   */
-  experimental_streamCall?: ToolStreamCallFunction<TArgs, TResult>;
-  experimental_onSchemaValidationError?: OnSchemaValidationErrorFunction<TResult>;
-};
 
 export type ModelContext = {
   priority?: number | undefined;

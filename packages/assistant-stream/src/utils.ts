@@ -1,8 +1,13 @@
 export {
   parsePartialJsonObject,
   getPartialJsonObjectFieldState,
-} from "./core/utils/json/parse-partial-json-object";
+} from "./utils/json/parse-partial-json-object";
 export {
   type AsyncIterableStream,
   asAsyncIterableStream,
-} from "./core/AsyncIterableStream";
+} from "./utils/AsyncIterableStream";
+export type {
+  ReadonlyJSONValue,
+  ReadonlyJSONArray,
+  ReadonlyJSONObject,
+} from "./utils/json/json-value";

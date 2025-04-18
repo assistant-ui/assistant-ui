@@ -93,11 +93,11 @@ const getFieldState = (
 };
 
 export const getPartialJsonObjectFieldState = (
-  args: Record<string, unknown>,
+  obj: Record<string, unknown>,
   fieldPath: (string | number)[],
 ): FieldState => {
-  const meta = getPartialJsonObjectMeta(args);
-  if (!meta) throw new Error("unable to determine args state");
+  const meta = getPartialJsonObjectMeta(obj);
+  if (!meta) throw new Error("unable to determine object state");
 
-  return getFieldState(args, meta, fieldPath.map(String));
+  return getFieldState(obj, meta, fieldPath.map(String));
 };

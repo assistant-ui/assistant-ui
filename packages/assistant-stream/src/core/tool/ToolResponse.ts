@@ -1,4 +1,4 @@
-import { ReadonlyJSONValue } from "./utils/json/json-value";
+import { ReadonlyJSONValue } from "../../utils/json/json-value";
 
 const TOOL_RESPONSE_SYMBOL = Symbol.for("aui.tool-response");
 

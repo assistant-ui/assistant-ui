@@ -2,7 +2,7 @@ import type { TextStreamPart, ObjectStreamPart, Tool } from "ai";
 import { AssistantStream } from "../core/AssistantStream";
 import { AssistantTransformStream } from "../core/utils/stream/AssistantTransformStream";
 import { ToolCallStreamController } from "../core/modules/tool-call";
-import { ReadonlyJSONValue } from "../core/utils/json/json-value";
+import { ReadonlyJSONValue } from "../utils/json/json-value";
 
 export const fromStreamText = (
   stream: ReadableStream<TextStreamPart<Record<string, Tool>>>,

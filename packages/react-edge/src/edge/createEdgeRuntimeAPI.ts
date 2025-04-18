@@ -8,13 +8,13 @@ import {
 import { EdgeRuntimeRequestOptionsSchema } from "./EdgeRuntimeRequestOptions";
 import { toLanguageModelMessages } from "../converters/toLanguageModelMessages";
 import { toLanguageModelTools } from "../converters/toLanguageModelTools";
-import { unstable_toolResultStream } from "@assistant-ui/react";
 import { z } from "zod";
 import {
   AssistantMessage,
   AssistantMessageAccumulator,
   AssistantStreamChunk,
   DataStreamEncoder,
+  unstable_toolResultStream,
 } from "assistant-stream";
 import { LanguageModelV1StreamDecoder } from "assistant-stream/ai-sdk";
 import { ThreadMessage, Tool } from "@assistant-ui/react";

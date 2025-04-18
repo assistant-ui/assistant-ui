@@ -11,6 +11,7 @@ export async function POST(req: Request) {
     model: openai("gpt-4o"),
     messages,
     // forward system prompt and tools from the frontend
+    toolCallStreaming: true,
     system,
     tools:
       tools &&

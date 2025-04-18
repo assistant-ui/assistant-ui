@@ -7,7 +7,6 @@ import {
   ChatModelRunOptions,
   ThreadMessage,
   Tool,
-  unstable_toolResultStream,
 } from "@assistant-ui/react";
 import { z } from "zod";
 import zodToJsonSchema from "zod-to-json-schema";
@@ -15,6 +14,7 @@ import { JSONSchema7 } from "json-schema";
 import {
   AssistantMessageAccumulator,
   DataStreamDecoder,
+  unstable_toolResultStream,
 } from "assistant-stream";
 import { asAsyncIterableStream } from "assistant-stream/utils";
 
