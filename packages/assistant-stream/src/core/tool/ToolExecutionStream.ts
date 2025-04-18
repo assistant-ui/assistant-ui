@@ -83,21 +83,24 @@ export class ToolExecutionStream extends PipeableTransformStream<
               if (chunk.meta.type !== "tool-call") break;
 
               const { toolCallId, toolName } = chunk.meta;
+              const streamController = toolCallControllers.get(toolCallId)!;
+              if (!streamController)
+                throw new Error("No controller found for tool call");
+
               const promise = withPromiseOrValue(
                 () => {
-                  const controller = toolCallControllers.get(toolCallId);
-                  if (!controller) {
+                  if (!streamController.argsText) {
                     console.log(
-                      "Encountered tool call without controller, this should never happen",
+                      "Encountered tool call without args, this should never happen",
                     );
                     throw new Error(
-                      "Encountered tool call without controller, this is unexpected.",
+                      "Encountered tool call without args, this is unexpected.",
                     );
                   }
 
                   let args;
                   try {
-                    args = sjson.parse(controller.argsText);
+                    args = sjson.parse(streamController.argsText);
                   } catch (e) {
                     throw new Error(
                       `Function parameter parsing failed. ${JSON.stringify((e as Error).message)}`,
@@ -114,20 +117,29 @@ export class ToolExecutionStream extends PipeableTransformStream<
                   if (c === undefined) return;
 
                   // TODO how to handle new ToolResult({ result: undefined })?
-                  controller.enqueue({
-                    type: "result",
-                    path: chunk.path,
+                  const result = new ToolResponse({
                     artifact: c.artifact,
                     result: c.result,
                     isError: c.isError,
                   });
-                },
-                (e) => {
+                  streamController.setResponse(result);
                   controller.enqueue({
                     type: "result",
                     path: chunk.path,
+                    ...result,
+                  });
+                },
+                (e) => {
+                  const result = new ToolResponse({
                     result: String(e),
                     isError: true,
+                  });
+
+                  streamController.setResponse(result);
+                  controller.enqueue({
+                    type: "result",
+                    path: chunk.path,
+                    ...result,
                   });
                 },
               );

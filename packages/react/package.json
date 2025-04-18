@@ -68,7 +68,7 @@
     "@radix-ui/react-slot": "^1.2.0",
     "@radix-ui/react-use-callback-ref": "^1.1.1",
     "@radix-ui/react-use-escape-keydown": "^1.1.1",
-    "assistant-stream": "^0.1.4",
+    "assistant-stream": "^0.1.5",
     "nanoid": "5.1.5",
     "react-textarea-autosize": "^8.5.9",
     "zod": "^3.24.3",
