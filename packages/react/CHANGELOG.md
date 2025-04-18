@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.9.4
+
+### Patch Changes
+
+- c77ef43: feat: assistant-ui update CLI command
+
 ## 0.9.3
 
 ### Patch Changes
