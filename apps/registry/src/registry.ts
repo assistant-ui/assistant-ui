@@ -184,9 +184,6 @@ export const registry: RegistryItem[] = [
         path: "components/assistant-ui/shiki-highlighter.tsx",
       },
     ],
-    dependencies: [
-      "react-shiki",
-      "@assistant-ui/react-markdown"
-    ],
+    dependencies: ["react-shiki"],
   },
 ];
