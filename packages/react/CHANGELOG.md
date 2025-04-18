@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.9.5
+
+### Patch Changes
+
+- chore: bump assistant-stream dependency
+- 1ad0696: feat: assistant-ui update CLI command
+
 ## 0.9.4
 
 ### Patch Changes

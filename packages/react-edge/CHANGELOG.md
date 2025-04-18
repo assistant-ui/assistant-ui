@@ -1,5 +1,14 @@
 # @assistant-ui/react-edge
 
+## 0.1.4
+
+### Patch Changes
+
+- chore: bump assistant-stream dependency
+- Updated dependencies
+- Updated dependencies [1ad0696]
+  - @assistant-ui/react@0.9.5
+
 ## 0.1.3
 
 ### Patch Changes
