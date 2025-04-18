@@ -1,5 +1,14 @@
 # @assistant-ui/react-langgraph
 
+## 0.4.4
+
+### Patch Changes
+
+- chore: bump assistant-stream dependency
+- Updated dependencies
+- Updated dependencies [1ad0696]
+  - @assistant-ui/react@0.9.5
+
 ## 0.4.3
 
 ### Patch Changes
