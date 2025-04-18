@@ -4,11 +4,19 @@ title: Syntax Highlighting
 
 import { Steps, Step } from "fumadocs-ui/components/steps";
 import { Callout } from "fumadocs-ui/components/callout";
+import { TypeTable } from "fumadocs-ui/components/type-table";
 
+Syntax highlighting for code blocks in markdown.
+
+<Callout type="warn">
+Syntax highlighting is not enabled by default.
+</Callout>
+
+<Callout type="info">
 `assistant-ui` offers two ways to add syntax highlighting to your markdown: 
-
 - **react-shiki** (recommended for performance & dynamic language support)  
 - **react-syntax-highlighter** (legacy - Prism or Highlight.js based)
+</Callout>
 
 ---
 
@@ -23,7 +31,7 @@ import { Callout } from "fumadocs-ui/components/callout";
 npx shadcn@latest add "https://r.assistant-ui.com/shiki-highlighter"
 ```
 
-Generates `/components/assistant-ui/shiki-highlighter.tsx` which uses [`react-shiki`](https://github.com/avgvstvs96/react-shiki).
+Generates `/components/assistant-ui/shiki-highlighter.tsx` which uses [`react-shiki`](https://github.com/avgvstvs96/react-shiki) and installs the `react-shiki` dependency.
 
   </Step>
   <Step>
@@ -41,28 +49,70 @@ export const defaultComponents = memoizeMarkdownComponents({
 ```
 
   </Step>
-  <Step>
-
-#### Customize your Shiki highlighter
-
-<Callout>
-**ShikiHighlighter props**  
-- `theme` (string): Shiki theme name (default: `"vitesse-dark"`)  
-- `language` (string): the language for highlighting
-- _All other props from_ [`react-shiki`](https://github.com/shikijs/react-shiki#props)
-</Callout>
-
-  </Step>
 </Steps>
+
+#### Options
+
+<TypeTable
+    type={{
+        theme: {
+            description: "Shiki built-in or custom textmate theme(s)",
+            type: "string | object",
+            default: "vitesse-dark",
+            required: true,
+        },
+        language: {
+            description: "The language for highlighting",
+            type: "BundledLanguage | TextmateLanguage",
+            default: "text",
+            required: true,
+        },
+        className: {
+            description: "Custom CSS classes for the `<pre>` element",
+            type: "string",
+            default: "",
+        },
+        style: {
+            description: "Inline styles for the `ShikiHighlighter` component",
+            type: "CSSProperties",
+            default: "",
+        },
+        cssVariablePrefix: {
+            description: "Prefix of CSS variables used to store the color of the other theme",
+            type: "string",
+            default: "--shiki-",
+        },
+        defaultColor: {
+          description: "The default theme applied to the code (via inline color style). The rest of the themes are applied via CSS variables, and toggled by CSS overrides. For example, if defaultColor is light, then light theme is applied to the code, and the dark theme and other custom themes are applied via CSS variables",
+          type: "light | dark | string | false",
+          default: undefined,
+        },
+        delay: {
+            description: "Delay in milliseconds between consecutive highlights, useful for streamed code responses.",
+            type: "number",
+            default: 0,
+        },
+        customLanguages: {
+            description: "Custom languages to preload for syntax highlighting",
+            type: "TextmateLanguage[]",
+            default: "[]",
+        },
+        transformers: {
+            description: "Custom transformers to apply to the code",
+            type: "ShikiTransformer[]",
+            default: "[]",
+        },
+    }}
+/>
 
 ---
 
-## react‑syntax‑highlighter (legacy)
+## react-syntax-highlighter (legacy)
 
 <Steps>
   <Step>
 
-#### Add the syntax‑highlighter component
+#### Add the syntax-highlighter component
 
 ```bash
 npx shadcn@latest add "https://r.assistant-ui.com/syntax-highlighter"
@@ -86,16 +136,8 @@ export const defaultComponents = memoizeMarkdownComponents({
 ```
 
   </Step>
-  <Step>
-
-#### Customize your Prism or Highlight.js highlighter
-
-<Callout>
-**SyntaxHighlighter props**  
-- `style` (object): Prism theme (e.g., `coldarkDark`) or Highlight.js theme object
-- `customStyle` (CSSProperties): inline styles for `<pre>`
-- _All props supported by_ [`react-syntax-highlighter`](https://github.com/react-syntax-highlighter/react-syntax-highlighter#props)  
-</Callout>
-
-  </Step>
 </Steps>
+
+#### Options
+
+See options supported by [`react-syntax-highlighter`](https://github.com/react-syntax-highlighter/react-syntax-highlighter#props)  
