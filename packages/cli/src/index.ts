@@ -5,6 +5,7 @@ import { create } from "./commands/create";
 import { add } from "./commands/add";
 import { codemodCommand, upgradeCommand } from "./commands/upgrade";
 import { init } from "./commands/init";
+import { update } from "./commands/update";
 
 process.on("SIGINT", () => process.exit(0));
 process.on("SIGTERM", () => process.exit(0));
@@ -19,6 +20,7 @@ function main() {
   program.addCommand(init);
   program.addCommand(codemodCommand);
   program.addCommand(upgradeCommand);
+  program.addCommand(update);
 
   program.parse();
 }
