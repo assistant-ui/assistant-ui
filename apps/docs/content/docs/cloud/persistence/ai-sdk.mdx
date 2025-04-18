@@ -4,37 +4,51 @@ title: Chat History for AI SDK
 
 ## Overview
 
-With the help of assistant-cloud, you can add thread management and thread history capabilities to assistant-ui.  
-This guide will walk you through the process of integrating assistant-cloud with the AI SDK by Vercel.
+With the help of assistant-cloud, you can add thread management and thread history capabilities to assistant-ui. This guide will walk you through the process of integrating assistant-cloud with the AI SDK by Vercel.
 
 ### Prerequisites
 
-You need an assistant-cloud account to follow this guide.  
-You can sign up here: https://cloud.assistant-ui.com/
+You need an assistant-cloud account to follow this guide. You can sign up here: [https://cloud.assistant-ui.com/](https://cloud.assistant-ui.com/)
 
-### Setting up an assistant-cloud project
+### Setting up assistant-cloud project in your react project:
 
-To get started, follow the steps below:
-
-- Create a new project on the assistant-cloud dashboard.
-- Navigate to the "Settings" tab and copy the Frontend API URL.
-- Add this URL to your .env file
+1. Create a new project on the assistant-cloud dashboard and copy the Frontend API URL (`https://proj-[ID].assistant-api.com`) from the settings page.
+2. Add the url as an enviornment variable `NEXT_PUBLIC_ASSISTANT_BASE_URL`
 
 ```bash
-NEXT_PUBLIC_ASSISTANT_BASE_URL=https://<your-frontend-api-url>
+NEXT_PUBLIC_ASSISTANT_BASE_URL=[YOUR_FRONTEND_API_URL]
 ```
+3. Create a client side AssistantCloud instance. Note: this will create an anonymous user id that is tied to the user's browser session. For connecting to an auth provider to persist threads for a user based on a workspace and/or user id, look at [Cloud Authorization Docs](/docs/cloud/authorization).
 
-### Displaying a ThreadList component
+```typescript
+"use client";
+import {
+  AssistantCloud,
+  AssistantRuntimeProvider,
+  ThreadList,
+  Thread
+} from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
-Now, you can add a ThreadList component to your application. This component will display a list of threads and allow users to switch between them.
 
-```sh
-npx shadcn@latest add "https://r.assistant-ui.com/thread-list"
-```
+const cloud = new AssistantCloud({
+  baseUrl: process.env["NEXT_PUBLIC_ASSISTANT_BASE_URL"]!,
+  anonymous: true,
+});
 
-```tsx
-<div className="grid grid-cols-[250px_1fr]">
-  <ThreadList />
-  <Thread />
-</div>
+
+const runtime = useChatRuntime({
+  api: "/api/chat",
+  cloud,
+});
+
+ return (
+  <AssistantRuntimeProvider runtime={runtime}>
+    <div className="grid h-dvh grid-cols-[200px_1fr] gap-x-2 px-4 py-4">
+      <ThreadList />
+      <Thread />
+    </div>
+  </AssistantRuntimeProvider>
+);
+
 ```
