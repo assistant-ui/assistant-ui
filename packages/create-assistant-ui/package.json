@@ -11,7 +11,7 @@
     "cosmiconfig": "^9.0.0",
     "cross-spawn": "^7.0.6",
     "tsconfig-paths": "^4.2.0",
-    "zod": "^3.24.2"
+    "zod": "^3.24.3"
   },
   "devDependencies": {
     "@assistant-ui/tsbuildutils": "workspace:*",
