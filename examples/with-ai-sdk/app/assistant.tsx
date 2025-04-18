@@ -38,7 +38,10 @@ const MyToolUI = makeAssistantTool({
       console.log("NICKNAME", nickname);
     }
 
-    console.log(await reader.result.get());
+    console.log(await reader.response.get());
+  },
+  execute: () => {
+    return "hi!";
   },
 });
 

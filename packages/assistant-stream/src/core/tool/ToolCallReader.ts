@@ -6,9 +6,10 @@ import {
 import {
   ToolCallArgsReader,
   ToolCallReader,
-  ToolCallResultReader,
+  ToolCallResponseReader,
 } from "./tool-types";
 import { TypeAtPath, TypePath } from "./type-path-utils";
+import { ToolResponse } from "./ToolResponse";
 
 // TODO: remove dispose
 
@@ -375,10 +376,10 @@ export class ToolCallArgsReaderImpl<T> implements ToolCallArgsReader<T> {
   }
 }
 
-export class ToolCallResultReaderImpl<TResult>
-  implements ToolCallResultReader<TResult>
+export class ToolCallResponseReaderImpl<TResult>
+  implements ToolCallResponseReader<TResult>
 {
-  constructor(private readonly resultPromise: Promise<TResult>) {}
+  constructor(private readonly resultPromise: Promise<ToolResponse<TResult>>) {}
 
   public get() {
     return this.resultPromise;
@@ -389,9 +390,9 @@ export class ToolCallReaderImpl<TArgs, TResult>
   implements ToolCallReader<TArgs, TResult>
 {
   public readonly args: ToolCallArgsReaderImpl<TArgs>;
-  public readonly result: ToolCallResultReaderImpl<TResult>;
+  public readonly response: ToolCallResponseReaderImpl<TResult>;
   private readonly writable: WritableStream<string>;
-  private readonly resolve: (value: TResult | PromiseLike<TResult>) => void;
+  private readonly resolve: (value: ToolResponse<TResult>) => void;
 
   public argsText: string = "";
 
@@ -400,9 +401,9 @@ export class ToolCallReaderImpl<TArgs, TResult>
     this.writable = stream.writable;
     this.args = new ToolCallArgsReaderImpl<TArgs>(stream.readable);
 
-    const { promise, resolve } = promiseWithResolvers<TResult>();
+    const { promise, resolve } = promiseWithResolvers<ToolResponse<TResult>>();
     this.resolve = resolve;
-    this.result = new ToolCallResultReaderImpl<TResult>(promise);
+    this.response = new ToolCallResponseReaderImpl<TResult>(promise);
   }
 
   async appendArgsTextDelta(text: string): Promise<void> {
@@ -418,7 +419,14 @@ export class ToolCallReaderImpl<TArgs, TResult>
     this.argsText += text;
   }
 
-  setResult(value: TResult | PromiseLike<TResult>): void {
+  setResponse(value: ToolResponse<TResult>): void {
     this.resolve(value);
   }
+
+  result = {
+    get: async () => {
+      const response = await this.response.get();
+      return response.result;
+    },
+  };
 }
