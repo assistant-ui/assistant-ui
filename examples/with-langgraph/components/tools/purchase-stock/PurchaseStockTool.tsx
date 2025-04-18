@@ -26,7 +26,7 @@ export const PurchaseStockTool = makeAssistantToolUI<PurchaseStockArgs, string>(
         : undefined;
 
       const handleConfirm = async () => {
-        addResult({ confirmed: true });
+        addResult(JSON.stringify({ confirmed: true }));
       };
 
       return (

@@ -49,7 +49,7 @@
     "@assistant-ui/tsconfig": "workspace:*",
     "@types/node": "^22.14.1",
     "eslint": "^9",
-    "eslint-config-next": "15.3.0",
+    "eslint-config-next": "15.3.1",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "tsx": "^4.19.3"
