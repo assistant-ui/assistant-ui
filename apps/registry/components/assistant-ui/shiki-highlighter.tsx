@@ -4,6 +4,9 @@ import { FC } from "react";
 import ShikiHighlighter, { type ShikiHighlighterProps } from "react-shiki";
 import type { SyntaxHighlighterProps as AUIProps } from "@assistant-ui/react-markdown";
 
+/**
+ * Props for the SyntaxHighlighter component
+ */
 export type HighlighterProps = Omit<
   ShikiHighlighterProps,
   "children" | "theme"
@@ -11,6 +14,16 @@ export type HighlighterProps = Omit<
   theme?: ShikiHighlighterProps["theme"];
 } & Pick<AUIProps, "node" | "components" | "language" | "code">;
 
+/**
+ * SyntaxHighlighter component, using react-shiki
+ * @use pass to `defaultComponents` in `markdown-text.tsx`
+ * @example
+ * const defaultComponents = memoizeMarkdownComponents({
+ *   SyntaxHighlighter,
+ *   h1: //...
+ *   //...other elements...
+ * });
+ */
 export const SyntaxHighlighter: FC<HighlighterProps> = ({
   code,
   language,
