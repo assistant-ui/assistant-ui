@@ -405,7 +405,7 @@ export class ToolCallReaderImpl<TArgs, TResult>
     this.result = new ToolCallResultReaderImpl<TResult>(promise);
   }
 
-  async appendArgsTextDelta(text: string): void {
+  async appendArgsTextDelta(text: string): Promise<void> {
     const writer = this.writable.getWriter();
     try {
       await writer.write(text);
