@@ -19,27 +19,14 @@ import {
 import { LanguageModelV1StreamDecoder } from "assistant-stream/ai-sdk";
 import { ThreadMessage, Tool } from "@assistant-ui/react";
 import { CoreMessage } from "./CoreTypes";
-
-export const LanguageModelV1CallSettingsSchema = z.object({
-  maxTokens: z.number().int().positive().optional(),
-  temperature: z.number().optional(),
-  topP: z.number().optional(),
-  presencePenalty: z.number().optional(),
-  frequencyPenalty: z.number().optional(),
-  seed: z.number().int().optional(),
-  headers: z.record(z.string().optional()).optional(),
-});
+import {
+  LanguageModelConfigSchema,
+  LanguageModelV1CallSettingsSchema,
+} from "./schemas";
 
 export type LanguageModelV1CallSettings = z.infer<
   typeof LanguageModelV1CallSettingsSchema
 >;
-
-export const LanguageModelConfigSchema = z.object({
-  apiKey: z.string().optional(),
-  baseUrl: z.string().optional(),
-  modelName: z.string().optional(),
-});
-
 export type LanguageModelConfig = z.infer<typeof LanguageModelConfigSchema>;
 
 type LanguageModelCreator = (
