@@ -1,5 +1,11 @@
 # @assistant-ui/react-edge
 
+## 0.1.5
+
+### Patch Changes
+
+- 25836f9: fix: circular import causes zod schemas to break
+
 ## 0.1.4
 
 ### Patch Changes
