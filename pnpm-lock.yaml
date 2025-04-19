@@ -1253,9 +1253,6 @@ importers:
 
   packages/assistant-stream:
     dependencies:
-      '@assistant-ui/tsbuildutils':
-        specifier: workspace:*
-        version: link:../tsbuildutils
       '@types/json-schema':
         specifier: ^7.0.15
         version: 7.0.15
@@ -1266,6 +1263,9 @@ importers:
         specifier: ^4.0.0
         version: 4.0.0
     devDependencies:
+      '@assistant-ui/tsbuildutils':
+        specifier: workspace:*
+        version: link:../tsbuildutils
       '@assistant-ui/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
