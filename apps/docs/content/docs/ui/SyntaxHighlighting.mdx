@@ -13,19 +13,19 @@ Syntax highlighting is not enabled by default.
 </Callout>
 
 <Callout type="info">
-`assistant-ui` offers two ways to add syntax highlighting to your markdown: 
+`assistant-ui` offers two ways to add syntax highlighting to your markdown:
 - **react-shiki** (recommended for performance & dynamic language support)  
 - **react-syntax-highlighter** (legacy - Prism or Highlight.js based)
 </Callout>
 
 ---
 
-## react‑shiki
+## react-shiki
 
 <Steps>
   <Step>
 
-#### Add `shiki‑highlighter`
+#### Add the shiki-highlighter component
 
 ```bash
 npx shadcn@latest add "https://r.assistant-ui.com/shiki-highlighter"
@@ -77,7 +77,7 @@ export const defaultComponents = memoizeMarkdownComponents({
         style: {
             description: "Inline styles for the `ShikiHighlighter` component",
             type: "CSSProperties",
-            default: "",
+            default: "{}",
         },
         cssVariablePrefix: {
             description: "Prefix of CSS variables used to store the color of the other theme",
@@ -142,4 +142,4 @@ export const defaultComponents = memoizeMarkdownComponents({
 
 #### Options
 
-See options supported by [`react-syntax-highlighter`](https://github.com/react-syntax-highlighter/react-syntax-highlighter#props)  
+See options supported by [`react-syntax-highlighter`](https://github.com/react-syntax-highlighter/react-syntax-highlighter#props).
