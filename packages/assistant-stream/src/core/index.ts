@@ -4,6 +4,7 @@ export {
 } from "./modules/assistant-stream";
 export { AssistantMessageAccumulator } from "./accumulators/assistant-message-accumulator";
 export { AssistantStream } from "./AssistantStream";
+export type { AssistantStreamController } from "./modules/assistant-stream";
 export type { AssistantStreamChunk } from "./AssistantStreamChunk";
 export {
   DataStreamDecoder,

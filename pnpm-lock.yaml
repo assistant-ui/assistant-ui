@@ -1253,6 +1253,9 @@ importers:
 
   packages/assistant-stream:
     dependencies:
+      '@assistant-ui/tsbuildutils':
+        specifier: workspace:*
+        version: link:../tsbuildutils
       '@types/json-schema':
         specifier: ^7.0.15
         version: 7.0.15
