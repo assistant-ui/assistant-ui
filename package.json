@@ -12,7 +12,7 @@
   "devDependencies": {
     "@changesets/cli": "^2.29.2",
     "@eslint/eslintrc": "^3.3.1",
-    "@eslint/js": "^9.24.0",
+    "@eslint/js": "^9.25.0",
     "eslint": "^9",
     "prettier": "^3.5.3",
     "prettier-plugin-tailwindcss": "0.6.11",
