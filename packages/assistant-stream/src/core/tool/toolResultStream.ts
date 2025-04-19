@@ -1,8 +1,8 @@
-import { AssistantMessage, ToolCallReader } from "assistant-stream";
-import { Tool, ToolExecuteFunction } from "./tool-types";
+import { Tool, ToolCallReader, ToolExecuteFunction } from "./tool-types";
 import { StandardSchemaV1 } from "@standard-schema/spec";
 import { ToolResponse } from "./ToolResponse";
 import { ToolExecutionStream } from "./ToolExecutionStream";
+import { AssistantMessage } from "../utils/types";
 
 const isStandardSchemaV1 = (
   schema: unknown,
