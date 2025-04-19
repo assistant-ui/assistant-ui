@@ -1,6 +1,6 @@
 {
   "name": "assistant-stream",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "license": "MIT",
   "exports": {
     ".": {
@@ -52,6 +52,7 @@
   },
   "devDependencies": {
     "@assistant-ui/tsconfig": "workspace:*",
+    "@assistant-ui/tsbuildutils": "workspace:*",
     "@standard-schema/spec": "^1.0.0",
     "ai": "^4.3.9",
     "eslint": "^9",
