@@ -4,34 +4,19 @@
   "license": "MIT",
   "exports": {
     ".": {
-      "import": {
-        "types": "./dist/index.d.mts",
-        "default": "./dist/index.mjs"
-      },
-      "require": {
-        "types": "./dist/index.d.ts",
-        "default": "./dist/index.js"
-      }
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
     },
     "./ai-sdk": {
-      "import": {
-        "types": "./dist/ai-sdk.d.mts",
-        "default": "./dist/ai-sdk.mjs"
-      },
-      "require": {
-        "types": "./dist/ai-sdk.d.ts",
-        "default": "./dist/ai-sdk.js"
-      }
+      "types": "./dist/ai-sdk.d.ts",
+      "import": "./dist/ai-sdk.mjs",
+      "require": "./dist/ai-sdk.js"
     },
     "./utils": {
-      "import": {
-        "types": "./dist/utils.d.mts",
-        "default": "./dist/utils.mjs"
-      },
-      "require": {
-        "types": "./dist/utils.d.ts",
-        "default": "./dist/utils.js"
-      }
+      "types": "./dist/utils.d.ts",
+      "import": "./dist/utils.mjs",
+      "require": "./dist/utils.js"
     }
   },
   "source": "./src/index.ts",
