@@ -1,10 +1,13 @@
-import { Message } from "@ai-sdk/ui-utils";
+import { UIMessage } from "@ai-sdk/ui-utils";
 import { useExternalMessageConverter } from "@assistant-ui/react";
+import { SourceContentPart } from "@assistant-ui/react";
+import { FileContentPart } from "@assistant-ui/react";
+import { ReasoningContentPart } from "@assistant-ui/react";
 import { ToolCallContentPart } from "@assistant-ui/react";
 import { TextContentPart } from "@assistant-ui/react";
 import { CompleteAttachment } from "@assistant-ui/react";
 
-export const convertMessage: useExternalMessageConverter.Callback<Message> = (
+export const convertMessage: useExternalMessageConverter.Callback<UIMessage> = (
   message,
 ) => {
   switch (message.role) {
@@ -41,27 +44,56 @@ export const convertMessage: useExternalMessageConverter.Callback<Message> = (
         role: "assistant",
         id: message.id,
         createdAt: message.createdAt,
-        content: [
-          ...(message.content
-            ? [
-                {
-                  type: "text",
-                  text: message.content,
-                } satisfies TextContentPart,
-              ]
-            : []),
-          ...(message.toolInvocations?.map(
-            (t) =>
-              ({
-                type: "tool-call",
-                toolName: t.toolName,
-                toolCallId: t.toolCallId,
-                argsText: JSON.stringify(t.args),
-                args: t.args,
-                result: "result" in t ? t.result : undefined,
-              }) satisfies ToolCallContentPart,
-          ) ?? []),
-        ],
+        content:
+          message.parts
+            ?.filter((p) => p.type !== "step-start")
+            ?.map((part) => {
+              const type = part.type;
+              switch (type) {
+                case "text":
+                  return {
+                    type: "text",
+                    text: part.text,
+                  } satisfies TextContentPart;
+                case "tool-invocation":
+                  return {
+                    type: "tool-call",
+                    toolName: part.toolInvocation.toolName,
+                    toolCallId: part.toolInvocation.toolCallId,
+                    argsText: JSON.stringify(part.toolInvocation.args),
+                    args: part.toolInvocation.args,
+                    result:
+                      part.toolInvocation.state === "result" &&
+                      part.toolInvocation.result,
+                  } satisfies ToolCallContentPart;
+                case "reasoning":
+                  return {
+                    type: "reasoning",
+                    text: part.reasoning,
+                  } satisfies ReasoningContentPart;
+
+                case "source":
+                  return {
+                    type: "source",
+                    ...part.source,
+                  } satisfies SourceContentPart;
+
+                // TODO map these
+                case "file":
+                  return {
+                    type: "file",
+                    data: part.data,
+                    mimeType: part.mimeType,
+                  } satisfies FileContentPart;
+
+                default: {
+                  const _unsupported: never = type;
+                  throw new Error(
+                    `You have a message with an unsupported part type. The type ${_unsupported} is not supported.`,
+                  );
+                }
+              }
+            }) ?? [],
         metadata: {
           unstable_annotations: message.annotations,
           unstable_data: Array.isArray(message.data)
