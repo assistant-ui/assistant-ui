@@ -1,5 +1,19 @@
 # @assistant-ui/react-edge
 
+## 0.1.6
+
+### Patch Changes
+
+- chore: update deps
+- Updated dependencies
+  - @assistant-ui/react@0.9.6
+
+## 0.1.5
+
+### Patch Changes
+
+- 91897ee: fix: circular import causes zod schemas to break
+
 ## 0.1.4
 
 ### Patch Changes

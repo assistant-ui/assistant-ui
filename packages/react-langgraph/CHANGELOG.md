@@ -1,5 +1,13 @@
 # @assistant-ui/react-langgraph
 
+## 0.4.5
+
+### Patch Changes
+
+- chore: update deps
+- Updated dependencies
+  - @assistant-ui/react@0.9.6
+
 ## 0.4.4
 
 ### Patch Changes
