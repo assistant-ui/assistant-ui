@@ -1,10 +1,3 @@
-import { build } from "tsup";
+import { Build } from "@assistant-ui/tsbuildutils";
 
-// JS
-await build({
-  entry: ["src/index.ts", "src/ai-sdk.ts", "src/utils.ts"],
-  format: ["cjs", "esm"],
-  dts: true,
-  sourcemap: true,
-  clean: true,
-});
+await Build.start().transpileTypescript();
