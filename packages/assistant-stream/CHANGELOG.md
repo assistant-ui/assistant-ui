@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.1.8
+
+### Patch Changes
+
+- fix: types in ESM
+
 ## 0.1.7
 
 ### Patch Changes

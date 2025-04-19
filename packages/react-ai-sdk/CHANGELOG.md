@@ -1,5 +1,13 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.9.5
+
+### Patch Changes
+
+- 91897ee: fix: circular import causes zod schemas to break
+- Updated dependencies [91897ee]
+  - @assistant-ui/react-edge@0.1.5
+
 ## 0.9.4
 
 ### Patch Changes
