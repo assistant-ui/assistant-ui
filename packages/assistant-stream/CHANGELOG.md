@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.1.7
+
+### Patch Changes
+
+- 51104f0: feat: ship declarationMaps
+
 ## 0.1.6
 
 ### Patch Changes
