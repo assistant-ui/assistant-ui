@@ -30,6 +30,8 @@ export const SyntaxHighlighter: FC<HighlighterProps> = ({
   theme = "vitesse-dark",
   addDefaultStyles = false,
   showLanguage = false,
+  node,
+  components,
   ...props
 }) => {
   return (
