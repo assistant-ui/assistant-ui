@@ -1,5 +1,11 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.9.7
+
+### Patch Changes
+
+- d31410f: feat: use new AI SDK UI Parts
+
 ## 0.9.6
 
 ### Patch Changes
