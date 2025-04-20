@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.2.1
+
+### Patch Changes
+
+- fix: correctly include Typescript declarations
+
 ## 0.2.0
 
 ### Patch Changes

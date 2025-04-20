@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.10.1
+
+### Patch Changes
+
+- fix: correctly include Typescript declarations
+
 ## 0.10.0
 
 ### Patch Changes
