@@ -2,6 +2,8 @@
   "extends": "@assistant-ui/tsconfig/app-base.json",
   "compilerOptions": {
     "target": "ES6",
+    "module": "ESNext",
+    "baseUrl": ".",
     "incremental": true,
     "plugins": [
       {

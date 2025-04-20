@@ -17,9 +17,10 @@ export const useVercelUseAssistantRuntime = (
   adapter: VercelUseChatAdapter = {},
 ) => {
   const messages = AISDKMessageConverter.useThreadMessages({
-   messages: assistantHelpers.messages,
-    isRunning: assistantHelpers.status === "in_progress",}
-  );
+    messages: assistantHelpers.messages,
+    isRunning: assistantHelpers.status === "in_progress",
+  });
+
   const runtime = useExternalStoreRuntime({
     isRunning: assistantHelpers.status === "in_progress",
     messages,

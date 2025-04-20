@@ -391,6 +391,9 @@ importers:
         specifier: ^3.24.3
         version: 3.24.3
     devDependencies:
+      '@assistant-ui/tsconfig':
+        specifier: workspace:*
+        version: link:../../packages/tsconfig
       '@types/node':
         specifier: ^22
         version: 22.14.1
@@ -1509,6 +1512,9 @@ importers:
       '@assistant-ui/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@types/node':
+        specifier: ^22.14.1
+        version: 22.14.1
       '@types/react':
         specifier: ^19.1.0
         version: 19.1.2
@@ -1595,6 +1601,9 @@ importers:
       '@assistant-ui/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@types/node':
+        specifier: ^22.14.1
+        version: 22.14.1
       '@types/react':
         specifier: ^19.1.0
         version: 19.1.2
@@ -1635,6 +1644,9 @@ importers:
       '@assistant-ui/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@types/node':
+        specifier: ^22.14.1
+        version: 22.14.1
       '@types/react':
         specifier: ^19.1.0
         version: 19.1.2
@@ -1717,6 +1729,9 @@ importers:
       '@assistant-ui/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@types/node':
+        specifier: ^22.14.1
+        version: 22.14.1
       '@types/react':
         specifier: ^19.1.0
         version: 19.1.2
@@ -3278,8 +3293,8 @@ packages:
     peerDependencies:
       '@types/react': '*'
       '@types/react-dom': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
-      react-dom: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react: 19.0.0
+      react-dom: 19.0.0
     peerDependenciesMeta:
       '@types/react':
         optional: true

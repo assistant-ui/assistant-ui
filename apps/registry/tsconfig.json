@@ -1,5 +1,8 @@
 {
   "extends": "@assistant-ui/tsconfig/app-base.json",
+  "compilerOptions": {
+    "baseUrl": "."
+  },
   "include": ["**/*.ts", "**/*.tsx"],
   "exclude": ["node_modules", "dist"]
 }

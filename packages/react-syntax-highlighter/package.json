@@ -38,8 +38,9 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
-    "@assistant-ui/tsconfig": "workspace:*",
     "@assistant-ui/tsbuildutils": "workspace:*",
+    "@assistant-ui/tsconfig": "workspace:*",
+    "@types/node": "^22.14.1",
     "@types/react": "^19.1.0",
     "@types/react-syntax-highlighter": "^15.5.11",
     "eslint": "^9",
