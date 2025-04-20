@@ -12,11 +12,20 @@ export const createMessageConverter = <T extends object>(
   callback: useExternalMessageConverter.Callback<T>,
 ) => {
   const result = {
-    useThreadMessages: (messages: T[], isRunning: boolean) => {
+    useThreadMessages: ({
+      messages,
+      isRunning,
+      joinStrategy,
+    }: {
+      messages: T[];
+      isRunning: boolean;
+      joinStrategy?: "concat-content" | "none" | undefined;
+    }) => {
       return useExternalMessageConverter<T>({
         callback,
         messages,
         isRunning,
+        joinStrategy,
       });
     },
     toThreadMessages: (messages: T[]) => {
