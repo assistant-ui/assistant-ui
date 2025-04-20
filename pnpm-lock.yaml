@@ -1427,7 +1427,7 @@ importers:
         specifier: '*'
         version: 19.1.2(@types/react@19.1.2)
       assistant-stream:
-        specifier: ^0.1.7
+        specifier: ^0.2.0
         version: link:../assistant-stream
       nanoid:
         specifier: 5.1.5
@@ -1488,7 +1488,7 @@ importers:
         specifier: '*'
         version: 1.2.8(zod@3.24.3)
       '@assistant-ui/react':
-        specifier: ^0.9.6
+        specifier: ^0.10.0
         version: link:../react
       '@assistant-ui/react-edge':
         specifier: workspace:*
@@ -1537,7 +1537,7 @@ importers:
         specifier: '*'
         version: 19.1.2(@types/react@19.1.2)
       assistant-stream:
-        specifier: ^0.1.7
+        specifier: ^0.2.0
         version: link:../assistant-stream
       json-schema:
         specifier: ^0.4.0
@@ -1583,7 +1583,7 @@ importers:
   packages/react-hook-form:
     dependencies:
       '@assistant-ui/react':
-        specifier: ^0.9.6
+        specifier: ^0.10.0
         version: link:../react
       zod:
         specifier: ^3.24.3
@@ -1617,10 +1617,10 @@ importers:
   packages/react-langgraph:
     dependencies:
       '@assistant-ui/react':
-        specifier: ^0.9.6
+        specifier: ^0.10.0
         version: link:../react
       assistant-stream:
-        specifier: ^0.1.7
+        specifier: ^0.2.0
         version: link:../assistant-stream
       uuid:
         specifier: ^11.1.0

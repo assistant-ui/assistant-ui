@@ -13,6 +13,7 @@
     "tsconfig-paths": "^4.2.0",
     "zod": "^3.24.3"
   },
+  "type": "module",
   "devDependencies": {
     "@assistant-ui/tsbuildutils": "workspace:*",
     "@assistant-ui/tsconfig": "workspace:*",
