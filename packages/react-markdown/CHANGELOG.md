@@ -1,5 +1,13 @@
 # @assistant-ui/react-markdown
 
+## 0.10.1
+
+### Patch Changes
+
+- fix: correctly include Typescript declarations
+- Updated dependencies
+  - @assistant-ui/react@0.10.1
+
 ## 0.10.0
 
 ### Patch Changes

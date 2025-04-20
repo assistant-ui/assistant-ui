@@ -1,5 +1,11 @@
 # assistant-ui
 
+## 0.0.50
+
+### Patch Changes
+
+- fix: correctly include Typescript declarations
+
 ## 0.0.49
 
 ### Patch Changes

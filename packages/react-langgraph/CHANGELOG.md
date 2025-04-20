@@ -1,5 +1,13 @@
 # @assistant-ui/react-langgraph
 
+## 0.5.1
+
+### Patch Changes
+
+- fix: correctly include Typescript declarations
+- Updated dependencies
+  - @assistant-ui/react@0.10.1
+
 ## 0.5.0
 
 ### Patch Changes

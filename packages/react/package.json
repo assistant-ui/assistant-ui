@@ -28,25 +28,13 @@
     "conversational-ui",
     "conversational-ai"
   ],
-  "version": "0.10.0",
+  "version": "0.10.1",
   "license": "MIT",
   "type": "module",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    },
-    "./edge": {
-      "types": "./dist/edge.d.ts",
-      "default": "./dist/edge.js"
-    },
-    "./smooth": {
-      "types": "./dist/smooth.d.ts",
-      "default": "./dist/smooth.js"
-    },
-    "./types": {
-      "types": "./dist/types.d.ts",
-      "default": "./dist/types.js"
     }
   },
   "source": "./src/index.ts",
@@ -54,8 +42,8 @@
   "types": "./dist/index.d.ts",
   "files": [
     "dist",
-    "generated",
     "src",
+    "internal",
     "README.md"
   ],
   "sideEffects": false,
@@ -85,7 +73,7 @@
   "peerDependencies": {
     "@types/react": "*",
     "@types/react-dom": "*",
-    "assistant-stream": "^0.2.0",
+    "assistant-stream": "^0.2.1",
     "react": "^18 || ^19 || ^19.0.0-rc",
     "react-dom": "^18 || ^19 || ^19.0.0-rc"
   },

@@ -1,5 +1,11 @@
 # create-assistant-ui
 
+## 0.0.19
+
+### Patch Changes
+
+- fix: correctly include Typescript declarations
+
 ## 0.0.18
 
 ### Patch Changes

@@ -46,7 +46,6 @@ const transpileTypescript = async () => {
     esbuildOptions: (config) => {
       config.dropLabels = ["DEV"];
     },
-    // No longer need esbuild-plugin-file-path-extensions for ESM-only builds
   });
 };
 
@@ -56,11 +55,11 @@ const transpileTypescriptDts = async () => {
     "tsc",
     "-p",
     "tsconfig.json",
-    "--declaration",
-    "--declarationMap",
     "--emitDeclarationOnly",
     "--outDir",
     "dist",
+    "--noEmit",
+    "false",
   ]);
   child.stdout.pipe(process.stdout);
   child.stderr.pipe(process.stderr);

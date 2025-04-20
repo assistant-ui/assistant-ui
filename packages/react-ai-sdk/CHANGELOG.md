@@ -1,5 +1,14 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.10.2
+
+### Patch Changes
+
+- fix: correctly include Typescript declarations
+- Updated dependencies
+  - @assistant-ui/react-edge@0.2.1
+  - @assistant-ui/react@0.10.1
+
 ## 0.10.1
 
 ### Patch Changes

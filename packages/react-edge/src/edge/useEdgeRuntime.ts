@@ -2,6 +2,7 @@
 
 import { EdgeModelAdapterOptions, EdgeModelAdapter } from "./EdgeModelAdapter";
 import {
+  AssistantRuntime,
   INTERNAL,
   LocalRuntimeOptions,
   useLocalRuntime,
@@ -11,7 +12,9 @@ const { splitLocalRuntimeOptions } = INTERNAL;
 
 export type EdgeRuntimeOptions = EdgeModelAdapterOptions & LocalRuntimeOptions;
 
-export const useEdgeRuntime = (options: EdgeRuntimeOptions) => {
+export const useEdgeRuntime = (
+  options: EdgeRuntimeOptions,
+): AssistantRuntime => {
   const { localRuntimeOptions, otherOptions } =
     splitLocalRuntimeOptions(options);
 
