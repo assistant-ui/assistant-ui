@@ -44,7 +44,7 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
           id: message.id,
           createdAt: message.createdAt,
           content:
-            (message.parts
+            message.parts
               ?.filter((p) => p.type !== "step-start")
               .map((part) => {
                 const type = part.type;
@@ -77,7 +77,6 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
                       ...part.source,
                     } satisfies SourceContentPart;
 
-                  // TODO map these
                   case "file":
                     return {
                       type: "file",
@@ -92,14 +91,15 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
                     );
                   }
                 }
-              }) ?? message.content)
+              }) ??
+            (message.content
               ? [
                   {
                     type: "text",
                     text: message.content,
                   } satisfies TextContentPart,
                 ]
-              : [],
+              : []),
           metadata: {
             unstable_annotations: message.annotations,
             unstable_data: Array.isArray(message.data)

@@ -1,5 +1,5 @@
 {
   "type": "module",
-  "module": "../dist/utils.js",
+  "main": "../dist/utils.js",
   "types": "../dist/utils.d.ts"
 }
