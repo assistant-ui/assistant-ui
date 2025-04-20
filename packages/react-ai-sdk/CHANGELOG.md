@@ -1,5 +1,11 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.10.1
+
+### Patch Changes
+
+- feat: AISDKMessageConverter API
+
 ## 0.10.0
 
 ### Patch Changes
