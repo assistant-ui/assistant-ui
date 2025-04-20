@@ -34,19 +34,19 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "default": "./dist/index.js"
     },
     "./edge": {
       "types": "./dist/edge.d.ts",
-      "import": "./dist/edge.js"
+      "default": "./dist/edge.js"
     },
     "./smooth": {
       "types": "./dist/smooth.d.ts",
-      "import": "./dist/smooth.js"
+      "default": "./dist/smooth.js"
     },
     "./types": {
       "types": "./dist/types.d.ts",
-      "import": "./dist/types.js"
+      "default": "./dist/types.js"
     }
   },
   "source": "./src/index.ts",

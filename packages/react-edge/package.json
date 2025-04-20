@@ -7,11 +7,11 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "default": "./dist/index.js"
     },
     "./edge": {
       "types": "./dist/edge.d.ts",
-      "import": "./dist/edge.js"
+      "default": "./dist/edge.js"
     }
   },
   "source": "./src/index.ts",
