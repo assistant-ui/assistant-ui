@@ -1,9 +1,5 @@
 import type { useChat } from "@ai-sdk/react";
-import { convertMessage } from "../utils/convertMessage";
-import {
-  useExternalMessageConverter,
-  useExternalStoreRuntime,
-} from "@assistant-ui/react";
+import { useExternalStoreRuntime } from "@assistant-ui/react";
 import { useInputSync } from "../utils/useInputSync";
 import { sliceMessagesUntil } from "../utils/sliceMessagesUntil";
 import { toCreateMessage } from "../utils/toCreateMessage";
@@ -12,6 +8,7 @@ import { getVercelAIMessages } from "../getVercelAIMessages";
 import { ExternalStoreAdapter } from "@assistant-ui/react";
 import { useState } from "react";
 import { generateId } from "@ai-sdk/ui-utils";
+import { AISDKMessageConverter } from "../utils/convertMessage";
 
 export type VercelUseChatAdapter = {
   adapters?:
@@ -24,9 +21,9 @@ export const useVercelUseChatRuntime = (
   chatHelpers: ReturnType<typeof useChat>,
   adapter: VercelUseChatAdapter = {},
 ) => {
-  const messages = useExternalMessageConverter({
-    callback: convertMessage,
-    isRunning: chatHelpers.isLoading,
+  const messages = AISDKMessageConverter.useThreadMessages({
+    isRunning:
+      chatHelpers.status === "submitted" || chatHelpers.status == "streaming",
     messages: chatHelpers.messages,
     joinStrategy: adapter.unstable_joinStrategy,
   });

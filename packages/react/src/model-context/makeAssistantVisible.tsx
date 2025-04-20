@@ -16,6 +16,8 @@ import { useAssistantRuntime } from "../context";
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
 import { tool } from "./tool";
 
+// TODO replace zod with json-schema so we can drop the zod dep
+
 const click = tool({
   parameters: z.object({
     clickId: z.string(),

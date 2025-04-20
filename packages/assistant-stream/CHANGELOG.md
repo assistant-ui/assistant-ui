@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.2.0
+
+### Patch Changes
+
+- 557c3f7: build: drop CJS builds
+
 ## 0.1.8
 
 ### Patch Changes

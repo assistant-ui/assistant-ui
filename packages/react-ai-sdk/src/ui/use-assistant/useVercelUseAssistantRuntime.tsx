@@ -1,13 +1,10 @@
 import type { useAssistant } from "@ai-sdk/react";
-import {
-  useExternalMessageConverter,
-  useExternalStoreRuntime,
-} from "@assistant-ui/react";
-import { convertMessage } from "../utils/convertMessage";
+import { useExternalStoreRuntime } from "@assistant-ui/react";
 import { useInputSync } from "../utils/useInputSync";
 import { toCreateMessage } from "../utils/toCreateMessage";
 import { vercelAttachmentAdapter } from "../utils/vercelAttachmentAdapter";
 import { ExternalStoreAdapter } from "@assistant-ui/react";
+import { AISDKMessageConverter } from "../utils/convertMessage";
 
 export type VercelUseChatAdapter = {
   adapters?:
@@ -19,11 +16,11 @@ export const useVercelUseAssistantRuntime = (
   assistantHelpers: ReturnType<typeof useAssistant>,
   adapter: VercelUseChatAdapter = {},
 ) => {
-  const messages = useExternalMessageConverter({
-    callback: convertMessage,
-    isRunning: assistantHelpers.status === "in_progress",
+  const messages = AISDKMessageConverter.useThreadMessages({
     messages: assistantHelpers.messages,
+    isRunning: assistantHelpers.status === "in_progress",
   });
+
   const runtime = useExternalStoreRuntime({
     isRunning: assistantHelpers.status === "in_progress",
     messages,

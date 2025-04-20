@@ -1,5 +1,13 @@
 # @assistant-ui/react-edge
 
+## 0.2.0
+
+### Patch Changes
+
+- 557c3f7: build: drop CJS builds
+- Updated dependencies [557c3f7]
+  - @assistant-ui/react@0.9.7
+
 ## 0.1.6
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
   "name": "assistant-ui",
-  "version": "0.0.48",
+  "version": "0.0.49",
   "license": "MIT",
   "source": "./src/index.ts",
   "dependencies": {
@@ -14,6 +14,7 @@
     "jscodeshift": "^17.3.0",
     "semver": "^7.7.1"
   },
+  "type": "module",
   "devDependencies": {
     "@assistant-ui/tsbuildutils": "workspace:*",
     "@assistant-ui/tsconfig": "workspace:*",
@@ -30,7 +31,7 @@
     "dist",
     "README.md"
   ],
-  "bin": "./dist/index.mjs",
+  "bin": "./dist/index.js",
   "scripts": {
     "build": "tsx scripts/build.mts"
   },

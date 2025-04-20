@@ -1,5 +1,4 @@
 import { LanguageModelV1Message } from "@ai-sdk/provider";
-import { Writable } from "stream";
 import { CoreMessage } from "../edge/CoreTypes";
 import { ToolCallContentPart } from "@assistant-ui/react";
 

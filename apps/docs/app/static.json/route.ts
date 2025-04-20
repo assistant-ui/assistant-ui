@@ -13,7 +13,7 @@ export function GET() {
       structured: page.data.structuredData,
       url: page.url,
       title: page.data.title,
-      description: page.data.description,
+      description: page.data.description ?? "",
     });
   }
 

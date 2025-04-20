@@ -391,6 +391,9 @@ importers:
         specifier: ^3.24.3
         version: 3.24.3
     devDependencies:
+      '@assistant-ui/tsconfig':
+        specifier: workspace:*
+        version: link:../../packages/tsconfig
       '@types/node':
         specifier: ^22
         version: 22.14.1
@@ -1417,6 +1420,9 @@ importers:
       '@radix-ui/react-use-escape-keydown':
         specifier: ^1.1.1
         version: 1.1.1(@types/react@19.1.2)(react@19.1.0)
+      '@standard-schema/spec':
+        specifier: ^1.0.0
+        version: 1.0.0
       '@types/react':
         specifier: '*'
         version: 19.1.2
@@ -1424,8 +1430,11 @@ importers:
         specifier: '*'
         version: 19.1.2(@types/react@19.1.2)
       assistant-stream:
-        specifier: ^0.1.7
+        specifier: ^0.2.0
         version: link:../assistant-stream
+      json-schema:
+        specifier: ^0.4.0
+        version: 0.4.0
       nanoid:
         specifier: 5.1.5
         version: 5.1.5
@@ -1484,18 +1493,15 @@ importers:
       '@ai-sdk/ui-utils':
         specifier: '*'
         version: 1.2.8(zod@3.24.3)
+      '@assistant-ui/react':
+        specifier: ^0.10.0
+        version: link:../react
       '@assistant-ui/react-edge':
         specifier: workspace:*
         version: link:../react-edge
       '@radix-ui/react-use-callback-ref':
         specifier: ^1.1.1
         version: 1.1.1(@types/react@19.1.2)(react@19.1.0)
-      '@types/react':
-        specifier: '*'
-        version: 19.1.2
-      react:
-        specifier: ^18 || ^19 || ^19.0.0-rc
-        version: 19.1.0
       zod:
         specifier: ^3.24.3
         version: 3.24.3
@@ -1503,18 +1509,30 @@ importers:
         specifier: ^5.0.3
         version: 5.0.3(@types/react@19.1.2)(react@19.1.0)(use-sync-external-store@1.5.0(react@19.1.0))
     devDependencies:
-      '@assistant-ui/react':
+      '@assistant-ui/tsbuildutils':
         specifier: workspace:*
-        version: link:../react
+        version: link:../tsbuildutils
       '@assistant-ui/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@types/node':
+        specifier: ^22.14.1
+        version: 22.14.1
+      '@types/react':
+        specifier: ^19.1.0
+        version: 19.1.2
+      eslint:
+        specifier: ^9
+        version: 9.25.0(jiti@2.4.2)
       eslint-config-next:
         specifier: 15.3.1
         version: 15.3.1(eslint@9.25.0(jiti@2.4.2))(typescript@5.8.3)
-      tsup:
-        specifier: 8.4.0
-        version: 8.4.0(jiti@2.4.2)(postcss@8.5.3)(tsx@4.19.3)(typescript@5.8.3)
+      react:
+        specifier: ^19.1.0
+        version: 19.1.0
+      tsx:
+        specifier: ^4.19.3
+        version: 4.19.3
 
   packages/react-edge:
     dependencies:
@@ -1528,7 +1546,7 @@ importers:
         specifier: '*'
         version: 19.1.2(@types/react@19.1.2)
       assistant-stream:
-        specifier: ^0.1.7
+        specifier: ^0.2.0
         version: link:../assistant-stream
       json-schema:
         specifier: ^0.4.0
@@ -1573,43 +1591,49 @@ importers:
 
   packages/react-hook-form:
     dependencies:
-      '@types/react':
-        specifier: '*'
-        version: 19.1.2
-      react:
-        specifier: ^18 || ^19 || ^19.0.0-rc
-        version: 19.1.0
-      react-hook-form:
-        specifier: ^7
-        version: 7.55.0(react@19.1.0)
+      '@assistant-ui/react':
+        specifier: ^0.10.0
+        version: link:../react
       zod:
         specifier: ^3.24.3
         version: 3.24.3
     devDependencies:
-      '@assistant-ui/react':
+      '@assistant-ui/tsbuildutils':
         specifier: workspace:*
-        version: link:../react
+        version: link:../tsbuildutils
       '@assistant-ui/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@types/node':
+        specifier: ^22.14.1
+        version: 22.14.1
+      '@types/react':
+        specifier: ^19.1.0
+        version: 19.1.2
+      eslint:
+        specifier: ^9
+        version: 9.25.0(jiti@2.4.2)
       eslint-config-next:
         specifier: 15.3.1
         version: 15.3.1(eslint@9.25.0(jiti@2.4.2))(typescript@5.8.3)
-      tsup:
-        specifier: 8.4.0
-        version: 8.4.0(jiti@2.4.2)(postcss@8.5.3)(tsx@4.19.3)(typescript@5.8.3)
+      react:
+        specifier: ^19.1.0
+        version: 19.1.0
+      react-hook-form:
+        specifier: ^7.51.1
+        version: 7.55.0(react@19.1.0)
+      tsx:
+        specifier: ^4.19.3
+        version: 4.19.3
 
   packages/react-langgraph:
     dependencies:
-      '@types/react':
-        specifier: '*'
-        version: 19.1.2
+      '@assistant-ui/react':
+        specifier: ^0.10.0
+        version: link:../react
       assistant-stream:
-        specifier: ^0.1.7
+        specifier: ^0.2.0
         version: link:../assistant-stream
-      react:
-        specifier: ^18 || ^19 || ^19.0.0-rc
-        version: 19.1.0
       uuid:
         specifier: ^11.1.0
         version: 11.1.0
@@ -1617,18 +1641,33 @@ importers:
         specifier: ^3.24.3
         version: 3.24.3
     devDependencies:
-      '@assistant-ui/react':
+      '@assistant-ui/tsbuildutils':
         specifier: workspace:*
-        version: link:../react
+        version: link:../tsbuildutils
       '@assistant-ui/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@types/node':
+        specifier: ^22.14.1
+        version: 22.14.1
+      '@types/react':
+        specifier: ^19.1.0
+        version: 19.1.2
+      '@types/uuid':
+        specifier: ^9.0.8
+        version: 9.0.8
+      eslint:
+        specifier: ^9
+        version: 9.25.0(jiti@2.4.2)
       eslint-config-next:
         specifier: 15.3.1
         version: 15.3.1(eslint@9.25.0(jiti@2.4.2))(typescript@5.8.3)
-      tsup:
-        specifier: 8.4.0
-        version: 8.4.0(jiti@2.4.2)(postcss@8.5.3)(tsx@4.19.3)(typescript@5.8.3)
+      react:
+        specifier: ^19.1.0
+        version: 19.1.0
+      tsx:
+        specifier: ^4.19.3
+        version: 4.19.3
 
   packages/react-markdown:
     dependencies:
@@ -1680,19 +1719,6 @@ importers:
         version: 4.19.3
 
   packages/react-syntax-highlighter:
-    dependencies:
-      '@types/react':
-        specifier: '*'
-        version: 19.1.2
-      '@types/react-syntax-highlighter':
-        specifier: '*'
-        version: 15.5.13
-      react:
-        specifier: ^18 || ^19 || ^19.0.0-rc
-        version: 19.1.0
-      react-syntax-highlighter:
-        specifier: ^15.5.0
-        version: 15.6.1(react@19.1.0)
     devDependencies:
       '@assistant-ui/react':
         specifier: workspace:*
@@ -1700,15 +1726,36 @@ importers:
       '@assistant-ui/react-markdown':
         specifier: workspace:*
         version: link:../react-markdown
+      '@assistant-ui/tsbuildutils':
+        specifier: workspace:*
+        version: link:../tsbuildutils
       '@assistant-ui/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@types/node':
+        specifier: ^22.14.1
+        version: 22.14.1
+      '@types/react':
+        specifier: ^19.1.0
+        version: 19.1.2
+      '@types/react-syntax-highlighter':
+        specifier: ^15.5.11
+        version: 15.5.13
+      eslint:
+        specifier: ^9
+        version: 9.25.0(jiti@2.4.2)
       eslint-config-next:
         specifier: 15.3.1
         version: 15.3.1(eslint@9.25.0(jiti@2.4.2))(typescript@5.8.3)
-      tsup:
-        specifier: 8.4.0
-        version: 8.4.0(jiti@2.4.2)(postcss@8.5.3)(tsx@4.19.3)(typescript@5.8.3)
+      react:
+        specifier: ^19.1.0
+        version: 19.1.0
+      react-syntax-highlighter:
+        specifier: ^15.5.0
+        version: 15.6.1(react@19.1.0)
+      tsx:
+        specifier: ^4.19.3
+        version: 4.19.3
 
   packages/styles:
     devDependencies:
@@ -1751,9 +1798,6 @@ importers:
       cross-spawn:
         specifier: ^7.0.6
         version: 7.0.6
-      esbuild-plugin-file-path-extensions:
-        specifier: ^2.1.4
-        version: 2.1.4
       postcss:
         specifier: ^8.5.3
         version: 8.5.3
@@ -3252,8 +3296,8 @@ packages:
     peerDependencies:
       '@types/react': '*'
       '@types/react-dom': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
-      react-dom: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react: 19.0.0
+      react-dom: 19.0.0
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -4341,6 +4385,9 @@ packages:
   '@types/uuid@10.0.0':
     resolution: {integrity: sha512-7gqG38EyHgyP1S+7+xomFtL+ZNHcKv6DwNaCZmJmo1vgMugyF3TCnXVg4t1uk89mLNwnLtnY3TpOpCOyp1/xHQ==}
 
+  '@types/uuid@9.0.8':
+    resolution: {integrity: sha512-jg+97EGIcY9AGHJJRaaPVgetKDsrTgbRjQ5Msgjh/DQKEFl0DtyRr/VCOyD1T2R1MNeWPK/u7JoGhlDZnKBAfA==}
+
   '@types/wrap-ansi@3.0.0':
     resolution: {integrity: sha512-ltIpx+kM7g/MLRZfkbL7EsCEjfzCcScLpkg37eXEtx5kmrAKBkTJwd1GIAjDSL8wTpM6Hzn5YO4pSb91BEwu1g==}
 
@@ -5424,10 +5471,6 @@ packages:
 
   esast-util-from-js@2.0.1:
     resolution: {integrity: sha512-8Ja+rNJ0Lt56Pcf3TAmpBZjmx8ZcK5Ts4cAzIOjsjevg9oSXJnl6SUQ2EevU8tv3h6ZLWmoKL5H4fgWvdvfETw==}
-
-  esbuild-plugin-file-path-extensions@2.1.4:
-    resolution: {integrity: sha512-lNjylaAsJMprYg28zjUyBivP3y0ms9b7RJZ5tdhDUFLa3sCbqZw4wDnbFUSmnyZYWhCYDPxxp7KkXM2TXGw3PQ==}
-    engines: {node: '>=v14.0.0', npm: '>=7.0.0'}
 
   esbuild@0.25.2:
     resolution: {integrity: sha512-16854zccKPnC+toMywC+uKNeYSv+/eXkevRAfwRD/G9Cleq66m8XFIrigkbvauLLlCfDL45Q2cWegSg53gGBnQ==}
@@ -11553,6 +11596,8 @@ snapshots:
 
   '@types/uuid@10.0.0': {}
 
+  '@types/uuid@9.0.8': {}
+
   '@types/wrap-ansi@3.0.0': {}
 
   '@types/yargs-parser@21.0.3': {}
@@ -12745,8 +12790,6 @@ snapshots:
       acorn: 8.14.1
       esast-util-from-estree: 2.0.0
       vfile-message: 4.0.2
-
-  esbuild-plugin-file-path-extensions@2.1.4: {}
 
   esbuild@0.25.2:
     optionalDependencies:
