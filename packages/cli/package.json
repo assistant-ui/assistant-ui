@@ -42,12 +42,9 @@
   "homepage": "https://www.assistant-ui.com/",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/assistant-ui/assistant-ui.git"
+    "url": "https://github.com/assistant-ui/assistant-ui/tree/main/packages/cli"
   },
   "bugs": {
     "url": "https://github.com/assistant-ui/assistant-ui/issues"
-  },
-  "engines": {
-    "node": ">=20.0.0"
   }
 }
