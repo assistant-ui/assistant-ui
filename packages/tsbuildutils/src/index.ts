@@ -61,8 +61,6 @@ const transpileTypescriptDts = async () => {
     "--emitDeclarationOnly",
     "--outDir",
     "dist",
-    "--noEmit",
-    "false",
   ]);
   child.stdout.pipe(process.stdout);
   child.stderr.pipe(process.stderr);
