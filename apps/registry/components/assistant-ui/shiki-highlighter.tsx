@@ -16,7 +16,8 @@ export type HighlighterProps = Omit<
 
 /**
  * SyntaxHighlighter component, using react-shiki
- * @use pass to `defaultComponents` in `markdown-text.tsx`
+ * Use it by passing to `defaultComponents` in `markdown-text.tsx`
+ *
  * @example
  * const defaultComponents = memoizeMarkdownComponents({
  *   SyntaxHighlighter,
@@ -30,8 +31,8 @@ export const SyntaxHighlighter: FC<HighlighterProps> = ({
   theme = "vitesse-dark",
   addDefaultStyles = false,
   showLanguage = false,
-  node,
-  components,
+  node: _node,
+  components: _components,
   ...props
 }) => {
   return (
