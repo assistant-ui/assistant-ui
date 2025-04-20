@@ -9,7 +9,7 @@ import { TypeTable } from "fumadocs-ui/components/type-table";
 Syntax highlighting for code blocks in markdown.
 
 <Callout type="warn">
-Syntax highlighting is not enabled by default.
+Syntax highlighting is not included by default.
 </Callout>
 
 <Callout type="info">
@@ -25,7 +25,7 @@ Syntax highlighting is not enabled by default.
 <Steps>
   <Step>
 
-#### Add the shiki-highlighter component
+#### Add `shiki-highlighter`
 
 ```bash
 npx shadcn@latest add "https://r.assistant-ui.com/shiki-highlighter"
@@ -44,7 +44,7 @@ the config in the `shiki-highlighter.tsx` file.
 import { SyntaxHighlighter } from "./shiki-highlighter";
 
 export const defaultComponents = memoizeMarkdownComponents({
-  SyntaxHighlighter, // [!code ++]
+  SyntaxHighlighter: SyntaxHighlighter, // [!code ++]
   h1: /* ... */,
   // ...other elements...
 });
@@ -100,12 +100,16 @@ export const defaultComponents = memoizeMarkdownComponents({
             default: "[]",
         },
         transformers: {
-            description: "Custom transformers to apply to the code",
+            description: "Transformers for the Shiki pipeline",
             type: "ShikiTransformer[]",
             default: "[]",
         },
     }}
 />
+
+<Callout type="info">
+Support for all Shiki options in react-shiki is coming soon.
+</Callout>
 
 ### Dual/multi theme support
 
@@ -150,11 +154,16 @@ html.dark .shiki span {
 }
 ```
 
-For more information, see [shiki's documentation on dual and multi themes](https://shiki.style/guide/dual-themes).
+For more information, see [Shiki's documentation on dual and multi themes](https://shiki.style/guide/dual-themes).
 
 ---
 
-## react-syntax-highlighter (legacy)
+## react-syntax-highlighter
+
+<Callout type="warn">
+**This option may be removed in a future release.**  
+Consider using [react-shiki](#react-shiki) instead.
+</Callout>
 
 <Steps>
   <Step>
@@ -176,7 +185,7 @@ npx shadcn@latest add "https://r.assistant-ui.com/syntax-highlighter"
 import { SyntaxHighlighter } from "./syntax-highlighter";
 
 export const defaultComponents = memoizeMarkdownComponents({
-  SyntaxHighlighter, // [!code ++]
+  SyntaxHighlighter: SyntaxHighlighter, // [!code ++]
   h1: /* ... */,
   // ...other elements...
 });
