@@ -30,21 +30,27 @@
   ],
   "version": "0.9.6",
   "license": "MIT",
+  "type": "module",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js"
+      "import": "./dist/index.js"
     },
     "./edge": {
       "types": "./dist/edge.d.ts",
-      "import": "./dist/edge.mjs",
-      "require": "./dist/edge.js"
+      "import": "./dist/edge.js"
+    },
+    "./smooth": {
+      "types": "./dist/smooth.d.ts",
+      "import": "./dist/smooth.js"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "import": "./dist/types.js"
     }
   },
   "source": "./src/index.ts",
-  "main": "./dist/index.js",
-  "module": "./dist/index.mjs",
+  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
     "dist",
@@ -68,6 +74,7 @@
     "@radix-ui/react-slot": "^1.2.0",
     "@radix-ui/react-use-callback-ref": "^1.1.1",
     "@radix-ui/react-use-escape-keydown": "^1.1.1",
+    "@standard-schema/spec": "^1.0.0",
     "assistant-stream": "^0.1.7",
     "nanoid": "5.1.5",
     "react-textarea-autosize": "^8.5.9",

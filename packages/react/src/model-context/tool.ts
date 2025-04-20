@@ -1,26 +1,17 @@
-import { Schema, z } from "zod";
+import type { StandardSchemaV1 } from "@standard-schema/spec";
 import { Tool } from "assistant-stream";
+import { JSONSchema7 } from "json-schema";
 
-export type inferParameters<PARAMETERS extends Tool<any, any>["parameters"]> =
-  PARAMETERS extends Schema<any>
-    ? PARAMETERS["_type"]
-    : PARAMETERS extends z.ZodTypeAny
-      ? z.infer<PARAMETERS>
-      : never;
-
-export function tool<
-  TArgs extends Tool<any, any>["parameters"],
-  TResult = any,
->(tool: {
+export function tool<TArgs extends unknown, TResult = any>(tool: {
   description?: string | undefined;
-  parameters: TArgs;
+  parameters: StandardSchemaV1<TArgs> | JSONSchema7;
   execute?: (
-    args: inferParameters<TArgs>,
+    args: TArgs,
     context: {
       toolCallId: string;
       abortSignal: AbortSignal;
     },
   ) => TResult | Promise<TResult>;
-}): Tool<inferParameters<TArgs>, TResult> {
+}): Tool<TArgs, TResult> {
   return tool;
 }

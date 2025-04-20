@@ -1,5 +1,5 @@
 {
-  "extends": "@assistant-ui/tsconfig/base.json",
+  "extends": "@assistant-ui/tsconfig/app-base.json",
   "compilerOptions": {
     "target": "ES6",
     "incremental": true,
@@ -8,11 +8,6 @@
         "name": "next"
       }
     ],
-    "paths": {
-      "@/*": ["./*"],
-      "@assistant-ui/*": ["../../packages/*/src"],
-      "@assistant-ui/react/*": ["../../packages/react/src/*"]
-    },
     "allowJs": true,
     "strictNullChecks": true,
     "jsx": "preserve"

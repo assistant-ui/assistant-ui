@@ -1,15 +1,9 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
-  "extends": "@tsconfig/strictest/tsconfig.json",
+  "extends": "./base.json",
   "compilerOptions": {
-    "moduleResolution": "bundler",
-    "target": "ESNext",
-    "module": "ESNext",
-    "noEmit": true,
-    "resolveJsonModule": true,
-    "jsx": "react-jsx",
-    "lib": ["dom", "dom.iterable", "ES2022"],
     "paths": {
+      "@/*": ["./*"],
       "@assistant-ui/*": ["../../packages/*/src"],
       "@assistant-ui/react/*": ["../../packages/react/src/*"],
       "assistant-stream": ["../../packages/assistant-stream/src"],

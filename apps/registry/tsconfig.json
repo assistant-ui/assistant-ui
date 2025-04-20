@@ -1,12 +1,5 @@
 {
-  "extends": "@assistant-ui/tsconfig/base.json",
-  "compilerOptions": {
-    "paths": {
-      "@/*": ["./*"],
-      "@assistant-ui/*": ["../../packages/*/src"],
-      "@assistant-ui/react/*": ["../../packages/react/src/*"]
-    }
-  },
+  "extends": "@assistant-ui/tsconfig/app-base.json",
   "include": ["**/*.ts", "**/*.tsx"],
   "exclude": ["node_modules", "dist"]
 }

@@ -1,28 +1,21 @@
-import { z } from "zod";
 import { Unsubscribe } from "../types/Unsubscribe";
 import { Tool } from "assistant-stream";
 
-export const LanguageModelV1CallSettingsSchema = z.object({
-  maxTokens: z.number().int().positive().optional(),
-  temperature: z.number().optional(),
-  topP: z.number().optional(),
-  presencePenalty: z.number().optional(),
-  frequencyPenalty: z.number().optional(),
-  seed: z.number().int().optional(),
-  headers: z.record(z.string().optional()).optional(),
-});
+export type LanguageModelV1CallSettings = {
+  maxTokens?: number;
+  temperature?: number;
+  topP?: number;
+  presencePenalty?: number;
+  frequencyPenalty?: number;
+  seed?: number;
+  headers?: Record<string, string | undefined>;
+};
 
-export type LanguageModelV1CallSettings = z.infer<
-  typeof LanguageModelV1CallSettingsSchema
->;
-
-export const LanguageModelConfigSchema = z.object({
-  apiKey: z.string().optional(),
-  baseUrl: z.string().optional(),
-  modelName: z.string().optional(),
-});
-
-export type LanguageModelConfig = z.infer<typeof LanguageModelConfigSchema>;
+export type LanguageModelConfig = {
+  apiKey?: string;
+  baseUrl?: string;
+  modelName?: string;
+};
 
 export type ModelContext = {
   priority?: number | undefined;
