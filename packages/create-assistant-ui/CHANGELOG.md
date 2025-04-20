@@ -1,5 +1,11 @@
 # create-assistant-ui
 
+## 0.0.18
+
+### Patch Changes
+
+- 557c3f7: build: drop CJS builds
+
 ## 0.0.17
 
 ### Patch Changes

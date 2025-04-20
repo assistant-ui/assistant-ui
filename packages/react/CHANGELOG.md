@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.10.0
+
+### Patch Changes
+
+- 557c3f7: build: drop CJS builds
+
 ## 0.9.6
 
 ### Patch Changes

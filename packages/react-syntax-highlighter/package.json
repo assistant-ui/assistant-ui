@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-syntax-highlighter",
-  "version": "0.9.3",
+  "version": "0.10.0",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -22,8 +22,8 @@
     "build": "tsx scripts/build.mts"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.9.6",
-    "@assistant-ui/react-markdown": "^0.9.3",
+    "@assistant-ui/react": "^0.10.0",
+    "@assistant-ui/react-markdown": "^0.10.0",
     "@types/react": "*",
     "@types/react-syntax-highlighter": "*",
     "react": "^18 || ^19 || ^19.0.0-rc",

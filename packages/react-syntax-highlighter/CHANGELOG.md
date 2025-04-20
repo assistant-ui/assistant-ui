@@ -1,5 +1,14 @@
 # @assistant-ui/react-syntax-highlighter
 
+## 0.10.0
+
+### Patch Changes
+
+- 557c3f7: build: drop CJS builds
+- Updated dependencies [557c3f7]
+  - @assistant-ui/react-markdown@0.9.4
+  - @assistant-ui/react@0.9.7
+
 ## 0.9.3
 
 ### Patch Changes

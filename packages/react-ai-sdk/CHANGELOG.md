@@ -1,5 +1,14 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.10.0
+
+### Patch Changes
+
+- 557c3f7: build: drop CJS builds
+- Updated dependencies [557c3f7]
+  - @assistant-ui/react-edge@0.1.7
+  - @assistant-ui/react@0.9.7
+
 ## 0.9.7
 
 ### Patch Changes

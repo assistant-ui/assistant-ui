@@ -1,5 +1,11 @@
 # assistant-ui
 
+## 0.0.49
+
+### Patch Changes
+
+- 557c3f7: build: drop CJS builds
+
 ## 0.0.48
 
 ### Patch Changes
