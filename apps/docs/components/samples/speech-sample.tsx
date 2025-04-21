@@ -28,7 +28,7 @@ import { MarkdownText } from "../assistant-ui/markdown-text";
 export const SpeechSample = () => {
   return (
     <SampleFrame
-      sampleText="Sample Speech to Text"
+      sampleText="Sample Text to Speech"
       description="Try submitting a message, then clicking on the speech icon in the assistant message."
     >
       <Thread />

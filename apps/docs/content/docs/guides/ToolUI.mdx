@@ -1,8 +1,140 @@
 ---
 title: Tool UIs
 ---
+import { ToolUISample } from "../../../components/samples/tool-ui-sample";
 
-You can show a custom UI when a tool is called to let the user know what is happening.
+Tools are functions that allow you to extend the capabilities of Large Language Models (LLMs) by implementing custom code that can be invoked during a conversation. They enable LLMs to perform specific tasks like searching the web, accessing databases, or interacting with external APIs. 
+
+With assistant-ui, you can show a custom UI when a tool is called to let the user know what is happening. In this example, we'll be experimenting with a tool call for web search.
+
+<ToolUISample />
+
+### Frontend & Backend Example With Vercel AI SDK
+
+In this example, we'll illustrate a tool for web search that shows a weather UI when the user asks about the weather in Tokyo. The tool UI displays a loading state while fetching data, then shows the current temperature with appropriate day/night icons. This demonstrates how you can create interactive, visually appealing tool UIs that enhance the user experience during tool execution.
+
+
+#### Frontend
+
+```tsx title="/components/client-side-chat-component.tsx
+
+"use client";
+import {
+  AssistantCloud,
+  AssistantRuntimeProvider,
+  makeAssistantToolUI,
+  Thread,
+} from "@assistant-ui/react";
+import { GlobeIcon } from "@radix-ui/react-icons";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+ 
+type WebSearchArgs = {
+  query: string;
+};
+ 
+type WebSearchResult = {
+  searchResults: {
+    title: string;
+    description: string;
+    url: string;
+  }[];
+};
+
+
+const WebSearchToolUI = makeAssistantToolUI<WebSearchArgs, WebSearchResult>({
+  toolName: "web_search",
+  render: ({ args, status, result }) => {
+    return (
+      <div className="rounded-md border bg-muted p-4 space-y-3">
+        <div className="flex items-center gap-2 text-sm font-medium">
+          <GlobeIcon className="h-4 w-4" />
+          <span>
+            Searching the web for:{" "}
+            <span className="font-semibold text-blue-600">{args.query}</span>
+          </span>
+        </div>
+        <div className="space-y-2 pl-6">
+          {result?.searchResults.map((item, index) => (
+            <div key={index} className="text-sm">
+              <a
+                href={item.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-700 hover:underline font-medium"
+              >
+                {item.title}
+              </a>
+              <p className="text-muted-foreground text-xs mt-0.5">
+                {item.description}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  },
+});
+
+const runtime = useChatRuntime({
+  api: "/api/chat",
+});
+ 
+ return (
+  <AssistantRuntimeProvider runtime={runtime}>
+    <Thread />
+    <WebSearchToolUI />
+  </AssistantRuntimeProvider>
+);
+
+```
+
+#### Backend API Route
+
+```tsx title="/api/api/chat/route.ts
+
+import { anthropic } from "@ai-sdk/anthropic";
+import { streamText, tool } from "ai";
+import { z } from "zod";
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+  const result = streamText({
+    model: anthropic("claude-3-5-sonnet-20240620"),
+    messages,
+    tools: {
+      web_search: tool({
+        description: 'Search the web',
+        parameters: z.object({
+          query: z.string().describe('The query to search the web for'),
+        }),
+        execute: async ({ query }) => {
+          // run your logic here to search the web using a serp api...
+          return {
+            query,
+            searchResults: [
+              {
+                title: "Example Site1",
+                description: "This is an example site!",
+                url: "https://www.example.com",
+              },
+              {
+                title: "Example Site2",
+                description: "This is another example site!",
+                url: "https://www.example.com",
+              },
+              
+            ],
+          };
+        },
+      }),
+    },
+  });
+  return result.toDataStreamResponse();
+}
+
+
+```
+
 
 ### Tool UI Components
 
