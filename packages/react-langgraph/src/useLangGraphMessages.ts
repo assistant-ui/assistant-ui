@@ -11,7 +11,7 @@ export type LangGraphSendMessageConfig = {
   runConfig?: unknown;
 };
 
-type LangGraphMessagesEvent<TMessage> = {
+export type LangGraphMessagesEvent<TMessage> = {
   event:
     | "messages"
     | "messages/partial"
