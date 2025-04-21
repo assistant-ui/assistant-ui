@@ -1,5 +1,11 @@
 # create-assistant-ui
 
+## 0.0.20
+
+### Patch Changes
+
+- fix: ESM without bundler compat
+
 ## 0.0.19
 
 ### Patch Changes

@@ -28,7 +28,7 @@
     "conversational-ui",
     "conversational-ai"
   ],
-  "version": "0.10.1",
+  "version": "0.10.2",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -73,7 +73,7 @@
   "peerDependencies": {
     "@types/react": "*",
     "@types/react-dom": "*",
-    "assistant-stream": "^0.2.1",
+    "assistant-stream": "^0.2.2",
     "react": "^18 || ^19 || ^19.0.0-rc",
     "react-dom": "^18 || ^19 || ^19.0.0-rc"
   },

@@ -1,5 +1,13 @@
 # @assistant-ui/react-markdown
 
+## 0.10.2
+
+### Patch Changes
+
+- fix: ESM without bundler compat
+- Updated dependencies
+  - @assistant-ui/react@0.10.2
+
 ## 0.10.1
 
 ### Patch Changes
