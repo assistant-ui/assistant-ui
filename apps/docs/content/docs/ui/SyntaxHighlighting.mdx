@@ -8,14 +8,12 @@ import { TypeTable } from "fumadocs-ui/components/type-table";
 
 Syntax highlighting for code blocks in markdown.
 
-<Callout type="warn">
-Syntax highlighting is not included by default.
-</Callout>
+<Callout type="warn">Syntax highlighting is not included by default.</Callout>
 
 <Callout type="info">
-`assistant-ui` offers two ways to add syntax highlighting to your markdown:
-- **react-shiki** (recommended for performance & dynamic language support)  
-- **react-syntax-highlighter** (legacy - Prism or Highlight.js based)
+  `assistant-ui` offers two ways to add syntax highlighting to your markdown: -
+  **react-shiki** (recommended for performance & dynamic language support) -
+  **react-syntax-highlighter** (legacy - Prism or Highlight.js based)
 </Callout>
 
 ---
@@ -31,8 +29,8 @@ Syntax highlighting is not included by default.
 npx shadcn@latest add "https://r.assistant-ui.com/shiki-highlighter"
 ```
 
-This adds a `/components/assistant-ui/shiki-highlighter.tsx` file to your project and 
-installs the `react-shiki` dependency. The highlighter can be customized by editing 
+This adds a `/components/assistant-ui/shiki-highlighter.tsx` file to your project and
+installs the `react-shiki` dependency. The highlighter can be customized by editing
 the config in the `shiki-highlighter.tsx` file.
 
   </Step>
@@ -56,59 +54,71 @@ export const defaultComponents = memoizeMarkdownComponents({
 ### Options
 
 <TypeTable
-    type={{
-        theme: {
-            description: "Shiki built-in or custom textmate theme(s)",
-            type: "string | object",
-            default: "github-dark",
-            required: true,
-        },
-        language: {
-            description: "The language for highlighting",
-            type: "BundledLanguage | TextmateLanguage",
-            default: "text",
-            required: true,
-        },
-        className: {
-            description: "Custom CSS classes for the `<pre>` element",
-            type: "string",
-            default: "",
-        },
-        style: {
-            description: "Inline styles for the `ShikiHighlighter` component",
-            type: "CSSProperties",
-            default: "{}",
-        },
-        cssVariablePrefix: {
-            description: "Prefix of CSS variables used to store the color of the other theme",
-            type: "string",
-            default: "--shiki-",
-        },
-        defaultColor: {
-          description: "The default theme applied to the code (via inline color style). The rest of the themes are applied via CSS variables, and toggled by CSS overrides. For example, if defaultColor is light, then light theme is applied to the code, and the dark theme and other custom themes are applied via CSS variables",
-          type: "light | dark | string | false",
-          default: undefined,
-        },
-        delay: {
-            description: "Delay in milliseconds between consecutive highlights, useful for streamed code responses.",
-            type: "number",
-            default: 0,
-        },
-        customLanguages: {
-            description: "Custom languages to preload for syntax highlighting",
-            type: "TextmateLanguage[]",
-            default: "[]",
-        },
-        transformers: {
-            description: "Transformers for the Shiki pipeline",
-            type: "ShikiTransformer[]",
-            default: "[]",
-        },
-    }}
+  type={{
+    theme: {
+      description: "Shiki built‑in or custom textmate theme(s)",
+      type: "Theme | Themes",
+      typeDescriptionLink:
+        "https://github.com/AVGVSTVS96/react-shiki/blob/694433ef697c9791b3816cf94d12d571e8abbb3a/package/src/types.ts#L51",
+      default: "github‑dark",
+      required: true,
+    },
+    language: {
+      description: "The language for highlighting",
+      type: "Language",
+      typeDescription: "Shiki BundledLanguage or Textmate language object",
+      typeDescriptionLink:
+        "https://github.com/AVGVSTVS96/react-shiki/blob/694433ef697c9791b3816cf94d12d571e8abbb3a/package/src/types.ts#L24",
+      default: "text",
+      required: true,
+    },
+    className: {
+      description: "Custom CSS classes for the `<pre>` element",
+      type: "string",
+      default: "",
+    },
+    style: {
+      description: "Inline styles for the `ShikiHighlighter` component",
+      type: "React.CSSProperties",
+      default: "{}",
+    },
+    cssVariablePrefix: {
+      description:
+        "Prefix of CSS variables used to store the color of the other theme",
+      type: "string",
+      default: "--shiki-",
+    },
+    defaultColor: {
+      description:
+        "The default theme applied to the code (via inline color style). The rest of the themes are applied via CSS variables, and toggled by CSS overrides. For example, if defaultColor is light, then light theme is applied to the code, and the dark theme and other custom themes are applied via CSS variables",
+      type: "light | dark | string | false",
+      default: undefined,
+    },
+    delay: {
+      description:
+        "Delay in milliseconds between consecutive highlights, useful for streamed code responses.",
+      type: "number",
+      default: 0,
+    },
+    customLanguages: {
+      description: "Custom languages to preload for syntax highlighting",
+      type: "Language[]",
+      typeDescriptionLink:
+        "https://github.com/AVGVSTVS96/react-shiki/blob/694433ef697c9791b3816cf94d12d571e8abbb3a/package/src/types.ts#L24",
+      default: "[]",
+    },
+    transformers: {
+      description: "Transformers for the Shiki pipeline",
+      type: "ShikiTransformer[]",
+      typeDescriptionLink:
+        "https://github.com/shikijs/shiki/blob/ac6bea51b807a82e0a5c9a83796c3abdda0fc293/packages/types/src/transformers.ts#L48",
+      default: "[]",
+    },
+  }}
 />
 
 <Callout type="info">
-Support for all Shiki options in react-shiki is coming soon.
+  Support for all Shiki options in react-shiki is coming soon.
 </Callout>
 
 ### Dual/multi theme support
@@ -161,8 +171,8 @@ For more information, see [Shiki's documentation on dual and multi themes](https
 ## react-syntax-highlighter
 
 <Callout type="warn">
-**This option may be removed in a future release.**  
-Consider using [react-shiki](#react-shiki) instead.
+  **This option may be removed in a future release.** Consider using
+  [react-shiki](#react-shiki) instead.
 </Callout>
 
 <Steps>
