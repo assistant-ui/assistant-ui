@@ -40,58 +40,97 @@ You can always switch between the two approaches without any downtime or necessa
 Choose direct integration with your auth provider if you can. Otherwise, use a backend server.
 
 ### Auth Provider Integration
-
-In the dashboard, go to the "Auth Integrations" tab and add a new integration.
-Follow the steps to add your auth provider.
+In the AssistantUI dashboard, go to the "Auth Integrations" tab and add a new integration.
+Follow the steps to add your auth provider. (See the auth providers we have guides for at the bottom of this page.)
 
 Then, pass in a function to `authToken` that returns an ID token from your auth provider.
-The following is an example for Clerk:
 
 ```ts
 import { AssistantCloud } from "@assistant-ui/react";
 
 const assistantCloud = new AssistantCloud({
-  authToken: () => clerkClient.sessions.getToken(auth(), "assistant-ui"),
+  authToken: () => JWT_TOKEN
 });
 ```
 
-### Backend Integration
+### Integration with an Auth Provider
 
-In the dashboard, go to the "API Keys" tab and add a new API key.
+#### Backend API Endpoint
 
-Then, in a backend route, call `assistantCloud.auth.getToken({ workspaceId })`.
+The following is an api route example to create an auth token based on an authenticated user's orgId and userId.
 
-The following is an example to get auth tokens for Clerk based on the org_id and user_id:
+In the Assistant Cloud dashboard, go to the "API Keys" tab and add a new API key, add the key the environment variable `ASSISTANT_API_KEY=[KEY]`
 
 ```ts title="/app/api/assistant-ui-token/route.ts"
 import { AssistantCloud } from "@assistant-ui/react";
-
-const assistantCloud = new AssistantCloud({
-  apiKey: <your api key>,
-});
-
+import { auth } from "@clerk/nextjs/server";
+ 
 export const POST = async (req: Request) => {
-  const { org_id, user_id } = auth();
-
-  if (!user_id) throw new Error("User not authenticated");
-
-  const workspaceId = org_id ? `${org_id}:${user_id}` : user_id;
-  const authToken = assistantCloud.auth.tokens.create({ workspaceId });
+  const { userId, orgId } = await auth();
+ 
+  if (!userId) throw new Error("User not authenticated");
+ 
+  const workspaceId = orgId ? `${orgId}:${userId}` : userId;
+  const assistantCloud = new AssistantCloud({
+    apiKey: process.env["ASSISTANT_API_KEY"]!,
+    userId,
+    workspaceId,
+  });
+  const {token} = await assistantCloud.auth.tokens.create();
 
   return new Response(token);
 };
 ```
 
-```ts title="client.ts"
-import { AssistantCloud } from "@assistant-ui/react";
+#### Frontend Implementation
 
-const assistantCloud = new AssistantCloud({
+The following is an api route example to create an auth token based on an authenticated user's orgId and userId.
+
+```ts title="client.ts"
+const cloud = new AssistantCloud({
+  baseUrl: process.env["NEXT_PUBLIC_ASSISTANT_BASE_URL"]!,
   authToken: () =>
-    fetch("/api/assistant-ui-token", { method: "POST" }).then((r) => r.json()),
+    fetch("/api/assistant-ui-token", { method: "POST" }).then((r) =>
+      r.json().then((data) => data.token)
+    ),
+});
+
+const runtime = useChatRuntime({
+  api: "/api/chat",
+  cloud,
 });
 ```
 
-### Clerk
+### Anonymous (without auth provider) Frontend Implementation
+
+The following is a example to get auth tokens for Clerk based on the org_id and user_id:
+
+```ts title="/app/api/assistant-ui-token/route.ts"
+import { AssistantCloud } from "@assistant-ui/react";
+
+const cloud = new AssistantCloud({
+  baseUrl: process.env["NEXT_PUBLIC_ASSISTANT_BASE_URL"]!,
+  anonymous: true,
+});
+
+const runtime = useChatRuntime({
+  api: "/api/chat",
+  cloud,
+});
+
+return (
+  <AssistantRuntimeProvider runtime={runtime}>
+    <div className="grid h-dvh grid-cols-[200px_1fr] gap-x-2 px-4 py-4">
+      <ThreadList />
+      <MyThread />
+    </div>
+  </AssistantRuntimeProvider>
+);
+
+```
+
+
+### Setting up the Clerk Auth Provider
 
 First, go to the Clerk dashboard and under "Configure" tab, "JWT Templates" section, create a new template. Choose a blank template and name it "assistant-ui".
 

@@ -9,6 +9,8 @@ import {
 import {
   type ChatModelAdapter,
   type ChatModelRunOptions,
+  type ChatModelRunResult,
+  type ToolCallContentPart,
   useLocalRuntime,
 } from "@assistant-ui/react";
 import { v4 as uuidv4 } from "uuid";
@@ -24,13 +26,33 @@ const LOREM_IPSUM = `Lorem ipsum dolor sit amet, consectetur adipiscing elit, se
 
 class DummyChatAdapter implements ChatModelAdapter {
   async *run({ messages }: ChatModelRunOptions) {
+    const lastMessage = messages[messages.length - 1];
+    if (
+      lastMessage &&
+      lastMessage.role === "user" &&
+      lastMessage.content[0]?.type === "text" &&
+      lastMessage.content[0].text.toLowerCase().includes("weather in tokyo")
+    ) {
+      // If the last message contains "tool", yield a tool_call example
+      const toolCallPart: ToolCallContentPart = {
+        type: "tool-call" as const,
+        toolCallId: `tool_${uuidv4()}`,
+        toolName: "web_search",
+        args: { query: "weather in Tokyo" },
+        argsText: JSON.stringify({ query: "weather in Tokyo" }),
+      };
+      const result: ChatModelRunResult = {
+        content: [toolCallPart],
+      };
+      yield result;
+      return; // End generation after yielding the tool call
+    }
+
+    // Original logic if the last message doesn't contain "tool"
     const text =
       messages.length === 1
-        ? "This is a mocked chat endpoint for testing purposes. Unique Message ID: " +
-          uuidv4() +
-          "\n\n" +
-          LOREM_IPSUM
-        : LOREM_IPSUM;
+        ? `This is a mocked chat endpoint for testing purposes. Unique Message ID: ${uuidv4()}\n\n${LOREM_IPSUM}`
+        : `Unique Message ID: ${uuidv4()}\n\n${LOREM_IPSUM}`;
     let output = "";
 
     for await (const token of tokenByToken(text)) {
