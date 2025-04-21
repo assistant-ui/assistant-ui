@@ -34,19 +34,6 @@ const isRunning = useThread((m) => m.isRunning);
 
 <ParametersTable {...ThreadState} />
 
-### `useThreadMessages`
-
-Work with the messages within a thread:
-
-```tsx
-import { useThreadMessages } from "@assistant-ui/react";
-
-const messages = useThreadMessages();
-const firstMessage = useThreadMessages((m) => m[0]);
-```
-
-<ParametersTable {...ThreadMessagesState} />
-
 ### `useThreadViewport`
 
 Manage thread viewport state (e.g., scrolling):

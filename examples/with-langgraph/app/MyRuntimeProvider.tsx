@@ -17,7 +17,7 @@ const useMyLangGraphRuntime = () => {
       const { externalId } = await threadListItemRuntime.initialize();
       if (!externalId) throw new Error("Thread not found");
 
-      const generator = await sendMessage({
+      const generator = sendMessage({
         threadId: externalId,
         messages,
       });

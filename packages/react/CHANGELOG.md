@@ -1,5 +1,36 @@
 # @assistant-ui/react
 
+## 0.10.1
+
+### Patch Changes
+
+- fix: correctly include Typescript declarations
+
+## 0.10.0
+
+### Patch Changes
+
+- 557c3f7: build: drop CJS builds
+
+## 0.9.6
+
+### Patch Changes
+
+- chore: update deps
+
+## 0.9.5
+
+### Patch Changes
+
+- chore: bump assistant-stream dependency
+- 1ad0696: feat: assistant-ui update CLI command
+
+## 0.9.4
+
+### Patch Changes
+
+- c77ef43: feat: assistant-ui update CLI command
+
 ## 0.9.3
 
 ### Patch Changes

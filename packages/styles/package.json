@@ -1,7 +1,7 @@
 {
   "name": "@assistant-ui/styles",
   "description": "Styles for @assistant-ui/react for non-Tailwind users",
-  "version": "0.0.4",
+  "version": "0.1.1",
   "license": "MIT",
   "exports": {
     "./*": {
@@ -26,7 +26,7 @@
     "postcss": "^8.5.3",
     "postcss-nested": "^7.0.2",
     "tailwindcss": "^4.1.4",
-    "tw-animate-css": "^1.2.5",
+    "tw-animate-css": "^1.2.7",
     "tsx": "^4.19.3"
   },
   "publishConfig": {
@@ -40,8 +40,5 @@
   },
   "bugs": {
     "url": "https://github.com/assistant-ui/assistant-ui/issues"
-  },
-  "engines": {
-    "node": ">=20.0.0"
   }
 }

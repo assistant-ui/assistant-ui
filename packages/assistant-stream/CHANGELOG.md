@@ -1,5 +1,41 @@
 # assistant-stream
 
+## 0.2.1
+
+### Patch Changes
+
+- fix: correctly include Typescript declarations
+
+## 0.2.0
+
+### Patch Changes
+
+- 557c3f7: build: drop CJS builds
+
+## 0.1.8
+
+### Patch Changes
+
+- fix: types in ESM
+
+## 0.1.7
+
+### Patch Changes
+
+- 51104f0: feat: ship declarationMaps
+
+## 0.1.6
+
+### Patch Changes
+
+- feat: export AssistantStreamController
+
+## 0.1.5
+
+### Patch Changes
+
+- 2e4a7c1: fix: correctly forward tool result from data stream
+
 ## 0.1.4
 
 ### Patch Changes

@@ -2,7 +2,6 @@ import { build } from "tsup";
 import { promises as fs } from "node:fs";
 import postcss from "postcss";
 import postcssJs from "postcss-js";
-import { esbuildPluginFilePathExtensions } from "esbuild-plugin-file-path-extensions";
 import path from "node:path";
 import { spawn } from "cross-spawn";
 
@@ -38,20 +37,15 @@ const transformCssToJson = async (files: string[]) => {
 const transpileTypescript = async () => {
   await build({
     entry: ["src/**/*.{ts,tsx,js,jsx}", "!src/**/*.test.{ts,tsx}"],
-    format: ["cjs", "esm"],
-    bundle: true,
+    format: "esm",
     minify: false,
     sourcemap: true,
+    bundle: false,
     splitting: false,
     silent: true,
     esbuildOptions: (config) => {
       config.dropLabels = ["DEV"];
     },
-    esbuildPlugins: [
-      esbuildPluginFilePathExtensions({
-        cjsExtension: "js",
-      }),
-    ],
   });
 };
 
@@ -60,7 +54,12 @@ const transpileTypescriptDts = async () => {
     "exec",
     "tsc",
     "-p",
-    "tsconfig.declarations.json",
+    "tsconfig.json",
+    "--emitDeclarationOnly",
+    "--outDir",
+    "dist",
+    "--noEmit",
+    "false",
   ]);
   child.stdout.pipe(process.stdout);
   child.stderr.pipe(process.stderr);
@@ -92,7 +91,7 @@ export class Build {
     this.tasks.push(
       this.initTask.then(() => {
         return Promise.all([
-          transpileTypescript(), // cjs and esm
+          transpileTypescript(), // esm only
           transpileTypescriptDts(), // declarations
         ]);
       }),

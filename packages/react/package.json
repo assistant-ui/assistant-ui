@@ -28,28 +28,22 @@
     "conversational-ui",
     "conversational-ai"
   ],
-  "version": "0.9.3",
+  "version": "0.10.1",
   "license": "MIT",
+  "type": "module",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js"
-    },
-    "./edge": {
-      "types": "./dist/edge.d.ts",
-      "import": "./dist/edge.mjs",
-      "require": "./dist/edge.js"
+      "default": "./dist/index.js"
     }
   },
   "source": "./src/index.ts",
   "main": "./dist/index.js",
-  "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
   "files": [
     "dist",
-    "generated",
     "src",
+    "internal",
     "README.md"
   ],
   "sideEffects": false,
@@ -63,12 +57,14 @@
     "@radix-ui/primitive": "^1.1.2",
     "@radix-ui/react-compose-refs": "^1.1.2",
     "@radix-ui/react-context": "^1.1.2",
-    "@radix-ui/react-popover": "^1.1.7",
-    "@radix-ui/react-primitive": "^2.0.3",
+    "@radix-ui/react-popover": "^1.1.10",
+    "@radix-ui/react-primitive": "^2.1.0",
     "@radix-ui/react-slot": "^1.2.0",
     "@radix-ui/react-use-callback-ref": "^1.1.1",
     "@radix-ui/react-use-escape-keydown": "^1.1.1",
-    "assistant-stream": "^0.1.3",
+    "@standard-schema/spec": "^1.0.0",
+    "assistant-stream": "^0.2.0",
+    "json-schema": "^0.4.0",
     "nanoid": "5.1.5",
     "react-textarea-autosize": "^8.5.9",
     "zod": "^3.24.3",
@@ -77,6 +73,7 @@
   "peerDependencies": {
     "@types/react": "*",
     "@types/react-dom": "*",
+    "assistant-stream": "^0.2.1",
     "react": "^18 || ^19 || ^19.0.0-rc",
     "react-dom": "^18 || ^19 || ^19.0.0-rc"
   },
@@ -111,8 +108,5 @@
   },
   "bugs": {
     "url": "https://github.com/assistant-ui/assistant-ui/issues"
-  },
-  "engines": {
-    "node": ">=20.0.0"
   }
 }

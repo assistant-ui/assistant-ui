@@ -1,5 +1,35 @@
 # assistant-ui
 
+## 0.0.50
+
+### Patch Changes
+
+- fix: correctly include Typescript declarations
+
+## 0.0.49
+
+### Patch Changes
+
+- 557c3f7: build: drop CJS builds
+
+## 0.0.48
+
+### Patch Changes
+
+- chore: update deps
+
+## 0.0.47
+
+### Patch Changes
+
+- 1ad0696: feat: assistant-ui update CLI command
+
+## 0.0.46
+
+### Patch Changes
+
+- c77ef43: feat: assistant-ui update CLI command
+
 ## 0.0.45
 
 ### Patch Changes

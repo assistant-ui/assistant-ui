@@ -1,5 +1,29 @@
 # @assistant-ui/react-hook-form
 
+## 0.10.1
+
+### Patch Changes
+
+- fix: correctly include Typescript declarations
+- Updated dependencies
+  - @assistant-ui/react@0.10.1
+
+## 0.10.0
+
+### Patch Changes
+
+- 557c3f7: build: drop CJS builds
+- Updated dependencies [557c3f7]
+  - @assistant-ui/react@0.9.7
+
+## 0.9.3
+
+### Patch Changes
+
+- chore: update deps
+- Updated dependencies
+  - @assistant-ui/react@0.9.6
+
 ## 0.9.2
 
 ### Patch Changes

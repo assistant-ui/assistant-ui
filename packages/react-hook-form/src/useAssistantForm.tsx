@@ -2,6 +2,7 @@
 
 import {
   type ModelContext,
+  tool,
   type ToolCallContentPartComponent,
   useAssistantRuntime,
   useAssistantToolUI,
@@ -9,6 +10,8 @@ import {
 import { useEffect } from "react";
 import {
   type FieldValues,
+  Path,
+  PathValue,
   type UseFormProps,
   type UseFormReturn,
   useForm,
@@ -69,15 +72,18 @@ export const useAssistantForm = <
       system: `Form State:\n${JSON.stringify(getValues())}`,
 
       tools: {
-        set_form_field: {
+        set_form_field: tool({
           ...formTools.set_form_field,
           execute: async (args) => {
-            setValue(args.name, args.value);
+            setValue(
+              args.name as Path<TFieldValues>,
+              args.value as PathValue<TFieldValues, Path<TFieldValues>>,
+            );
 
             return { success: true };
           },
-        },
-        submit_form: {
+        }),
+        submit_form: tool({
           ...formTools.submit_form,
           execute: async () => {
             const { _names, _fields } = control;
@@ -105,7 +111,7 @@ export const useAssistantForm = <
                 "Unable retrieve the form element. This is a coding error.",
             };
           },
-        },
+        }),
       },
     };
     return assistantRuntime.registerModelContextProvider({

@@ -1,5 +1,0 @@
-{
-  "main": "../dist/utils.js",
-  "module": "../dist/utils.mjs",
-  "types": "../dist/utils.d.ts"
-}

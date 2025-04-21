@@ -1,5 +1,44 @@
 # @assistant-ui/react-edge
 
+## 0.2.1
+
+### Patch Changes
+
+- fix: correctly include Typescript declarations
+- Updated dependencies
+  - @assistant-ui/react@0.10.1
+
+## 0.2.0
+
+### Patch Changes
+
+- 557c3f7: build: drop CJS builds
+- Updated dependencies [557c3f7]
+  - @assistant-ui/react@0.9.7
+
+## 0.1.6
+
+### Patch Changes
+
+- chore: update deps
+- Updated dependencies
+  - @assistant-ui/react@0.9.6
+
+## 0.1.5
+
+### Patch Changes
+
+- 91897ee: fix: circular import causes zod schemas to break
+
+## 0.1.4
+
+### Patch Changes
+
+- chore: bump assistant-stream dependency
+- Updated dependencies
+- Updated dependencies [1ad0696]
+  - @assistant-ui/react@0.9.5
+
 ## 0.1.3
 
 ### Patch Changes

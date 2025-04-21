@@ -3,6 +3,7 @@ import { TypeAtPath, TypePath } from "./type-path-utils";
 import { DeepPartial } from "ai";
 import { AsyncIterableStream } from "../../utils";
 import type { StandardSchemaV1 } from "@standard-schema/spec";
+import { ToolResponse } from "./ToolResponse";
 
 /**
  * Interface for reading tool call arguments from a stream, which are
@@ -58,13 +59,20 @@ export interface ToolCallArgsReader<TArgs> {
     : never;
 }
 
-export interface ToolCallResultReader<TResult> {
-  get: () => Promise<TResult>;
+export interface ToolCallResponseReader<TResult> {
+  get: () => Promise<ToolResponse<TResult>>;
 }
 
 export interface ToolCallReader<TArgs, TResult> {
   args: ToolCallArgsReader<TArgs>;
-  result: ToolCallResultReader<TResult>;
+  response: ToolCallResponseReader<TResult>;
+
+  /**
+   * @deprecated Deprecated. Use `response.get().result` instead.
+   */
+  result: {
+    get: () => Promise<TResult>;
+  };
 }
 
 type ToolExecutionContext = {

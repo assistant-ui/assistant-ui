@@ -1,5 +1,5 @@
 {
+  "type": "module",
   "main": "../dist/ai-sdk.js",
-  "module": "../dist/ai-sdk.mjs",
   "types": "../dist/ai-sdk.d.ts"
 }

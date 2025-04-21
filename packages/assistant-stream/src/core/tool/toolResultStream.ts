@@ -1,8 +1,8 @@
-import { AssistantMessage, ToolCallReader } from "assistant-stream";
-import { Tool, ToolExecuteFunction } from "./tool-types";
+import { Tool, ToolCallReader, ToolExecuteFunction } from "./tool-types";
 import { StandardSchemaV1 } from "@standard-schema/spec";
 import { ToolResponse } from "./ToolResponse";
 import { ToolExecutionStream } from "./ToolExecutionStream";
+import { AssistantMessage } from "../utils/types";
 
 const isStandardSchemaV1 = (
   schema: unknown,
@@ -67,24 +67,10 @@ function getToolStreamResponse<TArgs, TResult>(
     toolName: string;
   },
 ) {
-  const tool = tools?.[context.toolName];
-  // Skip if there's no tool or no streamCall handler
-  if (!tool || !tool.streamCall) return undefined;
-
-  const streamCallFn = tool.streamCall;
-
-  const getResult = async () => {
-    const result = await streamCallFn(reader, {
-      toolCallId: context.toolCallId,
-      abortSignal,
-    });
-    if (result instanceof ToolResponse) return result;
-    return new ToolResponse({
-      result: result === undefined ? "<no result>" : result,
-    });
-  };
-
-  return getResult();
+  tools?.[context.toolName]?.streamCall?.(reader, {
+    toolCallId: context.toolCallId,
+    abortSignal,
+  });
 }
 
 export async function unstable_runPendingTools(

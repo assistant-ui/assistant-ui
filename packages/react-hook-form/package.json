@@ -1,36 +1,30 @@
 {
   "name": "@assistant-ui/react-hook-form",
-  "version": "0.9.2",
+  "version": "0.10.1",
   "license": "MIT",
+  "type": "module",
   "exports": {
     ".": {
-      "import": {
-        "types": "./dist/index.d.mts",
-        "default": "./dist/index.mjs"
-      },
-      "require": {
-        "types": "./dist/index.d.ts",
-        "default": "./dist/index.js"
-      }
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
     }
   },
-  "source": "./src/index.ts",
   "main": "./dist/index.js",
-  "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
   "files": [
     "dist",
+    "src",
     "README.md"
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts --sourcemap --clean"
+    "build": "tsx scripts/build.mts"
   },
   "dependencies": {
     "zod": "^3.24.3"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.9.3",
+    "@assistant-ui/react": "^0.10.1",
     "@types/react": "*",
     "react": "^18 || ^19 || ^19.0.0-rc",
     "react-hook-form": "^7"
@@ -41,10 +35,15 @@
     }
   },
   "devDependencies": {
-    "@assistant-ui/react": "workspace:*",
+    "@assistant-ui/tsbuildutils": "workspace:*",
     "@assistant-ui/tsconfig": "workspace:*",
+    "@types/node": "^22.14.1",
+    "@types/react": "^19.1.2",
+    "eslint": "^9",
     "eslint-config-next": "15.3.1",
-    "tsup": "8.4.0"
+    "react": "^19.1.0",
+    "react-hook-form": "^7.56.0",
+    "tsx": "^4.19.3"
   },
   "publishConfig": {
     "access": "public",
@@ -53,7 +52,7 @@
   "homepage": "https://www.assistant-ui.com/",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/assistant-ui/assistant-ui.git"
+    "url": "https://github.com/assistant-ui/assistant-ui/tree/main/packages/react-hook-form"
   },
   "bugs": {
     "url": "https://github.com/assistant-ui/assistant-ui/issues"

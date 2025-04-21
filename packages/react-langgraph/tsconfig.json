@@ -1,13 +1,5 @@
 {
   "extends": "@assistant-ui/tsconfig/base.json",
-  "compilerOptions": {
-    "paths": {
-      "@assistant-ui/*": ["../../packages/*/src"],
-      "@assistant-ui/react/*": ["../../packages/react/src/*"],
-      "assistant-stream": ["../../packages/assistant-stream/src"],
-      "assistant-stream/*": ["../../packages/assistant-stream/src/*"]
-    }
-  },
-  "include": ["**/*.ts", "**/*.tsx"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": ["**/*.test.ts", "**/*.test.tsx"]
 }

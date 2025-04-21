@@ -175,4 +175,15 @@ export const registry: RegistryItem[] = [
     dependencies: ["@assistant-ui/react", "lucide-react"],
     registryDependencies: ["button"],
   },
+  {
+    name: "shiki-highlighter",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/shiki-highlighter.tsx",
+      },
+    ],
+    dependencies: ["react-shiki"],
+  },
 ];

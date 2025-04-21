@@ -1,45 +1,28 @@
 {
   "name": "assistant-stream",
-  "version": "0.1.4",
+  "version": "0.2.1",
   "license": "MIT",
+  "type": "module",
   "exports": {
     ".": {
-      "import": {
-        "types": "./dist/index.d.mts",
-        "default": "./dist/index.mjs"
-      },
-      "require": {
-        "types": "./dist/index.d.ts",
-        "default": "./dist/index.js"
-      }
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
     },
     "./ai-sdk": {
-      "import": {
-        "types": "./dist/ai-sdk.d.mts",
-        "default": "./dist/ai-sdk.mjs"
-      },
-      "require": {
-        "types": "./dist/ai-sdk.d.ts",
-        "default": "./dist/ai-sdk.js"
-      }
+      "types": "./dist/ai-sdk.d.ts",
+      "default": "./dist/ai-sdk.js"
     },
     "./utils": {
-      "import": {
-        "types": "./dist/utils.d.mts",
-        "default": "./dist/utils.mjs"
-      },
-      "require": {
-        "types": "./dist/utils.d.ts",
-        "default": "./dist/utils.js"
-      }
+      "types": "./dist/utils.d.ts",
+      "default": "./dist/utils.js"
     }
   },
   "source": "./src/index.ts",
   "main": "./dist/index.js",
-  "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
   "files": [
     "dist",
+    "src",
     "ai-sdk",
     "utils",
     "README.md"
@@ -52,6 +35,7 @@
   },
   "devDependencies": {
     "@assistant-ui/tsconfig": "workspace:*",
+    "@assistant-ui/tsbuildutils": "workspace:*",
     "@standard-schema/spec": "^1.0.0",
     "ai": "^4.3.9",
     "eslint": "^9",
@@ -66,7 +50,7 @@
   "homepage": "https://www.assistant-ui.com/",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/assistant-ui/assistant-ui.git"
+    "url": "https://github.com/assistant-ui/assistant-ui/tree/main/packages/assistant-stream"
   },
   "bugs": {
     "url": "https://github.com/assistant-ui/assistant-ui/issues"
