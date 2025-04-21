@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.2.2
+
+### Patch Changes
+
+- fix: ESM without bundler compat
+
 ## 0.2.1
 
 ### Patch Changes

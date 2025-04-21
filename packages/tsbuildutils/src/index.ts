@@ -3,6 +3,7 @@ import { promises as fs } from "node:fs";
 import postcss from "postcss";
 import postcssJs from "postcss-js";
 import path from "node:path";
+import { esbuildPluginFilePathExtensions } from "esbuild-plugin-file-path-extensions";
 import { spawn } from "cross-spawn";
 
 const replaceNullWithObject = (obj: object): object => {
@@ -40,12 +41,17 @@ const transpileTypescript = async () => {
     format: "esm",
     minify: false,
     sourcemap: true,
-    bundle: false,
+
     splitting: false,
     silent: true,
     esbuildOptions: (config) => {
       config.dropLabels = ["DEV"];
     },
+    esbuildPlugins: [
+      esbuildPluginFilePathExtensions({
+        esmExtension: "js",
+      }),
+    ],
   });
 };
 

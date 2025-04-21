@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.10.2
+
+### Patch Changes
+
+- fix: ESM without bundler compat
+
 ## 0.10.1
 
 ### Patch Changes

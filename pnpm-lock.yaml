@@ -1494,7 +1494,7 @@ importers:
         specifier: '*'
         version: 1.2.8(zod@3.24.3)
       '@assistant-ui/react':
-        specifier: ^0.10.1
+        specifier: ^0.10.2
         version: link:../react
       '@assistant-ui/react-edge':
         specifier: workspace:*
@@ -1592,7 +1592,7 @@ importers:
   packages/react-hook-form:
     dependencies:
       '@assistant-ui/react':
-        specifier: ^0.10.1
+        specifier: ^0.10.2
         version: link:../react
       zod:
         specifier: ^3.24.3
@@ -1629,7 +1629,7 @@ importers:
   packages/react-langgraph:
     dependencies:
       '@assistant-ui/react':
-        specifier: ^0.10.1
+        specifier: ^0.10.2
         version: link:../react
       assistant-stream:
         specifier: ^0.2.0
@@ -1798,6 +1798,9 @@ importers:
       cross-spawn:
         specifier: ^7.0.6
         version: 7.0.6
+      esbuild-plugin-file-path-extensions:
+        specifier: ^2.1.4
+        version: 2.1.4
       postcss:
         specifier: ^8.5.3
         version: 8.5.3
@@ -3296,8 +3299,8 @@ packages:
     peerDependencies:
       '@types/react': '*'
       '@types/react-dom': '*'
-      react: 19.0.0
-      react-dom: 19.0.0
+      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react-dom: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -5468,6 +5471,10 @@ packages:
 
   esast-util-from-js@2.0.1:
     resolution: {integrity: sha512-8Ja+rNJ0Lt56Pcf3TAmpBZjmx8ZcK5Ts4cAzIOjsjevg9oSXJnl6SUQ2EevU8tv3h6ZLWmoKL5H4fgWvdvfETw==}
+
+  esbuild-plugin-file-path-extensions@2.1.4:
+    resolution: {integrity: sha512-lNjylaAsJMprYg28zjUyBivP3y0ms9b7RJZ5tdhDUFLa3sCbqZw4wDnbFUSmnyZYWhCYDPxxp7KkXM2TXGw3PQ==}
+    engines: {node: '>=v14.0.0', npm: '>=7.0.0'}
 
   esbuild@0.25.2:
     resolution: {integrity: sha512-16854zccKPnC+toMywC+uKNeYSv+/eXkevRAfwRD/G9Cleq66m8XFIrigkbvauLLlCfDL45Q2cWegSg53gGBnQ==}
@@ -12785,6 +12792,8 @@ snapshots:
       acorn: 8.14.1
       esast-util-from-estree: 2.0.0
       vfile-message: 4.0.2
+
+  esbuild-plugin-file-path-extensions@2.1.4: {}
 
   esbuild@0.25.2:
     optionalDependencies:

@@ -1,5 +1,13 @@
 # @assistant-ui/react-edge
 
+## 0.2.2
+
+### Patch Changes
+
+- fix: ESM without bundler compat
+- Updated dependencies
+  - @assistant-ui/react@0.10.2
+
 ## 0.2.1
 
 ### Patch Changes

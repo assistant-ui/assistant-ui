@@ -1,5 +1,14 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.10.3
+
+### Patch Changes
+
+- fix: ESM without bundler compat
+- Updated dependencies
+  - @assistant-ui/react-edge@0.2.2
+  - @assistant-ui/react@0.10.2
+
 ## 0.10.2
 
 ### Patch Changes
