@@ -4,7 +4,6 @@ from assistant_stream.assistant_stream_chunk import (
     AssistantStreamChunk,
     TextDeltaChunk,
     ToolResultChunk,
-    ToolArtifactChunk,
     DataChunk,
     ErrorChunk,
 )
