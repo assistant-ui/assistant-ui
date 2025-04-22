@@ -9,3 +9,4 @@ export {
   fromLanguageModelTools,
   useDangerousInBrowserRuntime,
 } from "@assistant-ui/react-edge";
+export { frontendTools } from "./frontendTools";
