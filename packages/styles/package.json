@@ -15,18 +15,18 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsx scripts/build.mts"
+    "build": "tsx scripts/build.mts",
+    "lint": "eslint ."
   },
   "devDependencies": {
-    "@assistant-ui/tsbuildutils": "workspace:*",
-    "@assistant-ui/tsconfig": "workspace:*",
+    "@assistant-ui/x-buildutils": "workspace:*",
     "@tailwindcss/postcss": "^4.1.4",
     "@types/node": "^22.14.1",
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.3",
     "postcss-nested": "^7.0.2",
     "tailwindcss": "^4.1.4",
-    "tw-animate-css": "^1.2.7",
+    "tw-animate-css": "^1.2.8",
     "tsx": "^4.19.3"
   },
   "publishConfig": {

@@ -1,9 +1,8 @@
 {
-  "extends": "@assistant-ui/tsconfig/app-base.json",
+  "extends": "@assistant-ui/x-buildutils/ts/base",
   "compilerOptions": {
     "target": "ES6",
     "module": "ESNext",
-    "baseUrl": ".",
     "incremental": true,
     "plugins": [
       {
@@ -12,7 +11,14 @@
     ],
     "allowJs": true,
     "strictNullChecks": true,
-    "jsx": "preserve"
+    "jsx": "preserve",
+    "paths": {
+      "@/*": ["./*"],
+      "@assistant-ui/*": ["../../packages/*/src"],
+      "@assistant-ui/react/*": ["../../packages/react/src/*"],
+      "assistant-stream": ["../../packages/assistant-stream/src"],
+      "assistant-stream/*": ["../../packages/assistant-stream/src/*"]
+    }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]

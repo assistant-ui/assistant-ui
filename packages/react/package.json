@@ -51,7 +51,8 @@
     "build": "tsx scripts/build.mts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:mutation": "stryker run"
+    "test:mutation": "stryker run",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@radix-ui/primitive": "^1.1.2",
@@ -63,7 +64,7 @@
     "@radix-ui/react-use-callback-ref": "^1.1.1",
     "@radix-ui/react-use-escape-keydown": "^1.1.1",
     "@standard-schema/spec": "^1.0.0",
-    "assistant-stream": "^0.2.0",
+    "assistant-stream": "^0.2.2",
     "json-schema": "^0.4.0",
     "nanoid": "5.1.5",
     "react-textarea-autosize": "^8.5.9",
@@ -73,7 +74,6 @@
   "peerDependencies": {
     "@types/react": "*",
     "@types/react-dom": "*",
-    "assistant-stream": "^0.2.3",
     "react": "^18 || ^19 || ^19.0.0-rc",
     "react-dom": "^18 || ^19 || ^19.0.0-rc"
   },
@@ -86,8 +86,7 @@
     }
   },
   "devDependencies": {
-    "@assistant-ui/tsbuildutils": "workspace:*",
-    "@assistant-ui/tsconfig": "workspace:*",
+    "@assistant-ui/x-buildutils": "workspace:*",
     "@stryker-mutator/core": "^8.7.1",
     "@stryker-mutator/vitest-runner": "^8.7.1",
     "@types/json-schema": "^7.0.15",
@@ -95,7 +94,7 @@
     "eslint": "^9",
     "eslint-config-next": "15.3.1",
     "tsx": "^4.19.3",
-    "vitest": "^3.1.1"
+    "vitest": "^3.1.2"
   },
   "publishConfig": {
     "access": "public",

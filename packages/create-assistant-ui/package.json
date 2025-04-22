@@ -12,8 +12,7 @@
   },
   "type": "module",
   "devDependencies": {
-    "@assistant-ui/tsbuildutils": "workspace:*",
-    "@assistant-ui/tsconfig": "workspace:*",
+    "@assistant-ui/x-buildutils": "workspace:*",
     "@types/cross-spawn": "^6.0.6",
     "@types/node": "^22.14.1",
     "tsx": "^4.19.3"
@@ -25,7 +24,8 @@
   ],
   "bin": "./dist/index.js",
   "scripts": {
-    "build": "tsx scripts/build.mts"
+    "build": "tsx scripts/build.mts",
+    "lint": "eslint ."
   },
   "publishConfig": {
     "access": "public",

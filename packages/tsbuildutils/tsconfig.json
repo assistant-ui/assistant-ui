@@ -1,5 +1,0 @@
-{
-  "extends": "@assistant-ui/tsconfig/base.json",
-  "include": ["src/**/*.ts", "src/**/*.tsx"],
-  "exclude": ["node_modules", "dist", "**/*.test.{ts,tsx}"]
-}

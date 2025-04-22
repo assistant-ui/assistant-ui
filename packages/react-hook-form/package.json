@@ -18,7 +18,8 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsx scripts/build.mts"
+    "build": "tsx scripts/build.mts",
+    "lint": "eslint ."
   },
   "dependencies": {
     "zod": "^3.24.3"
@@ -35,8 +36,7 @@
     }
   },
   "devDependencies": {
-    "@assistant-ui/tsbuildutils": "workspace:*",
-    "@assistant-ui/tsconfig": "workspace:*",
+    "@assistant-ui/x-buildutils": "workspace:*",
     "@types/node": "^22.14.1",
     "@types/react": "^19.1.2",
     "eslint": "^9",

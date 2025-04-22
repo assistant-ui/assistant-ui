@@ -23,7 +23,8 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsx scripts/build.mts"
+    "build": "tsx scripts/build.mts",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@radix-ui/react-primitive": "^2.1.0",
@@ -44,8 +45,7 @@
   },
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
-    "@assistant-ui/tsbuildutils": "workspace:*",
-    "@assistant-ui/tsconfig": "workspace:*",
+    "@assistant-ui/x-buildutils": "workspace:*",
     "@types/node": "^22.14.1",
     "eslint": "^9",
     "eslint-config-next": "15.3.1",
