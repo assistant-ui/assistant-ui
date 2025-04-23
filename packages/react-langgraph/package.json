@@ -22,7 +22,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "assistant-stream": "^0.2.2",
+    "assistant-stream": "^0.2.3",
     "uuid": "^11.1.0",
     "zod": "^3.24.3"
   },
@@ -37,6 +37,7 @@
     }
   },
   "devDependencies": {
+    "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/node": "^22.14.1",
     "@types/react": "^19.1.2",
