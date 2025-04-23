@@ -1,3 +1,5 @@
+"use client";
+
 import type { useAssistant } from "@ai-sdk/react";
 import { useExternalStoreRuntime } from "@assistant-ui/react";
 import { useInputSync } from "../utils/useInputSync";
