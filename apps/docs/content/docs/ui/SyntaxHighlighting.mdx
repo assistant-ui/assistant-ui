@@ -58,6 +58,7 @@ export const defaultComponents = memoizeMarkdownComponents({
     theme: {
       description: "Shiki built‑in or custom textmate theme(s)",
       type: "Theme | Themes",
+      typeDescription: "Shiki BundledTheme or Textmate theme object",
       typeDescriptionLink:
         "https://github.com/AVGVSTVS96/react-shiki/blob/694433ef697c9791b3816cf94d12d571e8abbb3a/package/src/types.ts#L51",
       default: "github‑dark",
@@ -66,7 +67,7 @@ export const defaultComponents = memoizeMarkdownComponents({
     language: {
       description: "The language for highlighting",
       type: "Language",
-      typeDescription: "Shiki BundledLanguage or Textmate language object",
+      typeDescription: "Shiki BundledLanguage or Textmate grammar object",
       typeDescriptionLink:
         "https://github.com/AVGVSTVS96/react-shiki/blob/694433ef697c9791b3816cf94d12d571e8abbb3a/package/src/types.ts#L24",
       default: "text",
@@ -80,7 +81,7 @@ export const defaultComponents = memoizeMarkdownComponents({
     style: {
       description: "Inline styles for the `ShikiHighlighter` component",
       type: "React.CSSProperties",
-      default: "{}",
+      default: undefined,
     },
     cssVariablePrefix: {
       description:
