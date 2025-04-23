@@ -1,7 +1,7 @@
 {
   "name": "@assistant-ui/react-edge",
   "description": "The legacy edge runtime for assistant-ui",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -38,7 +38,7 @@
     "@assistant-ui/react": "*",
     "@types/react": "*",
     "@types/react-dom": "*",
-    "assistant-stream": "^0.2.2",
+    "assistant-stream": "^0.2.3",
     "react": "^18 || ^19 || ^19.0.0-rc",
     "react-dom": "^18 || ^19 || ^19.0.0-rc"
   },

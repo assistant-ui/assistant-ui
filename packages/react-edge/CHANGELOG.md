@@ -1,5 +1,13 @@
 # @assistant-ui/react-edge
 
+## 0.2.3
+
+### Patch Changes
+
+- 30ae924: fix: disabled tools should still execute if invoked
+- Updated dependencies [30ae924]
+  - @assistant-ui/react@0.10.3
+
 ## 0.2.2
 
 ### Patch Changes

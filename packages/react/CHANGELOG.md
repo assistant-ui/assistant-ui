@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.10.3
+
+### Patch Changes
+
+- 30ae924: fix: disabled tools should still execute if invoked
+
 ## 0.10.2
 
 ### Patch Changes

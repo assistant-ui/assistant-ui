@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.2.3
+
+### Patch Changes
+
+- 30ae924: fix: disabled tools should still execute if invoked
+
 ## 0.2.2
 
 ### Patch Changes
