@@ -1,5 +1,15 @@
 # @assistant-ui/react-edge
 
+## 0.2.4
+
+### Patch Changes
+
+- 98a680e: chore: update deps
+- Updated dependencies [98a680e]
+- Updated dependencies [98a680e]
+  - @assistant-ui/react@0.10.4
+  - assistant-stream@0.2.4
+
 ## 0.2.3
 
 ### Patch Changes

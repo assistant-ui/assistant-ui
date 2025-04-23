@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-syntax-highlighter",
-  "version": "0.10.2",
+  "version": "0.10.3",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -22,8 +22,8 @@
     "lint": "eslint ."
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.10.3",
-    "@assistant-ui/react-markdown": "^0.10.2",
+    "@assistant-ui/react": "^0.10.4",
+    "@assistant-ui/react-markdown": "^0.10.3",
     "@types/react": "*",
     "@types/react-syntax-highlighter": "*",
     "react": "^18 || ^19 || ^19.0.0-rc",
