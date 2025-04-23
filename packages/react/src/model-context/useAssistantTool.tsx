@@ -11,7 +11,6 @@ import type { Tool } from "assistant-stream";
 export type AssistantToolProps<TArgs, TResult> = Tool<TArgs, TResult> & {
   toolName: string;
   render?: ToolCallContentPartComponent<TArgs, TResult> | undefined;
-  disabled?: boolean | undefined;
 };
 
 export const useAssistantTool = <TArgs, TResult>(
@@ -27,9 +26,7 @@ export const useAssistantTool = <TArgs, TResult>(
   }, [toolUIsStore, tool.toolName, tool.render]);
 
   useEffect(() => {
-    const { toolName, render, disabled, ...rest } = tool;
-    if (disabled) return;
-
+    const { toolName, render, ...rest } = tool;
     const context = {
       tools: {
         [toolName]: rest,

@@ -92,6 +92,12 @@ const toAISDKTools = (tools: Record<string, Tool<any, any>>) => {
   );
 };
 
+const getEnabledTools = (tools: Record<string, Tool<any, any>>) => {
+  return Object.fromEntries(
+    Object.entries(tools).filter(([_, tool]) => !tool.disabled),
+  );
+};
+
 export class EdgeModelAdapter implements ChatModelAdapter {
   constructor(private options: EdgeModelAdapterOptions) {}
 
@@ -128,11 +134,10 @@ export class EdgeModelAdapter implements ChatModelAdapter {
                 this.options.unstable_sendMessageIds ||
                 this.options.sendExtraMessageFields,
             }),
-        tools: context.tools
-          ? this.options.unstable_AISDKInterop === "v2"
-            ? (toAISDKTools(context.tools) as any)
-            : toLanguageModelTools(context.tools)
-          : [],
+        tools:
+          this.options.unstable_AISDKInterop === "v2"
+            ? (toAISDKTools(getEnabledTools(context.tools ?? {})) as any)
+            : toLanguageModelTools(getEnabledTools(context.tools ?? {})),
         unstable_assistantMessageId,
         runConfig,
         ...context.callSettings,
