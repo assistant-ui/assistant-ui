@@ -63,9 +63,9 @@ const WebSearchDisplay = ({ args }: { args: WebSearchArgs }) => {
         } else {
           throw new Error("Invalid API response format");
         }
-      } catch (e: any) {
+      } catch (e) {
         console.error("Failed to fetch weather:", e);
-        setError(e.message || "Failed to fetch weather");
+        setError(e instanceof Error ? e.message : "Failed to fetch weather");
       } finally {
         setIsLoading(false);
       }

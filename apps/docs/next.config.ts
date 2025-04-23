@@ -1,8 +1,8 @@
 import { withSentryConfig } from "@sentry/nextjs";
 import { createMDX } from "fumadocs-mdx/next";
+import { NextConfig } from "next";
 
-/** @type {import('next').NextConfig} */
-const config = {
+const config: NextConfig = {
   transpilePackages: ["@assistant-ui/*"],
   serverExternalPackages: ["twoslash"],
   rewrites: async () => ({
@@ -26,11 +26,11 @@ const withMDX = createMDX();
 export default withSentryConfig(withMDX(config), {
   org: "assistant-ui",
   project: "javascript-nextjs",
-  silent: !process.env.CI,
+  silent: !process.env["CI"],
   widenClientFileUpload: true,
   reactComponentAnnotation: { enabled: true },
   tunnelRoute: "/monitoring",
-  hideSourceMaps: true,
+  // hideSourceMaps: true,
   disableLogger: true,
   automaticVercelMonitors: true,
 });

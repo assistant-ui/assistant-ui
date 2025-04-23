@@ -1,11 +1,15 @@
 {
-  "name": "@assistant-ui/tsbuildutils",
+  "name": "@assistant-ui/x-buildutils",
   "version": "0.0.1",
   "private": true,
   "main": "./src/index.ts",
   "type": "module",
+  "scripts": {
+    "lint": "eslint ."
+  },
   "dependencies": {
-    "@assistant-ui/tsconfig": "workspace:*",
+    "@eslint/eslintrc": "^3.3.1",
+    "@tsconfig/strictest": "^2.0.5",
     "cross-spawn": "^7.0.6",
     "esbuild-plugin-file-path-extensions": "^2.1.4",
     "postcss": "^8.5.3",

@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-langgraph",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -18,17 +18,17 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsx scripts/build.mts"
+    "build": "tsx scripts/build.mts",
+    "lint": "eslint ."
   },
   "dependencies": {
-    "assistant-stream": "^0.2.0",
+    "assistant-stream": "^0.2.4",
     "uuid": "^11.1.0",
     "zod": "^3.24.3"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.10.2",
+    "@assistant-ui/react": "^0.10.4",
     "@types/react": "*",
-    "assistant-stream": "^0.2.2",
     "react": "^18 || ^19 || ^19.0.0-rc"
   },
   "peerDependenciesMeta": {
@@ -37,8 +37,8 @@
     }
   },
   "devDependencies": {
-    "@assistant-ui/tsbuildutils": "workspace:*",
-    "@assistant-ui/tsconfig": "workspace:*",
+    "@assistant-ui/react": "workspace:*",
+    "@assistant-ui/x-buildutils": "workspace:*",
     "@types/node": "^22.14.1",
     "@types/react": "^19.1.2",
     "@types/uuid": "^10.0.0",

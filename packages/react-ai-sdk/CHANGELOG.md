@@ -1,5 +1,17 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.10.5
+
+### Patch Changes
+
+- 98a680e: fix: allow import from route handlers
+- 98a680e: chore: update deps
+- 309e9c4: feat(ai-sdk): frontendTools API
+- Updated dependencies [98a680e]
+- Updated dependencies [98a680e]
+  - @assistant-ui/react@0.10.4
+  - @assistant-ui/react-edge@0.2.4
+
 ## 0.10.4
 
 ### Patch Changes

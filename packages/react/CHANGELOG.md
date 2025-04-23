@@ -1,5 +1,14 @@
 # @assistant-ui/react
 
+## 0.10.4
+
+### Patch Changes
+
+- 98a680e: fix: allow import from route handlers
+- 98a680e: chore: update deps
+- Updated dependencies [98a680e]
+  - assistant-stream@0.2.4
+
 ## 0.10.3
 
 ### Patch Changes

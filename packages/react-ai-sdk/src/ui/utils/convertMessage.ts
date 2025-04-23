@@ -1,11 +1,13 @@
 import { Message } from "@ai-sdk/ui-utils";
-import { unstable_createMessageConverter } from "@assistant-ui/react";
-import { SourceContentPart } from "@assistant-ui/react";
-import { FileContentPart } from "@assistant-ui/react";
-import { ReasoningContentPart } from "@assistant-ui/react";
-import { ToolCallContentPart } from "@assistant-ui/react";
-import { TextContentPart } from "@assistant-ui/react";
-import { CompleteAttachment } from "@assistant-ui/react";
+import {
+  unstable_createMessageConverter,
+  type ReasoningContentPart,
+  type ToolCallContentPart,
+  type TextContentPart,
+  type CompleteAttachment,
+  type SourceContentPart,
+  type FileContentPart,
+} from "@assistant-ui/react";
 
 export const AISDKMessageConverter = unstable_createMessageConverter(
   (message: Message) => {

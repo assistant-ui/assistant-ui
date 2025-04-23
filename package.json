@@ -5,18 +5,14 @@
     "docs:dev": "pnpm --filter=@assistant-ui/docs dev",
     "ci:version": "changeset version && pnpm install --no-frozen-lockfile",
     "ci:publish": "turbo build --filter=\"./packages/*\" && changeset publish",
-    "eslint": "eslint",
     "prettier": "prettier \"{examples,packages,apps}/**/*.{js,jsx,ts,tsx}\" --check",
     "prettier:fix": "prettier \"{examples,packages,apps}/**/*.{js,jsx,ts,tsx}\" --write"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.2",
-    "@eslint/eslintrc": "^3.3.1",
-    "@eslint/js": "^9.25.0",
-    "eslint": "^9",
     "prettier": "^3.5.3",
     "prettier-plugin-tailwindcss": "0.6.11",
-    "turbo": "^2.5.0",
+    "turbo": "^2.5.1",
     "typescript": "^5.8.3"
   },
   "prettier": {
@@ -25,5 +21,5 @@
       "prettier-plugin-tailwindcss"
     ]
   },
-  "packageManager": "pnpm@10.8.1"
+  "packageManager": "pnpm@10.9.0"
 }

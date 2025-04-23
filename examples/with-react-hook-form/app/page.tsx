@@ -69,7 +69,7 @@ export default function Home() {
             .
           </div>
 
-          <Form {...(form as any)}>
+          <Form {...form}>
             <SignupForm />
           </Form>
         </main>

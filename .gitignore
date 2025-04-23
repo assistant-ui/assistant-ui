@@ -1,21 +1,22 @@
-# npm
-node_modules/
+# dependencies
+node_modules
+/.pnp
+.pnp.*
 
 # misc
 .DS_Store
 *.pem
 
 # debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-ui-debug.log*
+.pnpm-debug.log*
 
-# local env files
+# env files
 .env*.local
+.env
 
 # typescript
 *.tsbuildinfo
+next-env.d.ts
 
 # vercel
 .vercel
@@ -33,16 +34,12 @@ out/
 .source
 
 # production
-build
 dist
 apps/docs/generated
 packages/*/generated
 
 # turbo
 .turbo
-
-# env files
-.env
 
 # python
 __pycache__

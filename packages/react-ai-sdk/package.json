@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-ai-sdk",
-  "version": "0.10.4",
+  "version": "0.10.5",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -18,7 +18,8 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsx scripts/build.mts"
+    "build": "tsx scripts/build.mts",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@ai-sdk/react": "*",
@@ -30,7 +31,7 @@
     "zustand": "^5.0.3"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.10.3",
+    "@assistant-ui/react": "^0.10.4",
     "@types/react": "*",
     "react": "^18 || ^19 || ^19.0.0-rc"
   },
@@ -40,8 +41,7 @@
     }
   },
   "devDependencies": {
-    "@assistant-ui/tsbuildutils": "workspace:*",
-    "@assistant-ui/tsconfig": "workspace:*",
+    "@assistant-ui/x-buildutils": "workspace:*",
     "@types/node": "^22.14.1",
     "@types/react": "^19.1.2",
     "eslint": "^9",
