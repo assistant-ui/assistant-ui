@@ -96,6 +96,7 @@ type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<
 >;
 
 export type Tool<TArgs = unknown, TResult = unknown> = {
+  disabled?: boolean;
   description?: string | undefined;
   parameters: StandardSchemaV1<TArgs> | JSONSchema7;
   execute?: ToolExecuteFunction<TArgs, TResult>;
