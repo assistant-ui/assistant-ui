@@ -36,6 +36,7 @@
     }
   },
   "devDependencies": {
+    "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/node": "^22.14.1",
     "@types/react": "^19.1.2",

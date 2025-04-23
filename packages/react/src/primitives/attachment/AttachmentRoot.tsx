@@ -1,3 +1,5 @@
+"use client";
+
 import { Primitive } from "@radix-ui/react-primitive";
 import { ComponentPropsWithoutRef, ComponentRef, forwardRef } from "react";
 

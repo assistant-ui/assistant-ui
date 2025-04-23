@@ -1,7 +1,5 @@
-"use client";
-import type { AppendMessage } from "@assistant-ui/react";
+import type { AppendMessage, ExternalStoreAdapter } from "@assistant-ui/react";
 import type { VercelRSCMessage } from "./VercelRSCMessage";
-import { ExternalStoreAdapter } from "@assistant-ui/react";
 
 type RSCMessageConverter<T> = {
   convertMessage: (message: T) => VercelRSCMessage;

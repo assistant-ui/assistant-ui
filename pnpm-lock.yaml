@@ -1573,13 +1573,13 @@ importers:
 
   packages/react-hook-form:
     dependencies:
-      '@assistant-ui/react':
-        specifier: ^0.10.2
-        version: link:../react
       zod:
         specifier: ^3.24.3
         version: 3.24.3
     devDependencies:
+      '@assistant-ui/react':
+        specifier: workspace:*
+        version: link:../react
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
@@ -3263,8 +3263,8 @@ packages:
     peerDependencies:
       '@types/react': '*'
       '@types/react-dom': '*'
-      react: 19.0.0
-      react-dom: 19.0.0
+      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react-dom: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
     peerDependenciesMeta:
       '@types/react':
         optional: true
