@@ -1,5 +1,12 @@
 # assistant-stream
 
+## 0.2.5
+
+### Patch Changes
+
+- c4c60cf: fix: server-side tool results should be forwarded to StreamCallController
+- 73a6ff1: feat: Tool.type
+
 ## 0.2.4
 
 ### Patch Changes

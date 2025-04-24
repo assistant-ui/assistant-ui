@@ -1,5 +1,16 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.10.6
+
+### Patch Changes
+
+- 73a6ff1: feat: Tool.type
+- Updated dependencies [e9f8e7e]
+- Updated dependencies [c4c60cf]
+- Updated dependencies [73a6ff1]
+  - @assistant-ui/react@0.10.5
+  - @assistant-ui/react-edge@0.2.5
+
 ## 0.10.5
 
 ### Patch Changes
