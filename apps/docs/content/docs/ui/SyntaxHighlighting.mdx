@@ -116,9 +116,9 @@ export const defaultComponents = memoizeMarkdownComponents({
           "https://github.com/shikijs/shiki/blob/ac6bea51b807a82e0a5c9a83796c3abdda0fc293/packages/types/src/transformers.ts#L48",
         default: "[]",
       },
+    // This reverts the order of the type table, fumadocs reversed the order on 4/22/25 in:
+    // https://github.com/fuma-nama/fumadocs/commit/3a5595aa65acfa5c20be2377d09c03fbb1de72a6
     }).reverse()
-      // This reverts the order of the type table, fumadocs reversed the order on 4/22/25 in:
-      // https://github.com/fuma-nama/fumadocs/commit/3a5595aa65acfa5c20be2377d09c03fbb1de72a6
   )}
 />
 
