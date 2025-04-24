@@ -1,5 +1,16 @@
 # @assistant-ui/react
 
+## 0.10.5
+
+### Patch Changes
+
+- e9f8e7e: feat: tighten tool args type to be object
+- c4c60cf: fix: server-side tool results should be forwarded to StreamCallController
+- 73a6ff1: feat: Tool.type
+- Updated dependencies [c4c60cf]
+- Updated dependencies [73a6ff1]
+  - assistant-stream@0.2.5
+
 ## 0.10.4
 
 ### Patch Changes

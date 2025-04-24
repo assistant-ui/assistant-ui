@@ -1,5 +1,16 @@
 # @assistant-ui/react-edge
 
+## 0.2.5
+
+### Patch Changes
+
+- 73a6ff1: feat: Tool.type
+- Updated dependencies [e9f8e7e]
+- Updated dependencies [c4c60cf]
+- Updated dependencies [73a6ff1]
+  - @assistant-ui/react@0.10.5
+  - assistant-stream@0.2.5
+
 ## 0.2.4
 
 ### Patch Changes
