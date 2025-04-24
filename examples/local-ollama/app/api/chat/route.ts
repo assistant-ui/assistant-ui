@@ -11,6 +11,7 @@ export async function POST(req: Request) {
   const result = streamText({
     model: ollama("llama3.1"),
     messages,
+    toolCallStreaming: true,
     system,
     tools: {
       ...frontendTools(tools),
