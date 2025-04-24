@@ -59,7 +59,6 @@ export const defaultComponents = memoizeMarkdownComponents({
       theme: {
         description: "Shiki built-in or custom textmate theme(s)",
         type: "Theme | Themes",
-        typeDescription: "Shiki BundledTheme or Textmate theme object",
         typeDescriptionLink:
           "https://github.com/AVGVSTVS96/react-shiki/blob/694433ef697c9791b3816cf94d12d571e8abbb3a/package/src/types.ts#L51",
         default: "github-dark",
@@ -68,7 +67,6 @@ export const defaultComponents = memoizeMarkdownComponents({
       language: {
         description: "The language for highlighting",
         type: "Language",
-        typeDescription: "Shiki BundledLanguage or Textmate grammar object",
         typeDescriptionLink:
           "https://github.com/AVGVSTVS96/react-shiki/blob/694433ef697c9791b3816cf94d12d571e8abbb3a/package/src/types.ts#L24",
         default: "text",
@@ -94,6 +92,8 @@ export const defaultComponents = memoizeMarkdownComponents({
         description:
           "The default theme applied to the code (via inline color style). The rest of the themes are applied via CSS variables, and toggled by CSS overrides. For example, if defaultColor is light, then light theme is applied to the code, and the dark theme and other custom themes are applied via CSS variables",
         type: "light | dark | string | false",
+        typeDescriptionLink:
+          "https://github.com/shikijs/shiki/blob/ac6bea51b807a82e0a5c9a83796c3abdda0fc293/packages/types/src/options.ts#L107",
         default: undefined,
       },
       delay: {
@@ -103,7 +103,7 @@ export const defaultComponents = memoizeMarkdownComponents({
         default: 0,
       },
       customLanguages: {
-        description: "Custom languages to preload for syntax highlighting",
+        description: "Custom languages to preload for highlighting",
         type: "Language[]",
         typeDescriptionLink:
           "https://github.com/AVGVSTVS96/react-shiki/blob/694433ef697c9791b3816cf94d12d571e8abbb3a/package/src/types.ts#L24",
