@@ -95,17 +95,59 @@ type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<
   TResult
 >;
 
-export type Tool<
+type ToolBase<
   TArgs extends Record<string, unknown> = Record<string, unknown>,
   TResult = unknown,
 > = {
-  disabled?: boolean;
-  description?: string | undefined;
-  parameters: StandardSchemaV1<TArgs> | JSONSchema7;
-  execute?: ToolExecuteFunction<TArgs, TResult>;
   /**
    * @deprecated Experimental, API may change.
    */
   streamCall?: ToolStreamCallFunction<TArgs, TResult>;
+};
+
+type BackendTool<
+  TArgs extends Record<string, unknown> = Record<string, unknown>,
+  TResult = unknown,
+> = ToolBase<TArgs, TResult> & {
+  type?: "backend" | undefined;
+
+  description?: undefined;
+  parameters?: undefined;
+  disabled?: undefined;
+  execute?: undefined;
+  experimental_onSchemaValidationError?: undefined;
+};
+
+type FrontendTool<
+  TArgs extends Record<string, unknown> = Record<string, unknown>,
+  TResult = unknown,
+> = ToolBase<TArgs, TResult> & {
+  type?: "frontend" | undefined;
+
+  description?: string | undefined;
+  parameters: StandardSchemaV1<TArgs> | JSONSchema7;
+  disabled?: boolean;
+  execute?: ToolExecuteFunction<TArgs, TResult>;
   experimental_onSchemaValidationError?: OnSchemaValidationErrorFunction<TResult>;
 };
+
+type HumanTool<
+  TArgs extends Record<string, unknown> = Record<string, unknown>,
+  TResult = unknown,
+> = ToolBase<TArgs, TResult> & {
+  type?: "human" | undefined;
+
+  description?: string | undefined;
+  parameters: StandardSchemaV1<TArgs> | JSONSchema7;
+  disabled?: boolean;
+  execute?: undefined;
+  experimental_onSchemaValidationError?: undefined;
+};
+
+export type Tool<
+  TArgs extends Record<string, unknown> = Record<string, unknown>,
+  TResult = unknown,
+> =
+  | FrontendTool<TArgs, TResult>
+  | BackendTool<TArgs, TResult>
+  | HumanTool<TArgs, TResult>;

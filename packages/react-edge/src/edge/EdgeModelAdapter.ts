@@ -94,7 +94,9 @@ const toAISDKTools = (tools: Record<string, Tool<any, any>>) => {
 
 const getEnabledTools = (tools: Record<string, Tool<any, any>>) => {
   return Object.fromEntries(
-    Object.entries(tools).filter(([_, tool]) => !tool.disabled),
+    Object.entries(tools).filter(
+      ([_, tool]) => !tool.disabled && tool.type !== "backend",
+    ),
   );
 };
 
