@@ -1418,7 +1418,7 @@ importers:
         specifier: '*'
         version: 19.1.2(@types/react@19.1.2)
       assistant-stream:
-        specifier: ^0.2.3
+        specifier: ^0.2.4
         version: link:../assistant-stream
       json-schema:
         specifier: ^0.4.0
@@ -1479,7 +1479,7 @@ importers:
         specifier: '*'
         version: 1.2.8(zod@3.24.3)
       '@assistant-ui/react':
-        specifier: ^0.10.3
+        specifier: ^0.10.4
         version: link:../react
       '@assistant-ui/react-edge':
         specifier: workspace:*
@@ -1525,7 +1525,7 @@ importers:
         specifier: ^1.1.3
         version: 1.1.3
       assistant-stream:
-        specifier: ^0.2.3
+        specifier: ^0.2.4
         version: link:../assistant-stream
       json-schema:
         specifier: ^0.4.0
@@ -1607,11 +1607,8 @@ importers:
 
   packages/react-langgraph:
     dependencies:
-      '@assistant-ui/react':
-        specifier: ^0.10.2
-        version: link:../react
       assistant-stream:
-        specifier: ^0.2.3
+        specifier: ^0.2.4
         version: link:../assistant-stream
       uuid:
         specifier: ^11.1.0
@@ -1620,6 +1617,9 @@ importers:
         specifier: ^3.24.3
         version: 3.24.3
     devDependencies:
+      '@assistant-ui/react':
+        specifier: workspace:*
+        version: link:../react
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
