@@ -95,7 +95,10 @@ type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<
   TResult
 >;
 
-export type Tool<TArgs = unknown, TResult = unknown> = {
+export type Tool<
+  TArgs extends Record<string, unknown> = Record<string, unknown>,
+  TResult = unknown,
+> = {
   disabled?: boolean;
   description?: string | undefined;
   parameters: StandardSchemaV1<TArgs> | JSONSchema7;
