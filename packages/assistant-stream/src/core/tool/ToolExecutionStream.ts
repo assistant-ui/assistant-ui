@@ -79,6 +79,22 @@ export class ToolExecutionStream extends PipeableTransformStream<
               }
               break;
             }
+            case "result": {
+              if (chunk.meta.type !== "tool-call") break;
+
+              const { toolCallId } = chunk.meta;
+              const controller = toolCallControllers.get(toolCallId);
+              if (!controller)
+                throw new Error("No controller found for tool call");
+              controller.setResponse(
+                new ToolResponse({
+                  result: chunk.result,
+                  artifact: chunk.artifact,
+                  isError: chunk.isError,
+                }),
+              );
+              break;
+            }
             case "tool-call-args-text-finish": {
               if (chunk.meta.type !== "tool-call") break;
 

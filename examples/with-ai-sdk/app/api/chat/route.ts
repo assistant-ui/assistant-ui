@@ -1,5 +1,7 @@
 import { openai } from "@ai-sdk/openai";
-import { jsonSchema, streamText } from "ai";
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { streamText } from "ai";
+import { z } from "zod";
 
 export const runtime = "edge";
 export const maxDuration = 30;
@@ -10,19 +12,20 @@ export async function POST(req: Request) {
   const result = streamText({
     model: openai("gpt-4o"),
     messages,
-    // forward system prompt and tools from the frontend
     toolCallStreaming: true,
     system,
-    tools:
-      tools &&
-      Object.fromEntries(
-        Object.entries<{ parameters: unknown }>(tools).map(([name, tool]) => [
-          name,
-          {
-            parameters: jsonSchema(tool.parameters!),
-          },
-        ]),
-      ),
+    tools: {
+      ...frontendTools(tools),
+      weather: {
+        description: "Get weather information",
+        parameters: z.object({
+          location: z.string().describe("Location to get weather for"),
+        }),
+        execute: async ({ location }) => {
+          return `The weather in ${location} is sunny.`;
+        },
+      },
+    },
   });
 
   return result.toDataStreamResponse();
