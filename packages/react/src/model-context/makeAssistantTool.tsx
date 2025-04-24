@@ -7,7 +7,7 @@ export type AssistantTool = FC & {
   unstable_tool: AssistantToolProps<any, any>;
 };
 
-export const makeAssistantTool = <TArgs, TResult>(
+export const makeAssistantTool = <TArgs extends Record<string, unknown>, TResult>(
   tool: AssistantToolProps<TArgs, TResult>,
 ) => {
   const Tool: AssistantTool = () => {
