@@ -54,68 +54,72 @@ export const defaultComponents = memoizeMarkdownComponents({
 ### Options
 
 <TypeTable
-  type={{
-    theme: {
-      description: "Shiki built‑in or custom textmate theme(s)",
-      type: "Theme | Themes",
-      typeDescription: "Shiki BundledTheme or Textmate theme object",
-      typeDescriptionLink:
-        "https://github.com/AVGVSTVS96/react-shiki/blob/694433ef697c9791b3816cf94d12d571e8abbb3a/package/src/types.ts#L51",
-      default: "github‑dark",
-      required: true,
-    },
-    language: {
-      description: "The language for highlighting",
-      type: "Language",
-      typeDescription: "Shiki BundledLanguage or Textmate grammar object",
-      typeDescriptionLink:
-        "https://github.com/AVGVSTVS96/react-shiki/blob/694433ef697c9791b3816cf94d12d571e8abbb3a/package/src/types.ts#L24",
-      default: "text",
-      required: true,
-    },
-    className: {
-      description: "Custom CSS classes for the `<pre>` element",
-      type: "string",
-      default: "",
-    },
-    style: {
-      description: "Inline styles for the `ShikiHighlighter` component",
-      type: "React.CSSProperties",
-      default: undefined,
-    },
-    cssVariablePrefix: {
-      description:
-        "Prefix of CSS variables used to store the color of the other theme",
-      type: "string",
-      default: "--shiki-",
-    },
-    defaultColor: {
-      description:
-        "The default theme applied to the code (via inline color style). The rest of the themes are applied via CSS variables, and toggled by CSS overrides. For example, if defaultColor is light, then light theme is applied to the code, and the dark theme and other custom themes are applied via CSS variables",
-      type: "light | dark | string | false",
-      default: undefined,
-    },
-    delay: {
-      description:
-        "Delay in milliseconds between consecutive highlights, useful for streamed code responses.",
-      type: "number",
-      default: 0,
-    },
-    customLanguages: {
-      description: "Custom languages to preload for syntax highlighting",
-      type: "Language[]",
-      typeDescriptionLink:
-        "https://github.com/AVGVSTVS96/react-shiki/blob/694433ef697c9791b3816cf94d12d571e8abbb3a/package/src/types.ts#L24",
-      default: "[]",
-    },
-    transformers: {
-      description: "Transformers for the Shiki pipeline",
-      type: "ShikiTransformer[]",
-      typeDescriptionLink:
-        "https://github.com/shikijs/shiki/blob/ac6bea51b807a82e0a5c9a83796c3abdda0fc293/packages/types/src/transformers.ts#L48",
-      default: "[]",
-    },
-  }}
+  type={Object.fromEntries(
+    Object.entries({
+      theme: {
+        description: "Shiki built-in or custom textmate theme(s)",
+        type: "Theme | Themes",
+        typeDescription: "Shiki BundledTheme or Textmate theme object",
+        typeDescriptionLink:
+          "https://github.com/AVGVSTVS96/react-shiki/blob/694433ef697c9791b3816cf94d12d571e8abbb3a/package/src/types.ts#L51",
+        default: "github-dark",
+        required: true,
+      },
+      language: {
+        description: "The language for highlighting",
+        type: "Language",
+        typeDescription: "Shiki BundledLanguage or Textmate grammar object",
+        typeDescriptionLink:
+          "https://github.com/AVGVSTVS96/react-shiki/blob/694433ef697c9791b3816cf94d12d571e8abbb3a/package/src/types.ts#L24",
+        default: "text",
+        required: true,
+      },
+      className: {
+        description: "Custom CSS classes for the `<pre>` element",
+        type: "string",
+        default: "",
+      },
+      style: {
+        description: "Inline styles for the `ShikiHighlighter` component",
+        type: "React.CSSProperties",
+        default: undefined,
+      },
+      cssVariablePrefix: {
+        description:
+          "Prefix of CSS variables used to store the color of the other theme",
+        type: "string",
+        default: "--shiki-",
+      },
+      defaultColor: {
+        description:
+          "The default theme applied to the code (via inline color style). The rest of the themes are applied via CSS variables, and toggled by CSS overrides. For example, if defaultColor is light, then light theme is applied to the code, and the dark theme and other custom themes are applied via CSS variables",
+        type: "light | dark | string | false",
+        default: undefined,
+      },
+      delay: {
+        description:
+          "Delay in milliseconds between consecutive highlights, useful for streamed code responses.",
+        type: "number",
+        default: 0,
+      },
+      customLanguages: {
+        description: "Custom languages to preload for syntax highlighting",
+        type: "Language[]",
+        typeDescriptionLink:
+          "https://github.com/AVGVSTVS96/react-shiki/blob/694433ef697c9791b3816cf94d12d571e8abbb3a/package/src/types.ts#L24",
+        default: "[]",
+      },
+      transformers: {
+        description: "Transformers for the Shiki pipeline",
+        type: "ShikiTransformer[]",
+        typeDescriptionLink:
+          "https://github.com/shikijs/shiki/blob/ac6bea51b807a82e0a5c9a83796c3abdda0fc293/packages/types/src/transformers.ts#L48",
+        default: "[]",
+      },
+    }).reverse()
+      // This reverts the order of the type table, fumadocs reversed the order on 4/22/25 in:
+      // https://github.com/fuma-nama/fumadocs/commit/3a5595aa65acfa5c20be2377d09c03fbb1de72a6
+  )}
 />
 
 <Callout type="info">
