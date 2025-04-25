@@ -15,6 +15,7 @@ type MessageIfFilters = {
   hasBranches: boolean | undefined;
   copied: boolean | undefined;
   lastOrHover: boolean | undefined;
+  last: boolean | undefined;
   speaking: boolean | undefined;
   hasAttachments: boolean | undefined;
   hasContent: boolean | undefined;
@@ -47,6 +48,7 @@ const useMessageIf = (props: UseMessageIfProps) => {
       if (props.system && role !== "system") return false;
 
       if (props.lastOrHover === true && !isHovering && !isLast) return false;
+      if (props.last === true && !isLast) return false;
 
       if (props.copied === true && !isCopied) return false;
       if (props.copied === false && isCopied) return false;
