@@ -8,18 +8,24 @@ import {
   ToolCallReader,
   ToolCallResponseReader,
 } from "./tool-types";
-import { TypeAtPath, TypePath } from "./type-path-utils";
+import { DeepPartial, TypeAtPath, TypePath } from "./type-path-utils";
 import { ToolResponse } from "./ToolResponse";
+import {
+  asAsyncIterableStream,
+  AsyncIterableStream,
+  ReadonlyJSONObject,
+  ReadonlyJSONValue,
+} from "../../utils";
 
 // TODO: remove dispose
 
-function getField<T>(obj: T, fieldPath: (string | number)[]): any {
-  let current: any = obj;
+function getField<T>(obj: T, fieldPath: (string | number)[]): unknown {
+  let current: unknown = obj;
   for (const key of fieldPath) {
     if (current === undefined || current === null) {
       return undefined;
     }
-    current = current[key as string | number];
+    current = current[key as keyof typeof current];
   }
   return current;
 }
@@ -29,14 +35,14 @@ interface Handle {
   dispose(): void;
 }
 
-class GetHandle<T> implements Handle {
-  private resolve: (value: any) => void;
+class GetHandle<T, TValue> implements Handle {
+  private resolve: (value: TValue) => void;
   private reject: (reason: unknown) => void;
   private disposed = false;
   private fieldPath: (string | number)[];
 
   constructor(
-    resolve: (value: any) => void,
+    resolve: (value: TValue) => void,
     reject: (reason: unknown) => void,
     fieldPath: (string | number)[],
   ) {
@@ -58,7 +64,7 @@ class GetHandle<T> implements Handle {
       ) {
         const value = getField(args as T, this.fieldPath);
         if (value !== undefined) {
-          this.resolve(value);
+          this.resolve(value as TValue);
           this.dispose();
         }
       }
@@ -74,12 +80,12 @@ class GetHandle<T> implements Handle {
 }
 
 class StreamValuesHandle<T> implements Handle {
-  private controller: ReadableStreamDefaultController<any>;
+  private controller: ReadableStreamDefaultController<unknown>;
   private disposed = false;
   private fieldPath: (string | number)[];
 
   constructor(
-    controller: ReadableStreamDefaultController<any>,
+    controller: ReadableStreamDefaultController<unknown>,
     fieldPath: (string | number)[],
   ) {
     this.controller = controller;
@@ -118,13 +124,13 @@ class StreamValuesHandle<T> implements Handle {
 }
 
 class StreamTextHandle<T> implements Handle {
-  private controller: ReadableStreamDefaultController<any>;
+  private controller: ReadableStreamDefaultController<unknown>;
   private disposed = false;
   private fieldPath: (string | number)[];
-  private lastValue: any = undefined;
+  private lastValue: string | undefined = undefined;
 
   constructor(
-    controller: ReadableStreamDefaultController<any>,
+    controller: ReadableStreamDefaultController<unknown>,
     fieldPath: (string | number)[],
   ) {
     this.controller = controller;
@@ -165,13 +171,13 @@ class StreamTextHandle<T> implements Handle {
 }
 
 class ForEachHandle<T> implements Handle {
-  private controller: ReadableStreamDefaultController<any>;
+  private controller: ReadableStreamDefaultController<unknown>;
   private disposed = false;
   private fieldPath: (string | number)[];
   private processedIndexes = new Set<number>();
 
   constructor(
-    controller: ReadableStreamDefaultController<any>,
+    controller: ReadableStreamDefaultController<unknown>,
     fieldPath: (string | number)[],
   ) {
     this.controller = controller;
@@ -182,7 +188,7 @@ class ForEachHandle<T> implements Handle {
     if (this.disposed) return;
 
     try {
-      const array = getField(args as T, this.fieldPath) as unknown as any[];
+      const array = getField(args as T, this.fieldPath);
 
       if (!Array.isArray(array)) {
         return;
@@ -226,10 +232,12 @@ class ForEachHandle<T> implements Handle {
 }
 
 // Implementation of ToolCallReader that uses stream of partial JSON
-export class ToolCallArgsReaderImpl<T> implements ToolCallArgsReader<T> {
+export class ToolCallArgsReaderImpl<T extends ReadonlyJSONObject>
+  implements ToolCallArgsReader<T>
+{
   private argTextDeltas: ReadableStream<string>;
   private handles: Set<Handle> = new Set();
-  private args: any = parsePartialJsonObject("");
+  private args: unknown = parsePartialJsonObject("");
 
   constructor(argTextDeltas: ReadableStream<string>) {
     this.argTextDeltas = argTextDeltas;
@@ -268,8 +276,12 @@ export class ToolCallArgsReaderImpl<T> implements ToolCallArgsReader<T> {
   get<PathT extends TypePath<T>>(
     ...fieldPath: PathT
   ): Promise<TypeAtPath<T, PathT>> {
-    return new Promise<any>((resolve, reject) => {
-      const handle = new GetHandle<T>(resolve, reject, fieldPath);
+    return new Promise<TypeAtPath<T, PathT>>((resolve, reject) => {
+      const handle = new GetHandle<T, TypeAtPath<T, PathT>>(
+        resolve,
+        reject,
+        fieldPath,
+      );
 
       // Check if the field is already complete in current args
       if (
@@ -281,7 +293,7 @@ export class ToolCallArgsReaderImpl<T> implements ToolCallArgsReader<T> {
       ) {
         const value = getField(this.args as T, fieldPath);
         if (value !== undefined) {
-          resolve(value);
+          resolve(value as TypeAtPath<T, PathT>);
           return;
         }
       }
@@ -291,11 +303,13 @@ export class ToolCallArgsReaderImpl<T> implements ToolCallArgsReader<T> {
     });
   }
 
-  streamValues<PathT extends TypePath<T>>(...fieldPath: PathT): any {
+  streamValues<PathT extends TypePath<T>>(
+    ...fieldPath: PathT
+  ): AsyncIterableStream<DeepPartial<TypeAtPath<T, PathT>>> {
     // Use a type assertion to convert the complex TypePath to a simple array
     const simplePath = fieldPath as unknown as (string | number)[];
 
-    const stream = new ReadableStream<any>({
+    const stream = new ReadableStream<DeepPartial<TypeAtPath<T, PathT>>>({
       start: (controller) => {
         const handle = new StreamValuesHandle<T>(controller, simplePath);
         this.handles.add(handle);
@@ -315,15 +329,19 @@ export class ToolCallArgsReaderImpl<T> implements ToolCallArgsReader<T> {
       },
     });
 
-    // For type compatibility, cast the stream to the required type
-    return stream as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return asAsyncIterableStream(stream) as any;
   }
 
-  streamText<PathT extends TypePath<T>>(...fieldPath: PathT): any {
+  streamText<PathT extends TypePath<T>>(
+    ...fieldPath: PathT
+  ): TypeAtPath<T, PathT> extends string & infer U
+    ? AsyncIterableStream<U>
+    : never {
     // Use a type assertion to convert the complex TypePath to a simple array
     const simplePath = fieldPath as unknown as (string | number)[];
 
-    const stream = new ReadableStream<any>({
+    const stream = new ReadableStream<unknown>({
       start: (controller) => {
         const handle = new StreamTextHandle<T>(controller, simplePath);
         this.handles.add(handle);
@@ -343,15 +361,19 @@ export class ToolCallArgsReaderImpl<T> implements ToolCallArgsReader<T> {
       },
     });
 
-    // For type compatibility, cast the stream to the required type
-    return stream as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return asAsyncIterableStream(stream) as any;
   }
 
-  forEach<PathT extends TypePath<T>>(...fieldPath: PathT): any {
+  forEach<PathT extends TypePath<T>>(
+    ...fieldPath: PathT
+  ): TypeAtPath<T, PathT> extends Array<infer U>
+    ? AsyncIterableStream<U>
+    : never {
     // Use a type assertion to convert the complex TypePath to a simple array
     const simplePath = fieldPath as unknown as (string | number)[];
 
-    const stream = new ReadableStream<any>({
+    const stream = new ReadableStream<unknown>({
       start: (controller) => {
         const handle = new ForEachHandle<T>(controller, simplePath);
         this.handles.add(handle);
@@ -371,12 +393,12 @@ export class ToolCallArgsReaderImpl<T> implements ToolCallArgsReader<T> {
       },
     });
 
-    // For type compatibility, cast the stream to the required type
-    return stream as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return asAsyncIterableStream(stream) as any;
   }
 }
 
-export class ToolCallResponseReaderImpl<TResult>
+export class ToolCallResponseReaderImpl<TResult extends ReadonlyJSONValue>
   implements ToolCallResponseReader<TResult>
 {
   constructor(private readonly promise: Promise<ToolResponse<TResult>>) {}
@@ -386,8 +408,10 @@ export class ToolCallResponseReaderImpl<TResult>
   }
 }
 
-export class ToolCallReaderImpl<TArgs, TResult>
-  implements ToolCallReader<TArgs, TResult>
+export class ToolCallReaderImpl<
+  TArgs extends ReadonlyJSONObject,
+  TResult extends ReadonlyJSONValue,
+> implements ToolCallReader<TArgs, TResult>
 {
   public readonly args: ToolCallArgsReaderImpl<TArgs>;
   public readonly response: ToolCallResponseReaderImpl<TResult>;

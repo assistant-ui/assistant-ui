@@ -23,7 +23,9 @@ export class ToolResponse<TResult> {
     this.isError = options.isError ?? false;
   }
 
-  static [Symbol.hasInstance](obj: unknown): obj is ToolResponse<unknown> {
+  static [Symbol.hasInstance](
+    obj: unknown,
+  ): obj is ToolResponse<ReadonlyJSONValue> {
     return (
       typeof obj === "object" && obj !== null && TOOL_RESPONSE_SYMBOL in obj
     );

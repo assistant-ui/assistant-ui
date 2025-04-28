@@ -3,6 +3,7 @@ import { StandardSchemaV1 } from "@standard-schema/spec";
 import { ToolResponse } from "./ToolResponse";
 import { ToolExecutionStream } from "./ToolExecutionStream";
 import { AssistantMessage } from "../utils/types";
+import { ReadonlyJSONObject, ReadonlyJSONValue } from "../../utils";
 
 const isStandardSchemaV1 = (
   schema: unknown,
@@ -16,18 +17,20 @@ const isStandardSchemaV1 = (
 };
 
 function getToolResponse(
-  tools: Record<string, Tool<any, any>> | undefined,
+  tools: Record<string, Tool> | undefined,
   abortSignal: AbortSignal,
   toolCall: {
     toolCallId: string;
     toolName: string;
-    args: unknown;
+    args: ReadonlyJSONObject;
   },
 ) {
   const tool = tools?.[toolCall.toolName];
   if (!tool || !tool.execute) return undefined;
 
-  const getResult = async (toolExecute: ToolExecuteFunction<any, any>) => {
+  const getResult = async (
+    toolExecute: ToolExecuteFunction<ReadonlyJSONObject, unknown>,
+  ): Promise<ToolResponse<ReadonlyJSONValue>> => {
     let executeFn = toolExecute;
 
     if (isStandardSchemaV1(tool.parameters)) {
@@ -45,11 +48,12 @@ function getToolResponse(
       }
     }
 
-    const result = await executeFn(toolCall.args, {
+    const result = (await executeFn(toolCall.args, {
       toolCallId: toolCall.toolCallId,
       abortSignal,
-    });
-    if (result instanceof ToolResponse) return result;
+    })) as unknown as ReadonlyJSONValue;
+    if (result instanceof ToolResponse)
+      return result as ToolResponse<ReadonlyJSONValue>;
     return new ToolResponse({
       result: result === undefined ? "<no result>" : result,
     });
@@ -58,10 +62,11 @@ function getToolResponse(
   return getResult(tool.execute);
 }
 
-function getToolStreamResponse<TArgs, TResult>(
-  tools: Record<string, Tool<any, any>> | undefined,
+function getToolStreamResponse(
+  tools: Record<string, Tool> | undefined,
   abortSignal: AbortSignal,
-  reader: ToolCallReader<TArgs, TResult>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  reader: ToolCallReader<any, ReadonlyJSONValue>,
   context: {
     toolCallId: string;
     toolName: string;
@@ -75,7 +80,7 @@ function getToolStreamResponse<TArgs, TResult>(
 
 export async function unstable_runPendingTools(
   message: AssistantMessage,
-  tools: Record<string, Tool<any, any>> | undefined,
+  tools: Record<string, Tool> | undefined,
   abortSignal: AbortSignal,
 ) {
   // TODO parallel tool calling
@@ -90,7 +95,7 @@ export async function unstable_runPendingTools(
               ...p,
               state: "result" as const,
               artifact: result.artifact,
-              result: result.result,
+              result: result.result as ReadonlyJSONValue,
               isError: result.isError,
             };
           }
@@ -108,7 +113,7 @@ export async function unstable_runPendingTools(
 }
 
 export function toolResultStream(
-  tools: Record<string, Tool<any, any>> | undefined,
+  tools: Record<string, Tool> | undefined,
   abortSignal: AbortSignal,
 ) {
   return new ToolExecutionStream({
