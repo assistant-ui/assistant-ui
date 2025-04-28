@@ -1771,6 +1771,9 @@ importers:
       esbuild-plugin-file-path-extensions:
         specifier: ^2.1.4
         version: 2.1.4
+      eslint-config-next:
+        specifier: 15.3.1
+        version: 15.3.1(eslint@9.25.1(jiti@2.4.2))(typescript@5.8.3)
       postcss:
         specifier: ^8.5.3
         version: 8.5.3
@@ -1793,6 +1796,9 @@ importers:
       '@types/postcss-js':
         specifier: ^4.0.4
         version: 4.0.4
+      jiti:
+        specifier: ^2.4.2
+        version: 2.4.2
 
 packages:
 
@@ -3263,8 +3269,8 @@ packages:
     peerDependencies:
       '@types/react': '*'
       '@types/react-dom': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
-      react-dom: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react: 19.0.0
+      react-dom: 19.0.0
     peerDependenciesMeta:
       '@types/react':
         optional: true
