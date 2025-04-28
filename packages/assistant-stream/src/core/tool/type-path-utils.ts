@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 type AsNumber<K> = K extends `${infer N extends number}` ? N | K : never;
 type TupleIndex<T extends readonly any[]> = Exclude<keyof T, keyof any[]>;
 type ObjectKey<T> = keyof T & (string | number);

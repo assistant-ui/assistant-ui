@@ -78,7 +78,7 @@ export type EdgeModelAdapterOptions = {
   unstable_AISDKInterop?: boolean | "v2" | undefined;
 };
 
-const toAISDKTools = (tools: Record<string, Tool<any, any>>) => {
+const toAISDKTools = (tools: Record<string, Tool>) => {
   return Object.fromEntries(
     Object.entries(tools).map(([name, tool]) => [
       name,
@@ -92,10 +92,10 @@ const toAISDKTools = (tools: Record<string, Tool<any, any>>) => {
   );
 };
 
-const getEnabledTools = (tools: Record<string, Tool<any, any>>) => {
+const getEnabledTools = (tools: Record<string, Tool>) => {
   return Object.fromEntries(
     Object.entries(tools).filter(
-      ([_, tool]) => !tool.disabled && tool.type !== "backend",
+      ([, tool]) => !tool.disabled && tool.type !== "backend",
     ),
   );
 };
@@ -138,7 +138,9 @@ export class EdgeModelAdapter implements ChatModelAdapter {
             }),
         tools:
           this.options.unstable_AISDKInterop === "v2"
-            ? (toAISDKTools(getEnabledTools(context.tools ?? {})) as any)
+            ? (toAISDKTools(
+                getEnabledTools(context.tools ?? {}),
+              ) as unknown as EdgeRuntimeRequestOptions["tools"])
             : toLanguageModelTools(getEnabledTools(context.tools ?? {})),
         unstable_assistantMessageId,
         runConfig,

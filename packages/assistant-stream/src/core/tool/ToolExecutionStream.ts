@@ -5,7 +5,10 @@ import {
   AssistantMetaTransformStream,
 } from "../utils/stream/AssistantMetaTransformStream";
 import { PipeableTransformStream } from "../utils/stream/PipeableTransformStream";
-import { ReadonlyJSONValue } from "../../utils/json/json-value";
+import {
+  ReadonlyJSONObject,
+  ReadonlyJSONValue,
+} from "../../utils/json/json-value";
 import { ToolResponse } from "./ToolResponse";
 import { withPromiseOrValue } from "../utils/withPromiseOrValue";
 import { ToolCallReaderImpl } from "./ToolCallReader";
@@ -14,13 +17,16 @@ import { ToolCallReader } from "./tool-types";
 type ToolCallback = (toolCall: {
   toolCallId: string;
   toolName: string;
-  args: unknown;
+  args: ReadonlyJSONObject;
 }) =>
   | Promise<ToolResponse<ReadonlyJSONValue>>
   | ToolResponse<ReadonlyJSONValue>
   | undefined;
 
-type ToolStreamCallback = <TArgs, TResult>(toolCall: {
+type ToolStreamCallback = <
+  TArgs extends ReadonlyJSONObject = ReadonlyJSONObject,
+  TResult extends ReadonlyJSONValue = ReadonlyJSONValue,
+>(toolCall: {
   reader: ToolCallReader<TArgs, TResult>;
   toolCallId: string;
   toolName: string;
@@ -39,7 +45,7 @@ export class ToolExecutionStream extends PipeableTransformStream<
     const toolCallPromises = new Map<string, PromiseLike<void>>();
     const toolCallControllers = new Map<
       string,
-      ToolCallReaderImpl<unknown, unknown>
+      ToolCallReaderImpl<ReadonlyJSONObject, ReadonlyJSONValue>
     >();
 
     super((readable) => {
@@ -58,7 +64,10 @@ export class ToolExecutionStream extends PipeableTransformStream<
           switch (type) {
             case "part-start":
               if (chunk.part.type === "tool-call") {
-                const reader = new ToolCallReaderImpl<unknown, unknown>();
+                const reader = new ToolCallReaderImpl<
+                  ReadonlyJSONObject,
+                  ReadonlyJSONValue
+                >();
                 toolCallControllers.set(chunk.part.toolCallId, reader);
 
                 options.streamCall({
