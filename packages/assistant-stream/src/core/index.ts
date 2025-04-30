@@ -15,3 +15,10 @@ export { AssistantMessageStream } from "./accumulators/AssistantMessageStream";
 export type { AssistantMessage } from "./utils/types";
 
 export * from "./tool";
+
+export { createObjectStream } from "./json/createObjectStream";
+export {
+  ObjectStreamResponse,
+  fromObjectStreamResponse,
+} from "./json/ObjectStreamResponse";
+export type { ObjectStreamChunk } from "./json/types";
