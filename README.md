@@ -19,9 +19,9 @@
 
 **assistant-ui** is an open source Typescript/React library for AI chat.
 
-The library handles essential chat features such as auto-scrolling, accessibility, and real-time updates, while providing easy integration with LangGraph, AI SDK and custom backends.
+The library handles the hard parts of building an AI chat app, including auto-scrolling, streaming, markdown rendering, syntax highlighting, and accessibility. It provides composable components that make it easy to integrate with LangGraph, Mastra, Vercel AI SDK, or your own backend.
 
-The API of assistant-ui is inspired by libraries like shadcn/ui and cmdk. Instead of a single monolithic chat component, developers get primitive components that can be fully customized.
+The API of assistant-ui is inspired by libraries like shadcn/ui and cmdk. Instead of a single monolithic chat component, developers get primitive components with sane defaults that can be dropped into your app or fully customized for your needs.
 
 We have wide model provider support (OpenAI, Anthropic, Mistral, Perplexity, AWS Bedrock, Azure, Google Gemini, Hugging Face, Fireworks, Cohere, Replicate, Ollama) out of the box and the ability to integrate custom APIs.
 
