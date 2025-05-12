@@ -22,7 +22,7 @@
     "lint": "eslint ."
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.10.5",
+    "@assistant-ui/react": "^0.10.6",
     "@assistant-ui/react-markdown": "^0.10.3",
     "@types/react": "*",
     "@types/react-syntax-highlighter": "*",

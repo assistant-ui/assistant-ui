@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.10.6
+
+### Patch Changes
+
+- e63d574: feat: MessagePrimitive.If last
+
 ## 0.10.5
 
 ### Patch Changes
