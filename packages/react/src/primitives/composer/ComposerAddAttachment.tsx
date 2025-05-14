@@ -40,7 +40,9 @@ const useComposerAddAttachment = ({
     };
 
     input.oncancel = () => {
-      document.body.removeChild(input);
+      if (!input.files || input.files.length === 0) {
+        document.body.removeChild(input);
+      }
     }
     
     input.click();
