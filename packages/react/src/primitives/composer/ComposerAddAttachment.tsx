@@ -21,6 +21,7 @@ const useComposerAddAttachment = ({
     const input = document.createElement("input");
     input.type = "file";
     input.multiple = multiple;
+    input.hidden = true;
 
     const attachmentAccept = composerRuntime.getAttachmentAccept();
     if (attachmentAccept !== "*") {
