@@ -57,7 +57,8 @@ export const defaultComponents = memoizeMarkdownComponents({
   type={Object.fromEntries(
     Object.entries({
       theme: {
-        description: "Shiki built-in or custom textmate themes. Accepts a single theme or an object of themes mapped to theme mode strings.",
+        description:
+          "Shiki built-in or custom textmate themes. Accepts a single theme or an object of themes mapped to theme mode strings.",
         type: "Theme | Themes",
         typeDescriptionLink:
           "https://github.com/AVGVSTVS96/react-shiki/blob/694433ef697c9791b3816cf94d12d571e8abbb3a/package/src/types.ts#L51",
@@ -65,7 +66,8 @@ export const defaultComponents = memoizeMarkdownComponents({
         required: true,
       },
       language: {
-        description: "Shiki built-in or custom textmate grammar object for highlighting",
+        description:
+          "Shiki built-in or custom textmate grammar object for highlighting",
         type: "Language (string | object)",
         typeDescriptionLink:
           "https://github.com/AVGVSTVS96/react-shiki/blob/694433ef697c9791b3816cf94d12d571e8abbb3a/package/src/types.ts#L24",
@@ -78,12 +80,12 @@ export const defaultComponents = memoizeMarkdownComponents({
         default: "pre",
       },
       className: {
-        description: "Custom CSS classes for the container element",
+        description: "Custom CSS classes for the code block container element",
         type: "string",
         default: "",
       },
       style: {
-        description: "Inline styles for the `ShikiHighlighter` component",
+        description: "Inline styles for the code block container element",
         type: "React.CSSProperties",
         default: undefined,
       },
