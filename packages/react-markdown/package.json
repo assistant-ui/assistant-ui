@@ -46,7 +46,7 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^22.15.17",
+    "@types/node": "^22.15.18",
     "eslint": "^9",
     "eslint-config-next": "15.3.2",
     "react": "19.1.0",

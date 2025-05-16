@@ -87,10 +87,10 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@stryker-mutator/core": "^8.7.1",
-    "@stryker-mutator/vitest-runner": "^8.7.1",
+    "@stryker-mutator/core": "^9.0.1",
+    "@stryker-mutator/vitest-runner": "^9.0.1",
     "@types/json-schema": "^7.0.15",
-    "@types/node": "^22.15.17",
+    "@types/node": "^22.15.18",
     "eslint": "^9",
     "eslint-config-next": "15.3.2",
     "tsx": "^4.19.4",
