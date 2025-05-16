@@ -25,9 +25,10 @@
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.3",
     "postcss-nested": "^7.0.2",
+    "postcss-prefix-selector": "^2.1.1",
     "tailwindcss": "^4.1.4",
-    "tw-animate-css": "^1.2.8",
-    "tsx": "^4.19.3"
+    "tsx": "^4.19.3",
+    "tw-animate-css": "^1.2.8"
   },
   "publishConfig": {
     "access": "public",
