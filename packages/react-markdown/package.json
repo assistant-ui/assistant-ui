@@ -27,7 +27,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "@radix-ui/react-primitive": "^2.1.0",
+    "@radix-ui/react-primitive": "^2.1.2",
     "@radix-ui/react-use-callback-ref": "^1.1.1",
     "@types/hast": "^3.0.4",
     "classnames": "^2.5.1",
@@ -46,12 +46,12 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^22.14.1",
+    "@types/node": "^22.15.18",
     "eslint": "^9",
-    "eslint-config-next": "15.3.1",
+    "eslint-config-next": "15.3.2",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "tsx": "^4.19.3"
+    "tsx": "^4.19.4"
   },
   "publishConfig": {
     "access": "public",

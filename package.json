@@ -9,10 +9,10 @@
     "prettier:fix": "prettier \"{examples,packages,apps}/**/*.{js,jsx,ts,tsx}\" --write"
   },
   "devDependencies": {
-    "@changesets/cli": "^2.29.2",
+    "@changesets/cli": "^2.29.4",
     "prettier": "^3.5.3",
     "prettier-plugin-tailwindcss": "0.6.11",
-    "turbo": "^2.5.1",
+    "turbo": "^2.5.3",
     "typescript": "^5.8.3"
   },
   "prettier": {
@@ -21,5 +21,5 @@
       "prettier-plugin-tailwindcss"
     ]
   },
-  "packageManager": "pnpm@10.9.0"
+  "packageManager": "pnpm@10.11.0"
 }
