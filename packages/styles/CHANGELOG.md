@@ -1,5 +1,12 @@
 # @assistant-ui/styles
 
+## 0.1.4
+
+### Patch Changes
+
+- 95429ee: feat: sync style package theme
+- adeb0f2: fix: styles theme selector
+
 ## 0.1.3
 
 ### Patch Changes
