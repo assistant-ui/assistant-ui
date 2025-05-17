@@ -17,12 +17,7 @@ const tailwindStyles = Object.entries({
   return {
     key: key.replace(/^\./, ""),
     value: Object.keys(value)
-      .map((key) =>
-        key
-          .replace(/^\@apply /, "")
-          .replaceAll("-aui-", "-")
-          .replaceAll("max-w-thread", "max-w-aui-thread"),
-      )
+      .map((key) => key.replace(/^\@apply /, ""))
       .filter((k) => k)
       .join(" "),
   };
