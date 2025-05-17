@@ -1,5 +1,11 @@
 # @assistant-ui/react-edge
 
+## 0.2.6
+
+### Patch Changes
+
+- a7551f8: feat: export EdgeRuntimeRequestOptionsSchema
+
 ## 0.2.5
 
 ### Patch Changes
