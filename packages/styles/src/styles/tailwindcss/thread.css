@@ -11,6 +11,10 @@
   @apply sticky bottom-0 mt-3 flex w-full max-w-[var(--thread-max-width)] flex-col items-center justify-end rounded-t-lg bg-inherit pb-4;
 }
 
+.aui-thread-viewport-spacer {
+  @apply flex-grow min-h-8;
+}
+
 .aui-thread-scroll-to-bottom {
   @apply absolute -top-8 rounded-full disabled:invisible;
 }
