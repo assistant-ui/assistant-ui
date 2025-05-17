@@ -21,20 +21,31 @@ const useComposerAddAttachment = ({
     const input = document.createElement("input");
     input.type = "file";
     input.multiple = multiple;
+    input.hidden = true;
 
     const attachmentAccept = composerRuntime.getAttachmentAccept();
     if (attachmentAccept !== "*") {
       input.accept = attachmentAccept;
     }
-
+    
+    document.body.appendChild(input);
+    
     input.onchange = (e) => {
       const fileList = (e.target as HTMLInputElement).files;
       if (!fileList) return;
       for (const file of fileList) {
         composerRuntime.addAttachment(file);
       }
+
+      document.body.removeChild(input);
     };
 
+    input.oncancel = () => {
+      if (!input.files || input.files.length === 0) {
+        document.body.removeChild(input);
+      }
+    }
+    
     input.click();
   }, [composerRuntime, multiple]);
 
