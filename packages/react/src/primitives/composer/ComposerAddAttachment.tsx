@@ -27,9 +27,9 @@ const useComposerAddAttachment = ({
     if (attachmentAccept !== "*") {
       input.accept = attachmentAccept;
     }
-    
+
     document.body.appendChild(input);
-    
+
     input.onchange = (e) => {
       const fileList = (e.target as HTMLInputElement).files;
       if (!fileList) return;
@@ -44,8 +44,8 @@ const useComposerAddAttachment = ({
       if (!input.files || input.files.length === 0) {
         document.body.removeChild(input);
       }
-    }
-    
+    };
+
     input.click();
   }, [composerRuntime, multiple]);
 
