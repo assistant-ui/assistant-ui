@@ -1,5 +1,11 @@
 # @assistant-ui/styles
 
+## 0.1.5
+
+### Patch Changes
+
+- e31faf4: refactor: remove -aui- prefix
+
 ## 0.1.4
 
 ### Patch Changes
