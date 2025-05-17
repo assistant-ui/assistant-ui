@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.10.7
+
+### Patch Changes
+
+- 621f35a: fix: patch Safari/iOS attachment issue by adding/removing input element to DOM
+- Updated dependencies [0809c9f]
+  - assistant-stream@0.2.6
+
 ## 0.10.6
 
 ### Patch Changes
