@@ -25,35 +25,35 @@ export type UseAssistantFormProps<
   TTransformedValues,
 > = UseFormProps<TFieldValues, TContext, TTransformedValues> & {
   assistant?:
-  | {
-    tools?:
     | {
-      set_form_field?:
-      | {
-        render?:
-        | ToolCallContentPartComponent<
-          z.infer<
-            (typeof formTools.set_form_field)["parameters"]
-          >,
-          unknown
-        >
-        | undefined;
+        tools?:
+          | {
+              set_form_field?:
+                | {
+                    render?:
+                      | ToolCallContentPartComponent<
+                          z.infer<
+                            (typeof formTools.set_form_field)["parameters"]
+                          >,
+                          unknown
+                        >
+                      | undefined;
+                  }
+                | undefined;
+              submit_form?:
+                | {
+                    render?:
+                      | ToolCallContentPartComponent<
+                          z.infer<(typeof formTools.submit_form)["parameters"]>,
+                          unknown
+                        >
+                      | undefined;
+                  }
+                | undefined;
+            }
+          | undefined;
       }
-      | undefined;
-      submit_form?:
-      | {
-        render?:
-        | ToolCallContentPartComponent<
-          z.infer<(typeof formTools.submit_form)["parameters"]>,
-          unknown
-        >
-        | undefined;
-      }
-      | undefined;
-    }
     | undefined;
-  }
-  | undefined;
 };
 
 export const useAssistantForm = <
@@ -124,9 +124,9 @@ export const useAssistantForm = <
   useAssistantToolUI(
     renderFormFieldTool
       ? {
-        toolName: "set_form_field",
-        render: renderFormFieldTool,
-      }
+          toolName: "set_form_field",
+          render: renderFormFieldTool,
+        }
       : null,
   );
 
@@ -134,9 +134,9 @@ export const useAssistantForm = <
   useAssistantToolUI(
     renderSubmitFormTool
       ? {
-        toolName: "submit_form",
-        render: renderSubmitFormTool,
-      }
+          toolName: "submit_form",
+          render: renderSubmitFormTool,
+        }
       : null,
   );
 
