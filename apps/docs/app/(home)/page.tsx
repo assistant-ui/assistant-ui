@@ -21,6 +21,7 @@ import { useMediaQuery } from "@/lib/useMediaQuery";
 import { StarPill } from "./home/StarPill";
 import ycombinator from "./logos/ycombinator.svg";
 import { useState } from "react";
+import { WebSearchToolUI } from "@/components/samples/tool-ui-sample";
 
 export default function HomePage() {
   return (
@@ -31,6 +32,7 @@ export default function HomePage() {
       <div className="mx-auto mt-6 flex h-[650px] w-full max-w-screen-xl flex-col overflow-hidden rounded-lg border shadow">
         <MyRuntimeProvider>
           <Shadcn />
+          <WebSearchToolUI />
         </MyRuntimeProvider>
       </div>
 
