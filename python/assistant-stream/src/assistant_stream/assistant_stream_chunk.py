@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Dict, List, Literal, Union
+from typing import Any, Dict, List, Literal, TypedDict, Union
 
 
 # Define the data classes for different chunk types
@@ -44,19 +44,17 @@ class ErrorChunk:
     type: str = "error"
 
 
-# Define ObjectStream operation types
-@dataclass
-class ObjectStreamSetOperation:
+# Define ObjectStream operation types as TypedDict
+class ObjectStreamSetOperation(TypedDict):
     path: List[str]
     value: Any
-    type: Literal["set"] = "set"
+    type: Literal["set"]
 
 
-@dataclass
-class ObjectStreamAppendTextOperation:
+class ObjectStreamAppendTextOperation(TypedDict):
     path: List[str]
     value: str
-    type: Literal["append-text"] = "append-text"
+    type: Literal["append-text"]
 
 
 ObjectStreamOperation = Union[ObjectStreamSetOperation, ObjectStreamAppendTextOperation]
