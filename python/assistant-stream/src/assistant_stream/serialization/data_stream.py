@@ -1,4 +1,6 @@
-from assistant_stream.assistant_stream_chunk import AssistantStreamChunk
+from assistant_stream.assistant_stream_chunk import (
+    AssistantStreamChunk,
+)
 import json
 from typing import AsyncGenerator
 from assistant_stream.serialization.assistant_stream_response import (
@@ -29,6 +31,8 @@ class DataStreamEncoder(StreamEncoder):
             return f"2:{json.dumps([chunk.data])}\n"
         elif chunk.type == "error":
             return f"3:{json.dumps(chunk.error)}\n"
+        elif chunk.type == "update-state":
+            return f"aui-state:{json.dumps(chunk.operations)}\n"
 
     def get_media_type(self) -> str:
         return "text/plain"

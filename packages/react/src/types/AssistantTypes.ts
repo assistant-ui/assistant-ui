@@ -1,8 +1,5 @@
 import { CompleteAttachment } from "./AttachmentTypes";
-import {
-  ReadonlyJSONObject,
-  ReadonlyJSONValue,
-} from "../utils/json/json-value";
+import { ReadonlyJSONObject, ReadonlyJSONValue } from "assistant-stream/utils";
 
 export type MessageRole = ThreadMessage["role"];
 
@@ -156,6 +153,7 @@ export type ThreadAssistantMessage = MessageCommonProps & {
   readonly content: readonly ThreadAssistantContentPart[];
   readonly status: MessageStatus;
   readonly metadata: {
+    readonly unstable_state: ReadonlyJSONValue;
     readonly unstable_annotations: readonly ReadonlyJSONValue[];
     readonly unstable_data: readonly ReadonlyJSONValue[];
     readonly steps: readonly ThreadStep[];
@@ -180,6 +178,7 @@ export type AppendMessage = Omit<ThreadMessage, "id"> & {
 type BaseThreadMessage = {
   readonly status?: ThreadAssistantMessage["status"];
   readonly metadata: {
+    readonly unstable_state?: ReadonlyJSONValue;
     readonly unstable_annotations?: readonly ReadonlyJSONValue[];
     readonly unstable_data?: readonly ReadonlyJSONValue[];
     readonly steps?: readonly ThreadStep[];

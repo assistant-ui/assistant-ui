@@ -144,6 +144,8 @@ export const EMPTY_THREAD_CORE: ThreadRuntimeCore = {
 
   messages: [],
 
+  state: null,
+
   suggestions: [],
 
   extras: undefined,

@@ -19,10 +19,7 @@ import {
   SourceContentPart,
   ThreadStep,
 } from "../../types/AssistantTypes";
-import {
-  ReadonlyJSONObject,
-  ReadonlyJSONValue,
-} from "../../utils/json/json-value";
+import { ReadonlyJSONObject, ReadonlyJSONValue } from "assistant-stream/utils";
 
 export type ThreadMessageLike = {
   readonly role: "assistant" | "user" | "system";
@@ -52,6 +49,7 @@ export type ThreadMessageLike = {
   readonly attachments?: readonly CompleteAttachment[] | undefined;
   readonly metadata?:
     | {
+        readonly unstable_state?: ReadonlyJSONValue;
         readonly unstable_annotations?:
           | readonly ReadonlyJSONValue[]
           | undefined;
@@ -136,6 +134,7 @@ export const fromThreadMessageLike = (
           .filter((c) => !!c),
         status: status ?? fallbackStatus,
         metadata: {
+          unstable_state: metadata?.unstable_state ?? null,
           unstable_annotations: metadata?.unstable_annotations ?? [],
           unstable_data: metadata?.unstable_data ?? [],
           custom: metadata?.custom ?? {},

@@ -21,7 +21,7 @@ const createInitialMessage = (): AssistantMessage => ({
     return this.parts;
   },
   metadata: {
-    unstable_state: {},
+    unstable_state: null,
     unstable_data: [],
     unstable_annotations: [],
     steps: [],

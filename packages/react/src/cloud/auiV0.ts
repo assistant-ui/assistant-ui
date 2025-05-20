@@ -6,7 +6,7 @@ import { isJSONValue } from "../utils/json/is-json";
 import {
   ReadonlyJSONObject,
   ReadonlyJSONValue,
-} from "../utils/json/json-value";
+} from "assistant-stream/utils";
 import { ExportedMessageRepositoryItem } from "../runtimes/utils/MessageRepository";
 
 type AuiV0MessageContentPart =

@@ -26,6 +26,7 @@ export class AssistantMessageStream {
         parts: [],
         content: [],
         metadata: {
+          unstable_state: null,
           unstable_data: [],
           unstable_annotations: [],
           steps: [],

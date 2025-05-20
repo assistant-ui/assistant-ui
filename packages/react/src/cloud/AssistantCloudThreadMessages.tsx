@@ -1,4 +1,4 @@
-import { ReadonlyJSONObject } from "../utils/json/json-value";
+import { ReadonlyJSONObject } from "assistant-stream/utils";
 import { AssistantCloudAPI } from "./AssistantCloudAPI";
 
 export type CloudMessage = {

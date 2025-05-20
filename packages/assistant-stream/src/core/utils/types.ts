@@ -50,18 +50,31 @@ type ToolCallStatus =
       reason: "cancelled" | "length" | "content-filter" | "other";
     };
 
-export type ToolCallPart = {
+type ToolCallPartBase = {
   type: "tool-call";
-  state: "partial-call" | "call" | "result";
   status: ToolCallStatus;
   toolCallId: string;
   toolName: string;
   argsText: string;
   args: ReadonlyJSONObject;
-  artifact?: unknown;
+  artifact?: ReadonlyJSONValue;
   result?: ReadonlyJSONValue;
   isError?: boolean;
 };
+
+type ToolCallPartWithoutResult = ToolCallPartBase & {
+  state: "partial-call" | "call";
+  result?: undefined;
+};
+
+type ToolCallPartWithResult = ToolCallPartBase & {
+  state: "result";
+  result: ReadonlyJSONValue;
+  artifact?: ReadonlyJSONValue;
+  isError?: boolean;
+};
+
+export type ToolCallPart = ToolCallPartWithoutResult | ToolCallPartWithResult;
 
 export type SourcePart = {
   type: "source";
@@ -141,7 +154,9 @@ export type AssistantMessage = {
    * @deprecated Use `parts` instead.
    */
   content: AssistantMessagePart[];
+
   metadata: {
+    unstable_state: ReadonlyJSONValue;
     unstable_data: ReadonlyJSONValue[];
     unstable_annotations: ReadonlyJSONValue[];
     steps: AssistantMessageStepMetadata[];
