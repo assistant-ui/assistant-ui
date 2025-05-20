@@ -1,4 +1,5 @@
 import { ReadonlyJSONValue } from "../utils/json/json-value";
+import { ObjectStreamOperation } from "./object/types";
 
 export type PartInit =
   | {
@@ -89,5 +90,9 @@ export type AssistantStreamChunk = { readonly path: readonly number[] } & (
   | {
       readonly type: "error";
       readonly error: string;
+    }
+  | {
+      readonly type: "update-state";
+      readonly operations: ObjectStreamOperation[];
     }
 );
