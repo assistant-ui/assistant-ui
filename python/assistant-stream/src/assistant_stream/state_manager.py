@@ -15,12 +15,23 @@ class StateManager:
 
     def __init__(self, put_chunk_callback: Callable[[UpdateStateChunk], None]):
         """Initialize with callback for sending state updates."""
-        self._state_data = {}
+        self._state_data = None
         self._pending_operations = []
         self._update_scheduled = False
         self._put_chunk_callback = put_chunk_callback
         self._loop = asyncio.get_event_loop()
-        self.state = StateProxy(self, [])
+        self._state_proxy = StateProxy(self, [])
+        
+    @property
+    def state(self) -> Any:
+        """Access the state proxy object for making state updates.
+        
+        If state is None, returns None directly instead of a proxy.
+        Otherwise returns a proxy object for the state.
+        """
+        if self._state_data is None:
+            return None
+        return self._state_proxy
 
     @property
     def state_data(self) -> Dict[str, Any]:
@@ -71,6 +82,10 @@ class StateManager:
         """Get value at path, raising KeyError for invalid paths."""
         if not path:
             return self._state_data
+
+        # If state is None, we can't navigate further
+        if self._state_data is None:
+            raise KeyError(path[0] if path else "")
 
         current = self._state_data
 

@@ -85,19 +85,34 @@ class RunController:
         self._loop.call_soon_threadsafe(self._queue.put_nowait, chunk)
 
     @property
-    def state(self) -> StateProxy:
+    def state(self):
         """Access the state proxy object for making state updates.
 
         This property provides a proxy object that allows navigating to any path
         in the state, reading values, and setting values, which will trigger the
         appropriate state update operation.
 
+        If the state is None, this property returns None directly.
+        You can set the root state directly by assigning to this property.
+
         Example:
-            controller.state.user.name = "John"  # Sets the value at path ["user", "name"]
-            name = controller.state.user.name  # Gets the value at path ["user", "name"]
-            controller.state.messages.append("Hello")  # Appends text at path ["messages"]
+            controller.state = {"user": {"name": "John"},"messages: "Hello"}  # Sets the entire state
+            controller.state["user"]["name"] = "Bob"  # Sets the value at path ["user", "name"]
+            name = controller.state["user"]["name"]  # Gets the value at path ["user", "name"]
+            controller.state["messages"] += " world"  # Appends text at path ["messages"]
         """
         return self._state_manager.state
+
+    @state.setter
+    def state(self, value):
+        """Set the entire state object.
+
+        Args:
+            value: The new state value to set
+        """
+        self._state_manager.add_operations(
+            [{"type": "set", "path": [], "value": value}]
+        )
 
 
 async def create_run(

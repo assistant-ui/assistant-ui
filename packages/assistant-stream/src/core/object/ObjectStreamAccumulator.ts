@@ -4,7 +4,7 @@ import { ObjectStreamOperation } from "./types";
 export class ObjectStreamAccumulator {
   private _state: ReadonlyJSONValue;
 
-  constructor(initialValue: ReadonlyJSONValue = {}) {
+  constructor(initialValue: ReadonlyJSONValue = null) {
     this._state = initialValue;
   }
 
@@ -48,7 +48,12 @@ export class ObjectStreamAccumulator {
   ): ReadonlyJSONValue {
     if (path.length === 0) return updater(state);
 
-    if (state === null || typeof state !== "object") {
+    // Initialize state as empty object if it's null and we're trying to set a property
+    if (state === null) {
+      state = {};
+    }
+    
+    if (typeof state !== "object") {
       throw new Error(`Invalid path: [${path.join(", ")}]`);
     }
 

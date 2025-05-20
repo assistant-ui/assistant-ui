@@ -18,9 +18,14 @@ app.add_middleware(
 @app.post("/simple-test")
 async def simple_test():
     async def run(controller: RunController):
-        # Initialize state
-        controller.state["counter"] = 0
-        controller.state["message"] = "Starting simple test"
+        # Check that state is initially None
+        assert controller.state is None, "Initial state should be None"
+        
+        # Initialize state with a direct assignment
+        controller.state = {
+            "counter": 0,
+            "message": "Starting simple test"
+        }
 
         # Update state over time
         for i in range(1, 6):
@@ -30,6 +35,12 @@ async def simple_test():
         # Add a boolean and number
         controller.state["completed"] = True
         controller.state["total"] = 5.5
+        
+        # Demonstrate setting root state again
+        controller.state = {
+            "final": True,
+            "summary": "Test completed successfully"
+        }
 
         controller.append_text("hi")
 
@@ -39,7 +50,27 @@ async def simple_test():
 @app.post("/complex-test")
 async def complex_test():
     async def run(controller: RunController):
-        # Initialize nested state
+        # Demonstrate that state starts as None
+        print(f"Initial state: {controller.state}")
+        
+        # Initialize nested state directly
+        controller.state = {
+            "user": {
+                "name": "John",
+                "preferences": {
+                    "theme": "dark",
+                    "notifications": True
+                }
+            },
+            "messages": []
+        }
+        
+        # Add messages
+        controller.state["messages"].append("Hello")
+        controller.state["messages"].append("World")
+        
+        # Set state back to None to demonstrate nullifying
+        controller.state = None
         controller.state["user"] = {
             "name": "Test User",
             "settings": {"theme": "light", "notifications": True},
