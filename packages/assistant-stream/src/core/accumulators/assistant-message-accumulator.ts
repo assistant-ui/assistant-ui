@@ -11,6 +11,7 @@ import {
   ReasoningPart,
   FilePart,
 } from "../utils/types";
+import { ObjectStreamAccumulator } from "../object/ObjectStreamAccumulator";
 
 const createInitialMessage = (): AssistantMessage => ({
   role: "assistant",
@@ -20,6 +21,7 @@ const createInitialMessage = (): AssistantMessage => ({
     return this.parts;
   },
   metadata: {
+    unstable_state: {},
     unstable_data: [],
     unstable_annotations: [],
     steps: [],
@@ -132,6 +134,9 @@ const handleToolCallArgsTextFinish = (
     if (part.type !== "tool-call") {
       throw new Error("Last is not a tool call");
     }
+    if (part.state !== "partial-call")
+      throw new Error("Last is not a partial call");
+
     return {
       ...part,
       state: "call",
@@ -180,7 +185,7 @@ const handleResult = (
       return {
         ...part,
         state: "result",
-        artifact: chunk.artifact,
+        ...(chunk.artifact !== undefined ? { artifact: chunk.artifact } : {}),
         result: chunk.result,
         isError: chunk.isError ?? false,
         status: { type: "complete", reason: "stop" },
@@ -316,6 +321,22 @@ const handleErrorChunk = (
   };
 };
 
+const handleUpdateState = (
+  message: AssistantMessage,
+  chunk: AssistantStreamChunk & { type: "update-state" },
+): AssistantMessage => {
+  const acc = new ObjectStreamAccumulator(message.metadata.unstable_state);
+  acc.append(chunk.operations);
+
+  return {
+    ...message,
+    metadata: {
+      ...message.metadata,
+      unstable_state: acc.state,
+    },
+  };
+};
+
 export class AssistantMessageAccumulator extends TransformStream<
   AssistantStreamChunk,
   AssistantMessage
@@ -365,6 +386,9 @@ export class AssistantMessageAccumulator extends TransformStream<
             break;
           case "error":
             message = handleErrorChunk(message, chunk);
+            break;
+          case "update-state":
+            message = handleUpdateState(message, chunk);
             break;
           default: {
             const unhandledType: never = type;

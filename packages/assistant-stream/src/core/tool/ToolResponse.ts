@@ -13,12 +13,14 @@ export class ToolResponse<TResult> {
     return true;
   }
 
-  readonly artifact?: ReadonlyJSONValue | undefined;
+  readonly artifact?: ReadonlyJSONValue;
   readonly result: TResult;
   readonly isError: boolean;
 
   constructor(options: ToolResponseInit<TResult>) {
-    this.artifact = options.artifact;
+    if (options.artifact !== undefined) {
+      this.artifact = options.artifact;
+    }
     this.result = options.result;
     this.isError = options.isError ?? false;
   }

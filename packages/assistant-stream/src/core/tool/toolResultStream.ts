@@ -94,7 +94,9 @@ export async function unstable_runPendingTools(
             return {
               ...p,
               state: "result" as const,
-              artifact: result.artifact,
+              ...(result.artifact !== undefined
+                ? { artifact: result.artifact }
+                : {}),
               result: result.result as ReadonlyJSONValue,
               isError: result.isError,
             };

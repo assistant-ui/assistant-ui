@@ -57,7 +57,9 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
     this._controller.enqueue({
       type: "result",
       path: [],
-      artifact: response.artifact,
+      ...(response.artifact !== undefined
+        ? { artifact: response.artifact }
+        : {}),
       result: response.result,
       isError: response.isError ?? false,
     });
