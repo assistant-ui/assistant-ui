@@ -70,7 +70,7 @@ async def complex_test():
         controller.state["messages"].append("World")
         
         # Set state back to None to demonstrate nullifying
-        controller.state = None
+        controller.state = {}
         controller.state["user"] = {
             "name": "Test User",
             "settings": {"theme": "light", "notifications": True},

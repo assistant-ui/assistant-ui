@@ -1,9 +1,5 @@
 from typing import Any, List, Union, TYPE_CHECKING
 
-from assistant_stream.assistant_stream_chunk import (
-    ObjectStreamSetOperation,
-    ObjectStreamAppendTextOperation,
-)
 
 # Avoid circular import
 if TYPE_CHECKING:
