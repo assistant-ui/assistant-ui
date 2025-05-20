@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.10.9
+
+### Patch Changes
+
+- fix: correctly forward state updates from ChatModelAdapter
+
 ## 0.10.8
 
 ### Patch Changes

@@ -44,6 +44,7 @@ describe("MessageRepository", () => {
     content: [{ type: "text", text: "Test message" }],
     status: { type: "complete", reason: "stop" },
     metadata: {
+      unstable_state: null,
       unstable_annotations: [],
       unstable_data: [],
       steps: [],

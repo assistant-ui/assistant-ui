@@ -252,6 +252,9 @@ export class LocalThreadRuntimeCore
           ? {
               metadata: {
                 ...message.metadata,
+                ...(m.metadata.unstable_state
+                  ? { unstable_state: m.metadata.unstable_state }
+                  : undefined),
                 ...(annotations
                   ? { unstable_annotations: annotations }
                   : undefined),

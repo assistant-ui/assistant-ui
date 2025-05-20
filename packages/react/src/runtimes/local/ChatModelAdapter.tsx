@@ -22,6 +22,7 @@ export type ChatModelRunResult = {
   readonly content?: readonly ThreadAssistantContentPart[] | undefined;
   readonly status?: MessageStatus | undefined;
   readonly metadata?: {
+    readonly unstable_state?: ReadonlyJSONValue;
     readonly unstable_annotations?: readonly ReadonlyJSONValue[] | undefined;
     readonly unstable_data?: readonly ReadonlyJSONValue[] | undefined;
     readonly steps?: readonly ThreadStep[] | undefined;
