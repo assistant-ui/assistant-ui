@@ -103,11 +103,7 @@ export class SSEDecoder<T> extends PipeableTransformStream<Uint8Array, T> {
             transform(event, controller) {
               switch (event.event) {
                 case "message":
-                  try {
-                    controller.enqueue(JSON.parse(event.data));
-                  } catch (err) {
-                    console.error("Failed to parse SSE event data:", err);
-                  }
+                  controller.enqueue(JSON.parse(event.data));
                   break;
                 default:
                   throw new Error(`Unknown SSE event type: ${event.event}`);

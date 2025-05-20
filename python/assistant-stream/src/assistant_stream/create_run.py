@@ -36,13 +36,7 @@ class RunController:
         stream, controller = await create_tool_call(tool_name, tool_call_id)
         self._dispose_callbacks.append(controller.close)
 
-        # Note: We don't use add_stream here to avoid double flushing
-        async def reader():
-            async for chunk in stream:
-                self._flush_and_put_chunk(chunk)
-
-        task = asyncio.create_task(reader())
-        self._stream_tasks.append(task)
+        self.add_stream(stream)
         return controller
 
     def add_tool_result(self, tool_call_id: str, result: Any) -> None:

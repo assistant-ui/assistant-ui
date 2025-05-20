@@ -33,7 +33,6 @@ class ObjectStreamControllerImpl implements ObjectStreamController {
       snapshot: this._accumulator.state,
       operations,
     });
-    return this;
   }
 
   __internalError(error: unknown) {

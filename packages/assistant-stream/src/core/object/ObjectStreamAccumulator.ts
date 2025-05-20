@@ -35,9 +35,10 @@ export class ObjectStreamAccumulator {
           return current + op.value;
         });
 
-      default:
+      default: {
         const _exhaustiveCheck: never = type;
         throw new Error(`Invalid operation type: ${_exhaustiveCheck}`);
+      }
     }
   }
 
