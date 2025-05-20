@@ -44,6 +44,7 @@ type AuiV0Message = {
   readonly status?: MessageStatus;
   readonly content: readonly AuiV0MessageContentPart[];
   readonly metadata: {
+    readonly unstable_state?: ReadonlyJSONValue;
     readonly unstable_annotations: readonly ReadonlyJSONValue[];
     readonly unstable_data: readonly ReadonlyJSONValue[];
     readonly steps: readonly {
