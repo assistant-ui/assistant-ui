@@ -18,7 +18,7 @@ from assistant_stream.state_manager import StateManager
 class RunController:
     def __init__(self, queue):
         self._queue = queue
-        self._loop = asyncio.get_event_loop()
+        self._loop = asyncio.get_running_loop()
         self._dispose_callbacks = []
         self._stream_tasks = []
         self._state_manager = StateManager(self._put_chunk_nowait)
@@ -143,7 +143,7 @@ async def create_run(
                 for task in controller._stream_tasks:
                     await task
             finally:
-                asyncio.get_event_loop().call_soon_threadsafe(queue.put_nowait, None)
+                asyncio.get_running_loop().call_soon_threadsafe(queue.put_nowait, None)
 
     task = asyncio.create_task(background_task())
 

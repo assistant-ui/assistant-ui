@@ -79,7 +79,7 @@ async def complex_test():
 
         # Update nested state
         for i in range(1, 6):
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.01)
             controller.state["stats"]["visits"] = i
             controller.state["stats"]["actions"].append(f"action_{i}")
 
@@ -90,7 +90,7 @@ async def complex_test():
                 controller.state["user"]["settings"]["theme"] = "light"
 
         # Final update
-        await asyncio.sleep(1)
+        await asyncio.sleep(0.01)
         controller.state["completed"] = True
 
     return DataStreamResponse(create_run(run))

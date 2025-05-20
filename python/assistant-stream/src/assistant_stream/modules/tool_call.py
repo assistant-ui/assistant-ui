@@ -22,7 +22,7 @@ class ToolCallController:
         self.tool_name = tool_name
         self.tool_call_id = tool_call_id
         self.queue = queue
-        self.loop = asyncio.get_event_loop()
+        self.loop = asyncio.get_running_loop()
 
         begin_chunk = ToolCallBeginChunk(
             tool_call_id=self.tool_call_id,
@@ -38,14 +38,14 @@ class ToolCallController:
         )
         self.loop.call_soon_threadsafe(self.queue.put_nowait, chunk)
 
-    
     def set_result(self, result: Any) -> None:
         """
         Set the result of the tool call.
-        
+
         Deprecated: Use set_response() instead.
         """
         import warnings
+
         warnings.warn(
             "set_result() is deprecated. Use set_response() instead.",
             DeprecationWarning,

@@ -17,7 +17,7 @@ class StateManager:
         self._pending_operations = []
         self._update_scheduled = False
         self._put_chunk_callback = put_chunk_callback
-        self._loop = asyncio.get_event_loop()
+        self._loop = asyncio.get_running_loop()
         self._state_proxy = StateProxy(self, [])
 
     @property
