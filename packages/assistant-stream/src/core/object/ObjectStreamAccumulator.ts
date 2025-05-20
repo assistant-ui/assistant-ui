@@ -52,7 +52,7 @@ export class ObjectStreamAccumulator {
     if (state === null) {
       state = {};
     }
-    
+
     if (typeof state !== "object") {
       throw new Error(`Invalid path: [${path.join(", ")}]`);
     }

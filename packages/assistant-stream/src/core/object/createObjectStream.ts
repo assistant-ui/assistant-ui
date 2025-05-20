@@ -72,7 +72,7 @@ export const createObjectStream = ({
   execute,
   defaultValue = {},
 }: CreateObjectStreamOptions) => {
-  const [stream, controller] = getStreamControllerPair({ defaultValue });
+  const [stream, controller] = getStreamControllerPair(defaultValue);
 
   withPromiseOrValue(
     () => execute(controller),
