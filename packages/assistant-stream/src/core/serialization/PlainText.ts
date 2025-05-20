@@ -35,7 +35,8 @@ export class PlainTextEncoder
                 | "tool-call-begin"
                 | "tool-call-delta"
                 | "result"
-                | "error" = type;
+                | "error"
+                | "update-state" = type;
               throw new Error(`unsupported chunk type: ${unsupportedType}`);
           }
         },

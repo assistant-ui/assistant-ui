@@ -156,6 +156,7 @@ export type ThreadAssistantMessage = MessageCommonProps & {
   readonly content: readonly ThreadAssistantContentPart[];
   readonly status: MessageStatus;
   readonly metadata: {
+    readonly unstable_state: ReadonlyJSONValue;
     readonly unstable_annotations: readonly ReadonlyJSONValue[];
     readonly unstable_data: readonly ReadonlyJSONValue[];
     readonly steps: readonly ThreadStep[];
@@ -180,6 +181,7 @@ export type AppendMessage = Omit<ThreadMessage, "id"> & {
 type BaseThreadMessage = {
   readonly status?: ThreadAssistantMessage["status"];
   readonly metadata: {
+    readonly unstable_state?: ReadonlyJSONValue;
     readonly unstable_annotations?: readonly ReadonlyJSONValue[];
     readonly unstable_data?: readonly ReadonlyJSONValue[];
     readonly steps?: readonly ThreadStep[];

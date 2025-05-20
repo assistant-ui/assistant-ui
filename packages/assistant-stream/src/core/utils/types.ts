@@ -154,7 +154,9 @@ export type AssistantMessage = {
    * @deprecated Use `parts` instead.
    */
   content: AssistantMessagePart[];
+
   metadata: {
+    unstable_state: ReadonlyJSONValue;
     unstable_data: ReadonlyJSONValue[];
     unstable_annotations: ReadonlyJSONValue[];
     steps: AssistantMessageStepMetadata[];

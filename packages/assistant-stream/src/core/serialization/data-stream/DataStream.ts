@@ -150,6 +150,14 @@ export class DataStreamEncoder
               break;
             }
 
+            case "update-state": {
+              controller.enqueue({
+                type: DataStreamStreamChunkType.AuiUpdateStateOperations,
+                value: chunk.operations,
+              });
+              break;
+            }
+
             // TODO ignore for now
             // in the future, we should create a handler that waits for text parts to finish before continuing
             case "tool-call-args-text-finish":
@@ -323,6 +331,14 @@ export class DataStreamDecoder extends PipeableTransformStream<
               controller.appendFile({
                 type: "file",
                 ...value,
+              });
+              break;
+
+            case DataStreamStreamChunkType.AuiUpdateStateOperations:
+              controller.enqueue({
+                type: "update-state",
+                path: [],
+                operations: value,
               });
               break;
 
