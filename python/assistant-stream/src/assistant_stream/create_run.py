@@ -1,17 +1,20 @@
 import asyncio
-from typing import Any, AsyncGenerator, Callable, Coroutine
+from typing import Any, AsyncGenerator, Callable, Coroutine, List
 from assistant_stream.assistant_stream_chunk import (
     AssistantStreamChunk,
     TextDeltaChunk,
     ToolResultChunk,
     DataChunk,
     ErrorChunk,
+    ObjectStreamOperation,
 )
 from assistant_stream.modules.tool_call import (
     create_tool_call,
     ToolCallController,
     generate_openai_style_tool_call_id,
 )
+from assistant_stream.state_proxy import StateProxy
+from assistant_stream.state_manager import StateManager
 
 
 class RunController:
@@ -20,6 +23,7 @@ class RunController:
         self._loop = asyncio.get_event_loop()
         self._dispose_callbacks = []
         self._stream_tasks = []
+        self._state_manager = StateManager(self._put_chunk_nowait)
 
     def append_text(self, text_delta: str) -> None:
         """Append a text delta to the stream."""
@@ -66,12 +70,34 @@ class RunController:
         )
 
     def add_error(self, error: str) -> None:
-        """Emit an event to the main stream."""
+        """Emit an error to the main stream."""
 
         self._loop.call_soon_threadsafe(
             self._queue.put_nowait,
             ErrorChunk(error=error),
         )
+
+    def _put_chunk_nowait(self, chunk):
+        """Helper method to put a chunk in the queue without waiting.
+
+        This is used as a callback for the StateManager.
+        """
+        self._loop.call_soon_threadsafe(self._queue.put_nowait, chunk)
+
+    @property
+    def state(self) -> StateProxy:
+        """Access the state proxy object for making state updates.
+
+        This property provides a proxy object that allows navigating to any path
+        in the state, reading values, and setting values, which will trigger the
+        appropriate state update operation.
+
+        Example:
+            controller.state.user.name = "John"  # Sets the value at path ["user", "name"]
+            name = controller.state.user.name  # Gets the value at path ["user", "name"]
+            controller.state.messages.append("Hello")  # Appends text at path ["messages"]
+        """
+        return self._state_manager.state
 
 
 async def create_run(

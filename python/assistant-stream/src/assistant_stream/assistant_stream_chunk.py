@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Union
+from typing import Any, Dict, List, Literal, Union
 
 
 # Define the data classes for different chunk types
@@ -27,8 +27,8 @@ class ToolCallDeltaChunk:
 class ToolResultChunk:
     tool_call_id: str
     result: Any
-    artifact: Any | None
-    is_error: bool
+    artifact: Any | None = None
+    is_error: bool = False
     type: str = "tool-result"
 
 
@@ -44,6 +44,30 @@ class ErrorChunk:
     type: str = "error"
 
 
+# Define ObjectStream operation types
+@dataclass
+class ObjectStreamSetOperation:
+    path: List[str]
+    value: Any
+    type: Literal["set"] = "set"
+
+
+@dataclass
+class ObjectStreamAppendTextOperation:
+    path: List[str]
+    value: str
+    type: Literal["append-text"] = "append-text"
+
+
+ObjectStreamOperation = Union[ObjectStreamSetOperation, ObjectStreamAppendTextOperation]
+
+
+@dataclass
+class UpdateStateChunk:
+    operations: List[ObjectStreamOperation]
+    type: str = "update-state"
+
+
 # Define the union type for AssistantStreamChunk
 AssistantStreamChunk = Union[
     TextDeltaChunk,
@@ -52,4 +76,5 @@ AssistantStreamChunk = Union[
     ToolResultChunk,
     DataChunk,
     ErrorChunk,
+    UpdateStateChunk,
 ]
