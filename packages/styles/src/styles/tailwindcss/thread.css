@@ -116,7 +116,7 @@
 /* user message */
 
 .aui-user-message-root {
-  @apply grid-cols-[minmax(72px, 1fr)_auto] grid auto-rows-auto gap-y-2 [&:where(>*)]:col-start-2;
+  @apply grid-cols-[minmax(72px,1fr)_auto] grid auto-rows-auto gap-y-2 [&:where(>*)]:col-start-2;
   @apply w-full max-w-[var(--thread-max-width)] py-4;
 }
 
