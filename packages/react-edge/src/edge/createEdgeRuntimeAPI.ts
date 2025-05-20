@@ -135,7 +135,7 @@ export const getEdgeRuntimeStream = async ({
     // tee the stream to process server tools and onFinish asap
     const tees = stream.tee();
     stream = tees[0];
-    let serverStream = tees[1];
+    const serverStream = tees[1];
 
     if (onFinish) {
       let lastChunk: AssistantMessage | undefined;

@@ -329,7 +329,6 @@ export class ToolCallArgsReaderImpl<T extends ReadonlyJSONObject>
       },
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return asAsyncIterableStream(stream) as any;
   }
 
@@ -361,7 +360,6 @@ export class ToolCallArgsReaderImpl<T extends ReadonlyJSONObject>
       },
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return asAsyncIterableStream(stream) as any;
   }
 
@@ -393,7 +391,6 @@ export class ToolCallArgsReaderImpl<T extends ReadonlyJSONObject>
       },
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return asAsyncIterableStream(stream) as any;
   }
 }
