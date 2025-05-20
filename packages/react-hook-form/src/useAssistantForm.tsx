@@ -74,6 +74,7 @@ export const useAssistantForm = <
       tools: {
         set_form_field: tool({
           ...formTools.set_form_field,
+          parameters: formTools.set_form_field.parameters,
           execute: async (args) => {
             setValue(
               args.name as Path<TFieldValues>,

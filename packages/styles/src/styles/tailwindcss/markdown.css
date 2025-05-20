@@ -28,7 +28,7 @@
 }
 
 .aui-md-a {
-  @apply text-aui-primary font-medium underline underline-offset-4;
+  @apply text-primary font-medium underline underline-offset-4;
 }
 
 .aui-md-blockquote {
@@ -52,7 +52,7 @@
 }
 
 .aui-md-th {
-  @apply bg-aui-muted px-4 py-2 text-left font-bold first:rounded-tl-lg last:rounded-tr-lg [&[align=center]]:text-center [&[align=right]]:text-right;
+  @apply bg-muted px-4 py-2 text-left font-bold first:rounded-tl-lg last:rounded-tr-lg [&[align=center]]:text-center [&[align=right]]:text-right;
 }
 
 .aui-md-td {
@@ -72,7 +72,7 @@
 }
 
 .aui-md-inline-code {
-  @apply bg-aui-muted rounded border font-semibold;
+  @apply bg-muted rounded border font-semibold;
 }
 
 .aui-code-header-root {

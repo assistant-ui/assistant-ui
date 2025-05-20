@@ -1,5 +1,5 @@
 .aui-modal-content {
-  @apply bg-aui-popover text-aui-popover-foreground z-50 h-[500px] w-[400px] overflow-clip rounded-xl border p-0 shadow-md outline-none;
+  @apply bg-popover text-popover-foreground z-50 h-[500px] w-[400px] overflow-clip rounded-xl border p-0 shadow-md outline-none;
   @apply [&>.aui-thread-root]:bg-inherit;
 
   @apply data-[state=closed]:animate-out data-[state=open]:animate-in;

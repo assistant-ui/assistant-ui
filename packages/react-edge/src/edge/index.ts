@@ -8,3 +8,5 @@ export {
   createEdgeRuntimeAPI,
   getEdgeRuntimeResponse,
 } from "./createEdgeRuntimeAPI";
+
+export { EdgeRuntimeRequestOptionsSchema } from "./EdgeRuntimeRequestOptions";

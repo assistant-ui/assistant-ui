@@ -9,25 +9,25 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^1.3.17",
+    "@ai-sdk/openai": "^1.3.22",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-ai-sdk": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
     "@radix-ui/react-icons": "^1.3.2",
-    "@radix-ui/react-slot": "^1.2.0",
-    "@radix-ui/react-tooltip": "^1.2.4",
-    "ai": "^4.3.9",
+    "@radix-ui/react-slot": "^1.2.2",
+    "@radix-ui/react-tooltip": "^1.2.6",
+    "ai": "^4.3.15",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^0.503.0",
+    "lucide-react": "^0.511.0",
     "nanoid": "5.1.5",
-    "next": "15.3.1",
+    "next": "15.3.2",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "remark-gfm": "^4.0.1",
-    "tailwind-merge": "^3.2.0",
-    "tw-animate-css": "^1.2.8",
-    "zod": "^3.24.3"
+    "tailwind-merge": "^3.3.0",
+    "tw-animate-css": "^1.3.0",
+    "zod": "^3.24.4"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
@@ -35,9 +35,9 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "15.3.1",
+    "eslint-config-next": "15.3.2",
     "postcss": "^8",
-    "tailwindcss": "^4.1.4",
+    "tailwindcss": "^4.1.7",
     "typescript": "^5.8.3"
   }
 }
