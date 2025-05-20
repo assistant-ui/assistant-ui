@@ -160,7 +160,7 @@ export class LocalThreadRuntimeCore
       status: { type: "running" },
       content: [],
       metadata: {
-        unstable_state: null,
+        unstable_state: this.state,
         unstable_annotations: [],
         unstable_data: [],
         steps: [],

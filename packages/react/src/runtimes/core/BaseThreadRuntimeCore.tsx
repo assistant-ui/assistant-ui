@@ -50,6 +50,18 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
     return this.repository.getMessages();
   }
 
+  public get state() {
+    let mostRecentAssistantMessage;
+    for (const message of this.messages) {
+      if (message.role === "assistant") {
+        mostRecentAssistantMessage = message;
+        break;
+      }
+    }
+
+    return mostRecentAssistantMessage?.metadata.unstable_state ?? null;
+  }
+
   public readonly composer = new DefaultThreadComposerRuntimeCore(this);
 
   constructor(private readonly _contextProvider: ModelContextProvider) {}

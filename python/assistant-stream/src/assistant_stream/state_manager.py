@@ -11,9 +11,13 @@ from assistant_stream.state_proxy import StateProxy
 class StateManager:
     """Manages state operations with efficient batching and local updates."""
 
-    def __init__(self, put_chunk_callback: Callable[[UpdateStateChunk], None]):
+    def __init__(
+        self,
+        put_chunk_callback: Callable[[UpdateStateChunk], None],
+        state_data: Any | None = None,
+    ):
         """Initialize with callback for sending state updates."""
-        self._state_data = None
+        self._state_data = state_data
         self._pending_operations = []
         self._update_scheduled = False
         self._put_chunk_callback = put_chunk_callback
@@ -58,10 +62,10 @@ class StateManager:
             self._put_chunk_callback(UpdateStateChunk(operations=operations_to_send))
 
         self._update_scheduled = False
-        
+
     def flush(self) -> None:
         """Explicitly flush any pending operations.
-        
+
         This should be called before the run completes to ensure all state updates are sent.
         """
         if self._pending_operations:

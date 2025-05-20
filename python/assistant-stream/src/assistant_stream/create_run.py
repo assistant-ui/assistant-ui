@@ -16,12 +16,12 @@ from assistant_stream.state_manager import StateManager
 
 
 class RunController:
-    def __init__(self, queue):
+    def __init__(self, queue, state_data):
         self._queue = queue
         self._loop = asyncio.get_running_loop()
         self._dispose_callbacks = []
         self._stream_tasks = []
-        self._state_manager = StateManager(self._put_chunk_nowait)
+        self._state_manager = StateManager(self._put_chunk_nowait, state_data)
 
     def append_text(self, text_delta: str) -> None:
         """Append a text delta to the stream."""
@@ -116,10 +116,12 @@ class RunController:
 
 
 async def create_run(
-    callback: Callable[[RunController], Coroutine[Any, Any, None]]
+    callback: Callable[[RunController], Coroutine[Any, Any, None]],
+    *,
+    state: Any | None = None,
 ) -> AsyncGenerator[AssistantStreamChunk, None]:
     queue = asyncio.Queue()
-    controller = RunController(queue)
+    controller = RunController(queue, state_data=state)
 
     async def background_task():
         try:
