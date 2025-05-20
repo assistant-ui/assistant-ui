@@ -1,8 +1,5 @@
 import { CompleteAttachment } from "./AttachmentTypes";
-import {
-  ReadonlyJSONObject,
-  ReadonlyJSONValue,
-} from "../utils/json/json-value";
+import { ReadonlyJSONObject, ReadonlyJSONValue } from "assistant-stream/utils";
 
 export type MessageRole = ThreadMessage["role"];
 

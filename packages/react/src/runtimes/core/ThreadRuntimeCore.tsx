@@ -1,3 +1,4 @@
+import { ReadonlyJSONValue } from "assistant-stream/utils";
 import { ModelContext } from "../../model-context";
 import { AppendMessage, ThreadMessage } from "../../types";
 import { RunConfig } from "../../types/AssistantTypes";

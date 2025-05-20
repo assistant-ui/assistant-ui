@@ -2,7 +2,7 @@ import {
   ReadonlyJSONArray,
   ReadonlyJSONObject,
   ReadonlyJSONValue,
-} from "./json-value";
+} from "assistant-stream/utils";
 
 export function isJSONValue(
   value: unknown,
