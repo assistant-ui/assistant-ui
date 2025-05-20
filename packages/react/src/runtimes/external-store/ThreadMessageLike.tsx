@@ -19,10 +19,7 @@ import {
   SourceContentPart,
   ThreadStep,
 } from "../../types/AssistantTypes";
-import {
-  ReadonlyJSONObject,
-  ReadonlyJSONValue,
-} from "../../utils/json/json-value";
+import { ReadonlyJSONObject, ReadonlyJSONValue } from "assistant-stream/utils";
 
 export type ThreadMessageLike = {
   readonly role: "assistant" | "user" | "system";
