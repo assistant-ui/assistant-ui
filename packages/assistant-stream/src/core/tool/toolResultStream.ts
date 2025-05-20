@@ -65,7 +65,6 @@ function getToolResponse(
 function getToolStreamResponse(
   tools: Record<string, Tool> | undefined,
   abortSignal: AbortSignal,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   reader: ToolCallReader<any, ReadonlyJSONValue>,
   context: {
     toolCallId: string;
