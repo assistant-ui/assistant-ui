@@ -1,5 +1,13 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.10.8
+
+### Patch Changes
+
+- Updated dependencies [5cb9598]
+  - @assistant-ui/react@0.10.8
+  - @assistant-ui/react-edge@0.2.7
+
 ## 0.10.7
 
 ### Patch Changes

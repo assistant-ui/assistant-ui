@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.2.7
+
+### Patch Changes
+
+- 5cb9598: feat(assistant-stream): ObjectStream
+
 ## 0.2.6
 
 ### Patch Changes

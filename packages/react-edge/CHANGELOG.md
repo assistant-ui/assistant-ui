@@ -1,5 +1,14 @@
 # @assistant-ui/react-edge
 
+## 0.2.7
+
+### Patch Changes
+
+- 5cb9598: feat(assistant-stream): ObjectStream
+- Updated dependencies [5cb9598]
+  - assistant-stream@0.2.7
+  - @assistant-ui/react@0.10.8
+
 ## 0.2.6
 
 ### Patch Changes
