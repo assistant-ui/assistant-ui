@@ -107,7 +107,7 @@ const buttonVariants = cva("aui-button", {
       ghost: "aui-button-ghost",
     },
     size: {
-      default: "aui-button-medium", // missing has-[>svg]:px-3
+      default: "aui-button-medium",
       icon: "aui-button-icon",
     },
   },
@@ -694,7 +694,7 @@ export const TooltipIconButton = forwardRef<
             variant="ghost"
             size="icon"
             {...rest}
-            className={cn("", className)} //removed size-6 p-1, defined by size=icon
+            className={cn("", className)}
             ref={ref}
           >
             {children}
