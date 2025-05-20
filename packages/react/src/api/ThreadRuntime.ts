@@ -33,6 +33,7 @@ import { EventSubscriptionSubject } from "./subscribable/EventSubscriptionSubjec
 import { symbolInnerMessage } from "../runtimes/external-store/getExternalStoreMessage";
 import { ModelContext } from "../model-context";
 import { ChatModelRunOptions, ChatModelRunResult } from "../runtimes";
+import { ReadonlyJSONValue } from "assistant-stream/utils";
 
 export type CreateStartRunConfig = {
   parentId: string | null;
@@ -151,6 +152,13 @@ export type ThreadState = {
   readonly messages: readonly ThreadMessage[];
 
   /**
+   * The thread state.
+   *
+   * @deprecated This feature is experimental
+   */
+  readonly state: ReadonlyJSONValue;
+
+  /**
    * Follow up message suggestions to show the user.
    */
   readonly suggestions: readonly ThreadSuggestion[];
@@ -181,6 +189,7 @@ export const getThreadState = (
         ? false
         : lastMessage.status.type === "running",
     messages: runtime.messages,
+    state: runtime.state,
     suggestions: runtime.suggestions,
     extras: runtime.extras,
     speech: runtime.speech,

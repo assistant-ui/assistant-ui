@@ -144,6 +144,9 @@ export class EdgeModelAdapter implements ChatModelAdapter {
             : toLanguageModelTools(getEnabledTools(context.tools ?? {})),
         unstable_assistantMessageId,
         runConfig,
+
+        state: unstable_getMessage().metadata.unstable_state,
+
         ...context.callSettings,
         ...context.config,
 

@@ -100,6 +100,7 @@ export type ThreadRuntimeCore = Readonly<{
   capabilities: Readonly<RuntimeCapabilities>;
   isDisabled: boolean;
   messages: readonly ThreadMessage[];
+  state: ReadonlyJSONValue;
   suggestions: readonly ThreadSuggestion[];
 
   // TODO deprecate for a more elegant solution
