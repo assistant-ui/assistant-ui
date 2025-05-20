@@ -710,10 +710,18 @@ export const TooltipIconButton = forwardRef<
 TooltipIconButton.displayName = "TooltipIconButton";
 ```
 
+```ts title="lib/utils.ts"
+import { type ClassValue, clsx } from "clsx";
+
+export function cn(...inputs: ClassValue[]) {
+  return clsx(inputs);
+}
+```
+
         </Step>
 
         <Step>
-       The files above reference CSS class names like aui-thread-root, aui-composer-input, etc. These are normally replaced by our CLI with Tailwind class names, but in this case you'll use our pre-compiled CSS files without a need for Tailwind:
+       The components above reference CSS class names like `aui-thread-root`, `aui-composer-input`, etc. These are normally replaced by our CLI with Tailwind class names, but in this case you'll use our pre-compiled CSS files without a need for Tailwind:
 
 ```ts
 import "@assistant-ui/react-ui/styles/index.css";
