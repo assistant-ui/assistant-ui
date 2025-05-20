@@ -1,5 +1,11 @@
 # @assistant-ui/styles
 
+## 0.1.6
+
+### Patch Changes
+
+- fb2de0d: Add `thread-viewport-spacer` class and fix attachments overflow bug (#1952)
+
 ## 0.1.5
 
 ### Patch Changes
