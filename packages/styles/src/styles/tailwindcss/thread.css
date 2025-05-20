@@ -12,7 +12,7 @@
 }
 
 .aui-thread-viewport-spacer {
-  @apply flex-grow min-h-8;
+  @apply min-h-8 flex-grow;
 }
 
 .aui-thread-scroll-to-bottom {
@@ -116,11 +116,11 @@
 /* user message */
 
 .aui-user-message-root {
-  @apply grid auto-rows-auto grid-cols-[minmax(72px, 1fr)_auto] gap-y-2 [&:where(>*)]:col-start-2;
+  @apply grid-cols-[minmax(72px, 1fr)_auto] grid auto-rows-auto gap-y-2 [&:where(>*)]:col-start-2;
   @apply w-full max-w-[var(--thread-max-width)] py-4;
 }
 
-:where(.aui-user-message-root)>.aui-branch-picker-root {
+:where(.aui-user-message-root) > .aui-branch-picker-root {
   @apply col-span-full col-start-1 row-start-3;
   @apply -mr-1 justify-end;
 }
@@ -172,7 +172,7 @@
   @apply relative w-full max-w-[var(--thread-max-width)] py-4;
 }
 
-:where(.aui-assistant-message-root)>.aui-avatar-root {
+:where(.aui-assistant-message-root) > .aui-avatar-root {
   @apply col-start-1 row-span-full row-start-1 mr-4;
 }
 
@@ -180,7 +180,7 @@
   @apply col-start-1 row-span-full row-start-1 mr-4;
 }
 
-:where(.aui-assistant-message-root)>.aui-branch-picker-root {
+:where(.aui-assistant-message-root) > .aui-branch-picker-root {
   @apply col-start-2 row-start-2;
   @apply -ml-2 mr-2;
 }
@@ -248,7 +248,7 @@
   @apply data-[active]:bg-muted hover:bg-muted flex items-center justify-start gap-1 rounded-lg px-2.5 py-2 text-start;
 }
 
-.aui-thread-list-new>.lucide-plus {
+.aui-thread-list-new > .lucide-plus {
   @apply size-5;
 }
 
