@@ -76,7 +76,7 @@
 }
 
 .aui-composer-attachments {
-  @apply flex w-full flex-row gap-3 overflow-y-auto;
+  @apply flex w-full flex-row gap-3 overflow-x-auto;
 }
 
 /* attachment */
