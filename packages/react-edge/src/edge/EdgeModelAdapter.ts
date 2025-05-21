@@ -49,6 +49,12 @@ export type EdgeModelAdapterOptions = {
    */
   onError?: (error: Error) => void;
 
+  /**
+   * Callback function to be called when the request is cancelled.
+   * Use this option to notify the server that the user explicitly requested a cancellation.
+   */
+  onCancel?: () => void;
+
   credentials?: RequestCredentials;
 
   /**
@@ -115,6 +121,8 @@ export class EdgeModelAdapter implements ChatModelAdapter {
       typeof this.options.headers === "function"
         ? await this.options.headers()
         : this.options.headers;
+
+    abortSignal.addEventListener("abort", () => this.options.onCancel);
 
     const headers = new Headers(headersValue);
     headers.set("Content-Type", "application/json");
