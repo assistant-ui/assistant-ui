@@ -1,4 +1,4 @@
-import { MyRuntimeProvider } from "../../MyRuntimeProvider";
+import { DocsRuntimeProvider } from "../../DocsRuntimeProvider";
 import { Perplexity } from "@/components/perplexity/Perplexity";
 
 export default function Component() {
@@ -10,9 +10,9 @@ export default function Component() {
         </header>
 
         <div className="h-[700px]">
-          <MyRuntimeProvider>
+          <DocsRuntimeProvider>
             <Perplexity />
-          </MyRuntimeProvider>
+          </DocsRuntimeProvider>
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { MyRuntimeProvider } from "../../MyRuntimeProvider";
+import { DocsRuntimeProvider } from "../../DocsRuntimeProvider";
 import { ChatGPT } from "@/components/chatgpt/ChatGPT";
 
 export default function Component() {
@@ -10,9 +10,9 @@ export default function Component() {
         </header>
 
         <div className="h-[700px]">
-          <MyRuntimeProvider>
+          <DocsRuntimeProvider>
             <ChatGPT />
-          </MyRuntimeProvider>
+          </DocsRuntimeProvider>
         </div>
       </div>
     </div>

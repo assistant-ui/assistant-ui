@@ -4,7 +4,7 @@ import { Shadcn } from "@/components/shadcn/Shadcn";
 import { Button } from "@/components/ui/button";
 import { useChat } from "ai/react";
 import Link from "next/link";
-import { MyRuntimeProvider } from "../MyRuntimeProvider";
+import { DocsRuntimeProvider } from "../DocsRuntimeProvider";
 
 export default function HomePage() {
   return (
@@ -22,9 +22,9 @@ export default function HomePage() {
       </div>
       <div className="mx-auto flex w-full max-w-screen-xl flex-col">
         <div className="mt-4 h-[650px] overflow-hidden rounded-lg border shadow">
-          <MyRuntimeProvider>
+          <DocsRuntimeProvider>
             <Shadcn />
-          </MyRuntimeProvider>
+          </DocsRuntimeProvider>
         </div>
       </div>
     </main>

@@ -1,4 +1,4 @@
-import { MyRuntimeProvider } from "../../MyRuntimeProvider";
+import { DocsRuntimeProvider } from "../../DocsRuntimeProvider";
 import { Claude } from "@/components/claude/Claude";
 
 export default function Component() {
@@ -10,9 +10,9 @@ export default function Component() {
         </header>
 
         <div className="h-[700px]">
-          <MyRuntimeProvider>
+          <DocsRuntimeProvider>
             <Claude />
-          </MyRuntimeProvider>
+          </DocsRuntimeProvider>
         </div>
       </div>
     </div>
