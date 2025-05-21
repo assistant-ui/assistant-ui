@@ -19,7 +19,6 @@ import {
 // import { v4 as uuidv4 } from "uuid";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
-
 // async function* tokenByToken(str: string) {
 //   for (const token of str.split(" ")) {
 //     await new Promise((resolve) => setTimeout(resolve, Math.random() * 10 + 5));
@@ -75,9 +74,13 @@ import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 //   }
 // }
 
-export function DocsRuntimeProvider({ children }: { children: React.ReactNode }) {
+export function DocsRuntimeProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const assistantCloud = new AssistantCloud({
-    baseUrl: process.env['NEXT_PUBLIC_ASSISTANT_BASE_URL']!,
+    baseUrl: process.env["NEXT_PUBLIC_ASSISTANT_BASE_URL"]!,
     anonymous: true,
   });
 
@@ -90,7 +93,7 @@ export function DocsRuntimeProvider({ children }: { children: React.ReactNode })
       ]),
       speech: new WebSpeechSynthesisAdapter(),
     },
-    cloud: assistantCloud
+    cloud: assistantCloud,
   });
   return (
     <AssistantRuntimeProvider runtime={runtime}>

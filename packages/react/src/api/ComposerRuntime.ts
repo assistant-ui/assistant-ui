@@ -100,21 +100,75 @@ const getEditComposerState = (
 export type ComposerRuntime = {
   readonly path: ComposerRuntimePath;
   readonly type: "edit" | "thread";
+
+  /**
+   * Get the current state of the composer. Includes any data that has been added to the composer.
+   */
   getState(): ComposerState;
 
   getAttachmentAccept(): string;
+
+  /**
+   * Given a standard js File object, add it to the composer. A composer can have multiple attachments.
+   * @param file The file to add to the composer.
+   */
   addAttachment(file: File): Promise<void>;
 
+  /**
+   * Set the text of the composer.
+   * @param text The text to set in the composer.
+   */
   setText(text: string): void;
+
+  /**
+   * Set the role of the composer. For instance, if you'd like a specific message to have the 'assistant' role, you can do so here.
+   * @param role The role to set in the composer.
+   */
   setRole(role: MessageRole): void;
+
+  /**
+   * Set the run config of the composer. This is used to send custom configuration data to the model.
+   * Within your backend, you can access this data using the `runConfig` object.
+   * Example:
+   * ```ts
+   * composerRuntime.setRunConfig({
+   *   custom: { customField: "customValue" }
+   * });
+   * ```
+   * @param runConfig The run config to set in the composer.
+   */
   setRunConfig(runConfig: RunConfig): void;
 
+  /**
+   * Reset the composer. This will clear the entire state of the composer, including all text and attachments.
+   */
   reset(): Promise<void>;
+
+  /**
+   * Clear all attachments from the composer.
+   */
   clearAttachments(): Promise<void>;
 
+  /**
+   * Send a message. This will send whatever text or attachments are in the composer.
+   */
   send(): void;
+
+  /**
+   * Cancel the current run. In edit mode, this will exit edit mode.
+   */
   cancel(): void;
+
+  /**
+   * Listens for changes to the composer state.
+   * @param callback The callback to call when the composer state changes.
+   */
   subscribe(callback: () => void): Unsubscribe;
+
+  /**
+   * Get an attachment by index.
+   * @param idx The index of the attachment to get.
+   */
   getAttachmentByIndex(idx: number): AttachmentRuntime;
 };
 
