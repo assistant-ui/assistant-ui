@@ -1,11 +1,7 @@
 "use client";
 
 import { Primitive } from "@radix-ui/react-primitive";
-import {
-  type ComponentRef,
-  forwardRef,
-  ComponentPropsWithoutRef,
-} from "react";
+import { type ComponentRef, forwardRef, ComponentPropsWithoutRef } from "react";
 
 export namespace ErrorPrimitiveRoot {
   export type Element = ComponentRef<typeof Primitive.div>;

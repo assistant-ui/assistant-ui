@@ -1,11 +1,7 @@
 "use client";
 
 import { Primitive } from "@radix-ui/react-primitive";
-import {
-  type ComponentRef,
-  forwardRef,
-  ComponentPropsWithoutRef,
-} from "react";
+import { type ComponentRef, forwardRef, ComponentPropsWithoutRef } from "react";
 import { useMessage } from "../../context/react/MessageContext";
 
 export namespace ErrorPrimitiveMessage {
@@ -17,7 +13,7 @@ export const ErrorPrimitiveMessage = forwardRef<
   ErrorPrimitiveMessage.Element,
   ErrorPrimitiveMessage.Props
 >(({ children, ...props }, forwardRef) => {
-  const error = useMessage(m => {
+  const error = useMessage((m) => {
     return m.status?.type === "incomplete" && m.status.reason === "error"
       ? m.status.error
       : undefined;

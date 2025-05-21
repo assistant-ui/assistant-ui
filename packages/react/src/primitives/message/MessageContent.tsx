@@ -233,7 +233,11 @@ export const MessagePrimitiveContent: FC<MessagePrimitiveContent.Props> = ({
   return (
     <>
       {Array.from({ length: contentLength }, (_, index) => (
-        <MessageContentPart key={index} partIndex={index} components={components} />
+        <MessageContentPart
+          key={index}
+          partIndex={index}
+          components={components}
+        />
       ))}
       {ErrorComponent && <ErrorComponent />}
     </>
