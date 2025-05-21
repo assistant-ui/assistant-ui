@@ -1,0 +1,364 @@
+import { describe, it, expect } from "vitest";
+import { act, renderHook, waitFor } from "@testing-library/react";
+
+import { useLangGraphMessages } from "./useLangGraphMessages";
+import { appendLangChainChunk } from "./appendLangChainChunk";
+import { MessageContentText } from "./types";
+
+const metadataEvent = {
+  event: "metadata",
+  data: {
+    thread_id: "123",
+    attempt: 1,
+  },
+};
+
+const mockStreamCallbackFactory = (events: any[]) =>
+  async function* () {
+    for (const event of events) {
+      yield event;
+    }
+  };
+
+describe("useLangGraphMessages", {}, () => {
+  it("processes chunks correctly", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "messages",
+        data: [
+          {
+            id: "run-1",
+            content: "",
+            additional_kwargs: {},
+            response_metadata: { model_name: "claude-3-7-sonnet-latest" },
+            type: "AIMessageChunk",
+            name: null,
+            tool_calls: [],
+            invalid_tool_calls: [],
+            tool_call_chunks: [],
+          },
+          {
+            run_attempt: 1,
+          },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [
+          {
+            type: "human",
+            content: "Hello, world!",
+          },
+        ],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages.length).toEqual(2);
+      expect(result.current.messages[0].type).toEqual("human");
+      expect(result.current.messages[1].type).toEqual("ai");
+      expect(result.current.messages[1].content).toEqual("");
+    });
+  });
+
+  it("appends chunks w/ same id", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "messages",
+        data: [
+          {
+            id: "run-1",
+            content: "",
+            additional_kwargs: {},
+            response_metadata: { model_name: "claude-3-7-sonnet-latest" },
+            type: "AIMessageChunk",
+            name: null,
+            tool_calls: [],
+            invalid_tool_calls: [],
+            tool_call_chunks: [],
+          },
+          {
+            run_attempt: 1,
+          },
+        ],
+      },
+      {
+        event: "messages",
+        data: [
+          {
+            id: "run-1",
+            content: "Hello!",
+            additional_kwargs: {},
+            response_metadata: { model_name: "claude-3-7-sonnet-latest" },
+            type: "AIMessageChunk",
+            name: null,
+            tool_calls: [],
+            invalid_tool_calls: [],
+            tool_call_chunks: [],
+          },
+          {
+            run_attempt: 1,
+          },
+        ],
+      },
+      {
+        event: "messages",
+        data: [
+          {
+            id: "run-1",
+            content: " How my I assist you today?",
+            additional_kwargs: {},
+            response_metadata: { model_name: "claude-3-7-sonnet-latest" },
+            type: "AIMessageChunk",
+            name: null,
+            tool_calls: [],
+            invalid_tool_calls: [],
+            tool_call_chunks: [],
+          },
+          {
+            run_attempt: 1,
+          },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [
+          {
+            type: "human",
+            content: "Hello!",
+          },
+        ],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages.length).toEqual(2);
+      expect(result.current.messages[0].type).toEqual("human");
+      expect(result.current.messages[1].type).toEqual("ai");
+      expect(
+        (result.current.messages[1].content[0] as MessageContentText).type,
+      ).toEqual("text");
+      expect(
+        (result.current.messages[1].content[0] as MessageContentText).text,
+      ).toEqual("Hello! How my I assist you today?");
+    });
+  });
+
+  it("separates chunks w/ different ids", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "messages",
+        data: [
+          {
+            id: "run-1",
+            content: "",
+            additional_kwargs: {},
+            response_metadata: { model_name: "claude-3-7-sonnet-latest" },
+            type: "AIMessageChunk",
+            name: null,
+            tool_calls: [],
+            invalid_tool_calls: [],
+            tool_call_chunks: [],
+          },
+          {
+            run_attempt: 1,
+          },
+        ],
+      },
+      {
+        event: "messages",
+        data: [
+          {
+            id: "run-1",
+            content: "Hello!",
+            additional_kwargs: {},
+            response_metadata: { model_name: "claude-3-7-sonnet-latest" },
+            type: "AIMessageChunk",
+            name: null,
+            tool_calls: [],
+            invalid_tool_calls: [],
+            tool_call_chunks: [],
+          },
+          {
+            run_attempt: 1,
+          },
+        ],
+      },
+      {
+        event: "messages",
+        data: [
+          {
+            id: "run-2",
+            content: " How my I assist you today?",
+            additional_kwargs: {},
+            response_metadata: { model_name: "claude-3-7-sonnet-latest" },
+            type: "AIMessageChunk",
+            name: null,
+            tool_calls: [],
+            invalid_tool_calls: [],
+            tool_call_chunks: [],
+          },
+          {
+            run_attempt: 1,
+          },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [
+          {
+            type: "human",
+            content: "Hello!",
+          },
+        ],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages.length).toEqual(3);
+      expect(result.current.messages[0].type).toEqual("human");
+      expect(result.current.messages[1].type).toEqual("ai");
+      expect(result.current.messages[2].type).toEqual("ai");
+      expect(
+        (result.current.messages[1].content[0] as MessageContentText).type,
+      ).toEqual("text");
+      expect(
+        (result.current.messages[1].content[0] as MessageContentText).text,
+      ).toEqual("Hello!");
+      expect(result.current.messages[2].content as string).toEqual(
+        " How my I assist you today?",
+      );
+    });
+  });
+
+  it("processes a mix of chunks and messages", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "messages",
+        data: [
+          {
+            id: "run-1",
+            content: "",
+            additional_kwargs: {},
+            response_metadata: { model_name: "claude-3-7-sonnet-latest" },
+            type: "AIMessageChunk",
+            name: null,
+            tool_calls: [],
+            invalid_tool_calls: [],
+            tool_call_chunks: [],
+          },
+          {
+            run_attempt: 1,
+          },
+        ],
+      },
+      {
+        event: "messages",
+        data: [
+          {
+            id: "run-1",
+            content: "Hello!",
+            additional_kwargs: {},
+            response_metadata: { model_name: "claude-3-7-sonnet-latest" },
+            type: "AIMessageChunk",
+            name: null,
+            tool_calls: [],
+            invalid_tool_calls: [],
+            tool_call_chunks: [],
+          },
+          {
+            run_attempt: 1,
+          },
+        ],
+      },
+      {
+        event: "messages/complete",
+        data: [
+          {
+            id: "run-2",
+            content: [{ type: "text", text: "How my I assist you today?" }],
+            additional_kwargs: {},
+            response_metadata: { model_name: "claude-3-7-sonnet-latest" },
+            type: "ai",
+            name: null,
+            tool_calls: [],
+            invalid_tool_calls: [],
+            tool_call_chunks: [],
+          },
+          {
+            run_attempt: 1,
+          },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [
+          {
+            type: "human",
+            content: "Hello!",
+          },
+        ],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages.length).toEqual(4); // three messages + one metadata event
+      expect(result.current.messages[0].type).toEqual("human");
+      expect(result.current.messages[1].type).toEqual("ai");
+      expect(result.current.messages[2].type).toEqual("ai");
+      expect(
+        (result.current.messages[1].content[0] as MessageContentText).type,
+      ).toEqual("text");
+      expect(
+        (result.current.messages[1].content[0] as MessageContentText).text,
+      ).toEqual("Hello!");
+      expect(
+        (result.current.messages[2].content[0] as MessageContentText).text,
+      ).toEqual("How my I assist you today?");
+    });
+  });
+});

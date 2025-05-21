@@ -1,4 +1,8 @@
-import { LangChainMessage, LangChainMessageChunk } from "./types";
+import {
+  LangChainMessage,
+  LangChainMessageChunk,
+  MessageContentText,
+} from "./types";
 import { parsePartialJsonObject } from "assistant-stream/utils";
 
 export const appendLangChainChunk = (
@@ -21,20 +25,26 @@ export const appendLangChainChunk = (
       ? [{ type: "text" as const, text: prev.content }]
       : [...prev.content];
 
-  for (const chunk of curr.content) {
-    if (chunk.type === "text") {
-      const existing = newContent[chunk.index] ?? { type: "text", text: "" };
-      if (existing.type !== "text") throw new Error("");
-      newContent[chunk.index] = {
-        ...existing,
-        ...chunk,
-        text: existing.text + chunk.text,
+  if (newContent.length === 1 && typeof curr?.content === "string") {
+    if (!newContent[0]) {
+      newContent[0] = { type: "text", text: "" };
+    }
+    (newContent[0] as MessageContentText).text =
+      (newContent[0] as MessageContentText).text + curr.content;
+  } else {
+    if (typeof curr.content === "string") {
+      const newItem: MessageContentText = {
+        type: "text",
+        text: curr.content,
       };
+      newContent.push(newItem);
+    } else {
+      newContent.push(...(curr.content ?? []));
     }
   }
 
   const newToolCalls = [...(prev.tool_calls ?? [])];
-  for (const chunk of curr.tool_call_chunks) {
+  for (const chunk of curr.tool_call_chunks ?? []) {
     const existing = newToolCalls[chunk.index - 1] ?? { argsText: "" };
     const newArgsText = existing.argsText + chunk.args;
     newToolCalls[chunk.index - 1] = {

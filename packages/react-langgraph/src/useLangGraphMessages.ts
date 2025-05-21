@@ -1,6 +1,11 @@
 import { useState, useCallback, useRef } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { LangGraphMessageAccumulator } from "./LangGraphMessageAccumulator";
+import {
+  EventType,
+  LangChainMessageTupleEvent,
+  LangGraphKnownEventTypes,
+} from "./types";
 
 export type LangGraphCommand = {
   resume: string;
@@ -12,15 +17,10 @@ export type LangGraphSendMessageConfig = {
 };
 
 export type LangGraphMessagesEvent<TMessage> = {
-  event:
-    | "messages"
-    | "messages/partial"
-    | "messages/complete"
-    | "metadata"
-    | "updates"
-    | string;
+  event: EventType;
   data: TMessage[] | any;
 };
+
 export type LangGraphStreamCallback<TMessage> = (
   messages: TMessage[],
   config: LangGraphSendMessageConfig & { abortSignal: AbortSignal },
@@ -72,13 +72,23 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
       });
 
       for await (const chunk of response) {
-        if (
-          chunk.event === "messages/partial" ||
-          chunk.event === "messages/complete"
-        ) {
-          setMessages(accumulator.addMessages(chunk.data));
-        } else if (chunk.event === "updates") {
-          setInterrupt(chunk.data.__interrupt__?.[0]);
+        switch (chunk.event) {
+          case LangGraphKnownEventTypes.MessagesPartial:
+          case LangGraphKnownEventTypes.MessagesComplete:
+            setMessages(accumulator.addMessages(chunk.data));
+            break;
+          case LangGraphKnownEventTypes.Updates:
+            setInterrupt(chunk.data.__interrupt__?.[0]);
+            break;
+          case LangGraphKnownEventTypes.Messages:
+            const [messageChunk] = (chunk as LangChainMessageTupleEvent).data;
+            const updatedMessages = accumulator.addMessages([
+              messageChunk as unknown as TMessage,
+            ]);
+            setMessages(updatedMessages);
+            break;
+          default:
+            console.warn(`The event type ${chunk.event} is not supported.`);
         }
       }
     },
