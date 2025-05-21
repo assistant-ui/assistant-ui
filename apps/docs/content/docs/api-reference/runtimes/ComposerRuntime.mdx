@@ -5,12 +5,11 @@ title: ComposerRuntime
 The composer runtime allows you to view or edit anything related to how new information is added and sent. For instance you can use the composer runtime to read the state, add attachments, update text, send a message, etc.
 
 import { ParametersTable } from "@/components/docs";
-import { ComposerState } from "@/components/docs/parameters/context";
-import { ComposerRuntime, threadComposerRuntime } from "@/generated/typeDocs";
+import { ComposerRuntime, ThreadComposerRuntime, ThreadComposerState, EditComposerState } from "@/generated/typeDocs";
 
 ### `useComposer`
 
-Grabs the nearest composer state (whether it’s the edit composer or the thread’s new message composer):
+Grabs the nearest composer (whether it’s the edit composer or the thread’s composer):
 
 ```tsx
 // Example
@@ -54,4 +53,17 @@ const currentText = threadComposerRuntime.text;
 
 ```
 
-<ParametersTable {...threadComposerRuntime} />
+<ParametersTable {...ThreadComposerRuntime} />
+
+
+### `ThreadComposerState`
+
+The state of the thread composer which is the composer the user can interact with at the bottom.
+
+<ParametersTable {...ThreadComposerState} />
+
+### `EditComposerState`
+
+The state of the edit composer which is the composer the user can edit messages with.
+
+<ParametersTable {...EditComposerState} />
