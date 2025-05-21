@@ -95,8 +95,8 @@ export function DocsRuntimeProvider({ children }: { children: React.ReactNode })
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       {children}
-      <GeocodeLocationToolUI />
       <WeatherSearchToolUI />
+      <GeocodeLocationToolUI />
     </AssistantRuntimeProvider>
   );
 }
