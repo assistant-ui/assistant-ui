@@ -1,5 +1,13 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.10.9
+
+### Patch Changes
+
+- b625527: feat: useChatRuntime onCancel option
+- Updated dependencies [b625527]
+  - @assistant-ui/react-edge@0.2.8
+
 ## 0.10.8
 
 ### Patch Changes

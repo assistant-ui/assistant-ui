@@ -1,5 +1,11 @@
 # @assistant-ui/react-edge
 
+## 0.2.8
+
+### Patch Changes
+
+- b625527: feat: useChatRuntime onCancel option
+
 ## 0.2.7
 
 ### Patch Changes
