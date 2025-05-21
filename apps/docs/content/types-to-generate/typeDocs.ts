@@ -8,7 +8,6 @@ export type AssistantRuntimeProvider = ComponentPropsWithRef<
   typeof AssistantRuntimeProvider
 >;
 
-// TODO: update the docs and the types for each of these. Especially the functions.
 export type {
   AssistantRuntime,
   AssistantToolUIsState,
