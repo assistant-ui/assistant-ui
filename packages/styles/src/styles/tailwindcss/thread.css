@@ -196,6 +196,10 @@
   @apply col-span-2 col-start-2 row-start-1 my-1.5;
 }
 
+.aui-assistant-error {
+  @apply border-destructive bg-destructive/10 text-destructive mt-2 rounded-md border p-3 text-sm;
+}
+
 /* assistant action bar */
 
 .aui-assistant-action-bar-root {

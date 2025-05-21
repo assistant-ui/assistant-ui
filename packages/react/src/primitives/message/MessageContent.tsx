@@ -39,6 +39,7 @@ export namespace MessagePrimitiveContent {
           Image?: ImageContentPartComponent | undefined;
           File?: FileContentPartComponent | undefined;
           Unstable_Audio?: Unstable_AudioContentPartComponent | undefined;
+          Error?: FC | undefined;
           tools?:
             | {
                 by_name?:
@@ -80,6 +81,7 @@ const defaultComponents = {
   Image: () => <ContentPartPrimitiveImage />,
   File: () => null,
   Unstable_Audio: () => null,
+  Error: () => null,
 } satisfies MessagePrimitiveContent.Props["components"];
 
 type MessageContentPartComponentProps = {
@@ -171,6 +173,7 @@ const MessageContentPart = memo(
     prev.components?.Image === next.components?.Image &&
     prev.components?.File === next.components?.File &&
     prev.components?.Unstable_Audio === next.components?.Unstable_Audio &&
+    prev.components?.Error === next.components?.Error &&
     prev.components?.tools === next.components?.tools,
 );
 
@@ -216,14 +219,25 @@ export const MessagePrimitiveContent: FC<MessagePrimitiveContent.Props> = ({
   components,
 }) => {
   const contentLength = useMessage((s) => s.content.length);
+  const ErrorComponent = components?.Error;
 
   if (contentLength === 0) {
-    return <EmptyContent components={components} />;
+    return (
+      <>
+        <EmptyContent components={components} />
+        {ErrorComponent && <ErrorComponent />}
+      </>
+    );
   }
 
-  return Array.from({ length: contentLength }, (_, index) => (
-    <MessageContentPart key={index} partIndex={index} components={components} />
-  ));
+  return (
+    <>
+      {Array.from({ length: contentLength }, (_, index) => (
+        <MessageContentPart key={index} partIndex={index} components={components} />
+      ))}
+      {ErrorComponent && <ErrorComponent />}
+    </>
+  );
 };
 
 MessagePrimitiveContent.displayName = "MessagePrimitive.Content";

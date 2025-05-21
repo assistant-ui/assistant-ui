@@ -2,6 +2,7 @@ import {
   ActionBarPrimitive,
   BranchPickerPrimitive,
   ComposerPrimitive,
+  ErrorPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
 } from "@assistant-ui/react";
@@ -21,6 +22,18 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+
+const MessageErrorUI: FC = () => {
+  return (
+    <MessagePrimitive.Error>
+      <ErrorPrimitive.Root>
+        <div className="aui-assistant-error">
+          <ErrorPrimitive.Message />
+        </div>
+      </ErrorPrimitive.Root>
+    </MessagePrimitive.Error>
+  );
+};
 
 export const Thread: FC = () => {
   return (
@@ -204,7 +217,9 @@ const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="aui-assistant-message-root">
       <div className="aui-assistant-message-content">
-        <MessagePrimitive.Content components={{ Text: MarkdownText }} />
+        <MessagePrimitive.Content
+          components={{ Text: MarkdownText, Error: MessageErrorUI }}
+        />
       </div>
 
       <AssistantActionBar />
