@@ -5,11 +5,11 @@ import { Slot } from "@radix-ui/react-slot";
 import React from "react";
 
 export namespace ComposerAttachmentDropzonePrimitive {
-    export type Element = HTMLDivElement;
-    export type Props = React.HTMLAttributes<HTMLDivElement> & {
-      asChild?: boolean | undefined;
-      disabled?: boolean | undefined;
-    };
+  export type Element = HTMLDivElement;
+  export type Props = React.HTMLAttributes<HTMLDivElement> & {
+    asChild?: boolean | undefined;
+    disabled?: boolean | undefined;
+  };
 }
 
 export const ComposerAttachmentDropzone = forwardRef<
@@ -18,7 +18,6 @@ export const ComposerAttachmentDropzone = forwardRef<
 >(({ disabled, asChild = false, children, ...rest }, ref) => {
   const [isDragging, setIsDragging] = useState(false);
   const composerRuntime = useComposerRuntime();
-
 
   const handleDrag = useCallback(
     (e: React.DragEvent) => {
