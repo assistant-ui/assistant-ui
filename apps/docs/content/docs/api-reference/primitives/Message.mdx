@@ -166,3 +166,16 @@ Renders children if a condition is met.
   {/* rendered if message is from the assistant */}
 </Message.If>
 ```
+
+### Error
+
+Renders children only if the message has an error status.
+
+```tsx
+<MessagePrimitive.Error>
+  {/* rendered if the message has an error status */}
+  <ErrorPrimitive.Root>
+    <ErrorPrimitive.Message />
+  </ErrorPrimitive.Root>
+</MessagePrimitive.Error>
+```

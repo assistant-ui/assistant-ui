@@ -116,7 +116,7 @@
 /* user message */
 
 .aui-user-message-root {
-  @apply grid-cols-[minmax(72px,1fr)_auto] grid auto-rows-auto gap-y-2 [&:where(>*)]:col-start-2;
+  @apply grid auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] gap-y-2 [&:where(>*)]:col-start-2;
   @apply w-full max-w-[var(--thread-max-width)] py-4;
 }
 
@@ -194,6 +194,14 @@
   @apply text-foreground max-w-[calc(var(--thread-max-width)*0.8)] break-words leading-7;
 
   @apply col-span-2 col-start-2 row-start-1 my-1.5;
+}
+
+.aui-message-error-root {
+  @apply border-destructive bg-destructive/10 text-destructive mt-2 rounded-md border p-3 text-sm;
+}
+
+.aui-message-error-message {
+  @apply line-clamp-2;
 }
 
 /* assistant action bar */

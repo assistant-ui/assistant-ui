@@ -218,12 +218,24 @@ export const MessagePrimitiveContent: FC<MessagePrimitiveContent.Props> = ({
   const contentLength = useMessage((s) => s.content.length);
 
   if (contentLength === 0) {
-    return <EmptyContent components={components} />;
+    return (
+      <>
+        <EmptyContent components={components} />
+      </>
+    );
   }
 
-  return Array.from({ length: contentLength }, (_, index) => (
-    <MessageContentPart key={index} partIndex={index} components={components} />
-  ));
+  return (
+    <>
+      {Array.from({ length: contentLength }, (_, index) => (
+        <MessageContentPart
+          key={index}
+          partIndex={index}
+          components={components}
+        />
+      ))}
+    </>
+  );
 };
 
 MessagePrimitiveContent.displayName = "MessagePrimitive.Content";

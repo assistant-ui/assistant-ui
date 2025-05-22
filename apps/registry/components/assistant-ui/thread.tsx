@@ -2,6 +2,7 @@ import {
   ActionBarPrimitive,
   BranchPickerPrimitive,
   ComposerPrimitive,
+  ErrorPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
 } from "@assistant-ui/react";
@@ -205,12 +206,23 @@ const AssistantMessage: FC = () => {
     <MessagePrimitive.Root className="aui-assistant-message-root">
       <div className="aui-assistant-message-content">
         <MessagePrimitive.Content components={{ Text: MarkdownText }} />
+        <MessageError />
       </div>
 
       <AssistantActionBar />
 
       <BranchPicker className="aui-assistant-branch-picker" />
     </MessagePrimitive.Root>
+  );
+};
+
+const MessageError: FC = () => {
+  return (
+    <MessagePrimitive.Error>
+      <ErrorPrimitive.Root className="aui-message-error-root">
+        <ErrorPrimitive.Message className="aui-message-error-message" />
+      </ErrorPrimitive.Root>
+    </MessagePrimitive.Error>
   );
 };
 
