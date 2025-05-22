@@ -5,8 +5,8 @@ import { type ComponentRef, forwardRef, ComponentPropsWithoutRef } from "react";
 import { useMessage } from "../../context/react/MessageContext";
 
 export namespace ErrorPrimitiveMessage {
-  export type Element = ComponentRef<typeof Primitive.div>;
-  export type Props = ComponentPropsWithoutRef<typeof Primitive.div>;
+  export type Element = ComponentRef<typeof Primitive.span>;
+  export type Props = ComponentPropsWithoutRef<typeof Primitive.span>;
 }
 
 export const ErrorPrimitiveMessage = forwardRef<
@@ -22,9 +22,9 @@ export const ErrorPrimitiveMessage = forwardRef<
   if (error === undefined) return null;
 
   return (
-    <Primitive.div {...props} ref={forwardRef}>
+    <Primitive.span {...props} ref={forwardRef}>
       {children ?? String(error)}
-    </Primitive.div>
+    </Primitive.span>
   );
 });
 
