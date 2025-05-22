@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/rules-of-hooks */
 "use client";
 
 import {
@@ -138,6 +139,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   private _OuterActiveThreadProvider: FC<{
     threadId: string;
     provider: ComponentType<PropsWithChildren>;
+    // eslint-disable-next-line react/display-name
   }> = memo(({ threadId, provider: Provider }) => {
     const assistantRuntime = useAssistantRuntime();
     const threadListItemRuntime = useMemo(

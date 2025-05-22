@@ -74,6 +74,10 @@ export class LocalThreadListRuntimeCore
     throw new Error("Method not implemented.");
   }
 
+  public detach(): Promise<void> {
+    throw new Error("Method not implemented.");
+  }
+
   public unarchive(): Promise<void> {
     throw new Error("Method not implemented.");
   }

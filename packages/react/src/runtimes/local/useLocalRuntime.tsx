@@ -29,6 +29,12 @@ const useLocalThreadRuntime = (
   const [runtime] = useState(() => new LocalRuntimeCore(opt, initialMessages));
 
   useEffect(() => {
+    return () => {
+      runtime.threads.getMainThreadRuntimeCore().detach();
+    };
+  }, [runtime]);
+
+  useEffect(() => {
     runtime.threads.getMainThreadRuntimeCore().__internal_setOptions(opt);
     runtime.threads.getMainThreadRuntimeCore().__internal_load();
   }, [runtime, opt]);
