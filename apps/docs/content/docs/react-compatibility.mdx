@@ -94,7 +94,34 @@ yarn add use-sync-external-store patch-package
 }
 ```
 
-3. Create a patch for zustand by creating a file at `patches/zustand+5.x.x.patch` (replace 5.x.x with the installed zustand version, which you can find by examining `package-lock.json` or `yarn.lock`) with the following content:
+3. You'll want to follow the instructions in [patch-package](https://github.com/ds300/patch-package), by first making changes to the files of a particular package in your node_modules folder, then running either `yarn patch-package package-name` or `npx patch-package package-name`. You'll need a patch for zustand - within `node_modules/zustand`, open `zustand/react.js` and make the following code changes:
+
+```diff
+diff --git a/node_modules/zustand/react.js b/node_modules/zustand/react.js
+index 7599cfb..64530a8 100644
+--- a/node_modules/zustand/react.js
++++ b/node_modules/zustand/react.js
+@@ -1,6 +1,6 @@
+ 'use strict';
+
+-var React = require('react');
++var React = require('use-sync-external-store/shim');
+ var vanilla = require('zustand/vanilla');
+
+ const identity = (arg) => arg;
+@@ -10,7 +10,7 @@ function useStore(api, selector = identity) {
+     () => selector(api.getState()),
+     () => selector(api.getInitialState())
+   );
+-  React.useDebugValue(slice);
++  //React.useDebugValue(slice);
+   return slice;
+ }
+ const createImpl = (createState) => {
+
+This patch replaces the React import in zustand with the polyfill from `use-sync-external-store/shim` and comments out the `useDebugValue` call which isn't needed.
+
+You should then run the patch-package command `yarn patch-package zustand` or `npx patch-package zustand` which should create a `patches` folder with a zustand patch file similar looking to this:
 
 ```diff
 diff --git a/node_modules/zustand/react.js b/node_modules/zustand/react.js
@@ -120,7 +147,37 @@ index 7599cfb..64530a8 100644
  const createImpl = (createState) => {
 ```
 
-4. Run the postinstall script to apply the patch:
+4. You may also need to apply the same patches within `node_modules/@assistant-ui/react/` and possibly a nested dependency patch for `node_modules/@assistant-ui/react/node_modules/zustand`. Look for instances of `React.useSyncExternalStore` and replace with `{ useSyncExternalStore } from "use-sync-external-store/shim";` and comment out any `useDebugValue` calls. Finally, you may need to patch `useId` from React, so within `node_modules/@assistant-ui/react/dist/runtimes/remote-thread-list/RemoteThreadListThreadListRuntimeCore.js`, change the following:
+
+```diff
+-import { Fragment, useEffect, useId } from "react";
++import { Fragment, useEffect, useRef } from "react";
+ import { create } from "zustand";
+ import { AssistantMessageStream } from "assistant-stream";
+ import { RuntimeAdapterProvider } from "../adapters/RuntimeAdapterProvider.js";
+ import { jsx } from "react/jsx-runtime";
++
++// PATCH-PACKAGE: Polyfill for useId if not available in React 16
++let useId;
++try {
++  // Try to use React's useId if available
++  useId = require("react").useId;
++} catch (e) {}
++if (!useId) {
++  // Fallback polyfill
++  let globalId = 0;
++  useId = function() {
++    const idRef = useRef();
++    if (!idRef.current) {
++      globalId++;
++      idRef.current = `uid-${globalId}`;
++    }
++    return idRef.current;
++  };
++}
+```
+
+5. Run the postinstall script to apply the patches:
 
 ```bash
 npm run postinstall
