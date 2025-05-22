@@ -113,7 +113,7 @@ function Hero() {
         <span className="text-foreground">Tailwind</span>.
       </p>
 
-      <div className="mx-auto mt-8 flex items-stretch justify-center gap-4">
+      <div className="mx-auto mt-8 flex flex-col items-stretch justify-center gap-4 sm:flex-row">
         <CopyCommandButton />
 
         <a
@@ -122,7 +122,7 @@ function Hero() {
             buttonVariants({
               size: "lg",
               variant: "outline",
-              className: "bg-background h-12",
+              className: "bg-background h-12 self-center",
             }),
           )}
         >
