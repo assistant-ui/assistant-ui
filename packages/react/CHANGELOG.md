@@ -1,5 +1,15 @@
 # @assistant-ui/react
 
+## 0.10.10
+
+### Patch Changes
+
+- 9811ff8: Introduced a new `ErrorPrimitive` component for displaying error messages in the UI, including `ErrorPrimitive.Root` and `ErrorPrimitive.Message`.
+
+  Added `MessagePrimitive.Error` for rendering error states in messages.
+
+- 1a4927a: feat: ThreadListItem.detach()
+
 ## 0.10.9
 
 ### Patch Changes

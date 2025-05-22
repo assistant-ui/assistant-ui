@@ -1,5 +1,14 @@
 # @assistant-ui/react-edge
 
+## 0.2.9
+
+### Patch Changes
+
+- 1a4927a: feat: ThreadListItem.detach()
+- Updated dependencies [9811ff8]
+- Updated dependencies [1a4927a]
+  - @assistant-ui/react@0.10.10
+
 ## 0.2.8
 
 ### Patch Changes
