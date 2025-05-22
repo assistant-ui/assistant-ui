@@ -465,7 +465,9 @@ export class RemoteThreadListThreadListRuntimeCore
   }
 
   private async _ensureThreadIsNotMain(threadId: string) {
-    // if thread is main thread, switch to another thread
+    if (threadId === this.newThreadId)
+      throw new Error("Cannot ensure new thread is not main");
+
     if (threadId === this._mainThreadId) {
       await this.switchToNewThread();
     }
@@ -528,9 +530,14 @@ export class RemoteThreadListThreadListRuntimeCore
     });
   }
 
-  public async detach(threadId: string): Promise<void> {
-    await this._ensureThreadIsNotMain(threadId);
-    this._hookManager.stopThreadRuntime(threadId);
+  public async detach(threadIdOrRemoteId: string): Promise<void> {
+    const data = this.getItemById(threadIdOrRemoteId);
+    if (!data) throw new Error("Thread not found");
+    if (data.status !== "regular" && data.status !== "archived")
+      throw new Error("Thread is not yet initialized");
+
+    await this._ensureThreadIsNotMain(data.threadId);
+    this._hookManager.stopThreadRuntime(data.threadId);
   }
 
   private useBoundIds = create<string[]>(() => []);

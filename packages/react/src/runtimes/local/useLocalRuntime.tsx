@@ -32,7 +32,7 @@ const useLocalThreadRuntime = (
     return () => {
       runtime.threads.getMainThreadRuntimeCore().detach();
     };
-  });
+  }, [runtime]);
 
   useEffect(() => {
     runtime.threads.getMainThreadRuntimeCore().__internal_setOptions(opt);
