@@ -5,6 +5,7 @@
     "Thread",
     "Composer",
     "Message",
+    "Error",
     "BranchPicker",
     "ActionBar",
     "ContentPart",
