@@ -1,5 +1,13 @@
 # @assistant-ui/styles
 
+## 0.1.7
+
+### Patch Changes
+
+- 9811ff8: Introduced a new `ErrorPrimitive` component for displaying error messages in the UI, including `ErrorPrimitive.Root` and `ErrorPrimitive.Message`.
+
+  Added `MessagePrimitive.Error` for rendering error states in messages.
+
 ## 0.1.6
 
 ### Patch Changes

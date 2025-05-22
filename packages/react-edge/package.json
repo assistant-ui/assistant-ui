@@ -1,7 +1,7 @@
 {
   "name": "@assistant-ui/react-edge",
   "description": "The legacy edge runtime for assistant-ui",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "license": "MIT",
   "type": "module",
   "exports": {

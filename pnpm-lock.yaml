@@ -1482,7 +1482,7 @@ importers:
         specifier: '*'
         version: 1.2.11(zod@3.24.4)
       '@assistant-ui/react':
-        specifier: ^0.10.8
+        specifier: ^0.10.10
         version: link:../react
       '@assistant-ui/react-edge':
         specifier: workspace:*
