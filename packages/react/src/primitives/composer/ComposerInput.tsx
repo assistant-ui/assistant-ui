@@ -167,6 +167,5 @@ export const ComposerPrimitiveInput = forwardRef<
   },
 );
 
-// paste, if on paste check if thread supports attachments. If so try to add, some will error.
 
 ComposerPrimitiveInput.displayName = "ComposerPrimitive.Input";
