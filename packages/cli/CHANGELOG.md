@@ -1,5 +1,11 @@
 # assistant-ui
 
+## 0.0.53
+
+### Patch Changes
+
+- c7ea752: feat: MCP template
+
 ## 0.0.52
 
 ### Patch Changes
