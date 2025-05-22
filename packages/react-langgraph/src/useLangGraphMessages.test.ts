@@ -1,19 +1,24 @@
 import { describe, it, expect } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 
-import { useLangGraphMessages } from "./useLangGraphMessages";
+import {
+  LangGraphMessagesEvent,
+  useLangGraphMessages,
+} from "./useLangGraphMessages";
 import { appendLangChainChunk } from "./appendLangChainChunk";
-import { MessageContentText } from "./types";
+import { LangChainMessage, MessageContentText } from "./types";
 
 const metadataEvent = {
   event: "metadata",
   data: {
     thread_id: "123",
-    attempt: 1,
+    run_attempt: 1,
   },
 };
 
-const mockStreamCallbackFactory = (events: any[]) =>
+const mockStreamCallbackFactory = (
+  events: Array<LangGraphMessagesEvent<LangChainMessage>>,
+) =>
   async function* () {
     for (const event of events) {
       yield event;
@@ -118,7 +123,7 @@ describe("useLangGraphMessages", {}, () => {
         data: [
           {
             id: "run-1",
-            content: " How my I assist you today?",
+            content: " How may I assist you today?",
             additional_kwargs: {},
             response_metadata: { model_name: "claude-3-7-sonnet-latest" },
             type: "AIMessageChunk",
@@ -162,7 +167,7 @@ describe("useLangGraphMessages", {}, () => {
       ).toEqual("text");
       expect(
         (result.current.messages[1].content[0] as MessageContentText).text,
-      ).toEqual("Hello! How my I assist you today?");
+      ).toEqual("Hello! How may I assist you today?");
     });
   });
 
@@ -212,7 +217,7 @@ describe("useLangGraphMessages", {}, () => {
         data: [
           {
             id: "run-2",
-            content: " How my I assist you today?",
+            content: " How may I assist you today?",
             additional_kwargs: {},
             response_metadata: { model_name: "claude-3-7-sonnet-latest" },
             type: "AIMessageChunk",
@@ -259,7 +264,7 @@ describe("useLangGraphMessages", {}, () => {
         (result.current.messages[1].content[0] as MessageContentText).text,
       ).toEqual("Hello!");
       expect(result.current.messages[2].content as string).toEqual(
-        " How my I assist you today?",
+        " How may I assist you today?",
       );
     });
   });
@@ -310,7 +315,7 @@ describe("useLangGraphMessages", {}, () => {
         data: [
           {
             id: "run-2",
-            content: [{ type: "text", text: "How my I assist you today?" }],
+            content: [{ type: "text", text: "How may I assist you today?" }],
             additional_kwargs: {},
             response_metadata: { model_name: "claude-3-7-sonnet-latest" },
             type: "ai",
@@ -318,9 +323,6 @@ describe("useLangGraphMessages", {}, () => {
             tool_calls: [],
             invalid_tool_calls: [],
             tool_call_chunks: [],
-          },
-          {
-            run_attempt: 1,
           },
         ],
       },
@@ -346,7 +348,7 @@ describe("useLangGraphMessages", {}, () => {
     });
 
     await waitFor(() => {
-      expect(result.current.messages.length).toEqual(4); // three messages + one metadata event
+      expect(result.current.messages.length).toEqual(3);
       expect(result.current.messages[0].type).toEqual("human");
       expect(result.current.messages[1].type).toEqual("ai");
       expect(result.current.messages[2].type).toEqual("ai");
@@ -358,7 +360,7 @@ describe("useLangGraphMessages", {}, () => {
       ).toEqual("Hello!");
       expect(
         (result.current.messages[2].content[0] as MessageContentText).text,
-      ).toEqual("How my I assist you today?");
+      ).toEqual("How may I assist you today?");
     });
   });
 });

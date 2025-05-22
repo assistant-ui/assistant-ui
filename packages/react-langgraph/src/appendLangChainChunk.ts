@@ -29,8 +29,10 @@ export const appendLangChainChunk = (
     if (!newContent[0]) {
       newContent[0] = { type: "text", text: "" };
     }
-    (newContent[0] as MessageContentText).text =
-      (newContent[0] as MessageContentText).text + curr.content;
+    if ("type" in newContent[0] && newContent[0].type === "text") {
+      (newContent[0] as MessageContentText).text =
+        (newContent[0] as MessageContentText).text + curr.content;
+    }
   } else {
     if (typeof curr.content === "string") {
       const newItem: MessageContentText = {

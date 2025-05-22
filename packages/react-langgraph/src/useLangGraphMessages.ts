@@ -5,6 +5,7 @@ import {
   EventType,
   LangChainMessageTupleEvent,
   LangGraphKnownEventTypes,
+  LangChainMessageChunk,
 } from "./types";
 
 export type LangGraphCommand = {
@@ -39,6 +40,22 @@ const DEFAULT_APPEND_MESSAGE = <TMessage>(
   _: TMessage | undefined,
   curr: TMessage,
 ) => curr;
+
+const isLangChainMessageChunk = (
+  value: unknown,
+): value is LangChainMessageChunk => {
+  if (!value || typeof value !== "object") return false;
+  const chunk = value as any;
+  return (
+    "type" in chunk &&
+    chunk.type === "AIMessageChunk" &&
+    (chunk.content === undefined ||
+      typeof chunk.content === "string" ||
+      Array.isArray(chunk.content)) &&
+    (chunk.tool_call_chunks === undefined ||
+      Array.isArray(chunk.tool_call_chunks))
+  );
+};
 
 export const useLangGraphMessages = <TMessage extends { id?: string }>({
   stream,
@@ -80,12 +97,23 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
           case LangGraphKnownEventTypes.Updates:
             setInterrupt(chunk.data.__interrupt__?.[0]);
             break;
-          case LangGraphKnownEventTypes.Messages:
+          case LangGraphKnownEventTypes.Messages: {
             const [messageChunk] = (chunk as LangChainMessageTupleEvent).data;
+            if (!isLangChainMessageChunk(messageChunk)) {
+              console.warn(
+                "Received invalid message chunk format:",
+                messageChunk,
+              );
+              break;
+            }
             const updatedMessages = accumulator.addMessages([
               messageChunk as unknown as TMessage,
             ]);
             setMessages(updatedMessages);
+            break;
+          }
+          case LangGraphKnownEventTypes.Metadata:
+            // currently this is a no-op
             break;
           default:
             console.warn(`The event type ${chunk.event} is not supported.`);
