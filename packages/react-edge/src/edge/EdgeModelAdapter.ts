@@ -124,7 +124,7 @@ export class EdgeModelAdapter implements ChatModelAdapter {
 
     abortSignal.addEventListener("abort", () => {
       if (!abortSignal.reason?.detach) this.options.onCancel?.();
-    });
+    }, { once: true });
 
     const headers = new Headers(headersValue);
     headers.set("Content-Type", "application/json");
