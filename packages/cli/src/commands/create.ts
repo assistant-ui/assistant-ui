@@ -54,6 +54,7 @@ export const create = new Command()
       default: "https://github.com/assistant-ui/assistant-ui-starter",
       langgraph:
         "https://github.com/assistant-ui/assistant-ui-starter-langgraph",
+      mcp: "https://github.com/assistant-ui/assistant-ui-starter-mcp",
     };
 
     const templateUrl =
