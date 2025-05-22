@@ -37,3 +37,24 @@ To run the examples project in development mode:
 cd examples/<your-example>
 pnpm dev
 ```
+
+### Adding a changeset
+
+Every pull request that changes packages must include a changeset, otherwise your changes won't be published to npm.
+
+Note, this does not apply to packages like `@assistant-ui/docs` or `@assistant-ui/shadcn-registry` which are not published to npm, they are deployed on Vercel.
+
+Create a changeset by running:
+
+```sh
+pnpm changeset
+```
+
+This will detect which packages changed and prompt you to select type (major, minor, patch) and a description of your changes. For now, most changes in assistant-ui should be classified as a patch.
+
+If you forget to add a changeset before merging, create a new PR and run `pnpm changeset` locally to create a changeset. You'll be prompted to manually select the packages that were changed, set update type, and add description. Commit the changeset file, push the changes, and merge the PR.
+
+You can also add changesets on open PRs directly from GitHub using the changeset bot's link in PR comments.
+
+### Releasing
+Our CI checks for changesets in `.changeset/` on `main` and will create an "update versions" PR which versions the packages, updates the changelog, and publishes the packages to npm on merge.
