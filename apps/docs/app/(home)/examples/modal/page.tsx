@@ -1,5 +1,5 @@
 import { ModalChat } from "@/components/modal/ModalChat";
-import { MyRuntimeProvider } from "../../MyRuntimeProvider";
+import { DocsRuntimeProvider } from "../../DocsRuntimeProvider";
 
 export default function Component() {
   return (
@@ -10,9 +10,9 @@ export default function Component() {
         </header>
 
         <div className="">
-          <MyRuntimeProvider>
+          <DocsRuntimeProvider>
             <ModalChat />
-          </MyRuntimeProvider>
+          </DocsRuntimeProvider>
         </div>
       </div>
     </div>

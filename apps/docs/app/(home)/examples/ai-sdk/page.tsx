@@ -1,5 +1,5 @@
 import { Shadcn } from "@/components/shadcn/Shadcn";
-import { MyRuntimeProvider } from "../../MyRuntimeProvider";
+import { DocsRuntimeProvider } from "../../DocsRuntimeProvider";
 
 export default function Component() {
   return (
@@ -10,9 +10,9 @@ export default function Component() {
         </header>
 
         <div className="h-[700px]">
-          <MyRuntimeProvider>
+          <DocsRuntimeProvider>
             <Shadcn />
-          </MyRuntimeProvider>
+          </DocsRuntimeProvider>
         </div>
       </div>
     </div>

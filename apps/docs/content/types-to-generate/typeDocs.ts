@@ -11,6 +11,7 @@ export type AssistantRuntimeProvider = ComponentPropsWithRef<
 export type {
   AssistantRuntime,
   AssistantToolUIsState,
+  EditComposerState,
   ThreadListRuntime,
   ThreadListState,
   ThreadListItemRuntime,
@@ -21,9 +22,11 @@ export type {
   MessageState,
   ContentPartRuntime,
   ComposerRuntime,
+  ThreadComposerRuntime,
   ComposerState,
   AttachmentRuntime,
   AttachmentState,
+  ThreadComposerState,
 } from "@assistant-ui/react";
 
 export type TextContentPartState = ContentPartState & { readonly type: "text" };

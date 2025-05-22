@@ -2,29 +2,68 @@
 title: ComposerRuntime
 ---
 
+The composer runtime allows you to view or edit anything related to how new information is added and sent. For instance you can use the composer runtime to read the state, add attachments, update text, send a message, etc.
+
 import { ParametersTable } from "@/components/docs";
-import { ComposerState } from "@/components/docs/parameters/context";
+import { ComposerRuntime, ThreadComposerRuntime, ThreadComposerState, EditComposerState } from "@/generated/typeDocs";
+
+### `useComposer`
+
+Grabs the nearest composer (whether it’s the edit composer or the thread’s composer):
+
+```tsx
+// Example
+import { useComposer } from "@assistant-ui/react";
+
+const composerRuntime = useComposer();
+
+// set the text
+composerRuntime.setText("Hello from the composer runtime");
+
+// send whatever is in the composer 
+composerRuntime.send();
+
+// get the current text in the composer state
+const composerState = composerRuntime.getState();
+const currentText = composerState.text;
+
+```
+
+<ParametersTable {...ComposerRuntime} />
+
 
 ### `useThreadComposer`
 
-Access the thread’s new message composer:
+Access the thread’s new message composer state:
 
 ```tsx
 import { useThreadComposer } from "@assistant-ui/react";
 
-const composer = useThreadComposer();
-const text = useThreadComposer((m) => m.text);
+const threadComposerRuntime = useThreadComposer();
+
+// set the text
+threadComposerRuntime.setText("Hello from the thread composer runtime");
+
+// send whatever is in the thread composer 
+threadComposerRuntime.send();
+
+// get the current text in the composer state
+const threadComposerState = threadComposerRuntime.getState();
+const currentText = threadComposerRuntime.text;
+
 ```
 
-<ParametersTable {...ComposerState} />
+<ParametersTable {...ThreadComposerRuntime} />
 
-### `useComposer`
 
-Grabs the nearest composer state (whether it’s the edit composer or the thread’s new message composer):
+### `ThreadComposerState`
 
-```tsx
-import { useComposer } from "@assistant-ui/react";
+The state of the thread composer which is the composer the user can interact with at the bottom.
 
-const composer = useComposer();
-const text = useComposer((m) => m.text);
-```
+<ParametersTable {...ThreadComposerState} />
+
+### `EditComposerState`
+
+The state of the edit composer which is the composer the user can edit messages with.
+
+<ParametersTable {...EditComposerState} />

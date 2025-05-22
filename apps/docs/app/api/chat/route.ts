@@ -1,33 +1,42 @@
-import { createOpenAI } from "@ai-sdk/openai";
-import { streamText, tool } from "ai";
-import { z } from "zod";
-
-const openai = createOpenAI({
-  baseURL: process.env["OPENAI_BASE_URL"] as string,
-});
+import { openai } from "@ai-sdk/openai";
+import { jsonSchema, streamText } from "ai";
+import { kv } from "@vercel/kv";
+import { Ratelimit } from "@upstash/ratelimit";
 
 export const runtime = "edge";
 export const maxDuration = 30;
 
-export async function POST(req: Request) {
-  const { messages, apiKey } = await req.json();
+const ratelimit = new Ratelimit({
+  redis: kv,
+  limiter: Ratelimit.fixedWindow(5, "30s"),
+});
 
-  if (apiKey !== process.env["NEXT_PUBLIC_BACKEND_API_KEY"])
-    throw new Error("Invalid API key");
+export async function POST(req: Request) {
+  const { messages, tools } = await req.json();
+  console.log("messages", messages);
+  console.log("tools", tools);
+  const ip = req.headers.get("x-forwarded-for") ?? "ip";
+  const { success } = await ratelimit.limit(ip);
+  console.log(ip, success);
+
+  if (!success) {
+    return new Response("Rate limit exceeded", { status: 429 });
+  }
 
   const result = streamText({
     model: openai("gpt-4o-mini"),
     messages,
+    maxTokens: 1200,
+    maxSteps: 10,
     tools: {
-      weather: tool({
-        description: "Get weather information",
-        parameters: z.object({
-          location: z.string().describe("Location to get weather for"),
-        }),
-        execute: async ({ location }) => {
-          return `The weather in ${location} is sunny.`;
-        },
-      }),
+      ...Object.fromEntries(
+        Object.entries<{ parameters: unknown }>(tools).map(([name, tool]) => [
+          name,
+          {
+            parameters: jsonSchema(tool.parameters!),
+          },
+        ]),
+      ),
     },
   });
 

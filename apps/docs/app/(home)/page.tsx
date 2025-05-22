@@ -15,7 +15,7 @@ import langchain from "./logos/cust/langchain.svg";
 import stack from "./logos/cust/stack.svg";
 import Image from "next/image";
 import { ArrowRight } from "lucide-react";
-import { MyRuntimeProvider } from "./MyRuntimeProvider";
+import { DocsRuntimeProvider } from "./DocsRuntimeProvider";
 import { Marquee } from "@/components/magicui/marquee";
 import { useMediaQuery } from "@/lib/useMediaQuery";
 import { StarPill } from "./home/StarPill";
@@ -29,9 +29,9 @@ export default function HomePage() {
       <Hero />
 
       <div className="mx-auto mt-6 flex h-[650px] w-full max-w-screen-xl flex-col overflow-hidden rounded-lg border shadow">
-        <MyRuntimeProvider>
+        <DocsRuntimeProvider>
           <Shadcn />
-        </MyRuntimeProvider>
+        </DocsRuntimeProvider>
       </div>
 
       <Button variant="outline" className="mx-auto mt-6 flex" asChild>

@@ -12,7 +12,7 @@ const project = new Project({
 
 // Add the source file
 const sourceFile = project.addSourceFileAtPath(
-  "./content/auto-generated/typeDocs.ts",
+  "./content/types-to-generate/typeDocs.ts",
 );
 
 const types: { [key: string]: any } = {};
