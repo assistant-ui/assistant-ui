@@ -33,7 +33,7 @@ export namespace ComposerPrimitiveInput {
     unstable_focusOnScrollToBottom?: boolean | undefined;
     unstable_focusOnThreadSwitched?: boolean | undefined;
     addAttachmentOnPaste?: boolean | undefined;
-  }
+  };
 }
 
 export const ComposerPrimitiveInput = forwardRef<
@@ -108,7 +108,7 @@ export const ComposerPrimitiveInput = forwardRef<
         try {
           e.preventDefault();
           await Promise.all(
-            files.map(file => composerRuntime.addAttachment(file))
+            files.map((file) => composerRuntime.addAttachment(file)),
           );
         } catch (error) {
           console.error("Error adding attachment:", error);
@@ -169,6 +169,5 @@ export const ComposerPrimitiveInput = forwardRef<
     );
   },
 );
-
 
 ComposerPrimitiveInput.displayName = "ComposerPrimitive.Input";
