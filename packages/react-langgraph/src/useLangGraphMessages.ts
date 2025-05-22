@@ -73,17 +73,19 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
   const sendMessage = useCallback(
     async (newMessages: TMessage[], config: LangGraphSendMessageConfig) => {
       // ensure all messages have an ID
-      newMessages = newMessages.map((m) => (m.id ? m : { ...m, id: uuidv4() }));
+      const newMessagesWithId = newMessages.map((m) =>
+        m.id ? m : { ...m, id: uuidv4() },
+      );
 
       const accumulator = new LangGraphMessageAccumulator({
         initialMessages: messages,
         appendMessage,
       });
-      setMessages(accumulator.addMessages(newMessages));
+      setMessages(accumulator.addMessages(newMessagesWithId));
 
       const abortController = new AbortController();
       abortControllerRef.current = abortController;
-      const response = await stream(newMessages, {
+      const response = await stream(newMessagesWithId, {
         ...config,
         abortSignal: abortController.signal,
       });
