@@ -139,6 +139,10 @@ export class ExternalStoreThreadListRuntimeCore
     onRename(threadId, newTitle);
   }
 
+  public async detach(): Promise<void> {
+    // no-op
+  }
+
   public async archive(threadId: string): Promise<void> {
     const onArchive = this.adapter.onArchive;
     if (!onArchive)

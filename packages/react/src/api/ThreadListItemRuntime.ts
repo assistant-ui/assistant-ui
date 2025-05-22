@@ -34,6 +34,11 @@ export type ThreadListItemRuntime = {
   unarchive(): Promise<void>;
   delete(): Promise<void>;
 
+  /**
+   * Detaches the ThreadListItem instance, unmounting the ThreadRuntime hook.
+   */
+  detach(): void;
+
   subscribe(callback: () => void): Unsubscribe;
 
   unstable_on(
@@ -68,6 +73,7 @@ export class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
     this.subscribe = this.subscribe.bind(this);
     this.unstable_on = this.unstable_on.bind(this);
     this.getState = this.getState.bind(this);
+    this.detach = this.detach.bind(this);
   }
 
   public getState(): ThreadListItemState {
@@ -131,5 +137,11 @@ export class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
 
   public subscribe(callback: () => void): Unsubscribe {
     return this._core.subscribe(callback);
+  }
+
+  public detach(): void {
+    const state = this._core.getState();
+
+    this._threadListBinding.detach(state.id);
   }
 }

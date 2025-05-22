@@ -528,10 +528,17 @@ export class RemoteThreadListThreadListRuntimeCore
     });
   }
 
+  public async detach(threadId: string): Promise<void> {
+    await this._ensureThreadIsNotMain(threadId);
+    this._hookManager.stopThreadRuntime(threadId);
+  }
+
   private useBoundIds = create<string[]>(() => []);
 
   public __internal_RenderComponent: FC = () => {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     const id = useId();
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     useEffect(() => {
       this.useBoundIds.setState((s) => [...s, id], true);
       return () => {
