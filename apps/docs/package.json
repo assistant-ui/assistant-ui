@@ -29,7 +29,6 @@
     "@radix-ui/react-slot": "^1.2.2",
     "@radix-ui/react-tooltip": "^1.2.6",
     "@radix-ui/themes": "^3.2.1",
-    "@sentry/nextjs": "^9.19.0",
     "@shikijs/transformers": "^3.4.2",
     "@theguild/remark-mermaid": "^0.3.0",
     "@upstash/ratelimit": "^2.0.5",
