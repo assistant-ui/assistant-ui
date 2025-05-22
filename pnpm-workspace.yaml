@@ -3,8 +3,7 @@ packages:
   - examples/*
   - apps/*
 onlyBuiltDependencies:
-  - '@sentry/cli'
-  - '@tailwindcss/oxide'
+  - "@tailwindcss/oxide"
   - esbuild
   - sharp
   - unrs-resolver

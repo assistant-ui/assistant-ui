@@ -10,7 +10,6 @@
         "ASSISTANT_*",
         "JWT_*",
         "ENTELLIGENCE_*",
-        "SENTRY_*",
         "NEXT_PUBLIC_*"
       ]
     },
