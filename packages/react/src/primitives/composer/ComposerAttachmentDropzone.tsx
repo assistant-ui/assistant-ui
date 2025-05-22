@@ -36,7 +36,11 @@ export const ComposerAttachmentDropzone = forwardRef<
       e.stopPropagation();
       setIsDragging(false);
       for (const file of e.dataTransfer.files) {
-        await composerRuntime.addAttachment(file);
+        try {
+          await composerRuntime.addAttachment(file);
+        } catch (error) {
+          console.error("Failed to add attachment:", error);
+        }
       }
     },
     [disabled, composerRuntime],
