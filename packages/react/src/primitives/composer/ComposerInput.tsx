@@ -4,6 +4,7 @@ import { composeEventHandlers } from "@radix-ui/primitive";
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
 import { Slot } from "@radix-ui/react-slot";
 import {
+  ClipboardEvent,
   type KeyboardEvent,
   forwardRef,
   useCallback,
@@ -31,7 +32,8 @@ export namespace ComposerPrimitiveInput {
     unstable_focusOnRunStart?: boolean | undefined;
     unstable_focusOnScrollToBottom?: boolean | undefined;
     unstable_focusOnThreadSwitched?: boolean | undefined;
-  };
+    addAttachmentOnPaste?: boolean | undefined;
+  }
 }
 
 export const ComposerPrimitiveInput = forwardRef<
@@ -45,11 +47,13 @@ export const ComposerPrimitiveInput = forwardRef<
       disabled: disabledProp,
       onChange,
       onKeyDown,
+      onPaste,
       submitOnEnter = true,
       cancelOnEscape = true,
       unstable_focusOnRunStart = true,
       unstable_focusOnScrollToBottom = true,
       unstable_focusOnThreadSwitched = true,
+      addAttachmentOnPaste = true,
       ...rest
     },
     forwardedRef,
@@ -92,6 +96,20 @@ export const ComposerPrimitiveInput = forwardRef<
 
           textareaRef.current?.closest("form")?.requestSubmit();
         }
+      }
+    };
+
+    const handlePaste = async (e: ClipboardEvent<HTMLTextAreaElement>) => {
+      if (!addAttachmentOnPaste) return;
+      const threadCapabilities = threadRuntime.getState().capabilities;
+      const files = Array.from(e.clipboardData?.files || []);
+
+      if (threadCapabilities.attachments && files.length > 0) {
+        await Promise.all(
+          files.map(file => composerRuntime.addAttachment(file))
+        );
+        
+        e.preventDefault();
       }
     };
 
@@ -143,9 +161,12 @@ export const ComposerPrimitiveInput = forwardRef<
           return composerRuntime.setText(e.target.value);
         })}
         onKeyDown={composeEventHandlers(onKeyDown, handleKeyPress)}
+        onPaste={composeEventHandlers(onPaste, handlePaste)}
       />
     );
   },
 );
+
+// paste, if on paste check if thread supports attachments. If so try to add, some will error.
 
 ComposerPrimitiveInput.displayName = "ComposerPrimitive.Input";
