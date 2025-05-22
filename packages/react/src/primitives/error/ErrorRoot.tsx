@@ -12,7 +12,7 @@ export const ErrorPrimitiveRoot = forwardRef<
   ErrorPrimitiveRoot.Element,
   ErrorPrimitiveRoot.Props
 >((props, forwardRef) => {
-  return <Primitive.div {...props} ref={forwardRef} role="alert" />;
+  return <Primitive.div role="alert" {...props} ref={forwardRef} />;
 });
 
 ErrorPrimitiveRoot.displayName = "ErrorPrimitive.Root";
