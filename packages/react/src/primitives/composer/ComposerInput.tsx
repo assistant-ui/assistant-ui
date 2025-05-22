@@ -105,11 +105,14 @@ export const ComposerPrimitiveInput = forwardRef<
       const files = Array.from(e.clipboardData?.files || []);
 
       if (threadCapabilities.attachments && files.length > 0) {
-        await Promise.all(
-          files.map(file => composerRuntime.addAttachment(file))
-        );
-        
-        e.preventDefault();
+        try {
+          e.preventDefault();
+          await Promise.all(
+            files.map(file => composerRuntime.addAttachment(file))
+          );
+        } catch (error) {
+          console.error("Error adding attachment:", error);
+        }
       }
     };
 
