@@ -13,13 +13,26 @@ import { Callout } from "fumadocs-ui/components/callout";
 <Steps>
   <Step>
 
-### Initialize assistant-ui in your project
-
-Step 1: Run `assistant-ui init` to install assistant-ui in a new or existing React.js project:
+### Initialize assistant-ui
+**Create a new project:**
 
 ```sh
-npx assistant-ui@latest create # new project
-npx assistant-ui@latest init # existing project
+# Create a new project with the default template
+npx assistant-ui@latest create
+
+# Or start with a template:
+# LangGraph
+npx assistant-ui@latest create -t langgraph
+
+# MCP support
+npx assistant-ui@latest create -t mcp
+```
+
+**Add assistant-ui to an existing React project:**
+
+```sh
+# Add assistant-ui to an existing React project
+npx assistant-ui@latest init
 ```
 
   </Step>
