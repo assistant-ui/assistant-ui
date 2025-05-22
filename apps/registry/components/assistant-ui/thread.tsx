@@ -23,18 +23,6 @@ import { Button } from "@/components/ui/button";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 
-const MessageErrorUI: FC = () => {
-  return (
-    <MessagePrimitive.Error>
-      <ErrorPrimitive.Root>
-        <div className="aui-assistant-error">
-          <ErrorPrimitive.Message />
-        </div>
-      </ErrorPrimitive.Root>
-    </MessagePrimitive.Error>
-  );
-};
-
 export const Thread: FC = () => {
   return (
     <ThreadPrimitive.Root
@@ -217,15 +205,24 @@ const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="aui-assistant-message-root">
       <div className="aui-assistant-message-content">
-        <MessagePrimitive.Content
-          components={{ Text: MarkdownText, Error: MessageErrorUI }}
-        />
+        <MessagePrimitive.Content components={{ Text: MarkdownText }} />
+        <MessageError />
       </div>
 
       <AssistantActionBar />
 
       <BranchPicker className="aui-assistant-branch-picker" />
     </MessagePrimitive.Root>
+  );
+};
+
+const MessageError: FC = () => {
+  return (
+    <MessagePrimitive.Error>
+      <ErrorPrimitive.Root className="aui-message-error-root">
+        <ErrorPrimitive.Message className="aui-message-error-message" />
+      </ErrorPrimitive.Root>
+    </MessagePrimitive.Error>
   );
 };
 
