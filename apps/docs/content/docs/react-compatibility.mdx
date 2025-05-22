@@ -169,7 +169,7 @@ index 7599cfb..64530a8 100644
 +  useId = function() {
 +    const idRef = useRef();
 +    if (!idRef.current) {
-+      globalId = 1;
++      globalId++;
 +      idRef.current = `uid-${globalId}`;
 +    }
 +    return idRef.current;
