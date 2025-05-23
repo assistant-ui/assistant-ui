@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.10.11
+
+### Patch Changes
+
+- 6d214b9: add ComposerAttachmentDropzone component to enable file drag and drop
+
 ## 0.10.10
 
 ### Patch Changes
