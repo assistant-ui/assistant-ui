@@ -16,47 +16,43 @@
 
 - [⭐️ Star us on GitHub](https://github.com/assistant-ui/assistant-ui)
 
-## The UX of ChatGPT in your React app 💬🚀
+## Framework for building agentic AI applications
 
-**assistant-ui** is an open source TypeScript/React library for AI chat.
+**assistant-ui** is an open source library for React that sets the standard for building professional, full-featured, and performant AI chat applications. It handles the hard parts of building an AI chat app, including auto-scrolling, streaming, markdown rendering, syntax highlighting, accessibility, and more.
 
-The library handles the hard parts of building an AI chat app, including auto-scrolling, streaming, markdown rendering, syntax highlighting, and accessibility. It provides composable components that make it easy to integrate with LangGraph, Mastra, Vercel AI SDK, or your own backend.
+We provide composable components that make it easy to integrate with LangGraph, Mastra, Vercel AI SDK, or your own backend.
 
-The API of assistant-ui is inspired by libraries like shadcn/ui and cmdk. Instead of a single monolithic chat component, developers get primitive components with sane defaults that can be dropped into your app or fully customized for your needs.
+The API of assistant-ui is inspired by libraries like shadcn/ui and cmdk. Instead of a single monolithic chat component, developers get primitive components with smart defaults that can be dropped into your app or fully customized for your needs.
 
 We have wide model provider support (OpenAI, Anthropic, Mistral, Perplexity, AWS Bedrock, Azure, Google Gemini, Hugging Face, Fireworks, Cohere, Replicate, Ollama) out of the box and the ability to integrate custom APIs.
 
 ## Getting Started
 
-You can get started by running `npx assistant-ui create` (new project) or `npx assistant-ui init` (existing project) in your terminal.
+You can get started by running `npx assistant-ui create` to create a new project, or `npx assistant-ui init` to add assistant-ui to an existing project.
 
-[![assistant-ui starter template](https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/assistant-ui-starter.gif)](https://youtu.be/k6Dc8URmLjk)
+[![get started with assistant-ui starter template](https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/assistant-ui-starter.gif)](https://youtu.be/k6Dc8URmLjk)
 
 ## Features
 
-- shadcn/ui
-  - Radix UI-inspired primitives for AI Chat
-  - Beautiful shadcn/ui theme to get you started
-- Chat UI
-  - Streaming, Auto-scrolling, Markdown, Code Highlighting, File Attachments, and more
+- shadcn/ui inspired for excellent DX, flexibility, and customizabliity
+- Streaming, Auto-scrolling, Markdown, Code Highlighting, File Attachments, and more - all built in
 - Keyboard shortcuts and accessibility features
-- Generative UI
-  - Map LLM tool calls and JSONs to custom UI components
-- Frontend tool calls
-  - Let LLMs take action in your frontend application
-- Human tool calls
-  - Human approvals and input collection
-- Chat history and analytics
-  - Sign up for assistant-cloud and configure by simply setting an environment variable
+- Automartically wire up generative UI with tool calls and agents
+- Generative UI - Automatically wires up tools to custom UI components
+- Frontend tool calls - Let LLMs take action in your frontend application
+- Support for "human-in-the-loop" agentic workflows
+- Chat history and analytics support out of the box with [assistant-cloud](https://cloud.assistant-ui.com)
 
 ## Choose your backend
 
-- AI SDK
-  - First class integration into AI SDK by Vercel. Connect to any LLM provider supported by AI SDK.
+- Vercel AI SDK
+  - First class integration with AI SDK by Vercel. Connect to any LLM provider supported by AI SDK.
 - LangGraph
-  - First class integration into LangGraph and LangGraph Cloud. Connect to any LLM provider supported by LangChain.
+  - First class integration with LangGraph and LangGraph Cloud. Connect to any LLM provider supported by LangChain.
+- Mastra
+  - First class integration into AI SDK by Vercel. Connect to any LLM provider supported by AI SDK
 - Custom
-  - Use assistant-ui as the visualization layer on top your own backend/streaming protocols.
+  - Use assistant-ui as the frontend layer on top your own backend/streaming protocols.
 
 ## Customization
 
