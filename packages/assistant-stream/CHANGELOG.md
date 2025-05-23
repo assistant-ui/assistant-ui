@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.2.8
+
+### Patch Changes
+
+- fix: close argsTextController when setResponse is called
+
 ## 0.2.7
 
 ### Patch Changes
