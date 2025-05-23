@@ -2,7 +2,7 @@
 
 import { Shadcn } from "@/components/shadcn/Shadcn";
 import { Button } from "@/components/ui/button";
-import { useChat } from "ai/react";
+import { useChat } from "@ai-sdk/react";
 import Link from "next/link";
 import { DocsRuntimeProvider } from "../DocsRuntimeProvider";
 

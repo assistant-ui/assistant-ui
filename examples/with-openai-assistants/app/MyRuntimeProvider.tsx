@@ -1,6 +1,6 @@
 "use client";
 
-import { useAssistant } from "ai/react";
+import { useAssistant } from "@ai-sdk/react";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useVercelUseAssistantRuntime } from "@assistant-ui/react-ai-sdk";
 

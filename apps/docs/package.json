@@ -13,6 +13,7 @@
   "dependencies": {
     "@ai-sdk/openai": "^1.3.22",
     "@ai-sdk/provider": "^1.1.3",
+    "@ai-sdk/react": "^1.2.12",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-ai-sdk": "workspace:*",
     "@assistant-ui/react-langgraph": "workspace:*",
