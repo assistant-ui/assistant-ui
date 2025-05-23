@@ -110,16 +110,16 @@ type ToolBase<
   streamCall?: ToolStreamCallFunction<TArgs, TResult>;
 };
 
-type BackendTool<
+export type BackendTool<
   TArgs extends Record<string, unknown> = Record<string, unknown>,
   TResult = unknown,
+  TParameters = unknown,
 > = ToolBase<TArgs, TResult> & {
   type?: "backend" | undefined;
-
-  description?: undefined;
-  parameters?: undefined;
+  description?: string;
+  parameters?: TParameters;
   disabled?: undefined;
-  execute?: undefined;
+  execute?: ToolExecuteFunction<TArgs, TResult>;
   experimental_onSchemaValidationError?: undefined;
 };
 
