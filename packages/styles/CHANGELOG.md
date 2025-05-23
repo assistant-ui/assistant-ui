@@ -1,5 +1,11 @@
 # @assistant-ui/styles
 
+## 0.1.8
+
+### Patch Changes
+
+- 8bd70ae: fix: error message contrast in dark mode
+
 ## 0.1.7
 
 ### Patch Changes
