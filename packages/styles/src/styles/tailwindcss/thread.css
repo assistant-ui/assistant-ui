@@ -197,7 +197,7 @@
 }
 
 .aui-message-error-root {
-  @apply border-destructive bg-destructive/10 text-destructive mt-2 rounded-md border p-3 text-sm;
+  @apply border-destructive bg-destructive/10 dark:text-red-200 dark:bg-destructive/5 text-destructive mt-2 rounded-md border p-3 text-sm;
 }
 
 .aui-message-error-message {
