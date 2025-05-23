@@ -17,6 +17,7 @@ import { writableStore } from "../ReadonlyStore";
 import { AssistantRuntimeCore } from "../../runtimes/core/AssistantRuntimeCore";
 import { ensureBinding } from "../react/utils/ensureBinding";
 
+// CG TODO: add a way to pass in a toolbox
 export namespace AssistantRuntimeProvider {
   export type Props = PropsWithChildren<{
     /**
