@@ -78,7 +78,7 @@ Sample customization to make a perplexity lookalike:
 
 Hundreds of projects use assistant-ui to build in-app AI assistants, including companies like LangChain, AthenaIntelligence, Browser Use, and more.
 
-With >50k+ monthly downloads, assistant-ui is the most popular UI library for AI chat.
+With >100k monthly downloads, assistant-ui is the most popular UI library for building AI chat.
 
 <img src="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/growth.png" alt="Growth" style="max-width: 400px;">
 
