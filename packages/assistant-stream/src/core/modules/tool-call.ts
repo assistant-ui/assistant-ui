@@ -54,6 +54,7 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
   private _argsTextController!: TextStreamController;
 
   setResponse(response: ToolResponseInit<ReadonlyJSONValue>) {
+    this._argsTextController.close();
     this._controller.enqueue({
       type: "result",
       path: [],
