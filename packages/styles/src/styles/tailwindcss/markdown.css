@@ -89,3 +89,7 @@
 }
 
 
+
+.aui-mermaid-diagram {
+  @apply bg-muted rounded-b-lg;
+}

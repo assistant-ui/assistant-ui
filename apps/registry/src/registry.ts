@@ -186,4 +186,19 @@ export const registry: RegistryItem[] = [
     ],
     dependencies: ["react-shiki"],
   },
+  {
+    name: "mermaid-diagram",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/mermaid-diagram.tsx",
+      },
+    ],
+    dependencies: [
+      "mermaid",
+      "@assistant-ui/react",
+      "@assistant-ui/react-markdown",
+    ],
+  },
 ];

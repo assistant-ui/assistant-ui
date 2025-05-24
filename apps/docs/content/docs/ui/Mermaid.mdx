@@ -5,34 +5,26 @@ title: "Mermaid Diagrams"
 import { Callout } from "fumadocs-ui/components/callout";
 import { Step, Steps } from "fumadocs-ui/components/steps";
 
-Render interactive Mermaid diagrams in your chat messages by configuring a custom syntax highlighter for the `mermaid` language.
+Render Mermaid diagrams in chat messages with the `mermaid-diagram` component.
 
 <Steps>
   <Step>
 
-### Install dependencies
+### Add `mermaid-diagram` component
 
-Install the required Mermaid package:
-
-```bash npm2yarn
-npm install @theguild/remark-mermaid
+```bash
+npx shadcn@latest add "https://r.assistant-ui.com/mermaid-diagram"
 ```
+
+This will install the required dependencies and add the component to your project.
 
   </Step>
   <Step>
 
-### Create Mermaid component
+### Add it to `componentsByLanguage` in `markdown-text.tsx`
 
-Create a Mermaid component and pass it to `componentsByLanguage`:
-
-```tsx
-import { Mermaid } from "@theguild/remark-mermaid/mermaid";
-import { MarkdownText } from "@/components/assistant-ui/markdown-text";
-import type { SyntaxHighlighterProps } from "@assistant-ui/react-markdown";
-
-const MermaidDiagram: FC<SyntaxHighlighterProps> = ({ code }) => {
-  return <Mermaid chart={code} />;
-};
+```tsx title="/components/assistant-ui/markdown-text.tsx"
+import { MermaidDiagram } from "@/components/assistant-ui/mermaid-diagram"; // [!code ++]
 
 const MarkdownTextImpl = () => {
   return (
@@ -40,11 +32,11 @@ const MarkdownTextImpl = () => {
       remarkPlugins={[remarkGfm]}
       className="aui-md"
       components={defaultComponents}
-      componentsByLanguage={{
-        mermaid: {
-          SyntaxHighlighter: MermaidDiagram,
-        },
-      }}
+      componentsByLanguage={{               // [!code ++]
+        mermaid: {                          // [!code ++]
+          SyntaxHighlighter: MermaidDiagram // [!code ++]
+        },                                  // [!code ++]
+      }}                                    // [!code ++]
     />
   );
 };
@@ -53,71 +45,35 @@ export const MarkdownText = memo(MarkdownTextImpl);
 ```
 
   </Step>
-  <Step>
-
-### Use in messages
-
-Users can now include Mermaid diagrams in their messages using the `mermaid` language tag:
-
-````markdown
-```mermaid
-graph TD
-    A[Start] --> B{Is it working?}
-    B -->|Yes| C[Great!]
-    B -->|No| D[Debug]
-    D --> B
-```
-````
-
-The diagram will render as an interactive SVG instead of syntax-highlighted code.
-
-  </Step>
 </Steps>
 
-## Alternative Implementation
+## Configuration
 
-For more control over the rendering process, you can use the main `mermaid` package:
+Configure mermaid options in `mermaid-diagram.tsx`:
 
-```bash npm2yarn
-npm install mermaid
+```tsx title="/components/assistant-ui/mermaid-diagram.tsx"
+mermaid.initialize({ theme: "default" });
 ```
 
-````tsx
-import mermaid from "mermaid";
-import { useContentPartText } from "@assistant-ui/react";
-import { useEffect, useRef } from "react";
+## Streaming Performance
 
-const MermaidDiagram: FC<SyntaxHighlighterProps> = ({ code }) => {
-  const ref = useRef<HTMLPreElement>(null);
+The `MermaidDiagram` component is optimized for streaming scenarios:
 
-  // Check if the code block is complete (ends with triple backticks)
-  const isComplete = useContentPartText(({ text }) =>
-    text.split(code)[1]?.includes("```"),
-  );
+- **Smart completion detection**: Only renders when the specific code block is complete
+- **Zero failed renders**: Avoids parsing incomplete diagram code during streaming  
 
-  useEffect(() => {
-    if (!isComplete) return;
 
-    (async () => {
-      try {
-        const element = document.createElement("div");
-        element.innerHTML = code;
-        element.classList.add("mermaid");
-        ref.current!.replaceChildren(element);
-        await mermaid.run({ nodes: [element] });
-      } catch (e) {
-        // Handle errors
-      }
-    })();
-  }, [isComplete, code]);
+## Supported Diagram Types
 
-  return <pre ref={ref}>Drawing diagram...</pre>;
-};
-````
+Mermaid supports various diagram types including:
 
-<Callout>
-  The `@theguild/remark-mermaid` approach is recommended as it handles
-  initialization and error states automatically.
-</Callout>
+- Flowcharts and decision trees
+- Sequence diagrams  
+- Gantt charts
+- Class diagrams
+- State diagrams
+- Git graphs
+- User journey maps
+- Entity relationship diagrams
 
 See the [Mermaid documentation](https://mermaid.js.org/) for complete syntax reference.
