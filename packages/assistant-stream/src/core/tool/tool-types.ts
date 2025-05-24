@@ -138,6 +138,7 @@ export type BackendTool<
 
 // Overloads for backendTool helper
 export function backendTool<
+  // Zod type any is here to support users who haven't upgraded to v4
   TParameters extends JSONSchema7 | StandardSchemaV1 | z.ZodTypeAny,
   TResult,
 >(
