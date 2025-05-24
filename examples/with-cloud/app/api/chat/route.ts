@@ -7,6 +7,7 @@ import {
   // BackendTool,
 } from "assistant-stream/core/tool/tool-types";
 import { z } from "zod";
+import { z as zv4 } from "zod/v4";
 
 export const runtime = "edge";
 export const maxDuration = 30;
@@ -44,6 +45,18 @@ const dayTool = backendTool({
   },
 });
 
+const rainTool = backendTool({
+  description: "Get the current rain forecast",
+  parameters: zv4.object({
+    expectedPercentage: zv4.number().describe("Expected percentage of rain"),
+  }),
+  execute: async ({ expectedPercentage }) => {
+    return {
+      rain: `${expectedPercentage}% chance of rain`,
+    };
+  },
+});
+
 export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
 
@@ -74,6 +87,7 @@ export async function POST(req: Request) {
 const BackendTools = backendTools({
   weather: weatherTool,
   day: dayTool,
+  rain: rainTool,
 });
 
 export type BackendTools = typeof BackendTools;
