@@ -1,36 +1,48 @@
 import { openai } from "@ai-sdk/openai";
 // import { frontendTools } from "@assistant-ui/react-ai-sdk";
 import { jsonSchema, streamText } from "ai";
-import { BackendTool } from "assistant-stream/core/tool/tool-types";
+import {
+  backendTool,
+  backendTools,
+  // BackendTool,
+} from "assistant-stream/core/tool/tool-types";
 import { z } from "zod";
 
 export const runtime = "edge";
 export const maxDuration = 30;
 
 // Define the weather tool
-const weatherTool = {
+const weatherTool = backendTool({
   description: "Get weather information",
   parameters: z.object({
     location: z.string().describe("Location to get weather for"),
   }),
-  execute: async () => {
+  execute: async ({ location }) => {
     return {
-      weather: "sunny",
+      weather: `${location} is sunny`,
     };
   },
-} satisfies BackendTool;
+});
 
-const dayTool = {
+const dayTool = backendTool({
   description: "Get the current day of the week",
-  parameters: z.object({
-    timezone: z.string().describe("Timezone to get the day for"),
-  }),
+  parameters: {
+    type: "object",
+    properties: {
+      timezone: {
+        type: "string",
+        description: "Timezone to get the day for",
+      },
+    },
+    required: ["timezone"],
+    additionalProperties: false,
+  },
   execute: async () => {
     return {
       day: "Monday",
     };
   },
-} satisfies BackendTool;
+});
 
 export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
@@ -59,7 +71,9 @@ export async function POST(req: Request) {
   return result.toDataStreamResponse();
 }
 
-export type BackendTools = {
-  weather: typeof weatherTool;
-  day: typeof dayTool;
-};
+const BackendTools = backendTools({
+  weather: weatherTool,
+  day: dayTool,
+});
+
+export type BackendTools = typeof BackendTools;
