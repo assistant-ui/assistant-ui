@@ -68,13 +68,7 @@ export const MermaidDiagram: FC<MermaidDiagramProps> = ({
   }, [isComplete, code]);
 
   return (
-    <pre
-      ref={ref}
-      className={cn(
-        "aui-mermaid-diagram",
-        className,
-      )}
-    >
+    <pre ref={ref} className={cn("aui-mermaid-diagram", className)}>
       Drawing diagram...
     </pre>
   );
