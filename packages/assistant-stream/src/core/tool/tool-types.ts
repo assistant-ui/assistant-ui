@@ -3,6 +3,7 @@ import { DeepPartial, TypeAtPath, TypePath } from "./type-path-utils";
 import { AsyncIterableStream } from "../../utils";
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 import { ToolResponse } from "./ToolResponse";
+import { z } from "zod";
 
 /**
  * Interface for reading tool call arguments from a stream, which are
@@ -110,18 +111,48 @@ type ToolBase<
   streamCall?: ToolStreamCallFunction<TArgs, TResult>;
 };
 
+// Utility type to infer argument types from parameters schema
+// Always ensures the result extends Record<string, unknown>
+type InferArgsFromParameters<T> =
+  T extends StandardSchemaV1<infer U>
+    ? U extends Record<string, unknown>
+      ? U
+      : Record<string, unknown>
+    : T extends JSONSchema7
+      ? Record<string, unknown>
+      : Record<string, unknown>;
+
+// Overloaded BackendTool type for better inference
 export type BackendTool<
-  TArgs extends Record<string, unknown> = Record<string, unknown>,
+  TParameters = JSONSchema7 | StandardSchemaV1 | z.ZodTypeAny,
   TResult = unknown,
-  TParameters = unknown,
-> = ToolBase<TArgs, TResult> & {
+> = ToolBase<InferArgsFromParameters<TParameters>, TResult> & {
   type?: "backend" | undefined;
   description?: string;
   parameters?: TParameters;
   disabled?: undefined;
-  execute?: ToolExecuteFunction<TArgs, TResult>;
+  execute?: ToolExecuteFunction<InferArgsFromParameters<TParameters>, TResult>;
   experimental_onSchemaValidationError?: undefined;
+  streamCall?: undefined;
 };
+
+// Overloads for backendTool helper
+export function backendTool<
+  TParameters extends JSONSchema7 | StandardSchemaV1 | z.ZodTypeAny,
+  TResult,
+>(
+  tool: Omit<BackendTool<TParameters, TResult>, "execute"> & {
+    execute: (
+      args: InferArgsFromParameters<TParameters>,
+      context: ToolExecutionContext,
+    ) => TResult | Promise<TResult>;
+  },
+): BackendTool<TParameters, TResult> {
+  return tool;
+}
+
+// Updated backendTools to accept any record of values extending BackendTool with specific generics
+export const backendTools = (tools: Record<string, BackendTool>) => tools;
 
 type FrontendTool<
   TArgs extends Record<string, unknown> = Record<string, unknown>,
