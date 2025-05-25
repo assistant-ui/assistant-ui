@@ -1,3 +1,16 @@
+/* code */
+.aui-shiki-base {
+  @apply [&_pre]:overflow-x-auto [&_pre]:rounded-b-lg [&_pre]:bg-black [&_pre]:p-4 [&_pre]:text-white;
+}
+
+.aui-code-header-root {
+  @apply flex items-center justify-between gap-4 rounded-t-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white;
+}
+
+.aui-code-header-language {
+  @apply lowercase [&>span]:text-xs;
+}
+
 /* typography */
 .aui-md-h1 {
   @apply mb-8 scroll-m-20 text-4xl font-extrabold tracking-tight last:mb-0;
@@ -75,10 +88,4 @@
   @apply bg-muted rounded border font-semibold;
 }
 
-.aui-code-header-root {
-  @apply flex items-center justify-between gap-4 rounded-t-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white;
-}
 
-.aui-code-header-language {
-  @apply lowercase [&>span]:text-xs;
-}
