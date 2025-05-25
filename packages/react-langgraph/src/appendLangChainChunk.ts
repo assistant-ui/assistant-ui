@@ -25,23 +25,31 @@ export const appendLangChainChunk = (
       ? [{ type: "text" as const, text: prev.content }]
       : [...prev.content];
 
-  if (newContent.length === 1 && typeof curr?.content === "string") {
-    if (!newContent[0]) {
-      newContent[0] = { type: "text", text: "" };
-    }
-    if ("type" in newContent[0] && newContent[0].type === "text") {
-      (newContent[0] as MessageContentText).text =
-        (newContent[0] as MessageContentText).text + curr.content;
-    }
-  } else {
-    if (typeof curr.content === "string") {
-      const newItem: MessageContentText = {
-        type: "text",
-        text: curr.content,
-      };
-      newContent.push(newItem);
+  if (typeof curr?.content === "string") {
+    const lastIndex = newContent.length - 1;
+    if (newContent[lastIndex]?.type === "text") {
+      (newContent[lastIndex] as MessageContentText).text =
+        (newContent[lastIndex] as MessageContentText).text + curr.content;
     } else {
-      newContent.push(...(curr.content ?? []));
+      newContent.push({ type: "text", text: curr.content });
+    }
+  } else if (Array.isArray(curr.content)) {
+    const lastIndex = newContent.length - 1;
+    for (const item of curr.content) {
+      if (!("type" in item)) {
+        continue;
+      }
+
+      if (item.type === "text") {
+        if (newContent[lastIndex]?.type === "text") {
+          (newContent[lastIndex] as MessageContentText).text =
+            (newContent[lastIndex] as MessageContentText).text + item.text;
+        } else {
+          newContent.push({ type: "text", text: item.text });
+        }
+      } else if (item.type === "image_url") {
+        newContent.push(item);
+      }
     }
   }
 

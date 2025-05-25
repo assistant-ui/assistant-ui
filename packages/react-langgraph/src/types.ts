@@ -19,7 +19,7 @@ export type MessageContentText = {
   text: string;
 };
 
-type MessageContentImageUrl = {
+export type MessageContentImageUrl = {
   type: "image_url";
   image_url: string | { url: string };
 };
@@ -42,6 +42,7 @@ export type EventType = LangGraphKnownEventTypes | CustomEventType;
 type UserMessageContentComplex = MessageContentText | MessageContentImageUrl;
 type AssistantMessageContentComplex =
   | MessageContentText
+  | MessageContentImageUrl
   | MessageContentToolUse;
 
 type UserMessageContent = string | UserMessageContentComplex[];
