@@ -25,6 +25,19 @@ const weatherTool = backendTool({
   },
 });
 
+// TODO: support vercel to our tool definition conversion.
+// const weatherTool2 = tool({
+//   description: "Get weather information",
+//   parameters: z.object({
+//     location: z.string().describe("Location to get weather for"),
+//   }),
+//   execute: async ({ location }) => {
+//     return {
+//       weather: `${location} is sunny`,
+//     };
+//   },
+// });
+
 const dayTool = backendTool({
   description: "Get the current day of the week",
   parameters: {
@@ -88,6 +101,7 @@ const BackendTools = backendTools({
   weather: weatherTool,
   day: dayTool,
   rain: rainTool,
+  // weather2: weatherTool2,
 });
 
 export type BackendTools = typeof BackendTools;
