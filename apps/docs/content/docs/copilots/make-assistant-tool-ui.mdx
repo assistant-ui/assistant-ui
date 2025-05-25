@@ -1,6 +1,5 @@
 ---
 title: makeAssistantToolUI
-description: Reference for the makeAssistantToolUI utility.
 ---
 
 import { ParametersTable } from "@/components/docs";
@@ -12,7 +11,7 @@ The `makeAssistantToolUI` utility is used to register a tool UI component with t
 ## Usage
 
 ```tsx
-import { makeAssistantToolUI } from "assistant-ui/";
+import { makeAssistantToolUI } from "assistant-ui/react";
 
 const MyToolUI = makeAssistantToolUI({
   toolName: "myTool",
@@ -46,13 +45,13 @@ const MyToolUI = makeAssistantToolUI({
 
 #### Returns
 
-A  functional component that should be included in your component tree. This component doesn't render anything itself, but it registers the tool UI with the Assistant.
+A React functional component that should be included in your component tree. This component doesn't render anything itself, but it registers the tool UI with the Assistant.
 
 ## Example
 
 ```tsx
-import { makeAssistantToolUI } from "assistant-ui/";
-import { AssistantRuntimeProvider } from "assistant-ui/"; // Assuming this path
+import { makeAssistantToolUI } from "assistant-ui/react";
+import { AssistantRuntimeProvider } from "assistant-ui/react/providers"; // Assuming this path
 
 const GetWeatherUI = makeAssistantToolUI({
   toolName: "get_weather",
