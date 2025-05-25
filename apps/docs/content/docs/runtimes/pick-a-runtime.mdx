@@ -2,26 +2,276 @@
 title: Picking a Runtime
 ---
 
-assistant-ui offers a variety of runtimes for different use cases.
+import { Card, Cards } from "fumadocs-ui/components/card";
+import { Callout } from "fumadocs-ui/components/callout";
 
-## New Chatbot
+Building an AI chat application requires key decisions about how to manage conversations, connect to language models, and store chat history. This guide helps you choose the right runtime for your needs.
 
-The following runtimes are recommended for new apps:
+## Quick Decision Guide
 
-- [AI SDK](/docs/runtimes/ai-sdk/use-chat)
-- [LangGraph Cloud](/docs/runtimes/langgraph)
+<Cards>
+  <Card
+    title="I want the fastest setup"
+    description="Use LocalRuntime with your preferred LLM API"
+    href="/docs/runtimes/custom/local"
+  />
+  <Card
+    title="I'm already using Redux/Zustand"
+    description="Use ExternalStoreRuntime to integrate with your state"
+    href="/docs/runtimes/custom/external-store"
+  />
+  <Card
+    title="I need production-ready persistence"
+    description="Use Assistant Cloud - managed storage with free tier"
+    href="/docs/cloud/overview"
+  />
+  <Card
+    title="I'm building with Vercel"
+    description="Use the AI SDK integration"
+    href="/docs/runtimes/ai-sdk/use-chat"
+  />
+</Cards>
 
-### Vercel AI SDK
+## Key Considerations
 
-AI SDK by Vercel lets you build conversational AI agents.
+### 1. State Management
 
-### LangGraph Cloud
+**Do you need control over message state?**
 
-The LangGraph Cloud runtime lets you build stateful agents with LangGraph.
+- **No** → Use **[LocalRuntime](/docs/runtimes/custom/local)** - It handles everything for you
+- **Yes** → Use **[ExternalStoreRuntime](/docs/runtimes/custom/external-store)** - Integrate with Redux, Zustand, or any state library
 
-## Already using a custom backend
+### 2. Persistence & Storage
 
-For custom backends, we have two entrypoints for integration:
+**How will you store conversation history?**
 
-- [LocalRuntime](/docs/runtimes/custom/local)
-- [ExternalStoreRuntime](/docs/runtimes/custom/external-store)
+<Callout>
+  **Assistant Cloud** provides managed persistence with user authentication and
+  a generous free tier, making it easy to build production-ready chat apps
+  without managing your own database infrastructure.
+</Callout>
+
+**Options:**
+
+- **Assistant Cloud** (Recommended) - Managed solution with built-in auth, persistence, multi-device sync, and free tier
+- **Your own database** - Use LocalRuntime with a custom HistoryAdapter
+- **Client-side only** - Messages lost on refresh (good for demos/prototypes)
+- **External state** - Use ExternalStoreRuntime with your persistence layer
+
+### 3. Language Model Integration
+
+**Which LLM are you using?**
+
+- **OpenAI/Anthropic/Custom API** → LocalRuntime with a simple adapter
+- **Vercel AI SDK** → Use the [AI SDK runtime](/docs/runtimes/ai-sdk/use-chat)
+- **LangGraph agents** → Use [LangGraph runtime](/docs/runtimes/langgraph)
+- **Multiple models** → LocalRuntime with dynamic model selection
+
+## Runtime Comparison
+
+| Feature               | LocalRuntime                    | ExternalStoreRuntime | AI SDK             | Assistant Cloud |
+| --------------------- | ------------------------------- | -------------------- | ------------------ | --------------- |
+| **Setup Complexity**  | Simple                          | Moderate             | Simple             | Simple          |
+| **State Control**     | Managed for you                 | Full control         | Managed            | Managed         |
+| **Persistence**       | Via adapters                    | You implement        | Via adapters       | Built-in        |
+| **Multi-device Sync** | You implement                   | You implement        | You implement      | Built-in        |
+| **User Auth**         | You implement                   | You implement        | You implement      | Built-in        |
+| **Best For**          | Quick prototypes, standard apps | Complex state needs  | Vercel deployments | Production apps |
+
+## Implementation Patterns
+
+### Pattern 1: Simple Chat App
+
+For most chat applications, start with [LocalRuntime](/docs/runtimes/custom/local):
+
+```tsx
+import { useLocalRuntime } from "@assistant-ui/react";
+
+const runtime = useLocalRuntime({
+  async run({ messages, abortSignal }) {
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      body: JSON.stringify({ messages }),
+      signal: abortSignal,
+    });
+    return response.json();
+  },
+});
+```
+
+### Pattern 2: Chat with Database Persistence
+
+Add persistence to LocalRuntime with Assistant Cloud or your own database:
+
+```tsx
+// Option 1: Assistant Cloud (Recommended)
+import { useAssistantRuntime } from "@assistant-ui/react-cloud";
+
+const runtime = useAssistantRuntime({
+  auth: {
+    /* your auth config */
+  },
+  // Persistence is automatic
+});
+
+// Option 2: Custom Database
+const runtime = useLocalRuntime(adapter, {
+  adapters: {
+    history: {
+      async getMessages(threadId) {
+        return db.messages.where({ threadId }).toArray();
+      },
+      async saveMessages(threadId, messages) {
+        await db.messages.bulkPut(messages);
+      },
+    },
+  },
+});
+```
+
+### Pattern 3: Existing State Management
+
+If you already have Redux/Zustand, use [ExternalStoreRuntime](/docs/runtimes/custom/external-store):
+
+```tsx
+import { useExternalStoreRuntime } from "@assistant-ui/react";
+
+const runtime = useExternalStoreRuntime({
+  messages: reduxMessages,
+  setMessages: (msgs) => dispatch(setMessages(msgs)),
+  onNew: async (message) => {
+    dispatch(sendMessage(message));
+  },
+});
+```
+
+## Persistence Strategies
+
+### Cloud-Based (Recommended for Production)
+
+**Assistant Cloud** provides:
+
+- Automatic message persistence
+- User authentication and authorization
+- Multi-device synchronization
+- Thread management
+- Generous free tier to get started
+- No database setup or infrastructure management required
+
+### Self-Hosted Options
+
+If you need to manage your own data:
+
+1. **PostgreSQL/MySQL** - For relational data and complex queries
+2. **MongoDB** - For flexible schema and easy scaling
+3. **Firebase** - For real-time sync and easy setup
+4. **Supabase** - For open-source Firebase alternative
+5. **Convex** - Real-time reactive database with built-in sync
+
+### Example: Self-Hosted Persistence
+
+You can integrate with various databases. Here are some examples:
+
+**Supabase:**
+
+```tsx
+const historyAdapter = {
+  async getMessages(threadId: string) {
+    const { data } = await supabase
+      .from("messages")
+      .select("*")
+      .eq("thread_id", threadId)
+      .order("created_at");
+    return data;
+  },
+
+  async saveMessages(threadId: string, messages: Message[]) {
+    await supabase.from("messages").upsert(
+      messages.map((m) => ({
+        ...m,
+        thread_id: threadId,
+      })),
+    );
+  },
+};
+```
+
+**Convex:**
+
+```tsx
+// Real-time updates with Convex
+const messages = useQuery(api.messages.list, { threadId });
+const sendMessage = useMutation(api.messages.send);
+
+const historyAdapter = {
+  async getMessages() {
+    return messages || [];
+  },
+  async saveMessages(threadId, messages) {
+    for (const msg of messages) {
+      await sendMessage({ threadId, ...msg });
+    }
+  },
+};
+```
+
+## Deployment Considerations
+
+### Serverless (Vercel, Netlify)
+
+- Use **AI SDK runtime** for optimal Vercel integration
+- Consider edge runtime for low latency
+- Use Assistant Cloud for persistence (no database needed)
+
+### Traditional Server (Node.js, Python)
+
+- **LocalRuntime** works with any backend
+- Can use server-side state management
+- Direct database connections possible
+
+### Static Sites
+
+- Use **LocalRuntime** with client-side API calls
+- Consider CORS for API endpoints
+- Assistant Cloud handles auth without backend
+
+## Making Your Decision
+
+<Callout>
+  **Start Simple**: Begin with LocalRuntime for most use cases. You can always
+  migrate to ExternalStoreRuntime later if needed.
+</Callout>
+
+### Choose LocalRuntime if you need:
+
+- A standard chat interface with minimal setup
+- Built-in features (editing, branching, regeneration)
+- Quick development without state management complexity
+- Simple integration with any LLM API
+
+### Choose ExternalStoreRuntime if you need:
+
+- Integration with existing Redux/Zustand/MobX state
+- Custom message synchronization logic
+- Complex applications with shared state
+- Fine-grained control over message updates
+
+### Choose Assistant Cloud if you need:
+
+- Production-ready persistence with zero setup
+- Built-in user authentication and authorization
+- Multi-device synchronization out of the box
+- No infrastructure management overhead
+
+## Next Steps
+
+1. **Pick your runtime** based on the guidelines above
+2. **Follow the quickstart** for your chosen runtime ([LocalRuntime](/docs/runtimes/custom/local) or [ExternalStoreRuntime](/docs/runtimes/custom/external-store))
+3. **Add persistence** if needed (consider [Assistant Cloud](/docs/cloud/overview))
+4. **Customize the UI** with assistant-ui components
+
+## Need Help?
+
+- Check out our [examples](https://github.com/assistant-ui/assistant-ui/tree/main/examples)
+- Read the runtime-specific documentation
+
