@@ -158,15 +158,15 @@ export const backendTools = <T extends Record<string, BackendTool>>(
 ): T => tools;
 
 export type FrontendTool<
-  TArgs extends Record<string, unknown> = Record<string, unknown>,
+  TParameters extends JSONSchema7 | StandardSchemaV1 | z.ZodTypeAny,
   TResult = unknown,
-> = ToolBase<TArgs, TResult> & {
+> = ToolBase<InferArgsFromParameters<TParameters>, TResult> & {
   type?: "frontend" | undefined;
 
   description?: string | undefined;
-  parameters: StandardSchemaV1<TArgs> | JSONSchema7;
+  parameters: TParameters;
   disabled?: boolean;
-  execute?: ToolExecuteFunction<TArgs, TResult>;
+  execute?: ToolExecuteFunction<InferArgsFromParameters<TParameters>, TResult>;
   experimental_onSchemaValidationError?: OnSchemaValidationErrorFunction<TResult>;
 };
 
