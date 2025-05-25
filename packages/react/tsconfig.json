@@ -1,5 +1,12 @@
 {
   "extends": "@assistant-ui/x-buildutils/ts/base",
+  "compilerOptions": {
+    "noEmit": false,
+    "rootDir": "src",
+    "outDir": "dist",
+    "declaration": true,
+    "declarationMap": true
+  },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": ["**/*.test.ts", "**/*.test.tsx"]
 }
