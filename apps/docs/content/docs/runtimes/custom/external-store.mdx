@@ -20,7 +20,7 @@ Use the `ExternalStoreRuntime` if you want to manage the message state yourself 
 This runtime requires an `ExternalStoreAdapter<TMessage>` that handles communication between `assistant-ui` and your state.
 Unless you are storing messages as `ThreadMessage`, you need to define a `convertMessage` function to convert your messages to `ThreadMessage`.
 
-```tsx twoslash title="@/app/MyRuntimeProvider.tsx"
+```tsx twoslash title="app/MyRuntimeProvider.tsx"
 type MyMessage = {
   role: "user" | "assistant";
   content: string;
@@ -886,8 +886,8 @@ const runtime = useExternalStoreRuntime({
 
 ### Redux Integration
 
-```tsx
-// chatSlice.ts - Using Redux Toolkit (recommended)
+```tsx title="app/chatSlice.ts"
+// Using Redux Toolkit (recommended)
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { ThreadMessageLike } from "@assistant-ui/react";
 
@@ -975,8 +975,8 @@ export function ReduxRuntimeProvider({ children }) {
 
 ### Zustand Integration (v5)
 
-```tsx
-// chatStore.ts - Using Zustand v5 with TypeScript
+```tsx title="app/chatStore.ts"
+// Using Zustand v5 with TypeScript
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 import { ThreadMessageLike } from "@assistant-ui/react";
@@ -1073,8 +1073,8 @@ export function ZustandRuntimeProvider({ children }) {
 
 ### TanStack Query Integration
 
-```tsx
-// chatQueries.ts - Using TanStack Query v5 with TypeScript
+```tsx title="app/chatQueries.ts"
+// Using TanStack Query v5 with TypeScript
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ThreadMessageLike, AppendMessage } from "@assistant-ui/react";
 

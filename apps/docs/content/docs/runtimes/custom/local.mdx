@@ -75,7 +75,7 @@ Use LocalRuntime if you need:
 
     Update the `MyModelAdapter` below to integrate with your own custom API.
 
-    ```tsx twoslash include MyRuntimeProvider title="@/app/MyRuntimeProvider.tsx"
+    ```tsx twoslash include MyRuntimeProvider title="app/MyRuntimeProvider.tsx"
     // @filename: /app/MyRuntimeProvider.tsx
 
     // ---cut---
@@ -136,7 +136,7 @@ Use LocalRuntime if you need:
 
     ### Wrap your app in `MyRuntimeProvider`
 
-    ```tsx {1,11,17} twoslash title="@/app/layout.tsx"
+    ```tsx {1,11,17} twoslash title="app/layout.tsx"
     // @include: MyRuntimeProvider
     // @filename: /app/layout.tsx
     // ---cut---
@@ -163,7 +163,7 @@ Use LocalRuntime if you need:
 
     ### Use the Thread component
 
-    ```tsx title="@/app/page.tsx"
+    ```tsx title="app/page.tsx"
     import { Thread } from "@assistant-ui/react";
 
     export default function Page() {
@@ -289,7 +289,7 @@ Configuration options for the LocalRuntime.
 
 Implement streaming by declaring the `run` function as an `AsyncGenerator`.
 
-```tsx twoslash {2, 11-13} title="@/app/MyRuntimeProvider.tsx"
+```tsx twoslash {2, 11-13} title="app/MyRuntimeProvider.tsx"
 import {
   ChatModelAdapter,
   ThreadMessage,
