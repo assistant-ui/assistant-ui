@@ -11,22 +11,6 @@ import type { StandardSchemaV1 } from "@standard-schema/spec";
 
 type AnyTool = BackendTool | FrontendTool | HumanTool;
 
-// type ToolTypeForName<
-//   BackendTools extends Record<string, BackendTool>,
-//   Name extends string,
-//   ToolDef = FrontendTool | HumanTool,
-// > = Name extends keyof BackendTools
-//   ? {
-//       render: (
-//         args: BackendTools[Name]["execute"] extends (...args: any) => infer R
-//           ? Awaited<R>
-//           : never,
-//       ) => React.ReactNode;
-//     } // Must be BackendTool
-//   : ToolDef extends FrontendTool<infer TParameters, infer TResult>
-//     ? FrontendTool<TParameters, TResult>
-//     : FrontendTool<JSONSchema7 | StandardSchemaV1 | z.ZodTypeAny, unknown>;
-
 class ToolboxBuilder<BackendTools extends Record<string, BackendTool>> {
   private tools: Record<string, AnyTool> = {};
 
@@ -43,17 +27,14 @@ class ToolboxBuilder<BackendTools extends Record<string, BackendTool>> {
     Name extends string,
     TParameters extends JSONSchema7 | StandardSchemaV1 | z.ZodTypeAny,
     TResult = unknown,
-  >(name: Name, tool: FrontendTool<TParameters, TResult> | HumanTool): this;
+  >(
+    name: Name,
+    tool: FrontendTool<TParameters, TResult> | HumanTool<TParameters, TResult>,
+  ): this;
 
-  // Single implementation
   tool(name: string, tool: AnyTool): this {
     this.tools[name] = tool;
     return this;
-  }
-
-  // Optionally, you can add a getter for the tools if needed
-  getTools(): Record<string, AnyTool> {
-    return this.tools;
   }
 }
 
