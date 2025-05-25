@@ -153,9 +153,11 @@ export function backendTool<
 }
 
 // Updated backendTools to accept any record of values extending BackendTool with specific generics
-export const backendTools = (tools: Record<string, BackendTool>) => tools;
+export const backendTools = <T extends Record<string, BackendTool>>(
+  tools: T,
+): T => tools;
 
-type FrontendTool<
+export type FrontendTool<
   TArgs extends Record<string, unknown> = Record<string, unknown>,
   TResult = unknown,
 > = ToolBase<TArgs, TResult> & {
@@ -168,7 +170,7 @@ type FrontendTool<
   experimental_onSchemaValidationError?: OnSchemaValidationErrorFunction<TResult>;
 };
 
-type HumanTool<
+export type HumanTool<
   TArgs extends Record<string, unknown> = Record<string, unknown>,
   TResult = unknown,
 > = ToolBase<TArgs, TResult> & {
