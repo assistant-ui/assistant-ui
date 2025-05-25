@@ -12,7 +12,11 @@ const cloud = new AssistantCloud({
   anonymous: true,
 });
 
-const toolbox = createToolbox<BackendTools>();
+const toolbox = createToolbox<BackendTools>({
+  weather: true,
+  day: true,
+  rain: true,
+});
 
 console.log(toolbox);
 
