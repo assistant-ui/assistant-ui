@@ -171,13 +171,13 @@ export type FrontendTool<
 };
 
 export type HumanTool<
-  TArgs extends Record<string, unknown> = Record<string, unknown>,
+  TParameters extends JSONSchema7 | StandardSchemaV1 | z.ZodTypeAny,
   TResult = unknown,
-> = ToolBase<TArgs, TResult> & {
+> = ToolBase<InferArgsFromParameters<TParameters>, TResult> & {
   type?: "human" | undefined;
 
   description?: string | undefined;
-  parameters: StandardSchemaV1<TArgs> | JSONSchema7;
+  parameters: TParameters;
   disabled?: boolean;
   execute?: undefined;
   experimental_onSchemaValidationError?: undefined;
