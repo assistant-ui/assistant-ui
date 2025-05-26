@@ -118,20 +118,58 @@ const cloud = new AssistantCloud({
 
 // console.log(toolbox);
 
-testTypes<BackendTools>((t) => ({
-  weather: true,
-  day: true,
-  rain: true,
-  a: t({
-    type: "frontend",
-    parameters: z.object({
-      name: z.string(),
-    }),
-    execute: async (args) => {
-      return `Other: ${args.name}`;
-    },
-  }),
-}));
+// testTypes<BackendTools>((t) => ({
+//   weather: true,
+//   day: true,
+//   rain: true,
+//   a: t({
+//     type: "frontend",
+//     parameters: z.object({
+//       name: z.string(),
+//     }),
+//     execute: async (args) => {
+//       return `Other: ${args.name}`;
+//     },
+//   }),
+// }));
+
+// const test = createToolbox({
+//   weather: {
+//     parameters: z.object({
+//       weather: z.string(),
+//     }),
+//     execute: async (args) => {
+//       return `Weather: ${args.weather}`;
+//     },
+//   },
+// });
+
+const test2 = <T extends Record<string, any>>(
+  a: {
+    [K in keyof T]: T[K];
+  } & {
+    [K in keyof BackendTools]: {
+      render: (
+        args: Awaited<ReturnType<NonNullable<BackendTools[K]["execute"]>>>,
+      ) => React.ReactNode;
+    };
+  },
+) => {
+  return a;
+};
+
+const res = test2({
+  hi: "test",
+  weather: {
+    render: (args) => <div>Weather: {args.weather}</div>,
+  },
+  day: {
+    render: (args) => <div>Day: {args.day}</div>,
+  },
+  rain: {
+    render: (args) => <div>Rain: {args.rain}</div>,
+  },
+});
 
 export function MyRuntimeProvider({
   children,
