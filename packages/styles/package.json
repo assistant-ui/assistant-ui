@@ -1,7 +1,7 @@
 {
   "name": "@assistant-ui/styles",
   "description": "Styles for @assistant-ui/react for non-Tailwind users",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "license": "MIT",
   "exports": {
     "./*": {
@@ -21,7 +21,7 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@tailwindcss/postcss": "^4.1.7",
-    "@types/node": "^22.15.18",
+    "@types/node": "^22.15.21",
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.3",
     "postcss-nested": "^7.0.2",
