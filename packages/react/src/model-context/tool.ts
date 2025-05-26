@@ -16,7 +16,7 @@ export const createToolbox = <
       [K in keyof BackendTools]: {
         render: (
           args: Awaited<ReturnType<NonNullable<BackendTools[K]["execute"]>>>,
-        ) => React.ReactNode;
+        ) => React.ReactNode | false;
       };
     },
   >(
@@ -28,11 +28,15 @@ export const createToolbox = <
 
 // A generic Toolbox type that maps backend tool keys to their render function, and allows for frontend/human tools as well
 export type Toolbox<
-  BackendTools extends Record<string, BackendTool> = {},
+  BackendTools extends Record<string, BackendTool> = {
+    [key: string]: BackendTool;
+  },
   FrontendAndHumanTools extends Record<
     string,
     FrontendTool<any, any> | HumanTool<any, any>
-  > = {},
+  > = {
+    [key: string]: FrontendTool<any, any> | HumanTool<any, any>;
+  },
 > = {
   // For backend tools, require a render function with the correct args type
   [K in keyof BackendTools]: {

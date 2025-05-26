@@ -16,7 +16,7 @@ import { create } from "zustand";
 import { writableStore } from "../ReadonlyStore";
 import { AssistantRuntimeCore } from "../../runtimes/core/AssistantRuntimeCore";
 import { ensureBinding } from "../react/utils/ensureBinding";
-import { BackendTool, FrontendTool, HumanTool, Tool } from "assistant-stream";
+import { FrontendTool, HumanTool, Tool } from "assistant-stream";
 
 // Utility type to remove the 'render' property from a tool type
 // and extract argument/result types using infer
@@ -43,7 +43,7 @@ export namespace AssistantRuntimeProvider {
       | {
           disabled?: boolean;
           type?: "backend";
-          render: (args: any) => React.ReactNode;
+          render: ((args: any) => React.ReactNode) | false;
         }
     >;
   }>;
@@ -85,48 +85,61 @@ export const AssistantRuntimeProviderImpl: FC<
   useEffect(() => {
     if (!toolbox) return;
     return Object.entries(toolbox).forEach(([toolName, tool]) => {
+      console.log("toolname: ", toolName, tool);
+      if (tool.disabled || tool?.render === false) {
+        return;
+      }
+
       useToolUIs
         .getState()
         .setToolUI(toolName, (tool as { render: any }).render);
     });
-  }, [useToolUIs, toolbox]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (toolbox) {
       // Remove render functions from toolbox before passing to tools
-      const toolsWithoutRender = Object.fromEntries(
-        Object.entries(toolbox).map(([toolName, tool]) => {
-          console.log("toolname: ", toolName, tool);
+      const tools = Object.fromEntries(
+        Object.entries(toolbox)
+          .map(([toolName, tool]) => {
+            if (tool.disabled) {
+              return [toolName, tool];
+            }
 
-          if (tool.disabled) {
-            return [toolName, tool];
-          }
+            console.log("toolname: ", toolName, tool);
 
-          if (tool.type === undefined) {
+            if (
+              typeof tool === "object" &&
+              tool !== null &&
+              "render" in tool &&
+              typeof (tool as any).render === "function"
+            ) {
+              console.log("register: ", toolName, tool);
+              // Remove the render property safely
+              const { render, ...rest } = tool as inferTool<typeof tool>;
+              return [toolName, rest];
+            }
             return [toolName, tool];
-          }
-          if (
-            typeof tool === "object" &&
-            tool !== null &&
-            "render" in tool &&
-            typeof (tool as any).render === "function"
-          ) {
-            // Remove the render property safely
-            const { render, ...rest } = tool as inferTool<typeof tool>;
-            return [toolName, rest];
-          }
-          return [toolName, tool];
-        }),
+          })
+          .filter(
+            ([, tool]) =>
+              tool && typeof tool === "object" && Object.keys(tool).length > 0,
+          ),
       );
+
+      console.log("tools to register: ", tools);
+
       runtime.registerModelContextProvider({
         getModelContext: () => {
           return {
-            tools: toolsWithoutRender as Record<string, Tool<any, any>>,
+            tools: tools as Record<string, Tool<any, any>>,
           };
         },
       });
     }
-  }, [runtime, toolbox]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const RenderComponent = getRenderComponent(runtime);
 
