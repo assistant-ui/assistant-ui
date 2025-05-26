@@ -113,6 +113,15 @@ type ToolBase<
 
 // Utility type to infer argument types from parameters schema
 // Always ensures the result extends Record<string, unknown>
+// type InferArgsFromParameters<T> =
+//   T extends StandardSchemaV1<infer U>
+//     ? U extends Record<string, unknown>
+//       ? U
+//       : Record<string, unknown>
+//     : T extends JSONSchema7
+//       ? Record<string, unknown>
+//       : Record<string, unknown>;
+
 type InferArgsFromParameters<T> =
   T extends StandardSchemaV1<infer U>
     ? U extends Record<string, unknown>
@@ -120,7 +129,9 @@ type InferArgsFromParameters<T> =
       : Record<string, unknown>
     : T extends JSONSchema7
       ? Record<string, unknown>
-      : Record<string, unknown>;
+      : T extends z.ZodTypeAny
+        ? T
+        : never;
 
 // Overloaded BackendTool type for better inference
 export type BackendTool<
@@ -157,21 +168,35 @@ export const backendTools = <T extends Record<string, BackendTool>>(
   tools: T,
 ): T => tools;
 
+// export type FrontendTool<
+//   TParameters = JSONSchema7 | StandardSchemaV1 | z.ZodTypeAny,
+//   TResult = unknown,
+// > = ToolBase<InferArgsFromParameters<TParameters>, TResult> & {
+//   type?: "frontend" | undefined;
+
+//   description?: string | undefined;
+//   parameters: TParameters;
+//   disabled?: boolean;
+//   execute?: ToolExecuteFunction<InferArgsFromParameters<TParameters>, TResult>;
+//   experimental_onSchemaValidationError?: OnSchemaValidationErrorFunction<TResult>;
+//   streamCall?: undefined;
+// };
+
 export type FrontendTool<
-  TParameters extends JSONSchema7 | StandardSchemaV1 | z.ZodTypeAny,
+  TParameters = JSONSchema7 | StandardSchemaV1 | z.ZodTypeAny,
   TResult = unknown,
 > = ToolBase<InferArgsFromParameters<TParameters>, TResult> & {
   type?: "frontend" | undefined;
-
-  description?: string | undefined;
-  parameters: TParameters;
-  disabled?: boolean;
+  description?: string;
+  parameters?: TParameters;
+  disabled?: undefined;
   execute?: ToolExecuteFunction<InferArgsFromParameters<TParameters>, TResult>;
-  experimental_onSchemaValidationError?: OnSchemaValidationErrorFunction<TResult>;
+  experimental_onSchemaValidationError?: undefined;
+  streamCall?: undefined;
 };
 
 export type HumanTool<
-  TParameters extends JSONSchema7 | StandardSchemaV1 | z.ZodTypeAny,
+  TParameters = JSONSchema7 | StandardSchemaV1 | z.ZodTypeAny,
   TResult = unknown,
 > = ToolBase<InferArgsFromParameters<TParameters>, TResult> & {
   type?: "human" | undefined;
