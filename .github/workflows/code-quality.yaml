@@ -36,3 +36,6 @@ jobs:
       - name: Run Prettier
         run: pnpm prettier
         # This will fail the workflow if Prettier has warnings
+
+      - name: Run Tests
+        run: pnpm test

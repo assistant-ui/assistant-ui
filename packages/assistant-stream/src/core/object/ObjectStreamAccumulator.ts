@@ -50,9 +50,7 @@ export class ObjectStreamAccumulator {
     if (path.length === 0) return updater(state);
 
     // Initialize state as empty object if it's null and we're trying to set a property
-    if (state === null) {
-      state = {};
-    }
+    state ??= {};
 
     if (typeof state !== "object") {
       throw new Error(`Invalid path: [${path.join(", ")}]`);
