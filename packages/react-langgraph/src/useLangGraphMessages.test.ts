@@ -505,7 +505,6 @@ describe("useLangGraphMessages", {}, () => {
     });
 
     await waitFor(() => {
-      console.log(JSON.stringify(result.current.messages, null, 2));
       expect(result.current.messages.length).toEqual(2);
       expect(result.current.messages[0].type).toEqual("human");
       expect(result.current.messages[1].type).toEqual("ai");
