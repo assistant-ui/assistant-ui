@@ -14,8 +14,9 @@
       ]
     },
     "lint": {},
+    "test": {},
     "deploy": {
-      "dependsOn": ["build", "lint"]
+      "dependsOn": ["build", "lint", "test"]
     },
     "dev": {
       "cache": false,
