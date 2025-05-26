@@ -4,7 +4,7 @@ import { AsyncIterableStream } from "../../utils";
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 import { ToolResponse } from "./ToolResponse";
 import { z } from "zod";
-import { Tool as AITool } from "ai";
+import { Tool as AITool, Schema } from "ai";
 
 /**
  * Interface for reading tool call arguments from a stream, which are
@@ -126,7 +126,7 @@ type InferArgsFromParameters<T> =
 
 // Overloaded BackendTool type for better inference
 export type BackendTool<
-  TParameters = JSONSchema7 | StandardSchemaV1 | z.ZodTypeAny,
+  TParameters = JSONSchema7 | StandardSchemaV1 | z.ZodTypeAny | Schema,
   TResult = unknown,
 > = ToolBase<InferArgsFromParameters<TParameters>, TResult> & {
   type?: "backend" | undefined;
@@ -141,7 +141,7 @@ export type BackendTool<
 // Overloads for backendTool helper
 export function backendTool<
   // Zod type any is here to support users who haven't upgraded to v4
-  TParameters extends JSONSchema7 | StandardSchemaV1 | z.ZodTypeAny,
+  TParameters extends JSONSchema7 | StandardSchemaV1 | z.ZodTypeAny | Schema,
   TResult,
 >(
   tool: Omit<BackendTool<TParameters, TResult>, "execute"> & {
@@ -159,20 +159,6 @@ export const backendTools = <T extends Record<string, BackendTool>>(
   tools: T,
 ): T => tools;
 
-// export type FrontendTool<
-//   TParameters = JSONSchema7 | StandardSchemaV1 | z.ZodTypeAny,
-//   TResult = unknown,
-// > = ToolBase<InferArgsFromParameters<TParameters>, TResult> & {
-//   type?: "frontend" | undefined;
-
-//   description?: string | undefined;
-//   parameters: TParameters;
-//   disabled?: boolean;
-//   execute?: ToolExecuteFunction<InferArgsFromParameters<TParameters>, TResult>;
-//   experimental_onSchemaValidationError?: OnSchemaValidationErrorFunction<TResult>;
-//   streamCall?: undefined;
-// };
-
 export type FrontendTool<
   TParameters = JSONSchema7 | StandardSchemaV1 | z.ZodTypeAny,
   TResult = unknown,
@@ -182,13 +168,15 @@ export type FrontendTool<
   parameters?: TParameters;
   disabled?: undefined;
   execute?: ToolExecuteFunction<InferArgsFromParameters<TParameters>, TResult>;
-  // render?: (
-  //   args: Awaited<
-  //     ReturnType<
-  //       ToolExecuteFunction<InferArgsFromParameters<TParameters>, TResult>
-  //     >
-  //   >,
-  // ) => React.ReactNode;
+  render?:
+    | ((
+        args: Awaited<
+          ReturnType<
+            ToolExecuteFunction<InferArgsFromParameters<TParameters>, TResult>
+          >
+        >,
+      ) => React.ReactNode)
+    | false;
   experimental_onSchemaValidationError?: undefined;
   streamCall?: undefined;
 };
@@ -205,11 +193,6 @@ export function frontendTool<
     ) => TResult | Promise<TResult>;
   },
 ): FrontendTool<TParameters, TResult> {
-  // return {
-  //   ...tool,
-  //   type: "frontend",
-  //   disabled: undefined,
-  // };
   return tool;
 }
 
@@ -222,13 +205,15 @@ export type HumanTool<
   parameters: TParameters;
   disabled?: boolean;
   execute?: ToolExecuteFunction<InferArgsFromParameters<TParameters>, TResult>;
-  // render?: (
-  //   args: Awaited<
-  //     ReturnType<
-  //       ToolExecuteFunction<InferArgsFromParameters<TParameters>, TResult>
-  //     >
-  //   >,
-  // ) => React.ReactNode;
+  render?:
+    | ((
+        args: Awaited<
+          ReturnType<
+            ToolExecuteFunction<InferArgsFromParameters<TParameters>, TResult>
+          >
+        >,
+      ) => React.ReactNode)
+    | false;
   experimental_onSchemaValidationError?: undefined;
 };
 
@@ -241,6 +226,7 @@ export type Tool<
   | HumanTool<TArgs, TResult>;
 
 export const toAISDKTool = <T extends BackendTool>(tool: T): AITool => {
+  console.log("tool: ", tool);
   const result: any = {
     description: tool.description,
     parameters: tool.parameters,
@@ -253,5 +239,10 @@ export const toAISDKTool = <T extends BackendTool>(tool: T): AITool => {
   if (tool.streamCall !== undefined) {
     result.streamCall = tool.streamCall;
   }
-  return result as AITool;
+
+  return {
+    description: tool.description,
+    parameters: tool.parameters,
+    execute: tool.execute,
+  } as AITool;
 };
