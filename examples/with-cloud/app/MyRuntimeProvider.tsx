@@ -4,7 +4,10 @@ import { AssistantCloud, AssistantRuntimeProvider } from "@assistant-ui/react";
 // import { useEdgeRuntime } from "@assistant-ui/react-edge";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 // CG TODO: cleanup this import
-import { createToolbox } from "@assistant-ui/react/model-context/tool";
+import {
+  createToolbox,
+  testTypes,
+} from "@assistant-ui/react/model-context/tool";
 import type { BackendTools } from "./api/chat/route";
 import { z } from "zod";
 
@@ -55,20 +58,80 @@ const cloud = new AssistantCloud({
 //   },
 // });
 
-const toolbox = createToolbox<BackendTools>()
-  .tool("test", {
+// const toolbox = createToolbox<BackendTools>((tool) => {
+//   tool.tool("test", {
+//     parameters: z.object({
+//       name: z.string(),
+//     }),
+//     execute: async (args) => {
+//       return `Other: ${args.name}`;
+//     },
+//   });
+// });
+// .tool("test", {
+//   parameters: z.object({
+//     name: z.string(),
+//   }),
+//   execute: async (args) => {
+//     return `Other: ${args.name}`;
+//   },
+// })
+// .tool("weather", {
+//   render: (args) => <div>Weather: {args.weather}</div>,
+// });
+
+// createToolbox((tool) => {
+//   weather: tool.
+// })
+
+// const toolbox = createToolbox<BackendTools>((tool) => ({
+//   weather: {
+//     render: (args) => <div>Weather: {args.weather}</div>,
+//   },
+//   day: {
+//     render: (args) => <div>Day: {args.day}</div>,
+//   },
+//   rain: {
+//     render: (args) => <div>Rain: {args.rain}</div>,
+//   },
+//   test: tool({
+//     type: "frontend",
+//     description: "Test tool",
+//     parameters: z.object({
+//       name: z.string(),
+//     }),
+//     execute: async (args) => {
+//       return `Other: ${args.name}`;
+//     },
+//   }),
+// }));
+
+// type Toolbox = typeof toolbox;
+
+// type Test = Toolbox["test"];
+
+// type a = Test["parameters"];
+
+// const a = {} as a;
+
+// a.name;
+
+// console.log(toolbox);
+
+testTypes<BackendTools>((t) => ({
+  weather: true,
+  day: true,
+  rain: true,
+  a: t({
+    type: "frontend",
     parameters: z.object({
       name: z.string(),
     }),
     execute: async (args) => {
       return `Other: ${args.name}`;
     },
-  })
-  .tool("weather", {
-    render: (args) => <div>Weather: {args.weather}</div>,
-  });
-
-console.log(toolbox);
+  }),
+}));
 
 export function MyRuntimeProvider({
   children,
