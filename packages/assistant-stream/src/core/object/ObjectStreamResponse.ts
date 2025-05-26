@@ -11,31 +11,42 @@ export class ObjectStreamEncoder extends PipeableTransformStream<
     super((readable) =>
       readable
         .pipeThrough(
-          new TransformStream<
-            ObjectStreamChunk,
-            readonly ObjectStreamOperation[]
-          >({
-            start() {
-              (this as any).isFirstChunk = true;
-            },
-            transform(chunk, controller) {
-              if (
-                (this as any).isFirstChunk &&
-                chunk.snapshot &&
-                Object.keys(chunk.snapshot).length > 0
-              ) {
-                // For the first chunk, if there's an initial state that's not empty,
-                // prepend a set operation for the initial state
-                controller.enqueue([
-                  { type: "set", path: [], value: chunk.snapshot },
-                  ...chunk.operations,
-                ]);
-              } else {
-                controller.enqueue(chunk.operations);
+          (() => {
+            class ObjectStreamTransformer
+              implements
+                Transformer<ObjectStreamChunk, readonly ObjectStreamOperation[]>
+            {
+              #isFirstChunk = true;
+
+              start() {
+                // Nothing needed here since we initialize in the field declaration
               }
-              (this as any).isFirstChunk = false;
-            },
-          }),
+
+              transform(
+                chunk: ObjectStreamChunk,
+                controller: TransformStreamDefaultController<
+                  readonly ObjectStreamOperation[]
+                >,
+              ) {
+                if (
+                  this.#isFirstChunk &&
+                  chunk.snapshot &&
+                  Object.keys(chunk.snapshot).length > 0
+                ) {
+                  // For the first chunk, if there's an initial state that's not empty,
+                  // prepend a set operation for the initial state
+                  controller.enqueue([
+                    { type: "set", path: [], value: chunk.snapshot },
+                    ...chunk.operations,
+                  ]);
+                } else {
+                  controller.enqueue(chunk.operations);
+                }
+                this.#isFirstChunk = false;
+              }
+            }
+            return new TransformStream(new ObjectStreamTransformer());
+          })(),
         )
         .pipeThrough(new SSEEncoder()),
     );
