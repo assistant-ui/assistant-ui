@@ -1,7 +1,7 @@
 "use client";
 
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
-import { RefCallback, useEffect, useRef } from "react";
+import { RefCallback, useCallback, useEffect, useRef } from "react";
 import { useThreadRuntime } from "../../context/react/ThreadContext";
 import { useOnResizeContent } from "../../utils/hooks/useOnResizeContent";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
@@ -28,13 +28,16 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   // fix: delay the state change until the scroll is done
   const isScrollingToBottomRef = useRef(false);
 
-  const scrollToBottom = (behavior: ScrollBehavior) => {
-    const div = divRef.current;
-    if (!div || !autoScroll) return;
+  const scrollToBottom = useCallback(
+    (behavior: ScrollBehavior) => {
+      const div = divRef.current;
+      if (!div || !autoScroll) return;
 
-    isScrollingToBottomRef.current = true;
-    div.scrollTo({ top: div.scrollHeight, behavior });
-  };
+      isScrollingToBottomRef.current = true;
+      div.scrollTo({ top: div.scrollHeight, behavior });
+    },
+    [autoScroll],
+  );
 
   const handleScroll = () => {
     const div = divRef.current;
@@ -90,5 +93,5 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   }, [scrollToBottom, threadRuntime]);
 
   const autoScrollRef = useComposedRefs<TElement>(resizeRef, scrollRef, divRef);
-  return autoScrollRef;
+  return autoScrollRef as RefCallback<TElement>;
 };

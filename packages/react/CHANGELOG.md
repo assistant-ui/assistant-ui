@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.10.12
+
+### Patch Changes
+
+- chore: update deps
+- Updated dependencies
+  - assistant-stream@0.2.10
+
 ## 0.10.11
 
 ### Patch Changes
