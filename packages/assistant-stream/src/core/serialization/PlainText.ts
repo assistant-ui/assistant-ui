@@ -22,20 +22,22 @@ export class PlainTextEncoder
               controller.enqueue(chunk.textDelta);
               break;
 
+            case "part-start":
+            case "part-finish":
+            case "step-start":
+            case "step-finish":
+            case "message-finish":
+            case "error":
+              break;
+
             default:
               const unsupportedType:
-                | "part-start"
-                | "part-finish"
                 | "tool-call-args-text-finish"
                 | "data"
-                | "step-start"
-                | "step-finish"
-                | "message-finish"
                 | "annotations"
                 | "tool-call-begin"
                 | "tool-call-delta"
                 | "result"
-                | "error"
                 | "update-state" = type;
               throw new Error(`unsupported chunk type: ${unsupportedType}`);
           }
