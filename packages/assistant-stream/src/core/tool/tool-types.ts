@@ -96,6 +96,7 @@ export type ToolStreamCallFunction<
   context: ToolExecutionContext,
 ) => void;
 
+// CG TODO: Reimplement this
 type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<
   unknown,
   TResult
@@ -111,17 +112,6 @@ type ToolBase<
   streamCall?: ToolStreamCallFunction<TArgs, TResult>;
 };
 
-// Utility type to infer argument types from parameters schema
-// Always ensures the result extends Record<string, unknown>
-// type InferArgsFromParameters<T> =
-//   T extends StandardSchemaV1<infer U>
-//     ? U extends Record<string, unknown>
-//       ? U
-//       : Record<string, unknown>
-//     : T extends JSONSchema7
-//       ? Record<string, unknown>
-//       : Record<string, unknown>;
-
 type InferArgsFromParameters<T> =
   T extends StandardSchemaV1<infer U>
     ? U extends Record<string, unknown>
@@ -130,8 +120,8 @@ type InferArgsFromParameters<T> =
     : T extends JSONSchema7
       ? Record<string, unknown>
       : T extends z.ZodTypeAny
-        ? T
-        : never;
+        ? z.infer<T>
+        : Record<string, unknown>;
 
 // Overloaded BackendTool type for better inference
 export type BackendTool<
@@ -194,6 +184,21 @@ export type FrontendTool<
   experimental_onSchemaValidationError?: undefined;
   streamCall?: undefined;
 };
+
+export function frontendTool<
+  // Zod type any is here to support users who haven't upgraded to v4
+  TParameters extends JSONSchema7 | StandardSchemaV1 | z.ZodTypeAny,
+  TResult,
+>(
+  tool: Omit<FrontendTool<TParameters, TResult>, "execute"> & {
+    execute: (
+      args: InferArgsFromParameters<TParameters>,
+      context: ToolExecutionContext,
+    ) => TResult | Promise<TResult>;
+  },
+): FrontendTool<TParameters, TResult> {
+  return tool;
+}
 
 export type HumanTool<
   TParameters = JSONSchema7 | StandardSchemaV1 | z.ZodTypeAny,
