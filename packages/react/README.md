@@ -17,7 +17,7 @@
 
 ## The UX of ChatGPT in your React app 💬🚀
 
-**assistant-ui** is an open source Typescript/React library for AI chat.
+**assistant-ui** is an open source TypeScript/React library for AI chat.
 
 The library handles essential chat features such as auto-scrolling, accessibility, and real-time updates, while providing easy integration with LangGraph, AI SDK and custom backends.
 

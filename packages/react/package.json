@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react",
-  "description": "Typescript/React library for AI Chat",
+  "description": "TypeScript/React library for AI Chat",
   "keywords": [
     "radix-ui",
     "nextjs",
