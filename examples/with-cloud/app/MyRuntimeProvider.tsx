@@ -10,6 +10,7 @@ import {
 } from "@assistant-ui/react/model-context/tool";
 import type { BackendTools } from "./api/chat/route";
 import { z } from "zod";
+import { BackendTool } from "assistant-stream/core";
 
 const cloud = new AssistantCloud({
   baseUrl: process.env["NEXT_PUBLIC_ASSISTANT_BASE_URL"]!,
@@ -144,21 +145,37 @@ const cloud = new AssistantCloud({
 //   },
 // });
 
-const test2 = <T extends Record<string, any>>(
-  a: {
-    [K in keyof T]: T[K];
-  } & {
-    [K in keyof BackendTools]: {
-      render: (
-        args: Awaited<ReturnType<NonNullable<BackendTools[K]["execute"]>>>,
-      ) => React.ReactNode;
-    };
-  },
-) => {
-  return a;
+// const test2 = <T extends Record<string, any>>(
+//   a: {
+//     [K in keyof T]: T[K];
+//   } & {
+//     [K in keyof BackendTools]: {
+//       render: (
+//         args: Awaited<ReturnType<NonNullable<BackendTools[K]["execute"]>>>,
+//       ) => React.ReactNode;
+//     };
+//   },
+// ) => {
+//   return a;
+// };
+
+const test2 = <BE extends Record<string, BackendTool>>() => {
+  return <T extends Record<string, any>>(
+    a: {
+      [K in keyof T]: T[K];
+    } & {
+      [K in keyof BE]: {
+        render: (
+          args: Awaited<ReturnType<NonNullable<BE[K]["execute"]>>>,
+        ) => React.ReactNode;
+      };
+    },
+  ) => {
+    return a;
+  };
 };
 
-const res = test2({
+const res = test2<BackendTools>()({
   hi: "test",
   weather: {
     render: (args) => <div>Weather: {args.weather}</div>,
