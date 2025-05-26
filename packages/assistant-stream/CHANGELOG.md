@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.2.9
+
+### Patch Changes
+
+- fix: PlainTextEncoder should ignore part-start/finish
+
 ## 0.2.8
 
 ### Patch Changes

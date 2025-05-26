@@ -1,5 +1,11 @@
 # @assistant-ui/styles
 
+## 0.1.9
+
+### Patch Changes
+
+- bd763a6: fix: shiki styles for non tw users
+
 ## 0.1.8
 
 ### Patch Changes
