@@ -1,10 +1,9 @@
 import { openai } from "@ai-sdk/openai";
-// import { frontendTools } from "@assistant-ui/react-ai-sdk";
-import { jsonSchema, streamText } from "ai";
+import { jsonSchema, streamText, Tool, tool } from "ai";
 import {
   backendTool,
   backendTools,
-  // BackendTool,
+  toAISDKTool,
 } from "assistant-stream/core/tool/tool-types";
 import { z } from "zod";
 import { z as zv4 } from "zod/v4";
@@ -40,7 +39,7 @@ const weatherTool = backendTool({
 
 const dayTool = backendTool({
   description: "Get the current day of the week",
-  parameters: {
+  parameters: jsonSchema({
     type: "object",
     properties: {
       timezone: {
@@ -50,7 +49,7 @@ const dayTool = backendTool({
     },
     required: ["timezone"],
     additionalProperties: false,
-  },
+  }),
   execute: async () => {
     return {
       day: "Monday",
@@ -75,23 +74,45 @@ export async function POST(req: Request) {
 
   const allTools = {
     ...(tools || {}),
-    weather: weatherTool,
-    day: dayTool,
   };
+
+  console.log(
+    "allTools",
+    Object.fromEntries(
+      Object.entries<{ parameters: unknown }>(allTools).map(([name, tool]) => [
+        name,
+        {
+          parameters: tool.parameters,
+        },
+      ]),
+    ),
+  );
+
+  console.log("weather: ", JSON.stringify(toAISDKTool(weatherTool)));
+  // console.log("day: ", JSON.stringify(toAISDKTool(dayTool)));
 
   const result = streamText({
     model: openai("gpt-4o"),
     messages,
     // forward system prompt and tools from the frontend
     system,
-    tools: Object.fromEntries(
-      Object.entries<{ parameters: unknown }>(allTools).map(([name, tool]) => [
-        name,
-        {
-          parameters: jsonSchema(tool.parameters!),
-        },
-      ]),
-    ),
+    tools: {
+      ...Object.fromEntries(
+        Object.entries<{ parameters: unknown }>(allTools).map(
+          ([name, tool]) => [
+            name,
+            {
+              parameters: jsonSchema(tool.parameters as object),
+            },
+          ],
+        ),
+      ),
+      weather: toAISDKTool(weatherTool),
+      day: toAISDKTool(dayTool),
+    },
+    onError: (error) => {
+      console.error("error", error);
+    },
   });
 
   return result.toDataStreamResponse();

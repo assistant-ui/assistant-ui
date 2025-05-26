@@ -21,6 +21,7 @@ const toolbox = createToolbox<BackendTools>()({
     execute: async (args) => {
       return `Other: ${args.name}`;
     },
+    render: (args) => <div>Hi: {JSON.stringify(args)} confirmed</div>,
     // CG TODO: Add disable frontend rendering.
   }),
   weather: {
@@ -45,7 +46,7 @@ export function MyRuntimeProvider({
   });
 
   return (
-    <AssistantRuntimeProvider runtime={runtime}>
+    <AssistantRuntimeProvider runtime={runtime} toolbox={toolbox}>
       {children}
     </AssistantRuntimeProvider>
   );
