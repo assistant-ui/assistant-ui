@@ -35,7 +35,7 @@ export default async function Page(props: {
       )}
     >
       <EditIcon className="size-3" />
-      Edit on Github
+      Edit on GitHub
     </a>
   );
 

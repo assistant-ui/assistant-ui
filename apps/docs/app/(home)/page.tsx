@@ -69,7 +69,7 @@ export default function HomePage() {
               className={buttonVariants({ variant: "outline" })}
               href="https://github.com/assistant-ui/assistant-ui"
             >
-              <span className="mr-2">🌟</span> Star us on Github
+              <span className="mr-2">🌟</span> Star us on GitHub
             </a>
           </div>
         </div>
