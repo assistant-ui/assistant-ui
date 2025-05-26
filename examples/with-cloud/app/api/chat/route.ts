@@ -1,5 +1,5 @@
 import { openai } from "@ai-sdk/openai";
-import { jsonSchema, streamText, Tool, tool } from "ai";
+import { jsonSchema, streamText } from "ai";
 import {
   backendTool,
   backendTools,
