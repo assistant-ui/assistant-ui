@@ -18,7 +18,7 @@ export default function PricingPage() {
 
         <div className="mx-auto mb-6 w-full max-w-[1000px]">
           <h2 className="mb-2 mt-4 text-2xl font-bold">assistant-ui</h2>
-          <p className="text-lg">Typescript/React library for AI chat</p>
+          <p className="text-lg">TypeScript/React library for AI chat</p>
         </div>
         <OpenSourceCard />
 
