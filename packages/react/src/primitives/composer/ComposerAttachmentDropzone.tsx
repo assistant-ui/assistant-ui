@@ -1,8 +1,8 @@
 import { forwardRef, useCallback, useState } from "react";
 
-import { useComposerRuntime } from "@assistant-ui/react";
 import { Slot } from "@radix-ui/react-slot";
 import React from "react";
+import { useComposerRuntime } from "../../context";
 
 export namespace ComposerAttachmentDropzonePrimitive {
   export type Element = HTMLDivElement;
