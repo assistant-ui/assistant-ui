@@ -4,6 +4,7 @@ import { AsyncIterableStream } from "../../utils";
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 import { ToolResponse } from "./ToolResponse";
 import { z } from "zod";
+import { Tool as AITool } from "ai";
 
 /**
  * Interface for reading tool call arguments from a stream, which are
@@ -181,6 +182,13 @@ export type FrontendTool<
   parameters?: TParameters;
   disabled?: undefined;
   execute?: ToolExecuteFunction<InferArgsFromParameters<TParameters>, TResult>;
+  // render?: (
+  //   args: Awaited<
+  //     ReturnType<
+  //       ToolExecuteFunction<InferArgsFromParameters<TParameters>, TResult>
+  //     >
+  //   >,
+  // ) => React.ReactNode;
   experimental_onSchemaValidationError?: undefined;
   streamCall?: undefined;
 };
@@ -197,6 +205,11 @@ export function frontendTool<
     ) => TResult | Promise<TResult>;
   },
 ): FrontendTool<TParameters, TResult> {
+  // return {
+  //   ...tool,
+  //   type: "frontend",
+  //   disabled: undefined,
+  // };
   return tool;
 }
 
@@ -205,11 +218,17 @@ export type HumanTool<
   TResult = unknown,
 > = ToolBase<InferArgsFromParameters<TParameters>, TResult> & {
   type?: "human" | undefined;
-
   description?: string | undefined;
   parameters: TParameters;
   disabled?: boolean;
-  execute?: undefined;
+  execute?: ToolExecuteFunction<InferArgsFromParameters<TParameters>, TResult>;
+  // render?: (
+  //   args: Awaited<
+  //     ReturnType<
+  //       ToolExecuteFunction<InferArgsFromParameters<TParameters>, TResult>
+  //     >
+  //   >,
+  // ) => React.ReactNode;
   experimental_onSchemaValidationError?: undefined;
 };
 
@@ -220,3 +239,19 @@ export type Tool<
   | FrontendTool<TArgs, TResult>
   | BackendTool<TArgs, TResult>
   | HumanTool<TArgs, TResult>;
+
+export const toAISDKTool = <T extends BackendTool>(tool: T): AITool => {
+  const result: any = {
+    description: tool.description,
+    parameters: tool.parameters,
+    execute: tool.execute,
+  };
+  if (tool.experimental_onSchemaValidationError !== undefined) {
+    result.experimental_onSchemaValidationError =
+      tool.experimental_onSchemaValidationError;
+  }
+  if (tool.streamCall !== undefined) {
+    result.streamCall = tool.streamCall;
+  }
+  return result as AITool;
+};
