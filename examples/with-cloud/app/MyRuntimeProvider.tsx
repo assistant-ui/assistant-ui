@@ -1,14 +1,12 @@
 "use client";
 
 import { AssistantCloud, AssistantRuntimeProvider } from "@assistant-ui/react";
-// import { useEdgeRuntime } from "@assistant-ui/react-edge";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { createToolbox } from "@assistant-ui/react/model-context/tool";
-import type { BackendTools } from "./api/chat/route";
 import { z } from "zod";
 import { frontendTool } from "assistant-stream/core/tool/tool-types";
-import { useState } from "react";
-import { useEffect } from "react";
+import { BackendTools } from "./api/chat/route";
+import { useEffect, useState } from "react";
 
 const cloud = new AssistantCloud({
   baseUrl: process.env["NEXT_PUBLIC_ASSISTANT_BASE_URL"]!,
@@ -34,7 +32,7 @@ const toolbox = createToolbox<BackendTools>()({
   }),
   weather: {
     // render: ({ result }) => <div>Weather: {result?.weather}</div>,
-    render: false,
+    render: ({ result }) => <div>Weather: {result?.weather}</div>,
   },
   day: {
     render: ({ result }) => <div>Day: {result?.day}</div>,
