@@ -5,7 +5,7 @@ import { JSONSchema7 } from "json-schema";
 import { StandardSchemaV1 } from "@standard-schema/spec";
 import z from "zod";
 import {
-  useAssistantRuntime,
+  // useAssistantRuntime,
   useToolUIsStore,
 } from "../context/react/AssistantContext";
 
@@ -53,25 +53,30 @@ export const createToolbox = <
     */
 
     const useTool = <Name extends keyof T>(name: Name) => {
+      console.log("this runs??/");
       // const
-      const runtime = useAssistantRuntime();
+      // const runtime = useAssistantRuntime();
       const useToolUIs = useToolUIsStore();
 
+      // const context = useContext(AssistantContext);
+
+      // context?.useAssistantRuntime().registerModelContextProvider
+
       return {
-        disable: () => {
-          runtime.registerModelContextProvider({
-            getModelContext: () => ({
-              tools: { [name]: { disabled: true } },
-            }),
-          });
-        },
-        enable: () => {
-          runtime.registerModelContextProvider({
-            getModelContext: () => ({
-              tools: { [name]: { disabled: false } },
-            }),
-          });
-        },
+        // disable: () => {
+        //   runtime.registerModelContextProvider({
+        //     getModelContext: () => ({
+        //       tools: { [name]: { disabled: true } },
+        //     }),
+        //   });
+        // },
+        // enable: () => {
+        //   runtime.registerModelContextProvider({
+        //     getModelContext: () => ({
+        //       tools: { [name]: { disabled: false } },
+        //     }),
+        //   });
+        // },
         setUI: (
           ui: Name extends keyof BackendTools
             ? ComponentType<
