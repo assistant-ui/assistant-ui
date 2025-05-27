@@ -29,7 +29,6 @@ export type inferTool<T> = T extends {
     ? T & { Args: Args; Result: Result }
     : T;
 
-// CG TODO: add a way to pass in a toolbox
 export namespace AssistantRuntimeProvider {
   export type Props = PropsWithChildren<{
     /**
@@ -103,29 +102,14 @@ export const AssistantRuntimeProviderImpl: FC<
       const tools = Object.fromEntries(
         Object.entries(toolbox)
           .map(([toolName, tool]) => {
-            if (tool.disabled) {
-              return [toolName, tool];
-            }
-
-            console.log("toolname: ", toolName, tool);
-
-            if (
-              typeof tool === "object" &&
-              tool !== null &&
-              "render" in tool &&
-              typeof (tool as any).render === "function"
-            ) {
-              console.log("register: ", toolName, tool);
-              // Remove the render property safely
-              const { render, ...rest } = tool as inferTool<typeof tool>;
-              return [toolName, rest];
-            }
-            return [toolName, tool];
+            const { render, ...rest } = tool;
+            return [toolName, rest];
           })
           .filter(
             ([, tool]) =>
               tool && typeof tool === "object" && Object.keys(tool).length > 0,
-          ),
+          )
+          .filter(([, tool]) => (tool as any)?.execute),
       );
 
       console.log("tools to register: ", tools);
