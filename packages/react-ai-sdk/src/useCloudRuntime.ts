@@ -7,7 +7,7 @@ type UseCloudRuntimeOptions = Omit<UseChatRuntimeOptions, "api"> & {
 };
 
 /**
- * @deprecated This is under active development and not yet ready for prod use. 
+ * @deprecated This is under active development and not yet ready for prod use.
  */
 export const useCloudRuntime = (options: UseCloudRuntimeOptions) => {
   const opts = options.cloud.runs.__internal_getAssistantOptions(
