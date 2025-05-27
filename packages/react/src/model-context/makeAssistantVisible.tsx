@@ -14,11 +14,11 @@ import {
 import { z } from "zod";
 import { useAssistantRuntime } from "../context";
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
-import { tool } from "./tool";
+import { frontendTool } from "../../../assistant-stream/dist/core/tool/tool-types";
 
 // TODO replace zod with json-schema so we can drop the zod dep
 
-const click = tool({
+const click = frontendTool({
   parameters: z.object({
     clickId: z.string(),
   }),
@@ -37,7 +37,7 @@ const click = tool({
   },
 });
 
-const edit = tool({
+const edit = frontendTool({
   parameters: z.object({
     editId: z.string(),
     value: z.string(),
