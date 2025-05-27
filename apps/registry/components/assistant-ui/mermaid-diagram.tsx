@@ -57,7 +57,7 @@ export const MermaidDiagram: FC<MermaidDiagramProps> = ({
     (async () => {
       try {
         const element = document.createElement("div");
-        element.innerHTML = code;
+        element.textContent = code;
         element.classList.add("mermaid");
         ref.current!.replaceChildren(element);
         await mermaid.run({ nodes: [element] });
