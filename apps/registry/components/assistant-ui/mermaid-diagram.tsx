@@ -59,8 +59,10 @@ export const MermaidDiagram: FC<MermaidDiagramProps> = ({
         const element = document.createElement("div");
         element.textContent = code;
         element.classList.add("mermaid");
-        ref.current!.replaceChildren(element);
         await mermaid.run({ nodes: [element] });
+        if (ref.current) {
+          ref.current.replaceChildren(element);
+        }
       } catch (e) {
         console.warn("Failed to render Mermaid diagram:", e);
       }
