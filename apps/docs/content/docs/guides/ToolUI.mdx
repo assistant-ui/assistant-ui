@@ -19,20 +19,82 @@ Tool UIs in assistant-ui allow you to create custom interfaces that appear when 
 - **Enabling user interaction** through forms and controls
 - **Providing error feedback** with helpful recovery options
 
-This guide demonstrates building tool UIs with the **Vercel AI SDK**. 
+This guide demonstrates building tool UIs with the **Vercel AI SDK**.
 
-<Callout>
-Using Mastra? Check out the [Mastra Generative UI guide](/docs/runtimes/mastra/tool-ui-example) for specific examples and patterns.
-</Callout>
+## Creating Tool UIs
 
-## Quick Start
+There are two main approaches to creating tool UIs in assistant-ui:
+
+### 1. Complete Tool with UI (`makeAssistantTool`)
+
+If you're creating a new tool from scratch, you can use `makeAssistantTool` to define both the tool's execution logic and its UI in one place. This is ideal when you control both the frontend and backend:
+
+```tsx
+import { makeAssistantTool } from "@assistant-ui/react";
+import { z } from "zod";
+
+const WeatherTool = makeAssistantTool<
+  { location: string; unit: "celsius" | "fahrenheit" },
+  { temperature: number; description: string }
+>({
+  toolName: "getWeather",
+  description: "Get current weather for a location",
+  parameters: z.object({
+    location: z.string(),
+    unit: z.enum(["celsius", "fahrenheit"]),
+  }),
+  // Tool execution logic
+  execute: async ({ location, unit }) => {
+    const weather = await fetchWeatherAPI(location, unit);
+    return weather;
+  },
+  // Tool UI rendering
+  render: ({ args, result, status }) => {
+    if (status.type === "running") {
+      return <div>Checking weather in {args.location}...</div>;
+    }
+
+    return (
+      <div className="weather-card">
+        <h3>{args.location}</h3>
+        <p>
+          {result.temperature}°{args.unit === "celsius" ? "C" : "F"}
+        </p>
+        <p>{result.description}</p>
+      </div>
+    );
+  },
+});
+```
+
+Learn more about creating tools in the [Tools Guide](/docs/guides/Tools).
+
+### 2. UI-Only for Existing Tools (`makeAssistantToolUI`)
+
+If your tool is defined elsewhere (e.g., in your backend API, MCP server, or LangGraph), use `makeAssistantToolUI` to create just the UI component:
+
+```tsx
+import { makeAssistantToolUI } from "@assistant-ui/react";
+
+const WeatherToolUI = makeAssistantToolUI<
+  { location: string; unit: "celsius" | "fahrenheit" },
+  { temperature: number; description: string }
+>({
+  toolName: "getWeather", // Must match the backend tool name
+  render: ({ args, result, status }) => {
+    // UI rendering logic only
+  },
+});
+```
+
+## Quick Start Example
+
+This example shows how to implement the UI-only approach using `makeAssistantToolUI`:
 
 <Steps>
   <Step>
 
 ### Create a Tool UI Component
-
-Use `makeAssistantToolUI` to create a reusable tool UI component:
 
 ```tsx
 import { makeAssistantToolUI } from "@assistant-ui/react";
@@ -71,11 +133,13 @@ const WeatherToolUI = makeAssistantToolUI<WeatherArgs, WeatherResult>({
     }
 
     return (
-      <div className="weather-card p-4 rounded-lg bg-blue-50">
-        <h3 className="font-bold text-lg">{args.location}</h3>
-        <div className="grid grid-cols-2 gap-4 mt-2">
+      <div className="weather-card rounded-lg bg-blue-50 p-4">
+        <h3 className="text-lg font-bold">{args.location}</h3>
+        <div className="mt-2 grid grid-cols-2 gap-4">
           <div>
-            <p className="text-2xl">{result.temperature}°{args.unit === "celsius" ? "C" : "F"}</p>
+            <p className="text-2xl">
+              {result.temperature}°{args.unit === "celsius" ? "C" : "F"}
+            </p>
             <p className="text-gray-600">{result.description}</p>
           </div>
           <div className="text-sm">
@@ -120,7 +184,7 @@ import { z } from "zod";
 
 export async function POST(req: Request) {
   const { messages } = await req.json();
-  
+
   const result = streamText({
     model: openai("gpt-4o"),
     messages,
@@ -143,7 +207,7 @@ export async function POST(req: Request) {
       }),
     },
   });
-  
+
   return result.toDataStreamResponse();
 }
 ```
@@ -155,7 +219,7 @@ export async function POST(req: Request) {
 
 ### Component Pattern
 
-Create standalone tool UI components that auto-register when mounted:
+Create standalone tool UI components:
 
 ```tsx
 export const WebSearchToolUI = makeAssistantToolUI<
@@ -166,17 +230,17 @@ export const WebSearchToolUI = makeAssistantToolUI<
   render: ({ args, status, result }) => {
     return (
       <div className="search-container">
-        <div className="flex items-center gap-2 mb-3">
+        <div className="mb-3 flex items-center gap-2">
           <SearchIcon />
           <span>Search results for: "{args.query}"</span>
         </div>
-        
+
         {status.type === "running" && <LoadingSpinner />}
-        
+
         {result && (
           <div className="space-y-2">
             {result.results.map((item, index) => (
-              <div key={index} className="p-3 border rounded">
+              <div key={index} className="rounded border p-3">
                 <a href={item.url} className="font-medium text-blue-600">
                   {item.title}
                 </a>
@@ -200,21 +264,21 @@ import { useAssistantToolUI } from "@assistant-ui/react";
 
 function DynamicToolUI() {
   const [theme, setTheme] = useState("light");
-  
+
   useAssistantToolUI({
     toolName: "analyzeData",
     render: ({ args, result, status }) => {
       // Hook allows access to component state
       return (
-        <DataVisualization 
-          data={result} 
+        <DataVisualization
+          data={result}
           theme={theme}
           loading={status.type === "running"}
         />
       );
     },
   });
-  
+
   return null;
 }
 ```
@@ -234,13 +298,15 @@ function ProductPage({ productId, productName }) {
       return (
         <div className="inventory-status">
           <h4>{productName} Inventory</h4>
-          <p>Stock for {productId}: {result.quantity} units</p>
+          <p>
+            Stock for {productId}: {result.quantity} units
+          </p>
           <p>Location: {result.warehouse}</p>
         </div>
       );
     }),
   });
-  
+
   return <div>Product details...</div>;
 }
 ```
@@ -260,14 +326,14 @@ const DatePickerToolUI = makeAssistantToolUI<
   render: ({ args, result, addResult }) => {
     if (result) {
       return (
-        <div className="p-3 bg-green-50 rounded">
+        <div className="rounded bg-green-50 p-3">
           ✅ Selected date: {new Date(result.date).toLocaleDateString()}
         </div>
       );
     }
-    
+
     return (
-      <div className="p-4 border rounded">
+      <div className="rounded border p-4">
         <p className="mb-3">{args.prompt}</p>
         <DatePicker
           onChange={(date) => {
@@ -292,7 +358,7 @@ const ApprovalToolUI = makeAssistantToolUI<
   toolName: "requestApproval",
   render: ({ args, result, addResult }) => {
     const [reason, setReason] = useState("");
-    
+
     if (result) {
       return (
         <div className={result.approved ? "text-green-600" : "text-red-600"}>
@@ -300,25 +366,25 @@ const ApprovalToolUI = makeAssistantToolUI<
         </div>
       );
     }
-    
+
     return (
-      <div className="p-4 border-2 border-yellow-400 rounded">
+      <div className="rounded border-2 border-yellow-400 p-4">
         <h4 className="font-bold">Approval Required</h4>
         <p className="my-2">{args.action}</p>
-        <pre className="text-sm bg-gray-100 p-2 rounded">
+        <pre className="rounded bg-gray-100 p-2 text-sm">
           {JSON.stringify(args.details, null, 2)}
         </pre>
-        
-        <div className="flex gap-2 mt-4">
+
+        <div className="mt-4 flex gap-2">
           <button
             onClick={() => addResult({ approved: true })}
-            className="px-4 py-2 bg-green-500 text-white rounded"
+            className="rounded bg-green-500 px-4 py-2 text-white"
           >
             Approve
           </button>
           <button
             onClick={() => addResult({ approved: false, reason })}
-            className="px-4 py-2 bg-red-500 text-white rounded"
+            className="rounded bg-red-500 px-4 py-2 text-white"
           >
             Reject
           </button>
@@ -327,7 +393,7 @@ const ApprovalToolUI = makeAssistantToolUI<
             placeholder="Rejection reason..."
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            className="flex-1 px-2 border rounded"
+            className="flex-1 rounded border px-2"
           />
         </div>
       </div>
@@ -347,10 +413,10 @@ render: ({ status, args }) => {
   switch (status.type) {
     case "running":
       return <LoadingState />;
-      
+
     case "requires-action":
       return <UserInputRequired reason={status.reason} />;
-      
+
     case "incomplete":
       if (status.reason === "cancelled") {
         return <div>Operation cancelled</div>;
@@ -359,11 +425,11 @@ render: ({ status, args }) => {
         return <ErrorDisplay error={status.error} />;
       }
       return <div>Failed: {status.reason}</div>;
-      
+
     case "complete":
       return <SuccessDisplay />;
   }
-}
+};
 ```
 
 ### Field-Level Validation
@@ -378,7 +444,7 @@ const FormToolUI = makeAssistantToolUI({
   render: ({ args }) => {
     const emailStatus = useToolArgsFieldStatus("email");
     const phoneStatus = useToolArgsFieldStatus("phone");
-    
+
     return (
       <form className="space-y-4">
         <div>
@@ -392,7 +458,7 @@ const FormToolUI = makeAssistantToolUI({
             <span className="text-red-500">Invalid email</span>
           )}
         </div>
-        
+
         <div>
           <input
             type="tel"
@@ -420,27 +486,27 @@ const AnalysisToolUI = makeAssistantToolUI<
   render: ({ result, status }) => {
     const progress = result?.progress || 0;
     const insights = result?.insights || [];
-    
+
     return (
       <div className="analysis-container">
         {status.type === "running" && (
           <div className="mb-4">
-            <div className="flex justify-between mb-1">
+            <div className="mb-1 flex justify-between">
               <span>Analyzing...</span>
               <span>{progress}%</span>
             </div>
-            <div className="w-full bg-gray-200 rounded">
-              <div 
-                className="bg-blue-500 h-2 rounded"
+            <div className="w-full rounded bg-gray-200">
+              <div
+                className="h-2 rounded bg-blue-500"
                 style={{ width: `${progress}%` }}
               />
             </div>
           </div>
         )}
-        
+
         <div className="space-y-2">
           {insights.map((insight, i) => (
-            <div key={i} className="p-2 bg-gray-50 rounded">
+            <div key={i} className="rounded bg-gray-50 p-2">
               {insight}
             </div>
           ))}
@@ -459,14 +525,12 @@ Provide a custom UI for tools without specific UIs:
 <Thread
   components={{
     ToolFallback: ({ toolName, args, result }) => (
-      <div className="tool-fallback p-3 bg-gray-100 rounded">
+      <div className="tool-fallback rounded bg-gray-100 p-3">
         <code className="text-sm">
           {toolName}({JSON.stringify(args)})
         </code>
         {result && (
-          <pre className="mt-2 text-xs">
-            {JSON.stringify(result, null, 2)}
-          </pre>
+          <pre className="mt-2 text-xs">{JSON.stringify(result, null, 2)}</pre>
         )}
       </div>
     ),
@@ -483,21 +547,21 @@ type ToolUIRenderProps<TArgs, TResult> = {
   // Tool arguments
   args: TArgs;
   argsText: string; // JSON stringified args
-  
+
   // Execution status
   status: ToolCallContentPartStatus;
   isError?: boolean;
-  
+
   // Tool result (may be partial during streaming)
   result?: TResult;
-  
+
   // Tool metadata
   toolName: string;
   toolCallId: string;
-  
+
   // Interactive callback
   addResult: (result: TResult) => void;
-  
+
   // Optional artifact data
   artifact?: unknown;
 };
@@ -515,7 +579,7 @@ render: ({ status, result, args }) => {
   if (status.type === "incomplete") return <ErrorState />;
   if (!result) return null;
   return <ResultDisplay result={result} />;
-}
+};
 ```
 
 ### 2. Provide Visual Feedback
@@ -523,11 +587,13 @@ render: ({ status, result, args }) => {
 Use animations and transitions for better UX:
 
 ```tsx
-<div className={cn(
-  "transition-all duration-300",
-  status.type === "running" && "opacity-50",
-  status.type === "complete" && "opacity-100"
-)}>
+<div
+  className={cn(
+    "transition-all duration-300",
+    status.type === "running" && "opacity-50",
+    status.type === "complete" && "opacity-100",
+  )}
+>
   {/* Tool UI content */}
 </div>
 ```
@@ -561,12 +627,15 @@ useAssistantToolUI({
 ```
 
 <Callout type="tip">
-Generative UI components are only displayed in the chat interface. The actual tool execution happens on the backend. This separation allows you to create rich, interactive experiences while keeping sensitive logic secure on the server.
+  Generative UI components are only displayed in the chat interface. The actual
+  tool execution happens on the backend. This separation allows you to create
+  rich, interactive experiences while keeping sensitive logic secure on the
+  server.
 </Callout>
 
 ## Related Guides
 
 - [Tools Guide](/docs/guides/Tools) - Learn how to create and use tools with AI models
-- [Mastra Integration](/docs/runtimes/mastra/tool-ui-example) - Build generative UI with Mastra agents and tools  
+- [Mastra Integration](/docs/runtimes/mastra/tool-ui-example) - Build generative UI with Mastra agents and tools
 - [Tool Fallback](/docs/ui/ToolFallback) - Default UI for tools without custom components
 - [API Reference](/docs/api-reference/primitives/ContentPart) - Detailed type definitions and component APIs

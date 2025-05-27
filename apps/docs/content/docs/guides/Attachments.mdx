@@ -14,7 +14,7 @@ Enable users to attach files to their messages, enhancing conversations with ima
 
 The attachment system in assistant-ui provides a flexible framework for handling file uploads in your AI chat interface. It consists of:
 
-- **Attachment Adapters**: Backend logic for processing files
+- **Attachment Adapters**: Backend logic for processing attachment files
 - **UI Components**: Pre-built components for attachment display and interaction
 - **Runtime Integration**: Seamless integration with all assistant-ui runtimes
 
@@ -31,7 +31,7 @@ First, add the attachment UI components to your project:
 npx shadcn@latest add "https://r.assistant-ui.com/attachment"
 ```
 
-This adds `/components/assistant-ui/attachment.tsx` with customizable components.
+This adds `/components/assistant-ui/attachment.tsx` to your project.
 
   </Step>
   <Step>
@@ -138,10 +138,10 @@ const compositeAdapter = new CompositeAttachmentAdapter([
 Build your own adapter for specialized file handling:
 
 ```tsx
-import { 
-  AttachmentAdapter, 
+import {
+  AttachmentAdapter,
   PendingAttachment,
-  CompleteAttachment 
+  CompleteAttachment,
 } from "@assistant-ui/react";
 
 class PDFAttachmentAdapter implements AttachmentAdapter {
@@ -154,14 +154,14 @@ class PDFAttachmentAdapter implements AttachmentAdapter {
       type: "document",
       name: file.name,
       file,
-      status: { type: "running" }
+      status: { type: "running" },
     };
   }
 
   async send(attachment: PendingAttachment): Promise<CompleteAttachment> {
     // Process the PDF file
     const base64Data = await this.fileToBase64(attachment.file);
-    
+
     return {
       id: attachment.id,
       type: "document",
@@ -170,10 +170,10 @@ class PDFAttachmentAdapter implements AttachmentAdapter {
         {
           type: "file",
           data: base64Data,
-          mimeType: "application/pdf"
-        }
+          mimeType: "application/pdf",
+        },
       ],
-      status: { type: "complete" }
+      status: { type: "complete" },
     };
   }
 
@@ -185,7 +185,7 @@ class PDFAttachmentAdapter implements AttachmentAdapter {
     // Convert file to base64
     const arrayBuffer = await file.arrayBuffer();
     const bytes = new Uint8Array(arrayBuffer);
-    let binary = '';
+    let binary = "";
     for (let i = 0; i < bytes.byteLength; i++) {
       binary += String.fromCharCode(bytes[i]);
     }
@@ -203,29 +203,29 @@ Provide real-time upload progress using async generators:
 ```tsx
 class UploadAttachmentAdapter implements AttachmentAdapter {
   accept = "*/*";
-  
+
   async *add({ file }: { file: File }) {
     const id = generateId();
-    
+
     // Initial pending state
     yield {
       id,
       type: "file",
       name: file.name,
       file,
-      status: { type: "running", progress: 0 }
+      status: { type: "running", progress: 0 },
     } as PendingAttachment;
 
     // Simulate upload progress
     for (let progress = 10; progress <= 90; progress += 10) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
       yield {
         id,
         type: "file",
         name: file.name,
         file,
-        status: { type: "running", progress }
+        status: { type: "running", progress },
       } as PendingAttachment;
     }
 
@@ -235,14 +235,14 @@ class UploadAttachmentAdapter implements AttachmentAdapter {
       type: "file",
       name: file.name,
       file,
-      status: { type: "running", progress: 100 }
+      status: { type: "running", progress: 100 },
     } as PendingAttachment;
   }
-  
+
   async send(attachment: PendingAttachment): Promise<CompleteAttachment> {
     // Upload the file and return complete attachment
     const url = await this.uploadFile(attachment.file);
-    
+
     return {
       id: attachment.id,
       type: attachment.type,
@@ -251,17 +251,17 @@ class UploadAttachmentAdapter implements AttachmentAdapter {
         {
           type: "file",
           data: url, // or base64 data
-          mimeType: attachment.file.type
-        }
+          mimeType: attachment.file.type,
+        },
       ],
-      status: { type: "complete" }
+      status: { type: "complete" },
     };
   }
-  
+
   async remove(attachment: PendingAttachment): Promise<void> {
     // Cleanup logic
   }
-  
+
   private async uploadFile(file: File): Promise<string> {
     // Your upload logic here
     return "https://example.com/file-url";
@@ -286,11 +286,11 @@ class ValidatedImageAdapter implements AttachmentAdapter {
         type: "image",
         name: file.name,
         file,
-        status: { 
-          type: "incomplete", 
+        status: {
+          type: "incomplete",
           reason: "error",
-          error: new Error("File size exceeds 5MB limit")
-        }
+          error: new Error("File size exceeds 5MB limit"),
+        },
       };
     }
 
@@ -306,11 +306,11 @@ class ValidatedImageAdapter implements AttachmentAdapter {
         type: "image",
         name: file.name,
         file,
-        status: { 
-          type: "incomplete", 
+        status: {
+          type: "incomplete",
           reason: "error",
-          error 
-        }
+          error,
+        },
       };
     }
 
@@ -320,7 +320,7 @@ class ValidatedImageAdapter implements AttachmentAdapter {
       type: "image",
       name: file.name,
       file,
-      status: { type: "running" }
+      status: { type: "running" },
     };
   }
 
@@ -340,7 +340,7 @@ const composer = useComposer();
 const handleMultipleFiles = async (files: FileList) => {
   const maxFiles = 5;
   const filesToAdd = Array.from(files).slice(0, maxFiles);
-  
+
   for (const file of filesToAdd) {
     await composer.addAttachment({ file });
   }
@@ -361,21 +361,21 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
 
   // Process messages with attachments
-  const processedMessages = messages.map(msg => {
-    if (msg.role === 'user' && msg.experimental_attachments) {
+  const processedMessages = messages.map((msg) => {
+    if (msg.role === "user" && msg.experimental_attachments) {
       // Handle attachments
       const attachmentContent = msg.experimental_attachments
-        .map(att => {
-          if (att.contentType.startsWith('image/')) {
+        .map((att) => {
+          if (att.contentType.startsWith("image/")) {
             return `[Image: ${att.name}]`;
           }
           return att.content;
         })
-        .join('\n');
-      
+        .join("\n");
+
       return {
         ...msg,
-        content: `${msg.content}\n\nAttachments:\n${attachmentContent}`
+        content: `${msg.content}\n\nAttachments:\n${attachmentContent}`,
       };
     }
     return msg;
@@ -399,15 +399,15 @@ Implement your own attachment processing:
 class ServerUploadAdapter implements AttachmentAdapter {
   async send(attachment: PendingAttachment): Promise<CompleteAttachment> {
     const formData = new FormData();
-    formData.append('file', attachment.file);
-    
-    const response = await fetch('/api/upload', {
-      method: 'POST',
+    formData.append("file", attachment.file);
+
+    const response = await fetch("/api/upload", {
+      method: "POST",
       body: formData,
     });
-    
+
     const { url, id } = await response.json();
-    
+
     return {
       id,
       type: attachment.type,
@@ -415,10 +415,10 @@ class ServerUploadAdapter implements AttachmentAdapter {
       content: [
         {
           type: "image",
-          url
-        }
+          url,
+        },
       ],
-      status: { type: "complete" }
+      status: { type: "complete" },
     };
   }
 }
@@ -434,7 +434,9 @@ Attachments work with all assistant-ui runtimes:
 - **Custom Runtimes**: Any runtime implementing the attachment interface
 
 <Callout type="tip">
-The attachment system is designed to be extensible. You can create adapters for any file type, integrate with cloud storage services, or implement custom processing logic to fit your specific needs.
+  The attachment system is designed to be extensible. You can create adapters
+  for any file type, integrate with cloud storage services, or implement custom
+  processing logic to fit your specific needs.
 </Callout>
 
 ## Best Practices
@@ -446,10 +448,8 @@ The attachment system is designed to be extensible. You can create adapters for 
 5. **Security**: Validate and sanitize file content before processing
 6. **Accessibility**: Ensure attachment UI is keyboard navigable
 
-## Examples
-
-For complete examples, see:
+## Resources
 
 - [Attachment UI Components](/docs/ui/Attachment) - UI implementation details
-- [Example Apps](/docs/examples) - Full implementations with attachments
 - [API Reference](/docs/api-reference) - Detailed type definitions
+
