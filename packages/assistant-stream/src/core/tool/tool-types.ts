@@ -1,10 +1,11 @@
 import { JSONSchema7 } from "json-schema";
 import { DeepPartial, TypeAtPath, TypePath } from "./type-path-utils";
-import { AsyncIterableStream } from "../../utils";
+import { AsyncIterableStream, ReadonlyJSONObject } from "../../utils";
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 import { ToolResponse } from "./ToolResponse";
 import { z } from "zod";
 import { Tool as AITool, Schema } from "ai";
+import { ComponentType } from "react";
 
 /**
  * Interface for reading tool call arguments from a stream, which are
@@ -97,11 +98,11 @@ export type ToolStreamCallFunction<
   context: ToolExecutionContext,
 ) => void;
 
-// CG TODO: Reimplement this
-type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<
-  unknown,
-  TResult
->;
+// // CG TODO: Reimplement this
+// type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<
+//   unknown,
+//   TResult
+// >;
 
 type ToolBase<
   TArgs extends Record<string, unknown> = Record<string, unknown>,
@@ -168,17 +169,39 @@ export type FrontendTool<
   parameters?: TParameters;
   disabled?: undefined;
   execute?: ToolExecuteFunction<InferArgsFromParameters<TParameters>, TResult>;
-  render?:
-    | ((
-        args: Awaited<
-          ReturnType<
-            ToolExecuteFunction<InferArgsFromParameters<TParameters>, TResult>
-          >
-        >,
-      ) => React.ReactNode)
-    | false;
+  render?: ComponentType<
+    ToolCallContentPartProps<
+      InferArgsFromParameters<TParameters>,
+      Awaited<
+        ReturnType<
+          ToolExecuteFunction<InferArgsFromParameters<TParameters>, TResult>
+        >
+      >
+    >
+  >;
   experimental_onSchemaValidationError?: undefined;
   streamCall?: undefined;
+};
+
+export type ToolCallContentPart<
+  TArgs = ReadonlyJSONObject,
+  TResult = unknown,
+> = {
+  readonly type: "tool-call";
+  readonly toolCallId: string;
+  readonly toolName: string;
+  readonly args: TArgs;
+  readonly result?: TResult | undefined;
+  readonly isError?: boolean | undefined;
+  readonly argsText: string;
+  readonly artifact?: unknown;
+};
+
+export type ToolCallContentPartProps<
+  TArgs = any,
+  TResult = unknown,
+> = ToolCallContentPart<TArgs, TResult> & {
+  addResult: (result: TResult) => void;
 };
 
 export function frontendTool<
@@ -201,20 +224,22 @@ export type HumanTool<
   TResult = unknown,
 > = ToolBase<InferArgsFromParameters<TParameters>, TResult> & {
   type?: "human" | undefined;
-  description?: string | undefined;
-  parameters: TParameters;
-  disabled?: boolean;
+  description?: string;
+  parameters?: TParameters;
+  disabled?: undefined;
   execute?: ToolExecuteFunction<InferArgsFromParameters<TParameters>, TResult>;
-  render?:
-    | ((
-        args: Awaited<
-          ReturnType<
-            ToolExecuteFunction<InferArgsFromParameters<TParameters>, TResult>
-          >
-        >,
-      ) => React.ReactNode)
-    | false;
+  // render?: ComponentType<
+  //   ToolCallContentPartProps<
+  //     InferArgsFromParameters<TParameters>,
+  //     Awaited<
+  //       ReturnType<
+  //         ToolExecuteFunction<InferArgsFromParameters<TParameters>, TResult>
+  //       >
+  //     >
+  //   >
+  // >;
   experimental_onSchemaValidationError?: undefined;
+  streamCall?: undefined;
 };
 
 export type Tool<

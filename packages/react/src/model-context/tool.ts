@@ -1,5 +1,9 @@
-import React from "react";
+import React, { ComponentType } from "react";
 import { BackendTool, FrontendTool, HumanTool } from "assistant-stream";
+import { ToolCallContentPartProps } from "../types";
+import { JSONSchema7 } from "json-schema";
+import { StandardSchemaV1 } from "@standard-schema/spec";
+import z from "zod";
 
 // // TODO re-add the inferrence of the parameters
 
@@ -8,15 +12,29 @@ import { BackendTool, FrontendTool, HumanTool } from "assistant-stream";
 
 // // type AnyTool = BackendTool | FrontendTool | HumanTool;
 
+type InferArgsFromParameters<T> =
+  T extends StandardSchemaV1<infer U>
+    ? U extends Record<string, unknown>
+      ? U
+      : Record<string, unknown>
+    : T extends JSONSchema7
+      ? Record<string, unknown>
+      : T extends z.ZodTypeAny
+        ? z.infer<T>
+        : Record<string, unknown>;
+
 export const createToolbox = <
   BackendTools extends Record<string, BackendTool>,
 >() => {
   return <
     T extends Record<string, FrontendTool<any, any> | HumanTool<any, any>> & {
       [K in keyof BackendTools]: {
-        render: (
-          args: Awaited<ReturnType<NonNullable<BackendTools[K]["execute"]>>>,
-        ) => React.ReactNode | false;
+        render: ComponentType<
+          ToolCallContentPartProps<
+            InferArgsFromParameters<BackendTools[K]["parameters"]>,
+            Awaited<ReturnType<NonNullable<BackendTools[K]["execute"]>>>
+          >
+        >;
       };
     },
   >(
