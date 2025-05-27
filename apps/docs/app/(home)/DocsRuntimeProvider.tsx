@@ -9,7 +9,7 @@ import {
   WebSpeechSynthesisAdapter,
   AssistantCloud,
 } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useCloudRuntime } from "@assistant-ui/react-ai-sdk";
 
 export function DocsRuntimeProvider({
   children,
@@ -21,8 +21,8 @@ export function DocsRuntimeProvider({
     anonymous: true,
   });
 
-  const runtime = useChatRuntime({
-    api: "/api/chat",
+  const runtime = useCloudRuntime({
+    assistantId: "asst_01QQ5Mk5UBaeeA87QNEUFaU7",
     adapters: {
       attachments: new CompositeAttachmentAdapter([
         new SimpleImageAttachmentAdapter(),
