@@ -4,6 +4,10 @@ import { ToolCallContentPartProps } from "../types";
 import { JSONSchema7 } from "json-schema";
 import { StandardSchemaV1 } from "@standard-schema/spec";
 import z from "zod";
+import {
+  useAssistantRuntime,
+  useToolUIsStore,
+} from "../context/react/AssistantContext";
 
 // // TODO re-add the inferrence of the parameters
 
@@ -42,7 +46,60 @@ export const createToolbox = <
   >(
     a: T,
   ) => {
-    return a;
+    /*
+    useTool(name: keyof T) 
+      - disable()
+      - setUI(ui: React.ReactNode)
+    */
+
+    const useTool = <Name extends keyof T>(name: Name) => {
+      // const
+      const runtime = useAssistantRuntime();
+      const useToolUIs = useToolUIsStore();
+
+      return {
+        disable: () => {
+          runtime.registerModelContextProvider({
+            getModelContext: () => ({
+              tools: { [name]: { disabled: true } },
+            }),
+          });
+        },
+        enable: () => {
+          runtime.registerModelContextProvider({
+            getModelContext: () => ({
+              tools: { [name]: { disabled: false } },
+            }),
+          });
+        },
+        setUI: (
+          ui: Name extends keyof BackendTools
+            ? ComponentType<
+                ToolCallContentPartProps<
+                  InferArgsFromParameters<BackendTools[Name]["parameters"]>,
+                  Awaited<
+                    ReturnType<NonNullable<BackendTools[Name]["execute"]>>
+                  >
+                >
+              >
+            : T[Name] extends FrontendTool<any, any>
+              ? ComponentType<
+                  ToolCallContentPartProps<
+                    InferArgsFromParameters<T[Name]["parameters"]>,
+                    Awaited<ReturnType<NonNullable<T[Name]["execute"]>>>
+                  >
+                >
+              : never,
+        ) => {
+          useToolUIs.getState().setToolUI(name as string, ui);
+        },
+      };
+    };
+
+    return {
+      tools: a,
+      useTool,
+    };
   };
 };
 

@@ -133,7 +133,7 @@ export type BackendTool<
   type?: "backend" | undefined;
   description?: string;
   parameters?: TParameters;
-  disabled?: undefined;
+  disabled?: boolean;
   execute?: ToolExecuteFunction<InferArgsFromParameters<TParameters>, TResult>;
   experimental_onSchemaValidationError?: undefined;
   streamCall?: undefined;
@@ -167,7 +167,7 @@ export type FrontendTool<
   type?: "frontend" | undefined;
   description?: string;
   parameters?: TParameters;
-  disabled?: undefined;
+  disabled?: boolean;
   execute?: ToolExecuteFunction<InferArgsFromParameters<TParameters>, TResult>;
   render?:
     | ComponentType<
@@ -228,7 +228,7 @@ export type HumanTool<
   type?: "human" | undefined;
   description?: string;
   parameters?: TParameters;
-  disabled?: undefined;
+  disabled?: boolean;
   execute?: ToolExecuteFunction<InferArgsFromParameters<TParameters>, TResult>;
   // render?: ComponentType<
   //   ToolCallContentPartProps<
