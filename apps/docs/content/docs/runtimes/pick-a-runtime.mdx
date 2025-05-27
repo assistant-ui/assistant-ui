@@ -5,260 +5,218 @@ title: Picking a Runtime
 import { Card, Cards } from "fumadocs-ui/components/card";
 import { Callout } from "fumadocs-ui/components/callout";
 
-Building an AI chat application requires choosing the right runtime for managing conversations, connecting to language models, and handling persistence. This guide helps you make an informed decision based on your specific requirements.
+Choosing the right runtime is crucial for your assistant-ui implementation. This guide helps you navigate the options based on your specific needs.
 
-## Quick Decision Guide
+## Quick Decision Tree
+
+```mermaid
+graph TD
+    A[What's your starting point?] --> B{Existing Framework?}
+    B -->|Vercel AI SDK| C[Use AI SDK Integration]
+    B -->|LangGraph| D[Use LangGraph Runtime]
+    B -->|LangServe| E[Use LangServe Runtime]
+    B -->|Mastra| F[Use Mastra Runtime]
+    B -->|Custom Backend| G{State Management?}
+    G -->|Let assistant-ui handle it| H[Use LocalRuntime]
+    G -->|I'll manage it myself| I[Use ExternalStoreRuntime]
+```
+
+## Core Runtimes
+
+These are the foundational runtimes that power assistant-ui:
 
 <Cards>
   <Card
-    title="I want the fastest setup"
-    description="Use LocalRuntime - manages state internally with adapter extensibility"
+    title="`LocalRuntime`"
+    description="assistant-ui manages chat state internally. Simple adapter pattern for any backend."
     href="/docs/runtimes/custom/local"
   />
   <Card
-    title="I have existing state management"
-    description="Use ExternalStoreRuntime - integrates with Redux, Zustand, etc."
+    title="`ExternalStoreRuntime`"
+    description="You control the state. Perfect for Redux, Zustand, or existing state management."
     href="/docs/runtimes/custom/external-store"
-  />
-  <Card
-    title="I need multi-thread support"
-    description="Use LocalRuntime + Assistant Cloud or ExternalStoreRuntime + custom adapter"
-    href="/docs/cloud/overview"
-  />
-  <Card
-    title="I'm using Vercel AI SDK"
-    description="Use the AI SDK runtime integration"
-    href="/docs/runtimes/ai-sdk/use-chat"
   />
 </Cards>
 
-## Key Considerations
+## Pre-Built Integrations
 
-### 1. State Management Requirements
+For popular frameworks, we provide ready-to-use integrations built on top of our core runtimes:
 
-**How much control do you need over message state?**
+<Cards>
+  <Card
+    title="Vercel AI SDK"
+    description="For useChat and useAssistant hooks - streaming with all major providers"
+    href="/docs/runtimes/ai-sdk/use-chat"
+  />
+  <Card
+    title="LangGraph"
+    description="For complex agent workflows with LangChain's graph framework"
+    href="/docs/runtimes/langgraph"
+  />
+  <Card
+    title="LangServe"
+    description="For LangChain applications deployed with LangServe"
+    href="/docs/runtimes/langserve"
+  />
+  <Card
+    title="Mastra"
+    description="For workflow orchestration with Mastra's ecosystem"
+    href="/docs/runtimes/mastra/overview"
+  />
+</Cards>
 
-- **Minimal** → Use **[LocalRuntime](/docs/runtimes/custom/local)** - Built-in state management with adapter-based extensibility
-- **Full control** → Use **[ExternalStoreRuntime](/docs/runtimes/custom/external-store)** - You manage all state, perfect for Redux/Zustand integration
-- **Existing state** → Use **[ExternalStoreRuntime](/docs/runtimes/custom/external-store)** - Seamlessly integrate with your current state management
+## Understanding Runtime Architecture
 
-### 2. Multi-Thread Support
+### How Pre-Built Integrations Work
 
-**Do you need multiple conversation threads?**
+The pre-built integrations (AI SDK, LangGraph, etc.) are **not separate runtime types**. They're convenient wrappers built on top of our core runtimes:
 
-- **Single thread** → Either runtime works
-- **Multiple threads with cloud** → Use **LocalRuntime + Assistant Cloud**
-- **Multiple threads with custom storage** → Use **ExternalStoreRuntime + thread list adapter**
+- **AI SDK Integration** → Built on `LocalRuntime` with streaming adapter
+- **LangGraph Runtime** → Built on `LocalRuntime` with graph execution adapter
+- **LangServe Runtime** → Built on `LocalRuntime` with LangServe client adapter
+- **Mastra Runtime** → Built on `LocalRuntime` with workflow adapter
+
+This means you get all the benefits of `LocalRuntime` (automatic state management, built-in features) with zero configuration for your specific framework.
+
+### When to Use Pre-Built vs Core Runtimes
+
+**Use a pre-built integration when:**
+- You're already using that framework
+- You want the fastest possible setup
+- The integration covers your needs
+
+**Use a core runtime when:**
+- You have a custom backend
+- You need features not exposed by the integration
+- You want full control over the implementation
 
 <Callout>
-**LocalRuntime** supports multiple threads when paired with Assistant Cloud. Without cloud, it manages a single conversation. For custom multi-thread implementations, use ExternalStoreRuntime.
+Pre-built integrations can always be replaced with a custom `LocalRuntime` or `ExternalStoreRuntime` implementation if you need more control later.
 </Callout>
 
-### 3. Persistence & Storage
+## Feature Comparison
 
-**How will you store conversation history?**
+### Core Runtime Capabilities
 
-- **Assistant Cloud** (Easiest) - Managed persistence with auth, multi-device sync, and free tier
-- **Custom database** - Use adapters with either runtime
-- **Client-side only** - Good for demos, messages lost on refresh
-- **Existing storage** - Use ExternalStoreRuntime to integrate with your persistence layer
+| Feature | `LocalRuntime` | `ExternalStoreRuntime` |
+| ------- | -------------- | ---------------------- |
+| **State Management** | Automatic | You control |
+| **Setup Complexity** | Simple | Moderate |
+| **Message Editing** | Built-in | Implement `onEdit` |
+| **Branch Switching** | Built-in | Implement `setMessages` |
+| **Regeneration** | Built-in | Implement `onReload` |
+| **Cancellation** | Built-in | Implement `onCancel` |
+| **Multi-thread** | Via adapters | Via adapters |
 
-### 4. Language Model Integration
+### Available Adapters
 
-**Which LLM are you using?**
+| Adapter | `LocalRuntime` | `ExternalStoreRuntime` |
+| ------- | -------------- | ---------------------- |
+| ChatModel | ✅ Required | ❌ N/A |
+| Attachments | ✅ | ✅ |
+| Speech | ✅ | ✅ |
+| Feedback | ✅ | ✅ |
+| History | ✅ | ❌ Use your state |
+| Suggestions | ✅ | ❌ Use your state |
 
-- **OpenAI/Anthropic/Custom API** → Either runtime with appropriate adapter
-- **Vercel AI SDK** → Use the [AI SDK runtime](/docs/runtimes/ai-sdk/use-chat)
-- **LangGraph agents** → Use [LangGraph runtime](/docs/runtimes/langgraph)
-- **Multiple models** → Either runtime with dynamic model selection
+## Common Implementation Patterns
 
-## Runtime Comparison
+### Vercel AI SDK with Streaming
 
-| Feature               | LocalRuntime                         | ExternalStoreRuntime                | AI SDK             |
-| --------------------- | ------------------------------------ | ----------------------------------- | ------------------ |
-| **Setup Complexity**  | Simple                               | Moderate                            | Simple             |
-| **State Control**     | Managed internally                   | Full control                        | Managed            |
-| **Multi-thread**      | Yes (with Assistant Cloud)           | Yes (with thread list adapter)      | Depends            |
-| **Message Format**    | ThreadMessage                        | Any (with conversion)               | AI SDK format      |
-| **Persistence**       | Via adapters or Cloud                | You implement                       | Via adapters       |
-| **Extensibility**     | Adapter system                       | Handler-based                       | Limited            |
-| **Best For**          | Most use cases, quick starts         | Complex state, existing state mgmt  | Vercel projects    |
+```tsx
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
-## Implementation Patterns
+export function MyAssistant() {
+  const runtime = useChatRuntime({
+    api: "/api/chat",
+  });
 
-### Pattern 1: Simple Chat App
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
 
-For most chat applications, start with [LocalRuntime](/docs/runtimes/custom/local):
+### Custom Backend with `LocalRuntime`
 
 ```tsx
 import { useLocalRuntime } from "@assistant-ui/react";
 
-const adapter = {
+const runtime = useLocalRuntime({
   async run({ messages, abortSignal }) {
     const response = await fetch("/api/chat", {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ messages }),
       signal: abortSignal,
     });
     return response.json();
   },
-};
-
-const runtime = useLocalRuntime(adapter);
-```
-
-### Pattern 2: Multi-Thread Chat
-
-Two approaches for multi-thread support:
-
-```tsx
-// Option 1: LocalRuntime + Assistant Cloud
-import { useLocalRuntime } from "@assistant-ui/react";
-import { AssistantCloud } from "@assistant-ui/cloud";
-
-const cloud = new AssistantCloud({ apiKey: "..." });
-const runtime = useLocalRuntime(adapter, { cloud });
-// Full thread management included!
-
-// Option 2: ExternalStoreRuntime + Custom Storage
-const runtime = useExternalStoreRuntime({
-  messages: currentThreadMessages,
-  onNew,
-  adapters: {
-    threadList: {
-      threads,
-      onSwitchToThread,
-      onRename,
-      onDelete,
-      // ... other handlers
-    },
-  },
 });
 ```
 
-### Pattern 3: Integration with Redux/Zustand
-
-For existing state management, use [ExternalStoreRuntime](/docs/runtimes/custom/external-store):
+### Redux Integration with `ExternalStoreRuntime`
 
 ```tsx
 import { useExternalStoreRuntime } from "@assistant-ui/react";
-import { useSelector, useDispatch } from "react-redux";
 
 const messages = useSelector(selectMessages);
 const dispatch = useDispatch();
 
 const runtime = useExternalStoreRuntime({
   messages,
-  setMessages: (msgs) => dispatch(setMessages(msgs)),
   onNew: async (message) => {
     dispatch(addUserMessage(message));
     const response = await api.chat(message);
     dispatch(addAssistantMessage(response));
   },
+  setMessages: (messages) => dispatch(setMessages(messages)),
+  onEdit: async (message) => dispatch(editMessage(message)),
+  onReload: async (parentId) => dispatch(reloadMessage(parentId)),
 });
 ```
 
-## Feature-by-Feature Guide
+## Examples
 
-### Adapters Available
+Explore our implementation examples:
 
-| Adapter | LocalRuntime | ExternalStoreRuntime |
-| ------- | ------------ | -------------------- |
-| ChatModel | ✅ Required | ❌ N/A |
-| Attachments | ✅ | ✅ |
-| Speech | ✅ | ✅ |
-| Feedback | ✅ | ✅ |
-| History | ✅ | ❌ (use state) |
-| Suggestions | ✅ | ❌ (use state) |
-| Thread List | ❌ (use Cloud) | ✅ |
+- **[AI SDK Example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-ai-sdk)** - Vercel AI SDK with `useChatRuntime`
+- **[External Store Example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-external-store)** - `ExternalStoreRuntime` with custom state
+- **[Assistant Cloud Example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-cloud)** - Multi-thread with cloud persistence
+- **[LangGraph Example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-langgraph)** - Agent workflows
+- **[OpenAI Assistants Example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-openai-assistants)** - OpenAI Assistants API
 
-### UI Features & Requirements
+## Common Pitfalls to Avoid
 
-| Feature | LocalRuntime | ExternalStoreRuntime Requirement |
-| ------- | ------------ | --------------------------------- |
-| Message Display | Automatic | Provide `messages` |
-| Send Messages | Automatic | Provide `onNew` |
-| Edit Messages | Automatic | Provide `onEdit` |
-| Regenerate | Automatic | Provide `onReload` |
-| Branch Switching | Automatic | Provide `setMessages` |
-| Cancel Generation | Automatic | Provide `onCancel` |
-| Multi-thread | With Cloud | Provide thread list adapter |
+### LocalRuntime Pitfalls
+- **Forgetting the adapter**: `LocalRuntime` requires a `ChatModelAdapter` - it won't work without one
+- **Not handling errors**: Always handle API errors in your adapter's `run` function
+- **Missing abort signal**: Pass `abortSignal` to your fetch calls for proper cancellation
 
-## Deployment Considerations
+### ExternalStoreRuntime Pitfalls
+- **Mutating state**: Always create new arrays/objects when updating messages
+- **Missing handlers**: Each UI feature requires its corresponding handler (e.g., no edit button without `onEdit`)
+- **Forgetting optimistic updates**: Set `isRunning` to `true` for loading states
 
-### Serverless (Vercel, Netlify)
-
-- Use **AI SDK runtime** for optimal Vercel integration
-- Consider edge runtime for low latency
-- Use Assistant Cloud for persistence (no database needed)
-
-### Traditional Server (Node.js, Python)
-
-- **LocalRuntime** works with any backend
-- Can use server-side state management
-- Direct database connections possible
-
-### Static Sites
-
-- Use **LocalRuntime** with client-side API calls
-- Consider CORS for API endpoints
-- Assistant Cloud handles auth without backend
-
-## Decision Framework
-
-### Start with LocalRuntime when:
-
-- Building a new chat application
-- You want automatic state management
-- You need quick prototyping
-- Using Assistant Cloud for persistence
-- Building single or multi-thread apps with cloud
-
-### Use ExternalStoreRuntime when:
-
-- You have existing state management (Redux, Zustand, etc.)
-- You need custom message persistence logic
-- Building complex multi-thread without cloud
-- You need full control over state updates
-- Integrating chat into a larger application
-
-### Common Scenarios
-
-| Scenario | Recommended Runtime |
-| -------- | ------------------- |
-| Simple chatbot | LocalRuntime |
-| Customer support with history | LocalRuntime + Cloud |
-| Chat in existing React app | ExternalStoreRuntime |
-| Multi-user collaboration | LocalRuntime + Cloud |
-| Custom thread management | ExternalStoreRuntime |
-| Prototype/Demo | LocalRuntime |
-
-## Migration Paths
-
-### LocalRuntime → ExternalStoreRuntime
-
-If you start with LocalRuntime and need more control:
-
-1. Extract your messages to external state
-2. Implement required handlers (onNew, onEdit, etc.)
-3. Move adapters to the new runtime
-4. Add thread list adapter if using custom multi-thread
-
-### ExternalStoreRuntime → LocalRuntime
-
-If you want to simplify:
-
-1. Remove external state management
-2. Convert handlers to LocalRuntime adapters
-3. Add Assistant Cloud for multi-thread support
-4. Simplify your codebase
+### General Pitfalls
+- **Wrong integration level**: Don't use `LocalRuntime` if you already have Vercel AI SDK - use the AI SDK integration instead
+- **Over-engineering**: Start with pre-built integrations before building custom solutions
+- **Ignoring TypeScript**: The types will guide you to the correct implementation
 
 ## Next Steps
 
-1. **Choose your runtime** based on your requirements
-2. **Start with examples**:
-   - [LocalRuntime Example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-local-runtime)
-   - [ExternalStoreRuntime Example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-external-store)
-3. **Add features progressively** with adapters
-4. **Consider Assistant Cloud** for production persistence
+1. **Choose your runtime** based on the decision tree above
+2. **Follow the specific guide**:
+   - [AI SDK Integration](/docs/runtimes/ai-sdk/use-chat)
+   - [`LocalRuntime` Guide](/docs/runtimes/custom/local)
+   - [`ExternalStoreRuntime` Guide](/docs/runtimes/custom/external-store)
+   - [LangGraph Integration](/docs/runtimes/langgraph)
+3. **Start with an example** from our [examples repository](https://github.com/assistant-ui/assistant-ui/tree/main/examples)
+4. **Add features progressively** using adapters
+5. **Consider Assistant Cloud** for production persistence
 
+<Callout type="info">
+Need help? Join our [Discord community](https://discord.gg/assistant-ui) or check the [GitHub discussions](https://github.com/assistant-ui/assistant-ui/discussions).
+</Callout>

@@ -9,24 +9,24 @@ import { ParametersTable } from "@/components/docs";
 
 ## Overview
 
-<Callout>
-LocalRuntime manages chat state internally and provides built-in support for message editing, reloading, and branch switching. When paired with [Assistant Cloud](/docs/cloud/overview), it also supports multiple conversation threads with full thread management capabilities.
+`LocalRuntime` is the simplest way to connect your own custom backend to assistant-ui. It manages all chat state internally while providing a clean adapter interface to connect with any REST API, OpenAI, or custom language model.
 
-If you need full control over message state on the frontend, use [ExternalStoreRuntime](/docs/runtimes/custom/external-store) instead.
-</Callout>
-
-`LocalRuntime` is the simplest way to get started with assistant-ui. It manages all chat state internally while providing a clean interface to connect with any REST API, OpenAI, or custom language model.
+`LocalRuntime` provides:
+- **Built-in state management** for messages, threads, and conversation history
+- **Automatic features** like message editing, reloading, and branch switching
+- **Multi-thread support** through [Assistant Cloud](/docs/cloud/overview) or your own database using `useRemoteThreadListRuntime`
+- **Simple adapter pattern** to connect any backend API
 
 ## When to Use
 
-Use LocalRuntime if you need:
+Use `LocalRuntime` if you need:
 
 - **Quick setup with minimal configuration** - Get a fully functional chat interface with just a few lines of code
 - **Built-in state management** - No need to manage messages, threads, or conversation history yourself
 - **Automatic features** - Branch switching, message editing, and regeneration work out of the box
 - **API flexibility** - Connect to any REST endpoint, OpenAI, or custom model with a simple adapter
-- **Multi-thread support** - Full thread management when used with Assistant Cloud
-- **Thread persistence** - Via history adapter or Assistant Cloud integration
+- **Multi-thread support** - Full thread management with Assistant Cloud or custom database
+- **Thread persistence** - Via history adapter, Assistant Cloud, or custom thread list adapter
 
 ## Key Features
 
@@ -37,7 +37,7 @@ Use LocalRuntime if you need:
   />
   <Card
     title="Multi-Thread Support"
-    description="Full thread management capabilities when integrated with Assistant Cloud"
+    description="Full thread management capabilities with Assistant Cloud or custom database adapter"
   />
   <Card
     title="Adapter System"
@@ -175,122 +175,6 @@ Use LocalRuntime if you need:
   </Step>
 </Steps>
 
-## Type Reference
-
-### ChatModelAdapter
-
-The main interface for connecting your API to LocalRuntime.
-
-<ParametersTable
-  type="ChatModelAdapter"
-  parameters={[
-    {
-      name: "run",
-      type: "ChatModelRunOptions => ChatModelRunResult | AsyncGenerator<ChatModelRunResult>",
-      description:
-        "Function that sends messages to your API and returns the response",
-      required: true,
-    },
-  ]}
-/>
-
-### ChatModelRunOptions
-
-Parameters passed to the `run` function.
-
-<ParametersTable
-  type="ChatModelRunOptions"
-  parameters={[
-    {
-      name: "messages",
-      type: "readonly ThreadMessage[]",
-      description: "The conversation history to send to your API",
-      required: true,
-    },
-    {
-      name: "abortSignal",
-      type: "AbortSignal",
-      description: "Signal to cancel the request if user interrupts",
-      required: true,
-    },
-    {
-      name: "context",
-      type: "ModelContext",
-      description: "Additional context including configuration and tools",
-      required: true,
-    },
-  ]}
-/>
-
-### LocalRuntimeOptions
-
-Configuration options for the LocalRuntime.
-
-<ParametersTable
-  type="LocalRuntimeOptions"
-  parameters={[
-    {
-      name: "initialMessages",
-      type: "readonly ThreadMessage[]",
-      description: "Pre-populate the thread with messages",
-    },
-    {
-      name: "maxSteps",
-      type: "number",
-      description:
-        "Maximum number of sequential tool calls before requiring user input",
-      default: "5",
-    },
-    {
-      name: "cloud",
-      type: "AssistantCloud",
-      description: "Enable Assistant Cloud integration for multi-thread support and persistence",
-    },
-    {
-      name: "adapters",
-      type: "LocalRuntimeAdapters",
-      description: "Additional capabilities through adapters. Features are automatically enabled based on provided adapters",
-      children: [
-        {
-          type: "adapters",
-          parameters: [
-            {
-              name: "attachments",
-              type: "AttachmentAdapter",
-              description: "Enable file/image attachments",
-            },
-            {
-              name: "speech",
-              type: "SpeechSynthesisAdapter",
-              description: "Enable text-to-speech for messages",
-            },
-            {
-              name: "feedback",
-              type: "FeedbackAdapter",
-              description: "Enable message feedback (thumbs up/down)",
-            },
-            {
-              name: "history",
-              type: "ThreadHistoryAdapter",
-              description: "Enable thread persistence and resumption",
-            },
-            {
-              name: "suggestions",
-              type: "SuggestionAdapter",
-              description: "Enable follow-up suggestions",
-            },
-          ],
-        },
-      ],
-    },
-    {
-      name: "unstable_humanToolNames",
-      type: "string[]",
-      description: "Tool names that require human approval before execution (experimental API)",
-    },
-  ]}
-/>
-
 ## Streaming Responses
 
 Implement streaming by declaring the `run` function as an `AsyncGenerator`.
@@ -404,7 +288,7 @@ const MyModelAdapter: ChatModelAdapter = {
 
 ## Tool Calling
 
-LocalRuntime supports OpenAI-compatible function calling with automatic or human-in-the-loop execution.
+`LocalRuntime` supports OpenAI-compatible function calling with automatic or human-in-the-loop execution.
 
 ### Basic Tool Definition
 
@@ -487,7 +371,9 @@ Tools are executed automatically by the runtime. The model adapter receives tool
 
 ## Multi-Thread Support
 
-LocalRuntime supports multiple conversation threads when integrated with Assistant Cloud:
+`LocalRuntime` supports multiple conversation threads through two approaches:
+
+### 1. Assistant Cloud Integration
 
 ```tsx
 import { useLocalRuntime } from "@assistant-ui/react";
@@ -502,20 +388,86 @@ const runtime = useLocalRuntime(MyModelAdapter, {
 });
 ```
 
-With Assistant Cloud enabled, you get:
+With Assistant Cloud, you get:
 - Multiple conversation threads
 - Thread persistence across sessions
 - Thread management (create, switch, rename, archive, delete)
 - Automatic synchronization across devices
 - Built-in user authentication
 
-<Callout>
-Without Assistant Cloud, LocalRuntime manages a single conversation thread. For custom multi-thread implementations without cloud, use [ExternalStoreRuntime](/docs/runtimes/custom/external-store) with a thread list adapter.
-</Callout>
+### 2. Custom Database with useRemoteThreadListRuntime
+
+For custom thread storage, use `useRemoteThreadListRuntime` with your own adapter:
+
+```tsx
+import { 
+  useLocalRuntime,
+  useRemoteThreadListRuntime,
+  type RemoteThreadListAdapter
+} from "@assistant-ui/react";
+
+// Implement your custom adapter
+const myDatabaseAdapter: RemoteThreadListAdapter = {
+  async list() {
+    const threads = await db.threads.findAll();
+    return {
+      threads: threads.map(t => ({
+        status: t.archived ? "archived" : "regular",
+        remoteId: t.id,
+        title: t.title,
+      }))
+    };
+  },
+  
+  async initialize(threadId) {
+    const thread = await db.threads.create({ id: threadId });
+    return { remoteId: thread.id };
+  },
+  
+  async rename(remoteId, newTitle) {
+    await db.threads.update(remoteId, { title: newTitle });
+  },
+  
+  async archive(remoteId) {
+    await db.threads.update(remoteId, { archived: true });
+  },
+  
+  async unarchive(remoteId) {
+    await db.threads.update(remoteId, { archived: false });
+  },
+  
+  async delete(remoteId) {
+    await db.threads.delete(remoteId);
+  },
+  
+  async generateTitle(remoteId, messages) {
+    // Generate title from messages using your AI
+    const title = await generateTitle(messages);
+    await db.threads.update(remoteId, { title });
+    return new ReadableStream(); // Return empty stream
+  }
+};
+
+// Use with `LocalRuntime`
+export function MyRuntimeProvider({ children }) {
+  const runtime = useRemoteThreadListRuntime({
+    runtimeHook: () => useLocalRuntime(MyModelAdapter),
+    adapter: myDatabaseAdapter,
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+Both approaches provide full multi-thread support. Choose Assistant Cloud for a managed solution or implement your own adapter for custom storage requirements.
 
 ## Adapters
 
-Extend LocalRuntime capabilities with adapters. The runtime automatically enables/disables UI features based on which adapters are provided.
+Extend `LocalRuntime` capabilities with adapters. The runtime automatically enables/disables UI features based on which adapters are provided.
 
 ### Attachment Adapter
 
@@ -595,7 +547,7 @@ const runtime = useLocalRuntime(MyModelAdapter, {
 ```
 
 <Callout type="info">
-The history adapter handles persistence for the current thread. For multi-thread support with custom storage (without Assistant Cloud), use ExternalStoreRuntime.
+The history adapter handles persistence for the current thread's messages. For multi-thread support with custom storage, use either `useRemoteThreadListRuntime` with `LocalRuntime` or `ExternalStoreRuntime` with a thread list adapter.
 </Callout>
 
 ### Speech Synthesis Adapter
@@ -855,17 +807,17 @@ const CustomAPIAdapter: ChatModelAdapter = {
    import type { ChatModelAdapter, ThreadMessage } from "@assistant-ui/react";
    ```
 
-## Comparison with ExternalStoreRuntime
+## Comparison with `ExternalStoreRuntime`
 
-| Feature               | LocalRuntime                                     | ExternalStoreRuntime                                  |
+| Feature               | `LocalRuntime`                                   | `ExternalStoreRuntime`                                |
 | --------------------- | ------------------------------------------------ | ----------------------------------------------------- |
 | State Management      | Built-in                                         | You manage                                            |
 | Setup Complexity      | Simple                                           | More complex                                          |
 | Flexibility           | Extensible via adapters                          | Full control                                          |
 | Message Editing       | Automatic                                        | Requires `onEdit` handler                             |
 | Branch Switching      | Automatic                                        | Requires `setMessages` handler                        |
-| Multi-Thread Support  | Yes (with Assistant Cloud)                       | Yes (with thread list adapter)                        |
-| Custom Thread Storage | No (use ExternalStoreRuntime)                   | Yes                                                   |
+| Multi-Thread Support  | Yes (with Assistant Cloud or custom adapter)     | Yes (with thread list adapter)                        |
+| Custom Thread Storage | Yes (with useRemoteThreadListRuntime)            | Yes                                                   |
 | Persistence           | Via history adapter or Assistant Cloud           | Your implementation                                   |
 | Best For              | Quick prototypes, standard apps, cloud-based     | Complex state requirements, custom storage needs      |
 
@@ -907,15 +859,181 @@ async run({ messages }) {  // ❌ Wrong for streaming
 
 ## API Reference
 
-For detailed API documentation, see:
+### `ChatModelAdapter`
 
-- [AssistantRuntime API](/docs/api-reference/runtimes/AssistantRuntime)
-- [ThreadRuntime API](/docs/api-reference/runtimes/ThreadRuntime)
+The main interface for connecting your API to `LocalRuntime`.
+
+<ParametersTable
+  type="ChatModelAdapter"
+  parameters={[
+    {
+      name: "run",
+      type: "ChatModelRunOptions => ChatModelRunResult | AsyncGenerator<ChatModelRunResult>",
+      description:
+        "Function that sends messages to your API and returns the response",
+      required: true,
+    },
+  ]}
+/>
+
+### `ChatModelRunOptions`
+
+Parameters passed to the `run` function.
+
+<ParametersTable
+  type="ChatModelRunOptions"
+  parameters={[
+    {
+      name: "messages",
+      type: "readonly ThreadMessage[]",
+      description: "The conversation history to send to your API",
+      required: true,
+    },
+    {
+      name: "abortSignal",
+      type: "AbortSignal",
+      description: "Signal to cancel the request if user interrupts",
+      required: true,
+    },
+    {
+      name: "context",
+      type: "ModelContext",
+      description: "Additional context including configuration and tools",
+      required: true,
+    },
+  ]}
+/>
+
+### `LocalRuntimeOptions`
+
+Configuration options for the `LocalRuntime`.
+
+<ParametersTable
+  type="LocalRuntimeOptions"
+  parameters={[
+    {
+      name: "initialMessages",
+      type: "readonly ThreadMessage[]",
+      description: "Pre-populate the thread with messages",
+    },
+    {
+      name: "maxSteps",
+      type: "number",
+      description:
+        "Maximum number of sequential tool calls before requiring user input",
+      default: "5",
+    },
+    {
+      name: "cloud",
+      type: "AssistantCloud",
+      description: "Enable Assistant Cloud integration for multi-thread support and persistence",
+    },
+    {
+      name: "adapters",
+      type: "LocalRuntimeAdapters",
+      description: "Additional capabilities through adapters. Features are automatically enabled based on provided adapters",
+      children: [
+        {
+          type: "adapters",
+          parameters: [
+            {
+              name: "attachments",
+              type: "AttachmentAdapter",
+              description: "Enable file/image attachments",
+            },
+            {
+              name: "speech",
+              type: "SpeechSynthesisAdapter",
+              description: "Enable text-to-speech for messages",
+            },
+            {
+              name: "feedback",
+              type: "FeedbackAdapter",
+              description: "Enable message feedback (thumbs up/down)",
+            },
+            {
+              name: "history",
+              type: "ThreadHistoryAdapter",
+              description: "Enable thread persistence and resumption",
+            },
+            {
+              name: "suggestions",
+              type: "SuggestionAdapter",
+              description: "Enable follow-up suggestions",
+            },
+          ],
+        },
+      ],
+    },
+    {
+      name: "unstable_humanToolNames",
+      type: "string[]",
+      description: "Tool names that require human approval before execution (experimental API)",
+    },
+  ]}
+/>
+
+### `RemoteThreadListAdapter`
+
+Interface for implementing custom thread list storage.
+
+<ParametersTable
+  type="RemoteThreadListAdapter"
+  parameters={[
+    {
+      name: "list",
+      type: "() => Promise<RemoteThreadListResponse>",
+      description: "Returns list of all threads (regular and archived)",
+      required: true,
+    },
+    {
+      name: "initialize",
+      type: "(threadId: string) => Promise<RemoteThreadInitializeResponse>",
+      description: "Creates a new thread with the given ID",
+      required: true,
+    },
+    {
+      name: "rename",
+      type: "(remoteId: string, newTitle: string) => Promise<void>",
+      description: "Updates the title of a thread",
+      required: true,
+    },
+    {
+      name: "archive",
+      type: "(remoteId: string) => Promise<void>",
+      description: "Archives a thread",
+      required: true,
+    },
+    {
+      name: "unarchive",
+      type: "(remoteId: string) => Promise<void>",
+      description: "Unarchives a thread",
+      required: true,
+    },
+    {
+      name: "delete",
+      type: "(remoteId: string) => Promise<void>",
+      description: "Deletes a thread permanently",
+      required: true,
+    },
+    {
+      name: "generateTitle",
+      type: "(remoteId: string, messages: readonly ThreadMessage[]) => Promise<AssistantStream>",
+      description: "Generates a title for the thread based on the conversation",
+      required: true,
+    },
+  ]}
+/>
+
+### Related Runtime APIs
+
+- [AssistantRuntime API](/docs/api-reference/runtimes/AssistantRuntime) - Core runtime interface and methods
+- [ThreadRuntime API](/docs/api-reference/runtimes/ThreadRuntime) - Thread-specific operations and state management
 
 ## Related Resources
 
 - [Runtime Layer Concepts](/docs/concepts/runtime-layer)
 - [Pick a Runtime Guide](/docs/runtimes/pick-a-runtime)
-- [ExternalStoreRuntime](/docs/runtimes/custom/external-store)
+- [`ExternalStoreRuntime`](/docs/runtimes/custom/external-store)
 - [Examples Repository](https://github.com/assistant-ui/assistant-ui/tree/main/examples)
 

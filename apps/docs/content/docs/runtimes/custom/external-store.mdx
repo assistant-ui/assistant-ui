@@ -9,15 +9,14 @@ import { ParametersTable } from "@/components/docs";
 
 ## Overview
 
-<Callout>
-ExternalStoreRuntime gives you complete control over message state management. Choose this if you're using Redux, Zustand, or another state management library, or if you need custom multi-thread handling.
+`ExternalStoreRuntime` bridges your existing state management with assistant-ui components. It requires an `ExternalStoreAdapter<TMessage>` that handles communication between your state and the UI.
 
-For simpler use cases, consider [LocalRuntime](/docs/runtimes/custom/local) which handles state management internally and provides multi-thread support through Assistant Cloud.
-</Callout>
+**Key differences from `LocalRuntime`:**
+- **You own the state** - Full control over message state, thread management, and persistence logic
+- **Bring your own state management** - Works with Redux, Zustand, TanStack Query, or any React state library
+- **Custom message formats** - Use your backend's message structure with automatic conversion
 
-ExternalStoreRuntime bridges your existing state management with assistant-ui components. It requires an `ExternalStoreAdapter<TMessage>` that handles communication between your state and the UI.
-
-**Key difference from LocalRuntime**: You maintain full control over message state, thread management, and persistence logic.
+## Example Implementation
 
 ```tsx twoslash title="app/MyRuntimeProvider.tsx"
 type MyMessage = {
@@ -88,7 +87,7 @@ export function MyRuntimeProvider({
 
 ## When to Use
 
-Use ExternalStoreRuntime if you need:
+Use `ExternalStoreRuntime` if you need:
 
 - **Full control over message state** - Manage messages with Redux, Zustand, TanStack Query, or any React state management library
 - **Custom multi-thread implementation** - Build your own thread management system with custom storage
@@ -122,7 +121,7 @@ Use ExternalStoreRuntime if you need:
 
 ### How It Works
 
-ExternalStoreRuntime acts as a bridge between your state management and assistant-ui:
+`ExternalStoreRuntime` acts as a bridge between your state management and assistant-ui:
 
 ```mermaid
 graph TD
@@ -227,264 +226,6 @@ graph TD
   </Step>
 </Steps>
 
-## Type Reference
-
-### ExternalStoreAdapter
-
-The main interface for connecting your state to assistant-ui.
-
-<ParametersTable
-  type="ExternalStoreAdapter<T>"
-  parameters={[
-    {
-      name: "messages",
-      type: "readonly T[]",
-      description: "Array of messages from your state",
-      required: true,
-    },
-    {
-      name: "onNew",
-      type: "(message: AppendMessage) => Promise<void>",
-      description: "Handler for new messages from the user",
-      required: true,
-    },
-    {
-      name: "isRunning",
-      type: "boolean",
-      description: "Whether the assistant is currently generating a response. When true, shows optimistic assistant message",
-      default: "false",
-    },
-    {
-      name: "isDisabled",
-      type: "boolean",
-      description: "Whether the chat input should be disabled",
-      default: "false",
-    },
-    {
-      name: "suggestions",
-      type: "readonly ThreadSuggestion[]",
-      description: "Suggested prompts to display",
-    },
-    {
-      name: "extras",
-      type: "unknown",
-      description: "Additional data accessible via runtime.extras",
-    },
-    {
-      name: "setMessages",
-      type: "(messages: T[]) => void",
-      description: "Update messages (required for branch switching)",
-    },
-    {
-      name: "onEdit",
-      type: "(message: AppendMessage) => Promise<void>",
-      description: "Handler for message edits (required for edit feature)",
-    },
-    {
-      name: "onReload",
-      type: "(parentId: string | null, config: StartRunConfig) => Promise<void>",
-      description:
-        "Handler for regenerating messages (required for reload feature)",
-    },
-    {
-      name: "onCancel",
-      type: "() => Promise<void>",
-      description: "Handler for cancelling the current generation",
-    },
-    {
-      name: "onAddToolResult",
-      type: "(options: AddToolResultOptions) => Promise<void> | void",
-      description: "Handler for adding tool call results",
-    },
-    {
-      name: "convertMessage",
-      type: "(message: T, index: number) => ThreadMessageLike",
-      description:
-        "Convert your message format to assistant-ui format. Not needed if using ThreadMessage type",
-    },
-    {
-      name: "joinStrategy",
-      type: '"concat-content" | "none"',
-      description: "How to join adjacent assistant messages when converting",
-      default: '"concat-content"',
-    },
-    {
-      name: "adapters",
-      type: "object",
-      description: "Feature adapters (same as LocalRuntime)",
-      children: [
-        {
-          type: "adapters",
-          parameters: [
-            {
-              name: "attachments",
-              type: "AttachmentAdapter",
-              description: "Enable file attachments",
-            },
-            {
-              name: "speech",
-              type: "SpeechSynthesisAdapter",
-              description: "Enable text-to-speech",
-            },
-            {
-              name: "feedback",
-              type: "FeedbackAdapter",
-              description: "Enable message feedback",
-            },
-            {
-              name: "threadList",
-              type: "ExternalStoreThreadListAdapter",
-              description: "Enable multi-thread management",
-            },
-          ],
-        },
-      ],
-    },
-    {
-      name: "unstable_capabilities",
-      type: "object",
-      description: "Configure runtime capabilities",
-      children: [
-        {
-          type: "unstable_capabilities",
-          parameters: [
-            {
-              name: "copy",
-              type: "boolean",
-              description: "Enable message copy feature",
-              default: "true",
-            },
-          ],
-        },
-      ],
-    },
-  ]}
-/>
-
-### ThreadMessageLike
-
-A flexible message format that can be converted to assistant-ui's internal format.
-
-<ParametersTable
-  type="ThreadMessageLike"
-  parameters={[
-    {
-      name: "role",
-      type: '"assistant" | "user" | "system"',
-      description: "The role of the message sender",
-      required: true,
-    },
-    {
-      name: "content",
-      type: "string | readonly ContentPart[]",
-      description: "Message content as string or structured content parts",
-      required: true,
-    },
-    {
-      name: "id",
-      type: "string",
-      description: "Unique identifier for the message",
-    },
-    {
-      name: "createdAt",
-      type: "Date",
-      description: "Timestamp when the message was created",
-    },
-    {
-      name: "status",
-      type: "MessageStatus",
-      description:
-        "Status of assistant messages (in_progress, complete, cancelled)",
-    },
-    {
-      name: "attachments",
-      type: "readonly CompleteAttachment[]",
-      description: "File attachments (user messages only)",
-    },
-    {
-      name: "metadata",
-      type: "object",
-      description: "Additional message metadata",
-      children: [
-        {
-          type: "metadata",
-          parameters: [
-            {
-              name: "steps",
-              type: "readonly ThreadStep[]",
-              description: "Tool call steps for assistant messages",
-            },
-            {
-              name: "custom",
-              type: "Record<string, unknown>",
-              description: "Custom metadata for your application",
-            },
-          ],
-        },
-      ],
-    },
-  ]}
-/>
-
-### ExternalStoreThreadListAdapter
-
-Enable multi-thread support with custom thread management.
-
-<ParametersTable
-  type="ExternalStoreThreadListAdapter"
-  parameters={[
-    {
-      name: "threadId",
-      type: "string",
-      description: "ID of the current active thread",
-    },
-    {
-      name: "threads",
-      type: "readonly ExternalStoreThreadData[]",
-      description: "Array of regular threads with { threadId, title }",
-    },
-    {
-      name: "archivedThreads",
-      type: "readonly ExternalStoreThreadData[]",
-      description: "Array of archived threads",
-    },
-    {
-      name: "onSwitchToNewThread",
-      type: "() => Promise<void> | void",
-      description: "Handler for creating a new thread",
-    },
-    {
-      name: "onSwitchToThread",
-      type: "(threadId: string) => Promise<void> | void",
-      description: "Handler for switching to an existing thread",
-    },
-    {
-      name: "onRename",
-      type: "(threadId: string, newTitle: string) => Promise<void> | void",
-      description: "Handler for renaming a thread",
-    },
-    {
-      name: "onArchive",
-      type: "(threadId: string) => Promise<void> | void",
-      description: "Handler for archiving a thread",
-    },
-    {
-      name: "onUnarchive",
-      type: "(threadId: string) => Promise<void> | void",
-      description: "Handler for unarchiving a thread",
-    },
-    {
-      name: "onDelete",
-      type: "(threadId: string) => Promise<void> | void",
-      description: "Handler for deleting a thread",
-    },
-  ]}
-/>
-
-<Callout>
-The thread list adapter is what enables ExternalStoreRuntime to support multiple conversation threads. Without it, the runtime only manages the current conversation.
-</Callout>
-
 ## Implementation Patterns
 
 ### Message Conversion
@@ -541,6 +282,10 @@ Controls how adjacent assistant messages are combined:
 - **`none`**: Keeps all messages separate
 
 This is useful when your backend sends multiple message chunks that should appear as a single message in the UI.
+
+<Callout type="info">
+`useExternalMessageConverter` provides performance optimization for complex message conversion scenarios. For simpler cases, consider using the basic `convertMessage` approach shown above.
+</Callout>
 
 ### Essential Handlers
 
@@ -1325,25 +1070,25 @@ const convertMessage = useCallback((msg) => {
 }, []);
 ```
 
-## LocalRuntime vs ExternalStoreRuntime
+## `LocalRuntime` vs `ExternalStoreRuntime`
 
 ### When to Choose Which
 
 | Scenario | Recommendation |
 | -------- | -------------- |
-| Quick prototype | LocalRuntime |
-| Using Redux/Zustand | ExternalStoreRuntime |
-| Need Assistant Cloud | LocalRuntime |
-| Custom thread storage | ExternalStoreRuntime |
-| Simple single thread | LocalRuntime |
-| Complex state logic | ExternalStoreRuntime |
+| Quick prototype | `LocalRuntime` |
+| Using Redux/Zustand | `ExternalStoreRuntime` |
+| Need Assistant Cloud integration | `LocalRuntime` |
+| Custom thread storage | Both (`LocalRuntime` with adapter or `ExternalStoreRuntime`) |
+| Simple single thread | `LocalRuntime` |
+| Complex state logic | `ExternalStoreRuntime` |
 
 ### Feature Comparison
 
-| Feature | LocalRuntime | ExternalStoreRuntime |
+| Feature | `LocalRuntime` | `ExternalStoreRuntime` |
 | ------- | ------------ | -------------------- |
 | State Management | Built-in | You provide |
-| Multi-thread | Via Cloud | Via adapter |
+| Multi-thread | Via Cloud or custom adapter | Via adapter |
 | Message Format | ThreadMessage | Any (with conversion) |
 | Setup Complexity | Low | Medium |
 | Flexibility | Medium | High |
@@ -1381,16 +1126,272 @@ const runtime = useExternalStoreRuntime({ messages, onNew, onEdit });
 
 ## API Reference
 
-For detailed API documentation, see:
+### `ExternalStoreAdapter`
 
-- [AssistantRuntime API](/docs/api-reference/runtimes/AssistantRuntime)
-- [ThreadRuntime API](/docs/api-reference/runtimes/ThreadRuntime)
-- [Runtime Providers](/docs/api-reference/context-providers/AssistantRuntimeProvider)
+The main interface for connecting your state to assistant-ui.
+
+<ParametersTable
+  type="ExternalStoreAdapter<T>"
+  parameters={[
+    {
+      name: "messages",
+      type: "readonly T[]",
+      description: "Array of messages from your state",
+      required: true,
+    },
+    {
+      name: "onNew",
+      type: "(message: AppendMessage) => Promise<void>",
+      description: "Handler for new messages from the user",
+      required: true,
+    },
+    {
+      name: "isRunning",
+      type: "boolean",
+      description: "Whether the assistant is currently generating a response. When true, shows optimistic assistant message",
+      default: "false",
+    },
+    {
+      name: "isDisabled",
+      type: "boolean",
+      description: "Whether the chat input should be disabled",
+      default: "false",
+    },
+    {
+      name: "suggestions",
+      type: "readonly ThreadSuggestion[]",
+      description: "Suggested prompts to display",
+    },
+    {
+      name: "extras",
+      type: "unknown",
+      description: "Additional data accessible via runtime.extras",
+    },
+    {
+      name: "setMessages",
+      type: "(messages: T[]) => void",
+      description: "Update messages (required for branch switching)",
+    },
+    {
+      name: "onEdit",
+      type: "(message: AppendMessage) => Promise<void>",
+      description: "Handler for message edits (required for edit feature)",
+    },
+    {
+      name: "onReload",
+      type: "(parentId: string | null, config: StartRunConfig) => Promise<void>",
+      description:
+        "Handler for regenerating messages (required for reload feature)",
+    },
+    {
+      name: "onCancel",
+      type: "() => Promise<void>",
+      description: "Handler for cancelling the current generation",
+    },
+    {
+      name: "onAddToolResult",
+      type: "(options: AddToolResultOptions) => Promise<void> | void",
+      description: "Handler for adding tool call results",
+    },
+    {
+      name: "convertMessage",
+      type: "(message: T, index: number) => ThreadMessageLike",
+      description:
+        "Convert your message format to assistant-ui format. Not needed if using ThreadMessage type",
+    },
+    {
+      name: "joinStrategy",
+      type: '"concat-content" | "none"',
+      description: "How to join adjacent assistant messages when converting",
+      default: '"concat-content"',
+    },
+    {
+      name: "adapters",
+      type: "object",
+      description: "Feature adapters (same as LocalRuntime)",
+      children: [
+        {
+          type: "adapters",
+          parameters: [
+            {
+              name: "attachments",
+              type: "AttachmentAdapter",
+              description: "Enable file attachments",
+            },
+            {
+              name: "speech",
+              type: "SpeechSynthesisAdapter",
+              description: "Enable text-to-speech",
+            },
+            {
+              name: "feedback",
+              type: "FeedbackAdapter",
+              description: "Enable message feedback",
+            },
+            {
+              name: "threadList",
+              type: "ExternalStoreThreadListAdapter",
+              description: "Enable multi-thread management",
+            },
+          ],
+        },
+      ],
+    },
+    {
+      name: "unstable_capabilities",
+      type: "object",
+      description: "Configure runtime capabilities",
+      children: [
+        {
+          type: "unstable_capabilities",
+          parameters: [
+            {
+              name: "copy",
+              type: "boolean",
+              description: "Enable message copy feature",
+              default: "true",
+            },
+          ],
+        },
+      ],
+    },
+  ]}
+/>
+
+### `ThreadMessageLike`
+
+A flexible message format that can be converted to assistant-ui's internal format.
+
+<ParametersTable
+  type="ThreadMessageLike"
+  parameters={[
+    {
+      name: "role",
+      type: '"assistant" | "user" | "system"',
+      description: "The role of the message sender",
+      required: true,
+    },
+    {
+      name: "content",
+      type: "string | readonly ContentPart[]",
+      description: "Message content as string or structured content parts",
+      required: true,
+    },
+    {
+      name: "id",
+      type: "string",
+      description: "Unique identifier for the message",
+    },
+    {
+      name: "createdAt",
+      type: "Date",
+      description: "Timestamp when the message was created",
+    },
+    {
+      name: "status",
+      type: "MessageStatus",
+      description:
+        "Status of assistant messages (in_progress, complete, cancelled)",
+    },
+    {
+      name: "attachments",
+      type: "readonly CompleteAttachment[]",
+      description: "File attachments (user messages only)",
+    },
+    {
+      name: "metadata",
+      type: "object",
+      description: "Additional message metadata",
+      children: [
+        {
+          type: "metadata",
+          parameters: [
+            {
+              name: "steps",
+              type: "readonly ThreadStep[]",
+              description: "Tool call steps for assistant messages",
+            },
+            {
+              name: "custom",
+              type: "Record<string, unknown>",
+              description: "Custom metadata for your application",
+            },
+          ],
+        },
+      ],
+    },
+  ]}
+/>
+
+### `ExternalStoreThreadListAdapter`
+
+Enable multi-thread support with custom thread management.
+
+<ParametersTable
+  type="ExternalStoreThreadListAdapter"
+  parameters={[
+    {
+      name: "threadId",
+      type: "string",
+      description: "ID of the current active thread",
+    },
+    {
+      name: "threads",
+      type: "readonly ExternalStoreThreadData[]",
+      description: "Array of regular threads with { threadId, title }",
+    },
+    {
+      name: "archivedThreads",
+      type: "readonly ExternalStoreThreadData[]",
+      description: "Array of archived threads",
+    },
+    {
+      name: "onSwitchToNewThread",
+      type: "() => Promise<void> | void",
+      description: "Handler for creating a new thread",
+    },
+    {
+      name: "onSwitchToThread",
+      type: "(threadId: string) => Promise<void> | void",
+      description: "Handler for switching to an existing thread",
+    },
+    {
+      name: "onRename",
+      type: "(threadId: string, newTitle: string) => Promise<void> | void",
+      description: "Handler for renaming a thread",
+    },
+    {
+      name: "onArchive",
+      type: "(threadId: string) => Promise<void> | void",
+      description: "Handler for archiving a thread",
+    },
+    {
+      name: "onUnarchive",
+      type: "(threadId: string) => Promise<void> | void",
+      description: "Handler for unarchiving a thread",
+    },
+    {
+      name: "onDelete",
+      type: "(threadId: string) => Promise<void> | void",
+      description: "Handler for deleting a thread",
+    },
+  ]}
+/>
+
+<Callout type="info">
+The thread list adapter enables multi-thread support. Without it, the runtime only manages the current conversation.
+</Callout>
+
+### Related Runtime APIs
+
+- [AssistantRuntime API](/docs/api-reference/runtimes/AssistantRuntime) - Core runtime interface and methods
+- [ThreadRuntime API](/docs/api-reference/runtimes/ThreadRuntime) - Thread-specific operations and state management
+- [Runtime Providers](/docs/api-reference/context-providers/AssistantRuntimeProvider) - Context providers for runtime integration
 
 ## Related Resources
 
 - [Runtime Layer Concepts](/docs/concepts/runtime-layer)
 - [Pick a Runtime Guide](/docs/runtimes/pick-a-runtime)
-- [LocalRuntime Documentation](/docs/runtimes/custom/local)
+- [`LocalRuntime` Documentation](/docs/runtimes/custom/local)
 - [Examples Repository](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-external-store)
 
