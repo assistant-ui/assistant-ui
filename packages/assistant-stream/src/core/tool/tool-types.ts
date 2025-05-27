@@ -169,16 +169,18 @@ export type FrontendTool<
   parameters?: TParameters;
   disabled?: undefined;
   execute?: ToolExecuteFunction<InferArgsFromParameters<TParameters>, TResult>;
-  render?: ComponentType<
-    ToolCallContentPartProps<
-      InferArgsFromParameters<TParameters>,
-      Awaited<
-        ReturnType<
-          ToolExecuteFunction<InferArgsFromParameters<TParameters>, TResult>
+  render?:
+    | ComponentType<
+        ToolCallContentPartProps<
+          InferArgsFromParameters<TParameters>,
+          Awaited<
+            ReturnType<
+              ToolExecuteFunction<InferArgsFromParameters<TParameters>, TResult>
+            >
+          >
         >
       >
-    >
-  >;
+    | false;
   experimental_onSchemaValidationError?: undefined;
   streamCall?: undefined;
 };
