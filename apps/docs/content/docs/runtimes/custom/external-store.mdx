@@ -530,81 +530,214 @@ const runtime = useExternalStoreRuntime({
 
 ### Thread Management
 
-Implement multi-conversation support:
+#### Managing Thread Context
+
+When implementing multi-thread support with `ExternalStoreRuntime`, you need to carefully manage thread context across your application. Here's a comprehensive approach:
 
 ```tsx
-const [threads, setThreads] = useState<Map<string, ThreadMessageLike[]>>(
-  new Map(),
-);
-const [currentThreadId, setCurrentThreadId] = useState("default");
-const [threadList, setThreadList] = useState<ExternalStoreThreadData[]>([
-  { threadId: "default", status: "regular", title: "New Chat" },
-]);
+// Create a context for thread management
+const ThreadContext = createContext<{
+  currentThreadId: string;
+  setCurrentThreadId: (id: string) => void;
+  threads: Map<string, ThreadMessageLike[]>;
+  setThreads: React.Dispatch<React.SetStateAction<Map<string, ThreadMessageLike[]>>>;
+}>({
+  currentThreadId: "default",
+  setCurrentThreadId: () => {},
+  threads: new Map(),
+  setThreads: () => {},
+});
 
+// Thread provider component
+export function ThreadProvider({ children }: { children: ReactNode }) {
+  const [threads, setThreads] = useState<Map<string, ThreadMessageLike[]>>(
+    new Map([["default", []]]),
+  );
+  const [currentThreadId, setCurrentThreadId] = useState("default");
+
+  return (
+    <ThreadContext.Provider
+      value={{ currentThreadId, setCurrentThreadId, threads, setThreads }}
+    >
+      {children}
+    </ThreadContext.Provider>
+  );
+}
+
+// Hook for accessing thread context
+export function useThreadContext() {
+  const context = useContext(ThreadContext);
+  if (!context) {
+    throw new Error("useThreadContext must be used within ThreadProvider");
+  }
+  return context;
+}
+```
+
+#### Complete Thread Implementation
+
+Here's a full implementation with proper context management:
+
+```tsx
+function ChatWithThreads() {
+  const { currentThreadId, setCurrentThreadId, threads, setThreads } = useThreadContext();
+  const [threadList, setThreadList] = useState<ExternalStoreThreadData[]>([
+    { threadId: "default", status: "regular", title: "New Chat" },
+  ]);
+
+  // Get messages for current thread
+  const currentMessages = threads.get(currentThreadId) || [];
+
+  const threadListAdapter: ExternalStoreThreadListAdapter = {
+    threadId: currentThreadId,
+    threads: threadList.filter((t) => t.status === "regular"),
+    archivedThreads: threadList.filter((t) => t.status === "archived"),
+
+    onSwitchToNewThread: () => {
+      const newId = `thread-${Date.now()}`;
+      setThreadList((prev) => [
+        ...prev,
+        {
+          threadId: newId,
+          status: "regular",
+          title: "New Chat",
+        },
+      ]);
+      setThreads((prev) => new Map(prev).set(newId, []));
+      setCurrentThreadId(newId);
+    },
+
+    onSwitchToThread: (threadId) => {
+      setCurrentThreadId(threadId);
+    },
+
+    onRename: (threadId, newTitle) => {
+      setThreadList((prev) =>
+        prev.map((t) =>
+          t.threadId === threadId ? { ...t, title: newTitle } : t,
+        ),
+      );
+    },
+
+    onArchive: (threadId) => {
+      setThreadList((prev) =>
+        prev.map((t) =>
+          t.threadId === threadId ? { ...t, status: "archived" } : t,
+        ),
+      );
+    },
+
+    onDelete: (threadId) => {
+      setThreadList((prev) => prev.filter((t) => t.threadId !== threadId));
+      setThreads((prev) => {
+        const next = new Map(prev);
+        next.delete(threadId);
+        return next;
+      });
+      if (currentThreadId === threadId) {
+        setCurrentThreadId("default");
+      }
+    },
+  };
+
+  const runtime = useExternalStoreRuntime({
+    messages: currentMessages,
+    setMessages: (messages) => {
+      setThreads((prev) => new Map(prev).set(currentThreadId, messages));
+    },
+    onNew: async (message) => {
+      // Handle new message for current thread
+      // Your implementation here
+    },
+    adapters: {
+      threadList: threadListAdapter,
+    },
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <ThreadList />
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+
+// App component with proper context wrapping
+export function App() {
+  return (
+    <ThreadProvider>
+      <ChatWithThreads />
+    </ThreadProvider>
+  );
+}
+```
+
+#### Thread Context Best Practices
+
+<Callout type="info">
+**Critical**: When using `ExternalStoreRuntime` with threads, the `currentThreadId` must be consistent across all components and handlers. Mismatched thread IDs will cause messages to appear in wrong threads or disappear entirely.
+</Callout>
+
+1. **Centralize Thread State**: Always use a context or global state management solution to ensure thread ID consistency:
+
+```tsx
+// ❌ Bad: Local state in multiple components
+function ThreadList() {
+  const [currentThreadId, setCurrentThreadId] = useState("default");
+  // This won't sync with the runtime!
+}
+
+// ✅ Good: Shared context
+function ThreadList() {
+  const { currentThreadId, setCurrentThreadId } = useThreadContext();
+  // Thread ID is synchronized everywhere
+}
+```
+
+2. **Sync Thread Changes**: Ensure all thread-related operations update both the thread ID and messages:
+
+```tsx
+// ❌ Bad: Only updating thread ID
+onSwitchToThread: (threadId) => {
+  setCurrentThreadId(threadId);
+  // Messages won't update!
+}
+
+// ✅ Good: Complete state update
+onSwitchToThread: (threadId) => {
+  setCurrentThreadId(threadId);
+  // Messages automatically update via currentMessages = threads.get(currentThreadId)
+}
+```
+
+3. **Handle Edge Cases**: Always provide fallbacks for missing threads:
+
+```tsx
+// Ensure thread always exists
 const currentMessages = threads.get(currentThreadId) || [];
 
-const threadListAdapter: ExternalStoreThreadListAdapter = {
-  threadId: currentThreadId,
-  threads: threadList.filter((t) => t.status === "regular"),
-  archivedThreads: threadList.filter((t) => t.status === "archived"),
-
-  onSwitchToNewThread: () => {
-    const newId = `thread-${Date.now()}`;
-    setThreadList((prev) => [
-      ...prev,
-      {
-        threadId: newId,
-        status: "regular",
-        title: "New Chat",
-      },
-    ]);
-    setThreads((prev) => new Map(prev).set(newId, []));
-    setCurrentThreadId(newId);
-  },
-
-  onSwitchToThread: (threadId) => {
-    setCurrentThreadId(threadId);
-  },
-
-  onRename: (threadId, newTitle) => {
-    setThreadList((prev) =>
-      prev.map((t) =>
-        t.threadId === threadId ? { ...t, title: newTitle } : t,
-      ),
-    );
-  },
-
-  onArchive: (threadId) => {
-    setThreadList((prev) =>
-      prev.map((t) =>
-        t.threadId === threadId ? { ...t, status: "archived" } : t,
-      ),
-    );
-  },
-
-  onDelete: (threadId) => {
-    setThreadList((prev) => prev.filter((t) => t.threadId !== threadId));
-    setThreads((prev) => {
-      const next = new Map(prev);
-      next.delete(threadId);
-      return next;
-    });
-    if (currentThreadId === threadId) {
-      setCurrentThreadId("default");
-    }
-  },
+// Initialize new threads properly
+const initializeThread = (threadId: string) => {
+  if (!threads.has(threadId)) {
+    setThreads((prev) => new Map(prev).set(threadId, []));
+  }
 };
+```
 
-const runtime = useExternalStoreRuntime({
-  messages: currentMessages,
-  setMessages: (messages) => {
-    setThreads((prev) => new Map(prev).set(currentThreadId, messages));
-  },
-  onNew,
-  adapters: {
-    threadList: threadListAdapter,
-  },
-});
+4. **Persist Thread State**: For production apps, sync thread state with your backend:
+
+```tsx
+// Save thread state to backend
+useEffect(() => {
+  const saveThread = async () => {
+    await api.saveThread(currentThreadId, threads.get(currentThreadId) || []);
+  };
+  
+  const debounced = debounce(saveThread, 1000);
+  debounced();
+  
+  return () => debounced.cancel();
+}, [currentThreadId, threads]);
 ```
 
 ## Integration Examples
@@ -1118,11 +1251,63 @@ const runtime = useExternalStoreRuntime({ messages, onNew, onEdit });
 
 ### Debugging Checklist
 
-- [ ] Are you creating new arrays when updating messages?
-- [ ] Did you provide all required handlers for desired features?
-- [ ] Is your `convertMessage` returning valid `ThreadMessageLike`?
-- [ ] Are you properly handling `isRunning` state?
-- [ ] For threads: Is your thread list adapter complete?
+- Are you creating new arrays when updating messages?
+- Did you provide all required handlers for desired features?
+- Is your `convertMessage` returning valid `ThreadMessageLike`?
+- Are you properly handling `isRunning` state?
+- For threads: Is your thread list adapter complete?
+
+### Thread-Specific Debugging
+
+Common thread context issues and solutions:
+
+**Messages disappearing when switching threads:**
+```tsx
+// Check 1: Ensure currentThreadId is consistent
+console.log("Runtime threadId:", threadListAdapter.threadId);
+console.log("Current threadId:", currentThreadId);
+console.log("Messages for thread:", threads.get(currentThreadId));
+
+// Check 2: Verify setMessages uses correct thread
+setMessages: (messages) => {
+  console.log("Setting messages for thread:", currentThreadId);
+  setThreads((prev) => new Map(prev).set(currentThreadId, messages));
+}
+```
+
+**Thread list not updating:**
+```tsx
+// Ensure threadList state is properly managed
+onSwitchToNewThread: () => {
+  const newId = `thread-${Date.now()}`;
+  console.log("Creating new thread:", newId);
+  
+  // All three updates must happen together
+  setThreadList((prev) => [...prev, newThreadData]);
+  setThreads((prev) => new Map(prev).set(newId, []));
+  setCurrentThreadId(newId);
+}
+```
+
+**Messages going to wrong thread:**
+```tsx
+// Add validation to prevent race conditions
+const validateThreadContext = () => {
+  const runtimeThread = threadListAdapter.threadId;
+  const contextThread = currentThreadId;
+  
+  if (runtimeThread !== contextThread) {
+    console.error("Thread mismatch!", { runtimeThread, contextThread });
+    throw new Error("Thread context mismatch");
+  }
+};
+
+// Call before any message operation
+onNew: async (message) => {
+  validateThreadContext();
+  // ... handle message
+}
+```
 
 ## API Reference
 
