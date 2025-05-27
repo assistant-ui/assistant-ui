@@ -42,6 +42,14 @@ const toolbox = createToolbox<BackendTools>()({
   },
 });
 
+// toolbox
+//   .useTool("weather")
+//   .setUI(({ result }) => <div>Hi: {result?.weather}</div>);
+
+//   toolbox
+//   .useTool("hi")
+//   .setUI(({ result }) => <div>Hi: {result}</div>);
+
 export function MyRuntimeProvider({
   children,
 }: Readonly<{
