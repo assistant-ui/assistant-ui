@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ComponentType,
   FC,
   PropsWithChildren,
   memo,
@@ -16,7 +17,8 @@ import { create } from "zustand";
 import { writableStore } from "../ReadonlyStore";
 import { AssistantRuntimeCore } from "../../runtimes/core/AssistantRuntimeCore";
 import { ensureBinding } from "../react/utils/ensureBinding";
-import { FrontendTool, HumanTool, Tool } from "assistant-stream";
+import { FrontendTool, Tool } from "assistant-stream";
+import { ToolCallContentPartProps } from "../..";
 
 // Utility type to remove the 'render' property from a tool type
 // and extract argument/result types using infer
@@ -38,11 +40,9 @@ export namespace AssistantRuntimeProvider {
     toolbox?: Record<
       string,
       | FrontendTool<any, any>
-      | HumanTool<any, any>
       | {
+          render: ComponentType<ToolCallContentPartProps<any, any>>;
           disabled?: boolean;
-          type?: "backend";
-          render: ((args: any) => React.ReactNode) | false;
         }
     >;
   }>;

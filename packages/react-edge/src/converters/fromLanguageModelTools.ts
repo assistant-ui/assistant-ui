@@ -11,8 +11,8 @@ export const fromLanguageModelTools = (
     tools.map((tool) => [
       tool.name,
       {
-        description: tool.description,
-        parameters: tool.parameters,
+        ...tool,
+        type: tool.type as unknown as "human" | "frontend" | "backend",
       },
     ]),
   );

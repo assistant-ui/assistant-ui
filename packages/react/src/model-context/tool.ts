@@ -27,17 +27,17 @@ export const createToolbox = <
   BackendTools extends Record<string, BackendTool>,
 >() => {
   return <
-    T extends Record<string, FrontendTool<any, any> | HumanTool<any, any>> & {
-      [K in keyof BackendTools]: {
-        render:
-          | ComponentType<
+    T extends {
+      [K in keyof BackendTools]: BackendTools[K] extends undefined
+        ? FrontendTool<any, any> | HumanTool<any, any>
+        : {
+            render: ComponentType<
               ToolCallContentPartProps<
                 InferArgsFromParameters<BackendTools[K]["parameters"]>,
                 Awaited<ReturnType<NonNullable<BackendTools[K]["execute"]>>>
               >
-            >
-          | false;
-      };
+            >;
+          };
     },
   >(
     a: T,
