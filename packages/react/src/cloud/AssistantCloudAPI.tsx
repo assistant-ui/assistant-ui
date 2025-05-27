@@ -35,8 +35,8 @@ type MakeRequestOptions = {
 };
 
 export class AssistantCloudAPI {
-  private _auth: AssistantCloudAuthStrategy;
-  private _baseUrl;
+  public _auth: AssistantCloudAuthStrategy;
+  public _baseUrl;
 
   constructor(config: AssistantCloudConfig) {
     if ("authToken" in config) {
