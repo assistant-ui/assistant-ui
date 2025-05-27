@@ -37,14 +37,20 @@ export namespace AssistantRuntimeProvider {
      * The runtime to provide to the rest of your app.
      */
     runtime: AssistantRuntime;
-    toolbox?: Record<
-      string,
-      | FrontendTool<any, any>
-      | {
-          render: ComponentType<ToolCallContentPartProps<any, any>>;
-          disabled?: boolean;
-        }
-    >;
+    toolbox?: {
+      tools: Record<
+        string,
+        | FrontendTool<any, any>
+        | {
+            render: ComponentType<ToolCallContentPartProps<any, any>>;
+            disabled?: boolean;
+          }
+      >;
+      useTool: (name: any) => {
+        disable: () => void;
+        // setUI: (ui: React.ReactNode) => void;
+      };
+    };
   }>;
 }
 
@@ -83,7 +89,7 @@ export const AssistantRuntimeProviderImpl: FC<
 
   useEffect(() => {
     if (!toolbox) return;
-    return Object.entries(toolbox).forEach(([toolName, tool]) => {
+    return Object.entries(toolbox.tools).forEach(([toolName, tool]) => {
       console.log("toolname: ", toolName, tool);
       if (tool.disabled || tool?.render === false) {
         return;
@@ -100,7 +106,7 @@ export const AssistantRuntimeProviderImpl: FC<
     if (toolbox) {
       // Remove render functions from toolbox before passing to tools
       const tools = Object.fromEntries(
-        Object.entries(toolbox)
+        Object.entries(toolbox.tools)
           .map(([toolName, tool]) => {
             const { render, ...rest } = tool;
             return [toolName, rest];
