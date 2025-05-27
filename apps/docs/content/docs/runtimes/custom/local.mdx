@@ -10,7 +10,7 @@ import { ParametersTable } from "@/components/docs";
 ## Overview
 
 <Callout>
-With LocalRuntime, chat history state is managed by assistant-ui. This gives you built-in support for thread management, message editing, reloading, and branch switching.
+LocalRuntime manages chat state internally and provides built-in support for message editing, reloading, and branch switching. When paired with [Assistant Cloud](/docs/cloud/overview), it also supports multiple conversation threads with full thread management capabilities.
 
 If you need full control over message state on the frontend, use [ExternalStoreRuntime](/docs/runtimes/custom/external-store) instead.
 </Callout>
@@ -25,7 +25,8 @@ Use LocalRuntime if you need:
 - **Built-in state management** - No need to manage messages, threads, or conversation history yourself
 - **Automatic features** - Branch switching, message editing, and regeneration work out of the box
 - **API flexibility** - Connect to any REST endpoint, OpenAI, or custom model with a simple adapter
-- **Thread persistence** - Optional integration with databases or storage systems for conversation history
+- **Multi-thread support** - Full thread management when used with Assistant Cloud
+- **Thread persistence** - Via history adapter or Assistant Cloud integration
 
 ## Key Features
 
@@ -35,12 +36,12 @@ Use LocalRuntime if you need:
     description="Automatic handling of messages, threads, and conversation history"
   />
   <Card
-    title="Streaming Support"
-    description="Native support for streaming responses with AsyncGenerator"
+    title="Multi-Thread Support"
+    description="Full thread management capabilities when integrated with Assistant Cloud"
   />
   <Card
-    title="Rich Adapters"
-    description="Attachments, speech synthesis, feedback, and more through adapters"
+    title="Adapter System"
+    description="Extend with attachments, speech, feedback, persistence, and suggestions"
   />
   <Card
     title="Tool Calling"
@@ -241,9 +242,14 @@ Configuration options for the LocalRuntime.
       default: "5",
     },
     {
+      name: "cloud",
+      type: "AssistantCloud",
+      description: "Enable Assistant Cloud integration for multi-thread support and persistence",
+    },
+    {
       name: "adapters",
       type: "LocalRuntimeAdapters",
-      description: "Additional capabilities through adapters",
+      description: "Additional capabilities through adapters. Features are automatically enabled based on provided adapters",
       children: [
         {
           type: "adapters",
@@ -265,8 +271,8 @@ Configuration options for the LocalRuntime.
             },
             {
               name: "history",
-              type: "HistoryAdapter",
-              description: "Enable thread persistence",
+              type: "ThreadHistoryAdapter",
+              description: "Enable thread persistence and resumption",
             },
             {
               name: "suggestions",
@@ -280,7 +286,7 @@ Configuration options for the LocalRuntime.
     {
       name: "unstable_humanToolNames",
       type: "string[]",
-      description: "Tool names that require human approval before execution",
+      description: "Tool names that require human approval before execution (experimental API)",
     },
   ]}
 />
@@ -479,9 +485,37 @@ Tools are executed automatically by the runtime. The model adapter receives tool
 ];
 ```
 
+## Multi-Thread Support
+
+LocalRuntime supports multiple conversation threads when integrated with Assistant Cloud:
+
+```tsx
+import { useLocalRuntime } from "@assistant-ui/react";
+import { AssistantCloud } from "@assistant-ui/cloud";
+
+const cloud = new AssistantCloud({
+  apiKey: process.env.ASSISTANT_CLOUD_API_KEY,
+});
+
+const runtime = useLocalRuntime(MyModelAdapter, {
+  cloud, // Enables multi-thread support
+});
+```
+
+With Assistant Cloud enabled, you get:
+- Multiple conversation threads
+- Thread persistence across sessions
+- Thread management (create, switch, rename, archive, delete)
+- Automatic synchronization across devices
+- Built-in user authentication
+
+<Callout>
+Without Assistant Cloud, LocalRuntime manages a single conversation thread. For custom multi-thread implementations without cloud, use [ExternalStoreRuntime](/docs/runtimes/custom/external-store) with a thread list adapter.
+</Callout>
+
 ## Adapters
 
-Extend LocalRuntime capabilities with adapters.
+Extend LocalRuntime capabilities with adapters. The runtime automatically enables/disables UI features based on which adapters are provided.
 
 ### Attachment Adapter
 
@@ -519,23 +553,39 @@ const runtime = useLocalRuntime(MyModelAdapter, {
 });
 ```
 
-### History Adapter
+### Thread History Adapter
 
-Persist conversation threads:
+Persist and resume conversations:
 
 ```tsx
-const historyAdapter: HistoryAdapter = {
-  async getMessages(threadId) {
-    const response = await fetch(`/api/threads/${threadId}`);
-    return response.json();
+const historyAdapter: ThreadHistoryAdapter = {
+  async load() {
+    // Load messages from your storage
+    const response = await fetch(`/api/thread/current`);
+    const { messages } = await response.json();
+    return { messages };
   },
 
-  async saveMessages(threadId, messages) {
-    await fetch(`/api/threads/${threadId}`, {
-      method: "PUT",
+  async append(message) {
+    // Save new message to storage
+    await fetch(`/api/thread/messages`, {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages }),
+      body: JSON.stringify({ message }),
     });
+  },
+
+  // Optional: Resume interrupted conversations
+  async resume({ messages }) {
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage?.role === "user") {
+      // Resume generating assistant response
+      const response = await fetch("/api/chat/resume", {
+        method: "POST",
+        body: JSON.stringify({ messages }),
+      });
+      return response.body; // Return stream
+    }
   },
 };
 
@@ -543,6 +593,10 @@ const runtime = useLocalRuntime(MyModelAdapter, {
   adapters: { history: historyAdapter },
 });
 ```
+
+<Callout type="info">
+The history adapter handles persistence for the current thread. For multi-thread support with custom storage (without Assistant Cloud), use ExternalStoreRuntime.
+</Callout>
 
 ### Speech Synthesis Adapter
 
@@ -587,6 +641,31 @@ const feedbackAdapter: FeedbackAdapter = {
 
 const runtime = useLocalRuntime(MyModelAdapter, {
   adapters: { feedback: feedbackAdapter },
+});
+```
+
+### Suggestion Adapter
+
+Provide follow-up suggestions:
+
+```tsx
+const suggestionAdapter: SuggestionAdapter = {
+  async *get({ messages }) {
+    // Analyze conversation context
+    const lastMessage = messages[messages.length - 1];
+    
+    // Generate suggestions
+    const suggestions = await generateSuggestions(lastMessage);
+    
+    yield suggestions.map(text => ({
+      id: crypto.randomUUID(),
+      text,
+    }));
+  },
+};
+
+const runtime = useLocalRuntime(MyModelAdapter, {
+  adapters: { suggestion: suggestionAdapter },
 });
 ```
 
@@ -778,15 +857,17 @@ const CustomAPIAdapter: ChatModelAdapter = {
 
 ## Comparison with ExternalStoreRuntime
 
-| Feature            | LocalRuntime                        | ExternalStoreRuntime                                  |
-| ------------------ | ----------------------------------- | ----------------------------------------------------- |
-| State Management   | Built-in                            | You manage                                            |
-| Setup Complexity   | Simple                              | More complex                                          |
-| Flexibility        | Moderate                            | Full control                                          |
-| Message Editing    | Automatic                           | Manual implementation                                 |
-| Branch Switching   | Automatic                           | Manual implementation                                 |
-| Thread Persistence | Via adapter                         | Your implementation                                   |
-| Best For           | Quick prototypes, standard chat UIs | Complex state requirements, existing state management |
+| Feature               | LocalRuntime                                     | ExternalStoreRuntime                                  |
+| --------------------- | ------------------------------------------------ | ----------------------------------------------------- |
+| State Management      | Built-in                                         | You manage                                            |
+| Setup Complexity      | Simple                                           | More complex                                          |
+| Flexibility           | Extensible via adapters                          | Full control                                          |
+| Message Editing       | Automatic                                        | Requires `onEdit` handler                             |
+| Branch Switching      | Automatic                                        | Requires `setMessages` handler                        |
+| Multi-Thread Support  | Yes (with Assistant Cloud)                       | Yes (with thread list adapter)                        |
+| Custom Thread Storage | No (use ExternalStoreRuntime)                   | Yes                                                   |
+| Persistence           | Via history adapter or Assistant Cloud           | Your implementation                                   |
+| Best For              | Quick prototypes, standard apps, cloud-based     | Complex state requirements, custom storage needs      |
 
 ## Troubleshooting
 

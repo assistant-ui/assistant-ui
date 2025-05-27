@@ -10,15 +10,14 @@ import { ParametersTable } from "@/components/docs";
 ## Overview
 
 <Callout>
-ExternalStoreRuntime gives you complete control over message state management. Choose this if you're using Redux, Zustand, or another state management library.
+ExternalStoreRuntime gives you complete control over message state management. Choose this if you're using Redux, Zustand, or another state management library, or if you need custom multi-thread handling.
 
-If you don't need this level of control, consider using [LocalRuntime](/docs/runtimes/custom/local) instead - it handles all the state management for you with built-in support for editing, branching, and persistence.
+For simpler use cases, consider [LocalRuntime](/docs/runtimes/custom/local) which handles state management internally and provides multi-thread support through Assistant Cloud.
 </Callout>
 
-Use the `ExternalStoreRuntime` if you want to manage the message state yourself via any React state management library.
+ExternalStoreRuntime bridges your existing state management with assistant-ui components. It requires an `ExternalStoreAdapter<TMessage>` that handles communication between your state and the UI.
 
-This runtime requires an `ExternalStoreAdapter<TMessage>` that handles communication between `assistant-ui` and your state.
-Unless you are storing messages as `ThreadMessage`, you need to define a `convertMessage` function to convert your messages to `ThreadMessage`.
+**Key difference from LocalRuntime**: You maintain full control over message state, thread management, and persistence logic.
 
 ```tsx twoslash title="app/MyRuntimeProvider.tsx"
 type MyMessage = {
@@ -91,11 +90,12 @@ export function MyRuntimeProvider({
 
 Use ExternalStoreRuntime if you need:
 
-- **Full control over message state** - When you want to manage messages with Redux, Zustand, TanStack Query, or any React state management library
-- **Custom message persistence** - When you need to implement your own storage logic, sync with databases, or maintain message history across sessions
-- **Integration with existing state management** - When your application already uses a state management solution and you want to keep chat state there
-- **Custom message formats** - When your backend uses a different message structure and you need to convert between formats
-- **External data synchronization** - When messages need to stay synchronized with external data sources or multiple clients
+- **Full control over message state** - Manage messages with Redux, Zustand, TanStack Query, or any React state management library
+- **Custom multi-thread implementation** - Build your own thread management system with custom storage
+- **Integration with existing state** - Keep chat state in your existing state management solution
+- **Custom message formats** - Use your backend's message structure with automatic conversion
+- **Complex synchronization** - Sync messages with external data sources, databases, or multiple clients
+- **Custom persistence logic** - Implement your own storage patterns and caching strategies
 
 ## Key Features
 
@@ -120,28 +120,9 @@ Use ExternalStoreRuntime if you need:
 
 ## Architecture
 
-### Core Concept
-
-The ExternalStoreRuntime enables connecting assistant-ui components with external state management systems by providing a bridge between your application's state and assistant-ui's internal runtime system.
-
-**Key Benefits:**
-
-- **State Control** - Maintain complete control over message state
-- **Integration** - Seamlessly integrate with Redux, Zustand, TanStack Query, or any state management library
-- **Flexibility** - Use your own message format with automatic conversion
-- **Performance** - Built-in optimizations like message caching and intelligent chunking
-
-### Core Components
-
-The ExternalStoreRuntime consists of several key components:
-
-1. **ExternalStoreAdapter** - Bridge between your state and assistant-ui
-2. **ExternalStoreRuntimeCore** - Main runtime class managing threads and adapters
-3. **ExternalStoreThreadRuntimeCore** - Thread-level operations and message management
-4. **ExternalStoreThreadListRuntimeCore** - Multi-thread management and operations
-5. **useExternalStoreRuntime** - React hook for runtime creation and management
-
 ### How It Works
+
+ExternalStoreRuntime acts as a bridge between your state management and assistant-ui:
 
 ```mermaid
 graph TD
@@ -152,15 +133,13 @@ graph TD
     B -->|state updates| A
 ```
 
-### Message Conversion Process
+### Key Concepts
 
-The runtime provides intelligent message conversion and chunking:
-
-1. **useExternalMessageConverter** - Transforms external messages to assistant-ui's internal format
-2. **Message Chunking** - Groups related messages based on role and continuity
-3. **Join Strategies** - Controls how related messages are combined:
-   - `concat-content` (default): Concatenates content from related assistant messages
-   - `none`: Keeps all messages separate
+1. **State Ownership** - You own and control all message state
+2. **Adapter Pattern** - The adapter translates between your state and assistant-ui
+3. **Capability-Based Features** - UI features are enabled based on which handlers you provide
+4. **Message Conversion** - Automatic conversion between your message format and assistant-ui's format
+5. **Optimistic Updates** - Built-in handling for streaming and loading states
 
 ## Getting Started
 
@@ -260,13 +239,19 @@ The main interface for connecting your state to assistant-ui.
     {
       name: "messages",
       type: "readonly T[]",
-      description: "Array of messages to display",
+      description: "Array of messages from your state",
+      required: true,
+    },
+    {
+      name: "onNew",
+      type: "(message: AppendMessage) => Promise<void>",
+      description: "Handler for new messages from the user",
       required: true,
     },
     {
       name: "isRunning",
       type: "boolean",
-      description: "Whether the assistant is currently generating a response",
+      description: "Whether the assistant is currently generating a response. When true, shows optimistic assistant message",
       default: "false",
     },
     {
@@ -278,7 +263,7 @@ The main interface for connecting your state to assistant-ui.
     {
       name: "suggestions",
       type: "readonly ThreadSuggestion[]",
-      description: "Suggested prompts to display to the user",
+      description: "Suggested prompts to display",
     },
     {
       name: "extras",
@@ -288,24 +273,18 @@ The main interface for connecting your state to assistant-ui.
     {
       name: "setMessages",
       type: "(messages: T[]) => void",
-      description: "Function to update messages (enables branch switching)",
-    },
-    {
-      name: "onNew",
-      type: "(message: AppendMessage) => Promise<void>",
-      description: "Handler for new messages from the user",
-      required: true,
+      description: "Update messages (required for branch switching)",
     },
     {
       name: "onEdit",
       type: "(message: AppendMessage) => Promise<void>",
-      description: "Handler for message edits (enables edit capability)",
+      description: "Handler for message edits (required for edit feature)",
     },
     {
       name: "onReload",
       type: "(parentId: string | null, config: StartRunConfig) => Promise<void>",
       description:
-        "Handler for regenerating messages (enables reload capability)",
+        "Handler for regenerating messages (required for reload feature)",
     },
     {
       name: "onCancel",
@@ -319,20 +298,20 @@ The main interface for connecting your state to assistant-ui.
     },
     {
       name: "convertMessage",
-      type: "ExternalStoreMessageConverter<T>",
+      type: "(message: T, index: number) => ThreadMessageLike",
       description:
-        "Function to convert custom message format to ThreadMessageLike",
+        "Convert your message format to assistant-ui format. Not needed if using ThreadMessage type",
     },
     {
       name: "joinStrategy",
       type: '"concat-content" | "none"',
-      description: "Strategy for joining related assistant messages",
+      description: "How to join adjacent assistant messages when converting",
       default: '"concat-content"',
     },
     {
       name: "adapters",
       type: "object",
-      description: "Feature adapters for additional capabilities",
+      description: "Feature adapters (same as LocalRuntime)",
       children: [
         {
           type: "adapters",
@@ -355,7 +334,7 @@ The main interface for connecting your state to assistant-ui.
             {
               name: "threadList",
               type: "ExternalStoreThreadListAdapter",
-              description: "Enable thread management",
+              description: "Enable multi-thread management",
             },
           ],
         },
@@ -372,7 +351,7 @@ The main interface for connecting your state to assistant-ui.
             {
               name: "copy",
               type: "boolean",
-              description: "Enable message copy functionality",
+              description: "Enable message copy feature",
               default: "true",
             },
           ],
@@ -449,7 +428,7 @@ A flexible message format that can be converted to assistant-ui's internal forma
 
 ### ExternalStoreThreadListAdapter
 
-For managing multiple conversation threads.
+Enable multi-thread support with custom thread management.
 
 <ParametersTable
   type="ExternalStoreThreadListAdapter"
@@ -462,7 +441,7 @@ For managing multiple conversation threads.
     {
       name: "threads",
       type: "readonly ExternalStoreThreadData[]",
-      description: "Array of regular (non-archived) threads",
+      description: "Array of regular threads with { threadId, title }",
     },
     {
       name: "archivedThreads",
@@ -502,105 +481,106 @@ For managing multiple conversation threads.
   ]}
 />
 
+<Callout>
+The thread list adapter is what enables ExternalStoreRuntime to support multiple conversation threads. Without it, the runtime only manages the current conversation.
+</Callout>
+
 ## Implementation Patterns
 
-### Using useExternalMessageConverter
+### Message Conversion
 
-The `useExternalMessageConverter` hook provides advanced message conversion with built-in optimizations:
+Two approaches for converting your message format:
 
-```tsx
-import { useExternalMessageConverter } from "@assistant-ui/react";
-
-export function MyRuntimeProvider({ children }) {
-  const [messages, setMessages] = useState<MyMessage[]>([]);
-
-  // Convert messages with caching and join strategy
-  const convertedMessages = useExternalMessageConverter({
-    messages,
-    convertMessage: (message: MyMessage): ThreadMessageLike => ({
-      role: message.role,
-      content: [{ type: "text", text: message.text }],
-      id: message.id,
-      createdAt: new Date(message.timestamp),
-    }),
-    joinStrategy: "concat-content", // or "none"
-  });
-
-  const runtime = useExternalStoreRuntime({
-    messages: convertedMessages, // Use pre-converted messages
-    setMessages,
-    onNew,
-    // No need for convertMessage here since we're using pre-converted messages
-  });
-
-  return (
-    <AssistantRuntimeProvider runtime={runtime}>
-      {children}
-    </AssistantRuntimeProvider>
-  );
-}
-```
-
-#### Join Strategy Examples
-
-**concat-content (default)**: Merges adjacent assistant messages
+#### 1. Simple Conversion (Recommended)
 
 ```tsx
-// Input messages:
-[
-  { role: "assistant", content: "Hello" },
-  { role: "assistant", content: " there!" },
-  { role: "user", content: "Hi" }
-]
-
-// Output with concat-content:
-[
-  { role: "assistant", content: [{ type: "text", text: "Hello there!" }] },
-  { role: "user", content: [{ type: "text", text: "Hi" }] }
-]
-```
-
-**none**: Keeps all messages separate
-
-```tsx
-// Output with none:
-[
-  { role: "assistant", content: [{ type: "text", text: "Hello" }] },
-  { role: "assistant", content: [{ type: "text", text: " there!" }] },
-  { role: "user", content: [{ type: "text", text: "Hi" }] }
-]
-```
-
-### Custom Message Format
-
-If your backend uses a different message format, use the `convertMessage` function:
-
-```tsx
-type MyMessage = {
-  role: "user" | "assistant";
-  text: string;
-  timestamp: number;
-  metadata?: Record<string, any>;
-};
-
-const convertMessage = (message: MyMessage): ThreadMessageLike => {
-  return {
-    role: message.role,
-    content: [{ type: "text", text: message.text }],
-    createdAt: new Date(message.timestamp),
-    metadata: {
-      custom: message.metadata,
-    },
-  };
-};
+const convertMessage = (message: MyMessage): ThreadMessageLike => ({
+  role: message.role,
+  content: [{ type: "text", text: message.text }],
+  id: message.id,
+  createdAt: new Date(message.timestamp),
+});
 
 const runtime = useExternalStoreRuntime({
   messages: myMessages,
   convertMessage,
   onNew,
-  // ... other props
 });
 ```
+
+#### 2. Advanced Conversion with useExternalMessageConverter
+
+For complex scenarios with performance optimization:
+
+```tsx
+import { useExternalMessageConverter } from "@assistant-ui/react";
+
+const convertedMessages = useExternalMessageConverter({
+  messages,
+  convertMessage: (message: MyMessage): ThreadMessageLike => ({
+    role: message.role,
+    content: [{ type: "text", text: message.text }],
+    id: message.id,
+    createdAt: new Date(message.timestamp),
+  }),
+  joinStrategy: "concat-content", // Merge adjacent assistant messages
+});
+
+const runtime = useExternalStoreRuntime({
+  messages: convertedMessages,
+  onNew,
+  // No convertMessage needed - already converted
+});
+```
+
+### Join Strategy
+
+Controls how adjacent assistant messages are combined:
+
+- **`concat-content`** (default): Merges adjacent assistant messages into one
+- **`none`**: Keeps all messages separate
+
+This is useful when your backend sends multiple message chunks that should appear as a single message in the UI.
+
+### Essential Handlers
+
+#### Basic Chat (onNew only)
+
+```tsx
+const runtime = useExternalStoreRuntime({
+  messages,
+  onNew: async (message) => {
+    // Add user message to state
+    const userMsg = { role: "user", content: message.content };
+    setMessages([...messages, userMsg]);
+    
+    // Get AI response
+    const response = await callAI(message);
+    setMessages([...messages, userMsg, response]);
+  },
+});
+```
+
+#### Full-Featured Chat
+
+```tsx
+const runtime = useExternalStoreRuntime({
+  messages,
+  setMessages, // Enables branch switching
+  onNew,       // Required
+  onEdit,      // Enables message editing
+  onReload,    // Enables regeneration
+  onCancel,    // Enables cancellation
+});
+```
+
+<Callout type="info">
+Each handler you provide enables specific UI features:
+- `setMessages` → Branch switching
+- `onEdit` → Message editing
+- `onReload` → Regenerate button
+- `onCancel` → Cancel button during generation
+</Callout>
 
 ### Streaming Responses
 
@@ -1185,88 +1165,84 @@ export function TanStackQueryRuntimeProvider({ children }) {
 }
 ```
 
-## Advanced Features
+## Key Features
 
-### Optimistic Updates
+### Automatic Optimistic Updates
 
-The runtime automatically handles optimistic assistant messages when `isRunning` is true:
+When `isRunning` becomes true, the runtime automatically shows an optimistic assistant message:
 
 ```tsx
-// When isRunning becomes true and last message is from user,
-// an empty assistant message is automatically shown
-setIsRunning(true); // Shows typing indicator
+// Your code
+setIsRunning(true);
+
+// Runtime automatically:
+// 1. Shows empty assistant message with "in_progress" status
+// 2. Displays typing indicator
+// 3. Updates status to "complete" when isRunning becomes false
 ```
 
-### Message Status
+### Message Status Management
 
-Assistant messages automatically get status based on `isRunning`:
+Assistant messages get automatic status updates:
 
 - `"in_progress"` - When `isRunning` is true
-- `"complete"` - When `isRunning` becomes false
+- `"complete"` - When `isRunning` becomes false  
 - `"cancelled"` - When cancelled via `onCancel`
 
-### Content Parts
+### Tool Result Matching
 
-Support rich content with various content part types:
+The runtime automatically matches tool results with their calls:
 
 ```tsx
-const assistantMessage: ThreadMessageLike = {
-  role: "assistant",
-  content: [
-    { type: "text", text: "Here's the weather:" },
-    {
+// Tool call and result can be in separate messages
+const messages = [
+  {
+    role: "assistant",
+    content: [{
       type: "tool-call",
+      toolCallId: "call_123",
       toolName: "get_weather",
-      args: { location: "San Francisco" },
-      result: { temperature: 72, condition: "sunny" },
-    },
-  ],
+      args: { location: "SF" },
+    }],
+  },
+  {
+    role: "tool",
+    content: [{
+      type: "tool-result",
+      toolCallId: "call_123",
+      result: { temp: 72 },
+    }],
+  },
+];
+// Runtime automatically associates these
+```
+
+## Working with External Messages
+
+### Converting Back to Your Format
+
+Use `getExternalStoreMessages` to access your original messages:
+
+```tsx
+import { getExternalStoreMessages } from "@assistant-ui/react";
+
+const MyComponent = () => {
+  const originalMessages = useMessage((m) => getExternalStoreMessages(m));
+  // originalMessages is MyMessage[] (your original type)
 };
 ```
 
-### Custom Capabilities
+<Callout type="warning">
+`getExternalStoreMessages` may return multiple messages for a single UI message. This happens because assistant-ui merges adjacent assistant and tool messages for display.
+</Callout>
 
-Control which features are available:
-
-```tsx
-const runtime = useExternalStoreRuntime({
-  messages,
-  onNew,
-  onEdit, // Enables edit capability
-  onReload, // Enables reload capability
-  onCancel, // Enables cancel capability
-  setMessages, // Enables branch switching
-  adapters: {
-    attachments, // Enables file attachments
-    speech, // Enables text-to-speech
-    feedback, // Enables message feedback
-  },
-  unstable_capabilities: {
-    copy: false, // Disable copy functionality
-  },
-});
-```
-
-## Accessing External Store Messages
-
-You can use the `getExternalStoreMessages` utility to convert `ThreadMessage`s back to your own message type.
+### Content Part Access
 
 ```tsx
-const MyAssistantMessage = () => {
-  const myMessages = useMessage((m) => getExternalStoreMessages(m));
-  // ...
-};
-```
-
-Keep in mind that `getExternalStoreMessages` may return multiple messages. This is because assistant-ui merges adjacent assistant and tool messages into a single assistant message.
-
-You can do the same operation for individual content parts as well:
-
-```tsx
-const WeatherToolUI = makeAssistantToolUI({
+const ToolUI = makeAssistantToolUI({
   render: () => {
-    const myMessages = useContentPart((p) => getExternalStoreMessages(p));
-    // ...
+    const originalMessages = useContentPart((p) => getExternalStoreMessages(p));
+    // Access original message data for this content part
   },
 });
 ```
@@ -1304,126 +1280,104 @@ const runtime = useExternalStoreRuntime({
 });
 ```
 
-## Performance Tips
+## Best Practices
 
-<Callout>
-The runtime uses several optimizations to ensure smooth performance:
+### 1. Immutable Updates
 
-1. **Message Conversion Caching** - Converted messages are cached until the converter function changes
-2. **Shallow Comparison** - Adapter props are shallow compared to avoid unnecessary updates
-3. **Optimistic Updates** - UI updates immediately without waiting for API responses
-4. **Memoization** - Use React.memo and useMemo to prevent unnecessary re-renders
-</Callout>
-
-### Best Practices
-
-1. **Memoize Callbacks** - Use `useCallback` for adapter functions to prevent unnecessary re-renders
-2. **Stable References** - Keep message arrays immutable and create new arrays when updating
-3. **Batch Updates** - Update multiple messages in a single state update when possible
-4. **Lazy Loading** - For thread lists, implement pagination or virtualization for large datasets
+Always create new arrays when updating messages:
 
 ```tsx
-const onNew = useCallback(async (message: AppendMessage) => {
-  // Implementation
-}, []); // Empty deps array for stable reference
-
-const runtime = useExternalStoreRuntime({
-  messages,
-  onNew, // Stable reference prevents re-initialization
-});
-```
-
-## Migration Guide
-
-### From LocalRuntime
-
-<Steps>
-  <Step>
-    ### Extract Message State
-    
-    Move messages from LocalRuntime to your state management:
-    
-    ```tsx
-    // Before: LocalRuntime
-    const runtime = useLocalRuntime({ initialMessages });
-    
-    // After: ExternalStoreRuntime
-    const [messages, setMessages] = useState(initialMessages);
-    const runtime = useExternalStoreRuntime({ messages, onNew });
-    ```
-  </Step>
-  
-  <Step>
-    ### Implement Handlers
-    
-    Replace LocalRuntime's automatic handling with explicit handlers:
-    
-    ```tsx
-    const onNew = async (message) => {
-      // Add your API call logic
-    };
-    
-    const onEdit = async (message) => {
-      // Handle message editing
-    };
-    
-    const onReload = async (parentId) => {
-      // Handle message regeneration
-    };
-    ```
-  </Step>
-  
-  <Step>
-    ### Add Adapters
-    
-    Configure additional features as needed:
-    
-    ```tsx
-    const runtime = useExternalStoreRuntime({
-      messages,
-      onNew,
-      adapters: {
-        attachments: attachmentAdapter,
-        speech: speechAdapter,
-      },
-    });
-    ```
-  </Step>
-</Steps>
-
-## Troubleshooting
-
-### Common Issues
-
-<Callout type="error">
-**Message not updating**: Ensure you're creating new array references when updating messages:
-
-```tsx
-// ❌ Wrong - mutating existing array
+// ❌ Wrong - mutating array
 messages.push(newMessage);
 setMessages(messages);
 
-// ✅ Correct - creating new array
+// ✅ Correct - new array
 setMessages([...messages, newMessage]);
 ```
 
+### 2. Stable Handler References
+
+Memoize handlers to prevent runtime recreation:
+
+```tsx
+const onNew = useCallback(async (message: AppendMessage) => {
+  // Handle new message
+}, [/* dependencies */]);
+
+const runtime = useExternalStoreRuntime({
+  messages,
+  onNew, // Stable reference
+});
+```
+
+### 3. Performance Optimization
+
+```tsx
+// For large message lists
+const recentMessages = useMemo(
+  () => messages.slice(-50), // Show last 50 messages
+  [messages]
+);
+
+// For expensive conversions
+const convertMessage = useCallback((msg) => {
+  // Conversion logic
+}, []);
+```
+
+## LocalRuntime vs ExternalStoreRuntime
+
+### When to Choose Which
+
+| Scenario | Recommendation |
+| -------- | -------------- |
+| Quick prototype | LocalRuntime |
+| Using Redux/Zustand | ExternalStoreRuntime |
+| Need Assistant Cloud | LocalRuntime |
+| Custom thread storage | ExternalStoreRuntime |
+| Simple single thread | LocalRuntime |
+| Complex state logic | ExternalStoreRuntime |
+
+### Feature Comparison
+
+| Feature | LocalRuntime | ExternalStoreRuntime |
+| ------- | ------------ | -------------------- |
+| State Management | Built-in | You provide |
+| Multi-thread | Via Cloud | Via adapter |
+| Message Format | ThreadMessage | Any (with conversion) |
+| Setup Complexity | Low | Medium |
+| Flexibility | Medium | High |
+
+## Common Pitfalls
+
+<Callout type="error">
+**Features not appearing**: Each UI feature requires its corresponding handler:
+
+```tsx
+// ❌ No edit button
+const runtime = useExternalStoreRuntime({ messages, onNew });
+
+// ✅ Edit button appears
+const runtime = useExternalStoreRuntime({ messages, onNew, onEdit });
+```
 </Callout>
 
 <Callout type="warning">
-**Capabilities not working**: Check that you've provided the required handlers:
+**State not updating**: Common causes:
 
-- Edit requires `onEdit`
-- Reload requires `onReload`
-- Branch switching requires `setMessages`
-- Attachments require attachment adapter
+1. Mutating arrays instead of creating new ones
+2. Missing `setMessages` for branch switching
+3. Not handling async operations properly
+4. Incorrect message format conversion
 </Callout>
 
-### Debugging Tips
+### Debugging Checklist
 
-1. **Enable React DevTools** - Inspect the runtime state and props
-2. **Log Adapter Calls** - Add console.log to adapter functions to trace execution
-3. **Check Message Format** - Ensure your convertMessage function returns valid ThreadMessageLike objects
-4. **Verify Async Handling** - Make sure promises are properly awaited in handlers
+- [ ] Are you creating new arrays when updating messages?
+- [ ] Did you provide all required handlers for desired features?
+- [ ] Is your `convertMessage` returning valid `ThreadMessageLike`?
+- [ ] Are you properly handling `isRunning` state?
+- [ ] For threads: Is your thread list adapter complete?
 
 ## API Reference
 

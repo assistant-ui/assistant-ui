@@ -5,78 +5,84 @@ title: Picking a Runtime
 import { Card, Cards } from "fumadocs-ui/components/card";
 import { Callout } from "fumadocs-ui/components/callout";
 
-Building an AI chat application requires key decisions about how to manage conversations, connect to language models, and store chat history. This guide helps you choose the right runtime for your needs.
+Building an AI chat application requires choosing the right runtime for managing conversations, connecting to language models, and handling persistence. This guide helps you make an informed decision based on your specific requirements.
 
 ## Quick Decision Guide
 
 <Cards>
   <Card
     title="I want the fastest setup"
-    description="Use LocalRuntime with your preferred LLM API"
+    description="Use LocalRuntime - manages state internally with adapter extensibility"
     href="/docs/runtimes/custom/local"
   />
   <Card
-    title="I'm already using Redux/Zustand"
-    description="Use ExternalStoreRuntime to integrate with your state"
+    title="I have existing state management"
+    description="Use ExternalStoreRuntime - integrates with Redux, Zustand, etc."
     href="/docs/runtimes/custom/external-store"
   />
   <Card
-    title="I need production-ready persistence"
-    description="Use Assistant Cloud - managed storage with free tier"
+    title="I need multi-thread support"
+    description="Use LocalRuntime + Assistant Cloud or ExternalStoreRuntime + custom adapter"
     href="/docs/cloud/overview"
   />
   <Card
-    title="I'm building with Vercel"
-    description="Use the AI SDK integration"
+    title="I'm using Vercel AI SDK"
+    description="Use the AI SDK runtime integration"
     href="/docs/runtimes/ai-sdk/use-chat"
   />
 </Cards>
 
 ## Key Considerations
 
-### 1. State Management
+### 1. State Management Requirements
 
-**Do you need control over message state?**
+**How much control do you need over message state?**
 
-- **No** → Use **[LocalRuntime](/docs/runtimes/custom/local)** - It handles everything for you
-- **Yes** → Use **[ExternalStoreRuntime](/docs/runtimes/custom/external-store)** - Integrate with Redux, Zustand, or any state library
+- **Minimal** → Use **[LocalRuntime](/docs/runtimes/custom/local)** - Built-in state management with adapter-based extensibility
+- **Full control** → Use **[ExternalStoreRuntime](/docs/runtimes/custom/external-store)** - You manage all state, perfect for Redux/Zustand integration
+- **Existing state** → Use **[ExternalStoreRuntime](/docs/runtimes/custom/external-store)** - Seamlessly integrate with your current state management
 
-### 2. Persistence & Storage
+### 2. Multi-Thread Support
+
+**Do you need multiple conversation threads?**
+
+- **Single thread** → Either runtime works
+- **Multiple threads with cloud** → Use **LocalRuntime + Assistant Cloud**
+- **Multiple threads with custom storage** → Use **ExternalStoreRuntime + thread list adapter**
+
+<Callout>
+**LocalRuntime** supports multiple threads when paired with Assistant Cloud. Without cloud, it manages a single conversation. For custom multi-thread implementations, use ExternalStoreRuntime.
+</Callout>
+
+### 3. Persistence & Storage
 
 **How will you store conversation history?**
 
-<Callout>
-  **Assistant Cloud** provides managed persistence with user authentication and
-  a generous free tier, making it easy to build production-ready chat apps
-  without managing your own database infrastructure.
-</Callout>
+- **Assistant Cloud** (Easiest) - Managed persistence with auth, multi-device sync, and free tier
+- **Custom database** - Use adapters with either runtime
+- **Client-side only** - Good for demos, messages lost on refresh
+- **Existing storage** - Use ExternalStoreRuntime to integrate with your persistence layer
 
-**Options:**
-
-- **Assistant Cloud** (Recommended) - Managed solution with built-in auth, persistence, multi-device sync, and free tier
-- **Your own database** - Use LocalRuntime with a custom HistoryAdapter
-- **Client-side only** - Messages lost on refresh (good for demos/prototypes)
-- **External state** - Use ExternalStoreRuntime with your persistence layer
-
-### 3. Language Model Integration
+### 4. Language Model Integration
 
 **Which LLM are you using?**
 
-- **OpenAI/Anthropic/Custom API** → LocalRuntime with a simple adapter
+- **OpenAI/Anthropic/Custom API** → Either runtime with appropriate adapter
 - **Vercel AI SDK** → Use the [AI SDK runtime](/docs/runtimes/ai-sdk/use-chat)
 - **LangGraph agents** → Use [LangGraph runtime](/docs/runtimes/langgraph)
-- **Multiple models** → LocalRuntime with dynamic model selection
+- **Multiple models** → Either runtime with dynamic model selection
 
 ## Runtime Comparison
 
-| Feature               | LocalRuntime                    | ExternalStoreRuntime | AI SDK             | Assistant Cloud |
-| --------------------- | ------------------------------- | -------------------- | ------------------ | --------------- |
-| **Setup Complexity**  | Simple                          | Moderate             | Simple             | Simple          |
-| **State Control**     | Managed for you                 | Full control         | Managed            | Managed         |
-| **Persistence**       | Via adapters                    | You implement        | Via adapters       | Built-in        |
-| **Multi-device Sync** | You implement                   | You implement        | You implement      | Built-in        |
-| **User Auth**         | You implement                   | You implement        | You implement      | Built-in        |
-| **Best For**          | Quick prototypes, standard apps | Complex state needs  | Vercel deployments | Production apps |
+| Feature               | LocalRuntime                         | ExternalStoreRuntime                | AI SDK             |
+| --------------------- | ------------------------------------ | ----------------------------------- | ------------------ |
+| **Setup Complexity**  | Simple                               | Moderate                            | Simple             |
+| **State Control**     | Managed internally                   | Full control                        | Managed            |
+| **Multi-thread**      | Yes (with Assistant Cloud)           | Yes (with thread list adapter)      | Depends            |
+| **Message Format**    | ThreadMessage                        | Any (with conversion)               | AI SDK format      |
+| **Persistence**       | Via adapters or Cloud                | You implement                       | Via adapters       |
+| **Extensibility**     | Adapter system                       | Handler-based                       | Limited            |
+| **Best For**          | Most use cases, quick starts         | Complex state, existing state mgmt  | Vercel projects    |
 
 ## Implementation Patterns
 
@@ -84,10 +90,10 @@ Building an AI chat application requires key decisions about how to manage conve
 
 For most chat applications, start with [LocalRuntime](/docs/runtimes/custom/local):
 
-```tsx twoslash
+```tsx
 import { useLocalRuntime } from "@assistant-ui/react";
 
-const runtime = useLocalRuntime({
+const adapter = {
   async run({ messages, abortSignal }) {
     const response = await fetch("/api/chat", {
       method: "POST",
@@ -96,124 +102,87 @@ const runtime = useLocalRuntime({
     });
     return response.json();
   },
-});
+};
+
+const runtime = useLocalRuntime(adapter);
 ```
 
-### Pattern 2: Chat with Database Persistence
+### Pattern 2: Multi-Thread Chat
 
-Add persistence to LocalRuntime with Assistant Cloud or your own database:
+Two approaches for multi-thread support:
 
 ```tsx
-// Option 1: Assistant Cloud (Recommended)
-import { useAssistantRuntime } from "@assistant-ui/react-cloud";
+// Option 1: LocalRuntime + Assistant Cloud
+import { useLocalRuntime } from "@assistant-ui/react";
+import { AssistantCloud } from "@assistant-ui/cloud";
 
-const runtime = useAssistantRuntime({
-  auth: {
-    /* your auth config */
-  },
-  // Persistence is automatic
-});
+const cloud = new AssistantCloud({ apiKey: "..." });
+const runtime = useLocalRuntime(adapter, { cloud });
+// Full thread management included!
 
-// Option 2: Custom Database
-const runtime = useLocalRuntime(adapter, {
+// Option 2: ExternalStoreRuntime + Custom Storage
+const runtime = useExternalStoreRuntime({
+  messages: currentThreadMessages,
+  onNew,
   adapters: {
-    history: {
-      async getMessages(threadId) {
-        return db.messages.where({ threadId }).toArray();
-      },
-      async saveMessages(threadId, messages) {
-        await db.messages.bulkPut(messages);
-      },
+    threadList: {
+      threads,
+      onSwitchToThread,
+      onRename,
+      onDelete,
+      // ... other handlers
     },
   },
 });
 ```
 
-### Pattern 3: Existing State Management
+### Pattern 3: Integration with Redux/Zustand
 
-If you already have Redux/Zustand, use [ExternalStoreRuntime](/docs/runtimes/custom/external-store):
+For existing state management, use [ExternalStoreRuntime](/docs/runtimes/custom/external-store):
 
 ```tsx
 import { useExternalStoreRuntime } from "@assistant-ui/react";
+import { useSelector, useDispatch } from "react-redux";
+
+const messages = useSelector(selectMessages);
+const dispatch = useDispatch();
 
 const runtime = useExternalStoreRuntime({
-  messages: reduxMessages,
+  messages,
   setMessages: (msgs) => dispatch(setMessages(msgs)),
   onNew: async (message) => {
-    dispatch(sendMessage(message));
+    dispatch(addUserMessage(message));
+    const response = await api.chat(message);
+    dispatch(addAssistantMessage(response));
   },
 });
 ```
 
-## Persistence Strategies
+## Feature-by-Feature Guide
 
-### Cloud-Based (Recommended for Production)
+### Adapters Available
 
-**Assistant Cloud** provides:
+| Adapter | LocalRuntime | ExternalStoreRuntime |
+| ------- | ------------ | -------------------- |
+| ChatModel | ✅ Required | ❌ N/A |
+| Attachments | ✅ | ✅ |
+| Speech | ✅ | ✅ |
+| Feedback | ✅ | ✅ |
+| History | ✅ | ❌ (use state) |
+| Suggestions | ✅ | ❌ (use state) |
+| Thread List | ❌ (use Cloud) | ✅ |
 
-- Automatic message persistence
-- User authentication and authorization
-- Multi-device synchronization
-- Thread management
-- Generous free tier to get started
-- No database setup or infrastructure management required
+### UI Features & Requirements
 
-### Self-Hosted Options
-
-If you need to manage your own data:
-
-1. **PostgreSQL/MySQL** - For relational data and complex queries
-2. **MongoDB** - For flexible schema and easy scaling
-3. **Firebase** - For real-time sync and easy setup
-4. **Supabase** - For open-source Firebase alternative
-5. **Convex** - Real-time reactive database with built-in sync
-
-### Example: Self-Hosted Persistence
-
-You can integrate with various databases. Here are some examples:
-
-**Supabase:**
-
-```tsx
-const historyAdapter = {
-  async getMessages(threadId: string) {
-    const { data } = await supabase
-      .from("messages")
-      .select("*")
-      .eq("thread_id", threadId)
-      .order("created_at");
-    return data;
-  },
-
-  async saveMessages(threadId: string, messages: Message[]) {
-    await supabase.from("messages").upsert(
-      messages.map((m) => ({
-        ...m,
-        thread_id: threadId,
-      })),
-    );
-  },
-};
-```
-
-**Convex:**
-
-```tsx
-// Real-time updates with Convex
-const messages = useQuery(api.messages.list, { threadId });
-const sendMessage = useMutation(api.messages.send);
-
-const historyAdapter = {
-  async getMessages() {
-    return messages || [];
-  },
-  async saveMessages(threadId, messages) {
-    for (const msg of messages) {
-      await sendMessage({ threadId, ...msg });
-    }
-  },
-};
-```
+| Feature | LocalRuntime | ExternalStoreRuntime Requirement |
+| ------- | ------------ | --------------------------------- |
+| Message Display | Automatic | Provide `messages` |
+| Send Messages | Automatic | Provide `onNew` |
+| Edit Messages | Automatic | Provide `onEdit` |
+| Regenerate | Automatic | Provide `onReload` |
+| Branch Switching | Automatic | Provide `setMessages` |
+| Cancel Generation | Automatic | Provide `onCancel` |
+| Multi-thread | With Cloud | Provide thread list adapter |
 
 ## Deployment Considerations
 
@@ -235,43 +204,61 @@ const historyAdapter = {
 - Consider CORS for API endpoints
 - Assistant Cloud handles auth without backend
 
-## Making Your Decision
+## Decision Framework
 
-<Callout>
-  **Start Simple**: Begin with LocalRuntime for most use cases. You can always
-  migrate to ExternalStoreRuntime later if needed.
-</Callout>
+### Start with LocalRuntime when:
 
-### Choose LocalRuntime if you need:
+- Building a new chat application
+- You want automatic state management
+- You need quick prototyping
+- Using Assistant Cloud for persistence
+- Building single or multi-thread apps with cloud
 
-- A standard chat interface with minimal setup
-- Built-in features (editing, branching, regeneration)
-- Quick development without state management complexity
-- Simple integration with any LLM API
+### Use ExternalStoreRuntime when:
 
-### Choose ExternalStoreRuntime if you need:
+- You have existing state management (Redux, Zustand, etc.)
+- You need custom message persistence logic
+- Building complex multi-thread without cloud
+- You need full control over state updates
+- Integrating chat into a larger application
 
-- Integration with existing Redux/Zustand/MobX state
-- Custom message synchronization logic
-- Complex applications with shared state
-- Fine-grained control over message updates
+### Common Scenarios
 
-### Choose Assistant Cloud if you need:
+| Scenario | Recommended Runtime |
+| -------- | ------------------- |
+| Simple chatbot | LocalRuntime |
+| Customer support with history | LocalRuntime + Cloud |
+| Chat in existing React app | ExternalStoreRuntime |
+| Multi-user collaboration | LocalRuntime + Cloud |
+| Custom thread management | ExternalStoreRuntime |
+| Prototype/Demo | LocalRuntime |
 
-- Production-ready persistence with zero setup
-- Built-in user authentication and authorization
-- Multi-device synchronization out of the box
-- No infrastructure management overhead
+## Migration Paths
+
+### LocalRuntime → ExternalStoreRuntime
+
+If you start with LocalRuntime and need more control:
+
+1. Extract your messages to external state
+2. Implement required handlers (onNew, onEdit, etc.)
+3. Move adapters to the new runtime
+4. Add thread list adapter if using custom multi-thread
+
+### ExternalStoreRuntime → LocalRuntime
+
+If you want to simplify:
+
+1. Remove external state management
+2. Convert handlers to LocalRuntime adapters
+3. Add Assistant Cloud for multi-thread support
+4. Simplify your codebase
 
 ## Next Steps
 
-1. **Pick your runtime** based on the guidelines above
-2. **Follow the quickstart** for your chosen runtime ([LocalRuntime](/docs/runtimes/custom/local) or [ExternalStoreRuntime](/docs/runtimes/custom/external-store))
-3. **Add persistence** if needed (consider [Assistant Cloud](/docs/cloud/overview))
-4. **Customize the UI** with assistant-ui components
-
-## Need Help?
-
-- Check out our [examples](https://github.com/assistant-ui/assistant-ui/tree/main/examples)
-- Read the runtime-specific documentation
+1. **Choose your runtime** based on your requirements
+2. **Start with examples**:
+   - [LocalRuntime Example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-local-runtime)
+   - [ExternalStoreRuntime Example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-external-store)
+3. **Add features progressively** with adapters
+4. **Consider Assistant Cloud** for production persistence
 
