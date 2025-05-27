@@ -1,5 +1,14 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.10.12
+
+### Patch Changes
+
+- 971b05c: feat: useCloudRuntime (wip)
+- Updated dependencies [971b05c]
+  - @assistant-ui/react@0.10.13
+  - @assistant-ui/react-edge@0.2.10
+
 ## 0.10.11
 
 ### Patch Changes
