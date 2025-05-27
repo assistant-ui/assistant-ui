@@ -71,9 +71,17 @@ const transpileTypescriptDts = async () => {
   ]);
   child.stdout.pipe(process.stdout);
   child.stderr.pipe(process.stderr);
-  return new Promise((r, e) => {
-    child.on("exit", r);
-    child.on("error", e);
+  return new Promise((resolve, reject) => {
+    child.on("exit", (code) => {
+      if (code !== 0) {
+        reject(
+          new Error(`TypeScript type generation failed with exit code ${code}`),
+        );
+      } else {
+        resolve(code);
+      }
+    });
+    child.on("error", reject);
   });
 };
 

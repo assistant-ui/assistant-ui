@@ -69,7 +69,7 @@ export default function HomePage() {
               className={buttonVariants({ variant: "outline" })}
               href="https://github.com/assistant-ui/assistant-ui"
             >
-              <span className="mr-2">🌟</span> Star us on Github
+              <span className="mr-2">🌟</span> Star us on GitHub
             </a>
           </div>
         </div>
@@ -107,7 +107,7 @@ function Hero() {
         UX of ChatGPT in your own app
       </h1>
       <p className="text-muted-foreground mb-8 md:text-xl">
-        assistant-ui is the Typescript/React library for{" "}
+        assistant-ui is the TypeScript/React library for{" "}
         <span className="text-foreground">AI Chat</span>.<br />
         Built on <span className="text-foreground">shadcn/ui</span> and{" "}
         <span className="text-foreground">Tailwind</span>.

@@ -37,8 +37,7 @@ export const SyntaxHighlighter: FC<HighlighterProps> = ({
   components: _components,
   ...props
 }) => {
-  const BASE_STYLES =
-    "aui-shiki-base";
+  const BASE_STYLES = "aui-shiki-base";
 
   return (
     <ShikiHighlighter

@@ -10,7 +10,7 @@ export const metadata = {
     template: "%s | assistant-ui",
     default: "assistant-ui",
   },
-  description: "The Typescript/React library for AI Chat",
+  description: "The TypeScript/React library for AI Chat",
 };
 
 export default function Layout({ children }: { children: ReactNode }) {
