@@ -47,8 +47,7 @@ export namespace AssistantRuntimeProvider {
           }
       >;
       useTool: (name: any) => {
-        disable: () => void;
-        // setUI: (ui: React.ReactNode) => void;
+        setUI: (ui: () => React.ReactNode) => void;
       };
     };
   }>;
