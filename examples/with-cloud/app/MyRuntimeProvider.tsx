@@ -13,7 +13,7 @@ const cloud = new AssistantCloud({
   anonymous: true,
 });
 
-const toolbox = createToolbox<BackendTools>()({
+export const toolbox = createToolbox<BackendTools>()({
   hi: frontendTool({
     parameters: z.object({
       name: z.string(),
