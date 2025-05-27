@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.10.15
+
+### Patch Changes
+
+- fix: add another workaround for Last is not a partial call
+- Updated dependencies
+  - assistant-stream@0.2.12
+
 ## 0.10.14
 
 ### Patch Changes
