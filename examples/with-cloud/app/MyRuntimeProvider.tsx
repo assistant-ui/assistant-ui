@@ -7,7 +7,8 @@ import { createToolbox } from "@assistant-ui/react/model-context/tool";
 import type { BackendTools } from "./api/chat/route";
 import { z } from "zod";
 import { frontendTool } from "assistant-stream/core/tool/tool-types";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useEffect } from "react";
 
 const cloud = new AssistantCloud({
   baseUrl: process.env["NEXT_PUBLIC_ASSISTANT_BASE_URL"]!,
@@ -30,11 +31,10 @@ const toolbox = createToolbox<BackendTools>()({
       }, [result]);
       return <div>Hi: {JSON.stringify(result)} confirmed</div>;
     },
-
-    // CG TODO: Add disable frontend rendering.
   }),
   weather: {
-    render: ({ result }) => <div>Weather: {result?.weather}</div>,
+    // render: ({ result }) => <div>Weather: {result?.weather}</div>,
+    render: false,
   },
   day: {
     render: ({ result }) => <div>Day: {result?.day}</div>,
