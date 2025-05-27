@@ -211,7 +211,7 @@ const ScreenshotTool = makeAssistantTool<{
 Tools that trigger server-side operations:
 
 ```tsx
-// Backend route (Next.js example)
+// Backend route (AI SDK)
 export async function POST(req: Request) {
   const { messages } = await req.json();
   
@@ -476,4 +476,4 @@ Each runtime handles tools differently:
 - **Mastra**: Tools defined as typed functions used by agents and workflows
 - **Custom Runtime**: Tools passed via adapter context
 
-All runtimes support the same frontend tool UI components. See the [runtime documentation](/docs/runtimes) for specific examples.
+All runtimes support the same frontend tool UI components. See the [runtime documentation](/docs/runtimes/pick-a-runtime) for specific examples.
