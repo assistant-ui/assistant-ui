@@ -45,10 +45,20 @@ export const MermaidDiagram: FC<MermaidDiagramProps> = ({
 }) => {
   const ref = useRef<HTMLPreElement>(null);
 
-  // Detect when this specific code block is complete (not the whole message)
+  // Detect when this code block is complete
   const isComplete = useContentPart((part) => {
     if (part.type !== "text") return false;
-    return part.text.split(code)[1]?.includes("```");
+
+    // Find the position of this code block
+    const codeIndex = part.text.indexOf(code);
+    if (codeIndex === -1) return false;
+
+    // Check if there are closing backticks immediately after this code block
+    const afterCode = part.text.substring(codeIndex + code.length);
+
+    // Look for the closing backticks - should be at the start or after a newline
+    const closingBackticksMatch = afterCode.match(/^```|^\n```/);
+    return closingBackticksMatch !== null;
   });
 
   useEffect(() => {
