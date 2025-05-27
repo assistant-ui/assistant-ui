@@ -89,5 +89,5 @@
 }
 
 .aui-mermaid-diagram {
-  @apply bg-muted rounded-b-lg;
+  @apply bg-muted rounded-b-lg p-2 text-center [&_svg]:mx-auto;
 }
