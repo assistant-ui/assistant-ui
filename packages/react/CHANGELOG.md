@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.10.17
+
+### Patch Changes
+
+- fix: useInlineRender should correctly handle updates
+
 ## 0.10.16
 
 ### Patch Changes
