@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.2.13
+
+### Patch Changes
+
+- fix: Last is not a partial call attempt 3
+
 ## 0.2.12
 
 ### Patch Changes
