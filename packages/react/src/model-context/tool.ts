@@ -9,13 +9,6 @@ import {
   useToolUIsStore,
 } from "../context/react/AssistantContext";
 
-// // TODO re-add the inferrence of the parameters
-
-// // Utility type to get all keys of BackendTools as a union
-// // and to allow type inference for tool method
-
-// // type AnyTool = BackendTool | FrontendTool | HumanTool;
-
 type InferArgsFromParameters<T> =
   T extends StandardSchemaV1<infer U>
     ? U extends Record<string, unknown>
@@ -53,8 +46,6 @@ export const createToolbox = <
     */
 
     const useTool = <Name extends keyof T>(name: Name) => {
-      console.log("this runs??/");
-      // const
       // const runtime = useAssistantRuntime();
       const useToolUIs = useToolUIsStore();
 
