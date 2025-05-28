@@ -87,7 +87,7 @@ export const createToolbox = <
                 >
               : never,
         ) => {
-          useToolUIs.getState().setToolUI(name as string, ui);
+          useToolUIs.getState().setToolUI(String(name), ui);
         },
       };
     };
