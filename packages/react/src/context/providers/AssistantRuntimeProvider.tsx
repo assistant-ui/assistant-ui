@@ -46,9 +46,9 @@ export namespace AssistantRuntimeProvider {
             disabled?: boolean;
           }
       >;
-      useTool: (name: any) => {
-        setUI: (ui: () => React.ReactNode) => void;
-      };
+      // useTool: (name: any) => {
+      //   setUI: (ui: () => React.ReactNode) => void;
+      // };
     };
   }>;
 }
@@ -89,7 +89,6 @@ export const AssistantRuntimeProviderImpl: FC<
   useEffect(() => {
     if (!toolbox) return;
     return Object.entries(toolbox.tools).forEach(([toolName, tool]) => {
-      console.log("toolname: ", toolName, tool);
       if (tool.disabled || tool?.render === false) {
         return;
       }
@@ -99,7 +98,7 @@ export const AssistantRuntimeProviderImpl: FC<
         .setToolUI(toolName, (tool as { render: any }).render);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [toolbox]);
 
   useEffect(() => {
     if (toolbox) {
@@ -110,11 +109,11 @@ export const AssistantRuntimeProviderImpl: FC<
             const { render, ...rest } = tool;
             return [toolName, rest];
           })
+          .filter(([, tool]) => (tool as Tool<any, any>)?.execute)
           .filter(
             ([, tool]) =>
               tool && typeof tool === "object" && Object.keys(tool).length > 0,
-          )
-          .filter(([, tool]) => (tool as any)?.execute),
+          ),
       );
 
       runtime.registerModelContextProvider({
@@ -126,7 +125,7 @@ export const AssistantRuntimeProviderImpl: FC<
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [toolbox]);
 
   const RenderComponent = getRenderComponent(runtime);
 
