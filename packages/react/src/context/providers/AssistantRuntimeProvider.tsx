@@ -117,8 +117,6 @@ export const AssistantRuntimeProviderImpl: FC<
           .filter(([, tool]) => (tool as any)?.execute),
       );
 
-      console.log("tools to register: ", tools);
-
       runtime.registerModelContextProvider({
         getModelContext: () => {
           return {

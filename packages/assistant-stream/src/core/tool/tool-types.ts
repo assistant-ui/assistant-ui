@@ -230,16 +230,16 @@ export type HumanTool<
   parameters?: TParameters;
   disabled?: boolean;
   execute?: ToolExecuteFunction<InferArgsFromParameters<TParameters>, TResult>;
-  // render?: ComponentType<
-  //   ToolCallContentPartProps<
-  //     InferArgsFromParameters<TParameters>,
-  //     Awaited<
-  //       ReturnType<
-  //         ToolExecuteFunction<InferArgsFromParameters<TParameters>, TResult>
-  //       >
-  //     >
-  //   >
-  // >;
+  render?: ComponentType<
+    ToolCallContentPartProps<
+      InferArgsFromParameters<TParameters>,
+      Awaited<
+        ReturnType<
+          ToolExecuteFunction<InferArgsFromParameters<TParameters>, TResult>
+        >
+      >
+    >
+  >;
   experimental_onSchemaValidationError?: undefined;
   streamCall?: undefined;
 };
@@ -253,23 +253,12 @@ export type Tool<
   | HumanTool<TArgs, TResult>;
 
 export const toAISDKTool = <T extends BackendTool>(tool: T): AITool => {
-  console.log("tool: ", tool);
-  const result: any = {
-    description: tool.description,
-    parameters: tool.parameters,
-    execute: tool.execute,
-  };
-  if (tool.experimental_onSchemaValidationError !== undefined) {
-    result.experimental_onSchemaValidationError =
-      tool.experimental_onSchemaValidationError;
-  }
-  if (tool.streamCall !== undefined) {
-    result.streamCall = tool.streamCall;
-  }
-
   return {
     description: tool.description,
     parameters: tool.parameters,
     execute: tool.execute,
+    experimental_onSchemaValidationError:
+      tool?.experimental_onSchemaValidationError,
+    streamCall: tool?.streamCall,
   } as AITool;
 };
