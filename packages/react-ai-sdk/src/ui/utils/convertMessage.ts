@@ -9,6 +9,65 @@ import {
   type FileContentPart,
 } from "@assistant-ui/react";
 
+const convertParts = (message: Message) => {
+  if (message.parts && message.parts.length > 0) {
+    return message.parts
+      .filter((p) => p.type !== "step-start")
+      .map((part) => {
+        const type = part.type;
+        switch (type) {
+          case "text":
+            return {
+              type: "text",
+              text: part.text,
+            } satisfies TextContentPart;
+          case "tool-invocation":
+            return {
+              type: "tool-call",
+              toolName: part.toolInvocation.toolName,
+              toolCallId: part.toolInvocation.toolCallId,
+              argsText: JSON.stringify(part.toolInvocation.args),
+              args: part.toolInvocation.args,
+              result:
+                part.toolInvocation.state === "result" &&
+                part.toolInvocation.result,
+            } satisfies ToolCallContentPart;
+          case "reasoning":
+            return {
+              type: "reasoning",
+              text: part.reasoning,
+            } satisfies ReasoningContentPart;
+          case "source":
+            return {
+              type: "source",
+              ...part.source,
+            } satisfies SourceContentPart;
+          case "file":
+            return {
+              type: "file",
+              data: part.data,
+              mimeType: part.mimeType,
+            } satisfies FileContentPart;
+          default: {
+            const _unsupported: never = type;
+            throw new Error(
+              `You have a message with an unsupported part type. The type ${_unsupported} is not supported.`,
+            );
+          }
+        }
+      });
+  }
+
+  return message.content
+    ? [
+        {
+          type: "text",
+          text: message.content,
+        } satisfies TextContentPart,
+      ]
+    : [];
+};
+
 export const AISDKMessageConverter = unstable_createMessageConverter(
   (message: Message) => {
     switch (message.role) {
@@ -17,8 +76,7 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
           role: "user",
           id: message.id,
           createdAt: message.createdAt,
-          content: message.content,
-
+          content: convertParts(message),
           attachments: message.experimental_attachments?.map(
             (attachment, idx) =>
               ({
@@ -37,7 +95,7 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
           role: "system",
           id: message.id,
           createdAt: message.createdAt,
-          content: message.content,
+          content: convertParts(message),
         };
 
       case "assistant":
@@ -45,63 +103,7 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
           role: "assistant",
           id: message.id,
           createdAt: message.createdAt,
-          content:
-            message.parts
-              ?.filter((p) => p.type !== "step-start")
-              .map((part) => {
-                const type = part.type;
-                switch (type) {
-                  case "text":
-                    return {
-                      type: "text",
-                      text: part.text,
-                    } satisfies TextContentPart;
-                  case "tool-invocation":
-                    return {
-                      type: "tool-call",
-                      toolName: part.toolInvocation.toolName,
-                      toolCallId: part.toolInvocation.toolCallId,
-                      argsText: JSON.stringify(part.toolInvocation.args),
-                      args: part.toolInvocation.args,
-                      result:
-                        part.toolInvocation.state === "result" &&
-                        part.toolInvocation.result,
-                    } satisfies ToolCallContentPart;
-                  case "reasoning":
-                    return {
-                      type: "reasoning",
-                      text: part.reasoning,
-                    } satisfies ReasoningContentPart;
-
-                  case "source":
-                    return {
-                      type: "source",
-                      ...part.source,
-                    } satisfies SourceContentPart;
-
-                  case "file":
-                    return {
-                      type: "file",
-                      data: part.data,
-                      mimeType: part.mimeType,
-                    } satisfies FileContentPart;
-
-                  default: {
-                    const _unsupported: never = type;
-                    throw new Error(
-                      `You have a message with an unsupported part type. The type ${_unsupported} is not supported.`,
-                    );
-                  }
-                }
-              }) ??
-            (message.content
-              ? [
-                  {
-                    type: "text",
-                    text: message.content,
-                  } satisfies TextContentPart,
-                ]
-              : []),
+          content: convertParts(message),
           metadata: {
             unstable_annotations: message.annotations,
             unstable_data: Array.isArray(message.data)
@@ -150,7 +152,6 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
       }
 
       default:
-        // TODO handle tool and function messages
         const _unsupported: "function" | "tool" = message.role;
         throw new Error(
           `You have a message with an unsupported role. The role ${_unsupported} is not supported.`,
