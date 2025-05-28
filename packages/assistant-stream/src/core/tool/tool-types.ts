@@ -130,6 +130,7 @@ export type BackendTool<
   TParameters = JSONSchema7 | StandardSchemaV1 | z.ZodTypeAny | Schema,
   TResult = unknown,
 > = {
+  name: string;
   type?: "backend" | undefined;
   description?: string;
   parameters?: TParameters;
@@ -164,6 +165,7 @@ export type FrontendTool<
   TParameters = JSONSchema7 | StandardSchemaV1 | z.ZodTypeAny,
   TResult = unknown,
 > = {
+  name: string;
   type?: "frontend" | undefined;
   description?: string;
   parameters?: TParameters;
@@ -225,6 +227,7 @@ export type HumanTool<
   TParameters = JSONSchema7 | StandardSchemaV1 | z.ZodTypeAny,
   TResult = unknown,
 > = ToolBase<InferArgsFromParameters<TParameters>, TResult> & {
+  name: string;
   type?: "human" | undefined;
   description?: string;
   parameters?: TParameters;
@@ -254,9 +257,10 @@ export type Tool<
 
 export const toAISDKTool = <T extends BackendTool>(tool: T): AITool => {
   return {
-    description: tool.description,
-    parameters: tool.parameters,
-    execute: tool.execute,
+    name: tool.name,
+    description: tool?.description,
+    parameters: tool?.parameters,
+    execute: tool?.execute,
     experimental_onSchemaValidationError:
       tool?.experimental_onSchemaValidationError,
     streamCall: tool?.streamCall,
