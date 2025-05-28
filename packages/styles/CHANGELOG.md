@@ -1,5 +1,11 @@
 # @assistant-ui/styles
 
+## 0.1.11
+
+### Patch Changes
+
+- c58dcf3: feat: Add first class support for Mermaid diagrams
+
 ## 0.1.10
 
 ### Patch Changes
