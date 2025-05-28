@@ -17,6 +17,8 @@ import { ParametersTable } from "@/components/docs";
 - **Multi-thread support** through [Assistant Cloud](/docs/cloud/overview) or your own database using `useRemoteThreadListRuntime`
 - **Simple adapter pattern** to connect any backend API
 
+While LocalRuntime manages state in-memory by default, it offers multiple persistence options through adapters - use the history adapter for single-thread persistence, Assistant Cloud for managed multi-thread support, or implement your own storage with `useRemoteThreadListRuntime`.
+
 ## When to Use
 
 Use `LocalRuntime` if you need:
@@ -593,6 +595,17 @@ const attachmentAdapter: AttachmentAdapter = {
 
 const runtime = useLocalRuntime(MyModelAdapter, {
   adapters: { attachments: attachmentAdapter },
+});
+
+// For multiple file types, use CompositeAttachmentAdapter:
+const runtime = useLocalRuntime(MyModelAdapter, {
+  adapters: {
+    attachments: new CompositeAttachmentAdapter([
+      new SimpleImageAttachmentAdapter(),
+      new SimpleTextAttachmentAdapter(),
+      customPDFAdapter,
+    ])
+  },
 });
 ```
 

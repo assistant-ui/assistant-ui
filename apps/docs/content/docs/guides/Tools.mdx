@@ -16,6 +16,10 @@ Tools in assistant-ui are functions that the LLM can call to perform specific ta
 
 When tools are executed, you can display custom generative UI components that provide rich, interactive visualizations of the tool's execution and results. Learn more in the [Generative UI guide](/docs/guides/ToolUI).
 
+<Callout type="tip">
+If you haven't provided a custom UI for a tool, assistant-ui offers a `<ToolFallback>` component that you can add to your codebase to render a default UI for tool executions. You can customize this by creating your own Tool UI component for the tool's name.
+</Callout>
+
 ## Tool Creation Methods
 
 assistant-ui offers multiple ways to create and register tools, each suited for different use cases:
@@ -27,7 +31,11 @@ assistant-ui offers multiple ways to create and register tools, each suited for 
 
 ### 1. Using `makeAssistantTool`
 
-Create a complete tool with execution logic and optional UI. Returns a React component that registers the tool when rendered:
+Create a complete tool with execution logic and optional UI. Returns a React component that registers the tool UI when rendered:
+
+<Callout type="info">
+**Important:** The component returned by `makeAssistantTool` must be rendered inside `<AssistantRuntimeProvider>` to register its UI. The tool's execution logic runs where you define it, but the UI registration happens when the component mounts.
+</Callout>
 
 ```tsx
 import { makeAssistantTool, AssistantTool } from "@assistant-ui/react";
@@ -116,6 +124,10 @@ function DynamicTools() {
 ### 3. Using `makeAssistantToolUI`
 
 Create generative UI components for tools that are defined elsewhere. This is UI-only - the tool's execution logic must be registered separately (e.g., in your backend, MCP server, or another component):
+
+<Callout type="note">
+This creates only the UI component. The actual tool execution happens where you've defined it (typically in your API route with server-based runtimes like Vercel AI SDK).
+</Callout>
 
 ```tsx
 import { makeAssistantToolUI, AssistantToolUI } from "@assistant-ui/react";
@@ -470,10 +482,13 @@ execute: async (args, context) => {
 
 Each runtime handles tools differently:
 
-- **AI SDK**: Tools defined in API routes with `streamText({ tools: {...} })`
-- **External Store**: Tools registered on the runtime with `runtime.registerTool()`
+### Server-Based Runtimes
+- **AI SDK**: Tools defined in API routes with `streamText({ tools: {...} })` - execution happens server-side
 - **LangGraph**: Tools defined in your LangGraph graph configuration
 - **Mastra**: Tools defined as typed functions used by agents and workflows
-- **Custom Runtime**: Tools passed via adapter context
 
-All runtimes support the same frontend tool UI components. See the [runtime documentation](/docs/runtimes/pick-a-runtime) for specific examples.
+### Client-Based Runtimes
+- **LocalRuntime**: Tools passed via context or registered with `makeAssistantTool`
+- **External Store**: Tools registered on the runtime with `runtime.registerTool()`
+
+All runtimes support the same frontend tool UI components - just ensure the UI components are rendered inside `<AssistantRuntimeProvider>`. See the [runtime documentation](/docs/runtimes/pick-a-runtime) for specific examples.

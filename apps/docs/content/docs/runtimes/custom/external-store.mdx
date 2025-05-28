@@ -16,6 +16,10 @@ import { ParametersTable } from "@/components/docs";
 - **Bring your own state management** - Works with Redux, Zustand, TanStack Query, or any React state library
 - **Custom message formats** - Use your backend's message structure with automatic conversion
 
+<Callout type="warn">
+`ExternalStoreRuntime` gives you total control over state (persist, sync, share), but you must wire up every callback.
+</Callout>
+
 ## Example Implementation
 
 ```tsx twoslash title="app/MyRuntimeProvider.tsx"
@@ -249,7 +253,7 @@ const runtime = useExternalStoreRuntime({
 });
 ```
 
-#### 2. Advanced Conversion with useExternalMessageConverter
+#### 2. Advanced Conversion with `useExternalMessageConverter`
 
 For complex scenarios with performance optimization:
 
@@ -377,6 +381,10 @@ const onNew = async (message: AppendMessage) => {
 ### Message Editing
 
 Enable message editing by implementing the `onEdit` handler:
+
+<Callout type="info">
+You can also implement `onEdit(editedMessage)` and `onRemove(messageId)` callbacks to handle user-initiated edits or deletions in your external store. This enables features like "edit and re-run" on your backend.
+</Callout>
 
 ```tsx
 const onEdit = async (message: AppendMessage) => {
@@ -1109,6 +1117,10 @@ const MyComponent = () => {
   // originalMessages is MyMessage[] (your original type)
 };
 ```
+
+<Callout type="info">
+After the chat finishes, use `getExternalStoreMessages(runtime)` to convert back to your domain model. Refer to the API reference for return structures and edge-case behaviors.
+</Callout>
 
 <Callout type="warning">
 `getExternalStoreMessages` may return multiple messages for a single UI message. This happens because assistant-ui merges adjacent assistant and tool messages for display.

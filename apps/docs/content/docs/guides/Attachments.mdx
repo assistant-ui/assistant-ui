@@ -33,6 +33,10 @@ npx shadcn@latest add "https://r.assistant-ui.com/attachment"
 
 This adds `/components/assistant-ui/attachment.tsx` to your project.
 
+<Callout type="tip">
+**Next steps:** Feel free to adjust these auto-generated components (styling, layout, behavior) to match your application's design system.
+</Callout>
+
   </Step>
   <Step>
 
@@ -103,7 +107,7 @@ const UserMessage = () => {
 
 ### SimpleImageAttachmentAdapter
 
-Handles image files and converts them to data URLs:
+Handles image files and converts them to data URLs for display in the chat UI. By default, images are shown inline but not sent to the LLM - use the VisionImageAdapter example above to send images to vision-capable models.
 
 ```tsx
 const imageAdapter = new SimpleImageAttachmentAdapter();
@@ -135,7 +139,79 @@ const compositeAdapter = new CompositeAttachmentAdapter([
 
 ## Creating Custom Attachment Adapters
 
-Build your own adapter for specialized file handling:
+Build your own adapters for specialized file handling. Below are complete examples for common use cases.
+
+### Vision-Capable Image Adapter
+
+Send images to vision-capable LLMs like GPT-4V, Claude 3, or Gemini Pro Vision:
+
+```tsx
+import {
+  AttachmentAdapter,
+  PendingAttachment,
+  CompleteAttachment,
+} from "@assistant-ui/react";
+
+class VisionImageAdapter implements AttachmentAdapter {
+  accept = "image/jpeg,image/png,image/webp,image/gif";
+
+  async add({ file }: { file: File }): Promise<PendingAttachment> {
+    // Validate file size (e.g., 20MB limit for most LLMs)
+    const maxSize = 20 * 1024 * 1024; // 20MB
+    if (file.size > maxSize) {
+      throw new Error("Image size exceeds 20MB limit");
+    }
+
+    // Return pending attachment while processing
+    return {
+      id: crypto.randomUUID(),
+      type: "image",
+      name: file.name,
+      file,
+      status: { type: "running" },
+    };
+  }
+
+  async send(attachment: PendingAttachment): Promise<CompleteAttachment> {
+    // Convert image to base64 data URL
+    const base64 = await this.fileToBase64DataURL(attachment.file);
+
+    // Return in assistant-ui format with image content
+    return {
+      id: attachment.id,
+      type: "image",
+      name: attachment.name,
+      content: [
+        {
+          type: "image",
+          image: base64, // data:image/jpeg;base64,... format
+        },
+      ],
+      status: { type: "complete" },
+    };
+  }
+
+  async remove(attachment: PendingAttachment): Promise<void> {
+    // Cleanup if needed (e.g., revoke object URLs if you created any)
+  }
+
+  private async fileToBase64DataURL(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        // FileReader result is already a data URL
+        resolve(reader.result as string);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+}
+```
+
+### PDF Document Adapter
+
+Handle PDF files by extracting text or converting to base64 for processing:
 
 ```tsx
 import {
@@ -148,9 +224,14 @@ class PDFAttachmentAdapter implements AttachmentAdapter {
   accept = "application/pdf";
 
   async add({ file }: { file: File }): Promise<PendingAttachment> {
-    // Return pending attachment while processing
+    // Validate file size
+    const maxSize = 10 * 1024 * 1024; // 10MB limit
+    if (file.size > maxSize) {
+      throw new Error("PDF size exceeds 10MB limit");
+    }
+
     return {
-      id: generateId(),
+      id: crypto.randomUUID(),
       type: "document",
       name: file.name,
       file,
@@ -159,7 +240,10 @@ class PDFAttachmentAdapter implements AttachmentAdapter {
   }
 
   async send(attachment: PendingAttachment): Promise<CompleteAttachment> {
-    // Process the PDF file
+    // Option 1: Extract text from PDF (requires pdf parsing library)
+    // const text = await this.extractTextFromPDF(attachment.file);
+    
+    // Option 2: Convert to base64 for API processing
     const base64Data = await this.fileToBase64(attachment.file);
 
     return {
@@ -168,29 +252,130 @@ class PDFAttachmentAdapter implements AttachmentAdapter {
       name: attachment.name,
       content: [
         {
-          type: "file",
-          data: base64Data,
-          mimeType: "application/pdf",
-        },
+          type: "text",
+          text: `[PDF Document: ${attachment.name}]\nBase64 data: ${base64Data.substring(0, 50)}...`
+        }
       ],
       status: { type: "complete" },
     };
   }
 
   async remove(attachment: PendingAttachment): Promise<void> {
-    // Cleanup logic if needed
+    // Cleanup if needed
   }
 
   private async fileToBase64(file: File): Promise<string> {
-    // Convert file to base64
     const arrayBuffer = await file.arrayBuffer();
     const bytes = new Uint8Array(arrayBuffer);
     let binary = "";
-    for (let i = 0; i < bytes.byteLength; i++) {
-      binary += String.fromCharCode(bytes[i]);
-    }
+    bytes.forEach(byte => {
+      binary += String.fromCharCode(byte);
+    });
     return btoa(binary);
   }
+  
+  // Optional: Extract text from PDF using a library like pdf.js
+  private async extractTextFromPDF(file: File): Promise<string> {
+    // Implementation would use pdf.js or similar
+    // This is a placeholder
+    return "Extracted PDF text content";
+  }
+}
+```
+
+## Using Custom Adapters
+
+### With LocalRuntime
+
+When using `LocalRuntime`, you need to handle images in your `ChatModelAdapter` (the adapter that connects to your AI backend):
+
+```tsx
+import { useLocalRuntime, ChatModelAdapter } from "@assistant-ui/react";
+
+// This adapter connects LocalRuntime to your AI backend
+const MyModelAdapter: ChatModelAdapter = {
+  async run({ messages, abortSignal }) {
+    // Convert messages to format expected by your vision-capable API
+    const formattedMessages = messages.map(msg => {
+      if (msg.role === "user" && msg.content.some(part => part.type === "image")) {
+        // Format for GPT-4V or similar vision models
+        return {
+          role: "user",
+          content: msg.content.map(part => {
+            if (part.type === "text") {
+              return { type: "text", text: part.text };
+            }
+            if (part.type === "image") {
+              return {
+                type: "image_url",
+                image_url: { url: part.image }
+              };
+            }
+            return part;
+          })
+        };
+      }
+      
+      // Regular text messages
+      return {
+        role: msg.role,
+        content: msg.content
+          .filter(c => c.type === "text")
+          .map(c => c.text)
+          .join("\n")
+      };
+    });
+
+    // Send to your vision-capable API
+    const response = await fetch("/api/vision-chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: formattedMessages }),
+      signal: abortSignal,
+    });
+
+    const data = await response.json();
+    return {
+      content: [{ type: "text", text: data.message }],
+    };
+  },
+};
+
+// Create runtime with vision image adapter
+const runtime = useLocalRuntime(MyModelAdapter, {
+  adapters: { 
+    attachments: new VisionImageAdapter() 
+  },
+});
+```
+
+### With Vercel AI SDK
+
+If you're using the Vercel AI SDK, images are handled automatically through experimental attachments:
+
+```tsx
+// In your API route
+import { streamText } from "ai";
+import { openai } from "@ai-sdk/openai";
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+
+  const result = streamText({
+    model: openai("gpt-4-vision-preview"),
+    messages: messages.map(msg => {
+      if (msg.experimental_attachments?.length) {
+        // Images are automatically formatted for the model
+        return {
+          ...msg,
+          experimental_attachments: msg.experimental_attachments
+        };
+      }
+      return msg;
+    }),
+  });
+
+  return result.toDataStreamResponse();
 }
 ```
 

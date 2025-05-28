@@ -259,6 +259,10 @@ export const WebSearchToolUI = makeAssistantToolUI<
 
 Use hooks for dynamic tool UI registration:
 
+<Callout type="tip">
+When you assign your `makeAssistantToolUI({...})` call to a constant starting with `use…`, you can call it directly as a hook inside your component. This pattern lets you access local props or state when rendering the tool UI.
+</Callout>
+
 ```tsx
 import { useAssistantToolUI } from "@assistant-ui/react";
 
@@ -286,6 +290,11 @@ function DynamicToolUI() {
 ### Inline Pattern
 
 For tools that need access to parent component props:
+
+<Callout type="tip">
+**Why `useInlineRender`?**
+By default, a tool UI's `render` function is static. Use `useInlineRender` when your UI needs access to dynamic component props (for example, to pass in an `id` or other contextual data).
+</Callout>
 
 ```tsx
 import { useAssistantToolUI, useInlineRender } from "@assistant-ui/react";
@@ -316,6 +325,10 @@ function ProductPage({ productId, productName }) {
 ### User Input Collection
 
 Create tools that collect user input during execution:
+
+<Callout type="tip">
+**Pro tip:** Call `addResult(...)` exactly once to complete the tool call. After it's invoked, the assistant will resume the conversation with your provided data.
+</Callout>
 
 ```tsx
 const DatePickerToolUI = makeAssistantToolUI<
@@ -626,7 +639,7 @@ useAssistantToolUI({
 });
 ```
 
-<Callout type="tip">
+<Callout>
   Generative UI components are only displayed in the chat interface. The actual
   tool execution happens on the backend. This separation allows you to create
   rich, interactive experiences while keeping sensitive logic secure on the
