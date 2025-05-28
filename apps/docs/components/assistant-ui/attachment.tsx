@@ -183,7 +183,7 @@ export const UserMessageAttachments: FC = () => {
 
 export const ComposerAttachments: FC = () => {
   return (
-    <div className="flex w-full flex-row gap-3 px-10">
+    <div className="flex w-full flex-row gap-3 overflow-x-auto">
       <ComposerPrimitive.Attachments
         components={{ Attachment: AttachmentUI }}
       />

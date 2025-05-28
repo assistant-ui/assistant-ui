@@ -3,17 +3,46 @@ title: Attachments
 ---
 
 import { AttachmentSample } from "../../../components/samples/attachment-sample";
+import { Steps, Step } from "fumadocs-ui/components/steps";
+import { Callout } from "fumadocs-ui/components/callout";
 
-Allow the user to attach files to their messages.
+Enable users to attach files to their messages, enhancing conversations with images, documents, and other content.
 
 <AttachmentSample />
 
-## Enabling attachments
+## Overview
 
-In order to enable attachments, you need to pass a `AttachmentAdapter` to your runtime hook, e.g. `useChatRuntime`/`useLangGraphRuntime`/`useExternalStoreRuntime`/...
+The attachment system in assistant-ui provides a flexible framework for handling file uploads in your AI chat interface. It consists of:
 
-In this example, we use a `CompositeAttachmentAdapter` that allows the user to attach images and text.
-The CompositeAttachmentAdapter allows you to combine multiple attachment adapters into one.
+- **Attachment Adapters**: Backend logic for processing attachment files
+- **UI Components**: Pre-built components for attachment display and interaction
+- **Runtime Integration**: Seamless integration with all assistant-ui runtimes
+
+## Getting Started
+
+<Steps>
+  <Step>
+
+### Install UI Components
+
+First, add the attachment UI components to your project:
+
+```sh
+npx shadcn@latest add "https://r.assistant-ui.com/attachment"
+```
+
+This adds `/components/assistant-ui/attachment.tsx` to your project.
+
+<Callout type="tip">
+**Next steps:** Feel free to adjust these auto-generated components (styling, layout, behavior) to match your application's design system.
+</Callout>
+
+  </Step>
+  <Step>
+
+### Configure Attachment Adapter
+
+Set up an attachment adapter in your runtime provider:
 
 ```tsx title="/app/MyRuntimeProvider.tsx"
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
@@ -34,145 +63,578 @@ const runtime = useChatRuntime({
 });
 ```
 
-# Tutorial: Mastering Attachment Handling with CompositeAttachmentAdapter
+  </Step>
+  <Step>
 
-In this tutorial, we'll explore how to handle attachments in your assistant-ui application using the CompositeAttachmentAdapter. This powerful feature allows users to attach various types of files to their messages, enhancing the functionality of your AI chat interface.
+### Add UI Components
 
-## Introduction
+Integrate attachment components into your chat interface:
 
-Attachments are a crucial part of many chat applications, allowing users to share images, documents, and other files. The assistant-ui library provides a flexible system for handling attachments through its AttachmentAdapter interface.
-
-## Prerequisites
-
-Before we begin, make sure you have:
-
-1.  A basic assistant-ui project set up
-2.  Familiarity with React and TypeScript
-3.  Node.js and npm/yarn installed
-
-## Step 1: Understanding AttachmentAdapter
-
-The AttachmentAdapter is an interface that defines how attachments are handled in your application. It includes methods for adding, sending, and removing attachments.
-
-## Step 2: Introducing CompositeAttachmentAdapter
-
-The CompositeAttachmentAdapter is a powerful tool that allows you to combine multiple attachment adapters into one. This is particularly useful when you want to support different types of attachments, such as images and text files.
-
-## Step 3: Setting up the CompositeAttachmentAdapter
-
-Let's create a CompositeAttachmentAdapter that supports both image and text attachments:
-
-```ts
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
-import {
-  CompositeAttachmentAdapter,
-  SimpleImageAttachmentAdapter,
-  SimpleTextAttachmentAdapter,
-} from "@assistant-ui/react";
-
-const MyRuntimeProvider = () => {
-  const runtime = useChatRuntime({
-    api: "/api/chat",
-    adapters: {
-      attachments: new CompositeAttachmentAdapter([
-        new SimpleImageAttachmentAdapter(),
-        new SimpleTextAttachmentAdapter(),
-      ]),
-    },
-  });
-
-  // ... rest of your component
-};
-```
-
-In this example, we're creating a CompositeAttachmentAdapter that combines a SimpleImageAttachmentAdapter and a SimpleTextAttachmentAdapter. This allows our application to handle both image and text file attachments.
-
-## Step 4: Implementing Attachment UI
-
-
-
-Now that we have our adapter set up, let's implement the UI components for attachments:
-
-Make sure you install the attachment ui components by running:
-
-```sh
-npx shadcn@latest add "https://r.assistant-ui.com/attachment"
-```
-
-```tsx
+```tsx title="/components/assistant-ui/thread.tsx"
+// In your Composer component
 import {
   ComposerAttachments,
   ComposerAddAttachment,
-  UserMessageAttachments,
 } from "@/components/assistant-ui/attachment";
 
 const Composer = () => {
   return (
-    <ComposerPrimitive.Root className="...">
+    <ComposerPrimitive.Root>
       <ComposerAttachments />
       <ComposerAddAttachment />
-      {/* ... other composer elements */}
+      <ComposerPrimitive.Input placeholder="Type a message..." />
     </ComposerPrimitive.Root>
   );
 };
 
+// In your UserMessage component
+import { UserMessageAttachments } from "@/components/assistant-ui/attachment";
+
 const UserMessage = () => {
   return (
-    <MessagePrimitive.Root className="...">
+    <MessagePrimitive.Root>
       <UserMessageAttachments />
-      {/* ... other message elements */}
+      <MessagePrimitive.Content />
     </MessagePrimitive.Root>
   );
 };
 ```
 
-These components will handle the display of attachments in the composer and in user messages.
+  </Step>
+</Steps>
 
-## Step 5: Customizing Attachment Behavior
+## Built-in Attachment Adapters
 
-You can customize the behavior of your attachments by modifying the AttachmentAdapter. For example, you might want to add support for a new file type or change how attachments are processed before sending.
+### SimpleImageAttachmentAdapter
 
-Here's an example of a custom attachment adapter:
+Handles image files and converts them to data URLs for display in the chat UI. By default, images are shown inline but not sent to the LLM - use the VisionImageAdapter example above to send images to vision-capable models.
 
-```ts
-import { AttachmentAdapter } from "@assistant-ui/react";
+```tsx
+const imageAdapter = new SimpleImageAttachmentAdapter();
+// Accepts: image/* (JPEG, PNG, GIF, etc.)
+// Output: { type: "image", url: "data:image/..." }
+```
 
-class CustomAttachmentAdapter implements AttachmentAdapter {
-  accept = "image/*, .pdf";
+### SimpleTextAttachmentAdapter
 
-  async add({ file }) {
-    // Custom logic for adding an attachment
-    // ...
-  }
+Processes text files and wraps content in formatted tags:
 
-  async send(attachment) {
-    // Custom logic for sending an attachment
-    // ...
-  }
+```tsx
+const textAdapter = new SimpleTextAttachmentAdapter();
+// Accepts: text/plain, text/html, text/markdown, etc.
+// Output: Content wrapped in <attachment>...</attachment> tags
+```
 
-  async remove() {
-    // Custom logic for removing an attachment
-    // ...
-  }
-}
+### CompositeAttachmentAdapter
 
-// Use it in your CompositeAttachmentAdapter
+Combines multiple adapters to support various file types:
+
+```tsx
 const compositeAdapter = new CompositeAttachmentAdapter([
-  new CustomAttachmentAdapter(),
+  new SimpleImageAttachmentAdapter(),
   new SimpleTextAttachmentAdapter(),
+  // Add more adapters as needed
 ]);
 ```
 
-## Step 6: Handling Attachments in Your Backend
+## Creating Custom Attachment Adapters
 
-Remember to update your backend API to handle the attachments sent by the frontend. The exact implementation will depend on your backend technology, but you'll need to:
+Build your own adapters for specialized file handling. Below are complete examples for common use cases.
 
-1.  Receive the attachment data
-2.  Process and store the attachments as needed
-3.  Associate the attachments with the correct messages or conversations
+### Vision-Capable Image Adapter
 
-## Conclusion
+Send images to vision-capable LLMs like GPT-4V, Claude 3, or Gemini Pro Vision:
 
-By mastering the CompositeAttachmentAdapter, you've unlocked powerful attachment handling capabilities in your assistant-ui application. You can now support multiple types of attachments, customize their behavior, and create a rich, interactive chat experience for your users.
+```tsx
+import {
+  AttachmentAdapter,
+  PendingAttachment,
+  CompleteAttachment,
+} from "@assistant-ui/react";
 
-Remember to test your attachment handling thoroughly, considering different file types, sizes, and potential error scenarios. Happy coding!
+class VisionImageAdapter implements AttachmentAdapter {
+  accept = "image/jpeg,image/png,image/webp,image/gif";
+
+  async add({ file }: { file: File }): Promise<PendingAttachment> {
+    // Validate file size (e.g., 20MB limit for most LLMs)
+    const maxSize = 20 * 1024 * 1024; // 20MB
+    if (file.size > maxSize) {
+      throw new Error("Image size exceeds 20MB limit");
+    }
+
+    // Return pending attachment while processing
+    return {
+      id: crypto.randomUUID(),
+      type: "image",
+      name: file.name,
+      file,
+      status: { type: "running" },
+    };
+  }
+
+  async send(attachment: PendingAttachment): Promise<CompleteAttachment> {
+    // Convert image to base64 data URL
+    const base64 = await this.fileToBase64DataURL(attachment.file);
+
+    // Return in assistant-ui format with image content
+    return {
+      id: attachment.id,
+      type: "image",
+      name: attachment.name,
+      content: [
+        {
+          type: "image",
+          image: base64, // data:image/jpeg;base64,... format
+        },
+      ],
+      status: { type: "complete" },
+    };
+  }
+
+  async remove(attachment: PendingAttachment): Promise<void> {
+    // Cleanup if needed (e.g., revoke object URLs if you created any)
+  }
+
+  private async fileToBase64DataURL(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        // FileReader result is already a data URL
+        resolve(reader.result as string);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+}
+```
+
+### PDF Document Adapter
+
+Handle PDF files by extracting text or converting to base64 for processing:
+
+```tsx
+import {
+  AttachmentAdapter,
+  PendingAttachment,
+  CompleteAttachment,
+} from "@assistant-ui/react";
+
+class PDFAttachmentAdapter implements AttachmentAdapter {
+  accept = "application/pdf";
+
+  async add({ file }: { file: File }): Promise<PendingAttachment> {
+    // Validate file size
+    const maxSize = 10 * 1024 * 1024; // 10MB limit
+    if (file.size > maxSize) {
+      throw new Error("PDF size exceeds 10MB limit");
+    }
+
+    return {
+      id: crypto.randomUUID(),
+      type: "document",
+      name: file.name,
+      file,
+      status: { type: "running" },
+    };
+  }
+
+  async send(attachment: PendingAttachment): Promise<CompleteAttachment> {
+    // Option 1: Extract text from PDF (requires pdf parsing library)
+    // const text = await this.extractTextFromPDF(attachment.file);
+    
+    // Option 2: Convert to base64 for API processing
+    const base64Data = await this.fileToBase64(attachment.file);
+
+    return {
+      id: attachment.id,
+      type: "document",
+      name: attachment.name,
+      content: [
+        {
+          type: "text",
+          text: `[PDF Document: ${attachment.name}]\nBase64 data: ${base64Data.substring(0, 50)}...`
+        }
+      ],
+      status: { type: "complete" },
+    };
+  }
+
+  async remove(attachment: PendingAttachment): Promise<void> {
+    // Cleanup if needed
+  }
+
+  private async fileToBase64(file: File): Promise<string> {
+    const arrayBuffer = await file.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+    let binary = "";
+    bytes.forEach(byte => {
+      binary += String.fromCharCode(byte);
+    });
+    return btoa(binary);
+  }
+  
+  // Optional: Extract text from PDF using a library like pdf.js
+  private async extractTextFromPDF(file: File): Promise<string> {
+    // Implementation would use pdf.js or similar
+    // This is a placeholder
+    return "Extracted PDF text content";
+  }
+}
+```
+
+## Using Custom Adapters
+
+### With LocalRuntime
+
+When using `LocalRuntime`, you need to handle images in your `ChatModelAdapter` (the adapter that connects to your AI backend):
+
+```tsx
+import { useLocalRuntime, ChatModelAdapter } from "@assistant-ui/react";
+
+// This adapter connects LocalRuntime to your AI backend
+const MyModelAdapter: ChatModelAdapter = {
+  async run({ messages, abortSignal }) {
+    // Convert messages to format expected by your vision-capable API
+    const formattedMessages = messages.map(msg => {
+      if (msg.role === "user" && msg.content.some(part => part.type === "image")) {
+        // Format for GPT-4V or similar vision models
+        return {
+          role: "user",
+          content: msg.content.map(part => {
+            if (part.type === "text") {
+              return { type: "text", text: part.text };
+            }
+            if (part.type === "image") {
+              return {
+                type: "image_url",
+                image_url: { url: part.image }
+              };
+            }
+            return part;
+          })
+        };
+      }
+      
+      // Regular text messages
+      return {
+        role: msg.role,
+        content: msg.content
+          .filter(c => c.type === "text")
+          .map(c => c.text)
+          .join("\n")
+      };
+    });
+
+    // Send to your vision-capable API
+    const response = await fetch("/api/vision-chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: formattedMessages }),
+      signal: abortSignal,
+    });
+
+    const data = await response.json();
+    return {
+      content: [{ type: "text", text: data.message }],
+    };
+  },
+};
+
+// Create runtime with vision image adapter
+const runtime = useLocalRuntime(MyModelAdapter, {
+  adapters: { 
+    attachments: new VisionImageAdapter() 
+  },
+});
+```
+
+### With Vercel AI SDK
+
+If you're using the Vercel AI SDK, images are handled automatically through experimental attachments:
+
+```tsx
+// In your API route
+import { streamText } from "ai";
+import { openai } from "@ai-sdk/openai";
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+
+  const result = streamText({
+    model: openai("gpt-4-vision-preview"),
+    messages: messages.map(msg => {
+      if (msg.experimental_attachments?.length) {
+        // Images are automatically formatted for the model
+        return {
+          ...msg,
+          experimental_attachments: msg.experimental_attachments
+        };
+      }
+      return msg;
+    }),
+  });
+
+  return result.toDataStreamResponse();
+}
+```
+
+## Advanced Features
+
+### Progress Updates
+
+Provide real-time upload progress using async generators:
+
+```tsx
+class UploadAttachmentAdapter implements AttachmentAdapter {
+  accept = "*/*";
+
+  async *add({ file }: { file: File }) {
+    const id = generateId();
+
+    // Initial pending state
+    yield {
+      id,
+      type: "file",
+      name: file.name,
+      file,
+      status: { type: "running", progress: 0 },
+    } as PendingAttachment;
+
+    // Simulate upload progress
+    for (let progress = 10; progress <= 90; progress += 10) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      yield {
+        id,
+        type: "file",
+        name: file.name,
+        file,
+        status: { type: "running", progress },
+      } as PendingAttachment;
+    }
+
+    // Return final pending state
+    return {
+      id,
+      type: "file",
+      name: file.name,
+      file,
+      status: { type: "running", progress: 100 },
+    } as PendingAttachment;
+  }
+
+  async send(attachment: PendingAttachment): Promise<CompleteAttachment> {
+    // Upload the file and return complete attachment
+    const url = await this.uploadFile(attachment.file);
+
+    return {
+      id: attachment.id,
+      type: attachment.type,
+      name: attachment.name,
+      content: [
+        {
+          type: "file",
+          data: url, // or base64 data
+          mimeType: attachment.file.type,
+        },
+      ],
+      status: { type: "complete" },
+    };
+  }
+
+  async remove(attachment: PendingAttachment): Promise<void> {
+    // Cleanup logic
+  }
+
+  private async uploadFile(file: File): Promise<string> {
+    // Your upload logic here
+    return "https://example.com/file-url";
+  }
+}
+```
+
+### Validation and Error Handling
+
+Implement robust validation in your adapters:
+
+```tsx
+class ValidatedImageAdapter implements AttachmentAdapter {
+  accept = "image/*";
+  maxSizeBytes = 5 * 1024 * 1024; // 5MB
+
+  async add({ file }: { file: File }): Promise<PendingAttachment> {
+    // Validate file size
+    if (file.size > this.maxSizeBytes) {
+      return {
+        id: generateId(),
+        type: "image",
+        name: file.name,
+        file,
+        status: {
+          type: "incomplete",
+          reason: "error",
+          error: new Error("File size exceeds 5MB limit"),
+        },
+      };
+    }
+
+    // Validate image dimensions
+    try {
+      const dimensions = await this.getImageDimensions(file);
+      if (dimensions.width > 4096 || dimensions.height > 4096) {
+        throw new Error("Image dimensions exceed 4096x4096");
+      }
+    } catch (error) {
+      return {
+        id: generateId(),
+        type: "image",
+        name: file.name,
+        file,
+        status: {
+          type: "incomplete",
+          reason: "error",
+          error,
+        },
+      };
+    }
+
+    // Return valid attachment
+    return {
+      id: generateId(),
+      type: "image",
+      name: file.name,
+      file,
+      status: { type: "running" },
+    };
+  }
+
+  private async getImageDimensions(file: File) {
+    // Implementation to check image dimensions
+  }
+}
+```
+
+### Multiple File Selection
+
+Enable multi-file selection with custom limits:
+
+```tsx
+const composer = useComposer();
+
+const handleMultipleFiles = async (files: FileList) => {
+  const maxFiles = 5;
+  const filesToAdd = Array.from(files).slice(0, maxFiles);
+
+  for (const file of filesToAdd) {
+    await composer.addAttachment({ file });
+  }
+};
+```
+
+## Backend Integration
+
+### With Vercel AI SDK
+
+Process attachments in your API route:
+
+```tsx title="/app/api/chat/route.ts"
+import { streamText } from "ai";
+import { openai } from "@ai-sdk/openai";
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+
+  // Process messages with attachments
+  const processedMessages = messages.map((msg) => {
+    if (msg.role === "user" && msg.experimental_attachments) {
+      // Handle attachments
+      const attachmentContent = msg.experimental_attachments
+        .map((att) => {
+          if (att.contentType.startsWith("image/")) {
+            return `[Image: ${att.name}]`;
+          }
+          return att.content;
+        })
+        .join("\n");
+
+      return {
+        ...msg,
+        content: `${msg.content}\n\nAttachments:\n${attachmentContent}`,
+      };
+    }
+    return msg;
+  });
+
+  const result = streamText({
+    model: openai("gpt-4o"),
+    messages: processedMessages,
+  });
+
+  return result.toDataStreamResponse();
+}
+```
+
+### Custom Backend Handling
+
+Implement your own attachment processing:
+
+```tsx
+// In your attachment adapter
+class ServerUploadAdapter implements AttachmentAdapter {
+  async send(attachment: PendingAttachment): Promise<CompleteAttachment> {
+    const formData = new FormData();
+    formData.append("file", attachment.file);
+
+    const response = await fetch("/api/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    const { url, id } = await response.json();
+
+    return {
+      id,
+      type: attachment.type,
+      name: attachment.name,
+      content: [
+        {
+          type: "image",
+          url,
+        },
+      ],
+      status: { type: "complete" },
+    };
+  }
+}
+```
+
+## Runtime Support
+
+Attachments work with all assistant-ui runtimes:
+
+- **AI SDK Runtime**: `useChatRuntime`, `useAssistantRuntime`
+- **External Store**: `useExternalStoreRuntime`
+- **LangGraph**: `useLangGraphRuntime`
+- **Custom Runtimes**: Any runtime implementing the attachment interface
+
+<Callout type="tip">
+  The attachment system is designed to be extensible. You can create adapters
+  for any file type, integrate with cloud storage services, or implement custom
+  processing logic to fit your specific needs.
+</Callout>
+
+## Best Practices
+
+1. **File Size Limits**: Always validate file sizes to prevent memory issues
+2. **Type Validation**: Verify file types match your `accept` pattern
+3. **Error Handling**: Provide clear error messages for failed uploads
+4. **Progress Feedback**: Show upload progress for better UX
+5. **Security**: Validate and sanitize file content before processing
+6. **Accessibility**: Ensure attachment UI is keyboard navigable
+
+## Resources
+
+- [Attachment UI Components](/docs/ui/Attachment) - UI implementation details
+- [API Reference](/docs/api-reference) - Detailed type definitions
+

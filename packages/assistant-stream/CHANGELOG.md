@@ -1,5 +1,23 @@
 # assistant-stream
 
+## 0.2.13
+
+### Patch Changes
+
+- fix: Last is not a partial call attempt 3
+
+## 0.2.12
+
+### Patch Changes
+
+- fix: add another workaround for Last is not a partial call
+
+## 0.2.11
+
+### Patch Changes
+
+- fix: Last is not a partial call error
+
 ## 0.2.10
 
 ### Patch Changes

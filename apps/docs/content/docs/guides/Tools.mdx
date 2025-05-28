@@ -2,31 +2,493 @@
 title: Tools
 ---
 
-Tools let LLMs take action. assistant-ui allows you to visualize tool invocations and executions as they happen in real time.
+Tools enable LLMs to take actions and interact with external systems. assistant-ui provides a comprehensive toolkit for creating, managing, and visualizing tool interactions in real-time.
 
-This guide is an overview of the different kinds of tool paradigms and how to implement them with assistant-ui.
+## Overview
 
-## Backend Tools
+Tools in assistant-ui are functions that the LLM can call to perform specific tasks. They bridge the gap between the LLM's reasoning capabilities and real-world actions like:
 
-The most common tool paradigm 
+- Fetching data from APIs
+- Performing calculations
+- Interacting with databases
+- Controlling UI elements
+- Executing workflows
 
+When tools are executed, you can display custom generative UI components that provide rich, interactive visualizations of the tool's execution and results. Learn more in the [Generative UI guide](/docs/guides/ToolUI).
 
+<Callout type="tip">
+If you haven't provided a custom UI for a tool, assistant-ui offers a `<ToolFallback>` component that you can add to your codebase to render a default UI for tool executions. You can customize this by creating your own Tool UI component for the tool's name.
+</Callout>
 
+## Tool Creation Methods
 
-- What are tools? Tools let LLMs take action in your app. assistant-ui lets you visualize tool invocations and executions as they happen in real time. Tools can run on the backend, be external APIs, MCP servers, workflows, frontend, human, LLM provider,...
+assistant-ui offers multiple ways to create and register tools, each suited for different use cases:
 
-- Tools for the LLMs: a tool for an LLM contains
+- **`makeAssistantTool`**: Complete tools with execution logic and optional UI
+- **`useAssistantTool`**: Hook-based dynamic tool registration
+- **`makeAssistantToolUI`**: UI-only components for existing tools
+- **Inline registration**: Direct tool registration with the runtime
 
-## Tool Call Side-Effects
+### 1. Using `makeAssistantTool`
 
-## Tool UIs
+Create a complete tool with execution logic and optional UI. Returns a React component that registers the tool UI when rendered:
 
-## Frontend Tools
+<Callout type="info">
+**Important:** The component returned by `makeAssistantTool` must be rendered inside `<AssistantRuntimeProvider>` to register its UI. The tool's execution logic runs where you define it, but the UI registration happens when the component mounts.
+</Callout>
 
-## Backend Tools
+```tsx
+import { makeAssistantTool, AssistantTool } from "@assistant-ui/react";
+import { z } from "zod";
 
-## Human Tools
+const WeatherTool = makeAssistantTool<{
+  location: string;
+  unit: "celsius" | "fahrenheit";
+}, {
+  temperature: number;
+  description: string;
+  humidity: number;
+  windSpeed: number;
+}>({
+  toolName: "getWeather",
+  description: "Get current weather for a location",
+  parameters: z.object({
+    location: z.string().describe("City name or zip code"),
+    unit: z.enum(["celsius", "fahrenheit"]).default("celsius")
+  }),
+  execute: async ({ location, unit }) => {
+    // Tool execution logic
+    const weather = await fetchWeatherAPI(location, unit);
+    return weather;
+  },
+  render: ({ args, result, status }) => {
+    // Custom UI for tool display
+    if (status.type === "running") return <div>Fetching weather...</div>;
+    if (status.type === "incomplete" && status.reason === "error") {
+      return <div>Error: {status.error?.message}</div>;
+    }
+    
+    return (
+      <div className="weather-card">
+        <h3>Weather in {args.location}</h3>
+        <p>{result.temperature}° {args.unit}</p>
+        <p>{result.description}</p>
+      </div>
+    );
+  }
+});
 
-## MCP tools
+// Place the tool component inside AssistantRuntimeProvider
+function App() {
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <WeatherTool />
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
 
-## LLM provider tools
+### 2. Using `useAssistantTool` Hook
+
+Register tools dynamically using React hooks. Useful for conditional tools or when tool availability depends on component state:
+
+```tsx
+import { useAssistantTool } from "@assistant-ui/react";
+import { z } from "zod";
+
+function DynamicTools() {
+  const [dataSource, setDataSource] = useState<"local" | "cloud">("local");
+  
+  useAssistantTool({
+    toolName: "searchData",
+    description: "Search through the selected data source",
+    parameters: z.object({
+      query: z.string()
+    }),
+    execute: async ({ query }) => {
+      if (dataSource === "local") {
+        return await searchLocalDatabase(query);
+      } else {
+        return await searchCloudDatabase(query);
+      }
+    },
+    // Re-register when data source changes
+    enabled: true
+  });
+  
+  return null;
+}
+```
+
+### 3. Using `makeAssistantToolUI`
+
+Create generative UI components for tools that are defined elsewhere. This is UI-only - the tool's execution logic must be registered separately (e.g., in your backend, MCP server, or another component):
+
+<Callout type="note">
+This creates only the UI component. The actual tool execution happens where you've defined it (typically in your API route with server-based runtimes like Vercel AI SDK).
+</Callout>
+
+```tsx
+import { makeAssistantToolUI, AssistantToolUI } from "@assistant-ui/react";
+
+const SearchResultsUI = makeAssistantToolUI<{
+  query: string;
+}, {
+  results: Array<{
+    id: string;
+    url: string;
+    title: string;
+    snippet: string;
+  }>;
+}>({
+  toolName: "webSearch", // Must match the registered tool's name
+  render: ({ args, result }) => {
+    return (
+      <div className="search-results">
+        <h3>Search: {args.query}</h3>
+        {result.results.map((item) => (
+          <div key={item.id}>
+            <a href={item.url}>{item.title}</a>
+            <p>{item.snippet}</p>
+          </div>
+        ))}
+      </div>
+    );
+  }
+});
+
+// Place the tool component inside AssistantRuntimeProvider
+function App() {
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <SearchResultsUI />
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+### 4. Using Inline Tool Registration
+
+For simple tools without custom UI:
+
+```tsx
+import { tool } from "@assistant-ui/react";
+
+const calculateTool = tool({
+  description: "Perform mathematical calculations",
+  parameters: z.object({
+    expression: z.string()
+  }),
+  execute: async ({ expression }) => {
+    return eval(expression); // Note: Use proper math parser in production
+  }
+});
+
+// Register with runtime
+runtime.registerTool(calculateTool);
+```
+
+## Tool Paradigms
+
+### Frontend Tools
+
+Tools that execute in the browser, accessing client-side resources:
+
+```tsx
+const ScreenshotTool = makeAssistantTool<{
+  selector?: string;
+}, {
+  dataUrl: string;
+}>({
+  toolName: "takeScreenshot",
+  description: "Capture a screenshot of the current page",
+  parameters: z.object({
+    selector: z.string().optional()
+  }),
+  execute: async ({ selector }) => {
+    const element = selector ? document.querySelector(selector) : document.body;
+    const screenshot = await captureElement(element);
+    return { dataUrl: screenshot };
+  },
+  render: ({ result }) => (
+    <img src={result.dataUrl} alt="Screenshot" />
+  )
+});
+```
+
+### Backend Tools
+
+Tools that trigger server-side operations:
+
+```tsx
+// Backend route (AI SDK)
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+  
+  const result = streamText({
+    model: openai("gpt-4o"),
+    messages,
+    tools: {
+      queryDatabase: {
+        description: "Query the application database",
+        parameters: z.object({
+          query: z.string(),
+          table: z.string()
+        }),
+        execute: async ({ query, table }) => {
+          // Server-side database access
+          const results = await db.query(query, { table });
+          return results;
+        }
+      }
+    }
+  });
+  
+  return result.toDataStreamResponse();
+}
+```
+
+### Human-in-the-Loop Tools
+
+Tools that require human approval or input:
+
+```tsx
+import { makeAssistantTool, AssistantTool } from "@assistant-ui/react";
+import { z } from "zod";
+
+const RefundTool = makeAssistantTool<{
+  orderId: string;
+  amount: number;
+  reason: string;
+}, {
+  transactionId: string;
+  status: 'completed' | 'failed';
+  refundedAmount: number;
+}>({
+  toolName: "processRefund",
+  description: "Process a customer refund",
+  parameters: z.object({
+    orderId: z.string(),
+    amount: z.number(),
+    reason: z.string()
+  }),
+  execute: async ({ orderId, amount, reason }) => {
+    // Wait for human approval
+    const approved = await requestHumanApproval({
+      action: "refund",
+      details: { orderId, amount, reason }
+    });
+    
+    if (!approved) {
+      throw new Error("Refund rejected by administrator");
+    }
+    
+    return await processRefund(orderId, amount);
+  },
+  render: ({ args, status }) => {
+    if (status.type === "running") {
+      return (
+        <div className="approval-pending">
+          <p>Awaiting approval for refund:</p>
+          <p>Order: {args.orderId}</p>
+          <p>Amount: ${args.amount}</p>
+          <ApprovalButtons />
+        </div>
+      );
+    }
+    // ... handle other states
+  }
+});
+```
+
+### MCP (Model Context Protocol) Tools
+
+Integration with MCP servers:
+
+```tsx
+// Using AI SDK's MCP support
+import { createMCPClient } from "ai/mcp";
+
+const mcpClient = createMCPClient({
+  servers: {
+    github: {
+      command: "npx",
+      args: ["@modelcontextprotocol/server-github"]
+    }
+  }
+});
+
+// Tools are automatically available through the runtime
+const runtime = useChatRuntime({
+  api: "/api/chat",
+  tools: await mcpClient.getTools()
+});
+```
+
+## Advanced Patterns
+
+### Tool Composition
+
+Combining multiple tools for complex workflows:
+
+```tsx
+const TravelPlannerTool = makeAssistantTool<{
+  destination: string;
+  dates: {
+    start: string;
+    end: string;
+  };
+}, {
+  weather: any;
+  hotels: any;
+  activities: any;
+  itinerary: any;
+}>({
+  toolName: "planTrip",
+  description: "Plan a complete trip itinerary",
+  parameters: z.object({
+    destination: z.string(),
+    dates: z.object({
+      start: z.string(),
+      end: z.string()
+    })
+  }),
+  execute: async ({ destination, dates }) => {
+    // Execute multiple operations
+    const weather = await getWeatherAPI(destination);
+    const hotels = await searchHotelsAPI({ 
+      location: destination,
+      dates 
+    });
+    const activities = await findActivitiesAPI({
+      location: destination,
+      weather: weather.forecast
+    });
+    
+    return {
+      weather,
+      hotels,
+      activities,
+      itinerary: generateItinerary({ weather, hotels, activities })
+    };
+  }
+});
+```
+
+### Conditional Tool Availability
+
+Tools that appear based on context:
+
+```tsx
+function ConditionalTools() {
+  const { user } = useAuth();
+  const { subscription } = useSubscription();
+  
+  // Premium features
+  useAssistantTool({
+    toolName: "advancedAnalysis",
+    description: "Perform advanced data analysis",
+    parameters: z.object({
+      dataset: z.string()
+    }),
+    execute: async (args) => {
+      // Premium analysis logic
+    },
+    enabled: subscription?.tier === "premium"
+  });
+  
+  // Role-based tools
+  useAssistantTool({
+    toolName: "adminPanel",
+    description: "Access admin controls",
+    parameters: z.object({}),
+    execute: async () => {
+      // Admin actions
+    },
+    enabled: user?.role === "admin"
+  });
+}
+```
+
+### Tool Error Handling
+
+Robust error handling and recovery:
+
+```tsx
+const ResilientTool = makeAssistantTool<{
+  endpoint: string;
+}, any>({
+  toolName: "fetchData",
+  description: "Fetch data with retry logic",
+  parameters: z.object({
+    endpoint: z.string()
+  }),
+  execute: async ({ endpoint }, { abortSignal }) => {
+    const maxRetries = 3;
+    let lastError;
+    
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        const response = await fetch(endpoint, { signal: abortSignal });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return await response.json();
+      } catch (error) {
+        lastError = error;
+        if (abortSignal.aborted) throw error; // Don't retry on abort
+        await new Promise(resolve => setTimeout(resolve, 1000 * i));
+      }
+    }
+    
+    throw new Error(`Failed after ${maxRetries} attempts: ${lastError.message}`);
+  },
+  render: ({ status, result, args }) => {
+    if (status.type === "incomplete" && status.reason === "error") {
+      return (
+        <ErrorCard 
+          error={status.error}
+          retry={() => window.assistant.retryTool(args)}
+        />
+      );
+    }
+    // ... handle other states
+  }
+});
+```
+
+## Best Practices
+
+1. **Clear Descriptions**: Write descriptive tool descriptions that help the LLM understand when to use each tool
+2. **Parameter Validation**: Use Zod schemas to ensure type safety and provide clear parameter descriptions
+3. **Error Handling**: Always handle potential errors gracefully with user-friendly messages
+4. **Loading States**: Provide visual feedback during tool execution
+5. **Security**: Validate permissions and sanitize inputs, especially for destructive operations
+6. **Performance**: Use abort signals for cancellable operations and implement timeouts
+7. **Testing**: Test tools in isolation and with the full assistant flow
+
+## Tool Execution Context
+
+Tools receive additional context during execution:
+
+```tsx
+execute: async (args, context) => {
+  // context.abortSignal - AbortSignal for cancellation
+  // context.toolCallId - Unique identifier for this invocation
+}
+```
+
+## Runtime Integration
+
+Each runtime handles tools differently:
+
+### Server-Based Runtimes
+- **AI SDK**: Tools defined in API routes with `streamText({ tools: {...} })` - execution happens server-side
+- **LangGraph**: Tools defined in your LangGraph graph configuration
+- **Mastra**: Tools defined as typed functions used by agents and workflows
+
+### Client-Based Runtimes
+- **LocalRuntime**: Tools passed via context or registered with `makeAssistantTool`
+- **External Store**: Tools registered on the runtime with `runtime.registerTool()`
+
+All runtimes support the same frontend tool UI components - just ensure the UI components are rendered inside `<AssistantRuntimeProvider>`. See the [runtime documentation](/docs/runtimes/pick-a-runtime) for specific examples.

@@ -88,4 +88,6 @@
   @apply bg-muted rounded border font-semibold;
 }
 
-
+.aui-mermaid-diagram {
+  @apply bg-muted rounded-b-lg p-2 text-center [&_svg]:mx-auto;
+}
