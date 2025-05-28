@@ -98,7 +98,6 @@ export type ToolStreamCallFunction<
   context: ToolExecutionContext,
 ) => void;
 
-// // CG TODO: Reimplement this
 // type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<
 //   unknown,
 //   TResult
