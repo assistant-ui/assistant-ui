@@ -15,6 +15,8 @@ export type {
   Unstable_AudioContentPart,
   ToolCallContentPart,
   MessageStatus,
+  ContentPartStatus,
+  ToolCallContentPartStatus,
 
   // thread message types
   ThreadUserContentPart,
