@@ -4,10 +4,7 @@ import { ToolCallContentPartProps } from "../types";
 import { JSONSchema7 } from "json-schema";
 import { StandardSchemaV1 } from "@standard-schema/spec";
 import z from "zod";
-import {
-  // useAssistantRuntime,
-  useToolUIsStore,
-} from "../context/react/AssistantContext";
+import { useToolUIsStore } from "../context/react/AssistantContext";
 
 type InferArgsFromParameters<T> =
   T extends StandardSchemaV1<infer U>
