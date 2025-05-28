@@ -129,7 +129,7 @@ type InferArgsFromParameters<T> =
 export type BackendTool<
   TParameters = JSONSchema7 | StandardSchemaV1 | z.ZodTypeAny | Schema,
   TResult = unknown,
-> = {
+> = ToolBase<InferArgsFromParameters<TParameters>, TResult> & {
   name: string;
   type?: "backend" | undefined;
   description?: string;
@@ -164,7 +164,7 @@ export const backendTools = <T extends Record<string, BackendTool>>(
 export type FrontendTool<
   TParameters = JSONSchema7 | StandardSchemaV1 | z.ZodTypeAny,
   TResult = unknown,
-> = {
+> = ToolBase<InferArgsFromParameters<TParameters>, TResult> & {
   name: string;
   type?: "frontend" | undefined;
   description?: string;
@@ -202,7 +202,7 @@ export type ToolCallContentPart<
 };
 
 export type ToolCallContentPartProps<
-  TArgs = any,
+  TArgs = ReadonlyJSONObject,
   TResult = unknown,
 > = ToolCallContentPart<TArgs, TResult> & {
   addResult: (result: TResult) => void;
