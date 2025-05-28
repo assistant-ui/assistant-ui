@@ -19,6 +19,7 @@ import { frontendTool } from "assistant-stream";
 // TODO replace zod with json-schema so we can drop the zod dep
 
 const click = frontendTool({
+  name: "click",
   parameters: z.object({
     clickId: z.string(),
   }),
@@ -38,6 +39,7 @@ const click = frontendTool({
 });
 
 const edit = frontendTool({
+  name: "edit",
   parameters: z.object({
     editId: z.string(),
     value: z.string(),
