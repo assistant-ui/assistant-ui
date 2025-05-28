@@ -1,10 +1,14 @@
-import React, { ComponentType } from "react";
+import { ComponentType, useCallback } from "react";
 import { BackendTool, FrontendTool, HumanTool } from "assistant-stream";
 import { ToolCallContentPartProps } from "../types";
 import { JSONSchema7 } from "json-schema";
 import { StandardSchemaV1 } from "@standard-schema/spec";
 import z from "zod";
-import { useToolUIsStore } from "../context/react/AssistantContext";
+import {
+  useAssistantRuntime,
+  useToolUIsStore,
+} from "../context/react/AssistantContext";
+import { useThreadModelContext } from "../context";
 
 type InferArgsFromParameters<T> =
   T extends StandardSchemaV1<infer U>
@@ -36,46 +40,24 @@ export const createToolbox = <
   >(
     a: T,
   ) => {
-    /*
-    useTool(name: keyof T) 
-      - disable()
-      - setUI(ui: React.ReactNode)
-    */
-
-    const useTool = <Name extends keyof T>(name: Name) => {
-      // const runtime = useAssistantRuntime();
-      const useToolUIs = useToolUIsStore();
-
-      // const context = useContext(AssistantContext);
-
-      // context?.useAssistantRuntime().registerModelContextProvider
-
-      return {
-        // disable: () => {
-        //   runtime.registerModelContextProvider({
-        //     getModelContext: () => ({
-        //       tools: { [name]: { disabled: true } },
-        //     }),
-        //   });
-        // },
-        // enable: () => {
-        //   runtime.registerModelContextProvider({
-        //     getModelContext: () => ({
-        //       tools: { [name]: { disabled: false } },
-        //     }),
-        //   });
-        // },
-        setUI: (
-          ui: Name extends keyof BackendTools
-            ? ComponentType<
-                ToolCallContentPartProps<
-                  InferArgsFromParameters<BackendTools[Name]["parameters"]>,
-                  Awaited<
-                    ReturnType<NonNullable<BackendTools[Name]["execute"]>>
-                  >
-                >
+    const useTool = <Name extends keyof T>(
+      name: Name,
+    ): Name extends keyof BackendTools
+      ? {
+          setUI: (
+            ui: ComponentType<
+              ToolCallContentPartProps<
+                InferArgsFromParameters<BackendTools[Name]["parameters"]>,
+                Awaited<ReturnType<NonNullable<BackendTools[Name]["execute"]>>>
               >
-            : T[Name] extends FrontendTool<any, any>
+            >,
+          ) => void;
+        }
+      : {
+          enable: () => void;
+          disable: () => void;
+          setUI: (
+            ui: T[Name] extends FrontendTool<any, any> | HumanTool<any, any>
               ? ComponentType<
                   ToolCallContentPartProps<
                     InferArgsFromParameters<T[Name]["parameters"]>,
@@ -83,10 +65,97 @@ export const createToolbox = <
                   >
                 >
               : never,
-        ) => {
-          useToolUIs.getState().setToolUI(String(name), ui);
+          ) => void;
+        } => {
+      const runtime = useAssistantRuntime();
+      const useToolUIs = useToolUIsStore();
+      const modelContext = useThreadModelContext();
+
+      const disable = useCallback(() => {
+        const existingTool = modelContext.tools?.[String(name)];
+        if (!existingTool) {
+          return;
+        }
+
+        runtime.registerModelContextProvider({
+          getModelContext: () => {
+            const tools = {
+              ...modelContext.tools,
+              [name]: {
+                ...existingTool,
+                disabled: true,
+              },
+            };
+
+            return {
+              ...modelContext,
+              tools,
+            };
+          },
+        });
+      }, [modelContext, name, runtime]);
+
+      const enable = useCallback(() => {
+        const existingTool = modelContext.tools?.[String(name)];
+        if (!existingTool) {
+          return;
+        }
+
+        runtime.registerModelContextProvider({
+          getModelContext: () => {
+            const tools = {
+              ...modelContext.tools,
+              [name]: {
+                ...existingTool,
+                disabled: false,
+              },
+            };
+
+            return {
+              ...modelContext,
+              tools,
+            };
+          },
+        });
+      }, [modelContext, name, runtime]);
+
+      const tool = modelContext.tools?.[String(name)];
+
+      // if (tool?.type === "frontend" || tool?.type === "human") {
+      //   return {
+      //     enable: enable,
+      //     disable: disable,
+      //     setUI: (ui: any) => {
+      //       useToolUIs.getState().setToolUI(String(name), ui);
+      //     },
+      //   };
+      // } else {
+      //   return {
+      //     setUI: (ui: any) => {
+      //       useToolUIs.getState().setToolUI(String(name), ui);
+      //     },
+      //   };
+      // }
+
+      return new Proxy({} as any, {
+        get: (_, prop) => {
+          if (prop === "setUI") {
+            return (ui: any) => {
+              useToolUIs.getState().setToolUI(String(name), ui);
+            };
+          }
+
+          if (tool?.type === "frontend" || tool?.type === "human") {
+            if (prop === "enable") {
+              return enable;
+            }
+            if (prop === "disable") {
+              return disable;
+            }
+          }
+          return undefined;
         },
-      };
+      });
     };
 
     return {

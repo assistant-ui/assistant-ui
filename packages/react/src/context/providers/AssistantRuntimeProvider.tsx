@@ -46,9 +46,9 @@ export namespace AssistantRuntimeProvider {
             disabled?: boolean;
           }
       >;
-      // useTool: (name: any) => {
-      //   setUI: (ui: () => React.ReactNode) => void;
-      // };
+      useTool: (name: any) => {
+        setUI: (ui: () => React.ReactNode) => void;
+      };
     };
   }>;
 }
@@ -100,6 +100,7 @@ export const AssistantRuntimeProviderImpl: FC<
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [toolbox]);
 
+  // Registers tools to be used executed through the model context.
   useEffect(() => {
     if (toolbox) {
       // Remove render functions from toolbox before passing to tools
@@ -109,6 +110,7 @@ export const AssistantRuntimeProviderImpl: FC<
             const { render, ...rest } = tool;
             return [toolName, rest];
           })
+          // Filters out backend tools, which only render UI and don't execute on the client side.
           .filter(([, tool]) => (tool as Tool<any, any>)?.execute)
           .filter(
             ([, tool]) =>
