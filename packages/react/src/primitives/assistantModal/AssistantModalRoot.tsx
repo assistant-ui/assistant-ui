@@ -28,11 +28,7 @@ const useAssistantModalOpenState = ({
     return threadRuntime.unstable_on("run-start", () => {
       setOpen(true);
     });
-  }, [
-    unstable_openOnRunStart,
-    setOpen,
-    threadRuntime,
-  ]);
+  }, [unstable_openOnRunStart, setOpen, threadRuntime]);
 
   return state;
 };
