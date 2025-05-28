@@ -1,5 +1,13 @@
 # @assistant-ui/react-edge
 
+## 0.2.11
+
+### Patch Changes
+
+- 3fd9ec1: fix: useAssistant should correctly display
+- Updated dependencies [3ed39ef]
+  - @assistant-ui/react@0.10.18
+
 ## 0.2.10
 
 ### Patch Changes

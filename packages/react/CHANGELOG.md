@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.10.18
+
+### Patch Changes
+
+- 3ed39ef: feat: export ContentPartStatus
+
 ## 0.10.17
 
 ### Patch Changes
