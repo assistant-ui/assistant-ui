@@ -36,7 +36,7 @@ export const useVercelRSCRuntime = <T extends WeakKey>(
     return (
       adapter.convertMessage?.bind(adapter) ?? ((m: T) => m as VercelRSCMessage)
     );
-  }, [adapter.convertMessage, adapter]);
+  }, [adapter]);
   const callback = useCallback(
     (m: T) => {
       return vercelToThreadMessage(convertFn, m);

@@ -22,6 +22,7 @@ const useAssistantModalOpenState = ({
 
   const [, setOpen] = state;
   const threadRuntime = useThreadRuntime();
+  const shouldNotOpenOnRunStart = !unstable_openOnRunStart;
   useEffect(() => {
     if (!unstable_openOnRunStart) return undefined;
 
@@ -32,7 +33,7 @@ const useAssistantModalOpenState = ({
     unstable_openOnRunStart,
     setOpen,
     threadRuntime,
-    !unstable_openOnRunStart,
+    shouldNotOpenOnRunStart,
   ]);
 
   return state;

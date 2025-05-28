@@ -87,13 +87,8 @@ const MarkdownTextInner: FC<MarkdownTextPrimitiveProps> = ({
   ));
 
   const components: Options["components"] = useMemo(() => {
-    const {
-      pre = DefaultPre,
-      code = DefaultCode,
-      SyntaxHighlighter = DefaultCodeBlockContent,
-      CodeHeader = DefaultCodeHeader,
-      ...componentsRest
-    } = userComponents ?? {};
+    const { pre, code, SyntaxHighlighter, CodeHeader, ...componentsRest } =
+      userComponents ?? {};
     return {
       ...componentsRest,
       pre: PreOverride,

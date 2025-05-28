@@ -34,7 +34,7 @@ export function getRelevantFiles(cwd: string): string[] {
     try {
       const content = fs.readFileSync(path.join(cwd, file), "utf8");
       return content.includes("assistant-ui");
-    } catch (err) {
+    } catch {
       return false;
     }
   });

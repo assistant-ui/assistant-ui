@@ -87,7 +87,7 @@ export const makeAssistantVisible = <T extends ComponentType<any>>(
             };
           },
         });
-      }, [config?.clickable, config?.editable, isNestedReadable, assistant]);
+      }, [isNestedReadable, assistant]);
 
       const ref = useComposedRefs(componentRef, outerRef);
 

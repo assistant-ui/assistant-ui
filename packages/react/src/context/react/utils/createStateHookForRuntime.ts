@@ -75,7 +75,7 @@ export function createStateHookForRuntime<TState>(
     if (!store) return null;
 
     // it is ok to call useRuntimeStateInternal conditionally because it will never become null if its available
-    // eslint-ignore-next-line react-hooks/rules-of-hooks
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     return useRuntimeStateInternal(store, selector);
   }
 
