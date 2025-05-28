@@ -7,17 +7,21 @@ import { create } from "zustand";
 export const useInlineRender = <TArgs, TResult>(
   toolUI: FC<ToolCallContentPartProps<TArgs, TResult>>,
 ): FC<ToolCallContentPartProps<TArgs, TResult>> => {
-  const [useToolUI] = useState(() => create(() => toolUI));
+  const [useToolUIStore] = useState(() =>
+    create(() => ({
+      toolUI,
+    })),
+  );
 
   useEffect(() => {
-    useToolUI.setState(toolUI);
-  }, [toolUI, useToolUI]);
+    useToolUIStore.setState({ toolUI });
+  }, [toolUI, useToolUIStore]);
 
   return useCallback(
     function ToolUI(args) {
-      const toolUI = useToolUI();
-      return toolUI(args);
+      const store = useToolUIStore();
+      return store.toolUI(args);
     },
-    [useToolUI],
+    [useToolUIStore],
   );
 };
