@@ -30,7 +30,7 @@ function isPackageInstalled(pkg: string): boolean {
         return true;
       }
     }
-  } catch (e) {
+  } catch {
     // Fall back to node_modules check below.
   }
   const modulePath = path.join(cwd, "node_modules", ...pkg.split("/"));

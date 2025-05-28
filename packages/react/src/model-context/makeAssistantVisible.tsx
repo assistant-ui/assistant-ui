@@ -73,13 +73,15 @@ export const makeAssistantVisible = <T extends ComponentType<any>>(
       const componentRef = useRef<HTMLElement>(null);
 
       const assistant = useAssistantRuntime();
+
+      const { clickable, editable } = config ?? {};
       useEffect(() => {
         return assistant.registerModelContextProvider({
           getModelContext: () => {
             return {
               tools: {
-                ...(config?.clickable ? { click } : {}),
-                ...(config?.editable ? { edit } : {}),
+                ...(clickable ? { click } : {}),
+                ...(editable ? { edit } : {}),
               },
               system: !isNestedReadable // only pass content if this readable isn't nested in another readable
                 ? componentRef.current?.outerHTML
@@ -87,7 +89,7 @@ export const makeAssistantVisible = <T extends ComponentType<any>>(
             };
           },
         });
-      }, [config?.clickable, config?.editable, isNestedReadable, assistant]);
+      }, [isNestedReadable, assistant, clickable, editable]);
 
       const ref = useComposedRefs(componentRef, outerRef);
 
