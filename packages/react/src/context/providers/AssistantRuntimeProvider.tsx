@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ComponentType,
   FC,
   PropsWithChildren,
   memo,
@@ -16,6 +17,19 @@ import { create } from "zustand";
 import { writableStore } from "../ReadonlyStore";
 import { AssistantRuntimeCore } from "../../runtimes/core/AssistantRuntimeCore";
 import { ensureBinding } from "../react/utils/ensureBinding";
+import { FrontendTool, Tool } from "assistant-stream";
+import { ToolCallContentPartProps } from "../..";
+
+// Utility type to remove the 'render' property from a tool type
+// and extract argument/result types using infer
+export type inferTool<T> = T extends {
+  execute: (args: infer Args, context: any) => infer Result;
+  render: any;
+}
+  ? Omit<T, "render"> & { Args: Args; Result: Result }
+  : T extends { execute: (args: infer Args, context: any) => infer Result }
+    ? T & { Args: Args; Result: Result }
+    : T;
 
 export namespace AssistantRuntimeProvider {
   export type Props = PropsWithChildren<{
@@ -23,6 +37,19 @@ export namespace AssistantRuntimeProvider {
      * The runtime to provide to the rest of your app.
      */
     runtime: AssistantRuntime;
+    toolbox?: {
+      tools: Record<
+        string,
+        | FrontendTool<any, any>
+        | {
+            render: ComponentType<ToolCallContentPartProps<any, any>>;
+            disabled?: boolean;
+          }
+      >;
+      useTool: (name: any) => {
+        setUI: (ui: () => React.ReactNode) => void;
+      };
+    };
   }>;
 }
 
@@ -49,7 +76,7 @@ const getRenderComponent = (runtime: AssistantRuntime) => {
 
 export const AssistantRuntimeProviderImpl: FC<
   AssistantRuntimeProvider.Props
-> = ({ children, runtime }) => {
+> = ({ children, runtime, toolbox }) => {
   const useAssistantRuntime = useAssistantRuntimeStore(runtime);
   const useToolUIs = useAssistantToolUIsStore();
   const [context] = useState(() => {
@@ -58,6 +85,49 @@ export const AssistantRuntimeProviderImpl: FC<
       useAssistantRuntime,
     };
   });
+
+  useEffect(() => {
+    if (!toolbox) return;
+    return Object.entries(toolbox.tools).forEach(([toolName, tool]) => {
+      if (tool.disabled || tool?.render === false) {
+        return;
+      }
+
+      useToolUIs
+        .getState()
+        .setToolUI(toolName, (tool as { render: any }).render);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toolbox]);
+
+  // Registers tools to be used executed through the model context.
+  useEffect(() => {
+    if (toolbox) {
+      // Remove render functions from toolbox before passing to tools
+      const tools = Object.fromEntries(
+        Object.entries(toolbox.tools)
+          .map(([toolName, tool]) => {
+            const { render, ...rest } = tool;
+            return [toolName, rest];
+          })
+          // Filters out backend tools, which only render UI and don't execute on the client side.
+          .filter(([, tool]) => (tool as Tool<any, any>)?.execute)
+          .filter(
+            ([, tool]) =>
+              tool && typeof tool === "object" && Object.keys(tool).length > 0,
+          ),
+      );
+
+      runtime.registerModelContextProvider({
+        getModelContext: () => {
+          return {
+            tools: tools as Record<string, Tool<any, any>>,
+          };
+        },
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toolbox]);
 
   const RenderComponent = getRenderComponent(runtime);
 

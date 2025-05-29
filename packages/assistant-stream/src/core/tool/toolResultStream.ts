@@ -4,6 +4,7 @@ import { ToolResponse } from "./ToolResponse";
 import { ToolExecutionStream } from "./ToolExecutionStream";
 import { AssistantMessage } from "../utils/types";
 import { ReadonlyJSONObject, ReadonlyJSONValue } from "../../utils";
+import type { ToolStreamCallFunction } from "./tool-types";
 
 const isStandardSchemaV1 = (
   schema: unknown,
@@ -71,10 +72,15 @@ function getToolStreamResponse(
     toolName: string;
   },
 ) {
-  tools?.[context.toolName]?.streamCall?.(reader, {
-    toolCallId: context.toolCallId,
-    abortSignal,
-  });
+  const streamCallFn = tools?.[context.toolName]?.streamCall as
+    | ToolStreamCallFunction<any, ReadonlyJSONValue>
+    | undefined;
+  if (typeof streamCallFn === "function") {
+    return streamCallFn(reader, {
+      toolCallId: context.toolCallId,
+      abortSignal,
+    });
+  }
 }
 
 export async function unstable_runPendingTools(

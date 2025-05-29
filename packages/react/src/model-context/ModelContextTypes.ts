@@ -48,13 +48,6 @@ export const mergeModelContexts = (
     }
     if (config.tools) {
       for (const [name, tool] of Object.entries(config.tools)) {
-        const existing = acc.tools?.[name];
-        if (existing && existing !== tool) {
-          throw new Error(
-            `You tried to define a tool with the name ${name}, but it already exists.`,
-          );
-        }
-
         if (!acc.tools) acc.tools = {};
         acc.tools[name] = tool;
       }

@@ -1,8 +1,11 @@
 import { JSONSchema7 } from "json-schema";
 import { DeepPartial, TypeAtPath, TypePath } from "./type-path-utils";
-import { AsyncIterableStream } from "../../utils";
+import { AsyncIterableStream, ReadonlyJSONObject } from "../../utils";
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 import { ToolResponse } from "./ToolResponse";
+import { z } from "zod";
+import { Tool as AITool, Schema } from "ai";
+import { ComponentType } from "react";
 
 /**
  * Interface for reading tool call arguments from a stream, which are
@@ -95,10 +98,10 @@ export type ToolStreamCallFunction<
   context: ToolExecutionContext,
 ) => void;
 
-type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<
-  unknown,
-  TResult
->;
+// type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<
+//   unknown,
+//   TResult
+// >;
 
 type ToolBase<
   TArgs extends Record<string, unknown> = Record<string, unknown>,
@@ -110,43 +113,137 @@ type ToolBase<
   streamCall?: ToolStreamCallFunction<TArgs, TResult>;
 };
 
-type BackendTool<
-  TArgs extends Record<string, unknown> = Record<string, unknown>,
+type InferArgsFromParameters<T> =
+  T extends StandardSchemaV1<infer U>
+    ? U extends Record<string, unknown>
+      ? U
+      : Record<string, unknown>
+    : T extends JSONSchema7
+      ? Record<string, unknown>
+      : T extends z.ZodTypeAny
+        ? z.infer<T>
+        : Record<string, unknown>;
+
+// Overloaded BackendTool type for better inference
+export type BackendTool<
+  TParameters = JSONSchema7 | StandardSchemaV1 | z.ZodTypeAny | Schema,
   TResult = unknown,
-> = ToolBase<TArgs, TResult> & {
+> = ToolBase<InferArgsFromParameters<TParameters>, TResult> & {
+  name: string;
   type?: "backend" | undefined;
-
-  description?: undefined;
-  parameters?: undefined;
-  disabled?: undefined;
-  execute?: undefined;
+  description?: string;
+  parameters?: TParameters;
+  disabled?: boolean;
+  execute?: ToolExecuteFunction<InferArgsFromParameters<TParameters>, TResult>;
   experimental_onSchemaValidationError?: undefined;
+  streamCall?: undefined;
 };
 
-type FrontendTool<
-  TArgs extends Record<string, unknown> = Record<string, unknown>,
+// Overloads for backendTool helper
+export function backendTool<
+  // Zod type any is here to support users who haven't upgraded to v4
+  TParameters extends JSONSchema7 | StandardSchemaV1 | z.ZodTypeAny | Schema,
+  TResult,
+>(
+  tool: Omit<BackendTool<TParameters, TResult>, "execute"> & {
+    execute: (
+      args: InferArgsFromParameters<TParameters>,
+      context: ToolExecutionContext,
+    ) => TResult | Promise<TResult>;
+  },
+): BackendTool<TParameters, TResult> {
+  return tool;
+}
+
+// Updated backendTools to accept any record of values extending BackendTool with specific generics
+export const backendTools = <T extends Record<string, BackendTool>>(
+  tools: T,
+): T => tools;
+
+export type FrontendTool<
+  TParameters = JSONSchema7 | StandardSchemaV1 | z.ZodTypeAny,
   TResult = unknown,
-> = ToolBase<TArgs, TResult> & {
+> = ToolBase<InferArgsFromParameters<TParameters>, TResult> & {
+  name: string;
   type?: "frontend" | undefined;
-
-  description?: string | undefined;
-  parameters: StandardSchemaV1<TArgs> | JSONSchema7;
+  description?: string;
+  parameters?: TParameters;
   disabled?: boolean;
-  execute?: ToolExecuteFunction<TArgs, TResult>;
-  experimental_onSchemaValidationError?: OnSchemaValidationErrorFunction<TResult>;
+  execute?: ToolExecuteFunction<InferArgsFromParameters<TParameters>, TResult>;
+  render?:
+    | ComponentType<
+        ToolCallContentPartProps<
+          InferArgsFromParameters<TParameters>,
+          Awaited<
+            ReturnType<
+              ToolExecuteFunction<InferArgsFromParameters<TParameters>, TResult>
+            >
+          >
+        >
+      >
+    | false;
+  experimental_onSchemaValidationError?: undefined;
+  streamCall?: undefined;
 };
 
-type HumanTool<
-  TArgs extends Record<string, unknown> = Record<string, unknown>,
+export type ToolCallContentPart<
+  TArgs = ReadonlyJSONObject,
   TResult = unknown,
-> = ToolBase<TArgs, TResult> & {
-  type?: "human" | undefined;
+> = {
+  readonly type: "tool-call";
+  readonly toolCallId: string;
+  readonly toolName: string;
+  readonly args: TArgs;
+  readonly result?: TResult | undefined;
+  readonly isError?: boolean | undefined;
+  readonly argsText: string;
+  readonly artifact?: unknown;
+};
 
-  description?: string | undefined;
-  parameters: StandardSchemaV1<TArgs> | JSONSchema7;
+export type ToolCallContentPartProps<
+  TArgs = ReadonlyJSONObject,
+  TResult = unknown,
+> = ToolCallContentPart<TArgs, TResult> & {
+  addResult: (result: TResult) => void;
+};
+
+export function frontendTool<
+  // Zod type any is here to support users who haven't upgraded to v4
+  TParameters extends JSONSchema7 | StandardSchemaV1 | z.ZodTypeAny,
+  TResult,
+>(
+  tool: Omit<FrontendTool<TParameters, TResult>, "execute"> & {
+    execute: (
+      args: InferArgsFromParameters<TParameters>,
+      context: ToolExecutionContext,
+    ) => TResult | Promise<TResult>;
+  },
+): FrontendTool<TParameters, TResult> {
+  return tool;
+}
+
+export type HumanTool<
+  TParameters = JSONSchema7 | StandardSchemaV1 | z.ZodTypeAny,
+  TResult = unknown,
+> = ToolBase<InferArgsFromParameters<TParameters>, TResult> & {
+  name: string;
+  type?: "human" | undefined;
+  description?: string;
+  parameters?: TParameters;
   disabled?: boolean;
-  execute?: undefined;
+  execute?: ToolExecuteFunction<InferArgsFromParameters<TParameters>, TResult>;
+  render?: ComponentType<
+    ToolCallContentPartProps<
+      InferArgsFromParameters<TParameters>,
+      Awaited<
+        ReturnType<
+          ToolExecuteFunction<InferArgsFromParameters<TParameters>, TResult>
+        >
+      >
+    >
+  >;
   experimental_onSchemaValidationError?: undefined;
+  streamCall?: undefined;
 };
 
 export type Tool<
@@ -156,3 +253,15 @@ export type Tool<
   | FrontendTool<TArgs, TResult>
   | BackendTool<TArgs, TResult>
   | HumanTool<TArgs, TResult>;
+
+export const toAISDKTool = <T extends BackendTool>(tool: T): AITool => {
+  return {
+    name: tool.name,
+    description: tool?.description,
+    parameters: tool?.parameters,
+    execute: tool?.execute,
+    experimental_onSchemaValidationError:
+      tool?.experimental_onSchemaValidationError,
+    streamCall: tool?.streamCall,
+  } as AITool;
+};

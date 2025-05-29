@@ -26,8 +26,6 @@ export type {
 
 export type { Tool } from "assistant-stream";
 
-export { tool } from "./tool";
-
 /**
  * @deprecated This function was renamed to `makeAssistantVisible`.
  */
