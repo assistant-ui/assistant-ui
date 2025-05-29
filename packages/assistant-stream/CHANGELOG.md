@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.2.14
+
+### Patch Changes
+
+- 52e18bc: feat: ToolResponseLike
+
 ## 0.2.13
 
 ### Patch Changes
