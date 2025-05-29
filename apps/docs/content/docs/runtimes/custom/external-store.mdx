@@ -1277,13 +1277,15 @@ const runtime = useExternalStoreRuntime({ messages, onNew, onEdit });
 </Callout>
 
 <Callout type="warning">
+
 **State not updating**: Common causes:
 
 1. Mutating arrays instead of creating new ones
 2. Missing `setMessages` for branch switching
 3. Not handling async operations properly
 4. Incorrect message format conversion
-   </Callout>
+
+</Callout>
 
 ### Debugging Checklist
 
