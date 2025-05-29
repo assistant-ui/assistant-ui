@@ -25,30 +25,36 @@ This guide demonstrates building tool UIs with the **Vercel AI SDK**.
 
 There are two main approaches to creating tool UIs in assistant-ui:
 
-### 1. Complete Tool with UI (`makeAssistantTool`)
+### 1. Client-Defined Tools (`makeAssistantTool`)
 
-If you're creating a new tool from scratch, you can use `makeAssistantTool` to define both the tool's execution logic and its UI in one place. This is ideal when you control both the frontend and backend:
+If you're creating tools on the client side, use `makeAssistantTool` to register them with the assistant context. Then create a UI component with `makeAssistantToolUI`:
 
 ```tsx
-import { makeAssistantTool } from "@assistant-ui/react";
+import { makeAssistantTool, tool } from "@assistant-ui/react";
 import { z } from "zod";
 
-const WeatherTool = makeAssistantTool<
-  { location: string; unit: "celsius" | "fahrenheit" },
-  { temperature: number; description: string }
->({
-  toolName: "getWeather",
+// Define the tool
+const weatherTool = tool({
   description: "Get current weather for a location",
   parameters: z.object({
     location: z.string(),
     unit: z.enum(["celsius", "fahrenheit"]),
   }),
-  // Tool execution logic
   execute: async ({ location, unit }) => {
     const weather = await fetchWeatherAPI(location, unit);
     return weather;
-  },
-  // Tool UI rendering
+  }
+});
+
+// Register the tool
+const WeatherTool = makeAssistantTool(weatherTool);
+
+// Create the UI
+const WeatherToolUI = makeAssistantToolUI<
+  { location: string; unit: "celsius" | "fahrenheit" },
+  { temperature: number; description: string }
+>({
+  toolName: "getWeather",
   render: ({ args, result, status }) => {
     if (status.type === "running") {
       return <div>Checking weather in {args.location}...</div>;
@@ -66,6 +72,10 @@ const WeatherTool = makeAssistantTool<
   },
 });
 ```
+
+<Callout type="tip">
+  Tools defined with `makeAssistantTool` can be passed to your backend using the `frontendTools` utility
+</Callout>
 
 Learn more about creating tools in the [Tools Guide](/docs/guides/Tools).
 
@@ -649,6 +659,5 @@ useAssistantToolUI({
 ## Related Guides
 
 - [Tools Guide](/docs/guides/Tools) - Learn how to create and use tools with AI models
-- [Mastra Integration](/docs/runtimes/mastra/tool-ui-example) - Build generative UI with Mastra agents and tools
 - [Tool Fallback](/docs/ui/ToolFallback) - Default UI for tools without custom components
 - [API Reference](/docs/api-reference/primitives/ContentPart) - Detailed type definitions and component APIs
