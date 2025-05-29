@@ -59,6 +59,7 @@
   "dependencies": {
     "@types/json-schema": "^7.0.15",
     "nanoid": "5.1.5",
+    "react": "^19.1.0",
     "secure-json-parse": "^4.0.0",
     "zod": "^3.25.28"
   }
