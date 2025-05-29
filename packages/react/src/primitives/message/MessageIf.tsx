@@ -49,6 +49,7 @@ const useMessageIf = (props: UseMessageIfProps) => {
 
       if (props.lastOrHover === true && !isHovering && !isLast) return false;
       if (props.last === true && !isLast) return false;
+      if (props.last === false && isLast) return false;
 
       if (props.copied === true && !isCopied) return false;
       if (props.copied === false && isCopied) return false;
