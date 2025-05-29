@@ -1,5 +1,18 @@
 # @assistant-ui/react-langgraph
 
+## 0.5.5
+
+### Patch Changes
+
+- 52e18bc: feat: langgraph human tool call artifact/isError support
+- 52e18bc: fix: add support for artifact and isError for langgraph tool calls
+- Updated dependencies [d0867eb]
+- Updated dependencies [52e18bc]
+- Updated dependencies [52e18bc]
+- Updated dependencies [52e18bc]
+  - @assistant-ui/react@0.10.19
+  - assistant-stream@0.2.14
+
 ## 0.5.4
 
 ### Patch Changes

@@ -1,5 +1,15 @@
 # @assistant-ui/react
 
+## 0.10.19
+
+### Patch Changes
+
+- d0867eb: fix(message): add missing condition in `MessageIf`
+- 52e18bc: feat: addToolResponse ToolResponse support
+- 52e18bc: fix: add support for artifact and isError for langgraph tool calls
+- Updated dependencies [52e18bc]
+  - assistant-stream@0.2.14
+
 ## 0.10.18
 
 ### Patch Changes
