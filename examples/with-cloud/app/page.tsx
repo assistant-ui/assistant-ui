@@ -25,7 +25,18 @@ export default function Home() {
 
   return (
     <main className="grid h-dvh grid-cols-[200px,1fr] gap-4 p-4">
-      <button onClick={() => setMode(mode === "weather" ? "hi" : "weather")}>
+      <button
+        onClick={() => {
+          setMode(mode === "weather" ? "hi" : "weather");
+          if (mode === "weather") {
+            hiTool.enable();
+            // weatherTool.disable();
+          } else {
+            hiTool.disable();
+            // weatherTool.enable();
+          }
+        }}
+      >
         Switch UI ${mode}
       </button>
       <ThreadList />

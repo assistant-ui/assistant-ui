@@ -15,6 +15,7 @@ const cloud = new AssistantCloud({
 
 export const toolbox = createToolbox<BackendTools>()({
   hi: frontendTool({
+    name: "hi",
     parameters: z.object({
       name: z.string(),
     }),

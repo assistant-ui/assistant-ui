@@ -13,6 +13,7 @@ export const maxDuration = 30;
 
 // Define the weather tool
 const weatherTool = backendTool({
+  name: "weather",
   description: "Get weather information",
   parameters: z.object({
     location: z.string().describe("Location to get weather for"),
@@ -38,6 +39,7 @@ const weatherTool = backendTool({
 // });
 
 const dayTool = backendTool({
+  name: "day",
   description: "Get the current day of the week",
   parameters: jsonSchema({
     type: "object",
@@ -58,6 +60,7 @@ const dayTool = backendTool({
 });
 
 const rainTool = backendTool({
+  name: "rain",
   description: "Get the current rain forecast",
   parameters: zv4.object({
     expectedPercentage: zv4.number().describe("Expected percentage of rain"),
