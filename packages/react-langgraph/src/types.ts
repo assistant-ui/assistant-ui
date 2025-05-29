@@ -54,6 +54,7 @@ export type LangChainMessage =
       tool_call_id: string;
       name: string;
       artifact?: any;
+      status: "success" | "error";
     }
   | {
       id?: string;
