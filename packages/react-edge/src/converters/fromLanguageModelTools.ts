@@ -7,5 +7,10 @@ import { Tool } from "@assistant-ui/react";
 export const fromLanguageModelTools = (
   tools: LanguageModelV1FunctionTool[] | Tool<any, any>[],
 ): Record<string, Omit<Tool<any, any>, "type">> => {
-  return Object.fromEntries(tools.map((tool) => [tool.name, tool]));
+  return Object.fromEntries(
+    tools.map((tool) => {
+      const { type, ...toolWithoutType } = tool;
+      return [tool.name, toolWithoutType];
+    }),
+  );
 };
