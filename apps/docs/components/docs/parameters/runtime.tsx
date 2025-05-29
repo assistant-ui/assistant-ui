@@ -113,7 +113,7 @@ export const AssistantRuntimeProviderProps = () => {
                 },
                 {
                   name: "addToolResult",
-                  type: "(toolCallId: string, result: any) => void",
+                  type: "(options: AddToolResultOptions) => void",
                   required: true,
                   description: "A function to add a tool result.",
                 },

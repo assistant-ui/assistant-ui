@@ -26,7 +26,9 @@ export type AddToolResultOptions = {
   messageId: string;
   toolName: string;
   toolCallId: string;
-  result: any;
+  result: ReadonlyJSONValue;
+  isError: boolean;
+  artifact?: ReadonlyJSONValue | undefined;
 };
 
 export type SubmitFeedbackOptions = {

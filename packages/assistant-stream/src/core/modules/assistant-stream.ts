@@ -18,7 +18,7 @@ import {
   ReadonlyJSONObject,
   ReadonlyJSONValue,
 } from "../../utils/json/json-value";
-import { ToolResponseInit } from "../tool/ToolResponse";
+import { ToolResponseLike } from "../tool/ToolResponse";
 import { promiseWithResolvers } from "../../utils/promiseWithResolvers";
 
 type ToolCallPartInit = {
@@ -26,7 +26,7 @@ type ToolCallPartInit = {
   toolName: string;
   argsText?: string;
   args?: ReadonlyJSONObject;
-  response?: ToolResponseInit<ReadonlyJSONValue>;
+  response?: ToolResponseLike<ReadonlyJSONValue>;
 };
 
 export type AssistantStreamController = {
