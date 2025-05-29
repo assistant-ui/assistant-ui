@@ -52,11 +52,7 @@ function getToolResponse(
       toolCallId: toolCall.toolCallId,
       abortSignal,
     })) as unknown as ReadonlyJSONValue;
-    if (result instanceof ToolResponse)
-      return result as ToolResponse<ReadonlyJSONValue>;
-    return new ToolResponse({
-      result: result === undefined ? "<no result>" : result,
-    });
+    return ToolResponse.toResponse(result);
   };
 
   return getResult(tool.execute);

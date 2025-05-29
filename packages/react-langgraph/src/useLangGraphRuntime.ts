@@ -232,6 +232,7 @@ export const useLangGraphRuntime = ({
                   name: t.name,
                   tool_call_id: t.id,
                   content: JSON.stringify({ cancelled: true }),
+                  status: "error",
                 }) satisfies LangChainMessage & { type: "tool" },
             )
           : [];
@@ -249,7 +250,13 @@ export const useLangGraphRuntime = ({
         },
       );
     },
-    onAddToolResult: async ({ toolCallId, toolName, result }) => {
+    onAddToolResult: async ({
+      toolCallId,
+      toolName,
+      result,
+      isError,
+      artifact,
+    }) => {
       // TODO parallel human in the loop calls
       await handleSendMessage(
         [
@@ -258,6 +265,8 @@ export const useLangGraphRuntime = ({
             name: toolName,
             tool_call_id: toolCallId,
             content: JSON.stringify(result),
+            artifact,
+            status: isError ? "error" : "success",
           },
         ],
         // TODO reuse runconfig here!

@@ -12,12 +12,14 @@ import { ParametersTable } from "@/components/docs";
 `ExternalStoreRuntime` bridges your existing state management with assistant-ui components. It requires an `ExternalStoreAdapter<TMessage>` that handles communication between your state and the UI.
 
 **Key differences from `LocalRuntime`:**
+
 - **You own the state** - Full control over message state, thread management, and persistence logic
 - **Bring your own state management** - Works with Redux, Zustand, TanStack Query, or any React state library
 - **Custom message formats** - Use your backend's message structure with automatic conversion
 
 <Callout type="warn">
-`ExternalStoreRuntime` gives you total control over state (persist, sync, share), but you must wire up every callback.
+  `ExternalStoreRuntime` gives you total control over state (persist, sync,
+  share), but you must wire up every callback.
 </Callout>
 
 ## Example Implementation
@@ -288,7 +290,9 @@ Controls how adjacent assistant messages are combined:
 This is useful when your backend sends multiple message chunks that should appear as a single message in the UI.
 
 <Callout type="info">
-`useExternalMessageConverter` provides performance optimization for complex message conversion scenarios. For simpler cases, consider using the basic `convertMessage` approach shown above.
+  `useExternalMessageConverter` provides performance optimization for complex
+  message conversion scenarios. For simpler cases, consider using the basic
+  `convertMessage` approach shown above.
 </Callout>
 
 ### Essential Handlers
@@ -302,7 +306,7 @@ const runtime = useExternalStoreRuntime({
     // Add user message to state
     const userMsg = { role: "user", content: message.content };
     setMessages([...messages, userMsg]);
-    
+
     // Get AI response
     const response = await callAI(message);
     setMessages([...messages, userMsg, response]);
@@ -316,19 +320,17 @@ const runtime = useExternalStoreRuntime({
 const runtime = useExternalStoreRuntime({
   messages,
   setMessages, // Enables branch switching
-  onNew,       // Required
-  onEdit,      // Enables message editing
-  onReload,    // Enables regeneration
-  onCancel,    // Enables cancellation
+  onNew, // Required
+  onEdit, // Enables message editing
+  onReload, // Enables regeneration
+  onCancel, // Enables cancellation
 });
 ```
 
 <Callout type="info">
-Each handler you provide enables specific UI features:
-- `setMessages` → Branch switching
-- `onEdit` → Message editing
-- `onReload` → Regenerate button
-- `onCancel` → Cancel button during generation
+  Each handler you provide enables specific UI features: - `setMessages` →
+  Branch switching - `onEdit` → Message editing - `onReload` → Regenerate button
+  - `onCancel` → Cancel button during generation
 </Callout>
 
 ### Streaming Responses
@@ -383,7 +385,9 @@ const onNew = async (message: AppendMessage) => {
 Enable message editing by implementing the `onEdit` handler:
 
 <Callout type="info">
-You can also implement `onEdit(editedMessage)` and `onRemove(messageId)` callbacks to handle user-initiated edits or deletions in your external store. This enables features like "edit and re-run" on your backend.
+  You can also implement `onEdit(editedMessage)` and `onRemove(messageId)`
+  callbacks to handle user-initiated edits or deletions in your external store.
+  This enables features like "edit and re-run" on your backend.
 </Callout>
 
 ```tsx
@@ -548,7 +552,9 @@ const ThreadContext = createContext<{
   currentThreadId: string;
   setCurrentThreadId: (id: string) => void;
   threads: Map<string, ThreadMessageLike[]>;
-  setThreads: React.Dispatch<React.SetStateAction<Map<string, ThreadMessageLike[]>>>;
+  setThreads: React.Dispatch<
+    React.SetStateAction<Map<string, ThreadMessageLike[]>>
+  >;
 }>({
   currentThreadId: "default",
   setCurrentThreadId: () => {},
@@ -588,7 +594,8 @@ Here's a full implementation with proper context management:
 
 ```tsx
 function ChatWithThreads() {
-  const { currentThreadId, setCurrentThreadId, threads, setThreads } = useThreadContext();
+  const { currentThreadId, setCurrentThreadId, threads, setThreads } =
+    useThreadContext();
   const [threadList, setThreadList] = useState<ExternalStoreThreadData[]>([
     { threadId: "default", status: "regular", title: "New Chat" },
   ]);
@@ -683,7 +690,10 @@ export function App() {
 #### Thread Context Best Practices
 
 <Callout type="info">
-**Critical**: When using `ExternalStoreRuntime` with threads, the `currentThreadId` must be consistent across all components and handlers. Mismatched thread IDs will cause messages to appear in wrong threads or disappear entirely.
+  **Critical**: When using `ExternalStoreRuntime` with threads, the
+  `currentThreadId` must be consistent across all components and handlers.
+  Mismatched thread IDs will cause messages to appear in wrong threads or
+  disappear entirely.
 </Callout>
 
 1. **Centralize Thread State**: Always use a context or global state management solution to ensure thread ID consistency:
@@ -709,13 +719,13 @@ function ThreadList() {
 onSwitchToThread: (threadId) => {
   setCurrentThreadId(threadId);
   // Messages won't update!
-}
+};
 
 // ✅ Good: Complete state update
 onSwitchToThread: (threadId) => {
   setCurrentThreadId(threadId);
   // Messages automatically update via currentMessages = threads.get(currentThreadId)
-}
+};
 ```
 
 3. **Handle Edge Cases**: Always provide fallbacks for missing threads:
@@ -740,10 +750,10 @@ useEffect(() => {
   const saveThread = async () => {
     await api.saveThread(currentThreadId, threads.get(currentThreadId) || []);
   };
-  
+
   const debounced = debounce(saveThread, 1000);
   debounced();
-  
+
   return () => debounced.cancel();
 }, [currentThreadId, threads]);
 ```
@@ -1072,7 +1082,7 @@ setIsRunning(true);
 Assistant messages get automatic status updates:
 
 - `"in_progress"` - When `isRunning` is true
-- `"complete"` - When `isRunning` becomes false  
+- `"complete"` - When `isRunning` becomes false
 - `"cancelled"` - When cancelled via `onCancel`
 
 ### Tool Result Matching
@@ -1084,20 +1094,24 @@ The runtime automatically matches tool results with their calls:
 const messages = [
   {
     role: "assistant",
-    content: [{
-      type: "tool-call",
-      toolCallId: "call_123",
-      toolName: "get_weather",
-      args: { location: "SF" },
-    }],
+    content: [
+      {
+        type: "tool-call",
+        toolCallId: "call_123",
+        toolName: "get_weather",
+        args: { location: "SF" },
+      },
+    ],
   },
   {
     role: "tool",
-    content: [{
-      type: "tool-result",
-      toolCallId: "call_123",
-      result: { temp: 72 },
-    }],
+    content: [
+      {
+        type: "tool-result",
+        toolCallId: "call_123",
+        result: { temp: 72 },
+      },
+    ],
   },
 ];
 // Runtime automatically associates these
@@ -1119,11 +1133,15 @@ const MyComponent = () => {
 ```
 
 <Callout type="info">
-After the chat finishes, use `getExternalStoreMessages(runtime)` to convert back to your domain model. Refer to the API reference for return structures and edge-case behaviors.
+  After the chat finishes, use `getExternalStoreMessages(runtime)` to convert
+  back to your domain model. Refer to the API reference for return structures
+  and edge-case behaviors.
 </Callout>
 
 <Callout type="warning">
-`getExternalStoreMessages` may return multiple messages for a single UI message. This happens because assistant-ui merges adjacent assistant and tool messages for display.
+  `getExternalStoreMessages` may return multiple messages for a single UI
+  message. This happens because assistant-ui merges adjacent assistant and tool
+  messages for display.
 </Callout>
 
 ### Content Part Access
@@ -1190,9 +1208,14 @@ setMessages([...messages, newMessage]);
 Memoize handlers to prevent runtime recreation:
 
 ```tsx
-const onNew = useCallback(async (message: AppendMessage) => {
-  // Handle new message
-}, [/* dependencies */]);
+const onNew = useCallback(
+  async (message: AppendMessage) => {
+    // Handle new message
+  },
+  [
+    /* dependencies */
+  ],
+);
 
 const runtime = useExternalStoreRuntime({
   messages,
@@ -1206,7 +1229,7 @@ const runtime = useExternalStoreRuntime({
 // For large message lists
 const recentMessages = useMemo(
   () => messages.slice(-50), // Show last 50 messages
-  [messages]
+  [messages],
 );
 
 // For expensive conversions
@@ -1219,24 +1242,24 @@ const convertMessage = useCallback((msg) => {
 
 ### When to Choose Which
 
-| Scenario | Recommendation |
-| -------- | -------------- |
-| Quick prototype | `LocalRuntime` |
-| Using Redux/Zustand | `ExternalStoreRuntime` |
-| Need Assistant Cloud integration | `LocalRuntime` |
-| Custom thread storage | Both (`LocalRuntime` with adapter or `ExternalStoreRuntime`) |
-| Simple single thread | `LocalRuntime` |
-| Complex state logic | `ExternalStoreRuntime` |
+| Scenario                         | Recommendation                                               |
+| -------------------------------- | ------------------------------------------------------------ |
+| Quick prototype                  | `LocalRuntime`                                               |
+| Using Redux/Zustand              | `ExternalStoreRuntime`                                       |
+| Need Assistant Cloud integration | `LocalRuntime`                                               |
+| Custom thread storage            | Both (`LocalRuntime` with adapter or `ExternalStoreRuntime`) |
+| Simple single thread             | `LocalRuntime`                                               |
+| Complex state logic              | `ExternalStoreRuntime`                                       |
 
 ### Feature Comparison
 
-| Feature | `LocalRuntime` | `ExternalStoreRuntime` |
-| ------- | ------------ | -------------------- |
-| State Management | Built-in | You provide |
-| Multi-thread | Via Cloud or custom adapter | Via adapter |
-| Message Format | ThreadMessage | Any (with conversion) |
-| Setup Complexity | Low | Medium |
-| Flexibility | Medium | High |
+| Feature          | `LocalRuntime`              | `ExternalStoreRuntime` |
+| ---------------- | --------------------------- | ---------------------- |
+| State Management | Built-in                    | You provide            |
+| Multi-thread     | Via Cloud or custom adapter | Via adapter            |
+| Message Format   | ThreadMessage               | Any (with conversion)  |
+| Setup Complexity | Low                         | Medium                 |
+| Flexibility      | Medium                      | High                   |
 
 ## Common Pitfalls
 
@@ -1250,6 +1273,7 @@ const runtime = useExternalStoreRuntime({ messages, onNew });
 // ✅ Edit button appears
 const runtime = useExternalStoreRuntime({ messages, onNew, onEdit });
 ```
+
 </Callout>
 
 <Callout type="warning">
@@ -1259,7 +1283,7 @@ const runtime = useExternalStoreRuntime({ messages, onNew, onEdit });
 2. Missing `setMessages` for branch switching
 3. Not handling async operations properly
 4. Incorrect message format conversion
-</Callout>
+   </Callout>
 
 ### Debugging Checklist
 
@@ -1274,6 +1298,7 @@ const runtime = useExternalStoreRuntime({ messages, onNew, onEdit });
 Common thread context issues and solutions:
 
 **Messages disappearing when switching threads:**
+
 ```tsx
 // Check 1: Ensure currentThreadId is consistent
 console.log("Runtime threadId:", threadListAdapter.threadId);
@@ -1284,30 +1309,32 @@ console.log("Messages for thread:", threads.get(currentThreadId));
 setMessages: (messages) => {
   console.log("Setting messages for thread:", currentThreadId);
   setThreads((prev) => new Map(prev).set(currentThreadId, messages));
-}
+};
 ```
 
 **Thread list not updating:**
+
 ```tsx
 // Ensure threadList state is properly managed
 onSwitchToNewThread: () => {
   const newId = `thread-${Date.now()}`;
   console.log("Creating new thread:", newId);
-  
+
   // All three updates must happen together
   setThreadList((prev) => [...prev, newThreadData]);
   setThreads((prev) => new Map(prev).set(newId, []));
   setCurrentThreadId(newId);
-}
+};
 ```
 
 **Messages going to wrong thread:**
+
 ```tsx
 // Add validation to prevent race conditions
 const validateThreadContext = () => {
   const runtimeThread = threadListAdapter.threadId;
   const contextThread = currentThreadId;
-  
+
   if (runtimeThread !== contextThread) {
     console.error("Thread mismatch!", { runtimeThread, contextThread });
     throw new Error("Thread context mismatch");
@@ -1318,7 +1345,7 @@ const validateThreadContext = () => {
 onNew: async (message) => {
   validateThreadContext();
   // ... handle message
-}
+};
 ```
 
 ## API Reference
@@ -1345,7 +1372,8 @@ The main interface for connecting your state to assistant-ui.
     {
       name: "isRunning",
       type: "boolean",
-      description: "Whether the assistant is currently generating a response. When true, shows optimistic assistant message",
+      description:
+        "Whether the assistant is currently generating a response. When true, shows optimistic assistant message",
       default: "false",
     },
     {
@@ -1576,7 +1604,8 @@ Enable multi-thread support with custom thread management.
 />
 
 <Callout type="info">
-The thread list adapter enables multi-thread support. Without it, the runtime only manages the current conversation.
+  The thread list adapter enables multi-thread support. Without it, the runtime
+  only manages the current conversation.
 </Callout>
 
 ### Related Runtime APIs
@@ -1591,4 +1620,3 @@ The thread list adapter enables multi-thread support. Without it, the runtime on
 - [Pick a Runtime Guide](/docs/runtimes/pick-a-runtime)
 - [`LocalRuntime` Documentation](/docs/runtimes/custom/local)
 - [Examples Repository](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-external-store)
-

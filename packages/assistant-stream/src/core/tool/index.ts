@@ -1,5 +1,5 @@
 export type { Tool } from "./tool-types";
-export { ToolResponse } from "./ToolResponse";
+export { ToolResponse, type ToolResponseLike } from "./ToolResponse";
 export { ToolExecutionStream } from "./ToolExecutionStream";
 export type { ToolCallReader } from "./tool-types";
 export {

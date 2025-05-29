@@ -1,6 +1,6 @@
 import { AssistantStream } from "../AssistantStream";
 import { AssistantStreamChunk } from "../AssistantStreamChunk";
-import { ToolResponseInit } from "../tool/ToolResponse";
+import { ToolResponseLike } from "../tool/ToolResponse";
 import { ReadonlyJSONValue } from "../../utils/json/json-value";
 import { UnderlyingReadable } from "../utils/stream/UnderlyingReadable";
 import { createTextStream, TextStreamController } from "./text";
@@ -8,7 +8,7 @@ import { createTextStream, TextStreamController } from "./text";
 export type ToolCallStreamController = {
   argsText: TextStreamController;
 
-  setResponse(response: ToolResponseInit<ReadonlyJSONValue>): void;
+  setResponse(response: ToolResponseLike<ReadonlyJSONValue>): void;
   close(): void;
 };
 
@@ -53,7 +53,7 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
 
   private _argsTextController!: TextStreamController;
 
-  async setResponse(response: ToolResponseInit<ReadonlyJSONValue>) {
+  async setResponse(response: ToolResponseLike<ReadonlyJSONValue>) {
     this._argsTextController.close();
     await Promise.resolve(); // flush microtask queue
     // TODO switch argsTextController to be something that doesn'#t require this

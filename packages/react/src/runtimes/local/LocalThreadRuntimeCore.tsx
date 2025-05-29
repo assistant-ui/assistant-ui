@@ -385,6 +385,8 @@ export class LocalThreadRuntimeCore
     messageId,
     toolCallId,
     result,
+    isError,
+    artifact,
   }: AddToolResultOptions) {
     const messageData = this.repository.getMessage(messageId);
     const { parentId } = messageData;
@@ -403,6 +405,8 @@ export class LocalThreadRuntimeCore
       return {
         ...c,
         result,
+        artifact,
+        isError,
       };
     });
 

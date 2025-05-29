@@ -9,6 +9,7 @@ import { MessageStateBinding } from "./MessageRuntime";
 import { SubscribableWithState } from "./subscribable/Subscribable";
 import { Unsubscribe } from "../types";
 import { ContentPartRuntimePath } from "./RuntimePathTypes";
+import { ToolResponse } from "assistant-stream";
 
 export type ContentPartState = (
   | ThreadUserContentPart
@@ -27,7 +28,7 @@ export type ContentPartRuntime = {
    * Add tool result to a tool call content part that has no tool result yet.
    * This is useful when you are collecting a tool result via user input ("human tool calls").
    */
-  addToolResult(result: any): void;
+  addToolResult(result: any | ToolResponse<any>): void;
 
   readonly path: ContentPartRuntimePath;
   getState(): ContentPartState;
@@ -55,7 +56,7 @@ export class ContentPartRuntimeImpl implements ContentPartRuntime {
     return this.contentBinding.getState();
   }
 
-  public addToolResult(result: any) {
+  public addToolResult(result: any | ToolResponse<any>) {
     const state = this.contentBinding.getState();
     if (!state) throw new Error("Content part is not available");
 
@@ -74,11 +75,14 @@ export class ContentPartRuntimeImpl implements ContentPartRuntime {
     const toolName = state.toolName;
     const toolCallId = state.toolCallId;
 
+    const response = ToolResponse.toResponse(result);
     this.threadApi.getState().addToolResult({
       messageId: message.id,
       toolName,
       toolCallId,
-      result,
+      result: response.result,
+      artifact: response.artifact,
+      isError: response.isError,
     });
   }
 
