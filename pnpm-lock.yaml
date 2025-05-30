@@ -1268,6 +1268,9 @@ importers:
       nanoid:
         specifier: 5.1.5
         version: 5.1.5
+      react:
+        specifier: ^19.1.0
+        version: 19.1.0
       secure-json-parse:
         specifier: ^4.0.0
         version: 4.0.0
