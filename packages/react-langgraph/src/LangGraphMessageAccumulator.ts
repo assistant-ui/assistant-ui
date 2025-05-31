@@ -1,16 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
 
-export type LangGraphMessagesEvent<TMessage> = {
-  event:
-    | "messages"
-    | "messages/partial"
-    | "messages/complete"
-    | "metadata"
-    | "updates"
-    | string;
-  data: TMessage[] | any;
-};
-
 export type LangGraphStateAccumulatorConfig<TMessage> = {
   initialMessages?: TMessage[];
   appendMessage?: (prev: TMessage | undefined, curr: TMessage) => TMessage;

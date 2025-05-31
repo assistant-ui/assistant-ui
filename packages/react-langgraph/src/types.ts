@@ -14,12 +14,12 @@ export type LangChainToolCall = {
   args: ReadonlyJSONObject;
 };
 
-type MessageContentText = {
+export type MessageContentText = {
   type: "text";
   text: string;
 };
 
-type MessageContentImageUrl = {
+export type MessageContentImageUrl = {
   type: "image_url";
   image_url: string | { url: string };
 };
@@ -28,9 +28,21 @@ type MessageContentToolUse = {
   type: "tool_use";
 };
 
+export enum LangGraphKnownEventTypes {
+  Messages = "messages",
+  MessagesPartial = "messages/partial",
+  MessagesComplete = "messages/complete",
+  Metadata = "metadata",
+  Updates = "updates",
+}
+type CustomEventType = string;
+
+export type EventType = LangGraphKnownEventTypes | CustomEventType;
+
 type UserMessageContentComplex = MessageContentText | MessageContentImageUrl;
 type AssistantMessageContentComplex =
   | MessageContentText
+  | MessageContentImageUrl
   | MessageContentToolUse;
 
 type UserMessageContent = string | UserMessageContentComplex[];
@@ -65,13 +77,22 @@ export type LangChainMessage =
     };
 
 export type LangChainMessageChunk = {
-  id: string;
+  id?: string | undefined;
   type: "AIMessageChunk";
-  content: (AssistantMessageContentComplex & { index: number })[];
-  tool_call_chunks: LangChainToolCallChunk[];
+  content?: AssistantMessageContent | undefined;
+  tool_call_chunks?: LangChainToolCallChunk[] | undefined;
 };
 
 export type LangChainEvent = {
-  event: "messages/partial" | "messages/complete";
+  event:
+    | LangGraphKnownEventTypes.MessagesPartial
+    | LangGraphKnownEventTypes.MessagesComplete;
   data: LangChainMessage[];
+};
+
+type LangGraphTupleMetadata = Record<string, unknown>;
+
+export type LangChainMessageTupleEvent = {
+  event: LangGraphKnownEventTypes.Messages;
+  data: [LangChainMessageChunk, LangGraphTupleMetadata];
 };

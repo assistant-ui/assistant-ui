@@ -1,4 +1,8 @@
-import { LangChainMessage, LangChainMessageChunk } from "./types";
+import {
+  LangChainMessage,
+  LangChainMessageChunk,
+  MessageContentText,
+} from "./types";
 import { parsePartialJsonObject } from "assistant-stream/utils";
 
 export const appendLangChainChunk = (
@@ -21,20 +25,36 @@ export const appendLangChainChunk = (
       ? [{ type: "text" as const, text: prev.content }]
       : [...prev.content];
 
-  for (const chunk of curr.content) {
-    if (chunk.type === "text") {
-      const existing = newContent[chunk.index] ?? { type: "text", text: "" };
-      if (existing.type !== "text") throw new Error("");
-      newContent[chunk.index] = {
-        ...existing,
-        ...chunk,
-        text: existing.text + chunk.text,
-      };
+  if (typeof curr?.content === "string") {
+    const lastIndex = newContent.length - 1;
+    if (newContent[lastIndex]?.type === "text") {
+      (newContent[lastIndex] as MessageContentText).text =
+        (newContent[lastIndex] as MessageContentText).text + curr.content;
+    } else {
+      newContent.push({ type: "text", text: curr.content });
+    }
+  } else if (Array.isArray(curr.content)) {
+    const lastIndex = newContent.length - 1;
+    for (const item of curr.content) {
+      if (!("type" in item)) {
+        continue;
+      }
+
+      if (item.type === "text") {
+        if (newContent[lastIndex]?.type === "text") {
+          (newContent[lastIndex] as MessageContentText).text =
+            (newContent[lastIndex] as MessageContentText).text + item.text;
+        } else {
+          newContent.push({ type: "text", text: item.text });
+        }
+      } else if (item.type === "image_url") {
+        newContent.push(item);
+      }
     }
   }
 
   const newToolCalls = [...(prev.tool_calls ?? [])];
-  for (const chunk of curr.tool_call_chunks) {
+  for (const chunk of curr.tool_call_chunks ?? []) {
     const existing = newToolCalls[chunk.index - 1] ?? { argsText: "" };
     const newArgsText = existing.argsText + chunk.args;
     newToolCalls[chunk.index - 1] = {
