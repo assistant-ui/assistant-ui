@@ -15,7 +15,7 @@ export type LangChainToolCall = {
 };
 
 type MessageContentText = {
-  type: "text";
+  type: "text" | "text_delta";
   text: string;
 };
 
@@ -25,7 +25,7 @@ type MessageContentImageUrl = {
 };
 
 type MessageContentToolUse = {
-  type: "tool_use";
+  type: "tool_use" | "input_json_delta";
 };
 
 type UserMessageContentComplex = MessageContentText | MessageContentImageUrl;
