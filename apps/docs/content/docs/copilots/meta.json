@@ -4,6 +4,7 @@
     "motivation",
     "make-assistant-visible",
     "make-assistant-tool",
+    "make-assistant-tool-ui",
     "use-assistant-instructions",
     "model-context"
   ]
