@@ -72,6 +72,9 @@ export type CreateAppendMessage =
       role?: AppendMessage["role"] | undefined;
       content: AppendMessage["content"];
       attachments?: AppendMessage["attachments"] | undefined;
+      metadata?: AppendMessage["metadata"] | undefined;
+      createdAt?: Date | undefined;
+      runConfig?: AppendMessage["runConfig"] | undefined;
       startRun?: boolean | undefined;
     };
 
@@ -92,16 +95,16 @@ const toAppendMessage = (
     };
   }
 
-  if (message.role && message.parentId && message.attachments) {
-    return message as AppendMessage;
-  }
-
   return {
-    ...message,
+    createdAt: message.createdAt ?? new Date(),
     parentId: message.parentId ?? messages.at(-1)?.id ?? null,
     sourceId: message.sourceId ?? null,
     role: message.role ?? "user",
+    content: message.content,
     attachments: message.attachments ?? [],
+    metadata: message.metadata ?? { custom: {} },
+    runConfig: message.runConfig ?? {},
+    startRun: message.startRun,
   } as AppendMessage;
 };
 
