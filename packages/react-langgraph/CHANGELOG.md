@@ -1,5 +1,14 @@
 # @assistant-ui/react-langgraph
 
+## 0.5.6
+
+### Patch Changes
+
+- a6821cc: feat: LangGraph AIMessageChunk support
+- Updated dependencies [8aa3020]
+- Updated dependencies [f69ca69]
+  - @assistant-ui/react@0.10.20
+
 ## 0.5.5
 
 ### Patch Changes
