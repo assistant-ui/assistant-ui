@@ -1,8 +1,5 @@
 {
   "extends": "@assistant-ui/x-buildutils/ts/base",
-  "compilerOptions": {
-    "rootDir": "src"
-  },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": ["dist", "**/*.test.ts", "**/*.test.tsx"]
 }
