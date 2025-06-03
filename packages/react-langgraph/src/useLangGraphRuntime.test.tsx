@@ -1,6 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import {
+  AssistantRuntime,
+  AssistantRuntimeProvider,
+} from "@assistant-ui/react";
 import { useLangGraphRuntime, useLangGraphSend } from "./useLangGraphRuntime";
 import { mockStreamCallbackFactory } from "./testUtils";
 import React, { ReactNode } from "react";
@@ -36,6 +39,15 @@ const customEvent = {
 };
 
 describe("useLangGraphRuntime", () => {
+  const wrapperFactory =
+    (runtime: AssistantRuntime) =>
+    // eslint-disable-next-line react/display-name
+    ({ children }: { children: ReactNode }) => (
+      <AssistantRuntimeProvider runtime={runtime}>
+        {children}
+      </AssistantRuntimeProvider>
+    );
+
   it("should handle metadata events", async () => {
     const onMetadata = vi.fn();
 
@@ -54,11 +66,7 @@ describe("useLangGraphRuntime", () => {
       {},
     );
 
-    const wrapper = ({ children }: { children: ReactNode }) => (
-      <AssistantRuntimeProvider runtime={runtimeResult.current}>
-        {children}
-      </AssistantRuntimeProvider>
-    );
+    const wrapper = wrapperFactory(runtimeResult.current);
 
     const { result: sendResult } = renderHook(() => useLangGraphSend(), {
       wrapper,
@@ -192,11 +200,7 @@ describe("useLangGraphRuntime", () => {
       {},
     );
 
-    const wrapper = ({ children }: { children: ReactNode }) => (
-      <AssistantRuntimeProvider runtime={runtimeResult.current}>
-        {children}
-      </AssistantRuntimeProvider>
-    );
+    const wrapper = wrapperFactory(runtimeResult.current);
 
     const { result: sendResult } = renderHook(() => useLangGraphSend(), {
       wrapper,
@@ -244,11 +248,7 @@ describe("useLangGraphRuntime", () => {
       {},
     );
 
-    const wrapper = ({ children }: { children: ReactNode }) => (
-      <AssistantRuntimeProvider runtime={runtimeResult.current}>
-        {children}
-      </AssistantRuntimeProvider>
-    );
+    const wrapper = wrapperFactory(runtimeResult.current);
 
     const { result: sendResult } = renderHook(() => useLangGraphSend(), {
       wrapper,
