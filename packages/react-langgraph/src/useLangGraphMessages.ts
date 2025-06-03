@@ -136,12 +136,28 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
             onError?.(chunk.data);
             break;
           default:
-            onCustomEvent?.(chunk.event, chunk.data);
+            if (onCustomEvent) {
+              onCustomEvent(chunk.event, chunk.data);
+            } else {
+              console.warn(
+                "Unhandled event received:",
+                chunk.event,
+                chunk.data,
+              );
+            }
             break;
         }
       }
     },
-    [messages, stream, appendMessage],
+    [
+      messages,
+      appendMessage,
+      stream,
+      onMetadata,
+      onInfo,
+      onError,
+      onCustomEvent,
+    ],
   );
 
   const cancel = useCallback(() => {

@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
-import { act, renderHook, waitFor, render } from "@testing-library/react";
-import { AssistantRuntimeProvider, AssistantRuntime, ThreadRuntime, ThreadListRuntime, AttachmentRuntime } from "@assistant-ui/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useLangGraphRuntime, useLangGraphSend } from "./useLangGraphRuntime";
-import { mockStreamCallbackFactory } from "./useLangGraphMessages.test";
+import { mockStreamCallbackFactory } from "./testUtils";
 import React, { ReactNode } from "react";
 
 const metadataEvent = {
@@ -39,9 +39,9 @@ describe("useLangGraphRuntime", () => {
   it("should handle metadata events", async () => {
     const onMetadata = vi.fn();
 
-    const streamMock = vi.fn().mockImplementation(() =>
-      mockStreamCallbackFactory([metadataEvent])()
-    );
+    const streamMock = vi
+      .fn()
+      .mockImplementation(() => mockStreamCallbackFactory([metadataEvent])());
 
     const { result: runtimeResult } = renderHook(
       () =>
@@ -51,7 +51,7 @@ describe("useLangGraphRuntime", () => {
             onMetadata,
           },
         }),
-      {}
+      {},
     );
 
     const wrapper = ({ children }: { children: ReactNode }) => (
@@ -65,12 +65,15 @@ describe("useLangGraphRuntime", () => {
     });
 
     act(() => {
-      sendResult.current([
-        {
-          type: "human",
-          content: "Hello, world!",
-        },
-      ], {});
+      sendResult.current(
+        [
+          {
+            type: "human",
+            content: "Hello, world!",
+          },
+        ],
+        {},
+      );
     });
 
     await waitFor(() => {
@@ -82,9 +85,9 @@ describe("useLangGraphRuntime", () => {
   it("should handle info events", async () => {
     const onInfo = vi.fn();
 
-    const streamMock = vi.fn().mockImplementation(() =>
-      mockStreamCallbackFactory([infoEvent])()
-    );
+    const streamMock = vi
+      .fn()
+      .mockImplementation(() => mockStreamCallbackFactory([infoEvent])());
 
     const { result: runtimeResult } = renderHook(
       () =>
@@ -94,7 +97,7 @@ describe("useLangGraphRuntime", () => {
             onInfo,
           },
         }),
-      {}
+      {},
     );
 
     const wrapper = ({ children }: { children: ReactNode }) => (
@@ -108,12 +111,15 @@ describe("useLangGraphRuntime", () => {
     });
 
     act(() => {
-      sendResult.current([
-        {
-          type: "human",
-          content: "Hello, world!",
-        },
-      ], {});
+      sendResult.current(
+        [
+          {
+            type: "human",
+            content: "Hello, world!",
+          },
+        ],
+        {},
+      );
     });
 
     await waitFor(() => {
@@ -125,9 +131,9 @@ describe("useLangGraphRuntime", () => {
   it("should handle error events", async () => {
     const onError = vi.fn();
 
-    const streamMock = vi.fn().mockImplementation(() =>
-      mockStreamCallbackFactory([errorEvent])()
-    );
+    const streamMock = vi
+      .fn()
+      .mockImplementation(() => mockStreamCallbackFactory([errorEvent])());
 
     const { result: runtimeResult } = renderHook(
       () =>
@@ -137,7 +143,7 @@ describe("useLangGraphRuntime", () => {
             onError,
           },
         }),
-      {}
+      {},
     );
 
     const wrapper = ({ children }: { children: ReactNode }) => (
@@ -151,12 +157,15 @@ describe("useLangGraphRuntime", () => {
     });
 
     act(() => {
-      sendResult.current([
-        {
-          type: "human",
-          content: "Hello, world!",
-        },
-      ], {});
+      sendResult.current(
+        [
+          {
+            type: "human",
+            content: "Hello, world!",
+          },
+        ],
+        {},
+      );
     });
 
     await waitFor(() => {
@@ -168,9 +177,9 @@ describe("useLangGraphRuntime", () => {
   it("should handle custom events", async () => {
     const onCustomEvent = vi.fn();
 
-    const streamMock = vi.fn().mockImplementation(() =>
-      mockStreamCallbackFactory([customEvent])()
-    );
+    const streamMock = vi
+      .fn()
+      .mockImplementation(() => mockStreamCallbackFactory([customEvent])());
 
     const { result: runtimeResult } = renderHook(
       () =>
@@ -180,7 +189,7 @@ describe("useLangGraphRuntime", () => {
             onCustomEvent,
           },
         }),
-      {}
+      {},
     );
 
     const wrapper = ({ children }: { children: ReactNode }) => (
@@ -194,32 +203,37 @@ describe("useLangGraphRuntime", () => {
     });
 
     act(() => {
-      sendResult.current([
-        {
-          type: "human",
-          content: "Hello, world!",
-        },
-      ], {});
+      sendResult.current(
+        [
+          {
+            type: "human",
+            content: "Hello, world!",
+          },
+        ],
+        {},
+      );
     });
 
     await waitFor(() => {
       expect(streamMock).toHaveBeenCalled();
       expect(onCustomEvent).toHaveBeenCalledWith(
         customEvent.event,
-        customEvent.data
+        customEvent.data,
       );
     });
   });
 
   it("should work without any provided callbacks", async () => {
-    const streamMock = vi.fn().mockImplementation(() =>
-      mockStreamCallbackFactory([
-        metadataEvent,
-        infoEvent,
-        errorEvent,
-        customEvent,
-      ])()
-    );
+    const streamMock = vi
+      .fn()
+      .mockImplementation(() =>
+        mockStreamCallbackFactory([
+          metadataEvent,
+          infoEvent,
+          errorEvent,
+          customEvent,
+        ])(),
+      );
 
     const { result: runtimeResult } = renderHook(
       () =>
@@ -227,7 +241,7 @@ describe("useLangGraphRuntime", () => {
           stream: streamMock,
           eventHandlers: {},
         }),
-      {}
+      {},
     );
 
     const wrapper = ({ children }: { children: ReactNode }) => (
@@ -241,12 +255,15 @@ describe("useLangGraphRuntime", () => {
     });
 
     act(() => {
-      sendResult.current([
-        {
-          type: "human",
-          content: "Hello, world!",
-        },
-      ], {});
+      sendResult.current(
+        [
+          {
+            type: "human",
+            content: "Hello, world!",
+          },
+        ],
+        {},
+      );
     });
 
     await waitFor(() => {
@@ -256,4 +273,4 @@ describe("useLangGraphRuntime", () => {
     // Should not throw any errors even when events are processed without handlers
     expect(runtimeResult.current).toBeDefined();
   });
-}); 
+});
