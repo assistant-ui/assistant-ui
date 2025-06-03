@@ -296,7 +296,7 @@ export async function POST(req: Request) {
 ```
 
 <Callout type="note">
-The `frontendTools` utility is currently only available for the Vercel AI SDK integration. Other adapters like LangGraph follow a server-side tool definition model and don't yet implement client tool serialization.
+The `frontendTools` utility is currently only available for the Vercel AI SDK integration. Other adapters like LangGraph follow a server-side tool definition model and don't yet implement client tool serialization. Learn more in the [Vercel AI SDK integration guide](/docs/runtimes/ai-sdk/use-chat-hook).
 </Callout>
 
 ### Human-in-the-Loop Tools
@@ -490,7 +490,7 @@ execute: async (args, context) => {
 Each integration handles tools differently:
 
 - **Vercel AI SDK**: Tools defined in API routes with `streamText({ tools: {...} })`. Also supports client-defined tools via `frontendTools`.
-- **LangGraph**: Tools defined in your LangGraph graph configuration
-- **Mastra**: Tools defined as typed functions used by agents and workflows
+- **LangGraph**: Tools defined in your LangGraph graph configuration.
+- **Mastra**: Tools defined as typed functions used by agents and workflows.
 
 All integrations support tool UI customization via `makeAssistantToolUI`.
