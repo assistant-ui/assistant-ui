@@ -21,12 +21,12 @@
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.511.0",
     "nanoid": "5.1.5",
-    "next": "15.3.2",
+    "next": "15.3.3",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "remark-gfm": "^4.0.1",
     "tailwind-merge": "^3.3.0",
-    "tw-animate-css": "^1.3.0"
+    "tw-animate-css": "^1.3.3"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
@@ -35,9 +35,9 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "15.3.2",
+    "eslint-config-next": "15.3.3",
     "postcss": "^8",
-    "tailwindcss": "^4.1.7",
+    "tailwindcss": "^4.1.8",
     "typescript": "^5"
   }
 }

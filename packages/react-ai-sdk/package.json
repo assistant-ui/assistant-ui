@@ -27,7 +27,7 @@
     "@assistant-ui/react-edge": "workspace:*",
     "@radix-ui/react-use-callback-ref": "^1.1.1",
     "@types/json-schema": "^7.0.15",
-    "zod": "^3.25.28",
+    "zod": "^3.25.49",
     "zustand": "^5.0.5"
   },
   "peerDependencies": {
@@ -42,10 +42,10 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^22.15.21",
-    "@types/react": "^19.1.5",
+    "@types/node": "^22.15.29",
+    "@types/react": "^19.1.6",
     "eslint": "^9",
-    "eslint-config-next": "15.3.2",
+    "eslint-config-next": "15.3.3",
     "react": "^19.1.0",
     "tsx": "^4.19.4"
   },
