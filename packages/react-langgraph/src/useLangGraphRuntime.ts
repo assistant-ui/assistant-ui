@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { LangChainMessage, LangChainToolCall } from "./types";
+import { LangChainMessage, LangChainToolCall, OnCustomEventCallback, OnErrorEventCallback, OnInfoEventCallback, OnMetadataEventCallback } from "./types";
 import {
   useExternalMessageConverter,
   useExternalStoreRuntime,
@@ -115,6 +115,7 @@ export const useLangGraphRuntime = ({
   threadId,
   onSwitchToNewThread,
   onSwitchToThread,
+  eventHandlers,
 }: {
   /**
    * @deprecated For thread management use `useCloudThreadListRuntime` instead. This option will be removed in a future version.
@@ -138,7 +139,14 @@ export const useLangGraphRuntime = ({
         feedback?: FeedbackAdapter;
       }
     | undefined;
+  eventHandlers?: {
+    onMetadata?: OnMetadataEventCallback;
+    onInfo?: OnInfoEventCallback;
+    onError?: OnErrorEventCallback;
+    onCustomEvent?: OnCustomEventCallback;
+  } | undefined;
 }) => {
+  const { onMetadata, onInfo, onError, onCustomEvent } = eventHandlers ?? {};
   const {
     interrupt,
     setInterrupt,
@@ -149,6 +157,10 @@ export const useLangGraphRuntime = ({
   } = useLangGraphMessages({
     appendMessage: appendLangChainChunk,
     stream,
+    onMetadata,
+    onInfo,
+    onError,
+    onCustomEvent,
   });
 
   const [isRunning, setIsRunning] = useState(false);

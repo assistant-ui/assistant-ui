@@ -6,6 +6,10 @@ import {
   LangChainMessageTupleEvent,
   LangGraphKnownEventTypes,
   LangChainMessageChunk,
+  OnCustomEventCallback,
+  OnErrorEventCallback,
+  OnInfoEventCallback,
+  OnMetadataEventCallback,
 } from "./types";
 
 export type LangGraphCommand = {
@@ -60,9 +64,17 @@ const isLangChainMessageChunk = (
 export const useLangGraphMessages = <TMessage extends { id?: string }>({
   stream,
   appendMessage = DEFAULT_APPEND_MESSAGE,
+  onMetadata,
+  onInfo,
+  onError,
+  onCustomEvent,
 }: {
   stream: LangGraphStreamCallback<TMessage>;
   appendMessage?: (prev: TMessage | undefined, curr: TMessage) => TMessage;
+  onMetadata?: OnMetadataEventCallback | undefined;
+  onInfo?: OnInfoEventCallback | undefined;
+  onError?: OnErrorEventCallback | undefined;
+  onCustomEvent?: OnCustomEventCallback | undefined;
 }) => {
   const [interrupt, setInterrupt] = useState<
     LangGraphInterruptState | undefined
@@ -115,10 +127,17 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
             break;
           }
           case LangGraphKnownEventTypes.Metadata:
-            // currently this is a no-op
+            onMetadata?.(chunk.data);
+            break;
+          case LangGraphKnownEventTypes.Info:
+            onInfo?.(chunk.data);
+            break;
+          case LangGraphKnownEventTypes.Error:
+            onError?.(chunk.data);
             break;
           default:
-            console.warn(`The event type ${chunk.event} is not supported.`);
+            onCustomEvent?.(chunk.event, chunk.data);
+            break;
         }
       }
     },
