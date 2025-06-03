@@ -27,7 +27,7 @@ assistant-ui offers multiple ways to create and register tools, each suited for 
 - **`makeAssistantTool`**: Register client-defined tools with the assistant context
 - **`useAssistantTool`**: Hook-based dynamic tool registration
 - **`makeAssistantToolUI`**: UI-only components for existing tools
-- **Inline registration**: Direct tool registration with the runtime
+- **Direct context registration**: Advanced registration with full model context control
 
 ### 1. Using `makeAssistantTool`
 
@@ -149,26 +149,51 @@ function App() {
 }
 ```
 
-### 4. Using Inline Tool Registration
+### 4. Advanced: Direct Context Registration
 
-For simple tools without custom UI:
+Use `registerModelContextProvider` when you need to configure more than just tools:
 
 ```tsx
-import { tool } from "@assistant-ui/react";
+import { tool, useAssistantRuntime } from "@assistant-ui/react";
+import { useEffect, useState } from "react";
+import { z } from "zod";
 
-const calculateTool = tool({
-  description: "Perform mathematical calculations",
-  parameters: z.object({
-    expression: z.string()
-  }),
-  execute: async ({ expression }) => {
-    return eval(expression); // Note: Use proper math parser in production
-  }
-});
+function MyComponent() {
+  const runtime = useAssistantRuntime();
+  const [isCreativeMode, setIsCreativeMode] = useState(false);
+  
+  useEffect(() => {
+    const calculateTool = tool({
+      description: "Perform mathematical calculations",
+      parameters: z.object({
+        expression: z.string()
+      }),
+      execute: async ({ expression }) => {
+        return eval(expression); // Note: Use proper math parser in production
+      }
+    });
 
-// Register with runtime
-runtime.registerTool(calculateTool);
+    // Register tools with model configuration
+    return runtime.registerModelContextProvider({
+      getModelContext: () => ({
+        tools: { calculate: calculateTool },
+        callSettings: {
+          temperature: isCreativeMode ? 0.9 : 0.2,
+          maxTokens: 1000
+        },
+        priority: 10 // Higher priority overrides other providers
+      })
+    });
+  }, [runtime, isCreativeMode]);
+  
+  return <div>{/* Your component */}</div>;
+}
 ```
+
+Use this approach when you need:
+- Dynamic model parameters (temperature, maxTokens, etc.)
+- Priority-based context merging
+- Multiple context types in one registration
 
 ## Tool Paradigms
 
@@ -226,7 +251,7 @@ export async function POST(req: Request) {
 
 ### Client-Defined Tools with frontendTools
 
-When using the Vercel AI SDK, you can define tools on the frontend and pass them to your backend using the `frontendTools` utility:
+Currently, the Vercel AI SDK adapter implements automatic serialization of client-defined tools. When using this adapter, tools registered via `makeAssistantTool`, `useAssistantTool`, or `registerModelContextProvider` are automatically included in API requests. The `frontendTools` utility helps you use these tools server-side:
 
 ```tsx
 // Frontend: Define tool with makeAssistantTool
@@ -271,7 +296,7 @@ export async function POST(req: Request) {
 ```
 
 <Callout type="note">
-The `frontendTools` utility is currently only available for the Vercel AI SDK integration. Tools defined on the frontend are serialized and executed on the server for security.
+The `frontendTools` utility is currently only available for the Vercel AI SDK integration. Other adapters like LangGraph follow a server-side tool definition model and don't yet implement client tool serialization. Learn more in the [Vercel AI SDK integration guide](/docs/runtimes/ai-sdk/use-chat-hook).
 </Callout>
 
 ### Human-in-the-Loop Tools
@@ -462,15 +487,10 @@ execute: async (args, context) => {
 
 ## Runtime Integration
 
-Each runtime handles tools differently:
+Each integration handles tools differently:
 
-### Server-Based Runtimes
-- **AI SDK**: Tools defined in API routes with `streamText({ tools: {...} })` - execution happens server-side
-- **LangGraph**: Tools defined in your LangGraph graph configuration
-- **Mastra**: Tools defined as typed functions used by agents and workflows
+- **Vercel AI SDK**: Tools defined in API routes with `streamText({ tools: {...} })`. Also supports client-defined tools via `frontendTools`.
+- **LangGraph**: Tools defined in your LangGraph graph configuration.
+- **Mastra**: Tools defined as typed functions used by agents and workflows.
 
-### Client-Based Runtimes
-- **LocalRuntime**: Tools passed via context or registered with `makeAssistantTool`
-- **External Store**: Tools registered on the runtime with `runtime.registerTool()`
-
-All runtimes support the same frontend tool UI components - just ensure the UI components are rendered inside `<AssistantRuntimeProvider>`. See the [runtime documentation](/docs/runtimes/pick-a-runtime) for specific examples.
+All integrations support tool UI customization via `makeAssistantToolUI`.

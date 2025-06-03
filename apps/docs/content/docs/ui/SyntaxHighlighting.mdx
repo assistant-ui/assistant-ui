@@ -51,6 +51,47 @@ export const defaultComponents = memoizeMarkdownComponents({
   </Step>
 </Steps>
 
+### Bundle Optimization
+
+By default, `react-shiki` includes the full Shiki bundle, which contains all supported languages and themes.
+
+To reduce bundle size, you can use the web bundle by changing the import to `react-shiki/web`, to include a smaller bundle of web related languages:
+
+```tsx title="/components/assistant-ui/shiki-highlighter.tsx"
+import { SyntaxHighlighter } from "react-shiki/web";
+```
+
+#### Custom Bundles
+
+For strict bundle size control, `react-shiki` also supports custom bundles created using `createHighlighterCore` from `react-shiki/core` (re-exported from Shiki):
+
+```tsx title="/components/assistant-ui/shiki-highlighter.tsx" {3-9}
+import { createHighlighterCore, createOnigurumaEngine } from "react-shiki/core"; // [!code ++]
+
+// Create the highlighter
+// Use dynamic imports to load languages and themes on client on demand
+const customHighlighter = await createHighlighterCore({
+  themes: [import("@shikijs/themes/nord")],
+  langs: [
+    import("@shikijs/langs/javascript"),
+    import("@shikijs/langs/typescript"),
+  ],
+  engine: createOnigurumaEngine(import("shiki/wasm")), 
+});
+
+// Then pass it to the highlighter prop
+<SyntaxHighlighter
+  {...props}
+  language={language}
+  theme={theme}
+  highlighter={customHighlighter} // [!code ++]
+/>;
+```
+
+<Callout type="info">
+  For more information, see [react-shiki - bundle options](https://github.com/avgvstvs96/react-shiki#bundle-options).
+</Callout>
+
 ### Options
 
 <TypeTable
@@ -110,9 +151,9 @@ export const defaultComponents = memoizeMarkdownComponents({
         default: "{}",
         required: true,
       },
-    // This reverts the order of the type table, fumadocs reversed the order on 4/22/25 in:
-    // https://github.com/fuma-nama/fumadocs/commit/3a5595aa65acfa5c20be2377d09c03fbb1de72a6
-    }).reverse()
+      // This reverts the order of the type table, fumadocs reversed the order on 4/22/25 in:
+      // https://github.com/fuma-nama/fumadocs/commit/3a5595aa65acfa5c20be2377d09c03fbb1de72a6
+    }).reverse(),
   )}
 />
 
