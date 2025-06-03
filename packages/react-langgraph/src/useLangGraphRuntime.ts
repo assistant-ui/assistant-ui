@@ -1,5 +1,12 @@
-import { useEffect, useRef, useState } from "react";
-import { LangChainMessage, LangChainToolCall, OnCustomEventCallback, OnErrorEventCallback, OnInfoEventCallback, OnMetadataEventCallback } from "./types";
+import { useEffect, useRef, useState, useMemo } from "react";
+import {
+  LangChainMessage,
+  LangChainToolCall,
+  OnCustomEventCallback,
+  OnErrorEventCallback,
+  OnInfoEventCallback,
+  OnMetadataEventCallback,
+} from "./types";
 import {
   useExternalMessageConverter,
   useExternalStoreRuntime,
@@ -142,26 +149,31 @@ export const useLangGraphRuntime = ({
   /**
    * Event handlers for various LangGraph stream events
    */
-  eventHandlers?: {
-    /**
-     * Called when metadata is received from the LangGraph stream
-     */
-    onMetadata?: OnMetadataEventCallback;
-    /**
-     * Called when informational messages are received from the LangGraph stream
-     */
-    onInfo?: OnInfoEventCallback;
-    /**
-     * Called when errors occur during LangGraph stream processing
-     */
-    onError?: OnErrorEventCallback;
-    /**
-     * Called when custom events are received from the LangGraph stream
-     */
-    onCustomEvent?: OnCustomEventCallback;
-  } | undefined;
+  eventHandlers?:
+    | {
+        /**
+         * Called when metadata is received from the LangGraph stream
+         */
+        onMetadata?: OnMetadataEventCallback;
+        /**
+         * Called when informational messages are received from the LangGraph stream
+         */
+        onInfo?: OnInfoEventCallback;
+        /**
+         * Called when errors occur during LangGraph stream processing
+         */
+        onError?: OnErrorEventCallback;
+        /**
+         * Called when custom events are received from the LangGraph stream
+         */
+        onCustomEvent?: OnCustomEventCallback;
+      }
+    | undefined;
 }) => {
-  const { onMetadata, onInfo, onError, onCustomEvent } = eventHandlers ?? {};
+  const { onMetadata, onInfo, onError, onCustomEvent } = useMemo(
+    () => eventHandlers ?? {},
+    [eventHandlers],
+  );
   const {
     interrupt,
     setInterrupt,
