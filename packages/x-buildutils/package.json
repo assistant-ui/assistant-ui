@@ -12,15 +12,15 @@
     "@tsconfig/strictest": "^2.0.5",
     "cross-spawn": "^7.0.6",
     "esbuild-plugin-file-path-extensions": "^2.1.4",
-    "eslint-config-next": "15.3.2",
-    "postcss": "^8.5.3",
+    "eslint-config-next": "15.3.3",
+    "postcss": "^8.5.4",
     "postcss-js": "^4.0.1",
     "tsup": "8.5.0",
     "typescript": "^5.8.3"
   },
   "devDependencies": {
     "@types/cross-spawn": "^6.0.6",
-    "@types/node": "^22.15.21",
+    "@types/node": "^22.15.29",
     "@types/postcss-js": "^4.0.4",
     "jiti": "^2.4.2"
   }

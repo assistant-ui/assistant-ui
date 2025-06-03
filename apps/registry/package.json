@@ -17,7 +17,7 @@
     "@radix-ui/react-popover": "^1.1.14",
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-tooltip": "^1.2.7",
-    "@types/node": "^22.15.21",
+    "@types/node": "^22.15.29",
     "@types/react": "^19",
     "@types/react-syntax-highlighter": "^15.5.13",
     "ai": "^4.3.16",
@@ -27,7 +27,7 @@
     "lucide-react": "^0.511.0",
     "react": "19.1.0",
     "react-resizable-panels": "^3.0.2",
-    "react-shiki": "^0.6.0",
+    "react-shiki": "^0.7.1",
     "react-syntax-highlighter": "^15.6.1",
     "rehype-katex": "^7.0.1",
     "remark-gfm": "^4.0.1",
@@ -36,7 +36,7 @@
     "tailwind-merge": "^3.3.0",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3",
-    "zod": "^3.25.28",
+    "zod": "^3.25.49",
     "zustand": "^5.0.5"
   },
   "scripts": {

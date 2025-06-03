@@ -68,7 +68,7 @@
     "json-schema": "^0.4.0",
     "nanoid": "5.1.5",
     "react-textarea-autosize": "^8.5.9",
-    "zod": "^3.25.28",
+    "zod": "^3.25.49",
     "zustand": "^5.0.5"
   },
   "peerDependencies": {
@@ -90,11 +90,11 @@
     "@stryker-mutator/core": "^9.0.1",
     "@stryker-mutator/vitest-runner": "^9.0.1",
     "@types/json-schema": "^7.0.15",
-    "@types/node": "^22.15.21",
+    "@types/node": "^22.15.29",
     "eslint": "^9",
-    "eslint-config-next": "15.3.2",
+    "eslint-config-next": "15.3.3",
     "tsx": "^4.19.4",
-    "vitest": "^3.1.4"
+    "vitest": "^3.2.0"
   },
   "publishConfig": {
     "access": "public",
