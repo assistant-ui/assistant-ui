@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   LangChainMessage,
   LangChainToolCall,
@@ -170,10 +170,6 @@ export const useLangGraphRuntime = ({
       }
     | undefined;
 }) => {
-  const { onMetadata, onInfo, onError, onCustomEvent } = useMemo(
-    () => eventHandlers ?? {},
-    [eventHandlers],
-  );
   const {
     interrupt,
     setInterrupt,
@@ -184,10 +180,7 @@ export const useLangGraphRuntime = ({
   } = useLangGraphMessages({
     appendMessage: appendLangChainChunk,
     stream,
-    onMetadata,
-    onInfo,
-    onError,
-    onCustomEvent,
+    ...(eventHandlers && { eventHandlers }),
   });
 
   const [isRunning, setIsRunning] = useState(false);

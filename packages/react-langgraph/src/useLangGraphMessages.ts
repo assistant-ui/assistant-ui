@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { LangGraphMessageAccumulator } from "./LangGraphMessageAccumulator";
 import {
@@ -64,23 +64,27 @@ const isLangChainMessageChunk = (
 export const useLangGraphMessages = <TMessage extends { id?: string }>({
   stream,
   appendMessage = DEFAULT_APPEND_MESSAGE,
-  onMetadata,
-  onInfo,
-  onError,
-  onCustomEvent,
+  eventHandlers,
 }: {
   stream: LangGraphStreamCallback<TMessage>;
   appendMessage?: (prev: TMessage | undefined, curr: TMessage) => TMessage;
-  onMetadata?: OnMetadataEventCallback | undefined;
-  onInfo?: OnInfoEventCallback | undefined;
-  onError?: OnErrorEventCallback | undefined;
-  onCustomEvent?: OnCustomEventCallback | undefined;
+  eventHandlers?: {
+    onMetadata?: OnMetadataEventCallback;
+    onInfo?: OnInfoEventCallback;
+    onError?: OnErrorEventCallback;
+    onCustomEvent?: OnCustomEventCallback;
+  };
 }) => {
   const [interrupt, setInterrupt] = useState<
     LangGraphInterruptState | undefined
   >();
   const [messages, setMessages] = useState<TMessage[]>([]);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  const { onMetadata, onInfo, onError, onCustomEvent } = useMemo(
+    () => eventHandlers ?? {},
+    [eventHandlers],
+  );
 
   const sendMessage = useCallback(
     async (newMessages: TMessage[], config: LangGraphSendMessageConfig) => {
