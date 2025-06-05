@@ -1,16 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 
-import {
-  LangGraphMessagesEvent,
-  useLangGraphMessages,
-} from "./useLangGraphMessages";
+import { useLangGraphMessages } from "./useLangGraphMessages";
 import { appendLangChainChunk } from "./appendLangChainChunk";
-import {
-  LangChainMessage,
-  MessageContentImageUrl,
-  MessageContentText,
-} from "./types";
+import { MessageContentImageUrl, MessageContentText } from "./types";
+import { mockStreamCallbackFactory } from "./testUtils";
 
 const metadataEvent = {
   event: "metadata",
@@ -19,15 +13,6 @@ const metadataEvent = {
     run_attempt: 1,
   },
 };
-
-const mockStreamCallbackFactory = (
-  events: Array<LangGraphMessagesEvent<LangChainMessage>>,
-) =>
-  async function* () {
-    for (const event of events) {
-      yield event;
-    }
-  };
 
 describe("useLangGraphMessages", {}, () => {
   it("processes chunks correctly", async () => {

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { LangGraphMessageAccumulator } from "./LangGraphMessageAccumulator";
 import {
@@ -6,6 +6,10 @@ import {
   LangChainMessageTupleEvent,
   LangGraphKnownEventTypes,
   LangChainMessageChunk,
+  OnCustomEventCallback,
+  OnErrorEventCallback,
+  OnInfoEventCallback,
+  OnMetadataEventCallback,
 } from "./types";
 
 export type LangGraphCommand = {
@@ -60,15 +64,27 @@ const isLangChainMessageChunk = (
 export const useLangGraphMessages = <TMessage extends { id?: string }>({
   stream,
   appendMessage = DEFAULT_APPEND_MESSAGE,
+  eventHandlers,
 }: {
   stream: LangGraphStreamCallback<TMessage>;
   appendMessage?: (prev: TMessage | undefined, curr: TMessage) => TMessage;
+  eventHandlers?: {
+    onMetadata?: OnMetadataEventCallback;
+    onInfo?: OnInfoEventCallback;
+    onError?: OnErrorEventCallback;
+    onCustomEvent?: OnCustomEventCallback;
+  };
 }) => {
   const [interrupt, setInterrupt] = useState<
     LangGraphInterruptState | undefined
   >();
   const [messages, setMessages] = useState<TMessage[]>([]);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  const { onMetadata, onInfo, onError, onCustomEvent } = useMemo(
+    () => eventHandlers ?? {},
+    [eventHandlers],
+  );
 
   const sendMessage = useCallback(
     async (newMessages: TMessage[], config: LangGraphSendMessageConfig) => {
@@ -115,14 +131,37 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
             break;
           }
           case LangGraphKnownEventTypes.Metadata:
-            // currently this is a no-op
+            onMetadata?.(chunk.data);
+            break;
+          case LangGraphKnownEventTypes.Info:
+            onInfo?.(chunk.data);
+            break;
+          case LangGraphKnownEventTypes.Error:
+            onError?.(chunk.data);
             break;
           default:
-            console.warn(`The event type ${chunk.event} is not supported.`);
+            if (onCustomEvent) {
+              onCustomEvent(chunk.event, chunk.data);
+            } else {
+              console.warn(
+                "Unhandled event received:",
+                chunk.event,
+                chunk.data,
+              );
+            }
+            break;
         }
       }
     },
-    [messages, stream, appendMessage],
+    [
+      messages,
+      appendMessage,
+      stream,
+      onMetadata,
+      onInfo,
+      onError,
+      onCustomEvent,
+    ],
   );
 
   const cancel = useCallback(() => {
