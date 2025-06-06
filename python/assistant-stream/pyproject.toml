@@ -4,12 +4,12 @@ build-backend = "poetry.core.masonry.api"
 
 [project]
 name = "assistant-stream"
-version = "0.0.20"
+version = "0.0.24"
 authors = [
   { name="Simon Farshid", email="simon@assistant-ui.com" },
 ]
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9,<4.0"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
@@ -22,11 +22,17 @@ Issues = "https://github.com/assistant-ui/assistant-ui/issues"
 
 [tool.poetry]
 name = "assistant-stream"
-version = "0.0.20"
+version = "0.0.24"
 description = ""
 authors = ["Simon Farshid <simon@assistant-ui.com>"]
 
 [tool.poetry.dependencies]
-python = ">=3.8.0"
+python = ">=3.9,<4.0"
 starlette = ">=0.37.2"
+langchain-core = { version = ">=0.3.0", optional = true }
 
+[tool.poetry.extras]
+langgraph = ["langchain-core"]
+
+[tool.poetry.group.dev.dependencies]
+pytest = "<8"
