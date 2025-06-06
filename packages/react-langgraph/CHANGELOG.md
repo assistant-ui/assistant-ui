@@ -5,7 +5,7 @@
 ### Patch Changes
 
 - 39261db: fix: langchain-community bedrock anthropic support
-- 1556c03: feat: Add support for event handlers for metadata, info, error, and custom events to useLangGraphMessages and useLangGraphMessages
+- 1556c03: feat: Add support for event handlers for metadata, info, error, and custom events to useLangGraphMessages and useLangGraphRuntime
 - Updated dependencies [57b5735]
   - @assistant-ui/react@0.10.21
 
