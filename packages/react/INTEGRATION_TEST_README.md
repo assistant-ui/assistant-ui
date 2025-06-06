@@ -47,7 +47,6 @@ The integration test:
 - ✅ Makes actual HTTP request to the live endpoint
 - ✅ Tests PDF conversion with the same file URL from your curl example
 - ✅ Validates response structure and image URLs
-- ✅ Has a 15-second timeout for real API calls
 - ✅ Automatically skips if credentials are missing
 
 ## What the Test Does
