@@ -69,7 +69,7 @@ export const ComposerPrimitiveInput = forwardRef<
 
     const Component = asChild ? Slot : TextareaAutosize;
 
-    const isDisabled = useThread((t) => t.isDisabled) ?? disabledProp ?? false;
+    const isDisabled = useThread((t) => t.isDisabled) || disabledProp || false;
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const ref = useComposedRefs(forwardedRef, textareaRef);
 
