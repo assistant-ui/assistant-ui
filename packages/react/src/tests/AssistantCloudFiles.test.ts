@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { AssistantCloudFiles } from "../cloud/AssistantCloudFiles";
 import { AssistantCloudAPI } from "../cloud/AssistantCloudAPI";
-import { AssistantCloud } from "../cloud/AssistantCloud";
 
 // Mock the AssistantCloudAPI to avoid making real HTTP requests (except for integration tests)
 vi.mock("../cloud/AssistantCloudAPI");
