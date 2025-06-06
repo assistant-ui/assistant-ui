@@ -3,13 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ChatModelAdapter } from "./ChatModelAdapter";
 import { LocalRuntimeCore } from "./LocalRuntimeCore";
-import { LocalRuntimeOptions } from "./LocalRuntimeOptions";
+import type { LocalRuntimeOptions } from "./LocalRuntimeOptions";
 import { useRuntimeAdapters } from "../adapters/RuntimeAdapterProvider";
 import { useRemoteThreadListRuntime } from "../remote-thread-list/useRemoteThreadListRuntime";
 import { useCloudThreadListAdapter } from "../remote-thread-list/adapter/cloud";
 import { AssistantRuntimeImpl } from "../../internal";
 
-const useLocalThreadRuntime = (
+export const useLocalThreadRuntime = (
   adapter: ChatModelAdapter,
   { initialMessages, ...options }: LocalRuntimeOptions,
 ) => {
