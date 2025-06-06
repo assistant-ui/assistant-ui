@@ -15,6 +15,8 @@ export { AssistantMessageStream } from "./accumulators/AssistantMessageStream";
 export type { AssistantMessage } from "./utils/types";
 
 export * from "./tool";
+export type { TextStreamController } from "./modules/text";
+export type { ToolCallStreamController } from "./modules/tool-call";
 
 export { createObjectStream } from "./object/createObjectStream";
 export {
