@@ -19,7 +19,7 @@ You need valid API credentials for the Assistant API:
 
 1. Set your environment variables:
 ```bash
-export AUI_API_KEY='sk_aui_proj_09369w56dnge_0CgL3UkkywWpzPttVLN8qRZAdQXM0AQA'
+export AUI_API_KEY='sk_aui_proj_your_api_key_here'
 export AUI_USER_ID='676767'
 export AUI_WORKSPACE_ID='65656'
 ```
