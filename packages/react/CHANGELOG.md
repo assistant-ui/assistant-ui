@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.10.21
+
+### Patch Changes
+
+- 57b5735: fix: logic for ComposerPrimitive.Input disabled prop
+
 ## 0.10.20
 
 ### Patch Changes
