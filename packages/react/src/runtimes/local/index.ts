@@ -1,4 +1,4 @@
-export { useLocalRuntime } from "./useLocalRuntime";
+export { useLocalRuntime, useLocalThreadRuntime } from "./useLocalRuntime";
 export type { LocalRuntimeOptions } from "./LocalRuntimeOptions";
 export type {
   ChatModelAdapter,
