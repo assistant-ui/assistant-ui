@@ -406,9 +406,13 @@ For custom thread storage, use `useRemoteThreadListRuntime` with your own adapte
 
 ```tsx
 import {
-  useLocalRuntime,
-  useRemoteThreadListRuntime,
+  useLocalThreadRuntime,
+  unstable_useRemoteThreadListRuntime as useRemoteThreadListRuntime,
+  useThreadListItem,
+  RuntimeAdapterProvider,
+  AssistantRuntimeProvider,
   type RemoteThreadListAdapter,
+  type ThreadHistoryAdapter,
 } from "@assistant-ui/react";
 
 // Implement your custom adapter with proper message persistence
@@ -459,8 +463,7 @@ const myDatabaseAdapter: RemoteThreadListAdapter = {
 export function MyRuntimeProvider({ children }) {
   const runtime = useRemoteThreadListRuntime({
     runtimeHook: () => {
-      // Create a basic LocalRuntime - persistence will be added via Provider
-      return useLocalRuntime(MyModelAdapter);
+      return useLocalThreadRuntime(MyModelAdapter);
     },
     adapter: {
       ...myDatabaseAdapter,
@@ -813,7 +816,7 @@ function MyComponent() {
 ```tsx
 import {
   useLocalThreadRuntime,
-  useRemoteThreadListRuntime,
+  unstable_useRemoteThreadListRuntime as useRemoteThreadListRuntime,
   AssistantRuntimeProvider,
 } from "@assistant-ui/react";
 
