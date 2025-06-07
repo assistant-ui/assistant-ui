@@ -12,6 +12,7 @@ import { ParametersTable } from "@/components/docs";
 `LocalRuntime` is the simplest way to connect your own custom backend to assistant-ui. It manages all chat state internally while providing a clean adapter interface to connect with any REST API, OpenAI, or custom language model.
 
 `LocalRuntime` provides:
+
 - **Built-in state management** for messages, threads, and conversation history
 - **Automatic features** like message editing, reloading, and branch switching
 - **Multi-thread support** through [Assistant Cloud](/docs/cloud/overview) or your own database using `useRemoteThreadListRuntime`
@@ -77,6 +78,7 @@ Use `LocalRuntime` if you need:
     ### Define a `MyRuntimeProvider` component
 
     Update the `MyModelAdapter` below to integrate with your own custom API.
+    See `LocalRuntimeOptions` [API Reference](#localruntimeoptions) for available configuration options.
 
     ```tsx twoslash include MyRuntimeProvider title="app/MyRuntimeProvider.tsx"
     // @filename: /app/MyRuntimeProvider.tsx
@@ -391,6 +393,7 @@ const runtime = useLocalRuntime(MyModelAdapter, {
 ```
 
 With Assistant Cloud, you get:
+
 - Multiple conversation threads
 - Thread persistence across sessions
 - Thread management (create, switch, rename, archive, delete)
@@ -402,10 +405,10 @@ With Assistant Cloud, you get:
 For custom thread storage, use `useRemoteThreadListRuntime` with your own adapter:
 
 ```tsx
-import { 
+import {
   useLocalRuntime,
   useRemoteThreadListRuntime,
-  type RemoteThreadListAdapter
+  type RemoteThreadListAdapter,
 } from "@assistant-ui/react";
 
 // Implement your custom adapter with proper message persistence
@@ -413,43 +416,43 @@ const myDatabaseAdapter: RemoteThreadListAdapter = {
   async list() {
     const threads = await db.threads.findAll();
     return {
-      threads: threads.map(t => ({
+      threads: threads.map((t) => ({
         status: t.archived ? "archived" : "regular",
         remoteId: t.id,
         title: t.title,
-      }))
+      })),
     };
   },
-  
+
   async initialize(threadId) {
     const thread = await db.threads.create({ id: threadId });
     return { remoteId: thread.id };
   },
-  
+
   async rename(remoteId, newTitle) {
     await db.threads.update(remoteId, { title: newTitle });
   },
-  
+
   async archive(remoteId) {
     await db.threads.update(remoteId, { archived: true });
   },
-  
+
   async unarchive(remoteId) {
     await db.threads.update(remoteId, { archived: false });
   },
-  
+
   async delete(remoteId) {
     // Delete thread and its messages
     await db.messages.deleteByThreadId(remoteId);
     await db.threads.delete(remoteId);
   },
-  
+
   async generateTitle(remoteId, messages) {
     // Generate title from messages using your AI
     const title = await generateTitle(messages);
     await db.threads.update(remoteId, { title });
     return new ReadableStream(); // Return empty stream
-  }
+  },
 };
 
 // Complete implementation with message persistence using Provider pattern
@@ -461,47 +464,50 @@ export function MyRuntimeProvider({ children }) {
     },
     adapter: {
       ...myDatabaseAdapter,
-      
+
       // The Provider component adds thread-specific adapters
       unstable_Provider: ({ children }) => {
         // This runs in the context of each thread
         const threadListItem = useThreadListItem();
         const remoteId = threadListItem.remoteId;
-        
+
         // Create thread-specific history adapter
-        const history = useMemo<ThreadHistoryAdapter>(() => ({
-          async load() {
-            if (!remoteId) return { messages: [] };
-            
-            const messages = await db.messages.findByThreadId(remoteId);
-            return { 
-              messages: messages.map(m => ({
-                role: m.role,
-                content: m.content,
-                id: m.id,
-                createdAt: new Date(m.createdAt),
-              }))
-            };
-          },
-          
-          async append(message) {
-            if (!remoteId) {
-              console.warn("Cannot save message - thread not initialized");
-              return;
-            }
-            
-            await db.messages.create({
-              threadId: remoteId,
-              role: message.role,
-              content: message.content,
-              id: message.id,
-              createdAt: message.createdAt,
-            });
-          },
-        }), [remoteId]);
-        
+        const history = useMemo<ThreadHistoryAdapter>(
+          () => ({
+            async load() {
+              if (!remoteId) return { messages: [] };
+
+              const messages = await db.messages.findByThreadId(remoteId);
+              return {
+                messages: messages.map((m) => ({
+                  role: m.role,
+                  content: m.content,
+                  id: m.id,
+                  createdAt: new Date(m.createdAt),
+                })),
+              };
+            },
+
+            async append(message) {
+              if (!remoteId) {
+                console.warn("Cannot save message - thread not initialized");
+                return;
+              }
+
+              await db.messages.create({
+                threadId: remoteId,
+                role: message.role,
+                content: message.content,
+                id: message.id,
+                createdAt: message.createdAt,
+              });
+            },
+          }),
+          [remoteId],
+        );
+
         const adapters = useMemo(() => ({ history }), [history]);
-        
+
         return (
           <RuntimeAdapterProvider adapters={adapters}>
             {children}
@@ -517,13 +523,14 @@ export function MyRuntimeProvider({ children }) {
     </AssistantRuntimeProvider>
   );
 }
-
 ```
 
 #### Understanding the Architecture
 
 <Callout type="info">
-**Key Insight**: The `unstable_Provider` component in your adapter runs in the context of each thread, giving you access to thread-specific information like `remoteId`. This is where you add the history adapter for message persistence.
+  **Key Insight**: The `unstable_Provider` component in your adapter runs in the
+  context of each thread, giving you access to thread-specific information like
+  `remoteId`. This is where you add the history adapter for message persistence.
 </Callout>
 
 The complete multi-thread implementation requires:
@@ -604,7 +611,7 @@ const runtime = useLocalRuntime(MyModelAdapter, {
       new SimpleImageAttachmentAdapter(),
       new SimpleTextAttachmentAdapter(),
       customPDFAdapter,
-    ])
+    ]),
   },
 });
 ```
@@ -651,7 +658,10 @@ const runtime = useLocalRuntime(MyModelAdapter, {
 ```
 
 <Callout type="info">
-The history adapter handles persistence for the current thread's messages. For multi-thread support with custom storage, use either `useRemoteThreadListRuntime` with `LocalRuntime` or `ExternalStoreRuntime` with a thread list adapter.
+  The history adapter handles persistence for the current thread's messages. For
+  multi-thread support with custom storage, use either
+  `useRemoteThreadListRuntime` with `LocalRuntime` or `ExternalStoreRuntime`
+  with a thread list adapter.
 </Callout>
 
 ### Speech Synthesis Adapter
@@ -709,11 +719,11 @@ const suggestionAdapter: SuggestionAdapter = {
   async *get({ messages }) {
     // Analyze conversation context
     const lastMessage = messages[messages.length - 1];
-    
+
     // Generate suggestions
     const suggestions = await generateSuggestions(lastMessage);
-    
-    yield suggestions.map(text => ({
+
+    yield suggestions.map((text) => ({
       id: crypto.randomUUID(),
       text,
     }));
@@ -765,19 +775,9 @@ thread.unstable_resumeRun({
 });
 ```
 
-### Max Steps Configuration
-
-Control how many sequential tool calls can be made:
-
-```tsx
-const runtime = useLocalRuntime(MyModelAdapter, {
-  maxSteps: 3, // Stop after 3 tool calls and wait for user input
-});
-```
-
 ### Custom Thread Management
 
-Access thread runtime for advanced control:
+Access thread runtime for advanced control with `useThreadRuntime`:
 
 ```tsx
 import { useThreadRuntime } from "@assistant-ui/react";
@@ -805,6 +805,43 @@ function MyComponent() {
   );
 }
 ```
+
+### Custom Runtime Implementation
+
+`useLocalThreadRuntime` provides the core single-thread runtime for building custom implementations:
+
+```tsx
+import {
+  useLocalThreadRuntime,
+  useRemoteThreadListRuntime,
+  AssistantRuntimeProvider,
+} from "@assistant-ui/react";
+
+// Build your own multi-thread runtime
+function MyCustomRuntimeProvider({ children }) {
+  const runtime = useRemoteThreadListRuntime({
+    runtimeHook: () => useLocalThreadRuntime(MyModelAdapter, options),
+    adapter: myCustomThreadListAdapter,
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+<Callout type="info">
+  `useLocalRuntime` internally uses `useLocalThreadRuntime` +
+  `useRemoteThreadListRuntime` for multi-thread support.
+</Callout>
+
+<Callout type="warning">
+  **`useThreadRuntime` vs `useLocalThreadRuntime`:** 
+  - `useThreadRuntime` - Access the current thread's runtime from within components 
+  - `useLocalThreadRuntime` - Create a new single-thread runtime instance
+</Callout>
 
 ## Integration Examples
 
@@ -913,17 +950,17 @@ const CustomAPIAdapter: ChatModelAdapter = {
 
 ## Comparison with `ExternalStoreRuntime`
 
-| Feature               | `LocalRuntime`                                   | `ExternalStoreRuntime`                                |
-| --------------------- | ------------------------------------------------ | ----------------------------------------------------- |
-| State Management      | Built-in                                         | You manage                                            |
-| Setup Complexity      | Simple                                           | More complex                                          |
-| Flexibility           | Extensible via adapters                          | Full control                                          |
-| Message Editing       | Automatic                                        | Requires `onEdit` handler                             |
-| Branch Switching      | Automatic                                        | Requires `setMessages` handler                        |
-| Multi-Thread Support  | Yes (with Assistant Cloud or custom adapter)     | Yes (with thread list adapter)                        |
-| Custom Thread Storage | Yes (with useRemoteThreadListRuntime)            | Yes                                                   |
-| Persistence           | Via history adapter or Assistant Cloud           | Your implementation                                   |
-| Best For              | Quick prototypes, standard apps, cloud-based     | Complex state requirements, custom storage needs      |
+| Feature               | `LocalRuntime`                               | `ExternalStoreRuntime`                           |
+| --------------------- | -------------------------------------------- | ------------------------------------------------ |
+| State Management      | Built-in                                     | You manage                                       |
+| Setup Complexity      | Simple                                       | More complex                                     |
+| Flexibility           | Extensible via adapters                      | Full control                                     |
+| Message Editing       | Automatic                                    | Requires `onEdit` handler                        |
+| Branch Switching      | Automatic                                    | Requires `setMessages` handler                   |
+| Multi-Thread Support  | Yes (with Assistant Cloud or custom adapter) | Yes (with thread list adapter)                   |
+| Custom Thread Storage | Yes (with useRemoteThreadListRuntime)        | Yes                                              |
+| Persistence           | Via history adapter or Assistant Cloud       | Your implementation                              |
+| Best For              | Quick prototypes, standard apps, cloud-based | Complex state requirements, custom storage needs |
 
 ## Troubleshooting
 
@@ -1030,12 +1067,14 @@ Configuration options for the `LocalRuntime`.
     {
       name: "cloud",
       type: "AssistantCloud",
-      description: "Enable Assistant Cloud integration for multi-thread support and persistence",
+      description:
+        "Enable Assistant Cloud integration for multi-thread support and persistence",
     },
     {
       name: "adapters",
       type: "LocalRuntimeAdapters",
-      description: "Additional capabilities through adapters. Features are automatically enabled based on provided adapters",
+      description:
+        "Additional capabilities through adapters. Features are automatically enabled based on provided adapters",
       children: [
         {
           type: "adapters",
@@ -1072,7 +1111,8 @@ Configuration options for the `LocalRuntime`.
     {
       name: "unstable_humanToolNames",
       type: "string[]",
-      description: "Tool names that require human approval before execution (experimental API)",
+      description:
+        "Tool names that require human approval before execution (experimental API)",
     },
   ]}
 />
@@ -1140,4 +1180,3 @@ Interface for implementing custom thread list storage.
 - [Pick a Runtime Guide](/docs/runtimes/pick-a-runtime)
 - [`ExternalStoreRuntime`](/docs/runtimes/custom/external-store)
 - [Examples Repository](https://github.com/assistant-ui/assistant-ui/tree/main/examples)
-
