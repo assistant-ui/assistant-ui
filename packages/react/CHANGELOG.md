@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.10.23
+
+### Patch Changes
+
+- 1b77d8a: fix: Add missing `useLocalThreadRuntime` export
+
 ## 0.10.22
 
 ### Patch Changes
