@@ -37,9 +37,12 @@ export class AssistantCloudFiles {
   public async generatePresignedUploadUrl(
     body: GeneratePresignedUploadUrlRequestBody,
   ): Promise<GeneratePresignedUploadUrlResponse> {
-    return this.cloud.makeRequest("/files/attachments/generate-presigned-upload-url", {
-      method: "POST",
-      body,
-    });
+    return this.cloud.makeRequest(
+      "/files/attachments/generate-presigned-upload-url",
+      {
+        method: "POST",
+        body,
+      },
+    );
   }
-} 
+}
