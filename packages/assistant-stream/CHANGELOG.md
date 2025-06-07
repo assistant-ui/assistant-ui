@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.2.15
+
+### Patch Changes
+
+- 51b8493: feat: add missing exports
+
 ## 0.2.14
 
 ### Patch Changes
