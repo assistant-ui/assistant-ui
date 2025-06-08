@@ -16,6 +16,9 @@ class StateProxy:
         state_proxy["items"].append("item")
     """
 
+    def _get_value(self):
+        return self._manager.get_value_at_path(self._path)
+
     def __init__(self, state_manager: "StateManager", path: List[str] = []):
         """Initialize with state manager and current path."""
         self._manager = state_manager
@@ -23,12 +26,36 @@ class StateProxy:
 
     def __getitem__(self, key: Union[str, int]) -> Union["StateProxy", Any]:
         """Access nested values with dict-style syntax. Returns primitives directly except strings."""
-        str_key = str(key)
         current_value = self._manager.get_value_at_path(self._path)
 
-        # Validate key exists
-        if not isinstance(current_value, dict) or str_key not in current_value:
-            raise KeyError(key)
+        # Handle list indexing
+        if isinstance(current_value, list):
+            try:
+                index = int(key)
+                list_len = len(current_value)
+
+                # Handle negative indices
+                if index < 0:
+                    index = list_len + index
+
+                # Validate index is in bounds
+                if index < 0 or index >= list_len:
+                    raise KeyError(key)
+
+                # Use the normalized index as string key
+                str_key = str(index)
+            except (ValueError, TypeError):
+                raise KeyError(key)
+        else:
+            # For dicts, use string representation of key
+            str_key = str(key)
+
+            # Validate key exists
+            if isinstance(current_value, dict):
+                if str_key not in current_value:
+                    raise KeyError(key)
+            elif not isinstance(current_value, list):
+                raise KeyError(key)
 
         # Get value at path
         value = self._manager.get_value_at_path(self._path + [str_key])
@@ -42,8 +69,32 @@ class StateProxy:
 
     def __setitem__(self, key: Union[str, int], value: Any) -> None:
         """Set value with dict-style syntax."""
+        current_value = self._manager.get_value_at_path(self._path)
+
+        # Handle list indexing
+        if isinstance(current_value, list):
+            try:
+                index = int(key)
+                list_len = len(current_value)
+
+                # Handle negative indices
+                if index < 0:
+                    index = list_len + index
+
+                # Validate index is in bounds
+                if index < 0 or index >= list_len:
+                    raise KeyError(key)
+
+                # Use the normalized index as string key
+                str_key = str(index)
+            except (ValueError, TypeError):
+                raise KeyError(key)
+        else:
+            # For dicts and other types, use string representation of key
+            str_key = str(key)
+
         self._manager.add_operations(
-            [{"type": "set", "path": self._path + [str(key)], "value": value}]
+            [{"type": "set", "path": self._path + [str_key], "value": value}]
         )
 
     def __iadd__(self, other: Any) -> "StateProxy":
