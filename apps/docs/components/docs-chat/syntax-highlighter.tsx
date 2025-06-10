@@ -1,4 +1,4 @@
-import { makePrismAsyncSyntaxHighlighter } from "@assistant-ui/react-syntax-highlighter";
+import { makePrismAsyncSyntaxHighlighter } from "@assistant-ui/react-syntax-highlighter/full";
 import { coldarkDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 export const SyntaxHighlighter = makePrismAsyncSyntaxHighlighter({

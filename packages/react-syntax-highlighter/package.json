@@ -7,6 +7,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./full": {
+      "types": "./dist/full.d.ts",
+      "default": "./dist/full.js"
     }
   },
   "main": "./dist/index.js",
