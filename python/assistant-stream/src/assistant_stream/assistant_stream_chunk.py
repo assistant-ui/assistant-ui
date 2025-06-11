@@ -10,6 +10,12 @@ class TextDeltaChunk:
 
 
 @dataclass
+class ReasoningDeltaChunk:
+    reasoning_delta: str
+    type: str = "reasoning-delta"
+
+
+@dataclass
 class ToolCallBeginChunk:
     tool_call_id: str
     tool_name: str
@@ -69,6 +75,7 @@ class UpdateStateChunk:
 # Define the union type for AssistantStreamChunk
 AssistantStreamChunk = Union[
     TextDeltaChunk,
+    ReasoningDeltaChunk,
     ToolCallBeginChunk,
     ToolCallDeltaChunk,
     ToolResultChunk,
