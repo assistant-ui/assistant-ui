@@ -32,18 +32,18 @@ async function readCodeExample(exampleName: string): Promise<string | null> {
   try {
     const sanitized = sanitizePath(exampleName);
     const filePath = join(CODE_EXAMPLES_PATH, `${sanitized}.md`);
-    
+
     const stats = await lstat(filePath);
     if (stats.isSymbolicLink()) {
       logger.warn(`Attempted to read symlink: ${filePath}`);
       return null;
     }
-    
+
     if (stats.size > MAX_FILE_SIZE) {
       logger.warn(`File size exceeds limit: ${filePath} (${stats.size} bytes)`);
       return null;
     }
-    
+
     const content = await readFile(filePath, "utf-8");
     return content;
   } catch (error) {

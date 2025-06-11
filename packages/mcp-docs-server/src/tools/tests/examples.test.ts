@@ -75,7 +75,7 @@ describe("assistantUIExamples", () => {
 
   it("should skip symlinks and large files", async () => {
     const mockedLstat = vi.mocked(fs.lstat);
-    
+
     mockedLstat.mockResolvedValueOnce({
       isSymbolicLink: () => true,
       isFile: () => false,

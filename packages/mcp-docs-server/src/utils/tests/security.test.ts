@@ -35,19 +35,27 @@ describe("sanitizePath", () => {
 
   describe("should reject invalid inputs", () => {
     it("should reject empty string", () => {
-      expect(() => sanitizePath("")).toThrow("Invalid path: Path must be a non-empty string");
+      expect(() => sanitizePath("")).toThrow(
+        "Invalid path: Path must be a non-empty string",
+      );
     });
 
     it("should reject null", () => {
-      expect(() => sanitizePath(null as any)).toThrow("Invalid path: Path must be a non-empty string");
+      expect(() => sanitizePath(null as any)).toThrow(
+        "Invalid path: Path must be a non-empty string",
+      );
     });
 
     it("should reject undefined", () => {
-      expect(() => sanitizePath(undefined as any)).toThrow("Invalid path: Path must be a non-empty string");
+      expect(() => sanitizePath(undefined as any)).toThrow(
+        "Invalid path: Path must be a non-empty string",
+      );
     });
 
     it("should reject numbers", () => {
-      expect(() => sanitizePath(123 as any)).toThrow("Invalid path: Path must be a non-empty string");
+      expect(() => sanitizePath(123 as any)).toThrow(
+        "Invalid path: Path must be a non-empty string",
+      );
     });
   });
 
@@ -61,7 +69,9 @@ describe("sanitizePath", () => {
 
     hiddenPaths.forEach((path) => {
       it(`should reject: ${path}`, () => {
-        expect(() => sanitizePath(path)).toThrow("Invalid path: Hidden files are not allowed");
+        expect(() => sanitizePath(path)).toThrow(
+          "Invalid path: Hidden files are not allowed",
+        );
       });
     });
   });
@@ -69,12 +79,18 @@ describe("sanitizePath", () => {
   describe("should allow valid paths", () => {
     const validPaths = [
       { input: "getting-started", expected: "getting-started" },
-      { input: "api-reference/primitives/Thread", expected: "api-reference/primitives/Thread" },
+      {
+        input: "api-reference/primitives/Thread",
+        expected: "api-reference/primitives/Thread",
+      },
       { input: "guides/tools", expected: "guides/tools" },
       { input: "docs/index", expected: "docs/index" },
       { input: "examples/with-ai-sdk", expected: "examples/with-ai-sdk" },
       { input: "./current-dir-file", expected: "current-dir-file" },
-      { input: "deeply/nested/path/to/file", expected: "deeply/nested/path/to/file" },
+      {
+        input: "deeply/nested/path/to/file",
+        expected: "deeply/nested/path/to/file",
+      },
     ];
 
     validPaths.forEach(({ input, expected }) => {
@@ -87,12 +103,16 @@ describe("sanitizePath", () => {
   if (process.platform === "win32") {
     describe("Windows-specific tests", () => {
       it("should reject Windows drive letters", () => {
-        expect(() => sanitizePath("C:")).toThrow("Invalid path: Path contains invalid Windows characters");
+        expect(() => sanitizePath("C:")).toThrow(
+          "Invalid path: Path contains invalid Windows characters",
+        );
         expect(() => sanitizePath("D:\\file")).toThrow();
       });
 
       it("should reject UNC paths", () => {
-        expect(() => sanitizePath("\\\\server\\share")).toThrow("Invalid path: Path contains invalid Windows characters");
+        expect(() => sanitizePath("\\\\server\\share")).toThrow(
+          "Invalid path: Path contains invalid Windows characters",
+        );
       });
     });
   }

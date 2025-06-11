@@ -89,7 +89,7 @@ describe("assistantUIDocs", () => {
 
   it("should skip symlinks and large files", async () => {
     const mockedLstat = vi.mocked(fs.lstat);
-    
+
     mockedLstat.mockResolvedValueOnce({
       isSymbolicLink: () => true,
       isFile: () => false,
@@ -99,7 +99,9 @@ describe("assistantUIDocs", () => {
     const symlinkResult = await testContext.callTool("assistantUIDocs", {
       paths: ["symlink-test"],
     });
-    expect(symlinkResult.error).toBe("Symlinks are not allowed for security reasons");
+    expect(symlinkResult.error).toBe(
+      "Symlinks are not allowed for security reasons",
+    );
 
     mockedLstat.mockRejectedValueOnce(new Error("ENOENT"));
     mockedLstat.mockResolvedValueOnce({
@@ -111,6 +113,8 @@ describe("assistantUIDocs", () => {
     const largeFileResult = await testContext.callTool("assistantUIDocs", {
       paths: ["large-file"],
     });
-    expect(largeFileResult.error).toContain("File size exceeds maximum allowed size");
+    expect(largeFileResult.error).toContain(
+      "File size exceeds maximum allowed size",
+    );
   });
 });

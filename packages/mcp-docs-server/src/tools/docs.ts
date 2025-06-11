@@ -64,81 +64,81 @@ async function readDocumentation(docPath: string): Promise<DocResult> {
     } catch {}
 
     if (await pathExists(fullPath)) {
-    const stats = await stat(fullPath);
+      const stats = await stat(fullPath);
 
-    if (stats.isFile() && stats.size > MAX_FILE_SIZE) {
-      logger.warn(`File too large: ${fullPath} (${stats.size} bytes)`);
-      return {
-        path: docPath,
-        found: false,
-        error: `File size exceeds maximum allowed size of ${MAX_FILE_SIZE} bytes`,
-      };
-    }
-
-    if (stats.isDirectory()) {
-      const { directories, files } = await listDirContents(fullPath);
-
-      const contents: Record<string, string> = {};
-      for (const file of files) {
-        const mdxContent = await readMDXFile(join(fullPath, file));
-        if (mdxContent) {
-          const fileName = file.replace(MDX_EXTENSION, "");
-          contents[fileName] = formatMDXContent(mdxContent);
-        }
+      if (stats.isFile() && stats.size > MAX_FILE_SIZE) {
+        logger.warn(`File too large: ${fullPath} (${stats.size} bytes)`);
+        return {
+          path: docPath,
+          found: false,
+          error: `File size exceeds maximum allowed size of ${MAX_FILE_SIZE} bytes`,
+        };
       }
 
-      return {
-        path: docPath,
-        found: true,
-        type: "directory",
-        directories,
-        files: files.map((f) => f.replace(MDX_EXTENSION, "")),
-        content:
-          Object.keys(contents).length > 0
-            ? JSON.stringify(contents, null, 2)
-            : undefined,
-      };
-    }
-  }
+      if (stats.isDirectory()) {
+        const { directories, files } = await listDirContents(fullPath);
 
-  const mdxPath =
-    extname(fullPath) === MDX_EXTENSION
-      ? fullPath
-      : `${fullPath}${MDX_EXTENSION}`;
-  
-  try {
-    const mdxLstats = await lstat(mdxPath);
-    if (mdxLstats.isSymbolicLink()) {
-      logger.warn(`Symlink detected at MDX path: ${mdxPath}`);
-      return {
-        path: docPath,
-        found: false,
-        error: "Symlinks are not allowed for security reasons",
-      };
-    }
-    
-    if (mdxLstats.size > MAX_FILE_SIZE) {
-      logger.warn(`MDX file too large: ${mdxPath} (${mdxLstats.size} bytes)`);
-      return {
-        path: docPath,
-        found: false,
-        error: `File size exceeds maximum allowed size of ${MAX_FILE_SIZE} bytes`,
-      };
-    }
-  } catch {}
-  
-  if (await pathExists(mdxPath)) {
-    const mdxContent = await readMDXFile(mdxPath);
+        const contents: Record<string, string> = {};
+        for (const file of files) {
+          const mdxContent = await readMDXFile(join(fullPath, file));
+          if (mdxContent) {
+            const fileName = file.replace(MDX_EXTENSION, "");
+            contents[fileName] = formatMDXContent(mdxContent);
+          }
+        }
 
-    if (mdxContent) {
-      return {
-        path: docPath,
-        found: true,
-        type: "file",
-        content: formatMDXContent(mdxContent),
-      };
+        return {
+          path: docPath,
+          found: true,
+          type: "directory",
+          directories,
+          files: files.map((f) => f.replace(MDX_EXTENSION, "")),
+          content:
+            Object.keys(contents).length > 0
+              ? JSON.stringify(contents, null, 2)
+              : undefined,
+        };
+      }
     }
-  }
+
+    const mdxPath =
+      extname(fullPath) === MDX_EXTENSION
+        ? fullPath
+        : `${fullPath}${MDX_EXTENSION}`;
+
+    try {
+      const mdxLstats = await lstat(mdxPath);
+      if (mdxLstats.isSymbolicLink()) {
+        logger.warn(`Symlink detected at MDX path: ${mdxPath}`);
+        return {
+          path: docPath,
+          found: false,
+          error: "Symlinks are not allowed for security reasons",
+        };
+      }
+
+      if (mdxLstats.size > MAX_FILE_SIZE) {
+        logger.warn(`MDX file too large: ${mdxPath} (${mdxLstats.size} bytes)`);
+        return {
+          path: docPath,
+          found: false,
+          error: `File size exceeds maximum allowed size of ${MAX_FILE_SIZE} bytes`,
+        };
+      }
+    } catch {}
+
+    if (await pathExists(mdxPath)) {
+      const mdxContent = await readMDXFile(mdxPath);
+
+      if (mdxContent) {
+        return {
+          path: docPath,
+          found: true,
+          type: "file",
+          content: formatMDXContent(mdxContent),
+        };
+      }
+    }
 
     const availablePaths = await getAvailablePaths();
     const suggestions = findNearestPaths(docPath, availablePaths);

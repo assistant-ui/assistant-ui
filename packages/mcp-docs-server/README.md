@@ -20,6 +20,7 @@ claude mcp add --scope user assistant-ui -- npx -y @assistant-ui/mcp-docs-server
 ### Claude Desktop
 
 Add to your Claude Desktop configuration:
+
 - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
 

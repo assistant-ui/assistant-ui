@@ -31,7 +31,7 @@ describe("Path Traversal Security", () => {
 
       expect(result.results).toBeDefined();
       expect(result.results).toHaveLength(3);
-      
+
       expect(result.results[0].found).toBe(true);
       expect(result.results[1].error).toContain("Invalid path");
       expect(result.results[2].found).toBe(true);
@@ -73,7 +73,7 @@ describe("Path Traversal Security", () => {
 
     it("should allow valid example names", async () => {
       const result = await testContext.callTool("assistantUIExamples", {});
-      
+
       expect(result.examples).toBeDefined();
       expect(Array.isArray(result.examples)).toBe(true);
     });

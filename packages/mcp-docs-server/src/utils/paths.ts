@@ -89,7 +89,12 @@ export function findNearestPaths(
       normalizedPath.includes(char),
     ).length;
 
-    return { path, score: (overlap / normalizedRequest.length) * SIMILARITY_THRESHOLDS.PARTIAL_MATCH };
+    return {
+      path,
+      score:
+        (overlap / normalizedRequest.length) *
+        SIMILARITY_THRESHOLDS.PARTIAL_MATCH,
+    };
   });
 
   return scored

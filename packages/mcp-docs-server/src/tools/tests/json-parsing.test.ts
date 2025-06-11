@@ -11,11 +11,11 @@ describe("JSON parsing error handling", () => {
     });
 
     await expect(
-      testContext.callTool("assistantUIDocs", { paths: ["/"] })
+      testContext.callTool("assistantUIDocs", { paths: ["/"] }),
     ).rejects.toThrow(/Tool assistantUIDocs returned invalid JSON/);
 
     await expect(
-      testContext.callTool("assistantUIDocs", { paths: ["/"] })
+      testContext.callTool("assistantUIDocs", { paths: ["/"] }),
     ).rejects.toThrow(/invalid json \{not valid\}/);
 
     // Restore original function
