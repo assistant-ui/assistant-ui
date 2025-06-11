@@ -21,7 +21,14 @@ export const testContext: TestContext = {
       throw new Error(`Tool ${name} not found`);
     }
     const result = await tool.execute(args);
-    return JSON.parse(result.content[0].text);
+    
+    try {
+      return JSON.parse(result.content[0].text);
+    } catch (error) {
+      throw new Error(
+        `Tool ${name} returned invalid JSON. Output: ${result.content[0].text}\nParse error: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
   },
 };
 
