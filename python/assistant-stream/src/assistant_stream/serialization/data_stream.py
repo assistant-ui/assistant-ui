@@ -16,6 +16,8 @@ class DataStreamEncoder(StreamEncoder):
     def encode_chunk(self, chunk: AssistantStreamChunk) -> str:
         if chunk.type == "text-delta":
             return f"0:{json.dumps(chunk.text_delta)}\n"
+        elif chunk.type == "reasoning-delta":
+            return f"g:{json.dumps(chunk.reasoning_delta)}\n"
         elif chunk.type == "tool-call-begin":
             return f'b:{json.dumps({ "toolCallId": chunk.tool_call_id, "toolName": chunk.tool_name })}\n'
         elif chunk.type == "tool-call-delta":

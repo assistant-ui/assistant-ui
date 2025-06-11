@@ -3,6 +3,7 @@ from typing import Any, AsyncGenerator, Callable, Coroutine, List
 from assistant_stream.assistant_stream_chunk import (
     AssistantStreamChunk,
     TextDeltaChunk,
+    ReasoningDeltaChunk,
     ToolResultChunk,
     DataChunk,
     ErrorChunk,
@@ -26,6 +27,11 @@ class RunController:
     def append_text(self, text_delta: str) -> None:
         """Append a text delta to the stream."""
         chunk = TextDeltaChunk(text_delta=text_delta)
+        self._flush_and_put_chunk(chunk)
+
+    def append_reasoning(self, reasoning_delta: str) -> None:
+        """Append a reasoning delta to the stream."""
+        chunk = ReasoningDeltaChunk(reasoning_delta=reasoning_delta)
         self._flush_and_put_chunk(chunk)
 
     async def add_tool_call(
