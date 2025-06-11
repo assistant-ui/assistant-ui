@@ -1,12 +1,14 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { testContext } from "./test-setup.js";
 import { docsTools } from "../docs.js";
 
 describe("JSON parsing error handling", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("should provide helpful error message for invalid JSON", async () => {
-    // Mock the tool to return invalid JSON
-    const originalExecute = docsTools.execute;
-    docsTools.execute = vi.fn().mockResolvedValue({
+    vi.spyOn(docsTools, "execute").mockResolvedValue({
       content: [{ text: "invalid json {not valid}" }],
     });
 
@@ -17,8 +19,5 @@ describe("JSON parsing error handling", () => {
     await expect(
       testContext.callTool("assistantUIDocs", { paths: ["/"] }),
     ).rejects.toThrow(/invalid json \{not valid\}/);
-
-    // Restore original function
-    docsTools.execute = originalExecute;
   });
 });
