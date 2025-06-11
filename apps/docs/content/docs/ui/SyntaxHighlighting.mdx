@@ -123,7 +123,7 @@ By default, `react-shiki` includes the full Shiki bundle, which contains all sup
 To reduce bundle size, you can use the web bundle by changing the import to `react-shiki/web`, to include a smaller bundle of web related languages:
 
 ```tsx title="/components/assistant-ui/shiki-highlighter.tsx"
-import ShikiHighlighter, { type ShikiHighlighterProps } from "react-shiki";
+import ShikiHighlighter, { type ShikiHighlighterProps } from "react-shiki/web";
 ```
 
 #### Custom Bundles
@@ -243,3 +243,11 @@ export const defaultComponents = memoizeMarkdownComponents({
 ### Options
 
 Supports all options from [`react-syntax-highlighter`](https://github.com/react-syntax-highlighter/react-syntax-highlighter#props).
+
+### Bundle Optimization
+
+By default, the syntax highlighter uses a light build that only includes languages you register. To include all languages:
+
+```tsx title="/components/assistant-ui/syntax-highlighter.tsx"
+import { makePrismAsyncSyntaxHighlighter } from "@assistant-ui/react-syntax-highlighter/full";
+```
