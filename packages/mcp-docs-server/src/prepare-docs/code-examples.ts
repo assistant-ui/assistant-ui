@@ -110,7 +110,13 @@ export async function prepareCodeExamples(): Promise<void> {
             await readFile(packageJsonPath, "utf-8"),
           );
           description = packageJson.description || "";
-        } catch {}
+        } catch (error: any) {
+          if (error?.code !== "ENOENT") {
+            logger.warn(`Failed to read package.json for ${dir.name}:`, error);
+          } else {
+            logger.debug(`No package.json found for example: ${dir.name}`);
+          }
+        }
 
         const files = await scanDirectory(examplePath, examplePath);
 

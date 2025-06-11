@@ -34,15 +34,5 @@ export async function readMDXFile(
 export function formatMDXContent(mdxContent: MDXContent): string {
   const { content, frontmatter } = mdxContent;
 
-  let formattedContent = "";
-  if (Object.keys(frontmatter).length > 0) {
-    formattedContent += "---\n";
-    for (const [key, value] of Object.entries(frontmatter)) {
-      formattedContent += `${key}: ${JSON.stringify(value)}\n`;
-    }
-    formattedContent += "---\n\n";
-  }
-
-  formattedContent += content;
-  return formattedContent;
+  return matter.stringify(content, frontmatter);
 }

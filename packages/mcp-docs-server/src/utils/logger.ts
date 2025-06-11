@@ -1,7 +1,7 @@
 export const logger = {
   debug: (message: string, ...args: any[]) => {
     if (process.env.DEBUG) {
-      console.error(`[DEBUG] ${message}`, ...args);
+      console.debug(`[DEBUG] ${message}`, ...args);
     }
   },
   info: (message: string, ...args: any[]) => {

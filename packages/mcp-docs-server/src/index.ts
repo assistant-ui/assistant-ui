@@ -51,5 +51,8 @@ export async function runServer() {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  runServer();
+  void runServer().catch((error) => {
+    console.error("Failed to start server:", error);
+    process.exit(1);
+  });
 }
