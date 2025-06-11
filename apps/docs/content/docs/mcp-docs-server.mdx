@@ -64,7 +64,24 @@ claude mcp get assistant-ui
 claude mcp remove assistant-ui
 ```
 
-### Other IDEs
+### Claude Desktop
+
+Add to your Claude Desktop configuration:
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "assistant-ui": {
+      "command": "npx",
+      "args": ["-y", "@assistant-ui/mcp-docs-server"]
+    }
+  }
+}
+```
+
+### IDEs
 
 For Cursor, Windsurf, VSCode, and Zed, manually add the following configuration:
 
@@ -210,6 +227,12 @@ On latest Windsurf and Cursor the direct npx command works, while it's still unc
 
 The MCP server starts automatically once added. You can verify it's working by mentioning assistant-ui in your prompts - Claude will have direct access to the documentation and examples.
 
+### Claude Desktop
+
+1. Restart Claude Desktop after updating the configuration
+2. The MCP server will start automatically when Claude Desktop launches
+3. You can verify it's working by asking about assistant-ui - Claude will have direct access to the documentation and examples
+
 ### Cursor
 
 1. Open Cursor settings by pressing `Cmd/Ctrl + ,`
@@ -248,6 +271,12 @@ The tools button should show "assistantUIDocs" and "assistantUIExamples" as avai
 5. In the Assistant Panel, you can verify the server is available by checking the tools dropdown
 
 Zed will automatically start the MCP server when needed. The assistant-ui documentation and examples will be available to the AI assistant in your conversations.
+
+### Claude Desktop
+
+1. Restart Claude Desktop after updating the configuration
+2. The MCP server will start automatically when Claude Desktop launches
+3. You can verify it's working by asking about assistant-ui - Claude will have direct access to the documentation and examples
 
 ## Available Agent Tools
 
