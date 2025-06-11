@@ -1,0 +1,43 @@
+{
+  "name": "@assistant-ui/mcp-docs-server",
+  "version": "0.1.0",
+  "description": "MCP server for assistant-ui documentation and examples",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "assistant-ui-mcp": "./dist/stdio.js"
+  },
+  "scripts": {
+    "clean": "rm -rf dist .docs",
+    "prepare-docs": "cross-env PREPARE=true node ./dist/prepare-docs/prepare.js",
+    "build:cli": "tsup src/stdio.ts src/prepare-docs/prepare.ts src/index.ts --format esm --treeshake=smallest --splitting",
+    "build": "pnpm clean && pnpm build:cli && pnpm prepare-docs",
+    "dev": "tsx src/stdio.ts",
+    "pretest": "pnpm build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "zod": "^3.25.57",
+    "gray-matter": "^4.0.3",
+    "cross-env": "^7.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsup": "^8.5.0",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.3",
+    "eslint": "^9.28.0"
+  },
+  "files": [
+    "dist",
+    ".docs",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}
