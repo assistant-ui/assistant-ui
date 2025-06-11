@@ -16,4 +16,6 @@ export const CODE_EXAMPLES_PATH = join(DOCS_BASE, "organized/code-examples");
 export const MDX_EXTENSION = ".mdx";
 export const MD_EXTENSION = ".md";
 
+export const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
 export const IS_PREPARE_MODE = process.env.PREPARE === "true";

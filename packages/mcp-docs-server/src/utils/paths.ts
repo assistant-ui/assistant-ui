@@ -3,6 +3,13 @@ import { join, extname } from "path";
 import { DOCS_PATH, MDX_EXTENSION, MD_EXTENSION } from "../constants.js";
 import { logger } from "./logger.js";
 
+const SIMILARITY_THRESHOLDS = {
+  EXACT_MATCH: 1,
+  CONTAINS_MATCH: 0.8,
+  PARTIAL_MATCH: 0.5,
+  MIN_SUGGESTION: 0.3,
+} as const;
+
 export async function listDirContents(dirPath: string): Promise<{
   directories: string[];
   files: string[];
@@ -71,22 +78,22 @@ export function findNearestPaths(
     const normalizedPath = path.toLowerCase().replace(/[^a-z0-9]/g, "");
 
     if (normalizedPath.includes(normalizedRequest)) {
-      return { path, score: 1 };
+      return { path, score: SIMILARITY_THRESHOLDS.EXACT_MATCH };
     }
 
     if (normalizedRequest.includes(normalizedPath)) {
-      return { path, score: 0.8 };
+      return { path, score: SIMILARITY_THRESHOLDS.CONTAINS_MATCH };
     }
 
     const overlap = [...normalizedRequest].filter((char) =>
       normalizedPath.includes(char),
     ).length;
 
-    return { path, score: (overlap / normalizedRequest.length) * 0.5 };
+    return { path, score: (overlap / normalizedRequest.length) * SIMILARITY_THRESHOLDS.PARTIAL_MATCH };
   });
 
   return scored
-    .filter((item) => item.score > 0.3)
+    .filter((item) => item.score > SIMILARITY_THRESHOLDS.MIN_SUGGESTION)
     .sort((a, b) => b.score - a.score)
     .slice(0, 3)
     .map((item) => item.path);

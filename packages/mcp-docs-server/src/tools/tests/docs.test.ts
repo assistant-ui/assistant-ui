@@ -1,7 +1,23 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { testContext } from "./test-setup.js";
+import * as fs from "fs/promises";
+
+vi.mock("fs/promises", async () => {
+  const actual = await vi.importActual<typeof fs>("fs/promises");
+  return {
+    ...actual,
+    lstat: vi.fn(actual.lstat),
+  };
+});
 
 describe("assistantUIDocs", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
   it("should list root directory contents", async () => {
     const result = await testContext.callTool("assistantUIDocs", {
       paths: ["/"],
@@ -69,5 +85,32 @@ describe("assistantUIDocs", () => {
     expect(result.content).toBeDefined();
     expect(result.content).toContain("title:");
     expect(result.content).toContain("Getting Started");
+  });
+
+  it("should skip symlinks and large files", async () => {
+    const mockedLstat = vi.mocked(fs.lstat);
+    
+    mockedLstat.mockResolvedValueOnce({
+      isSymbolicLink: () => true,
+      isFile: () => false,
+      isDirectory: () => false,
+    } as any);
+
+    const symlinkResult = await testContext.callTool("assistantUIDocs", {
+      paths: ["symlink-test"],
+    });
+    expect(symlinkResult.error).toBe("Symlinks are not allowed for security reasons");
+
+    mockedLstat.mockRejectedValueOnce(new Error("ENOENT"));
+    mockedLstat.mockResolvedValueOnce({
+      isSymbolicLink: () => false,
+      isFile: () => true,
+      size: 11 * 1024 * 1024,
+    } as any);
+
+    const largeFileResult = await testContext.callTool("assistantUIDocs", {
+      paths: ["large-file"],
+    });
+    expect(largeFileResult.error).toContain("File size exceeds maximum allowed size");
   });
 });

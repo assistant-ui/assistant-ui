@@ -1,9 +1,10 @@
 import { z } from "zod";
-import { readFile, readdir } from "fs/promises";
+import { readFile, readdir, lstat } from "fs/promises";
 import { join, extname } from "path";
-import { CODE_EXAMPLES_PATH } from "../constants.js";
+import { CODE_EXAMPLES_PATH, MAX_FILE_SIZE } from "../constants.js";
 import { logger } from "../utils/logger.js";
 import { formatMCPResponse } from "../utils/mcp-format.js";
+import { sanitizePath } from "../utils/security.js";
 
 const examplesInputSchema = z.object({
   example: z
@@ -29,7 +30,20 @@ async function listCodeExamples(): Promise<string[]> {
 
 async function readCodeExample(exampleName: string): Promise<string | null> {
   try {
-    const filePath = join(CODE_EXAMPLES_PATH, `${exampleName}.md`);
+    const sanitized = sanitizePath(exampleName);
+    const filePath = join(CODE_EXAMPLES_PATH, `${sanitized}.md`);
+    
+    const stats = await lstat(filePath);
+    if (stats.isSymbolicLink()) {
+      logger.warn(`Attempted to read symlink: ${filePath}`);
+      return null;
+    }
+    
+    if (stats.size > MAX_FILE_SIZE) {
+      logger.warn(`File size exceeds limit: ${filePath} (${stats.size} bytes)`);
+      return null;
+    }
+    
     const content = await readFile(filePath, "utf-8");
     return content;
   } catch (error) {

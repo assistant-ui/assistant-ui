@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { stat } from "fs/promises";
+import { stat, lstat } from "fs/promises";
 import { join, extname } from "path";
-import { DOCS_PATH, MDX_EXTENSION } from "../constants.js";
+import { DOCS_PATH, MDX_EXTENSION, MAX_FILE_SIZE } from "../constants.js";
 import { logger } from "../utils/logger.js";
 import {
   listDirContents,
@@ -11,6 +11,7 @@ import {
 } from "../utils/paths.js";
 import { readMDXFile, formatMDXContent } from "../utils/mdx.js";
 import { formatMCPResponse } from "../utils/mcp-format.js";
+import { sanitizePath } from "../utils/security.js";
 
 const docsInputSchema = z.object({
   paths: z
@@ -29,6 +30,7 @@ interface DocResult {
   files?: string[];
   directories?: string[];
   suggestions?: string[];
+  error?: string;
 }
 
 async function readDocumentation(docPath: string): Promise<DocResult> {
@@ -45,10 +47,33 @@ async function readDocumentation(docPath: string): Promise<DocResult> {
     };
   }
 
-  const fullPath = join(DOCS_PATH, docPath);
+  try {
+    const sanitized = sanitizePath(docPath);
+    const fullPath = join(DOCS_PATH, sanitized);
 
-  if (await pathExists(fullPath)) {
+    try {
+      const lstats = await lstat(fullPath);
+      if (lstats.isSymbolicLink()) {
+        logger.warn(`Symlink detected at path: ${fullPath}`);
+        return {
+          path: docPath,
+          found: false,
+          error: "Symlinks are not allowed for security reasons",
+        };
+      }
+    } catch {}
+
+    if (await pathExists(fullPath)) {
     const stats = await stat(fullPath);
+
+    if (stats.isFile() && stats.size > MAX_FILE_SIZE) {
+      logger.warn(`File too large: ${fullPath} (${stats.size} bytes)`);
+      return {
+        path: docPath,
+        found: false,
+        error: `File size exceeds maximum allowed size of ${MAX_FILE_SIZE} bytes`,
+      };
+    }
 
     if (stats.isDirectory()) {
       const { directories, files } = await listDirContents(fullPath);
@@ -80,6 +105,28 @@ async function readDocumentation(docPath: string): Promise<DocResult> {
     extname(fullPath) === MDX_EXTENSION
       ? fullPath
       : `${fullPath}${MDX_EXTENSION}`;
+  
+  try {
+    const mdxLstats = await lstat(mdxPath);
+    if (mdxLstats.isSymbolicLink()) {
+      logger.warn(`Symlink detected at MDX path: ${mdxPath}`);
+      return {
+        path: docPath,
+        found: false,
+        error: "Symlinks are not allowed for security reasons",
+      };
+    }
+    
+    if (mdxLstats.size > MAX_FILE_SIZE) {
+      logger.warn(`MDX file too large: ${mdxPath} (${mdxLstats.size} bytes)`);
+      return {
+        path: docPath,
+        found: false,
+        error: `File size exceeds maximum allowed size of ${MAX_FILE_SIZE} bytes`,
+      };
+    }
+  } catch {}
+  
   if (await pathExists(mdxPath)) {
     const mdxContent = await readMDXFile(mdxPath);
 
@@ -93,14 +140,24 @@ async function readDocumentation(docPath: string): Promise<DocResult> {
     }
   }
 
-  const availablePaths = await getAvailablePaths();
-  const suggestions = findNearestPaths(docPath, availablePaths);
+    const availablePaths = await getAvailablePaths();
+    const suggestions = findNearestPaths(docPath, availablePaths);
 
-  return {
-    path: docPath,
-    found: false,
-    suggestions,
-  };
+    return {
+      path: docPath,
+      found: false,
+      suggestions,
+    };
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("Invalid path")) {
+      return {
+        path: docPath,
+        found: false,
+        error: error.message,
+      };
+    }
+    throw error;
+  }
 }
 
 export const docsTools = {
@@ -118,6 +175,12 @@ export const docsTools = {
 
       if (results.length === 1) {
         const result = results[0];
+        if (result.error) {
+          return formatMCPResponse({
+            error: result.error,
+            path: result.path,
+          });
+        }
         if (!result.found) {
           return formatMCPResponse({
             error: `Documentation not found for path: ${result.path}`,

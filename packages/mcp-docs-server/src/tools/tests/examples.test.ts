@@ -1,7 +1,23 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { testContext } from "./test-setup.js";
+import * as fs from "fs/promises";
+
+vi.mock("fs/promises", async () => {
+  const actual = await vi.importActual<typeof fs>("fs/promises");
+  return {
+    ...actual,
+    lstat: vi.fn(actual.lstat),
+  };
+});
 
 describe("assistantUIExamples", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
   it("should list all available examples", async () => {
     const result = await testContext.callTool("assistantUIExamples", {});
 
@@ -55,5 +71,30 @@ describe("assistantUIExamples", () => {
 
     expect(result.type).toBe("list");
     expect(result.hint).toBeDefined();
+  });
+
+  it("should skip symlinks and large files", async () => {
+    const mockedLstat = vi.mocked(fs.lstat);
+    
+    mockedLstat.mockResolvedValueOnce({
+      isSymbolicLink: () => true,
+      isFile: () => false,
+    } as any);
+
+    const symlinkResult = await testContext.callTool("assistantUIExamples", {
+      example: "symlink-example",
+    });
+    expect(symlinkResult.error).toContain("Example not found");
+
+    mockedLstat.mockResolvedValueOnce({
+      isSymbolicLink: () => false,
+      isFile: () => true,
+      size: 11 * 1024 * 1024,
+    } as any);
+
+    const largeFileResult = await testContext.callTool("assistantUIExamples", {
+      example: "large-example",
+    });
+    expect(largeFileResult.error).toContain("Example not found");
   });
 });
