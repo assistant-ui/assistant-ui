@@ -5,7 +5,7 @@ export const logger = {
     }
   },
   info: (message: string, ...args: any[]) => {
-    if (process.env.PREPARE === 'true') {
+    if (process.env.PREPARE === "true") {
       console.log(`[INFO] ${message}`, ...args);
     }
   },
@@ -14,5 +14,5 @@ export const logger = {
   },
   warn: (message: string, ...args: any[]) => {
     console.error(`[WARN] ${message}`, ...args);
-  }
+  },
 };

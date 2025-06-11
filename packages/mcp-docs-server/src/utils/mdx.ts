@@ -1,6 +1,6 @@
-import { readFile } from 'fs/promises';
-import matter from 'gray-matter';
-import { logger } from './logger.js';
+import { readFile } from "fs/promises";
+import matter from "gray-matter";
+import { logger } from "./logger.js";
 
 export interface MDXContent {
   content: string;
@@ -8,18 +8,22 @@ export interface MDXContent {
   excerpt?: string;
 }
 
-export async function readMDXFile(filePath: string): Promise<MDXContent | null> {
+export async function readMDXFile(
+  filePath: string,
+): Promise<MDXContent | null> {
   try {
-    const fileContent = await readFile(filePath, 'utf-8');
+    const fileContent = await readFile(filePath, "utf-8");
     const { content, data } = matter(fileContent);
-    
+
     const excerptMatch = content.match(/^(.+?)(?:\n\n|$)/);
-    const excerpt = excerptMatch ? excerptMatch[1].replace(/^#+ /, '') : undefined;
-    
+    const excerpt = excerptMatch
+      ? excerptMatch[1].replace(/^#+ /, "")
+      : undefined;
+
     return {
       content,
       frontmatter: data,
-      excerpt
+      excerpt,
     };
   } catch (error) {
     logger.error(`Failed to read MDX file: ${filePath}`, error);
@@ -29,16 +33,16 @@ export async function readMDXFile(filePath: string): Promise<MDXContent | null> 
 
 export function formatMDXContent(mdxContent: MDXContent): string {
   const { content, frontmatter } = mdxContent;
-  
-  let formattedContent = '';
+
+  let formattedContent = "";
   if (Object.keys(frontmatter).length > 0) {
-    formattedContent += '---\n';
+    formattedContent += "---\n";
     for (const [key, value] of Object.entries(frontmatter)) {
       formattedContent += `${key}: ${JSON.stringify(value)}\n`;
     }
-    formattedContent += '---\n\n';
+    formattedContent += "---\n\n";
   }
-  
+
   formattedContent += content;
   return formattedContent;
 }

@@ -1,4 +1,4 @@
 #!/usr/bin/env node
-import { runServer } from './index.js';
+import { runServer } from "./index.js";
 
 runServer();

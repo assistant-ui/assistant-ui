@@ -1,9 +1,9 @@
-import { beforeAll, afterAll } from 'vitest';
-import { existsSync } from 'fs';
-import { join } from 'path';
-import { PACKAGE_DIR } from '../../constants.js';
-import { docsTools } from '../docs.js';
-import { examplesTools } from '../examples.js';
+import { beforeAll, afterAll } from "vitest";
+import { existsSync } from "fs";
+import { join } from "path";
+import { PACKAGE_DIR } from "../../constants.js";
+import { docsTools } from "../docs.js";
+import { examplesTools } from "../examples.js";
 
 export interface TestContext {
   callTool: (name: string, args: any) => Promise<any>;
@@ -22,13 +22,13 @@ export const testContext: TestContext = {
     }
     const result = await tool.execute(args);
     return JSON.parse(result.content[0].text);
-  }
+  },
 };
 
 beforeAll(() => {
-  const docsPath = join(PACKAGE_DIR, '.docs');
+  const docsPath = join(PACKAGE_DIR, ".docs");
   if (!existsSync(docsPath)) {
-    throw new Error('Documentation not prepared. Run: pnpm build');
+    throw new Error("Documentation not prepared. Run: pnpm build");
   }
 });
 
