@@ -1,5 +1,11 @@
 # @assistant-ui/react-syntax-highlighter
 
+## 0.10.5
+
+### Patch Changes
+
+- 588a2c0: fix: split react-syntax-highlighter into light (default) and `/full` paths
+
 ## 0.10.4
 
 ### Patch Changes
