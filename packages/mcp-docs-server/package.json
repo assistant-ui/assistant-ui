@@ -13,6 +13,7 @@
     "build:cli": "tsup src/stdio.ts src/prepare-docs/prepare.ts src/index.ts --format esm --treeshake=smallest --splitting",
     "build": "pnpm clean && pnpm build:cli && pnpm prepare-docs",
     "dev": "tsx src/stdio.ts",
+    "pretest": "pnpm build",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint ."
