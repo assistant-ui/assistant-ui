@@ -1,0 +1,55 @@
+{
+  "name": "assistant-cloud",
+  "description": "Cloud integration for Assistant UI",
+  "keywords": [
+    "assistant",
+    "cloud",
+    "ai",
+    "chat",
+    "assistant-ui"
+  ],
+  "version": "0.0.1",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "source": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsx scripts/build.mts",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "assistant-stream": "^0.2.15"
+  },
+  "devDependencies": {
+    "@assistant-ui/x-buildutils": "workspace:*",
+    "@types/node": "^22.15.29",
+    "eslint": "^9",
+    "eslint-config-next": "15.3.3",
+    "tsx": "^4.19.4"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "homepage": "https://www.assistant-ui.com/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/assistant-ui/assistant-ui/tree/main/packages/cloud"
+  },
+  "bugs": {
+    "url": "https://github.com/assistant-ui/assistant-ui/issues"
+  }
+}

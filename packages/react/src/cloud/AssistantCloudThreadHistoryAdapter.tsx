@@ -2,7 +2,7 @@ import { RefObject, useState } from "react";
 import { useThreadListItemRuntime } from "../context";
 import { ThreadHistoryAdapter } from "../runtimes/adapters/thread-history/ThreadHistoryAdapter";
 import { ExportedMessageRepositoryItem } from "../runtimes/utils/MessageRepository";
-import { AssistantCloud } from "./AssistantCloud";
+import { AssistantCloud } from "assistant-cloud";
 import { auiV0Decode, auiV0Encode } from "./auiV0";
 import { ThreadListItemRuntime } from "../api";
 
