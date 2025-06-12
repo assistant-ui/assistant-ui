@@ -381,7 +381,7 @@ Tools are executed automatically by the runtime. The model adapter receives tool
 
 ```tsx
 import { useLocalRuntime } from "@assistant-ui/react";
-import { AssistantCloud } from "@assistant-ui/cloud";
+import { AssistantCloud } from "assistant-cloud";
 
 const cloud = new AssistantCloud({
   apiKey: process.env.ASSISTANT_CLOUD_API_KEY,
@@ -841,9 +841,9 @@ function MyCustomRuntimeProvider({ children }) {
 </Callout>
 
 <Callout type="warning">
-  **`useThreadRuntime` vs `useLocalThreadRuntime`:** 
-  - `useThreadRuntime` - Access the current thread's runtime from within components 
-  - `useLocalThreadRuntime` - Create a new single-thread runtime instance
+  **`useThreadRuntime` vs `useLocalThreadRuntime`:** - `useThreadRuntime` -
+  Access the current thread's runtime from within components -
+  `useLocalThreadRuntime` - Create a new single-thread runtime instance
 </Callout>
 
 ## Integration Examples
