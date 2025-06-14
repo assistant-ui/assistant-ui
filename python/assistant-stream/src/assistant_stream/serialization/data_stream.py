@@ -33,6 +33,15 @@ class DataStreamEncoder(StreamEncoder):
             return f"2:{json.dumps([chunk.data])}\n"
         elif chunk.type == "error":
             return f"3:{json.dumps(chunk.error)}\n"
+        elif chunk.type == "source":
+            source_data = {
+                "sourceType": chunk.source_type,
+                "id": chunk.id,
+                "url": chunk.url
+            }
+            if chunk.title is not None:
+                source_data["title"] = chunk.title
+            return f"h:{json.dumps(source_data)}\n"
         elif chunk.type == "update-state":
             return f"aui-state:{json.dumps(chunk.operations)}\n"
 
