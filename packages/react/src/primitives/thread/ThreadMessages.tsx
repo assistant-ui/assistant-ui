@@ -144,11 +144,15 @@ export const ThreadPrimitiveMessagesImpl: FC<ThreadPrimitiveMessages.Props> = ({
   components,
 }) => {
   const messagesLength = useThread((t) => t.messages.length);
-  if (messagesLength === 0) return null;
 
-  return Array.from({ length: messagesLength }, (_, index) => (
-    <ThreadMessage key={index} messageIndex={index} components={components} />
-  ));
+  const messageElements = useMemo(() => {
+    if (messagesLength === 0) return null;
+    return Array.from({ length: messagesLength }, (_, index) => (
+      <ThreadMessage key={index} messageIndex={index} components={components} />
+    ));
+  }, [messagesLength, components]);
+
+  return messageElements;
 };
 
 ThreadPrimitiveMessagesImpl.displayName = "ThreadPrimitive.Messages";
