@@ -230,11 +230,7 @@ export const MessagePrimitiveContent: FC<MessagePrimitiveContent.Props> = ({
     ));
   }, [contentLength, components]);
 
-  return (
-    <>
-      {contentElements}
-    </>
-  );
+  return <>{contentElements}</>;
 };
 
 MessagePrimitiveContent.displayName = "MessagePrimitive.Content";

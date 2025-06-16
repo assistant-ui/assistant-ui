@@ -144,7 +144,7 @@ export const ThreadPrimitiveMessagesImpl: FC<ThreadPrimitiveMessages.Props> = ({
   components,
 }) => {
   const messagesLength = useThread((t) => t.messages.length);
-  
+
   const messageElements = useMemo(() => {
     if (messagesLength === 0) return null;
     return Array.from({ length: messagesLength }, (_, index) => (
