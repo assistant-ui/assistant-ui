@@ -225,15 +225,19 @@ export const MessagePrimitiveContent: FC<MessagePrimitiveContent.Props> = ({
     );
   }
 
+  const contentElements = useMemo(() => {
+    return Array.from({ length: contentLength }, (_, index) => (
+      <MessageContentPart
+        key={index}
+        partIndex={index}
+        components={components}
+      />
+    ));
+  }, [contentLength, components]);
+
   return (
     <>
-      {Array.from({ length: contentLength }, (_, index) => (
-        <MessageContentPart
-          key={index}
-          partIndex={index}
-          components={components}
-        />
-      ))}
+      {contentElements}
     </>
   );
 };

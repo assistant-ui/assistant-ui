@@ -80,13 +80,17 @@ export const MessagePrimitiveAttachments: FC<
     return message.attachments.length;
   });
 
-  return Array.from({ length: attachmentsCount }, (_, index) => (
-    <MessageAttachment
-      key={index}
-      attachmentIndex={index}
-      components={components}
-    />
-  ));
+  const attachmentElements = useMemo(() => {
+    return Array.from({ length: attachmentsCount }, (_, index) => (
+      <MessageAttachment
+        key={index}
+        attachmentIndex={index}
+        components={components}
+      />
+    ));
+  }, [attachmentsCount, components]);
+
+  return attachmentElements;
 };
 
 MessagePrimitiveAttachments.displayName = "MessagePrimitive.Attachments";

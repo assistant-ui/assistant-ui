@@ -58,14 +58,18 @@ export const ThreadListPrimitiveItems: FC<ThreadListPrimitiveItems.Props> = ({
     archived ? s.archivedThreads.length : s.threads.length,
   );
 
-  return Array.from({ length: contentLength }, (_, index) => (
-    <ThreadListItem
-      key={index}
-      partIndex={index}
-      archived={archived}
-      components={components}
-    />
-  ));
+  const listElements = useMemo(() => {
+    return Array.from({ length: contentLength }, (_, index) => (
+      <ThreadListItem
+        key={index}
+        partIndex={index}
+        archived={archived}
+        components={components}
+      />
+    ));
+  }, [contentLength, archived, components]);
+
+  return listElements;
 };
 
 ThreadListPrimitiveItems.displayName = "ThreadListPrimitive.Items";
