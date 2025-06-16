@@ -28,6 +28,8 @@
   "sideEffects": false,
   "scripts": {
     "build": "tsx scripts/build.mts",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "lint": "eslint ."
   },
   "dependencies": {
@@ -38,7 +40,8 @@
     "@types/node": "^24.0.1",
     "eslint": "^9",
     "eslint-config-next": "15.3.3",
-    "tsx": "^4.20.3"
+    "tsx": "^4.20.3",
+    "vitest": "^3.2.3"
   },
   "publishConfig": {
     "access": "public",
