@@ -28,17 +28,20 @@
   "sideEffects": false,
   "scripts": {
     "build": "tsx scripts/build.mts",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "lint": "eslint ."
   },
   "dependencies": {
-    "assistant-stream": "^0.2.15"
+    "assistant-stream": "^0.2.16"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^22.15.29",
+    "@types/node": "^24.0.1",
     "eslint": "^9",
     "eslint-config-next": "15.3.3",
-    "tsx": "^4.19.4"
+    "tsx": "^4.20.3",
+    "vitest": "^3.2.3"
   },
   "publishConfig": {
     "access": "public",

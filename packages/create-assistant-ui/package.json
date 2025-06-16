@@ -8,14 +8,14 @@
     "cosmiconfig": "^9.0.0",
     "cross-spawn": "^7.0.6",
     "tsconfig-paths": "^4.2.0",
-    "zod": "^3.25.49"
+    "zod": "^3.25.64"
   },
   "type": "module",
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/cross-spawn": "^6.0.6",
-    "@types/node": "^22.15.29",
-    "tsx": "^4.19.4"
+    "@types/node": "^24.0.1",
+    "tsx": "^4.20.3"
   },
   "files": [
     "dist",

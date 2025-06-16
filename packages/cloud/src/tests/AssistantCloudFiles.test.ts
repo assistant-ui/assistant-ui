@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
-import { AssistantCloudFiles } from "../cloud/AssistantCloudFiles";
-import { AssistantCloudAPI } from "../cloud/AssistantCloudAPI";
+import { AssistantCloudFiles } from "../AssistantCloudFiles";
+import { AssistantCloudAPI } from "../AssistantCloudAPI";
 
 // Mock the AssistantCloudAPI to avoid making real HTTP requests (except for integration tests)
-vi.mock("../cloud/AssistantCloudAPI");
+vi.mock("../AssistantCloudAPI");
 
 describe("AssistantCloudFiles", () => {
   let cloudFiles: AssistantCloudFiles;
@@ -84,7 +84,7 @@ describe("AssistantCloudFiles", () => {
 
       const requestBody = {
         file_blob:
-          "data:application/pdf;base64,JVBERi0xLjQKJdPr6eEKMSAwIG9iago8PAovVHlwZSAvQ2F0YWxvZwovUGFnZXMgMiAwIFIKPj4KZW5kb2JqCjIgMCBvYmoKPDwKL1R5cGUgL1BhZ2VzCi9LaWRzIFszIDAgUl0KL0NvdW50IDEKL01lZGlhQm94IFswIDAgNTk1IDg0Ml0KPj4KZW5kb2JqCjMgMCBvYmoKPDwKL1R5cGUgL1BhZ2UKL1BhcmVudCAyIDAgUgovTWVkaWFCb3ggWzAgMCA1OTUgODQyXQovQ29udGVudHMgNCAwIFIKPj4KZW5kb2JqCjQgMCBvYmoKPDwKL0xlbmd0aCA0NAo+PgpzdHJlYW0KQlQKL0YxIDEyIFRmCjEwMCA3MDAgVGQKKFRlc3QgUERGKSBUagoKRVQKZW5kc3RyZWFtCmVuZG9iago1IDAgb2JqCjw8Ci9UeXBlIC9Gb250Ci9CYXNlRm9udCAvSGVsdmV0aWNhCi9TdWJ0eXBlIC9UeXBlMQo+PgplbmRvYmoKNiAwIG9iago8PAovVHlwZSAvRm9udERlc2NyaXB0b3IKL0ZvbnROYW1lIC9IZWx2ZXRpY2EKPj4KZW5kb2JqCnhyZWYKMCA3CjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAwOSAwMDAwMCBuIAowMDAwMDAwMDc0IDAwMDAwIG4gCjAwMDAwMDAxMzMgMDAwMDAgbiAKMDAwMDAwMDIwNCAwMDAwMCBuIAowMDAwMDAwMjk5IDAwMDAwIG4gCjAwMDAwMDAzNzYgMDAwMDAgbiAKdHJhaWxlcgo8PAovU2l6ZSA3Ci9Sb290IDEgMCBSCj4+CnN0YXJ0eHJlZgo0MzQKJSVFT0YK",
+          "data:application/pdf;base64,JVBERi0xLjQKJdPr6eEKMSAwIG9iago8PAovVHlwZSAvQ2F0YWxvZwovUGFnZXMgMiAwIFIKPj4KZW5kb2JqCjIgMCBvYmoKPDwKL1R5cGUgL1BhZ2VzCi9LaWRzIFszIDAgUl0KL0NvdW50IDEKL01lZGlhQm94IFswIDAgNTk1IDg0Ml0KPj4KZW5kb2JqCjMgMCBvYmoKPDwKL1R5cGUgL1BhZ2UKL1BhcmVudCAyIDAgUgovTWVkaWFCb3ggWzAgMCA1OTUgODQyXQovQ29udGVudHMgNCAwIFIKPj4KZW5kb2JqCjQgMCBvYmoKPDwKL0xlbmd0aCA0NAo+PgpzdHJlYW0KQlQKL0YxIDEyIFRmCjEwMCA3MDAgVGQKKFRlc3QgUERGKSBUagoKRVQKZW5kc3RyZWFtCmVuZG9iago1IDAgb2JqCjw8Ci9UeXBlIC9Gb250Ci9CYXNlRm9udCAvSGVsdmV0aWNhCi9TdWJ0eXBlIC9UeXBlMQo+PgplbmRvYmoKNiAwIG9iago8PAovVHlwZSAvRm9udERlc2NyaXB0b3IKL0ZvbnROYW1lIC9IZWx2ZXRpY2EKPj4KZW5kb2J4cmVmCjAgNwowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAKMDAwMDAwMDA3NCAwMDAwMCBuIAowMDAwMDAwMTMzIDAwMDAwIG4gCjAwMDAwMDAyMDQgMDAwMDAgbiAKMDAwMDAwMDI5OSAwMDAwMCBuIAowMDAwMDAwMzc2IDAwMDAwIG4gCnRyYWlsZXIKPDwKL1NpemUgNwovUm9vdCAxIDAgUgo+PgpzdGFydHhyZWYKNDM0CiUlRU9GCg==",
       };
 
       const result = await cloudFiles.pdfToImages(requestBody);
@@ -432,16 +432,16 @@ describe("AssistantCloudFiles", () => {
       "should actually convert PDF to images using real API",
       async () => {
         // Unmock all modules for this test to use real implementations
-        vi.doUnmock("../cloud/AssistantCloudAPI");
-        vi.doUnmock("../cloud/AssistantCloudFiles");
-        vi.doUnmock("../cloud/AssistantCloud");
+        vi.doUnmock("../AssistantCloudAPI");
+        vi.doUnmock("../AssistantCloudFiles");
+        vi.doUnmock("../AssistantCloud");
 
         // Clear all mocks and reload modules
         vi.resetModules();
 
         // Import real modules
         const { AssistantCloud: RealAssistantCloud } = await import(
-          "../cloud/AssistantCloud"
+          "../AssistantCloud"
         );
 
         const realCloud = new RealAssistantCloud({
@@ -479,7 +479,7 @@ describe("AssistantCloudFiles", () => {
         }
 
         // Restore mocks after the test
-        vi.doMock("../cloud/AssistantCloudAPI");
+        vi.doMock("../AssistantCloudAPI");
       },
       60000, // 60 second timeout for real API calls
     );
@@ -499,16 +499,16 @@ describe("AssistantCloudFiles", () => {
       "should actually generate presigned upload URL using real API",
       async () => {
         // Unmock all modules for this test to use real implementations
-        vi.doUnmock("../cloud/AssistantCloudAPI");
-        vi.doUnmock("../cloud/AssistantCloudFiles");
-        vi.doUnmock("../cloud/AssistantCloud");
+        vi.doUnmock("../AssistantCloudAPI");
+        vi.doUnmock("../AssistantCloudFiles");
+        vi.doUnmock("../AssistantCloud");
 
         // Clear all mocks and reload modules
         vi.resetModules();
 
         // Import real modules
         const { AssistantCloud: RealAssistantCloud } = await import(
-          "../cloud/AssistantCloud"
+          "../AssistantCloud"
         );
 
         const realCloud = new RealAssistantCloud({
@@ -556,7 +556,7 @@ describe("AssistantCloudFiles", () => {
         }
 
         // Restore mocks after the test
-        vi.doMock("../cloud/AssistantCloudAPI");
+        vi.doMock("../AssistantCloudAPI");
       },
       30000, // 30 second timeout for real API calls
     );

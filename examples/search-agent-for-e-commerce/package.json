@@ -21,24 +21,24 @@
     "clsx": "^2.1.1",
     "embla-carousel-autoplay": "^8.6.0",
     "embla-carousel-react": "^8.6.0",
-    "lucide-react": "^0.511.0",
+    "lucide-react": "^0.515.0",
     "nanoid": "5.1.5",
     "next": "15.3.3",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "tailwind-merge": "^3.3.0",
-    "tw-animate-css": "^1.3.3",
-    "zod": "^3.25.49"
+    "tailwind-merge": "^3.3.1",
+    "tw-animate-css": "^1.3.4",
+    "zod": "^3.25.64"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^22.15.29",
-    "@types/react": "^19.1.6",
-    "@types/react-dom": "^19.1.5",
+    "@types/node": "^24.0.1",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
     "eslint": "^9",
     "eslint-config-next": "15.3.3",
-    "postcss": "^8.5.4",
-    "tailwindcss": "^4.1.8",
+    "postcss": "^8.5.5",
+    "tailwindcss": "^4.1.10",
     "typescript": "^5.8.3"
   }
 }
