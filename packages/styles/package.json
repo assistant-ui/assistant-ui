@@ -20,15 +20,15 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@tailwindcss/postcss": "^4.1.8",
-    "@types/node": "^22.15.29",
+    "@tailwindcss/postcss": "^4.1.10",
+    "@types/node": "^24.0.1",
     "autoprefixer": "^10.4.21",
-    "postcss": "^8.5.4",
+    "postcss": "^8.5.5",
     "postcss-nested": "^7.0.2",
     "postcss-prefix-selector": "^2.1.1",
-    "tailwindcss": "^4.1.8",
-    "tsx": "^4.19.4",
-    "tw-animate-css": "^1.3.3"
+    "tailwindcss": "^4.1.10",
+    "tsx": "^4.20.3",
+    "tw-animate-css": "^1.3.4"
   },
   "publishConfig": {
     "access": "public",

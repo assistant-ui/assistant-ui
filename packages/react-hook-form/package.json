@@ -22,7 +22,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "zod": "^3.25.49"
+    "zod": "^3.25.64"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.10.23",
@@ -38,13 +38,13 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^22.15.29",
-    "@types/react": "^19.1.6",
+    "@types/node": "^24.0.1",
+    "@types/react": "^19.1.8",
     "eslint": "^9",
     "eslint-config-next": "15.3.3",
     "react": "^19.1.0",
-    "react-hook-form": "^7.57.0",
-    "tsx": "^4.19.4"
+    "react-hook-form": "^7.58.0",
+    "tsx": "^4.20.3"
   },
   "publishConfig": {
     "access": "public",

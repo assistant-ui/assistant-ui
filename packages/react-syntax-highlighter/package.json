@@ -45,14 +45,14 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^22.15.29",
-    "@types/react": "^19.1.6",
+    "@types/node": "^24.0.1",
+    "@types/react": "^19.1.8",
     "@types/react-syntax-highlighter": "^15.5.13",
     "eslint": "^9",
     "eslint-config-next": "15.3.3",
     "react": "^19.1.0",
     "react-syntax-highlighter": "^15.6.1",
-    "tsx": "^4.19.4"
+    "tsx": "^4.20.3"
   },
   "publishConfig": {
     "access": "public",
