@@ -32,7 +32,7 @@ export namespace MessagePrimitiveContent {
   export type Props = {
     /**
      * Component configuration for rendering different types of message content.
-     * 
+     *
      * You can provide custom components for each content type (text, image, file, etc.)
      * and configure tool rendering behavior. If not provided, default components will be used.
      */
@@ -231,14 +231,14 @@ const EmptyContent = memo(
 
 /**
  * Renders the content of a message with support for multiple content types.
- * 
+ *
  * This component automatically handles different types of message content including
  * text, images, files, tool calls, and more. It provides a flexible component
  * system for customizing how each content type is rendered.
- * 
+ *
  * @example
  * ```tsx
- * <MessagePrimitive.Content 
+ * <MessagePrimitive.Content
  *   components={{
  *     Text: ({ text }) => <p className="message-text">{text}</p>,
  *     Image: ({ image }) => <img src={image} alt="Message image" />,
@@ -249,7 +249,7 @@ const EmptyContent = memo(
  *       },
  *       Fallback: DefaultToolComponent
  *     }
- *   }} 
+ *   }}
  * />
  * ```
  */

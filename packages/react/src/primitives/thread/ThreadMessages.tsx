@@ -10,11 +10,11 @@ export namespace ThreadPrimitiveMessages {
   export type Props = {
     /**
      * Component configuration for rendering different types of messages and composers.
-     * 
+     *
      * You can provide either:
      * 1. A single `Message` component that handles all message types
      * 2. Specific components for `UserMessage` and `AssistantMessage` (with optional `SystemMessage`)
-     * 
+     *
      * Optional edit composer components can be provided to customize the editing experience
      * for different message types when users edit their messages.
      */
@@ -168,19 +168,19 @@ const ThreadMessage = memo(
 
 /**
  * Renders all messages in the current thread using the provided component configuration.
- * 
+ *
  * This component automatically renders all messages in the thread, providing the appropriate
  * message context for each message. It handles different message types (user, assistant, system)
  * and supports editing mode through the provided edit composer components.
- * 
+ *
  * @example
  * ```tsx
- * <ThreadPrimitive.Messages 
+ * <ThreadPrimitive.Messages
  *   components={{
  *     UserMessage: MyUserMessage,
  *     AssistantMessage: MyAssistantMessage,
  *     EditComposer: MyEditComposer
- *   }} 
+ *   }}
  * />
  * ```
  */

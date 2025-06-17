@@ -36,17 +36,17 @@ export namespace SpeechSynthesisAdapter {
 
 /**
  * Interface for text-to-speech functionality.
- * 
+ *
  * SpeechSynthesisAdapter provides the ability to convert text content
  * into spoken audio, with status tracking and cancellation support.
- * 
+ *
  * @example
  * ```tsx
  * const speechAdapter: SpeechSynthesisAdapter = {
  *   speak: (text) => {
  *     const utterance = new SpeechSynthesisUtterance(text);
  *     speechSynthesis.speak(utterance);
- *     
+ *
  *     return {
  *       status: { type: "starting" },
  *       cancel: () => speechSynthesis.cancel(),
@@ -62,7 +62,7 @@ export namespace SpeechSynthesisAdapter {
 export type SpeechSynthesisAdapter = {
   /**
    * Converts text to speech and returns an utterance object for control.
-   * 
+   *
    * @param text - The text content to speak
    * @returns An utterance object with status and control methods
    */

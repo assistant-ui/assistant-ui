@@ -32,14 +32,14 @@ export namespace ContentPartPrimitiveText {
 
 /**
  * Renders the text content of a content part with optional smooth streaming.
- * 
+ *
  * This component displays text content from the current content part context,
  * with support for smooth streaming animation that shows text appearing
  * character by character as it's generated.
- * 
+ *
  * @example
  * ```tsx
- * <ContentPartPrimitive.Text 
+ * <ContentPartPrimitive.Text
  *   smooth={true}
  *   component="p"
  *   className="message-text"

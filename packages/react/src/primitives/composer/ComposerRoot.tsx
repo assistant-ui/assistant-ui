@@ -21,11 +21,11 @@ export namespace ComposerPrimitiveRoot {
 
 /**
  * The root form container for message composition.
- * 
+ *
  * This component provides a form wrapper that handles message submission when the form
  * is submitted (e.g., via Enter key or submit button). It automatically prevents the
  * default form submission and triggers the composer's send functionality.
- * 
+ *
  * @example
  * ```tsx
  * <ComposerPrimitive.Root>

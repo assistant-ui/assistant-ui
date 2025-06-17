@@ -50,11 +50,11 @@ export namespace MessagePrimitiveRoot {
 
 /**
  * The root container component for a message.
- * 
+ *
  * This component provides the foundational wrapper for message content and handles
  * hover state management for the message. It automatically tracks when the user
  * is hovering over the message, which can be used by child components like action bars.
- * 
+ *
  * @example
  * ```tsx
  * <MessagePrimitive.Root>

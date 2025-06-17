@@ -66,14 +66,14 @@ export namespace ComposerPrimitiveInput {
 
 /**
  * A text input component for composing messages.
- * 
+ *
  * This component provides a rich text input experience with automatic resizing,
  * keyboard shortcuts, file paste support, and intelligent focus management.
  * It integrates with the composer context to manage message state and submission.
- * 
+ *
  * @example
  * ```tsx
- * <ComposerPrimitive.Input 
+ * <ComposerPrimitive.Input
  *   placeholder="Type your message..."
  *   submitOnEnter={true}
  *   addAttachmentOnPaste={true}

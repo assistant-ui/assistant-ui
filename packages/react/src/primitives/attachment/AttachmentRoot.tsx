@@ -16,10 +16,10 @@ export namespace AttachmentPrimitiveRoot {
 
 /**
  * The root container component for an attachment.
- * 
+ *
  * This component provides the foundational wrapper for attachment-related components
  * and content. It serves as the context provider for attachment state and actions.
- * 
+ *
  * @example
  * ```tsx
  * <AttachmentPrimitive.Root>

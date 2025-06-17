@@ -34,10 +34,10 @@ export namespace BranchPickerPrimitiveNext {
 
 /**
  * A button component that navigates to the next branch in the message tree.
- * 
+ *
  * This component automatically handles switching to the next available branch
  * and is disabled when there are no more branches to navigate to.
- * 
+ *
  * @example
  * ```tsx
  * <BranchPickerPrimitive.Next>

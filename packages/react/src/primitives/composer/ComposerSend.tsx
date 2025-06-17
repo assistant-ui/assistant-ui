@@ -38,11 +38,11 @@ export namespace ComposerPrimitiveSend {
 
 /**
  * A button component that sends the current message in the composer.
- * 
+ *
  * This component automatically handles the send functionality and is disabled
  * when sending is not available (e.g., when the thread is running, the composer
  * is empty, or not in editing mode).
- * 
+ *
  * @example
  * ```tsx
  * <ComposerPrimitive.Send>

@@ -38,14 +38,14 @@ export namespace ActionBarPrimitiveRoot {
 
 /**
  * The root container for action bar components.
- * 
+ *
  * This component provides intelligent visibility and floating behavior for action bars,
  * automatically hiding and showing based on message state, hover status, and configuration.
  * It supports floating mode for better UX when space is limited.
- * 
+ *
  * @example
  * ```tsx
- * <ActionBarPrimitive.Root 
+ * <ActionBarPrimitive.Root
  *   hideWhenRunning={true}
  *   autohide="not-last"
  *   autohideFloat="single-branch"

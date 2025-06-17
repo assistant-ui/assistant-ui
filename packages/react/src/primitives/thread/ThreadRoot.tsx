@@ -14,10 +14,10 @@ export namespace ThreadPrimitiveRoot {
 
 /**
  * The root container component for a thread.
- * 
+ *
  * This component serves as the foundational wrapper for all thread-related components.
  * It provides the basic structure and context needed for thread functionality.
- * 
+ *
  * @example
  * ```tsx
  * <ThreadPrimitive.Root>

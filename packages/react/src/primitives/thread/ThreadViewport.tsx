@@ -40,11 +40,11 @@ ThreadPrimitiveViewportScrollable.displayName =
 
 /**
  * A scrollable viewport container for thread messages.
- * 
+ *
  * This component provides a scrollable area for displaying thread messages with
  * automatic scrolling capabilities. It manages the viewport state and provides
  * context for child components to access viewport-related functionality.
- * 
+ *
  * @example
  * ```tsx
  * <ThreadPrimitive.Viewport autoScroll={true}>

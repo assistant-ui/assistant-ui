@@ -31,10 +31,10 @@ export namespace ComposerPrimitiveCancel {
 
 /**
  * A button component that cancels the current message composition.
- * 
+ *
  * This component automatically handles the cancel functionality and is disabled
  * when canceling is not available.
- * 
+ *
  * @example
  * ```tsx
  * <ComposerPrimitive.Cancel>

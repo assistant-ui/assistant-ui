@@ -13,17 +13,17 @@ import {
 
 /**
  * Hook that provides navigation to the previous branch functionality.
- * 
+ *
  * This hook returns a callback function that switches to the previous branch
  * in the message branch tree, or null if there is no previous branch available.
- * 
+ *
  * @returns A previous branch callback function, or null if navigation is disabled
- * 
+ *
  * @example
  * ```tsx
  * function CustomPreviousButton() {
  *   const previous = useBranchPickerPrevious();
- *   
+ *
  *   return (
  *     <button onClick={previous} disabled={!previous}>
  *       {previous ? "Previous Branch" : "No Previous Branch"}
@@ -55,10 +55,10 @@ export namespace BranchPickerPrimitivePrevious {
 
 /**
  * A button component that navigates to the previous branch in the message tree.
- * 
+ *
  * This component automatically handles switching to the previous available branch
  * and is disabled when there are no previous branches to navigate to.
- * 
+ *
  * @example
  * ```tsx
  * <BranchPickerPrimitive.Previous>

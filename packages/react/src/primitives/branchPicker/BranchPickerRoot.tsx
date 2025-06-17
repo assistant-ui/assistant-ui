@@ -18,12 +18,12 @@ export namespace BranchPickerPrimitiveRoot {
 
 /**
  * The root container for branch picker components.
- * 
+ *
  * This component provides a container for branch navigation controls,
  * with optional conditional rendering based on the number of available branches.
  * It integrates with the message branching system to allow users to navigate
  * between different response variations.
- * 
+ *
  * @example
  * ```tsx
  * <BranchPickerPrimitive.Root hideWhenSingleBranch={true}>
