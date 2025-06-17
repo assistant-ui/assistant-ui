@@ -13,7 +13,7 @@ Create a comprehensive thread management interface:
 
 ```tsx
 import { useState, useEffect } from "react";
-import { useAssistantRuntime, ThreadListRuntime } from "@assistant-ui/react";
+import { useAssistantRuntime } from "@assistant-ui/react";
 
 function ThreadManager() {
   const runtime = useAssistantRuntime();
@@ -46,7 +46,7 @@ function ThreadManager() {
       pinned: false
     };
     
-    await runtime.switchToThread(newThread.id);
+    runtime.threads.switchToThread(newThread.id);
     setCurrentThreadId(newThread.id);
     setThreads(prev => [newThread, ...prev]);
     
@@ -54,7 +54,7 @@ function ThreadManager() {
   };
   
   const switchThread = async (threadId: string) => {
-    await runtime.switchToThread(threadId);
+    runtime.threads.switchToThread(threadId);
     setCurrentThreadId(threadId);
   };
   
@@ -267,20 +267,22 @@ function ThreadListItem({ thread, isActive, onSelect, onDelete, onUpdate }) {
 Implement conversation branching:
 
 ```tsx
-import { useThreadRuntime } from "@assistant-ui/react";
+import { useThreadRuntime, useAssistantRuntime } from "@assistant-ui/react";
 
 function ThreadBranching() {
   const threadRuntime = useThreadRuntime();
+  const assistantRuntime = useAssistantRuntime();
   const [showBranchModal, setShowBranchModal] = useState(false);
   const [branchPoint, setBranchPoint] = useState<number>(0);
   
   const createBranch = async (fromMessageIndex: number, branchTitle?: string) => {
-    const messagesUpToPoint = threadRuntime.messages.slice(0, fromMessageIndex + 1);
+    const threadState = threadRuntime.getState();
+    const messagesUpToPoint = threadState.messages.slice(0, fromMessageIndex + 1);
     
     const newBranch = {
       id: crypto.randomUUID(),
       title: branchTitle || `Branch from message ${fromMessageIndex + 1}`,
-      parentThreadId: threadRuntime.thread.id,
+      parentThreadId: threadState.threadId,
       branchPoint: fromMessageIndex,
       messages: messagesUpToPoint,
       createdAt: new Date().toISOString()
@@ -293,7 +295,7 @@ function ThreadBranching() {
       body: JSON.stringify(newBranch)
     });
     
-    await threadRuntime.switchTo(newBranch.id);
+    assistantRuntime.threads.switchToThread(newBranch.id);
     return newBranch;
   };
   
@@ -306,7 +308,7 @@ function ThreadBranching() {
     <>
       {/* Branch buttons on messages */}
       <div className="space-y-4">
-        {threadRuntime.messages.map((message, index) => (
+        {threadRuntime.getState().messages.map((message, index) => (
           <div key={message.id} className="group relative">
             <MessagePrimitive.Root>
               <MessagePrimitive.Content />

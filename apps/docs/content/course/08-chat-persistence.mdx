@@ -9,44 +9,46 @@ Chat persistence allows users to save their conversations and continue them late
 
 ## Basic Persistence Setup
 
-Configure persistence in your runtime:
+Implement persistence using runtime export/import methods:
 
 ```tsx
-import { useLocalRuntime } from "@assistant-ui/react";
+import { useLocalRuntime, AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useEffect } from "react";
 
 function ChatProvider({ children }: { children: React.ReactNode }) {
-  const runtime = useLocalRuntime({
-    // ... other config
-    
-    persistence: {
-      save: async (thread) => {
-        // Save to your backend
+  const runtime = useLocalRuntime(adapter);
+  
+  // Auto-save thread data
+  useEffect(() => {
+    const saveThread = async () => {
+      try {
+        const threadState = runtime.thread.getState();
+        const exportedData = runtime.thread.export();
+        
         await fetch('/api/conversations', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            id: thread.id,
-            messages: thread.messages,
-            metadata: thread.metadata
+            id: threadState.threadId,
+            data: exportedData,
+            metadata: threadState.metadata
           })
         });
-      },
-      
-      load: async (threadId) => {
-        // Load from your backend
-        const response = await fetch(`/api/conversations/${threadId}`);
-        if (response.ok) {
-          const data = await response.json();
-          return {
-            id: data.id,
-            messages: data.messages,
-            metadata: data.metadata
-          };
-        }
-        return null;
+      } catch (error) {
+        console.error('Failed to save thread:', error);
       }
-    }
-  });
+    };
+
+    // Save when messages change
+    const unsubscribe = runtime.thread.subscribe(() => {
+      const state = runtime.thread.getState();
+      if (state.messages.length > 0) {
+        saveThread();
+      }
+    });
+
+    return unsubscribe;
+  }, [runtime]);
   
   return (
     <AssistantRuntimeProvider runtime={runtime}>
@@ -80,13 +82,19 @@ function ThreadManager() {
   };
   
   const createNewThread = async () => {
-    const newThread = await runtime.thread.create();
-    setCurrentThreadId(newThread.id);
+    runtime.threads.switchToNewThread();
+    const threadState = runtime.thread.getState();
+    setCurrentThreadId(threadState.threadId);
     await loadThreadList();
   };
   
   const switchThread = async (threadId: string) => {
-    await runtime.thread.load(threadId);
+    // Load thread data from backend
+    const response = await fetch(`/api/conversations/${threadId}`);
+    if (response.ok) {
+      const data = await response.json();
+      runtime.thread.import(data.data);
+    }
     setCurrentThreadId(threadId);
   };
   
@@ -175,40 +183,54 @@ function ThreadItem({ thread, isActive, onSelect, onDelete }) {
 Implement automatic saving with debouncing:
 
 ```tsx
-import { useEffect, useCallback, useRef } from "react";
-import { useThread } from "@assistant-ui/react";
-import { debounce } from "lodash";
+import { useEffect, useCallback } from "react";
+import { useThreadRuntime } from "@assistant-ui/react";
 
 function AutoSave() {
-  const thread = useThread();
-  const saveTimeoutRef = useRef<NodeJS.Timeout>();
+  const threadRuntime = useThreadRuntime();
   
   const saveThread = useCallback(
-    debounce(async (threadData) => {
+    async (threadState, exportedData) => {
       try {
         await fetch('/api/conversations', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(threadData)
+          body: JSON.stringify({
+            id: threadState.threadId,
+            data: exportedData,
+            metadata: threadState.metadata,
+            updatedAt: new Date().toISOString()
+          })
         });
         console.log('Thread saved successfully');
       } catch (error) {
         console.error('Failed to save thread:', error);
       }
-    }, 2000), // Save 2 seconds after last change
+    },
     []
   );
   
   useEffect(() => {
-    if (thread.messages.length > 0) {
-      saveThread({
-        id: thread.id,
-        messages: thread.messages,
-        metadata: thread.metadata,
-        updatedAt: new Date().toISOString()
-      });
-    }
-  }, [thread.messages, thread.metadata, saveThread]);
+    let timeoutId: NodeJS.Timeout;
+    
+    const handleSave = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        const threadState = threadRuntime.getState();
+        if (threadState.messages.length > 0) {
+          const exportedData = threadRuntime.export();
+          saveThread(threadState, exportedData);
+        }
+      }, 2000); // Save 2 seconds after last change
+    };
+    
+    const unsubscribe = threadRuntime.subscribe(handleSave);
+    
+    return () => {
+      clearTimeout(timeoutId);
+      unsubscribe();
+    };
+  }, [threadRuntime, saveThread]);
   
   return null; // This is a utility component
 }
@@ -219,21 +241,26 @@ function AutoSave() {
 Save message drafts for interrupted compositions:
 
 ```tsx
-import { useState, useEffect } from "react";
-import { ComposerPrimitive, useThread } from "@assistant-ui/react";
+import { useState, useEffect, useCallback } from "react";
+import { ComposerPrimitive, useThreadRuntime } from "@assistant-ui/react";
 
 function DraftSaver() {
-  const thread = useThread();
-  const [draftKey] = useState(`draft-${thread.id}`);
+  const threadRuntime = useThreadRuntime();
+  const threadState = threadRuntime.getState();
+  const [draftKey] = useState(`draft-${threadState.threadId}`);
   
   const saveDraft = useCallback(
-    debounce((content: string) => {
-      if (content.trim()) {
-        localStorage.setItem(draftKey, content);
-      } else {
-        localStorage.removeItem(draftKey);
-      }
-    }, 500),
+    (content: string) => {
+      let timeoutId: NodeJS.Timeout;
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        if (content.trim()) {
+          localStorage.setItem(draftKey, content);
+        } else {
+          localStorage.removeItem(draftKey);
+        }
+      }, 500);
+    },
     [draftKey]
   );
   

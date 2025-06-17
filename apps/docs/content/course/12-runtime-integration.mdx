@@ -14,6 +14,7 @@ Connect with Vercel's AI SDK for popular providers:
 ```tsx
 import { useChat } from "ai/react";
 import { AssistantRuntimeProvider, useLocalRuntime } from "@assistant-ui/react";
+import { useVercelUseChatRuntime } from "@assistant-ui/react-ai-sdk";
 
 function AISDKProvider({ children }: { children: React.ReactNode }) {
   const chat = useChat({
@@ -37,7 +38,7 @@ function AISDKProvider({ children }: { children: React.ReactNode }) {
     }
   });
 
-  const runtime = useLocalRuntime(chat);
+  const runtime = useVercelUseChatRuntime(chat);
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
@@ -77,35 +78,36 @@ Connect with LangGraph for complex workflows:
 
 ```tsx
 import { RemoteRunnable } from "@langchain/core/runnables/remote";
+import { useLocalRuntime, AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useMemo } from "react";
+import type { ChatModelAdapter } from "@assistant-ui/react";
 
 function LangGraphProvider({ children }: { children: React.ReactNode }) {
-  const [runtime, setRuntime] = useState(null);
+  const adapter: ChatModelAdapter = useMemo(() => ({
+    async run({ messages, abortSignal }) {
+      const remoteRunnable = new RemoteRunnable({
+        url: "http://localhost:8000/chat",
+      });
+      
+      const response = await remoteRunnable.invoke({
+        messages: messages.map(msg => ({
+          type: msg.role === 'user' ? 'human' : 'ai',
+          content: msg.content[0]?.type === 'text' ? msg.content[0].text : ''
+        }))
+      }, { signal: abortSignal });
+      
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: response.content
+          }
+        ]
+      };
+    }
+  }), []);
   
-  useEffect(() => {
-    const remoteRunnable = new RemoteRunnable({
-      url: "http://localhost:8000/chat",
-    });
-    
-    const customRuntime = new AssistantRuntime({
-      async run({ messages }) {
-        const response = await remoteRunnable.invoke({
-          messages: messages.map(msg => ({
-            type: msg.role === 'user' ? 'human' : 'ai',
-            content: msg.content
-          }))
-        });
-        
-        return {
-          content: response.content,
-          role: "assistant"
-        };
-      }
-    });
-    
-    setRuntime(customRuntime);
-  }, []);
-  
-  if (!runtime) return <div>Loading...</div>;
+  const runtime = useLocalRuntime(adapter);
   
   return (
     <AssistantRuntimeProvider runtime={runtime}>
@@ -151,111 +153,85 @@ async def chat_endpoint(request: ChatRequest):
 Build a custom runtime for specific needs:
 
 ```tsx
-import { BaseRuntime } from "@assistant-ui/react";
+import { useLocalRuntime, AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useMemo } from "react";
+import type { ChatModelAdapter } from "@assistant-ui/react";
 
-class CustomRuntime extends BaseRuntime {
-  private apiEndpoint: string;
-  private apiKey: string;
-  
-  constructor(config: { apiEndpoint: string; apiKey: string }) {
-    super();
-    this.apiEndpoint = config.apiEndpoint;
-    this.apiKey = config.apiKey;
-  }
-  
-  async run({ messages, abortSignal }: RunParameters) {
-    const response = await fetch(this.apiEndpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`
-      },
-      body: JSON.stringify({
-        messages: messages.map(msg => ({
-          role: msg.role,
-          content: msg.content,
-          attachments: msg.attachments
-        }))
-      }),
-      signal: abortSignal
-    });
-    
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
-    }
-    
-    // Handle streaming response
-    const reader = response.body?.getReader();
-    if (!reader) throw new Error('No response body');
-    
-    let content = '';
-    const decoder = new TextDecoder();
-    
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
-        
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6);
-            if (data === '[DONE]') return;
-            
-            try {
-              const parsed = JSON.parse(data);
-              if (parsed.content) {
-                content += parsed.content;
-                
-                // Yield partial content for streaming
-                yield {
-                  type: 'text-delta',
-                  textDelta: parsed.content
-                };
+function CustomProvider({ children }: { children: React.ReactNode }) {
+  const adapter: ChatModelAdapter = useMemo(() => ({
+    async *run({ messages, abortSignal }) {
+      const apiEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT!;
+      const apiKey = process.env.NEXT_PUBLIC_API_KEY!;
+      
+      const response = await fetch(apiEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          messages: messages.map(msg => ({
+            role: msg.role,
+            content: msg.content.map(part => 
+              part.type === 'text' ? part.text : part
+            ).join('')
+          }))
+        }),
+        signal: abortSignal
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+      
+      // Handle streaming response
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('No response body');
+      
+      let content = '';
+      const decoder = new TextDecoder();
+      
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n');
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6);
+              if (data === '[DONE]') return;
+              
+              try {
+                const parsed = JSON.parse(data);
+                if (parsed.content) {
+                  content += parsed.content;
+                  
+                  // Yield partial content for streaming
+                  yield {
+                    content: [
+                      {
+                        type: "text" as const,
+                        text: content
+                      }
+                    ]
+                  };
+                }
+              } catch (e) {
+                console.warn('Failed to parse stream data:', data);
               }
-            } catch (e) {
-              console.warn('Failed to parse stream data:', data);
             }
           }
         }
+      } finally {
+        reader.releaseLock();
       }
-    } finally {
-      reader.releaseLock();
     }
-    
-    return {
-      role: 'assistant',
-      content
-    };
-  }
-  
-  // Implement tool calling
-  async runTool({ toolName, args }: ToolParameters) {
-    const response = await fetch(`${this.apiEndpoint}/tools/${toolName}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`
-      },
-      body: JSON.stringify(args)
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Tool execution failed: ${response.status}`);
-    }
-    
-    return await response.json();
-  }
-}
-
-// Usage
-function CustomProvider({ children }: { children: React.ReactNode }) {
-  const runtime = useMemo(() => new CustomRuntime({
-    apiEndpoint: process.env.NEXT_PUBLIC_API_ENDPOINT!,
-    apiKey: process.env.NEXT_PUBLIC_API_KEY!
   }), []);
+  
+  const runtime = useLocalRuntime(adapter);
   
   return (
     <AssistantRuntimeProvider runtime={runtime}>
@@ -318,7 +294,7 @@ function MultiProviderSetup({ children }: { children: React.ReactNode }) {
     }
   });
   
-  const runtime = useLocalRuntime(chat);
+  const runtime = useVercelUseChatRuntime(chat);
   
   return (
     <div className="flex flex-col h-screen">
@@ -390,14 +366,95 @@ function MultiProviderSetup({ children }: { children: React.ReactNode }) {
 Implement real-time updates with WebSockets:
 
 ```tsx
-class WebSocketRuntime extends BaseRuntime {
-  private ws: WebSocket | null = null;
-  private messageQueue: any[] = [];
+import { useLocalRuntime, AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useMemo, useRef, useEffect } from "react";
+import type { ChatModelAdapter } from "@assistant-ui/react";
+
+function WebSocketProvider({ children, wsUrl }: { children: React.ReactNode; wsUrl: string }) {
+  const wsRef = useRef<WebSocket | null>(null);
+  const messageQueueRef = useRef<any[]>([]);
   
-  constructor(private wsUrl: string) {
-    super();
-    this.connect();
-  }
+  const adapter: ChatModelAdapter = useMemo(() => ({
+    async *run({ messages }) {
+      const requestId = crypto.randomUUID();
+      
+      const message = {
+        type: 'chat_request',
+        requestId,
+        messages: messages.map(msg => ({
+          role: msg.role,
+          content: msg.content.map(part => 
+            part.type === 'text' ? part.text : part
+          ).join('')
+        }))
+      };
+      
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify(message));
+      } else {
+        messageQueueRef.current.push(message);
+      }
+      
+      // Return a promise that resolves when the response is complete
+      return new Promise((resolve, reject) => {
+        const handleMessage = (event: MessageEvent) => {
+          const data = JSON.parse(event.data);
+          
+          if (data.requestId === requestId) {
+            if (data.type === 'message_complete') {
+              wsRef.current?.removeEventListener('message', handleMessage);
+              resolve({
+                content: [
+                  {
+                    type: "text" as const,
+                    text: data.message.content
+                  }
+                ]
+              });
+            } else if (data.type === 'error') {
+              wsRef.current?.removeEventListener('message', handleMessage);
+              reject(new Error(data.message));
+            }
+          }
+        };
+        
+        wsRef.current?.addEventListener('message', handleMessage);
+      });
+    }
+  }), []);
+  
+  useEffect(() => {
+    const connect = () => {
+      wsRef.current = new WebSocket(wsUrl);
+      
+      wsRef.current.onopen = () => {
+        console.log('WebSocket connected');
+        
+        // Send queued messages
+        while (messageQueueRef.current.length > 0) {
+          const message = messageQueueRef.current.shift();
+          wsRef.current?.send(JSON.stringify(message));
+        }
+      };
+      
+      wsRef.current.onclose = () => {
+        console.log('WebSocket disconnected, reconnecting...');
+        setTimeout(connect, 1000);
+      };
+      
+      wsRef.current.onerror = (error) => {
+        console.error('WebSocket error:', error);
+      };
+    };
+    
+    connect();
+    
+    return () => {
+      wsRef.current?.close();
+    };
+  }, [wsUrl]);
+  
+  const runtime = useLocalRuntime(adapter);
   
   private connect() {
     this.ws = new WebSocket(this.wsUrl);
@@ -560,106 +617,96 @@ wss.on('connection', (ws) => {
 Connect with local models using Ollama:
 
 ```tsx
-class OllamaRuntime extends BaseRuntime {
-  constructor(
-    private baseUrl: string = 'http://localhost:11434',
-    private model: string = 'llama2'
-  ) {
-    super();
-  }
-  
-  async run({ messages, abortSignal }: RunParameters) {
-    const response = await fetch(`${this.baseUrl}/api/chat`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: this.model,
-        messages: messages.map(msg => ({
-          role: msg.role,
-          content: msg.content
-        })),
-        stream: true
-      }),
-      signal: abortSignal
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Ollama API error: ${response.status}`);
-    }
-    
-    const reader = response.body?.getReader();
-    if (!reader) throw new Error('No response body');
-    
-    const decoder = new TextDecoder();
-    let content = '';
-    
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n').filter(line => line.trim());
-        
-        for (const line of lines) {
-          try {
-            const data = JSON.parse(line);
-            
-            if (data.message?.content) {
-              content += data.message.content;
-              
-              yield {
-                type: 'text-delta',
-                textDelta: data.message.content
-              };
-            }
-            
-            if (data.done) {
-              return {
-                role: 'assistant',
-                content
-              };
-            }
-          } catch (e) {
-            console.warn('Failed to parse Ollama response:', line);
-          }
-        }
-      }
-    } finally {
-      reader.releaseLock();
-    }
-    
-    return {
-      role: 'assistant',
-      content
-    };
-  }
-}
+import { useLocalRuntime, AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useMemo, useState, useEffect } from "react";
+import type { ChatModelAdapter } from "@assistant-ui/react";
 
-// Usage with model management
 function OllamaProvider({ children }: { children: React.ReactNode }) {
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState('llama2');
-  const [runtime, setRuntime] = useState<OllamaRuntime | null>(null);
+  const baseUrl = 'http://localhost:11434';
+  
+  const adapter: ChatModelAdapter = useMemo(() => ({
+    async *run({ messages, abortSignal }) {
+      const response = await fetch(`${baseUrl}/api/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: selectedModel,
+          messages: messages.map(msg => ({
+            role: msg.role,
+            content: msg.content.map(part => 
+              part.type === 'text' ? part.text : part
+            ).join('')
+          })),
+          stream: true
+        }),
+        signal: abortSignal
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Ollama API error: ${response.status}`);
+      }
+      
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('No response body');
+      
+      const decoder = new TextDecoder();
+      let content = '';
+      
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n').filter(line => line.trim());
+          
+          for (const line of lines) {
+            try {
+              const data = JSON.parse(line);
+              
+              if (data.message?.content) {
+                content += data.message.content;
+                
+                yield {
+                  content: [
+                    {
+                      type: "text" as const,
+                      text: content
+                    }
+                  ]
+                };
+              }
+              
+              if (data.done) {
+                return;
+              }
+            } catch (e) {
+              console.warn('Failed to parse Ollama response:', line);
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
+    }
+  }), [selectedModel, baseUrl]);
   
   useEffect(() => {
     // Fetch available models
-    fetch('http://localhost:11434/api/tags')
+    fetch(`${baseUrl}/api/tags`)
       .then(res => res.json())
       .then(data => {
         const models = data.models?.map((m: any) => m.name) || [];
         setAvailableModels(models);
       })
       .catch(console.error);
-  }, []);
+  }, [baseUrl]);
   
-  useEffect(() => {
-    setRuntime(new OllamaRuntime('http://localhost:11434', selectedModel));
-  }, [selectedModel]);
-  
-  if (!runtime) return <div>Loading Ollama...</div>;
+  const runtime = useLocalRuntime(adapter);
   
   return (
     <div className="flex flex-col h-screen">

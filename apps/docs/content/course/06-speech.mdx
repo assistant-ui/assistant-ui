@@ -9,82 +9,164 @@ Speech capabilities transform your AI chat interface into a natural, voice-enabl
 
 ## Basic Speech Setup
 
-Enable speech in your composer:
+Enable speech with a custom speech adapter:
 
 ```tsx
-import { Thread, Composer } from "@assistant-ui/react";
+import { Thread, Composer, AssistantRuntimeProvider, useLocalRuntime } from "@assistant-ui/react";
+import { WebSpeechSynthesisAdapter } from "@assistant-ui/react";
 
 function VoiceEnabledChat() {
+  const runtime = useLocalRuntime({
+    adapters: {
+      speech: new WebSpeechSynthesisAdapter(),
+    },
+  });
+
   return (
-    <Thread>
-      <Thread.Messages />
-      <Composer>
-        <Composer.Input />
-        <Composer.Speech />
-        <Composer.Send />
-      </Composer>
-    </Thread>
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread>
+        <Thread.Messages />
+        <Composer>
+          <Composer.Input />
+          <Composer.Send />
+        </Composer>
+      </Thread>
+    </AssistantRuntimeProvider>
   );
 }
 ```
 
 ## Custom Speech Button
 
-Create a custom speech interface:
+Create a custom speech interface using Web Speech API:
 
 ```tsx
-import { ComposerPrimitive, useSpeechRuntime } from "@assistant-ui/react";
+import { useState, useRef } from "react";
 
 function CustomSpeechButton() {
-  const speechRuntime = useSpeechRuntime();
-  const isRecording = speechRuntime.isRecording;
+  const [isRecording, setIsRecording] = useState(false);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  
+  const startRecording = () => {
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+      
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+      
+      recognition.onstart = () => setIsRecording(true);
+      recognition.onend = () => setIsRecording(false);
+      recognition.onerror = () => setIsRecording(false);
+      
+      recognition.onresult = (event) => {
+        const transcript = Array.from(event.results)
+          .map(result => result[0].transcript)
+          .join('');
+        
+        // Handle the transcript result
+        console.log('Transcript:', transcript);
+      };
+      
+      recognitionRef.current = recognition;
+      recognition.start();
+    }
+  };
+  
+  const stopRecording = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+  };
   
   return (
-    <ComposerPrimitive.Speech>
-      <button
-        className={`p-3 rounded-full transition-all ${
-          isRecording 
-            ? 'bg-red-500 text-white animate-pulse' 
-            : 'bg-gray-200 hover:bg-gray-300'
-        }`}
-      >
-        {isRecording ? '🛑' : '🎤'}
-      </button>
-    </ComposerPrimitive.Speech>
+    <button
+      onClick={isRecording ? stopRecording : startRecording}
+      className={`p-3 rounded-full transition-all ${
+        isRecording 
+          ? 'bg-red-500 text-white animate-pulse' 
+          : 'bg-gray-200 hover:bg-gray-300'
+      }`}
+    >
+      {isRecording ? '🛑' : '🎤'}
+    </button>
   );
 }
 ```
 
 ## Speech-to-Text Configuration
 
-Configure speech recognition settings:
+Configure speech recognition with custom adapters:
 
 ```tsx
-import { useLocalRuntime } from "@assistant-ui/react";
+import { useLocalRuntime, AssistantRuntimeProvider } from "@assistant-ui/react";
+import { SpeechRecognitionAdapter } from "@assistant-ui/react";
+
+class CustomSpeechRecognitionAdapter implements SpeechRecognitionAdapter {
+  listen(): SpeechRecognitionAdapter.Session {
+    let recognition: SpeechRecognition | null = null;
+    const subscribers = new Set<() => void>();
+    
+    const session: SpeechRecognitionAdapter.Session = {
+      status: { type: "starting" },
+      
+      async stop() {
+        if (recognition) {
+          recognition.stop();
+        }
+      },
+      
+      cancel() {
+        if (recognition) {
+          recognition.abort();
+        }
+      },
+      
+      onSpeechStart: (callback) => {
+        subscribers.add(callback);
+        return () => subscribers.delete(callback);
+      },
+      
+      onSpeechEnd: (callback) => {
+        // Implementation for speech end handling
+        return () => {};
+      },
+      
+      onSpeech: (callback) => {
+        // Implementation for speech result handling
+        return () => {};
+      }
+    };
+    
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognition = new SpeechRecognition();
+      
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+      
+      recognition.onstart = () => {
+        session.status = { type: "running" };
+        subscribers.forEach(callback => callback());
+      };
+      
+      recognition.onend = () => {
+        session.status = { type: "ended", reason: "stopped" };
+      };
+      
+      recognition.start();
+    }
+    
+    return session;
+  }
+}
 
 function ChatProvider({ children }: { children: React.ReactNode }) {
   const runtime = useLocalRuntime({
-    speech: {
-      recognition: {
-        // Use browser's built-in speech recognition
-        continuous: true,
-        interimResults: true,
-        language: 'en-US',
-        
-        // Or use a custom provider
-        provider: async (audio: Blob) => {
-          const formData = new FormData();
-          formData.append('audio', audio);
-          
-          const response = await fetch('/api/speech-to-text', {
-            method: 'POST',
-            body: formData
-          });
-          
-          const { text } = await response.json();
-          return text;
-        }
-      }
+    adapters: {
+      speechRecognition: new CustomSpeechRecognitionAdapter(),
     }
   });
   
@@ -98,20 +180,22 @@ function ChatProvider({ children }: { children: React.ReactNode }) {
 
 ## Advanced Speech Controls
 
-Build a comprehensive speech interface:
+Build a comprehensive speech interface with audio level monitoring:
 
 ```tsx
-import { useState, useRef } from "react";
-import { useSpeechRuntime, ComposerPrimitive } from "@assistant-ui/react";
+import { useState, useRef, useEffect } from "react";
 
 function AdvancedSpeechControls() {
-  const speechRuntime = useSpeechRuntime();
+  const [isRecording, setIsRecording] = useState(false);
   const [audioLevel, setAudioLevel] = useState(0);
-  const analyserRef = useRef<AnalyserNode>();
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
       
       // Set up audio level monitoring
       const audioContext = new AudioContext();
@@ -122,20 +206,24 @@ function AdvancedSpeechControls() {
       analyser.fftSize = 256;
       analyserRef.current = analyser;
       
-      // Monitor audio levels
-      const monitorAudio = () => {
-        const dataArray = new Uint8Array(analyser.frequencyBinCount);
-        analyser.getByteFrequencyData(dataArray);
+      // Start speech recognition
+      if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
         
-        const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length;
-        setAudioLevel(average / 255);
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
         
-        if (speechRuntime.isRecording) {
-          requestAnimationFrame(monitorAudio);
-        }
-      };
+        recognition.onstart = () => setIsRecording(true);
+        recognition.onend = () => setIsRecording(false);
+        recognition.onerror = () => setIsRecording(false);
+        
+        recognitionRef.current = recognition;
+        recognition.start();
+      }
       
-      speechRuntime.start();
+      // Monitor audio levels
       monitorAudio();
       
     } catch (error) {
@@ -143,43 +231,67 @@ function AdvancedSpeechControls() {
     }
   };
   
-  const stopRecording = () => {
-    speechRuntime.stop();
-    setAudioLevel(0);
+  const monitorAudio = () => {
+    if (!analyserRef.current) return;
+    
+    const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
+    analyserRef.current.getByteFrequencyData(dataArray);
+    
+    const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length;
+    setAudioLevel(average / 255);
+    
+    if (isRecording) {
+      requestAnimationFrame(monitorAudio);
+    }
   };
+  
+  const stopRecording = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+    }
+    setAudioLevel(0);
+    setIsRecording(false);
+  };
+  
+  useEffect(() => {
+    return () => {
+      stopRecording();
+    };
+  }, []);
   
   return (
     <div className="flex items-center gap-2">
       {/* Recording Button */}
-      <ComposerPrimitive.Speech>
-        <button
-          onMouseDown={startRecording}
-          onMouseUp={stopRecording}
-          onMouseLeave={stopRecording}
-          className={`relative p-4 rounded-full transition-all ${
-            speechRuntime.isRecording
-              ? 'bg-red-500 text-white'
-              : 'bg-blue-500 text-white hover:bg-blue-600'
-          }`}
-        >
-          {speechRuntime.isRecording ? '🛑' : '🎤'}
-          
-          {/* Audio Level Indicator */}
-          {speechRuntime.isRecording && (
-            <div 
-              className="absolute inset-0 rounded-full border-4 border-white/30"
-              style={{
-                transform: `scale(${1 + audioLevel * 0.5})`,
-                opacity: audioLevel
-              }}
-            />
-          )}
-        </button>
-      </ComposerPrimitive.Speech>
+      <button
+        onMouseDown={startRecording}
+        onMouseUp={stopRecording}
+        onMouseLeave={stopRecording}
+        className={`relative p-4 rounded-full transition-all ${
+          isRecording
+            ? 'bg-red-500 text-white'
+            : 'bg-blue-500 text-white hover:bg-blue-600'
+        }`}
+      >
+        {isRecording ? '🛑' : '🎤'}
+        
+        {/* Audio Level Indicator */}
+        {isRecording && (
+          <div 
+            className="absolute inset-0 rounded-full border-4 border-white/30"
+            style={{
+              transform: `scale(${1 + audioLevel * 0.5})`,
+              opacity: audioLevel
+            }}
+          />
+        )}
+      </button>
       
       {/* Status */}
       <div className="text-sm text-gray-600">
-        {speechRuntime.isRecording && (
+        {isRecording && (
           <span className="flex items-center gap-1">
             <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
             Recording...
@@ -193,41 +305,43 @@ function AdvancedSpeechControls() {
 
 ## Text-to-Speech Implementation
 
-Add voice output for assistant messages:
+Add voice output for assistant messages using the speech adapter:
 
 ```tsx
-import { useState } from "react";
-import { MessagePrimitive, ActionBarPrimitive } from "@assistant-ui/react";
+import { useState, useEffect } from "react";
+import { MessagePrimitive, ActionBarPrimitive, useMessage, useAssistantRuntime } from "@assistant-ui/react";
+import { WebSpeechSynthesisAdapter } from "@assistant-ui/react";
 
 function SpeakableMessage() {
-  const [isSpeaking, setIsSpeaking] = useState(false);
+  const message = useMessage();
+  const runtime = useAssistantRuntime();
+  const [speechAdapter] = useState(() => new WebSpeechSynthesisAdapter());
+  const [currentUtterance, setCurrentUtterance] = useState<any>(null);
   
   const speakMessage = async (text: string) => {
-    if ('speechSynthesis' in window) {
-      // Browser TTS
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.onstart = () => setIsSpeaking(true);
-      utterance.onend = () => setIsSpeaking(false);
-      utterance.onerror = () => setIsSpeaking(false);
-      
-      // Configure voice
-      const voices = speechSynthesis.getVoices();
-      const preferredVoice = voices.find(voice => 
-        voice.lang.startsWith('en') && voice.name.includes('Neural')
-      );
-      if (preferredVoice) utterance.voice = preferredVoice;
-      
-      speechSynthesis.speak(utterance);
-    } else {
-      // Custom TTS API
-      await customTextToSpeech(text);
+    if (currentUtterance) {
+      currentUtterance.cancel();
     }
+    
+    const utterance = speechAdapter.speak(text);
+    setCurrentUtterance(utterance);
+    
+    // Subscribe to status changes
+    utterance.subscribe(() => {
+      if (utterance.status.type === 'ended') {
+        setCurrentUtterance(null);
+      }
+    });
   };
   
   const stopSpeaking = () => {
-    speechSynthesis.cancel();
-    setIsSpeaking(false);
+    if (currentUtterance) {
+      currentUtterance.cancel();
+      setCurrentUtterance(null);
+    }
   };
+  
+  const isSpeaking = currentUtterance?.status.type === 'running';
   
   return (
     <MessagePrimitive.Root>
@@ -240,8 +354,11 @@ function SpeakableMessage() {
               if (isSpeaking) {
                 stopSpeaking();
               } else {
-                const text = document.querySelector('[data-message-content]')?.textContent;
-                if (text) speakMessage(text);
+                const textContent = message.content
+                  .filter(part => part.type === 'text')
+                  .map(part => part.text)
+                  .join(' ');
+                if (textContent) speakMessage(textContent);
               }
             }}
             className={`p-2 rounded ${
@@ -250,6 +367,11 @@ function SpeakableMessage() {
           >
             {isSpeaking ? '🔇' : '🔊'}
           </button>
+          
+          {/* Use the built-in stop speaking component */}
+          <ActionBarPrimitive.StopSpeaking className="p-2 rounded bg-red-100 text-red-600 hover:bg-red-200">
+            🛑
+          </ActionBarPrimitive.StopSpeaking>
         </ActionBarPrimitive.Root>
       </MessagePrimitive.If>
     </MessagePrimitive.Root>
@@ -432,19 +554,21 @@ export async function POST(request: Request) {
 Ensure speech features are accessible:
 
 ```tsx
+import { useState } from "react";
+
 function AccessibleSpeechButton() {
-  const speechRuntime = useSpeechRuntime();
+  const [isRecording, setIsRecording] = useState(false);
   
   return (
     <button
-      aria-label={speechRuntime.isRecording ? 'Stop recording' : 'Start recording'}
-      aria-pressed={speechRuntime.isRecording}
+      aria-label={isRecording ? 'Stop recording' : 'Start recording'}
+      aria-pressed={isRecording}
       className="p-3 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
     >
       <span className="sr-only">
-        {speechRuntime.isRecording ? 'Recording in progress' : 'Click to start recording'}
+        {isRecording ? 'Recording in progress' : 'Click to start recording'}
       </span>
-      {speechRuntime.isRecording ? '🛑' : '🎤'}
+      {isRecording ? '🛑' : '🎤'}
     </button>
   );
 }

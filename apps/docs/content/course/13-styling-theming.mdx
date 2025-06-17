@@ -20,35 +20,6 @@ const StyledThread = styled(ThreadPrimitive.Root)`
   flex-direction: column;
   height: 100vh;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  
-  @media (max-width: 768px) {
-    height: 100dvh;
-  }
-`;
-
-const MessagesContainer = styled(ThreadPrimitive.Messages)`
-  flex: 1;
-  overflow-y: auto;
-  padding: 1rem;
-  
-  /* Custom scrollbar */
-  &::-webkit-scrollbar {
-    width: 8px;
-  }
-  
-  &::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 4px;
-  }
-  
-  &::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.3);
-    border-radius: 4px;
-    
-    &:hover {
-      background: rgba(255, 255, 255, 0.5);
-    }
-  }
 `;
 
 const StyledMessage = styled(MessagePrimitive.Root)`
@@ -56,10 +27,8 @@ const StyledMessage = styled(MessagePrimitive.Root)`
   gap: 0.75rem;
   margin-bottom: 1.5rem;
   
-  /* User messages align right */
   &[data-by="user"] {
     flex-direction: row-reverse;
-    
     .message-content {
       background: #007bff;
       color: white;
@@ -67,7 +36,6 @@ const StyledMessage = styled(MessagePrimitive.Root)`
     }
   }
   
-  /* Assistant messages align left */
   &[data-by="assistant"] {
     .message-content {
       background: white;
@@ -78,40 +46,14 @@ const StyledMessage = styled(MessagePrimitive.Root)`
   }
 `;
 
-const MessageContent = styled(MessagePrimitive.Content)`
-  max-width: 70%;
-  padding: 0.75rem 1rem;
-  line-height: 1.5;
-  word-wrap: break-word;
-  
-  /* Code blocks */
-  pre {
-    background: rgba(0, 0, 0, 0.1);
-    padding: 0.5rem;
-    border-radius: 4px;
-    overflow-x: auto;
-    margin: 0.5rem 0;
-  }
-  
-  /* Inline code */
-  code {
-    background: rgba(0, 0, 0, 0.1);
-    padding: 0.125rem 0.25rem;
-    border-radius: 2px;
-    font-family: 'Monaco', 'Consolas', monospace;
-  }
-`;
-
 function StyledChat() {
   return (
     <StyledThread>
-      <MessagesContainer>
+      <ThreadPrimitive.Messages className="flex-1 overflow-y-auto p-4">
         <StyledMessage>
-          <Avatar />
-          <MessageContent className="message-content" />
+          <MessagePrimitive.Content className="message-content max-w-[70%] p-3" />
         </StyledMessage>
-      </MessagesContainer>
-      <StyledComposer />
+      </ThreadPrimitive.Messages>
     </StyledThread>
   );
 }
@@ -431,78 +373,28 @@ const themes: Record<string, Theme> = {
     name: 'Corporate',
     colors: {
       primary: '#1e40af',
-      secondary: '#475569',
       background: '#f8fafc',
-      surface: '#ffffff',
       text: '#1e293b',
-      textSecondary: '#64748b',
-      border: '#e2e8f0',
       userMessage: '#1e40af',
       assistantMessage: '#ffffff',
-      error: '#dc2626',
-      success: '#059669'
+      border: '#e2e8f0'
     },
-    spacing: {
-      xs: '0.25rem',
-      sm: '0.5rem',
-      md: '1rem',
-      lg: '1.5rem',
-      xl: '2rem'
-    },
-    borderRadius: {
-      sm: '0.125rem',
-      md: '0.25rem',
-      lg: '0.375rem',
-      full: '9999px'
-    },
-    typography: {
-      fontFamily: 'system-ui, -apple-system, sans-serif',
-      fontSize: {
-        sm: '0.875rem',
-        base: '1rem',
-        lg: '1.125rem',
-        xl: '1.25rem'
-      }
-    }
+    borderRadius: { sm: '0.125rem', md: '0.25rem', lg: '0.375rem' },
+    typography: { fontFamily: 'system-ui, sans-serif' }
   },
   
   playful: {
     name: 'Playful',
     colors: {
       primary: '#8b5cf6',
-      secondary: '#a78bfa',
       background: '#fdf4ff',
-      surface: '#ffffff',
       text: '#581c87',
-      textSecondary: '#7c3aed',
-      border: '#e9d5ff',
       userMessage: '#8b5cf6',
       assistantMessage: '#ffffff',
-      error: '#f97316',
-      success: '#06d6a0'
+      border: '#e9d5ff'
     },
-    spacing: {
-      xs: '0.375rem',
-      sm: '0.75rem',
-      md: '1.25rem',
-      lg: '1.875rem',
-      xl: '2.5rem'
-    },
-    borderRadius: {
-      sm: '0.5rem',
-      md: '1rem',
-      lg: '1.5rem',
-      full: '9999px'
-    },
-    typography: {
-      fontFamily: 'Comic Neue, cursive',
-      fontSize: {
-        sm: '0.875rem',
-        base: '1rem',
-        lg: '1.125rem',
-        xl: '1.25rem'
-      }
-    }
+    borderRadius: { sm: '0.5rem', md: '1rem', lg: '1.5rem' },
+    typography: { fontFamily: 'Comic Neue, cursive' }
   }
 };
 
@@ -651,63 +543,31 @@ function ThemeSelector() {
 
 ## Responsive Design
 
-Create responsive chat interfaces:
+Create responsive chat interfaces using Tailwind's responsive utilities:
 
 ```tsx
 function ResponsiveChat() {
-  const [isMobile, setIsMobile] = useState(false);
-  
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-  
   return (
-    <ThreadPrimitive.Root 
-      className={`flex h-screen ${
-        isMobile ? 'flex-col' : 'flex-row'
-      }`}
-    >
+    <ThreadPrimitive.Root className="flex flex-col md:flex-row h-screen">
       {/* Sidebar - hidden on mobile */}
-      {!isMobile && (
-        <div className="w-80 border-r bg-gray-50 hidden md:block">
-          <ThreadList />
-        </div>
-      )}
+      <div className="hidden md:block w-80 border-r bg-gray-50">
+        <ThreadList />
+      </div>
       
       {/* Main chat area */}
       <div className="flex-1 flex flex-col">
         {/* Mobile header */}
-        {isMobile && (
-          <div className="flex items-center justify-between p-4 border-b bg-white">
-            <button className="p-2 hover:bg-gray-100 rounded">
-              ☰
-            </button>
-            <h1 className="font-semibold">Chat</h1>
-            <button className="p-2 hover:bg-gray-100 rounded">
-              ⋯
-            </button>
-          </div>
-        )}
+        <div className="md:hidden flex items-center justify-between p-4 border-b bg-white">
+          <button className="p-2 hover:bg-gray-100 rounded">☰</button>
+          <h1 className="font-semibold">Chat</h1>
+          <button className="p-2 hover:bg-gray-100 rounded">⋯</button>
+        </div>
         
-        {/* Messages */}
-        <ThreadPrimitive.Messages 
-          className={`flex-1 overflow-y-auto ${
-            isMobile ? 'p-2' : 'p-4'
-          }`}
-        >
+        <ThreadPrimitive.Messages className="flex-1 overflow-y-auto p-2 md:p-4">
           <ResponsiveMessage />
         </ThreadPrimitive.Messages>
         
-        {/* Composer */}
-        <div className={`border-t bg-white ${
-          isMobile ? 'p-2' : 'p-4'
-        }`}>
+        <div className="border-t bg-white p-2 md:p-4">
           <ResponsiveComposer />
         </div>
       </div>
@@ -720,74 +580,50 @@ function ResponsiveMessage() {
     <MessagePrimitive.Root className="mb-4">
       <MessagePrimitive.If by="user">
         <div className="flex justify-end">
-          <div className="max-w-[85%] sm:max-w-[70%] bg-blue-500 text-white rounded-2xl rounded-br-md px-3 py-2 sm:px-4 sm:py-2">
-            <MessagePrimitive.Content className="text-sm sm:text-base" />
+          <div className="max-w-[85%] sm:max-w-[70%] bg-blue-500 text-white rounded-2xl px-3 py-2">
+            <MessagePrimitive.Content />
           </div>
         </div>
       </MessagePrimitive.If>
       
       <MessagePrimitive.If by="assistant">
         <div className="flex gap-2 sm:gap-3">
-          <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gray-500 rounded-full flex-shrink-0" />
-          <div className="max-w-[85%] sm:max-w-[70%] bg-white border rounded-2xl rounded-tl-md px-3 py-2 sm:px-4 sm:py-2">
-            <MessagePrimitive.Content className="text-sm sm:text-base" />
+          <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gray-500 rounded-full" />
+          <div className="max-w-[85%] sm:max-w-[70%] bg-white border rounded-2xl px-3 py-2">
+            <MessagePrimitive.Content />
           </div>
         </div>
       </MessagePrimitive.If>
     </MessagePrimitive.Root>
   );
 }
-
-function ResponsiveComposer() {
-  return (
-    <ComposerPrimitive.Root className="flex items-end gap-2">
-      <ComposerPrimitive.Input 
-        className="flex-1 p-2 sm:p-3 border rounded-lg resize-none text-sm sm:text-base"
-        placeholder="Type a message..."
-        rows={1}
-      />
-      <ComposerPrimitive.Send className="p-2 sm:p-3 bg-blue-500 text-white rounded-lg flex-shrink-0">
-        <span className="hidden sm:inline">Send</span>
-        <span className="sm:hidden">→</span>
-      </ComposerPrimitive.Send>
-    </ComposerPrimitive.Root>
-  );
-}
 ```
 
 ## Animation and Transitions
 
-Add smooth animations and transitions:
+Add smooth animations with Framer Motion:
 
 ```tsx
 import { motion, AnimatePresence } from 'framer-motion';
 
-function AnimatedChat() {
-  return (
-    <ThreadPrimitive.Root className="flex flex-col h-screen bg-gray-50">
-      <ThreadPrimitive.Messages className="flex-1 overflow-y-auto p-4">
-        <AnimatePresence mode="popLayout">
-          <AnimatedMessage />
-        </AnimatePresence>
-      </ThreadPrimitive.Messages>
-      
-      <AnimatedComposer />
-    </ThreadPrimitive.Root>
-  );
-}
+const messageVariants = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -20 }
+};
 
 function AnimatedMessage() {
   return (
     <MessagePrimitive.Root>
       <MessagePrimitive.If by="user">
         <motion.div
-          initial={{ opacity: 0, x: 20, scale: 0.95 }}
-          animate={{ opacity: 1, x: 0, scale: 1 }}
-          exit={{ opacity: 0, x: -20, scale: 0.95 }}
-          transition={{ duration: 0.3, ease: "easeOut" }}
+          variants={messageVariants}
+          initial="initial"
+          animate="animate"
+          exit="exit"
           className="flex justify-end mb-4"
         >
-          <div className="max-w-[70%] bg-blue-500 text-white rounded-2xl rounded-br-md px-4 py-2">
+          <div className="max-w-[70%] bg-blue-500 text-white rounded-2xl px-4 py-2">
             <MessagePrimitive.Content />
           </div>
         </motion.div>
@@ -795,19 +631,14 @@ function AnimatedMessage() {
       
       <MessagePrimitive.If by="assistant">
         <motion.div
-          initial={{ opacity: 0, x: -20, scale: 0.95 }}
-          animate={{ opacity: 1, x: 0, scale: 1 }}
-          exit={{ opacity: 0, x: 20, scale: 0.95 }}
-          transition={{ duration: 0.3, ease: "easeOut" }}
+          variants={messageVariants}
+          initial="initial"
+          animate="animate"
+          exit="exit"
           className="flex gap-3 mb-4"
         >
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.1, duration: 0.2 }}
-            className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full"
-          />
-          <div className="max-w-[70%] bg-white border rounded-2xl rounded-tl-md px-4 py-2 shadow-sm">
+          <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full" />
+          <div className="max-w-[70%] bg-white border rounded-2xl px-4 py-2">
             <MessagePrimitive.Content />
           </div>
         </motion.div>
@@ -816,66 +647,21 @@ function AnimatedMessage() {
   );
 }
 
-function AnimatedComposer() {
-  const [isExpanded, setIsExpanded] = useState(false);
-  
-  return (
-    <motion.div
-      initial={{ y: 100 }}
-      animate={{ y: 0 }}
-      transition={{ duration: 0.3, ease: "easeOut" }}
-      className="border-t bg-white p-4"
-    >
-      <ComposerPrimitive.Root className="flex items-end gap-2">
-        <motion.div
-          animate={{ height: isExpanded ? 120 : 'auto' }}
-          transition={{ duration: 0.2 }}
-          className="flex-1"
-        >
-          <ComposerPrimitive.Input
-            onFocus={() => setIsExpanded(true)}
-            onBlur={() => setIsExpanded(false)}
-            className="w-full p-3 border rounded-lg resize-none transition-all duration-200 focus:ring-2 focus:ring-blue-500"
-            placeholder="Type your message..."
-          />
-        </motion.div>
-        
-        <ComposerPrimitive.Send asChild>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="p-3 bg-blue-500 text-white rounded-lg"
-          >
-            Send
-          </motion.button>
-        </ComposerPrimitive.Send>
-      </ComposerPrimitive.Root>
-    </motion.div>
-  );
-}
-
-// Typing indicator with animation
+// Typing indicator
 function TypingIndicator() {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
       className="flex items-center gap-2 text-gray-500 text-sm"
     >
       <div className="flex gap-1">
         {[0, 1, 2].map((i) => (
           <motion.div
             key={i}
-            animate={{
-              scale: [1, 1.2, 1],
-              opacity: [0.5, 1, 0.5]
-            }}
-            transition={{
-              duration: 1.5,
-              repeat: Infinity,
-              delay: i * 0.2
-            }}
+            animate={{ scale: [1, 1.2, 1] }}
+            transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.2 }}
             className="w-2 h-2 bg-gray-400 rounded-full"
           />
         ))}
@@ -888,26 +674,23 @@ function TypingIndicator() {
 
 ## Best Practices
 
-1. **Start with a design system** for consistency
-2. **Use CSS custom properties** for easy theming
-3. **Implement responsive design** from the start
-4. **Test with different content lengths** and edge cases
-5. **Consider accessibility** in color choices and contrast
-6. **Optimize animations** for performance
-7. **Provide theme persistence** across sessions
+1. **Design System First** - Establish consistent colors, spacing, and typography
+2. **CSS Custom Properties** - Enable dynamic theming with CSS variables
+3. **Mobile-First Responsive** - Design for mobile, enhance for desktop
+4. **Accessibility** - Ensure proper contrast ratios and keyboard navigation
+5. **Performance** - Optimize animations and avoid layout thrashing
+6. **Theme Persistence** - Save user preferences across sessions
 
-## Exercise: Brand Theme System
+## Key Takeaways
 
-Create a complete brand theme system that includes:
-- Multiple color schemes and typography options
-- Dark/light mode with system preference detection
-- Responsive design for all screen sizes
-- Smooth animations and micro-interactions
-- Accessibility-compliant color contrasts
-- Custom component variants
+- Assistant UI's headless architecture gives you complete styling control
+- Use CSS-in-JS, Tailwind, or custom themes based on your project needs
+- Implement responsive design with mobile-first approach
+- Add animations thoughtfully to enhance user experience
+- Always consider accessibility in your design decisions
 
 ## Next Steps
 
-Beautiful styling makes your chat interface professional and engaging. Next, let's explore **Performance Optimization** to ensure your chat remains fast and responsive.
+With beautiful, responsive styling in place, let's explore **Performance Optimization** to ensure your chat interface remains fast and smooth under heavy usage.
 
 Continue to [Performance Optimization →](./14-performance-optimization)
