@@ -1,5 +1,16 @@
 # @assistant-ui/react
 
+## 0.10.24
+
+### Patch Changes
+
+- b65e354: docs: add JSDoc comments
+- 8eda24b: performance: Memoize Array.from() calls in render methods
+- 644abb8: chore: update deps
+- Updated dependencies [644abb8]
+  - assistant-stream@0.2.17
+  - assistant-cloud@0.0.2
+
 ## 0.10.23
 
 ### Patch Changes

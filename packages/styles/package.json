@@ -1,7 +1,7 @@
 {
   "name": "@assistant-ui/styles",
   "description": "Styles for @assistant-ui/react for non-Tailwind users",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "license": "MIT",
   "exports": {
     "./*": {
