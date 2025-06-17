@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-langgraph",
-  "version": "0.5.7",
+  "version": "0.5.8",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -24,12 +24,12 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "assistant-stream": "^0.2.16",
+    "assistant-stream": "^0.2.17",
     "uuid": "^11.1.0",
     "zod": "^3.25.64"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.10.23",
+    "@assistant-ui/react": "^0.10.24",
     "@types/react": "*",
     "react": "^18 || ^19 || ^19.0.0-rc"
   },
