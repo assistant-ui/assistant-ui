@@ -67,14 +67,14 @@ export const useBufferedHistoryAdapter = (
 
   const adapter = useCallback(() => {
     if (!baseAdapter) return undefined;
-    
+
     if (!adapterRef.current) {
       adapterRef.current = new BufferedHistoryAdapter(
         baseAdapter,
         getInitializePromise,
       );
     }
-    
+
     return adapterRef.current;
   }, [baseAdapter, getInitializePromise]);
 

@@ -47,17 +47,23 @@ export const useCloudThreadListAdapter = (
           return adapterRef.current.cloud ?? autoCloud!;
         },
       });
-      
+
       const threadListItemRuntime = useThreadListItemRuntime();
-      
+
       const getInitializePromise = useCallback(() => {
         return threadListItemRuntime.initialize();
       }, [threadListItemRuntime]);
 
-      const history = useBufferedHistoryAdapter(baseHistory, getInitializePromise);
-      const adapters = useMemo(() => ({ 
-        history: history || undefined 
-      }), [history]);
+      const history = useBufferedHistoryAdapter(
+        baseHistory,
+        getInitializePromise,
+      );
+      const adapters = useMemo(
+        () => ({
+          history: history || undefined,
+        }),
+        [history],
+      );
 
       return (
         <RuntimeAdapterProvider adapters={adapters}>
