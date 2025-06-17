@@ -60,7 +60,7 @@ export const useCloudThreadListAdapter = (
       );
       const adapters = useMemo(
         () => ({
-          history: history || undefined,
+          ...(history && { history }),
         }),
         [history],
       );
