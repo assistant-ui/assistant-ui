@@ -10,28 +10,6 @@ import { useCombinedStore } from "../../utils/combined/useCombinedStore";
 import { useThreadRuntime } from "../../context/react/ThreadContext";
 import { useComposerRuntime } from "../../context";
 
-/**
- * Hook that provides the send functionality for the composer.
- * 
- * This hook returns a callback function that sends the current message,
- * or null if sending is not currently available (e.g., thread is running,
- * composer is empty, or not in editing mode).
- * 
- * @returns A send callback function, or null if sending is disabled
- * 
- * @example
- * ```tsx
- * function CustomSendButton() {
- *   const send = useComposerSend();
- *   
- *   return (
- *     <button onClick={send} disabled={!send}>
- *       {send ? "Send Message" : "Cannot Send"}
- *     </button>
- *   );
- * }
- * ```
- */
 export const useComposerSend = () => {
   const composerRuntime = useComposerRuntime();
   const threadRuntime = useThreadRuntime();

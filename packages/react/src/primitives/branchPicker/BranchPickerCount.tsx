@@ -3,26 +3,6 @@
 import type { FC } from "react";
 import { useMessage } from "../../context/react/MessageContext";
 
-/**
- * Hook that provides the current branch count.
- * 
- * This hook returns the total number of branches available for the current message.
- * 
- * @returns The total number of branches for the current message
- * 
- * @example
- * ```tsx
- * function CustomBranchCounter() {
- *   const count = useBranchPickerCount();
- *   
- *   return (
- *     <span>
- *       {count} {count === 1 ? 'branch' : 'branches'} available
- *     </span>
- *   );
- * }
- * ```
- */
 const useBranchPickerCount = () => {
   const branchCount = useMessage((s) => s.branchCount);
   return branchCount;

@@ -69,94 +69,30 @@ export type SpeechSynthesisAdapter = {
   speak: (text: string) => SpeechSynthesisAdapter.Utterance;
 };
 
-/**
- * Types and interfaces for speech recognition (speech-to-text) functionality.
- */
 export namespace SpeechRecognitionAdapter {
-  /**
-   * Status of a speech recognition session.
-   */
   export type Status =
     | {
-        /** Recognition is starting or currently running */
         type: "starting" | "running";
       }
     | {
-        /** Recognition has ended */
         type: "ended";
-        /** Reason why recognition ended */
         reason: "stopped" | "cancelled" | "error";
       };
 
-  /**
-   * Result from speech recognition containing the transcribed text.
-   */
   export type Result = {
-    /** The transcribed text from speech input */
     transcript: string;
   };
 
-  /**
-   * Represents an active speech recognition session with event handling.
-   */
   export type Session = {
-    /** Current status of the recognition session */
     status: Status;
-    /** Stop the recognition session gracefully */
     stop: () => Promise<void>;
-    /** Cancel the recognition session immediately */
     cancel: () => void;
-    /** Subscribe to speech start events */
     onSpeechStart: (callback: () => void) => Unsubscribe;
-    /** Subscribe to speech end events with final result */
     onSpeechEnd: (callback: (result: Result) => void) => Unsubscribe;
-    /** Subscribe to ongoing speech recognition results */
     onSpeech: (callback: (result: Result) => void) => Unsubscribe;
   };
 }
 
-/**
- * Interface for speech-to-text functionality.
- * 
- * SpeechRecognitionAdapter provides the ability to convert spoken audio
- * into text, with real-time transcription and event handling support.
- * 
- * @example
- * ```tsx
- * const recognitionAdapter: SpeechRecognitionAdapter = {
- *   listen: () => {
- *     const recognition = new webkitSpeechRecognition();
- *     recognition.continuous = true;
- *     recognition.interimResults = true;
- *     
- *     return {
- *       status: { type: "starting" },
- *       stop: async () => recognition.stop(),
- *       cancel: () => recognition.abort(),
- *       onSpeechStart: (callback) => {
- *         recognition.addEventListener('start', callback);
- *         return () => recognition.removeEventListener('start', callback);
- *       },
- *       onSpeech: (callback) => {
- *         recognition.addEventListener('result', (event) => {
- *           callback({ transcript: event.results[0][0].transcript });
- *         });
- *         return () => recognition.removeEventListener('result', callback);
- *       },
- *       onSpeechEnd: (callback) => {
- *         recognition.addEventListener('end', callback);
- *         return () => recognition.removeEventListener('end', callback);
- *       }
- *     };
- *   }
- * };
- * ```
- */
 export type SpeechRecognitionAdapter = {
-  /**
-   * Starts a new speech recognition session.
-   * 
-   * @returns A session object with status tracking and event handling
-   */
   listen: () => SpeechRecognitionAdapter.Session;
 };
