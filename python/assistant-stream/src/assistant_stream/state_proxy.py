@@ -1,4 +1,4 @@
-from typing import Any, List, Union, TYPE_CHECKING
+from typing import Any, List, Optional, Union, TYPE_CHECKING
 
 
 # Avoid circular import
@@ -19,10 +19,14 @@ class StateProxy:
     def _get_value(self):
         return self._manager.get_value_at_path(self._path)
 
-    def __init__(self, state_manager: "StateManager", path: List[str] = []):
+    def __init__(
+        self,
+        state_manager: "StateManager",
+        path: Optional[List[str]] | None = None,
+    ) -> None:
         """Initialize with state manager and current path."""
         self._manager = state_manager
-        self._path = path
+        self._path = path or []
 
     def __getitem__(self, key: Union[str, int]) -> Union["StateProxy", Any]:
         """Access nested values with dict-style syntax. Returns primitives directly except strings."""
