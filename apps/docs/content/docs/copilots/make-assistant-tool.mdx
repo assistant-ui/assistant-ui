@@ -2,6 +2,8 @@
 title: makeAssistantTool
 ---
 
+import { ParametersTable } from "@/components/docs";
+
 `makeAssistantTool` creates a React component that provides a tool to the assistant. This is useful for defining reusable tools that can be composed into your application.
 
 ## Usage
@@ -40,9 +42,31 @@ function Form() {
 
 ### Parameters
 
-- `tool`: A tool definition created using the `tool()` helper function
-  - `parameters`: Zod schema defining the tool's parameters
-  - `execute`: Function that implements the tool's behavior
+<ParametersTable
+  parameters={[
+    {
+      name: "tool",
+      type: "Tool",
+      description: "A tool definition created using the tool() helper function",
+      children: [
+        {
+          parameters: [
+            {
+              name: "parameters",
+              type: "ZodSchema",
+              description: "Zod schema defining the tool's parameters",
+            },
+            {
+              name: "execute",
+              type: "function",
+              description: "Function that implements the tool's behavior",
+            },
+          ],
+        },
+      ],
+    },
+  ]}
+/>
 
 ### Returns
 
