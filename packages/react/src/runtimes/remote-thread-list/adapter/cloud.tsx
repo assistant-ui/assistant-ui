@@ -11,6 +11,8 @@ import { RemoteThreadListAdapter } from "../types";
 import { useAssistantCloudThreadHistoryAdapter } from "../../../cloud/AssistantCloudThreadHistoryAdapter";
 import { RuntimeAdapterProvider } from "../../adapters/RuntimeAdapterProvider";
 import { InMemoryThreadListAdapter } from "./in-memory";
+import { useBufferedHistoryAdapter } from "../BufferedHistoryAdapter";
+import { useThreadListItemRuntime } from "../../../context";
 
 type ThreadData = {
   externalId: string;
@@ -40,12 +42,22 @@ export const useCloudThreadListAdapter = (
 
   const unstable_Provider = useCallback<FC<PropsWithChildren>>(
     function Provider({ children }) {
-      const history = useAssistantCloudThreadHistoryAdapter({
+      const baseHistory = useAssistantCloudThreadHistoryAdapter({
         get current() {
           return adapterRef.current.cloud ?? autoCloud!;
         },
       });
-      const adapters = useMemo(() => ({ history }), [history]);
+      
+      const threadListItemRuntime = useThreadListItemRuntime();
+      
+      const getInitializePromise = useCallback(() => {
+        return threadListItemRuntime.initialize();
+      }, [threadListItemRuntime]);
+
+      const history = useBufferedHistoryAdapter(baseHistory, getInitializePromise);
+      const adapters = useMemo(() => ({ 
+        history: history || undefined 
+      }), [history]);
 
       return (
         <RuntimeAdapterProvider adapters={adapters}>
