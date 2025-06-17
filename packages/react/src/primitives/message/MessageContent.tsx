@@ -30,23 +30,40 @@ import { ContentPartStatus } from "../../types/AssistantTypes";
 
 export namespace MessagePrimitiveContent {
   export type Props = {
+    /**
+     * Component configuration for rendering different types of message content.
+     *
+     * You can provide custom components for each content type (text, image, file, etc.)
+     * and configure tool rendering behavior. If not provided, default components will be used.
+     */
     components?:
       | {
+          /** Component for rendering empty messages */
           Empty?: EmptyContentPartComponent | undefined;
+          /** Component for rendering text content */
           Text?: TextContentPartComponent | undefined;
+          /** Component for rendering reasoning content (typically hidden) */
           Reasoning?: ReasoningContentPartComponent | undefined;
+          /** Component for rendering source content */
           Source?: SourceContentPartComponent | undefined;
+          /** Component for rendering image content */
           Image?: ImageContentPartComponent | undefined;
+          /** Component for rendering file content */
           File?: FileContentPartComponent | undefined;
+          /** Component for rendering audio content (experimental) */
           Unstable_Audio?: Unstable_AudioContentPartComponent | undefined;
+          /** Configuration for tool call rendering */
           tools?:
             | {
+                /** Map of tool names to their specific components */
                 by_name?:
                   | Record<string, ToolCallContentPartComponent | undefined>
                   | undefined;
+                /** Fallback component for unregistered tools */
                 Fallback?: ComponentType<ToolCallContentPartProps> | undefined;
               }
             | {
+                /** Override component that handles all tool calls */
                 Override: ComponentType<ToolCallContentPartProps>;
               }
             | undefined;
@@ -212,6 +229,30 @@ const EmptyContent = memo(
     prev.components?.Text === next.components?.Text,
 );
 
+/**
+ * Renders the content of a message with support for multiple content types.
+ *
+ * This component automatically handles different types of message content including
+ * text, images, files, tool calls, and more. It provides a flexible component
+ * system for customizing how each content type is rendered.
+ *
+ * @example
+ * ```tsx
+ * <MessagePrimitive.Content
+ *   components={{
+ *     Text: ({ text }) => <p className="message-text">{text}</p>,
+ *     Image: ({ image }) => <img src={image} alt="Message image" />,
+ *     tools: {
+ *       by_name: {
+ *         calculator: CalculatorTool,
+ *         weather: WeatherTool,
+ *       },
+ *       Fallback: DefaultToolComponent
+ *     }
+ *   }}
+ * />
+ * ```
+ */
 export const MessagePrimitiveContent: FC<MessagePrimitiveContent.Props> = ({
   components,
 }) => {

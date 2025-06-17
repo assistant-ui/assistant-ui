@@ -9,6 +9,11 @@ import { ThreadViewportProvider } from "../../context/providers/ThreadViewportPr
 export namespace ThreadPrimitiveViewport {
   export type Element = ComponentRef<typeof Primitive.div>;
   export type Props = ComponentPropsWithoutRef<typeof Primitive.div> & {
+    /**
+     * Whether to automatically scroll to the bottom when new messages are added.
+     * When enabled, the viewport will automatically scroll to show the latest content.
+     * @default true
+     */
     autoScroll?: boolean | undefined;
   };
 }
@@ -33,6 +38,20 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
 ThreadPrimitiveViewportScrollable.displayName =
   "ThreadPrimitive.ViewportScrollable";
 
+/**
+ * A scrollable viewport container for thread messages.
+ *
+ * This component provides a scrollable area for displaying thread messages with
+ * automatic scrolling capabilities. It manages the viewport state and provides
+ * context for child components to access viewport-related functionality.
+ *
+ * @example
+ * ```tsx
+ * <ThreadPrimitive.Viewport autoScroll={true}>
+ *   <ThreadPrimitive.Messages components={{ Message: MyMessage }} />
+ * </ThreadPrimitive.Viewport>
+ * ```
+ */
 export const ThreadPrimitiveViewport = forwardRef<
   ThreadPrimitiveViewport.Element,
   ThreadPrimitiveViewport.Props
