@@ -1,0 +1,475 @@
+---
+title: Speech
+description: Implement speech-to-text and text-to-speech for voice-enabled AI conversations
+---
+
+# Speech
+
+Speech capabilities transform your AI chat interface into a natural, voice-enabled conversation experience. Assistant UI provides built-in support for both speech-to-text (STT) and text-to-speech (TTS).
+
+## Basic Speech Setup
+
+Enable speech in your composer:
+
+```tsx
+import { Thread, Composer } from "@assistant-ui/react";
+
+function VoiceEnabledChat() {
+  return (
+    <Thread>
+      <Thread.Messages />
+      <Composer>
+        <Composer.Input />
+        <Composer.Speech />
+        <Composer.Send />
+      </Composer>
+    </Thread>
+  );
+}
+```
+
+## Custom Speech Button
+
+Create a custom speech interface:
+
+```tsx
+import { ComposerPrimitive, useSpeechRuntime } from "@assistant-ui/react";
+
+function CustomSpeechButton() {
+  const speechRuntime = useSpeechRuntime();
+  const isRecording = speechRuntime.isRecording;
+  
+  return (
+    <ComposerPrimitive.Speech>
+      <button
+        className={`p-3 rounded-full transition-all ${
+          isRecording 
+            ? 'bg-red-500 text-white animate-pulse' 
+            : 'bg-gray-200 hover:bg-gray-300'
+        }`}
+      >
+        {isRecording ? '🛑' : '🎤'}
+      </button>
+    </ComposerPrimitive.Speech>
+  );
+}
+```
+
+## Speech-to-Text Configuration
+
+Configure speech recognition settings:
+
+```tsx
+import { useLocalRuntime } from "@assistant-ui/react";
+
+function ChatProvider({ children }: { children: React.ReactNode }) {
+  const runtime = useLocalRuntime({
+    speech: {
+      recognition: {
+        // Use browser's built-in speech recognition
+        continuous: true,
+        interimResults: true,
+        language: 'en-US',
+        
+        // Or use a custom provider
+        provider: async (audio: Blob) => {
+          const formData = new FormData();
+          formData.append('audio', audio);
+          
+          const response = await fetch('/api/speech-to-text', {
+            method: 'POST',
+            body: formData
+          });
+          
+          const { text } = await response.json();
+          return text;
+        }
+      }
+    }
+  });
+  
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+## Advanced Speech Controls
+
+Build a comprehensive speech interface:
+
+```tsx
+import { useState, useRef } from "react";
+import { useSpeechRuntime, ComposerPrimitive } from "@assistant-ui/react";
+
+function AdvancedSpeechControls() {
+  const speechRuntime = useSpeechRuntime();
+  const [audioLevel, setAudioLevel] = useState(0);
+  const analyserRef = useRef<AnalyserNode>();
+  
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      
+      // Set up audio level monitoring
+      const audioContext = new AudioContext();
+      const source = audioContext.createMediaStreamSource(stream);
+      const analyser = audioContext.createAnalyser();
+      
+      source.connect(analyser);
+      analyser.fftSize = 256;
+      analyserRef.current = analyser;
+      
+      // Monitor audio levels
+      const monitorAudio = () => {
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteFrequencyData(dataArray);
+        
+        const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length;
+        setAudioLevel(average / 255);
+        
+        if (speechRuntime.isRecording) {
+          requestAnimationFrame(monitorAudio);
+        }
+      };
+      
+      speechRuntime.start();
+      monitorAudio();
+      
+    } catch (error) {
+      console.error('Failed to start recording:', error);
+    }
+  };
+  
+  const stopRecording = () => {
+    speechRuntime.stop();
+    setAudioLevel(0);
+  };
+  
+  return (
+    <div className="flex items-center gap-2">
+      {/* Recording Button */}
+      <ComposerPrimitive.Speech>
+        <button
+          onMouseDown={startRecording}
+          onMouseUp={stopRecording}
+          onMouseLeave={stopRecording}
+          className={`relative p-4 rounded-full transition-all ${
+            speechRuntime.isRecording
+              ? 'bg-red-500 text-white'
+              : 'bg-blue-500 text-white hover:bg-blue-600'
+          }`}
+        >
+          {speechRuntime.isRecording ? '🛑' : '🎤'}
+          
+          {/* Audio Level Indicator */}
+          {speechRuntime.isRecording && (
+            <div 
+              className="absolute inset-0 rounded-full border-4 border-white/30"
+              style={{
+                transform: `scale(${1 + audioLevel * 0.5})`,
+                opacity: audioLevel
+              }}
+            />
+          )}
+        </button>
+      </ComposerPrimitive.Speech>
+      
+      {/* Status */}
+      <div className="text-sm text-gray-600">
+        {speechRuntime.isRecording && (
+          <span className="flex items-center gap-1">
+            <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+            Recording...
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+```
+
+## Text-to-Speech Implementation
+
+Add voice output for assistant messages:
+
+```tsx
+import { useState } from "react";
+import { MessagePrimitive, ActionBarPrimitive } from "@assistant-ui/react";
+
+function SpeakableMessage() {
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  
+  const speakMessage = async (text: string) => {
+    if ('speechSynthesis' in window) {
+      // Browser TTS
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.onstart = () => setIsSpeaking(true);
+      utterance.onend = () => setIsSpeaking(false);
+      utterance.onerror = () => setIsSpeaking(false);
+      
+      // Configure voice
+      const voices = speechSynthesis.getVoices();
+      const preferredVoice = voices.find(voice => 
+        voice.lang.startsWith('en') && voice.name.includes('Neural')
+      );
+      if (preferredVoice) utterance.voice = preferredVoice;
+      
+      speechSynthesis.speak(utterance);
+    } else {
+      // Custom TTS API
+      await customTextToSpeech(text);
+    }
+  };
+  
+  const stopSpeaking = () => {
+    speechSynthesis.cancel();
+    setIsSpeaking(false);
+  };
+  
+  return (
+    <MessagePrimitive.Root>
+      <MessagePrimitive.Content />
+      
+      <MessagePrimitive.If by="assistant">
+        <ActionBarPrimitive.Root>
+          <button
+            onClick={() => {
+              if (isSpeaking) {
+                stopSpeaking();
+              } else {
+                const text = document.querySelector('[data-message-content]')?.textContent;
+                if (text) speakMessage(text);
+              }
+            }}
+            className={`p-2 rounded ${
+              isSpeaking ? 'bg-red-100 text-red-600' : 'bg-gray-100 hover:bg-gray-200'
+            }`}
+          >
+            {isSpeaking ? '🔇' : '🔊'}
+          </button>
+        </ActionBarPrimitive.Root>
+      </MessagePrimitive.If>
+    </MessagePrimitive.Root>
+  );
+}
+
+async function customTextToSpeech(text: string) {
+  const response = await fetch('/api/text-to-speech', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text })
+  });
+  
+  const audioBlob = await response.blob();
+  const audioUrl = URL.createObjectURL(audioBlob);
+  const audio = new Audio(audioUrl);
+  
+  await audio.play();
+}
+```
+
+## Voice Activity Detection
+
+Implement automatic speech detection:
+
+```tsx
+import { useEffect, useRef, useState } from "react";
+
+function VoiceActivityDetection({ onSpeechStart, onSpeechEnd }: {
+  onSpeechStart: () => void;
+  onSpeechEnd: () => void;
+}) {
+  const [isListening, setIsListening] = useState(false);
+  const audioContextRef = useRef<AudioContext>();
+  const analyserRef = useRef<AnalyserNode>();
+  const silenceTimeoutRef = useRef<NodeJS.Timeout>();
+  
+  useEffect(() => {
+    let stream: MediaStream;
+    
+    const startVAD = async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        
+        const audioContext = new AudioContext();
+        const source = audioContext.createMediaStreamSource(stream);
+        const analyser = audioContext.createAnalyser();
+        
+        source.connect(analyser);
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.3;
+        
+        audioContextRef.current = audioContext;
+        analyserRef.current = analyser;
+        
+        detectVoiceActivity();
+      } catch (error) {
+        console.error('Failed to access microphone:', error);
+      }
+    };
+    
+    const detectVoiceActivity = () => {
+      if (!analyserRef.current) return;
+      
+      const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
+      analyserRef.current.getByteFrequencyData(dataArray);
+      
+      // Calculate volume level
+      const volume = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length;
+      const threshold = 30; // Adjust based on environment
+      
+      if (volume > threshold) {
+        // Speech detected
+        if (!isListening) {
+          setIsListening(true);
+          onSpeechStart();
+        }
+        
+        // Reset silence timeout
+        if (silenceTimeoutRef.current) {
+          clearTimeout(silenceTimeoutRef.current);
+        }
+        
+        silenceTimeoutRef.current = setTimeout(() => {
+          setIsListening(false);
+          onSpeechEnd();
+        }, 1500); // 1.5 seconds of silence
+      }
+      
+      requestAnimationFrame(detectVoiceActivity);
+    };
+    
+    startVAD();
+    
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+      }
+      if (silenceTimeoutRef.current) {
+        clearTimeout(silenceTimeoutRef.current);
+      }
+    };
+  }, [isListening, onSpeechStart, onSpeechEnd]);
+  
+  return (
+    <div className={`w-3 h-3 rounded-full ${
+      isListening ? 'bg-green-500 animate-pulse' : 'bg-gray-300'
+    }`} />
+  );
+}
+```
+
+## Backend Speech Processing
+
+Handle speech processing on the server:
+
+```tsx
+// API route for speech-to-text
+export async function POST(request: Request) {
+  const formData = await request.formData();
+  const audioFile = formData.get('audio') as File;
+  
+  if (!audioFile) {
+    return new Response('No audio file provided', { status: 400 });
+  }
+  
+  try {
+    // Using OpenAI Whisper
+    const transcription = await openai.audio.transcriptions.create({
+      file: audioFile,
+      model: 'whisper-1',
+      language: 'en',
+      response_format: 'json'
+    });
+    
+    return Response.json({ text: transcription.text });
+  } catch (error) {
+    console.error('Speech recognition failed:', error);
+    return new Response('Speech recognition failed', { status: 500 });
+  }
+}
+
+// API route for text-to-speech
+export async function POST(request: Request) {
+  const { text } = await request.json();
+  
+  if (!text) {
+    return new Response('No text provided', { status: 400 });
+  }
+  
+  try {
+    // Using OpenAI TTS
+    const mp3 = await openai.audio.speech.create({
+      model: 'tts-1',
+      voice: 'alloy',
+      input: text,
+      response_format: 'mp3'
+    });
+    
+    const buffer = Buffer.from(await mp3.arrayBuffer());
+    
+    return new Response(buffer, {
+      headers: {
+        'Content-Type': 'audio/mpeg',
+        'Content-Length': buffer.length.toString()
+      }
+    });
+  } catch (error) {
+    console.error('Text-to-speech failed:', error);
+    return new Response('Text-to-speech failed', { status: 500 });
+  }
+}
+```
+
+## Accessibility Considerations
+
+Ensure speech features are accessible:
+
+```tsx
+function AccessibleSpeechButton() {
+  const speechRuntime = useSpeechRuntime();
+  
+  return (
+    <button
+      aria-label={speechRuntime.isRecording ? 'Stop recording' : 'Start recording'}
+      aria-pressed={speechRuntime.isRecording}
+      className="p-3 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+    >
+      <span className="sr-only">
+        {speechRuntime.isRecording ? 'Recording in progress' : 'Click to start recording'}
+      </span>
+      {speechRuntime.isRecording ? '🛑' : '🎤'}
+    </button>
+  );
+}
+```
+
+## Best Practices
+
+1. **Provide visual feedback** for recording state
+2. **Handle permissions gracefully** with clear error messages
+3. **Use noise cancellation** when available
+4. **Implement timeout handling** for long recordings
+5. **Support keyboard shortcuts** for accessibility
+6. **Provide fallback options** when speech is unavailable
+
+## Exercise: Voice Chat
+
+Build a complete voice chat interface that includes:
+- Push-to-talk recording
+- Automatic speech detection
+- Real-time audio level visualization
+- Text-to-speech for responses
+- Offline speech processing fallback
+
+## Next Steps
+
+Speech capabilities make your AI chat more natural and accessible. Next, let's explore how to implement **Tools and Functions** for interactive AI capabilities.
+
+Continue to [Tools and Functions →](./07-tools-functions)

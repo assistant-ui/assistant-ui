@@ -1,0 +1,1019 @@
+---
+title: Performance Optimization
+description: Optimize your Assistant UI application for speed, memory efficiency, and scalability
+---
+
+# Performance Optimization
+
+Performance is crucial for providing a smooth chat experience. This module covers optimization techniques for rendering, memory management, bundle size, and runtime performance.
+
+## React Performance Optimization
+
+### Memoization and Callbacks
+
+Prevent unnecessary re-renders with proper memoization:
+
+```tsx
+import { memo, useCallback, useMemo } from 'react';
+import { MessagePrimitive } from '@assistant-ui/react';
+
+// Memoize message components
+const MessageComponent = memo(function MessageComponent({ 
+  message, 
+  onEdit, 
+  onDelete 
+}: {
+  message: Message;
+  onEdit: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  // Memoize callbacks to prevent child re-renders
+  const handleEdit = useCallback(() => {
+    onEdit(message.id);
+  }, [onEdit, message.id]);
+
+  const handleDelete = useCallback(() => {
+    onDelete(message.id);
+  }, [onDelete, message.id]);
+
+  // Memoize expensive computations
+  const formattedTime = useMemo(() => {
+    return new Intl.DateTimeFormat('en-US', {
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(new Date(message.timestamp));
+  }, [message.timestamp]);
+
+  const wordCount = useMemo(() => {
+    return message.content.split(' ').length;
+  }, [message.content]);
+
+  return (
+    <MessagePrimitive.Root className="group mb-4">
+      <div className="flex items-start gap-3">
+        <Avatar userId={message.userId} />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="font-medium text-sm">
+              {message.role === 'user' ? 'You' : 'Assistant'}
+            </span>
+            <span className="text-xs text-gray-500">{formattedTime}</span>
+            <span className="text-xs text-gray-400">{wordCount} words</span>
+          </div>
+          
+          <MessagePrimitive.Content className="prose prose-sm max-w-none" />
+          
+          {/* Action buttons only render on hover */}
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity mt-2">
+            <button onClick={handleEdit} className="text-xs text-gray-500 hover:text-gray-700">
+              Edit
+            </button>
+            <button onClick={handleDelete} className="text-xs text-red-500 hover:text-red-700 ml-2">
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    </MessagePrimitive.Root>
+  );
+});
+
+// Memoize the entire message list
+const MessageList = memo(function MessageList({ 
+  messages, 
+  onEditMessage, 
+  onDeleteMessage 
+}: {
+  messages: Message[];
+  onEditMessage: (id: string) => void;
+  onDeleteMessage: (id: string) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      {messages.map(message => (
+        <MessageComponent
+          key={message.id}
+          message={message}
+          onEdit={onEditMessage}
+          onDelete={onDeleteMessage}
+        />
+      ))}
+    </div>
+  );
+});
+```
+
+### Virtual Scrolling for Large Conversations
+
+Implement virtual scrolling for thousands of messages:
+
+```tsx
+import { FixedSizeList as List } from 'react-window';
+import { useMessagesContext } from '@assistant-ui/react';
+
+const ITEM_HEIGHT = 120; // Approximate height per message
+
+function VirtualizedMessageList() {
+  const { messages } = useMessagesContext();
+  const listRef = useRef<List>(null);
+  
+  // Auto-scroll to bottom on new messages
+  useEffect(() => {
+    if (listRef.current && messages.length > 0) {
+      listRef.current.scrollToItem(messages.length - 1, 'end');
+    }
+  }, [messages.length]);
+
+  const MessageRow = memo(({ index, style }: { index: number; style: any }) => {
+    const message = messages[index];
+    
+    return (
+      <div style={style} className="px-4">
+        <MessageComponent message={message} />
+      </div>
+    );
+  });
+
+  return (
+    <div className="flex-1 overflow-hidden">
+      <List
+        ref={listRef}
+        height={600} // Container height
+        itemCount={messages.length}
+        itemSize={ITEM_HEIGHT}
+        overscanCount={5} // Render 5 extra items for smooth scrolling
+      >
+        {MessageRow}
+      </List>
+    </div>
+  );
+}
+
+// Dynamic height virtualization for variable message sizes
+import { VariableSizeList as VariableList } from 'react-window';
+
+function DynamicVirtualizedList() {
+  const { messages } = useMessagesContext();
+  const listRef = useRef<VariableList>(null);
+  const rowHeights = useRef<Map<number, number>>(new Map());
+
+  const getItemSize = useCallback((index: number) => {
+    return rowHeights.current.get(index) || 100; // Default height
+  }, []);
+
+  const setItemSize = useCallback((index: number, height: number) => {
+    rowHeights.current.set(index, height);
+    if (listRef.current) {
+      listRef.current.resetAfterIndex(index);
+    }
+  }, []);
+
+  const VariableMessageRow = memo(({ index, style }: { index: number; style: any }) => {
+    const message = messages[index];
+    const rowRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+      if (rowRef.current) {
+        const height = rowRef.current.offsetHeight;
+        setItemSize(index, height);
+      }
+    }, [index, message.content]);
+
+    return (
+      <div style={style}>
+        <div ref={rowRef} className="px-4">
+          <MessageComponent message={message} />
+        </div>
+      </div>
+    );
+  });
+
+  return (
+    <VariableList
+      ref={listRef}
+      height={600}
+      itemCount={messages.length}
+      itemSize={getItemSize}
+      overscanCount={3}
+    >
+      {VariableMessageRow}
+    </VariableList>
+  );
+}
+```
+
+## Memory Management
+
+### Efficient State Management
+
+Optimize state updates and memory usage:
+
+```tsx
+import { useReducer, useMemo, useCallback } from 'react';
+
+// Use reducer for complex state logic instead of multiple useState
+interface ChatState {
+  messages: Message[];
+  isLoading: boolean;
+  error: string | null;
+  inputValue: string;
+  attachments: File[];
+}
+
+type ChatAction = 
+  | { type: 'ADD_MESSAGE'; message: Message }
+  | { type: 'UPDATE_MESSAGE'; id: string; content: string }
+  | { type: 'DELETE_MESSAGE'; id: string }
+  | { type: 'SET_LOADING'; loading: boolean }
+  | { type: 'SET_ERROR'; error: string | null }
+  | { type: 'SET_INPUT'; value: string }
+  | { type: 'ADD_ATTACHMENT'; file: File }
+  | { type: 'REMOVE_ATTACHMENT'; index: number }
+  | { type: 'CLEAR_ATTACHMENTS' };
+
+function chatReducer(state: ChatState, action: ChatAction): ChatState {
+  switch (action.type) {
+    case 'ADD_MESSAGE':
+      return {
+        ...state,
+        messages: [...state.messages, action.message]
+      };
+    
+    case 'UPDATE_MESSAGE':
+      return {
+        ...state,
+        messages: state.messages.map(msg => 
+          msg.id === action.id 
+            ? { ...msg, content: action.content }
+            : msg
+        )
+      };
+    
+    case 'DELETE_MESSAGE':
+      return {
+        ...state,
+        messages: state.messages.filter(msg => msg.id !== action.id)
+      };
+    
+    case 'SET_LOADING':
+      return { ...state, isLoading: action.loading };
+    
+    case 'SET_ERROR':
+      return { ...state, error: action.error };
+    
+    case 'SET_INPUT':
+      return { ...state, inputValue: action.value };
+    
+    case 'ADD_ATTACHMENT':
+      return {
+        ...state,
+        attachments: [...state.attachments, action.file]
+      };
+    
+    case 'REMOVE_ATTACHMENT':
+      return {
+        ...state,
+        attachments: state.attachments.filter((_, i) => i !== action.index)
+      };
+    
+    case 'CLEAR_ATTACHMENTS':
+      return { ...state, attachments: [] };
+    
+    default:
+      return state;
+  }
+}
+
+function OptimizedChat() {
+  const [state, dispatch] = useReducer(chatReducer, {
+    messages: [],
+    isLoading: false,
+    error: null,
+    inputValue: '',
+    attachments: []
+  });
+
+  // Memoize expensive computations
+  const messagesByDate = useMemo(() => {
+    const grouped = new Map<string, Message[]>();
+    
+    state.messages.forEach(message => {
+      const date = new Date(message.timestamp).toDateString();
+      if (!grouped.has(date)) {
+        grouped.set(date, []);
+      }
+      grouped.get(date)!.push(message);
+    });
+    
+    return grouped;
+  }, [state.messages]);
+
+  const totalWordCount = useMemo(() => {
+    return state.messages.reduce((count, message) => {
+      return count + message.content.split(' ').length;
+    }, 0);
+  }, [state.messages]);
+
+  // Memoize callbacks
+  const handleSendMessage = useCallback(async () => {
+    if (!state.inputValue.trim()) return;
+
+    const message: Message = {
+      id: crypto.randomUUID(),
+      content: state.inputValue,
+      role: 'user',
+      timestamp: Date.now(),
+      attachments: state.attachments
+    };
+
+    dispatch({ type: 'ADD_MESSAGE', message });
+    dispatch({ type: 'SET_INPUT', value: '' });
+    dispatch({ type: 'CLEAR_ATTACHMENTS' });
+    dispatch({ type: 'SET_LOADING', loading: true });
+
+    try {
+      const response = await sendMessage(message);
+      dispatch({ type: 'ADD_MESSAGE', message: response });
+    } catch (error) {
+      dispatch({ type: 'SET_ERROR', error: error.message });
+    } finally {
+      dispatch({ type: 'SET_LOADING', loading: false });
+    }
+  }, [state.inputValue, state.attachments]);
+
+  return (
+    <div className="flex flex-col h-screen">
+      {/* Header with stats */}
+      <div className="border-b p-4 bg-gray-50">
+        <div className="flex justify-between text-sm text-gray-600">
+          <span>{state.messages.length} messages</span>
+          <span>{totalWordCount} words total</span>
+        </div>
+      </div>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto">
+        {Array.from(messagesByDate.entries()).map(([date, messages]) => (
+          <div key={date} className="px-4 py-2">
+            <div className="text-xs text-gray-500 text-center mb-4">
+              {date}
+            </div>
+            {messages.map(message => (
+              <MessageComponent key={message.id} message={message} />
+            ))}
+          </div>
+        ))}
+      </div>
+
+      {/* Composer */}
+      <ChatComposer
+        value={state.inputValue}
+        onChange={(value) => dispatch({ type: 'SET_INPUT', value })}
+        onSend={handleSendMessage}
+        isLoading={state.isLoading}
+        attachments={state.attachments}
+        onAddAttachment={(file) => dispatch({ type: 'ADD_ATTACHMENT', file })}
+        onRemoveAttachment={(index) => dispatch({ type: 'REMOVE_ATTACHMENT', index })}
+      />
+    </div>
+  );
+}
+```
+
+### Memory Leak Prevention
+
+Prevent common memory leaks:
+
+```tsx
+import { useEffect, useRef, useCallback } from 'react';
+
+function LeakFreeChatComponent() {
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const eventSourceRef = useRef<EventSource | null>(null);
+
+  // Cleanup function to prevent leaks
+  const cleanup = useCallback(() => {
+    // Cancel ongoing requests
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+
+    // Clear timeouts and intervals
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+
+    // Close event sources
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+    }
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return cleanup;
+  }, [cleanup]);
+
+  const sendMessage = useCallback(async (content: string) => {
+    // Create new abort controller for this request
+    abortControllerRef.current = new AbortController();
+
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content }),
+        signal: abortControllerRef.current.signal
+      });
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        console.log('Request cancelled');
+        return null;
+      }
+      throw error;
+    }
+  }, []);
+
+  const startAutoSave = useCallback(() => {
+    // Clear existing interval
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+
+    intervalRef.current = setInterval(() => {
+      // Auto-save logic
+      saveConversation();
+    }, 30000); // Every 30 seconds
+  }, []);
+
+  return (
+    <div>
+      {/* Chat components */}
+    </div>
+  );
+}
+
+// Weak references for caching to prevent memory leaks
+const messageCache = new WeakMap<object, string>();
+
+function CachedMessageRenderer({ message }: { message: Message }) {
+  const renderedContent = useMemo(() => {
+    if (messageCache.has(message)) {
+      return messageCache.get(message);
+    }
+
+    const rendered = renderMarkdown(message.content);
+    messageCache.set(message, rendered);
+    return rendered;
+  }, [message]);
+
+  return <div dangerouslySetInnerHTML={{ __html: renderedContent }} />;
+}
+```
+
+## Bundle Size Optimization
+
+### Code Splitting and Lazy Loading
+
+Split your code for optimal loading:
+
+```tsx
+import { lazy, Suspense } from 'react';
+
+// Lazy load heavy components
+const AdvancedSettings = lazy(() => import('./AdvancedSettings'));
+const FileViewer = lazy(() => import('./FileViewer'));
+const VoiceRecorder = lazy(() => import('./VoiceRecorder'));
+
+// Lazy load syntax highlighter
+const SyntaxHighlighter = lazy(() => 
+  import('react-syntax-highlighter').then(module => ({
+    default: module.PrismLight
+  }))
+);
+
+// Lazy load languages only when needed
+const loadLanguage = async (language: string) => {
+  const { registerLanguage } = await import('react-syntax-highlighter/dist/esm/light');
+  
+  switch (language) {
+    case 'javascript':
+      const js = await import('react-syntax-highlighter/dist/esm/languages/prism/javascript');
+      registerLanguage('javascript', js.default);
+      break;
+    case 'python':
+      const python = await import('react-syntax-highlighter/dist/esm/languages/prism/python');
+      registerLanguage('python', python.default);
+      break;
+    case 'typescript':
+      const ts = await import('react-syntax-highlighter/dist/esm/languages/prism/typescript');
+      registerLanguage('typescript', ts.default);
+      break;
+  }
+};
+
+function CodeBlock({ code, language }: { code: string; language: string }) {
+  const [isLanguageLoaded, setIsLanguageLoaded] = useState(false);
+
+  useEffect(() => {
+    loadLanguage(language).then(() => {
+      setIsLanguageLoaded(true);
+    });
+  }, [language]);
+
+  if (!isLanguageLoaded) {
+    return (
+      <pre className="bg-gray-100 p-4 rounded-lg overflow-x-auto">
+        <code>{code}</code>
+      </pre>
+    );
+  }
+
+  return (
+    <Suspense fallback={<div>Loading syntax highlighter...</div>}>
+      <SyntaxHighlighter language={language}>
+        {code}
+      </SyntaxHighlighter>
+    </Suspense>
+  );
+}
+
+// Dynamic imports for features
+function ChatInterface() {
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+
+  return (
+    <div className="chat-container">
+      <ThreadPrimitive.Root>
+        <ThreadPrimitive.Messages>
+          {/* Regular messages */}
+        </ThreadPrimitive.Messages>
+
+        <ThreadPrimitive.Composer>
+          {/* Basic composer */}
+          
+          {/* Conditionally load advanced features */}
+          {showAdvancedSettings && (
+            <Suspense fallback={<div>Loading settings...</div>}>
+              <AdvancedSettings />
+            </Suspense>
+          )}
+          
+          {selectedFile && (
+            <Suspense fallback={<div>Loading file viewer...</div>}>
+              <FileViewer file={selectedFile} />
+            </Suspense>
+          )}
+          
+          {isRecording && (
+            <Suspense fallback={<div>Loading voice recorder...</div>}>
+              <VoiceRecorder onStop={handleRecordingStop} />
+            </Suspense>
+          )}
+        </ThreadPrimitive.Composer>
+      </ThreadPrimitive.Root>
+    </div>
+  );
+}
+```
+
+### Tree Shaking and Import Optimization
+
+Optimize imports to reduce bundle size:
+
+```tsx
+// ❌ Bad - imports entire library
+import * as _ from 'lodash';
+import moment from 'moment';
+
+// ✅ Good - specific imports only
+import { debounce, throttle } from 'lodash-es';
+import { format, parseISO } from 'date-fns';
+
+// ❌ Bad - imports entire icon set
+import { FaUser, FaMessage, FaCog } from 'react-icons/fa';
+
+// ✅ Good - individual icon imports
+import FaUser from 'react-icons/fa/FaUser';
+import FaMessage from 'react-icons/fa/FaMessage';
+import FaCog from 'react-icons/fa/FaCog';
+
+// Custom utility functions instead of heavy libraries
+const formatTime = (timestamp: number) => {
+  return new Intl.DateTimeFormat('en-US', {
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(new Date(timestamp));
+};
+
+const debounceFunction = <T extends (...args: any[]) => any>(
+  func: T,
+  delay: number
+): ((...args: Parameters<T>) => void) => {
+  let timeoutId: NodeJS.Timeout;
+  
+  return (...args: Parameters<T>) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func(...args), delay);
+  };
+};
+
+// Webpack bundle analyzer configuration
+// webpack.config.js
+const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
+
+module.exports = {
+  plugins: [
+    new BundleAnalyzerPlugin({
+      analyzerMode: 'server',
+      openAnalyzer: false,
+      generateStatsFile: true
+    })
+  ],
+  optimization: {
+    splitChunks: {
+      chunks: 'all',
+      cacheGroups: {
+        vendor: {
+          test: /[\\/]node_modules[\\/]/,
+          name: 'vendors',
+          chunks: 'all',
+        },
+        assistantUI: {
+          test: /[\\/]node_modules[\\/]@assistant-ui[\\/]/,
+          name: 'assistant-ui',
+          chunks: 'all',
+        }
+      }
+    }
+  }
+};
+```
+
+## Runtime Performance
+
+### Request Optimization
+
+Optimize API requests and caching:
+
+```tsx
+import { QueryClient, QueryClientProvider, useQuery, useMutation } from '@tanstack/react-query';
+
+// Configure React Query for optimal caching
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      cacheTime: 10 * 60 * 1000, // 10 minutes
+      refetchOnWindowFocus: false,
+      retry: (failureCount, error) => {
+        if (error.status === 404) return false;
+        return failureCount < 3;
+      }
+    }
+  }
+});
+
+// Optimized message sending with request deduplication
+function useSendMessage() {
+  return useMutation({
+    mutationFn: async (message: { content: string; attachments?: File[] }) => {
+      const formData = new FormData();
+      formData.append('content', message.content);
+      
+      if (message.attachments) {
+        message.attachments.forEach((file, index) => {
+          formData.append(`attachment-${index}`, file);
+        });
+      }
+
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return response.json();
+    },
+    onSuccess: (data) => {
+      // Update cache with new message
+      queryClient.setQueryData(['messages'], (old: Message[] | undefined) => {
+        return [...(old || []), data];
+      });
+    }
+  });
+}
+
+// Batch multiple operations
+class MessageBatcher {
+  private queue: Array<{ content: string; resolve: Function; reject: Function }> = [];
+  private batchTimeout: NodeJS.Timeout | null = null;
+  
+  send(content: string): Promise<any> {
+    return new Promise((resolve, reject) => {
+      this.queue.push({ content, resolve, reject });
+      
+      if (!this.batchTimeout) {
+        this.batchTimeout = setTimeout(() => {
+          this.processBatch();
+        }, 100); // Batch requests within 100ms
+      }
+    });
+  }
+  
+  private async processBatch() {
+    const batch = this.queue.splice(0);
+    this.batchTimeout = null;
+    
+    if (batch.length === 0) return;
+    
+    try {
+      const response = await fetch('/api/chat/batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: batch.map(item => ({ content: item.content }))
+        })
+      });
+      
+      const results = await response.json();
+      
+      batch.forEach((item, index) => {
+        item.resolve(results[index]);
+      });
+    } catch (error) {
+      batch.forEach(item => {
+        item.reject(error);
+      });
+    }
+  }
+}
+
+const messageBatcher = new MessageBatcher();
+
+// Service Worker for caching
+// public/sw.js
+const CACHE_NAME = 'assistant-ui-v1';
+const urlsToCache = [
+  '/',
+  '/static/js/bundle.js',
+  '/static/css/main.css',
+  '/api/models'
+];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then((cache) => cache.addAll(urlsToCache))
+  );
+});
+
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.match(event.request)
+      .then((response) => {
+        // Return cached version or fetch from network
+        return response || fetch(event.request);
+      })
+  );
+});
+```
+
+### Streaming and Progressive Loading
+
+Implement efficient streaming:
+
+```tsx
+function StreamingMessageComponent() {
+  const [streamingContent, setStreamingContent] = useState('');
+  const [isComplete, setIsComplete] = useState(false);
+
+  const processStream = useCallback(async (stream: ReadableStream) => {
+    const reader = stream.getReader();
+    const decoder = new TextDecoder();
+    
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) {
+          setIsComplete(true);
+          break;
+        }
+        
+        const chunk = decoder.decode(value, { stream: true });
+        
+        // Process multiple lines in chunk
+        const lines = chunk.split('\n');
+        lines.forEach(line => {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') return;
+            
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.content) {
+                setStreamingContent(prev => prev + parsed.content);
+              }
+            } catch (e) {
+              console.warn('Failed to parse stream data:', data);
+            }
+          }
+        });
+      }
+    } finally {
+      reader.releaseLock();
+    }
+  }, []);
+
+  return (
+    <div className="message">
+      <MessagePrimitive.Content>
+        {streamingContent}
+        {!isComplete && (
+          <span className="animate-pulse">▋</span>
+        )}
+      </MessagePrimitive.Content>
+    </div>
+  );
+}
+
+// Progressive image loading
+function ProgressiveImage({ src, alt }: { src: string; alt: string }) {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [error, setError] = useState(false);
+
+  return (
+    <div className="relative">
+      {!isLoaded && !error && (
+        <div className="absolute inset-0 bg-gray-200 animate-pulse rounded" />
+      )}
+      
+      <img
+        src={src}
+        alt={alt}
+        onLoad={() => setIsLoaded(true)}
+        onError={() => setError(true)}
+        className={`transition-opacity duration-300 ${
+          isLoaded ? 'opacity-100' : 'opacity-0'
+        }`}
+      />
+      
+      {error && (
+        <div className="bg-gray-100 p-4 rounded text-center text-gray-500">
+          Failed to load image
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+## Performance Monitoring
+
+### Metrics and Analytics
+
+Monitor performance in production:
+
+```tsx
+import { getCLS, getFID, getFCP, getLCP, getTTFB } from 'web-vitals';
+
+// Performance monitoring setup
+function initPerformanceMonitoring() {
+  getCLS(metric => {
+    console.log('CLS:', metric);
+    sendToAnalytics('CLS', metric.value);
+  });
+
+  getFID(metric => {
+    console.log('FID:', metric);
+    sendToAnalytics('FID', metric.value);
+  });
+
+  getFCP(metric => {
+    console.log('FCP:', metric);
+    sendToAnalytics('FCP', metric.value);
+  });
+
+  getLCP(metric => {
+    console.log('LCP:', metric);
+    sendToAnalytics('LCP', metric.value);
+  });
+
+  getTTFB(metric => {
+    console.log('TTFB:', metric);
+    sendToAnalytics('TTFB', metric.value);
+  });
+}
+
+function sendToAnalytics(name: string, value: number) {
+  // Send to your analytics service
+  fetch('/api/analytics', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ metric: name, value, timestamp: Date.now() })
+  });
+}
+
+// React performance profiler
+import { Profiler } from 'react';
+
+function ProfiledChat() {
+  const onRenderCallback = (
+    id: string,
+    phase: 'mount' | 'update',
+    actualDuration: number,
+    baseDuration: number,
+    startTime: number,
+    commitTime: number
+  ) => {
+    console.log('Render performance:', {
+      id,
+      phase,
+      actualDuration,
+      baseDuration,
+      startTime,
+      commitTime
+    });
+
+    // Log slow renders
+    if (actualDuration > 100) {
+      console.warn(`Slow render detected in ${id}: ${actualDuration}ms`);
+      sendToAnalytics('slow-render', actualDuration);
+    }
+  };
+
+  return (
+    <Profiler id="Chat" onRender={onRenderCallback}>
+      <ThreadPrimitive.Root>
+        <ThreadPrimitive.Messages>
+          {/* Messages */}
+        </ThreadPrimitive.Messages>
+      </ThreadPrimitive.Root>
+    </Profiler>
+  );
+}
+
+// Custom performance hooks
+function usePerformanceTimer(name: string) {
+  const startTime = useRef<number>();
+
+  const start = useCallback(() => {
+    startTime.current = performance.now();
+  }, []);
+
+  const end = useCallback(() => {
+    if (startTime.current) {
+      const duration = performance.now() - startTime.current;
+      console.log(`${name} took ${duration}ms`);
+      sendToAnalytics(`timer-${name}`, duration);
+      startTime.current = undefined;
+    }
+  }, [name]);
+
+  return { start, end };
+}
+```
+
+## Best Practices
+
+1. **Profile before optimizing** - Measure what's actually slow
+2. **Use React DevTools Profiler** to identify performance bottlenecks
+3. **Implement virtual scrolling** for large message lists
+4. **Memoize expensive computations** and callbacks
+5. **Lazy load** non-critical features
+6. **Monitor Core Web Vitals** in production
+7. **Use service workers** for intelligent caching
+
+## Exercise: Performance Audit
+
+Conduct a complete performance audit:
+- Measure render times and identify slow components
+- Implement virtual scrolling for message history
+- Add code splitting for advanced features
+- Set up performance monitoring
+- Optimize bundle size and reduce unused dependencies
+
+## Next Steps
+
+Performance optimization ensures your chat interface scales with usage. Next, let's explore **Production Deployment** to take your optimized application live.
+
+Continue to [Production Deployment →](./15-production-deployment)

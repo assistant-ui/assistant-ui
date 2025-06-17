@@ -1,0 +1,610 @@
+---
+title: Chat Persistence
+description: Save and restore conversation history across sessions
+---
+
+# Chat Persistence
+
+Chat persistence allows users to save their conversations and continue them later. This is essential for building production AI applications where users expect their chat history to be preserved across sessions.
+
+## Basic Persistence Setup
+
+Configure persistence in your runtime:
+
+```tsx
+import { useLocalRuntime } from "@assistant-ui/react";
+
+function ChatProvider({ children }: { children: React.ReactNode }) {
+  const runtime = useLocalRuntime({
+    // ... other config
+    
+    persistence: {
+      save: async (thread) => {
+        // Save to your backend
+        await fetch('/api/conversations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: thread.id,
+            messages: thread.messages,
+            metadata: thread.metadata
+          })
+        });
+      },
+      
+      load: async (threadId) => {
+        // Load from your backend
+        const response = await fetch(`/api/conversations/${threadId}`);
+        if (response.ok) {
+          const data = await response.json();
+          return {
+            id: data.id,
+            messages: data.messages,
+            metadata: data.metadata
+          };
+        }
+        return null;
+      }
+    }
+  });
+  
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+## Thread Management
+
+Implement thread creation and switching:
+
+```tsx
+import { useState, useEffect } from "react";
+import { useAssistantRuntime } from "@assistant-ui/react";
+
+function ThreadManager() {
+  const runtime = useAssistantRuntime();
+  const [threads, setThreads] = useState([]);
+  const [currentThreadId, setCurrentThreadId] = useState(null);
+  
+  useEffect(() => {
+    loadThreadList();
+  }, []);
+  
+  const loadThreadList = async () => {
+    const response = await fetch('/api/conversations');
+    const data = await response.json();
+    setThreads(data);
+  };
+  
+  const createNewThread = async () => {
+    const newThread = await runtime.thread.create();
+    setCurrentThreadId(newThread.id);
+    await loadThreadList();
+  };
+  
+  const switchThread = async (threadId: string) => {
+    await runtime.thread.load(threadId);
+    setCurrentThreadId(threadId);
+  };
+  
+  const deleteThread = async (threadId: string) => {
+    await fetch(`/api/conversations/${threadId}`, {
+      method: 'DELETE'
+    });
+    
+    if (currentThreadId === threadId) {
+      await createNewThread();
+    }
+    await loadThreadList();
+  };
+  
+  return (
+    <div className="w-64 border-r bg-gray-50 p-4">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="font-semibold">Conversations</h2>
+        <button 
+          onClick={createNewThread}
+          className="p-1 hover:bg-gray-200 rounded"
+        >
+          ➕
+        </button>
+      </div>
+      
+      <div className="space-y-2">
+        {threads.map((thread) => (
+          <ThreadItem
+            key={thread.id}
+            thread={thread}
+            isActive={currentThreadId === thread.id}
+            onSelect={() => switchThread(thread.id)}
+            onDelete={() => deleteThread(thread.id)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ThreadItem({ thread, isActive, onSelect, onDelete }) {
+  const [isHovered, setIsHovered] = useState(false);
+  
+  return (
+    <div
+      className={`p-3 rounded cursor-pointer transition-colors ${
+        isActive ? 'bg-blue-100 border-blue-300' : 'hover:bg-gray-100'
+      }`}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      onClick={onSelect}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex-1 min-w-0">
+          <div className="font-medium text-sm truncate">
+            {thread.title || 'New Conversation'}
+          </div>
+          <div className="text-xs text-gray-500 truncate">
+            {thread.lastMessage?.content?.substring(0, 50)}...
+          </div>
+          <div className="text-xs text-gray-400">
+            {formatDate(thread.updatedAt)}
+          </div>
+        </div>
+        
+        {isHovered && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            className="p-1 hover:bg-red-100 text-red-500 rounded"
+          >
+            🗑️
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+```
+
+## Auto-save Implementation
+
+Implement automatic saving with debouncing:
+
+```tsx
+import { useEffect, useCallback, useRef } from "react";
+import { useThread } from "@assistant-ui/react";
+import { debounce } from "lodash";
+
+function AutoSave() {
+  const thread = useThread();
+  const saveTimeoutRef = useRef<NodeJS.Timeout>();
+  
+  const saveThread = useCallback(
+    debounce(async (threadData) => {
+      try {
+        await fetch('/api/conversations', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(threadData)
+        });
+        console.log('Thread saved successfully');
+      } catch (error) {
+        console.error('Failed to save thread:', error);
+      }
+    }, 2000), // Save 2 seconds after last change
+    []
+  );
+  
+  useEffect(() => {
+    if (thread.messages.length > 0) {
+      saveThread({
+        id: thread.id,
+        messages: thread.messages,
+        metadata: thread.metadata,
+        updatedAt: new Date().toISOString()
+      });
+    }
+  }, [thread.messages, thread.metadata, saveThread]);
+  
+  return null; // This is a utility component
+}
+```
+
+## Message Drafts
+
+Save message drafts for interrupted compositions:
+
+```tsx
+import { useState, useEffect } from "react";
+import { ComposerPrimitive, useThread } from "@assistant-ui/react";
+
+function DraftSaver() {
+  const thread = useThread();
+  const [draftKey] = useState(`draft-${thread.id}`);
+  
+  const saveDraft = useCallback(
+    debounce((content: string) => {
+      if (content.trim()) {
+        localStorage.setItem(draftKey, content);
+      } else {
+        localStorage.removeItem(draftKey);
+      }
+    }, 500),
+    [draftKey]
+  );
+  
+  const loadDraft = useCallback(() => {
+    return localStorage.getItem(draftKey) || '';
+  }, [draftKey]);
+  
+  const clearDraft = useCallback(() => {
+    localStorage.removeItem(draftKey);
+  }, [draftKey]);
+  
+  return (
+    <ComposerPrimitive.Input
+      defaultValue={loadDraft()}
+      onChange={(e) => saveDraft(e.target.value)}
+      onSubmit={clearDraft}
+      placeholder="Type your message... (draft auto-saved)"
+    />
+  );
+}
+```
+
+## Thread Search and Filtering
+
+Implement search across conversation history:
+
+```tsx
+import { useState, useMemo } from "react";
+
+function ThreadSearch({ threads, onSelectThread }) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedTags, setSelectedTags] = useState([]);
+  
+  const filteredThreads = useMemo(() => {
+    let filtered = threads;
+    
+    // Text search
+    if (searchQuery) {
+      filtered = filtered.filter(thread =>
+        thread.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        thread.messages.some(msg =>
+          msg.content?.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      );
+    }
+    
+    // Tag filtering
+    if (selectedTags.length > 0) {
+      filtered = filtered.filter(thread =>
+        selectedTags.every(tag => thread.tags?.includes(tag))
+      );
+    }
+    
+    return filtered.sort((a, b) => 
+      new Date(b.updatedAt) - new Date(a.updatedAt)
+    );
+  }, [threads, searchQuery, selectedTags]);
+  
+  const allTags = useMemo(() => {
+    const tagSet = new Set();
+    threads.forEach(thread => {
+      thread.tags?.forEach(tag => tagSet.add(tag));
+    });
+    return Array.from(tagSet);
+  }, [threads]);
+  
+  return (
+    <div className="space-y-4">
+      {/* Search Input */}
+      <div className="relative">
+        <input
+          type="text"
+          placeholder="Search conversations..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full p-2 border rounded-lg pl-8"
+        />
+        <span className="absolute left-2 top-2.5 text-gray-400">🔍</span>
+      </div>
+      
+      {/* Tag Filter */}
+      <div className="space-y-2">
+        <div className="text-sm font-medium">Filter by tags:</div>
+        <div className="flex flex-wrap gap-1">
+          {allTags.map(tag => (
+            <button
+              key={tag}
+              onClick={() => {
+                setSelectedTags(prev =>
+                  prev.includes(tag)
+                    ? prev.filter(t => t !== tag)
+                    : [...prev, tag]
+                );
+              }}
+              className={`px-2 py-1 text-xs rounded ${
+                selectedTags.includes(tag)
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-200 hover:bg-gray-300'
+              }`}
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
+      </div>
+      
+      {/* Results */}
+      <div className="space-y-2">
+        {filteredThreads.map(thread => (
+          <ThreadSearchResult
+            key={thread.id}
+            thread={thread}
+            searchQuery={searchQuery}
+            onSelect={() => onSelectThread(thread.id)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ThreadSearchResult({ thread, searchQuery, onSelect }) {
+  const highlightText = (text, query) => {
+    if (!query) return text;
+    
+    const parts = text.split(new RegExp(`(${query})`, 'gi'));
+    return parts.map((part, index) =>
+      part.toLowerCase() === query.toLowerCase() ? (
+        <mark key={index} className="bg-yellow-200">{part}</mark>
+      ) : part
+    );
+  };
+  
+  return (
+    <div
+      onClick={onSelect}
+      className="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
+    >
+      <div className="font-medium">
+        {highlightText(thread.title || 'New Conversation', searchQuery)}
+      </div>
+      <div className="text-sm text-gray-600 mt-1">
+        {highlightText(
+          thread.messages[0]?.content?.substring(0, 100) || '',
+          searchQuery
+        )}...
+      </div>
+      <div className="flex items-center justify-between mt-2">
+        <div className="text-xs text-gray-400">
+          {formatDate(thread.updatedAt)}
+        </div>
+        {thread.tags && (
+          <div className="flex gap-1">
+            {thread.tags.slice(0, 3).map(tag => (
+              <span key={tag} className="px-1 py-0.5 bg-gray-200 text-xs rounded">
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+```
+
+## Backend Implementation
+
+Create API endpoints for persistence:
+
+```tsx
+// app/api/conversations/route.ts
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const userId = getUserId(request); // Your auth logic
+  
+  const conversations = await db.conversation.findMany({
+    where: { userId },
+    orderBy: { updatedAt: 'desc' },
+    select: {
+      id: true,
+      title: true,
+      updatedAt: true,
+      tags: true,
+      messages: {
+        take: 1,
+        orderBy: { createdAt: 'asc' },
+        select: { content: true }
+      }
+    }
+  });
+  
+  return Response.json(conversations);
+}
+
+export async function POST(request: Request) {
+  const { id, messages, metadata, title } = await request.json();
+  const userId = getUserId(request);
+  
+  const conversation = await db.conversation.upsert({
+    where: { id },
+    update: {
+      messages: {
+        deleteMany: {},
+        create: messages.map(msg => ({
+          role: msg.role,
+          content: msg.content,
+          attachments: msg.attachments,
+          toolCalls: msg.toolCalls
+        }))
+      },
+      metadata,
+      title,
+      updatedAt: new Date()
+    },
+    create: {
+      id,
+      userId,
+      title,
+      metadata,
+      messages: {
+        create: messages.map(msg => ({
+          role: msg.role,
+          content: msg.content,
+          attachments: msg.attachments,
+          toolCalls: msg.toolCalls
+        }))
+      }
+    }
+  });
+  
+  return Response.json(conversation);
+}
+
+// app/api/conversations/[id]/route.ts
+export async function GET(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  const userId = getUserId(request);
+  
+  const conversation = await db.conversation.findFirst({
+    where: { id: params.id, userId },
+    include: { messages: true }
+  });
+  
+  if (!conversation) {
+    return new Response('Not found', { status: 404 });
+  }
+  
+  return Response.json(conversation);
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  const userId = getUserId(request);
+  
+  await db.conversation.deleteMany({
+    where: { id: params.id, userId }
+  });
+  
+  return new Response('Deleted');
+}
+```
+
+## Offline Support
+
+Implement offline persistence with sync:
+
+```tsx
+import { useState, useEffect } from "react";
+
+function OfflinePersistence() {
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [pendingSync, setPendingSync] = useState([]);
+  
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+  
+  useEffect(() => {
+    if (isOnline && pendingSync.length > 0) {
+      syncPendingChanges();
+    }
+  }, [isOnline, pendingSync]);
+  
+  const saveOffline = async (threadData) => {
+    // Save to IndexedDB
+    const db = await openDB('chat-app', 1, {
+      upgrade(db) {
+        db.createObjectStore('threads', { keyPath: 'id' });
+        db.createObjectStore('pending-sync', { keyPath: 'id' });
+      }
+    });
+    
+    await db.put('threads', threadData);
+    
+    if (!isOnline) {
+      await db.put('pending-sync', {
+        id: Date.now(),
+        action: 'save',
+        data: threadData
+      });
+      setPendingSync(prev => [...prev, threadData.id]);
+    }
+  };
+  
+  const syncPendingChanges = async () => {
+    const db = await openDB('chat-app', 1);
+    const pending = await db.getAll('pending-sync');
+    
+    for (const item of pending) {
+      try {
+        await fetch('/api/conversations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(item.data)
+        });
+        
+        await db.delete('pending-sync', item.id);
+      } catch (error) {
+        console.error('Sync failed:', error);
+      }
+    }
+    
+    setPendingSync([]);
+  };
+  
+  return (
+    <div className={`p-2 text-sm ${
+      isOnline ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+    }`}>
+      {isOnline ? '🟢 Online' : '🟡 Offline'}
+      {pendingSync.length > 0 && ` (${pendingSync.length} pending sync)`}
+    </div>
+  );
+}
+```
+
+## Best Practices
+
+1. **Auto-save frequently** but debounce to avoid excessive requests
+2. **Implement offline support** with local storage fallback
+3. **Provide clear feedback** on save status
+4. **Allow manual export** of conversation data
+5. **Implement search** across conversation history
+6. **Use proper error handling** for failed saves
+7. **Consider data privacy** and encryption for sensitive conversations
+
+## Exercise: Full Persistence System
+
+Build a complete persistence system that includes:
+- Thread management with titles and tags
+- Full-text search across conversations
+- Offline support with sync
+- Export/import functionality
+- Conversation sharing capabilities
+
+## Next Steps
+
+Chat persistence ensures users never lose their valuable conversations. Next, let's explore **Dynamic State Management** for programmatically controlling chat behavior.
+
+Continue to [Dynamic State Management →](./09-dynamic-state-management)

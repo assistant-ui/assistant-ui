@@ -1,0 +1,717 @@
+---
+title: Runtime Integration
+description: Connect Assistant UI with different AI backends, providers, and custom services
+---
+
+# Runtime Integration
+
+Runtime integration is the bridge between Assistant UI and your AI backend. This module covers connecting to different providers, implementing custom runtimes, and handling various backend architectures.
+
+## AI SDK Integration
+
+Connect with Vercel's AI SDK for popular providers:
+
+```tsx
+import { useChat } from "ai/react";
+import { AssistantRuntimeProvider, useLocalRuntime } from "@assistant-ui/react";
+
+function AISDKProvider({ children }: { children: React.ReactNode }) {
+  const chat = useChat({
+    api: "/api/chat",
+    initialMessages: [],
+    
+    // Configure for different providers
+    body: {
+      model: "gpt-4",
+      temperature: 0.7,
+      max_tokens: 2048
+    },
+    
+    // Handle streaming
+    onFinish: (message) => {
+      console.log('Message completed:', message);
+    },
+    
+    onError: (error) => {
+      console.error('Chat error:', error);
+    }
+  });
+
+  const runtime = useLocalRuntime(chat);
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+
+// API Route for AI SDK
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+
+  const result = await streamText({
+    model: openai("gpt-4"),
+    messages,
+    tools: {
+      // Define your tools here
+      getWeather: tool({
+        description: "Get weather for a location",
+        parameters: z.object({
+          location: z.string()
+        }),
+        execute: async ({ location }) => {
+          return await fetchWeather(location);
+        }
+      })
+    }
+  });
+
+  return result.toDataStreamResponse();
+}
+```
+
+## LangGraph Integration
+
+Connect with LangGraph for complex workflows:
+
+```tsx
+import { RemoteRunnable } from "@langchain/core/runnables/remote";
+
+function LangGraphProvider({ children }: { children: React.ReactNode }) {
+  const [runtime, setRuntime] = useState(null);
+  
+  useEffect(() => {
+    const remoteRunnable = new RemoteRunnable({
+      url: "http://localhost:8000/chat",
+    });
+    
+    const customRuntime = new AssistantRuntime({
+      async run({ messages }) {
+        const response = await remoteRunnable.invoke({
+          messages: messages.map(msg => ({
+            type: msg.role === 'user' ? 'human' : 'ai',
+            content: msg.content
+          }))
+        });
+        
+        return {
+          content: response.content,
+          role: "assistant"
+        };
+      }
+    });
+    
+    setRuntime(customRuntime);
+  }, []);
+  
+  if (!runtime) return <div>Loading...</div>;
+  
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+
+// LangGraph server example (Python)
+/*
+from langgraph import Graph
+from langchain_openai import ChatOpenAI
+
+def create_chat_graph():
+    workflow = Graph()
+    
+    # Add nodes for different steps
+    workflow.add_node("analyze", analyze_message)
+    workflow.add_node("generate", generate_response)
+    workflow.add_node("validate", validate_response)
+    
+    # Define edges
+    workflow.add_edge("analyze", "generate")
+    workflow.add_edge("generate", "validate")
+    
+    # Set entry point
+    workflow.set_entry_point("analyze")
+    
+    return workflow.compile()
+
+@app.post("/chat")
+async def chat_endpoint(request: ChatRequest):
+    graph = create_chat_graph()
+    result = await graph.ainvoke({
+        "messages": request.messages
+    })
+    return {"content": result["response"]}
+*/
+```
+
+## Custom Runtime Implementation
+
+Build a custom runtime for specific needs:
+
+```tsx
+import { BaseRuntime } from "@assistant-ui/react";
+
+class CustomRuntime extends BaseRuntime {
+  private apiEndpoint: string;
+  private apiKey: string;
+  
+  constructor(config: { apiEndpoint: string; apiKey: string }) {
+    super();
+    this.apiEndpoint = config.apiEndpoint;
+    this.apiKey = config.apiKey;
+  }
+  
+  async run({ messages, abortSignal }: RunParameters) {
+    const response = await fetch(this.apiEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.apiKey}`
+      },
+      body: JSON.stringify({
+        messages: messages.map(msg => ({
+          role: msg.role,
+          content: msg.content,
+          attachments: msg.attachments
+        }))
+      }),
+      signal: abortSignal
+    });
+    
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+    
+    // Handle streaming response
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error('No response body');
+    
+    let content = '';
+    const decoder = new TextDecoder();
+    
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') return;
+            
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.content) {
+                content += parsed.content;
+                
+                // Yield partial content for streaming
+                yield {
+                  type: 'text-delta',
+                  textDelta: parsed.content
+                };
+              }
+            } catch (e) {
+              console.warn('Failed to parse stream data:', data);
+            }
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+    
+    return {
+      role: 'assistant',
+      content
+    };
+  }
+  
+  // Implement tool calling
+  async runTool({ toolName, args }: ToolParameters) {
+    const response = await fetch(`${this.apiEndpoint}/tools/${toolName}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.apiKey}`
+      },
+      body: JSON.stringify(args)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Tool execution failed: ${response.status}`);
+    }
+    
+    return await response.json();
+  }
+}
+
+// Usage
+function CustomProvider({ children }: { children: React.ReactNode }) {
+  const runtime = useMemo(() => new CustomRuntime({
+    apiEndpoint: process.env.NEXT_PUBLIC_API_ENDPOINT!,
+    apiKey: process.env.NEXT_PUBLIC_API_KEY!
+  }), []);
+  
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+## Multi-Provider Setup
+
+Support multiple AI providers with dynamic switching:
+
+```tsx
+interface ProviderConfig {
+  id: string;
+  name: string;
+  apiEndpoint: string;
+  models: string[];
+  supportsTools: boolean;
+  supportsVision: boolean;
+}
+
+const PROVIDERS: ProviderConfig[] = [
+  {
+    id: 'openai',
+    name: 'OpenAI',
+    apiEndpoint: '/api/chat/openai',
+    models: ['gpt-4', 'gpt-3.5-turbo'],
+    supportsTools: true,
+    supportsVision: true
+  },
+  {
+    id: 'anthropic',
+    name: 'Anthropic',
+    apiEndpoint: '/api/chat/anthropic',
+    models: ['claude-3-opus', 'claude-3-sonnet'],
+    supportsTools: true,
+    supportsVision: true
+  },
+  {
+    id: 'local',
+    name: 'Local Model',
+    apiEndpoint: '/api/chat/local',
+    models: ['llama-2-7b', 'mistral-7b'],
+    supportsTools: false,
+    supportsVision: false
+  }
+];
+
+function MultiProviderSetup({ children }: { children: React.ReactNode }) {
+  const [selectedProvider, setSelectedProvider] = useState(PROVIDERS[0]);
+  const [selectedModel, setSelectedModel] = useState(PROVIDERS[0].models[0]);
+  
+  const chat = useChat({
+    api: selectedProvider.apiEndpoint,
+    body: {
+      model: selectedModel,
+      provider: selectedProvider.id
+    }
+  });
+  
+  const runtime = useLocalRuntime(chat);
+  
+  return (
+    <div className="flex flex-col h-screen">
+      {/* Provider selector */}
+      <div className="border-b p-4 bg-gray-50">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium">Provider:</label>
+            <select
+              value={selectedProvider.id}
+              onChange={(e) => {
+                const provider = PROVIDERS.find(p => p.id === e.target.value)!;
+                setSelectedProvider(provider);
+                setSelectedModel(provider.models[0]);
+              }}
+              className="p-1 border rounded text-sm"
+            >
+              {PROVIDERS.map(provider => (
+                <option key={provider.id} value={provider.id}>
+                  {provider.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium">Model:</label>
+            <select
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className="p-1 border rounded text-sm"
+            >
+              {selectedProvider.models.map(model => (
+                <option key={model} value={model}>
+                  {model}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div className="flex gap-2 text-xs">
+            {selectedProvider.supportsTools && (
+              <span className="px-2 py-1 bg-green-100 text-green-700 rounded">
+                Tools
+              </span>
+            )}
+            {selectedProvider.supportsVision && (
+              <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded">
+                Vision
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+      
+      {/* Chat interface */}
+      <div className="flex-1">
+        <AssistantRuntimeProvider runtime={runtime}>
+          {children}
+        </AssistantRuntimeProvider>
+      </div>
+    </div>
+  );
+}
+```
+
+## WebSocket Integration
+
+Implement real-time updates with WebSockets:
+
+```tsx
+class WebSocketRuntime extends BaseRuntime {
+  private ws: WebSocket | null = null;
+  private messageQueue: any[] = [];
+  
+  constructor(private wsUrl: string) {
+    super();
+    this.connect();
+  }
+  
+  private connect() {
+    this.ws = new WebSocket(this.wsUrl);
+    
+    this.ws.onopen = () => {
+      console.log('WebSocket connected');
+      
+      // Send queued messages
+      while (this.messageQueue.length > 0) {
+        const message = this.messageQueue.shift();
+        this.ws?.send(JSON.stringify(message));
+      }
+    };
+    
+    this.ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      this.handleMessage(data);
+    };
+    
+    this.ws.onclose = () => {
+      console.log('WebSocket disconnected, reconnecting...');
+      setTimeout(() => this.connect(), 1000);
+    };
+    
+    this.ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+  }
+  
+  private handleMessage(data: any) {
+    switch (data.type) {
+      case 'message_start':
+        this.notifySubscribers({
+          type: 'message-start',
+          messageId: data.messageId
+        });
+        break;
+        
+      case 'content_delta':
+        this.notifySubscribers({
+          type: 'text-delta',
+          textDelta: data.content,
+          messageId: data.messageId
+        });
+        break;
+        
+      case 'message_complete':
+        this.notifySubscribers({
+          type: 'message-complete',
+          message: data.message
+        });
+        break;
+        
+      case 'tool_call':
+        this.notifySubscribers({
+          type: 'tool-call',
+          toolCall: data.toolCall
+        });
+        break;
+    }
+  }
+  
+  async run({ messages }: RunParameters) {
+    const requestId = crypto.randomUUID();
+    
+    const message = {
+      type: 'chat_request',
+      requestId,
+      messages
+    };
+    
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify(message));
+    } else {
+      this.messageQueue.push(message);
+    }
+    
+    // Return a promise that resolves when the response is complete
+    return new Promise((resolve, reject) => {
+      const cleanup = this.subscribe((event) => {
+        if (event.type === 'message-complete' && event.requestId === requestId) {
+          cleanup();
+          resolve(event.message);
+        } else if (event.type === 'error' && event.requestId === requestId) {
+          cleanup();
+          reject(new Error(event.message));
+        }
+      });
+    });
+  }
+  
+  disconnect() {
+    this.ws?.close();
+  }
+}
+
+// WebSocket server example (Node.js)
+/*
+const WebSocket = require('ws');
+const wss = new WebSocket.Server({ port: 8080 });
+
+wss.on('connection', (ws) => {
+  ws.on('message', async (data) => {
+    const message = JSON.parse(data);
+    
+    if (message.type === 'chat_request') {
+      try {
+        // Start message
+        ws.send(JSON.stringify({
+          type: 'message_start',
+          requestId: message.requestId,
+          messageId: crypto.randomUUID()
+        }));
+        
+        // Stream response
+        const stream = await openai.chat.completions.create({
+          model: 'gpt-4',
+          messages: message.messages,
+          stream: true
+        });
+        
+        let content = '';
+        for await (const chunk of stream) {
+          const delta = chunk.choices[0]?.delta?.content || '';
+          if (delta) {
+            content += delta;
+            ws.send(JSON.stringify({
+              type: 'content_delta',
+              requestId: message.requestId,
+              content: delta
+            }));
+          }
+        }
+        
+        // Complete message
+        ws.send(JSON.stringify({
+          type: 'message_complete',
+          requestId: message.requestId,
+          message: {
+            role: 'assistant',
+            content
+          }
+        }));
+        
+      } catch (error) {
+        ws.send(JSON.stringify({
+          type: 'error',
+          requestId: message.requestId,
+          message: error.message
+        }));
+      }
+    }
+  });
+});
+*/
+```
+
+## Local Model Integration
+
+Connect with local models using Ollama:
+
+```tsx
+class OllamaRuntime extends BaseRuntime {
+  constructor(
+    private baseUrl: string = 'http://localhost:11434',
+    private model: string = 'llama2'
+  ) {
+    super();
+  }
+  
+  async run({ messages, abortSignal }: RunParameters) {
+    const response = await fetch(`${this.baseUrl}/api/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: this.model,
+        messages: messages.map(msg => ({
+          role: msg.role,
+          content: msg.content
+        })),
+        stream: true
+      }),
+      signal: abortSignal
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Ollama API error: ${response.status}`);
+    }
+    
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error('No response body');
+    
+    const decoder = new TextDecoder();
+    let content = '';
+    
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n').filter(line => line.trim());
+        
+        for (const line of lines) {
+          try {
+            const data = JSON.parse(line);
+            
+            if (data.message?.content) {
+              content += data.message.content;
+              
+              yield {
+                type: 'text-delta',
+                textDelta: data.message.content
+              };
+            }
+            
+            if (data.done) {
+              return {
+                role: 'assistant',
+                content
+              };
+            }
+          } catch (e) {
+            console.warn('Failed to parse Ollama response:', line);
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+    
+    return {
+      role: 'assistant',
+      content
+    };
+  }
+}
+
+// Usage with model management
+function OllamaProvider({ children }: { children: React.ReactNode }) {
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [selectedModel, setSelectedModel] = useState('llama2');
+  const [runtime, setRuntime] = useState<OllamaRuntime | null>(null);
+  
+  useEffect(() => {
+    // Fetch available models
+    fetch('http://localhost:11434/api/tags')
+      .then(res => res.json())
+      .then(data => {
+        const models = data.models?.map((m: any) => m.name) || [];
+        setAvailableModels(models);
+      })
+      .catch(console.error);
+  }, []);
+  
+  useEffect(() => {
+    setRuntime(new OllamaRuntime('http://localhost:11434', selectedModel));
+  }, [selectedModel]);
+  
+  if (!runtime) return <div>Loading Ollama...</div>;
+  
+  return (
+    <div className="flex flex-col h-screen">
+      <div className="border-b p-4 bg-gray-50">
+        <div className="flex items-center gap-4">
+          <label className="text-sm font-medium">Local Model:</label>
+          <select
+            value={selectedModel}
+            onChange={(e) => setSelectedModel(e.target.value)}
+            className="p-1 border rounded text-sm"
+          >
+            {availableModels.map(model => (
+              <option key={model} value={model}>
+                {model}
+              </option>
+            ))}
+          </select>
+          <span className="text-xs text-green-600">● Local</span>
+        </div>
+      </div>
+      
+      <div className="flex-1">
+        <AssistantRuntimeProvider runtime={runtime}>
+          {children}
+        </AssistantRuntimeProvider>
+      </div>
+    </div>
+  );
+}
+```
+
+## Best Practices
+
+1. **Handle errors gracefully** with proper fallbacks
+2. **Implement request cancellation** for better UX
+3. **Cache responses** when appropriate
+4. **Monitor performance** and API usage
+5. **Provide offline capabilities** when possible
+6. **Implement rate limiting** to avoid quota issues
+7. **Log interactions** for debugging and analytics
+
+## Exercise: Multi-Runtime Chat
+
+Build a chat application that supports:
+- Multiple AI providers with dynamic switching
+- Local model integration
+- WebSocket real-time updates
+- Custom tool implementations
+- Provider-specific features and limitations
+
+## Next Steps
+
+Runtime integration connects your UI to powerful AI backends. Next, let's explore **Styling and Theming** to create beautiful, branded chat interfaces.
+
+Continue to [Styling and Theming →](./13-styling-theming)

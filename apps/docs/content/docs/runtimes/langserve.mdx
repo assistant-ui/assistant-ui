@@ -44,13 +44,17 @@ export const maxDuration = 30;
 export async function POST(req: Request) {
   const { messages } = (await req.json()) as { messages: Message[] };
 
-  // TODO replace with your own langserve URL
+  // Replace with your actual LangServe endpoint
   const remoteChain = new RemoteRunnable<
     { messages: Message[] },
     string,
     RunnableConfig
   >({
-    url: "<YOUR_LANGSERVE_URL>",
+    // Examples:
+    // url: "http://localhost:8000/openai",     // Local LangServe with OpenAI
+    // url: "http://localhost:8000/anthropic", // Local LangServe with Anthropic
+    // url: "https://api.yourdomain.com/chat", // Production LangServe endpoint
+    url: process.env.LANGSERVE_URL || "http://localhost:8000/chat",
   });
 
   const stream = await remoteChain.stream({

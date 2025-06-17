@@ -1,0 +1,548 @@
+---
+title: Dynamic State Management
+description: Programmatically control and modify chat state, messages, and behavior
+---
+
+# Dynamic State Management
+
+Dynamic state management allows you to programmatically control your chat interface, modify messages, inject content, and respond to user actions. This is essential for building sophisticated AI applications with custom behaviors.
+
+## Runtime Access
+
+Get runtime instances to control chat state:
+
+```tsx
+import { 
+  useAssistantRuntime, 
+  useThreadRuntime, 
+  useMessageRuntime,
+  useComposerRuntime 
+} from "@assistant-ui/react";
+
+function ChatController() {
+  const assistantRuntime = useAssistantRuntime();
+  const threadRuntime = useThreadRuntime();
+  const composerRuntime = useComposerRuntime();
+  
+  // Control the entire chat
+  const resetChat = () => {
+    threadRuntime.clear();
+  };
+  
+  // Add a system message
+  const addSystemMessage = () => {
+    threadRuntime.append({
+      role: "system",
+      content: "You are now in debugging mode. Provide detailed explanations."
+    });
+  };
+  
+  // Programmatically send a message
+  const sendMessage = (content: string) => {
+    composerRuntime.setValue(content);
+    composerRuntime.send();
+  };
+  
+  return (
+    <div className="flex gap-2 p-4 border-b">
+      <button onClick={resetChat} className="px-3 py-1 bg-red-500 text-white rounded">
+        Clear Chat
+      </button>
+      <button onClick={addSystemMessage} className="px-3 py-1 bg-blue-500 text-white rounded">
+        Debug Mode
+      </button>
+      <button onClick={() => sendMessage("Explain the current topic")} className="px-3 py-1 bg-green-500 text-white rounded">
+        Ask for Explanation
+      </button>
+    </div>
+  );
+}
+```
+
+## Message Manipulation
+
+Dynamically modify, delete, and insert messages:
+
+```tsx
+import { useThread, useMessage } from "@assistant-ui/react";
+
+function MessageEditor({ messageId }: { messageId: string }) {
+  const threadRuntime = useThreadRuntime();
+  const messageRuntime = useMessageRuntime(messageId);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState('');
+  
+  const startEdit = () => {
+    setEditContent(messageRuntime.message.content);
+    setIsEditing(true);
+  };
+  
+  const saveEdit = () => {
+    messageRuntime.setContent(editContent);
+    setIsEditing(false);
+  };
+  
+  const deleteMessage = () => {
+    threadRuntime.deleteMessage(messageId);
+  };
+  
+  const duplicateMessage = () => {
+    const message = messageRuntime.message;
+    threadRuntime.insertMessage(message.index + 1, {
+      role: message.role,
+      content: message.content + " (copy)"
+    });
+  };
+  
+  const insertBelow = () => {
+    const message = messageRuntime.message;
+    threadRuntime.insertMessage(message.index + 1, {
+      role: "user",
+      content: "What does this mean?"
+    });
+  };
+  
+  if (isEditing) {
+    return (
+      <div className="space-y-2">
+        <textarea
+          value={editContent}
+          onChange={(e) => setEditContent(e.target.value)}
+          className="w-full p-2 border rounded"
+          rows={3}
+        />
+        <div className="flex gap-2">
+          <button onClick={saveEdit} className="px-3 py-1 bg-green-500 text-white rounded">
+            Save
+          </button>
+          <button onClick={() => setIsEditing(false)} className="px-3 py-1 bg-gray-500 text-white rounded">
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      <button onClick={startEdit} className="p-1 hover:bg-gray-100 rounded" title="Edit">
+        ✏️
+      </button>
+      <button onClick={duplicateMessage} className="p-1 hover:bg-gray-100 rounded" title="Duplicate">
+        📋
+      </button>
+      <button onClick={insertBelow} className="p-1 hover:bg-gray-100 rounded" title="Insert Below">
+        ➕
+      </button>
+      <button onClick={deleteMessage} className="p-1 hover:bg-gray-100 rounded text-red-500" title="Delete">
+        🗑️
+      </button>
+    </div>
+  );
+}
+```
+
+## State Monitoring
+
+Monitor and react to state changes:
+
+```tsx
+import { useEffect, useState } from "react";
+import { useThread, useAssistantRuntime } from "@assistant-ui/react";
+
+function StateMonitor() {
+  const thread = useThread();
+  const runtime = useAssistantRuntime();
+  const [events, setEvents] = useState([]);
+  
+  useEffect(() => {
+    const unsubscribe = runtime.subscribe((state) => {
+      const event = {
+        timestamp: new Date().toISOString(),
+        type: 'state_change',
+        messageCount: state.messages.length,
+        isRunning: state.isRunning,
+        lastMessage: state.messages[state.messages.length - 1]?.content?.substring(0, 50)
+      };
+      
+      setEvents(prev => [event, ...prev.slice(0, 9)]); // Keep last 10 events
+    });
+    
+    return unsubscribe;
+  }, [runtime]);
+  
+  // Monitor specific events
+  useEffect(() => {
+    if (thread.isRunning) {
+      console.log('AI is generating response...');
+      setEvents(prev => [{
+        timestamp: new Date().toISOString(),
+        type: 'generation_start',
+        messageCount: thread.messages.length
+      }, ...prev.slice(0, 9)]);
+    }
+  }, [thread.isRunning]);
+  
+  useEffect(() => {
+    if (thread.messages.length > 0) {
+      const lastMessage = thread.messages[thread.messages.length - 1];
+      if (lastMessage.role === 'assistant') {
+        console.log('Assistant message completed');
+        setEvents(prev => [{
+          timestamp: new Date().toISOString(),
+          type: 'message_completed',
+          content: lastMessage.content?.substring(0, 50)
+        }, ...prev.slice(0, 9)]);
+      }
+    }
+  }, [thread.messages]);
+  
+  return (
+    <div className="bg-gray-100 p-4 rounded">
+      <h3 className="font-semibold mb-2">State Monitor</h3>
+      <div className="space-y-1 text-sm font-mono">
+        {events.map((event, index) => (
+          <div key={index} className="text-xs">
+            <span className="text-gray-500">{event.timestamp.split('T')[1].split('.')[0]}</span>
+            {' '}
+            <span className={`font-medium ${
+              event.type === 'generation_start' ? 'text-blue-600' :
+              event.type === 'message_completed' ? 'text-green-600' :
+              'text-gray-600'
+            }`}>
+              {event.type}
+            </span>
+            {event.content && <span className="text-gray-700"> - {event.content}...</span>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+```
+
+## Conditional Behavior
+
+Implement dynamic behavior based on context:
+
+```tsx
+import { useEffect } from "react";
+import { useThread, useComposerRuntime } from "@assistant-ui/react";
+
+function ConditionalBehavior() {
+  const thread = useThread();
+  const composerRuntime = useComposerRuntime();
+  
+  // Auto-suggest follow-up questions
+  useEffect(() => {
+    const lastMessage = thread.messages[thread.messages.length - 1];
+    
+    if (lastMessage?.role === 'assistant' && !thread.isRunning) {
+      const content = lastMessage.content?.toLowerCase() || '';
+      
+      // Suggest clarification if response seems incomplete
+      if (content.includes('need more') || content.includes('clarify')) {
+        setTimeout(() => {
+          composerRuntime.setValue("Can you provide more details?");
+        }, 1000);
+      }
+      
+      // Auto-inject context for technical topics
+      if (content.includes('error') || content.includes('debug')) {
+        thread.append({
+          role: 'system',
+          content: 'The user seems to be troubleshooting. Provide step-by-step guidance.'
+        });
+      }
+    }
+  }, [thread.messages, thread.isRunning]);
+  
+  // Dynamic placeholder based on conversation
+  const getPlaceholder = () => {
+    const messageCount = thread.messages.length;
+    const lastMessage = thread.messages[messageCount - 1];
+    
+    if (messageCount === 0) {
+      return "Start a conversation...";
+    }
+    
+    if (lastMessage?.role === 'assistant') {
+      const content = lastMessage.content?.toLowerCase() || '';
+      
+      if (content.includes('question')) {
+        return "Answer the question...";
+      }
+      if (content.includes('more') || content.includes('detail')) {
+        return "Provide more details...";
+      }
+      if (content.includes('help')) {
+        return "Describe what you need help with...";
+      }
+    }
+    
+    return "Continue the conversation...";
+  };
+  
+  return (
+    <ComposerPrimitive.Input 
+      placeholder={getPlaceholder()}
+    />
+  );
+}
+```
+
+## Advanced State Patterns
+
+### State Machines
+
+Implement finite state machines for complex workflows:
+
+```tsx
+import { useState, useEffect } from "react";
+import { useThreadRuntime } from "@assistant-ui/react";
+
+type ChatState = 'idle' | 'collecting_info' | 'processing' | 'confirming' | 'completed';
+
+function StateMachineChat() {
+  const threadRuntime = useThreadRuntime();
+  const [state, setState] = useState<ChatState>('idle');
+  const [collectedData, setCollectedData] = useState({});
+  
+  useEffect(() => {
+    const lastMessage = threadRuntime.messages[threadRuntime.messages.length - 1];
+    
+    if (lastMessage?.role === 'user') {
+      handleUserMessage(lastMessage.content, state);
+    }
+  }, [threadRuntime.messages, state]);
+  
+  const handleUserMessage = (content: string, currentState: ChatState) => {
+    switch (currentState) {
+      case 'idle':
+        if (content.toLowerCase().includes('book')) {
+          setState('collecting_info');
+          threadRuntime.append({
+            role: 'assistant',
+            content: 'I\'ll help you make a booking. What\'s your preferred date?'
+          });
+        }
+        break;
+        
+      case 'collecting_info':
+        // Extract date, time, etc.
+        const dateMatch = content.match(/(\d{1,2}\/\d{1,2}|\w+day)/i);
+        if (dateMatch) {
+          setCollectedData(prev => ({ ...prev, date: dateMatch[0] }));
+          threadRuntime.append({
+            role: 'assistant',
+            content: 'What time would you prefer?'
+          });
+        }
+        break;
+        
+      case 'processing':
+        setState('confirming');
+        threadRuntime.append({
+          role: 'assistant',
+          content: `Please confirm: ${JSON.stringify(collectedData)}`
+        });
+        break;
+        
+      case 'confirming':
+        if (content.toLowerCase().includes('yes') || content.toLowerCase().includes('confirm')) {
+          setState('completed');
+          threadRuntime.append({
+            role: 'assistant',
+            content: 'Booking confirmed! You\'ll receive a confirmation email.'
+          });
+        }
+        break;
+    }
+  };
+  
+  return (
+    <div className="border-t p-2 bg-blue-50">
+      <div className="text-sm text-blue-600">
+        State: <span className="font-mono">{state}</span>
+        {Object.keys(collectedData).length > 0 && (
+          <span className="ml-4">
+            Data: <span className="font-mono">{JSON.stringify(collectedData)}</span>
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+```
+
+### Context Injection
+
+Dynamically inject context based on conversation flow:
+
+```tsx
+function ContextInjector() {
+  const threadRuntime = useThreadRuntime();
+  const [activeContexts, setActiveContexts] = useState<string[]>([]);
+  
+  useEffect(() => {
+    const lastMessage = threadRuntime.messages[threadRuntime.messages.length - 1];
+    
+    if (lastMessage?.role === 'user') {
+      const content = lastMessage.content?.toLowerCase() || '';
+      const newContexts = [];
+      
+      // Detect topic and inject relevant context
+      if (content.includes('react') && !activeContexts.includes('react')) {
+        newContexts.push('react');
+        threadRuntime.append({
+          role: 'system',
+          content: 'The user is asking about React. Focus on React-specific solutions and best practices.'
+        });
+      }
+      
+      if (content.includes('error') && !activeContexts.includes('debugging')) {
+        newContexts.push('debugging');
+        threadRuntime.append({
+          role: 'system',
+          content: 'The user has encountered an error. Provide debugging steps and ask for more details if needed.'
+        });
+      }
+      
+      if (content.includes('performance') && !activeContexts.includes('optimization')) {
+        newContexts.push('optimization');
+        threadRuntime.append({
+          role: 'system',
+          content: 'The user is concerned about performance. Focus on optimization techniques and measurement strategies.'
+        });
+      }
+      
+      if (newContexts.length > 0) {
+        setActiveContexts(prev => [...prev, ...newContexts]);
+      }
+    }
+  }, [threadRuntime.messages]);
+  
+  const clearContext = (context: string) => {
+    setActiveContexts(prev => prev.filter(c => c !== context));
+    threadRuntime.append({
+      role: 'system',
+      content: `Context "${context}" has been cleared. Return to general assistance mode.`
+    });
+  };
+  
+  return (
+    <div className="border-t p-2 bg-yellow-50">
+      <div className="text-sm text-yellow-700">
+        Active Contexts:
+        {activeContexts.length === 0 ? (
+          <span className="ml-2 text-gray-500">None</span>
+        ) : (
+          <div className="flex gap-2 mt-1">
+            {activeContexts.map(context => (
+              <span
+                key={context}
+                className="px-2 py-1 bg-yellow-200 rounded text-xs flex items-center gap-1"
+              >
+                {context}
+                <button
+                  onClick={() => clearContext(context)}
+                  className="text-yellow-700 hover:text-yellow-900"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+```
+
+## Message Templates
+
+Create reusable message templates:
+
+```tsx
+const messageTemplates = {
+  greeting: {
+    role: 'assistant',
+    content: 'Hello! How can I help you today?'
+  },
+  clarification: {
+    role: 'assistant', 
+    content: 'Could you provide more details about your question?'
+  },
+  troubleshooting: {
+    role: 'system',
+    content: 'User is troubleshooting. Ask for error messages, steps taken, and expected behavior.'
+  },
+  summary: (messages: any[]) => ({
+    role: 'assistant',
+    content: `Let me summarize our conversation: ${messages.slice(-3).map(m => m.content?.substring(0, 50)).join(', ')}...`
+  })
+};
+
+function TemplateControls() {
+  const threadRuntime = useThreadRuntime();
+  
+  const insertTemplate = (templateKey: string) => {
+    const template = messageTemplates[templateKey];
+    
+    if (typeof template === 'function') {
+      threadRuntime.append(template(threadRuntime.messages));
+    } else {
+      threadRuntime.append(template);
+    }
+  };
+  
+  return (
+    <div className="flex gap-2 p-2 border-t bg-gray-50">
+      <button 
+        onClick={() => insertTemplate('greeting')}
+        className="px-2 py-1 bg-blue-500 text-white rounded text-sm"
+      >
+        Greeting
+      </button>
+      <button 
+        onClick={() => insertTemplate('clarification')}
+        className="px-2 py-1 bg-yellow-500 text-white rounded text-sm"
+      >
+        Ask for Clarification
+      </button>
+      <button 
+        onClick={() => insertTemplate('summary')}
+        className="px-2 py-1 bg-green-500 text-white rounded text-sm"
+      >
+        Summarize
+      </button>
+    </div>
+  );
+}
+```
+
+## Best Practices
+
+1. **Use runtime subscriptions** to react to state changes
+2. **Implement proper cleanup** for event listeners
+3. **Avoid infinite loops** when modifying state in effects
+4. **Provide visual feedback** for dynamic changes
+5. **Maintain state consistency** across components
+6. **Use debouncing** for frequent state updates
+7. **Log state changes** for debugging
+
+## Exercise: Smart Chat Assistant
+
+Build a smart chat assistant that:
+- Detects user intent and switches modes
+- Injects relevant context automatically  
+- Provides quick action buttons
+- Maintains conversation flow state
+- Offers smart suggestions based on context
+
+## Next Steps
+
+Dynamic state management enables sophisticated chat behaviors. Next, let's explore **Message Manipulation** techniques for editing and managing conversation history.
+
+Continue to [Message Manipulation →](./10-message-manipulation)

@@ -1,0 +1,22 @@
+{
+  "title": "Course",
+  "icon": "BookOpen",
+  "pages": [
+    "index",
+    "01-introduction",
+    "02-quick-start",
+    "03-architecture-overview",
+    "04-component-fundamentals",
+    "05-attachments",
+    "06-speech",
+    "07-tools-functions",
+    "08-chat-persistence",
+    "09-dynamic-state-management",
+    "10-message-manipulation",
+    "11-thread-management",
+    "12-runtime-integration",
+    "13-styling-theming",
+    "14-performance-optimization",
+    "15-production-deployment"
+  ]
+}

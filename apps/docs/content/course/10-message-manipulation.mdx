@@ -1,0 +1,676 @@
+---
+title: Message Manipulation
+description: Edit, delete, reorder, and transform messages in real-time
+---
+
+# Message Manipulation
+
+Message manipulation allows users to edit conversation history, delete unwanted messages, reorder content, and transform messages in real-time. This creates a more interactive and flexible chat experience.
+
+## Basic Message Editing
+
+Enable inline message editing:
+
+```tsx
+import { useState } from "react";
+import { MessagePrimitive, useMessageRuntime } from "@assistant-ui/react";
+
+function EditableMessage() {
+  const messageRuntime = useMessageRuntime();
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState("");
+  
+  const startEdit = () => {
+    setEditContent(messageRuntime.message.content || "");
+    setIsEditing(true);
+  };
+  
+  const saveEdit = async () => {
+    try {
+      await messageRuntime.setContent(editContent);
+      setIsEditing(false);
+    } catch (error) {
+      console.error("Failed to save edit:", error);
+    }
+  };
+  
+  const cancelEdit = () => {
+    setEditContent("");
+    setIsEditing(false);
+  };
+  
+  if (isEditing) {
+    return (
+      <div className="space-y-3">
+        <textarea
+          value={editContent}
+          onChange={(e) => setEditContent(e.target.value)}
+          className="w-full p-3 border rounded-lg resize-none focus:ring-2 focus:ring-blue-500"
+          rows={Math.max(3, editContent.split('\n').length)}
+          autoFocus
+        />
+        <div className="flex gap-2">
+          <button
+            onClick={saveEdit}
+            className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+          >
+            Save
+          </button>
+          <button
+            onClick={cancelEdit}
+            className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
+  
+  return (
+    <MessagePrimitive.Root className="group relative">
+      <MessagePrimitive.Content />
+      
+      <MessagePrimitive.If by="user">
+        <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute top-2 right-2">
+          <button
+            onClick={startEdit}
+            className="p-1 bg-white shadow-lg rounded hover:bg-gray-50"
+            title="Edit message"
+          >
+            ✏️
+          </button>
+        </div>
+      </MessagePrimitive.If>
+    </MessagePrimitive.Root>
+  );
+}
+```
+
+## Advanced Message Actions
+
+Implement comprehensive message management:
+
+```tsx
+import { useThreadRuntime, useMessageRuntime } from "@assistant-ui/react";
+
+function MessageActions({ messageIndex }: { messageIndex: number }) {
+  const threadRuntime = useThreadRuntime();
+  const messageRuntime = useMessageRuntime();
+  const message = messageRuntime.message;
+  
+  const duplicateMessage = () => {
+    threadRuntime.insertMessage(messageIndex + 1, {
+      role: message.role,
+      content: message.content + " (copy)",
+      attachments: message.attachments
+    });
+  };
+  
+  const deleteMessage = () => {
+    if (confirm("Are you sure you want to delete this message?")) {
+      threadRuntime.deleteMessage(messageIndex);
+    }
+  };
+  
+  const moveUp = () => {
+    if (messageIndex > 0) {
+      threadRuntime.moveMessage(messageIndex, messageIndex - 1);
+    }
+  };
+  
+  const moveDown = () => {
+    if (messageIndex < threadRuntime.messages.length - 1) {
+      threadRuntime.moveMessage(messageIndex, messageIndex + 1);
+    }
+  };
+  
+  const regenerateResponse = async () => {
+    if (message.role === "assistant") {
+      // Delete current message and regenerate
+      threadRuntime.deleteMessage(messageIndex);
+      await threadRuntime.regenerate();
+    }
+  };
+  
+  const forkConversation = () => {
+    // Create a new thread from this point
+    const messagesUpToHere = threadRuntime.messages.slice(0, messageIndex + 1);
+    threadRuntime.fork(messagesUpToHere);
+  };
+  
+  return (
+    <div className="flex gap-1 p-2 bg-gray-50 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+      <button
+        onClick={duplicateMessage}
+        className="p-1 hover:bg-gray-200 rounded"
+        title="Duplicate"
+      >
+        📋
+      </button>
+      
+      {messageIndex > 0 && (
+        <button
+          onClick={moveUp}
+          className="p-1 hover:bg-gray-200 rounded"
+          title="Move up"
+        >
+          ⬆️
+        </button>
+      )}
+      
+      {messageIndex < threadRuntime.messages.length - 1 && (
+        <button
+          onClick={moveDown}
+          className="p-1 hover:bg-gray-200 rounded"
+          title="Move down"
+        >
+          ⬇️
+        </button>
+      )}
+      
+      {message.role === "assistant" && (
+        <button
+          onClick={regenerateResponse}
+          className="p-1 hover:bg-gray-200 rounded"
+          title="Regenerate"
+        >
+          🔄
+        </button>
+      )}
+      
+      <button
+        onClick={forkConversation}
+        className="p-1 hover:bg-gray-200 rounded"
+        title="Fork conversation"
+      >
+        🍴
+      </button>
+      
+      <button
+        onClick={deleteMessage}
+        className="p-1 hover:bg-red-200 text-red-600 rounded"
+        title="Delete"
+      >
+        🗑️
+      </button>
+    </div>
+  );
+}
+```
+
+## Drag and Drop Reordering
+
+Implement drag-and-drop message reordering:
+
+```tsx
+import { DndContext, closestCenter, DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+
+function SortableMessageList() {
+  const threadRuntime = useThreadRuntime();
+  const messages = threadRuntime.messages;
+  
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (active.id !== over?.id) {
+      const oldIndex = messages.findIndex(m => m.id === active.id);
+      const newIndex = messages.findIndex(m => m.id === over?.id);
+      
+      threadRuntime.moveMessage(oldIndex, newIndex);
+    }
+  };
+  
+  return (
+    <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <SortableContext items={messages.map(m => m.id)} strategy={verticalListSortingStrategy}>
+        <div className="space-y-4">
+          {messages.map((message, index) => (
+            <SortableMessage key={message.id} message={message} index={index} />
+          ))}
+        </div>
+      </SortableContext>
+    </DndContext>
+  );
+}
+
+function SortableMessage({ message, index }: { message: any; index: number }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: message.id });
+  
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1
+  };
+  
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`group relative border rounded-lg p-4 bg-white ${
+        isDragging ? 'shadow-lg z-10' : 'shadow-sm'
+      }`}
+    >
+      {/* Drag handle */}
+      <div
+        {...attributes}
+        {...listeners}
+        className="absolute left-2 top-2 opacity-0 group-hover:opacity-100 cursor-move p-1 hover:bg-gray-100 rounded"
+      >
+        ⋮⋮
+      </div>
+      
+      {/* Message content */}
+      <div className="ml-8">
+        <div className="font-medium text-sm text-gray-600 mb-1">
+          {message.role} #{index + 1}
+        </div>
+        <div className="text-gray-900">
+          {message.content}
+        </div>
+      </div>
+      
+      {/* Actions */}
+      <MessageActions messageIndex={index} />
+    </div>
+  );
+}
+```
+
+## Bulk Operations
+
+Implement bulk message operations:
+
+```tsx
+import { useState } from "react";
+import { useThreadRuntime } from "@assistant-ui/react";
+
+function BulkMessageOperations() {
+  const threadRuntime = useThreadRuntime();
+  const [selectedMessages, setSelectedMessages] = useState<Set<string>>(new Set());
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  
+  const toggleSelection = (messageId: string) => {
+    setSelectedMessages(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(messageId)) {
+        newSet.delete(messageId);
+      } else {
+        newSet.add(messageId);
+      }
+      return newSet;
+    });
+  };
+  
+  const selectAll = () => {
+    setSelectedMessages(new Set(threadRuntime.messages.map(m => m.id)));
+  };
+  
+  const clearSelection = () => {
+    setSelectedMessages(new Set());
+  };
+  
+  const deleteSelected = () => {
+    if (confirm(`Delete ${selectedMessages.size} messages?`)) {
+      const messageIndexes = Array.from(selectedMessages)
+        .map(id => threadRuntime.messages.findIndex(m => m.id === id))
+        .sort((a, b) => b - a); // Delete from end to preserve indexes
+      
+      messageIndexes.forEach(index => {
+        threadRuntime.deleteMessage(index);
+      });
+      
+      clearSelection();
+    }
+  };
+  
+  const exportSelected = () => {
+    const selectedMsgs = threadRuntime.messages.filter(m => selectedMessages.has(m.id));
+    const exportData = {
+      messages: selectedMsgs,
+      exportedAt: new Date().toISOString()
+    };
+    
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+      type: 'application/json'
+    });
+    
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `messages-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  
+  const duplicateSelected = () => {
+    const selectedMsgs = threadRuntime.messages.filter(m => selectedMessages.has(m.id));
+    selectedMsgs.forEach(msg => {
+      threadRuntime.append({
+        role: msg.role,
+        content: msg.content + " (copy)"
+      });
+    });
+  };
+  
+  return (
+    <div className="border-t p-4 bg-gray-50">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsSelectionMode(!isSelectionMode)}
+            className={`px-3 py-1 rounded text-sm ${
+              isSelectionMode ? 'bg-blue-500 text-white' : 'bg-gray-200'
+            }`}
+          >
+            {isSelectionMode ? 'Exit Selection' : 'Select Messages'}
+          </button>
+          
+          {isSelectionMode && (
+            <>
+              <button onClick={selectAll} className="text-sm text-blue-600 hover:underline">
+                Select All
+              </button>
+              <button onClick={clearSelection} className="text-sm text-gray-600 hover:underline">
+                Clear
+              </button>
+            </>
+          )}
+        </div>
+        
+        {selectedMessages.size > 0 && (
+          <div className="text-sm text-gray-600">
+            {selectedMessages.size} selected
+          </div>
+        )}
+      </div>
+      
+      {selectedMessages.size > 0 && (
+        <div className="flex gap-2">
+          <button
+            onClick={deleteSelected}
+            className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600"
+          >
+            Delete ({selectedMessages.size})
+          </button>
+          <button
+            onClick={exportSelected}
+            className="px-3 py-1 bg-green-500 text-white rounded text-sm hover:bg-green-600"
+          >
+            Export
+          </button>
+          <button
+            onClick={duplicateSelected}
+            className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
+          >
+            Duplicate
+          </button>
+        </div>
+      )}
+      
+      {/* Selection checkboxes for each message when in selection mode */}
+      {isSelectionMode && (
+        <div className="mt-4 space-y-2">
+          {threadRuntime.messages.map((message, index) => (
+            <label key={message.id} className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded">
+              <input
+                type="checkbox"
+                checked={selectedMessages.has(message.id)}
+                onChange={() => toggleSelection(message.id)}
+              />
+              <span className="text-sm text-gray-600">#{index + 1}</span>
+              <span className="text-sm truncate max-w-md">
+                {message.content?.substring(0, 100)}...
+              </span>
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+## Message Transformations
+
+Apply transformations to message content:
+
+```tsx
+function MessageTransformations() {
+  const threadRuntime = useThreadRuntime();
+  
+  const transformMessage = (messageIndex: number, transformation: string) => {
+    const message = threadRuntime.messages[messageIndex];
+    let transformedContent = message.content;
+    
+    switch (transformation) {
+      case 'uppercase':
+        transformedContent = message.content?.toUpperCase();
+        break;
+      case 'lowercase':
+        transformedContent = message.content?.toLowerCase();
+        break;
+      case 'title-case':
+        transformedContent = message.content?.replace(/\w\S*/g, (txt) =>
+          txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
+        );
+        break;
+      case 'remove-formatting':
+        transformedContent = message.content?.replace(/[*_`~]/g, '');
+        break;
+      case 'add-emphasis':
+        transformedContent = `**${message.content}**`;
+        break;
+      case 'bullet-points':
+        transformedContent = message.content
+          ?.split('\n')
+          .map(line => line.trim() ? `• ${line}` : line)
+          .join('\n');
+        break;
+      case 'numbered-list':
+        transformedContent = message.content
+          ?.split('\n')
+          .map((line, i) => line.trim() ? `${i + 1}. ${line}` : line)
+          .join('\n');
+        break;
+    }
+    
+    threadRuntime.setMessage(messageIndex, {
+      ...message,
+      content: transformedContent
+    });
+  };
+  
+  const transformations = [
+    { id: 'uppercase', label: 'UPPERCASE', icon: '🔤' },
+    { id: 'lowercase', label: 'lowercase', icon: '🔡' },
+    { id: 'title-case', label: 'Title Case', icon: '🎭' },
+    { id: 'remove-formatting', label: 'Plain Text', icon: '📝' },
+    { id: 'add-emphasis', label: 'Bold', icon: '**B**' },
+    { id: 'bullet-points', label: 'Bullets', icon: '•' },
+    { id: 'numbered-list', label: 'Numbers', icon: '1.' }
+  ];
+  
+  return (
+    <div className="border rounded-lg p-4 bg-white">
+      <h3 className="font-semibold mb-3">Message Transformations</h3>
+      <div className="grid grid-cols-2 gap-2">
+        {transformations.map(transform => (
+          <button
+            key={transform.id}
+            onClick={() => {
+              const messageIndex = threadRuntime.messages.length - 1; // Transform last message
+              transformMessage(messageIndex, transform.id);
+            }}
+            className="flex items-center gap-2 p-2 border rounded hover:bg-gray-50 text-sm"
+          >
+            <span>{transform.icon}</span>
+            <span>{transform.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+```
+
+## Undo/Redo System
+
+Implement undo/redo for message operations:
+
+```tsx
+import { useState, useCallback } from "react";
+
+interface HistoryEntry {
+  action: string;
+  timestamp: number;
+  data: any;
+}
+
+function UndoRedoSystem() {
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(-1);
+  const threadRuntime = useThreadRuntime();
+  
+  const addToHistory = useCallback((action: string, data: any) => {
+    const entry: HistoryEntry = {
+      action,
+      timestamp: Date.now(),
+      data
+    };
+    
+    // Remove any entries after current index (when creating new branch)
+    const newHistory = history.slice(0, currentIndex + 1);
+    newHistory.push(entry);
+    
+    setHistory(newHistory);
+    setCurrentIndex(newHistory.length - 1);
+    
+    // Limit history size
+    if (newHistory.length > 50) {
+      setHistory(newHistory.slice(-50));
+      setCurrentIndex(49);
+    }
+  }, [history, currentIndex]);
+  
+  const undo = useCallback(() => {
+    if (currentIndex >= 0) {
+      const entry = history[currentIndex];
+      
+      // Reverse the action
+      switch (entry.action) {
+        case 'delete':
+          threadRuntime.insertMessage(entry.data.index, entry.data.message);
+          break;
+        case 'edit':
+          threadRuntime.setMessage(entry.data.index, {
+            ...entry.data.message,
+            content: entry.data.originalContent
+          });
+          break;
+        case 'add':
+          threadRuntime.deleteMessage(entry.data.index);
+          break;
+      }
+      
+      setCurrentIndex(currentIndex - 1);
+    }
+  }, [currentIndex, history, threadRuntime]);
+  
+  const redo = useCallback(() => {
+    if (currentIndex < history.length - 1) {
+      const entry = history[currentIndex + 1];
+      
+      // Replay the action
+      switch (entry.action) {
+        case 'delete':
+          threadRuntime.deleteMessage(entry.data.index);
+          break;
+        case 'edit':
+          threadRuntime.setMessage(entry.data.index, {
+            ...entry.data.message,
+            content: entry.data.newContent
+          });
+          break;
+        case 'add':
+          threadRuntime.insertMessage(entry.data.index, entry.data.message);
+          break;
+      }
+      
+      setCurrentIndex(currentIndex + 1);
+    }
+  }, [currentIndex, history, threadRuntime]);
+  
+  const canUndo = currentIndex >= 0;
+  const canRedo = currentIndex < history.length - 1;
+  
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        onClick={undo}
+        disabled={!canUndo}
+        className={`p-2 rounded ${
+          canUndo 
+            ? 'bg-blue-500 text-white hover:bg-blue-600' 
+            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+        }`}
+        title="Undo"
+      >
+        ↶
+      </button>
+      
+      <button
+        onClick={redo}
+        disabled={!canRedo}
+        className={`p-2 rounded ${
+          canRedo 
+            ? 'bg-blue-500 text-white hover:bg-blue-600' 
+            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+        }`}
+        title="Redo"
+      >
+        ↷
+      </button>
+      
+      <span className="text-sm text-gray-500">
+        {history.length > 0 && `${currentIndex + 1}/${history.length}`}
+      </span>
+    </div>
+  );
+}
+```
+
+## Best Practices
+
+1. **Provide clear visual feedback** for all operations
+2. **Implement confirmation dialogs** for destructive actions
+3. **Support keyboard shortcuts** for common operations
+4. **Maintain operation history** with undo/redo
+5. **Validate operations** before applying
+6. **Handle edge cases** gracefully
+7. **Optimize performance** for large message lists
+
+## Exercise: Advanced Message Editor
+
+Build a comprehensive message editor that includes:
+- Inline editing with rich text support
+- Drag-and-drop reordering
+- Bulk operations with selection
+- Message transformations
+- Full undo/redo system
+- Export/import capabilities
+
+## Next Steps
+
+Message manipulation gives users powerful control over their conversations. Next, let's explore **Thread Management** for organizing multiple conversation threads.
+
+Continue to [Thread Management →](./11-thread-management)

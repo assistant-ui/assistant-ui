@@ -1,0 +1,637 @@
+---
+title: Thread Management
+description: Organize and manage multiple conversation threads with branching and organization
+---
+
+# Thread Management
+
+Thread management allows users to organize multiple conversations, create branches from existing conversations, and maintain complex discussion flows. This is essential for productivity applications and advanced AI interfaces.
+
+## Thread List Implementation
+
+Create a comprehensive thread management interface:
+
+```tsx
+import { useState, useEffect } from "react";
+import { useAssistantRuntime, ThreadListRuntime } from "@assistant-ui/react";
+
+function ThreadManager() {
+  const runtime = useAssistantRuntime();
+  const [threads, setThreads] = useState([]);
+  const [currentThreadId, setCurrentThreadId] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  
+  useEffect(() => {
+    loadThreads();
+  }, []);
+  
+  const loadThreads = async () => {
+    try {
+      const response = await fetch('/api/threads');
+      const data = await response.json();
+      setThreads(data);
+    } catch (error) {
+      console.error('Failed to load threads:', error);
+    }
+  };
+  
+  const createThread = async (title?: string) => {
+    const newThread = {
+      id: crypto.randomUUID(),
+      title: title || 'New Conversation',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      messages: [],
+      tags: [],
+      pinned: false
+    };
+    
+    await runtime.switchToThread(newThread.id);
+    setCurrentThreadId(newThread.id);
+    setThreads(prev => [newThread, ...prev]);
+    
+    return newThread;
+  };
+  
+  const switchThread = async (threadId: string) => {
+    await runtime.switchToThread(threadId);
+    setCurrentThreadId(threadId);
+  };
+  
+  const deleteThread = async (threadId: string) => {
+    if (confirm('Are you sure you want to delete this conversation?')) {
+      await fetch(`/api/threads/${threadId}`, { method: 'DELETE' });
+      setThreads(prev => prev.filter(t => t.id !== threadId));
+      
+      if (currentThreadId === threadId) {
+        await createThread();
+      }
+    }
+  };
+  
+  const filteredThreads = threads.filter(thread =>
+    thread.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    thread.messages.some(msg => 
+      msg.content?.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  );
+  
+  return (
+    <div className="w-80 border-r bg-gray-50 flex flex-col h-full">
+      {/* Header */}
+      <div className="p-4 border-b bg-white">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-semibold text-lg">Conversations</h2>
+          <button
+            onClick={() => createThread()}
+            className="p-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            title="New conversation"
+          >
+            ➕
+          </button>
+        </div>
+        
+        {/* Search */}
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Search conversations..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full p-2 border rounded-lg pl-8 text-sm"
+          />
+          <span className="absolute left-2 top-2.5 text-gray-400 text-sm">🔍</span>
+        </div>
+      </div>
+      
+      {/* Thread List */}
+      <div className="flex-1 overflow-y-auto">
+        {filteredThreads.map(thread => (
+          <ThreadListItem
+            key={thread.id}
+            thread={thread}
+            isActive={currentThreadId === thread.id}
+            onSelect={() => switchThread(thread.id)}
+            onDelete={() => deleteThread(thread.id)}
+            onUpdate={(updates) => updateThread(thread.id, updates)}
+          />
+        ))}
+        
+        {filteredThreads.length === 0 && (
+          <div className="p-4 text-center text-gray-500">
+            {searchQuery ? 'No matching conversations' : 'No conversations yet'}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+```
+
+## Thread List Item Component
+
+Create rich thread list items with metadata:
+
+```tsx
+function ThreadListItem({ thread, isActive, onSelect, onDelete, onUpdate }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [title, setTitle] = useState(thread.title);
+  const [showActions, setShowActions] = useState(false);
+  
+  const saveTitle = () => {
+    onUpdate({ title });
+    setIsEditing(false);
+  };
+  
+  const togglePin = () => {
+    onUpdate({ pinned: !thread.pinned });
+  };
+  
+  const getLastMessage = () => {
+    const lastMsg = thread.messages[thread.messages.length - 1];
+    return lastMsg?.content?.substring(0, 60) || 'No messages yet';
+  };
+  
+  const formatTime = (timestamp: string) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 1) return 'just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+  };
+  
+  return (
+    <div
+      className={`group relative p-4 border-b cursor-pointer transition-colors ${
+        isActive 
+          ? 'bg-blue-50 border-blue-200 border-l-4 border-l-blue-500' 
+          : 'hover:bg-gray-100'
+      }`}
+      onClick={onSelect}
+      onMouseEnter={() => setShowActions(true)}
+      onMouseLeave={() => setShowActions(false)}
+    >
+      {/* Pin indicator */}
+      {thread.pinned && (
+        <div className="absolute top-2 right-2 text-yellow-500">
+          📌
+        </div>
+      )}
+      
+      {/* Title */}
+      <div className="mb-2">
+        {isEditing ? (
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onBlur={saveTitle}
+            onKeyPress={(e) => e.key === 'Enter' && saveTitle()}
+            className="w-full font-medium text-sm bg-transparent border-b border-blue-500 focus:outline-none"
+            autoFocus
+            onClick={(e) => e.stopPropagation()}
+          />
+        ) : (
+          <h3 
+            className="font-medium text-sm truncate pr-6"
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              setIsEditing(true);
+            }}
+          >
+            {thread.title}
+          </h3>
+        )}
+      </div>
+      
+      {/* Last message preview */}
+      <div className="text-xs text-gray-600 mb-2 line-clamp-2">
+        {getLastMessage()}
+      </div>
+      
+      {/* Metadata */}
+      <div className="flex items-center justify-between text-xs text-gray-500">
+        <div className="flex items-center gap-2">
+          <span>{thread.messages.length} messages</span>
+          {thread.tags.length > 0 && (
+            <span className="px-1 bg-gray-200 rounded">
+              {thread.tags[0]}
+            </span>
+          )}
+        </div>
+        <span>{formatTime(thread.updatedAt)}</span>
+      </div>
+      
+      {/* Actions */}
+      {showActions && (
+        <div className="absolute top-2 right-8 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              togglePin();
+            }}
+            className={`p-1 rounded hover:bg-gray-200 ${
+              thread.pinned ? 'text-yellow-500' : 'text-gray-400'
+            }`}
+            title="Pin conversation"
+          >
+            📌
+          </button>
+          
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            className="p-1 rounded hover:bg-red-200 text-red-500"
+            title="Delete conversation"
+          >
+            🗑️
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+## Thread Branching
+
+Implement conversation branching:
+
+```tsx
+import { useThreadRuntime } from "@assistant-ui/react";
+
+function ThreadBranching() {
+  const threadRuntime = useThreadRuntime();
+  const [showBranchModal, setShowBranchModal] = useState(false);
+  const [branchPoint, setBranchPoint] = useState<number>(0);
+  
+  const createBranch = async (fromMessageIndex: number, branchTitle?: string) => {
+    const messagesUpToPoint = threadRuntime.messages.slice(0, fromMessageIndex + 1);
+    
+    const newBranch = {
+      id: crypto.randomUUID(),
+      title: branchTitle || `Branch from message ${fromMessageIndex + 1}`,
+      parentThreadId: threadRuntime.thread.id,
+      branchPoint: fromMessageIndex,
+      messages: messagesUpToPoint,
+      createdAt: new Date().toISOString()
+    };
+    
+    // Save branch and switch to it
+    await fetch('/api/threads', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newBranch)
+    });
+    
+    await threadRuntime.switchTo(newBranch.id);
+    return newBranch;
+  };
+  
+  const showBranchOptions = (messageIndex: number) => {
+    setBranchPoint(messageIndex);
+    setShowBranchModal(true);
+  };
+  
+  return (
+    <>
+      {/* Branch buttons on messages */}
+      <div className="space-y-4">
+        {threadRuntime.messages.map((message, index) => (
+          <div key={message.id} className="group relative">
+            <MessagePrimitive.Root>
+              <MessagePrimitive.Content />
+            </MessagePrimitive.Root>
+            
+            {/* Branch button */}
+            <button
+              onClick={() => showBranchOptions(index)}
+              className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 p-1 bg-white shadow-lg rounded hover:bg-gray-50"
+              title="Create branch from here"
+            >
+              🍴
+            </button>
+          </div>
+        ))}
+      </div>
+      
+      {/* Branch creation modal */}
+      {showBranchModal && (
+        <BranchModal
+          messageIndex={branchPoint}
+          onCreateBranch={(title) => {
+            createBranch(branchPoint, title);
+            setShowBranchModal(false);
+          }}
+          onClose={() => setShowBranchModal(false)}
+        />
+      )}
+    </>
+  );
+}
+
+function BranchModal({ messageIndex, onCreateBranch, onClose }) {
+  const [title, setTitle] = useState('');
+  const [includeSubsequent, setIncludeSubsequent] = useState(false);
+  
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <h2 className="text-lg font-semibold mb-4">Create Branch</h2>
+        
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              Branch Title
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder={`Branch from message ${messageIndex + 1}`}
+              className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="include-subsequent"
+              checked={includeSubsequent}
+              onChange={(e) => setIncludeSubsequent(e.target.checked)}
+            />
+            <label htmlFor="include-subsequent" className="text-sm">
+              Include subsequent messages
+            </label>
+          </div>
+          
+          <div className="text-sm text-gray-600">
+            This will create a new conversation starting from message {messageIndex + 1}
+            {includeSubsequent ? ' and include all following messages' : ''}.
+          </div>
+        </div>
+        
+        <div className="flex gap-3 mt-6">
+          <button
+            onClick={() => onCreateBranch(title || undefined)}
+            className="flex-1 bg-blue-500 text-white py-2 rounded hover:bg-blue-600"
+          >
+            Create Branch
+          </button>
+          <button
+            onClick={onClose}
+            className="flex-1 bg-gray-200 py-2 rounded hover:bg-gray-300"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+```
+
+## Thread Organization
+
+Implement tags, folders, and organization:
+
+```tsx
+function ThreadOrganization() {
+  const [threads, setThreads] = useState([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [folders, setFolders] = useState([]);
+  const [sortBy, setSortBy] = useState<'updated' | 'created' | 'title'>('updated');
+  
+  const addTagToThread = async (threadId: string, tag: string) => {
+    const response = await fetch(`/api/threads/${threadId}/tags`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tag })
+    });
+    
+    if (response.ok) {
+      setThreads(prev => prev.map(t => 
+        t.id === threadId 
+          ? { ...t, tags: [...t.tags, tag] }
+          : t
+      ));
+    }
+  };
+  
+  const moveToFolder = async (threadId: string, folderId: string) => {
+    const response = await fetch(`/api/threads/${threadId}/folder`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ folderId })
+    });
+    
+    if (response.ok) {
+      setThreads(prev => prev.map(t => 
+        t.id === threadId 
+          ? { ...t, folderId }
+          : t
+      ));
+    }
+  };
+  
+  const getFilteredThreads = () => {
+    let filtered = threads;
+    
+    // Filter by tags
+    if (selectedTags.length > 0) {
+      filtered = filtered.filter(thread =>
+        selectedTags.every(tag => thread.tags.includes(tag))
+      );
+    }
+    
+    // Sort
+    filtered = [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case 'title':
+          return a.title.localeCompare(b.title);
+        case 'created':
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        case 'updated':
+        default:
+          return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+      }
+    });
+    
+    return filtered;
+  };
+  
+  const allTags = [...new Set(threads.flatMap(t => t.tags))];
+  
+  return (
+    <div className="space-y-4">
+      {/* Filters and sorting */}
+      <div className="flex flex-wrap gap-2 items-center p-4 bg-gray-50 rounded">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium">Sort by:</span>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as any)}
+            className="p-1 border rounded text-sm"
+          >
+            <option value="updated">Last Updated</option>
+            <option value="created">Date Created</option>
+            <option value="title">Title</option>
+          </select>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium">Tags:</span>
+          <div className="flex flex-wrap gap-1">
+            {allTags.map(tag => (
+              <button
+                key={tag}
+                onClick={() => {
+                  setSelectedTags(prev =>
+                    prev.includes(tag)
+                      ? prev.filter(t => t !== tag)
+                      : [...prev, tag]
+                  );
+                }}
+                className={`px-2 py-1 text-xs rounded ${
+                  selectedTags.includes(tag)
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-200 hover:bg-gray-300'
+                }`}
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      
+      {/* Thread list with organization */}
+      <div className="space-y-2">
+        {getFilteredThreads().map(thread => (
+          <ThreadCard
+            key={thread.id}
+            thread={thread}
+            onAddTag={(tag) => addTagToThread(thread.id, tag)}
+            onMoveToFolder={(folderId) => moveToFolder(thread.id, folderId)}
+            folders={folders}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ThreadCard({ thread, onAddTag, onMoveToFolder, folders }) {
+  const [showTagInput, setShowTagInput] = useState(false);
+  const [newTag, setNewTag] = useState('');
+  
+  const addTag = () => {
+    if (newTag.trim()) {
+      onAddTag(newTag.trim());
+      setNewTag('');
+      setShowTagInput(false);
+    }
+  };
+  
+  return (
+    <div className="border rounded-lg p-4 bg-white shadow-sm">
+      <div className="flex items-start justify-between mb-2">
+        <h3 className="font-medium">{thread.title}</h3>
+        <div className="flex items-center gap-1">
+          {thread.pinned && <span className="text-yellow-500">📌</span>}
+          {thread.folderId && (
+            <span className="text-xs bg-blue-100 text-blue-700 px-1 rounded">
+              📁
+            </span>
+          )}
+        </div>
+      </div>
+      
+      <div className="text-sm text-gray-600 mb-3">
+        {thread.messages.length} messages • Updated {formatRelativeTime(thread.updatedAt)}
+      </div>
+      
+      {/* Tags */}
+      <div className="flex flex-wrap items-center gap-1 mb-2">
+        {thread.tags.map(tag => (
+          <span
+            key={tag}
+            className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded"
+          >
+            {tag}
+          </span>
+        ))}
+        
+        {showTagInput ? (
+          <input
+            type="text"
+            value={newTag}
+            onChange={(e) => setNewTag(e.target.value)}
+            onBlur={addTag}
+            onKeyPress={(e) => e.key === 'Enter' && addTag()}
+            placeholder="Add tag..."
+            className="px-2 py-1 text-xs border rounded w-20"
+            autoFocus
+          />
+        ) : (
+          <button
+            onClick={() => setShowTagInput(true)}
+            className="px-2 py-1 text-xs border-dashed border border-gray-300 rounded hover:bg-gray-50"
+          >
+            + Tag
+          </button>
+        )}
+      </div>
+      
+      {/* Folder selector */}
+      <select
+        value={thread.folderId || ''}
+        onChange={(e) => onMoveToFolder(e.target.value)}
+        className="text-xs border rounded p-1"
+      >
+        <option value="">No folder</option>
+        {folders.map(folder => (
+          <option key={folder.id} value={folder.id}>
+            📁 {folder.name}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+```
+
+## Best Practices
+
+1. **Implement efficient search** across thread content
+2. **Provide visual hierarchy** with folders and tags
+3. **Support bulk operations** for thread management
+4. **Enable easy thread switching** with keyboard shortcuts
+5. **Show thread relationships** for branches
+6. **Implement auto-save** for thread metadata
+7. **Provide export/import** capabilities
+
+## Exercise: Complete Thread System
+
+Build a comprehensive thread management system that includes:
+- Hierarchical folder structure
+- Advanced search and filtering
+- Thread branching and merging
+- Bulk operations and organization
+- Thread sharing and collaboration
+- Auto-organization using AI
+
+## Next Steps
+
+Thread management enables users to organize complex conversation workflows. Next, let's explore **Runtime Integration** patterns for connecting different AI backends.
+
+Continue to [Runtime Integration →](./12-runtime-integration)

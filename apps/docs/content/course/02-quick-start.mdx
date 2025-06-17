@@ -1,0 +1,123 @@
+---
+title: Quick Start
+description: Build your first AI chat interface in under 10 minutes
+---
+
+# Quick Start
+
+Let's build a complete AI chat interface from scratch. By the end of this module, you'll have a working chat app connected to an AI provider.
+
+## Installation
+
+Install Assistant UI and the AI SDK:
+
+```bash
+npm install @assistant-ui/react ai
+```
+
+## Basic Setup
+
+### 1. Create the Runtime
+
+First, create a runtime that connects to your AI provider:
+
+```tsx
+"use client";
+
+import { useChat } from "ai/react";
+import { AssistantRuntimeProvider, useLocalRuntime } from "@assistant-ui/react";
+
+export function ChatProvider({ children }: { children: React.ReactNode }) {
+  const chat = useChat({
+    api: "/api/chat", // Your API endpoint
+  });
+
+  const runtime = useLocalRuntime(chat);
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+### 2. Add the Chat Interface
+
+Create a simple chat component:
+
+```tsx
+import { Thread } from "@assistant-ui/react";
+
+export function MyChat() {
+  return (
+    <div className="h-screen">
+      <Thread />
+    </div>
+  );
+}
+```
+
+### 3. Put It Together
+
+Combine everything in your app:
+
+```tsx
+import { ChatProvider } from "./ChatProvider";
+import { MyChat } from "./MyChat";
+
+export default function App() {
+  return (
+    <ChatProvider>
+      <MyChat />
+    </ChatProvider>
+  );
+}
+```
+
+### 4. Create the API Route
+
+Create an API route that handles chat requests:
+
+```tsx
+// app/api/chat/route.ts
+import { openai } from "@ai-sdk/openai";
+import { streamText } from "ai";
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+
+  const result = await streamText({
+    model: openai("gpt-4"),
+    messages,
+  });
+
+  return result.toDataStreamResponse();
+}
+```
+
+## What You Just Built
+
+Congratulations! You've created a fully functional AI chat interface with:
+
+- **Real-time streaming** responses
+- **Message history** management
+- **Responsive design** that works on all devices
+- **Type-safe** React components
+
+## Key Components
+
+- **`AssistantRuntimeProvider`**: Provides the chat runtime to your app
+- **`Thread`**: The main chat interface component
+- **`useLocalRuntime`**: Connects AI SDK chat to Assistant UI
+
+## Next Steps
+
+This basic setup gives you a working chat interface, but Assistant UI can do much more. In the next modules, we'll explore:
+
+- Understanding the architecture
+- Building custom components
+- Adding attachments and speech
+- Implementing tool calling
+
+Continue to [Architecture Overview →](./03-architecture-overview)
