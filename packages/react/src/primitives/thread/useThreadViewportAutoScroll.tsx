@@ -55,9 +55,16 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
       }
 
       if (newIsAtBottom !== isAtBottom) {
-        writableStore(threadViewportStore).setState({
-          isAtBottom: newIsAtBottom,
-        });
+        const updateState = () =>
+          writableStore(threadViewportStore).setState({
+            isAtBottom: newIsAtBottom,
+          });
+
+        if (newIsAtBottom && isScrollingToBottomRef.current) {
+          requestAnimationFrame(updateState);
+        } else {
+          updateState();
+        }
       }
     }
 
