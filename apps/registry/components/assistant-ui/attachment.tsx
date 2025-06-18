@@ -139,7 +139,7 @@ const AttachmentUI: FC = () => {
     }
     return null;
   });
-  
+
   return (
     <Tooltip>
       <AttachmentPrimitive.Root className="aui-attachment-root">
@@ -157,7 +157,9 @@ const AttachmentUI: FC = () => {
           </TooltipTrigger>
         </AttachmentPreviewDialog>
         {canRemove && <AttachmentRemove />}
-        {uploadProgress !== null && <AttachmentProgress progress={uploadProgress} />}
+        {uploadProgress !== null && (
+          <AttachmentProgress progress={uploadProgress} />
+        )}
       </AttachmentPrimitive.Root>
       <TooltipContent side="top">
         <AttachmentPrimitive.Name />
@@ -183,7 +185,7 @@ const AttachmentRemove: FC = () => {
 const AttachmentProgress: FC<{ progress: number }> = ({ progress }) => {
   return (
     <div className="aui-attachment-progress">
-      <div 
+      <div
         className="aui-attachment-progress-bar"
         style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
       />

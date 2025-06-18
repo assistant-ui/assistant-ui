@@ -10,16 +10,21 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
 
   constructor(private cloud: AssistantCloud) {}
 
-  public async *add(state: { file: File }): AsyncGenerator<PendingAttachment, void> {
+  public async *add(state: {
+    file: File;
+  }): AsyncGenerator<PendingAttachment, void> {
     let currentProgress = 0;
     let progressResolvers: Array<(progress: number) => void> = [];
-    
-    const uploadPromise = this.startUploadWithProgress(state.file, (progress) => {
-      currentProgress = progress;
-      progressResolvers.forEach(resolver => resolver(progress));
-      progressResolvers = [];
-    });
-    
+
+    const uploadPromise = this.startUploadWithProgress(
+      state.file,
+      (progress) => {
+        currentProgress = progress;
+        progressResolvers.forEach((resolver) => resolver(progress));
+        progressResolvers = [];
+      },
+    );
+
     const baseAttachment: PendingAttachment = {
       id: `${state.file.name}-${Date.now()}`,
       type: "document",
@@ -45,25 +50,31 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
 
       if (nextProgress > lastYieldedProgress + 4 || nextProgress >= 100) {
         lastYieldedProgress = nextProgress;
-        
+
         if (nextProgress < 100) {
           yield {
             ...baseAttachment,
-            status: { type: "running", reason: "uploading", progress: nextProgress },
+            status: {
+              type: "running",
+              reason: "uploading",
+              progress: nextProgress,
+            },
           };
         } else {
           break;
         }
       }
     }
-    
+
     yield {
       ...baseAttachment,
       status: { type: "requires-action", reason: "composer-send" },
     };
   }
 
-  public async send(attachment: PendingAttachment): Promise<CompleteAttachment> {
+  public async send(
+    attachment: PendingAttachment,
+  ): Promise<CompleteAttachment> {
     try {
       if (!attachment.uploadPromise) {
         throw new Error("No upload promise found on attachment");
@@ -83,16 +94,17 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
         ],
       };
     } catch (error) {
-      throw new Error(`Failed to upload file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to upload file: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
     }
   }
 
-  public async remove() {
-  }
+  public async remove() {}
 
   private async startUploadWithProgress(
-    file: File, 
-    onProgress: (progress: number) => void
+    file: File,
+    onProgress: (progress: number) => void,
   ): Promise<{ url: string; data: string }> {
     const uploadResponse = await this.cloud.files.generatePresignedUploadUrl({
       filename: file.name,
@@ -100,31 +112,33 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
 
     const uploadResult = await new Promise<Response>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      
-      xhr.upload.addEventListener('progress', (event) => {
+
+      xhr.upload.addEventListener("progress", (event) => {
         if (event.lengthComputable) {
           const progress = Math.round((event.loaded / event.total) * 100);
           onProgress(progress);
         }
       });
 
-      xhr.addEventListener('load', () => {
+      xhr.addEventListener("load", () => {
         if (xhr.status >= 200 && xhr.status < 300) {
-          resolve(new Response(xhr.response, {
-            status: xhr.status,
-            statusText: xhr.statusText,
-          }));
+          resolve(
+            new Response(xhr.response, {
+              status: xhr.status,
+              statusText: xhr.statusText,
+            }),
+          );
         } else {
           reject(new Error(`Upload failed: ${xhr.statusText}`));
         }
       });
 
-      xhr.addEventListener('error', () => {
-        reject(new Error('Upload failed: Network error'));
+      xhr.addEventListener("error", () => {
+        reject(new Error("Upload failed: Network error"));
       });
 
-      xhr.open('PUT', uploadResponse.signedUrl);
-      xhr.setRequestHeader('Content-Type', file.type);
+      xhr.open("PUT", uploadResponse.signedUrl);
+      xhr.setRequestHeader("Content-Type", file.type);
       xhr.send(file);
     });
 
@@ -145,7 +159,7 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
       const reader = new FileReader();
       reader.onload = () => {
         const result = reader.result as string;
-        const base64 = result.split(',')[1];
+        const base64 = result.split(",")[1];
         resolve(base64 || "");
       };
       reader.onerror = reject;
