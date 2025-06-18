@@ -43,27 +43,28 @@ function Form() {
 ### Parameters
 
 <ParametersTable
+  type="AssistantToolProps<TArgs, TResult>"
   parameters={[
     {
       name: "tool",
-      type: "Tool",
-      description: "A tool definition created using the tool() helper function",
-      children: [
-        {
-          parameters: [
-            {
-              name: "parameters",
-              type: "ZodSchema",
-              description: "Zod schema defining the tool's parameters",
-            },
-            {
-              name: "execute",
-              type: "function",
-              description: "Function that implements the tool's behavior",
-            },
-          ],
-        },
-      ],
+      type: "Tool<TArgs, TResult>",
+      description: "A tool definition created using the tool() helper function. The tool should have the following properties:",
+    },
+    {
+      name: "tool.parameters",
+      type: "StandardSchemaV1<TArgs> | JSONSchema7",
+      description: "Schema defining the tool's parameters (typically a Zod schema)",
+      required: true,
+    },
+    {
+      name: "tool.execute",
+      type: "(args: TArgs, context: ToolExecutionContext) => TResult | Promise<TResult>",
+      description: "Function that implements the tool's behavior",
+    },
+    {
+      name: "tool.description",
+      type: "string",
+      description: "Optional description of the tool's purpose",
     },
   ]}
 />

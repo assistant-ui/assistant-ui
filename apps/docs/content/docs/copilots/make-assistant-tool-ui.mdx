@@ -4,8 +4,6 @@ title: makeAssistantToolUI
 
 import { ParametersTable } from "@/components/docs";
 
-# `makeAssistantToolUI`
-
 The `makeAssistantToolUI` utility is used to register a tool UI component with the Assistant.
 
 ## Usage
@@ -23,9 +21,7 @@ const MyToolUI = makeAssistantToolUI({
 
 ## API
 
-### `makeAssistantToolUI(tool)`
-
-#### Parameters
+### Parameters
 
 <ParametersTable
   type="AssistantToolUIProps<TArgs, TResult>"
@@ -43,7 +39,7 @@ const MyToolUI = makeAssistantToolUI({
   ]}
 />
 
-#### Returns
+### Returns
 
 A React functional component that should be included in your component tree. This component doesn't render anything itself, but it registers the tool UI with the Assistant.
 
