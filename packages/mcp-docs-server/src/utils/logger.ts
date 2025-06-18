@@ -13,6 +13,6 @@ export const logger = {
     console.error(`[ERROR] ${message}`, ...args);
   },
   warn: (message: string, ...args: any[]) => {
-    console.error(`[WARN] ${message}`, ...args);
+    console.warn(`[WARN] ${message}`, ...args);
   },
 };
