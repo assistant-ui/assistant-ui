@@ -35,6 +35,7 @@ type BaseAttachment = {
 export type PendingAttachment = BaseAttachment & {
   status: PendingAttachmentStatus;
   file: File;
+  uploadPromise?: Promise<{ url: string; data: string }>;
 };
 
 export type CompleteAttachment = BaseAttachment & {
