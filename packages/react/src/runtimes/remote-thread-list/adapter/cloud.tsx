@@ -6,7 +6,7 @@ import {
   useMemo,
   useRef,
 } from "react";
-import { AssistantCloud } from "../../../cloud";
+import { AssistantCloud } from "assistant-cloud";
 import { RemoteThreadListAdapter } from "../types";
 import { useAssistantCloudThreadHistoryAdapter } from "../../../cloud/AssistantCloudThreadHistoryAdapter";
 import { RuntimeAdapterProvider } from "../../adapters/RuntimeAdapterProvider";

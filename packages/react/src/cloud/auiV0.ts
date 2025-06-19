@@ -1,7 +1,7 @@
 import { ThreadMessage } from "../types";
 import { MessageStatus } from "../types/AssistantTypes";
 import { fromThreadMessageLike } from "../runtimes/external-store/ThreadMessageLike";
-import { CloudMessage } from "./AssistantCloudThreadMessages";
+import { CloudMessage } from "assistant-cloud";
 import { isJSONValue } from "../utils/json/is-json";
 import { ReadonlyJSONObject, ReadonlyJSONValue } from "assistant-stream/utils";
 import { ExportedMessageRepositoryItem } from "../runtimes/utils/MessageRepository";

@@ -10,6 +10,7 @@ import type {
   Unstable_AudioContentPart,
 } from "./AssistantTypes";
 import { ContentPartState } from "../api/ContentPartRuntime";
+import { ToolResponse } from "assistant-stream";
 
 export type EmptyContentPartProps = {
   status: ContentPartStatus;
@@ -42,7 +43,7 @@ export type ToolCallContentPartProps<
   TResult = unknown,
 > = ContentPartState &
   ToolCallContentPart<TArgs, TResult> & {
-    addResult: (result: TResult) => void;
+    addResult: (result: TResult | ToolResponse<TResult>) => void;
   };
 
 export type ToolCallContentPartComponent<

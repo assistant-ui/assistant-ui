@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Dict, List, Literal, TypedDict, Union
+from typing import Any, Dict, List, Literal, Optional, TypedDict, Union
 
 
 # Define the data classes for different chunk types
@@ -7,6 +7,12 @@ from typing import Any, Dict, List, Literal, TypedDict, Union
 class TextDeltaChunk:
     text_delta: str
     type: str = "text-delta"
+
+
+@dataclass
+class ReasoningDeltaChunk:
+    reasoning_delta: str
+    type: str = "reasoning-delta"
 
 
 @dataclass
@@ -66,13 +72,24 @@ class UpdateStateChunk:
     type: str = "update-state"
 
 
+@dataclass
+class SourceChunk:
+    id: str
+    url: str
+    source_type: str = "url"
+    title: Optional[str] = None
+    type: str = "source"
+
+
 # Define the union type for AssistantStreamChunk
 AssistantStreamChunk = Union[
     TextDeltaChunk,
+    ReasoningDeltaChunk,
     ToolCallBeginChunk,
     ToolCallDeltaChunk,
     ToolResultChunk,
     DataChunk,
     ErrorChunk,
     UpdateStateChunk,
+    SourceChunk,
 ]

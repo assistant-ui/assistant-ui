@@ -1,5 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { LangChainMessage, LangChainToolCall } from "./types";
+import {
+  LangChainMessage,
+  LangChainToolCall,
+  OnCustomEventCallback,
+  OnErrorEventCallback,
+  OnInfoEventCallback,
+  OnMetadataEventCallback,
+} from "./types";
 import {
   useExternalMessageConverter,
   useExternalStoreRuntime,
@@ -115,6 +122,7 @@ export const useLangGraphRuntime = ({
   threadId,
   onSwitchToNewThread,
   onSwitchToThread,
+  eventHandlers,
 }: {
   /**
    * @deprecated For thread management use `useCloudThreadListRuntime` instead. This option will be removed in a future version.
@@ -138,6 +146,29 @@ export const useLangGraphRuntime = ({
         feedback?: FeedbackAdapter;
       }
     | undefined;
+  /**
+   * Event handlers for various LangGraph stream events
+   */
+  eventHandlers?:
+    | {
+        /**
+         * Called when metadata is received from the LangGraph stream
+         */
+        onMetadata?: OnMetadataEventCallback;
+        /**
+         * Called when informational messages are received from the LangGraph stream
+         */
+        onInfo?: OnInfoEventCallback;
+        /**
+         * Called when errors occur during LangGraph stream processing
+         */
+        onError?: OnErrorEventCallback;
+        /**
+         * Called when custom events are received from the LangGraph stream
+         */
+        onCustomEvent?: OnCustomEventCallback;
+      }
+    | undefined;
 }) => {
   const {
     interrupt,
@@ -149,6 +180,7 @@ export const useLangGraphRuntime = ({
   } = useLangGraphMessages({
     appendMessage: appendLangChainChunk,
     stream,
+    ...(eventHandlers && { eventHandlers }),
   });
 
   const [isRunning, setIsRunning] = useState(false);
@@ -232,6 +264,7 @@ export const useLangGraphRuntime = ({
                   name: t.name,
                   tool_call_id: t.id,
                   content: JSON.stringify({ cancelled: true }),
+                  status: "error",
                 }) satisfies LangChainMessage & { type: "tool" },
             )
           : [];
@@ -249,7 +282,13 @@ export const useLangGraphRuntime = ({
         },
       );
     },
-    onAddToolResult: async ({ toolCallId, toolName, result }) => {
+    onAddToolResult: async ({
+      toolCallId,
+      toolName,
+      result,
+      isError,
+      artifact,
+    }) => {
       // TODO parallel human in the loop calls
       await handleSendMessage(
         [
@@ -258,6 +297,8 @@ export const useLangGraphRuntime = ({
             name: toolName,
             tool_call_id: toolCallId,
             content: JSON.stringify(result),
+            artifact,
+            status: isError ? "error" : "success",
           },
         ],
         // TODO reuse runconfig here!

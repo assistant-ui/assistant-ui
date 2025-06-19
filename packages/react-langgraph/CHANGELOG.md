@@ -1,5 +1,47 @@
 # @assistant-ui/react-langgraph
 
+## 0.5.8
+
+### Patch Changes
+
+- 644abb8: chore: update deps
+- Updated dependencies [b65e354]
+- Updated dependencies [8eda24b]
+- Updated dependencies [644abb8]
+  - @assistant-ui/react@0.10.24
+  - assistant-stream@0.2.17
+
+## 0.5.7
+
+### Patch Changes
+
+- 39261db: fix: langchain-community bedrock anthropic support
+- 1556c03: feat: Add support for event handlers for metadata, info, error, and custom events to useLangGraphMessages and useLangGraphRuntime
+- Updated dependencies [57b5735]
+  - @assistant-ui/react@0.10.21
+
+## 0.5.6
+
+### Patch Changes
+
+- a6821cc: feat: LangGraph AIMessageChunk support
+- Updated dependencies [8aa3020]
+- Updated dependencies [f69ca69]
+  - @assistant-ui/react@0.10.20
+
+## 0.5.5
+
+### Patch Changes
+
+- 52e18bc: feat: langgraph human tool call artifact/isError support
+- 52e18bc: fix: add support for artifact and isError for langgraph tool calls
+- Updated dependencies [d0867eb]
+- Updated dependencies [52e18bc]
+- Updated dependencies [52e18bc]
+- Updated dependencies [52e18bc]
+  - @assistant-ui/react@0.10.19
+  - assistant-stream@0.2.14
+
 ## 0.5.4
 
 ### Patch Changes

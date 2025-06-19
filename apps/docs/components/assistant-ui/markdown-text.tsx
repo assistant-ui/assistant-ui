@@ -14,8 +14,8 @@ import { CheckIcon, CopyIcon } from "lucide-react";
 
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { cn } from "@/lib/utils";
-import { makePrismAsyncSyntaxHighlighter } from "@assistant-ui/react-syntax-highlighter";
-import { coldarkDark } from "react-syntax-highlighter/dist/cjs/styles/prism";
+import { makePrismAsyncSyntaxHighlighter } from "@assistant-ui/react-syntax-highlighter/full";
+import { coldarkDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 const SyntaxHighlighter = makePrismAsyncSyntaxHighlighter({
   style: coldarkDark,

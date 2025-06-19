@@ -1,9 +1,6 @@
 export {
-  makeSyntaxHighlighter,
   makeLightSyntaxHighlighter,
   makeLightAsyncSyntaxHighlighter,
-  makePrismSyntaxHighlighter,
   makePrismLightSyntaxHighlighter,
-  makePrismAsyncSyntaxHighlighter,
   makePrismAsyncLightSyntaxHighlighter,
-} from "./react-syntax-highlighter";
+} from "./react-syntax-highlighter-light";

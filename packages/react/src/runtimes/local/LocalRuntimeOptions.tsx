@@ -4,7 +4,7 @@ import { ThreadMessageLike } from "../external-store";
 import { FeedbackAdapter } from "../adapters/feedback/FeedbackAdapter";
 import { SpeechSynthesisAdapter } from "../adapters/speech/SpeechAdapterTypes";
 import { ChatModelAdapter } from "./ChatModelAdapter";
-import { AssistantCloud } from "../../cloud";
+import { AssistantCloud } from "assistant-cloud";
 import { SuggestionAdapter } from "../adapters";
 
 export type LocalRuntimeOptionsBase = {

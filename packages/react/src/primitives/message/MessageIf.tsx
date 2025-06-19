@@ -48,7 +48,7 @@ const useMessageIf = (props: UseMessageIfProps) => {
       if (props.system && role !== "system") return false;
 
       if (props.lastOrHover === true && !isHovering && !isLast) return false;
-      if (props.last === true && !isLast) return false;
+      if (props.last !== undefined && props.last !== isLast) return false;
 
       if (props.copied === true && !isCopied) return false;
       if (props.copied === false && isCopied) return false;

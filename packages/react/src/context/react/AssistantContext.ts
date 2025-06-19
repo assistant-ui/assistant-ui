@@ -24,6 +24,29 @@ export const useAssistantContext = createContextHook(
   "AssistantRuntimeProvider",
 );
 
+/**
+ * Hook to access the AssistantRuntime from the current context.
+ *
+ * The AssistantRuntime provides access to the top-level assistant state and actions,
+ * including thread management, tool registration, and configuration.
+ *
+ * @param options Configuration options
+ * @param options.optional Whether the hook should return null if no context is found
+ * @returns The AssistantRuntime instance, or null if optional is true and no context exists
+ *
+ * @example
+ * ```tsx
+ * function MyComponent() {
+ *   const runtime = useAssistantRuntime();
+ *
+ *   const handleNewThread = () => {
+ *     runtime.switchToNewThread();
+ *   };
+ *
+ *   return <button onClick={handleNewThread}>New Thread</button>;
+ * }
+ * ```
+ */
 export function useAssistantRuntime(options?: {
   optional?: false | undefined;
 }): AssistantRuntime;

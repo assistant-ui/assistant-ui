@@ -22,6 +22,8 @@ export namespace useExternalMessageConverter {
         toolCallId: string;
         toolName?: string | undefined;
         result: any;
+        artifact?: any;
+        isError?: boolean;
       };
 
   export type Callback<T> = (message: T) => Message | Message[];
@@ -75,6 +77,8 @@ const joinExternalMessages = (
             ],
           },
           result: output.result,
+          artifact: output.artifact,
+          isError: output.isError,
         };
       } else {
         throw new Error(

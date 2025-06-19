@@ -79,13 +79,17 @@ export const ComposerPrimitiveAttachments: FC<
 > = ({ components }) => {
   const attachmentsCount = useComposer((s) => s.attachments.length);
 
-  return Array.from({ length: attachmentsCount }, (_, index) => (
-    <ComposerAttachment
-      key={index}
-      attachmentIndex={index}
-      components={components}
-    />
-  ));
+  const attachmentElements = useMemo(() => {
+    return Array.from({ length: attachmentsCount }, (_, index) => (
+      <ComposerAttachment
+        key={index}
+        attachmentIndex={index}
+        components={components}
+      />
+    ));
+  }, [attachmentsCount, components]);
+
+  return attachmentElements;
 };
 
 ComposerPrimitiveAttachments.displayName = "ComposerPrimitive.Attachments";

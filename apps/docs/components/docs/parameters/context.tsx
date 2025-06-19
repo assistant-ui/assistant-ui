@@ -36,7 +36,7 @@ export const AssistantToolUIsState: ParametersTableProps = {
             },
             {
               name: "addResult",
-              type: "(result: TResult) => void",
+              type: "(result: TResult | ToolResponse<TResult>) => void",
               description: "Adds a result to the tool call.",
             },
           ],

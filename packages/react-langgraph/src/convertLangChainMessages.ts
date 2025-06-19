@@ -14,6 +14,8 @@ const contentToParts = (content: LangChainMessage["content"]) => {
       switch (type) {
         case "text":
           return { type: "text", text: part.text };
+        case "text_delta":
+          return { type: "text", text: part.text };
         case "image_url":
           if (typeof part.image_url === "string") {
             return { type: "image", image: part.image_url };
@@ -25,6 +27,8 @@ const contentToParts = (content: LangChainMessage["content"]) => {
           }
 
         case "tool_use":
+          return null;
+        case "input_json_delta":
           return null;
         default:
           const _exhaustiveCheck: never = type;
@@ -76,6 +80,7 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
         toolCallId: message.tool_call_id,
         result: message.content,
         artifact: message.artifact,
+        isError: message.status === "error",
       };
   }
 };

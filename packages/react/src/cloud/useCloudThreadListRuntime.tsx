@@ -1,6 +1,6 @@
 "use client";
 
-import { AssistantCloud } from "./AssistantCloud";
+import { AssistantCloud } from "assistant-cloud";
 import { AssistantRuntime } from "../api";
 import { useRemoteThreadListRuntime } from "../runtimes/remote-thread-list/useRemoteThreadListRuntime";
 import { useCloudThreadListAdapter } from "../runtimes/remote-thread-list/adapter/cloud";

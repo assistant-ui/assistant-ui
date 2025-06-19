@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-ai-sdk",
-  "version": "0.10.13",
+  "version": "0.10.14",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -27,11 +27,11 @@
     "@assistant-ui/react-edge": "workspace:*",
     "@radix-ui/react-use-callback-ref": "^1.1.1",
     "@types/json-schema": "^7.0.15",
-    "zod": "^3.25.28",
+    "zod": "^3.25.64",
     "zustand": "^5.0.5"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.10.18",
+    "@assistant-ui/react": "^0.10.24",
     "@types/react": "*",
     "react": "^18 || ^19 || ^19.0.0-rc"
   },
@@ -42,12 +42,12 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^22.15.21",
-    "@types/react": "^19.1.5",
+    "@types/node": "^24.0.1",
+    "@types/react": "^19.1.8",
     "eslint": "^9",
-    "eslint-config-next": "15.3.2",
+    "eslint-config-next": "15.3.3",
     "react": "^19.1.0",
-    "tsx": "^4.19.4"
+    "tsx": "^4.20.3"
   },
   "publishConfig": {
     "access": "public",

@@ -92,11 +92,10 @@ export async function POST(req: Request) {
         );
 
         runResult = await forwardStream(
-          openai.beta.threads.runs.submitToolOutputsStream(
-            threadId,
-            runResult.id,
-            { tool_outputs },
-          ),
+          openai.beta.threads.runs.submitToolOutputsStream(runResult.id, {
+            thread_id: threadId,
+            tool_outputs,
+          }),
         );
       }
     },

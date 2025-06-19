@@ -1,12 +1,16 @@
 {
   "name": "@assistant-ui/react-syntax-highlighter",
-  "version": "0.10.4",
+  "version": "0.10.6",
   "license": "MIT",
   "type": "module",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./full": {
+      "types": "./dist/full.d.ts",
+      "default": "./dist/full.js"
     }
   },
   "main": "./dist/index.js",
@@ -22,8 +26,8 @@
     "lint": "eslint ."
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.10.18",
-    "@assistant-ui/react-markdown": "^0.10.4",
+    "@assistant-ui/react": "^0.10.24",
+    "@assistant-ui/react-markdown": "^0.10.5",
     "@types/react": "*",
     "@types/react-syntax-highlighter": "*",
     "react": "^18 || ^19 || ^19.0.0-rc",
@@ -41,14 +45,14 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^22.15.21",
-    "@types/react": "^19.1.5",
+    "@types/node": "^24.0.1",
+    "@types/react": "^19.1.8",
     "@types/react-syntax-highlighter": "^15.5.13",
     "eslint": "^9",
-    "eslint-config-next": "15.3.2",
+    "eslint-config-next": "15.3.3",
     "react": "^19.1.0",
     "react-syntax-highlighter": "^15.6.1",
-    "tsx": "^4.19.4"
+    "tsx": "^4.20.3"
   },
   "publishConfig": {
     "access": "public",

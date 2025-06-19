@@ -1,2 +1,2 @@
 export { useCloudThreadListRuntime } from "./useCloudThreadListRuntime";
-export { AssistantCloud } from "./AssistantCloud";
+export { AssistantCloud } from "assistant-cloud";

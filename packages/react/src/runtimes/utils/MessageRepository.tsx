@@ -330,7 +330,7 @@ export class MessageRepository {
 
     if (!message)
       throw new Error(
-        "MessageRepository(deleteMessage): Optimistic message not found. This is likely an internal bug in assistant-ui.",
+        "MessageRepository(deleteMessage): Message not found. This is likely an internal bug in assistant-ui.",
       );
 
     const replacement =

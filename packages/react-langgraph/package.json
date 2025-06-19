@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-langgraph",
-  "version": "0.5.4",
+  "version": "0.5.8",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -19,15 +19,17 @@
   "sideEffects": false,
   "scripts": {
     "build": "tsx scripts/build.mts",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
-    "assistant-stream": "^0.2.13",
+    "assistant-stream": "^0.2.17",
     "uuid": "^11.1.0",
-    "zod": "^3.25.28"
+    "zod": "^3.25.64"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.10.18",
+    "@assistant-ui/react": "^0.10.24",
     "@types/react": "*",
     "react": "^18 || ^19 || ^19.0.0-rc"
   },
@@ -39,13 +41,17 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^22.15.21",
-    "@types/react": "^19.1.5",
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/react": "^16.3.0",
+    "@types/node": "^24.0.1",
+    "@types/react": "^19.1.8",
     "@types/uuid": "^10.0.0",
     "eslint": "^9",
-    "eslint-config-next": "15.3.2",
+    "eslint-config-next": "15.3.3",
+    "jsdom": "^26.1.0",
     "react": "^19.1.0",
-    "tsx": "^4.19.4"
+    "tsx": "^4.20.3",
+    "vitest": "^3.2.3"
   },
   "publishConfig": {
     "access": "public",

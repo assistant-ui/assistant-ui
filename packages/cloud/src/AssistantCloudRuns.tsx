@@ -1,11 +1,10 @@
-import { ThreadMessage } from "../types";
 import { AssistantCloudAPI } from "./AssistantCloudAPI";
 import { AssistantStream, PlainTextDecoder } from "assistant-stream";
 
 type AssistantCloudRunsStreamBody = {
   thread_id: string;
   assistant_id: "system/thread_title";
-  messages: readonly ThreadMessage[];
+  messages: readonly unknown[]; // TODO type
 };
 
 export class AssistantCloudRuns {

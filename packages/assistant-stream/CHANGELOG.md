@@ -1,5 +1,29 @@
 # assistant-stream
 
+## 0.2.17
+
+### Patch Changes
+
+- 644abb8: chore: update deps
+
+## 0.2.16
+
+### Patch Changes
+
+- de00319: fix: add assistant-stream/utils subpath import workaround
+
+## 0.2.15
+
+### Patch Changes
+
+- 51b8493: feat: add missing exports
+
+## 0.2.14
+
+### Patch Changes
+
+- 52e18bc: feat: ToolResponseLike
+
 ## 0.2.13
 
 ### Patch Changes

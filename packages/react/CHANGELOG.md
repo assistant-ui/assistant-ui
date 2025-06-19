@@ -1,5 +1,54 @@
 # @assistant-ui/react
 
+## 0.10.24
+
+### Patch Changes
+
+- b65e354: docs: add JSDoc comments
+- 8eda24b: performance: Memoize Array.from() calls in render methods
+- 644abb8: chore: update deps
+- Updated dependencies [644abb8]
+  - assistant-stream@0.2.17
+  - assistant-cloud@0.0.2
+
+## 0.10.23
+
+### Patch Changes
+
+- 1b77d8a: fix: Add missing `useLocalThreadRuntime` export
+
+## 0.10.22
+
+### Patch Changes
+
+- 5a86bda: feat(runtime): export `useLocalThreadRuntime` for more flexibility and runtime customization
+- 7a65c80: feat(assistant-cloud): filesToPdf support
+- Updated dependencies [51b8493]
+  - assistant-stream@0.2.15
+
+## 0.10.21
+
+### Patch Changes
+
+- 57b5735: fix: logic for ComposerPrimitive.Input disabled prop
+
+## 0.10.20
+
+### Patch Changes
+
+- 8aa3020: Fix: Export missing adapter primitives
+- f69ca69: fix(react): preserve message metadata in useThreadRuntime().append()
+
+## 0.10.19
+
+### Patch Changes
+
+- d0867eb: fix(message): add missing condition in `MessageIf`
+- 52e18bc: feat: addToolResponse ToolResponse support
+- 52e18bc: fix: add support for artifact and isError for langgraph tool calls
+- Updated dependencies [52e18bc]
+  - assistant-stream@0.2.14
+
 ## 0.10.18
 
 ### Patch Changes

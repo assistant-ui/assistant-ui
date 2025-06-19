@@ -1,5 +1,22 @@
 # @assistant-ui/react-syntax-highlighter
 
+## 0.10.6
+
+### Patch Changes
+
+- 644abb8: chore: update deps
+- Updated dependencies [b65e354]
+- Updated dependencies [8eda24b]
+- Updated dependencies [644abb8]
+  - @assistant-ui/react@0.10.24
+  - @assistant-ui/react-markdown@0.10.5
+
+## 0.10.5
+
+### Patch Changes
+
+- 588a2c0: fix: split react-syntax-highlighter into light (default) and `/full` paths
+
 ## 0.10.4
 
 ### Patch Changes
