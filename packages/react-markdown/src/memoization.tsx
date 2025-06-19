@@ -20,12 +20,21 @@ export const areNodesEqual = (
   prev: Element | undefined,
   next: Element | undefined,
 ) => {
-  // TODO troubleshoot why this is triggering for code blocks
   if (!prev || !next) return false;
-  const isEqual =
-    JSON.stringify(prev?.properties) === JSON.stringify(next?.properties) &&
-    areChildrenEqual(prev?.children, next?.children);
-  return isEqual;
+
+  if (prev.type !== next.type) return false;
+  if (prev.tagName !== next.tagName) return false;
+
+  const sanitize = (props: Element["properties"]) => {
+    const { position, ...rest } = (props as Record<string, unknown>) || {};
+    return rest;
+  };
+
+  return (
+    JSON.stringify(sanitize(prev.properties)) ===
+      JSON.stringify(sanitize(next.properties)) &&
+    areChildrenEqual(prev.children, next.children)
+  );
 };
 
 export const memoCompareNodes = (
