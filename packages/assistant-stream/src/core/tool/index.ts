@@ -1,4 +1,5 @@
-export type { Tool } from "./tool-types";
+export type { Tool, BackendTool, FrontendTool, HumanTool } from "./tool-types";
+export { frontendTool, backendTool } from "./tool-types";
 export { ToolResponse, type ToolResponseLike } from "./ToolResponse";
 export { ToolExecutionStream } from "./ToolExecutionStream";
 export type { ToolCallReader } from "./tool-types";
