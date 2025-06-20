@@ -43,7 +43,7 @@ export const Thread: FC = () => {
         />
 
         <ThreadPrimitive.If empty={false}>
-          <div className="min-h-8 flex-grow" />
+          <div className="aui-thread-viewport-spacer" />
         </ThreadPrimitive.If>
 
         <div className="aui-thread-viewport-footer">
