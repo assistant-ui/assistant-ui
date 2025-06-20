@@ -10,7 +10,9 @@ export namespace AssistantModalPrimitiveContent {
   export type Props = ComponentPropsWithoutRef<
     typeof PopoverPrimitive.Content
   > & {
-    portalProps?: ComponentPropsWithoutRef<typeof PopoverPrimitive.Portal> | undefined;
+    portalProps?:
+      | ComponentPropsWithoutRef<typeof PopoverPrimitive.Portal>
+      | undefined;
     dissmissOnInteractOutside?: boolean | undefined;
   };
 }
