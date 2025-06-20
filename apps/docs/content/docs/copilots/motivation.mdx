@@ -122,7 +122,10 @@ const analyzeTransaction = tool({
 });
 
 // Create a tool component
-const TransactionAnalyzer = makeAssistantTool(analyzeTransaction);
+const TransactionAnalyzer = makeAssistantTool({
+  ...analyzeTransaction,
+  toolName: "analyzeTransaction",
+});
 
 function SmartTransactionHistory() {
   // Previous instructions...

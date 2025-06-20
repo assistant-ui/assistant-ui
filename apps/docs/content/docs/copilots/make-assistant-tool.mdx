@@ -24,12 +24,10 @@ const submitForm = tool({
   },
 });
 
-// Create a tool component  
+// Create a tool component
 const SubmitFormTool = makeAssistantTool({
-  toolName: "submitForm",
-  parameters: submitForm.parameters,
-  execute: submitForm.execute,
-  description: submitForm.description,
+  ...submitForm,
+  toolName: "submitForm"
 });
 
 // Use in your component
@@ -170,23 +168,19 @@ const sendEmail = tool({
     body: z.string(),
   }),
   execute: async (params) => {
-    // Implementation
+    // Tool logic
     return { sent: true };
   },
 });
 
 // Create tool components
 const EmailValidator = makeAssistantTool({
-  toolName: "validateEmail",
-  parameters: validateEmail.parameters,
-  execute: validateEmail.execute,
-  description: validateEmail.description,
+  ...validateEmail,
+  toolName: "validateEmail"
 });
 const EmailSender = makeAssistantTool({
-  toolName: "sendEmail",
-  parameters: sendEmail.parameters,
-  execute: sendEmail.execute,
-  description: sendEmail.description,
+  ...sendEmail,
+  toolName: "sendEmail"
 });
 
 // Use together
