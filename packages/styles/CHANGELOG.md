@@ -1,5 +1,11 @@
 # @assistant-ui/styles
 
+## 0.1.13
+
+### Patch Changes
+
+- 0812888: fix(styling): Improve support for non-tailwind users, fix code block styling
+
 ## 0.1.12
 
 ### Patch Changes

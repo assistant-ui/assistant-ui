@@ -1,5 +1,11 @@
 # @assistant-ui/mcp-docs-server
 
+## 0.1.3
+
+### Patch Changes
+
+- 27a771c: use console.warn for logger.warn
+
 ## 0.1.2
 
 ### Patch Changes
