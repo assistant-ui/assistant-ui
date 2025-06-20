@@ -67,3 +67,45 @@
   @apply grid translate-x-[-50%] translate-y-[-50%] shadow-lg duration-200;
   /* @apply w-full bg-background max-w-lg gap-4 border p-6 sm:rounded-lg; */
 }
+
+/* tool fallback */
+
+.aui-tool-fallback-root {
+  @apply mb-4 flex w-full flex-col gap-3 rounded-lg border py-3;
+}
+
+.aui-tool-fallback-header {
+  @apply flex items-center gap-2 px-4;
+}
+
+.aui-tool-fallback-icon {
+  @apply size-4;
+}
+
+.aui-tool-fallback-title {
+  @apply flex-grow;
+}
+
+.aui-tool-fallback-content {
+  @apply flex flex-col gap-2 border-t pt-2;
+}
+
+.aui-tool-fallback-args-root {
+  @apply px-4;
+}
+
+.aui-tool-fallback-args-value {
+  @apply whitespace-pre-wrap;
+}
+
+.aui-tool-fallback-result-root {
+  @apply border-t border-dashed px-4 pt-2;
+}
+
+.aui-tool-fallback-result-header {
+  @apply font-semibold;
+}
+
+.aui-tool-fallback-result-content {
+  @apply whitespace-pre-wrap;
+}
