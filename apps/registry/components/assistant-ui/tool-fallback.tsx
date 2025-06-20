@@ -10,26 +10,25 @@ export const ToolFallback: ToolCallContentPartComponent = ({
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(true);
   return (
-    <div className="mb-4 flex w-full flex-col gap-3 rounded-lg border py-3">
-      <div className="flex items-center gap-2 px-4">
-        <CheckIcon className="size-4" />
-        <p className="">
+    <div className="aui-tool-fallback-root">
+      <div className="aui-tool-fallback-header">
+        <CheckIcon className="aui-tool-fallback-icon" />
+        <p className="aui-tool-fallback-title">
           Used tool: <b>{toolName}</b>
         </p>
-        <div className="flex-grow" />
         <Button onClick={() => setIsCollapsed(!isCollapsed)}>
           {isCollapsed ? <ChevronUpIcon /> : <ChevronDownIcon />}
         </Button>
       </div>
       {!isCollapsed && (
-        <div className="flex flex-col gap-2 border-t pt-2">
-          <div className="px-4">
-            <pre className="whitespace-pre-wrap">{argsText}</pre>
+        <div className="aui-tool-fallback-content">
+          <div className="aui-tool-fallback-args-root">
+            <pre className="aui-tool-fallback-args-value">{argsText}</pre>
           </div>
           {result !== undefined && (
-            <div className="border-t border-dashed px-4 pt-2">
-              <p className="font-semibold">Result:</p>
-              <pre className="whitespace-pre-wrap">
+            <div className="aui-tool-fallback-result-root">
+              <p className="aui-tool-fallback-result-header">Result:</p>
+              <pre className="aui-tool-fallback-result-content">
                 {typeof result === "string"
                   ? result
                   : JSON.stringify(result, null, 2)}

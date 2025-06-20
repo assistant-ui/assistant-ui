@@ -35,8 +35,8 @@ const CodeHeader: FC<CodeHeaderProps> = ({ language, code }) => {
   };
 
   return (
-    <div className="flex items-center justify-between gap-4 rounded-t-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white">
-      <span className="lowercase [&>span]:text-xs">{language}</span>
+    <div className="aui-code-header-root">
+      <span className="aui-code-header-language">{language}</span>
       <TooltipIconButton tooltip="Copy" onClick={onCopy}>
         {!isCopied && <CopyIcon />}
         {isCopied && <CheckIcon />}

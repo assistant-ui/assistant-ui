@@ -4,7 +4,7 @@
 }
 
 .aui-code-header-root {
-  @apply flex items-center justify-between gap-4 rounded-t-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white;
+  @apply flex items-center justify-between gap-4 mt-4 rounded-t-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white;
 }
 
 .aui-code-header-language {
@@ -81,7 +81,7 @@
 }
 
 .aui-md-pre {
-  @apply overflow-x-auto rounded-b-lg bg-black p-4 text-white;
+  @apply overflow-x-auto rounded-b-lg !rounded-t-none bg-black p-4 text-white;
 }
 
 .aui-md-inline-code {

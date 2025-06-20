@@ -49,7 +49,7 @@ const AssistantModalButton = forwardRef<
         data-state={state}
         className="aui-modal-button-open-icon"
       />
-      <span className="sr-only">{tooltip}</span>
+      <span className="aui-sr-only">{tooltip}</span>
     </TooltipIconButton>
   );
 });
