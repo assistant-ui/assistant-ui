@@ -4,14 +4,12 @@ title: makeAssistantToolUI
 
 import { ParametersTable } from "@/components/docs";
 
-# `makeAssistantToolUI`
-
 The `makeAssistantToolUI` utility is used to register a tool UI component with the Assistant.
 
 ## Usage
 
 ```tsx
-import { makeAssistantToolUI } from "assistant-ui/react";
+import { makeAssistantToolUI } from "@assistant-ui/react";
 
 const MyToolUI = makeAssistantToolUI({
   toolName: "myTool",
@@ -23,9 +21,7 @@ const MyToolUI = makeAssistantToolUI({
 
 ## API
 
-### `makeAssistantToolUI(tool)`
-
-#### Parameters
+### Parameters
 
 <ParametersTable
   type="AssistantToolUIProps<TArgs, TResult>"
@@ -37,29 +33,87 @@ const MyToolUI = makeAssistantToolUI({
     },
     {
       name: "render",
-      type: "function",
-      description: "A function that renders the tool UI. It receives an object with the following properties: `args` (any): The arguments passed to the tool. `result` (any): The result of the tool execution. `status` (\"requires_action\" | \"in_progress\" | \"complete\" | \"error\"): The status of the tool execution.",
+      type: "ComponentType<ToolCallContentPartProps<TArgs, TResult>>",
+      description: "A React component that renders the tool UI. Receives the following props:",
+      required: true,
+      children: [
+        {
+          type: "ToolCallContentPartProps<TArgs, TResult>",
+          parameters: [
+            {
+              name: "type",
+              type: "\"tool-call\"",
+              description: "The content part type",
+            },
+            {
+              name: "toolCallId",
+              type: "string",
+              description: "Unique identifier for this tool call",
+            },
+            {
+              name: "toolName",
+              type: "string",
+              description: "The name of the tool being called",
+            },
+            {
+              name: "args",
+              type: "TArgs",
+              description: "The arguments passed to the tool",
+            },
+            {
+              name: "argsText",
+              type: "string",
+              description: "String representation of the arguments",
+            },
+            {
+              name: "result",
+              type: "TResult | undefined",
+              description: "The result of the tool execution (if complete)",
+            },
+            {
+              name: "isError",
+              type: "boolean | undefined",
+              description: "Whether the result is an error",
+            },
+            {
+              name: "status",
+              type: "ToolCallContentPartStatus",
+              description: "The execution status object with a type property: \"running\", \"complete\", \"incomplete\", or \"requires_action\"",
+            },
+            {
+              name: "addResult",
+              type: "(result: TResult | ToolResponse<TResult>) => void",
+              description: "Function to add a result (useful for human-in-the-loop tools)",
+            },
+            {
+              name: "artifact",
+              type: "unknown",
+              description: "Optional artifact data associated with the tool call",
+            },
+          ],
+        },
+      ],
     },
   ]}
 />
 
-#### Returns
+### Returns
 
 A React functional component that should be included in your component tree. This component doesn't render anything itself, but it registers the tool UI with the Assistant.
 
 ## Example
 
 ```tsx
-import { makeAssistantToolUI } from "assistant-ui/react";
-import { AssistantRuntimeProvider } from "assistant-ui/react";
+import { makeAssistantToolUI } from "@assistant-ui/react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
 
 const GetWeatherUI = makeAssistantToolUI({
   toolName: "get_weather",
   render: ({ args, result, status }) => {
-    if (status === "requires_action") return <p>Getting weather for {args.location}...</p>;
-    if (status === "in_progress") return <p>Loading...</p>;
-    if (status === "error") return <p>Error getting weather.</p>;
-    if (status === "complete") return <p>The weather is {result.weather}.</p>;
+    if (status.type === "requires_action") return <p>Getting weather for {args.location}...</p>;
+    if (status.type === "running") return <p>Loading...</p>;
+    if (status.type === "incomplete" && status.reason === "error") return <p>Error getting weather.</p>;
+    if (status.type === "complete") return <p>The weather is {result.weather}.</p>;
     return null;
   },
 });

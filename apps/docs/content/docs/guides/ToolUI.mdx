@@ -47,7 +47,10 @@ const weatherTool = tool({
 });
 
 // Register the tool
-const WeatherTool = makeAssistantTool(weatherTool);
+const WeatherTool = makeAssistantTool({
+  ...weatherTool,
+  toolName: "getWeather"
+});
 
 // Create the UI
 const WeatherToolUI = makeAssistantToolUI<

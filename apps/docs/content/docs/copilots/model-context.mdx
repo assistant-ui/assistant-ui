@@ -54,7 +54,10 @@ const submitForm = tool({
   },
 });
 
-const SubmitFormTool = makeAssistantTool(submitForm);
+const SubmitFormTool = makeAssistantTool({
+  ...submitForm,
+  toolName: "submitForm"
+});
 
 // Use in your component
 function Form() {

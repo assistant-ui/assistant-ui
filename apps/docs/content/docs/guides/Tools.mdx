@@ -52,7 +52,10 @@ const weatherTool = tool({
 });
 
 // Create the component
-const WeatherTool = makeAssistantTool(weatherTool);
+const WeatherTool = makeAssistantTool({
+  ...weatherTool,
+  toolName: "getWeather"
+});
 
 // Place the tool component inside AssistantRuntimeProvider
 function App() {
@@ -214,7 +217,10 @@ const screenshotTool = tool({
   }
 });
 
-const ScreenshotTool = makeAssistantTool(screenshotTool);
+const ScreenshotTool = makeAssistantTool({
+  ...screenshotTool,
+  toolName: "screenshot"
+});
 ```
 
 ### Backend Tools
@@ -267,7 +273,10 @@ const calculateTool = tool({
   }
 });
 
-const CalculateTool = makeAssistantTool(calculateTool);
+const CalculateTool = makeAssistantTool({
+  ...calculateTool,
+  toolName: "calculate"
+});
 
 // Backend: Use frontendTools to receive client tools
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
@@ -329,7 +338,10 @@ const refundTool = tool({
   }
 });
 
-const RefundTool = makeAssistantTool(refundTool);
+const RefundTool = makeAssistantTool({
+  ...refundTool,
+  toolName: "requestRefund"
+});
 ```
 
 ### MCP (Model Context Protocol) Tools
@@ -393,7 +405,10 @@ const travelPlannerTool = tool({
   }
 });
 
-const TravelPlannerTool = makeAssistantTool(travelPlannerTool);
+const TravelPlannerTool = makeAssistantTool({
+  ...travelPlannerTool,
+  toolName: "planTrip"
+});
 ```
 
 ### Conditional Tool Availability
@@ -461,7 +476,10 @@ const resilientTool = tool({
   }
 });
 
-const ResilientTool = makeAssistantTool(resilientTool);
+const ResilientTool = makeAssistantTool({
+  ...resilientTool,
+  toolName: "fetchWithRetries"
+});
 ```
 
 ## Best Practices

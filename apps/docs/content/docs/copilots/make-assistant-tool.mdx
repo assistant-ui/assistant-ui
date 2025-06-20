@@ -2,6 +2,8 @@
 title: makeAssistantTool
 ---
 
+import { ParametersTable } from "@/components/docs";
+
 `makeAssistantTool` creates a React component that provides a tool to the assistant. This is useful for defining reusable tools that can be composed into your application.
 
 ## Usage
@@ -23,7 +25,10 @@ const submitForm = tool({
 });
 
 // Create a tool component
-const SubmitFormTool = makeAssistantTool(submitForm);
+const SubmitFormTool = makeAssistantTool({
+  ...submitForm,
+  toolName: "submitForm"
+});
 
 // Use in your component
 function Form() {
@@ -40,9 +45,96 @@ function Form() {
 
 ### Parameters
 
-- `tool`: A tool definition created using the `tool()` helper function
-  - `parameters`: Zod schema defining the tool's parameters
-  - `execute`: Function that implements the tool's behavior
+<ParametersTable
+  type="AssistantToolProps<TArgs, TResult>"
+  parameters={[
+    {
+      name: "toolName",
+      type: "string",
+      description: "The unique identifier for the tool",
+      required: true,
+    },
+    {
+      name: "parameters",
+      type: "StandardSchemaV1<TArgs> | JSONSchema7",
+      description: "Schema defining the tool's parameters (typically a Zod schema)",
+      required: true,
+    },
+    {
+      name: "execute",
+      type: "(args: TArgs, context: ToolExecutionContext) => TResult | Promise<TResult>",
+      description: "Function that implements the tool's behavior (required for frontend tools)",
+      required: true,
+    },
+    {
+      name: "description",
+      type: "string",
+      description: "Optional description of the tool's purpose",
+    },
+    {
+      name: "render",
+      type: "ComponentType<ToolCallContentPartProps<TArgs, TResult>>",
+      description: "Optional custom UI component for rendering the tool execution. Receives the following props:",
+      children: [
+        {
+          type: "ToolCallContentPartProps<TArgs, TResult>",
+          parameters: [
+            {
+              name: "type",
+              type: "\"tool-call\"",
+              description: "The content part type",
+            },
+            {
+              name: "toolCallId",
+              type: "string",
+              description: "Unique identifier for this tool call",
+            },
+            {
+              name: "toolName",
+              type: "string",
+              description: "The name of the tool being called",
+            },
+            {
+              name: "args",
+              type: "TArgs",
+              description: "The arguments passed to the tool",
+            },
+            {
+              name: "argsText",
+              type: "string",
+              description: "String representation of the arguments",
+            },
+            {
+              name: "result",
+              type: "TResult | undefined",
+              description: "The result of the tool execution (if complete)",
+            },
+            {
+              name: "isError",
+              type: "boolean | undefined",
+              description: "Whether the result is an error",
+            },
+            {
+              name: "status",
+              type: "ToolCallContentPartStatus",
+              description: "The execution status object with a type property: \"running\", \"complete\", \"incomplete\", or \"requires_action\"",
+            },
+            {
+              name: "addResult",
+              type: "(result: TResult | ToolResponse<TResult>) => void",
+              description: "Function to add a result (useful for human-in-the-loop tools)",
+            },
+            {
+              name: "artifact",
+              type: "unknown",
+              description: "Optional artifact data associated with the tool call",
+            },
+          ],
+        },
+      ],
+    },
+  ]}
+/>
 
 ### Returns
 
@@ -76,14 +168,20 @@ const sendEmail = tool({
     body: z.string(),
   }),
   execute: async (params) => {
-    // Implementation
+    // Tool logic
     return { sent: true };
   },
 });
 
 // Create tool components
-const EmailValidator = makeAssistantTool(validateEmail);
-const EmailSender = makeAssistantTool(sendEmail);
+const EmailValidator = makeAssistantTool({
+  ...validateEmail,
+  toolName: "validateEmail"
+});
+const EmailSender = makeAssistantTool({
+  ...sendEmail,
+  toolName: "sendEmail"
+});
 
 // Use together
 function EmailForm() {
