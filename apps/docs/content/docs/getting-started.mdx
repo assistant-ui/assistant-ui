@@ -1107,6 +1107,167 @@ const MyApp = () => {
 </Step>
 </Steps>
 
+## Troubleshooting
+
+### Common Setup Issues
+
+<Callout type="error">
+**API Key Not Working**
+
+If you see "Invalid API key" errors:
+
+1. Verify your API key is correct in `.env` file
+2. Ensure the file is named `.env` (not `.env.txt`)
+3. Restart your development server after adding the key
+4. Check that the key has sufficient credits/permissions
+
+```bash
+# Verify your .env file exists and has the correct format
+cat .env
+# Should show: OPENAI_API_KEY="sk-..."
+```
+</Callout>
+
+<Callout type="warning">
+**Thread Component Not Rendering**
+
+If the Thread component appears blank:
+
+1. Check browser console for React errors
+2. Verify `AssistantRuntimeProvider` wraps your app
+3. Ensure runtime is properly configured
+4. Test with a simple message
+
+```tsx
+// Debug by adding a test message
+const runtime = useLocalRuntime(adapter, {
+  initialMessages: [
+    { role: "user", content: [{ type: "text", text: "Hello" }] }
+  ]
+});
+```
+</Callout>
+
+<Callout type="info">
+**Styling Issues**
+
+If components look unstyled:
+
+1. Import CSS in your root component:
+   ```tsx
+   import "@assistant-ui/react/styles/index.css";
+   ```
+
+2. For custom styling, check the [UI customization docs](/docs/ui/Thread)
+
+3. Verify Tailwind is configured if using styled components
+</Callout>
+
+### Network and CORS Issues
+
+**Local Development CORS**
+
+When testing with external APIs, you may encounter CORS errors:
+
+```tsx
+// ❌ This will cause CORS errors in the browser
+const runtime = useLocalRuntime({
+  async run({ messages }) {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` }
+    });
+    // ...
+  }
+});
+
+// ✅ Use a Next.js API route instead
+const runtime = useLocalRuntime({
+  async run({ messages }) {
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      body: JSON.stringify({ messages })
+    });
+    // ...
+  }
+});
+```
+
+**API Route Setup**
+
+Create a server-side API route to avoid CORS issues:
+
+```tsx title="app/api/chat/route.ts"
+import { OpenAI } from "openai";
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+export async function POST(req: Request) {
+  try {
+    const { messages } = await req.json();
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages,
+      stream: true,
+    });
+
+    return new Response(
+      new ReadableStream({
+        async start(controller) {
+          for await (const chunk of completion) {
+            const content = chunk.choices[0]?.delta?.content;
+            if (content) {
+              controller.enqueue(new TextEncoder().encode(content));
+            }
+          }
+          controller.close();
+        },
+      })
+    );
+  } catch (error) {
+    console.error("Chat API error:", error);
+    return new Response("Internal Server Error", { status: 500 });
+  }
+}
+```
+
+### Debugging Tips
+
+1. **Enable verbose logging**:
+   ```tsx
+   const runtime = useLocalRuntime({
+     async run(options) {
+       console.log("Runtime called with:", options);
+       // your implementation
+     }
+   });
+   ```
+
+2. **Check network requests** in browser DevTools Network tab
+
+3. **Verify message format** matches expected structure:
+   ```tsx
+   // Messages should follow this structure
+   {
+     role: "user" | "assistant" | "system",
+     content: [{ type: "text", text: "message content" }]
+   }
+   ```
+
+4. **Test with minimal setup** to isolate issues:
+   ```tsx
+   // Minimal test adapter
+   const testAdapter = {
+     async run() {
+       return {
+         content: [{ type: "text", text: "Test response" }]
+       };
+     }
+   };
+   ```
+
 ## What's Next?
 
 <Cards>
