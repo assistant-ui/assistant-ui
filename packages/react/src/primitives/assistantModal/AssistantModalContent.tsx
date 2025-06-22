@@ -10,6 +10,9 @@ export namespace AssistantModalPrimitiveContent {
   export type Props = ComponentPropsWithoutRef<
     typeof PopoverPrimitive.Content
   > & {
+    portalProps?:
+      | ComponentPropsWithoutRef<typeof PopoverPrimitive.Portal>
+      | undefined;
     dissmissOnInteractOutside?: boolean | undefined;
   };
 }
@@ -25,6 +28,7 @@ export const AssistantModalPrimitiveContent = forwardRef<
       align,
       onInteractOutside,
       dissmissOnInteractOutside = false,
+      portalProps,
       ...props
     }: ScopedProps<AssistantModalPrimitiveContent.Props>,
     forwardedRef,
@@ -32,7 +36,7 @@ export const AssistantModalPrimitiveContent = forwardRef<
     const scope = usePopoverScope(__scopeAssistantModal);
 
     return (
-      <PopoverPrimitive.Portal {...scope}>
+      <PopoverPrimitive.Portal {...scope} {...portalProps}>
         <PopoverPrimitive.Content
           {...scope}
           {...props}
