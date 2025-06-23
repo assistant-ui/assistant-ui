@@ -17,14 +17,14 @@
     "@radix-ui/react-popover": "^1.1.14",
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-tooltip": "^1.2.7",
-    "@types/node": "^24.0.1",
+    "@types/node": "^24.0.3",
     "@types/react": "^19",
     "@types/react-syntax-highlighter": "^15.5.13",
     "ai": "^4.3.16",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "eslint": "^9",
-    "lucide-react": "^0.515.0",
+    "lucide-react": "^0.522.0",
     "react": "19.1.0",
     "react-resizable-panels": "^3.0.3",
     "react-shiki": "^0.7.1",
@@ -36,7 +36,7 @@
     "tailwind-merge": "^3.3.1",
     "tsx": "^4.20.3",
     "typescript": "^5.8.3",
-    "zod": "^3.25.64",
+    "zod": "^3.25.67",
     "zustand": "^5.0.5"
   },
   "scripts": {
@@ -44,6 +44,6 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "mermaid": "^11.6.0"
+    "mermaid": "^11.7.0"
   }
 }
