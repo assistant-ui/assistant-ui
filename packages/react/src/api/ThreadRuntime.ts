@@ -140,6 +140,11 @@ export type ThreadState = {
   readonly isDisabled: boolean;
 
   /**
+   * Whether the thread is loading its history.
+   */
+  readonly isLoading: boolean;
+
+  /**
    * Whether the thread is running. A thread is considered running when there is an active stream connection to the backend.
    */
   readonly isRunning: boolean;
@@ -187,6 +192,7 @@ export const getThreadState = (
     metadata: threadListItemState,
     capabilities: runtime.capabilities,
     isDisabled: runtime.isDisabled,
+    isLoading: runtime.isLoading,
     isRunning:
       lastMessage?.role !== "assistant"
         ? false

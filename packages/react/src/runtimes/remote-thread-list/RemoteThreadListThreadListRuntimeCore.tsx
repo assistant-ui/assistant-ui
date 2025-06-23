@@ -264,6 +264,10 @@ export class RemoteThreadListThreadListRuntimeCore
     this.getLoadThreadsPromise(); // begin loading on initial bind
   }
 
+  public get isLoading() {
+    return this._state.value.isLoading;
+  }
+
   public get threadIds() {
     return this._state.value.threadIds;
   }

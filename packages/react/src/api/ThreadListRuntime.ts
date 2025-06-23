@@ -21,10 +21,13 @@ export type ThreadListState = {
   readonly newThread: string | undefined;
   readonly threads: readonly string[];
   readonly archivedThreads: readonly string[];
+  readonly isLoading: boolean;
 };
 
 export type ThreadListRuntime = {
   getState(): ThreadListState;
+
+  readonly isLoading: boolean;
 
   subscribe(callback: () => void): Unsubscribe;
 
@@ -48,6 +51,7 @@ const getThreadListState = (
     newThread: threadList.newThreadId,
     threads: threadList.threadIds,
     archivedThreads: threadList.archivedThreadIds,
+    isLoading: threadList.isLoading,
   };
 };
 
@@ -137,6 +141,10 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
 
   public getState(): ThreadListState {
     return this._getState();
+  }
+
+  public get isLoading() {
+    return this._core.isLoading;
   }
 
   public subscribe(callback: () => void): Unsubscribe {

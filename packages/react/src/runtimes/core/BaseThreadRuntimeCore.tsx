@@ -36,6 +36,7 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
   protected readonly repository = new MessageRepository();
   public abstract get adapters(): BaseThreadAdapters | undefined;
   public abstract get isDisabled(): boolean;
+  public abstract get isLoading(): boolean;
   public abstract get suggestions(): readonly ThreadSuggestion[];
   public abstract get extras(): unknown;
 
