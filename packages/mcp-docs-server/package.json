@@ -19,17 +19,17 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.12.3",
-    "zod": "^3.25.64",
+    "@modelcontextprotocol/sdk": "^1.13.0",
+    "zod": "^3.25.67",
     "gray-matter": "^4.0.3",
     "cross-env": "^7.0.3"
   },
   "devDependencies": {
-    "@types/node": "^24.0.1",
+    "@types/node": "^24.0.3",
     "tsup": "^8.5.0",
     "tsx": "^4.20.3",
     "typescript": "^5.8.3",
-    "vitest": "^3.2.3",
+    "vitest": "^3.2.4",
     "eslint": "^9.29.0"
   },
   "files": [

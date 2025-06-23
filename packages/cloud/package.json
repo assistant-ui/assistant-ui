@@ -37,11 +37,11 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^24.0.1",
+    "@types/node": "^24.0.3",
     "eslint": "^9",
-    "eslint-config-next": "15.3.3",
+    "eslint-config-next": "15.3.4",
     "tsx": "^4.20.3",
-    "vitest": "^3.2.3"
+    "vitest": "^3.2.4"
   },
   "publishConfig": {
     "access": "public",
