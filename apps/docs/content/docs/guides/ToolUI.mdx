@@ -43,13 +43,13 @@ const weatherTool = tool({
   execute: async ({ location, unit }) => {
     const weather = await fetchWeatherAPI(location, unit);
     return weather;
-  }
+  },
 });
 
 // Register the tool
 const WeatherTool = makeAssistantTool({
   ...weatherTool,
-  toolName: "getWeather"
+  toolName: "getWeather",
 });
 
 // Create the UI
@@ -77,7 +77,8 @@ const WeatherToolUI = makeAssistantToolUI<
 ```
 
 <Callout type="tip">
-  Tools defined with `makeAssistantTool` can be passed to your backend using the `frontendTools` utility
+  Tools defined with `makeAssistantTool` can be passed to your backend using the
+  `frontendTools` utility
 </Callout>
 
 Learn more about creating tools in the [Tools Guide](/docs/guides/Tools).
@@ -305,8 +306,9 @@ function DynamicToolUI() {
 For tools that need access to parent component props:
 
 <Callout type="tip">
-**Why `useInlineRender`?**
-By default, a tool UI's `render` function is static. Use `useInlineRender` when your UI needs access to dynamic component props (for example, to pass in an `id` or other contextual data).
+  **Why `useInlineRender`?** By default, a tool UI's `render` function is
+  static. Use `useInlineRender` when your UI needs access to dynamic component
+  props (for example, to pass in an `id` or other contextual data).
 </Callout>
 
 ```tsx
@@ -340,7 +342,9 @@ function ProductPage({ productId, productName }) {
 Create tools that collect user input during execution:
 
 <Callout type="tip">
-**Pro tip:** Call `addResult(...)` exactly once to complete the tool call. After it's invoked, the assistant will resume the conversation with your provided data.
+  **Pro tip:** Call `addResult(...)` exactly once to complete the tool call.
+  After it's invoked, the assistant will resume the conversation with your
+  provided data.
 </Callout>
 
 ```tsx
@@ -659,8 +663,41 @@ useAssistantToolUI({
   server.
 </Callout>
 
+### Collapsible Tool Groups
+
+Create collapsible sections for consecutive tool calls:
+
+```tsx
+
+```
+
+### Advanced Tool Group UI
+
+Add progress indicators and enhanced styling:
+
+```tsx
+const ToolGroup = ({ startIndex, endIndex, children }) => {
+  return (
+    <details className="tool-group my-4">
+      <summary className="cursor-pointer rounded bg-gray-50 p-3 hover:bg-gray-100">
+        <span className="font-medium">
+          {endIndex - startIndex + 1} tool calls executed
+        </span>
+        <span className="ml-2 text-sm text-gray-500">
+          (#{startIndex + 1}-{endIndex + 1})
+        </span>
+      </summary>
+      <div className="mt-2 space-y-2 pl-4">{children}</div>
+    </details>
+  );
+};
+
+<Thread components={{ ToolGroup }} />;
+```
+
 ## Related Guides
 
 - [Tools Guide](/docs/guides/Tools) - Learn how to create and use tools with AI models
 - [Tool Fallback](/docs/ui/ToolFallback) - Default UI for tools without custom components
 - [API Reference](/docs/api-reference/primitives/ContentPart) - Detailed type definitions and component APIs
+- [Message Primitive](/docs/api-reference/primitives/Message) - Complete Message component documentation
