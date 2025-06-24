@@ -18,42 +18,48 @@ const EXAMPLE_ITEMS: ShowcaseItem[] = [
     image: "/screenshot/examples/modal.png",
     description: "Floating button that opens an AI assistant chat box.",
     link: "/examples/modal",
-    repositoryLink: "https://github.com/assistant-ui/assistant-ui/tree/main/apps/docs/components/modal",
+    repositoryLink:
+      "https://github.com/assistant-ui/assistant-ui/tree/main/apps/docs/components/modal",
   },
   {
     title: "Form Filling Co-Pilot",
     image: "/screenshot/examples/form-demo.png",
     description: "AssistantSidebar copilot which fills forms for the user.",
     link: "/examples/form-demo",
-    repositoryLink: "https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-react-hook-form",
+    repositoryLink:
+      "https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-react-hook-form",
   },
   {
     title: "ChatGPT Clone",
     image: "/screenshot/examples/chatgpt.png",
     description: "Customized colors and styles for a ChatGPT look and feel.",
     link: "/examples/chatgpt",
-    repositoryLink: "https://github.com/assistant-ui/assistant-ui/tree/main/apps/docs/components/chatgpt",
+    repositoryLink:
+      "https://github.com/assistant-ui/assistant-ui/tree/main/apps/docs/components/chatgpt",
   },
   {
     title: "Claude Clone",
     image: "/screenshot/examples/claude.png",
     description: "Customized colors and styles for a Claude look and feel.",
     link: "/examples/claude",
-    repositoryLink: "https://github.com/assistant-ui/assistant-ui/tree/main/apps/docs/components/claude",
+    repositoryLink:
+      "https://github.com/assistant-ui/assistant-ui/tree/main/apps/docs/components/claude",
   },
   {
     title: "Perplexity Clone",
     image: "/screenshot/examples/chatgpt.png",
     description: "Customized colors and styles for a Perplexity look and feel.",
     link: "/examples/perplexity",
-    repositoryLink: "https://github.com/assistant-ui/assistant-ui/tree/main/apps/docs/components/perplexity",
+    repositoryLink:
+      "https://github.com/assistant-ui/assistant-ui/tree/main/apps/docs/components/perplexity",
   },
   {
     title: "AI SDK",
     image: "/screenshot/examples/ai-sdk.png",
     description: "Chat persistence with AI SDK.",
     link: "/examples/ai-sdk",
-    repositoryLink: "https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-ai-sdk",
+    repositoryLink:
+      "https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-ai-sdk",
   },
   {
     title: "Mem0 - ChatGPT with memory",
@@ -114,7 +120,13 @@ export default function Component() {
   );
 }
 
-function ShowcaseCard({ title, image, description, link, repositoryLink }: ShowcaseItem) {
+function ShowcaseCard({
+  title,
+  image,
+  description,
+  link,
+  repositoryLink,
+}: ShowcaseItem) {
   return (
     <Card className="bg-card group relative flex max-h-[400px] flex-col overflow-hidden rounded-lg">
       <Link href={link} className="flex-1">
