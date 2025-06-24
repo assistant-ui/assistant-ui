@@ -184,12 +184,15 @@ const AttachmentRemove: FC = () => {
 
 const AttachmentProgress: FC<{ progress: number }> = ({ progress }) => {
   return (
-    <div className="aui-attachment-progress">
-      <div
+    <AttachmentPrimitive.ProgressRoot 
+      value={progress} 
+      max={100}
+      className="aui-attachment-progress"
+    >
+      <AttachmentPrimitive.ProgressIndicator 
         className="aui-attachment-progress-bar"
-        style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
       />
-    </div>
+    </AttachmentPrimitive.ProgressRoot>
   );
 };
 
