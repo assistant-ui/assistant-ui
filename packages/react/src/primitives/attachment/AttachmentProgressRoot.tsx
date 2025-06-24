@@ -17,26 +17,22 @@ export namespace AttachmentPrimitiveProgressRoot {
 export const AttachmentPrimitiveProgressRoot = forwardRef<
   AttachmentPrimitiveProgressRoot.Element,
   AttachmentPrimitiveProgressRoot.Props
->(
-  (
-    { value = 0, max = 100, ...props },
-    ref,
-  ) => {
-    const contextValue: ProgressContextValue = { value, max };
+>(({ value = 0, max = 100, ...props }, ref) => {
+  const contextValue: ProgressContextValue = { value, max };
 
-    return (
-      <ProgressContext.Provider value={contextValue}>
-        <Primitive.div
-          {...props}
-          ref={ref}
-          role="progressbar"
-          aria-valuemin={0}
-          aria-valuemax={max}
-          aria-valuenow={value}
-        />
-      </ProgressContext.Provider>
-    );
-  },
-);
+  return (
+    <ProgressContext.Provider value={contextValue}>
+      <Primitive.div
+        {...props}
+        ref={ref}
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={max}
+        aria-valuenow={value}
+      />
+    </ProgressContext.Provider>
+  );
+});
 
-AttachmentPrimitiveProgressRoot.displayName = "AttachmentPrimitive.ProgressRoot";
+AttachmentPrimitiveProgressRoot.displayName =
+  "AttachmentPrimitive.ProgressRoot";

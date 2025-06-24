@@ -14,30 +14,28 @@ export namespace AttachmentPrimitiveProgressIndicator {
 export const AttachmentPrimitiveProgressIndicator = forwardRef<
   AttachmentPrimitiveProgressIndicator.Element,
   AttachmentPrimitiveProgressIndicator.Props
->(
-  (
-    { style, ...props },
-    ref,
-  ) => {
-    const context = useProgressContext();
-    if (!context) {
-      throw new Error("AttachmentPrimitiveProgressIndicator must be used within AttachmentPrimitiveProgressRoot");
-    }
-    
-    const { value, max } = context;
-    const percentage = Math.min(100, Math.max(0, (value / max) * 100));
-
-    return (
-      <Primitive.div
-        {...props}
-        ref={ref}
-        style={{
-          transform: `translateX(-${100 - percentage}%)`,
-          ...style,
-        }}
-      />
+>(({ style, ...props }, ref) => {
+  const context = useProgressContext();
+  if (!context) {
+    throw new Error(
+      "AttachmentPrimitiveProgressIndicator must be used within AttachmentPrimitiveProgressRoot",
     );
-  },
-);
+  }
 
-AttachmentPrimitiveProgressIndicator.displayName = "AttachmentPrimitive.ProgressIndicator";
+  const { value, max } = context;
+  const percentage = Math.min(100, Math.max(0, (value / max) * 100));
+
+  return (
+    <Primitive.div
+      {...props}
+      ref={ref}
+      style={{
+        transform: `translateX(-${100 - percentage}%)`,
+        ...style,
+      }}
+    />
+  );
+});
+
+AttachmentPrimitiveProgressIndicator.displayName =
+  "AttachmentPrimitive.ProgressIndicator";
