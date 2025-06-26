@@ -8,7 +8,7 @@ import {
 } from "./getExternalStoreMessage";
 import { fromThreadMessageLike, ThreadMessageLike } from "./ThreadMessageLike";
 import { getAutoStatus, isAutoStatus } from "./auto-status";
-import { ToolCallContentPart } from "../../types";
+import { ToolCallMessagePart } from "../../types";
 
 export namespace useExternalMessageConverter {
   export type Message =
@@ -61,7 +61,7 @@ const joinExternalMessages = (
       if (toolCallIdx !== -1) {
         const toolCall = assistantMessage.content[
           toolCallIdx
-        ]! as ToolCallContentPart;
+        ]! as ToolCallMessagePart;
         if (output.toolName) {
           if (toolCall.toolName !== output.toolName)
             throw new Error(

@@ -17,21 +17,21 @@ export const AssistantToolUIsState: ParametersTableProps = {
   parameters: [
     {
       name: "getToolUI",
-      type: "(toolName: string) => ToolCallContentPartProps",
+      type: "(toolName: string) => ToolCallMessagePartProps",
       description: "Gets the current tool UI for a given tool name.",
       required: true,
       children: [
         {
-          type: "ToolCallContentPartProps<TArgs, TResult>",
+          type: "ToolCallMessagePartProps<TArgs, TResult>",
           parameters: [
             {
               name: "part",
-              type: "ToolCallContentPart<TArgs, TResult>",
-              description: "The tool call content part.",
+              type: "ToolCallMessagePart<TArgs, TResult>",
+              description: "The tool call message part.",
             },
             {
               name: "status",
-              type: "ContentPartStatus",
+              type: "MessagePartStatus",
               description: "The tool call status.",
             },
             {
@@ -45,7 +45,7 @@ export const AssistantToolUIsState: ParametersTableProps = {
     },
     {
       name: "setToolUI",
-      type: "(toolName: string, render: ToolCallContentPartComponent) => Unsubscribe",
+      type: "(toolName: string, render: ToolCallMessagePartComponent) => Unsubscribe",
       description: "Sets the tool UI.",
       required: true,
     },
@@ -270,20 +270,20 @@ export const ThreadViewportState: ParametersTableProps = {
   ],
 };
 
-export const ContentPartState: ParametersTableProps = {
-  type: "ContentPartState",
+export const MessagePartState: ParametersTableProps = {
+  type: "MessagePartState",
   parameters: [
     {
       name: "part",
-      type: "Readonly<ContentPartState>",
+      type: "Readonly<MessagePartState>",
       required: true,
-      description: "The current content part.",
+      description: "The current message part.",
     },
     {
       name: "status",
       type: "MessageStatus",
       required: true,
-      description: "The current content part status.",
+      description: "The current message part status.",
       children: [
         {
           type: "MessageStatus",

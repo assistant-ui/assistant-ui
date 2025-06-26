@@ -15,7 +15,7 @@ const reactUIExports: string[] = [
   "AssistantModal",
   "BranchPicker",
   "Composer",
-  "ContentPart",
+  "MessagePart",
   "AttachmentUI",
   "EditComposer",
   "Thread",

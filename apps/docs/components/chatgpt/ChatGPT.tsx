@@ -85,7 +85,7 @@ const UserMessage: FC = () => {
         </ActionBarPrimitive.Root>
 
         <div className="rounded-3xl bg-white/5 px-5 py-2 text-[#eee]">
-          <MessagePrimitive.Content />
+          <MessagePrimitive.Parts />
         </div>
       </div>
 
@@ -122,7 +122,7 @@ const AssistantMessage: FC = () => {
 
       <div className="pt-1">
         <div className="text-[#eee]">
-          <MessagePrimitive.Content />
+          <MessagePrimitive.Parts />
         </div>
 
         <div className="flex pt-2">

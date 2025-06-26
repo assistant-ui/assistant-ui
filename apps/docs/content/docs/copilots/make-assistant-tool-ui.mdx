@@ -29,21 +29,23 @@ const MyToolUI = makeAssistantToolUI({
     {
       name: "toolName",
       type: "string",
-      description: "The name of the tool. This must match the name of the tool defined in the assistant.",
+      description:
+        "The name of the tool. This must match the name of the tool defined in the assistant.",
     },
     {
       name: "render",
-      type: "ComponentType<ToolCallContentPartProps<TArgs, TResult>>",
-      description: "A React component that renders the tool UI. Receives the following props:",
+      type: "ComponentType<ToolCallMessagePartProps<TArgs, TResult>>",
+      description:
+        "A React component that renders the tool UI. Receives the following props:",
       required: true,
       children: [
         {
-          type: "ToolCallContentPartProps<TArgs, TResult>",
+          type: "ToolCallMessagePartProps<TArgs, TResult>",
           parameters: [
             {
               name: "type",
-              type: "\"tool-call\"",
-              description: "The content part type",
+              type: '"tool-call"',
+              description: "The message part type",
             },
             {
               name: "toolCallId",
@@ -77,18 +79,21 @@ const MyToolUI = makeAssistantToolUI({
             },
             {
               name: "status",
-              type: "ToolCallContentPartStatus",
-              description: "The execution status object with a type property: \"running\", \"complete\", \"incomplete\", or \"requires_action\"",
+              type: "ToolCallMessagePartStatus",
+              description:
+                'The execution status object with a type property: "running", "complete", "incomplete", or "requires_action"',
             },
             {
               name: "addResult",
               type: "(result: TResult | ToolResponse<TResult>) => void",
-              description: "Function to add a result (useful for human-in-the-loop tools)",
+              description:
+                "Function to add a result (useful for human-in-the-loop tools)",
             },
             {
               name: "artifact",
               type: "unknown",
-              description: "Optional artifact data associated with the tool call",
+              description:
+                "Optional artifact data associated with the tool call",
             },
           ],
         },
@@ -110,10 +115,13 @@ import { AssistantRuntimeProvider } from "@assistant-ui/react";
 const GetWeatherUI = makeAssistantToolUI({
   toolName: "get_weather",
   render: ({ args, result, status }) => {
-    if (status.type === "requires_action") return <p>Getting weather for {args.location}...</p>;
+    if (status.type === "requires_action")
+      return <p>Getting weather for {args.location}...</p>;
     if (status.type === "running") return <p>Loading...</p>;
-    if (status.type === "incomplete" && status.reason === "error") return <p>Error getting weather.</p>;
-    if (status.type === "complete") return <p>The weather is {result.weather}.</p>;
+    if (status.type === "incomplete" && status.reason === "error")
+      return <p>Error getting weather.</p>;
+    if (status.type === "complete")
+      return <p>The weather is {result.weather}.</p>;
     return null;
   },
 });
@@ -127,4 +135,5 @@ function App() {
   );
 }
 ```
+
 This example shows how to create a simple UI for a `get_weather` tool. The UI will display different messages depending on the status of the tool execution.

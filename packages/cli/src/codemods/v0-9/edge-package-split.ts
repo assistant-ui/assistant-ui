@@ -15,9 +15,9 @@ const reactEdgeExports: string[] = [
   "CoreUserMessage",
   "CoreAssistantMessage",
   "CoreSystemMessage",
-  "CoreUserContentPart",
-  "CoreAssistantContentPart",
-  "CoreToolCallContentPart",
+  "CoreUserMessagePart",
+  "CoreAssistantMessagePart",
+  "CoreToolCallMessagePart",
 
   // Core message converters
   "fromCoreMessages",

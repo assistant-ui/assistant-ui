@@ -1,12 +1,12 @@
 import { Message } from "@ai-sdk/ui-utils";
 import {
   unstable_createMessageConverter,
-  type ReasoningContentPart,
-  type ToolCallContentPart,
-  type TextContentPart,
+  type ReasoningMessagePart,
+  type ToolCallMessagePart,
+  type TextMessagePart,
   type CompleteAttachment,
-  type SourceContentPart,
-  type FileContentPart,
+  type SourceMessagePart,
+  type FileMessagePart,
 } from "@assistant-ui/react";
 
 const convertParts = (message: Message) => {
@@ -20,7 +20,7 @@ const convertParts = (message: Message) => {
             return {
               type: "text",
               text: part.text,
-            } satisfies TextContentPart;
+            } satisfies TextMessagePart;
           case "tool-invocation":
             return {
               type: "tool-call",
@@ -31,23 +31,23 @@ const convertParts = (message: Message) => {
               result:
                 part.toolInvocation.state === "result" &&
                 part.toolInvocation.result,
-            } satisfies ToolCallContentPart;
+            } satisfies ToolCallMessagePart;
           case "reasoning":
             return {
               type: "reasoning",
               text: part.reasoning,
-            } satisfies ReasoningContentPart;
+            } satisfies ReasoningMessagePart;
           case "source":
             return {
               type: "source",
               ...part.source,
-            } satisfies SourceContentPart;
+            } satisfies SourceMessagePart;
           case "file":
             return {
               type: "file",
               data: part.data,
               mimeType: part.mimeType,
-            } satisfies FileContentPart;
+            } satisfies FileMessagePart;
           default: {
             const _unsupported: never = type;
             throw new Error(
@@ -63,7 +63,7 @@ const convertParts = (message: Message) => {
         {
           type: "text",
           text: message.content,
-        } satisfies TextContentPart,
+        } satisfies TextMessagePart,
       ]
     : [];
 };
@@ -117,7 +117,7 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
       case "data": {
         type MaybeSupportedDataMessage =
           | { type?: "unsafe_other" }
-          | ToolCallContentPart
+          | ToolCallMessagePart
           | {
               type: "tool-result";
               toolCallId: string;

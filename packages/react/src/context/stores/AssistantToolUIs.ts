@@ -1,25 +1,25 @@
 import { create } from "zustand";
-import type { ToolCallContentPartComponent } from "../../types/ContentPartComponentTypes";
+import type { ToolCallMessagePartComponent } from "../../types/MessagePartComponentTypes";
 import { Unsubscribe } from "../../types";
 
 export type AssistantToolUIsState = {
   /**
    * Get the tool UI configured for a given tool name.
    */
-  getToolUI: (toolName: string) => ToolCallContentPartComponent | null;
+  getToolUI: (toolName: string) => ToolCallMessagePartComponent | null;
 
   /**
    * Registers a tool UI for a given tool name. Returns an unsubscribe function to remove the tool UI.
    */
   setToolUI: (
     toolName: string,
-    render: ToolCallContentPartComponent,
+    render: ToolCallMessagePartComponent,
   ) => Unsubscribe;
 };
 
 export const makeAssistantToolUIsStore = () =>
   create<AssistantToolUIsState>((set) => {
-    const renderers = new Map<string, ToolCallContentPartComponent[]>();
+    const renderers = new Map<string, ToolCallMessagePartComponent[]>();
 
     return Object.freeze({
       getToolUI: (name) => {

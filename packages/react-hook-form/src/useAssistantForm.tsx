@@ -3,7 +3,7 @@
 import {
   type ModelContext,
   tool,
-  type ToolCallContentPartComponent,
+  type ToolCallMessagePartComponent,
   useAssistantRuntime,
   useAssistantToolUI,
 } from "@assistant-ui/react";
@@ -31,7 +31,7 @@ export type UseAssistantFormProps<
               set_form_field?:
                 | {
                     render?:
-                      | ToolCallContentPartComponent<
+                      | ToolCallMessagePartComponent<
                           z.infer<
                             (typeof formTools.set_form_field)["parameters"]
                           >,
@@ -43,7 +43,7 @@ export type UseAssistantFormProps<
               submit_form?:
                 | {
                     render?:
-                      | ToolCallContentPartComponent<
+                      | ToolCallMessagePartComponent<
                           z.infer<(typeof formTools.submit_form)["parameters"]>,
                           unknown
                         >

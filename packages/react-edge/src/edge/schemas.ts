@@ -10,23 +10,23 @@ export const LanguageModelV1FunctionToolSchema = z.object({
   ),
 });
 
-export const TextContentPartSchema = z.object({
+export const TextMessagePartSchema = z.object({
   type: z.literal("text"),
   text: z.string(),
 });
 
-export const ImageContentPartSchema = z.object({
+export const ImageMessagePartSchema = z.object({
   type: z.literal("image"),
   image: z.string(),
 });
 
-export const FileContentPartSchema = z.object({
+export const FileMessagePartSchema = z.object({
   type: z.literal("file"),
   data: z.string(),
   mimeType: z.string(),
 });
 
-export const Unstable_AudioContentPart = z.object({
+export const Unstable_AudioMessagePart = z.object({
   type: z.literal("audio"),
   audio: z.object({
     data: z.string(),
@@ -34,7 +34,7 @@ export const Unstable_AudioContentPart = z.object({
   }),
 });
 
-export const CoreToolCallContentPartSchema = z.object({
+export const CoreToolCallMessagePartSchema = z.object({
   type: z.literal("tool-call"),
   toolCallId: z.string(),
   toolName: z.string(),
@@ -48,10 +48,10 @@ export const CoreUserMessageSchema = z.object({
   content: z
     .array(
       z.discriminatedUnion("type", [
-        TextContentPartSchema,
-        ImageContentPartSchema,
-        FileContentPartSchema,
-        Unstable_AudioContentPart,
+        TextMessagePartSchema,
+        ImageMessagePartSchema,
+        FileMessagePartSchema,
+        Unstable_AudioMessagePart,
       ]),
     )
     .min(1)
@@ -63,8 +63,8 @@ export const CoreAssistantMessageSchema = z.object({
   content: z
     .array(
       z.discriminatedUnion("type", [
-        TextContentPartSchema,
-        CoreToolCallContentPartSchema,
+        TextMessagePartSchema,
+        CoreToolCallMessagePartSchema,
       ]),
     )
     .min(1)
@@ -73,7 +73,7 @@ export const CoreAssistantMessageSchema = z.object({
 
 export const CoreSystemMessageSchema = z.object({
   role: z.literal("system"),
-  content: z.tuple([TextContentPartSchema]).readonly(),
+  content: z.tuple([TextMessagePartSchema]).readonly(),
 });
 
 export const CoreMessageSchema = z.discriminatedUnion("role", [

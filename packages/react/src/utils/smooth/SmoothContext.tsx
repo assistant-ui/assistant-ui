@@ -12,22 +12,22 @@ import {
 import { ReadonlyStore } from "../../context/ReadonlyStore";
 import { create, UseBoundStore } from "zustand";
 import {
-  ContentPartStatus,
-  ToolCallContentPartStatus,
+  MessagePartStatus,
+  ToolCallMessagePartStatus,
 } from "../../types/AssistantTypes";
-import { useContentPartRuntime } from "../../context/react/ContentPartContext";
+import { useMessagePartRuntime } from "../../context/react/MessagePartContext";
 import { createContextStoreHook } from "../../context/react/utils/createContextStoreHook";
 
 type SmoothContextValue = {
   useSmoothStatus: UseBoundStore<
-    ReadonlyStore<ContentPartStatus | ToolCallContentPartStatus>
+    ReadonlyStore<MessagePartStatus | ToolCallMessagePartStatus>
   >;
 };
 
 const SmoothContext = createContext<SmoothContextValue | null>(null);
 
 const makeSmoothContext = (
-  initialState: ContentPartStatus | ToolCallContentPartStatus,
+  initialState: MessagePartStatus | ToolCallMessagePartStatus,
 ) => {
   const useSmoothStatus = create(() => initialState);
   return { useSmoothStatus };
@@ -35,10 +35,10 @@ const makeSmoothContext = (
 
 export const SmoothContextProvider: FC<PropsWithChildren> = ({ children }) => {
   const outer = useSmoothContext({ optional: true });
-  const contentPartRuntime = useContentPartRuntime();
+  const MessagePartRuntime = useMessagePartRuntime();
 
   const [context] = useState(() =>
-    makeSmoothContext(contentPartRuntime.getState().status),
+    makeSmoothContext(MessagePartRuntime.getState().status),
   );
 
   // do not wrap if there is an outer SmoothContextProvider

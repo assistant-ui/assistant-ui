@@ -1,4 +1,4 @@
-import { ThreadUserContentPart } from "./AssistantTypes";
+import { ThreadUserMessagePart } from "./AssistantTypes";
 
 export type PendingAttachmentStatus =
   | {
@@ -29,7 +29,7 @@ type BaseAttachment = {
   name: string;
   contentType: string;
   file?: File;
-  content?: ThreadUserContentPart[];
+  content?: ThreadUserMessagePart[];
 };
 
 export type PendingAttachment = BaseAttachment & {
@@ -39,7 +39,7 @@ export type PendingAttachment = BaseAttachment & {
 
 export type CompleteAttachment = BaseAttachment & {
   status: CompleteAttachmentStatus;
-  content: ThreadUserContentPart[];
+  content: ThreadUserMessagePart[];
 };
 
 export type Attachment = PendingAttachment | CompleteAttachment;

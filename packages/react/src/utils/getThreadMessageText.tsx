@@ -1,6 +1,6 @@
 import type {
   AppendMessage,
-  TextContentPart,
+  TextMessagePart,
   ThreadMessage,
 } from "../types/AssistantTypes";
 
@@ -9,7 +9,7 @@ export const getThreadMessageText = (
 ) => {
   const textParts = message.content.filter(
     (part) => part.type === "text",
-  ) as TextContentPart[];
+  ) as TextMessagePart[];
 
   return textParts.map((part) => part.text).join("\n\n");
 };

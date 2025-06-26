@@ -389,7 +389,7 @@
 
 ### Patch Changes
 
-- a6769d5: feat: ContentPartComponent types
+- a6769d5: feat: MessagePartComponent types
 - 86d4f7f: feat: add UseAssistantFormProps type
 - Updated dependencies [a6769d5]
 - Updated dependencies [52236ab]

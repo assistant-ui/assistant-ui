@@ -7,11 +7,11 @@ import {
   LanguageModelV1ToolResultPart,
 } from "@ai-sdk/provider";
 import {
-  TextContentPart,
+  TextMessagePart,
   ThreadMessage,
-  ToolCallContentPart,
+  ToolCallMessagePart,
 } from "@assistant-ui/react";
-import { CoreMessage, CoreToolCallContentPart } from "../edge/CoreTypes";
+import { CoreMessage, CoreToolCallMessagePart } from "../edge/CoreTypes";
 
 const assistantMessageSplitter = () => {
   const stash: LanguageModelV1Message[] = [];
@@ -25,7 +25,7 @@ const assistantMessageSplitter = () => {
   };
 
   return {
-    addTextContentPart: (part: TextContentPart) => {
+    addTextMessagePart: (part: TextMessagePart) => {
       if (toolMessage.content.length > 0) {
         stash.push(assistantMessage);
         stash.push(toolMessage);
@@ -46,7 +46,7 @@ const assistantMessageSplitter = () => {
 
       assistantMessage.content.push(part);
     },
-    addToolCallPart: (part: CoreToolCallContentPart | ToolCallContentPart) => {
+    addToolCallPart: (part: CoreToolCallMessagePart | ToolCallMessagePart) => {
       assistantMessage.content.push({
         type: "tool-call",
         toolCallId: part.toolCallId,
@@ -139,7 +139,7 @@ export function toLanguageModelMessages(
                 default: {
                   const unhandledType: "audio" = type;
                   throw new Error(
-                    `Unspported content part type: ${unhandledType}`,
+                    `Unspported message part type: ${unhandledType}`,
                   );
                 }
               }
@@ -161,7 +161,7 @@ export function toLanguageModelMessages(
             }
 
             case "text": {
-              splitter.addTextContentPart(part);
+              splitter.addTextMessagePart(part);
               break;
             }
             case "tool-call": {
@@ -170,7 +170,7 @@ export function toLanguageModelMessages(
             }
             default: {
               const unhandledType: never = type;
-              throw new Error(`Unhandled content part type: ${unhandledType}`);
+              throw new Error(`Unhandled message part type: ${unhandledType}`);
             }
           }
         }

@@ -7,10 +7,10 @@ import {
   ComponentPropsWithoutRef,
   ElementType,
 } from "react";
-import { useContentPartText } from "./useContentPartText";
+import { useMessagePartText } from "./useMessagePartText";
 import { useSmooth } from "../../utils/smooth/useSmooth";
 
-export namespace ContentPartPrimitiveText {
+export namespace MessagePartPrimitiveText {
   export type Element = ComponentRef<typeof Primitive.span>;
   export type Props = Omit<
     ComponentPropsWithoutRef<typeof Primitive.span>,
@@ -31,26 +31,26 @@ export namespace ContentPartPrimitiveText {
 }
 
 /**
- * Renders the text content of a content part with optional smooth streaming.
+ * Renders the text content of a message part with optional smooth streaming.
  *
- * This component displays text content from the current content part context,
+ * This component displays text content from the current message part context,
  * with support for smooth streaming animation that shows text appearing
  * character by character as it's generated.
  *
  * @example
  * ```tsx
- * <ContentPartPrimitive.Text
+ * <MessagePartPrimitive.Text
  *   smooth={true}
  *   component="p"
  *   className="message-text"
  * />
  * ```
  */
-export const ContentPartPrimitiveText = forwardRef<
-  ContentPartPrimitiveText.Element,
-  ContentPartPrimitiveText.Props
+export const MessagePartPrimitiveText = forwardRef<
+  MessagePartPrimitiveText.Element,
+  MessagePartPrimitiveText.Props
 >(({ smooth = true, component: Component = "span", ...rest }, forwardedRef) => {
-  const { text, status } = useSmooth(useContentPartText(), smooth);
+  const { text, status } = useSmooth(useMessagePartText(), smooth);
 
   return (
     <Component data-status={status.type} {...rest} ref={forwardedRef}>
@@ -59,4 +59,4 @@ export const ContentPartPrimitiveText = forwardRef<
   );
 });
 
-ContentPartPrimitiveText.displayName = "ContentPartPrimitive.Text";
+MessagePartPrimitiveText.displayName = "MessagePartPrimitive.Text";

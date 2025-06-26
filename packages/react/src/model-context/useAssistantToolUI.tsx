@@ -2,11 +2,11 @@
 
 import { useEffect } from "react";
 import { useToolUIsStore } from "../context/react/AssistantContext";
-import type { ToolCallContentPartComponent } from "../types/ContentPartComponentTypes";
+import type { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
 
 export type AssistantToolUIProps<TArgs, TResult> = {
   toolName: string;
-  render: ToolCallContentPartComponent<TArgs, TResult>;
+  render: ToolCallMessagePartComponent<TArgs, TResult>;
 };
 
 export const useAssistantToolUI = (

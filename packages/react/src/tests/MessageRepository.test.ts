@@ -3,7 +3,7 @@ import {
   MessageRepository,
   ExportedMessageRepository,
 } from "../runtimes/utils/MessageRepository";
-import type { ThreadMessage, TextContentPart } from "../types/AssistantTypes";
+import type { ThreadMessage, TextMessagePart } from "../types/AssistantTypes";
 import { ThreadMessageLike } from "../runtimes";
 
 // Mock generateId and generateOptimisticId to make tests deterministic
@@ -501,13 +501,13 @@ describe("MessageRepository", () => {
           role: "user" as const,
           content: [
             { type: "text" as const, text: "Hello" },
-          ] as TextContentPart[],
+          ] as TextMessagePart[],
         },
         {
           role: "assistant" as const,
           content: [
             { type: "text" as const, text: "Hi there" },
-          ] as TextContentPart[],
+          ] as TextMessagePart[],
         },
       ];
 
@@ -680,9 +680,9 @@ describe("MessageRepository", () => {
       ]);
 
       // Verify content was updated
-      const contentPart = messages[1]!.content[0];
-      expect(contentPart.type).toBe("text");
-      expect((contentPart as TextContentPart).text).toBe("Updated content");
+      const MessagePart = messages[1]!.content[0];
+      expect(MessagePart.type).toBe("text");
+      expect((MessagePart as TextMessagePart).text).toBe("Updated content");
     });
   });
 });

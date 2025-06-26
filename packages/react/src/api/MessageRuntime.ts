@@ -5,14 +5,14 @@ import {
 import { symbolInnerMessage } from "../runtimes/external-store/getExternalStoreMessage";
 import {
   ThreadMessage,
-  ThreadAssistantContentPart,
-  ThreadUserContentPart,
+  ThreadAssistantMessagePart,
+  ThreadUserMessagePart,
   Unsubscribe,
 } from "../types";
 import {
-  ContentPartStatus,
+  MessagePartStatus,
   RunConfig,
-  ToolCallContentPartStatus,
+  ToolCallMessagePartStatus,
 } from "../types/AssistantTypes";
 import { getThreadMessageText } from "../utils/getThreadMessageText";
 import {
@@ -25,10 +25,10 @@ import {
   EditComposerRuntimeImpl,
 } from "./ComposerRuntime";
 import {
-  ContentPartRuntime,
-  ContentPartRuntimeImpl,
-  ContentPartState,
-} from "./ContentPartRuntime";
+  MessagePartRuntime,
+  MessagePartRuntimeImpl,
+  MessagePartState,
+} from "./MessagePartRuntime";
 import { MessageRuntimePath } from "./RuntimePathTypes";
 import { ThreadRuntimeCoreBinding } from "./ThreadRuntime";
 import { NestedSubscriptionSubject } from "./subscribable/NestedSubscriptionSubject";
@@ -36,20 +36,20 @@ import { SKIP_UPDATE } from "./subscribable/SKIP_UPDATE";
 import { ShallowMemoizeSubject } from "./subscribable/ShallowMemoizeSubject";
 import { SubscribableWithState } from "./subscribable/Subscribable";
 
-const COMPLETE_STATUS: ContentPartStatus = Object.freeze({
+const COMPLETE_STATUS: MessagePartStatus = Object.freeze({
   type: "complete",
 });
 
-export const toContentPartStatus = (
+export const toMessagePartStatus = (
   message: ThreadMessage,
   partIndex: number,
-  part: ThreadUserContentPart | ThreadAssistantContentPart,
-): ToolCallContentPartStatus => {
+  part: ThreadUserMessagePart | ThreadAssistantMessagePart,
+): ToolCallMessagePartStatus => {
   if (message.role !== "assistant") return COMPLETE_STATUS;
 
   if (part.type === "tool-call") {
     if (!part.result) {
-      return message.status as ToolCallContentPartStatus;
+      return message.status as ToolCallMessagePartStatus;
     } else {
       return COMPLETE_STATUS;
     }
@@ -57,20 +57,20 @@ export const toContentPartStatus = (
 
   const isLastPart = partIndex === Math.max(0, message.content.length - 1);
   if (message.status.type === "requires-action") return COMPLETE_STATUS;
-  return isLastPart ? (message.status as ContentPartStatus) : COMPLETE_STATUS;
+  return isLastPart ? (message.status as MessagePartStatus) : COMPLETE_STATUS;
 };
 
-const getContentPartState = (
+const getMessagePartState = (
   message: MessageState,
   partIndex: number,
-): ContentPartState | SKIP_UPDATE => {
+): MessagePartState | SKIP_UPDATE => {
   const part = message.content[partIndex];
   if (!part) {
     return SKIP_UPDATE;
   }
 
-  // if the content part is the same, don't update
-  const status = toContentPartStatus(message, partIndex, part);
+  // if the message part is the same, don't update
+  const status = toMessagePartStatus(message, partIndex, part);
   return Object.freeze({
     ...part,
     ...{ [symbolInnerMessage]: (part as any)[symbolInnerMessage] },
@@ -128,8 +128,8 @@ export type MessageRuntime = {
 
   subscribe(callback: () => void): Unsubscribe;
 
-  getContentPartByIndex(idx: number): ContentPartRuntime;
-  getContentPartByToolCallId(toolCallId: string): ContentPartRuntime;
+  getMessagePartByIndex(idx: number): MessagePartRuntime;
+  getMessagePartByToolCallId(toolCallId: string): MessagePartRuntime;
 
   getAttachmentByIndex(idx: number): AttachmentRuntime & { source: "message" };
 };
@@ -161,9 +161,9 @@ export class MessageRuntimeImpl implements MessageRuntime {
     this.reload = this.reload.bind(this);
     this.getState = this.getState.bind(this);
     this.subscribe = this.subscribe.bind(this);
-    this.getContentPartByIndex = this.getContentPartByIndex.bind(this);
-    this.getContentPartByToolCallId =
-      this.getContentPartByToolCallId.bind(this);
+    this.getMessagePartByIndex = this.getMessagePartByIndex.bind(this);
+    this.getMessagePartByToolCallId =
+      this.getMessagePartByToolCallId.bind(this);
     this.getAttachmentByIndex = this.getAttachmentByIndex.bind(this);
     this.unstable_getCopyText = this.unstable_getCopyText.bind(this);
     this.speak = this.speak.bind(this);
@@ -260,17 +260,17 @@ export class MessageRuntimeImpl implements MessageRuntime {
     return this._core.subscribe(callback);
   }
 
-  public getContentPartByIndex(idx: number) {
-    if (idx < 0) throw new Error("Content part index must be >= 0");
-    return new ContentPartRuntimeImpl(
+  public getMessagePartByIndex(idx: number) {
+    if (idx < 0) throw new Error("Message part index must be >= 0");
+    return new MessagePartRuntimeImpl(
       new ShallowMemoizeSubject({
         path: {
           ...this.path,
           ref: this.path.ref + `${this.path.ref}.content[${idx}]`,
-          contentPartSelector: { type: "index", index: idx },
+          messagePartSelector: { type: "index", index: idx },
         },
         getState: () => {
-          return getContentPartState(this.getState(), idx);
+          return getMessagePartState(this.getState(), idx);
         },
         subscribe: (callback) => this._core.subscribe(callback),
       }),
@@ -279,15 +279,15 @@ export class MessageRuntimeImpl implements MessageRuntime {
     );
   }
 
-  public getContentPartByToolCallId(toolCallId: string) {
-    return new ContentPartRuntimeImpl(
+  public getMessagePartByToolCallId(toolCallId: string) {
+    return new MessagePartRuntimeImpl(
       new ShallowMemoizeSubject({
         path: {
           ...this.path,
           ref:
             this.path.ref +
             `${this.path.ref}.content[toolCallId=${JSON.stringify(toolCallId)}]`,
-          contentPartSelector: { type: "toolCallId", toolCallId },
+          messagePartSelector: { type: "toolCallId", toolCallId },
         },
         getState: () => {
           const state = this._core.getState();
@@ -296,7 +296,7 @@ export class MessageRuntimeImpl implements MessageRuntime {
               part.type === "tool-call" && part.toolCallId === toolCallId,
           );
           if (idx === -1) return SKIP_UPDATE;
-          return getContentPartState(state, idx);
+          return getMessagePartState(state, idx);
         },
         subscribe: (callback) => this._core.subscribe(callback),
       }),

@@ -1,12 +1,12 @@
 "use client";
 
 import { FC, useCallback, useEffect, useState } from "react";
-import { ToolCallContentPartProps } from "../types";
+import { ToolCallMessagePartProps } from "../types";
 import { create } from "zustand";
 
 export const useInlineRender = <TArgs, TResult>(
-  toolUI: FC<ToolCallContentPartProps<TArgs, TResult>>,
-): FC<ToolCallContentPartProps<TArgs, TResult>> => {
+  toolUI: FC<ToolCallMessagePartProps<TArgs, TResult>>,
+): FC<ToolCallMessagePartProps<TArgs, TResult>> => {
   const [useToolUIStore] = useState(() =>
     create(() => ({
       toolUI,

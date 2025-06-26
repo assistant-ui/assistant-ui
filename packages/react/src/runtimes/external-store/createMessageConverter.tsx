@@ -1,6 +1,6 @@
 "use client";
 import { ThreadState } from "../../api";
-import { useContentPart, useMessage } from "../../context";
+import { useMessagePart, useMessage } from "../../context";
 import { ThreadMessage } from "../../types";
 import {
   useExternalMessageConverter,
@@ -50,13 +50,13 @@ export const createMessageConverter = <T extends object>(
       return first;
     },
     useOriginalMessages: () => {
-      const contentPartMessages = useContentPart<T[]>({
+      const MessagePartMessages = useMessagePart<T[]>({
         optional: true,
         selector: getExternalStoreMessages,
       });
 
       const messageMessages = useMessage<T[]>(getExternalStoreMessages);
-      const messages = contentPartMessages ?? messageMessages;
+      const messages = MessagePartMessages ?? messageMessages;
       if (messages.length === 0) throw new Error("No original messages found");
       return messages;
     },

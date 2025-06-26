@@ -3,17 +3,17 @@ import { ReadonlyJSONObject, ReadonlyJSONValue } from "assistant-stream/utils";
 
 export type MessageRole = ThreadMessage["role"];
 
-export type TextContentPart = {
+export type TextMessagePart = {
   readonly type: "text";
   readonly text: string;
 };
 
-export type ReasoningContentPart = {
+export type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
 };
 
-export type SourceContentPart = {
+export type SourceMessagePart = {
   readonly type: "source";
   readonly sourceType: "url";
   readonly id: string;
@@ -21,18 +21,18 @@ export type SourceContentPart = {
   readonly title?: string;
 };
 
-export type ImageContentPart = {
+export type ImageMessagePart = {
   readonly type: "image";
   readonly image: string;
 };
 
-export type FileContentPart = {
+export type FileMessagePart = {
   readonly type: "file";
   readonly data: string;
   readonly mimeType: string;
 };
 
-export type Unstable_AudioContentPart = {
+export type Unstable_AudioMessagePart = {
   readonly type: "audio";
   readonly audio: {
     readonly data: string;
@@ -40,7 +40,7 @@ export type Unstable_AudioContentPart = {
   };
 };
 
-export type ToolCallContentPart<
+export type ToolCallMessagePart<
   TArgs = ReadonlyJSONObject,
   TResult = unknown,
 > = {
@@ -54,18 +54,18 @@ export type ToolCallContentPart<
   readonly artifact?: unknown;
 };
 
-export type ThreadUserContentPart =
-  | TextContentPart
-  | ImageContentPart
-  | FileContentPart
-  | Unstable_AudioContentPart;
+export type ThreadUserMessagePart =
+  | TextMessagePart
+  | ImageMessagePart
+  | FileMessagePart
+  | Unstable_AudioMessagePart;
 
-export type ThreadAssistantContentPart =
-  | TextContentPart
-  | ReasoningContentPart
-  | ToolCallContentPart
-  | SourceContentPart
-  | FileContentPart;
+export type ThreadAssistantMessagePart =
+  | TextMessagePart
+  | ReasoningMessagePart
+  | ToolCallMessagePart
+  | SourceMessagePart
+  | FileMessagePart;
 
 type MessageCommonProps = {
   readonly id: string;
@@ -82,7 +82,7 @@ export type ThreadStep = {
     | undefined;
 };
 
-export type ContentPartStatus =
+export type MessagePartStatus =
   | {
       readonly type: "running";
     }
@@ -100,12 +100,12 @@ export type ContentPartStatus =
       readonly error?: unknown;
     };
 
-export type ToolCallContentPartStatus =
+export type ToolCallMessagePartStatus =
   | {
       readonly type: "requires-action";
       readonly reason: "tool-calls";
     }
-  | ContentPartStatus;
+  | MessagePartStatus;
 
 export type MessageStatus =
   | {
@@ -133,7 +133,7 @@ export type MessageStatus =
 
 export type ThreadSystemMessage = MessageCommonProps & {
   readonly role: "system";
-  readonly content: readonly [TextContentPart];
+  readonly content: readonly [TextMessagePart];
   readonly metadata: {
     readonly custom: Record<string, unknown>;
   };
@@ -141,7 +141,7 @@ export type ThreadSystemMessage = MessageCommonProps & {
 
 export type ThreadUserMessage = MessageCommonProps & {
   readonly role: "user";
-  readonly content: readonly ThreadUserContentPart[];
+  readonly content: readonly ThreadUserMessagePart[];
   readonly attachments: readonly CompleteAttachment[];
   readonly metadata: {
     readonly custom: Record<string, unknown>;
@@ -150,7 +150,7 @@ export type ThreadUserMessage = MessageCommonProps & {
 
 export type ThreadAssistantMessage = MessageCommonProps & {
   readonly role: "assistant";
-  readonly content: readonly ThreadAssistantContentPart[];
+  readonly content: readonly ThreadAssistantMessagePart[];
   readonly status: MessageStatus;
   readonly metadata: {
     readonly unstable_state: ReadonlyJSONValue;

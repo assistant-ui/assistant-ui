@@ -6,7 +6,11 @@ import installReactUILib from "./install-ui-lib";
 import installEdgeLib from "./install-edge-lib";
 import installAiSdkLib from "./install-ai-sdk-lib";
 
-const bundle = ["v0-8/ui-package-split", "v0-9/edge-package-split"];
+const bundle = [
+  "v0-8/ui-package-split",
+  "v0-9/edge-package-split",
+  "v0-11/content-part-to-message-part",
+];
 
 const log = debug("codemod:upgrade");
 const error = debug("codemod:upgrade:error");

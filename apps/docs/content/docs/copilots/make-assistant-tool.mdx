@@ -27,7 +27,7 @@ const submitForm = tool({
 // Create a tool component
 const SubmitFormTool = makeAssistantTool({
   ...submitForm,
-  toolName: "submitForm"
+  toolName: "submitForm",
 });
 
 // Use in your component
@@ -57,13 +57,15 @@ function Form() {
     {
       name: "parameters",
       type: "StandardSchemaV1<TArgs> | JSONSchema7",
-      description: "Schema defining the tool's parameters (typically a Zod schema)",
+      description:
+        "Schema defining the tool's parameters (typically a Zod schema)",
       required: true,
     },
     {
       name: "execute",
       type: "(args: TArgs, context: ToolExecutionContext) => TResult | Promise<TResult>",
-      description: "Function that implements the tool's behavior (required for frontend tools)",
+      description:
+        "Function that implements the tool's behavior (required for frontend tools)",
       required: true,
     },
     {
@@ -73,16 +75,17 @@ function Form() {
     },
     {
       name: "render",
-      type: "ComponentType<ToolCallContentPartProps<TArgs, TResult>>",
-      description: "Optional custom UI component for rendering the tool execution. Receives the following props:",
+      type: "ComponentType<ToolCallMessagePartProps<TArgs, TResult>>",
+      description:
+        "Optional custom UI component for rendering the tool execution. Receives the following props:",
       children: [
         {
-          type: "ToolCallContentPartProps<TArgs, TResult>",
+          type: "ToolCallMessagePartProps<TArgs, TResult>",
           parameters: [
             {
               name: "type",
-              type: "\"tool-call\"",
-              description: "The content part type",
+              type: '"tool-call"',
+              description: "The message part type",
             },
             {
               name: "toolCallId",
@@ -116,18 +119,21 @@ function Form() {
             },
             {
               name: "status",
-              type: "ToolCallContentPartStatus",
-              description: "The execution status object with a type property: \"running\", \"complete\", \"incomplete\", or \"requires_action\"",
+              type: "ToolCallMessagePartStatus",
+              description:
+                'The execution status object with a type property: "running", "complete", "incomplete", or "requires_action"',
             },
             {
               name: "addResult",
               type: "(result: TResult | ToolResponse<TResult>) => void",
-              description: "Function to add a result (useful for human-in-the-loop tools)",
+              description:
+                "Function to add a result (useful for human-in-the-loop tools)",
             },
             {
               name: "artifact",
               type: "unknown",
-              description: "Optional artifact data associated with the tool call",
+              description:
+                "Optional artifact data associated with the tool call",
             },
           ],
         },
@@ -176,11 +182,11 @@ const sendEmail = tool({
 // Create tool components
 const EmailValidator = makeAssistantTool({
   ...validateEmail,
-  toolName: "validateEmail"
+  toolName: "validateEmail",
 });
 const EmailSender = makeAssistantTool({
   ...sendEmail,
-  toolName: "sendEmail"
+  toolName: "sendEmail",
 });
 
 // Use together

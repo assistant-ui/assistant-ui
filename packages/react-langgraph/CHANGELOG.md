@@ -188,7 +188,7 @@
 
 ### Patch Changes
 
-- 4f5d77f: feat: ToolCallContentPart.args should be JSONObject
+- 4f5d77f: feat: ToolCallMessagePart.args should be JSONObject
 - Updated dependencies [8ec1f07]
 - Updated dependencies [4f5d77f]
 - Updated dependencies [8ec1f07]
@@ -436,13 +436,13 @@
 
 ### Patch Changes
 
-- fix(langgraph): ignore tool_use content parts
+- fix(langgraph): ignore tool_use message parts
 
 ## 0.0.17
 
 ### Patch Changes
 
-- 851c10a: fix(langgraph): content part type check should output the content type
+- 851c10a: fix(langgraph): message part type check should output the content type
 
 ## 0.0.16
 

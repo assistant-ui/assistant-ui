@@ -3,7 +3,7 @@ import {
   INTERNAL,
   MessageStatus,
   ThreadMessage,
-  ToolCallContentPart,
+  ToolCallMessagePart,
 } from "@assistant-ui/react";
 import { CoreMessage } from "../edge/CoreTypes";
 
@@ -40,7 +40,7 @@ export const fromCoreMessage = (
               ...part,
               args: part.args as any,
               argsText: JSON.stringify(part.args),
-            } satisfies ToolCallContentPart;
+            } satisfies ToolCallMessagePart;
           }
           return part;
         }),

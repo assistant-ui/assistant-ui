@@ -1,11 +1,11 @@
 ---
-title: <TextContentPartProvider />
+title: <TextMessagePartProvider />
 ---
 
 import { ParametersTable } from "@/components/docs";
 import { AssistantRuntimeProvider } from "@/generated/typeDocs";
 
-The `TextContentPartProvider` provides data and APIs for `TextContentPart` components.
+The `TextMessagePartProvider` provides data and APIs for `TextMessagePart` components.
 
 This is useful if you want to reuse the same `Text` component outside of a message text, e.g. with the `@assistant-ui/react-markdown` package.
 
@@ -14,7 +14,7 @@ import { AssistantRuntimeProvider } from "@assistant-ui/react";
 
 const MyApp = () => {
   return (
-    <TextContentPartProvider text={"Hello!"}>
+    <TextMessagePartProvider text={"Hello!"}>
       <MyMarkdownText />
     </AssistantRuntimeProvider>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { INTERNAL, useContentPartText } from "@assistant-ui/react";
+import { INTERNAL, useMessagePartText } from "@assistant-ui/react";
 import {
   ComponentRef,
   ElementType,
@@ -62,7 +62,7 @@ const MarkdownTextInner: FC<MarkdownTextPrimitiveProps> = ({
   smooth = true,
   ...rest
 }) => {
-  const { text } = useSmooth(useContentPartText(), smooth);
+  const { text } = useSmooth(useMessagePartText(), smooth);
 
   const {
     pre = DefaultPre,

@@ -579,7 +579,7 @@ type ToolUIRenderProps<TArgs, TResult> = {
   argsText: string; // JSON stringified args
 
   // Execution status
-  status: ToolCallContentPartStatus;
+  status: ToolCallMessagePartStatus;
   isError?: boolean;
 
   // Tool result (may be partial during streaming)
@@ -699,5 +699,5 @@ const ToolGroup = ({ startIndex, endIndex, children }) => {
 
 - [Tools Guide](/docs/guides/Tools) - Learn how to create and use tools with AI models
 - [Tool Fallback](/docs/ui/ToolFallback) - Default UI for tools without custom components
-- [API Reference](/docs/api-reference/primitives/ContentPart) - Detailed type definitions and component APIs
+- [API Reference](/docs/api-reference/primitives/MessagePart) - Detailed type definitions and component APIs
 - [Message Primitive](/docs/api-reference/primitives/Message) - Complete Message component documentation

@@ -6,7 +6,7 @@ import { isJSONValue } from "../utils/json/is-json";
 import { ReadonlyJSONObject, ReadonlyJSONValue } from "assistant-stream/utils";
 import { ExportedMessageRepositoryItem } from "../runtimes/utils/MessageRepository";
 
-type AuiV0MessageContentPart =
+type AuiV0MessageMessagePart =
   | {
       readonly type: "text";
       readonly text: string;
@@ -42,7 +42,7 @@ type AuiV0MessageContentPart =
 type AuiV0Message = {
   readonly role: "assistant" | "user" | "system";
   readonly status?: MessageStatus;
-  readonly content: readonly AuiV0MessageContentPart[];
+  readonly content: readonly AuiV0MessageMessagePart[];
   readonly metadata: {
     readonly unstable_state?: ReadonlyJSONValue;
     readonly unstable_annotations: readonly ReadonlyJSONValue[];
@@ -114,7 +114,7 @@ export const auiV0Encode = (message: ThreadMessage): AuiV0Message => {
         default: {
           const unhandledType: "image" | "file" | "audio" = type;
           throw new Error(
-            `Content part type not supported by aui/v0: ${unhandledType}`,
+            `Message part type not supported by aui/v0: ${unhandledType}`,
           );
         }
       }
