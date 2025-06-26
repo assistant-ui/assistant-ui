@@ -53,6 +53,9 @@ export class ExternalStoreThreadRuntimeCore
 
   private _messages!: readonly ThreadMessage[];
   public isDisabled!: boolean;
+  public get isLoading() {
+    return this._store.isLoading ?? false;
+  }
 
   public override get messages() {
     return this._messages;

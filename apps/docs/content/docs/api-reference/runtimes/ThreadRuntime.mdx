@@ -30,6 +30,7 @@ import { useThread } from "@assistant-ui/react";
 
 const thread = useThread();
 const isRunning = useThread((m) => m.isRunning);
+const isLoading = useThread((m) => m.isLoading);
 ```
 
 <ParametersTable {...ThreadState} />
