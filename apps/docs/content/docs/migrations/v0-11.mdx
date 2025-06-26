@@ -1,0 +1,156 @@
+---
+title: Migration to v0.11
+---
+
+## ContentPart renamed to MessagePart
+
+All ContentPart-related types, hooks, and components have been renamed to MessagePart for better semantic clarity and consistency.
+
+### What changed
+
+The following types and components have been renamed:
+
+#### Core Types
+- `TextContentPart` → `TextMessagePart`
+- `ReasoningContentPart` → `ReasoningMessagePart`
+- `SourceContentPart` → `SourceMessagePart`
+- `ImageContentPart` → `ImageMessagePart`
+- `FileContentPart` → `FileMessagePart`
+- `Unstable_AudioContentPart` → `Unstable_AudioMessagePart`
+- `ToolCallContentPart` → `ToolCallMessagePart`
+- `ContentPartStatus` → `MessagePartStatus`
+- `ToolCallContentPartStatus` → `ToolCallMessagePartStatus`
+
+#### Thread Message Parts
+- `ThreadUserContentPart` → `ThreadUserMessagePart`
+- `ThreadAssistantContentPart` → `ThreadAssistantMessagePart`
+
+#### Runtime and State Types
+- `ContentPartRuntime` → `MessagePartRuntime`
+- `ContentPartState` → `MessagePartState`
+
+#### Hooks
+- `useContentPart` → `useMessagePart`
+- `useContentPartRuntime` → `useMessagePartRuntime`
+- `useContentPartText` → `useMessagePartText`
+- `useContentPartReasoning` → `useMessagePartReasoning`
+- `useContentPartSource` → `useMessagePartSource`
+- `useContentPartFile` → `useMessagePartFile`
+- `useContentPartImage` → `useMessagePartImage`
+- `useTextContentPart` → `useTextMessagePart`
+
+#### Component Types
+- `EmptyContentPartComponent` → `EmptyMessagePartComponent`
+- `TextContentPartComponent` → `TextMessagePartComponent`
+- `ReasoningContentPartComponent` → `ReasoningMessagePartComponent`
+- `SourceContentPartComponent` → `SourceMessagePartComponent`
+- `ImageContentPartComponent` → `ImageMessagePartComponent`
+- `FileContentPartComponent` → `FileMessagePartComponent`
+- `Unstable_AudioContentPartComponent` → `Unstable_AudioMessagePartComponent`
+- `ToolCallContentPartComponent` → `ToolCallMessagePartComponent`
+
+#### Props Types
+- `EmptyContentPartProps` → `EmptyMessagePartProps`
+- `TextContentPartProps` → `TextMessagePartProps`
+- `ReasoningContentPartProps` → `ReasoningMessagePartProps`
+- `SourceContentPartProps` → `SourceMessagePartProps`
+- `ImageContentPartProps` → `ImageMessagePartProps`
+- `FileContentPartProps` → `FileMessagePartProps`
+- `Unstable_AudioContentPartProps` → `Unstable_AudioMessagePartProps`
+- `ToolCallContentPartProps` → `ToolCallMessagePartProps`
+
+#### Providers and Context
+- `TextContentPartProvider` → `TextMessagePartProvider`
+- `TextContentPartProviderProps` → `TextMessagePartProviderProps`
+- `ContentPartRuntimeProvider` → `MessagePartRuntimeProvider`
+- `ContentPartContext` → `MessagePartContext`
+- `ContentPartContextValue` → `MessagePartContextValue`
+
+#### Primitives
+- `ContentPartPrimitive` → `MessagePartPrimitive`
+- `ContentPartPrimitiveText` → `MessagePartPrimitiveText`
+- `ContentPartPrimitiveImage` → `MessagePartPrimitiveImage`
+- `ContentPartPrimitiveInProgress` → `MessagePartPrimitiveInProgress`
+
+### MessagePrimitive.Content renamed to MessagePrimitive.Parts
+
+The `MessagePrimitive.Content` component has been renamed to `MessagePrimitive.Parts` to better reflect its purpose of rendering message parts.
+
+```diff
+-<MessagePrimitive.Content components={{ Text: MyText }} />
++<MessagePrimitive.Parts components={{ Text: MyText }} />
+```
+
+### Migration
+
+To migrate your codebase automatically, use the migration codemod:
+
+```sh
+# IMPORTANT: make sure to commit all changes to git / create a backup before running the codemod
+npx @assistant-ui/cli upgrade
+```
+
+Or run the specific migration:
+
+```sh
+npx @assistant-ui/cli codemod v0-11/content-part-to-message-part .
+```
+
+#### Manual Migration Examples
+
+If you prefer to migrate manually, here are some examples:
+
+**Imports:**
+```diff
+-import { TextContentPart, useContentPart, ToolCallContentPartComponent } from "@assistant-ui/react";
++import { TextMessagePart, useMessagePart, ToolCallMessagePartComponent } from "@assistant-ui/react";
+```
+
+**Type annotations:**
+```diff
+-function processContent(part: TextContentPart): void {
++function processContent(part: TextMessagePart): void {
+   console.log(part.text);
+ }
+
+-const MyTool: ToolCallContentPartComponent = ({ toolName }) => {
++const MyTool: ToolCallMessagePartComponent = ({ toolName }) => {
+   return <div>{toolName}</div>;
+ };
+```
+
+**Hooks:**
+```diff
+ function MyComponent() {
+-  const part = useContentPart();
+-  const text = useContentPartText();
+-  const runtime = useContentPartRuntime();
++  const part = useMessagePart();
++  const text = useMessagePartText();
++  const runtime = useMessagePartRuntime();
+   return null;
+ }
+```
+
+**JSX Components:**
+```diff
+-<ContentPartPrimitive.Text />
+-<ContentPartPrimitive.Image />
++<MessagePartPrimitive.Text />
++<MessagePartPrimitive.Image />
+```
+
+**Providers:**
+```diff
+-<TextContentPartProvider text="Hello" isRunning={false}>
++<TextMessagePartProvider text="Hello" isRunning={false}>
+   <div>Content</div>
+-</TextContentPartProvider>
++</TextMessagePartProvider>
+```
+
+### Why this change?
+
+The ContentPart naming was inconsistent with the rest of the codebase, where "message parts" are used throughout. This change improves semantic clarity and makes the API more intuitive by aligning terminology across the entire library.
+
+The old ContentPart APIs continue to work but are now deprecated and will be removed in a future major version. 
