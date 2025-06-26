@@ -19,9 +19,9 @@
     "ai": "^4.3.16",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^0.522.0",
+    "lucide-react": "^0.523.0",
     "next": "15.3.4",
-    "openai": "^5.6.0",
+    "openai": "^5.8.1",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "remark-gfm": "^4.0.1",
@@ -36,7 +36,7 @@
     "eslint": "^9",
     "eslint-config-next": "15.3.4",
     "postcss": "^8",
-    "tailwindcss": "^4.1.10",
+    "tailwindcss": "^4.1.11",
     "typescript": "^5"
   }
 }

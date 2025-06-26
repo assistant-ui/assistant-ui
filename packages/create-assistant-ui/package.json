@@ -14,7 +14,7 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/cross-spawn": "^6.0.6",
-    "@types/node": "^24.0.3",
+    "@types/node": "^24.0.4",
     "tsx": "^4.20.3"
   },
   "files": [

@@ -28,7 +28,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "json-schema-to-zod": "^2.6.1",
-    "lucide-react": "^0.522.0",
+    "lucide-react": "^0.523.0",
     "next": "15.3.4",
     "react": "19.1.0",
     "react-dom": "19.1.0",
@@ -38,8 +38,8 @@
     "tailwind-merge": "^3.3.1",
     "tw-animate-css": "^1.3.4",
     "zod": "^3.25.67",
-    "zod-to-json-schema": "^3.24.5",
-    "zustand": "^5.0.5"
+    "zod-to-json-schema": "^3.24.6",
+    "zustand": "^5.0.6"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
@@ -49,7 +49,7 @@
     "eslint": "^9",
     "eslint-config-next": "15.3.4",
     "postcss": "^8",
-    "tailwindcss": "^4.1.10",
+    "tailwindcss": "^4.1.11",
     "typescript": "^5.8.3"
   }
 }

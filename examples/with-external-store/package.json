@@ -16,7 +16,7 @@
     "@radix-ui/react-tooltip": "^1.2.7",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^0.522.0",
+    "lucide-react": "^0.523.0",
     "next": "15.3.4",
     "react": "19.1.0",
     "react-dom": "19.1.0",
@@ -32,7 +32,7 @@
     "eslint": "^9",
     "eslint-config-next": "15.3.4",
     "postcss": "^8",
-    "tailwindcss": "^4.1.10",
+    "tailwindcss": "^4.1.11",
     "typescript": "^5"
   }
 }

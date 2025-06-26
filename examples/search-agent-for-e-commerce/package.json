@@ -21,7 +21,7 @@
     "clsx": "^2.1.1",
     "embla-carousel-autoplay": "^8.6.0",
     "embla-carousel-react": "^8.6.0",
-    "lucide-react": "^0.522.0",
+    "lucide-react": "^0.523.0",
     "nanoid": "5.1.5",
     "next": "15.3.4",
     "react": "19.1.0",
@@ -32,13 +32,13 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^24.0.3",
+    "@types/node": "^24.0.4",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "eslint": "^9",
     "eslint-config-next": "15.3.4",
     "postcss": "^8.5.6",
-    "tailwindcss": "^4.1.10",
+    "tailwindcss": "^4.1.11",
     "typescript": "^5.8.3"
   }
 }

@@ -45,7 +45,7 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^24.0.3",
+    "@types/node": "^24.0.4",
     "@types/react": "^19.1.8",
     "@types/react-syntax-highlighter": "^15.5.13",
     "eslint": "^9",

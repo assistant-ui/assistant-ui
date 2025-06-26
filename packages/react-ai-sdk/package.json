@@ -28,7 +28,7 @@
     "@radix-ui/react-use-callback-ref": "^1.1.1",
     "@types/json-schema": "^7.0.15",
     "zod": "^3.25.67",
-    "zustand": "^5.0.5"
+    "zustand": "^5.0.6"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.10.24",
@@ -42,7 +42,7 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^24.0.3",
+    "@types/node": "^24.0.4",
     "@types/react": "^19.1.8",
     "eslint": "^9",
     "eslint-config-next": "15.3.4",
