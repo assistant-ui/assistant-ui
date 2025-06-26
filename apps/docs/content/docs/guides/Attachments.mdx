@@ -34,7 +34,8 @@ npx shadcn@latest add "https://r.assistant-ui.com/attachment"
 This adds `/components/assistant-ui/attachment.tsx` to your project.
 
 <Callout type="tip">
-**Next steps:** Feel free to adjust these auto-generated components (styling, layout, behavior) to match your application's design system.
+  **Next steps:** Feel free to adjust these auto-generated components (styling,
+  layout, behavior) to match your application's design system.
 </Callout>
 
   </Step>
@@ -94,7 +95,7 @@ const UserMessage = () => {
   return (
     <MessagePrimitive.Root>
       <UserMessageAttachments />
-      <MessagePrimitive.Content />
+      <MessagePrimitive.Parts />
     </MessagePrimitive.Root>
   );
 };
@@ -242,7 +243,7 @@ class PDFAttachmentAdapter implements AttachmentAdapter {
   async send(attachment: PendingAttachment): Promise<CompleteAttachment> {
     // Option 1: Extract text from PDF (requires pdf parsing library)
     // const text = await this.extractTextFromPDF(attachment.file);
-    
+
     // Option 2: Convert to base64 for API processing
     const base64Data = await this.fileToBase64(attachment.file);
 
@@ -253,8 +254,8 @@ class PDFAttachmentAdapter implements AttachmentAdapter {
       content: [
         {
           type: "text",
-          text: `[PDF Document: ${attachment.name}]\nBase64 data: ${base64Data.substring(0, 50)}...`
-        }
+          text: `[PDF Document: ${attachment.name}]\nBase64 data: ${base64Data.substring(0, 50)}...`,
+        },
       ],
       status: { type: "complete" },
     };
@@ -268,12 +269,12 @@ class PDFAttachmentAdapter implements AttachmentAdapter {
     const arrayBuffer = await file.arrayBuffer();
     const bytes = new Uint8Array(arrayBuffer);
     let binary = "";
-    bytes.forEach(byte => {
+    bytes.forEach((byte) => {
       binary += String.fromCharCode(byte);
     });
     return btoa(binary);
   }
-  
+
   // Optional: Extract text from PDF using a library like pdf.js
   private async extractTextFromPDF(file: File): Promise<string> {
     // Implementation would use pdf.js or similar
@@ -296,33 +297,36 @@ import { useLocalRuntime, ChatModelAdapter } from "@assistant-ui/react";
 const MyModelAdapter: ChatModelAdapter = {
   async run({ messages, abortSignal }) {
     // Convert messages to format expected by your vision-capable API
-    const formattedMessages = messages.map(msg => {
-      if (msg.role === "user" && msg.content.some(part => part.type === "image")) {
+    const formattedMessages = messages.map((msg) => {
+      if (
+        msg.role === "user" &&
+        msg.content.some((part) => part.type === "image")
+      ) {
         // Format for GPT-4V or similar vision models
         return {
           role: "user",
-          content: msg.content.map(part => {
+          content: msg.content.map((part) => {
             if (part.type === "text") {
               return { type: "text", text: part.text };
             }
             if (part.type === "image") {
               return {
                 type: "image_url",
-                image_url: { url: part.image }
+                image_url: { url: part.image },
               };
             }
             return part;
-          })
+          }),
         };
       }
-      
+
       // Regular text messages
       return {
         role: msg.role,
         content: msg.content
-          .filter(c => c.type === "text")
-          .map(c => c.text)
-          .join("\n")
+          .filter((c) => c.type === "text")
+          .map((c) => c.text)
+          .join("\n"),
       };
     });
 
@@ -343,8 +347,8 @@ const MyModelAdapter: ChatModelAdapter = {
 
 // Create runtime with vision image adapter
 const runtime = useLocalRuntime(MyModelAdapter, {
-  adapters: { 
-    attachments: new VisionImageAdapter() 
+  adapters: {
+    attachments: new VisionImageAdapter(),
   },
 });
 ```
@@ -363,12 +367,12 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: openai("gpt-4-vision-preview"),
-    messages: messages.map(msg => {
+    messages: messages.map((msg) => {
       if (msg.experimental_attachments?.length) {
         // Images are automatically formatted for the model
         return {
           ...msg,
-          experimental_attachments: msg.experimental_attachments
+          experimental_attachments: msg.experimental_attachments,
         };
       }
       return msg;
@@ -637,4 +641,3 @@ Attachments work with all assistant-ui runtimes:
 
 - [Attachment UI Components](/docs/ui/Attachment) - UI implementation details
 - [API Reference](/docs/api-reference) - Detailed type definitions
-

@@ -15,6 +15,7 @@ import { Card, Cards } from "fumadocs-ui/components/card";
   <Step>
 
 ### Initialize assistant-ui
+
 **Create a new project:**
 
 ```sh
@@ -349,7 +350,7 @@ const UserMessage: FC = () => {
       <UserActionBar />
 
       <div className="aui-user-message-content">
-        <MessagePrimitive.Content />
+        <MessagePrimitive.Parts />
       </div>
 
       <BranchPicker className="aui-user-branch-picker" />
@@ -394,7 +395,7 @@ const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="aui-assistant-message-root">
       <div className="aui-assistant-message-content">
-        <MessagePrimitive.Content components={{ Text: MarkdownText }} />
+        <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
       </div>
 
       <AssistantActionBar />
@@ -1110,23 +1111,23 @@ const MyApp = () => {
 ## What's Next?
 
 <Cards>
-  <Card 
-    title="Pick a Runtime" 
+  <Card
+    title="Pick a Runtime"
     description="Choose the right runtime for your needs"
     href="/docs/runtimes/pick-a-runtime"
   />
-  <Card 
-    title="Generative UI" 
+  <Card
+    title="Generative UI"
     description="Create rich UI components for tool executions"
     href="/docs/guides/ToolUI"
   />
-  <Card 
-    title="Add Persistence" 
+  <Card
+    title="Add Persistence"
     description="Save and restore chat conversations"
     href="/docs/cloud/overview"
   />
-  <Card 
-    title="Examples" 
+  <Card
+    title="Examples"
     description="Explore full implementations and demos"
     href="https://github.com/assistant-ui/assistant-ui/tree/main/examples"
   />

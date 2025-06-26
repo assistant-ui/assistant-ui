@@ -1,25 +1,25 @@
 import type {
-  FileContentPart,
+  FileMessagePart,
   MessageStatus,
-  ReasoningContentPart,
+  ReasoningMessagePart,
   RunConfig,
-  SourceContentPart,
-  TextContentPart,
-  ThreadAssistantContentPart,
+  SourceMessagePart,
+  TextMessagePart,
+  ThreadAssistantMessagePart,
   ThreadMessage,
   ThreadStep,
-  ToolCallContentPart,
+  ToolCallMessagePart,
 } from "../../types/AssistantTypes";
 import type { ModelContext } from "../../model-context/ModelContextTypes";
 import { ReadonlyJSONValue } from "assistant-stream/utils";
 
 export type ChatModelRunUpdate = {
-  readonly content: readonly ThreadAssistantContentPart[];
+  readonly content: readonly ThreadAssistantMessagePart[];
   readonly metadata?: Record<string, unknown>;
 };
 
 export type ChatModelRunResult = {
-  readonly content?: readonly ThreadAssistantContentPart[] | undefined;
+  readonly content?: readonly ThreadAssistantMessagePart[] | undefined;
   readonly status?: MessageStatus | undefined;
   readonly metadata?: {
     readonly unstable_state?: ReadonlyJSONValue;
@@ -32,11 +32,11 @@ export type ChatModelRunResult = {
 
 export type CoreChatModelRunResult = Omit<ChatModelRunResult, "content"> & {
   readonly content: readonly (
-    | TextContentPart
-    | ReasoningContentPart
-    | ToolCallContentPart
-    | SourceContentPart
-    | FileContentPart
+    | TextMessagePart
+    | ReasoningMessagePart
+    | ToolCallMessagePart
+    | SourceMessagePart
+    | FileMessagePart
   )[];
 };
 

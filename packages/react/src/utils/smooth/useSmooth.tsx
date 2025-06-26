@@ -3,14 +3,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMessage } from "../../context";
 import {
-  ContentPartStatus,
-  ReasoningContentPart,
-  TextContentPart,
+  MessagePartStatus,
+  ReasoningMessagePart,
+  TextMessagePart,
 } from "../../types/AssistantTypes";
 import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
 import { useSmoothStatusStore } from "./SmoothContext";
 import { writableStore } from "../../context/ReadonlyStore";
-import { ContentPartState } from "../../api/ContentPartRuntime";
+import { MessagePartState } from "../../api/MessagePartRuntime";
 
 class TextStreamAnimator {
   private animationFrameId: number | null = null;
@@ -66,14 +66,14 @@ class TextStreamAnimator {
   };
 }
 
-const SMOOTH_STATUS: ContentPartStatus = Object.freeze({
+const SMOOTH_STATUS: MessagePartStatus = Object.freeze({
   type: "running",
 });
 
 export const useSmooth = (
-  state: ContentPartState & (TextContentPart | ReasoningContentPart),
+  state: MessagePartState & (TextMessagePart | ReasoningMessagePart),
   smooth: boolean = false,
-): ContentPartState & (TextContentPart | ReasoningContentPart) => {
+): MessagePartState & (TextMessagePart | ReasoningMessagePart) => {
   const { text } = state;
   const id = useMessage({
     optional: true,

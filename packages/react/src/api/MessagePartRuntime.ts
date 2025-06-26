@@ -1,47 +1,47 @@
 import {
-  ThreadAssistantContentPart,
-  ThreadUserContentPart,
-  ContentPartStatus,
-  ToolCallContentPartStatus,
+  ThreadAssistantMessagePart,
+  ThreadUserMessagePart,
+  MessagePartStatus,
+  ToolCallMessagePartStatus,
 } from "../types/AssistantTypes";
 import { ThreadRuntimeCoreBinding } from "./ThreadRuntime";
 import { MessageStateBinding } from "./MessageRuntime";
 import { SubscribableWithState } from "./subscribable/Subscribable";
 import { Unsubscribe } from "../types";
-import { ContentPartRuntimePath } from "./RuntimePathTypes";
+import { MessagePartRuntimePath } from "./RuntimePathTypes";
 import { ToolResponse } from "assistant-stream";
 
-export type ContentPartState = (
-  | ThreadUserContentPart
-  | ThreadAssistantContentPart
+export type MessagePartState = (
+  | ThreadUserMessagePart
+  | ThreadAssistantMessagePart
 ) & {
-  readonly status: ContentPartStatus | ToolCallContentPartStatus;
+  readonly status: MessagePartStatus | ToolCallMessagePartStatus;
 };
 
-type ContentPartSnapshotBinding = SubscribableWithState<
-  ContentPartState,
-  ContentPartRuntimePath
+type MessagePartSnapshotBinding = SubscribableWithState<
+  MessagePartState,
+  MessagePartRuntimePath
 >;
 
-export type ContentPartRuntime = {
+export type MessagePartRuntime = {
   /**
-   * Add tool result to a tool call content part that has no tool result yet.
+   * Add tool result to a tool call message part that has no tool result yet.
    * This is useful when you are collecting a tool result via user input ("human tool calls").
    */
   addToolResult(result: any | ToolResponse<any>): void;
 
-  readonly path: ContentPartRuntimePath;
-  getState(): ContentPartState;
+  readonly path: MessagePartRuntimePath;
+  getState(): MessagePartState;
   subscribe(callback: () => void): Unsubscribe;
 };
 
-export class ContentPartRuntimeImpl implements ContentPartRuntime {
+export class MessagePartRuntimeImpl implements MessagePartRuntime {
   public get path() {
     return this.contentBinding.path;
   }
 
   constructor(
-    private contentBinding: ContentPartSnapshotBinding,
+    private contentBinding: MessagePartSnapshotBinding,
     private messageApi?: MessageStateBinding,
     private threadApi?: ThreadRuntimeCoreBinding,
   ) {}
@@ -58,10 +58,10 @@ export class ContentPartRuntimeImpl implements ContentPartRuntime {
 
   public addToolResult(result: any | ToolResponse<any>) {
     const state = this.contentBinding.getState();
-    if (!state) throw new Error("Content part is not available");
+    if (!state) throw new Error("Message part is not available");
 
     if (state.type !== "tool-call")
-      throw new Error("Tried to add tool result to non-tool content part");
+      throw new Error("Tried to add tool result to non-tool message part");
 
     if (!this.messageApi)
       throw new Error(

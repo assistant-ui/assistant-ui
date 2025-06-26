@@ -255,7 +255,7 @@
 
 ### Patch Changes
 
-- b44a7ad: feat: error content part
+- b44a7ad: feat: error message part
 - 22272e6: chore: update dependencies
 
 ## 0.0.17

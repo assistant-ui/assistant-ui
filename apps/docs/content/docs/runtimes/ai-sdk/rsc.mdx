@@ -206,10 +206,10 @@ export default function RootLayout({
 
 ## Set up RSCDisplay
 
-Pass the `RSCDisplay` component to your `MessagePrimitive.Content`:
+Pass the `RSCDisplay` component to your `MessagePrimitive.Parts`:
 
 ```tsx
-<MessagePrimitive.Content components={{ Text: RSCDisplay }} />
+<MessagePrimitive.Parts components={{ Text: RSCDisplay }} />
 ```
 
 (if you are using react-ui: `<Thread assistantMessage={{ components: { Text: RSCDisplay } }} />`)

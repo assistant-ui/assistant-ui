@@ -66,7 +66,7 @@ import { File, Folder, Files } from "fumadocs-ui/components/files";
       <Folder name="ThreadRuntime" defaultOpen>
         <Folder name="MessageRuntime" defaultOpen>
           <Folder
-            name="ContentPartRuntime (Text / Reasoning / Image / Audio / Tool-Call / UI)"
+            name="MessagePartRuntime (Text / Reasoning / Image / Audio / Tool-Call / UI)"
             defaultOpen
           ></Folder>
           <Folder name="MessageAttachmentRuntime" defaultOpen></Folder>
@@ -95,8 +95,8 @@ The following components provide the runtime APIs:
 // renders every message, provides MessageRuntime, ComposerRuntime (EditComposer)
 <ThreadPrimitive.Messages components={{ Message, ... }} />
 
-// renders every content part, provides ContentPartRuntime
-<MessagePrimitive.Content components={{ Text, Reasoning, Image, Audio, UI, tools }} />
+// renders every message part, provides MessagePartRuntime
+<MessagePrimitive.Parts components={{ Text, Reasoning, Image, Audio, UI, tools }} />
 
 // renders every attachment, provides AttachmentRuntime (Thread or EditComposer)
 <ComposerPrimitive.Attachments components={{ Attachment, ... }} />
@@ -104,8 +104,8 @@ The following components provide the runtime APIs:
 // renders every attachment, provides AtatchmentRuntime (Message)
 <MessagePrimitive.Attachments components={{ Attachment, ... }} />
 
-// provides a custom TextContentPartRuntime
-<TextContentPartProvider text="Hello!" />
+// provides a custom TextMessagePartRuntime
+<TextMessagePartProvider text="Hello!" />
 ```
 
 ### Accessing runtime APIs
@@ -116,7 +116,7 @@ You can access the runtime APIs with react hooks:
 const runtime = useAssistantRuntime();
 const threadRuntime = useThreadRuntime();
 const messageRuntime = useMessageRuntime();
-const contentPartRuntime = useContentPartRuntime();
+const MessagePartRuntime = useMessagePartRuntime();
 
 // thread manager has no separate hook (1:1 relationship with assistant runtime)
 const ThreadListRuntime = useAssistantRuntime().threads;
@@ -145,7 +145,7 @@ Most runtimes also expose a state through two methods `getState` and `subscribe`
 useThreadList(); // get thread manager state
 useThread(); // get thread state
 useMessage(); // get message state
-useContentPart(); // get content part state
+useMessagePart(); // get message part state
 useComposer(); // get composer state
 useThreadComposer(); // get thread composer state
 useEditComposer(); // get edit composer state

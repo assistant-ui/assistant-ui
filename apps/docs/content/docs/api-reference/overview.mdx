@@ -11,7 +11,7 @@ export const contextColors = {
   "Thread Context": "#45a049",
   "Composer Context": "#ff9933",
   "Message Context": "#bb2244",
-  "ContentPart Context": "#268bd2",
+  "MessagePart Context": "#268bd2",
   "Attachment Context": "#FFB6C1",
   "ThreadListItem Context": "#c678dd",
 };
@@ -93,20 +93,20 @@ export const contextColors = {
 </Component>
 
 <Component
-  name="TextContentPartProvider"
+  name="TextMessagePartProvider"
   isContextProvider={true}
   providedContexts={[
     {
-      name: "Text ContentPart Context",
-      color: contextColors["ContentPart Context"],
-      link: "#contentpart-context",
+      name: "Text MessagePart Context",
+      color: contextColors["MessagePart Context"],
+      link: "#MessagePart-context",
     },
   ]}
-  docsLink="./context-providers/TextContentPartProvider"
-  tooltip="Provides context for text content parts"
+  docsLink="./context-providers/TextMessagePartProvider"
+  tooltip="Provides context for text message parts"
   props="text={text}"
 >
-  <Component name="ContentPart" isLink={true} />
+  <Component name="MessagePart" isLink={true} />
 </Component>
 
 <ContextLevel color={contextColors["Assistant Context"]}>
@@ -356,16 +356,16 @@ Manages the state and actions for individual messages
   tooltip="Root component for a message"
 >
   <Component
-    name="MessagePrimitive.Content"
+    name="MessagePrimitive.Parts"
     isContextProvider={true}
     providedContexts={[
       {
-        name: "ContentPart Context",
-        color: contextColors["ContentPart Context"],
+        name: "MessagePart Context",
+        color: contextColors["MessagePart Context"],
       },
     ]}
-    docsLink="#message-primitive-content"
-    tooltip="Displays the content of the message"
+    docsLink="#message-primitive-parts"
+    tooltip="Displays the parts of the message"
   />
   <Component
     name="MessagePrimitive.Attachments"
@@ -456,23 +456,23 @@ Manages the state and actions for individual messages
 
 </ContextLevel>
 
-<ContextLevel color={contextColors["ContentPart Context"]}>
+<ContextLevel color={contextColors["MessagePart Context"]}>
 
-## ContentPart Context
+## MessagePart Context
 
-Manages the state and actions for content parts within messages
+Manages the state and actions for message parts within messages
 
-### ContentPartRuntime
+### MessagePartRuntime
 
-- [`useContentPart`](#use-content-part)
-- [`useContentPartText`](#use-content-part-text)
-- [`useContentPartReasoning`](#use-content-part-reasoning)
-- [`useContentPartRuntime`](#use-content-part-runtime)
+- [`useMessagePart`](#use-content-part)
+- [`useMessagePartText`](#use-content-part-text)
+- [`useMessagePartReasoning`](#use-content-part-reasoning)
+- [`useMessagePartRuntime`](#use-content-part-runtime)
 
-### ContentPartPrimitive
+### MessagePartPrimitive
 
 <Component
-  name="ContentPartPrimitive.Text"
+  name="MessagePartPrimitive.Text"
   docsLink="#content-part-text"
   tooltip="Represents a text part of the message content"
 />

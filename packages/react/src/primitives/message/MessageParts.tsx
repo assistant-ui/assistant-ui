@@ -8,49 +8,49 @@ import {
   useMemo,
 } from "react";
 import {
-  TextContentPartProvider,
-  useContentPart,
-  useContentPartRuntime,
+  TextMessagePartProvider,
+  useMessagePart,
+  useMessagePartRuntime,
   useToolUIs,
 } from "../../context";
 import {
   useMessage,
   useMessageRuntime,
 } from "../../context/react/MessageContext";
-import { ContentPartRuntimeProvider } from "../../context/providers/ContentPartRuntimeProvider";
-import { ContentPartPrimitiveText } from "../contentPart/ContentPartText";
-import { ContentPartPrimitiveImage } from "../contentPart/ContentPartImage";
+import { MessagePartRuntimeProvider } from "../../context/providers/MessagePartRuntimeProvider";
+import { MessagePartPrimitiveText } from "../messagePart/MessagePartText";
+import { MessagePartPrimitiveImage } from "../messagePart/MessagePartImage";
 import type {
-  Unstable_AudioContentPartComponent,
-  EmptyContentPartComponent,
-  TextContentPartComponent,
-  ImageContentPartComponent,
-  SourceContentPartComponent,
-  ToolCallContentPartComponent,
-  ToolCallContentPartProps,
-  FileContentPartComponent,
-  ReasoningContentPartComponent,
-} from "../../types/ContentPartComponentTypes";
-import { ContentPartPrimitiveInProgress } from "../contentPart/ContentPartInProgress";
-import { ContentPartStatus } from "../../types/AssistantTypes";
+  Unstable_AudioMessagePartComponent,
+  EmptyMessagePartComponent,
+  TextMessagePartComponent,
+  ImageMessagePartComponent,
+  SourceMessagePartComponent,
+  ToolCallMessagePartComponent,
+  ToolCallMessagePartProps,
+  FileMessagePartComponent,
+  ReasoningMessagePartComponent,
+} from "../../types/MessagePartComponentTypes";
+import { MessagePartPrimitiveInProgress } from "../messagePart/MessagePartInProgress";
+import { MessagePartStatus } from "../../types/AssistantTypes";
 import { useShallow } from "zustand/shallow";
 
-type ContentPartRange =
+type MessagePartRange =
   | { type: "single"; index: number }
   | { type: "toolGroup"; startIndex: number; endIndex: number };
 
 /**
- * Groups consecutive tool-call content parts into ranges.
+ * Groups consecutive tool-call message parts into ranges.
  * Always groups tool calls, even if there's only one.
  */
-const groupContentParts = (
-  contentTypes: readonly string[],
-): ContentPartRange[] => {
-  const ranges: ContentPartRange[] = [];
+const groupMessageParts = (
+  messageTypes: readonly string[],
+): MessagePartRange[] => {
+  const ranges: MessagePartRange[] = [];
   let currentToolGroupStart = -1;
 
-  for (let i = 0; i < contentTypes.length; i++) {
-    const type = contentTypes[i];
+  for (let i = 0; i < messageTypes.length; i++) {
+    const type = messageTypes[i];
 
     if (type === "tool-call") {
       // Start a new tool group if we haven't started one
@@ -78,27 +78,27 @@ const groupContentParts = (
     ranges.push({
       type: "toolGroup",
       startIndex: currentToolGroupStart,
-      endIndex: contentTypes.length - 1,
+      endIndex: messageTypes.length - 1,
     });
   }
 
   return ranges;
 };
 
-const useMessageContentGroups = (): ContentPartRange[] => {
-  const contentTypes = useMessage(
+const useMessagePartsGroups = (): MessagePartRange[] => {
+  const messageTypes = useMessage(
     useShallow((m) => m.content.map((c) => c.type)),
   );
 
   return useMemo(() => {
-    if (contentTypes.length === 0) {
+    if (messageTypes.length === 0) {
       return [];
     }
-    return groupContentParts(contentTypes);
-  }, [contentTypes]);
+    return groupMessageParts(messageTypes);
+  }, [messageTypes]);
 };
 
-export namespace MessagePrimitiveContent {
+export namespace MessagePrimitiveParts {
   export type Props = {
     /**
      * Component configuration for rendering different types of message content.
@@ -109,32 +109,32 @@ export namespace MessagePrimitiveContent {
     components?:
       | {
           /** Component for rendering empty messages */
-          Empty?: EmptyContentPartComponent | undefined;
+          Empty?: EmptyMessagePartComponent | undefined;
           /** Component for rendering text content */
-          Text?: TextContentPartComponent | undefined;
+          Text?: TextMessagePartComponent | undefined;
           /** Component for rendering reasoning content (typically hidden) */
-          Reasoning?: ReasoningContentPartComponent | undefined;
+          Reasoning?: ReasoningMessagePartComponent | undefined;
           /** Component for rendering source content */
-          Source?: SourceContentPartComponent | undefined;
+          Source?: SourceMessagePartComponent | undefined;
           /** Component for rendering image content */
-          Image?: ImageContentPartComponent | undefined;
+          Image?: ImageMessagePartComponent | undefined;
           /** Component for rendering file content */
-          File?: FileContentPartComponent | undefined;
+          File?: FileMessagePartComponent | undefined;
           /** Component for rendering audio content (experimental) */
-          Unstable_Audio?: Unstable_AudioContentPartComponent | undefined;
+          Unstable_Audio?: Unstable_AudioMessagePartComponent | undefined;
           /** Configuration for tool call rendering */
           tools?:
             | {
                 /** Map of tool names to their specific components */
                 by_name?:
-                  | Record<string, ToolCallContentPartComponent | undefined>
+                  | Record<string, ToolCallMessagePartComponent | undefined>
                   | undefined;
                 /** Fallback component for unregistered tools */
-                Fallback?: ComponentType<ToolCallContentPartProps> | undefined;
+                Fallback?: ComponentType<ToolCallMessagePartProps> | undefined;
               }
             | {
                 /** Override component that handles all tool calls */
-                Override: ComponentType<ToolCallContentPartProps>;
+                Override: ComponentType<ToolCallMessagePartProps>;
               }
             | undefined;
 
@@ -142,7 +142,7 @@ export namespace MessagePrimitiveContent {
            * Component for rendering grouped consecutive tool calls.
            *
            * When provided, this component will automatically wrap consecutive tool-call
-           * content parts, allowing you to create collapsible sections, custom styling,
+           * message parts, allowing you to create collapsible sections, custom styling,
            * or other grouped presentations for multiple tool calls.
            *
            * The component receives:
@@ -183,8 +183,8 @@ export namespace MessagePrimitiveContent {
            * @param startIndex - Index of the first tool call in the group
            * @param endIndex - Index of the last tool call in the group
            * @param children - Rendered tool call components to display within the group
-           * 
-           * @deprecated This feature is still experimental and subject to change. 
+           *
+           * @deprecated This feature is still experimental and subject to change.
            */
           ToolGroup?: ComponentType<
             PropsWithChildren<{ startIndex: number; endIndex: number }>
@@ -198,8 +198,8 @@ const ToolUIDisplay = ({
   Fallback,
   ...props
 }: {
-  Fallback: ToolCallContentPartComponent | undefined;
-} & ToolCallContentPartProps) => {
+  Fallback: ToolCallMessagePartComponent | undefined;
+} & ToolCallMessagePartProps) => {
   const Render = useToolUIs((s) => s.getToolUI(props.toolName)) ?? Fallback;
   if (!Render) return null;
   return <Render {...props} />;
@@ -208,25 +208,25 @@ const ToolUIDisplay = ({
 const defaultComponents = {
   Text: () => (
     <p style={{ whiteSpace: "pre-line" }}>
-      <ContentPartPrimitiveText />
-      <ContentPartPrimitiveInProgress>
+      <MessagePartPrimitiveText />
+      <MessagePartPrimitiveInProgress>
         <span style={{ fontFamily: "revert" }}>{" \u25CF"}</span>
-      </ContentPartPrimitiveInProgress>
+      </MessagePartPrimitiveInProgress>
     </p>
   ),
   Reasoning: () => null,
   Source: () => null,
-  Image: () => <ContentPartPrimitiveImage />,
+  Image: () => <MessagePartPrimitiveImage />,
   File: () => null,
   Unstable_Audio: () => null,
   ToolGroup: ({ children }) => children,
-} satisfies MessagePrimitiveContent.Props["components"];
+} satisfies MessagePrimitiveParts.Props["components"];
 
-type MessageContentPartComponentProps = {
-  components: MessagePrimitiveContent.Props["components"];
+type MessagePartComponentProps = {
+  components: MessagePrimitiveParts.Props["components"];
 };
 
-const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
+const MessagePartComponent: FC<MessagePartComponentProps> = ({
   components: {
     Text = defaultComponents.Text,
     Reasoning = defaultComponents.Reasoning,
@@ -237,13 +237,13 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
     tools = {},
   } = {},
 }) => {
-  const contentPartRuntime = useContentPartRuntime();
+  const MessagePartRuntime = useMessagePartRuntime();
 
-  const part = useContentPart();
+  const part = useMessagePart();
 
   const type = part.type;
   if (type === "tool-call") {
-    const addResult = (result: any) => contentPartRuntime.addToolResult(result);
+    const addResult = (result: any) => MessagePartRuntime.addToolResult(result);
     if ("Override" in tools)
       return <tools.Override {...part} addResult={addResult} />;
     const Tool = tools.by_name?.[part.toolName] ?? tools.Fallback;
@@ -275,34 +275,31 @@ const MessageContentPartComponent: FC<MessageContentPartComponentProps> = ({
 
     default:
       const unhandledType: never = type;
-      throw new Error(`Unknown content part type: ${unhandledType}`);
+      throw new Error(`Unknown message part type: ${unhandledType}`);
   }
 };
 
-type MessageContentPartProps = {
+type MessagePartProps = {
   partIndex: number;
-  components: MessagePrimitiveContent.Props["components"];
+  components: MessagePrimitiveParts.Props["components"];
 };
 
-const MessageContentPartImpl: FC<MessageContentPartProps> = ({
-  partIndex,
-  components,
-}) => {
+const MessagePartImpl: FC<MessagePartProps> = ({ partIndex, components }) => {
   const messageRuntime = useMessageRuntime();
   const runtime = useMemo(
-    () => messageRuntime.getContentPartByIndex(partIndex),
+    () => messageRuntime.getMessagePartByIndex(partIndex),
     [messageRuntime, partIndex],
   );
 
   return (
-    <ContentPartRuntimeProvider runtime={runtime}>
-      <MessageContentPartComponent components={components} />
-    </ContentPartRuntimeProvider>
+    <MessagePartRuntimeProvider runtime={runtime}>
+      <MessagePartComponent components={components} />
+    </MessagePartRuntimeProvider>
   );
 };
 
-const MessageContentPart = memo(
-  MessageContentPartImpl,
+const MessagePart = memo(
+  MessagePartImpl,
   (prev, next) =>
     prev.partIndex === next.partIndex &&
     prev.components?.Text === next.components?.Text &&
@@ -315,46 +312,44 @@ const MessageContentPart = memo(
     prev.components?.ToolGroup === next.components?.ToolGroup,
 );
 
-const COMPLETE_STATUS: ContentPartStatus = Object.freeze({
+const COMPLETE_STATUS: MessagePartStatus = Object.freeze({
   type: "complete",
 });
 
-const EmptyContentFallback: FC<{
-  status: ContentPartStatus;
-  component: TextContentPartComponent;
+const EmptyPartFallback: FC<{
+  status: MessagePartStatus;
+  component: TextMessagePartComponent;
 }> = ({ status, component: Component }) => {
   return (
-    <TextContentPartProvider text="" isRunning={status.type === "running"}>
+    <TextMessagePartProvider text="" isRunning={status.type === "running"}>
       <Component type="text" text="" status={status} />
-    </TextContentPartProvider>
+    </TextMessagePartProvider>
   );
 };
 
-const EmptyContentImpl: FC<MessageContentPartComponentProps> = ({
-  components,
-}) => {
+const EmptyPartsImpl: FC<MessagePartComponentProps> = ({ components }) => {
   const status =
-    useMessage((s) => s.status as ContentPartStatus) ?? COMPLETE_STATUS;
+    useMessage((s) => s.status as MessagePartStatus) ?? COMPLETE_STATUS;
 
   if (components?.Empty) return <components.Empty status={status} />;
 
   return (
-    <EmptyContentFallback
+    <EmptyPartFallback
       status={status}
       component={components?.Text ?? defaultComponents.Text}
     />
   );
 };
 
-const EmptyContent = memo(
-  EmptyContentImpl,
+const EmptyParts = memo(
+  EmptyPartsImpl,
   (prev, next) =>
     prev.components?.Empty === next.components?.Empty &&
     prev.components?.Text === next.components?.Text,
 );
 
 /**
- * Renders the content of a message with support for multiple content types.
+ * Renders the parts of a message with support for multiple content types.
  *
  * This component automatically handles different types of message content including
  * text, images, files, tool calls, and more. It provides a flexible component
@@ -362,7 +357,7 @@ const EmptyContent = memo(
  *
  * @example
  * ```tsx
- * <MessagePrimitive.Content
+ * <MessagePrimitive.Parts
  *   components={{
  *     Text: ({ text }) => <p className="message-text">{text}</p>,
  *     Image: ({ image }) => <img src={image} alt="Message image" />,
@@ -377,21 +372,21 @@ const EmptyContent = memo(
  * />
  * ```
  */
-export const MessagePrimitiveContent: FC<MessagePrimitiveContent.Props> = ({
+export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = ({
   components,
 }) => {
   const contentLength = useMessage((s) => s.content.length);
-  const contentRanges = useMessageContentGroups();
+  const messageRanges = useMessagePartsGroups();
 
-  const contentElements = useMemo(() => {
+  const partsElements = useMemo(() => {
     if (contentLength === 0) {
-      return <EmptyContent components={components} />;
+      return <EmptyParts components={components} />;
     }
 
-    return contentRanges.map((range) => {
+    return messageRanges.map((range) => {
       if (range.type === "single") {
         return (
-          <MessageContentPart
+          <MessagePart
             key={range.index}
             partIndex={range.index}
             components={components}
@@ -409,7 +404,7 @@ export const MessagePrimitiveContent: FC<MessagePrimitiveContent.Props> = ({
             {Array.from(
               { length: range.endIndex - range.startIndex + 1 },
               (_, i) => (
-                <MessageContentPart
+                <MessagePart
                   key={i}
                   partIndex={range.startIndex + i}
                   components={components}
@@ -420,9 +415,9 @@ export const MessagePrimitiveContent: FC<MessagePrimitiveContent.Props> = ({
         );
       }
     });
-  }, [contentRanges, components, contentLength]);
+  }, [messageRanges, components, contentLength]);
 
-  return <>{contentElements}</>;
+  return <>{partsElements}</>;
 };
 
-MessagePrimitiveContent.displayName = "MessagePrimitive.Content";
+MessagePrimitiveParts.displayName = "MessagePrimitive.Parts";

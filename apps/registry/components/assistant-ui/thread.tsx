@@ -160,7 +160,7 @@ const UserMessage: FC = () => {
       <UserActionBar />
 
       <div className="aui-user-message-content">
-        <MessagePrimitive.Content />
+        <MessagePrimitive.Parts />
       </div>
 
       <BranchPicker className="aui-user-branch-picker" />
@@ -205,7 +205,7 @@ const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="aui-assistant-message-root">
       <div className="aui-assistant-message-content">
-        <MessagePrimitive.Content components={{ Text: MarkdownText }} />
+        <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
         <MessageError />
       </div>
 

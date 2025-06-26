@@ -13,7 +13,10 @@ The Attachment components let the user attach files and view the attachments.
 <AttachmentSample />
 
 <Callout type="info">
-**Note:** These components provide the UI for attachments, but you also need to configure attachment adapters in your runtime to handle file uploads and processing. See the [Attachments Guide](/docs/guides/Attachments) for complete setup instructions.
+  **Note:** These components provide the UI for attachments, but you also need
+  to configure attachment adapters in your runtime to handle file uploads and
+  processing. See the [Attachments Guide](/docs/guides/Attachments) for complete
+  setup instructions.
 </Callout>
 
 ## Getting Started
@@ -69,7 +72,7 @@ const UserMessage: FC = () => {
       <UserMessageAttachments />
 
       <div className="...">
-        <MessagePrimitive.Content />
+        <MessagePrimitive.Parts />
       </div>
 
       <BranchPicker className="..." />

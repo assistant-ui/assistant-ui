@@ -51,7 +51,7 @@ Drop-in replacement hook for `useForm` that adds support for `@assistant-ui/reac
                           parameters: [
                             {
                               name: "render",
-                              type: "ToolCallContentPartComponent<{ name: string; value: string; }, {}>",
+                              type: "ToolCallMessagePartComponent<{ name: string; value: string; }, {}>",
                               description:
                                 "The component to render when set_form_field is called.",
                             },
@@ -68,7 +68,7 @@ Drop-in replacement hook for `useForm` that adds support for `@assistant-ui/reac
                           parameters: [
                             {
                               name: "render",
-                              type: "ToolCallContentPartComponent<{}, {}>",
+                              type: "ToolCallMessagePartComponent<{}, {}>",
                               description:
                                 "The component to render when submit_form is called.",
                             },

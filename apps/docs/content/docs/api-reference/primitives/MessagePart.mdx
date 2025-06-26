@@ -1,0 +1,173 @@
+---
+title: MessagePartPrimitive
+description: A part of a message's content. Message parts may be text, image, tool call or UI elements.
+---
+
+import { ParametersTable } from "@/components/docs";
+import {
+  MessagePartRuntime,
+  TextMessagePartState,
+  AudioMessagePartState,
+  ToolCallMessagePartState,
+} from "@/generated/typeDocs";
+
+Each message can have any number of message parts.  
+Message parts are usually one of text, reasoning, audio or tool-call.
+
+## Message part Types
+
+### Text
+
+Standard text content, used for both user and assistant messages.
+
+### Reasoning
+
+Exposes the assistant's reasoning process, showing how it arrived at its responses. This is typically used only in assistant messages.
+
+### Audio
+
+Audio content that can be played back.
+
+### Tool Call
+
+Interactive elements that represent tool operations.
+
+## Anatomy
+
+```tsx
+import { MessagePartPrimitive } from "@assistant-ui/react";
+
+const TextMessagePart = () => {
+  return <MessagePartPrimitive.Text />;
+};
+```
+
+## Primitives
+
+### Plain Text
+
+```tsx
+import { MessagePartPrimitive } from "@assistant/react";
+
+<MessagePartPrimitive.Text />;
+```
+
+### Markdown Text
+
+Renders the message's text as Markdown.
+
+```tsx
+import { MarkdownTextPrimitive } from "@assistant-ui/react-markdown";
+
+<MarkdownTextPrimitive />;
+```
+
+### Audio
+
+Coming soon.
+
+### InProgress
+
+Renders children only if the message part is in progress.
+
+```tsx
+import { MessagePartPrimitive } from "@assistant/react";
+
+<MessagePartPrimitive.InProgress>
+  <LoadingIndicator />
+</MessagePartPrimitive.InProgress>;
+```
+
+### Tool UI
+
+You can map tool calls to UI components. We provide a few utility functions to make this easier, such as `makeAssistantToolUI`.
+
+```tsx
+const MyWeatherToolUI = makeAssistantToolUI({
+  toolName: "get_weather",
+  render: function MyWeatherToolUI({ args, result }) {
+    return (
+      <div className="mb-4 flex flex-col items-center">
+        <pre className="whitespace-pre-wrap break-all text-center">
+          get_weather({JSON.stringify(args)})
+        </pre>
+        {"result" in result && (
+          <pre className="whitespace-pre-wrap break-all text-center">
+            {JSON.stringify(result.result)}
+          </pre>
+        )}
+      </div>
+    );
+  },
+});
+```
+
+## Context Provider
+
+Message part context is provided by `MessagePrimitive.Parts` or `TextMessagePartProvider`
+
+### MessagePrimitive.Parts
+
+```tsx
+import { MessagePrimitive } from "@assistant/react";
+
+<MessagePrimitive.Parts
+  components={{
+    Text: MyText,
+    Reasoning: MyReasoning,
+    Audio: MyAudio,
+    tools: {
+      by_name: {
+        get_weather: MyWeatherToolUI,
+      },
+      Fallback: MyFallbackToolUI,
+    },
+  }}
+/>;
+```
+
+### TextMessagePartProvider
+
+This is a helper context provider to allow you to reuse the message part components outside a message message part.
+
+```tsx
+import { TextMessagePartProvider } from "@assistant-ui/react";
+
+<TextMessagePartProvider text="Hello world" isRunning={false}>
+  <MessagePart.Text />
+</TextMessagePartProvider>;
+```
+
+## Runtime API
+
+### `useMessagePartRuntime`
+
+```tsx
+import { useMessagePartRuntime } from "@assistant-ui/react";
+
+const MessagePartRuntime = useMessagePartRuntime();
+```
+
+<ParametersTable {...MessagePartRuntime} />
+
+### `useMessagePart`
+
+```tsx
+import { useMessagePart } from "@assistant-ui/react";
+
+const MessagePart = useMessagePart();
+```
+
+<ParametersTable {...TextMessagePartState} />
+<ParametersTable {...AudioMessagePartState} />
+<ParametersTable {...ToolCallMessagePartState} />
+
+### `useMessagePartText`
+
+```tsx
+import { useMessagePartText } from "@assistant-ui/react";
+
+const MessagePartText = useMessagePartText();
+```
+
+<ParametersTable {...TextMessagePartState} />

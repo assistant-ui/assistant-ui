@@ -27,10 +27,10 @@ import { RSCDisplay } from "@assistant-ui/react-ai-sdk";
 
 
 // if you are using unstyled primitives, update MyThread.tsx
-<MessagePrimitive.Content components={{ Text: RSCDisplay }} />
+<MessagePrimitive.Parts components={{ Text: RSCDisplay }} />
 ```
 
-## Migrate away from UIContentPart
+## Migrate away from UIMessagePart
 
 For instructions on migrating for Vercel AI SDK RSC, see section above.
 This migration guide is for users of `useExternalStoreRuntime`.
@@ -40,13 +40,13 @@ This migration guide is for users of `useExternalStoreRuntime`.
 First, reconsider your approach.
 
 Creating UI components in the `convertMessage` callback is considered an anti-pattern.
-The recommended alternative approach is to pass tool-call content parts, and use `makeAssistantToolUI` to map these tool calls to UI components.
+The recommended alternative approach is to pass tool-call message parts, and use `makeAssistantToolUI` to map these tool calls to UI components.
 
 This ensures that the data layer is separate and decoupled from the UI layer.
 
 #### Example
 
-Consider the following example, where you are using a UIContentPart to show a loading indicator.
+Consider the following example, where you are using a UIMessagePart to show a loading indicator.
 
 ```ts title="bad.ts"
 // THIS IS BAD
@@ -66,11 +66,11 @@ const convertMessage = (message: MyMessage): ThreadMessageLike => {
   // ...
 };
 
-// use the empty content part to show the loading indicator
+// use the empty message part to show the loading indicator
 <Thread assistantMessage={{ components: { Empty: MyLoader } }} />;
 ```
 
-(if you are using unstyled primitives, update MyThread.tsx, and pass the component to MessagePrimitive.Content)
+(if you are using unstyled primitives, update MyThread.tsx, and pass the component to MessagePrimitive.Parts)
 
 #### Example 2
 
@@ -107,13 +107,13 @@ const ChartToolUI = makeAssistantToolUI({
 
 (if you are using unstyled primitives, render the `<ChartToolUI />` component anywhere inside your AssistantRuntimeProvider)
 
-### Fallback Approach: Override ContentPartText
+### Fallback Approach: Override MessagePartText
 
 However, sometimes you receive UI components from an external source.
 
 The example below assumes that your custom `MyMessage` type has a `display` field.
 
-First, we define a dummy `UI_PLACEHOLDER` content part, which we will replace with the UI component later:
+First, we define a dummy `UI_PLACEHOLDER` message part, which we will replace with the UI component later:
 
 ```ts
 const UI_PLACEHOLDER = Object.freeze({
@@ -122,17 +122,17 @@ const UI_PLACEHOLDER = Object.freeze({
 });
 const convertMessage = (message: MyMessage): ThreadMessageLike => ({
   content: [
-    // other content parts,
+    // other message parts,
     UI_PLACEHOLDER,
   ],
 });
 ```
 
-Then, we define a custom `TextContentPartComponent`:
+Then, we define a custom `TextMessagePartComponent`:
 
 ```tsx
-const MyText: TextContentPartComponent = () => {
-  const isUIPlaceholder = useContentPart((p) => p === UI_PLACEHOLDER);
+const MyText: TextMessagePartComponent = () => {
+  const isUIPlaceholder = useMessagePart((p) => p === UI_PLACEHOLDER);
 
   // this assumes that you have a `display` field on your original message objects before conversion.
   const ui = useMessage((m) =>
@@ -155,6 +155,6 @@ We pass this component to our Thread:
 />
 ```
 
-(if you are using unstyled primitives, update MyThread.tsx, and pass the component to MessagePrimitive.Content)
+(if you are using unstyled primitives, update MyThread.tsx, and pass the component to MessagePrimitive.Parts)
 
-Now, the `UI_PLACEHOLDER` content part is replaced with the UI component we defined earlier.
+Now, the `UI_PLACEHOLDER` message part is replaced with the UI component we defined earlier.

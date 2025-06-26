@@ -188,7 +188,7 @@ const MyAssistantMessage = () => {
 
 const WeatherToolUI = makeAssistantToolUI({
   render: () => {
-    const aiSDKMessage = useContentPart((p) => getExternalStoreMessages(p)[0]);
+    const aiSDKMessage = useMessagePart((p) => getExternalStoreMessages(p)[0]);
     // ...
   },
 });

@@ -5,7 +5,7 @@ import {
   useAssistantRuntime,
   useToolUIsStore,
 } from "../context/react/AssistantContext";
-import type { ToolCallContentPartComponent } from "../types/ContentPartComponentTypes";
+import type { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
 import type { Tool } from "assistant-stream";
 
 export type AssistantToolProps<
@@ -13,7 +13,7 @@ export type AssistantToolProps<
   TResult,
 > = Tool<TArgs, TResult> & {
   toolName: string;
-  render?: ToolCallContentPartComponent<TArgs, TResult> | undefined;
+  render?: ToolCallMessagePartComponent<TArgs, TResult> | undefined;
 };
 
 export const useAssistantTool = <

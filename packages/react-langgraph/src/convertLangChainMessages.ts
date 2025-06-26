@@ -2,7 +2,7 @@
 
 import { useExternalMessageConverter } from "@assistant-ui/react";
 import { LangChainMessage } from "./types";
-import { ToolCallContentPart } from "@assistant-ui/react";
+import { ToolCallMessagePart } from "@assistant-ui/react";
 import { ThreadUserMessage } from "@assistant-ui/react";
 
 const contentToParts = (content: LangChainMessage["content"]) => {
@@ -32,7 +32,7 @@ const contentToParts = (content: LangChainMessage["content"]) => {
           return null;
         default:
           const _exhaustiveCheck: never = type;
-          throw new Error(`Unknown content part type: ${_exhaustiveCheck}`);
+          throw new Error(`Unknown message part type: ${_exhaustiveCheck}`);
       }
     })
     .filter((a) => a !== null);
@@ -61,7 +61,7 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
         content: [
           ...contentToParts(message.content),
           ...(message.tool_calls?.map(
-            (chunk): ToolCallContentPart => ({
+            (chunk): ToolCallMessagePart => ({
               type: "tool-call",
               toolCallId: chunk.id,
               toolName: chunk.name,

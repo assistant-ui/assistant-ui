@@ -64,7 +64,7 @@ const getMessageContent = (msg: AppendMessage) => {
         const _exhaustiveCheck: "reasoning" | "source" | "file" | "audio" =
           type;
         throw new Error(
-          `Unsupported append content part type: ${_exhaustiveCheck}`,
+          `Unsupported append message part type: ${_exhaustiveCheck}`,
         );
     }
   });

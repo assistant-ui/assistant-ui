@@ -23,8 +23,8 @@ export type MessageRuntimePath = ThreadRuntimePath & {
     | { readonly type: "index"; readonly index: number };
 };
 
-export type ContentPartRuntimePath = MessageRuntimePath & {
-  readonly contentPartSelector:
+export type MessagePartRuntimePath = MessageRuntimePath & {
+  readonly messagePartSelector:
     | { readonly type: "index"; readonly index: number }
     | { readonly type: "toolCallId"; readonly toolCallId: string };
 };

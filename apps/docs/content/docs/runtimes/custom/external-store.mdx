@@ -1144,13 +1144,13 @@ const MyComponent = () => {
   messages for display.
 </Callout>
 
-### Content Part Access
+### Message part Access
 
 ```tsx
 const ToolUI = makeAssistantToolUI({
   render: () => {
-    const originalMessages = useContentPart((p) => getExternalStoreMessages(p));
-    // Access original message data for this content part
+    const originalMessages = useMessagePart((p) => getExternalStoreMessages(p));
+    // Access original message data for this message part
   },
 });
 ```
@@ -1500,8 +1500,8 @@ A flexible message format that can be converted to assistant-ui's internal forma
     },
     {
       name: "content",
-      type: "string | readonly ContentPart[]",
-      description: "Message content as string or structured content parts",
+      type: "string | readonly MessagePart[]",
+      description: "Message content as string or structured message parts",
       required: true,
     },
     {

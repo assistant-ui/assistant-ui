@@ -30,7 +30,7 @@ This adds a `/components/assistant-ui/markdown-text.tsx` file to your project, w
 
 ### Use it in your application
 
-Pass the `MarkdownText` component to the `MessagePrimitive.Content` component
+Pass the `MarkdownText` component to the `MessagePrimitive.Parts` component
 
 ```tsx twoslash title="/components/assistant-ui/thread.tsx" {1,11}
 // @filename: /components/assistant-ui/markdown-text.tsx
@@ -52,7 +52,7 @@ const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="...">
       <div className="...">
-        <MessagePrimitive.Content components={{ Text: MarkdownText }} />
+        <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
       </div>
       <AssistantActionBar />
 
@@ -69,4 +69,3 @@ const AssistantMessage: FC = () => {
 ## Syntax highlighting
 
 Syntax Highlighting is not included by default, see [Syntax Highlighting](/docs/ui/SyntaxHighlighting) to learn how to add it.
-

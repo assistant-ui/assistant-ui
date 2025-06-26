@@ -7,9 +7,9 @@ export type {
 } from "./ThreadRuntime";
 export type { MessageRuntime, MessageState } from "./MessageRuntime";
 export type {
-  ContentPartRuntime,
-  ContentPartState,
-} from "./ContentPartRuntime";
+  MessagePartRuntime,
+  MessagePartState,
+} from "./MessagePartRuntime";
 export type {
   ComposerRuntime,
   ThreadComposerRuntime,

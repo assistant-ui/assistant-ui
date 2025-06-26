@@ -37,7 +37,7 @@ export {
   useMessageUtils,
   useMessageUtilsStore,
 } from "./MessageContext";
-export { useContentPartRuntime, useContentPart } from "./ContentPartContext";
+export { useMessagePartRuntime, useMessagePart } from "./MessagePartContext";
 export { useComposerRuntime, useComposer } from "./ComposerContext";
 
 export {

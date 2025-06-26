@@ -1,6 +1,6 @@
 import { LanguageModelV1Message } from "@ai-sdk/provider";
 import { CoreMessage } from "../edge/CoreTypes";
-import { ToolCallContentPart } from "@assistant-ui/react";
+import { ToolCallMessagePart } from "@assistant-ui/react";
 
 type fromLanguageModelMessagesOptions = {
   mergeSteps?: boolean;
@@ -64,7 +64,7 @@ export const fromLanguageModelMessages = (
 
               default: {
                 const unhandledType: never = type;
-                throw new Error(`Unknown content part type: ${unhandledType}`);
+                throw new Error(`Unknown message part type: ${unhandledType}`);
               }
             }
           }),
@@ -81,7 +81,7 @@ export const fromLanguageModelMessages = (
                 toolName: part.toolName,
                 argsText: JSON.stringify(part.args),
                 args: part.args as any,
-              } satisfies ToolCallContentPart;
+              } satisfies ToolCallMessagePart;
             }
             // TODO handle these
             if (
@@ -121,7 +121,7 @@ export const fromLanguageModelMessages = (
 
         for (const tool of lmMessage.content) {
           const toolCall = previousMessage.content.find(
-            (c): c is ToolCallContentPart =>
+            (c): c is ToolCallMessagePart =>
               c.type === "tool-call" && c.toolCallId === tool.toolCallId,
           );
           if (!toolCall)
@@ -130,7 +130,7 @@ export const fromLanguageModelMessages = (
             throw new Error("Tool call name mismatch.");
 
           type Writable<T> = { -readonly [P in keyof T]: T[P] };
-          const writable = toolCall as Writable<ToolCallContentPart>;
+          const writable = toolCall as Writable<ToolCallMessagePart>;
           writable.result = tool.result;
           if (tool.isError) {
             writable.isError = true;

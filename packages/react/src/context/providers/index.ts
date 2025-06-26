@@ -1,2 +1,2 @@
 export { AssistantRuntimeProvider } from "./AssistantRuntimeProvider";
-export { TextContentPartProvider } from "./TextContentPartProvider";
+export { TextMessagePartProvider } from "./TextMessagePartProvider";

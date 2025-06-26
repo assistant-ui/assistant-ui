@@ -181,7 +181,7 @@ const UserMessage: FC = () => {
       <UserMessageAttachments />
 
       <div className="text-foreground break-words rounded-3xl py-2.5 text-3xl">
-        <MessagePrimitive.Content />
+        <MessagePrimitive.Parts />
       </div>
     </MessagePrimitive.Root>
   );
@@ -195,7 +195,7 @@ const AssistantMessage: FC = () => {
           <SparkleIcon /> Answer
         </h1>
 
-        <MessagePrimitive.Content components={{ Text: MarkdownText }} />
+        <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
       </div>
 
       <AssistantActionBar />

@@ -30,7 +30,8 @@ Contains all parts of the error display. Renders a `<div>` element with `role="a
     {
       name: "asChild",
       type: "boolean",
-      description: "Change the component to the HTML tag or custom component of the only child.",
+      description:
+        "Change the component to the HTML tag or custom component of the only child.",
     },
   ]}
 />
@@ -45,7 +46,8 @@ Displays the error message. By default, it shows the error from the message cont
     {
       name: "children",
       type: "ReactNode",
-      description: "Optional custom content to display instead of the default error message.",
+      description:
+        "Optional custom content to display instead of the default error message.",
     },
   ]}
 />
@@ -59,7 +61,7 @@ import { MessagePrimitive, ErrorPrimitive } from "@assistant-ui/react";
 
 const MessageWithError = () => (
   <MessagePrimitive.Root>
-    <MessagePrimitive.Content />
+    <MessagePrimitive.Parts />
     <MessagePrimitive.Error>
       <ErrorPrimitive.Root>
         <ErrorPrimitive.Message />

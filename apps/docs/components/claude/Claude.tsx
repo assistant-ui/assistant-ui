@@ -76,7 +76,7 @@ const ChatMessage: FC = () => {
           </MessagePrimitive.If>
 
           <p className="text-[#eee]">
-            <MessagePrimitive.Content components={{ Text: MarkdownText }} />
+            <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
           </p>
         </div>
       </div>

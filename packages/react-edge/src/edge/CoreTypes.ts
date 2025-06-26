@@ -1,13 +1,13 @@
-/** Core Message Types (without UI content parts) */
+/** Core Message Types (without UI message parts) */
 
 import {
-  FileContentPart,
-  ImageContentPart,
-  TextContentPart,
-  Unstable_AudioContentPart,
+  FileMessagePart,
+  ImageMessagePart,
+  TextMessagePart,
+  Unstable_AudioMessagePart,
 } from "@assistant-ui/react";
 
-export type CoreToolCallContentPart<
+export type CoreToolCallMessagePart<
   TArgs extends Record<string, unknown> = Record<string, unknown>,
   TResult = unknown,
 > = {
@@ -19,28 +19,28 @@ export type CoreToolCallContentPart<
   readonly isError?: boolean | undefined;
 };
 
-export type CoreUserContentPart =
-  | TextContentPart
-  | ImageContentPart
-  | FileContentPart
-  | Unstable_AudioContentPart;
-export type CoreAssistantContentPart =
-  | TextContentPart
-  | CoreToolCallContentPart;
+export type CoreUserMessagePart =
+  | TextMessagePart
+  | ImageMessagePart
+  | FileMessagePart
+  | Unstable_AudioMessagePart;
+export type CoreAssistantMessagePart =
+  | TextMessagePart
+  | CoreToolCallMessagePart;
 
 export type CoreSystemMessage = {
   role: "system";
-  content: readonly [TextContentPart];
+  content: readonly [TextMessagePart];
 };
 
 export type CoreUserMessage = {
   role: "user";
-  content: readonly CoreUserContentPart[];
+  content: readonly CoreUserMessagePart[];
 };
 
 export type CoreAssistantMessage = {
   role: "assistant";
-  content: readonly CoreAssistantContentPart[];
+  content: readonly CoreAssistantMessagePart[];
 };
 
 export type CoreMessage =

@@ -53,7 +53,7 @@
 
 ### Patch Changes
 
-- 3ed39ef: feat: export ContentPartStatus
+- 3ed39ef: feat: export MessagePartStatus
 
 ## 0.10.17
 
@@ -221,7 +221,7 @@
 - c0c9422: feat: useToolArgsFieldStatus
 - 675fb20: feat: export types from `external-store`
 - 4e86ab4: fix: should allow sending assistant messages from the composer
-- e893985: fix: allow useContentPartText on reasoning parts
+- e893985: fix: allow useMessagePartText on reasoning parts
 - 0500584: fix: make addResult typesafe
 
 ## 0.9.1
@@ -371,7 +371,7 @@
 
 ### Patch Changes
 
-- feat: source content parts
+- feat: source message parts
 
 ## 0.8.1
 
@@ -509,13 +509,13 @@
 ### Patch Changes
 
 - fix: return from createMessageConverter
-- 86ba433: fix: ToolContentPart.args should never be null
+- 86ba433: fix: ToolMessagePart.args should never be null
 
 ## 0.7.72
 
 ### Patch Changes
 
-- 797ce9c: fix: ToolContentPart.args should never be null
+- 797ce9c: fix: ToolMessagePart.args should never be null
 
 ## 0.7.71
 
@@ -604,7 +604,7 @@
 ### Patch Changes
 
 - 8ec1f07: feat: AssistantCloudThreadHistoryAdapter
-- 4f5d77f: feat: ToolCallContentPart.args should be JSONObject
+- 4f5d77f: feat: ToolCallMessagePart.args should be JSONObject
 - 8ec1f07: feat: auto-inject history adapter in local runtime
 
 ## 0.7.58
@@ -656,7 +656,7 @@
 
 ### Patch Changes
 
-- fix: crash when content part is empty
+- fix: crash when message part is empty
 
 ## 0.7.50
 
@@ -761,8 +761,8 @@
 ### Patch Changes
 
 - 34d2915: feat: widen initialMessages type to ThreadMessageLike
-- 4f3834a: refactor: deprecate UIContentPart
-- b8b11d3: feat: FileContentPart
+- 4f3834a: refactor: deprecate UIMessagePart
+- b8b11d3: feat: FileMessagePart
 - 889a55e: fix: attachment filename should never overflow
 - a7d9e41: feat: ComposerRuntime.unstable_on("attachment_add", ...)
 
@@ -954,7 +954,7 @@
 ### Patch Changes
 
 - 933b8c0: chore: update deps
-- 09a2a38: fix: TextContentPartProvider should support contentPartRuntime.getState()
+- 09a2a38: fix: TextMessagePartProvider should support MessagePartRuntime.getState()
 
 ## 0.7.5
 
@@ -1045,7 +1045,7 @@
 
 ### Patch Changes
 
-- fix: toContentPartStatus support for parallel tool calls
+- fix: toMessagePartStatus support for parallel tool calls
 
 ## 0.5.93
 
@@ -1070,7 +1070,7 @@
 ### Patch Changes
 
 - 2090544: fix: attachments infinite rerender bug
-- be04b5b: feat: Unstable_AudioContentPart (wip)
+- be04b5b: feat: Unstable_AudioMessagePart (wip)
 - 2090544: fix: Attachment preview accessibility
 - fb32e61: chore: update deps
 - fb32e61: feat: react-19 support
@@ -1126,7 +1126,7 @@
 - 0edadd1: feat: useThreadModelConfig API
 - 1aeda53: feat: Runtime.path API
 - 0c8277e: feat: MessageRuntime.unstable_getCopyText API
-- 91d3951: feat: MessageRuntime.getContentPartByToolCallId
+- 91d3951: feat: MessageRuntime.getMessagePartByToolCallId
 - cf6861c: refactor!: simplify SpeechSynthesisAdapter to accept a text string
 - 7c76939: feat: ThreadRuntime.getMesssageById
 
@@ -1194,7 +1194,7 @@
 
 ### Patch Changes
 
-- 55942d8: fix: useContentPartText backwards compat type
+- 55942d8: fix: useMessagePartText backwards compat type
 - e455aff: feat: FollowupSuggestions
 - f7c156b: feat: mark new runtime API methods as stable
 - f6a832e: chore: update dependencies
@@ -1204,7 +1204,7 @@
 
 ### Patch Changes
 
-- 3df0061: fix: TextContentPartProvider missing fields
+- 3df0061: fix: TextMessagePartProvider missing fields
 
 ## 0.5.69
 
@@ -1281,14 +1281,14 @@
 
 ### Patch Changes
 
-- 0f547a9: fix: useSmooth should work inside TextContentPartProvider
+- 0f547a9: fix: useSmooth should work inside TextMessagePartProvider
 
 ## 0.5.58
 
 ### Patch Changes
 
-- 6507071: fix: TextContentPartProvider text streaming support
-- 6507071: feat: TextContentPartProvider isRunning
+- 6507071: fix: TextMessagePartProvider text streaming support
+- 6507071: feat: TextMessagePartProvider isRunning
 
 ## 0.5.57
 
@@ -1330,7 +1330,7 @@
 
 ### Patch Changes
 
-- c0f975a: feat: TextContentPartProvider
+- c0f975a: feat: TextMessagePartProvider
 
 ## 0.5.51
 
@@ -1639,7 +1639,7 @@
 
 - 2d7a8bd: fix: markdown loading indicator
 - 2d7a8bd: fix: ScrollToBottom visbility bug
-- 2d7a8bd: fix: text content part data-status field
+- 2d7a8bd: fix: text message part data-status field
 
 ## 0.5.1
 
@@ -1759,7 +1759,7 @@
 
 ### Minor Changes
 
-- de20b1c: feat!: ContentPartText is now a <p> element
+- de20b1c: feat!: MessagePartText is now a <p> element
 - 2ab2cab: feat!: experimental features are now marked as stable
 
 ## 0.1.12
@@ -1811,7 +1811,7 @@
 
 ### Patch Changes
 
-- a6769d5: feat: ContentPartComponent types
+- a6769d5: feat: MessagePartComponent types
 - 52236ab: feat: new default chat bubble design
 
 ## 0.1.5

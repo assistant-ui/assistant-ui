@@ -26,7 +26,7 @@ This adds a `/components/assistant-ui/tool-fallback.tsx` file to your project, w
 
 ### Use it in your application
 
-Pass the `ToolFallback` component to the `MessagePrimitive.Content` component
+Pass the `ToolFallback` component to the `MessagePrimitive.Parts` component
 
 ```tsx twoslash title="/components/assistant-ui/thread.tsx" {1,11}
 // @filename: /components/assistant-ui/tool-fallback.tsx
@@ -48,7 +48,7 @@ const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="...">
       <div className="...">
-        <MessagePrimitive.Content
+        <MessagePrimitive.Parts
           components={{ tools: { Fallback: ToolFallback } }}
         />
       </div>

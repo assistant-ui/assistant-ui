@@ -24,7 +24,7 @@ Component property types are now neatly organized under the component itself.
 
 ### `useThreadContext`, `useMessageContext`, ... replaced with direct imports of stores
 
-`useAssistantContext`, `useThreadContext`, `useMessageContext` and `useContentPartContext` have been removed in favor of direct exports from `@assistant-ui/react`;
+`useAssistantContext`, `useThreadContext`, `useMessageContext` and `useMessagePartContext` have been removed in favor of direct exports from `@assistant-ui/react`;
 
 ```diff
 -const { useThread } = useThreadContext();
@@ -56,7 +56,7 @@ Component property types are now neatly organized under the component itself.
 ```diff
 -useSwitchToNewThread();
 +const runtime = useAssistantRuntime()
-+runtime.switchToNewThread(); 
++runtime.switchToNewThread();
 ```
 
 ### `runtime.subscribe` removed, `subscribeToMainThread` removed
@@ -106,7 +106,7 @@ The branch IDs are an internal implementation detail. The new Message Runtime AP
 A few methods from `useThreadRuntime` have been moved to `useMessageRuntime()`.
 
 - `threadRuntime.switchToBranch()` has been removed in favor of `useThreadRuntime().getMessageByIndex(idx).switchToBranch()`.
-- `threadRuntime.addToolResult()` has been removed in favor of `useThreadRuntime().getMessageByIndex(idx).getContentPartByToolCallId(toolCallId).addToolResult()`.
+- `threadRuntime.addToolResult()` has been removed in favor of `useThreadRuntime().getMessageByIndex(idx).getMessagePartByToolCallId(toolCallId).addToolResult()`.
 - `threadRuntime.speak()` has been removed in favor of `useThreadRuntime().getMessageByIndex(idx).speak()`.
 - `threadRuntime.submitFeedback()` has been removed in favor of `useThreadRuntime().getMessageByIndex(idx).submitFeedback()`.
 - `threadRuntime.getEditComposer()` has been removed in favor of `useThreadRuntime().getMessageById(id).getMessageByIndex(idx).composer`.
@@ -149,15 +149,15 @@ These methods have been removed.
 
 `useMessageStore` has been removed in favor of `useMessageRuntime().getState()`.
 
-## Content Part Context API simplifications
+## Message part Context API simplifications
 
-### Flattened context values `useContentPart().part` -> `useContentPart()`
+### Flattened context values `useMessagePart().part` -> `useMessagePart()`
 
-`ContentPartState` is now itself a content part, so you no longer need to access the nested `useContentPart().part` field.
+`MessagePartState` is now itself a message part, so you no longer need to access the nested `useMessagePart().part` field.
 
 ```diff
--useContentPart(c => c.part.type);
-+useContentPart(c => c.type);
+-useMessagePart(c => c.part.type);
++useMessagePart(c => c.type);
 ```
 
 This also applies to tool UI render functions:

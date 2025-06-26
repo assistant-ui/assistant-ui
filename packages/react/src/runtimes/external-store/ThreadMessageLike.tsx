@@ -2,21 +2,21 @@ import { parsePartialJsonObject } from "assistant-stream/utils";
 import { generateId } from "../../internal";
 import {
   MessageStatus,
-  TextContentPart,
-  ImageContentPart,
+  TextMessagePart,
+  ImageMessagePart,
   ThreadMessage,
-  ThreadAssistantContentPart,
+  ThreadAssistantMessagePart,
   ThreadAssistantMessage,
-  ThreadUserContentPart,
+  ThreadUserMessagePart,
   ThreadUserMessage,
   ThreadSystemMessage,
   CompleteAttachment,
-  FileContentPart,
-  Unstable_AudioContentPart,
+  FileMessagePart,
+  Unstable_AudioMessagePart,
 } from "../../types";
 import {
-  ReasoningContentPart,
-  SourceContentPart,
+  ReasoningMessagePart,
+  SourceMessagePart,
   ThreadStep,
 } from "../../types/AssistantTypes";
 import { ReadonlyJSONObject, ReadonlyJSONValue } from "assistant-stream/utils";
@@ -26,12 +26,12 @@ export type ThreadMessageLike = {
   readonly content:
     | string
     | readonly (
-        | TextContentPart
-        | ReasoningContentPart
-        | SourceContentPart
-        | ImageContentPart
-        | FileContentPart
-        | Unstable_AudioContentPart
+        | TextMessagePart
+        | ReasoningMessagePart
+        | SourceMessagePart
+        | ImageMessagePart
+        | FileMessagePart
+        | Unstable_AudioMessagePart
         | {
             readonly type: "tool-call";
             readonly toolCallId?: string;
@@ -91,7 +91,7 @@ export const fromThreadMessageLike = (
         ...common,
         role,
         content: content
-          .map((part): ThreadAssistantContentPart | null => {
+          .map((part): ThreadAssistantMessagePart | null => {
             const type = part.type;
             switch (type) {
               case "text":
@@ -126,7 +126,7 @@ export const fromThreadMessageLike = (
               default: {
                 const unhandledType: "image" | "audio" = type;
                 throw new Error(
-                  `Unsupported assistant content part type: ${unhandledType}`,
+                  `Unsupported assistant message part type: ${unhandledType}`,
                 );
               }
             }
@@ -146,7 +146,7 @@ export const fromThreadMessageLike = (
       return {
         ...common,
         role,
-        content: content.map((part): ThreadUserContentPart => {
+        content: content.map((part): ThreadUserMessagePart => {
           const type = part.type;
           switch (type) {
             case "text":
@@ -158,7 +158,7 @@ export const fromThreadMessageLike = (
             default: {
               const unhandledType: "tool-call" | "reasoning" | "source" = type;
               throw new Error(
-                `Unsupported user content part type: ${unhandledType}`,
+                `Unsupported user message part type: ${unhandledType}`,
               );
             }
           }
@@ -172,13 +172,13 @@ export const fromThreadMessageLike = (
     case "system":
       if (content.length !== 1 || content[0]!.type !== "text")
         throw new Error(
-          "System messages must have exactly one text content part.",
+          "System messages must have exactly one text message part.",
         );
 
       return {
         ...common,
         role,
-        content: content as [TextContentPart],
+        content: content as [TextMessagePart],
         metadata: {
           custom: metadata?.custom ?? {},
         },
