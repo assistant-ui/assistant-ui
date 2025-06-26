@@ -115,6 +115,38 @@ The content of the message. This renders a separate component for each content p
                 },
               ],
             },
+            {
+              name: "ToolGroup",
+              type: "ComponentType<PropsWithChildren<{ startIndex: number; endIndex: number }>>",
+              description:
+                "Component for rendering grouped consecutive tool calls. When provided, consecutive tool-call content parts will be automatically grouped and wrapped with this component.",
+              children: [
+                {
+                  type: "ToolGroupProps",
+                  parameters: [
+                    {
+                      name: "startIndex",
+                      type: "number",
+                      description: "Index of the first tool call in the group.",
+                      required: true,
+                    },
+                    {
+                      name: "endIndex",
+                      type: "number",
+                      description: "Index of the last tool call in the group.",
+                      required: true,
+                    },
+                    {
+                      name: "children",
+                      type: "ReactNode",
+                      description:
+                        "The rendered tool call components within the group.",
+                      required: true,
+                    },
+                  ],
+                },
+              ],
+            },
           ],
         },
       ],

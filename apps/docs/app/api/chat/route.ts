@@ -13,11 +13,8 @@ const ratelimit = new Ratelimit({
 
 export async function POST(req: Request) {
   const { messages, tools } = await req.json();
-  console.log("messages", messages);
-  console.log("tools", tools);
   const ip = req.headers.get("x-forwarded-for") ?? "ip";
   const { success } = await ratelimit.limit(ip);
-  console.log(ip, success);
 
   if (!success) {
     return new Response("Rate limit exceeded", { status: 429 });
@@ -38,6 +35,7 @@ export async function POST(req: Request) {
         ]),
       ),
     },
+    onError: console.error,
   });
 
   return result.toDataStreamResponse();
