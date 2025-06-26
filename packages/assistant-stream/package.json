@@ -38,7 +38,7 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@standard-schema/spec": "^1.0.0",
     "ai": "^4.3.16",
-    "@types/node": "^24.0.3",
+    "@types/node": "^24.0.4",
     "eslint": "^9",
     "eslint-config-next": "15.3.4",
     "tsup": "8.5.0",

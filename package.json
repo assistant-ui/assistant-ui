@@ -11,7 +11,7 @@
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.5",
-    "prettier": "^3.5.3",
+    "prettier": "^3.6.1",
     "prettier-plugin-tailwindcss": "0.6.13",
     "turbo": "^2.5.4",
     "typescript": "^5.8.3"
@@ -22,5 +22,5 @@
       "prettier-plugin-tailwindcss"
     ]
   },
-  "packageManager": "pnpm@10.12.1"
+  "packageManager": "pnpm@10.12.4"
 }
