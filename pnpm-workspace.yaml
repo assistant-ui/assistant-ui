@@ -2,8 +2,10 @@ packages:
   - packages/*
   - examples/*
   - apps/*
+
 onlyBuiltDependencies:
-  - "@tailwindcss/oxide"
+  - '@anthropic-ai/claude-code'
+  - '@tailwindcss/oxide'
   - esbuild
   - sharp
   - unrs-resolver
