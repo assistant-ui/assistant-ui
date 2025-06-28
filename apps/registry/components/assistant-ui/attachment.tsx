@@ -133,6 +133,10 @@ const AttachmentUI: FC = () => {
         throw new Error(`Unknown attachment type: ${_exhaustiveCheck}`);
     }
   });
+  const hasProgress = useAttachment((a) => {
+    return a.status.type === "running" && "progress" in a.status;
+  });
+
   return (
     <Tooltip>
       <AttachmentPrimitive.Root className="aui-attachment-root">
@@ -150,6 +154,7 @@ const AttachmentUI: FC = () => {
           </TooltipTrigger>
         </AttachmentPreviewDialog>
         {canRemove && <AttachmentRemove />}
+        {hasProgress && <AttachmentProgress />}
       </AttachmentPrimitive.Root>
       <TooltipContent side="top">
         <AttachmentPrimitive.Name />
@@ -169,6 +174,14 @@ const AttachmentRemove: FC = () => {
         <CircleXIcon />
       </TooltipIconButton>
     </AttachmentPrimitive.Remove>
+  );
+};
+
+const AttachmentProgress: FC = () => {
+  return (
+    <AttachmentPrimitive.ProgressRoot className="aui-attachment-progress">
+      <AttachmentPrimitive.ProgressIndicator className="aui-attachment-progress-bar" />
+    </AttachmentPrimitive.ProgressRoot>
   );
 };
 
