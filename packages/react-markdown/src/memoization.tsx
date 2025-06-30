@@ -25,14 +25,14 @@ export const areNodesEqual = (
   if (prev.type !== next.type) return false;
   if (prev.tagName !== next.tagName) return false;
 
-  const sanitize = (props: Element["properties"]) => {
-    const { position, ...rest } = (props as Record<string, unknown>) || {};
+  const excludeMetadata = (props: Element["properties"]) => {
+    const { position, data, ...rest } = (props as Record<string, unknown>) || {};
     return rest;
   };
 
   return (
-    JSON.stringify(sanitize(prev.properties)) ===
-      JSON.stringify(sanitize(next.properties)) &&
+    JSON.stringify(excludeMetadata(prev.properties)) ===
+      JSON.stringify(excludeMetadata(next.properties)) &&
     areChildrenEqual(prev.children, next.children)
   );
 };
