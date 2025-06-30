@@ -24,8 +24,9 @@
   > :where(:is(ol, ul):last-child)
   > :where(li:last-child)::after {
   animation: aui-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
-    "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  font-family:
+    ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+    "Segoe UI Symbol", "Noto Color Emoji";
   --aui-content: "\25cf";
   content: var(--aui-content);
   margin-left: 0.25rem;
