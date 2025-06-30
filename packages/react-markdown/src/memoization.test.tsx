@@ -29,8 +29,12 @@ describe("areNodesEqual", () => {
   });
 
   it("detects differences in children", () => {
-    const prev = createNode({ children: [{ type: "text", value: "a" }] as any });
-    const next = createNode({ children: [{ type: "text", value: "b" }] as any });
+    const prev = createNode({
+      children: [{ type: "text", value: "a" }] as any,
+    });
+    const next = createNode({
+      children: [{ type: "text", value: "b" }] as any,
+    });
     expect(areNodesEqual(prev, next)).toBe(false);
   });
 });

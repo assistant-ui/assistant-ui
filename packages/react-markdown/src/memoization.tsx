@@ -26,7 +26,8 @@ export const areNodesEqual = (
   if (prev.tagName !== next.tagName) return false;
 
   const excludeMetadata = (props: Element["properties"]) => {
-    const { position, data, ...rest } = (props as Record<string, unknown>) || {};
+    const { position, data, ...rest } =
+      (props as Record<string, unknown>) || {};
     return rest;
   };
 
