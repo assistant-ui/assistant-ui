@@ -221,6 +221,7 @@ export const useLangGraphRuntime = ({
       : async () => {
           await onSwitchToNewThread();
           setMessages([]);
+          setInterrupt(undefined);
         },
     onSwitchToThread: switchToThread,
   };
