@@ -1,5 +1,14 @@
 # assistant-ui
 
+## 0.0.56
+
+### Patch Changes
+
+- 65b3ff1: chore: update deps
+- 2731323: - feat: Add codemod v0-11/content-part-to-message-part for ContentPart to MessagePart migration
+  - Migration automatically updates imports, types, hooks, and JSX components
+  - Renames `MessagePrimitive.Content` to `MessagePrimitive.Parts`
+
 ## 0.0.55
 
 ### Patch Changes
