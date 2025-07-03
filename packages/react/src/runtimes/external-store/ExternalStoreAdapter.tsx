@@ -20,6 +20,7 @@ export type ExternalStoreThreadListAdapter = {
    * @deprecated This API is still under active development and might change without notice.
    */
   threadId?: string | undefined;
+  isLoading?: boolean | undefined;
   threads?: readonly ExternalStoreThreadData<"regular">[] | undefined;
   archivedThreads?: readonly ExternalStoreThreadData<"archived">[] | undefined;
   /**
@@ -51,6 +52,7 @@ type ExternalStoreMessageConverterAdapter<T> = {
 type ExternalStoreAdapterBase<T> = {
   isDisabled?: boolean | undefined;
   isRunning?: boolean | undefined;
+  isLoading?: boolean | undefined;
   messages: readonly T[];
   suggestions?: readonly ThreadSuggestion[] | undefined;
   extras?: unknown;

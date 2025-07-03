@@ -16,6 +16,10 @@ export class LocalThreadListRuntimeCore
     this._mainThread = _threadFactory();
   }
 
+  public get isLoading() {
+    return false;
+  }
+
   public getMainThreadRuntimeCore() {
     return this._mainThread;
   }

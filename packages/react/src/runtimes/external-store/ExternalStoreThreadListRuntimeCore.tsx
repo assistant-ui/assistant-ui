@@ -24,6 +24,10 @@ export class ExternalStoreThreadListRuntimeCore
   private _threads: readonly string[] = DEFAULT_THREADS;
   private _archivedThreads: readonly string[] = EMPTY_ARRAY;
 
+  public get isLoading() {
+    return this.adapter.isLoading ?? false;
+  }
+
   public get newThreadId() {
     return undefined;
   }
