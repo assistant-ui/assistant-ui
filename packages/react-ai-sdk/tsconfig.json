@@ -1,5 +1,13 @@
 {
   "extends": "@assistant-ui/x-buildutils/ts/base",
+  "compilerOptions": {
+    "paths": {
+      "@assistant-ui/*": ["../*/src"],
+      "@assistant-ui/react/*": ["../react/src/*"],
+      "assistant-stream": ["../assistant-stream/src"],
+      "assistant-stream/*": ["../assistant-stream/src/*"]
+    }
+  },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": ["**/*.test.ts", "**/*.test.tsx"]
 }
