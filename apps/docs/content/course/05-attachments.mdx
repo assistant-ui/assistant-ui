@@ -1,0 +1,398 @@
+---
+title: Attachments
+description: Handle file uploads, images, and documents in your AI chat interface
+---
+
+# Attachments
+
+Attachments allow users to upload files, images, and documents that the AI can process and understand. Assistant UI provides comprehensive attachment handling with preview, validation, and processing capabilities.
+
+## Basic Attachment Setup
+
+Enable attachments in your composer:
+
+```tsx
+import { Thread, Composer } from "@assistant-ui/react";
+
+function ChatWithAttachments() {
+  return (
+    <Thread>
+      <Thread.Messages />
+      <Composer>
+        <Composer.Attachments />
+        <Composer.Input />
+        <Composer.Send />
+      </Composer>
+    </Thread>
+  );
+}
+```
+
+## Custom Attachment UI
+
+Build a custom attachment interface:
+
+```tsx
+import { ComposerPrimitive, AttachmentPrimitive } from "@assistant-ui/react";
+
+function CustomAttachments() {
+  return (
+    <ComposerPrimitive.Attachments>
+      {/* Upload Button */}
+      <AttachmentPrimitive.Root>
+        <AttachmentPrimitive.Trigger className="p-2 hover:bg-gray-100 rounded">
+          📎 Attach File
+        </AttachmentPrimitive.Trigger>
+      </AttachmentPrimitive.Root>
+      
+      {/* Attachment List */}
+      <div className="flex flex-wrap gap-2 mt-2">
+        <AttachmentPrimitive.Root>
+          <AttachmentItem />
+        </AttachmentPrimitive.Root>
+      </div>
+    </ComposerPrimitive.Attachments>
+  );
+}
+
+function AttachmentItem() {
+  return (
+    <div className="relative group border rounded-lg p-2 bg-white">
+      {/* Preview */}
+      <AttachmentPrimitive.unstable_Thumb className="w-16 h-16 object-cover rounded" />
+      
+      {/* File Info */}
+      <div className="mt-1 text-xs">
+        <AttachmentPrimitive.Name className="font-medium truncate" />
+        <AttachmentPrimitive.Size className="text-gray-500" />
+      </div>
+      
+      {/* Remove Button */}
+      <AttachmentPrimitive.Remove className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+        ×
+      </AttachmentPrimitive.Remove>
+    </div>
+  );
+}
+```
+
+## File Type Support
+
+Configure which file types are accepted:
+
+```tsx
+import { useAttachmentRuntime } from "@assistant-ui/react";
+
+function AttachmentButton() {
+  const attachmentRuntime = useAttachmentRuntime();
+  
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    
+    files.forEach(file => {
+      // Validate file type
+      if (isValidFileType(file)) {
+        attachmentRuntime.add(file);
+      } else {
+        alert(`${file.type} files are not supported`);
+      }
+    });
+  };
+  
+  return (
+    <input
+      type="file"
+      accept="image/*,application/pdf,.txt,.doc,.docx"
+      multiple
+      onChange={handleFileSelect}
+      className="hidden"
+    />
+  );
+}
+
+function isValidFileType(file: File): boolean {
+  const allowedTypes = [
+    "image/jpeg",
+    "image/png", 
+    "image/gif",
+    "application/pdf",
+    "text/plain",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  ];
+  
+  return allowedTypes.includes(file.type);
+}
+```
+
+## Image Previews
+
+Create rich previews for different file types:
+
+```tsx
+import { AttachmentPrimitive } from "@assistant-ui/react";
+
+function AttachmentPreview() {
+  return (
+    <AttachmentPrimitive.Root>
+      {({ attachment }) => (
+        <div className="relative">
+          {attachment.type.startsWith('image/') ? (
+            <ImagePreview attachment={attachment} />
+          ) : (
+            <FilePreview attachment={attachment} />
+          )}
+        </div>
+      )}
+    </AttachmentPrimitive.Root>
+  );
+}
+
+function ImagePreview({ attachment }: { attachment: any }) {
+  return (
+    <div className="relative">
+      <img 
+        src={attachment.url} 
+        alt={attachment.name}
+        className="w-32 h-32 object-cover rounded-lg"
+      />
+      <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white p-1 text-xs rounded-b-lg">
+        <AttachmentPrimitive.Name />
+      </div>
+    </div>
+  );
+}
+
+function FilePreview({ attachment }: { attachment: any }) {
+  const getFileIcon = (type: string) => {
+    if (type.includes('pdf')) return '📄';
+    if (type.includes('doc')) return '📝';
+    if (type.includes('text')) return '📋';
+    return '📁';
+  };
+  
+  return (
+    <div className="flex items-center gap-2 p-3 border rounded-lg bg-gray-50">
+      <span className="text-2xl">{getFileIcon(attachment.type)}</span>
+      <div className="flex-1 min-w-0">
+        <AttachmentPrimitive.Name className="font-medium truncate" />
+        <AttachmentPrimitive.Size className="text-sm text-gray-500" />
+      </div>
+    </div>
+  );
+}
+```
+
+## Drag and Drop
+
+Implement drag and drop functionality:
+
+```tsx
+import { useCallback, useState } from "react";
+import { useAttachmentRuntime } from "@assistant-ui/react";
+
+function DragDropArea({ children }: { children: React.ReactNode }) {
+  const [isDragOver, setIsDragOver] = useState(false);
+  const attachmentRuntime = useAttachmentRuntime();
+  
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  }, []);
+  
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  }, []);
+  
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    
+    const files = Array.from(e.dataTransfer.files);
+    files.forEach(file => attachmentRuntime.add(file));
+  }, [attachmentRuntime]);
+  
+  return (
+    <div
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      className={`relative ${isDragOver ? 'bg-blue-50 border-blue-300' : ''}`}
+    >
+      {isDragOver && (
+        <div className="absolute inset-0 border-2 border-dashed border-blue-400 bg-blue-50/50 flex items-center justify-center z-10 rounded-lg">
+          <div className="text-blue-600 font-medium">
+            Drop files here to attach
+          </div>
+        </div>
+      )}
+      {children}
+    </div>
+  );
+}
+```
+
+## Processing Attachments
+
+Handle attachment processing and validation:
+
+```tsx
+import { useAttachmentRuntime } from "@assistant-ui/react";
+
+function AttachmentProcessor() {
+  const attachmentRuntime = useAttachmentRuntime();
+  
+  const processAttachment = async (file: File) => {
+    try {
+      // Show loading state
+      attachmentRuntime.setStatus("loading");
+      
+      // Validate file size
+      if (file.size > 10 * 1024 * 1024) { // 10MB limit
+        throw new Error("File too large. Maximum size is 10MB.");
+      }
+      
+      // Process based on file type
+      let processedFile;
+      if (file.type.startsWith('image/')) {
+        processedFile = await processImage(file);
+      } else if (file.type === 'application/pdf') {
+        processedFile = await processPDF(file);
+      } else {
+        processedFile = await processTextFile(file);
+      }
+      
+      // Add to attachment runtime
+      attachmentRuntime.add(processedFile);
+      attachmentRuntime.setStatus("complete");
+      
+    } catch (error) {
+      console.error("Attachment processing failed:", error);
+      attachmentRuntime.setStatus("error");
+    }
+  };
+  
+  return null; // This is a processing component
+}
+
+async function processImage(file: File) {
+  // Resize image if needed
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  const img = new Image();
+  
+  return new Promise((resolve) => {
+    img.onload = () => {
+      // Resize logic here
+      canvas.width = Math.min(img.width, 1920);
+      canvas.height = Math.min(img.height, 1080);
+      
+      ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+      
+      canvas.toBlob((blob) => {
+        resolve(new File([blob!], file.name, { type: file.type }));
+      }, file.type, 0.9);
+    };
+    
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+async function processPDF(file: File) {
+  // Extract text from PDF if needed
+  // This would use a library like pdf.js
+  return file;
+}
+
+async function processTextFile(file: File) {
+  // Read and validate text content
+  const text = await file.text();
+  if (text.length > 100000) { // 100k character limit
+    throw new Error("Text file too long");
+  }
+  return file;
+}
+```
+
+## Backend Integration
+
+Send attachments to your AI backend:
+
+```tsx
+// API route for handling attachments
+export async function POST(request: Request) {
+  const formData = await request.formData();
+  const files = formData.getAll('attachments') as File[];
+  const message = formData.get('message') as string;
+  
+  // Process attachments
+  const attachmentData = await Promise.all(
+    files.map(async (file) => {
+      if (file.type.startsWith('image/')) {
+        // Convert image to base64 for vision models
+        const buffer = await file.arrayBuffer();
+        const base64 = Buffer.from(buffer).toString('base64');
+        
+        return {
+          type: 'image',
+          data: `data:${file.type};base64,${base64}`,
+          name: file.name
+        };
+      } else {
+        // Extract text content
+        const text = await file.text();
+        return {
+          type: 'text',
+          data: text,
+          name: file.name
+        };
+      }
+    })
+  );
+  
+  // Send to AI provider with attachments
+  const response = await openai.chat.completions.create({
+    model: "gpt-4-vision-preview",
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: message },
+          ...attachmentData.map(att => ({
+            type: att.type,
+            [att.type === 'image' ? 'image_url' : 'text']: 
+              att.type === 'image' ? { url: att.data } : att.data
+          }))
+        ]
+      }
+    ]
+  });
+  
+  return new Response(response.choices[0].message.content);
+}
+```
+
+## Best Practices
+
+1. **Validate file types** and sizes on both client and server
+2. **Show upload progress** for large files
+3. **Implement error handling** with user-friendly messages
+4. **Use thumbnails** for better UX
+5. **Clean up** temporary files and URLs
+6. **Consider accessibility** with proper ARIA labels
+
+## Exercise: Advanced Attachments
+
+Build an attachment system that includes:
+- Multiple file selection
+- Progress indicators
+- File type validation
+- Image compression
+- Drag and drop support
+
+## Next Steps
+
+Attachments enable rich multimodal conversations. Next, let's explore another powerful feature: **Speech integration**.
+
+Continue to [Speech →](./06-speech)
