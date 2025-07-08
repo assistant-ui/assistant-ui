@@ -23,6 +23,7 @@ export function DocsRuntimeProvider({
 
   const runtime = useChatRuntime({
     api: "/api/chat",
+    maxSteps: 5,
     adapters: {
       attachments: new CompositeAttachmentAdapter([
         new SimpleImageAttachmentAdapter(),
