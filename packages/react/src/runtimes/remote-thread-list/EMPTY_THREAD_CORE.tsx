@@ -141,6 +141,7 @@ export const EMPTY_THREAD_CORE: ThreadRuntimeCore = {
   },
 
   isDisabled: true,
+  isLoading: false,
 
   messages: [],
 

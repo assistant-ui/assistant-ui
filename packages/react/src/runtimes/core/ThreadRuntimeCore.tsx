@@ -101,6 +101,7 @@ export type ThreadRuntimeCore = Readonly<{
 
   capabilities: Readonly<RuntimeCapabilities>;
   isDisabled: boolean;
+  isLoading: boolean;
   messages: readonly ThreadMessage[];
   state: ReadonlyJSONValue;
   suggestions: readonly ThreadSuggestion[];

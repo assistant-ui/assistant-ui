@@ -13,6 +13,7 @@ type ThreadListItemCoreState = {
 };
 
 export type ThreadListRuntimeCore = {
+  readonly isLoading: boolean;
   mainThreadId: string;
   newThreadId: string | undefined;
 

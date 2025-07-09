@@ -33,6 +33,11 @@ export class LocalThreadRuntimeCore
 
   public readonly isDisabled = false;
 
+  private _isLoading = false;
+  public get isLoading() {
+    return this._isLoading;
+  }
+
   private _suggestions: readonly ThreadSuggestion[] = [];
   private _suggestionsController: AbortController | null = null;
   public get suggestions(): readonly ThreadSuggestion[] {
@@ -93,23 +98,33 @@ export class LocalThreadRuntimeCore
 
     const promise = this.adapters.history?.load() ?? Promise.resolve(null);
 
-    this._loadPromise = promise.then((repo) => {
-      if (!repo) return;
-      this.repository.import(repo);
-      this._notifySubscribers();
+    this._isLoading = true;
+    this._notifySubscribers();
 
-      const resume = this.adapters.history?.resume?.bind(this.adapters.history);
-      if (repo.unstable_resume && resume) {
-        this.startRun(
-          {
-            parentId: this.repository.headId,
-            sourceId: this.repository.headId,
-            runConfig: this._lastRunConfig,
-          },
-          resume,
+    this._loadPromise = promise
+      .then((repo) => {
+        if (!repo) return;
+        this.repository.import(repo);
+        this._notifySubscribers();
+
+        const resume = this.adapters.history?.resume?.bind(
+          this.adapters.history,
         );
-      }
-    });
+        if (repo.unstable_resume && resume) {
+          this.startRun(
+            {
+              parentId: this.repository.headId,
+              sourceId: this.repository.headId,
+              runConfig: this._lastRunConfig,
+            },
+            resume,
+          );
+        }
+      })
+      .finally(() => {
+        this._isLoading = false;
+        this._notifySubscribers();
+      });
 
     return this._loadPromise;
   }
