@@ -8,6 +8,7 @@ import {
 import { FeedbackAdapter } from "../adapters/feedback/FeedbackAdapter";
 import { SpeechSynthesisAdapter } from "../adapters/speech/SpeechAdapterTypes";
 import { ThreadMessageLike } from "./ThreadMessageLike";
+import { RoleMapping } from "./RoleMapping";
 
 export type ExternalStoreThreadData<TState extends "regular" | "archived"> = {
   status: TState;
@@ -68,6 +69,7 @@ type ExternalStoreAdapterBase<T> = {
     | ((options: AddToolResultOptions) => Promise<void> | void)
     | undefined;
   convertMessage?: ExternalStoreMessageConverter<T> | undefined;
+  roleMapping?: RoleMapping | undefined;
   adapters?:
     | {
         attachments?: AttachmentAdapter | undefined;

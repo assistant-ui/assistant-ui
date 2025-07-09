@@ -26,7 +26,12 @@ export class LocalRuntimeCore extends BaseAssistantRuntimeCore {
     if (initialMessages) {
       this.threads
         .getMainThreadRuntimeCore()
-        .import(ExportedMessageRepository.fromArray(initialMessages));
+        .import(
+          ExportedMessageRepository.fromArray(
+            initialMessages,
+            this._options.roleMapping,
+          ),
+        );
     }
   }
 }

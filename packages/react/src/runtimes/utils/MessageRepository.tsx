@@ -1,6 +1,6 @@
 import type { ThreadMessage } from "../../types";
 import { generateId, generateOptimisticId } from "../../utils/idUtils";
-import { ThreadMessageLike } from "../external-store";
+import { ThreadMessageLike, RoleMapping } from "../external-store";
 import { getAutoStatus } from "../external-store/auto-status";
 import { fromThreadMessageLike } from "../external-store/ThreadMessageLike";
 
@@ -58,13 +58,20 @@ export const ExportedMessageRepository = {
    * Creates parent-child relationships based on the order of messages in the array.
    *
    * @param messages - Array of message-like objects to convert
+   * @param roleMapping - Optional role mapping configuration
    * @returns ExportedMessageRepository with parent-child relationships established
    */
   fromArray: (
     messages: readonly ThreadMessageLike[],
+    roleMapping?: RoleMapping,
   ): ExportedMessageRepository => {
     const conv = messages.map((m) =>
-      fromThreadMessageLike(m, generateId(), getAutoStatus(false, false)),
+      fromThreadMessageLike(
+        m,
+        generateId(),
+        getAutoStatus(false, false),
+        roleMapping,
+      ),
     );
 
     return {

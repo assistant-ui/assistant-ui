@@ -132,10 +132,15 @@ export class LocalThreadRuntimeCore
   public async append(message: AppendMessage): Promise<void> {
     this.ensureInitialized();
 
-    const newMessage = fromThreadMessageLike(message, generateId(), {
-      type: "complete",
-      reason: "unknown",
-    });
+    const newMessage = fromThreadMessageLike(
+      message,
+      generateId(),
+      {
+        type: "complete",
+        reason: "unknown",
+      },
+      this._options.roleMapping,
+    );
     this.repository.addOrUpdateMessage(message.parentId, newMessage);
     this._options.adapters.history?.append({
       parentId: message.parentId,

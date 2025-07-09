@@ -295,6 +295,39 @@ This is useful when your backend sends multiple message chunks that should appea
   `convertMessage` approach shown above.
 </Callout>
 
+### Role Mapping
+
+When integrating with frameworks like LangChain or multi-agent systems that use custom role names, you can use role mapping to convert them to assistant-ui's core roles (`user`, `assistant`, `system`):
+
+```tsx
+const runtime = useExternalStoreRuntime({
+  messages,
+  onNew,
+  // Map custom roles to assistant-ui roles
+  roleMapping: {
+    human: "user",
+    ai: "assistant",
+    agent: "assistant",
+    moderator: "system",
+  },
+});
+```
+
+When roles are mapped, the original role is preserved in `metadata.custom.originalRole` for display purposes:
+
+```tsx
+// Input message with custom role
+const message = {
+  role: "ai",
+  content: "Hello from AI agent",
+};
+
+// After conversion with role mapping
+// The message will have:
+// - role: "assistant" (for UI components)
+// - metadata.custom.originalRole: "ai" (for display)
+```
+
 ### Essential Handlers
 
 #### Basic Chat (onNew only)
@@ -1427,6 +1460,12 @@ The main interface for connecting your state to assistant-ui.
         "Convert your message format to assistant-ui format. Not needed if using ThreadMessage type",
     },
     {
+      name: "roleMapping",
+      type: "RoleMapping",
+      description:
+        "Map custom role names (e.g., 'human', 'ai') to assistant-ui's core roles ('user', 'assistant', 'system')",
+    },
+    {
       name: "joinStrategy",
       type: '"concat-content" | "none"',
       description: "How to join adjacent assistant messages when converting",
@@ -1494,8 +1533,8 @@ A flexible message format that can be converted to assistant-ui's internal forma
   parameters={[
     {
       name: "role",
-      type: '"assistant" | "user" | "system"',
-      description: "The role of the message sender",
+      type: '"assistant" | "user" | "system" | string',
+      description: "The role of the message sender. Can be a core role or any custom string (will be mapped using roleMapping if provided)",
       required: true,
     },
     {

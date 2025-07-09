@@ -29,6 +29,19 @@ export namespace useExternalMessageConverter {
   export type Callback<T> = (message: T) => Message | Message[];
 }
 
+function isToolMessage(
+  message: useExternalMessageConverter.Message,
+): message is {
+  role: "tool";
+  toolCallId: string;
+  toolName?: string | undefined;
+  result: any;
+  artifact?: any;
+  isError?: boolean;
+} {
+  return message.role === "tool" && "toolCallId" in message;
+}
+
 type CallbackResult<T> = {
   input: T;
   outputs: useExternalMessageConverter.Message[];
@@ -54,7 +67,7 @@ const joinExternalMessages = (
     content: [],
   };
   for (const output of messages) {
-    if (output.role === "tool") {
+    if (isToolMessage(output)) {
       const toolCallIdx = assistantMessage.content.findIndex(
         (c) => c.type === "tool-call" && c.toolCallId === output.toolCallId,
       );
@@ -91,7 +104,7 @@ const joinExternalMessages = (
         typeof output.content === "string"
           ? [{ type: "text" as const, text: output.content }]
           : output.content
-      ).map((c) => ({
+      ).map((c: any) => ({
         ...c,
         ...{ [symbolInnerMessage]: [output] },
       }));
@@ -152,8 +165,10 @@ const joinExternalMessages = (
           assistantMessage.content.push(...content);
           break;
         default: {
-          const unsupportedRole: never = role;
-          throw new Error(`Unknown message role: ${unsupportedRole}`);
+          return {
+            ...output,
+            content,
+          };
         }
       }
     }
@@ -203,6 +218,7 @@ const chunkExternalMessages = <T,>(
 
       if (
         output.role === "assistant" &&
+        !isToolMessage(output) &&
         (output.convertConfig?.joinStrategy === "none" ||
           joinStrategy === "none")
       ) {

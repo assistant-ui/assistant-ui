@@ -20,9 +20,10 @@ import {
   ThreadStep,
 } from "../../types/AssistantTypes";
 import { ReadonlyJSONObject, ReadonlyJSONValue } from "assistant-stream/utils";
+import { RoleMapping, mapRole } from "./RoleMapping";
 
 export type ThreadMessageLike = {
-  readonly role: "assistant" | "user" | "system";
+  readonly role: "assistant" | "user" | "system" | (string & {});
   readonly content:
     | string
     | readonly (
@@ -64,32 +65,53 @@ export const fromThreadMessageLike = (
   like: ThreadMessageLike,
   fallbackId: string,
   fallbackStatus: MessageStatus,
+  roleMapping?: RoleMapping,
 ): ThreadMessage => {
-  const { role, id, createdAt, attachments, status, metadata } = like;
+  const {
+    role: originalRole,
+    id,
+    createdAt,
+    attachments,
+    status,
+    metadata,
+  } = like;
   const common = {
     id: id ?? fallbackId,
     createdAt: createdAt ?? new Date(),
   };
+
+  const mappedRole = mapRole(originalRole, roleMapping);
+
+  const enhancedMetadata =
+    originalRole !== mappedRole
+      ? {
+          ...metadata,
+          custom: {
+            ...metadata?.custom,
+            originalRole,
+          },
+        }
+      : metadata;
 
   const content =
     typeof like.content === "string"
       ? [{ type: "text" as const, text: like.content }]
       : like.content;
 
-  if (role !== "user" && attachments?.length)
+  if (mappedRole !== "user" && attachments?.length)
     throw new Error("attachments are only supported for user messages");
 
-  if (role !== "assistant" && status)
+  if (mappedRole !== "assistant" && status)
     throw new Error("status is only supported for assistant messages");
 
-  if (role !== "assistant" && metadata?.steps)
+  if (mappedRole !== "assistant" && enhancedMetadata?.steps)
     throw new Error("metadata.steps is only supported for assistant messages");
 
-  switch (role) {
+  switch (mappedRole) {
     case "assistant":
       return {
         ...common,
-        role,
+        role: mappedRole,
         content: content
           .map((part): ThreadAssistantMessagePart | null => {
             const type = part.type;
@@ -134,18 +156,18 @@ export const fromThreadMessageLike = (
           .filter((c) => !!c),
         status: status ?? fallbackStatus,
         metadata: {
-          unstable_state: metadata?.unstable_state ?? null,
-          unstable_annotations: metadata?.unstable_annotations ?? [],
-          unstable_data: metadata?.unstable_data ?? [],
-          custom: metadata?.custom ?? {},
-          steps: metadata?.steps ?? [],
+          unstable_state: enhancedMetadata?.unstable_state ?? null,
+          unstable_annotations: enhancedMetadata?.unstable_annotations ?? [],
+          unstable_data: enhancedMetadata?.unstable_data ?? [],
+          custom: enhancedMetadata?.custom ?? {},
+          steps: enhancedMetadata?.steps ?? [],
         },
       } satisfies ThreadAssistantMessage;
 
     case "user":
       return {
         ...common,
-        role,
+        role: mappedRole,
         content: content.map((part): ThreadUserMessagePart => {
           const type = part.type;
           switch (type) {
@@ -165,7 +187,7 @@ export const fromThreadMessageLike = (
         }),
         attachments: attachments ?? [],
         metadata: {
-          custom: metadata?.custom ?? {},
+          custom: enhancedMetadata?.custom ?? {},
         },
       } satisfies ThreadUserMessage;
 
@@ -177,15 +199,15 @@ export const fromThreadMessageLike = (
 
       return {
         ...common,
-        role,
+        role: mappedRole,
         content: content as [TextMessagePart],
         metadata: {
-          custom: metadata?.custom ?? {},
+          custom: enhancedMetadata?.custom ?? {},
         },
       } satisfies ThreadSystemMessage;
 
     default: {
-      const unsupportedRole: never = role;
+      const unsupportedRole: never = mappedRole;
       throw new Error(`Unknown message role: ${unsupportedRole}`);
     }
   }

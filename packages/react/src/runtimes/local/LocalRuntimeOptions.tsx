@@ -6,6 +6,7 @@ import { SpeechSynthesisAdapter } from "../adapters/speech/SpeechAdapterTypes";
 import { ChatModelAdapter } from "./ChatModelAdapter";
 import { AssistantCloud } from "assistant-cloud";
 import { SuggestionAdapter } from "../adapters";
+import { RoleMapping } from "../external-store";
 
 export type LocalRuntimeOptionsBase = {
   maxSteps?: number | undefined;
@@ -22,6 +23,8 @@ export type LocalRuntimeOptionsBase = {
    * Names of tools that are allowed to interrupt the run in order to wait for human/external approval.
    */
   unstable_humanToolNames?: string[] | undefined;
+
+  roleMapping?: RoleMapping | undefined;
 };
 
 // TODO align LocalRuntimeOptions with LocalRuntimeOptionsBase
@@ -40,6 +43,7 @@ export const splitLocalRuntimeOptions = <T extends LocalRuntimeOptions>(
     maxSteps,
     adapters,
     unstable_humanToolNames,
+    roleMapping,
     ...rest
   } = options;
 
@@ -50,6 +54,7 @@ export const splitLocalRuntimeOptions = <T extends LocalRuntimeOptions>(
       maxSteps,
       adapters,
       unstable_humanToolNames,
+      roleMapping,
     },
     otherOptions: rest,
   };

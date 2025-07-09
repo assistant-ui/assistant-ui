@@ -290,6 +290,42 @@ const MyModelAdapter: ChatModelAdapter = {
 };
 ```
 
+## Role Mapping
+
+When integrating with frameworks like LangChain or multi-agent systems that use custom role names, you can use role mapping to convert them to assistant-ui's core roles (`user`, `assistant`, `system`):
+
+```tsx
+const runtime = useLocalRuntime(MyModelAdapter, {
+  // Map custom roles to assistant-ui roles
+  roleMapping: {
+    human: "user",
+    ai: "assistant",
+    agent: "assistant",
+    moderator: "system",
+  },
+});
+```
+
+When roles are mapped, the original role is preserved in `metadata.custom.originalRole` for display purposes:
+
+```tsx
+// Initial messages with custom roles
+const runtime = useLocalRuntime(MyModelAdapter, {
+  initialMessages: [
+    { role: "human", content: "Hello!" },
+    { role: "ai", content: "Hi there!" },
+  ],
+  roleMapping: {
+    human: "user",
+    ai: "assistant",
+  },
+});
+
+// After conversion, messages will have:
+// - role: "user"/"assistant" (for UI components)
+// - metadata.custom.originalRole: "human"/"ai" (for display)
+```
+
 ## Tool Calling
 
 `LocalRuntime` supports OpenAI-compatible function calling with automatic or human-in-the-loop execution.

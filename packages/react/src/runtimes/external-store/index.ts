@@ -15,3 +15,5 @@ export {
   convertExternalMessages as unstable_convertExternalMessages,
 } from "./external-message-converter";
 export { createMessageConverter as unstable_createMessageConverter } from "./createMessageConverter";
+export type { RoleMapping } from "./RoleMapping";
+export { mapRole } from "./RoleMapping";

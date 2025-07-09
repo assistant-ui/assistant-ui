@@ -143,6 +143,7 @@ export class ExternalStoreThreadRuntimeCore
             messageLike,
             idx.toString(),
             autoStatus,
+            store.roleMapping,
           );
           (newMessage as any)[symbolInnerMessage] = m;
           return newMessage;
