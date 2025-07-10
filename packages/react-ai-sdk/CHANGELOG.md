@@ -1,5 +1,18 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.10.15
+
+### Patch Changes
+
+- 65b3ff1: chore: update deps
+- Updated dependencies [65b3ff1]
+- Updated dependencies [2731323]
+- Updated dependencies [308afff]
+- Updated dependencies [cc9f567]
+- Updated dependencies [c380f37]
+  - @assistant-ui/react@0.10.25
+  - @assistant-ui/react-edge@0.2.13
+
 ## 0.10.14
 
 ### Patch Changes

@@ -1,5 +1,18 @@
 # @assistant-ui/react-markdown
 
+## 0.10.6
+
+### Patch Changes
+
+- 65b3ff1: chore: update deps
+- bc9f0c5: fix: improve memoization for markdown components
+- Updated dependencies [65b3ff1]
+- Updated dependencies [2731323]
+- Updated dependencies [308afff]
+- Updated dependencies [cc9f567]
+- Updated dependencies [c380f37]
+  - @assistant-ui/react@0.10.25
+
 ## 0.10.5
 
 ### Patch Changes

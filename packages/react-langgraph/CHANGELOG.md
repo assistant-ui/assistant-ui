@@ -1,5 +1,19 @@
 # @assistant-ui/react-langgraph
 
+## 0.5.9
+
+### Patch Changes
+
+- 65b3ff1: chore: update deps
+- 67611d8: fix: reset interrupt state in useLangGraphRuntime hook
+- Updated dependencies [65b3ff1]
+- Updated dependencies [2731323]
+- Updated dependencies [308afff]
+- Updated dependencies [cc9f567]
+- Updated dependencies [c380f37]
+  - assistant-stream@0.2.18
+  - @assistant-ui/react@0.10.25
+
 ## 0.5.8
 
 ### Patch Changes

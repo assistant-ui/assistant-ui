@@ -1,5 +1,18 @@
 # @assistant-ui/react
 
+## 0.10.25
+
+### Patch Changes
+
+- 65b3ff1: chore: update deps
+- 2731323: refactor: rename ContentPart to MessagePart
+- 308afff: feat(react): add isLoading state to ThreadList and Thread runtimes
+- cc9f567: feat: allow forwarding portal props for assistant modal content
+- c380f37: feat: MessageContent.ToolGroup
+- Updated dependencies [65b3ff1]
+  - assistant-stream@0.2.18
+  - assistant-cloud@0.0.3
+
 ## 0.10.24
 
 ### Patch Changes
