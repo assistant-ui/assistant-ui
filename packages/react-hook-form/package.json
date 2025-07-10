@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-hook-form",
-  "version": "0.10.5",
+  "version": "0.10.6",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -25,7 +25,7 @@
     "zod": "^3.25.67"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.10.24",
+    "@assistant-ui/react": "^0.10.25",
     "@types/react": "*",
     "react": "^18 || ^19 || ^19.0.0-rc",
     "react-hook-form": "^7"
