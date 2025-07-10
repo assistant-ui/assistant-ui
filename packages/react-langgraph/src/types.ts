@@ -77,6 +77,25 @@ export type LangChainMessage =
       content: AssistantMessageContent;
       tool_call_chunks?: LangChainToolCallChunk[];
       tool_calls?: LangChainToolCall[];
+      status?:
+        | {
+            type: "running";
+          }
+        | {
+            type: "complete";
+            reason: "stop" | "unknown";
+          }
+        | {
+            type: "incomplete";
+            reason:
+              | "cancelled"
+              | "tool-calls"
+              | "length"
+              | "content-filter"
+              | "other"
+              | "error";
+            error?: any;
+          };
     };
 
 export type LangChainMessageChunk = {

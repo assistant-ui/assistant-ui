@@ -72,6 +72,7 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
             }),
           ) ?? []),
         ],
+        ...(message.status && { status: message.status }),
       };
     case "tool":
       return {
