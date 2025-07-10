@@ -16,3 +16,11 @@ export { useMessagePartSource } from "./messagePart/useMessagePartSource";
 export { useMessagePartFile } from "./messagePart/useMessagePartFile";
 export { useMessagePartImage } from "./messagePart/useMessagePartImage";
 export { useThreadViewportAutoScroll } from "./thread/useThreadViewportAutoScroll";
+
+// TODO remove in v0.11
+export * as ContentPartPrimitive from "./messagePart";
+export { useMessagePartText as useContentPartText } from "./messagePart/useMessagePartText";
+export { useMessagePartReasoning as useContentPartReasoning } from "./messagePart/useMessagePartReasoning";
+export { useMessagePartSource as useContentPartSource } from "./messagePart/useMessagePartSource";
+export { useMessagePartFile as useContentPartFile } from "./messagePart/useMessagePartFile";
+export { useMessagePartImage as useContentPartImage } from "./messagePart/useMessagePartImage";

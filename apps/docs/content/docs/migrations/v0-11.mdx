@@ -11,6 +11,7 @@ All ContentPart-related types, hooks, and components have been renamed to Messag
 The following types and components have been renamed:
 
 #### Core Types
+
 - `TextContentPart` → `TextMessagePart`
 - `ReasoningContentPart` → `ReasoningMessagePart`
 - `SourceContentPart` → `SourceMessagePart`
@@ -22,14 +23,17 @@ The following types and components have been renamed:
 - `ToolCallContentPartStatus` → `ToolCallMessagePartStatus`
 
 #### Thread Message Parts
+
 - `ThreadUserContentPart` → `ThreadUserMessagePart`
 - `ThreadAssistantContentPart` → `ThreadAssistantMessagePart`
 
 #### Runtime and State Types
+
 - `ContentPartRuntime` → `MessagePartRuntime`
 - `ContentPartState` → `MessagePartState`
 
 #### Hooks
+
 - `useContentPart` → `useMessagePart`
 - `useContentPartRuntime` → `useMessagePartRuntime`
 - `useContentPartText` → `useMessagePartText`
@@ -40,6 +44,7 @@ The following types and components have been renamed:
 - `useTextContentPart` → `useTextMessagePart`
 
 #### Component Types
+
 - `EmptyContentPartComponent` → `EmptyMessagePartComponent`
 - `TextContentPartComponent` → `TextMessagePartComponent`
 - `ReasoningContentPartComponent` → `ReasoningMessagePartComponent`
@@ -50,6 +55,7 @@ The following types and components have been renamed:
 - `ToolCallContentPartComponent` → `ToolCallMessagePartComponent`
 
 #### Props Types
+
 - `EmptyContentPartProps` → `EmptyMessagePartProps`
 - `TextContentPartProps` → `TextMessagePartProps`
 - `ReasoningContentPartProps` → `ReasoningMessagePartProps`
@@ -60,6 +66,7 @@ The following types and components have been renamed:
 - `ToolCallContentPartProps` → `ToolCallMessagePartProps`
 
 #### Providers and Context
+
 - `TextContentPartProvider` → `TextMessagePartProvider`
 - `TextContentPartProviderProps` → `TextMessagePartProviderProps`
 - `ContentPartRuntimeProvider` → `MessagePartRuntimeProvider`
@@ -67,6 +74,7 @@ The following types and components have been renamed:
 - `ContentPartContextValue` → `MessagePartContextValue`
 
 #### Primitives
+
 - `ContentPartPrimitive` → `MessagePartPrimitive`
 - `ContentPartPrimitiveText` → `MessagePartPrimitiveText`
 - `ContentPartPrimitiveImage` → `MessagePartPrimitiveImage`
@@ -101,12 +109,14 @@ npx @assistant-ui/cli codemod v0-11/content-part-to-message-part .
 If you prefer to migrate manually, here are some examples:
 
 **Imports:**
+
 ```diff
 -import { TextContentPart, useContentPart, ToolCallContentPartComponent } from "@assistant-ui/react";
 +import { TextMessagePart, useMessagePart, ToolCallMessagePartComponent } from "@assistant-ui/react";
 ```
 
 **Type annotations:**
+
 ```diff
 -function processContent(part: TextContentPart): void {
 +function processContent(part: TextMessagePart): void {
@@ -120,6 +130,7 @@ If you prefer to migrate manually, here are some examples:
 ```
 
 **Hooks:**
+
 ```diff
  function MyComponent() {
 -  const part = useContentPart();
@@ -133,6 +144,7 @@ If you prefer to migrate manually, here are some examples:
 ```
 
 **JSX Components:**
+
 ```diff
 -<ContentPartPrimitive.Text />
 -<ContentPartPrimitive.Image />
@@ -141,6 +153,7 @@ If you prefer to migrate manually, here are some examples:
 ```
 
 **Providers:**
+
 ```diff
 -<TextContentPartProvider text="Hello" isRunning={false}>
 +<TextMessagePartProvider text="Hello" isRunning={false}>
@@ -153,4 +166,4 @@ If you prefer to migrate manually, here are some examples:
 
 The ContentPart naming was inconsistent with the rest of the codebase, where "message parts" are used throughout. This change improves semantic clarity and makes the API more intuitive by aligning terminology across the entire library.
 
-The old ContentPart APIs continue to work but are now deprecated and will be removed in a future major version. 
+The old ContentPart APIs continue to work but are now deprecated and will be removed in a future major version.
