@@ -138,6 +138,24 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
             break;
           case LangGraphKnownEventTypes.Error:
             onError?.(chunk.data);
+            // Update the last AI message with error status
+            // Assumes last AI message is the one the error relates to
+            const messages = accumulator.getMessages();
+            const lastAiMessage = messages.findLast(
+              (m): m is TMessage & { type: string; id: string } =>
+                m != null && "type" in m && m.type === "ai" && m.id != null,
+            );
+            if (lastAiMessage) {
+              const errorMessage = {
+                ...lastAiMessage,
+                status: {
+                  type: "incomplete" as const,
+                  reason: "error" as const,
+                  error: chunk.data,
+                },
+              };
+              setMessages(accumulator.addMessages([errorMessage]));
+            }
             break;
           default:
             if (onCustomEvent) {
