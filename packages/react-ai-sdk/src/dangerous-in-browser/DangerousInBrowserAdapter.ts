@@ -1,16 +1,13 @@
-import { toCoreMessages } from "../converters/toCoreMessages";
-import { toLanguageModelTools } from "../converters/toLanguageModelTools";
-import { EdgeRuntimeRequestOptions } from "../edge/EdgeRuntimeRequestOptions";
 import { asAsyncIterableStream } from "assistant-stream/utils";
-import {
-  CreateEdgeRuntimeAPIOptions,
-  getEdgeRuntimeStream,
-} from "../edge/createEdgeRuntimeAPI";
 import {
   AssistantMessageAccumulator,
   unstable_toolResultStream,
 } from "assistant-stream";
 import { ChatModelAdapter, ChatModelRunOptions } from "@assistant-ui/react";
+import {
+  CreateEdgeRuntimeAPIOptions,
+  getEdgeRuntimeStream,
+} from "./createEdgeRuntimeAPI";
 
 export type DangerousInBrowserAdapterOptions = CreateEdgeRuntimeAPIOptions;
 
@@ -19,15 +16,20 @@ export class DangerousInBrowserAdapter implements ChatModelAdapter {
 
   async *run({ messages, abortSignal, context }: ChatModelRunOptions) {
     const res = await getEdgeRuntimeStream({
-      options: this.options,
+      options: {
+        ...this.options,
+        ...(context.tools && { tools: context.tools }),
+      },
       abortSignal,
       requestData: {
         system: context.system,
-        messages: toCoreMessages(messages),
-        tools: context.tools ? toLanguageModelTools(context.tools) : [],
-        ...context.callSettings,
-        ...context.config,
-      } satisfies EdgeRuntimeRequestOptions,
+        messages: messages,
+        ...Object.fromEntries(
+          Object.entries({ ...context.callSettings, ...context.config }).filter(
+            ([_, v]) => v !== undefined,
+          ),
+        ),
+      },
     });
 
     const stream = res

@@ -11,7 +11,6 @@ import {
   ThreadMessage,
   ToolCallMessagePart,
 } from "@assistant-ui/react";
-import { CoreMessage, CoreToolCallMessagePart } from "../edge/CoreTypes";
 
 const assistantMessageSplitter = () => {
   const stash: LanguageModelV1Message[] = [];
@@ -46,7 +45,7 @@ const assistantMessageSplitter = () => {
 
       assistantMessage.content.push(part);
     },
-    addToolCallPart: (part: CoreToolCallMessagePart | ToolCallMessagePart) => {
+    addToolCallPart: (part: ToolCallMessagePart) => {
       assistantMessage.content.push({
         type: "tool-call",
         toolCallId: part.toolCallId,
@@ -80,7 +79,7 @@ const assistantMessageSplitter = () => {
  * @deprecated This is an internal API and may change without notice.
  */
 export function toLanguageModelMessages(
-  message: readonly CoreMessage[] | readonly ThreadMessage[],
+  message: readonly ThreadMessage[],
   options: { unstable_includeId?: boolean | undefined } = {},
 ): LanguageModelV1Message[] {
   const includeId = options.unstable_includeId ?? false;
