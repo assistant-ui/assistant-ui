@@ -1,5 +1,5 @@
 ---
-"@assistant-ui/react": minor
+"@assistant-ui/react": patch
 ---
 
-refactor!: rename ContentPart to MessagePart
+refactor: rename ContentPart to MessagePart

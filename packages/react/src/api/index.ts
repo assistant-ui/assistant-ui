@@ -6,10 +6,18 @@ export type {
   CreateStartRunConfig,
 } from "./ThreadRuntime";
 export type { MessageRuntime, MessageState } from "./MessageRuntime";
+
 export type {
   MessagePartRuntime,
   MessagePartState,
 } from "./MessagePartRuntime";
+
+// TODO remove in v0.11
+export type {
+  MessagePartRuntime as MessageContentRuntime,
+  MessagePartState as MessageContentState,
+} from "./MessagePartRuntime";
+
 export type {
   ComposerRuntime,
   ThreadComposerRuntime,
