@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.10.26
+
+### Patch Changes
+
+- 2561cc0: fix: remove double onAddToolResult call in ExternalStoreThreadRuntimeCore
+
 ## 0.10.25
 
 ### Patch Changes
