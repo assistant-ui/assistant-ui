@@ -252,14 +252,6 @@ export class ExternalStoreThreadRuntimeCore
   public addToolResult(options: AddToolResultOptions) {
     if (!this._store.onAddToolResult && !this._store.onAddToolResult)
       throw new Error("Runtime does not support tool results.");
-    this._store.onAddToolResult?.({
-      messageId: options.messageId,
-      toolName: options.toolName,
-      toolCallId: options.toolCallId,
-      result: options.result,
-      isError: options.isError,
-      artifact: options.artifact,
-    });
     this._store.onAddToolResult?.(options);
   }
 
