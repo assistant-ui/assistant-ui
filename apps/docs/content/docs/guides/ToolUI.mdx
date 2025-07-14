@@ -671,29 +671,7 @@ Create collapsible sections for consecutive tool calls:
 
 ```
 
-### Advanced Tool Group UI
-
-Add progress indicators and enhanced styling:
-
-```tsx
-const ToolGroup = ({ startIndex, endIndex, children }) => {
-  return (
-    <details className="tool-group my-4">
-      <summary className="cursor-pointer rounded bg-gray-50 p-3 hover:bg-gray-100">
-        <span className="font-medium">
-          {endIndex - startIndex + 1} tool calls executed
-        </span>
-        <span className="ml-2 text-sm text-gray-500">
-          (#{startIndex + 1}-{endIndex + 1})
-        </span>
-      </summary>
-      <div className="mt-2 space-y-2 pl-4">{children}</div>
-    </details>
-  );
-};
-
-<Thread components={{ ToolGroup }} />;
-```
+<Thread components={{ ToolGroup }} />; ```
 
 ## Related Guides
 
