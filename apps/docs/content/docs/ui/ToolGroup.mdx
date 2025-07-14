@@ -12,23 +12,28 @@ The ToolGroup component wraps consecutive tool-call message parts, enabling you 
 
 Pass the `ToolGroup` component to the `MessagePrimitive.Parts` component
 
-```tsx twoslash title="/components/assistant-ui/thread.tsx" {1,11}
-// @filename: /components/assistant-ui/tool-group.tsx
+```tsx twoslash title="/components/assistant-ui/thread.tsx"
 import { FC, PropsWithChildren } from "react";
-export const ToolGroup: FC<
-  PropsWithChildren<{ startIndex: number; endIndex: number }>
-> = ({ children }) => children;
-
-// @filename: ./thread.tsx
-import { FC } from "react";
 import { MessagePrimitive } from "@assistant-ui/react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 const AssistantActionBar: FC = () => null;
 const BranchPicker: FC<{ className?: string }> = () => null;
 
 // ---cut---
-import { ToolGroup } from "@/components/assistant-ui/tool-group";
+const ToolGroup: FC<
+  PropsWithChildren<{ startIndex: number; endIndex: number }>
+> = ({ startIndex, endIndex, children }) => {
+  const toolCount = endIndex - startIndex + 1;
+
+  return (
+    <details className="my-2">
+      <summary className="cursor-pointer font-medium">
+        {toolCount} tool {toolCount === 1 ? "call" : "calls"}
+      </summary>
+      <div className="space-y-2 pl-4">{children}</div>
+    </details>
+  );
+};
 
 const AssistantMessage: FC = () => {
   return (
