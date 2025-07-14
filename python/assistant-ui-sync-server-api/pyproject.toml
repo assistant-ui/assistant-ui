@@ -1,0 +1,42 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "assistant-ui-sync-server-api"
+version = "0.1.0"
+description = "Python client for Assistant UI sync server API"
+authors = [
+  { name="Assistant UI Team", email="team@assistant-ui.com" },
+]
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "httpx>=0.24.0",
+    "typing-extensions>=4.0.0;python_version<'3.11'",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.0.0",
+    "isort>=5.0.0",
+    "mypy>=1.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/assistant-ui/assistant-ui"
+Issues = "https://github.com/assistant-ui/assistant-ui/issues"
+Documentation = "https://docs.assistant-ui.com"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/assistant_ui"]
