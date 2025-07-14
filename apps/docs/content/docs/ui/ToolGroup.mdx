@@ -1,0 +1,101 @@
+---
+title: ToolGroup
+---
+
+import { Steps, Step } from "fumadocs-ui/components/steps";
+
+## Overview
+
+`ToolGroup` lets you wrap multiple consecutive tool-call message parts rendered by `MessagePrimitive.Parts` in a single component.  This is handy for collapsible sections, custom styling, or any situation where you want to visually group several tool executions together.
+
+## Getting Started
+
+<Steps>
+  <Step>
+
+### Add `tool-group`
+
+```sh
+npx shadcn@latest add "https://r.assistant-ui.com/tool-group"
+```
+
+This command scaffolds a `/components/assistant-ui/tool-group.tsx` file that you can tweak to match your design system.
+
+  </Step>
+  <Step>
+
+### Use it in your application
+
+Pass the `ToolGroup` component to the `MessagePrimitive.Parts` component:
+
+```tsx twoslash title="/components/assistant-ui/thread.tsx" {1,8}
+// @filename: /components/assistant-ui/tool-group.tsx
+import { FC, PropsWithChildren, useState } from "react";
+
+export const ToolGroup: FC<PropsWithChildren<{ startIndex: number; endIndex: number }>> = ({
+  startIndex,
+  endIndex,
+  children,
+}) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <details open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
+      <summary>
+        Tool execution {startIndex + 1}–{endIndex + 1}
+      </summary>
+      <div className="pl-4 space-y-2">{children}</div>
+    </details>
+  );
+};
+
+// @filename: ./thread.tsx
+import { FC } from "react";
+import { MessagePrimitive } from "@assistant-ui/react";
+import { ToolGroup } from "@/components/assistant-ui/tool-group";
+
+const AssistantMessage: FC = () => (
+  <MessagePrimitive.Root className="...">
+    <MessagePrimitive.Parts components={{ ToolGroup }} />
+  </MessagePrimitive.Root>
+);
+```
+
+  </Step>
+</Steps>
+
+## Props
+
+| Prop        | Type    | Description                                               |
+|-------------|---------|-----------------------------------------------------------|
+| startIndex  | number  | Index of the first tool call in the group                |
+| endIndex    | number  | Index of the last tool call in the group                 |
+| children    | ReactNode | The rendered tool-call components                       |
+
+## Example Implementations
+
+Below are a few ideas to spark inspiration:
+
+```tsx
+// Collapsible section using shadcn/ui's <Accordion/>
+ToolGroup: ({ children, startIndex, endIndex }) => (
+  <Accordion type="single" collapsible className="w-full">
+    <AccordionItem value="tool-group" className="border-none">
+      <AccordionTrigger className="py-0 text-sm">
+        {endIndex - startIndex + 1} tool calls
+      </AccordionTrigger>
+      <AccordionContent className="pt-2">{children}</AccordionContent>
+    </AccordionItem>
+  </Accordion>
+);
+```
+
+```tsx
+// Simple bordered container
+ToolGroup: ({ children }) => (
+  <div className="rounded-lg border p-4 space-y-2 bg-muted/50">
+    {children}
+  </div>
+);
+```
+
+Feel free to implement your own UX – the only requirement is that the component renders `children` somewhere in the tree.
