@@ -24,15 +24,26 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
         this._argsTextController = c;
       },
     });
+
+    let hasArgsText = false;
     this._mergeTask = stream.pipeTo(
       new WritableStream({
         write: (chunk) => {
           switch (chunk.type) {
             case "text-delta":
+              hasArgsText = true;
               this._controller.enqueue(chunk);
               break;
 
             case "part-finish":
+              if (!hasArgsText) {
+                // if no argsText was provided, assume empty object
+                this._controller.enqueue({
+                  type: "text-delta",
+                  textDelta: "{}",
+                  path: [],
+                });
+              }
               this._controller.enqueue({
                 type: "tool-call-args-text-finish",
                 path: [],
