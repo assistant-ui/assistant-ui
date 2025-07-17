@@ -114,15 +114,6 @@ export class ToolExecutionStream extends PipeableTransformStream<
 
               const promise = withPromiseOrValue(
                 () => {
-                  if (!streamController.argsText) {
-                    console.log(
-                      "Encountered tool call without args, this should never happen",
-                    );
-                    throw new Error(
-                      "Encountered tool call without args, this is unexpected.",
-                    );
-                  }
-
                   let args;
                   try {
                     args = sjson.parse(streamController.argsText);
