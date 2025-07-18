@@ -9,6 +9,7 @@ const utils = loader({
 });
 
 export const { getPages, getPage, pageTree } = utils;
+export const source = utils;
 
 export const blog = loader({
   baseUrl: "/blog",

@@ -10,6 +10,10 @@ const config: NextConfig = {
         source: "/umami/:path*",
         destination: "https://assistant-ui-umami.vercel.app/:path*",
       },
+      {
+        source: "/docs/:path*.mdx",
+        destination: "/llms.mdx/:path*",
+      },
     ],
     fallback: [
       {
