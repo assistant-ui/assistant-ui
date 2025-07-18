@@ -21,4 +21,3 @@ export function generateStaticParams() {
     slug: page.slugs,
   }));
 }
-
