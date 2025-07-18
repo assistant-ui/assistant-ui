@@ -6,11 +6,12 @@ export async function GET() {
   const scanned: string[] = [];
   scanned.push('# Docs');
   const map = new Map<string, string[]>();
+  const baseUrl = 'https://assistant-ui.com';
 
   for (const page of getPages()) {
     const dir = page.slugs[0] || 'root';
     const list = map.get(dir) ?? [];
-    list.push(`- [${page.data.title}](${page.url}): ${page.data.description || ''}`);
+    list.push(`- [${page.data.title}](${baseUrl}${page.url}): ${page.data.description || ''}`);
     map.set(dir, list);
   }
 
