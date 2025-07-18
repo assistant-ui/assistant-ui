@@ -1,50 +1,26 @@
-import * as fs from "node:fs/promises";
-import fg from "fast-glob";
-import matter from "gray-matter";
-import { remark } from "remark";
-import remarkGfm from "remark-gfm";
-import remarkStringify from "remark-stringify";
-import remarkMdx from "remark-mdx";
+import { getPages } from "@/app/source";
 
 export const revalidate = false;
 
 export async function GET() {
-  const files = await fg([
-    "./content/docs/**/*.mdx",
-    "!*.model.mdx",
-    "!./content/docs/openapi/**/*",
-  ]);
+  const scanned: string[] = [];
+  scanned.push("# Docs");
+  const map = new Map<string, string[]>();
+  const baseUrl = "https://assistant-ui.com";
 
-  const scan = files.map(async (file) => {
-    const fileContent = await fs.readFile(file);
-    const { content, data } = matter(fileContent.toString());
+  for (const page of getPages()) {
+    const dir = page.slugs[0] || "root";
+    const list = map.get(dir) ?? [];
+    list.push(
+      `- [${page.data.title}](${baseUrl}${page.url}): ${page.data.description || ""}`,
+    );
+    map.set(dir, list);
+  }
 
-    if (data["_mdx"]?.mirror) {
-      return;
-    }
-
-    const processed = await processContent(content);
-    return `file: ${file}
-# ${data["title"]}
-
-${data["description"] ?? ""}
-        
-${processed}`;
-  });
-
-  const scanned = await Promise.all(scan);
+  for (const [key, value] of map) {
+    scanned.push(`## ${key}`);
+    scanned.push(value.join("\n"));
+  }
 
   return new Response(scanned.join("\n\n"));
-}
-
-async function processContent(content: string): Promise<string> {
-  const file = await remark()
-    .use(remarkMdx)
-    .use(remarkGfm)
-    // .use(remarkDocGen, { generators: [typescriptGenerator(), fileGenerator()] })
-    // .use(remarkInstall, { persist: { id: "package-manager" } })
-    .use(remarkStringify)
-    .process(content);
-
-  return String(file);
 }
