@@ -202,6 +202,14 @@ const handleMessageFinish = (
   message: AssistantMessage,
   chunk: AssistantStreamChunk & { type: "message-finish" },
 ): AssistantMessage => {
+  // avoid edge case where providers send finish chunks that overwrite message error status (issue #2181)
+  if (
+    message.status?.type === "incomplete" &&
+    message.status?.reason === "error"
+  ) {
+    return message;
+  }
+
   const newStatus = getStatus(chunk);
   return { ...message, status: newStatus };
 };
