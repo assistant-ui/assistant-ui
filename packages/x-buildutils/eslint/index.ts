@@ -18,7 +18,11 @@ const eslintConfig = [
       "apps/docs/.source/**",
     ],
   },
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  ...compat.extends(
+    "next/core-web-vitals",
+    "next/typescript",
+    "plugin:import/recommended",
+  ),
   {
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
@@ -31,6 +35,7 @@ const eslintConfig = [
           varsIgnorePattern: "^_",
         },
       ],
+      "import/no-cycle": "error",
     },
   },
 ];

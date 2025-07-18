@@ -25,7 +25,8 @@
     "@types/semver": "^7.7.0",
     "eslint": "^9",
     "eslint-config-next": "15.3.4",
-    "tsx": "^4.20.3"
+    "tsx": "^4.20.3",
+    "vitest": "^3.2.3"
   },
   "files": [
     "dist",
