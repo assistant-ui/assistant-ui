@@ -1,7 +1,7 @@
-import { type NextRequest, NextResponse } from 'next/server';
-import { getLLMText } from '@/lib/get-llm-text';
-import { getPage, getPages } from '@/app/source';
-import { notFound } from 'next/navigation';
+import { type NextRequest, NextResponse } from "next/server";
+import { getLLMText } from "@/lib/get-llm-text";
+import { getPage, getPages } from "@/app/source";
+import { notFound } from "next/navigation";
 
 export const revalidate = false;
 
@@ -21,3 +21,4 @@ export function generateStaticParams() {
     slug: page.slugs,
   }));
 }
+
