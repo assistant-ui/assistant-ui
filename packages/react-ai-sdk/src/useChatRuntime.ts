@@ -111,7 +111,7 @@ class ChatRuntimeAdapter implements ChatModelAdapter {
         ) as unknown as ChatRuntimeRequestOptions["tools"],
         ...(unstable_assistantMessageId ? { unstable_assistantMessageId } : {}),
         runConfig,
-        state: unstable_getMessage().metadata.unstable_state,
+        state: unstable_getMessage().metadata.unstable_state || undefined,
         ...context.callSettings,
         ...context.config,
         ...this.options.body,
