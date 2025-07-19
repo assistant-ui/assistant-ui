@@ -1,5 +1,17 @@
 # @assistant-ui/react-langgraph
 
+## 0.5.10
+
+### Patch Changes
+
+- 5582547: fix: support for langgraph error events
+- Updated dependencies [e359ffc]
+- Updated dependencies [20a4649]
+- Updated dependencies [2561cc0]
+- Updated dependencies [9793e64]
+  - @assistant-ui/react@0.10.26
+  - assistant-stream@0.2.19
+
 ## 0.5.9
 
 ### Patch Changes

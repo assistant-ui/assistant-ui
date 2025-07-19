@@ -1,5 +1,16 @@
 # @assistant-ui/react-syntax-highlighter
 
+## 0.10.8
+
+### Patch Changes
+
+- 7cc1c08: fix: moduleResolution node support
+- Updated dependencies [e359ffc]
+- Updated dependencies [2561cc0]
+- Updated dependencies [9793e64]
+  - @assistant-ui/react@0.10.26
+  - @assistant-ui/react-markdown@0.10.6
+
 ## 0.10.7
 
 ### Patch Changes
