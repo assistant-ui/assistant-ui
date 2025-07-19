@@ -201,4 +201,19 @@ export const registry: RegistryItem[] = [
       "@assistant-ui/react-markdown",
     ],
   },
+  {
+    name: "latex-text",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/latex-text.tsx",
+      },
+    ],
+    dependencies: [
+      "katex",
+      "@assistant-ui/react",
+      "@assistant-ui/react-markdown",
+    ],
+  },
 ];

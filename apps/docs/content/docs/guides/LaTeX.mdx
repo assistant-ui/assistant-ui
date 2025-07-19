@@ -1,0 +1,402 @@
+---
+title: LaTeX Support
+---
+
+Enable mathematical notation and equations in your assistant using LaTeX.
+
+import { Step, Steps } from "fumadocs-ui/components/steps";
+import { Callout } from "fumadocs-ui/components/callout";
+
+<Callout type="info">
+  LaTeX support requires additional dependencies and configuration. This guide shows you how to add LaTeX rendering to your markdown components.
+</Callout>
+
+## Quick Start with Registry Component
+
+The easiest way to add LaTeX support is using our pre-built component from the registry:
+
+<Steps>
+
+<Step>
+### Install the LaTeX component
+
+```bash
+npx shadcn@latest add "https://r.assistant-ui.com/latex-text"
+```
+
+This adds a `/components/assistant-ui/latex-text.tsx` file to your project with full LaTeX rendering support.
+
+</Step>
+
+<Step>
+### Update your markdown component
+
+Modify your `markdown-text.tsx` to use the LaTeX component for latex code blocks:
+
+```tsx title="/components/assistant-ui/markdown-text.tsx" {1,10-14}
+import { LaTeXText } from "@/components/assistant-ui/latex-text";
+
+const MarkdownTextImpl: FC = () => {
+  return (
+    <MarkdownTextPrimitive
+      remarkPlugins={[remarkGfm]}
+      className="aui-md"
+      components={defaultComponents}
+      componentsByLanguage={{
+        latex: {
+          SyntaxHighlighter: LaTeXText
+        },
+      }}
+    />
+  );
+};
+```
+
+</Step>
+
+<Step>
+### Use LaTeX in your assistant
+
+Now you can use LaTeX code blocks in your messages:
+
+````markdown
+```latex
+\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}
+```
+````
+
+</Step>
+
+</Steps>
+
+### Advanced: Inline LaTeX Support
+
+To support inline LaTeX with `$` delimiters and display LaTeX with `$$` delimiters, use the remark-math plugin with the registry component:
+
+```tsx title="/components/assistant-ui/markdown-text.tsx"
+import remarkMath from "remark-math";
+import { InlineLaTeX, DisplayLaTeX } from "@/components/assistant-ui/latex-text";
+
+const MarkdownTextImpl: FC = () => {
+  return (
+    <MarkdownTextPrimitive
+      remarkPlugins={[remarkGfm, remarkMath]}
+      className="aui-md"
+      components={{
+        ...defaultComponents,
+        // For inline math: $E = mc^2$
+        span: ({ className, children, ...props }) => {
+          if (className === "math math-inline") {
+            return <InlineLaTeX value={String(children)} />;
+          }
+          return <span className={className} {...props}>{children}</span>;
+        },
+        // For display math: $$\int_0^1 x^2 dx$$
+        div: ({ className, children, ...props }) => {
+          if (className === "math math-display") {
+            return <DisplayLaTeX value={String(children)} />;
+          }
+          return <div className={className} {...props}>{children}</div>;
+        },
+      }}
+    />
+  );
+};
+```
+
+Don't forget to install the remark-math plugin:
+
+```bash
+npm install remark-math
+```
+
+## Manual Implementation Options
+
+If you prefer to implement LaTeX support manually, there are two main approaches:
+
+### Option 1: Using rehype-katex and remark-math
+
+This approach integrates directly with your markdown processing pipeline.
+
+<Steps>
+
+<Step>
+### Install dependencies
+
+```bash
+npm install rehype-katex remark-math katex
+```
+
+</Step>
+
+<Step>
+### Update your markdown component
+
+Modify your `markdown-text.tsx` component to include the math plugins:
+
+```tsx title="/components/assistant-ui/markdown-text.tsx"
+import { FC } from "react";
+import { useMarkdownText } from "@assistant-ui/react-markdown";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import "katex/dist/katex.min.css";
+
+type MarkdownTextProps = {
+  text: string;
+};
+
+export const MarkdownText: FC<MarkdownTextProps> = ({ text }) => {
+  return useMarkdownText({
+    text,
+    remarkPlugins: [remarkMath],
+    rehypePlugins: [rehypeKatex],
+  });
+};
+```
+
+</Step>
+
+<Step>
+### Add KaTeX CSS
+
+Import the KaTeX CSS in your main application file or layout:
+
+```tsx title="app/layout.tsx"
+import "katex/dist/katex.min.css";
+```
+
+</Step>
+
+</Steps>
+
+### Option 2: Using react-katex
+
+This approach gives you more control over LaTeX rendering by creating a custom component.
+
+<Steps>
+
+<Step>
+### Install dependencies
+
+```bash
+npm install react-katex katex
+```
+
+</Step>
+
+<Step>
+### Create a LaTeX component
+
+Create a custom component to handle LaTeX rendering:
+
+```tsx title="/components/assistant-ui/latex-renderer.tsx"
+import { FC } from "react";
+import { InlineMath, BlockMath } from "react-katex";
+import "katex/dist/katex.min.css";
+
+type LaTeXRendererProps = {
+  content: string;
+  display?: boolean;
+};
+
+export const LaTeXRenderer: FC<LaTeXRendererProps> = ({ 
+  content, 
+  display = false 
+}) => {
+  if (display) {
+    return <BlockMath math={content} />;
+  }
+  return <InlineMath math={content} />;
+};
+```
+
+</Step>
+
+<Step>
+### Integrate with your markdown component
+
+Update your markdown component to handle LaTeX code blocks:
+
+```tsx title="/components/assistant-ui/markdown-text.tsx"
+import { FC } from "react";
+import { useMarkdownText } from "@assistant-ui/react-markdown";
+import { LaTeXRenderer } from "./latex-renderer";
+
+type MarkdownTextProps = {
+  text: string;
+};
+
+export const MarkdownText: FC<MarkdownTextProps> = ({ text }) => {
+  return useMarkdownText({
+    text,
+    components: {
+      code({ node, inline, className, children, ...props }) {
+        const match = /language-(\w+)/.exec(className || "");
+        const isLatex = match && match[1] === "latex";
+        
+        if (isLatex && !inline) {
+          return (
+            <LaTeXRenderer 
+              content={String(children).replace(/\n$/, "")} 
+              display={true} 
+            />
+          );
+        }
+        
+        // Default code rendering
+        return (
+          <code className={className} {...props}>
+            {children}
+          </code>
+        );
+      },
+    },
+  });
+};
+```
+
+</Step>
+
+</Steps>
+
+## Usage Examples
+
+Once configured, your assistant can render LaTeX in multiple ways:
+
+### Inline Math
+
+```markdown
+The quadratic formula is $x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$.
+```
+
+### Block Math
+
+Using double dollar signs:
+```markdown
+$$
+\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}
+$$
+```
+
+Or using code blocks:
+````markdown
+```latex
+\begin{align}
+\nabla \times \vec{\mathbf{B}} -\, \frac1c\, \frac{\partial\vec{\mathbf{E}}}{\partial t} & = \frac{4\pi}{c}\vec{\mathbf{j}} \\
+\nabla \cdot \vec{\mathbf{E}} & = 4 \pi \rho \\
+\nabla \times \vec{\mathbf{E}}\, +\, \frac1c\, \frac{\partial\vec{\mathbf{B}}}{\partial t} & = \vec{\mathbf{0}} \\
+\nabla \cdot \vec{\mathbf{B}} & = 0
+\end{align}
+```
+````
+
+## Styling LaTeX Output
+
+The registry component includes default styling, but you can customize it further:
+
+```css title="app/globals.css"
+/* Registry component styles */
+.aui-latex-text {
+  @apply overflow-x-auto py-2;
+}
+
+.aui-latex-display {
+  @apply text-center my-4;
+}
+
+.aui-latex-inline {
+  @apply inline-block px-1;
+}
+
+.aui-latex-error {
+  @apply p-4 border border-red-300 rounded-md bg-red-50;
+}
+```
+
+For additional customization:
+
+```css title="app/globals.css"
+/* Customize KaTeX font size */
+.katex {
+  font-size: 1.1em;
+}
+
+/* Style display math blocks */
+.katex-display {
+  margin: 1.5rem 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* Add subtle background to inline math */
+.katex-inline {
+  background-color: rgba(0, 0, 0, 0.05);
+  padding: 0.1em 0.3em;
+  border-radius: 0.2em;
+}
+```
+
+## Performance Considerations
+
+<Callout type="warning">
+  LaTeX rendering can be computationally intensive. Consider these optimizations:
+</Callout>
+
+1. **Lazy Loading**: Load KaTeX only when LaTeX content is present
+2. **Caching**: Cache rendered LaTeX output to avoid re-rendering
+3. **Server-Side Rendering**: Pre-render LaTeX on the server when possible
+
+```tsx title="Lazy loading example"
+import { lazy, Suspense } from "react";
+
+const LaTeXRenderer = lazy(() => import("./latex-renderer"));
+
+export const OptimizedMarkdown: FC<{ text: string }> = ({ text }) => {
+  const hasLatex = text.includes("$") || text.includes("\\");
+  
+  if (!hasLatex) {
+    return <BasicMarkdown text={text} />;
+  }
+  
+  return (
+    <Suspense fallback={<div>Loading math...</div>}>
+      <MarkdownWithLatex text={text} />
+    </Suspense>
+  );
+};
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Math not rendering**: Ensure KaTeX CSS is imported
+2. **Syntax errors**: Escape backslashes in JavaScript strings
+3. **Performance issues**: Consider using `katex.renderToString()` for server-side rendering
+
+### Testing LaTeX Support
+
+Here's a test snippet to verify your LaTeX setup:
+
+```markdown
+Inline math: $E = mc^2$
+
+Block math:
+$$
+\sum_{i=1}^{n} i = \frac{n(n+1)}{2}
+$$
+
+Matrix:
+$$
+\begin{pmatrix}
+a & b \\
+c & d
+\end{pmatrix}
+$$
+```
+
+## Next Steps
+
+- Explore [KaTeX supported functions](https://katex.org/docs/supported.html)
+- Consider adding [mhchem](https://github.com/KaTeX/KaTeX/tree/main/contrib/mhchem) for chemistry notation
+- Implement copy-to-clipboard functionality for LaTeX source
