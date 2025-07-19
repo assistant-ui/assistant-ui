@@ -1,5 +1,5 @@
 import { parsePartialJsonObject } from "assistant-stream/utils";
-import { generateId } from "../../internal";
+import { generateId } from "../../utils/idUtils";
 import {
   MessageStatus,
   TextMessagePart,
