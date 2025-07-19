@@ -672,4 +672,158 @@ describe("useLangGraphMessages", {}, () => {
       }
     });
   });
+
+  it("handles tool messages in message tuples", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      // First, an AI message with a tool call
+      {
+        event: "messages",
+        data: [
+          {
+            id: "ai-msg-1",
+            content: "I'll search for that information.",
+            type: "AIMessageChunk",
+            tool_call_chunks: [
+              {
+                index: 1,
+                id: "tool-call-1",
+                name: "search",
+                args: '{"query": "weather"}',
+              },
+            ],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+      // Then, a tool message with the result
+      {
+        event: "messages",
+        data: [
+          {
+            id: "tool-msg-1",
+            type: "tool",
+            content: '{"result": "Sunny, 72°F"}',
+            tool_call_id: "tool-call-1",
+            name: "search",
+            status: "success",
+          },
+          { run_attempt: 1 },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [
+          {
+            type: "human",
+            content: "What's the weather?",
+          },
+        ],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages.length).toEqual(3);
+
+      const [humanMsg, aiMsg, toolMsg] = result.current.messages;
+
+      expect(humanMsg.type).toBe("human");
+      expect(aiMsg.type).toBe("ai");
+      expect(toolMsg.type).toBe("tool");
+
+      if (toolMsg.type === "tool") {
+        expect(toolMsg.tool_call_id).toBe("tool-call-1");
+        expect(toolMsg.name).toBe("search");
+        expect(toolMsg.content).toBe('{"result": "Sunny, 72°F"}');
+        expect(toolMsg.status).toBe("success");
+      }
+    });
+  });
+
+  it("handles regular messages mode (non-tuple format)", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      // Regular messages mode sends an array of messages directly
+      {
+        event: "messages",
+        data: [
+          {
+            id: "ai-msg-1",
+            type: "ai",
+            content: "Processing your request",
+            tool_calls: [
+              {
+                id: "tool-call-1",
+                name: "calculator",
+                argsText: '{"operation": "add", "numbers": [2, 3]}',
+                args: { operation: "add", numbers: [2, 3] },
+              },
+            ],
+          },
+        ],
+      },
+      // Tool result in regular messages mode
+      {
+        event: "messages",
+        data: [
+          {
+            id: "tool-msg-1",
+            type: "tool",
+            content: '{"result": 5}',
+            tool_call_id: "tool-call-1",
+            name: "calculator",
+            status: "success",
+          },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [
+          {
+            type: "human",
+            content: "What is 2 + 3?",
+          },
+        ],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages.length).toEqual(3);
+
+      const [humanMsg, aiMsg, toolMsg] = result.current.messages;
+
+      expect(humanMsg.type).toBe("human");
+      expect(aiMsg.type).toBe("ai");
+      expect(toolMsg.type).toBe("tool");
+
+      if (aiMsg.type === "ai" && aiMsg.tool_calls) {
+        expect(aiMsg.tool_calls[0].name).toBe("calculator");
+      }
+
+      if (toolMsg.type === "tool") {
+        expect(toolMsg.tool_call_id).toBe("tool-call-1");
+        expect(toolMsg.content).toBe('{"result": 5}');
+      }
+    });
+  });
 });

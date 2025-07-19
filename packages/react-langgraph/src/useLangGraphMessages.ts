@@ -3,7 +3,6 @@ import { v4 as uuidv4 } from "uuid";
 import { LangGraphMessageAccumulator } from "./LangGraphMessageAccumulator";
 import {
   EventType,
-  LangChainMessageTupleEvent,
   LangGraphKnownEventTypes,
   LangChainMessageChunk,
   OnCustomEventCallback,
@@ -61,6 +60,12 @@ const isLangChainMessageChunk = (
   );
 };
 
+const isLangChainMessage = (value: unknown): value is any => {
+  if (!value || typeof value !== "object") return false;
+  const msg = value as any;
+  return "type" in msg && ["system", "human", "ai", "tool"].includes(msg.type);
+};
+
 export const useLangGraphMessages = <TMessage extends { id?: string }>({
   stream,
   appendMessage = DEFAULT_APPEND_MESSAGE,
@@ -116,18 +121,45 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
             setInterrupt(chunk.data.__interrupt__?.[0]);
             break;
           case LangGraphKnownEventTypes.Messages: {
-            const [messageChunk] = (chunk as LangChainMessageTupleEvent).data;
-            if (!isLangChainMessageChunk(messageChunk)) {
-              console.warn(
-                "Received invalid message chunk format:",
-                messageChunk,
+            // Check if data is a tuple (array with message and metadata) or just a message/array of messages
+            const data = chunk.data;
+            let message;
+
+            if (Array.isArray(data) && data.length === 2 && !("type" in data)) {
+              // It's a tuple format: [message, metadata]
+              message = data[0];
+            } else if (
+              Array.isArray(data) &&
+              data.length > 0 &&
+              "type" in data[0]
+            ) {
+              // It's an array of messages (regular messages mode)
+              const updatedMessages = accumulator.addMessages(
+                data as unknown as TMessage[],
               );
+              setMessages(updatedMessages);
               break;
+            } else {
+              // Single message
+              message = data;
             }
-            const updatedMessages = accumulator.addMessages([
-              messageChunk as unknown as TMessage,
-            ]);
-            setMessages(updatedMessages);
+
+            // Handle both message chunks and regular messages (like tool messages)
+            if (isLangChainMessageChunk(message)) {
+              // It's a chunk, process it through appendMessage
+              const updatedMessages = accumulator.addMessages([
+                message as unknown as TMessage,
+              ]);
+              setMessages(updatedMessages);
+            } else if (isLangChainMessage(message)) {
+              // It's a regular message (e.g., tool message), add it directly
+              const updatedMessages = accumulator.addMessages([
+                message as unknown as TMessage,
+              ]);
+              setMessages(updatedMessages);
+            } else {
+              console.warn("Received invalid message format:", message);
+            }
             break;
           }
           case LangGraphKnownEventTypes.Metadata:
