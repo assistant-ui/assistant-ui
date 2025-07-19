@@ -1,0 +1,215 @@
+---
+title: LaTeX
+---
+
+Display mathematical equations and formulas using LaTeX notation.
+
+## Installation
+
+```bash
+npx shadcn@latest add "https://r.assistant-ui.com/latex-text"
+```
+
+## Features
+
+- **Code Block Rendering**: Render LaTeX in code blocks with `latex` language
+- **Inline Math**: Support for inline math with `$` delimiters (with remark-math)
+- **Display Math**: Support for display math with `$$` delimiters (with remark-math)  
+- **Error Handling**: Graceful error display for invalid LaTeX
+- **Dynamic Loading**: KaTeX is loaded on-demand for better performance
+- **Streaming Support**: Works with streaming messages
+
+## Usage
+
+### Basic Usage with Code Blocks
+
+Use the `LaTeXText` component with `componentsByLanguage` in your markdown configuration:
+
+```tsx
+import { LaTeXText } from "@/components/assistant-ui/latex-text";
+
+const MarkdownTextImpl: FC = () => {
+  return (
+    <MarkdownTextPrimitive
+      componentsByLanguage={{
+        latex: {
+          SyntaxHighlighter: LaTeXText
+        },
+      }}
+    />
+  );
+};
+```
+
+Then use LaTeX code blocks in your messages:
+
+````
+```latex
+\frac{d}{dx} \int_{a}^{x} f(t) dt = f(x)
+```
+````
+
+### Inline and Display Math
+
+For inline and display math support, combine with remark-math:
+
+```tsx
+import remarkMath from "remark-math";
+import { InlineLaTeX, DisplayLaTeX } from "@/components/assistant-ui/latex-text";
+
+const MarkdownTextImpl: FC = () => {
+  return (
+    <MarkdownTextPrimitive
+      remarkPlugins={[remarkMath]}
+      components={{
+        // For inline math: $E = mc^2$
+        span: ({ className, children, ...props }) => {
+          if (className === "math math-inline") {
+            return <InlineLaTeX value={String(children)} />;
+          }
+          return <span className={className} {...props}>{children}</span>;
+        },
+        // For display math: $$\int_0^1 x^2 dx$$
+        div: ({ className, children, ...props }) => {
+          if (className === "math math-display") {
+            return <DisplayLaTeX value={String(children)} />;
+          }
+          return <div className={className} {...props}>{children}</div>;
+        },
+      }}
+    />
+  );
+};
+```
+
+## Component API
+
+### LaTeXText
+
+The main component for rendering LaTeX in code blocks.
+
+```tsx
+interface LaTeXTextProps extends SyntaxHighlighterProps {
+  className?: string;
+  displayMode?: boolean;
+}
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `code` | `string` | - | The LaTeX code to render |
+| `className` | `string` | - | Additional CSS classes |
+| `displayMode` | `boolean` | `true` | Whether to render in display mode |
+
+### InlineLaTeX
+
+Component for rendering inline math.
+
+```tsx
+interface InlineLaTeXProps {
+  value: string;
+  className?: string;
+}
+```
+
+### DisplayLaTeX
+
+Component for rendering display math.
+
+```tsx
+interface DisplayLaTeXProps {
+  value: string;
+  className?: string;
+}
+```
+
+## Styling
+
+The component includes default styles that can be customized:
+
+```css
+/* Display math styling */
+.aui-latex-display {
+  @apply text-center my-4 overflow-x-auto;
+}
+
+/* Inline math styling */
+.aui-latex-inline {
+  @apply inline-block;
+}
+
+/* Error state */
+.aui-latex-error {
+  @apply text-red-600;
+}
+```
+
+## Examples
+
+### Quadratic Formula
+
+````
+```latex
+x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}
+```
+````
+
+### Matrix
+
+````
+```latex
+\begin{bmatrix}
+a_{11} & a_{12} & \cdots & a_{1n} \\
+a_{21} & a_{22} & \cdots & a_{2n} \\
+\vdots & \vdots & \ddots & \vdots \\
+a_{m1} & a_{m2} & \cdots & a_{mn}
+\end{bmatrix}
+```
+````
+
+### Calculus
+
+````
+```latex
+\lim_{h \to 0} \frac{f(x+h) - f(x)}{h} = f'(x)
+```
+````
+
+## Performance Tips
+
+1. **Lazy Loading**: The component loads KaTeX dynamically only when needed
+2. **Caching**: Rendered LaTeX is cached in the DOM
+3. **Error Boundaries**: Use React error boundaries to handle rendering failures gracefully
+
+## Common Issues
+
+### KaTeX Not Loading
+
+If LaTeX is not rendering, ensure your build system supports dynamic imports:
+
+```js
+// next.config.js
+module.exports = {
+  transpilePackages: ['katex'],
+}
+```
+
+### Special Characters
+
+Remember to escape backslashes in JavaScript strings:
+
+```tsx
+// Wrong
+const latex = "\frac{1}{2}";
+
+// Correct  
+const latex = "\\frac{1}{2}";
+// or
+const latex = String.raw`\frac{1}{2}`;
+```
+
+## See Also
+
+- [LaTeX Support Guide](/docs/guides/LaTeX) - Complete guide for adding LaTeX support
+- [Markdown](/docs/ui/Markdown) - Markdown rendering component
+- [Syntax Highlighting](/docs/ui/SyntaxHighlighting) - Code syntax highlighting
