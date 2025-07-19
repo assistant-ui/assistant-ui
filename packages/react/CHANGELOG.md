@@ -1,5 +1,16 @@
 # @assistant-ui/react
 
+## 0.10.26
+
+### Patch Changes
+
+- e359ffc: Fix circular dependency in ThreadMessageLike
+- 2561cc0: fix: remove double onAddToolResult call in ExternalStoreThreadRuntimeCore
+- 9793e64: fix: if tool calls have no argsText, assume empty object instead of crashing
+- Updated dependencies [20a4649]
+- Updated dependencies [9793e64]
+  - assistant-stream@0.2.19
+
 ## 0.10.25
 
 ### Patch Changes

@@ -1,5 +1,17 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.10.16
+
+### Patch Changes
+
+- 5731646: fix: do not send null state to backend
+- Updated dependencies [e359ffc]
+- Updated dependencies [20a4649]
+- Updated dependencies [2561cc0]
+- Updated dependencies [9793e64]
+  - @assistant-ui/react@0.10.26
+  - assistant-stream@0.2.19
+
 ## 0.10.15
 
 ### Patch Changes

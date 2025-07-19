@@ -1,5 +1,12 @@
 # assistant-stream
 
+## 0.2.19
+
+### Patch Changes
+
+- 20a4649: fix: preserve message error statuses, avoid being overwritten by finish chunks
+- 9793e64: fix: if tool calls have no argsText, assume empty object instead of crashing
+
 ## 0.2.18
 
 ### Patch Changes
