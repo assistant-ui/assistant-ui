@@ -5,7 +5,7 @@
   "scripts": {
     "build": "pnpm build:docs && next build",
     "build:docs": "tsx ./scripts/generate-docs.mts",
-    "dev": "next dev",
+    "dev": "next dev --turbopack",
     "start": "next start",
     "lint": "next lint",
     "postinstall": "fumadocs-mdx"
