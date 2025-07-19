@@ -1,3 +1,4 @@
+import { MessageStatus } from "@assistant-ui/react";
 import { ReadonlyJSONObject } from "assistant-stream/utils";
 
 export type LangChainToolCallChunk = {
@@ -77,6 +78,7 @@ export type LangChainMessage =
       content: AssistantMessageContent;
       tool_call_chunks?: LangChainToolCallChunk[];
       tool_calls?: LangChainToolCall[];
+      status?: MessageStatus;
     };
 
 export type LangChainMessageChunk = {

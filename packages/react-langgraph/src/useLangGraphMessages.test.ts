@@ -608,4 +608,68 @@ describe("useLangGraphMessages", {}, () => {
       ).toEqual("How may I assist you today?");
     });
   });
+
+  it("updates AI message status when error event is received", async () => {
+    const errorData = {
+      error: "BadRequestError",
+      message:
+        "Error code: 400 - {'error': {'message': 'Invalid parameter...'}}",
+    };
+
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "messages",
+        data: [
+          {
+            id: "ai-msg-1",
+            content: "I'll help you with",
+            type: "AIMessageChunk",
+            tool_call_chunks: [],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+      {
+        event: "error",
+        data: errorData,
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [{ type: "human", content: "Help me with a task" }],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(2);
+
+      const [humanMessage, aiMessage] = result.current.messages;
+
+      expect(humanMessage.type).toBe("human");
+
+      if (aiMessage.type === "ai") {
+        expect(aiMessage.id).toBe("ai-msg-1");
+
+        expect(aiMessage.status).toEqual({
+          type: "incomplete",
+          reason: "error",
+          error: errorData,
+        });
+
+        expect(aiMessage.content).toBe("I'll help you with");
+      } else {
+        throw new Error("Expected AI message");
+      }
+    });
+  });
 });
