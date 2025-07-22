@@ -1,6 +1,6 @@
 ---
-"@assistant-ui/react": minor
-"assistant-stream": minor
+"@assistant-ui/react": patch
+"assistant-stream": patch
 ---
 
 feat: add parent ID grouping for message parts
