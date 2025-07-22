@@ -9,6 +9,7 @@ import {
 } from "../runtimes/core/ThreadRuntimeCore";
 import { ExportedMessageRepository } from "../runtimes/utils/MessageRepository";
 import { AppendMessage, ThreadMessage, Unsubscribe } from "../types";
+import { ThreadMessageLike } from "../runtimes/external-store";
 import {
   MessageRuntime,
   MessageRuntimeImpl,
@@ -272,7 +273,7 @@ export type ThreadRuntime = {
    *
    * @param initialMessages - Optional array of initial messages to populate the thread
    */
-  reset(initialMessages?: CreateAppendMessage[]): void;
+  reset(initialMessages?: readonly ThreadMessageLike[]): void;
 
   getMesssageByIndex(idx: number): MessageRuntime;
   getMesssageById(messageId: string): MessageRuntime;
@@ -412,10 +413,8 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     this._threadBinding.getState().import(data);
   }
 
-  public reset(initialMessages?: CreateAppendMessage[]) {
-    const messages =
-      initialMessages?.map((message) => toAppendMessage([], message)) ?? [];
-    this._threadBinding.getState().reset(messages);
+  public reset(initialMessages?: readonly ThreadMessageLike[]) {
+    this._threadBinding.getState().reset(initialMessages);
   }
 
   public getMesssageByIndex(idx: number) {

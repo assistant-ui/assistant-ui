@@ -195,7 +195,7 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
     this._notifySubscribers();
   }
 
-  public reset(initialMessages?: ThreadMessageLike[]) {
+  public reset(initialMessages?: readonly ThreadMessageLike[]) {
     this.import(ExportedMessageRepository.fromArray(initialMessages ?? []));
   }
 

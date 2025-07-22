@@ -119,7 +119,7 @@ export type ThreadRuntimeCore = Readonly<{
   import(repository: ExportedMessageRepository): void;
   export(): ExportedMessageRepository;
 
-  reset(initialMessages?: ThreadMessageLike[]): void;
+  reset(initialMessages?: readonly ThreadMessageLike[]): void;
 
   unstable_on(event: ThreadRuntimeEventType, callback: () => void): Unsubscribe;
 }>;
