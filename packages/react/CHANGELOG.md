@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.10.27
+
+### Patch Changes
+
+- f23fdb6: feat: add parent ID grouping for message parts
+- Updated dependencies [f23fdb6]
+  - assistant-stream@0.2.20
+
 ## 0.10.26
 
 ### Patch Changes

@@ -1566,7 +1566,7 @@ importers:
         specifier: workspace:*
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.2.19
+        specifier: ^0.2.20
         version: link:../assistant-stream
       json-schema:
         specifier: ^0.4.0
@@ -1636,7 +1636,7 @@ importers:
         specifier: ^7.0.15
         version: 7.0.15
       assistant-stream:
-        specifier: ^0.2.19
+        specifier: ^0.2.20
         version: link:../assistant-stream
       json-schema:
         specifier: ^0.4.0
@@ -1713,7 +1713,7 @@ importers:
   packages/react-langgraph:
     dependencies:
       assistant-stream:
-        specifier: ^0.2.19
+        specifier: ^0.2.20
         version: link:../assistant-stream
       uuid:
         specifier: ^11.1.0

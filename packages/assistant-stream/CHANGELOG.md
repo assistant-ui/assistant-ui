@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.2.20
+
+### Patch Changes
+
+- f23fdb6: feat: add parent ID grouping for message parts
+
 ## 0.2.19
 
 ### Patch Changes
