@@ -6,6 +6,7 @@ import type { Unsubscribe } from "../../types/Unsubscribe";
 import { SpeechSynthesisAdapter } from "../adapters/speech/SpeechAdapterTypes";
 import { ChatModelRunOptions, ChatModelRunResult } from "../local";
 import { ExportedMessageRepository } from "../utils/MessageRepository";
+import { ThreadMessageLike } from "../external-store";
 import {
   ComposerRuntimeCore,
   ThreadComposerRuntimeCore,
@@ -117,6 +118,8 @@ export type ThreadRuntimeCore = Readonly<{
 
   import(repository: ExportedMessageRepository): void;
   export(): ExportedMessageRepository;
+
+  reset(initialMessages?: readonly ThreadMessageLike[]): void;
 
   unstable_on(event: ThreadRuntimeEventType, callback: () => void): Unsubscribe;
 }>;

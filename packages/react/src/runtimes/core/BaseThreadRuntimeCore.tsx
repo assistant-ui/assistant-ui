@@ -22,6 +22,7 @@ import { FeedbackAdapter } from "../adapters/feedback/FeedbackAdapter";
 import { AttachmentAdapter } from "../adapters/attachment";
 import { getThreadMessageText } from "../../utils/getThreadMessageText";
 import { ModelContextProvider } from "../../model-context";
+import { ThreadMessageLike } from "../external-store";
 
 type BaseThreadAdapters = {
   speech?: SpeechSynthesisAdapter | undefined;
@@ -192,6 +193,10 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
     this.repository.clear();
     this.repository.import(data);
     this._notifySubscribers();
+  }
+
+  public reset(initialMessages?: readonly ThreadMessageLike[]) {
+    this.import(ExportedMessageRepository.fromArray(initialMessages ?? []));
   }
 
   private _eventSubscribers = new Map<

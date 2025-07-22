@@ -9,6 +9,7 @@ import {
 } from "../runtimes/core/ThreadRuntimeCore";
 import { ExportedMessageRepository } from "../runtimes/utils/MessageRepository";
 import { AppendMessage, ThreadMessage, Unsubscribe } from "../types";
+import { ThreadMessageLike } from "../runtimes/external-store";
 import {
   MessageRuntime,
   MessageRuntimeImpl,
@@ -266,6 +267,14 @@ export type ThreadRuntime = {
 
   export(): ExportedMessageRepository;
   import(repository: ExportedMessageRepository): void;
+
+  /**
+   * Reset the thread with optional initial messages.
+   *
+   * @param initialMessages - Optional array of initial messages to populate the thread
+   */
+  reset(initialMessages?: readonly ThreadMessageLike[]): void;
+
   getMesssageByIndex(idx: number): MessageRuntime;
   getMesssageById(messageId: string): MessageRuntime;
 
@@ -340,6 +349,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     this.stopSpeaking = this.stopSpeaking.bind(this);
     this.export = this.export.bind(this);
     this.import = this.import.bind(this);
+    this.reset = this.reset.bind(this);
     this.getMesssageByIndex = this.getMesssageByIndex.bind(this);
     this.getMesssageById = this.getMesssageById.bind(this);
     this.subscribe = this.subscribe.bind(this);
@@ -401,6 +411,10 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
 
   public import(data: ExportedMessageRepository) {
     this._threadBinding.getState().import(data);
+  }
+
+  public reset(initialMessages?: readonly ThreadMessageLike[]) {
+    this._threadBinding.getState().reset(initialMessages);
   }
 
   public getMesssageByIndex(idx: number) {
