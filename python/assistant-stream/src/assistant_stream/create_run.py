@@ -1,5 +1,5 @@
 import asyncio
-from typing import Any, AsyncGenerator, Callable, Coroutine, List
+from typing import Any, AsyncGenerator, Callable, Coroutine, List, Optional
 from assistant_stream.assistant_stream_chunk import (
     AssistantStreamChunk,
     TextDeltaChunk,
@@ -7,6 +7,8 @@ from assistant_stream.assistant_stream_chunk import (
     ToolResultChunk,
     DataChunk,
     ErrorChunk,
+    SourceChunk,
+    ToolCallBeginChunk,
 )
 from assistant_stream.modules.tool_call import (
     create_tool_call,
@@ -17,27 +19,48 @@ from assistant_stream.state_manager import StateManager
 
 
 class RunController:
-    def __init__(self, queue, state_data):
+    def __init__(self, queue, state_data, parent_id: Optional[str] = None):
         self._queue = queue
         self._loop = asyncio.get_running_loop()
         self._dispose_callbacks = []
         self._stream_tasks = []
         self._state_manager = StateManager(self._put_chunk_nowait, state_data)
+        self._parent_id = parent_id
+
+    def with_parent_id(self, parent_id: str) -> 'RunController':
+        """Create a new RunController instance with the specified parent_id."""
+        controller = RunController(self._queue, self._state_manager._state_data, parent_id)
+        controller._loop = self._loop
+        controller._dispose_callbacks = self._dispose_callbacks
+        controller._stream_tasks = self._stream_tasks
+        controller._state_manager = self._state_manager
+        return controller
 
     def append_text(self, text_delta: str) -> None:
         """Append a text delta to the stream."""
-        chunk = TextDeltaChunk(text_delta=text_delta)
+        chunk = TextDeltaChunk(text_delta=text_delta, parent_id=self._parent_id)
         self._flush_and_put_chunk(chunk)
 
     def append_reasoning(self, reasoning_delta: str) -> None:
         """Append a reasoning delta to the stream."""
-        chunk = ReasoningDeltaChunk(reasoning_delta=reasoning_delta)
+        chunk = ReasoningDeltaChunk(reasoning_delta=reasoning_delta, parent_id=self._parent_id)
         self._flush_and_put_chunk(chunk)
 
     async def add_tool_call(
-        self, tool_name: str, tool_call_id: str = generate_openai_style_tool_call_id()
+        self, tool_name: str, tool_call_id: str = None
     ) -> ToolCallController:
         """Add a tool call to the stream."""
+        if tool_call_id is None:
+            tool_call_id = generate_openai_style_tool_call_id()
+        
+        # If parent_id is set, emit a ToolCallBeginChunk
+        if self._parent_id:
+            begin_chunk = ToolCallBeginChunk(
+                tool_call_id=tool_call_id,
+                tool_name=tool_name,
+                parent_id=self._parent_id
+            )
+            self._flush_and_put_chunk(begin_chunk)
 
         stream, controller = await create_tool_call(tool_name, tool_call_id)
         self._dispose_callbacks.append(controller.close)
@@ -71,6 +94,16 @@ class RunController:
     def add_error(self, error: str) -> None:
         """Emit an error to the main stream."""
         chunk = ErrorChunk(error=error)
+        self._flush_and_put_chunk(chunk)
+    
+    def add_source(self, id: str, url: str, title: Optional[str] = None) -> None:
+        """Add a source to the stream."""
+        chunk = SourceChunk(
+            id=id,
+            url=url,
+            title=title,
+            parent_id=self._parent_id
+        )
         self._flush_and_put_chunk(chunk)
 
     def _put_chunk_nowait(self, chunk):

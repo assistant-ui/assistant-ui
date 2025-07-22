@@ -4,11 +4,13 @@ import { ObjectStreamOperation } from "./object/types";
 export type PartInit =
   | {
       readonly type: "text" | "reasoning";
+      readonly parentId?: string;
     }
   | {
       readonly type: "tool-call";
       readonly toolCallId: string;
       readonly toolName: string;
+      readonly parentId?: string;
     }
   | {
       readonly type: "source";
@@ -16,6 +18,7 @@ export type PartInit =
       readonly id: string;
       readonly url: string;
       readonly title?: string;
+      readonly parentId?: string;
     }
   | {
       readonly type: "file";

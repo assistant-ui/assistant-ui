@@ -6,11 +6,13 @@ export type MessageRole = ThreadMessage["role"];
 export type TextMessagePart = {
   readonly type: "text";
   readonly text: string;
+  readonly parentId?: string;
 };
 
 export type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
+  readonly parentId?: string;
 };
 
 export type SourceMessagePart = {
@@ -19,6 +21,7 @@ export type SourceMessagePart = {
   readonly id: string;
   readonly url: string;
   readonly title?: string;
+  readonly parentId?: string;
 };
 
 export type ImageMessagePart = {
@@ -52,6 +55,7 @@ export type ToolCallMessagePart<
   readonly isError?: boolean | undefined;
   readonly argsText: string;
   readonly artifact?: unknown;
+  readonly parentId?: string;
 };
 
 export type ThreadUserMessagePart =

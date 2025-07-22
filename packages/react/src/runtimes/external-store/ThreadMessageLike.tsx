@@ -41,6 +41,7 @@ export type ThreadMessageLike = {
             readonly artifact?: any;
             readonly result?: any | undefined;
             readonly isError?: boolean | undefined;
+            readonly parentId?: string | undefined;
           }
       )[];
   readonly id?: string | undefined;
@@ -104,17 +105,22 @@ export const fromThreadMessageLike = (
                 return part;
 
               case "tool-call": {
+                const { parentId, ...basePart } = part;
+                const commonProps = {
+                  ...basePart,
+                  toolCallId: part.toolCallId ?? "tool-" + generateId(),
+                  ...(parentId !== undefined && { parentId }),
+                };
+
                 if (part.args) {
                   return {
-                    ...part,
-                    toolCallId: part.toolCallId ?? "tool-" + generateId(),
+                    ...commonProps,
                     args: part.args,
                     argsText: JSON.stringify(part.args),
                   };
                 }
                 return {
-                  ...part,
-                  toolCallId: part.toolCallId ?? "tool-" + generateId(),
+                  ...commonProps,
                   args:
                     part.args ??
                     parsePartialJsonObject(part.argsText ?? "") ??

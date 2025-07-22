@@ -55,17 +55,37 @@ export class DataStreamEncoder
               const part = chunk.meta;
               switch (part.type) {
                 case "text": {
-                  controller.enqueue({
-                    type: DataStreamStreamChunkType.TextDelta,
-                    value: chunk.textDelta,
-                  });
+                  if (part.parentId) {
+                    controller.enqueue({
+                      type: DataStreamStreamChunkType.AuiTextDelta,
+                      value: {
+                        textDelta: chunk.textDelta,
+                        parentId: part.parentId,
+                      },
+                    });
+                  } else {
+                    controller.enqueue({
+                      type: DataStreamStreamChunkType.TextDelta,
+                      value: chunk.textDelta,
+                    });
+                  }
                   break;
                 }
                 case "reasoning": {
-                  controller.enqueue({
-                    type: DataStreamStreamChunkType.ReasoningDelta,
-                    value: chunk.textDelta,
-                  });
+                  if (part.parentId) {
+                    controller.enqueue({
+                      type: DataStreamStreamChunkType.AuiReasoningDelta,
+                      value: {
+                        reasoningDelta: chunk.textDelta,
+                        parentId: part.parentId,
+                      },
+                    });
+                  } else {
+                    controller.enqueue({
+                      type: DataStreamStreamChunkType.ReasoningDelta,
+                      value: chunk.textDelta,
+                    });
+                  }
                   break;
                 }
                 case "tool-call": {
@@ -190,6 +210,8 @@ const TOOL_CALL_ARGS_CLOSING_CHUNKS = [
   DataStreamStreamChunkType.Error,
   DataStreamStreamChunkType.FinishStep,
   DataStreamStreamChunkType.FinishMessage,
+  DataStreamStreamChunkType.AuiTextDelta,
+  DataStreamStreamChunkType.AuiReasoningDelta,
 ];
 
 export class DataStreamDecoder extends PipeableTransformStream<
@@ -218,9 +240,24 @@ export class DataStreamDecoder extends PipeableTransformStream<
               controller.appendText(value);
               break;
 
+            case DataStreamStreamChunkType.AuiTextDelta:
+              controller
+                .withParentId(value.parentId)
+                .appendText(value.textDelta);
+              break;
+
+            case DataStreamStreamChunkType.AuiReasoningDelta:
+              controller
+                .withParentId(value.parentId)
+                .appendReasoning(value.reasoningDelta);
+              break;
+
             case DataStreamStreamChunkType.StartToolCall: {
-              const { toolCallId, toolName } = value;
-              const toolCallController = controller.addToolCallPart({
+              const { toolCallId, toolName, parentId } = value;
+              const ctrl = parentId
+                ? controller.withParentId(parentId)
+                : controller;
+              const toolCallController = ctrl.addToolCallPart({
                 toolCallId,
                 toolName,
               });
@@ -312,12 +349,17 @@ export class DataStreamDecoder extends PipeableTransformStream<
               });
               break;
 
-            case DataStreamStreamChunkType.Source:
-              controller.appendSource({
+            case DataStreamStreamChunkType.Source: {
+              const { parentId, ...sourceData } = value;
+              const ctrl = parentId
+                ? controller.withParentId(parentId)
+                : controller;
+              ctrl.appendSource({
                 type: "source",
-                ...value,
+                ...sourceData,
               });
               break;
+            }
 
             case DataStreamStreamChunkType.Error:
               controller.enqueue({

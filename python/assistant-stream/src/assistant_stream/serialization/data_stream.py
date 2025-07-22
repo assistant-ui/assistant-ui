@@ -15,11 +15,20 @@ class DataStreamEncoder(StreamEncoder):
 
     def encode_chunk(self, chunk: AssistantStreamChunk) -> str:
         if chunk.type == "text-delta":
-            return f"0:{json.dumps(chunk.text_delta)}\n"
+            if hasattr(chunk, 'parent_id') and chunk.parent_id:
+                return f"aui-text-delta:{json.dumps({'textDelta': chunk.text_delta, 'parentId': chunk.parent_id})}\n"
+            else:
+                return f"0:{json.dumps(chunk.text_delta)}\n"
         elif chunk.type == "reasoning-delta":
-            return f"g:{json.dumps(chunk.reasoning_delta)}\n"
+            if hasattr(chunk, 'parent_id') and chunk.parent_id:
+                return f"aui-reasoning-delta:{json.dumps({'reasoningDelta': chunk.reasoning_delta, 'parentId': chunk.parent_id})}\n"
+            else:
+                return f"g:{json.dumps(chunk.reasoning_delta)}\n"
         elif chunk.type == "tool-call-begin":
-            return f'b:{json.dumps({ "toolCallId": chunk.tool_call_id, "toolName": chunk.tool_name })}\n'
+            data = {"toolCallId": chunk.tool_call_id, "toolName": chunk.tool_name}
+            if hasattr(chunk, 'parent_id') and chunk.parent_id:
+                data["parentId"] = chunk.parent_id
+            return f'b:{json.dumps(data)}\n'
         elif chunk.type == "tool-call-delta":
             return f'c:{json.dumps({ "toolCallId": chunk.tool_call_id, "argsTextDelta": chunk.args_text_delta })}\n'
         elif chunk.type == "tool-result":
@@ -41,6 +50,8 @@ class DataStreamEncoder(StreamEncoder):
             }
             if chunk.title is not None:
                 source_data["title"] = chunk.title
+            if hasattr(chunk, 'parent_id') and chunk.parent_id:
+                source_data["parentId"] = chunk.parent_id
             return f"h:{json.dumps(source_data)}\n"
         elif chunk.type == "update-state":
             return f"aui-state:{json.dumps(chunk.operations)}\n"

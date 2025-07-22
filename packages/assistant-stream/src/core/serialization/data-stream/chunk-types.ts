@@ -44,6 +44,8 @@ export enum DataStreamStreamChunkType {
   File = "k",
 
   AuiUpdateStateOperations = "aui-state",
+  AuiTextDelta = "aui-text-delta",
+  AuiReasoningDelta = "aui-reasoning-delta",
 }
 type DataStreamStreamChunkValue = {
   [DataStreamStreamChunkType.TextDelta]: string;
@@ -57,6 +59,7 @@ type DataStreamStreamChunkValue = {
   [DataStreamStreamChunkType.StartToolCall]: {
     toolCallId: string;
     toolName: string;
+    parentId?: string;
   };
   [DataStreamStreamChunkType.ToolCallArgsTextDelta]: {
     toolCallId: string;
@@ -89,6 +92,7 @@ type DataStreamStreamChunkValue = {
     id: string;
     url: string;
     title?: string;
+    parentId?: string;
   };
   [DataStreamStreamChunkType.RedactedReasoning]: { data: string };
   [DataStreamStreamChunkType.ReasoningSignature]: { signature: string };
@@ -96,4 +100,12 @@ type DataStreamStreamChunkValue = {
 
   // aui-extensions
   [DataStreamStreamChunkType.AuiUpdateStateOperations]: ObjectStreamOperation[];
+  [DataStreamStreamChunkType.AuiTextDelta]: {
+    textDelta: string;
+    parentId: string;
+  };
+  [DataStreamStreamChunkType.AuiReasoningDelta]: {
+    reasoningDelta: string;
+    parentId: string;
+  };
 };
