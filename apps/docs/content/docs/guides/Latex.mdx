@@ -1,0 +1,81 @@
+---
+title: LaTeX
+---
+
+import { Steps, Step } from "fumadocs-ui/components/steps";
+import { Callout } from "fumadocs-ui/components/callout";
+
+Render LaTeX mathematical expressions in chat messages using KaTeX.
+
+<Callout type="warn">LaTeX rendering is not enabled in markdown by default.</Callout>
+
+<Steps>
+  <Step>
+
+### Install dependencies
+
+```bash
+npm i katex rehype-katex remark-math
+```
+
+  </Step>
+  <Step>
+
+### Add KaTeX CSS to your layout
+
+```tsx title="/app/layout.tsx"
+import "katex/dist/katex.min.css"; // [!code ++]
+```
+
+  </Step>
+  <Step>
+
+### Update `markdown-text.tsx`
+
+```tsx title="/components/assistant-ui/markdown-text.tsx"
+import remarkMath from "remark-math";     // [!code ++]
+import rehypeKatex from "rehype-katex";   // [!code ++]
+
+const MarkdownTextImpl = () => {
+  return (
+    <MarkdownTextPrimitive
+      remarkPlugins={[remarkGfm, remarkMath]} // add remarkMath // [!code ++]
+      rehypePlugins={[rehypeKatex]}           // add rehypeKatex // [!code ++]
+      className="aui-md"
+      components={defaultComponents}
+    />
+  );
+};
+
+export const MarkdownText = memo(MarkdownTextImpl);
+```
+
+  </Step>
+</Steps>
+
+## Examples
+
+### Inline math
+
+Single dollar signs for inline math: `$E = mc^2$`
+
+### Block math
+
+Double dollar signs for block math:
+
+```
+$$
+\int_{a}^{b} f(x) \, dx = F(b) - F(a)
+$$
+```
+
+### Fenced code blocks
+
+Fenced code blocks with the `math` language identifier:
+
+````
+```math
+\sum_{i=1}^{n} i = \frac{n(n+1)}{2}
+```
+````
+
