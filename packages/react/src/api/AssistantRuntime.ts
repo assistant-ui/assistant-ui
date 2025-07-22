@@ -49,7 +49,7 @@ export type AssistantRuntime = {
   registerModelConfigProvider(provider: ModelContextProvider): Unsubscribe;
 
   /**
-   * @deprecated Deprecated. Please use `runtime.thread.reset(initialMessages)`.
+   * @deprecated Use `runtime.thread.reset(initialMessages)`.
    */
   reset: unknown; // make it a type error
 };
