@@ -40,6 +40,7 @@ export type AssistantStreamController = {
   enqueue(chunk: AssistantStreamChunk): void;
   merge(stream: AssistantStream): void;
   close(): void;
+  withParentId(parentId: string): AssistantStreamController;
 };
 
 class AssistantStreamControllerImpl implements AssistantStreamController {
@@ -51,6 +52,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
       }
     | undefined;
   private _contentCounter = new Counter();
+  private _parentId?: string;
 
   get __internal_isClosed() {
     return this._merger.isSealed();
@@ -146,7 +148,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
 
   appendSource(options: SourcePart) {
     this._addPart(
-      options,
+      { ...options, ...(this._parentId && { parentId: this._parentId }) },
       new ReadableStream({
         start(controller) {
           controller.enqueue({
@@ -180,6 +182,16 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     if (chunk.type === "part-start" && chunk.path.length === 0) {
       this._contentCounter.up();
     }
+  }
+
+  withParentId(parentId: string): AssistantStreamController {
+    const controller = new AssistantStreamControllerImpl();
+    controller._merger = this._merger;
+    controller._append = this._append;
+    controller._contentCounter = this._contentCounter;
+    controller._closeSubscriber = this._closeSubscriber;
+    controller._parentId = parentId;
+    return controller;
   }
 
   close() {

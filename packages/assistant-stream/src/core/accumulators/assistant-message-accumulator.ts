@@ -66,6 +66,7 @@ const handlePartStart = (
       type: partInit.type,
       text: "",
       status: { type: "running" },
+      ...(partInit.parentId && { parentId: partInit.parentId }),
     };
     return {
       ...message,
@@ -83,6 +84,7 @@ const handlePartStart = (
       toolName: partInit.toolName,
       argsText: "",
       args: {},
+      ...(partInit.parentId && { parentId: partInit.parentId }),
     };
     return {
       ...message,
@@ -98,6 +100,7 @@ const handlePartStart = (
       id: partInit.id,
       url: partInit.url,
       ...(partInit.title ? { title: partInit.title } : undefined),
+      ...(partInit.parentId && { parentId: partInit.parentId }),
     };
     return {
       ...message,

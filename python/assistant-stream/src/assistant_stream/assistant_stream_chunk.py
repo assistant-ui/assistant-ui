@@ -7,12 +7,14 @@ from typing import Any, Dict, List, Literal, Optional, TypedDict, Union
 class TextDeltaChunk:
     text_delta: str
     type: str = "text-delta"
+    parent_id: Optional[str] = None
 
 
 @dataclass
 class ReasoningDeltaChunk:
     reasoning_delta: str
     type: str = "reasoning-delta"
+    parent_id: Optional[str] = None
 
 
 @dataclass
@@ -20,6 +22,7 @@ class ToolCallBeginChunk:
     tool_call_id: str
     tool_name: str
     type: str = "tool-call-begin"
+    parent_id: Optional[str] = None
 
 
 @dataclass
@@ -79,6 +82,7 @@ class SourceChunk:
     source_type: str = "url"
     title: Optional[str] = None
     type: str = "source"
+    parent_id: Optional[str] = None
 
 
 # Define the union type for AssistantStreamChunk

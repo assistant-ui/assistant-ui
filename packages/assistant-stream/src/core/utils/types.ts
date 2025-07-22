@@ -24,12 +24,14 @@ export type TextPart = {
   type: "text";
   text: string;
   status: TextStatus;
+  parentId?: string;
 };
 
 export type ReasoningPart = {
   type: "reasoning";
   text: string;
   status: TextStatus;
+  parentId?: string;
 };
 
 type ToolCallStatus =
@@ -60,6 +62,7 @@ type ToolCallPartBase = {
   artifact?: ReadonlyJSONValue;
   result?: ReadonlyJSONValue;
   isError?: boolean;
+  parentId?: string;
 };
 
 type ToolCallPartWithoutResult = ToolCallPartBase & {
@@ -82,6 +85,7 @@ export type SourcePart = {
   id: string;
   url: string;
   title?: string;
+  parentId?: string;
 };
 
 export type FilePart = {
