@@ -55,17 +55,17 @@ const groupMessagePartsByParentId = (
   for (let i = 0; i < parts.length; i++) {
     const part = parts[i];
     const parentId = part?.parentId as string | undefined;
-    
+
     if (parentId !== undefined) {
       let groupIndex = parentIdToGroupIndex.get(parentId);
-      
+
       if (groupIndex === undefined) {
         // Create new group for this parent ID
         groupIndex = groups.length;
         groups.push({ parentId, indices: [] });
         parentIdToGroupIndex.set(parentId, groupIndex);
       }
-      
+
       groups[groupIndex]!.indices.push(i);
       processedIndices.add(i);
     }
@@ -186,7 +186,10 @@ export namespace MessagePrimitiveUnstable_PartsGroupedByParentId {
            * @param children - Rendered message part components to display within the group
            */
           Group?: ComponentType<
-            PropsWithChildren<{ parentId: string | undefined; indices: number[] }>
+            PropsWithChildren<{
+              parentId: string | undefined;
+              indices: number[];
+            }>
           >;
         }
       | undefined;
@@ -373,9 +376,9 @@ const EmptyParts = memo(
  * />
  * ```
  */
-export const MessagePrimitiveUnstable_PartsGroupedByParentId: FC<MessagePrimitiveUnstable_PartsGroupedByParentId.Props> = ({
-  components,
-}) => {
+export const MessagePrimitiveUnstable_PartsGroupedByParentId: FC<
+  MessagePrimitiveUnstable_PartsGroupedByParentId.Props
+> = ({ components }) => {
   const contentLength = useMessage((s) => s.content.length);
   const messageGroups = useMessagePartsGroupedByParentId();
 
@@ -386,10 +389,10 @@ export const MessagePrimitiveUnstable_PartsGroupedByParentId: FC<MessagePrimitiv
 
     return messageGroups.map((group, groupIndex) => {
       const GroupComponent = components?.Group ?? defaultComponents.Group;
-      
+
       return (
         <GroupComponent
-          key={`group-${groupIndex}-${group.parentId ?? 'ungrouped'}`}
+          key={`group-${groupIndex}-${group.parentId ?? "ungrouped"}`}
           parentId={group.parentId}
           indices={group.indices}
         >
@@ -408,4 +411,5 @@ export const MessagePrimitiveUnstable_PartsGroupedByParentId: FC<MessagePrimitiv
   return <>{partsElements}</>;
 };
 
-MessagePrimitiveUnstable_PartsGroupedByParentId.displayName = "MessagePrimitive.Unstable_PartsGroupedByParentId";
+MessagePrimitiveUnstable_PartsGroupedByParentId.displayName =
+  "MessagePrimitive.Unstable_PartsGroupedByParentId";

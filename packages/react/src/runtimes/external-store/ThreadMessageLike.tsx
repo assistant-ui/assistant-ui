@@ -111,7 +111,7 @@ export const fromThreadMessageLike = (
                   toolCallId: part.toolCallId ?? "tool-" + generateId(),
                   ...(parentId !== undefined && { parentId }),
                 };
-                
+
                 if (part.args) {
                   return {
                     ...commonProps,

@@ -77,8 +77,9 @@ const ThreadWelcome: FC = () => {
       <div className="flex w-full max-w-[var(--thread-max-width)] flex-grow flex-col">
         <div className="flex w-full flex-grow flex-col items-center justify-center">
           <p className="mt-4 font-medium">Parent ID Grouping Demo</p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            This example demonstrates how message parts can be grouped by parent ID
+          <p className="text-muted-foreground mt-2 text-sm">
+            This example demonstrates how message parts can be grouped by parent
+            ID
           </p>
         </div>
         <ThreadWelcomeSuggestions />
@@ -205,41 +206,46 @@ const EditComposer: FC = () => {
 };
 
 // Custom Group component for parent ID grouping
-const ParentIdGroup: FC<PropsWithChildren<{ parentId: string | undefined; indices: number[] }>> = ({ 
-  parentId, 
-  indices, 
-  children 
-}) => {
+const ParentIdGroup: FC<
+  PropsWithChildren<{ parentId: string | undefined; indices: number[] }>
+> = ({ parentId, indices, children }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  
+
   if (!parentId) {
     // Ungrouped parts - just render them directly
     return <>{children}</>;
   }
 
   return (
-    <div className="my-2 rounded-lg border border-border/50 bg-muted/20 overflow-hidden">
+    <div className="border-border/50 bg-muted/20 my-2 overflow-hidden rounded-lg border">
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
-        className="flex w-full items-center justify-between px-4 py-2 text-sm font-medium hover:bg-muted/40 transition-colors"
+        className="hover:bg-muted/40 flex w-full items-center justify-between px-4 py-2 text-sm font-medium transition-colors"
       >
         <span className="flex items-center gap-2">
           <span className="text-muted-foreground">Research Group:</span>
           <span className="text-foreground">
             {parentId === "research-climate-causes" && "Climate Change Causes"}
-            {parentId === "research-climate-effects" && "Climate Change Effects"}
+            {parentId === "research-climate-effects" &&
+              "Climate Change Effects"}
             {parentId === "new-research" && "Recent Research"}
-            {!["research-climate-causes", "research-climate-effects", "new-research"].includes(parentId) && parentId}
+            {![
+              "research-climate-causes",
+              "research-climate-effects",
+              "new-research",
+            ].includes(parentId) && parentId}
           </span>
-          <span className="text-xs text-muted-foreground">({indices.length} parts)</span>
+          <span className="text-muted-foreground text-xs">
+            ({indices.length} parts)
+          </span>
         </span>
-        {isCollapsed ? <ChevronDownIcon className="h-4 w-4" /> : <ChevronUpIcon className="h-4 w-4" />}
+        {isCollapsed ? (
+          <ChevronDownIcon className="h-4 w-4" />
+        ) : (
+          <ChevronUpIcon className="h-4 w-4" />
+        )}
       </button>
-      {!isCollapsed && (
-        <div className="px-4 py-2 space-y-2">
-          {children}
-        </div>
-      )}
+      {!isCollapsed && <div className="space-y-2 px-4 py-2">{children}</div>}
     </div>
   );
 };
@@ -248,31 +254,40 @@ const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="relative grid w-full max-w-[var(--thread-max-width)] grid-cols-[auto_auto_1fr] grid-rows-[auto_1fr] py-4">
       <div className="text-foreground col-span-2 col-start-2 row-start-1 my-1.5 max-w-[calc(var(--thread-max-width)*0.8)] break-words leading-7">
-        <MessagePrimitive.Unstable_PartsGroupedByParentId 
-          components={{ 
+        <MessagePrimitive.Unstable_PartsGroupedByParentId
+          components={{
             Text: MarkdownText,
             Group: ParentIdGroup,
             Source: ({ url, title }) => (
-              <div className="text-sm text-muted-foreground">
-                <a href={url} target="_blank" rel="noopener noreferrer" className="hover:underline">
+              <div className="text-muted-foreground text-sm">
+                <a
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:underline"
+                >
                   📄 {title || url}
                 </a>
               </div>
             ),
             tools: {
               Fallback: ({ toolName, args, result }) => (
-                <div className="my-1 rounded-md bg-muted/40 p-2 text-sm">
-                  <div className="font-medium text-muted-foreground">🔧 {toolName}</div>
-                  <div className="text-xs text-muted-foreground mt-1">
+                <div className="bg-muted/40 my-1 rounded-md p-2 text-sm">
+                  <div className="text-muted-foreground font-medium">
+                    🔧 {toolName}
+                  </div>
+                  <div className="text-muted-foreground mt-1 text-xs">
                     <details>
                       <summary className="cursor-pointer">View details</summary>
-                      <pre className="mt-2 overflow-x-auto">{JSON.stringify({ args, result }, null, 2)}</pre>
+                      <pre className="mt-2 overflow-x-auto">
+                        {JSON.stringify({ args, result }, null, 2)}
+                      </pre>
                     </details>
                   </div>
                 </div>
               ),
             },
-          }} 
+          }}
         />
       </div>
 

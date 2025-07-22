@@ -1,6 +1,11 @@
 "use client";
 
-import { ThreadMessageLike, AppendMessage, AssistantRuntimeProvider, useExternalStoreRuntime } from "@assistant-ui/react";
+import {
+  ThreadMessageLike,
+  AppendMessage,
+  AssistantRuntimeProvider,
+  useExternalStoreRuntime,
+} from "@assistant-ui/react";
 import { useState } from "react";
 
 const convertMessage = (message: ThreadMessageLike) => {

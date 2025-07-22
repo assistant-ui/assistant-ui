@@ -239,18 +239,24 @@ export class DataStreamDecoder extends PipeableTransformStream<
             case DataStreamStreamChunkType.TextDelta:
               controller.appendText(value);
               break;
-            
+
             case DataStreamStreamChunkType.AuiTextDelta:
-              controller.withParentId(value.parentId).appendText(value.textDelta);
+              controller
+                .withParentId(value.parentId)
+                .appendText(value.textDelta);
               break;
-            
+
             case DataStreamStreamChunkType.AuiReasoningDelta:
-              controller.withParentId(value.parentId).appendReasoning(value.reasoningDelta);
+              controller
+                .withParentId(value.parentId)
+                .appendReasoning(value.reasoningDelta);
               break;
 
             case DataStreamStreamChunkType.StartToolCall: {
               const { toolCallId, toolName, parentId } = value;
-              const ctrl = parentId ? controller.withParentId(parentId) : controller;
+              const ctrl = parentId
+                ? controller.withParentId(parentId)
+                : controller;
               const toolCallController = ctrl.addToolCallPart({
                 toolCallId,
                 toolName,
@@ -345,7 +351,9 @@ export class DataStreamDecoder extends PipeableTransformStream<
 
             case DataStreamStreamChunkType.Source: {
               const { parentId, ...sourceData } = value;
-              const ctrl = parentId ? controller.withParentId(parentId) : controller;
+              const ctrl = parentId
+                ? controller.withParentId(parentId)
+                : controller;
               ctrl.appendSource({
                 type: "source",
                 ...sourceData,
