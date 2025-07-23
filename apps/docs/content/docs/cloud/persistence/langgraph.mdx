@@ -1,10 +1,10 @@
 ---
 title: Chat History for LangGraph Cloud
-description: Add persistent chat history and thread management to your LangGraph Cloud application with assistant-cloud
 ---
 
 import { Steps, Step } from 'fumadocs-ui/components/steps';
 import { Callout } from 'fumadocs-ui/components/callout';
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
 
 ## Overview
 
@@ -63,7 +63,11 @@ npm install @assistant-ui/react @assistant-ui/react-langgraph
 
 ### Create the Runtime Provider
 
-Create a runtime provider that integrates LangGraph with assistant-cloud:
+Create a runtime provider that integrates LangGraph with assistant-cloud. Choose between anonymous mode for demos/prototypes or authenticated mode for production:
+
+<Tabs items={["Anonymous", "Authenticated (Clerk)"]}>
+
+<Tab value="Anonymous">
 
 ```tsx title="app/chat/runtime-provider.tsx"
 "use client";
@@ -77,10 +81,8 @@ import {
 import { useLangGraphRuntime } from "@assistant-ui/react-langgraph";
 import { createThread, getThreadState, sendMessage } from "@/lib/chatApi";
 import { LangChainMessage } from "@assistant-ui/react-langgraph";
-import { useAuth } from "@clerk/nextjs";
 import { useMemo } from "react";
 
-// Hook for individual thread runtime
 const useMyLangGraphRuntime = () => {
   const threadListItemRuntime = useThreadListItemRuntime();
   
@@ -89,8 +91,12 @@ const useMyLangGraphRuntime = () => {
       const { externalId } = await threadListItemRuntime.initialize();
       if (!externalId) throw new Error("Thread not found");
 
-      return sendMessage({ threadId: externalId, messages });
+      return sendMessage({
+        threadId: externalId,
+        messages,
+      });
     },
+
     onSwitchToThread: async (externalId) => {
       const state = await getThreadState(externalId);
       return {
@@ -108,19 +114,15 @@ export function MyRuntimeProvider({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const { getToken } = useAuth();
-
-  // Initialize cloud instance with authentication
   const cloud = useMemo(
     () =>
       new AssistantCloud({
         baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
-        authToken: async () => getToken({ template: "assistant-ui" }),
+        anonymous: true, // Creates browser session-based user ID
       }),
-    [getToken],
+    [],
   );
 
-  // Create runtime with cloud persistence
   const runtime = useCloudThreadListRuntime({
     cloud,
     runtimeHook: useMyLangGraphRuntime,
@@ -137,6 +139,92 @@ export function MyRuntimeProvider({
   );
 }
 ```
+
+</Tab>
+
+<Tab value="Authenticated (Clerk)">
+
+```tsx title="app/chat/runtime-provider.tsx"
+"use client";
+
+import {
+  AssistantCloud,
+  AssistantRuntimeProvider,
+  useCloudThreadListRuntime,
+  useThreadListItemRuntime,
+} from "@assistant-ui/react";
+import { useLangGraphRuntime } from "@assistant-ui/react-langgraph";
+import { createThread, getThreadState, sendMessage } from "@/lib/chatApi";
+import { LangChainMessage } from "@assistant-ui/react-langgraph";
+import { useAuth } from "@clerk/nextjs";
+import { useMemo } from "react";
+
+const useMyLangGraphRuntime = () => {
+  const threadListItemRuntime = useThreadListItemRuntime();
+  
+  const runtime = useLangGraphRuntime({
+    stream: async function* (messages) {
+      const { externalId } = await threadListItemRuntime.initialize();
+      if (!externalId) throw new Error("Thread not found");
+
+      return sendMessage({
+        threadId: externalId,
+        messages,
+      });
+    },
+
+    onSwitchToThread: async (externalId) => {
+      const state = await getThreadState(externalId);
+      return {
+        messages:
+          (state.values as { messages?: LangChainMessage[] }).messages ?? []
+      };
+    },
+  });
+
+  return runtime;
+};
+
+export function MyRuntimeProvider({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  const { getToken } = useAuth();
+
+  const cloud = useMemo(
+    () =>
+      new AssistantCloud({
+        baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+        authToken: async () => getToken({ template: "assistant-ui" }),
+      }),
+    [getToken],
+  );
+
+  const runtime = useCloudThreadListRuntime({
+    cloud,
+    runtimeHook: useMyLangGraphRuntime,
+    create: async () => {
+      const { thread_id } = await createThread();
+      return { externalId: thread_id };
+    },
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+<Callout type="info">
+  For Clerk authentication, configure the `"assistant-ui"` token template in your Clerk dashboard.
+</Callout>
+
+</Tab>
+
+</Tabs>
 
 <Callout type="info">
   The `useMyLangGraphRuntime` hook is extracted into a separate function because it will be mounted multiple times, once per active thread.
@@ -176,7 +264,10 @@ export default function ChatPage() {
 
 ## Authentication
 
-This example uses [Clerk](https://clerk.com/) for authentication with the `authToken` callback. The token template `"assistant-ui"` should be configured in your Clerk dashboard.
+The examples above show two authentication modes:
+
+- **Anonymous**: Suitable for demos and prototypes. Creates a browser session-based user ID.
+- **Authenticated**: For production use with user accounts. The authenticated example uses [Clerk](https://clerk.com/), but you can integrate any auth provider.
 
 For other authentication providers or custom implementations, see the [Cloud Authorization](/docs/cloud/authorization) guide.
 
