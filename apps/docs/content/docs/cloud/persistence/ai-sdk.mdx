@@ -18,17 +18,20 @@ You need an assistant-cloud account to follow this guide. You can sign up here: 
 ```bash
 NEXT_PUBLIC_ASSISTANT_BASE_URL=[YOUR_FRONTEND_API_URL]
 ```
-3. Create a client side AssistantCloud instance. Note: this will create an anonymous user id that is tied to the user's browser session. For connecting to an auth provider to persist threads for a user based on a workspace and/or user id, look at [Cloud Authorization Docs](/docs/cloud/authorization).
+3. Add the assistant-cloud API key as environment variable `ASSISTANT_API_KEY`
+
+```bash
+ASSISTANT_API_KEY=[YOUR_API_KEY]
+```
+4. Create a client side AssistantCloud instance. Note: this will create an anonymous user id that is tied to the user's browser session. For connecting to an auth provider to persist threads for a user based on a workspace and/or user id, look at [Cloud Authorization Docs](/docs/cloud/authorization).
 
 ```typescript
 "use client";
-import {
-  AssistantCloud,
-  AssistantRuntimeProvider,
-  ThreadList,
-  Thread
-} from "@assistant-ui/react";
+
+import { AssistantCloud, AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { ThreadList } from "@/components/assistant-ui/thread-list";
+import { Thread } from "@/components/assistant-ui/thread";
 
 
 const cloud = new AssistantCloud({
