@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.10.29
+
+### Patch Changes
+
+- 1f2fb01: fix: message id not found when using messageRepository in external store
+
 ## 0.10.28
 
 ### Patch Changes

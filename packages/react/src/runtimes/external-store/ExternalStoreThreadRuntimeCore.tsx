@@ -123,6 +123,7 @@ export class ExternalStoreThreadRuntimeCore
 
       // Clear and import the message repository
       this.repository.clear();
+      this.assistantOptimisticId = null;
       this.repository.import(store.messageRepository);
 
       messages = this.repository.getMessages();
