@@ -108,46 +108,79 @@ export class ExternalStoreThreadRuntimeCore
       feedback: !!this._store.adapters?.feedback,
     };
 
-    if (oldStore) {
-      // flush the converter cache when the convertMessage prop changes
-      if (oldStore.convertMessage !== store.convertMessage) {
-        this._converter = new ThreadMessageConverter();
-      } else if (
+    let messages: readonly ThreadMessage[];
+
+    if (store.messageRepository) {
+      // Handle messageRepository
+      if (
+        oldStore &&
         oldStore.isRunning === store.isRunning &&
-        oldStore.messages === store.messages
+        oldStore.messageRepository === store.messageRepository
       ) {
         this._notifySubscribers();
-        // no conversion update
         return;
       }
+
+      // Clear and import the message repository
+      this.repository.clear();
+      this.repository.import(store.messageRepository);
+
+      messages = this.repository.getMessages();
+    } else if (store.messages) {
+      // Handle messages array
+
+      if (oldStore) {
+        // flush the converter cache when the convertMessage prop changes
+        if (oldStore.convertMessage !== store.convertMessage) {
+          this._converter = new ThreadMessageConverter();
+        } else if (
+          oldStore.isRunning === store.isRunning &&
+          oldStore.messages === store.messages
+        ) {
+          this._notifySubscribers();
+          // no conversion update
+          return;
+        }
+      }
+
+      messages = !store.convertMessage
+        ? store.messages
+        : this._converter.convertMessages(store.messages, (cache, m, idx) => {
+            if (!store.convertMessage) return m;
+
+            const isLast = idx === store.messages!.length - 1;
+            const autoStatus = getAutoStatus(isLast, isRunning);
+
+            if (
+              cache &&
+              (cache.role !== "assistant" ||
+                !isAutoStatus(cache.status) ||
+                cache.status === autoStatus)
+            )
+              return cache;
+
+            const messageLike = store.convertMessage(m, idx);
+            const newMessage = fromThreadMessageLike(
+              messageLike,
+              idx.toString(),
+              autoStatus,
+            );
+            (newMessage as any)[symbolInnerMessage] = m;
+            return newMessage;
+          });
+
+      for (let i = 0; i < messages.length; i++) {
+        const message = messages[i]!;
+        const parent = messages[i - 1];
+        this.repository.addOrUpdateMessage(parent?.id ?? null, message);
+      }
+    } else {
+      throw new Error(
+        "ExternalStoreAdapter must provide either 'messages' or 'messageRepository'",
+      );
     }
 
-    const messages = !store.convertMessage
-      ? store.messages
-      : this._converter.convertMessages(store.messages, (cache, m, idx) => {
-          if (!store.convertMessage) return m;
-
-          const isLast = idx === store.messages.length - 1;
-          const autoStatus = getAutoStatus(isLast, isRunning);
-
-          if (
-            cache &&
-            (cache.role !== "assistant" ||
-              !isAutoStatus(cache.status) ||
-              cache.status === autoStatus)
-          )
-            return cache;
-
-          const messageLike = store.convertMessage(m, idx);
-          const newMessage = fromThreadMessageLike(
-            messageLike,
-            idx.toString(),
-            autoStatus,
-          );
-          (newMessage as any)[symbolInnerMessage] = m;
-          return newMessage;
-        });
-
+    // Common logic for both paths
     if (messages.length > 0) this.ensureInitialized();
 
     if (oldStore?.isRunning ?? false !== store.isRunning ?? false) {
@@ -156,12 +189,6 @@ export class ExternalStoreThreadRuntimeCore
       } else {
         this._notifyEventSubscribers("run-end");
       }
-    }
-
-    for (let i = 0; i < messages.length; i++) {
-      const message = messages[i]!;
-      const parent = messages[i - 1];
-      this.repository.addOrUpdateMessage(parent?.id ?? null, message);
     }
 
     if (this.assistantOptimisticId) {
