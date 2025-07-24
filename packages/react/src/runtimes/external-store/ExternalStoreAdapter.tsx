@@ -8,6 +8,7 @@ import {
 import { FeedbackAdapter } from "../adapters/feedback/FeedbackAdapter";
 import { SpeechSynthesisAdapter } from "../adapters/speech/SpeechAdapterTypes";
 import { ThreadMessageLike } from "./ThreadMessageLike";
+import { ExportedMessageRepository } from "../utils/MessageRepository";
 
 export type ExternalStoreThreadData<TState extends "regular" | "archived"> = {
   status: TState;
@@ -53,7 +54,8 @@ type ExternalStoreAdapterBase<T> = {
   isDisabled?: boolean | undefined;
   isRunning?: boolean | undefined;
   isLoading?: boolean | undefined;
-  messages: readonly T[];
+  messages?: readonly T[];
+  messageRepository?: ExportedMessageRepository;
   suggestions?: readonly ThreadSuggestion[] | undefined;
   extras?: unknown;
 
