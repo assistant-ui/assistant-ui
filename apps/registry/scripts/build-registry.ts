@@ -2,6 +2,7 @@ import { promises as fs, readFileSync } from "node:fs";
 import * as path from "node:path";
 import { registry } from "../src/registry";
 import { RegistryItem } from "@/src/schema";
+import baseComponentsStyles from "../../../packages/styles/dist/styles/tailwindcss/base-components.css.json";
 import threadStyles from "../../../packages/styles/dist/styles/tailwindcss/thread.css.json";
 import modalStyles from "../../../packages/styles/dist/styles/tailwindcss/modal.css.json";
 import markdownStyles from "../../../packages/styles/dist/styles/tailwindcss/markdown.css.json";
@@ -10,6 +11,7 @@ const REGISTRY_PATH = path.join(process.cwd(), "dist");
 
 const tailwindStyles = Object.entries({
   ".aui-root": {},
+  ...baseComponentsStyles,
   ...threadStyles,
   ...modalStyles,
   ...markdownStyles,
