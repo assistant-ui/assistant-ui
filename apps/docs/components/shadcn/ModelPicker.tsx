@@ -4,6 +4,7 @@ import Image from "next/image";
 import type { FC } from "react";
 import anthropic from "../../assets/providers/anthropic.svg";
 import fireworks from "../../assets/providers/fireworks.svg";
+import aimlapi from "../../assets/providers/aimlapi.svg";
 import google from "../../assets/providers/google.svg";
 import deepseek from "../../assets/providers/deepseek.svg";
 import meta from "../../assets/providers/meta.svg";
@@ -47,6 +48,11 @@ const models = [
     name: "Firefunction V2",
     value: "firefunction-v2",
     icon: fireworks,
+  },
+  {
+    name: "Llama 3.3 70B Instruct Turbo",
+    value: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+    icon: aimlapi,
   },
   {
     name: "Mistral 7b",
