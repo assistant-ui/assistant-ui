@@ -1,0 +1,1223 @@
+---
+title: Production Deployment
+description: Deploy your Assistant UI application to production with best practices for security, scaling, and monitoring
+---
+
+# Production Deployment
+
+Taking your Assistant UI application to production requires careful consideration of security, scalability, monitoring, and deployment strategies. This module covers everything you need for a successful production deployment.
+
+## Environment Setup
+
+### Environment Configuration
+
+Set up proper environment management:
+
+```bash
+# .env.example
+# API Configuration
+OPENAI_API_KEY=your_openai_api_key
+ANTHROPIC_API_KEY=your_anthropic_api_key
+GOOGLE_API_KEY=your_google_api_key
+
+# Database
+DATABASE_URL=postgresql://username:password@localhost:5432/myapp
+REDIS_URL=redis://localhost:6379
+
+# Security
+NEXTAUTH_SECRET=your_nextauth_secret
+NEXTAUTH_URL=https://yourdomain.com
+
+# Monitoring
+SENTRY_DSN=your_sentry_dsn
+ANALYTICS_ID=your_analytics_id
+
+# Feature Flags
+ENABLE_VOICE_FEATURES=true
+ENABLE_FILE_UPLOADS=true
+MAX_FILE_SIZE=10485760
+
+# Rate Limiting
+RATE_LIMIT_REQUESTS_PER_MINUTE=60
+RATE_LIMIT_REQUESTS_PER_HOUR=1000
+```
+
+```tsx
+// lib/env.ts - Type-safe environment variables
+import { z } from 'zod';
+
+const envSchema = z.object({
+  NODE_ENV: z.enum(['development', 'test', 'production']),
+  
+  // API Keys
+  OPENAI_API_KEY: z.string().min(1),
+  ANTHROPIC_API_KEY: z.string().optional(),
+  GOOGLE_API_KEY: z.string().optional(),
+  
+  // Database
+  DATABASE_URL: z.string().url(),
+  REDIS_URL: z.string().url().optional(),
+  
+  // Security
+  NEXTAUTH_SECRET: z.string().min(32),
+  NEXTAUTH_URL: z.string().url(),
+  
+  // Features
+  ENABLE_VOICE_FEATURES: z.string().transform(val => val === 'true'),
+  ENABLE_FILE_UPLOADS: z.string().transform(val => val === 'true'),
+  MAX_FILE_SIZE: z.string().transform(val => parseInt(val)),
+  
+  // Rate Limiting
+  RATE_LIMIT_REQUESTS_PER_MINUTE: z.string().transform(val => parseInt(val)),
+  RATE_LIMIT_REQUESTS_PER_HOUR: z.string().transform(val => parseInt(val)),
+});
+
+export const env = envSchema.parse(process.env);
+
+// Validate environment on startup
+export function validateEnvironment() {
+  try {
+    envSchema.parse(process.env);
+    console.log('✅ Environment variables validated');
+  } catch (error) {
+    console.error('❌ Environment validation failed:', error);
+    process.exit(1);
+  }
+}
+```
+
+## Security Configuration
+
+### Authentication and Authorization
+
+Implement production-grade auth:
+
+```tsx
+// lib/auth.ts
+import { NextAuthOptions } from 'next-auth';
+import { PrismaAdapter } from '@next-auth/prisma-adapter';
+import GoogleProvider from 'next-auth/providers/google';
+import { prisma } from './prisma';
+import { env } from './env';
+
+export const authOptions: NextAuthOptions = {
+  adapter: PrismaAdapter(prisma),
+  session: { strategy: 'jwt' },
+  
+  providers: [
+    GoogleProvider({
+      clientId: env.GOOGLE_CLIENT_ID,
+      clientSecret: env.GOOGLE_CLIENT_SECRET,
+    }),
+  ],
+  
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
+        token.role = user.role;
+      }
+      return token;
+    },
+    
+    async session({ session, token }) {
+      if (token) {
+        session.user.id = token.id as string;
+        session.user.role = token.role as string;
+      }
+      return session;
+    },
+  },
+  
+  pages: {
+    signIn: '/auth/signin',
+    error: '/auth/error',
+  },
+  
+  events: {
+    async signIn({ user, account, profile }) {
+      console.log('User signed in:', user.email);
+      // Log security events
+    },
+    
+    async signOut({ session }) {
+      console.log('User signed out:', session?.user?.email);
+    },
+  },
+};
+
+// middleware.ts - Route protection
+import { withAuth } from 'next-auth/middleware';
+
+export default withAuth(
+  function middleware(req) {
+    // Additional middleware logic
+    console.log('Middleware executed for:', req.nextUrl.pathname);
+  },
+  {
+    callbacks: {
+      authorized: ({ token, req }) => {
+        // Protected routes
+        if (req.nextUrl.pathname.startsWith('/admin')) {
+          return token?.role === 'admin';
+        }
+        
+        if (req.nextUrl.pathname.startsWith('/chat')) {
+          return !!token;
+        }
+        
+        return true;
+      },
+    },
+  }
+);
+
+export const config = {
+  matcher: ['/chat/:path*', '/admin/:path*']
+};
+```
+
+### Rate Limiting and Security Headers
+
+Implement comprehensive security:
+
+```tsx
+// lib/rate-limit.ts
+import { Redis } from 'ioredis';
+import { env } from './env';
+
+const redis = new Redis(env.REDIS_URL);
+
+export async function rateLimit(
+  identifier: string,
+  limit: number,
+  window: number
+): Promise<{ success: boolean; remaining: number; resetTime: number }> {
+  const key = `rate_limit:${identifier}`;
+  const now = Date.now();
+  const pipeline = redis.pipeline();
+  
+  // Remove old entries
+  pipeline.zremrangebyscore(key, '-inf', now - window);
+  
+  // Count current requests
+  pipeline.zcard(key);
+  
+  // Add current request
+  pipeline.zadd(key, now, now);
+  
+  // Set expiry
+  pipeline.expire(key, Math.ceil(window / 1000));
+  
+  const results = await pipeline.exec();
+  const current = results[1][1] as number;
+  
+  if (current >= limit) {
+    const oldest = await redis.zrange(key, 0, 0, 'WITHSCORES');
+    const resetTime = oldest.length > 0 ? parseInt(oldest[1]) + window : now + window;
+    
+    return {
+      success: false,
+      remaining: 0,
+      resetTime
+    };
+  }
+  
+  return {
+    success: true,
+    remaining: limit - current - 1,
+    resetTime: now + window
+  };
+}
+
+// API route with rate limiting
+// pages/api/chat.ts
+import { NextApiRequest, NextApiResponse } from 'next';
+import { getServerSession } from 'next-auth';
+import { rateLimit } from '../../lib/rate-limit';
+import { authOptions } from '../../lib/auth';
+import { env } from '../../lib/env';
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // Security headers
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  
+  // Authentication check
+  const session = await getServerSession(req, res, authOptions);
+  if (!session) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  
+  // Rate limiting
+  const identifier = session.user.id;
+  const limit = await rateLimit(
+    identifier,
+    env.RATE_LIMIT_REQUESTS_PER_MINUTE,
+    60 * 1000
+  );
+  
+  if (!limit.success) {
+    return res.status(429).json({
+      error: 'Rate limit exceeded',
+      resetTime: limit.resetTime
+    });
+  }
+  
+  // Set rate limit headers
+  res.setHeader('X-RateLimit-Limit', env.RATE_LIMIT_REQUESTS_PER_MINUTE);
+  res.setHeader('X-RateLimit-Remaining', limit.remaining);
+  res.setHeader('X-RateLimit-Reset', limit.resetTime);
+  
+  // Process request
+  try {
+    const { messages } = req.body;
+    
+    // Validate input
+    if (!messages || !Array.isArray(messages)) {
+      return res.status(400).json({ error: 'Invalid request body' });
+    }
+    
+    // Process chat request
+    const response = await processChat(messages, session.user.id);
+    
+    res.json(response);
+  } catch (error) {
+    console.error('Chat API error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+// Security configuration
+// next.config.js
+const securityHeaders = [
+  {
+    key: 'X-DNS-Prefetch-Control',
+    value: 'on'
+  },
+  {
+    key: 'Strict-Transport-Security',
+    value: 'max-age=63072000; includeSubDomains; preload'
+  },
+  {
+    key: 'X-XSS-Protection',
+    value: '1; mode=block'
+  },
+  {
+    key: 'X-Frame-Options',
+    value: 'DENY'
+  },
+  {
+    key: 'X-Content-Type-Options',
+    value: 'nosniff'
+  },
+  {
+    key: 'Referrer-Policy',
+    value: 'strict-origin-when-cross-origin'
+  },
+  {
+    key: 'Content-Security-Policy',
+    value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:;"
+  }
+];
+
+module.exports = {
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: securityHeaders,
+      },
+    ];
+  },
+  
+  async rewrites() {
+    return [
+      {
+        source: '/health',
+        destination: '/api/health',
+      },
+    ];
+  },
+};
+```
+
+## Database and State Management
+
+### Production Database Setup
+
+Configure database for production:
+
+```sql
+-- Database schema for production
+-- schema.sql
+
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Users table
+CREATE TABLE users (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  email VARCHAR(255) UNIQUE NOT NULL,
+  name VARCHAR(255),
+  role VARCHAR(50) DEFAULT 'user',
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  last_active TIMESTAMP DEFAULT NOW()
+);
+
+-- Conversations table
+CREATE TABLE conversations (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  title VARCHAR(255),
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  archived BOOLEAN DEFAULT FALSE
+);
+
+-- Messages table
+CREATE TABLE messages (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE,
+  role VARCHAR(20) NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
+  content TEXT NOT NULL,
+  metadata JSONB,
+  created_at TIMESTAMP DEFAULT NOW(),
+  tokens_used INTEGER DEFAULT 0
+);
+
+-- Attachments table
+CREATE TABLE attachments (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  message_id UUID REFERENCES messages(id) ON DELETE CASCADE,
+  filename VARCHAR(255) NOT NULL,
+  content_type VARCHAR(100) NOT NULL,
+  size_bytes BIGINT NOT NULL,
+  storage_path VARCHAR(500) NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Usage tracking
+CREATE TABLE usage_logs (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  action VARCHAR(100) NOT NULL,
+  tokens_used INTEGER DEFAULT 0,
+  cost_cents INTEGER DEFAULT 0,
+  metadata JSONB,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Indexes for performance
+CREATE INDEX idx_messages_conversation_id ON messages(conversation_id);
+CREATE INDEX idx_messages_created_at ON messages(created_at);
+CREATE INDEX idx_conversations_user_id ON conversations(user_id);
+CREATE INDEX idx_usage_logs_user_id_created_at ON usage_logs(user_id, created_at);
+```
+
+```tsx
+// lib/database.ts
+import { PrismaClient } from '@prisma/client';
+import { env } from './env';
+
+declare global {
+  var __prisma: PrismaClient | undefined;
+}
+
+export const prisma = globalThis.__prisma || new PrismaClient({
+  log: env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+  datasources: {
+    db: {
+      url: env.DATABASE_URL,
+    },
+  },
+});
+
+if (env.NODE_ENV !== 'production') {
+  globalThis.__prisma = prisma;
+}
+
+// Connection health check
+export async function checkDatabaseConnection() {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    return { healthy: true };
+  } catch (error) {
+    console.error('Database connection failed:', error);
+    return { healthy: false, error };
+  }
+}
+
+// Graceful shutdown
+process.on('beforeExit', async () => {
+  await prisma.$disconnect();
+});
+```
+
+## Deployment Strategies
+
+### Docker Configuration
+
+Containerize your application:
+
+```dockerfile
+# Dockerfile
+FROM node:18-alpine AS base
+
+# Install dependencies only when needed
+FROM base AS deps
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+
+# Install dependencies based on the preferred package manager
+COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* ./
+RUN \
+  if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
+  elif [ -f package-lock.json ]; then npm ci; \
+  elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm i --frozen-lockfile; \
+  else echo "Lockfile not found." && exit 1; \
+  fi
+
+# Rebuild the source code only when needed
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+# Build the application
+RUN \
+  if [ -f yarn.lock ]; then yarn run build; \
+  elif [ -f package-lock.json ]; then npm run build; \
+  elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm run build; \
+  else echo "Lockfile not found." && exit 1; \
+  fi
+
+# Production image, copy all the files and run next
+FROM base AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+COPY --from=builder /app/public ./public
+
+# Set the correct permission for prerender cache
+RUN mkdir .next
+RUN chown nextjs:nodejs .next
+
+# Automatically leverage output traces to reduce image size
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
+
+EXPOSE 3000
+
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:3000/health || exit 1
+
+CMD ["node", "server.js"]
+```
+
+```yaml
+# docker-compose.yml
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://postgres:password@db:5432/assistant_ui
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+    
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: assistant_ui
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    restart: unless-stopped
+    
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/ssl
+    depends_on:
+      - app
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+```
+
+### Kubernetes Deployment
+
+Deploy to Kubernetes:
+
+```yaml
+# k8s/namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: assistant-ui
+
+---
+# k8s/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: assistant-ui
+data:
+  NODE_ENV: "production"
+  ENABLE_VOICE_FEATURES: "true"
+  ENABLE_FILE_UPLOADS: "true"
+  MAX_FILE_SIZE: "10485760"
+
+---
+# k8s/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secrets
+  namespace: assistant-ui
+type: Opaque
+data:
+  OPENAI_API_KEY: <base64-encoded-key>
+  DATABASE_URL: <base64-encoded-url>
+  NEXTAUTH_SECRET: <base64-encoded-secret>
+
+---
+# k8s/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: assistant-ui-app
+  namespace: assistant-ui
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: assistant-ui-app
+  template:
+    metadata:
+      labels:
+        app: assistant-ui-app
+    spec:
+      containers:
+      - name: app
+        image: your-registry/assistant-ui:latest
+        ports:
+        - containerPort: 3000
+        envFrom:
+        - configMapRef:
+            name: app-config
+        - secretRef:
+            name: app-secrets
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+
+---
+# k8s/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: assistant-ui-service
+  namespace: assistant-ui
+spec:
+  selector:
+    app: assistant-ui-app
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 3000
+  type: ClusterIP
+
+---
+# k8s/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: assistant-ui-ingress
+  namespace: assistant-ui
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+spec:
+  tls:
+  - hosts:
+    - yourdomain.com
+    secretName: assistant-ui-tls
+  rules:
+  - host: yourdomain.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: assistant-ui-service
+            port:
+              number: 80
+```
+
+### Vercel Deployment
+
+Deploy to Vercel with optimizations:
+
+```json
+// vercel.json
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "framework": "nextjs",
+  "installCommand": "npm install",
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "build": {
+    "env": {
+      "ENABLE_EXPERIMENTAL_COREPACK": "1"
+    }
+  },
+  "functions": {
+    "pages/api/**/*.ts": {
+      "maxDuration": 30
+    }
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        }
+      ]
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/health",
+      "destination": "/api/health",
+      "permanent": false
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/chat/:path*",
+      "destination": "/api/chat/:path*"
+    }
+  ]
+}
+```
+
+## Monitoring and Observability
+
+### Application Monitoring
+
+Set up comprehensive monitoring:
+
+```tsx
+// lib/monitoring.ts
+import * as Sentry from '@sentry/nextjs';
+import { env } from './env';
+
+// Initialize Sentry
+Sentry.init({
+  dsn: env.SENTRY_DSN,
+  environment: env.NODE_ENV,
+  tracesSampleRate: env.NODE_ENV === 'production' ? 0.1 : 1.0,
+  beforeSend(event) {
+    // Filter out sensitive data
+    if (event.request) {
+      delete event.request.headers?.authorization;
+      delete event.request.headers?.cookie;
+    }
+    return event;
+  },
+});
+
+// Custom metrics
+export class MetricsCollector {
+  private static instance: MetricsCollector;
+  
+  static getInstance(): MetricsCollector {
+    if (!MetricsCollector.instance) {
+      MetricsCollector.instance = new MetricsCollector();
+    }
+    return MetricsCollector.instance;
+  }
+  
+  async recordChatMessage(userId: string, tokens: number, model: string) {
+    const metric = {
+      event: 'chat_message',
+      userId,
+      tokens,
+      model,
+      timestamp: Date.now(),
+    };
+    
+    // Send to analytics
+    await this.sendMetric(metric);
+  }
+  
+  async recordError(error: Error, context: Record<string, any>) {
+    Sentry.captureException(error, {
+      tags: { ...context },
+      level: 'error',
+    });
+  }
+  
+  async recordPerformance(operation: string, duration: number) {
+    const metric = {
+      event: 'performance',
+      operation,
+      duration,
+      timestamp: Date.now(),
+    };
+    
+    await this.sendMetric(metric);
+  }
+  
+  private async sendMetric(metric: any) {
+    try {
+      await fetch('/api/metrics', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(metric),
+      });
+    } catch (error) {
+      console.error('Failed to send metric:', error);
+    }
+  }
+}
+
+// Health check endpoint
+// pages/api/health.ts
+import { NextApiRequest, NextApiResponse } from 'next';
+import { checkDatabaseConnection } from '../../lib/database';
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  try {
+    const dbHealth = await checkDatabaseConnection();
+    
+    const health = {
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      version: process.env.npm_package_version || '1.0.0',
+      uptime: process.uptime(),
+      database: dbHealth.healthy ? 'connected' : 'disconnected',
+      memory: process.memoryUsage(),
+    };
+    
+    if (!dbHealth.healthy) {
+      health.status = 'error';
+      return res.status(503).json(health);
+    }
+    
+    res.json(health);
+  } catch (error) {
+    res.status(503).json({
+      status: 'error',
+      timestamp: new Date().toISOString(),
+      error: error.message,
+    });
+  }
+}
+```
+
+### Logging Strategy
+
+Implement structured logging:
+
+```tsx
+// lib/logger.ts
+import winston from 'winston';
+import { env } from './env';
+
+const logger = winston.createLogger({
+  level: env.NODE_ENV === 'production' ? 'info' : 'debug',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.errors({ stack: true }),
+    winston.format.json()
+  ),
+  defaultMeta: { service: 'assistant-ui' },
+  transports: [
+    new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
+    new winston.transports.File({ filename: 'logs/combined.log' }),
+  ],
+});
+
+if (env.NODE_ENV !== 'production') {
+  logger.add(new winston.transports.Console({
+    format: winston.format.simple()
+  }));
+}
+
+export { logger };
+
+// Usage in API routes
+import { logger } from '../../lib/logger';
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const startTime = Date.now();
+  
+  try {
+    logger.info('Chat request started', {
+      userId: req.session?.user?.id,
+      ip: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
+    
+    // Process request
+    const result = await processChat(req.body);
+    
+    logger.info('Chat request completed', {
+      userId: req.session?.user?.id,
+      duration: Date.now() - startTime,
+      tokens: result.tokens,
+    });
+    
+    res.json(result);
+  } catch (error) {
+    logger.error('Chat request failed', {
+      userId: req.session?.user?.id,
+      error: error.message,
+      stack: error.stack,
+      duration: Date.now() - startTime,
+    });
+    
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+```
+
+## Performance and Scaling
+
+### CDN and Caching
+
+Optimize delivery with CDN:
+
+```tsx
+// next.config.js
+module.exports = {
+  images: {
+    domains: ['cdn.yourdomain.com'],
+    loader: 'custom',
+    loaderFile: './lib/image-loader.js',
+  },
+  
+  async headers() {
+    return [
+      {
+        source: '/static/(.*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      {
+        source: '/api/models',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=3600, stale-while-revalidate=86400',
+          },
+        ],
+      },
+    ];
+  },
+};
+
+// lib/image-loader.js
+export default function cloudinaryLoader({ src, width, quality }) {
+  const params = ['f_auto', 'c_limit', `w_${width}`, `q_${quality || 'auto'}`];
+  return `https://res.cloudinary.com/your-cloud/image/upload/${params.join(',')}${src}`;
+}
+
+// Cache strategy for API responses
+import { NextRequest, NextResponse } from 'next/server';
+
+export async function GET(request: NextRequest) {
+  const cacheKey = `models:${request.nextUrl.searchParams.toString()}`;
+  
+  // Try cache first
+  const cached = await redis.get(cacheKey);
+  if (cached) {
+    return new NextResponse(cached, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'public, max-age=3600',
+        'X-Cache': 'HIT',
+      },
+    });
+  }
+  
+  // Fetch fresh data
+  const data = await fetchModels();
+  
+  // Cache for 1 hour
+  await redis.setex(cacheKey, 3600, JSON.stringify(data));
+  
+  return NextResponse.json(data, {
+    headers: {
+      'Cache-Control': 'public, max-age=3600',
+      'X-Cache': 'MISS',
+    },
+  });
+}
+```
+
+### Load Balancing and Scaling
+
+Configure for high availability:
+
+```yaml
+# docker-compose.prod.yml
+version: '3.8'
+
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.prod.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/ssl/certs
+    depends_on:
+      - app1
+      - app2
+      - app3
+    restart: unless-stopped
+    
+  app1:
+    build: .
+    environment:
+      - NODE_ENV=production
+      - INSTANCE_ID=app1
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+    
+  app2:
+    build: .
+    environment:
+      - NODE_ENV=production
+      - INSTANCE_ID=app2
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+    
+  app3:
+    build: .
+    environment:
+      - NODE_ENV=production
+      - INSTANCE_ID=app3
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+    
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: assistant_ui
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+```
+
+```nginx
+# nginx.prod.conf
+upstream app_servers {
+    least_conn;
+    server app1:3000 max_fails=3 fail_timeout=30s;
+    server app2:3000 max_fails=3 fail_timeout=30s;
+    server app3:3000 max_fails=3 fail_timeout=30s;
+}
+
+server {
+    listen 80;
+    server_name yourdomain.com;
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name yourdomain.com;
+    
+    ssl_certificate /etc/ssl/certs/cert.pem;
+    ssl_certificate_key /etc/ssl/certs/key.pem;
+    
+    # Security headers
+    add_header X-Frame-Options DENY;
+    add_header X-Content-Type-Options nosniff;
+    add_header X-XSS-Protection "1; mode=block";
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    
+    # Rate limiting
+    limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
+    limit_req_zone $binary_remote_addr zone=chat:10m rate=5r/s;
+    
+    location / {
+        proxy_pass http://app_servers;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+        
+        # Timeouts
+        proxy_connect_timeout 5s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+    
+    location /api/chat {
+        limit_req zone=chat burst=10 nodelay;
+        proxy_pass http://app_servers;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+    
+    location /api/ {
+        limit_req zone=api burst=20 nodelay;
+        proxy_pass http://app_servers;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    
+    # Health check
+    location /health {
+        access_log off;
+        proxy_pass http://app_servers;
+    }
+}
+```
+
+## Best Practices
+
+1. **Security First** - Never expose API keys, implement proper auth
+2. **Monitor Everything** - Set up logging, metrics, and alerting
+3. **Plan for Scale** - Use horizontal scaling strategies
+4. **Optimize Performance** - Implement caching at every layer
+5. **Automate Deployment** - Use CI/CD pipelines
+6. **Test Production** - Run load tests and chaos engineering
+7. **Plan for Disasters** - Have backup and recovery strategies
+
+## Exercise: Complete Production Setup
+
+Deploy a production-ready Assistant UI application:
+- Set up authentication and authorization
+- Configure monitoring and logging
+- Implement rate limiting and security headers
+- Deploy with Docker or Kubernetes
+- Set up CDN and caching
+- Configure load balancing
+- Test scalability and performance
+
+## Course Complete! 🎉
+
+Congratulations! You've completed the comprehensive Assistant UI course. You now have the knowledge to build production-ready AI chat applications with:
+
+- **Solid Architecture** understanding
+- **Component Mastery** for flexible UIs
+- **Advanced Features** like attachments, speech, and tools
+- **State Management** and persistence
+- **Runtime Integration** with multiple providers
+- **Performance Optimization** techniques
+- **Production Deployment** best practices
+
+### Next Steps
+
+1. **Build Your Own App** - Apply what you've learned
+2. **Join the Community** - Connect with other developers
+3. **Contribute** - Help improve Assistant UI
+4. **Stay Updated** - Follow releases and new features
+
+Happy building! 🚀
