@@ -34,7 +34,7 @@ import { ThreadRuntimeCoreBinding } from "./ThreadRuntime";
 import { NestedSubscriptionSubject } from "./subscribable/NestedSubscriptionSubject";
 import { SKIP_UPDATE } from "./subscribable/SKIP_UPDATE";
 import { ShallowMemoizeSubject } from "./subscribable/ShallowMemoizeSubject";
-import { SubscribableWithState } from "./subscribable/Subscribable";
+import type { MessageStateBinding } from "./RuntimeBindings";
 
 const COMPLETE_STATUS: MessagePartStatus = Object.freeze({
   type: "complete",
@@ -92,10 +92,7 @@ export type MessageState = ThreadMessage & {
   readonly submittedFeedback: SubmittedFeedback | undefined;
 };
 
-export type MessageStateBinding = SubscribableWithState<
-  MessageState,
-  MessageRuntimePath
->;
+export type { MessageStateBinding } from "./RuntimeBindings";
 
 type ReloadConfig = {
   runConfig?: RunConfig;

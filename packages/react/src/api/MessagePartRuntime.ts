@@ -5,7 +5,7 @@ import {
   ToolCallMessagePartStatus,
 } from "../types/AssistantTypes";
 import { ThreadRuntimeCoreBinding } from "./ThreadRuntime";
-import { MessageStateBinding } from "./MessageRuntime";
+import type { MessageStateBinding } from "./RuntimeBindings";
 import { SubscribableWithState } from "./subscribable/Subscribable";
 import { Unsubscribe } from "../types";
 import { MessagePartRuntimePath } from "./RuntimePathTypes";
