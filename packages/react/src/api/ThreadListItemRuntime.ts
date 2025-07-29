@@ -5,21 +5,12 @@ import { ThreadListRuntimeCoreBinding } from "./ThreadListRuntime";
 
 export type ThreadListItemEventType = "switched-to" | "switched-away";
 
-export type ThreadListItemState = {
-  readonly isMain: boolean;
+import type {
+  ThreadListItemState,
+  ThreadListItemStatus,
+} from "./RuntimeBindings";
 
-  readonly id: string;
-  readonly remoteId: string | undefined;
-  readonly externalId: string | undefined;
-
-  /**
-   * @deprecated This field was renamed to `id`. This field will be removed in 0.8.0.
-   */
-  readonly threadId: string;
-
-  readonly status: "archived" | "regular" | "new" | "deleted";
-  readonly title?: string | undefined;
-};
+export type { ThreadListItemState, ThreadListItemStatus };
 
 export type ThreadListItemRuntime = {
   readonly path: ThreadListItemRuntimePath;

@@ -1,6 +1,6 @@
 import { SubscribableWithState } from "./subscribable/Subscribable";
 
-import { ComposerRuntimeCoreBinding } from "./ComposerRuntime";
+import type { ComposerRuntimeCoreBinding } from "./RuntimeBindings";
 import {
   Attachment,
   CompleteAttachment,

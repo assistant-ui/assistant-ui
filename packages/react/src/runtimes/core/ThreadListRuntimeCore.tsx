@@ -1,12 +1,13 @@
 import { Unsubscribe } from "../../types";
 import { ThreadRuntimeCore } from "./ThreadRuntimeCore";
+import type { ThreadListItemStatus } from "../../api/RuntimeBindings";
 
 type ThreadListItemCoreState = {
   readonly threadId: string;
   readonly remoteId?: string | undefined;
   readonly externalId?: string | undefined;
 
-  readonly status: "archived" | "regular" | "new" | "deleted";
+  readonly status: ThreadListItemStatus;
   readonly title?: string | undefined;
 
   readonly runtime?: ThreadRuntimeCore | undefined;

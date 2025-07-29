@@ -1,4 +1,4 @@
-import { ThreadUserMessagePart } from "./AssistantTypes";
+import type { ThreadUserMessagePart } from "./MessagePartTypes";
 
 export type PendingAttachmentStatus =
   | {

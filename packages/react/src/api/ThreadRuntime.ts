@@ -28,7 +28,7 @@ import {
   ThreadListItemRuntimePath,
   ThreadRuntimePath,
 } from "./RuntimePathTypes";
-import { ThreadListItemState } from "./ThreadListItemRuntime";
+import type { ThreadListItemState } from "./RuntimeBindings";
 import { RunConfig } from "../types/AssistantTypes";
 import { EventSubscriptionSubject } from "./subscribable/EventSubscriptionSubject";
 import { symbolInnerMessage } from "../runtimes/external-store/getExternalStoreMessage";

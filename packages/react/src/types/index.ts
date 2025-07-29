@@ -87,4 +87,7 @@ export type {
   ToolCallMessagePartProps as ToolCallContentPartProps,
 } from "./MessagePartComponentTypes";
 
+// Thread list item types
+export type { ThreadListItemStatus } from "../api/ThreadListItemRuntime";
+
 export type { Unsubscribe } from "./Unsubscribe";

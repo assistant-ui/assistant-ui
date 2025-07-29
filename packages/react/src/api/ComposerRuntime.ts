@@ -5,7 +5,7 @@ import {
   ThreadComposerRuntimeCore,
 } from "../runtimes/core/ComposerRuntimeCore";
 import { Unsubscribe } from "../types";
-import { SubscribableWithState } from "./subscribable/Subscribable";
+
 import { LazyMemoizeSubject } from "./subscribable/LazyMemoizeSubject";
 import {
   AttachmentRuntime,
@@ -18,21 +18,17 @@ import { SKIP_UPDATE } from "./subscribable/SKIP_UPDATE";
 import { ComposerRuntimePath } from "./RuntimePathTypes";
 import { MessageRole, RunConfig } from "../types/AssistantTypes";
 import { EventSubscriptionSubject } from "./subscribable/EventSubscriptionSubject";
+import type {
+  ThreadComposerRuntimeCoreBinding,
+  EditComposerRuntimeCoreBinding,
+  ComposerRuntimeCoreBinding,
+} from "./RuntimeBindings";
 
-export type ThreadComposerRuntimeCoreBinding = SubscribableWithState<
-  ThreadComposerRuntimeCore | undefined,
-  ComposerRuntimePath & { composerSource: "thread" }
->;
-
-export type EditComposerRuntimeCoreBinding = SubscribableWithState<
-  ComposerRuntimeCore | undefined,
-  ComposerRuntimePath & { composerSource: "edit" }
->;
-
-export type ComposerRuntimeCoreBinding = SubscribableWithState<
-  ComposerRuntimeCore | undefined,
-  ComposerRuntimePath
->;
+export type {
+  ThreadComposerRuntimeCoreBinding,
+  EditComposerRuntimeCoreBinding,
+  ComposerRuntimeCoreBinding,
+};
 
 type BaseComposerState = {
   readonly canCancel: boolean;
