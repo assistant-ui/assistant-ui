@@ -387,12 +387,17 @@ export class LocalThreadRuntimeCore
   }
 
   public detach() {
-    this.abortController?.abort({ detach: true });
+    const error = new Error(JSON.stringify({detach: true}));
+    error.name = "AbortError";
+    this.abortController?.abort(error);
     this.abortController = null;
   }
-
+  
   public cancelRun() {
-    this.abortController?.abort({ detach: false });
+    const error = new Error(JSON.stringify({detach: false}));
+    error.name = "AbortError";
+
+    this.abortController?.abort(error);
     this.abortController = null;
   }
 

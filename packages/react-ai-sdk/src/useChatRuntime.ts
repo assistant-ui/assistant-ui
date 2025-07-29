@@ -89,7 +89,7 @@ class ChatRuntimeAdapter implements ChatModelAdapter {
     abortSignal.addEventListener(
       "abort",
       () => {
-        if (!abortSignal.reason?.detach) this.options.onCancel?.();
+        if (!JSON.parse(abortSignal.reason.message).detach) this.options.onCancel?.();
       },
       { once: true },
     );
