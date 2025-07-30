@@ -1,5 +1,14 @@
 # @assistant-ui/react
 
+## 0.10.30
+
+### Patch Changes
+
+- fix: race condition in RunController when using parentIds
+- 3fb37f9: Fix internal dependency cycles
+- Updated dependencies
+  - assistant-stream@0.2.21
+
 ## 0.10.29
 
 ### Patch Changes

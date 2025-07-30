@@ -43,34 +43,46 @@ export type AssistantStreamController = {
   withParentId(parentId: string): AssistantStreamController;
 };
 
-class AssistantStreamControllerImpl implements AssistantStreamController {
-  private _merger = createMergeStream();
-  private _append:
+// Shared state between controller instances
+type AssistantStreamControllerState = {
+  merger: ReturnType<typeof createMergeStream>;
+  append?:
     | {
         controller: TextStreamController;
         kind: "text" | "reasoning";
       }
     | undefined;
-  private _contentCounter = new Counter();
+  contentCounter: Counter;
+  closeSubscriber?: () => void;
+};
+
+class AssistantStreamControllerImpl implements AssistantStreamController {
+  private readonly _state: AssistantStreamControllerState;
   private _parentId?: string;
 
+  constructor(state?: AssistantStreamControllerState) {
+    this._state = state || {
+      merger: createMergeStream(),
+      contentCounter: new Counter(),
+    };
+  }
+
   get __internal_isClosed() {
-    return this._merger.isSealed();
+    return this._state.merger.isSealed();
   }
 
   __internal_getReadable() {
-    return this._merger.readable;
+    return this._state.merger.readable;
   }
 
-  private _closeSubscriber: undefined | (() => void);
   __internal_subscribeToClose(callback: () => void) {
-    this._closeSubscriber = callback;
+    this._state.closeSubscriber = callback;
   }
 
   private _addPart(part: PartInit, stream: AssistantStream) {
-    if (this._append) {
-      this._append.controller.close();
-      this._append = undefined;
+    if (this._state.append) {
+      this._state.append.controller.close();
+      this._state.append = undefined;
     }
 
     this.enqueue({
@@ -78,35 +90,37 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
       part,
       path: [],
     });
-    this._merger.addStream(
-      stream.pipeThrough(new PathAppendEncoder(this._contentCounter.value)),
+    this._state.merger.addStream(
+      stream.pipeThrough(
+        new PathAppendEncoder(this._state.contentCounter.value),
+      ),
     );
   }
 
   merge(stream: AssistantStream) {
-    this._merger.addStream(
-      stream.pipeThrough(new PathMergeEncoder(this._contentCounter)),
+    this._state.merger.addStream(
+      stream.pipeThrough(new PathMergeEncoder(this._state.contentCounter)),
     );
   }
 
   appendText(textDelta: string) {
-    if (this._append?.kind !== "text") {
-      this._append = {
+    if (this._state.append?.kind !== "text") {
+      this._state.append = {
         kind: "text",
         controller: this.addTextPart(),
       };
     }
-    this._append.controller.append(textDelta);
+    this._state.append.controller.append(textDelta);
   }
 
   appendReasoning(textDelta: string) {
-    if (this._append?.kind !== "reasoning") {
-      this._append = {
+    if (this._state.append?.kind !== "reasoning") {
+      this._state.append = {
         kind: "reasoning",
         controller: this.addReasoningPart(),
       };
     }
-    this._append.controller.append(textDelta);
+    this._state.append.controller.append(textDelta);
   }
 
   addTextPart() {
@@ -129,7 +143,15 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     const toolCallId = opt.toolCallId ?? generateId();
 
     const [stream, controller] = createToolCallStreamController();
-    this._addPart({ type: "tool-call", toolName, toolCallId }, stream);
+    this._addPart(
+      {
+        type: "tool-call",
+        toolName,
+        toolCallId,
+        ...(this._parentId && { parentId: this._parentId }),
+      },
+      stream,
+    );
 
     if (opt.argsText !== undefined) {
       controller.argsText.append(opt.argsText);
@@ -177,28 +199,24 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
   }
 
   enqueue(chunk: AssistantStreamChunk) {
-    this._merger.enqueue(chunk);
+    this._state.merger.enqueue(chunk);
 
     if (chunk.type === "part-start" && chunk.path.length === 0) {
-      this._contentCounter.up();
+      this._state.contentCounter.up();
     }
   }
 
   withParentId(parentId: string): AssistantStreamController {
-    const controller = new AssistantStreamControllerImpl();
-    controller._merger = this._merger;
-    controller._append = this._append;
-    controller._contentCounter = this._contentCounter;
-    controller._closeSubscriber = this._closeSubscriber;
+    const controller = new AssistantStreamControllerImpl(this._state);
     controller._parentId = parentId;
     return controller;
   }
 
   close() {
-    this._merger.seal();
-    this._append?.controller?.close();
+    this._state.merger.seal();
+    this._state.append?.controller?.close();
 
-    this._closeSubscriber?.();
+    this._state.closeSubscriber?.();
   }
 }
 
