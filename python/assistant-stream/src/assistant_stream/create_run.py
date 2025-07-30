@@ -52,17 +52,8 @@ class RunController:
         """Add a tool call to the stream."""
         if tool_call_id is None:
             tool_call_id = generate_openai_style_tool_call_id()
-        
-        # If parent_id is set, emit a ToolCallBeginChunk
-        if self._parent_id:
-            begin_chunk = ToolCallBeginChunk(
-                tool_call_id=tool_call_id,
-                tool_name=tool_name,
-                parent_id=self._parent_id
-            )
-            self._flush_and_put_chunk(begin_chunk)
 
-        stream, controller = await create_tool_call(tool_name, tool_call_id)
+        stream, controller = await create_tool_call(tool_name, tool_call_id, self._parent_id)
         self._dispose_callbacks.append(controller.close)
 
         self.add_stream(stream)
