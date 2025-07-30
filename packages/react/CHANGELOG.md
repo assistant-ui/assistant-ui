@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.10.31
+
+### Patch Changes
+
+- fix: maintain chronological order for parts without parentId in PartsGroupedByParentId
+
 ## 0.10.30
 
 ### Patch Changes
