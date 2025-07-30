@@ -112,7 +112,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
 
     // auto initialize thread
     useEffect(() => {
-      return runtime.threads.getById(id).unstable_on("initialize", () => {
+      return runtime.threads.main.unstable_on("initialize", () => {
         const threadListItemRuntime = runtime.threads.getItemById(id);
 
         if (threadListItemRuntime.getState().status === "new") {

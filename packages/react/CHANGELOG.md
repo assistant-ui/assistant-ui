@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.10.33
+
+### Patch Changes
+
+- fix: error on mount of local runtime
+
 ## 0.10.32
 
 ### Patch Changes
