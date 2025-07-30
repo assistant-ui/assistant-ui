@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.10.32
+
+### Patch Changes
+
+- fix: race condition in generateTitle when a newly running thread is detached
+
 ## 0.10.31
 
 ### Patch Changes

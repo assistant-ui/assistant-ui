@@ -14,10 +14,7 @@ import {
 import { UseBoundStore, StoreApi, create } from "zustand";
 import { useAssistantRuntime } from "../../context";
 import { ThreadListItemRuntimeProvider } from "../../context/providers/ThreadListItemRuntimeProvider";
-import {
-  useThreadListItem,
-  useThreadListItemRuntime,
-} from "../../context/react/ThreadListItemContext";
+import { useThreadListItem } from "../../context/react/ThreadListItemContext";
 import { ThreadRuntimeCore, ThreadRuntimeImpl } from "../../internal";
 import { BaseSubscribable } from "./BaseSubscribable";
 import { AssistantRuntime } from "../../api";
@@ -65,10 +62,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
 
   public getThreadRuntimeCore(threadId: string) {
     const instance = this.instances.get(threadId);
-    if (!instance)
-      throw new Error(
-        "getThreadRuntimeCore not found. This is a bug in assistant-ui.",
-      );
+    if (!instance) return undefined;
     return instance.runtime;
   }
 
@@ -117,9 +111,10 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     }, [threadBinding, updateRuntime]);
 
     // auto initialize thread
-    const threadListItemRuntime = useThreadListItemRuntime();
     useEffect(() => {
-      return runtime.threads.main.unstable_on("initialize", () => {
+      return runtime.threads.getById(id).unstable_on("initialize", () => {
+        const threadListItemRuntime = runtime.threads.getItemById(id);
+
         if (threadListItemRuntime.getState().status === "new") {
           threadListItemRuntime.initialize();
 
@@ -131,7 +126,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
           });
         }
       });
-    }, [runtime, threadListItemRuntime]);
+    }, [runtime, id]);
 
     return null;
   };
