@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.2.21
+
+### Patch Changes
+
+- fix: race condition in RunController when using parentIds
+
 ## 0.2.20
 
 ### Patch Changes
