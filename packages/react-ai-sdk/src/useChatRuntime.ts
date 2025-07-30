@@ -2,7 +2,6 @@
 
 import { toLanguageModelMessages } from "./converters";
 import {
-  AbortError,
   AssistantRuntime,
   ChatModelAdapter,
   ChatModelRunOptions,
@@ -90,11 +89,7 @@ class ChatRuntimeAdapter implements ChatModelAdapter {
     abortSignal.addEventListener(
       "abort",
       () => {
-        if (
-          abortSignal.reason instanceof AbortError &&
-          !abortSignal.reason.detach
-        )
-          this.options.onCancel?.();
+        if (!abortSignal.reason?.detach) this.options.onCancel?.();
       },
       { once: true },
     );
