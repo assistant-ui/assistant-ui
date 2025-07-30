@@ -49,29 +49,29 @@ const groupMessagePartsByParentId = (
 ): MessagePartGroup[] => {
   // Map maintains insertion order, so groups appear in order of first occurrence
   const groupMap = new Map<string, number[]>();
-  
+
   // Process each part in order
   for (let i = 0; i < parts.length; i++) {
     const part = parts[i];
     const parentId = part?.parentId as string | undefined;
-    
+
     // For parts without parentId, assign a unique group ID to maintain their position
     const groupId = parentId ?? `__ungrouped_${i}`;
-    
+
     // Get or create the indices array for this group
     const indices = groupMap.get(groupId) ?? [];
     indices.push(i);
     groupMap.set(groupId, indices);
   }
-  
+
   // Convert map to array of groups
   const groups: MessagePartGroup[] = [];
   for (const [groupId, indices] of groupMap) {
     // Extract parentId (undefined for ungrouped parts)
-    const parentId = groupId.startsWith('__ungrouped_') ? undefined : groupId;
+    const parentId = groupId.startsWith("__ungrouped_") ? undefined : groupId;
     groups.push({ parentId, indices });
   }
-  
+
   return groups;
 };
 
