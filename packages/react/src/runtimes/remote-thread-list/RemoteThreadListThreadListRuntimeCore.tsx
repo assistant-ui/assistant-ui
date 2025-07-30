@@ -418,7 +418,11 @@ export class RemoteThreadListThreadListRuntimeCore
     if (data.status === "new") throw new Error("Thread is not yet initialized");
 
     const { remoteId } = await data.initializeTask;
-    const messages = this.getThreadRuntimeCore(threadId).messages;
+
+    const runtimeCore = this._hookManager.getThreadRuntimeCore(data.threadId);
+    if (!runtimeCore) return; // thread is no longer running
+
+    const messages = runtimeCore.messages;
     const stream = await this._options.adapter.generateTitle(
       remoteId,
       messages,
