@@ -13,7 +13,16 @@ import {
 import { BaseThreadRuntimeCore } from "../core/BaseThreadRuntimeCore";
 import { RunConfig } from "../../types/AssistantTypes";
 import { ModelContextProvider } from "../../model-context";
-import { AbortError } from "./AbortError";
+
+class AbortError extends Error {
+  override name = "AbortError";
+  detach: boolean;
+
+  constructor(detach: boolean, message?: string) {
+    super(message);
+    this.detach = detach;
+  }
+}
 
 export class LocalThreadRuntimeCore
   extends BaseThreadRuntimeCore
