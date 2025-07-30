@@ -41,44 +41,37 @@ type MessagePartGroup = {
 
 /**
  * Groups message parts by their parent ID.
- * Parts without a parent ID appear after grouped parts and remain ungrouped.
- * The position of groups is based on the first occurrence of each parent ID.
+ * Parts without a parent ID appear in their chronological position as individual groups.
+ * Parts with the same parent ID are grouped together at the position of their first occurrence.
  */
 const groupMessagePartsByParentId = (
   parts: readonly any[],
 ): MessagePartGroup[] => {
-  const groups: MessagePartGroup[] = [];
-  const parentIdToGroupIndex = new Map<string | undefined, number>();
-  const processedIndices = new Set<number>();
-
-  // First pass: process all parts with parent IDs
+  // Map maintains insertion order, so groups appear in order of first occurrence
+  const groupMap = new Map<string, number[]>();
+  
+  // Process each part in order
   for (let i = 0; i < parts.length; i++) {
     const part = parts[i];
     const parentId = part?.parentId as string | undefined;
-
-    if (parentId !== undefined) {
-      let groupIndex = parentIdToGroupIndex.get(parentId);
-
-      if (groupIndex === undefined) {
-        // Create new group for this parent ID
-        groupIndex = groups.length;
-        groups.push({ parentId, indices: [] });
-        parentIdToGroupIndex.set(parentId, groupIndex);
-      }
-
-      groups[groupIndex]!.indices.push(i);
-      processedIndices.add(i);
-    }
+    
+    // For parts without parentId, assign a unique group ID to maintain their position
+    const groupId = parentId ?? `__ungrouped_${i}`;
+    
+    // Get or create the indices array for this group
+    const indices = groupMap.get(groupId) ?? [];
+    indices.push(i);
+    groupMap.set(groupId, indices);
   }
-
-  // Second pass: add ungrouped parts (those without parent ID)
-  for (let i = 0; i < parts.length; i++) {
-    if (!processedIndices.has(i)) {
-      // Add individual group for parts without parent ID
-      groups.push({ parentId: undefined, indices: [i] });
-    }
+  
+  // Convert map to array of groups
+  const groups: MessagePartGroup[] = [];
+  for (const [groupId, indices] of groupMap) {
+    // Extract parentId (undefined for ungrouped parts)
+    const parentId = groupId.startsWith('__ungrouped_') ? undefined : groupId;
+    groups.push({ parentId, indices });
   }
-
+  
   return groups;
 };
 
