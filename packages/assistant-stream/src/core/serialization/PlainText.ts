@@ -4,7 +4,7 @@ import { AssistantTransformStream } from "../utils/stream/AssistantTransformStre
 import { PipeableTransformStream } from "../utils/stream/PipeableTransformStream";
 
 export class PlainTextEncoder
-  extends PipeableTransformStream<AssistantStreamChunk, Uint8Array>
+  extends PipeableTransformStream<AssistantStreamChunk, Uint8Array<ArrayBuffer>>
   implements AssistantStreamEncoder
 {
   headers = new Headers({
@@ -52,7 +52,7 @@ export class PlainTextEncoder
 }
 
 export class PlainTextDecoder extends PipeableTransformStream<
-  Uint8Array,
+  Uint8Array<ArrayBuffer>,
   AssistantStreamChunk
 > {
   constructor() {

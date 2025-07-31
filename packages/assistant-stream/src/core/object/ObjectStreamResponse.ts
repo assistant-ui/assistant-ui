@@ -54,7 +54,7 @@ export class ObjectStreamEncoder extends PipeableTransformStream<
 }
 
 export class ObjectStreamDecoder extends PipeableTransformStream<
-  Uint8Array,
+  Uint8Array<ArrayBuffer>,
   ObjectStreamChunk
 > {
   constructor() {

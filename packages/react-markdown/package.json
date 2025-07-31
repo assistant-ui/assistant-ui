@@ -48,13 +48,13 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^24.0.4",
+    "@types/node": "^24.1.0",
     "eslint": "^9",
-    "eslint-config-next": "15.3.4",
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
+    "eslint-config-next": "15.4.5",
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
     "tsx": "^4.20.3",
-    "vitest": "^3.2.3"
+    "vitest": "^3.2.4"
   },
   "publishConfig": {
     "access": "public",

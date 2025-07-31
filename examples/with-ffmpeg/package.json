@@ -16,7 +16,7 @@
     "@assistant-ui/react-markdown": "workspace:*",
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
-    "@hookform/resolvers": "^5.1.1",
+    "@hookform/resolvers": "^5.2.1",
     "@radix-ui/react-avatar": "^1.1.10",
     "@radix-ui/react-icons": "^1.3.2",
     "@radix-ui/react-label": "^2.1.7",
@@ -28,18 +28,18 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "json-schema-to-zod": "^2.6.1",
-    "lucide-react": "^0.523.0",
-    "next": "15.3.4",
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
-    "react-hook-form": "^7.58.1",
-    "react-resizable-panels": "^3.0.3",
+    "lucide-react": "^0.535.0",
+    "next": "15.4.5",
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
+    "react-hook-form": "^7.61.1",
+    "react-resizable-panels": "^3.0.4",
     "remark-gfm": "^4.0.1",
     "tailwind-merge": "^3.3.1",
-    "tw-animate-css": "^1.3.4",
-    "zod": "^3.25.67",
+    "tw-animate-css": "^1.3.6",
+    "zod": "^4.0.14",
     "zod-to-json-schema": "^3.24.6",
-    "zustand": "^5.0.6"
+    "zustand": "^5.0.7"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
@@ -47,9 +47,9 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "15.3.4",
+    "eslint-config-next": "15.4.5",
     "postcss": "^8",
     "tailwindcss": "^4.1.11",
-    "typescript": "^5.8.3"
+    "typescript": "^5.9.2"
   }
 }

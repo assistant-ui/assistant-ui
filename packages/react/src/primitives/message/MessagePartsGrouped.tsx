@@ -35,16 +35,18 @@ import { MessagePartPrimitiveInProgress } from "../messagePart/MessagePartInProg
 import { MessagePartStatus } from "../../types/AssistantTypes";
 
 type MessagePartGroup = {
-  parentId: string | undefined;
+  groupKey: string | undefined;
   indices: number[];
 };
+
+export type GroupingFunction = (parts: readonly any[]) => MessagePartGroup[];
 
 /**
  * Groups message parts by their parent ID.
  * Parts without a parent ID appear in their chronological position as individual groups.
  * Parts with the same parent ID are grouped together at the position of their first occurrence.
  */
-const groupMessagePartsByParentId = (
+const groupMessagePartsByParentId: GroupingFunction = (
   parts: readonly any[],
 ): MessagePartGroup[] => {
   // Map maintains insertion order, so groups appear in order of first occurrence
@@ -68,33 +70,80 @@ const groupMessagePartsByParentId = (
   const groups: MessagePartGroup[] = [];
   for (const [groupId, indices] of groupMap) {
     // Extract parentId (undefined for ungrouped parts)
-    const parentId = groupId.startsWith("__ungrouped_") ? undefined : groupId;
-    groups.push({ parentId, indices });
+    const groupKey = groupId.startsWith("__ungrouped_") ? undefined : groupId;
+    groups.push({ groupKey, indices });
   }
 
   return groups;
 };
 
-const useMessagePartsGroupedByParentId = (): MessagePartGroup[] => {
+const useMessagePartsGrouped = (
+  groupingFunction: GroupingFunction,
+): MessagePartGroup[] => {
   const parts = useMessage((m) => m.content);
 
   return useMemo(() => {
     if (parts.length === 0) {
       return [];
     }
-    return groupMessagePartsByParentId(parts);
-  }, [parts]);
+    return groupingFunction(parts);
+  }, [parts, groupingFunction]);
 };
 
-export namespace MessagePrimitiveUnstable_PartsGroupedByParentId {
+export namespace MessagePrimitiveUnstable_PartsGrouped {
   export type Props = {
+    /**
+     * Function that takes an array of message parts and returns an array of groups.
+     * Each group contains a key (for identification) and an array of indices.
+     *
+     * @example
+     * ```tsx
+     * // Group by parent ID (default behavior)
+     * groupingFunction={(parts) => {
+     *   const groups = new Map<string, number[]>();
+     *   parts.forEach((part, i) => {
+     *     const key = part.parentId ?? `__ungrouped_${i}`;
+     *     const indices = groups.get(key) ?? [];
+     *     indices.push(i);
+     *     groups.set(key, indices);
+     *   });
+     *   return Array.from(groups.entries()).map(([key, indices]) => ({
+     *     key: key.startsWith("__ungrouped_") ? undefined : key,
+     *     indices
+     *   }));
+     * }}
+     * ```
+     *
+     * @example
+     * ```tsx
+     * // Group by tool name
+     * import { groupMessagePartsByToolName } from "@assistant-ui/react";
+     *
+     * <MessagePrimitive.Unstable_PartsGrouped
+     *   groupingFunction={groupMessagePartsByToolName}
+     *   components={{
+     *     Group: ({ key, indices, children }) => {
+     *       if (!key) return <>{children}</>;
+     *       return (
+     *         <div className="tool-group">
+     *           <h4>Tool: {key}</h4>
+     *           {children}
+     *         </div>
+     *       );
+     *     }
+     *   }}
+     * />
+     * ```
+     */
+    groupingFunction: GroupingFunction;
+
     /**
      * Component configuration for rendering different types of message content.
      *
      * You can provide custom components for each content type (text, image, file, etc.)
      * and configure tool rendering behavior. If not provided, default components will be used.
      */
-    components?:
+    components:
       | {
           /** Component for rendering empty messages */
           Empty?: EmptyMessagePartComponent | undefined;
@@ -127,28 +176,27 @@ export namespace MessagePrimitiveUnstable_PartsGroupedByParentId {
             | undefined;
 
           /**
-           * Component for rendering grouped message parts with the same parent ID.
+           * Component for rendering grouped message parts.
            *
            * When provided, this component will automatically wrap message parts that share
-           * the same parent ID, allowing you to create collapsible sections, custom styling,
-           * or other grouped presentations.
+           * the same group key as determined by the groupingFunction.
            *
            * The component receives:
-           * - `parentId`: The parent ID shared by all parts in the group (or undefined for ungrouped parts)
+           * - `groupKey`: The group key (or undefined for ungrouped parts)
            * - `indices`: Array of indices for the parts in this group
            * - `children`: The rendered message part components
            *
            * @example
            * ```tsx
-           * // Collapsible parent ID group
-           * Group: ({ parentId, indices, children }) => {
-           *   if (!parentId) return <>{children}</>;
+           * // Collapsible group
+           * Group: ({ groupKey, indices, children }) => {
+           *   if (!groupKey) return <>{children}</>;
            *   return (
-           *     <details className="parent-group">
+           *     <details className="message-group">
            *       <summary>
-           *         Group {parentId} ({indices.length} parts)
+           *         Group {groupKey} ({indices.length} parts)
            *       </summary>
-           *       <div className="parent-group-content">
+           *       <div className="group-content">
            *         {children}
            *       </div>
            *     </details>
@@ -156,31 +204,13 @@ export namespace MessagePrimitiveUnstable_PartsGroupedByParentId {
            * }
            * ```
            *
-           * @example
-           * ```tsx
-           * // Custom styled parent ID group
-           * Group: ({ parentId, indices, children }) => {
-           *   if (!parentId) return <>{children}</>;
-           *   return (
-           *     <div className="border rounded-lg p-4 my-2">
-           *       <div className="text-sm text-gray-600 mb-2">
-           *         Related content ({parentId})
-           *       </div>
-           *       <div className="space-y-2">
-           *         {children}
-           *       </div>
-           *     </div>
-           *   );
-           * }
-           * ```
-           *
-           * @param parentId - The parent ID shared by all parts in this group (undefined for ungrouped parts)
+           * @param groupKey - The group key (undefined for ungrouped parts)
            * @param indices - Array of indices for the parts in this group
            * @param children - Rendered message part components to display within the group
            */
           Group?: ComponentType<
             PropsWithChildren<{
-              parentId: string | undefined;
+              groupKey: string | undefined;
               indices: number[];
             }>
           >;
@@ -215,10 +245,10 @@ const defaultComponents = {
   File: () => null,
   Unstable_Audio: () => null,
   Group: ({ children }) => children,
-} satisfies MessagePrimitiveUnstable_PartsGroupedByParentId.Props["components"];
+} satisfies MessagePrimitiveUnstable_PartsGrouped.Props["components"];
 
 type MessagePartComponentProps = {
-  components: MessagePrimitiveUnstable_PartsGroupedByParentId.Props["components"];
+  components: MessagePrimitiveUnstable_PartsGrouped.Props["components"];
 };
 
 const MessagePartComponent: FC<MessagePartComponentProps> = ({
@@ -276,7 +306,7 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
 
 type MessagePartProps = {
   partIndex: number;
-  components: MessagePrimitiveUnstable_PartsGroupedByParentId.Props["components"];
+  components: MessagePrimitiveUnstable_PartsGrouped.Props["components"];
 };
 
 const MessagePartImpl: FC<MessagePartProps> = ({ partIndex, components }) => {
@@ -344,23 +374,45 @@ const EmptyParts = memo(
 );
 
 /**
- * Renders the parts of a message grouped by their parent ID.
+ * Renders the parts of a message grouped by a custom grouping function.
  *
- * This component automatically groups message parts that share the same parent ID,
- * allowing you to create hierarchical or related content presentations. Parts without
- * a parent ID appear after grouped parts and remain ungrouped.
+ * This component allows you to group message parts based on any criteria you define.
+ * The grouping function receives all message parts and returns an array of groups,
+ * where each group has a key and an array of part indices.
  *
  * @example
  * ```tsx
- * <MessagePrimitive.Unstable_PartsGroupedByParentId
+ * // Group by parent ID (default behavior)
+ * <MessagePrimitive.Unstable_PartsGrouped
  *   components={{
  *     Text: ({ text }) => <p className="message-text">{text}</p>,
  *     Image: ({ image }) => <img src={image} alt="Message image" />,
- *     Group: ({ parentId, indices, children }) => {
- *       if (!parentId) return <>{children}</>;
+ *     Group: ({ groupKey, indices, children }) => {
+ *       if (!groupKey) return <>{children}</>;
  *       return (
  *         <div className="parent-group border rounded p-4">
- *           <h4>Related Content</h4>
+ *           <h4>Parent ID: {groupKey}</h4>
+ *           {children}
+ *         </div>
+ *       );
+ *     }
+ *   }}
+ * />
+ * ```
+ *
+ * @example
+ * ```tsx
+ * // Group by tool name
+ * import { groupMessagePartsByToolName } from "@assistant-ui/react";
+ *
+ * <MessagePrimitive.Unstable_PartsGrouped
+ *   groupingFunction={groupMessagePartsByToolName}
+ *   components={{
+ *     Group: ({ groupKey, indices, children }) => {
+ *       if (!groupKey) return <>{children}</>;
+ *       return (
+ *         <div className="tool-group">
+ *           <h4>Tool: {groupKey}</h4>
  *           {children}
  *         </div>
  *       );
@@ -369,11 +421,11 @@ const EmptyParts = memo(
  * />
  * ```
  */
-export const MessagePrimitiveUnstable_PartsGroupedByParentId: FC<
-  MessagePrimitiveUnstable_PartsGroupedByParentId.Props
-> = ({ components }) => {
+export const MessagePrimitiveUnstable_PartsGrouped: FC<
+  MessagePrimitiveUnstable_PartsGrouped.Props
+> = ({ groupingFunction, components }) => {
   const contentLength = useMessage((s) => s.content.length);
-  const messageGroups = useMessagePartsGroupedByParentId();
+  const messageGroups = useMessagePartsGrouped(groupingFunction);
 
   const partsElements = useMemo(() => {
     if (contentLength === 0) {
@@ -385,8 +437,8 @@ export const MessagePrimitiveUnstable_PartsGroupedByParentId: FC<
 
       return (
         <GroupComponent
-          key={`group-${groupIndex}-${group.parentId ?? "ungrouped"}`}
-          parentId={group.parentId}
+          key={`group-${groupIndex}-${group.groupKey ?? "ungrouped"}`}
+          groupKey={group.groupKey}
           indices={group.indices}
         >
           {group.indices.map((partIndex) => (
@@ -402,6 +454,27 @@ export const MessagePrimitiveUnstable_PartsGroupedByParentId: FC<
   }, [messageGroups, components, contentLength]);
 
   return <>{partsElements}</>;
+};
+
+MessagePrimitiveUnstable_PartsGrouped.displayName =
+  "MessagePrimitive.Unstable_PartsGrouped";
+
+/**
+ * Renders the parts of a message grouped by their parent ID.
+ * This is a convenience wrapper around Unstable_PartsGrouped with parent ID grouping.
+ *
+ * @deprecated Use MessagePrimitive.Unstable_PartsGrouped instead for more flexibility
+ */
+export const MessagePrimitiveUnstable_PartsGroupedByParentId: FC<
+  Omit<MessagePrimitiveUnstable_PartsGrouped.Props, "groupingFunction">
+> = ({ components, ...props }) => {
+  return (
+    <MessagePrimitiveUnstable_PartsGrouped
+      {...props}
+      components={components}
+      groupingFunction={groupMessagePartsByParentId}
+    />
+  );
 };
 
 MessagePrimitiveUnstable_PartsGroupedByParentId.displayName =
