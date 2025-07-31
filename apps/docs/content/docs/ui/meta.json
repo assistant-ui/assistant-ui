@@ -11,7 +11,7 @@
     "SyntaxHighlighting",
     "ToolFallback",
     "ToolGroup",
-    "ParentIdGrouping",
+    "PartGrouping",
     "Scrollbar"
   ]
 }
