@@ -42,7 +42,7 @@
     "@types/react": "^19.1.8",
     "eslint": "^9",
     "eslint-config-next": "15.3.4",
-    "react": "^19.1.0",
+    "react": "19.1.0",
     "react-hook-form": "^7.58.1",
     "tsx": "^4.20.3"
   },

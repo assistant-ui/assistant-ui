@@ -4,7 +4,7 @@ import {
   type AppendMessage,
   AssistantRuntimeProvider,
 } from "@assistant-ui/react";
-import { useVercelRSCRuntime } from "@assistant-ui/react-ai-sdk";
+import { useVercelRSCRuntime } from "@assistant-ui/react-ai-sdk-v4";
 import { useActions, useUIState } from "ai/rsc";
 import { nanoid } from "nanoid";
 

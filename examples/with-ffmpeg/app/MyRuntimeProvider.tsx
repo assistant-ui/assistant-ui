@@ -2,7 +2,7 @@
 
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { AttachmentAdapter } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk-v4";
 import { INTERNAL } from "@assistant-ui/react";
 
 const { generateId } = INTERNAL;

@@ -1,5 +1,5 @@
 import { ollama } from "ollama-ai-provider";
-import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { frontendTools } from "@assistant-ui/react-ai-sdk-v4";
 import { streamText } from "ai";
 
 export const runtime = "edge";

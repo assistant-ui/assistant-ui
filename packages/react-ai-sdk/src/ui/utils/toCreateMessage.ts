@@ -1,35 +1,60 @@
 import { AppendMessage } from "@assistant-ui/react";
-import { CreateMessage } from "@ai-sdk/ui-utils";
+import {
+  CreateUIMessage,
+  FileUIPart,
+  UIDataTypes,
+  UIMessage,
+  UIMessagePart,
+  UITools,
+} from "ai";
 
 export const toCreateMessage = async (
   message: AppendMessage,
-): Promise<CreateMessage> => {
-  const content = message.content
+): Promise<CreateUIMessage<UIMessage>> => {
+  const textParts = message.content
     .filter((part) => part.type === "text")
     .map((t) => t.text)
     .join("\n\n");
 
-  const images = message.content
+  const parts: UIMessagePart<UIDataTypes, UITools>[] = [
+    {
+      type: "text",
+      text: textParts,
+    },
+  ];
+
+  // Add image parts
+  const imageParts = message.content
     .filter((part) => part.type === "image")
-    .map((part) => ({ url: part.image }));
+    .map(
+      (part) =>
+        ({
+          type: "file",
+          mediaType: "image/png", // Default to PNG, could be made more dynamic
+          url: part.image,
+        }) satisfies FileUIPart,
+    );
+
+  parts.push(...imageParts);
+
+  // Add attachment parts
+  const attachmentParts = await Promise.all(
+    (message.attachments ?? []).map(async (m) => {
+      if (m.file == null) throw new Error("Attachment did not contain a file");
+      return {
+        type: "file",
+        mediaType: m.file.type,
+        filename: m.file.name,
+        url: await getFileDataURL(m.file),
+      } satisfies FileUIPart;
+    }),
+  );
+
+  parts.push(...attachmentParts);
 
   return {
     role: message.role,
-    content,
-    experimental_attachments: [
-      ...images,
-      ...(await Promise.all(
-        (message.attachments ?? []).map(async (m) => {
-          if (m.file == null)
-            throw new Error("Attachment did not contain a file");
-          return {
-            contentType: m.file.type,
-            name: m.file.name,
-            url: await getFileDataURL(m.file),
-          };
-        }),
-      )),
-    ],
+    parts,
   };
 };
 

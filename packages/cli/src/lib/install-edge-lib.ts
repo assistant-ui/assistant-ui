@@ -52,7 +52,7 @@ export default async function installEdgeLib(): Promise<void> {
     if (
       content.includes("@assistant-ui/react-edge") ||
       (content.includes("useChatRuntime") &&
-        content.includes("@assistant-ui/react-ai-sdk"))
+        content.includes("@assistant-ui/react-ai-sdk-v4"))
     ) {
       found = true;
       break;
@@ -60,7 +60,7 @@ export default async function installEdgeLib(): Promise<void> {
   }
 
   if (found) {
-    if (isPackageInstalled("@assistant-ui/react-ai-sdk")) {
+    if (isPackageInstalled("@assistant-ui/react-ai-sdk-v4")) {
       console.log(
         "@assistant-ui/react-ai-sdk is already installed. Skipping installation.",
       );

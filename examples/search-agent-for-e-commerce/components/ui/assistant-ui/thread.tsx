@@ -16,7 +16,7 @@ import {
 import { cn } from "@/lib/utils";
 import { ArrowDownIcon, SendHorizontalIcon } from "lucide-react";
 import Image from "next/image";
-import { RSCDisplay } from "@assistant-ui/react-ai-sdk";
+import { RSCDisplay } from "@assistant-ui/react-ai-sdk-v4";
 
 export const Thread: FC = () => {
   return (

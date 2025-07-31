@@ -1,0 +1,129 @@
+---
+title: AI SDK v5 (@alpha)
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+<Callout type="warn">
+  This integration is currently in **alpha**. APIs may change before the stable release.
+</Callout>
+
+## Overview
+
+Integration with the Vercel AI SDK v5's `useChat` hook using the `@assistant-ui/react-ai-sdk` package with the `@alpha` tag.  
+This version supports the latest AI SDK v5 features including the new streamText API and improved TypeScript support.
+
+## Getting Started
+
+import { Steps, Step } from "fumadocs-ui/components/steps";
+
+<Steps>
+  <Step>
+  ### Create a Next.JS project
+
+```sh
+npx create-next-app@latest my-app
+cd my-app
+```
+
+  </Step>
+  <Step>
+
+### Install AI SDK v5 and `@assistant-ui/react` with alpha tag
+
+```sh npm2yarn
+npm install @assistant-ui/react @assistant-ui/react-ai-sdk@alpha ai @ai-sdk/openai
+```
+
+  </Step>
+  <Step>
+
+### Setup a backend route under `/api/chat`
+
+`@/app/api/chat/route.ts`
+
+```tsx
+import { openai } from "@ai-sdk/openai";
+import {
+  streamText,
+  UIMessage,
+  convertToModelMessages,
+  tool,
+} from "ai";
+import { z } from "zod";
+
+// Allow streaming responses up to 30 seconds
+export const maxDuration = 30;
+
+export async function POST(req: Request) {
+  const { messages }: { messages: UIMessage[] } = await req.json();
+
+  const result = streamText({
+    model: openai("gpt-4o"),
+    messages: convertToModelMessages(messages),
+    tools: {
+      get_current_weather: tool({
+        description: "Get the current weather",
+        inputSchema: z.object({
+          city: z.string(),
+        }),
+        execute: async ({ city }) => {
+          return `The weather in ${city} is sunny`;
+        },
+      }),
+    },
+  });
+
+  return result.toUIMessageStreamResponse();
+}
+```
+
+  </Step>
+  <Step>
+
+### Wrap your app with `AssistantRuntimeProvider` with AI SDK v5 runtime
+
+`@/app/page.tsx`
+
+```tsx
+"use client";
+
+import { Thread } from "@/components/assistant-ui/thread";
+import { useChat } from "@ai-sdk/react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useAISDKRuntime } from "@assistant-ui/react-ai-sdk";
+
+export default function Home() {
+  const chat = useChat();
+  const runtime = useAISDKRuntime(chat);
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <div className="h-full">
+        <Thread />
+      </div>
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+## API Reference
+
+### useAISDKRuntime
+
+Creates a runtime adapter for AI SDK v5's `useChat` hook.
+
+```tsx
+import { useChat } from "@ai-sdk/react";
+import { useAISDKRuntime } from "@assistant-ui/react-ai-sdk";
+
+const chat = useChat();
+const runtime = useAISDKRuntime(chat);
+```
+
+## Example
+
+For a complete example, check out the [AI SDK v5 example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-ai-sdk-v5) in our repository.
