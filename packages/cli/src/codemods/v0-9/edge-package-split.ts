@@ -65,7 +65,7 @@ const migrateToEdgePackage = createTransformer(({ j, root, markAsChanged }) => {
   // Add imports for react-ai-sdk (all edge-related imports now go here)
   if (movedAiSdkSpecifiers.length > 0) {
     const existingAiSdkImport = root.find(j.ImportDeclaration, {
-      source: { value: "@assistant-ui/react-ai-sdk-v4" },
+      source: { value: "@assistant-ui/react-ai-sdk" },
     });
     if (existingAiSdkImport.size() > 0) {
       existingAiSdkImport.forEach((path: any) => {
@@ -82,7 +82,7 @@ const migrateToEdgePackage = createTransformer(({ j, root, markAsChanged }) => {
     } else {
       const newImport = j.importDeclaration(
         movedAiSdkSpecifiers,
-        j.literal("@assistant-ui/react-ai-sdk-v4"),
+        j.literal("@assistant-ui/react-ai-sdk"),
       );
       if (lastMigratedImportPath) {
         j(lastMigratedImportPath).insertAfter(newImport);
@@ -147,7 +147,7 @@ const migrateToEdgePackage = createTransformer(({ j, root, markAsChanged }) => {
         }
 
         const existingAiSdkImport = root.find(j.ImportDeclaration, {
-          source: { value: "@assistant-ui/react-ai-sdk-v4" },
+          source: { value: "@assistant-ui/react-ai-sdk" },
         });
 
         if (existingAiSdkImport.size() > 0) {
@@ -165,7 +165,7 @@ const migrateToEdgePackage = createTransformer(({ j, root, markAsChanged }) => {
         } else {
           const newImport = j.importDeclaration(
             aiSdkSpecifiers,
-            j.literal("@assistant-ui/react-ai-sdk-v4"),
+            j.literal("@assistant-ui/react-ai-sdk"),
           );
           j(path).insertAfter(newImport);
         }
