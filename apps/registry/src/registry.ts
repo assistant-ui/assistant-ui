@@ -32,7 +32,7 @@ export const registry: RegistryItem[] = [
         target: "app/api/chat/route.ts",
       },
     ],
-    dependencies: ["@assistant-ui/react-ai-sdk", "ai", "@ai-sdk/openai"],
+    dependencies: ["@assistant-ui/react-ai-sdk-v4", "ai", "@ai-sdk/openai"],
   },
   {
     name: "thread",
