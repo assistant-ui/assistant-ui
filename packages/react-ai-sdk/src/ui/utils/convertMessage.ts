@@ -1,100 +1,183 @@
-import { Message } from "@ai-sdk/ui-utils";
+import { isToolUIPart, UIMessage } from "ai";
 import {
   unstable_createMessageConverter,
   type ReasoningMessagePart,
   type ToolCallMessagePart,
   type TextMessagePart,
-  type CompleteAttachment,
   type SourceMessagePart,
   type FileMessagePart,
 } from "@assistant-ui/react";
 
-const convertParts = (message: Message) => {
-  if (message.parts && message.parts.length > 0) {
-    return message.parts
-      .filter((p) => p.type !== "step-start")
-      .map((part) => {
-        const type = part.type;
-        switch (type) {
-          case "text":
-            return {
-              type: "text",
-              text: part.text,
-            } satisfies TextMessagePart;
-          case "tool-invocation":
-            return {
-              type: "tool-call",
-              toolName: part.toolInvocation.toolName,
-              toolCallId: part.toolInvocation.toolCallId,
-              argsText: JSON.stringify(part.toolInvocation.args),
-              args: part.toolInvocation.args,
-              result:
-                part.toolInvocation.state === "result" &&
-                part.toolInvocation.result,
-            } satisfies ToolCallMessagePart;
-          case "reasoning":
-            return {
-              type: "reasoning",
-              text: part.reasoning,
-            } satisfies ReasoningMessagePart;
-          case "source":
-            return {
-              type: "source",
-              ...part.source,
-            } satisfies SourceMessagePart;
-          case "file":
-            return {
-              type: "file",
-              data: part.data,
-              mimeType: part.mimeType,
-            } satisfies FileMessagePart;
-          default: {
-            const _unsupported: never = type;
-            throw new Error(
-              `You have a message with an unsupported part type. The type ${_unsupported} is not supported.`,
-            );
-          }
-        }
-      });
+const convertParts = (message: UIMessage) => {
+  if (!message.parts || message.parts.length === 0) {
+    return [];
   }
 
-  return message.content
-    ? [
-        {
+  return message.parts
+    .filter((p) => p.type !== "step-start")
+    .map((part) => {
+      const type = part.type;
+
+      // Handle text parts
+      if (type === "text") {
+        return {
           type: "text",
-          text: message.content,
-        } satisfies TextMessagePart,
-      ]
-    : [];
+          text: part.text,
+        } satisfies TextMessagePart;
+      }
+
+      // Handle reasoning parts
+      if (type === "reasoning") {
+        return {
+          type: "reasoning",
+          text: part.text,
+        } satisfies ReasoningMessagePart;
+      }
+
+      // Handle tool-* parts (AI SDK v5 tool calls)
+      if (isToolUIPart(part)) {
+        const toolName = type.replace("tool-", "");
+        const toolCallId = part.toolCallId;
+
+        // Extract args and result based on state
+        let args: any = {};
+        let result: any = undefined;
+        let isError = false;
+
+        if (
+          part.state === "input-streaming" ||
+          part.state === "input-available"
+        ) {
+          args = part.input || {};
+        } else if (part.state === "output-available") {
+          args = part.input || {};
+          result = part.output;
+        } else if (part.state === "output-error") {
+          args = part.input || {};
+          isError = true;
+          result = { error: part.errorText };
+        }
+
+        return {
+          type: "tool-call",
+          toolName,
+          toolCallId,
+          argsText: JSON.stringify(args),
+          args,
+          result,
+          isError,
+        } satisfies ToolCallMessagePart;
+      }
+
+      // Handle dynamic-tool parts
+      if (type === "dynamic-tool") {
+        const toolName = part.toolName;
+        const toolCallId = part.toolCallId;
+
+        // Extract args and result based on state
+        let args: any = {};
+        let result: any = undefined;
+        let isError = false;
+
+        if (
+          part.state === "input-streaming" ||
+          part.state === "input-available"
+        ) {
+          args = part.input || {};
+        } else if (part.state === "output-available") {
+          args = part.input || {};
+          result = part.output;
+        } else if (part.state === "output-error") {
+          args = part.input || {};
+          isError = true;
+          result = { error: part.errorText };
+        }
+
+        return {
+          type: "tool-call",
+          toolName,
+          toolCallId,
+          argsText: JSON.stringify(args),
+          args,
+          result,
+          isError,
+        } satisfies ToolCallMessagePart;
+      }
+
+      // Handle source-url parts
+      if (type === "source-url") {
+        return {
+          type: "source",
+          sourceType: "url",
+          id: part.sourceId,
+          url: part.url,
+          title: part.title || "",
+        } satisfies SourceMessagePart;
+      }
+
+      // Handle source-document parts
+      if (type === "source-document") {
+        console.warn(
+          `Source document part type ${type} is not yet supported in conversion`,
+        );
+        return null;
+      }
+
+      // Handle file parts
+      if (type === "file") {
+        return {
+          type: "file",
+          data: part.url,
+          mimeType: part.mediaType,
+        } satisfies FileMessagePart;
+      }
+
+      // Handle data-* parts (AI SDK v5 data parts)
+      if (type.startsWith("data-")) {
+        // For now, we'll skip data parts as they don't have a direct equivalent
+        // in the assistant-ui types. They could be converted to a custom message part
+        // or handled differently based on the specific use case.
+        console.warn(
+          `Data part type ${type} is not yet supported in conversion`,
+        );
+        return null;
+      }
+
+      // For unsupported types, we'll skip them instead of throwing
+      console.warn(`Unsupported message part type: ${type}`);
+      return null;
+    })
+    .filter(Boolean) as any[];
 };
 
 export const AISDKMessageConverter = unstable_createMessageConverter(
-  (message: Message) => {
+  (message: UIMessage) => {
+    // UIMessage doesn't have createdAt, so we'll use current date or undefined
+    const createdAt = new Date();
     switch (message.role) {
       case "user":
         return {
           role: "user",
           id: message.id,
-          createdAt: message.createdAt,
+          createdAt,
           content: convertParts(message),
-          attachments: message.experimental_attachments?.map(
-            (attachment, idx) =>
-              ({
-                id: idx.toString(),
-                type: "file",
-                name: attachment.name ?? attachment.url,
-                content: [],
-                contentType: attachment.contentType ?? "unknown/unknown",
-                status: { type: "complete" },
-              }) satisfies CompleteAttachment,
-          ),
+          attachments: message.parts
+            ?.filter((p: any) => p.type === "file")
+            .map((part: any, idx) => ({
+              id: idx.toString(),
+              type: "file" as const,
+              name: part.name ?? part.url ?? "file",
+              content: [],
+              contentType: part.mediaType ?? part.mimeType ?? "unknown/unknown",
+              status: { type: "complete" as const },
+            })),
         };
 
       case "system":
         return {
           role: "system",
           id: message.id,
-          createdAt: message.createdAt,
+          createdAt,
           content: convertParts(message),
         };
 
@@ -102,60 +185,22 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
         return {
           role: "assistant",
           id: message.id,
-          createdAt: message.createdAt,
+          createdAt,
           content: convertParts(message),
           metadata: {
-            unstable_annotations: message.annotations,
-            unstable_data: Array.isArray(message.data)
-              ? message.data
-              : message.data
-                ? [message.data]
+            unstable_annotations: (message as any).annotations,
+            unstable_data: Array.isArray((message as any).data)
+              ? (message as any).data
+              : (message as any).data
+                ? [(message as any).data]
                 : undefined,
+            custom: {},
           },
         };
 
-      case "data": {
-        type MaybeSupportedDataMessage =
-          | { type?: "unsafe_other" }
-          | ToolCallMessagePart
-          | {
-              type: "tool-result";
-              toolCallId: string;
-              result: any;
-            };
-
-        if (
-          !message.data ||
-          !(typeof message.data === "object") ||
-          Array.isArray(message.data)
-        )
-          return [];
-
-        const data = message.data as MaybeSupportedDataMessage;
-
-        if (data.type === "tool-call") {
-          return {
-            role: "assistant",
-            id: message.id,
-            createdAt: message.createdAt,
-            content: [data],
-          };
-        } else if (data.type === "tool-result") {
-          return {
-            role: "tool",
-            id: message.id,
-            toolCallId: data.toolCallId,
-            result: data.result,
-          };
-        }
-        return [];
-      }
-
       default:
-        const _unsupported: "function" | "tool" = message.role;
-        throw new Error(
-          `You have a message with an unsupported role. The role ${_unsupported} is not supported.`,
-        );
+        console.warn(`Unsupported message role: ${message.role}`);
+        return [];
     }
   },
 );

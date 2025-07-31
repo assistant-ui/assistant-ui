@@ -1,4 +1,4 @@
-import { jsonSchema } from "ai";
+import { jsonSchema } from "@ai-sdk/ui-utils";
 import type { JSONSchema7 } from "json-schema";
 
 export const frontendTools = (

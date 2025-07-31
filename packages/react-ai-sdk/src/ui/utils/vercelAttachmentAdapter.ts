@@ -1,5 +1,5 @@
 import { AttachmentAdapter } from "@assistant-ui/react";
-import { generateId } from "@ai-sdk/ui-utils";
+import { generateId } from "ai";
 
 export const vercelAttachmentAdapter: AttachmentAdapter = {
   accept:
