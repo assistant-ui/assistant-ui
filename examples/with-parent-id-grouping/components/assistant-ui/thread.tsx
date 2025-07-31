@@ -207,11 +207,11 @@ const EditComposer: FC = () => {
 
 // Custom Group component for parent ID grouping
 const ParentIdGroup: FC<
-  PropsWithChildren<{ parentId: string | undefined; indices: number[] }>
-> = ({ parentId, indices, children }) => {
+  PropsWithChildren<{ groupKey: string | undefined; indices: number[] }>
+> = ({ groupKey, indices, children }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
-  if (!parentId) {
+  if (!groupKey) {
     // Ungrouped parts - just render them directly
     return <>{children}</>;
   }
@@ -225,15 +225,15 @@ const ParentIdGroup: FC<
         <span className="flex items-center gap-2">
           <span className="text-muted-foreground">Research Group:</span>
           <span className="text-foreground">
-            {parentId === "research-climate-causes" && "Climate Change Causes"}
-            {parentId === "research-climate-effects" &&
+            {groupKey === "research-climate-causes" && "Climate Change Causes"}
+            {groupKey === "research-climate-effects" &&
               "Climate Change Effects"}
-            {parentId === "new-research" && "Recent Research"}
+            {groupKey === "new-research" && "Recent Research"}
             {![
               "research-climate-causes",
               "research-climate-effects",
               "new-research",
-            ].includes(parentId) && parentId}
+            ].includes(groupKey) && groupKey}
           </span>
           <span className="text-muted-foreground text-xs">
             ({indices.length} parts)

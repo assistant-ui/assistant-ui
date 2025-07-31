@@ -3,7 +3,7 @@ import { AssistantStreamChunk } from "./AssistantStreamChunk";
 export type AssistantStream = ReadableStream<AssistantStreamChunk>;
 
 export type AssistantStreamEncoder = ReadableWritablePair<
-  Uint8Array,
+  Uint8Array<ArrayBuffer>,
   AssistantStreamChunk
 > & {
   headers?: Headers;
@@ -18,21 +18,30 @@ export const AssistantStream = {
 
   fromResponse(
     response: Response,
-    transformer: ReadableWritablePair<AssistantStreamChunk, Uint8Array>,
+    transformer: ReadableWritablePair<
+      AssistantStreamChunk,
+      Uint8Array<ArrayBuffer>
+    >,
   ) {
     return AssistantStream.fromByteStream(response.body!, transformer);
   },
 
   toByteStream(
     stream: AssistantStream,
-    transformer: ReadableWritablePair<Uint8Array, AssistantStreamChunk>,
+    transformer: ReadableWritablePair<
+      Uint8Array<ArrayBuffer>,
+      AssistantStreamChunk
+    >,
   ) {
     return stream.pipeThrough(transformer);
   },
 
   fromByteStream(
-    readable: ReadableStream<Uint8Array>,
-    transformer: ReadableWritablePair<AssistantStreamChunk, Uint8Array>,
+    readable: ReadableStream<Uint8Array<ArrayBuffer>>,
+    transformer: ReadableWritablePair<
+      AssistantStreamChunk,
+      Uint8Array<ArrayBuffer>
+    >,
   ) {
     return readable.pipeThrough(transformer);
   },

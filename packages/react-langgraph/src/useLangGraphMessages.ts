@@ -36,7 +36,7 @@ export type LangGraphStreamCallback<TMessage> = (
 export type LangGraphInterruptState = {
   value?: any;
   resumable?: boolean;
-  when: string;
+  when?: string;
   ns?: string[];
 };
 

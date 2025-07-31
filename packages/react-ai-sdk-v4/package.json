@@ -30,9 +30,9 @@
     "@types/json-schema": "^7.0.15",
     "assistant-stream": "^0.2.21",
     "json-schema": "^0.4.0",
-    "zod": "^3.25.67",
+    "zod": "^4.0.14",
     "zod-to-json-schema": "^3.24.6",
-    "zustand": "^5.0.6"
+    "zustand": "^5.0.7"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.10.33",
@@ -47,11 +47,11 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^24.0.4",
-    "@types/react": "^19.1.8",
+    "@types/node": "^24.1.0",
+    "@types/react": "^19.1.9",
     "eslint": "^9",
-    "eslint-config-next": "15.3.4",
-    "react": "19.1.0",
+    "eslint-config-next": "15.4.5",
+    "react": "19.1.1",
     "tsx": "^4.20.3"
   },
   "publishConfig": {

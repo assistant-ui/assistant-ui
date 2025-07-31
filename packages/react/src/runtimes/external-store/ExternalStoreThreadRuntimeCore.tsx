@@ -184,7 +184,7 @@ export class ExternalStoreThreadRuntimeCore
     // Common logic for both paths
     if (messages.length > 0) this.ensureInitialized();
 
-    if (oldStore?.isRunning ?? false !== store.isRunning ?? false) {
+    if ((oldStore?.isRunning ?? false) !== (store.isRunning ?? false)) {
       if (store.isRunning) {
         this._notifyEventSubscribers("run-start");
       } else {

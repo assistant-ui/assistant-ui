@@ -33,13 +33,13 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "assistant-stream": "^0.2.18"
+    "assistant-stream": "^0.2.21"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^24.0.4",
+    "@types/node": "^24.1.0",
     "eslint": "^9",
-    "eslint-config-next": "15.3.4",
+    "eslint-config-next": "15.4.5",
     "tsx": "^4.20.3",
     "vitest": "^3.2.4"
   },

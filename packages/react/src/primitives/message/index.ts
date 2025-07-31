@@ -4,4 +4,7 @@ export { MessagePrimitiveParts as Content } from "./MessageParts";
 export { MessagePrimitiveIf as If } from "./MessageIf";
 export { MessagePrimitiveAttachments as Attachments } from "./MessageAttachments";
 export { MessagePrimitiveError as Error } from "./MessageError";
-export { MessagePrimitiveUnstable_PartsGroupedByParentId as Unstable_PartsGroupedByParentId } from "./MessagePartsGroupedByParentId";
+export {
+  MessagePrimitiveUnstable_PartsGrouped as Unstable_PartsGrouped,
+  MessagePrimitiveUnstable_PartsGroupedByParentId as Unstable_PartsGroupedByParentId,
+} from "./MessagePartsGrouped";

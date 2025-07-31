@@ -69,8 +69,8 @@
     "json-schema": "^0.4.0",
     "nanoid": "5.1.5",
     "react-textarea-autosize": "^8.5.9",
-    "zod": "^3.25.67",
-    "zustand": "^5.0.6"
+    "zod": "^4.0.14",
+    "zustand": "^5.0.7"
   },
   "peerDependencies": {
     "@types/react": "*",
@@ -91,9 +91,9 @@
     "@stryker-mutator/core": "^9.0.1",
     "@stryker-mutator/vitest-runner": "^9.0.1",
     "@types/json-schema": "^7.0.15",
-    "@types/node": "^24.0.4",
+    "@types/node": "^24.1.0",
     "eslint": "^9",
-    "eslint-config-next": "15.3.4",
+    "eslint-config-next": "15.4.5",
     "tsx": "^4.20.3",
     "vitest": "^3.2.4"
   },
