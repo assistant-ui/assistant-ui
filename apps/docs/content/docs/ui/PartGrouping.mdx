@@ -4,6 +4,7 @@ title: Message Part Grouping
 
 import { Steps, Step } from "fumadocs-ui/components/steps";
 import { Callout } from "fumadocs-ui/components/callout";
+import { ParametersTable } from "@/components/docs";
 
 ## Overview
 
@@ -14,6 +15,13 @@ import { Callout } from "fumadocs-ui/components/callout";
 The Parent ID Grouping feature allows you to group related message parts together by assigning them a common `parentId`. This is useful for organizing content hierarchically, such as grouping research sources with their findings, or organizing multi-step tool executions.
 
 ### Use it in your application
+
+The message part grouping feature provides two ways to group message parts:
+
+1. **PartsGroupedByParentId** - Groups parts by their parent ID (simplified API)
+2. **PartsGrouped** - Groups parts using a custom grouping function (flexible API)
+
+#### Using PartsGroupedByParentId
 
 Use the `MessagePrimitive.Unstable_PartsGroupedByParentId` component instead of the regular `MessagePrimitive.Parts` component:
 
@@ -49,6 +57,70 @@ const AssistantMessage: FC = () => {
       <div className="...">
         <MessagePrimitive.Unstable_PartsGroupedByParentId
           components={{ Group: ParentIdGroup }}
+        />
+      </div>
+      <AssistantActionBar />
+
+      <BranchPicker className="..." />
+    </MessagePrimitive.Root>
+  );
+};
+```
+
+#### Using PartsGrouped (Custom Grouping)
+
+For more control over how parts are grouped, use the `MessagePrimitive.Unstable_PartsGrouped` component with a custom grouping function:
+
+```tsx twoslash title="/components/assistant-ui/thread.tsx"
+import { FC, PropsWithChildren } from "react";
+import { MessagePrimitive } from "@assistant-ui/react";
+
+const AssistantActionBar: FC = () => null;
+const BranchPicker: FC<{ className?: string }> = () => null;
+
+// ---cut---
+// Custom grouping function that groups by tool name
+const groupByToolName = (parts: readonly any[]) => {
+  const groups = new Map<string, number[]>();
+  
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    // Group tool calls by tool name
+    const groupKey = part.type === "tool-call" ? part.toolName : `__other_${i}`;
+    
+    const indices = groups.get(groupKey) ?? [];
+    indices.push(i);
+    groups.set(groupKey, indices);
+  }
+  
+  return Array.from(groups.entries()).map(([groupKey, indices]) => ({
+    groupKey: groupKey.startsWith("__other_") ? undefined : groupKey,
+    indices
+  }));
+};
+
+const ToolGroup: FC<
+  PropsWithChildren<{ groupKey: string | undefined; indices: number[] }>
+> = ({ groupKey, indices, children }) => {
+  if (!groupKey) return <>{children}</>;
+  
+  return (
+    <div className="tool-group my-2 rounded-lg border">
+      <div className="bg-muted/50 px-4 py-2 text-sm font-medium">
+        Tool: {groupKey} ({indices.length} calls)
+      </div>
+      <div className="p-4">{children}</div>
+    </div>
+  );
+};
+
+const AssistantMessage: FC = () => {
+  return (
+    <MessagePrimitive.Root className="...">
+      <div className="...">
+        <MessagePrimitive.Unstable_PartsGrouped
+          groupingFunction={groupByToolName}
+          components={{ Group: ToolGroup }}
         />
       </div>
       <AssistantActionBar />
@@ -248,3 +320,159 @@ Parent ID grouping is particularly useful for:
 - **Multi-step processes**: Organize related tool calls and their results
 - **Hierarchical content**: Create nested or categorized information structures
 - **Context preservation**: Keep related information visually connected
+
+## API Reference
+
+### MessagePrimitive.Unstable_PartsGrouped
+
+The flexible API for grouping message parts with custom logic.
+
+<ParametersTable
+  type="MessagePrimitiveUnstable_PartsGroupedProps"
+  parameters={[
+    {
+      name: "groupingFunction",
+      type: "(parts: readonly any[]) => MessagePartGroup[]",
+      description: "Function that takes an array of message parts and returns an array of groups. Each group contains a groupKey (for identification) and an array of indices.",
+      required: true
+    },
+    {
+      name: "components",
+      type: "object",
+      description: "Component configuration for rendering different types of message content and groups.",
+      children: [
+        {
+          name: "Empty",
+          type: "EmptyMessagePartComponent",
+          description: "Component for rendering empty messages"
+        },
+        {
+          name: "Text",
+          type: "TextMessagePartComponent",
+          description: "Component for rendering text content"
+        },
+        {
+          name: "Reasoning",
+          type: "ReasoningMessagePartComponent",
+          description: "Component for rendering reasoning content (typically hidden)"
+        },
+        {
+          name: "Source",
+          type: "SourceMessagePartComponent",
+          description: "Component for rendering source content"
+        },
+        {
+          name: "Image",
+          type: "ImageMessagePartComponent",
+          description: "Component for rendering image content"
+        },
+        {
+          name: "File",
+          type: "FileMessagePartComponent",
+          description: "Component for rendering file content"
+        },
+        {
+          name: "Unstable_Audio",
+          type: "Unstable_AudioMessagePartComponent",
+          description: "Component for rendering audio content (experimental)"
+        },
+        {
+          name: "tools",
+          type: "object | { Override: ComponentType }",
+          description: "Configuration for tool call rendering. Can be an object with by_name map and Fallback component, or an Override component."
+        },
+        {
+          name: "Group",
+          type: "ComponentType<{ groupKey: string | undefined; indices: number[]; children: ReactNode }>",
+          description: "Component for rendering grouped message parts. Receives groupKey, indices array, and children to render."
+        }
+      ]
+    }
+  ]}
+/>
+
+#### MessagePartGroup Type
+
+The grouping function returns an array of `MessagePartGroup` objects:
+
+```typescript
+type MessagePartGroup = {
+  groupKey: string | undefined;  // The group identifier (undefined for ungrouped parts)
+  indices: number[];             // Array of part indices belonging to this group
+};
+```
+
+#### Grouping Function Examples
+
+```typescript
+// Group by parent ID (built-in default)
+const groupByParentId = (parts: readonly any[]) => {
+  const groups = new Map<string, number[]>();
+  
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    const groupId = part?.parentId ?? `__ungrouped_${i}`;
+    
+    const indices = groups.get(groupId) ?? [];
+    indices.push(i);
+    groups.set(groupId, indices);
+  }
+  
+  return Array.from(groups.entries()).map(([groupId, indices]) => ({
+    groupKey: groupId.startsWith("__ungrouped_") ? undefined : groupId,
+    indices
+  }));
+};
+
+// Group consecutive text parts
+const groupConsecutiveText = (parts: readonly any[]) => {
+  const groups: MessagePartGroup[] = [];
+  let currentGroup: number[] = [];
+  let isTextGroup = false;
+  
+  for (let i = 0; i < parts.length; i++) {
+    const isText = parts[i].type === "text";
+    
+    if (isText === isTextGroup && currentGroup.length > 0) {
+      currentGroup.push(i);
+    } else {
+      if (currentGroup.length > 0) {
+        groups.push({
+          groupKey: isTextGroup ? "text-block" : undefined,
+          indices: currentGroup
+        });
+      }
+      currentGroup = [i];
+      isTextGroup = isText;
+    }
+  }
+  
+  if (currentGroup.length > 0) {
+    groups.push({
+      groupKey: isTextGroup ? "text-block" : undefined,
+      indices: currentGroup
+    });
+  }
+  
+  return groups;
+};
+```
+
+### MessagePrimitive.Unstable_PartsGroupedByParentId
+
+A convenience wrapper that uses parent ID grouping by default.
+
+<ParametersTable
+  type="MessagePrimitiveUnstable_PartsGroupedByParentIdProps"
+  parameters={[
+    {
+      name: "components",
+      type: "object",
+      description: "Same component configuration as PartsGrouped, for rendering different types of message content and groups."
+    }
+  ]}
+/>
+
+<Callout>
+  The PartsGroupedByParentId component is equivalent to using PartsGrouped with the built-in `groupMessagePartsByParentId` function.
+</Callout>
