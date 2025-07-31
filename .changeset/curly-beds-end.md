@@ -1,5 +1,4 @@
 ---
-"example-with-ai-sdk-v5": patch
 "assistant-stream": patch
 "assistant-ui": patch
 "assistant-cloud": patch
