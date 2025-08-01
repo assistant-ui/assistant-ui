@@ -1,5 +1,14 @@
 # @assistant-ui/react-hook-form
 
+## 0.10.7
+
+### Patch Changes
+
+- 0f063e0: chore: update dependencies
+- Updated dependencies [0f063e0]
+- Updated dependencies [5d8b074]
+  - @assistant-ui/react@0.10.34
+
 ## 0.10.6
 
 ### Patch Changes
