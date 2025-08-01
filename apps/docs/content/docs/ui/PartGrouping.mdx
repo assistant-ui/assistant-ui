@@ -39,7 +39,7 @@ const AssistantMessage: FC = () => {
             Group: ({ groupKey, indices, children }) => {
               // Your custom group rendering
               return <div className="group">{children}</div>;
-            }
+            },
           }}
         />
       </div>
@@ -53,6 +53,7 @@ const AssistantMessage: FC = () => {
 ## How Grouping Works
 
 The grouping function receives all message parts and returns an array of groups. Each group contains:
+
 - `groupKey`: A string identifier for the group (or `undefined` for ungrouped parts)
 - `indices`: An array of indices indicating which parts belong to this group
 
@@ -63,21 +64,24 @@ The grouping function receives all message parts and returns an array of groups.
 Group related content together using a parent-child relationship:
 
 ```tsx
+import { FC, PropsWithChildren, useState } from "react";
+import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
+
 const groupByParentId = (parts: readonly any[]) => {
   const groups = new Map<string, number[]>();
-  
+
   for (let i = 0; i < parts.length; i++) {
     const part = parts[i];
     const groupId = part?.parentId ?? `__ungrouped_${i}`;
-    
+
     const indices = groups.get(groupId) ?? [];
     indices.push(i);
     groups.set(groupId, indices);
   }
-  
+
   return Array.from(groups.entries()).map(([groupId, indices]) => ({
     groupKey: groupId.startsWith("__ungrouped_") ? undefined : groupId,
-    indices
+    indices,
   }));
 };
 
@@ -86,16 +90,18 @@ const CollapsibleGroup: FC<
   PropsWithChildren<{ groupKey: string | undefined; indices: number[] }>
 > = ({ groupKey, indices, children }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  
+
   if (!groupKey) return <>{children}</>;
-  
+
   return (
     <div className="my-2 overflow-hidden rounded-lg border">
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
         className="hover:bg-muted/50 flex w-full items-center justify-between p-3"
       >
-        <span>Group {groupKey} ({indices.length} items)</span>
+        <span>
+          Group {groupKey} ({indices.length} items)
+        </span>
         {isCollapsed ? <ChevronDownIcon /> : <ChevronUpIcon />}
       </button>
       {!isCollapsed && <div className="border-t p-3">{children}</div>}
@@ -109,22 +115,24 @@ const CollapsibleGroup: FC<
 Organize tool calls by their type:
 
 ```tsx
+import { FC, PropsWithChildren } from "react";
+
 const groupByToolName = (parts: readonly any[]) => {
   const groups = new Map<string, number[]>();
-  
+
   for (let i = 0; i < parts.length; i++) {
     const part = parts[i];
     // Group tool calls by tool name, everything else ungrouped
     const groupKey = part.type === "tool-call" ? part.toolName : `__other_${i}`;
-    
+
     const indices = groups.get(groupKey) ?? [];
     indices.push(i);
     groups.set(groupKey, indices);
   }
-  
+
   return Array.from(groups.entries()).map(([groupKey, indices]) => ({
     groupKey: groupKey.startsWith("__other_") ? undefined : groupKey,
-    indices
+    indices,
   }));
 };
 
@@ -133,7 +141,7 @@ const ToolGroup: FC<
   PropsWithChildren<{ groupKey: string | undefined; indices: number[] }>
 > = ({ groupKey, indices, children }) => {
   if (!groupKey) return <>{children}</>;
-  
+
   return (
     <div className="tool-group my-2 rounded-lg border">
       <div className="bg-muted/50 px-4 py-2 text-sm font-medium">
@@ -150,35 +158,42 @@ const ToolGroup: FC<
 Combine multiple text parts into cohesive blocks:
 
 ```tsx
+import { FC, PropsWithChildren } from "react";
+
+type MessagePartGroup = {
+  groupKey: string | undefined;
+  indices: number[];
+};
+
 const groupConsecutiveText = (parts: readonly any[]) => {
   const groups: MessagePartGroup[] = [];
   let currentGroup: number[] = [];
   let isTextGroup = false;
-  
+
   for (let i = 0; i < parts.length; i++) {
     const isText = parts[i].type === "text";
-    
+
     if (isText === isTextGroup && currentGroup.length > 0) {
       currentGroup.push(i);
     } else {
       if (currentGroup.length > 0) {
         groups.push({
           groupKey: isTextGroup ? "text-block" : undefined,
-          indices: currentGroup
+          indices: currentGroup,
         });
       }
       currentGroup = [i];
       isTextGroup = isText;
     }
   }
-  
+
   if (currentGroup.length > 0) {
     groups.push({
       groupKey: isTextGroup ? "text-block" : undefined,
-      indices: currentGroup
+      indices: currentGroup,
     });
   }
-  
+
   return groups;
 };
 
@@ -202,36 +217,48 @@ const TextBlockGroup: FC<
 Separate different types of content for distinct visual treatment:
 
 ```tsx
+type MessagePartGroup = {
+  groupKey: string | undefined;
+  indices: number[];
+};
+
 const groupByContentType = (parts: readonly any[]) => {
   const typeGroups = new Map<string, number[]>();
-  
+
   for (let i = 0; i < parts.length; i++) {
     const part = parts[i];
     const type = part.type;
-    
+
     const indices = typeGroups.get(type) ?? [];
     indices.push(i);
     typeGroups.set(type, indices);
   }
-  
+
   // Order groups by type priority
-  const typeOrder = ["reasoning", "tool-call", "source", "text", "image", "file"];
+  const typeOrder = [
+    "reasoning",
+    "tool-call",
+    "source",
+    "text",
+    "image",
+    "file",
+  ];
   const orderedGroups: MessagePartGroup[] = [];
-  
+
   for (const type of typeOrder) {
     const indices = typeGroups.get(type);
     if (indices && indices.length > 0) {
       orderedGroups.push({ groupKey: type, indices });
     }
   }
-  
+
   // Add any remaining types
   for (const [type, indices] of typeGroups) {
     if (!typeOrder.includes(type)) {
       orderedGroups.push({ groupKey: type, indices });
     }
   }
-  
+
   return orderedGroups;
 };
 ```
@@ -241,30 +268,37 @@ const groupByContentType = (parts: readonly any[]) => {
 Use any custom metadata in your parts for grouping:
 
 ```tsx
+import { FC, PropsWithChildren } from "react";
+
+type MessagePartGroup = {
+  groupKey: string | undefined;
+  indices: number[];
+};
+
 const groupByPriority = (parts: readonly any[]) => {
   const priorityGroups = new Map<string, number[]>();
-  
+
   for (let i = 0; i < parts.length; i++) {
     const part = parts[i];
     // Assume parts have a custom priority field
     const priority = part.priority || "normal";
-    
+
     const indices = priorityGroups.get(priority) ?? [];
     indices.push(i);
     priorityGroups.set(priority, indices);
   }
-  
+
   // Order by priority
   const priorityOrder = ["high", "normal", "low"];
   const orderedGroups: MessagePartGroup[] = [];
-  
+
   for (const priority of priorityOrder) {
     const indices = priorityGroups.get(priority);
     if (indices) {
       orderedGroups.push({ groupKey: priority, indices });
     }
   }
-  
+
   return orderedGroups;
 };
 
@@ -273,15 +307,17 @@ const PriorityGroup: FC<
   PropsWithChildren<{ groupKey: string | undefined; indices: number[] }>
 > = ({ groupKey, indices, children }) => {
   if (!groupKey) return <>{children}</>;
-  
+
   const priorityStyles = {
     high: "border-red-500 bg-red-50",
     normal: "border-gray-300 bg-white",
-    low: "border-gray-200 bg-gray-50"
+    low: "border-gray-200 bg-gray-50",
   };
-  
+
   return (
-    <div className={`my-2 rounded-lg border-2 p-4 ${priorityStyles[groupKey] || ""}`}>
+    <div
+      className={`my-2 rounded-lg border-2 p-4 ${priorityStyles[groupKey] || ""}`}
+    >
       <div className="mb-2 text-xs font-semibold uppercase text-gray-600">
         {groupKey} Priority
       </div>
@@ -303,10 +339,10 @@ from assistant_stream import create_run
 async def my_run(controller):
     # Add parts with custom parentId
     research_controller = controller.with_parent_id("research-123")
-    
+
     await research_controller.add_tool_call("search", {"query": "climate data"})
     research_controller.append_text("Key findings from the research:")
-    
+
     # Add parts with custom metadata
     controller.append_part({
         "type": "text",
@@ -324,18 +360,18 @@ import { createAssistantStream } from "@assistant-ui/react/assistant-stream";
 const stream = createAssistantStream(async (controller) => {
   // Add parts with parentId
   const researchController = controller.withParentId("research-123");
-  
+
   await researchController.addToolCallPart({
     toolName: "search",
     args: { query: "climate data" },
   });
-  
+
   // Add parts with custom metadata
   controller.appendPart({
     type: "text",
     text: "High priority finding",
     priority: "high",
-    category: "findings"
+    category: "findings",
   });
 });
 ```
@@ -350,61 +386,72 @@ const stream = createAssistantStream(async (controller) => {
     {
       name: "groupingFunction",
       type: "(parts: readonly any[]) => MessagePartGroup[]",
-      description: "Function that takes an array of message parts and returns an array of groups. Each group contains a groupKey (for identification) and an array of indices.",
-      required: true
+      description:
+        "Function that takes an array of message parts and returns an array of groups. Each group contains a groupKey (for identification) and an array of indices.",
+      required: true,
     },
     {
       name: "components",
       type: "object",
-      description: "Component configuration for rendering different types of message content and groups.",
+      description:
+        "Component configuration for rendering different types of message content and groups.",
       children: [
         {
-          name: "Empty",
-          type: "EmptyMessagePartComponent",
-          description: "Component for rendering empty messages"
+          type: "Components",
+          parameters: [
+            {
+              name: "Empty",
+              type: "EmptyMessagePartComponent",
+              description: "Component for rendering empty messages",
+            },
+            {
+              name: "Text",
+              type: "TextMessagePartComponent",
+              description: "Component for rendering text content",
+            },
+            {
+              name: "Reasoning",
+              type: "ReasoningMessagePartComponent",
+              description:
+                "Component for rendering reasoning content (typically hidden)",
+            },
+            {
+              name: "Source",
+              type: "SourceMessagePartComponent",
+              description: "Component for rendering source content",
+            },
+            {
+              name: "Image",
+              type: "ImageMessagePartComponent",
+              description: "Component for rendering image content",
+            },
+            {
+              name: "File",
+              type: "FileMessagePartComponent",
+              description: "Component for rendering file content",
+            },
+            {
+              name: "Unstable_Audio",
+              type: "Unstable_AudioMessagePartComponent",
+              description:
+                "Component for rendering audio content (experimental)",
+            },
+            {
+              name: "tools",
+              type: "object | { Override: ComponentType }",
+              description:
+                "Configuration for tool call rendering. Can be an object with by_name map and Fallback component, or an Override component.",
+            },
+            {
+              name: "Group",
+              type: "ComponentType<PropsWithChildren<{ groupKey: string | undefined; indices: number[] }>>",
+              description:
+                "Component for rendering grouped message parts. Receives groupKey, indices array, and children to render.",
+            },
+          ],
         },
-        {
-          name: "Text",
-          type: "TextMessagePartComponent",
-          description: "Component for rendering text content"
-        },
-        {
-          name: "Reasoning",
-          type: "ReasoningMessagePartComponent",
-          description: "Component for rendering reasoning content (typically hidden)"
-        },
-        {
-          name: "Source",
-          type: "SourceMessagePartComponent",
-          description: "Component for rendering source content"
-        },
-        {
-          name: "Image",
-          type: "ImageMessagePartComponent",
-          description: "Component for rendering image content"
-        },
-        {
-          name: "File",
-          type: "FileMessagePartComponent",
-          description: "Component for rendering file content"
-        },
-        {
-          name: "Unstable_Audio",
-          type: "Unstable_AudioMessagePartComponent",
-          description: "Component for rendering audio content (experimental)"
-        },
-        {
-          name: "tools",
-          type: "object | { Override: ComponentType }",
-          description: "Configuration for tool call rendering. Can be an object with by_name map and Fallback component, or an Override component."
-        },
-        {
-          name: "Group",
-          type: "ComponentType<{ groupKey: string | undefined; indices: number[]; children: ReactNode }>",
-          description: "Component for rendering grouped message parts. Receives groupKey, indices array, and children to render."
-        }
-      ]
-    }
+      ],
+    },
   ]}
 />
 
@@ -412,14 +459,15 @@ const stream = createAssistantStream(async (controller) => {
 
 ```typescript
 type MessagePartGroup = {
-  groupKey: string | undefined;  // The group identifier (undefined for ungrouped parts)
-  indices: number[];             // Array of part indices belonging to this group
+  groupKey: string | undefined; // The group identifier (undefined for ungrouped parts)
+  indices: number[]; // Array of part indices belonging to this group
 };
 ```
 
 ### Group Component Props
 
 The Group component receives:
+
 - `groupKey`: The group identifier (or `undefined` for ungrouped parts)
 - `indices`: Array of indices for the parts in this group
 - `children`: The rendered message part components
@@ -444,7 +492,7 @@ const conditionalGrouping = (parts: readonly any[]) => {
   if (parts.length < 5) {
     return [{ groupKey: undefined, indices: parts.map((_, i) => i) }];
   }
-  
+
   // Your grouping logic here
 };
 ```
@@ -466,24 +514,25 @@ const nestedGrouping = (parts: readonly any[]) => {
 Adjust group appearance based on content:
 
 ```tsx
+import { FC, PropsWithChildren } from "react";
+import { useMessage } from "@assistant-ui/react";
+
 const DynamicGroup: FC<
   PropsWithChildren<{ groupKey: string | undefined; indices: number[] }>
 > = ({ groupKey, indices, children }) => {
   const parts = useMessage((m) => m.content);
-  const groupParts = indices.map(i => parts[i]);
-  
+  const groupParts = indices.map((i) => parts[i]);
+
   // Analyze group content
-  const hasErrors = groupParts.some(p => p.error);
-  const isLoading = groupParts.some(p => p.status?.type === "running");
-  
+  const hasErrors = groupParts.some((p) => p.error);
+  const isLoading = groupParts.some((p) => p.status?.type === "running");
+
   if (!groupKey) return <>{children}</>;
-  
+
   return (
-    <div className={`
-      my-2 rounded-lg border p-4
-      ${hasErrors ? "border-red-500 bg-red-50" : ""}
-      ${isLoading ? "animate-pulse" : ""}
-    `}>
+    <div
+      className={`my-2 rounded-lg border p-4 ${hasErrors ? "border-red-500 bg-red-50" : ""} ${isLoading ? "animate-pulse" : ""} `}
+    >
       {children}
     </div>
   );
