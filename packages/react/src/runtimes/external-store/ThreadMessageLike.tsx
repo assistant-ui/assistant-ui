@@ -102,6 +102,7 @@ export const fromThreadMessageLike = (
 
               case "file":
               case "source":
+              case "image":
                 return part;
 
               case "tool-call": {
@@ -130,7 +131,7 @@ export const fromThreadMessageLike = (
               }
 
               default: {
-                const unhandledType: "image" | "audio" = type;
+                const unhandledType: "audio" = type;
                 throw new Error(
                   `Unsupported assistant message part type: ${unhandledType}`,
                 );
