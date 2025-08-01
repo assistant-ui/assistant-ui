@@ -49,14 +49,14 @@ export default async function installAiSdkLib(): Promise<void> {
   for (const file of files) {
     const fullPath = path.join(cwd, file);
     const content = fs.readFileSync(fullPath, "utf8");
-    if (content.includes("@assistant-ui/react-ai-sdk-v4")) {
+    if (content.includes("@assistant-ui/react-ai-sdk")) {
       found = true;
       break;
     }
   }
 
   if (found) {
-    if (isPackageInstalled("@assistant-ui/react-ai-sdk-v4")) {
+    if (isPackageInstalled("@assistant-ui/react-ai-sdk")) {
       console.log(
         "@assistant-ui/react-ai-sdk is already installed. Skipping installation.",
       );
