@@ -155,8 +155,9 @@ export function toLanguageModelMessages(
           switch (type) {
             case "reasoning":
             case "source":
-            case "file": {
-              break; // reasoning, source, and file parts are omitted
+            case "file":
+            case "image": {
+              break; // reasoning, source, file, and image parts are omitted
             }
 
             case "text": {
