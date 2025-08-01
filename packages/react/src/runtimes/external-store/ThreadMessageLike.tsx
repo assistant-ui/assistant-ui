@@ -84,7 +84,6 @@ export const fromThreadMessageLike = (
     }
     console.warn(`Invalid image data format detected`);
     return null;
-    return null;
   };
 
   if (role !== "user" && attachments?.length)
