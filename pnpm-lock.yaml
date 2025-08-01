@@ -1437,7 +1437,7 @@ importers:
   packages/cloud:
     dependencies:
       assistant-stream:
-        specifier: ^0.2.21
+        specifier: ^0.2.22
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -1566,7 +1566,7 @@ importers:
         specifier: workspace:*
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.2.21
+        specifier: ^0.2.22
         version: link:../assistant-stream
       json-schema:
         specifier: ^0.4.0
@@ -1636,7 +1636,7 @@ importers:
         specifier: ^5.0.0
         version: 5.0.0(zod@4.0.14)
       assistant-stream:
-        specifier: ^0.2.21
+        specifier: ^0.2.22
         version: link:../assistant-stream
       json-schema:
         specifier: ^0.4.0
@@ -1694,7 +1694,7 @@ importers:
         specifier: ^7.0.15
         version: 7.0.15
       assistant-stream:
-        specifier: ^0.2.21
+        specifier: ^0.2.22
         version: link:../assistant-stream
       json-schema:
         specifier: ^0.4.0
@@ -1771,7 +1771,7 @@ importers:
   packages/react-langgraph:
     dependencies:
       assistant-stream:
-        specifier: ^0.2.21
+        specifier: ^0.2.22
         version: link:../assistant-stream
       uuid:
         specifier: ^11.1.0

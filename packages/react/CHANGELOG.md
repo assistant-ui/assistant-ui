@@ -1,5 +1,15 @@
 # @assistant-ui/react
 
+## 0.10.34
+
+### Patch Changes
+
+- 0f063e0: chore: update dependencies
+- 5d8b074: feat: MessagePrimitive.PartsGrouedp
+- Updated dependencies [0f063e0]
+  - assistant-stream@0.2.22
+  - assistant-cloud@0.0.4
+
 ## 0.10.33
 
 ### Patch Changes
