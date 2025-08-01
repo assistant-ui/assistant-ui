@@ -5,7 +5,7 @@ import { useMessagePart } from "../../context/react/MessagePartContext";
 import { ImageMessagePart } from "../../types";
 
 export const useMessagePartImage = () => {
-  const image = useMessagePart((c) => {
+  const imagePart = useMessagePart((c) => {
     if (c.type !== "image")
       throw new Error(
         "MessagePartImage can only be used inside image message parts.",
@@ -14,5 +14,5 @@ export const useMessagePartImage = () => {
     return c as MessagePartState & ImageMessagePart;
   });
 
-  return image;
+  return { image: imagePart.image };
 };
