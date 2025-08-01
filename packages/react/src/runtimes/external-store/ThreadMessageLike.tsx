@@ -131,7 +131,7 @@ export const fromThreadMessageLike = (
               }
 
               default: {
-                const unhandledType: "audio" = type;
+                const unhandledType = type as never;
                 throw new Error(
                   `Unsupported assistant message part type: ${unhandledType}`,
                 );
@@ -163,7 +163,7 @@ export const fromThreadMessageLike = (
               return part;
 
             default: {
-              const unhandledType: "tool-call" | "reasoning" | "source" = type;
+              const unhandledType = type as never;
               throw new Error(
                 `Unsupported user message part type: ${unhandledType}`,
               );
