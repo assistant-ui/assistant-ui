@@ -82,7 +82,8 @@ export const fromThreadMessageLike = (
     if (match) {
       return { ...rest, image };
     }
-    console.warn(`Invalid image data:`, image);
+    console.warn(`Invalid image data format detected`);
+    return null;
     return null;
   };
 
