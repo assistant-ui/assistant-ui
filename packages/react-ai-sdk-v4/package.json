@@ -31,7 +31,6 @@
     "assistant-stream": "^0.2.22",
     "json-schema": "^0.4.0",
     "zod": "^4.0.14",
-    "zod-to-json-schema": "^3.24.6",
     "zustand": "^5.0.7"
   },
   "peerDependencies": {
