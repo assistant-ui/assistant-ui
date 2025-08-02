@@ -11,7 +11,7 @@ import { AISDKMessageConverter } from "../utils/convertMessage";
 
 export type AISDKRuntimeAdapter = {
   adapters?:
-    | Omit<NonNullable<ExternalStoreAdapter["adapters"]>, "attachments">
+    | NonNullable<ExternalStoreAdapter["adapters"]>
     | undefined;
 };
 
