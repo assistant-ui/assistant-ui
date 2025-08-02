@@ -77,8 +77,13 @@ export const fromThreadMessageLike = (
       ? [{ type: "text" as const, text: like.content }]
       : like.content;
   
-  const sanitizeImageContent = ({ image, ...rest }: ImageMessagePart): ImageMessagePart | null => {
-    const match = image.match(/^data:image\/(png|jpeg|jpg|gif|webp);base64,(.*)$/);
+  const sanitizeImageContent = ({
+    image,
+    ...rest
+  }: ImageMessagePart): ImageMessagePart | null => {
+    const match = image.match(
+      /^data:image\/(png|jpeg|jpg|gif|webp);base64,(.*)$/,
+    );
     if (match) {
       return { ...rest, image };
     }
