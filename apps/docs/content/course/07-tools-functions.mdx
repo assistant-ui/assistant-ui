@@ -1,0 +1,453 @@
+---
+title: Tools and Functions
+description: Build interactive tool calling interfaces and custom function UIs
+---
+
+# Tools and Functions
+
+Tool calling enables your AI to interact with external systems, perform calculations, fetch data, and provide interactive experiences. Assistant UI provides comprehensive support for both simple function calls and complex interactive tool UIs.
+
+## Basic Tool Setup
+
+Define tools in your AI provider configuration:
+
+```tsx
+import { openai } from "@ai-sdk/openai";
+import { streamText, tool } from "ai";
+import { z } from "zod";
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+
+  const result = await streamText({
+    model: openai("gpt-4"),
+    messages,
+    tools: {
+      getWeather: tool({
+        description: "Get current weather for a location",
+        parameters: z.object({
+          location: z.string().describe("The city and country"),
+        }),
+        execute: async ({ location }) => {
+          // Fetch weather data
+          const weather = await fetchWeatherData(location);
+          return { location, ...weather };
+        },
+      }),
+      
+      calculator: tool({
+        description: "Perform mathematical calculations",
+        parameters: z.object({
+          expression: z.string().describe("Mathematical expression to evaluate"),
+        }),
+        execute: async ({ expression }) => {
+          // Safely evaluate expression
+          const result = evaluateExpression(expression);
+          return { expression, result };
+        },
+      }),
+    },
+  });
+
+  return result.toDataStreamResponse();
+}
+```
+
+## Custom Tool UI
+
+Create custom interfaces for tool results:
+
+```tsx
+import { ToolCallContentPartComponent } from "@assistant-ui/react";
+
+const WeatherToolUI: ToolCallContentPartComponent = ({ toolCall }) => {
+  const { location, temperature, condition, humidity } = toolCall.result;
+  
+  return (
+    <div className="border rounded-lg p-4 bg-blue-50 max-w-sm">
+      <div className="flex items-center gap-2 mb-2">
+        <span className="text-2xl">🌤️</span>
+        <h3 className="font-semibold text-lg">{location}</h3>
+      </div>
+      
+      <div className="space-y-2">
+        <div className="flex justify-between">
+          <span>Temperature:</span>
+          <span className="font-medium">{temperature}°C</span>
+        </div>
+        <div className="flex justify-between">
+          <span>Condition:</span>
+          <span className="font-medium">{condition}</span>
+        </div>
+        <div className="flex justify-between">
+          <span>Humidity:</span>
+          <span className="font-medium">{humidity}%</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const CalculatorToolUI: ToolCallContentPartComponent = ({ toolCall }) => {
+  const { expression, result } = toolCall.result;
+  
+  return (
+    <div className="border rounded-lg p-4 bg-gray-50 font-mono">
+      <div className="text-gray-600 mb-1">Calculation:</div>
+      <div className="text-lg mb-2">{expression}</div>
+      <div className="border-t pt-2">
+        <div className="text-gray-600 mb-1">Result:</div>
+        <div className="text-xl font-bold text-green-600">{result}</div>
+      </div>
+    </div>
+  );
+};
+
+// Register tool UIs
+export const toolUIs = {
+  getWeather: WeatherToolUI,
+  calculator: CalculatorToolUI,
+};
+```
+
+## Interactive Tool Components
+
+Build tools that allow user interaction:
+
+```tsx
+import { useState } from "react";
+import { ToolCallContentPartComponent } from "@assistant-ui/react";
+
+const StockQuoteToolUI: ToolCallContentPartComponent = ({ toolCall }) => {
+  const [selectedTimeframe, setSelectedTimeframe] = useState('1D');
+  const { symbol, price, change, data } = toolCall.result;
+  
+  const timeframes = ['1D', '1W', '1M', '3M', '1Y'];
+  
+  return (
+    <div className="border rounded-lg p-4 bg-white shadow-sm max-w-md">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="font-bold text-lg">{symbol}</h3>
+          <div className="flex items-center gap-2">
+            <span className="text-2xl font-bold">${price}</span>
+            <span className={`text-sm px-2 py-1 rounded ${
+              change >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+            }`}>
+              {change >= 0 ? '+' : ''}{change}%
+            </span>
+          </div>
+        </div>
+        <div className="text-4xl">📈</div>
+      </div>
+      
+      {/* Timeframe Selector */}
+      <div className="flex gap-1 mb-4">
+        {timeframes.map(tf => (
+          <button
+            key={tf}
+            onClick={() => setSelectedTimeframe(tf)}
+            className={`px-3 py-1 text-sm rounded ${
+              selectedTimeframe === tf
+                ? 'bg-blue-500 text-white'
+                : 'bg-gray-100 hover:bg-gray-200'
+            }`}
+          >
+            {tf}
+          </button>
+        ))}
+      </div>
+      
+      {/* Simple Chart */}
+      <div className="h-24 bg-gray-50 rounded flex items-end justify-between p-2">
+        {data[selectedTimeframe]?.map((value: number, index: number) => (
+          <div
+            key={index}
+            className="bg-blue-500 w-2 rounded-t"
+            style={{ height: `${(value / Math.max(...data[selectedTimeframe])) * 100}%` }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+```
+
+## Tool Fallback Components
+
+Provide fallback UIs for unknown tools:
+
+```tsx
+import { ToolFallbackComponent } from "@assistant-ui/react";
+
+const CustomToolFallback: ToolFallbackComponent = ({ toolCall }) => {
+  const { toolName, args, result } = toolCall;
+  
+  return (
+    <div className="border rounded-lg p-4 bg-gray-50">
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-xl">🔧</span>
+        <h3 className="font-semibold">{toolName}</h3>
+      </div>
+      
+      {/* Arguments */}
+      {args && Object.keys(args).length > 0 && (
+        <div className="mb-3">
+          <div className="text-sm font-medium text-gray-600 mb-1">Parameters:</div>
+          <div className="bg-white rounded p-2 text-sm font-mono">
+            {JSON.stringify(args, null, 2)}
+          </div>
+        </div>
+      )}
+      
+      {/* Result */}
+      {result && (
+        <div>
+          <div className="text-sm font-medium text-gray-600 mb-1">Result:</div>
+          <div className="bg-white rounded p-2 text-sm">
+            {typeof result === 'string' 
+              ? result 
+              : JSON.stringify(result, null, 2)
+            }
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+```
+
+## Configuring Tool UIs
+
+Register and configure your tool UIs:
+
+```tsx
+import { Thread } from "@assistant-ui/react";
+import { toolUIs, CustomToolFallback } from "./tool-components";
+
+function ChatWithTools() {
+  return (
+    <Thread
+      assistantMessage={{
+        components: {
+          ToolCall: ({ toolCall }) => {
+            const ToolComponent = toolUIs[toolCall.toolName as keyof typeof toolUIs];
+            return ToolComponent ? (
+              <ToolComponent toolCall={toolCall} />
+            ) : (
+              <CustomToolFallback toolCall={toolCall} />
+            );
+          }
+        }
+      }}
+    />
+  );
+}
+```
+
+## Advanced Tool Patterns
+
+### Multi-step Tools
+
+Build tools that require multiple interactions:
+
+```tsx
+const BookingToolUI: ToolCallContentPartComponent = ({ toolCall }) => {
+  const [step, setStep] = useState(1);
+  const [bookingData, setBookingData] = useState({});
+  
+  const { availableTimes, selectedService } = toolCall.result;
+  
+  const completeBooking = async () => {
+    await fetch('/api/bookings', {
+      method: 'POST',
+      body: JSON.stringify(bookingData)
+    });
+    setStep(3);
+  };
+  
+  return (
+    <div className="border rounded-lg p-4 bg-white max-w-md">
+      {step === 1 && (
+        <div>
+          <h3 className="font-semibold mb-3">Select Time for {selectedService}</h3>
+          <div className="grid grid-cols-2 gap-2">
+            {availableTimes.map((time: string) => (
+              <button
+                key={time}
+                onClick={() => {
+                  setBookingData({ ...bookingData, time });
+                  setStep(2);
+                }}
+                className="p-2 border rounded hover:bg-blue-50"
+              >
+                {time}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      
+      {step === 2 && (
+        <div>
+          <h3 className="font-semibold mb-3">Confirm Booking</h3>
+          <div className="space-y-2 mb-4">
+            <div>Service: {selectedService}</div>
+            <div>Time: {bookingData.time}</div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setStep(1)}
+              className="px-4 py-2 border rounded"
+            >
+              Back
+            </button>
+            <button
+              onClick={completeBooking}
+              className="px-4 py-2 bg-blue-500 text-white rounded"
+            >
+              Confirm
+            </button>
+          </div>
+        </div>
+      )}
+      
+      {step === 3 && (
+        <div className="text-center">
+          <div className="text-4xl mb-2">✅</div>
+          <div className="font-semibold">Booking Confirmed!</div>
+        </div>
+      )}
+    </div>
+  );
+};
+```
+
+### Streaming Tool Results
+
+Handle tools that return streaming data:
+
+```tsx
+const SearchToolUI: ToolCallContentPartComponent = ({ toolCall }) => {
+  const [results, setResults] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  useEffect(() => {
+    const eventSource = new EventSource(
+      `/api/search-stream?query=${toolCall.args.query}`
+    );
+    
+    eventSource.onmessage = (event) => {
+      const newResult = JSON.parse(event.data);
+      setResults(prev => [...prev, newResult]);
+    };
+    
+    eventSource.addEventListener('end', () => {
+      setIsLoading(false);
+      eventSource.close();
+    });
+    
+    return () => eventSource.close();
+  }, [toolCall.args.query]);
+  
+  return (
+    <div className="border rounded-lg p-4 bg-white">
+      <h3 className="font-semibold mb-3">
+        Search Results for "{toolCall.args.query}"
+      </h3>
+      
+      <div className="space-y-3">
+        {results.map((result, index) => (
+          <div key={index} className="border-l-4 border-blue-500 pl-3">
+            <h4 className="font-medium">{result.title}</h4>
+            <p className="text-sm text-gray-600">{result.snippet}</p>
+            <a 
+              href={result.url} 
+              className="text-blue-500 text-sm hover:underline"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {result.url}
+            </a>
+          </div>
+        ))}
+        
+        {isLoading && (
+          <div className="flex items-center gap-2 text-gray-500">
+            <div className="animate-spin w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full" />
+            Searching...
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+```
+
+## Tool Error Handling
+
+Handle tool execution errors gracefully:
+
+```tsx
+const RobustToolUI: ToolCallContentPartComponent = ({ toolCall }) => {
+  if (toolCall.status === 'error') {
+    return (
+      <div className="border border-red-200 rounded-lg p-4 bg-red-50">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-red-500">❌</span>
+          <h3 className="font-semibold text-red-700">Tool Error</h3>
+        </div>
+        <p className="text-red-600 text-sm">
+          {toolCall.error?.message || 'An unknown error occurred'}
+        </p>
+        <button 
+          onClick={() => toolCall.retry?.()}
+          className="mt-2 px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+  
+  if (toolCall.status === 'loading') {
+    return (
+      <div className="border rounded-lg p-4 bg-gray-50">
+        <div className="flex items-center gap-2">
+          <div className="animate-spin w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full" />
+          <span>Executing {toolCall.toolName}...</span>
+        </div>
+      </div>
+    );
+  }
+  
+  // Render normal tool UI
+  return <div>{/* Normal tool result */}</div>;
+};
+```
+
+## Best Practices
+
+1. **Design intuitive interfaces** that clearly show tool purpose
+2. **Handle loading states** with appropriate feedback
+3. **Implement error recovery** with retry mechanisms
+4. **Use consistent styling** across all tool UIs
+5. **Make tools accessible** with proper ARIA labels
+6. **Validate tool inputs** on both client and server
+7. **Provide fallback UIs** for unknown tools
+
+## Exercise: E-commerce Tools
+
+Build a set of e-commerce tools including:
+- Product search with filtering
+- Shopping cart management
+- Order tracking
+- Review submission
+- Interactive product comparison
+
+## Next Steps
+
+Tools and functions enable powerful AI interactions. Next, let's explore how to implement **Chat Persistence** to save and restore conversations.
+
+Continue to [Chat Persistence →](./08-chat-persistence)
