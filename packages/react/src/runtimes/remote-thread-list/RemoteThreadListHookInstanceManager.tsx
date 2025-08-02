@@ -113,7 +113,8 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     // auto initialize thread
     useEffect(() => {
       return runtime.threads.main.unstable_on("initialize", () => {
-        const threadListItemRuntime = runtime.threads.getItemById(id);
+        const threadListItemRuntime = runtime.threads.mainItem;
+        if (threadListItemRuntime.getState().id !== id) return;
 
         if (threadListItemRuntime.getState().status === "new") {
           threadListItemRuntime.initialize();
@@ -122,6 +123,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
           const dispose = runtime.thread.unstable_on("run-end", () => {
             dispose();
 
+            if (threadListItemRuntime.getState().id !== id) return;
             threadListItemRuntime.generateTitle();
           });
         }

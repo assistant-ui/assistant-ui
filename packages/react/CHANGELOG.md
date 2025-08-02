@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.10.35
+
+### Patch Changes
+
+- fix: threadListItemRuntime Method not implemented
+- feat: support zod v4
+
 ## 0.10.34
 
 ### Patch Changes
