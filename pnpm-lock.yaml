@@ -931,9 +931,6 @@ importers:
       zod:
         specifier: ^4.0.14
         version: 4.0.14
-      zod-to-json-schema:
-        specifier: ^3.24.6
-        version: 3.24.6(zod@4.0.14)
       zustand:
         specifier: ^5.0.7
         version: 5.0.7(@types/react@19.1.9)(react@19.1.1)(use-sync-external-store@1.5.0(react@19.1.1))
@@ -1298,9 +1295,6 @@ importers:
       zod:
         specifier: ^4.0.14
         version: 4.0.14
-      zod-to-json-schema:
-        specifier: ^3.24.6
-        version: 3.24.6(zod@4.0.14)
       zustand:
         specifier: ^5.0.7
         version: 5.0.7(@types/react@19.1.9)(react@19.1.1)(use-sync-external-store@1.5.0(react@19.1.1))
@@ -1644,9 +1638,6 @@ importers:
       zod:
         specifier: ^4.0.14
         version: 4.0.14
-      zod-to-json-schema:
-        specifier: ^3.24.6
-        version: 3.24.6(zod@4.0.14)
       zustand:
         specifier: ^5.0.7
         version: 5.0.7(@types/react@19.1.9)(react@19.1.1)(use-sync-external-store@1.5.0(react@19.1.1))
@@ -1702,9 +1693,6 @@ importers:
       zod:
         specifier: ^4.0.14
         version: 4.0.14
-      zod-to-json-schema:
-        specifier: ^3.24.6
-        version: 3.24.6(zod@4.0.14)
       zustand:
         specifier: ^5.0.7
         version: 5.0.7(@types/react@19.1.9)(react@19.1.1)(use-sync-external-store@1.5.0(react@19.1.1))
