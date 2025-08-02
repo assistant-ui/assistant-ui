@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.10.36
+
+### Patch Changes
+
+- ed78407: Modified the `detach` and `cancelRun` methods to create a standardized `Error` object with a JSON-encoded message and a name of `"AbortError"`, improving consistency in how abort reasons are passed and processed.
+
 ## 0.10.35
 
 ### Patch Changes
