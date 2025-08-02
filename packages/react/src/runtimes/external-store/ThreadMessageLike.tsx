@@ -76,7 +76,7 @@ export const fromThreadMessageLike = (
     typeof like.content === "string"
       ? [{ type: "text" as const, text: like.content }]
       : like.content;
-  
+
   const sanitizeImageContent = ({
     image,
     ...rest
@@ -117,7 +117,7 @@ export const fromThreadMessageLike = (
               case "file":
               case "source":
                 return part;
-              
+
               case "image":
                 return sanitizeImageContent(part);
 
