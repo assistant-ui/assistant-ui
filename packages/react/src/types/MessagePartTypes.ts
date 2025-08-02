@@ -66,4 +66,5 @@ export type ThreadAssistantMessagePart =
   | ReasoningMessagePart
   | ToolCallMessagePart
   | SourceMessagePart
-  | FileMessagePart;
+  | FileMessagePart
+  | ImageMessagePart;

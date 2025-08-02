@@ -77,6 +77,20 @@ export const fromThreadMessageLike = (
       ? [{ type: "text" as const, text: like.content }]
       : like.content;
 
+  const sanitizeImageContent = ({
+    image,
+    ...rest
+  }: ImageMessagePart): ImageMessagePart | null => {
+    const match = image.match(
+      /^data:image\/(png|jpeg|jpg|gif|webp);base64,(.*)$/,
+    );
+    if (match) {
+      return { ...rest, image };
+    }
+    console.warn(`Invalid image data format detected`);
+    return null;
+  };
+
   if (role !== "user" && attachments?.length)
     throw new Error("attachments are only supported for user messages");
 
@@ -104,6 +118,9 @@ export const fromThreadMessageLike = (
               case "source":
                 return part;
 
+              case "image":
+                return sanitizeImageContent(part);
+
               case "tool-call": {
                 const { parentId, ...basePart } = part;
                 const commonProps = {
@@ -130,7 +147,7 @@ export const fromThreadMessageLike = (
               }
 
               default: {
-                const unhandledType: "image" | "audio" = type;
+                const unhandledType: "audio" = type;
                 throw new Error(
                   `Unsupported assistant message part type: ${unhandledType}`,
                 );
