@@ -1,5 +1,4 @@
 ---
-"@assistant-ui/react-ai-sdk-v4": patch
 "@assistant-ui/react": patch
 ---
 
