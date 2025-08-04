@@ -30,11 +30,10 @@
     "assistant-stream": "^0.2.22",
     "json-schema": "^0.4.0",
     "zod": "^4.0.14",
-    "zod-to-json-schema": "^3.24.6",
     "zustand": "^5.0.7"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.10.34",
+    "@assistant-ui/react": "^0.10.35",
     "@types/react": "*",
     "react": "^18 || ^19 || ^19.0.0-rc"
   },

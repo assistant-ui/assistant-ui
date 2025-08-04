@@ -12,7 +12,6 @@ import {
   useLocalRuntime,
 } from "@assistant-ui/react";
 import { z } from "zod";
-import zodToJsonSchema from "zod-to-json-schema";
 import { JSONSchema7 } from "json-schema";
 import {
   AssistantMessageAccumulator,
@@ -53,7 +52,7 @@ const toAISDKTools = (tools: Record<string, Tool>) => {
       {
         ...(tool.description ? { description: tool.description } : undefined),
         parameters: (tool.parameters instanceof z.ZodType
-          ? zodToJsonSchema(tool.parameters)
+          ? z.toJSONSchema(tool.parameters)
           : tool.parameters) as JSONSchema7,
       },
     ]),

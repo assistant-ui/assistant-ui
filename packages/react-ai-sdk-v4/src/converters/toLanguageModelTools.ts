@@ -1,7 +1,6 @@
 import { LanguageModelV1FunctionTool } from "@ai-sdk/provider";
 import { JSONSchema7 } from "json-schema";
 import { z } from "zod";
-import zodToJsonSchema from "zod-to-json-schema";
 import { Tool } from "@assistant-ui/react";
 
 /**
@@ -15,7 +14,7 @@ export const toLanguageModelTools = (
     name,
     ...(tool.description ? { description: tool.description } : undefined),
     parameters: (tool.parameters instanceof z.ZodType
-      ? zodToJsonSchema(tool.parameters)
+      ? z.toJSONSchema(tool.parameters)
       : tool.parameters) as JSONSchema7,
   }));
 };

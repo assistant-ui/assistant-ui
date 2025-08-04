@@ -14,6 +14,16 @@ import { BaseThreadRuntimeCore } from "../core/BaseThreadRuntimeCore";
 import { RunConfig } from "../../types/AssistantTypes";
 import { ModelContextProvider } from "../../model-context";
 
+class AbortError extends Error {
+  override name = "AbortError";
+  detach: boolean;
+
+  constructor(detach: boolean, message?: string) {
+    super(message);
+    this.detach = detach;
+  }
+}
+
 export class LocalThreadRuntimeCore
   extends BaseThreadRuntimeCore
   implements ThreadRuntimeCore
@@ -352,7 +362,7 @@ export class LocalThreadRuntimeCore
       }
     } catch (e) {
       // TODO this should be handled by the run result stream
-      if (e instanceof Error && e.name === "AbortError") {
+      if (e instanceof AbortError) {
         updateMessage({
           status: { type: "incomplete", reason: "cancelled" },
         });
@@ -387,12 +397,14 @@ export class LocalThreadRuntimeCore
   }
 
   public detach() {
-    this.abortController?.abort({ detach: true });
+    const error = new AbortError(true);
+    this.abortController?.abort(error);
     this.abortController = null;
   }
 
   public cancelRun() {
-    this.abortController?.abort({ detach: false });
+    const error = new AbortError(false);
+    this.abortController?.abort(error);
     this.abortController = null;
   }
 
