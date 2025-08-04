@@ -14,7 +14,7 @@ export type MermaidDiagramProps = SyntaxHighlighterProps & {
 };
 
 // Configure mermaid options here
-mermaid.initialize({ theme: "default" });
+mermaid.initialize({ theme: "default", startOnLoad: false });
 
 /**
  * MermaidDiagram component for rendering Mermaid diagrams
@@ -66,12 +66,11 @@ export const MermaidDiagram: FC<MermaidDiagramProps> = ({
 
     (async () => {
       try {
-        const element = document.createElement("div");
-        element.textContent = code;
-        element.classList.add("mermaid");
-        await mermaid.run({ nodes: [element] });
+        const id = `mermaid-${Math.random().toString(36).slice(2)}`;
+        const result = await mermaid.render(id, code);
         if (ref.current) {
-          ref.current.replaceChildren(element);
+          ref.current.innerHTML = result.svg;
+          result.bindFunctions?.(ref.current);
         }
       } catch (e) {
         console.warn("Failed to render Mermaid diagram:", e);
