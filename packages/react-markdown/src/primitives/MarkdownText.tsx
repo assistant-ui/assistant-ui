@@ -44,6 +44,10 @@ export type MarkdownTextPrimitiveProps = Omit<
         CodeHeader?: ComponentType<CodeHeaderProps> | undefined;
       })
     | undefined;
+  /**
+   * Language-specific component overrides.
+   * @example { mermaid: { SyntaxHighlighter: MermaidDiagram } }
+   */
   componentsByLanguage?:
     | Record<
         string,
@@ -54,6 +58,9 @@ export type MarkdownTextPrimitiveProps = Omit<
       >
     | undefined;
   smooth?: boolean | undefined;
+  /**
+   * Function to transform text before markdown processing.
+   */
   preprocess?: (text: string) => string;
 };
 
