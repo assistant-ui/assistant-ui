@@ -44,6 +44,10 @@ export type MarkdownTextPrimitiveProps = Omit<
         CodeHeader?: ComponentType<CodeHeaderProps> | undefined;
       })
     | undefined;
+  /**
+   * Language-specific component overrides.
+   * @example { mermaid: { SyntaxHighlighter: MermaidDiagram } }
+   */
   componentsByLanguage?:
     | Record<
         string,
@@ -54,15 +58,31 @@ export type MarkdownTextPrimitiveProps = Omit<
       >
     | undefined;
   smooth?: boolean | undefined;
+  /**
+   * Function to transform text before markdown processing.
+   */
+  preprocess?: (text: string) => string;
 };
 
 const MarkdownTextInner: FC<MarkdownTextPrimitiveProps> = ({
   components: userComponents,
   componentsByLanguage,
   smooth = true,
+  preprocess,
   ...rest
 }) => {
-  const { text } = useSmooth(useMessagePartText(), smooth);
+  const messagePartText = useMessagePartText();
+
+  const processedMessagePart = useMemo(() => {
+    if (!preprocess) return messagePartText;
+
+    return {
+      ...messagePartText,
+      text: preprocess(messagePartText.text),
+    };
+  }, [messagePartText, preprocess]);
+
+  const { text } = useSmooth(processedMessagePart, smooth);
 
   const {
     pre = DefaultPre,
