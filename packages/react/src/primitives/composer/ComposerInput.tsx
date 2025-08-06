@@ -201,7 +201,7 @@ export const ComposerPrimitiveInput = forwardRef<
         name="input"
         value={value}
         {...rest}
-        ref={ref}
+        ref={ref as React.ForwardedRef<HTMLTextAreaElement>}
         disabled={isDisabled}
         onChange={composeEventHandlers(onChange, (e) => {
           if (!composerRuntime.getState().isEditing) return;
