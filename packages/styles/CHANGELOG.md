@@ -1,5 +1,11 @@
 # @assistant-ui/styles
 
+## 0.1.16
+
+### Patch Changes
+
+- 6bc127b: feat(registry): Update thread and thread-list UI with new design
+
 ## 0.1.15
 
 ### Patch Changes
