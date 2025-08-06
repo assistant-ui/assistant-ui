@@ -24,6 +24,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "eslint": "^9",
+    "framer-motion": "^12.23.12",
     "lucide-react": "^0.535.0",
     "react": "19.1.1",
     "react-resizable-panels": "^3.0.4",
