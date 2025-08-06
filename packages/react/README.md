@@ -23,7 +23,7 @@ The library handles essential chat features such as auto-scrolling, accessibilit
 
 The API of assistant-ui is inspired by libraries like shadcn/ui and cmdk. Instead of a single monolithic chat component, developers get primitive components that can be fully customized.
 
-We have wide model provider support (OpenAI, Anthropic, Mistral, Perplexity, AWS Bedrock, Azure, Google Gemini, Hugging Face, Fireworks, Cohere, Replicate, Ollama) out of the box and the ability to integrate custom APIs.
+We have wide model provider support (OpenAI, Anthropic, Mistral, Perplexity, AWS Bedrock, Azure, Google Gemini, Hugging Face, Fireworks, Cohere, Replicate, Ollama, AI/ML API) out of the box and the ability to integrate custom APIs.
 
 ## Getting Started
 
