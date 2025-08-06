@@ -295,6 +295,9 @@ importers:
       eslint:
         specifier: ^9
         version: 9.32.0(jiti@2.5.1)
+      framer-motion:
+        specifier: ^12.23.12
+        version: 12.23.12(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       lucide-react:
         specifier: ^0.535.0
         version: 0.535.0(react@19.1.1)

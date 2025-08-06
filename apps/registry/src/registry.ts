@@ -48,6 +48,7 @@ export const registry: RegistryItem[] = [
       "button",
       "https://r.assistant-ui.com/markdown-text",
       "https://r.assistant-ui.com/tooltip-icon-button",
+      "https://r.assistant-ui.com/tool-fallback",
     ],
   },
   {

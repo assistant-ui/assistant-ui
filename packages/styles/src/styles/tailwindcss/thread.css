@@ -1,22 +1,23 @@
 /* thread */
 .aui-thread-root {
-  @apply bg-background box-border flex h-full flex-col overflow-hidden;
+  @apply bg-background flex h-full flex-col;
 }
 
 .aui-thread-viewport {
-  @apply flex h-full flex-col items-center overflow-y-scroll scroll-smooth bg-inherit px-4 pt-8;
+  @apply relative flex min-w-0 flex-1 flex-col gap-6 overflow-y-scroll;
 }
 
+.aui-thread-viewport-spacer {
+  @apply min-h-6 min-w-6 shrink-0;
+}
+
+/* unused in new design */
 .aui-thread-viewport-footer {
   @apply sticky bottom-0 mt-3 flex w-full max-w-[var(--thread-max-width)] flex-col items-center justify-end rounded-t-lg bg-inherit pb-4;
 }
 
-.aui-thread-viewport-spacer {
-  @apply min-h-8 flex-grow;
-}
-
 .aui-thread-scroll-to-bottom {
-  @apply absolute -top-8 rounded-full disabled:invisible;
+  @apply dark:bg-background dark:hover:bg-accent absolute -top-12 z-10 self-center rounded-full p-4 disabled:invisible;
 }
 
 .aui-thread-followup-suggestions {
@@ -30,7 +31,7 @@
 /* thread welcome */
 
 .aui-thread-welcome-root {
-  @apply flex w-full max-w-[var(--thread-max-width)] flex-grow flex-col;
+  @apply mx-auto flex w-full max-w-[var(--thread-max-width)] flex-grow flex-col px-[var(--thread-padding-x)];
 }
 
 .aui-thread-welcome-center {
@@ -38,39 +39,77 @@
 }
 
 .aui-thread-welcome-message {
-  @apply mt-4 font-medium;
+  @apply flex size-full flex-col justify-center px-8 md:mt-20;
+}
+
+.aui-thread-welcome-message-motion-1 {
+  @apply text-2xl font-semibold;
+}
+
+.aui-thread-welcome-message-motion-2 {
+  @apply text-muted-foreground/65 text-2xl;
 }
 
 .aui-thread-welcome-suggestions {
-  @apply mt-3 flex w-full items-stretch justify-center gap-4;
+  @apply grid w-full gap-2 sm:grid-cols-2;
 }
 
 .aui-thread-welcome-suggestion {
-  @apply hover:bg-muted/80 flex max-w-sm grow basis-0 flex-col items-center justify-center rounded-lg border p-3 transition-colors ease-in;
+  @apply dark:hover:bg-accent/60 h-auto w-full flex-1 flex-wrap items-start justify-start gap-1 rounded-xl border px-4 py-3.5 text-left text-sm sm:flex-col;
 }
 
-.aui-thread-welcome-suggestion-text {
-  @apply line-clamp-2 text-ellipsis text-sm font-semibold;
+.aui-thread-welcome-suggestion-display {
+  @apply [&:nth-child(n+3)]:hidden sm:[&:nth-child(n+3)]:block;
 }
+
+.aui-thread-welcome-suggestion-text-1 {
+  @apply font-medium;
+}
+
+.aui-thread-welcome-suggestion-text-2 {
+  @apply text-muted-foreground;
+}
+
 
 /* thread composer */
 
+.aui-composer-wrapper {
+  @apply bg-background relative mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 px-[var(--thread-padding-x)] pb-4 md:pb-6;
+}
+
 .aui-composer-root {
-  @apply focus-within:border-ring/20 flex w-full flex-wrap items-end rounded-lg border bg-inherit px-2.5 shadow-sm transition-colors ease-in;
+  @apply focus-within:ring-offset-2 relative flex w-full flex-col rounded-2xl focus-within:ring-2 focus-within:ring-black dark:focus-within:ring-white;
 }
 
 .aui-composer-input {
-  @apply placeholder:text-muted-foreground max-h-40 flex-grow resize-none border-none bg-transparent px-2 py-4 text-sm outline-none focus:ring-0 disabled:cursor-not-allowed;
+  @apply bg-muted border-border dark:border-muted-foreground/15 focus:outline-primary placeholder:text-muted-foreground max-h-[calc(50dvh)] min-h-16 w-full resize-none rounded-t-2xl border-x border-t px-4 pt-2 pb-3 text-base outline-none;
+}
+
+.aui-composer-action-wrapper {
+  @apply bg-muted border-border dark:border-muted-foreground/15 relative flex items-center justify-between rounded-b-2xl border-x border-b p-2;
 }
 
 .aui-composer-send {
-  @apply my-2.5 size-8 p-2 transition-opacity ease-in;
+  @apply dark:border-muted-foreground/90 border-muted-foreground/60 hover:bg-primary/75 size-8 rounded-full border;
+}
+
+.aui-composer-send-icon {
+  @apply size-5;
 }
 
 .aui-composer-cancel {
-  @apply my-2.5 size-8 p-2 transition-opacity ease-in;
+  @apply dark:border-muted-foreground/90 border-muted-foreground/60 hover:bg-primary/75 size-8 rounded-full border;
 }
 
+.aui-composer-cancel-icon {
+  @apply size-3.5 fill-white dark:size-4 dark:fill-black;
+}
+
+.aui-composer-attachment-button {
+  @apply hover:bg-foreground/15 dark:hover:bg-background/50 scale-115 p-3.5;
+}
+
+/* unused in new design */
 .aui-composer-attach {
   @apply my-2.5 size-8 p-2 transition-opacity ease-in;
 }
@@ -116,24 +155,15 @@
 /* user message */
 
 .aui-user-message-root {
-  @apply grid auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] gap-y-2 [&:where(>*)]:col-start-2;
-  @apply w-full max-w-[var(--thread-max-width)] py-4;
-}
-
-:where(.aui-user-message-root) > .aui-branch-picker-root {
-  @apply col-span-full col-start-1 row-start-3;
-  @apply -mr-1 justify-end;
+  @apply mx-auto grid w-full max-w-[var(--thread-max-width)] auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] gap-y-1 px-[var(--thread-padding-x)] py-4 [&:where(>*)]:col-start-2;
 }
 
 .aui-user-branch-picker {
-  @apply col-span-full col-start-1 row-start-3;
-  @apply -mr-1 justify-end;
+  @apply col-span-full col-start-1 row-start-3 -mr-1 justify-end;
 }
 
 .aui-user-message-content {
-  @apply bg-muted text-foreground max-w-[calc(var(--thread-max-width)*0.8)] break-words rounded-3xl px-5 py-2.5;
-
-  @apply col-start-2 row-start-2;
+  @apply bg-muted text-foreground col-start-2 rounded-3xl px-5 py-2.5 break-words;
 }
 
 .aui-user-message-attachments {
@@ -146,19 +176,21 @@
 /* user action bar */
 
 .aui-user-action-bar-root {
-  @apply flex flex-col items-end;
-
-  @apply col-start-1 row-start-2 mr-3 mt-2.5;
+  @apply col-start-1 mt-2.5 mr-3 flex flex-col items-end;
 }
 
 /* edit composer */
 
+.aui-edit-composer-wrapper {
+  @apply mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 px-[var(--thread-padding-x)];
+}
+
 .aui-edit-composer-root {
-  @apply bg-muted my-4 flex w-full max-w-[var(--thread-max-width)] flex-col gap-2 rounded-xl;
+  @apply bg-muted ml-auto flex w-full max-w-7/8 flex-col rounded-xl;
 }
 
 .aui-edit-composer-input {
-  @apply text-foreground flex h-8 w-full resize-none bg-transparent p-4 pb-0 outline-none;
+  @apply text-foreground flex min-h-[60px] w-full resize-none bg-transparent p-4 outline-none;
 }
 
 .aui-edit-composer-footer {
@@ -168,36 +200,33 @@
 /* assistant message */
 
 .aui-assistant-message-root {
-  @apply grid grid-cols-[auto_auto_1fr] grid-rows-[auto_1fr];
-  @apply relative w-full max-w-[var(--thread-max-width)] py-4;
+  @apply relative mx-auto grid w-full max-w-[var(--thread-max-width)] grid-cols-[auto_auto_1fr] grid-rows-[auto_1fr] px-[var(--thread-padding-x)] py-4;
 }
 
+.aui-assistant-message-avatar {
+  @apply ring-border bg-background col-start-1 row-start-1 flex size-8 shrink-0 items-center justify-center rounded-full ring-1;
+}
+
+/* unused in new design */
 :where(.aui-assistant-message-root) > .aui-avatar-root {
   @apply col-start-1 row-span-full row-start-1 mr-4;
 }
 
+/* unused in new design */
 .aui-assistant-avatar {
   @apply col-start-1 row-span-full row-start-1 mr-4;
 }
 
-:where(.aui-assistant-message-root) > .aui-branch-picker-root {
-  @apply col-start-2 row-start-2;
-  @apply -ml-2 mr-2;
-}
-
 .aui-assistant-branch-picker {
-  @apply col-start-2 row-start-2;
-  @apply -ml-2 mr-2;
+  @apply col-start-2 row-start-2 mr-2 -ml-2;
 }
 
 .aui-assistant-message-content {
-  @apply text-foreground max-w-[calc(var(--thread-max-width)*0.8)] break-words leading-7;
-
-  @apply col-span-2 col-start-2 row-start-1 my-1.5;
+  @apply text-foreground col-span-2 col-start-2 row-start-1 ml-4 leading-7 break-words;
 }
 
 .aui-message-error-root {
-  @apply border-destructive bg-destructive/10 dark:text-red-200 dark:bg-destructive/5 text-destructive mt-2 rounded-md border p-3 text-sm;
+  @apply border-destructive bg-destructive/10 dark:bg-destructive/5 text-destructive mt-2 rounded-md border p-3 text-sm dark:text-red-200;
 }
 
 .aui-message-error-message {
@@ -207,11 +236,7 @@
 /* assistant action bar */
 
 .aui-assistant-action-bar-root {
-  @apply text-muted-foreground flex gap-1;
-
-  @apply col-start-3 row-start-2;
-  @apply -ml-1;
-  @apply data-[floating]:bg-background data-[floating]:absolute data-[floating]:rounded-md data-[floating]:border data-[floating]:p-1 data-[floating]:shadow-sm;
+  @apply text-muted-foreground data-floating:bg-background col-start-3 row-start-2 mt-3 ml-3 flex gap-1 data-floating:absolute data-floating:mt-2 data-floating:rounded-md data-floating:border data-floating:p-1 data-floating:shadow-sm;
 }
 
 .aui-assistant-action-bar-feedback-positive {
@@ -249,15 +274,11 @@
 }
 
 .aui-thread-list-item {
-  @apply data-[active]:bg-muted hover:bg-muted focus-visible:bg-muted focus-visible:ring-ring flex items-center gap-2 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2;
+  @apply data-active:bg-muted hover:bg-muted focus-visible:bg-muted focus-visible:ring-ring flex items-center gap-2 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2;
 }
 
 .aui-thread-list-new {
-  @apply data-[active]:bg-muted hover:bg-muted flex items-center justify-start gap-1 rounded-lg px-2.5 py-2 text-start;
-}
-
-.aui-thread-list-new > .lucide-plus {
-  @apply size-5;
+  @apply data-active:bg-muted hover:bg-muted flex items-center justify-start gap-1 rounded-lg px-2.5 py-2 text-start;
 }
 
 .aui-thread-list-item-trigger {
@@ -269,5 +290,5 @@
 }
 
 .aui-thread-list-item-archive {
-  @apply hover:text-primary text-foreground ml-auto mr-3 size-4 p-0;
+  @apply hover:text-foreground/60 p-4 text-foreground ml-auto mr-1 size-4;
 }
