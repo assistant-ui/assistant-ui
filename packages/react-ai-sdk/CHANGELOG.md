@@ -1,5 +1,15 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.11.1
+
+### Patch Changes
+
+- 20ffa06: fix: Don't omit attachments from `AISDKRuntimeAdapter` type
+- Updated dependencies [ed78407]
+- Updated dependencies [77ce337]
+- Updated dependencies [f59959e]
+  - @assistant-ui/react@0.10.36
+
 ## 0.11.0
 
 ### Patch Changes
