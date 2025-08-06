@@ -1,4 +1,4 @@
-import { useDebugValue, useSyncExternalStore } from "react";
+import { useCallback, useDebugValue, useSyncExternalStore } from "react";
 import { Unsubscribe } from "../../../types";
 import { ensureBinding } from "./ensureBinding";
 
@@ -14,10 +14,15 @@ export function useRuntimeStateInternal<TState, TSelected>(
   // TODO move to useRuntimeState
   ensureBinding(runtime);
 
+  const getSnapshot = useCallback(
+    () => selector(runtime.getState()),
+    [selector, runtime],
+  );
+
   const slice = useSyncExternalStore(
     runtime.subscribe,
-    () => selector(runtime.getState()),
-    () => selector(runtime.getState()),
+    getSnapshot,
+    getSnapshot,
   );
   useDebugValue(slice);
   return slice;
