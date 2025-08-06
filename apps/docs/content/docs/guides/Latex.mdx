@@ -53,29 +53,55 @@ export const MarkdownText = memo(MarkdownTextImpl);
   </Step>
 </Steps>
 
-## Examples
+## Supported Formats
 
-### Inline math
+By default, remark-math supports:
+- `$...$` for inline math
+- `$$...$$` for display math
+- Fenced code blocks with the `math` language identifier
 
-Single dollar signs for inline math: `$E = mc^2$`
+## Supporting Alternative LaTeX Delimiters
 
-### Block math
+Many language models generate LaTeX using different delimiter formats:
+- `\(...\)` for inline math
+- `\[...\]` for display math
+- Custom formats like `[/math]...[/math]`
 
-Double dollar signs for block math:
+You can use the `preprocess` prop to normalize these formats:
 
+```tsx title="/components/assistant-ui/markdown-text.tsx"
+const MarkdownTextImpl = () => {
+  return (
+    <MarkdownTextPrimitive
+      remarkPlugins={[remarkGfm, remarkMath]}
+      rehypePlugins={[rehypeKatex]}
+      preprocess={normalizeCustomMathTags} // [!code ++]
+      className="aui-md"
+      components={defaultComponents}
+    />
+  );
+};
+
+// Your LaTeX preprocessing function
+function normalizeCustomMathTags(input: string): string {
+  return (
+    input
+      // Convert [/math]...[/math] to $$...$$
+      .replace(/\[\/math\]([\s\S]*?)\[\/math\]/g, (_, content) => `$$${content.trim()}$$`)
+
+      // Convert [/inline]...[/inline] to $...$
+      .replace(/\[\/inline\]([\s\S]*?)\[\/inline\]/g, (_, content) => `$${content.trim()}$`)
+
+      // Convert \( ... \) to $...$ (inline math) - handles both single and double backslashes
+      .replace(/\\{1,2}\(([\s\S]*?)\\{1,2}\)/g, (_, content) => `$${content.trim()}$`)
+
+      // Convert \[ ... \] to $$...$$ (block math) - handles both single and double backslashes
+      .replace(/\\{1,2}\[([\s\S]*?)\\{1,2}\]/g, (_, content) => `$$${content.trim()}$$`)
+  );
+}
 ```
-$$
-\int_{a}^{b} f(x) \, dx = F(b) - F(a)
-$$
-```
 
-### Fenced code blocks
-
-Fenced code blocks with the `math` language identifier:
-
-````
-```math
-\sum_{i=1}^{n} i = \frac{n(n+1)}{2}
-```
-````
+<Callout type="tip">
+The preprocessing function runs before markdown parsing, allowing you to transform any delimiter format into the standard `$` and `$$` format.
+</Callout>
 
