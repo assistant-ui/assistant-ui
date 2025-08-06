@@ -10,9 +10,7 @@ import { ExternalStoreAdapter } from "@assistant-ui/react";
 import { AISDKMessageConverter } from "../utils/convertMessage";
 
 export type AISDKRuntimeAdapter = {
-  adapters?:
-    | Omit<NonNullable<ExternalStoreAdapter["adapters"]>, "attachments">
-    | undefined;
+  adapters?: NonNullable<ExternalStoreAdapter["adapters"]> | undefined;
 };
 
 export const useAISDKRuntime = (
