@@ -330,9 +330,19 @@ export class RemoteThreadListThreadListRuntimeCore
     ) {
       await this._state.waitForUpdate();
     }
+    let state = this._state.value;
+    let threadId: string | undefined = state.newThreadId;
 
-    const state = this._state.value;
-    let threadId: string | undefined = this._state.value.newThreadId;
+    // the previous new thread may have already been initialized
+    if (threadId !== undefined) {
+      const data = getThreadData(state, threadId);
+      if (data && data.status !== "new") {
+        this._state.update({ ...state, newThreadId: undefined });
+        state = this._state.value;
+        threadId = undefined;
+      }
+    }
+
     if (threadId === undefined) {
       do {
         threadId = `__LOCALID_${generateId()}`;
