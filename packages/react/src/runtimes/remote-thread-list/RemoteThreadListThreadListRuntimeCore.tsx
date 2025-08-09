@@ -330,16 +330,27 @@ export class RemoteThreadListThreadListRuntimeCore
     ) {
       await this._state.waitForUpdate();
     }
+    let state = this._state.value;
+    let threadId: string | undefined = state.newThreadId;
 
-    const state = this._state.value;
-    let threadId: string | undefined = this._state.value.newThreadId;
+    // if a previously created new thread finished initializing, its status will
+    // no longer be "new". Clear the cached id so we create a fresh thread
+    // instead of reusing a stale one.
+    if (threadId !== undefined) {
+      const data = getThreadData(state, threadId);
+      if (data && data.status !== "new") {
+        this._state.update({ ...state, newThreadId: undefined });
+        threadId = undefined;
+      }
+    }
+
     if (threadId === undefined) {
       do {
         threadId = `__LOCALID_${generateId()}`;
       } while (state.threadIdMap[threadId]);
 
       const mappingId = createThreadMappingId(threadId);
-      this._state.update({
+      state = {
         ...state,
         newThreadId: threadId,
         threadIdMap: {
@@ -353,7 +364,8 @@ export class RemoteThreadListThreadListRuntimeCore
             threadId,
           },
         },
-      });
+      };
+      this._state.update(state);
     }
 
     return this.switchToThread(threadId);
