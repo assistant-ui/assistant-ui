@@ -5,7 +5,7 @@ export { tapState } from "./hooks/tap-state";
 export { tapEffect } from "./hooks/tap-effect";
 
 // utility hooks
-export { tapRef } from "./hooks/tap-ref";
+export { tapRef, type MutableRefObject } from "./hooks/tap-ref";
 export { tapMemo } from "./hooks/tap-memo";
 export { tapCallback } from "./hooks/tap-callback";
 

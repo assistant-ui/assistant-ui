@@ -18,22 +18,22 @@ import { RuntimeAdapterProvider } from "../adapters/RuntimeAdapterProvider";
 
 type RemoteThreadData =
   | {
-      readonly threadId: string;
-      readonly remoteId?: undefined;
-      readonly externalId?: undefined;
+      readonly id: string;
+      readonly remoteId: undefined;
+      readonly externalId: undefined;
       readonly status: "new";
       readonly title: undefined;
     }
   | {
-      readonly threadId: string;
+      readonly id: string;
       readonly initializeTask: Promise<RemoteThreadInitializeResponse>;
-      readonly remoteId?: undefined;
-      readonly externalId?: undefined;
+      readonly remoteId: undefined;
+      readonly externalId: undefined;
       readonly status: "regular" | "archived";
       readonly title?: string | undefined;
     }
   | {
-      readonly threadId: string;
+      readonly id: string;
       readonly initializeTask: Promise<RemoteThreadInitializeResponse>;
       readonly remoteId: string;
       readonly externalId: string | undefined;
@@ -72,7 +72,7 @@ const updateStatusReducer = (
   const data = getThreadData(state, threadIdOrRemoteId);
   if (!data) return state;
 
-  const { threadId, remoteId, status: lastStatus } = data;
+  const { id: threadId, remoteId, status: lastStatus } = data;
   if (lastStatus === newStatus) return state;
 
   const newState = { ...state };
@@ -156,6 +156,10 @@ export class RemoteThreadListThreadListRuntimeCore
     threadData: {},
   });
 
+  public get threadData() {
+    return this._state.value.threadData;
+  }
+
   public getLoadThreadsPromise() {
     // TODO this needs to be cached in case this promise is loaded during suspense
     if (!this._loadThreadsPromise) {
@@ -194,7 +198,7 @@ export class RemoteThreadListThreadListRuntimeCore
               const mappingId = createThreadMappingId(thread.remoteId);
               newThreadIdMap[thread.remoteId] = mappingId;
               newThreadData[mappingId] = {
-                threadId: thread.remoteId,
+                id: thread.remoteId,
                 remoteId: thread.remoteId,
                 externalId: thread.externalId,
                 status: thread.status,
@@ -294,7 +298,7 @@ export class RemoteThreadListThreadListRuntimeCore
     const data = this.getItemById(threadIdOrRemoteId);
     if (!data) throw new Error("Thread not found");
 
-    const result = this._hookManager.getThreadRuntimeCore(data.threadId);
+    const result = this._hookManager.getThreadRuntimeCore(data.id);
     if (!result) throw new Error("Thread not found");
     return result;
   }
@@ -307,17 +311,17 @@ export class RemoteThreadListThreadListRuntimeCore
     const data = this.getItemById(threadIdOrRemoteId);
     if (!data) throw new Error("Thread not found");
 
-    if (this._mainThreadId === data.threadId) return;
+    if (this._mainThreadId === data.id) return;
 
-    const task = this._hookManager.startThreadRuntime(data.threadId);
+    const task = this._hookManager.startThreadRuntime(data.id);
     if (this.mainThreadId !== undefined) {
       await task;
     } else {
       task.then(() => this._notifySubscribers());
     }
 
-    if (data.status === "archived") await this.unarchive(data.threadId);
-    this._mainThreadId = data.threadId;
+    if (data.status === "archived") await this.unarchive(data.id);
+    this._mainThreadId = data.id;
 
     this._notifySubscribers();
   }
@@ -419,7 +423,7 @@ export class RemoteThreadListThreadListRuntimeCore
 
     const { remoteId } = await data.initializeTask;
 
-    const runtimeCore = this._hookManager.getThreadRuntimeCore(data.threadId);
+    const runtimeCore = this._hookManager.getThreadRuntimeCore(data.id);
     if (!runtimeCore) return; // thread is no longer running
 
     const messages = runtimeCore.messages;
@@ -435,7 +439,7 @@ export class RemoteThreadListThreadListRuntimeCore
         ...state,
         threadData: {
           ...state.threadData,
-          [data.threadId]: {
+          [data.id]: {
             ...data,
             title: newTitle,
           },
@@ -462,7 +466,7 @@ export class RemoteThreadListThreadListRuntimeCore
           ...state,
           threadData: {
             ...state.threadData,
-            [data.threadId]: {
+            [data.id]: {
               ...data,
               title: newTitle,
             },
@@ -489,12 +493,12 @@ export class RemoteThreadListThreadListRuntimeCore
 
     return this._state.optimisticUpdate({
       execute: async () => {
-        await this._ensureThreadIsNotMain(data.threadId);
+        await this._ensureThreadIsNotMain(data.id);
         const { remoteId } = await data.initializeTask;
         return this._options.adapter.archive(remoteId);
       },
       optimistic: (state) => {
-        return updateStatusReducer(state, data.threadId, "archived");
+        return updateStatusReducer(state, data.id, "archived");
       },
     });
   }
@@ -510,12 +514,12 @@ export class RemoteThreadListThreadListRuntimeCore
           const { remoteId } = await data.initializeTask;
           return await this._options.adapter.unarchive(remoteId);
         } catch (error) {
-          await this._ensureThreadIsNotMain(data.threadId);
+          await this._ensureThreadIsNotMain(data.id);
           throw error;
         }
       },
       optimistic: (state) => {
-        return updateStatusReducer(state, data.threadId, "regular");
+        return updateStatusReducer(state, data.id, "regular");
       },
     });
   }
@@ -528,12 +532,12 @@ export class RemoteThreadListThreadListRuntimeCore
 
     return this._state.optimisticUpdate({
       execute: async () => {
-        await this._ensureThreadIsNotMain(data.threadId);
+        await this._ensureThreadIsNotMain(data.id);
         const { remoteId } = await data.initializeTask;
         return await this._options.adapter.delete(remoteId);
       },
       optimistic: (state) => {
-        return updateStatusReducer(state, data.threadId, "deleted");
+        return updateStatusReducer(state, data.id, "deleted");
       },
     });
   }
@@ -544,8 +548,8 @@ export class RemoteThreadListThreadListRuntimeCore
     if (data.status !== "regular" && data.status !== "archived")
       throw new Error("Thread is not yet initialized");
 
-    await this._ensureThreadIsNotMain(data.threadId);
-    this._hookManager.stopThreadRuntime(data.threadId);
+    await this._ensureThreadIsNotMain(data.id);
+    this._hookManager.stopThreadRuntime(data.id);
   }
 
   private useBoundIds = create<string[]>(() => []);
