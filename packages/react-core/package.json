@@ -1,0 +1,33 @@
+{
+  "name": "@assistant-ui/react-core",
+  "version": "0.0.3",
+  "type": "module",
+  "description": "Barebones React primitives for AI chat state management",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsx build.mts",
+    "prepublishOnly": "pnpm turbo build",
+    "test": "vitest",
+    "test:run": "vitest run"
+  },
+  "author": "AgentbaseAI Inc.",
+  "license": "MIT",
+  "dependencies": {
+    "@assistant-ui/tap": "^0.0.1",
+    "react": "^19.1.1"
+  },
+  "devDependencies": {
+    "@assistant-ui/x-buildutils": "workspace:*",
+    "@testing-library/react": "^16.3.0",
+    "@types/node": "^24.2.0",
+    "@types/react": "^19.1.9",
+    "@types/react-dom": "^19.1.7",
+    "@vitest/ui": "^3.2.4",
+    "happy-dom": "^18.0.1",
+    "react-dom": "^19.1.1",
+    "tsx": "^4.20.3",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}
