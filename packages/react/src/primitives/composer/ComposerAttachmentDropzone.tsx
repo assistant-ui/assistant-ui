@@ -2,7 +2,7 @@ import { forwardRef, useCallback, useState } from "react";
 
 import { Slot } from "@radix-ui/react-slot";
 import React from "react";
-import { useComposerRuntime } from "../../context";
+import { useAssistantApi } from "../../context";
 
 export namespace ComposerAttachmentDropzonePrimitive {
   export type Element = HTMLDivElement;
@@ -17,7 +17,7 @@ export const ComposerAttachmentDropzone = forwardRef<
   ComposerAttachmentDropzonePrimitive.Props
 >(({ disabled, asChild = false, children, ...rest }, ref) => {
   const [isDragging, setIsDragging] = useState(false);
-  const composerRuntime = useComposerRuntime();
+  const { actions } = useAssistantApi();
 
   const handleDrag = useCallback(
     (e: React.DragEvent) => {
@@ -37,13 +37,13 @@ export const ComposerAttachmentDropzone = forwardRef<
       setIsDragging(false);
       for (const file of e.dataTransfer.files) {
         try {
-          await composerRuntime.addAttachment(file);
+          await actions.composer.addAttachment(file);
         } catch (error) {
           console.error("Failed to add attachment:", error);
         }
       }
     },
-    [disabled, composerRuntime],
+    [disabled, actions],
   );
 
   const dragProps = {

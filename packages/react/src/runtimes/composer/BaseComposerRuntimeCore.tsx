@@ -23,7 +23,7 @@ export abstract class BaseComposerRuntimeCore
 
   protected abstract getAttachmentAdapter(): AttachmentAdapter | undefined;
 
-  public getAttachmentAccept(): string {
+  public get attachmentAccept(): string {
     return this.getAttachmentAdapter()?.accept ?? "*";
   }
 
@@ -62,6 +62,7 @@ export abstract class BaseComposerRuntimeCore
   }
 
   public setText(value: string) {
+    console.log("setText", value);
     if (this._text === value) return;
 
     this._text = value;

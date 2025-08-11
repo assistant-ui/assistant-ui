@@ -58,10 +58,7 @@ export const EMPTY_THREAD_CORE: ThreadRuntimeCore = {
 
   composer: {
     attachments: [],
-
-    getAttachmentAccept() {
-      return "*";
-    },
+    attachmentAccept: "*",
 
     async addAttachment() {
       throw EMPTY_THREAD_ERROR;

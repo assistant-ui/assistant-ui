@@ -2,9 +2,10 @@
 
 import { ComponentType, type FC, memo, useMemo } from "react";
 import { Attachment } from "../../types";
-import { useComposer, useComposerRuntime } from "../../context";
-import { useThreadComposerAttachment } from "../../context/react/AttachmentContext";
-import { AttachmentRuntimeProvider } from "../../context/providers/AttachmentRuntimeProvider";
+import {
+  useAssistantState,
+  ComposerAttachmentByIndexProvider,
+} from "../../context";
 
 export namespace ComposerPrimitiveAttachments {
   export type Props = {
@@ -40,10 +41,10 @@ const getComponent = (
 const AttachmentComponent: FC<{
   components: ComposerPrimitiveAttachments.Props["components"];
 }> = ({ components }) => {
-  const Component = useThreadComposerAttachment((a) =>
-    getComponent(components, a),
-  );
+  const attachment = useAssistantState(({ attachment }) => attachment);
+  if (!attachment) return null;
 
+  const Component = getComponent(components, attachment);
   if (!Component) return null;
   return <Component />;
 };
@@ -75,16 +76,10 @@ export namespace ComposerPrimitiveAttachmentByIndex {
 export const ComposerPrimitiveAttachmentByIndex: FC<ComposerPrimitiveAttachmentByIndex.Props> =
   memo(
     ({ index, components }) => {
-      const composerRuntime = useComposerRuntime();
-      const runtime = useMemo(
-        () => composerRuntime.getAttachmentByIndex(index),
-        [composerRuntime, index],
-      );
-
       return (
-        <AttachmentRuntimeProvider runtime={runtime}>
+        <ComposerAttachmentByIndexProvider index={index}>
           <AttachmentComponent components={components} />
-        </AttachmentRuntimeProvider>
+        </ComposerAttachmentByIndexProvider>
       );
     },
     (prev, next) =>
@@ -101,7 +96,9 @@ ComposerPrimitiveAttachmentByIndex.displayName =
 export const ComposerPrimitiveAttachments: FC<
   ComposerPrimitiveAttachments.Props
 > = ({ components }) => {
-  const attachmentsCount = useComposer((s) => s.attachments.length);
+  const attachmentsCount = useAssistantState(
+    (s) => s.composer.attachments.length,
+  );
 
   const attachmentElements = useMemo(() => {
     return Array.from({ length: attachmentsCount }, (_, index) => (

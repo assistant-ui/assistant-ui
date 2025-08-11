@@ -54,7 +54,9 @@ export abstract class AttachmentRuntimeImpl<
 
   public abstract get source(): Source;
 
-  constructor(private _core: AttachmentSnapshotBinding<Source>) {}
+  constructor(private _core: AttachmentSnapshotBinding<Source>) {
+    this.__internal_bindMethods();
+  }
 
   protected __internal_bindMethods() {
     this.getState = this.getState.bind(this);

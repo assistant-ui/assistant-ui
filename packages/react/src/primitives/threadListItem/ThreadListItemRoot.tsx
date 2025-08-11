@@ -2,7 +2,7 @@
 
 import { Primitive } from "@radix-ui/react-primitive";
 import { type ComponentRef, forwardRef, ComponentPropsWithoutRef } from "react";
-import { useThreadListItem } from "../../context/react/ThreadListItemContext";
+import { useAssistantState } from "../../context";
 
 type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;
 
@@ -15,7 +15,9 @@ export const ThreadListItemPrimitiveRoot = forwardRef<
   ThreadListItemPrimitiveRoot.Element,
   ThreadListItemPrimitiveRoot.Props
 >((props, ref) => {
-  const isMain = useThreadListItem((t) => t.isMain);
+  const isMain = useAssistantState(
+    ({ threads, threadListItem }) => threads.mainThreadId === threadListItem.id,
+  );
 
   return (
     <Primitive.div

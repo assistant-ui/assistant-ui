@@ -1,9 +1,7 @@
 "use client";
 
 import { type ComponentType, type FC, memo, useMemo } from "react";
-import { useThread, useThreadRuntime } from "../../context/react/ThreadContext";
-import { MessageRuntimeProvider } from "../../context/providers/MessageRuntimeProvider";
-import { useEditComposer, useMessage } from "../../context";
+import { useAssistantState, MessageByIndexProvider } from "../../context";
 import { ThreadMessage as ThreadMessageType } from "../../types";
 
 export namespace ThreadPrimitiveMessages {
@@ -130,8 +128,10 @@ type ThreadMessageComponentProps = {
 const ThreadMessageComponent: FC<ThreadMessageComponentProps> = ({
   components,
 }) => {
-  const role = useMessage((m) => m.role);
-  const isEditing = useEditComposer((c) => c.isEditing);
+  const role = useAssistantState(({ message }) => message.role);
+  const isEditing = useAssistantState(
+    ({ message }) => message.composer.isEditing,
+  );
   const Component = getComponent(components, role, isEditing);
 
   return <Component />;
@@ -163,16 +163,10 @@ export namespace ThreadPrimitiveMessageByIndex {
 export const ThreadPrimitiveMessageByIndex: FC<ThreadPrimitiveMessageByIndex.Props> =
   memo(
     ({ index, components }) => {
-      const threadRuntime = useThreadRuntime();
-      const runtime = useMemo(
-        () => threadRuntime.getMesssageByIndex(index),
-        [threadRuntime, index],
-      );
-
       return (
-        <MessageRuntimeProvider runtime={runtime}>
+        <MessageByIndexProvider index={index}>
           <ThreadMessageComponent components={components} />
-        </MessageRuntimeProvider>
+        </MessageByIndexProvider>
       );
     },
     (prev, next) =>
@@ -203,7 +197,9 @@ ThreadPrimitiveMessageByIndex.displayName = "ThreadPrimitive.MessageByIndex";
 export const ThreadPrimitiveMessagesImpl: FC<ThreadPrimitiveMessages.Props> = ({
   components,
 }) => {
-  const messagesLength = useThread((t) => t.messages.length);
+  const messagesLength = useAssistantState(
+    ({ thread }) => thread.messages.length,
+  );
 
   const messageElements = useMemo(() => {
     if (messagesLength === 0) return null;
