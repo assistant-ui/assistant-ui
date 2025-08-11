@@ -61,5 +61,7 @@ export {
 export { FileSystemDebugSink } from "./utils/FileSystemDebugSink";
 
 // store
-export { store, asStore } from "./utils/tap-store/store";
+export { store, asStore, type Store } from "./utils/tap-store/store";
 export { tapActions } from "./utils/tap-store/tap-actions";
+export { createStoreStateHook } from "./utils/store/createStoreStateHook";
+export { createStoreApiHook } from "./utils/store/createStoreApiHook";

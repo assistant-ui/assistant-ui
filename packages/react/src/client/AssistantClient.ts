@@ -1,20 +1,19 @@
 import { tapMemo, tapResource, resource } from "@assistant-ui/tap";
 import { ThreadListClientState } from "./ThreadListClient";
 import { ThreadListClientActions } from "./ThreadListClient";
-import { AssistantRuntimeCore } from "../runtimes/core/AssistantRuntimeCore";
-import { AssistantRuntimeImpl } from "../api/AssistantRuntime";
+import { AssistantRuntime } from "../api/AssistantRuntime";
 import { ThreadListClient } from "./ThreadListClient";
-import { tapState } from "@assistant-ui/tap";
 import { ModelContextProvider } from "../model-context";
-import { tapActions } from "@assistant-ui/react-core";
+import { asStore, Store, tapActions } from "@assistant-ui/react-core";
+import { useResource } from "@assistant-ui/tap/react";
 import { ThreadClientActions, ThreadClientState } from "./ThreadClient";
 
-type AssistantClientState = {
+export type AssistantClientState = {
   readonly threads: ThreadListClientState;
   readonly thread: ThreadClientState;
 };
 
-type AssistantClientActions = {
+export type AssistantClientActions = {
   readonly threads: ThreadListClientActions;
   readonly thread: ThreadClientActions;
   readonly registerModelContextProvider: (
@@ -22,10 +21,13 @@ type AssistantClientActions = {
   ) => void;
 };
 
-export const LegacyAssistantClient = resource(
-  ({ core }: { core: AssistantRuntimeCore }) => {
-    const [runtime] = tapState(new AssistantRuntimeImpl(core));
+export type AssistantClient = Store<
+  AssistantClientState,
+  AssistantClientActions
+>;
 
+export const AssistantClient = resource(
+  ({ runtime }: { runtime: AssistantRuntime }) => {
     const threads = tapResource(ThreadListClient({ runtime: runtime.threads }));
 
     const state = tapMemo<AssistantClientState>(() => {
@@ -49,3 +51,8 @@ export const LegacyAssistantClient = resource(
     };
   },
 );
+
+export const useAssistantClient = (runtime: AssistantRuntime) => {
+  const client = useResource(asStore(AssistantClient)({ runtime: runtime }));
+  return client;
+};

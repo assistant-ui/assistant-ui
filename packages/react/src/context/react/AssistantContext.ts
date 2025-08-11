@@ -9,9 +9,11 @@ import { UseBoundStore } from "zustand";
 import { AssistantRuntime } from "../../api/AssistantRuntime";
 import { ThreadListRuntime } from "../../api/ThreadListRuntime";
 import { createStateHookForRuntime } from "./utils/createStateHookForRuntime";
+import { AssistantClient } from "../../client/AssistantClient";
+import { createStoreStateHook } from "@assistant-ui/react-core";
 
 export type AssistantContextValue = {
-  useAssistantRuntime: UseBoundStore<ReadonlyStore<AssistantRuntime>>;
+  assistantRuntimeStore: AssistantClient;
   useToolUIs: UseBoundStore<ReadonlyStore<AssistantToolUIsState>>;
 };
 
@@ -58,8 +60,10 @@ export function useAssistantRuntime(options?: {
 }) {
   const context = useAssistantContext(options);
   if (!context) return null;
-  return context.useAssistantRuntime();
+  return context.assistantRuntimeStore();
 }
+
+export const useAssistant = createStoreStateHook(AssistantContext);
 
 export const { useToolUIs, useToolUIsStore } = createContextStoreHook(
   useAssistantContext,

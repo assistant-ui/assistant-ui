@@ -1,7 +1,7 @@
 import { tapActions } from "@assistant-ui/react-core";
 import { resource, tapMemo, tapResource } from "@assistant-ui/tap";
 import { tapRefValue } from "./util-hooks/tapRefValue";
-import { ThreadListRuntimeImpl } from "../api/ThreadListRuntime";
+import { ThreadListRuntime } from "../api/ThreadListRuntime";
 import { tapSubscribable } from "./util-hooks/tapSubscribable";
 import {
   ThreadListItemClientState,
@@ -36,7 +36,7 @@ export type ThreadListClientActions = {
 };
 
 export const ThreadListClient = resource(
-  ({ runtime }: { runtime: ThreadListRuntimeImpl }) => {
+  ({ runtime }: { runtime: ThreadListRuntime }) => {
     const runtimeState = tapSubscribable(runtime);
     const runtimeRef = tapRefValue(runtime);
 

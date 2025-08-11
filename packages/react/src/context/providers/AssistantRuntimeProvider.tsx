@@ -1,21 +1,12 @@
 "use client";
 
-import {
-  FC,
-  PropsWithChildren,
-  memo,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { FC, PropsWithChildren, memo, useMemo, useState } from "react";
 import { AssistantContext } from "../react/AssistantContext";
 import { makeAssistantToolUIsStore } from "../stores/AssistantToolUIs";
 import { ThreadRuntimeProvider } from "./ThreadRuntimeProvider";
 import { AssistantRuntime } from "../../api/AssistantRuntime";
-import { create } from "zustand";
-import { writableStore } from "../ReadonlyStore";
 import { AssistantRuntimeCore } from "../../runtimes/core/AssistantRuntimeCore";
-import { ensureBinding } from "../react/utils/ensureBinding";
+import { useAssistantClient } from "../../client/AssistantClient";
 
 export namespace AssistantRuntimeProvider {
   export type Props = PropsWithChildren<{
@@ -25,19 +16,6 @@ export namespace AssistantRuntimeProvider {
     runtime: AssistantRuntime;
   }>;
 }
-
-const useAssistantRuntimeStore = (runtime: AssistantRuntime) => {
-  const [store] = useState(() => create(() => runtime));
-
-  useEffect(() => {
-    ensureBinding(runtime);
-    ensureBinding(runtime.threads);
-
-    writableStore(store).setState(runtime, true);
-  }, [runtime, store]);
-
-  return store;
-};
 
 const useAssistantToolUIsStore = () => {
   return useMemo(() => makeAssistantToolUIsStore(), []);
@@ -50,12 +28,12 @@ const getRenderComponent = (runtime: AssistantRuntime) => {
 export const AssistantRuntimeProviderImpl: FC<
   AssistantRuntimeProvider.Props
 > = ({ children, runtime }) => {
-  const useAssistantRuntime = useAssistantRuntimeStore(runtime);
+  const assistantRuntimeStore = useAssistantClient(runtime);
   const useToolUIs = useAssistantToolUIsStore();
   const [context] = useState(() => {
     return {
       useToolUIs,
-      useAssistantRuntime,
+      assistantRuntimeStore,
     };
   });
 
