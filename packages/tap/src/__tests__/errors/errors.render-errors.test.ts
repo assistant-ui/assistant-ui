@@ -103,7 +103,7 @@ describe("Errors - Render Errors", () => {
     let shouldThrow = false;
 
     const resource = createTestResource(() => {
-      const [count, setCount] = tapState(42);
+      const [count, _setCount] = tapState(42);
 
       if (shouldThrow) {
         throw new Error("Render failed");

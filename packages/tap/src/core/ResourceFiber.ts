@@ -4,8 +4,8 @@ import { withResourceFiber } from "./execution-context";
 
 export function createResourceFiber<R, P>(
   resourceFn: ResourceFn<R, P>,
-  scheduleRerender: () => void
-): ResourceFiber {
+  scheduleRerender: () => void,
+): ResourceFiber<R, P> {
   return {
     resourceFn,
     scheduleRerender,
@@ -18,14 +18,14 @@ export function createResourceFiber<R, P>(
   };
 }
 
-export function unmountResource(fiber: ResourceFiber): void {
+export function unmountResource<R, P>(fiber: ResourceFiber<R, P>): void {
   // Clean up all effects
   cleanupAllEffects(fiber);
 }
 
 export function renderResource<R, P>(
-  fiber: ResourceFiber,
-  props: P
+  fiber: ResourceFiber<R, P>,
+  props: P,
 ): RenderResult {
   let state: R | undefined;
 
@@ -43,9 +43,9 @@ export function renderResource<R, P>(
   };
 }
 
-export function commitResource(
-  fiber: ResourceFiber,
-  result: RenderResult
+export function commitResource<R, P>(
+  fiber: ResourceFiber<R, P>,
+  result: RenderResult,
 ): void {
   commitRender(result, fiber);
   fiber.committedProps = result.props;

@@ -12,7 +12,7 @@ export type ResourceElementConstructor<R, P> = (
   props: P,
   options?: {
     key?: string | number;
-  }
+  },
 ) => ResourceElement<R, P>;
 
 export type StateUpdater<S> = S | ((prev: S) => S);
@@ -45,15 +45,15 @@ export interface RenderResult {
   commitTasks: EffectTask[];
 }
 
-export interface ResourceFiber {
+export interface ResourceFiber<R, P> {
   readonly scheduleRerender: () => void;
-  readonly resourceFn: ResourceFn<any, any>;
+  readonly resourceFn: ResourceFn<R, P>;
 
   cells: Cell[];
   currentIndex: number;
   commitTasks: EffectTask[];
   isFirstRender: boolean;
 
-  committedProps: any;
+  committedProps: P | undefined;
   isRendering: boolean;
 }

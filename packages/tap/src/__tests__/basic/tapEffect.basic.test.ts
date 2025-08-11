@@ -7,7 +7,6 @@ import {
   cleanupAllResources,
   TestResourceManager,
 } from "../test-utils";
-import { renderResource as renderResourceFiber, commitResource } from "../../core/ResourceFiber";
 
 describe("tapEffect - Basic Functionality", () => {
   afterEach(() => {

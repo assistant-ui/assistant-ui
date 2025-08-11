@@ -1,8 +1,11 @@
 import { ResourceFiber } from "./types";
 
-let currentResourceFiber: ResourceFiber | null = null;
+let currentResourceFiber: ResourceFiber<any, any> | null = null;
 
-export function withResourceFiber(fiber: ResourceFiber, fn: () => void): void {
+export function withResourceFiber<R, P>(
+  fiber: ResourceFiber<R, P>,
+  fn: () => void,
+): void {
   if (fiber.isRendering) throw new Error("Execution context is locked");
   fiber.isRendering = true;
   fiber.commitTasks = [];
@@ -19,7 +22,7 @@ export function withResourceFiber(fiber: ResourceFiber, fn: () => void): void {
     if (fiber.cells.length !== fiber.currentIndex) {
       throw new Error(
         `Rendered ${fiber.currentIndex} hooks but expected ${fiber.cells.length}. ` +
-          "Hooks must be called in the exact same order in every render."
+          "Hooks must be called in the exact same order in every render.",
       );
     }
   } finally {
@@ -27,7 +30,7 @@ export function withResourceFiber(fiber: ResourceFiber, fn: () => void): void {
     fiber.isRendering = false;
   }
 }
-export function getCurrentResourceFiber(): ResourceFiber {
+export function getCurrentResourceFiber(): ResourceFiber<unknown, unknown> {
   if (!currentResourceFiber) {
     throw new Error("No resource fiber available");
   }

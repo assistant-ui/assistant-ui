@@ -10,7 +10,7 @@ import {
 import { tapRerender } from "./tap-rerender";
 
 interface ResourceEntry<R, P> {
-  fiber: ResourceFiber;
+  fiber: ResourceFiber<R, P>;
   type: (props: P) => R;
   props: P;
   state: R;

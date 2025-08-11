@@ -5,6 +5,7 @@ import {
   commitResource,
 } from "../core/ResourceFiber";
 import { ResourceFn, ResourceFiber } from "../core/types";
+import { tapState } from "../hooks/tap-state";
 
 // ============================================================================
 // Resource Creation
@@ -16,8 +17,6 @@ import { ResourceFn, ResourceFiber } from "../core/types";
  * Sets up a rerender callback that automatically re-renders when state changes.
  */
 export function createTestResource<R, P>(type: ResourceFn<R, P>) {
-  let fiber: ResourceFiber;
-
   const rerenderCallback = () => {
     // Re-render when state changes
     if (activeResources.has(fiber)) {
@@ -28,7 +27,7 @@ export function createTestResource<R, P>(type: ResourceFn<R, P>) {
     }
   };
 
-  fiber = createResourceFiber(type, rerenderCallback);
+  const fiber = createResourceFiber(type, rerenderCallback);
   return fiber;
 }
 
@@ -37,16 +36,16 @@ export function createTestResource<R, P>(type: ResourceFn<R, P>) {
 // ============================================================================
 
 // Track resources for cleanup
-const activeResources = new Set<ResourceFiber>();
-const propsMap = new WeakMap<ResourceFiber, any>();
-const lastRenderResultMap = new WeakMap<ResourceFiber, any>();
+const activeResources = new Set<ResourceFiber<any, any>>();
+const propsMap = new WeakMap<ResourceFiber<any, any>, any>();
+const lastRenderResultMap = new WeakMap<ResourceFiber<any, any>, any>();
 
 /**
  * Renders a test resource fiber with the given props and manages its lifecycle.
  * - Tracks resources for cleanup
  * - Returns the current state after render
  */
-export function renderTest<R, P>(fiber: ResourceFiber, props: P): R {
+export function renderTest<R, P>(fiber: ResourceFiber<R, P>, props: P): R {
   propsMap.set(fiber, props);
 
   // Track resource for cleanup
@@ -65,7 +64,7 @@ export function renderTest<R, P>(fiber: ResourceFiber, props: P): R {
 /**
  * Unmounts a specific resource fiber and removes it from tracking.
  */
-export function unmountResource(fiber: ResourceFiber) {
+export function unmountResource<R, P>(fiber: ResourceFiber<R, P>) {
   if (activeResources.has(fiber)) {
     unmountResourceFiber(fiber);
     activeResources.delete(fiber);
@@ -84,11 +83,11 @@ export function cleanupAllResources() {
  * Gets the current committed state of a resource fiber.
  * Returns the state from the last render/commit cycle.
  */
-export function getCommittedState<R>(fiber: ResourceFiber): R {
+export function getCommittedState<R, P>(fiber: ResourceFiber<R, P>): R {
   const lastResult = lastRenderResultMap.get(fiber);
   if (!lastResult) {
     throw new Error(
-      "No render result found for fiber. Make sure to call renderResource first."
+      "No render result found for fiber. Make sure to call renderResource first.",
     );
   }
   return lastResult.state;
@@ -105,9 +104,9 @@ export function getCommittedState<R>(fiber: ResourceFiber): R {
 export class TestSubscriber<T> {
   public callCount = 0;
   public lastState: T;
-  private fiber: ResourceFiber;
+  private fiber: ResourceFiber<any, any>;
 
-  constructor(fiber: ResourceFiber) {
+  constructor(fiber: ResourceFiber<any, any>) {
     this.fiber = fiber;
     // Need to render once to get initial state
     const lastProps = propsMap.get(fiber) ?? undefined;
@@ -144,7 +143,7 @@ export class TestSubscriber<T> {
 export class TestResourceManager<R, P> {
   private isActive = false;
 
-  constructor(public fiber: ResourceFiber) {}
+  constructor(public fiber: ResourceFiber<R, P>) {}
 
   renderAndMount(props: P): R {
     if (this.isActive) {
@@ -188,7 +187,7 @@ export function waitForNextTick(): Promise<void> {
 export async function waitFor(
   condition: () => boolean,
   timeout = 1000,
-  interval = 10
+  interval = 10,
 ): Promise<void> {
   const start = Date.now();
   while (!condition()) {
@@ -219,9 +218,6 @@ export function createCounterResource(initialValue = 0) {
  * Includes increment/decrement functions.
  */
 export function createStatefulCounterResource() {
-  // Import at top of file to avoid issues
-  const { tapState } = require("../hooks/tap-state");
-
   return (props: { initial: number }) => {
     const [count, setCount] = tapState(props.initial);
     return {

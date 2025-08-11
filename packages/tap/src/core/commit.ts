@@ -1,8 +1,8 @@
 import { ResourceFiber, RenderResult } from "./types";
 
-export function commitRender(
+export function commitRender<R, P>(
   renderContext: RenderResult,
-  executionContext: ResourceFiber
+  executionContext: ResourceFiber<R, P>
 ): void {
   // Process all tasks collected during render
   renderContext.commitTasks.forEach((task) => {
@@ -60,7 +60,9 @@ export function commitRender(
   });
 }
 
-export function cleanupAllEffects(executionContext: ResourceFiber) {
+export function cleanupAllEffects<R, P>(
+  executionContext: ResourceFiber<R, P>
+) {
   // Run cleanups in reverse order
   for (let i = executionContext.cells.length - 1; i >= 0; i--) {
     const cell = executionContext.cells[i];

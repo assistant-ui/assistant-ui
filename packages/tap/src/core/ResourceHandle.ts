@@ -50,14 +50,14 @@ const HandleWrapperResource = <R, P>({
       },
       dispose: onDispose,
     }),
-    []
+    [],
   );
 
   return handle;
 };
 
 export const createResource = <R, P>(
-  element: ResourceElement<R, P>
+  element: ResourceElement<R, P>,
 ): ResourceHandle<R, P> => {
   const props = {
     element,
@@ -70,7 +70,7 @@ export const createResource = <R, P>(
   });
 
   const fiber = createResourceFiber(HandleWrapperResource<R, P>, () =>
-    scheduler.markDirty()
+    scheduler.markDirty(),
   );
 
   const result = renderResource(fiber, props);

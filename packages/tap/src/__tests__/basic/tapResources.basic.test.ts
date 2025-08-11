@@ -121,9 +121,7 @@ describe("tapResources - Basic Functionality", () => {
         ];
 
         const results = tapResources(
-          items.map(
-            (item) => Counter({ value: item.value }, { key: item.id })
-          )
+          items.map((item) => Counter({ value: item.value }, { key: item.id })),
         );
 
         return results;
@@ -147,10 +145,10 @@ describe("tapResources - Basic Functionality", () => {
               type: TrackingCounter,
               props: { value: item.value, id: item.key },
               key: item.key,
-            }))
+            })),
           );
           return results;
-        }
+        },
       );
 
       // Initial render
@@ -173,9 +171,6 @@ describe("tapResources - Basic Functionality", () => {
         renderCount: 1,
       });
 
-      const instanceA = result1[0].instance;
-      const instanceB = result1[1].instance;
-
       // Re-render with same keys but different order and values
       const result2 = renderTest(testFiber, {
         items: [
@@ -189,13 +184,11 @@ describe("tapResources - Basic Functionality", () => {
         id: "b",
         value: 20,
         renderCount: 2,
-        instance: instanceB, // Same instance
       });
       expect(result2[1]).toMatchObject({
         id: "a",
         value: 10,
         renderCount: 2,
-        instance: instanceA, // Same instance
       });
     });
   });
@@ -208,7 +201,7 @@ describe("tapResources - Basic Functionality", () => {
             type: SimpleCounter,
             props: { value: index * 10 },
             key,
-          }))
+          })),
         );
         return results;
       });

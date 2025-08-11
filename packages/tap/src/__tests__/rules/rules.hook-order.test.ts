@@ -2,7 +2,10 @@ import { describe, it, expect } from "vitest";
 import { tapEffect } from "../../hooks/tap-effect";
 import { tapState } from "../../hooks/tap-state";
 import { createTestResource, renderTest } from "../test-utils";
-import { renderResource as renderResourceFiber, commitResource } from "../../core/ResourceFiber";
+import {
+  renderResource as renderResourceFiber,
+  commitResource,
+} from "../../core/ResourceFiber";
 
 describe("Rules of Hooks - Hook Order", () => {
   it("should throw when hooks are called in different order", () => {
@@ -27,7 +30,7 @@ describe("Rules of Hooks - Hook Order", () => {
 
     // Second render with different order should throw
     expect(() => renderResourceFiber(resource, undefined)).toThrow(
-      "Hook order changed between renders"
+      "Hook order changed between renders",
     );
   });
 
@@ -49,7 +52,7 @@ describe("Rules of Hooks - Hook Order", () => {
     useEffect = true;
 
     expect(() => renderResourceFiber(resource, undefined)).toThrow(
-      "Hook order changed between renders"
+      "Hook order changed between renders",
     );
   });
 
@@ -74,7 +77,7 @@ describe("Rules of Hooks - Hook Order", () => {
 
     // Should throw because hook count changed
     expect(() => renderResourceFiber(resource, undefined)).toThrow(
-      "Rendered 2 hooks but expected 3"
+      "Rendered 2 hooks but expected 3",
     );
   });
 
@@ -113,7 +116,7 @@ describe("Rules of Hooks - Hook Order", () => {
     items = [1, 2];
 
     expect(() => renderResourceFiber(resource, undefined)).toThrow(
-      "Rendered 2 hooks but expected 3"
+      "Rendered 2 hooks but expected 3",
     );
   });
 
@@ -157,7 +160,7 @@ describe("Rules of Hooks - Hook Order", () => {
     shouldReturn = true;
 
     expect(() => renderResourceFiber(resource, undefined)).toThrow(
-      "Rendered 1 hooks but expected 2"
+      "Rendered 1 hooks but expected 2",
     );
   });
 
@@ -169,7 +172,7 @@ describe("Rules of Hooks - Hook Order", () => {
       tapEffect(() => {
         if (count > 0) {
           expect(() => {
-            const [nested] = tapState(0); // Invalid: hook inside effect
+            const [_nested] = tapState(0); // Invalid: hook inside effect
           }).toThrow("No resource fiber available");
         }
       });
