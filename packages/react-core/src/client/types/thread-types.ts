@@ -37,6 +37,8 @@ export type ThreadActions = {
 
 export type ThreadState = {
   readonly composer: ComposerState;
+  readonly editComposers: Readonly<Record<string, ComposerState>>;
+
   readonly isRunning: boolean;
   readonly messages: readonly UIMessage[];
   readonly metadata: UserThreadMetadata;

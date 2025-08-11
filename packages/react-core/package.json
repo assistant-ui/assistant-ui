@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-core",
-  "version": "0.0.3",
+  "version": "0.0.5",
   "type": "module",
   "description": "Barebones React primitives for AI chat state management",
   "main": "dist/index.js",
@@ -14,7 +14,7 @@
   "author": "AgentbaseAI Inc.",
   "license": "MIT",
   "dependencies": {
-    "@assistant-ui/tap": "^0.0.1",
+    "@assistant-ui/tap": "^0.0.2",
     "react": "^19.1.1"
   },
   "devDependencies": {

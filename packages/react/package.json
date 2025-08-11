@@ -55,7 +55,9 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "assistant-cloud": "workspace:*",
+    "assistant-cloud": "^0.0.4",
+    "@assistant-ui/tap": "^0.0.2",
+    "@assistant-ui/react-core": "^0.0.5",
     "@radix-ui/primitive": "^1.1.2",
     "@radix-ui/react-compose-refs": "^1.1.2",
     "@radix-ui/react-context": "^1.1.2",

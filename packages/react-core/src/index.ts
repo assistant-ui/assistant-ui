@@ -40,11 +40,12 @@ export type {
   UIMessageLike,
   UIMessagePartLike,
 } from "./client/types/message-types";
+export type { StateWithActions } from "./client/types/common-types";
 
 // client
 export { useAssistantClient } from "./react-context/assistant/useAssistantClient";
 export { AssistantClient } from "./client/AssistantClient";
-export { BaseThread, ThreadClient } from "./client/BaseThread";
+export { BaseThread } from "./client/BaseThread";
 export { createConverter } from "./client/UIStateConverter";
 
 // tool
@@ -58,3 +59,7 @@ export {
 
 // utils
 export { FileSystemDebugSink } from "./utils/FileSystemDebugSink";
+
+// store
+export { store, asStore } from "./utils/tap-store/store";
+export { tapActions } from "./utils/tap-store/tap-actions";

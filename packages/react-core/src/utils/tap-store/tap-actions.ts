@@ -1,7 +1,7 @@
 import { tapRef, tapEffect, tapMemo } from "@assistant-ui/tap";
 
 interface ActionsObject {
-  [key: string]: Function | ActionsObject;
+  [key: string]: ((...args: any[]) => any) | ActionsObject;
 }
 
 export const tapActions = <T extends ActionsObject>(inner: T) => {

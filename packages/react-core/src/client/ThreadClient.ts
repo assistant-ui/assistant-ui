@@ -55,7 +55,7 @@ export const AssistantStreamThreadBackend = resource(
         rerender({});
       },
     };
-  }
+  },
 );
 
 type ThreadBackend<TState> = {
@@ -77,9 +77,9 @@ export const Thread = resource(
 
     const state = tapMemo(
       () => converterStore.convert({ state: backendState, metadata }),
-      [converterStore, backendState, metadata]
+      [converterStore, backendState, metadata],
     );
 
     return tapInlineResource(BaseThread({ state, onDispatch: dispatch }));
-  }
+  },
 );

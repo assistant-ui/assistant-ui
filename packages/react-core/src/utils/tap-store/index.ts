@@ -1,3 +1,3 @@
-export { store } from "./tap-store";
-export type { Store, Unsubscribe } from "./tap-store";
+export { store, asStore } from "./store";
+export type { Store, Unsubscribe } from "./store";
 export { tapActions } from "./tap-actions";
