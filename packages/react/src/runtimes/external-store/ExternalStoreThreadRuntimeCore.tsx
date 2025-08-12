@@ -150,7 +150,7 @@ export class ExternalStoreThreadRuntimeCore
             if (!store.convertMessage) return m;
 
             const isLast = idx === store.messages!.length - 1;
-            const autoStatus = getAutoStatus(isLast, isRunning);
+            const autoStatus = getAutoStatus(isLast, isRunning, false);
 
             if (
               cache &&

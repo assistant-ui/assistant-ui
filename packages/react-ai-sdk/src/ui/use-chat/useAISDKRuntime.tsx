@@ -1,16 +1,26 @@
 "use client";
 
 import type { useChat } from "@ai-sdk/react";
-import { useExternalStoreRuntime } from "@assistant-ui/react";
+import {
+  useExternalStoreRuntime,
+  ExternalStoreAdapter,
+  ThreadHistoryAdapter,
+  AssistantRuntime,
+} from "@assistant-ui/react";
 import { sliceMessagesUntil } from "../utils/sliceMessagesUntil";
 import { toCreateMessage } from "../utils/toCreateMessage";
 import { vercelAttachmentAdapter } from "../utils/vercelAttachmentAdapter";
 import { getVercelAIMessages } from "../getVercelAIMessages";
-import { ExternalStoreAdapter } from "@assistant-ui/react";
 import { AISDKMessageConverter } from "../utils/convertMessage";
+import { aiSDKV5FormatAdapter } from "../adapters/aiSDKFormatAdapter";
+import { useExternalHistory } from "./useExternalHistory";
 
 export type AISDKRuntimeAdapter = {
-  adapters?: NonNullable<ExternalStoreAdapter["adapters"]> | undefined;
+  adapters?:
+    | (NonNullable<ExternalStoreAdapter["adapters"]> & {
+        history?: ThreadHistoryAdapter | undefined;
+      })
+    | undefined;
 };
 
 export const useAISDKRuntime = (
@@ -23,6 +33,20 @@ export const useAISDKRuntime = (
     messages: chatHelpers.messages,
   });
 
+  const isLoading = useExternalHistory(
+    {
+      get current(): AssistantRuntime {
+        return runtime;
+      },
+    },
+    adapter.adapters?.history,
+    AISDKMessageConverter.toThreadMessages,
+    aiSDKV5FormatAdapter,
+    (messages) => {
+      chatHelpers.setMessages(messages);
+    },
+  );
+
   const runtime = useExternalStoreRuntime({
     isRunning:
       chatHelpers.status === "submitted" || chatHelpers.status === "streaming",
@@ -31,7 +55,8 @@ export const useAISDKRuntime = (
       chatHelpers.setMessages(messages.map(getVercelAIMessages).flat()),
     onCancel: async () => chatHelpers.stop(),
     onNew: async (message) => {
-      await chatHelpers.sendMessage(await toCreateMessage(message));
+      const createMessage = await toCreateMessage(message);
+      await chatHelpers.sendMessage(createMessage);
     },
     onEdit: async (message) => {
       const newMessages = sliceMessagesUntil(
@@ -40,7 +65,8 @@ export const useAISDKRuntime = (
       );
       chatHelpers.setMessages(newMessages);
 
-      await chatHelpers.sendMessage(await toCreateMessage(message));
+      const createMessage = await toCreateMessage(message);
+      await chatHelpers.sendMessage(createMessage);
     },
     onReload: async (parentId: string | null) => {
       const newMessages = sliceMessagesUntil(chatHelpers.messages, parentId);
@@ -59,6 +85,7 @@ export const useAISDKRuntime = (
       attachments: vercelAttachmentAdapter,
       ...adapter.adapters,
     },
+    isLoading,
   });
 
   return runtime;

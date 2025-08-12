@@ -6,6 +6,7 @@ import {
   AssistantRuntime,
   unstable_useCloudThreadListAdapter,
   unstable_useRemoteThreadListRuntime,
+  useRuntimeAdapters,
 } from "@assistant-ui/react";
 import { useAISDKRuntime, type AISDKRuntimeAdapter } from "./useAISDKRuntime";
 import { ChatInit } from "ai";
@@ -27,12 +28,20 @@ export const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   } = options ?? {};
   const transport = transportOptions ?? new AssistantChatTransport();
 
+  // Get adapters from context (including history adapter from cloud)
+  const contextAdapters = useRuntimeAdapters();
+
   const chat = useChat({
     ...chatOptions,
     transport,
   });
 
-  const runtime = useAISDKRuntime(chat as any, { adapters });
+  const runtime = useAISDKRuntime(chat as any, {
+    adapters: {
+      ...contextAdapters,
+      ...adapters,
+    },
+  });
   if (transport instanceof AssistantChatTransport) {
     transport.setRuntime(runtime);
   }

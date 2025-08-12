@@ -33,22 +33,32 @@ export class AssistantChatTransport<
   UI_MESSAGE extends UIMessage,
 > extends DefaultChatTransport<UI_MESSAGE> {
   private runtime: AssistantRuntime | undefined;
-  constructor(options?: HttpChatTransportInitOptions<UI_MESSAGE>) {
+  constructor(initOptions?: HttpChatTransportInitOptions<UI_MESSAGE>) {
     super({
-      ...options,
-      prepareSendMessagesRequest: async (opt) => {
-        const res = await options?.prepareSendMessagesRequest?.(opt);
-        if (!this.runtime) return res ?? { body: opt.body ?? {} };
+      ...initOptions,
+      prepareSendMessagesRequest: async (options) => {
+        const context = this.runtime?.thread.getModelContext();
 
-        const context = this.runtime.thread.getModelContext();
-        return {
+        const optionsEx = {
+          ...options,
           body: {
-            system: context.system,
-            tools: toAISDKTools(getEnabledTools(context.tools ?? {})),
-            ...opt.body,
-            ...res?.body,
+            system: context?.system,
+            tools: toAISDKTools(getEnabledTools(context?.tools ?? {})),
+            ...options?.body,
           },
-          ...res,
+        };
+        const preparedRequest =
+          await initOptions?.prepareSendMessagesRequest?.(optionsEx);
+
+        return {
+          ...preparedRequest,
+          body: preparedRequest?.body ?? {
+            ...optionsEx.body,
+            id: options.id,
+            messages: options.messages,
+            trigger: options.trigger,
+            messageId: options.messageId,
+          },
         };
       },
     });
