@@ -1,5 +1,13 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.11.3
+
+### Patch Changes
+
+- 2ef6cae: feat: Add useChatRuntime as new recommended entry point for AI-SDK V5
+- Updated dependencies [f32b6a4]
+  - @assistant-ui/react@0.10.37
+
 ## 0.11.1
 
 ### Patch Changes
