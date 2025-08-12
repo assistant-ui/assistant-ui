@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-ai-sdk",
-  "version": "0.11.1",
+  "version": "0.11.2",
   "license": "MIT",
   "type": "module",
   "exports": {
