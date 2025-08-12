@@ -10,6 +10,8 @@
   <a href="https://cal.com/simon-farshid/assistant-ui">Contact Sales</a>
 </p>
 
+[![npm version](https://img.shields.io/npm/v/assistant-ui)](https://www.npmjs.com/package/@assistant-ui/react)
+[![npm downloads](https://img.shields.io/npm/dm/assistant-ui)](https://www.npmjs.com/package/assistant-ui)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/assistant-ui/assistant-ui)
 [![Weave Badge](https://img.shields.io/endpoint?url=https%3A%2F%2Fapp.workweave.ai%2Fapi%2Frepository%2Fbadge%2Forg_GhSIrtWo37b5B3Mv0At3wQ1Q%2F722184017&cacheSeconds=3600)](https://app.workweave.ai/reports/repository/org_GhSIrtWo37b5B3Mv0At3wQ1Q/722184017)
 ![Backed by Y Combinator](https://img.shields.io/badge/Backed_by-Y_Combinator-orange)
@@ -18,57 +20,64 @@
 
 ## The UX of ChatGPT in your React app 💬🚀
 
-**assistant-ui** is an open source TypeScript/React library for AI chat.
+**assistant-ui** is an open source TypeScript/React library to build production-grade AI chat experiences fast.
 
-The library handles essential chat features such as auto-scrolling, accessibility, and real-time updates, while providing easy integration with LangGraph, AI SDK, and custom backends.
+- Handles streaming, auto-scrolling, accessibility, and real-time updates for you
+- Fully composable primitives inspired by shadcn/ui and cmdk — customize every pixel
+ - Works with your stack: AI SDK, LangGraph, Mastra, or any custom backend
+- Broad model support out of the box (OpenAI, Anthropic, Mistral, Perplexity, AWS Bedrock, Azure, Google Gemini, Hugging Face, Fireworks, Cohere, Replicate, Ollama) with easy extension to custom APIs
 
-The API of assistant-ui is inspired by libraries like shadcn/ui and cmdk. Instead of a single monolithic chat component, developers get primitive components that can be fully customized.
+## Why assistant-ui
 
-We have wide model provider support (OpenAI, Anthropic, Mistral, Perplexity, AWS Bedrock, Azure, Google Gemini, Hugging Face, Fireworks, Cohere, Replicate, Ollama) out of the box and the ability to integrate custom APIs.
+- **Fast to production**: battle-tested primitives, built-in streaming and attachments
+- **Designed for customization**: composable pieces instead of a monolithic widget
+- **Great DX**: sensible defaults, keyboard shortcuts, a11y, and strong TypeScript
+- **Enterprise-ready**: optional chat history and analytics via Assistant Cloud
 
 ## Getting Started
 
-You can get started by running `npx assistant-ui create` (new project) or `npx assistant-ui init` (existing project) in your terminal.
+Run one of the following in your terminal:
+
+```bash
+npx assistant-ui create   # new project
+npx assistant-ui init     # add to existing project
+```
 
 [![assistant-ui starter template](https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/assistant-ui-starter.gif)](https://youtu.be/k6Dc8URmLjk)
 
 ## Features
 
-- shadcn/ui
-  - Radix UI-inspired primitives for AI Chat
-  - Beautiful shadcn/ui theme to get you started
-- Chat UI
-  - Streaming, Auto-scrolling, Markdown, Code Highlighting, File Attachments, and more
-- Keyboard shortcuts and accessibility features
-- Generative UI
-  - Map LLM tool calls and JSONs to custom UI components
-- Frontend tool calls
-  - Let LLMs take action in your frontend application
-- Human tool calls
-  - Human approvals and input collection
-- Chat history and analytics
-  - Sign up for assistant-cloud and configure by simply setting an environment variable
+- **Build**: composable primitives to create any chat UX (message list, input, thread, toolbar) and a polished shadcn/ui theme you can fully customize.
 
-## Choose your backend
+- **Ship**: production-ready UX out of the box — streaming, auto-scroll, retries, attachments, markdown and code highlighting — plus keyboard shortcuts and accessibility by default.
 
-- AI SDK
-  - First class integration into AI SDK by Vercel. Connect to any LLM provider supported by AI SDK.
-- LangGraph
-  - First class integration into LangGraph and LangGraph Cloud. Connect to any LLM provider supported by LangChain.
-- Custom
-  - Use assistant-ui as the visualization layer on top your own backend/streaming protocols.
+- **Generate**: render tool calls and JSON as components, collect human approvals inline, and enable safe frontend actions.
+
+- **Integrate**: works with AI SDK, LangGraph, Mastra, or custom backends; broad provider support; optional chat history and analytics via Assistant Cloud (single env var).
+
+## Backends
+
+- **Assistant Cloud**: managed chat persistence and analytics. Deploy with the Cloud Starter template; bring any model/provider.
+
+- **AI SDK**: integration with Vercel AI SDK; connect to any supported provider.
+
+- **LangGraph**: integration with LangGraph and LangGraph Cloud; connect via LangChain providers.
+
+- **Mastra**: integration with Mastra agents/workflows/RAG; model routing via Vercel AI SDK; optional Mastra Cloud.
+
+- **Custom**: use assistant-ui on top of your own backend/streaming protocol.
 
 ## Customization
 
-The API of assistant-ui is inspired by libraries like Radix UI and cmdk. Instead of a single monolithic chat component, we give you composable primitives and a great starter configuration. You have full control over the look and feel of every pixel while leaving auto-scrolling, LLM streaming and accessibility to us.
+assistant-ui takes a Radix-style approach: instead of a single monolithic chat component, you compose primitives and bring your own styles. We provide a great starter config; you control everything else.
 
 ![Overview of components](https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/components.png)
 
-Sample customization to make a perplexity lookalike:
+Sample customization to make a Perplexity lookalike:
 
 ![Perplexity clone created with assistant-ui](https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/perplexity.gif)
 
-## **Demo Video**
+## Demos
 
 [![Short Demo](https://img.youtube.com/vi/ZW56UHlqTCQ/hqdefault.jpg)](https://youtu.be/ZW56UHlqTCQ)
 
@@ -78,27 +87,19 @@ Sample customization to make a perplexity lookalike:
 
 Hundreds of projects use assistant-ui to build in-app AI assistants, including companies like LangChain, AthenaIntelligence, Browser Use, and more.
 
-With >200k monthly downloads, assistant-ui is the most popular UI library for building AI chat.
+With >200k monthly downloads, assistant-ui is one of the most popular UI libraries for building AI chat.
 
 <img src="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/growth.png" alt="Growth" style="max-width: 400px;">
 
-## 2025 Q1 Roadmap
 
-- [x] Assistant Cloud
-- [x] Chat Persistence
-- [x] React 19, Tailwind v4, NextJS 19 support
-- [x] Improved Markdown rendering performance
-- [x] LangGraph `interrupt()` support
-- [x] Open in v0 support
-- [ ] Improved documentation (work in progress)
-- [ ] OpenAI Realtime Voice (work in progress)
-- [ ] Resume interrupted LLM calls (work in progress)
-- [ ] Native PDF attachment support
-- [ ] Follow-up suggestions
 
-## Next Steps
+## Community & Support
 
 - [Check out example demos](https://www.assistant-ui.com/)
-- [Read our docs](https://www.assistant-ui.com/docs/)
+- [Read the docs](https://www.assistant-ui.com/docs/)
 - [Join our Discord](https://discord.com/invite/S9dwgCNEFs)
 - [Book a sales call](https://cal.com/simon-farshid/assistant-ui)
+
+---
+
+Backed by Y Combinator. Building something with assistant-ui? We’d love to hear from you.
