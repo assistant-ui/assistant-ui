@@ -30,16 +30,27 @@ function App() {
 
 ### Custom Transport
 
-If you need to use a different transport (e.g., to disable system/tools forwarding):
+When you need to customize the transport configuration:
 
 ```typescript
 import { DefaultChatTransport } from 'ai';
+import { AssistantChatTransport } from '@assistant-ui/react-ai-sdk';
 import { useChatRuntime } from '@assistant-ui/react-ai-sdk';
 
+// Custom API URL while keeping system/tools forwarding
 const runtime = useChatRuntime({
-  transport: new DefaultChatTransport() // Standard AI SDK transport without forwarding
+  transport: new AssistantChatTransport({
+    api: '/my-custom-api/chat'
+  })
+});
+
+// Or disable system/tools forwarding entirely
+const runtime = useChatRuntime({
+  transport: new DefaultChatTransport()
 });
 ```
+
+**Important:** When customizing the API URL, you must explicitly use `AssistantChatTransport` to keep frontend system messages and tools forwarding.
 
 ## AssistantChatTransport vs DefaultChatTransport
 
