@@ -10,7 +10,7 @@ import {
   ExportedMessageRepository,
   INTERNAL,
 } from "@assistant-ui/react";
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState, RefObject } from "react";
 
 const { MessageRepository } = INTERNAL;
 
@@ -31,13 +31,14 @@ export const toExportedMessageRepository = <TMessage,>(
 };
 
 export const useExternalHistory = <TMessage,>(
-  runtime: AssistantRuntime,
+  runtimeRef: RefObject<AssistantRuntime>,
   historyAdapter: ThreadHistoryAdapter | undefined,
   toThreadMessages: (messages: TMessage[]) => ThreadMessage[],
   storageFormatAdapter: MessageFormatAdapter<TMessage, any>,
   onSetMessages: (messages: TMessage[]) => void,
 ) => {
-  const isLoadingRef = useRef(false);
+  const loadedRef = useRef(false);
+  const [isLoading, setIsLoading] = useState(true);
   const historyIds = useRef(new Set<string>());
 
   const onSetMessagesRef = useRef(onSetMessages);
@@ -47,17 +48,17 @@ export const useExternalHistory = <TMessage,>(
 
   // Load messages from history adapter on mount
   useEffect(() => {
-    if (!historyAdapter || isLoadingRef.current) return;
+    if (!historyAdapter || loadedRef.current) return;
 
     const loadHistory = async () => {
-      isLoadingRef.current = true;
+      setIsLoading(true);
       try {
         const repo = await historyAdapter
           .withFormat?.(storageFormatAdapter)
           .load();
         if (repo && repo.messages.length > 0) {
           const converted = toExportedMessageRepository(toThreadMessages, repo);
-          runtime.thread.import(converted);
+          runtimeRef.current.thread.import(converted);
 
           const tempRepo = new MessageRepository();
           tempRepo.import(converted);
@@ -74,16 +75,19 @@ export const useExternalHistory = <TMessage,>(
       } catch (error) {
         console.error("Failed to load message history:", error);
       } finally {
-        isLoadingRef.current = false;
+        setIsLoading(false);
       }
     };
 
-    loadHistory();
-  }, [runtime, historyAdapter, storageFormatAdapter, toThreadMessages]);
+    if (!loadedRef.current) {
+      loadedRef.current = true;
+      loadHistory();
+    }
+  }, [historyAdapter, storageFormatAdapter, toThreadMessages]);
 
   useEffect(() => {
-    return runtime.thread.subscribe(async () => {
-      const { messages, isRunning } = runtime.thread.getState();
+    return runtimeRef.current.thread.subscribe(async () => {
+      const { messages, isRunning } = runtimeRef.current.thread.getState();
       if (isRunning) return;
 
       for (let i = 0; i < messages.length; i++) {
@@ -104,5 +108,7 @@ export const useExternalHistory = <TMessage,>(
         }
       }
     });
-  }, [runtime]);
+  }, []);
+
+  return isLoading;
 };

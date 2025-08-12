@@ -5,6 +5,7 @@ import {
   useExternalStoreRuntime,
   ExternalStoreAdapter,
   ThreadHistoryAdapter,
+  AssistantRuntime,
 } from "@assistant-ui/react";
 import { sliceMessagesUntil } from "../utils/sliceMessagesUntil";
 import { toCreateMessage } from "../utils/toCreateMessage";
@@ -31,6 +32,20 @@ export const useAISDKRuntime = (
       chatHelpers.status === "submitted" || chatHelpers.status == "streaming",
     messages: chatHelpers.messages,
   });
+
+  const isLoading = useExternalHistory(
+    {
+      get current(): AssistantRuntime {
+        return runtime;
+      },
+    },
+    adapter.adapters?.history,
+    AISDKMessageConverter.toThreadMessages,
+    aiSDKV5FormatAdapter,
+    (messages) => {
+      chatHelpers.setMessages(messages);
+    },
+  );
 
   const runtime = useExternalStoreRuntime({
     isRunning:
@@ -70,17 +85,8 @@ export const useAISDKRuntime = (
       attachments: vercelAttachmentAdapter,
       ...adapter.adapters,
     },
+    isLoading,
   });
-
-  useExternalHistory(
-    runtime,
-    adapter.adapters?.history,
-    AISDKMessageConverter.toThreadMessages,
-    aiSDKV5FormatAdapter,
-    (messages) => {
-      chatHelpers.setMessages(messages);
-    },
-  );
 
   return runtime;
 };
