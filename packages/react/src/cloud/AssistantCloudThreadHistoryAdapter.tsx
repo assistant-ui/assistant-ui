@@ -9,6 +9,7 @@ import {
   MessageFormatAdapter,
   MessageFormatItem,
   MessageFormatRepository,
+  MessageStorageEntry,
 } from "../runtimes/adapters/thread-history/MessageFormatAdapter";
 import { GenericThreadHistoryAdapter } from "../runtimes/adapters/thread-history/ThreadHistoryAdapter";
 import { ReadonlyJSONObject } from "assistant-stream/utils";
@@ -39,7 +40,8 @@ class FormattedThreadHistoryAdapter<TMessage, TStorageFormat>
     // Delegate to parent's internal load method with format filter
     return this.parent._loadWithFormat(
       this.formatAdapter.format,
-      (message: any) => this.formatAdapter.decode(message),
+      (message: MessageStorageEntry<TStorageFormat>) =>
+        this.formatAdapter.decode(message),
     );
   }
 }
@@ -121,9 +123,11 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     return task.then(() => {});
   }
 
-  async _loadWithFormat<TMessage>(
+  async _loadWithFormat<TMessage, TStorageFormat>(
     format: string,
-    decoder: (message: any) => MessageFormatItem<TMessage>,
+    decoder: (
+      message: MessageStorageEntry<TStorageFormat>,
+    ) => MessageFormatItem<TMessage>,
   ): Promise<MessageFormatRepository<TMessage>> {
     const remoteId = this.threadListItemRuntime.getState().remoteId;
     if (!remoteId) return { messages: [] };
@@ -136,9 +140,10 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         .filter((m) => m.format === format)
         .map((m) =>
           decoder({
+            id: m.id,
             parent_id: m.parent_id,
             format: m.format,
-            content: m.content,
+            content: m.content as TStorageFormat,
           }),
         )
         .reverse(),

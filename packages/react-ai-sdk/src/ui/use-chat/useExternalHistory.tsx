@@ -36,7 +36,6 @@ export const useExternalHistory = <TMessage,>(
 ) => {
   const isLoadingRef = useRef(false);
   const historyIds = useRef(new Set<string>());
-  const remoteIdMapping = useRef(new Map<string, string>());
 
   const onSetMessagesRef = useRef(onSetMessages);
   useEffect(() => {

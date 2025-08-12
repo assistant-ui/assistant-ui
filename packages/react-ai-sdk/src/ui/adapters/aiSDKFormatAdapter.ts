@@ -6,7 +6,7 @@ import {
 } from "@assistant-ui/react";
 
 // Storage format for AI SDK messages - just the UIMessage
-export type AISDKStorageFormat = UIMessage;
+export type AISDKStorageFormat = Omit<UIMessage, "id">;
 
 export const aiSDKV5FormatAdapter: MessageFormatAdapter<
   UIMessage,
@@ -14,11 +14,13 @@ export const aiSDKV5FormatAdapter: MessageFormatAdapter<
 > = {
   format: "ai-sdk/v5",
 
-  encode(item: MessageFormatItem<UIMessage>): AISDKStorageFormat {
+  encode({
+    message: { id, parts, ...message },
+  }: MessageFormatItem<UIMessage>): AISDKStorageFormat {
     // Filter out FileContentParts until they are supported
     return {
-      ...item.message,
-      parts: item.message.parts.filter((part) => part.type !== "file"),
+      ...message,
+      parts: parts.filter((part) => part.type !== "file"),
     };
   },
 
@@ -27,7 +29,10 @@ export const aiSDKV5FormatAdapter: MessageFormatAdapter<
   ): MessageFormatItem<UIMessage> {
     return {
       parentId: stored.parent_id,
-      message: stored.content,
+      message: {
+        id: stored.id,
+        ...stored.content,
+      },
     };
   },
 

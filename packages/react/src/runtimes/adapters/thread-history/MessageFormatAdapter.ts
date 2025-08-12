@@ -1,4 +1,5 @@
 export interface MessageStorageEntry<TPayload> {
+  id: string;
   parent_id: string | null;
   format: string;
   content: TPayload;
