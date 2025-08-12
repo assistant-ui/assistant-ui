@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.10.37
+
+### Patch Changes
+
+- f32b6a4: fix: new thread functionality no longer working with new threadlistruntime
+
 ## 0.10.36
 
 ### Patch Changes
