@@ -36,6 +36,7 @@ export const useExternalHistory = <TMessage,>(
 ) => {
   const isLoadingRef = useRef(false);
   const historyIds = useRef(new Set<string>());
+  const remoteIdMapping = useRef(new Map<string, string>());
 
   const onSetMessagesRef = useRef(onSetMessages);
   useEffect(() => {
@@ -76,20 +77,22 @@ export const useExternalHistory = <TMessage,>(
   }, [runtime, historyAdapter, storageFormatAdapter, toThreadMessages]);
 
   useEffect(() => {
-    return runtime.thread.subscribe(() => {
+    return runtime.thread.subscribe(async () => {
       const { messages, isRunning } = runtime.thread.getState();
       if (isRunning) return;
+
       for (let i = 0; i < messages.length; i++) {
         const message = messages[i]!;
         if (
-          message.status?.type === "complete" ||
-          message.status?.type === "incomplete"
+          message.status === undefined ||
+          message.status.type === "complete" ||
+          message.status.type === "incomplete"
         ) {
           if (historyIds.current.has(message.id)) return;
           historyIds.current.add(message.id);
 
           const parentId = i > 0 ? messages[i - 1]!.id : null;
-          historyAdapter?.withFormat?.(storageFormatAdapter).append({
+          await historyAdapter?.withFormat?.(storageFormatAdapter).append({
             parentId,
             message: getExternalStoreMessages<TMessage>(message)[0]!,
           });
