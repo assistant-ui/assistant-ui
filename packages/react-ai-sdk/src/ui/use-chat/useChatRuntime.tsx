@@ -36,11 +36,11 @@ export const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     transport,
   });
 
-  const runtime = useAISDKRuntime(chat as any, { 
+  const runtime = useAISDKRuntime(chat as any, {
     adapters: {
       ...contextAdapters,
       ...adapters,
-    }
+    },
   });
   if (transport instanceof AssistantChatTransport) {
     transport.setRuntime(runtime);
