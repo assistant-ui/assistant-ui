@@ -53,3 +53,154 @@ You can also check out our example repositories to see how to integrate Assistan
 
 - [With AI SDK](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-cloud)
 - [With LangGraph](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-langgraph)
+
+## Implementation Details
+
+### Cloud Integration with LocalRuntime
+
+For LocalRuntime users, Assistant Cloud provides seamless thread management:
+
+```tsx
+import { AssistantCloud } from "@assistant-ui/cloud";
+import { useLocalRuntime } from "@assistant-ui/react";
+
+const cloud = new AssistantCloud({
+  apiKey: process.env.NEXT_PUBLIC_ASSISTANT_CLOUD_API_KEY,
+});
+
+export function MyRuntimeProvider({ children }) {
+  const runtime = useLocalRuntime(MyModelAdapter, {
+    cloud, // Enables multi-thread support and persistence
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+### Authentication Setup
+
+Assistant Cloud works with any authentication provider that can generate JWTs:
+
+```tsx
+// Example with Clerk
+import { useAuth } from "@clerk/nextjs";
+
+export function useAssistantCloudAuth() {
+  const { getToken } = useAuth();
+  
+  return {
+    getAccessToken: () => getToken({ template: "assistant-cloud" }),
+  };
+}
+
+const cloud = new AssistantCloud({
+  apiKey: process.env.NEXT_PUBLIC_ASSISTANT_CLOUD_API_KEY,
+  auth: useAssistantCloudAuth(),
+});
+```
+
+### Thread List Integration
+
+Display and manage multiple conversations:
+
+```tsx
+import { ThreadList } from "@assistant-ui/react";
+
+export function MyApp() {
+  return (
+    <div className="flex h-screen">
+      {/* Sidebar with thread list */}
+      <div className="w-64 border-r">
+        <ThreadList />
+      </div>
+      
+      {/* Main chat area */}
+      <div className="flex-1">
+        <Thread />
+      </div>
+    </div>
+  );
+}
+```
+
+### Configuration Options
+
+```tsx
+const cloud = new AssistantCloud({
+  // Required: Your Assistant Cloud API key
+  apiKey: process.env.NEXT_PUBLIC_ASSISTANT_CLOUD_API_KEY,
+  
+  // Optional: Custom base URL for self-hosted instances
+  baseURL: "https://your-instance.assistant-ui.com",
+  
+  // Optional: Authentication provider
+  auth: {
+    getAccessToken: () => getToken(),
+  },
+  
+  // Optional: Custom user identification
+  userId: "user_123",
+  
+  // Optional: Organization/workspace isolation
+  organizationId: "org_456",
+});
+```
+
+## Pricing and Limits
+
+### Free Tier
+- Up to 1,000 messages per month
+- 5 threads per user
+- Community support
+
+### Pro Tier ($29/month)
+- Unlimited messages
+- Unlimited threads
+- Priority support
+- Advanced analytics
+
+### Enterprise
+- Custom pricing
+- SLA guarantees
+- Self-hosted options
+- Dedicated support
+
+## Security and Privacy
+
+- **Data Encryption**: All data encrypted in transit and at rest
+- **SOC 2 Compliance**: Regular security audits and compliance
+- **Data Residency**: Choose your preferred data region
+- **GDPR Compliant**: Full compliance with privacy regulations
+
+## Comparison with Self-Hosted
+
+| Feature | Assistant Cloud | Self-Hosted |
+|---------|----------------|-------------|
+| Setup Time | < 5 minutes | Hours to days |
+| Maintenance | Zero | Ongoing |
+| Scaling | Automatic | Manual |
+| Security | SOC 2 certified | Your responsibility |
+| Cost | Predictable monthly | Infrastructure + time |
+| Customization | Standard features | Full control |
+
+## Migration from Self-Hosted
+
+If you're currently using custom thread management, migrating to Assistant Cloud is straightforward:
+
+```tsx
+// Before: Custom thread management
+const runtime = useRemoteThreadListRuntime({
+  adapter: myCustomAdapter,
+  runtimeHook: () => useLocalRuntime(modelAdapter),
+});
+
+// After: Assistant Cloud
+const cloud = new AssistantCloud({ apiKey: "..." });
+const runtime = useLocalRuntime(modelAdapter, { cloud });
+```
+
+Your existing `LocalRuntime` configuration remains unchanged - just add the `cloud` option to enable managed persistence.

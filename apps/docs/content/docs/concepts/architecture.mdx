@@ -7,7 +7,7 @@ import architecture from "@/assets/docs/architecture.png";
 
 ### Architecture
 
-`assistant-ui` consists of two parts, **_Runtime_** and **_UI Components_**.
+`assistant-ui` follows a clean separation between **Runtime** and **UI Components**, providing flexibility and modularity for building AI-powered interfaces.
 
 <Image
   src={architecture}
@@ -16,4 +16,84 @@ import architecture from "@/assets/docs/architecture.png";
   className="mx-auto my-2 dark:hue-rotate-180 dark:invert"
 />
 
-The Runtime and UI Components each require independent setup and both must be set up.
+## Runtime Layer
+
+The **Runtime** is the state management and business logic layer that handles:
+
+- **Message Management**: Storing, updating, and organizing conversation messages
+- **Thread Management**: Managing multiple conversation threads and switching between them
+- **AI Integration**: Connecting to language models (OpenAI, Anthropic, local models, etc.)
+- **Tool Execution**: Running function calls and managing tool results
+- **State Synchronization**: Keeping all components in sync with the latest data
+
+### Runtime Types
+
+assistant-ui provides several runtime options:
+
+- **LocalRuntime**: Built-in state management with adapter pattern for custom APIs
+- **AI SDK Runtime**: Integration with Vercel's AI SDK for streaming responses
+- **LangGraph Runtime**: Connection to LangGraph servers for complex workflows
+- **External Store Runtime**: Full control over state management for advanced use cases
+
+## UI Components
+
+The **UI Components** are pure React components that:
+
+- **Render Data**: Display messages, threads, and interface elements
+- **Handle Interactions**: Capture user input, clicks, and gestures
+- **Provide Context**: Pass data between nested components efficiently
+- **Support Customization**: Allow styling and behavior modifications
+
+### Component Architecture
+
+Components are organized in a hierarchical context system:
+
+```
+AssistantRuntimeProvider
+├── Thread Context
+│   ├── ThreadRuntime (state & actions)
+│   ├── Message Context
+│   │   ├── MessageRuntime (message-specific state)
+│   │   ├── ContentPart Context
+│   │   └── ActionBar (edit, copy, reload)
+│   └── Composer Context
+│       ├── ComposerRuntime (input state)
+│       └── Attachment Context
+└── ThreadList Context (multi-thread support)
+```
+
+## Data Flow
+
+1. **User Input**: User types message or triggers action in UI Components
+2. **Runtime Processing**: Runtime receives action and updates internal state
+3. **AI Communication**: Runtime sends request to language model via adapters
+4. **State Updates**: Runtime processes response and updates message state
+5. **UI Synchronization**: Components automatically re-render with new data
+
+## Benefits of This Architecture
+
+### Flexibility
+- **Mix & Match**: Use any runtime with any UI components
+- **Custom Backends**: Easy integration with existing APIs and services
+- **Progressive Enhancement**: Add features incrementally without breaking changes
+
+### Maintainability
+- **Clear Separation**: Business logic separate from presentation
+- **Testability**: Runtime logic can be tested independently
+- **Reusability**: Components work across different runtime implementations
+
+### Developer Experience
+- **TypeScript Support**: Full type safety across runtime and UI boundaries
+- **Hot Reloading**: Changes to either layer update immediately
+- **Debugging**: Clear separation makes issues easier to trace and fix
+
+## Setup Requirements
+
+Both Runtime and UI Components require independent setup:
+
+1. **Choose a Runtime**: Select based on your backend architecture and requirements
+2. **Configure Provider**: Wrap your app with `AssistantRuntimeProvider`
+3. **Add Components**: Use Thread, Composer, and other UI components as needed
+4. **Customize Styling**: Apply your design system and theming
+
+This architecture ensures that assistant-ui can adapt to any use case while maintaining a consistent developer experience.
