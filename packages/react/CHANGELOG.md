@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.10.39
+
+### Patch Changes
+
+- a4389da: feat: AI SDK v5 assistant-cloud thread history support
+
 ## 0.10.38
 
 ### Patch Changes
