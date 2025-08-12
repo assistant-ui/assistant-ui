@@ -47,18 +47,27 @@ import {
   convertToModelMessages,
   tool,
 } from "ai";
+import { frontendTools } from "@assistant-ui/assistant-stream/ai-sdk";
 import { z } from "zod";
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
-  const { messages }: { messages: UIMessage[] } = await req.json();
+  const { messages, system, tools }: { 
+    messages: UIMessage[];
+    system?: string; // System message forwarded from AssistantChatTransport
+    tools?: any; // Frontend tools forwarded from AssistantChatTransport
+  } = await req.json();
 
   const result = streamText({
     model: openai("gpt-4o"),
+    system, // Use the system message from the frontend if provided
     messages: convertToModelMessages(messages),
     tools: {
+      // Wrap frontend tools with frontendTools helper
+      ...frontendTools(tools),
+      // Backend tools
       get_current_weather: tool({
         description: "Get the current weather",
         inputSchema: z.object({
@@ -119,6 +128,72 @@ const runtime = useChatRuntime({
   // All standard useChat options are supported
 });
 ```
+
+<Callout type="info">
+  By default, `useChatRuntime` uses `AssistantChatTransport` which automatically forwards system messages and frontend tools to your backend API. This enables your backend to receive the full context from the Assistant UI.
+</Callout>
+
+### Custom Transport Configuration
+
+If you need to customize the transport configuration:
+
+```tsx
+import { DefaultChatTransport } from "ai";
+import { AssistantChatTransport } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+
+// Example 1: Custom API URL while keeping system/tools forwarding
+const runtime = useChatRuntime({
+  transport: new AssistantChatTransport({
+    api: "/my-custom-api/chat" // Custom API URL with forwarding
+  })
+});
+
+// Example 2: Disable system/tools forwarding
+const runtime = useChatRuntime({
+  api: "/api/chat",
+  transport: new DefaultChatTransport() // Standard AI SDK transport without forwarding
+});
+```
+
+<Callout type="warning">
+  When customizing the API URL, you must explicitly use `AssistantChatTransport` if you want to keep frontend system messages and tools forwarding. Simply passing `api` to `useChatRuntime` will use the default transport configuration.
+</Callout>
+
+#### Transport Options
+
+- **`AssistantChatTransport`** (default): Automatically forwards system messages and frontend tools from the Assistant UI context to your backend
+- **`DefaultChatTransport`**: Standard AI SDK transport without automatic forwarding
+
+### Using Frontend Tools with `frontendTools`
+
+When using `AssistantChatTransport`, frontend tools are forwarded to your backend. Use the `frontendTools` helper to properly integrate them:
+
+```tsx
+import { frontendTools } from "@assistant-ui/assistant-stream/ai-sdk";
+
+export async function POST(req: Request) {
+  const { messages, system, tools } = await req.json();
+
+  const result = streamText({
+    model: openai("gpt-4o"),
+    system,
+    messages: convertToModelMessages(messages),
+    tools: {
+      // Wrap frontend tools with the helper
+      ...frontendTools(tools),
+      // Your backend tools
+      myBackendTool: tool({
+        // ...
+      }),
+    },
+  });
+
+  return result.toUIMessageStreamResponse();
+}
+```
+
+The `frontendTools` helper converts frontend tool definitions to the AI SDK format and ensures they are properly handled by the streaming response.
 
 ### useAISDKRuntime (Advanced)
 

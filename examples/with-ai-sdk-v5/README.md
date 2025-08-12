@@ -32,6 +32,19 @@ Open [http://localhost:3000](http://localhost:3000) to see the result.
 - Integrates with `@assistant-ui/react` using the new `useChatRuntime` hook
 - No RSC support (client-side only)
 - Simplified integration with the `useChatRuntime` hook that wraps AI SDK v5's `useChat`
+- Automatically uses `AssistantChatTransport` to pass system messages and frontend tools to the backend
+
+## Custom Transport Configuration
+
+By default, `useChatRuntime` uses `AssistantChatTransport` which automatically forwards system messages and frontend tools to the backend. If you need to use a different transport (like the standard `DefaultChatTransport` from AI SDK), you can specify it in the options:
+
+```typescript
+import { DefaultChatTransport } from 'ai';
+
+const runtime = useChatRuntime({
+  transport: new DefaultChatTransport() // Use this if you don't want system/tools forwarding
+});
+```
 
 ## API Route
 
