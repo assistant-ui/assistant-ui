@@ -120,6 +120,29 @@ const runtime = useChatRuntime({
 });
 ```
 
+<Callout type="info">
+  By default, `useChatRuntime` uses `AssistantChatTransport` which automatically forwards system messages and frontend tools to your backend API. This enables your backend to receive the full context from the Assistant UI.
+</Callout>
+
+### Custom Transport Configuration
+
+If you need to use a different transport (e.g., to disable system/tools forwarding):
+
+```tsx
+import { DefaultChatTransport } from "ai";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+
+const runtime = useChatRuntime({
+  api: "/api/chat",
+  transport: new DefaultChatTransport() // Use standard AI SDK transport without forwarding
+});
+```
+
+#### Transport Options
+
+- **`AssistantChatTransport`** (default): Automatically forwards system messages and frontend tools from the Assistant UI context to your backend
+- **`DefaultChatTransport`**: Standard AI SDK transport without automatic forwarding
+
 ### useAISDKRuntime (Advanced)
 
 For advanced use cases where you need direct access to the `useChat` hook:

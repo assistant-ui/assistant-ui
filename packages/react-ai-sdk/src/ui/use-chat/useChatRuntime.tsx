@@ -43,7 +43,7 @@ export const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
 export const useChatRuntime = <UI_MESSAGE extends UIMessage = UIMessage>({
   cloud,
   ...options
-}: UseChatRuntimeOptions<UI_MESSAGE>): AssistantRuntime => {
+}: UseChatRuntimeOptions<UI_MESSAGE> = {}): AssistantRuntime => {
   const cloudAdapter = unstable_useCloudThreadListAdapter({ cloud });
   return unstable_useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
