@@ -9,10 +9,11 @@ import {
 import { writableStore } from "../ReadonlyStore";
 import { ThreadListItemRuntime } from "../../api/ThreadListItemRuntime";
 import { ensureBinding } from "../react/utils/ensureBinding";
+import { AssistantClientState } from "../../client/AssistantClient";
 
-export namespace ThreadListItemRuntimeProvider {
+export namespace ThreadListItemProvider {
   export type Props = PropsWithChildren<{
-    runtime: ThreadListItemRuntime;
+    idSelector: (state: AssistantClientState) => string;
   }>;
 }
 
@@ -27,10 +28,12 @@ const useThreadListItemRuntimeStore = (runtime: ThreadListItemRuntime) => {
   return store;
 };
 
-export const ThreadListItemRuntimeProvider: FC<
-  ThreadListItemRuntimeProvider.Props
-> = ({ runtime, children }) => {
-  const useThreadListItemRuntime = useThreadListItemRuntimeStore(runtime);
+export const ThreadListItemProvider: FC<ThreadListItemProvider.Props> = ({
+  idSelector,
+  children,
+}) => {
+  const assistantActions = useAssistantActions();
+  const useThreadListItemRuntime = useThreadListItemRuntimeStore(idSelector);
   const [context] = useState<ThreadListItemContextValue>(() => {
     return { useThreadListItemRuntime };
   });

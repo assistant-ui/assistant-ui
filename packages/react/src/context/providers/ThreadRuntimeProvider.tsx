@@ -8,7 +8,7 @@ import { writableStore } from "../ReadonlyStore";
 import { ThreadRuntime } from "../../api/ThreadRuntime";
 import { create } from "zustand";
 import { ThreadListItemRuntime } from "../../api/ThreadListItemRuntime";
-import { ThreadListItemRuntimeProvider } from "./ThreadListItemRuntimeProvider";
+import { ThreadListItemProvider } from "./ThreadListItemRuntimeProvider";
 import { ensureBinding } from "../react/utils/ensureBinding";
 import { ThreadViewportProvider } from "./ThreadViewportProvider";
 

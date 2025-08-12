@@ -1,12 +1,10 @@
 "use client";
 
 import { useEffect } from "react";
-import {
-  useAssistantRuntime,
-  useToolUIsStore,
-} from "../context/react/AssistantContext";
+import { useToolUIsStore } from "../context/react/AssistantContext";
 import type { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
 import type { Tool } from "assistant-stream";
+import { useAssistantActions } from "../context/react/AssistantActionsContext";
 
 export type AssistantToolProps<
   TArgs extends Record<string, unknown>,
@@ -22,7 +20,7 @@ export const useAssistantTool = <
 >(
   tool: AssistantToolProps<TArgs, TResult>,
 ) => {
-  const assistantRuntime = useAssistantRuntime();
+  const assistantActions = useAssistantActions();
   const toolUIsStore = useToolUIsStore();
 
   useEffect(() => {
@@ -38,8 +36,8 @@ export const useAssistantTool = <
         [toolName]: rest,
       },
     };
-    return assistantRuntime.registerModelContextProvider({
+    return assistantActions.registerModelContextProvider({
       getModelContext: () => context,
     });
-  }, [assistantRuntime, tool]);
+  }, [assistantActions, tool]);
 };

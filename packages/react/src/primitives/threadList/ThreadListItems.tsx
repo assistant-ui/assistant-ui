@@ -1,7 +1,7 @@
 "use client";
 
 import { ComponentType, FC, memo, useMemo } from "react";
-import { ThreadListItemRuntimeProvider } from "../../context/providers/ThreadListItemRuntimeProvider";
+import { ThreadListItemProvider } from "../../context/providers/ThreadListItemRuntimeProvider";
 import { useAssistantRuntime, useThreadList } from "../../context";
 
 export namespace ThreadListPrimitiveItems {

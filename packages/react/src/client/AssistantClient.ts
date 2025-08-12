@@ -1,4 +1,4 @@
-import { tapMemo, tapResource, resource } from "@assistant-ui/tap";
+import { tapMemo, tapResource, resource, tapRef } from "@assistant-ui/tap";
 import { ThreadListClientState } from "./ThreadListClient";
 import { ThreadListClientActions } from "./ThreadListClient";
 import { AssistantRuntime } from "../api/AssistantRuntime";
@@ -7,6 +7,10 @@ import { ModelContextProvider } from "../model-context";
 import { asStore, Store, tapActions } from "@assistant-ui/react-core";
 import { useResource } from "@assistant-ui/tap/react";
 import { ThreadClientActions, ThreadClientState } from "./ThreadClient";
+import type { AssistantToolUIsState } from "../context/stores/AssistantToolUIs";
+import { makeAssistantToolUIsStore } from "../context/stores/AssistantToolUIs";
+import { ReadonlyStore } from "../context/ReadonlyStore";
+import { UseBoundStore } from "zustand";
 
 export type AssistantClientState = {
   readonly threads: ThreadListClientState;
@@ -16,9 +20,12 @@ export type AssistantClientState = {
 export type AssistantClientActions = {
   readonly threads: ThreadListClientActions;
   readonly thread: ThreadClientActions;
+  
+
   readonly registerModelContextProvider: (
     provider: ModelContextProvider,
   ) => void;
+  readonly toolUI: UseBoundStore<ReadonlyStore<AssistantToolUIsState>>;
 };
 
 export type AssistantClient = Store<
@@ -29,6 +36,8 @@ export type AssistantClient = Store<
 export const AssistantClient = resource(
   ({ runtime }: { runtime: AssistantRuntime }) => {
     const threads = tapResource(ThreadListClient({ runtime: runtime.threads }));
+
+    const toolUIStore = tapRef(() => makeAssistantToolUIsStore());
 
     const state = tapMemo<AssistantClientState>(() => {
       return {
@@ -43,6 +52,7 @@ export const AssistantClient = resource(
       registerModelContextProvider: (provider: ModelContextProvider) => {
         runtime.registerModelContextProvider(provider);
       },
+      toolUI: toolUIStore.current,
     });
 
     return {

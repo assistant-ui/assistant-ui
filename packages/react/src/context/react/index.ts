@@ -3,7 +3,8 @@
 // use client necessary here for now
 
 export {
-  useAssistantRuntime,
+  useAssistant,
+  useAssistantStoreApi,
   useThreadList,
   useToolUIs,
   useToolUIsStore,

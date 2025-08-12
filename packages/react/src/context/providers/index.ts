@@ -1,4 +1,4 @@
-export { AssistantRuntimeProvider } from "./AssistantRuntimeProvider";
+export { AssistantProvider as AssistantRuntimeProvider } from "./AssistantRuntimeProvider";
 export { TextMessagePartProvider } from "./TextMessagePartProvider";
 
 // TODO remove in v0.11
