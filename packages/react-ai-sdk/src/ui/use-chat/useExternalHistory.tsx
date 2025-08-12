@@ -8,8 +8,11 @@ import {
   getExternalStoreMessages,
   MessageFormatRepository,
   ExportedMessageRepository,
+  INTERNAL,
 } from "@assistant-ui/react";
 import { useRef, useEffect } from "react";
+
+const { MessageRepository } = INTERNAL;
 
 export const toExportedMessageRepository = <TMessage,>(
   toThreadMessages: (messages: TMessage[]) => ThreadMessage[],
@@ -55,12 +58,15 @@ export const useExternalHistory = <TMessage,>(
         if (repo && repo.messages.length > 0) {
           const converted = toExportedMessageRepository(toThreadMessages, repo);
           runtime.thread.import(converted);
+
+          const tempRepo = new MessageRepository();
+          tempRepo.import(converted);
+          const messages = tempRepo.getMessages();
+
           onSetMessagesRef.current(
-            runtime.thread
-              .getState()
-              .messages.map(getExternalStoreMessages<TMessage>)
-              .flat(),
+            messages.map(getExternalStoreMessages<TMessage>).flat(),
           );
+
           historyIds.current = new Set(
             converted.messages.map((m) => m.message.id),
           );
