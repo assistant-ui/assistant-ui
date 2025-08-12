@@ -14,7 +14,10 @@ import {
 import { UseBoundStore, StoreApi, create } from "zustand";
 import { useAssistantRuntime } from "../../context";
 import { ThreadListItemRuntimeProvider } from "../../context/providers/ThreadListItemRuntimeProvider";
-import { useThreadListItem } from "../../context/react/ThreadListItemContext";
+import {
+  useThreadListItem,
+  useThreadListItemRuntime,
+} from "../../context/react/ThreadListItemContext";
 import { ThreadRuntimeCore, ThreadRuntimeImpl } from "../../internal";
 import { BaseSubscribable } from "./BaseSubscribable";
 import { AssistantRuntime } from "../../api";
@@ -111,11 +114,9 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     }, [threadBinding, updateRuntime]);
 
     // auto initialize thread
+    const threadListItemRuntime = useThreadListItemRuntime();
     useEffect(() => {
       return runtime.threads.main.unstable_on("initialize", () => {
-        const threadListItemRuntime = runtime.threads.mainItem;
-        if (threadListItemRuntime.getState().id !== id) return;
-
         if (threadListItemRuntime.getState().status === "new") {
           threadListItemRuntime.initialize();
 
@@ -123,12 +124,11 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
           const dispose = runtime.thread.unstable_on("run-end", () => {
             dispose();
 
-            if (threadListItemRuntime.getState().id !== id) return;
             threadListItemRuntime.generateTitle();
           });
         }
       });
-    }, [runtime, id]);
+    }, [runtime, threadListItemRuntime]);
 
     return null;
   };
