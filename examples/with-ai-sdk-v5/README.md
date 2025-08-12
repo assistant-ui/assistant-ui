@@ -36,13 +36,31 @@ Open [http://localhost:3000](http://localhost:3000) to see the result.
 
 ## Custom Transport Configuration
 
-By default, `useChatRuntime` uses `AssistantChatTransport` which automatically forwards system messages and frontend tools to the backend. If you need to use a different transport (like the standard `DefaultChatTransport` from AI SDK), you can specify it in the options:
+By default, `useChatRuntime` uses `AssistantChatTransport` which automatically forwards system messages and frontend tools to the backend.
+
+### Custom API URL with Forwarding
+
+When customizing the API URL, you must explicitly use `AssistantChatTransport` to keep system/tools forwarding:
+
+```typescript
+import { AssistantChatTransport } from '@assistant-ui/react-ai-sdk';
+
+const runtime = useChatRuntime({
+  transport: new AssistantChatTransport({
+    api: '/my-custom-api/chat' // Custom URL with system/tools forwarding
+  })
+});
+```
+
+### Disable System/Tools Forwarding
+
+To use the standard AI SDK transport without forwarding:
 
 ```typescript
 import { DefaultChatTransport } from 'ai';
 
 const runtime = useChatRuntime({
-  transport: new DefaultChatTransport() // Use this if you don't want system/tools forwarding
+  transport: new DefaultChatTransport() // No system/tools forwarding
 });
 ```
 

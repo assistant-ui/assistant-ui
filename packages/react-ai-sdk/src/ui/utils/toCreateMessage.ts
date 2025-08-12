@@ -2,6 +2,7 @@ import { AppendMessage } from "@assistant-ui/react";
 import {
   CreateUIMessage,
   FileUIPart,
+  generateId,
   UIDataTypes,
   UIMessage,
   UIMessagePart,
@@ -53,6 +54,7 @@ export const toCreateMessage = async (
   parts.push(...attachmentParts);
 
   return {
+    id: generateId(),
     role: message.role,
     parts,
   };

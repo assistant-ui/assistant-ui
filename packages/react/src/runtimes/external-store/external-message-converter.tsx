@@ -231,9 +231,15 @@ export const convertExternalMessages = <T extends WeakKey>(
 
   return chunks.map((message, idx) => {
     const isLast = idx === chunks.length - 1;
-    const autoStatus = getAutoStatus(isLast, isRunning);
+    const joined = joinExternalMessages(message.outputs);
+    const hasPendingToolCalls =
+      typeof joined.content === "object" &&
+      joined.content.some(
+        (c) => c.type === "tool-call" && c.result === undefined,
+      );
+    const autoStatus = getAutoStatus(isLast, isRunning, hasPendingToolCalls);
     const newMessage = fromThreadMessageLike(
-      joinExternalMessages(message.outputs),
+      joined,
       idx.toString(),
       autoStatus,
     );
@@ -296,7 +302,18 @@ export const useExternalMessageConverter = <T extends WeakKey>({
       chunks,
       (cache, message, idx) => {
         const isLast = idx === chunks.length - 1;
-        const autoStatus = getAutoStatus(isLast, isRunning);
+
+        const joined = joinExternalMessages(message.outputs);
+        const hasPendingToolCalls =
+          typeof joined.content === "object" &&
+          joined.content.some(
+            (c) => c.type === "tool-call" && c.result === undefined,
+          );
+        const autoStatus = getAutoStatus(
+          isLast,
+          isRunning,
+          hasPendingToolCalls,
+        );
 
         if (
           cache &&
@@ -311,7 +328,7 @@ export const useExternalMessageConverter = <T extends WeakKey>({
         }
 
         const newMessage = fromThreadMessageLike(
-          joinExternalMessages(message.outputs),
+          joined,
           idx.toString(),
           autoStatus,
         );

@@ -3,4 +3,4 @@ export * from "./feedback";
 export * from "./speech";
 export * from "./suggestion";
 export * from "./RuntimeAdapterProvider";
-export * from "./thread-history/ThreadHistoryAdapter";
+export * from "./thread-history";

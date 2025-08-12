@@ -64,7 +64,11 @@ export const ExportedMessageRepository = {
     messages: readonly ThreadMessageLike[],
   ): ExportedMessageRepository => {
     const conv = messages.map((m) =>
-      fromThreadMessageLike(m, generateId(), getAutoStatus(false, false)),
+      fromThreadMessageLike(
+        m,
+        generateId(),
+        getAutoStatus(false, false, false),
+      ),
     );
 
     return {
