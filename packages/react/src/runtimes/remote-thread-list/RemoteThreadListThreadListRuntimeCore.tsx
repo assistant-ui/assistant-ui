@@ -323,53 +323,53 @@ export class RemoteThreadListThreadListRuntimeCore
   }
 
   public async switchToNewThread(): Promise<void> {
-    // an initialization transaction is in progress, wait for it to settle
     while (
       this._state.baseValue.newThreadId !== undefined &&
       this._state.value.newThreadId === undefined
     ) {
       await this._state.waitForUpdate();
     }
+    
     let state = this._state.value;
-    let threadId: string | undefined = state.newThreadId;
-
-    // if a previously created new thread finished initializing, its status will
-    // no longer be "new". Clear the cached id so we create a fresh thread
-    // instead of reusing a stale one.
+    let threadId = state.newThreadId;
+    
     if (threadId !== undefined) {
       const data = getThreadData(state, threadId);
-      if (data && data.status !== "new") {
-        this._state.update({ ...state, newThreadId: undefined });
+      if (!data || data.status !== "new") {
+        this._state.update({ ...this._state.value, newThreadId: undefined });
         threadId = undefined;
       }
     }
-
+    
     if (threadId === undefined) {
+      let id: string;
       do {
-        threadId = `__LOCALID_${generateId()}`;
-      } while (state.threadIdMap[threadId]);
-
-      const mappingId = createThreadMappingId(threadId);
-      state = {
+        id = `__LOCALID_${generateId()}`;
+        state = this._state.value; // check collisions against latest
+      } while (state.threadIdMap[id] !== undefined);
+      
+      state = this._state.value; // fresh base for the write
+      const mappingId = createThreadMappingId(id);
+      this._state.update({
         ...state,
-        newThreadId: threadId,
-        threadIdMap: {
-          ...state.threadIdMap,
-          [threadId]: mappingId,
-        },
+        newThreadId: id,
+        threadIdMap: { ...state.threadIdMap, [id]: mappingId },
         threadData: {
           ...state.threadData,
-          [threadId]: {
+          [mappingId]: {
+            threadId: id,
             status: "new",
-            threadId,
+            title: undefined,
           },
         },
-      };
-      this._state.update(state);
+      });
+      threadId = id;
     }
-
-    return this.switchToThread(threadId);
+    
+    await this.switchToThread(threadId);
   }
+  
+  
 
   public initialize = async (threadId: string) => {
     if (this._state.value.newThreadId !== threadId) {
