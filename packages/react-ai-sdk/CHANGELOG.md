@@ -1,5 +1,15 @@
 # @assistant-ui/react-ai-sdk
 
+## 0.11.4
+
+### Patch Changes
+
+- 979ee67: feat: forward system and tools to the backend for useChatRuntime
+- 979ee67: feat: assistant cloud support for AI SDK v5
+- 979ee67: feat: add AssistantChatTransport
+- Updated dependencies [979ee67]
+  - @assistant-ui/react@0.10.38
+
 ## 0.11.3
 
 ### Patch Changes

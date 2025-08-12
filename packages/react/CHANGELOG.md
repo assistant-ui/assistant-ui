@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.10.38
+
+### Patch Changes
+
+- 979ee67: feat: assistant cloud support for AI SDK v5
+
 ## 0.10.37
 
 ### Patch Changes
