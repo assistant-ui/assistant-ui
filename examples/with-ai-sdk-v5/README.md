@@ -29,9 +29,9 @@ Open [http://localhost:3000](http://localhost:3000) to see the result.
 ## Key Features
 
 - Uses the new AI SDK v5 with `@ai-sdk/react` and `@ai-sdk/anthropic`
-- Integrates with `@assistant-ui/react` using the v5-compatible runtime
+- Integrates with `@assistant-ui/react` using the new `useChatRuntime` hook
 - No RSC support (client-side only)
-- Uses the `useChat` hook from AI SDK v5
+- Simplified integration with the `useChatRuntime` hook that wraps AI SDK v5's `useChat`
 
 ## API Route
 

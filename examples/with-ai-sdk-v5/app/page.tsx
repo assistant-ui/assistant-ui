@@ -1,14 +1,12 @@
 "use client";
 
 import { Thread } from "@/components/assistant-ui/thread";
-import { useChat } from "@ai-sdk/react";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
-import { useAISDKRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
 export default function Home() {
-  const chat = useChat();
-
-  const runtime = useAISDKRuntime(chat);
+  // Using the new simplified useChatRuntime hook
+  const runtime = useChatRuntime();
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
