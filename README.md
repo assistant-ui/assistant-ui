@@ -24,7 +24,7 @@
 
 - Handles streaming, auto-scrolling, accessibility, and real-time updates for you
 - Fully composable primitives inspired by shadcn/ui and cmdk — customize every pixel
- - Works with your stack: AI SDK, LangGraph, Mastra, or any custom backend
+- Works with your stack: AI SDK, LangGraph, Mastra, or any custom backend
 - Broad model support out of the box (OpenAI, Anthropic, Mistral, Perplexity, AWS Bedrock, Azure, Google Gemini, Hugging Face, Fireworks, Cohere, Replicate, Ollama) with easy extension to custom APIs
 
 ## Why assistant-ui
@@ -90,8 +90,6 @@ Hundreds of projects use assistant-ui to build in-app AI assistants, including c
 With >200k monthly downloads, assistant-ui is one of the most popular UI libraries for building AI chat.
 
 <img src="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/growth.png" alt="Growth" style="max-width: 400px;">
-
-
 
 ## Community & Support
 

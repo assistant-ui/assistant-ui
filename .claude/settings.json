@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "prettier --write \"$CLAUDE_PROJECT_DIR/$CLAUDE_FILE_PATHS\""
+            "command": "npx prettier \"{examples,packages,apps}/**/*.{js,jsx,ts,tsx,md,json}\" --write \"$CLAUDE_PROJECT_DIR/$CLAUDE_FILE_PATHS\""
           }
         ]
       }

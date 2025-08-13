@@ -44,6 +44,7 @@ For message events, the payload must be a tuple of `(messages, metadata)`:
 - **metadata**: A dictionary of metadata (currently not used but required)
 
 The function will:
+
 - Create a `messages` array in the state if it doesn't exist
 - Convert messages to plain JSON using LangChain's `message_to_dict`
 - Merge messages with the same ID:
@@ -52,6 +53,7 @@ The function will:
 - Append new messages that don't have matching IDs
 
 Example:
+
 ```python
 from langchain_core.messages import HumanMessage, AIMessage
 from assistant_stream import append_langgraph_event
@@ -71,6 +73,7 @@ append_langgraph_event(controller, "default", "message", (messages, {}))
 #### Updates Events (`type="updates"`)
 
 For updates events, the payload must be a dictionary with the structure:
+
 ```python
 {
     "node_name": {
@@ -82,11 +85,13 @@ For updates events, the payload must be a dictionary with the structure:
 ```
 
 The function will:
+
 - Update channel values for each node
 - Create nodes if they don't exist
 - Skip updates to the "messages" channel (as these are handled by message events)
 
 Example:
+
 ```python
 updates = {
     "agent": {
@@ -174,6 +179,7 @@ python -m pytest tests/test_langgraph.py
 ```
 
 The tests cover:
+
 - Message appending and merging
 - Updates handling
 - Error cases and edge conditions

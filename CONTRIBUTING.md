@@ -24,14 +24,14 @@ pnpm turbo build
 
 ### Running the project
 
-To run the docs project in development mode: 
+To run the docs project in development mode:
 
 ```sh
 cd apps/docs
 pnpm dev
 ```
 
-To run the examples project in development mode: 
+To run the examples project in development mode:
 
 ```sh
 cd examples/<your-example>
@@ -57,4 +57,5 @@ If you forget to add a changeset before merging, create a new PR and run `pnpm c
 You can also add changesets on open PRs directly from GitHub using the changeset bot's link in PR comments.
 
 ### Releasing
+
 Our CI checks for changesets in `.changeset/` on `main` and will create an "update versions" PR which versions the packages, updates the changelog, and publishes the packages to npm on merge.

@@ -36,4 +36,3 @@ jobs:
           FORCE_COLOR: "3"
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           LOCALHOST_URL: "http://localhost:3000"
-          

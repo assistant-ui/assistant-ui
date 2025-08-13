@@ -79,7 +79,7 @@ jobs:
             const message = changes_made
               ? '✅ Prettier issues fixed and committed to this PR!'
               : '✅ No prettier issues found in this PR!';
-            
+
             await github.rest.issues.createComment({
               owner,
               repo,

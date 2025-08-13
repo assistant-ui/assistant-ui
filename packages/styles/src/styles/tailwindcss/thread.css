@@ -70,7 +70,6 @@
   @apply text-muted-foreground;
 }
 
-
 /* thread composer */
 
 .aui-composer-wrapper {
@@ -78,11 +77,11 @@
 }
 
 .aui-composer-root {
-  @apply focus-within:ring-offset-2 relative flex w-full flex-col rounded-2xl focus-within:ring-2 focus-within:ring-black dark:focus-within:ring-white;
+  @apply relative flex w-full flex-col rounded-2xl focus-within:ring-2 focus-within:ring-black focus-within:ring-offset-2 dark:focus-within:ring-white;
 }
 
 .aui-composer-input {
-  @apply bg-muted border-border dark:border-muted-foreground/15 focus:outline-primary placeholder:text-muted-foreground max-h-[calc(50dvh)] min-h-16 w-full resize-none rounded-t-2xl border-x border-t px-4 pt-2 pb-3 text-base outline-none;
+  @apply bg-muted border-border dark:border-muted-foreground/15 focus:outline-primary placeholder:text-muted-foreground max-h-[calc(50dvh)] min-h-16 w-full resize-none rounded-t-2xl border-x border-t px-4 pb-3 pt-2 text-base outline-none;
 }
 
 .aui-composer-action-wrapper {
@@ -163,7 +162,7 @@
 }
 
 .aui-user-message-content {
-  @apply bg-muted text-foreground col-start-2 rounded-3xl px-5 py-2.5 break-words;
+  @apply bg-muted text-foreground col-start-2 break-words rounded-3xl px-5 py-2.5;
 }
 
 .aui-user-message-attachments {
@@ -176,7 +175,7 @@
 /* user action bar */
 
 .aui-user-action-bar-root {
-  @apply col-start-1 mt-2.5 mr-3 flex flex-col items-end;
+  @apply col-start-1 mr-3 mt-2.5 flex flex-col items-end;
 }
 
 /* edit composer */
@@ -186,7 +185,7 @@
 }
 
 .aui-edit-composer-root {
-  @apply bg-muted ml-auto flex w-full max-w-7/8 flex-col rounded-xl;
+  @apply bg-muted max-w-7/8 ml-auto flex w-full flex-col rounded-xl;
 }
 
 .aui-edit-composer-input {
@@ -218,11 +217,11 @@
 }
 
 .aui-assistant-branch-picker {
-  @apply col-start-2 row-start-2 mr-2 -ml-2;
+  @apply col-start-2 row-start-2 -ml-2 mr-2;
 }
 
 .aui-assistant-message-content {
-  @apply text-foreground col-span-2 col-start-2 row-start-1 ml-4 leading-7 break-words;
+  @apply text-foreground col-span-2 col-start-2 row-start-1 ml-4 break-words leading-7;
 }
 
 .aui-message-error-root {
@@ -236,7 +235,7 @@
 /* assistant action bar */
 
 .aui-assistant-action-bar-root {
-  @apply text-muted-foreground data-floating:bg-background col-start-3 row-start-2 mt-3 ml-3 flex gap-1 data-floating:absolute data-floating:mt-2 data-floating:rounded-md data-floating:border data-floating:p-1 data-floating:shadow-sm;
+  @apply text-muted-foreground data-floating:bg-background data-floating:absolute data-floating:mt-2 data-floating:rounded-md data-floating:border data-floating:p-1 data-floating:shadow-sm col-start-3 row-start-2 ml-3 mt-3 flex gap-1;
 }
 
 .aui-assistant-action-bar-feedback-positive {
@@ -290,5 +289,5 @@
 }
 
 .aui-thread-list-item-archive {
-  @apply hover:text-foreground/60 p-4 text-foreground ml-auto mr-1 size-4;
+  @apply hover:text-foreground/60 text-foreground ml-auto mr-1 size-4 p-4;
 }
