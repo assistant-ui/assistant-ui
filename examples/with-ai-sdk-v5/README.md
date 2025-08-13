@@ -5,21 +5,25 @@ This example demonstrates how to use `@assistant-ui/react-ai-sdk-v5` with the Ve
 ## Getting Started
 
 1. Install dependencies:
+
 ```bash
 npm install
 ```
 
 2. Set up your environment variables:
+
 ```bash
 cp .env.example .env.local
 ```
 
 Add your Anthropic API key to `.env.local`:
+
 ```
 ANTHROPIC_API_KEY=your-api-key-here
 ```
 
 3. Run the development server:
+
 ```bash
 npm run dev
 ```
@@ -43,12 +47,12 @@ By default, `useChatRuntime` uses `AssistantChatTransport` which automatically f
 When customizing the API URL, you must explicitly use `AssistantChatTransport` to keep system/tools forwarding:
 
 ```typescript
-import { AssistantChatTransport } from '@assistant-ui/react-ai-sdk';
+import { AssistantChatTransport } from "@assistant-ui/react-ai-sdk";
 
 const runtime = useChatRuntime({
   transport: new AssistantChatTransport({
-    api: '/my-custom-api/chat' // Custom URL with system/tools forwarding
-  })
+    api: "/my-custom-api/chat", // Custom URL with system/tools forwarding
+  }),
 });
 ```
 
@@ -57,10 +61,10 @@ const runtime = useChatRuntime({
 To use the standard AI SDK transport without forwarding:
 
 ```typescript
-import { DefaultChatTransport } from 'ai';
+import { DefaultChatTransport } from "ai";
 
 const runtime = useChatRuntime({
-  transport: new DefaultChatTransport() // No system/tools forwarding
+  transport: new DefaultChatTransport(), // No system/tools forwarding
 });
 ```
 

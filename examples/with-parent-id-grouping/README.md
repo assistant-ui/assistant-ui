@@ -15,6 +15,7 @@ This example demonstrates how to use the parent ID feature in assistant-ui to gr
 ## How it works
 
 1. **Message Structure**: The example uses the external store runtime with predefined messages that include parts with `parentId` fields:
+
    ```typescript
    {
      type: "text",
@@ -53,6 +54,7 @@ Open [http://localhost:3000](http://localhost:3000) to see the example.
 ## Use Cases
 
 This pattern is useful for:
+
 - Grouping research sources with their related findings
 - Organizing multi-step tool executions
 - Creating hierarchical content structures

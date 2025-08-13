@@ -9,8 +9,9 @@ The integration test makes a real HTTP request to the `https://backend.assistant
 ## Prerequisites
 
 You need valid API credentials for the Assistant API:
+
 - API Key (starts with `sk_aui_proj_`)
-- User ID 
+- User ID
 - Workspace ID
 
 ## Running the Integration Test
@@ -18,6 +19,7 @@ You need valid API credentials for the Assistant API:
 ### Option 1: Using the Script (Recommended)
 
 1. Set your environment variables:
+
 ```bash
 export AUI_API_KEY='sk_aui_proj_your_api_key_here'
 export AUI_USER_ID='your_user_id_here'
@@ -25,6 +27,7 @@ export AUI_WORKSPACE_ID='your_workspace_id_here'
 ```
 
 2. Run the script:
+
 ```bash
 ./scripts/test-integration.sh
 ```
@@ -32,6 +35,7 @@ export AUI_WORKSPACE_ID='your_workspace_id_here'
 ### Option 2: Manual Command
 
 Set environment variables and run the test directly:
+
 ```bash
 export AUI_API_KEY='your_api_key_here'
 export AUI_USER_ID='your_user_id_here'
@@ -43,6 +47,7 @@ npm test -- src/tests/AssistantCloudFiles.test.ts
 ## Test Details
 
 The integration test:
+
 - ✅ Uses real API credentials (API key authentication)
 - ✅ Makes actual HTTP request to the live endpoint
 - ✅ Tests PDF conversion with the same file URL from your curl example
@@ -55,13 +60,14 @@ The integration test:
 2. **Calls `cloud.files.pdfToImages()`** with the test PDF URL
 3. **Validates the response** has the correct structure:
    - `success` boolean
-   - `urls` array of image URLs  
+   - `urls` array of image URLs
    - `message` string
 4. **Verifies image URLs** are valid HTTPS URLs ending in .png/.jpg/.jpeg
 
 ## Expected Response
 
 On success, you should see something like:
+
 ```json
 {
   "success": true,
@@ -83,12 +89,15 @@ On success, you should see something like:
 ## Troubleshooting
 
 **Test is skipped?**
+
 - Make sure all three environment variables are set: `AUI_API_KEY`, `AUI_USER_ID`, `AUI_WORKSPACE_ID`
 
 **Authentication errors?**
+
 - Verify your API key is correct and active
 - Check that the User ID and Workspace ID match your account
 
 **Network timeouts?**
+
 - The test has a 15-second timeout
-- Large PDFs may take longer to process 
+- Large PDFs may take longer to process

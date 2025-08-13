@@ -1,4 +1,12 @@
 {
   "title": "Guides",
-  "pages": ["Attachments", "Branching", "Editing", "Speech", "Latex", "Tools", "ToolUI"]
+  "pages": [
+    "Attachments",
+    "Branching",
+    "Editing",
+    "Speech",
+    "Latex",
+    "Tools",
+    "ToolUI"
+  ]
 }

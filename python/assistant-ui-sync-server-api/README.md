@@ -183,6 +183,7 @@ tool_message: Message = {
 Main client for interacting with Assistant UI backends.
 
 **Constructor:**
+
 ```python
 AssistantClient(
     base_url: str,
@@ -193,6 +194,7 @@ AssistantClient(
 ```
 
 **Methods:**
+
 - `threads(thread_id: str) -> ThreadClient`: Get a ThreadClient for a specific thread
 - `close()`: Close the async client
 - `close_sync()`: Close the sync client
@@ -202,6 +204,7 @@ AssistantClient(
 Client for interacting with a specific thread.
 
 **Methods:**
+
 - `chat(messages, system=None, tools=None, **kwargs)`: Send an async chat request
 - `chat_sync(messages, system=None, tools=None, **kwargs)`: Send a sync chat request
 - `cancel()`: Cancel the current async operation

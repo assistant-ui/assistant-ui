@@ -19,7 +19,7 @@ import { AssistantRuntimeProvider } from '@assistant-ui/react';
 function App() {
   // By default, uses AssistantChatTransport which forwards system messages and tools
   const runtime = useChatRuntime();
-  
+
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       {/* Your assistant UI components */}
@@ -33,20 +33,20 @@ function App() {
 When you need to customize the transport configuration:
 
 ```typescript
-import { DefaultChatTransport } from 'ai';
-import { AssistantChatTransport } from '@assistant-ui/react-ai-sdk';
-import { useChatRuntime } from '@assistant-ui/react-ai-sdk';
+import { DefaultChatTransport } from "ai";
+import { AssistantChatTransport } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
 // Custom API URL while keeping system/tools forwarding
 const runtime = useChatRuntime({
   transport: new AssistantChatTransport({
-    api: '/my-custom-api/chat'
-  })
+    api: "/my-custom-api/chat",
+  }),
 });
 
 // Or disable system/tools forwarding entirely
 const runtime = useChatRuntime({
-  transport: new DefaultChatTransport()
+  transport: new DefaultChatTransport(),
 });
 ```
 

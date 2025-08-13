@@ -13,11 +13,13 @@ This is a test project for the `assistant-stream` state management functionality
 ## Setup
 
 1. Install the requirements:
+
    ```
    pip install -r requirements.txt
    ```
 
 2. Run the server:
+
    ```
    python server.py
    ```
