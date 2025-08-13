@@ -11,6 +11,10 @@ export type CloudMessage = {
   content: ReadonlyJSONObject;
 };
 
+type AssistantCloudThreadMessageListQuery = {
+  format?: string;
+};
+
 type AssistantCloudThreadMessageListResponse = {
   messages: CloudMessage[];
 };
@@ -30,9 +34,11 @@ export class AssistantCloudThreadMessages {
 
   public async list(
     threadId: string,
+    query?: AssistantCloudThreadMessageListQuery,
   ): Promise<AssistantCloudThreadMessageListResponse> {
     return this.cloud.makeRequest(
       `/threads/${encodeURIComponent(threadId)}/messages`,
+      { query },
     );
   }
 

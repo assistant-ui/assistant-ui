@@ -83,8 +83,12 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   async load() {
     const remoteId = this.threadListItemRuntime.getState().remoteId;
     if (!remoteId) return { messages: [] };
-    const { messages } =
-      await this.cloudRef.current.threads.messages.list(remoteId);
+    const { messages } = await this.cloudRef.current.threads.messages.list(
+      remoteId,
+      {
+        format: "aui/v0",
+      },
+    );
     const payload = {
       messages: messages
         .filter(
@@ -132,8 +136,12 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     const remoteId = this.threadListItemRuntime.getState().remoteId;
     if (!remoteId) return { messages: [] };
 
-    const { messages } =
-      await this.cloudRef.current.threads.messages.list(remoteId);
+    const { messages } = await this.cloudRef.current.threads.messages.list(
+      remoteId,
+      {
+        format,
+      },
+    );
 
     return {
       messages: messages
