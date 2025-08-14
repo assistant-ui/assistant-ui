@@ -140,13 +140,13 @@ Open the main page file in your Assistant UI frontend project (usually `app/page
 ```tsx {10} title="app/page.tsx"
 "use client";
 import { Thread } from "@/components/assistant-ui/thread";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useDataStreamRuntime } from "@assistant-ui/react-data-stream";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { ThreadList } from "@/components/assistant-ui/thread-list";
 
 export default function Home() {
   // Point the runtime to the Mastra server endpoint
-  const runtime = useChatRuntime({
+  const runtime = useDataStreamRuntime({
     api: "http://localhost:4111/api/agents/chefAgent/stream",
   });
 
