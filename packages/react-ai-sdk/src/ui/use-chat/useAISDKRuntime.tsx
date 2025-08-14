@@ -1,18 +1,23 @@
 "use client";
 
-import type { useChat } from "@ai-sdk/react";
+import type { UIMessage, useChat } from "@ai-sdk/react";
 import {
   useExternalStoreRuntime,
   ExternalStoreAdapter,
   ThreadHistoryAdapter,
   AssistantRuntime,
+  ThreadMessage,
+  MessageFormatAdapter,
 } from "@assistant-ui/react";
 import { sliceMessagesUntil } from "../utils/sliceMessagesUntil";
 import { toCreateMessage } from "../utils/toCreateMessage";
 import { vercelAttachmentAdapter } from "../utils/vercelAttachmentAdapter";
 import { getVercelAIMessages } from "../getVercelAIMessages";
 import { AISDKMessageConverter } from "../utils/convertMessage";
-import { aiSDKV5FormatAdapter } from "../adapters/aiSDKFormatAdapter";
+import {
+  AISDKStorageFormat,
+  aiSDKV5FormatAdapter,
+} from "../adapters/aiSDKFormatAdapter";
 import { useExternalHistory } from "./useExternalHistory";
 import { useMemo } from "react";
 
@@ -24,8 +29,8 @@ export type AISDKRuntimeAdapter = {
     | undefined;
 };
 
-export const useAISDKRuntime = (
-  chatHelpers: ReturnType<typeof useChat>,
+export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
+  chatHelpers: ReturnType<typeof useChat<UI_MESSAGE>>,
   adapter: AISDKRuntimeAdapter = {},
 ) => {
   const messages = AISDKMessageConverter.useThreadMessages({
@@ -45,8 +50,13 @@ export const useAISDKRuntime = (
       [],
     ),
     adapter.adapters?.history,
-    AISDKMessageConverter.toThreadMessages,
-    aiSDKV5FormatAdapter,
+    AISDKMessageConverter.toThreadMessages as (
+      messages: UI_MESSAGE[],
+    ) => ThreadMessage[],
+    aiSDKV5FormatAdapter as MessageFormatAdapter<
+      UI_MESSAGE,
+      AISDKStorageFormat
+    >,
     (messages) => {
       chatHelpers.setMessages(messages);
     },
@@ -57,10 +67,12 @@ export const useAISDKRuntime = (
       chatHelpers.status === "submitted" || chatHelpers.status === "streaming",
     messages,
     setMessages: (messages) =>
-      chatHelpers.setMessages(messages.map(getVercelAIMessages).flat()),
+      chatHelpers.setMessages(
+        messages.map(getVercelAIMessages<UI_MESSAGE>).flat(),
+      ),
     onCancel: async () => chatHelpers.stop(),
     onNew: async (message) => {
-      const createMessage = await toCreateMessage(message);
+      const createMessage = await toCreateMessage<UI_MESSAGE>(message);
       await chatHelpers.sendMessage(createMessage);
     },
     onEdit: async (message) => {
@@ -70,7 +82,7 @@ export const useAISDKRuntime = (
       );
       chatHelpers.setMessages(newMessages);
 
-      const createMessage = await toCreateMessage(message);
+      const createMessage = await toCreateMessage<UI_MESSAGE>(message);
       await chatHelpers.sendMessage(createMessage);
     },
     onReload: async (parentId: string | null) => {

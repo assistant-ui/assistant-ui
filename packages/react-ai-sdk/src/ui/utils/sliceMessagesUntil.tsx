@@ -1,7 +1,7 @@
 import type { UIMessage } from "ai";
 
-export const sliceMessagesUntil = (
-  messages: UIMessage[],
+export const sliceMessagesUntil = <UI_MESSAGE extends UIMessage = UIMessage>(
+  messages: UI_MESSAGE[],
   messageId: string | null,
 ) => {
   if (messageId == null) return [];

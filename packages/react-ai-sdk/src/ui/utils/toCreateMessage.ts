@@ -9,9 +9,9 @@ import {
   UITools,
 } from "ai";
 
-export const toCreateMessage = async (
+export const toCreateMessage = async <UI_MESSAGE extends UIMessage = UIMessage>(
   message: AppendMessage,
-): Promise<CreateUIMessage<UIMessage>> => {
+): Promise<CreateUIMessage<UI_MESSAGE>> => {
   const textParts = message.content
     .filter((part) => part.type === "text")
     .map((t) => t.text)
@@ -57,7 +57,7 @@ export const toCreateMessage = async (
     id: generateId(),
     role: message.role,
     parts,
-  };
+  } satisfies CreateUIMessage<UIMessage> as CreateUIMessage<UI_MESSAGE>;
 };
 
 const getFileDataURL = (file: File) =>
