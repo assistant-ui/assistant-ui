@@ -1,5 +1,13 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.0.1
+
+### Patch Changes
+
+- eda5558: feat: AI SDK custom UIMessage type support
+- Updated dependencies [eda5558]
+  - @assistant-ui/react@0.10.41
+
 ## 1.0.0
 
 ### Patch Changes

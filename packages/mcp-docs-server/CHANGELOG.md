@@ -1,5 +1,11 @@
 # @assistant-ui/mcp-docs-server
 
+## 0.1.6
+
+### Patch Changes
+
+- 87086fd: fix zod version compatibility issue that caused the mcp server to fail
+
 ## 0.1.5
 
 ### Patch Changes
