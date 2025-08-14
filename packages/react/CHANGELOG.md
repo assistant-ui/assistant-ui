@@ -1,5 +1,17 @@
 # @assistant-ui/react
 
+## 0.10.40
+
+### Patch Changes
+
+- 179f8b7: Add format parameter support to assistant-cloud client library
+  - Add optional `format` query parameter to `AssistantCloudThreadMessages.list()` method
+  - Update cloud history adapter to pass format parameter when loading messages
+  - Enables backend-level message format conversion when supported by the cloud backend
+
+- Updated dependencies [179f8b7]
+  - assistant-cloud@0.1.0
+
 ## 0.10.39
 
 ### Patch Changes
