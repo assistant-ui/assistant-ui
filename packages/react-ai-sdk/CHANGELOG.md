@@ -1,5 +1,14 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.0.0
+
+### Patch Changes
+
+- de215fd: fix: history loading
+- Updated dependencies [179f8b7]
+  - assistant-cloud@0.1.0
+  - @assistant-ui/react@0.10.40
+
 ## 0.11.5
 
 ### Patch Changes
