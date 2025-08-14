@@ -28,7 +28,7 @@
     "conversational-ui",
     "conversational-ai"
   ],
-  "version": "0.10.40",
+  "version": "0.10.41",
   "license": "MIT",
   "type": "module",
   "exports": {
