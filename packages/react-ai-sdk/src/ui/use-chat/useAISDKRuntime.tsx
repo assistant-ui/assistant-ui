@@ -14,6 +14,7 @@ import { getVercelAIMessages } from "../getVercelAIMessages";
 import { AISDKMessageConverter } from "../utils/convertMessage";
 import { aiSDKV5FormatAdapter } from "../adapters/aiSDKFormatAdapter";
 import { useExternalHistory } from "./useExternalHistory";
+import { useMemo } from "react";
 
 export type AISDKRuntimeAdapter = {
   adapters?:
@@ -34,11 +35,15 @@ export const useAISDKRuntime = (
   });
 
   const isLoading = useExternalHistory(
-    {
-      get current(): AssistantRuntime {
-        return runtime;
-      },
-    },
+    useMemo(
+      () => ({
+        get current(): AssistantRuntime {
+          return runtime;
+        },
+      }),
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [],
+    ),
     adapter.adapters?.history,
     AISDKMessageConverter.toThreadMessages,
     aiSDKV5FormatAdapter,

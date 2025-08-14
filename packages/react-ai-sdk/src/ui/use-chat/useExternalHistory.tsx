@@ -41,7 +41,7 @@ export const useExternalHistory = <TMessage,>(
   const [isLoading, setIsLoading] = useState(true);
   const historyIds = useRef(new Set<string>());
 
-  const onSetMessagesRef = useRef(onSetMessages);
+  const onSetMessagesRef = useRef<typeof onSetMessages>(() => onSetMessages);
   useEffect(() => {
     onSetMessagesRef.current = onSetMessages;
   });
@@ -108,7 +108,7 @@ export const useExternalHistory = <TMessage,>(
         }
       }
     });
-  }, []);
+  }, [historyAdapter, storageFormatAdapter]);
 
   return isLoading;
 };
