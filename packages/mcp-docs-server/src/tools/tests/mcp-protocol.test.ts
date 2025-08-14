@@ -14,8 +14,6 @@ describe("MCP Protocol Integration", () => {
   // and that parameter schemas are properly converted to JSON schemas
   it("should handle Initialize request", async () => {
     const request: InitializeRequest = {
-      jsonrpc: "2.0",
-      id: 1,
       method: "initialize",
       params: {
         protocolVersion: "2024-11-05",
@@ -32,7 +30,7 @@ describe("MCP Protocol Integration", () => {
     // Parse and validate the request
     const parsed = InitializeRequestSchema.parse(request);
     expect(parsed).toBeDefined();
-    
+
     // The server should have an initialize handler set up
     const handlers = (server as any).server._requestHandlers;
     expect(handlers).toBeDefined();
@@ -41,8 +39,6 @@ describe("MCP Protocol Integration", () => {
 
   it("should handle ListTools request", async () => {
     const request: ListToolsRequest = {
-      jsonrpc: "2.0",
-      id: 2,
       method: "tools/list",
       params: {},
     };
@@ -50,27 +46,31 @@ describe("MCP Protocol Integration", () => {
     // Parse and validate the request
     const parsed = ListToolsRequestSchema.parse(request);
     expect(parsed).toBeDefined();
-    
+
     // The server should have a tools/list handler
     const handlers = (server as any).server._requestHandlers;
     expect(handlers.get("tools/list")).toBeDefined();
-    
+
     // Call the handler
     const handler = handlers.get("tools/list");
     const result = await handler(parsed, {});
-    
+
     expect(result).toBeDefined();
     expect(result.tools).toBeInstanceOf(Array);
     expect(result.tools).toHaveLength(2);
-    
+
     // Check the tools have proper JSON schemas
-    const docsTool = result.tools.find((t: any) => t.name === "assistantUIDocs");
+    const docsTool = result.tools.find(
+      (t: any) => t.name === "assistantUIDocs",
+    );
     expect(docsTool).toBeDefined();
     expect(docsTool.inputSchema).toBeDefined();
     expect(docsTool.inputSchema.type).toBe("object");
     expect(docsTool.inputSchema.properties).toBeDefined();
-    
-    const examplesTool = result.tools.find((t: any) => t.name === "assistantUIExamples");
+
+    const examplesTool = result.tools.find(
+      (t: any) => t.name === "assistantUIExamples",
+    );
     expect(examplesTool).toBeDefined();
     expect(examplesTool.inputSchema).toBeDefined();
     expect(examplesTool.inputSchema.type).toBe("object");
@@ -79,8 +79,6 @@ describe("MCP Protocol Integration", () => {
 
   it("should handle CallTool request for assistantUIDocs", async () => {
     const request: CallToolRequest = {
-      jsonrpc: "2.0",
-      id: 3,
       method: "tools/call",
       params: {
         name: "assistantUIDocs",
@@ -93,15 +91,15 @@ describe("MCP Protocol Integration", () => {
     // Parse and validate the request
     const parsed = CallToolRequestSchema.parse(request);
     expect(parsed).toBeDefined();
-    
+
     // The server should have a tools/call handler
     const handlers = (server as any).server._requestHandlers;
     expect(handlers.get("tools/call")).toBeDefined();
-    
+
     // Call the handler through the MCP protocol layer
     const handler = handlers.get("tools/call");
     const result = await handler(parsed, {});
-    
+
     expect(result).toBeDefined();
     expect(result.content).toBeDefined();
     expect(result.content[0].type).toBe("text");
@@ -109,8 +107,6 @@ describe("MCP Protocol Integration", () => {
 
   it("should handle CallTool request for assistantUIExamples with no arguments", async () => {
     const request: CallToolRequest = {
-      jsonrpc: "2.0",
-      id: 4,
       method: "tools/call",
       params: {
         name: "assistantUIExamples",
@@ -121,15 +117,15 @@ describe("MCP Protocol Integration", () => {
     // Parse and validate the request
     const parsed = CallToolRequestSchema.parse(request);
     expect(parsed).toBeDefined();
-    
+
     // The server should have a tools/call handler
     const handlers = (server as any).server._requestHandlers;
     expect(handlers.get("tools/call")).toBeDefined();
-    
+
     // Call the handler
     const handler = handlers.get("tools/call");
     const result = await handler(parsed, {});
-    
+
     expect(result).toBeDefined();
     expect(result.content).toBeDefined();
     expect(result.content[0].type).toBe("text");
