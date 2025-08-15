@@ -7,6 +7,7 @@ import {
   SimpleTextAttachmentAdapter,
   AssistantRuntimeProvider,
   WebSpeechSynthesisAdapter,
+  AssistantCloud,
 } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
@@ -16,6 +17,11 @@ export function DocsRuntimeProvider({
 }: {
   children: React.ReactNode;
 }) {
+  const assistantCloud = new AssistantCloud({
+    baseUrl: process.env["NEXT_PUBLIC_ASSISTANT_BASE_URL"]!,
+    anonymous: true,
+  });
+
   const runtime = useChatRuntime({
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
     adapters: {
@@ -25,6 +31,7 @@ export function DocsRuntimeProvider({
       ]),
       speech: new WebSpeechSynthesisAdapter(),
     },
+    cloud: assistantCloud,
   });
   return (
     <AssistantRuntimeProvider runtime={runtime}>
