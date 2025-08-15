@@ -4,7 +4,6 @@ import { kv } from "@vercel/kv";
 import { Ratelimit } from "@upstash/ratelimit";
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
 
-export const runtime = "edge";
 export const maxDuration = 30;
 
 const ratelimit = new Ratelimit({
