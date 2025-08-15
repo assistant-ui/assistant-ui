@@ -810,7 +810,7 @@ Add an API endpoint:
 <Tabs id="provider" items={["OpenAI", "Anthropic", "Azure", "AWS", "Gemini", "GCP", "Groq", "Fireworks", "Cohere", "Ollama", "Chrome AI"]}>
 ```ts title="/app/api/chat/route.ts" tab="OpenAI"
 import { openai } from "@ai-sdk/openai";
-import { streamText } from "ai";
+import { convertToModelMessages, streamText } from "ai";
 
 export const maxDuration = 30;
 
@@ -818,15 +818,15 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
   const result = streamText({
     model: openai("gpt-4o-mini"),
-    messages,
+    messages: convertToModelMessages(messages),
   });
-  return result.toDataStreamResponse();
+  return result.toUIMessageStreamResponse();
 }
 ```
 
 ```ts title="/app/api/chat/route.ts" tab="Anthropic"
 import { anthropic } from "@ai-sdk/anthropic";
-import { streamText } from "ai";
+import { convertToModelMessages, streamText } from "ai";
 
 export const maxDuration = 30;
 
@@ -834,15 +834,15 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
   const result = streamText({
     model: anthropic("claude-3-5-sonnet-20240620"),
-    messages,
+    messages: convertToModelMessages(messages),
   });
-  return result.toDataStreamResponse();
+  return result.toUIMessageStreamResponse();
 }
 ```
 
 ```ts title="/app/api/chat/route.ts" tab="Azure"
 import { azure } from "@ai-sdk/azure";
-import { streamText } from "ai";
+import { convertToModelMessages, streamText } from "ai";
 
 export const maxDuration = 30;
 
@@ -850,15 +850,15 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
   const result = streamText({
     model: azure("your-deployment-name"),
-    messages,
+    messages: convertToModelMessages(messages),
   });
-  return result.toDataStreamResponse();
+  return result.toUIMessageStreamResponse();
 }
 ```
 
 ```ts title="/app/api/chat/route.ts" tab="AWS"
 import { bedrock } from "@ai-sdk/amazon-bedrock";
-import { streamText } from "ai";
+import { convertToModelMessages, streamText } from "ai";
 
 export const maxDuration = 30;
 
@@ -866,15 +866,15 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
   const result = streamText({
     model: bedrock("anthropic.claude-3-5-sonnet-20240620-v1:0"),
-    messages,
+    messages: convertToModelMessages(messages),
   });
-  return result.toDataStreamResponse();
+  return result.toUIMessageStreamResponse();
 }
 ```
 
 ```ts title="/app/api/chat/route.ts" tab="Gemini"
 import { google } from "@ai-sdk/google";
-import { streamText } from "ai";
+import { convertToModelMessages, streamText } from "ai";
 
 export const maxDuration = 30;
 
@@ -882,15 +882,15 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
   const result = streamText({
     model: google("gemini-2.0-flash"),
-    messages,
+    messages: convertToModelMessages(messages),
   });
-  return result.toDataStreamResponse();
+  return result.toUIMessageStreamResponse();
 }
 ```
 
 ```ts title="/app/api/chat/route.ts" tab="GCP"
 import { vertex } from "@ai-sdk/google-vertex";
-import { streamText } from "ai";
+import { convertToModelMessages, streamText } from "ai";
 
 export const maxDuration = 30;
 
@@ -898,15 +898,15 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
   const result = streamText({
     model: vertex("gemini-1.5-pro"),
-    messages,
+    messages: convertToModelMessages(messages),
   });
-  return result.toDataStreamResponse();
+  return result.toUIMessageStreamResponse();
 }
 ```
 
 ```ts title="/app/api/chat/route.ts" tab="Groq"
 import { createOpenAI } from "@ai-sdk/openai";
-import { streamText } from "ai";
+import { convertToModelMessages, streamText } from "ai";
 
 export const maxDuration = 30;
 
@@ -919,15 +919,15 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
   const result = streamText({
     model: groq("llama3-70b-8192"),
-    messages,
+    messages: convertToModelMessages(messages),
   });
-  return result.toDataStreamResponse();
+  return result.toUIMessageStreamResponse();
 }
 ```
 
 ```ts title="/app/api/chat/route.ts" tab="Fireworks"
 import { createOpenAI } from "@ai-sdk/openai";
-import { streamText } from "ai";
+import { convertToModelMessages, streamText } from "ai";
 
 export const maxDuration = 30;
 
@@ -940,15 +940,15 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
   const result = streamText({
     model: fireworks("accounts/fireworks/models/firefunction-v2"),
-    messages,
+    messages: convertToModelMessages(messages),
   });
-  return result.toDataStreamResponse();
+  return result.toUIMessageStreamResponse();
 }
 ```
 
 ```ts title="/app/api/chat/route.ts" tab="Cohere"
 import { cohere } from "@ai-sdk/cohere";
-import { streamText } from "ai";
+import { convertToModelMessages, streamText } from "ai";
 
 export const maxDuration = 30;
 
@@ -956,15 +956,15 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
   const result = streamText({
     model: cohere("command-r-plus"),
-    messages,
+    messages: convertToModelMessages(messages),
   });
-  return result.toDataStreamResponse();
+  return result.toUIMessageStreamResponse();
 }
 ```
 
 ```ts title="/app/api/chat/route.ts" tab="Ollama"
 import { ollama } from "ollama-ai-provider";
-import { streamText } from "ai";
+import { convertToModelMessages, streamText } from "ai";
 
 export const maxDuration = 30;
 
@@ -972,15 +972,15 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
   const result = streamText({
     model: ollama("llama3"),
-    messages,
+    messages: convertToModelMessages(messages),
   });
-  return result.toDataStreamResponse();
+  return result.toUIMessageStreamResponse();
 }
 ```
 
 ```ts title="/app/api/chat/route.ts" tab="Chrome AI"
 import { chromeai } from "chrome-ai";
-import { streamText } from "ai";
+import { convertToModelMessages, streamText } from "ai";
 
 export const maxDuration = 30;
 
@@ -988,9 +988,9 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
   const result = streamText({
     model: chromeai(),
-    messages,
+    messages: convertToModelMessages(messages),
   });
-  return result.toDataStreamResponse();
+  return result.toUIMessageStreamResponse();
 }
 ```
 

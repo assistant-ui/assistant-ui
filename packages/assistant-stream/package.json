@@ -8,10 +8,6 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./ai-sdk": {
-      "types": "./dist/ai-sdk.d.ts",
-      "default": "./dist/ai-sdk.js"
-    },
     "./utils": {
       "types": "./dist/utils.d.ts",
       "default": "./dist/utils.js"
@@ -23,7 +19,6 @@
   "files": [
     "dist",
     "src",
-    "ai-sdk",
     "utils",
     "README.md"
   ],
@@ -37,12 +32,10 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@standard-schema/spec": "^1.0.0",
-    "ai": "^4.3.16",
-    "@types/node": "^24.1.0",
+    "@types/node": "^24.3.0",
     "eslint": "^9",
-    "eslint-config-next": "15.4.5",
-    "tsup": "8.5.0",
-    "tsx": "^4.20.3",
+    "eslint-config-next": "15.4.6",
+    "tsx": "^4.20.4",
     "vitest": "^3.2.4"
   },
   "publishConfig": {

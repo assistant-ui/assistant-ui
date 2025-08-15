@@ -201,11 +201,11 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: openai("gpt-4o"),
-    messages,
+    messages: convertToModelMessages(messages),
     tools: {
       getWeather: tool({
         description: "Get current weather for a location",
-        parameters: z.object({
+        inputSchema: z.object({
           location: z.string(),
           unit: z.enum(["celsius", "fahrenheit"]),
         }),
@@ -222,7 +222,7 @@ export async function POST(req: Request) {
     },
   });
 
-  return result.toDataStreamResponse();
+  return result.toUIMessageStreamResponse();
 }
 ```
 

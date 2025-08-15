@@ -9,7 +9,8 @@ import {
   WebSpeechSynthesisAdapter,
   AssistantCloud,
 } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk-v4";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 
 export function DocsRuntimeProvider({
   children,
@@ -22,8 +23,7 @@ export function DocsRuntimeProvider({
   });
 
   const runtime = useChatRuntime({
-    api: "/api/chat",
-    maxSteps: 5,
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
     adapters: {
       attachments: new CompositeAttachmentAdapter([
         new SimpleImageAttachmentAdapter(),

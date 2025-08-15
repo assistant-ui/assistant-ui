@@ -1,10 +1,4 @@
 {
   "title": "AI SDK by Vercel",
-  "pages": [
-    "use-chat-v5",
-    "use-chat",
-    "use-chat-hook",
-    "use-assistant-hook",
-    "rsc"
-  ]
+  "pages": ["use-chat", "v4-legacy"]
 }

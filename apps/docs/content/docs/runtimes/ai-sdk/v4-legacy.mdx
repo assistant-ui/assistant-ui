@@ -1,0 +1,182 @@
+---
+title: AI SDK v4 (Legacy)
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+## Overview
+
+If you're using AI SDK v4 (legacy), you can integrate with assistant-ui using the `@assistant-ui/react-data-stream` package and its `useDataStreamRuntime` hook. This provides a compatible runtime that works with AI SDK v4's streaming responses.
+
+<Callout type="warning">
+  AI SDK v4 is now considered legacy. We recommend upgrading to [AI SDK
+  v5](/docs/runtimes/ai-sdk/use-chat) for improved features and better
+  TypeScript support. This documentation is provided for projects that haven't
+  migrated yet.
+</Callout>
+
+## Getting Started
+
+import { Steps, Step } from "fumadocs-ui/components/steps";
+
+### Option 1: Using @assistant-ui/react-data-stream (Recommended)
+
+<Steps>
+  <Step>
+  ### Install the required packages
+
+Install `@assistant-ui/react-data-stream` alongside assistant-ui and AI SDK v4:
+
+```sh npm2yarn
+npm install @assistant-ui/react @assistant-ui/react-data-stream ai@^4
+```
+
+  </Step>
+  <Step>
+
+### Setup your backend route
+
+Create an API route that uses AI SDK v4's streaming capabilities:
+
+`@/app/api/chat/route.ts`
+
+```tsx
+import { streamText } from "ai";
+import { openai } from "@ai-sdk/openai";
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+
+  const result = streamText({
+    model: openai("gpt-4"),
+    messages,
+  });
+
+  return result.toDataStreamResponse();
+}
+```
+
+  </Step>
+  <Step>
+
+### Use `useDataStreamRuntime` in your component
+
+`@/app/page.tsx`
+
+```tsx
+"use client";
+
+import { Thread } from "@assistant-ui/react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useDataStreamRuntime } from "@assistant-ui/react-data-stream";
+
+export default function Home() {
+  const runtime = useDataStreamRuntime({
+    api: "/api/chat",
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <div className="h-full">
+        <Thread />
+      </div>
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+### Option 2: Using @assistant-ui/react-ai-sdk v0.1.10 (Legacy)
+
+Alternatively, you can use the older version of the AI SDK integration package, though this version is no longer actively maintained:
+
+```sh npm2yarn
+npm install @assistant-ui/react @assistant-ui/react-ai-sdk@0.1.10 ai@^4
+```
+
+<Callout type="warning">
+  Version 0.1.10 of `@assistant-ui/react-ai-sdk` is no longer actively
+  maintained. We recommend using the `@assistant-ui/react-data-stream` approach
+  or upgrading to AI SDK v5 for continued support.
+</Callout>
+
+With this legacy version, you would use the `useVercelUseChatRuntime` hook:
+
+```tsx
+"use client";
+
+import { useChat } from "ai/react";
+import { Thread } from "@assistant-ui/react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useVercelUseChatRuntime } from "@assistant-ui/react-ai-sdk";
+
+export default function Home() {
+  const chat = useChat({
+    api: "/api/chat",
+  });
+  const runtime = useVercelUseChatRuntime(chat);
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <div className="h-full">
+        <Thread />
+      </div>
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+## API Reference
+
+### `useDataStreamRuntime`
+
+The `useDataStreamRuntime` hook creates a runtime compatible with assistant-ui from AI SDK v4's streaming responses.
+
+```tsx
+import { useDataStreamRuntime } from "@assistant-ui/react-data-stream";
+
+const runtime = useDataStreamRuntime({
+  api: "/api/chat",
+  // Options similar to AI SDK v4's useChat
+  initialMessages: [],
+  onFinish: (message) => {
+    console.log("Message completed:", message);
+  },
+  onError: (error) => {
+    console.error("Chat error:", error);
+  },
+});
+```
+
+#### Options
+
+The `useDataStreamRuntime` hook accepts options similar to AI SDK v4's `useChat` hook:
+
+- **`api`**: The API endpoint for chat requests (required)
+- **`initialMessages`**: Initial messages to populate the chat
+- **`onFinish`**: Callback when a message completes streaming
+- **`onError`**: Callback for handling errors
+- **`headers`**: Additional headers to send with requests
+- **`body`**: Additional body parameters to send with requests
+
+<Callout type="info">
+  The `useDataStreamRuntime` API is designed to be familiar to developers
+  already using AI SDK v4's `useChat` hook, making migration straightforward.
+</Callout>
+
+## Migration to AI SDK v5
+
+When you're ready to upgrade to AI SDK v5:
+
+1. Replace `@assistant-ui/react-data-stream` with `@assistant-ui/react-ai-sdk`
+2. Update your backend to use AI SDK v5's `streamText` API
+3. Switch from `useDataStreamRuntime` to `useChatRuntime`
+4. Take advantage of improved TypeScript support and automatic system/tool forwarding
+
+See our [AI SDK v5 documentation](/docs/runtimes/ai-sdk/use-chat) for the complete migration guide.
+
+## Example
+
+For a working example with AI SDK v4, you can adapt the patterns from our [AI SDK examples](https://github.com/assistant-ui/assistant-ui/tree/main/examples) using the `@assistant-ui/react-data-stream` package instead of the v5 integration.

@@ -17,7 +17,10 @@ Tools in assistant-ui are functions that the LLM can call to perform specific ta
 When tools are executed, you can display custom generative UI components that provide rich, interactive visualizations of the tool's execution and results. Learn more in the [Generative UI guide](/docs/guides/ToolUI).
 
 <Callout type="tip">
-If you haven't provided a custom UI for a tool, assistant-ui offers a [`ToolFallback`](/docs/ui/ToolFallback) component that you can add to your codebase to render a default UI for tool executions. You can customize this by creating your own Tool UI component for the tool's name.
+  If you haven't provided a custom UI for a tool, assistant-ui offers a
+  [`ToolFallback`](/docs/ui/ToolFallback) component that you can add to your
+  codebase to render a default UI for tool executions. You can customize this by
+  creating your own Tool UI component for the tool's name.
 </Callout>
 
 ## Tool Creation Methods
@@ -42,19 +45,19 @@ const weatherTool = tool({
   description: "Get current weather for a location",
   parameters: z.object({
     location: z.string().describe("City name or zip code"),
-    unit: z.enum(["celsius", "fahrenheit"]).default("celsius")
+    unit: z.enum(["celsius", "fahrenheit"]).default("celsius"),
   }),
   execute: async ({ location, unit }) => {
     // Tool execution logic
     const weather = await fetchWeatherAPI(location, unit);
     return weather;
-  }
+  },
 });
 
 // Create the component
 const WeatherTool = makeAssistantTool({
   ...weatherTool,
-  toolName: "getWeather"
+  toolName: "getWeather",
 });
 
 // Place the tool component inside AssistantRuntimeProvider
@@ -69,7 +72,10 @@ function App() {
 ```
 
 <Callout type="tip">
-When using server-side runtimes like Vercel AI SDK, you can pass client-defined tools to your backend using `frontendTools`. See the [Client-Defined Tools with frontendTools](#client-defined-tools-with-frontendtools) section below.
+  When using server-side runtimes like Vercel AI SDK, you can pass
+  client-defined tools to your backend using `frontendTools`. See the
+  [Client-Defined Tools with
+  frontendTools](#client-defined-tools-with-frontendtools) section below.
 </Callout>
 
 ### 2. Using `useAssistantTool` Hook
@@ -82,12 +88,12 @@ import { z } from "zod";
 
 function DynamicTools() {
   const [dataSource, setDataSource] = useState<"local" | "cloud">("local");
-  
+
   useAssistantTool({
     toolName: "searchData",
     description: "Search through the selected data source",
     parameters: z.object({
-      query: z.string()
+      query: z.string(),
     }),
     execute: async ({ query }) => {
       if (dataSource === "local") {
@@ -97,9 +103,9 @@ function DynamicTools() {
       }
     },
     // Re-register when data source changes
-    enabled: true
+    enabled: true,
   });
-  
+
   return null;
 }
 ```
@@ -109,22 +115,27 @@ function DynamicTools() {
 Create generative UI components for tools that are defined elsewhere. This is UI-only - the tool's execution logic must be registered separately (e.g., in your backend, MCP server, or another component):
 
 <Callout type="note">
-This creates only the UI component. The actual tool execution happens where you've defined it (typically in your API route with server-based runtimes like Vercel AI SDK).
+  This creates only the UI component. The actual tool execution happens where
+  you've defined it (typically in your API route with server-based runtimes like
+  Vercel AI SDK).
 </Callout>
 
 ```tsx
 import { makeAssistantToolUI, AssistantToolUI } from "@assistant-ui/react";
 
-const SearchResultsUI = makeAssistantToolUI<{
-  query: string;
-}, {
-  results: Array<{
-    id: string;
-    url: string;
-    title: string;
-    snippet: string;
-  }>;
-}>({
+const SearchResultsUI = makeAssistantToolUI<
+  {
+    query: string;
+  },
+  {
+    results: Array<{
+      id: string;
+      url: string;
+      title: string;
+      snippet: string;
+    }>;
+  }
+>({
   toolName: "webSearch", // Must match the registered tool's name
   render: ({ args, result }) => {
     return (
@@ -138,7 +149,7 @@ const SearchResultsUI = makeAssistantToolUI<{
         ))}
       </div>
     );
-  }
+  },
 });
 
 // Place the tool component inside AssistantRuntimeProvider
@@ -164,16 +175,16 @@ import { z } from "zod";
 function MyComponent() {
   const runtime = useAssistantRuntime();
   const [isCreativeMode, setIsCreativeMode] = useState(false);
-  
+
   useEffect(() => {
     const calculateTool = tool({
       description: "Perform mathematical calculations",
       parameters: z.object({
-        expression: z.string()
+        expression: z.string(),
       }),
       execute: async ({ expression }) => {
         return eval(expression); // Note: Use proper math parser in production
-      }
+      },
     });
 
     // Register tools with model configuration
@@ -182,18 +193,19 @@ function MyComponent() {
         tools: { calculate: calculateTool },
         callSettings: {
           temperature: isCreativeMode ? 0.9 : 0.2,
-          maxTokens: 1000
+          maxTokens: 1000,
         },
-        priority: 10 // Higher priority overrides other providers
-      })
+        priority: 10, // Higher priority overrides other providers
+      }),
     });
   }, [runtime, isCreativeMode]);
-  
+
   return <div>{/* Your component */}</div>;
 }
 ```
 
 Use this approach when you need:
+
 - Dynamic model parameters (temperature, maxTokens, etc.)
 - Priority-based context merging
 - Multiple context types in one registration
@@ -208,18 +220,18 @@ Tools that execute in the browser, accessing client-side resources:
 const screenshotTool = tool({
   description: "Capture a screenshot of the current page",
   parameters: z.object({
-    selector: z.string().optional()
+    selector: z.string().optional(),
   }),
   execute: async ({ selector }) => {
     const element = selector ? document.querySelector(selector) : document.body;
     const screenshot = await captureElement(element);
     return { dataUrl: screenshot };
-  }
+  },
 });
 
 const ScreenshotTool = makeAssistantTool({
   ...screenshotTool,
-  toolName: "screenshot"
+  toolName: "screenshot",
 });
 ```
 
@@ -231,27 +243,27 @@ Tools that trigger server-side operations:
 // Backend route (AI SDK)
 export async function POST(req: Request) {
   const { messages } = await req.json();
-  
+
   const result = streamText({
     model: openai("gpt-4o"),
-    messages,
+    messages: convertToModelMessages(messages),
     tools: {
       queryDatabase: {
         description: "Query the application database",
-        parameters: z.object({
+        inputSchema: z.object({
           query: z.string(),
-          table: z.string()
+          table: z.string(),
         }),
         execute: async ({ query, table }) => {
           // Server-side database access
           const results = await db.query(query, { table });
           return results;
-        }
-      }
-    }
+        },
+      },
+    },
   });
-  
-  return result.toDataStreamResponse();
+
+  return result.toUIMessageStreamResponse();
 }
 ```
 
@@ -266,16 +278,16 @@ import { makeAssistantTool, tool } from "@assistant-ui/react";
 const calculateTool = tool({
   description: "Perform calculations",
   parameters: z.object({
-    expression: z.string()
+    expression: z.string(),
   }),
   execute: async ({ expression }) => {
     return eval(expression); // Note: Use proper math parser in production
-  }
+  },
 });
 
 const CalculateTool = makeAssistantTool({
   ...calculateTool,
-  toolName: "calculate"
+  toolName: "calculate",
 });
 
 // Backend: Use frontendTools to receive client tools
@@ -283,29 +295,32 @@ import { frontendTools } from "@assistant-ui/react-ai-sdk";
 
 export async function POST(req: Request) {
   const { messages, tools } = await req.json();
-  
+
   const result = streamText({
     model: openai("gpt-4o"),
-    messages,
+    messages: convertToModelMessages(messages),
     tools: {
       ...frontendTools(tools), // Client-defined tools
       // Additional server-side tools
       queryDatabase: {
         description: "Query the application database",
-        parameters: z.object({ query: z.string() }),
+        inputSchema: z.object({ query: z.string() }),
         execute: async ({ query }) => {
           return await db.query(query);
-        }
-      }
-    }
+        },
+      },
+    },
   });
-  
-  return result.toDataStreamResponse();
+
+  return result.toUIMessageStreamResponse();
 }
 ```
 
 <Callout type="note">
-The `frontendTools` utility is currently only available for the Vercel AI SDK integration. Other adapters like LangGraph follow a server-side tool definition model and don't yet implement client tool serialization. Learn more in the [Vercel AI SDK integration guide](/docs/runtimes/ai-sdk/use-chat-hook).
+  The `frontendTools` utility is currently only available for the Vercel AI SDK
+  integration. Other adapters like LangGraph follow a server-side tool
+  definition model and don't yet implement client tool serialization. Learn more
+  in the [Vercel AI SDK integration guide](/docs/runtimes/ai-sdk/use-chat-hook).
 </Callout>
 
 ### Human-in-the-Loop Tools
@@ -321,26 +336,26 @@ const refundTool = tool({
   parameters: z.object({
     orderId: z.string(),
     amount: z.number(),
-    reason: z.string()
+    reason: z.string(),
   }),
   execute: async ({ orderId, amount, reason }) => {
     // Wait for human approval
     const approved = await requestHumanApproval({
       action: "refund",
-      details: { orderId, amount, reason }
+      details: { orderId, amount, reason },
     });
-    
+
     if (!approved) {
       throw new Error("Refund rejected by administrator");
     }
-    
+
     return await processRefund(orderId, amount);
-  }
+  },
 });
 
 const RefundTool = makeAssistantTool({
   ...refundTool,
-  toolName: "requestRefund"
+  toolName: "requestRefund",
 });
 ```
 
@@ -356,15 +371,15 @@ const mcpClient = createMCPClient({
   servers: {
     github: {
       command: "npx",
-      args: ["@modelcontextprotocol/server-github"]
-    }
-  }
+      args: ["@modelcontextprotocol/server-github"],
+    },
+  },
 });
 
 // Tools are automatically available through the runtime
 const runtime = useChatRuntime({
   api: "/api/chat",
-  tools: await mcpClient.getTools()
+  tools: await mcpClient.getTools(),
 });
 ```
 
@@ -381,33 +396,33 @@ const travelPlannerTool = tool({
     destination: z.string(),
     dates: z.object({
       start: z.string(),
-      end: z.string()
-    })
+      end: z.string(),
+    }),
   }),
   execute: async ({ destination, dates }) => {
     // Execute multiple operations
     const weather = await getWeatherAPI(destination);
-    const hotels = await searchHotelsAPI({ 
+    const hotels = await searchHotelsAPI({
       location: destination,
-      dates 
+      dates,
     });
     const activities = await findActivitiesAPI({
       location: destination,
-      weather: weather.forecast
+      weather: weather.forecast,
     });
-    
+
     return {
       weather,
       hotels,
       activities,
-      itinerary: generateItinerary({ weather, hotels, activities })
+      itinerary: generateItinerary({ weather, hotels, activities }),
     };
-  }
+  },
 });
 
 const TravelPlannerTool = makeAssistantTool({
   ...travelPlannerTool,
-  toolName: "planTrip"
+  toolName: "planTrip",
 });
 ```
 
@@ -419,20 +434,20 @@ Tools that appear based on context:
 function ConditionalTools() {
   const { user } = useAuth();
   const { subscription } = useSubscription();
-  
+
   // Premium features
   useAssistantTool({
     toolName: "advancedAnalysis",
     description: "Perform advanced data analysis",
     parameters: z.object({
-      dataset: z.string()
+      dataset: z.string(),
     }),
     execute: async (args) => {
       // Premium analysis logic
     },
-    enabled: subscription?.tier === "premium"
+    enabled: subscription?.tier === "premium",
   });
-  
+
   // Role-based tools
   useAssistantTool({
     toolName: "adminPanel",
@@ -441,7 +456,7 @@ function ConditionalTools() {
     execute: async () => {
       // Admin actions
     },
-    enabled: user?.role === "admin"
+    enabled: user?.role === "admin",
   });
 }
 ```
@@ -454,12 +469,12 @@ Robust error handling and recovery:
 const resilientTool = tool({
   description: "Fetch data with retry logic",
   parameters: z.object({
-    endpoint: z.string()
+    endpoint: z.string(),
   }),
   execute: async ({ endpoint }, { abortSignal }) => {
     const maxRetries = 3;
     let lastError;
-    
+
     for (let i = 0; i < maxRetries; i++) {
       try {
         const response = await fetch(endpoint, { signal: abortSignal });
@@ -468,17 +483,19 @@ const resilientTool = tool({
       } catch (error) {
         lastError = error;
         if (abortSignal.aborted) throw error; // Don't retry on abort
-        await new Promise(resolve => setTimeout(resolve, 1000 * i));
+        await new Promise((resolve) => setTimeout(resolve, 1000 * i));
       }
     }
-    
-    throw new Error(`Failed after ${maxRetries} attempts: ${lastError.message}`);
-  }
+
+    throw new Error(
+      `Failed after ${maxRetries} attempts: ${lastError.message}`,
+    );
+  },
 });
 
 const ResilientTool = makeAssistantTool({
   ...resilientTool,
-  toolName: "fetchWithRetries"
+  toolName: "fetchWithRetries",
 });
 ```
 
@@ -500,7 +517,7 @@ Tools receive additional context during execution:
 execute: async (args, context) => {
   // context.abortSignal - AbortSignal for cancellation
   // context.toolCallId - Unique identifier for this invocation
-}
+};
 ```
 
 ## Runtime Integration

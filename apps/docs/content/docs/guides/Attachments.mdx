@@ -353,36 +353,6 @@ const runtime = useLocalRuntime(MyModelAdapter, {
 });
 ```
 
-### With Vercel AI SDK
-
-If you're using the Vercel AI SDK, images are handled automatically through experimental attachments:
-
-```tsx
-// In your API route
-import { streamText } from "ai";
-import { openai } from "@ai-sdk/openai";
-
-export async function POST(req: Request) {
-  const { messages } = await req.json();
-
-  const result = streamText({
-    model: openai("gpt-4-vision-preview"),
-    messages: messages.map((msg) => {
-      if (msg.experimental_attachments?.length) {
-        // Images are automatically formatted for the model
-        return {
-          ...msg,
-          experimental_attachments: msg.experimental_attachments,
-        };
-      }
-      return msg;
-    }),
-  });
-
-  return result.toDataStreamResponse();
-}
-```
-
 ## Advanced Features
 
 ### Progress Updates
@@ -540,78 +510,7 @@ const handleMultipleFiles = async (files: FileList) => {
 
 ### With Vercel AI SDK
 
-Process attachments in your API route:
-
-```tsx title="/app/api/chat/route.ts"
-import { streamText } from "ai";
-import { openai } from "@ai-sdk/openai";
-
-export async function POST(req: Request) {
-  const { messages } = await req.json();
-
-  // Process messages with attachments
-  const processedMessages = messages.map((msg) => {
-    if (msg.role === "user" && msg.experimental_attachments) {
-      // Handle attachments
-      const attachmentContent = msg.experimental_attachments
-        .map((att) => {
-          if (att.contentType.startsWith("image/")) {
-            return `[Image: ${att.name}]`;
-          }
-          return att.content;
-        })
-        .join("\n");
-
-      return {
-        ...msg,
-        content: `${msg.content}\n\nAttachments:\n${attachmentContent}`,
-      };
-    }
-    return msg;
-  });
-
-  const result = streamText({
-    model: openai("gpt-4o"),
-    messages: processedMessages,
-  });
-
-  return result.toDataStreamResponse();
-}
-```
-
-### Custom Backend Handling
-
-Implement your own attachment processing:
-
-```tsx
-// In your attachment adapter
-class ServerUploadAdapter implements AttachmentAdapter {
-  async send(attachment: PendingAttachment): Promise<CompleteAttachment> {
-    const formData = new FormData();
-    formData.append("file", attachment.file);
-
-    const response = await fetch("/api/upload", {
-      method: "POST",
-      body: formData,
-    });
-
-    const { url, id } = await response.json();
-
-    return {
-      id,
-      type: attachment.type,
-      name: attachment.name,
-      content: [
-        {
-          type: "image",
-          url,
-        },
-      ],
-      status: { type: "complete" },
-    };
-  }
-}
-```
+Attachments are sent to the backend as file content parts.
 
 ## Runtime Support
 

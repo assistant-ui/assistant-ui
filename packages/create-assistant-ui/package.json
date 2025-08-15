@@ -3,19 +3,19 @@
   "version": "0.0.25",
   "license": "MIT",
   "dependencies": {
-    "chalk": "^5.4.1",
+    "chalk": "^5.5.0",
     "commander": "^14.0.0",
     "cosmiconfig": "^9.0.0",
     "cross-spawn": "^7.0.6",
     "tsconfig-paths": "^4.2.0",
-    "zod": "^4.0.14"
+    "zod": "^4.0.17"
   },
   "type": "module",
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/cross-spawn": "^6.0.6",
-    "@types/node": "^24.1.0",
-    "tsx": "^4.20.3"
+    "@types/node": "^24.3.0",
+    "tsx": "^4.20.4"
   },
   "files": [
     "dist",

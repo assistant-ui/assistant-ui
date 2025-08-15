@@ -1,9 +1,9 @@
 import { openai } from "@ai-sdk/openai";
-import { jsonSchema, streamText } from "ai";
+import { convertToModelMessages, stepCountIs, streamText } from "ai";
 import { kv } from "@vercel/kv";
 import { Ratelimit } from "@upstash/ratelimit";
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
 
-export const runtime = "edge";
 export const maxDuration = 30;
 
 const ratelimit = new Ratelimit({
@@ -22,21 +22,14 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: openai("gpt-4o-mini"),
-    messages,
-    maxTokens: 1200,
-    maxSteps: 10,
+    messages: convertToModelMessages(messages),
+    maxOutputTokens: 1200,
+    stopWhen: stepCountIs(10),
     tools: {
-      ...Object.fromEntries(
-        Object.entries<{ parameters: unknown }>(tools).map(([name, tool]) => [
-          name,
-          {
-            parameters: jsonSchema(tool.parameters!),
-          },
-        ]),
-      ),
+      ...frontendTools(tools),
     },
     onError: console.error,
   });
 
-  return result.toDataStreamResponse();
+  return result.toUIMessageStreamResponse();
 }
