@@ -1,11 +1,22 @@
 import { promises as fs, readFileSync } from "node:fs";
 import * as path from "node:path";
+import { execSync } from "node:child_process";
 import { registry } from "../src/registry";
 import { RegistryItem } from "@/src/schema";
 import baseComponentsStyles from "../../../packages/styles/dist/styles/tailwindcss/base-components.css.json";
 import threadStyles from "../../../packages/styles/dist/styles/tailwindcss/thread.css.json";
 import modalStyles from "../../../packages/styles/dist/styles/tailwindcss/modal.css.json";
 import markdownStyles from "../../../packages/styles/dist/styles/tailwindcss/markdown.css.json";
+
+// Sync components from dev-template (only updates existing files)
+console.log("📦 Syncing components from dev-template...");
+execSync(
+  "rsync -av --existing ../dev-template/components/assistant-ui/ ./components/assistant-ui/",
+  {
+    stdio: "inherit",
+    cwd: process.cwd(),
+  },
+);
 
 const REGISTRY_PATH = path.join(process.cwd(), "dist");
 
