@@ -4,6 +4,7 @@ import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { AttachmentAdapter } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { INTERNAL } from "@assistant-ui/react";
+import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 
 const { generateId } = INTERNAL;
 
@@ -42,7 +43,7 @@ export function MyRuntimeProvider({
   children: React.ReactNode;
 }>) {
   const runtime = useChatRuntime({
-    
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
     adapters: {
       attachments: attachmentAdapter,
     },
