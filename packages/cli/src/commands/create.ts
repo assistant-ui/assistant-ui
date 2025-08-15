@@ -1,6 +1,21 @@
 import { Command } from "commander";
 import chalk from "chalk";
-import { spawn } from "cross-spawn";
+import path from "path";
+import { createProject, type CreateProjectOptions } from "../lib/template-composer.js";
+
+// Constants
+const DEFAULT_PROJECT_NAME = "my-assistant-app";
+
+// Map legacy template names to providers for backward compatibility
+function mapTemplateToProvider(template: string | undefined): string {
+  const mapping: Record<string, string> = {
+    default: "assistant-cloud",
+    langgraph: "langgraph",
+    mcp: "mcp",
+    "": "assistant-cloud",
+  };
+  return mapping[template || ""] || "assistant-cloud";
+}
 
 export const create = new Command()
   .name("create")
@@ -11,7 +26,14 @@ export const create = new Command()
     "-t, --template <template>",
     `
 
-  The template to use for the project, e.g. default, langgraph
+  The template to use for the project, e.g. default, langgraph, mcp
+`,
+  )
+  .option(
+    "--provider <provider>",
+    `
+
+  The AI provider to use: assistant-cloud, vercel-ai-sdk, langgraph, mcp
 `,
   )
   .option(
@@ -49,46 +71,30 @@ export const create = new Command()
   Explicitly tell the CLI to skip installing packages
 `,
   )
-  .action((_, opts) => {
-    const templates = {
-      default: "https://github.com/assistant-ui/assistant-ui-starter",
-      cloud: "https://github.com/assistant-ui/assistant-ui-starter-cloud",
-      langgraph:
-        "https://github.com/assistant-ui/assistant-ui-starter-langgraph",
-      mcp: "https://github.com/assistant-ui/assistant-ui-starter-mcp",
-    };
-
-    const templateUrl =
-      templates[(opts.template as keyof typeof templates) ?? "default"];
-    if (!templateUrl) {
-      console.error(`Unknown template: ${opts.template}`);
+  .action(async (projectDirectory, opts) => {
+    try {
+      const projectName = projectDirectory || DEFAULT_PROJECT_NAME;
+      
+      // Handle absolute vs relative paths
+      const projectPath = path.isAbsolute(projectName)
+        ? projectName
+        : path.join(process.cwd(), projectName);
+      
+      const provider = opts.provider || mapTemplateToProvider(opts.template);
+      
+      const options: CreateProjectOptions = {
+        provider: opts.provider,
+        template: opts.template,
+        useNpm: opts.useNpm,
+        usePnpm: opts.usePnpm,
+        useYarn: opts.useYarn,
+        useBun: opts.useBun,
+        skipInstall: opts.skipInstall,
+      };
+      
+      await createProject(projectName, projectPath, provider, options);
+    } catch (error) {
+      console.error(chalk.red("Error creating project:"), error);
       process.exit(1);
     }
-
-    const filteredArgs = process.argv.slice(3).filter((arg, index, arr) => {
-      return !(
-        arg === "-t" ||
-        arg === "--template" ||
-        arr[index - 1] === "-t" ||
-        arr[index - 1] === "--template"
-      );
-    });
-
-    const child = spawn(
-      "npx",
-      [`create-next-app@latest`, ...filteredArgs, "-e", templateUrl],
-      {
-        stdio: "inherit",
-      },
-    );
-
-    child.on("error", (error) => {
-      console.error(`Error: ${error.message}`);
-    });
-
-    child.on("close", (code) => {
-      if (code !== 0) {
-        console.log(`other-package-script process exited with code ${code}`);
-      }
-    });
   });
