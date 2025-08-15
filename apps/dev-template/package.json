@@ -1,0 +1,51 @@
+{
+  "name": "dev-template",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "prettier": {
+    "plugins": [
+      "prettier-plugin-tailwindcss"
+    ]
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "^2.0.11",
+    "@assistant-ui/react": "workspace:*",
+    "@assistant-ui/react-ai-sdk": "workspace:*",
+    "@assistant-ui/react-markdown": "workspace:*",
+    "@radix-ui/react-dialog": "^1.1.14",
+    "@radix-ui/react-separator": "^1.1.7",
+    "@radix-ui/react-slot": "^1.2.3",
+    "@radix-ui/react-tooltip": "^1.2.7",
+    "ai": "^5.0.11",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.23.12",
+    "lucide-react": "^0.539.0",
+    "next": "15.4.6",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "remark-gfm": "^4.0.1",
+    "tailwind-merge": "^3.3.1",
+    "tw-animate-css": "^1.3.6"
+  },
+  "devDependencies": {
+    "@assistant-ui/x-buildutils": "workspace:*",
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^24",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "15.4.6",
+    "prettier": "^3.6.2",
+    "prettier-plugin-tailwindcss": "^0.6.14",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
