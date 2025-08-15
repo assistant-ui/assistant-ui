@@ -1,6 +1,6 @@
 import { openai } from "@ai-sdk/openai";
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
-import { streamText } from "ai";
+import { convertToModelMessages, streamText } from "ai";
 
 export const runtime = "edge";
 export const maxDuration = 30;
@@ -10,7 +10,7 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: openai("gpt-4o"),
-    messages,
+    messages: convertToModelMessages(messages),
     system,
     tools: {
       ...frontendTools(tools),

@@ -246,7 +246,7 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: openai("gpt-4o"),
-    messages,
+    messages: convertToModelMessages(messages),
     tools: {
       queryDatabase: {
         description: "Query the application database",
@@ -298,7 +298,7 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: openai("gpt-4o"),
-    messages,
+    messages: convertToModelMessages(messages),
     tools: {
       ...frontendTools(tools), // Client-defined tools
       // Additional server-side tools

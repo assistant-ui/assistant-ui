@@ -8,16 +8,16 @@ import {
   AssistantRuntimeProvider,
   WebSpeechSynthesisAdapter,
 } from "@assistant-ui/react";
-import { useDataStreamRuntime } from "@assistant-ui/react-data-stream";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 
 export function DocsRuntimeProvider({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const runtime = useDataStreamRuntime({
-    api: "/api/chat",
-    maxSteps: 5,
+  const runtime = useChatRuntime({
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
     adapters: {
       attachments: new CompositeAttachmentAdapter([
         new SimpleImageAttachmentAdapter(),

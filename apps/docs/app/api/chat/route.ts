@@ -1,5 +1,5 @@
 import { openai } from "@ai-sdk/openai";
-import { stepCountIs, streamText } from "ai";
+import { convertToModelMessages, stepCountIs, streamText } from "ai";
 import { kv } from "@vercel/kv";
 import { Ratelimit } from "@upstash/ratelimit";
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: openai("gpt-4o-mini"),
-    messages,
+    messages: convertToModelMessages(messages),
     maxOutputTokens: 1200,
     stopWhen: stepCountIs(10),
     tools: {
