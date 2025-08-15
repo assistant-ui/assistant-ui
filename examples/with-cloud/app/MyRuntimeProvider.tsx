@@ -1,7 +1,7 @@
 "use client";
 
 import { AssistantCloud, AssistantRuntimeProvider } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk-v4";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
 const cloud = new AssistantCloud({
   baseUrl: process.env["NEXT_PUBLIC_ASSISTANT_BASE_URL"]!,
@@ -15,7 +15,6 @@ export function MyRuntimeProvider({
 }>) {
   const runtime = useChatRuntime({
     cloud,
-    api: "/api/chat",
   });
 
   return (

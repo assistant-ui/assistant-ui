@@ -2,7 +2,7 @@
   "title": "Runtime",
   "pages": [
     "pick-a-runtime",
-    "ai-sdk",
+    "...ai-sdk",
     "mastra",
     "langgraph",
     "langserve",

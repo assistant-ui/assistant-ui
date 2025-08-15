@@ -12,7 +12,7 @@
     "@tsconfig/strictest": "^2.0.5",
     "cross-spawn": "^7.0.6",
     "esbuild-plugin-file-path-extensions": "^2.1.4",
-    "eslint-config-next": "15.4.5",
+    "eslint-config-next": "15.4.6",
     "postcss": "^8.5.6",
     "postcss-js": "^4.0.1",
     "tsup": "8.5.0",
@@ -20,7 +20,7 @@
   },
   "devDependencies": {
     "@types/cross-spawn": "^6.0.6",
-    "@types/node": "^24.1.0",
+    "@types/node": "^24.3.0",
     "@types/postcss-js": "^4.0.4",
     "jiti": "^2.5.1"
   }

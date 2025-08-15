@@ -2,6 +2,10 @@
 title: LangChain LangServe
 ---
 
+<Callout type="warning">
+  This integration has not been tested with AI SDK v5.
+</Callout>
+
 ## Overview
 
 Integration with a LangServe server via Vercel AI SDK.
@@ -33,23 +37,17 @@ npm install @assistant-ui/react @assistant-ui/react-ai-sdk ai @ai-sdk/react @lan
 
 ### Setup a backend route under `/api/chat`
 
-```tsx twoslash title="@/app/api/chat/route.ts"
-// @errors: 2558 2345
+```tsx title="@/app/api/chat/route.ts"
 import { RemoteRunnable } from "@langchain/core/runnables/remote";
-import type { RunnableConfig } from "@langchain/core/runnables";
-import { streamText, LangChainAdapter, type Message } from "ai";
+import { toDataStreamResponse } from "@ai-sdk/langchain";
 
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
-  const { messages } = (await req.json()) as { messages: Message[] };
+  const { messages } = await req.json();
 
   // TODO replace with your own langserve URL
-  const remoteChain = new RemoteRunnable<
-    { messages: Message[] },
-    string,
-    RunnableConfig
-  >({
+  const remoteChain = new RemoteRunnable({
     url: "<YOUR_LANGSERVE_URL>",
   });
 
@@ -57,7 +55,7 @@ export async function POST(req: Request) {
     messages,
   });
 
-  return LangChainAdapter.toDataStreamResponse(stream);
+  return toDataStreamResponse(stream);
 }
 ```
 

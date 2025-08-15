@@ -7,21 +7,15 @@ import {
   SimpleTextAttachmentAdapter,
   AssistantRuntimeProvider,
   WebSpeechSynthesisAdapter,
-  AssistantCloud,
 } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk-v4";
+import { useDataStreamRuntime } from "@assistant-ui/react-data-stream";
 
 export function DocsRuntimeProvider({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const assistantCloud = new AssistantCloud({
-    baseUrl: process.env["NEXT_PUBLIC_ASSISTANT_BASE_URL"]!,
-    anonymous: true,
-  });
-
-  const runtime = useChatRuntime({
+  const runtime = useDataStreamRuntime({
     api: "/api/chat",
     maxSteps: 5,
     adapters: {
@@ -31,7 +25,6 @@ export function DocsRuntimeProvider({
       ]),
       speech: new WebSpeechSynthesisAdapter(),
     },
-    cloud: assistantCloud,
   });
   return (
     <AssistantRuntimeProvider runtime={runtime}>

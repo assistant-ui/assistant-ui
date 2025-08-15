@@ -820,7 +820,7 @@ export async function POST(req: Request) {
     model: openai("gpt-4o-mini"),
     messages,
   });
-  return result.toDataStreamResponse();
+  return result.toUIMessageStreamResponse();
 }
 ```
 
@@ -836,7 +836,7 @@ export async function POST(req: Request) {
     model: anthropic("claude-3-5-sonnet-20240620"),
     messages,
   });
-  return result.toDataStreamResponse();
+  return result.toUIMessageStreamResponse();
 }
 ```
 
@@ -852,7 +852,7 @@ export async function POST(req: Request) {
     model: azure("your-deployment-name"),
     messages,
   });
-  return result.toDataStreamResponse();
+  return result.toUIMessageStreamResponse();
 }
 ```
 
@@ -868,7 +868,7 @@ export async function POST(req: Request) {
     model: bedrock("anthropic.claude-3-5-sonnet-20240620-v1:0"),
     messages,
   });
-  return result.toDataStreamResponse();
+  return result.toUIMessageStreamResponse();
 }
 ```
 
@@ -884,7 +884,7 @@ export async function POST(req: Request) {
     model: google("gemini-2.0-flash"),
     messages,
   });
-  return result.toDataStreamResponse();
+  return result.toUIMessageStreamResponse();
 }
 ```
 
@@ -900,7 +900,7 @@ export async function POST(req: Request) {
     model: vertex("gemini-1.5-pro"),
     messages,
   });
-  return result.toDataStreamResponse();
+  return result.toUIMessageStreamResponse();
 }
 ```
 
@@ -921,7 +921,7 @@ export async function POST(req: Request) {
     model: groq("llama3-70b-8192"),
     messages,
   });
-  return result.toDataStreamResponse();
+  return result.toUIMessageStreamResponse();
 }
 ```
 
@@ -942,7 +942,7 @@ export async function POST(req: Request) {
     model: fireworks("accounts/fireworks/models/firefunction-v2"),
     messages,
   });
-  return result.toDataStreamResponse();
+  return result.toUIMessageStreamResponse();
 }
 ```
 
@@ -958,7 +958,7 @@ export async function POST(req: Request) {
     model: cohere("command-r-plus"),
     messages,
   });
-  return result.toDataStreamResponse();
+  return result.toUIMessageStreamResponse();
 }
 ```
 
@@ -974,7 +974,7 @@ export async function POST(req: Request) {
     model: ollama("llama3"),
     messages,
   });
-  return result.toDataStreamResponse();
+  return result.toUIMessageStreamResponse();
 }
 ```
 
@@ -990,7 +990,7 @@ export async function POST(req: Request) {
     model: chromeai(),
     messages,
   });
-  return result.toDataStreamResponse();
+  return result.toUIMessageStreamResponse();
 }
 ```
 
