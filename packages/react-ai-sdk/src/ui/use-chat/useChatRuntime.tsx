@@ -34,6 +34,33 @@ export const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const chat = useChat({
     ...chatOptions,
     transport,
+    onToolCall: async ({ toolCall }) => {
+      await chatOptions.onToolCall?.({ toolCall });
+
+      const tools = runtime.thread.getModelContext().tools;
+      const tool = tools?.[toolCall.toolName];
+      if (tool) {
+        try {
+          const result = await tool.execute?.(toolCall.input, {
+            toolCallId: toolCall.toolCallId,
+            abortSignal: new AbortController().signal, // dummy signal for now
+          });
+          chat.addToolResult({
+            tool: toolCall.toolName,
+            toolCallId: toolCall.toolCallId,
+            output: result,
+          });
+        } catch (error) {
+          chat.addToolResult({
+            tool: toolCall.toolName,
+            toolCallId: toolCall.toolCallId,
+            output: {
+              error: error instanceof Error ? error.message : String(error),
+            },
+          });
+        }
+      }
+    },
   });
 
   const runtime = useAISDKRuntime(chat as any, {
