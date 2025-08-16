@@ -1,5 +1,6 @@
 packages:
   - packages/*
+  - packages/cli/template-parts/
   - examples/*
   - apps/*
 onlyBuiltDependencies:
