@@ -10,6 +10,7 @@ export const REGISTRY_BASE_URL = "https://r.assistant-ui.com/";
 
 export interface TemplatesConfig {
   base: {
+    coreDependencies?: Record<string, string>;
     registryItems: string[];
     shadcnItems?: string[];
     files: Array<{
@@ -168,6 +169,12 @@ export async function createProject(
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
   const templatesDir = path.join(__dirname, "..", "..", "template-parts");
 
+  // Step 2.5: Merge core dependencies required by assistant-ui components
+  if (templates.base.coreDependencies) {
+    console.log(chalk.gray("Adding core dependencies..."));
+    await mergeDependencies(templates.base.coreDependencies, projectPath);
+  }
+
   // Step 3: Copy base template files
   console.log(chalk.gray("Copying template files..."));
   await copyBaseFiles(templates.base.files, templatesDir, projectPath);
@@ -188,28 +195,38 @@ export async function createProject(
     ]);
   }
   
-  // Install assistant-ui components
+  // Install assistant-ui components individually for better error handling
   if (templates.base.registryItems.length > 0) {
     console.log(chalk.gray("Installing assistant-ui components..."));
 
-    // Install all registry items in one command to minimize duplicates
-    const registryUrls = templates.base.registryItems.map(
-      (item) => `${REGISTRY_BASE_URL}${item}`,
-    );
+    const failedComponents: string[] = [];
+    const installedComponents: string[] = [];
 
-    try {
-      await executeCommand("npx", [
-        "shadcn@latest",
-        "add",
-        ...registryUrls,
-        "--yes",
-        "--overwrite",
-        "--cwd",
-        projectPath,
-      ]);
-    } catch (error) {
-      console.warn(chalk.yellow("Warning: Some registry components could not be installed."));
-      console.warn(chalk.yellow("You may need to install them manually later."));
+    for (const component of templates.base.registryItems) {
+      const registryUrl = `${REGISTRY_BASE_URL}${component}`;
+      
+      try {
+        await executeCommand("npx", [
+          "shadcn@latest",
+          "add",
+          registryUrl,
+          "--yes",
+          "--overwrite",
+          "--cwd",
+          projectPath,
+        ]);
+        installedComponents.push(component);
+        console.log(chalk.green(`  ✓ Installed ${component}`));
+      } catch (error) {
+        failedComponents.push(component);
+        console.warn(chalk.yellow(`  ⚠ Failed to install ${component}`));
+      }
+    }
+
+    if (failedComponents.length > 0) {
+      console.warn(chalk.yellow("\n⚠ Some components could not be installed:"));
+      console.warn(chalk.yellow(`  ${failedComponents.join(", ")}`));
+      console.warn(chalk.yellow("  You may need to install them manually later.\n"));
     }
   }
 
