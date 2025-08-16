@@ -1,0 +1,114 @@
+{
+  "base": {
+    "registryItems": [
+      "thread",
+      "thread-list",
+      "threadlist-sidebar",
+      "markdown-text",
+      "tool-fallback",
+      "tooltip-icon-button"
+    ],
+    "shadcnItems": [
+      "breadcrumb",
+      "separator"
+    ],
+    "files": [
+      {
+        "source": "base/app/layout.tsx",
+        "target": "app/layout.tsx"
+      },
+      {
+        "source": "base/app/page.tsx",
+        "target": "app/page.tsx"
+      },
+      {
+        "source": "base/app/globals.css",
+        "target": "app/globals.css"
+      },
+      {
+        "source": "base/app/favicon.ico",
+        "target": "app/favicon.ico"
+      },
+      {
+        "source": "base/lib/utils.ts",
+        "target": "lib/utils.ts"
+      },
+      {
+        "source": "base/components.json",
+        "target": "components.json"
+      },
+      {
+        "source": "base/eslint.config.mjs",
+        "target": "eslint.config.mjs"
+      },
+      {
+        "source": "base/next.config.ts",
+        "target": "next.config.ts"
+      },
+      {
+        "source": "base/postcss.config.mjs",
+        "target": "postcss.config.mjs"
+      },
+      {
+        "source": "base/tsconfig.json.template",
+        "target": "tsconfig.json"
+      },
+      {
+        "source": "base/.gitignore",
+        "target": ".gitignore"
+      },
+      {
+        "source": "base/hooks/use-mobile.ts",
+        "target": "hooks/use-mobile.ts"
+      },
+      {
+        "source": "base/app/assistant.tsx",
+        "target": "app/assistant.tsx"
+      }
+    ]
+  },
+  "providers": {
+    "vercel-ai-sdk": {
+      "displayName": "Vercel AI SDK",
+      "description": "Stream AI responses using Vercel AI SDK",
+      "path": "providers/vercel-ai-sdk",
+      "dependencies": {
+        "@ai-sdk/openai": "latest",
+        "@assistant-ui/react": "latest",
+        "@assistant-ui/react-ai-sdk": "latest",
+        "ai": "latest"
+      }
+    },
+    "assistant-cloud": {
+      "displayName": "Assistant Cloud",
+      "description": "Stream AI responses with Assistant Cloud for persistence and analytics",
+      "path": "providers/assistant-cloud",
+      "dependencies": {
+        "@ai-sdk/openai": "latest",
+        "@assistant-ui/react": "latest",
+        "@assistant-ui/react-ai-sdk": "latest",
+        "ai": "latest"
+      }
+    },
+    "langgraph": {
+      "displayName": "LangGraph",
+      "description": "Connect to LangGraph Cloud for graph-based AI workflows",
+      "path": "providers/langgraph",
+      "dependencies": {
+        "@assistant-ui/react": "latest",
+        "@assistant-ui/react-langgraph": "latest"
+      }
+    },
+    "mcp": {
+      "displayName": "MCP (Model Context Protocol)",
+      "description": "Connect to MCP servers for tool integration",
+      "path": "providers/mcp",
+      "dependencies": {
+        "@ai-sdk/openai": "latest",
+        "@assistant-ui/react": "latest",
+        "@assistant-ui/react-ai-sdk": "latest",
+        "ai": "latest"
+      }
+    }
+  }
+}
