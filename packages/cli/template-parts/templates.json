@@ -1,5 +1,13 @@
 {
   "base": {
+    "coreDependencies": {
+      "clsx": "^2.1.1",
+      "tailwind-merge": "^2.5.0",
+      "lucide-react": "latest",
+      "framer-motion": "latest",
+      "tw-animate-css": "latest",
+      "class-variance-authority": "latest"
+    },
     "registryItems": [
       "thread",
       "thread-list",
