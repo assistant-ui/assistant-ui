@@ -30,7 +30,7 @@ import { ToolFallback } from "./tool-fallback";
 export const Thread: FC = () => {
   return (
     <ThreadPrimitive.Root
-      className="bg-background flex h-full flex-col"
+      className="bg-background @container flex h-full flex-col"
       style={{
         ["--thread-max-width" as string]: "48rem",
         ["--thread-padding-x" as string]: "1rem",
@@ -74,7 +74,7 @@ const ThreadScrollToBottom: FC = () => {
 const ThreadWelcome: FC = () => {
   return (
     <ThreadPrimitive.Empty>
-      <div className="mx-auto flex w-full max-w-[var(--thread-max-width)] flex-grow flex-col px-[var(--thread-padding-x)] mb-16">
+      <div className="mx-auto mb-16 flex w-full max-w-[var(--thread-max-width)] flex-grow flex-col px-[var(--thread-padding-x)]">
         <div className="flex w-full flex-grow flex-col items-center justify-center">
           <div className="flex size-full flex-col justify-center px-8 md:mt-20">
             <motion.div
@@ -104,7 +104,7 @@ const ThreadWelcome: FC = () => {
 
 const ThreadWelcomeSuggestions: FC = () => {
   return (
-    <div className="grid w-full gap-2 sm:grid-cols-2 cqh-lg:mt-4 cqh-max-md:hidden cqh-max-lg:[&>*:nth-child(n+3)]:hidden">
+    <div className="@md:grid-cols-2 cqh-lg:mt-4 cqh-max-md:hidden cqh-max-lg:[&>*:nth-child(n+3)]:hidden grid w-full gap-2">
       {[
         {
           title: "What are the advantages",
@@ -123,7 +123,7 @@ const ThreadWelcomeSuggestions: FC = () => {
           exit={{ opacity: 0, y: 20 }}
           transition={{ delay: 0.05 * index }}
           key={`suggested-action-${suggestedAction.title}-${index}`}
-          className="[&:nth-child(n+3)]:hidden sm:[&:nth-child(n+3)]:block"
+          className="@md:[&:nth-child(n+3)]:block [&:nth-child(n+3)]:hidden"
         >
           <ThreadPrimitive.Suggestion
             prompt={suggestedAction.action}
@@ -133,12 +133,10 @@ const ThreadWelcomeSuggestions: FC = () => {
           >
             <Button
               variant="ghost"
-              className="dark:hover:bg-accent/60 h-auto w-full flex-1 flex-wrap items-start justify-start gap-1 rounded-xl border px-4 py-3.5 text-left text-sm sm:flex-col"
+              className="dark:hover:bg-accent/60 @md:flex-col h-auto w-full flex-1 flex-wrap items-start justify-start gap-1 rounded-xl border px-4 py-3.5 text-left text-sm"
               aria-label={suggestedAction.action}
             >
-              <span className="font-medium">
-                {suggestedAction.title}
-              </span>
+              <span className="font-medium">{suggestedAction.title}</span>
               <span className="text-muted-foreground">
                 {suggestedAction.label}
               </span>
@@ -352,7 +350,10 @@ const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({
   return (
     <BranchPickerPrimitive.Root
       hideWhenSingleBranch
-      className={cn("text-muted-foreground inline-flex items-center text-xs", className)}
+      className={cn(
+        "text-muted-foreground inline-flex items-center text-xs",
+        className,
+      )}
       {...rest}
     >
       <BranchPickerPrimitive.Previous asChild>
