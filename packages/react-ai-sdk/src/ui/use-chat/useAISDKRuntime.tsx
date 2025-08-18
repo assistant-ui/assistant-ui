@@ -23,10 +23,10 @@ import { useMemo } from "react";
 
 export type AISDKRuntimeAdapter = {
   adapters?:
-  | (NonNullable<ExternalStoreAdapter["adapters"]> & {
-    history?: ThreadHistoryAdapter | undefined;
-  })
-  | undefined;
+    | (NonNullable<ExternalStoreAdapter["adapters"]> & {
+        history?: ThreadHistoryAdapter | undefined;
+      })
+    | undefined;
 };
 
 export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
@@ -73,7 +73,9 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     onCancel: async () => chatHelpers.stop(),
     onNew: async (message) => {
       const createMessage = await toCreateMessage<UI_MESSAGE>(message);
-      await chatHelpers.sendMessage(createMessage, { metadata: message.runConfig });
+      await chatHelpers.sendMessage(createMessage, {
+        metadata: message.runConfig,
+      });
     },
     onEdit: async (message) => {
       const newMessages = sliceMessagesUntil(
@@ -83,7 +85,9 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       chatHelpers.setMessages(newMessages);
 
       const createMessage = await toCreateMessage<UI_MESSAGE>(message);
-      await chatHelpers.sendMessage(createMessage, { metadata: message.runConfig });
+      await chatHelpers.sendMessage(createMessage, {
+        metadata: message.runConfig,
+      });
     },
     onReload: async (parentId: string | null, config) => {
       const newMessages = sliceMessagesUntil(chatHelpers.messages, parentId);
