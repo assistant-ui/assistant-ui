@@ -1,6 +1,6 @@
 /* thread */
 .aui-thread-root {
-  @apply bg-background flex h-full flex-col;
+  @apply bg-background flex h-full flex-col @container;
 }
 
 .aui-thread-viewport {
@@ -51,15 +51,15 @@
 }
 
 .aui-thread-welcome-suggestions {
-  @apply grid w-full gap-2 sm:grid-cols-2;
+  @apply grid w-full gap-2 @md:grid-cols-2;
 }
 
 .aui-thread-welcome-suggestion {
-  @apply dark:hover:bg-accent/60 h-auto w-full flex-1 flex-wrap items-start justify-start gap-1 rounded-xl border px-4 py-3.5 text-left text-sm sm:flex-col;
+  @apply dark:hover:bg-accent/60 h-auto w-full flex-1 flex-wrap items-start justify-start gap-1 rounded-xl border px-4 py-3.5 text-left text-sm @md:flex-col;
 }
 
 .aui-thread-welcome-suggestion-display {
-  @apply [&:nth-child(n+3)]:hidden sm:[&:nth-child(n+3)]:block;
+  @apply [&:nth-child(n+3)]:hidden @md:[&:nth-child(n+3)]:block;
 }
 
 .aui-thread-welcome-suggestion-text-1 {
