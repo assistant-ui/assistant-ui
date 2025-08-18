@@ -45,6 +45,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@radix-ui/react-separator": "^1.1.7",
     "mermaid": "^11.9.0"
   }
 }
