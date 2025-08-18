@@ -73,7 +73,9 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     onCancel: async () => chatHelpers.stop(),
     onNew: async (message) => {
       const createMessage = await toCreateMessage<UI_MESSAGE>(message);
-      await chatHelpers.sendMessage(createMessage);
+      await chatHelpers.sendMessage(createMessage, {
+        metadata: message.runConfig,
+      });
     },
     onEdit: async (message) => {
       const newMessages = sliceMessagesUntil(
@@ -83,13 +85,15 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       chatHelpers.setMessages(newMessages);
 
       const createMessage = await toCreateMessage<UI_MESSAGE>(message);
-      await chatHelpers.sendMessage(createMessage);
+      await chatHelpers.sendMessage(createMessage, {
+        metadata: message.runConfig,
+      });
     },
-    onReload: async (parentId: string | null) => {
+    onReload: async (parentId: string | null, config) => {
       const newMessages = sliceMessagesUntil(chatHelpers.messages, parentId);
       chatHelpers.setMessages(newMessages);
 
-      await chatHelpers.regenerate();
+      await chatHelpers.regenerate({ metadata: config.runConfig });
     },
     onAddToolResult: ({ toolCallId, result }) => {
       chatHelpers.addToolResult({
