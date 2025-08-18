@@ -17,7 +17,7 @@ export const SampleFrame = ({
       {description && (
         <div className="text-muted-foreground py-2 text-sm">{description}</div>
       )}
-      <div className="flex flex-col gap-4">{children}</div>
+      <div className="h-[650px]">{children}</div>
     </div>
   );
 };
