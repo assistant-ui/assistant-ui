@@ -1,0 +1,287 @@
+---
+title: Data Stream Protocol
+---
+
+import { Step, Steps } from "fumadocs-ui/components/steps";
+import { Callout } from "fumadocs-ui/components/callout";
+
+The `@assistant-ui/react-data-stream` package provides integration with data stream protocol endpoints, enabling streaming AI responses with tool support and state management.
+
+## Overview
+
+The data stream protocol is a standardized format for streaming AI responses that supports:
+
+- **Streaming text responses** with real-time updates
+- **Tool calling** with structured parameters and results
+- **State management** for conversation context
+- **Error handling** and cancellation support
+- **Attachment support** for multimodal interactions
+
+## Installation
+
+```bash npm2yarn
+npm install @assistant-ui/react-data-stream
+```
+
+## Basic Usage
+
+<Steps>
+
+<Step>
+
+### Set up the Runtime
+
+Use `useDataStreamRuntime` to connect to your data stream endpoint:
+
+```tsx title="app/page.tsx"
+"use client";
+import { useDataStreamRuntime } from "@assistant-ui/react-data-stream";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { Thread } from "@/components/assistant-ui/thread";
+
+export default function ChatPage() {
+  const runtime = useDataStreamRuntime({
+    api: "/api/chat",
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+</Step>
+
+<Step>
+
+### Create Backend Endpoint
+
+Your backend endpoint should accept POST requests and return data stream responses:
+
+```typescript title="app/api/chat/route.ts"
+import { DataStreamResponse } from "assistant-stream";
+
+export async function POST(request: Request) {
+  const { messages, tools, system } = await request.json();
+
+  // Process the request with your AI provider
+  const stream = await processWithAI({
+    messages,
+    tools,
+    system,
+  });
+
+  return new DataStreamResponse(stream);
+}
+```
+
+</Step>
+
+</Steps>
+
+## Advanced Configuration
+
+### Custom Headers and Authentication
+
+```tsx
+const runtime = useDataStreamRuntime({
+  api: "/api/chat",
+  headers: {
+    "Authorization": "Bearer " + token,
+    "X-Custom-Header": "value",
+  },
+  credentials: "include",
+});
+```
+
+### Dynamic Headers
+
+```tsx
+const runtime = useDataStreamRuntime({
+  api: "/api/chat",
+  headers: async () => {
+    const token = await getAuthToken();
+    return {
+      "Authorization": "Bearer " + token,
+    };
+  },
+});
+```
+
+### Event Callbacks
+
+```tsx
+const runtime = useDataStreamRuntime({
+  api: "/api/chat",
+  onResponse: (response) => {
+    console.log("Response received:", response.status);
+  },
+  onFinish: (message) => {
+    console.log("Message completed:", message);
+  },
+  onError: (error) => {
+    console.error("Error occurred:", error);
+  },
+  onCancel: () => {
+    console.log("Request cancelled");
+  },
+});
+```
+
+## Tool Integration
+
+### Frontend Tools
+
+Use the `frontendTools` helper to serialize client-side tools:
+
+```tsx
+import { frontendTools } from "@assistant-ui/react-data-stream";
+import { makeAssistantTool } from "@assistant-ui/react";
+
+const weatherTool = makeAssistantTool({
+  toolName: "get_weather",
+  description: "Get current weather",
+  parameters: z.object({
+    location: z.string(),
+  }),
+  execute: async ({ location }) => {
+    const weather = await fetchWeather(location);
+    return `Weather in ${location}: ${weather}`;
+  },
+});
+
+const runtime = useDataStreamRuntime({
+  api: "/api/chat",
+  body: {
+    tools: frontendTools({
+      get_weather: weatherTool,
+    }),
+  },
+});
+```
+
+### Backend Tool Processing
+
+Your backend should handle tool calls and return results:
+
+```typescript title="Backend tool handling"
+// Tools are automatically forwarded to your endpoint
+const { tools } = await request.json();
+
+// Process tools with your AI provider
+const response = await ai.generateText({
+  messages,
+  tools,
+  // Tool results are streamed back automatically
+});
+```
+
+## Assistant Cloud Integration
+
+For Assistant Cloud deployments, use `useCloudRuntime`:
+
+```tsx
+import { useCloudRuntime } from "@assistant-ui/react-data-stream";
+
+const runtime = useCloudRuntime({
+  cloud: assistantCloud,
+  assistantId: "my-assistant-id",
+});
+```
+
+<Callout type="info">
+The `useCloudRuntime` hook is currently under active development and not yet ready for production use.
+</Callout>
+
+## Message Conversion
+
+The package includes utilities for converting between message formats:
+
+```tsx
+import { toLanguageModelMessages } from "@assistant-ui/react-data-stream";
+
+// Convert assistant-ui messages to language model format
+const languageModelMessages = toLanguageModelMessages(messages, {
+  unstable_includeId: true, // Include message IDs
+});
+```
+
+## Error Handling
+
+The runtime automatically handles common error scenarios:
+
+- **Network errors**: Automatically retried with exponential backoff
+- **Stream interruptions**: Gracefully handled with partial content preservation
+- **Tool execution errors**: Displayed in the UI with error states
+- **Cancellation**: Clean abort signal handling
+
+## Best Practices
+
+### Performance Optimization
+
+```tsx
+// Use React.memo for expensive components
+const OptimizedThread = React.memo(Thread);
+
+// Memoize runtime configuration
+const runtimeConfig = useMemo(() => ({
+  api: "/api/chat",
+  headers: { "Authorization": `Bearer ${token}` },
+}), [token]);
+
+const runtime = useDataStreamRuntime(runtimeConfig);
+```
+
+### Error Boundaries
+
+```tsx
+import { ErrorBoundary } from "react-error-boundary";
+
+function ChatErrorFallback({ error, resetErrorBoundary }) {
+  return (
+    <div role="alert">
+      <h2>Something went wrong:</h2>
+      <pre>{error.message}</pre>
+      <button onClick={resetErrorBoundary}>Try again</button>
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ErrorBoundary FallbackComponent={ChatErrorFallback}>
+      <AssistantRuntimeProvider runtime={runtime}>
+        <Thread />
+      </AssistantRuntimeProvider>
+    </ErrorBoundary>
+  );
+}
+```
+
+### State Persistence
+
+```tsx
+const runtime = useDataStreamRuntime({
+  api: "/api/chat",
+  body: {
+    // Include conversation state
+    state: conversationState,
+  },
+  onFinish: (message) => {
+    // Save state after each message
+    saveConversationState(message.metadata.unstable_state);
+  },
+});
+```
+
+## Examples
+
+- **[Basic Data Stream Example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-data-stream)** - Simple streaming chat
+- **[Tool Integration Example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-data-stream-tools)** - Frontend and backend tools
+- **[Authentication Example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-data-stream-auth)** - Secure endpoints
+
+## API Reference
+
+For detailed API documentation, see the [`@assistant-ui/react-data-stream` API Reference](/docs/api-reference/integrations/react-data-stream).
