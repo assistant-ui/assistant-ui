@@ -31,13 +31,9 @@ export class LangGraphMessageAccumulator<TMessage extends { id?: string }> {
     if (newMessages.length === 0) return this.getMessages();
 
     for (const message of newMessages.map(this.ensureMessageId)) {
-      const previous = message.id
-        ? this.messagesMap.get(message.id)
-        : undefined;
-      this.messagesMap.set(
-        message.id ?? uuidv4(),
-        this.appendMessage(previous, message),
-      );
+      const messageId = message.id!; // ensureMessageId guarantees id exists
+      const previous = this.messagesMap.get(messageId);
+      this.messagesMap.set(messageId, this.appendMessage(previous, message));
     }
     return this.getMessages();
   }

@@ -412,8 +412,14 @@ export class AssistantMessageAccumulator extends TransformStream<
       },
       flush(controller) {
         if (message.status?.type === "running") {
-          // TODO this test isn't sound
-          const requiresAction = message.parts?.at(-1)?.type === "tool-call";
+          // Check if there are any tool calls that require action
+          const requiresAction =
+            message.parts?.some(
+              (part) =>
+                part.type === "tool-call" &&
+                (part.state === "call" || part.state === "partial-call") &&
+                part.result === undefined,
+            ) ?? false;
           message = handleMessageFinish(message, {
             type: "message-finish",
             path: [],

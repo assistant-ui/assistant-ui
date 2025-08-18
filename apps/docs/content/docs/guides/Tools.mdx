@@ -483,7 +483,7 @@ const resilientTool = tool({
       } catch (error) {
         lastError = error;
         if (abortSignal.aborted) throw error; // Don't retry on abort
-        await new Promise((resolve) => setTimeout(resolve, 1000 * i));
+        await new Promise((resolve) => setTimeout(resolve, 1000 * (i + 1)));
       }
     }
 
