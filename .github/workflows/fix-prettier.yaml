@@ -7,35 +7,62 @@ on:
 jobs:
   fix-prettier:
     name: Fix Prettier Issues
-    if: ${{ github.event.issue.pull_request && contains(github.event.comment.body, '/fix-prettier') && github.event.comment.user.type == 'User' && github.event.comment.user.site_admin == false }}
+    if: ${{ github.event.issue.pull_request && contains(github.event.comment.body, '/fix-prettier') && github.event.comment.user.type == 'User' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: write
     steps:
-      - name: Get PR branch
+      - name: Get PR information
         uses: actions/github-script@v7
         id: get-pr
         with:
           script: |
             const { owner, repo, number } = context.issue;
-            const pr = await github.rest.pulls.get({
-              owner,
-              repo,
-              pull_number: number
-            });
-            return {
-              head_ref: pr.data.head.ref,
-              head_sha: pr.data.head.sha,
-              base_ref: pr.data.base.ref
-            };
+            try {
+              const pr = await github.rest.pulls.get({
+                owner,
+                repo,
+                pull_number: number
+              });
+              
+              const isFork = pr.data.head.repo.full_name !== pr.data.base.repo.full_name;
+              
+              // Log information for debugging
+              console.log(`PR ${number}: head_ref=${pr.data.head.ref}, is_fork=${isFork}`);
+              if (isFork) {
+                console.log(`Fork: ${pr.data.head.repo.full_name}`);
+              }
+              
+              return {
+                head_ref: pr.data.head.ref,
+                head_sha: pr.data.head.sha,
+                base_ref: pr.data.base.ref,
+                is_fork: isFork,
+                fork_owner: isFork ? pr.data.head.repo.owner.login : null,
+                fork_repo: isFork ? pr.data.head.repo.name : null,
+                pr_number: number
+              };
+            } catch (error) {
+              core.setFailed(`Failed to get PR information: ${error.message}`);
+              return null;
+            }
           result-encoding: json
 
-      - name: Checkout PR
+      - name: Checkout PR (same repo)
+        if: fromJson(steps.get-pr.outputs.result).is_fork == false
         uses: actions/checkout@v4
         with:
           ref: ${{ fromJson(steps.get-pr.outputs.result).head_ref }}
           fetch-depth: 0
+
+      - name: Checkout PR (forked repo)
+        if: fromJson(steps.get-pr.outputs.result).is_fork == true
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ fromJson(steps.get-pr.outputs.result).head_ref }}
+          fetch-depth: 0
+          repository: ${{ format('{0}/{1}', fromJson(steps.get-pr.outputs.result).fork_owner, fromJson(steps.get-pr.outputs.result).fork_repo) }}
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -68,7 +95,18 @@ jobs:
 
       - name: Push changes
         if: steps.commit.outputs.changes_made == 'true'
-        run: git push origin ${{ fromJson(steps.get-pr.outputs.result).head_ref }}
+        id: push
+        run: |
+          # Try to push changes
+          if git push origin ${{ fromJson(steps.get-pr.outputs.result).head_ref }}; then
+            echo "Successfully pushed changes"
+            echo "failed=false" >> $GITHUB_OUTPUT
+          else
+            echo "Failed to push changes - this might be due to permissions"
+            echo "The contributor may need to enable 'Allow edits from maintainers' in their PR"
+            echo "failed=true" >> $GITHUB_OUTPUT
+            exit 1
+          fi
 
       - name: Comment on PR
         uses: actions/github-script@v7
@@ -76,9 +114,16 @@ jobs:
           script: |
             const { owner, repo, number } = context.issue;
             const changes_made = '${{ steps.commit.outputs.changes_made }}' === 'true';
-            const message = changes_made
-              ? '✅ Prettier issues fixed and committed to this PR!'
-              : '✅ No prettier issues found in this PR!';
+            const push_failed = '${{ steps.push.outputs.failed }}' === 'true';
+
+            let message;
+            if (changes_made && push_failed) {
+              message = '❌ Failed to push prettier fixes. Please ensure "Allow edits from maintainers" is enabled in your PR settings.';
+            } else if (changes_made) {
+              message = '✅ Prettier issues fixed and committed to this PR!';
+            } else {
+              message = '✅ No prettier issues found in this PR!';
+            }
 
             await github.rest.issues.createComment({
               owner,
