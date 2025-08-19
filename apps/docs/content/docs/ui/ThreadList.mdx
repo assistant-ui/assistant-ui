@@ -3,6 +3,7 @@ title: ThreadList
 ---
 
 import { Steps, Step } from "fumadocs-ui/components/steps";
+import { Callout } from "fumadocs-ui/components/callout";
 import { ThreadListSample } from "../../../components/samples/threadlist-sample";
 
 ## Overview
@@ -11,34 +12,43 @@ The ThreadList component lets the user switch between threads.
 
 <ThreadListSample />
 
+<Callout>
+This demo uses **ThreadListSidebar**, which includes `thread-list` as a dependency and provides a complete sidebar layout. For custom implementations, you can use `thread-list` directly.
+</Callout>
+
 ## Getting Started
 
 <Steps>
   <Step>
 
-### Add `thread-list`
+### Add the component
 
 ```sh
+# Complete thread-list sidebar layout
+npx shadcn@latest add "https://r.assistant-ui.com/threadlist-sidebar"
+
+# Just the thread-list for custom layouts
 npx shadcn@latest add "https://r.assistant-ui.com/thread-list"
 ```
-
-This adds a `/components/assistant-ui/thread-list.tsx` file to your project, which you can adjust as needed.
 
   </Step>
   <Step>
 
 ### Use in your application
 
-```tsx title="/app/page.tsx" {1,5-6}
+```tsx title="/app/page.tsx"
 import { Thread } from "@/components/assistant-ui/thread";
-import { ThreadList } from "@/components/assistant-ui/thread-list";
+import { ThreadListSidebar } from "@/components/assistant-ui/threadlist-sidebar";
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 
 export default function Home() {
   return (
-    <div className="grid h-full grid-cols-[200px_1fr]">
-      <ThreadList />
-      <Thread />
-    </div>
+    <SidebarProvider>
+      <ThreadListSidebar />
+      <SidebarInset>
+        <Thread />
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
 ```
