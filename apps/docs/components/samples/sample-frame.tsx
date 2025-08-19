@@ -21,7 +21,12 @@ export const SampleFrame = ({
       {description && (
         <div className="text-muted-foreground py-2 text-sm">{description}</div>
       )}
-      <div className={cn(`h-[650px] *:rounded-lg *:border *:overflow-hidden`, className)}>
+      <div
+        className={cn(
+          `h-[650px] *:overflow-hidden *:rounded-lg *:border`,
+          className,
+        )}
+      >
         {children}
       </div>
     </div>
