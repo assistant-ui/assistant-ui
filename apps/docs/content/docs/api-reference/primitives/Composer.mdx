@@ -168,6 +168,37 @@ Renders attachments. This primitive renders a separate component for each attach
   ]}
 />
 
+### AttachmentByIndex
+
+Renders a single attachment at the specified index within the composer.
+
+```tsx
+<ComposerPrimitive.AttachmentByIndex
+  index={0}
+  components={{
+    Image: MyImageAttachment,
+    Document: MyDocumentAttachment
+  }}
+/>
+```
+
+<ParametersTable
+  type="ComposerPrimitive.AttachmentByIndex.Props"
+  parameters={[
+    {
+      name: "index",
+      type: "number",
+      required: true,
+      description: "The index of the attachment to render.",
+    },
+    {
+      name: "components",
+      type: "ComposerAttachmentsComponents",
+      description: "The components to render for the attachment.",
+    },
+  ]}
+/>
+
 ### AddAttachment
 
 Renders a button to add an attachment.

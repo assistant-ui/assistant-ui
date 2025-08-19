@@ -136,35 +136,51 @@ const ThreadMessageComponent: FC<ThreadMessageComponentProps> = ({
 
   return <Component />;
 };
+export namespace ThreadPrimitiveMessageByIndex {
+  export type Props = {
+    index: number;
+    components: ThreadPrimitiveMessages.Props["components"];
+  };
+}
 
-type ThreadMessageProps = {
-  messageIndex: number;
-  components: ThreadPrimitiveMessages.Props["components"];
-};
+/**
+ * Renders a single message at the specified index in the current thread.
+ *
+ * This component provides message context for a specific message in the thread
+ * and renders it using the provided component configuration.
+ *
+ * @example
+ * ```tsx
+ * <ThreadPrimitive.MessageByIndex
+ *   index={0}
+ *   components={{
+ *     UserMessage: MyUserMessage,
+ *     AssistantMessage: MyAssistantMessage
+ *   }}
+ * />
+ * ```
+ */
+export const ThreadPrimitiveMessageByIndex: FC<ThreadPrimitiveMessageByIndex.Props> =
+  memo(
+    ({ index, components }) => {
+      const threadRuntime = useThreadRuntime();
+      const runtime = useMemo(
+        () => threadRuntime.getMesssageByIndex(index),
+        [threadRuntime, index],
+      );
 
-const ThreadMessageImpl: FC<ThreadMessageProps> = ({
-  messageIndex,
-  components,
-}) => {
-  const threadRuntime = useThreadRuntime();
-  const runtime = useMemo(
-    () => threadRuntime.getMesssageByIndex(messageIndex),
-    [threadRuntime, messageIndex],
+      return (
+        <MessageRuntimeProvider runtime={runtime}>
+          <ThreadMessageComponent components={components} />
+        </MessageRuntimeProvider>
+      );
+    },
+    (prev, next) =>
+      prev.index === next.index &&
+      isComponentsSame(prev.components, next.components),
   );
 
-  return (
-    <MessageRuntimeProvider runtime={runtime}>
-      <ThreadMessageComponent components={components} />
-    </MessageRuntimeProvider>
-  );
-};
-
-const ThreadMessage = memo(
-  ThreadMessageImpl,
-  (prev, next) =>
-    prev.messageIndex === next.messageIndex &&
-    isComponentsSame(prev.components, next.components),
-);
+ThreadPrimitiveMessageByIndex.displayName = "ThreadPrimitive.MessageByIndex";
 
 /**
  * Renders all messages in the current thread using the provided component configuration.
@@ -192,7 +208,11 @@ export const ThreadPrimitiveMessagesImpl: FC<ThreadPrimitiveMessages.Props> = ({
   const messageElements = useMemo(() => {
     if (messagesLength === 0) return null;
     return Array.from({ length: messagesLength }, (_, index) => (
-      <ThreadMessage key={index} messageIndex={index} components={components} />
+      <ThreadPrimitiveMessageByIndex
+        key={index}
+        index={index}
+        components={components}
+      />
     ));
   }, [messagesLength, components]);
 

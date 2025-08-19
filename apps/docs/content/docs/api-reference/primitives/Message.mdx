@@ -13,7 +13,7 @@ import { MessagePrimitive } from "@assistant-ui/react";
 
 const UserMessage = () => (
   <MessagePrimitive.Root>
-    User: <MessagePrimitive.Content />
+    User: <MessagePrimitive.Parts />
     <BranchPicker />
     <ActionBar />
   </MessagePrimitive.Root>
@@ -21,7 +21,7 @@ const UserMessage = () => (
 
 const AssistantMessage = () => (
   <MessagePrimitive.Root>
-    Assistant: <MessagePrimitive.Content />
+    Assistant: <MessagePrimitive.Parts />
     <BranchPicker />
     <ActionBar />
   </MessagePrimitive.Root>
@@ -45,7 +45,7 @@ This primitive renders a `<div>` element unless `asChild` is set.
   ]}
 />
 
-### Content
+### Parts
 
 The content of the message. This renders a separate component for each content part of the message.
 
@@ -150,6 +150,111 @@ The content of the message. This renders a separate component for each content p
           ],
         },
       ],
+    },
+  ]}
+/>
+
+### PartByIndex
+
+Renders a single message part at the specified index.
+
+```tsx
+<MessagePrimitive.PartByIndex
+  index={0}
+  components={{
+    Text: MyTextComponent,
+    Image: MyImageComponent
+  }}
+/>
+```
+
+<ParametersTable
+  type="MessagePrimitive.PartByIndex.Props"
+  parameters={[
+    {
+      name: "index",
+      type: "number",
+      required: true,
+      description: "The index of the message part to render.",
+    },
+    {
+      name: "components",
+      required: false,
+      type: "ContentPartComponents",
+      description: "The components to render for the message part.",
+    },
+  ]}
+/>
+
+### Attachments
+
+Renders all attachments of the message.
+
+<ParametersTable
+  type="MessagePrimitive.Attachments.Props"
+  parameters={[
+    {
+      name: "components",
+      type: "AttachmentComponents",
+      description: "The components to render for each attachment.",
+      children: [
+        {
+          type: "AttachmentComponents",
+          parameters: [
+            {
+              name: "Image",
+              type: "ComponentType",
+              description: "The component to render for image attachments.",
+            },
+            {
+              name: "Document",
+              type: "ComponentType",
+              description: "The component to render for document attachments.",
+            },
+            {
+              name: "File",
+              type: "ComponentType",
+              description: "The component to render for file attachments.",
+            },
+            {
+              name: "Attachment",
+              type: "ComponentType",
+              description: "The fallback component to render for any attachment type.",
+            },
+          ],
+        },
+      ],
+    },
+  ]}
+/>
+
+### AttachmentByIndex
+
+Renders a single attachment at the specified index within the message.
+
+```tsx
+<MessagePrimitive.AttachmentByIndex
+  index={0}
+  components={{
+    Image: MyImageAttachment,
+    Document: MyDocumentAttachment
+  }}
+/>
+```
+
+<ParametersTable
+  type="MessagePrimitive.AttachmentByIndex.Props"
+  parameters={[
+    {
+      name: "index",
+      type: "number",
+      required: true,
+      description: "The index of the attachment to render.",
+    },
+    {
+      name: "components",
+      type: "AttachmentComponents",
+      description: "The components to render for the attachment.",
     },
   ]}
 />
