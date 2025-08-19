@@ -12,7 +12,7 @@ import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button
 export const AssistantModalSample = () => {
   return (
     <SampleFrame sampleText="Sample Assistant Modal">
-        <AssistantModal />
+      <AssistantModal />
     </SampleFrame>
   );
 };
