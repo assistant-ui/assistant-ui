@@ -1,13 +1,17 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+
 export const SampleFrame = ({
   sampleText,
   description,
   children,
+  className,
 }: {
   sampleText?: string;
   description?: string;
   children: React.ReactNode;
+  className?: string;
 }) => {
   return (
     <div className="bg-muted/50 relative rounded-lg border p-4">
@@ -17,7 +21,7 @@ export const SampleFrame = ({
       {description && (
         <div className="text-muted-foreground py-2 text-sm">{description}</div>
       )}
-      <div className="h-[650px]">{children}</div>
+      <div className={cn(`h-[650px]`, className)}>{children}</div>
     </div>
   );
 };
