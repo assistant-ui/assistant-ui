@@ -1,0 +1,128 @@
+---
+title: ThreadListPrimitive
+---
+
+Displays a list of conversation threads.
+
+import { ParametersTable } from "@/components/docs";
+
+## Anatomy
+
+```tsx
+import { ThreadListPrimitive } from "@assistant-ui/react";
+
+const ThreadList = () => (
+  <ThreadListPrimitive.Root>
+    <ThreadListPrimitive.New />
+    <ThreadListPrimitive.Items
+      components={{
+        ThreadListItem: MyThreadListItem
+      }}
+    />
+  </ThreadListPrimitive.Root>
+);
+```
+
+## API Reference
+
+### Root
+
+Contains all parts of the thread list.
+
+This primitive renders a `<div>` element unless `asChild` is set.
+
+<ParametersTable
+  type="ThreadListPrimitiveRootProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+  ]}
+/>
+
+### New
+
+A button to create a new thread.
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+<ParametersTable
+  type="ThreadListPrimitiveNewProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+  ]}
+/>
+
+### Items
+
+Renders all items in the thread list.
+
+<ParametersTable
+  type="ThreadListPrimitive.Items.Props"
+  parameters={[
+    {
+      name: "archived",
+      type: "boolean",
+      default: "false",
+      description: "Whether to show archived threads instead of active threads.",
+    },
+    {
+      name: "components",
+      type: "ThreadListItemComponents",
+      required: true,
+      description: "The components to render for each thread list item.",
+      children: [
+        {
+          type: "ThreadListItemComponents",
+          parameters: [
+            {
+              name: "ThreadListItem",
+              type: "ComponentType",
+              required: true,
+              description: "The component to render for each thread in the list.",
+            },
+          ],
+        },
+      ],
+    },
+  ]}
+/>
+
+### ItemByIndex
+
+Renders a single thread list item at the specified index.
+
+```tsx
+<ThreadListPrimitive.ItemByIndex
+  index={0}
+  components={{
+    ThreadListItem: MyThreadListItem
+  }}
+/>
+```
+
+<ParametersTable
+  type="ThreadListPrimitive.ItemByIndex.Props"
+  parameters={[
+    {
+      name: "index",
+      type: "number",
+      required: true,
+      description: "The index of the thread list item to render.",
+    },
+    {
+      name: "archived",
+      type: "boolean",
+      default: "false",
+      description: "Whether to render from archived threads instead of active threads.",
+    },
+    {
+      name: "components",
+      type: "ThreadListItemComponents",
+      required: true,
+      description: "The components to render for the thread list item.",
+    },
+  ]}
+/>

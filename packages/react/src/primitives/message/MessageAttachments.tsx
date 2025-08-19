@@ -46,31 +46,55 @@ const AttachmentComponent: FC<{
   return <Component />;
 };
 
-const MessageAttachmentImpl: FC<
-  MessagePrimitiveAttachments.Props & { attachmentIndex: number }
-> = ({ components, attachmentIndex }) => {
-  const messageRuntime = useMessageRuntime();
-  const runtime = useMemo(
-    () => messageRuntime.getAttachmentByIndex(attachmentIndex),
-    [messageRuntime, attachmentIndex],
+export namespace MessagePrimitiveAttachmentByIndex {
+  export type Props = {
+    index: number;
+    components?: MessagePrimitiveAttachments.Props["components"];
+  };
+}
+
+/**
+ * Renders a single attachment at the specified index within the current message.
+ *
+ * This component provides direct access to render a specific attachment
+ * from the message's attachment list using the provided component configuration.
+ *
+ * @example
+ * ```tsx
+ * <MessagePrimitive.AttachmentByIndex
+ *   index={0}
+ *   components={{
+ *     Image: MyImageAttachment,
+ *     Document: MyDocumentAttachment
+ *   }}
+ * />
+ * ```
+ */
+export const MessagePrimitiveAttachmentByIndex: FC<MessagePrimitiveAttachmentByIndex.Props> =
+  memo(
+    ({ index, components }) => {
+      const messageRuntime = useMessageRuntime();
+      const runtime = useMemo(
+        () => messageRuntime.getAttachmentByIndex(index),
+        [messageRuntime, index],
+      );
+
+      return (
+        <AttachmentRuntimeProvider runtime={runtime}>
+          <AttachmentComponent components={components} />
+        </AttachmentRuntimeProvider>
+      );
+    },
+    (prev, next) =>
+      prev.index === next.index &&
+      prev.components?.Image === next.components?.Image &&
+      prev.components?.Document === next.components?.Document &&
+      prev.components?.File === next.components?.File &&
+      prev.components?.Attachment === next.components?.Attachment,
   );
 
-  return (
-    <AttachmentRuntimeProvider runtime={runtime}>
-      <AttachmentComponent components={components} />
-    </AttachmentRuntimeProvider>
-  );
-};
-
-const MessageAttachment = memo(
-  MessageAttachmentImpl,
-  (prev, next) =>
-    prev.attachmentIndex === next.attachmentIndex &&
-    prev.components?.Image === next.components?.Image &&
-    prev.components?.Document === next.components?.Document &&
-    prev.components?.File === next.components?.File &&
-    prev.components?.Attachment === next.components?.Attachment,
-);
+MessagePrimitiveAttachmentByIndex.displayName =
+  "MessagePrimitive.AttachmentByIndex";
 
 export const MessagePrimitiveAttachments: FC<
   MessagePrimitiveAttachments.Props
@@ -82,9 +106,9 @@ export const MessagePrimitiveAttachments: FC<
 
   const attachmentElements = useMemo(() => {
     return Array.from({ length: attachmentsCount }, (_, index) => (
-      <MessageAttachment
+      <MessagePrimitiveAttachmentByIndex
         key={index}
-        attachmentIndex={index}
+        index={index}
         components={components}
       />
     ));

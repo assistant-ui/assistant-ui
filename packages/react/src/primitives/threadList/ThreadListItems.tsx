@@ -13,42 +13,57 @@ export namespace ThreadListPrimitiveItems {
   };
 }
 
-type ThreadListItemProps = {
-  partIndex: number;
-  archived: boolean;
-  components: ThreadListPrimitiveItems.Props["components"];
-};
+export namespace ThreadListPrimitiveItemByIndex {
+  export type Props = {
+    index: number;
+    archived?: boolean | undefined;
+    components: ThreadListPrimitiveItems.Props["components"];
+  };
+}
 
-const ThreadListItemImpl: FC<ThreadListItemProps> = ({
-  partIndex,
-  archived,
-  components,
-}) => {
-  const assistantRuntime = useAssistantRuntime();
-  const runtime = useMemo(
-    () =>
-      archived
-        ? assistantRuntime.threads.getArchivedItemByIndex(partIndex)
-        : assistantRuntime.threads.getItemByIndex(partIndex),
-    [assistantRuntime, partIndex, archived],
+/**
+ * Renders a single thread list item at the specified index.
+ *
+ * This component provides direct access to render a specific thread
+ * from the thread list using the provided component configuration.
+ *
+ * @example
+ * ```tsx
+ * <ThreadListPrimitive.ItemByIndex
+ *   index={0}
+ *   components={{
+ *     ThreadListItem: MyThreadListItem
+ *   }}
+ * />
+ * ```
+ */
+export const ThreadListPrimitiveItemByIndex: FC<ThreadListPrimitiveItemByIndex.Props> =
+  memo(
+    ({ index, archived = false, components }) => {
+      const assistantRuntime = useAssistantRuntime();
+      const runtime = useMemo(
+        () =>
+          archived
+            ? assistantRuntime.threads.getArchivedItemByIndex(index)
+            : assistantRuntime.threads.getItemByIndex(index),
+        [assistantRuntime, index, archived],
+      );
+
+      const ThreadListItemComponent = components.ThreadListItem;
+
+      return (
+        <ThreadListItemRuntimeProvider runtime={runtime}>
+          <ThreadListItemComponent />
+        </ThreadListItemRuntimeProvider>
+      );
+    },
+    (prev, next) =>
+      prev.index === next.index &&
+      prev.archived === next.archived &&
+      prev.components.ThreadListItem === next.components.ThreadListItem,
   );
 
-  const ThreadListItemComponent = components.ThreadListItem;
-
-  return (
-    <ThreadListItemRuntimeProvider runtime={runtime}>
-      <ThreadListItemComponent />
-    </ThreadListItemRuntimeProvider>
-  );
-};
-
-const ThreadListItem = memo(
-  ThreadListItemImpl,
-  (prev, next) =>
-    prev.partIndex === next.partIndex &&
-    prev.archived === next.archived &&
-    prev.components.ThreadListItem === next.components.ThreadListItem,
-);
+ThreadListPrimitiveItemByIndex.displayName = "ThreadListPrimitive.ItemByIndex";
 
 export const ThreadListPrimitiveItems: FC<ThreadListPrimitiveItems.Props> = ({
   archived = false,
@@ -60,9 +75,9 @@ export const ThreadListPrimitiveItems: FC<ThreadListPrimitiveItems.Props> = ({
 
   const listElements = useMemo(() => {
     return Array.from({ length: contentLength }, (_, index) => (
-      <ThreadListItem
+      <ThreadListPrimitiveItemByIndex
         key={index}
-        partIndex={index}
+        index={index}
         archived={archived}
         components={components}
       />

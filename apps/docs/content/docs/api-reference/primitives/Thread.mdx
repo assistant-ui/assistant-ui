@@ -104,6 +104,65 @@ Renders all messages. This primitive renders a separate component for each messa
   ]}
 />
 
+### MessageByIndex
+
+Renders a single message at the specified index in the current thread.
+
+```tsx
+<ThreadPrimitive.MessageByIndex
+  index={0}
+  components={{
+    UserMessage: MyUserMessage,
+    AssistantMessage: MyAssistantMessage
+  }}
+/>
+```
+
+<ParametersTable
+  type="ThreadPrimitive.MessageByIndex.Props"
+  parameters={[
+    {
+      name: "index",
+      type: "number",
+      required: true,
+      description: "The index of the message to render.",
+    },
+    {
+      name: "components",
+      type: "MessageComponents",
+      description: "The component configuration for rendering the message.",
+      children: [
+        {
+          type: "MessageComponents",
+          parameters: [
+            {
+              name: "Message",
+              type: "ComponentType",
+              description: "The component to render for each message.",
+            },
+            {
+              name: "UserMessage",
+              type: "ComponentType",
+              description: "The component to render for user messages.",
+            },
+            {
+              name: "EditComposer",
+              type: "ComponentType",
+              description:
+                "The component to render for user messages that are being edited.",
+            },
+            {
+              name: "AssistantMessage",
+              type: "ComponentType",
+              description: "The component to render for assistant messages.",
+            },
+          ],
+        },
+      ],
+    },
+  ]}
+/>
+
 ### Empty
 
 Renders children only when there are no messages.

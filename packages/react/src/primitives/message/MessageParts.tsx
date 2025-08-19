@@ -279,38 +279,58 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
   }
 };
 
-type MessagePartProps = {
-  partIndex: number;
-  components: MessagePrimitiveParts.Props["components"];
-};
+export namespace MessagePrimitivePartByIndex {
+  export type Props = {
+    index: number;
+    components: MessagePrimitiveParts.Props["components"];
+  };
+}
 
-const MessagePartImpl: FC<MessagePartProps> = ({ partIndex, components }) => {
-  const messageRuntime = useMessageRuntime();
-  const runtime = useMemo(
-    () => messageRuntime.getMessagePartByIndex(partIndex),
-    [messageRuntime, partIndex],
+/**
+ * Renders a single message part at the specified index.
+ *
+ * This component provides direct access to render a specific message part
+ * within the current message context, using the provided component configuration.
+ *
+ * @example
+ * ```tsx
+ * <MessagePrimitive.PartByIndex
+ *   index={0}
+ *   components={{
+ *     Text: MyTextComponent,
+ *     Image: MyImageComponent
+ *   }}
+ * />
+ * ```
+ */
+export const MessagePrimitivePartByIndex: FC<MessagePrimitivePartByIndex.Props> =
+  memo(
+    ({ index, components }) => {
+      const messageRuntime = useMessageRuntime();
+      const runtime = useMemo(
+        () => messageRuntime.getMessagePartByIndex(index),
+        [messageRuntime, index],
+      );
+
+      return (
+        <MessagePartRuntimeProvider runtime={runtime}>
+          <MessagePartComponent components={components} />
+        </MessagePartRuntimeProvider>
+      );
+    },
+    (prev, next) =>
+      prev.index === next.index &&
+      prev.components?.Text === next.components?.Text &&
+      prev.components?.Reasoning === next.components?.Reasoning &&
+      prev.components?.Source === next.components?.Source &&
+      prev.components?.Image === next.components?.Image &&
+      prev.components?.File === next.components?.File &&
+      prev.components?.Unstable_Audio === next.components?.Unstable_Audio &&
+      prev.components?.tools === next.components?.tools &&
+      prev.components?.ToolGroup === next.components?.ToolGroup,
   );
 
-  return (
-    <MessagePartRuntimeProvider runtime={runtime}>
-      <MessagePartComponent components={components} />
-    </MessagePartRuntimeProvider>
-  );
-};
-
-const MessagePart = memo(
-  MessagePartImpl,
-  (prev, next) =>
-    prev.partIndex === next.partIndex &&
-    prev.components?.Text === next.components?.Text &&
-    prev.components?.Reasoning === next.components?.Reasoning &&
-    prev.components?.Source === next.components?.Source &&
-    prev.components?.Image === next.components?.Image &&
-    prev.components?.File === next.components?.File &&
-    prev.components?.Unstable_Audio === next.components?.Unstable_Audio &&
-    prev.components?.tools === next.components?.tools &&
-    prev.components?.ToolGroup === next.components?.ToolGroup,
-);
+MessagePrimitivePartByIndex.displayName = "MessagePrimitive.PartByIndex";
 
 const COMPLETE_STATUS: MessagePartStatus = Object.freeze({
   type: "complete",
@@ -386,9 +406,9 @@ export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = ({
     return messageRanges.map((range) => {
       if (range.type === "single") {
         return (
-          <MessagePart
+          <MessagePrimitivePartByIndex
             key={range.index}
-            partIndex={range.index}
+            index={range.index}
             components={components}
           />
         );
@@ -404,9 +424,9 @@ export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = ({
             {Array.from(
               { length: range.endIndex - range.startIndex + 1 },
               (_, i) => (
-                <MessagePart
+                <MessagePrimitivePartByIndex
                   key={i}
-                  partIndex={range.startIndex + i}
+                  index={range.startIndex + i}
                   components={components}
                 />
               ),

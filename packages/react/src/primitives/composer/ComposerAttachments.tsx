@@ -48,31 +48,55 @@ const AttachmentComponent: FC<{
   return <Component />;
 };
 
-const ComposerAttachmentImpl: FC<
-  ComposerPrimitiveAttachments.Props & { attachmentIndex: number }
-> = ({ components, attachmentIndex }) => {
-  const composerRuntime = useComposerRuntime();
-  const runtime = useMemo(
-    () => composerRuntime.getAttachmentByIndex(attachmentIndex),
-    [composerRuntime, attachmentIndex],
+export namespace ComposerPrimitiveAttachmentByIndex {
+  export type Props = {
+    index: number;
+    components?: ComposerPrimitiveAttachments.Props["components"];
+  };
+}
+
+/**
+ * Renders a single attachment at the specified index within the composer.
+ *
+ * This component provides direct access to render a specific attachment
+ * from the composer's attachment list using the provided component configuration.
+ *
+ * @example
+ * ```tsx
+ * <ComposerPrimitive.AttachmentByIndex
+ *   index={0}
+ *   components={{
+ *     Image: MyImageAttachment,
+ *     Document: MyDocumentAttachment
+ *   }}
+ * />
+ * ```
+ */
+export const ComposerPrimitiveAttachmentByIndex: FC<ComposerPrimitiveAttachmentByIndex.Props> =
+  memo(
+    ({ index, components }) => {
+      const composerRuntime = useComposerRuntime();
+      const runtime = useMemo(
+        () => composerRuntime.getAttachmentByIndex(index),
+        [composerRuntime, index],
+      );
+
+      return (
+        <AttachmentRuntimeProvider runtime={runtime}>
+          <AttachmentComponent components={components} />
+        </AttachmentRuntimeProvider>
+      );
+    },
+    (prev, next) =>
+      prev.index === next.index &&
+      prev.components?.Image === next.components?.Image &&
+      prev.components?.Document === next.components?.Document &&
+      prev.components?.File === next.components?.File &&
+      prev.components?.Attachment === next.components?.Attachment,
   );
 
-  return (
-    <AttachmentRuntimeProvider runtime={runtime}>
-      <AttachmentComponent components={components} />
-    </AttachmentRuntimeProvider>
-  );
-};
-
-const ComposerAttachment = memo(
-  ComposerAttachmentImpl,
-  (prev, next) =>
-    prev.attachmentIndex === next.attachmentIndex &&
-    prev.components?.Image === next.components?.Image &&
-    prev.components?.Document === next.components?.Document &&
-    prev.components?.File === next.components?.File &&
-    prev.components?.Attachment === next.components?.Attachment,
-);
+ComposerPrimitiveAttachmentByIndex.displayName =
+  "ComposerPrimitive.AttachmentByIndex";
 
 export const ComposerPrimitiveAttachments: FC<
   ComposerPrimitiveAttachments.Props
@@ -81,9 +105,9 @@ export const ComposerPrimitiveAttachments: FC<
 
   const attachmentElements = useMemo(() => {
     return Array.from({ length: attachmentsCount }, (_, index) => (
-      <ComposerAttachment
+      <ComposerPrimitiveAttachmentByIndex
         key={index}
-        attachmentIndex={index}
+        index={index}
         components={components}
       />
     ));

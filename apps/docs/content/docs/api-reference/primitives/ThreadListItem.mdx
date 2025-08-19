@@ -1,0 +1,160 @@
+---
+title: ThreadListItemPrimitive
+---
+
+A single thread item within a thread list.
+
+import { ParametersTable } from "@/components/docs";
+
+## Anatomy
+
+```tsx
+import { ThreadListItemPrimitive } from "@assistant-ui/react";
+
+const ThreadListItem = () => (
+  <ThreadListItemPrimitive.Root>
+    <ThreadListItemPrimitive.Trigger>
+      <ThreadListItemPrimitive.Title />
+    </ThreadListItemPrimitive.Trigger>
+    <ThreadListItemPrimitive.Archive />
+    <ThreadListItemPrimitive.Unarchive />
+    <ThreadListItemPrimitive.Delete />
+  </ThreadListItemPrimitive.Root>
+);
+```
+
+## API Reference
+
+### Root
+
+Contains all parts of the thread list item.
+
+This primitive renders a `<div>` element unless `asChild` is set. It automatically adds `data-active="true"` and `aria-current="true"` attributes when the thread is the currently active thread.
+
+<ParametersTable
+  type="ThreadListItemPrimitiveRootProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+  ]}
+/>
+
+### Trigger
+
+A button that switches to the thread when clicked.
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+<ParametersTable
+  type="ThreadListItemPrimitiveTriggerProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+  ]}
+/>
+
+### Title
+
+Displays the title of the thread.
+
+This primitive renders a `<span>` element unless `asChild` is set. The title is automatically derived from the first user message in the thread.
+
+<ParametersTable
+  type="ThreadListItemPrimitiveTitleProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+  ]}
+/>
+
+### Archive
+
+A button to archive the thread. Only shown for non-archived threads.
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+<ParametersTable
+  type="ThreadListItemPrimitiveArchiveProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+  ]}
+/>
+
+### Unarchive
+
+A button to unarchive the thread. Only shown for archived threads.
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+<ParametersTable
+  type="ThreadListItemPrimitiveUnarchiveProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+  ]}
+/>
+
+### Delete
+
+A button to permanently delete the thread.
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+<ParametersTable
+  type="ThreadListItemPrimitiveDeleteProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+  ]}
+/>
+
+## Examples
+
+### Basic Thread List Item
+
+```tsx
+const MyThreadListItem = () => {
+  return (
+    <ThreadListItemPrimitive.Root className="thread-item">
+      <ThreadListItemPrimitive.Trigger className="thread-trigger">
+        <ThreadListItemPrimitive.Title />
+      </ThreadListItemPrimitive.Trigger>
+      <div className="thread-actions">
+        <ThreadListItemPrimitive.Archive>
+          Archive
+        </ThreadListItemPrimitive.Archive>
+        <ThreadListItemPrimitive.Delete>
+          Delete
+        </ThreadListItemPrimitive.Delete>
+      </div>
+    </ThreadListItemPrimitive.Root>
+  );
+};
+```
+
+### Archived Thread List Item
+
+```tsx
+const ArchivedThreadListItem = () => {
+  return (
+    <ThreadListItemPrimitive.Root className="archived-thread-item">
+      <ThreadListItemPrimitive.Trigger>
+        <ThreadListItemPrimitive.Title />
+      </ThreadListItemPrimitive.Trigger>
+      <ThreadListItemPrimitive.Unarchive>
+        Restore
+      </ThreadListItemPrimitive.Unarchive>
+      <ThreadListItemPrimitive.Delete>
+        Delete Permanently
+      </ThreadListItemPrimitive.Delete>
+    </ThreadListItemPrimitive.Root>
+  );
+};
+```
