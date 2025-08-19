@@ -1,5 +1,5 @@
 ---
-"@assistant-ui/react": minor
+"@assistant-ui/react": patch
 ---
 
 feat: Add *ByIndex primitives for direct indexed access
