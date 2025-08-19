@@ -13,7 +13,9 @@ import {
 } from "@/components/ui/sidebar";
 import { ThreadList } from "./thread-list";
 
-export function ThreadListSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+export function ThreadListSidebar({
+  ...props
+}: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar {...props}>
       <SidebarHeader className="mb-2 border-b">
