@@ -282,7 +282,7 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
 export namespace MessagePrimitivePartByIndex {
   export type Props = {
     index: number;
-    components?: MessagePrimitiveParts.Props["components"];
+    components: MessagePrimitiveParts.Props["components"];
   };
 }
 
