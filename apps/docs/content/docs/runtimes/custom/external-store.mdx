@@ -164,45 +164,52 @@ graph TD
     ```tsx title="app/MyRuntimeProvider.tsx"
     "use client";
 
-    import { useState } from "react";
+    import { ThreadMessageLike } from "@assistant-ui/react";
+    import { AppendMessage } from "@assistant-ui/react";
     import {
-      useExternalStoreRuntime,
-      ThreadMessageLike,
-      AppendMessage,
       AssistantRuntimeProvider,
+      useExternalStoreRuntime,
     } from "@assistant-ui/react";
-
-    export function MyRuntimeProvider({ children }) {
-      const [messages, setMessages] = useState<ThreadMessageLike[]>([]);
-      const [isRunning, setIsRunning] = useState(false);
-
+    import { useState } from "react";
+    
+    const convertMessage = (message: ThreadMessageLike) => {
+      return message;
+    };
+    
+    export function MyRuntimeProvider({
+      children,
+    }: Readonly<{
+      children: React.ReactNode;
+    }>) {
+      const [messages, setMessages] = useState<readonly ThreadMessageLike[]>([]);
+    
       const onNew = async (message: AppendMessage) => {
-        // Add user message
+        if (message.content.length !== 1 || message.content[0]?.type !== "text")
+          throw new Error("Only text content is supported");
+    
         const userMessage: ThreadMessageLike = {
           role: "user",
-          content: message.content,
+          content: [{ type: "text", text: message.content[0].text }],
         };
-        setMessages(prev => [...prev, userMessage]);
-
-        // Generate response
-        setIsRunning(true);
-        const response = await callYourAPI(message);
-
+        setMessages((currentMessages) => [...currentMessages, userMessage]);
+    
+        // normally you would perform an API call here to get the assistant response
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+    
         const assistantMessage: ThreadMessageLike = {
           role: "assistant",
-          content: response.content,
+          content: [{ type: "text", text: "Hello, world!" }],
         };
-        setMessages(prev => [...prev, assistantMessage]);
-        setIsRunning(false);
+        setMessages((currentMessages) => [...currentMessages, assistantMessage]);
       };
-
-      const runtime = useExternalStoreRuntime({
+    
+      const runtime = useExternalStoreRuntime<ThreadMessageLike>({
         messages,
         setMessages,
-        isRunning,
         onNew,
+        convertMessage,
       });
-
+    
       return (
         <AssistantRuntimeProvider runtime={runtime}>
           {children}
