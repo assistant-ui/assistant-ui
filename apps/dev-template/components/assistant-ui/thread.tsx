@@ -149,9 +149,9 @@ const ThreadWelcomeSuggestions: FC = () => {
               <span className="aui-thread-welcome-suggestion-text-1">
                 {suggestedAction.title}
               </span>
-              <p className="aui-thread-welcome-suggestion-text-2">
+              <span className="aui-thread-welcome-suggestion-text-2">
                 {suggestedAction.label}
-              </p>
+              </span>
             </Button>
           </ThreadPrimitive.Suggestion>
         </motion.div>
