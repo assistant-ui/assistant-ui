@@ -279,7 +279,6 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
   }
 };
 
-
 export namespace MessagePrimitivePartByIndex {
   export type Props = {
     index: number;
@@ -304,31 +303,32 @@ export namespace MessagePrimitivePartByIndex {
  * />
  * ```
  */
-export const MessagePrimitivePartByIndex: FC<MessagePrimitivePartByIndex.Props> = memo(
-  ({ index, components }) => {
-    const messageRuntime = useMessageRuntime();
-    const runtime = useMemo(
-      () => messageRuntime.getMessagePartByIndex(index),
-      [messageRuntime, index],
-    );
+export const MessagePrimitivePartByIndex: FC<MessagePrimitivePartByIndex.Props> =
+  memo(
+    ({ index, components }) => {
+      const messageRuntime = useMessageRuntime();
+      const runtime = useMemo(
+        () => messageRuntime.getMessagePartByIndex(index),
+        [messageRuntime, index],
+      );
 
-    return (
-      <MessagePartRuntimeProvider runtime={runtime}>
-        <MessagePartComponent components={components} />
-      </MessagePartRuntimeProvider>
-    );
-  },
-  (prev, next) =>
-    prev.index === next.index &&
-    prev.components?.Text === next.components?.Text &&
-    prev.components?.Reasoning === next.components?.Reasoning &&
-    prev.components?.Source === next.components?.Source &&
-    prev.components?.Image === next.components?.Image &&
-    prev.components?.File === next.components?.File &&
-    prev.components?.Unstable_Audio === next.components?.Unstable_Audio &&
-    prev.components?.tools === next.components?.tools &&
-    prev.components?.ToolGroup === next.components?.ToolGroup,
-);
+      return (
+        <MessagePartRuntimeProvider runtime={runtime}>
+          <MessagePartComponent components={components} />
+        </MessagePartRuntimeProvider>
+      );
+    },
+    (prev, next) =>
+      prev.index === next.index &&
+      prev.components?.Text === next.components?.Text &&
+      prev.components?.Reasoning === next.components?.Reasoning &&
+      prev.components?.Source === next.components?.Source &&
+      prev.components?.Image === next.components?.Image &&
+      prev.components?.File === next.components?.File &&
+      prev.components?.Unstable_Audio === next.components?.Unstable_Audio &&
+      prev.components?.tools === next.components?.tools &&
+      prev.components?.ToolGroup === next.components?.ToolGroup,
+  );
 
 MessagePrimitivePartByIndex.displayName = "MessagePrimitive.PartByIndex";
 

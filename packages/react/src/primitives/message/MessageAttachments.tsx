@@ -46,7 +46,6 @@ const AttachmentComponent: FC<{
   return <Component />;
 };
 
-
 export namespace MessagePrimitiveAttachmentByIndex {
   export type Props = {
     index: number;
@@ -71,29 +70,31 @@ export namespace MessagePrimitiveAttachmentByIndex {
  * />
  * ```
  */
-export const MessagePrimitiveAttachmentByIndex: FC<MessagePrimitiveAttachmentByIndex.Props> = memo(
-  ({ index, components }) => {
-    const messageRuntime = useMessageRuntime();
-    const runtime = useMemo(
-      () => messageRuntime.getAttachmentByIndex(index),
-      [messageRuntime, index],
-    );
+export const MessagePrimitiveAttachmentByIndex: FC<MessagePrimitiveAttachmentByIndex.Props> =
+  memo(
+    ({ index, components }) => {
+      const messageRuntime = useMessageRuntime();
+      const runtime = useMemo(
+        () => messageRuntime.getAttachmentByIndex(index),
+        [messageRuntime, index],
+      );
 
-    return (
-      <AttachmentRuntimeProvider runtime={runtime}>
-        <AttachmentComponent components={components} />
-      </AttachmentRuntimeProvider>
-    );
-  },
-  (prev, next) =>
-    prev.index === next.index &&
-    prev.components?.Image === next.components?.Image &&
-    prev.components?.Document === next.components?.Document &&
-    prev.components?.File === next.components?.File &&
-    prev.components?.Attachment === next.components?.Attachment,
-);
+      return (
+        <AttachmentRuntimeProvider runtime={runtime}>
+          <AttachmentComponent components={components} />
+        </AttachmentRuntimeProvider>
+      );
+    },
+    (prev, next) =>
+      prev.index === next.index &&
+      prev.components?.Image === next.components?.Image &&
+      prev.components?.Document === next.components?.Document &&
+      prev.components?.File === next.components?.File &&
+      prev.components?.Attachment === next.components?.Attachment,
+  );
 
-MessagePrimitiveAttachmentByIndex.displayName = "MessagePrimitive.AttachmentByIndex";
+MessagePrimitiveAttachmentByIndex.displayName =
+  "MessagePrimitive.AttachmentByIndex";
 
 export const MessagePrimitiveAttachments: FC<
   MessagePrimitiveAttachments.Props

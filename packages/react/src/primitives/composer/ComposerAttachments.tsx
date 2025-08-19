@@ -72,29 +72,31 @@ export namespace ComposerPrimitiveAttachmentByIndex {
  * />
  * ```
  */
-export const ComposerPrimitiveAttachmentByIndex: FC<ComposerPrimitiveAttachmentByIndex.Props> = memo(
-  ({ index, components }) => {
-    const composerRuntime = useComposerRuntime();
-    const runtime = useMemo(
-      () => composerRuntime.getAttachmentByIndex(index),
-      [composerRuntime, index],
-    );
+export const ComposerPrimitiveAttachmentByIndex: FC<ComposerPrimitiveAttachmentByIndex.Props> =
+  memo(
+    ({ index, components }) => {
+      const composerRuntime = useComposerRuntime();
+      const runtime = useMemo(
+        () => composerRuntime.getAttachmentByIndex(index),
+        [composerRuntime, index],
+      );
 
-    return (
-      <AttachmentRuntimeProvider runtime={runtime}>
-        <AttachmentComponent components={components} />
-      </AttachmentRuntimeProvider>
-    );
-  },
-  (prev, next) =>
-    prev.index === next.index &&
-    prev.components?.Image === next.components?.Image &&
-    prev.components?.Document === next.components?.Document &&
-    prev.components?.File === next.components?.File &&
-    prev.components?.Attachment === next.components?.Attachment,
-);
+      return (
+        <AttachmentRuntimeProvider runtime={runtime}>
+          <AttachmentComponent components={components} />
+        </AttachmentRuntimeProvider>
+      );
+    },
+    (prev, next) =>
+      prev.index === next.index &&
+      prev.components?.Image === next.components?.Image &&
+      prev.components?.Document === next.components?.Document &&
+      prev.components?.File === next.components?.File &&
+      prev.components?.Attachment === next.components?.Attachment,
+  );
 
-ComposerPrimitiveAttachmentByIndex.displayName = "ComposerPrimitive.AttachmentByIndex";
+ComposerPrimitiveAttachmentByIndex.displayName =
+  "ComposerPrimitive.AttachmentByIndex";
 
 export const ComposerPrimitiveAttachments: FC<
   ComposerPrimitiveAttachments.Props

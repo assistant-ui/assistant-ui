@@ -13,7 +13,6 @@ export namespace ThreadListPrimitiveItems {
   };
 }
 
-
 export namespace ThreadListPrimitiveItemByIndex {
   export type Props = {
     index: number;
@@ -38,30 +37,31 @@ export namespace ThreadListPrimitiveItemByIndex {
  * />
  * ```
  */
-export const ThreadListPrimitiveItemByIndex: FC<ThreadListPrimitiveItemByIndex.Props> = memo(
-  ({ index, archived = false, components }) => {
-    const assistantRuntime = useAssistantRuntime();
-    const runtime = useMemo(
-      () =>
-        archived
-          ? assistantRuntime.threads.getArchivedItemByIndex(index)
-          : assistantRuntime.threads.getItemByIndex(index),
-      [assistantRuntime, index, archived],
-    );
+export const ThreadListPrimitiveItemByIndex: FC<ThreadListPrimitiveItemByIndex.Props> =
+  memo(
+    ({ index, archived = false, components }) => {
+      const assistantRuntime = useAssistantRuntime();
+      const runtime = useMemo(
+        () =>
+          archived
+            ? assistantRuntime.threads.getArchivedItemByIndex(index)
+            : assistantRuntime.threads.getItemByIndex(index),
+        [assistantRuntime, index, archived],
+      );
 
-    const ThreadListItemComponent = components.ThreadListItem;
+      const ThreadListItemComponent = components.ThreadListItem;
 
-    return (
-      <ThreadListItemRuntimeProvider runtime={runtime}>
-        <ThreadListItemComponent />
-      </ThreadListItemRuntimeProvider>
-    );
-  },
-  (prev, next) =>
-    prev.index === next.index &&
-    prev.archived === next.archived &&
-    prev.components.ThreadListItem === next.components.ThreadListItem,
-);
+      return (
+        <ThreadListItemRuntimeProvider runtime={runtime}>
+          <ThreadListItemComponent />
+        </ThreadListItemRuntimeProvider>
+      );
+    },
+    (prev, next) =>
+      prev.index === next.index &&
+      prev.archived === next.archived &&
+      prev.components.ThreadListItem === next.components.ThreadListItem,
+  );
 
 ThreadListPrimitiveItemByIndex.displayName = "ThreadListPrimitive.ItemByIndex";
 
