@@ -11,7 +11,7 @@ import { ArrowDownIcon, SendHorizontalIcon } from "lucide-react";
 
 export const AttachmentSample = () => {
   return (
-    <SampleFrame sampleText="Sample Attachment">
+    <SampleFrame sampleText="Sample Attachment" className="h-min">
       <Thread />
     </SampleFrame>
   );
