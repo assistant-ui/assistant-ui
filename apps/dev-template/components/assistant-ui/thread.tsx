@@ -24,8 +24,8 @@ import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { MarkdownText } from "./markdown-text";
-import { ToolFallback } from "./tool-fallback";
+import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 
 export const Thread: FC = () => {
   return (
