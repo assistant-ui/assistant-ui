@@ -4,6 +4,7 @@ title: ThreadList
 
 import { Steps, Step } from "fumadocs-ui/components/steps";
 import { Callout } from "fumadocs-ui/components/callout";
+import { Tabs, Tab } from "fumadocs-ui/components/tabs";
 import { ThreadListSample } from "../../../components/samples/threadlist-sample";
 
 ## Overview
@@ -36,22 +37,49 @@ npx shadcn@latest add "https://r.assistant-ui.com/thread-list"
 
 ### Use in your application
 
-```tsx title="/app/page.tsx"
-import { Thread } from "@/components/assistant-ui/thread";
-import { ThreadListSidebar } from "@/components/assistant-ui/threadlist-sidebar";
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+<Tabs items={["With Sidebar", "Without Sidebar"]}>
+  <Tab value="With Sidebar">
+    ```tsx title="/app/assistant.tsx"
+    import { Thread } from "@/components/assistant-ui/thread";
+    import { ThreadListSidebar } from "@/components/assistant-ui/threadlist-sidebar";
+    import { 
+      SidebarProvider, 
+      SidebarInset,
+      SidebarTrigger 
+    } from "@/components/ui/sidebar";
 
-export default function Home() {
-  return (
-    <SidebarProvider>
-      <ThreadListSidebar />
-      <SidebarInset>
-        <Thread />
-      </SidebarInset>
-    </SidebarProvider>
-  );
-}
-```
+    export default function Home() {
+      return (
+        <SidebarProvider>
+          <div className="flex h-dvh w-full">
+            <ThreadListSidebar />
+            <SidebarInset>
+              {/* Add sidebar trigger, location can be customized */}
+              <SidebarTrigger className="absolute top-4 left-4" />
+              <Thread />
+            </SidebarInset>
+          </div>
+        </SidebarProvider>
+      );
+    }
+    ```
+  </Tab>
+  <Tab value="Without Sidebar">
+    ```tsx title="/app/assistant.tsx"
+    import { Thread } from "@/components/assistant-ui/thread";
+    import { ThreadList } from "@/components/assistant-ui/thread-list";
+
+    export default function Home() {
+      return (
+        <div className="grid h-full grid-cols-[200px_1fr]">
+          <ThreadList />
+          <Thread />
+        </div>
+      );
+    }
+    ```
+  </Tab>
+</Tabs>
 
   </Step>
 </Steps>
