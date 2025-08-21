@@ -10,7 +10,6 @@ import type { FC } from "react";
 import {
   ArrowDownIcon,
   ArrowUpIcon,
-  PlusIcon,
   CopyIcon,
   CheckIcon,
   PencilIcon,
@@ -26,6 +25,11 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { MarkdownText } from "./markdown-text";
 import { ToolFallback } from "./tool-fallback";
+import {
+  ComposerAddAttachment,
+  ComposerAttachments,
+  UserMessageAttachments,
+} from "./attachment";
 
 export const Thread: FC = () => {
   return (
@@ -156,6 +160,7 @@ const Composer: FC = () => {
         <ThreadWelcomeSuggestions />
       </ThreadPrimitive.Empty>
       <ComposerPrimitive.Root className="relative flex w-full flex-col rounded-2xl focus-within:ring-2 focus-within:ring-black focus-within:ring-offset-2 dark:focus-within:ring-white">
+        <ComposerAttachments />
         <ComposerPrimitive.Input
           placeholder="Send a message..."
           className="bg-muted border-border dark:border-muted-foreground/15 focus:outline-primary placeholder:text-muted-foreground max-h-[calc(50dvh)] min-h-16 w-full resize-none rounded-t-2xl border-x border-t px-4 pb-3 pt-2 text-base outline-none"
@@ -172,16 +177,7 @@ const Composer: FC = () => {
 const ComposerAction: FC = () => {
   return (
     <div className="bg-muted border-border dark:border-muted-foreground/15 relative flex items-center justify-between rounded-b-2xl border-x border-b p-2">
-      <TooltipIconButton
-        tooltip="Attach file"
-        variant="ghost"
-        className="hover:bg-foreground/15 dark:hover:bg-background/50 scale-115 p-3.5"
-        onClick={() => {
-          console.log("Attachment clicked - not implemented");
-        }}
-      >
-        <PlusIcon />
-      </TooltipIconButton>
+      <ComposerAddAttachment />
 
       <ThreadPrimitive.If running={false}>
         <ComposerPrimitive.Send asChild>
@@ -290,6 +286,7 @@ const UserMessage: FC = () => {
         data-role="user"
       >
         <UserActionBar />
+        <UserMessageAttachments />
 
         <div className="bg-muted text-foreground col-start-2 break-words rounded-3xl px-5 py-2.5">
           <MessagePrimitive.Content components={{ Text: MarkdownText }} />
