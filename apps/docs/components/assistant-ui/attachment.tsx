@@ -158,7 +158,13 @@ export const UserMessageAttachments: FC = () => {
 
 export const ComposerAttachments: FC = () => {
   return (
-    <div className="flex gap-2 px-4 pt-3 pb-2 empty:hidden">
+    <div 
+      className="flex gap-2 px-1 pt-3 pb-2 empty:hidden overflow-x-auto overflow-y-hidden [&::-webkit-scrollbar]:hidden"
+      style={{
+        scrollbarWidth: 'none',
+        msOverflowStyle: 'none',
+      }}
+    >
       <ComposerPrimitive.Attachments
         components={{ Attachment: ComposerAttachmentUI }}
       />
