@@ -1,7 +1,7 @@
 "use client";
 
 import { PropsWithChildren, useEffect, useState, type FC } from "react";
-import { CircleXIcon, FileIcon, PaperclipIcon } from "lucide-react";
+import { CircleXIcon, FileIcon, PaperclipIcon, PlusIcon } from "lucide-react";
 import {
   AttachmentPrimitive,
   ComposerPrimitive,
@@ -195,11 +195,11 @@ export const ComposerAddAttachment: FC = () => {
   return (
     <ComposerPrimitive.AddAttachment asChild>
       <TooltipIconButton
-        className="my-2.5 size-8 p-2 transition-opacity ease-in"
         tooltip="Add Attachment"
         variant="ghost"
+        className="hover:bg-foreground/15 dark:hover:bg-background/50 scale-115 p-3.5"
       >
-        <PaperclipIcon />
+        <PlusIcon />
       </TooltipIconButton>
     </ComposerPrimitive.AddAttachment>
   );
