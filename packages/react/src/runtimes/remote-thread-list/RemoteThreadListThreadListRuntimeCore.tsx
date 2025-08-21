@@ -10,7 +10,7 @@ import { RemoteThreadListHookInstanceManager } from "./RemoteThreadListHookInsta
 import { BaseSubscribable } from "./BaseSubscribable";
 import { EMPTY_THREAD_CORE } from "./EMPTY_THREAD_CORE";
 import { OptimisticState } from "./OptimisticState";
-import { FC, Fragment, useEffect, useRef } from "react";
+import { FC, Fragment, useEffect, useId } from "react";
 import { create } from "zustand";
 import { AssistantMessageStream } from "assistant-stream";
 import { ModelContextProvider } from "../../model-context";
@@ -54,11 +54,6 @@ type RemoteThreadState = {
   readonly threadIdMap: Readonly<Record<string, THREAD_MAPPING_ID>>;
   readonly threadData: Readonly<Record<THREAD_MAPPING_ID, RemoteThreadData>>;
 };
-
-function useFallbackId(prefix = "id") {
-  const idRef = useRef(`${prefix}-${Math.random().toString(36).substr(2, 9)}`);
-  return idRef.current;
-}
 
 const getThreadData = (
   state: RemoteThreadState,
@@ -549,7 +544,7 @@ export class RemoteThreadListThreadListRuntimeCore
 
   public __internal_RenderComponent: FC = () => {
     // eslint-disable-next-line react-hooks/rules-of-hooks
-    const id = useFallbackId();
+    const id = useId();
     // eslint-disable-next-line react-hooks/rules-of-hooks
     useEffect(() => {
       this.useBoundIds.setState((s) => [...s, id], true);
