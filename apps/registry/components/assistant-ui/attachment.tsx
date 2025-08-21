@@ -91,7 +91,6 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
   );
 };
 
-// Compact attachment UI for composer
 const ComposerAttachmentUI: FC = () => {
   const canRemove = useAttachment((a) => a.source !== "message");
   const name = useAttachment((a) => a.name);
@@ -115,7 +114,6 @@ const ComposerAttachmentUI: FC = () => {
   );
 };
 
-// Same compact UI for messages
 const MessageAttachmentUI: FC = () => {
   const name = useAttachment((a) => a.name);
 
