@@ -83,7 +83,7 @@ export const useExternalHistory = <TMessage,>(
       loadedRef.current = true;
       loadHistory();
     }
-  }, [historyAdapter, storageFormatAdapter, toThreadMessages]);
+  }, [historyAdapter, storageFormatAdapter, toThreadMessages, runtimeRef]);
 
   useEffect(() => {
     return runtimeRef.current.thread.subscribe(async () => {
@@ -108,7 +108,7 @@ export const useExternalHistory = <TMessage,>(
         }
       }
     });
-  }, [historyAdapter, storageFormatAdapter]);
+  }, [historyAdapter, storageFormatAdapter, runtimeRef]);
 
   return isLoading;
 };
