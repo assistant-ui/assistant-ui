@@ -366,7 +366,7 @@ export class LocalThreadRuntimeCore
         await this._options.adapters.history?.append({
           parentId,
           message: message,
-          runConfig: message.runConfig ?? {},
+          runConfig: this._lastRunConfig,
         });
       }
     }
