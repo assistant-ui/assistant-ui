@@ -28,7 +28,9 @@ export function ThreadListSidebar({
                     <MessagesSquare className="aui-sidebar-header-icon" />
                   </div>
                   <div className="aui-sidebar-header-heading">
-                    <span className="aui-sidebar-header-title">assistant-ui</span>
+                    <span className="aui-sidebar-header-title">
+                      assistant-ui
+                    </span>
                   </div>
                 </Link>
               </SidebarMenuButton>
