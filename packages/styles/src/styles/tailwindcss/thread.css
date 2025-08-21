@@ -114,41 +114,37 @@
 }
 
 .aui-composer-attachments {
-  @apply flex w-full flex-row gap-3 overflow-x-auto;
+  @apply flex gap-2 px-1 pt-3 pb-2 empty:hidden overflow-x-auto overflow-y-hidden [&::-webkit-scrollbar]:hidden;
 }
 
 /* attachment */
 
 .aui-attachment-root {
-  @apply relative mt-3;
+  @apply relative inline-flex;
 }
 
 .aui-attachment-content {
-  @apply flex h-12 w-40 items-center justify-center gap-2 rounded-lg border p-1;
-}
-
-.aui-attachment-preview-trigger {
-  @apply hover:bg-accent/50 cursor-pointer transition-colors;
+  @apply bg-muted/50 flex h-7 items-center gap-1.5 rounded-md border px-2 py-1 hover:bg-muted/80 cursor-pointer transition-colors;
 }
 
 .aui-attachment-thumb {
-  @apply bg-muted flex size-10 items-center justify-center rounded border text-sm;
-}
-
-.aui-attachment-text {
-  @apply flex-grow basis-0;
+  @apply size-3.5 flex-shrink-0 text-muted-foreground;
 }
 
 .aui-attachment-name {
-  @apply text-muted-foreground line-clamp-1 text-ellipsis break-all text-xs font-bold;
-}
-
-.aui-attachment-type {
-  @apply text-muted-foreground text-xs;
+  @apply text-xs max-w-[120px] truncate;
 }
 
 .aui-attachment-remove {
-  @apply text-muted-foreground [&>svg]:bg-background absolute -right-3 -top-3 size-6 [&>svg]:size-4 [&>svg]:rounded-full;
+  @apply hover:text-destructive -mr-1 ml-1;
+}
+
+.aui-attachment-preview {
+  @apply flex items-center justify-center w-full h-full min-h-[200px];
+}
+
+.aui-attachment-preview-image {
+  @apply max-w-full max-h-[80vh] w-auto h-auto object-contain;
 }
 
 /* user message */
@@ -166,10 +162,7 @@
 }
 
 .aui-user-message-attachments {
-  @apply flex w-full flex-row gap-3;
-
-  @apply col-span-full col-start-1 row-start-1;
-  @apply justify-end;
+  @apply col-start-2 mb-2 flex flex-wrap gap-2 empty:hidden;
 }
 
 /* user action bar */

@@ -1,7 +1,7 @@
 "use client";
 
 import { PropsWithChildren, useEffect, useState, type FC } from "react";
-import { CircleXIcon, FileIcon, PaperclipIcon, PlusIcon } from "lucide-react";
+import { CircleXIcon, FileIcon, PlusIcon } from "lucide-react";
 import {
   AttachmentPrimitive,
   ComposerPrimitive,
@@ -10,17 +10,11 @@ import {
 } from "@assistant-ui/react";
 import { useShallow } from "zustand/shallow";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
   Dialog,
   DialogTitle,
   DialogContent,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 
 const useFileSrc = (file: File | undefined) => {
