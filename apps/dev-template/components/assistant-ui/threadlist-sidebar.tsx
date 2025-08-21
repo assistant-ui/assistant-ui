@@ -13,20 +13,24 @@ import {
 } from "@/components/ui/sidebar";
 import { ThreadList } from "./thread-list";
 
-export function ThreadListSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+export function ThreadListSidebar({
+  ...props
+}: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar {...props}>
-      <SidebarHeader className="mb-2 border-b">
-        <div className="flex items-center justify-between">
+      <SidebarHeader className="aui-sidebar-header">
+        <div className="aui-sidebar-header-content">
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton size="lg" asChild>
                 <Link href="https://assistant-ui.com" target="_blank">
-                  <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-                    <MessagesSquare className="size-4" />
+                  <div className="aui-sidebar-header-icon-wrapper">
+                    <MessagesSquare className="aui-sidebar-header-icon" />
                   </div>
-                  <div className="mr-6 flex flex-col gap-0.5 leading-none">
-                    <span className="font-semibold">assistant-ui</span>
+                  <div className="aui-sidebar-header-heading">
+                    <span className="aui-sidebar-header-title">
+                      assistant-ui
+                    </span>
                   </div>
                 </Link>
               </SidebarMenuButton>
@@ -34,11 +38,11 @@ export function ThreadListSidebar({ ...props }: React.ComponentProps<typeof Side
           </SidebarMenu>
         </div>
       </SidebarHeader>
-      <SidebarContent className="px-2">
+      <SidebarContent className="aui-sidebar-content">
         <ThreadList />
       </SidebarContent>
       <SidebarRail />
-      <SidebarFooter className="border-t">
+      <SidebarFooter className="aui-sidebar-footer">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
@@ -46,12 +50,12 @@ export function ThreadListSidebar({ ...props }: React.ComponentProps<typeof Side
                 href="https://github.com/assistant-ui/assistant-ui"
                 target="_blank"
               >
-                <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-                  <Github className="size-4" />
+                <div className="aui-sidebar-footer-icon-wrapper">
+                  <Github className="aui-sidebar-footer-icon" />
                 </div>
-                <div className="flex flex-col gap-0.5 leading-none">
-                  <span className="font-semibold">GitHub</span>
-                  <span className="">View Source</span>
+                <div className="aui-sidebar-footer-heading">
+                  <span className="aui-sidebar-footer-title">GitHub</span>
+                  <span>View Source</span>
                 </div>
               </Link>
             </SidebarMenuButton>
