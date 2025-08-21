@@ -70,9 +70,7 @@ const AttachmentPreview: FC<AttachmentPreviewProps> = ({ src }) => {
         onLoad={() => setIsLoaded(true)}
         alt="Preview"
       />
-      {!isLoaded && (
-        <div className="text-muted-foreground">Loading...</div>
-      )}
+      {!isLoaded && <div className="text-muted-foreground">Loading...</div>}
     </div>
   );
 };
@@ -84,33 +82,26 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
 
   return (
     <Dialog>
-      <DialogTrigger asChild>
-        {children}
-      </DialogTrigger>
-      <DialogContent className="max-w-4xl p-0 overflow-hidden">
-        <DialogTitle className="sr-only">
-          Image Attachment Preview
-        </DialogTitle>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent className="max-w-4xl overflow-hidden p-0">
+        <DialogTitle className="sr-only">Image Attachment Preview</DialogTitle>
         <AttachmentPreview src={src} />
       </DialogContent>
     </Dialog>
   );
 };
 
-
 // Compact attachment UI for composer
 const ComposerAttachmentUI: FC = () => {
   const canRemove = useAttachment((a) => a.source !== "message");
   const name = useAttachment((a) => a.name);
-  
+
   return (
     <AttachmentPrimitive.Root className="aui-attachment-root">
       <AttachmentPreviewDialog>
         <div className="aui-attachment-content">
           <FileIcon className="aui-attachment-thumb" />
-          <span className="aui-attachment-name">
-            {name}
-          </span>
+          <span className="aui-attachment-name">{name}</span>
           {canRemove && (
             <AttachmentPrimitive.Remove asChild>
               <button className="aui-attachment-remove">
@@ -127,15 +118,13 @@ const ComposerAttachmentUI: FC = () => {
 // Same compact UI for messages
 const MessageAttachmentUI: FC = () => {
   const name = useAttachment((a) => a.name);
-  
+
   return (
     <AttachmentPrimitive.Root className="aui-attachment-root">
       <AttachmentPreviewDialog>
         <div className="aui-attachment-content">
           <FileIcon className="aui-attachment-thumb" />
-          <span className="aui-attachment-name">
-            {name}
-          </span>
+          <span className="aui-attachment-name">{name}</span>
         </div>
       </AttachmentPreviewDialog>
     </AttachmentPrimitive.Root>
@@ -145,18 +134,20 @@ const MessageAttachmentUI: FC = () => {
 export const UserMessageAttachments: FC = () => {
   return (
     <div className="aui-user-message-attachments">
-      <MessagePrimitive.Attachments components={{ Attachment: MessageAttachmentUI }} />
+      <MessagePrimitive.Attachments
+        components={{ Attachment: MessageAttachmentUI }}
+      />
     </div>
   );
 };
 
 export const ComposerAttachments: FC = () => {
   return (
-    <div 
+    <div
       className="aui-composer-attachments"
       style={{
-        scrollbarWidth: 'none',
-        msOverflowStyle: 'none',
+        scrollbarWidth: "none",
+        msOverflowStyle: "none",
       }}
     >
       <ComposerPrimitive.Attachments

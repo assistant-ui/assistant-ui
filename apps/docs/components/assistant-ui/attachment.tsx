@@ -59,20 +59,18 @@ const AttachmentPreview: FC<AttachmentPreviewProps> = ({ src }) => {
   const [isLoaded, setIsLoaded] = useState(false);
 
   return (
-    <div className="flex items-center justify-center w-full h-full min-h-[200px]">
+    <div className="flex h-full min-h-[200px] w-full items-center justify-center">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={src}
-        className="max-w-full max-h-[80vh] w-auto h-auto object-contain"
+        className="h-auto max-h-[80vh] w-auto max-w-full object-contain"
         style={{
           display: isLoaded ? "block" : "none",
         }}
         onLoad={() => setIsLoaded(true)}
         alt="Preview"
       />
-      {!isLoaded && (
-        <div className="text-muted-foreground">Loading...</div>
-      )}
+      {!isLoaded && <div className="text-muted-foreground">Loading...</div>}
     </div>
   );
 };
@@ -84,33 +82,26 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
 
   return (
     <Dialog>
-      <DialogTrigger asChild>
-        {children}
-      </DialogTrigger>
-      <DialogContent className="max-w-4xl p-0 overflow-hidden">
-        <DialogTitle className="sr-only">
-          Image Attachment Preview
-        </DialogTitle>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent className="max-w-4xl overflow-hidden p-0">
+        <DialogTitle className="sr-only">Image Attachment Preview</DialogTitle>
         <AttachmentPreview src={src} />
       </DialogContent>
     </Dialog>
   );
 };
 
-
 // Compact attachment UI for composer
 const ComposerAttachmentUI: FC = () => {
   const canRemove = useAttachment((a) => a.source !== "message");
   const name = useAttachment((a) => a.name);
-  
+
   return (
     <AttachmentPrimitive.Root className="relative inline-flex">
       <AttachmentPreviewDialog>
         <div className="bg-muted/50 flex h-7 items-center gap-1.5 rounded-md border px-2 py-1">
-          <FileIcon className="size-3.5 flex-shrink-0 text-muted-foreground" />
-          <span className="text-xs max-w-[120px] truncate">
-            {name}
-          </span>
+          <FileIcon className="text-muted-foreground size-3.5 flex-shrink-0" />
+          <span className="max-w-[120px] truncate text-xs">{name}</span>
           {canRemove && (
             <AttachmentPrimitive.Remove asChild>
               <button className="hover:text-destructive -mr-1 ml-1">
@@ -127,15 +118,13 @@ const ComposerAttachmentUI: FC = () => {
 // Same compact UI for messages
 const MessageAttachmentUI: FC = () => {
   const name = useAttachment((a) => a.name);
-  
+
   return (
     <AttachmentPrimitive.Root className="relative inline-flex">
       <AttachmentPreviewDialog>
-        <div className="bg-muted/50 flex h-7 items-center gap-1.5 rounded-md border px-2 py-1 hover:bg-muted/80 cursor-pointer transition-colors">
-          <FileIcon className="size-3.5 flex-shrink-0 text-muted-foreground" />
-          <span className="text-xs max-w-[120px] truncate">
-            {name}
-          </span>
+        <div className="bg-muted/50 hover:bg-muted/80 flex h-7 cursor-pointer items-center gap-1.5 rounded-md border px-2 py-1 transition-colors">
+          <FileIcon className="text-muted-foreground size-3.5 flex-shrink-0" />
+          <span className="max-w-[120px] truncate text-xs">{name}</span>
         </div>
       </AttachmentPreviewDialog>
     </AttachmentPrimitive.Root>
@@ -145,18 +134,20 @@ const MessageAttachmentUI: FC = () => {
 export const UserMessageAttachments: FC = () => {
   return (
     <div className="col-start-2 mb-2 flex flex-wrap gap-2 empty:hidden">
-      <MessagePrimitive.Attachments components={{ Attachment: MessageAttachmentUI }} />
+      <MessagePrimitive.Attachments
+        components={{ Attachment: MessageAttachmentUI }}
+      />
     </div>
   );
 };
 
 export const ComposerAttachments: FC = () => {
   return (
-    <div 
-      className="flex gap-2 px-1 pt-3 pb-2 empty:hidden overflow-x-auto overflow-y-hidden [&::-webkit-scrollbar]:hidden"
+    <div
+      className="flex gap-2 overflow-x-auto overflow-y-hidden px-1 pb-2 pt-3 empty:hidden [&::-webkit-scrollbar]:hidden"
       style={{
-        scrollbarWidth: 'none',
-        msOverflowStyle: 'none',
+        scrollbarWidth: "none",
+        msOverflowStyle: "none",
       }}
     >
       <ComposerPrimitive.Attachments
