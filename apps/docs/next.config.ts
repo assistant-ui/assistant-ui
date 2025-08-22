@@ -2,7 +2,7 @@ import { createMDX } from "fumadocs-mdx/next";
 import { NextConfig } from "next";
 
 const config: NextConfig = {
-  transpilePackages: ["@assistant-ui/*"],
+  transpilePackages: ["@assistant-ui/*", "shiki"],
   serverExternalPackages: ["twoslash"],
   rewrites: async () => ({
     beforeFiles: [
