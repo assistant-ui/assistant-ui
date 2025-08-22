@@ -24,8 +24,8 @@ import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { MarkdownText } from "@/components/assistant-ui/markdown-text";
-import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
+import { MarkdownText } from "./markdown-text";
+import { ToolFallback } from "./tool-fallback";
 
 export const Thread: FC = () => {
   return (
@@ -149,9 +149,9 @@ const ThreadWelcomeSuggestions: FC = () => {
               <span className="aui-thread-welcome-suggestion-text-1">
                 {suggestedAction.title}
               </span>
-              <span className="aui-thread-welcome-suggestion-text-2">
+              <p className="aui-thread-welcome-suggestion-text-2">
                 {suggestedAction.label}
-              </span>
+              </p>
             </Button>
           </ThreadPrimitive.Suggestion>
         </motion.div>

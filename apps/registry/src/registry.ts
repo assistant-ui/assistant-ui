@@ -202,16 +202,4 @@ export const registry: RegistryItem[] = [
       "@assistant-ui/react-markdown",
     ],
   },
-  {
-    name: "threadlist-sidebar",
-    type: "registry:component",
-    files: [
-      {
-        type: "registry:component",
-        path: "components/assistant-ui/threadlist-sidebar.tsx",
-      },
-    ],
-    dependencies: ["lucide-react"],
-    registryDependencies: ["sidebar", "https://r.assistant-ui.com/thread-list"],
-  },
 ];
