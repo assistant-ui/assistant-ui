@@ -1,5 +1,11 @@
 # @assistant-ui/styles
 
+## 0.1.18
+
+### Patch Changes
+
+- 36d4131: add styles for new threadlist-sidebar, and updates for attachment component
+
 ## 0.1.17
 
 ### Patch Changes
