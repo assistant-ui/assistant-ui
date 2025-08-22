@@ -1,5 +1,11 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.0.4
+
+### Patch Changes
+
+- 9235fe1: update dep array in external history adapter
+
 ## 1.0.3
 
 ### Patch Changes
