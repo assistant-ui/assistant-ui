@@ -12,14 +12,16 @@ import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button
 export const AssistantModalSample = () => {
   return (
     <SampleFrame sampleText="Sample Assistant Modal">
-      <AssistantModal />
+      <div className="pt-10">
+        <AssistantModal />
+      </div>
     </SampleFrame>
   );
 };
 
 export const AssistantModal: FC = () => {
   return (
-    <AssistantModalPrimitive.Root defaultOpen>
+    <AssistantModalPrimitive.Root>
       <AssistantModalPrimitive.Anchor className="absolute bottom-4 right-4 size-11">
         <AssistantModalPrimitive.Trigger asChild>
           <AssistantModalButton />
@@ -27,12 +29,7 @@ export const AssistantModal: FC = () => {
       </AssistantModalPrimitive.Anchor>
       <AssistantModalPrimitive.Content
         sideOffset={16}
-        avoidCollisions={false}
-        className="bg-popover text-popover-foreground data-[state=closed]:animate-out data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out data-[state=open]:zoom-in data-[state=open]:slide-in-from-bottom-1/2 data-[state=open]:slide-in-from-right-1/2 data-[state=closed]:slide-out-to-bottom-1/2 data-[state=closed]:slide-out-to-right-1/2 z-50 h-[var(--modal-height)] w-[var(--modal-width)] overflow-clip rounded-xl border p-0 shadow-md outline-none [&>.aui-thread-root]:bg-inherit"
-        style={{
-          ["--modal-width" as string]: "420px",
-          ["--modal-height" as string]: "550px",
-        }}
+        className="bg-popover text-popover-foreground data-[state=closed]:animate-out data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out data-[state=open]:zoom-in data-[state=open]:slide-in-from-bottom-1/2 data-[state=open]:slide-in-from-right-1/2 data-[state=closed]:slide-out-to-bottom-1/2 data-[state=closed]:slide-out-to-right-1/2 z-50 h-[500px] w-[400px] overflow-clip rounded-xl border p-0 shadow-md outline-none [&>.aui-thread-root]:bg-inherit"
       >
         <Thread />
       </AssistantModalPrimitive.Content>

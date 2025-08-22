@@ -3,8 +3,6 @@ title: ThreadList
 ---
 
 import { Steps, Step } from "fumadocs-ui/components/steps";
-import { Callout } from "fumadocs-ui/components/callout";
-import { Tabs, Tab } from "fumadocs-ui/components/tabs";
 import { ThreadListSample } from "../../../components/samples/threadlist-sample";
 
 ## Overview
@@ -13,73 +11,37 @@ The ThreadList component lets the user switch between threads.
 
 <ThreadListSample />
 
-<Callout>
-This demo uses **ThreadListSidebar**, which includes `thread-list` as a dependency and provides a complete sidebar layout. For custom implementations, you can use `thread-list` directly.
-</Callout>
-
 ## Getting Started
 
 <Steps>
   <Step>
 
-### Add the component
+### Add `thread-list`
 
 ```sh
-# Complete thread-list sidebar layout
-npx shadcn@latest add "https://r.assistant-ui.com/threadlist-sidebar"
-
-# Just the thread-list for custom layouts
 npx shadcn@latest add "https://r.assistant-ui.com/thread-list"
 ```
+
+This adds a `/components/assistant-ui/thread-list.tsx` file to your project, which you can adjust as needed.
 
   </Step>
   <Step>
 
 ### Use in your application
 
-<Tabs items={["With Sidebar", "Without Sidebar"]}>
-  <Tab value="With Sidebar">
-    ```tsx title="/app/assistant.tsx"
-    import { Thread } from "@/components/assistant-ui/thread";
-    import { ThreadListSidebar } from "@/components/assistant-ui/threadlist-sidebar";
-    import { 
-      SidebarProvider, 
-      SidebarInset,
-      SidebarTrigger 
-    } from "@/components/ui/sidebar";
+```tsx title="/app/page.tsx" {1,5-6}
+import { Thread } from "@/components/assistant-ui/thread";
+import { ThreadList } from "@/components/assistant-ui/thread-list";
 
-    export default function Assistant() {
-      return (
-        <SidebarProvider>
-          <div className="flex h-dvh w-full">
-            <ThreadListSidebar />
-            <SidebarInset>
-              {/* Add sidebar trigger, location can be customized */}
-              <SidebarTrigger className="absolute top-4 left-4" />
-              <Thread />
-            </SidebarInset>
-          </div>
-        </SidebarProvider>
-      );
-    }
-    ```
-  </Tab>
-  <Tab value="Without Sidebar">
-    ```tsx title="/app/assistant.tsx"
-    import { Thread } from "@/components/assistant-ui/thread";
-    import { ThreadList } from "@/components/assistant-ui/thread-list";
-
-    export default function Assistant() {
-      return (
-        <div className="grid h-full grid-cols-[200px_1fr]">
-          <ThreadList />
-          <Thread />
-        </div>
-      );
-    }
-    ```
-  </Tab>
-</Tabs>
+export default function Home() {
+  return (
+    <div className="grid h-full grid-cols-[200px_1fr]">
+      <ThreadList />
+      <Thread />
+    </div>
+  );
+}
+```
 
   </Step>
 </Steps>

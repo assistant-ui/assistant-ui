@@ -48,9 +48,9 @@ const ThreadListItem: FC = () => {
 
 const ThreadListItemTitle: FC = () => {
   return (
-    <span className="text-sm">
+    <p className="text-sm">
       <ThreadListItemPrimitive.Title fallback="New Chat" />
-    </span>
+    </p>
   );
 };
 

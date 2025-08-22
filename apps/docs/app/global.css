@@ -50,15 +50,6 @@
     --chart-5: 27 87% 67%;
 
     --radius: 0.5rem;
-
-    --sidebar: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
   .dark {
@@ -94,19 +85,10 @@
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
-
-    --sidebar: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
   }
 }
 
-@theme inline {
+@theme {
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
 
@@ -144,15 +126,6 @@
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
-
-  --color-sidebar: hsl(var(--sidebar));
-  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
-  --color-sidebar-primary: hsl(var(--sidebar-primary));
-  --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
-  --color-sidebar-accent: hsl(var(--sidebar-accent));
-  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
-  --color-sidebar-border: hsl(var(--sidebar-border));
-  --color-sidebar-ring: hsl(var(--sidebar-ring));
 }
 
 @layer base {
@@ -161,33 +134,6 @@
   }
   body {
     @apply bg-background text-foreground;
-  }
-
-  /* Scrollbar styling */
-  ::-webkit-scrollbar {
-    width: 12px;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    @apply bg-muted-foreground/20;
-    border-radius: 6px;
-    border: 2px solid transparent;
-    background-clip: padding-box;
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    @apply bg-muted-foreground/30;
-  }
-
-  /* Firefox only scrollbar styling */
-  @-moz-document url-prefix() {
-    * {
-      scrollbar-color: hsl(240 3.8% 46.1% / 25%) transparent;
-    }
-
-    .dark * {
-      scrollbar-color: hsl(240 5% 64.9% / 25%) transparent;
-    }
   }
 }
 
@@ -272,4 +218,3 @@
     transform: scale(1.1, 1.1);
   }
 }
-
