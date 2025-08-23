@@ -1,0 +1,17 @@
+{
+  "extends": "@assistant-ui/x-buildutils/ts/base",
+  "compilerOptions": {
+    "jsx": "preserve",
+    "paths": {
+      "@/*": ["./base/*", "./providers/vercel-ai-sdk/*", "./providers/assistant-cloud/*", "./providers/langgraph/*", "./providers/mcp/*"],
+      "@/app/RuntimeProvider": ["./providers/vercel-ai-sdk/app/RuntimeProvider", "./providers/assistant-cloud/app/RuntimeProvider", "./providers/langgraph/app/RuntimeProvider", "./providers/mcp/app/RuntimeProvider"],
+      "@/components/assistant-ui/*": ["../../../apps/dev-template/components/assistant-ui/*"],
+      "@/components/ui/*": ["../../../apps/dev-template/components/ui/*"],
+      "@/lib/*": ["./base/lib/*", "./providers/langgraph/lib/*"],
+      "@/hooks/*": ["./base/hooks/*"],
+      "@/components/*": ["./base/components/*"]
+    }
+  },
+  "include": ["**/*.ts", "**/*.tsx"],
+  "exclude": ["node_modules"]
+}
