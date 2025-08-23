@@ -11,6 +11,7 @@ import {
 
 export const toCreateMessage = async <UI_MESSAGE extends UIMessage = UIMessage>(
   message: AppendMessage,
+  idGenerator?: () => string,
 ): Promise<CreateUIMessage<UI_MESSAGE>> => {
   const textParts = message.content
     .filter((part) => part.type === "text")
@@ -54,7 +55,7 @@ export const toCreateMessage = async <UI_MESSAGE extends UIMessage = UIMessage>(
   parts.push(...attachmentParts);
 
   return {
-    id: generateId(),
+    id: idGenerator?.() ?? generateId(),
     role: message.role,
     parts,
   } satisfies CreateUIMessage<UIMessage> as CreateUIMessage<UI_MESSAGE>;
