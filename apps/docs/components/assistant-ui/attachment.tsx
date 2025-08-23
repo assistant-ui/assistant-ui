@@ -161,7 +161,7 @@ export const ComposerAddAttachment: FC = () => {
       <TooltipIconButton
         tooltip="Add Attachment"
         variant="ghost"
-        className="hover:bg-foreground/15 dark:hover:bg-background/50 scale-115 p-3.5"
+        className="hover:bg-foreground/15 dark:hover:bg-background/50 scale-115 p-3.5 -mb-1.5"
       >
         <PlusIcon />
       </TooltipIconButton>
