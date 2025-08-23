@@ -48,7 +48,7 @@ export const SyntaxHighlighter: FC<HighlighterProps> = ({
       showLanguage={showLanguage}
       className={cn(BASE_STYLES, className)}
     >
-      {code}
+      {code.trim()}
     </ShikiHighlighter>
   );
 };
