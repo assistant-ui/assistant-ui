@@ -44,7 +44,9 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
     private contentBinding: MessagePartSnapshotBinding,
     private messageApi?: MessageStateBinding,
     private threadApi?: ThreadRuntimeCoreBinding,
-  ) {}
+  ) {
+    this.__internal_bindMethods();
+  }
 
   protected __internal_bindMethods() {
     this.addToolResult = this.addToolResult.bind(this);

@@ -1,7 +1,7 @@
 "use client";
 
 import { FC, PropsWithChildren } from "react";
-import { useMessagePart } from "../../context";
+import { useAssistantState } from "../../context";
 
 export namespace MessagePartPrimitiveInProgress {
   export type Props = PropsWithChildren;
@@ -11,7 +11,9 @@ export namespace MessagePartPrimitiveInProgress {
 export const MessagePartPrimitiveInProgress: FC<
   MessagePartPrimitiveInProgress.Props
 > = ({ children }) => {
-  const isInProgress = useMessagePart((c) => c.status.type === "running");
+  const isInProgress = useAssistantState(
+    ({ part }) => part.status.type === "running",
+  );
 
   return isInProgress ? children : null;
 };

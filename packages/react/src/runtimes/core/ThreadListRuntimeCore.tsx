@@ -3,9 +3,9 @@ import { ThreadRuntimeCore } from "./ThreadRuntimeCore";
 import type { ThreadListItemStatus } from "../../api/RuntimeBindings";
 
 type ThreadListItemCoreState = {
-  readonly threadId: string;
-  readonly remoteId?: string | undefined;
-  readonly externalId?: string | undefined;
+  readonly id: string;
+  readonly remoteId: string | undefined;
+  readonly externalId: string | undefined;
 
   readonly status: ThreadListItemStatus;
   readonly title?: string | undefined;
@@ -20,6 +20,8 @@ export type ThreadListRuntimeCore = {
 
   threadIds: readonly string[];
   archivedThreadIds: readonly string[];
+
+  readonly threadData: Readonly<Record<string, ThreadListItemCoreState>>;
 
   getMainThreadRuntimeCore(): ThreadRuntimeCore;
   getThreadRuntimeCore(threadId: string): ThreadRuntimeCore;

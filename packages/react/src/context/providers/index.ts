@@ -1,5 +1,12 @@
 export { AssistantRuntimeProvider } from "./AssistantRuntimeProvider";
+export {
+  ThreadListItemByIndexProvider,
+  ThreadListItemByIdProvider,
+} from "./ThreadListItemProvider";
+export { MessageByIndexProvider } from "./MessageProvider";
+export { PartByIndexProvider } from "./PartProvider";
+export {
+  MessageAttachmentByIndexProvider,
+  ComposerAttachmentByIndexProvider,
+} from "./AttachmentProvider";
 export { TextMessagePartProvider } from "./TextMessagePartProvider";
-
-// TODO remove in v0.11
-export { TextMessagePartProvider as TextContentPartProvider } from "./TextMessagePartProvider";

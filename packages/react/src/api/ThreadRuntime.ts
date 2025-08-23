@@ -339,6 +339,8 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
         subscribe: (callback) => this._threadBinding.subscribe(callback),
       }),
     );
+
+    this.__internal_bindMethods();
   }
 
   protected __internal_bindMethods() {

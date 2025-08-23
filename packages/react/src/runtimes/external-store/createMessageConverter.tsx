@@ -1,6 +1,5 @@
 "use client";
 import { ThreadState } from "../../api";
-import { useMessagePart, useMessage } from "../../context";
 import { ThreadMessage } from "../../types";
 import {
   useExternalMessageConverter,
@@ -50,15 +49,8 @@ export const createMessageConverter = <T extends object>(
       return first;
     },
     useOriginalMessages: () => {
-      const MessagePartMessages = useMessagePart<T[]>({
-        optional: true,
-        selector: getExternalStoreMessages,
-      });
-
-      const messageMessages = useMessage<T[]>(getExternalStoreMessages);
-      const messages = MessagePartMessages ?? messageMessages;
-      if (messages.length === 0) throw new Error("No original messages found");
-      return messages;
+      // TODO: This needs to be reimplemented with the new context pattern
+      return [] as T[];
     },
   };
 

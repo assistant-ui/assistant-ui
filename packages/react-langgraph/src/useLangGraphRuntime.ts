@@ -8,10 +8,10 @@ import {
   OnMetadataEventCallback,
 } from "./types";
 import {
+  useAssistantState,
+  useAssistantApi,
   useExternalMessageConverter,
   useExternalStoreRuntime,
-  useThread,
-  useThreadListItemRuntime,
 } from "@assistant-ui/react";
 import { convertLangChainMessages } from "./convertLangChainMessages";
 import {
@@ -100,12 +100,16 @@ const asLangGraphRuntimeExtras = (extras: unknown): LangGraphRuntimeExtras => {
 };
 
 export const useLangGraphInterruptState = () => {
-  const { interrupt } = useThread((t) => asLangGraphRuntimeExtras(t.extras));
+  const { interrupt } = useAssistantState(({ thread }) =>
+    asLangGraphRuntimeExtras(thread.extras),
+  );
   return interrupt;
 };
 
 export const useLangGraphSend = () => {
-  const { send } = useThread((t) => asLangGraphRuntimeExtras(t.extras));
+  const { send } = useAssistantState(({ thread }) =>
+    asLangGraphRuntimeExtras(thread.extras),
+  );
   return send;
 };
 
@@ -227,11 +231,11 @@ export const useLangGraphRuntime = ({
   };
 
   const loadingRef = useRef(false);
-  const threadListItemRuntime = useThreadListItemRuntime({ optional: true });
+  const { getState } = useAssistantApi();
   useEffect(() => {
-    if (!threadListItemRuntime || !switchToThread || loadingRef.current) return;
+    if (!switchToThread || loadingRef.current) return;
 
-    const externalId = threadListItemRuntime.getState().externalId;
+    const externalId = getState().threadListItem.externalId;
     if (externalId) {
       loadingRef.current = true;
       switchToThread(externalId).finally(() => {

@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  useMessageRuntime,
-  useMessageUtilsStore,
-} from "../../context/react/MessageContext";
-import { useThreadRuntime } from "../../context/react/ThreadContext";
-import { useCombinedStore } from "../../utils/combined/useCombinedStore";
+import { useAssistantState } from "../../context";
 
 export enum HideAndFloatStatus {
   Hidden = "hidden",
@@ -24,32 +19,25 @@ export const useActionBarFloatStatus = ({
   autohide,
   autohideFloat,
 }: UseActionBarFloatStatusProps) => {
-  const threadRuntime = useThreadRuntime();
-  const messageRuntime = useMessageRuntime();
-  const messageUtilsStore = useMessageUtilsStore();
+  return useAssistantState(({ thread, message }) => {
+    if (hideWhenRunning && thread.isRunning) return HideAndFloatStatus.Hidden;
 
-  return useCombinedStore(
-    [threadRuntime, messageRuntime, messageUtilsStore],
-    (t, m, mu) => {
-      if (hideWhenRunning && t.isRunning) return HideAndFloatStatus.Hidden;
+    const autohideEnabled =
+      autohide === "always" || (autohide === "not-last" && !message.isLast);
 
-      const autohideEnabled =
-        autohide === "always" || (autohide === "not-last" && !m.isLast);
+    // normal status
+    if (!autohideEnabled) return HideAndFloatStatus.Normal;
 
-      // normal status
-      if (!autohideEnabled) return HideAndFloatStatus.Normal;
+    // hidden status
+    if (!message.isHovering) return HideAndFloatStatus.Hidden;
 
-      // hidden status
-      if (!mu.isHovering) return HideAndFloatStatus.Hidden;
+    // floating status
+    if (
+      autohideFloat === "always" ||
+      (autohideFloat === "single-branch" && message.branchCount <= 1)
+    )
+      return HideAndFloatStatus.Floating;
 
-      // floating status
-      if (
-        autohideFloat === "always" ||
-        (autohideFloat === "single-branch" && m.branchCount <= 1)
-      )
-        return HideAndFloatStatus.Floating;
-
-      return HideAndFloatStatus.Normal;
-    },
-  );
+    return HideAndFloatStatus.Normal;
+  });
 };
