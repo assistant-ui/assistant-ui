@@ -1,5 +1,9 @@
 import type { ThreadMessage } from "../../types";
-import { generateId, generateOptimisticId } from "../../utils/idUtils";
+import { RunConfig } from "../../types/AssistantTypes";
+import {
+  generateId,
+  generateOptimisticId,
+} from "../../utils/idUtils";
 import { ThreadMessageLike } from "../external-store";
 import { getAutoStatus } from "../external-store/auto-status";
 import { fromThreadMessageLike } from "../external-store/ThreadMessageLike";
@@ -34,6 +38,8 @@ export type ExportedMessageRepositoryItem = {
   message: ThreadMessage;
   /** ID of the parent message, or null for root messages */
   parentId: string | null;
+  /** The run configuration for the message */
+  runConfig?: RunConfig;
 };
 
 /**
