@@ -40,7 +40,7 @@ export const Thread: FC = () => {
         ["--thread-padding-x" as string]: "1rem",
       }}
     >
-      <ThreadPrimitive.Viewport className="relative flex min-w-0 flex-1 flex-col gap-6 overflow-y-scroll">
+      <ThreadPrimitive.Viewport className="relative flex min-w-0 flex-1 flex-col overflow-y-scroll">
         <ThreadWelcome />
 
         <ThreadPrimitive.Messages
@@ -50,10 +50,6 @@ export const Thread: FC = () => {
             AssistantMessage,
           }}
         />
-
-        <ThreadPrimitive.If empty={false}>
-          <motion.div className="min-h-6 min-w-6 shrink-0" />
-        </ThreadPrimitive.If>
       </ThreadPrimitive.Viewport>
 
       <Composer />
@@ -159,7 +155,7 @@ const Composer: FC = () => {
       <ThreadPrimitive.Empty>
         <ThreadWelcomeSuggestions />
       </ThreadPrimitive.Empty>
-      <ComposerPrimitive.Root className="relative flex w-full flex-col rounded-2xl focus-within:ring-2 focus-within:ring-black focus-within:ring-offset-2 dark:focus-within:ring-white">
+      <ComposerPrimitive.Root className="relative flex w-full flex-col rounded-2xl">
         <ComposerAttachments />
         <ComposerPrimitive.Input
           placeholder="Send a message..."
@@ -222,16 +218,12 @@ const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root asChild>
       <motion.div
-        className="relative mx-auto grid w-full max-w-[var(--thread-max-width)] grid-cols-[auto_auto_1fr] grid-rows-[auto_1fr] px-[var(--thread-padding-x)] py-4"
+        className="relative mx-auto w-full max-w-[var(--thread-max-width)] px-[var(--thread-padding-x)] py-4"
         initial={{ y: 5, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         data-role="assistant"
       >
-        <div className="ring-border bg-background col-start-1 row-start-1 flex size-8 shrink-0 items-center justify-center rounded-full ring-1">
-          <StarIcon size={14} />
-        </div>
-
-        <div className="text-foreground col-span-2 col-start-2 row-start-1 ml-4 break-words leading-7">
+        <div className="text-foreground ml-4 mr-1 break-words leading-7">
           <MessagePrimitive.Content
             components={{
               Text: MarkdownText,
@@ -241,9 +233,10 @@ const AssistantMessage: FC = () => {
           <MessageError />
         </div>
 
-        <AssistantActionBar />
-
-        <BranchPicker className="col-start-2 row-start-2 -ml-2 mr-2" />
+        <div className="ml-2 mt-2 flex">
+          <BranchPicker />
+          <AssistantActionBar />
+        </div>
       </motion.div>
     </MessagePrimitive.Root>
   );
@@ -255,7 +248,7 @@ const AssistantActionBar: FC = () => {
       hideWhenRunning
       autohide="not-last"
       autohideFloat="single-branch"
-      className="text-muted-foreground data-floating:bg-background data-floating:absolute data-floating:mt-2 data-floating:rounded-md data-floating:border data-floating:p-1 data-floating:shadow-sm col-start-3 row-start-2 ml-3 mt-3 flex gap-1"
+      className="text-muted-foreground data-floating:bg-background data-floating:absolute data-floating:rounded-md data-floating:border data-floating:p-1 data-floating:shadow-sm col-start-3 row-start-2 ml-1 flex gap-1"
     >
       <ActionBarPrimitive.Copy asChild>
         <TooltipIconButton tooltip="Copy">
@@ -288,7 +281,7 @@ const UserMessage: FC = () => {
         <UserActionBar />
         <UserMessageAttachments />
 
-        <div className="bg-muted text-foreground col-start-2 break-words rounded-3xl px-5 py-2.5">
+        <div className="bg-muted text-foreground col-start-2 mr-1 break-words rounded-3xl px-5 py-2.5">
           <MessagePrimitive.Content components={{ Text: MarkdownText }} />
         </div>
 
@@ -316,7 +309,7 @@ const UserActionBar: FC = () => {
 
 const EditComposer: FC = () => {
   return (
-    <div className="mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 px-[var(--thread-padding-x)]">
+    <div className="mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 px-[var(--thread-padding-x)] first:mt-4">
       <ComposerPrimitive.Root className="bg-muted max-w-7/8 ml-auto flex w-full flex-col rounded-xl">
         <ComposerPrimitive.Input
           className="text-foreground flex min-h-[60px] w-full resize-none bg-transparent p-4 outline-none"
@@ -369,18 +362,3 @@ const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({
     </BranchPickerPrimitive.Root>
   );
 };
-
-const StarIcon = ({ size = 14 }: { size?: number }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 16 16"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <path
-      d="M8 0L9.79611 6.20389L16 8L9.79611 9.79611L8 16L6.20389 9.79611L0 8L6.20389 6.20389L8 0Z"
-      fill="currentColor"
-    />
-  </svg>
-);
