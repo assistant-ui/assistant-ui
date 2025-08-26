@@ -108,28 +108,35 @@ const ComposerAttachmentThumb: FC = () => {
   return (
     <AttachmentPrimitive.Root className="relative inline-flex">
       <AttachmentPreviewDialog>
-        <div className="flex items-center gap-2 rounded-md border bg-background/50 px-2 py-2">
-          <Avatar className="h-8 w-8 flex-shrink-0 rounded-md">
-            {type === "image" && src && <AvatarImage src={src} alt={name} />}
-            <AvatarFallback className="rounded-md bg-muted">
-              <FileIcon className="h-4 w-4 text-muted-foreground" />
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex min-w-0 flex-col">
-            <span className="max-w-[120px] truncate text-xs font-medium">
-              {name}
-            </span>
-            <span className="text-xs text-muted-foreground">{fileExt}</span>
+        <TooltipIconButton tooltip={name} asChild>
+          <div className="flex cursor-pointer items-center gap-2 rounded-md border bg-background/50 px-2 py-2 transition-colors hover:bg-background/40">
+            <Avatar className="h-8 w-8 flex-shrink-0 rounded-md">
+              {type === "image" && src && <AvatarImage src={src} alt={name} />}
+              <AvatarFallback className="rounded-md bg-muted">
+                <FileIcon className="h-4 w-4 text-muted-foreground" />
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex min-w-0 flex-col">
+              <span className="max-w-[120px] truncate text-xs font-medium">
+                {name}
+              </span>
+              <span className="text-xs text-muted-foreground">{fileExt}</span>
+            </div>
           </div>
-          {canRemove && (
-            <AttachmentPrimitive.Remove asChild>
-              <button className="ml-auto hover:text-destructive">
-                <CircleXIcon className="size-3" />
-              </button>
-            </AttachmentPrimitive.Remove>
-          )}
-        </div>
+        </TooltipIconButton>
       </AttachmentPreviewDialog>
+      {canRemove && (
+        <AttachmentPrimitive.Remove asChild>
+          <TooltipIconButton
+            tooltip="Remove attachment"
+            variant="ghost"
+            size="icon"
+            className="absolute -top-1 -right-1 size-6 rounded-full bg-background border shadow-sm hover:bg-destructive hover:text-destructive-foreground"
+          >
+            <CircleXIcon className="size-3" />
+          </TooltipIconButton>
+        </AttachmentPrimitive.Remove>
+      )}
     </AttachmentPrimitive.Root>
   );
 };
@@ -149,20 +156,22 @@ const MessageAttachmentThumb: FC = () => {
   return (
     <AttachmentPrimitive.Root className="relative inline-flex">
       <AttachmentPreviewDialog>
-        <div className="flex cursor-pointer items-center gap-2 rounded-md border bg-muted/50 px-2 py-2 transition-colors hover:bg-muted/80">
-          <Avatar className="h-8 w-8 flex-shrink-0 rounded-md">
-            {type === "image" && src && <AvatarImage src={src} alt={name} />}
-            <AvatarFallback className="rounded-md bg-muted">
-              <FileIcon className="h-4 w-4 text-muted-foreground" />
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex min-w-0 flex-col">
-            <span className="max-w-[120px] truncate text-xs font-medium">
-              {name}
-            </span>
-            <span className="text-xs text-muted-foreground">{fileExt}</span>
+        <TooltipIconButton tooltip={name} asChild>
+          <div className="flex cursor-pointer items-center gap-2 rounded-md border bg-muted/50 px-2 py-2 transition-colors hover:bg-muted/80">
+            <Avatar className="h-8 w-8 flex-shrink-0 rounded-md">
+              {type === "image" && src && <AvatarImage src={src} alt={name} />}
+              <AvatarFallback className="rounded-md bg-muted">
+                <FileIcon className="h-4 w-4 text-muted-foreground" />
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex min-w-0 flex-col">
+              <span className="max-w-[120px] truncate text-xs font-medium">
+                {name}
+              </span>
+              <span className="text-xs text-muted-foreground">{fileExt}</span>
+            </div>
           </div>
-        </div>
+        </TooltipIconButton>
       </AttachmentPreviewDialog>
     </AttachmentPrimitive.Root>
   );
