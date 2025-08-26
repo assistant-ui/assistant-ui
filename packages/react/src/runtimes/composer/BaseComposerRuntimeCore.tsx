@@ -133,11 +133,12 @@ export abstract class BaseComposerRuntimeCore
           )
         : [];
 
+    const text = this.text;
     this._emptyTextAndAttachments();
     const message: Omit<AppendMessage, "parentId" | "sourceId"> = {
       createdAt: new Date(),
       role: this.role,
-      content: this.text ? [{ type: "text", text: this.text }] : [],
+      content: text ? [{ type: "text", text }] : [],
       attachments: await attachments,
       runConfig: this.runConfig,
       metadata: { custom: {} },
