@@ -17,7 +17,7 @@ export const vercelAttachmentAdapter: AttachmentAdapter = {
   async add({ file }) {
     return {
       id: generateId(),
-      type: "file",
+      type: file.type.startsWith("image/") ? "image" : "file",
       name: file.name,
       file,
       contentType: file.type,
