@@ -124,7 +124,7 @@ export abstract class BaseComposerRuntimeCore
     const adapter = this.getAttachmentAdapter();
     const attachments =
       adapter && this.attachments.length > 0
-        ? await Promise.all(
+        ? Promise.all(
             this.attachments.map(async (a) => {
               if (isAttachmentComplete(a)) return a;
               const result = await adapter.send(a);
@@ -133,15 +133,15 @@ export abstract class BaseComposerRuntimeCore
           )
         : [];
 
+    this._emptyTextAndAttachments();
     const message: Omit<AppendMessage, "parentId" | "sourceId"> = {
       createdAt: new Date(),
       role: this.role,
       content: this.text ? [{ type: "text", text: this.text }] : [],
-      attachments,
+      attachments: await attachments,
       runConfig: this.runConfig,
       metadata: { custom: {} },
     };
-    this._emptyTextAndAttachments();
 
     this.handleSend(message);
     this._notifyEventSubscribers("send");
