@@ -155,11 +155,11 @@ const Composer: FC = () => {
       <ThreadPrimitive.Empty>
         <ThreadWelcomeSuggestions />
       </ThreadPrimitive.Empty>
-      <ComposerPrimitive.Root className="relative flex w-full flex-col rounded-2xl">
-        <ComposerAttachments />
+      <ComposerPrimitive.Root className="border-border dark:border-muted-foreground/15 bg-muted relative flex w-full flex-col overflow-hidden rounded-2xl border">
+        <ComposerAttachmentArea />
         <ComposerPrimitive.Input
           placeholder="Send a message..."
-          className="bg-muted border-border dark:border-muted-foreground/15 focus:outline-primary placeholder:text-muted-foreground max-h-[calc(50dvh)] min-h-16 w-full resize-none rounded-t-2xl border-x border-t px-4 pt-2 pb-3 text-base outline-none"
+          className="focus:outline-primary placeholder:text-muted-foreground max-h-32 min-h-16 w-full resize-none bg-transparent px-4 pt-2 pb-3 text-base outline-none"
           rows={1}
           autoFocus
           aria-label="Message input"
@@ -172,7 +172,7 @@ const Composer: FC = () => {
 
 const ComposerAction: FC = () => {
   return (
-    <div className="bg-muted border-border dark:border-muted-foreground/15 relative flex items-center justify-between rounded-b-2xl border-x border-b p-2">
+    <div className="bg-muted relative flex items-center justify-between p-2">
       <ComposerAddAttachment />
 
       <ThreadPrimitive.If running={false}>

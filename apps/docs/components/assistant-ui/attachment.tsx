@@ -98,7 +98,7 @@ const ComposerAttachmentUI: FC = () => {
   return (
     <AttachmentPrimitive.Root className="relative inline-flex">
       <AttachmentPreviewDialog>
-        <div className="bg-muted/50 flex h-7 items-center gap-1.5 rounded-md border px-2 py-1">
+        <div className="bg-background/50 flex h-7 items-center gap-1.5 rounded-md border px-2 py-1">
           <FileIcon className="text-muted-foreground size-3.5 flex-shrink-0" />
           <span className="max-w-[120px] truncate text-xs">{name}</span>
           {canRemove && (
@@ -142,7 +142,7 @@ export const UserMessageAttachments: FC = () => {
 export const ComposerAttachments: FC = () => {
   return (
     <div
-      className="flex gap-2 overflow-x-auto overflow-y-hidden px-1 pt-3 pb-2 empty:hidden [&::-webkit-scrollbar]:hidden"
+      className="bg-muted-foreground/10 flex gap-2 overflow-x-auto overflow-y-hidden rounded-t-2xl p-2 empty:hidden [&::-webkit-scrollbar]:hidden"
       style={{
         scrollbarWidth: "none",
         msOverflowStyle: "none",
