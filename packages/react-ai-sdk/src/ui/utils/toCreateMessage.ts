@@ -47,7 +47,6 @@ export const toCreateMessage = <UI_MESSAGE extends UIMessage = UIMessage>(
     }
   });
 
-  console.log(inputParts, message);
   return {
     id: generateId(),
     role: message.role,
