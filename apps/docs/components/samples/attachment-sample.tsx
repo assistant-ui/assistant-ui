@@ -1,7 +1,7 @@
 "use client";
 import {
   ComposerAddAttachment,
-  ComposerAttachments,
+  ComposerAttachmentArea,
 } from "../assistant-ui/attachment";
 import { ComposerPrimitive, ThreadPrimitive } from "@assistant-ui/react";
 import { SampleFrame } from "./sample-frame";
@@ -52,7 +52,7 @@ const ThreadScrollToBottom: FC = () => {
 const Composer: FC = () => {
   return (
     <ComposerPrimitive.Root className="focus-within:border-ring/20 flex w-full flex-wrap items-end rounded-lg border bg-inherit px-2.5 shadow-sm transition-colors ease-in">
-      <ComposerAttachments />
+      <ComposerAttachmentArea />
       <ComposerAddAttachment />
       <ComposerPrimitive.Input
         rows={1}
