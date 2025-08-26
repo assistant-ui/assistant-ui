@@ -152,6 +152,8 @@ export class MessageRuntimeImpl implements MessageRuntime {
       }),
       () => this._threadBinding.getState().beginEdit(this._core.getState().id),
     );
+
+    this.__internal_bindMethods();
   }
 
   protected __internal_bindMethods() {

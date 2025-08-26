@@ -1,9 +1,10 @@
 "use client";
 
 import { ComponentType, type FC, memo, useMemo } from "react";
-import { useMessage, useMessageRuntime } from "../../context";
-import { useMessageAttachment } from "../../context/react/AttachmentContext";
-import { AttachmentRuntimeProvider } from "../../context/providers/AttachmentRuntimeProvider";
+import {
+  useAssistantState,
+  MessageAttachmentByIndexProvider,
+} from "../../context";
 import { CompleteAttachment } from "../../types";
 
 export namespace MessagePrimitiveAttachments {
@@ -40,8 +41,10 @@ const getComponent = (
 const AttachmentComponent: FC<{
   components: MessagePrimitiveAttachments.Props["components"];
 }> = ({ components }) => {
-  const Component = useMessageAttachment((a) => getComponent(components, a));
+  const attachment = useAssistantState(({ attachment }) => attachment);
+  if (!attachment) return null;
 
+  const Component = getComponent(components, attachment as CompleteAttachment);
   if (!Component) return null;
   return <Component />;
 };
@@ -73,16 +76,10 @@ export namespace MessagePrimitiveAttachmentByIndex {
 export const MessagePrimitiveAttachmentByIndex: FC<MessagePrimitiveAttachmentByIndex.Props> =
   memo(
     ({ index, components }) => {
-      const messageRuntime = useMessageRuntime();
-      const runtime = useMemo(
-        () => messageRuntime.getAttachmentByIndex(index),
-        [messageRuntime, index],
-      );
-
       return (
-        <AttachmentRuntimeProvider runtime={runtime}>
+        <MessageAttachmentByIndexProvider index={index}>
           <AttachmentComponent components={components} />
-        </AttachmentRuntimeProvider>
+        </MessageAttachmentByIndexProvider>
       );
     },
     (prev, next) =>
@@ -99,7 +96,7 @@ MessagePrimitiveAttachmentByIndex.displayName =
 export const MessagePrimitiveAttachments: FC<
   MessagePrimitiveAttachments.Props
 > = ({ components }) => {
-  const attachmentsCount = useMessage((message) => {
+  const attachmentsCount = useAssistantState(({ message }) => {
     if (message.role !== "user") return 0;
     return message.attachments.length;
   });

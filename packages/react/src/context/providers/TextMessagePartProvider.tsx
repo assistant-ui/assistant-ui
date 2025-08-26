@@ -1,90 +1,49 @@
 "use client";
 
-import { FC, PropsWithChildren, useEffect, useState } from "react";
-import { create, StoreApi, UseBoundStore } from "zustand";
+import { type FC, type PropsWithChildren, useMemo } from "react";
+import { useAssistantStoreWithSelector } from "../react/utils/createAssistantStoreWithSelector";
+import { AssistantStoreContext } from "../react/AssistantContext";
 import {
-  MessagePartContext,
-  MessagePartContextValue,
-} from "../react/MessagePartContext";
-import { MessagePartStatus } from "../../types/AssistantTypes";
-import { writableStore } from "../ReadonlyStore";
-import {
-  MessagePartRuntimeImpl,
-  MessagePartState,
-} from "../../api/MessagePartRuntime";
-import { ensureBinding } from "../react/utils/ensureBinding";
+  MessagePartClientActions,
+  MessagePartClientState,
+} from "../../client/MessagePartClient";
 
-export namespace TextMessagePartProvider {
-  export type Props = PropsWithChildren<{
+const TextMessagePartActions = new Proxy({} as MessagePartClientActions, {
+  get() {
+    throw new Error("Not implemented");
+  },
+});
+
+export const TextMessagePartProvider: FC<
+  PropsWithChildren<{
     text: string;
-    isRunning?: boolean | undefined;
-  }>;
-}
-
-const COMPLETE_STATUS: MessagePartStatus = {
-  type: "complete",
-};
-
-const RUNNING_STATUS: MessagePartStatus = {
-  type: "running",
-};
-
-export const TextMessagePartProvider: FC<TextMessagePartProvider.Props> = ({
-  children,
-  text,
-  isRunning,
-}) => {
-  const [context] = useState<
-    MessagePartContextValue & {
-      useMessagePart: UseBoundStore<
-        StoreApi<MessagePartState & { type: "text" }>
-      >;
-    }
-  >(() => {
-    const useMessagePart = create<MessagePartState & { type: "text" }>(() => ({
-      status: isRunning ? RUNNING_STATUS : COMPLETE_STATUS,
-      type: "text",
-      text,
-    }));
-
-    const MessagePartRuntime = new MessagePartRuntimeImpl({
-      path: {
-        ref: "text",
-        threadSelector: { type: "main" },
-        messageSelector: { type: "messageId", messageId: "" },
-        messagePartSelector: { type: "index", index: 0 },
-      },
-      getState: useMessagePart.getState,
-      subscribe: useMessagePart.subscribe,
-    });
-    ensureBinding(MessagePartRuntime);
-
-    const useMessagePartRuntime = create(() => MessagePartRuntime);
-
-    return { useMessagePartRuntime, useMessagePart };
-  });
-
-  useEffect(() => {
-    const state = context.useMessagePart.getState();
-    const textUpdated = state.text !== text;
-    const targetStatus = isRunning ? RUNNING_STATUS : COMPLETE_STATUS;
-    const statusUpdated = state.status !== targetStatus;
-
-    if (!textUpdated && !statusUpdated) return;
-
-    writableStore(context.useMessagePart).setState(
-      {
+    isRunning?: boolean;
+  }>
+> = ({ text, isRunning, children }) => {
+  const state = useMemo(
+    () =>
+      ({
         type: "text",
         text,
-        status: targetStatus,
-      } satisfies MessagePartState,
-      true,
-    );
-  }, [context, isRunning, text]);
+        status: isRunning ? { type: "running" } : { type: "complete" },
+      }) satisfies MessagePartClientState,
+    [text, isRunning],
+  );
+
+  const client = useAssistantStoreWithSelector({
+    part: {
+      state: () => state,
+      action: () => TextMessagePartActions,
+    },
+    meta: {
+      part: {
+        source: "root",
+        query: {},
+      },
+    },
+  });
 
   return (
-    <MessagePartContext.Provider value={context}>
-      {children}
-    </MessagePartContext.Provider>
+    <AssistantStoreContext value={client}>{children}</AssistantStoreContext>
   );
 };

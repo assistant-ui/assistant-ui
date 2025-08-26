@@ -1,72 +1,133 @@
 "use client";
 
-import { createContext } from "react";
-import type { AssistantToolUIsState } from "../stores/AssistantToolUIs";
-import { ReadonlyStore } from "../ReadonlyStore";
-import { createContextHook } from "./utils/createContextHook";
-import { createContextStoreHook } from "./utils/createContextStoreHook";
-import { UseBoundStore } from "zustand";
-import { AssistantRuntime } from "../../api/AssistantRuntime";
-import { ThreadListRuntime } from "../../api/ThreadListRuntime";
-import { createStateHookForRuntime } from "./utils/createStateHookForRuntime";
+import {
+  createContext,
+  useContext,
+  useDebugValue,
+  useSyncExternalStore,
+} from "react";
 
-export type AssistantContextValue = {
-  useAssistantRuntime: UseBoundStore<ReadonlyStore<AssistantRuntime>>;
-  useToolUIs: UseBoundStore<ReadonlyStore<AssistantToolUIsState>>;
+import {
+  AssistantClientActions,
+  AssistantClientState,
+} from "../../client/AssistantClient";
+import {
+  MessageClientActions,
+  MessageClientState,
+} from "../../client/MessageClient";
+import { Store } from "../../utils/tap-store";
+import {
+  ThreadListItemClientActions,
+  ThreadListItemClientState,
+} from "../../client/ThreadListItemClient";
+import {
+  MessagePartClientActions,
+  MessagePartClientState,
+} from "../../client/MessagePartClient";
+import {
+  ThreadClientActions,
+  ThreadClientState,
+} from "../../client/ThreadClient";
+import {
+  ComposerClientActions,
+  ComposerClientState,
+} from "../../client/ComposerClient";
+import {
+  AttachmentClientActions,
+  AttachmentClientState,
+} from "../../client/AttachmentClient";
+
+export type AssistantState = AssistantClientState & {
+  threadListItem: ThreadListItemClientState;
+  thread: ThreadClientState;
+  composer: ComposerClientState;
+  message: MessageClientState;
+  part: MessagePartClientState;
+  attachment: AttachmentClientState;
 };
 
-export const AssistantContext = createContext<AssistantContextValue | null>(
-  null,
+export type AssistantActions = AssistantClientActions & {
+  threadListItem: ThreadListItemClientActions;
+  thread: ThreadClientActions;
+  composer: ComposerClientActions;
+  message: MessageClientActions;
+  part: MessagePartClientActions;
+  attachment: AttachmentClientActions;
+};
+
+export type AssistantApi = Store<AssistantState, AssistantActions> & {
+  meta: {
+    threadListItem: {
+      query:
+        | {
+            type: "index";
+            index: number;
+            archived: boolean;
+          }
+        | {
+            type: "main";
+          }
+        | {
+            type: "id";
+            id: string;
+          };
+    };
+    thread: {
+      query: { type: "main" };
+    };
+    attachment?: {
+      source: "message" | "composer";
+      query: {
+        type: "index";
+        index: number;
+      };
+    };
+    composer?: {
+      source: "message" | "thread";
+    };
+    part?:
+      | {
+          source: "message";
+          query: {
+            type: "index";
+            index: number;
+          };
+        }
+      | {
+          source: "root";
+          query: Record<string, never>;
+        };
+    message?: {
+      query: {
+        type: "index";
+        index: number;
+      };
+    };
+  };
+};
+
+export const AssistantStoreContext = createContext<AssistantApi | undefined>(
+  undefined,
 );
 
-export const useAssistantContext = createContextHook(
-  AssistantContext,
-  "AssistantRuntimeProvider",
-);
+export const useAssistantApi = (): AssistantApi => {
+  const context = useContext(AssistantStoreContext);
+  if (!context)
+    throw new Error("useAssistantApi must be used within AssistantProvider");
 
-/**
- * Hook to access the AssistantRuntime from the current context.
- *
- * The AssistantRuntime provides access to the top-level assistant state and actions,
- * including thread management, tool registration, and configuration.
- *
- * @param options Configuration options
- * @param options.optional Whether the hook should return null if no context is found
- * @returns The AssistantRuntime instance, or null if optional is true and no context exists
- *
- * @example
- * ```tsx
- * function MyComponent() {
- *   const runtime = useAssistantRuntime();
- *
- *   const handleNewThread = () => {
- *     runtime.switchToNewThread();
- *   };
- *
- *   return <button onClick={handleNewThread}>New Thread</button>;
- * }
- * ```
- */
-export function useAssistantRuntime(options?: {
-  optional?: false | undefined;
-}): AssistantRuntime;
-export function useAssistantRuntime(options?: {
-  optional?: boolean | undefined;
-}): AssistantRuntime | null;
-export function useAssistantRuntime(options?: {
-  optional?: boolean | undefined;
-}) {
-  const context = useAssistantContext(options);
-  if (!context) return null;
-  return context.useAssistantRuntime();
-}
+  return context;
+};
 
-export const { useToolUIs, useToolUIsStore } = createContextStoreHook(
-  useAssistantContext,
-  "useToolUIs",
-);
+export const useAssistantState = <T>(
+  selector: (state: AssistantState) => T,
+): T => {
+  const store = useAssistantApi();
+  const slice = useSyncExternalStore(
+    store.subscribe,
+    () => selector(store.getState()),
+    () => selector(store.getInitialState()),
+  );
+  useDebugValue(slice);
 
-const useThreadListRuntime = (opt: {
-  optional: boolean | undefined;
-}): ThreadListRuntime | null => useAssistantRuntime(opt)?.threads ?? null;
-export const useThreadList = createStateHookForRuntime(useThreadListRuntime);
+  return slice;
+};

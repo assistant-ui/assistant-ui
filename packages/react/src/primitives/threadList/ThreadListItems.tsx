@@ -1,8 +1,10 @@
 "use client";
 
 import { ComponentType, FC, memo, useMemo } from "react";
-import { ThreadListItemRuntimeProvider } from "../../context/providers/ThreadListItemRuntimeProvider";
-import { useAssistantRuntime, useThreadList } from "../../context";
+import {
+  ThreadListItemByIndexProvider,
+  useAssistantState,
+} from "../../context";
 
 export namespace ThreadListPrimitiveItems {
   export type Props = {
@@ -40,21 +42,12 @@ export namespace ThreadListPrimitiveItemByIndex {
 export const ThreadListPrimitiveItemByIndex: FC<ThreadListPrimitiveItemByIndex.Props> =
   memo(
     ({ index, archived = false, components }) => {
-      const assistantRuntime = useAssistantRuntime();
-      const runtime = useMemo(
-        () =>
-          archived
-            ? assistantRuntime.threads.getArchivedItemByIndex(index)
-            : assistantRuntime.threads.getItemByIndex(index),
-        [assistantRuntime, index, archived],
-      );
-
       const ThreadListItemComponent = components.ThreadListItem;
 
       return (
-        <ThreadListItemRuntimeProvider runtime={runtime}>
+        <ThreadListItemByIndexProvider index={index} archived={archived}>
           <ThreadListItemComponent />
-        </ThreadListItemRuntimeProvider>
+        </ThreadListItemByIndexProvider>
       );
     },
     (prev, next) =>
@@ -69,8 +62,8 @@ export const ThreadListPrimitiveItems: FC<ThreadListPrimitiveItems.Props> = ({
   archived = false,
   components,
 }) => {
-  const contentLength = useThreadList((s) =>
-    archived ? s.archivedThreads.length : s.threads.length,
+  const contentLength = useAssistantState(({ threads }) =>
+    archived ? threads.archivedThreadIds.length : threads.threadIds.length,
   );
 
   const listElements = useMemo(() => {

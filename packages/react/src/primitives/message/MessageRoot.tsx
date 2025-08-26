@@ -7,15 +7,15 @@ import {
   ComponentPropsWithoutRef,
   useCallback,
 } from "react";
-import { useMessageUtilsStore } from "../../context/react/MessageContext";
+import { useAssistantApi } from "../../context";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
 
 const useIsHoveringRef = () => {
-  const messageUtilsStore = useMessageUtilsStore();
+  const { actions } = useAssistantApi();
   const callbackRef = useCallback(
     (el: HTMLElement) => {
-      const setIsHovering = messageUtilsStore.getState().setIsHovering;
+      const setIsHovering = actions.message.setIsHovering;
 
       const handleMouseEnter = () => {
         setIsHovering(true);
@@ -33,7 +33,7 @@ const useIsHoveringRef = () => {
         setIsHovering(false);
       };
     },
-    [messageUtilsStore],
+    [actions],
   );
 
   return useManagedRef(callbackRef);
