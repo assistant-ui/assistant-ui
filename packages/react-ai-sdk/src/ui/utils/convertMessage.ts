@@ -163,7 +163,7 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
                     ? {
                         type: "image",
                         image: part.url,
-                        filename: part.filename,
+                        filename: part.filename!,
                       }
                     : {
                         type: "file",
