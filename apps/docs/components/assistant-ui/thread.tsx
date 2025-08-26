@@ -34,13 +34,13 @@ import {
 export const Thread: FC = () => {
   return (
     <ThreadPrimitive.Root
-      className="bg-background @container flex h-full flex-col"
+      className="@container flex h-full flex-col bg-background"
       style={{
         ["--thread-max-width" as string]: "48rem",
         ["--thread-padding-x" as string]: "1rem",
       }}
     >
-      <ThreadPrimitive.Viewport className="relative flex min-w-0 flex-1 flex-col overflow-y-scroll overflow-x-auto">
+      <ThreadPrimitive.Viewport className="relative flex min-w-0 flex-1 flex-col overflow-x-auto overflow-y-scroll">
         <ThreadWelcome />
 
         <ThreadPrimitive.Messages
@@ -63,7 +63,7 @@ const ThreadScrollToBottom: FC = () => {
       <TooltipIconButton
         tooltip="Scroll to bottom"
         variant="outline"
-        className="dark:bg-background dark:hover:bg-accent absolute -top-12 z-10 self-center rounded-full p-4 disabled:invisible"
+        className="absolute -top-12 z-10 self-center rounded-full p-4 disabled:invisible dark:bg-background dark:hover:bg-accent"
       >
         <ArrowDownIcon />
       </TooltipIconButton>
@@ -91,7 +91,7 @@ const ThreadWelcome: FC = () => {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
               transition={{ delay: 0.6 }}
-              className="text-muted-foreground/65 text-2xl"
+              className="text-2xl text-muted-foreground/65"
             >
               How can I help you today?
             </motion.div>
@@ -133,7 +133,7 @@ const ThreadWelcomeSuggestions: FC = () => {
           >
             <Button
               variant="ghost"
-              className="dark:hover:bg-accent/60 h-auto w-full flex-1 flex-wrap items-start justify-start gap-1 rounded-xl border px-4 py-3.5 text-left text-sm @md:flex-col"
+              className="h-auto w-full flex-1 flex-wrap items-start justify-start gap-1 rounded-xl border px-4 py-3.5 text-left text-sm @md:flex-col dark:hover:bg-accent/60"
               aria-label={suggestedAction.action}
             >
               <span className="font-medium">{suggestedAction.title}</span>
@@ -150,16 +150,16 @@ const ThreadWelcomeSuggestions: FC = () => {
 
 const Composer: FC = () => {
   return (
-    <div className="bg-background relative mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 px-[var(--thread-padding-x)] pb-4 md:pb-6">
+    <div className="relative mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 bg-background px-[var(--thread-padding-x)] pb-4 md:pb-6">
       <ThreadScrollToBottom />
       <ThreadPrimitive.Empty>
         <ThreadWelcomeSuggestions />
       </ThreadPrimitive.Empty>
-      <ComposerPrimitive.Root className="border-border dark:border-muted-foreground/15 bg-muted relative flex w-full flex-col overflow-hidden rounded-2xl border">
+      <ComposerPrimitive.Root className="relative flex w-full flex-col overflow-hidden rounded-2xl border border-border bg-muted dark:border-muted-foreground/15">
         <ComposerAttachmentArea />
         <ComposerPrimitive.Input
           placeholder="Send a message..."
-          className="focus:outline-primary placeholder:text-muted-foreground max-h-32 min-h-16 w-full resize-none bg-transparent px-4 pt-2 pb-3 text-base outline-none"
+          className="max-h-32 min-h-16 w-full resize-none bg-transparent px-4 pt-2 pb-3 text-base outline-none placeholder:text-muted-foreground focus:outline-primary"
           rows={1}
           autoFocus
           aria-label="Message input"
@@ -172,7 +172,7 @@ const Composer: FC = () => {
 
 const ComposerAction: FC = () => {
   return (
-    <div className="bg-muted relative flex items-center justify-between p-2">
+    <div className="relative flex items-center justify-between bg-muted p-2">
       <ComposerAddAttachment />
 
       <ThreadPrimitive.If running={false}>
@@ -180,7 +180,7 @@ const ComposerAction: FC = () => {
           <Button
             type="submit"
             variant="default"
-            className="dark:border-muted-foreground/90 border-muted-foreground/60 hover:bg-primary/75 size-8 rounded-full border"
+            className="size-8 rounded-full border border-muted-foreground/60 hover:bg-primary/75 dark:border-muted-foreground/90"
             aria-label="Send message"
           >
             <ArrowUpIcon className="size-5" />
@@ -193,7 +193,7 @@ const ComposerAction: FC = () => {
           <Button
             type="button"
             variant="default"
-            className="dark:border-muted-foreground/90 border-muted-foreground/60 hover:bg-primary/75 size-8 rounded-full border"
+            className="size-8 rounded-full border border-muted-foreground/60 hover:bg-primary/75 dark:border-muted-foreground/90"
             aria-label="Stop generating"
           >
             <Square className="size-3.5 fill-white dark:size-4 dark:fill-black" />
@@ -207,7 +207,7 @@ const ComposerAction: FC = () => {
 const MessageError: FC = () => {
   return (
     <MessagePrimitive.Error>
-      <ErrorPrimitive.Root className="border-destructive bg-destructive/10 dark:bg-destructive/5 text-destructive mt-2 rounded-md border p-3 text-sm dark:text-red-200">
+      <ErrorPrimitive.Root className="mt-2 rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive dark:bg-destructive/5 dark:text-red-200">
         <ErrorPrimitive.Message className="line-clamp-2" />
       </ErrorPrimitive.Root>
     </MessagePrimitive.Error>
@@ -223,7 +223,7 @@ const AssistantMessage: FC = () => {
         animate={{ y: 0, opacity: 1 }}
         data-role="assistant"
       >
-        <div className="text-foreground mr-1 ml-4 leading-7 break-words">
+        <div className="mr-1 ml-4 leading-7 break-words text-foreground">
           <MessagePrimitive.Content
             components={{
               Text: MarkdownText,
@@ -248,7 +248,7 @@ const AssistantActionBar: FC = () => {
       hideWhenRunning
       autohide="not-last"
       autohideFloat="single-branch"
-      className="text-muted-foreground data-floating:bg-background col-start-3 row-start-2 ml-1 flex gap-1 data-floating:absolute data-floating:rounded-md data-floating:border data-floating:p-1 data-floating:shadow-sm"
+      className="col-start-3 row-start-2 ml-1 flex gap-1 text-muted-foreground data-floating:absolute data-floating:rounded-md data-floating:border data-floating:bg-background data-floating:p-1 data-floating:shadow-sm"
     >
       <ActionBarPrimitive.Copy asChild>
         <TooltipIconButton tooltip="Copy">
@@ -281,7 +281,7 @@ const UserMessage: FC = () => {
         <UserActionBar />
         <MessageAttachmentArea />
 
-        <div className="bg-muted text-foreground col-start-2 mr-1 rounded-3xl px-5 py-2.5 break-words">
+        <div className="col-start-2 mr-1 rounded-3xl bg-muted px-5 py-2.5 break-words text-foreground">
           <MessagePrimitive.Content components={{ Text: MarkdownText }} />
         </div>
 
@@ -310,9 +310,9 @@ const UserActionBar: FC = () => {
 const EditComposer: FC = () => {
   return (
     <div className="mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 px-[var(--thread-padding-x)] first:mt-4">
-      <ComposerPrimitive.Root className="bg-muted ml-auto flex w-full max-w-7/8 flex-col rounded-xl">
+      <ComposerPrimitive.Root className="ml-auto flex w-full max-w-7/8 flex-col rounded-xl bg-muted">
         <ComposerPrimitive.Input
-          className="text-foreground flex min-h-[60px] w-full resize-none bg-transparent p-4 outline-none"
+          className="flex min-h-[60px] w-full resize-none bg-transparent p-4 text-foreground outline-none"
           autoFocus
         />
 
@@ -341,7 +341,7 @@ const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({
     <BranchPickerPrimitive.Root
       hideWhenSingleBranch
       className={cn(
-        "text-muted-foreground inline-flex items-center text-xs",
+        "inline-flex items-center text-xs text-muted-foreground",
         className,
       )}
       {...rest}
