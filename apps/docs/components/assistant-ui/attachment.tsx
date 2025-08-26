@@ -14,6 +14,7 @@ import {
   DialogTitle,
   DialogContent,
   DialogTrigger,
+  DialogClose,
 } from "@/components/ui/dialog";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -84,9 +85,24 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
   return (
     <Dialog>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="max-w-4xl overflow-hidden p-0">
+      <DialogContent className="max-w-4xl p-0 [&>button]:hidden">
         <DialogTitle className="sr-only">Image Attachment Preview</DialogTitle>
-        <AttachmentPreview src={src} />
+        <div className="relative">
+          <div className="overflow-hidden rounded-lg">
+            <AttachmentPreview src={src} />
+          </div>
+          <div className="absolute -top-2 -right-2 z-20">
+            <DialogClose asChild>
+              <button
+                type="button"
+                className="size-6 rounded-full border bg-background text-foreground shadow-sm inline-flex items-center justify-center hover:bg-destructive hover:text-destructive-foreground"
+                aria-label="Close preview"
+              >
+                <XIcon className="size-3.5" />
+              </button>
+            </DialogClose>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
