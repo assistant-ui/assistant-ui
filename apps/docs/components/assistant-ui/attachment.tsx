@@ -94,11 +94,10 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
 
 const ComposerAttachmentThumb: FC = () => {
   const canRemove = useAttachment((a) => a.source !== "message");
-  const { name, type, contentType } = useAttachment(
+  const { name, type } = useAttachment(
     useShallow((a) => ({
       name: a.name,
       type: a.type,
-      contentType: a.contentType,
     }))
   );
   const src = useAttachmentSrc();
@@ -136,11 +135,10 @@ const ComposerAttachmentThumb: FC = () => {
 };
 
 const MessageAttachmentThumb: FC = () => {
-  const { name, type, contentType } = useAttachment(
+  const { name, type } = useAttachment(
     useShallow((a) => ({
       name: a.name,
       type: a.type,
-      contentType: a.contentType,
     }))
   );
   const src = useAttachmentSrc();
