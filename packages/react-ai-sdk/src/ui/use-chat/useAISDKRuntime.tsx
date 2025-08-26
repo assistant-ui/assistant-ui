@@ -72,7 +72,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       ),
     onCancel: async () => chatHelpers.stop(),
     onNew: async (message) => {
-      const createMessage = await toCreateMessage<UI_MESSAGE>(message);
+      const createMessage = toCreateMessage<UI_MESSAGE>(message);
       await chatHelpers.sendMessage(createMessage, {
         metadata: message.runConfig,
       });
@@ -84,7 +84,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       );
       chatHelpers.setMessages(newMessages);
 
-      const createMessage = await toCreateMessage<UI_MESSAGE>(message);
+      const createMessage = toCreateMessage<UI_MESSAGE>(message);
       await chatHelpers.sendMessage(createMessage, {
         metadata: message.runConfig,
       });

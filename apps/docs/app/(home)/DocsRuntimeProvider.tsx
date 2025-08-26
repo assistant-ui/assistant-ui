@@ -2,9 +2,6 @@
 import { WeatherSearchToolUI } from "@/components/tools/weather-tool";
 import { GeocodeLocationToolUI } from "@/components/tools/weather-tool";
 import {
-  CompositeAttachmentAdapter,
-  SimpleImageAttachmentAdapter,
-  SimpleTextAttachmentAdapter,
   AssistantRuntimeProvider,
   WebSpeechSynthesisAdapter,
   AssistantCloud,
@@ -25,10 +22,6 @@ export function DocsRuntimeProvider({
   const runtime = useChatRuntime({
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
     adapters: {
-      attachments: new CompositeAttachmentAdapter([
-        new SimpleImageAttachmentAdapter(),
-        new SimpleTextAttachmentAdapter(),
-      ]),
       speech: new WebSpeechSynthesisAdapter(),
     },
     cloud: assistantCloud,

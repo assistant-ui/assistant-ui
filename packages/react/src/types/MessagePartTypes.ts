@@ -24,10 +24,12 @@ export type SourceMessagePart = {
 export type ImageMessagePart = {
   readonly type: "image";
   readonly image: string;
+  readonly filename?: string;
 };
 
 export type FileMessagePart = {
   readonly type: "file";
+  readonly filename?: string;
   readonly data: string;
   readonly mimeType: string;
 };

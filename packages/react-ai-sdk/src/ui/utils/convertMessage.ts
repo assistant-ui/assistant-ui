@@ -5,7 +5,6 @@ import {
   type ToolCallMessagePart,
   type TextMessagePart,
   type SourceMessagePart,
-  type FileMessagePart,
 } from "@assistant-ui/react";
 
 const convertParts = (message: UIMessage) => {
@@ -14,7 +13,7 @@ const convertParts = (message: UIMessage) => {
   }
 
   return message.parts
-    .filter((p) => p.type !== "step-start")
+    .filter((p) => p.type !== "step-start" && p.type !== "file")
     .map((part) => {
       const type = part.type;
 
@@ -123,15 +122,6 @@ const convertParts = (message: UIMessage) => {
         return null;
       }
 
-      // Handle file parts
-      if (type === "file") {
-        return {
-          type: "file",
-          data: part.url,
-          mimeType: part.mediaType,
-        } satisfies FileMessagePart;
-      }
-
       // Handle data-* parts (AI SDK v5 data parts)
       if (type.startsWith("data-")) {
         // For now, we'll skip data parts as they don't have a direct equivalent
@@ -163,14 +153,29 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
           content: convertParts(message),
           attachments: message.parts
             ?.filter((p) => p.type === "file")
-            .map((part, idx) => ({
-              id: idx.toString(),
-              type: "file" as const,
-              name: part.filename ?? "file",
-              content: [],
-              contentType: part.mediaType ?? "unknown/unknown",
-              status: { type: "complete" as const },
-            })),
+            .map((part, idx) => {
+              return {
+                id: idx.toString(),
+                type: part.mediaType.startsWith("image/") ? "image" : "file",
+                name: part.filename ?? "file",
+                content: [
+                  part.mediaType.startsWith("image/")
+                    ? {
+                        type: "image",
+                        image: part.url,
+                        filename: part.filename,
+                      }
+                    : {
+                        type: "file",
+                        filename: part.filename!,
+                        data: part.url,
+                        mimeType: part.mediaType,
+                      },
+                ],
+                contentType: part.mediaType ?? "unknown/unknown",
+                status: { type: "complete" as const },
+              };
+            }),
         };
 
       case "system":
