@@ -98,32 +98,32 @@ const ComposerAttachmentThumb: FC = () => {
     useShallow((a) => ({
       name: a.name,
       type: a.type,
-    }))
+    })),
   );
   const src = useAttachmentSrc();
-  
+
   // Extract file extension or use type
-  const fileExt = name.split('.').pop()?.toUpperCase() || type.toUpperCase();
+  const fileExt = name.split(".").pop()?.toUpperCase() || type.toUpperCase();
 
   return (
     <AttachmentPrimitive.Root className="relative inline-flex">
       <AttachmentPreviewDialog>
-        <div className="bg-background/50 flex items-center gap-2 rounded-md border px-2 py-2">
-          <Avatar className="h-8 w-8 rounded-md flex-shrink-0">
-            {type === "image" && src && (
-              <AvatarImage src={src} alt={name} />
-            )}
-            <AvatarFallback className="bg-muted rounded-md">
+        <div className="flex items-center gap-2 rounded-md border bg-background/50 px-2 py-2">
+          <Avatar className="h-8 w-8 flex-shrink-0 rounded-md">
+            {type === "image" && src && <AvatarImage src={src} alt={name} />}
+            <AvatarFallback className="rounded-md bg-muted">
               <FileIcon className="h-4 w-4 text-muted-foreground" />
             </AvatarFallback>
           </Avatar>
-          <div className="flex flex-col min-w-0">
-            <span className="max-w-[120px] truncate text-xs font-medium">{name}</span>
+          <div className="flex min-w-0 flex-col">
+            <span className="max-w-[120px] truncate text-xs font-medium">
+              {name}
+            </span>
             <span className="text-xs text-muted-foreground">{fileExt}</span>
           </div>
           {canRemove && (
             <AttachmentPrimitive.Remove asChild>
-              <button className="hover:text-destructive ml-auto">
+              <button className="ml-auto hover:text-destructive">
                 <CircleXIcon className="size-3" />
               </button>
             </AttachmentPrimitive.Remove>
@@ -139,27 +139,27 @@ const MessageAttachmentThumb: FC = () => {
     useShallow((a) => ({
       name: a.name,
       type: a.type,
-    }))
+    })),
   );
   const src = useAttachmentSrc();
-  
+
   // Extract file extension or use type
-  const fileExt = name.split('.').pop()?.toUpperCase() || type.toUpperCase();
+  const fileExt = name.split(".").pop()?.toUpperCase() || type.toUpperCase();
 
   return (
     <AttachmentPrimitive.Root className="relative inline-flex">
       <AttachmentPreviewDialog>
-        <div className="bg-muted/50 hover:bg-muted/80 flex cursor-pointer items-center gap-2 rounded-md border px-2 py-2 transition-colors">
-          <Avatar className="h-8 w-8 rounded-md flex-shrink-0">
-            {type === "image" && src && (
-              <AvatarImage src={src} alt={name} />
-            )}
-            <AvatarFallback className="bg-muted rounded-md">
+        <div className="flex cursor-pointer items-center gap-2 rounded-md border bg-muted/50 px-2 py-2 transition-colors hover:bg-muted/80">
+          <Avatar className="h-8 w-8 flex-shrink-0 rounded-md">
+            {type === "image" && src && <AvatarImage src={src} alt={name} />}
+            <AvatarFallback className="rounded-md bg-muted">
               <FileIcon className="h-4 w-4 text-muted-foreground" />
             </AvatarFallback>
           </Avatar>
-          <div className="flex flex-col min-w-0">
-            <span className="max-w-[120px] truncate text-xs font-medium">{name}</span>
+          <div className="flex min-w-0 flex-col">
+            <span className="max-w-[120px] truncate text-xs font-medium">
+              {name}
+            </span>
             <span className="text-xs text-muted-foreground">{fileExt}</span>
           </div>
         </div>
@@ -180,9 +180,7 @@ export const MessageAttachmentArea: FC = () => {
 
 export const ComposerAttachmentArea: FC = () => {
   return (
-    <div
-      className="bg-muted-foreground/10 flex gap-2 overflow-x-auto overflow-y-hidden rounded-t-2xl p-2.5 empty:hidden"
-    >
+    <div className="flex gap-2 overflow-x-auto overflow-y-hidden rounded-t-2xl bg-muted-foreground/10 p-2.5 empty:hidden">
       <ComposerPrimitive.Attachments
         components={{ Attachment: ComposerAttachmentThumb }}
       />
@@ -196,7 +194,7 @@ export const ComposerAddAttachment: FC = () => {
       <TooltipIconButton
         tooltip="Add Attachment"
         variant="ghost"
-        className="hover:bg-foreground/15 dark:hover:bg-background/50 -mb-1.5 scale-115 p-3.5"
+        className="-mb-1.5 scale-115 p-3.5 hover:bg-foreground/15 dark:hover:bg-background/50"
       >
         <PlusIcon />
       </TooltipIconButton>
