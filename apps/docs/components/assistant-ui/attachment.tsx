@@ -16,6 +16,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 const useFileSrc = (file: File | undefined) => {
   const [src, setSrc] = useState<string | undefined>(undefined);
@@ -91,19 +92,39 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
   );
 };
 
-const ComposerAttachmentUI: FC = () => {
+const ComposerAttachmentThumb: FC = () => {
   const canRemove = useAttachment((a) => a.source !== "message");
-  const name = useAttachment((a) => a.name);
+  const { name, type, contentType } = useAttachment(
+    useShallow((a) => ({
+      name: a.name,
+      type: a.type,
+      contentType: a.contentType,
+    }))
+  );
+  const src = useAttachmentSrc();
+  
+  // Extract file extension or use type
+  const fileExt = name.split('.').pop()?.toUpperCase() || type.toUpperCase();
 
   return (
     <AttachmentPrimitive.Root className="relative inline-flex">
       <AttachmentPreviewDialog>
-        <div className="bg-background/50 flex h-7 items-center gap-1.5 rounded-md border px-2 py-1">
-          <FileIcon className="text-muted-foreground size-3.5 flex-shrink-0" />
-          <span className="max-w-[120px] truncate text-xs">{name}</span>
+        <div className="bg-background/50 flex items-center gap-2 rounded-md border px-2 py-2">
+          <Avatar className="h-8 w-8 rounded-md flex-shrink-0">
+            {type === "image" && src && (
+              <AvatarImage src={src} alt={name} />
+            )}
+            <AvatarFallback className="bg-muted rounded-md">
+              <FileIcon className="h-4 w-4 text-muted-foreground" />
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex flex-col min-w-0">
+            <span className="max-w-[120px] truncate text-xs font-medium">{name}</span>
+            <span className="text-xs text-muted-foreground">{fileExt}</span>
+          </div>
           {canRemove && (
             <AttachmentPrimitive.Remove asChild>
-              <button className="hover:text-destructive -mr-1 ml-1">
+              <button className="hover:text-destructive ml-auto">
                 <CircleXIcon className="size-3" />
               </button>
             </AttachmentPrimitive.Remove>
@@ -114,42 +135,58 @@ const ComposerAttachmentUI: FC = () => {
   );
 };
 
-const MessageAttachmentUI: FC = () => {
-  const name = useAttachment((a) => a.name);
+const MessageAttachmentThumb: FC = () => {
+  const { name, type, contentType } = useAttachment(
+    useShallow((a) => ({
+      name: a.name,
+      type: a.type,
+      contentType: a.contentType,
+    }))
+  );
+  const src = useAttachmentSrc();
+  
+  // Extract file extension or use type
+  const fileExt = name.split('.').pop()?.toUpperCase() || type.toUpperCase();
 
   return (
     <AttachmentPrimitive.Root className="relative inline-flex">
       <AttachmentPreviewDialog>
-        <div className="bg-muted/50 hover:bg-muted/80 flex h-7 cursor-pointer items-center gap-1.5 rounded-md border px-2 py-1 transition-colors">
-          <FileIcon className="text-muted-foreground size-3.5 flex-shrink-0" />
-          <span className="max-w-[120px] truncate text-xs">{name}</span>
+        <div className="bg-muted/50 hover:bg-muted/80 flex cursor-pointer items-center gap-2 rounded-md border px-2 py-2 transition-colors">
+          <Avatar className="h-8 w-8 rounded-md flex-shrink-0">
+            {type === "image" && src && (
+              <AvatarImage src={src} alt={name} />
+            )}
+            <AvatarFallback className="bg-muted rounded-md">
+              <FileIcon className="h-4 w-4 text-muted-foreground" />
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex flex-col min-w-0">
+            <span className="max-w-[120px] truncate text-xs font-medium">{name}</span>
+            <span className="text-xs text-muted-foreground">{fileExt}</span>
+          </div>
         </div>
       </AttachmentPreviewDialog>
     </AttachmentPrimitive.Root>
   );
 };
 
-export const UserMessageAttachments: FC = () => {
+export const MessageAttachmentArea: FC = () => {
   return (
     <div className="col-start-2 mb-2 flex flex-wrap gap-2 empty:hidden">
       <MessagePrimitive.Attachments
-        components={{ Attachment: MessageAttachmentUI }}
+        components={{ Attachment: MessageAttachmentThumb }}
       />
     </div>
   );
 };
 
-export const ComposerAttachments: FC = () => {
+export const ComposerAttachmentArea: FC = () => {
   return (
     <div
-      className="bg-muted-foreground/10 flex gap-2 overflow-x-auto overflow-y-hidden rounded-t-2xl p-2 empty:hidden [&::-webkit-scrollbar]:hidden"
-      style={{
-        scrollbarWidth: "none",
-        msOverflowStyle: "none",
-      }}
+      className="bg-muted-foreground/10 flex gap-2 overflow-x-auto overflow-y-hidden rounded-t-2xl p-2.5 empty:hidden"
     >
       <ComposerPrimitive.Attachments
-        components={{ Attachment: ComposerAttachmentUI }}
+        components={{ Attachment: ComposerAttachmentThumb }}
       />
     </div>
   );

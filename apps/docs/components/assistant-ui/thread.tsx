@@ -27,8 +27,8 @@ import { MarkdownText } from "./markdown-text";
 import { ToolFallback } from "./tool-fallback";
 import {
   ComposerAddAttachment,
-  ComposerAttachments,
-  UserMessageAttachments,
+  ComposerAttachmentArea,
+  MessageAttachmentArea,
 } from "./attachment";
 
 export const Thread: FC = () => {
@@ -40,7 +40,7 @@ export const Thread: FC = () => {
         ["--thread-padding-x" as string]: "1rem",
       }}
     >
-      <ThreadPrimitive.Viewport className="relative flex min-w-0 flex-1 flex-col overflow-y-scroll">
+      <ThreadPrimitive.Viewport className="relative flex min-w-0 flex-1 flex-col overflow-y-scroll overflow-x-auto">
         <ThreadWelcome />
 
         <ThreadPrimitive.Messages
@@ -279,7 +279,7 @@ const UserMessage: FC = () => {
         data-role="user"
       >
         <UserActionBar />
-        <UserMessageAttachments />
+        <MessageAttachmentArea />
 
         <div className="bg-muted text-foreground col-start-2 mr-1 rounded-3xl px-5 py-2.5 break-words">
           <MessagePrimitive.Content components={{ Text: MarkdownText }} />
