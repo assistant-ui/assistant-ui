@@ -32,7 +32,7 @@ export const toCreateMessage = <UI_MESSAGE extends UIMessage = UIMessage>(
         return {
           type: "file",
           url: part.image,
-          filename: part.filename,
+          ...(part.filename && { filename: part.filename }),
           mediaType: "image/png",
         };
       case "file":
@@ -40,7 +40,7 @@ export const toCreateMessage = <UI_MESSAGE extends UIMessage = UIMessage>(
           type: "file",
           url: part.data,
           mediaType: part.mimeType,
-          ...(part.filename && { filename: part.filename })
+          ...(part.filename && { filename: part.filename }),
         };
       default:
         throw new Error(`Unsupported part type: ${part.type}`);
