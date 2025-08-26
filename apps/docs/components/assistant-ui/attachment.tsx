@@ -1,7 +1,7 @@
 "use client";
 
 import { PropsWithChildren, useEffect, useState, type FC } from "react";
-import { CircleXIcon, FileIcon, PlusIcon } from "lucide-react";
+import { FileIcon, PlusIcon, XIcon } from "lucide-react";
 import {
   AttachmentPrimitive,
   ComposerPrimitive,
@@ -108,10 +108,12 @@ const ComposerAttachmentThumb: FC = () => {
   return (
     <AttachmentPrimitive.Root className="relative inline-flex">
       <AttachmentPreviewDialog>
-        <TooltipIconButton tooltip={name} asChild>
+        <TooltipIconButton tooltip={name} side="top" asChild>
           <div className="flex cursor-pointer items-center gap-2 rounded-md border bg-background/50 px-2 py-2 transition-colors hover:bg-background/40">
             <Avatar className="h-8 w-8 flex-shrink-0 rounded-md">
-              {type === "image" && src && <AvatarImage src={src} alt={name} />}
+              {type === "image" && src && (
+                <AvatarImage className="object-cover" src={src} alt={name} />
+              )}
               <AvatarFallback className="rounded-md bg-muted">
                 <FileIcon className="h-4 w-4 text-muted-foreground" />
               </AvatarFallback>
@@ -127,13 +129,14 @@ const ComposerAttachmentThumb: FC = () => {
       </AttachmentPreviewDialog>
       {canRemove && (
         <AttachmentPrimitive.Remove asChild>
-          <TooltipIconButton
-            tooltip="Remove attachment"
-            variant="ghost"
-            size="icon"
-            className="absolute -top-1 -right-1 size-6 rounded-full bg-background border shadow-sm hover:bg-destructive hover:text-destructive-foreground"
-          >
-            <CircleXIcon className="size-3" />
+          <TooltipIconButton tooltip="Remove attachment" side="top" asChild>
+            <button
+              type="button"
+              className="absolute -top-1.5 -right-1.5 z-10 size-4 rounded-full border bg-background text-foreground shadow-sm inline-flex items-center justify-center hover:bg-destructive hover:text-destructive-foreground"
+              aria-label="Remove attachment"
+            >
+              <XIcon className="size-2.5" />
+            </button>
           </TooltipIconButton>
         </AttachmentPrimitive.Remove>
       )}
@@ -156,10 +159,12 @@ const MessageAttachmentThumb: FC = () => {
   return (
     <AttachmentPrimitive.Root className="relative inline-flex">
       <AttachmentPreviewDialog>
-        <TooltipIconButton tooltip={name} asChild>
+        <TooltipIconButton tooltip={name} side="top" asChild>
           <div className="flex cursor-pointer items-center gap-2 rounded-md border bg-muted/50 px-2 py-2 transition-colors hover:bg-muted/80">
             <Avatar className="h-8 w-8 flex-shrink-0 rounded-md">
-              {type === "image" && src && <AvatarImage src={src} alt={name} />}
+              {type === "image" && src && (
+                <AvatarImage className="object-cover" src={src} alt={name} />
+              )}
               <AvatarFallback className="rounded-md bg-muted">
                 <FileIcon className="h-4 w-4 text-muted-foreground" />
               </AvatarFallback>

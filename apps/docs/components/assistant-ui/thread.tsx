@@ -278,11 +278,15 @@ const UserMessage: FC = () => {
         animate={{ y: 0, opacity: 1 }}
         data-role="user"
       >
-        <UserActionBar />
         <MessageAttachmentArea />
 
-        <div className="col-start-2 mr-1 rounded-3xl bg-muted px-5 py-2.5 break-words text-foreground">
-          <MessagePrimitive.Content components={{ Text: MarkdownText }} />
+        <div className="relative col-start-2 mr-1">
+          <div className="rounded-3xl bg-muted px-5 py-2.5 break-words text-foreground">
+            <MessagePrimitive.Content components={{ Text: MarkdownText }} />
+          </div>
+          <div className="absolute left-0 top-1/2 -translate-x-full -translate-y-1/2 pr-2">
+            <UserActionBar />
+          </div>
         </div>
 
         <BranchPicker className="col-span-full col-start-1 row-start-3 -mr-1 justify-end" />
@@ -296,7 +300,7 @@ const UserActionBar: FC = () => {
     <ActionBarPrimitive.Root
       hideWhenRunning
       autohide="not-last"
-      className="col-start-1 mt-2.5 mr-3 flex flex-col items-end"
+      className="mr-3 flex flex-col items-end"
     >
       <ActionBarPrimitive.Edit asChild>
         <TooltipIconButton tooltip="Edit">
