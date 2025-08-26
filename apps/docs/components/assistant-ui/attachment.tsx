@@ -142,7 +142,7 @@ export const UserMessageAttachments: FC = () => {
 export const ComposerAttachments: FC = () => {
   return (
     <div
-      className="flex gap-2 overflow-x-auto overflow-y-hidden px-1 pb-2 pt-3 empty:hidden [&::-webkit-scrollbar]:hidden"
+      className="flex gap-2 overflow-x-auto overflow-y-hidden px-1 pt-3 pb-2 empty:hidden [&::-webkit-scrollbar]:hidden"
       style={{
         scrollbarWidth: "none",
         msOverflowStyle: "none",
@@ -161,7 +161,7 @@ export const ComposerAddAttachment: FC = () => {
       <TooltipIconButton
         tooltip="Add Attachment"
         variant="ghost"
-        className="hover:bg-foreground/15 dark:hover:bg-background/50 scale-115 p-3.5 -mb-1.5"
+        className="hover:bg-foreground/15 dark:hover:bg-background/50 -mb-1.5 scale-115 p-3.5"
       >
         <PlusIcon />
       </TooltipIconButton>

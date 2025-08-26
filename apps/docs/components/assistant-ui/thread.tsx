@@ -104,7 +104,7 @@ const ThreadWelcome: FC = () => {
 
 const ThreadWelcomeSuggestions: FC = () => {
   return (
-    <div className="@md:grid-cols-2 cqh-lg:mt-4 cqh-max-md:hidden cqh-max-lg:[&>*:nth-child(n+3)]:hidden grid w-full gap-2">
+    <div className="cqh-lg:mt-4 cqh-max-md:hidden cqh-max-lg:[&>*:nth-child(n+3)]:hidden grid w-full gap-2 @md:grid-cols-2">
       {[
         {
           title: "What are the advantages",
@@ -123,7 +123,7 @@ const ThreadWelcomeSuggestions: FC = () => {
           exit={{ opacity: 0, y: 20 }}
           transition={{ delay: 0.05 * index }}
           key={`suggested-action-${suggestedAction.title}-${index}`}
-          className="@md:[&:nth-child(n+3)]:block [&:nth-child(n+3)]:hidden"
+          className="[&:nth-child(n+3)]:hidden @md:[&:nth-child(n+3)]:block"
         >
           <ThreadPrimitive.Suggestion
             prompt={suggestedAction.action}
@@ -133,7 +133,7 @@ const ThreadWelcomeSuggestions: FC = () => {
           >
             <Button
               variant="ghost"
-              className="dark:hover:bg-accent/60 @md:flex-col h-auto w-full flex-1 flex-wrap items-start justify-start gap-1 rounded-xl border px-4 py-3.5 text-left text-sm"
+              className="dark:hover:bg-accent/60 h-auto w-full flex-1 flex-wrap items-start justify-start gap-1 rounded-xl border px-4 py-3.5 text-left text-sm @md:flex-col"
               aria-label={suggestedAction.action}
             >
               <span className="font-medium">{suggestedAction.title}</span>
@@ -159,7 +159,7 @@ const Composer: FC = () => {
         <ComposerAttachments />
         <ComposerPrimitive.Input
           placeholder="Send a message..."
-          className="bg-muted border-border dark:border-muted-foreground/15 focus:outline-primary placeholder:text-muted-foreground max-h-[calc(50dvh)] min-h-16 w-full resize-none rounded-t-2xl border-x border-t px-4 pb-3 pt-2 text-base outline-none"
+          className="bg-muted border-border dark:border-muted-foreground/15 focus:outline-primary placeholder:text-muted-foreground max-h-[calc(50dvh)] min-h-16 w-full resize-none rounded-t-2xl border-x border-t px-4 pt-2 pb-3 text-base outline-none"
           rows={1}
           autoFocus
           aria-label="Message input"
@@ -223,7 +223,7 @@ const AssistantMessage: FC = () => {
         animate={{ y: 0, opacity: 1 }}
         data-role="assistant"
       >
-        <div className="text-foreground ml-4 mr-1 break-words leading-7">
+        <div className="text-foreground mr-1 ml-4 leading-7 break-words">
           <MessagePrimitive.Content
             components={{
               Text: MarkdownText,
@@ -233,7 +233,7 @@ const AssistantMessage: FC = () => {
           <MessageError />
         </div>
 
-        <div className="ml-2 mt-2 flex">
+        <div className="mt-2 ml-2 flex">
           <BranchPicker />
           <AssistantActionBar />
         </div>
@@ -248,7 +248,7 @@ const AssistantActionBar: FC = () => {
       hideWhenRunning
       autohide="not-last"
       autohideFloat="single-branch"
-      className="text-muted-foreground data-floating:bg-background data-floating:absolute data-floating:rounded-md data-floating:border data-floating:p-1 data-floating:shadow-sm col-start-3 row-start-2 ml-1 flex gap-1"
+      className="text-muted-foreground data-floating:bg-background col-start-3 row-start-2 ml-1 flex gap-1 data-floating:absolute data-floating:rounded-md data-floating:border data-floating:p-1 data-floating:shadow-sm"
     >
       <ActionBarPrimitive.Copy asChild>
         <TooltipIconButton tooltip="Copy">
@@ -281,7 +281,7 @@ const UserMessage: FC = () => {
         <UserActionBar />
         <UserMessageAttachments />
 
-        <div className="bg-muted text-foreground col-start-2 mr-1 break-words rounded-3xl px-5 py-2.5">
+        <div className="bg-muted text-foreground col-start-2 mr-1 rounded-3xl px-5 py-2.5 break-words">
           <MessagePrimitive.Content components={{ Text: MarkdownText }} />
         </div>
 
@@ -296,7 +296,7 @@ const UserActionBar: FC = () => {
     <ActionBarPrimitive.Root
       hideWhenRunning
       autohide="not-last"
-      className="col-start-1 mr-3 mt-2.5 flex flex-col items-end"
+      className="col-start-1 mt-2.5 mr-3 flex flex-col items-end"
     >
       <ActionBarPrimitive.Edit asChild>
         <TooltipIconButton tooltip="Edit">
@@ -310,7 +310,7 @@ const UserActionBar: FC = () => {
 const EditComposer: FC = () => {
   return (
     <div className="mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 px-[var(--thread-padding-x)] first:mt-4">
-      <ComposerPrimitive.Root className="bg-muted max-w-7/8 ml-auto flex w-full flex-col rounded-xl">
+      <ComposerPrimitive.Root className="bg-muted ml-auto flex w-full max-w-7/8 flex-col rounded-xl">
         <ComposerPrimitive.Input
           className="text-foreground flex min-h-[60px] w-full resize-none bg-transparent p-4 outline-none"
           autoFocus
