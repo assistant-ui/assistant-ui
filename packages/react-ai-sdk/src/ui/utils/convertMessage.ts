@@ -162,13 +162,13 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
           createdAt,
           content: convertParts(message),
           attachments: message.parts
-            ?.filter((p: any) => p.type === "file")
-            .map((part: any, idx) => ({
+            ?.filter((p) => p.type === "file")
+            .map((part, idx) => ({
               id: idx.toString(),
               type: "file" as const,
-              name: part.name ?? part.url ?? "file",
+              name: part.filename ?? "file",
               content: [],
-              contentType: part.mediaType ?? part.mimeType ?? "unknown/unknown",
+              contentType: part.mediaType ?? "unknown/unknown",
               status: { type: "complete" as const },
             })),
         };
