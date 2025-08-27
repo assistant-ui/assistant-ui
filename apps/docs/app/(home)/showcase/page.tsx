@@ -74,13 +74,6 @@ const SHOWCASE_ITEMS: ShowcaseItem[] = [
     description: "AI executive assistant in the form of a browser",
   },
   {
-    title: "Relta",
-    image: "/screenshot/relta.png",
-    tag: "Developer Tools",
-    link: "https://www.relta.dev/",
-    description: "Accurate, secure AI assistants for relational data",
-  },
-  {
     title: "LangGraph Stockbroker",
     image: "/screenshot/stockbroker.png",
     tag: "Developer Tools",
