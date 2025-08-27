@@ -25,6 +25,14 @@ const SHOWCASE_ITEMS: ShowcaseItem[] = [
     secondaryTag: "OSS",
   },
   {
+    title: "Inconvo",
+    image: "/screenshot/inconvo.png",
+    tag: "Developer Tools",
+    link: "https://inconvo.com/",
+    repositoryLink: "https://github.com/ten-dev/inconvo-assistant-ui-example",
+    description: "Build AI analytics agents into your product",
+  },
+  {
     title: "Closing.wtf",
     image: "/screenshot/closing-wtf.png",
     tag: "AI Assistant",
@@ -72,13 +80,6 @@ const SHOWCASE_ITEMS: ShowcaseItem[] = [
     tag: "Browser",
     link: "https://www.portal.so/",
     description: "AI executive assistant in the form of a browser",
-  },
-  {
-    title: "Relta",
-    image: "/screenshot/relta.png",
-    tag: "Developer Tools",
-    link: "https://www.relta.dev/",
-    description: "Accurate, secure AI assistants for relational data",
   },
   {
     title: "LangGraph Stockbroker",
