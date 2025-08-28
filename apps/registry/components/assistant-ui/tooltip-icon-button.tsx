@@ -1,6 +1,7 @@
 "use client";
 
 import { ComponentPropsWithoutRef, forwardRef } from "react";
+import { Slottable } from "@radix-ui/react-slot";
 
 import {
   Tooltip,
@@ -29,7 +30,7 @@ export const TooltipIconButton = forwardRef<
           className={cn("aui-button-icon", className)}
           ref={ref}
         >
-          {children}
+          <Slottable>{children}</Slottable>
           <span className="aui-sr-only">{tooltip}</span>
         </Button>
       </TooltipTrigger>
