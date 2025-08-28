@@ -97,7 +97,7 @@ export const useExternalHistory = <TMessage,>(
           message.status.type === "complete" ||
           message.status.type === "incomplete"
         ) {
-          if (historyIds.current.has(message.id)) break;
+          if (historyIds.current.has(message.id)) continue;
           historyIds.current.add(message.id);
 
           const parentId = i > 0 ? messages[i - 1]!.id : null;
