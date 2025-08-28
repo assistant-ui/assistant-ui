@@ -1,5 +1,12 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.0.5
+
+### Patch Changes
+
+- 90fc83b: fixes attachment naming
+- e64b20c: fix: persistence only saving the first two messages
+
 ## 1.0.4
 
 ### Patch Changes
