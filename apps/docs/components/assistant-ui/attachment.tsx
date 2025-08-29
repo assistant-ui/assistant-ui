@@ -71,14 +71,11 @@ const AttachmentPreview: FC<AttachmentPreviewProps> = ({ src }) => {
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={src}
-      style={{
-        width: "auto",
-        height: "auto",
-        maxWidth: "75dvh",
-        maxHeight: "75dvh",
-        display: isLoaded ? "block" : "none",
-        overflow: "clip",
-      }}
+      className={
+        isLoaded
+          ? "block h-auto w-auto max-h-[80dvh] max-w-full object-contain"
+          : "hidden"
+      }
       onLoad={() => setIsLoaded(true)}
       alt="Preview"
     />
@@ -91,18 +88,18 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
   if (!src) return children;
 
   return (
-    <Dialog>
+    <Dialog defaultOpen>
       <DialogTrigger
-        className="hover:bg-accent/50 cursor-pointer transition-colors"
+        className="cursor-pointer transition-colors hover:bg-accent/50"
         asChild
       >
         {children}
       </DialogTrigger>
-      <DialogContent>
-        <DialogTitle className="aui-sr-only">
-          Image Attachment Preview
-        </DialogTitle>
-        <AttachmentPreview src={src} />
+      <DialogContent className="sm:max-w-3xl p-2 [&>button]:rounded-full [&>button]:bg-background/100 [&>button]:opacity-100 [&>button]:p-1 [&>button]:hover:[&_svg]:text-destructive">
+        <DialogTitle className="aui-sr-only">Image Attachment Preview</DialogTitle>
+        <div className="relative mx-auto flex max-h-[80dvh] w-full items-center justify-center overflow-hidden bg-background">
+          <AttachmentPreview src={src} />
+        </div>
       </DialogContent>
     </Dialog>
   );
