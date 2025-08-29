@@ -12,7 +12,7 @@ import {
 } from "./getExternalStoreMessage";
 import { ThreadMessageConverter } from "./ThreadMessageConverter";
 import { getAutoStatus, isAutoStatus } from "./auto-status";
-import { fromThreadMessageLike } from "./ThreadMessageLike";
+import { fromThreadMessageLike, ThreadMessageLike } from "./ThreadMessageLike";
 import { getThreadMessageText } from "../../utils/getThreadMessageText";
 import {
   RuntimeCapabilities,
@@ -20,6 +20,10 @@ import {
 } from "../core/ThreadRuntimeCore";
 import { BaseThreadRuntimeCore } from "../core/BaseThreadRuntimeCore";
 import { ModelContextProvider } from "../../model-context";
+import {
+  ExportedMessageRepository,
+  MessageRepository,
+} from "../utils/MessageRepository";
 
 const EMPTY_ARRAY = Object.freeze([]);
 
@@ -34,7 +38,8 @@ export class ExternalStoreThreadRuntimeCore
   extends BaseThreadRuntimeCore
   implements ThreadRuntimeCore
 {
-  private assistantOptimisticId: string | null = null;
+  private _resetScheduled = false;
+  private _assistantOptimisticId: string | null = null;
 
   private _capabilities: RuntimeCapabilities = {
     switchToBranch: false,
@@ -123,7 +128,7 @@ export class ExternalStoreThreadRuntimeCore
 
       // Clear and import the message repository
       this.repository.clear();
-      this.assistantOptimisticId = null;
+      this._assistantOptimisticId = null;
       this.repository.import(store.messageRepository);
 
       messages = this.repository.getMessages();
@@ -170,6 +175,12 @@ export class ExternalStoreThreadRuntimeCore
             return newMessage;
           });
 
+      // special case: branches should be reset if an empty array is provided
+      if (this._resetScheduled || messages.length === 0) {
+        this._resetScheduled = false;
+        this.repository.clear();
+      }
+
       for (let i = 0; i < messages.length; i++) {
         const message = messages[i]!;
         const parent = messages[i - 1];
@@ -192,13 +203,13 @@ export class ExternalStoreThreadRuntimeCore
       }
     }
 
-    if (this.assistantOptimisticId) {
-      this.repository.deleteMessage(this.assistantOptimisticId);
-      this.assistantOptimisticId = null;
+    if (this._assistantOptimisticId) {
+      this.repository.deleteMessage(this._assistantOptimisticId);
+      this._assistantOptimisticId = null;
     }
 
     if (hasUpcomingMessage(isRunning, messages)) {
-      this.assistantOptimisticId = this.repository.appendOptimisticMessage(
+      this._assistantOptimisticId = this.repository.appendOptimisticMessage(
         messages.at(-1)?.id ?? null,
         {
           role: "assistant",
@@ -208,7 +219,7 @@ export class ExternalStoreThreadRuntimeCore
     }
 
     this.repository.resetHead(
-      this.assistantOptimisticId ?? messages.at(-1)?.id ?? null,
+      this._assistantOptimisticId ?? messages.at(-1)?.id ?? null,
     );
 
     this._messages = this.repository.getMessages();
@@ -250,9 +261,9 @@ export class ExternalStoreThreadRuntimeCore
 
     this._store.onCancel();
 
-    if (this.assistantOptimisticId) {
-      this.repository.deleteMessage(this.assistantOptimisticId);
-      this.assistantOptimisticId = null;
+    if (this._assistantOptimisticId) {
+      this.repository.deleteMessage(this._assistantOptimisticId);
+      this._assistantOptimisticId = null;
     }
 
     let messages = this.repository.getMessages();
@@ -281,6 +292,13 @@ export class ExternalStoreThreadRuntimeCore
     if (!this._store.onAddToolResult && !this._store.onAddToolResult)
       throw new Error("Runtime does not support tool results.");
     this._store.onAddToolResult?.(options);
+  }
+
+  public override reset(initialMessages?: readonly ThreadMessageLike[]) {
+    const repo = new MessageRepository();
+    repo.import(ExportedMessageRepository.fromArray(initialMessages ?? []));
+    this._resetScheduled = true;
+    this.updateMessages(repo.getMessages());
   }
 
   private updateMessages = (messages: readonly ThreadMessage[]) => {
