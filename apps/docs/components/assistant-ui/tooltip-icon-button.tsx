@@ -18,8 +18,8 @@ export type TooltipIconButtonProps = ComponentPropsWithoutRef<typeof Button> & {
 
 export const TooltipIconButton = forwardRef<
   HTMLButtonElement,
-  TooltipIconButtonProps & { asChild?: boolean }
->(({ children, tooltip, side = "bottom", className, asChild, ...rest }, ref) => {
+  TooltipIconButtonProps
+>(({ children, tooltip, side = "bottom", className, ...rest }, ref) => {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
