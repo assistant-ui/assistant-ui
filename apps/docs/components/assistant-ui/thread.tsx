@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { PromptInputAction } from "@/components/assistant-ui/prompt-input-action";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -27,8 +28,8 @@ import { MarkdownText } from "./markdown-text";
 import { ToolFallback } from "./tool-fallback";
 import {
   ComposerAddAttachment,
-  ComposerAttachmentArea,
-  MessageAttachmentArea,
+  ComposerAttachments,
+  UserMessageAttachments,
 } from "./attachment";
 
 export const Thread: FC = () => {
@@ -104,12 +105,12 @@ const ThreadWelcome: FC = () => {
 
 const ThreadWelcomeSuggestions: FC = () => {
   return (
-    <div className="cqh-lg:mt-4 cqh-max-md:hidden cqh-max-lg:[&>*:nth-child(n+3)]:hidden grid w-full gap-2 @md:grid-cols-2">
+    <div className="grid w-full gap-2 @md:grid-cols-2">
       {[
         {
-          title: "What are the advantages",
-          label: "of using Assistant Cloud?",
-          action: "What are the advantages of using Assistant Cloud?",
+          title: "What's the weather",
+          label: "in San Francisco?",
+          action: "What's the weather in San Francisco?",
         },
         {
           title: "Help me write an essay",
@@ -155,11 +156,11 @@ const Composer: FC = () => {
       <ThreadPrimitive.Empty>
         <ThreadWelcomeSuggestions />
       </ThreadPrimitive.Empty>
-      <ComposerPrimitive.Root className="relative flex w-full flex-col overflow-hidden rounded-2xl border border-border bg-muted dark:border-muted-foreground/15">
-        <ComposerAttachmentArea />
+      <ComposerPrimitive.Root className="relative flex w-full flex-col rounded-3xl border px-1 pt-2 border-border bg-muted shadow-[0_9px_9px_0px_rgba(0,0,0,0.01),0_2px_5px_0px_rgba(0,0,0,0.06)] dark:border-muted-foreground/15">
+        <ComposerAttachments />
         <ComposerPrimitive.Input
           placeholder="Send a message..."
-          className="max-h-32 min-h-16 w-full resize-none bg-transparent px-4 pt-2 pb-3 text-base outline-none placeholder:text-muted-foreground focus:outline-primary"
+          className="max-h-32 min-h-16 w-full resize-none bg-transparent px-[18px] pb-3 text-base outline-none placeholder:text-muted-foreground focus:outline-primary"
           rows={1}
           autoFocus
           aria-label="Message input"
@@ -172,20 +173,23 @@ const Composer: FC = () => {
 
 const ComposerAction: FC = () => {
   return (
-    <div className="relative flex items-center justify-between bg-muted p-2">
+    <div className="relative flex items-center justify-between mx-1.5 my-2.5">
       <ComposerAddAttachment />
 
       <ThreadPrimitive.If running={false}>
-        <ComposerPrimitive.Send asChild>
-          <Button
-            type="submit"
-            variant="default"
-            className="size-8 rounded-full border border-muted-foreground/60 hover:bg-primary/75 dark:border-muted-foreground/90"
-            aria-label="Send message"
-          >
-            <ArrowUpIcon className="size-5" />
-          </Button>
-        </ComposerPrimitive.Send>
+        <PromptInputAction tooltip="Send message" side="top">
+          <ComposerPrimitive.Send asChild>
+            <Button
+              type="submit"
+              variant="default"
+              className="h-9 w-9 rounded-full p-1 [&_svg]:size-6"
+              aria-label="Send message"
+            >
+              <ArrowUpIcon />
+              <span className="sr-only">Send message</span>
+            </Button>
+          </ComposerPrimitive.Send>
+        </PromptInputAction>
       </ThreadPrimitive.If>
 
       <ThreadPrimitive.If running>
@@ -218,7 +222,7 @@ const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root asChild>
       <motion.div
-        className="relative mx-auto w-full max-w-[var(--thread-max-width)] px-[var(--thread-padding-x)] py-4"
+        className="relative mx-auto w-full max-w-[var(--thread-max-width)] px-[var(--thread-padding-x)] py-4 last:mb-5"
         initial={{ y: 5, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         data-role="assistant"
@@ -273,18 +277,18 @@ const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root asChild>
       <motion.div
-        className="mx-auto grid w-full max-w-[var(--thread-max-width)] auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] gap-y-1 px-[var(--thread-padding-x)] py-4 [&:where(>*)]:col-start-2"
+        className="mx-auto grid w-full max-w-[var(--thread-max-width)] auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] gap-y-2 px-[var(--thread-padding-x)] py-4 first:mt-3 [&:where(>*)]:col-start-2"
         initial={{ y: 5, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         data-role="user"
       >
-        <MessageAttachmentArea />
+        <UserMessageAttachments />
 
         <div className="relative col-start-2 mr-1">
           <div className="rounded-3xl bg-muted px-5 py-2.5 break-words text-foreground">
             <MessagePrimitive.Content components={{ Text: MarkdownText }} />
           </div>
-          <div className="absolute left-0 top-1/2 -translate-x-full -translate-y-1/2 pr-2">
+          <div className="absolute top-1/2 left-0 -translate-x-full -translate-y-1/2 pr-2">
             <UserActionBar />
           </div>
         </div>

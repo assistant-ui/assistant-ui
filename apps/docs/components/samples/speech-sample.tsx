@@ -1,8 +1,8 @@
 "use client";
 import {
   ComposerAddAttachment,
-  ComposerAttachmentArea,
-  MessageAttachmentArea,
+  ComposerAttachments,
+  UserMessageAttachments,
 } from "../assistant-ui/attachment";
 import {
   ActionBarPrimitive,
@@ -78,7 +78,7 @@ const ThreadScrollToBottom: FC = () => {
 const Composer: FC = () => {
   return (
     <ComposerPrimitive.Root className="focus-within:border-ring/20 flex w-full flex-wrap items-end rounded-lg border bg-inherit px-2.5 shadow-sm transition-colors ease-in">
-      <ComposerAttachmentArea />
+      <ComposerAttachments />
       <ComposerAddAttachment />
       <ComposerPrimitive.Input
         rows={1}
@@ -125,7 +125,7 @@ const UserMessage: FC = () => {
     <MessagePrimitive.Root className="grid w-full max-w-[var(--thread-max-width)] auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] gap-y-2 py-4 [&:where(>*)]:col-start-2">
       <UserActionBar />
 
-      <MessageAttachmentArea />
+      <UserMessageAttachments />
 
       <div className="bg-muted text-foreground col-start-2 row-start-2 max-w-[calc(var(--thread-max-width)*0.8)] break-words rounded-3xl px-5 py-2.5">
         <MessagePrimitive.Parts />
