@@ -24,7 +24,7 @@ export function ThreadListSidebar({
             <SidebarMenuItem>
               <SidebarMenuButton size="lg" asChild>
                 <Link href="https://assistant-ui.com" target="_blank">
-                  <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
+                  <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                     <MessagesSquare className="size-4" />
                   </div>
                   <div className="mr-6 flex flex-col gap-0.5 leading-none">
@@ -48,7 +48,7 @@ export function ThreadListSidebar({
                 href="https://github.com/assistant-ui/assistant-ui"
                 target="_blank"
               >
-                <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
+                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                   <Github className="size-4" />
                 </div>
                 <div className="flex flex-col gap-0.5 leading-none">

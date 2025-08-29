@@ -71,7 +71,7 @@ const AttachmentPreview: FC<AttachmentPreviewProps> = ({ src }) => {
       src={src}
       className={
         isLoaded
-          ? "block h-auto w-auto max-h-[80dvh] max-w-full object-contain"
+          ? "block h-auto max-h-[80dvh] w-auto max-w-full object-contain"
           : "hidden"
       }
       onLoad={() => setIsLoaded(true)}
@@ -93,8 +93,10 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
       >
         {children}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-3xl p-2 [&>button]:rounded-full [&>button]:bg-background/100 [&>button]:opacity-100 [&>button]:p-1 [&>button]:hover:[&_svg]:text-destructive">
-        <DialogTitle className="aui-sr-only">Image Attachment Preview</DialogTitle>
+      <DialogContent className="p-2 sm:max-w-3xl [&>button]:rounded-full [&>button]:bg-background/100 [&>button]:p-1 [&>button]:opacity-100 [&>button]:hover:[&_svg]:text-destructive">
+        <DialogTitle className="aui-sr-only">
+          Image Attachment Preview
+        </DialogTitle>
         <div className="relative mx-auto flex max-h-[80dvh] w-full items-center justify-center overflow-hidden bg-background">
           <AttachmentPreview src={src} />
         </div>
@@ -107,7 +109,7 @@ const AttachmentThumb: FC = () => {
   const isImage = useAttachment((a) => a.type === "image");
   const src = useAttachmentSrc();
   return (
-    <Avatar className="bg-muted flex size-10 items-center justify-center rounded border text-sm">
+    <Avatar className="flex size-10 items-center justify-center rounded border bg-muted text-sm">
       <AvatarFallback delayMs={isImage ? 200 : 0}>
         <FileIcon />
       </AvatarFallback>
@@ -140,15 +142,16 @@ const AttachmentUI: FC = () => {
             <div
               className={cn(
                 "flex h-12 w-40 items-center justify-center gap-2 rounded-lg border p-1 transition-colors",
-                canRemove && "bg-background border-foreground/20 hover:bg-foreground/5",
+                canRemove &&
+                  "border-foreground/20 bg-background hover:bg-foreground/5",
               )}
             >
               <AttachmentThumb />
               <div className="flex-grow basis-0">
-                <p className="text-muted-foreground line-clamp-1 text-ellipsis break-all text-xs font-bold">
+                <p className="line-clamp-1 text-xs font-bold break-all text-ellipsis text-muted-foreground">
                   <AttachmentPrimitive.Name />
                 </p>
-                <p className="text-muted-foreground text-xs">{typeLabel}</p>
+                <p className="text-xs text-muted-foreground">{typeLabel}</p>
               </div>
             </div>
           </TooltipTrigger>
@@ -167,7 +170,7 @@ const AttachmentRemove: FC = () => {
     <AttachmentPrimitive.Remove asChild>
       <TooltipIconButton
         tooltip="Remove file"
-        className="text-muted-foreground [&>svg]:bg-background absolute -right-3 -top-3 size-6 [&>svg]:size-4 [&>svg]:rounded-full"
+        className="absolute -top-3 -right-3 size-6 text-muted-foreground [&>svg]:size-4 [&>svg]:rounded-full [&>svg]:bg-background"
         side="top"
       >
         <CircleXIcon />
@@ -186,7 +189,7 @@ export const UserMessageAttachments: FC = () => {
 
 export const ComposerAttachments: FC = () => {
   return (
-    <div className="flex w-full flex-row items-center px-1 pt-0.5 gap-3 pb-2 empty:hidden overflow-x-auto">
+    <div className="flex w-full flex-row items-center gap-3 overflow-x-auto px-1 pt-0.5 pb-2 empty:hidden">
       <ComposerPrimitive.Attachments
         components={{ Attachment: AttachmentUI }}
       />
@@ -202,7 +205,7 @@ export const ComposerAddAttachment: FC = () => {
         side="top"
         variant="ghost"
         size="icon"
-        className="dark:hover:bg-background h-9 w-9 rounded-full border dark:border-muted-foreground/15 p-1 text-xs font-semibold [&_svg]:size-[18px]"
+        className="h-9 w-9 rounded-full border p-1 text-xs font-semibold dark:border-muted-foreground/15 dark:hover:bg-background [&_svg]:size-[18px]"
         aria-label="Add Attachment"
       >
         <PlusIcon />
