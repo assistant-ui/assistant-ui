@@ -24,6 +24,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { PromptInputAction } from "@/components/assistant-ui/prompt-input-action";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const useFileSrc = (file: File | undefined) => {
   const [src, setSrc] = useState<string | undefined>(undefined);
@@ -115,7 +116,7 @@ const AttachmentThumb: FC = () => {
       <AvatarFallback delayMs={isImage ? 200 : 0}>
         <FileIcon />
       </AvatarFallback>
-      <AvatarImage src={src} />
+      <AvatarImage src={src} className="object-cover" />
     </Avatar>
   );
 };
@@ -138,10 +139,15 @@ const AttachmentUI: FC = () => {
   });
   return (
     <Tooltip>
-      <AttachmentPrimitive.Root className="relative mt-3">
+      <AttachmentPrimitive.Root className="relative">
         <AttachmentPreviewDialog>
           <TooltipTrigger asChild>
-            <div className="flex h-12 w-40 items-center justify-center gap-2 rounded-lg border p-1">
+            <div
+              className={cn(
+                "flex h-12 w-40 items-center justify-center gap-2 rounded-lg border p-1 transition-colors",
+                canRemove && "bg-background border-foreground/20 hover:bg-foreground/5",
+              )}
+            >
               <AttachmentThumb />
               <div className="flex-grow basis-0">
                 <p className="text-muted-foreground line-clamp-1 text-ellipsis break-all text-xs font-bold">
@@ -185,7 +191,7 @@ export const UserMessageAttachments: FC = () => {
 
 export const ComposerAttachments: FC = () => {
   return (
-    <div className="flex w-full flex-row gap-3 overflow-x-auto">
+    <div className="flex w-full flex-row items-center px-1 pt-0.5 gap-3 pb-2 empty:hidden overflow-x-auto">
       <ComposerPrimitive.Attachments
         components={{ Attachment: AttachmentUI }}
       />
@@ -195,14 +201,17 @@ export const ComposerAttachments: FC = () => {
 
 export const ComposerAddAttachment: FC = () => {
   return (
-    <ComposerPrimitive.AddAttachment asChild>
-      <TooltipIconButton
-        tooltip="Add Attachment"
-        variant="ghost"
-        className="-mb-1.5 scale-115 p-3.5 hover:bg-foreground/15 dark:hover:bg-background/50"
-      >
-        <PlusIcon />
-      </TooltipIconButton>
-    </ComposerPrimitive.AddAttachment>
+    <PromptInputAction tooltip="Add Attachment" side="top">
+      <ComposerPrimitive.AddAttachment asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="dark:hover:bg-background h-9 w-9 rounded-full border dark:border-muted-foreground/15 p-1 text-xs font-semibold [&_svg]:size-[18px]"
+        >
+          <PlusIcon />
+          <span className="sr-only">Add Attachment</span>
+        </Button>
+      </ComposerPrimitive.AddAttachment>
+    </PromptInputAction>
   );
 };
