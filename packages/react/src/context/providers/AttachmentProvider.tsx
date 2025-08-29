@@ -2,7 +2,7 @@
 
 import { type FC, type PropsWithChildren } from "react";
 import { useAssistantStoreWithSelector } from "../react/utils/createAssistantStoreWithSelector";
-import { AssistantStoreContext } from "../react/AssistantContext";
+import { AssistantApiContext } from "../react/AssistantApiContext";
 
 export const MessageAttachmentByIndexProvider: FC<
   PropsWithChildren<{
@@ -30,7 +30,7 @@ export const MessageAttachmentByIndexProvider: FC<
   });
 
   return (
-    <AssistantStoreContext value={client}>{children}</AssistantStoreContext>
+    <AssistantApiContext value={client}>{children}</AssistantApiContext>
   );
 };
 
@@ -60,6 +60,6 @@ export const ComposerAttachmentByIndexProvider: FC<
   });
 
   return (
-    <AssistantStoreContext value={client}>{children}</AssistantStoreContext>
+    <AssistantApiContext value={client}>{children}</AssistantApiContext>
   );
 };

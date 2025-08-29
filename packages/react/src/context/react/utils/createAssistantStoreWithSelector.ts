@@ -4,7 +4,7 @@ import {
   AssistantApi,
   AssistantActions,
   useAssistantApi,
-} from "../AssistantContext";
+} from "../AssistantApiContext";
 import { useMemo } from "react";
 import { Store } from "../../../utils/tap-store";
 

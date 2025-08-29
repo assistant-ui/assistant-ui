@@ -3,9 +3,9 @@
 import { useMemo, type FC, type PropsWithChildren } from "react";
 import { useAssistantStoreWithSelector } from "../react/utils/createAssistantStoreWithSelector";
 import {
-  AssistantStoreContext,
+  AssistantApiContext,
   useAssistantApi,
-} from "../react/AssistantContext";
+} from "../react/AssistantApiContext";
 
 export const MessageByIndexProvider: FC<
   PropsWithChildren<{
@@ -37,7 +37,5 @@ export const MessageByIndexProvider: FC<
     },
   });
 
-  return (
-    <AssistantStoreContext value={client}>{children}</AssistantStoreContext>
-  );
+  return <AssistantApiContext value={client}>{children}</AssistantApiContext>;
 };

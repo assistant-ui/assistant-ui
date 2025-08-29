@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useAssistantApi } from "../context/react/AssistantContext";
+import { useAssistantApi } from "../context/react/AssistantApiContext";
 
 type AssistantInstructionsConfig = {
   disabled?: boolean | undefined;

@@ -1,14 +1,13 @@
 "use client";
 
 import { FC, PropsWithChildren, memo, useState } from "react";
-import { AssistantStoreContext } from "../react/AssistantContext";
+import { AssistantApiProvider } from "../react/AssistantApiContext";
 import { AssistantRuntime } from "../../api/AssistantRuntime";
 import { AssistantRuntimeCore } from "../../runtimes/core/AssistantRuntimeCore";
 import {
   AssistantClient,
   useAssistantClient,
 } from "../../client/AssistantClient";
-import { ThreadViewportProvider } from "./ThreadViewportProvider";
 import { createAssistantStoreWithSelector } from "../react/utils/createAssistantStoreWithSelector";
 import { MessageClientActions } from "../../client/MessageClient";
 import { MessagePartClientActions } from "../../client/MessagePartClient";
@@ -144,11 +143,5 @@ const AssistantProvider: FC<PropsWithChildren<{ client: AssistantClient }>> = ({
     });
   });
 
-  return (
-    <AssistantStoreContext value={store}>
-      {/* TODO temporarily allow accessing viewport state from outside the viewport */}
-      {/* TODO figure out if this behavior should be deprecated, since it is quite hacky */}
-      <ThreadViewportProvider>{children}</ThreadViewportProvider>
-    </AssistantStoreContext>
-  );
+  return <AssistantApiProvider client={store}>{children}</AssistantApiProvider>;
 };

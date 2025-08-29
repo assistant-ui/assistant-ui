@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useAssistantApi } from "../context/react/AssistantContext";
+import { useAssistantApi } from "../context/react/AssistantApiContext";
 import type { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
 import type { Tool } from "assistant-stream";
 

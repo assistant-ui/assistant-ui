@@ -2,7 +2,7 @@
 
 import { type FC, type PropsWithChildren } from "react";
 import { useAssistantStoreWithSelector } from "../react/utils/createAssistantStoreWithSelector";
-import { AssistantStoreContext } from "../react/AssistantContext";
+import { AssistantApiContext } from "../react/AssistantApiContext";
 
 export const PartByIndexProvider: FC<
   PropsWithChildren<{
@@ -29,7 +29,5 @@ export const PartByIndexProvider: FC<
     },
   });
 
-  return (
-    <AssistantStoreContext value={client}>{children}</AssistantStoreContext>
-  );
+  return <AssistantApiContext value={client}>{children}</AssistantApiContext>;
 };

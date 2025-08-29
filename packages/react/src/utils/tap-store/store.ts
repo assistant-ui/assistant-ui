@@ -7,22 +7,24 @@ import {
   Unsubscribe,
 } from "@assistant-ui/tap";
 
-export interface Store<TState, TActions = unknown> {
+export interface Store<TState, TActions = unknown, TMeta = unknown> {
   getState(): TState;
   getInitialState(): TState;
   subscribe(listener: () => void): Unsubscribe;
   readonly actions: TActions;
+  readonly meta: TMeta;
 }
 
-type StoreResult<TState, TActions> = {
+type StoreResult<TState, TActions, TMeta> = {
   state: TState;
   actions: TActions;
+  meta: TMeta;
 };
 
 export const asStore = resource(
-  <TState, TActions, TProps>(
-    element: ResourceElement<StoreResult<TState, TActions>, TProps>,
-  ): Store<TState, TActions> => {
+  <TState, TActions, TMeta, TProps>(
+    element: ResourceElement<StoreResult<TState, TActions, TMeta>, TProps>,
+  ): Store<TState, TActions, TMeta> => {
     const resource = tapMemo(
       () => createResource(element, true),
       [element.type],
@@ -32,13 +34,14 @@ export const asStore = resource(
       resource.updateInput(element.props);
     });
 
-    return tapMemo<Store<TState, TActions>>(() => {
+    return tapMemo<Store<TState, TActions, TMeta>>(() => {
       const initialState = resource.getState().state;
       return {
         getState: () => resource.getState().state,
         getInitialState: () => initialState,
         subscribe: resource.subscribe,
         actions: resource.getState().actions,
+        meta: resource.getState().meta,
       };
     }, [resource]);
   },

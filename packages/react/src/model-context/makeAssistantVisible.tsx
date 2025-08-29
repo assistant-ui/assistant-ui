@@ -12,7 +12,7 @@ import {
   useContext,
 } from "react";
 import { z } from "zod";
-import { useAssistantApi } from "../context/react/AssistantContext";
+import { useAssistantApi } from "../context/react/AssistantApiContext";
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
 import { tool } from "./tool";
 

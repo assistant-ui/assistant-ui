@@ -4,9 +4,9 @@ import { useMemo, type FC, type PropsWithChildren } from "react";
 import { useAssistantStoreWithSelector } from "../react/utils/createAssistantStoreWithSelector";
 import {
   AssistantApi,
-  AssistantStoreContext,
+  AssistantApiContext,
   useAssistantApi,
-} from "../react/AssistantContext";
+} from "../react/AssistantApiContext";
 import { ThreadListClientActions } from "../../client/ThreadListClient";
 
 export namespace ThreadListItemProvider {
@@ -47,9 +47,7 @@ const ThreadListItemProvider: FC<ThreadListItemProvider.Props> = ({
     },
   });
 
-  return (
-    <AssistantStoreContext value={client}>{children}</AssistantStoreContext>
-  );
+  return <AssistantApiContext value={client}>{children}</AssistantApiContext>;
 };
 
 export const ThreadListItemByIndexProvider: FC<

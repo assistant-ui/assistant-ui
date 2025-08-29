@@ -14,7 +14,7 @@ import { ReadonlyJSONObject } from "assistant-stream/utils";
 import {
   AssistantApi,
   useAssistantApi,
-} from "../context/react/AssistantContext";
+} from "../context/react/AssistantApiContext";
 
 class FormattedThreadHistoryAdapter<TMessage, TStorageFormat>
   implements GenericThreadHistoryAdapter<TMessage>

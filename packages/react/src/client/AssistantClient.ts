@@ -1,4 +1,10 @@
-import { tapMemo, tapResource, resource, tapState } from "@assistant-ui/tap";
+import {
+  tapMemo,
+  tapResource,
+  resource,
+  tapState,
+  Unsubscribe,
+} from "@assistant-ui/tap";
 import { ThreadListClientState } from "./ThreadListClient";
 import { ThreadListClientActions } from "./ThreadListClient";
 import { AssistantRuntime } from "../api/AssistantRuntime";
@@ -43,14 +49,20 @@ export type AssistantClientActions = {
 
   readonly registerModelContextProvider: (
     provider: ModelContextProvider,
-  ) => void;
+  ) => Unsubscribe;
 
   readonly toolUIs: AssistantToolUIActions;
 };
 
+export type AssistantClientMeta = {
+  readonly threads: { source: "root"; query: Record<string, never> };
+  readonly toolUIs: { source: "root"; query: Record<string, never> };
+};
+
 export type AssistantClient = Store<
   AssistantClientState,
-  AssistantClientActions
+  AssistantClientActions,
+  AssistantClientMeta
 >;
 
 export const AssistantClient = resource(
@@ -68,7 +80,7 @@ export const AssistantClient = resource(
     const actions = tapActions<AssistantClientActions>({
       threads: threads.actions,
       registerModelContextProvider: (provider: ModelContextProvider) => {
-        runtime.registerModelContextProvider(provider);
+        return runtime.registerModelContextProvider(provider);
       },
       toolUIs: toolUIs.actions,
     });
@@ -76,6 +88,10 @@ export const AssistantClient = resource(
     return {
       state,
       actions,
+      meta: {
+        threads: { source: "root", query: {} },
+        toolUIs: { source: "root", query: {} },
+      } satisfies AssistantClientMeta,
     };
   },
 );
