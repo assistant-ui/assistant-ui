@@ -15,7 +15,7 @@ export const MessageAttachmentByIndexProvider: FC<
         return state.message.attachments![index]!;
       },
       action: (actions) => {
-        return actions.message.attachment(index);
+        return actions.message.attachment({ index });
       },
     },
     meta: {
@@ -45,7 +45,7 @@ export const ComposerAttachmentByIndexProvider: FC<
         return state.composer.attachments![index]!;
       },
       action: (actions) => {
-        return actions.composer.attachment(index);
+        return actions.composer.attachment({ index });
       },
     },
     meta: {

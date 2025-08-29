@@ -57,7 +57,16 @@ export type AssistantActions = AssistantClientActions & {
 
 export type AssistantApi = Store<AssistantState, AssistantActions> & {
   meta: {
-    threadListItem: {
+    threads?: {
+      source: "root";
+      query: Record<string, never>;
+    };
+    toolUIs?: {
+      source: "root";
+      query: Record<string, never>;
+    };
+    threadListItem?: {
+      source: "threads";
       query:
         | {
             type: "index";
@@ -72,7 +81,8 @@ export type AssistantApi = Store<AssistantState, AssistantActions> & {
             id: string;
           };
     };
-    thread: {
+    thread?: {
+      source: "threads";
       query: { type: "main" };
     };
     attachment?: {
@@ -84,6 +94,7 @@ export type AssistantApi = Store<AssistantState, AssistantActions> & {
     };
     composer?: {
       source: "message" | "thread";
+      query: Record<string, never>;
     };
     part?:
       | {
@@ -98,6 +109,7 @@ export type AssistantApi = Store<AssistantState, AssistantActions> & {
           query: Record<string, never>;
         };
     message?: {
+      source: "thread";
       query: {
         type: "index";
         index: number;
@@ -106,16 +118,22 @@ export type AssistantApi = Store<AssistantState, AssistantActions> & {
   };
 };
 
-export const AssistantStoreContext = createContext<AssistantApi | undefined>(
-  undefined,
-);
+const EMPTY_PROXY = new Proxy({} as any, {
+  get: () => {
+    throw new Error("Not implemented");
+  },
+});
+
+export const AssistantStoreContext = createContext<AssistantApi>({
+  getState: () => EMPTY_PROXY,
+  getInitialState: () => EMPTY_PROXY,
+  subscribe: () => () => {},
+  actions: EMPTY_PROXY,
+  meta: {},
+});
 
 export const useAssistantApi = (): AssistantApi => {
-  const context = useContext(AssistantStoreContext);
-  if (!context)
-    throw new Error("useAssistantApi must be used within AssistantProvider");
-
-  return context;
+  return useContext(AssistantStoreContext);
 };
 
 export const useAssistantState = <T>(

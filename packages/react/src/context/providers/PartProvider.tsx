@@ -15,11 +15,12 @@ export const PartByIndexProvider: FC<
         return state.message!.parts[index]!;
       },
       action: (actions) => {
-        return actions.message.part(index);
+        return actions.message.part({ index });
       },
     },
     meta: {
       part: {
+        source: "message",
         query: {
           type: "index",
           index,

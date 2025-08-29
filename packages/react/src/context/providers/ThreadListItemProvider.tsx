@@ -62,6 +62,7 @@ export const ThreadListItemByIndexProvider: FC<
     <ThreadListItemProvider
       id={useMemo(() => ({ index, archived }), [index, archived])}
       meta={{
+        source: "threads",
         query: {
           type: "index",
           index,
@@ -83,6 +84,7 @@ export const ThreadListItemByIdProvider: FC<
     <ThreadListItemProvider
       id={id}
       meta={{
+        source: "threads",
         query: {
           type: "id",
           id,

@@ -28,6 +28,7 @@ export const MessageByIndexProvider: FC<
     },
     meta: {
       message: {
+        source: "thread",
         query: {
           type: "index",
           index,

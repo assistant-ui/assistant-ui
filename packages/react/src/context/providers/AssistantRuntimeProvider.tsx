@@ -116,18 +116,29 @@ const AssistantProvider: FC<PropsWithChildren<{ client: AssistantClient }>> = ({
         },
       },
       meta: {
+        toolUIs: {
+          source: "root",
+          query: {},
+        },
+        threads: {
+          source: "root",
+          query: {},
+        },
         thread: {
+          source: "threads",
           query: {
             type: "main",
           },
         },
         threadListItem: {
+          source: "threads",
           query: {
             type: "main",
           },
         },
         composer: {
           source: "thread",
+          query: {},
         },
       },
     });
