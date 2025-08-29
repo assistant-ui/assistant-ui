@@ -27,9 +27,18 @@ class ProxiedAssistantState implements AssistantState {
     selectors: Omit<Selectors, "meta">,
   ) {
     Object.entries(selectors).forEach(([propName, selector]) => {
+      let lastValue = selector.state(this);
+      if (lastValue === undefined)
+        throw new Error(
+          `Selector ${propName} returned undefined. Please check your selector.`,
+        );
+
       Object.defineProperty(this, propName, {
+        enumerable: true,
         get() {
-          return selector.state(this);
+          const value = selector.state(this) ?? lastValue;
+          lastValue = value;
+          return value;
         },
       });
     });
@@ -79,8 +88,9 @@ export const createAssistantStoreWithSelector = <T extends Selectors>(
     store.getState as () => AssistantState,
     selectors,
   );
+  const initialState = store.getState();
   const initialStateProxy = new ProxiedAssistantState(
-    store.getInitialState as () => AssistantState,
+    () => initialState as AssistantState,
     selectors,
   );
   const getState = () => stateProxy;

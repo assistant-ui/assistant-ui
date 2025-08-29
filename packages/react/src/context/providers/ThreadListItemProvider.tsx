@@ -30,16 +30,14 @@ const ThreadListItemProvider: FC<ThreadListItemProvider.Props> = ({
   const client = useAssistantStoreWithSelector({
     threadListItem: {
       state:
-        typeof idOrSelector === "string"
-          ? (state) => state.threads.threadItems[idOrSelector]!
-          : "index" in idOrSelector
-            ? (state) =>
-                state.threads.threadItems[
-                  idOrSelector.archived
-                    ? state.threads.archivedThreadIds[idOrSelector.index]!
-                    : state.threads.threadIds[idOrSelector.index]!
-                ]!
-            : (state) => state.threads.threadItems[idOrSelector.id]!,
+        "index" in idOrSelector
+          ? (state) =>
+              state.threads.threadItems[
+                idOrSelector.archived
+                  ? state.threads.archivedThreadIds[idOrSelector.index]!
+                  : state.threads.threadIds[idOrSelector.index]!
+              ]!
+          : (state) => state.threads.threadItems[idOrSelector.id]!,
       action: () => threadListItemActions,
     },
     meta: {
@@ -80,7 +78,7 @@ export const ThreadListItemByIdProvider: FC<
 > = ({ id, children }) => {
   return (
     <ThreadListItemProvider
-      id={id}
+      id={{ id }}
       meta={{
         source: "threads",
         query: {

@@ -9,9 +9,18 @@ import {
   useAssistantClient,
 } from "../../client/AssistantClient";
 import { createAssistantStoreWithSelector } from "../react/utils/createAssistantStoreWithSelector";
-import { MessageClientActions } from "../../client/MessageClient";
-import { MessagePartClientActions } from "../../client/MessagePartClient";
-import { AttachmentClientActions } from "../../client/AttachmentClient";
+import {
+  MessageClientActions,
+  MessageClientState,
+} from "../../client/MessageClient";
+import {
+  MessagePartClientActions,
+  MessagePartClientState,
+} from "../../client/MessagePartClient";
+import {
+  AttachmentClientActions,
+  AttachmentClientState,
+} from "../../client/AttachmentClient";
 
 export namespace AssistantProvider {
   export type Props = PropsWithChildren<{
@@ -45,14 +54,47 @@ export const AssistantRuntimeProviderImpl: FC<AssistantProvider.Props> = ({
 
 export const AssistantRuntimeProvider = memo(AssistantRuntimeProviderImpl);
 
+const messageClientProxy = new Proxy(
+  {} as MessageClientState & MessageClientActions,
+  {
+    get() {
+      throw new Error(
+        "No message context available. You can only access message context inside <ThreadPrimitive.Messages>",
+      );
+    },
+  },
+);
+
+const messagePartClientProxy = new Proxy(
+  {} as MessagePartClientState & MessagePartClientActions,
+  {
+    get() {
+      throw new Error(
+        "No part context available. You can only access part context inside <ThreadPrimitive.Messages>",
+      );
+    },
+  },
+);
+
+const attachmentClientProxy = new Proxy(
+  {} as AttachmentClientState & AttachmentClientActions,
+  {
+    get() {
+      throw new Error(
+        "No attachment context available. You can only access attachment context inside <ThreadPrimitive.Messages>",
+      );
+    },
+  },
+);
+
 const AssistantProvider: FC<PropsWithChildren<{ client: AssistantClient }>> = ({
   children,
   client,
 }) => {
   const [store] = useState(() => {
-    const threadListItemActions = client.actions.threads.item(
-      client.getState().threads.mainThreadId,
-    );
+    const threadListItemActions = client.actions.threads.item({
+      id: client.getState().threads.mainThreadId,
+    });
     return createAssistantStoreWithSelector(client, {
       thread: {
         state: (s) => s.threads.main,
@@ -67,52 +109,16 @@ const AssistantProvider: FC<PropsWithChildren<{ client: AssistantClient }>> = ({
         action: (a) => a.thread.composer,
       },
       message: {
-        state: () => {
-          throw new Error(
-            "No message context available. You can only access message context inside <ThreadPrimitive.Messages>",
-          );
-        },
-        action: () => {
-          return new Proxy({} as MessageClientActions, {
-            get() {
-              throw new Error(
-                "No message context available. You can only access message context inside <ThreadPrimitive.Messages>",
-              );
-            },
-          });
-        },
+        state: () => messageClientProxy,
+        action: () => messageClientProxy,
       },
       part: {
-        state: () => {
-          throw new Error(
-            "No part context available. You can only access part context inside <ThreadPrimitive.Messages>",
-          );
-        },
-        action: () => {
-          return new Proxy({} as MessagePartClientActions, {
-            get() {
-              throw new Error(
-                "No part context available. You can only access part context inside <ThreadPrimitive.Messages>",
-              );
-            },
-          });
-        },
+        state: () => messagePartClientProxy,
+        action: () => messagePartClientProxy,
       },
       attachment: {
-        state: () => {
-          throw new Error(
-            "No attachment context available. You can only access attachment context inside <ThreadPrimitive.Messages>",
-          );
-        },
-        action: () => {
-          return new Proxy({} as AttachmentClientActions, {
-            get() {
-              throw new Error(
-                "No attachment context available. You can only access attachment context inside <ThreadPrimitive.Messages>",
-              );
-            },
-          });
-        },
+        state: () => attachmentClientProxy,
+        action: () => attachmentClientProxy,
       },
       meta: {
         toolUIs: {

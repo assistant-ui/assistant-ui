@@ -1,24 +1,22 @@
 import { getCurrentResourceFiber } from "../core/execution-context";
 import { StateUpdater, Cell } from "../core/types";
+import { rerender } from "./tap-rerender";
 
 function getStateCell<T>(
   initialValue: T | (() => T),
 ): Cell & { type: "state" } {
-  const executionContext = getCurrentResourceFiber();
-  const index = executionContext.currentIndex++;
+  const fiber = getCurrentResourceFiber();
+  const index = fiber.currentIndex++;
 
   // Check if we're trying to use more hooks than in previous renders
-  if (
-    !executionContext.isFirstRender &&
-    index >= executionContext.cells.length
-  ) {
+  if (!fiber.isFirstRender && index >= fiber.cells.length) {
     throw new Error(
       "Rendered more hooks than during the previous render. " +
         "Hooks must be called in the exact same order in every render.",
     );
   }
 
-  if (!executionContext.cells[index]) {
+  if (!fiber.cells[index]) {
     // Initialize the value immediately
     const value =
       typeof initialValue === "function"
@@ -37,20 +35,15 @@ function getStateCell<T>(
 
         if (!Object.is(currentValue, nextValue)) {
           cell.value = nextValue;
-
-          // Check if called during render (not allowed)
-          if (executionContext.isRendering) {
-            throw new Error("Resource updated during render");
-          }
-          executionContext.scheduleRerender();
+          rerender(fiber);
         }
       },
     };
 
-    executionContext.cells[index] = cell;
+    fiber.cells[index] = cell;
   }
 
-  const cell = executionContext.cells[index];
+  const cell = fiber.cells[index];
   if (cell.type !== "state") {
     throw new Error("Hook order changed between renders");
   }

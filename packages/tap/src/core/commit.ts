@@ -1,13 +1,13 @@
 import { ResourceFiber, RenderResult } from "./types";
 
 export function commitRender<R, P>(
-  renderContext: RenderResult,
-  executionContext: ResourceFiber<R, P>,
+  renderResult: RenderResult,
+  fiber: ResourceFiber<R, P>,
 ): void {
   // Process all tasks collected during render
-  renderContext.commitTasks.forEach((task) => {
+  renderResult.commitTasks.forEach((task) => {
     const cellIndex = task.cellIndex;
-    const effectCell = executionContext.cells[cellIndex]!;
+    const effectCell = fiber.cells[cellIndex]!;
     if (effectCell.type !== "effect") {
       throw new Error("Cannot find effect cell");
     }

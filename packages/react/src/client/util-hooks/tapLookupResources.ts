@@ -1,5 +1,6 @@
-import { ResourceElement, tapResources } from "@assistant-ui/tap";
+import { ResourceElement, tapCallback, tapResources } from "@assistant-ui/tap";
 import { ActionsObject } from "../../utils/tap-store";
+import { tapRefValue } from "./tapRefValue";
 
 type AnyFunction = (...args: any[]) => any;
 class ActionLookupProxyHandler<T extends ActionsObject>
@@ -64,18 +65,21 @@ export const tapLookupResources = <TState, TActions extends ActionsObject>(
   }>[],
 ) => {
   const resources = tapResources(elements);
+  const resourcesRef = tapRefValue(resources);
 
   return {
     state: resources.map((r) => r.state),
-    actions(lookup: { index: number } | { key: string }) {
+    actions: tapCallback((lookup: { index: number } | { key: string }) => {
       if ("index" in lookup) {
         return new Proxy(
           {} as TActions,
-          new ActionLookupProxyHandler(() => resources[lookup.index]?.actions),
+          new ActionLookupProxyHandler(
+            () => resourcesRef.current[lookup.index]?.actions,
+          ),
         );
       } else {
-        return resources.find((r) => r.key === lookup.key)!.actions;
+        return resourcesRef.current.find((r) => r.key === lookup.key)!.actions;
       }
-    },
+    }, []),
   };
 };

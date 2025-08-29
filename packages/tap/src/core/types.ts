@@ -50,9 +50,11 @@ export interface ResourceFiber<R, P> {
 
   cells: Cell[];
   currentIndex: number;
-  commitTasks: EffectTask[];
-  isFirstRender: boolean;
 
-  committedProps: P | undefined;
-  isRendering: boolean;
+  renderContext: RenderResult | undefined; // set during render
+  committedProps: P | undefined; // props from last mount
+
+  isMounted: boolean;
+  isFirstRender: boolean;
+  isNeverMounted: boolean;
 }

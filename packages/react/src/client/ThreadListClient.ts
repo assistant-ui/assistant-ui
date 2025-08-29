@@ -29,10 +29,7 @@ export type ThreadListClientActions = {
   switchToThread(threadId: string): void;
   switchToNewThread(): void;
   item(
-    threadIdOrOptions:
-      | string
-      | { id: string }
-      | { index: number; archived: boolean },
+    threadIdOrOptions: { id: string } | { index: number; archived: boolean },
   ): ThreadListItemClientActions;
 
   readonly main: ThreadClientActions;

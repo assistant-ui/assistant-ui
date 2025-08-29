@@ -6,9 +6,6 @@ export function withResourceFiber<R, P>(
   fiber: ResourceFiber<R, P>,
   fn: () => void,
 ): void {
-  if (fiber.isRendering) throw new Error("Execution context is locked");
-  fiber.isRendering = true;
-  fiber.commitTasks = [];
   fiber.currentIndex = 0;
 
   const previousContext = currentResourceFiber;
@@ -27,7 +24,6 @@ export function withResourceFiber<R, P>(
     }
   } finally {
     currentResourceFiber = previousContext;
-    fiber.isRendering = false;
   }
 }
 export function getCurrentResourceFiber(): ResourceFiber<unknown, unknown> {

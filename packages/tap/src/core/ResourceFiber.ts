@@ -10,16 +10,18 @@ export function createResourceFiber<R, P>(
     resourceFn,
     scheduleRerender,
     cells: [],
-    commitTasks: [],
     currentIndex: 0,
     committedProps: undefined,
-    isRendering: false,
+    renderContext: undefined,
     isFirstRender: true,
+    isMounted: false,
+    isNeverMounted: true,
   };
 }
 
 export function unmountResource<R, P>(fiber: ResourceFiber<R, P>): void {
   // Clean up all effects
+  fiber.isMounted = false;
   cleanupAllEffects(fiber);
 }
 
@@ -27,26 +29,28 @@ export function renderResource<R, P>(
   fiber: ResourceFiber<R, P>,
   props: P,
 ): RenderResult {
-  let state: R | undefined;
+  const result: RenderResult = {
+    commitTasks: [],
+    props,
+    state: undefined,
+  };
 
   withResourceFiber(fiber, () => {
-    state = fiber.resourceFn(props);
+    fiber.renderContext = result;
+    result.state = fiber.resourceFn(props);
+    fiber.renderContext = undefined;
   });
 
-  // on first render, we save the props for setState calls post render before commit
-  fiber.committedProps ??= props;
-
-  return {
-    commitTasks: fiber.commitTasks,
-    props,
-    state,
-  };
+  return result;
 }
 
 export function commitResource<R, P>(
   fiber: ResourceFiber<R, P>,
   result: RenderResult,
 ): void {
+  fiber.isMounted = true;
+  fiber.isNeverMounted = false;
+
   commitRender(result, fiber);
   fiber.committedProps = result.props;
 }

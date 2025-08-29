@@ -20,6 +20,7 @@ export interface ResourceHandle<R, P> {
 
 const HandleWrapperResource = <R, P>({
   element,
+  onUpdateInput,
   onDispose,
 }: {
   element: ResourceElement<R, P>;
@@ -45,6 +46,7 @@ const HandleWrapperResource = <R, P>({
         return () => subscribers.delete(callback);
       },
       updateInput: (props: P) => {
+        onUpdateInput();
         setProps(() => props);
       },
 
@@ -66,21 +68,21 @@ export const createResource = <R, P>(
     onUpdateInput: () => {
       if (isMounted) return;
       isMounted = true;
-      scheduler.markDirty();
+      commitResource(fiber, lastRender);
     },
     onDispose: () => unmountResource(fiber),
   };
 
   const scheduler = new UpdateScheduler(() => {
-    const result = renderResource(fiber, props);
-    if (isMounted) commitResource(fiber, result);
+    lastRender = renderResource(fiber, props);
+    if (isMounted) commitResource(fiber, lastRender);
   });
 
   const fiber = createResourceFiber(HandleWrapperResource<R, P>, () =>
     scheduler.markDirty(),
   );
 
-  const result = renderResource(fiber, props);
-  if (isMounted) commitResource(fiber, result);
-  return result.state;
+  let lastRender = renderResource(fiber, props);
+  if (isMounted) commitResource(fiber, lastRender);
+  return lastRender.state;
 };
