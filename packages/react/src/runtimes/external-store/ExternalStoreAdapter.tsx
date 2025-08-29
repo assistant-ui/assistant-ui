@@ -51,6 +51,12 @@ type ExternalStoreMessageConverterAdapter<T> = {
 };
 
 type ExternalStoreAdapterBase<T> = {
+  /**
+   * A key that can be used to trigger a complete reset of the message repository.
+   * When this key changes, the repository will be cleared and rebuilt from the current messages.
+   * Useful for scenarios like user switching where a fresh repository state is needed.
+   */
+  key?: string | number | undefined;
   isDisabled?: boolean | undefined;
   isRunning?: boolean | undefined;
   isLoading?: boolean | undefined;
