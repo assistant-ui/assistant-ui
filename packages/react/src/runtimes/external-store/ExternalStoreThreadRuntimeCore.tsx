@@ -40,6 +40,7 @@ export class ExternalStoreThreadRuntimeCore
 {
   private _resetScheduled = false;
   private _assistantOptimisticId: string | null = null;
+  private _currentKey: string | undefined = undefined;
 
   private _capabilities: RuntimeCapabilities = {
     switchToBranch: false,
@@ -95,6 +96,14 @@ export class ExternalStoreThreadRuntimeCore
   public __internal_setAdapter(store: ExternalStoreAdapter<any>) {
     if (this._store === store) return;
 
+    // Check if key changed and reset repository if needed
+    const keyChanged = this._currentKey !== store.key;
+    if (keyChanged) {
+      this.repository.clear();
+      this._assistantOptimisticId = null;
+      this._currentKey = store.key;
+    }
+
     const isRunning = store.isRunning ?? false;
     this.isDisabled = store.isDisabled ?? false;
 
@@ -118,6 +127,7 @@ export class ExternalStoreThreadRuntimeCore
     if (store.messageRepository) {
       // Handle messageRepository
       if (
+        !keyChanged &&
         oldStore &&
         oldStore.isRunning === store.isRunning &&
         oldStore.messageRepository === store.messageRepository
@@ -126,9 +136,11 @@ export class ExternalStoreThreadRuntimeCore
         return;
       }
 
-      // Clear and import the message repository
-      this.repository.clear();
-      this._assistantOptimisticId = null;
+      // Clear and import the message repository (skip if already cleared due to key change)
+      if (!keyChanged) {
+        this.repository.clear();
+        this._assistantOptimisticId = null;
+      }
       this.repository.import(store.messageRepository);
 
       messages = this.repository.getMessages();
@@ -140,6 +152,7 @@ export class ExternalStoreThreadRuntimeCore
         if (oldStore.convertMessage !== store.convertMessage) {
           this._converter = new ThreadMessageConverter();
         } else if (
+          !keyChanged &&
           oldStore.isRunning === store.isRunning &&
           oldStore.messages === store.messages
         ) {
@@ -176,9 +189,11 @@ export class ExternalStoreThreadRuntimeCore
           });
 
       // special case: branches should be reset if an empty array is provided
-      if (this._resetScheduled || messages.length === 0) {
+      if ((this._resetScheduled || messages.length === 0) && !keyChanged) {
         this._resetScheduled = false;
         this.repository.clear();
+      } else if (this._resetScheduled) {
+        this._resetScheduled = false;
       }
 
       for (let i = 0; i < messages.length; i++) {
