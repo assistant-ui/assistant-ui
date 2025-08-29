@@ -40,6 +40,7 @@ export class ExternalStoreThreadRuntimeCore
 {
   private _resetScheduled = false;
   private _assistantOptimisticId: string | null = null;
+  private _currentKey: string | undefined = undefined;
 
   private _capabilities: RuntimeCapabilities = {
     switchToBranch: false,
@@ -99,6 +100,15 @@ export class ExternalStoreThreadRuntimeCore
     this.isDisabled = store.isDisabled ?? false;
 
     const oldStore = this._store as ExternalStoreAdapter<any> | undefined;
+    
+    // Check if key has changed and schedule a reset if needed
+    const newKey = store.key;
+    const keyChanged = this._currentKey !== newKey;
+    if (keyChanged) {
+      this._currentKey = newKey;
+      this._resetScheduled = true;
+    }
+
     this._store = store;
     this.extras = store.extras;
     this.suggestions = store.suggestions ?? EMPTY_ARRAY;

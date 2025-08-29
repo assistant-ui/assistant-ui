@@ -8,16 +8,37 @@ import {
 } from "@assistant-ui/react";
 import { useState } from "react";
 
+/**
+ * Example demonstrating key-based repository reset functionality.
+ * 
+ * The `key` parameter automatically resets the message repository when
+ * the context changes (e.g., switching users, conversations, or sessions).
+ * 
+ * Use cases:
+ * - User switching: key = userId
+ * - Conversation switching: key = conversationId  
+ * - Multi-context: key = `${userId}-${conversationId}`
+ * - Session management: key = sessionId || 'anonymous'
+ */
+
 const convertMessage = (message: ThreadMessageLike) => {
   return message;
 };
 
 export function MyRuntimeProvider({
+  userId = "default-user",
+  conversationId = "default-conversation",
   children,
 }: Readonly<{
+  userId?: string;
+  conversationId?: string;
   children: React.ReactNode;
 }>) {
   const [messages, setMessages] = useState<readonly ThreadMessageLike[]>([]);
+  
+  // Create a unique key for this user-conversation combination
+  // This will automatically reset the message repository when either changes
+  const contextKey = `${userId}-${conversationId}`;
 
   const onNew = async (message: AppendMessage) => {
     if (message.content.length !== 1 || message.content[0]?.type !== "text")
@@ -40,6 +61,7 @@ export function MyRuntimeProvider({
   };
 
   const runtime = useExternalStoreRuntime<ThreadMessageLike>({
+    key: contextKey, // Messages reset when userId or conversationId changes
     messages,
     setMessages,
     onNew,

@@ -11,6 +11,8 @@ import { ParametersTable } from "@/components/docs";
 
 `ExternalStoreRuntime` bridges your existing state management with assistant-ui components. It requires an `ExternalStoreAdapter<TMessage>` that handles communication between your state and the UI.
 
+The runtime supports automatic message repository reset based on a `key` parameter - when the key changes (e.g., switching users, conversations, or sessions), the message history is automatically cleared and replaced with new messages.
+
 **Key differences from `LocalRuntime`:**
 
 - **You own the state** - Full control over message state, thread management, and persistence logic
@@ -90,6 +92,101 @@ export function MyRuntimeProvider({
   );
 }
 ```
+
+## Key-Based Repository Reset
+
+The `key` parameter enables automatic message repository reset when contexts change. This is essential for applications that switch between different users, conversations, or sessions.
+
+### When the Key Changes
+
+When you provide a different `key` value to `useExternalStoreRuntime`, the runtime automatically:
+
+1. **Clears the message repository** - Removes all existing messages from memory
+2. **Resets conversation state** - Clears any optimistic updates or pending operations
+3. **Loads new messages** - Applies the new messages from your updated state
+
+### Common Use Cases
+
+<Cards>
+  <Card
+    title="User Switching"
+    description="Reset conversations when switching between different users"
+  />
+  <Card
+    title="Conversation Management"
+    description="Clear message history when moving between different conversation threads"
+  />
+  <Card
+    title="Session Management"
+    description="Reset chat state during authentication flows or session changes"
+  />
+  <Card
+    title="A/B Testing"
+    description="Switch between different conversation contexts for testing"
+  />
+</Cards>
+
+### Implementation Examples
+
+#### User Switching Example
+
+```tsx
+const runtime = useExternalStoreRuntime({
+  key: currentUserId, // Messages reset when user changes
+  messages: getUserMessages(currentUserId),
+  onNew: handleMessage,
+});
+```
+
+#### Conversation Switching Example
+
+```tsx
+const runtime = useExternalStoreRuntime({
+  key: `conversation-${conversationId}`, // Reset when switching conversations
+  messages: getConversationMessages(conversationId),
+  onNew: handleMessage,
+});
+```
+
+#### Session Management Example
+
+```tsx
+const runtime = useExternalStoreRuntime({
+  key: sessionId || 'anonymous', // Reset on login/logout
+  messages: getSessionMessages(sessionId),
+  onNew: handleMessage,
+});
+```
+
+#### Multi-Context Application
+
+```tsx
+const MyRuntimeProvider = ({ userId, conversationId, children }) => {
+  const contextKey = `${userId}-${conversationId}`;
+  
+  const runtime = useExternalStoreRuntime({
+    key: contextKey, // Reset when either user or conversation changes
+    messages: getMessages(userId, conversationId),
+    onNew: async (message) => {
+      await sendMessage(userId, conversationId, message);
+    },
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+};
+```
+
+<Callout type="info">
+The `key` parameter comparison uses strict equality (`===`). Make sure your keys are stable for the same context and change only when you want to trigger a reset.
+</Callout>
+
+<Callout type="warning">
+**Performance Tip**: Avoid frequently changing keys as each change triggers a complete repository reset. Use keys that represent meaningful context boundaries like user IDs or conversation IDs, not transient state.
+</Callout>
 
 ## When to Use
 
@@ -1360,6 +1457,11 @@ The main interface for connecting your state to assistant-ui.
   type="ExternalStoreAdapter<T>"
   parameters={[
     {
+      name: "key",
+      type: "string",
+      description: "Unique identifier that triggers message repository reset when changed. Use for user switching, conversation switching, or session management.",
+    },
+    {
       name: "messages",
       type: "readonly T[]",
       description: "Array of messages from your state",
@@ -1615,6 +1717,42 @@ Enable multi-thread support with custom thread management.
 - [AssistantRuntime API](/docs/api-reference/runtimes/AssistantRuntime) - Core runtime interface and methods
 - [ThreadRuntime API](/docs/api-reference/runtimes/ThreadRuntime) - Thread-specific operations and state management
 - [Runtime Providers](/docs/api-reference/context-providers/AssistantRuntimeProvider) - Context providers for runtime integration
+
+## Migration Guide
+
+### Adding Key-Based Reset to Existing Implementation
+
+If you have an existing `ExternalStoreRuntime` implementation and want to add key-based reset functionality:
+
+#### Before (No Key Support)
+
+```tsx
+const runtime = useExternalStoreRuntime({
+  messages: currentMessages,
+  onNew: handleMessage,
+});
+```
+
+#### After (With Key Support)
+
+```tsx
+const runtime = useExternalStoreRuntime({
+  key: currentUserId, // Add this line
+  messages: currentMessages,
+  onNew: handleMessage,
+});
+```
+
+### Breaking Changes
+
+The `key` parameter is **optional and backwards compatible**. Existing implementations will continue to work without modification.
+
+### Best Practices for Migration
+
+1. **Start with user switching**: If your app supports multiple users, add `key: userId` first
+2. **Add conversation support**: For multi-conversation apps, use composite keys like `key: \`\${userId}-\${conversationId}\``
+3. **Test edge cases**: Ensure your key generation handles undefined/null values appropriately
+4. **Monitor performance**: Watch for unnecessary resets if keys change too frequently
 
 ## Related Resources
 
