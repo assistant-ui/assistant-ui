@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.10.44
+
+### Patch Changes
+
+- 13684d5: feat: useExternalStoreRuntime improved reset handling
+
 ## 0.10.43
 
 ### Patch Changes
