@@ -155,7 +155,7 @@ const Composer: FC = () => {
       <ThreadPrimitive.Empty>
         <ThreadWelcomeSuggestions />
       </ThreadPrimitive.Empty>
-      <ComposerPrimitive.Root className="relative flex w-full flex-col rounded-3xl border px-1 pt-2 border-border bg-muted shadow-[0_9px_9px_0px_rgba(0,0,0,0.01),0_2px_5px_0px_rgba(0,0,0,0.06)] dark:border-muted-foreground/15">
+      <ComposerPrimitive.Root className="relative flex w-full flex-col rounded-3xl border border-border bg-muted px-1 pt-2 shadow-[0_9px_9px_0px_rgba(0,0,0,0.01),0_2px_5px_0px_rgba(0,0,0,0.06)] dark:border-muted-foreground/15">
         <ComposerAttachments />
         <ComposerPrimitive.Input
           placeholder="Send a message..."
@@ -172,7 +172,7 @@ const Composer: FC = () => {
 
 const ComposerAction: FC = () => {
   return (
-    <div className="relative flex items-center justify-between mx-1.5 my-2.5">
+    <div className="relative mx-1.5 my-2.5 flex items-center justify-between">
       <ComposerAddAttachment />
 
       <ThreadPrimitive.If running={false}>
