@@ -275,13 +275,13 @@ export type ThreadRuntime = {
    */
   reset(initialMessages?: readonly ThreadMessageLike[]): void;
 
-  getMesssageByIndex(idx: number): MessageRuntime;
+  getMessageByIndex(idx: number): MessageRuntime;
   getMesssageById(messageId: string): MessageRuntime;
 
   /**
    * @deprecated This API is still under active development and might change without notice.
    */
-  stopSpeaking: () => void;
+  stopSpeaking(): void;
 
   unstable_on(event: ThreadRuntimeEventType, callback: () => void): Unsubscribe;
 };
@@ -339,6 +339,8 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
         subscribe: (callback) => this._threadBinding.subscribe(callback),
       }),
     );
+
+    this.__internal_bindMethods();
   }
 
   protected __internal_bindMethods() {
@@ -350,7 +352,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     this.export = this.export.bind(this);
     this.import = this.import.bind(this);
     this.reset = this.reset.bind(this);
-    this.getMesssageByIndex = this.getMesssageByIndex.bind(this);
+    this.getMessageByIndex = this.getMessageByIndex.bind(this);
     this.getMesssageById = this.getMesssageById.bind(this);
     this.subscribe = this.subscribe.bind(this);
     this.unstable_on = this.unstable_on.bind(this);
@@ -417,7 +419,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     this._threadBinding.getState().reset(initialMessages);
   }
 
-  public getMesssageByIndex(idx: number) {
+  public getMessageByIndex(idx: number) {
     if (idx < 0) throw new Error("Message index must be >= 0");
 
     return this._getMessageRuntime(

@@ -6,7 +6,7 @@ import {
   ComposerPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
-  useMessage,
+  useAssistantState,
 } from "@assistant-ui/react";
 import * as Avatar from "@radix-ui/react-avatar";
 import { ArrowUpIcon, ClipboardIcon, ReloadIcon } from "@radix-ui/react-icons";
@@ -51,7 +51,7 @@ export const Claude: FC = () => {
 };
 
 const ChatMessage: FC = () => {
-  const role = useMessage((m) => m.role);
+  const role = useAssistantState(({ message }) => message.role);
 
   return (
     <MessagePrimitive.Root className="relative mx-auto mb-4 flex w-full max-w-screen-md flex-col gap-3">

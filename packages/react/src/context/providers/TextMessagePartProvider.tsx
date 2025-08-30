@@ -1,90 +1,62 @@
 "use client";
 
-import { FC, PropsWithChildren, useEffect, useState } from "react";
-import { create, StoreApi, UseBoundStore } from "zustand";
+import { type FC, type PropsWithChildren } from "react";
 import {
-  MessagePartContext,
-  MessagePartContextValue,
-} from "../react/MessagePartContext";
-import { MessagePartStatus } from "../../types/AssistantTypes";
-import { writableStore } from "../ReadonlyStore";
-import {
-  MessagePartRuntimeImpl,
-  MessagePartState,
-} from "../../api/MessagePartRuntime";
-import { ensureBinding } from "../react/utils/ensureBinding";
+  AssistantState,
+  ExtendedAssistantApiProvider,
+} from "../react/AssistantApiContext";
+import { MessagePartClientActions } from "../../client/MessagePartClient";
+import { resource, tapMemo } from "@assistant-ui/tap";
+import { useResource } from "@assistant-ui/tap/react";
+import { asStore, tapActions } from "../../utils/tap-store";
 
-export namespace TextMessagePartProvider {
-  export type Props = PropsWithChildren<{
-    text: string;
-    isRunning?: boolean | undefined;
-  }>;
-}
+const TextMessagePartActions = new Proxy({} as MessagePartClientActions, {
+  get() {
+    throw new Error("Not implemented");
+  },
+});
 
-const COMPLETE_STATUS: MessagePartStatus = {
-  type: "complete",
-};
-
-const RUNNING_STATUS: MessagePartStatus = {
-  type: "running",
-};
-
-export const TextMessagePartProvider: FC<TextMessagePartProvider.Props> = ({
-  children,
-  text,
-  isRunning,
-}) => {
-  const [context] = useState<
-    MessagePartContextValue & {
-      useMessagePart: UseBoundStore<
-        StoreApi<MessagePartState & { type: "text" }>
-      >;
-    }
-  >(() => {
-    const useMessagePart = create<MessagePartState & { type: "text" }>(() => ({
-      status: isRunning ? RUNNING_STATUS : COMPLETE_STATUS,
-      type: "text",
-      text,
-    }));
-
-    const MessagePartRuntime = new MessagePartRuntimeImpl({
-      path: {
-        ref: "text",
-        threadSelector: { type: "main" },
-        messageSelector: { type: "messageId", messageId: "" },
-        messagePartSelector: { type: "index", index: 0 },
-      },
-      getState: useMessagePart.getState,
-      subscribe: useMessagePart.subscribe,
-    });
-    ensureBinding(MessagePartRuntime);
-
-    const useMessagePartRuntime = create(() => MessagePartRuntime);
-
-    return { useMessagePartRuntime, useMessagePart };
-  });
-
-  useEffect(() => {
-    const state = context.useMessagePart.getState();
-    const textUpdated = state.text !== text;
-    const targetStatus = isRunning ? RUNNING_STATUS : COMPLETE_STATUS;
-    const statusUpdated = state.status !== targetStatus;
-
-    if (!textUpdated && !statusUpdated) return;
-
-    writableStore(context.useMessagePart).setState(
-      {
-        type: "text",
-        text,
-        status: targetStatus,
-      } satisfies MessagePartState,
-      true,
+const TextMessagePartClient = resource(
+  ({ text, isRunning }: { text: string; isRunning: boolean }) => {
+    const state = tapMemo<Partial<AssistantState>>(
+      () => ({
+        part: {
+          type: "text",
+          text,
+          status: isRunning ? { type: "running" } : { type: "complete" },
+        },
+      }),
+      [text, isRunning],
     );
-  }, [context, isRunning, text]);
+
+    const actions = tapActions({
+      part: TextMessagePartActions,
+    });
+
+    return {
+      state,
+      actions,
+      meta: {
+        part: {
+          source: "root",
+          query: {},
+        },
+      } as const,
+    };
+  },
+);
+
+export const TextMessagePartProvider: FC<
+  PropsWithChildren<{
+    text: string;
+    isRunning?: boolean;
+  }>
+> = ({ text, isRunning = false, children }) => {
+  const api = useResource(asStore(TextMessagePartClient({ text, isRunning })));
 
   return (
-    <MessagePartContext.Provider value={context}>
+    <ExtendedAssistantApiProvider api={api}>
       {children}
-    </MessagePartContext.Provider>
+    </ExtendedAssistantApiProvider>
   );
 };

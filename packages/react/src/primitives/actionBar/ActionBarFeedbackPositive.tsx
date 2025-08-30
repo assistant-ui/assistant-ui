@@ -3,15 +3,15 @@
 import { forwardRef, useCallback } from "react";
 import { ActionButtonProps } from "../../utils/createActionButton";
 import { composeEventHandlers } from "@radix-ui/primitive";
-import { useMessage, useMessageRuntime } from "../../context";
+import { useAssistantState, useAssistantApi } from "../../context";
 import { Primitive } from "@radix-ui/react-primitive";
 
 const useActionBarFeedbackPositive = () => {
-  const messageRuntime = useMessageRuntime();
+  const { actions } = useAssistantApi();
 
   const callback = useCallback(() => {
-    messageRuntime.submitFeedback({ type: "positive" });
-  }, [messageRuntime]);
+    actions.message.submitFeedback({ type: "positive" });
+  }, [actions]);
 
   return callback;
 };
@@ -25,8 +25,8 @@ export const ActionBarPrimitiveFeedbackPositive = forwardRef<
   ActionBarPrimitiveFeedbackPositive.Element,
   ActionBarPrimitiveFeedbackPositive.Props
 >(({ onClick, disabled, ...props }, forwardedRef) => {
-  const isSubmitted = useMessage(
-    (u) => u.submittedFeedback?.type === "positive",
+  const isSubmitted = useAssistantState(
+    (s) => s.message.submittedFeedback?.type === "positive",
   );
   const callback = useActionBarFeedbackPositive();
   return (

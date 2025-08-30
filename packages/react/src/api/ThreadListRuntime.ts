@@ -22,12 +22,13 @@ export type ThreadListState = {
   readonly threads: readonly string[];
   readonly archivedThreads: readonly string[];
   readonly isLoading: boolean;
+  readonly threadItems: Readonly<
+    Record<string, Omit<ThreadListItemState, "isMain" | "threadId">>
+  >;
 };
 
 export type ThreadListRuntime = {
   getState(): ThreadListState;
-
-  readonly isLoading: boolean;
 
   subscribe(callback: () => void): Unsubscribe;
 
@@ -52,6 +53,7 @@ const getThreadListState = (
     threads: threadList.threadIds,
     archivedThreads: threadList.archivedThreadIds,
     isLoading: threadList.isLoading,
+    threadItems: threadList.threadData,
   };
 };
 
@@ -64,13 +66,13 @@ const getThreadListItemState = (
   const threadData = threadList.getItemById(threadId);
   if (!threadData) return SKIP_UPDATE;
   return {
-    id: threadData.threadId,
-    threadId: threadData.threadId, // TODO remove in 0.8.0
+    id: threadData.id,
+    threadId: threadData.id, // TODO remove in 0.8.0
     remoteId: threadData.remoteId,
     externalId: threadData.externalId,
     title: threadData.title,
     status: threadData.status,
-    isMain: threadData.threadId === threadList.mainThreadId,
+    isMain: threadData.id === threadList.mainThreadId,
   };
 };
 
@@ -118,6 +120,8 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
       }),
       this._mainThreadListItemRuntime, // TODO capture "main" threadListItem from context around useLocalRuntime / useExternalStoreRuntime
     );
+
+    this.__internal_bindMethods();
   }
 
   protected __internal_bindMethods() {
@@ -141,10 +145,6 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
 
   public getState(): ThreadListState {
     return this._getState();
-  }
-
-  public get isLoading() {
-    return this._core.isLoading;
   }
 
   public subscribe(callback: () => void): Unsubscribe {

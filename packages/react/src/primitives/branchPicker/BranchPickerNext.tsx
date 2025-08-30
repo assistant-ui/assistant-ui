@@ -6,18 +6,17 @@ import {
   createActionButton,
 } from "../../utils/createActionButton";
 import { useCallback } from "react";
-import {
-  useMessage,
-  useMessageRuntime,
-} from "../../context/react/MessageContext";
+import { useAssistantState, useAssistantApi } from "../../context";
 
 const useBranchPickerNext = () => {
-  const messageRuntime = useMessageRuntime();
-  const disabled = useMessage((m) => m.branchNumber >= m.branchCount);
+  const { actions } = useAssistantApi();
+  const disabled = useAssistantState(
+    ({ message }) => message.branchNumber >= message.branchCount,
+  );
 
   const callback = useCallback(() => {
-    messageRuntime.switchToBranch({ position: "next" });
-  }, [messageRuntime]);
+    actions.message.switchToBranch({ position: "next" });
+  }, [actions]);
 
   if (disabled) return null;
   return callback;

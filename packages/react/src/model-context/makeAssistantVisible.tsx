@@ -12,7 +12,7 @@ import {
   useContext,
 } from "react";
 import { z } from "zod";
-import { useAssistantRuntime } from "../context";
+import { useAssistantApi } from "../context/react/AssistantApiContext";
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
 import { tool } from "./tool";
 
@@ -72,11 +72,11 @@ export const makeAssistantVisible = <T extends ComponentType<any>>(
       const clickId = useId();
       const componentRef = useRef<HTMLElement>(null);
 
-      const assistant = useAssistantRuntime();
+      const { actions } = useAssistantApi();
 
       const { clickable, editable } = config ?? {};
       useEffect(() => {
-        return assistant.registerModelContextProvider({
+        return actions.registerModelContextProvider({
           getModelContext: () => {
             return {
               tools: {
@@ -89,7 +89,7 @@ export const makeAssistantVisible = <T extends ComponentType<any>>(
             };
           },
         });
-      }, [isNestedReadable, assistant, clickable, editable]);
+      }, [isNestedReadable, actions, clickable, editable]);
 
       const ref = useComposedRefs(componentRef, outerRef);
 
