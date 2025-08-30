@@ -1,7 +1,7 @@
 "use client";
 
 import { PropsWithChildren, useEffect, useState, type FC } from "react";
-import { CircleXIcon, FileIcon, PaperclipIcon } from "lucide-react";
+import { XIcon, FileIcon, PlusIcon } from "lucide-react";
 import {
   AttachmentPrimitive,
   ComposerPrimitive,
@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { cn } from "@/lib/utils";
 
 const useFileSrc = (file: File | undefined) => {
   const [src, setSrc] = useState<string | undefined>(undefined);
@@ -68,14 +69,11 @@ const AttachmentPreview: FC<AttachmentPreviewProps> = ({ src }) => {
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={src}
-      style={{
-        width: "auto",
-        height: "auto",
-        maxWidth: "75dvh",
-        maxHeight: "75dvh",
-        display: isLoaded ? "block" : "none",
-        overflow: "clip",
-      }}
+      className={
+        isLoaded
+          ? "block h-auto max-h-[80dvh] w-auto max-w-full object-contain"
+          : "hidden"
+      }
       onLoad={() => setIsLoaded(true)}
       alt="Preview"
     />
@@ -90,16 +88,18 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
   return (
     <Dialog>
       <DialogTrigger
-        className="hover:bg-accent/50 cursor-pointer transition-colors"
+        className="cursor-pointer transition-colors hover:bg-accent/50"
         asChild
       >
         {children}
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="p-2 sm:max-w-3xl [&>button]:rounded-full [&>button]:bg-background/100 [&>button]:p-1 [&>button]:opacity-100 [&>button]:hover:[&_svg]:text-destructive">
         <DialogTitle className="aui-sr-only">
           Image Attachment Preview
         </DialogTitle>
-        <AttachmentPreview src={src} />
+        <div className="relative mx-auto flex max-h-[80dvh] w-full items-center justify-center overflow-hidden bg-background">
+          <AttachmentPreview src={src} />
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -109,17 +109,17 @@ const AttachmentThumb: FC = () => {
   const isImage = useAttachment((a) => a.type === "image");
   const src = useAttachmentSrc();
   return (
-    <Avatar className="bg-muted flex size-10 items-center justify-center rounded border text-sm">
+    <Avatar className="flex size-8 items-center justify-center rounded bg-muted text-sm">
       <AvatarFallback delayMs={isImage ? 200 : 0}>
         <FileIcon />
       </AvatarFallback>
-      <AvatarImage src={src} />
+      <AvatarImage src={src} className="object-cover" />
     </Avatar>
   );
 };
 
 const AttachmentUI: FC = () => {
-  const canRemove = useAttachment((a) => a.source !== "message");
+  const isComposer = useAttachment((a) => a.source !== "message");
   const typeLabel = useAttachment((a) => {
     const type = a.type;
     switch (type) {
@@ -136,21 +136,28 @@ const AttachmentUI: FC = () => {
   });
   return (
     <Tooltip>
-      <AttachmentPrimitive.Root className="relative mt-3">
+      <AttachmentPrimitive.Root className="relative">
         <AttachmentPreviewDialog>
           <TooltipTrigger asChild>
-            <div className="flex h-12 w-40 items-center justify-center gap-2 rounded-lg border p-1">
+            <div
+              className={cn(
+                "flex h-12 w-40 items-center justify-center gap-2 rounded-2xl border p-2 transition-colors",
+                !isComposer && "mr-1",
+                isComposer &&
+                  "border-foreground/20 bg-background hover:bg-foreground/5",
+              )}
+            >
               <AttachmentThumb />
               <div className="flex-grow basis-0">
-                <p className="text-muted-foreground line-clamp-1 text-ellipsis break-all text-xs font-bold">
+                <p className="line-clamp-1 text-xs font-bold break-all text-ellipsis text-muted-foreground">
                   <AttachmentPrimitive.Name />
                 </p>
-                <p className="text-muted-foreground text-xs">{typeLabel}</p>
+                <p className="text-xs text-muted-foreground">{typeLabel}</p>
               </div>
             </div>
           </TooltipTrigger>
         </AttachmentPreviewDialog>
-        {canRemove && <AttachmentRemove />}
+        {isComposer && <AttachmentRemove />}
       </AttachmentPrimitive.Root>
       <TooltipContent side="top">
         <AttachmentPrimitive.Name />
@@ -164,10 +171,10 @@ const AttachmentRemove: FC = () => {
     <AttachmentPrimitive.Remove asChild>
       <TooltipIconButton
         tooltip="Remove file"
-        className="text-muted-foreground [&>svg]:bg-background absolute -right-3 -top-3 size-6 [&>svg]:size-4 [&>svg]:rounded-full"
+        className="absolute -top-1 -right-1 rounded-full bg-background  border opacity-100 hover:!bg-background size-4.5 text-muted-foreground hover:[&_svg]:text-destructive shadow-sm"
         side="top"
       >
-        <CircleXIcon />
+        <XIcon className="size-3" />
       </TooltipIconButton>
     </AttachmentPrimitive.Remove>
   );
@@ -183,7 +190,7 @@ export const UserMessageAttachments: FC = () => {
 
 export const ComposerAttachments: FC = () => {
   return (
-    <div className="flex w-full flex-row gap-3 overflow-x-auto">
+    <div className="flex w-full flex-row items-center gap-3 overflow-x-auto px-1 pt-0.5 pb-2 empty:hidden">
       <ComposerPrimitive.Attachments
         components={{ Attachment: AttachmentUI }}
       />
@@ -195,11 +202,14 @@ export const ComposerAddAttachment: FC = () => {
   return (
     <ComposerPrimitive.AddAttachment asChild>
       <TooltipIconButton
-        className="my-2.5 size-8 p-2 transition-opacity ease-in"
         tooltip="Add Attachment"
+        side="top"
         variant="ghost"
+        size="icon"
+        className="h-9 w-9 rounded-full border p-1 text-xs font-semibold dark:border-muted-foreground/15 dark:hover:bg-background [&_svg]:size-[18px]"
+        aria-label="Add Attachment"
       >
-        <PaperclipIcon />
+        <PlusIcon />
       </TooltipIconButton>
     </ComposerPrimitive.AddAttachment>
   );

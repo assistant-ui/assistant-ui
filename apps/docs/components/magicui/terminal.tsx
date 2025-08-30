@@ -1,8 +1,13 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { motion, MotionProps } from "motion/react";
+import { LazyMotion } from "motion/react";
+import type { MotionProps } from "motion/react";
+import * as m from "motion/react-m";
 import { useEffect, useRef, useState } from "react";
+
+const loadFeatures = () =>
+  import("../motion-features").then((res) => res.default);
 
 interface AnimatedSpanProps extends MotionProps {
   children: React.ReactNode;
@@ -16,15 +21,17 @@ export const AnimatedSpan = ({
   className,
   ...props
 }: AnimatedSpanProps) => (
-  <motion.div
-    initial={{ opacity: 0, y: -5 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.3, delay: delay / 1000 }}
-    className={cn("grid text-sm font-normal tracking-tight", className)}
-    {...props}
-  >
-    {children}
-  </motion.div>
+  <LazyMotion features={loadFeatures}>
+    <m.div
+      initial={{ opacity: 0, y: -5 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay: delay / 1000 }}
+      className={cn("grid text-sm font-normal tracking-tight", className)}
+      {...props}
+    >
+      {children}
+    </m.div>
+  </LazyMotion>
 );
 
 interface TypingAnimationProps extends MotionProps {
@@ -32,7 +39,7 @@ interface TypingAnimationProps extends MotionProps {
   className?: string;
   duration?: number;
   delay?: number;
-  as?: React.ElementType;
+  as?: keyof JSX.IntrinsicElements;
 }
 
 export const TypingAnimation = ({
@@ -46,10 +53,6 @@ export const TypingAnimation = ({
   if (typeof children !== "string") {
     throw new Error("TypingAnimation: children must be a string. Received:");
   }
-
-  const MotionComponent = motion.create(Component, {
-    forwardMotionProps: true,
-  });
 
   const [displayedText, setDisplayedText] = useState<string>("");
   const [started, setStarted] = useState(false);
@@ -80,14 +83,18 @@ export const TypingAnimation = ({
     };
   }, [children, duration, started]);
 
+  const MotionComponent = (m as any)[Component] ?? m.span;
+
   return (
-    <MotionComponent
-      ref={elementRef}
-      className={cn("text-sm font-normal tracking-tight", className)}
-      {...props}
-    >
-      {displayedText}
-    </MotionComponent>
+    <LazyMotion features={loadFeatures}>
+      <MotionComponent
+        ref={elementRef as any}
+        className={cn("text-sm font-normal tracking-tight", className)}
+        {...props}
+      >
+        {displayedText}
+      </MotionComponent>
+    </LazyMotion>
   );
 };
 
