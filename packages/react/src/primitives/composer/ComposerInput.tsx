@@ -97,7 +97,7 @@ export const ComposerPrimitiveInput = forwardRef<
     },
     forwardedRef,
   ) => {
-    const { actions, getState } = useAssistantApi();
+    const { actions, flushSync, getState } = useAssistantApi();
 
     const value = useAssistantState(({ composer }) => {
       if (!composer.isEditing) return "";
@@ -200,7 +200,8 @@ export const ComposerPrimitiveInput = forwardRef<
         disabled={isDisabled}
         onChange={composeEventHandlers(onChange, (e) => {
           if (!getState().composer.isEditing) return;
-          return actions.composer.setText(e.target.value);
+          actions.composer.setText(e.target.value);
+          flushSync();
         })}
         onKeyDown={composeEventHandlers(onKeyDown, handleKeyPress)}
         onPaste={composeEventHandlers(onPaste, handlePaste)}

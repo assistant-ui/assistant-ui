@@ -334,9 +334,13 @@ const EmptyPartFallback: FC<{
   );
 };
 
+const COMPLETE_STATUS: MessagePartStatus = Object.freeze({
+  type: "complete",
+});
+
 const EmptyPartsImpl: FC<MessagePartComponentProps> = ({ components }) => {
   const status = useAssistantState(
-    (s) => s.message.status as MessagePartStatus,
+    (s) => (s.message.status ?? COMPLETE_STATUS) as MessagePartStatus,
   );
 
   if (components?.Empty) return <components.Empty status={status} />;

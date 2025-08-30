@@ -15,16 +15,19 @@ export interface ResourceHandle<R, P> {
   getState(): R;
   subscribe(callback: () => void): Unsubscribe;
   updateInput(props: P): void;
+  flushSync(): void;
   dispose(): void;
 }
 
 const HandleWrapperResource = <R, P>({
   element,
   onUpdateInput,
+  onFlushSync,
   onDispose,
 }: {
   element: ResourceElement<R, P>;
   onUpdateInput: () => void;
+  onFlushSync: () => void;
   onDispose: () => void;
 }): ResourceHandle<R, P> => {
   const [props, setProps] = tapState(element.props);
@@ -49,7 +52,7 @@ const HandleWrapperResource = <R, P>({
         onUpdateInput();
         setProps(() => props);
       },
-
+      flushSync: onFlushSync,
       dispose: onDispose,
     }),
     [],
@@ -69,6 +72,9 @@ export const createResource = <R, P>(
       if (isMounted) return;
       isMounted = true;
       commitResource(fiber, lastRender);
+    },
+    onFlushSync: () => {
+      scheduler.flushSync();
     },
     onDispose: () => unmountResource(fiber),
   };

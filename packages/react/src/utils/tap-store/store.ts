@@ -11,6 +11,14 @@ export interface Store<TState, TActions = unknown, TMeta = unknown> {
   getState(): TState;
   getInitialState(): TState;
   subscribe(listener: () => void): Unsubscribe;
+
+  /**
+   * Synchronously flush all the updates to the store.
+   *
+   * @deprecated This method is still experimental and may be removed in the future.
+   */
+  flushSync(): void;
+
   readonly actions: TActions;
   readonly meta: TMeta;
 }
@@ -40,6 +48,7 @@ export const asStore = resource(
         getState: () => resource.getState().state,
         getInitialState: () => initialState,
         subscribe: resource.subscribe,
+        flushSync: resource.flushSync,
         actions: resource.getState().actions,
         meta: resource.getState().meta,
       };

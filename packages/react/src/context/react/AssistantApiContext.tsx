@@ -166,6 +166,7 @@ export const AssistantApiContext = createContext<AssistantApi>({
   getState: () => EMPTY_STATE_ACTIONS,
   getInitialState: () => EMPTY_STATE_ACTIONS,
   subscribe: () => () => {},
+  flushSync: () => {},
   actions: EMPTY_STATE_ACTIONS,
   meta: {},
 });
@@ -273,6 +274,10 @@ const extendApi = (
         unsubscribe();
         unsubscribe2();
       };
+    },
+    flushSync: () => {
+      api.flushSync();
+      api2.flushSync();
     },
     actions: {
       ...api.actions,

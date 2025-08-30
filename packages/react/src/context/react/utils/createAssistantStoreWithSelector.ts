@@ -105,6 +105,7 @@ export const createAssistantStoreWithSelector = <T extends Selectors>(
     getState,
     getInitialState: () => initialStateProxy,
     subscribe: store.subscribe,
+    flushSync: store.flushSync,
     actions,
     meta: {
       ...store.meta!,
