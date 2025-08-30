@@ -109,7 +109,7 @@ const AttachmentThumb: FC = () => {
   const isImage = useAttachment((a) => a.type === "image");
   const src = useAttachmentSrc();
   return (
-    <Avatar className="flex size-10 items-center justify-center rounded border bg-muted text-sm">
+    <Avatar className="flex size-8 items-center justify-center rounded bg-muted text-sm">
       <AvatarFallback delayMs={isImage ? 200 : 0}>
         <FileIcon />
       </AvatarFallback>
@@ -119,7 +119,7 @@ const AttachmentThumb: FC = () => {
 };
 
 const AttachmentUI: FC = () => {
-  const canRemove = useAttachment((a) => a.source !== "message");
+  const isComposer = useAttachment((a) => a.source !== "message");
   const typeLabel = useAttachment((a) => {
     const type = a.type;
     switch (type) {
@@ -141,8 +141,9 @@ const AttachmentUI: FC = () => {
           <TooltipTrigger asChild>
             <div
               className={cn(
-                "flex h-12 w-40 items-center justify-center gap-2 rounded-lg border p-1 transition-colors",
-                canRemove &&
+                "flex h-12 w-40 items-center justify-center gap-2 rounded-2xl border p-2 transition-colors",
+                !isComposer && "mr-1",
+                isComposer &&
                   "border-foreground/20 bg-background hover:bg-foreground/5",
               )}
             >
@@ -156,7 +157,7 @@ const AttachmentUI: FC = () => {
             </div>
           </TooltipTrigger>
         </AttachmentPreviewDialog>
-        {canRemove && <AttachmentRemove />}
+        {isComposer && <AttachmentRemove />}
       </AttachmentPrimitive.Root>
       <TooltipContent side="top">
         <AttachmentPrimitive.Name />
