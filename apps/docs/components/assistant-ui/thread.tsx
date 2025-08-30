@@ -20,7 +20,6 @@ import {
 } from "lucide-react";
 
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { PromptInputAction } from "@/components/assistant-ui/prompt-input-action";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -177,19 +176,18 @@ const ComposerAction: FC = () => {
       <ComposerAddAttachment />
 
       <ThreadPrimitive.If running={false}>
-        <PromptInputAction tooltip="Send message" side="top">
-          <ComposerPrimitive.Send asChild>
-            <Button
-              type="submit"
-              variant="default"
-              className="h-9 w-9 rounded-full p-1 [&_svg]:size-6"
-              aria-label="Send message"
-            >
-              <ArrowUpIcon />
-              <span className="sr-only">Send message</span>
-            </Button>
-          </ComposerPrimitive.Send>
-        </PromptInputAction>
+        <ComposerPrimitive.Send asChild>
+          <TooltipIconButton
+            tooltip="Send message"
+            side="top"
+            type="submit"
+            variant="default"
+            className="h-9 w-9 rounded-full p-1 [&_svg]:size-6"
+            aria-label="Send message"
+          >
+            <ArrowUpIcon />
+          </TooltipIconButton>
+        </ComposerPrimitive.Send>
       </ThreadPrimitive.If>
 
       <ThreadPrimitive.If running>
