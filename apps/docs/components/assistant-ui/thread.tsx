@@ -20,7 +20,8 @@ import {
 } from "lucide-react";
 
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { motion } from "framer-motion";
+import { LazyMotion } from "motion/react";
+import * as m from "motion/react-m";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { MarkdownText } from "./markdown-text";
@@ -31,13 +32,17 @@ import {
   UserMessageAttachments,
 } from "./attachment";
 
+const loadFeatures = () =>
+  import("../motion-features").then((res) => res.default);
+
 export const Thread: FC = () => {
   return (
-    <ThreadPrimitive.Root
-      className="@container flex h-full flex-col bg-background"
-      style={{
-        ["--thread-max-width" as string]: "48rem",
-        ["--thread-padding-x" as string]: "1rem",
+    <LazyMotion features={loadFeatures}>
+      <ThreadPrimitive.Root
+        className="@container flex h-full flex-col bg-background"
+        style={{
+          ["--thread-max-width" as string]: "48rem",
+          ["--thread-padding-x" as string]: "1rem",
       }}
     >
       <ThreadPrimitive.Viewport className="relative flex min-w-0 flex-1 flex-col overflow-x-auto overflow-y-scroll">
@@ -53,7 +58,8 @@ export const Thread: FC = () => {
       </ThreadPrimitive.Viewport>
 
       <Composer />
-    </ThreadPrimitive.Root>
+      </ThreadPrimitive.Root>
+    </LazyMotion>
   );
 };
 
@@ -77,7 +83,7 @@ const ThreadWelcome: FC = () => {
       <div className="mx-auto mb-16 flex w-full max-w-[var(--thread-max-width)] flex-grow flex-col px-[var(--thread-padding-x)]">
         <div className="flex w-full flex-grow flex-col items-center justify-center">
           <div className="flex size-full flex-col justify-center px-8 md:mt-20">
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
@@ -85,8 +91,8 @@ const ThreadWelcome: FC = () => {
               className="text-2xl font-semibold"
             >
               Hello there!
-            </motion.div>
-            <motion.div
+            </m.div>
+            <m.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
@@ -94,7 +100,7 @@ const ThreadWelcome: FC = () => {
               className="text-2xl text-muted-foreground/65"
             >
               How can I help you today?
-            </motion.div>
+            </m.div>
           </div>
         </div>
       </div>
@@ -117,7 +123,7 @@ const ThreadWelcomeSuggestions: FC = () => {
           action: `Help me write an essay about AI chat applications`,
         },
       ].map((suggestedAction, index) => (
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 20 }}
@@ -142,7 +148,7 @@ const ThreadWelcomeSuggestions: FC = () => {
               </span>
             </Button>
           </ThreadPrimitive.Suggestion>
-        </motion.div>
+        </m.div>
       ))}
     </div>
   );
@@ -219,7 +225,7 @@ const MessageError: FC = () => {
 const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root asChild>
-      <motion.div
+      <m.div
         className="relative mx-auto w-full max-w-[var(--thread-max-width)] px-[var(--thread-padding-x)] py-4 last:mb-5"
         initial={{ y: 5, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -239,7 +245,7 @@ const AssistantMessage: FC = () => {
           <BranchPicker />
           <AssistantActionBar />
         </div>
-      </motion.div>
+      </m.div>
     </MessagePrimitive.Root>
   );
 };
@@ -274,7 +280,7 @@ const AssistantActionBar: FC = () => {
 const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root asChild>
-      <motion.div
+      <m.div
         className="mx-auto grid w-full max-w-[var(--thread-max-width)] auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] gap-y-2 px-[var(--thread-padding-x)] py-4 first:mt-3 [&:where(>*)]:col-start-2"
         initial={{ y: 5, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -292,7 +298,7 @@ const UserMessage: FC = () => {
         </div>
 
         <BranchPicker className="col-span-full col-start-1 row-start-3 -mr-1 justify-end" />
-      </motion.div>
+      </m.div>
     </MessagePrimitive.Root>
   );
 };
