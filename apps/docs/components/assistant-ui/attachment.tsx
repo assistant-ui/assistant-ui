@@ -22,8 +22,6 @@ import {
 } from "@/components/ui/dialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { PromptInputAction } from "@/components/assistant-ui/prompt-input-action";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const useFileSrc = (file: File | undefined) => {
@@ -88,7 +86,7 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
   if (!src) return children;
 
   return (
-    <Dialog defaultOpen>
+    <Dialog>
       <DialogTrigger
         className="cursor-pointer transition-colors hover:bg-accent/50"
         asChild
@@ -198,17 +196,17 @@ export const ComposerAttachments: FC = () => {
 
 export const ComposerAddAttachment: FC = () => {
   return (
-    <PromptInputAction tooltip="Add Attachment" side="top">
-      <ComposerPrimitive.AddAttachment asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="dark:hover:bg-background h-9 w-9 rounded-full border dark:border-muted-foreground/15 p-1 text-xs font-semibold [&_svg]:size-[18px]"
-        >
-          <PlusIcon />
-          <span className="sr-only">Add Attachment</span>
-        </Button>
-      </ComposerPrimitive.AddAttachment>
-    </PromptInputAction>
+    <ComposerPrimitive.AddAttachment asChild>
+      <TooltipIconButton
+        tooltip="Add Attachment"
+        side="top"
+        variant="ghost"
+        size="icon"
+        className="dark:hover:bg-background h-9 w-9 rounded-full border dark:border-muted-foreground/15 p-1 text-xs font-semibold [&_svg]:size-[18px]"
+        aria-label="Add Attachment"
+      >
+        <PlusIcon />
+      </TooltipIconButton>
+    </ComposerPrimitive.AddAttachment>
   );
 };
