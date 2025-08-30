@@ -41,28 +41,21 @@ This adds `/components/assistant-ui/attachment.tsx` to your project.
   </Step>
   <Step>
 
-### Configure Attachment Adapter
+### Set up Runtime (No Configuration Required)
 
-Set up an attachment adapter in your runtime provider:
+For `useChatRuntime`, attachments work automatically without additional configuration:
 
 ```tsx title="/app/MyRuntimeProvider.tsx"
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
-import {
-  CompositeAttachmentAdapter,
-  SimpleImageAttachmentAdapter,
-  SimpleTextAttachmentAdapter,
-} from "@assistant-ui/react";
 
 const runtime = useChatRuntime({
   api: "/api/chat",
-  adapters: {
-    attachments: new CompositeAttachmentAdapter([
-      new SimpleImageAttachmentAdapter(),
-      new SimpleTextAttachmentAdapter(),
-    ]),
-  },
 });
 ```
+
+<Callout type="info">
+  **Note:** The AI SDK runtime handles attachments automatically. For other runtimes like `useLocalRuntime`, you may still need to configure attachment adapters as shown in the [Creating Custom Attachment Adapters](#creating-custom-attachment-adapters) section below.
+</Callout>
 
   </Step>
   <Step>
