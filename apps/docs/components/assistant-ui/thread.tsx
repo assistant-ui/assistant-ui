@@ -43,21 +43,21 @@ export const Thread: FC = () => {
         style={{
           ["--thread-max-width" as string]: "48rem",
           ["--thread-padding-x" as string]: "1rem",
-      }}
-    >
-      <ThreadPrimitive.Viewport className="relative flex min-w-0 flex-1 flex-col overflow-x-auto overflow-y-scroll">
-        <ThreadWelcome />
+        }}
+      >
+        <ThreadPrimitive.Viewport className="relative flex min-w-0 flex-1 flex-col overflow-x-auto overflow-y-scroll">
+          <ThreadWelcome />
 
-        <ThreadPrimitive.Messages
-          components={{
-            UserMessage,
-            EditComposer,
-            AssistantMessage,
-          }}
-        />
-      </ThreadPrimitive.Viewport>
+          <ThreadPrimitive.Messages
+            components={{
+              UserMessage,
+              EditComposer,
+              AssistantMessage,
+            }}
+          />
+        </ThreadPrimitive.Viewport>
 
-      <Composer />
+        <Composer />
       </ThreadPrimitive.Root>
     </LazyMotion>
   );
