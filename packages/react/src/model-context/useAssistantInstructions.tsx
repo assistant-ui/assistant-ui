@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useAssistantRuntime } from "../context";
 
-type AssistantInstructionsConfig = {
+export type AssistantInstructionsConfig = {
   disabled?: boolean | undefined;
   instruction: string;
 };
