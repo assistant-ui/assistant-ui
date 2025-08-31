@@ -165,7 +165,7 @@ const Composer: FC = () => {
         <ComposerAttachments />
         <ComposerPrimitive.Input
           placeholder="Send a message..."
-          className="max-h-32 min-h-16 w-full resize-none bg-transparent px-[18px] pb-3 text-base outline-none placeholder:text-muted-foreground focus:outline-primary"
+          className="max-h-32 min-h-16 w-full resize-none bg-transparent px-3 pb-3 text-base outline-none placeholder:text-muted-foreground focus:outline-primary"
           rows={1}
           autoFocus
           aria-label="Message input"
@@ -178,20 +178,20 @@ const Composer: FC = () => {
 
 const ComposerAction: FC = () => {
   return (
-    <div className="relative mx-1.5 my-2.5 flex items-center justify-between">
+    <div className="relative mx-1 mb-2 mt-4 flex items-center justify-between">
       <ComposerAddAttachment />
 
       <ThreadPrimitive.If running={false}>
         <ComposerPrimitive.Send asChild>
           <TooltipIconButton
             tooltip="Send message"
-            side="top"
+            side="bottom"
             type="submit"
             variant="default"
-            className="h-9 w-9 rounded-full p-1 [&_svg]:size-6"
+            className="size-[34px] rounded-full p-1"
             aria-label="Send message"
           >
-            <ArrowUpIcon />
+            <ArrowUpIcon className="size-5" />
           </TooltipIconButton>
         </ComposerPrimitive.Send>
       </ThreadPrimitive.If>
@@ -201,10 +201,10 @@ const ComposerAction: FC = () => {
           <Button
             type="button"
             variant="default"
-            className="size-8 rounded-full border border-muted-foreground/60 hover:bg-primary/75 dark:border-muted-foreground/90"
+            className="size-[34px] rounded-full border border-muted-foreground/60 hover:bg-primary/75 dark:border-muted-foreground/90"
             aria-label="Stop generating"
           >
-            <Square className="size-3.5 fill-white dark:size-4 dark:fill-black" />
+            <Square className="size-3.5 fill-white dark:fill-black" />
           </Button>
         </ComposerPrimitive.Cancel>
       </ThreadPrimitive.If>

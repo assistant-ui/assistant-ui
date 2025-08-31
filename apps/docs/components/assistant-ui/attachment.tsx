@@ -1,6 +1,7 @@
 "use client";
 
 import { PropsWithChildren, useEffect, useState, type FC } from "react";
+import Image from "next/image";
 import { XIcon, PlusIcon, FileText } from "lucide-react";
 import {
   AttachmentPrimitive,
@@ -64,18 +65,19 @@ type AttachmentPreviewProps = {
 
 const AttachmentPreview: FC<AttachmentPreviewProps> = ({ src }) => {
   const [isLoaded, setIsLoaded] = useState(false);
-
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
+    <Image
       src={src}
+      alt="Image Preview"
+      width={1}
+      height={1}
       className={
         isLoaded
           ? "block h-auto max-h-[80dvh] w-auto max-w-full object-contain"
           : "hidden"
       }
-      onLoad={() => setIsLoaded(true)}
-      alt="Preview"
+      onLoadingComplete={() => setIsLoaded(true)}
+      priority={false}
     />
   );
 };
@@ -196,7 +198,7 @@ export const UserMessageAttachments: FC = () => {
 
 export const ComposerAttachments: FC = () => {
   return (
-    <div className="flex w-full flex-row items-center gap-2 overflow-x-auto px-1 pt-0.5 pb-2 empty:hidden">
+    <div className="flex w-full flex-row items-center gap-2 overflow-x-auto px-1 pt-0.5 pb-4 empty:hidden">
       <ComposerPrimitive.Attachments
         components={{ Attachment: AttachmentUI }}
       />
@@ -209,13 +211,13 @@ export const ComposerAddAttachment: FC = () => {
     <ComposerPrimitive.AddAttachment asChild>
       <TooltipIconButton
         tooltip="Add Attachment"
-        side="top"
+        side="bottom"
         variant="ghost"
         size="icon"
-        className="h-9 w-9 rounded-full border p-1 text-xs font-semibold dark:border-muted-foreground/15 dark:hover:bg-background [&_svg]:size-[18px]"
+        className="size-[34px] rounded-full p-1 text-xs font-semibold dark:border-muted-foreground/15 hover:bg-muted-foreground/15 dark:hover:bg-muted-foreground/30"
         aria-label="Add Attachment"
       >
-        <PlusIcon />
+        <PlusIcon className="size-5 stroke-[1.5px]" />
       </TooltipIconButton>
     </ComposerPrimitive.AddAttachment>
   );
