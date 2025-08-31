@@ -23,7 +23,7 @@ export function ThreadListSidebar({
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton size="lg" asChild>
-                <Link href="https://assistant-ui.com" target="_blank">
+                <Link href="https://assistant-ui.com" target="_blank" rel="noopener noreferrer">
                   <div className="aui-sidebar-header-icon-wrapper">
                     <MessagesSquare className="aui-sidebar-header-icon" />
                   </div>
