@@ -1,7 +1,7 @@
 "use client";
 
 import { PropsWithChildren, useEffect, useState, type FC } from "react";
-import { CircleXIcon, FileIcon, PlusIcon } from "lucide-react";
+import { XIcon, FileIcon, PlusIcon } from "lucide-react";
 import {
   AttachmentPrimitive,
   ComposerPrimitive,
@@ -171,10 +171,10 @@ const AttachmentRemove: FC = () => {
     <AttachmentPrimitive.Remove asChild>
       <TooltipIconButton
         tooltip="Remove file"
-        className="absolute -top-3 -right-3 size-6 text-muted-foreground [&>svg]:size-4 [&>svg]:rounded-full [&>svg]:bg-background"
+        className="absolute -top-1 -right-1 rounded-full bg-background border opacity-100 hover:opacity-100 hover:!bg-background size-4.5 text-muted-foreground hover:[&_svg]:text-destructive shadow-sm"
         side="top"
       >
-        <CircleXIcon />
+        <XIcon className="size-3" />
       </TooltipIconButton>
     </AttachmentPrimitive.Remove>
   );
