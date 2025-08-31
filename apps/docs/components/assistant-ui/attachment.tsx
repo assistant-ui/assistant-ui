@@ -146,7 +146,7 @@ const AttachmentUI: FC = () => {
       <AttachmentPrimitive.Root
         className={cn(
           "relative",
-          isImage && "only:[&>#attachment-tile]:size-20",
+          isImage && "only:[&>#attachment-tile]:size-24",
         )}
       >
         <AttachmentPreviewDialog>
@@ -198,7 +198,7 @@ export const UserMessageAttachments: FC = () => {
 
 export const ComposerAttachments: FC = () => {
   return (
-    <div className="flex w-full flex-row items-center gap-2 overflow-x-auto px-1 pt-0.5 pb-4 empty:hidden">
+    <div className="flex w-full flex-row items-center gap-2 overflow-x-auto px-1.5 pt-0.5 mb-2 pb-1 empty:hidden">
       <ComposerPrimitive.Attachments
         components={{ Attachment: AttachmentUI }}
       />
