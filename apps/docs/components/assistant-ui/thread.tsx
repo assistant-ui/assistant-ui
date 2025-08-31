@@ -165,7 +165,7 @@ const Composer: FC = () => {
         <ComposerAttachments />
         <ComposerPrimitive.Input
           placeholder="Send a message..."
-          className="max-h-32 min-h-16 w-full resize-none bg-transparent px-3 pb-3 text-base outline-none placeholder:text-muted-foreground focus:outline-primary"
+          className="max-h-32 min-h-16 w-full resize-none bg-transparent px-3.5 pb-3 pt-1.5 mb-1 text-base outline-none placeholder:text-muted-foreground focus:outline-primary"
           rows={1}
           autoFocus
           aria-label="Message input"
@@ -178,7 +178,7 @@ const Composer: FC = () => {
 
 const ComposerAction: FC = () => {
   return (
-    <div className="relative mx-1 mb-2 mt-4 flex items-center justify-between">
+    <div className="relative mx-1 mt-2 mb-2 flex items-center justify-between">
       <ComposerAddAttachment />
 
       <ThreadPrimitive.If running={false}>
@@ -281,7 +281,7 @@ const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root asChild>
       <m.div
-        className="mx-auto grid w-full max-w-[var(--thread-max-width)] auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] gap-y-2 px-[var(--thread-padding-x)] py-4 first:mt-3 [&:where(>*)]:col-start-2"
+        className="mx-auto grid w-full max-w-[var(--thread-max-width)] auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] gap-y-2 px-[var(--thread-padding-x)] py-4 first:mt-3 last:mb-5 [&:where(>*)]:col-start-2"
         initial={{ y: 5, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         data-role="user"
