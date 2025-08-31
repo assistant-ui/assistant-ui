@@ -1,7 +1,7 @@
 "use client";
 
 import { PropsWithChildren, useEffect, useState, type FC } from "react";
-import { XIcon, FileIcon, PlusIcon } from "lucide-react";
+import { XIcon, PlusIcon, FileText } from "lucide-react";
 import {
   AttachmentPrimitive,
   ComposerPrimitive,
@@ -93,10 +93,8 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
       >
         {children}
       </DialogTrigger>
-      <DialogContent className="p-2 sm:max-w-3xl [&>button]:rounded-full [&>button]:bg-background/100 [&>button]:p-1 [&>button]:opacity-100 [&>button]:hover:[&_svg]:text-destructive">
-        <DialogTitle className="aui-sr-only">
-          Image Attachment Preview
-        </DialogTitle>
+      <DialogContent className="p-2 sm:max-w-3xl [&_svg]:text-background [&>button]:rounded-full [&>button]:bg-foreground/60 [&>button]:p-1 [&>button]:opacity-100 [&>button]:!ring-0 [&>button]:hover:[&_svg]:text-destructive">
+        <DialogTitle className="sr-only">Image Attachment Preview</DialogTitle>
         <div className="relative mx-auto flex max-h-[80dvh] w-full items-center justify-center overflow-hidden bg-background">
           <AttachmentPreview src={src} />
         </div>
@@ -108,18 +106,24 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
 const AttachmentThumb: FC = () => {
   const isImage = useAttachment((a) => a.type === "image");
   const src = useAttachmentSrc();
+
   return (
-    <Avatar className="flex size-8 items-center justify-center rounded bg-muted text-sm">
+    <Avatar className="h-full w-full rounded-none">
+      <AvatarImage
+        src={src}
+        alt="Attachment preview"
+        className="object-cover"
+      />
       <AvatarFallback delayMs={isImage ? 200 : 0}>
-        <FileIcon />
+        <FileText className="size-8 text-muted-foreground" />
       </AvatarFallback>
-      <AvatarImage src={src} className="object-cover" />
     </Avatar>
   );
 };
 
 const AttachmentUI: FC = () => {
   const isComposer = useAttachment((a) => a.source !== "message");
+  const isImage = useAttachment((a) => a.type === "image");
   const typeLabel = useAttachment((a) => {
     const type = a.type;
     switch (type) {
@@ -134,26 +138,28 @@ const AttachmentUI: FC = () => {
         throw new Error(`Unknown attachment type: ${_exhaustiveCheck}`);
     }
   });
+
   return (
     <Tooltip>
-      <AttachmentPrimitive.Root className="relative">
+      <AttachmentPrimitive.Root
+        className={cn(
+          "relative",
+          isImage && "only:[&>#attachment-tile]:size-20",
+        )}
+      >
         <AttachmentPreviewDialog>
           <TooltipTrigger asChild>
             <div
               className={cn(
-                "flex h-12 w-40 items-center justify-center gap-2 rounded-2xl border p-2 transition-colors",
+                "size-14 cursor-pointer overflow-hidden rounded-[14px] border bg-muted transition-opacity hover:opacity-75",
                 !isComposer && "mr-1",
-                isComposer &&
-                  "border-foreground/20 bg-background hover:bg-foreground/5",
+                isComposer && "border-foreground/20",
               )}
+              role="button"
+              id="attachment-tile"
+              aria-label={`${typeLabel} attachment`}
             >
               <AttachmentThumb />
-              <div className="flex-grow basis-0">
-                <p className="line-clamp-1 text-xs font-bold break-all text-ellipsis text-muted-foreground">
-                  <AttachmentPrimitive.Name />
-                </p>
-                <p className="text-xs text-muted-foreground">{typeLabel}</p>
-              </div>
             </div>
           </TooltipTrigger>
         </AttachmentPreviewDialog>
@@ -171,10 +177,10 @@ const AttachmentRemove: FC = () => {
     <AttachmentPrimitive.Remove asChild>
       <TooltipIconButton
         tooltip="Remove file"
-        className="absolute -top-1 -right-1 rounded-full bg-background border opacity-100 hover:opacity-100 hover:!bg-background size-4.5 text-muted-foreground hover:[&_svg]:text-destructive shadow-sm"
+        className="absolute top-1.5 right-1.5 size-3.5 rounded-full bg-white text-muted-foreground opacity-100 shadow-sm hover:!bg-white [&_svg]:text-black hover:[&_svg]:text-destructive"
         side="top"
       >
-        <XIcon className="size-3" />
+        <XIcon className="size-3 dark:stroke-[2.5px]" />
       </TooltipIconButton>
     </AttachmentPrimitive.Remove>
   );
@@ -182,7 +188,7 @@ const AttachmentRemove: FC = () => {
 
 export const UserMessageAttachments: FC = () => {
   return (
-    <div className="col-span-full col-start-1 row-start-1 flex w-full flex-row justify-end gap-3">
+    <div className="col-span-full col-start-1 row-start-1 flex w-full flex-row justify-end gap-1">
       <MessagePrimitive.Attachments components={{ Attachment: AttachmentUI }} />
     </div>
   );
@@ -190,7 +196,7 @@ export const UserMessageAttachments: FC = () => {
 
 export const ComposerAttachments: FC = () => {
   return (
-    <div className="flex w-full flex-row items-center gap-3 overflow-x-auto px-1 pt-0.5 pb-2 empty:hidden">
+    <div className="flex w-full flex-row items-center gap-2 overflow-x-auto px-1 pt-0.5 pb-2 empty:hidden">
       <ComposerPrimitive.Attachments
         components={{ Attachment: AttachmentUI }}
       />
