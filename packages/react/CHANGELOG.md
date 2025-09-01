@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.10.45
+
+### Patch Changes
+
+- e242a06: feat: AssistantFrameHost, AssistantFrameProvider APIs
+- e242a06: feat: ModelContextRegistry API
+
 ## 0.10.44
 
 ### Patch Changes
