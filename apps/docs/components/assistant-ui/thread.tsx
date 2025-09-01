@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { LazyMotion } from "motion/react";
+import { LazyMotion, domAnimation } from "motion/react";
 import * as m from "motion/react-m";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -32,12 +32,9 @@ import {
   UserMessageAttachments,
 } from "./attachment";
 
-const loadFeatures = () =>
-  import("../motion-features").then((res) => res.default);
-
 export const Thread: FC = () => {
   return (
-    <LazyMotion features={loadFeatures}>
+    <LazyMotion features={domAnimation}>
       <ThreadPrimitive.Root
         className="@container flex h-full flex-col bg-background"
         style={{
