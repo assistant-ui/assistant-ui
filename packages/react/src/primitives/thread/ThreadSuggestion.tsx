@@ -6,8 +6,7 @@ import {
   createActionButton,
 } from "../../utils/createActionButton";
 import { useCallback } from "react";
-import { useThread } from "../../context";
-import { useThreadRuntime } from "../../context/react/ThreadContext";
+import { useAssistantState, useAssistantApi } from "../../context";
 
 const useThreadSuggestion = ({
   prompt,
@@ -17,16 +16,17 @@ const useThreadSuggestion = ({
   method?: "replace";
   autoSend?: boolean | undefined;
 }) => {
-  const threadRuntime = useThreadRuntime();
+  const { actions, getState } = useAssistantApi();
+  const disabled = useAssistantState(({ thread }) => thread.isDisabled);
 
-  const disabled = useThread((t) => t.isDisabled);
   const callback = useCallback(() => {
-    if (autoSend && !threadRuntime.getState().isRunning) {
-      threadRuntime.append(prompt);
+    const isRunning = getState().thread.isRunning;
+    if (autoSend && !isRunning) {
+      actions.thread.append(prompt);
     } else {
-      threadRuntime.composer.setText(prompt);
+      actions.composer.setText(prompt);
     }
-  }, [threadRuntime, autoSend, prompt]);
+  }, [actions, getState, autoSend, prompt]);
 
   if (disabled) return null;
   return callback;

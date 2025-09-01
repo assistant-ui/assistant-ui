@@ -8,16 +8,11 @@ import {
   useMemo,
 } from "react";
 import {
+  useAssistantState,
+  PartByIndexProvider,
+  useAssistantApi,
   TextMessagePartProvider,
-  useMessagePart,
-  useMessagePartRuntime,
-  useToolUIs,
 } from "../../context";
-import {
-  useMessage,
-  useMessageRuntime,
-} from "../../context/react/MessageContext";
-import { MessagePartRuntimeProvider } from "../../context/providers/MessagePartRuntimeProvider";
 import { MessagePartPrimitiveText } from "../messagePart/MessagePartText";
 import { MessagePartPrimitiveImage } from "../messagePart/MessagePartImage";
 import type {
@@ -80,7 +75,7 @@ const groupMessagePartsByParentId: GroupingFunction = (
 const useMessagePartsGrouped = (
   groupingFunction: GroupingFunction,
 ): MessagePartGroup[] => {
-  const parts = useMessage((m) => m.content);
+  const parts = useAssistantState(({ message }) => message.parts);
 
   return useMemo(() => {
     if (parts.length === 0) {
@@ -225,7 +220,9 @@ const ToolUIDisplay = ({
 }: {
   Fallback: ToolCallMessagePartComponent | undefined;
 } & ToolCallMessagePartProps) => {
-  const Render = useToolUIs((s) => s.getToolUI(props.toolName)) ?? Fallback;
+  const Render = useAssistantState(
+    ({ toolUIs }) => toolUIs[props.toolName] ?? Fallback,
+  );
   if (!Render) return null;
   return <Render {...props} />;
 };
@@ -262,20 +259,19 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
     tools = {},
   } = {},
 }) => {
-  const MessagePartRuntime = useMessagePartRuntime();
-
-  const part = useMessagePart();
+  const { actions } = useAssistantApi();
+  const part = useAssistantState(({ part }) => part);
 
   const type = part.type;
   if (type === "tool-call") {
-    const addResult = (result: any) => MessagePartRuntime.addToolResult(result);
+    const addResult = (result: any) => actions.part.addToolResult(result);
     if ("Override" in tools)
       return <tools.Override {...part} addResult={addResult} />;
     const Tool = tools.by_name?.[part.toolName] ?? tools.Fallback;
     return <ToolUIDisplay {...part} Fallback={Tool} addResult={addResult} />;
   }
 
-  if (part.status.type === "requires-action")
+  if (part.status?.type === "requires-action")
     throw new Error("Encountered unexpected requires-action status");
 
   switch (type) {
@@ -310,16 +306,10 @@ type MessagePartProps = {
 };
 
 const MessagePartImpl: FC<MessagePartProps> = ({ partIndex, components }) => {
-  const messageRuntime = useMessageRuntime();
-  const runtime = useMemo(
-    () => messageRuntime.getMessagePartByIndex(partIndex),
-    [messageRuntime, partIndex],
-  );
-
   return (
-    <MessagePartRuntimeProvider runtime={runtime}>
+    <PartByIndexProvider index={partIndex}>
       <MessagePartComponent components={components} />
-    </MessagePartRuntimeProvider>
+    </PartByIndexProvider>
   );
 };
 
@@ -337,10 +327,6 @@ const MessagePart = memo(
     prev.components?.Group === next.components?.Group,
 );
 
-const COMPLETE_STATUS: MessagePartStatus = Object.freeze({
-  type: "complete",
-});
-
 const EmptyPartFallback: FC<{
   status: MessagePartStatus;
   component: TextMessagePartComponent;
@@ -352,9 +338,14 @@ const EmptyPartFallback: FC<{
   );
 };
 
+const COMPLETE_STATUS: MessagePartStatus = Object.freeze({
+  type: "complete",
+});
+
 const EmptyPartsImpl: FC<MessagePartComponentProps> = ({ components }) => {
-  const status =
-    useMessage((s) => s.status as MessagePartStatus) ?? COMPLETE_STATUS;
+  const status = useAssistantState(
+    (s) => (s.message.status ?? COMPLETE_STATUS) as MessagePartStatus,
+  );
 
   if (components?.Empty) return <components.Empty status={status} />;
 
@@ -424,7 +415,9 @@ const EmptyParts = memo(
 export const MessagePrimitiveUnstable_PartsGrouped: FC<
   MessagePrimitiveUnstable_PartsGrouped.Props
 > = ({ groupingFunction, components }) => {
-  const contentLength = useMessage((s) => s.content.length);
+  const contentLength = useAssistantState(
+    ({ message }) => message.parts.length,
+  );
   const messageGroups = useMessagePartsGrouped(groupingFunction);
 
   const partsElements = useMemo(() => {

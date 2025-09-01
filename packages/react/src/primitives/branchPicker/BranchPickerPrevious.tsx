@@ -6,10 +6,7 @@ import {
   createActionButton,
 } from "../../utils/createActionButton";
 import { useCallback } from "react";
-import {
-  useMessage,
-  useMessageRuntime,
-} from "../../context/react/MessageContext";
+import { useAssistantState, useAssistantApi } from "../../context";
 
 /**
  * Hook that provides navigation to the previous branch functionality.
@@ -33,12 +30,14 @@ import {
  * ```
  */
 const useBranchPickerPrevious = () => {
-  const messageRuntime = useMessageRuntime();
-  const disabled = useMessage((m) => m.branchNumber <= 1);
+  const { actions } = useAssistantApi();
+  const disabled = useAssistantState(
+    ({ message }) => message.branchNumber <= 1,
+  );
 
   const callback = useCallback(() => {
-    messageRuntime.switchToBranch({ position: "previous" });
-  }, [messageRuntime]);
+    actions.message.switchToBranch({ position: "previous" });
+  }, [actions]);
 
   if (disabled) return null;
   return callback;

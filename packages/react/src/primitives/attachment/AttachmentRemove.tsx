@@ -6,14 +6,14 @@ import {
   createActionButton,
 } from "../../utils/createActionButton";
 import { useCallback } from "react";
-import { useAttachmentRuntime } from "../../context/react/AttachmentContext";
+import { useAssistantApi } from "../../context";
 
 const useAttachmentRemove = () => {
-  const attachmentRuntime = useAttachmentRuntime();
+  const { actions } = useAssistantApi();
 
   const handleRemoveAttachment = useCallback(() => {
-    attachmentRuntime.remove();
-  }, [attachmentRuntime]);
+    actions.attachment.remove();
+  }, [actions]);
 
   return handleRemoveAttachment;
 };

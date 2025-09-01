@@ -1,7 +1,7 @@
 "use client";
 
 import { ComponentPropsWithoutRef, forwardRef, type ComponentRef } from "react";
-import { useAttachment } from "../../context/react/AttachmentContext";
+import { useAssistantState } from "../../context";
 import { Primitive } from "@radix-ui/react-primitive";
 
 type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;
@@ -15,7 +15,10 @@ export const AttachmentPrimitiveThumb = forwardRef<
   AttachmentPrimitiveThumb.Element,
   AttachmentPrimitiveThumb.Props
 >((props, ref) => {
-  const ext = useAttachment((a) => a.name.split(".").pop());
+  const ext = useAssistantState(({ attachment }) => {
+    const parts = attachment.name.split(".");
+    return parts.length > 1 ? parts.pop()! : "";
+  });
   return (
     <Primitive.div {...props} ref={ref}>
       .{ext}
