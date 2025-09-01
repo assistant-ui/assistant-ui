@@ -25,9 +25,9 @@ import { cn } from "@/lib/utils";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import {
-  ComposerAttachmentArea,
-  MessageAttachmentArea,
-} from "@/components/assistant-ui/attachment";
+  ComposerAttachments,
+  UserMessageAttachments,
+} from "@/components/assistant-ui/attachment-old";
 
 export const Thread: FC = () => {
   return (
@@ -122,7 +122,7 @@ const Composer: FC = () => {
   return (
     <div className="bg-foreground/5 w-full rounded-full p-2">
       <ComposerPrimitive.Root className="focus-within:border-ring/20 flex w-full flex-wrap items-end rounded-full border bg-inherit px-2.5 shadow-sm transition-colors ease-in">
-        <ComposerAttachmentArea />
+        <ComposerAttachments />
         <ComposerPrimitive.Input
           rows={1}
           autoFocus
@@ -178,7 +178,7 @@ const ComposerAction: FC = () => {
 const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="relative w-full max-w-[var(--thread-max-width)] gap-y-2 py-4">
-      <MessageAttachmentArea />
+      <UserMessageAttachments />
 
       <div className="text-foreground break-words rounded-3xl py-2.5 text-3xl">
         <MessagePrimitive.Parts />
