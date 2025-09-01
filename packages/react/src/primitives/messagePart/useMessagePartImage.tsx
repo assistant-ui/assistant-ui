@@ -1,17 +1,17 @@
 "use client";
 
 import { MessagePartState } from "../../api/MessagePartRuntime";
-import { useMessagePart } from "../../context/react/MessagePartContext";
+import { useAssistantState } from "../../context";
 import { ImageMessagePart } from "../../types";
 
 export const useMessagePartImage = () => {
-  const image = useMessagePart((c) => {
-    if (c.type !== "image")
+  const image = useAssistantState(({ part }) => {
+    if (part.type !== "image")
       throw new Error(
         "MessagePartImage can only be used inside image message parts.",
       );
 
-    return c as MessagePartState & ImageMessagePart;
+    return part as MessagePartState & ImageMessagePart;
   });
 
   return image;

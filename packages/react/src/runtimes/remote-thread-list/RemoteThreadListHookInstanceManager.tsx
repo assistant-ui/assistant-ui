@@ -7,17 +7,15 @@ import {
   useRef,
   useEffect,
   memo,
-  useMemo,
   PropsWithChildren,
   ComponentType,
 } from "react";
 import { UseBoundStore, StoreApi, create } from "zustand";
-import { useAssistantRuntime } from "../../context";
-import { ThreadListItemRuntimeProvider } from "../../context/providers/ThreadListItemRuntimeProvider";
 import {
-  useThreadListItem,
-  useThreadListItemRuntime,
-} from "../../context/react/ThreadListItemContext";
+  useAssistantState,
+  useAssistantApi,
+  ThreadListItemByIdProvider,
+} from "../../context";
 import { ThreadRuntimeCore, ThreadRuntimeImpl } from "../../internal";
 import { BaseSubscribable } from "./BaseSubscribable";
 import { AssistantRuntime } from "../../api";
@@ -82,7 +80,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   }
 
   private _InnerActiveThreadProvider: FC = () => {
-    const { id } = useThreadListItem();
+    const id = useAssistantState(({ threadListItem }) => threadListItem.id);
 
     const { useRuntime } = this.useRuntimeHook();
     const runtime = useRuntime();
@@ -114,21 +112,22 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     }, [threadBinding, updateRuntime]);
 
     // auto initialize thread
-    const threadListItemRuntime = useThreadListItemRuntime();
+    const { actions, getState } = useAssistantApi();
     useEffect(() => {
       return runtime.threads.main.unstable_on("initialize", () => {
-        if (threadListItemRuntime.getState().status === "new") {
-          threadListItemRuntime.initialize();
+        const state = getState();
+        if (state.threadListItem.status === "new") {
+          actions.threadListItem.initialize();
 
           // auto generate a title after first run
           const dispose = runtime.thread.unstable_on("run-end", () => {
             dispose();
 
-            threadListItemRuntime.generateTitle();
+            actions.threadListItem.generateTitle();
           });
         }
       });
-    }, [runtime, threadListItemRuntime]);
+    }, [runtime, actions, getState]);
 
     return null;
   };
@@ -138,18 +137,14 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     provider: ComponentType<PropsWithChildren>;
     // eslint-disable-next-line react/display-name
   }> = memo(({ threadId, provider: Provider }) => {
-    const assistantRuntime = useAssistantRuntime();
-    const threadListItemRuntime = useMemo(
-      () => assistantRuntime.threads.getItemById(threadId),
-      [assistantRuntime, threadId],
-    );
+    // Runtime is provided by ThreadListItemByIdProvider
 
     return (
-      <ThreadListItemRuntimeProvider runtime={threadListItemRuntime}>
+      <ThreadListItemByIdProvider id={threadId}>
         <Provider>
           <this._InnerActiveThreadProvider />
         </Provider>
-      </ThreadListItemRuntimeProvider>
+      </ThreadListItemByIdProvider>
     );
   });
 

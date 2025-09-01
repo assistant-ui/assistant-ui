@@ -15,7 +15,7 @@ import {
   MessagePartStatus,
   ToolCallMessagePartStatus,
 } from "../../types/AssistantTypes";
-import { useMessagePartRuntime } from "../../context/react/MessagePartContext";
+import { useAssistantApi } from "../../context";
 import { createContextStoreHook } from "../../context/react/utils/createContextStoreHook";
 
 type SmoothContextValue = {
@@ -35,11 +35,9 @@ const makeSmoothContext = (
 
 export const SmoothContextProvider: FC<PropsWithChildren> = ({ children }) => {
   const outer = useSmoothContext({ optional: true });
-  const MessagePartRuntime = useMessagePartRuntime();
+  const { getState } = useAssistantApi();
 
-  const [context] = useState(() =>
-    makeSmoothContext(MessagePartRuntime.getState().status),
-  );
+  const [context] = useState(() => makeSmoothContext(getState().part.status));
 
   // do not wrap if there is an outer SmoothContextProvider
   if (outer) return children;

@@ -6,7 +6,7 @@ import {
   createActionButton,
 } from "../../utils/createActionButton";
 import { useCallback } from "react";
-import { useComposer, useComposerRuntime } from "../../context";
+import { useAssistantState, useAssistantApi } from "../../context";
 
 const useComposerAddAttachment = ({
   multiple = true,
@@ -14,16 +14,16 @@ const useComposerAddAttachment = ({
   /** allow selecting multiple files */
   multiple?: boolean | undefined;
 } = {}) => {
-  const disabled = useComposer((c) => !c.isEditing);
+  const disabled = useAssistantState(({ composer }) => !composer.isEditing);
+  const { actions, getState } = useAssistantApi();
 
-  const composerRuntime = useComposerRuntime();
   const callback = useCallback(() => {
     const input = document.createElement("input");
     input.type = "file";
     input.multiple = multiple;
     input.hidden = true;
 
-    const attachmentAccept = composerRuntime.getAttachmentAccept();
+    const attachmentAccept = getState().composer.attachmentAccept;
     if (attachmentAccept !== "*") {
       input.accept = attachmentAccept;
     }
@@ -34,7 +34,7 @@ const useComposerAddAttachment = ({
       const fileList = (e.target as HTMLInputElement).files;
       if (!fileList) return;
       for (const file of fileList) {
-        composerRuntime.addAttachment(file);
+        actions.composer.addAttachment(file);
       }
 
       document.body.removeChild(input);
@@ -47,7 +47,7 @@ const useComposerAddAttachment = ({
     };
 
     input.click();
-  }, [composerRuntime, multiple]);
+  }, [actions, multiple, getState]);
 
   if (disabled) return null;
   return callback;

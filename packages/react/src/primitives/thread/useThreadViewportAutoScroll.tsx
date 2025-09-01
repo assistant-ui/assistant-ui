@@ -2,7 +2,7 @@
 
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
 import { RefCallback, useCallback, useEffect, useRef } from "react";
-import { useThreadRuntime } from "../../context/react/ThreadContext";
+import { useAssistantApi } from "../../context";
 import { useOnResizeContent } from "../../utils/hooks/useOnResizeContent";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
@@ -87,10 +87,12 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   });
 
   // autoscroll on run start
-  const threadRuntime = useThreadRuntime();
+  const { actions } = useAssistantApi();
   useEffect(() => {
-    return threadRuntime.unstable_on("run-start", () => scrollToBottom("auto"));
-  }, [scrollToBottom, threadRuntime]);
+    return actions.thread.unstable_on("run-start", () =>
+      scrollToBottom("auto"),
+    );
+  }, [scrollToBottom, actions]);
 
   const autoScrollRef = useComposedRefs<TElement>(resizeRef, scrollRef, divRef);
   return autoScrollRef as RefCallback<TElement>;

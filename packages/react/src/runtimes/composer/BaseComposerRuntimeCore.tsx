@@ -23,7 +23,7 @@ export abstract class BaseComposerRuntimeCore
 
   protected abstract getAttachmentAdapter(): AttachmentAdapter | undefined;
 
-  public getAttachmentAccept(): string {
+  public get attachmentAccept(): string {
     return this.getAttachmentAdapter()?.accept ?? "*";
   }
 

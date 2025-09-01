@@ -6,7 +6,7 @@ import {
   createActionButton,
 } from "../../utils/createActionButton";
 import { useCallback } from "react";
-import { useEditComposer, useMessageRuntime } from "../../context";
+import { useAssistantState, useAssistantApi } from "../../context";
 
 /**
  * Hook that provides edit functionality for action bar buttons.
@@ -30,12 +30,12 @@ import { useEditComposer, useMessageRuntime } from "../../context";
  * ```
  */
 const useActionBarEdit = () => {
-  const messageRuntime = useMessageRuntime();
-  const disabled = useEditComposer((c) => c.isEditing);
+  const { actions } = useAssistantApi();
+  const disabled = useAssistantState(({ composer }) => composer.isEditing);
 
   const callback = useCallback(() => {
-    messageRuntime.composer.beginEdit();
-  }, [messageRuntime]);
+    actions.composer.beginEdit();
+  }, [actions]);
 
   if (disabled) return null;
   return callback;
