@@ -198,7 +198,7 @@ export const UserMessageAttachments: FC = () => {
 
 export const ComposerAttachments: FC = () => {
   return (
-    <div className="flex w-full flex-row items-center gap-2 overflow-x-auto px-1.5 pt-0.5 mb-2 pb-1 empty:hidden">
+    <div className="mb-2 flex w-full flex-row items-center gap-2 overflow-x-auto px-1.5 pt-0.5 pb-1 empty:hidden">
       <ComposerPrimitive.Attachments
         components={{ Attachment: AttachmentUI }}
       />
@@ -214,7 +214,7 @@ export const ComposerAddAttachment: FC = () => {
         side="bottom"
         variant="ghost"
         size="icon"
-        className="size-[34px] rounded-full p-1 text-xs font-semibold dark:border-muted-foreground/15 hover:bg-muted-foreground/15 dark:hover:bg-muted-foreground/30"
+        className="size-[34px] rounded-full p-1 text-xs font-semibold hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30"
         aria-label="Add Attachment"
       >
         <PlusIcon className="size-5 stroke-[1.5px]" />
