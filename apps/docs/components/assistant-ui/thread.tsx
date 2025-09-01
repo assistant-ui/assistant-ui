@@ -1,36 +1,36 @@
 import {
-  ThreadPrimitive,
-  ComposerPrimitive,
-  MessagePrimitive,
   ActionBarPrimitive,
   BranchPickerPrimitive,
+  ComposerPrimitive,
   ErrorPrimitive,
+  MessagePrimitive,
+  ThreadPrimitive,
 } from "@assistant-ui/react";
-import type { FC } from "react";
 import {
   ArrowDownIcon,
   ArrowUpIcon,
-  CopyIcon,
   CheckIcon,
-  PencilIcon,
-  RefreshCwIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  CopyIcon,
+  PencilIcon,
+  RefreshCwIcon,
   Square,
 } from "lucide-react";
+import type { FC } from "react";
 
-import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { LazyMotion, domAnimation } from "motion/react";
-import * as m from "motion/react-m";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { MarkdownText } from "./markdown-text";
-import { ToolFallback } from "./tool-fallback";
 import {
   ComposerAddAttachment,
   ComposerAttachments,
   UserMessageAttachments,
-} from "./attachment";
+} from "@/components/assistant-ui/attachment";
+import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
+import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { LazyMotion, domAnimation } from "motion/react";
+import * as m from "motion/react-m";
 
 export const Thread: FC = () => {
   return (
@@ -162,7 +162,7 @@ const Composer: FC = () => {
         <ComposerAttachments />
         <ComposerPrimitive.Input
           placeholder="Send a message..."
-          className="max-h-32 min-h-16 w-full resize-none bg-transparent px-3.5 pb-3 pt-1.5 mb-1 text-base outline-none placeholder:text-muted-foreground focus:outline-primary"
+          className="mb-1 max-h-32 min-h-16 w-full resize-none bg-transparent px-3.5 pt-1.5 pb-3 text-base outline-none placeholder:text-muted-foreground focus:outline-primary"
           rows={1}
           autoFocus
           aria-label="Message input"
