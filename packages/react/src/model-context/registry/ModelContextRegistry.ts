@@ -22,10 +22,12 @@ export class ModelContextRegistry implements ModelContextProvider {
 
   getModelContext(): ModelContext {
     // Merge instructions
-    const instructions = Array.from(this._instructions.values())
-      .filter(Boolean);
-    
-    const system = instructions.length > 0 ? instructions.join("\n\n") : undefined;
+    const instructions = Array.from(this._instructions.values()).filter(
+      Boolean,
+    );
+
+    const system =
+      instructions.length > 0 ? instructions.join("\n\n") : undefined;
 
     // Collect tools
     const tools: Record<string, Tool<any, any>> = {};
@@ -35,7 +37,9 @@ export class ModelContextRegistry implements ModelContextProvider {
     }
 
     // Merge provider contexts
-    const providerContexts = mergeModelContexts(new Set(this._providers.values()));
+    const providerContexts = mergeModelContexts(
+      new Set(this._providers.values()),
+    );
 
     // Combine everything
     const context: ModelContext = {
@@ -45,13 +49,13 @@ export class ModelContextRegistry implements ModelContextProvider {
 
     // Merge with provider contexts
     if (providerContexts.system) {
-      context.system = context.system 
+      context.system = context.system
         ? `${context.system}\n\n${providerContexts.system}`
         : providerContexts.system;
     }
-    
+
     if (providerContexts.tools) {
-      context.tools = { ...context.tools, ...providerContexts.tools };
+      context.tools = { ...(context.tools || {}), ...providerContexts.tools };
     }
 
     if (providerContexts.callSettings) {
@@ -80,7 +84,7 @@ export class ModelContextRegistry implements ModelContextProvider {
     tool: AssistantToolProps<TArgs, TResult>,
   ): ModelContextRegistryToolHandle<TArgs, TResult> {
     const id = Symbol();
-    
+
     this._tools.set(id, tool);
     this.notifySubscribers();
 
@@ -98,12 +102,15 @@ export class ModelContextRegistry implements ModelContextProvider {
     };
   }
 
-  addInstruction(config: string | AssistantInstructionsConfig): ModelContextRegistryInstructionHandle {
+  addInstruction(
+    config: string | AssistantInstructionsConfig,
+  ): ModelContextRegistryInstructionHandle {
     const id = Symbol();
-    
-    const instruction = typeof config === "string" ? config : config.instruction;
+
+    const instruction =
+      typeof config === "string" ? config : config.instruction;
     const disabled = typeof config === "object" ? config.disabled : false;
-    
+
     if (!disabled) {
       this._instructions.set(id, instruction);
       this.notifySubscribers();
@@ -111,9 +118,11 @@ export class ModelContextRegistry implements ModelContextProvider {
 
     return {
       update: (newConfig: string | AssistantInstructionsConfig) => {
-        const newInstruction = typeof newConfig === "string" ? newConfig : newConfig.instruction;
-        const newDisabled = typeof newConfig === "object" ? newConfig.disabled : false;
-        
+        const newInstruction =
+          typeof newConfig === "string" ? newConfig : newConfig.instruction;
+        const newDisabled =
+          typeof newConfig === "object" ? newConfig.disabled : false;
+
         if (newDisabled) {
           this._instructions.delete(id);
         } else {
@@ -128,17 +137,19 @@ export class ModelContextRegistry implements ModelContextProvider {
     };
   }
 
-  addProvider(provider: ModelContextProvider): ModelContextRegistryProviderHandle {
+  addProvider(
+    provider: ModelContextProvider,
+  ): ModelContextRegistryProviderHandle {
     const id = Symbol();
-    
+
     this._providers.set(id, provider);
-    
+
     // Subscribe to provider changes
     const unsubscribe = provider.subscribe?.(() => {
       this.notifySubscribers();
     });
     this._providerUnsubscribes.set(id, unsubscribe);
-    
+
     this.notifySubscribers();
 
     return {

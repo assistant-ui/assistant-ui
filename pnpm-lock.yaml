@@ -1217,7 +1217,7 @@ importers:
         specifier: '*'
         version: 19.1.7(@types/react@19.1.10)
       assistant-cloud:
-        specifier: workspace:*
+        specifier: ^0.1.1
         version: link:../cloud
       assistant-stream:
         specifier: ^0.2.23

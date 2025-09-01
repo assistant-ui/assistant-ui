@@ -74,11 +74,7 @@ All messages are wrapped with a channel identifier to avoid conflicts with other
 
 1. **Context Discovery**
    - `model-context-request`: Parent (Host) requests current context from iframe (Provider)
-   - `model-context-response`: Iframe sends serialized context to parent
-   - `model-context-subscribe`: Parent subscribes to context updates from iframe
-   - `model-context-unsubscribe`: Parent unsubscribes from updates
-   - `model-context-update`: Iframe pushes context changes to parent (as long as a minimum 1 subscriber exists)
-
+   - `model-context-update`: Iframe pushes context changes to parent
 2. **Tool Execution**
    - `tool-call`: Parent requests tool execution in iframe (where tools are defined)
    - `tool-result`: Iframe returns execution result or error to parent
@@ -99,10 +95,10 @@ All messages are wrapped with a channel identifier to avoid conflicts with other
 #### Connection Lifecycle
 
 1. **Initialization**: Parent (Host) sends `model-context-request` to iframe on creation
-2. **Subscription**: Parent subscribes to updates after receiving initial context
-3. **Updates**: Iframe (Provider) notifies parent whenever any registered ModelContextProvider changes
-4. **Cleanup**: Parent sends `model-context-unsubscribe` on disposal
+2. **Updates**: Iframe (Provider) notifies parent whenever any registered ModelContextProvider changes
 
 #### Error Handling
 
 - Tool execution errors are serialized and sent back as error messages
+- Connection failures (timeout, no response) are silently handled - the Host continues to work as an empty ModelContextProvider
+- If the iframe doesn't register any providers, the AssistantFrameHost acts as a no-op empty ModelContextProvider returning `{}` from `getModelContext()`

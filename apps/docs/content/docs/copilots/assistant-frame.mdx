@@ -96,21 +96,37 @@ const registry = new ModelContextRegistry();
 
 // Add a tool with handle for updates
 const toolHandle = registry.addTool({
-  toolName: "calculator",
-  description: "Perform calculations",
-  parameters: z.object({ expression: z.string() }),
-  execute: async ({ expression }) => {
-    return { result: eval(expression) };
+  toolName: "convertCurrency",
+  description: "Convert between currencies",
+  parameters: z.object({ 
+    amount: z.number(),
+    from: z.string(),
+    to: z.string() 
+  }),
+  execute: async ({ amount, from, to }) => {
+    const rate = await fetchExchangeRate(from, to);
+    return { result: amount * rate, currency: to };
   },
 });
 
 // Update the tool later
 toolHandle.update({
-  toolName: "calculator",
-  description: "Perform safe calculations", // Updated description
-  parameters: z.object({ expression: z.string() }),
-  execute: async ({ expression }) => {
-    return { result: safeEval(expression) }; // Updated implementation
+  toolName: "convertCurrency",
+  description: "Convert between currencies with live rates", // Updated description
+  parameters: z.object({ 
+    amount: z.number(),
+    from: z.string(),
+    to: z.string(),
+    includesFees: z.boolean().optional()
+  }),
+  execute: async ({ amount, from, to, includesFees }) => {
+    const rate = await fetchExchangeRate(from, to);
+    const fee = includesFees ? 0.02 : 0; // 2% fee
+    return { 
+      result: amount * rate * (1 - fee), 
+      currency: to,
+      fee: includesFees ? amount * rate * fee : 0
+    };
   },
 });
 
@@ -352,24 +368,30 @@ registry.addTool({
 });
 ```
 
-### Sandboxed Code Execution
+### Data Visualization
 
-Execute user code safely in an isolated iframe:
+Provide data visualization tools in an iframe:
 
 ```tsx
-// In sandboxed iframe
+// In visualization iframe
 registry.addTool({
-  toolName: "executeCode",
-  description: "Run JavaScript code safely",
-  parameters: z.object({ code: z.string() }),
-  execute: async ({ code }) => {
-    try {
-      // Runs in sandboxed environment
-      const result = eval(code);
-      return { success: true, result };
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
+  toolName: "createChart",
+  description: "Generate a chart from data",
+  parameters: z.object({ 
+    data: z.array(z.object({
+      label: z.string(),
+      value: z.number()
+    })),
+    chartType: z.enum(["bar", "line", "pie"]),
+    title: z.string().optional()
+  }),
+  execute: async ({ data, chartType, title }) => {
+    // Generate chart using a library like Chart.js or D3
+    const chartUrl = await generateChart(data, chartType, title);
+    return { 
+      chartUrl,
+      summary: `Created ${chartType} chart with ${data.length} data points`
+    };
   },
 });
 ```

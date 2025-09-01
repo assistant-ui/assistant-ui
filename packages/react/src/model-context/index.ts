@@ -33,3 +33,6 @@ export { tool } from "./tool";
  */
 export { makeAssistantVisible as makeAssistantReadable } from "./makeAssistantVisible";
 export { makeAssistantVisible } from "./makeAssistantVisible";
+
+export * from "./registry";
+export * from "./frame";

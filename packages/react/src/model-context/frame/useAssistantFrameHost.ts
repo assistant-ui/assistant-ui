@@ -5,23 +5,23 @@ import { useAssistantRuntime } from "../../context/react/AssistantContext";
 import { AssistantFrameHost } from "./AssistantFrameHost";
 
 type UseAssistantFrameHostOptions = {
-  iframeRef: RefObject<HTMLIFrameElement>;
+  iframeRef: Readonly<RefObject<HTMLIFrameElement | null | undefined>>;
   targetOrigin?: string;
 };
 
 /**
  * React hook that manages the lifecycle of an AssistantFrameHost and its binding to the current AssistantRuntime.
- * 
+ *
  * Usage example:
  * ```typescript
  * function MyComponent() {
  *   const iframeRef = useRef<HTMLIFrameElement>(null);
- *   
+ *
  *   useAssistantFrameHost({
  *     iframeRef,
  *     targetOrigin: "https://trusted-domain.com", // optional
  *   });
- *   
+ *
  *   return <iframe ref={iframeRef} src="..." />;
  * }
  * ```
@@ -34,7 +34,7 @@ export const useAssistantFrameHost = ({
 
   useEffect(() => {
     const iframeWindow = iframeRef.current?.contentWindow;
-    
+
     // Only create host if we have both runtime and iframe window
     if (!runtime || !iframeWindow) {
       return;
