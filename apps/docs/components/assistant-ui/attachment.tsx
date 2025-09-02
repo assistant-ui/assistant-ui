@@ -154,7 +154,6 @@ const AttachmentUI: FC = () => {
             <div
               className={cn(
                 "size-14 cursor-pointer overflow-hidden rounded-[14px] border bg-muted transition-opacity hover:opacity-75",
-                !isComposer && "mr-1",
                 isComposer && "border-foreground/20",
               )}
               role="button"
@@ -190,7 +189,7 @@ const AttachmentRemove: FC = () => {
 
 export const UserMessageAttachments: FC = () => {
   return (
-    <div className="col-span-full col-start-1 row-start-1 flex w-full flex-row justify-end gap-1">
+    <div className="col-span-full col-start-1 row-start-1 flex w-full flex-row justify-end gap-2">
       <MessagePrimitive.Attachments components={{ Attachment: AttachmentUI }} />
     </div>
   );

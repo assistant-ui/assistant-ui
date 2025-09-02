@@ -162,34 +162,6 @@
   body {
     @apply bg-background text-foreground;
   }
-
-  /* Scrollbar styling */
-  ::-webkit-scrollbar {
-    width: 12px;
-    height: 12px;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    @apply bg-muted-foreground/20;
-    border-radius: 6px;
-    border: 2px solid transparent;
-    background-clip: padding-box;
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    @apply bg-muted-foreground/30;
-  }
-
-  /* Firefox only scrollbar styling */
-  @-moz-document url-prefix() {
-    * {
-      scrollbar-color: hsl(240 3.8% 46.1% / 25%) transparent;
-    }
-
-    .dark * {
-      scrollbar-color: hsl(240 5% 64.9% / 25%) transparent;
-    }
-  }
 }
 
 @layer base {

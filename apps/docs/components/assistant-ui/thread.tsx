@@ -29,33 +29,34 @@ import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { LazyMotion, domAnimation } from "motion/react";
+import { LazyMotion, MotionConfig, domAnimation } from "motion/react";
 import * as m from "motion/react-m";
 
 export const Thread: FC = () => {
   return (
     <LazyMotion features={domAnimation}>
-      <ThreadPrimitive.Root
-        className="@container flex h-full flex-col bg-background"
-        style={{
-          ["--thread-max-width" as string]: "48rem",
-          ["--thread-padding-x" as string]: "1rem",
-        }}
-      >
-        <ThreadPrimitive.Viewport className="relative flex min-w-0 flex-1 flex-col overflow-x-auto overflow-y-scroll">
-          <ThreadWelcome />
+      <MotionConfig reducedMotion="user">
+        <ThreadPrimitive.Root
+          className="@container flex h-full flex-col bg-background"
+          style={{
+            ["--thread-max-width" as string]: "44rem",
+          }}
+        >
+          <ThreadPrimitive.Viewport className="relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll px-4">
+            <ThreadWelcome />
 
-          <ThreadPrimitive.Messages
-            components={{
-              UserMessage,
-              EditComposer,
-              AssistantMessage,
-            }}
-          />
-        </ThreadPrimitive.Viewport>
-
-        <Composer />
-      </ThreadPrimitive.Root>
+            <ThreadPrimitive.Messages
+              components={{
+                UserMessage,
+                EditComposer,
+                AssistantMessage,
+              }}
+            />
+            <div className="min-h-8 grow" id="viewport-composer-spacer" />
+            <Composer />
+          </ThreadPrimitive.Viewport>
+        </ThreadPrimitive.Root>
+      </MotionConfig>
     </LazyMotion>
   );
 };
@@ -77,14 +78,13 @@ const ThreadScrollToBottom: FC = () => {
 const ThreadWelcome: FC = () => {
   return (
     <ThreadPrimitive.Empty>
-      <div className="mx-auto mb-16 flex w-full max-w-[var(--thread-max-width)] flex-grow flex-col px-[var(--thread-padding-x)]">
+      <div className="mx-auto mb-16 flex w-full max-w-[var(--thread-max-width)] flex-grow flex-col">
         <div className="flex w-full flex-grow flex-col items-center justify-center">
           <div className="flex size-full flex-col justify-center px-8 md:mt-20">
             <m.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
-              transition={{ delay: 0.5 }}
               className="text-2xl font-semibold"
             >
               Hello there!
@@ -93,7 +93,7 @@ const ThreadWelcome: FC = () => {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
-              transition={{ delay: 0.6 }}
+              transition={{ delay: 0.1 }}
               className="text-2xl text-muted-foreground/65"
             >
               How can I help you today?
@@ -153,7 +153,7 @@ const ThreadWelcomeSuggestions: FC = () => {
 
 const Composer: FC = () => {
   return (
-    <div className="relative mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 bg-background px-[var(--thread-padding-x)] pb-4 md:pb-6">
+    <div className="sticky bottom-0 mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 overflow-clip rounded-t-3xl bg-background pb-4 md:pb-6">
       <ThreadScrollToBottom />
       <ThreadPrimitive.Empty>
         <ThreadWelcomeSuggestions />
@@ -223,13 +223,13 @@ const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root asChild>
       <m.div
-        className="relative mx-auto w-full max-w-[var(--thread-max-width)] px-[var(--thread-padding-x)] py-4 last:mb-5"
+        className="relative mx-auto w-full max-w-[var(--thread-max-width)] py-4 last:mb-24"
         initial={{ y: 5, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         data-role="assistant"
       >
-        <div className="mr-1 ml-4 leading-7 break-words text-foreground">
-          <MessagePrimitive.Content
+        <div className="mx-2 leading-7 break-words text-foreground">
+          <MessagePrimitive.Parts
             components={{
               Text: MarkdownText,
               tools: { Fallback: ToolFallback },
@@ -253,7 +253,7 @@ const AssistantActionBar: FC = () => {
       hideWhenRunning
       autohide="not-last"
       autohideFloat="single-branch"
-      className="col-start-3 row-start-2 ml-1 flex gap-1 text-muted-foreground data-floating:absolute data-floating:rounded-md data-floating:border data-floating:bg-background data-floating:p-1 data-floating:shadow-sm"
+      className="col-start-3 row-start-2 -ml-1 flex gap-1 text-muted-foreground data-floating:absolute data-floating:rounded-md data-floating:border data-floating:bg-background data-floating:p-1 data-floating:shadow-sm"
     >
       <ActionBarPrimitive.Copy asChild>
         <TooltipIconButton tooltip="Copy">
@@ -278,16 +278,16 @@ const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root asChild>
       <m.div
-        className="mx-auto grid w-full max-w-[var(--thread-max-width)] auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] gap-y-2 px-[var(--thread-padding-x)] py-4 first:mt-3 last:mb-5 [&:where(>*)]:col-start-2"
+        className="mx-auto grid w-full max-w-[var(--thread-max-width)] auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] gap-y-2 px-2 py-4 first:mt-3 last:mb-5 [&:where(>*)]:col-start-2"
         initial={{ y: 5, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         data-role="user"
       >
         <UserMessageAttachments />
 
-        <div className="relative col-start-2 mr-1">
+        <div className="relative col-start-2 min-w-0">
           <div className="rounded-3xl bg-muted px-5 py-2.5 break-words text-foreground">
-            <MessagePrimitive.Content components={{ Text: MarkdownText }} />
+            <MessagePrimitive.Parts />
           </div>
           <div className="absolute top-1/2 left-0 -translate-x-full -translate-y-1/2 pr-2">
             <UserActionBar />
@@ -305,10 +305,10 @@ const UserActionBar: FC = () => {
     <ActionBarPrimitive.Root
       hideWhenRunning
       autohide="not-last"
-      className="mr-3 flex flex-col items-end"
+      className="flex flex-col items-end"
     >
       <ActionBarPrimitive.Edit asChild>
-        <TooltipIconButton tooltip="Edit">
+        <TooltipIconButton tooltip="Edit" className="p-4">
           <PencilIcon />
         </TooltipIconButton>
       </ActionBarPrimitive.Edit>
@@ -318,7 +318,7 @@ const UserActionBar: FC = () => {
 
 const EditComposer: FC = () => {
   return (
-    <div className="mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 px-[var(--thread-padding-x)] first:mt-4">
+    <div className="mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 px-2 first:mt-4">
       <ComposerPrimitive.Root className="ml-auto flex w-full max-w-7/8 flex-col rounded-xl bg-muted">
         <ComposerPrimitive.Input
           className="flex min-h-[60px] w-full resize-none bg-transparent p-4 text-foreground outline-none"
@@ -350,7 +350,7 @@ const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({
     <BranchPickerPrimitive.Root
       hideWhenSingleBranch
       className={cn(
-        "inline-flex items-center text-xs text-muted-foreground",
+        "mr-2 -ml-2 inline-flex items-center text-xs text-muted-foreground",
         className,
       )}
       {...rest}

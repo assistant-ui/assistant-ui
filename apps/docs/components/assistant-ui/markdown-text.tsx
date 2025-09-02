@@ -36,7 +36,7 @@ const CodeHeader: FC<CodeHeaderProps> = ({ language, code }) => {
   };
 
   return (
-    <div className="mt-4 flex items-center justify-between gap-4 rounded-t-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white">
+    <div className="mt-4 flex items-center justify-between gap-4 rounded-t-lg bg-muted-foreground/15 dark:bg-muted-foreground/20 px-4 py-2 text-sm font-semibold text-foreground">
       <span className="lowercase [&>span]:text-xs">{language}</span>
       <TooltipIconButton tooltip="Copy" onClick={onCopy}>
         {!isCopied && <CopyIcon />}
