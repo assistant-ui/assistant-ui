@@ -9,11 +9,11 @@ import { useCallback } from "react";
 import { useAssistantApi } from "../../context";
 
 const useAttachmentRemove = () => {
-  const { actions } = useAssistantApi();
+  const api = useAssistantApi();
 
   const handleRemoveAttachment = useCallback(() => {
-    actions.attachment.remove();
-  }, [actions]);
+    api.attachment().remove();
+  }, [api]);
 
   return handleRemoveAttachment;
 };

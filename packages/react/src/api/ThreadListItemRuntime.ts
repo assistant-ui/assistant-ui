@@ -53,7 +53,9 @@ export class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
   constructor(
     private _core: ThreadListItemStateBinding,
     private _threadListBinding: ThreadListRuntimeCoreBinding,
-  ) {}
+  ) {
+    this.__internal_bindMethods();
+  }
 
   protected __internal_bindMethods() {
     this.switchTo = this.switchTo.bind(this);

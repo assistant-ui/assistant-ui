@@ -1,8 +1,7 @@
 import { resource } from "@assistant-ui/tap";
-import { tapActions } from "../utils/tap-store";
+import { tapApi } from "../utils/tap-store";
 import { MessagePartRuntime } from "../api/MessagePartRuntime";
 import { tapSubscribable } from "./util-hooks/tapSubscribable";
-import { tapRefValue } from "./util-hooks/tapRefValue";
 import {
   ThreadAssistantMessagePart,
   ThreadUserMessagePart,
@@ -30,22 +29,24 @@ export type MessagePartClientActions = {
 
 export const MessagePartClient = resource(
   ({ runtime }: { runtime: MessagePartRuntime }) => {
-    const state = tapSubscribable(runtime);
-    const runtimeRef = tapRefValue(runtime);
+    const runtimeState = tapSubscribable(runtime);
 
-    const actions = tapActions<MessagePartClientActions>({
-      addToolResult: (result) => runtimeRef.current.addToolResult(result),
+    const api = tapApi<MessagePartClientState, MessagePartClientActions>(
+      runtimeState,
+      {
+        addToolResult: (result) => runtime.addToolResult(result),
 
-      __internal_getRuntime: () => runtime,
-    });
+        __internal_getRuntime: () => runtime,
+      },
+    );
 
     return {
       key:
-        state.type === "tool-call"
-          ? "toolCallId-" + state.toolCallId
+        runtimeState.type === "tool-call"
+          ? "toolCallId-" + runtimeState.toolCallId
           : undefined,
-      state,
-      actions,
+      state: runtimeState,
+      api,
     };
   },
 );

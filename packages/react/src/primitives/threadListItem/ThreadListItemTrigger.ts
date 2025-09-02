@@ -8,9 +8,9 @@ import {
 import { useAssistantApi } from "../../context";
 
 const useThreadListItemTrigger = () => {
-  const { actions } = useAssistantApi();
+  const api = useAssistantApi();
   return () => {
-    actions.threadListItem.switchTo();
+    api.threadListItem().switchTo();
   };
 };
 

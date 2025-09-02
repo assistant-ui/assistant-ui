@@ -66,7 +66,7 @@ export const useAssistantForm = <
   const form = useForm<TFieldValues, TContext, TTransformedValues>(props);
   const { control, getValues, setValue } = form;
 
-  const { actions } = useAssistantApi();
+  const api = useAssistantApi();
   useEffect(() => {
     const value: ModelContext = {
       system: `Form State:\n${JSON.stringify(getValues())}`,
@@ -115,10 +115,10 @@ export const useAssistantForm = <
         }),
       },
     };
-    return actions.registerModelContextProvider({
+    return api.registerModelContextProvider({
       getModelContext: () => value,
     });
-  }, [control, setValue, getValues, actions]);
+  }, [control, setValue, getValues, api]);
 
   const renderFormFieldTool = props?.assistant?.tools?.set_form_field?.render;
   useAssistantToolUI(

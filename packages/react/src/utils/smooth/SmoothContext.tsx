@@ -35,9 +35,11 @@ const makeSmoothContext = (
 
 export const SmoothContextProvider: FC<PropsWithChildren> = ({ children }) => {
   const outer = useSmoothContext({ optional: true });
-  const { getState } = useAssistantApi();
+  const api = useAssistantApi();
 
-  const [context] = useState(() => makeSmoothContext(getState().part.status));
+  const [context] = useState(() =>
+    makeSmoothContext(api.part().getState().status),
+  );
 
   // do not wrap if there is an outer SmoothContextProvider
   if (outer) return children;

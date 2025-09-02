@@ -13,8 +13,10 @@ export function useAttachmentRuntime(options?: {
 export function useAttachmentRuntime(options?: {
   optional?: boolean | undefined;
 }): AttachmentRuntime | null {
-  const { actions } = useAssistantApi();
-  const runtime = actions.attachment.__internal_getRuntime();
+  const api = useAssistantApi();
+  const runtime = api.meta.attachment
+    ? api.attachment().__internal_getRuntime()
+    : null;
   if (!runtime && !options?.optional) {
     throw new Error("AttachmentRuntime is not available");
   }

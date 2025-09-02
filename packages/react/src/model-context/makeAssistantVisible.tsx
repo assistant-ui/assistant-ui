@@ -72,11 +72,11 @@ export const makeAssistantVisible = <T extends ComponentType<any>>(
       const clickId = useId();
       const componentRef = useRef<HTMLElement>(null);
 
-      const { actions } = useAssistantApi();
+      const api = useAssistantApi();
 
       const { clickable, editable } = config ?? {};
       useEffect(() => {
-        return actions.registerModelContextProvider({
+        return api.registerModelContextProvider({
           getModelContext: () => {
             return {
               tools: {
@@ -89,7 +89,7 @@ export const makeAssistantVisible = <T extends ComponentType<any>>(
             };
           },
         });
-      }, [isNestedReadable, actions, clickable, editable]);
+      }, [isNestedReadable, api, clickable, editable]);
 
       const ref = useComposedRefs(componentRef, outerRef);
 

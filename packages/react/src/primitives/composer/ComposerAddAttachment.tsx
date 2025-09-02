@@ -15,7 +15,7 @@ const useComposerAddAttachment = ({
   multiple?: boolean | undefined;
 } = {}) => {
   const disabled = useAssistantState(({ composer }) => !composer.isEditing);
-  const { actions, getState } = useAssistantApi();
+  const api = useAssistantApi();
 
   const callback = useCallback(() => {
     const input = document.createElement("input");
@@ -23,7 +23,7 @@ const useComposerAddAttachment = ({
     input.multiple = multiple;
     input.hidden = true;
 
-    const attachmentAccept = getState().composer.attachmentAccept;
+    const attachmentAccept = api.composer().getState().attachmentAccept;
     if (attachmentAccept !== "*") {
       input.accept = attachmentAccept;
     }
@@ -34,7 +34,7 @@ const useComposerAddAttachment = ({
       const fileList = (e.target as HTMLInputElement).files;
       if (!fileList) return;
       for (const file of fileList) {
-        actions.composer.addAttachment(file);
+        api.composer().addAttachment(file);
       }
 
       document.body.removeChild(input);
@@ -47,7 +47,7 @@ const useComposerAddAttachment = ({
     };
 
     input.click();
-  }, [actions, multiple, getState]);
+  }, [api, multiple]);
 
   if (disabled) return null;
   return callback;

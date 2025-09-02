@@ -8,11 +8,11 @@ import { useCallback } from "react";
 import { useAssistantState, useAssistantApi } from "../../context";
 
 const useActionBarFeedbackNegative = () => {
-  const { actions } = useAssistantApi();
+  const api = useAssistantApi();
 
   const callback = useCallback(() => {
-    actions.message.submitFeedback({ type: "negative" });
-  }, [actions]);
+    api.message().submitFeedback({ type: "negative" });
+  }, [api]);
 
   return callback;
 };

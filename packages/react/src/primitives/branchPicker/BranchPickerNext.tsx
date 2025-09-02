@@ -9,14 +9,14 @@ import { useCallback } from "react";
 import { useAssistantState, useAssistantApi } from "../../context";
 
 const useBranchPickerNext = () => {
-  const { actions } = useAssistantApi();
+  const api = useAssistantApi();
   const disabled = useAssistantState(
     ({ message }) => message.branchNumber >= message.branchCount,
   );
 
   const callback = useCallback(() => {
-    actions.message.switchToBranch({ position: "next" });
-  }, [actions]);
+    api.message().switchToBranch({ position: "next" });
+  }, [api]);
 
   if (disabled) return null;
   return callback;

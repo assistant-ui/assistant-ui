@@ -2,13 +2,11 @@ import {
   resource,
   tapInlineResource,
   tapMemo,
-  tapResource,
   tapState,
 } from "@assistant-ui/tap";
-import { tapActions } from "../utils/tap-store";
+import { tapApi } from "../utils/tap-store";
 import { MessageRuntime } from "../api/MessageRuntime";
 import { tapSubscribable } from "./util-hooks/tapSubscribable";
-import { tapRefValue } from "./util-hooks/tapRefValue";
 import {
   ComposerClient,
   ComposerClientActions,
@@ -26,7 +24,11 @@ import {
 } from "../runtimes/core/ThreadRuntimeCore";
 import { RunConfig } from "../types/AssistantTypes";
 import { tapLookupResources } from "./util-hooks/tapLookupResources";
-import { AttachmentClientActions } from "./AttachmentClient";
+import {
+  AttachmentClientActions,
+  AttachmentClientState,
+} from "./AttachmentClient";
+import { StoreApi } from "../utils/tap-store/tap-store-api";
 
 export type MessageClientState = ThreadMessage & {
   readonly parentId: string | null;
@@ -49,7 +51,7 @@ export type MessageClientState = ThreadMessage & {
 };
 
 export type MessageClientActions = {
-  readonly composer: ComposerClientActions;
+  readonly composer: StoreApi<ComposerClientState, ComposerClientActions>;
 
   reload(config?: { runConfig?: RunConfig }): void;
   /**
@@ -69,8 +71,10 @@ export type MessageClientActions = {
 
   part: (
     selector: { index: number } | { toolCallId: string },
-  ) => MessagePartClientActions;
-  attachment(selector: { index: number }): AttachmentClientActions;
+  ) => StoreApi<MessagePartClientState, MessagePartClientActions>;
+  attachment(selector: {
+    index: number;
+  }): StoreApi<AttachmentClientState, AttachmentClientActions>;
 
   setIsCopied(value: boolean): void;
   setIsHovering(value: boolean): void;
@@ -91,12 +95,11 @@ const MessagePartByIndex = resource(
 export const MessageClient = resource(
   ({ runtime }: { runtime: MessageRuntime }) => {
     const runtimeState = tapSubscribable(runtime);
-    const runtimeRef = tapRefValue(runtime);
 
     const [isCopiedState, setIsCopied] = tapState(false);
     const [isHoveringState, setIsHovering] = tapState(false);
 
-    const composer = tapResource(
+    const composer = tapInlineResource(
       ComposerClient({
         runtime: runtime.composer,
       }),
@@ -118,30 +121,37 @@ export const MessageClient = resource(
         isCopied: isCopiedState,
         isHovering: isHoveringState,
       };
-    }, [runtimeState, composer.state, isCopiedState, isHoveringState]);
+    }, [
+      runtimeState,
+      parts.state,
+      composer.state,
+      isCopiedState,
+      isHoveringState,
+    ]);
 
-    const actions = tapActions<MessageClientActions>({
-      composer: composer.actions,
+    const api = tapApi<MessageClientState, MessageClientActions>(state, {
+      composer: composer.api,
 
-      reload: (config) => runtimeRef.current.reload(config),
-      speak: () => runtimeRef.current.speak(),
-      stopSpeaking: () => runtimeRef.current.stopSpeaking(),
-      submitFeedback: (feedback) => runtimeRef.current.submitFeedback(feedback),
-      switchToBranch: (options) => runtimeRef.current.switchToBranch(options),
-      getCopyText: () => runtimeRef.current.unstable_getCopyText(),
+      reload: (config) => runtime.reload(config),
+      speak: () => runtime.speak(),
+      stopSpeaking: () => runtime.stopSpeaking(),
+      submitFeedback: (feedback) => runtime.submitFeedback(feedback),
+      switchToBranch: (options) => runtime.switchToBranch(options),
+      getCopyText: () => runtime.unstable_getCopyText(),
 
       part: (selector) => {
         if ("index" in selector) {
-          return parts.actions({ index: selector.index });
+          return parts.api({ index: selector.index });
         } else {
-          return parts.actions({ key: "toolCallId-" + selector.toolCallId });
+          return parts.api({ key: "toolCallId-" + selector.toolCallId });
         }
       },
 
       attachment: ({ index }) => {
-        const attachmentRuntime =
-          runtimeRef.current.getAttachmentByIndex(index);
+        const attachmentRuntime = runtime.getAttachmentByIndex(index);
         return {
+          getState: attachmentRuntime.getState,
+
           remove: attachmentRuntime.remove,
 
           __internal_getRuntime: () => attachmentRuntime,
@@ -157,7 +167,7 @@ export const MessageClient = resource(
     return {
       key: runtimeState.id,
       state,
-      actions,
+      api,
     };
   },
 );

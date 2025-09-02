@@ -30,7 +30,7 @@ import { useAssistantState, useAssistantApi } from "../../context";
  * ```
  */
 const useActionBarReload = () => {
-  const { actions } = useAssistantApi();
+  const api = useAssistantApi();
 
   const disabled = useAssistantState(
     (s) =>
@@ -40,8 +40,8 @@ const useActionBarReload = () => {
   );
 
   const callback = useCallback(() => {
-    actions.message.reload();
-  }, [actions]);
+    api.message().reload();
+  }, [api]);
 
   if (disabled) return null;
   return callback;

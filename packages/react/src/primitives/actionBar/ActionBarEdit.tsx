@@ -30,12 +30,12 @@ import { useAssistantState, useAssistantApi } from "../../context";
  * ```
  */
 const useActionBarEdit = () => {
-  const { actions } = useAssistantApi();
+  const api = useAssistantApi();
   const disabled = useAssistantState(({ composer }) => composer.isEditing);
 
   const callback = useCallback(() => {
-    actions.composer.beginEdit();
-  }, [actions]);
+    api.composer().beginEdit();
+  }, [api]);
 
   if (disabled) return null;
   return callback;

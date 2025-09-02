@@ -8,9 +8,9 @@ import {
 import { useAssistantApi } from "../../context";
 
 const useThreadListItemUnarchive = () => {
-  const { actions } = useAssistantApi();
+  const api = useAssistantApi();
   return () => {
-    actions.threadListItem.unarchive();
+    api.threadListItem().unarchive();
   };
 };
 

@@ -22,11 +22,7 @@ export const ThreadListPrimitiveNew = forwardRef<
     ({ threads }) => threads.newThreadId === threads.mainThreadId,
   );
 
-  const {
-    actions: {
-      threads: { switchToNewThread },
-    },
-  } = useAssistantApi();
+  const api = useAssistantApi();
 
   return (
     <Primitive.button
@@ -36,7 +32,7 @@ export const ThreadListPrimitiveNew = forwardRef<
       ref={forwardedRef}
       disabled={disabled}
       onClick={composeEventHandlers(onClick, () => {
-        switchToNewThread();
+        api.threads().switchToNewThread();
       })}
     />
   );

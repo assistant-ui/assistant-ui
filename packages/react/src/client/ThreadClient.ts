@@ -7,12 +7,7 @@ import {
 } from "../runtimes/core/ThreadRuntimeCore";
 import { CreateAppendMessage, CreateStartRunConfig } from "../api";
 import { CreateResumeRunConfig, ThreadRuntime } from "../api/ThreadRuntime";
-import {
-  resource,
-  tapInlineResource,
-  tapMemo,
-  Unsubscribe,
-} from "@assistant-ui/tap";
+import { resource, tapInlineResource, tapMemo } from "@assistant-ui/tap";
 import { ModelContext } from "../model-context";
 import { ExportedMessageRepository, ThreadMessageLike } from "../runtimes";
 import {
@@ -26,8 +21,10 @@ import {
   MessageClientState,
 } from "./MessageClient";
 import { tapSubscribable } from "./util-hooks/tapSubscribable";
-import { tapActions } from "../utils/tap-store";
+import { tapApi } from "../utils/tap-store";
 import { tapLookupResources } from "./util-hooks/tapLookupResources";
+import { StoreApi } from "../utils/tap-store/tap-store-api";
+import { Unsubscribe } from "../types";
 
 export type ThreadClientState = {
   /**
@@ -84,7 +81,7 @@ export type ThreadClientActions = {
   /**
    * The thread composer runtime.
    */
-  readonly composer: ComposerClientActions;
+  readonly composer: StoreApi<ComposerClientState, ComposerClientActions>;
 
   /**
    * Append a new message to the thread.
@@ -129,23 +126,28 @@ export type ThreadClientActions = {
    */
   reset(initialMessages?: readonly ThreadMessageLike[]): void;
 
-  message(selector: { id: string } | { index: number }): MessageClientActions;
+  message(
+    selector: { id: string } | { index: number },
+  ): StoreApi<MessageClientState, MessageClientActions>;
 
   /**
    * @deprecated This API is still under active development and might change without notice.
    */
   stopSpeaking(): void;
 
+  /**
+   * The event system will be overhauled in a future release. This API will be removed.
+   */
   unstable_on(event: ThreadRuntimeEventType, callback: () => void): Unsubscribe;
 
   __internal_getRuntime(): ThreadRuntime;
 };
 
-const MessageClientAtIndex = resource(
-  ({ runtime, index }: { runtime: ThreadRuntime; index: number }) => {
+const MessageClientById = resource(
+  ({ runtime, id }: { runtime: ThreadRuntime; id: string }) => {
     const messageRuntime = tapMemo(
-      () => runtime.getMessageByIndex(index),
-      [runtime, index],
+      () => runtime.getMesssageById(id),
+      [runtime, id],
     );
 
     return tapInlineResource(MessageClient({ runtime: messageRuntime }));
@@ -163,8 +165,8 @@ export const ThreadClient = resource(
     );
 
     const messages = tapLookupResources(
-      runtimeState.messages.map((m, idx) =>
-        MessageClientAtIndex({ runtime: runtime, index: idx }, { key: m.id }),
+      runtimeState.messages.map((m) =>
+        MessageClientById({ runtime: runtime, id: m.id }, { key: m.id }),
       ),
     );
 
@@ -182,10 +184,10 @@ export const ThreadClient = resource(
         composer: composer.state,
         messages: messages.state,
       };
-    }, [runtimeState, messages]);
+    }, [runtimeState, messages, composer.state]);
 
-    const actions = tapActions<ThreadClientActions>({
-      composer: composer.actions,
+    const api = tapApi<ThreadClientState, ThreadClientActions>(state, {
+      composer: composer.api,
 
       append: runtime.append,
       startRun: runtime.startRun,
@@ -200,9 +202,9 @@ export const ThreadClient = resource(
 
       message: (selector) => {
         if ("id" in selector) {
-          return messages.actions({ key: selector.id });
+          return messages.api({ key: selector.id });
         } else {
-          return messages.actions(selector);
+          return messages.api(selector);
         }
       },
 
@@ -211,7 +213,7 @@ export const ThreadClient = resource(
 
     return {
       state,
-      actions,
+      api,
     };
   },
 );

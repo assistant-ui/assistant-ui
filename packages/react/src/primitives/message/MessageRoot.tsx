@@ -7,33 +7,39 @@ import {
   ComponentPropsWithoutRef,
   useCallback,
 } from "react";
-import { useAssistantApi } from "../../context";
+import { useAssistantApi, useAssistantState } from "../../context";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
 
 const useIsHoveringRef = () => {
-  const { actions } = useAssistantApi();
+  const api = useAssistantApi();
+
+  // TODO bug: putting isHovering in the message state means that the state is lost when the message is switched
+  const messageId = useAssistantState(({ message }) => message.id);
   const callbackRef = useCallback(
     (el: HTMLElement) => {
-      const setIsHovering = actions.message.setIsHovering;
+      const message = api.message();
 
       const handleMouseEnter = () => {
-        setIsHovering(true);
+        message.setIsHovering(true);
       };
       const handleMouseLeave = () => {
-        setIsHovering(false);
+        message.setIsHovering(false);
       };
 
       el.addEventListener("mouseenter", handleMouseEnter);
       el.addEventListener("mouseleave", handleMouseLeave);
 
+      if (el.matches(":hover")) message.setIsHovering(true);
+
       return () => {
         el.removeEventListener("mouseenter", handleMouseEnter);
         el.removeEventListener("mouseleave", handleMouseLeave);
-        setIsHovering(false);
+        message.setIsHovering(false);
       };
     },
-    [actions],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [api, messageId],
   );
 
   return useManagedRef(callbackRef);

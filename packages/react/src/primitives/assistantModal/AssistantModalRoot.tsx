@@ -21,14 +21,14 @@ const useAssistantModalOpenState = ({
   const state = useState(defaultOpen);
 
   const [, setOpen] = state;
-  const { actions } = useAssistantApi();
+  const api = useAssistantApi();
   useEffect(() => {
     if (!unstable_openOnRunStart) return undefined;
 
-    return actions.thread.unstable_on("run-start", () => {
+    return api.thread().unstable_on("run-start", () => {
       setOpen(true);
     });
-  }, [unstable_openOnRunStart, setOpen, actions]);
+  }, [unstable_openOnRunStart, setOpen, api]);
 
   return state;
 };

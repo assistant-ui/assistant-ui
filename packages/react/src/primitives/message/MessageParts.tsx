@@ -233,14 +233,14 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
     tools = {},
   } = {},
 }) => {
-  const { actions } = useAssistantApi();
+  const api = useAssistantApi();
   const part = useAssistantState(({ part }) => part);
 
   if (!part) return null;
 
   const type = part.type;
   if (type === "tool-call") {
-    const addResult = (result: any) => actions.part.addToolResult(result);
+    const addResult = (result: any) => api.part().addToolResult(result);
     if ("Override" in tools)
       return <tools.Override {...part} addResult={addResult} />;
     const Tool = tools.by_name?.[part.toolName] ?? tools.Fallback;

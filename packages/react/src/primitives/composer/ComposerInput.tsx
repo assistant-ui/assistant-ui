@@ -97,7 +97,7 @@ export const ComposerPrimitiveInput = forwardRef<
     },
     forwardedRef,
   ) => {
-    const { actions, flushSync, getState } = useAssistantApi();
+    const api = useAssistantApi();
 
     const value = useAssistantState(({ composer }) => {
       if (!composer.isEditing) return "";
@@ -114,8 +114,9 @@ export const ComposerPrimitiveInput = forwardRef<
     useEscapeKeydown((e) => {
       if (!cancelOnEscape) return;
 
-      if (getState().composer.canCancel) {
-        actions.composer.cancel();
+      const composer = api.composer();
+      if (composer.getState().canCancel) {
+        composer.cancel();
         e.preventDefault();
       }
     });
@@ -127,7 +128,7 @@ export const ComposerPrimitiveInput = forwardRef<
       if (e.nativeEvent.isComposing) return;
 
       if (e.key === "Enter" && e.shiftKey === false) {
-        const isRunning = getState().thread.isRunning;
+        const isRunning = api.thread().getState().isRunning;
 
         if (!isRunning) {
           e.preventDefault();
@@ -139,14 +140,14 @@ export const ComposerPrimitiveInput = forwardRef<
 
     const handlePaste = async (e: ClipboardEvent<HTMLTextAreaElement>) => {
       if (!addAttachmentOnPaste) return;
-      const threadCapabilities = getState().thread.capabilities;
+      const threadCapabilities = api.thread().getState().capabilities;
       const files = Array.from(e.clipboardData?.files || []);
 
       if (threadCapabilities.attachments && files.length > 0) {
         try {
           e.preventDefault();
           await Promise.all(
-            files.map((file) => actions.composer.addAttachment(file)),
+            files.map((file) => api.composer().addAttachment(file)),
           );
         } catch (error) {
           console.error("Error adding attachment:", error);
@@ -167,7 +168,7 @@ export const ComposerPrimitiveInput = forwardRef<
 
     useOnScrollToBottom(() => {
       if (
-        getState().composer.type === "thread" &&
+        api.composer().getState().type === "thread" &&
         unstable_focusOnScrollToBottom
       ) {
         focus();
@@ -175,21 +176,24 @@ export const ComposerPrimitiveInput = forwardRef<
     });
 
     useEffect(() => {
-      if (getState().composer.type !== "thread" || !unstable_focusOnRunStart)
+      if (
+        api.composer().getState().type !== "thread" ||
+        !unstable_focusOnRunStart
+      )
         return undefined;
 
-      return actions.thread.unstable_on("run-start", focus);
-    }, [unstable_focusOnRunStart, focus, getState, actions]);
+      return api.thread().unstable_on("run-start", focus);
+    }, [unstable_focusOnRunStart, focus, api]);
 
     useEffect(() => {
       if (
-        getState().composer.type !== "thread" ||
+        api.composer().getState().type !== "thread" ||
         !unstable_focusOnThreadSwitched
       )
         return undefined;
 
-      return actions.threadListItem.unstable_on?.("switched-to", focus);
-    }, [unstable_focusOnThreadSwitched, focus, getState, actions]);
+      return api.threadListItem().unstable_on?.("switched-to", focus);
+    }, [unstable_focusOnThreadSwitched, focus, api]);
 
     return (
       <Component
@@ -199,9 +203,9 @@ export const ComposerPrimitiveInput = forwardRef<
         ref={ref as React.ForwardedRef<HTMLTextAreaElement>}
         disabled={isDisabled}
         onChange={composeEventHandlers(onChange, (e) => {
-          if (!getState().composer.isEditing) return;
-          actions.composer.setText(e.target.value);
-          flushSync();
+          if (!api.composer().getState().isEditing) return;
+          api.composer().setText(e.target.value);
+          api.flushSync();
         })}
         onKeyDown={composeEventHandlers(onKeyDown, handleKeyPress)}
         onPaste={composeEventHandlers(onPaste, handlePaste)}

@@ -9,15 +9,15 @@ import { useCallback } from "react";
 import { useAssistantState, useAssistantApi } from "../../context";
 
 export const useComposerSend = () => {
-  const { actions } = useAssistantApi();
+  const api = useAssistantApi();
 
   const disabled = useAssistantState(
     (s) => s.thread.isRunning || !s.composer.isEditing || s.composer.isEmpty,
   );
 
   const callback = useCallback(() => {
-    actions.composer.send();
-  }, [actions]);
+    api.composer().send();
+  }, [api]);
 
   if (disabled) return null;
   return callback;

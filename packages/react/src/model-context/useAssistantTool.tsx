@@ -19,13 +19,13 @@ export const useAssistantTool = <
 >(
   tool: AssistantToolProps<TArgs, TResult>,
 ) => {
-  const { actions } = useAssistantApi();
+  const api = useAssistantApi();
 
   useEffect(() => {
     if (tool.render) {
-      actions.toolUIs.setToolUI(tool.toolName, tool.render);
+      api.toolUIs().setToolUI(tool.toolName, tool.render);
     }
-  }, [actions, tool.toolName, tool.render]);
+  }, [api, tool.toolName, tool.render]);
 
   useEffect(() => {
     const { toolName, render, ...rest } = tool;
@@ -34,8 +34,8 @@ export const useAssistantTool = <
         [toolName]: rest,
       },
     };
-    return actions.registerModelContextProvider({
+    return api.registerModelContextProvider({
       getModelContext: () => context,
     });
-  }, [actions, tool]);
+  }, [api, tool]);
 };
