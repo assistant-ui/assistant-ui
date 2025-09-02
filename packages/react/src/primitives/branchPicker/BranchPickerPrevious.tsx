@@ -30,14 +30,14 @@ import { useAssistantState, useAssistantApi } from "../../context";
  * ```
  */
 const useBranchPickerPrevious = () => {
-  const { actions } = useAssistantApi();
+  const api = useAssistantApi();
   const disabled = useAssistantState(
     ({ message }) => message.branchNumber <= 1,
   );
 
   const callback = useCallback(() => {
-    actions.message.switchToBranch({ position: "previous" });
-  }, [actions]);
+    api.message().switchToBranch({ position: "previous" });
+  }, [api]);
 
   if (disabled) return null;
   return callback;

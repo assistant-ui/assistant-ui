@@ -13,8 +13,8 @@ export function useMessagePartRuntime(options?: {
 export function useMessagePartRuntime(options?: {
   optional?: boolean | undefined;
 }) {
-  const { actions } = useAssistantApi();
-  const runtime = actions.part.__internal_getRuntime();
+  const api = useAssistantApi();
+  const runtime = api.meta.part ? api.part().__internal_getRuntime() : null;
   if (!runtime && !options?.optional) {
     throw new Error("MessagePartRuntime is not available");
   }

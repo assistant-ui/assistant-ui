@@ -1,35 +1,37 @@
 "use client";
 
-import { type FC, type PropsWithChildren } from "react";
-import { useAssistantStoreWithSelector } from "../react/utils/createAssistantStoreWithSelector";
-import { AssistantApiContext } from "../react/AssistantApiContext";
+import { useMemo, type FC, type PropsWithChildren } from "react";
+
+import {
+  AssistantApi,
+  AssistantApiProvider,
+  useAssistantApi,
+} from "../react/AssistantApiContext";
 
 export const MessageAttachmentByIndexProvider: FC<
   PropsWithChildren<{
     index: number;
   }>
 > = ({ index, children }) => {
-  const client = useAssistantStoreWithSelector({
-    attachment: {
-      state: (state) => {
-        return state.message.attachments![index]!;
+  const api = useAssistantApi();
+  const api2 = useMemo(() => {
+    return {
+      attachment() {
+        return api.message().attachment({ index });
       },
-      action: (actions) => {
-        return actions.message.attachment({ index });
-      },
-    },
-    meta: {
-      attachment: {
-        source: "message",
-        query: {
-          type: "index",
-          index,
+      meta: {
+        attachment: {
+          source: "message",
+          query: {
+            type: "index",
+            index,
+          },
         },
-      },
-    },
-  });
+      } as const,
+    } satisfies Partial<AssistantApi>;
+  }, [api, index]);
 
-  return <AssistantApiContext value={client}>{children}</AssistantApiContext>;
+  return <AssistantApiProvider api={api2}>{children}</AssistantApiProvider>;
 };
 
 export const ComposerAttachmentByIndexProvider: FC<
@@ -37,25 +39,23 @@ export const ComposerAttachmentByIndexProvider: FC<
     index: number;
   }>
 > = ({ index, children }) => {
-  const client = useAssistantStoreWithSelector({
-    attachment: {
-      state: (state) => {
-        return state.composer.attachments![index]!;
+  const api = useAssistantApi();
+  const api2 = useMemo(() => {
+    return {
+      attachment() {
+        return api.composer().attachment({ index });
       },
-      action: (actions) => {
-        return actions.composer.attachment({ index });
-      },
-    },
-    meta: {
-      attachment: {
-        source: "composer",
-        query: {
-          type: "index",
-          index,
+      meta: {
+        attachment: {
+          source: "composer",
+          query: {
+            type: "index",
+            index,
+          },
         },
-      },
-    },
-  });
+      } as const,
+    } satisfies Partial<AssistantApi>;
+  }, [api, index]);
 
-  return <AssistantApiContext value={client}>{children}</AssistantApiContext>;
+  return <AssistantApiProvider api={api2}>{children}</AssistantApiProvider>;
 };

@@ -9,12 +9,12 @@ import { useCallback } from "react";
 import { useAssistantState, useAssistantApi } from "../../context";
 
 const useComposerCancel = () => {
-  const { actions } = useAssistantApi();
+  const api = useAssistantApi();
   const disabled = useAssistantState(({ composer }) => !composer.canCancel);
 
   const callback = useCallback(() => {
-    actions.composer.cancel();
-  }, [actions]);
+    api.composer().cancel();
+  }, [api]);
 
   if (disabled) return null;
   return callback;

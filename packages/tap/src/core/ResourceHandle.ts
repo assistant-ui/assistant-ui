@@ -10,6 +10,7 @@ import { tapRef } from "../hooks/tap-ref";
 import { tapState } from "../hooks/tap-state";
 import { tapMemo } from "../hooks/tap-memo";
 import { tapInlineResource } from "../hooks/tap-inline-resource";
+import { tapEffect } from "../hooks/tap-effect";
 
 export interface ResourceHandle<R, P> {
   getState(): R;
@@ -35,11 +36,12 @@ const HandleWrapperResource = <R, P>({
   const subscribers = tapRef(new Set<() => void>()).current;
   const valueRef = tapRef(value);
 
-  // this is OK here because there is no concurrent rendering
-  if (value !== valueRef.current) {
-    valueRef.current = value;
-    subscribers.forEach((callback) => callback());
-  }
+  tapEffect(() => {
+    if (value !== valueRef.current) {
+      valueRef.current = value;
+      subscribers.forEach((callback) => callback());
+    }
+  });
 
   const handle = tapMemo(
     () => ({

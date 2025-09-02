@@ -19,7 +19,7 @@ export const useAssistantInstructions = (
   config: string | AssistantInstructionsConfig,
 ) => {
   const { instruction, disabled = false } = getInstructions(config);
-  const { actions } = useAssistantApi();
+  const api = useAssistantApi();
 
   useEffect(() => {
     if (disabled) return;
@@ -27,8 +27,8 @@ export const useAssistantInstructions = (
     const config = {
       system: instruction,
     };
-    return actions.registerModelContextProvider({
+    return api.registerModelContextProvider({
       getModelContext: () => config,
     });
-  }, [actions, instruction, disabled]);
+  }, [api, instruction, disabled]);
 };

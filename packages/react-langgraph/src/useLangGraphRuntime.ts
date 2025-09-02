@@ -231,11 +231,11 @@ export const useLangGraphRuntime = ({
   };
 
   const loadingRef = useRef(false);
-  const { getState } = useAssistantApi();
+  const api = useAssistantApi();
   useEffect(() => {
     if (!switchToThread || loadingRef.current) return;
 
-    const externalId = getState().threadListItem.externalId;
+    const externalId = api.threadListItem().getState().externalId;
     if (externalId) {
       loadingRef.current = true;
       switchToThread(externalId).finally(() => {

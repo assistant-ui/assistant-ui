@@ -9,10 +9,10 @@ import {
 } from "../../utils/createActionButton";
 
 const useActionBarSpeak = () => {
-  const { actions } = useAssistantApi();
+  const api = useAssistantApi();
   const callback = useCallback(async () => {
-    actions.message.speak();
-  }, [actions]);
+    api.message().speak();
+  }, [api]);
 
   const hasSpeakableContent = useAssistantState(({ message }) => {
     return (

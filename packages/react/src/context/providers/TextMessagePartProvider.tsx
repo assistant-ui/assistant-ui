@@ -1,14 +1,17 @@
 "use client";
 
-import { type FC, type PropsWithChildren } from "react";
+import { useMemo, type FC, type PropsWithChildren } from "react";
 import {
-  AssistantState,
-  ExtendedAssistantApiProvider,
+  AssistantApiProvider,
+  AssistantApi,
 } from "../react/AssistantApiContext";
-import { MessagePartClientActions } from "../../client/MessagePartClient";
+import {
+  MessagePartClientActions,
+  MessagePartClientState,
+} from "../../client/MessagePartClient";
 import { resource, tapMemo } from "@assistant-ui/tap";
 import { useResource } from "@assistant-ui/tap/react";
-import { asStore, tapActions } from "../../utils/tap-store";
+import { asStore, tapApi } from "../../utils/tap-store";
 
 const TextMessagePartActions = new Proxy({} as MessagePartClientActions, {
   get() {
@@ -18,30 +21,20 @@ const TextMessagePartActions = new Proxy({} as MessagePartClientActions, {
 
 const TextMessagePartClient = resource(
   ({ text, isRunning }: { text: string; isRunning: boolean }) => {
-    const state = tapMemo<Partial<AssistantState>>(
+    const state = tapMemo<MessagePartClientState>(
       () => ({
-        part: {
-          type: "text",
-          text,
-          status: isRunning ? { type: "running" } : { type: "complete" },
-        },
+        type: "text",
+        text,
+        status: isRunning ? { type: "running" } : { type: "complete" },
       }),
       [text, isRunning],
     );
 
-    const actions = tapActions({
-      part: TextMessagePartActions,
-    });
+    const api = tapApi(state, TextMessagePartActions);
 
     return {
       state,
-      actions,
-      meta: {
-        part: {
-          source: "root",
-          query: {},
-        },
-      } as const,
+      api,
     };
   },
 );
@@ -52,11 +45,22 @@ export const TextMessagePartProvider: FC<
     isRunning?: boolean;
   }>
 > = ({ text, isRunning = false, children }) => {
-  const api = useResource(asStore(TextMessagePartClient({ text, isRunning })));
-
-  return (
-    <ExtendedAssistantApiProvider api={api}>
-      {children}
-    </ExtendedAssistantApiProvider>
+  const store = useResource(
+    asStore(TextMessagePartClient({ text, isRunning })),
   );
+  const api = useMemo(() => {
+    return {
+      part: () => store.getApi(),
+      subscribe: store.subscribe,
+      meta: {
+        part: {
+          source: "root",
+          query: {},
+        },
+      },
+      // flushSync: store.flushSync,
+    } satisfies Partial<AssistantApi>;
+  }, [store]);
+
+  return <AssistantApiProvider api={api}>{children}</AssistantApiProvider>;
 };

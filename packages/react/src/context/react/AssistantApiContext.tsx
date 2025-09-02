@@ -11,14 +11,13 @@ import {
 } from "react";
 
 import {
-  AssistantClientActions,
-  AssistantClientState,
+  AssistantToolUIActions,
+  AssistantToolUIState,
 } from "../../client/AssistantClient";
 import {
   MessageClientActions,
   MessageClientState,
 } from "../../client/MessageClient";
-import { Store } from "../../utils/tap-store";
 import {
   ThreadListItemClientActions,
   ThreadListItemClientState,
@@ -39,24 +38,48 @@ import {
   AttachmentClientActions,
   AttachmentClientState,
 } from "../../client/AttachmentClient";
-import { ThreadViewportProvider } from "../providers/ThreadViewportProvider";
+import { StoreApi } from "../../utils/tap-store/tap-store-api";
+import { Unsubscribe } from "@assistant-ui/tap";
+import { ModelContextProvider } from "../../model-context";
+import { AssistantRuntime } from "../../api";
+import {
+  ThreadListClientActions,
+  ThreadListClientState,
+} from "../../client/ThreadListClient";
 
-export type AssistantState = AssistantClientState & {
-  threadListItem: ThreadListItemClientState;
-  thread: ThreadClientState;
-  composer: ComposerClientState;
-  message: MessageClientState;
-  part: MessagePartClientState;
-  attachment: AttachmentClientState;
+export type AssistantState = {
+  readonly threads: ThreadListClientState;
+  readonly toolUIs: AssistantToolUIState;
+
+  readonly threadListItem: ThreadListItemClientState;
+  readonly thread: ThreadClientState;
+  readonly composer: ComposerClientState;
+  readonly message: MessageClientState;
+  readonly part: MessagePartClientState;
+  readonly attachment: AttachmentClientState;
 };
 
-export type AssistantActions = AssistantClientActions & {
-  threadListItem: ThreadListItemClientActions;
-  thread: ThreadClientActions;
-  composer: ComposerClientActions;
-  message: MessageClientActions;
-  part: MessagePartClientActions;
-  attachment: AttachmentClientActions;
+export type AssistantApi = {
+  threads(): StoreApi<ThreadListClientState, ThreadListClientActions>;
+  toolUIs(): StoreApi<AssistantToolUIState, AssistantToolUIActions>;
+  threadListItem(): StoreApi<
+    ThreadListItemClientState,
+    ThreadListItemClientActions
+  >;
+  thread(): StoreApi<ThreadClientState, ThreadClientActions>;
+  composer(): StoreApi<ComposerClientState, ComposerClientActions>;
+  message(): StoreApi<MessageClientState, MessageClientActions>;
+  part(): StoreApi<MessagePartClientState, MessagePartClientActions>;
+  attachment(): StoreApi<AttachmentClientState, AttachmentClientActions>;
+
+  readonly meta: AssistantMeta;
+
+  subscribe(listener: () => void): Unsubscribe;
+  flushSync(): void;
+
+  // temp
+  registerModelContextProvider(provider: ModelContextProvider): void;
+  __internal_getRuntime(): AssistantRuntime | null;
 };
 
 export type AssistantMeta = {
@@ -120,41 +143,42 @@ export type AssistantMeta = {
   };
 };
 
-export type AssistantApi = Store<AssistantState, AssistantActions> & {
-  meta: AssistantMeta;
-};
-
-const EMPTY_STATE_ACTIONS: AssistantState & AssistantActions = {
-  get threads(): never {
+const AssistantApiContext = createContext<AssistantApi>({
+  threads(): never {
     throw new Error("Threads is only available inside <AssistantProvider />");
   },
-  get toolUIs(): never {
+  toolUIs(): never {
     throw new Error("ToolUIs is only available inside <AssistantProvider />");
   },
-  get threadListItem(): never {
+  threadListItem(): never {
     throw new Error(
       "ThreadListItem is only available inside <AssistantProvider />",
     );
   },
-  get thread(): never {
+  thread(): never {
     throw new Error("Thread is only available inside <AssistantProvider />");
   },
-  get composer(): never {
+  composer(): never {
     throw new Error("Composer is only available inside <AssistantProvider />");
   },
-  get message(): never {
+  message(): never {
     throw new Error(
       "Message is only available inside <ThreadPrimitive.Messages />",
     );
   },
-  get part(): never {
+  part(): never {
     throw new Error("Part is only available inside <MessagePrimitive.Parts />");
   },
-  get attachment(): never {
+  attachment(): never {
     throw new Error(
       "Attachment is only available inside <MessagePrimitive.Attachments /> or <ComposerPrimitive.Attachments />",
     );
   },
+
+  subscribe: () => () => {},
+  flushSync: () => {},
+  meta: {},
+
   registerModelContextProvider: () => {
     throw new Error(
       "Registering model context providers is only available inside <AssistantProvider />",
@@ -163,15 +187,6 @@ const EMPTY_STATE_ACTIONS: AssistantState & AssistantActions = {
   __internal_getRuntime: () => {
     return null;
   },
-};
-
-export const AssistantApiContext = createContext<AssistantApi>({
-  getState: () => EMPTY_STATE_ACTIONS,
-  getInitialState: () => EMPTY_STATE_ACTIONS,
-  subscribe: () => () => {},
-  flushSync: () => {},
-  actions: EMPTY_STATE_ACTIONS,
-  meta: {},
 });
 
 export const useAssistantApi = (): AssistantApi => {
@@ -181,11 +196,12 @@ export const useAssistantApi = (): AssistantApi => {
 export const useAssistantState = <T,>(
   selector: (state: AssistantState) => T,
 ): T => {
-  const store = useAssistantApi();
+  const api = useAssistantApi();
+  const proxiedState = useMemo(() => new ProxiedAssistantState(api), [api]);
   const slice = useSyncExternalStore(
-    store.subscribe,
-    () => selector(store.getState()),
-    () => selector(store.getInitialState()),
+    api.subscribe,
+    () => selector(proxiedState),
+    () => selector(proxiedState),
   );
   useDebugValue(slice);
 
@@ -198,94 +214,66 @@ export const useAssistantState = <T,>(
 };
 
 class ProxiedAssistantState implements AssistantState {
-  constructor(
-    public readonly getState: () => AssistantState,
-    getState2: () => Partial<AssistantState>,
-    store2keys: (keyof AssistantState)[],
-  ) {
-    store2keys.forEach((key) => {
-      Object.defineProperty(this, key, {
-        get() {
-          return getState2()[key];
-        },
-      });
-    });
-  }
+  constructor(public readonly api: AssistantApi) {}
 
   get threads() {
-    return this.getState().threads;
+    return this.api.threads().getState();
   }
 
   get toolUIs() {
-    return this.getState().toolUIs;
+    return this.api.toolUIs().getState();
   }
 
   get threadListItem() {
-    return this.getState().threadListItem;
+    return this.api.threadListItem().getState();
   }
 
   get thread() {
-    return this.getState().thread;
+    return this.api.thread().getState();
   }
 
   get composer() {
-    return this.getState().composer;
+    return this.api.composer().getState();
   }
 
   get message() {
-    return this.getState().message;
+    return this.api.message().getState();
   }
 
   get part() {
-    return this.getState().part;
+    return this.api.part().getState();
   }
 
   get attachment() {
-    return this.getState().attachment;
+    return this.api.attachment().getState();
   }
 }
 
-type PartialAssistantApi = Store<
-  Partial<AssistantState>,
-  Partial<AssistantActions>
-> & { meta: AssistantMeta };
-
 const extendApi = (
   api: AssistantApi,
-  api2: PartialAssistantApi,
+  api2: Partial<AssistantApi>,
 ): AssistantApi => {
-  const initialState2 = api2.getInitialState();
-  const initialState = {
-    ...api.getInitialState(),
-    ...initialState2,
-  };
-
-  const store2keys = Object.keys(initialState2) as (keyof AssistantState)[];
-  const state = new ProxiedAssistantState(
-    api.getState,
-    api2.getState,
-    store2keys,
-  );
-
+  const api2Subscribe = api2.subscribe;
+  const api2FlushSync = api2.flushSync;
   return {
-    getState: () => state,
-    getInitialState: () => initialState,
-    subscribe: (listener) => {
-      const unsubscribe = api.subscribe(listener);
-      const unsubscribe2 = api2.subscribe(listener);
-      return () => {
-        unsubscribe();
-        unsubscribe2();
-      };
-    },
-    flushSync: () => {
-      api.flushSync();
-      api2.flushSync();
-    },
-    actions: {
-      ...api.actions,
-      ...api2.actions,
-    },
+    ...api,
+    ...api2,
+    subscribe: api2Subscribe
+      ? (listener) => {
+          const unsubscribe = api.subscribe(listener);
+          const unsubscribe2 = api2Subscribe(listener);
+          return () => {
+            unsubscribe();
+            unsubscribe2();
+          };
+        }
+      : api.subscribe,
+    flushSync: api2FlushSync
+      ? () => {
+          api.flushSync();
+          api2FlushSync();
+        }
+      : api.flushSync,
     meta: {
       ...api.meta,
       ...api2.meta,
@@ -293,25 +281,13 @@ const extendApi = (
   };
 };
 
-export const ExtendedAssistantApiProvider: FC<
-  PropsWithChildren<{ api: PartialAssistantApi }>
+export const AssistantApiProvider: FC<
+  PropsWithChildren<{ api: Partial<AssistantApi> }>
 > = ({ api: api2, children }) => {
   const api = useAssistantApi();
   const extendedApi = useMemo(() => extendApi(api, api2), [api, api2]);
 
   return (
     <AssistantApiContext value={extendedApi}>{children}</AssistantApiContext>
-  );
-};
-
-export const AssistantApiProvider: FC<
-  PropsWithChildren<{ client: AssistantApi }>
-> = ({ children, client }) => {
-  return (
-    <AssistantApiContext value={client}>
-      {/* TODO temporarily allow accessing viewport state from outside the viewport */}
-      {/* TODO figure out if this behavior should be deprecated, since it is quite hacky */}
-      <ThreadViewportProvider>{children}</ThreadViewportProvider>
-    </AssistantApiContext>
   );
 };

@@ -17,7 +17,7 @@ export const ComposerAttachmentDropzone = forwardRef<
   ComposerAttachmentDropzonePrimitive.Props
 >(({ disabled, asChild = false, children, ...rest }, ref) => {
   const [isDragging, setIsDragging] = useState(false);
-  const { actions } = useAssistantApi();
+  const api = useAssistantApi();
 
   const handleDrag = useCallback(
     (e: React.DragEvent) => {
@@ -37,13 +37,13 @@ export const ComposerAttachmentDropzone = forwardRef<
       setIsDragging(false);
       for (const file of e.dataTransfer.files) {
         try {
-          await actions.composer.addAttachment(file);
+          await api.composer().addAttachment(file);
         } catch (error) {
           console.error("Failed to add attachment:", error);
         }
       }
     },
-    [disabled, actions],
+    [disabled, api],
   );
 
   const dragProps = {

@@ -13,8 +13,10 @@ export function useThreadListItemRuntime(options?: {
 export function useThreadListItemRuntime(options?: {
   optional?: boolean | undefined;
 }) {
-  const { actions } = useAssistantApi();
-  const runtime = actions.threadListItem.__internal_getRuntime();
+  const api = useAssistantApi();
+  const runtime = api.meta.threadListItem
+    ? api.threadListItem().__internal_getRuntime()
+    : null;
   if (!runtime && !options?.optional) {
     throw new Error("ThreadListItemRuntime is not available");
   }

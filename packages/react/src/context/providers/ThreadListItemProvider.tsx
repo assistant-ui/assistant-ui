@@ -1,10 +1,9 @@
 "use client";
 
 import { useMemo, type FC, type PropsWithChildren } from "react";
-import { useAssistantStoreWithSelector } from "../react/utils/createAssistantStoreWithSelector";
 import {
   AssistantApi,
-  AssistantApiContext,
+  AssistantApiProvider,
   useAssistantApi,
 } from "../react/AssistantApiContext";
 import { ThreadListClientActions } from "../../client/ThreadListClient";
@@ -21,31 +20,21 @@ const ThreadListItemProvider: FC<ThreadListItemProvider.Props> = ({
   children,
   meta,
 }) => {
-  const { actions } = useAssistantApi();
+  const api = useAssistantApi();
 
-  const threadListItemActions = useMemo(() => {
-    return actions.threads.item(idOrSelector);
-  }, [actions, idOrSelector]);
+  const client = useMemo(() => {
+    return {
+      threadListItem() {
+        return api.threads().item(idOrSelector);
+      },
+      meta: {
+        threadListItem: meta,
+      },
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const client = useAssistantStoreWithSelector({
-    threadListItem: {
-      state:
-        "index" in idOrSelector
-          ? (state) =>
-              state.threads.threadItems[
-                idOrSelector.archived
-                  ? state.threads.archivedThreadIds[idOrSelector.index]!
-                  : state.threads.threadIds[idOrSelector.index]!
-              ]!
-          : (state) => state.threads.threadItems[idOrSelector.id]!,
-      action: () => threadListItemActions,
-    },
-    meta: {
-      threadListItem: meta,
-    },
-  });
-
-  return <AssistantApiContext value={client}>{children}</AssistantApiContext>;
+  return <AssistantApiProvider api={client}>{children}</AssistantApiProvider>;
 };
 
 export const ThreadListItemByIndexProvider: FC<
@@ -54,21 +43,27 @@ export const ThreadListItemByIndexProvider: FC<
     archived: boolean;
   }>
 > = ({ index, archived, children }) => {
-  return (
-    <ThreadListItemProvider
-      id={useMemo(() => ({ index, archived }), [index, archived])}
-      meta={{
-        source: "threads",
-        query: {
-          type: "index",
-          index,
-          archived,
+  const api = useAssistantApi();
+
+  const api2 = useMemo(() => {
+    return {
+      threadListItem() {
+        return api.threads().item({ index, archived });
+      },
+      meta: {
+        threadListItem: {
+          source: "threads",
+          query: {
+            type: "index",
+            index,
+            archived,
+          },
         },
-      }}
-    >
-      {children}
-    </ThreadListItemProvider>
-  );
+      },
+    } satisfies Partial<AssistantApi>;
+  }, [api, index, archived]);
+
+  return <AssistantApiProvider api={api2}>{children}</AssistantApiProvider>;
 };
 
 export const ThreadListItemByIdProvider: FC<
@@ -76,18 +71,24 @@ export const ThreadListItemByIdProvider: FC<
     id: string;
   }>
 > = ({ id, children }) => {
-  return (
-    <ThreadListItemProvider
-      id={{ id }}
-      meta={{
-        source: "threads",
-        query: {
-          type: "id",
-          id,
+  const api = useAssistantApi();
+
+  const api2 = useMemo(() => {
+    return {
+      threadListItem() {
+        return api.threads().item({ id });
+      },
+      meta: {
+        threadListItem: {
+          source: "threads",
+          query: {
+            type: "id",
+            id,
+          },
         },
-      }}
-    >
-      {children}
-    </ThreadListItemProvider>
-  );
+      },
+    } satisfies Partial<AssistantApi>;
+  }, [api, id]);
+
+  return <AssistantApiProvider api={api2}>{children}</AssistantApiProvider>;
 };

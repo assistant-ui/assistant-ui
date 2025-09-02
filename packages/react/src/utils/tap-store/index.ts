@@ -1,2 +1,2 @@
 export { type Store, asStore } from "./store";
-export { tapActions, type ActionsObject } from "./tap-actions";
+export { tapApi, type ActionsObject } from "./tap-store-api";

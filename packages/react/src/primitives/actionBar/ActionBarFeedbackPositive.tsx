@@ -7,11 +7,11 @@ import { useAssistantState, useAssistantApi } from "../../context";
 import { Primitive } from "@radix-ui/react-primitive";
 
 const useActionBarFeedbackPositive = () => {
-  const { actions } = useAssistantApi();
+  const api = useAssistantApi();
 
   const callback = useCallback(() => {
-    actions.message.submitFeedback({ type: "positive" });
-  }, [actions]);
+    api.message().submitFeedback({ type: "positive" });
+  }, [api]);
 
   return callback;
 };

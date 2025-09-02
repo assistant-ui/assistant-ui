@@ -9,10 +9,10 @@ import { useAssistantApi } from "../../context";
 import { useCallback } from "react";
 
 const useThreadListItemArchive = () => {
-  const { actions } = useAssistantApi();
+  const api = useAssistantApi();
   return useCallback(() => {
-    actions.threadListItem.archive();
-  }, [actions]);
+    api.threadListItem().archive();
+  }, [api]);
 };
 
 export namespace ThreadListItemPrimitiveArchive {

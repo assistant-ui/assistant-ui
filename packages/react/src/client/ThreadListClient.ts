@@ -1,17 +1,19 @@
-import { tapActions } from "../utils/tap-store";
+import { tapApi } from "../utils/tap-store";
 import { resource, tapInlineResource, tapMemo } from "@assistant-ui/tap";
-import { tapRefValue } from "./util-hooks/tapRefValue";
 import { ThreadListRuntime } from "../api/ThreadListRuntime";
 import { tapSubscribable } from "./util-hooks/tapSubscribable";
 import {
   ThreadListItemClientState,
   ThreadListItemClientActions,
+  ThreadListItemClient,
 } from "./ThreadListItemClient";
 import {
   ThreadClient,
   ThreadClientActions,
   ThreadClientState,
 } from "./ThreadClient";
+import { StoreApi } from "../utils/tap-store/tap-store-api";
+import { tapLookupResources } from "./util-hooks/tapLookupResources";
 
 export type ThreadListClientState = {
   readonly mainThreadId: string;
@@ -20,7 +22,7 @@ export type ThreadListClientState = {
   readonly threadIds: readonly string[];
   readonly archivedThreadIds: readonly string[];
 
-  readonly threadItems: Readonly<Record<string, ThreadListItemClientState>>;
+  readonly threadItems: readonly ThreadListItemClientState[];
 
   readonly main: ThreadClientState;
 };
@@ -30,17 +32,34 @@ export type ThreadListClientActions = {
   switchToNewThread(): void;
   item(
     threadIdOrOptions: { id: string } | { index: number; archived: boolean },
-  ): ThreadListItemClientActions;
+  ): StoreApi<ThreadListItemClientState, ThreadListItemClientActions>;
 
-  readonly main: ThreadClientActions;
+  thread(selector: "main"): StoreApi<ThreadClientState, ThreadClientActions>;
 };
+
+const ThreadListItemClientById = resource(
+  ({ runtime, id }: { runtime: ThreadListRuntime; id: string }) => {
+    const threadListItemRuntime = tapMemo(
+      () => runtime.getItemById(id),
+      [runtime, id],
+    );
+    return tapInlineResource(
+      ThreadListItemClient({ runtime: threadListItemRuntime }),
+    );
+  },
+);
 
 export const ThreadListClient = resource(
   ({ runtime }: { runtime: ThreadListRuntime }) => {
     const runtimeState = tapSubscribable(runtime);
-    const runtimeRef = tapRefValue(runtime);
 
     const main = tapInlineResource(ThreadClient({ runtime: runtime.main }));
+
+    const threadItems = tapLookupResources(
+      Object.keys(runtimeState.threadItems).map((id) =>
+        ThreadListItemClientById({ runtime, id }, { key: id }),
+      ),
+    );
 
     const state = tapMemo<ThreadListClientState>(() => {
       return {
@@ -49,28 +68,25 @@ export const ThreadListClient = resource(
         isLoading: runtimeState.isLoading,
         threadIds: runtimeState.threads,
         archivedThreadIds: runtimeState.archivedThreads,
-        threadItems: runtimeState.threadItems,
+        threadItems: threadItems.state,
 
         main: main.state,
       };
-    }, [runtimeState, main.state]);
+    }, [runtimeState, threadItems.state, main.state]);
 
-    const actions = tapActions<ThreadListClientActions>({
-      main: main.actions,
+    const api = tapApi<ThreadListClientState, ThreadListClientActions>(state, {
+      thread: () => main.api,
 
       item: (threadIdOrOptions) => {
-        if (typeof threadIdOrOptions === "string") {
-          // Direct threadId
-          return runtimeRef.current.getItemById(threadIdOrOptions);
-        } else if ("id" in threadIdOrOptions) {
+        if ("id" in threadIdOrOptions) {
           // Object with id
-          return runtimeRef.current.getItemById(threadIdOrOptions.id);
+          return runtime.getItemById(threadIdOrOptions.id);
         } else {
           // Object with index and optional archived
           const { index, archived } = threadIdOrOptions;
           return archived
-            ? runtimeRef.current.getArchivedItemByIndex(index)
-            : runtimeRef.current.getItemByIndex(index);
+            ? runtime.getArchivedItemByIndex(index)
+            : runtime.getItemByIndex(index);
         }
       },
 
@@ -84,7 +100,7 @@ export const ThreadListClient = resource(
 
     return {
       state,
-      actions,
+      api,
     };
   },
 );

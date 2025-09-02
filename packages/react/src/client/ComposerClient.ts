@@ -2,10 +2,13 @@ import { resource, tapMemo } from "@assistant-ui/tap";
 import { ComposerRuntime, EditComposerRuntime } from "../api/ComposerRuntime";
 import { Attachment } from "../types";
 import { MessageRole, RunConfig } from "../types/AssistantTypes";
-import { tapRefValue } from "./util-hooks/tapRefValue";
 import { tapSubscribable } from "./util-hooks/tapSubscribable";
-import { tapActions } from "../utils/tap-store";
-import { AttachmentClientActions } from "./AttachmentClient";
+import { tapApi } from "../utils/tap-store";
+import {
+  AttachmentClientActions,
+  AttachmentClientState,
+} from "./AttachmentClient";
+import { StoreApi } from "../utils/tap-store/tap-store-api";
 
 export type ComposerClientState = {
   readonly text: string;
@@ -25,7 +28,9 @@ export type ComposerClientActions = {
   setRunConfig(runConfig: RunConfig): void;
   addAttachment(file: File): Promise<void>;
   clearAttachments(): Promise<void>;
-  attachment(selector: { index: number }): AttachmentClientActions;
+  attachment(selector: {
+    index: number;
+  }): StoreApi<AttachmentClientState, AttachmentClientActions>;
   reset(): Promise<void>;
   send(): void;
   cancel(): void;
@@ -37,7 +42,6 @@ export type ComposerClientActions = {
 export const ComposerClient = resource(
   ({ runtime }: { runtime: ComposerRuntime }) => {
     const runtimeState = tapSubscribable(runtime);
-    const runtimeRef = tapRefValue(runtime);
 
     const state = tapMemo<ComposerClientState>(() => {
       return {
@@ -53,37 +57,39 @@ export const ComposerClient = resource(
       };
     }, [runtimeState]);
 
-    const actions = tapActions<ComposerClientActions>({
-      setText: runtimeRef.current.setText,
-      setRole: runtimeRef.current.setRole,
-      setRunConfig: runtimeRef.current.setRunConfig,
-      addAttachment: runtimeRef.current.addAttachment,
-      reset: runtimeRef.current.reset,
+    const api = tapApi<ComposerClientState, ComposerClientActions>(state, {
+      setText: runtime.setText,
+      setRole: runtime.setRole,
+      setRunConfig: runtime.setRunConfig,
+      addAttachment: runtime.addAttachment,
+      reset: runtime.reset,
 
-      clearAttachments: runtimeRef.current.clearAttachments,
-      send: runtimeRef.current.send,
-      cancel: runtimeRef.current.cancel,
+      clearAttachments: runtime.clearAttachments,
+      send: runtime.send,
+      cancel: runtime.cancel,
       beginEdit:
-        (runtimeRef.current as EditComposerRuntime).beginEdit ??
+        (runtime as EditComposerRuntime).beginEdit ??
         (() => {
           throw new Error("beginEdit is not supported in this runtime");
         }),
 
       attachment: ({ index }) => {
+        const attachmentRuntime = runtime.getAttachmentByIndex(index);
         return {
-          remove: runtimeRef.current.getAttachmentByIndex(index).remove,
+          getState: attachmentRuntime.getState,
 
-          __internal_getRuntime: () =>
-            runtimeRef.current.getAttachmentByIndex(index),
+          remove: attachmentRuntime.remove,
+
+          __internal_getRuntime: () => runtime.getAttachmentByIndex(index),
         };
       },
 
-      __internal_getRuntime: () => runtimeRef.current,
+      __internal_getRuntime: () => runtime,
     });
 
     return {
       state,
-      actions,
+      api,
     };
   },
 );

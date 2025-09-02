@@ -1,33 +1,34 @@
 "use client";
 
-import { type FC, type PropsWithChildren } from "react";
-import { useAssistantStoreWithSelector } from "../react/utils/createAssistantStoreWithSelector";
-import { AssistantApiContext } from "../react/AssistantApiContext";
+import { useMemo, type FC, type PropsWithChildren } from "react";
+import {
+  AssistantApi,
+  AssistantApiProvider,
+  useAssistantApi,
+} from "../react/AssistantApiContext";
 
 export const PartByIndexProvider: FC<
   PropsWithChildren<{
     index: number;
   }>
 > = ({ index, children }) => {
-  const client = useAssistantStoreWithSelector({
-    part: {
-      state: (state) => {
-        return state.message!.parts[index]!;
+  const api = useAssistantApi();
+  const api2 = useMemo(() => {
+    return {
+      part() {
+        return api.message().part({ index });
       },
-      action: (actions) => {
-        return actions.message.part({ index });
-      },
-    },
-    meta: {
-      part: {
-        source: "message",
-        query: {
-          type: "index",
-          index,
+      meta: {
+        part: {
+          source: "message",
+          query: {
+            type: "index",
+            index,
+          },
         },
-      },
-    },
-  });
+      } as const,
+    } satisfies Partial<AssistantApi>;
+  }, [api, index]);
 
-  return <AssistantApiContext value={client}>{children}</AssistantApiContext>;
+  return <AssistantApiProvider api={api2}>{children}</AssistantApiProvider>;
 };

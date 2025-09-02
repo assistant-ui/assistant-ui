@@ -4,8 +4,7 @@ import { SubscribableWithState } from "../../api/subscribable/Subscribable";
 export const tapSubscribable = <T>(
   subscribable: Omit<SubscribableWithState<T, any>, "path">,
 ) => {
-  const [state, setState] = tapState(subscribable.getState);
-
+  const [, setState] = tapState(subscribable.getState);
   tapEffect(() => {
     setState(subscribable.getState());
     return subscribable.subscribe(() => {
@@ -13,5 +12,5 @@ export const tapSubscribable = <T>(
     });
   }, [subscribable]);
 
-  return state;
+  return subscribable.getState();
 };

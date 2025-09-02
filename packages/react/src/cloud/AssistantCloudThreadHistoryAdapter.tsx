@@ -74,7 +74,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   }
 
   async append({ parentId, message }: ExportedMessageRepositoryItem) {
-    const { remoteId } = await this.store.actions.threadListItem.initialize();
+    const { remoteId } = await this.store.threadListItem().initialize();
     const task = this.cloudRef.current.threads.messages
       .create(remoteId, {
         parent_id: parentId
@@ -94,7 +94,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   }
 
   async load() {
-    const remoteId = this.store.getState().threadListItem.remoteId;
+    const remoteId = this.store.threadListItem().getState().remoteId;
     if (!remoteId) return { messages: [] };
     const { messages } = await this.cloudRef.current.threads.messages.list(
       remoteId,
@@ -120,7 +120,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     format: string,
     content: T,
   ) {
-    const { remoteId } = await this.store.actions.threadListItem.initialize();
+    const { remoteId } = await this.store.threadListItem().initialize();
 
     const task = this.cloudRef.current.threads.messages
       .create(remoteId, {
@@ -146,7 +146,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
       message: MessageStorageEntry<TStorageFormat>,
     ) => MessageFormatItem<TMessage>,
   ): Promise<MessageFormatRepository<TMessage>> {
-    const remoteId = this.store.getState().threadListItem.remoteId;
+    const remoteId = this.store.threadListItem().getState().remoteId;
     if (!remoteId) return { messages: [] };
 
     const { messages } = await this.cloudRef.current.threads.messages.list(

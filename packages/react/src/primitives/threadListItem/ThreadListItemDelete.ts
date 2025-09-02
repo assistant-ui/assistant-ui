@@ -8,9 +8,9 @@ import {
 import { useAssistantApi } from "../../context";
 
 const useThreadListItemDelete = () => {
-  const { actions } = useAssistantApi();
+  const api = useAssistantApi();
   return () => {
-    actions.threadListItem.delete();
+    api.threadListItem().delete();
   };
 };
 

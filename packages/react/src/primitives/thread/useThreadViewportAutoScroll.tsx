@@ -87,12 +87,10 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   });
 
   // autoscroll on run start
-  const { actions } = useAssistantApi();
+  const api = useAssistantApi();
   useEffect(() => {
-    return actions.thread.unstable_on("run-start", () =>
-      scrollToBottom("auto"),
-    );
-  }, [scrollToBottom, actions]);
+    return api.thread().unstable_on("run-start", () => scrollToBottom("auto"));
+  }, [scrollToBottom, api]);
 
   const autoScrollRef = useComposedRefs<TElement>(resizeRef, scrollRef, divRef);
   return autoScrollRef as RefCallback<TElement>;

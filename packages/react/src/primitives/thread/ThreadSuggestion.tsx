@@ -16,17 +16,17 @@ const useThreadSuggestion = ({
   method?: "replace";
   autoSend?: boolean | undefined;
 }) => {
-  const { actions, getState } = useAssistantApi();
+  const api = useAssistantApi();
   const disabled = useAssistantState(({ thread }) => thread.isDisabled);
 
   const callback = useCallback(() => {
-    const isRunning = getState().thread.isRunning;
+    const isRunning = api.thread().getState().isRunning;
     if (autoSend && !isRunning) {
-      actions.thread.append(prompt);
+      api.thread().append(prompt);
     } else {
-      actions.composer.setText(prompt);
+      api.composer().setText(prompt);
     }
-  }, [actions, getState, autoSend, prompt]);
+  }, [api, autoSend, prompt]);
 
   if (disabled) return null;
   return callback;

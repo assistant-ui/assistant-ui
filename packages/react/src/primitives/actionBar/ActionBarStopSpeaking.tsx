@@ -9,12 +9,12 @@ import { useCallback } from "react";
 import { useAssistantState, useAssistantApi } from "../../context";
 
 const useActionBarStopSpeaking = () => {
-  const { actions } = useAssistantApi();
+  const api = useAssistantApi();
   const isSpeaking = useAssistantState(({ message }) => message.speech != null);
 
   const callback = useCallback(() => {
-    actions.message.stopSpeaking();
-  }, [actions]);
+    api.message().stopSpeaking();
+  }, [api]);
 
   if (!isSpeaking) return null;
 

@@ -34,7 +34,7 @@ import { useAssistantState, useAssistantApi } from "../../context";
 const useActionBarPrimitiveCopy = ({
   copiedDuration = 3000,
 }: { copiedDuration?: number | undefined } = {}) => {
-  const { actions } = useAssistantApi();
+  const api = useAssistantApi();
   const hasCopyableContent = useAssistantState(({ message }) => {
     return (
       (message.role !== "assistant" || message.status?.type !== "running") &&
@@ -46,17 +46,15 @@ const useActionBarPrimitiveCopy = ({
   const composerValue = useAssistantState(({ composer }) => composer.text);
 
   const callback = useCallback(() => {
-    const valueToCopy = isEditing
-      ? composerValue
-      : actions.message.getCopyText();
+    const valueToCopy = isEditing ? composerValue : api.message().getCopyText();
 
     if (!valueToCopy) return;
 
     navigator.clipboard.writeText(valueToCopy).then(() => {
-      actions.message.setIsCopied(true);
-      setTimeout(() => actions.message.setIsCopied(false), copiedDuration);
+      api.message().setIsCopied(true);
+      setTimeout(() => api.message().setIsCopied(false), copiedDuration);
     });
-  }, [actions, isEditing, composerValue, copiedDuration]);
+  }, [api, isEditing, composerValue, copiedDuration]);
 
   if (!hasCopyableContent) return null;
   return callback;

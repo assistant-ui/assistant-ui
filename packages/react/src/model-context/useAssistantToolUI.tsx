@@ -12,9 +12,9 @@ export type AssistantToolUIProps<TArgs, TResult> = {
 export const useAssistantToolUI = (
   tool: AssistantToolUIProps<any, any> | null,
 ) => {
-  const { actions } = useAssistantApi();
+  const api = useAssistantApi();
   useEffect(() => {
     if (!tool?.toolName || !tool?.render) return;
-    actions.toolUIs.setToolUI(tool.toolName, tool.render);
-  }, [actions, tool?.toolName, tool?.render]);
+    api.toolUIs().setToolUI(tool.toolName, tool.render);
+  }, [api, tool?.toolName, tool?.render]);
 };
