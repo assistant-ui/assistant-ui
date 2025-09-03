@@ -37,8 +37,11 @@ export function renderResource<R, P>(
 
   withResourceFiber(fiber, () => {
     fiber.renderContext = result;
-    result.state = fiber.resourceFn(props);
-    fiber.renderContext = undefined;
+    try {
+      result.state = fiber.resourceFn(props);
+    } finally {
+      fiber.renderContext = undefined;
+    }
   });
 
   return result;

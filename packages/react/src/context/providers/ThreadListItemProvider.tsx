@@ -6,36 +6,6 @@ import {
   AssistantApiProvider,
   useAssistantApi,
 } from "../react/AssistantApiContext";
-import { ThreadListClientActions } from "../../client/ThreadListClient";
-
-export namespace ThreadListItemProvider {
-  export type Props = PropsWithChildren<{
-    id: Parameters<ThreadListClientActions["item"]>[0];
-    meta: NonNullable<AssistantApi["meta"]["threadListItem"]>;
-  }>;
-}
-
-const ThreadListItemProvider: FC<ThreadListItemProvider.Props> = ({
-  id: idOrSelector,
-  children,
-  meta,
-}) => {
-  const api = useAssistantApi();
-
-  const client = useMemo(() => {
-    return {
-      threadListItem() {
-        return api.threads().item(idOrSelector);
-      },
-      meta: {
-        threadListItem: meta,
-      },
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  return <AssistantApiProvider api={client}>{children}</AssistantApiProvider>;
-};
 
 export const ThreadListItemByIndexProvider: FC<
   PropsWithChildren<{

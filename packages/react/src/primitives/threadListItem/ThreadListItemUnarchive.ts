@@ -6,12 +6,13 @@ import {
   createActionButton,
 } from "../../utils/createActionButton";
 import { useAssistantApi } from "../../context";
+import { useCallback } from "react";
 
 const useThreadListItemUnarchive = () => {
   const api = useAssistantApi();
-  return () => {
+  return useCallback(() => {
     api.threadListItem().unarchive();
-  };
+  }, [api]);
 };
 
 export namespace ThreadListItemPrimitiveUnarchive {

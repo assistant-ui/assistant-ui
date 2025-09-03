@@ -6,12 +6,13 @@ import {
   createActionButton,
 } from "../../utils/createActionButton";
 import { useAssistantApi } from "../../context";
+import { useCallback } from "react";
 
 const useThreadListItemDelete = () => {
   const api = useAssistantApi();
-  return () => {
+  return useCallback(() => {
     api.threadListItem().delete();
-  };
+  }, [api]);
 };
 
 export namespace ThreadListItemPrimitiveDelete {

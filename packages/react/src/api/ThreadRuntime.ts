@@ -276,7 +276,7 @@ export type ThreadRuntime = {
   reset(initialMessages?: readonly ThreadMessageLike[]): void;
 
   getMessageByIndex(idx: number): MessageRuntime;
-  getMesssageById(messageId: string): MessageRuntime;
+  getMessageById(messageId: string): MessageRuntime;
 
   /**
    * @deprecated This API is still under active development and might change without notice.
@@ -353,7 +353,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     this.import = this.import.bind(this);
     this.reset = this.reset.bind(this);
     this.getMessageByIndex = this.getMessageByIndex.bind(this);
-    this.getMesssageById = this.getMesssageById.bind(this);
+    this.getMessageById = this.getMessageById.bind(this);
     this.subscribe = this.subscribe.bind(this);
     this.unstable_on = this.unstable_on.bind(this);
     this.getModelContext = this.getModelContext.bind(this);
@@ -440,7 +440,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     );
   }
 
-  public getMesssageById(messageId: string) {
+  public getMessageById(messageId: string) {
     return this._getMessageRuntime(
       {
         ...this.path,

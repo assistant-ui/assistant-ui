@@ -6,12 +6,13 @@ import {
   createActionButton,
 } from "../../utils/createActionButton";
 import { useAssistantApi } from "../../context";
+import { useCallback } from "react";
 
 const useThreadListItemTrigger = () => {
   const api = useAssistantApi();
-  return () => {
+  return useCallback(() => {
     api.threadListItem().switchTo();
-  };
+  }, [api]);
 };
 
 export namespace ThreadListItemPrimitiveTrigger {
