@@ -73,7 +73,7 @@
 /* thread composer */
 
 .aui-composer-wrapper {
-  @apply sticky bottom-0 mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 overflow-clip rounded-t-3xl bg-background pb-4 md:pb-6;
+  @apply sticky bottom-0 mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4 md:pb-6;
 }
 
 .aui-composer-root {
