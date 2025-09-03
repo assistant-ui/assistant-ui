@@ -130,8 +130,8 @@ const AttachmentThumb: FC = () => {
 };
 
 const AttachmentUI: FC = () => {
-  const { meta } = useAssistantApi();
-  const isComposer = meta.attachment!.source === "composer";
+  const api = useAssistantApi();
+  const isComposer = api.meta.attachment!.source === "composer";
 
   const isImage = useAssistantState(
     ({ attachment }) => attachment.type === "image",

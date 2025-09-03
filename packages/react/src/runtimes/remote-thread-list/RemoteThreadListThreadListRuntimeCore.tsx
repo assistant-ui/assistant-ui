@@ -352,7 +352,7 @@ export class RemoteThreadListThreadListRuntimeCore
         },
         threadData: {
           ...state.threadData,
-          [id]: {
+          [mappingId]: {
             status: "new",
             id,
             remoteId: undefined,

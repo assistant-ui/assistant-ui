@@ -40,6 +40,16 @@ class ReadonlyStoreApiHandler<TState, TActions>
 
     return Object.getOwnPropertyDescriptor(this.getState(), prop);
   }
+
+  set() {
+    return false;
+  }
+  defineProperty() {
+    return false;
+  }
+  deleteProperty() {
+    return false;
+  }
 }
 
 export const tapApi = <TState, TActions extends ActionsObject>(

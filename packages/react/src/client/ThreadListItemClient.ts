@@ -1,4 +1,4 @@
-import { resource } from "../../../tap/dist/core/resource";
+import { resource } from "@assistant-ui/tap";
 import {
   ThreadListItemEventType,
   ThreadListItemRuntime,

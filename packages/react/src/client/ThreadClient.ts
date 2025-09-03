@@ -146,7 +146,7 @@ export type ThreadClientActions = {
 const MessageClientById = resource(
   ({ runtime, id }: { runtime: ThreadRuntime; id: string }) => {
     const messageRuntime = tapMemo(
-      () => runtime.getMesssageById(id),
+      () => runtime.getMessageById(id),
       [runtime, id],
     );
 

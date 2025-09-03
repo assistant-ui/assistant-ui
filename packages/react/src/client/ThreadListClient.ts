@@ -31,7 +31,7 @@ export type ThreadListClientActions = {
   switchToThread(threadId: string): void;
   switchToNewThread(): void;
   item(
-    threadIdOrOptions: { id: string } | { index: number; archived: boolean },
+    threadIdOrOptions: { id: string } | { index: number; archived?: boolean },
   ): StoreApi<ThreadListItemClientState, ThreadListItemClientActions>;
 
   thread(selector: "main"): StoreApi<ThreadClientState, ThreadClientActions>;
@@ -78,15 +78,18 @@ export const ThreadListClient = resource(
       thread: () => main.api,
 
       item: (threadIdOrOptions) => {
+        // this is not 100% spec compliant, because item() should
+        // resolve and bind to a specific threadListItem, but the
+        // runtime API resovles at a later point in time
         if ("id" in threadIdOrOptions) {
           // Object with id
-          return runtime.getItemById(threadIdOrOptions.id);
+          return threadItems.api({ key: threadIdOrOptions.id });
         } else {
-          // Object with index and optional archived
-          const { index, archived } = threadIdOrOptions;
-          return archived
-            ? runtime.getArchivedItemByIndex(index)
-            : runtime.getItemByIndex(index);
+          const { index, archived = false } = threadIdOrOptions;
+          const id = archived
+            ? state.archivedThreadIds[index]!
+            : state.threadIds[index]!;
+          return threadItems.api({ key: id });
         }
       },
 

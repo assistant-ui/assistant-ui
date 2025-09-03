@@ -61,15 +61,19 @@ export function commitRender<R, P>(
 }
 
 export function cleanupAllEffects<R, P>(executionContext: ResourceFiber<R, P>) {
+  let firstError: unknown | null = null;
   // Run cleanups in reverse order
   for (let i = executionContext.cells.length - 1; i >= 0; i--) {
     const cell = executionContext.cells[i];
     if (cell?.type === "effect" && cell.mounted && cell.cleanup) {
       try {
         cell.cleanup();
+      } catch (e) {
+        if (firstError == null) firstError = e;
       } finally {
         cell.mounted = false;
       }
     }
   }
+  if (firstError != null) throw firstError;
 }

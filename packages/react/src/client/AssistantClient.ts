@@ -16,9 +16,15 @@ import { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes
 import { StoreApi } from "../utils/tap-store/tap-store-api";
 import { useMemo } from "react";
 
-export type AssistantToolUIState = Record<string, ToolCallMessagePartComponent>;
+export type AssistantToolUIState = Record<
+  string,
+  ToolCallMessagePartComponent[]
+>;
 export type AssistantToolUIActions = {
-  setToolUI(toolName: string, render: ToolCallMessagePartComponent): void;
+  setToolUI(
+    toolName: string,
+    render: ToolCallMessagePartComponent,
+  ): Unsubscribe;
 };
 
 export const AssistantToolUIClient = resource(() => {
@@ -29,9 +35,18 @@ export const AssistantToolUIClient = resource(() => {
       setState((prev) => {
         return {
           ...prev,
-          [toolName]: render,
+          [toolName]: [...(prev[toolName] ?? []), render],
         };
       });
+
+      return () => {
+        setState((prev) => {
+          return {
+            ...prev,
+            [toolName]: prev[toolName]?.filter((r) => r !== render) ?? [],
+          };
+        });
+      };
     },
   });
 
