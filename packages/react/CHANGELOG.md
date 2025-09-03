@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.10.46
+
+### Patch Changes
+
+- 25104d0: feat: MessageRepository should delete dangling messages on resetHead
+
 ## 0.10.45
 
 ### Patch Changes
