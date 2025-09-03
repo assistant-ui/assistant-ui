@@ -414,8 +414,7 @@ export class MessageRepository {
    */
   resetHead(messageId: string | null) {
     if (messageId === null) {
-      this.head = null;
-      this._messages.dirty();
+      this.clear();
       return;
     }
 
@@ -424,6 +423,22 @@ export class MessageRepository {
       throw new Error(
         "MessageRepository(resetHead): Branch not found. This is likely an internal bug in assistant-ui.",
       );
+
+    if (message.children.length > 0) {
+      const deleteDescendants = (msg: RepositoryMessage) => {
+        for (const childId of msg.children) {
+          const childMessage = this.messages.get(childId);
+          if (childMessage) {
+            deleteDescendants(childMessage);
+            this.messages.delete(childId);
+          }
+        }
+      };
+      deleteDescendants(message);
+
+      message.children = [];
+      message.next = null;
+    }
 
     this.head = message;
     for (
