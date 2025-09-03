@@ -23,7 +23,7 @@ export const SampleFrame = ({
       )}
       <div
         className={cn(
-          `h-[650px] *:overflow-hidden *:rounded-lg *:border`,
+          `h-[650px] *:overflow-hidden *:rounded-lg *:border **:[&_p:has(>span)]:my-0`,
           className,
         )}
       >
