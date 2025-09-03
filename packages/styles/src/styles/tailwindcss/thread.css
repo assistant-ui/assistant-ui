@@ -1,6 +1,6 @@
 /* thread */
 .aui-thread-root {
-  @apply bg-background flex h-full flex-col @container;
+  @apply @container flex h-full flex-col bg-background;
 }
 
 .aui-thread-viewport {
@@ -17,7 +17,7 @@
 }
 
 .aui-thread-scroll-to-bottom {
-  @apply dark:bg-background dark:hover:bg-accent absolute -top-12 z-10 self-center rounded-full p-4 disabled:invisible;
+  @apply absolute -top-12 z-10 self-center rounded-full p-4 disabled:invisible dark:bg-background dark:hover:bg-accent;
 }
 
 .aui-thread-followup-suggestions {
@@ -25,7 +25,7 @@
 }
 
 .aui-thread-followup-suggestion {
-  @apply bg-background hover:bg-muted/80 rounded-full border px-3 py-1 text-sm transition-colors ease-in;
+  @apply rounded-full border bg-background px-3 py-1 text-sm transition-colors ease-in hover:bg-muted/80;
 }
 
 /* thread welcome */
@@ -47,7 +47,7 @@
 }
 
 .aui-thread-welcome-message-motion-2 {
-  @apply text-muted-foreground/65 text-2xl;
+  @apply text-2xl text-muted-foreground/65;
 }
 
 .aui-thread-welcome-suggestions {
@@ -55,7 +55,7 @@
 }
 
 .aui-thread-welcome-suggestion {
-  @apply dark:hover:bg-accent/60 h-auto w-full flex-1 flex-wrap items-start justify-start gap-1 rounded-3xl border px-5 py-4 text-left text-sm @md:flex-col;
+  @apply h-auto w-full flex-1 flex-wrap items-start justify-start gap-1 rounded-3xl border px-5 py-4 text-left text-sm @md:flex-col dark:hover:bg-accent/60;
 }
 
 .aui-thread-welcome-suggestion-display {
@@ -105,7 +105,7 @@
 }
 
 .aui-composer-attachment-button {
-  @apply hover:bg-foreground/15 dark:hover:bg-background/50 scale-115 p-3.5;
+  @apply scale-115 p-3.5 hover:bg-foreground/15 dark:hover:bg-background/50;
 }
 
 /* unused in new design */
@@ -124,7 +124,7 @@
 }
 
 .aui-attachment-content {
-  @apply bg-muted/50 flex h-7 items-center gap-1.5 rounded-md border px-2 py-1 hover:bg-muted/80 cursor-pointer transition-colors;
+  @apply flex h-7 cursor-pointer items-center gap-1.5 rounded-md border bg-muted/50 px-2 py-1 transition-colors hover:bg-muted/80;
 }
 
 .aui-attachment-thumb {
@@ -132,19 +132,19 @@
 }
 
 .aui-attachment-name {
-  @apply text-xs max-w-[120px] truncate;
+  @apply max-w-[120px] truncate text-xs;
 }
 
 .aui-attachment-remove {
-  @apply hover:text-destructive -mr-1 ml-1;
+  @apply -mr-1 ml-1 hover:text-destructive;
 }
 
 .aui-attachment-preview {
-  @apply flex items-center justify-center w-full h-full min-h-[200px];
+  @apply flex h-full min-h-[200px] w-full items-center justify-center;
 }
 
 .aui-attachment-preview-image {
-  @apply max-w-full max-h-[80vh] w-auto h-auto object-contain;
+  @apply h-auto max-h-[80vh] w-auto max-w-full object-contain;
 }
 
 /* user message */
@@ -158,7 +158,7 @@
 }
 
 .aui-user-message-content {
-  @apply bg-muted text-foreground col-start-2 break-words rounded-3xl px-5 py-2.5;
+  @apply col-start-2 rounded-3xl bg-muted px-5 py-2.5 break-words text-foreground;
 }
 
 .aui-user-message-attachments {
@@ -170,7 +170,7 @@
 }
 
 .aui-user-action-bar-wrapper {
-  @apply absolute left-0 top-1/2 -translate-x-full -translate-y-1/2 pr-2;
+  @apply absolute top-1/2 left-0 -translate-x-full -translate-y-1/2 pr-2;
 }
 
 /* user action bar */
@@ -190,11 +190,11 @@
 }
 
 .aui-edit-composer-root {
-  @apply bg-muted max-w-7/8 ml-auto flex w-full flex-col rounded-xl;
+  @apply ml-auto flex w-full max-w-7/8 flex-col rounded-xl bg-muted;
 }
 
 .aui-edit-composer-input {
-  @apply text-foreground flex min-h-[60px] w-full resize-none bg-transparent p-4 outline-none;
+  @apply flex min-h-[60px] w-full resize-none bg-transparent p-4 text-foreground outline-none;
 }
 
 .aui-edit-composer-footer {
@@ -208,7 +208,7 @@
 }
 
 .aui-assistant-message-avatar {
-  @apply ring-border bg-background col-start-1 row-start-1 flex size-8 shrink-0 items-center justify-center rounded-full ring-1;
+  @apply col-start-1 row-start-1 flex size-8 shrink-0 items-center justify-center rounded-full bg-background ring-1 ring-border;
 }
 
 /* unused in new design */
@@ -222,19 +222,19 @@
 }
 
 .aui-assistant-branch-picker {
-  @apply col-start-2 row-start-2 -ml-2 mr-2;
+  @apply col-start-2 row-start-2 mr-2 -ml-2;
 }
 
 .aui-assistant-message-content {
-  @apply mx-2 break-words leading-7 text-foreground;
+  @apply mx-2 leading-7 break-words text-foreground;
 }
 
 .aui-assistant-message-footer {
-  @apply ml-2 mt-2 flex;
+  @apply mt-2 ml-2 flex;
 }
 
 .aui-message-error-root {
-  @apply border-destructive bg-destructive/10 dark:bg-destructive/5 text-destructive mt-2 rounded-md border p-3 text-sm dark:text-red-200;
+  @apply mt-2 rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive dark:bg-destructive/5 dark:text-red-200;
 }
 
 .aui-message-error-message {
@@ -282,11 +282,11 @@
 }
 
 .aui-thread-list-item {
-  @apply data-active:bg-muted hover:bg-muted focus-visible:bg-muted focus-visible:ring-ring flex items-center gap-2 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2;
+  @apply flex items-center gap-2 rounded-lg transition-all hover:bg-muted focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none data-active:bg-muted;
 }
 
 .aui-thread-list-new {
-  @apply data-active:bg-muted hover:bg-muted flex items-center justify-start gap-1 rounded-lg px-2.5 py-2 text-start;
+  @apply flex items-center justify-start gap-1 rounded-lg px-2.5 py-2 text-start hover:bg-muted data-active:bg-muted;
 }
 
 .aui-thread-list-item-trigger {
@@ -298,7 +298,7 @@
 }
 
 .aui-thread-list-item-archive {
-  @apply hover:text-foreground/60 text-foreground ml-auto mr-1 size-4 p-4;
+  @apply mr-1 ml-auto size-4 p-4 text-foreground hover:text-foreground/60;
 }
 
 /* ThreadListSidebar */
@@ -312,7 +312,7 @@
 }
 
 .aui-sidebar-header-icon-wrapper {
-  @apply bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg;
+  @apply flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground;
 }
 
 .aui-sidebar-header-icon {
@@ -336,7 +336,7 @@
 }
 
 .aui-sidebar-footer-icon-wrapper {
-  @apply bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg;
+  @apply flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground;
 }
 
 .aui-sidebar-footer-icon {
