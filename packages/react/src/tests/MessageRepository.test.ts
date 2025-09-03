@@ -309,6 +309,45 @@ describe("MessageRepository", () => {
     });
 
     /**
+     * Tests that resetting head to a message with children removes those children.
+     * All descendants should be deleted from the repository.
+     */
+    it("should remove children when resetting head to a message with children", () => {
+      const parent = createTestMessage({ id: "parent-id" });
+      const child = createTestMessage({ id: "child-id" });
+      const grandchild1 = createTestMessage({ id: "grandchild1-id" });
+      const grandchild2 = createTestMessage({ id: "grandchild2-id" });
+      const greatGrandchild = createTestMessage({ id: "greatgrandchild-id" });
+
+      // Build tree: parent -> child -> grandchild1
+      //                            \-> grandchild2 -> greatGrandchild
+      repository.addOrUpdateMessage(null, parent);
+      repository.addOrUpdateMessage("parent-id", child);
+      repository.addOrUpdateMessage("child-id", grandchild1);
+      repository.addOrUpdateMessage("child-id", grandchild2);
+      repository.addOrUpdateMessage("grandchild2-id", greatGrandchild);
+
+      // Reset to child (which has children)
+      repository.resetHead("child-id");
+
+      // Head should be child
+      expect(repository.headId).toBe("child-id");
+
+      // Messages should only include parent and child
+      const messages = repository.getMessages();
+      expect(messages.map((m) => m.id)).toEqual(["parent-id", "child-id"]);
+
+      // Verify children are removed from repository
+      expect(() => repository.getMessage("grandchild1-id")).toThrow(/Message not found/);
+      expect(() => repository.getMessage("grandchild2-id")).toThrow(/Message not found/);
+      expect(() => repository.getMessage("greatgrandchild-id")).toThrow(/Message not found/);
+
+      // Verify branches are empty for the child
+      const branches = repository.getBranches("child-id");
+      expect(branches).toEqual(["child-id"]);
+    });
+
+    /**
      * Tests resetting the head to null.
      * This should clear the active branch completely.
      */
