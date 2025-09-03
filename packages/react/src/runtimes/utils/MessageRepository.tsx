@@ -425,15 +425,16 @@ export class MessageRepository {
       );
 
     if (message.children.length > 0) {
-      const toRemove = [...message.children];
-      while (toRemove.length > 0) {
-        const childId = toRemove.pop()!;
-        const childMessage = this.messages.get(childId);
-        if (childMessage) {
-          toRemove.push(...childMessage.children);
-          this.messages.delete(childId);
+      const deleteDescendants = (msg: RepositoryMessage) => {
+        for (const childId of msg.children) {
+          const childMessage = this.messages.get(childId);
+          if (childMessage) {
+            deleteDescendants(childMessage);
+            this.messages.delete(childId);
+          }
         }
-      }
+      };
+      deleteDescendants(message);
 
       message.children = [];
       message.next = null;
