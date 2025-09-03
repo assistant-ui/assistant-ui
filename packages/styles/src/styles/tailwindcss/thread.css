@@ -104,8 +104,8 @@
   @apply size-3.5 fill-white dark:fill-black;
 }
 
-.aui-composer-attachment-button {
-  @apply scale-115 p-3.5 hover:bg-foreground/15 dark:hover:bg-background/50;
+.aui-composer-add-attachment {
+  @apply size-[34px] rounded-full p-1 text-xs font-semibold hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30;
 }
 
 /* unused in new design */
@@ -113,14 +113,22 @@
   @apply my-2.5 size-8 p-2 transition-opacity ease-in;
 }
 
+.aui-composer-attachment-button {
+  @apply scale-115 p-3.5 hover:bg-foreground/15 dark:hover:bg-background/50;
+}
+
 .aui-composer-attachments {
-  @apply flex gap-2 px-1 pt-3 pb-2 empty:hidden overflow-x-auto overflow-y-hidden [&::-webkit-scrollbar]:hidden;
+  @apply mb-2 flex w-full flex-row items-center gap-2 overflow-x-auto px-1.5 pt-0.5 pb-1 empty:hidden;
 }
 
 /* attachment */
 
 .aui-attachment-root {
-  @apply relative inline-flex;
+  @apply relative;
+}
+
+.aui-attachment-root-composer {
+  @apply only:[&>#attachment-tile]:size-24;
 }
 
 .aui-attachment-content {
@@ -140,11 +148,61 @@
 }
 
 .aui-attachment-preview {
-  @apply flex h-full min-h-[200px] w-full items-center justify-center;
+  @apply relative mx-auto flex max-h-[80dvh] w-full items-center justify-center overflow-hidden bg-background;
 }
 
-.aui-attachment-preview-image {
-  @apply h-auto max-h-[80vh] w-auto max-w-full object-contain;
+.aui-attachment-preview-image-loaded {
+  @apply block h-auto max-h-[80vh] w-auto max-w-full object-contain;
+}
+
+.aui-attachment-preview-image-loading {
+  @apply hidden; 
+}
+
+.aui-attachment-preview-trigger {
+  @apply cursor-pointer transition-colors hover:bg-accent/50;
+}
+
+.aui-attachment-preview-dialog-content {
+  @apply p-2 sm:max-w-3xl [&_svg]:text-background [&>button]:rounded-full [&>button]:bg-foreground/60 [&>button]:p-1 [&>button]:opacity-100 [&>button]:!ring-0 [&>button]:hover:[&_svg]:text-destructive;
+}
+
+.aui-attachment-tile {
+  @apply size-14 cursor-pointer overflow-hidden rounded-[14px] border bg-muted transition-opacity hover:opacity-75;
+}
+
+.aui-attachment-tile-composer {
+  @apply border-foreground/20;
+}
+
+.aui-attachment-tile-avatar {
+  @apply h-full w-full rounded-none;
+}
+
+.aui-attachment-tile-image {
+  @apply object-cover;
+}
+
+.aui-attachment-tile-fallback-icon {
+  @apply size-8 text-muted-foreground;
+}
+
+.aui-attachment-tile-remove {
+  @apply absolute top-1.5 right-1.5 size-3.5 rounded-full bg-white text-muted-foreground opacity-100 shadow-sm hover:!bg-white [&_svg]:text-black hover:[&_svg]:text-destructive;
+}
+
+.aui-user-message-attachments-end {
+  @apply col-span-full col-start-1 row-start-1 flex w-full flex-row justify-end gap-2;
+}
+
+/* attachment icons */
+
+.aui-attachment-add-icon {
+  @apply size-5 stroke-[1.5px];
+}
+
+.aui-attachment-remove-icon {
+  @apply size-3 dark:stroke-[2.5px];
 }
 
 /* user message */
