@@ -77,7 +77,7 @@
 }
 
 .aui-composer-root {
-  @apply relative flex w-full flex-col rounded-3xl border border-border bg-muted px-1 pt-2 shadow-[0_9px_9px_0px_rgba(0,0,0,0.01),_0_2px_5px_0px_rgba(0,0,0,0.06)] dark:border-muted-foreground/15;
+  @apply relative flex w-full flex-col rounded-3xl border border-border bg-muted px-1 pt-2 shadow-[0_9px_9px_0px_rgba(0,0,0,0.01),0_2px_5px_0px_rgba(0,0,0,0.06)] dark:border-muted-foreground/15;
 }
 
 .aui-composer-input {
@@ -156,7 +156,7 @@
 }
 
 .aui-attachment-preview-image-loading {
-  @apply hidden; 
+  @apply hidden;
 }
 
 .aui-attachment-preview-trigger {
@@ -216,7 +216,7 @@
 }
 
 .aui-user-message-content {
-  @apply col-start-2 rounded-3xl bg-muted px-5 py-2.5 break-words text-foreground;
+  @apply rounded-3xl bg-muted px-5 py-2.5 break-words text-foreground;
 }
 
 .aui-user-message-attachments {
@@ -302,7 +302,7 @@
 /* assistant action bar */
 
 .aui-assistant-action-bar-root {
-  @apply -ml-1 flex gap-1 text-muted-foreground data-floating:absolute data-floating:rounded-md data-floating:border data-floating:bg-background data-floating:p-1 data-floating:shadow-sm;
+  @apply col-start-3 row-start-2 -ml-1 flex gap-1 text-muted-foreground data-floating:absolute data-floating:rounded-md data-floating:border data-floating:bg-background data-floating:p-1 data-floating:shadow-sm;
 }
 
 .aui-assistant-action-bar-feedback-positive {

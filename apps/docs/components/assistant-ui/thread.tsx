@@ -139,7 +139,9 @@ const ThreadWelcomeSuggestions: FC = () => {
               className="aui-thread-welcome-suggestion h-auto w-full flex-1 flex-wrap items-start justify-start gap-1 rounded-3xl border px-5 py-4 text-left text-sm @md:flex-col dark:hover:bg-accent/60"
               aria-label={suggestedAction.action}
             >
-              <span className="aui-thread-welcome-suggestion-text-1 font-medium">{suggestedAction.title}</span>
+              <span className="aui-thread-welcome-suggestion-text-1 font-medium">
+                {suggestedAction.title}
+              </span>
               <span className="aui-thread-welcome-suggestion-text-2 text-muted-foreground">
                 {suggestedAction.label}
               </span>
@@ -185,6 +187,7 @@ const ComposerAction: FC = () => {
             side="bottom"
             type="submit"
             variant="default"
+            size="icon"
             className="aui-composer-send size-[34px] rounded-full p-1"
             aria-label="Send message"
           >
@@ -198,6 +201,7 @@ const ComposerAction: FC = () => {
           <Button
             type="button"
             variant="default"
+            size="icon"
             className="aui-composer-cancel size-[34px] rounded-full border border-muted-foreground/60 hover:bg-primary/75 dark:border-muted-foreground/90"
             aria-label="Stop generating"
           >

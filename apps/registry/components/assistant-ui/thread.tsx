@@ -52,7 +52,7 @@ export const Thread: FC = () => {
                 AssistantMessage,
               }}
             />
-            <div className="aui-thread-viewport-spacer" id="viewport-composer-spacer" />
+            <div className="aui-thread-viewport-spacer" />
             <Composer />
           </ThreadPrimitive.Viewport>
         </ThreadPrimitive.Root>
@@ -187,6 +187,7 @@ const ComposerAction: FC = () => {
             side="bottom"
             type="submit"
             variant="default"
+            size="icon"
             className="aui-composer-send"
             aria-label="Send message"
           >
@@ -200,6 +201,7 @@ const ComposerAction: FC = () => {
           <Button
             type="button"
             variant="default"
+            size="icon"
             className="aui-composer-cancel"
             aria-label="Stop generating"
           >
