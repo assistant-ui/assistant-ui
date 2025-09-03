@@ -338,9 +338,15 @@ describe("MessageRepository", () => {
       expect(messages.map((m) => m.id)).toEqual(["parent-id", "child-id"]);
 
       // Verify children are removed from repository
-      expect(() => repository.getMessage("grandchild1-id")).toThrow(/Message not found/);
-      expect(() => repository.getMessage("grandchild2-id")).toThrow(/Message not found/);
-      expect(() => repository.getMessage("greatgrandchild-id")).toThrow(/Message not found/);
+      expect(() => repository.getMessage("grandchild1-id")).toThrow(
+        /Message not found/,
+      );
+      expect(() => repository.getMessage("grandchild2-id")).toThrow(
+        /Message not found/,
+      );
+      expect(() => repository.getMessage("greatgrandchild-id")).toThrow(
+        /Message not found/,
+      );
 
       // Verify branches are empty for the child
       const branches = repository.getBranches("child-id");
