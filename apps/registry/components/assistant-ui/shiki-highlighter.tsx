@@ -29,7 +29,7 @@ export type HighlighterProps = Omit<
 export const SyntaxHighlighter: FC<HighlighterProps> = ({
   code,
   language,
-  theme = "github-dark",
+  theme = { dark: "kanagawa-wave", light: "kanagawa-lotus" },
   className,
   addDefaultStyles = false, // assistant-ui requires custom base styles
   showLanguage = false, // assistant-ui/react-markdown handles language labels
@@ -46,6 +46,7 @@ export const SyntaxHighlighter: FC<HighlighterProps> = ({
       theme={theme}
       addDefaultStyles={addDefaultStyles}
       showLanguage={showLanguage}
+      defaultColor="light-dark()"
       className={cn(BASE_STYLES, className)}
     >
       {code.trim()}
