@@ -356,7 +356,7 @@
 }
 
 .aui-thread-list-item-archive {
-  @apply mr-1 ml-auto size-4 p-4 text-foreground hover:text-foreground/60;
+  @apply mr-3 ml-auto size-4 p-0 text-foreground hover:text-primary;
 }
 
 /* ThreadListSidebar */
