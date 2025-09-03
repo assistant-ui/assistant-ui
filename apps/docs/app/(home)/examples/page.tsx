@@ -9,6 +9,7 @@ type ShowcaseItem = {
   description?: string;
   image: string;
   link: string;
+  sourceCodeUrl?: string;
 };
 
 const EXAMPLE_ITEMS: ShowcaseItem[] = [
@@ -23,6 +24,7 @@ const EXAMPLE_ITEMS: ShowcaseItem[] = [
     image: "/screenshot/examples/form-demo.png",
     description: "AssistantSidebar copilot which fills forms for the user.",
     link: "/examples/form-demo",
+    sourceCodeUrl: "https://github.com/Yonom/assistant-ui/tree/main/examples/with-react-hook-form",
   },
   {
     title: "ChatGPT Clone",
@@ -47,6 +49,7 @@ const EXAMPLE_ITEMS: ShowcaseItem[] = [
     image: "/screenshot/examples/ai-sdk.png",
     description: "Chat persistence with AI SDK.",
     link: "/examples/ai-sdk",
+    sourceCodeUrl: "https://github.com/Yonom/assistant-ui/tree/main/examples/with-ai-sdk-v5",
   },
   {
     title: "Mem0 - ChatGPT with memory",
@@ -60,6 +63,7 @@ const EXAMPLE_ITEMS: ShowcaseItem[] = [
     image: "/screenshot/stockbroker.png",
     description: "A stockbroker showing human in the loop with LangGraph",
     link: "/examples/stockbroker",
+    sourceCodeUrl: "https://github.com/Yonom/assistant-ui/tree/main/examples/with-langgraph",
   },
   {
     title: "Artifacts",
