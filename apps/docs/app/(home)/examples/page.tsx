@@ -111,10 +111,10 @@ export default function Component() {
   );
 }
 
-function ShowcaseCard({ title, image, description, link }: ShowcaseItem) {
+function ShowcaseCard({ title, image, description, link, sourceCodeUrl }: ShowcaseItem) {
   return (
-    <Link href={link}>
-      <Card className="bg-card group relative flex max-h-[400px] flex-col overflow-hidden rounded-lg">
+    <Card className="bg-card group relative flex max-h-[400px] flex-col overflow-hidden rounded-lg">
+      <Link href={link} className="flex-1">
         <div className="overflow-hidden">
           <Image
             src={image}
@@ -132,7 +132,16 @@ function ShowcaseCard({ title, image, description, link }: ShowcaseItem) {
             <p className="text-muted-foreground">{description}</p>
           </div>
         </div>
-      </Card>
-    </Link>
+      </Link>
+      {sourceCodeUrl && (
+        <div className="border-t p-4 pt-2">
+          <Button asChild variant="outline" size="sm" className="w-full">
+            <a href={sourceCodeUrl} target="_blank" rel="noopener noreferrer">
+              View Source Code
+            </a>
+          </Button>
+        </div>
+      )}
+    </Card>
   );
 }
