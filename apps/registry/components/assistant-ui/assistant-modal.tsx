@@ -18,7 +18,7 @@ export const AssistantModal: FC = () => {
       </AssistantModalPrimitive.Anchor>
       <AssistantModalPrimitive.Content
         sideOffset={16}
-        className="aui-modal-content"
+        className="aui-root aui-modal-content"
       >
         <Thread />
       </AssistantModalPrimitive.Content>
