@@ -37,7 +37,7 @@ export const Thread: FC = () => {
     <LazyMotion features={domAnimation}>
       <MotionConfig reducedMotion="user">
         <ThreadPrimitive.Root
-          className="aui-thread-root @container flex h-full flex-col bg-background"
+          className="aui-root aui-thread-root @container flex h-full flex-col bg-background"
           style={{
             ["--thread-max-width" as string]: "44rem",
           }}
