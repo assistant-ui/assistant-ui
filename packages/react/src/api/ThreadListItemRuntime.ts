@@ -114,11 +114,18 @@ export class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
   }
 
   public unstable_on(event: ThreadListItemEventType, callback: () => void) {
+    // if the runtime is bound to a specific thread, trigger if isMain is toggled
+    // if the runtime is bound to the main thread, trigger switched-to if threadId changes
+
     let prevIsMain = this._core.getState().isMain;
+    let prevThreadId = this._core.getState().id;
     return this.subscribe(() => {
-      const newIsMain = this._core.getState().isMain;
-      if (prevIsMain === newIsMain) return;
+      const currentState = this._core.getState();
+      const newIsMain = currentState.isMain;
+      const newThreadId = currentState.id;
+      if (prevIsMain === newIsMain && prevThreadId === newThreadId) return;
       prevIsMain = newIsMain;
+      prevThreadId = newThreadId;
 
       if (event === "switched-to" && !newIsMain) return;
       if (event === "switched-away" && newIsMain) return;
