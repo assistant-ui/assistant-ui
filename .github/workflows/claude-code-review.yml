@@ -37,7 +37,13 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
-            Please review this pull request and provide feedback on:
+            Please review this pull request.
+
+            Ensure:
+            - The PR has a changeset when it's updating the source code of published packages (packages/*)
+            - The PR includes documentation if API surface changes
+
+            Provide feedback on:
             - Code quality and best practices
             - Potential bugs or issues
             - Performance considerations
