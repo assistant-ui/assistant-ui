@@ -38,7 +38,6 @@ export class ExternalStoreThreadRuntimeCore
   extends BaseThreadRuntimeCore
   implements ThreadRuntimeCore
 {
-  private _resetScheduled = false;
   private _assistantOptimisticId: string | null = null;
 
   private _capabilities: RuntimeCapabilities = {
@@ -175,12 +174,6 @@ export class ExternalStoreThreadRuntimeCore
             return newMessage;
           });
 
-      // special case: branches should be reset if an empty array is provided
-      if (this._resetScheduled || messages.length === 0) {
-        this._resetScheduled = false;
-        this.repository.clear();
-      }
-
       for (let i = 0; i < messages.length; i++) {
         const message = messages[i]!;
         const parent = messages[i - 1];
@@ -297,8 +290,13 @@ export class ExternalStoreThreadRuntimeCore
   public override reset(initialMessages?: readonly ThreadMessageLike[]) {
     const repo = new MessageRepository();
     repo.import(ExportedMessageRepository.fromArray(initialMessages ?? []));
-    this._resetScheduled = true;
     this.updateMessages(repo.getMessages());
+  }
+
+  public override import(data: ExportedMessageRepository) {
+    this._assistantOptimisticId = null;
+
+    super.import(data);
   }
 
   private updateMessages = (messages: readonly ThreadMessage[]) => {
