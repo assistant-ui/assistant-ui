@@ -14,6 +14,12 @@
     "README.md"
   ],
   "sideEffects": false,
+  "prettier": {
+    "plugins": [
+      "prettier-plugin-tailwindcss"
+    ],
+    "tailwindStylesheet": "src/styles/index.css"
+  },
   "scripts": {
     "build": "tsx scripts/build.mts",
     "lint": "eslint ."
