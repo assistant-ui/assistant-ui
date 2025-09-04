@@ -14,7 +14,7 @@
     "plugins": [
       "prettier-plugin-tailwindcss"
     ],
-    "tailwindStylesheet": "app/global.css"
+    "tailwindStylesheet": "app/globals.css"
   },
   "dependencies": {
     "@ai-sdk/openai": "^2.0.15",
