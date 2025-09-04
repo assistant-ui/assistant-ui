@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.10.47
+
+### Patch Changes
+
+- 1f2ad24: fix: reset assistantOptimisticId on import
+- 1f2ad24: fix: drop resetScheduled mechanism
+
 ## 0.10.46
 
 ### Patch Changes
