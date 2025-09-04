@@ -10,6 +10,12 @@
     "lint": "next lint",
     "postinstall": "fumadocs-mdx"
   },
+  "prettier": {
+    "plugins": [
+      "prettier-plugin-tailwindcss"
+    ],
+    "tailwindStylesheet": "app/global.css"
+  },
   "dependencies": {
     "@ai-sdk/openai": "^2.0.15",
     "@ai-sdk/provider": "^2.0.0",
