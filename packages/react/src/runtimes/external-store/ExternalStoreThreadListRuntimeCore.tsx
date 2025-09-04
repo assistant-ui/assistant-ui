@@ -61,8 +61,16 @@ export class ExternalStoreThreadListRuntimeCore
     return this._mainThread;
   }
 
-  public getThreadRuntimeCore(): never {
-    throw new Error("Method not implemented.");
+  public getThreadRuntimeCore(threadId: string): ExternalStoreThreadRuntimeCore {
+    // For external store, we delegate to the main thread runtime
+    // as the external store adapter typically manages the active thread state
+    if (threadId === this._mainThreadId) {
+      return this._mainThread;
+    }
+    
+    // For non-main threads, create a new runtime instance
+    // This follows the pattern where external stores manage thread switching
+    return this.threadFactory();
   }
 
   public getItemById(threadId: string) {
@@ -171,12 +179,34 @@ export class ExternalStoreThreadListRuntimeCore
     onDelete(threadId);
   }
 
-  public initialize(): never {
-    throw new Error("Method not implemented.");
+  public async initialize(threadId: string): Promise<{ remoteId: string; externalId: string | undefined }> {
+    // For external store, the thread ID is typically both the remote ID and external ID
+    // External store adapters manage their own thread lifecycle
+    
+    // TODO: In future versions, this could call an onInitialize method on the adapter
+    // when that method is added to the ExternalStoreThreadListAdapter interface
+    
+    // Default behavior: use the threadId as both identifiers
+    // This allows external stores to manage thread initialization in their own way
+    return {
+      remoteId: threadId,
+      externalId: threadId,
+    };
   }
 
-  public generateTitle(): never {
-    throw new Error("Method not implemented.");
+  public async generateTitle(threadId: string): Promise<void> {
+    // For external store, title generation should be handled by the external store adapter
+    // The adapter should provide a way to generate titles for threads
+    
+    // TODO: In future versions, this could call an onGenerateTitle method on the adapter
+    // when that method is added to the ExternalStoreThreadListAdapter interface
+    
+    // For now, this is a no-op as external stores should manage their own title generation
+    // The external store can update thread titles by modifying the threads array in the adapter
+    
+    // If the adapter doesn't provide title generation, we simply do nothing
+    // This allows external stores to handle title generation in their own way
+    return Promise.resolve();
   }
 
   private _subscriptions = new Set<() => void>();
