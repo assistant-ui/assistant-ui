@@ -1,2 +1,5 @@
 .vercel
 .env*.local
+.next
+.turbo
+dist
