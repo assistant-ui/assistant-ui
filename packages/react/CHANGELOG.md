@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.10.48
+
+### Patch Changes
+
+- ad53f5f: fix: ComposerInput does not auto focus on thread switch when using ExternalStoreRuntime
+
 ## 0.10.47
 
 ### Patch Changes
