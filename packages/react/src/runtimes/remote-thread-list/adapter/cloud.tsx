@@ -13,6 +13,7 @@ import { RemoteThreadListAdapter } from "../types";
 import { useAssistantCloudThreadHistoryAdapter } from "../../../cloud/AssistantCloudThreadHistoryAdapter";
 import { RuntimeAdapterProvider } from "../../adapters/RuntimeAdapterProvider";
 import { InMemoryThreadListAdapter } from "./in-memory";
+import { CloudFileAttachmentAdapter } from "../../adapters";
 
 type ThreadData = {
   externalId: string;
@@ -47,7 +48,21 @@ export const useCloudThreadListAdapter = (
           return adapterRef.current.cloud ?? autoCloud!;
         },
       });
-      const adapters = useMemo(() => ({ history }), [history]);
+      const attachments = useMemo(
+        () =>
+          new CloudFileAttachmentAdapter(
+            adapterRef.current.cloud ?? autoCloud!,
+          ),
+        [adapterRef.current.cloud],
+      );
+
+      const adapters = useMemo(
+        () => ({
+          history,
+          attachments,
+        }),
+        [history],
+      );
 
       return (
         <RuntimeAdapterProvider adapters={adapters}>
