@@ -1,5 +1,11 @@
 # @assistant-ui/styles
 
+## 0.2.0
+
+### Minor Changes
+
+- 52cb20f: feat: Update component UI styling
+
 ## 0.1.18
 
 ### Patch Changes
