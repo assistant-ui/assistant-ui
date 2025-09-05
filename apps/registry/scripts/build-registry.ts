@@ -14,7 +14,7 @@ const tailwindStyles = Object.entries({
   ...threadStyles,
   ...modalStyles,
   ...markdownStyles,
-  ".aui-root": {}
+  ".aui-root": {},
 }).map(([key, value]) => {
   return {
     key: key.replace(/^\./, ""),
