@@ -1,5 +1,13 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.0.6
+
+### Patch Changes
+
+- 860bf42: feat: useAISDKRuntime cloud history support (without useChatRuntime)
+- Updated dependencies [3498c99]
+  - @assistant-ui/react@0.10.50
+
 ## 1.0.5
 
 ### Patch Changes
