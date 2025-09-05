@@ -10,11 +10,11 @@ import markdownStyles from "../../../packages/styles/dist/styles/tailwindcss/mar
 const REGISTRY_PATH = path.join(process.cwd(), "dist");
 
 const tailwindStyles = Object.entries({
-  ".aui-root": {},
   ...baseComponentsStyles,
   ...threadStyles,
   ...modalStyles,
   ...markdownStyles,
+  ".aui-root": {},
 }).map(([key, value]) => {
   return {
     key: key.replace(/^\./, ""),
@@ -29,9 +29,10 @@ const transformClassnames = (content: string) => {
   for (const style of tailwindStyles) {
     if (style.key.startsWith(":where")) continue;
 
+    // Append Tailwind utilities after the existing aui-* class
     content = content.replaceAll(
       new RegExp(`("| )${style.key}("| )`, "g"),
-      `$1${style.value}$2`,
+      `$1${style.key} ${style.value}$2`,
     );
   }
 

@@ -1,10 +1,10 @@
 /* code */
 .aui-shiki-base {
-  @apply [&_pre]:overflow-x-auto [&_pre]:rounded-b-lg [&_pre]:bg-black [&_pre]:p-4 [&_pre]:text-white;
+  @apply [&_pre]:overflow-x-auto [&_pre]:rounded-b-lg [&_pre]:!bg-muted/75 [&_pre]:p-4;
 }
 
 .aui-code-header-root {
-  @apply mt-4 flex items-center justify-between gap-4 rounded-t-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white;
+  @apply mt-4 flex items-center justify-between gap-4 rounded-t-lg bg-muted-foreground/15 px-4 py-2 text-sm font-semibold text-foreground dark:bg-muted-foreground/20;
 }
 
 .aui-code-header-language {
@@ -17,15 +17,15 @@
 }
 
 .aui-md-h2 {
-  @apply mb-4 mt-8 scroll-m-20 text-3xl font-semibold tracking-tight first:mt-0 last:mb-0;
+  @apply mt-8 mb-4 scroll-m-20 text-3xl font-semibold tracking-tight first:mt-0 last:mb-0;
 }
 
 .aui-md-h3 {
-  @apply mb-4 mt-6 scroll-m-20 text-2xl font-semibold tracking-tight first:mt-0 last:mb-0;
+  @apply mt-6 mb-4 scroll-m-20 text-2xl font-semibold tracking-tight first:mt-0 last:mb-0;
 }
 
 .aui-md-h4 {
-  @apply mb-4 mt-6 scroll-m-20 text-xl font-semibold tracking-tight first:mt-0 last:mb-0;
+  @apply mt-6 mb-4 scroll-m-20 text-xl font-semibold tracking-tight first:mt-0 last:mb-0;
 }
 
 .aui-md-h5 {
@@ -37,11 +37,11 @@
 }
 
 .aui-md-p {
-  @apply mb-5 mt-5 leading-7 first:mt-0 last:mb-0;
+  @apply mt-5 mb-5 leading-7 first:mt-0 last:mb-0;
 }
 
 .aui-md-a {
-  @apply text-primary font-medium underline underline-offset-4;
+  @apply font-medium text-primary underline underline-offset-4;
 }
 
 .aui-md-blockquote {
@@ -85,9 +85,9 @@
 }
 
 .aui-md-inline-code {
-  @apply bg-muted rounded border font-semibold;
+  @apply rounded border bg-muted font-semibold;
 }
 
 .aui-mermaid-diagram {
-  @apply bg-muted rounded-b-lg p-2 text-center [&_svg]:mx-auto;
+  @apply rounded-b-lg bg-muted p-2 text-center [&_svg]:mx-auto;
 }

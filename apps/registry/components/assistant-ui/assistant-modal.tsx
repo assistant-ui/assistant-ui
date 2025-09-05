@@ -11,14 +11,14 @@ import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button
 export const AssistantModal: FC = () => {
   return (
     <AssistantModalPrimitive.Root>
-      <AssistantModalPrimitive.Anchor className="aui-modal-anchor">
+      <AssistantModalPrimitive.Anchor className="aui-root aui-modal-anchor">
         <AssistantModalPrimitive.Trigger asChild>
           <AssistantModalButton />
         </AssistantModalPrimitive.Trigger>
       </AssistantModalPrimitive.Anchor>
       <AssistantModalPrimitive.Content
         sideOffset={16}
-        className="aui-modal-content"
+        className="aui-root aui-modal-content"
       >
         <Thread />
       </AssistantModalPrimitive.Content>

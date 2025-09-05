@@ -27,7 +27,7 @@ import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button
 import {
   ComposerAttachments,
   UserMessageAttachments,
-} from "@/components/assistant-ui/attachment";
+} from "@/components/assistant-ui/attachment-old";
 
 export const Thread: FC = () => {
   return (

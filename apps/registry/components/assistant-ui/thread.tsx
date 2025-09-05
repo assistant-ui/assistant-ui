@@ -1,59 +1,63 @@
 import {
-  ThreadPrimitive,
-  ComposerPrimitive,
-  MessagePrimitive,
   ActionBarPrimitive,
   BranchPickerPrimitive,
+  ComposerPrimitive,
   ErrorPrimitive,
+  MessagePrimitive,
+  ThreadPrimitive,
 } from "@assistant-ui/react";
-import type { FC } from "react";
 import {
   ArrowDownIcon,
   ArrowUpIcon,
-  PlusIcon,
-  CopyIcon,
   CheckIcon,
-  PencilIcon,
-  RefreshCwIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  CopyIcon,
+  PencilIcon,
+  RefreshCwIcon,
   Square,
 } from "lucide-react";
+import type { FC } from "react";
 
+import {
+  ComposerAddAttachment,
+  ComposerAttachments,
+  UserMessageAttachments,
+} from "@/components/assistant-ui/attachment";
+import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { MarkdownText } from "./markdown-text";
-import { ToolFallback } from "./tool-fallback";
+import { LazyMotion, MotionConfig, domAnimation } from "motion/react";
+import * as m from "motion/react-m";
 
 export const Thread: FC = () => {
   return (
-    <ThreadPrimitive.Root
-      className="aui-thread-root"
-      style={{
-        ["--thread-max-width" as string]: "48rem",
-        ["--thread-padding-x" as string]: "1rem",
-      }}
-    >
-      <ThreadPrimitive.Viewport className="aui-thread-viewport">
-        <ThreadWelcome />
-
-        <ThreadPrimitive.Messages
-          components={{
-            UserMessage,
-            EditComposer,
-            AssistantMessage,
+    <LazyMotion features={domAnimation}>
+      <MotionConfig reducedMotion="user">
+        <ThreadPrimitive.Root
+          className="aui-root aui-thread-root"
+          style={{
+            ["--thread-max-width" as string]: "44rem",
           }}
-        />
+        >
+          <ThreadPrimitive.Viewport className="aui-thread-viewport">
+            <ThreadWelcome />
 
-        <ThreadPrimitive.If empty={false}>
-          <motion.div className="aui-thread-viewport-spacer" />
-        </ThreadPrimitive.If>
-      </ThreadPrimitive.Viewport>
-
-      <Composer />
-    </ThreadPrimitive.Root>
+            <ThreadPrimitive.Messages
+              components={{
+                UserMessage,
+                EditComposer,
+                AssistantMessage,
+              }}
+            />
+            <div className="aui-thread-viewport-spacer" />
+            <Composer />
+          </ThreadPrimitive.Viewport>
+        </ThreadPrimitive.Root>
+      </MotionConfig>
+    </LazyMotion>
   );
 };
 
@@ -77,24 +81,23 @@ const ThreadWelcome: FC = () => {
       <div className="aui-thread-welcome-root">
         <div className="aui-thread-welcome-center">
           <div className="aui-thread-welcome-message">
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
-              transition={{ delay: 0.5 }}
               className="aui-thread-welcome-message-motion-1"
             >
               Hello there!
-            </motion.div>
-            <motion.div
+            </m.div>
+            <m.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
-              transition={{ delay: 0.6 }}
+              transition={{ delay: 0.1 }}
               className="aui-thread-welcome-message-motion-2"
             >
               How can I help you today?
-            </motion.div>
+            </m.div>
           </div>
         </div>
       </div>
@@ -107,27 +110,17 @@ const ThreadWelcomeSuggestions: FC = () => {
     <div className="aui-thread-welcome-suggestions">
       {[
         {
-          title: "What are the advantages",
-          label: "of using Assistant Cloud?",
-          action: "What are the advantages of using Assistant Cloud?",
-        },
-        {
-          title: "Write code to",
-          label: `demonstrate topological sorting`,
-          action: `Write code to demonstrate topological sorting`,
+          title: "What's the weather",
+          label: "in San Francisco?",
+          action: "What's the weather in San Francisco?",
         },
         {
           title: "Help me write an essay",
           label: `about AI chat applications`,
           action: `Help me write an essay about AI chat applications`,
         },
-        {
-          title: "What is the weather",
-          label: "in San Francisco?",
-          action: "What is the weather in San Francisco?",
-        },
       ].map((suggestedAction, index) => (
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 20 }}
@@ -149,12 +142,12 @@ const ThreadWelcomeSuggestions: FC = () => {
               <span className="aui-thread-welcome-suggestion-text-1">
                 {suggestedAction.title}
               </span>
-              <p className="aui-thread-welcome-suggestion-text-2">
+              <span className="aui-thread-welcome-suggestion-text-2">
                 {suggestedAction.label}
-              </p>
+              </span>
             </Button>
           </ThreadPrimitive.Suggestion>
-        </motion.div>
+        </m.div>
       ))}
     </div>
   );
@@ -168,6 +161,7 @@ const Composer: FC = () => {
         <ThreadWelcomeSuggestions />
       </ThreadPrimitive.Empty>
       <ComposerPrimitive.Root className="aui-composer-root">
+        <ComposerAttachments />
         <ComposerPrimitive.Input
           placeholder="Send a message..."
           className="aui-composer-input"
@@ -184,27 +178,21 @@ const Composer: FC = () => {
 const ComposerAction: FC = () => {
   return (
     <div className="aui-composer-action-wrapper">
-      <TooltipIconButton
-        tooltip="Attach file"
-        variant="ghost"
-        className="aui-composer-attachment-button"
-        onClick={() => {
-          console.log("Attachment clicked - not implemented");
-        }}
-      >
-        <PlusIcon />
-      </TooltipIconButton>
+      <ComposerAddAttachment />
 
       <ThreadPrimitive.If running={false}>
         <ComposerPrimitive.Send asChild>
-          <Button
+          <TooltipIconButton
+            tooltip="Send message"
+            side="bottom"
             type="submit"
             variant="default"
+            size="icon"
             className="aui-composer-send"
             aria-label="Send message"
           >
             <ArrowUpIcon className="aui-composer-send-icon" />
-          </Button>
+          </TooltipIconButton>
         </ComposerPrimitive.Send>
       </ThreadPrimitive.If>
 
@@ -213,6 +201,7 @@ const ComposerAction: FC = () => {
           <Button
             type="button"
             variant="default"
+            size="icon"
             className="aui-composer-cancel"
             aria-label="Stop generating"
           >
@@ -237,18 +226,14 @@ const MessageError: FC = () => {
 const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root asChild>
-      <motion.div
+      <m.div
         className="aui-assistant-message-root"
         initial={{ y: 5, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         data-role="assistant"
       >
-        <div className="aui-assistant-message-avatar">
-          <StarIcon size={14} />
-        </div>
-
         <div className="aui-assistant-message-content">
-          <MessagePrimitive.Content
+          <MessagePrimitive.Parts
             components={{
               Text: MarkdownText,
               tools: { Fallback: ToolFallback },
@@ -257,10 +242,11 @@ const AssistantMessage: FC = () => {
           <MessageError />
         </div>
 
-        <AssistantActionBar />
-
-        <BranchPicker className="aui-assistant-branch-picker" />
-      </motion.div>
+        <div className="aui-assistant-message-footer">
+          <BranchPicker />
+          <AssistantActionBar />
+        </div>
+      </m.div>
     </MessagePrimitive.Root>
   );
 };
@@ -295,20 +281,25 @@ const AssistantActionBar: FC = () => {
 const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root asChild>
-      <motion.div
+      <m.div
         className="aui-user-message-root"
         initial={{ y: 5, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         data-role="user"
       >
-        <UserActionBar />
+        <UserMessageAttachments />
 
-        <div className="aui-user-message-content">
-          <MessagePrimitive.Content components={{ Text: MarkdownText }} />
+        <div className="aui-user-message-content-wrapper">
+          <div className="aui-user-message-content">
+            <MessagePrimitive.Parts />
+          </div>
+          <div className="aui-user-action-bar-wrapper">
+            <UserActionBar />
+          </div>
         </div>
 
         <BranchPicker className="aui-user-branch-picker" />
-      </motion.div>
+      </m.div>
     </MessagePrimitive.Root>
   );
 };
@@ -321,7 +312,7 @@ const UserActionBar: FC = () => {
       className="aui-user-action-bar-root"
     >
       <ActionBarPrimitive.Edit asChild>
-        <TooltipIconButton tooltip="Edit">
+        <TooltipIconButton tooltip="Edit" className="aui-user-action-edit">
           <PencilIcon />
         </TooltipIconButton>
       </ActionBarPrimitive.Edit>
@@ -381,18 +372,3 @@ const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({
     </BranchPickerPrimitive.Root>
   );
 };
-
-const StarIcon = ({ size = 14 }: { size?: number }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 16 16"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <path
-      d="M8 0L9.79611 6.20389L16 8L9.79611 9.79611L8 16L6.20389 9.79611L0 8L6.20389 6.20389L8 0Z"
-      fill="currentColor"
-    />
-  </svg>
-);
