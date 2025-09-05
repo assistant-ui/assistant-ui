@@ -5,6 +5,10 @@ import {
   AssistantRuntimeProvider,
   WebSpeechSynthesisAdapter,
   AssistantCloud,
+  CompositeAttachmentAdapter,
+  SimpleTextAttachmentAdapter,
+  SimpleImageAttachmentAdapter,
+  CloudFileAttachmentAdapter,
 } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
@@ -23,8 +27,12 @@ export function DocsRuntimeProvider({
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
     adapters: {
       speech: new WebSpeechSynthesisAdapter(),
+      attachments: new CompositeAttachmentAdapter([
+        new CloudFileAttachmentAdapter(assistantCloud),
+      ]),
     },
     cloud: assistantCloud,
+    
   });
   return (
     <AssistantRuntimeProvider runtime={runtime}>
