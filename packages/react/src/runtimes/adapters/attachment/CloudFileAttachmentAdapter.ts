@@ -7,7 +7,9 @@ import {
 import { ThreadUserMessagePart } from "../../../types/MessagePartTypes";
 import { AttachmentAdapter } from "./AttachmentAdapter";
 
-const guessAttachmentType = (contentType: string): "image" | "document" | "file" => {
+const guessAttachmentType = (
+  contentType: string,
+): "image" | "document" | "file" => {
   if (contentType.startsWith("image/")) return "image";
   if (contentType.startsWith("text/")) return "document";
   return "file";
@@ -16,12 +18,15 @@ const guessAttachmentType = (contentType: string): "image" | "document" | "file"
 export class CloudFileAttachmentAdapter implements AttachmentAdapter {
   public accept = "*";
 
-  constructor(private cloud: AssistantCloud | undefined) {}
+  constructor(private cloud: AssistantCloud) {}
 
   private uploadedUrls = new Map<string, string>();
 
-  public async *add({ file }: { file: File }): AsyncGenerator<PendingAttachment, void> {
-    if (!this.cloud) throw new Error("AssistantCloud is required for cloud file attachments");
+  public async *add({
+    file,
+  }: {
+    file: File;
+  }): AsyncGenerator<PendingAttachment, void> {
     const id = crypto.randomUUID();
     const type = guessAttachmentType(file.type);
     let attachment: PendingAttachment = {
@@ -33,19 +38,16 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
       status: { type: "running", reason: "uploading", progress: 0 },
     };
     yield attachment;
-    
+
     try {
-      const { signedUrl, publicUrl } = await this.cloud.files.generatePresignedUploadUrl({
-        filename: file.name,
-      });
-      console.log({
-        signedUrl,
-        publicUrl,
-      });
+      const { signedUrl, publicUrl } =
+        await this.cloud.files.generatePresignedUploadUrl({
+          filename: file.name,
+        });
       await fetch(signedUrl, {
         method: "PUT",
         body: file,
-        headers: { 
+        headers: {
           "Content-Type": file.type,
         },
         mode: "cors",
@@ -69,7 +71,9 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
     this.uploadedUrls.delete(attachment.id);
   }
 
-  public async send(attachment: PendingAttachment): Promise<CompleteAttachment> {
+  public async send(
+    attachment: PendingAttachment,
+  ): Promise<CompleteAttachment> {
     const url = this.uploadedUrls.get(attachment.id);
     if (!url) throw new Error("Attachment not uploaded");
     this.uploadedUrls.delete(attachment.id);

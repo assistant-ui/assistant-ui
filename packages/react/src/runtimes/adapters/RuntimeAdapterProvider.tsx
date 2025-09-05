@@ -2,11 +2,13 @@
 
 import { createContext, FC, ReactNode, useContext } from "react";
 import { ThreadHistoryAdapter } from "./thread-history/ThreadHistoryAdapter";
+import { AttachmentAdapter } from "./attachment/AttachmentAdapter";
 import { ModelContextProvider } from "../../model-context";
 
 export type RuntimeAdapters = {
   modelContext?: ModelContextProvider;
   history?: ThreadHistoryAdapter;
+  attachments?: AttachmentAdapter;
 };
 
 const RuntimeAdaptersContext = createContext<RuntimeAdapters | null>(null);
