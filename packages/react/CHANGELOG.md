@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.10.49
+
+### Patch Changes
+
+- af2666a: fix: AssistantCloudThreadHistoryAdapter should be stateless
+
 ## 0.10.48
 
 ### Patch Changes
