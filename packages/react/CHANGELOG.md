@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.10.50
+
+### Patch Changes
+
+- 3498c99: feat: assistant cloud attachments support
+
 ## 0.10.49
 
 ### Patch Changes
