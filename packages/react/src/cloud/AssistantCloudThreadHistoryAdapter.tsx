@@ -14,6 +14,12 @@ import {
 import { GenericThreadHistoryAdapter } from "../runtimes/adapters/thread-history/ThreadHistoryAdapter";
 import { ReadonlyJSONObject } from "assistant-stream/utils";
 
+// Global WeakMap to store message ID mappings across adapter instances
+const globalMessageIdMapping = new WeakMap<
+  ThreadListItemRuntime,
+  Record<string, string | Promise<string>>
+>();
+
 class FormattedThreadHistoryAdapter<TMessage, TStorageFormat>
   implements GenericThreadHistoryAdapter<TMessage>
 {
@@ -52,7 +58,12 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     private threadListItemRuntime: ThreadListItemRuntime,
   ) {}
 
-  private _getIdForLocalId: Record<string, string | Promise<string>> = {};
+  private get _getIdForLocalId(): Record<string, string | Promise<string>> {
+    if (!globalMessageIdMapping.has(this.threadListItemRuntime)) {
+      globalMessageIdMapping.set(this.threadListItemRuntime, {});
+    }
+    return globalMessageIdMapping.get(this.threadListItemRuntime)!;
+  }
 
   withFormat<TMessage, TStorageFormat>(
     formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>,
