@@ -8,6 +8,7 @@ import {
   AssistantRuntime,
   ThreadMessage,
   MessageFormatAdapter,
+  useRuntimeAdapters,
 } from "@assistant-ui/react";
 import { sliceMessagesUntil } from "../utils/sliceMessagesUntil";
 import { toCreateMessage } from "../utils/toCreateMessage";
@@ -33,6 +34,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   chatHelpers: ReturnType<typeof useChat<UI_MESSAGE>>,
   adapter: AISDKRuntimeAdapter = {},
 ) => {
+  const contextAdapters = useRuntimeAdapters();
   const messages = AISDKMessageConverter.useThreadMessages({
     isRunning:
       chatHelpers.status === "submitted" || chatHelpers.status == "streaming",
@@ -104,6 +106,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     },
     adapters: {
       attachments: vercelAttachmentAdapter,
+      ...contextAdapters,
       ...adapter.adapters,
     },
     isLoading,
