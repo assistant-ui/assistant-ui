@@ -31,7 +31,7 @@
 /* thread welcome */
 
 .aui-thread-welcome-root {
-  @apply mx-auto mb-16 flex w-full max-w-[var(--thread-max-width)] flex-grow flex-col;
+  @apply mx-auto my-auto flex w-full max-w-[var(--thread-max-width)] flex-grow flex-col;
 }
 
 .aui-thread-welcome-center {
@@ -39,7 +39,7 @@
 }
 
 .aui-thread-welcome-message {
-  @apply flex size-full flex-col justify-center px-8 md:mt-20;
+  @apply flex size-full flex-col justify-center px-8;
 }
 
 .aui-thread-welcome-message-motion-1 {
