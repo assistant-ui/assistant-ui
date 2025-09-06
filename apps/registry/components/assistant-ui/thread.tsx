@@ -226,10 +226,8 @@ const MessageError: FC = () => {
 const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root asChild>
-      <m.div
+      <div
         className="aui-assistant-message-root"
-        initial={{ y: 5, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
         data-role="assistant"
       >
         <div className="aui-assistant-message-content">
@@ -246,7 +244,7 @@ const AssistantMessage: FC = () => {
           <BranchPicker />
           <AssistantActionBar />
         </div>
-      </m.div>
+      </div>
     </MessagePrimitive.Root>
   );
 };
@@ -281,10 +279,8 @@ const AssistantActionBar: FC = () => {
 const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root asChild>
-      <m.div
+      <div
         className="aui-user-message-root"
-        initial={{ y: 5, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
         data-role="user"
       >
         <UserMessageAttachments />
@@ -299,7 +295,7 @@ const UserMessage: FC = () => {
         </div>
 
         <BranchPicker className="aui-user-branch-picker" />
-      </m.div>
+      </div>
     </MessagePrimitive.Root>
   );
 };
