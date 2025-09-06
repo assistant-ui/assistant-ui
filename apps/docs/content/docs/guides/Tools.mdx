@@ -361,25 +361,68 @@ const RefundTool = makeAssistantTool({
 
 ### MCP (Model Context Protocol) Tools
 
-Integration with MCP servers:
+Integration with MCP servers using AI SDK v5's experimental MCP support:
+
+<Callout type="warning">
+  MCP support in AI SDK v5 is experimental. The API may change in future releases.
+  Make sure to install the MCP SDK: `npm install @modelcontextprotocol/sdk`
+</Callout>
 
 ```tsx
-// Using AI SDK's MCP support
-import { createMCPClient } from "ai/mcp";
+// Server-side usage (e.g., in your API route)
+import { experimental_createMCPClient, streamText } from "ai";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
-const mcpClient = createMCPClient({
-  servers: {
-    github: {
+export async function POST(req: Request) {
+  // Create MCP client with stdio transport
+  const client = await experimental_createMCPClient({
+    transport: new StdioClientTransport({
       command: "npx",
       args: ["@modelcontextprotocol/server-github"],
-    },
-  },
+    }),
+  });
+
+  try {
+    // Get tools from the MCP server
+    const tools = await client.tools();
+
+    const result = streamText({
+      model: openai("gpt-4o"),
+      tools,
+      messages: convertToModelMessages(messages),
+    });
+
+    return result.toUIMessageStreamResponse();
+  } finally {
+    // Always close the client to release resources
+    await client.close();
+  }
+}
+
+// Frontend usage with assistant-ui
+const runtime = useChatRuntime({
+  api: "/api/chat", // Your API route that uses MCP tools
+});
+```
+
+Alternative transport options:
+
+```tsx
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
+
+// HTTP transport
+const httpClient = await experimental_createMCPClient({
+  transport: new StreamableHTTPClientTransport(
+    new URL("http://localhost:3000/mcp")
+  ),
 });
 
-// Tools are automatically available through the runtime
-const runtime = useChatRuntime({
-  api: "/api/chat",
-  tools: await mcpClient.getTools(),
+// Server-Sent Events transport
+const sseClient = await experimental_createMCPClient({
+  transport: new SSEClientTransport(
+    new URL("http://localhost:3000/sse")
+  ),
 });
 ```
 
