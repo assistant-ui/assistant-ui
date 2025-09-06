@@ -20,14 +20,3 @@ const runtime = useAssistantRuntime();
 ### Tool UI Registry
 
 The tool UI registry is part of the assistant runtime. It allows you to display custom UI for tool calls, enabling generative UI.
-
-#### `useToolUIs`
-
-```tsx
-import { useToolUIs } from "@assistant-ui/react";
-
-const toolUIs = useToolUIs();
-const webSearchToolUI = useToolUIs((m) => m.getToolUI("web_search"));
-```
-
-<ParametersTable {...AssistantToolUIsState} />

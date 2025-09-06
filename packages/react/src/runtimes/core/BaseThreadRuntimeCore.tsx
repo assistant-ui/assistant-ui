@@ -92,7 +92,11 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
   }
 
   public getMessageById(messageId: string) {
-    return this.repository.getMessage(messageId);
+    try {
+      return this.repository.getMessage(messageId);
+    } catch {
+      return undefined;
+    }
   }
 
   public getBranches(messageId: string): string[] {

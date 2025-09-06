@@ -6,9 +6,7 @@ import {
   createActionButton,
 } from "../../utils/createActionButton";
 import { useCallback } from "react";
-import { useMessageRuntime } from "../../context";
-import { useThreadRuntime } from "../../context/react/ThreadContext";
-import { useCombinedStore } from "../../utils/combined/useCombinedStore";
+import { useAssistantState, useAssistantApi } from "../../context";
 
 /**
  * Hook that provides reload functionality for action bar buttons.
@@ -32,17 +30,18 @@ import { useCombinedStore } from "../../utils/combined/useCombinedStore";
  * ```
  */
 const useActionBarReload = () => {
-  const messageRuntime = useMessageRuntime();
-  const threadRuntime = useThreadRuntime();
+  const api = useAssistantApi();
 
-  const disabled = useCombinedStore(
-    [threadRuntime, messageRuntime],
-    (t, m) => t.isRunning || t.isDisabled || m.role !== "assistant",
+  const disabled = useAssistantState(
+    (s) =>
+      s.thread.isRunning ||
+      s.thread.isDisabled ||
+      s.message.role !== "assistant",
   );
 
   const callback = useCallback(() => {
-    messageRuntime.reload();
-  }, [messageRuntime]);
+    api.message().reload();
+  }, [api]);
 
   if (disabled) return null;
   return callback;

@@ -1,10 +1,10 @@
 "use client";
 
 import type { FC } from "react";
-import { useMessage } from "../../context/react/MessageContext";
+import { useAssistantState } from "../../context";
 
 const useBranchPickerNumber = () => {
-  const branchNumber = useMessage((s) => s.branchNumber);
+  const branchNumber = useAssistantState(({ message }) => message.branchNumber);
   return branchNumber;
 };
 

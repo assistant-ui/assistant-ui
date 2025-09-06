@@ -36,6 +36,8 @@ export type ThreadListItemRuntime = {
     event: ThreadListItemEventType,
     callback: () => void,
   ): Unsubscribe;
+
+  __internal_getRuntime(): ThreadListItemRuntime;
 };
 
 export type ThreadListItemStateBinding = SubscribableWithState<
@@ -51,7 +53,9 @@ export class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
   constructor(
     private _core: ThreadListItemStateBinding,
     private _threadListBinding: ThreadListRuntimeCoreBinding,
-  ) {}
+  ) {
+    this.__internal_bindMethods();
+  }
 
   protected __internal_bindMethods() {
     this.switchTo = this.switchTo.bind(this);
@@ -141,5 +145,9 @@ export class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
     const state = this._core.getState();
 
     this._threadListBinding.detach(state.id);
+  }
+
+  public __internal_getRuntime(): ThreadListItemRuntime {
+    return this;
   }
 }

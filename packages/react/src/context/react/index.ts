@@ -2,55 +2,48 @@
 // TODO createContextStoreHook does not work well with server-side nextjs bundler
 // use client necessary here for now
 
-export {
-  useAssistantRuntime,
-  useThreadList,
-  useToolUIs,
-  useToolUIsStore,
-} from "./AssistantContext";
-
-export {
-  useThreadRuntime,
-  useThread,
-  useThreadComposer,
-  useThreadModelContext,
-  /**
-   * @deprecated This method was renamed to `useThreadModelContext`.
-   */
-  useThreadModelContext as useThreadModelConfig,
-} from "./ThreadContext";
+export { useAssistantState, useAssistantApi } from "./AssistantApiContext";
+export { useAssistantEvent } from "../../hooks/useAssistantEvent";
 
 export {
   useThreadViewport,
   useThreadViewportStore,
 } from "./ThreadViewportContext";
 
+export { useAssistantRuntime, useThreadList } from "./legacy/AssistantContext";
+
 export {
-  useThreadListItemRuntime,
-  useThreadListItem,
-} from "./ThreadListItemContext";
+  useAttachmentRuntime,
+  useAttachment,
+  useThreadComposerAttachmentRuntime,
+  useThreadComposerAttachment,
+  useEditComposerAttachmentRuntime,
+  useEditComposerAttachment,
+  useMessageAttachment,
+  useMessageAttachmentRuntime,
+} from "./legacy/AttachmentContext";
+
+export { useComposerRuntime, useComposer } from "./legacy/ComposerContext";
 
 export {
   useMessageRuntime,
-  useMessage,
   useEditComposer,
-  useMessageUtils,
-  useMessageUtilsStore,
-} from "./MessageContext";
-export { useMessagePartRuntime, useMessagePart } from "./MessagePartContext";
-export { useComposerRuntime, useComposer } from "./ComposerContext";
+  useMessage,
+} from "./legacy/MessageContext";
 
 export {
-  useAttachment,
-  useAttachmentRuntime,
+  useMessagePartRuntime,
+  useMessagePart,
+} from "./legacy/MessagePartContext";
 
-  // TODO decide if we want to export/drop these?
-  // useEditComposerAttachment,
-  // useEditComposerAttachmentRuntime,
-  // useMessageAttachment,
-  // useMessageAttachmentRuntime,
-  // useThreadComposerAttachment,
-  // useThreadComposerAttachmentRuntime,
-} from "./AttachmentContext";
+export {
+  useThreadRuntime,
+  useThread,
+  useThreadComposer,
+  useThreadModelContext,
+} from "./legacy/ThreadContext";
 
-export { useRuntimeState } from "./utils/useRuntimeState";
+export {
+  useThreadListItemRuntime,
+  useThreadListItem,
+} from "./legacy/ThreadListItemContext";

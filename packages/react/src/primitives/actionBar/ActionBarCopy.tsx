@@ -4,13 +4,8 @@ import { forwardRef } from "react";
 import { ActionButtonProps } from "../../utils/createActionButton";
 import { composeEventHandlers } from "@radix-ui/primitive";
 import { Primitive } from "@radix-ui/react-primitive";
-import { useMessageUtils } from "../../context";
 import { useCallback } from "react";
-import {
-  useMessage,
-  useMessageRuntime,
-} from "../../context/react/MessageContext";
-import { useComposerRuntime } from "../../context";
+import { useAssistantState, useAssistantApi } from "../../context";
 
 /**
  * Hook that provides copy functionality for action bar buttons.
@@ -39,28 +34,27 @@ import { useComposerRuntime } from "../../context";
 const useActionBarPrimitiveCopy = ({
   copiedDuration = 3000,
 }: { copiedDuration?: number | undefined } = {}) => {
-  const messageRuntime = useMessageRuntime();
-  const composerRuntime = useComposerRuntime();
-  const setIsCopied = useMessageUtils((s) => s.setIsCopied);
-  const hasCopyableContent = useMessage((message) => {
+  const api = useAssistantApi();
+  const hasCopyableContent = useAssistantState(({ message }) => {
     return (
-      (message.role !== "assistant" || message.status.type !== "running") &&
-      message.content.some((c) => c.type === "text" && c.text.length > 0)
+      (message.role !== "assistant" || message.status?.type !== "running") &&
+      message.parts.some((c) => c.type === "text" && c.text.length > 0)
     );
   });
 
-  const callback = useCallback(() => {
-    const { isEditing, text: composerValue } = composerRuntime.getState();
+  const isEditing = useAssistantState(({ composer }) => composer.isEditing);
+  const composerValue = useAssistantState(({ composer }) => composer.text);
 
-    const valueToCopy = isEditing
-      ? composerValue
-      : messageRuntime.unstable_getCopyText();
+  const callback = useCallback(() => {
+    const valueToCopy = isEditing ? composerValue : api.message().getCopyText();
+
+    if (!valueToCopy) return;
 
     navigator.clipboard.writeText(valueToCopy).then(() => {
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), copiedDuration);
+      api.message().setIsCopied(true);
+      setTimeout(() => api.message().setIsCopied(false), copiedDuration);
     });
-  }, [messageRuntime, setIsCopied, composerRuntime, copiedDuration]);
+  }, [api, isEditing, composerValue, copiedDuration]);
 
   if (!hasCopyableContent) return null;
   return callback;
@@ -93,7 +87,7 @@ export const ActionBarPrimitiveCopy = forwardRef<
   ActionBarPrimitiveCopy.Element,
   ActionBarPrimitiveCopy.Props
 >(({ copiedDuration, onClick, disabled, ...props }, forwardedRef) => {
-  const isCopied = useMessageUtils((u) => u.isCopied);
+  const isCopied = useAssistantState(({ message }) => message.isCopied);
   const callback = useActionBarPrimitiveCopy({ copiedDuration });
   return (
     <Primitive.button

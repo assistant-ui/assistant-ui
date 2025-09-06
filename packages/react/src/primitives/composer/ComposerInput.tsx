@@ -14,14 +14,9 @@ import {
 import TextareaAutosize, {
   type TextareaAutosizeProps,
 } from "react-textarea-autosize";
-import {
-  useComposer,
-  useComposerRuntime,
-} from "../../context/react/ComposerContext";
-import { useThread, useThreadRuntime } from "../../context/react/ThreadContext";
 import { useEscapeKeydown } from "@radix-ui/react-use-escape-keydown";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
-import { useThreadListItemRuntime } from "../../context/react/ThreadListItemContext";
+import { useAssistantState, useAssistantApi } from "../../context";
 
 export namespace ComposerPrimitiveInput {
   export type Element = HTMLTextAreaElement;
@@ -102,26 +97,26 @@ export const ComposerPrimitiveInput = forwardRef<
     },
     forwardedRef,
   ) => {
-    const threadListItemRuntime = useThreadListItemRuntime();
-    const threadRuntime = useThreadRuntime();
-    const composerRuntime = useComposerRuntime();
+    const api = useAssistantApi();
 
-    const value = useComposer((c) => {
-      if (!c.isEditing) return "";
-      return c.text;
+    const value = useAssistantState(({ composer }) => {
+      if (!composer.isEditing) return "";
+      return composer.text;
     });
 
     const Component = asChild ? Slot : TextareaAutosize;
 
-    const isDisabled = Boolean(useThread((t) => t.isDisabled) || disabledProp);
+    const isDisabled =
+      useAssistantState(({ thread }) => thread.isDisabled) || disabledProp;
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const ref = useComposedRefs(forwardedRef, textareaRef);
 
     useEscapeKeydown((e) => {
       if (!cancelOnEscape) return;
 
-      if (composerRuntime.getState().canCancel) {
-        composerRuntime.cancel();
+      const composer = api.composer();
+      if (composer.getState().canCancel) {
+        composer.cancel();
         e.preventDefault();
       }
     });
@@ -133,7 +128,7 @@ export const ComposerPrimitiveInput = forwardRef<
       if (e.nativeEvent.isComposing) return;
 
       if (e.key === "Enter" && e.shiftKey === false) {
-        const { isRunning } = threadRuntime.getState();
+        const isRunning = api.thread().getState().isRunning;
 
         if (!isRunning) {
           e.preventDefault();
@@ -145,14 +140,14 @@ export const ComposerPrimitiveInput = forwardRef<
 
     const handlePaste = async (e: ClipboardEvent<HTMLTextAreaElement>) => {
       if (!addAttachmentOnPaste) return;
-      const threadCapabilities = threadRuntime.getState().capabilities;
+      const threadCapabilities = api.thread().getState().capabilities;
       const files = Array.from(e.clipboardData?.files || []);
 
       if (threadCapabilities.attachments && files.length > 0) {
         try {
           e.preventDefault();
           await Promise.all(
-            files.map((file) => composerRuntime.addAttachment(file)),
+            files.map((file) => api.composer().addAttachment(file)),
           );
         } catch (error) {
           console.error("Error adding attachment:", error);
@@ -172,29 +167,33 @@ export const ComposerPrimitiveInput = forwardRef<
     useEffect(() => focus(), [focus]);
 
     useOnScrollToBottom(() => {
-      if (composerRuntime.type === "thread" && unstable_focusOnScrollToBottom) {
+      if (
+        api.composer().getState().type === "thread" &&
+        unstable_focusOnScrollToBottom
+      ) {
         focus();
       }
     });
 
     useEffect(() => {
-      if (composerRuntime.type !== "thread" || !unstable_focusOnRunStart)
+      if (
+        api.composer().getState().type !== "thread" ||
+        !unstable_focusOnRunStart
+      )
         return undefined;
 
-      return threadRuntime.unstable_on("run-start", focus);
-    }, [unstable_focusOnRunStart, focus, composerRuntime, threadRuntime]);
+      return api.on("thread.run-start", focus);
+    }, [unstable_focusOnRunStart, focus, api]);
 
     useEffect(() => {
-      if (composerRuntime.type !== "thread" || !unstable_focusOnThreadSwitched)
+      if (
+        api.composer().getState().type !== "thread" ||
+        !unstable_focusOnThreadSwitched
+      )
         return undefined;
 
-      return threadListItemRuntime.unstable_on("switched-to", focus);
-    }, [
-      unstable_focusOnThreadSwitched,
-      focus,
-      composerRuntime,
-      threadListItemRuntime,
-    ]);
+      return api.on("thread-list-item.switched-to", focus);
+    }, [unstable_focusOnThreadSwitched, focus, api]);
 
     return (
       <Component
@@ -204,8 +203,9 @@ export const ComposerPrimitiveInput = forwardRef<
         ref={ref as React.ForwardedRef<HTMLTextAreaElement>}
         disabled={isDisabled}
         onChange={composeEventHandlers(onChange, (e) => {
-          if (!composerRuntime.getState().isEditing) return;
-          return composerRuntime.setText(e.target.value);
+          if (!api.composer().getState().isEditing) return;
+          api.composer().setText(e.target.value);
+          api.flushSync();
         })}
         onKeyDown={composeEventHandlers(onKeyDown, handleKeyPress)}
         onPaste={composeEventHandlers(onPaste, handlePaste)}

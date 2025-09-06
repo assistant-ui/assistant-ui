@@ -1,7 +1,7 @@
 "use client";
 
 import type { FC, PropsWithChildren } from "react";
-import { useThread } from "../../context";
+import { useAssistantState } from "../../context";
 import type { RequireAtLeastOne } from "../../utils/RequireAtLeastOne";
 
 type ThreadIfFilters = {
@@ -13,7 +13,7 @@ type ThreadIfFilters = {
 type UseThreadIfProps = RequireAtLeastOne<ThreadIfFilters>;
 
 const useThreadIf = (props: UseThreadIfProps) => {
-  return useThread((thread) => {
+  return useAssistantState(({ thread }) => {
     if (props.empty === true && thread.messages.length !== 0) return false;
     if (props.empty === false && thread.messages.length === 0) return false;
     if (props.running === true && !thread.isRunning) return false;

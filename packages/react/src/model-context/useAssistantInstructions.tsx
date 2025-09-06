@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useAssistantRuntime } from "../context";
+import { useAssistantApi } from "../context/react/AssistantApiContext";
 
 export type AssistantInstructionsConfig = {
   disabled?: boolean | undefined;
@@ -19,7 +19,7 @@ export const useAssistantInstructions = (
   config: string | AssistantInstructionsConfig,
 ) => {
   const { instruction, disabled = false } = getInstructions(config);
-  const assistantRuntime = useAssistantRuntime();
+  const api = useAssistantApi();
 
   useEffect(() => {
     if (disabled) return;
@@ -27,8 +27,8 @@ export const useAssistantInstructions = (
     const config = {
       system: instruction,
     };
-    return assistantRuntime.registerModelContextProvider({
+    return api.registerModelContextProvider({
       getModelContext: () => config,
     });
-  }, [assistantRuntime, instruction, disabled]);
+  }, [api, instruction, disabled]);
 };

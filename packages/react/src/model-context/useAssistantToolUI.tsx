@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useToolUIsStore } from "../context/react/AssistantContext";
+import { useAssistantApi } from "../context/react/AssistantApiContext";
 import type { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
 
 export type AssistantToolUIProps<TArgs, TResult> = {
@@ -12,9 +12,9 @@ export type AssistantToolUIProps<TArgs, TResult> = {
 export const useAssistantToolUI = (
   tool: AssistantToolUIProps<any, any> | null,
 ) => {
-  const toolUIsStore = useToolUIsStore();
+  const api = useAssistantApi();
   useEffect(() => {
-    if (!tool?.toolName || !tool?.render) return;
-    return toolUIsStore.getState().setToolUI(tool.toolName, tool.render);
-  }, [toolUIsStore, tool?.toolName, tool?.render]);
+    if (!tool?.toolName || !tool?.render) return undefined;
+    return api.toolUIs().setToolUI(tool.toolName, tool.render);
+  }, [api, tool?.toolName, tool?.render]);
 };

@@ -6,18 +6,15 @@ import { useEscapeKeydown } from "@radix-ui/react-use-escape-keydown";
 import { Primitive } from "@radix-ui/react-primitive";
 import { composeEventHandlers } from "@radix-ui/primitive";
 import { useCallback } from "react";
-import {
-  useMessage,
-  useMessageRuntime,
-} from "../../context/react/MessageContext";
+import { useAssistantState, useAssistantApi } from "../../context";
 
 const useActionBarStopSpeaking = () => {
-  const messageRuntime = useMessageRuntime();
-  const isSpeaking = useMessage((u) => u.speech != null);
+  const api = useAssistantApi();
+  const isSpeaking = useAssistantState(({ message }) => message.speech != null);
 
   const callback = useCallback(() => {
-    messageRuntime.stopSpeaking();
-  }, [messageRuntime]);
+    api.message().stopSpeaking();
+  }, [api]);
 
   if (!isSpeaking) return null;
 

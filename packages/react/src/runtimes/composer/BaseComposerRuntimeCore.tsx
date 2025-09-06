@@ -23,7 +23,7 @@ export abstract class BaseComposerRuntimeCore
 
   protected abstract getAttachmentAdapter(): AttachmentAdapter | undefined;
 
-  public getAttachmentAccept(): string {
+  public get attachmentAccept(): string {
     return this.getAttachmentAdapter()?.accept ?? "*";
   }
 
@@ -173,7 +173,7 @@ export abstract class BaseComposerRuntimeCore
         ];
       else {
         this._attachments = [...this._attachments, a];
-        this._notifyEventSubscribers("attachment_add");
+        this._notifyEventSubscribers("attachment-add");
       }
 
       this._notifySubscribers();
@@ -188,7 +188,7 @@ export abstract class BaseComposerRuntimeCore
       upsertAttachment(await promiseOrGenerator);
     }
 
-    this._notifyEventSubscribers("attachment_add");
+    this._notifyEventSubscribers("attachment-add");
     this._notifySubscribers();
   }
 
