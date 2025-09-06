@@ -1,5 +1,11 @@
 # @assistant-ui/styles
 
+## 0.2.1
+
+### Patch Changes
+
+- 1e3b88c: fix(registry): thread component centering
+
 ## 0.2.0
 
 ### Minor Changes
