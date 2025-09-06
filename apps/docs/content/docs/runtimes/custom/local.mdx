@@ -414,6 +414,8 @@ import {
   type RemoteThreadListAdapter,
   type ThreadHistoryAdapter,
 } from "@assistant-ui/react";
+import { createAssistantStream } from "assistant-stream";
+import { useMemo } from "react";
 
 // Implement your custom adapter with proper message persistence
 const myDatabaseAdapter: RemoteThreadListAdapter = {
@@ -453,9 +455,16 @@ const myDatabaseAdapter: RemoteThreadListAdapter = {
 
   async generateTitle(remoteId, messages) {
     // Generate title from messages using your AI
-    const title = await generateTitle(messages);
-    await db.threads.update(remoteId, { title });
-    return new ReadableStream(); // Return empty stream
+    const newTitle = await generateTitle(messages);
+
+    // Persist the title in your DB
+    await db.threads.update(remoteId, { title: newTitle });
+
+    // IMPORTANT: Return an AssistantStream so the UI updates
+    return createAssistantStream((controller) => {
+      controller.appendText(newTitle);
+      controller.close();
+    });
   },
 };
 
@@ -527,6 +536,10 @@ export function MyRuntimeProvider({ children }) {
   );
 }
 ```
+
+<Callout type="info" title="Returning a title from generateTitle">
+  The `generateTitle` method must return an <code>AssistantStream</code> containing the title text. The easiest, type-safe way is to use <code>createAssistantStream</code> and call <code>controller.appendText(newTitle)</code> followed by <code>controller.close()</code>. Returning a raw <code>ReadableStream</code> won't update the thread list UI.
+</Callout>
 
 #### Understanding the Architecture
 
