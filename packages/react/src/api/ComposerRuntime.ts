@@ -168,6 +168,14 @@ export type ComposerRuntime = {
    * @param idx The index of the attachment to get.
    */
   getAttachmentByIndex(idx: number): AttachmentRuntime;
+
+  /**
+   * @deprecated This API is still under active development and might change without notice.
+   */
+  unstable_on(
+    event: ComposerRuntimeEventType,
+    callback: () => void,
+  ): Unsubscribe;
 };
 
 export abstract class ComposerRuntimeImpl implements ComposerRuntime {

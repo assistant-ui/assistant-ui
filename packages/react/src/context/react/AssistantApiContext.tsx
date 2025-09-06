@@ -13,7 +13,7 @@ import {
 import {
   AssistantToolUIActions,
   AssistantToolUIState,
-} from "../../client/AssistantClient";
+} from "../../client/AssistantRuntimeClient";
 import {
   MessageClientActions,
   MessageClientState,
@@ -42,6 +42,11 @@ import { StoreApi } from "../../utils/tap-store/tap-store-api";
 import { Unsubscribe } from "@assistant-ui/tap";
 import { ModelContextProvider } from "../../model-context";
 import { AssistantRuntime } from "../../api";
+import {
+  AssistantEventSelector,
+  AssistantEvents,
+  normalizeEventSelector,
+} from "../../types/EventTypes";
 import {
   ThreadListClientActions,
   ThreadListClientState,
@@ -76,6 +81,11 @@ export type AssistantApi = {
 
   subscribe(listener: () => void): Unsubscribe;
   flushSync(): void;
+
+  on<TEvent extends keyof AssistantEvents>(
+    event: AssistantEventSelector<TEvent>,
+    callback: (e: AssistantEvents[TEvent]) => void,
+  ): Unsubscribe;
 
   // temp
   registerModelContextProvider(provider: ModelContextProvider): void;
@@ -143,6 +153,8 @@ export type AssistantMeta = {
   };
 };
 
+const NO_OP_FN = () => () => {};
+
 const AssistantApiContext = createContext<AssistantApi>({
   threads(): never {
     throw new Error("Threads is only available inside <AssistantProvider />");
@@ -175,8 +187,14 @@ const AssistantApiContext = createContext<AssistantApi>({
     );
   },
 
-  subscribe: () => () => {},
-  flushSync: () => {},
+  subscribe: NO_OP_FN,
+  flushSync: NO_OP_FN,
+  on: (selector) => {
+    const { scope } = normalizeEventSelector(selector);
+    throw new Error(
+      `Event scope is not in available in this component: ${scope}`,
+    );
+  },
   meta: {},
 
   registerModelContextProvider: () => {
@@ -249,6 +267,37 @@ class ProxiedAssistantState implements AssistantState {
   }
 }
 
+const mergeFns = <TArgs extends Array<unknown>>(
+  fn1: (...args: TArgs) => void,
+  fn2: (...args: TArgs) => void,
+) => {
+  if (fn1 === NO_OP_FN) return fn2;
+  if (fn2 === NO_OP_FN) return fn1;
+
+  return (...args: TArgs) => {
+    fn1(...args);
+    fn2(...args);
+  };
+};
+
+const mergeFnsWithUnsubscribe = <TArgs extends Array<unknown>>(
+  fn1: (...args: TArgs) => Unsubscribe,
+  fn2: (...args: TArgs) => Unsubscribe,
+) => {
+  if (fn1 === NO_OP_FN) return fn2;
+  if (fn2 === NO_OP_FN) return fn1;
+
+  return (...args: TArgs) => {
+    const unsubscribe1 = fn1(...args);
+    const unsubscribe2 = fn2(...args);
+
+    return () => {
+      unsubscribe1();
+      unsubscribe2();
+    };
+  };
+};
+
 const extendApi = (
   api: AssistantApi,
   api2: Partial<AssistantApi>,
@@ -258,22 +307,11 @@ const extendApi = (
   return {
     ...api,
     ...api2,
-    subscribe: api2Subscribe
-      ? (listener) => {
-          const unsubscribe = api.subscribe(listener);
-          const unsubscribe2 = api2Subscribe(listener);
-          return () => {
-            unsubscribe();
-            unsubscribe2();
-          };
-        }
-      : api.subscribe,
-    flushSync: api2FlushSync
-      ? () => {
-          api.flushSync();
-          api2FlushSync();
-        }
-      : api.flushSync,
+    subscribe: mergeFnsWithUnsubscribe(
+      api.subscribe,
+      api2Subscribe ?? NO_OP_FN,
+    ),
+    flushSync: mergeFns(api.flushSync, api2FlushSync ?? NO_OP_FN),
     meta: {
       ...api.meta,
       ...api2.meta,

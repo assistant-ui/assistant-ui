@@ -1,4 +1,4 @@
-import { resource } from "@assistant-ui/tap";
+import { resource, tapEffect } from "@assistant-ui/tap";
 import {
   ThreadListItemEventType,
   ThreadListItemRuntime,
@@ -6,6 +6,7 @@ import {
 import { ThreadListItemStatus, Unsubscribe } from "../types";
 import { tapApi } from "../utils/tap-store";
 import { tapSubscribable } from "./util-hooks/tapSubscribable";
+import { EventManagerActions } from "./EventManagerClient";
 
 export type ThreadListItemClientState = {
   readonly id: string;
@@ -25,20 +26,42 @@ export type ThreadListItemClientActions = {
   initialize(): Promise<{ remoteId: string; externalId: string | undefined }>;
   detach(): void;
 
-  /**
-   * The event system will be overhauled in a future release. This API will be removed.
-   */
-  unstable_on(
-    event: ThreadListItemEventType,
-    callback: () => void,
-  ): Unsubscribe;
-
   __internal_getRuntime(): ThreadListItemRuntime;
 };
 
 export const ThreadListItemClient = resource(
-  ({ runtime }: { runtime: ThreadListItemRuntime }) => {
+  ({
+    runtime,
+    events,
+  }: {
+    runtime: ThreadListItemRuntime;
+    events: EventManagerActions;
+  }) => {
     const runtimeState = tapSubscribable(runtime);
+
+    // Bind thread list item events to event manager
+    tapEffect(() => {
+      const unsubscribers: Unsubscribe[] = [];
+
+      // Subscribe to thread list item events
+      const threadListItemEvents: ThreadListItemEventType[] = [
+        "switched-to",
+        "switched-away",
+      ];
+
+      for (const event of threadListItemEvents) {
+        const unsubscribe = runtime.unstable_on(event, () => {
+          events.emit(`thread-list-item.${event}`, {
+            threadId: runtime.getState()!.id,
+          });
+        });
+        unsubscribers.push(unsubscribe);
+      }
+
+      return () => {
+        for (const unsub of unsubscribers) unsub();
+      };
+    }, [runtime, events]);
 
     const api = tapApi<ThreadListItemClientState, ThreadListItemClientActions>(
       runtimeState,
@@ -51,7 +74,6 @@ export const ThreadListItemClient = resource(
         generateTitle: runtime.generateTitle,
         initialize: runtime.initialize,
         detach: runtime.detach,
-        unstable_on: runtime.unstable_on,
         __internal_getRuntime: () => runtime,
       },
     );
@@ -59,6 +81,7 @@ export const ThreadListItemClient = resource(
     return {
       state: runtimeState,
       api,
+      key: runtimeState.id,
     };
   },
 );

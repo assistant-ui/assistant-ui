@@ -15,6 +15,13 @@ import { useResource } from "@assistant-ui/tap/react";
 import { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
 import { StoreApi } from "../utils/tap-store/tap-store-api";
 import { useMemo } from "react";
+import {
+  AssistantEventSelector,
+  AssistantEvents,
+  checkEventScope,
+  normalizeEventSelector,
+} from "../types/EventTypes";
+import { EventManagerClient } from "./EventManagerClient";
 
 export type AssistantToolUIState = Record<
   string,
@@ -63,11 +70,14 @@ export type AssistantClientState = {
 
 export type AssistantClientActions = {
   readonly threads: StoreApi<ThreadListClientState, ThreadListClientActions>;
-
-  registerModelContextProvider(provider: ModelContextProvider): Unsubscribe;
-
   readonly toolUIs: StoreApi<AssistantToolUIState, AssistantToolUIActions>;
 
+  on<TEvent extends keyof AssistantEvents>(
+    event: keyof AssistantEvents,
+    callback: (e: AssistantEvents[TEvent]) => void,
+  ): Unsubscribe;
+
+  registerModelContextProvider(provider: ModelContextProvider): Unsubscribe;
   __internal_getRuntime(): AssistantRuntime | null;
 };
 
@@ -78,8 +88,13 @@ export type AssistantClient = Store<
 
 export const AssistantClient = resource(
   ({ runtime }: { runtime: AssistantRuntime }) => {
+    const events = tapInlineResource(EventManagerClient());
+
     const threads = tapInlineResource(
-      ThreadListClient({ runtime: runtime.threads }),
+      ThreadListClient({
+        runtime: runtime.threads,
+        events,
+      }),
     );
     const toolUIs = tapInlineResource(AssistantToolUIClient());
 
@@ -96,6 +111,7 @@ export const AssistantClient = resource(
         return runtime.registerModelContextProvider(provider);
       },
       toolUIs: toolUIs.api,
+      on: events.on,
 
       __internal_getRuntime: () => runtime,
     });
@@ -107,9 +123,12 @@ export const AssistantClient = resource(
   },
 );
 
-export const useAssistantClient = (runtime: AssistantRuntime) => {
+export const useAssistantRuntimeClient = (runtime: AssistantRuntime) => {
   const client = useResource(asStore(AssistantClient({ runtime: runtime })));
   const api = useMemo(() => {
+    const getItem = () => {
+      return client.getApi().threads.item("main");
+    };
     return {
       threads() {
         return client.getApi().threads;
@@ -121,9 +140,7 @@ export const useAssistantClient = (runtime: AssistantRuntime) => {
         return client.getApi().threads.thread("main");
       },
       threadListItem() {
-        return client.getApi().threads.item({
-          id: client.getApi().threads.getState().mainThreadId,
-        });
+        return getItem();
       },
       composer() {
         return client.getApi().threads.thread("main").composer;
@@ -133,6 +150,28 @@ export const useAssistantClient = (runtime: AssistantRuntime) => {
       },
       __internal_getRuntime() {
         return client.getApi().__internal_getRuntime();
+      },
+      on<TEvent extends keyof AssistantEvents>(
+        selector: AssistantEventSelector<TEvent>,
+        callback: (e: AssistantEvents[TEvent]) => void,
+      ): Unsubscribe {
+        const { event, scope } = normalizeEventSelector(selector);
+        if (scope === "*") return client.getApi().on(event, callback);
+
+        if (
+          checkEventScope("thread", scope, event) ||
+          checkEventScope("thread-list-item", scope, event) ||
+          checkEventScope("composer", scope, event)
+        ) {
+          return client.getApi().on(event, (e) => {
+            if (e.threadId !== getItem().getState().id) return;
+            callback(e);
+          });
+        }
+
+        throw new Error(
+          `Event scope is not in available in this component: ${scope}`,
+        );
       },
       meta: {
         toolUIs: {

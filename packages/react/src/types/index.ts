@@ -91,3 +91,9 @@ export type {
 export type { ThreadListItemStatus } from "../api/ThreadListItemRuntime";
 
 export type { Unsubscribe } from "./Unsubscribe";
+
+export type {
+  AssistantEventScope,
+  AssistantEventSelector,
+  AssistantEvents,
+} from "./EventTypes";

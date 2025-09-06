@@ -7,7 +7,13 @@ import {
 } from "../runtimes/core/ThreadRuntimeCore";
 import { CreateAppendMessage, CreateStartRunConfig } from "../api";
 import { CreateResumeRunConfig, ThreadRuntime } from "../api/ThreadRuntime";
-import { resource, tapInlineResource, tapMemo } from "@assistant-ui/tap";
+import {
+  resource,
+  tapInlineResource,
+  tapMemo,
+  tapEffect,
+  RefObject,
+} from "@assistant-ui/tap";
 import { ModelContext } from "../model-context";
 import { ExportedMessageRepository, ThreadMessageLike } from "../runtimes";
 import {
@@ -25,6 +31,7 @@ import { tapApi } from "../utils/tap-store";
 import { tapLookupResources } from "./util-hooks/tapLookupResources";
 import { StoreApi } from "../utils/tap-store/tap-store-api";
 import { Unsubscribe } from "../types";
+import { EventManagerActions } from "./EventManagerClient";
 
 export type ThreadClientState = {
   /**
@@ -135,38 +142,92 @@ export type ThreadClientActions = {
    */
   stopSpeaking(): void;
 
-  /**
-   * The event system will be overhauled in a future release. This API will be removed.
-   */
-  unstable_on(event: ThreadRuntimeEventType, callback: () => void): Unsubscribe;
-
   __internal_getRuntime(): ThreadRuntime;
 };
 
 const MessageClientById = resource(
-  ({ runtime, id }: { runtime: ThreadRuntime; id: string }) => {
+  ({
+    runtime,
+    id,
+    events,
+    threadIdRef,
+  }: {
+    runtime: ThreadRuntime;
+    id: string;
+    events: EventManagerActions;
+    threadIdRef: RefObject<string>;
+  }) => {
     const messageRuntime = tapMemo(
       () => runtime.getMessageById(id),
       [runtime, id],
     );
 
-    return tapInlineResource(MessageClient({ runtime: messageRuntime }));
+    return tapInlineResource(
+      MessageClient({ runtime: messageRuntime, events, threadIdRef }),
+    );
   },
 );
 
 export const ThreadClient = resource(
-  ({ runtime }: { runtime: ThreadRuntime }) => {
+  ({
+    runtime,
+    events,
+  }: {
+    runtime: ThreadRuntime;
+    events: EventManagerActions;
+  }) => {
     const runtimeState = tapSubscribable(runtime);
+
+    // Bind thread events to event manager
+    tapEffect(() => {
+      const unsubscribers: Unsubscribe[] = [];
+
+      // Subscribe to thread events
+      const threadEvents: ThreadRuntimeEventType[] = [
+        "run-start",
+        "run-end",
+        "initialize",
+        "model-context-update",
+      ];
+
+      for (const event of threadEvents) {
+        const unsubscribe = runtime.unstable_on(event, () => {
+          const threadId = runtime.getState()?.threadId || "unknown";
+          events.emit(`thread.${event}`, {
+            threadId,
+          });
+        });
+        unsubscribers.push(unsubscribe);
+      }
+
+      return () => {
+        for (const unsub of unsubscribers) unsub();
+      };
+    }, [runtime, events]);
+
+    const threadIdRef = tapMemo(
+      () => ({
+        get current() {
+          return runtime.getState()!.threadId;
+        },
+      }),
+      [runtime],
+    );
 
     const composer = tapInlineResource(
       ComposerClient({
         runtime: runtime.composer,
+        events,
+        threadIdRef,
       }),
     );
 
     const messages = tapLookupResources(
       runtimeState.messages.map((m) =>
-        MessageClientById({ runtime: runtime, id: m.id }, { key: m.id }),
+        MessageClientById(
+          { runtime: runtime, id: m.id, events, threadIdRef },
+          { key: m.id },
+        ),
       ),
     );
 
@@ -198,7 +259,6 @@ export const ThreadClient = resource(
       import: runtime.import,
       reset: runtime.reset,
       stopSpeaking: runtime.stopSpeaking,
-      unstable_on: runtime.unstable_on,
 
       message: (selector) => {
         if ("id" in selector) {

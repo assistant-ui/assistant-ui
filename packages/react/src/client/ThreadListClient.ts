@@ -14,6 +14,7 @@ import {
 } from "./ThreadClient";
 import { StoreApi } from "../utils/tap-store/tap-store-api";
 import { tapLookupResources } from "./util-hooks/tapLookupResources";
+import { EventManagerActions } from "./EventManagerClient";
 
 export type ThreadListClientState = {
   readonly mainThreadId: string;
@@ -31,33 +32,58 @@ export type ThreadListClientActions = {
   switchToThread(threadId: string): void;
   switchToNewThread(): void;
   item(
-    threadIdOrOptions: { id: string } | { index: number; archived?: boolean },
+    threadIdOrOptions:
+      | "main"
+      | { id: string }
+      | { index: number; archived?: boolean },
   ): StoreApi<ThreadListItemClientState, ThreadListItemClientActions>;
 
   thread(selector: "main"): StoreApi<ThreadClientState, ThreadClientActions>;
 };
 
 const ThreadListItemClientById = resource(
-  ({ runtime, id }: { runtime: ThreadListRuntime; id: string }) => {
+  ({
+    runtime,
+    id,
+    events,
+  }: {
+    runtime: ThreadListRuntime;
+    id: string;
+    events: EventManagerActions;
+  }) => {
     const threadListItemRuntime = tapMemo(
       () => runtime.getItemById(id),
       [runtime, id],
     );
     return tapInlineResource(
-      ThreadListItemClient({ runtime: threadListItemRuntime }),
+      ThreadListItemClient({
+        runtime: threadListItemRuntime,
+        events,
+      }),
     );
   },
 );
 
 export const ThreadListClient = resource(
-  ({ runtime }: { runtime: ThreadListRuntime }) => {
+  ({
+    runtime,
+    events,
+  }: {
+    runtime: ThreadListRuntime;
+    events: EventManagerActions;
+  }) => {
     const runtimeState = tapSubscribable(runtime);
 
-    const main = tapInlineResource(ThreadClient({ runtime: runtime.main }));
+    const main = tapInlineResource(
+      ThreadClient({
+        runtime: runtime.main,
+        events,
+      }),
+    );
 
     const threadItems = tapLookupResources(
       Object.keys(runtimeState.threadItems).map((id) =>
-        ThreadListItemClientById({ runtime, id }, { key: id }),
+        ThreadListItemClientById({ runtime, id, events }, { key: id }),
       ),
     );
 
@@ -78,19 +104,19 @@ export const ThreadListClient = resource(
       thread: () => main.api,
 
       item: (threadIdOrOptions) => {
-        // this is not 100% spec compliant, because item() should
-        // resolve and bind to a specific threadListItem, but the
-        // runtime API resovles at a later point in time
-        if ("id" in threadIdOrOptions) {
-          // Object with id
-          return threadItems.api({ key: threadIdOrOptions.id });
-        } else {
-          const { index, archived = false } = threadIdOrOptions;
-          const id = archived
-            ? state.archivedThreadIds[index]!
-            : state.threadIds[index]!;
-          return threadItems.api({ key: id });
+        if (threadIdOrOptions === "main") {
+          return threadItems.api({ key: state.mainThreadId });
         }
+
+        if ("id" in threadIdOrOptions) {
+          return threadItems.api({ key: threadIdOrOptions.id });
+        }
+
+        const { index, archived = false } = threadIdOrOptions;
+        const id = archived
+          ? state.archivedThreadIds[index]!
+          : state.threadIds[index]!;
+        return threadItems.api({ key: id });
       },
 
       switchToThread: (threadId) => {

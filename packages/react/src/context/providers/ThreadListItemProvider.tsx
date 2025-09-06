@@ -6,6 +6,12 @@ import {
   AssistantApiProvider,
   useAssistantApi,
 } from "../react/AssistantApiContext";
+import { AssistantEventSelector, AssistantEvents } from "../../types";
+import { Unsubscribe } from "@assistant-ui/tap";
+import {
+  checkEventScope,
+  normalizeEventSelector,
+} from "../../types/EventTypes";
 
 export const ThreadListItemByIndexProvider: FC<
   PropsWithChildren<{
@@ -16,9 +22,23 @@ export const ThreadListItemByIndexProvider: FC<
   const api = useAssistantApi();
 
   const api2 = useMemo(() => {
+    const getItem = () => api.threads().item({ index, archived });
     return {
       threadListItem() {
-        return api.threads().item({ index, archived });
+        return getItem();
+      },
+      on<TEvent extends keyof AssistantEvents>(
+        selector: AssistantEventSelector<TEvent>,
+        callback: (e: AssistantEvents[TEvent]) => void,
+      ): Unsubscribe {
+        const { event, scope } = normalizeEventSelector(selector);
+        if (scope !== "thread-list-item") return api.on(selector, callback);
+
+        return api.on({ scope: "*", event }, (e: AssistantEvents[TEvent]) => {
+          if (e.threadId === getItem().getState().id) {
+            callback(e);
+          }
+        });
       },
       meta: {
         threadListItem: {
@@ -44,9 +64,23 @@ export const ThreadListItemByIdProvider: FC<
   const api = useAssistantApi();
 
   const api2 = useMemo(() => {
+    const getItem = () => api.threads().item({ id });
     return {
       threadListItem() {
-        return api.threads().item({ id });
+        return getItem();
+      },
+      on<TEvent extends keyof AssistantEvents>(
+        selector: AssistantEventSelector<TEvent>,
+        callback: (e: AssistantEvents[TEvent]) => void,
+      ): Unsubscribe {
+        const { event, scope } = normalizeEventSelector(selector);
+        if (!checkEventScope("thread-list-item", scope, event))
+          return api.on(selector, callback);
+
+        return api.on({ scope: "*", event }, (e: AssistantEvents[TEvent]) => {
+          if (e.threadId !== getItem().getState().id) return;
+          callback(e);
+        });
       },
       meta: {
         threadListItem: {

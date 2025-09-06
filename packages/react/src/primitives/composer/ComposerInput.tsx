@@ -182,7 +182,7 @@ export const ComposerPrimitiveInput = forwardRef<
       )
         return undefined;
 
-      return api.thread().unstable_on("run-start", focus);
+      return api.on("thread.run-start", focus);
     }, [unstable_focusOnRunStart, focus, api]);
 
     useEffect(() => {
@@ -192,7 +192,7 @@ export const ComposerPrimitiveInput = forwardRef<
       )
         return undefined;
 
-      return api.threadListItem().unstable_on?.("switched-to", focus);
+      return api.on("thread-list-item.switched-to", focus);
     }, [unstable_focusOnThreadSwitched, focus, api]);
 
     return (

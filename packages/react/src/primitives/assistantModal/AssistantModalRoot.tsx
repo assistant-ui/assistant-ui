@@ -25,7 +25,7 @@ const useAssistantModalOpenState = ({
   useEffect(() => {
     if (!unstable_openOnRunStart) return undefined;
 
-    return api.thread().unstable_on("run-start", () => {
+    return api.on("thread.run-start", () => {
       setOpen(true);
     });
   }, [unstable_openOnRunStart, setOpen, api]);
