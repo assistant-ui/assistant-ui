@@ -32,7 +32,7 @@ export type AISDKRuntimeAdapter = {
 
 export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   chatHelpers: ReturnType<typeof useChat<UI_MESSAGE>>,
-  adapter: AISDKRuntimeAdapter = {},
+  { adapters }: AISDKRuntimeAdapter = {},
 ) => {
   const contextAdapters = useRuntimeAdapters();
   const messages = AISDKMessageConverter.useThreadMessages({
@@ -51,7 +51,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       // eslint-disable-next-line react-hooks/exhaustive-deps
       [],
     ),
-    adapter.adapters?.history,
+    adapters?.history ?? contextAdapters?.history,
     AISDKMessageConverter.toThreadMessages as (
       messages: UI_MESSAGE[],
     ) => ThreadMessage[],
@@ -107,7 +107,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     adapters: {
       attachments: vercelAttachmentAdapter,
       ...contextAdapters,
-      ...adapter.adapters,
+      ...adapters,
     },
     isLoading,
   });
