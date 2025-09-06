@@ -28,6 +28,7 @@
     "framer-motion": "^12.23.12",
     "lucide-react": "^0.539.0",
     "mermaid": "^11.9.0",
+    "motion": "^12.23.12",
     "next": "^15",
     "react": "19.1.1",
     "react-resizable-panels": "^3.0.4",

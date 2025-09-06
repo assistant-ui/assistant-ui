@@ -208,7 +208,7 @@
 /* user message */
 
 .aui-user-message-root {
-  @apply mx-auto grid w-full max-w-[var(--thread-max-width)] auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] gap-y-2 px-2 py-4 first:mt-3 last:mb-5 [&:where(>*)]:col-start-2;
+  @apply mx-auto grid w-full max-w-[var(--thread-max-width)] animate-in auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] gap-y-2 px-2 py-4 duration-200 fade-in slide-in-from-bottom-1 first:mt-3 last:mb-5 [&:where(>*)]:col-start-2;
 }
 
 .aui-user-branch-picker {
@@ -262,7 +262,7 @@
 /* assistant message */
 
 .aui-assistant-message-root {
-  @apply relative mx-auto w-full max-w-[var(--thread-max-width)] py-4 last:mb-24;
+  @apply relative mx-auto w-full max-w-[var(--thread-max-width)] animate-in py-4 duration-200 fade-in slide-in-from-bottom-1 last:mb-24;
 }
 
 .aui-assistant-message-avatar {
