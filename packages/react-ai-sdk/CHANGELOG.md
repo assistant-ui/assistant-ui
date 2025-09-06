@@ -1,5 +1,11 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.0.7
+
+### Patch Changes
+
+- d7d9058: fix: cloud chat history not loading in some configurations
+
 ## 1.0.6
 
 ### Patch Changes
