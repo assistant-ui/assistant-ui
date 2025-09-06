@@ -1,6 +1,6 @@
-import { resource, tapMemo } from "@assistant-ui/tap";
+import { resource, tapMemo, tapEffect, RefObject } from "@assistant-ui/tap";
 import { ComposerRuntime, EditComposerRuntime } from "../api/ComposerRuntime";
-import { Attachment } from "../types";
+import { Attachment, Unsubscribe } from "../types";
 import { MessageRole, RunConfig } from "../types/AssistantTypes";
 import { tapSubscribable } from "./util-hooks/tapSubscribable";
 import { tapApi } from "../utils/tap-store";
@@ -9,6 +9,8 @@ import {
   AttachmentClientState,
 } from "./AttachmentClient";
 import { StoreApi } from "../utils/tap-store/tap-store-api";
+import { EventManagerActions } from "./EventManagerClient";
+import { ComposerRuntimeEventType } from "../runtimes/core/ComposerRuntimeCore";
 
 export type ComposerClientState = {
   readonly text: string;
@@ -40,8 +42,43 @@ export type ComposerClientActions = {
 };
 
 export const ComposerClient = resource(
-  ({ runtime }: { runtime: ComposerRuntime }) => {
+  ({
+    threadIdRef,
+    messageIdRef,
+    events,
+    runtime,
+  }: {
+    threadIdRef: RefObject<string>;
+    messageIdRef?: RefObject<string>;
+    runtime: ComposerRuntime;
+    events: EventManagerActions;
+  }) => {
     const runtimeState = tapSubscribable(runtime);
+
+    // Bind composer events to event manager
+    tapEffect(() => {
+      const unsubscribers: Unsubscribe[] = [];
+
+      // Subscribe to composer events
+      const composerEvents: ComposerRuntimeEventType[] = [
+        "send",
+        "attachment-add",
+      ];
+
+      for (const event of composerEvents) {
+        const unsubscribe = runtime.unstable_on(event, () => {
+          events.emit(`composer.${event}`, {
+            threadId: threadIdRef.current,
+            ...(messageIdRef && { messageId: messageIdRef.current }),
+          });
+        });
+        unsubscribers.push(unsubscribe);
+      }
+
+      return () => {
+        for (const unsub of unsubscribers) unsub();
+      };
+    }, [runtime, events, threadIdRef, messageIdRef]);
 
     const state = tapMemo<ComposerClientState>(() => {
       return {

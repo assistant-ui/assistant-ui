@@ -6,6 +6,12 @@ import {
   AssistantApiProvider,
   useAssistantApi,
 } from "../react/AssistantApiContext";
+import { AssistantEvents, AssistantEventSelector } from "../../types";
+import { Unsubscribe } from "@assistant-ui/tap";
+import {
+  checkEventScope,
+  normalizeEventSelector,
+} from "../../types/EventTypes";
 
 export const MessageByIndexProvider: FC<
   PropsWithChildren<{
@@ -13,27 +19,43 @@ export const MessageByIndexProvider: FC<
   }>
 > = ({ index, children }) => {
   const api = useAssistantApi();
-  const api2 = useMemo(
-    () =>
-      ({
-        message() {
-          return api.thread().message({ index });
-        },
-        composer() {
-          return api.thread().message({ index }).composer;
-        },
-        meta: {
-          message: {
-            source: "thread",
-            query: {
-              type: "index",
-              index,
-            },
+  const api2 = useMemo(() => {
+    const getMessage = () => api.thread().message({ index });
+    return {
+      message() {
+        return getMessage();
+      },
+      composer() {
+        return getMessage().composer;
+      },
+      on<TEvent extends keyof AssistantEvents>(
+        selector: AssistantEventSelector<TEvent>,
+        callback: (e: AssistantEvents[TEvent]) => void,
+      ): Unsubscribe {
+        const { event, scope } = normalizeEventSelector(selector);
+        if (
+          !checkEventScope("composer", scope, event) &&
+          !checkEventScope("message", scope, event)
+        )
+          return api.on(selector, callback);
+
+        return api.on({ scope: "thread", event }, (e) => {
+          if (e.messageId === getMessage().getState().id) {
+            callback(e);
+          }
+        });
+      },
+      meta: {
+        message: {
+          source: "thread",
+          query: {
+            type: "index",
+            index,
           },
         },
-      }) satisfies Partial<AssistantApi>,
-    [api, index],
-  );
+      },
+    } satisfies Partial<AssistantApi>;
+  }, [api, index]);
 
   return <AssistantApiProvider api={api2}>{children}</AssistantApiProvider>;
 };

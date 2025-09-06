@@ -29,6 +29,8 @@ import {
   AttachmentClientState,
 } from "./AttachmentClient";
 import { StoreApi } from "../utils/tap-store/tap-store-api";
+import { EventManagerActions } from "./EventManagerClient";
+import { RefObject } from "react";
 
 export type MessageClientState = ThreadMessage & {
   readonly parentId: string | null;
@@ -93,15 +95,35 @@ const MessagePartByIndex = resource(
 );
 
 export const MessageClient = resource(
-  ({ runtime }: { runtime: MessageRuntime }) => {
+  ({
+    runtime,
+    events,
+    threadIdRef,
+  }: {
+    runtime: MessageRuntime;
+    events: EventManagerActions;
+    threadIdRef: RefObject<string>;
+  }) => {
     const runtimeState = tapSubscribable(runtime);
 
     const [isCopiedState, setIsCopied] = tapState(false);
     const [isHoveringState, setIsHovering] = tapState(false);
 
+    const messageIdRef = tapMemo(
+      () => ({
+        get current() {
+          return runtime.getState().id;
+        },
+      }),
+      [runtime],
+    );
+
     const composer = tapInlineResource(
       ComposerClient({
         runtime: runtime.composer,
+        events,
+        threadIdRef,
+        messageIdRef,
       }),
     );
 

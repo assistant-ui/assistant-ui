@@ -3,6 +3,7 @@
 // use client necessary here for now
 
 export { useAssistantState, useAssistantApi } from "./AssistantApiContext";
+export { useAssistantEvent } from "../../hooks/useAssistantEvent";
 
 export {
   useThreadViewport,

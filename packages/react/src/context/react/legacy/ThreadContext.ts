@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ThreadRuntime } from "../../../api/ThreadRuntime";
 import { ModelContext } from "../../../model-context";
 import { createStateHookForRuntime } from "../utils/createStateHookForRuntime";
 import { ThreadComposerRuntime } from "../../../api";
-import { useAssistantApi } from "..";
+import { useAssistantApi, useAssistantEvent } from "..";
 
 /**
  * Hook to access the ThreadRuntime from the current context.
@@ -85,9 +85,7 @@ export function useThreadModelContext(options?: {
   const [, rerender] = useState({});
 
   const runtime = useThreadRuntime(options);
-  useEffect(() => {
-    return runtime?.unstable_on("model-context-update", () => rerender({}));
-  }, [runtime]);
+  useAssistantEvent("thread.model-context-update", () => rerender({}));
 
   if (!runtime) return null;
   return runtime?.getModelContext();
