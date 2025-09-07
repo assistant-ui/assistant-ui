@@ -13,13 +13,10 @@ import { useComposedRefs } from "@radix-ui/react-compose-refs";
 
 const useIsHoveringRef = () => {
   const api = useAssistantApi();
+  const message = useAssistantState(() => api.message());
 
-  // TODO bug: putting isHovering in the message state means that the state is lost when the message is switched
-  const messageId = useAssistantState(({ message }) => message.id);
   const callbackRef = useCallback(
     (el: HTMLElement) => {
-      const message = api.message();
-
       const handleMouseEnter = () => {
         message.setIsHovering(true);
       };
@@ -38,8 +35,7 @@ const useIsHoveringRef = () => {
         message.setIsHovering(false);
       };
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [api, messageId],
+    [message],
   );
 
   return useManagedRef(callbackRef);

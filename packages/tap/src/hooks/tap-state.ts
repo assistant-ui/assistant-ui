@@ -1,6 +1,18 @@
 import { getCurrentResourceFiber } from "../core/execution-context";
-import { StateUpdater, Cell } from "../core/types";
-import { rerender } from "./tap-rerender";
+import { StateUpdater, Cell, ResourceFiber } from "../core/types";
+
+export const rerender = (fiber: ResourceFiber<any, any>) => {
+  if (fiber.renderContext) {
+    throw new Error("Resource updated during render");
+  }
+  if (fiber.isNeverMounted) {
+    throw new Error("Resource updated before mount");
+  }
+  // Only schedule rerender if currently mounted
+  if (fiber.isMounted) {
+    fiber.scheduleRerender();
+  }
+};
 
 function getStateCell<T>(
   initialValue: T | (() => T),

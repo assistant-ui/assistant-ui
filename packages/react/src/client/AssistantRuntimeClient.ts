@@ -170,7 +170,7 @@ export const useAssistantRuntimeClient = (runtime: AssistantRuntime) => {
         }
 
         throw new Error(
-          `Event scope is not in available in this component: ${scope}`,
+          `Event scope is not available in this component: ${scope}`,
         );
       },
       meta: {

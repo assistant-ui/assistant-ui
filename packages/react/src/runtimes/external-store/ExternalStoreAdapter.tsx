@@ -13,8 +13,8 @@ import { ExportedMessageRepository } from "../utils/MessageRepository";
 export type ExternalStoreThreadData<TState extends "regular" | "archived"> = {
   status: TState;
   id: string;
-  remoteId?: undefined;
-  externalId?: undefined;
+  remoteId?: string | undefined;
+  externalId?: string | undefined;
   title?: string | undefined;
 };
 

@@ -22,9 +22,8 @@ export const useAssistantTool = <
   const api = useAssistantApi();
 
   useEffect(() => {
-    if (tool.render) {
-      api.toolUIs().setToolUI(tool.toolName, tool.render);
-    }
+    if (!tool.render) return undefined;
+    return api.toolUIs().setToolUI(tool.toolName, tool.render);
   }, [api, tool.toolName, tool.render]);
 
   useEffect(() => {

@@ -1,6 +1,9 @@
 import type { Unsubscribe } from "../../types";
 import { ExternalStoreThreadRuntimeCore } from "./ExternalStoreThreadRuntimeCore";
-import { ThreadListRuntimeCore } from "../core/ThreadListRuntimeCore";
+import {
+  ThreadListItemCoreState,
+  ThreadListRuntimeCore,
+} from "../core/ThreadListRuntimeCore";
 import { ExternalStoreThreadListAdapter } from "./ExternalStoreAdapter";
 
 export type ExternalStoreThreadFactory = () => ExternalStoreThreadRuntimeCore;
@@ -25,6 +28,8 @@ export class ExternalStoreThreadListRuntimeCore
   private _mainThreadId: string = DEFAULT_THREAD_ID;
   private _threads: readonly string[] = DEFAULT_THREADS;
   private _archivedThreads: readonly string[] = EMPTY_ARRAY;
+  private _threadData: Readonly<Record<string, ThreadListItemCoreState>> =
+    DEFAULT_THREAD_DATA;
 
   public get isLoading() {
     return this.adapter.isLoading ?? false;
@@ -43,7 +48,7 @@ export class ExternalStoreThreadListRuntimeCore
   }
 
   public get threadData() {
-    return DEFAULT_THREAD_DATA;
+    return this._threadData;
   }
 
   public getLoadThreadsPromise() {
@@ -61,6 +66,7 @@ export class ExternalStoreThreadListRuntimeCore
     private threadFactory: ExternalStoreThreadFactory,
   ) {
     this._mainThread = this.threadFactory();
+    this.__internal_setAdapter(adapter, true);
   }
 
   public getMainThreadRuntimeCore() {
@@ -82,7 +88,10 @@ export class ExternalStoreThreadListRuntimeCore
     return undefined;
   }
 
-  public __internal_setAdapter(adapter: ExternalStoreThreadListAdapter) {
+  public __internal_setAdapter(
+    adapter: ExternalStoreThreadListAdapter,
+    initialLoad = false,
+  ) {
     const previousAdapter = this.adapter;
     this.adapter = adapter;
 
@@ -96,12 +105,39 @@ export class ExternalStoreThreadListRuntimeCore
       previousAdapter.archivedThreads ?? EMPTY_ARRAY;
 
     if (
+      !initialLoad &&
       previousThreadId === newThreadId &&
       previousThreads === newThreads &&
       previousArchivedThreads === newArchivedThreads
     ) {
       return;
     }
+
+    this._threadData = {
+      ...DEFAULT_THREAD_DATA,
+      ...Object.fromEntries(
+        adapter.threads?.map((t) => [
+          t.id,
+          {
+            ...t,
+            remoteId: t.remoteId,
+            externalId: t.externalId,
+            status: "regular",
+          },
+        ]) ?? [],
+      ),
+      ...Object.fromEntries(
+        adapter.archivedThreads?.map((t) => [
+          t.id,
+          {
+            ...t,
+            remoteId: t.remoteId,
+            externalId: t.externalId,
+            status: "archived",
+          },
+        ]) ?? [],
+      ),
+    };
 
     if (previousThreads !== newThreads) {
       this._threads = this.adapter.threads?.map((t) => t.id) ?? EMPTY_ARRAY;

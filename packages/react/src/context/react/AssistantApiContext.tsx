@@ -191,9 +191,7 @@ const AssistantApiContext = createContext<AssistantApi>({
   flushSync: NO_OP_FN,
   on: (selector) => {
     const { scope } = normalizeEventSelector(selector);
-    throw new Error(
-      `Event scope is not in available in this component: ${scope}`,
-    );
+    throw new Error(`Event scope is not available in this component: ${scope}`);
   },
   meta: {},
 

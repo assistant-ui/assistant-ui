@@ -1,6 +1,6 @@
 "use client";
 
-import { useAssistantApi } from "..";
+import { useAssistantApi } from "../AssistantApiContext";
 import { AssistantRuntime } from "../../../api/AssistantRuntime";
 import { ThreadListRuntime } from "../../../api/ThreadListRuntime";
 import { createStateHookForRuntime } from "../utils/createStateHookForRuntime";

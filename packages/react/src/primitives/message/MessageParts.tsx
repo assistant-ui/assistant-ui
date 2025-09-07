@@ -239,8 +239,6 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
   const api = useAssistantApi();
   const part = useAssistantState(({ part }) => part);
 
-  if (!part) return null;
-
   const type = part.type;
   if (type === "tool-call") {
     const addResult = (result: any) => api.part().addToolResult(result);

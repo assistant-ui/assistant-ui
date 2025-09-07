@@ -2,7 +2,7 @@ import { Unsubscribe } from "../../types";
 import { ThreadRuntimeCore } from "./ThreadRuntimeCore";
 import type { ThreadListItemStatus } from "../../api/RuntimeBindings";
 
-type ThreadListItemCoreState = {
+export type ThreadListItemCoreState = {
   readonly id: string;
   readonly remoteId: string | undefined;
   readonly externalId: string | undefined;
