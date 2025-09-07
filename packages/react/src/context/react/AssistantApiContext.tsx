@@ -89,6 +89,7 @@ export type AssistantApi = {
 
   // temp
   registerModelContextProvider(provider: ModelContextProvider): void;
+  /** @internal */
   __internal_getRuntime(): AssistantRuntime | null;
 };
 
@@ -230,38 +231,41 @@ export const useAssistantState = <T,>(
 };
 
 class ProxiedAssistantState implements AssistantState {
-  constructor(public readonly api: AssistantApi) {}
+  #api: AssistantApi;
+  constructor(api: AssistantApi) {
+    this.#api = api;
+  }
 
   get threads() {
-    return this.api.threads().getState();
+    return this.#api.threads().getState();
   }
 
   get toolUIs() {
-    return this.api.toolUIs().getState();
+    return this.#api.toolUIs().getState();
   }
 
   get threadListItem() {
-    return this.api.threadListItem().getState();
+    return this.#api.threadListItem().getState();
   }
 
   get thread() {
-    return this.api.thread().getState();
+    return this.#api.thread().getState();
   }
 
   get composer() {
-    return this.api.composer().getState();
+    return this.#api.composer().getState();
   }
 
   get message() {
-    return this.api.message().getState();
+    return this.#api.message().getState();
   }
 
   get part() {
-    return this.api.part().getState();
+    return this.#api.part().getState();
   }
 
   get attachment() {
-    return this.api.attachment().getState();
+    return this.#api.attachment().getState();
   }
 }
 

@@ -81,6 +81,7 @@ export type MessageClientActions = {
   setIsCopied(value: boolean): void;
   setIsHovering(value: boolean): void;
 
+  /** @internal */
   __internal_getRuntime(): MessageRuntime;
 };
 

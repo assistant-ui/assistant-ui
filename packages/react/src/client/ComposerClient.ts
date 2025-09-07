@@ -38,6 +38,7 @@ export type ComposerClientActions = {
   cancel(): void;
   beginEdit(): void;
 
+  /** @internal */
   __internal_getRuntime(): ComposerRuntime;
 };
 

@@ -78,6 +78,7 @@ export type AssistantClientActions = {
   ): Unsubscribe;
 
   registerModelContextProvider(provider: ModelContextProvider): Unsubscribe;
+  /** @internal */
   __internal_getRuntime(): AssistantRuntime | null;
 };
 

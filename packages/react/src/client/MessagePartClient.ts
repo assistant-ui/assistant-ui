@@ -24,6 +24,7 @@ export type MessagePartClientActions = {
    */
   addToolResult(result: any | ToolResponse<any>): void;
 
+  /** @internal */
   __internal_getRuntime(): MessagePartRuntime;
 };
 

@@ -37,6 +37,7 @@ export type ThreadListItemRuntime = {
     callback: () => void,
   ): Unsubscribe;
 
+  /** @internal */
   __internal_getRuntime(): ThreadListItemRuntime;
 };
 
@@ -147,6 +148,7 @@ export class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
     this._threadListBinding.detach(state.id);
   }
 
+  /** @internal */
   public __internal_getRuntime(): ThreadListItemRuntime {
     return this;
   }

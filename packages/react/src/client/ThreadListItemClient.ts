@@ -26,6 +26,7 @@ export type ThreadListItemClientActions = {
   initialize(): Promise<{ remoteId: string; externalId: string | undefined }>;
   detach(): void;
 
+  /** @internal */
   __internal_getRuntime(): ThreadListItemRuntime;
 };
 

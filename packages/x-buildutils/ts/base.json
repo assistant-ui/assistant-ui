@@ -9,6 +9,7 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "lib": ["dom", "dom.iterable", "ES2023"],
+    "stripInternal": true,
     "paths": {
       "@assistant-ui/*": ["../../packages/*/src"],
       "@assistant-ui/react/*": ["../../packages/react/src/*"],

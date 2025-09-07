@@ -142,6 +142,7 @@ export type ThreadClientActions = {
    */
   stopSpeaking(): void;
 
+  /** @internal */
   __internal_getRuntime(): ThreadRuntime;
 };
 

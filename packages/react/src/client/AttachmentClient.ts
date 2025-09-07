@@ -6,5 +6,6 @@ export type AttachmentClientState = Attachment;
 export type AttachmentClientActions = {
   readonly remove: () => Promise<void>;
 
+  /** @internal */
   __internal_getRuntime(): AttachmentRuntime;
 };
