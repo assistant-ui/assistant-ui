@@ -6,6 +6,7 @@ import {
   AssistantApi,
   AssistantApiProvider,
   useAssistantApi,
+  createAssistantApiField,
 } from "../react/AssistantApiContext";
 
 export const MessageAttachmentByIndexProvider: FC<
@@ -16,18 +17,11 @@ export const MessageAttachmentByIndexProvider: FC<
   const api = useAssistantApi();
   const api2 = useMemo(() => {
     return {
-      attachment() {
-        return api.message().attachment({ index });
-      },
-      meta: {
-        attachment: {
-          source: "message",
-          query: {
-            type: "index",
-            index,
-          },
-        },
-      } as const,
+      attachment: createAssistantApiField({
+        source: "message",
+        query: { type: "index", index },
+        get: () => api.message().attachment({ index }),
+      }),
     } satisfies Partial<AssistantApi>;
   }, [api, index]);
 
@@ -42,18 +36,11 @@ export const ComposerAttachmentByIndexProvider: FC<
   const api = useAssistantApi();
   const api2 = useMemo(() => {
     return {
-      attachment() {
-        return api.composer().attachment({ index });
-      },
-      meta: {
-        attachment: {
-          source: "composer",
-          query: {
-            type: "index",
-            index,
-          },
-        },
-      } as const,
+      attachment: createAssistantApiField({
+        source: "composer",
+        query: { type: "index", index },
+        get: () => api.composer().attachment({ index }),
+      }),
     } satisfies Partial<AssistantApi>;
   }, [api, index]);
 

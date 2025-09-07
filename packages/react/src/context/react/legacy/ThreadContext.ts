@@ -38,7 +38,9 @@ export function useThreadRuntime(options?: {
 }): ThreadRuntime | null;
 export function useThreadRuntime(options?: { optional?: boolean | undefined }) {
   const api = useAssistantApi();
-  const runtime = api.meta.thread ? api.thread().__internal_getRuntime() : null;
+  const runtime = api.thread.source
+    ? api.thread().__internal_getRuntime()
+    : null;
   if (!runtime && !options?.optional) {
     throw new Error("ThreadRuntime is not available");
   }

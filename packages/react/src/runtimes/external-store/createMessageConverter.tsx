@@ -50,9 +50,9 @@ export const createMessageConverter = <T extends object>(
       return first;
     },
     useOriginalMessages: () => {
-      const { meta } = useAssistantApi();
+      const api = useAssistantApi();
       const partMessages = useAssistantState((s) => {
-        if (meta.part) return getExternalStoreMessages(s.part);
+        if (api.part.source) return getExternalStoreMessages(s.part);
         return undefined;
       });
 

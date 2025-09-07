@@ -64,20 +64,94 @@ export type AssistantState = {
   readonly attachment: AttachmentClientState;
 };
 
-export type AssistantApi = {
-  threads(): StoreApi<ThreadListClientState, ThreadListClientActions>;
-  toolUIs(): StoreApi<AssistantToolUIState, AssistantToolUIActions>;
-  threadListItem(): StoreApi<
-    ThreadListItemClientState,
-    ThreadListItemClientActions
-  >;
-  thread(): StoreApi<ThreadClientState, ThreadClientActions>;
-  composer(): StoreApi<ComposerClientState, ComposerClientActions>;
-  message(): StoreApi<MessageClientState, MessageClientActions>;
-  part(): StoreApi<MessagePartClientState, MessagePartClientActions>;
-  attachment(): StoreApi<AttachmentClientState, AttachmentClientActions>;
+type AssistantApiField<
+  TState,
+  TActions,
+  TMeta extends { source: string | null; query: any },
+> = (() => StoreApi<TState, TActions>) &
+  (TMeta | { source: null; query: Record<string, never> });
 
-  readonly meta: AssistantMeta;
+// Meta types for each API method
+type ThreadsMeta = {
+  source: "root";
+  query: Record<string, never>;
+};
+
+type ToolUIMeta = {
+  source: "root";
+  query: Record<string, never>;
+};
+
+type ThreadListItemMeta = {
+  source: "threads";
+  query:
+    | { type: "index"; index: number; archived: boolean }
+    | { type: "main" }
+    | { type: "id"; id: string };
+};
+
+type ThreadMeta = {
+  source: "threads";
+  query: { type: "main" };
+};
+
+type ComposerMeta = {
+  source: "message" | "thread";
+  query: Record<string, never>;
+};
+
+type MessageMeta = {
+  source: "thread";
+  query: { type: "index"; index: number };
+};
+
+type PartMeta = {
+  source: "message" | "root";
+  query: { type: "index"; index: number } | Record<string, never>;
+};
+
+type AttachmentMeta = {
+  source: "message" | "composer";
+  query: { type: "index"; index: number };
+};
+
+export type AssistantApi = {
+  threads: AssistantApiField<
+    ThreadListClientState,
+    ThreadListClientActions,
+    ThreadsMeta
+  >;
+  toolUIs: AssistantApiField<
+    AssistantToolUIState,
+    AssistantToolUIActions,
+    ToolUIMeta
+  >;
+  threadListItem: AssistantApiField<
+    ThreadListItemClientState,
+    ThreadListItemClientActions,
+    ThreadListItemMeta
+  >;
+  thread: AssistantApiField<ThreadClientState, ThreadClientActions, ThreadMeta>;
+  composer: AssistantApiField<
+    ComposerClientState,
+    ComposerClientActions,
+    ComposerMeta
+  >;
+  message: AssistantApiField<
+    MessageClientState,
+    MessageClientActions,
+    MessageMeta
+  >;
+  part: AssistantApiField<
+    MessagePartClientState,
+    MessagePartClientActions,
+    PartMeta
+  >;
+  attachment: AssistantApiField<
+    AttachmentClientState,
+    AttachmentClientActions,
+    AttachmentMeta
+  >;
 
   subscribe(listener: () => void): Unsubscribe;
   flushSync(): void;
@@ -93,100 +167,90 @@ export type AssistantApi = {
   __internal_getRuntime(): AssistantRuntime | null;
 };
 
-export type AssistantMeta = {
-  threads?: {
-    source: "root";
-    query: Record<string, never>;
-  };
-  toolUIs?: {
-    source: "root";
-    query: Record<string, never>;
-  };
-  threadListItem?: {
-    source: "threads";
-    query:
-      | {
-          type: "index";
-          index: number;
-          archived: boolean;
-        }
-      | {
-          type: "main";
-        }
-      | {
-          type: "id";
-          id: string;
-        };
-  };
-  thread?: {
-    source: "threads";
-    query: { type: "main" };
-  };
-  attachment?: {
-    source: "message" | "composer";
-    query: {
-      type: "index";
-      index: number;
-    };
-  };
-  composer?: {
-    source: "message" | "thread";
-    query: Record<string, never>;
-  };
-  part?:
-    | {
-        source: "message";
-        query: {
-          type: "index";
-          index: number;
-        };
-      }
-    | {
-        source: "root";
-        query: Record<string, never>;
-      };
-  message?: {
-    source: "thread";
-    query: {
-      type: "index";
-      index: number;
-    };
-  };
+export const createAssistantApiField = <
+  TState,
+  TActions,
+  TMeta extends { source: any; query: any },
+>(
+  config: {
+    get: () => StoreApi<TState, TActions>;
+  } & (TMeta | { source: null; query: Record<string, never> }),
+): AssistantApiField<TState, TActions, TMeta> => {
+  const fn = config.get as AssistantApiField<TState, TActions, TMeta>;
+  fn.source = config.source;
+  fn.query = config.query;
+  return fn;
 };
 
 const NO_OP_FN = () => () => {};
 
 const AssistantApiContext = createContext<AssistantApi>({
-  threads(): never {
-    throw new Error("Threads is only available inside <AssistantProvider />");
-  },
-  toolUIs(): never {
-    throw new Error("ToolUIs is only available inside <AssistantProvider />");
-  },
-  threadListItem(): never {
-    throw new Error(
-      "ThreadListItem is only available inside <AssistantProvider />",
-    );
-  },
-  thread(): never {
-    throw new Error("Thread is only available inside <AssistantProvider />");
-  },
-  composer(): never {
-    throw new Error("Composer is only available inside <AssistantProvider />");
-  },
-  message(): never {
-    throw new Error(
-      "Message is only available inside <ThreadPrimitive.Messages />",
-    );
-  },
-  part(): never {
-    throw new Error("Part is only available inside <MessagePrimitive.Parts />");
-  },
-  attachment(): never {
-    throw new Error(
-      "Attachment is only available inside <MessagePrimitive.Attachments /> or <ComposerPrimitive.Attachments />",
-    );
-  },
+  threads: createAssistantApiField({
+    source: null,
+    query: {},
+    get: () => {
+      throw new Error("Threads is only available inside <AssistantProvider />");
+    },
+  }),
+  toolUIs: createAssistantApiField({
+    source: null,
+    query: {},
+    get: (): never => {
+      throw new Error("ToolUIs is only available inside <AssistantProvider />");
+    },
+  }),
+  threadListItem: createAssistantApiField({
+    source: null,
+    query: {},
+    get: (): never => {
+      throw new Error(
+        "ThreadListItem is only available inside <AssistantProvider />",
+      );
+    },
+  }),
+  thread: createAssistantApiField({
+    source: null,
+    query: {},
+    get: (): never => {
+      throw new Error("Thread is only available inside <AssistantProvider />");
+    },
+  }),
+  composer: createAssistantApiField({
+    source: null,
+    query: {},
+    get: (): never => {
+      throw new Error(
+        "Composer is only available inside <AssistantProvider />",
+      );
+    },
+  }),
+  message: createAssistantApiField({
+    source: null,
+    query: {},
+    get: (): never => {
+      throw new Error(
+        "Message is only available inside <ThreadPrimitive.Messages />",
+      );
+    },
+  }),
+  part: createAssistantApiField({
+    source: null,
+    query: {},
+    get: (): never => {
+      throw new Error(
+        "Part is only available inside <MessagePrimitive.Parts />",
+      );
+    },
+  }),
+  attachment: createAssistantApiField({
+    source: null,
+    query: {},
+    get: (): never => {
+      throw new Error(
+        "Attachment is only available inside <MessagePrimitive.Attachments /> or <ComposerPrimitive.Attachments />",
+      );
+    },
+  }),
 
   subscribe: NO_OP_FN,
   flushSync: NO_OP_FN,
@@ -194,7 +258,6 @@ const AssistantApiContext = createContext<AssistantApi>({
     const { scope } = normalizeEventSelector(selector);
     throw new Error(`Event scope is not available in this component: ${scope}`);
   },
-  meta: {},
 
   registerModelContextProvider: () => {
     throw new Error(
@@ -314,10 +377,6 @@ const extendApi = (
       api2Subscribe ?? NO_OP_FN,
     ),
     flushSync: mergeFns(api.flushSync, api2FlushSync ?? NO_OP_FN),
-    meta: {
-      ...api.meta,
-      ...api2.meta,
-    },
   };
 };
 

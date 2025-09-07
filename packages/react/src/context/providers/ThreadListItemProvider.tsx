@@ -5,6 +5,7 @@ import {
   AssistantApi,
   AssistantApiProvider,
   useAssistantApi,
+  createAssistantApiField,
 } from "../react/AssistantApiContext";
 import { AssistantEventSelector, AssistantEvents } from "../../types";
 import { Unsubscribe } from "@assistant-ui/tap";
@@ -24,9 +25,11 @@ export const ThreadListItemByIndexProvider: FC<
   const api2 = useMemo(() => {
     const getItem = () => api.threads().item({ index, archived });
     return {
-      threadListItem() {
-        return getItem();
-      },
+      threadListItem: createAssistantApiField({
+        source: "threads",
+        query: { type: "index", index, archived },
+        get: () => getItem(),
+      }),
       on<TEvent extends keyof AssistantEvents>(
         selector: AssistantEventSelector<TEvent>,
         callback: (e: AssistantEvents[TEvent]) => void,
@@ -39,16 +42,6 @@ export const ThreadListItemByIndexProvider: FC<
             callback(e);
           }
         });
-      },
-      meta: {
-        threadListItem: {
-          source: "threads",
-          query: {
-            type: "index",
-            index,
-            archived,
-          },
-        },
       },
     } satisfies Partial<AssistantApi>;
   }, [api, index, archived]);
@@ -66,9 +59,11 @@ export const ThreadListItemByIdProvider: FC<
   const api2 = useMemo(() => {
     const getItem = () => api.threads().item({ id });
     return {
-      threadListItem() {
-        return getItem();
-      },
+      threadListItem: createAssistantApiField({
+        source: "threads",
+        query: { type: "id", id },
+        get: () => getItem(),
+      }),
       on<TEvent extends keyof AssistantEvents>(
         selector: AssistantEventSelector<TEvent>,
         callback: (e: AssistantEvents[TEvent]) => void,
@@ -81,15 +76,6 @@ export const ThreadListItemByIdProvider: FC<
           if (e.threadId !== getItem().getState().id) return;
           callback(e);
         });
-      },
-      meta: {
-        threadListItem: {
-          source: "threads",
-          query: {
-            type: "id",
-            id,
-          },
-        },
       },
     } satisfies Partial<AssistantApi>;
   }, [api, id]);

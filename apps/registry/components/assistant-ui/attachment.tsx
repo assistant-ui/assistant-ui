@@ -7,6 +7,8 @@ import {
   AttachmentPrimitive,
   ComposerPrimitive,
   MessagePrimitive,
+  useAssistantApi,
+  useAssistantState,
   useAttachment,
 } from "@assistant-ui/react";
 import { useShallow } from "zustand/shallow";
@@ -89,14 +91,13 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
 
   return (
     <Dialog>
-      <DialogTrigger
-        className="aui-attachment-preview-trigger"
-        asChild
-      >
+      <DialogTrigger className="aui-attachment-preview-trigger" asChild>
         {children}
       </DialogTrigger>
       <DialogContent className="aui-attachment-preview-dialog-content">
-        <DialogTitle className="aui-sr-only">Image Attachment Preview</DialogTitle>
+        <DialogTitle className="aui-sr-only">
+          Image Attachment Preview
+        </DialogTitle>
         <div className="aui-attachment-preview">
           <AttachmentPreview src={src} />
         </div>
@@ -124,10 +125,13 @@ const AttachmentThumb: FC = () => {
 };
 
 const AttachmentUI: FC = () => {
-  const isComposer = useAttachment((a) => a.source !== "message");
-  const isImage = useAttachment((a) => a.type === "image");
-  const typeLabel = useAttachment((a) => {
-    const type = a.type;
+  const api = useAssistantApi();
+  const isComposer = api.attachment.source !== "message";
+  const isImage = useAssistantState(
+    ({ attachment }) => attachment.type === "image",
+  );
+  const typeLabel = useAssistantState(({ attachment }) => {
+    const type = attachment.type;
     switch (type) {
       case "image":
         return "Image";

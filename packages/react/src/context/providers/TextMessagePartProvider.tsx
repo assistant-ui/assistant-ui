@@ -4,6 +4,7 @@ import { useMemo, type FC, type PropsWithChildren } from "react";
 import {
   AssistantApiProvider,
   AssistantApi,
+  createAssistantApiField,
 } from "../react/AssistantApiContext";
 import {
   MessagePartClientActions,
@@ -50,14 +51,12 @@ export const TextMessagePartProvider: FC<
   );
   const api = useMemo(() => {
     return {
-      part: () => store.getApi(),
+      part: createAssistantApiField({
+        source: "root",
+        query: {},
+        get: () => store.getApi(),
+      }),
       subscribe: store.subscribe,
-      meta: {
-        part: {
-          source: "root",
-          query: {},
-        },
-      },
       // flushSync: store.flushSync,
     } satisfies Partial<AssistantApi>;
   }, [store]);

@@ -47,7 +47,7 @@ export function useMessageRuntime(options?: {
   optional?: boolean | undefined;
 }) {
   const api = useAssistantApi();
-  const runtime = api.meta.message
+  const runtime = api.message.source
     ? api.message().__internal_getRuntime()
     : null;
   if (!runtime && !options?.optional) {

@@ -22,6 +22,10 @@ import {
   normalizeEventSelector,
 } from "../types/EventTypes";
 import { EventManagerClient } from "./EventManagerClient";
+import {
+  AssistantApi,
+  createAssistantApiField,
+} from "../context/react/AssistantApiContext";
 
 export type AssistantToolUIState = Record<
   string,
@@ -131,21 +135,31 @@ export const useAssistantRuntimeClient = (runtime: AssistantRuntime) => {
       return client.getApi().threads.item("main");
     };
     return {
-      threads() {
-        return client.getApi().threads;
-      },
-      toolUIs() {
-        return client.getApi().toolUIs;
-      },
-      thread() {
-        return client.getApi().threads.thread("main");
-      },
-      threadListItem() {
-        return getItem();
-      },
-      composer() {
-        return client.getApi().threads.thread("main").composer;
-      },
+      threads: createAssistantApiField({
+        source: "root",
+        query: {},
+        get: () => client.getApi().threads,
+      }),
+      toolUIs: createAssistantApiField({
+        source: "root",
+        query: {},
+        get: () => client.getApi().toolUIs,
+      }),
+      thread: createAssistantApiField({
+        source: "threads",
+        query: { type: "main" },
+        get: () => client.getApi().threads.thread("main"),
+      }),
+      threadListItem: createAssistantApiField({
+        source: "threads",
+        query: { type: "main" },
+        get: () => getItem(),
+      }),
+      composer: createAssistantApiField({
+        source: "thread",
+        query: {},
+        get: () => client.getApi().threads.thread("main").composer,
+      }),
       registerModelContextProvider(provider: ModelContextProvider) {
         return client.getApi().registerModelContextProvider(provider);
       },
@@ -174,35 +188,9 @@ export const useAssistantRuntimeClient = (runtime: AssistantRuntime) => {
           `Event scope is not available in this component: ${scope}`,
         );
       },
-      meta: {
-        toolUIs: {
-          source: "root",
-          query: {},
-        },
-        threads: {
-          source: "root",
-          query: {},
-        },
-        thread: {
-          source: "threads",
-          query: {
-            type: "main",
-          },
-        },
-        threadListItem: {
-          source: "threads",
-          query: {
-            type: "main",
-          },
-        },
-        composer: {
-          source: "thread",
-          query: {},
-        },
-      } as const,
       subscribe: client.subscribe,
       flushSync: client.flushSync,
-    };
+    } satisfies Partial<AssistantApi>;
   }, [client]);
 
   return api;

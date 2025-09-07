@@ -5,6 +5,7 @@ import {
   AssistantApi,
   AssistantApiProvider,
   useAssistantApi,
+  createAssistantApiField,
 } from "../react/AssistantApiContext";
 import { AssistantEvents, AssistantEventSelector } from "../../types";
 import { Unsubscribe } from "@assistant-ui/tap";
@@ -22,12 +23,16 @@ export const MessageByIndexProvider: FC<
   const api2 = useMemo(() => {
     const getMessage = () => api.thread().message({ index });
     return {
-      message() {
-        return getMessage();
-      },
-      composer() {
-        return getMessage().composer;
-      },
+      message: createAssistantApiField({
+        source: "thread",
+        query: { type: "index", index },
+        get: () => getMessage(),
+      }),
+      composer: createAssistantApiField({
+        source: "message",
+        query: {},
+        get: () => getMessage().composer,
+      }),
       on<TEvent extends keyof AssistantEvents>(
         selector: AssistantEventSelector<TEvent>,
         callback: (e: AssistantEvents[TEvent]) => void,
@@ -44,19 +49,6 @@ export const MessageByIndexProvider: FC<
             callback(e);
           }
         });
-      },
-      meta: {
-        message: {
-          source: "thread",
-          query: {
-            type: "index",
-            index,
-          },
-        },
-        composer: {
-          source: "message",
-          query: {},
-        },
       },
     } satisfies Partial<AssistantApi>;
   }, [api, index]);

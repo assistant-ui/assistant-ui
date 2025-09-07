@@ -52,7 +52,7 @@ export function useComposerRuntime(options?: {
   optional?: boolean | undefined;
 }): ComposerRuntime | null {
   const api = useAssistantApi();
-  const runtime = api.meta.composer
+  const runtime = api.composer.source
     ? api.composer().__internal_getRuntime()
     : null;
   if (!runtime && !options?.optional) {

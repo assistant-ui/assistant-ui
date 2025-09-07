@@ -14,7 +14,7 @@ export function useAttachmentRuntime(options?: {
   optional?: boolean | undefined;
 }): AttachmentRuntime | null {
   const api = useAssistantApi();
-  const runtime = api.meta.attachment
+  const runtime = api.attachment.source
     ? api.attachment().__internal_getRuntime()
     : null;
   if (!runtime && !options?.optional) {
