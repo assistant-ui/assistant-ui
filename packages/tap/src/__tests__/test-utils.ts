@@ -115,17 +115,6 @@ export class TestSubscriber<T> {
     this.lastState = initialResult.state;
     lastRenderResultMap.set(fiber, initialResult);
     activeResources.add(fiber);
-
-    // Update the fiber's rerender callback
-    (fiber as any)._rerenderCallback = () => {
-      this.callCount++;
-      // Re-render to get latest state
-      const lastProps = propsMap.get(fiber) ?? undefined;
-      const result = renderResourceFiber(fiber, lastProps as any);
-      commitResource(fiber, result);
-      this.lastState = result.state;
-      lastRenderResultMap.set(fiber, result);
-    };
   }
 
   cleanup() {

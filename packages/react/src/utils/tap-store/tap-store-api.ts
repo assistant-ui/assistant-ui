@@ -38,7 +38,7 @@ class ReadonlyStoreApiHandler<TState, TActions>
         get: this.getState,
       };
 
-    return Object.getOwnPropertyDescriptor(this.getState(), prop);
+    return Object.getOwnPropertyDescriptor(this.getActions(), prop);
   }
 
   set() {

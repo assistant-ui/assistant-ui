@@ -53,6 +53,10 @@ export const MessageByIndexProvider: FC<
             index,
           },
         },
+        composer: {
+          source: "message",
+          query: {},
+        },
       },
     } satisfies Partial<AssistantApi>;
   }, [api, index]);
