@@ -77,7 +77,10 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       ),
     onImport: (messages) =>
       chatHelpers.setMessages(
-        messages.map(getVercelAIMessages<UI_MESSAGE>).filter(Boolean).flat(),
+        messages
+          .map(getVercelAIMessages<UI_MESSAGE>)
+          .filter(Boolean)
+          .flat(),
       ),
     onCancel: async () => chatHelpers.stop(),
     onNew: async (message) => {
