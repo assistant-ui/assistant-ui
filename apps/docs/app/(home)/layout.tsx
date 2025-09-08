@@ -24,7 +24,7 @@ export default function Layout({
 
 function Footer(): React.ReactElement {
   return (
-    <footer className="relative border-t px-8 pt-20 pb-32">
+    <footer className="relative border-t px-8 pb-32 pt-20">
       <div className="mx-auto flex w-full max-w-screen-xl flex-col justify-between sm:flex-row">
         <div className="mr-4 flex flex-col gap-4">
           <Link
@@ -64,7 +64,7 @@ function Footer(): React.ReactElement {
             </Link>
           </div>
           <div className="flex-grow" />
-          <p className="text-sm text-foreground/30">
+          <p className="text-foreground/30 text-sm">
             &copy; {new Date().getFullYear()} AgentbaseAI Inc.
           </p>
         </div>
@@ -116,7 +116,7 @@ const FooterLink: FC<{ href: string; children: ReactNode }> = ({
 }) => {
   return (
     <a
-      className="text-xs text-muted-foreground transition-colors hover:text-foreground sm:text-sm"
+      className="text-muted-foreground hover:text-foreground text-xs transition-colors sm:text-sm"
       href={href}
     >
       {children}

@@ -16,10 +16,10 @@ export default function Page(): React.ReactElement {
           <Link
             key={post.url}
             href={post.url}
-            className="flex flex-col rounded-lg bg-card p-4 transition-colors hover:bg-accent hover:text-accent-foreground"
+            className="bg-card hover:bg-accent hover:text-accent-foreground flex flex-col rounded-lg p-4 transition-colors"
           >
             <p className="font-medium">{post.data.title}</p>
-            <p className="mt-auto pt-2 text-xs text-muted-foreground">
+            <p className="text-muted-foreground mt-auto pt-2 text-xs">
               {new Date(post.data.date ?? post.file.name).toDateString()}
             </p>
           </Link>

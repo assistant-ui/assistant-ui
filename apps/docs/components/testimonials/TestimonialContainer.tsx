@@ -21,7 +21,7 @@ const TestimonialView: FC<Testimonial> = (testimonial) => {
   return (
     <div className="mb-4 break-inside-avoid-column">
       <a target="_blank" href={testimonial.url}>
-        <div className="flex flex-col gap-3 rounded-lg border bg-card p-6 shadow transition-colors hover:bg-border">
+        <div className="bg-card hover:bg-border flex flex-col gap-3 rounded-lg border p-6 shadow transition-colors">
           <div className="relative flex items-center gap-2">
             <Image
               alt={"@" + testimonial.username + "'s twitter image"}
@@ -32,11 +32,11 @@ const TestimonialView: FC<Testimonial> = (testimonial) => {
               src={testimonial.avatar}
             />
             <p className="text-sm font-medium">{testimonial.username}</p>
-            <div className="absolute -top-1 -left-1 flex h-5 w-5 items-center justify-center rounded-full bg-background">
+            <div className="bg-background absolute -left-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full">
               <XLogo />
             </div>
           </div>
-          <p className="whitespace-pre-line text-muted-foreground">
+          <p className="text-muted-foreground whitespace-pre-line">
             {testimonial.message}
           </p>
         </div>

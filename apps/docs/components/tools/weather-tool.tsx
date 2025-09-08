@@ -40,11 +40,11 @@ export const GeocodeLocationToolUI = () => {
     render: ({ result }) => {
       if (result?.error) {
         return (
-          <div className="flex min-h-[68px] items-center gap-3 rounded-md border-2 border-red-400 bg-muted/50 p-3">
+          <div className="bg-muted/50 flex min-h-[68px] items-center gap-3 rounded-md border-2 border-red-400 p-3">
             <span className="text-red-500">⚠️</span>
             <div className="flex flex-col">
               <span className="text-sm font-semibold">Geocoding Error</span>
-              <span className="text-sm text-muted-foreground">
+              <span className="text-muted-foreground text-sm">
                 {result?.error || "Unknown error"}
               </span>
             </div>
@@ -53,13 +53,13 @@ export const GeocodeLocationToolUI = () => {
       }
       if (!result?.result) {
         return (
-          <div className="flex min-h-[68px] items-center gap-3 rounded-md border-2 border-blue-400 bg-muted/50 p-3">
+          <div className="bg-muted/50 flex min-h-[68px] items-center gap-3 rounded-md border-2 border-blue-400 p-3">
             <Loader2 className="h-5 w-5 flex-shrink-0 animate-spin text-blue-500" />
             <div className="flex flex-col">
               <span className="text-sm font-semibold">
                 Geocoding location...
               </span>
-              <span className="text-sm text-muted-foreground">
+              <span className="text-muted-foreground text-sm">
                 Please wait while we find your location
               </span>
             </div>
@@ -69,11 +69,11 @@ export const GeocodeLocationToolUI = () => {
 
       const { name, latitude, longitude } = result?.result;
       return (
-        <div className="flex min-h-[68px] items-center gap-3 rounded-md border-2 border-blue-400 bg-muted/50 p-3 transition-all duration-300 hover:border-blue-500 hover:bg-muted/70 hover:shadow-md">
+        <div className="bg-muted/50 hover:bg-muted/70 flex min-h-[68px] items-center gap-3 rounded-md border-2 border-blue-400 p-3 transition-all duration-300 hover:border-blue-500 hover:shadow-md">
           <MapPin className="h-5 w-5 flex-shrink-0 text-blue-500" />
           <div className="flex flex-col">
             <span className="text-sm font-semibold">{name}</span>
-            <span className="text-sm text-muted-foreground">
+            <span className="text-muted-foreground text-sm">
               {latitude}°N, {longitude}°E
             </span>
           </div>
@@ -153,9 +153,9 @@ export const WeatherSearchToolUI = () => {
         : true;
 
       return (
-        <div className="mt-4 flex min-h-[68px] items-center gap-3 rounded-md border-2 border-blue-400 bg-muted/50 p-3 transition-all duration-300 hover:border-blue-500 hover:bg-muted/70 hover:shadow-md">
+        <div className="bg-muted/50 hover:bg-muted/70 mt-4 flex min-h-[68px] items-center gap-3 rounded-md border-2 border-blue-400 p-3 transition-all duration-300 hover:border-blue-500 hover:shadow-md">
           {isLoading ? (
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
           ) : error ? (
             <span className="text-red-500">⚠️</span>
           ) : isDay ? (
@@ -171,7 +171,7 @@ export const WeatherSearchToolUI = () => {
                   ? "Error Fetching Weather"
                   : `Weather in ${args?.query}`}
             </span>
-            <span className="text-sm text-muted-foreground">
+            <span className="text-muted-foreground text-sm">
               {isLoading
                 ? "Loading..."
                 : error

@@ -84,18 +84,18 @@ const ThreadWelcome: FC = () => {
             What do you want to know?
           </p>
         </div>
-        <ComposerPrimitive.Root className="w-full rounded-lg border bg-[#202222] px-2 shadow-sm transition-all duration-200 outline-none focus-within:ring-1 focus-within:ring-border focus:outline-none">
+        <ComposerPrimitive.Root className="focus-within:ring-border w-full rounded-lg border bg-[#202222] px-2 shadow-sm outline-none transition-all duration-200 focus-within:ring-1 focus:outline-none">
           <ComposerPrimitive.Input
             rows={1}
             autoFocus
             placeholder="Ask anything..."
-            className="max-h-40 w-full flex-grow resize-none border-none bg-transparent px-2 py-4 text-lg outline-none placeholder:text-muted-foreground focus:ring-0 disabled:cursor-not-allowed"
+            className="placeholder:text-muted-foreground max-h-40 w-full flex-grow resize-none border-none bg-transparent px-2 py-4 text-lg outline-none focus:ring-0 disabled:cursor-not-allowed"
           />
           <div className="mx-1.5 flex gap-2">
             <div className="flex-grow" />
             <ComposerPrimitive.AddAttachment asChild>
               <TooltipIconButton
-                className="rounded-max my-2.5 size-8 p-2 text-muted-foreground transition-opacity ease-in"
+                className="rounded-max text-muted-foreground my-2.5 size-8 p-2 transition-opacity ease-in"
                 tooltip="Add Attachment"
                 variant="ghost"
               >
@@ -120,19 +120,19 @@ const ThreadWelcome: FC = () => {
 
 const Composer: FC = () => {
   return (
-    <div className="w-full rounded-full bg-foreground/5 p-2">
-      <ComposerPrimitive.Root className="flex w-full flex-wrap items-end rounded-full border bg-inherit px-2.5 shadow-sm transition-colors ease-in focus-within:border-ring/20">
+    <div className="bg-foreground/5 w-full rounded-full p-2">
+      <ComposerPrimitive.Root className="focus-within:border-ring/20 flex w-full flex-wrap items-end rounded-full border bg-inherit px-2.5 shadow-sm transition-colors ease-in">
         <ComposerAttachments />
         <ComposerPrimitive.Input
           rows={1}
           autoFocus
           placeholder="Ask follow-up"
-          className="max-h-40 flex-grow resize-none border-none bg-transparent px-4 py-4 text-lg outline-none placeholder:text-muted-foreground focus:ring-0 disabled:cursor-not-allowed"
+          className="placeholder:text-muted-foreground max-h-40 flex-grow resize-none border-none bg-transparent px-4 py-4 text-lg outline-none focus:ring-0 disabled:cursor-not-allowed"
         />
         <div className="flex gap-3">
           <ComposerPrimitive.AddAttachment asChild>
             <TooltipIconButton
-              className="my-2.5 size-10 p-1 text-muted-foreground transition-opacity ease-in"
+              className="text-muted-foreground my-2.5 size-10 p-1 transition-opacity ease-in"
               tooltip="Add Attachment"
               variant="ghost"
             >
@@ -180,7 +180,7 @@ const UserMessage: FC = () => {
     <MessagePrimitive.Root className="relative w-full max-w-[var(--thread-max-width)] gap-y-2 py-4">
       <UserMessageAttachments />
 
-      <div className="rounded-3xl py-2.5 text-3xl break-words text-foreground">
+      <div className="text-foreground break-words rounded-3xl py-2.5 text-3xl">
         <MessagePrimitive.Parts />
       </div>
     </MessagePrimitive.Root>
@@ -190,7 +190,7 @@ const UserMessage: FC = () => {
 const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="relative grid w-full max-w-[var(--thread-max-width)] grid-cols-[auto_auto_1fr] grid-rows-[auto_1fr] py-4">
-      <div className="col-span-2 col-start-2 row-start-1 my-1.5 max-w-[calc(var(--thread-max-width)*0.8)] leading-7 break-words text-foreground">
+      <div className="text-foreground col-span-2 col-start-2 row-start-1 my-1.5 max-w-[calc(var(--thread-max-width)*0.8)] break-words leading-7">
         <h1 className="mb-4 inline-flex items-center gap-2 text-2xl">
           <SparkleIcon /> Answer
         </h1>
@@ -200,7 +200,7 @@ const AssistantMessage: FC = () => {
 
       <AssistantActionBar />
 
-      <BranchPicker className="col-start-2 row-start-2 mr-2 -ml-2" />
+      <BranchPicker className="col-start-2 row-start-2 -ml-2 mr-2" />
     </MessagePrimitive.Root>
   );
 };
@@ -211,7 +211,7 @@ const AssistantActionBar: FC = () => {
       hideWhenRunning
       autohide="not-last"
       autohideFloat="single-branch"
-      className="col-start-3 row-start-2 -ml-1 flex gap-1 text-muted-foreground"
+      className="text-muted-foreground col-start-3 row-start-2 -ml-1 flex gap-1"
     >
       {/* <MessagePrimitive.If speaking={false}>
         <ActionBarPrimitive.Speak asChild>
@@ -254,7 +254,7 @@ const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({
     <BranchPickerPrimitive.Root
       hideWhenSingleBranch
       className={cn(
-        "inline-flex items-center text-xs text-muted-foreground",
+        "text-muted-foreground inline-flex items-center text-xs",
         className,
       )}
       {...rest}

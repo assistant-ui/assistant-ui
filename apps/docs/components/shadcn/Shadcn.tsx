@@ -108,7 +108,7 @@ export const Shadcn = () => {
       <div className={cn(sideStyle, topStyle)}>
         <Header />
       </div>
-      <div className="overflow-hidden bg-background">
+      <div className="bg-background overflow-hidden">
         <Thread />
       </div>
     </div>

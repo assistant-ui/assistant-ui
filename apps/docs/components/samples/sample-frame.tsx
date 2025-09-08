@@ -14,12 +14,12 @@ export const SampleFrame = ({
   className?: string;
 }) => {
   return (
-    <div className="relative rounded-lg border bg-accent/75 p-4">
-      <div className="absolute -top-2 left-4 rounded bg-primary px-2 py-0.5 text-xs text-primary-foreground">
+    <div className="bg-accent/75 relative rounded-lg border p-4">
+      <div className="bg-primary text-primary-foreground absolute -top-2 left-4 rounded px-2 py-0.5 text-xs">
         {sampleText || "Sample"}
       </div>
       {description && (
-        <div className="py-2 text-sm text-muted-foreground">{description}</div>
+        <div className="text-muted-foreground py-2 text-sm">{description}</div>
       )}
       <div
         className={cn(

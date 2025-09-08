@@ -59,13 +59,13 @@ const Parameter: FC<ParameterProps> = ({
           {!parameter.required && !parameter.default && "?"}
           {!!parameter.type && ":"}
         </h3>
-        <div className="w-full font-mono text-sm text-foreground/70">
+        <div className="text-foreground/70 w-full font-mono text-sm">
           {parameter.type}
           {parameter.default && ` = ${parameter.default}`}
         </div>
       </div>
       <div>
-        <p className="text-sm text-foreground/70">{parameter.description}</p>
+        <p className="text-foreground/70 text-sm">{parameter.description}</p>
       </div>
       {parameter.children?.map((property) => (
         <ParametersBox key={property.type} {...property} />
@@ -96,7 +96,7 @@ const ParametersBox: FC<ParametersTableProps> = ({ type, parameters }) => {
       )}
     >
       {!!type && (
-        <h3 className="absolute top-0 right-3 z-50 -translate-y-1/2 rounded-md border bg-background px-4 py-2 font-mono text-xs font-semibold text-foreground/70">
+        <h3 className="bg-background text-foreground/70 absolute right-3 top-0 z-50 -translate-y-1/2 rounded-md border px-4 py-2 font-mono text-xs font-semibold">
           {type}
         </h3>
       )}
