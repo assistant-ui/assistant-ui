@@ -5,43 +5,41 @@ import {
   FC,
   PropsWithChildren,
   useContext,
-  useDebugValue,
   useMemo,
-  useSyncExternalStore,
 } from "react";
 
 import {
   AssistantToolUIActions,
   AssistantToolUIState,
-} from "../../client/AssistantRuntimeClient";
+} from "../../legacy-runtime/client/AssistantRuntimeClient";
 import {
   MessageClientActions,
   MessageClientState,
-} from "../../client/MessageClient";
+} from "../../legacy-runtime/client/MessageRuntimeClient";
 import {
   ThreadListItemClientActions,
   ThreadListItemClientState,
-} from "../../client/ThreadListItemClient";
+} from "../../legacy-runtime/client/ThreadListItemRuntimeClient";
 import {
   MessagePartClientActions,
   MessagePartClientState,
-} from "../../client/MessagePartClient";
+} from "../../legacy-runtime/client/MessagePartRuntimeClient";
 import {
   ThreadClientActions,
   ThreadClientState,
-} from "../../client/ThreadClient";
+} from "../../legacy-runtime/client/ThreadRuntimeClient";
 import {
   ComposerClientActions,
   ComposerClientState,
-} from "../../client/ComposerClient";
+} from "../../legacy-runtime/client/ComposerRuntimeClient";
 import {
   AttachmentClientActions,
   AttachmentClientState,
-} from "../../client/AttachmentClient";
+} from "../../legacy-runtime/client/AttachmentRuntimeClient";
 import { StoreApi } from "../../utils/tap-store/tap-store-api";
 import { Unsubscribe } from "@assistant-ui/tap";
 import { ModelContextProvider } from "../../model-context";
-import { AssistantRuntime } from "../../api";
+import { AssistantRuntime } from "../../legacy-runtime/runtime/AssistantRuntime";
 import {
   AssistantEventSelector,
   AssistantEvents,
@@ -50,7 +48,7 @@ import {
 import {
   ThreadListClientActions,
   ThreadListClientState,
-} from "../../client/ThreadListClient";
+} from "../../legacy-runtime/client/ThreadListRuntimeClient";
 
 export type AssistantState = {
   readonly threads: ThreadListClientState;
@@ -272,65 +270,6 @@ const AssistantApiContext = createContext<AssistantApi>({
 export const useAssistantApi = (): AssistantApi => {
   return useContext(AssistantApiContext);
 };
-
-export const useAssistantState = <T,>(
-  selector: (state: AssistantState) => T,
-): T => {
-  const api = useAssistantApi();
-  const proxiedState = useMemo(() => new ProxiedAssistantState(api), [api]);
-  const slice = useSyncExternalStore(
-    api.subscribe,
-    () => selector(proxiedState),
-    () => selector(proxiedState),
-  );
-  useDebugValue(slice);
-
-  if (slice instanceof ProxiedAssistantState)
-    throw new Error(
-      "You tried to return the entire AssistantState. This is not supported due to technical limitations.",
-    );
-
-  return slice;
-};
-
-class ProxiedAssistantState implements AssistantState {
-  #api: AssistantApi;
-  constructor(api: AssistantApi) {
-    this.#api = api;
-  }
-
-  get threads() {
-    return this.#api.threads().getState();
-  }
-
-  get toolUIs() {
-    return this.#api.toolUIs().getState();
-  }
-
-  get threadListItem() {
-    return this.#api.threadListItem().getState();
-  }
-
-  get thread() {
-    return this.#api.thread().getState();
-  }
-
-  get composer() {
-    return this.#api.composer().getState();
-  }
-
-  get message() {
-    return this.#api.message().getState();
-  }
-
-  get part() {
-    return this.#api.part().getState();
-  }
-
-  get attachment() {
-    return this.#api.attachment().getState();
-  }
-}
 
 const mergeFns = <TArgs extends Array<unknown>>(
   fn1: (...args: TArgs) => void,

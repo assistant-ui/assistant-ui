@@ -2,15 +2,19 @@
 // TODO createContextStoreHook does not work well with server-side nextjs bundler
 // use client necessary here for now
 
-export { useAssistantState, useAssistantApi } from "./AssistantApiContext";
-export { useAssistantEvent } from "../../hooks/useAssistantEvent";
+export { useAssistantApi } from "./AssistantApiContext";
+export { useAssistantState } from "./hooks/useAssistantState";
+export { useAssistantEvent } from "./hooks/useAssistantEvent";
 
 export {
   useThreadViewport,
   useThreadViewportStore,
 } from "./ThreadViewportContext";
 
-export { useAssistantRuntime, useThreadList } from "./legacy/AssistantContext";
+export {
+  useAssistantRuntime,
+  useThreadList,
+} from "../../legacy-runtime/hooks/AssistantContext";
 
 export {
   useAttachmentRuntime,
@@ -21,29 +25,32 @@ export {
   useEditComposerAttachment,
   useMessageAttachment,
   useMessageAttachmentRuntime,
-} from "./legacy/AttachmentContext";
+} from "../../legacy-runtime/hooks/AttachmentContext";
 
-export { useComposerRuntime, useComposer } from "./legacy/ComposerContext";
+export {
+  useComposerRuntime,
+  useComposer,
+} from "../../legacy-runtime/hooks/ComposerContext";
 
 export {
   useMessageRuntime,
   useEditComposer,
   useMessage,
-} from "./legacy/MessageContext";
+} from "../../legacy-runtime/hooks/MessageContext";
 
 export {
   useMessagePartRuntime,
   useMessagePart,
-} from "./legacy/MessagePartContext";
+} from "../../legacy-runtime/hooks/MessagePartContext";
 
 export {
   useThreadRuntime,
   useThread,
   useThreadComposer,
   useThreadModelContext,
-} from "./legacy/ThreadContext";
+} from "../../legacy-runtime/hooks/ThreadContext";
 
 export {
   useThreadListItemRuntime,
   useThreadListItem,
-} from "./legacy/ThreadListItemContext";
+} from "../../legacy-runtime/hooks/ThreadListItemContext";

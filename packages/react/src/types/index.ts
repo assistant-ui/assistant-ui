@@ -88,7 +88,7 @@ export type {
 } from "./MessagePartComponentTypes";
 
 // Thread list item types
-export type { ThreadListItemStatus } from "../api/ThreadListItemRuntime";
+export type { ThreadListItemStatus } from "../legacy-runtime/runtime/ThreadListItemRuntime";
 
 export type { Unsubscribe } from "./Unsubscribe";
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { MessagePartState } from "../../api/MessagePartRuntime";
+import { MessagePartState } from "../../legacy-runtime/runtime/MessagePartRuntime";
 import { useAssistantState } from "../../context";
 import { ReasoningMessagePart } from "../../types";
 

@@ -9,7 +9,7 @@ import {
 import {
   MessagePartClientActions,
   MessagePartClientState,
-} from "../../client/MessagePartClient";
+} from "../../legacy-runtime/client/MessagePartRuntimeClient";
 import { resource, tapMemo } from "@assistant-ui/tap";
 import { useResource } from "@assistant-ui/tap/react";
 import { asStore, tapApi } from "../../utils/tap-store";

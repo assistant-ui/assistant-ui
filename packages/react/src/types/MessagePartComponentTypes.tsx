@@ -9,7 +9,7 @@ import type {
   ToolCallMessagePart,
   Unstable_AudioMessagePart,
 } from "./AssistantTypes";
-import { MessagePartState } from "../api/MessagePartRuntime";
+import { MessagePartState } from "../legacy-runtime/runtime/MessagePartRuntime";
 import { ToolResponse } from "assistant-stream";
 
 export type EmptyMessagePartProps = {
