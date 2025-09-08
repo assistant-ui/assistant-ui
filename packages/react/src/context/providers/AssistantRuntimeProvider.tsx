@@ -1,23 +1,14 @@
 "use client";
 
-import {
-  FC,
-  PropsWithChildren,
-  memo,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-import { AssistantContext } from "../react/AssistantContext";
-import { makeAssistantToolUIsStore } from "../stores/AssistantToolUIs";
-import { ThreadRuntimeProvider } from "./ThreadRuntimeProvider";
+import { FC, memo, PropsWithChildren } from "react";
+import { AssistantApiProvider } from "../react/AssistantApiContext";
 import { AssistantRuntime } from "../../api/AssistantRuntime";
-import { create } from "zustand";
-import { writableStore } from "../ReadonlyStore";
 import { AssistantRuntimeCore } from "../../runtimes/core/AssistantRuntimeCore";
-import { ensureBinding } from "../react/utils/ensureBinding";
+import { useAssistantRuntimeClient } from "../../client/AssistantRuntimeClient";
 
-export namespace AssistantRuntimeProvider {
+import { ThreadViewportProvider } from "./ThreadViewportProvider";
+
+export namespace AssistantProvider {
   export type Props = PropsWithChildren<{
     /**
      * The runtime to provide to the rest of your app.
@@ -26,52 +17,37 @@ export namespace AssistantRuntimeProvider {
   }>;
 }
 
-const useAssistantRuntimeStore = (runtime: AssistantRuntime) => {
-  const [store] = useState(() => create(() => runtime));
-
-  useEffect(() => {
-    ensureBinding(runtime);
-    ensureBinding(runtime.threads);
-
-    writableStore(store).setState(runtime, true);
-  }, [runtime, store]);
-
-  return store;
-};
-
-const useAssistantToolUIsStore = () => {
-  return useMemo(() => makeAssistantToolUIsStore(), []);
-};
-
 const getRenderComponent = (runtime: AssistantRuntime) => {
   return (runtime as { _core?: AssistantRuntimeCore })._core?.RenderComponent;
 };
 
-export const AssistantRuntimeProviderImpl: FC<
-  AssistantRuntimeProvider.Props
-> = ({ children, runtime }) => {
-  const useAssistantRuntime = useAssistantRuntimeStore(runtime);
-  const useToolUIs = useAssistantToolUIsStore();
-  const [context] = useState(() => {
-    return {
-      useToolUIs,
-      useAssistantRuntime,
-    };
-  });
+export const AssistantRuntimeProviderImpl: FC<AssistantProvider.Props> = ({
+  children,
+  runtime,
+}) => {
+  const api = useAssistantRuntimeClient(runtime);
 
   const RenderComponent = getRenderComponent(runtime);
 
   return (
-    <AssistantContext.Provider value={context}>
+    <AssistantProvider api={api}>
       {RenderComponent && <RenderComponent />}
-      <ThreadRuntimeProvider
-        runtime={runtime.thread}
-        listItemRuntime={runtime.threads.mainItem}
-      >
-        {children}
-      </ThreadRuntimeProvider>
-    </AssistantContext.Provider>
+
+      {children}
+    </AssistantProvider>
   );
 };
 
 export const AssistantRuntimeProvider = memo(AssistantRuntimeProviderImpl);
+
+const AssistantProvider: FC<
+  PropsWithChildren<{ api: ReturnType<typeof useAssistantRuntimeClient> }>
+> = ({ children, api }) => {
+  return (
+    <AssistantApiProvider api={api}>
+      {/* TODO temporarily allow accessing viewport state from outside the viewport */}
+      {/* TODO figure out if this behavior should be deprecated, since it is quite hacky */}
+      <ThreadViewportProvider>{children}</ThreadViewportProvider>
+    </AssistantApiProvider>
+  );
+};

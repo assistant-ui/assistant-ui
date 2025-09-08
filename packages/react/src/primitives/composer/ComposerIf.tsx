@@ -1,7 +1,7 @@
 "use client";
 
 import type { FC, PropsWithChildren } from "react";
-import { useComposer } from "../../context/react/ComposerContext";
+import { useAssistantState } from "../../context";
 import type { RequireAtLeastOne } from "../../utils/RequireAtLeastOne";
 
 type ComposerIfFilters = {
@@ -11,7 +11,7 @@ type ComposerIfFilters = {
 export type UseComposerIfProps = RequireAtLeastOne<ComposerIfFilters>;
 
 const useComposerIf = (props: UseComposerIfProps) => {
-  return useComposer((composer) => {
+  return useAssistantState(({ composer }) => {
     if (props.editing === true && !composer.isEditing) return false;
     if (props.editing === false && composer.isEditing) return false;
 

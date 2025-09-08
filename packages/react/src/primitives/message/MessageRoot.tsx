@@ -7,33 +7,35 @@ import {
   ComponentPropsWithoutRef,
   useCallback,
 } from "react";
-import { useMessageUtilsStore } from "../../context/react/MessageContext";
+import { useAssistantApi, useAssistantState } from "../../context";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
 
 const useIsHoveringRef = () => {
-  const messageUtilsStore = useMessageUtilsStore();
+  const api = useAssistantApi();
+  const message = useAssistantState(() => api.message());
+
   const callbackRef = useCallback(
     (el: HTMLElement) => {
-      const setIsHovering = messageUtilsStore.getState().setIsHovering;
-
       const handleMouseEnter = () => {
-        setIsHovering(true);
+        message.setIsHovering(true);
       };
       const handleMouseLeave = () => {
-        setIsHovering(false);
+        message.setIsHovering(false);
       };
 
       el.addEventListener("mouseenter", handleMouseEnter);
       el.addEventListener("mouseleave", handleMouseLeave);
 
+      if (el.matches(":hover")) message.setIsHovering(true);
+
       return () => {
         el.removeEventListener("mouseenter", handleMouseEnter);
         el.removeEventListener("mouseleave", handleMouseLeave);
-        setIsHovering(false);
+        message.setIsHovering(false);
       };
     },
-    [messageUtilsStore],
+    [message],
   );
 
   return useManagedRef(callbackRef);

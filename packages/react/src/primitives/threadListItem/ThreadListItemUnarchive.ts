@@ -5,13 +5,14 @@ import {
   ActionButtonProps,
   createActionButton,
 } from "../../utils/createActionButton";
-import { useThreadListItemRuntime } from "../../context/react/ThreadListItemContext";
+import { useAssistantApi } from "../../context";
+import { useCallback } from "react";
 
 const useThreadListItemUnarchive = () => {
-  const runtime = useThreadListItemRuntime();
-  return () => {
-    runtime.unarchive();
-  };
+  const api = useAssistantApi();
+  return useCallback(() => {
+    api.threadListItem().unarchive();
+  }, [api]);
 };
 
 export namespace ThreadListItemPrimitiveUnarchive {

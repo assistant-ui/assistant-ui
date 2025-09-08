@@ -1,10 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import {
-  useAssistantRuntime,
-  useToolUIsStore,
-} from "../context/react/AssistantContext";
+import { useAssistantApi } from "../context/react/AssistantApiContext";
 import type { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
 import type { Tool } from "assistant-stream";
 
@@ -22,14 +19,12 @@ export const useAssistantTool = <
 >(
   tool: AssistantToolProps<TArgs, TResult>,
 ) => {
-  const assistantRuntime = useAssistantRuntime();
-  const toolUIsStore = useToolUIsStore();
+  const api = useAssistantApi();
 
   useEffect(() => {
-    return tool.render
-      ? toolUIsStore.getState().setToolUI(tool.toolName, tool.render)
-      : undefined;
-  }, [toolUIsStore, tool.toolName, tool.render]);
+    if (!tool.render) return undefined;
+    return api.toolUIs().setToolUI(tool.toolName, tool.render);
+  }, [api, tool.toolName, tool.render]);
 
   useEffect(() => {
     const { toolName, render, ...rest } = tool;
@@ -38,8 +33,8 @@ export const useAssistantTool = <
         [toolName]: rest,
       },
     };
-    return assistantRuntime.registerModelContextProvider({
+    return api.registerModelContextProvider({
       getModelContext: () => context,
     });
-  }, [assistantRuntime, tool]);
+  }, [api, tool]);
 };

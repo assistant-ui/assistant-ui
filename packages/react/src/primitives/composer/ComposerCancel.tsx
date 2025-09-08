@@ -6,15 +6,15 @@ import {
   createActionButton,
 } from "../../utils/createActionButton";
 import { useCallback } from "react";
-import { useComposer, useComposerRuntime } from "../../context";
+import { useAssistantState, useAssistantApi } from "../../context";
 
 const useComposerCancel = () => {
-  const composerRuntime = useComposerRuntime();
-  const disabled = useComposer((c) => !c.canCancel);
+  const api = useAssistantApi();
+  const disabled = useAssistantState(({ composer }) => !composer.canCancel);
 
   const callback = useCallback(() => {
-    composerRuntime.cancel();
-  }, [composerRuntime]);
+    api.composer().cancel();
+  }, [api]);
 
   if (disabled) return null;
   return callback;

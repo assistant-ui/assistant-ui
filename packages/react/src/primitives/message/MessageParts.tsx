@@ -8,16 +8,11 @@ import {
   useMemo,
 } from "react";
 import {
+  useAssistantState,
+  useAssistantApi,
+  PartByIndexProvider,
   TextMessagePartProvider,
-  useMessagePart,
-  useMessagePartRuntime,
-  useToolUIs,
 } from "../../context";
-import {
-  useMessage,
-  useMessageRuntime,
-} from "../../context/react/MessageContext";
-import { MessagePartRuntimeProvider } from "../../context/providers/MessagePartRuntimeProvider";
 import { MessagePartPrimitiveText } from "../messagePart/MessagePartText";
 import { MessagePartPrimitiveImage } from "../messagePart/MessagePartImage";
 import type {
@@ -86,8 +81,8 @@ const groupMessageParts = (
 };
 
 const useMessagePartsGroups = (): MessagePartRange[] => {
-  const messageTypes = useMessage(
-    useShallow((m) => m.content.map((c) => c.type)),
+  const messageTypes = useAssistantState(
+    useShallow((s) => s.message.parts.map((c: any) => c.type)),
   );
 
   return useMemo(() => {
@@ -200,7 +195,11 @@ const ToolUIDisplay = ({
 }: {
   Fallback: ToolCallMessagePartComponent | undefined;
 } & ToolCallMessagePartProps) => {
-  const Render = useToolUIs((s) => s.getToolUI(props.toolName)) ?? Fallback;
+  const Render = useAssistantState(({ toolUIs }) => {
+    const Render = toolUIs[props.toolName] ?? Fallback;
+    if (Array.isArray(Render)) return Render[0];
+    return Render;
+  });
   if (!Render) return null;
   return <Render {...props} />;
 };
@@ -237,20 +236,19 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
     tools = {},
   } = {},
 }) => {
-  const MessagePartRuntime = useMessagePartRuntime();
-
-  const part = useMessagePart();
+  const api = useAssistantApi();
+  const part = useAssistantState(({ part }) => part);
 
   const type = part.type;
   if (type === "tool-call") {
-    const addResult = (result: any) => MessagePartRuntime.addToolResult(result);
+    const addResult = (result: any) => api.part().addToolResult(result);
     if ("Override" in tools)
       return <tools.Override {...part} addResult={addResult} />;
     const Tool = tools.by_name?.[part.toolName] ?? tools.Fallback;
     return <ToolUIDisplay {...part} Fallback={Tool} addResult={addResult} />;
   }
 
-  if (part.status.type === "requires-action")
+  if (part.status?.type === "requires-action")
     throw new Error("Encountered unexpected requires-action status");
 
   switch (type) {
@@ -306,16 +304,10 @@ export namespace MessagePrimitivePartByIndex {
 export const MessagePrimitivePartByIndex: FC<MessagePrimitivePartByIndex.Props> =
   memo(
     ({ index, components }) => {
-      const messageRuntime = useMessageRuntime();
-      const runtime = useMemo(
-        () => messageRuntime.getMessagePartByIndex(index),
-        [messageRuntime, index],
-      );
-
       return (
-        <MessagePartRuntimeProvider runtime={runtime}>
+        <PartByIndexProvider index={index}>
           <MessagePartComponent components={components} />
-        </MessagePartRuntimeProvider>
+        </PartByIndexProvider>
       );
     },
     (prev, next) =>
@@ -332,10 +324,6 @@ export const MessagePrimitivePartByIndex: FC<MessagePrimitivePartByIndex.Props> 
 
 MessagePrimitivePartByIndex.displayName = "MessagePrimitive.PartByIndex";
 
-const COMPLETE_STATUS: MessagePartStatus = Object.freeze({
-  type: "complete",
-});
-
 const EmptyPartFallback: FC<{
   status: MessagePartStatus;
   component: TextMessagePartComponent;
@@ -347,9 +335,14 @@ const EmptyPartFallback: FC<{
   );
 };
 
+const COMPLETE_STATUS: MessagePartStatus = Object.freeze({
+  type: "complete",
+});
+
 const EmptyPartsImpl: FC<MessagePartComponentProps> = ({ components }) => {
-  const status =
-    useMessage((s) => s.status as MessagePartStatus) ?? COMPLETE_STATUS;
+  const status = useAssistantState(
+    (s) => (s.message.status ?? COMPLETE_STATUS) as MessagePartStatus,
+  );
 
   if (components?.Empty) return <components.Empty status={status} />;
 
@@ -395,7 +388,9 @@ const EmptyParts = memo(
 export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = ({
   components,
 }) => {
-  const contentLength = useMessage((s) => s.content.length);
+  const contentLength = useAssistantState(
+    ({ message }) => message.parts.length,
+  );
   const messageRanges = useMessagePartsGroups();
 
   const partsElements = useMemo(() => {

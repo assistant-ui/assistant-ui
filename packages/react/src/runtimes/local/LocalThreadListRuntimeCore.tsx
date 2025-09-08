@@ -5,6 +5,16 @@ import { LocalThreadRuntimeCore } from "./LocalThreadRuntimeCore";
 export type LocalThreadFactory = () => LocalThreadRuntimeCore;
 
 const EMPTY_ARRAY = Object.freeze([]);
+const DEFAULT_THREAD_ID = "__DEFAULT_ID__";
+const DEFAULT_THREAD_DATA = Object.freeze({
+  [DEFAULT_THREAD_ID]: {
+    id: DEFAULT_THREAD_ID,
+    remoteId: undefined,
+    externalId: undefined,
+    status: "regular" as const,
+    title: undefined,
+  },
+});
 export class LocalThreadListRuntimeCore
   extends BaseSubscribable
   implements ThreadListRuntimeCore
@@ -37,7 +47,11 @@ export class LocalThreadListRuntimeCore
   }
 
   public get mainThreadId(): string {
-    return "__DEFAULT_ID__";
+    return DEFAULT_THREAD_ID;
+  }
+
+  public get threadData() {
+    return DEFAULT_THREAD_DATA;
   }
 
   public getThreadRuntimeCore(): never {
@@ -52,7 +66,7 @@ export class LocalThreadListRuntimeCore
     if (threadId === this.mainThreadId) {
       return {
         status: "regular" as const,
-        threadId: this.mainThreadId,
+        id: this.mainThreadId,
         remoteId: this.mainThreadId,
         externalId: undefined,
         title: undefined,

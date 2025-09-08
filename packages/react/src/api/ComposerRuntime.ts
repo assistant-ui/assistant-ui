@@ -39,6 +39,8 @@ type BaseComposerState = {
   readonly role: MessageRole;
   readonly attachments: readonly Attachment[];
   readonly runConfig: RunConfig;
+
+  readonly attachmentAccept: string;
 };
 
 export type ThreadComposerState = BaseComposerState & {
@@ -69,6 +71,7 @@ const getThreadComposerState = (
     text: runtime?.text ?? "",
     role: runtime?.role ?? "user",
     runConfig: runtime?.runConfig ?? EMPTY_OBJECT,
+    attachmentAccept: runtime?.attachmentAccept ?? "",
 
     value: runtime?.text ?? "",
   });
@@ -88,6 +91,7 @@ const getEditComposerState = (
     role: runtime?.role ?? "user",
     attachments: runtime?.attachments ?? EMPTY_ARRAY,
     runConfig: runtime?.runConfig ?? EMPTY_OBJECT,
+    attachmentAccept: runtime?.attachmentAccept ?? "",
 
     value: runtime?.text ?? "",
   });
@@ -101,8 +105,6 @@ export type ComposerRuntime = {
    * Get the current state of the composer. Includes any data that has been added to the composer.
    */
   getState(): ComposerState;
-
-  getAttachmentAccept(): string;
 
   /**
    * Given a standard js File object, add it to the composer. A composer can have multiple attachments.
@@ -166,6 +168,14 @@ export type ComposerRuntime = {
    * @param idx The index of the attachment to get.
    */
   getAttachmentByIndex(idx: number): AttachmentRuntime;
+
+  /**
+   * @deprecated This API is still under active development and might change without notice.
+   */
+  unstable_on(
+    event: ComposerRuntimeEventType,
+    callback: () => void,
+  ): Unsubscribe;
 };
 
 export abstract class ComposerRuntimeImpl implements ComposerRuntime {
@@ -188,7 +198,6 @@ export abstract class ComposerRuntimeImpl implements ComposerRuntime {
     this.send = this.send.bind(this);
     this.cancel = this.cancel.bind(this);
     this.setRole = this.setRole.bind(this);
-    this.getAttachmentAccept = this.getAttachmentAccept.bind(this);
     this.getAttachmentByIndex = this.getAttachmentByIndex.bind(this);
     this.unstable_on = this.unstable_on.bind(this);
   }
@@ -267,12 +276,6 @@ export abstract class ComposerRuntimeImpl implements ComposerRuntime {
     return subject.subscribe(callback);
   }
 
-  public getAttachmentAccept(): string {
-    const core = this._core.getState();
-    if (!core) throw new Error("Composer is not available");
-    return core.getAttachmentAccept();
-  }
-
   public abstract getAttachmentByIndex(idx: number): AttachmentRuntime;
 }
 
@@ -317,6 +320,8 @@ export class ThreadComposerRuntimeImpl
       subscribe: (callback) => stateBinding.subscribe(callback),
     });
     this._getState = stateBinding.getState.bind(stateBinding);
+
+    this.__internal_bindMethods();
   }
 
   public override getState(): ThreadComposerState {
@@ -394,6 +399,8 @@ export class EditComposerRuntimeImpl
     });
 
     this._getState = stateBinding.getState.bind(stateBinding);
+
+    this.__internal_bindMethods();
   }
 
   public override __internal_bindMethods() {

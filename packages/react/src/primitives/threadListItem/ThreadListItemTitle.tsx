@@ -1,7 +1,7 @@
 "use client";
 
 import type { FC, ReactNode } from "react";
-import { useThreadListItem } from "../../context/react/ThreadListItemContext";
+import { useAssistantState } from "../../context";
 
 export namespace ThreadListItemPrimitiveTitle {
   export type Props = {
@@ -12,7 +12,7 @@ export namespace ThreadListItemPrimitiveTitle {
 export const ThreadListItemPrimitiveTitle: FC<
   ThreadListItemPrimitiveTitle.Props
 > = ({ fallback }) => {
-  const title = useThreadListItem((t) => t.title);
+  const title = useAssistantState(({ threadListItem }) => threadListItem.title);
   return <>{title || fallback}</>;
 };
 

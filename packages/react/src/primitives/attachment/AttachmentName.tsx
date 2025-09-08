@@ -1,7 +1,7 @@
 "use client";
 
 import type { FC } from "react";
-import { useAttachment } from "../../context/react/AttachmentContext";
+import { useAssistantState } from "../../context";
 
 export namespace AttachmentPrimitiveName {
   export type Props = Record<string, never>;
@@ -10,7 +10,7 @@ export namespace AttachmentPrimitiveName {
 export const AttachmentPrimitiveName: FC<
   AttachmentPrimitiveName.Props
 > = () => {
-  const name = useAttachment((a) => a.name);
+  const name = useAssistantState(({ attachment }) => attachment.name);
   return <>{name}</>;
 };
 

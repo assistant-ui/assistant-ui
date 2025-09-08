@@ -5,13 +5,14 @@ import {
   ActionButtonProps,
   createActionButton,
 } from "../../utils/createActionButton";
-import { useThreadListItemRuntime } from "../../context/react/ThreadListItemContext";
+import { useAssistantApi } from "../../context";
+import { useCallback } from "react";
 
 const useThreadListItemTrigger = () => {
-  const runtime = useThreadListItemRuntime();
-  return () => {
-    runtime.switchTo();
-  };
+  const api = useAssistantApi();
+  return useCallback(() => {
+    api.threadListItem().switchTo();
+  }, [api]);
 };
 
 export namespace ThreadListItemPrimitiveTrigger {

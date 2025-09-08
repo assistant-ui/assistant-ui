@@ -5,13 +5,14 @@ import {
   ActionButtonProps,
   createActionButton,
 } from "../../utils/createActionButton";
-import { useThreadListItemRuntime } from "../../context/react/ThreadListItemContext";
+import { useAssistantApi } from "../../context";
+import { useCallback } from "react";
 
 const useThreadListItemDelete = () => {
-  const runtime = useThreadListItemRuntime();
-  return () => {
-    runtime.delete();
-  };
+  const api = useAssistantApi();
+  return useCallback(() => {
+    api.threadListItem().delete();
+  }, [api]);
 };
 
 export namespace ThreadListItemPrimitiveDelete {

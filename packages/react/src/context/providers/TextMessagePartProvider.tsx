@@ -1,90 +1,65 @@
 "use client";
 
-import { FC, PropsWithChildren, useEffect, useState } from "react";
-import { create, StoreApi, UseBoundStore } from "zustand";
+import { useMemo, type FC, type PropsWithChildren } from "react";
 import {
-  MessagePartContext,
-  MessagePartContextValue,
-} from "../react/MessagePartContext";
-import { MessagePartStatus } from "../../types/AssistantTypes";
-import { writableStore } from "../ReadonlyStore";
+  AssistantApiProvider,
+  AssistantApi,
+  createAssistantApiField,
+} from "../react/AssistantApiContext";
 import {
-  MessagePartRuntimeImpl,
-  MessagePartState,
-} from "../../api/MessagePartRuntime";
-import { ensureBinding } from "../react/utils/ensureBinding";
+  MessagePartClientActions,
+  MessagePartClientState,
+} from "../../client/MessagePartClient";
+import { resource, tapMemo } from "@assistant-ui/tap";
+import { useResource } from "@assistant-ui/tap/react";
+import { asStore, tapApi } from "../../utils/tap-store";
 
-export namespace TextMessagePartProvider {
-  export type Props = PropsWithChildren<{
-    text: string;
-    isRunning?: boolean | undefined;
-  }>;
-}
+const TextMessagePartActions = new Proxy({} as MessagePartClientActions, {
+  get() {
+    throw new Error("Not implemented");
+  },
+});
 
-const COMPLETE_STATUS: MessagePartStatus = {
-  type: "complete",
-};
-
-const RUNNING_STATUS: MessagePartStatus = {
-  type: "running",
-};
-
-export const TextMessagePartProvider: FC<TextMessagePartProvider.Props> = ({
-  children,
-  text,
-  isRunning,
-}) => {
-  const [context] = useState<
-    MessagePartContextValue & {
-      useMessagePart: UseBoundStore<
-        StoreApi<MessagePartState & { type: "text" }>
-      >;
-    }
-  >(() => {
-    const useMessagePart = create<MessagePartState & { type: "text" }>(() => ({
-      status: isRunning ? RUNNING_STATUS : COMPLETE_STATUS,
-      type: "text",
-      text,
-    }));
-
-    const MessagePartRuntime = new MessagePartRuntimeImpl({
-      path: {
-        ref: "text",
-        threadSelector: { type: "main" },
-        messageSelector: { type: "messageId", messageId: "" },
-        messagePartSelector: { type: "index", index: 0 },
-      },
-      getState: useMessagePart.getState,
-      subscribe: useMessagePart.subscribe,
-    });
-    ensureBinding(MessagePartRuntime);
-
-    const useMessagePartRuntime = create(() => MessagePartRuntime);
-
-    return { useMessagePartRuntime, useMessagePart };
-  });
-
-  useEffect(() => {
-    const state = context.useMessagePart.getState();
-    const textUpdated = state.text !== text;
-    const targetStatus = isRunning ? RUNNING_STATUS : COMPLETE_STATUS;
-    const statusUpdated = state.status !== targetStatus;
-
-    if (!textUpdated && !statusUpdated) return;
-
-    writableStore(context.useMessagePart).setState(
-      {
+const TextMessagePartClient = resource(
+  ({ text, isRunning }: { text: string; isRunning: boolean }) => {
+    const state = tapMemo<MessagePartClientState>(
+      () => ({
         type: "text",
         text,
-        status: targetStatus,
-      } satisfies MessagePartState,
-      true,
+        status: isRunning ? { type: "running" } : { type: "complete" },
+      }),
+      [text, isRunning],
     );
-  }, [context, isRunning, text]);
 
-  return (
-    <MessagePartContext.Provider value={context}>
-      {children}
-    </MessagePartContext.Provider>
+    const api = tapApi(state, TextMessagePartActions);
+
+    return {
+      state,
+      api,
+    };
+  },
+);
+
+export const TextMessagePartProvider: FC<
+  PropsWithChildren<{
+    text: string;
+    isRunning?: boolean;
+  }>
+> = ({ text, isRunning = false, children }) => {
+  const store = useResource(
+    asStore(TextMessagePartClient({ text, isRunning })),
   );
+  const api = useMemo(() => {
+    return {
+      part: createAssistantApiField({
+        source: "root",
+        query: {},
+        get: () => store.getApi(),
+      }),
+      subscribe: store.subscribe,
+      // flushSync: store.flushSync,
+    } satisfies Partial<AssistantApi>;
+  }, [store]);
+
+  return <AssistantApiProvider api={api}>{children}</AssistantApiProvider>;
 };

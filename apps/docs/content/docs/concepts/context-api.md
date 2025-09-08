@@ -1,0 +1,445 @@
+---
+title: Runtime Layer
+---
+
+# Context API
+
+The Context API provides direct access to assistant-ui's state management system, enabling you to build custom components that integrate seamlessly with the assistant runtime.
+
+## Introduction
+
+The Context API lets you:
+
+- Access current state values
+- Subscribe to state updates
+- Perform actions
+- Register event listeners
+
+It's the foundation that powers all assistant-ui primitives. When the built-in components don't meet your needs, you can use the Context API to create custom components with the same capabilities.
+
+The Context API is backed by the runtime you provide to `<AssistantRuntimeProvider>`. This runtime acts as a unified store that manages all assistant state, handles actions, and dispatches events.
+
+## Core Concepts
+
+### Scopes and Hierarchy
+
+Components in assistant-ui exist within a hierarchy of scopes. Each scope provides access to relevant state and actions for that context.
+
+```
+ThreadList (threads)
+├── ThreadListItem (threadListItem)
+└── Thread (thread)
+    ├── Message (message)
+    │   ├── Part (part)
+    │   ├── Attachment (attachment)
+    │   └── Composer (composer) - for edit mode
+    │       └── Attachment (attachment)
+    └── Composer (composer) - for new messages
+        └── Attachment (attachment)
+ToolUIs (toolUIs)
+```
+
+When you use the Context API inside a component, it automatically knows its position in this hierarchy. A button inside a message can access message-specific state, while a button in the composer accesses composer state.
+
+### State Management Model
+
+The Context API follows a predictable state management pattern:
+
+1. **State** is immutable and flows down through scopes
+2. **Actions** are methods that trigger state changes
+3. **Events** notify components of state changes and user interactions
+4. **Subscriptions** let components react to changes
+
+## Essential Hooks
+
+### useAssistantState
+
+Read state reactively with automatic re-renders when values change.
+
+```tsx
+const role = useAssistantState(({ message }) => message.role);
+const isRunning = useAssistantState(({ thread }) => thread.isRunning);
+```
+
+The selector function receives all available scopes and should return a specific value. The component re-renders only when that value changes.
+
+**Common patterns:**
+
+```tsx
+// Access multiple scopes
+const canSend = useAssistantState(
+  ({ thread, composer }) => !thread.isRunning && composer.text.length > 0,
+);
+
+// Compute derived state
+const messageCount = useAssistantState(({ thread }) => thread.messages.length);
+```
+
+**Important:** Never create new objects in selectors. Return primitive values or stable references to avoid infinite re-renders.
+
+```tsx
+// ❌ Bad - creates new object every time
+const data = useAssistantState(({ message }) => ({
+  role: message.role,
+  content: message.content,
+}));
+
+// ✅ Good - returns stable values
+const role = useAssistantState(({ message }) => message.role);
+const content = useAssistantState(({ message }) => message.content);
+```
+
+### useAssistantApi
+
+Access the API instance for imperative operations and actions.
+
+```tsx
+const api = useAssistantApi();
+
+// Perform actions
+const handleSend = () => {
+  api.composer().send();
+};
+
+// Read state imperatively
+const handleCheck = () => {
+  const { isRunning } = api.thread().getState();
+  if (!isRunning) {
+    // do something
+  }
+};
+```
+
+The API object is stable and doesn't cause re-renders. Use it for:
+
+- Triggering actions in event handlers
+- Reading current state values imperatively
+- Accessing nested scopes programmatically
+
+**Available actions by scope:**
+
+```tsx
+// Thread actions
+api.thread().append(message);
+api.thread().startRun(config);
+api.thread().cancelRun();
+api.thread().switchToNewThread();
+api.thread().switchToThread(threadId);
+api.thread().getState();
+api.thread().message(idOrIndex);
+api.thread().composer;
+
+// Message actions
+api.message().reload();
+api.message().speak();
+api.message().stopSpeaking();
+api.message().submitFeedback({ type: "positive" | "negative" });
+api.message().switchToBranch({ position, branchId });
+api.message().getState();
+api.message().part(indexOrToolCallId);
+api.message().composer;
+
+// Part actions
+api.part().addResult(result);
+api.part().getState();
+
+// Composer actions
+api.composer().send();
+api.composer().setText(text);
+api.composer().setRole(role);
+api.composer().addAttachment(file);
+api.composer().clearAttachments();
+api.composer().reset();
+api.composer().getState();
+
+// Attachment actions
+api.attachment().remove();
+api.attachment().getState();
+
+// ThreadList actions
+api.threads().switchToNewThread();
+api.threads().switchToThread(threadId);
+api.threads().getState();
+
+// ThreadListItem actions
+api.threadListItem().switchTo();
+api.threadListItem().rename(title);
+api.threadListItem().archive();
+api.threadListItem().unarchive();
+api.threadListItem().delete();
+api.threads().getState();
+
+// ToolUIs actions
+api.toolUIs().setToolUI(toolName, render);
+api.toolUIs().getState();
+```
+
+### useAssistantEvent
+
+Subscribe to events with automatic cleanup on unmount.
+
+```tsx
+// Listen to current scope events
+useAssistantEvent("composer.send", (e) => {
+  console.log("Message sent:", e);
+});
+
+// Listen to all events of a type
+useAssistantEvent({ event: "composer.send", scope: "*" }, (e) => {
+  console.log("Any composer sent:", e);
+});
+
+// Listen within parent scope
+useAssistantEvent({ event: "thread.run-start", scope: "thread" }, (e) => {
+  console.log("Run started in current thread:", e);
+});
+```
+
+Event names follow the pattern `source.event` where source indicates the originating scope.
+
+## Working with Scopes
+
+### Available Scopes
+
+Each scope provides access to specific state and actions:
+
+- **ThreadList** (`threads`): Collection and management of threads
+- **ThreadListItem** (`threadListItem`): Individual thread in the list
+- **Thread** (`thread`): Conversation with messages
+- **Message** (`message`): Individual message (user or assistant)
+- **Part** (`part`): Content part within a message (text, tool calls, etc.)
+- **Composer** (`composer`): Text input for sending or editing messages
+- **Attachment** (`attachment`): File or media attached to a message or composer
+- **ToolUIs** (`toolUIs`): Tool UI components
+
+### Scope Resolution
+
+The Context API automatically resolves the current scope based on component location:
+
+```tsx
+function MessageButton() {
+  const api = useAssistantApi();
+
+  // Automatically uses the current message scope
+  const handleReload = () => {
+    api.message().reload();
+  };
+
+  return <button onClick={handleReload}>Reload</button>;
+}
+```
+
+### Checking Scope Availability
+
+Before accessing a scope, check if it's available:
+
+```tsx
+const api = useAssistantApi();
+
+// Check if message scope exists
+if (api.message.source) {
+  // Safe to use message scope
+  const { role } = api.message().getState();
+}
+```
+
+### Accessing Nested Scopes
+
+Navigate through the scope hierarchy programmatically:
+
+```tsx
+const api = useAssistantApi();
+
+// Access specific message by ID or index
+const messageById = api.thread().message({ id: "msg_123" });
+const messageByIndex = api.thread().message({ index: 0 });
+
+// Access part by index or tool call ID
+const partByIndex = api.message().part({ index: 0 });
+const partByToolCall = api.message().part({ toolCallId: "call_123" });
+
+// Access attachment by index
+const attachment = api.composer().attachment({ index: 0 }).getState();
+
+// Access thread from thread list
+const thread = api.threads().thread("main");
+const threadItem = api.threads().item({ id: "thread_123" });
+```
+
+## Common Patterns
+
+### Conditional Rendering
+
+```tsx
+function RunIndicator() {
+  const isRunning = useAssistantState(({ thread }) => thread.isRunning);
+
+  if (!isRunning) return null;
+  return <div>Assistant is thinking...</div>;
+}
+```
+
+### Custom Action Buttons
+
+```tsx
+function CopyButton() {
+  const api = useAssistantApi();
+  const content = useAssistantState(({ message }) => message.content);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(content);
+    // Could also trigger custom events or actions
+  };
+
+  return <button onClick={handleCopy}>Copy</button>;
+}
+```
+
+### State-Aware Components
+
+```tsx
+function SmartComposer() {
+  const api = useAssistantApi();
+  const isRunning = useAssistantState(({ thread }) => thread.isRunning);
+  const text = useAssistantState(({ composer }) => composer.text);
+
+  const canSend = !isRunning && text.length > 0;
+
+  return (
+    <div>
+      <textarea
+        value={text}
+        onChange={(e) => api.composer().setText(e.target.value)}
+        disabled={isRunning}
+      />
+      <button onClick={() => api.composer().send()} disabled={!canSend}>
+        Send
+      </button>
+    </div>
+  );
+}
+```
+
+### Event-Driven Updates
+
+```tsx
+function MessageCounter() {
+  const [sendCount, setSendCount] = useState(0);
+
+  useAssistantEvent("composer.send", () => {
+    setSendCount((c) => c + 1);
+  });
+
+  return <div>Messages sent: {sendCount}</div>;
+}
+```
+
+## Advanced Topics
+
+### Resolution Dynamics
+
+When you call `api.scope()`, the API resolves the current scope at that moment. This resolution happens each time you call the function, which matters when dealing with changing contexts:
+
+```tsx
+const api = useAssistantApi();
+
+// Get current thread
+const thread1 = api.thread();
+thread1.append({ role: "user", content: "Hello" });
+
+// User might switch threads here
+
+// This could be a different thread
+const thread2 = api.thread();
+thread2.cancelRun(); // Cancels the current thread's run, not necessarily thread1's
+```
+
+For most use cases, this behavior is intuitive. In advanced scenarios where you need to track specific instances, store the resolved reference.
+
+### Performance Optimization
+
+**Selector optimization:**
+
+```tsx
+// ❌ Expensive computation in selector (runs on every store update)
+const result = useAssistantState(
+  ({ thread }) => thread.messages.filter((m) => m.role === "user").length,
+);
+
+// ✅ Memoize expensive computations
+const messages = useAssistantState(({ thread }) => thread.messages);
+const userCount = useMemo(
+  () => messages.filter((m) => m.role === "user").length,
+  [messages],
+);
+```
+
+**Minimize re-renders:**
+
+```tsx
+// ❌ Subscribes to entire thread state
+const thread = useAssistantState(({ thread }) => thread);
+
+// ✅ Subscribe only to needed values
+const isRunning = useAssistantState(({ thread }) => thread.isRunning);
+```
+
+## API Reference
+
+### Hooks
+
+| Hook                                | Purpose                    | Returns        |
+| ----------------------------------- | -------------------------- | -------------- |
+| `useAssistantState(selector)`       | Subscribe to state changes | Selected value |
+| `useAssistantApi()`                 | Get API instance           | API object     |
+| `useAssistantEvent(event, handler)` | Subscribe to events        | void           |
+
+### Scope States
+
+| Scope          | Key State Properties                                                              |
+| -------------- | --------------------------------------------------------------------------------- |
+| ThreadList     | `mainThreadId`, `threadIds`, `isLoading`, `threadItems`                           |
+| ThreadListItem | `id`, `title`, `status`, `remoteId`, `externalId`                                 |
+| Thread         | `isRunning`, `isLoading`, `isDisabled`, `messages`, `capabilities`, `suggestions` |
+| Message        | `role`, `content`, `status`, `attachments`, `parentId`, `branchNumber`, `isLast`  |
+| Composer       | `text`, `role`, `attachments`, `isEmpty`, `canCancel`, `type`, `isEditing`        |
+| Part           | `type`, `content`, `status`, `text`, `toolCallId`, `toolName`                     |
+| Attachment     | `id`, `type`, `name`, `url`, `size`, `mimeType`                                   |
+
+### Common Events
+
+| Event                            | Description                   |
+| -------------------------------- | ----------------------------- |
+| `thread.run-start`               | Assistant starts generating   |
+| `thread.run-end`                 | Assistant finishes generating |
+| `thread.initialize`              | Thread is initialized         |
+| `thread.model-context-update`    | Model context is updated      |
+| `composer.send`                  | Message is sent               |
+| `composer.attachment-add`        | Attachment added to composer  |
+| `thread-list-item.switched-to`   | Switched to a thread          |
+| `thread-list-item.switched-away` | Switched away from a thread   |
+
+## Quick Reference
+
+```tsx
+// Read state
+const value = useAssistantState(({ scope }) => scope.property);
+
+// Perform action
+const api = useAssistantApi();
+api.scope().action();
+
+// Listen to events
+useAssistantEvent("source.event", (e) => {});
+
+// Check scope availability
+if (api.scope.source) {
+  /* scope exists */
+}
+
+// Get state imperatively
+const state = api.scope().getState();
+
+// Navigate scopes
+api.thread().message({ id: "..." }).getState();
+```
