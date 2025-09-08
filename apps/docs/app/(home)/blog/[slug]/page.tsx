@@ -60,7 +60,7 @@ export default function Page(props: {
           </p>
         </div>
       </div>
-      <article className="prose lg:prose-lg mx-auto w-full max-w-screen-sm py-8">
+      <article className="lg:prose-lg prose mx-auto w-full max-w-screen-sm py-8">
         <page.data.body components={mdxComponents} />
       </article>
       <div className="mx-auto mb-20 flex w-full max-w-screen-sm items-start gap-3">
