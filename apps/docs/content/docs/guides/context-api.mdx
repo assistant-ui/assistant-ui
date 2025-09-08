@@ -282,11 +282,9 @@ function RunIndicator() {
 ```tsx
 function CopyButton() {
   const api = useAssistantApi();
-  const content = useAssistantState(({ message }) => message.content);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(content);
-    // Could also trigger custom events or actions
+    navigator.clipboard.writeText(api.message().getCopyText());
   };
 
   return <button onClick={handleCopy}>Copy</button>;
