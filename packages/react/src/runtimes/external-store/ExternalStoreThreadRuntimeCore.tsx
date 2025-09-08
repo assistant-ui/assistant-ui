@@ -297,6 +297,10 @@ export class ExternalStoreThreadRuntimeCore
     this._assistantOptimisticId = null;
 
     super.import(data);
+
+    if (this._store.onImport) {
+      this._store.onImport(this.repository.getMessages());
+    }
   }
 
   private updateMessages = (messages: readonly ThreadMessage[]) => {

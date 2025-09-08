@@ -61,7 +61,8 @@ type ExternalStoreAdapterBase<T> = {
   suggestions?: readonly ThreadSuggestion[] | undefined;
   extras?: unknown;
 
-  setMessages?: ((messages: T[]) => void) | undefined;
+  setMessages?: ((messages: readonly T[]) => void) | undefined;
+  onImport?: ((messages: readonly ThreadMessage[]) => void) | undefined;
   onNew: (message: AppendMessage) => Promise<void>;
   onEdit?: ((message: AppendMessage) => Promise<void>) | undefined;
   onReload?: // TODO: remove parentId in 0.8.0
