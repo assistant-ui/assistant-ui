@@ -90,7 +90,7 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
   return (
     <Dialog>
       <DialogTrigger
-        className="hover:bg-accent/50 cursor-pointer transition-colors"
+        className="cursor-pointer transition-colors hover:bg-accent/50"
         asChild
       >
         {children}
@@ -109,7 +109,7 @@ const AttachmentThumb: FC = () => {
   const isImage = useAttachment((a) => a.type === "image");
   const src = useAttachmentSrc();
   return (
-    <Avatar className="bg-muted flex size-10 items-center justify-center rounded border text-sm">
+    <Avatar className="flex size-10 items-center justify-center rounded border bg-muted text-sm">
       <AvatarFallback delayMs={isImage ? 200 : 0}>
         <FileIcon />
       </AvatarFallback>
@@ -142,10 +142,10 @@ const AttachmentUI: FC = () => {
             <div className="flex h-12 w-40 items-center justify-center gap-2 rounded-lg border p-1">
               <AttachmentThumb />
               <div className="flex-grow basis-0">
-                <p className="text-muted-foreground line-clamp-1 text-ellipsis break-all text-xs font-bold">
+                <p className="line-clamp-1 text-xs font-bold break-all text-ellipsis text-muted-foreground">
                   <AttachmentPrimitive.Name />
                 </p>
-                <p className="text-muted-foreground text-xs">{typeLabel}</p>
+                <p className="text-xs text-muted-foreground">{typeLabel}</p>
               </div>
             </div>
           </TooltipTrigger>
@@ -164,7 +164,7 @@ const AttachmentRemove: FC = () => {
     <AttachmentPrimitive.Remove asChild>
       <TooltipIconButton
         tooltip="Remove file"
-        className="text-muted-foreground [&>svg]:bg-background absolute -right-3 -top-3 size-6 [&>svg]:size-4 [&>svg]:rounded-full"
+        className="absolute -top-3 -right-3 size-6 text-muted-foreground [&>svg]:size-4 [&>svg]:rounded-full [&>svg]:bg-background"
         side="top"
       >
         <CircleXIcon />

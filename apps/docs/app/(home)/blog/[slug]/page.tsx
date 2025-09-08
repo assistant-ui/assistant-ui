@@ -55,12 +55,12 @@ export default function Page(props: {
           <h1 className="text-center text-4xl font-bold text-white">
             {page.data.title}
           </h1>
-          <p className="mt-4 text-balance text-center text-lg text-white/80">
+          <p className="mt-4 text-center text-lg text-balance text-white/80">
             {page.data.description}
           </p>
         </div>
       </div>
-      <article className="lg:prose-lg prose mx-auto w-full max-w-screen-sm py-8">
+      <article className="lg:prose-lg mx-auto prose w-full max-w-screen-sm py-8">
         <page.data.body components={mdxComponents} />
       </article>
       <div className="mx-auto mb-20 flex w-full max-w-screen-sm items-start gap-3">

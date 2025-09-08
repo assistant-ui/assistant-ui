@@ -74,7 +74,7 @@ export const Component: React.FC<ComponentProps> = ({
       )}
     </div>
     {providedContexts && (
-      <div className="ml-7 mt-1">
+      <div className="mt-1 ml-7">
         Provides:{" "}
         {providedContexts.map((context, index) => (
           <Fragment key={context.name}>
@@ -95,7 +95,7 @@ export const Component: React.FC<ComponentProps> = ({
         ))}
       </div>
     )}
-    {children && <div className="ml-7 mt-4">{children}</div>}
+    {children && <div className="mt-4 ml-7">{children}</div>}
   </div>
 );
 
@@ -104,7 +104,7 @@ interface RuntimeHooksProps {
 }
 
 export const RuntimeHooks: React.FC<RuntimeHooksProps> = ({ hooks }) => (
-  <div className="mb-6 mt-8">
+  <div className="mt-8 mb-6">
     <ul className="list-inside list-disc space-y-3">
       {hooks.map((hook, index) => (
         <li key={index} className="text-base">

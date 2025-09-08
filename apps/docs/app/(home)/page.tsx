@@ -24,7 +24,7 @@ import { useState } from "react";
 
 export default function HomePage() {
   return (
-    <main className="container relative z-[2] max-w-[1100px] px-2 py-16 lg:py-16">
+    <main className="relative z-[2] container max-w-[1100px] px-2 py-16 lg:py-16">
       <StarPill />
       <Hero />
 
@@ -79,7 +79,7 @@ export default function HomePage() {
             testimonials={TESTIMONIALS}
             className="sm:columns-2 lg:columns-3 xl:columns-4"
           />
-          <div className="from-background via-background pointer-events-none absolute -bottom-8 left-0 z-10 h-[120px] w-full bg-gradient-to-t" />
+          <div className="pointer-events-none absolute -bottom-8 left-0 z-10 h-[120px] w-full bg-gradient-to-t from-background via-background" />
         </div>
 
         <div className="flex justify-center">
@@ -106,7 +106,7 @@ function Hero() {
       <h1 className="mb-8 text-5xl font-medium max-md:hidden">
         UX of ChatGPT in your own app
       </h1>
-      <p className="text-muted-foreground mb-8 md:text-xl">
+      <p className="mb-8 text-muted-foreground md:text-xl">
         assistant-ui is the TypeScript/React library for{" "}
         <span className="text-foreground">AI Chat</span>.<br />
         Built on <span className="text-foreground">shadcn/ui</span> and{" "}
@@ -122,7 +122,7 @@ function Hero() {
             buttonVariants({
               size: "lg",
               variant: "outline",
-              className: "bg-background h-12 self-center",
+              className: "h-12 self-center bg-background",
             }),
           )}
         >
@@ -130,7 +130,7 @@ function Hero() {
         </a>
       </div>
 
-      <div className="text-muted-foreground mt-8">
+      <div className="mt-8 text-muted-foreground">
         <p>
           Backed by{" "}
           <Image
@@ -213,11 +213,11 @@ function CopyCommandButton() {
         size: "lg",
         variant: "outline",
         className:
-          "bg-background group relative flex h-12 items-center gap-2 rounded-lg border px-4 py-3 font-mono text-sm font-bold transition-all",
+          "group relative flex h-12 items-center gap-2 rounded-lg border bg-background px-4 py-3 font-mono text-sm font-bold transition-all",
       })}
     >
       <span>$ npx assistant-ui init</span>
-      <div className="text-muted-foreground ml-2 flex h-5 w-5 items-center justify-center">
+      <div className="ml-2 flex h-5 w-5 items-center justify-center text-muted-foreground">
         {copied ? (
           <CheckIcon className="h-3 w-3 text-green-500" />
         ) : (

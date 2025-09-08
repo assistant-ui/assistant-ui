@@ -87,7 +87,7 @@ export default function Component() {
   return (
     <div className="min-h-screen">
       <div className="mx-auto max-w-7xl px-4 py-8">
-        <header className="mb-28 mt-12 text-center">
+        <header className="mt-12 mb-28 text-center">
           <h1 className="mt-4 text-5xl font-bold">Examples</h1>
         </header>
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -110,7 +110,7 @@ export default function Component() {
 function ShowcaseCard({ title, image, description, link }: ShowcaseItem) {
   return (
     <Link href={link}>
-      <Card className="bg-card group relative flex max-h-[400px] flex-col overflow-hidden rounded-lg">
+      <Card className="group relative flex max-h-[400px] flex-col overflow-hidden rounded-lg bg-card">
         <div className="overflow-hidden">
           <Image
             src={image}
