@@ -1,5 +1,14 @@
 # @assistant-ui/react-hook-form
 
+## 0.11.0
+
+### Patch Changes
+
+- 5437dbe: feat: runtime rearchitecture (unified state API)
+- Updated dependencies [39ac2f3]
+- Updated dependencies [5437dbe]
+  - @assistant-ui/react@0.11.0
+
 ## 0.10.8
 
 ### Patch Changes

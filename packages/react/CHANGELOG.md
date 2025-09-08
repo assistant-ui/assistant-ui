@@ -1,5 +1,17 @@
 # @assistant-ui/react
 
+## 0.11.0
+
+### Minor Changes
+
+- 5437dbe: feat: runtime rearchitecture (unified state API)
+
+### Patch Changes
+
+- 39ac2f3: feat: AI SDK v5 import support
+- Updated dependencies [5437dbe]
+  - @assistant-ui/tap@0.1.0
+
 ## 0.10.50
 
 ### Patch Changes
