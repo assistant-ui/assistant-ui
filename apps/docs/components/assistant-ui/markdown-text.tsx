@@ -36,8 +36,10 @@ const CodeHeader: FC<CodeHeaderProps> = ({ language, code }) => {
   };
 
   return (
-    <div className="aui-code-header-root mt-4 flex items-center justify-between gap-4 rounded-t-lg bg-muted-foreground/15 dark:bg-muted-foreground/20 px-4 py-2 text-sm font-semibold text-foreground">
-      <span className="aui-code-header-language lowercase [&>span]:text-xs">{language}</span>
+    <div className="aui-code-header-root mt-4 flex items-center justify-between gap-4 rounded-t-lg bg-muted-foreground/15 px-4 py-2 text-sm font-semibold text-foreground dark:bg-muted-foreground/20">
+      <span className="aui-code-header-language lowercase [&>span]:text-xs">
+        {language}
+      </span>
       <TooltipIconButton tooltip="Copy" onClick={onCopy}>
         {!isCopied && <CopyIcon />}
         {isCopied && <CheckIcon />}
@@ -114,13 +116,19 @@ const defaultComponents = memoizeMarkdownComponents({
   ),
   h6: ({ className, ...props }) => (
     <h6
-      className={cn("aui-md-h6 my-4 font-semibold first:mt-0 last:mb-0", className)}
+      className={cn(
+        "aui-md-h6 my-4 font-semibold first:mt-0 last:mb-0",
+        className,
+      )}
       {...props}
     />
   ),
   p: ({ className, ...props }) => (
     <p
-      className={cn("aui-md-p mt-5 mb-5 leading-7 first:mt-0 last:mb-0", className)}
+      className={cn(
+        "aui-md-p mt-5 mb-5 leading-7 first:mt-0 last:mb-0",
+        className,
+      )}
       {...props}
     />
   ),
@@ -210,7 +218,8 @@ const defaultComponents = memoizeMarkdownComponents({
     return (
       <code
         className={cn(
-          !isCodeBlock && "aui-md-inline-code rounded border bg-muted font-semibold",
+          !isCodeBlock &&
+            "aui-md-inline-code rounded border bg-muted font-semibold",
           className,
         )}
         {...props}

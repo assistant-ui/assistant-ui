@@ -46,26 +46,26 @@ export const SpeechSample = () => {
 
 export const Thread: FC = () => {
   return (
-        <ThreadPrimitive.Root
-          className="aui-root aui-thread-root @container flex h-full flex-col bg-background"
-          style={{
-            ["--thread-max-width" as string]: "44rem",
-          }}
-        >
-          <ThreadPrimitive.Viewport className="aui-thread-viewport relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll px-4">
-            <ThreadWelcome />
+    <ThreadPrimitive.Root
+      className="aui-root aui-thread-root @container flex h-full flex-col bg-background"
+      style={{
+        ["--thread-max-width" as string]: "44rem",
+      }}
+    >
+      <ThreadPrimitive.Viewport className="aui-thread-viewport relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll px-4">
+        <ThreadWelcome />
 
-            <ThreadPrimitive.Messages
-              components={{
-                UserMessage,
-                EditComposer,
-                AssistantMessage,
-              }}
-            />
-            <div className="aui-thread-viewport-spacer min-h-8 grow" />
-            <Composer />
-          </ThreadPrimitive.Viewport>
-        </ThreadPrimitive.Root>
+        <ThreadPrimitive.Messages
+          components={{
+            UserMessage,
+            EditComposer,
+            AssistantMessage,
+          }}
+        />
+        <div className="aui-thread-viewport-spacer min-h-8 grow" />
+        <Composer />
+      </ThreadPrimitive.Viewport>
+    </ThreadPrimitive.Root>
   );
 };
 
@@ -89,14 +89,10 @@ const ThreadWelcome: FC = () => {
       <div className="aui-thread-welcome-root mx-auto mb-16 flex w-full max-w-[var(--thread-max-width)] flex-grow flex-col">
         <div className="aui-thread-welcome-center flex w-full flex-grow flex-col items-center justify-center">
           <div className="aui-thread-welcome-message flex size-full flex-col justify-center px-8 md:mt-20">
-            <div
-              className="aui-thread-welcome-message-motion-1 text-2xl font-semibold"
-            >
+            <div className="aui-thread-welcome-message-motion-1 text-2xl font-semibold">
               Hello there!
             </div>
-            <div
-              className="aui-thread-welcome-message-motion-2 text-2xl text-muted-foreground/65"
-            >
+            <div className="aui-thread-welcome-message-motion-2 text-2xl text-muted-foreground/65">
               How can I help you today?
             </div>
           </div>

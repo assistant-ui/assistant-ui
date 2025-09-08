@@ -226,10 +226,7 @@ const MessageError: FC = () => {
 const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root asChild>
-      <div
-        className="aui-assistant-message-root"
-        data-role="assistant"
-      >
+      <div className="aui-assistant-message-root" data-role="assistant">
         <div className="aui-assistant-message-content">
           <MessagePrimitive.Parts
             components={{
@@ -279,10 +276,7 @@ const AssistantActionBar: FC = () => {
 const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root asChild>
-      <div
-        className="aui-user-message-root"
-        data-role="user"
-      >
+      <div className="aui-user-message-root" data-role="user">
         <UserMessageAttachments />
 
         <div className="aui-user-message-content-wrapper">

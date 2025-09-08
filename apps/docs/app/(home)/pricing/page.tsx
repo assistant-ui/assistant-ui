@@ -17,12 +17,12 @@ export default function PricingPage() {
         <PricingSection />
 
         <div className="mx-auto mb-6 w-full max-w-[1000px]">
-          <h2 className="mb-2 mt-4 text-2xl font-bold">assistant-ui</h2>
+          <h2 className="mt-4 mb-2 text-2xl font-bold">assistant-ui</h2>
           <p className="text-lg">TypeScript/React library for AI chat</p>
         </div>
         <OpenSourceCard />
 
-        <p className="text-muted-foreground mx-auto mb-4 mt-4 w-full max-w-[1000px] text-xs">
+        <p className="mx-auto mt-4 mb-4 w-full max-w-[1000px] text-xs text-muted-foreground">
           <strong>*MAU:</strong> Monthly Active Users who send at least one
           message via assistant-ui. Are you a B2C app?{" "}
           <a href="mailto:b2c-pricing@assistant.dev" className="underline">

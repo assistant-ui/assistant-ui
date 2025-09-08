@@ -12,7 +12,10 @@ import { ArrowDownIcon, ArrowUpIcon, Square } from "lucide-react";
 
 export const AttachmentSample = () => {
   return (
-    <SampleFrame sampleText="Sample Attachment" className="h-min [&_.aui-thread-viewport]:pt-5">
+    <SampleFrame
+      sampleText="Sample Attachment"
+      className="h-min [&_.aui-thread-viewport]:pt-5"
+    >
       <Thread />
     </SampleFrame>
   );
