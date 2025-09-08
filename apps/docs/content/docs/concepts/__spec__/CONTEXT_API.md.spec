@@ -121,7 +121,7 @@ This subscribes to the state and binds the component to receive the current valu
 The convention is to call it and deconstruct the scope you need in an inline arrow fn:
 
 ```
-const role = useAssistantScope(({ message }) => message.role)
+const role = useAssistantState(({ message }) => message.role)
 ```
 
 Warning: do not create new objects inside the selector. the return value from the selector MUST be a stable value, otherwise you see infinite rerender errors
@@ -131,7 +131,7 @@ Accessing a scope that does not exist will cause errors here as well.
 You can access multiple scopes and do calculations inside the selector to minimal rerenders
 
 ```
-const canSendMessage = useAssistantScope(({ thread, composer }) => !thread.isRunning && composer.text.length > 0)
+const canSendMessage = useAssistantState(({ thread, composer }) => !thread.isRunning && composer.text.length > 0)
 ```
 
 ## useAssistantEvent
