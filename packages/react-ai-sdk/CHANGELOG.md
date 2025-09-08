@@ -1,5 +1,14 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.1.0
+
+### Patch Changes
+
+- 39ac2f3: feat: AI SDK v5 import support
+- Updated dependencies [39ac2f3]
+- Updated dependencies [5437dbe]
+  - @assistant-ui/react@0.11.0
+
 ## 1.0.7
 
 ### Patch Changes
