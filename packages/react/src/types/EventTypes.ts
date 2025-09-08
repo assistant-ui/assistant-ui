@@ -1,6 +1,6 @@
-export type EventDomain<
+export type EventSource<
   T extends keyof AssistantEvents = keyof AssistantEvents,
-> = T extends `${infer Domain}.${string}` ? Domain : never;
+> = T extends `${infer Source}.${string}` ? Source : never;
 
 type ScopeConfig = {
   composer: "thread" | "message";
@@ -8,10 +8,10 @@ type ScopeConfig = {
   "thread-list-item": never;
 };
 
-export type DomainsByScope<
+export type SourceByScope<
   TScope extends AssistantEventScope<keyof AssistantEvents>,
 > =
-  | (TScope extends "*" ? EventDomain : never)
+  | (TScope extends "*" ? EventSource : never)
   | (TScope extends keyof ScopeConfig ? TScope : never)
   | {
       [K in keyof ScopeConfig]: TScope extends ScopeConfig[K] ? K : never;
@@ -19,8 +19,8 @@ export type DomainsByScope<
 
 export type AssistantEventScope<TEvent extends keyof AssistantEvents> =
   | "*"
-  | EventDomain<TEvent>
-  | ScopeConfig[EventDomain<TEvent>];
+  | EventSource<TEvent>
+  | ScopeConfig[EventSource<TEvent>];
 
 export type AssistantEventSelector<TEvent extends keyof AssistantEvents> =
   | TEvent
@@ -67,9 +67,9 @@ export const normalizeEventSelector = <TEvent extends keyof AssistantEvents>(
   selector: AssistantEventSelector<TEvent>,
 ) => {
   if (typeof selector === "string") {
-    const domain = selector.split(".")[0] as AssistantEventScope<TEvent>;
+    const source = selector.split(".")[0] as AssistantEventScope<TEvent>;
     return {
-      scope: domain,
+      scope: source,
       event: selector,
     };
   }
@@ -87,6 +87,6 @@ export const checkEventScope = <
   expectedScope: TExpectedScope,
   scope: AssistantEventScope<TEvent>,
   _event: TEvent,
-): _event is Extract<TEvent, `${DomainsByScope<TExpectedScope>}.${string}`> => {
+): _event is Extract<TEvent, `${SourceByScope<TExpectedScope>}.${string}`> => {
   return scope === expectedScope;
 };
