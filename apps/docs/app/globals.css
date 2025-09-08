@@ -3,14 +3,8 @@
 @import "fumadocs-ui/css/neutral.css";
 @import "fumadocs-ui/css/preset.css";
 
-@layer base {
-  @import "@assistant-ui/styles/index.css";
-  @import "@assistant-ui/styles/modal.css";
-}
-
 /* relative to the CSS file, make sure it's correct for your app */
 @source '../node_modules/fumadocs-ui/dist/**/*.js';
-@source '../../registry/components/**/*.js';
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -245,4 +239,3 @@
     transform: scale(1.1, 1.1);
   }
 }
-

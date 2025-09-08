@@ -24,7 +24,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
 export const ChatGPT: FC = () => {
   return (
-    <ThreadPrimitive.Root className="text-foreground dark flex h-full flex-col items-stretch bg-[#212121] px-4">
+    <ThreadPrimitive.Root className="dark flex h-full flex-col items-stretch bg-[#212121] px-4 text-foreground">
       <ThreadPrimitive.Viewport className="flex flex-grow flex-col gap-8 overflow-y-scroll pt-16">
         <ThreadPrimitive.Empty>
           <div className="flex flex-grow flex-col items-center justify-center">
@@ -89,7 +89,7 @@ const UserMessage: FC = () => {
         </div>
       </div>
 
-      <BranchPicker className="mr-3 mt-2" />
+      <BranchPicker className="mt-2 mr-3" />
     </MessagePrimitive.Root>
   );
 };
