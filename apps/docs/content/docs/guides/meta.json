@@ -1,6 +1,7 @@
 {
   "title": "Guides",
   "pages": [
+    "context-api",
     "Attachments",
     "Branching",
     "Editing",
