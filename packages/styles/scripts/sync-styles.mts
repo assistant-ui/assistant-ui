@@ -16,6 +16,9 @@ const MONO_ROOT = path.resolve(PKG_ROOT, "..", "..");
 const REGISTRY_DIR = path.join(MONO_ROOT, "apps", "registry", "components", "assistant-ui");
 const STYLES_DIR = path.join(PKG_ROOT, "src", "styles", "tailwindcss");
 
+// Base aui-* class names to skip entirely (not their dashed variants)
+const SKIPPED_AUI_BASES = new Set(["aui-root", "aui-md", "aui-sr-only"]);
+
 interface AuiClass {
   name: string;
   tailwindClasses: string;
@@ -90,13 +93,13 @@ class SyncStyles {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       
-      // Match .aui-* class definitions (skip aui-root, aui-md, and aui-sr-only)
+      // Match .aui-* class definitions (skip base classes in SKIPPED_AUI_BASES)
       const classMatch = line.match(/^\.(aui-[a-z0-9-]+)\s*\{/);
       if (classMatch) {
         const className = classMatch[1];
         
-        // Skip aui-root, aui-md, and aui-sr-only classes
-        if (className === "aui-root" || className === "aui-md" || className === "aui-sr-only") {
+        // Skip exact base class names only
+        if (SKIPPED_AUI_BASES.has(className)) {
           continue;
         }
         
@@ -189,8 +192,8 @@ class SyncStyles {
       for (let i = 0; i < classes.length; i++) {
         const cls = classes[i];
         
-        // Check if this is an aui-* class (but not aui-root, aui-md, or aui-sr-only)
-        if (cls.startsWith("aui-") && cls !== "aui-root" && cls !== "aui-md" && cls !== "aui-sr-only") {
+        // Check if this is an aui-* class, excluding exact base skips
+        if (cls.startsWith("aui-") && !SKIPPED_AUI_BASES.has(cls)) {
           // Skip if we've already processed this class
           if (processedClasses.has(cls)) continue;
           processedClasses.add(cls);
@@ -477,7 +480,7 @@ class SyncStyles {
     console.log(chalk.gray(`  • Total aui-* classes found: ${totalClasses}`));
     console.log(chalk.gray(`  • Components processed: ${this.componentClasses.size}`));
     console.log(chalk.gray(`  • CSS files processed: ${this.existingCssClasses.size}`));
-    console.log(chalk.gray(`  • Ignored classes: aui-root, aui-md, aui-sr-only`));
+    console.log(chalk.gray(`  • Ignored base classes: ${Array.from(SKIPPED_AUI_BASES).join(", ")}`));
     
     if (this.unusedClasses.size > 0) {
       console.log(chalk.yellow(`\n⚠️  Unused classes in styles package (not found in registry components):`));
