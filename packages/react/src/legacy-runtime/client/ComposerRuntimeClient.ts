@@ -1,4 +1,10 @@
-import { resource, tapMemo, tapEffect, RefObject } from "@assistant-ui/tap";
+import {
+  resource,
+  tapMemo,
+  tapEffect,
+  RefObject,
+  tapInlineResource,
+} from "@assistant-ui/tap";
 import {
   ComposerRuntime,
   EditComposerRuntime,
@@ -12,6 +18,23 @@ import {
   ComposerClientState,
   ComposerClientApi,
 } from "../../client/types/Composer";
+import { tapLookupResources } from "../util-hooks/tapLookupResources";
+import { AttachmentRuntimeClient } from "./AttachmentRuntimeClient";
+
+const ComposerAttachmentClientByIndex = resource(
+  ({ runtime, index }: { runtime: ComposerRuntime; index: number }) => {
+    const attachmentRuntime = tapMemo(
+      () => runtime.getAttachmentByIndex(index),
+      [runtime, index],
+    );
+
+    return tapInlineResource(
+      AttachmentRuntimeClient({
+        runtime: attachmentRuntime,
+      }),
+    );
+  },
+);
 
 export const ComposerClient = resource(
   ({
@@ -51,11 +74,20 @@ export const ComposerClient = resource(
       };
     }, [runtime, events, threadIdRef, messageIdRef]);
 
+    const attachments = tapLookupResources(
+      runtimeState.attachments.map((_, idx) =>
+        ComposerAttachmentClientByIndex(
+          { runtime: runtime, index: idx },
+          { key: idx },
+        ),
+      ),
+    );
+
     const state = tapMemo<ComposerClientState>(() => {
       return {
         text: runtimeState.text,
         role: runtimeState.role,
-        attachments: runtimeState.attachments,
+        attachments: attachments.state,
         runConfig: runtimeState.runConfig,
         isEditing: runtimeState.isEditing,
         canCancel: runtimeState.canCancel,
@@ -63,7 +95,7 @@ export const ComposerClient = resource(
         isEmpty: runtimeState.isEmpty,
         type: runtimeState.type ?? "thread",
       };
-    }, [runtimeState]);
+    }, [runtimeState, attachments.state]);
 
     const api = tapApi<ComposerClientApi>({
       getState: () => state,
@@ -83,16 +115,7 @@ export const ComposerClient = resource(
           throw new Error("beginEdit is not supported in this runtime");
         }),
 
-      attachment: ({ index }) => {
-        const attachmentRuntime = runtime.getAttachmentByIndex(index);
-        return {
-          getState: attachmentRuntime.getState,
-
-          remove: attachmentRuntime.remove,
-
-          __internal_getRuntime: () => runtime.getAttachmentByIndex(index),
-        };
-      },
+      attachment: attachments.api,
 
       __internal_getRuntime: () => runtime,
     });
