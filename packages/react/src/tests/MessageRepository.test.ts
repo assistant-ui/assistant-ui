@@ -4,7 +4,7 @@ import {
   ExportedMessageRepository,
 } from "../legacy-runtime/runtime-cores/utils/MessageRepository";
 import type { ThreadMessage, TextMessagePart } from "../types/AssistantTypes";
-import { ThreadMessageLike } from "../legacy-runtime/runtime-cores";
+import type { ThreadMessageLike } from "../legacy-runtime/runtime-cores";
 
 // Mock generateId and generateOptimisticId to make tests deterministic
 const mockGenerateId = vi.fn();
