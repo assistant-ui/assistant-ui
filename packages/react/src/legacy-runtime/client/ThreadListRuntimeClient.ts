@@ -14,7 +14,6 @@ import {
 } from "./ThreadRuntimeClient";
 import { StoreApi } from "../../utils/tap-store/tap-store-api";
 import { tapLookupResources } from "../util-hooks/tapLookupResources";
-import { EventManagerActions } from "./EventManagerRuntimeClient";
 
 export type ThreadListClientState = {
   readonly mainThreadId: string;
@@ -42,15 +41,7 @@ export type ThreadListClientActions = {
 };
 
 const ThreadListItemClientById = resource(
-  ({
-    runtime,
-    id,
-    events,
-  }: {
-    runtime: ThreadListRuntime;
-    id: string;
-    events: EventManagerActions;
-  }) => {
+  ({ runtime, id }: { runtime: ThreadListRuntime; id: string }) => {
     const threadListItemRuntime = tapMemo(
       () => runtime.getItemById(id),
       [runtime, id],
@@ -58,32 +49,24 @@ const ThreadListItemClientById = resource(
     return tapInlineResource(
       ThreadListItemClient({
         runtime: threadListItemRuntime,
-        events,
       }),
     );
   },
 );
 
 export const ThreadListClient = resource(
-  ({
-    runtime,
-    events,
-  }: {
-    runtime: ThreadListRuntime;
-    events: EventManagerActions;
-  }) => {
+  ({ runtime }: { runtime: ThreadListRuntime }) => {
     const runtimeState = tapSubscribable(runtime);
 
     const main = tapInlineResource(
       ThreadClient({
         runtime: runtime.main,
-        events,
       }),
     );
 
     const threadItems = tapLookupResources(
       Object.keys(runtimeState.threadItems).map((id) =>
-        ThreadListItemClientById({ runtime, id, events }, { key: id }),
+        ThreadListItemClientById({ runtime, id }, { key: id }),
       ),
     );
 

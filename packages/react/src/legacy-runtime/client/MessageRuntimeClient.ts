@@ -27,9 +27,8 @@ import { tapLookupResources } from "../util-hooks/tapLookupResources";
 import {
   AttachmentClientActions,
   AttachmentClientState,
-} from "./AttachmentRuntimeClient";
+} from "../../client/types/AttachmentClient";
 import { StoreApi } from "../../utils/tap-store/tap-store-api";
-import { EventManagerActions } from "./EventManagerRuntimeClient";
 import { RefObject } from "react";
 
 export type MessageClientState = ThreadMessage & {
@@ -98,11 +97,9 @@ const MessagePartByIndex = resource(
 export const MessageClient = resource(
   ({
     runtime,
-    events,
     threadIdRef,
   }: {
     runtime: MessageRuntime;
-    events: EventManagerActions;
     threadIdRef: RefObject<string>;
   }) => {
     const runtimeState = tapSubscribable(runtime);
@@ -122,7 +119,6 @@ export const MessageClient = resource(
     const composer = tapInlineResource(
       ComposerClient({
         runtime: runtime.composer,
-        events,
         threadIdRef,
         messageIdRef,
       }),

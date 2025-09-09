@@ -11,7 +11,7 @@ import {
 import {
   AssistantToolUIActions,
   AssistantToolUIState,
-} from "../../legacy-runtime/client/AssistantRuntimeClient";
+} from "../../client/types/AssistantToolUI";
 import {
   MessageClientActions,
   MessageClientState,
@@ -35,7 +35,7 @@ import {
 import {
   AttachmentClientActions,
   AttachmentClientState,
-} from "../../legacy-runtime/client/AttachmentRuntimeClient";
+} from "../../client/types/AttachmentClient";
 import { StoreApi } from "../../utils/tap-store/tap-store-api";
 import { Unsubscribe } from "@assistant-ui/tap";
 import { ModelContextProvider } from "../../model-context";

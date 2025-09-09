@@ -31,7 +31,7 @@ import { tapApi } from "../../utils/tap-store";
 import { tapLookupResources } from "../util-hooks/tapLookupResources";
 import { StoreApi } from "../../utils/tap-store/tap-store-api";
 import { Unsubscribe } from "../../types";
-import { EventManagerActions } from "./EventManagerRuntimeClient";
+import { tapEvents } from "../../client/EventContext";
 
 export type ThreadClientState = {
   /**
@@ -150,12 +150,10 @@ const MessageClientById = resource(
   ({
     runtime,
     id,
-    events,
     threadIdRef,
   }: {
     runtime: ThreadRuntime;
     id: string;
-    events: EventManagerActions;
     threadIdRef: RefObject<string>;
   }) => {
     const messageRuntime = tapMemo(
@@ -164,20 +162,16 @@ const MessageClientById = resource(
     );
 
     return tapInlineResource(
-      MessageClient({ runtime: messageRuntime, events, threadIdRef }),
+      MessageClient({ runtime: messageRuntime, threadIdRef }),
     );
   },
 );
 
 export const ThreadClient = resource(
-  ({
-    runtime,
-    events,
-  }: {
-    runtime: ThreadRuntime;
-    events: EventManagerActions;
-  }) => {
+  ({ runtime }: { runtime: ThreadRuntime }) => {
     const runtimeState = tapSubscribable(runtime);
+
+    const events = tapEvents();
 
     // Bind thread events to event manager
     tapEffect(() => {
@@ -204,7 +198,7 @@ export const ThreadClient = resource(
       return () => {
         for (const unsub of unsubscribers) unsub();
       };
-    }, [runtime, events]);
+    }, [runtime]);
 
     const threadIdRef = tapMemo(
       () => ({
@@ -218,7 +212,6 @@ export const ThreadClient = resource(
     const composer = tapInlineResource(
       ComposerClient({
         runtime: runtime.composer,
-        events,
         threadIdRef,
       }),
     );
@@ -226,7 +219,7 @@ export const ThreadClient = resource(
     const messages = tapLookupResources(
       runtimeState.messages.map((m) =>
         MessageClientById(
-          { runtime: runtime, id: m.id, events, threadIdRef },
+          { runtime: runtime, id: m.id, threadIdRef },
           { key: m.id },
         ),
       ),

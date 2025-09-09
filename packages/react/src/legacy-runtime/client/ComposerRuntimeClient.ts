@@ -10,10 +10,10 @@ import { tapApi } from "../../utils/tap-store";
 import {
   AttachmentClientActions,
   AttachmentClientState,
-} from "./AttachmentRuntimeClient";
+} from "../../client/types/AttachmentClient";
 import { StoreApi } from "../../utils/tap-store/tap-store-api";
-import { EventManagerActions } from "./EventManagerRuntimeClient";
 import { ComposerRuntimeEventType } from "../runtime-cores/core/ComposerRuntimeCore";
+import { tapEvents } from "../../client/EventContext";
 
 export type ComposerClientState = {
   readonly text: string;
@@ -49,15 +49,14 @@ export const ComposerClient = resource(
   ({
     threadIdRef,
     messageIdRef,
-    events,
     runtime,
   }: {
     threadIdRef: RefObject<string>;
     messageIdRef?: RefObject<string>;
     runtime: ComposerRuntime;
-    events: EventManagerActions;
   }) => {
     const runtimeState = tapSubscribable(runtime);
+    const events = tapEvents();
 
     // Bind composer events to event manager
     tapEffect(() => {

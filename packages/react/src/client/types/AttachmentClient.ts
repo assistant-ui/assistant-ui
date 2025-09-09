@@ -1,4 +1,4 @@
-import { AttachmentRuntime } from "../runtime";
+import { AttachmentRuntime } from "../../legacy-runtime/runtime";
 import { Attachment } from "../../types";
 
 export type AttachmentClientState = Attachment;

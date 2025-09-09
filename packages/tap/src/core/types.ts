@@ -52,7 +52,6 @@ export interface ResourceFiber<R, P> {
   currentIndex: number;
 
   renderContext: RenderResult | undefined; // set during render
-  committedProps: P | undefined; // props from last mount
 
   isMounted: boolean;
   isFirstRender: boolean;

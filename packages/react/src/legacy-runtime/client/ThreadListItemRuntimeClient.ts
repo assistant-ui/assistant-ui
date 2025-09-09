@@ -6,7 +6,7 @@ import {
 import { ThreadListItemStatus, Unsubscribe } from "../../types";
 import { tapApi } from "../../utils/tap-store";
 import { tapSubscribable } from "../util-hooks/tapSubscribable";
-import { EventManagerActions } from "./EventManagerRuntimeClient";
+import { tapEvents } from "../../client/EventContext";
 
 export type ThreadListItemClientState = {
   readonly id: string;
@@ -31,14 +31,9 @@ export type ThreadListItemClientActions = {
 };
 
 export const ThreadListItemClient = resource(
-  ({
-    runtime,
-    events,
-  }: {
-    runtime: ThreadListItemRuntime;
-    events: EventManagerActions;
-  }) => {
+  ({ runtime }: { runtime: ThreadListItemRuntime }) => {
     const runtimeState = tapSubscribable(runtime);
+    const events = tapEvents();
 
     // Bind thread list item events to event manager
     tapEffect(() => {
