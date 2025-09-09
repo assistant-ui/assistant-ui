@@ -76,36 +76,37 @@ const AssistantStore = resource(
       getState: () => state,
 
       threads: threads.api,
-      registerModelContextProvider: registerModelContextProvider,
       toolUIs: toolUIs.api,
       on: events.on,
 
+      registerModelContextProvider: registerModelContextProvider,
       __internal_getRuntime: () => __internal_runtime ?? null,
     });
 
-    return api;
+    // notify the store of state changes
+    return tapMemo(() => ({ api }), [state]);
   },
 );
 
-const getClientFromStore = (client: Store<AssistantClientApi>) => {
+const getClientFromStore = (client: Store<{ api: AssistantClientApi }>) => {
   const getItem = () => {
-    return client.getState().threads.item("main");
+    return client.getState().api.threads.item("main");
   };
   return {
     threads: createAssistantApiField({
       source: "root",
       query: {},
-      get: () => client.getState().threads,
+      get: () => client.getState().api.threads,
     }),
     toolUIs: createAssistantApiField({
       source: "root",
       query: {},
-      get: () => client.getState().toolUIs,
+      get: () => client.getState().api.toolUIs,
     }),
     thread: createAssistantApiField({
       source: "threads",
       query: { type: "main" },
-      get: () => client.getState().threads.thread("main"),
+      get: () => client.getState().api.threads.thread("main"),
     }),
     threadListItem: createAssistantApiField({
       source: "threads",
@@ -115,27 +116,27 @@ const getClientFromStore = (client: Store<AssistantClientApi>) => {
     composer: createAssistantApiField({
       source: "thread",
       query: {},
-      get: () => client.getState().threads.thread("main").composer,
+      get: () => client.getState().api.threads.thread("main").composer,
     }),
     registerModelContextProvider(provider: ModelContextProvider) {
-      return client.getState().registerModelContextProvider(provider);
+      return client.getState().api.registerModelContextProvider(provider);
     },
     __internal_getRuntime() {
-      return client.getState().__internal_getRuntime();
+      return client.getState().api.__internal_getRuntime();
     },
     on<TEvent extends keyof AssistantEvents>(
       selector: AssistantEventSelector<TEvent>,
       callback: (e: AssistantEvents[TEvent]) => void,
     ): Unsubscribe {
       const { event, scope } = normalizeEventSelector(selector);
-      if (scope === "*") return client.getState().on(event, callback);
+      if (scope === "*") return client.getState().api.on(event, callback);
 
       if (
         checkEventScope("thread", scope, event) ||
         checkEventScope("thread-list-item", scope, event) ||
         checkEventScope("composer", scope, event)
       ) {
-        return client.getState().on(event, (e) => {
+        return client.getState().api.on(event, (e) => {
           if (e.threadId !== getItem().getState().id) return;
           callback(e);
         });
