@@ -1,5 +1,13 @@
 # @assistant-ui/react-langgraph
 
+## 0.6.1
+
+### Patch Changes
+
+- 2d46069: chore: drop deprecated renamed fields
+- Updated dependencies [2d46069]
+  - @assistant-ui/react@0.11.2
+
 ## 0.6.0
 
 ### Patch Changes

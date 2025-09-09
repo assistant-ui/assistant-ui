@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.11.2
+
+### Patch Changes
+
+- 2d46069: chore: drop deprecated renamed fields
+
 ## 0.11.1
 
 ### Patch Changes
