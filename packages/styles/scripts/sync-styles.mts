@@ -6,9 +6,15 @@ import { Command } from "commander";
 import chalk from "chalk";
 import * as readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
+import { fileURLToPath } from "node:url";
 
-const REGISTRY_DIR = path.join(process.cwd(), "..", "..", "apps", "registry", "components", "assistant-ui");
-const STYLES_DIR = path.join(process.cwd(), "src", "styles", "tailwindcss");
+// Resolve paths relative to this script's location to avoid CWD issues
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const PKG_ROOT = path.resolve(__dirname, ".."); // packages/styles
+const MONO_ROOT = path.resolve(PKG_ROOT, "..", "..");
+
+const REGISTRY_DIR = path.join(MONO_ROOT, "apps", "registry", "components", "assistant-ui");
+const STYLES_DIR = path.join(PKG_ROOT, "src", "styles", "tailwindcss");
 
 interface AuiClass {
   name: string;
@@ -59,11 +65,9 @@ class SyncStyles {
   private async parseExistingCss() {
     console.log(chalk.gray("📖 Parsing existing CSS files..."));
     
-    const cssFiles = await fs.readdir(STYLES_DIR);
+    const cssFiles = (await fs.readdir(STYLES_DIR)).filter((f) => f.endsWith(".css")).sort();
     
     for (const file of cssFiles) {
-      if (!file.endsWith(".css")) continue;
-      
       const filePath = path.join(STYLES_DIR, file);
       const content = await fs.readFile(filePath, "utf-8");
       const classes = this.parseCssFile(content);
@@ -83,12 +87,11 @@ class SyncStyles {
     const classes: CssClass[] = [];
     const lines = content.split("\n");
     const multipleApplyWarnings: string[] = [];
-    
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       
-      // Match .aui-* class definitions (but not aui-root or aui-md*)
-      const classMatch = line.match(/^\.([aui-][a-z0-9-]+)\s*\{/);
+      // Match .aui-* class definitions (skip aui-root, aui-md, and aui-sr-only)
+      const classMatch = line.match(/^\.(aui-[a-z0-9-]+)\s*\{/);
       if (classMatch) {
         const className = classMatch[1];
         
@@ -152,11 +155,9 @@ class SyncStyles {
   private async parseRegistryComponents() {
     console.log(chalk.gray("📖 Parsing registry components..."));
     
-    const componentFiles = await fs.readdir(REGISTRY_DIR);
+    const componentFiles = (await fs.readdir(REGISTRY_DIR)).filter((f) => f.endsWith(".tsx")).sort();
     
     for (const file of componentFiles) {
-      if (!file.endsWith(".tsx")) continue;
-      
       const filePath = path.join(REGISTRY_DIR, file);
       const content = await fs.readFile(filePath, "utf-8");
       
