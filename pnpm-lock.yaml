@@ -1608,9 +1608,6 @@ importers:
       tailwindcss:
         specifier: ^4.1.12
         version: 4.1.13
-      ts-morph:
-        specifier: ^24.0.0
-        version: 24.0.0
       tsx:
         specifier: ^4.20.4
         version: 4.20.5
@@ -3731,9 +3728,6 @@ packages:
     resolution: {integrity: sha512-Fy1J4FSj8totuHsHFpaeWyWRaRSIvpzGTRoEfnNJc1JmLV9uV70sYE3zcT+Jj5Yw20Xq4iCsiT+3Ho49BBZcBQ==}
     peerDependencies:
       react: ^18.2.0 || ^19.0.0
-
-  '@ts-morph/common@0.25.0':
-    resolution: {integrity: sha512-kMnZz+vGGHi4GoHnLmMhGNjm44kGtKUXGnOvrKmMwAuvNjM/PgKVGfUnL7IDvK7Jb2QQ82jq3Zmp04Gy+r3Dkg==}
 
   '@ts-morph/common@0.27.0':
     resolution: {integrity: sha512-Wf29UqxWDpc+i61k3oIOzcUfQt79PIT9y/MWfAGlrkjg6lBC1hwDECLXPVJAhWjiGbfBCxZd65F/LIZF3+jeJQ==}
@@ -7622,9 +7616,6 @@ packages:
   ts-interface-checker@0.1.13:
     resolution: {integrity: sha512-Y/arvbn+rrz3JCKl9C4kVNfTfSm2/mEp5FSz5EsZSANGPSlQrpRI5M4PKF+mJnE52jOO90PnPSc3Ur3bTQw0gA==}
 
-  ts-morph@24.0.0:
-    resolution: {integrity: sha512-2OAOg/Ob5yx9Et7ZX4CvTCc0UFoZHwLEJ+dpDPSUi5TgwwlTlX47w+iFRrEwzUZwYACjq83cgjS/Da50Ga37uw==}
-
   ts-morph@26.0.0:
     resolution: {integrity: sha512-ztMO++owQnz8c/gIENcM9XfCEzgoGphTv+nKpYNM1bgsdOVC/jRZuEBf6N+mLLDNg68Kl+GgUZfOySaRiG1/Ug==}
 
@@ -10374,12 +10365,6 @@ snapshots:
       unist-util-visit: 5.0.0
     transitivePeerDependencies:
       - supports-color
-
-  '@ts-morph/common@0.25.0':
-    dependencies:
-      minimatch: 9.0.5
-      path-browserify: 1.0.1
-      tinyglobby: 0.2.14
 
   '@ts-morph/common@0.27.0':
     dependencies:
@@ -15041,11 +15026,6 @@ snapshots:
   ts-dedent@2.2.0: {}
 
   ts-interface-checker@0.1.13: {}
-
-  ts-morph@24.0.0:
-    dependencies:
-      '@ts-morph/common': 0.25.0
-      code-block-writer: 13.0.3
 
   ts-morph@26.0.0:
     dependencies:
