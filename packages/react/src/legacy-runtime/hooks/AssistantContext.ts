@@ -2,7 +2,7 @@
 
 import { useAssistantApi } from "../../context/react/AssistantApiContext";
 import { AssistantRuntime } from "../runtime/AssistantRuntime";
-import { ThreadListRuntime } from "../runtime/ThreadListRuntime";
+import type { ThreadListRuntime } from "../runtime/ThreadListRuntime";
 import { createStateHookForRuntime } from "../../context/react/utils/createStateHookForRuntime";
 
 /**
