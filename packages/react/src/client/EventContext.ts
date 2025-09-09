@@ -5,10 +5,7 @@ import {
 } from "@assistant-ui/tap";
 import { EventManagerActions } from "../legacy-runtime/client/EventManagerRuntimeClient";
 
-const EventsContext = createContext<EventManagerActions>({
-  on: () => () => {},
-  emit: () => {},
-});
+const EventsContext = createContext<EventManagerActions | null>(null);
 
 export const withEventsProvider = <TResult>(
   events: EventManagerActions,
@@ -18,5 +15,8 @@ export const withEventsProvider = <TResult>(
 };
 
 export const tapEvents = () => {
-  return tapContext(EventsContext);
+  const events = tapContext(EventsContext);
+  if (!events) throw new Error("Events context is not available");
+
+  return events;
 };

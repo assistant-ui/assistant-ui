@@ -53,27 +53,29 @@ type AssistantStore = Store<AssistantClientState, AssistantClientActions>;
 
 const AssistantStore = resource(
   ({
-    threads,
+    threads: threadsEl,
     registerModelContextProvider,
     __internal_runtime,
   }: AssistantClientProps) => {
-    const threadsRes = tapResource(threads, [threads]);
-
     const events = tapInlineResource(EventManagerClient());
-    const toolUIs = withEventsProvider(events, () => {
-      return tapInlineResource(ToolUIClient());
+
+    const { threads, toolUIs } = withEventsProvider(events, () => {
+      return {
+        toolUIs: tapInlineResource(ToolUIClient()),
+        threads: tapResource(threadsEl, [threadsEl]),
+      };
     });
 
     const state = tapMemo<AssistantClientState>(
       () => ({
-        threads: threadsRes.state,
+        threads: threads.state,
         toolUIs: toolUIs.state,
       }),
-      [threadsRes.state, toolUIs.state],
+      [threads.state, toolUIs.state],
     );
 
     const api = tapApi<AssistantClientState, AssistantClientActions>(state, {
-      threads: threadsRes.api,
+      threads: threads.api,
       registerModelContextProvider: registerModelContextProvider,
       toolUIs: toolUIs.api,
       on: events.on,
