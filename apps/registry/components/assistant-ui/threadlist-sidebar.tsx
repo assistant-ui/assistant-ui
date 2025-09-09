@@ -58,7 +58,9 @@ export function ThreadListSidebar({
                   <Github className="aui-sidebar-footer-icon size-4" />
                 </div>
                 <div className="aui-sidebar-footer-heading flex flex-col gap-0.5 leading-none">
-                  <span className="aui-sidebar-footer-title font-semibold">GitHub</span>
+                  <span className="aui-sidebar-footer-title font-semibold">
+                    GitHub
+                  </span>
                   <span>View Source</span>
                 </div>
               </Link>

@@ -37,7 +37,8 @@ export const SyntaxHighlighter: FC<HighlighterProps> = ({
   components: _components,
   ...props
 }) => {
-  const BASE_STYLES = "aui-shiki-base [&_pre]:overflow-x-auto [&_pre]:rounded-b-lg [&_pre]:!bg-muted/75 [&_pre]:p-4";
+  const BASE_STYLES =
+    "aui-shiki-base [&_pre]:overflow-x-auto [&_pre]:rounded-b-lg [&_pre]:!bg-muted/75 [&_pre]:p-4";
 
   return (
     <ShikiHighlighter

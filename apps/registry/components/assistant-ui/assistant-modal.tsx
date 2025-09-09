@@ -43,11 +43,14 @@ const AssistantModalButton = forwardRef<
       className="aui-modal-button size-full rounded-full shadow transition-transform hover:scale-110 active:scale-90"
       ref={ref}
     >
-      <BotIcon data-state={state} className="aui-modal-button-closed-icon absolute size-6 transition-all data-[state=closed]:rotate-0 data-[state=open]:rotate-90 data-[state=closed]:scale-100 data-[state=open]:scale-0" />
+      <BotIcon
+        data-state={state}
+        className="aui-modal-button-closed-icon absolute size-6 transition-all data-[state=closed]:scale-100 data-[state=closed]:rotate-0 data-[state=open]:scale-0 data-[state=open]:rotate-90"
+      />
 
       <ChevronDownIcon
         data-state={state}
-        className="aui-modal-button-open-icon absolute size-6 transition-all data-[state=closed]:-rotate-90 data-[state=open]:rotate-0 data-[state=closed]:scale-0 data-[state=open]:scale-100"
+        className="aui-modal-button-open-icon absolute size-6 transition-all data-[state=closed]:scale-0 data-[state=closed]:-rotate-90 data-[state=open]:scale-100 data-[state=open]:rotate-0"
       />
       <span className="aui-sr-only sr-only">{tooltip}</span>
     </TooltipIconButton>

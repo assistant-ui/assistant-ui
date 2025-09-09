@@ -226,7 +226,10 @@ const MessageError: FC = () => {
 const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root asChild>
-      <div className="aui-assistant-message-root relative mx-auto w-full max-w-[var(--thread-max-width)] animate-in py-4 duration-200 fade-in slide-in-from-bottom-1 last:mb-24" data-role="assistant">
+      <div
+        className="aui-assistant-message-root relative mx-auto w-full max-w-[var(--thread-max-width)] animate-in py-4 duration-200 fade-in slide-in-from-bottom-1 last:mb-24"
+        data-role="assistant"
+      >
         <div className="aui-assistant-message-content mx-2 leading-7 break-words text-foreground">
           <MessagePrimitive.Parts
             components={{
@@ -276,7 +279,10 @@ const AssistantActionBar: FC = () => {
 const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root asChild>
-      <div className="aui-user-message-root mx-auto grid w-full max-w-[var(--thread-max-width)] animate-in auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] gap-y-2 px-2 py-4 duration-200 fade-in slide-in-from-bottom-1 first:mt-3 last:mb-5 [&:where(>*)]:col-start-2" data-role="user">
+      <div
+        className="aui-user-message-root mx-auto grid w-full max-w-[var(--thread-max-width)] animate-in auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] gap-y-2 px-2 py-4 duration-200 fade-in slide-in-from-bottom-1 first:mt-3 last:mb-5 [&:where(>*)]:col-start-2"
+        data-role="user"
+      >
         <UserMessageAttachments />
 
         <div className="aui-user-message-content-wrapper relative col-start-2 min-w-0">
@@ -343,7 +349,10 @@ const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({
   return (
     <BranchPickerPrimitive.Root
       hideWhenSingleBranch
-      className={cn("aui-branch-picker-root mr-2 -ml-2 inline-flex items-center text-xs text-muted-foreground", className)}
+      className={cn(
+        "aui-branch-picker-root mr-2 -ml-2 inline-flex items-center text-xs text-muted-foreground",
+        className,
+      )}
       {...rest}
     >
       <BranchPickerPrimitive.Previous asChild>

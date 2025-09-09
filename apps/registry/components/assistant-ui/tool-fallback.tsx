@@ -23,11 +23,15 @@ export const ToolFallback: ToolCallMessagePartComponent = ({
       {!isCollapsed && (
         <div className="aui-tool-fallback-content flex flex-col gap-2 border-t pt-2">
           <div className="aui-tool-fallback-args-root px-4">
-            <pre className="aui-tool-fallback-args-value whitespace-pre-wrap">{argsText}</pre>
+            <pre className="aui-tool-fallback-args-value whitespace-pre-wrap">
+              {argsText}
+            </pre>
           </div>
           {result !== undefined && (
             <div className="aui-tool-fallback-result-root border-t border-dashed px-4 pt-2">
-              <p className="aui-tool-fallback-result-header font-semibold">Result:</p>
+              <p className="aui-tool-fallback-result-header font-semibold">
+                Result:
+              </p>
               <pre className="aui-tool-fallback-result-content whitespace-pre-wrap">
                 {typeof result === "string"
                   ? result

@@ -91,7 +91,10 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
 
   return (
     <Dialog>
-      <DialogTrigger className="aui-attachment-preview-trigger cursor-pointer transition-colors hover:bg-accent/50" asChild>
+      <DialogTrigger
+        className="aui-attachment-preview-trigger cursor-pointer transition-colors hover:bg-accent/50"
+        asChild
+      >
         {children}
       </DialogTrigger>
       <DialogContent className="aui-attachment-preview-dialog-content p-2 sm:max-w-3xl [&_svg]:text-background [&>button]:rounded-full [&>button]:bg-foreground/60 [&>button]:p-1 [&>button]:opacity-100 [&>button]:!ring-0 [&>button]:hover:[&_svg]:text-destructive">
@@ -150,7 +153,8 @@ const AttachmentUI: FC = () => {
       <AttachmentPrimitive.Root
         className={cn(
           "aui-attachment-root relative",
-          isImage && "aui-attachment-root-composer only:[&>#attachment-tile]:size-24",
+          isImage &&
+            "aui-attachment-root-composer only:[&>#attachment-tile]:size-24",
         )}
       >
         <AttachmentPreviewDialog>
@@ -158,7 +162,8 @@ const AttachmentUI: FC = () => {
             <div
               className={cn(
                 "aui-attachment-tile size-14 cursor-pointer overflow-hidden rounded-[14px] border bg-muted transition-opacity hover:opacity-75",
-                isComposer && "aui-attachment-tile-composer border-foreground/20",
+                isComposer &&
+                  "aui-attachment-tile-composer border-foreground/20",
               )}
               role="button"
               id="attachment-tile"
