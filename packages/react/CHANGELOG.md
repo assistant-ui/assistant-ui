@@ -1,5 +1,14 @@
 # @assistant-ui/react
 
+## 0.11.1
+
+### Patch Changes
+
+- 986b1c0: fix: attachments should not cause infinite rerenders
+- 0534bc5: refactor: reorganize runtime files to prepare for part 2 of runtime rearchitecture
+- Updated dependencies [0534bc5]
+  - @assistant-ui/tap@0.1.1
+
 ## 0.11.0
 
 ### Minor Changes
