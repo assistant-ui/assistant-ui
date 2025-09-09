@@ -1,5 +1,4 @@
 ---
-"@assistant-ui/tap": patch
 "@assistant-ui/react": patch
 ---
 
