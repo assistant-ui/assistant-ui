@@ -4,6 +4,8 @@ import { promises as fs } from "node:fs";
 import * as path from "node:path";
 import { Command } from "commander";
 import chalk from "chalk";
+import * as readline from "node:readline/promises";
+import { stdin as input, stdout as output } from "node:process";
 
 const REGISTRY_DIR = path.join(process.cwd(), "..", "..", "apps", "registry", "components", "assistant-ui");
 const STYLES_DIR = path.join(process.cwd(), "src", "styles", "tailwindcss");
@@ -23,6 +25,7 @@ interface CssClass {
 
 class SyncStyles {
   private dryRun: boolean = false;
+  private showUnused: boolean = false;
   // Map of aui-* class name to which CSS file it's in
   private classLocationMap = new Map<string, string>();
   // Map of CSS file to its parsed classes
@@ -32,8 +35,9 @@ class SyncStyles {
   // Map of CSS file to unused classes in that file
   private unusedClasses = new Map<string, string[]>();
 
-  constructor(options: { dryRun?: boolean }) {
+  constructor(options: { dryRun?: boolean; showUnused?: boolean }) {
     this.dryRun = options.dryRun || false;
+    this.showUnused = options.showUnused || false;
   }
 
   async run() {
@@ -78,6 +82,7 @@ class SyncStyles {
   private parseCssFile(content: string): CssClass[] {
     const classes: CssClass[] = [];
     const lines = content.split("\n");
+    const multipleApplyWarnings: string[] = [];
     
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
@@ -92,18 +97,20 @@ class SyncStyles {
           continue;
         }
         
-        // Find the @apply line
-        let tailwindClasses = "";
+        // Find ALL @apply lines and collect their classes
+        const tailwindClassesList: string[] = [];
         let endLine = i;
+        let applyCount = 0;
         
         for (let j = i + 1; j < lines.length; j++) {
           const nextLine = lines[j];
           
           if (nextLine.includes("@apply")) {
+            applyCount++;
             // Extract classes from @apply directive
             const applyMatch = nextLine.match(/@apply\s+([^;]+);?/);
             if (applyMatch) {
-              tailwindClasses = applyMatch[1].trim();
+              tailwindClassesList.push(applyMatch[1].trim());
             }
           }
           
@@ -113,6 +120,14 @@ class SyncStyles {
           }
         }
         
+        // If multiple @apply directives found, add warning
+        if (applyCount > 1) {
+          multipleApplyWarnings.push(className);
+        }
+        
+        // Concatenate all tailwind classes from multiple @apply directives
+        const tailwindClasses = tailwindClassesList.join(" ");
+        
         classes.push({
           name: className,
           tailwindClasses,
@@ -120,6 +135,15 @@ class SyncStyles {
           endLine,
         });
       }
+    }
+    
+    // Display warnings for multiple @apply directives
+    if (multipleApplyWarnings.length > 0) {
+      console.log(chalk.yellow(`⚠️  Found classes with multiple @apply directives:`));
+      for (const className of multipleApplyWarnings) {
+        console.log(chalk.yellow(`    • ${className}`));
+      }
+      console.log();
     }
     
     return classes;
@@ -181,11 +205,15 @@ class SyncStyles {
             tailwindClasses.push(nextCls);
           }
           
-          auiClasses.push({
-            name: cls,
-            tailwindClasses: tailwindClasses.join(" "),
-            component: componentFile,
-          });
+          // Only add if there are actual Tailwind classes
+          const twClasses = tailwindClasses.join(" ").trim();
+          if (twClasses) {
+            auiClasses.push({
+              name: cls,
+              tailwindClasses: twClasses,
+              component: componentFile,
+            });
+          }
         }
       }
     }
@@ -212,9 +240,30 @@ class SyncStyles {
         }
       }
       
-      // If no existing class found, use base-components.css as fallback
+      // If no existing class found, prompt user to choose
       if (!targetCssFile) {
-        targetCssFile = "base-components.css";
+        console.log(chalk.yellow(`\n⚠️  Cannot determine target CSS file for ${componentFile}`));
+        console.log(chalk.yellow(`   Classes found: ${classes.map(c => c.name).join(", ")}`));
+        
+        // Get list of available CSS files
+        const cssFiles = Array.from(this.existingCssClasses.keys()).sort();
+        console.log(chalk.cyan(`\n   Available CSS files:`));
+        cssFiles.forEach((file, index) => {
+          console.log(chalk.cyan(`   ${index + 1}. ${file}`));
+        });
+        
+        const rl = readline.createInterface({ input, output });
+        
+        let choice: number;
+        do {
+          const answer = await rl.question(chalk.green(`   Select file (1-${cssFiles.length}): `));
+          choice = parseInt(answer);
+        } while (isNaN(choice) || choice < 1 || choice > cssFiles.length);
+        
+        rl.close();
+        
+        targetCssFile = cssFiles[choice - 1];
+        console.log(chalk.green(`   ✓ Will add to ${targetCssFile}\n`));
       }
       
       componentToCssFile.set(componentFile, targetCssFile);
@@ -287,6 +336,7 @@ class SyncStyles {
           const existingTw = existingClass.tailwindClasses.trim();
           const newTw = auiClass.tailwindClasses.trim();
           
+          // Only update if new classes are different AND not empty
           if (existingTw !== newTw && newTw !== "") {
             updates.push({ action: "update", class: { ...existingClass, tailwindClasses: newTw } });
             updatesToReport.push(existingClass.name);
@@ -431,11 +481,20 @@ class SyncStyles {
     if (this.unusedClasses.size > 0) {
       console.log(chalk.yellow(`\n⚠️  Unused classes in styles package (not found in registry components):`));
       
-      for (const [cssFile, classes] of this.unusedClasses) {
-        console.log(chalk.cyan(`\n  ${cssFile}:`));
-        for (const className of classes) {
-          console.log(chalk.yellow(`    • ${className}`));
+      if (this.showUnused) {
+        // Verbose mode - show all classes
+        for (const [cssFile, classes] of this.unusedClasses) {
+          console.log(chalk.cyan(`\n  ${cssFile}:`));
+          for (const className of classes) {
+            console.log(chalk.yellow(`    • ${className}`));
+          }
         }
+      } else {
+        // Concise mode - just show counts
+        for (const [cssFile, classes] of this.unusedClasses) {
+          console.log(chalk.yellow(`  • ${classes.length} unused classes in ${cssFile}`));
+        }
+        console.log(chalk.gray(`\n  Use --show-unused flag to see the full list`));
       }
       
       console.log(chalk.gray(`\nThese may be used in user codebases or examples.`));
@@ -456,6 +515,7 @@ program
   .name("sync-styles")
   .description("Sync styles from registry components to styles package")
   .option("--dry-run", "Preview changes without writing files")
+  .option("--show-unused", "Show full list of unused classes")
   .action(async (options) => {
     const syncer = new SyncStyles(options);
     await syncer.run();
