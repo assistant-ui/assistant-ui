@@ -7,18 +7,12 @@ import {
   createAssistantApiField,
 } from "../react/AssistantApiContext";
 import {
-  MessagePartClientActions,
+  MessagePartClientApi,
   MessagePartClientState,
-} from "../../client/MessagePartClient";
+} from "../../client/types/Part";
 import { resource, tapMemo } from "@assistant-ui/tap";
 import { useResource } from "@assistant-ui/tap/react";
 import { asStore, tapApi } from "../../utils/tap-store";
-
-const TextMessagePartActions = new Proxy({} as MessagePartClientActions, {
-  get() {
-    throw new Error("Not implemented");
-  },
-});
 
 const TextMessagePartClient = resource(
   ({ text, isRunning }: { text: string; isRunning: boolean }) => {
@@ -31,12 +25,15 @@ const TextMessagePartClient = resource(
       [text, isRunning],
     );
 
-    const api = tapApi(state, TextMessagePartActions);
+    const api = tapApi<MessagePartClientApi>({
+      getState: () => state,
+      addToolResult: () => {
+        throw new Error("Not supported");
+      },
+      __internal_getRuntime: () => null,
+    });
 
-    return {
-      state,
-      api,
-    };
+    return api;
   },
 );
 
@@ -54,7 +51,7 @@ export const TextMessagePartProvider: FC<
       part: createAssistantApiField({
         source: "root",
         query: {},
-        get: () => store.getApi(),
+        get: () => store.getState(),
       }),
       subscribe: store.subscribe,
       // flushSync: store.flushSync,

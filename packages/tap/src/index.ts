@@ -17,6 +17,9 @@ export { tapResources } from "./hooks/tap-resources";
 // imperative
 export { createResource, type ResourceHandle } from "./core/ResourceHandle";
 
+// context
+export { createContext, tapContext, withContextProvider } from "./core/context";
+
 export type {
   ResourceFn,
   ResourceElement,

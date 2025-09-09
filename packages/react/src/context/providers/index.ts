@@ -1,4 +1,4 @@
-export { AssistantRuntimeProvider } from "./AssistantRuntimeProvider";
+export { AssistantRuntimeProvider } from "../../legacy-runtime/AssistantRuntimeProvider";
 export {
   ThreadListItemByIndexProvider,
   ThreadListItemByIdProvider,

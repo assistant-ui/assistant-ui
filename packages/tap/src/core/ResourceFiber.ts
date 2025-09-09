@@ -11,7 +11,6 @@ export function createResourceFiber<R, P>(
     scheduleRerender,
     cells: [],
     currentIndex: 0,
-    committedProps: undefined,
     renderContext: undefined,
     isFirstRender: true,
     isMounted: false,
@@ -55,5 +54,4 @@ export function commitResource<R, P>(
   fiber.isNeverMounted = false;
 
   commitRender(result, fiber);
-  fiber.committedProps = result.props;
 }

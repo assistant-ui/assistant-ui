@@ -5,56 +5,47 @@ import {
   FC,
   PropsWithChildren,
   useContext,
-  useDebugValue,
   useMemo,
-  useSyncExternalStore,
 } from "react";
 
+import { ToolUIApi, ToolUIState, ToolUIMeta } from "../../client/types/ToolUI";
 import {
-  AssistantToolUIActions,
-  AssistantToolUIState,
-} from "../../client/AssistantRuntimeClient";
-import {
-  MessageClientActions,
+  MessageClientApi,
   MessageClientState,
-} from "../../client/MessageClient";
+} from "../../client/types/Message";
 import {
-  ThreadListItemClientActions,
+  ThreadListItemClientApi,
   ThreadListItemClientState,
-} from "../../client/ThreadListItemClient";
+} from "../../client/types/ThreadListItem";
 import {
-  MessagePartClientActions,
+  MessagePartClientApi,
   MessagePartClientState,
-} from "../../client/MessagePartClient";
+} from "../../client/types/Part";
+import { ThreadClientApi, ThreadClientState } from "../../client/types/Thread";
 import {
-  ThreadClientActions,
-  ThreadClientState,
-} from "../../client/ThreadClient";
-import {
-  ComposerClientActions,
+  ComposerClientApi,
   ComposerClientState,
-} from "../../client/ComposerClient";
+} from "../../client/types/Composer";
 import {
-  AttachmentClientActions,
+  AttachmentClientApi,
   AttachmentClientState,
-} from "../../client/AttachmentClient";
-import { StoreApi } from "../../utils/tap-store/tap-store-api";
+} from "../../client/types/Attachment";
 import { Unsubscribe } from "@assistant-ui/tap";
 import { ModelContextProvider } from "../../model-context";
-import { AssistantRuntime } from "../../api";
+import { AssistantRuntime } from "../../legacy-runtime/runtime/AssistantRuntime";
 import {
   AssistantEventSelector,
   AssistantEvents,
   normalizeEventSelector,
 } from "../../types/EventTypes";
 import {
-  ThreadListClientActions,
+  ThreadListClientApi,
   ThreadListClientState,
-} from "../../client/ThreadListClient";
+} from "../../client/types/ThreadList";
 
 export type AssistantState = {
   readonly threads: ThreadListClientState;
-  readonly toolUIs: AssistantToolUIState;
+  readonly toolUIs: ToolUIState;
 
   readonly threadListItem: ThreadListItemClientState;
   readonly thread: ThreadClientState;
@@ -65,19 +56,12 @@ export type AssistantState = {
 };
 
 type AssistantApiField<
-  TState,
-  TActions,
+  TApi,
   TMeta extends { source: string | null; query: any },
-> = (() => StoreApi<TState, TActions>) &
-  (TMeta | { source: null; query: Record<string, never> });
+> = (() => TApi) & (TMeta | { source: null; query: Record<string, never> });
 
 // Meta types for each API method
 type ThreadsMeta = {
-  source: "root";
-  query: Record<string, never>;
-};
-
-type ToolUIMeta = {
   source: "root";
   query: Record<string, never>;
 };
@@ -116,42 +100,17 @@ type AttachmentMeta = {
 };
 
 export type AssistantApi = {
-  threads: AssistantApiField<
-    ThreadListClientState,
-    ThreadListClientActions,
-    ThreadsMeta
-  >;
-  toolUIs: AssistantApiField<
-    AssistantToolUIState,
-    AssistantToolUIActions,
-    ToolUIMeta
-  >;
+  threads: AssistantApiField<ThreadListClientApi, ThreadsMeta>;
+  toolUIs: AssistantApiField<ToolUIApi, ToolUIMeta>;
   threadListItem: AssistantApiField<
-    ThreadListItemClientState,
-    ThreadListItemClientActions,
+    ThreadListItemClientApi,
     ThreadListItemMeta
   >;
-  thread: AssistantApiField<ThreadClientState, ThreadClientActions, ThreadMeta>;
-  composer: AssistantApiField<
-    ComposerClientState,
-    ComposerClientActions,
-    ComposerMeta
-  >;
-  message: AssistantApiField<
-    MessageClientState,
-    MessageClientActions,
-    MessageMeta
-  >;
-  part: AssistantApiField<
-    MessagePartClientState,
-    MessagePartClientActions,
-    PartMeta
-  >;
-  attachment: AssistantApiField<
-    AttachmentClientState,
-    AttachmentClientActions,
-    AttachmentMeta
-  >;
+  thread: AssistantApiField<ThreadClientApi, ThreadMeta>;
+  composer: AssistantApiField<ComposerClientApi, ComposerMeta>;
+  message: AssistantApiField<MessageClientApi, MessageMeta>;
+  part: AssistantApiField<MessagePartClientApi, PartMeta>;
+  attachment: AssistantApiField<AttachmentClientApi, AttachmentMeta>;
 
   subscribe(listener: () => void): Unsubscribe;
   flushSync(): void;
@@ -168,15 +127,14 @@ export type AssistantApi = {
 };
 
 export const createAssistantApiField = <
-  TState,
-  TActions,
+  TApi,
   TMeta extends { source: any; query: any },
 >(
   config: {
-    get: () => StoreApi<TState, TActions>;
+    get: () => TApi;
   } & (TMeta | { source: null; query: Record<string, never> }),
-): AssistantApiField<TState, TActions, TMeta> => {
-  const fn = config.get as AssistantApiField<TState, TActions, TMeta>;
+): AssistantApiField<TApi, TMeta> => {
+  const fn = config.get as AssistantApiField<TApi, TMeta>;
   fn.source = config.source;
   fn.query = config.query;
   return fn;
@@ -272,65 +230,6 @@ const AssistantApiContext = createContext<AssistantApi>({
 export const useAssistantApi = (): AssistantApi => {
   return useContext(AssistantApiContext);
 };
-
-export const useAssistantState = <T,>(
-  selector: (state: AssistantState) => T,
-): T => {
-  const api = useAssistantApi();
-  const proxiedState = useMemo(() => new ProxiedAssistantState(api), [api]);
-  const slice = useSyncExternalStore(
-    api.subscribe,
-    () => selector(proxiedState),
-    () => selector(proxiedState),
-  );
-  useDebugValue(slice);
-
-  if (slice instanceof ProxiedAssistantState)
-    throw new Error(
-      "You tried to return the entire AssistantState. This is not supported due to technical limitations.",
-    );
-
-  return slice;
-};
-
-class ProxiedAssistantState implements AssistantState {
-  #api: AssistantApi;
-  constructor(api: AssistantApi) {
-    this.#api = api;
-  }
-
-  get threads() {
-    return this.#api.threads().getState();
-  }
-
-  get toolUIs() {
-    return this.#api.toolUIs().getState();
-  }
-
-  get threadListItem() {
-    return this.#api.threadListItem().getState();
-  }
-
-  get thread() {
-    return this.#api.thread().getState();
-  }
-
-  get composer() {
-    return this.#api.composer().getState();
-  }
-
-  get message() {
-    return this.#api.message().getState();
-  }
-
-  get part() {
-    return this.#api.part().getState();
-  }
-
-  get attachment() {
-    return this.#api.attachment().getState();
-  }
-}
 
 const mergeFns = <TArgs extends Array<unknown>>(
   fn1: (...args: TArgs) => void,
