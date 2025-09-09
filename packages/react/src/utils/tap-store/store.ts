@@ -6,10 +6,12 @@ import {
   createResource,
   Unsubscribe,
 } from "@assistant-ui/tap";
-import { StoreApi } from "./tap-store-api";
 
-export interface Store<TState, TActions> {
-  getApi(): StoreApi<TState, TActions>;
+export interface Store<TState> {
+  /**
+   * Get the current state of the store.
+   */
+  getState(): TState;
 
   /**
    * Subscribe to the store.
@@ -23,14 +25,7 @@ export interface Store<TState, TActions> {
 }
 
 export const asStore = resource(
-  <TState, TActions, TProps>(
-    element: ResourceElement<
-      {
-        api: StoreApi<TState, TActions>;
-      },
-      TProps
-    >,
-  ): Store<TState, TActions> => {
+  <TState, TProps>(element: ResourceElement<TState, TProps>): Store<TState> => {
     const resource = tapMemo(
       () => createResource(element, true),
       [element.type],
@@ -40,12 +35,6 @@ export const asStore = resource(
       resource.updateInput(element.props);
     });
 
-    return tapMemo<Store<TState, TActions>>(() => {
-      return {
-        getApi: () => resource.getState().api,
-        subscribe: resource.subscribe,
-        flushSync: resource.flushSync,
-      };
-    }, [resource]);
+    return resource;
   },
 );

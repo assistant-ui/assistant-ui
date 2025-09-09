@@ -6,13 +6,11 @@ import {
   ResourceElement,
   tapResource,
 } from "@assistant-ui/tap";
-import { ThreadListClientState } from "./types/ThreadListClient";
-import { ThreadListClientActions } from "./types/ThreadListClient";
+import { ThreadListClientApi, ThreadListClientState } from "./types/ThreadList";
 import { AssistantRuntime } from "../legacy-runtime/runtime/AssistantRuntime";
 import { ModelContextProvider } from "../model-context";
 import { asStore, Store, tapApi } from "../utils/tap-store";
 import { useResource } from "@assistant-ui/tap/react";
-import { StoreApi } from "../utils/tap-store/tap-store-api";
 import { useMemo } from "react";
 import {
   AssistantEventSelector,
@@ -20,23 +18,25 @@ import {
   checkEventScope,
   normalizeEventSelector,
 } from "../types/EventTypes";
-import { EventManagerClient } from "../legacy-runtime/client/EventManagerRuntimeClient";
+import { EventManager } from "../legacy-runtime/client/EventManagerRuntimeClient";
 import {
   AssistantApi,
   createAssistantApiField,
 } from "../context/react/AssistantApiContext";
 import { ToolUIClient } from "./ToolUIClient";
 import { withEventsProvider } from "./EventContext";
-import { ToolUIActions, ToolUIState } from "./types/ToolUI";
+import { ToolUIApi, ToolUIState } from "./types/ToolUI";
 
 type AssistantClientState = {
   readonly threads: ThreadListClientState;
   readonly toolUIs: ToolUIState;
 };
 
-type AssistantClientActions = {
-  readonly threads: StoreApi<ThreadListClientState, ThreadListClientActions>;
-  readonly toolUIs: StoreApi<ToolUIState, ToolUIActions>;
+type AssistantClientApi = {
+  getState(): AssistantClientState;
+
+  readonly threads: ThreadListClientApi;
+  readonly toolUIs: ToolUIApi;
 
   on<TEvent extends keyof AssistantEvents>(
     event: keyof AssistantEvents,
@@ -49,15 +49,13 @@ type AssistantClientActions = {
   __internal_getRuntime(): AssistantRuntime | null;
 };
 
-type AssistantStore = Store<AssistantClientState, AssistantClientActions>;
-
 const AssistantStore = resource(
   ({
     threads: threadsEl,
     registerModelContextProvider,
     __internal_runtime,
   }: AssistantClientProps) => {
-    const events = tapInlineResource(EventManagerClient());
+    const events = tapInlineResource(EventManager());
 
     const { threads, toolUIs } = withEventsProvider(events, () => {
       return {
@@ -74,7 +72,9 @@ const AssistantStore = resource(
       [threads.state, toolUIs.state],
     );
 
-    const api = tapApi<AssistantClientState, AssistantClientActions>(state, {
+    const api = tapApi<AssistantClientApi>({
+      getState: () => state,
+
       threads: threads.api,
       registerModelContextProvider: registerModelContextProvider,
       toolUIs: toolUIs.api,
@@ -83,32 +83,29 @@ const AssistantStore = resource(
       __internal_getRuntime: () => __internal_runtime ?? null,
     });
 
-    return {
-      state,
-      api,
-    };
+    return api;
   },
 );
 
-const getClientfromStore = (client: AssistantStore) => {
+const getClientFromStore = (client: Store<AssistantClientApi>) => {
   const getItem = () => {
-    return client.getApi().threads.item("main");
+    return client.getState().threads.item("main");
   };
   return {
     threads: createAssistantApiField({
       source: "root",
       query: {},
-      get: () => client.getApi().threads,
+      get: () => client.getState().threads,
     }),
     toolUIs: createAssistantApiField({
       source: "root",
       query: {},
-      get: () => client.getApi().toolUIs,
+      get: () => client.getState().toolUIs,
     }),
     thread: createAssistantApiField({
       source: "threads",
       query: { type: "main" },
-      get: () => client.getApi().threads.thread("main"),
+      get: () => client.getState().threads.thread("main"),
     }),
     threadListItem: createAssistantApiField({
       source: "threads",
@@ -118,27 +115,27 @@ const getClientfromStore = (client: AssistantStore) => {
     composer: createAssistantApiField({
       source: "thread",
       query: {},
-      get: () => client.getApi().threads.thread("main").composer,
+      get: () => client.getState().threads.thread("main").composer,
     }),
     registerModelContextProvider(provider: ModelContextProvider) {
-      return client.getApi().registerModelContextProvider(provider);
+      return client.getState().registerModelContextProvider(provider);
     },
     __internal_getRuntime() {
-      return client.getApi().__internal_getRuntime();
+      return client.getState().__internal_getRuntime();
     },
     on<TEvent extends keyof AssistantEvents>(
       selector: AssistantEventSelector<TEvent>,
       callback: (e: AssistantEvents[TEvent]) => void,
     ): Unsubscribe {
       const { event, scope } = normalizeEventSelector(selector);
-      if (scope === "*") return client.getApi().on(event, callback);
+      if (scope === "*") return client.getState().on(event, callback);
 
       if (
         checkEventScope("thread", scope, event) ||
         checkEventScope("thread-list-item", scope, event) ||
         checkEventScope("composer", scope, event)
       ) {
-        return client.getApi().on(event, (e) => {
+        return client.getState().on(event, (e) => {
           if (e.threadId !== getItem().getState().id) return;
           callback(e);
         });
@@ -156,7 +153,7 @@ const getClientfromStore = (client: AssistantStore) => {
 type AssistantClientProps = {
   threads: ResourceElement<{
     state: ThreadListClientState;
-    api: StoreApi<ThreadListClientState, ThreadListClientActions>;
+    api: ThreadListClientApi;
   }>;
   registerModelContextProvider: (provider: ModelContextProvider) => Unsubscribe;
 
@@ -166,5 +163,5 @@ type AssistantClientProps = {
 
 export const useAssistantClient = (props: AssistantClientProps) => {
   const client = useResource(asStore(AssistantStore(props)));
-  return useMemo(() => getClientfromStore(client), [client]);
+  return useMemo(() => getClientFromStore(client), [client]);
 };

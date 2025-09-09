@@ -15,11 +15,11 @@ import {
   AssistantApi,
   useAssistantApi,
 } from "../../context/react/AssistantApiContext";
-import { ThreadListItemRuntime } from "../runtime/ThreadListItemRuntime";
+import { ThreadListItemClientApi } from "../../client/types/ThreadListItem";
 
 // Global WeakMap to store message ID mappings across adapter instances
 const globalMessageIdMapping = new WeakMap<
-  ThreadListItemRuntime,
+  ThreadListItemClientApi,
   Record<string, string | Promise<string>>
 >();
 
@@ -62,19 +62,10 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   ) {}
 
   private get _getIdForLocalId(): Record<string, string | Promise<string>> {
-    if (
-      !globalMessageIdMapping.has(
-        this.store.threadListItem().__internal_getRuntime(),
-      )
-    ) {
-      globalMessageIdMapping.set(
-        this.store.threadListItem().__internal_getRuntime(),
-        {},
-      );
+    if (!globalMessageIdMapping.has(this.store.threadListItem())) {
+      globalMessageIdMapping.set(this.store.threadListItem(), {});
     }
-    return globalMessageIdMapping.get(
-      this.store.threadListItem().__internal_getRuntime(),
-    )!;
+    return globalMessageIdMapping.get(this.store.threadListItem())!;
   }
 
   withFormat<TMessage, TStorageFormat>(

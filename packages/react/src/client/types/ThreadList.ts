@@ -1,12 +1,8 @@
 import {
   ThreadListItemClientState,
-  ThreadListItemClientActions,
-} from "../../legacy-runtime/client/ThreadListItemRuntimeClient";
-import {
-  ThreadClientState,
-  ThreadClientActions,
-} from "../../legacy-runtime/client/ThreadRuntimeClient";
-import { StoreApi } from "../../utils/tap-store/tap-store-api";
+  ThreadListItemClientApi,
+} from "./ThreadListItem";
+import { ThreadClientApi, ThreadClientState } from "./Thread";
 
 export type ThreadListClientState = {
   readonly mainThreadId: string;
@@ -20,7 +16,9 @@ export type ThreadListClientState = {
   readonly main: ThreadClientState;
 };
 
-export type ThreadListClientActions = {
+export type ThreadListClientApi = {
+  getState(): ThreadListClientState;
+
   switchToThread(threadId: string): void;
   switchToNewThread(): void;
   item(
@@ -28,7 +26,7 @@ export type ThreadListClientActions = {
       | "main"
       | { id: string }
       | { index: number; archived?: boolean },
-  ): StoreApi<ThreadListItemClientState, ThreadListItemClientActions>;
+  ): ThreadListItemClientApi;
 
-  thread(selector: "main"): StoreApi<ThreadClientState, ThreadClientActions>;
+  thread(selector: "main"): ThreadClientApi;
 };

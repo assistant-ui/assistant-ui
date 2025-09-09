@@ -3,32 +3,11 @@ import {
   ThreadListItemEventType,
   ThreadListItemRuntime,
 } from "../runtime/ThreadListItemRuntime";
-import { ThreadListItemStatus, Unsubscribe } from "../../types";
+import { Unsubscribe } from "../../types";
 import { tapApi } from "../../utils/tap-store";
 import { tapSubscribable } from "../util-hooks/tapSubscribable";
 import { tapEvents } from "../../client/EventContext";
-
-export type ThreadListItemClientState = {
-  readonly id: string;
-  readonly remoteId: string | undefined;
-  readonly externalId: string | undefined;
-  readonly title?: string | undefined;
-  readonly status: ThreadListItemStatus;
-};
-
-export type ThreadListItemClientActions = {
-  switchTo(): void;
-  rename(newTitle: string): void;
-  archive(): void;
-  unarchive(): void;
-  delete(): void;
-  generateTitle(): void;
-  initialize(): Promise<{ remoteId: string; externalId: string | undefined }>;
-  detach(): void;
-
-  /** @internal */
-  __internal_getRuntime(): ThreadListItemRuntime | null;
-};
+import { ThreadListItemClientApi } from "../../client/types/ThreadListItem";
 
 export const ThreadListItemClient = resource(
   ({ runtime }: { runtime: ThreadListItemRuntime }) => {
@@ -59,20 +38,18 @@ export const ThreadListItemClient = resource(
       };
     }, [runtime, events]);
 
-    const api = tapApi<ThreadListItemClientState, ThreadListItemClientActions>(
-      runtimeState,
-      {
-        switchTo: runtime.switchTo,
-        rename: runtime.rename,
-        archive: runtime.archive,
-        unarchive: runtime.unarchive,
-        delete: runtime.delete,
-        generateTitle: runtime.generateTitle,
-        initialize: runtime.initialize,
-        detach: runtime.detach,
-        __internal_getRuntime: () => runtime,
-      },
-    );
+    const api = tapApi<ThreadListItemClientApi>({
+      getState: () => runtimeState,
+      switchTo: runtime.switchTo,
+      rename: runtime.rename,
+      archive: runtime.archive,
+      unarchive: runtime.unarchive,
+      delete: runtime.delete,
+      generateTitle: runtime.generateTitle,
+      initialize: runtime.initialize,
+      detach: runtime.detach,
+      __internal_getRuntime: () => runtime,
+    });
 
     return {
       state: runtimeState,

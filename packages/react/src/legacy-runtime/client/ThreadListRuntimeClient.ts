@@ -7,8 +7,8 @@ import { ThreadClient } from "./ThreadRuntimeClient";
 import { tapLookupResources } from "../util-hooks/tapLookupResources";
 import {
   ThreadListClientState,
-  ThreadListClientActions,
-} from "../../client/types/ThreadListClient";
+  ThreadListClientApi,
+} from "../../client/types/ThreadList";
 
 const ThreadListItemClientById = resource(
   ({ runtime, id }: { runtime: ThreadListRuntime; id: string }) => {
@@ -53,7 +53,9 @@ export const ThreadListClient = resource(
       };
     }, [runtimeState, threadItems.state, main.state]);
 
-    const api = tapApi<ThreadListClientState, ThreadListClientActions>(state, {
+    const api = tapApi<ThreadListClientApi>({
+      getState: () => state,
+
       thread: () => main.api,
 
       item: (threadIdOrOptions) => {

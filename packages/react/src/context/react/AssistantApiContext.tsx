@@ -8,36 +8,28 @@ import {
   useMemo,
 } from "react";
 
+import { ToolUIApi, ToolUIState, ToolUIMeta } from "../../client/types/ToolUI";
 import {
-  ToolUIActions,
-  ToolUIState,
-  ToolUIMeta,
-} from "../../client/types/ToolUI";
-import {
-  MessageClientActions,
+  MessageClientApi,
   MessageClientState,
-} from "../../legacy-runtime/client/MessageRuntimeClient";
+} from "../../client/types/Message";
 import {
-  ThreadListItemClientActions,
+  ThreadListItemClientApi,
   ThreadListItemClientState,
-} from "../../legacy-runtime/client/ThreadListItemRuntimeClient";
+} from "../../client/types/ThreadListItem";
 import {
-  MessagePartClientActions,
+  MessagePartClientApi,
   MessagePartClientState,
-} from "../../legacy-runtime/client/MessagePartRuntimeClient";
+} from "../../client/types/Part";
+import { ThreadClientApi, ThreadClientState } from "../../client/types/Thread";
 import {
-  ThreadClientActions,
-  ThreadClientState,
-} from "../../legacy-runtime/client/ThreadRuntimeClient";
-import {
-  ComposerClientActions,
+  ComposerClientApi,
   ComposerClientState,
-} from "../../legacy-runtime/client/ComposerRuntimeClient";
+} from "../../client/types/Composer";
 import {
-  AttachmentClientActions,
+  AttachmentClientApi,
   AttachmentClientState,
-} from "../../client/types/AttachmentClient";
-import { StoreApi } from "../../utils/tap-store/tap-store-api";
+} from "../../client/types/Attachment";
 import { Unsubscribe } from "@assistant-ui/tap";
 import { ModelContextProvider } from "../../model-context";
 import { AssistantRuntime } from "../../legacy-runtime/runtime/AssistantRuntime";
@@ -47,9 +39,9 @@ import {
   normalizeEventSelector,
 } from "../../types/EventTypes";
 import {
-  ThreadListClientActions,
+  ThreadListClientApi,
   ThreadListClientState,
-} from "../../client/types/ThreadListClient";
+} from "../../client/types/ThreadList";
 
 export type AssistantState = {
   readonly threads: ThreadListClientState;
@@ -64,11 +56,9 @@ export type AssistantState = {
 };
 
 type AssistantApiField<
-  TState,
-  TActions,
+  TApi,
   TMeta extends { source: string | null; query: any },
-> = (() => StoreApi<TState, TActions>) &
-  (TMeta | { source: null; query: Record<string, never> });
+> = (() => TApi) & (TMeta | { source: null; query: Record<string, never> });
 
 // Meta types for each API method
 type ThreadsMeta = {
@@ -110,38 +100,17 @@ type AttachmentMeta = {
 };
 
 export type AssistantApi = {
-  threads: AssistantApiField<
-    ThreadListClientState,
-    ThreadListClientActions,
-    ThreadsMeta
-  >;
-  toolUIs: AssistantApiField<ToolUIState, ToolUIActions, ToolUIMeta>;
+  threads: AssistantApiField<ThreadListClientApi, ThreadsMeta>;
+  toolUIs: AssistantApiField<ToolUIApi, ToolUIMeta>;
   threadListItem: AssistantApiField<
-    ThreadListItemClientState,
-    ThreadListItemClientActions,
+    ThreadListItemClientApi,
     ThreadListItemMeta
   >;
-  thread: AssistantApiField<ThreadClientState, ThreadClientActions, ThreadMeta>;
-  composer: AssistantApiField<
-    ComposerClientState,
-    ComposerClientActions,
-    ComposerMeta
-  >;
-  message: AssistantApiField<
-    MessageClientState,
-    MessageClientActions,
-    MessageMeta
-  >;
-  part: AssistantApiField<
-    MessagePartClientState,
-    MessagePartClientActions,
-    PartMeta
-  >;
-  attachment: AssistantApiField<
-    AttachmentClientState,
-    AttachmentClientActions,
-    AttachmentMeta
-  >;
+  thread: AssistantApiField<ThreadClientApi, ThreadMeta>;
+  composer: AssistantApiField<ComposerClientApi, ComposerMeta>;
+  message: AssistantApiField<MessageClientApi, MessageMeta>;
+  part: AssistantApiField<MessagePartClientApi, PartMeta>;
+  attachment: AssistantApiField<AttachmentClientApi, AttachmentMeta>;
 
   subscribe(listener: () => void): Unsubscribe;
   flushSync(): void;
@@ -158,15 +127,14 @@ export type AssistantApi = {
 };
 
 export const createAssistantApiField = <
-  TState,
-  TActions,
+  TApi,
   TMeta extends { source: any; query: any },
 >(
   config: {
-    get: () => StoreApi<TState, TActions>;
+    get: () => TApi;
   } & (TMeta | { source: null; query: Record<string, never> }),
-): AssistantApiField<TState, TActions, TMeta> => {
-  const fn = config.get as AssistantApiField<TState, TActions, TMeta>;
+): AssistantApiField<TApi, TMeta> => {
+  const fn = config.get as AssistantApiField<TApi, TMeta>;
   fn.source = config.source;
   fn.query = config.query;
   return fn;

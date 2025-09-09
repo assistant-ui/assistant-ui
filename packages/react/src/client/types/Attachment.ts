@@ -3,9 +3,11 @@ import { Attachment } from "../../types";
 
 export type AttachmentClientState = Attachment;
 
-export type AttachmentClientActions = {
-  readonly remove: () => Promise<void>;
+export type AttachmentClientApi = {
+  getState(): AttachmentClientState;
+
+  remove(): Promise<void>;
 
   /** @internal */
-  __internal_getRuntime(): AttachmentRuntime;
+  __internal_getRuntime(): AttachmentRuntime | null;
 };

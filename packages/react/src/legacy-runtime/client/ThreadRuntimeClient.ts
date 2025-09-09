@@ -1,12 +1,5 @@
-import { ReadonlyJSONValue } from "assistant-stream/utils";
-import {
-  RuntimeCapabilities,
-  SpeechState,
-  ThreadRuntimeEventType,
-  ThreadSuggestion,
-} from "../runtime-cores/core/ThreadRuntimeCore";
-import { CreateAppendMessage, CreateStartRunConfig } from "../runtime";
-import { CreateResumeRunConfig, ThreadRuntime } from "../runtime/ThreadRuntime";
+import { ThreadRuntimeEventType } from "../runtime-cores/core/ThreadRuntimeCore";
+import { ThreadRuntime } from "../runtime/ThreadRuntime";
 import {
   resource,
   tapInlineResource,
@@ -14,137 +7,14 @@ import {
   tapEffect,
   RefObject,
 } from "@assistant-ui/tap";
-import { ModelContext } from "../../model-context";
-import { ExportedMessageRepository, ThreadMessageLike } from "../runtime-cores";
-import {
-  ComposerClient,
-  ComposerClientActions,
-  ComposerClientState,
-} from "./ComposerRuntimeClient";
-import {
-  MessageClient,
-  MessageClientActions,
-  MessageClientState,
-} from "./MessageRuntimeClient";
+import { ComposerClient } from "./ComposerRuntimeClient";
+import { MessageClient } from "./MessageRuntimeClient";
 import { tapSubscribable } from "../util-hooks/tapSubscribable";
 import { tapApi } from "../../utils/tap-store";
 import { tapLookupResources } from "../util-hooks/tapLookupResources";
-import { StoreApi } from "../../utils/tap-store/tap-store-api";
 import { Unsubscribe } from "../../types";
 import { tapEvents } from "../../client/EventContext";
-
-export type ThreadClientState = {
-  /**
-   * Whether the thread is disabled. Disabled threads cannot receive new messages.
-   */
-  readonly isDisabled: boolean;
-
-  /**
-   * Whether the thread is loading its history.
-   */
-  readonly isLoading: boolean;
-
-  /**
-   * Whether the thread is running. A thread is considered running when there is an active stream connection to the backend.
-   */
-  readonly isRunning: boolean;
-
-  /**
-   * The capabilities of the thread, such as whether the thread supports editing, branch switching, etc.
-   */
-  readonly capabilities: RuntimeCapabilities;
-
-  /**
-   * The messages in the currently selected branch of the thread.
-   */
-  readonly messages: readonly MessageClientState[];
-
-  /**
-   * The thread state.
-   *
-   * @deprecated This feature is experimental
-   */
-  readonly state: ReadonlyJSONValue;
-
-  /**
-   * Follow up message suggestions to show the user.
-   */
-  readonly suggestions: readonly ThreadSuggestion[];
-
-  /**
-   * Custom extra information provided by the runtime.
-   */
-  readonly extras: unknown;
-
-  /**
-   * @deprecated This API is still under active development and might change without notice.
-   */
-  readonly speech: SpeechState | undefined;
-
-  readonly composer: ComposerClientState;
-};
-
-export type ThreadClientActions = {
-  /**
-   * The thread composer runtime.
-   */
-  readonly composer: StoreApi<ComposerClientState, ComposerClientActions>;
-
-  /**
-   * Append a new message to the thread.
-   *
-   * @example ```ts
-   * // append a new user message with the text "Hello, world!"
-   * threadRuntime.append("Hello, world!");
-   * ```
-   *
-   * @example ```ts
-   * // append a new assistant message with the text "Hello, world!"
-   * threadRuntime.append({
-   *   role: "assistant",
-   *   content: [{ type: "text", text: "Hello, world!" }],
-   * });
-   * ```
-   */
-  append(message: CreateAppendMessage): void;
-
-  /**
-   * Start a new run with the given configuration.
-   * @param config The configuration for starting the run
-   */
-  startRun(config: CreateStartRunConfig): void;
-
-  /**
-   * Resume a run with the given configuration.
-   * @param config The configuration for resuming the run
-   **/
-  unstable_resumeRun(config: CreateResumeRunConfig): void;
-
-  cancelRun(): void;
-  getModelContext(): ModelContext;
-
-  export(): ExportedMessageRepository;
-  import(repository: ExportedMessageRepository): void;
-
-  /**
-   * Reset the thread with optional initial messages.
-   *
-   * @param initialMessages - Optional array of initial messages to populate the thread
-   */
-  reset(initialMessages?: readonly ThreadMessageLike[]): void;
-
-  message(
-    selector: { id: string } | { index: number },
-  ): StoreApi<MessageClientState, MessageClientActions>;
-
-  /**
-   * @deprecated This API is still under active development and might change without notice.
-   */
-  stopSpeaking(): void;
-
-  /** @internal */
-  __internal_getRuntime(): ThreadRuntime;
-};
+import { ThreadClientState, ThreadClientApi } from "../../client/types/Thread";
 
 const MessageClientById = resource(
   ({
@@ -241,7 +111,9 @@ export const ThreadClient = resource(
       };
     }, [runtimeState, messages, composer.state]);
 
-    const api = tapApi<ThreadClientState, ThreadClientActions>(state, {
+    const api = tapApi<ThreadClientApi>({
+      getState: () => state,
+
       composer: composer.api,
 
       append: runtime.append,

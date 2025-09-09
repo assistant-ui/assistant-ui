@@ -1,12 +1,11 @@
-import { resource, tapState } from "@assistant-ui/tap";
-import { tapApi } from "../../utils/tap-store";
+import { resource, tapMemo } from "@assistant-ui/tap";
 import { AssistantEvents, Unsubscribe } from "../../types";
 
 type EventCallback<TEvent extends keyof AssistantEvents> = (
   payload: AssistantEvents[TEvent],
 ) => void;
 
-export type EventManagerActions = {
+export type EventManager = {
   on<TEvent extends keyof AssistantEvents>(
     event: TEvent,
     callback: EventCallback<TEvent>,
@@ -17,15 +16,11 @@ export type EventManagerActions = {
   ): void;
 };
 
-export const EventManagerClient = resource(() => {
-  // Map of event name to set of callbacks
-  const [listeners] = tapState<Map<string, Set<EventCallback<any>>>>(
-    () => new Map(),
-  );
+export const EventManager = resource(() => {
+  const events = tapMemo(() => {
+    const listeners = new Map<string, Set<EventCallback<any>>>();
 
-  const api = tapApi<Record<string, never>, EventManagerActions>(
-    {},
-    {
+    return {
       on: <TEvent extends keyof AssistantEvents>(
         event: TEvent,
         callback: EventCallback<TEvent>,
@@ -56,8 +51,8 @@ export const EventManagerClient = resource(() => {
           }
         });
       },
-    },
-  );
+    } satisfies EventManager;
+  }, []);
 
-  return api;
+  return events;
 });

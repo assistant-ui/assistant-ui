@@ -3,12 +3,12 @@ import {
   tapContext,
   withContextProvider,
 } from "@assistant-ui/tap";
-import { EventManagerActions } from "../legacy-runtime/client/EventManagerRuntimeClient";
+import { EventManager } from "../legacy-runtime/client/EventManagerRuntimeClient";
 
-const EventsContext = createContext<EventManagerActions | null>(null);
+const EventsContext = createContext<EventManager | null>(null);
 
 export const withEventsProvider = <TResult>(
-  events: EventManagerActions,
+  events: EventManager,
   fn: () => TResult,
 ) => {
   return withContextProvider(EventsContext, events, fn);
