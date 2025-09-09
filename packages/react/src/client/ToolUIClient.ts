@@ -1,14 +1,11 @@
 import { resource, tapState } from "@assistant-ui/tap";
 import { tapApi } from "../utils/tap-store";
-import {
-  AssistantToolUIState,
-  AssistantToolUIActions,
-} from "./types/AssistantToolUI";
+import { ToolUIState, ToolUIActions } from "./types/ToolUI";
 
-export const AssistantToolUIClient = resource(() => {
-  const [state, setState] = tapState<AssistantToolUIState>(() => ({}));
+export const ToolUIClient = resource(() => {
+  const [state, setState] = tapState<ToolUIState>(() => ({}));
 
-  const api = tapApi<AssistantToolUIState, AssistantToolUIActions>(state, {
+  const api = tapApi<ToolUIState, ToolUIActions>(state, {
     setToolUI: (toolName, render) => {
       setState((prev) => {
         return {

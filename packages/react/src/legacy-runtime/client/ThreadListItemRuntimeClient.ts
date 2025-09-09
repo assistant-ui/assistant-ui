@@ -27,7 +27,7 @@ export type ThreadListItemClientActions = {
   detach(): void;
 
   /** @internal */
-  __internal_getRuntime(): ThreadListItemRuntime;
+  __internal_getRuntime(): ThreadListItemRuntime | null;
 };
 
 export const ThreadListItemClient = resource(

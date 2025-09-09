@@ -9,9 +9,10 @@ import {
 } from "react";
 
 import {
-  AssistantToolUIActions,
-  AssistantToolUIState,
-} from "../../client/types/AssistantToolUI";
+  ToolUIActions,
+  ToolUIState,
+  ToolUIMeta,
+} from "../../client/types/ToolUI";
 import {
   MessageClientActions,
   MessageClientState,
@@ -48,11 +49,11 @@ import {
 import {
   ThreadListClientActions,
   ThreadListClientState,
-} from "../../legacy-runtime/client/ThreadListRuntimeClient";
+} from "../../client/types/ThreadListClient";
 
 export type AssistantState = {
   readonly threads: ThreadListClientState;
-  readonly toolUIs: AssistantToolUIState;
+  readonly toolUIs: ToolUIState;
 
   readonly threadListItem: ThreadListItemClientState;
   readonly thread: ThreadClientState;
@@ -71,11 +72,6 @@ type AssistantApiField<
 
 // Meta types for each API method
 type ThreadsMeta = {
-  source: "root";
-  query: Record<string, never>;
-};
-
-type ToolUIMeta = {
   source: "root";
   query: Record<string, never>;
 };
@@ -119,11 +115,7 @@ export type AssistantApi = {
     ThreadListClientActions,
     ThreadsMeta
   >;
-  toolUIs: AssistantApiField<
-    AssistantToolUIState,
-    AssistantToolUIActions,
-    ToolUIMeta
-  >;
+  toolUIs: AssistantApiField<ToolUIState, ToolUIActions, ToolUIMeta>;
   threadListItem: AssistantApiField<
     ThreadListItemClientState,
     ThreadListItemClientActions,

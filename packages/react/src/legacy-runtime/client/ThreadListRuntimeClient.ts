@@ -2,43 +2,13 @@ import { tapApi } from "../../utils/tap-store";
 import { resource, tapInlineResource, tapMemo } from "@assistant-ui/tap";
 import { ThreadListRuntime } from "../runtime/ThreadListRuntime";
 import { tapSubscribable } from "../util-hooks/tapSubscribable";
-import {
-  ThreadListItemClientState,
-  ThreadListItemClientActions,
-  ThreadListItemClient,
-} from "./ThreadListItemRuntimeClient";
-import {
-  ThreadClient,
-  ThreadClientActions,
-  ThreadClientState,
-} from "./ThreadRuntimeClient";
-import { StoreApi } from "../../utils/tap-store/tap-store-api";
+import { ThreadListItemClient } from "./ThreadListItemRuntimeClient";
+import { ThreadClient } from "./ThreadRuntimeClient";
 import { tapLookupResources } from "../util-hooks/tapLookupResources";
-
-export type ThreadListClientState = {
-  readonly mainThreadId: string;
-  readonly newThreadId: string | undefined;
-  readonly isLoading: boolean;
-  readonly threadIds: readonly string[];
-  readonly archivedThreadIds: readonly string[];
-
-  readonly threadItems: readonly ThreadListItemClientState[];
-
-  readonly main: ThreadClientState;
-};
-
-export type ThreadListClientActions = {
-  switchToThread(threadId: string): void;
-  switchToNewThread(): void;
-  item(
-    threadIdOrOptions:
-      | "main"
-      | { id: string }
-      | { index: number; archived?: boolean },
-  ): StoreApi<ThreadListItemClientState, ThreadListItemClientActions>;
-
-  thread(selector: "main"): StoreApi<ThreadClientState, ThreadClientActions>;
-};
+import {
+  ThreadListClientState,
+  ThreadListClientActions,
+} from "../../client/types/ThreadListClient";
 
 const ThreadListItemClientById = resource(
   ({ runtime, id }: { runtime: ThreadListRuntime; id: string }) => {

@@ -6,8 +6,8 @@ import {
   ResourceElement,
   tapResource,
 } from "@assistant-ui/tap";
-import { ThreadListClientState } from "../legacy-runtime/client/ThreadListRuntimeClient";
-import { ThreadListClientActions } from "../legacy-runtime/client/ThreadListRuntimeClient";
+import { ThreadListClientState } from "./types/ThreadListClient";
+import { ThreadListClientActions } from "./types/ThreadListClient";
 import { AssistantRuntime } from "../legacy-runtime/runtime/AssistantRuntime";
 import { ModelContextProvider } from "../model-context";
 import { asStore, Store, tapApi } from "../utils/tap-store";
@@ -25,21 +25,18 @@ import {
   AssistantApi,
   createAssistantApiField,
 } from "../context/react/AssistantApiContext";
-import { AssistantToolUIClient } from "./AssistantToolUIClient";
-import {
-  AssistantToolUIState,
-  AssistantToolUIActions,
-} from "./types/AssistantToolUI";
+import { ToolUIClient } from "./ToolUIClient";
 import { withEventsProvider } from "./EventContext";
+import { ToolUIActions, ToolUIState } from "./types/ToolUI";
 
-export type AssistantClientState = {
+type AssistantClientState = {
   readonly threads: ThreadListClientState;
-  readonly toolUIs: AssistantToolUIState;
+  readonly toolUIs: ToolUIState;
 };
 
-export type AssistantClientActions = {
+type AssistantClientActions = {
   readonly threads: StoreApi<ThreadListClientState, ThreadListClientActions>;
-  readonly toolUIs: StoreApi<AssistantToolUIState, AssistantToolUIActions>;
+  readonly toolUIs: StoreApi<ToolUIState, ToolUIActions>;
 
   on<TEvent extends keyof AssistantEvents>(
     event: keyof AssistantEvents,
@@ -52,12 +49,9 @@ export type AssistantClientActions = {
   __internal_getRuntime(): AssistantRuntime | null;
 };
 
-export type AssistantClient = Store<
-  AssistantClientState,
-  AssistantClientActions
->;
+type AssistantStore = Store<AssistantClientState, AssistantClientActions>;
 
-export const AssistantClient = resource(
+const AssistantStore = resource(
   ({
     threads,
     registerModelContextProvider,
@@ -67,7 +61,7 @@ export const AssistantClient = resource(
 
     const events = tapInlineResource(EventManagerClient());
     const toolUIs = withEventsProvider(events, () => {
-      return tapInlineResource(AssistantToolUIClient());
+      return tapInlineResource(ToolUIClient());
     });
 
     const state = tapMemo<AssistantClientState>(
@@ -94,7 +88,7 @@ export const AssistantClient = resource(
   },
 );
 
-const getApiFromClient = (client: AssistantClient): Partial<AssistantApi> => {
+const getClientfromStore = (client: AssistantStore) => {
   const getItem = () => {
     return client.getApi().threads.item("main");
   };
@@ -169,6 +163,6 @@ type AssistantClientProps = {
 };
 
 export const useAssistantClient = (props: AssistantClientProps) => {
-  const client = useResource(asStore(AssistantClient(props)));
-  return useMemo(() => getApiFromClient(client), [client]);
+  const client = useResource(asStore(AssistantStore(props)));
+  return useMemo(() => getClientfromStore(client), [client]);
 };
