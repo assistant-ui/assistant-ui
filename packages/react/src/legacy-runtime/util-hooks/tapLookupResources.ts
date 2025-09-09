@@ -1,7 +1,7 @@
 import { ResourceElement, tapResources } from "@assistant-ui/tap";
-import { ActionsObject } from "../../utils/tap-store";
+import { ApiObject } from "../../utils/tap-store";
 
-export const tapLookupResources = <TState, TApi extends ActionsObject>(
+export const tapLookupResources = <TState, TApi extends ApiObject>(
   elements: ResourceElement<{
     key: string | undefined;
     state: TState;

@@ -12,12 +12,6 @@ export type {
   MessagePartState,
 } from "./MessagePartRuntime";
 
-// TODO remove in v0.11
-export type {
-  MessagePartRuntime as MessageContentRuntime,
-  MessagePartState as MessageContentState,
-} from "./MessagePartRuntime";
-
 export type {
   ComposerRuntime,
   ThreadComposerRuntime,

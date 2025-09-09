@@ -11,27 +11,12 @@ export {
 } from "./useAssistantToolUI";
 export { useInlineRender } from "./useInlineRender";
 
-export type {
-  /**
-   * @deprecated This type was renamed to `ModelContext`.
-   */
-  ModelContext as AssistantConfig,
-  /**
-   * @deprecated This type was renamed to `ModelContextProvider`.
-   */
-  ModelContextProvider as AssistantConfigProvider,
-  ModelContext,
-  ModelContextProvider,
-} from "./ModelContextTypes";
+export type { ModelContext, ModelContextProvider } from "./ModelContextTypes";
 
 export type { Tool } from "assistant-stream";
 
 export { tool } from "./tool";
 
-/**
- * @deprecated This function was renamed to `makeAssistantVisible`.
- */
-export { makeAssistantVisible as makeAssistantReadable } from "./makeAssistantVisible";
 export { makeAssistantVisible } from "./makeAssistantVisible";
 
 export * from "./registry";
