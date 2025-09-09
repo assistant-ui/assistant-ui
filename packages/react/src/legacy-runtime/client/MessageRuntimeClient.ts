@@ -15,6 +15,19 @@ import {
   MessageClientState,
   MessageClientApi,
 } from "../../client/types/Message";
+import { AttachmentRuntimeClient } from "./AttachmentRuntimeClient";
+
+const MessageAttachmentClientByIndex = resource(
+  ({ runtime, index }: { runtime: MessageRuntime; index: number }) => {
+    const attachmentRuntime = tapMemo(
+      () => runtime.getAttachmentByIndex(index),
+      [runtime, index],
+    );
+    return tapInlineResource(
+      AttachmentRuntimeClient({ runtime: attachmentRuntime }),
+    );
+  },
+);
 
 const MessagePartByIndex = resource(
   ({ runtime, index }: { runtime: MessageRuntime; index: number }) => {
@@ -62,6 +75,12 @@ export const MessageClient = resource(
       ),
     );
 
+    const attachments = tapLookupResources(
+      runtimeState.attachments?.map((_, idx) =>
+        MessageAttachmentClientByIndex({ runtime, index: idx }, { key: idx }),
+      ) ?? [],
+    );
+
     const state = tapMemo<MessageClientState>(() => {
       return {
         ...(runtimeState as MessageClientState),
@@ -100,16 +119,7 @@ export const MessageClient = resource(
         }
       },
 
-      attachment: ({ index }) => {
-        const attachmentRuntime = runtime.getAttachmentByIndex(index);
-        return {
-          getState: attachmentRuntime.getState,
-
-          remove: attachmentRuntime.remove,
-
-          __internal_getRuntime: () => attachmentRuntime,
-        };
-      },
+      attachment: attachments.api,
 
       setIsCopied,
       setIsHovering,
