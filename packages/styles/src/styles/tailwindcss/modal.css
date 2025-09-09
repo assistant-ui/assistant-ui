@@ -11,13 +11,9 @@
 }
 
 .aui-modal-button-closed-icon {
-  @apply absolute size-6 transition-all;
-  @apply data-[state=closed]:rotate-0 data-[state=open]:rotate-90;
-  @apply data-[state=closed]:scale-100 data-[state=open]:scale-0;
+  @apply absolute size-6 transition-all data-[state=closed]:scale-100 data-[state=closed]:rotate-0 data-[state=open]:scale-0 data-[state=open]:rotate-90;
 }
 
 .aui-modal-button-open-icon {
-  @apply absolute size-6 transition-all;
-  @apply data-[state=closed]:-rotate-90 data-[state=open]:rotate-0;
-  @apply data-[state=closed]:scale-0 data-[state=open]:scale-100;
+  @apply absolute size-6 transition-all data-[state=closed]:scale-0 data-[state=closed]:-rotate-90 data-[state=open]:scale-100 data-[state=open]:rotate-0;
 }
