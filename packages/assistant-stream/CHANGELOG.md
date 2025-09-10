@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.2.24
+
+### Patch Changes
+
+- cf26771: feat: export AssistantTransformStream API
+
 ## 0.2.23
 
 ### Patch Changes
