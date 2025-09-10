@@ -52,7 +52,9 @@ export const Thread: FC = () => {
                 AssistantMessage,
               }}
             />
-            <div className="aui-thread-viewport-spacer min-h-8 grow" />
+            <ThreadPrimitive.If empty={false}>
+              <div className="aui-thread-viewport-spacer min-h-8 grow" />
+            </ThreadPrimitive.If>
             <Composer />
           </ThreadPrimitive.Viewport>
         </ThreadPrimitive.Root>
@@ -115,9 +117,19 @@ const ThreadWelcomeSuggestions: FC = () => {
           action: "What's the weather in San Francisco?",
         },
         {
-          title: "Help me write an essay",
-          label: `about AI chat applications`,
-          action: `Help me write an essay about AI chat applications`,
+          title: "Explain React hooks",
+          label: "like useState and useEffect",
+          action: "Explain React hooks like useState and useEffect",
+        },
+        {
+          title: "Write a SQL query",
+          label: "to find top customers",
+          action: "Write a SQL query to find top customers",
+        },
+        {
+          title: "Create a meal plan",
+          label: "for healthy weight loss",
+          action: "Create a meal plan for healthy weight loss",
         },
       ].map((suggestedAction, index) => (
         <m.div
