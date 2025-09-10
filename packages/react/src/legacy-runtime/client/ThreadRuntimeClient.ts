@@ -11,7 +11,7 @@ import { ComposerClient } from "./ComposerRuntimeClient";
 import { MessageClient } from "./MessageRuntimeClient";
 import { tapSubscribable } from "../util-hooks/tapSubscribable";
 import { tapApi } from "../../utils/tap-store";
-import { tapLookupResources } from "../util-hooks/tapLookupResources";
+import { tapLookupResources } from "../../client/util-hooks/tapLookupResources";
 import { Unsubscribe } from "../../types";
 import { tapEvents } from "../../client/EventContext";
 import { ThreadClientState, ThreadClientApi } from "../../client/types/Thread";

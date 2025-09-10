@@ -4,7 +4,7 @@ import { ThreadListRuntime } from "../runtime/ThreadListRuntime";
 import { tapSubscribable } from "../util-hooks/tapSubscribable";
 import { ThreadListItemClient } from "./ThreadListItemRuntimeClient";
 import { ThreadClient } from "./ThreadRuntimeClient";
-import { tapLookupResources } from "../util-hooks/tapLookupResources";
+import { tapLookupResources } from "../../client/util-hooks/tapLookupResources";
 import {
   ThreadListClientState,
   ThreadListClientApi,

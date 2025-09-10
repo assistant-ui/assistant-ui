@@ -56,7 +56,7 @@ export type MessageClientApi = {
   part: (
     selector: { index: number } | { toolCallId: string },
   ) => MessagePartClientApi;
-  attachment(selector: { index: number }): AttachmentClientApi;
+  attachment(selector: { index: number } | { id: string }): AttachmentClientApi;
 
   setIsCopied(value: boolean): void;
   setIsHovering(value: boolean): void;

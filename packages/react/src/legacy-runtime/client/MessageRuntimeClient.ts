@@ -9,7 +9,7 @@ import { MessageRuntime } from "../runtime/MessageRuntime";
 import { tapSubscribable } from "../util-hooks/tapSubscribable";
 import { ComposerClient } from "./ComposerRuntimeClient";
 import { MessagePartClient } from "./MessagePartRuntimeClient";
-import { tapLookupResources } from "../util-hooks/tapLookupResources";
+import { tapLookupResources } from "../../client/util-hooks/tapLookupResources";
 import { RefObject } from "react";
 import {
   MessageClientState,
@@ -119,7 +119,13 @@ export const MessageClient = resource(
         }
       },
 
-      attachment: attachments.api,
+      attachment: (selector) => {
+        if ("id" in selector) {
+          return attachments.api({ key: selector.id });
+        } else {
+          return attachments.api(selector);
+        }
+      },
 
       setIsCopied,
       setIsHovering,

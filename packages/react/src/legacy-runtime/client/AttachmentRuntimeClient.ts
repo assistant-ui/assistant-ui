@@ -16,7 +16,7 @@ export const AttachmentRuntimeClient = resource(
     return {
       state: state,
       api,
-      key: undefined,
+      key: state.id,
     };
   },
 );

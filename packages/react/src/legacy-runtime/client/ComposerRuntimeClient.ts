@@ -10,7 +10,7 @@ import {
   EditComposerRuntime,
 } from "../runtime/ComposerRuntime";
 import { Unsubscribe } from "../../types";
-import { tapSubscribable } from "../util-hooks/tapSubscribable";
+
 import { tapApi } from "../../utils/tap-store";
 import { ComposerRuntimeEventType } from "../runtime-cores/core/ComposerRuntimeCore";
 import { tapEvents } from "../../client/EventContext";
@@ -18,8 +18,9 @@ import {
   ComposerClientState,
   ComposerClientApi,
 } from "../../client/types/Composer";
-import { tapLookupResources } from "../util-hooks/tapLookupResources";
+import { tapLookupResources } from "../../client/util-hooks/tapLookupResources";
 import { AttachmentRuntimeClient } from "./AttachmentRuntimeClient";
+import { tapSubscribable } from "../util-hooks/tapSubscribable";
 
 const ComposerAttachmentClientByIndex = resource(
   ({ runtime, index }: { runtime: ComposerRuntime; index: number }) => {
@@ -115,7 +116,13 @@ export const ComposerClient = resource(
           throw new Error("beginEdit is not supported in this runtime");
         }),
 
-      attachment: attachments.api,
+      attachment: (selector) => {
+        if ("id" in selector) {
+          return attachments.api({ key: selector.id });
+        } else {
+          return attachments.api(selector);
+        }
+      },
 
       __internal_getRuntime: () => runtime,
     });
