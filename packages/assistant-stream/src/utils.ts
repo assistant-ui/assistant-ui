@@ -11,3 +11,5 @@ export type {
   ReadonlyJSONArray,
   ReadonlyJSONObject,
 } from "./utils/json/json-value";
+
+export { AssistantTransformStream } from "./core/utils/stream/AssistantTransformStream";
