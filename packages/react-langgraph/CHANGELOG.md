@@ -1,5 +1,13 @@
 # @assistant-ui/react-langgraph
 
+## 0.6.2
+
+### Patch Changes
+
+- 072de1d: fix: incorrect use of api.threadListItem()
+- Updated dependencies [2e1815e]
+  - @assistant-ui/react@0.11.3
+
 ## 0.6.1
 
 ### Patch Changes

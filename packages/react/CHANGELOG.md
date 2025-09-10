@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.11.3
+
+### Patch Changes
+
+- 2e1815e: feat: select attachment by id
+
 ## 0.11.2
 
 ### Patch Changes
