@@ -23,7 +23,7 @@ export type ComposerClientApi = {
   setRunConfig(runConfig: RunConfig): void;
   addAttachment(file: File): Promise<void>;
   clearAttachments(): Promise<void>;
-  attachment(selector: { index: number }): AttachmentClientApi;
+  attachment(selector: { index: number } | { id: string }): AttachmentClientApi;
   reset(): Promise<void>;
   send(): void;
   cancel(): void;

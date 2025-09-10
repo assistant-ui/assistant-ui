@@ -15,11 +15,6 @@ export {
 } from "./useLangGraphMessages";
 export { convertLangChainMessages } from "./convertLangChainMessages";
 
-/**
- * @deprecated Use `convertLangChainMessages` instead.
- */
-export { convertLangChainMessages as convertLangchainMessages } from "./convertLangChainMessages";
-
 export type {
   LangChainMessage,
   LangChainEvent,
