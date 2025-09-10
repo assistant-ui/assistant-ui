@@ -9,7 +9,6 @@ import {
 } from "./types";
 import {
   useAssistantState,
-  useAssistantApi,
   useExternalMessageConverter,
   useExternalStoreRuntime,
 } from "@assistant-ui/react";
@@ -231,11 +230,10 @@ export const useLangGraphRuntime = ({
   };
 
   const loadingRef = useRef(false);
-  const api = useAssistantApi();
   useEffect(() => {
     if (!switchToThread || loadingRef.current) return;
 
-    const externalId = api.threadListItem().getState().externalId;
+    const externalId = runtime.threads.mainItem.getState().externalId;
     if (externalId) {
       loadingRef.current = true;
       switchToThread(externalId).finally(() => {
@@ -245,7 +243,7 @@ export const useLangGraphRuntime = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return useExternalStoreRuntime({
+  const runtime = useExternalStoreRuntime({
     isRunning,
     messages: threadMessages,
     adapters: {
@@ -316,4 +314,6 @@ export const useLangGraphRuntime = ({
         }
       : undefined,
   });
+
+  return runtime;
 };
