@@ -11,11 +11,7 @@ import {
   ComponentType,
 } from "react";
 import { UseBoundStore, StoreApi, create } from "zustand";
-import {
-  useAssistantState,
-  useAssistantApi,
-  ThreadListItemByIdProvider,
-} from "../../../context";
+import { useAssistantApi, ThreadListItemByIdProvider } from "../../../context";
 import { ThreadRuntimeCore, ThreadRuntimeImpl } from "../../../internal";
 import { BaseSubscribable } from "./BaseSubscribable";
 import { AssistantRuntime } from "../../runtime";
@@ -79,9 +75,9 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     }
   }
 
-  private _InnerActiveThreadProvider: FC = () => {
-    const id = useAssistantState(({ threadListItem }) => threadListItem.id);
-
+  private _InnerActiveThreadProvider: FC<{
+    threadId: string;
+  }> = ({ threadId }) => {
     const { useRuntime } = this.useRuntimeHook();
     const runtime = useRuntime();
 
@@ -89,7 +85,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
       .__internal_threadBinding;
 
     const updateRuntime = useCallback(() => {
-      const aliveThread = this.instances.get(id);
+      const aliveThread = this.instances.get(threadId);
       if (!aliveThread)
         throw new Error("Thread not found. This is a bug in assistant-ui.");
 
@@ -98,7 +94,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
       if (isMounted) {
         this._notifySubscribers();
       }
-    }, [id, threadBinding]);
+    }, [threadId, threadBinding]);
 
     const isMounted = useRef(false);
     if (!isMounted.current) {
@@ -142,7 +138,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     return (
       <ThreadListItemByIdProvider id={threadId}>
         <Provider>
-          <this._InnerActiveThreadProvider />
+          <this._InnerActiveThreadProvider threadId={threadId} />
         </Provider>
       </ThreadListItemByIdProvider>
     );
