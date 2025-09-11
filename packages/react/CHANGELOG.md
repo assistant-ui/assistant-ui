@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.11.4
+
+### Patch Changes
+
+- effd817: fix: race condition in remote threadlist runtime
+
 ## 0.11.3
 
 ### Patch Changes
