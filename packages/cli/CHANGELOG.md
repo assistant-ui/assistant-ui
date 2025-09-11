@@ -1,5 +1,12 @@
 # assistant-ui
 
+## 0.0.59
+
+### Patch Changes
+
+- 59e27c8: feat: add new Assistant Cloud template for easy thread management and persistence
+- 6649f70: feat: auto-update assistant-cloud
+
 ## 0.0.58
 
 ### Patch Changes
