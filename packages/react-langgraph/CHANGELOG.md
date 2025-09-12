@@ -1,5 +1,11 @@
 # @assistant-ui/react-langgraph
 
+## 0.6.3
+
+### Patch Changes
+
+- 287cd53: feat: LangChain reasoning support
+
 ## 0.6.2
 
 ### Patch Changes
