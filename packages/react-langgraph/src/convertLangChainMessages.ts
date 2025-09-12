@@ -1,6 +1,9 @@
 "use client";
 
-import { useExternalMessageConverter } from "@assistant-ui/react";
+import {
+  ThreadAssistantMessage,
+  useExternalMessageConverter,
+} from "@assistant-ui/react";
 import { LangChainMessage } from "./types";
 import { ToolCallMessagePart } from "@assistant-ui/react";
 import { ThreadUserMessage } from "@assistant-ui/react";
@@ -9,32 +12,51 @@ const contentToParts = (content: LangChainMessage["content"]) => {
   if (typeof content === "string")
     return [{ type: "text" as const, text: content }];
   return content
-    .map((part): ThreadUserMessage["content"][number] | null => {
-      const type = part.type;
-      switch (type) {
-        case "text":
-          return { type: "text", text: part.text };
-        case "text_delta":
-          return { type: "text", text: part.text };
-        case "image_url":
-          if (typeof part.image_url === "string") {
-            return { type: "image", image: part.image_url };
-          } else {
-            return {
-              type: "image",
-              image: part.image_url.url,
-            };
-          }
+    .map(
+      (
+        part,
+      ):
+        | (ThreadUserMessage | ThreadAssistantMessage)["content"][number]
+        | (ThreadUserMessage | ThreadAssistantMessage)["content"][number][]
+        | null => {
+        const type = part.type;
+        switch (type) {
+          case "text":
+            return { type: "text", text: part.text };
+          case "text_delta":
+            return { type: "text", text: part.text };
+          case "image_url":
+            if (typeof part.image_url === "string") {
+              return { type: "image", image: part.image_url };
+            } else {
+              return {
+                type: "image",
+                image: part.image_url.url,
+              };
+            }
+          case "thinking":
+            return { type: "reasoning", text: part.thinking };
 
-        case "tool_use":
-          return null;
-        case "input_json_delta":
-          return null;
-        default:
-          const _exhaustiveCheck: never = type;
-          throw new Error(`Unknown message part type: ${_exhaustiveCheck}`);
-      }
-    })
+          case "reasoning":
+            return part.summary
+              .map((s) => s.text)
+              .map((text) => ({
+                type: "reasoning",
+                text,
+              }));
+
+          case "tool_use":
+            return null;
+          case "input_json_delta":
+            return null;
+
+          default:
+            const _exhaustiveCheck: never = type;
+            throw new Error(`Unknown message part type: ${_exhaustiveCheck}`);
+        }
+      },
+    )
+    .flat()
     .filter((a) => a !== null);
 };
 

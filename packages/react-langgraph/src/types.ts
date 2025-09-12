@@ -25,6 +25,21 @@ export type MessageContentImageUrl = {
   image_url: string | { url: string };
 };
 
+export type MessageContentThinking = {
+  type: "thinking";
+  thinking: string;
+};
+
+export type MessageContentReasoningSummaryText = {
+  type: "summary_text";
+  text: string;
+};
+
+export type MessageContentReasoning = {
+  type: "reasoning";
+  summary: MessageContentReasoningSummaryText[];
+};
+
 type MessageContentToolUse = {
   type: "tool_use" | "input_json_delta";
 };
@@ -47,7 +62,9 @@ type UserMessageContentComplex = MessageContentText | MessageContentImageUrl;
 type AssistantMessageContentComplex =
   | MessageContentText
   | MessageContentImageUrl
-  | MessageContentToolUse;
+  | MessageContentToolUse
+  | MessageContentReasoning
+  | MessageContentThinking;
 
 type UserMessageContent = string | UserMessageContentComplex[];
 type AssistantMessageContent = string | AssistantMessageContentComplex[];
