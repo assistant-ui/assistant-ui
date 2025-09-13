@@ -6,7 +6,7 @@ import { ThreadClientApi, ThreadClientState } from "./Thread";
 
 export type ThreadListClientState = {
   readonly mainThreadId: string;
-  readonly newThreadId: string | undefined;
+  readonly newThreadId: string | null;
   readonly isLoading: boolean;
   readonly threadIds: readonly string[];
   readonly archivedThreadIds: readonly string[];
