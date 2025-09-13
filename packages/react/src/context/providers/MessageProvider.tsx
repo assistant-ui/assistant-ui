@@ -7,8 +7,6 @@ import {
   useAssistantApi,
   createAssistantApiField,
 } from "../react/AssistantApiContext";
-import { AssistantEvents, AssistantEventSelector } from "../../types";
-import { Unsubscribe } from "@assistant-ui/tap";
 import {
   checkEventScope,
   normalizeEventSelector,
@@ -33,10 +31,7 @@ export const MessageByIndexProvider: FC<
         query: {},
         get: () => getMessage().composer,
       }),
-      on<TEvent extends keyof AssistantEvents>(
-        selector: AssistantEventSelector<TEvent>,
-        callback: (e: AssistantEvents[TEvent]) => void,
-      ): Unsubscribe {
+      on(selector, callback) {
         const { event, scope } = normalizeEventSelector(selector);
         if (
           !checkEventScope("composer", scope, event) &&

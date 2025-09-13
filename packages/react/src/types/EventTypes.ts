@@ -1,6 +1,5 @@
-export type EventSource<
-  T extends keyof AssistantEvents = keyof AssistantEvents,
-> = T extends `${infer Source}.${string}` ? Source : never;
+export type EventSource<T extends AssistantEvent = AssistantEvent> =
+  T extends `${infer Source}.${string}` ? Source : never;
 
 type ScopeConfig = {
   composer: "thread" | "message";
@@ -8,28 +7,28 @@ type ScopeConfig = {
   "thread-list-item": never;
 };
 
-export type SourceByScope<
-  TScope extends AssistantEventScope<keyof AssistantEvents>,
-> =
+export type SourceByScope<TScope extends AssistantEventScope<AssistantEvent>> =
   | (TScope extends "*" ? EventSource : never)
   | (TScope extends keyof ScopeConfig ? TScope : never)
   | {
       [K in keyof ScopeConfig]: TScope extends ScopeConfig[K] ? K : never;
     }[keyof ScopeConfig];
 
-export type AssistantEventScope<TEvent extends keyof AssistantEvents> =
+export type AssistantEventScope<TEvent extends AssistantEvent> =
   | "*"
   | EventSource<TEvent>
   | ScopeConfig[EventSource<TEvent>];
 
-export type AssistantEventSelector<TEvent extends keyof AssistantEvents> =
+export type AssistantEventSelector<TEvent extends AssistantEvent> =
   | TEvent
   | {
       scope: AssistantEventScope<TEvent>;
       event: TEvent;
     };
 
-export type AssistantEvents = {
+export type AssistantEvent = keyof AssistantEventMap;
+
+export type AssistantEventMap = {
   // Thread events (from ThreadRuntimeEventType)
   "thread.run-start": {
     threadId: string;
@@ -61,9 +60,17 @@ export type AssistantEvents = {
   "thread-list-item.switched-away": {
     threadId: string;
   };
+
+  // Catch-all
+  "*": {
+    [K in Exclude<keyof AssistantEventMap, "*">]: {
+      event: K;
+      payload: AssistantEventMap[K];
+    };
+  }[Exclude<keyof AssistantEventMap, "*">];
 };
 
-export const normalizeEventSelector = <TEvent extends keyof AssistantEvents>(
+export const normalizeEventSelector = <TEvent extends AssistantEvent>(
   selector: AssistantEventSelector<TEvent>,
 ) => {
   if (typeof selector === "string") {
@@ -81,8 +88,8 @@ export const normalizeEventSelector = <TEvent extends keyof AssistantEvents>(
 };
 
 export const checkEventScope = <
-  TEvent extends keyof AssistantEvents,
-  TExpectedScope extends AssistantEventScope<keyof AssistantEvents>,
+  TEvent extends AssistantEvent,
+  TExpectedScope extends AssistantEventScope<AssistantEvent>,
 >(
   expectedScope: TExpectedScope,
   scope: AssistantEventScope<TEvent>,
@@ -90,3 +97,7 @@ export const checkEventScope = <
 ): _event is Extract<TEvent, `${SourceByScope<TExpectedScope>}.${string}`> => {
   return scope === expectedScope;
 };
+
+export type AssistantEventCallback<TEvent extends AssistantEvent> = (
+  payload: AssistantEventMap[TEvent],
+) => void;

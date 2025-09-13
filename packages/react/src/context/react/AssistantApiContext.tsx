@@ -34,8 +34,9 @@ import { Unsubscribe } from "@assistant-ui/tap";
 import { ModelContextProvider } from "../../model-context";
 import { AssistantRuntime } from "../../legacy-runtime/runtime/AssistantRuntime";
 import {
+  AssistantEvent,
+  AssistantEventCallback,
   AssistantEventSelector,
-  AssistantEvents,
   normalizeEventSelector,
 } from "../../types/EventTypes";
 import {
@@ -115,9 +116,9 @@ export type AssistantApi = {
   subscribe(listener: () => void): Unsubscribe;
   flushSync(): void;
 
-  on<TEvent extends keyof AssistantEvents>(
+  on<TEvent extends AssistantEvent>(
     event: AssistantEventSelector<TEvent>,
-    callback: (e: AssistantEvents[TEvent]) => void,
+    callback: AssistantEventCallback<TEvent>,
   ): Unsubscribe;
 
   // temp

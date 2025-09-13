@@ -13,8 +13,8 @@ import { asStore, Store, tapApi } from "../utils/tap-store";
 import { useResource } from "@assistant-ui/tap/react";
 import { useMemo } from "react";
 import {
-  AssistantEventSelector,
-  AssistantEvents,
+  AssistantEvent,
+  AssistantEventCallback,
   checkEventScope,
   normalizeEventSelector,
 } from "../types/EventTypes";
@@ -38,9 +38,9 @@ type AssistantClientApi = {
   readonly threads: ThreadListClientApi;
   readonly toolUIs: ToolUIApi;
 
-  on<TEvent extends keyof AssistantEvents>(
-    event: keyof AssistantEvents,
-    callback: (e: AssistantEvents[TEvent]) => void,
+  on<TEvent extends AssistantEvent>(
+    event: TEvent,
+    callback: AssistantEventCallback<TEvent>,
   ): Unsubscribe;
 
   registerModelContextProvider(provider: ModelContextProvider): Unsubscribe;
@@ -124,10 +124,7 @@ const getClientFromStore = (client: Store<{ api: AssistantClientApi }>) => {
     __internal_getRuntime() {
       return client.getState().api.__internal_getRuntime();
     },
-    on<TEvent extends keyof AssistantEvents>(
-      selector: AssistantEventSelector<TEvent>,
-      callback: (e: AssistantEvents[TEvent]) => void,
-    ): Unsubscribe {
+    on(selector, callback) {
       const { event, scope } = normalizeEventSelector(selector);
       if (scope === "*") return client.getState().api.on(event, callback);
 

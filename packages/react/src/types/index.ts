@@ -54,5 +54,7 @@ export type { Unsubscribe } from "./Unsubscribe";
 export type {
   AssistantEventScope,
   AssistantEventSelector,
-  AssistantEvents,
+  AssistantEvent,
+  AssistantEventMap,
+  AssistantEventCallback,
 } from "./EventTypes";

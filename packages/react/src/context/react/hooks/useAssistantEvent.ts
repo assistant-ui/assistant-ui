@@ -1,14 +1,15 @@
 import { useEffect, useRef } from "react";
 import { useAssistantApi } from "../../react/AssistantApiContext";
 import {
+  AssistantEvent,
+  AssistantEventCallback,
   AssistantEventSelector,
-  AssistantEvents,
   normalizeEventSelector,
 } from "../../../types/EventTypes";
 
-export const useAssistantEvent = <TEvent extends keyof AssistantEvents>(
+export const useAssistantEvent = <TEvent extends AssistantEvent>(
   selector: AssistantEventSelector<TEvent>,
-  callback: (e: AssistantEvents[TEvent]) => void,
+  callback: AssistantEventCallback<TEvent>,
 ) => {
   const api = useAssistantApi();
   const callbackRef = useRef(callback);
