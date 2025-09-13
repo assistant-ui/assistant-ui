@@ -191,6 +191,11 @@ useAssistantEvent({ event: "composer.send", scope: "*" }, (e) => {
 useAssistantEvent({ event: "thread.run-start", scope: "thread" }, (e) => {
   console.log("Run started in current thread:", e);
 });
+
+// Listen to ALL events using wildcard (new)
+useAssistantEvent("*", (e) => {
+  console.log("Event occurred:", e.event, "with payload:", e.payload);
+});
 ```
 
 Event names follow the pattern `source.event` where source indicates the originating scope.
