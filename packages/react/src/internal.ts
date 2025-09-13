@@ -16,3 +16,5 @@ export { getAutoStatus } from "./legacy-runtime/runtime-cores/external-store/aut
 export { splitLocalRuntimeOptions } from "./legacy-runtime/runtime-cores/local/LocalRuntimeOptions";
 
 export * from "./utils/smooth";
+
+export * from "./devtools";

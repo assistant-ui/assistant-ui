@@ -7,6 +7,7 @@ import {
   AssistantCloud,
 } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { INTERNAL } from "@assistant-ui/react";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 
 export function DocsRuntimeProvider({
@@ -31,6 +32,8 @@ export function DocsRuntimeProvider({
       {children}
       <WeatherSearchToolUI />
       <GeocodeLocationToolUI />
+
+      <INTERNAL.DevToolsModal />
     </AssistantRuntimeProvider>
   );
 }
