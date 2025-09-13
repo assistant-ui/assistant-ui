@@ -173,7 +173,6 @@ export abstract class BaseComposerRuntimeCore
         ];
       else {
         this._attachments = [...this._attachments, a];
-        this._notifyEventSubscribers("attachment-add");
       }
 
       this._notifySubscribers();
