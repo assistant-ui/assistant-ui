@@ -1,30 +1,41 @@
 import { resource, tapMemo } from "@assistant-ui/tap";
-import { AssistantEvents, Unsubscribe } from "../../types";
-
-type EventCallback<TEvent extends keyof AssistantEvents> = (
-  payload: AssistantEvents[TEvent],
-) => void;
+import { Unsubscribe } from "../../types/Unsubscribe";
+import {
+  AssistantEventMap,
+  AssistantEvent,
+  AssistantEventCallback,
+} from "../../types/EventTypes";
 
 export type EventManager = {
-  on<TEvent extends keyof AssistantEvents>(
+  on<TEvent extends AssistantEvent>(
     event: TEvent,
-    callback: EventCallback<TEvent>,
+    callback: AssistantEventCallback<TEvent>,
   ): Unsubscribe;
-  emit<TEvent extends keyof AssistantEvents>(
+  emit<TEvent extends Exclude<AssistantEvent, "*">>(
     event: TEvent,
-    payload: AssistantEvents[TEvent],
+    payload: AssistantEventMap[TEvent],
+  ): void;
+};
+
+type ListenerMap = Omit<
+  Map<AssistantEvent, Set<AssistantEventCallback<AssistantEvent>>>,
+  "get" | "set"
+> & {
+  get<TEvent extends AssistantEvent>(
+    event: TEvent,
+  ): Set<AssistantEventCallback<TEvent>> | undefined;
+  set<TEvent extends AssistantEvent>(
+    event: TEvent,
+    value: Set<AssistantEventCallback<TEvent>>,
   ): void;
 };
 
 export const EventManager = resource(() => {
   const events = tapMemo(() => {
-    const listeners = new Map<string, Set<EventCallback<any>>>();
+    const listeners: ListenerMap = new Map();
 
     return {
-      on: <TEvent extends keyof AssistantEvents>(
-        event: TEvent,
-        callback: EventCallback<TEvent>,
-      ): Unsubscribe => {
+      on: (event, callback) => {
         if (!listeners.has(event)) {
           listeners.set(event, new Set());
         }
@@ -40,14 +51,26 @@ export const EventManager = resource(() => {
         };
       },
 
-      emit: (event: keyof AssistantEvents, payload: any) => {
+      emit: (event, payload) => {
         const eventListeners = listeners.get(event);
-        if (!eventListeners) return;
+        const wildcardListeners = listeners.get("*");
+
+        if (!eventListeners && !wildcardListeners) return;
 
         // make sure state updates flush
         queueMicrotask(() => {
-          for (const callback of eventListeners) {
-            callback(payload);
+          // Emit to specific event listeners
+          if (eventListeners) {
+            for (const callback of eventListeners) {
+              callback(payload);
+            }
+          }
+
+          // Emit to wildcard listeners
+          if (wildcardListeners) {
+            for (const callback of wildcardListeners) {
+              callback({ event, payload });
+            }
           }
         });
       },
