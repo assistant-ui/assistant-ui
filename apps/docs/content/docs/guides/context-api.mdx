@@ -6,38 +6,55 @@ The Context API provides direct access to assistant-ui's state management system
 
 ## Introduction
 
-The Context API lets you:
+The Context API is assistant-ui's powerful state management system that enables you to build custom components with full access to the assistant's state and capabilities. It provides:
 
-- Access current state values
-- Subscribe to state updates
-- Perform actions
-- Register event listeners
+- **Reactive state access** - Subscribe to state changes with automatic re-renders
+- **Action execution** - Trigger operations like sending messages or reloading responses
+- **Event listening** - React to user interactions and system events
+- **Scope-aware design** - Components automatically know their context (message, thread, etc.)
 
 It's the foundation that powers all assistant-ui primitives. When the built-in components don't meet your needs, you can use the Context API to create custom components with the same capabilities.
 
-The Context API is backed by the runtime you provide to `<AssistantRuntimeProvider>`. This runtime acts as a unified store that manages all assistant state, handles actions, and dispatches events.
+The Context API is backed by the runtime you provide to `<AssistantRuntimeProvider>`. This runtime acts as a unified store that manages all assistant state, handles actions, and dispatches events across your entire application.
 
 ## Core Concepts
 
 ### Scopes and Hierarchy
 
-Components in assistant-ui exist within a hierarchy of scopes. Each scope provides access to relevant state and actions for that context.
+assistant-ui organizes state into **scopes** - logical boundaries that provide access to relevant data and actions. Each scope corresponds to a specific part of the chat interface and automatically provides context-aware functionality.
 
 ```
-ThreadList (threads)
-├── ThreadListItem (threadListItem)
-└── Thread (thread)
-    ├── Message (message)
-    │   ├── Part (part)
-    │   ├── Attachment (attachment)
-    │   └── Composer (composer) - for edit mode
-    │       └── Attachment (attachment)
-    └── Composer (composer) - for new messages
-        └── Attachment (attachment)
-ToolUIs (toolUIs)
+🗂️  ThreadList (threads) - Manages the list of conversations
+    ├── 📄 ThreadListItem (threadListItem) - Individual thread in the list
+    └── 💬 Thread (thread) - Active conversation with messages
+        ├── 🔵 Message (message) - User or assistant message
+        │   ├── 📝 Part (part) - Content within a message (text, tool calls, etc.)
+        │   ├── 📎 Attachment (attachment) - Files attached to messages
+        │   └── ✏️  Composer (composer) - Edit mode for existing messages
+        │       └── 📎 Attachment (attachment) - Files in edit mode
+        └── ✏️  Composer (composer) - New message input
+            └── 📎 Attachment (attachment) - Files being added
+
+🔧 ToolUIs (toolUIs) - Custom UI components for tool calls
 ```
 
-When you use the Context API inside a component, it automatically knows its position in this hierarchy. A button inside a message can access message-specific state, while a button in the composer accesses composer state.
+**How scopes work:**
+
+- Scopes are **automatically determined** by where your component is rendered
+- A button inside a `<ThreadPrimitive.Messages>` automatically gets `message` scope
+- A button inside a `<ComposerPrimitive.Attachments>` automatically gets `attachment` scope
+- Child scopes can access parent scope data (e.g., a `message` component can access `thread` data)
+
+```tsx
+// Inside a message component
+function MessageButton() {
+  // ✅ Available: message scope (current message)
+  const role = useAssistantState(({ message }) => message.role);
+
+  // ✅ Available: thread scope (parent)
+  const isRunning = useAssistantState(({ thread }) => thread.isRunning);
+}
+```
 
 ### State Management Model
 
@@ -52,14 +69,23 @@ The Context API follows a predictable state management pattern:
 
 ### useAssistantState
 
-Read state reactively with automatic re-renders when values change.
+Read state reactively with automatic re-renders when values change. This hook works like Zustand's selector pattern - you provide a function that extracts the specific data you need, and your component only re-renders when that data changes.
 
 ```tsx
-const role = useAssistantState(({ message }) => message.role);
-const isRunning = useAssistantState(({ thread }) => thread.isRunning);
+import { useAssistantState } from "@assistant-ui/react";
+
+// Basic usage - extract a single property
+const role = useAssistantState(({ message }) => message.role); // "user" | "assistant"
+const isRunning = useAssistantState(({ thread }) => thread.isRunning); // boolean
+
+// Access nested data
+const attachmentCount = useAssistantState(
+  ({ composer }) => composer.attachments.length,
+);
+const lastMessage = useAssistantState(({ thread }) => thread.messages.at(-1));
 ```
 
-The selector function receives all available scopes and should return a specific value. The component re-renders only when that value changes.
+The selector function receives all available scopes for your component's location and should return a specific value. The component re-renders only when that returned value changes.
 
 **Common patterns:**
 
@@ -89,30 +115,49 @@ const content = useAssistantState(({ message }) => message.content);
 
 ### useAssistantApi
 
-Access the API instance for imperative operations and actions.
+Access the API instance for imperative operations and actions. Unlike `useAssistantState`, this hook returns a stable object that never changes, making it perfect for event handlers and imperative operations.
 
 ```tsx
-const api = useAssistantApi();
+import { useAssistantApi } from "@assistant-ui/react";
 
-// Perform actions
-const handleSend = () => {
-  api.composer().send();
-};
+function CustomMessageActions() {
+  const api = useAssistantApi();
 
-// Read state imperatively
-const handleCheck = () => {
-  const { isRunning } = api.thread().getState();
-  if (!isRunning) {
-    // do something
-  }
-};
+  // Perform actions in event handlers
+  const handleSend = () => {
+    api.composer().send();
+  };
+
+  const handleReload = () => {
+    api.message().reload();
+  };
+
+  // Read state imperatively when needed
+  const handleConditionalAction = () => {
+    const { isRunning } = api.thread().getState();
+    const { text } = api.composer().getState();
+
+    if (!isRunning && text.length > 0) {
+      api.composer().send();
+    }
+  };
+
+  return (
+    <div>
+      <button onClick={handleSend}>Send</button>
+      <button onClick={handleReload}>Reload</button>
+      <button onClick={handleConditionalAction}>Smart Send</button>
+    </div>
+  );
+}
 ```
 
 The API object is stable and doesn't cause re-renders. Use it for:
 
-- Triggering actions in event handlers
-- Reading current state values imperatively
-- Accessing nested scopes programmatically
+- **Triggering actions** in event handlers and callbacks
+- **Reading current state** imperatively when you don't need subscriptions
+- **Accessing nested scopes** programmatically
+- **Checking scope availability** before performing actions
 
 **Available actions by scope:**
 
@@ -174,31 +219,45 @@ api.toolUIs().getState();
 
 ### useAssistantEvent
 
-Subscribe to events with automatic cleanup on unmount.
+Subscribe to events with automatic cleanup on unmount. This hook is perfect for reacting to user interactions, system events, or integrating with external analytics.
 
 ```tsx
-// Listen to current scope events
-useAssistantEvent("composer.send", (e) => {
-  console.log("Message sent:", e);
+import { useAssistantEvent } from "@assistant-ui/react";
+
+// Listen to current scope events (most common)
+useAssistantEvent("composer.send", (event) => {
+  console.log("Current composer sent message:", event.message);
 });
 
-// Listen to all events of a type
-useAssistantEvent({ event: "composer.send", scope: "*" }, (e) => {
-  console.log("Any composer sent:", e);
+// Listen to all events of a type across all scopes
+useAssistantEvent({ event: "composer.send", scope: "*" }, (event) => {
+  console.log("Any composer sent a message:", event);
 });
 
-// Listen within parent scope
-useAssistantEvent({ event: "thread.run-start", scope: "thread" }, (e) => {
-  console.log("Run started in current thread:", e);
+// Listen to ALL events (useful for debugging or analytics)
+useAssistantEvent("*", (event) => {
+  console.log("Event occurred:", event.type, "from:", event.source);
+  // Send to analytics, logging, etc.
 });
 
-// Listen to ALL events using wildcard (new)
-useAssistantEvent("*", (e) => {
-  console.log("Event occurred:", e.event, "with payload:", e.payload);
-});
+// Practical example: Track user interactions
+function AnalyticsTracker() {
+  useAssistantEvent("composer.send", (event) => {
+    analytics.track("message_sent", {
+      messageLength: event.message.content.length,
+      hasAttachments: event.message.attachments.length > 0,
+    });
+  });
+
+  return null; // This component only tracks events
+}
 ```
 
-Event names follow the pattern `source.event` where source indicates the originating scope.
+**Event name patterns:**
+
+- Event names follow `source.action` format (e.g., `composer.send`, `thread.run-start`)
+- Use `"*"` as the event name to listen to all events
+- The `scope` parameter controls which instances trigger the event
 
 ## Working with Scopes
 
@@ -397,15 +456,27 @@ const isRunning = useAssistantState(({ thread }) => thread.isRunning);
 
 ### Scope States
 
-| Scope          | Key State Properties                                                              |
-| -------------- | --------------------------------------------------------------------------------- |
-| ThreadList     | `mainThreadId`, `threadIds`, `isLoading`, `threadItems`                           |
-| ThreadListItem | `id`, `title`, `status`, `remoteId`, `externalId`                                 |
-| Thread         | `isRunning`, `isLoading`, `isDisabled`, `messages`, `capabilities`, `suggestions` |
-| Message        | `role`, `content`, `status`, `attachments`, `parentId`, `branchNumber`, `isLast`  |
-| Composer       | `text`, `role`, `attachments`, `isEmpty`, `canCancel`, `type`, `isEditing`        |
-| Part           | `type`, `content`, `status`, `text`, `toolCallId`, `toolName`                     |
-| Attachment     | `id`, `type`, `name`, `url`, `size`, `mimeType`                                   |
+| Scope          | Key State Properties                                                              | Description                                      |
+| -------------- | --------------------------------------------------------------------------------- | ------------------------------------------------ |
+| ThreadList     | `mainThreadId`, `threadIds`, `isLoading`, `threadItems`                           | Manages all available conversation threads       |
+| ThreadListItem | `id`, `title`, `status`, `remoteId`, `externalId`                                 | Individual thread metadata and status            |
+| Thread         | `isRunning`, `isLoading`, `isDisabled`, `messages`, `capabilities`, `suggestions` | Active conversation state and message history    |
+| Message        | `role`, `content`, `status`, `attachments`, `parentId`, `branchNumber`, `isLast`  | Individual message content and metadata          |
+| Composer       | `text`, `role`, `attachments`, `isEmpty`, `canCancel`, `type`, `isEditing`        | Text input state for new/edited messages         |
+| Part           | `type`, `content`, `status`, `text`, `toolCallId`, `toolName`                     | Content parts within messages (text, tool calls) |
+| Attachment     | `id`, `type`, `name`, `url`, `size`, `mimeType`                                   | File attachments metadata and content            |
+
+### Available Actions by Scope
+
+| Scope          | Actions                                                               | Use Cases                                 |
+| -------------- | --------------------------------------------------------------------- | ----------------------------------------- |
+| ThreadList     | `switchToNewThread()`, `switchToThread(id)`, `getState()`             | Thread navigation and creation            |
+| ThreadListItem | `switchTo()`, `rename(title)`, `archive()`, `unarchive()`, `delete()` | Thread management operations              |
+| Thread         | `append(message)`, `startRun()`, `cancelRun()`, `switchToNewThread()` | Message handling and conversation control |
+| Message        | `reload()`, `speak()`, `stopSpeaking()`, `submitFeedback(feedback)`   | Message interactions and regeneration     |
+| Composer       | `send()`, `setText(text)`, `addAttachment(file)`, `reset()`           | Text input and message composition        |
+| Part           | `addResult(result)`, `getState()`                                     | Tool call result handling                 |
+| Attachment     | `remove()`, `getState()`                                              | File management                           |
 
 ### Common Events
 
@@ -419,6 +490,63 @@ const isRunning = useAssistantState(({ thread }) => thread.isRunning);
 | `composer.attachment-add`        | Attachment added to composer  |
 | `thread-list-item.switched-to`   | Switched to a thread          |
 | `thread-list-item.switched-away` | Switched away from a thread   |
+
+## Troubleshooting
+
+### Common Errors
+
+**"Cannot access [scope] outside of [scope] context"**
+
+```tsx
+// ❌ This will throw if not inside a message component
+const role = useAssistantState(({ message }) => message.role);
+
+// ✅ Check scope availability first
+function SafeMessageButton() {
+  const api = useAssistantApi();
+
+  const role = useAssistantState(({ message }) =>
+    api.message.source !== undefined ? message.role : "none",
+  );
+
+  return <div>Role: {role}</div>;
+}
+```
+
+**"Maximum update depth exceeded" / Infinite re-renders**
+
+```tsx
+// ❌ Creating new objects in selectors causes infinite re-renders
+const data = useAssistantState(({ message }) => ({
+  role: message.role,
+  content: message.content, // New object every time!
+}));
+
+// ✅ Return primitive values or use separate selectors
+const role = useAssistantState(({ message }) => message.role);
+const content = useAssistantState(({ message }) => message.content);
+```
+
+**"Scope resolution failed" / Stale scope references**
+
+```tsx
+// ❌ Storing scope references can lead to stale data
+const api = useAssistantApi();
+const thread = api.thread(); // This reference might become stale
+
+useEffect(() => {
+  // This might reference the wrong thread if user switched
+  thread.cancelRun();
+}, [thread]);
+
+// ✅ Resolve scopes fresh each time
+const api = useAssistantApi();
+
+useEffect(() => {
+  // Always gets the current thread
+  api.thread().cancelRun();
+}, [api]);
+```
 
 ## Quick Reference
 
