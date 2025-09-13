@@ -1,5 +1,20 @@
 # @assistant-ui/react
 
+## 0.12.0
+
+### Minor Changes
+
+- 8f2d502: feat: add wildcard event support to EventManager
+  - Added support for wildcard "\*" event subscriptions to listen to all events
+  - Wildcard listeners receive events in format: `{ event: string, payload: any }`
+  - Updated type definitions to include "\*" as a valid event type
+  - Modified emit method to trigger both specific and wildcard listeners
+
+### Patch Changes
+
+- c9966f5: fix: newThreadId should be null instead of undefined when empty
+- 035bfcc: fix: composer.add-attachment should only fire once
+
 ## 0.11.4
 
 ### Patch Changes
