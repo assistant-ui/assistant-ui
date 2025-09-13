@@ -6,6 +6,11 @@ export function sanitizePath(userPath: string): string {
     throw new Error("Invalid path: Path must be a non-empty string");
   }
 
+  // Check for traversal patterns before normalization - defense in depth
+  if (userPath.includes("../") || userPath.includes("..\\")) {
+    throw new Error("Invalid path: Directory traversal attempt detected");
+  }
+
   const normalized = normalize(userPath);
 
   if (path.isAbsolute(normalized)) {
@@ -43,7 +48,8 @@ export function sanitizePath(userPath: string): string {
     }
   }
 
-  return relativePath;
+  // Always return Unix-style paths for consistency across platforms
+  return relativePath.replace(/\\/g, "/");
 }
 
 export function isValidPathCharacters(path: string): boolean {
