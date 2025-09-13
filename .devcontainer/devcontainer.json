@@ -17,14 +17,11 @@
       ],
       "settings": {
         "editor.formatOnSave": true,
-        "editor.defaultFormatter": "esbenp.prettier-vscode",
-        "editor.codeActionsOnSave": {
-          "source.fixAll.eslint": true
-        }
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
       }
     }
   },
   "forwardPorts": [3000, 3001],
-  "postCreateCommand": "pnpm install && pnpm add -g @anthropic/claude-code",
+  "postCreateCommand": "pnpm install && npm install -g @anthropic/claude-code",
   "remoteUser": "node"
 }
