@@ -1,5 +1,14 @@
 # @assistant-ui/react-data-stream
 
+## 1.0.0
+
+### Patch Changes
+
+- Updated dependencies [c9966f5]
+- Updated dependencies [035bfcc]
+- Updated dependencies [8f2d502]
+  - @assistant-ui/react@0.12.0
+
 ## 0.11.0
 
 ### Patch Changes
