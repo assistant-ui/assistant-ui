@@ -1,5 +1,5 @@
 ---
-"@assistant-ui/react": minor
+"@assistant-ui/react": patch
 ---
 
 feat: add wildcard event support to EventManager
