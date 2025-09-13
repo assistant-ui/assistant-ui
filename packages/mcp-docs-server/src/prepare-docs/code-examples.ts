@@ -135,7 +135,8 @@ export async function prepareCodeExamples(): Promise<void> {
             break;
           }
 
-          markdown += `## ${file.path}\n\n`;
+          // Normalize Windows backslashes to forward slashes for consistent markdown output
+          markdown += `## ${file.path.replace(/\\/g, "/")}\n\n`;
           markdown += `\`\`\`${getFileType(file.path)}\n`;
           markdown += file.content;
           markdown += `\n\`\`\`\n\n`;

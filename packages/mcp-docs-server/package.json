@@ -8,7 +8,7 @@
     "assistant-ui-mcp": "./dist/stdio.js"
   },
   "scripts": {
-    "clean": "rm -rf dist .docs",
+    "clean": "tsx scripts/clean.mts",
     "prepare-docs": "cross-env PREPARE=true node ./dist/prepare-docs/prepare.js",
     "build:cli": "tsup src/stdio.ts src/prepare-docs/prepare.ts src/index.ts --format esm --treeshake=smallest --splitting",
     "build": "pnpm clean && pnpm build:cli && pnpm prepare-docs",
