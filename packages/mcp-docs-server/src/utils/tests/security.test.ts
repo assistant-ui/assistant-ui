@@ -111,7 +111,7 @@ describe("sanitizePath", () => {
 
       it("should reject UNC paths", () => {
         expect(() => sanitizePath("\\\\server\\share")).toThrow(
-          "Invalid path: Path contains invalid Windows characters",
+          "Invalid path: Absolute paths are not allowed",
         );
       });
     });
