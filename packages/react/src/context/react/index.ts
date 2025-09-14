@@ -54,3 +54,5 @@ export {
   useThreadListItemRuntime,
   useThreadListItem,
 } from "../../legacy-runtime/hooks/ThreadListItemContext";
+
+export { AssistantProvider } from "./AssistantApiContext";

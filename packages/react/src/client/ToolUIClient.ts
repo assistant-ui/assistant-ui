@@ -5,7 +5,7 @@ import { ToolUIState, ToolUIApi } from "./types/ToolUI";
 export const ToolUIClient = resource(() => {
   const [state, setState] = tapState<ToolUIState>(() => ({}));
 
-  const api = tapApi<ToolUIApi>({
+  return tapApi<ToolUIApi>({
     getState: () => state,
 
     setToolUI: (toolName, render) => {
@@ -26,9 +26,4 @@ export const ToolUIClient = resource(() => {
       };
     },
   });
-
-  return {
-    state,
-    api,
-  };
 });

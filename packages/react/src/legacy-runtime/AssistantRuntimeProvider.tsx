@@ -1,7 +1,7 @@
 "use client";
 
 import { FC, memo, PropsWithChildren } from "react";
-import { AssistantApiProvider } from "../context/react/AssistantApiContext";
+import { AssistantProvider } from "../context/react/AssistantApiContext";
 import { AssistantRuntime } from "./runtime/AssistantRuntime";
 import { AssistantRuntimeCore } from "./runtime-cores/core/AssistantRuntimeCore";
 import { useAssistantClient } from "../client/AssistantClient";
@@ -51,10 +51,10 @@ const AssistantProvider: FC<
   PropsWithChildren<{ api: ReturnType<typeof useAssistantClient> }>
 > = ({ children, api }) => {
   return (
-    <AssistantApiProvider api={api}>
+    <AssistantProvider api={api}>
       {/* TODO temporarily allow accessing viewport state from outside the viewport */}
       {/* TODO figure out if this behavior should be deprecated, since it is quite hacky */}
       <ThreadViewportProvider>{children}</ThreadViewportProvider>
-    </AssistantApiProvider>
+    </AssistantProvider>
   );
 };

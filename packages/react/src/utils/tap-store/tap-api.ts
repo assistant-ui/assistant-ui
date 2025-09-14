@@ -34,15 +34,32 @@ class ReadonlyApiHandler<TApi extends ApiObject> implements ProxyHandler<TApi> {
   }
 }
 
-export const tapApi = <TApi extends ApiObject>(api: TApi) => {
+export const tapApi = <TApi extends ApiObject & { getState: () => any }>(
+  api: TApi,
+  options?: {
+    key?: string | undefined;
+  },
+) => {
   const ref = tapRef(() => api);
   tapEffect(() => {
     ref.current = api;
   });
 
-  return tapMemo(
+  const apiProxy = tapMemo(
     () =>
       new Proxy<TApi>({} as TApi, new ReadonlyApiHandler(() => ref.current)),
     [],
+  );
+
+  const key = options?.key;
+  const state = api.getState();
+
+  return tapMemo(
+    () => ({
+      key,
+      state,
+      api: apiProxy,
+    }),
+    [state, key],
   );
 };

@@ -98,7 +98,7 @@ export const ComposerClient = resource(
       };
     }, [runtimeState, attachments.state]);
 
-    const api = tapApi<ComposerClientApi>({
+    return tapApi<ComposerClientApi>({
       getState: () => state,
 
       setText: runtime.setText,
@@ -126,10 +126,5 @@ export const ComposerClient = resource(
 
       __internal_getRuntime: () => runtime,
     });
-
-    return {
-      state,
-      api,
-    };
   },
 );

@@ -2,7 +2,7 @@
 
 import { useMemo, type FC, type PropsWithChildren } from "react";
 import {
-  AssistantApiProvider,
+  AssistantProvider,
   AssistantApi,
   createAssistantApiField,
 } from "../react/AssistantApiContext";
@@ -25,15 +25,13 @@ const TextMessagePartClient = resource(
       [text, isRunning],
     );
 
-    const api = tapApi<MessagePartClientApi>({
+    return tapApi<MessagePartClientApi>({
       getState: () => state,
       addToolResult: () => {
         throw new Error("Not supported");
       },
       __internal_getRuntime: () => null,
     });
-
-    return api;
   },
 );
 
@@ -51,12 +49,12 @@ export const TextMessagePartProvider: FC<
       part: createAssistantApiField({
         source: "root",
         query: {},
-        get: () => store.getState(),
+        get: () => store.getState().api,
       }),
       subscribe: store.subscribe,
-      // flushSync: store.flushSync,
+      flushSync: store.flushSync,
     } satisfies Partial<AssistantApi>;
   }, [store]);
 
-  return <AssistantApiProvider api={api}>{children}</AssistantApiProvider>;
+  return <AssistantProvider api={api}>{children}</AssistantProvider>;
 };
