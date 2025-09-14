@@ -10,7 +10,10 @@
         "ASSISTANT_*",
         "JWT_*",
         "ENTELLIGENCE_*",
-        "NEXT_PUBLIC_*"
+        "NEXT_PUBLIC_*",
+        "KV_*",
+        "SENTRY_*",
+        "REDIS_*"
       ]
     },
     "lint": {},
