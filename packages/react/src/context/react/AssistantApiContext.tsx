@@ -43,6 +43,7 @@ import {
   ThreadListClientApi,
   ThreadListClientState,
 } from "../../client/types/ThreadList";
+import { ThreadViewportProvider } from "../providers/ThreadViewportProvider";
 
 export type AssistantState = {
   readonly threads: ThreadListClientState;
@@ -287,6 +288,10 @@ export const AssistantProvider: FC<
   const extendedApi = useMemo(() => extendApi(api, api2), [api, api2]);
 
   return (
-    <AssistantApiContext value={extendedApi}>{children}</AssistantApiContext>
+    <AssistantApiContext value={extendedApi}>
+      {/* TODO temporarily allow accessing viewport state from outside the viewport */}
+      {/* TODO figure out if this behavior should be deprecated, since it is quite hacky */}
+      <ThreadViewportProvider>{children}</ThreadViewportProvider>
+    </AssistantApiContext>
   );
 };
