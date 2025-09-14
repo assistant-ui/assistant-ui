@@ -38,23 +38,22 @@ export const ThreadListItemClient = resource(
       };
     }, [runtime, events]);
 
-    const api = tapApi<ThreadListItemClientApi>({
-      getState: () => runtimeState,
-      switchTo: runtime.switchTo,
-      rename: runtime.rename,
-      archive: runtime.archive,
-      unarchive: runtime.unarchive,
-      delete: runtime.delete,
-      generateTitle: runtime.generateTitle,
-      initialize: runtime.initialize,
-      detach: runtime.detach,
-      __internal_getRuntime: () => runtime,
-    });
-
-    return {
-      state: runtimeState,
-      api,
-      key: runtimeState.id,
-    };
+    return tapApi<ThreadListItemClientApi>(
+      {
+        getState: () => runtimeState,
+        switchTo: runtime.switchTo,
+        rename: runtime.rename,
+        archive: runtime.archive,
+        unarchive: runtime.unarchive,
+        delete: runtime.delete,
+        generateTitle: runtime.generateTitle,
+        initialize: runtime.initialize,
+        detach: runtime.detach,
+        __internal_getRuntime: () => runtime,
+      },
+      {
+        key: runtimeState.id,
+      },
+    );
   },
 );

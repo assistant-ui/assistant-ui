@@ -3,7 +3,7 @@
 import { useMemo, type FC, type PropsWithChildren } from "react";
 import {
   AssistantApi,
-  AssistantApiProvider,
+  AssistantProvider,
   useAssistantApi,
   createAssistantApiField,
 } from "../react/AssistantApiContext";
@@ -42,7 +42,7 @@ export const ThreadListItemByIndexProvider: FC<
     } satisfies Partial<AssistantApi>;
   }, [api, index, archived]);
 
-  return <AssistantApiProvider api={api2}>{children}</AssistantApiProvider>;
+  return <AssistantProvider api={api2}>{children}</AssistantProvider>;
 };
 
 export const ThreadListItemByIdProvider: FC<
@@ -73,5 +73,5 @@ export const ThreadListItemByIdProvider: FC<
     } satisfies Partial<AssistantApi>;
   }, [api, id]);
 
-  return <AssistantApiProvider api={api2}>{children}</AssistantApiProvider>;
+  return <AssistantProvider api={api2}>{children}</AssistantProvider>;
 };

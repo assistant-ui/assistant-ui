@@ -111,7 +111,7 @@ export const ThreadClient = resource(
       };
     }, [runtimeState, messages, composer.state]);
 
-    const api = tapApi<ThreadClientApi>({
+    return tapApi<ThreadClientApi>({
       getState: () => state,
 
       composer: composer.api,
@@ -136,10 +136,5 @@ export const ThreadClient = resource(
 
       __internal_getRuntime: () => runtime,
     });
-
-    return {
-      state,
-      api,
-    };
   },
 );

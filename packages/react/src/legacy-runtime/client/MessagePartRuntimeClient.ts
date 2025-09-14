@@ -7,21 +7,20 @@ export const MessagePartClient = resource(
   ({ runtime }: { runtime: MessagePartRuntime }) => {
     const runtimeState = tapSubscribable(runtime);
 
-    const api = tapApi<MessagePartClientApi>({
-      getState: () => runtimeState,
+    return tapApi<MessagePartClientApi>(
+      {
+        getState: () => runtimeState,
 
-      addToolResult: (result) => runtime.addToolResult(result),
+        addToolResult: (result) => runtime.addToolResult(result),
 
-      __internal_getRuntime: () => runtime,
-    });
-
-    return {
-      key:
-        runtimeState.type === "tool-call"
-          ? "toolCallId-" + runtimeState.toolCallId
-          : undefined,
-      state: runtimeState,
-      api,
-    };
+        __internal_getRuntime: () => runtime,
+      },
+      {
+        key:
+          runtimeState.type === "tool-call"
+            ? "toolCallId-" + runtimeState.toolCallId
+            : undefined,
+      },
+    );
   },
 );

@@ -7,16 +7,15 @@ import { tapSubscribable } from "../util-hooks/tapSubscribable";
 export const AttachmentRuntimeClient = resource(
   ({ runtime }: { runtime: AttachmentRuntime }) => {
     const state = tapSubscribable(runtime);
-    const api = tapApi<AttachmentClientApi>({
-      getState: () => state,
-      remove: runtime.remove,
-      __internal_getRuntime: () => runtime,
-    });
-
-    return {
-      state: state,
-      api,
-      key: state.id,
-    };
+    return tapApi<AttachmentClientApi>(
+      {
+        getState: () => state,
+        remove: runtime.remove,
+        __internal_getRuntime: () => runtime,
+      },
+      {
+        key: state.id,
+      },
+    );
   },
 );

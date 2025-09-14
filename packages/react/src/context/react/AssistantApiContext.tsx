@@ -280,7 +280,7 @@ const extendApi = (
   };
 };
 
-export const AssistantApiProvider: FC<
+export const AssistantProvider: FC<
   PropsWithChildren<{ api: Partial<AssistantApi> }>
 > = ({ api: api2, children }) => {
   const api = useAssistantApi();

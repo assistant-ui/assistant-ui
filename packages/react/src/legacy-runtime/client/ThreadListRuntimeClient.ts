@@ -53,7 +53,7 @@ export const ThreadListClient = resource(
       };
     }, [runtimeState, threadItems.state, main.state]);
 
-    const api = tapApi<ThreadListClientApi>({
+    return tapApi<ThreadListClientApi>({
       getState: () => state,
 
       thread: () => main.api,
@@ -81,10 +81,5 @@ export const ThreadListClient = resource(
         runtime.switchToNewThread();
       },
     });
-
-    return {
-      state,
-      api,
-    };
   },
 );

@@ -72,7 +72,7 @@ const AssistantStore = resource(
       [threads.state, toolUIs.state],
     );
 
-    const api = tapApi<AssistantClientApi>({
+    return tapApi<AssistantClientApi>({
       getState: () => state,
 
       threads: threads.api,
@@ -82,9 +82,6 @@ const AssistantStore = resource(
       registerModelContextProvider: registerModelContextProvider,
       __internal_getRuntime: () => __internal_runtime ?? null,
     });
-
-    // notify the store of state changes
-    return tapMemo(() => ({ api }), [state]);
   },
 );
 

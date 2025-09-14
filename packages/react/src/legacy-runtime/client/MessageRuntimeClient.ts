@@ -99,44 +99,43 @@ export const MessageClient = resource(
       isHoveringState,
     ]);
 
-    const api = tapApi<MessageClientApi>({
-      getState: () => state,
+    return tapApi<MessageClientApi>(
+      {
+        getState: () => state,
 
-      composer: composer.api,
+        composer: composer.api,
 
-      reload: (config) => runtime.reload(config),
-      speak: () => runtime.speak(),
-      stopSpeaking: () => runtime.stopSpeaking(),
-      submitFeedback: (feedback) => runtime.submitFeedback(feedback),
-      switchToBranch: (options) => runtime.switchToBranch(options),
-      getCopyText: () => runtime.unstable_getCopyText(),
+        reload: (config) => runtime.reload(config),
+        speak: () => runtime.speak(),
+        stopSpeaking: () => runtime.stopSpeaking(),
+        submitFeedback: (feedback) => runtime.submitFeedback(feedback),
+        switchToBranch: (options) => runtime.switchToBranch(options),
+        getCopyText: () => runtime.unstable_getCopyText(),
 
-      part: (selector) => {
-        if ("index" in selector) {
-          return parts.api({ index: selector.index });
-        } else {
-          return parts.api({ key: "toolCallId-" + selector.toolCallId });
-        }
+        part: (selector) => {
+          if ("index" in selector) {
+            return parts.api({ index: selector.index });
+          } else {
+            return parts.api({ key: "toolCallId-" + selector.toolCallId });
+          }
+        },
+
+        attachment: (selector) => {
+          if ("id" in selector) {
+            return attachments.api({ key: selector.id });
+          } else {
+            return attachments.api(selector);
+          }
+        },
+
+        setIsCopied,
+        setIsHovering,
+
+        __internal_getRuntime: () => runtime,
       },
-
-      attachment: (selector) => {
-        if ("id" in selector) {
-          return attachments.api({ key: selector.id });
-        } else {
-          return attachments.api(selector);
-        }
+      {
+        key: runtimeState.id,
       },
-
-      setIsCopied,
-      setIsHovering,
-
-      __internal_getRuntime: () => runtime,
-    });
-
-    return {
-      key: runtimeState.id,
-      state,
-      api,
-    };
+    );
   },
 );

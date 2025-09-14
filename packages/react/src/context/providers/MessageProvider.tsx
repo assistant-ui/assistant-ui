@@ -3,7 +3,7 @@
 import { useMemo, type FC, type PropsWithChildren } from "react";
 import {
   AssistantApi,
-  AssistantApiProvider,
+  AssistantProvider,
   useAssistantApi,
   createAssistantApiField,
 } from "../react/AssistantApiContext";
@@ -48,5 +48,5 @@ export const MessageByIndexProvider: FC<
     } satisfies Partial<AssistantApi>;
   }, [api, index]);
 
-  return <AssistantApiProvider api={api2}>{children}</AssistantApiProvider>;
+  return <AssistantProvider api={api2}>{children}</AssistantProvider>;
 };
