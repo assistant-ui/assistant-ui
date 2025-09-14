@@ -1,5 +1,11 @@
 # @assistant-ui/mcp-docs-server
 
+## 0.1.8
+
+### Patch Changes
+
+- 590f161: Comprehensive Windows support - replace Unix commands with cross-platform Node.js APIs, normalize paths for consistency, and improve path handling in build utilities
+
 ## 0.1.7
 
 ### Patch Changes
