@@ -83,19 +83,21 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
         id: message.id,
         content: [
           ...contentToParts(message.content),
-          ...(message.tool_calls?.map(
-            (chunk): ToolCallMessagePart => ({
+          ...(message.tool_calls?.map((chunk): ToolCallMessagePart => {
+            const argsText =
+              chunk.partial_json ??
+              message.tool_call_chunks?.find((c) => c.id === chunk.id)?.args ??
+              JSON.stringify(chunk.args);
+            return {
               type: "tool-call",
               toolCallId: chunk.id,
               toolName: chunk.name,
-              args: chunk.partial_json
-                ? (parsePartialJsonObject(chunk.partial_json) ?? {})
+              args: argsText
+                ? (parsePartialJsonObject(chunk.argsText) ?? {})
                 : chunk.args,
-              argsText: chunk.partial_json
-                ? chunk.partial_json
-                : JSON.stringify(chunk.args),
-            }),
-          ) ?? []),
+              argsText: argsText ?? JSON.stringify(chunk.args),
+            };
+          }) ?? []),
         ],
         ...(message.status && { status: message.status }),
       };
