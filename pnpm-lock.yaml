@@ -479,8 +479,8 @@ importers:
         specifier: ^4.1.12
         version: 4.1.13
       assistant-stream:
-        specifier: ^0.0.28
-        version: 0.0.28
+        specifier: ^0.2.26
+        version: link:../../packages/assistant-stream
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1337,7 +1337,7 @@ importers:
         specifier: ^0.1.1
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.2.23
+        specifier: ^0.2.26
         version: link:../assistant-stream
       json-schema:
         specifier: ^0.4.0
@@ -1410,7 +1410,7 @@ importers:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.2.23
+        specifier: ^0.2.26
         version: link:../assistant-stream
       json-schema:
         specifier: ^0.4.0
@@ -1456,7 +1456,7 @@ importers:
         specifier: ^7.0.15
         version: 7.0.15
       assistant-stream:
-        specifier: ^0.2.27
+        specifier: ^0.2.26
         version: link:../assistant-stream
       json-schema:
         specifier: ^0.4.0
@@ -1527,7 +1527,7 @@ importers:
   packages/react-langgraph:
     dependencies:
       assistant-stream:
-        specifier: ^0.2.25
+        specifier: ^0.2.26
         version: link:../assistant-stream
       uuid:
         specifier: ^11.1.0
@@ -4348,9 +4348,6 @@ packages:
     resolution: {integrity: sha512-Izi8RQcffqCeNVgFigKli1ssklIbpHnCYc6AknXGYoB6grJqyeby7jv12JUQgmTAnIDnbck1uxksT4dzN3PWBA==}
     engines: {node: '>=12'}
 
-  assistant-stream@0.0.28:
-    resolution: {integrity: sha512-fDMjahSEj0htqSa788qDo3aR6U1+MsZQgUFKSTUKVfDk7qLxK509HO+qObg6RR3DcZtMRBqITkia96uMDP55pg==}
-
   ast-types-flow@0.0.8:
     resolution: {integrity: sha512-OH/2E5Fg20h2aPrbe+QL8JZQFko0YZaF+j4mnQ7BGhfavO7OpSLa8a0y9sBwomHdSbkhTS8TQNayBfnW5DwbvQ==}
 
@@ -6563,11 +6560,6 @@ packages:
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
     hasBin: true
 
-  nanoid@3.3.8:
-    resolution: {integrity: sha512-WNLf5Sd8oZxOm+TzppcYk8gVOgP+l58xNy58D0nbUnOxOWRWvlcCV4kUF7ltmI6PsrLl/BgKEyS4mqsGChFN0w==}
-    engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
-    hasBin: true
-
   nanoid@5.1.5:
     resolution: {integrity: sha512-Ir/+ZpE9fDsNH0hQ3C68uyThDXzYcim2EqcZ8zn8Chtt1iylPT9xXJB0kPCnqzgcEGikO9RxSrh63MsmVCU7Fw==}
     engines: {node: ^18 || >=20}
@@ -7335,9 +7327,6 @@ packages:
   section-matter@1.0.0:
     resolution: {integrity: sha512-vfD3pmTzGpufjScBh50YHKzEu2lxBWhVEHsNGoEXmCmn2hKGfeNLYMzCJpe8cD7gqX7TJluOVpBkAequ6dgMmA==}
     engines: {node: '>=4'}
-
-  secure-json-parse@3.0.2:
-    resolution: {integrity: sha512-H6nS2o8bWfpFEV6U38sOSjS7bTbdgbCGU9wEM6W14P5H0QOsz94KCusifV44GpHDTu2nqZbuDNhTzu+mjDSw1w==}
 
   secure-json-parse@4.0.0:
     resolution: {integrity: sha512-dxtLJO6sc35jWidmLxo7ij+Eg48PM/kleBsxpC8QJE0qJICe+KawkDQmvCMZUr9u7WKVHgMW6vy3fQ7zMiFZMA==}
@@ -11069,11 +11058,6 @@ snapshots:
 
   assertion-error@2.0.1: {}
 
-  assistant-stream@0.0.28:
-    dependencies:
-      nanoid: 3.3.8
-      secure-json-parse: 3.0.2
-
   ast-types-flow@0.0.8: {}
 
   ast-types@0.16.1:
@@ -13860,8 +13844,6 @@ snapshots:
 
   nanoid@3.3.11: {}
 
-  nanoid@3.3.8: {}
-
   nanoid@5.1.5: {}
 
   napi-postinstall@0.3.3: {}
@@ -14720,8 +14702,6 @@ snapshots:
     dependencies:
       extend-shallow: 2.0.1
       kind-of: 6.0.3
-
-  secure-json-parse@3.0.2: {}
 
   secure-json-parse@4.0.0: {}
 

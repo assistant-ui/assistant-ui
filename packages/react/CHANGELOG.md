@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.11.8
+
+### Patch Changes
+
+- 0f21c70: feat: Attachment support for useAssistantTransportRuntime
+- Updated dependencies [0f21c70]
+  - assistant-stream@0.2.26
+
 ## 0.11.7
 
 ### Patch Changes
