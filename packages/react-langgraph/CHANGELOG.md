@@ -1,5 +1,13 @@
 # @assistant-ui/react-langgraph
 
+## 0.6.4
+
+### Patch Changes
+
+- 7919352: fix: better partial tool call args parsing
+- Updated dependencies [2e7a10f]
+  - assistant-stream@0.2.25
+
 ## 0.6.3
 
 ### Patch Changes

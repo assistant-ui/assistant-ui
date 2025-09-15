@@ -1442,7 +1442,7 @@ importers:
   packages/react-langgraph:
     dependencies:
       assistant-stream:
-        specifier: ^0.2.23
+        specifier: ^0.2.25
         version: link:../assistant-stream
       uuid:
         specifier: ^11.1.0
