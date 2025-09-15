@@ -43,7 +43,7 @@ export type CreateStartRunConfig = {
 };
 
 export type CreateResumeRunConfig = CreateStartRunConfig & {
-  stream: (
+  stream?: (
     options: ChatModelRunOptions,
   ) => AsyncGenerator<ChatModelRunResult, void, unknown>;
 };
@@ -53,7 +53,7 @@ const toResumeRunConfig = (message: CreateResumeRunConfig): ResumeRunConfig => {
     parentId: message.parentId ?? null,
     sourceId: message.sourceId ?? null,
     runConfig: message.runConfig ?? {},
-    stream: message.stream,
+    ...(message.stream ? { stream: message.stream } : {}),
   };
 };
 
@@ -256,6 +256,12 @@ export type ThreadRuntime = {
    **/
   unstable_resumeRun(config: CreateResumeRunConfig): void;
 
+  /**
+   * Load external state into the thread.
+   * @param state The state to load into the thread
+   */
+  unstable_loadExternalState(state: any): void;
+
   subscribe(callback: () => void): Unsubscribe;
   cancelRun(): void;
   getModelContext(): ModelContext;
@@ -346,6 +352,8 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
   protected __internal_bindMethods() {
     this.append = this.append.bind(this);
     this.unstable_resumeRun = this.unstable_resumeRun.bind(this);
+    this.unstable_loadExternalState =
+      this.unstable_loadExternalState.bind(this);
     this.startRun = this.startRun.bind(this);
     this.cancelRun = this.cancelRun.bind(this);
     this.stopSpeaking = this.stopSpeaking.bind(this);
@@ -397,6 +405,10 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
 
   public unstable_resumeRun(config: CreateResumeRunConfig) {
     return this._threadBinding.getState().resumeRun(toResumeRunConfig(config));
+  }
+
+  public unstable_loadExternalState(state: any) {
+    this._threadBinding.getState().unstable_loadExternalState(state);
   }
 
   public cancelRun() {

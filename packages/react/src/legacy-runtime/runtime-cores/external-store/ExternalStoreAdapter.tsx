@@ -2,6 +2,7 @@ import { AppendMessage, ThreadMessage } from "../../../types";
 import { AttachmentAdapter } from "../adapters/attachment";
 import {
   AddToolResultOptions,
+  ResumeRunConfig,
   StartRunConfig,
   ThreadSuggestion,
 } from "../core/ThreadRuntimeCore";
@@ -63,11 +64,13 @@ type ExternalStoreAdapterBase<T> = {
 
   setMessages?: ((messages: readonly T[]) => void) | undefined;
   onImport?: ((messages: readonly ThreadMessage[]) => void) | undefined;
+  onLoadExternalState?: ((state: any) => void) | undefined;
   onNew: (message: AppendMessage) => Promise<void>;
   onEdit?: ((message: AppendMessage) => Promise<void>) | undefined;
   onReload?: // TODO: remove parentId in 0.8.0
   | ((parentId: string | null, config: StartRunConfig) => Promise<void>)
     | undefined;
+  onResume?: ((config: ResumeRunConfig) => Promise<void>) | undefined;
   onCancel?: (() => Promise<void>) | undefined;
   onAddToolResult?:
     | ((options: AddToolResultOptions) => Promise<void> | void)

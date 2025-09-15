@@ -1,5 +1,6 @@
 import {
   AddToolResultOptions,
+  ResumeRunConfig,
   StartRunConfig,
   ThreadSuggestion,
 } from "../core/ThreadRuntimeCore";
@@ -244,8 +245,18 @@ export class ExternalStoreThreadRuntimeCore
     await this._store.onReload(config.parentId, config);
   }
 
-  public async resumeRun(): Promise<void> {
-    throw new Error("Runtime does not support resuming runs.");
+  public async resumeRun(config: ResumeRunConfig): Promise<void> {
+    if (!this._store.onResume)
+      throw new Error("Runtime does not support resuming runs.");
+
+    await this._store.onResume(config);
+  }
+
+  public unstable_loadExternalState(state: any): void {
+    if (!this._store.onLoadExternalState)
+      throw new Error("Runtime does not support importing states.");
+
+    this._store.onLoadExternalState(state);
   }
 
   public cancelRun(): void {
