@@ -1,5 +1,14 @@
 # @assistant-ui/react-langgraph
 
+## 0.6.7
+
+### Patch Changes
+
+- 3742def: feat: langgraph converter computer_call support
+- Updated dependencies [8f6fb59]
+- Updated dependencies [d318c83]
+  - @assistant-ui/react@0.11.7
+
 ## 0.6.6
 
 ### Patch Changes
