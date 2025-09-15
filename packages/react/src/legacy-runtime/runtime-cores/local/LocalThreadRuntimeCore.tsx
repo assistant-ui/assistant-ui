@@ -166,7 +166,13 @@ export class LocalThreadRuntimeCore
   }
 
   public resumeRun({ stream, ...startConfig }: ResumeRunConfig): Promise<void> {
+    if (!stream)
+      throw new Error("You must pass a stream parameter to resume runs.");
     return this.startRun(startConfig, stream);
+  }
+
+  public unstable_loadExternalState(): void {
+    throw new Error("Runtime does not support importing external states.");
   }
 
   public async startRun(

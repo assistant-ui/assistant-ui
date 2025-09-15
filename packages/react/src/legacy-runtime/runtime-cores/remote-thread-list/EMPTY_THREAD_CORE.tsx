@@ -56,6 +56,10 @@ export const EMPTY_THREAD_CORE: ThreadRuntimeCore = {
     return {};
   },
 
+  unstable_loadExternalState() {
+    throw EMPTY_THREAD_ERROR;
+  },
+
   composer: {
     attachments: [],
     attachmentAccept: "*",

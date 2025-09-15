@@ -63,7 +63,7 @@ export type StartRunConfig = {
 };
 
 export type ResumeRunConfig = StartRunConfig & {
-  stream: (
+  stream?: (
     options: ChatModelRunOptions,
   ) => AsyncGenerator<ChatModelRunResult, void, unknown>;
 };
@@ -122,4 +122,5 @@ export type ThreadRuntimeCore = Readonly<{
   reset(initialMessages?: readonly ThreadMessageLike[]): void;
 
   unstable_on(event: ThreadRuntimeEventType, callback: () => void): Unsubscribe;
+  unstable_loadExternalState: (state: any) => void;
 }>;
