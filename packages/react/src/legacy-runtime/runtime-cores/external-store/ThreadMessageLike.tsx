@@ -133,15 +133,12 @@ export const fromThreadMessageLike = (
                   return {
                     ...commonProps,
                     args: part.args,
-                    argsText: JSON.stringify(part.args),
+                    argsText: part.argsText ?? JSON.stringify(part.args),
                   };
                 }
                 return {
                   ...commonProps,
-                  args:
-                    part.args ??
-                    parsePartialJsonObject(part.argsText ?? "") ??
-                    {},
+                  args: parsePartialJsonObject(part.argsText ?? "") ?? {},
                   argsText: part.argsText ?? "",
                 };
               }
