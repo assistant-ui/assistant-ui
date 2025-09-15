@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.2.26
+
+### Patch Changes
+
+- 0f21c70: feat: throttle AssistantMessageAccumulator emits
+
 ## 0.2.25
 
 ### Patch Changes

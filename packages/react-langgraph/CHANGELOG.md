@@ -1,5 +1,16 @@
 # @assistant-ui/react-langgraph
 
+## 0.6.8
+
+### Patch Changes
+
+- 0f21c70: fix: do not throw an error for unknown message part types
+- 0f21c70: fix: merge multiple reasoning summaries
+- Updated dependencies [0f21c70]
+- Updated dependencies [0f21c70]
+  - assistant-stream@0.2.26
+  - @assistant-ui/react@0.11.8
+
 ## 0.6.7
 
 ### Patch Changes
