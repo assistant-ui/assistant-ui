@@ -93,7 +93,7 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
               toolCallId: chunk.id,
               toolName: chunk.name,
               args: argsText
-                ? (parsePartialJsonObject(chunk.argsText) ?? {})
+                ? (parsePartialJsonObject(argsText) ?? {})
                 : chunk.args,
               argsText: argsText ?? JSON.stringify(chunk.args),
             };
