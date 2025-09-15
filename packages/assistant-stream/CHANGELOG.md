@@ -1,5 +1,12 @@
 # assistant-stream
 
+## 0.2.25
+
+### Patch Changes
+
+- 2e7a10f: feat: createInitialMessage unstable_state support
+  feat: export AssistantMetaTransformStream
+
 ## 0.2.24
 
 ### Patch Changes
