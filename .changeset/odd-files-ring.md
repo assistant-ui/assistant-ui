@@ -1,5 +1,5 @@
 ---
-"@fake-scope/fake-pkg": patch
+"@assistant-ui/react-langgraph": patch
 ---
 
 feat: langgraph converter computer_call support
