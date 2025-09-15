@@ -44,6 +44,15 @@ type MessageContentToolUse = {
   type: "tool_use" | "input_json_delta";
 };
 
+type MessageContentComputerCall = {
+  type: "computer_call";
+  call_id: string;
+  id: string;
+  action: unknown;
+  pending_safety_checks: unknown[];
+  index: number;
+};
+
 export enum LangGraphKnownEventTypes {
   Messages = "messages",
   MessagesPartial = "messages/partial",
@@ -64,7 +73,8 @@ type AssistantMessageContentComplex =
   | MessageContentImageUrl
   | MessageContentToolUse
   | MessageContentReasoning
-  | MessageContentThinking;
+  | MessageContentThinking
+  | MessageContentComputerCall;
 
 type UserMessageContent = string | UserMessageContentComplex[];
 type AssistantMessageContent = string | AssistantMessageContentComplex[];
@@ -96,6 +106,10 @@ export type LangChainMessage =
       tool_call_chunks?: LangChainToolCallChunk[];
       tool_calls?: LangChainToolCall[];
       status?: MessageStatus;
+      additional_kwargs?: {
+        reasoning?: MessageContentReasoning;
+        tool_outputs?: MessageContentComputerCall[];
+      };
     };
 
 export type LangChainMessageChunk = {

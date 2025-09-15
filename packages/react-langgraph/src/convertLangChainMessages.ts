@@ -7,7 +7,10 @@ import {
 import { LangChainMessage } from "./types";
 import { ToolCallMessagePart } from "@assistant-ui/react";
 import { ThreadUserMessage } from "@assistant-ui/react";
-import { parsePartialJsonObject } from "assistant-stream/utils";
+import {
+  parsePartialJsonObject,
+  ReadonlyJSONObject,
+} from "assistant-stream/utils";
 
 const contentToParts = (content: LangChainMessage["content"]) => {
   if (typeof content === "string")
@@ -51,6 +54,15 @@ const contentToParts = (content: LangChainMessage["content"]) => {
           case "input_json_delta":
             return null;
 
+          case "computer_call":
+            return {
+              type: "tool-call",
+              toolCallId: part.call_id,
+              toolName: "computer_call",
+              args: part.action as ReadonlyJSONObject,
+              argsText: JSON.stringify(part.action),
+            };
+
           default:
             const _exhaustiveCheck: never = type;
             throw new Error(`Unknown message part type: ${_exhaustiveCheck}`);
@@ -78,27 +90,39 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
         content: contentToParts(message.content),
       };
     case "ai":
+      const toolCallParts =
+        message.tool_calls?.map((chunk): ToolCallMessagePart => {
+          const argsText =
+            chunk.partial_json ??
+            message.tool_call_chunks?.find((c) => c.id === chunk.id)?.args ??
+            JSON.stringify(chunk.args);
+
+          return {
+            type: "tool-call",
+            toolCallId: chunk.id,
+            toolName: chunk.name,
+            args: argsText
+              ? (parsePartialJsonObject(argsText) ?? {})
+              : chunk.args,
+            argsText: argsText ?? JSON.stringify(chunk.args),
+          };
+        }) ?? [];
+
+      const normalizedContent =
+        typeof message.content === "string"
+          ? [{ type: "text" as const, text: message.content }]
+          : message.content;
+
+      const allContent = [
+        message.additional_kwargs?.reasoning,
+        ...normalizedContent,
+        ...(message.additional_kwargs?.tool_outputs ?? []),
+      ].filter((c) => c !== undefined);
+
       return {
         role: "assistant",
         id: message.id,
-        content: [
-          ...contentToParts(message.content),
-          ...(message.tool_calls?.map((chunk): ToolCallMessagePart => {
-            const argsText =
-              chunk.partial_json ??
-              message.tool_call_chunks?.find((c) => c.id === chunk.id)?.args ??
-              JSON.stringify(chunk.args);
-            return {
-              type: "tool-call",
-              toolCallId: chunk.id,
-              toolName: chunk.name,
-              args: argsText
-                ? (parsePartialJsonObject(argsText) ?? {})
-                : chunk.args,
-              argsText: argsText ?? JSON.stringify(chunk.args),
-            };
-          }) ?? []),
-        ],
+        content: [...contentToParts(allContent), ...toolCallParts],
         ...(message.status && { status: message.status }),
       };
     case "tool":
