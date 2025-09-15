@@ -1,5 +1,11 @@
 # @assistant-ui/react-langgraph
 
+## 0.6.5
+
+### Patch Changes
+
+- 650865c: feat: rename argsText to partial_json in LangChainToolCall
+
 ## 0.6.4
 
 ### Patch Changes
