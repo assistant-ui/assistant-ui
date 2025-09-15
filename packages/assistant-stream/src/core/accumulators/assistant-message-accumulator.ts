@@ -355,6 +355,18 @@ const handleUpdateState = (
   };
 };
 
+const throttleCallback = (callback: () => void) => {
+  let hasScheduled = false;
+  return () => {
+    if (hasScheduled) return;
+    hasScheduled = true;
+    setTimeout(() => {
+      hasScheduled = false;
+      callback();
+    });
+  };
+};
+
 export class AssistantMessageAccumulator extends TransformStream<
   AssistantStreamChunk,
   AssistantMessage
@@ -365,8 +377,17 @@ export class AssistantMessageAccumulator extends TransformStream<
     initialMessage?: AssistantMessage;
   } = {}) {
     let message = initialMessage ?? createInitialMessage();
+    let controller:
+      | TransformStreamDefaultController<AssistantMessage>
+      | undefined;
+    const emitChunk = throttleCallback(() => {
+      controller?.enqueue(message);
+    });
     super({
-      transform(chunk, controller) {
+      start(c) {
+        controller = c;
+      },
+      transform(chunk) {
         const type = chunk.type;
         switch (type) {
           case "part-start":
@@ -413,7 +434,7 @@ export class AssistantMessageAccumulator extends TransformStream<
             throw new Error(`Unsupported chunk type: ${unhandledType}`);
           }
         }
-        controller.enqueue(message);
+        emitChunk();
       },
       flush(controller) {
         if (message.status?.type === "running") {

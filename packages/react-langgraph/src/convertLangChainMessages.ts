@@ -12,6 +12,18 @@ import {
   ReadonlyJSONObject,
 } from "assistant-stream/utils";
 
+const warnedMessagePartTypes = new Set<string>();
+const warnForUnknownMessagePartType = (type: string) => {
+  if (
+    typeof process === "undefined" ||
+    process?.env?.["NODE_ENV"] !== "development"
+  )
+    return;
+  if (warnedMessagePartTypes.has(type)) return;
+  warnedMessagePartTypes.add(type);
+  console.warn(`Unknown message part type: ${type}`);
+};
+
 const contentToParts = (content: LangChainMessage["content"]) => {
   if (typeof content === "string")
     return [{ type: "text" as const, text: content }];
@@ -21,7 +33,6 @@ const contentToParts = (content: LangChainMessage["content"]) => {
         part,
       ):
         | (ThreadUserMessage | ThreadAssistantMessage)["content"][number]
-        | (ThreadUserMessage | ThreadAssistantMessage)["content"][number][]
         | null => {
         const type = part.type;
         switch (type) {
@@ -42,12 +53,10 @@ const contentToParts = (content: LangChainMessage["content"]) => {
             return { type: "reasoning", text: part.thinking };
 
           case "reasoning":
-            return part.summary
-              .map((s) => s.text)
-              .map((text) => ({
-                type: "reasoning",
-                text,
-              }));
+            return {
+              type: "reasoning",
+              text: part.summary.map((s) => s.text).join("\n\n\n"),
+            };
 
           case "tool_use":
             return null;
@@ -65,11 +74,14 @@ const contentToParts = (content: LangChainMessage["content"]) => {
 
           default:
             const _exhaustiveCheck: never = type;
-            throw new Error(`Unknown message part type: ${_exhaustiveCheck}`);
+            warnForUnknownMessagePartType(_exhaustiveCheck);
+            return null;
+
+          // const _exhaustiveCheck: never = type;
+          // throw new Error(`Unknown message part type: ${_exhaustiveCheck}`);
         }
       },
     )
-    .flat()
     .filter((a) => a !== null);
 };
 

@@ -154,14 +154,21 @@ const useAssistantTransportThreadRuntime = <T,>(
     messages: converted.messages,
     adapters: options.adapters,
     onNew: async (message: AppendMessage): Promise<void> => {
+      if (message.role !== "user")
+        throw new Error("Only user messages are supported");
+
       // Convert AppendMessage to AddMessageCommand
       const parts: UserMessagePart[] = [];
 
-      for (const content of message.content) {
-        if (content.type === "text") {
-          parts.push({ type: "text", text: content.text });
-        } else if (content.type === "image") {
-          parts.push({ type: "image", image: content.image });
+      const content = [
+        ...message.content,
+        ...(message.attachments?.flatMap((a) => a.content) ?? []),
+      ];
+      for (const contentPart of content) {
+        if (contentPart.type === "text") {
+          parts.push({ type: "text", text: contentPart.text });
+        } else if (contentPart.type === "image") {
+          parts.push({ type: "image", image: contentPart.image });
         }
       }
 
