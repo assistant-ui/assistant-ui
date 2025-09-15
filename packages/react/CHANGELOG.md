@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.11.7
+
+### Patch Changes
+
+- 8f6fb59: feat: useAssistantTransportRuntime (experimental)
+- d318c83: fix: ThreadMessageLike should prefer argsText if provided over json stringifying args
+
 ## 0.11.6
 
 ### Patch Changes
