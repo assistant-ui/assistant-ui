@@ -110,12 +110,19 @@ export async function unstable_runPendingTools(
 }
 
 export function toolResultStream(
-  tools: Record<string, Tool> | undefined,
-  abortSignal: AbortSignal,
+  tools:
+    | Record<string, Tool>
+    | (() => Record<string, Tool> | undefined)
+    | undefined,
+  abortSignal: AbortSignal | (() => AbortSignal),
 ) {
+  const toolsFn = typeof tools === "function" ? tools : () => tools;
+  const abortSignalFn =
+    typeof abortSignal === "function" ? abortSignal : () => abortSignal;
   return new ToolExecutionStream({
-    execute: (toolCall) => getToolResponse(tools, abortSignal, toolCall),
+    execute: (toolCall) =>
+      getToolResponse(toolsFn(), abortSignalFn(), toolCall),
     streamCall: ({ reader, ...context }) =>
-      getToolStreamResponse(tools, abortSignal, reader, context),
+      getToolStreamResponse(toolsFn(), abortSignalFn(), reader, context),
   });
 }

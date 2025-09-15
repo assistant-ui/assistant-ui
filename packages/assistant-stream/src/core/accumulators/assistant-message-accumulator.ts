@@ -12,8 +12,13 @@ import {
   FilePart,
 } from "../utils/types";
 import { ObjectStreamAccumulator } from "../object/ObjectStreamAccumulator";
+import { ReadonlyJSONValue } from "../../utils";
 
-const createInitialMessage = (): AssistantMessage => ({
+export const createInitialMessage = ({
+  unstable_state = null,
+}: {
+  unstable_state?: ReadonlyJSONValue;
+} = {}): AssistantMessage => ({
   role: "assistant",
   status: { type: "running" },
   parts: [],
@@ -21,7 +26,7 @@ const createInitialMessage = (): AssistantMessage => ({
     return this.parts;
   },
   metadata: {
-    unstable_state: null,
+    unstable_state,
     unstable_data: [],
     unstable_annotations: [],
     steps: [],
