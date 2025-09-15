@@ -7,6 +7,7 @@ import {
 import { LangChainMessage } from "./types";
 import { ToolCallMessagePart } from "@assistant-ui/react";
 import { ThreadUserMessage } from "@assistant-ui/react";
+import { parsePartialJsonObject } from "assistant-stream/utils";
 
 const contentToParts = (content: LangChainMessage["content"]) => {
   if (typeof content === "string")
@@ -87,10 +88,12 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
               type: "tool-call",
               toolCallId: chunk.id,
               toolName: chunk.name,
-              args: chunk.args,
-              argsText:
-                message.tool_call_chunks?.find((c) => c.id === chunk.id)
-                  ?.args ?? JSON.stringify(chunk.args),
+              args: chunk.partial_json
+                ? (parsePartialJsonObject(chunk.partial_json) ?? {})
+                : chunk.args,
+              argsText: chunk.partial_json
+                ? chunk.partial_json
+                : JSON.stringify(chunk.args),
             }),
           ) ?? []),
         ],

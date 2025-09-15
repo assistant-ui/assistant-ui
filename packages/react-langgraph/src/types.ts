@@ -11,8 +11,8 @@ export type LangChainToolCallChunk = {
 export type LangChainToolCall = {
   id: string;
   name: string;
-  argsText: string;
   args: ReadonlyJSONObject;
+  partial_json?: string;
 };
 
 export type MessageContentText = {
