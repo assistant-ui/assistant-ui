@@ -1,5 +1,11 @@
 # @assistant-ui/react-langgraph
 
+## 0.6.6
+
+### Patch Changes
+
+- 633ca4e: fix: argsText parsing
+
 ## 0.6.5
 
 ### Patch Changes
