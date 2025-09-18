@@ -288,10 +288,10 @@ export const AssistantProvider: FC<
   const extendedApi = useMemo(() => extendApi(api, api2), [api, api2]);
 
   return (
-    <AssistantApiContext value={extendedApi}>
+    <AssistantApiContext.Provider value={extendedApi}>
       {/* TODO temporarily allow accessing viewport state from outside the viewport */}
       {/* TODO figure out if this behavior should be deprecated, since it is quite hacky */}
       <ThreadViewportProvider>{children}</ThreadViewportProvider>
-    </AssistantApiContext>
+    </AssistantApiContext.Provider>
   );
 };
