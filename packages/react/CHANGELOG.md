@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.11.11
+
+### Patch Changes
+
+- fix: make accumulator throttling smoother
+- Updated dependencies
+  - assistant-stream@0.2.27
+
 ## 0.11.10
 
 ### Patch Changes

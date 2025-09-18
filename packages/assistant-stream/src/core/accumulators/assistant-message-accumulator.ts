@@ -360,7 +360,7 @@ const throttleCallback = (callback: () => void) => {
   return () => {
     if (hasScheduled) return;
     hasScheduled = true;
-    setTimeout(() => {
+    queueMicrotask(() => {
       hasScheduled = false;
       callback();
     });
