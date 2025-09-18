@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.11.10
+
+### Patch Changes
+
+- 367996e: fix: subscribe to scope identity changes
+
 ## 0.11.9
 
 ### Patch Changes
