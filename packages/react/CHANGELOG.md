@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.11.9
+
+### Patch Changes
+
+- 6c36e21: fix: react 18 compatibility for AssistantProvider API
+
 ## 0.11.8
 
 ### Patch Changes
