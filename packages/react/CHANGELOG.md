@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.11.12
+
+### Patch Changes
+
+- c4830cc: feat: assistant transport allow passing state in converter
+
 ## 0.11.11
 
 ### Patch Changes
