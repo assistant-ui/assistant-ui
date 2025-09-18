@@ -1,7 +1,7 @@
 "use client";
 
 import { MessageRuntime } from "../runtime/MessageRuntime";
-import { useAssistantApi } from "../../context/react";
+import { useAssistantApi, useAssistantState } from "../../context/react";
 import { createStateHookForRuntime } from "../../context/react/utils/createStateHookForRuntime";
 import { EditComposerRuntime } from "../runtime";
 
@@ -47,9 +47,9 @@ export function useMessageRuntime(options?: {
   optional?: boolean | undefined;
 }) {
   const api = useAssistantApi();
-  const runtime = api.message.source
-    ? api.message().__internal_getRuntime()
-    : null;
+  const runtime = useAssistantState(() =>
+    api.message.source ? api.message().__internal_getRuntime() : null,
+  );
   if (!runtime && !options?.optional) {
     throw new Error("MessageRuntime is not available");
   }
