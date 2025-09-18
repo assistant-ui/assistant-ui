@@ -150,8 +150,9 @@ const useAssistantTransportThreadRuntime = <T,>(
 
   // Create runtime
   const runtime = useExternalStoreRuntime({
-    isRunning: converted.isRunning,
     messages: converted.messages,
+    state: converted.state,
+    isRunning: converted.isRunning,
     adapters: options.adapters,
     onNew: async (message: AppendMessage): Promise<void> => {
       if (message.role !== "user")

@@ -40,6 +40,7 @@ export type AssistantTransportCommand =
 // State types
 export type AssistantTransportState = {
   readonly messages: readonly ThreadMessage[];
+  readonly state?: ReadonlyJSONValue;
   readonly isRunning: boolean;
 };
 

@@ -10,6 +10,7 @@ import { FeedbackAdapter } from "../adapters/feedback/FeedbackAdapter";
 import { SpeechSynthesisAdapter } from "../adapters/speech/SpeechAdapterTypes";
 import { ThreadMessageLike } from "./ThreadMessageLike";
 import { ExportedMessageRepository } from "../utils/MessageRepository";
+import { ReadonlyJSONValue } from "assistant-stream/utils";
 
 export type ExternalStoreThreadData<TState extends "regular" | "archived"> = {
   status: TState;
@@ -60,6 +61,7 @@ type ExternalStoreAdapterBase<T> = {
   messages?: readonly T[];
   messageRepository?: ExportedMessageRepository;
   suggestions?: readonly ThreadSuggestion[] | undefined;
+  state?: ReadonlyJSONValue | undefined;
   extras?: unknown;
 
   setMessages?: ((messages: readonly T[]) => void) | undefined;

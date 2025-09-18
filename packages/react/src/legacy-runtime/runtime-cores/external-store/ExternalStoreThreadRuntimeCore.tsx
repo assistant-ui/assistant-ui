@@ -66,6 +66,10 @@ export class ExternalStoreThreadRuntimeCore
     return this._messages;
   }
 
+  public override get state() {
+    return this._store.state ?? super.state;
+  }
+
   public get adapters() {
     return this._store.adapters;
   }
