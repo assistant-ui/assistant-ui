@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.2.27
+
+### Patch Changes
+
+- fix: make accumulator throttling smoother
+
 ## 0.2.26
 
 ### Patch Changes

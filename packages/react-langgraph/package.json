@@ -24,12 +24,12 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "assistant-stream": "^0.2.26",
+    "assistant-stream": "^0.2.27",
     "uuid": "^11.1.0",
     "zod": "^4.0.17"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.11.10",
+    "@assistant-ui/react": "^0.11.11",
     "@types/react": "*",
     "react": "^18 || ^19 || ^19.0.0-rc"
   },
