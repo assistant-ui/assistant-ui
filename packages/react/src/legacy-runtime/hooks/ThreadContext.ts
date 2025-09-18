@@ -5,7 +5,11 @@ import { ThreadRuntime } from "../runtime/ThreadRuntime";
 import { ModelContext } from "../../model-context";
 import { createStateHookForRuntime } from "../../context/react/utils/createStateHookForRuntime";
 import { ThreadComposerRuntime } from "../runtime";
-import { useAssistantApi, useAssistantEvent } from "../../context/react";
+import {
+  useAssistantApi,
+  useAssistantEvent,
+  useAssistantState,
+} from "../../context/react";
 
 /**
  * Hook to access the ThreadRuntime from the current context.
@@ -38,9 +42,9 @@ export function useThreadRuntime(options?: {
 }): ThreadRuntime | null;
 export function useThreadRuntime(options?: { optional?: boolean | undefined }) {
   const api = useAssistantApi();
-  const runtime = api.thread.source
-    ? api.thread().__internal_getRuntime()
-    : null;
+  const runtime = useAssistantState(() =>
+    api.thread.source ? api.thread().__internal_getRuntime() : null,
+  );
   if (!runtime && !options?.optional) {
     throw new Error("ThreadRuntime is not available");
   }

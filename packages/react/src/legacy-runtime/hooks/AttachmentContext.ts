@@ -2,7 +2,7 @@
 
 import { AttachmentRuntime } from "../runtime/AttachmentRuntime";
 import { createStateHookForRuntime } from "../../context/react/utils/createStateHookForRuntime";
-import { useAssistantApi } from "../../context/react";
+import { useAssistantApi, useAssistantState } from "../../context/react";
 
 export function useAttachmentRuntime(options?: {
   optional?: false | undefined;
@@ -14,9 +14,9 @@ export function useAttachmentRuntime(options?: {
   optional?: boolean | undefined;
 }): AttachmentRuntime | null {
   const api = useAssistantApi();
-  const runtime = api.attachment.source
-    ? api.attachment().__internal_getRuntime()
-    : null;
+  const runtime = useAssistantState(() =>
+    api.attachment.source ? api.attachment().__internal_getRuntime() : null,
+  );
   if (!runtime && !options?.optional) {
     throw new Error("AttachmentRuntime is not available");
   }

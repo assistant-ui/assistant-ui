@@ -1,6 +1,6 @@
 "use client";
 
-import { useAssistantApi } from "../../context/react";
+import { useAssistantApi, useAssistantState } from "../../context/react";
 import { ComposerRuntime } from "../runtime/ComposerRuntime";
 import { createStateHookForRuntime } from "../../context/react/utils/createStateHookForRuntime";
 
@@ -52,9 +52,9 @@ export function useComposerRuntime(options?: {
   optional?: boolean | undefined;
 }): ComposerRuntime | null {
   const api = useAssistantApi();
-  const runtime = api.composer.source
-    ? api.composer().__internal_getRuntime()
-    : null;
+  const runtime = useAssistantState(() =>
+    api.composer.source ? api.composer().__internal_getRuntime() : null,
+  );
   if (!runtime && !options?.optional) {
     throw new Error("ComposerRuntime is not available");
   }

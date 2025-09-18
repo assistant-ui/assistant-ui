@@ -2,7 +2,7 @@
 
 import { MessagePartRuntime } from "../runtime/MessagePartRuntime";
 import { createStateHookForRuntime } from "../../context/react/utils/createStateHookForRuntime";
-import { useAssistantApi } from "../../context/react";
+import { useAssistantApi, useAssistantState } from "../../context/react";
 
 export function useMessagePartRuntime(options?: {
   optional?: false | undefined;
@@ -14,7 +14,9 @@ export function useMessagePartRuntime(options?: {
   optional?: boolean | undefined;
 }) {
   const api = useAssistantApi();
-  const runtime = api.part.source ? api.part().__internal_getRuntime() : null;
+  const runtime = useAssistantState(() =>
+    api.part.source ? api.part().__internal_getRuntime() : null,
+  );
   if (!runtime && !options?.optional) {
     throw new Error("MessagePartRuntime is not available");
   }
