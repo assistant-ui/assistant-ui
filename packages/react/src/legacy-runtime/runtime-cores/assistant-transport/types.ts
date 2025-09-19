@@ -15,13 +15,20 @@ export type ImagePart = {
 
 export type UserMessagePart = TextPart | ImagePart;
 
+export type UserMessage = {
+  readonly role: "user";
+  readonly parts: readonly UserMessagePart[];
+};
+
+export type AssistantMessage = {
+  readonly role: "assistant";
+  readonly parts: readonly TextPart[];
+};
+
 // Command types
 export type AddMessageCommand = {
   readonly type: "add-message";
-  readonly message: {
-    readonly role: "user";
-    readonly parts: readonly UserMessagePart[];
-  };
+  readonly message: UserMessage | AssistantMessage;
 };
 
 export type AddToolResultCommand = {
