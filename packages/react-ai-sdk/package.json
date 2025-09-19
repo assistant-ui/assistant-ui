@@ -33,7 +33,7 @@
     "zustand": "^5.0.7"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.11.12",
+    "@assistant-ui/react": "^0.11.13",
     "@types/react": "*",
     "assistant-cloud": "*",
     "react": "^18 || ^19 || ^19.0.0-rc"

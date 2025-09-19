@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.11.13
+
+### Patch Changes
+
+- 3ce485f: feat: add cancel handling and extend message types
+
 ## 0.11.12
 
 ### Patch Changes

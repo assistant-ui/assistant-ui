@@ -1,5 +1,13 @@
 # @assistant-ui/react-langgraph
 
+## 0.6.9
+
+### Patch Changes
+
+- 3ce485f: feat: add cancel handling and extend message types
+- Updated dependencies [3ce485f]
+  - @assistant-ui/react@0.11.13
+
 ## 0.6.8
 
 ### Patch Changes
