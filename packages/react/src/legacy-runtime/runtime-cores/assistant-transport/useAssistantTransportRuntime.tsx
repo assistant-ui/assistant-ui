@@ -107,32 +107,31 @@ const useAssistantTransportThreadRuntime = <T,>(
       }
     },
     onFinish: options.onFinish,
-    onError: (error) => {
-      if (error instanceof Error && error.name === "AbortError") {
-        const cmds = [
-          ...commandQueue.state.inTransit,
-          ...commandQueue.state.queued,
-        ];
-        options.onCancel?.({
-          commands: cmds,
-          updateState: (updater) => {
-            agentStateRef.current = updater(agentStateRef.current);
-            rerender((prev) => prev + 1);
-          },
-        });
+    onCancel: () => {
+      const cmds = [
+        ...commandQueue.state.inTransit,
+        ...commandQueue.state.queued,
+      ];
+      options.onCancel?.({
+        commands: cmds,
+        updateState: (updater) => {
+          agentStateRef.current = updater(agentStateRef.current);
+          rerender((prev) => prev + 1);
+        },
+      });
 
-        commandQueue.reset();
-      } else {
-        const cmds = [...commandQueue.state.inTransit];
-        options.onError?.(error as Error, {
-          commands: cmds,
-          updateState: (updater) => {
-            agentStateRef.current = updater(agentStateRef.current);
-            rerender((prev) => prev + 1);
-          },
-        });
-        commandQueue.markDelivered();
-      }
+      commandQueue.reset();
+    },
+    onError: (error) => {
+      const cmds = [...commandQueue.state.inTransit];
+      options.onError?.(error as Error, {
+        commands: cmds,
+        updateState: (updater) => {
+          agentStateRef.current = updater(agentStateRef.current);
+          rerender((prev) => prev + 1);
+        },
+      });
+      commandQueue.markDelivered();
     },
   });
 

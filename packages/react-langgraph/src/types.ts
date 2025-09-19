@@ -84,11 +84,13 @@ export type LangChainMessage =
       id?: string;
       type: "system";
       content: string;
+      additional_kwargs?: Record<string, unknown>;
     }
   | {
       id?: string;
       type: "human";
       content: UserMessageContent;
+      additional_kwargs?: Record<string, unknown>;
     }
   | {
       id?: string;

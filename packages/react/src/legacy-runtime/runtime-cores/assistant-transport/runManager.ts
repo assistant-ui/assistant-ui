@@ -10,6 +10,7 @@ export type RunManager = Readonly<{
 export function useRunManager(config: {
   onRun: (signal: AbortSignal) => Promise<void>;
   onFinish?: (() => void) | undefined;
+  onCancel?: (() => void) | undefined;
   onError?: ((error: Error) => void) | undefined;
 }): RunManager {
   const [isRunning, setIsRunning] = useState(false);
@@ -19,6 +20,7 @@ export function useRunManager(config: {
   });
   const onRunRef = useLatestRef(config.onRun);
   const onFinishRef = useLatestRef(config.onFinish);
+  const onCancelRef = useLatestRef(config.onCancel);
   const onErrorRef = useLatestRef(config.onError);
 
   const startRun = useCallback(() => {
@@ -32,7 +34,11 @@ export function useRunManager(config: {
         await onRunRef.current(ac.signal);
       } catch (error) {
         stateRef.current.pending = false;
-        onErrorRef.current?.(error as Error);
+        if (ac.signal.aborted) {
+          onCancelRef.current?.();
+        } else {
+          onErrorRef.current?.(error as Error);
+        }
       } finally {
         onFinishRef.current?.();
         if (stateRef.current.pending) {
@@ -43,7 +49,7 @@ export function useRunManager(config: {
         }
       }
     });
-  }, [onRunRef, onFinishRef]);
+  }, [onRunRef, onFinishRef, onErrorRef, onCancelRef]);
 
   const schedule = useCallback(() => {
     if (stateRef.current.abortController) {

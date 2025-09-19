@@ -1,2 +1,5 @@
 export { useAssistantTransportRuntime } from "./useAssistantTransportRuntime";
-export type { AssistantTransportConnectionMetadata } from "./types";
+export type {
+  AssistantTransportConnectionMetadata,
+  AssistantTransportCommand,
+} from "./types";
