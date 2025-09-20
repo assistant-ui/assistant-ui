@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.2.28
+
+### Patch Changes
+
+- feat: throttle only on stream resume
+
 ## 0.2.27
 
 ### Patch Changes

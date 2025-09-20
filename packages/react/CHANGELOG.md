@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.11.14
+
+### Patch Changes
+
+- feat: throttle only on stream resume
+- Updated dependencies
+  - assistant-stream@0.2.28
+
 ## 0.11.13
 
 ### Patch Changes

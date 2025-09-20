@@ -373,16 +373,22 @@ export class AssistantMessageAccumulator extends TransformStream<
 > {
   constructor({
     initialMessage,
+    throttle,
   }: {
     initialMessage?: AssistantMessage;
+    throttle?: boolean;
   } = {}) {
     let message = initialMessage ?? createInitialMessage();
     let controller:
       | TransformStreamDefaultController<AssistantMessage>
       | undefined;
-    const emitChunk = throttleCallback(() => {
-      controller?.enqueue(message);
-    });
+    const emitChunk = throttle
+      ? throttleCallback(() => {
+          controller?.enqueue(message);
+        })
+      : () => {
+          controller?.enqueue(message);
+        };
     super({
       start(c) {
         controller = c;
