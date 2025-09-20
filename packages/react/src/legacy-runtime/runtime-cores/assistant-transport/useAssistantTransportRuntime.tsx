@@ -89,6 +89,7 @@ const useAssistantTransportThreadRuntime = <T,>(
               unstable_state:
                 (agentStateRef.current as ReadonlyJSONValue) ?? null,
             }),
+            throttle: isResume,
           }),
         );
 
