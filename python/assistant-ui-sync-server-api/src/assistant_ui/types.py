@@ -61,6 +61,34 @@ class ToolMessage(TypedDict):
 Message = Union[SystemMessage, UserMessage, AssistantMessage, ToolMessage]
 
 
+# Command types for AssistantTransportCommand
+class UserMessageCommand(TypedDict):
+    role: Literal["user"]
+    parts: List[Union[TextPart, ImagePart]]
+
+
+class AssistantMessageCommand(TypedDict):
+    role: Literal["assistant"]
+    parts: List[TextPart]
+
+
+class AddMessageCommand(TypedDict):
+    type: Literal["add-message"]
+    message: Union[UserMessageCommand, AssistantMessageCommand]
+
+
+class AddToolResultCommand(TypedDict):
+    type: Literal["add-tool-result"]
+    toolCallId: str
+    toolName: str
+    result: Any
+    isError: bool
+    artifact: Optional[Any]
+
+
+AssistantTransportCommand = Union[AddMessageCommand, AddToolResultCommand]
+
+
 class ToolParameters(TypedDict):
     type: Literal["object"]
     properties: Dict[str, Any]

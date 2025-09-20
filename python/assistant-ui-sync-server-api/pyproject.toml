@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "assistant-ui-sync-server-api"
-version = "0.1.0"
+version = "0.1.1"
 description = "Python client for Assistant UI sync server API"
 authors = [
   { name="Assistant UI Team", email="team@assistant-ui.com" },
@@ -21,7 +21,7 @@ classifiers = [
 ]
 dependencies = [
     "httpx>=0.24.0",
-    "typing-extensions>=4.0.0;python_version<'3.11'",
+    "typing-extensions>=4.0.0 ; python_full_version < '3.11'",
 ]
 
 [project.optional-dependencies]
@@ -40,3 +40,12 @@ Documentation = "https://docs.assistant-ui.com"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/assistant_ui"]
+
+[dependency-groups]
+dev = [
+    "black>=24.8.0",
+    "isort>=5.13.2",
+    "mypy>=1.14.1",
+    "pytest>=8.3.5",
+    "pytest-asyncio>=0.24.0",
+]

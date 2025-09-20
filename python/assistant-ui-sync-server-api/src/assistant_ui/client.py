@@ -1,6 +1,95 @@
 from typing import Dict, List, Any, Optional, Union, Callable, Awaitable
+import warnings
 import httpx
-from .types import Message, Tool
+from .types import (
+    Message,
+    Tool,
+    AssistantTransportCommand,
+    AddMessageCommand,
+    AddToolResultCommand
+)
+
+
+def _convert_messages_to_commands(messages: List[Message]) -> List[AssistantTransportCommand]:
+    """
+    Convert legacy messages format to commands format.
+
+    Args:
+        messages: List of messages in the legacy format
+
+    Returns:
+        List of commands in the new format
+    """
+    commands: List[AssistantTransportCommand] = []
+
+    for message in messages:
+        role = message.get("role")
+
+        if role == "system":
+            # System messages can't be directly converted to commands
+            # They should be passed via the system parameter instead
+            continue
+
+        elif role == "user":
+            content = message.get("content", [])
+            parts = []
+
+            for part in content:
+                part_type = part.get("type")
+                if part_type == "text":
+                    parts.append({"type": "text", "text": part.get("text", "")})
+                elif part_type == "image":
+                    parts.append({"type": "image", "image": part.get("image", "")})
+                # FilePart cannot be converted to command format
+
+            if parts:
+                command: AddMessageCommand = {
+                    "type": "add-message",
+                    "message": {
+                        "role": "user",
+                        "parts": parts
+                    }
+                }
+                commands.append(command)
+
+        elif role == "assistant":
+            content = message.get("content", [])
+            text_parts = []
+
+            for part in content:
+                part_type = part.get("type")
+                if part_type == "text":
+                    text_parts.append({"type": "text", "text": part.get("text", "")})
+                elif part_type == "tool-call":
+                    # Tool calls are handled separately, not in add-message
+                    continue
+
+            if text_parts:
+                command: AddMessageCommand = {
+                    "type": "add-message",
+                    "message": {
+                        "role": "assistant",
+                        "parts": text_parts
+                    }
+                }
+                commands.append(command)
+
+        elif role == "tool":
+            # Convert tool results to commands
+            content = message.get("content", [])
+            for part in content:
+                if part.get("type") == "tool-result":
+                    tool_command: AddToolResultCommand = {
+                        "type": "add-tool-result",
+                        "toolCallId": part.get("toolCallId", ""),
+                        "toolName": part.get("toolName", ""),
+                        "result": part.get("result"),
+                        "isError": part.get("isError", False),
+                        "artifact": None  # artifact not available in legacy format
+                    }
+                    commands.append(tool_command)
+
+    return commands
 
 
 class ThreadClient:
@@ -12,7 +101,8 @@ class ThreadClient:
     
     async def chat(
         self,
-        messages: List[Message],
+        messages: Optional[List[Message]] = None,
+        commands: Optional[List[AssistantTransportCommand]] = None,
         system: Optional[str] = None,
         tools: Optional[Dict[str, Tool]] = None,
         unstable_assistantMessageId: Optional[str] = None,
@@ -22,49 +112,74 @@ class ThreadClient:
     ) -> httpx.Response:
         """
         Send a chat request for this thread.
-        
+
         Args:
-            messages: List of messages in the conversation
+            messages: (Deprecated) List of messages in the conversation
+            commands: List of commands to execute
             system: System prompt
             tools: Dictionary of available tools
             unstable_assistantMessageId: Optional assistant message ID
             runConfig: Optional run configuration
             state: Optional state data
             **kwargs: Additional parameters to include in the request body
-            
+
         Returns:
             httpx.Response object containing the backend response
         """
         # Build request payload
         payload = {
             "threadId": self._thread_id,
-            "messages": messages,
         }
-        
+
+        # Handle commands and messages
+        if messages is not None:
+            warnings.warn(
+                "The 'messages' parameter is deprecated and will be removed in a future version. "
+                "Use 'commands' parameter instead.",
+                DeprecationWarning,
+                stacklevel=2
+            )
+
+            # Convert messages to commands
+            converted_commands = _convert_messages_to_commands(messages)
+
+            # If both messages and commands provided, merge them
+            if commands is not None:
+                commands = commands + converted_commands
+            else:
+                commands = converted_commands
+
+            # Still send messages for backward compatibility
+            payload["messages"] = messages
+
+        if commands is not None:
+            payload["commands"] = commands
+
         if system is not None:
             payload["system"] = system
-        
+
         if tools is not None:
             payload["tools"] = tools
-        
+
         if unstable_assistantMessageId is not None:
             payload["unstable_assistantMessageId"] = unstable_assistantMessageId
-        
+
         if runConfig is not None:
             payload["runConfig"] = runConfig
-        
+
         if state is not None:
             payload["state"] = state
-        
+
         # Add any additional kwargs
         payload.update(kwargs)
-        
+
         # Make the request
         return await self._client._make_request("POST", "/api/chat", json=payload)
     
     def chat_sync(
         self,
-        messages: List[Message],
+        messages: Optional[List[Message]] = None,
+        commands: Optional[List[AssistantTransportCommand]] = None,
         system: Optional[str] = None,
         tools: Optional[Dict[str, Tool]] = None,
         unstable_assistantMessageId: Optional[str] = None,
@@ -74,43 +189,67 @@ class ThreadClient:
     ) -> httpx.Response:
         """
         Synchronous version of chat method.
-        
+
         Args:
-            messages: List of messages in the conversation
+            messages: (Deprecated) List of messages in the conversation
+            commands: List of commands to execute
             system: System prompt
             tools: Dictionary of available tools
             unstable_assistantMessageId: Optional assistant message ID
             runConfig: Optional run configuration
             state: Optional state data
             **kwargs: Additional parameters to include in the request body
-            
+
         Returns:
             httpx.Response object containing the backend response
         """
         # Build request payload
         payload = {
             "threadId": self._thread_id,
-            "messages": messages,
         }
-        
+
+        # Handle commands and messages
+        if messages is not None:
+            warnings.warn(
+                "The 'messages' parameter is deprecated and will be removed in a future version. "
+                "Use 'commands' parameter instead.",
+                DeprecationWarning,
+                stacklevel=2
+            )
+
+            # Convert messages to commands
+            converted_commands = _convert_messages_to_commands(messages)
+
+            # If both messages and commands provided, merge them
+            if commands is not None:
+                commands = commands + converted_commands
+            else:
+                commands = converted_commands
+
+            # Still send messages for backward compatibility
+            payload["messages"] = messages
+
+        if commands is not None:
+            payload["commands"] = commands
+
         if system is not None:
             payload["system"] = system
-        
+
         if tools is not None:
             payload["tools"] = tools
-        
+
         if unstable_assistantMessageId is not None:
             payload["unstable_assistantMessageId"] = unstable_assistantMessageId
-        
+
         if runConfig is not None:
             payload["runConfig"] = runConfig
-        
+
         if state is not None:
             payload["state"] = state
-        
+
         # Add any additional kwargs
         payload.update(kwargs)
-        
+
         # Make the request
         return self._client._make_request_sync("POST", "/api/chat", json=payload)
     
