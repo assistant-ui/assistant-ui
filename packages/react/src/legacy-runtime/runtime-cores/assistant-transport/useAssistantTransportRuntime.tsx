@@ -81,6 +81,7 @@ const useAssistantTransportThreadRuntime = <T,>(
         throw new Error("Response body is null");
       }
 
+      let err: string | undefined;
       const stream = response.body
         .pipeThrough(new DataStreamDecoder())
         .pipeThrough(
@@ -90,6 +91,9 @@ const useAssistantTransportThreadRuntime = <T,>(
                 (agentStateRef.current as ReadonlyJSONValue) ?? null,
             }),
             throttle: isResume,
+            onError: (error) => {
+              err = error;
+            },
           }),
         );
 
@@ -105,6 +109,10 @@ const useAssistantTransportThreadRuntime = <T,>(
 
         agentStateRef.current = chunk.metadata.unstable_state as T;
         rerender((prev) => prev + 1);
+      }
+
+      if (err) {
+        throw new Error(err);
       }
     },
     onFinish: options.onFinish,
