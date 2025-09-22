@@ -374,9 +374,11 @@ export class AssistantMessageAccumulator extends TransformStream<
   constructor({
     initialMessage,
     throttle,
+    onError,
   }: {
     initialMessage?: AssistantMessage;
     throttle?: boolean;
+    onError?: (error: string) => void;
   } = {}) {
     let message = initialMessage ?? createInitialMessage();
     let controller:
@@ -431,6 +433,7 @@ export class AssistantMessageAccumulator extends TransformStream<
             break;
           case "error":
             message = handleErrorChunk(message, chunk);
+            onError?.(chunk.error);
             break;
           case "update-state":
             message = handleUpdateState(message, chunk);
