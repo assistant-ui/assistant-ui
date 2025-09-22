@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.11.15
+
+### Patch Changes
+
+- d19ebab: feat(assistant-transport): surface stream errors to caller
+- Updated dependencies [d19ebab]
+  - assistant-stream@0.2.29
+
 ## 0.11.14
 
 ### Patch Changes

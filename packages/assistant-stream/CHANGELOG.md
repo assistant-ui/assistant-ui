@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.2.29
+
+### Patch Changes
+
+- d19ebab: feat(assistant-transport): surface stream errors to caller
+
 ## 0.2.28
 
 ### Patch Changes
