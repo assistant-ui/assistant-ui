@@ -33,9 +33,9 @@ def append_langgraph_event(
         if "id" in message_dict:
             for i, existing_message in enumerate(state["messages"]):
                 if existing_message.get("id") == message_dict["id"] or \
-                   "tool_call_id" in existing_message and \
-                    "tool_call_id" in message_dict and \
-                   existing_message["tool_call_id"] == message_dict["tool_call_id"]:
+                  "tool_call_id" in existing_message and \
+                  "tool_call_id" in message_dict and \
+                  existing_message["tool_call_id"] == message_dict["tool_call_id"]:
                     existing_message_index = i
                     break
 
@@ -72,10 +72,12 @@ def append_langgraph_event(
 
 def get_tool_call_subgraph_state(
     controller: RunController,
-    subgraph_node: Union[str, List[str], Callable[[List[str]], bool]],
     namespace: Tuple[str, ...],
+    subgraph_node: Union[str, List[str], Callable[[List[str]], bool]],
+    default_state: Dict[str, Any],
+    *,
     artifact_field_name: Optional[str] = None,
-    default_state: Dict[str, Any] = {}
+    tool_name: Union[str, List[str]] | None = None,
 ) -> Dict[str, Any]:
     """
     Get the state for a tool call subgraph by traversing the namespace and checking for subgraph nodes.
@@ -103,6 +105,13 @@ def get_tool_call_subgraph_state(
             return subgraph_node([node_name])
         return False
 
+    def is_subgraph_tool(tool: str) -> bool:
+        if isinstance(tool_name, str):
+            return tool == tool_name
+        elif isinstance(tool_name, list):
+            return tool in tool_name
+        return False
+
     # Start with the controller's state
     if controller.state is None:
         controller.state = default_state
@@ -112,11 +121,9 @@ def get_tool_call_subgraph_state(
     for namespace_part in namespace:
         # Split the namespace part to get node_name
         node_name = namespace_part.split(':')[0]
-        print(node_name)
 
         # Check if this node is a subgraph node
         if is_subgraph_node(node_name):
-            print("Subgraph node found")
             # Check for messages in the current state
             if "messages" not in current_state:
                 return current_state
@@ -127,11 +134,9 @@ def get_tool_call_subgraph_state(
 
             # Get the last message
             last_message = messages[-1]
-            print("Last message found", last_message["type"])
 
             # Check if it's an AI message
             if last_message["type"] == "ai":
-                print("AI message found")
                 # Check if the AI message has tool calls
                 tool_calls = last_message.get("tool_calls", [])
                 if not tool_calls:
@@ -140,10 +145,14 @@ def get_tool_call_subgraph_state(
 
                 # Get the last tool call
                 last_tool_call = tool_calls[-1]
+                if not is_subgraph_tool(last_tool_call["name"]):
+                    return current_state
+
 
                 # Create a new tool message for this tool call
                 tool_message = ToolMessage(
-                    tool_call_id=last_tool_call.get("id", ""),
+                    tool_call_id=last_tool_call["id"],
+                    name=last_tool_call["name"],
                     artifact={} if artifact_field_name else default_state,
                     content="",
                     additional_kwargs={
@@ -156,7 +165,6 @@ def get_tool_call_subgraph_state(
 
             # Check if last message is already a ToolMessage
             if last_message["type"] == "tool":
-                print("tool message found 2")
                 # Last message is already a ToolMessage, extract and return artifact field
                 if "artifact" not in last_message:
                     last_message["artifact"] = {} if artifact_field_name else default_state
