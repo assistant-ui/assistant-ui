@@ -64,11 +64,11 @@ class StateProxy:
         # Get value at path
         value = self._manager.get_value_at_path(self._path + [str_key])
 
-        # Return primitives directly (except strings)
-        if value is None or isinstance(value, (int, float, bool)):
+        # Return primitives directly (including strings)
+        if value is None or isinstance(value, (int, float, bool, str)):
             return value
 
-        # Return proxy for collections and strings
+        # Return proxy only for collections
         return StateProxy(self._manager, self._path + [str_key])
 
     def __setitem__(self, key: Union[str, int], value: Any) -> None:
@@ -163,6 +163,33 @@ class StateProxy:
     def __contains__(self, item: Any) -> bool:
         """Check if item is in the value."""
         return item in self._manager.get_value_at_path(self._path)
+
+    def __eq__(self, other: Any) -> bool:
+        """Compare equality with another value."""
+        return self._manager.get_value_at_path(self._path) == other
+
+    def __ne__(self, other: Any) -> bool:
+        """Compare inequality with another value."""
+        return self._manager.get_value_at_path(self._path) != other
+
+    def __hash__(self) -> int:
+        """Hash the underlying value if hashable."""
+        value = self._manager.get_value_at_path(self._path)
+        if isinstance(value, (str, int, float, bool, tuple)):
+            return hash(value)
+        raise TypeError(f"unhashable type: '{type(value).__name__}'")
+
+    def __bool__(self) -> bool:
+        """Truth value of the underlying value."""
+        return bool(self._manager.get_value_at_path(self._path))
+
+    def __int__(self) -> int:
+        """Convert to int if possible."""
+        return int(self._manager.get_value_at_path(self._path))
+
+    def __float__(self) -> float:
+        """Convert to float if possible."""
+        return float(self._manager.get_value_at_path(self._path))
 
     def __add__(self, other: Any) -> Any:
         """Add operation for strings and lists."""
