@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.11.16
+
+### Patch Changes
+
+- cc9945b: feat: MessageProvider API
+
 ## 0.11.15
 
 ### Patch Changes
