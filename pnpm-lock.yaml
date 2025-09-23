@@ -115,11 +115,20 @@ importers:
       '@assistant-ui/react-ai-sdk':
         specifier: workspace:*
         version: link:../../packages/react-ai-sdk
+      '@assistant-ui/react-langgraph':
+        specifier: workspace:*
+        version: link:../../packages/react-langgraph
       '@assistant-ui/react-markdown':
         specifier: workspace:*
         version: link:../../packages/react-markdown
+      '@langchain/langgraph-sdk':
+        specifier: ^0.0.23
+        version: 0.0.23
+      '@radix-ui/react-avatar':
+        specifier: ^1.1.10
+        version: 1.1.10(@types/react-dom@19.1.9(@types/react@19.1.12))(@types/react@19.1.12)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       '@radix-ui/react-dialog':
-        specifier: ^1.1.14
+        specifier: ^1.1.15
         version: 1.1.15(@types/react-dom@19.1.9(@types/react@19.1.12))(@types/react@19.1.12)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       '@radix-ui/react-separator':
         specifier: ^1.1.7
@@ -3144,6 +3153,9 @@ packages:
         optional: true
       react-dom:
         optional: true
+
+  '@langchain/langgraph-sdk@0.0.23':
+    resolution: {integrity: sha512-4LfwMN1PdawJ9I3dXxQHUb1NoJaZo5SklQbAamrS6fLrUU9fSoYkPu1mYQp3uJjKtXRYOnuoP0egYyQPoKuiXQ==}
 
   '@manypkg/find-root@1.1.0':
     resolution: {integrity: sha512-mki5uBvhHzO8kYYix/WRy2WX8S3B5wdVSc9D6KcU5lQNglP2yt58/VfLuAK49glRXChosY8ap2oJ1qgma3GUVA==}
@@ -9797,6 +9809,13 @@ snapshots:
       '@langchain/core': 0.3.74(@opentelemetry/api@1.9.0)(openai@5.19.1(ws@8.18.3)(zod@4.1.5))
       react: 19.1.1
       react-dom: 19.1.1(react@19.1.1)
+
+  '@langchain/langgraph-sdk@0.0.23':
+    dependencies:
+      '@types/json-schema': 7.0.15
+      p-queue: 6.6.2
+      p-retry: 4.6.2
+      uuid: 9.0.1
 
   '@manypkg/find-root@1.1.0':
     dependencies:

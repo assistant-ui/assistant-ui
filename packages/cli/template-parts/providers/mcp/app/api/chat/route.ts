@@ -6,26 +6,43 @@ import {
   experimental_createMCPClient as createMCPClient,
 } from "ai";
 
-// Create MCP client to connect to your MCP server
-const mcpClient = await createMCPClient({
-  // TODO: Adjust this to point to your MCP server URL
-  transport: {
-    type: "sse",
-    url: "http://localhost:8000/sse",
-  },
-});
+let mcpClient: any;
+let mcpTools: any;
 
-// Get available tools from the MCP server
-const mcpTools = await mcpClient.tools();
+// Initialize MCP client lazily
+async function initMCP() {
+  if (!mcpClient) {
+    try {
+      // Create MCP client to connect to your MCP server
+      mcpClient = await createMCPClient({
+        // TODO: Adjust this to point to your MCP server URL
+        transport: {
+          type: "sse",
+          url: process.env.MCP_SERVER_URL || "http://localhost:8000/sse",
+        },
+      });
+      
+      // Get available tools from the MCP server
+      mcpTools = await mcpClient.tools();
+    } catch (error) {
+      console.error("Failed to connect to MCP server:", error);
+      mcpTools = {}; // Fallback to empty tools
+    }
+  }
+  return mcpTools;
+}
 
 export async function POST(req: Request) {
   const { messages }: { messages: UIMessage[] } = await req.json();
+
+  // Initialize MCP connection on first request
+  const tools = await initMCP();
 
   const result = streamText({
     model: openai("gpt-4o"),
     messages: convertToModelMessages(messages),
     // Include MCP tools in the available tools
-    tools: mcpTools,
+    tools,
   });
 
   return result.toUIMessageStreamResponse();

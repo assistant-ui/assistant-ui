@@ -20,7 +20,13 @@
     ],
     "paths": {
       "@/*": ["./*"],
-      "@assistant-ui/styles/*": ["../../packages/styles/src/styles/*"]
+      "@assistant-ui/styles/*": ["../../packages/styles/src/styles/*"],
+      "@registry/*": ["../registry/*"],
+      "@/components/assistant-ui/*": ["../registry/components/assistant-ui/*"],
+      "@/components/ui/*": ["./components/ui/*"],
+      "@/lib/*": ["./lib/*"],
+      "@/hooks/*": ["./hooks/*"],
+      "@template-parts/*": ["../../packages/cli/template-parts/*"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],

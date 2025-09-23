@@ -115,7 +115,6 @@ function executeCommand(command: string, args: string[]): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       stdio: "inherit",
-      shell: true,
     });
 
     child.on("error", reject);
@@ -156,6 +155,8 @@ export async function createProject(
 
   createNextArgs.push("--typescript");
   createNextArgs.push("--tailwind");
+  createNextArgs.push("--eslint");
+  createNextArgs.push("--turbopack");
   createNextArgs.push("--app");
   createNextArgs.push("--no-src-dir");
   createNextArgs.push("--import-alias", "@/*");
