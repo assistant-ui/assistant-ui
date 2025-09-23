@@ -6,8 +6,8 @@ const nextConfig = {
   async rewrites() {
     return [
       {
-        source: '/assistant/:path*',
-        destination: 'http://localhost:8000/assistant/:path*',
+        source: "/assistant/:path*",
+        destination: "http://localhost:8000/assistant/:path*",
       },
     ];
   },
