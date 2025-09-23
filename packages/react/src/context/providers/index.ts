@@ -3,10 +3,11 @@ export {
   ThreadListItemByIndexProvider,
   ThreadListItemByIdProvider,
 } from "./ThreadListItemProvider";
-export { MessageByIndexProvider } from "./MessageProvider";
-export { PartByIndexProvider } from "./PartProvider";
+export { MessageByIndexProvider } from "./MessageByIndexProvider";
+export { PartByIndexProvider } from "./PartByIndexProvider";
 export {
   MessageAttachmentByIndexProvider,
   ComposerAttachmentByIndexProvider,
-} from "./AttachmentProvider";
+} from "./AttachmentByIndexProvider";
 export { TextMessagePartProvider } from "./TextMessagePartProvider";
+export { MessageProvider } from "./MessageProvider";

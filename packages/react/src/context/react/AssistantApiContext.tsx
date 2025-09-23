@@ -86,10 +86,15 @@ type ComposerMeta = {
   query: Record<string, never>;
 };
 
-type MessageMeta = {
-  source: "thread";
-  query: { type: "index"; index: number };
-};
+type MessageMeta =
+  | {
+      source: "thread";
+      query: { type: "index"; index: number };
+    }
+  | {
+      source: "root";
+      query: Record<string, never>;
+    };
 
 type PartMeta = {
   source: "message" | "root";

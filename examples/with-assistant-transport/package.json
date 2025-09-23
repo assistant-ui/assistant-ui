@@ -5,6 +5,7 @@
   "type": "module",
   "dependencies": {
     "@assistant-ui/react": "workspace:^",
+    "@assistant-ui/react-langgraph": "workspace:^",
     "@assistant-ui/react-markdown": "workspace:^",
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-tooltip": "^1.2.8",

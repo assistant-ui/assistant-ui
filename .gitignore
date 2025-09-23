@@ -43,3 +43,5 @@ packages/*/generated
 
 # python
 __pycache__
+
+.langgraph_api
