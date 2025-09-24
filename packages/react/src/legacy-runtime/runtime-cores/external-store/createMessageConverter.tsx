@@ -28,8 +28,8 @@ export const createMessageConverter = <T extends object>(
         joinStrategy,
       });
     },
-    toThreadMessages: (messages: T[]) => {
-      return convertExternalMessages(messages, callback, false); // TODO figure out isRunning
+    toThreadMessages: (messages: T[], isRunning = false) => {
+      return convertExternalMessages(messages, callback, isRunning);
     },
     toOriginalMessages: (
       input: ThreadState | ThreadMessage | ThreadMessage["content"][number],
