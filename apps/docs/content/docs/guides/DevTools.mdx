@@ -1,0 +1,230 @@
+---
+title: DevTools
+---
+
+DevTools provides a powerful debugging interface for assistant-ui applications through a floating modal that gives you real-time insights into your assistant's state, events, and behavior.
+
+## Overview
+
+The assistant-ui DevTools is a development-only feature that helps you debug and understand your assistant applications. It provides:
+
+- **Real-time state inspection** - View the current state of threads, messages, and components
+- **Event monitoring** - Track all assistant events as they happen
+- **Model context viewing** - Inspect the context being sent to your AI model
+- **Interactive debugging** - Clear event logs and explore API state
+
+The DevTools uses a modal approach with a floating button that opens a comprehensive debugging interface in an iframe, ensuring it doesn't interfere with your application's styling or functionality.
+
+## Quick Start
+
+Add the DevTools to your application by enabling the `devToolsVisible` prop on your `AssistantProvider`:
+
+```tsx
+import { AssistantProvider } from "@assistant-ui/react";
+
+function App() {
+  return (
+    <AssistantProvider api={api} devToolsVisible={true}>
+      <Thread />
+    </AssistantProvider>
+  );
+}
+```
+
+The DevTools will automatically appear as a floating button in the bottom-right corner of your application during development.
+
+## Modal Interface
+
+### Floating Button
+
+The DevTools appears as a floating chat bubble button positioned in the bottom-right corner of your screen. The button:
+
+- Only appears in development environments (`process.env.NODE_ENV !== "production"`)
+- Features smooth hover animations and visual feedback
+- Automatically adapts to your application's dark/light mode
+- Uses a high z-index to ensure it's always accessible
+
+### Modal Window
+
+Clicking the floating button opens a modal window that contains:
+
+- **Backdrop with blur effect** - Focuses attention on the DevTools interface
+- **Responsive sizing** - Adapts to different screen sizes (max 960px width, 720px height)
+- **Keyboard shortcuts** - Press `Escape` to close the modal
+- **Smooth animations** - Polished slide-in and fade effects
+
+The modal contains an iframe that loads the DevTools interface from `devtools-frame.assistant-ui.com`, providing a complete debugging environment without affecting your application's bundle size.
+
+## Key Features
+
+### State Inspection
+
+View the real-time state of all assistant-ui components:
+
+```tsx
+// The DevTools will show the state of:
+const api = useAssistantApi();
+const threadState = api.thread().getState();
+const composerState = api.composer().getState();
+const messageState = api.message().getState();
+```
+
+### Event Monitoring
+
+Track all events flowing through your assistant:
+
+- Thread events (run start, run complete, etc.)
+- Message events (creation, updates, streaming)
+- User interactions (input, attachments, tool calls)
+- Error events and debugging information
+
+### Model Context Viewing
+
+Inspect exactly what context is being sent to your AI model:
+
+- Current conversation history
+- System prompts and instructions
+- Tool definitions and schemas
+- Model configuration and parameters
+
+### Development Integration
+
+The DevTools automatically integrates with your development workflow:
+
+```tsx
+// DevTools hooks into your AssistantProvider
+<AssistantProvider 
+  api={api} 
+  devToolsVisible={true} // Enable DevTools (default: true)
+>
+  <YourApp />
+</AssistantProvider>
+```
+
+## Configuration
+
+### Enabling/Disabling DevTools
+
+Control DevTools visibility with the `devToolsVisible` prop:
+
+```tsx
+// Enable DevTools (default behavior)
+<AssistantProvider api={api} devToolsVisible={true}>
+  <Thread />
+</AssistantProvider>
+
+// Disable DevTools
+<AssistantProvider api={api} devToolsVisible={false}>
+  <Thread />
+</AssistantProvider>
+
+// Conditional enabling based on environment
+<AssistantProvider 
+  api={api} 
+  devToolsVisible={process.env.NODE_ENV === "development"}
+>
+  <Thread />
+</AssistantProvider>
+```
+
+### Production Safety
+
+The DevTools component includes built-in production safety:
+
+```tsx
+// The DevTools component automatically returns null in production
+if (process.env.NODE_ENV === "production") {
+  return null; // DevTools won't render
+}
+```
+
+This ensures that DevTools code is eliminated from production bundles through dead code elimination, keeping your production builds clean and optimized.
+
+## Advanced Usage
+
+### Multiple Assistant Instances
+
+If your application uses multiple `AssistantProvider` instances, the DevTools will track all of them:
+
+```tsx
+function App() {
+  return (
+    <>
+      <AssistantProvider api={chatApi} devToolsVisible={true}>
+        <ChatInterface />
+      </AssistantProvider>
+      
+      <AssistantProvider api={supportApi} devToolsVisible={true}>
+        <SupportInterface />
+      </AssistantProvider>
+    </>
+  );
+}
+```
+
+The DevTools interface will show a list of all active assistant instances and allow you to switch between them for debugging.
+
+### Custom Frame URL
+
+For development or testing purposes, you can use a local DevTools frame:
+
+```tsx
+import { DevToolsFrame } from "@assistant-ui/devtools";
+
+// Use local development frame
+<DevToolsFrame frameUrl="http://localhost:3010" />
+```
+
+## Best Practices
+
+### Development Workflow
+
+1. **Enable DevTools early** - Add DevTools to your application from the start of development
+2. **Monitor events** - Use the event log to understand the flow of your assistant interactions
+3. **Inspect state changes** - Watch how state updates in response to user actions
+4. **Debug model context** - Verify that the right information is being sent to your AI model
+
+### Performance Considerations
+
+- DevTools only runs in development, so there's no production performance impact
+- Event logging is automatically limited to prevent memory issues
+- The iframe approach keeps DevTools code separate from your main application bundle
+
+### Security Notes
+
+- DevTools should never be enabled in production environments
+- The `devToolsVisible` prop defaults to `true` but the component itself checks `NODE_ENV`
+- Always verify that DevTools is disabled in your production builds
+
+## Troubleshooting
+
+### DevTools Not Appearing
+
+If the DevTools floating button doesn't appear:
+
+1. **Check environment** - Ensure you're in development mode (`NODE_ENV !== "production"`)
+2. **Verify prop** - Make sure `devToolsVisible` is not explicitly set to `false`
+3. **Check console** - Look for any JavaScript errors that might prevent rendering
+4. **Z-index conflicts** - The DevTools uses a very high z-index (2147483647) but check for conflicts
+
+### Modal Not Opening
+
+If the floating button appears but the modal doesn't open:
+
+1. **Check network** - Ensure you can reach `devtools-frame.assistant-ui.com`
+2. **Browser console** - Look for iframe loading errors
+3. **Content security policy** - Verify your CSP allows iframe loading from the DevTools domain
+
+### Missing Data
+
+If the DevTools opens but shows no data:
+
+1. **Verify integration** - Ensure your `AssistantProvider` has a valid `api` prop
+2. **Check subscriptions** - The DevTools relies on the assistant's event system
+3. **API compatibility** - Ensure you're using a compatible version of assistant-ui
+
+## Related
+
+- [Tools Guide](/docs/guides/Tools) - Learn about implementing tools that you can debug with DevTools
+- [Context API](/docs/guides/context-api) - Understand the API that DevTools inspects
+- [AssistantProvider](/docs/reference/AssistantProvider) - Configure the provider that enables DevTools

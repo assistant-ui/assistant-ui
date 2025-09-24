@@ -64,7 +64,7 @@ export async function POST(req: Request) {
 
 ### Define a `MyRuntimeProvider` component
 
-```tsx twoslash include MyRuntimeProvider title="@/app/MyRuntimeProvider.tsx"
+```tsx include MyRuntimeProvider title="@/app/MyRuntimeProvider.tsx"
 // @filename: /app/MyRuntimeProvider.tsx
 // ---cut---
 "use client";
@@ -98,7 +98,7 @@ export function MyRuntimeProvider({
 
 ### Wrap your app in `MyRuntimeProvider`
 
-```tsx twoslash title="@/app/layout.tsx"
+```tsx title="@/app/layout.tsx"
 // @include: MyRuntimeProvider
 // @filename: /app/layout.tsx
 // ---cut---

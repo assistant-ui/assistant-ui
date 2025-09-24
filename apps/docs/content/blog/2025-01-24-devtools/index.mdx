@@ -1,0 +1,152 @@
+---
+title: Introducing DevTools for assistant-ui
+description: Debug your AI chat applications with a powerful new development interface featuring real-time state inspection, event monitoring, and model context viewing.
+author: Simon Farshid
+date: 2025-01-24T12:00:00
+---
+
+Building AI chat applications comes with unique debugging challenges. Unlike traditional web applications, AI assistants involve complex state management, real-time streaming, tool executions, and dynamic model interactions. Understanding what's happening under the hood has been a pain point for developers using assistant-ui.
+
+Today, we're excited to introduce **DevTools for assistant-ui** - a comprehensive debugging interface that gives you unprecedented visibility into your assistant applications.
+
+## The Challenge of Debugging AI Chat Apps
+
+When building with assistant-ui, developers often face questions like:
+
+- "Why isn't my tool being called?"
+- "What context is being sent to the AI model?"
+- "How is the conversation state changing over time?"
+- "Are my events firing correctly?"
+
+Traditional browser DevTools aren't designed for the unique patterns of AI applications. You need specialized tooling that understands assistant state, model interactions, and the event-driven nature of conversational AI.
+
+## Introducing assistant-ui DevTools
+
+Our new DevTools provides a floating modal interface that gives you real-time insights into your assistant applications. Here's what makes it special:
+
+### 🎯 **Modal-First Design**
+
+The DevTools uses a clean modal approach that doesn't interfere with your application:
+
+- **Floating button** in the bottom-right corner for easy access
+- **Polished modal** with smooth animations and responsive design
+- **Iframe-based interface** that keeps DevTools code separate from your app
+- **Dark/light mode support** that adapts to your application's theme
+
+### 📊 **Real-Time State Inspection**
+
+See exactly what's happening in your assistant at any moment:
+
+```tsx
+// DevTools shows the live state of all these components
+const threadState = api.thread().getState();
+const composerState = api.composer().getState();
+const messageState = api.message().getState();
+```
+
+### 📈 **Event Monitoring**
+
+Track every event flowing through your assistant:
+
+- Thread lifecycle events (run start, completion, errors)
+- Message creation and updates
+- Tool calls and executions
+- User interactions and input changes
+
+### 🔍 **Model Context Viewing**
+
+Inspect exactly what context is being sent to your AI model:
+
+- Complete conversation history
+- System prompts and instructions
+- Tool definitions and schemas
+- Model configuration parameters
+
+## Getting Started
+
+Adding DevTools to your application is incredibly simple:
+
+```tsx
+import { AssistantProvider } from "@assistant-ui/react";
+
+function App() {
+  return (
+    <AssistantProvider api={api} devToolsVisible={true}>
+      <Thread />
+    </AssistantProvider>
+  );
+}
+```
+
+That's it! The DevTools will automatically appear as a floating button during development. The interface is hosted at `devtools-frame.assistant-ui.com`, so there's no impact on your bundle size.
+
+## Production Safety Built-In
+
+We've designed DevTools with production safety as a core principle:
+
+- **Automatic detection** - Only appears when `NODE_ENV !== "production"`
+- **Dead code elimination** - Production builds automatically exclude DevTools code
+- **Zero performance impact** - No overhead in production environments
+
+## The Technical Architecture
+
+The modal approach we chose offers several advantages:
+
+### **Iframe Isolation**
+The DevTools interface runs in an iframe, which means:
+- No CSS conflicts with your application
+- Separate JavaScript context for debugging tools
+- Easy updates to the DevTools interface without requiring package updates
+
+### **Event-Driven Communication**
+DevTools hooks into assistant-ui's event system using a global hook pattern:
+- Real-time updates as your assistant state changes
+- Efficient subscription model that only sends relevant data
+- Automatic cleanup when components unmount
+
+### **Minimal Integration Surface**
+Just one prop on `AssistantProvider` gives you full debugging capabilities:
+- No complex setup or configuration
+- Works with any assistant-ui runtime (Vercel AI SDK, LangGraph, etc.)
+- Compatible with existing applications
+
+## Real-World Impact
+
+Early adopters are already seeing the benefits:
+
+> "DevTools has completely changed how we debug our assistant applications. Being able to see the model context in real-time helped us identify why our tools weren't being called correctly." - *Beta tester*
+
+> "The event monitoring is incredible. We can now trace exactly how user interactions flow through our assistant and identify performance bottlenecks." - *Community member*
+
+## What's Next
+
+This is just the beginning for assistant-ui DevTools. We're already working on:
+
+- **Performance profiling** - Identify bottlenecks in your assistant flows
+- **Tool execution tracing** - Deep dive into tool calls and their results
+- **Model comparison** - A/B test different models and configurations
+- **Export capabilities** - Save debugging sessions for later analysis
+
+## Try It Today
+
+DevTools is available now in the latest version of assistant-ui. To get started:
+
+1. Update to the latest version: `npm install @assistant-ui/react@latest`
+2. Add `devToolsVisible={true}` to your `AssistantProvider`
+3. Start debugging with unprecedented visibility into your assistant
+
+The floating button will appear in the bottom-right corner of your development environment. Click it to open the DevTools modal and start exploring your assistant's internals.
+
+## Join the Community
+
+We're excited to see how the community uses DevTools to build better AI applications. If you have feedback, feature requests, or want to share your debugging discoveries:
+
+- Join our [Discord community](https://discord.gg/S9dwgCNEFs)
+- Follow development on [GitHub](https://github.com/assistant-ui/assistant-ui)
+- Share your experiences on [Twitter](https://twitter.com/assistant_ui)
+
+Happy debugging! 🚀
+
+---
+
+*DevTools is part of our ongoing commitment to providing the best developer experience for building AI chat applications. Stay tuned for more exciting features coming to assistant-ui.*

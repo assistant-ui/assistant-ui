@@ -58,7 +58,7 @@ npm install @assistant-ui/react @assistant-ui/react-ui @assistant-ui/react-langg
   subset of endpoints that you need and perform authorization checks.
 </Callout>
 
-```tsx twoslash title="@/api/api/[...path]/route.ts"
+```tsx title="@/api/api/[...path]/route.ts"
 import { NextRequest, NextResponse } from "next/server";
 
 
@@ -132,7 +132,7 @@ export const OPTIONS = () => {
 
 ### Setup helper functions
 
-```tsx twoslash include chatApi title="@/lib/chatApi.ts"
+```tsx include chatApi title="@/lib/chatApi.ts"
 // @filename: /lib/chatApi.ts
 
 // ---cut---
@@ -181,7 +181,7 @@ export const sendMessage = async (params: {
 
 ### Define a `MyAssistant` component
 
-```tsx twoslash include MyAssistant title="@/components/MyAssistant.tsx"
+```tsx include MyAssistant title="@/components/MyAssistant.tsx"
 // @filename: /components/MyAssistant.tsx
 // @include: chatApi
 
@@ -237,7 +237,7 @@ export function MyAssistant() {
 
 ### Use the `MyAssistant` component
 
-```tsx twoslash title="@/app/page.tsx" {2,8}
+```tsx title="@/app/page.tsx" {2,8}
 // @include: MyAssistant
 // @filename: /app/page.tsx
 // ---cut---
