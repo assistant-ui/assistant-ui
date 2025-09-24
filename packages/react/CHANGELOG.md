@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.11.18
+
+### Patch Changes
+
+- 057cdc7: fix: notify when suggestions change
+
 ## 0.11.17
 
 ### Patch Changes
