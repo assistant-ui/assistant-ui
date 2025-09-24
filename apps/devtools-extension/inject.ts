@@ -1,7 +1,7 @@
 // Inject script - runs in page context
 // This script creates an ExtensionHost instance to bridge DevTools with the page
 
-import { ExtensionHost } from "../src/ExtensionHost";
+import { ExtensionHost } from "@assistant-ui/react-devtools";
 
 (function () {
   let extensionHost: ExtensionHost | undefined;

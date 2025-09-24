@@ -17,16 +17,17 @@ const defineEnv = {
 };
 
 const buildExtension = async () => {
+  const rootDir = process.cwd();
+  const distDir = path.join(rootDir, "dist");
+  const resolve = (...segments: string[]) => path.join(rootDir, ...segments);
+
   // Clean extension dist directory
-  await fs.rm("extension/dist", { recursive: true, force: true });
-  await fs.mkdir("extension/dist", { recursive: true });
+  await fs.rm(distDir, { recursive: true, force: true });
+  await fs.mkdir(distDir, { recursive: true });
 
   // Copy manifest
   try {
-    await fs.copyFile(
-      "extension/manifest.json",
-      "extension/dist/manifest.json",
-    );
+    await fs.copyFile(resolve("manifest.json"), path.join(distDir, "manifest.json"));
   } catch {
     console.warn("No manifest.json found, skipping copy");
   }
@@ -34,11 +35,11 @@ const buildExtension = async () => {
   // Build content script
   try {
     await build({
-      entryPoints: ["extension/content.ts"],
+      entryPoints: [resolve("content.ts")],
       bundle: true,
       format: "iife",
       target: "chrome100",
-      outfile: "extension/dist/content.js",
+      outfile: path.join(distDir, "content.js"),
       external: [],
       minify: true,
       sourcemap: true,
@@ -52,11 +53,11 @@ const buildExtension = async () => {
   // Build devtools panel
   try {
     await build({
-      entryPoints: ["extension/devtools-panel.tsx"],
+      entryPoints: [resolve("devtools-panel.tsx")],
       bundle: true,
       format: "iife",
       target: "chrome100",
-      outfile: "extension/dist/devtools-panel.js",
+      outfile: path.join(distDir, "devtools-panel.js"),
       jsx: "automatic",
       external: [],
       minify: true,
@@ -71,11 +72,11 @@ const buildExtension = async () => {
   // Build devtools main script
   try {
     await build({
-      entryPoints: ["extension/devtools.ts"],
+      entryPoints: [resolve("devtools.ts")],
       bundle: true,
       format: "iife",
       target: "chrome100",
-      outfile: "extension/dist/devtools.js",
+      outfile: path.join(distDir, "devtools.js"),
       external: [],
       minify: true,
       sourcemap: true,
@@ -89,11 +90,11 @@ const buildExtension = async () => {
   // Build background service worker
   try {
     await build({
-      entryPoints: ["extension/background.ts"],
+      entryPoints: [resolve("background.ts")],
       bundle: true,
       format: "iife",
       target: "chrome100",
-      outfile: "extension/dist/background.js",
+      outfile: path.join(distDir, "background.js"),
       external: [],
       minify: true,
       sourcemap: true,
@@ -106,12 +107,10 @@ const buildExtension = async () => {
 
   // Copy static files
   try {
-    const staticFiles = await fs.readdir("extension/static");
+    const staticDir = resolve("static");
+    const staticFiles = await fs.readdir(staticDir);
     for (const file of staticFiles) {
-      await fs.copyFile(
-        path.join("extension/static", file),
-        path.join("extension/dist", file),
-      );
+      await fs.copyFile(path.join(staticDir, file), path.join(distDir, file));
     }
     console.log("✅ Static files copied");
   } catch {
@@ -121,11 +120,11 @@ const buildExtension = async () => {
   // Build inject script
 
   await build({
-    entryPoints: ["extension/inject.ts"],
+    entryPoints: [resolve("inject.ts")],
     bundle: true,
     format: "iife",
     target: "chrome100",
-    outfile: "extension/dist/inject.js",
+    outfile: path.join(distDir, "inject.js"),
     external: [],
     // minify: true,
     sourcemap: true,

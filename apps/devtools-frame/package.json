@@ -1,5 +1,5 @@
 {
-  "name": "@assistant-ui/devtools-app",
+  "name": "@assistant-ui/devtools-frame",
   "version": "0.0.0",
   "private": true,
   "scripts": {
@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@assistant-ui/devtools": "workspace:*",
+    "@assistant-ui/react-devtools": "workspace:*",
     "clsx": "^2.1.1",
     "next": "15.4.6",
     "react": "19.1.1",

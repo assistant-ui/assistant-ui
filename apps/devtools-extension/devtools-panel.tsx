@@ -3,7 +3,7 @@
 
 import React, { useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
-import { DEFAULT_FRAME_URL } from "../src/constants";
+import { DEFAULT_FRAME_URL } from "@assistant-ui/react-devtools";
 
 const DevToolsPanel: React.FC = () => {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);

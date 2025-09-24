@@ -7,7 +7,7 @@ import {
   AssistantCloud,
 } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
-import { DevToolsModal } from "@assistant-ui/devtools";
+import { DevToolsModal } from "@assistant-ui/react-devtools";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 
 export function DocsRuntimeProvider({

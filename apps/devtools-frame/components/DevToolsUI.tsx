@@ -7,7 +7,7 @@ import {
   normalizeToolList,
   type NormalizedTool,
   FrameClient,
-} from "@assistant-ui/devtools";
+} from "@assistant-ui/react-devtools";
 
 interface AssistantState {
   [key: string]: unknown;
