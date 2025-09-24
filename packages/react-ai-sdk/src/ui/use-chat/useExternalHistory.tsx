@@ -53,24 +53,44 @@ export const useExternalHistory = <TMessage,>(
     const loadHistory = async () => {
       setIsLoading(true);
       try {
-        const repo = await historyAdapter
-          .withFormat?.(storageFormatAdapter)
-          .load();
-        if (repo && repo.messages.length > 0) {
-          const converted = toExportedMessageRepository(toThreadMessages, repo);
-          runtimeRef.current.thread.import(converted);
+        const formatAdapter = historyAdapter.withFormat?.(storageFormatAdapter);
+        if (formatAdapter) {
+          // Use withFormat adapter if available
+          const repo = await formatAdapter.load();
+          if (repo && repo.messages.length > 0) {
+            const converted = toExportedMessageRepository(toThreadMessages, repo);
+            runtimeRef.current.thread.import(converted);
 
-          const tempRepo = new MessageRepository();
-          tempRepo.import(converted);
-          const messages = tempRepo.getMessages();
+            const tempRepo = new MessageRepository();
+            tempRepo.import(converted);
+            const messages = tempRepo.getMessages();
 
-          onSetMessagesRef.current(
-            messages.map(getExternalStoreMessages<TMessage>).flat(),
-          );
+            onSetMessagesRef.current(
+              messages.map(getExternalStoreMessages<TMessage>).flat(),
+            );
 
-          historyIds.current = new Set(
-            converted.messages.map((m) => m.message.id),
-          );
+            historyIds.current = new Set(
+              converted.messages.map((m) => m.message.id),
+            );
+          }
+        } else {
+          // Use base adapter without withFormat
+          const repo = await historyAdapter.load();
+          if (repo && repo.messages.length > 0) {
+            runtimeRef.current.thread.import(repo);
+
+            const tempRepo = new MessageRepository();
+            tempRepo.import(repo);
+            const messages = tempRepo.getMessages();
+
+            onSetMessagesRef.current(
+              messages.map(getExternalStoreMessages<TMessage>).flat(),
+            );
+
+            historyIds.current = new Set(
+              repo.messages.map((m) => m.message.id),
+            );
+          }
         }
       } catch (error) {
         console.error("Failed to load message history:", error);
@@ -101,10 +121,18 @@ export const useExternalHistory = <TMessage,>(
           historyIds.current.add(message.id);
 
           const parentId = i > 0 ? messages[i - 1]!.id : null;
-          await historyAdapter?.withFormat?.(storageFormatAdapter).append({
-            parentId,
-            message: getExternalStoreMessages<TMessage>(message)[0]!,
-          });
+          const formatAdapter = historyAdapter?.withFormat?.(storageFormatAdapter);
+          if (formatAdapter) {
+            await formatAdapter.append({
+              parentId,
+              message: getExternalStoreMessages<TMessage>(message)[0]!,
+            });
+          } else if (historyAdapter) {
+            await historyAdapter.append({
+              parentId,
+              message,
+            });
+          }
         }
       }
     });
