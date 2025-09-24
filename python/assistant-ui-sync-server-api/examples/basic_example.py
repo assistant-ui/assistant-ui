@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Basic example of using the Assistant UI Sync Server API client.
+Basic example of using the assistant-ui Sync Server API client.
 """
 
 import asyncio

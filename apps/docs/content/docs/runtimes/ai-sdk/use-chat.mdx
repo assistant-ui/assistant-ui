@@ -130,7 +130,7 @@ const runtime = useChatRuntime({
 <Callout type="info">
   By default, `useChatRuntime` uses `AssistantChatTransport` which automatically
   forwards system messages and frontend tools to your backend API. This enables
-  your backend to receive the full context from the Assistant UI.
+  your backend to receive the full context from the assistant-ui.
 </Callout>
 
 ### Custom Transport Configuration
@@ -165,7 +165,7 @@ const runtime = useChatRuntime({
 
 #### Transport Options
 
-- **`AssistantChatTransport`** (default): Automatically forwards system messages and frontend tools from the Assistant UI context to your backend
+- **`AssistantChatTransport`** (default): Automatically forwards system messages and frontend tools from the assistant-ui context to your backend
 - **`DefaultChatTransport`**: Standard AI SDK transport without automatic forwarding
 
 ### Using Frontend Tools with `frontendTools`

@@ -7,7 +7,7 @@ name = "assistant-transport-backend"
 version = "0.1.0"
 description = "A simple server implementing the assistant-transport protocol with static responses"
 authors = [
-    { name = "Assistant UI Team", email = "team@assistant-ui.com" }
+    { name = "assistant-ui Team", email = "team@assistant-ui.com" }
 ]
 readme = "README.md"
 license = "MIT"

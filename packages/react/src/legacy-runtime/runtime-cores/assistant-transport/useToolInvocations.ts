@@ -157,7 +157,7 @@ export function useToolInvocations({
         });
       });
     }
-  }, [state]);
+  }, [state, controller, onResult]);
 
   return {
     reset: () => {

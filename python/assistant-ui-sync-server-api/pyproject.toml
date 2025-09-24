@@ -5,9 +5,9 @@ build-backend = "hatchling.build"
 [project]
 name = "assistant-ui-sync-server-api"
 version = "0.1.1"
-description = "Python client for Assistant UI sync server API"
+description = "Python client for assistant-ui sync server API"
 authors = [
-  { name="Assistant UI Team", email="team@assistant-ui.com" },
+  { name="assistant-ui Team", email="team@assistant-ui.com" },
 ]
 readme = "README.md"
 requires-python = ">=3.8"

@@ -110,7 +110,7 @@ def get_tool_call_subgraph_state(
             return tool == tool_name
         elif isinstance(tool_name, list):
             return tool in tool_name
-        return False
+        return True
 
     # Start with the controller's state
     if controller.state is None:

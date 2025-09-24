@@ -281,7 +281,7 @@ class ThreadClient:
 
 
 class AssistantClient:
-    """Main client for interacting with Assistant UI backends."""
+    """Main client for interacting with assistant-ui backends."""
     
     def __init__(
         self,
