@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "types": ["chrome"],
+    "lib": ["ES2020", "DOM"],
+    "jsx": "react"
+  },
+  "include": ["./*.ts", "./*.tsx"],
+  "exclude": ["node_modules", "dist"]
+}

@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    color-scheme: light dark;
+  }
+
+  html,
+  body {
+    @apply m-0 h-full min-h-full bg-neutral-50 text-zinc-900 antialiased;
+  }
+
+  * {
+    @apply box-border;
+  }
+}

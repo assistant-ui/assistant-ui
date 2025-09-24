@@ -1,0 +1,84 @@
+{
+  "name": "@assistant-ui/devtools",
+  "description": "Development tools for assistant-ui components",
+  "keywords": [
+    "assistant-ui",
+    "devtools",
+    "chrome-extension",
+    "react",
+    "development",
+    "debugging"
+  ],
+  "version": "0.1.0",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "source": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "extension",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsx scripts/build.mts",
+    "build:lib": "tsx scripts/build-lib.mts",
+    "build:extension": "tsx scripts/build-extension.mts",
+    "dev": "tsx scripts/build.mts --watch",
+    "dev:extension": "NODE_ENV=development tsx scripts/build-extension.mts --watch",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "zod": "^4.1.5"
+  },
+  "peerDependencies": {
+    "@assistant-ui/react": "*",
+    "@assistant-ui/tap": "*",
+    "@types/react": "*",
+    "@types/react-dom": "*",
+    "react": "^18 || ^19 || ^19.0.0-rc",
+    "react-dom": "^18 || ^19 || ^19.0.0-rc"
+  },
+  "peerDependenciesMeta": {
+    "@types/react": {
+      "optional": true
+    },
+    "@types/react-dom": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@assistant-ui/react": "workspace:*",
+    "@assistant-ui/tap": "workspace:*",
+    "@assistant-ui/x-buildutils": "workspace:*",
+    "@types/node": "^24.3.0",
+    "@types/chrome": "^0.0.257",
+    "@types/webextension-polyfill": "^0.12.1",
+    "esbuild": "^0.24.0",
+    "webextension-polyfill": "^0.12.0",
+    "eslint": "^9",
+    "eslint-config-next": "15.4.6",
+    "tsx": "^4.20.4",
+    "vitest": "^3.2.4"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "homepage": "https://www.assistant-ui.com/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/assistant-ui/assistant-ui/tree/main/packages/devtools"
+  },
+  "bugs": {
+    "url": "https://github.com/assistant-ui/assistant-ui/issues"
+  }
+}
