@@ -1,6 +1,6 @@
-# Assistant UI Sync Server API
+# assistant-ui Sync Server API
 
-A Python client library for interacting with Assistant UI sync server backends, providing the same API structure as the JavaScript/TypeScript `useChatRuntime`.
+A Python client library for interacting with assistant-ui sync server backends, providing the same API structure as the JavaScript/TypeScript `useChatRuntime`.
 
 ## Installation
 
@@ -119,7 +119,7 @@ chat_task.cancel()
 
 ### Message Types
 
-The package supports various message types matching the Assistant UI format:
+The package supports various message types matching the assistant-ui format:
 
 ```python
 from assistant_ui.types import Message
@@ -180,7 +180,7 @@ tool_message: Message = {
 
 ### `AssistantClient`
 
-Main client for interacting with Assistant UI backends.
+Main client for interacting with assistant-ui backends.
 
 **Constructor:**
 
@@ -216,7 +216,7 @@ The package includes TypedDict definitions for all message types and configurati
 
 ## Development
 
-This package is part of the Assistant UI monorepo. To contribute:
+This package is part of the assistant-ui monorepo. To contribute:
 
 1. Clone the main repository
 2. Navigate to `python/assistant-ui`

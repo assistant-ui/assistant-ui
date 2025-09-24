@@ -22,7 +22,7 @@ function App() {
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      {/* Your assistant UI components */}
+      {/* Your assistant-ui components */}
     </AssistantRuntimeProvider>
   );
 }
@@ -54,5 +54,5 @@ const runtime = useChatRuntime({
 
 ## AssistantChatTransport vs DefaultChatTransport
 
-- **AssistantChatTransport** (default): Automatically forwards system messages and frontend tools from the Assistant UI context to your backend API
+- **AssistantChatTransport** (default): Automatically forwards system messages and frontend tools from the assistant-ui context to your backend API
 - **DefaultChatTransport**: Standard AI SDK transport without automatic forwarding

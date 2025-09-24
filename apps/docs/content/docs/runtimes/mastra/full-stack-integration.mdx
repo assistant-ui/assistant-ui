@@ -10,9 +10,9 @@ Integrate Mastra directly into your Next.js application's API routes. This appro
 <Steps>
 <Step>
 
-### Initialize Assistant UI
+### Initialize assistant-ui
 
-Start by setting up Assistant UI in your project. Run one of the following commands:
+Start by setting up assistant-ui in your project. Run one of the following commands:
 
 ```sh title="New Project"
 npx assistant-ui@latest create
@@ -190,10 +190,11 @@ export async function POST(req: Request) {
 ```
 
 Key changes:
+
 - We import the `mastra` instance created in `mastra/index.ts`. Make sure the import path (`@/mastra`) is correct for your project setup (you might need `~/mastra`, `../../../mastra`, etc., depending on your path aliases and project structure).
 - We retrieve the `chefAgent` using `mastra.getAgent("chefAgent")`.
 - Instead of calling the AI SDK's `streamText` directly, we call `agent.stream(messages)` to process the chat messages using the agent's configuration and model.
-- The result is still returned in a format compatible with Assistant UI using `toDataStreamResponse()`.
+- The result is still returned in a format compatible with assistant-ui using `toDataStreamResponse()`.
 
 Your API route is now powered by Mastra!
 
@@ -208,11 +209,11 @@ You're all set! Start your Next.js development server:
 npm run dev
 ```
 
-Open your browser to `http://localhost:3000` (or the port specified in your terminal). You should now be able to interact with your `chefAgent` through the Assistant UI chat interface. Ask it for cooking advice based on ingredients you have!
+Open your browser to `http://localhost:3000` (or the port specified in your terminal). You should now be able to interact with your `chefAgent` through the assistant-ui chat interface. Ask it for cooking advice based on ingredients you have!
 
 </Step>
 </Steps>
 
-Congratulations! You have successfully integrated Mastra into your Next.js application using the full-stack approach. Your Assistant UI frontend now communicates with a Mastra agent running in your Next.js backend API route.
+Congratulations! You have successfully integrated Mastra into your Next.js application using the full-stack approach. Your assistant-ui frontend now communicates with a Mastra agent running in your Next.js backend API route.
 
 To explore more advanced Mastra features like memory, tools, workflows, and more, please refer to the [official Mastra documentation](https://mastra.ai/docs).

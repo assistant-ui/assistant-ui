@@ -74,7 +74,7 @@ function ParentComponent() {
 
   return (
     <div>
-      <Thread /> {/* Your assistant UI */}
+      <Thread /> {/* Your assistant-ui */}
       <iframe
         ref={iframeRef}
         src="https://trusted-iframe-domain.com/embed"
@@ -98,10 +98,10 @@ const registry = new ModelContextRegistry();
 const toolHandle = registry.addTool({
   toolName: "convertCurrency",
   description: "Convert between currencies",
-  parameters: z.object({ 
+  parameters: z.object({
     amount: z.number(),
     from: z.string(),
-    to: z.string() 
+    to: z.string(),
   }),
   execute: async ({ amount, from, to }) => {
     const rate = await fetchExchangeRate(from, to);
@@ -113,19 +113,19 @@ const toolHandle = registry.addTool({
 toolHandle.update({
   toolName: "convertCurrency",
   description: "Convert between currencies with live rates", // Updated description
-  parameters: z.object({ 
+  parameters: z.object({
     amount: z.number(),
     from: z.string(),
     to: z.string(),
-    includesFees: z.boolean().optional()
+    includesFees: z.boolean().optional(),
   }),
   execute: async ({ amount, from, to, includesFees }) => {
     const rate = await fetchExchangeRate(from, to);
     const fee = includesFees ? 0.02 : 0; // 2% fee
-    return { 
-      result: amount * rate * (1 - fee), 
+    return {
+      result: amount * rate * (1 - fee),
       currency: to,
-      fee: includesFees ? amount * rate * fee : 0
+      fee: includesFees ? amount * rate * fee : 0,
     };
   },
 });
@@ -377,20 +377,22 @@ Provide data visualization tools in an iframe:
 registry.addTool({
   toolName: "createChart",
   description: "Generate a chart from data",
-  parameters: z.object({ 
-    data: z.array(z.object({
-      label: z.string(),
-      value: z.number()
-    })),
+  parameters: z.object({
+    data: z.array(
+      z.object({
+        label: z.string(),
+        value: z.number(),
+      }),
+    ),
     chartType: z.enum(["bar", "line", "pie"]),
-    title: z.string().optional()
+    title: z.string().optional(),
   }),
   execute: async ({ data, chartType, title }) => {
     // Generate chart using a library like Chart.js or D3
     const chartUrl = await generateChart(data, chartType, title);
-    return { 
+    return {
       chartUrl,
-      summary: `Created ${chartType} chart with ${data.length} data points`
+      summary: `Created ${chartType} chart with ${data.length} data points`,
     };
   },
 });
