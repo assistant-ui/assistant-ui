@@ -29,7 +29,7 @@
     "zod": "^4.0.17"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.11.16",
+    "@assistant-ui/react": "^0.11.17",
     "@types/react": "*",
     "react": "^18 || ^19 || ^19.0.0-rc"
   },

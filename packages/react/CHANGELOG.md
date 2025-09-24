@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.11.17
+
+### Patch Changes
+
+- 2bbe604: feat: createMssageConverter toThreadMessages isRunning support
+
 ## 0.11.16
 
 ### Patch Changes
