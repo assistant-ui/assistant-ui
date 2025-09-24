@@ -8,13 +8,14 @@ import {
   unstable_useRemoteThreadListRuntime,
 } from "@assistant-ui/react";
 import { useAISDKRuntime, type AISDKRuntimeAdapter } from "./useAISDKRuntime";
-import { ChatInit } from "ai";
+import { ChatInit, DefaultChatTransport } from "ai";
 import { AssistantChatTransport } from "./AssistantChatTransport";
 
 export type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage = UIMessage> =
   ChatInit<UI_MESSAGE> & {
     cloud?: AssistantCloud | undefined;
     adapters?: AISDKRuntimeAdapter["adapters"] | undefined;
+    transport?: DefaultChatTransport<UI_MESSAGE> | undefined;
   };
 
 export const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
