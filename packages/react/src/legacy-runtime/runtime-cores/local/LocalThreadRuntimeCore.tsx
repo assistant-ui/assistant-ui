@@ -206,6 +206,7 @@ export class LocalThreadRuntimeCore
       this._suggestions = [];
       this._suggestionsController?.abort();
       this._suggestionsController = null;
+      this._notifySubscribers();
 
       do {
         message = await this.performRoundtrip(
@@ -234,11 +235,13 @@ export class LocalThreadRuntimeCore
         for await (const r of promiseOrGenerator) {
           if (signal.aborted) break;
           this._suggestions = r;
+          this._notifySubscribers();
         }
       } else {
         const result = await promiseOrGenerator;
         if (signal.aborted) return;
         this._suggestions = result;
+        this._notifySubscribers();
       }
     }
   }
