@@ -203,7 +203,15 @@ const AssistantApiContext = createContext<AssistantApi>({
     query: {},
     get: (): never => {
       throw new Error(
-        "Part is only available inside <MessagePrimitive.Parts />",
+        "Part is only available inside <MessagePrimitive.Parts />.\n\n" +
+        "To fix this issue:\n" +
+        "1. If using MarkdownText, wrap it in <MessagePrimitive.Parts components={{ Text: MarkdownText }} />\n" +
+        "2. If accessing part data directly, ensure you're within a MessagePrimitive.Parts context\n" +
+        "3. For custom components, use PartByIndexProvider to provide the required context\n\n" +
+        "Example usage:\n" +
+        "```tsx\n" +
+        "<MessagePrimitive.Parts components={{ Text: MarkdownText }} />\n" +
+        "```",
       );
     },
   }),

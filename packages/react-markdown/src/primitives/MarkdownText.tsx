@@ -9,6 +9,8 @@ import {
   ForwardRefExoticComponent,
   RefAttributes,
   useMemo,
+  useEffect,
+  useState,
   type ComponentPropsWithoutRef,
   type ComponentType,
 } from "react";
@@ -62,6 +64,82 @@ export type MarkdownTextPrimitiveProps = Omit<
    * Function to transform text before markdown processing.
    */
   preprocess?: (text: string) => string;
+  /**
+   * Fallback content to display when used outside MessagePrimitive.Parts context.
+   * If not provided, will display a helpful error message.
+   */
+  fallbackContent?: React.ReactNode;
+  /**
+   * Whether to show development warnings for incorrect usage.
+   * @default true
+   */
+  showDevWarnings?: boolean;
+};
+
+// Error boundary component for handling context errors
+const MarkdownTextErrorBoundary: FC<{
+  fallbackContent?: React.ReactNode;
+  showDevWarnings: boolean;
+  children: React.ReactNode;
+}> = ({ fallbackContent, showDevWarnings, children }) => {
+  const [error, setError] = useState<Error | null>(null);
+
+  // Use useEffect to catch errors from children
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      if (event.error instanceof Error && event.error.message.includes("Part is only available inside")) {
+        setError(event.error);
+        event.preventDefault();
+      }
+    };
+
+    window.addEventListener('error', handleError);
+    return () => window.removeEventListener('error', handleError);
+  }, []);
+
+  if (error && showDevWarnings) {
+    if (fallbackContent) {
+      return <>{fallbackContent}</>;
+    }
+
+    return (
+      <div className="aui-markdown-error-boundary">
+        <div className="text-amber-600 border border-amber-200 rounded p-3 bg-amber-50">
+          <p className="font-medium text-sm mb-2">
+            ⚠️ MarkdownText used outside message context
+          </p>
+          <p className="text-xs mb-2">
+            MarkdownText must be used within <code className="bg-amber-100 px-1 rounded">MessagePrimitive.Parts</code>.
+          </p>
+          <details className="text-xs">
+            <summary className="cursor-pointer font-medium">How to fix</summary>
+            <div className="mt-2 space-y-2">
+              <div>
+                <p className="font-medium">Correct usage:</p>
+                <pre className="bg-amber-100 p-2 rounded text-xs overflow-x-auto mt-1">
+                  {`<MessagePrimitive.Parts
+  components={{
+    Text: MarkdownText
+  }}
+/>`}
+                </pre>
+              </div>
+              <div>
+                <p className="font-medium">Common mistake:</p>
+                <pre className="bg-amber-100 p-2 rounded text-xs overflow-x-auto mt-1">
+                  {`<MessagePrimitive.Root>
+  <MarkdownText /> {/* WRONG */}
+</MessagePrimitive.Root>`}
+                </pre>
+              </div>
+            </div>
+          </details>
+        </div>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
 };
 
 const MarkdownTextInner: FC<MarkdownTextPrimitiveProps> = ({
@@ -69,6 +147,8 @@ const MarkdownTextInner: FC<MarkdownTextPrimitiveProps> = ({
   componentsByLanguage,
   smooth = true,
   preprocess,
+  fallbackContent,
+  showDevWarnings = true,
   ...rest
 }) => {
   const messagePartText = useMessagePartText();
@@ -117,9 +197,11 @@ const MarkdownTextInner: FC<MarkdownTextPrimitiveProps> = ({
   }, [CodeComponent, userComponents]);
 
   return (
-    <ReactMarkdown components={components} {...rest}>
-      {text}
-    </ReactMarkdown>
+    <MarkdownTextErrorBoundary fallbackContent={fallbackContent} showDevWarnings={showDevWarnings}>
+      <ReactMarkdown components={components} {...rest}>
+        {text}
+      </ReactMarkdown>
+    </MarkdownTextErrorBoundary>
   );
 };
 
