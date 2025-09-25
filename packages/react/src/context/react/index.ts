@@ -2,7 +2,7 @@
 // TODO createContextStoreHook does not work well with server-side nextjs bundler
 // use client necessary here for now
 
-export { useAssistantApi } from "./AssistantApiContext";
+export { useAssistantApi, type AssistantApi } from "./AssistantApiContext";
 export { useAssistantState } from "./hooks/useAssistantState";
 export { useAssistantEvent } from "./hooks/useAssistantEvent";
 

@@ -22,6 +22,7 @@
     "@ai-sdk/react": "^2.0.15",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-ai-sdk": "workspace:*",
+    "@assistant-ui/react-devtools": "workspace:*",
     "@assistant-ui/react-data-stream": "workspace:^",
     "@assistant-ui/react-langgraph": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",

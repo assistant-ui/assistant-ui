@@ -6,5 +6,6 @@ export * from "./context";
 export * from "./model-context";
 export * from "./primitives";
 export * from "./types";
+export * from "./devtools";
 
 export * as INTERNAL from "./internal";
