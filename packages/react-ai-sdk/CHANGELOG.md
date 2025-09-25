@@ -1,5 +1,13 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.1.1
+
+### Patch Changes
+
+- 68ef242: feat(ui): load external history only when thread has remote id
+- Updated dependencies [2c6198a]
+  - @assistant-ui/react@0.11.19
+
 ## 1.1.0
 
 ### Patch Changes
