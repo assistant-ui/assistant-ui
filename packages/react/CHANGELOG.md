@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.11.19
+
+### Patch Changes
+
+- 2c6198a: fix: thread empty should return false while thread is loading
+  fix: devtools hydration warning
+
 ## 0.11.18
 
 ### Patch Changes
