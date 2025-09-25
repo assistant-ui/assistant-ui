@@ -243,6 +243,21 @@ Renders children if a condition is met.
       type: "boolean | undefined",
       description: "Render children if the thread is running.",
     },
+    {
+      name: "disabled",
+      type: "boolean | undefined",
+      description: "Render children if the thread is disabled.",
+    },
+    {
+      name: "loading",
+      type: "boolean | undefined",
+      description: "Render children if the thread is loading.",
+    },
+    {
+      name: "new",
+      type: "boolean | undefined",
+      description: "Render children if the thread is new.",
+    },
   ]}
 />
 
@@ -252,5 +267,11 @@ Renders children if a condition is met.
 </Thread.If>
 <Thread.If empty={false}>
   {/* rendered if thread is not empty */}
+</Thread.If>
+<Thread.If loading>
+  {/* rendered if thread is loading */}
+</Thread.If>
+<Thread.If new>
+  {/* rendered if thread is new */}
 </Thread.If>
 ```
