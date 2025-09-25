@@ -58,7 +58,10 @@ export const useExternalHistory = <TMessage,>(
           // Use withFormat adapter if available
           const repo = await formatAdapter.load();
           if (repo && repo.messages.length > 0) {
-            const converted = toExportedMessageRepository(toThreadMessages, repo);
+            const converted = toExportedMessageRepository(
+              toThreadMessages,
+              repo,
+            );
             runtimeRef.current.thread.import(converted);
 
             const tempRepo = new MessageRepository();
@@ -121,7 +124,8 @@ export const useExternalHistory = <TMessage,>(
           historyIds.current.add(message.id);
 
           const parentId = i > 0 ? messages[i - 1]!.id : null;
-          const formatAdapter = historyAdapter?.withFormat?.(storageFormatAdapter);
+          const formatAdapter =
+            historyAdapter?.withFormat?.(storageFormatAdapter);
           if (formatAdapter) {
             await formatAdapter.append({
               parentId,
