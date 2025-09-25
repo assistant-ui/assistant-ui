@@ -87,14 +87,17 @@ const MarkdownTextErrorBoundary: FC<{
   // Use useEffect to catch errors from children
   useEffect(() => {
     const handleError = (event: ErrorEvent) => {
-      if (event.error instanceof Error && event.error.message.includes("Part is only available inside")) {
+      if (
+        event.error instanceof Error &&
+        event.error.message.includes("Part is only available inside")
+      ) {
         setError(event.error);
         event.preventDefault();
       }
     };
 
-    window.addEventListener('error', handleError);
-    return () => window.removeEventListener('error', handleError);
+    window.addEventListener("error", handleError);
+    return () => window.removeEventListener("error", handleError);
   }, []);
 
   if (error && showDevWarnings) {
@@ -104,19 +107,23 @@ const MarkdownTextErrorBoundary: FC<{
 
     return (
       <div className="aui-markdown-error-boundary">
-        <div className="text-amber-600 border border-amber-200 rounded p-3 bg-amber-50">
-          <p className="font-medium text-sm mb-2">
+        <div className="rounded border border-amber-200 bg-amber-50 p-3 text-amber-600">
+          <p className="mb-2 text-sm font-medium">
             ⚠️ MarkdownText used outside message context
           </p>
-          <p className="text-xs mb-2">
-            MarkdownText must be used within <code className="bg-amber-100 px-1 rounded">MessagePrimitive.Parts</code>.
+          <p className="mb-2 text-xs">
+            MarkdownText must be used within{" "}
+            <code className="rounded bg-amber-100 px-1">
+              MessagePrimitive.Parts
+            </code>
+            .
           </p>
           <details className="text-xs">
             <summary className="cursor-pointer font-medium">How to fix</summary>
             <div className="mt-2 space-y-2">
               <div>
                 <p className="font-medium">Correct usage:</p>
-                <pre className="bg-amber-100 p-2 rounded text-xs overflow-x-auto mt-1">
+                <pre className="mt-1 overflow-x-auto rounded bg-amber-100 p-2 text-xs">
                   {`<MessagePrimitive.Parts
   components={{
     Text: MarkdownText
@@ -126,7 +133,7 @@ const MarkdownTextErrorBoundary: FC<{
               </div>
               <div>
                 <p className="font-medium">Common mistake:</p>
-                <pre className="bg-amber-100 p-2 rounded text-xs overflow-x-auto mt-1">
+                <pre className="mt-1 overflow-x-auto rounded bg-amber-100 p-2 text-xs">
                   {`<MessagePrimitive.Root>
   <MarkdownText /> {/* WRONG */}
 </MessagePrimitive.Root>`}
@@ -197,7 +204,10 @@ const MarkdownTextInner: FC<MarkdownTextPrimitiveProps> = ({
   }, [CodeComponent, userComponents]);
 
   return (
-    <MarkdownTextErrorBoundary fallbackContent={fallbackContent} showDevWarnings={showDevWarnings}>
+    <MarkdownTextErrorBoundary
+      fallbackContent={fallbackContent}
+      showDevWarnings={showDevWarnings}
+    >
       <ReactMarkdown components={components} {...rest}>
         {text}
       </ReactMarkdown>
