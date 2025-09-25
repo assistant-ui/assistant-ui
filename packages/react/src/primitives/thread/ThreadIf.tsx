@@ -24,8 +24,8 @@ const useThreadIf = (props: UseThreadIfProps) => {
     if (props.disabled === false && thread.isDisabled) return false;
     if (props.loading === true && !thread.isLoading) return false;
     if (props.loading === false && thread.isLoading) return false;
-    if (props.new === true && threadListItem.status !== "new") return false;
-    if (props.new === false && threadListItem.status === "new") return false;
+    if (props.new === true && threadListItem?.status !== "new") return false;
+    if (props.new === false && threadListItem?.status === "new") return false;
 
     return true;
   });
