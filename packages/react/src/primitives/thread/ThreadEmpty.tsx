@@ -10,7 +10,9 @@ export namespace ThreadPrimitiveEmpty {
 export const ThreadPrimitiveEmpty: FC<ThreadPrimitiveEmpty.Props> = ({
   children,
 }) => {
-  const empty = useAssistantState(({ thread }) => thread.messages.length === 0);
+  const empty = useAssistantState(
+    ({ thread }) => thread.messages.length === 0 && !thread.isLoading,
+  );
   return empty ? children : null;
 };
 

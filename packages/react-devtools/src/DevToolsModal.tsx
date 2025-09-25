@@ -14,7 +14,7 @@ const isDarkMode = (): boolean => {
 
 const DevToolsModalImpl = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [darkMode, setDarkMode] = useState(isDarkMode());
+  const [darkMode, setDarkMode] = useState(false);
   const [buttonHover, setButtonHover] = useState(false);
   const [closeHover, setCloseHover] = useState(false);
 
