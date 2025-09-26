@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { DevToolsFrame } from "./DevToolsFrame";
 import { getStyles, ANIMATION_STYLES } from "./styles/DevToolsModal.styles";
 
@@ -12,11 +12,38 @@ const isDarkMode = (): boolean => {
   );
 };
 
+const subscribeToThemeChanges = (callback: () => void) => {
+  if (typeof MutationObserver === "undefined") {
+    return () => {};
+  }
+
+  const observer = new MutationObserver(callback);
+
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["class"],
+  });
+
+  if (document.body !== document.documentElement) {
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+  }
+
+  return () => observer.disconnect();
+};
+
 const DevToolsModalImpl = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
   const [buttonHover, setButtonHover] = useState(false);
   const [closeHover, setCloseHover] = useState(false);
+
+  const darkMode = useSyncExternalStore(
+    subscribeToThemeChanges,
+    isDarkMode,
+    () => false, // Server-side always returns false
+  );
 
   const styles = useMemo(() => getStyles(darkMode), [darkMode]);
 
@@ -37,26 +64,6 @@ const DevToolsModalImpl = () => {
         style.remove();
       }
     };
-  }, []);
-
-  useEffect(() => {
-    if (typeof MutationObserver === "undefined") return;
-
-    const checkDarkMode = () => setDarkMode(isDarkMode());
-    const observer = new MutationObserver(checkDarkMode);
-
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["class"],
-    });
-    if (document.body !== document.documentElement) {
-      observer.observe(document.body, {
-        attributes: true,
-        attributeFilter: ["class"],
-      });
-    }
-
-    return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
