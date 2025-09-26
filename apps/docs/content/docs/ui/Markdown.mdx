@@ -66,6 +66,58 @@ const AssistantMessage: FC = () => {
 
 </Steps>
 
+## Troubleshooting
+
+### "Part is only available inside <MessagePrimitive.Parts />"
+
+This error occurs when MarkdownText is used outside the proper context. Here are common solutions:
+
+#### 1. Check Component Structure
+**Incorrect:**
+```tsx
+<MessagePrimitive.Root>
+  <MarkdownText /> {/* This will cause the error */}
+</MessagePrimitive.Root>
+```
+
+**Correct:**
+```tsx
+<MessagePrimitive.Root>
+  <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
+</MessagePrimitive.Root>
+```
+
+#### 2. Migration from v0.11
+If you're migrating from an older version, note that `MessagePrimitive.Content` was renamed to `MessagePrimitive.Parts`:
+
+**Old (pre-v0.11):**
+```tsx
+<MessagePrimitive.Content components={{ Text: MarkdownText }} />
+```
+
+**New (v0.11+):**
+```tsx
+<MessagePrimitive.Parts components={{ Text: MarkdownText }} />
+```
+
+#### 3. Fallback Content
+If you need to use MarkdownText outside the message context, provide fallback content:
+
+```tsx
+<MarkdownText
+  fallbackContent={<p>Markdown content not available</p>}
+  showDevWarnings={false}
+/>
+```
+
+### Common Migration Issues
+
+The error often appears after:
+- Upgrading from v0.10 to v0.11+
+- Copying examples from older documentation
+- Refactoring component structure
+- Creating custom message layouts
+
 ## Syntax highlighting
 
 Syntax Highlighting is not included by default, see [Syntax Highlighting](/docs/ui/SyntaxHighlighting) to learn how to add it.
