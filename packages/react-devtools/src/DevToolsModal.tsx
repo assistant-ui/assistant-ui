@@ -42,7 +42,7 @@ const DevToolsModalImpl = () => {
   const darkMode = useSyncExternalStore(
     subscribeToThemeChanges,
     isDarkMode,
-    () => false // Server-side always returns false
+    () => false, // Server-side always returns false
   );
 
   const styles = useMemo(() => getStyles(darkMode), [darkMode]);
@@ -65,7 +65,6 @@ const DevToolsModalImpl = () => {
       }
     };
   }, []);
-
 
   useEffect(() => {
     if (!isOpen) return;
