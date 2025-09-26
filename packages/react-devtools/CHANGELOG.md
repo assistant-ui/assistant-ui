@@ -1,5 +1,11 @@
 # @assistant-ui/react-devtools
 
+## 0.1.2
+
+### Patch Changes
+
+- 16b1106: fix dark mode not working
+
 ## 0.1.1
 
 ### Patch Changes
