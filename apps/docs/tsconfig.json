@@ -11,7 +11,7 @@
     ],
     "allowJs": true,
     "strictNullChecks": true,
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "paths": {
       "@/*": ["./*"],
       "@assistant-ui/*": ["../../packages/*/src"],
