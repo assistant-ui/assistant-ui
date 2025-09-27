@@ -2,6 +2,14 @@
 
 import clsx from "clsx";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+// Shiki-based JSON syntax highlighting for the Raw view
+import {
+  useShikiHighlighter,
+  createHighlighterCore,
+  createJavaScriptRegexEngine,
+} from "react-shiki/core";
+// Infer the core highlighter type from the factory so we don't need a direct shiki/core type dep
+type ShikiCore = Awaited<ReturnType<typeof createHighlighterCore>>;
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import {
   normalizeToolList,
@@ -90,6 +98,85 @@ const JSONPreview = ({ value }: { value: unknown }) => (
     {JSON.stringify(value, null, 2)}
   </pre>
 );
+
+// Lazily create and cache a minimal Shiki highlighter that only knows JSON and a couple themes
+// We use the JavaScript regex engine for smaller client bundle; set forgiving for broad grammar support
+const getJsonHighlighter = (() => {
+  let cached: ShikiCore | null = null;
+  let pending: Promise<ShikiCore> | null = null;
+  return async (): Promise<ShikiCore> => {
+    if (cached) return cached;
+    if (!pending) {
+      pending = createHighlighterCore({
+        themes: [
+          import("@shikijs/themes/catppuccin-mocha"),
+          import("@shikijs/themes/catppuccin-latte"),
+        ],
+        langs: [import("@shikijs/langs/json")],
+        engine: createJavaScriptRegexEngine({ forgiving: true }),
+      }).then((h: ShikiCore) => {
+        cached = h;
+        return h;
+      });
+    }
+    return pending;
+  };
+})();
+
+// Inner component that assumes highlighter is defined – safe to call the hook here
+const JSONRawHighlightedInner = ({
+  code,
+  highlighter,
+}: {
+  code: string;
+  highlighter: ShikiCore;
+}) => {
+  console.log("highlighter-called");
+  const highlighted = useShikiHighlighter(
+    code,
+    "json",
+    { light: "catppuccin-latte", dark: "catppuccin-mocha" },
+    { highlighter, defaultColor: "light-dark()" },
+  );
+  if (!highlighted) {
+    return (
+      <pre className="overflow-auto whitespace-pre rounded-lg bg-zinc-100 p-3 text-[11px] leading-relaxed font-mono text-zinc-800 dark:bg-zinc-950 dark:text-zinc-200">
+        {code}
+      </pre>
+    );
+  }
+  return (
+    <div className="dark:[&_pre]:!bg-black/50 [&_pre]:overflow-auto [&_pre]:rounded-lg [&_pre]:p-3 [&_pre]:text-[11px] [&_pre]:leading-relaxed [&_pre]:font-mono [&_pre]:whitespace-pre">
+      {highlighted}
+    </div>
+  );
+};
+
+// JSON syntax highlighted block for the Raw view (falls back to plain <pre> until ready)
+const JSONRawHighlighted = ({ value }: { value: unknown }) => {
+  const [highlighter, setHighlighter] = useState<ShikiCore | null>(null);
+  useEffect(() => {
+    let mounted = true;
+    getJsonHighlighter().then((h: ShikiCore) => {
+      if (mounted) setHighlighter(h);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const code = useMemo(() => JSON.stringify(value, null, 2) ?? "", [value]);
+
+  if (!highlighter) {
+    return (
+      <pre className="overflow-auto whitespace-pre rounded-lg bg-zinc-100 p-3 text-[11px] text-zinc-800 dark:bg-zinc-950 dark:text-zinc-200">
+        {code}
+      </pre>
+    );
+  }
+
+  return <JSONRawHighlightedInner code={code} highlighter={highlighter} />;
+};
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === "object" && !Array.isArray(value);
@@ -871,6 +958,11 @@ export function DevToolsUI() {
   );
   const knownEventTypesRef = useRef(new Set<string>());
   const frameClientRef = useRef<FrameClient | null>(null);
+  // Warm the JSON highlighter early to avoid flicker on first Raw view open
+  useEffect(() => {
+    // Ignore result; just start the dynamic imports
+    void getJsonHighlighter();
+  }, []);
   const [isWindowFocused, setIsWindowFocused] = useState(() => {
     if (typeof document === "undefined") {
       return true;
@@ -1175,9 +1267,8 @@ export function DevToolsUI() {
                   {viewMode === "preview" ? (
                     renderStatePreview(key, value)
                   ) : (
-                    <pre className="overflow-auto whitespace-pre rounded-lg bg-zinc-100 p-3 text-[11px] text-zinc-800 dark:bg-zinc-950 dark:text-zinc-200">
-                      {JSON.stringify(value, null, 2)}
-                    </pre>
+                    // Raw JSON view with syntax highlighting
+                    <JSONRawHighlighted value={value} />
                   )}
                 </div>
               )}
