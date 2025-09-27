@@ -732,7 +732,7 @@ Provide follow-up suggestions:
 
 ```tsx
 const suggestionAdapter: SuggestionAdapter = {
-  async *get({ messages }) {
+  async *generate({ messages }) {
     // Analyze conversation context
     const lastMessage = messages[messages.length - 1];
 
