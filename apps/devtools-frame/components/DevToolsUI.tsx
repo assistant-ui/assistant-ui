@@ -1307,7 +1307,7 @@ export function DevToolsUI() {
     ));
 
     return (
-      <div className="flex flex-col gap-3">
+      <div className="flex h-full flex-col gap-3">
         {eventTypes.length > 0 && (
           <div className="flex flex-wrap gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3 transition-colors dark:border-zinc-800 dark:bg-zinc-900">
             {eventFilterChips}
