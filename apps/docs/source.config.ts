@@ -27,6 +27,18 @@ export const blog = defineCollections({
   type: "doc",
 });
 
+export const careers = defineCollections({
+  dir: "content/careers",
+  schema: frontmatterSchema.extend({
+    order: z.number().optional(),
+    location: z.string(),
+    type: z.string(),
+    salary: z.string(),
+    summary: z.string(),
+  }),
+  type: "doc",
+});
+
 export default defineConfig({
   mdxOptions: {
     remarkPlugins: [remarkMermaid],

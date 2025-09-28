@@ -1,7 +1,7 @@
 import { createMDXSource } from "fumadocs-mdx";
 import type { InferPageType } from "fumadocs-core/source";
 import { loader } from "fumadocs-core/source";
-import { meta, docs, blog as blogPosts } from "@/.source";
+import { meta, docs, blog as blogPosts, careers as careersCollection } from "@/.source";
 
 const utils = loader({
   baseUrl: "/docs",
@@ -17,3 +17,10 @@ export const blog = loader({
 });
 
 export type BlogPage = InferPageType<typeof blog>;
+
+export const careers = loader({
+  baseUrl: "/careers",
+  source: createMDXSource(careersCollection, []),
+});
+
+export type CareerPage = InferPageType<typeof careers>;
