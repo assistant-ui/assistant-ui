@@ -13,13 +13,14 @@
     "react-dom": "19.1.1"
   },
   "devDependencies": {
-    "@types/chrome": "^0.0.257",
-    "@types/node": "^24.3.0",
-    "@types/webextension-polyfill": "^0.12.1",
-    "esbuild": "^0.24.0",
+    "@assistant-ui/x-buildutils": "workspace:*",
+    "@types/chrome": "^0.1.12",
+    "@types/node": "^24.5.2",
+    "@types/webextension-polyfill": "^0.12.3",
+    "esbuild": "^0.25.10",
     "eslint": "^9",
-    "eslint-config-next": "15.4.6",
-    "tsx": "^4.20.4",
+    "eslint-config-next": "15.5.4",
+    "tsx": "^4.20.6",
     "typescript": "^5.9.2"
   }
 }

@@ -48,12 +48,12 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^24.3.0",
+    "@types/node": "^24.5.2",
     "eslint": "^9",
-    "eslint-config-next": "15.4.6",
+    "eslint-config-next": "15.5.4",
     "react": "19.1.1",
     "react-dom": "19.1.1",
-    "tsx": "^4.20.4",
+    "tsx": "^4.20.6",
     "vitest": "^3.2.4"
   },
   "publishConfig": {
