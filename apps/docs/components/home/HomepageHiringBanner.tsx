@@ -19,7 +19,7 @@ export const HomepageHiringBanner = () => {
       <div className="relative mx-auto flex w-full max-w-fd-container items-center justify-center gap-3 px-4">
         <Link
           href="/careers"
-          className="group inline-flex items-center gap-2 whitespace-nowrap font-medium text-foreground transition-colors hover:text-primary"
+          className="group inline-flex items-center gap-2 font-medium whitespace-nowrap text-foreground transition-colors hover:text-primary"
         >
           <TextShimmer
             as="span"
@@ -38,7 +38,7 @@ export const HomepageHiringBanner = () => {
             event.stopPropagation();
             setDismissed(true);
           }}
-          className="absolute right-4 text-base font-semibold text-muted-foreground transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          className="absolute right-4 text-base font-semibold text-muted-foreground transition hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
         >
           &times;
         </button>

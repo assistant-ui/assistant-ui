@@ -60,16 +60,13 @@ export const usePersistentBoolean = (
     return () => window.removeEventListener("storage", handleStorage);
   }, [storageKey, initialValue]);
 
-  const update = useCallback(
-    (next: boolean | ((prev: boolean) => boolean)) => {
-      setValue((prev) =>
-        typeof next === "function"
-          ? (next as (prevValue: boolean) => boolean)(prev)
-          : next,
-      );
-    },
-    [],
-  );
+  const update = useCallback((next: boolean | ((prev: boolean) => boolean)) => {
+    setValue((prev) =>
+      typeof next === "function"
+        ? (next as (prevValue: boolean) => boolean)(prev)
+        : next,
+    );
+  }, []);
 
   const reset = useCallback(() => {
     setValue(initialValue);

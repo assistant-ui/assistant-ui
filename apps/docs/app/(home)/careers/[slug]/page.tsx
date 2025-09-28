@@ -45,7 +45,7 @@ export default function CareerRolePage({
       </div>
 
       <header className="space-y-4">
-        <p className="text-sm uppercase tracking-[0.3em] text-muted-foreground">
+        <p className="text-sm tracking-[0.3em] text-muted-foreground uppercase">
           Role
         </p>
         <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
@@ -64,7 +64,7 @@ export default function CareerRolePage({
       </header>
 
       <div className="flex w-full flex-col border border-dashed border-border/70 bg-background/80">
-        <article className="prose prose-neutral max-w-none px-6 py-8 dark:prose-invert">
+        <article className="prose-neutral dark:prose-invert prose max-w-none px-6 py-8">
           <role.data.body components={mdxComponents} />
         </article>
 

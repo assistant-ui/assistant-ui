@@ -18,7 +18,7 @@ export const SidebarHiringBanner = () => {
         className="group/link flex items-center justify-between gap-3 rounded-lg border border-border px-4 py-3 text-sm transition-colors hover:border-primary/80"
       >
         <span className="flex flex-col text-left">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.3em] text-primary/80">
+          <span className="text-[11px] font-semibold tracking-[0.3em] text-primary/80 uppercase">
             We&apos;re hiring
           </span>
           <span className="text-muted-foreground">
@@ -35,9 +35,9 @@ export const SidebarHiringBanner = () => {
           event.stopPropagation();
           setDismissed(true);
         }}
-        className="absolute -top-[9px] -right-[9px] flex h-5 w-5 items-center justify-center rounded-full border border-border bg-background text-muted-foreground opacity-0 shadow-sm transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:opacity-100 group-hover:opacity-100"
+        className="absolute -top-[9px] -right-[9px] flex h-5 w-5 items-center justify-center rounded-full border border-border bg-background text-muted-foreground opacity-0 shadow-sm transition group-hover:opacity-100 hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
       >
-        <span className="text-[10px] font-semibold leading-none">&times;</span>
+        <span className="text-[10px] leading-none font-semibold">&times;</span>
       </button>
     </div>
   );
