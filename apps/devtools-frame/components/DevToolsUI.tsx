@@ -140,13 +140,13 @@ const JSONRawHighlightedInner = ({
   );
   if (!highlighted) {
     return (
-      <pre className="overflow-auto whitespace-pre rounded-lg bg-zinc-100 p-3 text-[11px] leading-relaxed font-mono text-zinc-800 dark:bg-zinc-950 dark:text-zinc-200">
+      <pre className="overflow-auto whitespace-pre rounded-lg bg-zinc-100 p-3 font-mono text-[11px] leading-relaxed text-zinc-800 dark:bg-zinc-950 dark:text-zinc-200">
         {code}
       </pre>
     );
   }
   return (
-    <div className="dark:[&_pre]:!bg-black/50 [&_pre]:overflow-auto [&_pre]:rounded-lg [&_pre]:p-3 [&_pre]:text-[11px] [&_pre]:leading-relaxed [&_pre]:font-mono [&_pre]:whitespace-pre">
+    <div className="[&_pre]:overflow-auto [&_pre]:whitespace-pre [&_pre]:rounded-lg [&_pre]:p-3 [&_pre]:font-mono [&_pre]:text-[11px] [&_pre]:leading-relaxed dark:[&_pre]:!bg-black/50">
       {highlighted}
     </div>
   );
@@ -396,29 +396,35 @@ const ThreadDetails = ({
             </div>
             <div className="mt-1 flex flex-wrap gap-1">
               {typeof thread.composer.isEditing === "boolean" && (
-                <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
-                  thread.composer.isEditing
-                    ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
-                    : "bg-zinc-200 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
-                }`}>
+                <span
+                  className={`rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
+                    thread.composer.isEditing
+                      ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
+                      : "bg-zinc-200 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+                  }`}
+                >
                   Editing: {thread.composer.isEditing ? "true" : "false"}
                 </span>
               )}
               {typeof thread.composer.canCancel === "boolean" && (
-                <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
-                  thread.composer.canCancel
-                    ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
-                    : "bg-zinc-200 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
-                }`}>
+                <span
+                  className={`rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
+                    thread.composer.canCancel
+                      ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
+                      : "bg-zinc-200 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+                  }`}
+                >
                   Cancelable: {thread.composer.canCancel ? "true" : "false"}
                 </span>
               )}
               {typeof thread.composer.isEmpty === "boolean" && (
-                <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
-                  thread.composer.isEmpty
-                    ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300"
-                    : "bg-zinc-200 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
-                }`}>
+                <span
+                  className={`rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
+                    thread.composer.isEmpty
+                      ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300"
+                      : "bg-zinc-200 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+                  }`}
+                >
                   Empty: {thread.composer.isEmpty ? "true" : "false"}
                 </span>
               )}
