@@ -21,6 +21,7 @@ import {
   AddToolResultCommand,
   UserMessagePart,
   QueuedCommand,
+  AssistantTransportCommand,
 } from "./types";
 import { useCommandQueue } from "./commandQueue";
 import { useRunManager } from "./runManager";
@@ -29,6 +30,38 @@ import { useToolInvocations } from "./useToolInvocations";
 import { toAISDKTools, getEnabledTools, createRequestHeaders } from "./utils";
 import { useRemoteThreadListRuntime } from "../remote-thread-list/useRemoteThreadListRuntime";
 import { InMemoryThreadListAdapter } from "../remote-thread-list/adapter/in-memory";
+import { useAssistantApi } from "../../../context/react";
+
+const symbolAssistantTransportExtras = Symbol("assistant-transport-extras");
+type AssistantTransportExtras = {
+  [symbolAssistantTransportExtras]: true;
+  sendCommand: (command: AssistantTransportCommand) => void;
+};
+
+const asAssistantTransportExtras = (
+  extras: unknown,
+): AssistantTransportExtras => {
+  if (
+    typeof extras !== "object" ||
+    extras == null ||
+    !(symbolAssistantTransportExtras in extras)
+  )
+    throw new Error(
+      "This method can only be called when you are using useAssistantTransportRuntime",
+    );
+
+  return extras as AssistantTransportExtras;
+};
+
+export const useAssistantTransportSendCommand = () => {
+  const api = useAssistantApi();
+
+  return (command: AssistantTransportCommand) => {
+    const extras = api.thread().getState().extras;
+    const transportExtras = asAssistantTransportExtras(extras);
+    transportExtras.sendCommand(command);
+  };
+};
 
 const useAssistantTransportThreadRuntime = <T,>(
   options: AssistantTransportOptions<T>,
@@ -162,6 +195,12 @@ const useAssistantTransportThreadRuntime = <T,>(
     state: converted.state,
     isRunning: converted.isRunning,
     adapters: options.adapters,
+    extras: {
+      [symbolAssistantTransportExtras]: true,
+      sendCommand: (command: AssistantTransportCommand) => {
+        commandQueue.enqueue(command);
+      },
+    } satisfies AssistantTransportExtras,
     onNew: async (message: AppendMessage): Promise<void> => {
       if (message.role !== "user")
         throw new Error("Only user messages are supported");
