@@ -129,6 +129,13 @@ type UseLangGraphRuntimeOptions = {
   autoCancelPendingToolCalls?: boolean | undefined;
   unstable_allowCancellation?: boolean | undefined;
   stream: LangGraphStreamCallback<LangChainMessage>;
+  /**
+   * @deprecated This method has been renamed to `load`. Use `load` instead.
+   */
+  onSwitchToThread?: (threadId: string) => Promise<{
+    messages: LangChainMessage[];
+    interrupts?: LangGraphInterruptState[];
+  }>;
   load?: (threadId: string) => Promise<{
     messages: LangChainMessage[];
     interrupts?: LangGraphInterruptState[];
@@ -172,7 +179,8 @@ const useLangGraphRuntimeImpl = ({
   adapters: { attachments, feedback, speech } = {},
   unstable_allowCancellation,
   stream,
-  load,
+  onSwitchToThread: _onSwitchToThread,
+  load = _onSwitchToThread,
   eventHandlers,
 }: UseLangGraphRuntimeOptions) => {
   const {
