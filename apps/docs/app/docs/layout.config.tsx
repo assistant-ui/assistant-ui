@@ -10,6 +10,7 @@ import icon from "@/public/favicon/icon.svg";
 import Image from "next/image";
 import { DocsLayoutProps } from "fumadocs-ui/layouts/docs";
 import { HomeLayoutProps } from "fumadocs-ui/layouts/home";
+import { SidebarHiringBanner } from "@/components/docs/SidebarHiringBanner";
 
 const DiscordIcon = () => {
   return (
@@ -83,6 +84,7 @@ export const sharedDocsOptions: Partial<DocsLayoutProps> = {
   ...baseOptions,
   sidebar: {
     defaultOpenLevel: 0,
+    banner: <SidebarHiringBanner />,
   },
 };
 
