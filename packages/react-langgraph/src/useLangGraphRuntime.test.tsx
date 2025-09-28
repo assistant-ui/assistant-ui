@@ -39,14 +39,15 @@ const customEvent = {
 };
 
 describe("useLangGraphRuntime", () => {
-  const wrapperFactory =
-    (runtime: AssistantRuntime) =>
-    // eslint-disable-next-line react/display-name
-    ({ children }: { children: ReactNode }) => (
+  const wrapperFactory = (runtime: AssistantRuntime) => {
+    const Wrapper = ({ children }: { children: ReactNode }) => (
       <AssistantRuntimeProvider runtime={runtime}>
         {children}
       </AssistantRuntimeProvider>
     );
+    Wrapper.displayName = "TestWrapper";
+    return Wrapper;
+  };
 
   it("should handle metadata events", async () => {
     const onMetadata = vi.fn();

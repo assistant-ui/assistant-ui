@@ -41,8 +41,7 @@ export const usePersistentBoolean = (
 
   useEffect(() => {
     setValue(readFromStorage(storageKey, initialValue));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storageKey]);
+  }, [storageKey, initialValue]);
 
   useEffect(() => {
     writeToStorage(storageKey, value, initialValue);
