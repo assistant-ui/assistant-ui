@@ -111,10 +111,7 @@ export const useLangGraphInterruptState = () => {
 export const useLangGraphSend = () => {
   const api = useAssistantApi();
 
-  return (
-    messages: LangChainMessage[],
-    config: LangGraphSendMessageConfig,
-  ) => {
+  return (messages: LangChainMessage[], config: LangGraphSendMessageConfig) => {
     const extras = api.thread().getState().extras;
     const { send } = asLangGraphRuntimeExtras(extras);
     return send(messages, config);
