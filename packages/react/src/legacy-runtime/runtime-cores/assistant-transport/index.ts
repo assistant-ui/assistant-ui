@@ -1,4 +1,7 @@
-export { useAssistantTransportRuntime } from "./useAssistantTransportRuntime";
+export {
+  useAssistantTransportRuntime,
+  useAssistantTransportSendCommand,
+} from "./useAssistantTransportRuntime";
 export type {
   AssistantTransportConnectionMetadata,
   AssistantTransportCommand,

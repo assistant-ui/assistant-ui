@@ -1,6 +1,7 @@
 import { ReadonlyJSONValue } from "assistant-stream/utils";
 import { ThreadMessage } from "../../../types";
 import { AttachmentAdapter, ThreadHistoryAdapter } from "..";
+import { UserCommands } from "../../../augmentations";
 
 // Message part types
 export type TextPart = {
@@ -42,7 +43,8 @@ export type AddToolResultCommand = {
 
 export type AssistantTransportCommand =
   | AddMessageCommand
-  | AddToolResultCommand;
+  | AddToolResultCommand
+  | UserCommands;
 
 // State types
 export type AssistantTransportState = {
