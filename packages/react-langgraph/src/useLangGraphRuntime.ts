@@ -8,6 +8,7 @@ import {
   OnMetadataEventCallback,
 } from "./types";
 import {
+  useAssistantApi,
   useAssistantState,
   useExternalMessageConverter,
   useExternalStoreRuntime,
@@ -99,17 +100,25 @@ const asLangGraphRuntimeExtras = (extras: unknown): LangGraphRuntimeExtras => {
 };
 
 export const useLangGraphInterruptState = () => {
-  const { interrupt } = useAssistantState(({ thread }) =>
-    asLangGraphRuntimeExtras(thread.extras),
-  );
+  const interrupt = useAssistantState(({ thread }) => {
+    const extras = thread.extras;
+    if (!extras) return undefined;
+    return asLangGraphRuntimeExtras(extras).interrupt;
+  });
   return interrupt;
 };
 
 export const useLangGraphSend = () => {
-  const { send } = useAssistantState(({ thread }) =>
-    asLangGraphRuntimeExtras(thread.extras),
-  );
-  return send;
+  const api = useAssistantApi();
+
+  return (
+    messages: LangChainMessage[],
+    config: LangGraphSendMessageConfig,
+  ) => {
+    const extras = api.thread().getState().extras;
+    const { send } = asLangGraphRuntimeExtras(extras);
+    return send(messages, config);
+  };
 };
 
 export const useLangGraphSendCommand = () => {
