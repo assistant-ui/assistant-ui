@@ -7,15 +7,20 @@ declare global {
 type GetAugmentation<
   Key extends keyof Assistant,
   ExpectedType,
+  FallbackType = ExpectedType,
 > = unknown extends Assistant[Key]
-  ? ExpectedType
+  ? FallbackType
   : Assistant[Key] extends ExpectedType
     ? Assistant[Key]
     : {
         ErrorMessage: `There is an error in the type you provided for Assistant.${Key}`;
       };
 
-type UserCommandsRecord = GetAugmentation<"Commands", Record<string, unknown>>;
+type UserCommandsRecord = GetAugmentation<
+  "Commands",
+  Record<string, unknown>,
+  Record<string, never>
+>;
 
 export type UserCommands =
   UserCommandsRecord extends Record<string, infer V> ? V : never;
