@@ -61,7 +61,6 @@ npm install @assistant-ui/react @assistant-ui/react-ui @assistant-ui/react-langg
 ```tsx twoslash title="@/api/api/[...path]/route.ts"
 import { NextRequest, NextResponse } from "next/server";
 
-
 function getCorsHeaders() {
   return {
     "Access-Control-Allow-Origin": "*",
@@ -188,7 +187,6 @@ export const sendMessage = async (params: {
 // ---cut---
 "use client";
 
-import { useRef } from "react";
 import { Thread } from "@/components/assistant-ui";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useLangGraphRuntime } from "@assistant-ui/react-langgraph";
@@ -196,27 +194,21 @@ import { useLangGraphRuntime } from "@assistant-ui/react-langgraph";
 import { createThread, getThreadState, sendMessage } from "@/lib/chatApi";
 
 export function MyAssistant() {
-  const threadIdRef = useRef<string | undefined>();
   const runtime = useLangGraphRuntime({
-    threadId: threadIdRef.current,
-    stream: async (messages) => {
-      if (!threadIdRef.current) {
-        const { thread_id } = await createThread();
-        threadIdRef.current = thread_id;
-      }
-      const threadId = threadIdRef.current;
+    stream: async (messages, { initialize }) => {
+      const { externalId } = await initialize();
+      if (!externalId) throw new Error("Thread not found");
       return sendMessage({
-        threadId,
+        threadId: externalId,
         messages,
       });
     },
-    onSwitchToNewThread: async () => {
+    create: async () => {
       const { thread_id } = await createThread();
-      threadIdRef.current = thread_id;
+      return { externalId: thread_id };
     },
-    onSwitchToThread: async (threadId) => {
-      const state = await getThreadState(threadId);
-      threadIdRef.current = threadId;
+    load: async (externalId) => {
+      const state = await getThreadState(externalId);
       return {
         messages: state.values.messages,
         interrupts: state.tasks[0]?.interrupts,
@@ -306,14 +298,57 @@ import { convertLangChainMessages } from "@assistant-ui/react-langgraph";
 const threadMessage = convertLangChainMessages(langChainMessage);
 ```
 
+## Thread Management
+
+### Basic Thread Support
+
+The `useLangGraphRuntime` hook now includes built-in thread management capabilities:
+
+```typescript
+const runtime = useLangGraphRuntime({
+  stream: async (messages, { initialize }) => {
+    // initialize() creates or loads a thread and returns its IDs
+    const { remoteId, externalId } = await initialize();
+    // Use externalId (your backend's thread ID) for API calls
+    return sendMessage({ threadId: externalId, messages });
+  },
+  create: async () => {
+    // Called when creating a new thread
+    const { thread_id } = await createThread();
+    return { externalId: thread_id };
+  },
+  load: async (externalId) => {
+    // Called when loading an existing thread
+    const state = await getThreadState(externalId);
+    return {
+      messages: state.values.messages,
+      interrupts: state.tasks[0]?.interrupts,
+    };
+  },
+});
+```
+
+### Cloud Persistence
+
+For persistent thread history across sessions, integrate with assistant-cloud:
+
+```typescript
+const runtime = useLangGraphRuntime({
+  cloud: new AssistantCloud({
+    baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL,
+  }),
+  // ... stream, create, load functions
+});
+```
+
+See the [Cloud Persistence guide](/docs/cloud/persistence/langgraph) for detailed setup instructions.
+
 ## Interrupt Persistence
 
-LangGraph supports interrupting the execution flow to request user input or handle specific interactions. These interrupts can be persisted and restored when switching between threads. This means that if a user switches away from a thread during an interaction (like waiting for user approval), the interaction state will be preserved when they return to that thread.
-
-To handle interrupts in your application:
+LangGraph supports interrupting the execution flow to request user input or handle specific interactions. These interrupts can be persisted and restored when switching between threads:
 
 1. Make sure your thread state type includes the `interrupts` field
-2. Return the interrupts from `onSwitchToThread` along with the messages
+2. Return the interrupts from the `load` function along with the messages
 3. The runtime will automatically restore the interrupt state when switching threads
 
 This feature is particularly useful for applications that require user approval flows, multi-step forms, or any other interactive elements that might span multiple thread switches.

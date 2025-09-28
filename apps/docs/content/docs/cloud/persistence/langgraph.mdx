@@ -2,9 +2,9 @@
 title: Chat History for LangGraph Cloud
 ---
 
-import { Steps, Step } from 'fumadocs-ui/components/steps';
-import { Callout } from 'fumadocs-ui/components/callout';
-import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+import { Steps, Step } from "fumadocs-ui/components/steps";
+import { Callout } from "fumadocs-ui/components/callout";
+import { Tab, Tabs } from "fumadocs-ui/components/tabs";
 
 ## Overview
 
@@ -13,7 +13,8 @@ assistant-cloud provides thread management and persistent chat history for appli
 ## Prerequisites
 
 <Callout type="info">
-  You need an assistant-cloud account to follow this guide. [Sign up here](https://cloud.assistant-ui.com/) to get started.
+  You need an assistant-cloud account to follow this guide. [Sign up
+  here](https://cloud.assistant-ui.com/) to get started.
 </Callout>
 
 ## Setup Guide
@@ -75,39 +76,11 @@ Create a runtime provider that integrates LangGraph with assistant-cloud. Choose
 import {
   AssistantCloud,
   AssistantRuntimeProvider,
-  useCloudThreadListRuntime,
-  useThreadListItemRuntime,
 } from "@assistant-ui/react";
 import { useLangGraphRuntime } from "@assistant-ui/react-langgraph";
 import { createThread, getThreadState, sendMessage } from "@/lib/chatApi";
 import { LangChainMessage } from "@assistant-ui/react-langgraph";
 import { useMemo } from "react";
-
-const useMyLangGraphRuntime = () => {
-  const threadListItemRuntime = useThreadListItemRuntime();
-  
-  const runtime = useLangGraphRuntime({
-    stream: async function* (messages) {
-      const { externalId } = await threadListItemRuntime.initialize();
-      if (!externalId) throw new Error("Thread not found");
-
-      return sendMessage({
-        threadId: externalId,
-        messages,
-      });
-    },
-
-    onSwitchToThread: async (externalId) => {
-      const state = await getThreadState(externalId);
-      return {
-        messages:
-          (state.values as { messages?: LangChainMessage[] }).messages ?? [],
-      };
-    },
-  });
-
-  return runtime;
-};
 
 export function MyRuntimeProvider({
   children,
@@ -123,12 +96,27 @@ export function MyRuntimeProvider({
     [],
   );
 
-  const runtime = useCloudThreadListRuntime({
+  const runtime = useLangGraphRuntime({
     cloud,
-    runtimeHook: useMyLangGraphRuntime,
+    stream: async function* (messages, { initialize }) {
+      const { externalId } = await initialize();
+      if (!externalId) throw new Error("Thread not found");
+
+      return sendMessage({
+        threadId: externalId,
+        messages,
+      });
+    },
     create: async () => {
       const { thread_id } = await createThread();
       return { externalId: thread_id };
+    },
+    load: async (externalId) => {
+      const state = await getThreadState(externalId);
+      return {
+        messages:
+          (state.values as { messages?: LangChainMessage[] }).messages ?? [],
+      };
     },
   });
 
@@ -150,40 +138,12 @@ export function MyRuntimeProvider({
 import {
   AssistantCloud,
   AssistantRuntimeProvider,
-  useCloudThreadListRuntime,
-  useThreadListItemRuntime,
 } from "@assistant-ui/react";
 import { useLangGraphRuntime } from "@assistant-ui/react-langgraph";
 import { createThread, getThreadState, sendMessage } from "@/lib/chatApi";
 import { LangChainMessage } from "@assistant-ui/react-langgraph";
 import { useAuth } from "@clerk/nextjs";
 import { useMemo } from "react";
-
-const useMyLangGraphRuntime = () => {
-  const threadListItemRuntime = useThreadListItemRuntime();
-  
-  const runtime = useLangGraphRuntime({
-    stream: async function* (messages) {
-      const { externalId } = await threadListItemRuntime.initialize();
-      if (!externalId) throw new Error("Thread not found");
-
-      return sendMessage({
-        threadId: externalId,
-        messages,
-      });
-    },
-
-    onSwitchToThread: async (externalId) => {
-      const state = await getThreadState(externalId);
-      return {
-        messages:
-          (state.values as { messages?: LangChainMessage[] }).messages ?? []
-      };
-    },
-  });
-
-  return runtime;
-};
 
 export function MyRuntimeProvider({
   children,
@@ -201,12 +161,27 @@ export function MyRuntimeProvider({
     [getToken],
   );
 
-  const runtime = useCloudThreadListRuntime({
+  const runtime = useLangGraphRuntime({
     cloud,
-    runtimeHook: useMyLangGraphRuntime,
+    stream: async function* (messages, { initialize }) {
+      const { externalId } = await initialize();
+      if (!externalId) throw new Error("Thread not found");
+
+      return sendMessage({
+        threadId: externalId,
+        messages,
+      });
+    },
     create: async () => {
       const { thread_id } = await createThread();
       return { externalId: thread_id };
+    },
+    load: async (externalId) => {
+      const state = await getThreadState(externalId);
+      return {
+        messages:
+          (state.values as { messages?: LangChainMessage[] }).messages ?? [],
+      };
     },
   });
 
@@ -219,7 +194,8 @@ export function MyRuntimeProvider({
 ```
 
 <Callout type="info">
-  For Clerk authentication, configure the `"assistant-ui"` token template in your Clerk dashboard.
+  For Clerk authentication, configure the `"assistant-ui"` token template in
+  your Clerk dashboard.
 </Callout>
 
 </Tab>
@@ -227,7 +203,7 @@ export function MyRuntimeProvider({
 </Tabs>
 
 <Callout type="info">
-  The `useMyLangGraphRuntime` hook is extracted into a separate function because it will be mounted multiple times, once per active thread.
+  The `useLangGraphRuntime` hook now directly accepts `cloud`, `create`, and `load` parameters for simplified thread management. The runtime handles thread lifecycle internally.
 </Callout>
 
 </Step>

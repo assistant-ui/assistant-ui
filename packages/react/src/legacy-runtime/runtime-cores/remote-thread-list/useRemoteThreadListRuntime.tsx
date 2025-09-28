@@ -6,6 +6,7 @@ import { RemoteThreadListThreadListRuntimeCore } from "./RemoteThreadListThreadL
 import { RemoteThreadListOptions } from "./types";
 import { AssistantRuntimeImpl } from "../../../internal";
 import { AssistantRuntimeCore } from "../core/AssistantRuntimeCore";
+import { AssistantRuntime } from "../../runtime/AssistantRuntime";
 
 class RemoteThreadListRuntimeCore
   extends BaseAssistantRuntimeCore
@@ -28,7 +29,7 @@ class RemoteThreadListRuntimeCore
 
 export const useRemoteThreadListRuntime = (
   options: RemoteThreadListOptions,
-) => {
+): AssistantRuntime => {
   const [runtime] = useState(() => new RemoteThreadListRuntimeCore(options));
   useEffect(() => {
     runtime.threads.__internal_setOptions(options);
