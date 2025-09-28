@@ -119,6 +119,95 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
+  apps/devtools-extension:
+    dependencies:
+      '@assistant-ui/react-devtools':
+        specifier: workspace:*
+        version: link:../../packages/react-devtools
+      react:
+        specifier: 19.1.1
+        version: 19.1.1
+      react-dom:
+        specifier: 19.1.1
+        version: 19.1.1(react@19.1.1)
+    devDependencies:
+      '@types/chrome':
+        specifier: ^0.0.257
+        version: 0.0.257
+      '@types/node':
+        specifier: ^24.3.0
+        version: 24.3.1
+      '@types/webextension-polyfill':
+        specifier: ^0.12.1
+        version: 0.12.3
+      esbuild:
+        specifier: ^0.24.0
+        version: 0.24.2
+      eslint:
+        specifier: ^9
+        version: 9.34.0(jiti@2.5.1)
+      eslint-config-next:
+        specifier: 15.4.6
+        version: 15.4.6(eslint@9.34.0(jiti@2.5.1))(typescript@5.9.2)
+      tsx:
+        specifier: ^4.20.4
+        version: 4.20.5
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.2
+
+  apps/devtools-frame:
+    dependencies:
+      '@assistant-ui/react-devtools':
+        specifier: workspace:*
+        version: link:../../packages/react-devtools
+      '@shikijs/langs':
+        specifier: ^3.13.0
+        version: 3.13.0
+      '@shikijs/themes':
+        specifier: ^3.13.0
+        version: 3.13.0
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
+      next:
+        specifier: 15.4.6
+        version: 15.4.6(@opentelemetry/api@1.9.0)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+      react:
+        specifier: 19.1.1
+        version: 19.1.1
+      react-dom:
+        specifier: 19.1.1
+        version: 19.1.1(react@19.1.1)
+      react-shiki:
+        specifier: ^0.7.2
+        version: 0.7.4(@types/react-dom@19.1.9(@types/react@19.1.12))(@types/react@19.1.12)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+    devDependencies:
+      '@tailwindcss/postcss':
+        specifier: ^4.1.13
+        version: 4.1.13
+      '@types/react':
+        specifier: ^19.1.10
+        version: 19.1.12
+      '@types/react-dom':
+        specifier: ^19.1.7
+        version: 19.1.9(@types/react@19.1.12)
+      eslint:
+        specifier: ^9
+        version: 9.34.0(jiti@2.5.1)
+      eslint-config-next:
+        specifier: 15.4.6
+        version: 15.4.6(eslint@9.34.0(jiti@2.5.1))(typescript@5.9.2)
+      postcss:
+        specifier: ^8.5.6
+        version: 8.5.6
+      tailwindcss:
+        specifier: ^4.1.13
+        version: 4.1.13
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.2
+
   apps/docs:
     dependencies:
       '@ai-sdk/openai':
