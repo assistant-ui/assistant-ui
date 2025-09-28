@@ -1,5 +1,13 @@
 # @assistant-ui/react-data-stream
 
+## 0.11.1
+
+### Patch Changes
+
+- 8812f86: chore: update deps
+- Updated dependencies [8812f86]
+  - assistant-stream@0.2.30
+
 ## 0.11.0
 
 ### Patch Changes

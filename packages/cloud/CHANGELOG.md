@@ -1,5 +1,13 @@
 # assistant-cloud
 
+## 0.1.2
+
+### Patch Changes
+
+- 8812f86: chore: update deps
+- Updated dependencies [8812f86]
+  - assistant-stream@0.2.30
+
 ## 0.1.1
 
 ### Patch Changes

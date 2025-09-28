@@ -1,5 +1,11 @@
 # @assistant-ui/react-hook-form
 
+## 0.11.1
+
+### Patch Changes
+
+- 8812f86: chore: update deps
+
 ## 0.11.0
 
 ### Patch Changes
