@@ -23,14 +23,14 @@
   },
   "dependencies": {
     "@ai-sdk/provider": "^2.0.0",
-    "@ai-sdk/react": "^2.0.15",
-    "ai": "^5.0.15",
+    "@ai-sdk/react": "^2.0.56",
+    "ai": "^5.0.56",
     "@radix-ui/react-use-callback-ref": "^1.1.1",
     "@types/json-schema": "^7.0.15",
     "assistant-stream": "^0.2.29",
     "json-schema": "^0.4.0",
-    "zod": "^4.0.17",
-    "zustand": "^5.0.7"
+    "zod": "^4.1.11",
+    "zustand": "^5.0.8"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.11.20",
@@ -49,12 +49,12 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^24.3.0",
-    "@types/react": "^19.1.10",
+    "@types/node": "^24.5.2",
+    "@types/react": "^19.1.15",
     "eslint": "^9",
-    "eslint-config-next": "15.4.6",
+    "eslint-config-next": "15.5.4",
     "react": "19.1.1",
-    "tsx": "^4.20.4"
+    "tsx": "^4.20.6"
   },
   "publishConfig": {
     "access": "public",

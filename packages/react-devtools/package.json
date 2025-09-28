@@ -33,7 +33,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "zod": "^4.1.5"
+    "zod": "^4.1.11"
   },
   "peerDependencies": {
     "@assistant-ui/react": "*",
@@ -55,10 +55,10 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^24.3.0",
+    "@types/node": "^24.5.2",
     "eslint": "^9",
-    "eslint-config-next": "15.4.6",
-    "tsx": "^4.20.4",
+    "eslint-config-next": "15.5.4",
+    "tsx": "^4.20.6",
     "vitest": "^3.2.4"
   },
   "publishConfig": {
