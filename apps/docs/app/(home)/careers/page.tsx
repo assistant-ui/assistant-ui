@@ -35,9 +35,9 @@ export default function CareersPage(): ReactElement {
           Build the future of agentic UI with us
         </h1>
         <p className="mx-auto max-w-2xl text-base text-muted-foreground sm:text-lg">
-          We&apos;re a small, product-obsessed team crafting the tools that power the
-          next generation of AI-native products. Join us if you care about
-          beautiful interfaces, fast iteration, and developer velocity.
+          We&apos;re a small, product-obsessed team crafting the tools that
+          power the next generation of AI-native products. Join us if you care
+          about beautiful interfaces, fast iteration, and developer velocity.
         </p>
       </section>
 
@@ -45,8 +45,8 @@ export default function CareersPage(): ReactElement {
         <div className="space-y-3">
           <h2 className="text-xl font-semibold">Open roles</h2>
           <p className="text-sm text-muted-foreground">
-            Don&apos;t see the perfect fit? We&apos;d still love to hear from you - drop
-            us a note at
+            Don&apos;t see the perfect fit? We&apos;d still love to hear from
+            you - drop us a note at
             <span className="px-1 font-medium text-foreground">
               <a href="mailto:hello@assistant-ui.com">hello@assistant-ui.com</a>
             </span>
