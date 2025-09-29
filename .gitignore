@@ -45,3 +45,8 @@ packages/*/generated
 __pycache__
 
 .langgraph_api
+
+# development tools
+.cursorindexingignore
+.specstory/
+notes/
