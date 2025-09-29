@@ -11,7 +11,17 @@ import { useAssistantState, useAssistantApi } from "../../context";
 const useBranchPickerNext = () => {
   const api = useAssistantApi();
   const disabled = useAssistantState(
-    ({ message }) => message.branchNumber >= message.branchCount,
+    ({ thread, message }) => {
+      // Disabled if no next branch
+      if (message.branchNumber >= message.branchCount) return true;
+
+      // Disabled if running and capability not supported
+      if (thread.isRunning && !thread.capabilities.switchBranchDuringRun) {
+        return true;
+      }
+
+      return false;
+    },
   );
 
   const callback = useCallback(() => {

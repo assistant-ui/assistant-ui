@@ -43,6 +43,7 @@ export class ExternalStoreThreadRuntimeCore
 
   private _capabilities: RuntimeCapabilities = {
     switchToBranch: false,
+    switchBranchDuringRun: false,
     edit: false,
     reload: false,
     cancel: false,
@@ -108,6 +109,7 @@ export class ExternalStoreThreadRuntimeCore
     this.suggestions = store.suggestions ?? EMPTY_ARRAY;
     this._capabilities = {
       switchToBranch: this._store.setMessages !== undefined,
+      switchBranchDuringRun: false, // External store never supports branch switching during run
       edit: this._store.onEdit !== undefined,
       reload: this._store.onReload !== undefined,
       cancel: this._store.onCancel !== undefined,
@@ -227,6 +229,11 @@ export class ExternalStoreThreadRuntimeCore
   public override switchToBranch(branchId: string): void {
     if (!this._store.setMessages)
       throw new Error("Runtime does not support switching branches.");
+
+    // Silently ignore branch switches while running
+    if (this._store.isRunning) {
+      return;
+    }
 
     this.repository.switchToBranch(branchId);
     this.updateMessages(this.repository.getMessages());

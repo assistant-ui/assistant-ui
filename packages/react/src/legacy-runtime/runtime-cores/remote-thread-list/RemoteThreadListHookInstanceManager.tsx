@@ -90,10 +90,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
         throw new Error("Thread not found. This is a bug in assistant-ui.");
 
       aliveThread.runtime = threadBinding.getState();
-
-      if (isMounted) {
-        this._notifySubscribers();
-      }
+      this._notifySubscribers();
     }, [threadId, threadBinding]);
 
     const isMounted = useRef(false);

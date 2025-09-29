@@ -30,6 +30,7 @@ export class LocalThreadRuntimeCore
 {
   public readonly capabilities = {
     switchToBranch: true,
+    switchBranchDuringRun: true,
     edit: true,
     reload: true,
     cancel: true,
