@@ -1,5 +1,18 @@
 # @assistant-ui/react-langgraph
 
+## 0.7.0
+
+### Minor Changes
+
+- c5188d9: feat: revamp langgraph thread management integration
+
+### Patch Changes
+
+- Updated dependencies [7a020fa]
+- Updated dependencies [7a020fa]
+- Updated dependencies [c5188d9]
+  - @assistant-ui/react@0.11.21
+
 ## 0.6.11
 
 ### Patch Changes

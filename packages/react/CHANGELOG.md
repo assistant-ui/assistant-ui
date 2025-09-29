@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.11.21
+
+### Patch Changes
+
+- 7a020fa: fix: disallow branch switching during runs for most runtimes
+- 7a020fa: feat: Add switchBranchDuringRun capability flag to control branch switching while running
+- c5188d9: feat: revamp langgraph thread management integration
+
 ## 0.11.20
 
 ### Patch Changes
