@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.2.31
+
+### Patch Changes
+
+- c0f5003: fix(stream): always use async to flush controller appends
+
 ## 0.2.30
 
 ### Patch Changes

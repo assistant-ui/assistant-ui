@@ -1,5 +1,13 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.1.3
+
+### Patch Changes
+
+- e46e4d3: fix: guard threadItem access for useAISDKRuntime
+- Updated dependencies [c0f5003]
+  - assistant-stream@0.2.31
+
 ## 1.1.2
 
 ### Patch Changes
