@@ -16,14 +16,14 @@ import { InMemoryThreadListAdapter } from "./in-memory";
 import { CloudFileAttachmentAdapter } from "../../adapters";
 
 type ThreadData = {
-  externalId: string;
+  externalId: string | undefined;
 };
 
 type CloudThreadListAdapterOptions = {
   cloud?: AssistantCloud | undefined;
 
-  create?(): Promise<ThreadData>;
-  delete?(threadId: string): Promise<void>;
+  create?: (() => Promise<ThreadData>) | undefined;
+  delete?: ((threadId: string) => Promise<void>) | undefined;
 };
 
 const baseUrl =

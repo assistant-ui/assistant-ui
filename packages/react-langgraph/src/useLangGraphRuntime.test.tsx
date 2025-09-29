@@ -73,6 +73,9 @@ describe("useLangGraphRuntime", () => {
       wrapper,
     });
 
+    // Wait a tick for the runtime to be fully mounted
+    await Promise.resolve();
+
     act(() => {
       sendResult.current(
         [
@@ -109,14 +112,15 @@ describe("useLangGraphRuntime", () => {
       {},
     );
 
-    const wrapper = ({ children }: { children: ReactNode }) => (
-      <AssistantRuntimeProvider runtime={runtimeResult.current}>
-        {children}
-      </AssistantRuntimeProvider>
-    );
+    const wrapper = wrapperFactory(runtimeResult.current);
 
     const { result: sendResult } = renderHook(() => useLangGraphSend(), {
       wrapper,
+    });
+
+    // Wait a tick for the runtime to be fully mounted
+    await waitFor(() => {
+      expect(sendResult.current).toBeDefined();
     });
 
     act(() => {
@@ -155,14 +159,15 @@ describe("useLangGraphRuntime", () => {
       {},
     );
 
-    const wrapper = ({ children }: { children: ReactNode }) => (
-      <AssistantRuntimeProvider runtime={runtimeResult.current}>
-        {children}
-      </AssistantRuntimeProvider>
-    );
+    const wrapper = wrapperFactory(runtimeResult.current);
 
     const { result: sendResult } = renderHook(() => useLangGraphSend(), {
       wrapper,
+    });
+
+    // Wait a tick for the runtime to be fully mounted
+    await waitFor(() => {
+      expect(sendResult.current).toBeDefined();
     });
 
     act(() => {
@@ -205,6 +210,11 @@ describe("useLangGraphRuntime", () => {
 
     const { result: sendResult } = renderHook(() => useLangGraphSend(), {
       wrapper,
+    });
+
+    // Wait a tick for the runtime to be fully mounted
+    await waitFor(() => {
+      expect(sendResult.current).toBeDefined();
     });
 
     act(() => {
@@ -253,6 +263,11 @@ describe("useLangGraphRuntime", () => {
 
     const { result: sendResult } = renderHook(() => useLangGraphSend(), {
       wrapper,
+    });
+
+    // Wait a tick for the runtime to be fully mounted
+    await waitFor(() => {
+      expect(sendResult.current).toBeDefined();
     });
 
     act(() => {

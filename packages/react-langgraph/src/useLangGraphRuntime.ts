@@ -8,6 +8,9 @@ import {
   OnMetadataEventCallback,
 } from "./types";
 import {
+  AssistantCloud,
+  unstable_useCloudThreadListAdapter,
+  unstable_useRemoteThreadListRuntime,
   useAssistantApi,
   useAssistantState,
   useExternalMessageConverter,
@@ -23,7 +26,6 @@ import {
 } from "./useLangGraphMessages";
 import { AttachmentAdapter } from "@assistant-ui/react";
 import { AppendMessage } from "@assistant-ui/react";
-import { ExternalStoreAdapter } from "@assistant-ui/react";
 import { FeedbackAdapter } from "@assistant-ui/react";
 import { SpeechSynthesisAdapter } from "@assistant-ui/react";
 import { appendLangChainChunk } from "./appendLangChainChunk";
@@ -123,31 +125,25 @@ export const useLangGraphSendCommand = () => {
   return (command: LangGraphCommand) => send([], { command });
 };
 
-export const useLangGraphRuntime = ({
-  autoCancelPendingToolCalls,
-  adapters: { attachments, feedback, speech } = {},
-  unstable_allowCancellation,
-  stream,
-  threadId,
-  onSwitchToNewThread,
-  onSwitchToThread,
-  eventHandlers,
-}: {
-  /**
-   * @deprecated For thread management use `useCloudThreadListRuntime` instead. This option will be removed in a future version.
-   */
-  threadId?: string | undefined;
+type UseLangGraphRuntimeOptions = {
   autoCancelPendingToolCalls?: boolean | undefined;
   unstable_allowCancellation?: boolean | undefined;
   stream: LangGraphStreamCallback<LangChainMessage>;
   /**
-   * @deprecated For thread management use `useCloudThreadListRuntime` instead. This option will be removed in a future version.
+   * @deprecated This method has been renamed to `load`. Use `load` instead.
    */
-  onSwitchToNewThread?: () => Promise<void> | void;
   onSwitchToThread?: (threadId: string) => Promise<{
     messages: LangChainMessage[];
     interrupts?: LangGraphInterruptState[];
   }>;
+  load?: (threadId: string) => Promise<{
+    messages: LangChainMessage[];
+    interrupts?: LangGraphInterruptState[];
+  }>;
+  create?: () => Promise<{
+    externalId: string;
+  }>;
+  delete?: (threadId: string) => Promise<void>;
   adapters?:
     | {
         attachments?: AttachmentAdapter;
@@ -155,9 +151,6 @@ export const useLangGraphRuntime = ({
         feedback?: FeedbackAdapter;
       }
     | undefined;
-  /**
-   * Event handlers for various LangGraph stream events
-   */
   eventHandlers?:
     | {
         /**
@@ -178,7 +171,18 @@ export const useLangGraphRuntime = ({
         onCustomEvent?: OnCustomEventCallback;
       }
     | undefined;
-}) => {
+  cloud?: AssistantCloud | undefined;
+};
+
+const useLangGraphRuntimeImpl = ({
+  autoCancelPendingToolCalls,
+  adapters: { attachments, feedback, speech } = {},
+  unstable_allowCancellation,
+  stream,
+  onSwitchToThread: _onSwitchToThread,
+  load = _onSwitchToThread,
+  eventHandlers,
+}: UseLangGraphRuntimeOptions) => {
   const {
     interrupt,
     setInterrupt,
@@ -213,40 +217,25 @@ export const useLangGraphRuntime = ({
     isRunning,
   });
 
-  const switchToThread = !onSwitchToThread
+  const loadThread = !load
     ? undefined
     : async (externalId: string) => {
-        const { messages, interrupts } = await onSwitchToThread(externalId);
+        const { messages, interrupts } = await load(externalId);
         setMessages(messages);
         setInterrupt(interrupts?.[0]);
       };
 
-  const threadList: NonNullable<
-    ExternalStoreAdapter["adapters"]
-  >["threadList"] = {
-    threadId,
-    onSwitchToNewThread: !onSwitchToNewThread
-      ? undefined
-      : async () => {
-          await onSwitchToNewThread();
-          setMessages([]);
-          setInterrupt(undefined);
-        },
-    onSwitchToThread: switchToThread,
-  };
-
   const loadingRef = useRef(false);
   useEffect(() => {
-    if (!switchToThread || loadingRef.current) return;
+    if (!loadThread || loadingRef.current) return;
 
     const externalId = runtime.threads.mainItem.getState().externalId;
     if (externalId) {
       loadingRef.current = true;
-      switchToThread(externalId).finally(() => {
+      loadThread(externalId).finally(() => {
         loadingRef.current = false;
       });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const runtime = useExternalStoreRuntime({
@@ -256,7 +245,6 @@ export const useLangGraphRuntime = ({
       attachments,
       feedback,
       speech,
-      threadList,
     },
     extras: {
       [symbolLangGraphRuntimeExtras]: true,
@@ -322,4 +310,36 @@ export const useLangGraphRuntime = ({
   });
 
   return runtime;
+};
+
+export const useLangGraphRuntime = ({
+  cloud,
+  create,
+  delete: deleteFn,
+  ...options
+}: UseLangGraphRuntimeOptions) => {
+  const api = useAssistantApi();
+  const cloudAdapter = unstable_useCloudThreadListAdapter({
+    cloud,
+    create: async () => {
+      if (create) {
+        return create();
+      }
+
+      if (api.threadListItem.source) {
+        return api.threadListItem().initialize();
+      }
+
+      throw new Error(
+        "initialize function requires you to pass a create function to the useLangGraphRuntime hook",
+      );
+    },
+    delete: deleteFn,
+  });
+  return unstable_useRemoteThreadListRuntime({
+    runtimeHook: function RuntimeHook() {
+      return useLangGraphRuntimeImpl(options);
+    },
+    adapter: cloudAdapter,
+  });
 };

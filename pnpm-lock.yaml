@@ -82,6 +82,9 @@ importers:
         specifier: 19.1.1
         version: 19.1.1(react@19.1.1)
     devDependencies:
+      '@assistant-ui/x-buildutils':
+        specifier: workspace:*
+        version: link:../../packages/x-buildutils
       '@tailwindcss/postcss':
         specifier: ^4.1.13
         version: 4.1.13

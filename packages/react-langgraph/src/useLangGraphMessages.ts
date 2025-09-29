@@ -11,6 +11,7 @@ import {
   OnInfoEventCallback,
   OnMetadataEventCallback,
 } from "./types";
+import { useAssistantApi } from "@assistant-ui/react";
 
 export type LangGraphCommand = {
   resume: string;
@@ -28,7 +29,13 @@ export type LangGraphMessagesEvent<TMessage> = {
 
 export type LangGraphStreamCallback<TMessage> = (
   messages: TMessage[],
-  config: LangGraphSendMessageConfig & { abortSignal: AbortSignal },
+  config: LangGraphSendMessageConfig & {
+    abortSignal: AbortSignal;
+    initialize: () => Promise<{
+      remoteId: string;
+      externalId: string | undefined;
+    }>;
+  },
 ) =>
   | Promise<AsyncGenerator<LangGraphMessagesEvent<TMessage>>>
   | AsyncGenerator<LangGraphMessagesEvent<TMessage>>;
@@ -86,6 +93,7 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
     [eventHandlers],
   );
 
+  const api = useAssistantApi();
   const sendMessage = useCallback(
     async (newMessages: TMessage[], config: LangGraphSendMessageConfig) => {
       // ensure all messages have an ID
@@ -104,6 +112,9 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
       const response = await stream(newMessagesWithId, {
         ...config,
         abortSignal: abortController.signal,
+        initialize: async () => {
+          return await api.threadListItem().initialize();
+        },
       });
 
       for await (const chunk of response) {
