@@ -102,13 +102,16 @@ export const usePersistentBoolean = (
     store.getServerSnapshot,
   );
 
-  const update = useCallback((next: boolean | ((prev: boolean) => boolean)) => {
-    const nextValue =
-      typeof next === "function"
-        ? (next as (prevValue: boolean) => boolean)(store.getSnapshot())
-        : next;
-    store.setValue(nextValue);
-  }, [store]);
+  const update = useCallback(
+    (next: boolean | ((prev: boolean) => boolean)) => {
+      const nextValue =
+        typeof next === "function"
+          ? (next as (prevValue: boolean) => boolean)(store.getSnapshot())
+          : next;
+      store.setValue(nextValue);
+    },
+    [store],
+  );
 
   const reset = useCallback(() => {
     store.setValue(initialValue);
