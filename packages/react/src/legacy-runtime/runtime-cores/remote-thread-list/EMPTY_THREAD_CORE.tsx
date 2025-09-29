@@ -132,6 +132,7 @@ export const EMPTY_THREAD_CORE: ThreadRuntimeCore = {
 
   capabilities: {
     switchToBranch: false,
+    switchBranchDuringRun: false,
     edit: false,
     reload: false,
     cancel: false,

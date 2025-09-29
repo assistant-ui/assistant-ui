@@ -14,6 +14,7 @@ import {
 
 export type RuntimeCapabilities = {
   readonly switchToBranch: boolean;
+  readonly switchBranchDuringRun: boolean;
   readonly edit: boolean;
   readonly reload: boolean;
   readonly cancel: boolean;
