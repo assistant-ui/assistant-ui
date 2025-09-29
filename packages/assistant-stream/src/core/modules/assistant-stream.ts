@@ -213,8 +213,8 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
   }
 
   close() {
-    this._state.merger.seal();
     this._state.append?.controller?.close();
+    this._state.merger.seal();
 
     this._state.closeSubscriber?.();
   }
@@ -225,46 +225,25 @@ export function createAssistantStream(
 ): AssistantStream {
   const controller = new AssistantStreamControllerImpl();
 
-  let promiseOrVoid: PromiseLike<void> | void;
-  try {
-    promiseOrVoid = callback(controller);
-  } catch (e) {
-    if (!controller.__internal_isClosed) {
-      controller.enqueue({
-        type: "error",
-        path: [],
-        error: String(e),
-      });
-      controller.close();
-    }
-    throw e;
-  }
-
-  if (promiseOrVoid instanceof Promise) {
-    const runTask = async () => {
-      try {
-        await promiseOrVoid;
-      } catch (e) {
-        if (!controller.__internal_isClosed) {
-          controller.enqueue({
-            type: "error",
-            path: [],
-            error: String(e),
-          });
-        }
-        throw e;
-      } finally {
-        if (!controller.__internal_isClosed) {
-          controller.close();
-        }
+  const runTask = async () => {
+    try {
+      await callback(controller);
+    } catch (e) {
+      if (!controller.__internal_isClosed) {
+        controller.enqueue({
+          type: "error",
+          path: [],
+          error: String(e),
+        });
       }
-    };
-    runTask();
-  } else {
-    if (!controller.__internal_isClosed) {
-      controller.close();
+      throw e;
+    } finally {
+      if (!controller.__internal_isClosed) {
+        controller.close();
+      }
     }
-  }
+  };
+  runTask();
 
   return controller.__internal_getReadable();
 }
