@@ -559,7 +559,7 @@ importers:
         specifier: ^4.1.13
         version: 4.1.13
       assistant-stream:
-        specifier: ^0.2.30
+        specifier: ^0.2.31
         version: link:../../packages/assistant-stream
       class-variance-authority:
         specifier: ^0.7.1
@@ -1490,7 +1490,7 @@ importers:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.2.30
+        specifier: ^0.2.31
         version: link:../assistant-stream
       json-schema:
         specifier: ^0.4.0
