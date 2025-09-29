@@ -11,7 +11,7 @@ import {
   INTERNAL,
   useAssistantApi,
 } from "@assistant-ui/react";
-import { useRef, useEffect, useState, RefObject } from "react";
+import { useRef, useEffect, useState, RefObject, useCallback } from "react";
 
 const { MessageRepository } = INTERNAL;
 
@@ -41,9 +41,14 @@ export const useExternalHistory = <TMessage,>(
   const loadedRef = useRef(false);
 
   const api = useAssistantApi();
+  const optionalThreadListItem = useCallback(
+    () => (api.threadListItem.source ? api.threadListItem() : null),
+    [api],
+  );
+
   const [isLoading, setIsLoading] = useState(
     // we only load history if there is a remote id
-    () => api.threadListItem().getState().remoteId !== undefined,
+    () => optionalThreadListItem()?.getState().remoteId !== undefined,
   );
 
   const historyIds = useRef(new Set<string>());
@@ -88,14 +93,21 @@ export const useExternalHistory = <TMessage,>(
 
     if (!loadedRef.current) {
       loadedRef.current = true;
-      if (!api.threadListItem().getState().remoteId) {
+      if (!optionalThreadListItem()?.getState().remoteId) {
         setIsLoading(false);
         return;
       }
 
       loadHistory();
     }
-  }, [api, historyAdapter, storageFormatAdapter, toThreadMessages, runtimeRef]);
+  }, [
+    api,
+    historyAdapter,
+    storageFormatAdapter,
+    toThreadMessages,
+    runtimeRef,
+    optionalThreadListItem,
+  ]);
 
   useEffect(() => {
     return runtimeRef.current.thread.subscribe(async () => {
