@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.2.30
+
+### Patch Changes
+
+- 8812f86: chore: update deps
+
 ## 0.2.29
 
 ### Patch Changes
