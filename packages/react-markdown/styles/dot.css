@@ -4,6 +4,16 @@
   }
 }
 
+/* MarkdownText error boundary styles */
+.aui-markdown-error-boundary {
+  font-family: inherit;
+}
+
+.aui-markdown-error-boundary code {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.875em;
+}
+
 :where(.aui-md[data-status="running"]):empty::after,
 :where(.aui-md[data-status="running"])
   > :where(:not(ol):not(ul):not(pre)):last-child::after,

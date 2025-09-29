@@ -89,6 +89,10 @@ The `MessagePrimitive.Content` component has been renamed to `MessagePrimitive.P
 +<MessagePrimitive.Parts components={{ Text: MyText }} />
 ```
 
+### Common Errors
+
+If you see "Part is only available inside <MessagePrimitive.Parts />", you're likely using the old component name or incorrect structure. See the [Markdown documentation](/docs/ui/Markdown#troubleshooting) for detailed troubleshooting steps.
+
 ### Migration
 
 To migrate your codebase automatically, use the migration codemod:
