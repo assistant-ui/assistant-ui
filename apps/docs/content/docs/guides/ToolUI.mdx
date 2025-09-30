@@ -378,17 +378,31 @@ const DatePickerToolUI = makeAssistantToolUI<
 
 ### Multi-Step Interactions
 
-Build complex workflows with multiple user interactions:
+Build complex workflows with tool interrupts for multi-step user interactions:
 
 ```tsx
-const ApprovalToolUI = makeAssistantToolUI<
-  { action: string; details: any },
-  { approved: boolean; reason?: string }
->({
+const ApprovalTool = makeAssistantTool({
+  ...tool({
+    description: "Request user approval for an action",
+    parameters: z.object({
+      action: z.string(),
+      details: z.any(),
+    }),
+    execute: async ({ action, details }, { interrupt }) => {
+      // Request approval from user
+      const response = await interrupt({ action, details });
+
+      return {
+        approved: response.approved,
+        reason: response.reason,
+      };
+    },
+  }),
   toolName: "requestApproval",
-  render: ({ args, result, addResult }) => {
+  render: ({ args, result, interrupt, resume }) => {
     const [reason, setReason] = useState("");
 
+    // Show result after approval/rejection
     if (result) {
       return (
         <div className={result.approved ? "text-green-600" : "text-red-600"}>
@@ -397,40 +411,52 @@ const ApprovalToolUI = makeAssistantToolUI<
       );
     }
 
-    return (
-      <div className="rounded border-2 border-yellow-400 p-4">
-        <h4 className="font-bold">Approval Required</h4>
-        <p className="my-2">{args.action}</p>
-        <pre className="rounded bg-gray-100 p-2 text-sm">
-          {JSON.stringify(args.details, null, 2)}
-        </pre>
+    // Show approval UI during interrupt
+    if (interrupt) {
+      return (
+        <div className="rounded border-2 border-yellow-400 p-4">
+          <h4 className="font-bold">Approval Required</h4>
+          <p className="my-2">{interrupt.action}</p>
+          <pre className="rounded bg-gray-100 p-2 text-sm">
+            {JSON.stringify(interrupt.details, null, 2)}
+          </pre>
 
-        <div className="mt-4 flex gap-2">
-          <button
-            onClick={() => addResult({ approved: true })}
-            className="rounded bg-green-500 px-4 py-2 text-white"
-          >
-            Approve
-          </button>
-          <button
-            onClick={() => addResult({ approved: false, reason })}
-            className="rounded bg-red-500 px-4 py-2 text-white"
-          >
-            Reject
-          </button>
-          <input
-            type="text"
-            placeholder="Rejection reason..."
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            className="flex-1 rounded border px-2"
-          />
+          <div className="mt-4 flex gap-2">
+            <button
+              onClick={() => resume({ approved: true })}
+              className="rounded bg-green-500 px-4 py-2 text-white"
+            >
+              Approve
+            </button>
+            <button
+              onClick={() => resume({ approved: false, reason })}
+              className="rounded bg-red-500 px-4 py-2 text-white"
+            >
+              Reject
+            </button>
+            <input
+              type="text"
+              placeholder="Rejection reason..."
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              className="flex-1 rounded border px-2"
+            />
+          </div>
         </div>
-      </div>
-    );
+      );
+    }
+
+    return <div>Processing...</div>;
   },
 });
 ```
+
+<Callout type="tip">
+  Use tool interrupts (`interrupt()` / `resume()`) for workflows that need to
+  pause tool execution and wait for user input. Use `addResult()` for "human
+  tools" where the AI requests a tool call but the entire execution happens
+  through user interaction.
+</Callout>
 
 ## Advanced Features
 
@@ -589,13 +615,51 @@ type ToolUIRenderProps<TArgs, TResult> = {
   toolName: string;
   toolCallId: string;
 
-  // Interactive callback
+  // Interactive callbacks
   addResult: (result: TResult) => void;
+  resume: (payload: unknown) => void;
+
+  // Interrupt state
+  interrupt?: unknown; // Payload from context.interrupt()
 
   // Optional artifact data
   artifact?: unknown;
 };
 ```
+
+### Interrupt Handling
+
+When a tool calls `interrupt()` during execution, the payload becomes available in the render function:
+
+```tsx
+const ConfirmationToolUI = makeAssistantToolUI<
+  { action: string },
+  { confirmed: boolean }
+>({
+  toolName: "confirmAction",
+  render: ({ args, result, interrupt, resume }) => {
+    // Tool is waiting for user input
+    if (interrupt) {
+      return (
+        <div className="confirmation-dialog">
+          <p>Confirm: {interrupt.message}</p>
+          <button onClick={() => resume(true)}>Yes</button>
+          <button onClick={() => resume(false)}>No</button>
+        </div>
+      );
+    }
+
+    // Tool completed
+    if (result) {
+      return <div>Action {result.confirmed ? "confirmed" : "cancelled"}</div>;
+    }
+
+    return <div>Processing...</div>;
+  },
+});
+```
+
+Learn more about tool interrupts in the [Tools Guide](/docs/guides/Tools#tool-interrupts).
 
 ## Best Practices
 

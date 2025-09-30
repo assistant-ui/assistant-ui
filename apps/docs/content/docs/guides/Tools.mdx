@@ -359,13 +359,166 @@ const RefundTool = makeAssistantTool({
 });
 ```
 
+### Tool Interrupts
+
+Tools can interrupt their execution to request user input or approval before continuing. This is useful for:
+
+- Requesting user confirmation for sensitive operations
+- Collecting additional information mid-execution
+- Implementing progressive disclosure workflows
+- Building interactive, multi-step tool experiences
+
+```tsx
+import { makeAssistantTool, tool } from "@assistant-ui/react";
+import { z } from "zod";
+
+const confirmationTool = tool({
+  description: "Send an email with confirmation",
+  parameters: z.object({
+    to: z.string(),
+    subject: z.string(),
+    body: z.string(),
+  }),
+  execute: async ({ to, subject, body }, { interrupt }) => {
+    // Request user confirmation before sending
+    const confirmed = await interrupt({
+      type: "confirmation",
+      action: "send-email",
+      details: { to, subject },
+    });
+
+    if (!confirmed) {
+      return {
+        status: "cancelled",
+        message: "Email sending cancelled by user",
+      };
+    }
+
+    // Proceed with sending the email
+    await sendEmail({ to, subject, body });
+    return { status: "sent", message: `Email sent to ${to}` };
+  },
+});
+
+const EmailTool = makeAssistantTool({
+  ...confirmationTool,
+  toolName: "sendEmail",
+  render: ({ args, result, interrupt, resume }) => {
+    // The interrupt payload is available when the tool is interrupted
+    if (interrupt) {
+      return (
+        <div className="confirmation-dialog">
+          <h3>Confirm Email</h3>
+          <p>Send email to: {interrupt.details.to}</p>
+          <p>Subject: {interrupt.details.subject}</p>
+          <div className="actions">
+            <button onClick={() => resume(true)}>Confirm</button>
+            <button onClick={() => resume(false)}>Cancel</button>
+          </div>
+        </div>
+      );
+    }
+
+    // Show the result after completion
+    if (result) {
+      return (
+        <div className="email-result">
+          <p>{result.message}</p>
+        </div>
+      );
+    }
+
+    // Show loading state
+    return <div>Preparing email...</div>;
+  },
+});
+```
+
+#### Interrupt Behavior
+
+- **Payload**: The object passed to `interrupt()` is available in the `render` function as the `interrupt` prop
+- **Resume**: Call `resume(payload)` to continue execution - the payload becomes the resolved value of the `interrupt()` call
+- **Multiple Interrupts**: If `interrupt()` is called multiple times, previous interrupts are automatically rejected with an error
+- **Cancellation**: If the tool execution is aborted (e.g., user cancels the message), all pending interrupts are rejected
+
+#### Advanced Interrupt Patterns
+
+You can use interrupts for complex multi-step interactions:
+
+```tsx
+const wizardTool = tool({
+  description: "Multi-step data processing wizard",
+  parameters: z.object({
+    dataSource: z.string(),
+  }),
+  execute: async ({ dataSource }, { interrupt }) => {
+    // Step 1: Load data
+    const data = await loadData(dataSource);
+
+    // Step 2: Request user to select columns
+    const selectedColumns = await interrupt({
+      type: "column-selection",
+      availableColumns: data.columns,
+    });
+
+    // Step 3: Request processing options
+    const options = await interrupt({
+      type: "processing-options",
+      columns: selectedColumns,
+    });
+
+    // Step 4: Process data with user selections
+    const result = await processData(data, selectedColumns, options);
+    return result;
+  },
+});
+
+const WizardTool = makeAssistantTool({
+  ...wizardTool,
+  toolName: "dataWizard",
+  render: ({ args, result, interrupt, resume }) => {
+    if (interrupt?.type === "column-selection") {
+      return (
+        <ColumnSelector
+          columns={interrupt.availableColumns}
+          onSelect={(cols) => resume(cols)}
+        />
+      );
+    }
+
+    if (interrupt?.type === "processing-options") {
+      return (
+        <ProcessingOptions
+          columns={interrupt.columns}
+          onConfirm={(opts) => resume(opts)}
+        />
+      );
+    }
+
+    if (result) {
+      return <ResultDisplay data={result} />;
+    }
+
+    return <div>Loading...</div>;
+  },
+});
+```
+
+<Callout type="note">
+  When a tool calls `interrupt()` multiple times (e.g., for multi-step
+  workflows), each new interrupt automatically rejects any previous pending
+  interrupt. Make sure to handle potential errors if you need to support
+  cancellation of earlier steps.
+</Callout>
+
 ### MCP (Model Context Protocol) Tools
 
 Integration with MCP servers using AI SDK v5's experimental MCP support:
 
 <Callout type="warning">
-  MCP support in AI SDK v5 is experimental. The API may change in future releases.
-  Make sure to install the MCP SDK: `npm install @modelcontextprotocol/sdk`
+  MCP support in AI SDK v5 is experimental. The API may change in future
+  releases. Make sure to install the MCP SDK: `npm install
+  @modelcontextprotocol/sdk`
 </Callout>
 
 ```tsx
@@ -414,15 +567,13 @@ import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 // HTTP transport
 const httpClient = await experimental_createMCPClient({
   transport: new StreamableHTTPClientTransport(
-    new URL("http://localhost:3000/mcp")
+    new URL("http://localhost:3000/mcp"),
   ),
 });
 
 // Server-Sent Events transport
 const sseClient = await experimental_createMCPClient({
-  transport: new SSEClientTransport(
-    new URL("http://localhost:3000/sse")
-  ),
+  transport: new SSEClientTransport(new URL("http://localhost:3000/sse")),
 });
 ```
 
@@ -560,8 +711,20 @@ Tools receive additional context during execution:
 execute: async (args, context) => {
   // context.abortSignal - AbortSignal for cancellation
   // context.toolCallId - Unique identifier for this invocation
+  // context.interrupt - Function to interrupt execution and request user input
+
+  // Example: Request user confirmation
+  const userResponse = await context.interrupt({
+    message: "Are you sure?",
+  });
 };
 ```
+
+The execution context provides:
+
+- **`abortSignal`**: An `AbortSignal` that triggers when the tool execution is cancelled
+- **`toolCallId`**: A unique identifier for this specific tool invocation
+- **`interrupt`**: A function that pauses execution and requests user input. The payload passed to `interrupt()` becomes available in the render function, and the value passed to `resume()` becomes the resolved value of the `interrupt()` call
 
 ## Runtime Integration
 
