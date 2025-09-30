@@ -1,26 +1,23 @@
-declare global {
-  interface Assistant {
-    Commands: unknown;
-  }
+/**
+ * Module augmentation namespace for assistant-ui type extensions.
+ *
+ * @example
+ * ```typescript
+ * declare module "@assistant-ui/react" {
+ *   namespace Assistant {
+ *     interface Commands {
+ *       myCustomCommand: {
+ *         type: "my-custom-command";
+ *         data: string;
+ *       };
+ *     }
+ *   }
+ * }
+ * ```
+ */
+export namespace Assistant {
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
+  export interface Commands {}
 }
 
-type GetAugmentation<
-  Key extends keyof Assistant,
-  ExpectedType,
-  FallbackType = ExpectedType,
-> = unknown extends Assistant[Key]
-  ? FallbackType
-  : Assistant[Key] extends ExpectedType
-    ? Assistant[Key]
-    : {
-        ErrorMessage: `There is an error in the type you provided for Assistant.${Key}`;
-      };
-
-type UserCommandsRecord = GetAugmentation<
-  "Commands",
-  Record<string, unknown>,
-  Record<string, never>
->;
-
-export type UserCommands =
-  UserCommandsRecord extends Record<string, infer V> ? V : never;
+export type UserCommands = Assistant.Commands[keyof Assistant.Commands];
