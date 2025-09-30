@@ -46,7 +46,7 @@ type AssistantClientApi = {
   registerModelContextProvider(provider: ModelContextProvider): Unsubscribe;
 
   /** @internal */
-  __internal_getRuntime(): AssistantRuntime | null;
+  __internal_getRuntime?(): AssistantRuntime;
 };
 
 const AssistantStore = resource(
@@ -79,8 +79,11 @@ const AssistantStore = resource(
       toolUIs: toolUIs.api,
       on: events.on,
 
-      registerModelContextProvider: registerModelContextProvider,
-      __internal_getRuntime: () => __internal_runtime ?? null,
+      registerModelContextProvider:
+        registerModelContextProvider ?? (() => () => {}),
+      ...(__internal_runtime && {
+        __internal_getRuntime: () => __internal_runtime,
+      }),
     });
   },
 );
@@ -118,9 +121,11 @@ const getClientFromStore = (client: Store<{ api: AssistantClientApi }>) => {
     registerModelContextProvider(provider: ModelContextProvider) {
       return client.getState().api.registerModelContextProvider(provider);
     },
-    __internal_getRuntime() {
-      return client.getState().api.__internal_getRuntime();
-    },
+    ...(client.getState().api.__internal_getRuntime && {
+      __internal_getRuntime() {
+        return client.getState().api.__internal_getRuntime!();
+      },
+    }),
     on(selector, callback) {
       const { event, scope } = normalizeEventSelector(selector);
       if (scope === "*") return client.getState().api.on(event, callback);
@@ -145,12 +150,14 @@ const getClientFromStore = (client: Store<{ api: AssistantClientApi }>) => {
   } satisfies Partial<AssistantApi>;
 };
 
-type AssistantClientProps = {
+export type AssistantClientProps = {
   threads: ResourceElement<{
     state: ThreadListClientState;
     api: ThreadListClientApi;
   }>;
-  registerModelContextProvider: (provider: ModelContextProvider) => Unsubscribe;
+  registerModelContextProvider?: (
+    provider: ModelContextProvider,
+  ) => Unsubscribe;
 
   /** @internal */
   __internal_runtime?: AssistantRuntime;

@@ -15,7 +15,9 @@ export function useAttachmentRuntime(options?: {
 }): AttachmentRuntime | null {
   const api = useAssistantApi();
   const runtime = useAssistantState(() =>
-    api.attachment.source ? api.attachment().__internal_getRuntime() : null,
+    api.attachment.source
+      ? (api.attachment().__internal_getRuntime?.() ?? null)
+      : null,
   );
   if (!runtime && !options?.optional) {
     throw new Error("AttachmentRuntime is not available");

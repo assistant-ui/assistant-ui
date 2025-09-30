@@ -46,6 +46,10 @@ import {
 } from "../../client/types/ThreadList";
 import { ThreadViewportProvider } from "../providers/ThreadViewportProvider";
 import { DevToolsProviderApi } from "../../devtools/DevToolsHooks";
+import {
+  AssistantClientProps,
+  useAssistantClient,
+} from "../../client/AssistantClient";
 
 export type AssistantState = {
   readonly threads: ThreadListClientState;
@@ -132,7 +136,7 @@ export type AssistantApi = {
   // temp
   registerModelContextProvider(provider: ModelContextProvider): void;
   /** @internal */
-  __internal_getRuntime(): AssistantRuntime | null;
+  __internal_getRuntime?(): AssistantRuntime;
 };
 
 export const createAssistantApiField = <
@@ -231,14 +235,32 @@ const AssistantApiContext = createContext<AssistantApi>({
       "Registering model context providers is only available inside <AssistantProvider />",
     );
   },
-  __internal_getRuntime: () => {
-    return null;
-  },
 });
 
-export const useAssistantApi = (): AssistantApi => {
+const useAssistantApiImpl = (): AssistantApi => {
   return useContext(AssistantApiContext);
 };
+
+const useExtendedAssistantApiImpl = (
+  config: AssistantClientProps,
+): AssistantApi => {
+  const api = useAssistantApiImpl();
+  const api2 = useAssistantClient(config);
+  const extendedApi = useMemo(() => extendApi(api, api2), [api, api2]);
+  return extendedApi;
+};
+
+export function useAssistantApi(): AssistantApi;
+export function useAssistantApi(config: AssistantClientProps): AssistantApi;
+export function useAssistantApi(config?: AssistantClientProps): AssistantApi {
+  if (config) {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return useExtendedAssistantApiImpl(config);
+  } else {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return useAssistantApiImpl();
+  }
+}
 
 const mergeFns = <TArgs extends Array<unknown>>(
   fn1: (...args: TArgs) => void,

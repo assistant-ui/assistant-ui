@@ -125,6 +125,12 @@ export const ThreadClient = resource(
       import: runtime.import,
       reset: runtime.reset,
       stopSpeaking: runtime.stopSpeaking,
+      startVoice: async () => {
+        throw new Error("startVoice is not supported in this runtime");
+      },
+      stopVoice: async () => {
+        throw new Error("stopVoice is not supported in this runtime");
+      },
 
       message: (selector) => {
         if ("id" in selector) {

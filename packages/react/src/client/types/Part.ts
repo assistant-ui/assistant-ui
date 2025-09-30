@@ -27,5 +27,5 @@ export type MessagePartClientApi = {
   addToolResult(result: any | ToolResponse<any>): void;
 
   /** @internal */
-  __internal_getRuntime(): MessagePartRuntime | null;
+  __internal_getRuntime?(): MessagePartRuntime;
 };

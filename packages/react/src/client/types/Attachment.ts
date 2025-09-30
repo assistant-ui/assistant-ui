@@ -9,5 +9,5 @@ export type AttachmentClientApi = {
   remove(): Promise<void>;
 
   /** @internal */
-  __internal_getRuntime(): AttachmentRuntime | null;
+  __internal_getRuntime?(): AttachmentRuntime;
 };

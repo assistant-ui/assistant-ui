@@ -53,7 +53,9 @@ export function useComposerRuntime(options?: {
 }): ComposerRuntime | null {
   const api = useAssistantApi();
   const runtime = useAssistantState(() =>
-    api.composer.source ? api.composer().__internal_getRuntime() : null,
+    api.composer.source
+      ? (api.composer().__internal_getRuntime?.() ?? null)
+      : null,
   );
   if (!runtime && !options?.optional) {
     throw new Error("ComposerRuntime is not available");
