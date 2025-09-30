@@ -58,9 +58,15 @@ export function useToolInvocations({
     >
   >({});
 
-  const interruptedToolsRef = useRef<Map<string, (payload: unknown) => void>>(
-    new Map(),
-  );
+  const interruptedToolsRef = useRef<
+    Map<
+      string,
+      {
+        resolve: (payload: unknown) => void;
+        reject: (reason: unknown) => void;
+      }
+    >
+  >(new Map());
 
   const acRef = useRef<AbortController>(new AbortController());
   const [controller] = useState(() => {
@@ -69,8 +75,16 @@ export function useToolInvocations({
       getTools,
       () => acRef.current?.signal ?? new AbortController().signal,
       (toolCallId: string, payload: unknown) => {
-        return new Promise<unknown>((resolve) => {
-          interruptedToolsRef.current.set(toolCallId, resolve);
+        return new Promise<unknown>((resolve, reject) => {
+          // Reject previous interrupt if it exists
+          const previous = interruptedToolsRef.current.get(toolCallId);
+          if (previous) {
+            previous.reject(
+              new Error("Interrupt was superseded by a new interrupt"),
+            );
+          }
+
+          interruptedToolsRef.current.set(toolCallId, { resolve, reject });
           setToolStatuses((prev) => ({
             ...prev,
             [toolCallId]: { type: "interrupt", payload },
@@ -192,8 +206,8 @@ export function useToolInvocations({
   }, [state, controller, onResult]);
 
   const abort = () => {
-    interruptedToolsRef.current.forEach((resolve) => {
-      resolve(new Error("Tool execution aborted"));
+    interruptedToolsRef.current.forEach(({ reject }) => {
+      reject(new Error("Tool execution aborted"));
     });
     interruptedToolsRef.current.clear();
     setToolStatuses({});
@@ -209,15 +223,15 @@ export function useToolInvocations({
     },
     abort,
     resume: (toolCallId: string, payload: unknown) => {
-      const resolve = interruptedToolsRef.current.get(toolCallId);
-      if (resolve) {
+      const handlers = interruptedToolsRef.current.get(toolCallId);
+      if (handlers) {
         interruptedToolsRef.current.delete(toolCallId);
         setToolStatuses((prev) => {
           const next = { ...prev };
           delete next[toolCallId];
           return next;
         });
-        resolve(payload);
+        handlers.resolve(payload);
       } else {
         throw new Error(`Tool call ${toolCallId} is not interrupted`);
       }
