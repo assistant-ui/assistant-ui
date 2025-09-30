@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.11.23
+
+### Patch Changes
+
+- 3caad00: refactor: rename interrupt -> human for tool input handling
+- Updated dependencies [3caad00]
+  - assistant-stream@0.2.33
+
 ## 0.11.22
 
 ### Patch Changes
