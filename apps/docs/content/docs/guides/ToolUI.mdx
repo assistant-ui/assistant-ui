@@ -378,9 +378,20 @@ const DatePickerToolUI = makeAssistantToolUI<
 
 ### Multi-Step Interactions
 
-Build complex workflows with tool interrupts for multi-step user interactions:
+Build complex workflows with human-in-the-loop patterns for multi-step user interactions:
 
 ```tsx
+const DeleteProjectTool = makeAssistantTool({
+  toolName: "deleteProject",
+  execute: async ({ projectId }, { human }) => {
+    const response = await human({ action, details });
+    if (!response.approved) throw new Error("Project deletion cancelled");
+
+    await deleteProject(projectId);
+    return { success: true };
+  },
+});
+
 const ApprovalTool = makeAssistantTool({
   ...tool({
     description: "Request user approval for an action",
@@ -388,9 +399,9 @@ const ApprovalTool = makeAssistantTool({
       action: z.string(),
       details: z.any(),
     }),
-    execute: async ({ action, details }, { interrupt }) => {
+    execute: async ({ action, details }, { human }) => {
       // Request approval from user
-      const response = await interrupt({ action, details });
+      const response = await human({ action, details });
 
       return {
         approved: response.approved,
@@ -411,14 +422,14 @@ const ApprovalTool = makeAssistantTool({
       );
     }
 
-    // Show approval UI during interrupt
+    // Show approval UI when waiting for user input
     if (interrupt) {
       return (
         <div className="rounded border-2 border-yellow-400 p-4">
           <h4 className="font-bold">Approval Required</h4>
-          <p className="my-2">{interrupt.action}</p>
+          <p className="my-2">{interrupt.payload.action}</p>
           <pre className="rounded bg-gray-100 p-2 text-sm">
-            {JSON.stringify(interrupt.details, null, 2)}
+            {JSON.stringify(interrupt.payload.details, null, 2)}
           </pre>
 
           <div className="mt-4 flex gap-2">
@@ -452,7 +463,7 @@ const ApprovalTool = makeAssistantTool({
 ```
 
 <Callout type="tip">
-  Use tool interrupts (`interrupt()` / `resume()`) for workflows that need to
+  Use tool human input (`human()` / `resume()`) for workflows that need to
   pause tool execution and wait for user input. Use `addResult()` for "human
   tools" where the AI requests a tool call but the entire execution happens
   through user interaction.
@@ -620,16 +631,16 @@ type ToolUIRenderProps<TArgs, TResult> = {
   resume: (payload: unknown) => void;
 
   // Interrupt state
-  interrupt?: unknown; // Payload from context.interrupt()
+  interrupt?: { type: "human"; payload: unknown }; // Payload from context.human()
 
   // Optional artifact data
   artifact?: unknown;
 };
 ```
 
-### Interrupt Handling
+### Human Input Handling
 
-When a tool calls `interrupt()` during execution, the payload becomes available in the render function:
+When a tool calls `human()` during execution, the payload becomes available in the render function as `interrupt.payload`:
 
 ```tsx
 const ConfirmationToolUI = makeAssistantToolUI<
@@ -642,7 +653,7 @@ const ConfirmationToolUI = makeAssistantToolUI<
     if (interrupt) {
       return (
         <div className="confirmation-dialog">
-          <p>Confirm: {interrupt.message}</p>
+          <p>Confirm: {interrupt.payload.message}</p>
           <button onClick={() => resume(true)}>Yes</button>
           <button onClick={() => resume(false)}>No</button>
         </div>
@@ -659,7 +670,7 @@ const ConfirmationToolUI = makeAssistantToolUI<
 });
 ```
 
-Learn more about tool interrupts in the [Tools Guide](/docs/guides/Tools#tool-interrupts).
+Learn more about tool human input in the [Tools Guide](/docs/guides/Tools#tool-human-input).
 
 ## Best Practices
 

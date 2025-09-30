@@ -31,8 +31,8 @@ export type MessagePartRuntime = {
   addToolResult(result: any | ToolResponse<any>): void;
 
   /**
-   * Resume an interrupted tool call with a payload.
-   * This is useful when a tool has interrupted its execution and is waiting for user input.
+   * Resume a tool call that is waiting for human input with a payload.
+   * This is useful when a tool has requested human input and is waiting for a response.
    */
   resumeToolCall(payload: unknown): void;
 

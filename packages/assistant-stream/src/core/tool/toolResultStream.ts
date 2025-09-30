@@ -24,7 +24,7 @@ function getToolResponse(
     toolName: string;
     args: ReadonlyJSONObject;
   },
-  interrupt: (toolCallId: string, payload: unknown) => Promise<unknown>,
+  human: (toolCallId: string, payload: unknown) => Promise<unknown>,
 ) {
   const tool = tools?.[toolCall.toolName];
   if (!tool || !tool.execute) return undefined;
@@ -52,7 +52,7 @@ function getToolResponse(
     const result = (await executeFn(toolCall.args, {
       toolCallId: toolCall.toolCallId,
       abortSignal,
-      interrupt: (payload: unknown) => interrupt(toolCall.toolCallId, payload),
+      human: (payload: unknown) => human(toolCall.toolCallId, payload),
     })) as unknown as ReadonlyJSONValue;
     return ToolResponse.toResponse(result);
   };
@@ -68,12 +68,12 @@ function getToolStreamResponse(
     toolCallId: string;
     toolName: string;
   },
-  interrupt: (toolCallId: string, payload: unknown) => Promise<unknown>,
+  human: (toolCallId: string, payload: unknown) => Promise<unknown>,
 ) {
   tools?.[context.toolName]?.streamCall?.(reader, {
     toolCallId: context.toolCallId,
     abortSignal,
-    interrupt: (payload: unknown) => interrupt(context.toolCallId, payload),
+    human: (payload: unknown) => human(context.toolCallId, payload),
   });
 }
 
@@ -81,7 +81,7 @@ export async function unstable_runPendingTools(
   message: AssistantMessage,
   tools: Record<string, Tool> | undefined,
   abortSignal: AbortSignal,
-  interrupt: (toolCallId: string, payload: unknown) => Promise<unknown>,
+  human: (toolCallId: string, payload: unknown) => Promise<unknown>,
 ) {
   // TODO parallel tool calling
   for (const part of message.parts) {
@@ -90,9 +90,9 @@ export async function unstable_runPendingTools(
         tools,
         abortSignal,
         part,
-        interrupt ??
+        human ??
           (async () => {
-            throw new Error("Tool interrupt is not supported in this context");
+            throw new Error("Tool human input is not supported in this context");
           }),
       );
       if (promiseOrUndefined) {
@@ -128,21 +128,21 @@ export function toolResultStream(
     | (() => Record<string, Tool> | undefined)
     | undefined,
   abortSignal: AbortSignal | (() => AbortSignal),
-  interrupt: (toolCallId: string, payload: unknown) => Promise<unknown>,
+  human: (toolCallId: string, payload: unknown) => Promise<unknown>,
 ) {
   const toolsFn = typeof tools === "function" ? tools : () => tools;
   const abortSignalFn =
     typeof abortSignal === "function" ? abortSignal : () => abortSignal;
   return new ToolExecutionStream({
     execute: (toolCall) =>
-      getToolResponse(toolsFn(), abortSignalFn(), toolCall, interrupt),
+      getToolResponse(toolsFn(), abortSignalFn(), toolCall, human),
     streamCall: ({ reader, ...context }) =>
       getToolStreamResponse(
         toolsFn(),
         abortSignalFn(),
         reader,
         context,
-        interrupt,
+        human,
       ),
   });
 }

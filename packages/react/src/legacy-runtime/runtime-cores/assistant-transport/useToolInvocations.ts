@@ -39,7 +39,7 @@ type UseToolInvocationsParams = {
 
 export type ToolExecutionStatus =
   | { type: "executing" }
-  | { type: "interrupt"; payload: unknown };
+  | { type: "interrupt"; payload: { type: "human"; payload: unknown } };
 
 export function useToolInvocations({
   state,
@@ -58,7 +58,7 @@ export function useToolInvocations({
     >
   >({});
 
-  const interruptedToolsRef = useRef<
+  const humanInputRef = useRef<
     Map<
       string,
       {
@@ -76,18 +76,18 @@ export function useToolInvocations({
       () => acRef.current?.signal ?? new AbortController().signal,
       (toolCallId: string, payload: unknown) => {
         return new Promise<unknown>((resolve, reject) => {
-          // Reject previous interrupt if it exists
-          const previous = interruptedToolsRef.current.get(toolCallId);
+          // Reject previous human input request if it exists
+          const previous = humanInputRef.current.get(toolCallId);
           if (previous) {
             previous.reject(
-              new Error("Interrupt was superseded by a new interrupt"),
+              new Error("Human input request was superseded by a new request"),
             );
           }
 
-          interruptedToolsRef.current.set(toolCallId, { resolve, reject });
+          humanInputRef.current.set(toolCallId, { resolve, reject });
           setToolStatuses((prev) => ({
             ...prev,
-            [toolCallId]: { type: "interrupt", payload },
+            [toolCallId]: { type: "interrupt", payload: { type: "human", payload } },
           }));
         });
       },
@@ -206,10 +206,10 @@ export function useToolInvocations({
   }, [state, controller, onResult]);
 
   const abort = () => {
-    interruptedToolsRef.current.forEach(({ reject }) => {
+    humanInputRef.current.forEach(({ reject }) => {
       reject(new Error("Tool execution aborted"));
     });
-    interruptedToolsRef.current.clear();
+    humanInputRef.current.clear();
     setToolStatuses({});
 
     acRef.current.abort();
@@ -223,9 +223,9 @@ export function useToolInvocations({
     },
     abort,
     resume: (toolCallId: string, payload: unknown) => {
-      const handlers = interruptedToolsRef.current.get(toolCallId);
+      const handlers = humanInputRef.current.get(toolCallId);
       if (handlers) {
-        interruptedToolsRef.current.delete(toolCallId);
+        humanInputRef.current.delete(toolCallId);
         setToolStatuses((prev) => {
           const next = { ...prev };
           delete next[toolCallId];
@@ -233,7 +233,7 @@ export function useToolInvocations({
         });
         handlers.resolve(payload);
       } else {
-        throw new Error(`Tool call ${toolCallId} is not interrupted`);
+        throw new Error(`Tool call ${toolCallId} is not waiting for human input`);
       }
     },
   };

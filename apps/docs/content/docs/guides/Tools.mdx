@@ -359,9 +359,9 @@ const RefundTool = makeAssistantTool({
 });
 ```
 
-### Tool Interrupts
+### Tool Human Input
 
-Tools can interrupt their execution to request user input or approval before continuing. This is useful for:
+Tools can pause their execution to request user input or approval before continuing. This is useful for:
 
 - Requesting user confirmation for sensitive operations
 - Collecting additional information mid-execution
@@ -379,9 +379,9 @@ const confirmationTool = tool({
     subject: z.string(),
     body: z.string(),
   }),
-  execute: async ({ to, subject, body }, { interrupt }) => {
+  execute: async ({ to, subject, body }, { human }) => {
     // Request user confirmation before sending
-    const confirmed = await interrupt({
+    const confirmed = await human({
       type: "confirmation",
       action: "send-email",
       details: { to, subject },
@@ -404,13 +404,13 @@ const EmailTool = makeAssistantTool({
   ...confirmationTool,
   toolName: "sendEmail",
   render: ({ args, result, interrupt, resume }) => {
-    // The interrupt payload is available when the tool is interrupted
+    // The interrupt payload is available when the tool is waiting for user input
     if (interrupt) {
       return (
         <div className="confirmation-dialog">
           <h3>Confirm Email</h3>
-          <p>Send email to: {interrupt.details.to}</p>
-          <p>Subject: {interrupt.details.subject}</p>
+          <p>Send email to: {interrupt.payload.details.to}</p>
+          <p>Subject: {interrupt.payload.details.subject}</p>
           <div className="actions">
             <button onClick={() => resume(true)}>Confirm</button>
             <button onClick={() => resume(false)}>Cancel</button>
@@ -434,16 +434,17 @@ const EmailTool = makeAssistantTool({
 });
 ```
 
-#### Interrupt Behavior
+#### Human Input Behavior
 
-- **Payload**: The object passed to `interrupt()` is available in the `render` function as the `interrupt` prop
-- **Resume**: Call `resume(payload)` to continue execution - the payload becomes the resolved value of the `interrupt()` call
-- **Multiple Interrupts**: If `interrupt()` is called multiple times, previous interrupts are automatically rejected with an error
-- **Cancellation**: If the tool execution is aborted (e.g., user cancels the message), all pending interrupts are rejected
+- **Payload**: The object passed to `human()` is available in the `render` function as `interrupt.payload`
+- **Type**: The `interrupt` object has the structure `{ type: "human", payload: ... }`
+- **Resume**: Call `resume(payload)` to continue execution - the payload becomes the resolved value of the `human()` call
+- **Multiple Requests**: If `human()` is called multiple times, previous requests are automatically rejected with an error
+- **Cancellation**: If the tool execution is aborted (e.g., user cancels the message), all pending requests are rejected
 
-#### Advanced Interrupt Patterns
+#### Advanced Human Input Patterns
 
-You can use interrupts for complex multi-step interactions:
+You can use human input for complex multi-step interactions:
 
 ```tsx
 const wizardTool = tool({
@@ -451,18 +452,18 @@ const wizardTool = tool({
   parameters: z.object({
     dataSource: z.string(),
   }),
-  execute: async ({ dataSource }, { interrupt }) => {
+  execute: async ({ dataSource }, { human }) => {
     // Step 1: Load data
     const data = await loadData(dataSource);
 
     // Step 2: Request user to select columns
-    const selectedColumns = await interrupt({
+    const selectedColumns = await human({
       type: "column-selection",
       availableColumns: data.columns,
     });
 
     // Step 3: Request processing options
-    const options = await interrupt({
+    const options = await human({
       type: "processing-options",
       columns: selectedColumns,
     });
@@ -477,19 +478,19 @@ const WizardTool = makeAssistantTool({
   ...wizardTool,
   toolName: "dataWizard",
   render: ({ args, result, interrupt, resume }) => {
-    if (interrupt?.type === "column-selection") {
+    if (interrupt?.payload.type === "column-selection") {
       return (
         <ColumnSelector
-          columns={interrupt.availableColumns}
+          columns={interrupt.payload.availableColumns}
           onSelect={(cols) => resume(cols)}
         />
       );
     }
 
-    if (interrupt?.type === "processing-options") {
+    if (interrupt?.payload.type === "processing-options") {
       return (
         <ProcessingOptions
-          columns={interrupt.columns}
+          columns={interrupt.payload.columns}
           onConfirm={(opts) => resume(opts)}
         />
       );
@@ -505,9 +506,9 @@ const WizardTool = makeAssistantTool({
 ```
 
 <Callout type="note">
-  When a tool calls `interrupt()` multiple times (e.g., for multi-step
-  workflows), each new interrupt automatically rejects any previous pending
-  interrupt. Make sure to handle potential errors if you need to support
+  When a tool calls `human()` multiple times (e.g., for multi-step
+  workflows), each new request automatically rejects any previous pending
+  request. Make sure to handle potential errors if you need to support
   cancellation of earlier steps.
 </Callout>
 
@@ -711,10 +712,10 @@ Tools receive additional context during execution:
 execute: async (args, context) => {
   // context.abortSignal - AbortSignal for cancellation
   // context.toolCallId - Unique identifier for this invocation
-  // context.interrupt - Function to interrupt execution and request user input
+  // context.human - Function to request human input
 
   // Example: Request user confirmation
-  const userResponse = await context.interrupt({
+  const userResponse = await context.human({
     message: "Are you sure?",
   });
 };
@@ -724,7 +725,7 @@ The execution context provides:
 
 - **`abortSignal`**: An `AbortSignal` that triggers when the tool execution is cancelled
 - **`toolCallId`**: A unique identifier for this specific tool invocation
-- **`interrupt`**: A function that pauses execution and requests user input. The payload passed to `interrupt()` becomes available in the render function, and the value passed to `resume()` becomes the resolved value of the `interrupt()` call
+- **`human`**: A function that pauses execution and requests user input. The payload passed to `human()` becomes available in the render function, and the value passed to `resume()` becomes the resolved value of the `human()` call
 
 ## Runtime Integration
 

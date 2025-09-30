@@ -80,7 +80,7 @@ export interface ToolCallReader<
 export type ToolExecutionContext = {
   toolCallId: string;
   abortSignal: AbortSignal;
-  interrupt: (payload: unknown) => Promise<unknown>;
+  human: (payload: unknown) => Promise<unknown>;
 };
 
 export type ToolExecuteFunction<TArgs, TResult> = (
