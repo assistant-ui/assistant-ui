@@ -92,7 +92,9 @@ export async function unstable_runPendingTools(
         part,
         human ??
           (async () => {
-            throw new Error("Tool human input is not supported in this context");
+            throw new Error(
+              "Tool human input is not supported in this context",
+            );
           }),
       );
       if (promiseOrUndefined) {
@@ -137,12 +139,6 @@ export function toolResultStream(
     execute: (toolCall) =>
       getToolResponse(toolsFn(), abortSignalFn(), toolCall, human),
     streamCall: ({ reader, ...context }) =>
-      getToolStreamResponse(
-        toolsFn(),
-        abortSignalFn(),
-        reader,
-        context,
-        human,
-      ),
+      getToolStreamResponse(toolsFn(), abortSignalFn(), reader, context, human),
   });
 }

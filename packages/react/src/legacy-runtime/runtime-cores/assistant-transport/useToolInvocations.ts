@@ -87,7 +87,10 @@ export function useToolInvocations({
           humanInputRef.current.set(toolCallId, { resolve, reject });
           setToolStatuses((prev) => ({
             ...prev,
-            [toolCallId]: { type: "interrupt", payload: { type: "human", payload } },
+            [toolCallId]: {
+              type: "interrupt",
+              payload: { type: "human", payload },
+            },
           }));
         });
       },
@@ -233,7 +236,9 @@ export function useToolInvocations({
         });
         handlers.resolve(payload);
       } else {
-        throw new Error(`Tool call ${toolCallId} is not waiting for human input`);
+        throw new Error(
+          `Tool call ${toolCallId} is not waiting for human input`,
+        );
       }
     },
   };
