@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.2.32
+
+### Patch Changes
+
+- e81784b: feat: Tool Call interrupt() resume() API
+
 ## 0.2.31
 
 ### Patch Changes

@@ -1,5 +1,15 @@
 # @assistant-ui/react-data-stream
 
+## 0.11.2
+
+### Patch Changes
+
+- e81784b: feat: Tool Call interrupt() resume() API
+- Updated dependencies [e8d6d7b]
+- Updated dependencies [e81784b]
+  - @assistant-ui/react@0.11.22
+  - assistant-stream@0.2.32
+
 ## 0.11.1
 
 ### Patch Changes
