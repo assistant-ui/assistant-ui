@@ -16,7 +16,7 @@ export function useThreadListItemRuntime(options?: {
   const api = useAssistantApi();
   const runtime = useAssistantState(() =>
     api.threadListItem.source
-      ? api.threadListItem().__internal_getRuntime()
+      ? (api.threadListItem().__internal_getRuntime?.() ?? null)
       : null,
   );
   if (!runtime && !options?.optional) {

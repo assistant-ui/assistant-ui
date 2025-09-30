@@ -30,5 +30,5 @@ export type ComposerClientApi = {
   beginEdit(): void;
 
   /** @internal */
-  __internal_getRuntime(): ComposerRuntime | null;
+  __internal_getRuntime?(): ComposerRuntime;
 };

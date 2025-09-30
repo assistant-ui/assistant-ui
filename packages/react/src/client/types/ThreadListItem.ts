@@ -22,5 +22,5 @@ export type ThreadListItemClientApi = {
   detach(): void;
 
   /** @internal */
-  __internal_getRuntime(): ThreadListItemRuntime | null;
+  __internal_getRuntime?(): ThreadListItemRuntime;
 };

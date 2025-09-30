@@ -15,7 +15,7 @@ export function useMessagePartRuntime(options?: {
 }) {
   const api = useAssistantApi();
   const runtime = useAssistantState(() =>
-    api.part.source ? api.part().__internal_getRuntime() : null,
+    api.part.source ? (api.part().__internal_getRuntime?.() ?? null) : null,
   );
   if (!runtime && !options?.optional) {
     throw new Error("MessagePartRuntime is not available");

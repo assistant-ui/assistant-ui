@@ -62,5 +62,5 @@ export type MessageClientApi = {
   setIsHovering(value: boolean): void;
 
   /** @internal */
-  __internal_getRuntime(): MessageRuntime | null;
+  __internal_getRuntime?(): MessageRuntime;
 };

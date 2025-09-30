@@ -130,6 +130,16 @@ export type ThreadClientApi = {
    */
   stopSpeaking(): void;
 
+  /**
+   * Start the voice session for the thread. Establishes any necessary media connections.
+   */
+  startVoice(): Promise<void>;
+
+  /**
+   * Stop the currently active voice session.
+   */
+  stopVoice(): Promise<void>;
+
   /** @internal */
-  __internal_getRuntime(): ThreadRuntime | null;
+  __internal_getRuntime?(): ThreadRuntime;
 };
