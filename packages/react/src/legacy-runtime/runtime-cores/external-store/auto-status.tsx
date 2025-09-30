@@ -11,7 +11,7 @@ const AUTO_STATUS_PENDING = Object.freeze({
   reason: "tool-calls",
 });
 
-const AUTO_STATUS_SUSPENDED = Object.freeze({
+const AUTO_STATUS_INTERRUPT = Object.freeze({
   type: "requires-action",
   reason: "interrupt",
 });
@@ -22,13 +22,13 @@ export const isAutoStatus = (status: MessageStatus) =>
 export const getAutoStatus = (
   isLast: boolean,
   isRunning: boolean,
-  hasSuspendedToolCalls: boolean,
+  hasInterruptedToolCalls: boolean,
   hasPendingToolCalls: boolean,
 ) =>
   isLast && isRunning
     ? AUTO_STATUS_RUNNING
-    : hasSuspendedToolCalls
-      ? AUTO_STATUS_SUSPENDED
+    : hasInterruptedToolCalls
+      ? AUTO_STATUS_INTERRUPT
       : hasPendingToolCalls
         ? AUTO_STATUS_PENDING
         : AUTO_STATUS_COMPLETE;
