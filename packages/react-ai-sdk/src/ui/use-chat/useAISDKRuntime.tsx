@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import type { UIMessage, useChat } from "@ai-sdk/react";
 import {
   useExternalStoreRuntime,
@@ -9,6 +10,8 @@ import {
   ThreadMessage,
   MessageFormatAdapter,
   useRuntimeAdapters,
+  INTERNAL,
+  type ToolExecutionStatus,
 } from "@assistant-ui/react";
 import { sliceMessagesUntil } from "../utils/sliceMessagesUntil";
 import { toCreateMessage } from "../utils/toCreateMessage";
@@ -20,7 +23,6 @@ import {
   aiSDKV5FormatAdapter,
 } from "../adapters/aiSDKFormatAdapter";
 import { useExternalHistory } from "./useExternalHistory";
-import { useMemo } from "react";
 
 export type AISDKRuntimeAdapter = {
   adapters?:
@@ -35,22 +37,49 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   { adapters }: AISDKRuntimeAdapter = {},
 ) => {
   const contextAdapters = useRuntimeAdapters();
+  const isRunning =
+    chatHelpers.status === "submitted" || chatHelpers.status == "streaming";
+
+  const [toolStatuses, setToolStatuses] = useState<
+    Record<string, ToolExecutionStatus>
+  >({});
+
   const messages = AISDKMessageConverter.useThreadMessages({
-    isRunning:
-      chatHelpers.status === "submitted" || chatHelpers.status == "streaming",
+    isRunning,
     messages: chatHelpers.messages,
+    metadata: useMemo(() => ({ toolStatuses }), [toolStatuses]),
+  });
+
+  const runtimeRef = useMemo(
+    () => ({
+      get current(): AssistantRuntime {
+        return runtime;
+      },
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
+  const toolInvocations = INTERNAL.useToolInvocations({
+    state: {
+      messages,
+      isRunning,
+    },
+    getTools: () => runtimeRef.current.thread.getModelContext().tools,
+    onResult: (command: any) => {
+      if (command.type === "add-tool-result") {
+        chatHelpers.addToolResult({
+          tool: command.toolName,
+          toolCallId: command.toolCallId,
+          output: command.result,
+        });
+      }
+    },
+    setToolStatuses,
   });
 
   const isLoading = useExternalHistory(
-    useMemo(
-      () => ({
-        get current(): AssistantRuntime {
-          return runtime;
-        },
-      }),
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      [],
-    ),
+    runtimeRef,
     adapters?.history ?? contextAdapters?.history,
     AISDKMessageConverter.toThreadMessages as (
       messages: UI_MESSAGE[],
@@ -65,8 +94,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   );
 
   const runtime = useExternalStoreRuntime({
-    isRunning:
-      chatHelpers.status === "submitted" || chatHelpers.status === "streaming",
+    isRunning,
     messages,
     setMessages: (messages) =>
       chatHelpers.setMessages(
@@ -82,7 +110,10 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
           .filter(Boolean)
           .flat(),
       ),
-    onCancel: async () => chatHelpers.stop(),
+    onCancel: async () => {
+      chatHelpers.stop();
+      toolInvocations.abort();
+    },
     onNew: async (message) => {
       const createMessage = toCreateMessage<UI_MESSAGE>(message);
       await chatHelpers.sendMessage(createMessage, {
@@ -114,6 +145,8 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         output: result,
       });
     },
+    onResumeToolCall: (options) =>
+      toolInvocations.resume(options.toolCallId, options.payload),
     adapters: {
       attachments: vercelAttachmentAdapter,
       ...contextAdapters,

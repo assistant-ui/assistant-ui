@@ -16,20 +16,27 @@ export const createMessageConverter = <T extends object>(
       messages,
       isRunning,
       joinStrategy,
+      metadata,
     }: {
       messages: T[];
       isRunning: boolean;
       joinStrategy?: "concat-content" | "none" | undefined;
+      metadata?: useExternalMessageConverter.Metadata;
     }) => {
       return useExternalMessageConverter<T>({
         callback,
         messages,
         isRunning,
         joinStrategy,
+        metadata,
       });
     },
-    toThreadMessages: (messages: T[], isRunning = false) => {
-      return convertExternalMessages(messages, callback, isRunning);
+    toThreadMessages: (
+      messages: T[],
+      isRunning = false,
+      metadata: useExternalMessageConverter.Metadata = {},
+    ) => {
+      return convertExternalMessages(messages, callback, isRunning, metadata);
     },
     toOriginalMessages: (
       input: ThreadState | ThreadMessage | ThreadMessage["content"][number],

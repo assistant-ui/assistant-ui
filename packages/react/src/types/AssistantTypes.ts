@@ -64,7 +64,7 @@ export type MessagePartStatus =
 export type ToolCallMessagePartStatus =
   | {
       readonly type: "requires-action";
-      readonly reason: "tool-calls";
+      readonly reason: "interrupt";
     }
   | MessagePartStatus;
 
@@ -74,7 +74,7 @@ export type MessageStatus =
     }
   | {
       readonly type: "requires-action";
-      readonly reason: "tool-calls";
+      readonly reason: "tool-calls" | "interrupt";
     }
   | {
       readonly type: "complete";

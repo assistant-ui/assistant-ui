@@ -14,5 +14,9 @@ export {
 export { fromThreadMessageLike } from "./legacy-runtime/runtime-cores/external-store/ThreadMessageLike";
 export { getAutoStatus } from "./legacy-runtime/runtime-cores/external-store/auto-status";
 export { splitLocalRuntimeOptions } from "./legacy-runtime/runtime-cores/local/LocalRuntimeOptions";
+export {
+  useToolInvocations,
+  type ToolExecutionStatus,
+} from "./legacy-runtime/runtime-cores/assistant-transport/useToolInvocations";
 
 export * from "./utils/smooth";

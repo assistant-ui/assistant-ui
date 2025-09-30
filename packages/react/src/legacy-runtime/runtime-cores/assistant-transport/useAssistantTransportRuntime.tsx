@@ -1,8 +1,8 @@
 "use client";
 
 import {
-  ReadonlyJSONObject,
-  ReadonlyJSONValue,
+  type ReadonlyJSONObject,
+  type ReadonlyJSONValue,
   asAsyncIterableStream,
 } from "assistant-stream/utils";
 import { AppendMessage } from "../../../types";
@@ -26,7 +26,7 @@ import {
 import { useCommandQueue } from "./commandQueue";
 import { useRunManager } from "./runManager";
 import { useConvertedState } from "./useConvertedState";
-import { useToolInvocations } from "./useToolInvocations";
+import { ToolExecutionStatus, useToolInvocations } from "./useToolInvocations";
 import { toAISDKTools, getEnabledTools, createRequestHeaders } from "./utils";
 import { useRemoteThreadListRuntime } from "../remote-thread-list/useRemoteThreadListRuntime";
 import { InMemoryThreadListAdapter } from "../remote-thread-list/adapter/in-memory";
@@ -177,6 +177,11 @@ const useAssistantTransportThreadRuntime = <T,>(
     },
   });
 
+  // Tool execution status state
+  const [toolStatuses, setToolStatuses] = useState<
+    Record<string, ToolExecutionStatus>
+  >({});
+
   // Reactive conversion of agent state + connection metadata → UI state
   const pendingCommands = useMemo(
     () => [...commandQueue.state.inTransit, ...commandQueue.state.queued],
@@ -187,6 +192,7 @@ const useAssistantTransportThreadRuntime = <T,>(
     agentStateRef.current,
     pendingCommands,
     runManager.isRunning,
+    toolStatuses,
   );
 
   // Create runtime
@@ -266,6 +272,7 @@ const useAssistantTransportThreadRuntime = <T,>(
     state: converted,
     getTools: () => runtime.thread.getModelContext().tools,
     onResult: commandQueue.enqueue,
+    setToolStatuses,
   });
 
   return runtime;

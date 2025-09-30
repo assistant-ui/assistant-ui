@@ -2,6 +2,7 @@ import { ReadonlyJSONValue } from "assistant-stream/utils";
 import { ThreadMessage } from "../../../types";
 import { AttachmentAdapter, ThreadHistoryAdapter } from "..";
 import { UserCommands } from "../../../augmentations";
+import type { ToolExecutionStatus } from "./useToolInvocations";
 
 // Message part types
 export type TextPart = {
@@ -56,6 +57,7 @@ export type AssistantTransportState = {
 export type AssistantTransportConnectionMetadata = {
   pendingCommands: AssistantTransportCommand[];
   isSending: boolean;
+  toolStatuses: Record<string, ToolExecutionStatus>;
 };
 
 export type AssistantTransportStateConverter<T> = (

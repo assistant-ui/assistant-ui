@@ -133,7 +133,13 @@ class DataStreamRuntimeAdapter implements ChatModelAdapter {
 
       const stream = result.body
         .pipeThrough(new DataStreamDecoder())
-        .pipeThrough(unstable_toolResultStream(context.tools, abortSignal))
+        .pipeThrough(
+          unstable_toolResultStream(context.tools, abortSignal, () => {
+            throw new Error(
+              "Tool interrupt is not supported in data stream runtime",
+            );
+          }),
+        )
         .pipeThrough(new AssistantMessageAccumulator());
 
       yield* asAsyncIterableStream(stream);

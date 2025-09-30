@@ -5,9 +5,17 @@ import {
   type ToolCallMessagePart,
   type TextMessagePart,
   type SourceMessagePart,
+  type useExternalMessageConverter,
 } from "@assistant-ui/react";
 
-const convertParts = (message: UIMessage) => {
+function stripClosingDelimiters(json: string) {
+  return json.replace(/[}\]"]+$/, "");
+}
+
+const convertParts = (
+  message: UIMessage,
+  metadata: useExternalMessageConverter.Metadata,
+) => {
   if (!message.parts || message.parts.length === 0) {
     return [];
   }
@@ -57,14 +65,29 @@ const convertParts = (message: UIMessage) => {
           result = { error: part.errorText };
         }
 
+        let argsText = JSON.stringify(args);
+        if (part.state === "input-streaming") {
+          // the argsText is not complete, so we need to strip the closing delimiters
+          // these are added by the AI SDK in fix-json
+          argsText = stripClosingDelimiters(argsText);
+        }
+
+        const toolStatus = metadata.toolStatuses?.[toolCallId];
         return {
           type: "tool-call",
           toolName,
           toolCallId,
-          argsText: JSON.stringify(args),
+          argsText,
           args,
           result,
           isError,
+          ...(toolStatus?.type === "interrupt" && {
+            interrupt: toolStatus.payload,
+            status: {
+              type: "requires-action" as const,
+              reason: "interrupt",
+            },
+          }),
         } satisfies ToolCallMessagePart;
       }
 
@@ -92,6 +115,7 @@ const convertParts = (message: UIMessage) => {
           result = { error: part.errorText };
         }
 
+        const toolStatus = metadata.toolStatuses?.[toolCallId];
         return {
           type: "tool-call",
           toolName,
@@ -100,6 +124,13 @@ const convertParts = (message: UIMessage) => {
           args,
           result,
           isError,
+          ...(toolStatus?.type === "interrupt" && {
+            interrupt: toolStatus.payload,
+            status: {
+              type: "requires-action" as const,
+              reason: "interrupt",
+            },
+          }),
         } satisfies ToolCallMessagePart;
       }
 
@@ -141,7 +172,7 @@ const convertParts = (message: UIMessage) => {
 };
 
 export const AISDKMessageConverter = unstable_createMessageConverter(
-  (message: UIMessage) => {
+  (message: UIMessage, metadata: useExternalMessageConverter.Metadata) => {
     // UIMessage doesn't have createdAt, so we'll use current date or undefined
     const createdAt = new Date();
     switch (message.role) {
@@ -150,7 +181,7 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
           role: "user",
           id: message.id,
           createdAt,
-          content: convertParts(message),
+          content: convertParts(message, metadata),
           attachments: message.parts
             ?.filter((p) => p.type === "file")
             .map((part, idx) => {
@@ -183,7 +214,7 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
           role: "system",
           id: message.id,
           createdAt,
-          content: convertParts(message),
+          content: convertParts(message, metadata),
         };
 
       case "assistant":
@@ -191,7 +222,7 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
           role: "assistant",
           id: message.id,
           createdAt,
-          content: convertParts(message),
+          content: convertParts(message, metadata),
           metadata: {
             unstable_annotations: (message as any).annotations,
             unstable_data: Array.isArray((message as any).data)

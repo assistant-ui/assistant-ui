@@ -241,11 +241,19 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
 
   const type = part.type;
   if (type === "tool-call") {
-    const addResult = (result: any) => api.part().addToolResult(result);
+    const addResult = api.part().addToolResult;
+    const resume = api.part().resumeToolCall;
     if ("Override" in tools)
-      return <tools.Override {...part} addResult={addResult} />;
+      return <tools.Override {...part} addResult={addResult} resume={resume} />;
     const Tool = tools.by_name?.[part.toolName] ?? tools.Fallback;
-    return <ToolUIDisplay {...part} Fallback={Tool} addResult={addResult} />;
+    return (
+      <ToolUIDisplay
+        {...part}
+        Fallback={Tool}
+        addResult={addResult}
+        resume={resume}
+      />
+    );
   }
 
   if (part.status?.type === "requires-action")

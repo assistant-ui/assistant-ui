@@ -5,6 +5,7 @@ import { shouldContinue } from "./shouldContinue";
 import { LocalRuntimeOptionsBase } from "./LocalRuntimeOptions";
 import {
   AddToolResultOptions,
+  ResumeToolCallOptions,
   ThreadSuggestion,
   ThreadRuntimeCore,
   StartRunConfig,
@@ -462,5 +463,9 @@ export class LocalThreadRuntimeCore
     ) {
       this.performRoundtrip(parentId, message, this._lastRunConfig);
     }
+  }
+
+  public resumeToolCall(_options: ResumeToolCallOptions) {
+    throw new Error("Local runtime does not support resuming tool calls.");
   }
 }

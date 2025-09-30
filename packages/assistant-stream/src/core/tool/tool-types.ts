@@ -77,9 +77,10 @@ export interface ToolCallReader<
   };
 }
 
-type ToolExecutionContext = {
+export type ToolExecutionContext = {
   toolCallId: string;
   abortSignal: AbortSignal;
+  interrupt: (payload: unknown) => Promise<unknown>;
 };
 
 export type ToolExecuteFunction<TArgs, TResult> = (
