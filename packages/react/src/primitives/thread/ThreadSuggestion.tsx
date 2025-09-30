@@ -18,13 +18,13 @@ const useThreadSuggestion = ({
   /** The suggestion prompt. */
   prompt: string;
 
-  /** 
+  /**
    * When true, automatically sends the message.
    * When false, replaces or appends the composer text with the suggestion - depending on the value of `clearComposer`.
    */
   send?: boolean | undefined;
 
-  /** 
+  /**
    * Whether to clear the composer after sending.
    * When send is set to false, determines if composer text is replaced with suggestion (true, default),
    * or if it's appended to the composer text (false).
