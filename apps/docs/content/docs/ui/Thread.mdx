@@ -124,8 +124,7 @@ export default function Chat() {
 ```tsx
 <ThreadPrimitive.Suggestion
   prompt="What's the weather in San Francisco?"
-  method="replace"
-  autoSend
+  send
 />
 ```
 
@@ -322,8 +321,7 @@ Shows a suggestion to the user. When clicked, replaces the composer's value with
 ```tsx
 <ThreadPrimitive.Suggestion
   prompt="Tell me about React hooks"
-  method="replace"
-  autoSend
+  send
 />
 ```
 
@@ -337,18 +335,29 @@ Shows a suggestion to the user. When clicked, replaces the composer's value with
       description: "The suggestion text to use when clicked.",
     },
     {
-      name: "method",
-      type: "'replace'",
-      default: "'replace'",
+      name: "send",
+      type: "boolean",
       description:
-        "How the suggestion interacts with the composer's existing value.",
+        "When true, automatically sends the message. When false, replaces or appends the composer text with the suggestion - depending on the value of `clearComposer`",
+    },
+    {
+      name: "clearComposer",
+      type: "boolean",
+      default: "true",
+      description:
+        "Whether to clear the composer after sending. When send is set to false, determines if composer text is replaced with suggestion (true, default), or if the suggestion's prompt is appended to the composer text (false).",
     },
     {
       name: "autoSend",
       type: "boolean",
-      default: "false",
-      description:
-        "Whether to automatically send the message after applying the suggestion.",
+      deprecated: true,
+      description: "Deprecated. Use 'send' instead.",
+    },
+    {
+      name: "method",
+      type: "'replace'",
+      deprecated: true,
+      description: "Deprecated. This parameter is no longer used.",
     },
     {
       name: "asChild",
