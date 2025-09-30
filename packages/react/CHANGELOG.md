@@ -1,5 +1,14 @@
 # @assistant-ui/react
 
+## 0.11.22
+
+### Patch Changes
+
+- e8d6d7b: feat: revamp Assistant augmentation mechanism
+- e81784b: feat: Tool Call interrupt() resume() API
+- Updated dependencies [e81784b]
+  - assistant-stream@0.2.32
+
 ## 0.11.21
 
 ### Patch Changes
