@@ -133,6 +133,11 @@ export class AssistantFrameProvider {
           ? await tool.execute(message.args, {
               toolCallId: message.id,
               abortSignal: new AbortController().signal,
+              interrupt: async () => {
+                throw new Error(
+                  "Tool interrupt is not supported in frame context",
+                );
+              },
             })
           : undefined;
       } catch (e) {

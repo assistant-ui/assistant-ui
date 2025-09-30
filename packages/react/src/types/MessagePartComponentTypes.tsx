@@ -44,6 +44,7 @@ export type ToolCallMessagePartProps<
 > = MessagePartState &
   ToolCallMessagePart<TArgs, TResult> & {
     addResult: (result: TResult | ToolResponse<TResult>) => void;
+    resume: (payload: unknown) => void;
   };
 
 export type ToolCallMessagePartComponent<

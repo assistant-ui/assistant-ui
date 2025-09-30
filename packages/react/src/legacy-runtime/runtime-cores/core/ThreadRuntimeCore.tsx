@@ -1,4 +1,4 @@
-import { ReadonlyJSONValue } from "assistant-stream/utils";
+import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import { ModelContext } from "../../../model-context";
 import { AppendMessage, ThreadMessage } from "../../../types";
 import { RunConfig } from "../../../types/AssistantTypes";
@@ -31,6 +31,11 @@ export type AddToolResultOptions = {
   result: ReadonlyJSONValue;
   isError: boolean;
   artifact?: ReadonlyJSONValue | undefined;
+};
+
+export type ResumeToolCallOptions = {
+  toolCallId: string;
+  payload: unknown;
 };
 
 export type SubmitFeedbackOptions = {
@@ -86,6 +91,7 @@ export type ThreadRuntimeCore = Readonly<{
   cancelRun: () => void;
 
   addToolResult: (options: AddToolResultOptions) => void;
+  resumeToolCall: (options: ResumeToolCallOptions) => void;
 
   speak: (messageId: string) => void;
   stopSpeaking: () => void;

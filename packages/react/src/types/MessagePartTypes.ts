@@ -54,6 +54,7 @@ export type ToolCallMessagePart<
   readonly isError?: boolean | undefined;
   readonly argsText: string;
   readonly artifact?: unknown;
+  readonly interrupt?: unknown;
   readonly parentId?: string;
 };
 

@@ -67,7 +67,7 @@ export const ExportedMessageRepository = {
       fromThreadMessageLike(
         m,
         generateId(),
-        getAutoStatus(false, false, false),
+        getAutoStatus(false, false, false, false),
       ),
     );
 

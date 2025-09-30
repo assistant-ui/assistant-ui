@@ -1,6 +1,7 @@
 import {
   AddToolResultOptions,
   ResumeRunConfig,
+  ResumeToolCallOptions,
   StartRunConfig,
   ThreadSuggestion,
 } from "../core/ThreadRuntimeCore";
@@ -161,7 +162,7 @@ export class ExternalStoreThreadRuntimeCore
             if (!store.convertMessage) return m;
 
             const isLast = idx === store.messages!.length - 1;
-            const autoStatus = getAutoStatus(isLast, isRunning, false);
+            const autoStatus = getAutoStatus(isLast, isRunning, false, false);
 
             if (
               cache &&
@@ -307,6 +308,12 @@ export class ExternalStoreThreadRuntimeCore
     if (!this._store.onAddToolResult && !this._store.onAddToolResult)
       throw new Error("Runtime does not support tool results.");
     this._store.onAddToolResult?.(options);
+  }
+
+  public resumeToolCall(options: ResumeToolCallOptions) {
+    if (!this._store.onResumeToolCall)
+      throw new Error("Runtime does not support resuming tool calls.");
+    this._store.onResumeToolCall(options);
   }
 
   public override reset(initialMessages?: readonly ThreadMessageLike[]) {

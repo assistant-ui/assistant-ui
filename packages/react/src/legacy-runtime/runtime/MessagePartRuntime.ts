@@ -30,6 +30,12 @@ export type MessagePartRuntime = {
    */
   addToolResult(result: any | ToolResponse<any>): void;
 
+  /**
+   * Resume an interrupted tool call with a payload.
+   * This is useful when a tool has interrupted its execution and is waiting for user input.
+   */
+  resumeToolCall(payload: unknown): void;
+
   readonly path: MessagePartRuntimePath;
   getState(): MessagePartState;
   subscribe(callback: () => void): Unsubscribe;
@@ -50,6 +56,7 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
 
   protected __internal_bindMethods() {
     this.addToolResult = this.addToolResult.bind(this);
+    this.resumeToolCall = this.resumeToolCall.bind(this);
     this.getState = this.getState.bind(this);
     this.subscribe = this.subscribe.bind(this);
   }
@@ -85,6 +92,22 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
       result: response.result,
       artifact: response.artifact,
       isError: response.isError,
+    });
+  }
+
+  public resumeToolCall(payload: unknown) {
+    const state = this.contentBinding.getState();
+    if (!state) throw new Error("Message part is not available");
+
+    if (state.type !== "tool-call")
+      throw new Error("Tried to resume tool call on non-tool message part");
+
+    if (!this.threadApi) throw new Error("Thread API is not available");
+
+    const toolCallId = state.toolCallId;
+    this.threadApi.getState().resumeToolCall({
+      toolCallId,
+      payload,
     });
   }
 

@@ -9,6 +9,7 @@ import {
 import { fromThreadMessageLike, ThreadMessageLike } from "./ThreadMessageLike";
 import { getAutoStatus, isAutoStatus } from "./auto-status";
 import { ToolCallMessagePart } from "../../../types";
+import { ToolExecutionStatus } from "../assistant-transport/useToolInvocations";
 
 export namespace useExternalMessageConverter {
   export type Message =
@@ -26,7 +27,14 @@ export namespace useExternalMessageConverter {
         isError?: boolean;
       };
 
-  export type Callback<T> = (message: T) => Message | Message[];
+  export type Metadata = {
+    readonly toolStatuses?: Record<string, ToolExecutionStatus>;
+  };
+
+  export type Callback<T> = (
+    message: T,
+    metadata: Metadata,
+  ) => Message | Message[];
 }
 
 type CallbackResult<T> = {
@@ -218,10 +226,11 @@ export const convertExternalMessages = <T extends WeakKey>(
   messages: T[],
   callback: useExternalMessageConverter.Callback<T>,
   isRunning: boolean,
+  metadata: useExternalMessageConverter.Metadata,
 ) => {
   const callbackResults: CallbackResult<T>[] = [];
   for (const message of messages) {
-    const output = callback(message);
+    const output = callback(message, metadata);
     const outputs = Array.isArray(output) ? output : [output];
     const result = { input: message, outputs };
     callbackResults.push(result);
@@ -232,12 +241,22 @@ export const convertExternalMessages = <T extends WeakKey>(
   return chunks.map((message, idx) => {
     const isLast = idx === chunks.length - 1;
     const joined = joinExternalMessages(message.outputs);
+    const hasSuspendedToolCalls =
+      typeof joined.content === "object" &&
+      joined.content.some(
+        (c) => c.type === "tool-call" && c.result === undefined,
+      );
     const hasPendingToolCalls =
       typeof joined.content === "object" &&
       joined.content.some(
         (c) => c.type === "tool-call" && c.result === undefined,
       );
-    const autoStatus = getAutoStatus(isLast, isRunning, hasPendingToolCalls);
+    const autoStatus = getAutoStatus(
+      isLast,
+      isRunning,
+      hasSuspendedToolCalls,
+      hasPendingToolCalls,
+    );
     const newMessage = fromThreadMessageLike(
       joined,
       idx.toString(),
@@ -253,14 +272,17 @@ export const useExternalMessageConverter = <T extends WeakKey>({
   messages,
   isRunning,
   joinStrategy,
+  metadata,
 }: {
   callback: useExternalMessageConverter.Callback<T>;
   messages: T[];
   isRunning: boolean;
   joinStrategy?: "concat-content" | "none" | undefined;
+  metadata?: useExternalMessageConverter.Metadata | undefined;
 }) => {
   const state = useMemo(
     () => ({
+      metadata: metadata ?? {},
       callback,
       callbackCache: new WeakMap<T, CallbackResult<T>>(),
       chunkCache: new WeakMap<
@@ -269,7 +291,7 @@ export const useExternalMessageConverter = <T extends WeakKey>({
       >(),
       converterCache: new ThreadMessageConverter(),
     }),
-    [callback],
+    [callback, metadata],
   );
 
   return useMemo(() => {
@@ -277,7 +299,7 @@ export const useExternalMessageConverter = <T extends WeakKey>({
     for (const message of messages) {
       let result = state.callbackCache.get(message);
       if (!result) {
-        const output = state.callback(message);
+        const output = state.callback(message, state.metadata);
         const outputs = Array.isArray(output) ? output : [output];
         result = { input: message, outputs };
         state.callbackCache.set(message, result);
@@ -304,6 +326,11 @@ export const useExternalMessageConverter = <T extends WeakKey>({
         const isLast = idx === chunks.length - 1;
 
         const joined = joinExternalMessages(message.outputs);
+        const hasSuspendedToolCalls =
+          typeof joined.content === "object" &&
+          joined.content.some(
+            (c) => c.type === "tool-call" && c.result === undefined,
+          );
         const hasPendingToolCalls =
           typeof joined.content === "object" &&
           joined.content.some(
@@ -312,6 +339,7 @@ export const useExternalMessageConverter = <T extends WeakKey>({
         const autoStatus = getAutoStatus(
           isLast,
           isRunning,
+          hasSuspendedToolCalls,
           hasPendingToolCalls,
         );
 

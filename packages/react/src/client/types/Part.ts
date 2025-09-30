@@ -26,6 +26,12 @@ export type MessagePartClientApi = {
    */
   addToolResult(result: any | ToolResponse<any>): void;
 
+  /**
+   * Resume an interrupted tool call with a payload.
+   * This is useful when a tool has interrupted its execution and is waiting for user input.
+   */
+  resumeToolCall(payload: unknown): void;
+
   /** @internal */
   __internal_getRuntime?(): MessagePartRuntime;
 };

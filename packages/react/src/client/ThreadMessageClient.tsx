@@ -33,6 +33,9 @@ const ThreadMessagePartClient = resource(
         addToolResult: () => {
           throw new Error("Not supported");
         },
+        resumeToolCall: () => {
+          throw new Error("Not supported");
+        },
       },
       {
         key:

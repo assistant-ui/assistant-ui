@@ -10,7 +10,7 @@ import { FeedbackAdapter } from "../adapters/feedback/FeedbackAdapter";
 import { SpeechSynthesisAdapter } from "../adapters/speech/SpeechAdapterTypes";
 import { ThreadMessageLike } from "./ThreadMessageLike";
 import { ExportedMessageRepository } from "../utils/MessageRepository";
-import { ReadonlyJSONValue } from "assistant-stream/utils";
+import type { ReadonlyJSONValue } from "assistant-stream/utils";
 
 export type ExternalStoreThreadData<TState extends "regular" | "archived"> = {
   status: TState;
@@ -76,6 +76,9 @@ type ExternalStoreAdapterBase<T> = {
   onCancel?: (() => Promise<void>) | undefined;
   onAddToolResult?:
     | ((options: AddToolResultOptions) => Promise<void> | void)
+    | undefined;
+  onResumeToolCall?:
+    | ((options: { toolCallId: string; payload: unknown }) => void)
     | undefined;
   convertMessage?: ExternalStoreMessageConverter<T> | undefined;
   adapters?:
