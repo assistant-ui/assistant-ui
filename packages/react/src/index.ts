@@ -9,3 +9,5 @@ export * from "./types";
 export * from "./devtools";
 
 export * as INTERNAL from "./internal";
+
+export type { Assistant } from "./augmentations";
