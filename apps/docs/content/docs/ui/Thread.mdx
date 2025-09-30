@@ -87,51 +87,46 @@ export default function Chat() {
 
 ## Examples
 
-### Custom Welcome Message
+### Welcome Screen
 
 ```tsx
-<ThreadPrimitive.Root>
-  <ThreadPrimitive.Viewport>
-    <ThreadPrimitive.Empty>
-      <div className="flex flex-col items-center justify-center h-full">
-        <h2 className="text-2xl font-bold">Welcome!</h2>
-        <p>How can I help you today?</p>
-      </div>
-    </ThreadPrimitive.Empty>
-    <ThreadPrimitive.Messages components={...} />
-  </ThreadPrimitive.Viewport>
-</ThreadPrimitive.Root>
+<ThreadPrimitive.If empty>
+  <ThreadWelcome />
+</ThreadPrimitive.If>
 ```
 
-### Conditional UI Based on Thread State
+### Viewport Spacer
 
 ```tsx
-// Show typing indicator when assistant is responding
-<ThreadPrimitive.If running>
-  <TypingIndicator />
+<ThreadPrimitive.If empty={false}>
+  <div className="min-h-8 grow" />
+</ThreadPrimitive.If>
+```
+
+### Conditional Send/Cancel Button
+
+```tsx
+<ThreadPrimitive.If running={false}>
+  <ComposerPrimitive.Send>
+    Send
+  </ComposerPrimitive.Send>
 </ThreadPrimitive.If>
 
-// Hide composer when thread is disabled
-<ThreadPrimitive.If disabled={false}>
-  <Composer />
+<ThreadPrimitive.If running>
+  <ComposerPrimitive.Cancel>
+    Cancel
+  </ComposerPrimitive.Cancel>
 </ThreadPrimitive.If>
 ```
 
 ### Suggestions
 
 ```tsx
-<ThreadPrimitive.Empty>
-  <div className="grid grid-cols-2 gap-2">
-    <ThreadPrimitive.Suggestion
-      prompt="What's the weather in San Francisco?"
-      autoSend
-    />
-    <ThreadPrimitive.Suggestion
-      prompt="Explain quantum computing"
-      autoSend
-    />
-  </div>
-</ThreadPrimitive.Empty>
+<ThreadPrimitive.Suggestion
+  prompt="What's the weather in San Francisco?"
+  method="replace"
+  autoSend
+/>
 ```
 
 ## API Reference
