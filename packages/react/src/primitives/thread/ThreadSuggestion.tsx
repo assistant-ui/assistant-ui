@@ -59,7 +59,7 @@ const useThreadSuggestion = ({
         api.composer().setText(prompt);
       } else {
         const currentText = api.composer().getState().text;
-        api.composer().setText(currentText + " " + prompt);
+        api.composer().setText(currentText.trim() ? `${currentText} ${prompt}` : prompt);
       }
     }
   }, [api, resolvedSend, clearComposer, prompt]);
