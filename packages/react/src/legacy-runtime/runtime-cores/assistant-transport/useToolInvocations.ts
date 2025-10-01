@@ -133,78 +133,86 @@ export function useToolInvocations({
   const isInititialState = useRef(true);
 
   useEffect(() => {
-    if (isInititialState.current) {
-      state.messages.forEach((message) => {
+    const processMessages = (
+      messages: readonly (typeof state.messages)[number][],
+    ) => {
+      messages.forEach((message) => {
         message.content.forEach((content) => {
           if (content.type === "tool-call") {
-            ignoredToolIds.current.add(content.toolCallId);
-          }
-        });
-      });
-      isInititialState.current = false;
-    } else {
-      state.messages.forEach((message) => {
-        message.content.forEach((content) => {
-          if (content.type === "tool-call") {
-            if (ignoredToolIds.current.has(content.toolCallId)) {
-              return;
-            }
-            let lastState = lastToolStates.current[content.toolCallId];
-            if (!lastState) {
-              const toolCallController = controller.addToolCallPart({
-                toolName: content.toolName,
-                toolCallId: content.toolCallId,
-              });
-              lastState = {
-                argsText: "",
-                hasResult: false,
-                controller: toolCallController,
-              };
-              lastToolStates.current[content.toolCallId] = lastState;
-            }
+            if (isInititialState.current) {
+              ignoredToolIds.current.add(content.toolCallId);
+            } else {
+              if (ignoredToolIds.current.has(content.toolCallId)) {
+                return;
+              }
+              let lastState = lastToolStates.current[content.toolCallId];
+              if (!lastState) {
+                const toolCallController = controller.addToolCallPart({
+                  toolName: content.toolName,
+                  toolCallId: content.toolCallId,
+                });
+                lastState = {
+                  argsText: "",
+                  hasResult: false,
+                  controller: toolCallController,
+                };
+                lastToolStates.current[content.toolCallId] = lastState;
+              }
 
-            if (content.argsText !== lastState.argsText) {
-              if (!content.argsText.startsWith(lastState.argsText)) {
-                throw new Error(
-                  `Tool call argsText can only be appended, not updated: ${content.argsText} does not start with ${lastState.argsText}`,
+              if (content.argsText !== lastState.argsText) {
+                if (!content.argsText.startsWith(lastState.argsText)) {
+                  throw new Error(
+                    `Tool call argsText can only be appended, not updated: ${content.argsText} does not start with ${lastState.argsText}`,
+                  );
+                }
+
+                const argsTextDelta = content.argsText.slice(
+                  lastState.argsText.length,
                 );
+                lastState.controller.argsText.append(argsTextDelta);
+
+                if (isArgsTextComplete(content.argsText)) {
+                  lastState.controller.argsText.close();
+                }
+
+                lastToolStates.current[content.toolCallId] = {
+                  argsText: content.argsText,
+                  hasResult: lastState.hasResult,
+                  controller: lastState.controller,
+                };
               }
 
-              const argsTextDelta = content.argsText.slice(
-                lastState.argsText.length,
-              );
-              lastState.controller.argsText.append(argsTextDelta);
+              if (content.result !== undefined && !lastState.hasResult) {
+                lastState.controller.setResponse(
+                  new ToolResponse({
+                    result: content.result as ReadonlyJSONValue,
+                    artifact: content.artifact as ReadonlyJSONValue | undefined,
+                    isError: content.isError,
+                  }),
+                );
+                lastState.controller.close();
 
-              if (isArgsTextComplete(content.argsText)) {
-                lastState.controller.argsText.close();
+                lastToolStates.current[content.toolCallId] = {
+                  hasResult: true,
+                  argsText: lastState.argsText,
+                  controller: lastState.controller,
+                };
               }
-
-              lastToolStates.current[content.toolCallId] = {
-                argsText: content.argsText,
-                hasResult: lastState.hasResult,
-                controller: lastState.controller,
-              };
             }
 
-            if (content.result !== undefined && !lastState.hasResult) {
-              lastState.controller.setResponse(
-                new ToolResponse({
-                  result: content.result as ReadonlyJSONValue,
-                  artifact: content.artifact as ReadonlyJSONValue | undefined,
-                  isError: content.isError,
-                }),
-              );
-              lastState.controller.close();
-
-              lastToolStates.current[content.toolCallId] = {
-                hasResult: true,
-                argsText: lastState.argsText,
-                controller: lastState.controller,
-              };
+            // Recursively process nested messages
+            if (content.messages) {
+              processMessages(content.messages);
             }
           }
         });
       });
+    };
+
+    processMessages(state.messages);
+
+    if (isInititialState.current) {
+      isInititialState.current = false;
     }
   }, [state, controller, onResult]);
 
