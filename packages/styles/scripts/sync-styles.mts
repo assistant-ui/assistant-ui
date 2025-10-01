@@ -332,14 +332,14 @@ class SyncStyles {
       // Check existing classes for updates
       for (const existingClass of existingClasses) {
         const auiClass = mergedAuiClasses.get(existingClass.name);
-        
+
         if (auiClass) {
           processedAuiClasses.add(existingClass.name);
-          
+
           // Compare tailwind classes
           const existingTw = existingClass.tailwindClasses.trim();
           const newTw = auiClass.tailwindClasses.trim();
-          
+
           // Only update if new classes are different AND not empty
           if (existingTw !== newTw && newTw !== "") {
             updates.push({ action: "update", class: { ...existingClass, tailwindClasses: newTw } });
@@ -347,6 +347,9 @@ class SyncStyles {
           } else {
             updates.push({ action: "keep", class: existingClass });
           }
+        } else {
+          // Preserve classes not found in registry (they may be used elsewhere)
+          updates.push({ action: "keep", class: existingClass });
         }
       }
       
