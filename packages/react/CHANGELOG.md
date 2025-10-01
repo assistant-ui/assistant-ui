@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.11.25
+
+### Patch Changes
+
+- feat: ToolCallMessagePart.messages for subagent messages
+
 ## 0.11.24
 
 ### Patch Changes
