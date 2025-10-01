@@ -1,4 +1,5 @@
 import { ReadonlyJSONObject } from "assistant-stream/utils";
+import type { ThreadMessage } from "./AssistantTypes";
 
 export type TextMessagePart = {
   readonly type: "text";
@@ -56,6 +57,7 @@ export type ToolCallMessagePart<
   readonly artifact?: unknown;
   readonly interrupt?: { type: "human"; payload: unknown };
   readonly parentId?: string;
+  readonly messages?: readonly ThreadMessage[];
 };
 
 export type ThreadUserMessagePart =
