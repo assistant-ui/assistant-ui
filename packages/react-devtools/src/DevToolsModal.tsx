@@ -83,7 +83,7 @@ const DevToolsModalImpl = () => {
     <>
       <div style={styles.floatingContainer}>
         <button
-          onClick={() => setIsOpen(true)}
+          onClick={() => setIsOpen(!isOpen)}
           onMouseEnter={() => setButtonHover(true)}
           onMouseLeave={() => setButtonHover(false)}
           style={{

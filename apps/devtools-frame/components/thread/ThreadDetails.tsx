@@ -1,6 +1,17 @@
-import { SummaryItem } from "../ui";
+import type { ReactNode } from "react";
 import type { ThreadPreview } from "./types";
 import { formatBoolean, formatDateTime } from "./utils";
+
+const SummaryItem = ({ label, value }: { label: string; value: ReactNode }) => (
+  <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-[11px] text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-200">
+    <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+      {label}
+    </div>
+    <div className="mt-1 font-semibold text-zinc-800 dark:text-zinc-100">
+      {value}
+    </div>
+  </div>
+);
 
 export const ThreadDetails = ({
   thread,
