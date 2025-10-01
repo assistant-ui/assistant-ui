@@ -69,6 +69,18 @@ export const registry: RegistryItem[] = [
     ],
   },
   {
+    name: "reasoning",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/reasoning.tsx",
+      },
+    ],
+    registryDependencies: ["collapsible", "button"],
+    dependencies: ["@assistant-ui/react", "lucide-react"],
+  },
+  {
     name: "thread-list",
     type: "registry:component",
     files: [
