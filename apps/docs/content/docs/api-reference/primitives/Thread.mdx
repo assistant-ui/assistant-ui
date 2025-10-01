@@ -195,8 +195,7 @@ const Suggestion = () => {
   return (
     <ThreadPrimitive.Suggestion
       prompt="I need help with product search"
-      method="replace"
-      autoSend
+      send
     />
   );
 };
@@ -211,17 +210,29 @@ const Suggestion = () => {
       description: "The suggestion's prompt.",
     },
     {
-      name: "method",
-      type: "'replace'",
+      name: "send",
+      type: "boolean",
       description:
-        "How does the suggestion interact with the composer's existing value.",
+        "When true, automatically sends the message. When false, replaces or appends the composer text with the suggestion - depending on the value of `clearComposer`",
+    },
+    {
+      name: "clearComposer",
+      type: "boolean",
+      default: "true",
+      description:
+        "Whether to clear the composer after sending. When send is set to false, determines if composer text is replaced with suggestion (true, default), or if the suggestion's prompt is appended to the composer text (false).",
     },
     {
       name: "autoSend",
       type: "boolean",
-      description:
-        "Whether to automatically send the suggestion when the user clicks on it.",
-      default: "false",
+      deprecated: true,
+      description: "Deprecated. Use 'send' instead.",
+    },
+    {
+      name: "method",
+      type: "'replace'",
+      deprecated: true,
+      description: "Deprecated. This parameter is no longer used.",
     },
   ]}
 />
@@ -243,6 +254,21 @@ Renders children if a condition is met.
       type: "boolean | undefined",
       description: "Render children if the thread is running.",
     },
+    {
+      name: "disabled",
+      type: "boolean | undefined",
+      description: "Render children if the thread is disabled.",
+    },
+    {
+      name: "loading",
+      type: "boolean | undefined",
+      description: "Render children if the thread is loading.",
+    },
+    {
+      name: "new",
+      type: "boolean | undefined",
+      description: "Render children if the thread is new.",
+    },
   ]}
 />
 
@@ -252,5 +278,11 @@ Renders children if a condition is met.
 </Thread.If>
 <Thread.If empty={false}>
   {/* rendered if thread is not empty */}
+</Thread.If>
+<Thread.If loading>
+  {/* rendered if thread is loading */}
+</Thread.If>
+<Thread.If new>
+  {/* rendered if thread is new */}
 </Thread.If>
 ```
