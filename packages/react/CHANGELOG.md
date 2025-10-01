@@ -1,5 +1,21 @@
 # @assistant-ui/react
 
+## 0.11.24
+
+### Patch Changes
+
+- 4a1e4cf: Deprecate `autoSend` and `method` in favor of `send` and `clearComposer`
+
+  ```tsx
+  <ThreadPrimitive.Suggestion
+    prompt="Tell me about React hooks"
+    send // same as autoSend=true
+    clearComposer // same as method="replace", defaults to true
+  />
+  ```
+
+  When `send` and `clearComposer` are `false`, the suggestion is appended to existing user input
+
 ## 0.11.23
 
 ### Patch Changes
