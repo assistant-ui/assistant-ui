@@ -7,6 +7,7 @@
     "ci:publish": "turbo build --filter=\"./packages/*\" && changeset publish",
     "prettier": "prettier \"{examples,packages,apps}/**/*.{js,jsx,ts,tsx,md,json}\" --check",
     "prettier:fix": "prettier \"{examples,packages,apps}/**/*.{js,jsx,ts,tsx,md,json}\" --write",
+    "build": "turbo build",
     "lint": "turbo lint",
     "test": "turbo test"
   },
@@ -15,7 +16,7 @@
     "prettier": "^3.6.2",
     "prettier-plugin-tailwindcss": "0.6.14",
     "turbo": "^2.5.8",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.3"
   },
   "prettier": {
     "trailingComma": "all",
@@ -23,5 +24,5 @@
       "prettier-plugin-tailwindcss"
     ]
   },
-  "packageManager": "pnpm@10.17.1"
+  "packageManager": "pnpm@10.18.0"
 }

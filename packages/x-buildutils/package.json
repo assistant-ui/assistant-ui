@@ -14,14 +14,14 @@
     "esbuild-plugin-file-path-extensions": "^2.1.4",
     "eslint-config-next": "15.5.4",
     "postcss": "^8.5.6",
-    "postcss-js": "^5.0.0",
+    "postcss-js": "^5.0.1",
     "tsup": "8.5.0",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.3"
   },
   "devDependencies": {
     "@types/cross-spawn": "^6.0.6",
-    "@types/node": "^24.5.2",
+    "@types/node": "^24.6.2",
     "@types/postcss-js": "^4.0.4",
-    "jiti": "^2.6.0"
+    "jiti": "^2.6.1"
   }
 }
