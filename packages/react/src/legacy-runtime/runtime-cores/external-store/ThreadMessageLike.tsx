@@ -42,6 +42,7 @@ export type ThreadMessageLike = {
             readonly result?: any | undefined;
             readonly isError?: boolean | undefined;
             readonly parentId?: string | undefined;
+            readonly messages?: readonly ThreadMessage[] | undefined;
           }
       )[];
   readonly id?: string | undefined;
@@ -122,11 +123,12 @@ export const fromThreadMessageLike = (
                 return sanitizeImageContent(part);
 
               case "tool-call": {
-                const { parentId, ...basePart } = part;
+                const { parentId, messages, ...basePart } = part;
                 const commonProps = {
                   ...basePart,
                   toolCallId: part.toolCallId ?? "tool-" + generateId(),
                   ...(parentId !== undefined && { parentId }),
+                  ...(messages !== undefined && { messages }),
                 };
 
                 if (part.args) {
