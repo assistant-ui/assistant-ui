@@ -32,7 +32,7 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@standard-schema/spec": "^1.0.0",
-    "@types/node": "^24.5.2",
+    "@types/node": "^24.6.2",
     "eslint": "^9",
     "eslint-config-next": "15.5.4",
     "tsx": "^4.20.6",
