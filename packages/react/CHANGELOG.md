@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.11.26
+
+### Patch Changes
+
+- feat: Add support for nested tool calls in assistant transport. Tool calls can now include a `messages` field containing nested `ThreadMessage[]`, enabling subagent tool calls to be automatically invoked by `useToolInvocations`.
+
 ## 0.11.25
 
 ### Patch Changes
