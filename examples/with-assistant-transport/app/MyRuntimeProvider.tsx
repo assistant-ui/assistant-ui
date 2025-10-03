@@ -4,6 +4,7 @@ import {
   AssistantRuntimeProvider,
   AssistantTransportConnectionMetadata,
   makeAssistantTool,
+  unstable_createMessageConverter as createMessageConverter,
 } from "@assistant-ui/react";
 import {
   convertLangChainMessages,
@@ -12,7 +13,6 @@ import {
 import { useAssistantTransportRuntime } from "@assistant-ui/react";
 import React, { ReactNode } from "react";
 import { z } from "zod";
-import { createMessageConverter } from "../../../packages/react/dist/legacy-runtime/runtime-cores/external-store/createMessageConverter";
 
 // Frontend tool with execute function
 const WeatherTool = makeAssistantTool({
