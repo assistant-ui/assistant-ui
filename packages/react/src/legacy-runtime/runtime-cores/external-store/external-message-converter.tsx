@@ -8,7 +8,7 @@ import {
 } from "./getExternalStoreMessage";
 import { fromThreadMessageLike, ThreadMessageLike } from "./ThreadMessageLike";
 import { getAutoStatus, isAutoStatus } from "./auto-status";
-import { ToolCallMessagePart } from "../../../types";
+import { ThreadMessage, ToolCallMessagePart } from "../../../types";
 import { ToolExecutionStatus } from "../assistant-transport/useToolInvocations";
 
 export namespace useExternalMessageConverter {
@@ -25,6 +25,7 @@ export namespace useExternalMessageConverter {
         result: any;
         artifact?: any;
         isError?: boolean;
+        messages?: readonly ThreadMessage[];
       };
 
   export type Metadata = {
@@ -70,7 +71,7 @@ const joinExternalMessages = (
         const toolCall = assistantMessage.content[
           toolCallIdx
         ]! as ToolCallMessagePart;
-        if (output.toolName) {
+        if (output.toolName !== undefined) {
           if (toolCall.toolName !== output.toolName)
             throw new Error(
               `Tool call name ${output.toolCallId} ${output.toolName} does not match existing tool call ${toolCall.toolName}`,
@@ -87,6 +88,7 @@ const joinExternalMessages = (
           result: output.result,
           artifact: output.artifact,
           isError: output.isError,
+          messages: output.messages,
         };
       } else {
         throw new Error(

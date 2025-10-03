@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.11.28
+
+### Patch Changes
+
+- fix: useExternalMessageConverter Tool subagent messages support
+
 ## 0.11.27
 
 ### Patch Changes
