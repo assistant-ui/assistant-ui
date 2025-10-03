@@ -1,5 +1,14 @@
 # @assistant-ui/react-devtools
 
+## 0.1.4
+
+### Patch Changes
+
+- e6a46e4: chore: update deps
+- Updated dependencies [e6a46e4]
+  - @assistant-ui/react@0.11.27
+  - @assistant-ui/tap@0.1.2
+
 ## 0.1.3
 
 ### Patch Changes

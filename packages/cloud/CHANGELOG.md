@@ -1,5 +1,13 @@
 # assistant-cloud
 
+## 0.1.3
+
+### Patch Changes
+
+- e6a46e4: chore: update deps
+- Updated dependencies [e6a46e4]
+  - assistant-stream@0.2.34
+
 ## 0.1.2
 
 ### Patch Changes
