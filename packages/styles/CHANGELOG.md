@@ -1,5 +1,11 @@
 # @assistant-ui/styles
 
+## 0.2.3
+
+### Patch Changes
+
+- e9bb48f: Update Thread component, sync styles. Improves Thread structure, Thread transition behavior, and minor UI polish
+
 ## 0.2.2
 
 ### Patch Changes
