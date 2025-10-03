@@ -1,4 +1,4 @@
-import { resource } from "../../../../tap/dist/core/resource";
+import { resource } from "@assistant-ui/tap";
 import { AttachmentClientApi } from "../../client/types/Attachment";
 import { tapApi } from "../../utils/tap-store";
 import { AttachmentRuntime } from "../runtime";
