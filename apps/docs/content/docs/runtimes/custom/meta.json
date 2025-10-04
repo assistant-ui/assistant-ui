@@ -1,4 +1,4 @@
 {
   "title": "Custom Backend",
-  "pages": ["local", "external-store"]
+  "pages": ["local", "custom-thread-list", "external-store"]
 }

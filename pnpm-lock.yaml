@@ -190,6 +190,9 @@ importers:
       ai:
         specifier: ^5.0.59
         version: 5.0.59(zod@4.1.11)
+      assistant-stream:
+        specifier: workspace:^
+        version: link:../../packages/assistant-stream
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1

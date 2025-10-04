@@ -1,0 +1,218 @@
+---
+title: Custom Thread List
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+import { Steps, Step } from "fumadocs-ui/components/steps";
+import { ParametersTable } from "@/components/docs";
+
+## Overview
+
+`useRemoteThreadListRuntime` lets you plug a custom thread database into assistant-ui. It keeps the UI and local runtime logic in sync while you provide persistence, archiving, and metadata for every conversation. The hook is exported as `unstable_useRemoteThreadListRuntime`; we refer to it here as **Custom Thread List**.
+
+## When to Use
+
+Use a Custom Thread List when you need to:
+
+- Persist conversations in your own database or multitenant backend
+- Share threads across devices, teams, or long-lived sessions
+- Control thread metadata (titles, archived state, external identifiers)
+- Layer additional adapters (history, attachments) around each thread runtime
+
+## How It Works
+
+Custom Thread List merges two pieces of state:
+
+1. **Per-thread runtime** – powered by any runtime hook (for example `useLocalRuntime` or `useAssistantTransportRuntime`).
+2. **Thread list adapter** – your adapter that reads and writes thread metadata in a remote store.
+
+When the hook mounts it calls `list()` on your adapter, hydrates existing threads, and uses your runtime hook to spawn a runtime whenever a thread is opened. Creating a new conversation calls `initialize(threadId)` so you can create a record server-side and return the canonical `remoteId`.
+
+<Callout type="info">
+  The built-in Assistant Cloud runtime is implemented with the same API. Inspect
+  `useCloudThreadListAdapter` for a production-ready reference adapter.
+</Callout>
+
+## Build a Custom Thread List
+
+<Steps>
+  <Step>
+    ### Provide a runtime per thread
+
+    Use any runtime hook that returns an `AssistantRuntime`. In most custom setups this is `useLocalRuntime(modelAdapter)` or `useAssistantTransportRuntime(...)`.
+
+  </Step>
+  <Step>
+    ### Implement the adapter contract
+
+    Your adapter decides how threads are stored. Implement the methods in the table below to connect to your database or API.
+
+  </Step>
+  <Step>
+    ### Compose the provider
+
+    Wrap `AssistantRuntimeProvider` with the runtime returned from the Custom Thread List hook.
+
+    ```tsx twoslash title="app/CustomThreadListProvider.tsx"
+    // @filename: app/model-adapter.ts
+    export const myModelAdapter = {} as any;
+
+    // @filename: app/CustomThreadListProvider.tsx
+    // ---cut---
+    "use client";
+
+    import type { ReactNode } from "react";
+    import {
+      AssistantRuntimeProvider,
+      useLocalRuntime,
+      unstable_useRemoteThreadListRuntime as useRemoteThreadListRuntime,
+      type unstable_RemoteThreadListAdapter as RemoteThreadListAdapter,
+    } from "@assistant-ui/react";
+    import { createAssistantStream } from "assistant-stream";
+    import { myModelAdapter } from "./model-adapter"; // your chat model adapter
+
+    const threadListAdapter: RemoteThreadListAdapter = {
+      async list() {
+        const response = await fetch("/api/threads");
+        const threads = await response.json();
+        return {
+          threads: threads.map((thread: any) => ({
+            remoteId: thread.id,
+            externalId: thread.external_id ?? undefined,
+            status: thread.is_archived ? "archived" : "regular",
+            title: thread.title ?? undefined,
+          })),
+        };
+      },
+      async initialize(localId) {
+        const response = await fetch("/api/threads", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ localId }),
+        });
+        const result = await response.json();
+        return { remoteId: result.id, externalId: result.external_id };
+      },
+      async rename(remoteId, title) {
+        await fetch(`/api/threads/${remoteId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title }),
+        });
+      },
+      async archive(remoteId) {
+        await fetch(`/api/threads/${remoteId}/archive`, { method: "POST" });
+      },
+      async unarchive(remoteId) {
+        await fetch(`/api/threads/${remoteId}/unarchive`, { method: "POST" });
+      },
+      async delete(remoteId) {
+        await fetch(`/api/threads/${remoteId}`, { method: "DELETE" });
+      },
+      async generateTitle(remoteId, messages) {
+        return createAssistantStream(async (controller) => {
+          const response = await fetch(`/api/threads/${remoteId}/title`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ messages }),
+          });
+          const { title } = await response.json();
+          controller.appendText(title);
+        });
+      },
+    };
+
+    export function CustomThreadListProvider({
+      children,
+    }: Readonly<{ children: ReactNode }>) {
+      const runtime = useRemoteThreadListRuntime({
+        runtimeHook: () => useLocalRuntime(myModelAdapter),
+        adapter: threadListAdapter,
+      });
+
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {children}
+        </AssistantRuntimeProvider>
+      );
+    }
+    ```
+
+  </Step>
+</Steps>
+
+## Adapter Responsibilities
+
+<ParametersTable
+  type="RemoteThreadListAdapter"
+  parameters={[
+    {
+      name: "list",
+      type: "() => Promise<{ threads: RemoteThreadMetadata[] }>",
+      description:
+        "Return the current threads. Each thread must include status, remoteId, and any metadata you want to show immediately.",
+      required: true,
+    },
+    {
+      name: "initialize",
+      type: "(localId: string) => Promise<{ remoteId: string; externalId?: string }>",
+      description:
+        "Create a new remote record when the user starts a conversation. Return the canonical ids so later operations target the right thread.",
+      required: true,
+    },
+    {
+      name: "rename",
+      type: "(remoteId: string, title: string) => Promise<void>",
+      description: "Persist title changes triggered from the UI.",
+      required: true,
+    },
+    {
+      name: "archive",
+      type: "(remoteId: string) => Promise<void>",
+      description: "Mark the thread as archived in your system.",
+      required: true,
+    },
+    {
+      name: "unarchive",
+      type: "(remoteId: string) => Promise<void>",
+      description: "Restore an archived thread to the active list.",
+      required: true,
+    },
+    {
+      name: "delete",
+      type: "(remoteId: string) => Promise<void>",
+      description: "Permanently remove the thread and stop rendering it.",
+      required: true,
+    },
+    {
+      name: "generateTitle",
+      type: "(remoteId: string, unstable_messages: readonly ThreadMessage[]) => Promise<AssistantStream>",
+      description:
+        "Return a streaming title generator. You can reuse your model endpoint or queue a background job.",
+      required: true,
+    },
+    {
+      name: "unstable_Provider",
+      type: "ComponentType<PropsWithChildren>",
+      description:
+        "Optional wrapper rendered around all thread runtimes. Use it to inject adapters such as history or attachments (see the Cloud adapter).",
+    },
+  ]}
+/>
+
+## Thread Lifecycle Cheatsheet
+
+- `list()` hydrates threads on mount and during refreshes.
+- Creating a new conversation calls `initialize()` once the user sends the first message.
+- `archive`, `unarchive`, and `delete` are called optimistically; throw to revert the UI.
+- `generateTitle()` powers the automatic title button and expects an `AssistantStream`.
+- Provide a `runtimeHook` that always returns a fresh runtime instance per active thread.
+
+## Optional Adapters
+
+If you need history or attachment support, expose them via `unstable_Provider`. The cloud implementation wraps each thread runtime with `RuntimeAdapterProvider` to inject:
+
+- `history` – e.g. `useAssistantCloudThreadHistoryAdapter`
+- `attachments` – e.g. `CloudFileAttachmentAdapter`
+
+Reuse that pattern to register any capability your runtime requires.
