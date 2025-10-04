@@ -43,6 +43,7 @@
     "@upstash/ratelimit": "^2.0.6",
     "@vercel/kv": "^3.0.0",
     "ai": "^5.0.59",
+    "assistant-stream": "workspace:^",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dotenv": "^17.2.3",
