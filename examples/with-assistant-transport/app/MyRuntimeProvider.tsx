@@ -5,12 +5,12 @@ import {
   AssistantTransportConnectionMetadata,
   makeAssistantTool,
   unstable_createMessageConverter as createMessageConverter,
+  useAssistantTransportRuntime,
 } from "@assistant-ui/react";
 import {
   convertLangChainMessages,
   LangChainMessage,
 } from "@assistant-ui/react-langgraph";
-import { useAssistantTransportRuntime } from "@assistant-ui/react";
 import React, { ReactNode } from "react";
 import { z } from "zod";
 
