@@ -5,6 +5,7 @@ title: Syntax Highlighting
 import { Steps, Step } from "fumadocs-ui/components/steps";
 import { Callout } from "fumadocs-ui/components/callout";
 import { TypeTable } from "fumadocs-ui/components/type-table";
+import { Tab, Tabs } from "fumadocs-ui/components/tabs";
 
 Syntax highlighting for code blocks in markdown.
 
@@ -25,9 +26,29 @@ Syntax highlighting for code blocks in markdown.
 
 #### Add `shiki-highlighter`
 
-```bash
+<Tabs items={["assistant-ui", "shadcn(namespace)", "shadcn"]}>
+  <Tab>
+
+```sh
+npx assistant-ui@latest add shiki-highlighter
+```
+
+  </Tab>
+  <Tab>
+
+```sh
+npx shadcn@latest add @assistant-ui/shiki-highlighter
+```
+
+  </Tab>
+  <Tab>
+
+```sh
 npx shadcn@latest add "https://r.assistant-ui.com/shiki-highlighter"
 ```
+
+  </Tab>
+</Tabs>
 
 This adds a `/components/assistant-ui/shiki-highlighter.tsx` file to your project and
 installs the `react-shiki` dependency. The highlighter can be customized by editing
@@ -216,9 +237,29 @@ For more information, see [Shiki's documentation on dual and multi themes](https
 
 #### Add `syntax-highlighter`
 
-```bash
+<Tabs items={["assistant-ui", "shadcn(namespace)", "shadcn"]}>
+  <Tab>
+
+```sh
+npx assistant-ui@latest add syntax-highlighter
+```
+
+  </Tab>
+  <Tab>
+
+```sh
+npx shadcn@latest add @assistant-ui/syntax-highlighter
+```
+
+  </Tab>
+  <Tab>
+
+```sh
 npx shadcn@latest add "https://r.assistant-ui.com/syntax-highlighter"
 ```
+
+  </Tab>
+</Tabs>
 
     Adds a `/components/assistant-ui/syntax-highlighter.tsx` file to your project and installs the `react-syntax-highlighter` dependency.
 
