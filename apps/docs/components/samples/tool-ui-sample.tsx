@@ -6,7 +6,7 @@ export const ToolUISample = () => {
   return (
     <SampleFrame
       sampleText="Sample Tool UI"
-      description="Ask 'what is the weather in Tokyo?'"
+      description="Ask 'what is the weather in San Francisco?'"
     >
       <Thread />
     </SampleFrame>
