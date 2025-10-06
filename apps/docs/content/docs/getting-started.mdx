@@ -31,8 +31,6 @@ npx assistant-ui@latest create -t langgraph
 
 # MCP support
 npx assistant-ui@latest create -t mcp
-```
-
 **Add assistant-ui to an existing React project:**
 
 ```sh
@@ -96,12 +94,16 @@ npm install \
   @assistant-ui/react \
   @assistant-ui/react-markdown \
   @assistant-ui/styles \
-  @radix-ui/react-tooltip \
+  @radix-ui/react-avatar \
+  @radix-ui/react-dialog \
   @radix-ui/react-slot \
-  lucide-react \
-  remark-gfm \
+  @radix-ui/react-tooltip \
   class-variance-authority \
-  clsx
+  clsx \
+  lucide-react \
+  motion \
+  remark-gfm \
+  zustand
 ```
 
         </Step>
@@ -193,58 +195,74 @@ export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider };
 
 ```tsx title="components/assistant-ui/thread.tsx"
 import {
-  ActionBarPrimitive,
-  BranchPickerPrimitive,
-  ComposerPrimitive,
-  MessagePrimitive,
-  ThreadPrimitive,
-} from "@assistant-ui/react";
-import type { FC } from "react";
-import {
   ArrowDownIcon,
+  ArrowUpIcon,
   CheckIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   CopyIcon,
   PencilIcon,
   RefreshCwIcon,
-  SendHorizontalIcon,
+  Square,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+
+import {
+  ActionBarPrimitive,
+  BranchPickerPrimitive,
+  ComposerPrimitive,
+  ErrorPrimitive,
+  MessagePrimitive,
+  ThreadPrimitive,
+} from "@assistant-ui/react";
+
+import type { FC } from "react";
+import { LazyMotion, MotionConfig, domAnimation } from "motion/react";
+import * as m from "motion/react-m";
 
 import { Button } from "@/components/ui/button";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import {
+  ComposerAddAttachment,
+  ComposerAttachments,
+  UserMessageAttachments,
+} from "@/components/assistant-ui/attachment";
+
+import { cn } from "@/lib/utils";
 
 export const Thread: FC = () => {
   return (
-    <ThreadPrimitive.Root
-      className="aui-root aui-thread-root"
-      style={{
-        ["--thread-max-width" as string]: "42rem",
-      }}
-    >
-      <ThreadPrimitive.Viewport className="aui-thread-viewport">
-        <ThreadWelcome />
-
-        <ThreadPrimitive.Messages
-          components={{
-            UserMessage: UserMessage,
-            EditComposer: EditComposer,
-            AssistantMessage: AssistantMessage,
+    <LazyMotion features={domAnimation}>
+      <MotionConfig reducedMotion="user">
+        <ThreadPrimitive.Root
+          className="aui-root aui-thread-root"
+          style={{
+            ["--thread-max-width" as string]: "44rem",
           }}
-        />
+        >
+          <ThreadPrimitive.Viewport className="aui-thread-viewport">
+            <ThreadPrimitive.If empty>
+              <ThreadWelcome />
+            </ThreadPrimitive.If>
 
-        <ThreadPrimitive.If empty={false}>
-          <div className="aui-thread-viewport-spacer" />
-        </ThreadPrimitive.If>
+            <ThreadPrimitive.Messages
+              components={{
+                UserMessage,
+                EditComposer,
+                AssistantMessage,
+              }}
+            />
 
-        <div className="aui-thread-viewport-footer">
-          <ThreadScrollToBottom />
-          <Composer />
-        </div>
-      </ThreadPrimitive.Viewport>
-    </ThreadPrimitive.Root>
+            <ThreadPrimitive.If empty={false}>
+              <div className="aui-thread-viewport-spacer" />
+            </ThreadPrimitive.If>
+
+            <Composer />
+          </ThreadPrimitive.Viewport>
+        </ThreadPrimitive.Root>
+      </MotionConfig>
+    </LazyMotion>
   );
 };
 
@@ -264,144 +282,179 @@ const ThreadScrollToBottom: FC = () => {
 
 const ThreadWelcome: FC = () => {
   return (
-    <ThreadPrimitive.Empty>
-      <div className="aui-thread-welcome-root">
-        <div className="aui-thread-welcome-center">
-          <p className="aui-thread-welcome-message">
+    <div className="aui-thread-welcome-root">
+      <div className="aui-thread-welcome-center">
+        <div className="aui-thread-welcome-message">
+          <m.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            className="aui-thread-welcome-message-motion-1"
+          >
+            Hello there!
+          </m.div>
+          <m.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            transition={{ delay: 0.1 }}
+            className="aui-thread-welcome-message-motion-2"
+          >
             How can I help you today?
-          </p>
+          </m.div>
         </div>
-        <ThreadWelcomeSuggestions />
       </div>
-    </ThreadPrimitive.Empty>
+      <ThreadSuggestions />
+    </div>
   );
 };
 
-const ThreadWelcomeSuggestions: FC = () => {
+const ThreadSuggestions: FC = () => {
   return (
     <div className="aui-thread-welcome-suggestions">
-      <ThreadPrimitive.Suggestion
-        className="aui-thread-welcome-suggestion"
-        prompt="What is the weather in Tokyo?"
-        send
-      >
-        <span className="aui-thread-welcome-suggestion-text">
-          What is the weather in Tokyo?
-        </span>
-      </ThreadPrimitive.Suggestion>
-      <ThreadPrimitive.Suggestion
-        className="aui-thread-welcome-suggestion"
-        prompt="What is assistant-ui?"
-        send
-      >
-        <span className="aui-thread-welcome-suggestion-text">
-          What is assistant-ui?
-        </span>
-      </ThreadPrimitive.Suggestion>
+      {[
+        {
+          title: "What's the weather",
+          label: "in San Francisco?",
+          action: "What's the weather in San Francisco?",
+        },
+        {
+          title: "Explain React hooks",
+          label: "like useState and useEffect",
+          action: "Explain React hooks like useState and useEffect",
+        },
+        {
+          title: "Write a SQL query",
+          label: "to find top customers",
+          action: "Write a SQL query to find top customers",
+        },
+        {
+          title: "Create a meal plan",
+          label: "for healthy weight loss",
+          action: "Create a meal plan for healthy weight loss",
+        },
+      ].map((suggestedAction, index) => (
+        <m.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 20 }}
+          transition={{ delay: 0.05 * index }}
+          key={`suggested-action-${suggestedAction.title}-${index}`}
+          className="aui-thread-welcome-suggestion-display"
+        >
+          <ThreadPrimitive.Suggestion
+            prompt={suggestedAction.action}
+            send
+            asChild
+          >
+            <Button
+              variant="ghost"
+              className="aui-thread-welcome-suggestion"
+              aria-label={suggestedAction.action}
+            >
+              <span className="aui-thread-welcome-suggestion-text-1">
+                {suggestedAction.title}
+              </span>
+              <span className="aui-thread-welcome-suggestion-text-2">
+                {suggestedAction.label}
+              </span>
+            </Button>
+          </ThreadPrimitive.Suggestion>
+        </m.div>
+      ))}
     </div>
   );
 };
 
 const Composer: FC = () => {
   return (
-    <ComposerPrimitive.Root className="aui-composer-root">
-      <ComposerPrimitive.Input
-        rows={1}
-        autoFocus
-        placeholder="Write a message..."
-        className="aui-composer-input"
-      />
-      <ComposerAction />
-    </ComposerPrimitive.Root>
+    <div className="aui-composer-wrapper">
+      <ThreadScrollToBottom />
+      <ComposerPrimitive.Root className="aui-composer-root">
+        <ComposerAttachments />
+        <ComposerPrimitive.Input
+          placeholder="Send a message..."
+          className="aui-composer-input"
+          rows={1}
+          autoFocus
+          aria-label="Message input"
+        />
+        <ComposerAction />
+      </ComposerPrimitive.Root>
+    </div>
   );
 };
 
 const ComposerAction: FC = () => {
   return (
-    <>
+    <div className="aui-composer-action-wrapper">
+      <ComposerAddAttachment />
+
       <ThreadPrimitive.If running={false}>
         <ComposerPrimitive.Send asChild>
           <TooltipIconButton
-            tooltip="Send"
+            tooltip="Send message"
+            side="bottom"
+            type="submit"
             variant="default"
+            size="icon"
             className="aui-composer-send"
+            aria-label="Send message"
           >
-            <SendHorizontalIcon />
+            <ArrowUpIcon className="aui-composer-send-icon" />
           </TooltipIconButton>
         </ComposerPrimitive.Send>
       </ThreadPrimitive.If>
+
       <ThreadPrimitive.If running>
         <ComposerPrimitive.Cancel asChild>
-          <TooltipIconButton
-            tooltip="Cancel"
+          <Button
+            type="button"
             variant="default"
+            size="icon"
             className="aui-composer-cancel"
+            aria-label="Stop generating"
           >
-            <CircleStopIcon />
-          </TooltipIconButton>
+            <Square className="aui-composer-cancel-icon" />
+          </Button>
         </ComposerPrimitive.Cancel>
       </ThreadPrimitive.If>
-    </>
+    </div>
   );
 };
 
-const UserMessage: FC = () => {
+const MessageError: FC = () => {
   return (
-    <MessagePrimitive.Root className="aui-user-message-root">
-      <UserActionBar />
-
-      <div className="aui-user-message-content">
-        <MessagePrimitive.Parts />
-      </div>
-
-      <BranchPicker className="aui-user-branch-picker" />
-    </MessagePrimitive.Root>
-  );
-};
-
-const UserActionBar: FC = () => {
-  return (
-    <ActionBarPrimitive.Root
-      hideWhenRunning
-      autohide="not-last"
-      className="aui-user-action-bar-root"
-    >
-      <ActionBarPrimitive.Edit asChild>
-        <TooltipIconButton tooltip="Edit">
-          <PencilIcon />
-        </TooltipIconButton>
-      </ActionBarPrimitive.Edit>
-    </ActionBarPrimitive.Root>
-  );
-};
-
-const EditComposer: FC = () => {
-  return (
-    <ComposerPrimitive.Root className="aui-edit-composer-root">
-      <ComposerPrimitive.Input className="aui-edit-composer-input" />
-
-      <div className="aui-edit-composer-footer">
-        <ComposerPrimitive.Cancel asChild>
-          <Button variant="ghost">Cancel</Button>
-        </ComposerPrimitive.Cancel>
-        <ComposerPrimitive.Send asChild>
-          <Button>Send</Button>
-        </ComposerPrimitive.Send>
-      </div>
-    </ComposerPrimitive.Root>
+    <MessagePrimitive.Error>
+      <ErrorPrimitive.Root className="aui-message-error-root">
+        <ErrorPrimitive.Message className="aui-message-error-message" />
+      </ErrorPrimitive.Root>
+    </MessagePrimitive.Error>
   );
 };
 
 const AssistantMessage: FC = () => {
   return (
-    <MessagePrimitive.Root className="aui-assistant-message-root">
-      <div className="aui-assistant-message-content">
-        <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
+    <MessagePrimitive.Root asChild>
+      <div
+        className="aui-assistant-message-root"
+        data-role="assistant"
+      >
+        <div className="aui-assistant-message-content">
+          <MessagePrimitive.Parts
+            components={{
+              Text: MarkdownText,
+              tools: { Fallback: ToolFallback },
+            }}
+          />
+          <MessageError />
+        </div>
+
+        <div className="aui-assistant-message-footer">
+          <BranchPicker />
+          <AssistantActionBar />
+        </div>
       </div>
-
-      <AssistantActionBar />
-
-      <BranchPicker className="aui-assistant-branch-picker" />
     </MessagePrimitive.Root>
   );
 };
@@ -433,6 +486,72 @@ const AssistantActionBar: FC = () => {
   );
 };
 
+const UserMessage: FC = () => {
+  return (
+    <MessagePrimitive.Root asChild>
+      <div
+        className="aui-user-message-root"
+        data-role="user"
+      >
+        <UserMessageAttachments />
+
+        <div className="aui-user-message-content-wrapper">
+          <div className="aui-user-message-content">
+            <MessagePrimitive.Parts />
+          </div>
+          <div className="aui-user-action-bar-wrapper">
+            <UserActionBar />
+          </div>
+        </div>
+
+        <BranchPicker className="aui-user-branch-picker" />
+      </div>
+    </MessagePrimitive.Root>
+  );
+};
+
+const UserActionBar: FC = () => {
+  return (
+    <ActionBarPrimitive.Root
+      hideWhenRunning
+      autohide="not-last"
+      className="aui-user-action-bar-root"
+    >
+      <ActionBarPrimitive.Edit asChild>
+        <TooltipIconButton tooltip="Edit" className="aui-user-action-edit">
+          <PencilIcon />
+        </TooltipIconButton>
+      </ActionBarPrimitive.Edit>
+    </ActionBarPrimitive.Root>
+  );
+};
+
+const EditComposer: FC = () => {
+  return (
+    <div className="aui-edit-composer-wrapper">
+      <ComposerPrimitive.Root className="aui-edit-composer-root">
+        <ComposerPrimitive.Input
+          className="aui-edit-composer-input"
+          autoFocus
+        />
+
+        <div className="aui-edit-composer-footer">
+          <ComposerPrimitive.Cancel asChild>
+            <Button variant="ghost" size="sm" aria-label="Cancel edit">
+              Cancel
+            </Button>
+          </ComposerPrimitive.Cancel>
+          <ComposerPrimitive.Send asChild>
+            <Button size="sm" aria-label="Update message">
+              Update
+            </Button>
+          </ComposerPrimitive.Send>
+        </div>
+      </ComposerPrimitive.Root>
+    </div>
+  );
+};
+
 const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({
   className,
   ...rest
@@ -459,20 +578,290 @@ const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({
     </BranchPickerPrimitive.Root>
   );
 };
+```
 
-const CircleStopIcon = () => {
+```tsx title="components/assistant-ui/attachment.tsx"
+"use client";
+
+import { PropsWithChildren, useEffect, useState, type FC } from "react";
+import Image from "next/image";
+import { XIcon, PlusIcon, FileText } from "lucide-react";
+import {
+  AttachmentPrimitive,
+  ComposerPrimitive,
+  MessagePrimitive,
+  useAssistantState,
+  useAssistantApi,
+} from "@assistant-ui/react";
+import { useShallow } from "zustand/shallow";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { cn } from "@/lib/utils";
+
+const useFileSrc = (file: File | undefined) => {
+  const [src, setSrc] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (!file) {
+      setSrc(undefined);
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+    setSrc(objectUrl);
+
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, [file]);
+
+  return src;
+};
+
+const useAttachmentSrc = () => {
+  const { file, src } = useAssistantState(
+    useShallow(({ attachment }): { file?: File; src?: string } => {
+      if (attachment.type !== "image") return {};
+      if (attachment.file) return { file: attachment.file };
+      const src = attachment.content?.filter((c) => c.type === "image")[0]
+        ?.image;
+      if (!src) return {};
+      return { src };
+    }),
+  );
+
+  return useFileSrc(file) ?? src;
+};
+
+type AttachmentPreviewProps = {
+  src: string;
+};
+
+const AttachmentPreview: FC<AttachmentPreviewProps> = ({ src }) => {
+  const [isLoaded, setIsLoaded] = useState(false);
   return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 16 16"
-      fill="currentColor"
-      width="16"
-      height="16"
-    >
-      <rect width="10" height="10" x="3" y="3" rx="2" />
-    </svg>
+    <Image
+      src={src}
+      alt="Image Preview"
+      width={1}
+      height={1}
+      className={
+        isLoaded
+          ? "aui-attachment-preview-image-loaded"
+          : "aui-attachment-preview-image-loading"
+      }
+      onLoadingComplete={() => setIsLoaded(true)}
+      priority={false}
+    />
   );
 };
+
+const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
+  const src = useAttachmentSrc();
+
+  if (!src) return children;
+
+  return (
+    <Dialog>
+      <DialogTrigger className="aui-attachment-preview-trigger" asChild>
+        {children}
+      </DialogTrigger>
+      <DialogContent className="aui-attachment-preview-dialog-content">
+        <DialogTitle className="aui-sr-only">
+          Image Attachment Preview
+        </DialogTitle>
+        <div className="aui-attachment-preview">
+          <AttachmentPreview src={src} />
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+const AttachmentThumb: FC = () => {
+  const isImage = useAssistantState(
+    ({ attachment }) => attachment.type === "image",
+  );
+  const src = useAttachmentSrc();
+
+  return (
+    <Avatar className="aui-attachment-tile-avatar">
+      <AvatarImage
+        src={src}
+        alt="Attachment preview"
+        className="aui-attachment-tile-image"
+      />
+      <AvatarFallback delayMs={isImage ? 200 : 0}>
+        <FileText className="aui-attachment-tile-fallback-icon" />
+      </AvatarFallback>
+    </Avatar>
+  );
+};
+
+const AttachmentUI: FC = () => {
+  const api = useAssistantApi();
+  const isComposer = api.attachment.source === "composer";
+
+  const isImage = useAssistantState(
+    ({ attachment }) => attachment.type === "image",
+  );
+  const typeLabel = useAssistantState(({ attachment }) => {
+    const type = attachment.type;
+    switch (type) {
+      case "image":
+        return "Image";
+      case "document":
+        return "Document";
+      case "file":
+        return "File";
+      default:
+        const _exhaustiveCheck: never = type;
+        throw new Error(`Unknown attachment type: ${_exhaustiveCheck}`);
+    }
+  });
+
+  return (
+    <Tooltip>
+      <AttachmentPrimitive.Root
+        className={cn(
+          "aui-attachment-root",
+          isImage && "aui-attachment-root-composer",
+        )}
+      >
+        <AttachmentPreviewDialog>
+          <TooltipTrigger asChild>
+            <div
+              className={cn(
+                "aui-attachment-tile",
+                isComposer && "aui-attachment-tile-composer",
+              )}
+              role="button"
+              id="attachment-tile"
+              aria-label={`${typeLabel} attachment`}
+            >
+              <AttachmentThumb />
+            </div>
+          </TooltipTrigger>
+        </AttachmentPreviewDialog>
+        {isComposer && <AttachmentRemove />}
+      </AttachmentPrimitive.Root>
+      <TooltipContent side="top">
+        <AttachmentPrimitive.Name />
+      </TooltipContent>
+    </Tooltip>
+  );
+};
+
+const AttachmentRemove: FC = () => {
+  return (
+    <AttachmentPrimitive.Remove asChild>
+      <TooltipIconButton
+        tooltip="Remove file"
+        className="aui-attachment-tile-remove"
+        side="top"
+      >
+        <XIcon className="aui-attachment-remove-icon" />
+      </TooltipIconButton>
+    </AttachmentPrimitive.Remove>
+  );
+};
+
+export const UserMessageAttachments: FC = () => {
+  return (
+    <div className="aui-user-message-attachments-end">
+      <MessagePrimitive.Attachments components={{ Attachment: AttachmentUI }} />
+    </div>
+  );
+};
+
+export const ComposerAttachments: FC = () => {
+  return (
+    <div className="aui-composer-attachments">
+      <ComposerPrimitive.Attachments
+        components={{ Attachment: AttachmentUI }}
+      />
+    </div>
+  );
+};
+
+export const ComposerAddAttachment: FC = () => {
+  return (
+    <ComposerPrimitive.AddAttachment asChild>
+      <TooltipIconButton
+        tooltip="Add Attachment"
+        side="bottom"
+        variant="ghost"
+        size="icon"
+        className="aui-composer-add-attachment"
+        aria-label="Add Attachment"
+      >
+        <PlusIcon className="aui-attachment-add-icon" />
+      </TooltipIconButton>
+    </ComposerPrimitive.AddAttachment>
+  );
+};
+```
+
+```tsx title="components/assistant-ui/tool-fallback.tsx"
+import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
+import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+
+export const ToolFallback: ToolCallMessagePartComponent = ({
+  toolName,
+  argsText,
+  result,
+}) => {
+  const [isCollapsed, setIsCollapsed] = useState(true);
+  return (
+    <div className="aui-tool-fallback-root">
+      <div className="aui-tool-fallback-header">
+        <CheckIcon className="aui-tool-fallback-icon" />
+        <p className="aui-tool-fallback-title">
+          Used tool: <b>{toolName}</b>
+        </p>
+        <Button onClick={() => setIsCollapsed(!isCollapsed)}>
+          {isCollapsed ? <ChevronUpIcon /> : <ChevronDownIcon />}
+        </Button>
+      </div>
+      {!isCollapsed && (
+        <div className="aui-tool-fallback-content">
+          <div className="aui-tool-fallback-args-root">
+            <pre className="aui-tool-fallback-args-value">
+              {argsText}
+            </pre>
+          </div>
+          {result !== undefined && (
+            <div className="aui-tool-fallback-result-root">
+              <p className="aui-tool-fallback-result-header">
+                Result:
+              </p>
+              <pre className="aui-tool-fallback-result-content">
+                {typeof result === "string"
+                  ? result
+                  : JSON.stringify(result, null, 2)}
+              </pre>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+```
+
 ```
 
 ```tsx title="components/assistant-ui/thread-list.tsx"
@@ -523,9 +912,9 @@ const ThreadListItem: FC = () => {
 
 const ThreadListItemTitle: FC = () => {
   return (
-    <p className="aui-thread-list-item-title">
+    <span className="aui-thread-list-item-title">
       <ThreadListItemPrimitive.Title fallback="New Chat" />
-    </p>
+    </span>
   );
 };
 
@@ -550,13 +939,13 @@ const ThreadListItemArchive: FC = () => {
 import "@assistant-ui/react-markdown/styles/dot.css";
 
 import {
-  CodeHeaderProps,
+  type CodeHeaderProps,
   MarkdownTextPrimitive,
   unstable_memoizeMarkdownComponents as memoizeMarkdownComponents,
   useIsMarkdownCodeBlock,
 } from "@assistant-ui/react-markdown";
 import remarkGfm from "remark-gfm";
-import { FC, memo, useState } from "react";
+import { type FC, memo, useState } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
@@ -682,7 +1071,8 @@ const defaultComponents = memoizeMarkdownComponents({
 ```tsx title="components/assistant-ui/tooltip-icon-button.tsx"
 "use client";
 
-import { ComponentPropsWithoutRef, forwardRef } from "react";
+import { ComponentPropsWithRef, forwardRef } from "react";
+import { Slottable } from "@radix-ui/react-slot";
 
 import {
   Tooltip,
@@ -691,9 +1081,8 @@ import {
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Slottable } from "@radix-ui/react-slot";
 
-export type TooltipIconButtonProps = ComponentPropsWithoutRef<typeof Button> & {
+export type TooltipIconButtonProps = ComponentPropsWithRef<typeof Button> & {
   tooltip: string;
   side?: "top" | "bottom" | "left" | "right";
 };
@@ -1073,7 +1462,7 @@ const MyApp = () => {
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <div className="grid h-dvh grid-cols-[200px_1fr] gap-x-2 px-4 py-4">
+      <div>
         <ThreadList />
         <Thread />
       </div>
