@@ -214,9 +214,29 @@ export function MyRuntimeProvider({
 
 Install the thread list component:
 
-```bash
-npx assistant-ui add thread-list
+<Tabs items={["assistant-ui", "shadcn (namespace)", "shadcn"]}>
+  <Tab>
+
+```sh
+npx assistant-ui@latest add thread-list
 ```
+
+  </Tab>
+  <Tab>
+
+```sh
+npx shadcn@latest add @assistant-ui/thread-list
+```
+
+  </Tab>
+  <Tab>
+
+```sh
+npx shadcn@latest add "https://r.assistant-ui.com/thread-list"
+```
+
+  </Tab>
+</Tabs>
 
 Then add it to your application layout:
 
