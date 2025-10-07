@@ -19,6 +19,10 @@ class ProxiedAssistantState implements AssistantState {
     return this.#api.toolUIs().getState();
   }
 
+  get tools() {
+    return this.#api.tools().getState();
+  }
+
   get threadListItem() {
     return this.#api.threadListItem().getState();
   }
