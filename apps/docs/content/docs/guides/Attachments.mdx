@@ -5,6 +5,7 @@ title: Attachments
 import { AttachmentSample } from "../../../components/samples/attachment-sample";
 import { Steps, Step } from "fumadocs-ui/components/steps";
 import { Callout } from "fumadocs-ui/components/callout";
+import { Tab, Tabs } from "fumadocs-ui/components/tabs";
 
 Enable users to attach files to their messages, enhancing conversations with images, documents, and other content.
 
@@ -27,9 +28,29 @@ The attachment system in assistant-ui provides a flexible framework for handling
 
 First, add the attachment UI components to your project:
 
+<Tabs items={["assistant-ui", "shadcn (namespace)", "shadcn"]}>
+  <Tab>
+
+```sh
+npx assistant-ui@latest add attachment
+```
+
+  </Tab>
+  <Tab>
+
+```sh
+npx shadcn@latest add @assistant-ui/attachment
+```
+
+  </Tab>
+  <Tab>
+
 ```sh
 npx shadcn@latest add "https://r.assistant-ui.com/attachment"
 ```
+
+  </Tab>
+</Tabs>
 
 This adds `/components/assistant-ui/attachment.tsx` to your project.
 

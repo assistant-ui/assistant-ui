@@ -3,6 +3,7 @@ title: AssistantModal
 ---
 
 import { Steps, Step } from "fumadocs-ui/components/steps";
+import { Tab, Tabs } from "fumadocs-ui/components/tabs";
 import { AssistantModalSample } from "../../../components/samples/assistant-modal-sample";
 
 ## Overview
@@ -19,9 +20,29 @@ A chat bubble shown in the bottom right corner of the screen. Useful for support
 
 ### Add `assistant-modal`
 
+<Tabs items={["assistant-ui", "shadcn (namespace)", "shadcn"]}>
+  <Tab>
+
+```sh
+npx assistant-ui@latest add assistant-modal
+```
+
+  </Tab>
+  <Tab>
+
+```sh
+npx shadcn@latest add @assistant-ui/assistant-modal
+```
+
+  </Tab>
+  <Tab>
+
 ```sh
 npx shadcn@latest add "https://r.assistant-ui.com/assistant-modal"
 ```
+
+  </Tab>
+</Tabs>
 
 This adds `/components/assistant-ui/assistant-modal.tsx` to your project, which you can adjust as needed.
 

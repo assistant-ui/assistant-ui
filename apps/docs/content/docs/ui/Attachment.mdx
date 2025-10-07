@@ -5,6 +5,7 @@ title: Attachment
 import { Steps, Step } from "fumadocs-ui/components/steps";
 import { AttachmentSample } from "../../../components/samples/attachment-sample";
 import { Callout } from "fumadocs-ui/components/callout";
+import { Tab, Tabs } from "fumadocs-ui/components/tabs";
 
 ## Overview
 
@@ -26,9 +27,29 @@ The Attachment components let the user attach files and view the attachments.
 
 ### Add `attachment`
 
+<Tabs items={["assistant-ui", "shadcn (namespace)", "shadcn"]}>
+  <Tab>
+
+```sh
+npx assistant-ui@latest add attachment
+```
+
+  </Tab>
+  <Tab>
+
+```sh
+npx shadcn@latest add @assistant-ui/attachment
+```
+
+  </Tab>
+  <Tab>
+
 ```sh
 npx shadcn@latest add "https://r.assistant-ui.com/attachment"
 ```
+
+  </Tab>
+</Tabs>
 
 This adds a `/components/assistant-ui/attachment.tsx` file to your project, which you can adjust as needed.
 

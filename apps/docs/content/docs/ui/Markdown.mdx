@@ -6,6 +6,7 @@ Allow the assistant to display rich text using markdown.
 
 import { Step, Steps } from "fumadocs-ui/components/steps";
 import { Callout } from "fumadocs-ui/components/callout";
+import { Tab, Tabs } from "fumadocs-ui/components/tabs";
 
 <Callout>
   Markdown support is already included by default in the `Thread` component.
@@ -18,9 +19,29 @@ import { Callout } from "fumadocs-ui/components/callout";
 <Step>
 ### Add `markdown-text`
 
-```tsx
+<Tabs items={["assistant-ui", "shadcn (namespace)", "shadcn"]}>
+  <Tab>
+
+```sh
+npx assistant-ui@latest add markdown-text
+```
+
+  </Tab>
+  <Tab>
+
+```sh
+npx shadcn@latest add @assistant-ui/markdown-text
+```
+
+  </Tab>
+  <Tab>
+
+```sh
 npx shadcn@latest add "https://r.assistant-ui.com/markdown-text"
 ```
+
+  </Tab>
+</Tabs>
 
 This adds a `/components/assistant-ui/markdown-text.tsx` file to your project, which you can adjust as needed.
 

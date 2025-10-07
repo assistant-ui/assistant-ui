@@ -45,11 +45,18 @@ import { ThreadPrimitive } from "@assistant-ui/react";
 
 ### Add the component
 
-<Tabs items={["assistant-ui", "shadcn"]}>
+<Tabs items={["assistant-ui", "shadcn (namespace)", "shadcn"]}>
   <Tab>
 
 ```sh
 npx assistant-ui@latest add thread
+```
+
+  </Tab>
+  <Tab>
+
+```sh
+npx shadcn@latest add @assistant-ui/thread
 ```
 
   </Tab>
@@ -406,5 +413,4 @@ Multiple conditions can be combined on `ThreadPrimitive.If` - all specified cond
 
 ## Related Components
 
-- [ThreadList](/docs/ui/ThreadList) - List of threads
-- [ThreadListSidebar](/docs/ui/ThreadListSidebar) - Sidebar with thread list
+- [ThreadList](/docs/ui/ThreadList) - List of threads, with or without sidebar

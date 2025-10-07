@@ -3,6 +3,7 @@ title: ToolFallback
 ---
 
 import { Steps, Step } from "fumadocs-ui/components/steps";
+import { Tab, Tabs } from "fumadocs-ui/components/tabs";
 
 ## Overview
 
@@ -15,9 +16,29 @@ The ToolFallback component displays a default ToolUI for tools that do not have 
 
 ### Add `tool-fallback`
 
+<Tabs items={["assistant-ui", "shadcn (namespace)", "shadcn"]}>
+  <Tab>
+
+```sh
+npx assistant-ui@latest add tool-fallback
+```
+
+  </Tab>
+  <Tab>
+
+```sh
+npx shadcn@latest add @assistant-ui/tool-fallback
+```
+
+  </Tab>
+  <Tab>
+
 ```sh
 npx shadcn@latest add "https://r.assistant-ui.com/tool-fallback"
 ```
+
+  </Tab>
+</Tabs>
 
 This adds a `/components/assistant-ui/tool-fallback.tsx` file to your project, which you can adjust as needed.
 
