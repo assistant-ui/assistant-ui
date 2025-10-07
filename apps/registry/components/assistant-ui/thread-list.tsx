@@ -39,7 +39,7 @@ const ThreadListItems: FC = () => {
     useShallow(({ threads }) => ({
       isLoading: threads.isLoading,
       threadIds: threads.threadIds,
-    }))
+    })),
   );
 
   const isEmpty = threadIds.length === 0;
