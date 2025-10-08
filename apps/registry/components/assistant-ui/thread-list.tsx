@@ -55,7 +55,10 @@ const ThreadListSkeleton: FC = () => {
   return (
     <>
       {Array.from({ length: 5 }, (_, i) => (
-        <div key={i} className="flex items-center gap-2 rounded-lg px-3 py-2">
+        <div
+          key={i}
+          className="aui-thread-list-skeleton flex items-center gap-2 rounded-lg px-3 py-2"
+        >
           <Skeleton className="h-5 flex-grow" />
         </div>
       ))}
