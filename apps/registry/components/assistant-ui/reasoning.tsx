@@ -14,7 +14,6 @@ import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { cn } from "@/lib/utils";
 
 const AUTO_CLOSE_DELAY = 1000;
-const MS_IN_SECOND = 1000;
 
 const getThinkingMessage = (isStreaming: boolean, duration: number) => {
   if (isStreaming && duration === 0) {
@@ -81,9 +80,7 @@ const ReasoningComponent: ReasoningMessagePartComponent = ({
     } else if (!isStreaming && wasStreaming) {
       // Streaming just ended: calculate duration and auto-close
       if (startTimeRef.current !== null) {
-        const elapsed = Math.ceil(
-          (Date.now() - startTimeRef.current) / MS_IN_SECOND,
-        );
+        const elapsed = Math.ceil((Date.now() - startTimeRef.current) / 1000);
         setDuration(elapsed);
         startTimeRef.current = null;
       }
