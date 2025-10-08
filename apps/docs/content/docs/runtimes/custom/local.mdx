@@ -1056,7 +1056,7 @@ async *run({ messages, abortSignal, context }) {
       toolCallsMap.set(toolCall.toolCallId, {
         type: "tool-call",
         toolName: toolCall.name,
-        toolCallId: toolCall.id,
+        toolCallId: toolCall.toolCallId,
         args: toolCall.args,
       });
     }
