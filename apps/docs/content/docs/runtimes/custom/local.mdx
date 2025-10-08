@@ -538,7 +538,12 @@ export function MyRuntimeProvider({ children }) {
 ```
 
 <Callout type="info" title="Returning a title from generateTitle">
-  The `generateTitle` method must return an <code>AssistantStream</code> containing the title text. The easiest, type-safe way is to use <code>createAssistantStream</code> and call <code>controller.appendText(newTitle)</code> followed by <code>controller.close()</code>. Returning a raw <code>ReadableStream</code> won't update the thread list UI.
+  The `generateTitle` method must return an <code>AssistantStream</code>{" "}
+  containing the title text. The easiest, type-safe way is to use{" "}
+  <code>createAssistantStream</code> and call{" "}
+  <code>controller.appendText(newTitle)</code> followed by{" "}
+  <code>controller.close()</code>. Returning a raw <code>ReadableStream</code>{" "}
+  won't update the thread list UI.
 </Callout>
 
 #### Understanding the Architecture
@@ -854,9 +859,9 @@ function MyCustomRuntimeProvider({ children }) {
 </Callout>
 
 <Callout type="warning">
-  **`useThreadRuntime` vs `useLocalThreadRuntime`:** 
-  - `useThreadRuntime` - Access the current thread's runtime from within components 
-  - `useLocalThreadRuntime` - Create a new single-thread runtime instance
+  **`useThreadRuntime` vs `useLocalThreadRuntime`:** - `useThreadRuntime` -
+  Access the current thread's runtime from within components -
+  `useLocalThreadRuntime` - Create a new single-thread runtime instance
 </Callout>
 
 ## Integration Examples
@@ -998,6 +1003,74 @@ async *run({ messages }) { // ✅ Correct
 async run({ messages }) {  // ❌ Wrong for streaming
 ```
 </Callout>
+
+### Tool UI Flickers or Disappears During Streaming
+
+A common issue when implementing a streaming `ChatModelAdapter` is seeing a tool's UI appear for a moment and then disappear. This is caused by failing to accumulate the `tool_calls` correctly across multiple stream chunks. State must be stored **outside** the streaming loop to persist.
+
+**❌ Incorrect: Forgetting Previous Tool Calls**
+
+This implementation incorrectly re-creates the `content` array for every chunk. If a later chunk contains only text, tool calls from previous chunks are lost, causing the UI to disappear.
+
+```tsx
+// This implementation incorrectly re-creates the `content` array for every chunk.
+// If a later chunk contains only text, tool calls from previous chunks are lost.
+async *run({ messages, abortSignal, context }) {
+  const stream = await backendApi({ messages, abortSignal, context });
+  let text = "";
+
+  for await (const chunk of stream) {
+    // ❌ DON'T: This overwrites toolCalls with only the current chunk's data
+    const toolCalls = chunk.tool_calls || [];
+    const content = [{ type: "text", text }];
+    for (const toolCall of toolCalls) {
+      content.push({
+        type: "tool-call",
+        toolName: toolCall.name,
+        toolCallId: toolCall.id,
+        args: toolCall.args,
+      });
+    }
+    yield { content }; // This yield might not contain the tool call anymore
+  }
+}
+```
+
+**✅ Correct: Accumulating State**
+
+This implementation uses a `Map` outside the loop to remember all tool calls.
+
+```tsx
+// This implementation uses a Map outside the loop to remember all tool calls.
+async *run({ messages, abortSignal, context }) {
+  const stream = await backendApi({ messages, abortSignal, context });
+  let text = "";
+  // ✅ DO: Declare state outside the loop
+  const toolCallsMap = new Map();
+
+  for await (const chunk of stream) {
+    text += chunk.content || "";
+
+    // ✅ DO: Add/update tool calls in the persistent map
+    for (const toolCall of chunk.tool_calls || []) {
+      toolCallsMap.set(toolCall.toolCallId, {
+        type: "tool-call",
+        toolName: toolCall.name,
+        toolCallId: toolCall.id,
+        args: toolCall.args,
+      });
+    }
+
+    // ✅ DO: Build content from accumulated state
+    const content = [
+      ...(text ? [{ type: "text", text }] : []),
+      ...Array.from(toolCallsMap.values()),
+    ];
+
+    yield { content }; // Yield the complete, correct state every time
+  }
+}
+```
 
 ### Debug Tips
 
