@@ -23,7 +23,9 @@ Use a Custom Thread List when you need to:
 - **Full control over persistence** - Implement your own backup, export, and migration strategies
 
 <Callout type="info">
-  If you don't need custom storage, consider using [Assistant Cloud](/docs/cloud/overview) for managed multi-thread support with zero database setup.
+  If you don't need custom storage, consider using [Assistant
+  Cloud](/docs/cloud/overview) for managed multi-thread support with zero
+  database setup.
 </Callout>
 
 ## Architecture Overview
@@ -37,6 +39,7 @@ The Custom Thread List architecture separates **thread metadata** (managed by `R
 2. **History Adapter** - Persists messages within each thread (load, append)
 
 This separation allows you to optimize storage and queries independently for thread lists and message history.
+
 </Callout>
 
 ```
@@ -68,26 +71,27 @@ This separation allows you to optimize storage and queries independently for thr
 ## How It Works
 
 1. **On mount**: Calls `list()` to load existing threads into the thread list UI
-2. **New conversation**: User sends first message → calls `initialize()` to create thread record → saves message via history adapter
+2. **New conversation**: User sends first message → calls `initialize()` to create thread record and history `append()` to persist message
 3. **Thread switch**: User selects thread → calls history `load()` to populate messages
 4. **Message sent**: Calls history `append()` to persist the new message
 5. **Metadata updates**: Calls `rename()`, `archive()`, etc. as user interacts with threads
 
 <Callout type="warning" title="Critical: Message Persistence">
-Without a properly implemented `ThreadHistoryAdapter`, messages will not be saved. The thread list adapter only manages thread metadata - you **must** provide a history adapter via `unstable_Provider` for message persistence.
+  Without a properly implemented `ThreadHistoryAdapter`, messages will not be
+  saved. The thread list adapter only manages thread metadata - you **must**
+  provide a history adapter via `unstable_Provider` for message persistence.
 </Callout>
 
-## Complete Database Integration Example
+## Complete Integration Example: Browser Storage
 
-This example shows a full implementation using browser localStorage. You can adapt this pattern for any database (PostgreSQL, MongoDB, Firebase, etc.) by replacing the `dbConnection` implementation.
+This example shows a full implementation using browser localStorage as the persistence layer.
 
 <Steps>
   <Step>
     ### Create the database connection layer
 
     ```tsx title="lib/db-connection.ts"
-    // Database interface for threads and messages
-    // Adapt this to your actual database (PostgreSQL, MongoDB, etc.)
+    // Browser storage implementation for threads and messages
 
     export interface ThreadRecord {
       id: string;
@@ -236,9 +240,11 @@ This example shows a full implementation using browser localStorage. You can ada
     ### Create the history adapter provider
 
     <Callout type="info" title="Understanding the Provider Pattern">
+
 The `unstable_Provider` component runs **in the context of each thread**, giving you access to thread-specific information via `useThreadListItem()`. This is where you create the history adapter that persists messages for that specific thread.
 
 **Why it's needed:** Each thread needs its own history adapter instance that knows which thread's messages to load and save. The Provider pattern allows you to create thread-scoped adapters.
+
 </Callout>
 
     ```tsx title="lib/history-adapter-provider.tsx"
@@ -411,7 +417,7 @@ unstable_Provider: ({ children }) => {
       {children}
     </RuntimeAdapterProvider>
   );
-}
+};
 ```
 
 ### Thread Lifecycle and Timing
@@ -419,29 +425,31 @@ unstable_Provider: ({ children }) => {
 Understanding when methods are called is crucial for correct implementation:
 
 <Steps>
+  <Step>**App loads** → `list()` called → Threads appear in ThreadList</Step>
   <Step>
-    **App loads** → `list()` called → Threads appear in ThreadList
+    **User selects thread** → Provider mounts → `load()` called → Messages
+    populate
   </Step>
   <Step>
-    **User selects thread** → Provider mounts → `load()` called → Messages populate
+    **User sends first message on new thread** → `initialize()` called →
+    `remoteId` becomes available → `append()` called
   </Step>
   <Step>
-    **User sends first message on new thread** → `initialize()` called → `remoteId` becomes available → `append()` called
-  </Step>
-  <Step>
-    **Subsequent messages** → `append()` called immediately (remoteId already exists)
+    **Subsequent messages** → `append()` called immediately (remoteId already
+    exists)
   </Step>
 </Steps>
 
 <Callout type="warning" title="First Message Timing">
-On a brand new thread, the first user message triggers `initialize()`. Until `initialize()` completes, `remoteId` is `null`. Your history adapter's `append()` should handle this gracefully by checking if `remoteId` exists before saving.
+On a brand new thread, the first user message triggers `initialize()`. Until `initialize()` completes, `remoteId` is `null`. Your history adapter's `append()` may be called before `remoteId` is available.
 
-The example above shows the recommended pattern: check for `remoteId` and log a warning if it's missing. assistant-ui will automatically retry the append after initialization completes.
+The example above returns early if `remoteId` is missing. For production use, consider storing the pending message and saving it once `remoteId` becomes available.
+
 </Callout>
 
 ### Message Format Conversion
 
-Your database likely stores messages differently than assistant-ui's internal format. The history adapter is responsible for converting between formats:
+The history adapter converts between your database format and assistant-ui's internal message structure:
 
 ```tsx
 // Loading: Database → assistant-ui
@@ -475,84 +483,78 @@ async append(item) {
 ```
 
 <Callout type="info">
-The `content` field can include text, tool calls, images, and more. Store it as JSON/JSONB in your database to preserve the full structure.
+  The `content` field contains structured data including text, tool calls,
+  images, and attachments. Your database must preserve this exact structure. See
+  [Database Requirements](#database-requirements) for storage specifications.
 </Callout>
 
-## Database Schema Examples
+## Database Requirements
 
-### Relational Database (PostgreSQL)
+Your database must support two types of records: thread metadata and messages.
 
-```sql
--- Threads table
-CREATE TABLE threads (
-  id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL, -- For multi-tenant
-  title TEXT NOT NULL DEFAULT 'New Chat',
-  archived BOOLEAN NOT NULL DEFAULT false,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
-);
+### Thread Records
 
-CREATE INDEX idx_threads_user_id ON threads(user_id);
-CREATE INDEX idx_threads_updated_at ON threads(updated_at DESC);
+Your `list()` method must return threads matching this structure:
 
--- Messages table
-CREATE TABLE messages (
-  id TEXT PRIMARY KEY,
-  thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
-  parent_id TEXT, -- For message branches
-  role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
-  content JSONB NOT NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
-);
+<AutoTypeTable
+  path="../../packages/react/src/legacy-runtime/runtime-cores/remote-thread-list/types.tsx"
+  type="RemoteThreadMetadata"
+/>
 
-CREATE INDEX idx_messages_thread_id ON messages(thread_id);
-CREATE INDEX idx_messages_created_at ON messages(thread_id, created_at);
-```
+Your database can store additional fields (timestamps, userId, etc.) but must return at least these fields from `list()`.
 
-### Document Database (MongoDB)
+**Required operations:**
 
-```typescript
-// Threads collection
-interface ThreadDocument {
-  _id: string;
-  userId: string;
-  title: string;
-  archived: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
+- List all threads (optionally filtered by user)
+- Create new thread with generated ID
+- Update thread title and archive status
+- Delete thread and all messages
 
-// Messages collection
-interface MessageDocument {
-  _id: string;
-  threadId: string;
-  parentId: string | null;
-  role: "user" | "assistant" | "system";
-  content: any; // Full assistant-ui content format
-  createdAt: Date;
-}
+### Message Records
 
-// Indexes
-db.threads.createIndex({ userId: 1, updatedAt: -1 });
-db.messages.createIndex({ threadId: 1, createdAt: 1 });
-```
+Your history adapter's `load()` must return messages and `append()` must save messages matching this structure:
 
-### Key-Value Store (Redis)
+<AutoTypeTable
+  path="../../packages/react/src/legacy-runtime/runtime-cores/utils/MessageRepository.tsx"
+  type="ExportedMessageRepositoryItem"
+/>
+
+**Required operations:**
+
+- Load all messages for a thread
+- Save new message (idempotent by message ID)
+- Delete all messages when thread is deleted
+
+### Content Field Format
+
+The `message.content` field contains structured data. Store it as JSON to preserve the full structure:
 
 ```typescript
-// Thread list: SET
-// Key: `user:{userId}:threads`
-// Value: Set of thread IDs
+// Text message
+content: [{ type: "text", text: "Hello!" }];
 
-// Thread metadata: HASH
-// Key: `thread:{threadId}`
-// Fields: { title, archived, createdAt }
+// Tool call
+content: [
+  {
+    type: "tool-call",
+    toolCallId: "call_123",
+    toolName: "getWeather",
+    args: { city: "SF" },
+  },
+];
 
-// Thread messages: LIST
-// Key: `thread:{threadId}:messages`
-// Value: JSON-serialized messages in order
+// Mixed content
+content: [
+  { type: "text", text: "Here's the image:" },
+  { type: "image", image: "data:image/png;base64,..." },
+];
 ```
+
+<Callout type="info">
+  Use JSON/JSONB columns (PostgreSQL), document fields (MongoDB), or JSON
+  strings to preserve the exact content structure including nested objects and
+  arrays.
+</Callout>
 
 ## Common Pitfalls and Solutions
 
@@ -568,19 +570,21 @@ db.messages.createIndex({ threadId: 1, createdAt: 1 });
 // ❌ Wrong - No history adapter provided
 unstable_Provider: ({ children }) => {
   return <>{children}</>; // Missing RuntimeAdapterProvider
-}
+};
 
 // ✅ Correct - History adapter provided
 unstable_Provider: ({ children }) => {
   const threadListItem = useThreadListItem();
-  const history: ThreadHistoryAdapter = { /* implementation */ };
+  const history: ThreadHistoryAdapter = {
+    /* implementation */
+  };
 
   return (
     <RuntimeAdapterProvider adapters={{ history }}>
       {children}
     </RuntimeAdapterProvider>
   );
-}
+};
 ```
 
 ### Problem: Messages Not Persisting
@@ -622,28 +626,47 @@ async load() {
 
 **Symptom:** The first message in a new thread doesn't get saved.
 
-**Cause:** Trying to save before `initialize()` completes and `remoteId` is available.
+**Cause:** `append()` is called before `initialize()` completes and `remoteId` is available.
 
 **Solution:**
 
-The history adapter's `append()` will be called even before `remoteId` exists. assistant-ui handles this by:
-1. Calling `append()` when user sends message
-2. Calling `initialize()` to create thread
-3. Re-calling `append()` after initialization completes
-
-Your `append()` should gracefully handle the missing `remoteId`:
+Store the pending message and save it once `remoteId` becomes available:
 
 ```tsx
-async append(item) {
-  if (!remoteId) {
-    // Thread not initialized yet - this is normal for the first message
-    // assistant-ui will retry after initialize() completes
-    console.log("Waiting for thread initialization...");
-    return;
-  }
+const [pendingMessage, setPendingMessage] =
+  useState<ExportedMessageRepositoryItem | null>(null);
 
-  await db.messages.create({ /* save message */ });
-}
+// Save pending message when remoteId becomes available
+useEffect(() => {
+  if (pendingMessage && remoteId) {
+    db.messages.create({
+      id: pendingMessage.message.id,
+      threadId: remoteId,
+      parentId: pendingMessage.parentId,
+      role: pendingMessage.message.role,
+      content: pendingMessage.message.content,
+      createdAt:
+        pendingMessage.message.createdAt?.toISOString() ||
+        new Date().toISOString(),
+    });
+    setPendingMessage(null);
+  }
+}, [pendingMessage, remoteId]);
+
+const history: ThreadHistoryAdapter = {
+  async append(item) {
+    if (!remoteId) {
+      // Store for later when remoteId is available
+      setPendingMessage(item);
+      return;
+    }
+
+    await db.messages.create({
+      /* save message */
+    });
+  },
+  // ... rest of adapter
+};
 ```
 
 ### Problem: Duplicate Messages
@@ -712,7 +735,7 @@ const threadListAdapter: RemoteThreadListAdapter = {
     const userId = await getCurrentUserId();
     const thread = await db.threads.create({
       id: threadId,
-      userId
+      userId,
     });
     return { remoteId: thread.id };
   },
@@ -814,7 +837,7 @@ unstable_Provider: ({ children }) => {
       </RuntimeAdapterProvider>
     </div>
   );
-}
+};
 ```
 
 ## API Reference
@@ -841,13 +864,15 @@ unstable_Provider: ({ children }) => {
     {
       name: "rename",
       type: "(remoteId: string, title: string) => Promise<void>",
-      description: "Update thread title. Called when user renames a thread in the UI.",
+      description:
+        "Update thread title. Called when user renames a thread in the UI.",
       required: true,
     },
     {
       name: "archive",
       type: "(remoteId: string) => Promise<void>",
-      description: "Mark thread as archived. Throw error to revert optimistic UI update.",
+      description:
+        "Mark thread as archived. Throw error to revert optimistic UI update.",
       required: true,
     },
     {
@@ -859,7 +884,8 @@ unstable_Provider: ({ children }) => {
     {
       name: "delete",
       type: "(remoteId: string) => Promise<void>",
-      description: "Permanently delete thread and all its messages. Throw error to prevent deletion.",
+      description:
+        "Permanently delete thread and all its messages. Throw error to prevent deletion.",
       required: true,
     },
     {
@@ -930,16 +956,16 @@ interface ExportedMessageRepository {
 
 ## Comparison with Assistant Cloud
 
-| Feature | Custom Thread List | Assistant Cloud |
-|---------|-------------------|-----------------|
-| Setup Complexity | Moderate - requires database setup | Simple - zero configuration |
-| Database Required | Yes - you provide | No - managed for you |
-| Multi-Tenant | Your implementation | Built-in user isolation |
-| Cost | Your infrastructure costs | Usage-based pricing |
-| Data Control | Full - you own all data | Managed - data stored by Anthropic |
-| Customization | Unlimited - any database, any schema | Limited to provided features |
-| Maintenance | You manage backups, scaling | Fully managed |
-| Best For | Custom requirements, existing DB, enterprise | Quick setup, prototypes, standard needs |
+| Feature           | Custom Thread List                           | Assistant Cloud                      |
+| ----------------- | -------------------------------------------- | ------------------------------------ |
+| Setup Complexity  | Moderate - requires database setup           | Simple - create account for API keys |
+| Database Required | Yes - you provide                            | No - managed for you                 |
+| Multi-Tenant      | Your implementation                          | Built-in workspace isolation         |
+| Cost              | Your infrastructure costs                    | Usage-based pricing                  |
+| Data Control      | Full - you own all data                      | Managed by Assistant Cloud service   |
+| Customization     | Unlimited - any database, any schema         | Configured via dashboard             |
+| Maintenance       | You manage backups, scaling                  | Fully managed                        |
+| Best For          | Custom requirements, existing DB, enterprise | Quick setup, prototypes, most apps   |
 
 ## Troubleshooting
 
