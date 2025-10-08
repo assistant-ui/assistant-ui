@@ -4,7 +4,6 @@ title: Custom Thread List
 
 import { Callout } from "fumadocs-ui/components/callout";
 import { Steps, Step } from "fumadocs-ui/components/steps";
-import { ParametersTable } from "@/components/docs";
 
 ## Overview
 
@@ -43,29 +42,31 @@ This separation allows you to optimize storage and queries independently for thr
 </Callout>
 
 ```
-┌─────────────────────────────────────────┐
-│   RemoteThreadListAdapter               │
-│   (Thread Metadata)                     │
-│                                         │
-│   • list() - Get all threads            │
-│   • initialize() - Create thread        │
-│   • rename() - Update title             │
-│   • archive/unarchive/delete            │
-│   • generateTitle()                     │
-│   • unstable_Provider                   │
-└─────────────────────────────────────────┘
-                    │
-                    │ provides context for
-                    ↓
-┌─────────────────────────────────────────┐
-│   ThreadHistoryAdapter                  │
-│   (Message Persistence)                 │
-│                                         │
-│   • load() - Load thread messages       │
-│   • append() - Save new messages        │
-│                                         │
-│   Runs per-thread via Provider pattern  │
-└─────────────────────────────────────────┘
+                        ┌─────────────────────────────────────────┐
+                        │   RemoteThreadListAdapter               │
+                        │   (Thread Metadata)                     │
+                        │                                         │
+                        │   • list() - Get all threads            │
+                        │   • initialize() - Create thread        │
+                        │   • rename() - Update title             │
+                        │   • archive/unarchive/delete            │
+                        │   • generateTitle()                     │
+                        │   • unstable_Provider                   │
+                        └─────────────────────────────────────────┘
+                                            │
+                                            │
+                                            │ provides context for
+                                            │
+                                            ↓
+                        ┌─────────────────────────────────────────┐
+                        │   ThreadHistoryAdapter                  │
+                        │   (Message Persistence)                 │
+                        │                                         │
+                        │   • load() - Load thread messages       │
+                        │   • append() - Save new messages        │
+                        │                                         │
+                        │   Runs per-thread via Provider pattern  │
+                        └─────────────────────────────────────────┘
 ```
 
 ## How It Works
@@ -844,115 +845,17 @@ unstable_Provider: ({ children }) => {
 
 ### RemoteThreadListAdapter
 
-<ParametersTable
+<AutoTypeTable
+  path="../../packages/react/src/legacy-runtime/runtime-cores/remote-thread-list/types.tsx"
   type="RemoteThreadListAdapter"
-  parameters={[
-    {
-      name: "list",
-      type: "() => Promise<{ threads: RemoteThreadMetadata[] }>",
-      description:
-        "Return all threads (regular and archived). Called on mount and when refreshing the thread list.",
-      required: true,
-    },
-    {
-      name: "initialize",
-      type: "(localId: string) => Promise<{ remoteId: string; externalId?: string }>",
-      description:
-        "Create a new thread record when user sends first message. Return the canonical remoteId used for all future operations on this thread.",
-      required: true,
-    },
-    {
-      name: "rename",
-      type: "(remoteId: string, title: string) => Promise<void>",
-      description:
-        "Update thread title. Called when user renames a thread in the UI.",
-      required: true,
-    },
-    {
-      name: "archive",
-      type: "(remoteId: string) => Promise<void>",
-      description:
-        "Mark thread as archived. Throw error to revert optimistic UI update.",
-      required: true,
-    },
-    {
-      name: "unarchive",
-      type: "(remoteId: string) => Promise<void>",
-      description: "Restore archived thread to regular status.",
-      required: true,
-    },
-    {
-      name: "delete",
-      type: "(remoteId: string) => Promise<void>",
-      description:
-        "Permanently delete thread and all its messages. Throw error to prevent deletion.",
-      required: true,
-    },
-    {
-      name: "generateTitle",
-      type: "(remoteId: string, unstable_messages: readonly ThreadMessage[]) => Promise<AssistantStream>",
-      description:
-        "Generate and return a title for the thread. Must return AssistantStream (use createAssistantStream). Called automatically or via UI action.",
-      required: true,
-    },
-    {
-      name: "unstable_Provider",
-      type: "ComponentType<PropsWithChildren>",
-      description:
-        "Component that wraps each thread runtime. Use this to inject thread-specific adapters like history and attachments via RuntimeAdapterProvider. Has access to useThreadListItem hook.",
-      required: false,
-    },
-  ]}
 />
 
 ### ThreadHistoryAdapter
 
-<ParametersTable
+<AutoTypeTable
+  path="../../packages/react/src/legacy-runtime/runtime-cores/adapters/thread-history/ThreadHistoryAdapter.ts"
   type="ThreadHistoryAdapter"
-  parameters={[
-    {
-      name: "load",
-      type: "() => Promise<ExportedMessageRepository>",
-      description:
-        "Load all messages for the current thread. Return messages in order with parent references. Called when thread is opened or refreshed.",
-      required: true,
-    },
-    {
-      name: "append",
-      type: "(item: ExportedMessageRepositoryItem) => Promise<void>",
-      description:
-        "Save a new message to the thread. May be called before thread initialization - handle missing remoteId gracefully. Called after each message is added.",
-      required: true,
-    },
-    {
-      name: "resume",
-      type: "(options: ChatModelRunOptions) => AsyncGenerator<ChatModelRunResult>",
-      description:
-        "Optional. Resume an interrupted assistant response. Used for reconnecting to in-progress generations.",
-      required: false,
-    },
-  ]}
 />
-
-### Types
-
-```typescript
-interface RemoteThreadMetadata {
-  remoteId: string;
-  status: "regular" | "archived";
-  title?: string;
-  externalId?: string;
-}
-
-interface ExportedMessageRepositoryItem {
-  parentId: string | null;
-  message: ThreadMessage;
-}
-
-interface ExportedMessageRepository {
-  messages: ExportedMessageRepositoryItem[];
-}
-```
 
 ## Comparison with Assistant Cloud
 
