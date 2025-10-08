@@ -3,13 +3,7 @@
 import type { ReasoningMessagePartComponent } from "@assistant-ui/react";
 import { TextMessagePartProvider } from "@assistant-ui/react";
 import { BrainIcon, ChevronDownIcon } from "lucide-react";
-import {
-  memo,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   Collapsible,
@@ -34,7 +28,10 @@ const getThinkingMessage = (isStreaming: boolean, duration: number) => {
   return <p>Thought for {duration} seconds</p>;
 };
 
-const ReasoningComponent: ReasoningMessagePartComponent = ({ text, status }) => {
+const ReasoningComponent: ReasoningMessagePartComponent = ({
+  text,
+  status,
+}) => {
   const isStreaming = status.type === "running";
 
   const [isOpen, setIsOpen] = useState(true);
@@ -42,7 +39,9 @@ const ReasoningComponent: ReasoningMessagePartComponent = ({ text, status }) => 
   const [duration, setDuration] = useState(0);
 
   const startTimeRef = useRef<number | null>(null);
-  const autoCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const prevStreamingRef = useRef(isStreaming);
 
   const { fallbackText, hasReasoning } = useMemo(() => {
@@ -82,7 +81,9 @@ const ReasoningComponent: ReasoningMessagePartComponent = ({ text, status }) => 
     } else if (!isStreaming && wasStreaming) {
       // Streaming just ended: calculate duration and auto-close
       if (startTimeRef.current !== null) {
-        const elapsed = Math.ceil((Date.now() - startTimeRef.current) / MS_IN_SECOND);
+        const elapsed = Math.ceil(
+          (Date.now() - startTimeRef.current) / MS_IN_SECOND,
+        );
         setDuration(elapsed);
         startTimeRef.current = null;
       }
@@ -130,7 +131,7 @@ const ReasoningComponent: ReasoningMessagePartComponent = ({ text, status }) => 
         className={cn(
           "aui-reasoning-content mt-4 overflow-hidden text-sm text-muted-foreground outline-none",
           "group/collapsible-content",
-          "data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up",
+          "data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down",
           "data-[state=closed]:fill-mode-forwards",
           "data-[state=closed]:pointer-events-none",
           "[&_p]:last:mb-4",
