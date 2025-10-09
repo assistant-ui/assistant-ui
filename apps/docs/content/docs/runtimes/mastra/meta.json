@@ -1,4 +1,4 @@
 {
   "title": "Mastra",
-  "pages": ["overview", "full-stack-integration", "separate-server-integration"]
+  "pages": ["overview", "full-stack-integration", "separate-server-integration", "migration-guide"]
 }

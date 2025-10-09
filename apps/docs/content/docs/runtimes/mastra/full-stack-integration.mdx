@@ -63,10 +63,10 @@ This default route uses the Vercel AI SDK directly with OpenAI. In the following
 
 ### Install Mastra Packages
 
-Add the Mastra core, memory, the AI SDK OpenAI provider packages to your project:
+Add the Mastra integration package and dependencies to your project:
 
 ```bash npm2yarn
-npm install @mastra/core@latest @mastra/memory@latest @ai-sdk/openai
+npm install @assistant-ui/react-mastra @mastra/core@latest @mastra/memory@latest @ai-sdk/openai
 ```
 
 </Step>
@@ -197,6 +197,41 @@ Key changes:
 - The result is still returned in a format compatible with assistant-ui using `toDataStreamResponse()`.
 
 Your API route is now powered by Mastra!
+
+</Step>
+<Step>
+
+### Update Frontend Runtime
+
+Now update your frontend to use the dedicated Mastra runtime. Replace the existing runtime configuration in your page component:
+
+```tsx title="app/page.tsx"
+"use client";
+
+import { Thread } from "@/components/assistant-ui/thread";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useMastraRuntime } from "@assistant-ui/react-mastra";
+
+export default function Home() {
+  const runtime = useMastraRuntime({
+    agentId: "chefAgent",
+    memory: true,
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <div className="h-full">
+        <Thread />
+      </div>
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+Key changes:
+- Import `useMastraRuntime` from `@assistant-ui/react-mastra`
+- Configure the runtime with your agent ID and optional memory
+- The runtime will automatically handle streaming and state management
 
 </Step>
 <Step>
