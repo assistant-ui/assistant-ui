@@ -268,6 +268,9 @@ importers:
       tailwind-merge:
         specifier: ^3.3.1
         version: 3.3.1
+      ts-morph:
+        specifier: ^27.0.0
+        version: 27.0.0
       tw-animate-css:
         specifier: ^1.4.0
         version: 1.4.0
@@ -314,9 +317,6 @@ importers:
       tailwindcss:
         specifier: ^4.1.14
         version: 4.1.14
-      ts-morph:
-        specifier: ^27.0.0
-        version: 27.0.0
       tsx:
         specifier: ^4.20.6
         version: 4.20.6
