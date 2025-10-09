@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import type { UIMessage, useChat } from "@ai-sdk/react";
 import {
   useExternalStoreRuntime,
@@ -24,6 +24,26 @@ import {
 } from "../adapters/aiSDKFormatAdapter";
 import { useExternalHistory } from "./useExternalHistory";
 
+/**
+ * Extracts itemId from providerMetadata in a provider-agnostic way.
+ * OpenAI uses itemId to group reasoning paragraphs that should share one timer.
+ */
+const getItemId = (part: any): string | undefined => {
+  const metadata = part.providerMetadata;
+  if (!metadata || typeof metadata !== "object") return undefined;
+
+  for (const providerData of Object.values(metadata)) {
+    if (
+      providerData &&
+      typeof providerData === "object" &&
+      "itemId" in providerData
+    ) {
+      return String((providerData as any).itemId);
+    }
+  }
+  return undefined;
+};
+
 export type AISDKRuntimeAdapter = {
   adapters?:
     | (NonNullable<ExternalStoreAdapter["adapters"]> & {
@@ -44,10 +64,73 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     Record<string, ToolExecutionStatus>
   >({});
 
+  const [reasoningTimings, setReasoningTimings] = useState<
+    Record<string, { start: number; end?: number }>
+  >({});
+
+  // Track reasoning state changes (simple approach like the original client-side version)
+  useEffect(() => {
+    const newTimings = { ...reasoningTimings };
+    let hasChanges = false;
+
+    chatHelpers.messages.forEach((msg) => {
+      msg.parts?.forEach((part, idx) => {
+        if (part.type !== "reasoning") return;
+
+        // Generic itemId detection (checks all providers, not just OpenAI)
+        const itemId = getItemId(part);
+        const key = itemId ? `${msg.id}:${itemId}` : `${msg.id}:${idx}`;
+
+        // Start timing when reasoning first appears with state='streaming'
+        if (part.state === "streaming" && !newTimings[key]) {
+          newTimings[key] = { start: Date.now() };
+          hasChanges = true;
+        }
+        // End timing when state changes to 'done'
+        else if (
+          part.state === "done" &&
+          newTimings[key] &&
+          !newTimings[key].end
+        ) {
+          newTimings[key] = { ...newTimings[key], end: Date.now() };
+          hasChanges = true;
+        }
+      });
+    });
+
+    if (hasChanges) setReasoningTimings(newTimings);
+  }, [chatHelpers.messages, reasoningTimings]);
+
+  // Cleanup: remove timings for messages that no longer exist
+  useEffect(() => {
+    const currentKeys = new Set<string>();
+    chatHelpers.messages.forEach((msg) => {
+      msg.parts?.forEach((part, idx) => {
+        if (part.type === "reasoning") {
+          const itemId = getItemId(part);
+          const key = itemId ? `${msg.id}:${itemId}` : `${msg.id}:${idx}`;
+          currentKeys.add(key);
+        }
+      });
+    });
+
+    setReasoningTimings((prev) => {
+      const filtered = Object.fromEntries(
+        Object.entries(prev).filter(([key]) => currentKeys.has(key)),
+      );
+      return Object.keys(filtered).length !== Object.keys(prev).length
+        ? filtered
+        : prev;
+    });
+  }, [chatHelpers.messages]);
+
   const messages = AISDKMessageConverter.useThreadMessages({
     isRunning,
     messages: chatHelpers.messages,
-    metadata: useMemo(() => ({ toolStatuses }), [toolStatuses]),
+    metadata: useMemo(
+      () => ({ toolStatuses, reasoningTimings }),
+      [toolStatuses, reasoningTimings],
+    ),
   });
 
   const [runtimeRef] = useState(() => ({
