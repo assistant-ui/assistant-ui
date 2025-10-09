@@ -8,6 +8,7 @@ import { DiscordLogoIcon } from "@radix-ui/react-icons";
 import { TestimonialContainer } from "../../components/testimonials/TestimonialContainer";
 import { cn } from "@/lib/utils";
 import { CheckIcon, CopyIcon } from "lucide-react";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 import athenaintel from "./logos/cust/athenaintel.png";
 import browseruse from "./logos/cust/browseruse.svg";
 import entelligence from "./logos/cust/entelligence.svg";
@@ -84,6 +85,13 @@ export default function HomePage() {
 
         <div className="flex justify-center">
           <div className="relative flex h-max w-full flex-col items-center justify-between gap-5 rounded-3xl border p-6 sm:w-max sm:flex-row sm:p-10 lg:h-32 lg:w-full lg:px-16">
+            <GlowingEffect
+              spread={40}
+              glow={true}
+              disabled={false}
+              proximity={64}
+              inactiveZone={0.01}
+            />
             <p className="text-center text-2xl font-bold">
               Build conversational AI interfaces
             </p>
