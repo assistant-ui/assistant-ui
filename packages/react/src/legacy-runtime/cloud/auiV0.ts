@@ -14,6 +14,7 @@ type AuiV0MessageMessagePart =
   | {
       readonly type: "reasoning";
       readonly text: string;
+      readonly duration?: number;
     }
   | {
       readonly type: "source";
@@ -76,6 +77,7 @@ export const auiV0Encode = (message: ThreadMessage): AuiV0Message => {
           return {
             type: "reasoning",
             text: part.text,
+            ...(part.duration !== undefined && { duration: part.duration }),
           };
         }
 

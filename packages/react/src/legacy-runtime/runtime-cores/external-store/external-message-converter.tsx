@@ -30,6 +30,15 @@ export namespace useExternalMessageConverter {
 
   export type Metadata = {
     readonly toolStatuses?: Record<string, ToolExecutionStatus>;
+    readonly reasoningTimings?: Record<
+      string,
+      {
+        start: number;
+        end?: number;
+        lastText?: string;
+        lastCheck?: number;
+      }
+    >;
   };
 
   export type Callback<T> = (

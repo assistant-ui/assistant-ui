@@ -10,6 +10,7 @@ export type TextMessagePart = {
 export type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
+  readonly duration?: number;
   readonly parentId?: string;
 };
 
