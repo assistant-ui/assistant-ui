@@ -86,7 +86,7 @@ const EXAMPLE_ITEMS: ShowcaseItem[] = [
 export default function Component() {
   return (
     <div className="mx-auto max-w-7xl px-4 pt-4 pb-8">
-      <header className="mb-28 text-center">
+      <header className="mt-7 mb-28 text-center">
         <h1 className="mt-4 text-5xl font-bold">Examples</h1>
       </header>
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
