@@ -1,6 +1,6 @@
 export default function Component() {
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8">
+    <div className="mx-auto max-w-7xl px-4 pb-8">
       <header className="mt-12 mb-8 text-center">
         <h1 className="mt-4 text-5xl font-bold">Mem0 - ChatGPT with memory</h1>
       </header>

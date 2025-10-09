@@ -96,8 +96,8 @@ const SHOWCASE_ITEMS: ShowcaseItem[] = [
 export default function Component() {
   return (
     <div className="min-h-screen">
-      <div className="mx-auto max-w-7xl px-4 py-8">
-        <header className="mt-12 mb-28 text-center">
+      <div className="mx-auto max-w-7xl px-4 pb-8">
+        <header className="mb-28 text-center">
           <div className="text-sm tracking-wider text-muted-foreground uppercase">
             COMMUNITY SHOWCASE
           </div>
