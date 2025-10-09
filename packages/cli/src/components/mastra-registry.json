@@ -1,0 +1,184 @@
+{
+  "name": "mastra-components",
+  "version": "1.0.0",
+  "description": "Mastra-specific components for Assistant UI",
+  "components": {
+    "agent-selector": {
+      "name": "AgentSelector",
+      "description": "UI component for switching between Mastra agents",
+      "category": "runtime",
+      "files": [
+        "components/assistant-ui/agent-selector.tsx"
+      ],
+      "dependencies": [
+        "@assistant-ui/react",
+        "@assistant-ui/react-mastra",
+        "@radix-ui/react-select",
+        "@radix-ui/react-avatar"
+      ],
+      "props": {
+        "agents": {
+          "type": "array",
+          "description": "List of available agents",
+          "required": true
+        },
+        "selectedAgent": {
+          "type": "string",
+          "description": "Currently selected agent ID",
+          "required": false
+        },
+        "onAgentChange": {
+          "type": "function",
+          "description": "Callback when agent selection changes",
+          "required": false
+        }
+      }
+    },
+    "memory-status": {
+      "name": "MemoryStatus",
+      "description": "Component displaying Mastra memory system status",
+      "category": "debug",
+      "files": [
+        "components/assistant-ui/memory-status.tsx"
+      ],
+      "dependencies": [
+        "@assistant-ui/react",
+        "@assistant-ui/react-mastra",
+        "@radix-ui/react-badge"
+      ],
+      "props": {
+        "threadId": {
+          "type": "string",
+          "description": "Thread ID to check memory status for",
+          "required": false
+        },
+        "showStats": {
+          "type": "boolean",
+          "description": "Whether to show detailed memory statistics",
+          "required": false,
+          "default": false
+        }
+      }
+    },
+    "tool-results": {
+      "name": "ToolResults",
+      "description": "Enhanced tool result display component",
+      "category": "ui",
+      "files": [
+        "components/assistant-ui/tool-results.tsx"
+      ],
+      "dependencies": [
+        "@assistant-ui/react",
+        "@assistant-ui/react-mastra",
+        "@radix-ui/react-dialog",
+        "@radix-ui/react-tabs"
+      ],
+      "props": {
+        "toolCall": {
+          "type": "object",
+          "description": "Tool call data to display",
+          "required": true
+        },
+        "result": {
+          "type": "any",
+          "description": "Tool execution result",
+          "required": false
+        },
+        "isExpanded": {
+          "type": "boolean",
+          "description": "Whether the result should be expanded by default",
+          "required": false,
+          "default": false
+        }
+      }
+    },
+    "workflow-controls": {
+      "name": "WorkflowControls",
+      "description": "Controls for managing workflow execution",
+      "category": "workflow",
+      "files": [
+        "components/assistant-ui/workflow-controls.tsx"
+      ],
+      "dependencies": [
+        "@assistant-ui/react",
+        "@assistant-ui/react-mastra",
+        "@radix-ui/react-button",
+        "@radix-ui/react-progress"
+      ],
+      "props": {
+        "workflowId": {
+          "type": "string",
+          "description": "Workflow ID to control",
+          "required": true
+        },
+        "showSteps": {
+          "type": "boolean",
+          "description": "Whether to show workflow steps",
+          "required": false,
+          "default": true
+        },
+        "allowPause": {
+          "type": "boolean",
+          "description": "Whether to allow pausing workflows",
+          "required": false,
+          "default": true
+        }
+      }
+    },
+    "thread-list": {
+      "name": "ThreadList",
+      "description": "Component for managing conversation threads",
+      "category": "ui",
+      "files": [
+        "components/assistant-ui/thread-list.tsx"
+      ],
+      "dependencies": [
+        "@assistant-ui/react",
+        "@assistant-ui/react-mastra"
+      ],
+      "props": {
+        "onThreadSelect": {
+          "type": "function",
+          "description": "Callback when thread is selected",
+          "required": false
+        },
+        "showArchived": {
+          "type": "boolean",
+          "description": "Whether to show archived threads",
+          "required": false,
+          "default": false
+        }
+      }
+    }
+  },
+  "templates": {
+    "mastra-chat": {
+      "name": "Mastra Chat Interface",
+      "description": "Complete chat interface with Mastra integration",
+      "components": [
+        "agent-selector",
+        "thread-list",
+        "tool-results"
+      ],
+      "files": [
+        "app/page.tsx",
+        "app/layout.tsx",
+        "components/assistant-ui/chat.tsx",
+        "components/assistant-ui/sidebar.tsx"
+      ]
+    },
+    "mastra-workflows": {
+      "name": "Mastra Workflow Interface",
+      "description": "Workflow management interface",
+      "components": [
+        "workflow-controls",
+        "tool-results",
+        "memory-status"
+      ],
+      "files": [
+        "app/workflows/page.tsx",
+        "components/assistant-ui/workflow-dashboard.tsx"
+      ]
+    }
+  }
+}

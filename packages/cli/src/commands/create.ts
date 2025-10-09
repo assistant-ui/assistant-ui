@@ -11,7 +11,7 @@ export const create = new Command()
     "-t, --template <template>",
     `
 
-  The template to use for the project, e.g. default, langgraph
+  The template to use for the project, e.g. default, langgraph, mastra
 `,
   )
   .option(
@@ -56,6 +56,7 @@ export const create = new Command()
       langgraph:
         "https://github.com/assistant-ui/assistant-ui-starter-langgraph",
       mcp: "https://github.com/assistant-ui/assistant-ui-starter-mcp",
+      mastra: "https://github.com/assistant-ui/assistant-ui-starter-mastra",
     };
 
     const templateUrl =

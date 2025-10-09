@@ -1,0 +1,291 @@
+---
+title: Migration Guide
+description: Migrate from generic Mastra integration to the dedicated @assistant-ui/react-mastra package
+---
+
+import { Step, Steps } from "fumadocs-ui/components/steps";
+import { Callout } from "fumadocs-ui/components/callout";
+
+# Migration Guide: Generic to Dedicated Mastra Integration
+
+This guide helps you migrate from using the generic `useDataStreamRuntime` approach with Mastra to the dedicated `@assistant-ui/react-mastra` package for better developer experience and access to advanced features.
+
+## Overview
+
+The dedicated `@assistant-ui/react-mastra` package provides:
+
+- **Type Safety**: Full TypeScript support for Mastra-specific configurations
+- **Advanced Features**: Access to memory, workflows, tools, and observability
+- **Better Developer Experience**: Zero-configuration setup with smart defaults
+- **Rich Integration**: Deep integration with Mastra's agent ecosystem
+
+## Migration Steps
+
+<Steps>
+
+<Step>
+
+### Install the Dedicated Package
+
+Install the new Mastra integration package:
+
+```bash npm2yarn
+npm install @assistant-ui/react-mastra
+```
+
+You can remove the generic data-stream package if you're only using Mastra:
+
+```bash npm2yarn
+npm uninstall @assistant-ui/react-data-stream
+```
+
+</Step>
+
+<Step>
+
+### Update Your Runtime Hook
+
+Replace the generic `useDataStreamRuntime` with the dedicated `useMastraRuntime`:
+
+**Before:**
+```tsx
+import { useDataStreamRuntime } from "@assistant-ui/react-data-stream";
+
+const runtime = useDataStreamRuntime({
+  api: "http://localhost:4111/api/agents/chefAgent/stream",
+});
+```
+
+**After:**
+```tsx
+import { useMastraRuntime } from "@assistant-ui/react-mastra";
+
+const runtime = useMastraRuntime({
+  agentId: "chefAgent",
+  apiUrl: "http://localhost:4111/api/agents/chefAgent/stream",
+});
+```
+
+</Step>
+
+<Step>
+
+### Enable Advanced Features (Optional)
+
+Take advantage of Mastra's advanced features:
+
+```tsx
+const runtime = useMastraRuntime({
+  agentId: "chef-agent",
+  memory: true,  // Enable conversation memory
+  workflows: ["cooking-workflow"],  // Enable specific workflows
+  eventHandlers: {
+    onMetadata: (metadata) => console.log("Metadata:", metadata),
+    onError: (error) => console.error("Error:", error),
+    onInterrupt: (interrupt) => console.log("Interrupt:", interrupt),
+  },
+});
+```
+
+</Step>
+
+<Step>
+
+### Update API Route (If Using Full-Stack)
+
+If you're using full-stack integration, ensure your API route is compatible:
+
+```typescript title="app/api/chat/route.ts"
+import { mastra } from "@/mastra";
+
+export async function POST(req: Request) {
+  const { messages, threadId, agentId = "chefAgent" } = await req.json();
+
+  const agent = mastra.getAgent(agentId);
+  const result = await agent.stream(messages, { threadId });
+
+  return result.toDataStreamResponse();
+}
+```
+
+The API route remains the same, but you can now pass additional parameters like `agentId` and `threadId`.
+
+</Step>
+
+<Step>
+
+### Add Advanced Features to Your Component
+
+Import and use advanced Mastra features in your components:
+
+```tsx
+import {
+  useMastraRuntime,
+  useMastraMemory,
+  useMastraTools,
+  useMastraWorkflows
+} from "@assistant-ui/react-mastra";
+
+function ChatComponent() {
+  const runtime = useMastraRuntime({
+    agentId: "chef-agent",
+    memory: true,
+  });
+
+  const { memories, addMemory } = useMastraMemory({
+    agentId: "chef-agent",
+  });
+
+  const { tools, executeTool } = useMastraTools({
+    agentId: "chef-agent",
+  });
+
+  // Use advanced features...
+}
+```
+
+</Step>
+
+</Steps>
+
+## Breaking Changes
+
+### Required Changes
+
+1. **Runtime Hook**: Must replace `useDataStreamRuntime` with `useMastraRuntime`
+2. **Package Installation**: Must install `@assistant-ui/react-mastra`
+
+### Optional Changes
+
+1. **API Route**: Add support for `agentId` parameter
+2. **Component Structure**: Add advanced feature hooks
+3. **Configuration**: Enable memory, workflows, and event handlers
+
+## Advanced Migration Examples
+
+### Multiple Agent Support
+
+**Before:**
+```tsx
+// Required separate runtime instances for each agent
+const chefRuntime = useDataStreamRuntime({
+  api: "http://localhost:4111/api/agents/chefAgent/stream",
+});
+
+const weatherRuntime = useDataStreamRuntime({
+  api: "http://localhost:4111/api/agents/weatherAgent/stream",
+});
+```
+
+**After:**
+```tsx
+// Single runtime with dynamic agent switching
+const [currentAgent, setCurrentAgent] = useState("chefAgent");
+
+const runtime = useMastraRuntime({
+  agentId: currentAgent,
+  memory: true,
+});
+
+// Switch agents dynamically
+const switchAgent = (agentId: string) => {
+  setCurrentAgent(agentId);
+};
+```
+
+### Memory Integration
+
+**Before:**
+```tsx
+// Manual memory management required
+const [conversationHistory, setConversationHistory] = useState([]);
+
+// Manually save/load conversation context
+```
+
+**After:**
+```tsx
+// Automatic memory management
+const { memories, addMemory, searchMemories } = useMastraMemory({
+  agentId: "chef-agent",
+});
+
+// Memory is automatically managed by Mastra
+```
+
+### Tool Integration
+
+**Before:**
+```tsx
+// Manual tool handling in stream processing
+const processStreamChunk = (chunk) => {
+  if (chunk.type === 'tool_call') {
+    // Manually parse and execute tools
+  }
+};
+```
+
+**After:**
+```tsx
+// Automatic tool execution
+const { tools, executeTool, isExecuting } = useMastraTools({
+  agentId: "chef-agent",
+  autoExecute: true,
+});
+
+// Tools are automatically executed by the runtime
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**"Agent not found" error**:
+- Ensure the `agentId` matches your Mastra configuration
+- Check that the agent is registered in your Mastra instance
+
+**Memory not working**:
+- Verify that memory is enabled in the runtime configuration
+- Check that your Mastra instance has memory configured
+
+**Streaming issues**:
+- Ensure your API route returns the correct format
+- Check that the `apiUrl` points to the correct endpoint
+
+**TypeScript errors**:
+- Make sure you've installed `@assistant-ui/react-mastra`
+- Check that all imports are from the correct package
+
+### Getting Help
+
+If you encounter issues during migration:
+
+1. **Check the console** for detailed error messages
+2. **Verify your Mastra configuration** in your backend
+3. **Test the API endpoint** independently
+4. **Review the examples** in the `examples/with-mastra` directory
+
+## Benefits of Migration
+
+After migrating to the dedicated package, you'll have access to:
+
+- ✅ **Full TypeScript Support**: Complete type safety for all Mastra features
+- ✅ **Memory Management**: Automatic conversation persistence
+- ✅ **Tool Integration**: Seamless tool execution and management
+- ✅ **Workflow Support**: Advanced workflow orchestration
+- ✅ **Observability**: Built-in monitoring and tracing
+- ✅ **Better Developer Experience**: Zero-configuration setup
+- ✅ **CLI Integration**: Automatic package detection and installation
+
+## Next Steps
+
+After migration:
+
+1. **Explore Advanced Features**: Try memory, workflows, and tools
+2. **Customize Configuration**: Tailor the runtime to your needs
+3. **Add Monitoring**: Set up observability and error tracking
+4. **Review Examples**: Check `examples/with-mastra` for comprehensive implementations
+
+<Callout type="tip">
+  Need help with migration? Check out the [complete example](../../../examples/with-mastra) or [open an issue](https://github.com/assistant-ui/assistant-ui/issues) on GitHub.
+</Callout>

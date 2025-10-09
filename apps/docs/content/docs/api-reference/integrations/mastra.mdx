@@ -1,0 +1,461 @@
+---
+title: Mastra
+description: API reference for the @assistant-ui/react-mastra integration
+---
+
+import { ParametersTable } from "@/components/docs";
+
+# Mastra Integration
+
+## Overview
+
+The `@assistant-ui/react-mastra` package provides a first-class integration between assistant-ui and Mastra, enabling you to build sophisticated AI agent applications with memory, tools, workflows, and observability.
+
+## Installation
+
+```bash npm2yarn
+npm install @assistant-ui/react-mastra @mastra/core @mastra/memory
+```
+
+## useMastraRuntime
+
+Creates a runtime instance for Mastra agent integration with streaming support and advanced features.
+
+```tsx
+import { useMastraRuntime } from "@assistant-ui/react-mastra";
+
+const runtime = useMastraRuntime({
+  agentId: string,
+  memory?: boolean,
+  workflows?: string[],
+  apiUrl?: string,
+  stream?: (messages: any[]) => AsyncGenerator<any>,
+  onSwitchToThread?: (threadId: string) => Promise<MastraThreadState>,
+  onSwitchToNewThread?: () => Promise<string>,
+  eventHandlers?: {
+    onMetadata?: (metadata: any) => void;
+    onError?: (error: Error) => void;
+    onInterrupt?: (interrupt: any) => void;
+    onCustomEvent?: (event: any) => void;
+  },
+  adapters?: {
+    attachments?: AttachmentAdapter;
+    feedback?: FeedbackAdapter;
+    speech?: SpeechSynthesisAdapter;
+  },
+});
+```
+
+### Parameters
+
+<ParametersTable
+  parameters={[
+    {
+      name: "agentId",
+      type: "string",
+      required: true,
+      description: "The ID of the Mastra agent to use",
+    },
+    {
+      name: "memory",
+      type: "boolean",
+      defaultValue: "false",
+      description: "Enable memory persistence for conversations",
+    },
+    {
+      name: "workflows",
+      type: "string[]",
+      description: "Array of workflow names to enable",
+    },
+    {
+      name: "apiUrl",
+      type: "string",
+      description: "Override API URL for separate server integration",
+    },
+    {
+      name: "stream",
+      type: "(messages: any[]) => AsyncGenerator<any>",
+      description: "Custom streaming function for advanced use cases",
+    },
+    {
+      name: "onSwitchToThread",
+      type: "(threadId: string) => Promise<MastraThreadState>",
+      description: "Callback when switching to an existing thread",
+    },
+    {
+      name: "onSwitchToNewThread",
+      type: "() => Promise<string>",
+      description: "Callback when creating a new thread",
+    },
+    {
+      name: "eventHandlers",
+      type: "MastraEventHandlers",
+      description: "Event handlers for Mastra-specific events",
+    },
+    {
+      name: "adapters",
+      type: "MastraAdapters",
+      description: "Integration adapters for persistence and feedback",
+    },
+  ]}
+/>
+
+## useMastraMemory
+
+Hook for accessing Mastra's memory system and managing conversation context.
+
+```tsx
+import { useMastraMemory } from "@assistant-ui/react-mastra";
+
+const {
+  memories,
+  searchMemories,
+  addMemory,
+  isLoading,
+  error
+} = useMastraMemory({
+  agentId: string,
+  threadId?: string,
+  enabled?: boolean,
+});
+```
+
+### Parameters
+
+<ParametersTable
+  parameters={[
+    {
+      name: "agentId",
+      type: "string",
+      required: true,
+      description: "The agent ID to manage memory for",
+    },
+    {
+      name: "threadId",
+      type: "string",
+      description: "Optional thread ID for scoped memory",
+    },
+    {
+      name: "enabled",
+      type: "boolean",
+      defaultValue: "true",
+      description: "Whether to enable memory functionality",
+    },
+  ]}
+/>
+
+### Returns
+
+- `memories`: Array of memory items
+- `searchMemories`: Function to search memories
+- `addMemory`: Function to add new memories
+- `isLoading`: Loading state
+- `error`: Error state
+
+## useMastraWorkflows
+
+Hook for integrating with Mastra's workflow orchestration system.
+
+```tsx
+import { useMastraWorkflows, useMastraWorkflowInterrupt, useMastraSendWorkflowCommand } from "@assistant-ui/react-mastra";
+
+const {
+  workflows,
+  startWorkflow,
+  pauseWorkflow,
+  resumeWorkflow,
+  isRunning
+} = useMastraWorkflows({
+  agentId: string,
+  workflows?: string[],
+});
+```
+
+### Parameters
+
+<ParametersTable
+  parameters={[
+    {
+      name: "agentId",
+      type: "string",
+      required: true,
+      description: "The agent ID to manage workflows for",
+    },
+    {
+      name: "workflows",
+      type: "string[]",
+      description: "Array of workflow names to enable",
+    },
+  ]}
+/>
+
+## useMastraTools
+
+Hook for managing and executing Mastra tools.
+
+```tsx
+import { useMastraTools, useMastraToolsWithRetry } from "@assistant-ui/react-mastra";
+
+const {
+  tools,
+  executeTool,
+  availableTools,
+  isExecuting
+} = useMastraTools({
+  agentId: string,
+  autoExecute?: boolean,
+});
+```
+
+### Parameters
+
+<ParametersTable
+  parameters={[
+    {
+      name: "agentId",
+      type: "string",
+      required: true,
+      description: "The agent ID to manage tools for",
+    },
+    {
+      name: "autoExecute",
+      type: "boolean",
+      defaultValue: "true",
+      description: "Whether to automatically execute tool calls",
+    },
+  ]}
+/>
+
+## useMastraEvents
+
+Hook for handling Mastra-specific events and real-time updates.
+
+```tsx
+import { useMastraEvents, useMastraEventSubscription, useMastraEventPattern } from "@assistant-ui/react-mastra";
+
+const {
+  events,
+  subscribe,
+  unsubscribe,
+  isConnected
+} = useMastraEvents({
+  agentId: string,
+  eventTypes?: string[],
+});
+```
+
+### Parameters
+
+<ParametersTable
+  parameters={[
+    {
+      name: "agentId",
+      type: "string",
+      required: true,
+      description: "The agent ID to listen to events for",
+    },
+    {
+      name: "eventTypes",
+      type: "string[]",
+      description: "Array of event types to subscribe to",
+    },
+  ]}
+/>
+
+## useMastraRAG
+
+Hook for Mastra's Retrieval-Augmented Generation capabilities.
+
+```tsx
+import { useMastraRAG, useMastraRAGQuery, useMastraRAGDocuments } from "@assistant-ui/react-mastra";
+
+const {
+  query,
+  documents,
+  addDocument,
+  search,
+  isIndexing
+} = useMastraRAG({
+  agentId: string,
+  vectorStore?: string,
+  embedder?: string,
+});
+```
+
+### Parameters
+
+<ParametersTable
+  parameters={[
+    {
+      name: "agentId",
+      type: "string",
+      required: true,
+      description: "The agent ID to use RAG for",
+    },
+    {
+      name: "vectorStore",
+      type: "string",
+      description: "Vector store configuration",
+    },
+    {
+      name: "embedder",
+      type: "string",
+      description: "Embedding model configuration",
+    },
+  ]}
+/>
+
+## useMastraObservability
+
+Hook for Mastra's observability and monitoring features.
+
+```tsx
+import { useMastraObservability, useMastraPerformanceMonitoring, useMastraErrorTracking } from "@assistant-ui/react-mastra";
+
+const {
+  traces,
+  metrics,
+  errors,
+  performanceData
+} = useMastraObservability({
+  agentId: string,
+  exporters?: string[],
+});
+```
+
+### Parameters
+
+<ParametersTable
+  parameters={[
+    {
+      name: "agentId",
+      type: "string",
+      required: true,
+      description: "The agent ID to monitor",
+    },
+    {
+      name: "exporters",
+      type: "string[]",
+      description: "Array of exporter names (langfuse, braintrust, etc.)",
+    },
+  ]}
+/>
+
+## Types
+
+### MastraRuntimeConfig
+
+```typescript
+interface MastraRuntimeConfig {
+  agentId: string;
+  memory?: boolean;
+  workflows?: string[];
+  apiUrl?: string;
+  stream?: (messages: any[]) => AsyncGenerator<any>;
+  onSwitchToThread?: (threadId: string) => Promise<MastraThreadState>;
+  onSwitchToNewThread?: () => Promise<string>;
+  eventHandlers?: {
+    onMetadata?: (metadata: any) => void;
+    onError?: (error: Error) => void;
+    onInterrupt?: (interrupt: any) => void;
+    onCustomEvent?: (event: any) => void;
+  };
+  adapters?: {
+    attachments?: AttachmentAdapter;
+    feedback?: FeedbackAdapter;
+    speech?: SpeechSynthesisAdapter;
+  };
+}
+```
+
+### MastraMessage
+
+```typescript
+interface MastraMessage {
+  id?: string;
+  type: "system" | "human" | "assistant" | "tool";
+  content: string | MastraContent[];
+  timestamp?: string;
+  metadata?: Record<string, any>;
+}
+```
+
+### MastraContent
+
+```typescript
+type MastraContent =
+  | { type: "text"; text: string }
+  | { type: "reasoning"; reasoning: string }
+  | { type: "tool_call"; tool_call: MastraToolCall }
+  | { type: "tool_result"; tool_result: MastraToolResult };
+```
+
+## Message Converters
+
+### MastraMessageConverter
+
+Built-in message converter for transforming Mastra messages to assistant-ui format.
+
+```tsx
+import { MastraMessageConverter } from "@assistant-ui/react-mastra";
+
+// Automatically used by useMastraRuntime
+// Handles text, reasoning, tool calls, and attachments
+```
+
+## Advanced Usage
+
+### Custom Event Handling
+
+```tsx
+const runtime = useMastraRuntime({
+  agentId: "my-agent",
+  eventHandlers: {
+    onMetadata: (metadata) => {
+      console.log("Agent metadata:", metadata);
+    },
+    onError: (error) => {
+      console.error("Agent error:", error);
+      // Show error notification to user
+    },
+    onInterrupt: (interrupt) => {
+      console.log("Workflow interrupt:", interrupt);
+      // Handle human-in-the-loop interaction
+    },
+  },
+});
+```
+
+### Multiple Agent Support
+
+```tsx
+const [currentAgent, setCurrentAgent] = useState("agent-1");
+
+const runtime = useMastraRuntime({
+  agentId: currentAgent,
+  memory: true,
+  onSwitchToThread: async (threadId) => {
+    // Load thread state for current agent
+    return loadThreadState(threadId, currentAgent);
+  },
+});
+```
+
+### Custom Streaming
+
+```tsx
+const runtime = useMastraRuntime({
+  agentId: "my-agent",
+  stream: async function* (messages) {
+    // Custom streaming implementation
+    const response = await fetch("/api/custom-stream", {
+      method: "POST",
+      body: JSON.stringify({ messages, agentId: "my-agent" }),
+    });
+
+    const reader = response.body?.getReader();
+    // Process streaming data
+    // yield chunks as they arrive
+  },
+});
+```
