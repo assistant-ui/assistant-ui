@@ -12,6 +12,28 @@ function stripClosingDelimiters(json: string) {
   return json.replace(/[}\]"]+$/, "");
 }
 
+/**
+ * Extracts itemId from providerMetadata in a provider-agnostic way.
+ * OpenAI uses itemId to group reasoning paragraphs that should share one timer.
+ * This helper checks all providers generically without hardcoding "openai".
+ */
+const getItemId = (part: any): string | undefined => {
+  const metadata = part.providerMetadata;
+  if (!metadata || typeof metadata !== "object") return undefined;
+
+  // Check ALL providers for itemId (not just OpenAI)
+  for (const providerData of Object.values(metadata)) {
+    if (
+      providerData &&
+      typeof providerData === "object" &&
+      "itemId" in providerData
+    ) {
+      return String((providerData as any).itemId);
+    }
+  }
+  return undefined;
+};
+
 const convertParts = (
   message: UIMessage,
   metadata: useExternalMessageConverter.Metadata,
@@ -20,9 +42,32 @@ const convertParts = (
     return [];
   }
 
+  // First pass: collect reasoning parts by itemId for merging
+  const reasoningByItemId = new Map<
+    string,
+    { parts: any[]; indices: number[] }
+  >();
+  const processedIndices = new Set<number>();
+
+  message.parts
+    .filter((p) => p.type !== "step-start" && p.type !== "file")
+    .forEach((part, partIndex) => {
+      if (part.type === "reasoning") {
+        const itemId = getItemId(part);
+        if (itemId) {
+          if (!reasoningByItemId.has(itemId)) {
+            reasoningByItemId.set(itemId, { parts: [], indices: [] });
+          }
+          reasoningByItemId.get(itemId)!.parts.push(part);
+          reasoningByItemId.get(itemId)!.indices.push(partIndex);
+          processedIndices.add(partIndex);
+        }
+      }
+    });
+
   return message.parts
     .filter((p) => p.type !== "step-start" && p.type !== "file")
-    .map((part) => {
+    .map((part, partIndex) => {
       const type = part.type;
 
       // Handle text parts
@@ -35,9 +80,44 @@ const convertParts = (
 
       // Handle reasoning parts
       if (type === "reasoning") {
+        const itemId = getItemId(part);
+
+        // If this part has an itemId and was already processed, skip it (will be merged)
+        if (itemId && processedIndices.has(partIndex)) {
+          const group = reasoningByItemId.get(itemId)!;
+          const isFirstInGroup = group.indices[0] === partIndex;
+
+          if (!isFirstInGroup) {
+            // Skip non-first parts - they'll be merged into the first
+            return null;
+          }
+
+          // This is the first part - merge all texts
+          const mergedText = group.parts.map((p) => p.text).join("\n\n");
+          const key = `${message.id}:${itemId}`;
+          const timing = metadata.reasoningTimings?.[key];
+          const duration = timing?.end
+            ? Math.ceil((timing.end - timing.start) / 1000)
+            : undefined;
+
+          return {
+            type: "reasoning",
+            text: mergedText,
+            ...(duration !== undefined && { duration }),
+          } satisfies ReasoningMessagePart;
+        }
+
+        // No itemId - handle as standalone reasoning part
+        const key = `${message.id}:${partIndex}`;
+        const timing = metadata.reasoningTimings?.[key];
+        const duration = timing?.end
+          ? Math.ceil((timing.end - timing.start) / 1000)
+          : undefined;
+
         return {
           type: "reasoning",
           text: part.text,
+          ...(duration !== undefined && { duration }),
         } satisfies ReasoningMessagePart;
       }
 

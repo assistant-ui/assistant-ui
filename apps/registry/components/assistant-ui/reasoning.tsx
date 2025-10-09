@@ -15,29 +15,28 @@ import { cn } from "@/lib/utils";
 
 const AUTO_CLOSE_DELAY = 1000;
 
-const getThinkingMessage = (isStreaming: boolean, duration: number) => {
-  if (isStreaming && duration === 0) {
+const getThinkingMessage = (isStreaming: boolean, duration?: number) => {
+  if (isStreaming) {
     return <p>Thinking...</p>;
   }
 
-  if (Number.isNaN(duration) || duration === 0) {
-    return <p>Thought for a few seconds</p>;
+  if (duration !== undefined) {
+    return <p>Thought for {duration} seconds</p>;
   }
 
-  return <p>Thought for {duration} seconds</p>;
+  return <p>Thought for a few seconds</p>;
 };
 
 const ReasoningComponent: ReasoningMessagePartComponent = ({
   text,
   status,
+  duration,
 }) => {
   const isStreaming = status.type === "running";
 
   const [isOpen, setIsOpen] = useState(true);
   const [userInteracted, setUserInteracted] = useState(false);
-  const [duration, setDuration] = useState(0);
 
-  const startTimeRef = useRef<number | null>(null);
   const autoCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
@@ -75,16 +74,8 @@ const ReasoningComponent: ReasoningMessagePartComponent = ({
       // Streaming just started: auto-open and reset
       setIsOpen(true);
       setUserInteracted(false);
-      setDuration(0);
-      startTimeRef.current = Date.now();
     } else if (!isStreaming && wasStreaming) {
-      // Streaming just ended: calculate duration and auto-close
-      if (startTimeRef.current !== null) {
-        const elapsed = Math.ceil((Date.now() - startTimeRef.current) / 1000);
-        setDuration(elapsed);
-        startTimeRef.current = null;
-      }
-
+      // Streaming just ended: auto-close after delay
       if (!userInteracted) {
         autoCloseTimeoutRef.current = setTimeout(() => {
           setIsOpen(false);
