@@ -1,5 +1,12 @@
 # @assistant-ui/styles
 
+## 0.2.4
+
+### Patch Changes
+
+- 8821862: add skeleton to thread-list when loading, sync to styles package
+  fix edge cases and improve sync-styles script
+
 ## 0.2.3
 
 ### Patch Changes
