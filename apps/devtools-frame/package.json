@@ -10,10 +10,13 @@
   },
   "dependencies": {
     "@assistant-ui/react-devtools": "workspace:*",
+    "@shikijs/langs": "^3.13.0",
+    "@shikijs/themes": "^3.13.0",
     "clsx": "^2.1.1",
     "next": "15.5.4",
-    "react": "19.2.0",
-    "react-dom": "19.2.0"
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
+    "react-shiki": "^0.7.2"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",

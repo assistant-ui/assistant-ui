@@ -51,27 +51,25 @@ export const getStyles = (darkMode: boolean): DevToolsModalStyles => {
       height: "42px",
       borderRadius: "9999px",
       border: "none",
-      background: theme.primary,
+      background: "black",
       color: theme.buttonText,
       cursor: "pointer",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      boxShadow: darkMode
-        ? `0 10px 40px ${COLORS.dark.shadow}`
-        : `0 10px 40px ${COLORS.light.shadow}`,
-      transition: "transform 0.2s ease, box-shadow 0.2s ease",
+      boxShadow: "none",
+      transition: "transform 0.2s ease, background 0.2s ease",
     },
     floatingButtonHover: {
       transform: "translateY(-2px)",
-      boxShadow: darkMode
-        ? "0 16px 50px rgba(17, 24, 39, 0.55)"
-        : "0 16px 50px rgba(37, 99, 235, 0.45)",
+      background: "#222222", // Pure neutral dark gray
+      boxShadow: "none",
     },
     backdrop: {
       position: "fixed",
       inset: 0,
-      background: "rgba(15, 23, 42, 0.45)",
+      // Pure black overlay (remove blue hue)
+      background: "rgba(0, 0, 0, 0.6)",
       backdropFilter: "blur(6px)",
       animation: "fadeIn 0.12s ease",
       zIndex: 2147483646,
