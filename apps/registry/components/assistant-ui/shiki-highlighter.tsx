@@ -37,9 +37,6 @@ export const SyntaxHighlighter: FC<HighlighterProps> = ({
   components: _components,
   ...props
 }) => {
-  const BASE_STYLES =
-    "aui-shiki-base [&_pre]:overflow-x-auto [&_pre]:rounded-b-lg [&_pre]:!bg-muted/75 [&_pre]:p-4";
-
   return (
     <ShikiHighlighter
       {...props}
@@ -48,7 +45,10 @@ export const SyntaxHighlighter: FC<HighlighterProps> = ({
       addDefaultStyles={addDefaultStyles}
       showLanguage={showLanguage}
       defaultColor="light-dark()"
-      className={cn(BASE_STYLES, className)}
+      className={cn(
+        "aui-shiki-base [&_pre]:overflow-x-auto [&_pre]:rounded-b-lg [&_pre]:!bg-muted/75 [&_pre]:p-4",
+        className,
+      )}
     >
       {code.trim()}
     </ShikiHighlighter>

@@ -11,11 +11,6 @@
   @apply min-h-8 grow;
 }
 
-/* unused in new design */
-.aui-thread-viewport-footer {
-  @apply sticky bottom-0 mt-3 flex w-full max-w-[var(--thread-max-width)] flex-col items-center justify-end rounded-t-lg bg-inherit pb-4;
-}
-
 .aui-thread-scroll-to-bottom {
   @apply absolute -top-12 z-10 self-center rounded-full p-4 disabled:invisible dark:bg-background dark:hover:bg-accent;
 }
@@ -108,15 +103,6 @@
   @apply size-[34px] rounded-full p-1 text-xs font-semibold hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30;
 }
 
-/* unused in new design */
-.aui-composer-attach {
-  @apply my-2.5 size-8 p-2 transition-opacity ease-in;
-}
-
-.aui-composer-attachment-button {
-  @apply scale-115 p-3.5 hover:bg-foreground/15 dark:hover:bg-background/50;
-}
-
 .aui-composer-attachments {
   @apply mb-2 flex w-full flex-row items-center gap-2 overflow-x-auto px-1.5 pt-0.5 pb-1 empty:hidden;
 }
@@ -129,22 +115,6 @@
 
 .aui-attachment-root-composer {
   @apply only:[&>#attachment-tile]:size-24;
-}
-
-.aui-attachment-content {
-  @apply flex h-7 cursor-pointer items-center gap-1.5 rounded-md border bg-muted/50 px-2 py-1 transition-colors hover:bg-muted/80;
-}
-
-.aui-attachment-thumb {
-  @apply size-3.5 flex-shrink-0 text-muted-foreground;
-}
-
-.aui-attachment-name {
-  @apply max-w-[120px] truncate text-xs;
-}
-
-.aui-attachment-remove {
-  @apply -mr-1 ml-1 hover:text-destructive;
 }
 
 .aui-attachment-preview {
@@ -191,10 +161,6 @@
   @apply absolute top-1.5 right-1.5 size-3.5 rounded-full bg-white text-muted-foreground opacity-100 shadow-sm hover:!bg-white [&_svg]:text-black hover:[&_svg]:text-destructive;
 }
 
-.aui-user-message-attachments-end {
-  @apply col-span-full col-start-1 row-start-1 flex w-full flex-row justify-end gap-2;
-}
-
 /* attachment icons */
 
 .aui-attachment-add-icon {
@@ -217,10 +183,6 @@
 
 .aui-user-message-content {
   @apply rounded-3xl bg-muted px-5 py-2.5 break-words text-foreground;
-}
-
-.aui-user-message-attachments {
-  @apply col-start-2 mb-2 flex flex-wrap gap-2 empty:hidden;
 }
 
 .aui-user-message-content-wrapper {
@@ -265,24 +227,6 @@
   @apply relative mx-auto w-full max-w-[var(--thread-max-width)] animate-in py-4 duration-150 ease-out fade-in slide-in-from-bottom-1 last:mb-24;
 }
 
-.aui-assistant-message-avatar {
-  @apply col-start-1 row-start-1 flex size-8 shrink-0 items-center justify-center rounded-full bg-background ring-1 ring-border;
-}
-
-/* unused in new design */
-:where(.aui-assistant-message-root) > .aui-avatar-root {
-  @apply col-start-1 row-span-full row-start-1 mr-4;
-}
-
-/* unused in new design */
-.aui-assistant-avatar {
-  @apply col-start-1 row-span-full row-start-1 mr-4;
-}
-
-.aui-assistant-branch-picker {
-  @apply col-start-2 row-start-2 mr-2 -ml-2;
-}
-
 .aui-assistant-message-content {
   @apply mx-2 leading-7 break-words text-foreground;
 }
@@ -305,14 +249,6 @@
   @apply col-start-3 row-start-2 -ml-1 flex gap-1 text-muted-foreground data-floating:absolute data-floating:rounded-md data-floating:border data-floating:bg-background data-floating:p-1 data-floating:shadow-sm;
 }
 
-.aui-assistant-action-bar-feedback-positive {
-  @apply data-[submitted]:text-green-600 data-[submitted]:hover:text-green-700 dark:data-[submitted]:text-green-500 dark:data-[submitted]:hover:text-green-400;
-}
-
-.aui-assistant-action-bar-feedback-negative {
-  @apply data-[submitted]:text-red-600 data-[submitted]:hover:text-red-700 dark:data-[submitted]:text-red-500 dark:data-[submitted]:hover:text-red-400;
-}
-
 /* branch picker */
 
 .aui-branch-picker-root {
@@ -324,10 +260,6 @@
 }
 
 /* text */
-
-.aui-text {
-  @apply whitespace-pre-line;
-}
 
 .aui-text-running::after {
   @apply animate-pulse font-sans content-['\25CF'] ltr:ml-1 rtl:mr-1;
@@ -357,6 +289,14 @@
 
 .aui-thread-list-item-archive {
   @apply mr-3 ml-auto size-4 p-0 text-foreground hover:text-primary;
+}
+
+.aui-thread-list-skeleton-wrapper {
+  @apply flex items-center gap-2 rounded-md px-3 py-2;
+}
+
+.aui-thread-list-skeleton {
+  @apply h-[22px] flex-grow;
 }
 
 /* ThreadListSidebar */
@@ -408,3 +348,70 @@
 .aui-sidebar-footer-title {
   @apply font-semibold;
 }
+
+/* Unused classes from old design */
+
+.aui-thread-viewport-footer {
+  @apply sticky bottom-0 mt-3 flex w-full max-w-[var(--thread-max-width)] flex-col items-center justify-end rounded-t-lg bg-inherit pb-4;
+}
+
+.aui-composer-attach {
+  @apply my-2.5 size-8 p-2 transition-opacity ease-in;
+}
+
+.aui-composer-attachment-button {
+  @apply scale-115 p-3.5 hover:bg-foreground/15 dark:hover:bg-background/50;
+}
+
+.aui-attachment-content {
+  @apply flex h-7 cursor-pointer items-center gap-1.5 rounded-md border bg-muted/50 px-2 py-1 transition-colors hover:bg-muted/80;
+}
+
+.aui-attachment-thumb {
+  @apply size-3.5 flex-shrink-0 text-muted-foreground;
+}
+
+.aui-attachment-name {
+  @apply max-w-[120px] truncate text-xs;
+}
+
+.aui-attachment-remove {
+  @apply -mr-1 ml-1 hover:text-destructive;
+}
+
+.aui-user-message-attachments-end {
+  @apply col-span-full col-start-1 row-start-1 flex w-full flex-row justify-end gap-2;
+}
+
+.aui-user-message-attachments {
+  @apply col-start-2 mb-2 flex flex-wrap gap-2 empty:hidden;
+}
+
+.aui-assistant-message-avatar {
+  @apply col-start-1 row-start-1 flex size-8 shrink-0 items-center justify-center rounded-full bg-background ring-1 ring-border;
+}
+
+:where(.aui-assistant-message-root) > .aui-avatar-root {
+  @apply col-start-1 row-span-full row-start-1 mr-4;
+}
+
+.aui-assistant-avatar {
+  @apply col-start-1 row-span-full row-start-1 mr-4;
+}
+
+.aui-assistant-branch-picker {
+  @apply col-start-2 row-start-2 mr-2 -ml-2;
+}
+
+.aui-assistant-action-bar-feedback-positive {
+  @apply data-[submitted]:text-green-600 data-[submitted]:hover:text-green-700 dark:data-[submitted]:text-green-500 dark:data-[submitted]:hover:text-green-400;
+}
+
+.aui-assistant-action-bar-feedback-negative {
+  @apply data-[submitted]:text-red-600 data-[submitted]:hover:text-red-700 dark:data-[submitted]:text-red-500 dark:data-[submitted]:hover:text-red-400;
+}
+
+.aui-text {
+  @apply whitespace-pre-line;
+}
+
