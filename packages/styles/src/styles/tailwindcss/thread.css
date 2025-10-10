@@ -359,6 +359,15 @@
   @apply mr-3 ml-auto size-4 p-0 text-foreground hover:text-primary;
 }
 
+/* thread-list skeleton */
+.aui-thread-list-skeleton-wrapper {
+  @apply flex items-center gap-2 rounded-md px-3 py-2;
+}
+
+.aui-thread-list-skeleton {
+  @apply h-[22px] flex-grow;
+}
+
 /* ThreadListSidebar */
 
 .aui-sidebar-header {
@@ -408,3 +417,5 @@
 .aui-sidebar-footer-title {
   @apply font-semibold;
 }
+
+
