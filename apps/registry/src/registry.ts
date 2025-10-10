@@ -82,7 +82,7 @@ export const registry: RegistryItem[] = [
       "skeleton",
       "https://r.assistant-ui.com/tooltip-icon-button",
     ],
-    dependencies: ["@assistant-ui/react", "lucide-react", "zustand"],
+    dependencies: ["@assistant-ui/react", "lucide-react"],
   },
   {
     name: "attachment",

@@ -5,7 +5,6 @@ import {
   useAssistantState,
 } from "@assistant-ui/react";
 import { ArchiveIcon, PlusIcon } from "lucide-react";
-import { useShallow } from "zustand/shallow";
 
 import { Button } from "@/components/ui/button";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
@@ -35,16 +34,9 @@ const ThreadListNew: FC = () => {
 };
 
 const ThreadListItems: FC = () => {
-  const { isLoading, threadIds } = useAssistantState(
-    useShallow(({ threads }) => ({
-      isLoading: threads.isLoading,
-      threadIds: threads.threadIds,
-    })),
-  );
+  const isLoading = useAssistantState(({ threads }) => threads.isLoading);
 
-  const isEmpty = threadIds.length === 0;
-
-  if (isLoading || isEmpty) {
+  if (isLoading) {
     return <ThreadListSkeleton />;
   }
 
@@ -55,11 +47,8 @@ const ThreadListSkeleton: FC = () => {
   return (
     <>
       {Array.from({ length: 5 }, (_, i) => (
-        <div
-          key={i}
-          className="aui-thread-list-skeleton flex items-center gap-2 rounded-lg px-3 py-2"
-        >
-          <Skeleton className="h-5 flex-grow" />
+        <div key={i} className="flex items-center gap-2 rounded-md px-3 py-2">
+          <Skeleton className="h-[22px] flex-grow" />
         </div>
       ))}
     </>
