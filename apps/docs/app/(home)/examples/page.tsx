@@ -85,23 +85,21 @@ const EXAMPLE_ITEMS: ShowcaseItem[] = [
 
 export default function Component() {
   return (
-    <div className="min-h-screen">
-      <div className="mx-auto max-w-7xl px-4 py-8">
-        <header className="mt-12 mb-28 text-center">
-          <h1 className="mt-4 text-5xl font-bold">Examples</h1>
-        </header>
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {EXAMPLE_ITEMS.map((item) => (
-            <ShowcaseCard key={item.title} {...item} />
-          ))}
-        </div>
+    <div className="mx-auto max-w-7xl px-4 pt-4 pb-8">
+      <header className="mt-7 mb-28 text-center">
+        <h1 className="mt-4 text-5xl font-bold">Examples</h1>
+      </header>
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {EXAMPLE_ITEMS.map((item) => (
+          <ShowcaseCard key={item.title} {...item} />
+        ))}
+      </div>
 
-        <div className="my-20 flex flex-col items-center gap-6">
-          <h2 className="text-4xl font-bold">Looking for more examples?</h2>
-          <Button asChild>
-            <a href="/showcase">Check out the community showcase!</a>
-          </Button>
-        </div>
+      <div className="my-20 flex flex-col items-center gap-6">
+        <h2 className="text-4xl font-bold">Looking for more examples?</h2>
+        <Button asChild>
+          <a href="/showcase">Check out the community showcase!</a>
+        </Button>
       </div>
     </div>
   );
