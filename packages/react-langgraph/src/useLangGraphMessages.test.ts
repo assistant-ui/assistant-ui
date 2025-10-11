@@ -706,4 +706,68 @@ describe("useLangGraphMessages", {}, () => {
       ); // UUID v4 format
     });
   });
+
+  it("replaces messages with full list from updates event", async () => {
+    const initialHumanMessage = {
+      id: "user-1",
+      type: "human" as const,
+      content: "initial user message",
+    };
+
+    const manuallyAddedAIMessage = {
+      id: "ai-1",
+      type: "ai" as const,
+      content: "This is a manually added message from an Updates event",
+    };
+
+    const updatedMessagesFromBackend = [
+      initialHumanMessage,
+      manuallyAddedAIMessage,
+    ];
+
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "updates",
+        data: {
+          messages: updatedMessagesFromBackend,
+        },
+      },
+      {
+        event: "messages",
+        data: [
+          {
+            id: "ai-2",
+            content: "This is a streamed AI response",
+            type: "AIMessageChunk",
+          },
+          { run_attempt: 1 },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage([initialHumanMessage], {});
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(3);
+      expect(result.current.messages[0].id).toEqual("user-1");
+      expect(result.current.messages[1].id).toEqual("ai-1");
+      expect(result.current.messages[1].content).toEqual(
+        "This is a manually added message from an Updates event",
+      );
+      expect(result.current.messages[2].id).toEqual("ai-2");
+      expect(result.current.messages[2].content).toEqual(
+        "This is a streamed AI response",
+      );
+    });
+  });
 });
