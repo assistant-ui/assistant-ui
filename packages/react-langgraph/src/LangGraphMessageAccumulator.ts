@@ -42,6 +42,15 @@ export class LangGraphMessageAccumulator<TMessage extends { id?: string }> {
     return [...this.messagesMap.values()];
   }
 
+  public replaceMessages(newMessages: TMessage[]): TMessage[] {
+    this.messagesMap.clear();
+
+    for (const message of newMessages.map(this.ensureMessageId)) {
+      this.messagesMap.set(message.id!, message);
+    }
+    return this.getMessages();
+  }
+
   public clear() {
     this.messagesMap.clear();
   }

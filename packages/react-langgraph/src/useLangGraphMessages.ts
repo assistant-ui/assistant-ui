@@ -124,6 +124,9 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
             setMessages(accumulator.addMessages(chunk.data));
             break;
           case LangGraphKnownEventTypes.Updates:
+            if (Array.isArray(chunk.data.messages)) {
+              setMessages(accumulator.replaceMessages(chunk.data.messages));
+            }
             setInterrupt(chunk.data.__interrupt__?.[0]);
             break;
           case LangGraphKnownEventTypes.Messages: {
