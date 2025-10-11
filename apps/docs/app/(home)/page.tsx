@@ -88,7 +88,7 @@ export default function HomePage() {
             <GlowingEffect
               spread={40}
               glow={true}
-              disabled={false}
+              enabled={true}
               proximity={64}
               inactiveZone={0.01}
             />
