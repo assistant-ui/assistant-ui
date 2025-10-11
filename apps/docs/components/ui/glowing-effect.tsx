@@ -32,10 +32,13 @@ const GlowingEffect = memo(
     const containerRef = useRef<HTMLDivElement>(null);
     const lastPosition = useRef({ x: 0, y: 0 });
     const animationFrameRef = useRef<number>(0);
+    const animationControlRef = useRef<ReturnType<typeof animate> | null>(null);
+    const cachedRectRef = useRef<DOMRect | null>(null);
+    const reducedMotionRef = useRef(false);
 
     const handleMove = useCallback(
       (e?: MouseEvent | { x: number; y: number }) => {
-        if (!containerRef.current) return;
+        if (!containerRef.current || reducedMotionRef.current) return;
 
         if (animationFrameRef.current) {
           cancelAnimationFrame(animationFrameRef.current);
@@ -45,7 +48,8 @@ const GlowingEffect = memo(
           const element = containerRef.current;
           if (!element) return;
 
-          const { left, top, width, height } = element.getBoundingClientRect();
+          const { left, top, width, height } =
+            cachedRectRef.current || element.getBoundingClientRect();
           const mouseX = (e as MouseEvent)?.x ?? lastPosition.current.x;
           const mouseY = (e as MouseEvent)?.y ?? lastPosition.current.y;
 
@@ -85,7 +89,8 @@ const GlowingEffect = memo(
           const angleDiff = ((targetAngle - currentAngle + 180) % 360) - 180;
           const newAngle = currentAngle + angleDiff;
 
-          animate(currentAngle, newAngle, {
+          animationControlRef.current?.stop();
+          animationControlRef.current = animate(currentAngle, newAngle, {
             duration: movementDuration,
             ease: [0.16, 1, 0.3, 1],
             onUpdate: (value) => {
@@ -96,6 +101,35 @@ const GlowingEffect = memo(
       },
       [inactiveZone, proximity, movementDuration],
     );
+
+    // Setup ResizeObserver and prefers-reduced-motion
+    useEffect(() => {
+      if (!enabled || !containerRef.current) return;
+
+      // Check for reduced motion preference
+      const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+      reducedMotionRef.current = mediaQuery.matches;
+
+      const handleReducedMotionChange = (e: MediaQueryListEvent) => {
+        reducedMotionRef.current = e.matches;
+      };
+
+      mediaQuery.addEventListener("change", handleReducedMotionChange);
+
+      // Setup ResizeObserver to cache bounding rect
+      const resizeObserver = new ResizeObserver(() => {
+        if (containerRef.current) {
+          cachedRectRef.current = containerRef.current.getBoundingClientRect();
+        }
+      });
+
+      resizeObserver.observe(containerRef.current);
+
+      return () => {
+        mediaQuery.removeEventListener("change", handleReducedMotionChange);
+        resizeObserver.disconnect();
+      };
+    }, [enabled]);
 
     useEffect(() => {
       if (!enabled) return;
@@ -112,6 +146,7 @@ const GlowingEffect = memo(
         if (animationFrameRef.current) {
           cancelAnimationFrame(animationFrameRef.current);
         }
+        animationControlRef.current?.stop();
         window.removeEventListener("scroll", handleScroll);
         document.body.removeEventListener("pointermove", handlePointerMove);
       };
