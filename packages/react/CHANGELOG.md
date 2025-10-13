@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.11.29
+
+### Patch Changes
+
+- 92dfb0f: fix: update and maintain message levels on reparent
+
 ## 0.11.28
 
 ### Patch Changes

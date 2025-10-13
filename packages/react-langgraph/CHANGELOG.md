@@ -1,5 +1,13 @@
 # @assistant-ui/react-langgraph
 
+## 0.7.2
+
+### Patch Changes
+
+- 5798f66: fix: handle full message arrays in Updates event
+- Updated dependencies [92dfb0f]
+  - @assistant-ui/react@0.11.29
+
 ## 0.7.1
 
 ### Patch Changes
