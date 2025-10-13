@@ -98,7 +98,9 @@ const convertParts = (
           const timing = metadata.reasoningTimings?.[key];
           const duration = timing?.end
             ? Math.ceil((timing.end - timing.start) / 1000)
-            : (group.parts[0]?.providerMetadata?.['assistant-ui']?.['duration'] as number | undefined);
+            : (group.parts[0]?.providerMetadata?.["assistant-ui"]?.[
+                "duration"
+              ] as number | undefined);
 
           // Inject duration into original UIMessage providerMetadata for persistence
           if (duration !== undefined) {
@@ -124,7 +126,9 @@ const convertParts = (
         const timing = metadata.reasoningTimings?.[key];
         const duration = timing?.end
           ? Math.ceil((timing.end - timing.start) / 1000)
-          : (part.providerMetadata?.['assistant-ui']?.['duration'] as number | undefined);
+          : (part.providerMetadata?.["assistant-ui"]?.["duration"] as
+              | number
+              | undefined);
 
         // Inject duration into original UIMessage providerMetadata for persistence
         if (duration !== undefined) {
@@ -343,3 +347,9 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
     }
   },
 );
+
+// Export for testing
+export const __test__ = {
+  convertParts,
+  getItemId,
+};
