@@ -1,5 +1,13 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.1.6
+
+### Patch Changes
+
+- a5f9dd5: Export missing types for custom runtime integration
+- Updated dependencies [92dfb0f]
+  - @assistant-ui/react@0.11.29
+
 ## 1.1.5
 
 ### Patch Changes
