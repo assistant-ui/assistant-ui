@@ -751,7 +751,11 @@ describe("MessageRepository", () => {
       repository.addOrUpdateMessage("B", messageC);
 
       // Verify initial state
-      expect(repository.getMessages().map((m) => m.id)).toEqual(["A", "B", "C"]);
+      expect(repository.getMessages().map((m) => m.id)).toEqual([
+        "A",
+        "B",
+        "C",
+      ]);
       expect(repository.headId).toBe("C");
 
       // Now insert new messages at the start: X -> Y
