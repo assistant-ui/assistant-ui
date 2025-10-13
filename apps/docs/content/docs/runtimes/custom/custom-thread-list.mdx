@@ -498,7 +498,7 @@ Your database must support two types of records: thread metadata and messages.
 Your `list()` method must return threads matching this structure:
 
 <AutoTypeTable
-  path="../../packages/react/src/legacy-runtime/runtime-cores/remote-thread-list/types.tsx"
+  path="packages/react/src/legacy-runtime/runtime-cores/remote-thread-list/types.tsx"
   type="RemoteThreadMetadata"
 />
 
@@ -516,7 +516,7 @@ Your database can store additional fields (timestamps, userId, etc.) but must re
 Your history adapter's `load()` must return messages and `append()` must save messages matching this structure:
 
 <AutoTypeTable
-  path="../../packages/react/src/legacy-runtime/runtime-cores/utils/MessageRepository.tsx"
+  path="packages/react/src/legacy-runtime/runtime-cores/utils/MessageRepository.tsx"
   type="ExportedMessageRepositoryItem"
 />
 
@@ -846,14 +846,14 @@ unstable_Provider: ({ children }) => {
 ### RemoteThreadListAdapter
 
 <AutoTypeTable
-  path="../../packages/react/src/legacy-runtime/runtime-cores/remote-thread-list/types.tsx"
+  path="packages/react/src/legacy-runtime/runtime-cores/remote-thread-list/types.tsx"
   type="RemoteThreadListAdapter"
 />
 
 ### ThreadHistoryAdapter
 
 <AutoTypeTable
-  path="../../packages/react/src/legacy-runtime/runtime-cores/adapters/thread-history/ThreadHistoryAdapter.ts"
+  path="packages/react/src/legacy-runtime/runtime-cores/adapters/thread-history/ThreadHistoryAdapter.ts"
   type="ThreadHistoryAdapter"
 />
 
