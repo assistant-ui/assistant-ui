@@ -729,5 +729,54 @@ describe("MessageRepository", () => {
       expect(MessagePart.type).toBe("text");
       expect((MessagePart as TextMessagePart).text).toBe("Updated content");
     });
+
+    /**
+     * Tests re-parenting a root message when new messages are inserted at the start.
+     * This simulates the external store runtime scenario where new messages are
+     * prepended to the list, requiring the previous root to be re-parented.
+     *
+     * Scenario:
+     * 1. Initial state: A -> B -> C (A is root at level 0)
+     * 2. New messages inserted: X -> Y -> A -> B -> C (X is new root, A needs re-parenting to Y)
+     * 3. A should be updated to have Y as parent and level should be recalculated
+     */
+    it("should handle re-parenting when messages are inserted at the start", () => {
+      // Initial state: A -> B -> C
+      const messageA = createTestMessage({ id: "A" });
+      const messageB = createTestMessage({ id: "B" });
+      const messageC = createTestMessage({ id: "C" });
+
+      repository.addOrUpdateMessage(null, messageA);
+      repository.addOrUpdateMessage("A", messageB);
+      repository.addOrUpdateMessage("B", messageC);
+
+      // Verify initial state
+      expect(repository.getMessages().map((m) => m.id)).toEqual(["A", "B", "C"]);
+      expect(repository.headId).toBe("C");
+
+      // Now insert new messages at the start: X -> Y
+      const messageX = createTestMessage({ id: "X" });
+      const messageY = createTestMessage({ id: "Y" });
+
+      repository.addOrUpdateMessage(null, messageX);
+      repository.addOrUpdateMessage("X", messageY);
+
+      // Re-parent A to be a child of Y instead of root
+      repository.addOrUpdateMessage("Y", messageA);
+
+      // Expected structure: X -> Y -> A -> B -> C
+      const messages = repository.getMessages();
+      expect(messages.map((m) => m.id)).toEqual(["X", "Y", "A", "B", "C"]);
+
+      // Verify parent relationships
+      expect(repository.getMessage("X").parentId).toBeNull();
+      expect(repository.getMessage("Y").parentId).toBe("X");
+      expect(repository.getMessage("A").parentId).toBe("Y");
+      expect(repository.getMessage("B").parentId).toBe("A");
+      expect(repository.getMessage("C").parentId).toBe("B");
+
+      // Verify head is still C
+      expect(repository.headId).toBe("C");
+    });
   });
 });
