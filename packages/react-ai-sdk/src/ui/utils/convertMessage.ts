@@ -98,7 +98,19 @@ const convertParts = (
           const timing = metadata.reasoningTimings?.[key];
           const duration = timing?.end
             ? Math.ceil((timing.end - timing.start) / 1000)
-            : undefined;
+            : (group.parts[0]?.providerMetadata?.['assistant-ui']?.['duration'] as number | undefined);
+
+          // Inject duration into original UIMessage providerMetadata for persistence
+          if (duration !== undefined) {
+            const firstPart = group.parts[0] as any;
+            firstPart.providerMetadata = {
+              ...(firstPart.providerMetadata || {}),
+              "assistant-ui": {
+                ...(firstPart.providerMetadata?.["assistant-ui"] || {}),
+                duration,
+              },
+            };
+          }
 
           return {
             type: "reasoning",
@@ -112,7 +124,18 @@ const convertParts = (
         const timing = metadata.reasoningTimings?.[key];
         const duration = timing?.end
           ? Math.ceil((timing.end - timing.start) / 1000)
-          : undefined;
+          : (part.providerMetadata?.['assistant-ui']?.['duration'] as number | undefined);
+
+        // Inject duration into original UIMessage providerMetadata for persistence
+        if (duration !== undefined) {
+          (part as any).providerMetadata = {
+            ...(part.providerMetadata || {}),
+            "assistant-ui": {
+              ...(part.providerMetadata?.["assistant-ui"] || {}),
+              duration,
+            },
+          };
+        }
 
         return {
           type: "reasoning",
