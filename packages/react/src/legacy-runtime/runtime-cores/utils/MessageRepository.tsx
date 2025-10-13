@@ -140,6 +140,22 @@ export class MessageRepository {
   };
 
   /**
+   * Recursively updates the level of a message and all its descendants.
+   *
+   * @param message - The message to update
+   * @param newLevel - The new level for the message
+   */
+  private updateLevels(message: RepositoryMessage, newLevel: number) {
+    message.level = newLevel;
+    for (const childId of message.children) {
+      const childMessage = this.messages.get(childId);
+      if (childMessage) {
+        this.updateLevels(childMessage, newLevel + 1);
+      }
+    }
+  }
+
+  /**
    * Performs link/unlink operations between messages in the tree.
    *
    * @param newParent - The new parent message, or null
@@ -206,12 +222,16 @@ export class MessageRepository {
       }
 
       child.prev = newParent;
+
+      // update levels when linking/relinking to a new parent
+      const newLevel = newParent ? newParent.level + 1 : 0;
+      this.updateLevels(child, newLevel);
     }
   }
 
   /** Cached array of messages in the current active branch, from root to head */
   private _messages = new CachedValue<readonly ThreadMessage[]>(() => {
-    const messages = new Array<ThreadMessage>(this.head?.level ?? 0);
+    const messages = new Array<ThreadMessage>((this.head?.level ?? -1) + 1);
     for (let current = this.head; current; current = current.prev) {
       messages[current.level] = current.current;
     }
