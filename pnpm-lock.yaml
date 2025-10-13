@@ -322,6 +322,10 @@ importers:
         version: 5.9.3
 
   apps/registry:
+    dependencies:
+      '@radix-ui/react-collapsible':
+        specifier: ^1.1.12
+        version: 1.1.12(@types/react-dom@19.1.9(@types/react@19.1.16))(@types/react@19.1.16)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
     devDependencies:
       '@ai-sdk/openai':
         specifier: ^2.0.42
