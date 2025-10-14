@@ -4,28 +4,10 @@ import {
   MessageFormatItem,
   MessageStorageEntry,
 } from "@assistant-ui/react";
+import { getItemId } from "../utils/providerMetadata";
 
 // Storage format for AI SDK messages - just the UIMessage
 export type AISDKStorageFormat = Omit<UIMessage, "id">;
-
-/**
- * Extracts itemId from providerMetadata (used by OpenAI to group reasoning paragraphs).
- */
-const getItemId = (part: any): string | undefined => {
-  const metadata = part.providerMetadata;
-  if (!metadata || typeof metadata !== "object") return undefined;
-
-  for (const providerData of Object.values(metadata)) {
-    if (
-      providerData &&
-      typeof providerData === "object" &&
-      "itemId" in providerData
-    ) {
-      return String((providerData as any).itemId);
-    }
-  }
-  return undefined;
-};
 
 /**
  * Sanitizes providerMetadata to only keep fields safe for backend storage.

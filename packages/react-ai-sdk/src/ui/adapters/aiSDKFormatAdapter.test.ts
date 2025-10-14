@@ -91,7 +91,7 @@ describe("aiSDKV5FormatAdapter.encode", () => {
       expect(encoded.parts).toHaveLength(1);
       expect(encoded.parts[0].type).toBe("reasoning");
       expect(encoded.parts[0].text).toBe(
-        "First paragraph\n\nSecond paragraph\n\nThird paragraph"
+        "First paragraph\n\nSecond paragraph\n\nThird paragraph",
       );
     });
 
@@ -219,7 +219,7 @@ describe("aiSDKV5FormatAdapter.encode", () => {
         itemId: "rs_123",
       });
       expect(
-        encoded.parts[0].providerMetadata?.openai?.reasoningEncryptedContent
+        encoded.parts[0].providerMetadata?.openai?.reasoningEncryptedContent,
       ).toBeUndefined();
     });
 
@@ -343,8 +343,7 @@ describe("aiSDKV5FormatAdapter.encode", () => {
             providerMetadata: {
               openai: {
                 itemId: "rs_080fb5bad9b8095c0168ec872980d081",
-                reasoningEncryptedContent:
-                  "gAAAAABo7IdLY6uSbfeI9vegE...", // Should be stripped
+                reasoningEncryptedContent: "gAAAAABo7IdLY6uSbfeI9vegE...", // Should be stripped
               },
             },
           } as any,
@@ -387,12 +386,12 @@ describe("aiSDKV5FormatAdapter.encode", () => {
 
       // itemId should be preserved
       expect(encoded.parts[0].providerMetadata?.openai?.itemId).toBe(
-        "rs_080fb5bad9b8095c0168ec872980d081"
+        "rs_080fb5bad9b8095c0168ec872980d081",
       );
 
       // Encrypted content should be stripped
       expect(
-        encoded.parts[0].providerMetadata?.openai?.reasoningEncryptedContent
+        encoded.parts[0].providerMetadata?.openai?.reasoningEncryptedContent,
       ).toBeUndefined();
 
       // Second part should be text
