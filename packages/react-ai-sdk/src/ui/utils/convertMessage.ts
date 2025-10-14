@@ -7,32 +7,11 @@ import {
   type SourceMessagePart,
   type useExternalMessageConverter,
 } from "@assistant-ui/react";
+import { getItemId } from "./providerMetadata";
 
 function stripClosingDelimiters(json: string) {
   return json.replace(/[}\]"]+$/, "");
 }
-
-/**
- * Extracts itemId from providerMetadata in a provider-agnostic way.
- * OpenAI uses itemId to group reasoning paragraphs that should share one timer.
- * This helper checks all providers generically without hardcoding "openai".
- */
-const getItemId = (part: any): string | undefined => {
-  const metadata = part.providerMetadata;
-  if (!metadata || typeof metadata !== "object") return undefined;
-
-  // Check ALL providers for itemId (not just OpenAI)
-  for (const providerData of Object.values(metadata)) {
-    if (
-      providerData &&
-      typeof providerData === "object" &&
-      "itemId" in providerData
-    ) {
-      return String((providerData as any).itemId);
-    }
-  }
-  return undefined;
-};
 
 const convertParts = (
   message: UIMessage,
@@ -96,13 +75,23 @@ const convertParts = (
           const mergedText = group.parts.map((p) => p.text).join("\n\n");
           const key = `${message.id}:${itemId}`;
           const timing = metadata.reasoningTimings?.[key];
-          const duration = timing?.end
+          const rawDuration = timing?.end
             ? Math.ceil((timing.end - timing.start) / 1000)
             : (group.parts[0]?.providerMetadata?.["assistant-ui"]?.[
                 "duration"
               ] as number | undefined);
 
-          // Inject duration into original UIMessage providerMetadata for persistence
+          // Validate duration is a valid number
+          const duration =
+            typeof rawDuration === "number" && rawDuration > 0
+              ? rawDuration
+              : undefined;
+
+          // NOTE: We intentionally mutate the original UIMessage providerMetadata here.
+          // This is safe because AI SDK creates new message objects on every update,
+          // so we're only mutating objects that won't be reused. The mutation is necessary
+          // because the MessageFormatAdapter needs to see the duration when encoding.
+          // TODO(Part 2): Replace with native tap metadata to eliminate mutation.
           if (duration !== undefined) {
             const firstPart = group.parts[0] as any;
             firstPart.providerMetadata = {
@@ -124,13 +113,23 @@ const convertParts = (
         // No itemId - handle as standalone reasoning part
         const key = `${message.id}:${partIndex}`;
         const timing = metadata.reasoningTimings?.[key];
-        const duration = timing?.end
+        const rawDuration = timing?.end
           ? Math.ceil((timing.end - timing.start) / 1000)
           : (part.providerMetadata?.["assistant-ui"]?.["duration"] as
               | number
               | undefined);
 
-        // Inject duration into original UIMessage providerMetadata for persistence
+        // Validate duration is a valid number
+        const duration =
+          typeof rawDuration === "number" && rawDuration > 0
+            ? rawDuration
+            : undefined;
+
+        // NOTE: We intentionally mutate the original UIMessage providerMetadata here.
+        // This is safe because AI SDK creates new message objects on every update,
+        // so we're only mutating objects that won't be reused. The mutation is necessary
+        // because the MessageFormatAdapter needs to see the duration when encoding.
+        // TODO(Part 2): Replace with native tap metadata to eliminate mutation.
         if (duration !== undefined) {
           (part as any).providerMetadata = {
             ...(part.providerMetadata || {}),
