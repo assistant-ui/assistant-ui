@@ -7,31 +7,56 @@ import {
   type SourceMessagePart,
   type useExternalMessageConverter,
 } from "@assistant-ui/react";
+import {
+  filterMessageParts,
+  getItemId,
+  groupReasoningParts,
+  mergeReasoningGroupText,
+  normalizeDuration,
+} from "./providerMetadata";
 
+/**
+ * Strips AI SDK's fix-json closing delimiters during streaming.
+ * Example: {"query":"sea"} → {"query":"sea
+ */
 function stripClosingDelimiters(json: string) {
   return json.replace(/[}\]"]+$/, "");
 }
 
-/**
- * Extracts itemId from providerMetadata in a provider-agnostic way.
- * OpenAI uses itemId to group reasoning paragraphs that should share one timer.
- * This helper checks all providers generically without hardcoding "openai".
- */
-const getItemId = (part: any): string | undefined => {
-  const metadata = part.providerMetadata;
-  if (!metadata || typeof metadata !== "object") return undefined;
-
-  // Check ALL providers for itemId (not just OpenAI)
-  for (const providerData of Object.values(metadata)) {
+const getReasoningDurations = (
+  metadata: useExternalMessageConverter.Metadata,
+): Record<string, number> | undefined => {
+  if (
+    metadata &&
+    typeof metadata === "object" &&
+    "reasoningDurations" in metadata
+  ) {
+    const durations = metadata.reasoningDurations;
     if (
-      providerData &&
-      typeof providerData === "object" &&
-      "itemId" in providerData
+      durations &&
+      typeof durations === "object" &&
+      !Array.isArray(durations)
     ) {
-      return String((providerData as any).itemId);
+      return durations as Record<string, number>;
     }
   }
   return undefined;
+};
+
+const extractProviderDuration = (
+  providerMetadata: Record<string, unknown> | undefined,
+): number | undefined => {
+  if (!providerMetadata || typeof providerMetadata !== "object") {
+    return undefined;
+  }
+
+  const assistantUi = providerMetadata["assistant-ui"];
+  if (!assistantUi || typeof assistantUi !== "object") {
+    return undefined;
+  }
+
+  const duration = (assistantUi as Record<string, unknown>)["duration"];
+  return typeof duration === "number" ? duration : undefined;
 };
 
 const convertParts = (
@@ -42,31 +67,22 @@ const convertParts = (
     return [];
   }
 
-  // First pass: collect reasoning parts by itemId for merging
-  const reasoningByItemId = new Map<
-    string,
-    { parts: any[]; indices: number[] }
-  >();
-  const processedIndices = new Set<number>();
+  const parts = filterMessageParts(message.parts);
+  const reasoningGroups = groupReasoningParts(parts, getItemId);
 
-  message.parts
-    .filter((p) => p.type !== "step-start" && p.type !== "file")
-    .forEach((part, partIndex) => {
-      if (part.type === "reasoning") {
-        const itemId = getItemId(part);
-        if (itemId) {
-          if (!reasoningByItemId.has(itemId)) {
-            reasoningByItemId.set(itemId, { parts: [], indices: [] });
-          }
-          reasoningByItemId.get(itemId)!.parts.push(part);
-          reasoningByItemId.get(itemId)!.indices.push(partIndex);
-          processedIndices.add(partIndex);
-        }
-      }
-    });
+  const resolveDuration = (
+    key: string,
+    providerDuration: number | undefined,
+  ) => {
+    const runtimeDuration = normalizeDuration(
+      getReasoningDurations(metadata)?.[key],
+    );
+    const sanitizedProvider = normalizeDuration(providerDuration);
 
-  return message.parts
-    .filter((p) => p.type !== "step-start" && p.type !== "file")
+    return runtimeDuration ?? sanitizedProvider;
+  };
+
+  return parts
     .map((part, partIndex) => {
       const type = part.type;
 
@@ -82,65 +98,43 @@ const convertParts = (
       if (type === "reasoning") {
         const itemId = getItemId(part);
 
-        // If this part has an itemId and was already processed, skip it (will be merged)
-        if (itemId && processedIndices.has(partIndex)) {
-          const group = reasoningByItemId.get(itemId)!;
-          const isFirstInGroup = group.indices[0] === partIndex;
-
-          if (!isFirstInGroup) {
-            // Skip non-first parts - they'll be merged into the first
+        if (itemId) {
+          const group = reasoningGroups.get(itemId);
+          if (!group) {
             return null;
           }
 
-          // This is the first part - merge all texts
-          const mergedText = group.parts.map((p) => p.text).join("\n\n");
-          const key = `${message.id}:${itemId}`;
-          const timing = metadata.reasoningTimings?.[key];
-          const duration = timing?.end
-            ? Math.ceil((timing.end - timing.start) / 1000)
-            : (group.parts[0]?.providerMetadata?.['assistant-ui']?.['duration'] as number | undefined);
-
-          // Inject duration into original UIMessage providerMetadata for persistence
-          if (duration !== undefined) {
-            const firstPart = group.parts[0] as any;
-            firstPart.providerMetadata = {
-              ...(firstPart.providerMetadata || {}),
-              "assistant-ui": {
-                ...(firstPart.providerMetadata?.["assistant-ui"] || {}),
-                duration,
-              },
-            };
+          if (group.firstIndex !== partIndex) {
+            return null;
           }
+
+          const key = `${message.id}:${itemId}`;
+          const providerDuration = extractProviderDuration(
+            group.parts[0]?.providerMetadata as
+              | Record<string, unknown>
+              | undefined,
+          );
+          const resolvedDuration = resolveDuration(key, providerDuration);
 
           return {
             type: "reasoning",
-            text: mergedText,
-            ...(duration !== undefined && { duration }),
+            text: mergeReasoningGroupText(group),
+            ...(resolvedDuration !== undefined && {
+              duration: resolvedDuration,
+            }),
           } satisfies ReasoningMessagePart;
         }
 
-        // No itemId - handle as standalone reasoning part
         const key = `${message.id}:${partIndex}`;
-        const timing = metadata.reasoningTimings?.[key];
-        const duration = timing?.end
-          ? Math.ceil((timing.end - timing.start) / 1000)
-          : (part.providerMetadata?.['assistant-ui']?.['duration'] as number | undefined);
-
-        // Inject duration into original UIMessage providerMetadata for persistence
-        if (duration !== undefined) {
-          (part as any).providerMetadata = {
-            ...(part.providerMetadata || {}),
-            "assistant-ui": {
-              ...(part.providerMetadata?.["assistant-ui"] || {}),
-              duration,
-            },
-          };
-        }
+        const providerDuration = extractProviderDuration(
+          part.providerMetadata as Record<string, unknown> | undefined,
+        );
+        const resolvedDuration = resolveDuration(key, providerDuration);
 
         return {
           type: "reasoning",
           text: part.text,
-          ...(duration !== undefined && { duration }),
+          ...(resolvedDuration !== undefined && { duration: resolvedDuration }),
         } satisfies ReasoningMessagePart;
       }
 
@@ -170,8 +164,6 @@ const convertParts = (
 
         let argsText = JSON.stringify(args);
         if (part.state === "input-streaming") {
-          // the argsText is not complete, so we need to strip the closing delimiters
-          // these are added by the AI SDK in fix-json
           argsText = stripClosingDelimiters(argsText);
         }
 
@@ -343,3 +335,9 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
     }
   },
 );
+
+// Export for testing
+export const __test__ = {
+  convertParts,
+  getItemId,
+};
