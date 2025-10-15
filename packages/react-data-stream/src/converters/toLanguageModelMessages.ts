@@ -156,6 +156,7 @@ export function toLanguageModelMessages(
             case "reasoning":
             case "source":
             case "file":
+            case "data":
             case "image": {
               break; // reasoning, source, file, and image parts are omitted
             }

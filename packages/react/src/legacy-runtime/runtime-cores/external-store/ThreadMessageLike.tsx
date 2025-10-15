@@ -12,6 +12,7 @@ import {
   ThreadSystemMessage,
   CompleteAttachment,
   FileMessagePart,
+  DataMessagePart,
   Unstable_AudioMessagePart,
 } from "../../../types";
 import {
@@ -31,6 +32,7 @@ export type ThreadMessageLike = {
         | SourceMessagePart
         | ImageMessagePart
         | FileMessagePart
+        | DataMessagePart
         | Unstable_AudioMessagePart
         | {
             readonly type: "tool-call";
@@ -122,6 +124,9 @@ export const fromThreadMessageLike = (
               case "image":
                 return sanitizeImageContent(part);
 
+              case "data":
+                return part;
+
               case "tool-call": {
                 const { parentId, messages, ...basePart } = part;
                 const commonProps = {
@@ -178,7 +183,11 @@ export const fromThreadMessageLike = (
               return part;
 
             default: {
-              const unhandledType: "tool-call" | "reasoning" | "source" = type;
+              const unhandledType:
+                | "tool-call"
+                | "reasoning"
+                | "source"
+                | "data" = type;
               throw new Error(
                 `Unsupported user message part type: ${unhandledType}`,
               );
