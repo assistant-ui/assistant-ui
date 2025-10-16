@@ -97,7 +97,7 @@ const COMMUNITY_EXAMPLES: ExampleItem[] = [
   },
 ];
 
-function ShowcaseCard({
+function ExampleCard({
   title,
   image,
   description,
@@ -162,14 +162,14 @@ export default async function Page(props: {
 
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {INTERNAL_EXAMPLES.map((item) => (
-              <ShowcaseCard key={item.title} {...item} />
+              <ExampleCard key={item.title} {...item} />
             ))}
           </div>
 
           <h2 className="mt-20 mb-8 text-3xl font-bold">Community Examples</h2>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {COMMUNITY_EXAMPLES.map((item) => (
-              <ShowcaseCard key={item.title} {...item} />
+              <ExampleCard key={item.title} {...item} />
             ))}
           </div>
 
