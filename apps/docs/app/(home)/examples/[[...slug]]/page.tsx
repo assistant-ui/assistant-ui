@@ -20,7 +20,7 @@ type ShowcaseItem = {
   external?: boolean;
 };
 
-const EXAMPLE_ITEMS: ShowcaseItem[] = [
+const INTERNAL_EXAMPLES: ShowcaseItem[] = [
   {
     title: "Modal",
     image: "/screenshot/examples/modal.png",
@@ -77,6 +77,9 @@ const EXAMPLE_ITEMS: ShowcaseItem[] = [
       "Open Source Claude Artifacts. You can ask the bot to generate websites.",
     link: "/examples/artifacts",
   },
+];
+
+const COMMUNITY_EXAMPLES: ShowcaseItem[] = [
   {
     title: "Open Canvas",
     image: "/screenshot/open-canvas.png",
@@ -158,7 +161,14 @@ export default async function Page(props: {
           </header>
 
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {EXAMPLE_ITEMS.map((item) => (
+            {INTERNAL_EXAMPLES.map((item) => (
+              <ShowcaseCard key={item.title} {...item} />
+            ))}
+          </div>
+
+          <h2 className="mt-20 mb-8 text-3xl font-bold">Community Examples</h2>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {COMMUNITY_EXAMPLES.map((item) => (
               <ShowcaseCard key={item.title} {...item} />
             ))}
           </div>
