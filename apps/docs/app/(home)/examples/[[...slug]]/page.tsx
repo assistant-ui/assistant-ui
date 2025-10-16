@@ -101,38 +101,45 @@ function ShowcaseCard({
   link,
   external = false,
 }: ShowcaseItem) {
-  const CardComponent = external ? "a" : Link;
-  const cardProps = external
-    ? {
-        href: link,
-        target: "_blank",
-        rel: "noopener noreferrer",
-        className: "no-underline",
-      }
-    : { href: link, className: "no-underline" };
+  const cardContent = (
+    <Card className="group relative flex max-h-[350px] flex-col overflow-hidden rounded-lg bg-card">
+      <div className="overflow-hidden">
+        <Image
+          src={image}
+          alt={title}
+          width={600}
+          height={400}
+          className="object-cover transition-transform duration-300 group-hover:scale-105"
+        />
+      </div>
+      <div className="flex flex-col gap-1 p-4 pt-2">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold">{title}</h3>
+        </div>
+        <div className="flex-1">
+          <p className="text-muted-foreground">{description}</p>
+        </div>
+      </div>
+    </Card>
+  );
+
+  if (external) {
+    return (
+      <a
+        href={link}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="no-underline"
+      >
+        {cardContent}
+      </a>
+    );
+  }
 
   return (
-    <CardComponent {...cardProps}>
-      <Card className="group relative flex max-h-[400px] flex-col overflow-hidden rounded-lg bg-card">
-        <div className="overflow-hidden">
-          <Image
-            src={image}
-            alt={title}
-            width={600}
-            height={400}
-            className="object-cover transition-transform duration-300 group-hover:scale-105"
-          />
-        </div>
-        <div className="flex flex-col gap-1 p-4 pt-2">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">{title}</h3>
-          </div>
-          <div className="flex-1">
-            <p className="text-muted-foreground">{description}</p>
-          </div>
-        </div>
-      </Card>
-    </CardComponent>
+    <Link href={link} className="no-underline">
+      {cardContent}
+    </Link>
   );
 }
 
