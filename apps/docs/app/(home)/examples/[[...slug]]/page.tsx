@@ -4,7 +4,7 @@ import { DocsPage, DocsBody } from "fumadocs-ui/page";
 import { notFound } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
-import { EditIcon, GithubIcon } from "lucide-react";
+import { GithubIcon } from "lucide-react";
 import { getMDXComponents } from "@/mdx-components";
 import { DocsRuntimeProvider } from "@/app/(home)/DocsRuntimeProvider";
 import Image from "next/image";
@@ -196,11 +196,15 @@ export default async function Page(props: {
     notFound();
   }
 
-  const path = `apps/docs/content/examples/${page.file.path}`;
+  // Find the corresponding example to get its GitHub link
+  const exampleSlug = params.slug?.join("/") || "";
+  const example = INTERNAL_EXAMPLES.find(
+    (ex) => ex.link === `/examples/${exampleSlug}`,
+  );
 
-  const footer = (
+  const footer = example?.githubLink ? (
     <Link
-      href={`https://github.com/assistant-ui/assistant-ui/blob/main/${path}`}
+      href={example.githubLink}
       target="_blank"
       rel="noreferrer noopener"
       className={cn(
@@ -214,7 +218,7 @@ export default async function Page(props: {
       <GithubIcon className="size-4" />
       View on GitHub
     </Link>
-  );
+  ) : null;
 
   return (
     <div className="examples-page">
