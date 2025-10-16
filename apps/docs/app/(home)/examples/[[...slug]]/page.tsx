@@ -4,7 +4,7 @@ import { DocsPage, DocsBody } from "fumadocs-ui/page";
 import { notFound } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
-import { EditIcon } from "lucide-react";
+import { EditIcon, GithubIcon } from "lucide-react";
 import { getMDXComponents } from "@/mdx-components";
 import { DocsRuntimeProvider } from "@/app/(home)/DocsRuntimeProvider";
 import Image from "next/image";
@@ -19,44 +19,52 @@ type ExampleItem = {
   image: string;
   link: string;
   external?: boolean;
+  githubLink?: string;
 };
-
+// TODO: Add github links to all examples
 const INTERNAL_EXAMPLES: ExampleItem[] = [
   {
     title: "Modal",
     image: "/screenshot/examples/modal.png",
     description: "Floating button that opens an AI assistant chat box.",
     link: "/examples/modal",
+    githubLink:
+      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/assistant-ui/assistant-modal.tsx",
   },
   {
     title: "Form Filling Co-Pilot",
     image: "/screenshot/examples/form-demo.png",
     description: "AssistantSidebar copilot which fills forms for the user.",
     link: "/examples/form-demo",
+    githubLink: "",
   },
   {
     title: "ChatGPT Clone",
     image: "/screenshot/examples/chatgpt.png",
     description: "Customized colors and styles for a ChatGPT look and feel.",
     link: "/examples/chatgpt",
+    githubLink: "",
   },
   {
     title: "Claude Clone",
     image: "/screenshot/examples/claude.png",
     description: "Customized colors and styles for a Claude look and feel.",
     link: "/examples/claude",
+    githubLink: "",
   },
   {
     title: "Perplexity Clone",
     image: "/screenshot/examples/chatgpt.png",
     description: "Customized colors and styles for a Perplexity look and feel.",
     link: "/examples/perplexity",
+    githubLink: "",
   },
   {
     title: "AI SDK",
     image: "/screenshot/examples/ai-sdk.png",
     description: "Chat persistence with AI SDK.",
     link: "/examples/ai-sdk",
+    githubLink: "",
   },
   {
     title: "Mem0 - ChatGPT with memory",
@@ -64,12 +72,14 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
     description:
       "A personalized AI chat app powered by Mem0 that remembers your preferences, facts, and memories.",
     link: "/examples/mem0",
+    githubLink: "",
   },
   {
     title: "LangGraph Stockbroker",
     image: "/screenshot/stockbroker.png",
     description: "A stockbroker showing human in the loop with LangGraph",
     link: "/examples/stockbroker",
+    githubLink: "",
   },
   {
     title: "Artifacts",
@@ -77,6 +87,7 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
     description:
       "Open Source Claude Artifacts. You can ask the bot to generate websites.",
     link: "/examples/artifacts",
+    githubLink: "",
   },
 ];
 
@@ -104,6 +115,7 @@ function ExampleCard({
   description,
   link,
   external = false,
+  githubLink,
 }: ExampleItem) {
   const cardContent = (
     <Card className="group relative flex min-h-[350px] flex-col overflow-hidden rounded-lg bg-card">
@@ -187,7 +199,7 @@ export default async function Page(props: {
   const path = `apps/docs/content/examples/${page.file.path}`;
 
   const footer = (
-    <a
+    <Link
       href={`https://github.com/assistant-ui/assistant-ui/blob/main/${path}`}
       target="_blank"
       rel="noreferrer noopener"
@@ -199,9 +211,9 @@ export default async function Page(props: {
         }),
       )}
     >
-      <EditIcon className="size-3" />
-      Edit on GitHub
-    </a>
+      <GithubIcon className="size-4" />
+      View on GitHub
+    </Link>
   );
 
   return (
