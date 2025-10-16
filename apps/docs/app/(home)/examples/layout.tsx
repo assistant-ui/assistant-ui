@@ -1,14 +1,7 @@
-import { ExamplesNavbar } from "@/components/ExamplesNavbar";
+import { DocsLayout } from "fumadocs-ui/layouts/docs";
+import type { ReactNode } from "react";
+import { examplesOptions } from "./layout.config";
 
-export default function ExamplesLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="min-h-screen">
-      <ExamplesNavbar />
-      {children}
-    </div>
-  );
+export default function Layout({ children }: { children: ReactNode }) {
+  return <DocsLayout {...examplesOptions}>{children}</DocsLayout>;
 }

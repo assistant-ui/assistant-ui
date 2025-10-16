@@ -1,0 +1,53 @@
+[
+  {
+    "title": "Examples",
+    "url": "/examples",
+    "icon": "sparkles"
+  },
+  {
+    "title": "Modal",
+    "url": "/examples/modal"
+  },
+  {
+    "title": "Form Filling Co-Pilot",
+    "url": "/examples/form-demo"
+  },
+  {
+    "title": "ChatGPT Clone",
+    "url": "/examples/chatgpt"
+  },
+  {
+    "title": "Claude Clone",
+    "url": "/examples/claude"
+  },
+  {
+    "title": "Perplexity Clone",
+    "url": "/examples/perplexity"
+  },
+  {
+    "title": "AI SDK",
+    "url": "/examples/ai-sdk"
+  },
+  {
+    "title": "Mem0 - ChatGPT with memory",
+    "url": "/examples/mem0"
+  },
+  {
+    "title": "LangGraph Stockbroker",
+    "url": "/examples/stockbroker"
+  },
+  {
+    "title": "Artifacts",
+    "url": "/examples/artifacts"
+  },
+  {
+    "title": "Open Canvas",
+    "url": "https://github.com/langchain-ai/open-canvas",
+    "external": true
+  },
+  {
+    "title": "FastAPI + LangGraph",
+    "url": "https://github.com/Yonom/assistant-ui-langgraph-fastapi",
+    "external": true
+  }
+]

@@ -1,0 +1,51 @@
+---
+title: LangGraph Stockbroker
+description: A stockbroker showing human in the loop with LangGraph
+---
+
+## Overview
+
+The LangGraph Stockbroker example demonstrates how to integrate assistant-ui with LangGraph for complex, multi-step workflows that require human-in-the-loop interactions. This example shows a stock trading assistant that can execute trades with user approval.
+
+## Features
+
+- **Multi-step Workflows**: Complex workflows managed by LangGraph
+- **Human-in-the-Loop**: User approval required for critical actions
+- **State Management**: Persistent state across workflow steps
+- **Tool Integration**: Integration with external APIs and services
+- **Approval Workflows**: Clear approval interfaces for sensitive operations
+- **Workflow Visualization**: Visual representation of workflow progress
+
+## Live Demo
+
+<div className="h-[700px]">
+  <iframe
+    title="Stockbroker example"
+    className="h-full w-full border-none"
+    src="https://assistant-ui-stockbroker.vercel.app/"
+  />
+</div>
+
+## Usage
+
+To implement LangGraph workflows with assistant-ui:
+
+1. **LangGraph Setup**: Configure LangGraph workflows and state management
+2. **Tool Integration**: Connect LangGraph tools with assistant-ui components
+3. **Approval Interfaces**: Create UI for human approval of critical actions
+4. **State Persistence**: Maintain workflow state across interactions
+5. **Error Handling**: Implement proper error handling and recovery
+
+## Code
+
+Key implementation aspects:
+
+- **LangGraph Integration**: Use LangGraph for workflow orchestration
+- **Tool Components**: Create UI components for LangGraph tools
+- **Approval UI**: Interface for user approval of sensitive operations
+- **State Management**: Persistent state management across workflow steps
+- **Error Recovery**: Proper error handling and workflow recovery
+
+The implementation uses LangGraph's workflow capabilities with assistant-ui for a seamless human-AI collaboration experience.
+
+For the complete implementation, see the [LangGraph example source](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-langgraph).

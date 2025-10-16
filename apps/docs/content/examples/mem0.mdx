@@ -1,0 +1,51 @@
+---
+title: Mem0 - ChatGPT with Memory
+description: A personalized AI chat app powered by Mem0 that remembers your preferences, facts, and memories
+---
+
+## Overview
+
+The Mem0 example demonstrates how to integrate assistant-ui with Mem0 for persistent memory across conversations. This creates a personalized AI experience that remembers user preferences, facts, and context from previous interactions.
+
+## Features
+
+- **Persistent Memory**: AI remembers user preferences and facts across sessions
+- **Personalization**: Tailored responses based on user history and preferences
+- **Memory Management**: Users can view, edit, and manage their stored memories
+- **Context Continuity**: Conversations build upon previous interactions
+- **Privacy Controls**: Users can control what information is remembered
+- **Memory Visualization**: Clear interface for managing stored memories
+
+## Live Demo
+
+<div className="h-[700px]">
+  <iframe
+    title="Mem0 - ChatGPT with memory demo"
+    className="h-full w-full border border-gray-200"
+    src="https://mem0-4vmi.vercel.app/"
+  />
+</div>
+
+## Usage
+
+To implement memory-enabled chat:
+
+1. **Mem0 Integration**: Set up Mem0 SDK for memory management
+2. **Memory Context**: Provide user memories to the AI context
+3. **Memory UI**: Create interface for users to manage their memories
+4. **Privacy Controls**: Implement controls for memory visibility and deletion
+5. **Context Injection**: Automatically include relevant memories in conversations
+
+## Code
+
+Key implementation components:
+
+- **Memory Provider**: Mem0 integration for storing and retrieving memories
+- **Context Management**: Automatic inclusion of relevant memories in AI context
+- **Memory UI**: Interface for users to view and manage their memories
+- **Privacy Controls**: Settings for memory visibility and retention
+- **Session Continuity**: Persistent memory across chat sessions
+
+The implementation uses Mem0's memory management system with assistant-ui for a seamless personalized experience.
+
+For the complete implementation, see the [Mem0 example source](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-ai-sdk-v5).
