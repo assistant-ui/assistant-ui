@@ -127,21 +127,12 @@ function ExampleCard({
     </Card>
   );
 
-  if (external) {
-    return (
-      <a
-        href={link}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="not-prose no-underline"
-      >
-        {cardContent}
-      </a>
-    );
-  }
-
   return (
-    <Link href={link} className="not-prose no-underline">
+    <Link
+      href={link}
+      className="not-prose no-underline"
+      {...(external && { target: "_blank", rel: "noopener noreferrer" })}
+    >
       {cardContent}
     </Link>
   );
@@ -161,14 +152,14 @@ export default async function Page(props: {
             <h1 className="mt-4 text-5xl font-bold">Examples</h1>
           </header>
 
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
             {INTERNAL_EXAMPLES.map((item) => (
               <ExampleCard key={item.title} {...item} />
             ))}
           </div>
 
           <h2 className="mt-20 mb-8 text-3xl font-bold">Community Examples</h2>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
             {COMMUNITY_EXAMPLES.map((item) => (
               <ExampleCard key={item.title} {...item} />
             ))}
