@@ -12,7 +12,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
-type ShowcaseItem = {
+type ExampleItem = {
   title: string;
   description?: string;
   image: string;
@@ -20,7 +20,7 @@ type ShowcaseItem = {
   external?: boolean;
 };
 
-const INTERNAL_EXAMPLES: ShowcaseItem[] = [
+const INTERNAL_EXAMPLES: ExampleItem[] = [
   {
     title: "Modal",
     image: "/screenshot/examples/modal.png",
@@ -79,7 +79,7 @@ const INTERNAL_EXAMPLES: ShowcaseItem[] = [
   },
 ];
 
-const COMMUNITY_EXAMPLES: ShowcaseItem[] = [
+const COMMUNITY_EXAMPLES: ExampleItem[] = [
   {
     title: "Open Canvas",
     image: "/screenshot/open-canvas.png",
@@ -103,7 +103,7 @@ function ShowcaseCard({
   description,
   link,
   external = false,
-}: ShowcaseItem) {
+}: ExampleItem) {
   const cardContent = (
     <Card className="group relative flex max-h-[400px] min-h-[350px] flex-col overflow-hidden rounded-lg bg-card">
       <div className="overflow-hidden">
