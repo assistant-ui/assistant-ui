@@ -11,6 +11,7 @@ import Image from "next/image";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { ExamplesNavbar } from "@/components/ExamplesNavbar";
 
 type ExampleItem = {
   title: string;
@@ -218,8 +219,11 @@ export default async function Page(props: {
       full={page.data.full ?? false}
       tableOfContent={{ footer }}
     >
+      <ExamplesNavbar />
       <DocsBody>
-        <h1>{page.data.title}</h1>
+        <header className="mt-7 mb-28 text-center">
+          <h1 className="mt-4 text-5xl font-bold">{page.data.title}</h1>
+        </header>
         <DocsRuntimeProvider>
           <page.data.body components={mdxComponents} />
         </DocsRuntimeProvider>
