@@ -214,21 +214,23 @@ export default async function Page(props: {
   );
 
   return (
-    <DocsPage
-      toc={page.data.toc ?? false}
-      full={page.data.full ?? false}
-      tableOfContent={{ footer }}
-    >
-      <ExamplesNavbar />
-      <DocsBody>
-        <header className="mt-7 mb-28 text-center">
-          <h1 className="mt-4 text-5xl font-bold">{page.data.title}</h1>
-        </header>
-        <DocsRuntimeProvider>
-          <page.data.body components={mdxComponents} />
-        </DocsRuntimeProvider>
-      </DocsBody>
-    </DocsPage>
+    <div className="examples-page">
+      <DocsPage
+        toc={page.data.toc ?? false}
+        full={page.data.full ?? false}
+        tableOfContent={{ footer }}
+      >
+        <ExamplesNavbar />
+        <DocsBody>
+          <header className="mt-7 mb-28 text-center">
+            <h1 className="mt-4 text-5xl font-bold">{page.data.title}</h1>
+          </header>
+          <DocsRuntimeProvider>
+            <page.data.body components={mdxComponents} />
+          </DocsRuntimeProvider>
+        </DocsBody>
+      </DocsPage>
+    </div>
   );
 }
 
