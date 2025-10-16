@@ -103,8 +103,13 @@ function ShowcaseCard({
 }: ShowcaseItem) {
   const CardComponent = external ? "a" : Link;
   const cardProps = external
-    ? { href: link, target: "_blank", rel: "noopener noreferrer" }
-    : { href: link };
+    ? {
+        href: link,
+        target: "_blank",
+        rel: "noopener noreferrer",
+        className: "no-underline",
+      }
+    : { href: link, className: "no-underline" };
 
   return (
     <CardComponent {...cardProps}>
