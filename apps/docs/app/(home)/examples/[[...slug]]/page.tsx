@@ -102,14 +102,14 @@ function ShowcaseCard({
   external = false,
 }: ShowcaseItem) {
   const cardContent = (
-    <Card className="group relative flex max-h-[350px] flex-col overflow-hidden rounded-lg bg-card">
+    <Card className="group relative flex max-h-[400px] min-h-[350px] flex-col overflow-hidden rounded-lg bg-card">
       <div className="overflow-hidden">
         <Image
           src={image}
           alt={title}
           width={600}
           height={400}
-          className="object-cover transition-transform duration-300 group-hover:scale-105"
+          className="aspect-[4/3] object-cover transition-transform duration-300 group-hover:scale-105 md:aspect-[16/9]"
         />
       </div>
       <div className="flex flex-col gap-1 p-4 pt-2">
@@ -129,7 +129,7 @@ function ShowcaseCard({
         href={link}
         target="_blank"
         rel="noopener noreferrer"
-        className="no-underline"
+        className="not-prose no-underline"
       >
         {cardContent}
       </a>
