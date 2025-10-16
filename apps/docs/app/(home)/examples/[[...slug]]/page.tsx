@@ -137,7 +137,7 @@ function ShowcaseCard({
   }
 
   return (
-    <Link href={link} className="no-underline">
+    <Link href={link} className="not-prose no-underline">
       {cardContent}
     </Link>
   );
