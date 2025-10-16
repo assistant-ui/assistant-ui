@@ -153,12 +153,9 @@ export default async function Page(props: {
     return (
       <DocsPage>
         <DocsBody>
-          <h1>Examples</h1>
-
-          <p>
-            Explore our collection of interactive examples that demonstrate
-            different ways to integrate assistant-ui into your applications.
-          </p>
+          <header className="mt-7 mb-28 text-center">
+            <h1 className="mt-4 text-5xl font-bold">Examples</h1>
+          </header>
 
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {EXAMPLE_ITEMS.map((item) => (
