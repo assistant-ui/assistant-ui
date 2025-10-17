@@ -1,4 +1,8 @@
-import type { AppendMessage, Unsubscribe } from "../../../types";
+import type {
+  AppendMessage,
+  ThreadMessage,
+  Unsubscribe,
+} from "../../../types";
 import {
   ExportedMessageRepository,
   MessageRepository,
@@ -12,7 +16,6 @@ import {
   ThreadRuntimeCore,
   SpeechState,
   RuntimeCapabilities,
-  SubmittedFeedback,
   ThreadRuntimeEventType,
   StartRunConfig,
   ResumeRunConfig,
@@ -127,20 +130,33 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
     return () => this._subscriptions.delete(callback);
   }
 
-  private _submittedFeedback: Record<string, SubmittedFeedback> = {};
-
   public getSubmittedFeedback(messageId: string) {
-    return this._submittedFeedback[messageId];
+    const messageData = this.repository.getMessage(messageId);
+    if (messageData.message.role === "assistant") {
+      return messageData.message.metadata.submittedFeedback;
+    }
+    return undefined;
   }
 
   public submitFeedback({ messageId, type }: SubmitFeedbackOptions) {
     const adapter = this.adapters?.feedback;
     if (!adapter) throw new Error("Feedback adapter not configured");
 
-    const { message } = this.repository.getMessage(messageId);
+    const { message, parentId } = this.repository.getMessage(messageId);
     adapter.submit({ message, type });
 
-    this._submittedFeedback[messageId] = { type };
+    // Update the message metadata with the feedback
+    if (message.role === "assistant") {
+      const updatedMessage: ThreadMessage = {
+        ...message,
+        metadata: {
+          ...message.metadata,
+          submittedFeedback: { type },
+        },
+      };
+      this.repository.addOrUpdateMessage(parentId, updatedMessage);
+    }
+
     this._notifySubscribers();
   }
 

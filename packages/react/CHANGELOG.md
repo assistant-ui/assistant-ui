@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.11.30
+
+### Patch Changes
+
+- feat: add submittedFeedback ThreadAssistantMessage
+
 ## 0.11.29
 
 ### Patch Changes
