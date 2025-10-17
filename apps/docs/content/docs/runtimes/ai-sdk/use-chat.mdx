@@ -41,7 +41,7 @@ npm install @assistant-ui/react @assistant-ui/react-ai-sdk ai @ai-sdk/openai
 ```tsx
 import { openai } from "@ai-sdk/openai";
 import { streamText, UIMessage, convertToModelMessages, tool } from "ai";
-import { frontendTools } from "@assistant-ui/assistant-stream/ai-sdk";
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
 import { z } from "zod";
 
 // Allow streaming responses up to 30 seconds
@@ -173,7 +173,7 @@ const runtime = useChatRuntime({
 When using `AssistantChatTransport`, frontend tools are forwarded to your backend. Use the `frontendTools` helper to properly integrate them:
 
 ```tsx
-import { frontendTools } from "@assistant-ui/assistant-stream/ai-sdk";
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
 
 export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
