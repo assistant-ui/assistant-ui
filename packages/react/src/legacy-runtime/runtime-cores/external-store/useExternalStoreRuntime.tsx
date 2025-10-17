@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ExternalStoreRuntimeCore } from "./ExternalStoreRuntimeCore";
-import { ExternalStoreAdapter } from "./ExternalStoreAdapter";
 import {
   AssistantRuntime,
   AssistantRuntimeImpl,
 } from "../../runtime/AssistantRuntime";
 import { useRuntimeAdapters } from "../adapters/RuntimeAdapterProvider";
+import { ExternalStoreAdapter } from "./ExternalStoreAdapter";
+import { ExternalStoreRuntimeCore } from "./ExternalStoreRuntimeCore";
 
 export const useExternalStoreRuntime = <T,>(
   store: ExternalStoreAdapter<T>,
@@ -16,7 +16,7 @@ export const useExternalStoreRuntime = <T,>(
 
   useEffect(() => {
     runtime.setAdapter(store);
-  });
+  }, [runtime, store]);
 
   const { modelContext } = useRuntimeAdapters() ?? {};
 
