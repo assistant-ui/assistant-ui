@@ -36,35 +36,40 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
     image: "/screenshot/examples/form-demo.png",
     description: "AssistantSidebar copilot which fills forms for the user.",
     link: "/examples/form-demo",
-    githubLink: "",
+    githubLink:
+      "https://github.com/assistant-ui/assistant-ui/blob/main/examples/with-react-hook-form/app/page.tsx",
   },
   {
     title: "ChatGPT Clone",
     image: "/screenshot/examples/chatgpt.png",
     description: "Customized colors and styles for a ChatGPT look and feel.",
     link: "/examples/chatgpt",
-    githubLink: "",
+    githubLink:
+      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/chatgpt/ChatGPT.tsx",
   },
   {
     title: "Claude Clone",
     image: "/screenshot/examples/claude.png",
     description: "Customized colors and styles for a Claude look and feel.",
     link: "/examples/claude",
-    githubLink: "",
+    githubLink:
+      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/claude/Claude.tsx",
   },
   {
     title: "Perplexity Clone",
     image: "/screenshot/examples/chatgpt.png",
     description: "Customized colors and styles for a Perplexity look and feel.",
     link: "/examples/perplexity",
-    githubLink: "",
+    githubLink:
+      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/perplexity/thread.tsx",
   },
   {
     title: "AI SDK",
     image: "/screenshot/examples/ai-sdk.png",
     description: "Chat persistence with AI SDK.",
     link: "/examples/ai-sdk",
-    githubLink: "",
+    githubLink:
+      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/shadcn/Shadcn.tsx",
   },
   {
     title: "Mem0 - ChatGPT with memory",
@@ -72,14 +77,16 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
     description:
       "A personalized AI chat app powered by Mem0 that remembers your preferences, facts, and memories.",
     link: "/examples/mem0",
-    githubLink: "",
+    githubLink:
+      "https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-ai-sdk-v5",
   },
   {
     title: "LangGraph Stockbroker",
     image: "/screenshot/stockbroker.png",
     description: "A stockbroker showing human in the loop with LangGraph",
     link: "/examples/stockbroker",
-    githubLink: "",
+    githubLink:
+      "https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-langgraph",
   },
   {
     title: "Artifacts",
@@ -115,7 +122,6 @@ function ExampleCard({
   description,
   link,
   external = false,
-  githubLink,
 }: ExampleItem) {
   const cardContent = (
     <Card className="group relative flex min-h-[350px] flex-col overflow-hidden rounded-lg bg-card">
