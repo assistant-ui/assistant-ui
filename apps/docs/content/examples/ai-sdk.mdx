@@ -6,6 +6,14 @@ description: Chat persistence with AI SDK
 import { Shadcn } from "@/components/shadcn/Shadcn";
 import { DocsRuntimeProvider } from "@/app/(home)/DocsRuntimeProvider";
 
+## Live Demo
+
+<div className="h-[700px]">
+  <DocsRuntimeProvider>
+    <Shadcn />
+  </DocsRuntimeProvider>
+</div>
+
 ## Overview
 
 The AI SDK example demonstrates how to integrate assistant-ui with the Vercel AI SDK for chat persistence and state management. This example shows a complete chat interface with thread management, message history, and persistent storage.
@@ -17,14 +25,6 @@ The AI SDK example demonstrates how to integrate assistant-ui with the Vercel AI
 - **AI SDK Integration**: Seamless integration with Vercel's AI SDK for streaming responses
 - **Real-time Updates**: Live message streaming with proper loading states
 - **Thread List Sidebar**: Easy navigation between different conversations
-
-## Live Demo
-
-<div className="h-[700px]">
-  <DocsRuntimeProvider>
-    <Shadcn />
-  </DocsRuntimeProvider>
-</div>
 
 ## Usage
 
@@ -45,6 +45,7 @@ This example uses the `useChatRuntime` hook which provides:
 - Error handling and retry logic
 
 Key implementation details:
+
 - Thread list with create/delete functionality
 - Message history restoration
 - Real-time streaming updates

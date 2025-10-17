@@ -80,7 +80,7 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
     description:
       "Open Source Claude Artifacts. You can ask the bot to generate websites.",
     link: "/examples/artifacts",
-    githubLink: "",
+    githubLink: "https://github.com/Yonom/assistant-ui-artifacts",
   },
 ];
 
