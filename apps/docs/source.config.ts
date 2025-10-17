@@ -18,6 +18,13 @@ export const { docs, meta } = defineDocs({
   },
 });
 
+export const { docs: examples, meta: examplesMeta } = defineDocs({
+  dir: "content/examples",
+  docs: {
+    schema: frontmatterSchema,
+  },
+});
+
 export const blog = defineCollections({
   dir: "content/blog",
   schema: frontmatterSchema.extend({

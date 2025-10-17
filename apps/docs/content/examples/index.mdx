@@ -1,0 +1,25 @@
+---
+title: Examples
+description: Explore interactive examples and implementations of assistant-ui
+---
+
+import { ExamplesGrid } from "@/components/examples";
+import { INTERNAL_EXAMPLES, COMMUNITY_EXAMPLES } from "@/lib/examples";
+import { Button } from "@/components/ui/button";
+
+## Interactive Examples
+
+Explore our collection of interactive examples that demonstrate different ways to integrate assistant-ui into your applications.
+
+<ExamplesGrid examples={INTERNAL_EXAMPLES} />
+
+<ExamplesGrid examples={COMMUNITY_EXAMPLES} title="Community Examples" />
+
+## Looking for more examples?
+
+<div className="my-20 flex flex-col items-center gap-6">
+  <h2 className="text-4xl font-bold">Looking for more examples?</h2>
+  <Button asChild>
+    <a href="/showcase">Check out the community showcase!</a>
+  </Button>
+</div>
