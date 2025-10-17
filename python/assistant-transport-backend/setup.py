@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Setup script for UltraThink server.
+Setup script for Assistant Transport Backend.
 
 This script helps users get started by:
 1. Checking Python version
@@ -39,7 +39,7 @@ def run_command(command, description):
 
 def main():
     """Main setup function."""
-    print("🚀 UltraThink Setup Script")
+    print("🚀 Assistant Transport Backend Setup Script")
     print("=" * 40)
     
     # Check Python version
@@ -47,7 +47,7 @@ def main():
     
     # Check if we're in the right directory
     if not Path("pyproject.toml").exists():
-        print("❌ Please run this script from the ultrathink directory")
+        print("❌ Please run this script from the assistant-transport-backend directory")
         sys.exit(1)
     
     # Ask user about virtual environment

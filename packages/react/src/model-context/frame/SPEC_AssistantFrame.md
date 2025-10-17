@@ -12,7 +12,7 @@ Supported features are:
 
 Out of scope for now:
 
-- model configuration (temprature, etc.)
+- model configuration (temperature, etc.)
 - ToolCallReader API (incremental reading support)
 
 ### API design
@@ -57,7 +57,7 @@ The communication between `AssistantFrameProvider` (iframe) and `AssistantFrameH
 
 #### ModelContextProvider API
 
-AssistantFrameHost implements the ModelContextProvider API. It immediately subscribes to the iframe for updates. This is necssary because ModelContextProvider.getModelContext() is synchronous.
+AssistantFrameHost implements the ModelContextProvider API. It immediately subscribes to the iframe for updates. This is necessary because ModelContextProvider.getModelContext() is synchronous.
 
 #### Message Channel
 
