@@ -55,16 +55,16 @@ const GlowingEffect = memo(
               ? "clientX" in e && typeof (e as any).clientX === "number"
                 ? (e as any).clientX
                 : "x" in e && typeof (e as any).x === "number"
-                ? (e as any).x
-                : lastPosition.current.x
+                  ? (e as any).x
+                  : lastPosition.current.x
               : lastPosition.current.x;
           const mouseY =
             e && typeof e === "object"
               ? "clientY" in e && typeof (e as any).clientY === "number"
                 ? (e as any).clientY
                 : "y" in e && typeof (e as any).y === "number"
-                ? (e as any).y
-                : lastPosition.current.y
+                  ? (e as any).y
+                  : lastPosition.current.y
               : lastPosition.current.y;
 
           if (e) {
