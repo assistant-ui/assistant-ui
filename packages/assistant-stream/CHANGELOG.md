@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.2.35
+
+### Patch Changes
+
+- 7c5943b: fix: detect duplicate tool calls in data stream
+
 ## 0.2.34
 
 ### Patch Changes
