@@ -7,6 +7,7 @@ import {
   type SourceMessagePart,
   type useExternalMessageConverter,
 } from "@assistant-ui/react";
+import { getItemId } from "./providerMetadata";
 
 function stripClosingDelimiters(json: string) {
   return json.replace(/[}\]"]+$/, "");
@@ -20,9 +21,32 @@ const convertParts = (
     return [];
   }
 
+  // First pass: collect reasoning parts by itemId for merging
+  const reasoningByItemId = new Map<
+    string,
+    { parts: any[]; indices: number[] }
+  >();
+  const processedIndices = new Set<number>();
+
+  message.parts
+    .filter((p) => p.type !== "step-start" && p.type !== "file")
+    .forEach((part, partIndex) => {
+      if (part.type === "reasoning") {
+        const itemId = getItemId(part);
+        if (itemId) {
+          if (!reasoningByItemId.has(itemId)) {
+            reasoningByItemId.set(itemId, { parts: [], indices: [] });
+          }
+          reasoningByItemId.get(itemId)!.parts.push(part);
+          reasoningByItemId.get(itemId)!.indices.push(partIndex);
+          processedIndices.add(partIndex);
+        }
+      }
+    });
+
   return message.parts
     .filter((p) => p.type !== "step-start" && p.type !== "file")
-    .map((part) => {
+    .map((part, partIndex) => {
       const type = part.type;
 
       // Handle text parts
@@ -35,9 +59,91 @@ const convertParts = (
 
       // Handle reasoning parts
       if (type === "reasoning") {
+        const itemId = getItemId(part);
+
+        // If this part has an itemId and was already processed, skip it (will be merged)
+        if (itemId && processedIndices.has(partIndex)) {
+          const group = reasoningByItemId.get(itemId)!;
+          const isFirstInGroup = group.indices[0] === partIndex;
+
+          if (!isFirstInGroup) {
+            // Skip non-first parts - they'll be merged into the first
+            return null;
+          }
+
+          // This is the first part - merge all texts
+          const mergedText = group.parts.map((p) => p.text).join("\n\n");
+          const key = `${message.id}:${itemId}`;
+          const timing = metadata.reasoningTimings?.[key];
+          const rawDuration = timing?.end
+            ? Math.ceil((timing.end - timing.start) / 1000)
+            : (group.parts[0]?.providerMetadata?.["assistant-ui"]?.[
+                "duration"
+              ] as number | undefined);
+
+          // Validate duration is a valid number
+          const duration =
+            typeof rawDuration === "number" && rawDuration > 0
+              ? rawDuration
+              : undefined;
+
+          // NOTE: We intentionally mutate the original UIMessage providerMetadata here.
+          // This is safe because AI SDK creates new message objects on every update,
+          // so we're only mutating objects that won't be reused. The mutation is necessary
+          // because the MessageFormatAdapter needs to see the duration when encoding.
+          // TODO(Part 2): Replace with native tap metadata to eliminate mutation.
+          if (duration !== undefined) {
+            const firstPart = group.parts[0] as any;
+            firstPart.providerMetadata = {
+              ...(firstPart.providerMetadata || {}),
+              "assistant-ui": {
+                ...(firstPart.providerMetadata?.["assistant-ui"] || {}),
+                duration,
+              },
+            };
+          }
+
+          return {
+            type: "reasoning",
+            text: mergedText,
+            ...(duration !== undefined && { duration }),
+          } satisfies ReasoningMessagePart;
+        }
+
+        // No itemId - handle as standalone reasoning part
+        const key = `${message.id}:${partIndex}`;
+        const timing = metadata.reasoningTimings?.[key];
+        const rawDuration = timing?.end
+          ? Math.ceil((timing.end - timing.start) / 1000)
+          : (part.providerMetadata?.["assistant-ui"]?.["duration"] as
+              | number
+              | undefined);
+
+        // Validate duration is a valid number
+        const duration =
+          typeof rawDuration === "number" && rawDuration > 0
+            ? rawDuration
+            : undefined;
+
+        // NOTE: We intentionally mutate the original UIMessage providerMetadata here.
+        // This is safe because AI SDK creates new message objects on every update,
+        // so we're only mutating objects that won't be reused. The mutation is necessary
+        // because the MessageFormatAdapter needs to see the duration when encoding.
+        // TODO(Part 2): Replace with native tap metadata to eliminate mutation.
+        if (duration !== undefined) {
+          (part as any).providerMetadata = {
+            ...(part.providerMetadata || {}),
+            "assistant-ui": {
+              ...(part.providerMetadata?.["assistant-ui"] || {}),
+              duration,
+            },
+          };
+        }
+
         return {
           type: "reasoning",
           text: part.text,
+          ...(duration !== undefined && { duration }),
         } satisfies ReasoningMessagePart;
       }
 
@@ -240,3 +346,9 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
     }
   },
 );
+
+// Export for testing
+export const __test__ = {
+  convertParts,
+  getItemId,
+};
