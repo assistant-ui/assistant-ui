@@ -30,9 +30,9 @@ type RepositoryMessage = RepositoryParent & {
  * Represents a message item that can be exported from the repository.
  */
 export type ExportedMessageRepositoryItem = {
-  /** The message data */
+  /** The message data including id, role, content, and metadata */
   message: ThreadMessage;
-  /** ID of the parent message, or null for root messages */
+  /** ID of the parent message, or null for root messages. Enables message branching. */
   parentId: string | null;
 };
 
