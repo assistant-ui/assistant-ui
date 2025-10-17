@@ -1,8 +1,4 @@
-import type {
-  AppendMessage,
-  ThreadMessage,
-  Unsubscribe,
-} from "../../../types";
+import type { AppendMessage, ThreadMessage, Unsubscribe } from "../../../types";
 import {
   ExportedMessageRepository,
   MessageRepository,
