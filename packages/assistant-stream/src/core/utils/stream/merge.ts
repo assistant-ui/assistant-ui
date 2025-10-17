@@ -16,7 +16,7 @@ export const createMergeStream = () => {
     if (!item.promise) {
       // TODO for most streams, we can directly pipeTo to avoid the microTask queue
       // add an option to eagerly pipe the stream to the merge stream
-      // ideally, using assitant-stream w sync run method + piping to a sync WritableStream runs in the same microtask
+      // ideally, using assistant-stream w sync run method + piping to a sync WritableStream runs in the same microtask
       // this is useful because we often use AssistantStreams internally as a serialization utility, e. g. AssistantTransformStream
       // idea: avoid reader.read() by instead using a WritableStream & if (!hasPendingPull) await waitForPull()?
       item.promise = item.reader
