@@ -3,77 +3,17 @@ title: Examples
 description: Explore interactive examples and implementations of assistant-ui
 ---
 
-import { Card, Cards } from "fumadocs-ui/components/card";
+import { ExamplesGrid } from "@/components/examples";
+import { INTERNAL_EXAMPLES, COMMUNITY_EXAMPLES } from "@/lib/examples";
 import { Button } from "@/components/ui/button";
-import Image from "next/image";
-import Link from "next/link";
 
 ## Interactive Examples
 
 Explore our collection of interactive examples that demonstrate different ways to integrate assistant-ui into your applications.
 
-<Cards>
-  <Card
-    title="Modal"
-    description="Floating button that opens an AI assistant chat box."
-    href="/examples/modal"
-  />
-  <Card
-    title="Form Filling Co-Pilot"
-    description="AssistantSidebar copilot which fills forms for the user."
-    href="/examples/form-demo"
-  />
-  <Card
-    title="ChatGPT Clone"
-    description="Customized colors and styles for a ChatGPT look and feel."
-    href="/examples/chatgpt"
-  />
-  <Card
-    title="Claude Clone"
-    description="Customized colors and styles for a Claude look and feel."
-    href="/examples/claude"
-  />
-  <Card
-    title="Perplexity Clone"
-    description="Customized colors and styles for a Perplexity look and feel."
-    href="/examples/perplexity"
-  />
-  <Card
-    title="AI SDK"
-    description="Chat persistence with AI SDK."
-    href="/examples/ai-sdk"
-  />
-  <Card
-    title="Mem0 - ChatGPT with memory"
-    description="A personalized AI chat app powered by Mem0 that remembers your preferences, facts, and memories."
-    href="/examples/mem0"
-  />
-  <Card
-    title="LangGraph Stockbroker"
-    description="A stockbroker showing human in the loop with LangGraph"
-    href="/examples/stockbroker"
-  />
-  <Card
-    title="Artifacts"
-    description="Open Source Claude Artifacts. You can ask the bot to generate websites."
-    href="/examples/artifacts"
-  />
-</Cards>
+<ExamplesGrid examples={INTERNAL_EXAMPLES} />
 
-## Community Examples
-
-<Cards>
-  <Card
-    title="Open Canvas"
-    description="OSS implementation of ChatGPT's Canvas."
-    href="https://github.com/langchain-ai/open-canvas"
-  />
-  <Card
-    title="FastAPI + LangGraph"
-    description="Integration of a FastAPI + LangGraph server with assistant-ui."
-    href="https://github.com/Yonom/assistant-ui-langgraph-fastapi"
-  />
-</Cards>
+<ExamplesGrid examples={COMMUNITY_EXAMPLES} title="Community Examples" />
 
 ## Looking for more examples?
 
