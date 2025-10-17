@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "but-mcp-internal": {
+      "type": "stdio",
+      "command": "but",
+      "args": [
+        "mcp",
+        "--internal"
+      ],
+      "env": {}
+    }
+  }
+}
