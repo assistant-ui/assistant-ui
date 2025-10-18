@@ -1,5 +1,15 @@
 # @assistant-ui/react
 
+## 0.11.31
+
+### Patch Changes
+
+- chore: update deps
+- Updated dependencies
+  - assistant-stream@0.2.36
+  - assistant-cloud@0.1.4
+  - @assistant-ui/tap@0.1.3
+
 ## 0.11.30
 
 ### Patch Changes

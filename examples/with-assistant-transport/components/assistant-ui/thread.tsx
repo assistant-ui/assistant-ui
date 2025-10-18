@@ -166,7 +166,7 @@ const Composer: FC = () => {
       <ComposerPrimitive.Root className="relative flex w-full flex-col rounded-2xl focus-within:ring-2 focus-within:ring-black focus-within:ring-offset-2 dark:focus-within:ring-white">
         <ComposerPrimitive.Input
           placeholder="Send a message..."
-          className="bg-muted border-border dark:border-muted-foreground/15 focus:outline-primary placeholder:text-muted-foreground max-h-[calc(50dvh)] min-h-16 w-full resize-none rounded-t-2xl border-x border-t px-4 pb-3 pt-2 text-base outline-none"
+          className="bg-muted border-border dark:border-muted-foreground/15 focus:outline-primary placeholder:text-muted-foreground max-h-[calc(50dvh)] min-h-16 w-full resize-none rounded-t-2xl border-x border-t px-4 pt-2 pb-3 text-base outline-none"
           rows={1}
           autoFocus
           aria-label="Message input"
@@ -243,7 +243,7 @@ const AssistantMessage: FC = () => {
           <StarIcon size={14} />
         </div>
 
-        <div className="text-foreground col-span-2 col-start-2 row-start-1 ml-4 break-words leading-7">
+        <div className="text-foreground col-span-2 col-start-2 row-start-1 ml-4 leading-7 break-words">
           <MessagePrimitive.Content
             components={{
               Text: MarkdownText,
@@ -255,7 +255,7 @@ const AssistantMessage: FC = () => {
 
         <AssistantActionBar />
 
-        <BranchPicker className="col-start-2 row-start-2 -ml-2 mr-2" />
+        <BranchPicker className="col-start-2 row-start-2 mr-2 -ml-2" />
       </motion.div>
     </MessagePrimitive.Root>
   );
@@ -267,7 +267,7 @@ const AssistantActionBar: FC = () => {
       hideWhenRunning
       autohide="not-last"
       autohideFloat="single-branch"
-      className="text-muted-foreground data-floating:bg-background data-floating:absolute data-floating:mt-2 data-floating:rounded-md data-floating:border data-floating:p-1 data-floating:shadow-sm col-start-3 row-start-2 ml-3 mt-3 flex gap-1"
+      className="text-muted-foreground data-floating:bg-background col-start-3 row-start-2 mt-3 ml-3 flex gap-1 data-floating:absolute data-floating:mt-2 data-floating:rounded-md data-floating:border data-floating:p-1 data-floating:shadow-sm"
     >
       <ActionBarPrimitive.Copy asChild>
         <TooltipIconButton tooltip="Copy">
@@ -299,7 +299,7 @@ const UserMessage: FC = () => {
       >
         <UserActionBar />
 
-        <div className="bg-muted text-foreground col-start-2 break-words rounded-3xl px-5 py-2.5">
+        <div className="bg-muted text-foreground col-start-2 rounded-3xl px-5 py-2.5 break-words">
           <MessagePrimitive.Content components={{ Text: MarkdownText }} />
         </div>
 
@@ -314,7 +314,7 @@ const UserActionBar: FC = () => {
     <ActionBarPrimitive.Root
       hideWhenRunning
       autohide="not-last"
-      className="col-start-1 mr-3 mt-2.5 flex flex-col items-end"
+      className="col-start-1 mt-2.5 mr-3 flex flex-col items-end"
     >
       <ActionBarPrimitive.Edit asChild>
         <TooltipIconButton tooltip="Edit">
@@ -328,7 +328,7 @@ const UserActionBar: FC = () => {
 const EditComposer: FC = () => {
   return (
     <div className="mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 px-[var(--thread-padding-x)]">
-      <ComposerPrimitive.Root className="bg-muted max-w-7/8 ml-auto flex w-full flex-col rounded-xl">
+      <ComposerPrimitive.Root className="bg-muted ml-auto flex w-full max-w-7/8 flex-col rounded-xl">
         <ComposerPrimitive.Input
           className="text-foreground flex min-h-[60px] w-full resize-none bg-transparent p-4 outline-none"
           autoFocus
