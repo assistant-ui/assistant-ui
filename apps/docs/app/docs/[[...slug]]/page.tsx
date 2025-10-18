@@ -2,12 +2,9 @@ import { getPages, getPage } from "@/app/source";
 import type { Metadata } from "next";
 import { DocsPage, DocsBody } from "fumadocs-ui/page";
 import { notFound } from "next/navigation";
-import { cn } from "@/lib/utils";
-import { buttonVariants } from "@/components/ui/button";
-import { EditIcon } from "lucide-react";
 import { getMDXComponents } from "@/mdx-components";
 import { DocsRuntimeProvider } from "@/app/(home)/DocsRuntimeProvider";
-
+import { LLMCopyButton, AIActions } from "@/components/ai/page-actions";
 export default async function Page(props: {
   params: Promise<{ slug?: string[] }>;
 }) {
@@ -20,23 +17,18 @@ export default async function Page(props: {
   }
 
   const path = `apps/docs/content/docs/${page.file.path}`;
-
+  const markdownUrl = `${page.url}.mdx`;
+  const githubUrl = `https://github.com/assistant-ui/assistant-ui/blob/main/${path}`;
+  const githubEditUrl = `https://github.com/assistant-ui/assistant-ui/edit/main/${path}`;
   const footer = (
-    <a
-      href={`https://github.com/assistant-ui/assistant-ui/blob/main/${path}`}
-      target="_blank"
-      rel="noreferrer noopener"
-      className={cn(
-        buttonVariants({
-          variant: "secondary",
-          size: "sm",
-          className: "gap-1.5 text-xs",
-        }),
-      )}
-    >
-      <EditIcon className="size-3" />
-      Edit on GitHub
-    </a>
+    <div className="flex flex-col gap-1.5">
+      <LLMCopyButton markdownUrl={markdownUrl} />
+      <AIActions
+        markdownUrl={markdownUrl}
+        githubUrl={githubUrl}
+        githubEditUrl={githubEditUrl}
+      />
+    </div>
   );
 
   return (
@@ -65,7 +57,7 @@ export async function generateStaticParams() {
 
 export async function generateMetadata(props: {
   params: Promise<{ slug?: string[] }>;
-}) {
+}): Promise<Metadata> {
   const params = await props.params;
   const page = getPage(params.slug ?? []);
 
@@ -74,5 +66,5 @@ export async function generateMetadata(props: {
   return {
     title: page.data.title,
     description: page.data.description ?? null,
-  } satisfies Metadata;
+  };
 }
