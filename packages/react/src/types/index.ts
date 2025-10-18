@@ -12,6 +12,7 @@ export type {
   SourceMessagePart,
   ImageMessagePart,
   FileMessagePart,
+  DataMessagePart,
   Unstable_AudioMessagePart,
   ToolCallMessagePart,
   MessageStatus,

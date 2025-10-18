@@ -43,6 +43,12 @@ export type Unstable_AudioMessagePart = {
   };
 };
 
+export type DataMessagePart<T = any> = {
+  readonly type: "data";
+  readonly name: string;
+  readonly data: T;
+};
+
 export type ToolCallMessagePart<
   TArgs = ReadonlyJSONObject,
   TResult = unknown,
@@ -72,4 +78,5 @@ export type ThreadAssistantMessagePart =
   | ToolCallMessagePart
   | SourceMessagePart
   | FileMessagePart
-  | ImageMessagePart;
+  | ImageMessagePart
+  | DataMessagePart;
