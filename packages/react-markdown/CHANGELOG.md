@@ -1,5 +1,13 @@
 # @assistant-ui/react-markdown
 
+## 0.11.2
+
+### Patch Changes
+
+- chore: update deps
+- Updated dependencies
+  - @assistant-ui/react@0.11.31
+
 ## 0.11.1
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
   "name": "assistant-ui",
-  "version": "0.0.61",
+  "version": "0.0.62",
   "license": "MIT",
   "source": "./src/index.ts",
   "dependencies": {
@@ -12,7 +12,7 @@
     "detect-package-manager": "^3.0.2",
     "glob": "^11.0.3",
     "jscodeshift": "^17.3.0",
-    "semver": "^7.7.2"
+    "semver": "^7.7.3"
   },
   "type": "module",
   "devDependencies": {
@@ -21,10 +21,10 @@
     "@types/cross-spawn": "^6.0.6",
     "@types/debug": "^4.1.12",
     "@types/jscodeshift": "^17.3.0",
-    "@types/node": "^24.6.2",
+    "@types/node": "^24.8.1",
     "@types/semver": "^7.7.1",
     "eslint": "^9",
-    "eslint-config-next": "15.5.4",
+    "eslint-config-next": "15.5.6",
     "tsx": "^4.20.6"
   },
   "files": [

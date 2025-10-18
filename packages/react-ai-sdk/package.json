@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-ai-sdk",
-  "version": "1.1.6",
+  "version": "1.1.7",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -23,17 +23,17 @@
   },
   "dependencies": {
     "@ai-sdk/provider": "^2.0.0",
-    "@ai-sdk/react": "^2.0.59",
-    "ai": "^5.0.59",
+    "@ai-sdk/react": "^2.0.76",
+    "ai": "^5.0.76",
     "@radix-ui/react-use-callback-ref": "^1.1.1",
     "@types/json-schema": "^7.0.15",
-    "assistant-stream": "^0.2.34",
+    "assistant-stream": "^0.2.36",
     "json-schema": "^0.4.0",
-    "zod": "^4.1.11",
+    "zod": "^4.1.12",
     "zustand": "^5.0.8"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.11.30",
+    "@assistant-ui/react": "^0.11.31",
     "@types/react": "*",
     "assistant-cloud": "*",
     "react": "^18 || ^19 || ^19.0.0-rc"
@@ -49,10 +49,10 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^24.6.2",
-    "@types/react": "^19.2.0",
+    "@types/node": "^24.8.1",
+    "@types/react": "^19.2.2",
     "eslint": "^9",
-    "eslint-config-next": "15.5.4",
+    "eslint-config-next": "15.5.6",
     "react": "19.2.0",
     "tsx": "^4.20.6"
   },
