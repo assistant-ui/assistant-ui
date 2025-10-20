@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.11.32
+
+### Patch Changes
+
+- fix: Cannot enqueue a chunk into a readable stream that is closed or has been requested to be closed
+
 ## 0.11.31
 
 ### Patch Changes
