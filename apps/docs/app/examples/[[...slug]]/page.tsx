@@ -90,7 +90,6 @@ export default async function Page(props: {
     return (
       <div className="examples-page">
         <DocsPage toc={page.data.toc ?? false} full={page.data.full ?? false}>
-          <ExamplesNavbar />
           <DocsBody>
             <DocsRuntimeProvider>
               <page.data.body components={mdxComponents} />
