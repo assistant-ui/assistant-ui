@@ -15,11 +15,11 @@ export default async function Page(props: {
   params: Promise<{ slug?: string[] }>;
 }) {
   const params = await props.params;
+  const mdxComponents = getMDXComponents({});
 
   // Handle index page (no slug) - render the index.mdx file
   if (!params.slug || params.slug.length === 0) {
     const page = getExamplesPage([]);
-    const mdxComponents = getMDXComponents({});
 
     if (page == null) {
       notFound();
@@ -41,14 +41,13 @@ export default async function Page(props: {
 
   // Handle individual example pages
   const page = getExamplesPage(params.slug);
-  const mdxComponents = getMDXComponents({});
 
   if (page == null) {
     notFound();
   }
 
   // Find the corresponding example to get its GitHub link
-  const exampleSlug = params.slug?.join("/") || "";
+  const exampleSlug = params.slug?.join("/");
   const example = INTERNAL_EXAMPLES.find(
     (ex) => ex.link === `/examples/${exampleSlug}`,
   );
