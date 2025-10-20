@@ -11,48 +11,56 @@ import Link from "next/link";
 import { ExamplesNavbar } from "@/components/examples";
 import { INTERNAL_EXAMPLES } from "@/lib/examples";
 
-export default async function Page(props: {
-  params: Promise<{ slug?: string[] }>;
-}) {
-  const params = await props.params;
-  const mdxComponents = getMDXComponents({});
+// Helper functions to eliminate code duplication
 
-  // Handle index page (no slug) - render the index.mdx file
-  if (!params.slug || params.slug.length === 0) {
-    const page = getExamplesPage([]);
-
-    if (page == null) {
-      notFound();
-    }
-
-    return (
-      <div className="examples-page">
-        <DocsPage toc={page.data.toc ?? false} full={page.data.full ?? false}>
-          <ExamplesNavbar />
-          <DocsBody>
-            <DocsRuntimeProvider>
-              <page.data.body components={mdxComponents} />
-            </DocsRuntimeProvider>
-          </DocsBody>
-        </DocsPage>
-      </div>
-    );
-  }
-
-  // Handle individual example pages
-  const page = getExamplesPage(params.slug);
-
+/**
+ * Safely gets an examples page and handles null cases
+ */
+function getPage(
+  slug: string[] | undefined,
+): NonNullable<ReturnType<typeof getExamplesPage>> {
+  const page = getExamplesPage(slug);
   if (page == null) {
     notFound();
   }
+  return page;
+}
 
-  // Find the corresponding example to get its GitHub link
-  const exampleSlug = params.slug?.join("/");
-  const example = INTERNAL_EXAMPLES.find(
-    (ex) => ex.link === `/examples/${exampleSlug}`,
-  );
+/**
+ * Checks if the current route is the examples index page
+ */
+function isIndexPage(slug: string[] | undefined): boolean {
+  return !slug || slug.length === 0;
+}
 
-  const footer = example?.githubLink ? (
+/**
+ * Generates metadata for an examples page
+ */
+function generatePageMetadata(
+  page: NonNullable<ReturnType<typeof getExamplesPage>>,
+): Metadata {
+  return {
+    title: page.data.title,
+    description: page.data.description ?? null,
+  } satisfies Metadata;
+}
+
+/**
+ * Finds the corresponding example from INTERNAL_EXAMPLES
+ */
+function findExampleBySlug(slug: string[] | undefined) {
+  if (!slug) return null;
+  const exampleSlug = slug.join("/");
+  return INTERNAL_EXAMPLES.find((ex) => ex.link === `/examples/${exampleSlug}`);
+}
+
+/**
+ * Creates the GitHub footer link component
+ */
+function createGitHubFooter(example: ReturnType<typeof findExampleBySlug>) {
+  if (!example?.githubLink) return null;
+
+  return (
     <Link
       href={example.githubLink}
       target="_blank"
@@ -68,7 +76,33 @@ export default async function Page(props: {
       <GithubIcon className="size-4" />
       View on GitHub
     </Link>
-  ) : null;
+  );
+}
+
+export default async function Page(props: {
+  params: Promise<{ slug?: string[] }>;
+}) {
+  const params = await props.params;
+  const mdxComponents = getMDXComponents({});
+  const page = getPage(params.slug);
+
+  if (isIndexPage(params.slug)) {
+    return (
+      <div className="examples-page">
+        <DocsPage toc={page.data.toc ?? false} full={page.data.full ?? false}>
+          <ExamplesNavbar />
+          <DocsBody>
+            <DocsRuntimeProvider>
+              <page.data.body components={mdxComponents} />
+            </DocsRuntimeProvider>
+          </DocsBody>
+        </DocsPage>
+      </div>
+    );
+  }
+
+  const example = findExampleBySlug(params.slug);
+  const footer = createGitHubFooter(example);
 
   return (
     <div className="examples-page">
@@ -105,25 +139,6 @@ export async function generateMetadata(props: {
   params: Promise<{ slug?: string[] }>;
 }) {
   const params = await props.params;
-
-  // Handle index page metadata
-  if (!params.slug || params.slug.length === 0) {
-    const page = getExamplesPage([]);
-    if (page == null) notFound();
-
-    return {
-      title: page.data.title,
-      description: page.data.description ?? null,
-    } satisfies Metadata;
-  }
-
-  // Handle individual example pages
-  const page = getExamplesPage(params.slug);
-
-  if (page == null) notFound();
-
-  return {
-    title: page.data.title,
-    description: page.data.description ?? null,
-  } satisfies Metadata;
+  const page = getPage(params.slug);
+  return generatePageMetadata(page);
 }
