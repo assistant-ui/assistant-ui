@@ -42,7 +42,7 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
   },
   {
     title: "Perplexity Clone",
-    image: "/screenshot/examples/chatgpt.png",
+    image: "/screenshot/examples/perplexity.png",
     description: "Customized colors and styles for a Perplexity look and feel.",
     link: "/examples/perplexity",
     githubLink:
