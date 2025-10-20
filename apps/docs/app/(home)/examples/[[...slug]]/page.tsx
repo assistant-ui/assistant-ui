@@ -7,92 +7,35 @@ import { buttonVariants } from "@/components/ui/button";
 import { GithubIcon } from "lucide-react";
 import { getMDXComponents } from "@/mdx-components";
 import { DocsRuntimeProvider } from "@/app/(home)/DocsRuntimeProvider";
-import Image from "next/image";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { ExamplesNavbar } from "@/components/examples";
-import {
-  ExampleItem,
-  INTERNAL_EXAMPLES,
-  COMMUNITY_EXAMPLES,
-} from "@/lib/examples";
-
-function ExampleCard({
-  title,
-  image,
-  description,
-  link,
-  external = false,
-}: ExampleItem) {
-  const cardContent = (
-    <Card className="group relative flex min-h-[350px] flex-col overflow-hidden rounded-lg bg-card">
-      <div className="overflow-hidden">
-        <Image
-          src={image}
-          alt={title}
-          width={600}
-          height={400}
-          className="aspect-[4/3] w-full object-cover transition-transform duration-300 group-hover:scale-105 md:aspect-[16/9]"
-        />
-      </div>
-      <div className="flex flex-col gap-1 p-4 pt-2">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold">{title}</h3>
-        </div>
-        <div className="flex-1">
-          <p className="text-muted-foreground">{description}</p>
-        </div>
-      </div>
-    </Card>
-  );
-
-  return (
-    <Link
-      href={link}
-      className="not-prose no-underline"
-      {...(external && { target: "_blank", rel: "noopener noreferrer" })}
-    >
-      {cardContent}
-    </Link>
-  );
-}
+import { INTERNAL_EXAMPLES } from "@/lib/examples";
 
 export default async function Page(props: {
   params: Promise<{ slug?: string[] }>;
 }) {
   const params = await props.params;
 
-  // Handle index page (no slug)
+  // Handle index page (no slug) - render the index.mdx file
   if (!params.slug || params.slug.length === 0) {
+    const page = getExamplesPage([]);
+    const mdxComponents = getMDXComponents({});
+
+    if (page == null) {
+      notFound();
+    }
+
     return (
-      <DocsPage>
-        <DocsBody>
-          <header className="mt-7 mb-28 text-center">
-            <h1 className="mt-4 text-5xl font-bold">Examples</h1>
-          </header>
-
-          <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
-            {INTERNAL_EXAMPLES.map((item) => (
-              <ExampleCard key={item.title} {...item} />
-            ))}
-          </div>
-
-          <h2 className="mt-20 mb-8 text-3xl font-bold">Community Examples</h2>
-          <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
-            {COMMUNITY_EXAMPLES.map((item) => (
-              <ExampleCard key={item.title} {...item} />
-            ))}
-          </div>
-
-          <div className="my-20 flex flex-col items-center gap-6">
-            <h2 className="text-4xl font-bold">Looking for more examples?</h2>
-            <Button asChild>
-              <a href="/showcase">Check out the community showcase!</a>
-            </Button>
-          </div>
-        </DocsBody>
-      </DocsPage>
+      <div className="examples-page">
+        <DocsPage toc={page.data.toc ?? false} full={page.data.full ?? false}>
+          <ExamplesNavbar />
+          <DocsBody>
+            <DocsRuntimeProvider>
+              <page.data.body components={mdxComponents} />
+            </DocsRuntimeProvider>
+          </DocsBody>
+        </DocsPage>
+      </div>
     );
   }
 
@@ -168,10 +111,12 @@ export async function generateMetadata(props: {
 
   // Handle index page metadata
   if (!params.slug || params.slug.length === 0) {
+    const page = getExamplesPage([]);
+    if (page == null) notFound();
+
     return {
-      title: "Examples",
-      description:
-        "Explore interactive examples and implementations of assistant-ui",
+      title: page.data.title,
+      description: page.data.description ?? null,
     } satisfies Metadata;
   }
 
