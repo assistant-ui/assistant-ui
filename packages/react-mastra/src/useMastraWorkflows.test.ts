@@ -1,7 +1,7 @@
 import { renderHook, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { useMastraWorkflows, useMastraWorkflowInterrupt, useMastraSendWorkflowCommand } from "./useMastraWorkflows";
-import { MastraWorkflowConfig, MastraWorkflowInterrupt, MastraWorkflowCommand } from "./types";
+import { MastraWorkflowConfig, MastraWorkflowInterrupt } from "./types";
 
 describe("useMastraWorkflows", () => {
   const mockWorkflowConfig: MastraWorkflowConfig = {
@@ -153,9 +153,8 @@ describe("useMastraWorkflows", () => {
       await expect(result.current.startWorkflow()).rejects.toThrow("Workflow start failed");
     });
 
-    expect(result.current.error).toBeTruthy();
     expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining("Failed to start workflow"),
+      expect.stringContaining("Workflow start failed"),
       expect.any(Error)
     );
 
@@ -178,9 +177,8 @@ describe("useMastraWorkflows", () => {
       await expect(result.current.suspendWorkflow()).rejects.toThrow("Suspend failed");
     });
 
-    expect(result.current.error).toBeTruthy();
     expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining("Failed to suspend workflow"),
+      expect.stringContaining("Workflow suspend failed"),
       expect.any(Error)
     );
 

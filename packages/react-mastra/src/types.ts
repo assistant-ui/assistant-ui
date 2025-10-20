@@ -196,126 +196,12 @@ export interface MastraRetryPolicy {
   baseDelay: number;
 }
 
-// Event system types
+// Event system types - Basic event handling for streaming
 export interface MastraEventHandler {
   (event: MastraEvent): void | Promise<void>;
 }
 
-export interface MastraEventSubscription {
-  id: string;
-  eventTypes: MastraKnownEventTypes[];
-  handler: MastraEventHandler;
-  filter?: (event: MastraEvent) => boolean;
-  unsubscribe?: () => void;
-}
-
-// RAG system types
-export interface MastraRAGConfig {
-  embedder: MastraEmbedderConfig;
-  vectorStore: MastraVectorStoreConfig;
-  chunking: MastraChunkingConfig;
-  filters?: Record<string, any>;
-}
-
-export interface MastraEmbedderConfig {
-  provider: 'openai' | 'anthropic' | 'local';
-  model: string;
-  dimensions?: number;
-}
-
-export interface MastraVectorStoreConfig {
-  provider: 'pinecone' | 'chroma' | 'libsql' | 'postgresql';
-  connectionString?: string;
-  indexName?: string;
-}
-
-export interface MastraChunkingConfig {
-  strategy: 'fixed' | 'semantic' | 'recursive';
-  maxChunkSize: number;
-  overlap?: number;
-}
-
-export interface MastraDocument {
-  id: string;
-  content: string;
-  metadata: Record<string, any>;
-  chunks?: MastraDocumentChunk[];
-  embeddings?: number[][];
-}
-
-export interface MastraDocumentChunk {
-  id: string;
-  documentId: string;
-  content: string;
-  metadata: Record<string, any>;
-  embedding?: number[];
-  index: number;
-}
-
-export interface MastraRAGQuery {
-  query: string;
-  filters?: Record<string, any>;
-  limit?: number;
-  similarityThreshold?: number;
-}
-
-export interface MastraRAGResult {
-  content: string;
-  metadata: Record<string, any>;
-  similarity: number;
-  documentId: string;
-  chunkId: string;
-}
-
-// Observability system types
-export interface MastraObservabilityConfig {
-  serviceName: string;
-  environment: 'development' | 'staging' | 'production';
-  exporters: MastraExporterConfig[];
-  sampling: MastraSamplingConfig;
-}
-
-export interface MastraExporterConfig {
-  type: 'console' | 'langfuse' | 'braintrust' | 'langsmith' | 'otel';
-  config: Record<string, any>;
-}
-
-export interface MastraSamplingConfig {
-  type: 'all' | 'ratio' | 'adaptive';
-  probability?: number;
-  limitPerSecond?: number;
-}
-
-export interface MastraTrace {
-  id: string;
-  traceId: string;
-  spanId: string;
-  parentSpanId?: string;
-  operationName: string;
-  startTime: string;
-  endTime?: string;
-  duration?: number;
-  status: 'ok' | 'error';
-  attributes: Record<string, any>;
-  events: MastraTraceEvent[];
-  metrics: MastraMetric[];
-}
-
-export interface MastraTraceEvent {
-  name: string;
-  timestamp: string;
-  attributes: Record<string, any>;
-}
-
-export interface MastraMetric {
-  name: string;
-  value: number;
-  unit: string;
-  timestamp: string;
-  attributes: Record<string, any>;
-}
-
-// Enhanced event types for streaming
+// Event types for streaming
 export type MastraEvent = {
   id: string;
   event: MastraKnownEventTypes;
@@ -392,20 +278,12 @@ export type MastraRuntimeConfig = {
     speech?: any;
   };
 
-  // Advanced feature configurations
+  // Advanced feature configurations - Real Mastra APIs only
   memory?: MastraMemoryConfig;
   workflow?: MastraWorkflowConfig;
-  tools?: MastraToolConfig[];
-  rag?: MastraRAGConfig;
-  observability?: MastraObservabilityConfig;
 
   // Advanced feature callbacks
   onMemoryUpdate?: (threadId: string, memory: MastraMemoryResult[]) => void;
-  onToolStart?: (execution: MastraToolExecution) => void;
-  onToolComplete?: (execution: MastraToolExecution) => void;
-  onToolError?: (execution: MastraToolExecution, error: Error) => void;
-  onDocumentIngested?: (documents: MastraDocument[]) => void;
-  onRAGQuery?: (query: MastraRAGQuery, results: MastraRAGResult[]) => void;
 
   // Legacy compatibility
   legacyMemory?: boolean; // renamed to avoid conflict with MastraMemoryConfig
@@ -426,29 +304,13 @@ export type MastraThreadState = {
   updatedAt: string;
 };
 
-// Event System Types - Extended definitions
-export type MastraEventSubscriptionManager = {
-  subscribe: (
-    eventType: string,
-    handler: MastraEventHandler,
-    options?: { once?: boolean; priority?: number }
-  ) => string;
-  unsubscribe: (subscriptionId: string) => void;
-  unsubscribeAll: () => void;
-  getActiveSubscriptions: () => MastraEventSubscription[];
-};
-
 // Runtime extras for additional functionality
 export const MastraRuntimeExtrasSymbol = Symbol("mastra-runtime-extras");
 
 export type MastraRuntimeExtras = {
   agentId: string;
   isStreaming: boolean;
-  // Advanced features will be added as we implement them
+  // Real Mastra feature integrations
   memory?: any; // ReturnType<typeof useMastraMemory>
   workflow?: any; // ReturnType<typeof useMastraWorkflows>
-  tools?: any; // ReturnType<typeof useMastraTools>
-  events?: any; // ReturnType<typeof useMastraEvents>
-  rag?: any; // ReturnType<typeof useMastraRAG>
-  observability?: any; // ReturnType<typeof useMastraObservability>
 };

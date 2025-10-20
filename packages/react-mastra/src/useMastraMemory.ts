@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { v4 as uuidv4 } from "uuid";
 import {
   MastraMemoryConfig,
@@ -10,157 +10,188 @@ import {
   MastraMessage,
 } from "./types";
 
-// Mock Mastra memory API - in real implementation, this would connect to actual Mastra APIs
-const mastraMemory = {
-  search: async (query: MastraMemoryQuery): Promise<MastraMemoryResult[]> => {
-    // Mock implementation - in real scenario, call Mastra's memory API
-    console.log("Mastra memory search:", query);
-    return [
-      {
-        content: "Previous conversation about cooking preferences",
-        metadata: { source: "memory", type: "preference" },
-        similarity: 0.9,
-        threadId: query.threadId || "default",
-        timestamp: new Date().toISOString(),
-      },
-    ];
-  },
-  save: async (threadId: string, messages: MastraMessage[]): Promise<void> => {
-    // Mock implementation - in real scenario, save to Mastra's memory system
-    console.log("Mastra memory save:", { threadId, messageCount: messages.length });
-  },
-  getThread: async (threadId: string): Promise<MastraThreadState> => {
-    // Mock implementation - in real scenario, retrieve from Mastra's memory system
-    console.log("Mastra memory getThread:", threadId);
-    return {
-      id: threadId,
-      messages: [],
-      interrupts: [],
-      metadata: {},
-      memory: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-  },
-};
-
 export const useMastraMemory = (config: MastraMemoryConfig) => {
-  const [threads, setThreads] = useState<Map<string, MastraThreadState>>(new Map());
-  const [currentThread, setCurrentThread] = useState<string | null>(config.threadId || null);
+  const [threads, setThreads] = useState<Map<string, MastraThreadState>>(
+    new Map(),
+  );
+  const [currentThread, setCurrentThread] = useState<string | null>(
+    config.threadId || null,
+  );
   const [isSearching, setIsSearching] = useState(false);
 
-  const searchMemory = useCallback(async (query: MastraMemoryQuery): Promise<MastraMemoryResult[]> => {
-    setIsSearching(true);
-    try {
-      const searchQuery: MastraMemoryQuery = {
-        query: query.query,
-        ...(query.threadId && { threadId: query.threadId }),
-        ...(query.userId && { userId: query.userId }),
-        ...(query.filters && { filters: query.filters }),
-        ...(query.limit && { limit: query.limit }),
-        ...(query.similarityThreshold && { similarityThreshold: query.similarityThreshold }),
-        ...(currentThread && { threadId: currentThread }),
-        ...(config.threadId && !currentThread && { threadId: config.threadId }),
-        ...(config.userId && !query.userId && { userId: config.userId }),
-        ...(config.maxResults && !query.limit && { limit: config.maxResults }),
-        ...(config.similarityThreshold && !query.similarityThreshold && { similarityThreshold: config.similarityThreshold }),
-      };
+  // API base URL - can be configured
+  const apiBase = useMemo(() => "/api/memory", []);
+  const resourceId = useMemo(
+    () => config.userId || "default-user",
+    [config.userId],
+  );
 
-      const results = await mastraMemory.search(searchQuery);
+  // Search memory using the query API
+  const searchMemory = useCallback(
+    async (query: MastraMemoryQuery): Promise<MastraMemoryResult[]> => {
+      setIsSearching(true);
+      try {
+        const threadId = query.threadId || currentThread;
+        if (!threadId) {
+          console.warn("No threadId available for memory search");
+          return [];
+        }
 
-      // Trigger memory event callback if provided
-      if (config.threadId && results.length > 0) {
-        // This would be handled by the runtime config in real implementation
-        console.log("Memory search results:", results.length);
+        const response = await fetch(`${apiBase}/query`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            threadId,
+            resourceId: query.userId || resourceId,
+            query: query.query,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Memory search failed: ${response.status}`);
+        }
+
+        const { results } = await response.json();
+        return results;
+      } catch (error) {
+        console.error("Memory search failed:", error);
+        return [];
+      } finally {
+        setIsSearching(false);
       }
+    },
+    [apiBase, currentThread, resourceId],
+  );
 
-      return results;
-    } catch (error) {
-      console.error("Memory search failed:", error);
-      return [];
-    } finally {
-      setIsSearching(false);
-    }
-  }, [config, currentThread]);
+  // Note: saveToMemory is no longer needed - the agent handles this automatically
+  // when you call agent.stream() with memory context
+  const saveToMemory = useCallback(
+    async (_threadId: string, _messages: MastraMessage[]) => {
+      // This is a no-op now - messages are saved automatically by the agent
+      console.warn(
+        "saveToMemory is deprecated - messages are saved automatically by the agent",
+      );
+    },
+    [],
+  );
 
-  const saveToMemory = useCallback(async (threadId: string, messages: MastraMessage[]) => {
-    try {
-      await mastraMemory.save(threadId, messages);
+  // Get thread context from API
+  const getThreadContext = useCallback(
+    async (threadId: string): Promise<MastraThreadState> => {
+      try {
+        const response = await fetch(`${apiBase}/threads/${threadId}`);
 
-      // Update local state
-      setThreads(prev => {
-        const updated = new Map(prev);
-        const thread = updated.get(threadId) || {
-          id: threadId,
-          messages: [],
+        if (!response.ok) {
+          if (response.status === 404) {
+            // Thread doesn't exist yet, return empty state
+            const newThread: MastraThreadState = {
+              id: threadId,
+              messages: [],
+              interrupts: [],
+              metadata: {},
+              memory: [],
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            };
+            setThreads((prev) => new Map(prev).set(threadId, newThread));
+            return newThread;
+          }
+          throw new Error(`Failed to get thread: ${response.status}`);
+        }
+
+        const { thread } = await response.json();
+
+        // Transform messages to our format
+        const threadState: MastraThreadState = {
+          id: thread.id,
+          messages: (thread.messages || []).map((msg: any) => {
+            let type: "system" | "human" | "assistant" | "tool" = "human";
+            if (msg.role === "user") type = "human";
+            else if (msg.role === "assistant") type = "assistant";
+            else if (msg.role === "system") type = "system";
+            else if (msg.role === "tool") type = "tool";
+
+            return {
+              id: msg.id,
+              type,
+              content:
+                typeof msg.content === "string"
+                  ? msg.content
+                  : JSON.stringify(msg.content),
+              timestamp: msg.createdAt
+                ? new Date(msg.createdAt).toISOString()
+                : new Date().toISOString(),
+              metadata: msg.metadata,
+            };
+          }),
           interrupts: [],
-          metadata: {},
+          metadata: thread.metadata || {},
           memory: [],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          createdAt: new Date(thread.createdAt).toISOString(),
+          updatedAt: new Date(thread.updatedAt).toISOString(),
         };
 
-        updated.set(threadId, {
-          ...thread,
-          messages: [...thread.messages, ...messages],
-          updatedAt: new Date().toISOString()
+        // Update local cache
+        setThreads((prev) => new Map(prev).set(threadId, threadState));
+
+        return threadState;
+      } catch (error) {
+        console.error("Failed to get thread context:", error);
+        throw error;
+      }
+    },
+    [apiBase],
+  );
+
+  // Create new thread via API
+  const createThread = useCallback(
+    async (metadata?: Record<string, any>): Promise<string> => {
+      const threadId = uuidv4();
+
+      try {
+        const response = await fetch(`${apiBase}/threads`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            threadId,
+            resourceId,
+            metadata,
+          }),
         });
-        return updated;
-      });
 
-      console.log("Saved messages to memory:", { threadId, count: messages.length });
-    } catch (error) {
-      console.error("Failed to save to memory:", error);
-      throw error;
-    }
-  }, []);
+        if (!response.ok) {
+          throw new Error(`Failed to create thread: ${response.status}`);
+        }
 
-  const getThreadContext = useCallback(async (threadId: string): Promise<MastraThreadState> => {
-    try {
-      const threadState = await mastraMemory.getThread(threadId);
+        const { thread } = await response.json();
 
-      // Update local cache
-      setThreads(prev => {
-        const updated = new Map(prev);
-        updated.set(threadId, threadState);
-        return updated;
-      });
+        const threadState: MastraThreadState = {
+          id: thread.id,
+          messages: [],
+          interrupts: [],
+          metadata: thread.metadata || {},
+          memory: [],
+          createdAt: new Date(thread.createdAt).toISOString(),
+          updatedAt: new Date(thread.updatedAt).toISOString(),
+        };
 
-      return threadState;
-    } catch (error) {
-      console.error("Failed to get thread context:", error);
-      throw error;
-    }
-  }, []);
+        setThreads((prev) => new Map(prev).set(threadId, threadState));
+        setCurrentThread(threadId);
 
-  const createThread = useCallback(async (metadata?: Record<string, any>): Promise<string> => {
-    const threadId = uuidv4();
-    const threadState: MastraThreadState = {
-      id: threadId,
-      messages: [],
-      interrupts: [],
-      metadata: metadata || {},
-      memory: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+        return threadId;
+      } catch (error) {
+        console.error("Failed to create thread:", error);
+        throw error;
+      }
+    },
+    [apiBase, resourceId],
+  );
 
-    setThreads(prev => {
-      const updated = new Map(prev);
-      updated.set(threadId, threadState);
-      return updated;
-    });
-
-    setCurrentThread(threadId);
-    return threadId;
-  }, []);
-
-  const deleteThread = useCallback(async (threadId: string): Promise<void> => {
-    try {
-      // In real implementation, call Mastra's API to delete thread
-      console.log("Deleting thread:", threadId);
-
-      setThreads(prev => {
+  // Delete thread - Note: Mastra doesn't have a delete thread API yet
+  const deleteThread = useCallback(
+    async (threadId: string): Promise<void> => {
+      // Remove from local state
+      setThreads((prev) => {
         const updated = new Map(prev);
         updated.delete(threadId);
         return updated;
@@ -169,43 +200,56 @@ export const useMastraMemory = (config: MastraMemoryConfig) => {
       if (currentThread === threadId) {
         setCurrentThread(null);
       }
-    } catch (error) {
-      console.error("Failed to delete thread:", error);
-      throw error;
-    }
-  }, [currentThread]);
 
-  const updateThreadMetadata = useCallback(async (threadId: string, metadata: Record<string, any>): Promise<void> => {
-    try {
-      setThreads(prev => {
-        const updated = new Map(prev);
-        const thread = updated.get(threadId);
+      // TODO: Add API call when Mastra adds delete thread support
+      console.warn("Thread deletion is not yet supported by Mastra Memory API");
+    },
+    [currentThread],
+  );
 
-        if (thread) {
-          updated.set(threadId, {
-            ...thread,
-            metadata: { ...thread.metadata, ...metadata },
-            updatedAt: new Date().toISOString(),
-          });
+  // Update thread metadata via API
+  const updateThreadMetadata = useCallback(
+    async (threadId: string, metadata: Record<string, any>): Promise<void> => {
+      try {
+        const response = await fetch(`${apiBase}/threads/${threadId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ metadata }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to update thread: ${response.status}`);
         }
 
-        return updated;
-      });
+        const { thread } = await response.json();
 
-      // In real implementation, call Mastra's API to update metadata
-      console.log("Updated thread metadata:", { threadId, metadata });
-    } catch (error) {
-      console.error("Failed to update thread metadata:", error);
-      throw error;
-    }
-  }, []);
+        // Update local state
+        setThreads((prev) => {
+          const updated = new Map(prev);
+          const existingThread = updated.get(threadId);
+          if (existingThread) {
+            updated.set(threadId, {
+              ...existingThread,
+              metadata: thread.metadata,
+              updatedAt: new Date(thread.updatedAt).toISOString(),
+            });
+          }
+          return updated;
+        });
+      } catch (error) {
+        console.error("Failed to update thread metadata:", error);
+        throw error;
+      }
+    },
+    [apiBase],
+  );
 
   return {
     threads,
     currentThread,
     isSearching,
     searchMemory,
-    saveToMemory,
+    saveToMemory, // Deprecated but kept for compatibility
     getThreadContext,
     createThread,
     deleteThread,

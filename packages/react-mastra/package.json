@@ -35,22 +35,26 @@
   "scripts": {
     "build": "tsx scripts/build.mts",
     "dev": "tsx scripts/build.mts --watch",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:ui": "vitest --ui",
-    "test:performance": "vitest --config vitest.performance.config.ts",
-    "test:memory": "vitest --config vitest.memory.config.ts",
-    "test:integration": "vitest --config vitest.integration.config.ts",
+    "test": "NODE_OPTIONS=\"--max-old-space-size=8192\" vitest run",
+    "test:watch": "NODE_OPTIONS=\"--max-old-space-size=4096\" vitest",
+    "test:ui": "NODE_OPTIONS=\"--max-old-space-size=4096\" vitest --ui",
+    "test:performance": "NODE_OPTIONS=\"--max-old-space-size=4096\" vitest --config vitest.performance.config.ts",
+    "test:memory": "tsx scripts/memory-test.mts",
+    "test:integration": "NODE_OPTIONS=\"--max-old-space-size=4096\" vitest --config vitest.integration.config.ts",
+    "test:memory-profile": "NODE_OPTIONS=\"--max-old-space-size=2048 --expose-gc\" vitest --config vitest.memory.config.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "quality-gates": "tsx scripts/quality-gates.mjs",
     "validate-production": "tsx scripts/validate-production-build.mts",
-    "health-check": "tsx -e \"import { performHealthCheck } from './src/health.js'; performHealthCheck({ includeMemoryDetails: true }).then(console.log);\""
+    "health-check": "NODE_OPTIONS=\"--max-old-space-size=4096\" tsx -e \"import { performHealthCheck } from './src/health.js'; performHealthCheck({ includeMemoryDetails: true }).then(console.log);\""
   },
   "dependencies": {
+    "@mastra/core": "^0.20.2",
+    "@mastra/libsql": "latest",
+    "ai": "^5.0.70",
     "assistant-stream": "^0.2.29",
     "uuid": "^11.1.0",
-    "zod": "^4.0.17"
+    "zod": "^3.25.76"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.11.18",
@@ -65,6 +69,7 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
+    "@mastra/memory": "^0.15.6",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.0",
     "@types/node": "^24.3.0",

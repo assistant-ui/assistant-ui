@@ -42,7 +42,7 @@ export interface TooltipIconButtonProps
 const TooltipIconButton = React.forwardRef<
   HTMLButtonElement,
   TooltipIconButtonProps
->(({ className, variant, size, tooltip, asChild = false, ...props }, ref) => {
+>(({ className, variant, size, tooltip, ...props }, ref) => {
   return (
     <TooltipPrimitive.Provider delayDuration={0}>
       <TooltipPrimitive.Root>

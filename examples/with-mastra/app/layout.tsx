@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { MyRuntimeProvider } from "./MyRuntimeProvider";
 
 export const metadata: Metadata = {
-  title: "Mastra Integration Example",
-  description: "Example using @assistant-ui/react-mastra with Mastra agents",
+  title: "Mastra Example - assistant-ui",
+  description: "AI chat application powered by Mastra and assistant-ui",
 };
 
 export default function RootLayout({
@@ -13,7 +14,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="h-dvh">{children}</body>
+      <body className="h-dvh">
+        <MyRuntimeProvider>{children}</MyRuntimeProvider>
+      </body>
     </html>
   );
 }

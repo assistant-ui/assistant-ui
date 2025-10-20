@@ -1,10 +1,11 @@
 import { Agent } from "@mastra/core/agent";
 import { createOpenAI } from "@ai-sdk/openai";
 import { weatherTool } from "../tools/weatherTool";
+import { memory } from "../memory";
 
 // Create OpenAI model
 const openai = createOpenAI({
-  apiKey: process.env.OPENAI_API_KEY || "",
+  apiKey: process.env["OPENAI_API_KEY"] || "",
 });
 
 export const chefAgent = new Agent({
@@ -22,5 +23,5 @@ You are friendly, knowledgeable, and always willing to help with any cooking-rel
   tools: {
     weatherTool,
   },
-  memory: true,
+  memory,
 });

@@ -48,7 +48,7 @@ export default async function installMastraLib(): Promise<void> {
   let found = false;
   let hasCoreImport = false;
   let hasMemoryImport = false;
-  let hasToolsImport = false;
+  let hasLibSqlImport = false;
 
   // Check for various Mastra package imports
   for (const file of files) {
@@ -67,8 +67,8 @@ export default async function installMastraLib(): Promise<void> {
       hasMemoryImport = true;
     }
 
-    if (content.includes("@mastra/tools")) {
-      hasToolsImport = true;
+    if (content.includes("@mastra/libsql")) {
+      hasLibSqlImport = true;
     }
 
     // Also check for legacy Mastra patterns
@@ -78,7 +78,7 @@ export default async function installMastraLib(): Promise<void> {
     }
   }
 
-  if (found || hasCoreImport || hasMemoryImport || hasToolsImport) {
+  if (found || hasCoreImport || hasMemoryImport || hasLibSqlImport) {
     // Check what packages need to be installed
     const packagesToInstall = [];
 
@@ -94,8 +94,8 @@ export default async function installMastraLib(): Promise<void> {
       packagesToInstall.push("@mastra/memory");
     }
 
-    if (hasToolsImport && !isPackageInstalled("@mastra/tools")) {
-      packagesToInstall.push("@mastra/tools");
+    if (hasLibSqlImport && !isPackageInstalled("@mastra/libsql")) {
+      packagesToInstall.push("@mastra/libsql");
     }
 
     if (packagesToInstall.length === 0) {
@@ -147,7 +147,7 @@ export function isMastraInstalled(): boolean {
     isPackageInstalled("@assistant-ui/react-mastra") ||
     isPackageInstalled("@mastra/core") ||
     isPackageInstalled("@mastra/memory") ||
-    isPackageInstalled("@mastra/tools")
+    isPackageInstalled("@mastra/libsql")
   );
 }
 
@@ -168,7 +168,7 @@ export function hasMastraImports(): boolean {
         content.includes("mastra.getAgent") ||
         content.includes("@mastra/core") ||
         content.includes("@mastra/memory") ||
-        content.includes("@mastra/tools") ||
+        content.includes("@mastra/libsql") ||
         content.includes("@assistant-ui/react-mastra")) {
       return true;
     }

@@ -64,40 +64,59 @@ const appendContent = (
       ? [{ type: "text" as const, text: currContent }]
       : currContent;
 
+  // If curr is empty (e.g., completion event with no content), just return prev
+  if (currArray.length === 0) {
+    return prevArray;
+  }
+
   // Merge content arrays
   const mergedContent: MastraContent[] = [...prevArray];
 
   for (const currPart of currArray) {
-    const existingIndex = mergedContent.findIndex(
-      (part) =>
-        // For tool calls, match by ID
-        (currPart.type === "tool_call" &&
+    if (currPart.type === "text") {
+      // For text, find existing text part and merge
+      const existingTextIndex = mergedContent.findIndex(
+        (part) => part.type === "text"
+      );
+
+      if (existingTextIndex >= 0 && mergedContent[existingTextIndex]?.type === "text") {
+        // Merge text content
+        mergedContent[existingTextIndex] = {
+          type: "text",
+          text: (mergedContent[existingTextIndex] as any).text + currPart.text,
+        };
+      } else {
+        // No existing text part, append new one
+        mergedContent.push(currPart);
+      }
+    } else if (currPart.type === "tool_call") {
+      // For tool calls, match by ID
+      const existingIndex = mergedContent.findIndex(
+        (part) =>
           part.type === "tool_call" &&
           (part as ToolCallContent).tool_call?.id ===
-            (currPart as ToolCallContent).tool_call?.id) ||
-        // For other types, just append
-        currPart.type !== "tool_call",
-    );
+            (currPart as ToolCallContent).tool_call?.id
+      );
 
-    if (
-      existingIndex >= 0 &&
-      mergedContent[existingIndex]?.type === "tool_call" &&
-      currPart.type === "tool_call"
-    ) {
-      // Merge tool call
-      const existingPart = mergedContent[existingIndex] as ToolCallContent;
-      const currToolPart = currPart as ToolCallContent;
-      if (existingPart.tool_call && currToolPart.tool_call) {
-        mergedContent[existingIndex] = {
-          type: "tool_call",
-          tool_call: appendToolCall(
-            existingPart.tool_call,
-            currToolPart.tool_call,
-          ),
-        };
+      if (existingIndex >= 0) {
+        // Merge tool call
+        const existingPart = mergedContent[existingIndex] as ToolCallContent;
+        const currToolPart = currPart as ToolCallContent;
+        if (existingPart.tool_call && currToolPart.tool_call) {
+          mergedContent[existingIndex] = {
+            type: "tool_call",
+            tool_call: appendToolCall(
+              existingPart.tool_call,
+              currToolPart.tool_call,
+            ),
+          };
+        }
+      } else {
+        // New tool call, append it
+        mergedContent.push(currPart);
       }
     } else {
-      // Append new content
+      // For other types (image, file, etc.), just append
       mergedContent.push(currPart);
     }
   }

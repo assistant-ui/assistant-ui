@@ -1,15 +1,17 @@
 # Mastra Integration Example
 
-This example demonstrates how to use `@assistant-ui/react-mastra` to build AI-powered applications with Mastra agents.
+This example demonstrates how to use `@assistant-ui/react-mastra` to build AI-powered applications with Mastra agents. It showcases a comprehensive single-page interface integrating all Mastra-specific components.
 
 ## Features
 
 - **Multiple Agents**: Chef Agent for cooking assistance and Weather Agent for weather information
+- **Agent Selection**: Real-time switching between different specialized agents
 - **Memory Integration**: Persistent conversation memory using Mastra's memory system
-- **Tool Execution**: Weather tool integration for real-time data
+- **Memory Status Display**: Real-time visualization of memory system state
+- **Tool Execution**: Weather tool integration with enhanced UI display
+- **Workflow Controls**: Mock workflow demonstration with progress tracking
 - **Streaming Responses**: Real-time streaming of agent responses
-- **Agent Selection**: Switch between different specialized agents
-- **Advanced UI**: Complete chat interface with rich message formatting
+- **Advanced UI**: Complete chat interface with rich message formatting and tool result visualization
 
 ## Prerequisites
 
@@ -39,7 +41,13 @@ This example demonstrates how to use `@assistant-ui/react-mastra` to build AI-po
    pnpm dev
    ```
 
-4. **Open [http://localhost:3000](http://localhost:3000)** in your browser
+4. **Open [http://localhost:3000](http://localhost:3000)**
+
+You'll see a comprehensive interface showcasing:
+- Agent switching between Chef and Weather agents
+- Real-time memory status
+- Enhanced tool call displays
+- Mock workflow controls
 
 ## Available Agents
 
@@ -53,28 +61,71 @@ This example demonstrates how to use `@assistant-ui/react-mastra` to build AI-po
 - **Capabilities**: Current conditions, forecasts, weather alerts
 - **Tool Access**: Real-time weather data
 
+## Components Showcase
+
+The example demonstrates all Mastra-specific components in a single integrated interface:
+
+### Agent Selector
+Switch between different Mastra agents (Chef Agent and Weather Agent) in real-time. The runtime automatically updates when you select a different agent.
+
+### Memory Status
+Displays the current state of Mastra's memory system:
+- Active/inactive status indicator
+- Message count in current thread
+- Thread ID display
+- Real-time updates as conversation progresses
+
+### Tool Results
+Enhanced tool call display with:
+- Expandable/collapsible sections
+- Color-coded status (running, success, error)
+- Formatted arguments and results
+- Error message display
+
+### Workflow Controls
+Demonstrates workflow management with:
+- Start/pause/stop controls
+- Progress tracking with percentage
+- Step-by-step visualization
+- Status indicators
+
+**Note**: Workflow functionality uses mock data for demonstration purposes.
+
+### Layout
+The interface uses a two-column layout:
+- **Left Sidebar**: Agent selector, memory status, and workflow controls
+- **Main Area**: Chat thread with enhanced tool results
+
 ## Project Structure
 
 ```
 examples/with-mastra/
 ├── app/
-│   ├── api/chat/            # API route for agent communication
-│   ├── advanced/            # Advanced page with agent selection
-│   ├── globals.css          # Tailwind CSS styles
-│   ├── layout.tsx           # Root layout
-│   ├── MyRuntimeProvider.tsx # Advanced runtime configuration
-│   └── page.tsx             # Basic chat page
+│   ├── api/chat/              # Mastra API route
+│   ├── api/memory/            # Memory management endpoints
+│   ├── globals.css            # Tailwind styles
+│   ├── layout.tsx             # Root layout with MyRuntimeProvider
+│   ├── MyRuntimeProvider.tsx  # Mastra runtime configuration
+│   └── page.tsx               # Main demo page with all components
 ├── components/
-│   ├── assistant-ui/        # Chat UI components
-│   └── ui/                  # Reusable UI components
+│   ├── assistant-ui/
+│   │   ├── agent-selector.tsx    # Switch between agents
+│   │   ├── memory-status.tsx     # Memory system status
+│   │   ├── tool-results.tsx      # Enhanced tool display
+│   │   ├── workflow-controls.tsx # Workflow management
+│   │   ├── thread-list.tsx       # Thread history
+│   │   ├── thread.tsx            # Main chat interface
+│   │   ├── markdown-text.tsx     # Markdown rendering
+│   │   └── tooltip-icon-button.tsx
+│   └── ui/                       # Reusable UI components
 ├── lib/
-│   └── utils.ts             # Utility functions
+│   └── utils.ts                  # Utility functions
 ├── mastra/
-│   ├── agents/              # Mastra agent definitions
-│   ├── index.ts             # Mastra configuration
-│   └── tools/               # Custom tools
-├── package.json             # Dependencies and scripts
-└── README.md                # This file
+│   ├── agents/                   # Mastra agent definitions
+│   ├── index.ts                  # Mastra configuration
+│   ├── memory.ts                 # Memory configuration
+│   └── tools/                    # Custom tools
+└── package.json
 ```
 
 ## Key Features Demonstrated
@@ -166,19 +217,20 @@ export const weatherTool = {
 
 - Use the browser dev tools to inspect network requests
 - Check the console for Mastra runtime errors
-- Test individual agents using the `/advanced` page
+- Switch agents using the agent selector in the left sidebar
 - Verify tool execution in the network tab
+- Monitor memory status in real-time via the Memory Status component
 
 ## Advanced Features
 
 ### Workflows
-The example demonstrates XState-powered workflow integration with:
+The example demonstrates workflow integration with:
 - **Human-in-the-loop interactions**: Complex business logic that requires human input
 - **Real-time state streaming**: Live workflow progress updates
 - **Multi-step processes**: Sequential and parallel workflow execution
 - **State persistence**: Workflow state saved across sessions
 
-Access the workflow demo at `/workflows` to see advanced orchestration.
+The workflow controls in the left sidebar show a mock demonstration of workflow functionality.
 
 ### Memory Management
 - **Persistent conversation storage**: LibSQL-based memory system with local database

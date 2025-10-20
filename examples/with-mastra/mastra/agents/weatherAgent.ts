@@ -1,10 +1,11 @@
 import { Agent } from "@mastra/core/agent";
 import { createOpenAI } from "@ai-sdk/openai";
 import { weatherTool } from "../tools/weatherTool";
+import { memory } from "../memory";
 
 // Create OpenAI model
 const openai = createOpenAI({
-  apiKey: process.env.OPENAI_API_KEY || "",
+  apiKey: process.env["OPENAI_API_KEY"] || "",
 });
 
 export const weatherAgent = new Agent({
@@ -22,5 +23,5 @@ Always use the weather tool to get current, accurate weather information. Provid
   tools: {
     weatherTool,
   },
-  memory: true,
+  memory,
 });

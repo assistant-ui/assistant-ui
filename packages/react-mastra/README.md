@@ -1,25 +1,29 @@
 # @assistant-ui/react-mastra
 
-A comprehensive React integration for Mastra AI agents, providing production-ready hooks and utilities for building AI-powered applications.
+React integration for Mastra AI agents, providing hooks for building AI-powered applications with real Mastra APIs.
 
 ## Features
 
-- ✅ **Production-Ready Runtime Hooks**: Zero-configuration setup with `useMastraRuntime()`
-- ✅ **Advanced Feature Support**: Memory, workflows, tools, RAG, and observability
+- ✅ **Real Mastra Integration**: Direct integration with Mastra SDK APIs
+- ✅ **Agent Streaming**: Full support for `agent.stream()` via HTTP wrapper
+- ✅ **Memory Management**: Built-in support for Mastra Memory with thread persistence
+- ✅ **Workflow Support**: Integration with Mastra Workflows (vNext & legacy)
 - ✅ **Message Processing**: Robust message conversion and accumulation
 - ✅ **Performance Optimized**: Sub-millisecond message processing
 - ✅ **Type Safety**: Full TypeScript support with comprehensive type definitions
-- ✅ **Testing**: Comprehensive test suite with 100% test coverage
-- ✅ **Quality Assurance**: All quality gates passing, production validated
 
 ## Quick Start
 
 ```typescript
-import { useMastraRuntime } from '@assistant-ui/react-mastra';
+import { useMastraRuntime } from "@assistant-ui/react-mastra";
 
 const runtime = useMastraRuntime({
-  agentId: 'chef-agent',
-  memory: true,
+  agentId: "chef-agent",
+  api: "/api/chat",
+  memory: {
+    storage: "libsql",
+    userId: "user-123",
+  },
 });
 ```
 
@@ -86,3 +90,19 @@ type MastraRuntimeConfig = {
   };
 };
 ```
+
+## Testing
+
+The test suite is configured with appropriate memory limits and cleanup. To run tests:
+
+```bash
+pnpm test
+```
+
+For memory profiling and diagnostics:
+
+```bash
+pnpm test:memory
+```
+
+See [TESTING.md](./TESTING.md) for detailed guidelines on writing memory-efficient tests and diagnosing issues.

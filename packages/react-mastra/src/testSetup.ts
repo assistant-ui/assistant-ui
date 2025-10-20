@@ -1,4 +1,4 @@
-import { vi, beforeEach } from "vitest";
+import { vi, beforeEach, afterEach } from "vitest";
 
 // Enhanced Mastra core mocks
 vi.mock("@mastra/core", () => ({
@@ -7,7 +7,7 @@ vi.mock("@mastra/core", () => ({
       text: "Mock agent response",
       usage: { totalTokens: 10 },
     }),
-    stream: vi.fn().mockImplementation(async function* (messages) {
+    stream: vi.fn().mockImplementation(async function* (_messages) {
       yield { type: "text", text: "Mock streaming response" };
     }),
   })),
@@ -17,7 +17,7 @@ vi.mock("@mastra/core", () => ({
         text: "Mock agent response",
         usage: { totalTokens: 10 },
       }),
-      stream: vi.fn().mockImplementation(async function* (messages) {
+      stream: vi.fn().mockImplementation(async function* (_messages) {
         yield { type: "text", text: "Mock streaming response" };
       }),
     }),
@@ -51,7 +51,6 @@ vi.mock("@mastra/core", () => ({
 
 // Mock @mastra/tools if it exists (optional dependency)
 vi.mock("@mastra/tools", () => ({
-  // Provide mock tools if the dependency exists
   createTool: vi.fn(),
   ToolRegistry: vi.fn().mockImplementation(() => ({
     register: vi.fn(),
@@ -113,12 +112,21 @@ global.fetch = vi.fn();
 if (!global.crypto) {
   (global as any).crypto = {};
 }
-(global.crypto as any).randomUUID = () => "test-uuid-" + Math.random().toString(36).substr(2, 9);
+(global.crypto as any).randomUUID = () =>
+  "test-uuid-" + Math.random().toString(36).substr(2, 9);
 
 global.performance = {
   ...global.performance,
   now: vi.fn(() => Date.now()),
 } as Performance;
+
+// Store original console methods
+const originalConsole = {
+  error: console.error,
+  warn: console.warn,
+  info: console.info,
+  log: console.log,
+};
 
 global.console = {
   ...global.console,
@@ -130,4 +138,34 @@ global.console = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+
+  // Reset fetch mock
+  if (global.fetch) {
+    (global.fetch as any).mockClear();
+  }
 });
+
+afterEach(() => {
+  // Restore any timers
+  vi.clearAllTimers();
+  vi.useRealTimers();
+
+  // Restore mocks
+  vi.restoreAllMocks();
+
+  // Clear module cache to prevent memory leaks
+  vi.resetModules();
+
+  // Force garbage collection if available
+  if (global.gc) {
+    global.gc();
+  }
+});
+
+// Cleanup on process exit
+if (typeof process !== "undefined") {
+  process.on("exit", () => {
+    // Restore console
+    Object.assign(console, originalConsole);
+  });
+}

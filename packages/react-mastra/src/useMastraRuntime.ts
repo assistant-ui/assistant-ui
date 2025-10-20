@@ -15,6 +15,8 @@ import {
   MastraKnownEventTypes,
   MastraRuntimeExtras,
 } from "./types";
+import { useMastraMemory } from "./useMastraMemory";
+import { useMastraWorkflows } from "./useMastraWorkflows";
 
 const getMessageContent = (msg: any): string => {
   // Enhanced message content extraction for Phase 2
@@ -46,11 +48,28 @@ const asMastraRuntimeExtras = (extras: unknown): MastraRuntimeExtras => {
 };
 
 export const useMastraRuntime = (config: MastraRuntimeConfig) => {
+  console.log("useMastraRuntime: Received config:", config);
+  console.log("useMastraRuntime: config.api =", config.api);
+
   const [messages, setMessages] = useState<MastraMessage[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const accumulatorRef = useRef<MastraMessageAccumulator<MastraMessage>>(
-    new MastraMessageAccumulator<MastraMessage>(),
+    new MastraMessageAccumulator<MastraMessage>({
+      initialMessages: [],
+      appendMessage: appendMastraChunk,
+      onMessageUpdate: (msg) => {
+        // Handle tool call updates
+        const toolCalls = extractMastraToolCalls(msg);
+        toolCalls.forEach((toolCall) => {
+          config.eventHandlers?.onToolCall?.(toolCall);
+        });
+      },
+    }),
   );
+
+  // Initialize Mastra features - Real Mastra APIs only
+  const memory = useMastraMemory(config.memory || { storage: "libsql" });
+  const workflow = useMastraWorkflows(config.workflow || { workflowId: "" });
 
   const processEvent = useCallback(
     (event: MastraEvent) => {
@@ -110,20 +129,38 @@ export const useMastraRuntime = (config: MastraRuntimeConfig) => {
     async (message: any) => {
       setIsRunning(true);
 
-      // Initialize accumulator for this conversation
-      accumulatorRef.current = new MastraMessageAccumulator<MastraMessage>({
-        initialMessages: messages,
-        appendMessage: appendMastraChunk,
-        onMessageUpdate: (msg) => {
-          // Handle tool call updates
-          const toolCalls = extractMastraToolCalls(msg);
-          toolCalls.forEach((toolCall) => {
-            config.eventHandlers?.onToolCall?.(toolCall);
-          });
-        },
-      });
+      // Add user message to our messages state
+      const userMessage: MastraMessage = {
+        id: crypto.randomUUID(),
+        type: "human",
+        content: getMessageContent(message),
+        timestamp: new Date().toISOString(),
+      };
+
+      // Add the user message to the accumulator instead of replacing it
+      const updatedMessages = accumulatorRef.current.addMessages([userMessage]);
+      setMessages(updatedMessages);
 
       try {
+        // Get or create thread ID for memory
+        let threadId: string | undefined;
+        if (config.memory && memory) {
+          if (memory.currentThread) {
+            threadId = memory.currentThread;
+          } else {
+            // Create a new thread if one doesn't exist
+            threadId = await memory.createThread();
+          }
+        }
+
+        // Get memory context if available
+        const memoryContext = config.memory
+          ? {
+              threadId: threadId || "default-thread",
+              resourceId: config.memory.userId || "default-user",
+            }
+          : undefined;
+
         const response = await fetch(config.api, {
           method: "POST",
           headers: {
@@ -131,6 +168,9 @@ export const useMastraRuntime = (config: MastraRuntimeConfig) => {
           },
           body: JSON.stringify({
             messages: [{ role: "user", content: getMessageContent(message) }],
+            agentId: config.agentId,
+            // Add memory context to request
+            ...(memoryContext && memoryContext),
           }),
         });
 
@@ -178,15 +218,18 @@ export const useMastraRuntime = (config: MastraRuntimeConfig) => {
         setIsRunning(false);
       }
     },
-    [config.api, config.onError, config.eventHandlers, processEvent],
+    [config, processEvent, memory],
   );
 
-  // Convert Mastra messages to assistant-ui ThreadMessage format
-  const convertedMessages = messages.map(LegacyMastraMessageConverter).flat();
+  // Filter out empty or invalid messages before passing to runtime
+  // The runtime will handle conversion using the convertMessage callback
+  const filteredMessages = messages.filter(
+    msg => msg && msg.type && (msg.content !== undefined && msg.content !== null)
+  );
 
   const runtime = useExternalStoreRuntime({
     isRunning,
-    messages: convertedMessages as any,
+    messages: filteredMessages as any,
     onNew: handleNew,
     onEdit: async () => {
       // Handle message editing
@@ -222,6 +265,9 @@ export const useMastraRuntime = (config: MastraRuntimeConfig) => {
       [symbolMastraRuntimeExtras]: {
         agentId: config.agentId,
         isStreaming: isRunning,
+        // Only include Real Mastra features if they were configured
+        ...(config.memory && { memory }),
+        ...(config.workflow && { workflow }),
       },
     },
   });

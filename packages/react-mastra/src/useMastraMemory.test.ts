@@ -1,33 +1,10 @@
 import { renderHook, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { useMastraMemory } from "./useMastraMemory";
-import { MastraMemoryConfig, MastraMessage } from "./types";
+import { MastraMemoryConfig } from "./types";
 
-// Mock Mastra memory API for testing
-const mastraMemory = {
-  search: vi.fn().mockResolvedValue([
-    {
-      content: "Previous conversation about cooking preferences",
-      metadata: { source: "memory", type: "preference" },
-      similarity: 0.9,
-      threadId: "test-thread",
-      timestamp: new Date().toISOString(),
-    },
-  ]),
-  save: vi.fn().mockResolvedValue(undefined),
-  getThread: vi.fn().mockResolvedValue({
-    id: "test-thread",
-    messages: [],
-    interrupts: [],
-    metadata: {},
-    memory: [],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  }),
-};
-
-// Silence the unused variable warning since this is used by the implementation
-void mastraMemory;
+// Mock fetch globally
+global.fetch = vi.fn();
 
 // Mock the uuid module
 vi.mock("uuid", () => ({
@@ -43,13 +20,6 @@ describe("useMastraMemory", () => {
     similarityThreshold: 0.8,
   };
 
-  const mockMessage: MastraMessage = {
-    id: "test-message",
-    type: "human",
-    content: "Test message content",
-    timestamp: new Date().toISOString(),
-  };
-
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -62,7 +32,22 @@ describe("useMastraMemory", () => {
     expect(result.current.isSearching).toBe(false);
   });
 
-  it("should search memory with semantic similarity", async () => {
+  it("should search memory via API", async () => {
+    (global.fetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        results: [
+          {
+            content: "Previous conversation about cooking",
+            metadata: { source: "memory" },
+            similarity: 0.9,
+            threadId: "test-thread",
+            timestamp: new Date().toISOString(),
+          },
+        ],
+      }),
+    });
+
     const { result } = renderHook(() => useMastraMemory(mockMemoryConfig));
 
     const searchResults = await act(async () => {
@@ -73,26 +58,32 @@ describe("useMastraMemory", () => {
     });
 
     expect(searchResults).toHaveLength(1);
-    expect(searchResults[0]?.similarity).toBeGreaterThan(0.8);
-    expect(searchResults[0]?.content).toContain("Previous conversation about cooking preferences");
+    expect(searchResults[0]?.similarity).toBe(0.9);
+    expect(searchResults[0]?.content).toContain("cooking");
     expect(result.current.isSearching).toBe(false);
+    expect(global.fetch).toHaveBeenCalledWith(
+      "/api/memory/query",
+      expect.objectContaining({
+        method: "POST",
+        body: expect.stringContaining("cooking preferences"),
+      }),
+    );
   });
 
-  it("should save messages to persistent memory", async () => {
-    const { result } = renderHook(() => useMastraMemory(mockMemoryConfig));
-
-    await act(async () => {
-      await result.current.saveToMemory("test-thread", [mockMessage]);
+  it("should create new thread via API", async () => {
+    (global.fetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        thread: {
+          id: "test-thread-id",
+          resourceId: "test-user",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          metadata: { source: "test" },
+        },
+      }),
     });
 
-    const thread = result.current.threads.get("test-thread");
-    expect(thread).toBeDefined();
-    expect(thread?.messages).toHaveLength(1);
-    expect(thread?.messages[0]).toEqual(mockMessage);
-    expect(thread?.updatedAt).toBeDefined();
-  });
-
-  it("should create new thread with generated ID", async () => {
     const { result } = renderHook(() => useMastraMemory(mockMemoryConfig));
 
     const threadId = await act(async () => {
@@ -102,59 +93,29 @@ describe("useMastraMemory", () => {
     expect(threadId).toBe("test-thread-id");
     expect(result.current.currentThread).toBe("test-thread-id");
     expect(result.current.threads.has("test-thread-id")).toBe(true);
-
-    const thread = result.current.threads.get("test-thread-id");
-    expect(thread?.metadata['source']).toBe("test");
+    expect(global.fetch).toHaveBeenCalledWith(
+      "/api/memory/threads",
+      expect.objectContaining({
+        method: "POST",
+      }),
+    );
   });
 
-  it("should delete thread and update current thread", async () => {
-    const { result } = renderHook(() => useMastraMemory(mockMemoryConfig));
-
-    // First create a thread
-    await act(async () => {
-      await result.current.createThread();
+  it("should get thread context via API", async () => {
+    (global.fetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        thread: {
+          id: "test-thread",
+          resourceId: "test-user",
+          messages: [],
+          metadata: {},
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      }),
     });
 
-    const createdThreadId = result.current.currentThread;
-    expect(createdThreadId).toBeDefined();
-
-    // Then delete it
-    await act(async () => {
-      if (createdThreadId) {
-        await result.current.deleteThread(createdThreadId);
-      }
-    });
-
-    if (createdThreadId) {
-      expect(result.current.threads.has(createdThreadId)).toBe(false);
-    }
-    expect(result.current.currentThread).toBeNull();
-  });
-
-  it("should update thread metadata", async () => {
-    const { result } = renderHook(() => useMastraMemory(mockMemoryConfig));
-
-    await act(async () => {
-      await result.current.createThread();
-    });
-
-    const threadId = result.current.currentThread;
-    expect(threadId).toBeDefined();
-
-    await act(async () => {
-      await result.current.updateThreadMetadata(threadId!, {
-        category: "test",
-        priority: "high"
-      });
-    });
-
-    const thread = result.current.threads.get(threadId!);
-    expect(thread?.metadata['category']).toBe("test");
-    expect(thread?.metadata['priority']).toBe("high");
-    expect(thread?.updatedAt).toBeDefined();
-  });
-
-  it("should get thread context from memory API", async () => {
     const { result } = renderHook(() => useMastraMemory(mockMemoryConfig));
 
     const threadState = await act(async () => {
@@ -163,34 +124,50 @@ describe("useMastraMemory", () => {
 
     expect(threadState.id).toBe("test-thread");
     expect(threadState.messages).toEqual([]);
-    expect(threadState.interrupts).toEqual([]);
-    expect(threadState.metadata).toEqual({});
-    expect(threadState.memory).toEqual([]);
     expect(result.current.threads.has("test-thread")).toBe(true);
+    expect(global.fetch).toHaveBeenCalledWith(
+      "/api/memory/threads/test-thread",
+    );
   });
 
-  it("should handle concurrent search operations", async () => {
-    const { result } = renderHook(() => useMastraMemory(mockMemoryConfig));
-
-    // Start two searches concurrently
-    const [search1, search2] = await act(async () => {
-      return await Promise.all([
-        result.current.searchMemory({ query: "test query 1" }),
-        result.current.searchMemory({ query: "test query 2" }),
-      ]);
+  it("should update thread metadata via API", async () => {
+    (global.fetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        thread: {
+          id: "test-thread",
+          metadata: { category: "test", priority: "high" },
+          updatedAt: new Date().toISOString(),
+        },
+      }),
     });
 
-    expect(search1).toHaveLength(1);
-    expect(search2).toHaveLength(1);
-    expect(result.current.isSearching).toBe(false);
+    const { result } = renderHook(() => useMastraMemory(mockMemoryConfig));
+
+    // First add the thread to local state
+    act(() => {
+      result.current.setCurrentThread("test-thread");
+    });
+
+    await act(async () => {
+      await result.current.updateThreadMetadata("test-thread", {
+        category: "test",
+        priority: "high",
+      });
+    });
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      "/api/memory/threads/test-thread",
+      expect.objectContaining({
+        method: "PATCH",
+      }),
+    );
   });
 
-  it("should use default config values in search", async () => {
-    const configWithoutDefaults: MastraMemoryConfig = {
-      storage: "postgresql",
-    };
+  it("should handle API errors gracefully", async () => {
+    (global.fetch as any).mockRejectedValueOnce(new Error("Network error"));
 
-    const { result } = renderHook(() => useMastraMemory(configWithoutDefaults));
+    const { result } = renderHook(() => useMastraMemory(mockMemoryConfig));
 
     const searchResults = await act(async () => {
       return await result.current.searchMemory({
@@ -198,19 +175,7 @@ describe("useMastraMemory", () => {
       });
     });
 
-    expect(searchResults).toHaveLength(1);
+    expect(searchResults).toEqual([]);
     expect(result.current.isSearching).toBe(false);
-  });
-
-  it("should switch current thread", () => {
-    const { result } = renderHook(() => useMastraMemory(mockMemoryConfig));
-
-    expect(result.current.currentThread).toBe("test-thread");
-
-    act(() => {
-      result.current.setCurrentThread("new-thread");
-    });
-
-    expect(result.current.currentThread).toBe("new-thread");
   });
 });

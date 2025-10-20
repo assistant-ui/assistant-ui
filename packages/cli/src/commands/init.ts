@@ -5,7 +5,6 @@ import path from "path";
 import chalk from "chalk";
 import { sync as globSync } from "glob";
 import * as readline from "readline";
-import { create } from "./create";
 import { generateMastraTemplate } from "../templates/mastra-template";
 
 function detectProjectType(): string | null {
@@ -16,7 +15,7 @@ function detectProjectType(): string | null {
     const deps = { ...pkgJson.dependencies, ...pkgJson.devDependencies };
 
     // Check for Mastra packages
-    if (deps["@mastra/core"] || deps["@mastra/memory"] || deps["@mastra/tools"] || deps["@assistant-ui/react-mastra"]) {
+    if (deps["@mastra/core"] || deps["@mastra/memory"] || deps["@assistant-ui/react-mastra"]) {
       return "mastra";
     }
 
@@ -29,11 +28,11 @@ function detectProjectType(): string | null {
       const content = fs.readFileSync(file, "utf8");
       if (content.includes("new Mastra(") || content.includes("mastra.getAgent") ||
           content.includes("@mastra/core") || content.includes("@mastra/memory") ||
-          content.includes("@mastra/tools") || content.includes("@assistant-ui/react-mastra")) {
+          content.includes("@assistant-ui/react-mastra")) {
         return "mastra";
       }
     }
-  } catch (error) {
+  } catch {
     // Silent fallback
   }
 

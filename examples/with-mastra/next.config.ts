@@ -1,6 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  webpack: (config) => {
+    config.externals = [...(config.externals || []), { canvas: "canvas" }];
+    // Ignore non-JS files in node_modules
+    config.module.rules.push({
+      test: /\.md$/,
+      type: "asset/source",
+    });
+    return config;
+  },
   async rewrites() {
     return [
       {
@@ -9,6 +18,12 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  serverExternalPackages: [
+    "@mastra/libsql",
+    "libsql",
+    "@mastra/core",
+    "@mastra/memory",
+  ],
 };
 
 export default nextConfig;

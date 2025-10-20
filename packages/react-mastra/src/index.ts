@@ -1,31 +1,10 @@
-// Main runtime hooks
+// Main runtime hooks - Real Mastra Integration
 export { useMastraRuntime, useMastraExtras } from "./useMastraRuntime";
 export { useMastraMessages } from "./useMastraMessages";
 
-// Advanced feature hooks - Phase 3
+// Advanced feature hooks - Real Mastra APIs
 export { useMastraMemory } from "./useMastraMemory";
 export { useMastraWorkflows, useMastraWorkflowInterrupt, useMastraSendWorkflowCommand } from "./useMastraWorkflows";
-export { useMastraTools, useMastraToolsWithRetry } from "./useMastraTools";
-export {
-  useMastraEvents,
-  useMastraEventSubscription,
-  useMastraEventPattern,
-  useMastraEventAnalytics,
-  useMastraEventSubscriptionManager
-} from "./useMastraEvents";
-export {
-  useMastraRAG,
-  useMastraRAGQuery,
-  useMastraRAGDocuments,
-  useMastraRAGAnalytics,
-  useMastraRAGConfig
-} from "./useMastraRAG";
-export {
-  useMastraObservability,
-  useMastraPerformanceMonitoring,
-  useMastraErrorTracking,
-  useMastraMetrics
-} from "./useMastraObservability";
 
 // Message processing components
 export {
@@ -63,7 +42,7 @@ export type {
   MastraFileContent,
 } from "./types";
 
-// Advanced feature types - Phase 3
+// Advanced feature types - Real Mastra APIs only
 export type {
   MastraMemoryConfig,
   MastraMemoryQuery,
@@ -79,22 +58,6 @@ export type {
   MastraRetryPolicy,
   MastraEvent,
   MastraEventHandler,
-  MastraEventSubscription,
-  MastraEventSubscriptionManager,
-  MastraRAGConfig,
-  MastraEmbedderConfig,
-  MastraVectorStoreConfig,
-  MastraChunkingConfig,
-  MastraDocument,
-  MastraDocumentChunk,
-  MastraRAGQuery,
-  MastraRAGResult,
-  MastraObservabilityConfig,
-  MastraExporterConfig,
-  MastraSamplingConfig,
-  MastraTrace,
-  MastraTraceEvent,
-  MastraMetric,
 } from "./types";
 
 // Production and monitoring exports - Phase 5

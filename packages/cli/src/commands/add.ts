@@ -71,7 +71,7 @@ export const add = new Command()
       const mastraRegistryPath = path.join(__dirname, "../components/mastra-registry.json");
 
       try {
-        const fs = require('fs');
+        const fs = await import('fs');
         if (fs.existsSync(mastraRegistryPath)) {
           const registry = JSON.parse(fs.readFileSync(mastraRegistryPath, "utf8"));
 

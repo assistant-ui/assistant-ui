@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { ToolFallback } from "./tool-fallback";
+import { ToolResults } from "./tool-results";
 
 export const Thread: FC = () => {
   return (
@@ -103,7 +103,7 @@ const ThreadWelcomeSuggestions: FC = () => {
         autoSend
       >
         <span className="line-clamp-2 text-ellipsis text-sm font-semibold">
-          What's the weather like in New York?
+          What&apos;s the weather like in New York?
         </span>
       </ThreadPrimitive.Suggestion>
     </div>
@@ -205,7 +205,26 @@ const AssistantMessage: FC = () => {
     <MessagePrimitive.Root className="relative grid w-full max-w-[var(--thread-max-width)] grid-cols-[auto_auto_1fr] grid-rows-[auto_1fr] py-4">
       <div className="text-foreground col-span-2 col-start-2 row-start-1 my-1.5 max-w-[calc(var(--thread-max-width)*0.8)] break-words leading-7">
         <MessagePrimitive.Parts
-          components={{ Text: MarkdownText, tools: { Fallback: ToolFallback } }}
+          components={{
+            Text: MarkdownText,
+            tools: {
+              Fallback: (props) => (
+                <ToolResults
+                  toolCall={{
+                    name: props.toolName || "Unknown Tool",
+                    args: props.args,
+                    state: props.status?.type === "running"
+                      ? "running"
+                      : props.status?.type === "complete"
+                        ? "success"
+                        : "error",
+                  }}
+                  result={props.result}
+                  isExpanded={false}
+                />
+              ),
+            },
+          }}
         />
         <MessageError />
       </div>

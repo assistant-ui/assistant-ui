@@ -103,23 +103,34 @@ const mapMastraStatusToAssistantUI = (
 
 // Simplified message converter for now
 export const MastraMessageConverter = (message: MastraMessage) => {
+  // Validate message has required fields
+  if (!message.type) {
+    console.error("MastraMessageConverter: Message missing type", message);
+    // Default to user message if type is missing
+    message = { ...message, type: "human" };
+  }
+
+  const role = (message.type === "human"
+    ? "user"
+    : message.type === "assistant"
+      ? "assistant"
+      : message.type) as "system" | "assistant" | "user";
+
   const baseMessage = {
     id: message.id ?? crypto.randomUUID(),
     createdAt: new Date(message.timestamp ?? Date.now()),
-    role: (message.type === "human"
-      ? "user"
-      : message.type === "assistant"
-        ? "assistant"
-        : message.type) as "system" | "assistant" | "user",
+    role,
     content: convertMastraContentToParts(message.content),
+    // Only include status for assistant messages
+    ...(role === "assistant" && { status: mapMastraStatusToAssistantUI(message.status) }),
     metadata: {
       unstable_state: null,
       unstable_annotations: [],
       unstable_data: [],
-      steps: [],
+      // Only include steps for assistant messages
+      ...(role === "assistant" && { steps: [] }),
       custom: message.metadata ?? {},
     },
-    ...mapMastraStatusToAssistantUI(message.status),
   };
 
   // Handle special cases for different message types

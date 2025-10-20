@@ -11,7 +11,7 @@ export interface TemplateOptions {
 }
 
 export function generateMastraTemplate(options: TemplateOptions): void {
-  const { projectName, targetDir, agentId = "chef-agent", enableMemory = true, enableWorkflows = false } = options;
+  const { projectName, targetDir, agentId = "chef-agent", enableMemory = true } = options;
 
   // Create directory structure
   const dirs = [
@@ -43,8 +43,8 @@ export function generateMastraTemplate(options: TemplateOptions): void {
       "@assistant-ui/react-mastra": "latest",
       "@assistant-ui/react-markdown": "latest",
       "@mastra/core": "latest",
+      "@mastra/libsql": "latest",
       "@mastra/memory": "latest",
-      "@mastra/tools": "latest",
       "@ai-sdk/openai": "latest",
       "@radix-ui/react-slot": "latest",
       "@radix-ui/react-tooltip": "latest",
@@ -302,12 +302,12 @@ export async function POST(req: Request) {
   // Generate Mastra configuration
   const mastraIndex = `import { Mastra } from "@mastra/core";
 ${enableMemory ? `import { Memory } from "@mastra/memory";
-import { createLibSqlStore } from "@mastra/memory/libsql";` : ""}
+import { LibSQLStore } from "@mastra/libsql";` : ""}
 import { ${agentId.charAt(0).toUpperCase() + agentId.slice(1)} } from "./agents/${agentId}";
 
 ${enableMemory ? `const memory = new Memory({
-  storage: createLibSqlStore({
-    path: "./mastra.db",
+  storage: new LibSQLStore({
+    url: "file:./mastra.db",
   }),
 });` : ""}
 

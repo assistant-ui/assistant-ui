@@ -6,7 +6,7 @@ export const weatherTool = {
     location: z.string().describe("The city and state/country, e.g., 'San Francisco, CA' or 'London, UK'"),
     units: z.enum(["celsius", "fahrenheit"]).optional().describe("Temperature units (default: celsius)"),
   }),
-  execute: async ({ location, units = "celsius" }) => {
+  execute: async ({ location, units = "celsius" }: { location: string; units?: "celsius" | "fahrenheit" }) => {
     // Mock weather data for demonstration
     // In a real implementation, you would integrate with a weather API
     const mockWeatherData = {
