@@ -1,4 +1,8 @@
-import { getExamplesPages, getExamplesPage } from "@/app/source";
+import {
+  getExamplesPages,
+  getExamplesPage,
+  type ExamplePage,
+} from "@/app/source";
 import type { Metadata } from "next";
 import { DocsPage, DocsBody } from "fumadocs-ui/page";
 import { notFound } from "next/navigation";
@@ -16,9 +20,7 @@ import { INTERNAL_EXAMPLES } from "@/lib/examples";
 /**
  * Safely gets an examples page and handles null cases
  */
-function getPage(
-  slug: string[] | undefined,
-): NonNullable<ReturnType<typeof getExamplesPage>> {
+function getPage(slug: string[] | undefined): ExamplePage {
   const page = getExamplesPage(slug);
   if (page == null) {
     notFound();
@@ -36,9 +38,7 @@ function isIndexPage(slug: string[] | undefined): boolean {
 /**
  * Generates metadata for an examples page
  */
-function generatePageMetadata(
-  page: NonNullable<ReturnType<typeof getExamplesPage>>,
-): Metadata {
+function generatePageMetadata(page: ExamplePage): Metadata {
   return {
     title: page.data.title,
     description: page.data.description ?? null,

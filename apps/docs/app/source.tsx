@@ -30,6 +30,8 @@ export const {
 } = examplesUtils;
 export const examplesSource = examplesUtils;
 
+export type ExamplePage = InferPageType<typeof examplesUtils>;
+
 export const blog = loader({
   baseUrl: "/blog",
   source: createMDXSource(blogPosts, []),
