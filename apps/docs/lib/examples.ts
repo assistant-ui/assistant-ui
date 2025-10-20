@@ -7,7 +7,6 @@ export type ExampleItem = {
   githubLink?: string;
 };
 
-// TODO: Add github links to all examples
 const INTERNAL_EXAMPLES: ExampleItem[] = [
   {
     title: "Modal",
