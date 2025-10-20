@@ -94,11 +94,9 @@ export default async function Page(props: {
 
 export async function generateStaticParams() {
   // Generate params for both index and individual pages
-  const pages = getExamplesPages()
-    .filter((page) => page.slugs[0] === "examples")
-    .map((page) => ({
-      slug: page.slugs.slice(1),
-    }));
+  const pages = getExamplesPages().map((page) => ({
+    slug: page.slugs,
+  }));
 
   // Add the index page (empty slug)
   return [{ slug: [] }, ...pages];
