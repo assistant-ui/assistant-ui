@@ -1147,7 +1147,7 @@ import "@assistant-ui/styles/markdown.css";
 
 Install provider SDK:
 
-<Tabs id="provider" items={["OpenAI", "Anthropic", "Azure", "AWS", "Gemini", "GCP", "Groq", "Fireworks", "Cohere", "Ollama", "Chrome AI"]}>
+<Tabs groupId="provider" items={["OpenAI", "Anthropic", "Azure", "AWS", "Gemini", "GCP", "Groq", "Fireworks", "Cohere", "Ollama", "Chrome AI"]}>
 
 ```sh title="Terminal" tab="OpenAI"
 npm install ai @assistant-ui/react-ai-sdk @ai-sdk/openai
@@ -1197,7 +1197,7 @@ npm install ai @assistant-ui/react-ai-sdk chrome-ai
 
 Add an API endpoint:
 
-<Tabs id="provider" items={["OpenAI", "Anthropic", "Azure", "AWS", "Gemini", "GCP", "Groq", "Fireworks", "Cohere", "Ollama", "Chrome AI"]}>
+<Tabs groupId="provider" items={["OpenAI", "Anthropic", "Azure", "AWS", "Gemini", "GCP", "Groq", "Fireworks", "Cohere", "Ollama", "Chrome AI"]}>
 ```ts title="/app/api/chat/route.ts" tab="OpenAI"
 import { openai } from "@ai-sdk/openai";
 import { convertToModelMessages, streamText } from "ai";
@@ -1388,7 +1388,7 @@ export async function POST(req: Request) {
 
 Define environment variables:
 
-<Tabs id="provider" items={["OpenAI", "Anthropic", "Azure", "AWS", "Gemini", "GCP", "Groq", "Fireworks", "Cohere", "Ollama", "Chrome AI"]}>
+<Tabs groupId="provider" items={["OpenAI", "Anthropic", "Azure", "AWS", "Gemini", "GCP", "Groq", "Fireworks", "Cohere", "Ollama", "Chrome AI"]}>
 
 ```sh title="/.env.local" tab="OpenAI"
 OPENAI_API_KEY="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"

@@ -1,5 +1,11 @@
 # assistant-ui
 
+## 0.0.62
+
+### Patch Changes
+
+- chore: update deps
+
 ## 0.0.61
 
 ### Patch Changes

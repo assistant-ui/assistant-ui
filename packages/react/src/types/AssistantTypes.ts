@@ -118,6 +118,7 @@ export type ThreadAssistantMessage = MessageCommonProps & {
     readonly unstable_annotations: readonly ReadonlyJSONValue[];
     readonly unstable_data: readonly ReadonlyJSONValue[];
     readonly steps: readonly ThreadStep[];
+    readonly submittedFeedback?: { readonly type: "positive" | "negative" };
     readonly custom: Record<string, unknown>;
   };
 };

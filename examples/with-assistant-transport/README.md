@@ -123,7 +123,7 @@ examples/with-assistant-transport/
 
 For a complete working backend example, check out:
 
-- `examples/ultrathink` - Python FastAPI server with assistant-stream integration
+- `python/assistant-transport-backend` - Python FastAPI server with assistant-stream integration
 
 ## Customization
 
