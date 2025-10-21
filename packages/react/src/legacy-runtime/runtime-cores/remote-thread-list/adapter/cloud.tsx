@@ -161,19 +161,21 @@ export const useCloudThreadListAdapter = (
         // propagated to consumers via controller.error()
         return new ReadableStream({
           async start(controller) {
-            const reader = stream.getReader();
             try {
-              while (true) {
-                const result = await reader.read();
-                if (result.done) break;
-                controller.enqueue(result.value);
+              const reader = stream.getReader();
+              try {
+                while (true) {
+                  const result = await reader.read();
+                  if (result.done) break;
+                  controller.enqueue(result.value);
+                }
+                controller.close();
+              } finally {
+                reader.releaseLock();
               }
-              controller.close();
             } catch (error) {
               console.warn("Failed to generate cloud thread title:", error);
               controller.error(error);
-            } finally {
-              reader.releaseLock();
             }
           },
         });
