@@ -75,6 +75,33 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   }
 
   /**
+   * Private helper method to create messages with consistent error handling and ID mapping.
+   * Follows DRY principle by extracting the common pattern used in append() and _appendWithFormat().
+   */
+  private async _createMessage(
+    remoteId: string,
+    params: {
+      parent_id: string | null;
+      format: string;
+      content: ReadonlyJSONObject;
+    },
+    messageId: string,
+  ) {
+    const taskPromise = this.cloudRef.current!.threads.messages.create(
+      remoteId,
+      params,
+    );
+
+    const task = taskPromise.then(({ message_id }) => {
+      this._getIdForLocalId[messageId] = message_id;
+      return message_id;
+    });
+
+    this._getIdForLocalId[messageId] = task;
+    return task.then(() => {});
+  }
+
+  /**
    * Error handling strategy:
    * - Message operations throw errors for proper caller handling
    * - Cloud reference checks throw errors to prevent invalid operations
@@ -87,7 +114,8 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     }
 
     const { remoteId } = await this.store.threadListItem().initialize();
-    const taskPromise = this.cloudRef.current.threads.messages.create(
+
+    return this._createMessage(
       remoteId,
       {
         parent_id: parentId
@@ -96,16 +124,8 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         format: "aui/v0",
         content: auiV0Encode(message),
       },
+      message.id,
     );
-
-    const task = taskPromise.then(({ message_id }) => {
-      this._getIdForLocalId[message.id] = message_id;
-      return message_id;
-    });
-
-    this._getIdForLocalId[message.id] = task;
-
-    return task.then(() => {});
   }
 
   async load() {
@@ -152,7 +172,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
 
     const { remoteId } = await this.store.threadListItem().initialize();
 
-    const taskPromise = this.cloudRef.current.threads.messages.create(
+    return this._createMessage(
       remoteId,
       {
         parent_id: parentId
@@ -161,16 +181,8 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         format,
         content: content as ReadonlyJSONObject,
       },
+      messageId,
     );
-
-    const task = taskPromise.then(({ message_id }) => {
-      this._getIdForLocalId[messageId] = message_id;
-      return message_id;
-    });
-
-    this._getIdForLocalId[messageId] = task;
-
-    return task.then(() => {});
   }
 
   async _loadWithFormat<TMessage, TStorageFormat>(
