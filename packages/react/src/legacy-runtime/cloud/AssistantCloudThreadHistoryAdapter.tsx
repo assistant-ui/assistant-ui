@@ -97,21 +97,27 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   async load() {
     const remoteId = this.store.threadListItem().getState().remoteId;
     if (!remoteId) return { messages: [] };
-    const { messages } = await this.cloudRef.current.threads.messages.list(
-      remoteId,
-      {
-        format: "aui/v0",
-      },
-    );
-    const payload = {
-      messages: messages
-        .filter(
-          (m): m is typeof m & { format: "aui/v0" } => m.format === "aui/v0",
-        )
-        .map(auiV0Decode)
-        .reverse(),
-    };
-    return payload;
+
+    try {
+      const { messages } = await this.cloudRef.current.threads.messages.list(
+        remoteId,
+        {
+          format: "aui/v0",
+        },
+      );
+      const payload = {
+        messages: messages
+          .filter(
+            (m): m is typeof m & { format: "aui/v0" } => m.format === "aui/v0",
+          )
+          .map(auiV0Decode)
+          .reverse(),
+      };
+      return payload;
+    } catch (error) {
+      console.warn("Failed to load cloud messages:", error);
+      return { messages: [] };
+    }
   }
 
   // Internal methods for FormattedThreadHistoryAdapter
@@ -150,26 +156,31 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     const remoteId = this.store.threadListItem().getState().remoteId;
     if (!remoteId) return { messages: [] };
 
-    const { messages } = await this.cloudRef.current.threads.messages.list(
-      remoteId,
-      {
-        format,
-      },
-    );
+    try {
+      const { messages } = await this.cloudRef.current.threads.messages.list(
+        remoteId,
+        {
+          format,
+        },
+      );
 
-    return {
-      messages: messages
-        .filter((m) => m.format === format)
-        .map((m) =>
-          decoder({
-            id: m.id,
-            parent_id: m.parent_id,
-            format: m.format,
-            content: m.content as TStorageFormat,
-          }),
-        )
-        .reverse(),
-    };
+      return {
+        messages: messages
+          .filter((m) => m.format === format)
+          .map((m) =>
+            decoder({
+              id: m.id,
+              parent_id: m.parent_id,
+              format: m.format,
+              content: m.content as TStorageFormat,
+            }),
+          )
+          .reverse(),
+      };
+    } catch (error) {
+      console.warn("Failed to load cloud messages with format:", error);
+      return { messages: [] };
+    }
   }
 }
 
