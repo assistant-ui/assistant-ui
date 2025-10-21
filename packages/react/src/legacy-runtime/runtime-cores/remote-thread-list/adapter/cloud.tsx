@@ -85,10 +85,15 @@ export const useCloudThreadListAdapter = (
             title: t.title,
             externalId: t.external_id ?? undefined,
           })),
+          status: "success" as const,
         };
       } catch (error) {
         console.warn("Failed to load cloud threads:", error);
-        return { threads: [] };
+        return {
+          threads: [],
+          status: "error" as const,
+          error: error instanceof Error ? error.message : "Unknown error",
+        };
       }
     },
 
