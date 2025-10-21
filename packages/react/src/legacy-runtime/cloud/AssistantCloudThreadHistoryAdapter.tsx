@@ -100,6 +100,8 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
           return message.id;
         });
 
+      this._getIdForLocalId[message.id] = task;
+
       return task.then(() => {});
     } catch (error) {
       console.warn("Failed to append message to cloud:", error);

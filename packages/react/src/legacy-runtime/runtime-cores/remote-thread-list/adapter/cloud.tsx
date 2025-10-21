@@ -168,18 +168,13 @@ export const useCloudThreadListAdapter = (
               controller.close();
             } catch (error) {
               console.warn("Failed to generate cloud thread title:", error);
-              controller.close();
+              controller.error(error);
             }
           },
         });
       } catch (error) {
         console.warn("Failed to generate cloud thread title:", error);
-        // Return an empty ReadableStream
-        return new ReadableStream({
-          start(controller) {
-            controller.close();
-          },
-        });
+        throw error; // Re-throw so callers can handle the error
       }
     },
 
