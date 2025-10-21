@@ -20,10 +20,52 @@ export type AssistantCloudConfig =
       anonymous: true;
     };
 
-class CloudAPIError extends Error {
-  constructor(message: string) {
+export class CloudAPIError extends Error {
+  public readonly status: number;
+  public readonly statusText: string;
+  public readonly responseBody?: unknown;
+
+  constructor(
+    message: string,
+    status: number,
+    statusText: string,
+    responseBody?: unknown,
+  ) {
     super(message);
-    this.name = "APIError";
+    this.name = "CloudAPIError";
+    this.status = status;
+    this.statusText = statusText;
+    this.responseBody = responseBody;
+  }
+
+  // Convenience methods for error type checking
+  get isAuthenticationError(): boolean {
+    return this.status === 401;
+  }
+
+  get isPermissionError(): boolean {
+    return this.status === 403;
+  }
+
+  get isNotFoundError(): boolean {
+    return this.status === 404;
+  }
+
+  get isRateLimitError(): boolean {
+    return this.status === 429;
+  }
+
+  get isServerError(): boolean {
+    return this.status >= 500;
+  }
+
+  get isClientError(): boolean {
+    return this.status >= 400 && this.status < 500;
+  }
+
+  get isRetryableError(): boolean {
+    // Network errors, timeouts, and server errors are typically retryable
+    return this.status >= 500 || this.status === 429;
   }
 }
 
@@ -101,14 +143,22 @@ export class AssistantCloudAPI {
 
     if (!response.ok) {
       const text = await response.text();
+      let responseBody: unknown;
+      
       try {
-        const body = JSON.parse(text);
-        throw new CloudAPIError(body.message);
+        responseBody = JSON.parse(text);
       } catch {
-        throw new Error(
-          `Request failed with status ${response.status}, ${text}`,
-        );
+        responseBody = text;
       }
+
+      throw new CloudAPIError(
+        typeof responseBody === 'object' && responseBody !== null && 'message' in responseBody
+          ? String(responseBody.message)
+          : `Request failed with status ${response.status}`,
+        response.status,
+        response.statusText,
+        responseBody
+      );
     }
 
     return response;

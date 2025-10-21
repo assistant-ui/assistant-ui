@@ -1,7 +1,7 @@
 import { RefObject, useState } from "react";
 import { ThreadHistoryAdapter } from "../runtime-cores/adapters/thread-history/ThreadHistoryAdapter";
 import { ExportedMessageRepositoryItem } from "../runtime-cores/utils/MessageRepository";
-import { AssistantCloud } from "assistant-cloud";
+import { AssistantCloud, CloudAPIError } from "assistant-cloud";
 import { auiV0Decode, auiV0Encode } from "./auiV0";
 import {
   MessageFormatAdapter,
@@ -75,8 +75,8 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   }
 
   /**
-   * Enhanced error logging with context and error type differentiation.
-   * Helps distinguish between retry-able network errors and auth errors.
+   * Enhanced error logging with proper error type detection.
+   * Uses HTTP status codes and error types instead of fragile string matching.
    */
   private _logLoadError(
     error: unknown,
@@ -84,32 +84,54 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   ) {
     console.error("Failed to load cloud messages:", error);
 
-    if (error instanceof Error) {
+    if (error instanceof CloudAPIError) {
+      const cloudError = error as CloudAPIError;
+      const errorDetails = {
+        message: cloudError.message,
+        status: cloudError.status,
+        statusText: cloudError.statusText,
+        responseBody: cloudError.responseBody,
+        ...context,
+      };
+
+      // Use proper error type detection based on HTTP status codes
+      if (cloudError.isAuthenticationError) {
+        console.error("Authentication error detected:", errorDetails);
+      } else if (cloudError.isPermissionError) {
+        console.error("Permission error detected:", errorDetails);
+      } else if (cloudError.isRateLimitError) {
+        console.error("Rate limit error detected (retry-able):", errorDetails);
+      } else if (cloudError.isServerError) {
+        console.error("Server error detected (retry-able):", errorDetails);
+      } else if (cloudError.isNotFoundError) {
+        console.error("Resource not found error detected:", errorDetails);
+      } else if (cloudError.isClientError) {
+        console.error("Client error detected:", errorDetails);
+      } else {
+        console.error("Unknown HTTP error:", errorDetails);
+      }
+    } else if (error instanceof Error) {
+      // Handle non-HTTP errors (network issues, etc.)
       const errorDetails = {
         message: error.message,
         stack: error.stack,
         ...context,
       };
 
-      // Differentiate error types for better debugging
+      // Check for common network error patterns
       if (
-        error.message.includes("401") ||
-        error.message.includes("unauthorized")
-      ) {
-        console.error("Authentication error detected:", errorDetails);
-      } else if (
+        error.message.includes("fetch") ||
         error.message.includes("network") ||
-        error.message.includes("timeout")
+        error.message.includes("timeout") ||
+        error.message.includes("ECONNREFUSED") ||
+        error.message.includes("ENOTFOUND")
       ) {
         console.error("Network error detected (retry-able):", errorDetails);
-      } else if (
-        error.message.includes("403") ||
-        error.message.includes("forbidden")
-      ) {
-        console.error("Permission error detected:", errorDetails);
       } else {
         console.error("Unknown error type:", errorDetails);
       }
+    } else {
+      console.error("Non-Error object thrown:", { error, ...context });
     }
   }
 
