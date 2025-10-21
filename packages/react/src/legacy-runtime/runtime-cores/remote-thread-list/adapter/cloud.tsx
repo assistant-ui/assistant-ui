@@ -168,7 +168,7 @@ export const useCloudThreadListAdapter = (
               controller.close();
             } catch (error) {
               console.warn("Failed to generate cloud thread title:", error);
-              controller.error(error);
+              controller.close();
             }
           },
         });

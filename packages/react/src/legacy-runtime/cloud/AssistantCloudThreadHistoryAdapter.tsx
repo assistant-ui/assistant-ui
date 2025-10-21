@@ -94,20 +94,15 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
           return message_id;
         })
         .catch((error) => {
-          console.error("Failed to append message to cloud:", error);
-          // Return a fallback message ID to prevent the error from propagating
-          const fallbackId = `fallback-${message.id}-${crypto.randomUUID()}`;
-          this._getIdForLocalId[message.id] = fallbackId;
-          return fallbackId;
+          console.warn("Failed to append message to cloud:", error);
+          // Use original message ID as fallback to maintain referential integrity
+          this._getIdForLocalId[message.id] = message.id;
+          return message.id;
         });
-
-      if (!(message.id in this._getIdForLocalId)) {
-        this._getIdForLocalId[message.id] = task;
-      }
 
       return task.then(() => {});
     } catch (error) {
-      console.error("Failed to append message to cloud:", error);
+      console.warn("Failed to append message to cloud:", error);
       // Return a resolved promise to prevent the error from propagating
       return Promise.resolve();
     }
@@ -146,6 +141,10 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     format: string,
     content: T,
   ) {
+    if (!this.cloudRef.current) {
+      console.warn("Cloud reference not available");
+      return Promise.resolve();
+    }
     const { remoteId } = await this.store.threadListItem().initialize();
 
     const task = this.cloudRef.current.threads.messages
@@ -162,13 +161,10 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
       })
       .catch((error) => {
         console.warn("Failed to append message to cloud:", error);
-        // Return a fallback message ID to prevent the error from propagating
-        const fallbackId = `fallback-${messageId}-${crypto.randomUUID()}`;
-        this._getIdForLocalId[messageId] = fallbackId;
-        return fallbackId;
+        // Use original message ID as fallback to maintain referential integrity
+        this._getIdForLocalId[messageId] = messageId;
+        return messageId;
       });
-
-    this._getIdForLocalId[messageId] = task;
 
     return task.then(() => {});
   }
