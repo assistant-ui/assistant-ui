@@ -76,49 +76,84 @@ export const useCloudThreadListAdapter = (
 
   return {
     list: async () => {
-      const { threads } = await cloud.threads.list();
-      return {
-        threads: threads.map((t) => ({
-          status: t.is_archived ? "archived" : "regular",
-          remoteId: t.id,
-          title: t.title,
-          externalId: t.external_id ?? undefined,
-        })),
-      };
+      try {
+        const { threads } = await cloud.threads.list();
+        return {
+          threads: threads.map((t) => ({
+            status: t.is_archived ? "archived" : "regular",
+            remoteId: t.id,
+            title: t.title,
+            externalId: t.external_id ?? undefined,
+          })),
+        };
+      } catch (error) {
+        console.warn("Failed to load cloud threads:", error);
+        return { threads: [] };
+      }
     },
 
     initialize: async () => {
-      const createTask = adapter.create?.() ?? Promise.resolve();
-      const t = await createTask;
-      const external_id = t ? t.externalId : undefined;
-      const { thread_id: remoteId } = await cloud.threads.create({
-        last_message_at: new Date(),
-        external_id,
-      });
+      try {
+        const createTask = adapter.create?.() ?? Promise.resolve();
+        const t = await createTask;
+        const external_id = t ? t.externalId : undefined;
+        const { thread_id: remoteId } = await cloud.threads.create({
+          last_message_at: new Date(),
+          external_id,
+        });
 
-      return { externalId: external_id, remoteId: remoteId };
+        return { externalId: external_id, remoteId: remoteId };
+      } catch (error) {
+        console.warn("Failed to initialize cloud thread:", error);
+        throw error; // Re-throw for initialize as it's critical
+      }
     },
 
     rename: async (threadId, newTitle) => {
-      return cloud.threads.update(threadId, { title: newTitle });
+      try {
+        return cloud.threads.update(threadId, { title: newTitle });
+      } catch (error) {
+        console.warn("Failed to rename cloud thread:", error);
+        throw error; // Re-throw for rename as it's user-initiated
+      }
     },
     archive: async (threadId) => {
-      return cloud.threads.update(threadId, { is_archived: true });
+      try {
+        return cloud.threads.update(threadId, { is_archived: true });
+      } catch (error) {
+        console.warn("Failed to archive cloud thread:", error);
+        throw error; // Re-throw for archive as it's user-initiated
+      }
     },
     unarchive: async (threadId) => {
-      return cloud.threads.update(threadId, { is_archived: false });
+      try {
+        return cloud.threads.update(threadId, { is_archived: false });
+      } catch (error) {
+        console.warn("Failed to unarchive cloud thread:", error);
+        throw error; // Re-throw for unarchive as it's user-initiated
+      }
     },
     delete: async (threadId) => {
-      await adapter.delete?.(threadId);
-      return cloud.threads.delete(threadId);
+      try {
+        await adapter.delete?.(threadId);
+        return cloud.threads.delete(threadId);
+      } catch (error) {
+        console.warn("Failed to delete cloud thread:", error);
+        throw error; // Re-throw for delete as it's user-initiated
+      }
     },
 
     generateTitle: async (threadId, messages) => {
-      return cloud.runs.stream({
-        thread_id: threadId,
-        assistant_id: "system/thread_title",
-        messages: messages, // TODO serialize these to a more efficient format
-      });
+      try {
+        return cloud.runs.stream({
+          thread_id: threadId,
+          assistant_id: "system/thread_title",
+          messages: messages, // TODO serialize these to a more efficient format
+        });
+      } catch (error) {
+        console.warn("Failed to generate cloud thread title:", error);
+        throw error; // Re-throw for generateTitle as it's user-initiated
+      }
     },
 
     unstable_Provider,
