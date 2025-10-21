@@ -81,14 +81,20 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         return Promise.resolve();
       }
       const { remoteId } = await this.store.threadListItem().initialize();
-      const task = this.cloudRef.current.threads.messages
-        .create(remoteId, {
+      const taskPromise = this.cloudRef.current.threads.messages.create(
+        remoteId,
+        {
           parent_id: parentId
             ? ((await this._getIdForLocalId[parentId]) ?? parentId)
             : null,
           format: "aui/v0",
           content: auiV0Encode(message),
-        })
+        },
+      );
+
+      this._getIdForLocalId[message.id] = taskPromise;
+
+      const task = taskPromise
         .then(({ message_id }) => {
           this._getIdForLocalId[message.id] = message_id;
           return message_id;
@@ -99,8 +105,6 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
           this._getIdForLocalId[message.id] = message.id;
           return message.id;
         });
-
-      this._getIdForLocalId[message.id] = task;
 
       return task.then(() => {});
     } catch (error) {
@@ -115,6 +119,10 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     if (!remoteId) return { messages: [] };
 
     try {
+      if (!this.cloudRef.current) {
+        console.warn("Cloud reference not available");
+        return { messages: [] };
+      }
       const { messages } = await this.cloudRef.current.threads.messages.list(
         remoteId,
         {
@@ -181,6 +189,10 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     if (!remoteId) return { messages: [] };
 
     try {
+      if (!this.cloudRef.current) {
+        console.warn("Cloud reference not available");
+        return { messages: [] };
+      }
       const { messages } = await this.cloudRef.current.threads.messages.list(
         remoteId,
         {

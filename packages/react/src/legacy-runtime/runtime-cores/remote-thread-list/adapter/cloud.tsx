@@ -151,7 +151,9 @@ export const useCloudThreadListAdapter = (
           messages: messages, // TODO serialize these to a more efficient format
         });
 
-        // Wrap the stream to catch errors during consumption
+        // Wrap stream to provide proper error handling during consumption.
+        // Without this wrapper, mid-stream errors would not be properly
+        // propagated to consumers via controller.error()
         return new ReadableStream({
           async start(controller) {
             try {
