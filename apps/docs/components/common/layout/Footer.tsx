@@ -74,21 +74,6 @@ export function Footer(): React.ReactElement {
               Privacy Policy
             </FooterLink>
           </div>
-
-          {/* <div className="mt-4 flex flex-col justify-center space-y-4">
-            <a
-              className="text-muted-foreground hover:text-foreground text-xs transition-colors sm:text-sm"
-              href="#"
-            >
-              Privacy Policy
-            </a>
-            <a
-              className="text-muted-foreground hover:text-foreground text-xs transition-colors sm:text-sm"
-              href="#"
-            >
-              Terms of Service
-            </a>
-          </div> */}
         </div>
       </div>
     </footer>
