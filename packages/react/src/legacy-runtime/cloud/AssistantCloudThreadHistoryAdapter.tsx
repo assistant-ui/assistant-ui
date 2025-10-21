@@ -174,7 +174,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   async append({ parentId, message }: ExportedMessageRepositoryItem) {
     const { remoteId } = await this.store.threadListItem().initialize();
 
-    return this._createMessage(
+    return await this._createMessage(
       remoteId,
       {
         parent_id: parentId
@@ -226,7 +226,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   ) {
     const { remoteId } = await this.store.threadListItem().initialize();
 
-    return this._createMessage(
+    return await this._createMessage(
       remoteId,
       {
         parent_id: parentId
