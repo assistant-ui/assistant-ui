@@ -147,33 +147,41 @@ export const useCloudThreadListAdapter = (
 
     generateTitle: async (threadId, messages) => {
       try {
-        const stream = cloud.runs.stream({
+        const stream = await cloud.runs.stream({
           thread_id: threadId,
           assistant_id: "system/thread_title",
           messages: messages, // TODO serialize these to a more efficient format
         });
 
         // Wrap the stream to catch errors during consumption
-        return {
-          [Symbol.asyncIterator]: async function* () {
+        return new ReadableStream({
+          async start(controller) {
             try {
-              for await (const chunk of stream) {
-                yield chunk;
+              const reader = stream.getReader();
+              try {
+                while (true) {
+                  const { done, value } = await reader.read();
+                  if (done) break;
+                  controller.enqueue(value);
+                }
+              } finally {
+                reader.releaseLock();
               }
+              controller.close();
             } catch (error) {
               console.warn("Failed to generate cloud thread title:", error);
-              // End the generator gracefully
+              controller.close();
             }
           },
-        };
+        });
       } catch (error) {
         console.warn("Failed to generate cloud thread title:", error);
-        // Return a mock stream that immediately ends
-        return {
-          [Symbol.asyncIterator]: async function* () {
-            // Empty generator that yields nothing
+        // Return an empty ReadableStream
+        return new ReadableStream({
+          start(controller) {
+            controller.close();
           },
-        };
+        });
       }
     },
 
