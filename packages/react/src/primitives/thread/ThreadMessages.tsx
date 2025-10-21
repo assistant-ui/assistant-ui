@@ -138,7 +138,9 @@ const ThreadMessageComponent: FC<ThreadMessageComponentProps> = ({
 };
 export namespace ThreadPrimitiveMessageByIndex {
   export type Props = {
+    /** The index of the message to render. */
     index: number;
+    /** Component configuration for rendering different types of messages and composers. */
     components: ThreadPrimitiveMessages.Props["components"];
   };
 }

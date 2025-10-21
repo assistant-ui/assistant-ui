@@ -5,8 +5,11 @@ import { useAssistantState } from "../../context";
 import type { RequireAtLeastOne } from "../../utils/RequireAtLeastOne";
 
 type ThreadIfFilters = {
+  /** Render children if the thread is empty (no messages). */
   empty: boolean | undefined;
+  /** Render children if the thread is running (assistant is responding). */
   running: boolean | undefined;
+  /** Render children if the thread is disabled. */
   disabled: boolean | undefined;
 };
 
