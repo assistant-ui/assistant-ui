@@ -111,7 +111,7 @@ export const useCloudThreadListAdapter = (
 
     rename: async (threadId, newTitle) => {
       try {
-        return cloud.threads.update(threadId, { title: newTitle });
+        return await cloud.threads.update(threadId, { title: newTitle });
       } catch (error) {
         console.warn("Failed to rename cloud thread:", error);
         throw error; // Re-throw for rename as it's user-initiated
@@ -119,7 +119,7 @@ export const useCloudThreadListAdapter = (
     },
     archive: async (threadId) => {
       try {
-        return cloud.threads.update(threadId, { is_archived: true });
+        return await cloud.threads.update(threadId, { is_archived: true });
       } catch (error) {
         console.warn("Failed to archive cloud thread:", error);
         throw error; // Re-throw for archive as it's user-initiated
@@ -127,7 +127,7 @@ export const useCloudThreadListAdapter = (
     },
     unarchive: async (threadId) => {
       try {
-        return cloud.threads.update(threadId, { is_archived: false });
+        return await cloud.threads.update(threadId, { is_archived: false });
       } catch (error) {
         console.warn("Failed to unarchive cloud thread:", error);
         throw error; // Re-throw for unarchive as it's user-initiated
@@ -136,7 +136,7 @@ export const useCloudThreadListAdapter = (
     delete: async (threadId) => {
       try {
         await adapter.delete?.(threadId);
-        return cloud.threads.delete(threadId);
+        return await cloud.threads.delete(threadId);
       } catch (error) {
         console.warn("Failed to delete cloud thread:", error);
         throw error; // Re-throw for delete as it's user-initiated
