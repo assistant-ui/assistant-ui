@@ -160,9 +160,9 @@ export const useCloudThreadListAdapter = (
               const reader = stream.getReader();
               try {
                 while (true) {
-                  const { done, value } = await reader.read();
-                  if (done) break;
-                  controller.enqueue(value);
+                  const result = await reader.read();
+                  if (result.done) break;
+                  controller.enqueue(result.value);
                 }
               } finally {
                 reader.releaseLock();
