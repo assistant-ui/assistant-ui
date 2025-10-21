@@ -248,11 +248,12 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     const remoteId = this.store.threadListItem().getState().remoteId;
     if (!remoteId) return { messages: [] };
 
+    if (!this.cloudRef.current) {
+      console.warn("Cloud reference not available");
+      return { messages: [] };
+    }
+
     try {
-      if (!this.cloudRef.current) {
-        console.warn("Cloud reference not available");
-        return { messages: [] };
-      }
       const { messages } = await this.cloudRef.current.threads.messages.list(
         remoteId,
         {
