@@ -142,7 +142,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     });
 
     this._getIdForLocalId[messageId] = task;
-    return task.then(() => {});
+    await task;
   }
 
   /**
