@@ -82,8 +82,6 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     error: unknown,
     context: { remoteId?: string; format?: string },
   ) {
-    console.error("Failed to load cloud messages:", error);
-
     if (error instanceof CloudAPIError) {
       const cloudError = error as CloudAPIError;
       const errorDetails = {
