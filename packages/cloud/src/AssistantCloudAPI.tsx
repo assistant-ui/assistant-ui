@@ -144,7 +144,7 @@ export class AssistantCloudAPI {
     if (!response.ok) {
       const text = await response.text();
       let responseBody: unknown;
-      
+
       try {
         responseBody = JSON.parse(text);
       } catch {
@@ -152,12 +152,16 @@ export class AssistantCloudAPI {
       }
 
       throw new CloudAPIError(
-        typeof responseBody === 'object' && responseBody !== null && 'message' in responseBody
+        typeof responseBody === "object" &&
+        responseBody !== null &&
+        "message" in responseBody
           ? String(responseBody.message)
-          : `Request failed with status ${response.status}`,
+          : typeof responseBody === "string"
+            ? responseBody
+            : `Request failed with status ${response.status}`,
         response.status,
         response.statusText,
-        responseBody
+        responseBody,
       );
     }
 
