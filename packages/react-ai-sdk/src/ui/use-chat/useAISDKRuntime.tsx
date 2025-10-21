@@ -26,8 +26,6 @@ import { useExternalHistory } from "./useExternalHistory";
 // import { useReasoningDuration } from "../hooks/useReasoningDuration";
 import { getItemId } from "../utils/providerMetadata";
 
-
-
 export type AISDKRuntimeAdapter = {
   adapters?:
     | (NonNullable<ExternalStoreAdapter["adapters"]> & {
@@ -91,10 +89,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
           newTimings[key] = { ...existing, end };
           timingsChanged = true;
 
-          const durationSeconds = Math.max(
-            0,
-            Math.ceil((end - start) / 1000),
-          );
+          const durationSeconds = Math.max(0, Math.ceil((end - start) / 1000));
           if (newDurations[key] !== durationSeconds) {
             newDurations[key] = durationSeconds;
             durationsChanged = true;

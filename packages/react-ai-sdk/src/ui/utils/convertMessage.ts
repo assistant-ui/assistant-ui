@@ -84,7 +84,9 @@ const convertParts = (
           const key = `${message.id}:${itemId}`;
           const finalDuration = getReasoningDurations(metadata)?.[key];
 
-          const providerDuration = group.parts[0]?.providerMetadata?.["assistant-ui"]?.["duration"] as number | undefined;
+          const providerDuration = group.parts[0]?.providerMetadata?.[
+            "assistant-ui"
+          ]?.["duration"] as number | undefined;
 
           const rawDuration = finalDuration ?? providerDuration;
 
@@ -105,7 +107,9 @@ const convertParts = (
         const key = `${message.id}:${partIndex}`;
         const finalDuration = getReasoningDurations(metadata)?.[key];
 
-        const providerDuration = part.providerMetadata?.["assistant-ui"]?.["duration"] as number | undefined;
+        const providerDuration = part.providerMetadata?.["assistant-ui"]?.[
+          "duration"
+        ] as number | undefined;
 
         const rawDuration = finalDuration ?? providerDuration;
 
