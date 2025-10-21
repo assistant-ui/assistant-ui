@@ -101,7 +101,9 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
           return fallbackId;
         });
 
-      this._getIdForLocalId[message.id] = task;
+      if (!(message.id in this._getIdForLocalId)) {
+        this._getIdForLocalId[message.id] = task;
+      }
 
       return task.then(() => {});
     } catch (error) {
