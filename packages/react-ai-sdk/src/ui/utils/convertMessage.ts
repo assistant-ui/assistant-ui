@@ -13,6 +13,13 @@ function stripClosingDelimiters(json: string) {
   return json.replace(/[}\]"]+$/, "");
 }
 
+const getReasoningDurations = (
+  metadata: useExternalMessageConverter.Metadata,
+): Record<string, number> | undefined => {
+  return (metadata as { reasoningDurations?: Record<string, number> })
+    .reasoningDurations;
+};
+
 const convertParts = (
   message: UIMessage,
   metadata: useExternalMessageConverter.Metadata,
@@ -73,35 +80,19 @@ const convertParts = (
 
           // This is the first part - merge all texts
           const mergedText = group.parts.map((p) => p.text).join("\n\n");
+
           const key = `${message.id}:${itemId}`;
-          const timing = metadata.reasoningTimings?.[key];
-          const rawDuration = timing?.end
-            ? Math.ceil((timing.end - timing.start) / 1000)
-            : (group.parts[0]?.providerMetadata?.["assistant-ui"]?.[
-                "duration"
-              ] as number | undefined);
+          const finalDuration = getReasoningDurations(metadata)?.[key];
+
+          const providerDuration = group.parts[0]?.providerMetadata?.["assistant-ui"]?.["duration"] as number | undefined;
+
+          const rawDuration = finalDuration ?? providerDuration;
 
           // Validate duration is a valid number
           const duration =
             typeof rawDuration === "number" && rawDuration > 0
               ? rawDuration
               : undefined;
-
-          // NOTE: We intentionally mutate the original UIMessage providerMetadata here.
-          // This is safe because AI SDK creates new message objects on every update,
-          // so we're only mutating objects that won't be reused. The mutation is necessary
-          // because the MessageFormatAdapter needs to see the duration when encoding.
-          // TODO(Part 2): Replace with native tap metadata to eliminate mutation.
-          if (duration !== undefined) {
-            const firstPart = group.parts[0] as any;
-            firstPart.providerMetadata = {
-              ...(firstPart.providerMetadata || {}),
-              "assistant-ui": {
-                ...(firstPart.providerMetadata?.["assistant-ui"] || {}),
-                duration,
-              },
-            };
-          }
 
           return {
             type: "reasoning",
@@ -112,33 +103,17 @@ const convertParts = (
 
         // No itemId - handle as standalone reasoning part
         const key = `${message.id}:${partIndex}`;
-        const timing = metadata.reasoningTimings?.[key];
-        const rawDuration = timing?.end
-          ? Math.ceil((timing.end - timing.start) / 1000)
-          : (part.providerMetadata?.["assistant-ui"]?.["duration"] as
-              | number
-              | undefined);
+        const finalDuration = getReasoningDurations(metadata)?.[key];
+
+        const providerDuration = part.providerMetadata?.["assistant-ui"]?.["duration"] as number | undefined;
+
+        const rawDuration = finalDuration ?? providerDuration;
 
         // Validate duration is a valid number
         const duration =
           typeof rawDuration === "number" && rawDuration > 0
             ? rawDuration
             : undefined;
-
-        // NOTE: We intentionally mutate the original UIMessage providerMetadata here.
-        // This is safe because AI SDK creates new message objects on every update,
-        // so we're only mutating objects that won't be reused. The mutation is necessary
-        // because the MessageFormatAdapter needs to see the duration when encoding.
-        // TODO(Part 2): Replace with native tap metadata to eliminate mutation.
-        if (duration !== undefined) {
-          (part as any).providerMetadata = {
-            ...(part.providerMetadata || {}),
-            "assistant-ui": {
-              ...(part.providerMetadata?.["assistant-ui"] || {}),
-              duration,
-            },
-          };
-        }
 
         return {
           type: "reasoning",
