@@ -75,6 +75,45 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   }
 
   /**
+   * Enhanced error logging with context and error type differentiation.
+   * Helps distinguish between retry-able network errors and auth errors.
+   */
+  private _logLoadError(
+    error: unknown,
+    context: { remoteId?: string; format?: string },
+  ) {
+    console.error("Failed to load cloud messages:", error);
+
+    if (error instanceof Error) {
+      const errorDetails = {
+        message: error.message,
+        stack: error.stack,
+        ...context,
+      };
+
+      // Differentiate error types for better debugging
+      if (
+        error.message.includes("401") ||
+        error.message.includes("unauthorized")
+      ) {
+        console.error("Authentication error detected:", errorDetails);
+      } else if (
+        error.message.includes("network") ||
+        error.message.includes("timeout")
+      ) {
+        console.error("Network error detected (retry-able):", errorDetails);
+      } else if (
+        error.message.includes("403") ||
+        error.message.includes("forbidden")
+      ) {
+        console.error("Permission error detected:", errorDetails);
+      } else {
+        console.error("Unknown error type:", errorDetails);
+      }
+    }
+  }
+
+  /**
    * Private helper method to create messages with consistent error handling and ID mapping.
    * Follows DRY principle by extracting the common pattern used in append() and _appendWithFormat().
    */
@@ -153,7 +192,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
       };
       return payload;
     } catch (error) {
-      console.warn("Failed to load cloud messages:", error);
+      this._logLoadError(error, { remoteId });
       return { messages: [] };
     }
   }
@@ -215,7 +254,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
           .reverse(),
       };
     } catch (error) {
-      console.warn("Failed to load cloud messages with format:", error);
+      this._logLoadError(error, { remoteId, format });
       return { messages: [] };
     }
   }
