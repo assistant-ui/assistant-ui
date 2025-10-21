@@ -44,7 +44,7 @@ Every pull request that changes packages must include a changeset, otherwise you
 
 Note, this does not apply to packages like `@assistant-ui/docs` or `@assistant-ui/shadcn-registry` which are not published to npm, they are deployed on Vercel.
 
-Create a changeset by running:
+_Create_ a changeset by running:
 
 ```sh
 pnpm changeset
