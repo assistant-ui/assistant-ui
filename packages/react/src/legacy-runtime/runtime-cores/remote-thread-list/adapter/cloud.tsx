@@ -170,12 +170,13 @@ export const useCloudThreadListAdapter = (
         throw combinedError;
       } else if (localDeleteError) {
         // Only local failed - cloud delete succeeded
-        // Since cloud is the source of truth, consider this a success with a warning
-        console.warn(
-          "Thread deleted from cloud but local deletion failed. Cloud deletion succeeded, so operation is considered successful:",
-          localDeleteError,
+        // Even though cloud is source of truth, we need to throw so the optimistic
+        // update rolls back and the UI stays consistent with local state
+        const error = new Error(
+          `Thread deleted from cloud but local deletion failed: ${localDeleteError.message}`,
         );
-        // Don't throw error - cloud deletion succeeded, which is the authoritative result
+        console.error("State inconsistency - local deletion failed:", error);
+        throw error;
       } else if (cloudDeleteError) {
         // Only cloud failed - local delete succeeded
         console.error(
@@ -198,10 +199,11 @@ export const useCloudThreadListAdapter = (
         // Wrap stream to provide proper error handling during consumption.
         // Without this wrapper, mid-stream errors would not be properly
         // propagated to consumers via controller.error()
+        let reader: ReadableStreamDefaultReader<any> | null = null;
         return new ReadableStream({
           async start(controller) {
             try {
-              const reader = stream.getReader();
+              reader = stream.getReader();
               try {
                 while (true) {
                   const result = await reader.read();
@@ -211,6 +213,7 @@ export const useCloudThreadListAdapter = (
                 controller.close();
               } finally {
                 reader.releaseLock();
+                reader = null;
               }
             } catch (error) {
               console.warn("Failed to generate cloud thread title:", error);
@@ -220,10 +223,14 @@ export const useCloudThreadListAdapter = (
           async cancel(reason) {
             console.warn("Cloud thread title generation cancelled:", reason);
             try {
-              // Cancel the underlying cloud stream
-              await stream.cancel();
+              // Cancel through the reader if it exists, otherwise through the stream
+              if (reader) {
+                await reader.cancel(reason);
+              } else {
+                await stream.cancel();
+              }
             } catch (error) {
-              console.warn("Failed to cancel underlying cloud stream:", error);
+              console.warn("Failed to cancel cloud stream:", error);
             }
           },
         });

@@ -213,7 +213,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
       return payload;
     } catch (error) {
       this._logLoadError(error, { remoteId });
-      return { messages: [] };
+      throw error; // Rethrow so callers can surface the failure
     }
   }
 
@@ -276,7 +276,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
       };
     } catch (error) {
       this._logLoadError(error, { remoteId, format });
-      return { messages: [] };
+      throw error; // Rethrow so callers can surface the failure
     }
   }
 }
