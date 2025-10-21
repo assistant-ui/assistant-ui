@@ -105,9 +105,7 @@ export const useCloudThreadListAdapter = (
         return { externalId: external_id, remoteId: remoteId };
       } catch (error) {
         console.warn("Failed to initialize cloud thread:", error);
-        // Return a fallback thread ID instead of throwing
-        const fallbackId = `fallback-${Date.now()}`;
-        return { externalId: undefined, remoteId: fallbackId };
+        throw error; // Re-throw for initialize as it's user-initiated
       }
     },
 
@@ -170,7 +168,7 @@ export const useCloudThreadListAdapter = (
               controller.close();
             } catch (error) {
               console.warn("Failed to generate cloud thread title:", error);
-              controller.close();
+              controller.error(error);
             }
           },
         });
