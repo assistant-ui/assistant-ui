@@ -87,7 +87,12 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     },
     messageId: string,
   ) {
-    const taskPromise = this.cloudRef.current!.threads.messages.create(
+    if (!this.cloudRef.current) {
+      console.warn("Cloud reference not available");
+      throw new Error("Cloud reference not available");
+    }
+
+    const taskPromise = this.cloudRef.current.threads.messages.create(
       remoteId,
       params,
     );
@@ -108,11 +113,6 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
    * - Promise rejections propagate naturally without redundant catch blocks
    */
   async append({ parentId, message }: ExportedMessageRepositoryItem) {
-    if (!this.cloudRef.current) {
-      console.warn("Cloud reference not available");
-      throw new Error("Cloud reference not available");
-    }
-
     const { remoteId } = await this.store.threadListItem().initialize();
 
     return this._createMessage(
@@ -165,11 +165,6 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     format: string,
     content: T,
   ) {
-    if (!this.cloudRef.current) {
-      console.warn("Cloud reference not available");
-      throw new Error("Cloud reference not available");
-    }
-
     const { remoteId } = await this.store.threadListItem().initialize();
 
     return this._createMessage(
