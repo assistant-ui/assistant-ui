@@ -216,6 +216,15 @@ export const useCloudThreadListAdapter = (
               controller.error(error);
             }
           },
+          async cancel(reason) {
+            console.warn("Cloud thread title generation cancelled:", reason);
+            try {
+              // Cancel the underlying cloud stream
+              await stream.cancel();
+            } catch (error) {
+              console.warn("Failed to cancel underlying cloud stream:", error);
+            }
+          },
         });
       } catch (error) {
         console.warn("Failed to generate cloud thread title:", error);
