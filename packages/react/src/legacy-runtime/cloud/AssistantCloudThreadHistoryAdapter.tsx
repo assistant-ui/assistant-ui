@@ -164,7 +164,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         .catch((error) => {
           console.warn("Failed to append message to cloud:", error);
           // Return a fallback message ID to prevent the error from propagating
-          const fallbackId = `fallback-${Date.now()}`;
+          const fallbackId = `fallback-${crypto.randomUUID()}`;
           this._getIdForLocalId[messageId] = fallbackId;
           return fallbackId;
         });
