@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.11.33
+
+### Patch Changes
+
+- refactor: move submittedFeedback to metadata, add ThreadMessageLike support
+
 ## 0.11.32
 
 ### Patch Changes

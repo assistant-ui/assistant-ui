@@ -26,7 +26,7 @@ export const ActionBarPrimitiveFeedbackPositive = forwardRef<
   ActionBarPrimitiveFeedbackPositive.Props
 >(({ onClick, disabled, ...props }, forwardedRef) => {
   const isSubmitted = useAssistantState(
-    (s) => s.message.submittedFeedback?.type === "positive",
+    (s) => s.message.metadata.submittedFeedback?.type === "positive",
   );
   const callback = useActionBarFeedbackPositive();
   return (
