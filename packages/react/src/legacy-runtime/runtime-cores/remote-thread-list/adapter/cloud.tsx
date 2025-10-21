@@ -75,6 +75,11 @@ export const useCloudThreadListAdapter = (
   if (!cloud) return new InMemoryThreadListAdapter();
 
   return {
+    /**
+     * Error handling strategy:
+     * - Background operations (list): Log and return empty state for graceful degradation
+     * - User-initiated operations (initialize, rename, archive, etc.): Log and throw for proper UI feedback
+     */
     list: async () => {
       try {
         const { threads } = await cloud.threads.list();
@@ -104,6 +109,7 @@ export const useCloudThreadListAdapter = (
 
         return { externalId: external_id, remoteId: remoteId };
       } catch (error) {
+        console.warn("Failed to initialize cloud thread:", error);
         throw error; // Re-throw for initialize as it's user-initiated
       }
     },
@@ -112,6 +118,7 @@ export const useCloudThreadListAdapter = (
       try {
         return await cloud.threads.update(threadId, { title: newTitle });
       } catch (error) {
+        console.warn("Failed to rename cloud thread:", error);
         throw error; // Re-throw for rename as it's user-initiated
       }
     },
@@ -119,6 +126,7 @@ export const useCloudThreadListAdapter = (
       try {
         return await cloud.threads.update(threadId, { is_archived: true });
       } catch (error) {
+        console.warn("Failed to archive cloud thread:", error);
         throw error; // Re-throw for archive as it's user-initiated
       }
     },
@@ -126,6 +134,7 @@ export const useCloudThreadListAdapter = (
       try {
         return await cloud.threads.update(threadId, { is_archived: false });
       } catch (error) {
+        console.warn("Failed to unarchive cloud thread:", error);
         throw error; // Re-throw for unarchive as it's user-initiated
       }
     },
@@ -134,6 +143,7 @@ export const useCloudThreadListAdapter = (
         await adapter.delete?.(threadId);
         return await cloud.threads.delete(threadId);
       } catch (error) {
+        console.warn("Failed to delete cloud thread:", error);
         throw error; // Re-throw for delete as it's user-initiated
       }
     },

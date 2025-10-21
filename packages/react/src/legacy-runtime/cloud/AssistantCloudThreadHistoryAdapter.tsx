@@ -74,6 +74,12 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     return new FormattedThreadHistoryAdapter(this, formatAdapter);
   }
 
+  /**
+   * Error handling strategy:
+   * - Message operations throw errors for proper caller handling
+   * - Cloud reference checks throw errors to prevent invalid operations
+   * - Promise rejections propagate naturally without redundant catch blocks
+   */
   async append({ parentId, message }: ExportedMessageRepositoryItem) {
     if (!this.cloudRef.current) {
       console.warn("Cloud reference not available");
@@ -92,14 +98,10 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
       },
     );
 
-    const task = taskPromise
-      .then(({ message_id }) => {
-        this._getIdForLocalId[message.id] = message_id;
-        return message_id;
-      })
-      .catch((error) => {
-        throw error;
-      });
+    const task = taskPromise.then(({ message_id }) => {
+      this._getIdForLocalId[message.id] = message_id;
+      return message_id;
+    });
 
     this._getIdForLocalId[message.id] = task;
 
@@ -161,14 +163,10 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
       },
     );
 
-    const task = taskPromise
-      .then(({ message_id }) => {
-        this._getIdForLocalId[messageId] = message_id;
-        return message_id;
-      })
-      .catch((error) => {
-        throw error;
-      });
+    const task = taskPromise.then(({ message_id }) => {
+      this._getIdForLocalId[messageId] = message_id;
+      return message_id;
+    });
 
     this._getIdForLocalId[messageId] = task;
 
