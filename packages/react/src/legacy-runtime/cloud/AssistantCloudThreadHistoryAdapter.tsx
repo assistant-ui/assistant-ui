@@ -146,37 +146,31 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     format: string,
     content: T,
   ) {
-    try {
-      const { remoteId } = await this.store.threadListItem().initialize();
+    const { remoteId } = await this.store.threadListItem().initialize();
 
-      const task = this.cloudRef.current.threads.messages
-        .create(remoteId, {
-          parent_id: parentId
-            ? ((await this._getIdForLocalId[parentId]) ?? parentId)
-            : null,
-          format,
-          content: content as ReadonlyJSONObject,
-        })
-        .then(({ message_id }) => {
-          this._getIdForLocalId[messageId] = message_id;
-          return message_id;
-        })
-        .catch((error) => {
-          console.warn("Failed to append message to cloud:", error);
-          // Return a fallback message ID to prevent the error from propagating
-          const fallbackId = `fallback-${crypto.randomUUID()}`;
-          this._getIdForLocalId[messageId] = fallbackId;
-          return fallbackId;
-        });
+    const task = this.cloudRef.current.threads.messages
+      .create(remoteId, {
+        parent_id: parentId
+          ? ((await this._getIdForLocalId[parentId]) ?? parentId)
+          : null,
+        format,
+        content: content as ReadonlyJSONObject,
+      })
+      .then(({ message_id }) => {
+        this._getIdForLocalId[messageId] = message_id;
+        return message_id;
+      })
+      .catch((error) => {
+        console.warn("Failed to append message to cloud:", error);
+        // Return a fallback message ID to prevent the error from propagating
+        const fallbackId = `fallback-${crypto.randomUUID()}`;
+        this._getIdForLocalId[messageId] = fallbackId;
+        return fallbackId;
+      });
 
-      this._getIdForLocalId[messageId] = task;
+    this._getIdForLocalId[messageId] = task;
 
-      return task.then(() => {});
-    } catch (error) {
-      console.warn("Failed to append message to cloud:", error);
-      // Return a resolved promise to prevent the error from propagating
-      return Promise.resolve();
-    }
+    return task.then(() => {});
   }
 
   async _loadWithFormat<TMessage, TStorageFormat>(
