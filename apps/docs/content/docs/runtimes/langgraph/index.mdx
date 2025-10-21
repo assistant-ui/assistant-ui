@@ -136,7 +136,7 @@ export const OPTIONS = () => {
 
 // ---cut---
 import { Client } from "@langchain/langgraph-sdk";
-import { LangChainMessage } from "@assistant-ui/react-langgraph";
+import { LangChainMessage, LangGraphSendMessageConfig } from "@assistant-ui/react-langgraph";
 
 const createClient = () => {
   const apiUrl = process.env["NEXT_PUBLIC_LANGGRAPH_API_URL"] || "/api";
@@ -160,6 +160,7 @@ export const getThreadState = async (
 export const sendMessage = async (params: {
   threadId: string;
   messages: LangChainMessage;
+  config: LangGraphSendMessageConfig;
 }) => {
   const client = createClient();
   return client.runs.stream(
@@ -170,6 +171,7 @@ export const sendMessage = async (params: {
         messages: params.messages,
       },
       streamMode: "messages",
+      ...config
     },
   );
 };
@@ -195,12 +197,13 @@ import { createThread, getThreadState, sendMessage } from "@/lib/chatApi";
 
 export function MyAssistant() {
   const runtime = useLangGraphRuntime({
-    stream: async (messages, { initialize }) => {
+    stream: async (messages, { initialize, config }) => {
       const { externalId } = await initialize();
       if (!externalId) throw new Error("Thread not found");
       return sendMessage({
         threadId: externalId,
         messages,
+        config
       });
     },
     create: async () => {
@@ -306,11 +309,11 @@ The `useLangGraphRuntime` hook now includes built-in thread management capabilit
 
 ```typescript
 const runtime = useLangGraphRuntime({
-  stream: async (messages, { initialize }) => {
+  stream: async (messages, { initialize, config }) => {
     // initialize() creates or loads a thread and returns its IDs
     const { remoteId, externalId } = await initialize();
     // Use externalId (your backend's thread ID) for API calls
-    return sendMessage({ threadId: externalId, messages });
+    return sendMessage({ threadId: externalId, messages, config });
   },
   create: async () => {
     // Called when creating a new thread
