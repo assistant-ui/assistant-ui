@@ -1,58 +1,46 @@
 "use client";
 
-import { useState } from "react";
 import { Thread } from "@/components/assistant-ui/thread";
 import { AgentSelector } from "@/components/assistant-ui/agent-selector";
 import { MemoryStatus } from "@/components/assistant-ui/memory-status";
-import { WorkflowControls } from "@/components/assistant-ui/workflow-controls";
-import { useAgentContext } from "./MyRuntimeProvider";
-import { ChefHat, Cloud } from "lucide-react";
+import { CandidateForm } from "@/components/assistant-ui/candidate-form";
+import { WorkflowStatus } from "@/components/assistant-ui/workflow-status";
+import { useAgentContext, useWorkflowContext } from "./MyRuntimeProvider";
+import { UserCheck, MessageSquare } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
 export default function Home() {
   const { selectedAgent, setSelectedAgent } = useAgentContext();
+  const {
+    workflowState,
+    startWorkflow,
+    resumeWorkflow,
+    isStarting,
+    isResuming,
+  } = useWorkflowContext();
 
   const agents = [
     {
-      id: "chefAgent",
-      name: "Chef Agent",
-      icon: ChefHat,
-      description: "Cooking and recipe assistance",
+      id: "screeningAgent",
+      name: "Screening Agent",
+      icon: UserCheck,
+      description: "Initial candidate screening and evaluation",
     },
     {
-      id: "weatherAgent",
-      name: "Weather Agent",
-      icon: Cloud,
-      description: "Weather information and forecasts",
+      id: "interviewAgent",
+      name: "Interview Agent",
+      icon: MessageSquare,
+      description: "Technical and behavioral interviews",
     },
   ];
 
-  // Mock workflow state for demonstration
-  const [workflowStatus, setWorkflowStatus] = useState<
-    "idle" | "running" | "paused" | "completed" | "error"
-  >("idle");
-  const [workflowProgress, setWorkflowProgress] = useState(0);
-
-  const handleWorkflowStart = () => {
-    setWorkflowStatus("running");
-    setWorkflowProgress(0);
-    // Simulate progress
-    const interval = setInterval(() => {
-      setWorkflowProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setWorkflowStatus("completed");
-          return 100;
-        }
-        return prev + 10;
-      });
-    }, 500);
+  const handleCandidateSubmit = async (candidateData: any) => {
+    await startWorkflow(candidateData);
   };
 
-  const handleWorkflowReset = () => {
-    setWorkflowStatus("idle");
-    setWorkflowProgress(0);
+  const handleResume = async (resumeData: any) => {
+    await resumeWorkflow(resumeData);
   };
 
   return (
@@ -80,25 +68,23 @@ export default function Home() {
           <MemoryStatus showStats={true} />
         </div>
 
-        {/* Workflow Controls (Mock) */}
+        {/* Hiring Workflow */}
         <div className="space-y-2">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-            Workflow Demo
+            Hiring Workflow
           </h2>
-          <WorkflowControls
-            workflowId="demo-workflow"
-            status={workflowStatus}
-            progress={workflowProgress}
-            showSteps={true}
-            allowPause={false}
-            steps={[
-              { id: "1", name: "Initialize", status: workflowProgress > 0 ? "completed" : "pending" },
-              { id: "2", name: "Process", status: workflowProgress > 50 ? "completed" : workflowProgress > 0 ? "running" : "pending" },
-              { id: "3", name: "Finalize", status: workflowProgress === 100 ? "completed" : "pending" },
-            ]}
-            onStart={handleWorkflowStart}
-            onReset={handleWorkflowReset}
-          />
+          {!workflowState && (
+            <CandidateForm onSubmit={handleCandidateSubmit} isLoading={isStarting} />
+          )}
+          {workflowState && (
+            <WorkflowStatus
+              status={workflowState.status as any}
+              currentStep={workflowState.current}
+              suspendData={(workflowState as any).suspendData}
+              onResume={handleResume}
+              isResuming={isResuming}
+            />
+          )}
         </div>
       </div>
 
@@ -116,7 +102,7 @@ export default function Home() {
 
         {/* Thread */}
         <div className="flex-1 overflow-hidden">
-          <Thread />
+          <Thread selectedAgent={selectedAgent} />
         </div>
       </div>
     </div>

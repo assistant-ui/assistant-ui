@@ -8,26 +8,49 @@ import {
   MastraWorkflowInterrupt,
 } from "./types";
 
-// Mock Mastra workflow API - in real implementation, this would connect to actual Mastra APIs
+// Real Mastra workflow API - connects to Next.js API routes
 const mastraWorkflow = {
-  start: async (workflowConfig: MastraWorkflowConfig & { context?: Record<string, any> }) => {
+  start: async (workflowConfig: MastraWorkflowConfig & { context?: Record<string, any>, candidateData?: any }) => {
     console.log("Mastra workflow start:", workflowConfig);
+
+    // Call the workflow API
+    const response = await fetch("/api/workflow", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(workflowConfig.candidateData || {
+        candidateName: "Test Candidate",
+        candidateEmail: "test@example.com",
+        resume: "Sample resume text",
+        position: "Software Engineer",
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || "Failed to start workflow");
+    }
+
+    const data = await response.json();
+
+    // Transform API response to internal format
     return {
-      id: `workflow-${workflowConfig.workflowId}`,
-      current: workflowConfig.initialState || "gathering",
-      status: "running" as const,
+      id: data.runId,
+      current: data.suspended?.[0] || "screening-step",
+      status: data.status === "suspended" ? "suspended" as const : "running" as const,
       context: workflowConfig.context || {},
       history: [{
         from: "none",
-        to: workflowConfig.initialState || "gathering",
+        to: "screening-step",
         event: "start",
         timestamp: new Date().toISOString(),
       }],
       timestamp: new Date().toISOString(),
+      suspendData: data.status === "suspended" ? data.result : undefined,
     };
   },
   suspend: async (workflowId: string) => {
     console.log("Mastra workflow suspend:", workflowId);
+    // Suspend is handled automatically by the workflow when it calls suspend()
     return {
       id: workflowId,
       status: "suspended" as const,
@@ -36,14 +59,41 @@ const mastraWorkflow = {
   },
   resume: async (workflowId: string, input?: any) => {
     console.log("Mastra workflow resume:", { workflowId, input });
+
+    const response = await fetch("/api/workflow/resume", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        runId: workflowId,
+        stepId: undefined, // Let the API determine which step
+        resumeData: input,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || "Failed to resume workflow");
+    }
+
+    const data = await response.json();
+
     return {
-      id: workflowId,
-      status: "running" as const,
+      id: data.runId,
+      status: data.status === "suspended" ? "suspended" as const :
+              data.status === "success" ? "completed" as const : "running" as const,
       timestamp: new Date().toISOString(),
+      suspendData: data.status === "suspended" ? data.result : undefined,
     };
   },
   sendCommand: async (workflowId: string, command: MastraWorkflowCommand) => {
     console.log("Mastra workflow command:", { workflowId, command });
+    // Commands are handled via resume with specific resumeData
+    if (command.transition) {
+      return await mastraWorkflow.resume(workflowId, {
+        transition: command.transition,
+        context: command.context,
+      });
+    }
     return {
       id: workflowId,
       status: "running" as const,
@@ -52,7 +102,7 @@ const mastraWorkflow = {
   },
   subscribe: (workflowId: string) => {
     console.log("Mastra workflow subscribe:", workflowId);
-    // Mock subscription - in real implementation, this would be a real-time connection
+    // In a real implementation, this would establish an SSE connection
     const unsubscribe = () => {
       console.log("Mastra workflow unsubscribe:", workflowId);
     };

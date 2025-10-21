@@ -24,7 +24,11 @@ import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { ToolResults } from "./tool-results";
 
-export const Thread: FC = () => {
+interface ThreadProps {
+  selectedAgent: string;
+}
+
+export const Thread: FC<ThreadProps> = ({ selectedAgent }) => {
   return (
     <ThreadPrimitive.Root
       className="text-foreground bg-background box-border flex h-full flex-col overflow-hidden"
@@ -33,7 +37,7 @@ export const Thread: FC = () => {
       }}
     >
       <ThreadPrimitive.Viewport className="flex h-full flex-col items-center overflow-y-scroll scroll-smooth bg-inherit px-4 pt-8">
-        <ThreadWelcome />
+        <ThreadWelcome selectedAgent={selectedAgent} />
 
         <ThreadPrimitive.Messages
           components={{
@@ -70,42 +74,58 @@ const ThreadScrollToBottom: FC = () => {
   );
 };
 
-const ThreadWelcome: FC = () => {
+const ThreadWelcome: FC<{ selectedAgent: string }> = ({ selectedAgent }) => {
   return (
     <ThreadPrimitive.Empty>
       <div className="flex w-full max-w-[var(--thread-max-width)] flex-grow flex-col">
         <div className="flex w-full flex-grow flex-col items-center justify-center">
           <p className="mt-4 font-medium">How can I help you today?</p>
         </div>
-        <ThreadWelcomeSuggestions />
+        <ThreadWelcomeSuggestions selectedAgent={selectedAgent} />
       </div>
     </ThreadPrimitive.Empty>
   );
 };
 
-const ThreadWelcomeSuggestions: FC = () => {
+const ThreadWelcomeSuggestions: FC<{ selectedAgent: string }> = ({ selectedAgent }) => {
+  // Different suggestions based on the selected agent
+  const suggestions = selectedAgent === "screeningAgent"
+    ? [
+        {
+          prompt: "What qualities are you looking for in a senior engineer?",
+          text: "What qualities are you looking for in a senior engineer?",
+        },
+        {
+          prompt: "How should I structure my screening questions?",
+          text: "How should I structure my screening questions?",
+        },
+      ]
+    : [
+        {
+          prompt: "What are good technical interview questions for React developers?",
+          text: "What are good technical interview questions for React developers?",
+        },
+        {
+          prompt: "How do you assess cultural fit during interviews?",
+          text: "How do you assess cultural fit during interviews?",
+        },
+      ];
+
   return (
     <div className="mt-3 flex w-full items-stretch justify-center gap-4">
-      <ThreadPrimitive.Suggestion
-        className="hover:bg-muted/80 flex max-w-sm grow basis-0 flex-col items-center justify-center rounded-lg border p-3 transition-colors ease-in"
-        prompt="What can you cook with chicken and rice?"
-        method="replace"
-        autoSend
-      >
-        <span className="line-clamp-2 text-ellipsis text-sm font-semibold">
-          What can you cook with chicken and rice?
-        </span>
-      </ThreadPrimitive.Suggestion>
-      <ThreadPrimitive.Suggestion
-        className="hover:bg-muted/80 flex max-w-sm grow basis-0 flex-col items-center justify-center rounded-lg border p-3 transition-colors ease-in"
-        prompt="What's the weather like in New York?"
-        method="replace"
-        autoSend
-      >
-        <span className="line-clamp-2 text-ellipsis text-sm font-semibold">
-          What&apos;s the weather like in New York?
-        </span>
-      </ThreadPrimitive.Suggestion>
+      {suggestions.map((suggestion, index) => (
+        <ThreadPrimitive.Suggestion
+          key={index}
+          className="hover:bg-muted/80 flex max-w-sm grow basis-0 flex-col items-center justify-center rounded-lg border p-3 transition-colors ease-in"
+          prompt={suggestion.prompt}
+          method="replace"
+          autoSend
+        >
+          <span className="line-clamp-2 text-ellipsis text-sm font-semibold">
+            {suggestion.text}
+          </span>
+        </ThreadPrimitive.Suggestion>
+      ))}
     </div>
   );
 };
