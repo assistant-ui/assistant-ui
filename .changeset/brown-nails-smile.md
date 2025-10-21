@@ -2,4 +2,4 @@
 "@assistant-ui/react": patch
 ---
 
-assistant-cloud improves error handling
+Adds CloudAPIError class with HTTP status code detection and improves error handling across cloud adapters with better logging and recovery strategies
