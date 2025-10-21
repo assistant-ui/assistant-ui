@@ -94,7 +94,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
           return message_id;
         })
         .catch((error) => {
-          console.warn("Failed to append message to cloud:", error);
+          console.error("Failed to append message to cloud:", error);
           // Return a fallback message ID to prevent the error from propagating
           const fallbackId = `fallback-${message.id}-${Date.now()}`;
           this._getIdForLocalId[message.id] = fallbackId;
@@ -107,7 +107,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
 
       return task.then(() => {});
     } catch (error) {
-      console.warn("Failed to append message to cloud:", error);
+      console.error("Failed to append message to cloud:", error);
       // Return a resolved promise to prevent the error from propagating
       return Promise.resolve();
     }
