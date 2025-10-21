@@ -98,7 +98,6 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         return message_id;
       })
       .catch((error) => {
-        console.warn("Failed to append message to cloud:", error);
         throw error;
       });
 
@@ -168,7 +167,6 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         return message_id;
       })
       .catch((error) => {
-        console.warn("Failed to append message to cloud:", error);
         throw error;
       });
 
