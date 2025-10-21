@@ -170,11 +170,12 @@ export const useCloudThreadListAdapter = (
         throw combinedError;
       } else if (localDeleteError) {
         // Only local failed - cloud delete succeeded
+        // Since cloud is the source of truth, consider this a success with a warning
         console.warn(
-          "Thread deleted from cloud but local deletion failed:",
+          "Thread deleted from cloud but local deletion failed. Cloud deletion succeeded, so operation is considered successful:",
           localDeleteError,
         );
-        throw localDeleteError;
+        // Don't throw error - cloud deletion succeeded, which is the authoritative result
       } else if (cloudDeleteError) {
         // Only cloud failed - local delete succeeded
         console.error(
