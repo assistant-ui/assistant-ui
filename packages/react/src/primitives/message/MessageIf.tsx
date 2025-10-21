@@ -28,7 +28,6 @@ const useMessageIf = (props: UseMessageIfProps) => {
       branchCount,
       isLast,
       speech,
-      submittedFeedback,
       isCopied,
       isHovering,
     } = message;
@@ -65,7 +64,8 @@ const useMessageIf = (props: UseMessageIfProps) => {
 
     if (
       props.submittedFeedback !== undefined &&
-      (submittedFeedback?.type ?? null) !== props.submittedFeedback
+      (message.metadata.submittedFeedback?.type ?? null) !==
+        props.submittedFeedback
     )
       return false;
 

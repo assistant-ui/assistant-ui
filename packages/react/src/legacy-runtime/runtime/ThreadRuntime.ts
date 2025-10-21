@@ -124,14 +124,14 @@ export type ThreadListItemRuntimeBinding = SubscribableWithState<
 export type ThreadState = {
   /**
    * The thread ID.
-   * @deprecated This field is deprecated and will be removed in 0.8.0. Use `useThreadListItem().id` instead.
+   * @deprecated This field is deprecated and will be removed in 0.12.0. Use `useThreadListItem().id` instead.
    */
   readonly threadId: string;
 
   /**
    * The thread metadata.
    *
-   * @deprecated Use `useThreadListItem()` instead. This field is deprecated and will be removed in 0.8.0.
+   * @deprecated Use `useThreadListItem()` instead. This field is deprecated and will be removed in 0.12.0.
    */
   readonly metadata: ThreadListItemState;
 
@@ -241,7 +241,7 @@ export type ThreadRuntime = {
   append(message: CreateAppendMessage): void;
 
   /**
-   * @deprecated pass an object with `parentId` instead. This will be removed in 0.8.0.
+   * @deprecated pass an object with `parentId` instead. This will be removed in 0.12.0.
    */
   startRun(parentId: string | null): void;
   /**

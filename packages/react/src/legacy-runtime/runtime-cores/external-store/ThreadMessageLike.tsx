@@ -57,6 +57,7 @@ export type ThreadMessageLike = {
           | undefined;
         readonly unstable_data?: readonly ReadonlyJSONValue[] | undefined;
         readonly steps?: readonly ThreadStep[] | undefined;
+        readonly submittedFeedback?: { readonly type: "positive" | "negative" };
         readonly custom?: Record<string, unknown> | undefined;
       }
     | undefined;
@@ -161,6 +162,9 @@ export const fromThreadMessageLike = (
           unstable_data: metadata?.unstable_data ?? [],
           custom: metadata?.custom ?? {},
           steps: metadata?.steps ?? [],
+          ...(metadata?.submittedFeedback && {
+            submittedFeedback: metadata.submittedFeedback,
+          }),
         },
       } satisfies ThreadAssistantMessage;
 
