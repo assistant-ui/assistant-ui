@@ -139,13 +139,51 @@ export const useCloudThreadListAdapter = (
       }
     },
     delete: async (threadId) => {
+      let localDeleteError: Error | null = null;
+      let cloudDeleteError: Error | null = null;
+
+      // Handle local delete independently
       try {
         await adapter.delete?.(threadId);
-        return await cloud.threads.delete(threadId);
       } catch (error) {
-        console.warn("Failed to delete cloud thread:", error);
-        throw error; // Re-throw for delete as it's user-initiated
+        localDeleteError =
+          error instanceof Error ? error : new Error(String(error));
+        console.warn("Failed to delete thread locally:", localDeleteError);
       }
+
+      // Handle cloud delete independently
+      try {
+        await cloud.threads.delete(threadId);
+      } catch (error) {
+        cloudDeleteError =
+          error instanceof Error ? error : new Error(String(error));
+        console.warn("Failed to delete thread from cloud:", cloudDeleteError);
+      }
+
+      // Report results based on what succeeded/failed
+      if (localDeleteError && cloudDeleteError) {
+        // Both failed - throw a combined error
+        const combinedError = new Error(
+          `Failed to delete thread both locally and from cloud. Local: ${localDeleteError.message}, Cloud: ${cloudDeleteError.message}`,
+        );
+        console.error("Thread deletion failed completely:", combinedError);
+        throw combinedError;
+      } else if (localDeleteError) {
+        // Only local failed - cloud delete succeeded
+        console.warn(
+          "Thread deleted from cloud but local deletion failed:",
+          localDeleteError,
+        );
+        throw localDeleteError;
+      } else if (cloudDeleteError) {
+        // Only cloud failed - local delete succeeded
+        console.error(
+          "Thread deleted locally but cloud deletion failed - state inconsistency:",
+          cloudDeleteError,
+        );
+        throw cloudDeleteError;
+      }
+      // Both succeeded - no error to throw
     },
 
     generateTitle: async (threadId, messages) => {
