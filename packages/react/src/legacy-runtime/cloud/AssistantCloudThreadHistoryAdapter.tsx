@@ -75,23 +75,36 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   }
 
   async append({ parentId, message }: ExportedMessageRepositoryItem) {
-    const { remoteId } = await this.store.threadListItem().initialize();
-    const task = this.cloudRef.current.threads.messages
-      .create(remoteId, {
-        parent_id: parentId
-          ? ((await this._getIdForLocalId[parentId]) ?? parentId)
-          : null,
-        format: "aui/v0",
-        content: auiV0Encode(message),
-      })
-      .then(({ message_id }) => {
-        this._getIdForLocalId[message.id] = message_id;
-        return message_id;
-      });
+    try {
+      const { remoteId } = await this.store.threadListItem().initialize();
+      const task = this.cloudRef.current.threads.messages
+        .create(remoteId, {
+          parent_id: parentId
+            ? ((await this._getIdForLocalId[parentId]) ?? parentId)
+            : null,
+          format: "aui/v0",
+          content: auiV0Encode(message),
+        })
+        .then(({ message_id }) => {
+          this._getIdForLocalId[message.id] = message_id;
+          return message_id;
+        })
+        .catch((error) => {
+          console.warn("Failed to append message to cloud:", error);
+          // Return a fallback message ID to prevent the error from propagating
+          const fallbackId = `fallback-${Date.now()}`;
+          this._getIdForLocalId[message.id] = fallbackId;
+          return fallbackId;
+        });
 
-    this._getIdForLocalId[message.id] = task;
+      this._getIdForLocalId[message.id] = task;
 
-    return task.then(() => {});
+      return task.then(() => {});
+    } catch (error) {
+      console.warn("Failed to append message to cloud:", error);
+      // Return a resolved promise to prevent the error from propagating
+      return Promise.resolve();
+    }
   }
 
   async load() {
@@ -127,24 +140,37 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     format: string,
     content: T,
   ) {
-    const { remoteId } = await this.store.threadListItem().initialize();
+    try {
+      const { remoteId } = await this.store.threadListItem().initialize();
 
-    const task = this.cloudRef.current.threads.messages
-      .create(remoteId, {
-        parent_id: parentId
-          ? ((await this._getIdForLocalId[parentId]) ?? parentId)
-          : null,
-        format,
-        content: content as ReadonlyJSONObject,
-      })
-      .then(({ message_id }) => {
-        this._getIdForLocalId[messageId] = message_id;
-        return message_id;
-      });
+      const task = this.cloudRef.current.threads.messages
+        .create(remoteId, {
+          parent_id: parentId
+            ? ((await this._getIdForLocalId[parentId]) ?? parentId)
+            : null,
+          format,
+          content: content as ReadonlyJSONObject,
+        })
+        .then(({ message_id }) => {
+          this._getIdForLocalId[messageId] = message_id;
+          return message_id;
+        })
+        .catch((error) => {
+          console.warn("Failed to append message to cloud:", error);
+          // Return a fallback message ID to prevent the error from propagating
+          const fallbackId = `fallback-${Date.now()}`;
+          this._getIdForLocalId[messageId] = fallbackId;
+          return fallbackId;
+        });
 
-    this._getIdForLocalId[messageId] = task;
+      this._getIdForLocalId[messageId] = task;
 
-    return task.then(() => {});
+      return task.then(() => {});
+    } catch (error) {
+      console.warn("Failed to append message to cloud:", error);
+      // Return a resolved promise to prevent the error from propagating
+      return Promise.resolve();
+    }
   }
 
   async _loadWithFormat<TMessage, TStorageFormat>(

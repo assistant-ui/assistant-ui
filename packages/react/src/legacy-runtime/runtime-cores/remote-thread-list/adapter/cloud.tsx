@@ -105,7 +105,9 @@ export const useCloudThreadListAdapter = (
         return { externalId: external_id, remoteId: remoteId };
       } catch (error) {
         console.warn("Failed to initialize cloud thread:", error);
-        throw error; // Re-throw for initialize as it's critical
+        // Return a fallback thread ID instead of throwing
+        const fallbackId = `fallback-${Date.now()}`;
+        return { externalId: undefined, remoteId: fallbackId };
       }
     },
 
@@ -145,14 +147,33 @@ export const useCloudThreadListAdapter = (
 
     generateTitle: async (threadId, messages) => {
       try {
-        return cloud.runs.stream({
+        const stream = cloud.runs.stream({
           thread_id: threadId,
           assistant_id: "system/thread_title",
           messages: messages, // TODO serialize these to a more efficient format
         });
+
+        // Wrap the stream to catch errors during consumption
+        return {
+          [Symbol.asyncIterator]: async function* () {
+            try {
+              for await (const chunk of stream) {
+                yield chunk;
+              }
+            } catch (error) {
+              console.warn("Failed to generate cloud thread title:", error);
+              // End the generator gracefully
+            }
+          },
+        };
       } catch (error) {
         console.warn("Failed to generate cloud thread title:", error);
-        throw error; // Re-throw for generateTitle as it's user-initiated
+        // Return a mock stream that immediately ends
+        return {
+          [Symbol.asyncIterator]: async function* () {
+            // Empty generator that yields nothing
+          },
+        };
       }
     },
 
