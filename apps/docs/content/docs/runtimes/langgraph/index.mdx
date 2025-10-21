@@ -160,7 +160,7 @@ export const getThreadState = async (
 export const sendMessage = async (params: {
   threadId: string;
   messages: LangChainMessage;
-  config: LangGraphSendMessageConfig;
+  config?: LangGraphSendMessageConfig;
 }) => {
   const client = createClient();
   return client.runs.stream(
