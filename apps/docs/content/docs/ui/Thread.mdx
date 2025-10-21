@@ -5,7 +5,6 @@ title: Thread
 import { Steps, Step } from "fumadocs-ui/components/steps";
 import { Callout } from "fumadocs-ui/components/callout";
 import { Tab, Tabs } from "fumadocs-ui/components/tabs";
-import { ParametersTable } from "@/components/docs";
 import { ThreadSample } from "../../../components/samples/thread-sample";
 
 A complete chat interface that combines message rendering, auto-scrolling, composer input,
@@ -142,21 +141,9 @@ The following primitives are used within the Thread component and can be customi
 
 Contains all parts of the thread.
 
-<ParametersTable
-  type="ThreadPrimitiveRootProps"
-  parameters={[
-    {
-      name: "asChild",
-      type: "boolean",
-      default: "false",
-      description: "Merge props with child element instead of rendering a wrapper div.",
-    },
-    {
-      name: "className",
-      type: "string",
-      description: "CSS class name.",
-    },
-  ]}
+<auto-type-table
+  path="../../../../../packages/react/src/primitives/thread/ThreadRoot.tsx"
+  type="ThreadPrimitiveRoot.Props"
 />
 
 This primitive renders a `<div>` element unless `asChild` is set.
@@ -165,28 +152,9 @@ This primitive renders a `<div>` element unless `asChild` is set.
 
 The scrollable area containing all messages. Automatically scrolls to the bottom as new messages are added.
 
-<ParametersTable
-  type="ThreadPrimitiveViewportProps"
-  parameters={[
-    {
-      name: "asChild",
-      type: "boolean",
-      default: "false",
-      description: "Merge props with child element instead of rendering a wrapper div.",
-    },
-    {
-      name: "autoScroll",
-      type: "boolean",
-      default: "true",
-      description:
-        "Whether to automatically scroll to the bottom when new messages are added while the viewport was previously scrolled to the bottom.",
-    },
-    {
-      name: "className",
-      type: "string",
-      description: "CSS class name.",
-    },
-  ]}
+<auto-type-table
+  path="../../../../../packages/react/src/primitives/thread/ThreadViewport.tsx"
+  type="ThreadPrimitiveViewport.Props"
 />
 
 This primitive renders a `<div>` element unless `asChild` is set.
@@ -205,49 +173,9 @@ Renders all messages in the thread. This primitive renders a separate component 
 />
 ```
 
-<ParametersTable
-  type="ThreadPrimitiveMessagesProps"
-  parameters={[
-    {
-      name: "components",
-      type: "MessageComponents",
-      required: true,
-      description: "Components to render for different message types.",
-      children: [
-        {
-          type: "MessageComponents",
-          parameters: [
-            {
-              name: "Message",
-              type: "ComponentType",
-              description: "Default component for all messages.",
-            },
-            {
-              name: "UserMessage",
-              type: "ComponentType",
-              description: "Component for user messages.",
-            },
-            {
-              name: "EditComposer",
-              type: "ComponentType",
-              description:
-                "Component for user messages being edited.",
-            },
-            {
-              name: "AssistantMessage",
-              type: "ComponentType",
-              description: "Component for assistant messages.",
-            },
-            {
-              name: "SystemMessage",
-              type: "ComponentType",
-              description: "Component for system messages.",
-            },
-          ],
-        },
-      ],
-    },
-  ]}
+<auto-type-table
+  path="../../../../../packages/react/src/primitives/thread/ThreadMessages.tsx"
+  type="ThreadPrimitiveMessages.Props"
 />
 
 
@@ -265,57 +193,27 @@ Renders a single message at the specified index.
 />
 ```
 
-<ParametersTable
-  type="ThreadPrimitiveMessageByIndexProps"
-  parameters={[
-    {
-      name: "index",
-      type: "number",
-      required: true,
-      description: "The index of the message to render.",
-    },
-    {
-      name: "components",
-      type: "MessageComponents",
-      description: "Components to render for different message types.",
-    },
-  ]}
+<auto-type-table
+  path="../../../../../packages/react/src/primitives/thread/ThreadMessages.tsx"
+  type="ThreadPrimitiveMessageByIndex.Props"
 />
 
 ### Empty
 
 Renders children only when there are no messages in the thread.
 
-<ParametersTable
-  type="ThreadPrimitiveEmptyProps"
-  parameters={[
-    {
-      name: "children",
-      type: "ReactNode",
-      description: "Content to display when the thread is empty.",
-    },
-  ]}
+<auto-type-table
+  path="../../../../../packages/react/src/primitives/thread/ThreadEmpty.tsx"
+  type="ThreadPrimitiveEmpty.Props"
 />
 
 ### ScrollToBottom
 
 A button to scroll the viewport to the bottom. Disabled when the viewport is already at the bottom.
 
-<ParametersTable
-  type="ThreadPrimitiveScrollToBottomProps"
-  parameters={[
-    {
-      name: "asChild",
-      type: "boolean",
-      default: "false",
-      description: "Merge props with child element instead of rendering a wrapper button.",
-    },
-    {
-      name: "className",
-      type: "string",
-      description: "CSS class name.",
-    },
-  ]}
+<auto-type-table
+  path="../../../../../packages/react/src/primitives/thread/ThreadScrollToBottom.tsx"
+  type="ThreadPrimitiveScrollToBottom.Props"
 />
 
 This primitive renders a `<button>` element unless `asChild` is set.
@@ -331,52 +229,9 @@ Shows a suggestion to the user. When clicked, replaces the composer's value with
 />
 ```
 
-<ParametersTable
-  type="ThreadPrimitiveSuggestionProps"
-  parameters={[
-    {
-      name: "prompt",
-      type: "string",
-      required: true,
-      description: "The suggestion text to use when clicked.",
-    },
-    {
-      name: "send",
-      type: "boolean",
-      description:
-        "When true, automatically sends the message. When false, replaces or appends the composer text with the suggestion - depending on the value of `clearComposer`",
-    },
-    {
-      name: "clearComposer",
-      type: "boolean",
-      default: "true",
-      description:
-        "Whether to clear the composer after sending. When send is set to false, determines if composer text is replaced with suggestion (true, default), or if the suggestion's prompt is appended to the composer text (false).",
-    },
-    {
-      name: "autoSend",
-      type: "boolean",
-      deprecated: true,
-      description: "Deprecated. Use 'send' instead.",
-    },
-    {
-      name: "method",
-      type: "'replace'",
-      deprecated: true,
-      description: "Deprecated. This parameter is no longer used.",
-    },
-    {
-      name: "asChild",
-      type: "boolean",
-      default: "false",
-      description: "Merge props with child element instead of rendering a wrapper button.",
-    },
-    {
-      name: "className",
-      type: "string",
-      description: "CSS class name.",
-    },
-  ]}
+<auto-type-table
+  path="../../../../../packages/react/src/primitives/thread/ThreadSuggestion.tsx"
+  type="ThreadPrimitiveSuggestion.Props"
 />
 
 This primitive renders a `<button>` element unless `asChild` is set.
@@ -385,25 +240,9 @@ This primitive renders a `<button>` element unless `asChild` is set.
 
 Conditionally renders children based on thread state.
 
-<ParametersTable
-  type="ThreadPrimitiveIfProps"
-  parameters={[
-    {
-      name: "empty",
-      type: "boolean | undefined",
-      description: "Render children if the thread is empty (no messages).",
-    },
-    {
-      name: "running",
-      type: "boolean | undefined",
-      description: "Render children if the thread is running (assistant is responding).",
-    },
-    {
-      name: "disabled",
-      type: "boolean | undefined",
-      description: "Render children if the thread is disabled.",
-    },
-  ]}
+<auto-type-table
+  path="../../../../../packages/react/src/primitives/thread/ThreadIf.tsx"
+  type="ThreadPrimitiveIf.Props"
 />
 
 <Callout type="info">

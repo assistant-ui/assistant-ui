@@ -10,6 +10,8 @@ import {
   Pre,
 } from "fumadocs-ui/components/codeblock";
 import { Popup, PopupContent, PopupTrigger } from "fumadocs-twoslash/ui";
+import { AutoTypeTable } from "fumadocs-typescript/ui";
+import { generator } from "./lib/fumadocs-generator";
 
 import "fumadocs-twoslash/twoslash.css";
 
@@ -28,6 +30,7 @@ export function getMDXComponents(components: MDXComponents): MDXComponents {
     Tab,
     Callout,
     TypeTable,
+    AutoTypeTable: (props) => <AutoTypeTable {...props} generator={generator} />,
     Accordion,
     Accordions,
     blockquote: (props) => <Callout>{props.children}</Callout>,
