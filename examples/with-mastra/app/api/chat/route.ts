@@ -2,6 +2,10 @@ import { mastra } from "@/mastra";
 import { NextRequest } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 
+// NOTE: In production, replace console.error with proper structured logging
+// (e.g., pino, winston) and consider sending errors to a monitoring service
+// (e.g., Sentry, DataDog). See lines 52, 64, 144, 169.
+
 export async function POST(req: NextRequest) {
   try {
     const {

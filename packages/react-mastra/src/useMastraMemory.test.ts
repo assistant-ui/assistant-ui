@@ -164,6 +164,88 @@ describe("useMastraMemory", () => {
     );
   });
 
+  it("should delete thread via API", async () => {
+    const { result } = renderHook(() => useMastraMemory(mockMemoryConfig));
+
+    // First create a thread in local state
+    (global.fetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        thread: {
+          id: "test-thread-id",
+          resourceId: "test-user",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          metadata: {},
+        },
+      }),
+    });
+
+    await act(async () => {
+      await result.current.createThread();
+    });
+
+    expect(result.current.threads.has("test-thread-id")).toBe(true);
+
+    // Now delete it
+    (global.fetch as any).mockResolvedValueOnce({
+      ok: true,
+    });
+
+    await act(async () => {
+      await result.current.deleteThread("test-thread-id");
+    });
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      "/api/memory/threads/test-thread-id",
+      expect.objectContaining({
+        method: "DELETE",
+      }),
+    );
+    expect(result.current.threads.has("test-thread-id")).toBe(false);
+  });
+
+  it("should clear currentThread when deleting the active thread", async () => {
+    (global.fetch as any).mockResolvedValueOnce({
+      ok: true,
+    });
+
+    const { result } = renderHook(() => useMastraMemory(mockMemoryConfig));
+
+    // Set current thread
+    act(() => {
+      result.current.setCurrentThread("test-thread");
+    });
+
+    expect(result.current.currentThread).toBe("test-thread");
+
+    // Delete the current thread
+    (global.fetch as any).mockResolvedValueOnce({
+      ok: true,
+    });
+
+    await act(async () => {
+      await result.current.deleteThread("test-thread");
+    });
+
+    expect(result.current.currentThread).toBeNull();
+  });
+
+  it("should throw error when thread deletion fails", async () => {
+    (global.fetch as any).mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+    });
+
+    const { result } = renderHook(() => useMastraMemory(mockMemoryConfig));
+
+    await expect(
+      act(async () => {
+        await result.current.deleteThread("test-thread");
+      }),
+    ).rejects.toThrow("Failed to delete thread: 500");
+  });
+
   it("should handle API errors gracefully", async () => {
     (global.fetch as any).mockRejectedValueOnce(new Error("Network error"));
 

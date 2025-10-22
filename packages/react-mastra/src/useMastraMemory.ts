@@ -174,24 +174,35 @@ export const useMastraMemory = (config: MastraMemoryConfig) => {
     [apiBase, resourceId],
   );
 
-  // Delete thread - Note: Mastra doesn't have a delete thread API yet
+  // Delete thread
   const deleteThread = useCallback(
     async (threadId: string): Promise<void> => {
-      // Remove from local state
-      setThreads((prev) => {
-        const updated = new Map(prev);
-        updated.delete(threadId);
-        return updated;
-      });
+      try {
+        // Call Mastra delete API
+        const response = await fetch(`${apiBase}/threads/${threadId}`, {
+          method: "DELETE",
+        });
 
-      if (currentThread === threadId) {
-        setCurrentThread(null);
+        if (!response.ok) {
+          throw new Error(`Failed to delete thread: ${response.status}`);
+        }
+
+        // Remove from local state after successful API call
+        setThreads((prev) => {
+          const updated = new Map(prev);
+          updated.delete(threadId);
+          return updated;
+        });
+
+        if (currentThread === threadId) {
+          setCurrentThread(null);
+        }
+      } catch (error) {
+        // Re-throw to let caller handle
+        throw error;
       }
-
-      // TODO: Add API call when Mastra adds delete thread support
-      // Thread deletion is not yet supported by Mastra Memory API
     },
-    [currentThread],
+    [apiBase, currentThread],
   );
 
   // Update thread metadata via API
