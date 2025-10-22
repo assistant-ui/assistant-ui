@@ -11,8 +11,6 @@ import {
 // Real Mastra workflow API - connects to Next.js API routes
 const mastraWorkflow = {
   start: async (workflowConfig: MastraWorkflowConfig & { context?: Record<string, any>, candidateData?: any }) => {
-    console.log("Mastra workflow start:", workflowConfig);
-
     // Call the workflow API
     const response = await fetch("/api/workflow", {
       method: "POST",
@@ -49,7 +47,6 @@ const mastraWorkflow = {
     };
   },
   suspend: async (workflowId: string) => {
-    console.log("Mastra workflow suspend:", workflowId);
     // Suspend is handled automatically by the workflow when it calls suspend()
     return {
       id: workflowId,
@@ -58,8 +55,6 @@ const mastraWorkflow = {
     };
   },
   resume: async (workflowId: string, input?: any) => {
-    console.log("Mastra workflow resume:", { workflowId, input });
-
     const response = await fetch("/api/workflow/resume", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -86,7 +81,6 @@ const mastraWorkflow = {
     };
   },
   sendCommand: async (workflowId: string, command: MastraWorkflowCommand) => {
-    console.log("Mastra workflow command:", { workflowId, command });
     // Commands are handled via resume with specific resumeData
     if (command.transition) {
       return await mastraWorkflow.resume(workflowId, {
@@ -101,10 +95,9 @@ const mastraWorkflow = {
     };
   },
   subscribe: (workflowId: string) => {
-    console.log("Mastra workflow subscribe:", workflowId);
     // In a real implementation, this would establish an SSE connection
     const unsubscribe = () => {
-      console.log("Mastra workflow unsubscribe:", workflowId);
+      // Cleanup logic here
     };
     return unsubscribe;
   },
@@ -283,7 +276,6 @@ export const useMastraSendWorkflowCommand = () => {
   // This would integrate with the main workflow hook in a real implementation
   // For now, we'll create a placeholder that can be connected later
   const sendCommand = useCallback(async (command: MastraWorkflowCommand) => {
-    console.log("Send workflow command:", command);
     // In real implementation, this would call the actual workflow system
   }, []);
 

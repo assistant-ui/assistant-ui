@@ -58,13 +58,6 @@ Format your response clearly with these sections.`;
 
       const agentResponse = await screeningAgent.generate(evaluationPrompt);
 
-      console.log("Screening Agent Response:", {
-        text: agentResponse.text,
-        textLength: agentResponse.text?.length || 0,
-        hasToolCalls: !!agentResponse.toolCalls,
-        toolCallsLength: agentResponse.toolCalls?.length || 0,
-      });
-
       // Use the agent's text response directly
       const evaluation = {
         candidateName,
@@ -72,8 +65,6 @@ Format your response clearly with these sections.`;
         recommendation: "proceed_to_interview",
         evaluationSummary: agentResponse.text || `Evaluated ${candidateName} for ${position}. The AI agent has completed the screening assessment.`,
       };
-
-      console.log("Screening evaluation to suspend:", evaluation);
 
       // Suspend workflow and wait for hiring manager approval
       return await suspend(evaluation);
@@ -155,11 +146,6 @@ Provide:
 Format your response clearly with these sections.`;
 
       const agentResponse = await interviewAgent.generate(interviewPrompt);
-
-      console.log("Interview Agent Response:", {
-        text: agentResponse.text,
-        textLength: agentResponse.text?.length || 0,
-      });
 
       // Use the agent's text response directly
       const interview = {

@@ -37,8 +37,6 @@ export const conductInterviewTool = {
       interviewedAt: new Date().toISOString(),
     };
 
-    console.log("Interview Assessment:", interview);
-
     return {
       success: true,
       interview,

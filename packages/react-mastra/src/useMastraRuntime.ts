@@ -343,7 +343,6 @@ export const useMastraRuntime = (config: MastraRuntimeConfig) => {
       setIsRunning(true);
       try {
         // TODO: Implement message reloading in Phase 3
-        console.warn("Message reloading not yet implemented");
       } catch (error) {
         config.onError?.(
           error instanceof Error ? error : new Error("Unknown error"),

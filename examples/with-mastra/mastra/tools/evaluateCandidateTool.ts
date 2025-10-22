@@ -31,8 +31,6 @@ export const evaluateCandidateTool = {
       evaluatedAt: new Date().toISOString(),
     };
 
-    console.log("Candidate Evaluation:", evaluation);
-
     return {
       success: true,
       evaluation,

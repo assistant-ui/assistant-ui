@@ -20,7 +20,6 @@ export function WorkflowStatus({
   onResume,
   isResuming = false,
 }: WorkflowStatusProps) {
-  console.log("WorkflowStatus render:", { status, currentStep, suspendData });
   const [showModal, setShowModal] = useState(false);
   const [modalContent, setModalContent] = useState<{ title: string; content: string } | null>(null);
 
