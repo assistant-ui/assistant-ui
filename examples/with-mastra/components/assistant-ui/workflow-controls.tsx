@@ -195,7 +195,9 @@ export function WorkflowControls({
           </Button>
         )}
 
-        {(status === "running" || status === "paused" || status === "suspended") && (
+        {(status === "running" ||
+          status === "paused" ||
+          status === "suspended") && (
           <Button
             size="sm"
             variant="destructive"

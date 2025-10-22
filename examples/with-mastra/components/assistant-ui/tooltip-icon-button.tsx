@@ -42,31 +42,36 @@ export interface TooltipIconButtonProps
 const TooltipIconButton = React.forwardRef<
   HTMLButtonElement,
   TooltipIconButtonProps
->(({ className, variant, size, tooltip, "aria-label": ariaLabel, ...props }, ref) => {
-  return (
-    <TooltipPrimitive.Provider delayDuration={0}>
-      <TooltipPrimitive.Root>
-        <TooltipPrimitive.Trigger asChild>
-          <button
-            type="button"
-            className={cn(tooltipVariants({ variant, size, className }))}
-            ref={ref}
-            aria-label={ariaLabel || tooltip}
-            {...props}
-          />
-        </TooltipPrimitive.Trigger>
-        <TooltipPrimitive.Portal>
-          <TooltipPrimitive.Content
-            sideOffset={4}
-            className="bg-popover text-popover-foreground animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-50 overflow-hidden rounded-md border px-3 py-1.5 text-sm shadow-md"
-          >
-            {tooltip}
-          </TooltipPrimitive.Content>
-        </TooltipPrimitive.Portal>
-      </TooltipPrimitive.Root>
-    </TooltipPrimitive.Provider>
-  );
-});
+>(
+  (
+    { className, variant, size, tooltip, "aria-label": ariaLabel, ...props },
+    ref,
+  ) => {
+    return (
+      <TooltipPrimitive.Provider delayDuration={0}>
+        <TooltipPrimitive.Root>
+          <TooltipPrimitive.Trigger asChild>
+            <button
+              type="button"
+              className={cn(tooltipVariants({ variant, size, className }))}
+              ref={ref}
+              aria-label={ariaLabel || tooltip}
+              {...props}
+            />
+          </TooltipPrimitive.Trigger>
+          <TooltipPrimitive.Portal>
+            <TooltipPrimitive.Content
+              sideOffset={4}
+              className="bg-popover text-popover-foreground animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-50 overflow-hidden rounded-md border px-3 py-1.5 text-sm shadow-md"
+            >
+              {tooltip}
+            </TooltipPrimitive.Content>
+          </TooltipPrimitive.Portal>
+        </TooltipPrimitive.Root>
+      </TooltipPrimitive.Provider>
+    );
+  },
+);
 TooltipIconButton.displayName = "TooltipIconButton";
 
 export { TooltipIconButton, tooltipVariants };
