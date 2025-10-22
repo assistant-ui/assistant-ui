@@ -89,7 +89,7 @@ export async function POST(request: Request) {
 const runtime = useDataStreamRuntime({
   api: "/api/chat",
   headers: {
-    "Authorization": "Bearer " + token,
+    Authorization: "Bearer " + token,
     "X-Custom-Header": "value",
   },
   credentials: "include",
@@ -104,7 +104,7 @@ const runtime = useDataStreamRuntime({
   headers: async () => {
     const token = await getAuthToken();
     return {
-      "Authorization": "Bearer " + token,
+      Authorization: "Bearer " + token,
     };
   },
 });
@@ -180,20 +180,172 @@ const response = await ai.generateText({
 
 ## Assistant Cloud Integration
 
-For Assistant Cloud deployments, use `useCloudRuntime`:
+`useCloudRuntime` provides integration with Assistant Cloud for applications using the data stream protocol.
+
+### Basic Setup
 
 ```tsx
+import { AssistantCloud, AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useCloudRuntime } from "@assistant-ui/react-data-stream";
 
-const runtime = useCloudRuntime({
-  cloud: assistantCloud,
-  assistantId: "my-assistant-id",
+const cloud = new AssistantCloud({
+  baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+  anonymous: true, // or configure with authentication
+});
+
+export function MyRuntimeProvider({ children }) {
+  const runtime = useCloudRuntime({
+    cloud,
+    assistantId: "my-assistant-id",
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+### Authentication Options
+
+#### Anonymous Authentication
+
+```tsx
+const cloud = new AssistantCloud({
+  baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+  anonymous: true,
 });
 ```
 
-<Callout type="info">
-The `useCloudRuntime` hook is currently under active development and not yet ready for production use.
-</Callout>
+#### JWT Authentication
+
+```tsx
+const cloud = new AssistantCloud({
+  baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+  authToken: async () => {
+    // Return your JWT token
+    return await getAuthToken();
+  },
+});
+```
+
+#### API Key Authentication
+
+```tsx
+const cloud = new AssistantCloud({
+  apiKey: process.env.ASSISTANT_API_KEY!,
+  userId: "user-123",
+  workspaceId: "workspace-456",
+});
+```
+
+### Production Configuration
+
+For production applications, consider these best practices:
+
+```tsx
+const runtime = useCloudRuntime({
+  cloud,
+  assistantId: "my-assistant-id",
+  onError: (error) => {
+    // Log errors for monitoring
+    console.error("Cloud runtime error:", error);
+    // Send to error tracking service
+    errorTracking.captureException(error);
+  },
+  onFinish: (message) => {
+    // Track message completion for analytics
+    analytics.track("message_completed", {
+      messageId: message.id,
+      threadId: message.threadId,
+    });
+  },
+  headers: {
+    // Add custom headers for tracking
+    "X-Client-Version": process.env.NEXT_PUBLIC_APP_VERSION,
+  },
+});
+```
+
+### Prerequisites
+
+Before using `useCloudRuntime`, ensure you have:
+
+1. **Assistant Cloud Account**: Sign up at [cloud.assistant-ui.com](https://cloud.assistant-ui.com/)
+2. **Project Setup**: Create a project and obtain your base URL
+3. **Data Stream Backend**: Your backend must implement the data stream protocol
+4. **Assistant Configuration**: Set up your assistant in the Assistant Cloud dashboard
+
+### Backend Requirements
+
+Your backend endpoint must support the data stream protocol:
+
+```typescript
+import { DataStreamResponse } from "assistant-stream";
+
+export async function POST(request: Request) {
+  const { messages, tools, system } = await request.json();
+
+  // Process with your AI provider
+  const stream = await processWithAI({
+    messages,
+    tools,
+    system,
+  });
+
+  return new DataStreamResponse(stream);
+}
+```
+
+### Performance Optimization
+
+```tsx
+// Memoize cloud instance to prevent recreation
+const cloud = useMemo(
+  () =>
+    new AssistantCloud({
+      baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+      anonymous: true,
+    }),
+  [],
+);
+
+// Memoize runtime configuration
+const runtimeConfig = useMemo(
+  () => ({
+    cloud,
+    assistantId: "my-assistant-id",
+    onError: handleError,
+  }),
+  [cloud],
+);
+
+const runtime = useCloudRuntime(runtimeConfig);
+```
+
+### Error Handling
+
+```tsx
+const runtime = useCloudRuntime({
+  cloud,
+  assistantId: "my-assistant-id",
+  onError: (error) => {
+    if (error.message.includes("401")) {
+      // Handle authentication errors
+      redirectToLogin();
+    } else if (error.message.includes("429")) {
+      // Handle rate limiting
+      showRateLimitMessage();
+    } else {
+      // Handle other errors
+      showErrorMessage("Something went wrong. Please try again.");
+    }
+  },
+});
+```
+
+For complete setup instructions, see the [Assistant Cloud Data Stream Setup Guide](/docs/cloud/setup/data-stream).
 
 ## Message Conversion
 
@@ -226,10 +378,13 @@ The runtime automatically handles common error scenarios:
 const OptimizedThread = React.memo(Thread);
 
 // Memoize runtime configuration
-const runtimeConfig = useMemo(() => ({
-  api: "/api/chat",
-  headers: { "Authorization": `Bearer ${token}` },
-}), [token]);
+const runtimeConfig = useMemo(
+  () => ({
+    api: "/api/chat",
+    headers: { Authorization: `Bearer ${token}` },
+  }),
+  [token],
+);
 
 const runtime = useDataStreamRuntime(runtimeConfig);
 ```

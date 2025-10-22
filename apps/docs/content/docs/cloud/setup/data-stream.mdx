@@ -1,0 +1,414 @@
+---
+title: Data Stream Setup for Assistant Cloud
+---
+
+import { Steps, Step } from "fumadocs-ui/components/steps";
+import { Callout } from "fumadocs-ui/components/callout";
+
+## Overview
+
+This guide walks you through setting up `useCloudRuntime` with Assistant Cloud for applications using the data stream protocol. This integration provides persistent thread management, user authentication, and scalable infrastructure.
+
+## Prerequisites
+
+<Callout type="info">
+  You need an Assistant Cloud account to follow this guide. [Sign up
+  here](https://cloud.assistant-ui.com/) to get started.
+</Callout>
+
+## Setup Guide
+
+<Steps>
+
+<Step>
+
+### Create a Cloud Project
+
+Create a new project in the [Assistant Cloud dashboard](https://cloud.assistant-ui.com/) and from the settings page, copy:
+
+- **Frontend API URL**: `https://proj-[ID].assistant-api.com`
+- **Assistant Cloud API Key**: `sk_aui_proj_*`
+
+</Step>
+
+<Step>
+
+### Configure Environment Variables
+
+Add the following environment variables to your project:
+
+```bash title=".env.local"
+# Frontend API URL from your cloud project settings
+NEXT_PUBLIC_ASSISTANT_BASE_URL=https://proj-[YOUR-ID].assistant-api.com
+
+# API key for server-side operations (optional)
+ASSISTANT_API_KEY=your-api-key-here
+
+# App version for tracking (optional)
+NEXT_PUBLIC_APP_VERSION=1.0.0
+```
+
+</Step>
+
+<Step>
+
+### Install Dependencies
+
+Install the required packages:
+
+```bash
+npm install @assistant-ui/react @assistant-ui/react-data-stream
+```
+
+</Step>
+
+<Step>
+
+### Set Up the Cloud Runtime
+
+Create a client-side AssistantCloud instance and integrate it with your data stream runtime:
+
+```tsx title="app/chat/page.tsx"
+"use client";
+
+import { AssistantCloud, AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useCloudRuntime } from "@assistant-ui/react-data-stream";
+import { ThreadList } from "@/components/assistant-ui/thread-list";
+import { Thread } from "@/components/assistant-ui/thread";
+
+export default function ChatPage() {
+  const cloud = new AssistantCloud({
+    baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+    anonymous: true, // Creates browser-session based user ID
+  });
+
+  const runtime = useCloudRuntime({
+    cloud,
+    assistantId: "my-assistant-id", // Your assistant ID from the dashboard
+    onError: (error) => {
+      console.error("Cloud runtime error:", error);
+    },
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <div className="grid h-dvh grid-cols-[200px_1fr] gap-x-2 px-4 py-4">
+        <ThreadList />
+        <Thread />
+      </div>
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+</Step>
+
+<Step>
+
+### Configure Your Backend
+
+Your backend must implement the data stream protocol. Here's a complete example:
+
+```typescript title="app/api/chat/route.ts"
+import { DataStreamResponse } from "assistant-stream";
+import { openai } from "@ai-sdk/openai";
+
+export async function POST(request: Request) {
+  try {
+    const { messages, tools, system } = await request.json();
+
+    const result = await openai("gpt-4").generateText({
+      messages,
+      tools,
+      system,
+    });
+
+    // Convert to data stream format
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(
+          new TextEncoder().encode(
+            `data: ${JSON.stringify({
+              type: "text-delta",
+              textDelta: result.text,
+            })}\n\n`,
+          ),
+        );
+        controller.close();
+      },
+    });
+
+    return new DataStreamResponse(stream);
+  } catch (error) {
+    console.error("Backend error:", error);
+    return new Response("Internal Server Error", { status: 500 });
+  }
+}
+```
+
+</Step>
+
+</Steps>
+
+## Authentication Options
+
+### Anonymous Authentication
+
+For development or public applications:
+
+```tsx
+const cloud = new AssistantCloud({
+  baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+  anonymous: true,
+});
+```
+
+### JWT Authentication
+
+For applications with user authentication:
+
+```tsx
+const cloud = new AssistantCloud({
+  baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+  authToken: async () => {
+    // Get token from your auth provider
+    const session = await getSession();
+    return session?.accessToken || null;
+  },
+});
+```
+
+### API Key Authentication
+
+For server-side or service-to-service communication:
+
+```tsx
+const cloud = new AssistantCloud({
+  apiKey: process.env.ASSISTANT_API_KEY!,
+  userId: "user-123",
+  workspaceId: "workspace-456",
+});
+```
+
+## Production Configuration
+
+### Error Handling
+
+```tsx
+const runtime = useCloudRuntime({
+  cloud,
+  assistantId: "my-assistant-id",
+  onError: (error) => {
+    // Log errors for monitoring
+    console.error("Cloud runtime error:", error);
+
+    // Send to error tracking service
+    if (typeof window !== "undefined") {
+      // Sentry, LogRocket, etc.
+      errorTracking.captureException(error);
+    }
+
+    // Handle specific error types
+    if (error.message.includes("401")) {
+      // Authentication error - redirect to login
+      window.location.href = "/login";
+    } else if (error.message.includes("429")) {
+      // Rate limit - show user-friendly message
+      showNotification("Rate limit exceeded. Please try again later.");
+    }
+  },
+  onFinish: (message) => {
+    // Track analytics
+    analytics.track("message_completed", {
+      messageId: message.id,
+      threadId: message.threadId,
+      timestamp: new Date().toISOString(),
+    });
+  },
+});
+```
+
+### Performance Optimization
+
+```tsx
+import { useMemo } from "react";
+
+export function MyRuntimeProvider({ children }) {
+  // Memoize cloud instance to prevent recreation
+  const cloud = useMemo(
+    () =>
+      new AssistantCloud({
+        baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+        anonymous: true,
+      }),
+    [],
+  );
+
+  // Memoize runtime configuration
+  const runtimeConfig = useMemo(
+    () => ({
+      cloud,
+      assistantId: "my-assistant-id",
+      onError: handleError,
+      onFinish: handleFinish,
+      headers: {
+        "X-Client-Version": process.env.NEXT_PUBLIC_APP_VERSION,
+      },
+    }),
+    [cloud],
+  );
+
+  const runtime = useCloudRuntime(runtimeConfig);
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+### Security Best Practices
+
+1. **Environment Variables**: Never commit API keys to version control
+2. **HTTPS Only**: Always use HTTPS in production
+3. **Token Validation**: Validate JWT tokens on the server side
+4. **Rate Limiting**: Implement rate limiting on your backend
+5. **Error Sanitization**: Don't expose sensitive information in error messages
+
+```tsx
+// Example of secure error handling
+const runtime = useCloudRuntime({
+  cloud,
+  assistantId: "my-assistant-id",
+  onError: (error) => {
+    // Sanitize error messages for production
+    const sanitizedError = {
+      message: error.message.includes("401")
+        ? "Authentication required"
+        : "An error occurred",
+      timestamp: new Date().toISOString(),
+    };
+
+    // Log full error details server-side only
+    console.error("Full error details:", error);
+
+    // Send sanitized error to client
+    showErrorNotification(sanitizedError.message);
+  },
+});
+```
+
+## Testing
+
+### Unit Testing
+
+```tsx
+import { renderHook } from "@testing-library/react";
+import { useCloudRuntime } from "@assistant-ui/react-data-stream";
+
+const mockCloud = {
+  runs: {
+    __internal_getAssistantOptions: jest.fn(() => ({
+      api: "/api/test",
+    })),
+  },
+};
+
+test("useCloudRuntime creates runtime with cloud configuration", () => {
+  const { result } = renderHook(() =>
+    useCloudRuntime({
+      cloud: mockCloud,
+      assistantId: "test-assistant",
+    }),
+  );
+
+  expect(result.current).toBeDefined();
+  expect(mockCloud.runs.__internal_getAssistantOptions).toHaveBeenCalledWith(
+    "test-assistant",
+  );
+});
+```
+
+### Integration Testing
+
+```tsx
+import { render, screen } from "@testing-library/react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+
+test("renders chat interface with cloud runtime", async () => {
+  const cloud = new AssistantCloud({
+    baseUrl: "https://test.assistant-api.com",
+    anonymous: true,
+  });
+
+  const runtime = useCloudRuntime({
+    cloud,
+    assistantId: "test-assistant",
+  });
+
+  render(
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
+    </AssistantRuntimeProvider>,
+  );
+
+  expect(screen.getByRole("textbox")).toBeInTheDocument();
+});
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **"Assistant not found" error**
+   - Verify your assistant ID is correct in the Assistant Cloud dashboard
+   - Ensure the assistant is properly configured
+
+2. **Authentication errors**
+   - Check your environment variables are set correctly
+   - Verify your JWT token is valid and not expired
+   - Ensure your API key has the correct permissions
+
+3. **Connection timeouts**
+   - Check your network connection
+   - Verify the Assistant Cloud service is operational
+   - Consider implementing retry logic
+
+4. **Rate limiting**
+   - Implement exponential backoff
+   - Consider upgrading your Assistant Cloud plan
+   - Add user-friendly rate limit messages
+
+### Debug Mode
+
+Enable debug logging for development:
+
+```tsx
+const runtime = useCloudRuntime({
+  cloud,
+  assistantId: "my-assistant-id",
+  onResponse: (response) => {
+    if (process.env.NODE_ENV === "development") {
+      console.log("Response:", response.status, response.statusText);
+    }
+  },
+});
+```
+
+## Next Steps
+
+After setup:
+
+1. **Test thoroughly** in your development environment
+2. **Implement monitoring** and error tracking
+3. **Set up analytics** to track usage patterns
+4. **Configure backups** for your Assistant Cloud data
+5. **Plan for scaling** as your user base grows
+
+## Additional Resources
+
+- [Assistant Cloud Dashboard](https://cloud.assistant-ui.com/)
+- [Data Stream Protocol Documentation](/docs/runtimes/data-stream)
+- [API Reference](/docs/api-reference/integrations/react-data-stream)
+- [Community Support](https://discord.gg/S9dwgCNEFs)
