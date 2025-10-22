@@ -126,16 +126,6 @@ if (!global.crypto) {
 (global.crypto as any).randomUUID = () =>
   "test-uuid-" + Math.random().toString(36).substr(2, 9);
 
-// Preserve the original performance object and only mock specific methods
-const originalPerformance = global.performance;
-global.performance = Object.create(originalPerformance, {
-  now: {
-    value: vi.fn(() => Date.now()),
-    writable: true,
-    configurable: true,
-  },
-});
-
 // Store original console methods
 const originalConsole = {
   error: console.error,
@@ -152,16 +142,26 @@ global.console = {
   info: vi.fn(),
 };
 
+let performanceNowSpy: any;
+
 beforeEach(() => {
   vi.clearAllMocks();
 
-  // Reset fetch mock
-  if (global.fetch) {
+  // Mock only performance.now, preserve native object
+  performanceNowSpy = vi.spyOn(performance, 'now').mockReturnValue(Date.now());
+
+  // Reset fetch mock only if it's actually a mock
+  if (global.fetch && typeof (global.fetch as any).mockClear === 'function') {
     (global.fetch as any).mockClear();
   }
 });
 
 afterEach(() => {
+  // Restore performance.now spy
+  if (performanceNowSpy) {
+    performanceNowSpy.mockRestore();
+  }
+
   // Restore any timers
   vi.clearAllTimers();
   vi.useRealTimers();

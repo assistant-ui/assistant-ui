@@ -4,17 +4,26 @@ import { MastraMessageConverter } from "../../src/convertMastraMessages";
 import { createMockMastraMessage } from "../../src/testUtils";
 import { performHealthCheck, checkHealthThresholds } from "../../src/health";
 
-// Mock fetch for integration tests
-global.fetch = vi.fn();
+// Preserve original fetch
+const originalFetch = global.fetch;
+
+let fetchSpy: any;
 
 describe("Mastra Integration Tests", () => {
   beforeAll(() => {
     // Setup test environment
+    // Use spyOn so vi.restoreAllMocks() works correctly
+    fetchSpy = vi.spyOn(global, 'fetch').mockImplementation(vi.fn());
     vi.clearAllMocks();
   });
 
   afterAll(() => {
     // Cleanup test environment
+    // Explicitly restore original fetch
+    if (fetchSpy) {
+      fetchSpy.mockRestore();
+    }
+    global.fetch = originalFetch;
     vi.restoreAllMocks();
   });
 
@@ -233,8 +242,8 @@ describe("Mastra Integration Tests", () => {
     });
 
     it("handles malformed responses", () => {
-      const mockFetch = vi.mocked(fetch);
-      mockFetch.mockResolvedValue({
+      // Configure the existing fetchSpy to return malformed data
+      fetchSpy.mockResolvedValueOnce({
         ok: true,
         body: {
           getReader: () => ({

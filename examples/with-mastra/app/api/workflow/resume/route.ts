@@ -3,7 +3,29 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    let body;
+
+    // Layer 1: JSON parsing (return 400 for syntax errors)
+    try {
+      body = await request.json();
+    } catch (error) {
+      return NextResponse.json(
+        { error: "Invalid JSON", details: "Request body is not valid JSON" },
+        { status: 400 }
+      );
+    }
+
+    // Layer 2: Structure validation (return 400 for wrong types)
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return NextResponse.json(
+        {
+          error: "Invalid request body",
+          details: "Expected a JSON object",
+        },
+        { status: 400 }
+      );
+    }
+
     const { runId, stepId, resumeData } = body;
 
     if (!runId) {

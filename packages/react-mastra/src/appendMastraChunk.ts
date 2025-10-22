@@ -74,22 +74,18 @@ const appendContent = (
 
   for (const currPart of currArray) {
     if (currPart.type === "text") {
-      // For text, find the LAST existing text part and merge
-      const existingTextIndex = mergedContent.findLastIndex(
-        (part) => part.type === "text",
-      );
+      // Only merge if the LAST element is text (adjacent)
+      const lastIndex = mergedContent.length - 1;
+      const lastPart = mergedContent[lastIndex];
 
-      if (
-        existingTextIndex >= 0 &&
-        mergedContent[existingTextIndex]?.type === "text"
-      ) {
-        // Merge text content
-        mergedContent[existingTextIndex] = {
+      if (lastPart?.type === "text") {
+        // Adjacent text - merge it
+        mergedContent[lastIndex] = {
           type: "text",
-          text: (mergedContent[existingTextIndex] as any).text + currPart.text,
+          text: lastPart.text + currPart.text,
         };
       } else {
-        // No existing text part, append new one
+        // Not adjacent - append new text block
         mergedContent.push(currPart);
       }
     } else if (currPart.type === "tool_call") {

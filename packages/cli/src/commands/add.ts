@@ -3,6 +3,7 @@ import { spawn } from "cross-spawn";
 import { hasMastraImports } from "../lib/install-mastra-lib";
 import * as readline from "readline";
 import * as path from "path";
+import { fileURLToPath } from "url";
 
 function askQuestion(query: string): Promise<string> {
   return new Promise((resolve) => {
@@ -72,7 +73,7 @@ export const add = new Command()
 
       // Import and use Mastra component registry
       const mastraRegistryPath = path.join(
-        path.dirname(new URL(import.meta.url).pathname),
+        path.dirname(fileURLToPath(import.meta.url)),
         "../components/mastra-registry.json",
       );
 

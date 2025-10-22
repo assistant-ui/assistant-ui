@@ -11,7 +11,10 @@ export const ToolFallback: FC<any> = (props) => {
 
   const isRunning = status.type === "running";
   const isComplete = status.type === "complete";
-  const isError = status.type === "incomplete" && status.reason === "error";
+  // Tool calls use string status, not object
+  const isError =
+    status === "output-error" ||
+    (typeof status === "object" && status.type === "output-error");
 
   return (
     <MessagePrimitive.Root className="my-2">

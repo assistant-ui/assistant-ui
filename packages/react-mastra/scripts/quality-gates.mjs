@@ -1,6 +1,7 @@
 import { execSync } from "child_process";
 import { readFileSync, existsSync } from "fs";
-import { join } from "path";
+import { join, resolve } from "path";
+import { fileURLToPath } from "url";
 
 const qualityChecks = [
   {
@@ -141,7 +142,11 @@ async function runQualityGates() {
 }
 
 // Run quality gates if this file is executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Convert both to file paths for cross-platform comparison
+const currentFilePath = fileURLToPath(import.meta.url);
+const executedFilePath = resolve(process.argv[1]);
+
+if (currentFilePath === executedFilePath) {
   runQualityGates().catch((error) => {
     console.error("Quality gates script failed:", error);
     process.exit(1);

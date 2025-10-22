@@ -182,6 +182,11 @@ const runtime = useMastraRuntime({
 import { Agent } from "@mastra/core/agent";
 import { createOpenAI } from "@ai-sdk/openai";
 
+// Initialize the OpenAI client
+const openai = createOpenAI({
+  apiKey: process.env["OPENAI_API_KEY"] || "",
+});
+
 const screeningAgent = new Agent({
   name: "screeningAgent",
   instructions:

@@ -379,79 +379,95 @@ export const useMastraWorkflows = (config: MastraWorkflowConfig) => {
     }) => {
       switch (event.type) {
         case "workflow-state-update": {
-          // Update workflow state based on event data
-          const updatedState: MastraWorkflowState = {
-            ...workflowState,
-            current: event.data.currentStep,
-            status: event.data.status,
-            timestamp: event.timestamp,
-          };
+          // Use functional setState to get current state
+          setWorkflowState((currentState) => {
+            if (!currentState) return currentState;
 
-          // Check if suspended and add interrupt data
-          if (event.data.suspended && event.data.steps) {
-            const suspendedStep = event.data.steps[event.data.currentStep];
-            if (suspendedStep?.result) {
-              updatedState.interrupt = {
-                id: workflowState.id,
-                state: event.data.currentStep,
-                context: suspendedStep.result,
-                requiresInput: true,
-                prompt:
-                  event.data.currentStep === "screening-step"
-                    ? "Should we proceed with this candidate to interview?"
-                    : "What is your hiring decision?",
-                allowedActions:
-                  event.data.currentStep === "screening-step"
-                    ? ["approve", "reject"]
-                    : ["hire", "reject", "second_interview"],
-              };
+            const updatedState: MastraWorkflowState = {
+              ...currentState,  // Always current, never stale
+              current: event.data.currentStep,
+              status: event.data.status,
+              timestamp: event.timestamp,
+            };
+
+            // Check if suspended and add interrupt data
+            if (event.data.suspended && event.data.steps) {
+              const suspendedStep = event.data.steps[event.data.currentStep];
+              if (suspendedStep?.result) {
+                updatedState.interrupt = {
+                  id: currentState.id,  // Current state
+                  state: event.data.currentStep,
+                  context: suspendedStep.result,
+                  requiresInput: true,
+                  prompt:
+                    event.data.currentStep === "screening-step"
+                      ? "Should we proceed with this candidate to interview?"
+                      : "What is your hiring decision?",
+                  allowedActions:
+                    event.data.currentStep === "screening-step"
+                      ? ["approve", "reject"]
+                      : ["hire", "reject", "second_interview"],
+                };
+              }
             }
-          }
 
-          // Update local state
-          setWorkflowState(updatedState);
+            return updatedState;
+          });
+
+          // Update local flags based on current state
           setIsSuspended(event.data.suspended);
           setIsRunning(
             !event.data.suspended && event.data.status === "running",
           );
 
-          // Call config callback
-          config.onStateChange?.(updatedState);
+          // Call config callback with the updated state
+          setWorkflowState((currentState) => {
+            if (currentState) {
+              config.onStateChange?.(currentState);
+            }
+            return currentState;
+          });
 
           break;
         }
 
         case "workflow-complete": {
-          // Mark workflow as complete
-          const completedState: MastraWorkflowState = {
-            ...workflowState,
-            status: "completed",
-            timestamp: event.timestamp,
-          };
+          setWorkflowState((currentState) => {
+            if (!currentState) return currentState;
 
-          setWorkflowState(completedState);
-          setIsRunning(false);
-          setIsSuspended(false);
+            const completedState: MastraWorkflowState = {
+              ...currentState,  // Current state
+              status: "completed",
+              timestamp: event.timestamp,
+            };
 
-          config.onStateChange?.(completedState);
+            setIsRunning(false);
+            setIsSuspended(false);
+            config.onStateChange?.(completedState);
+
+            return completedState;
+          });
 
           break;
         }
 
         case "error": {
           console.error("Workflow error event:", event.data);
-          // Update state to reflect error
-          const errorState: MastraWorkflowState = {
-            ...workflowState,
-            status: "error",
-            timestamp: event.timestamp,
-          };
+          setWorkflowState((currentState) => {
+            if (!currentState) return currentState;
 
-          setWorkflowState(errorState);
-          setIsRunning(false);
-          setIsSuspended(false);
+            const errorState: MastraWorkflowState = {
+              ...currentState,  // Current state
+              status: "error",
+              timestamp: event.timestamp,
+            };
 
-          config.onStateChange?.(errorState);
+            setIsRunning(false);
+            setIsSuspended(false);
+            config.onStateChange?.(errorState);
+
+            return errorState;
+          });
 
           break;
         }
@@ -469,15 +485,21 @@ export const useMastraWorkflows = (config: MastraWorkflowConfig) => {
       (error) => {
         console.error("Workflow subscription error:", error);
         config.onError?.(error);
-        // Update state to reflect error
-        const errorState: MastraWorkflowState = {
-          ...workflowState,
-          status: "error",
-          timestamp: new Date().toISOString(),
-        };
-        setWorkflowState(errorState);
-        setIsRunning(false);
-        setIsSuspended(false);
+
+        setWorkflowState((currentState) => {
+          if (!currentState) return currentState;
+
+          const errorState: MastraWorkflowState = {
+            ...currentState,  // Current state
+            status: "error",
+            timestamp: new Date().toISOString(),
+          };
+
+          setIsRunning(false);
+          setIsSuspended(false);
+
+          return errorState;
+        });
       },
     );
 

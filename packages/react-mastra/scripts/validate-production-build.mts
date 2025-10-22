@@ -88,9 +88,19 @@ async function validateProductionBuild(): Promise<BuildValidationResult> {
         result.warnings.push("No exports field in package.json");
       }
 
-      if (!packageJson.main && !packageJson.exports?.["."]) {
-        result.errors.push("No main export defined in package.json");
+      const hasMainExport = !!packageJson.main;
+      const hasDefaultExport = !!packageJson.exports?.["."];
+      const hasAnyExport =
+        !!packageJson.exports &&
+        Object.keys(packageJson.exports).length > 0;
+
+      if (!hasMainExport && !hasDefaultExport && !hasAnyExport) {
+        result.errors.push("No exports defined in package.json");
         result.success = false;
+      } else if (!hasMainExport && !hasDefaultExport) {
+        result.warnings.push(
+          "No default (.) export - package is not directly importable, only subpaths"
+        );
       }
 
       // Validate TypeScript declarations

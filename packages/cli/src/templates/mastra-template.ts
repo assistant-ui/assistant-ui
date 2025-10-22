@@ -716,8 +716,7 @@ export { Button, buttonVariants };
   // Generate markdown text component
   const markdownText = `import { MessagePrimitive } from "@assistant-ui/react";
 import { memo } from "react";
-
-const remarkGfm = require("remark-gfm");
+import remarkGfm from "remark-gfm";
 
 const MarkdownText = memo(() => {
   return (

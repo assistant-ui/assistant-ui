@@ -121,11 +121,14 @@ export const createSpeechAdapter = (
       // Start speech
       config.onStart?.();
 
-      // Simulate speech completion (in real implementation, this would use Web Speech API)
-      setTimeout(() => {
-        currentStatus = { type: "ended", reason: "finished" };
-        listeners.forEach((listener) => listener());
-        config.onStop?.();
+      // Capture timeout ID so it can be cleared
+      const timeoutId = setTimeout(() => {
+        // Guard against race condition
+        if (currentStatus.type !== "ended") {
+          currentStatus = { type: "ended", reason: "finished" };
+          listeners.forEach((listener) => listener());
+          config.onStop?.();
+        }
       }, text.length * 50); // Rough estimate based on text length
 
       return {
@@ -134,6 +137,7 @@ export const createSpeechAdapter = (
         },
         cancel() {
           if (currentStatus.type !== "ended") {
+            clearTimeout(timeoutId);  // CRITICAL: Clear the pending timeout
             currentStatus = { type: "ended", reason: "cancelled" };
             listeners.forEach((listener) => listener());
             config.onStop?.();
