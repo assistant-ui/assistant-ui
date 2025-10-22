@@ -110,35 +110,23 @@ export default function ChatPage() {
 Your backend must implement the data stream protocol. Here's a complete example:
 
 ```typescript title="app/api/chat/route.ts"
-import { DataStreamResponse } from "assistant-stream";
 import { openai } from "@ai-sdk/openai";
+import { streamText, convertToModelMessages } from "ai";
+
+export const maxDuration = 30;
 
 export async function POST(request: Request) {
   try {
     const { messages, tools, system } = await request.json();
 
-    const result = await openai("gpt-4").generateText({
-      messages,
-      tools,
+    const result = streamText({
+      model: openai("gpt-4"),
+      messages: convertToModelMessages(messages),
       system,
+      tools,
     });
 
-    // Convert to data stream format
-    const stream = new ReadableStream({
-      start(controller) {
-        controller.enqueue(
-          new TextEncoder().encode(
-            `data: ${JSON.stringify({
-              type: "text-delta",
-              textDelta: result.text,
-            })}\n\n`,
-          ),
-        );
-        controller.close();
-      },
-    });
-
-    return new DataStreamResponse(stream);
+    return result.toUIMessageStreamResponse();
   } catch (error) {
     console.error("Backend error:", error);
     return new Response("Internal Server Error", { status: 500 });
