@@ -14,9 +14,9 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
     "@assistant-ui/react-mastra": "workspace:*",
-    "@mastra/core": "^0.20.2",
-    "@mastra/libsql": "^0.4.0",
-    "@mastra/memory": "^0.15.6",
+    "@mastra/core": "^0.22.0",
+    "@mastra/libsql": "^0.16.0",
+    "@mastra/memory": "^0.15.8",
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-tooltip": "^1.2.8",
     "class-variance-authority": "^0.7.1",
@@ -31,7 +31,7 @@
     "tailwindcss": "^4.1.12",
     "@tailwindcss/postcss": "^4.1.12",
     "uuid": "^11.1.0",
-    "zod": "^4.1.12"
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
