@@ -20,6 +20,14 @@ const getThinkingMessage = (isStreaming: boolean, duration?: number) => {
     return <p>Thinking...</p>;
   }
 
+  if (Number.isNaN(duration)) {
+    return <p>Thought for a few seconds</p>;
+  }
+
+  if (duration === 0) {
+    return <p>Thought for a moment</p>;
+  }
+
   if (duration !== undefined) {
     return <p>Thought for {duration} seconds</p>;
   }
@@ -82,6 +90,13 @@ const ReasoningComponent: ReasoningMessagePartComponent = ({
         }, AUTO_CLOSE_DELAY);
       }
     }
+
+    return () => {
+      if (autoCloseTimeoutRef.current) {
+        clearTimeout(autoCloseTimeoutRef.current);
+        autoCloseTimeoutRef.current = null;
+      }
+    };
   }, [isStreaming, userInteracted]);
 
   const handleOpenChange = (nextOpen: boolean) => {

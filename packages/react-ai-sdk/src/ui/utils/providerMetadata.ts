@@ -5,6 +5,13 @@
 export type ProviderMetadataEntry = Record<string, unknown>;
 
 /**
+ * Type for message parts that may have provider metadata.
+ */
+export type PartWithMetadata = {
+  providerMetadata?: Record<string, unknown>;
+};
+
+/**
  * Extracts itemId from providerMetadata.
  *
  * Providers like OpenAI use itemId to group related message parts.
@@ -14,7 +21,7 @@ export type ProviderMetadataEntry = Record<string, unknown>;
  * @param part - A message part with optional providerMetadata
  * @returns The itemId string if found, undefined otherwise
  */
-export const getItemId = (part: any): string | undefined => {
+export const getItemId = (part: PartWithMetadata): string | undefined => {
   const metadata = part.providerMetadata;
   if (!metadata || typeof metadata !== "object") return undefined;
 
@@ -50,7 +57,7 @@ export type ReasoningGroups = Map<string, ReasoningGroup>;
 
 export const groupReasoningParts = (
   parts: readonly any[],
-  extractItemId: (part: any) => string | undefined = getItemId,
+  extractItemId: (part: PartWithMetadata) => string | undefined = getItemId,
 ): ReasoningGroups => {
   const groups: ReasoningGroups = new Map();
 

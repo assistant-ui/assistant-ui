@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import type { UIMessage, useChat } from "@ai-sdk/react";
 import {
   useExternalStoreRuntime,
@@ -44,6 +44,21 @@ export const processReasoningDurations = <
   durations: ReasoningDurationState,
   getNow: () => number,
 ) => {
+  // Early return if no messages have reasoning parts
+  const hasReasoningParts = messages.some((msg) =>
+    msg.parts?.some((part) => part.type === "reasoning"),
+  );
+  if (!hasReasoningParts) {
+    return {
+      timings,
+      durations,
+      updatedMessages: messages,
+      timingsChanged: false,
+      durationsChanged: false,
+      messagesChanged: false,
+    };
+  }
+
   const nextTimings: ReasoningTimingState = { ...timings };
   const nextDurations: ReasoningDurationState = { ...durations };
 
@@ -182,6 +197,12 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     Record<string, number>
   >({});
 
+  // Use refs to access latest state in effect without adding to dependencies
+  const reasoningTimingsRef = useRef(reasoningTimings);
+  const reasoningDurationsRef = useRef(reasoningDurations);
+  reasoningTimingsRef.current = reasoningTimings;
+  reasoningDurationsRef.current = reasoningDurations;
+
   const helperMessages = chatHelpers.messages;
   const setHelperMessages = chatHelpers.setMessages;
 
@@ -193,8 +214,8 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
 
     const result = processReasoningDurations(
       helperMessages,
-      reasoningTimings,
-      reasoningDurations,
+      reasoningTimingsRef.current,
+      reasoningDurationsRef.current,
       () => Date.now(),
     );
 
@@ -209,7 +230,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     if (result.messagesChanged) {
       setHelperMessages(result.updatedMessages as UI_MESSAGE[]);
     }
-  }, [helperMessages, reasoningTimings, reasoningDurations, setHelperMessages]);
+  }, [helperMessages, setHelperMessages]);
 
   // Cleanup: remove timing data for messages that no longer exist
   useEffect(() => {

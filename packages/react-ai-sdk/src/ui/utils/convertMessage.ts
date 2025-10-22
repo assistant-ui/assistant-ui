@@ -26,8 +26,37 @@ function stripClosingDelimiters(json: string) {
 const getReasoningDurations = (
   metadata: useExternalMessageConverter.Metadata,
 ): Record<string, number> | undefined => {
-  return (metadata as { reasoningDurations?: Record<string, number> })
-    .reasoningDurations;
+  if (
+    metadata &&
+    typeof metadata === "object" &&
+    "reasoningDurations" in metadata
+  ) {
+    const durations = metadata.reasoningDurations;
+    if (
+      durations &&
+      typeof durations === "object" &&
+      !Array.isArray(durations)
+    ) {
+      return durations as Record<string, number>;
+    }
+  }
+  return undefined;
+};
+
+const extractProviderDuration = (
+  providerMetadata: Record<string, unknown> | undefined,
+): number | undefined => {
+  if (!providerMetadata || typeof providerMetadata !== "object") {
+    return undefined;
+  }
+
+  const assistantUi = providerMetadata["assistant-ui"];
+  if (!assistantUi || typeof assistantUi !== "object") {
+    return undefined;
+  }
+
+  const duration = (assistantUi as Record<string, unknown>)["duration"];
+  return typeof duration === "number" ? duration : undefined;
 };
 
 const convertParts = (
@@ -80,9 +109,11 @@ const convertParts = (
           }
 
           const key = `${message.id}:${itemId}`;
-          const providerDuration = group.parts[0]?.providerMetadata?.[
-            "assistant-ui"
-          ]?.["duration"] as number | undefined;
+          const providerDuration = extractProviderDuration(
+            group.parts[0]?.providerMetadata as
+              | Record<string, unknown>
+              | undefined,
+          );
           const resolvedDuration = resolveDuration(key, providerDuration);
 
           return {
@@ -95,9 +126,9 @@ const convertParts = (
         }
 
         const key = `${message.id}:${partIndex}`;
-        const providerDuration = part.providerMetadata?.["assistant-ui"]?.[
-          "duration"
-        ] as number | undefined;
+        const providerDuration = extractProviderDuration(
+          part.providerMetadata as Record<string, unknown> | undefined,
+        );
         const resolvedDuration = resolveDuration(key, providerDuration);
 
         return {
