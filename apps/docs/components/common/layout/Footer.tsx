@@ -25,21 +25,33 @@ export function Footer(): React.ReactElement {
             </span>
           </Link>
           <div className="flex gap-4">
-            <Link href="https://x.com/assistantui" target="_blank">
+            <Link
+              href="https://x.com/assistantui"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               <Image
                 src={xIcon}
                 alt="X icon"
                 className="inline size-5 opacity-30 transition-opacity hover:opacity-100 dark:hue-rotate-180 dark:invert"
               />
             </Link>
-            <Link href="https://github.com/assistant-ui" target="_blank">
+            <Link
+              href="https://github.com/assistant-ui"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               <Image
                 src={githubIcon}
                 alt="GitHub icon"
                 className="inline size-5 opacity-30 transition-opacity hover:opacity-100 dark:hue-rotate-180 dark:invert"
               />
             </Link>
-            <Link href="https://discord.gg/S9dwgCNEFs" target="_blank">
+            <Link
+              href="https://discord.gg/S9dwgCNEFs"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               <Image
                 src={discordIcon}
                 alt="Discord icon"
@@ -84,10 +96,13 @@ const FooterLink: FC<{ href: string; children: ReactNode }> = ({
   href,
   children,
 }) => {
+  const isExternal = href.startsWith("http");
+
   return (
     <a
       className="text-xs text-muted-foreground transition-colors hover:text-foreground sm:text-sm"
       href={href}
+      {...(isExternal && { target: "_blank", rel: "noopener noreferrer" })}
     >
       {children}
     </a>
