@@ -12,7 +12,9 @@ export const mockMastraStreamCallbackFactory = (events: Array<MastraEvent>) =>
     }
   };
 
-export const createMockMastraMessage = (overrides = {}): MastraMessage => ({
+export const createMockMastraMessage = (
+  overrides: Partial<MastraMessage> = {},
+): MastraMessage => ({
   id: "mastra-test-id",
   type: "assistant",
   content: [{ type: "text", text: "Mastra response" }],
@@ -30,7 +32,9 @@ export const createMockMastraEvent = (
   timestamp: new Date().toISOString(),
 });
 
-export const createMockToolCall = (overrides = {}): MastraToolCall => ({
+export const createMockToolCall = (
+  overrides: Partial<MastraToolCall> = {},
+): MastraToolCall => ({
   id: "tool-call-test-id",
   name: "testTool",
   arguments: { input: "test input" },

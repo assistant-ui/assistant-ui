@@ -134,6 +134,7 @@ export const useMastraWorkflows = (config: MastraWorkflowConfig) => {
         const workflow = await mastraWorkflow.start({
           ...config,
           context: { ...config.context, ...initialContext },
+          candidateData: initialContext,
         });
 
         const fullWorkflowState: MastraWorkflowState = {

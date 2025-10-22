@@ -24,13 +24,13 @@ pnpm test:integration
 
 ### Memory Configuration
 
-Tests are configured with a 4GB Node heap limit (`--max-old-space-size=4096`). This is sufficient for the current test suite but may need adjustment if tests grow significantly.
+Tests are configured with an 8GB Node heap limit (`--max-old-space-size=8192`). This is sufficient for the current test suite but may need adjustment if tests grow significantly.
 
 **Current limits:**
 
-- Standard tests: 4096MB
+- Standard tests: 8192MB
 - Memory profiling: 2048MB (stricter to catch leaks)
-- Vitest maxForks: 4 concurrent test files
+- Vitest maxForks: 2 concurrent test files
 
 ### Writing Memory-Efficient Tests
 
@@ -171,7 +171,7 @@ The test suite uses these memory-optimized settings:
   pool: "forks",              // Better memory isolation
   poolOptions: {
     forks: {
-      maxForks: 4,            // Limit concurrent test files
+      maxForks: 2,            // Limit concurrent test files
       minForks: 1,
     },
   },

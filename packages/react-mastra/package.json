@@ -79,6 +79,7 @@
     "eslint-config-next": "15.4.6",
     "jsdom": "^26.1.0",
     "react": "19.1.1",
+    "react-dom": "19.1.1",
     "tsx": "^4.20.4",
     "vitest": "^3.2.4"
   },

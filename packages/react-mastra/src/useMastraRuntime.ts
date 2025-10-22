@@ -221,8 +221,7 @@ export const useMastraRuntime = (config: MastraRuntimeConfig) => {
   // Filter out empty or invalid messages before passing to runtime
   // The runtime will handle conversion using the convertMessage callback
   const filteredMessages = messages.filter(
-    (msg) =>
-      msg && msg.type && msg.content !== undefined && msg.content !== null,
+    (msg) => msg && msg.type && msg.content != null,
   );
 
   const runtime = useExternalStoreRuntime({
@@ -340,17 +339,8 @@ export const useMastraRuntime = (config: MastraRuntimeConfig) => {
       }
     },
     onReload: async () => {
-      // Handle message reloading
-      setIsRunning(true);
-      try {
-        // TODO: Implement message reloading in Phase 3
-      } catch (error) {
-        config.onError?.(
-          error instanceof Error ? error : new Error("Unknown error"),
-        );
-      } finally {
-        setIsRunning(false);
-      }
+      // Message reloading is not yet supported in this version
+      throw new Error("Message reloading is not yet supported");
     },
     adapters: config.adapters,
     convertMessage: LegacyMastraMessageConverter as any,

@@ -49,7 +49,7 @@ export default function Home() {
       <div className="border-border bg-muted/30 w-64 space-y-4 overflow-y-auto border-r p-4">
         {/* Agent Selection */}
         <div className="space-y-2">
-          <h2 className="text-muted-foreground text-sm font-semibold uppercase tracking-wide">
+          <h2 className="text-muted-foreground text-sm font-semibold tracking-wide uppercase">
             Agent Selection
           </h2>
           <AgentSelector
@@ -62,7 +62,7 @@ export default function Home() {
 
         {/* Memory Status */}
         <div className="space-y-2">
-          <h2 className="text-muted-foreground text-sm font-semibold uppercase tracking-wide">
+          <h2 className="text-muted-foreground text-sm font-semibold tracking-wide uppercase">
             Memory System
           </h2>
           <MemoryStatus showStats={true} />
@@ -70,7 +70,7 @@ export default function Home() {
 
         {/* Hiring Workflow */}
         <div className="space-y-2">
-          <h2 className="text-muted-foreground text-sm font-semibold uppercase tracking-wide">
+          <h2 className="text-muted-foreground text-sm font-semibold tracking-wide uppercase">
             Hiring Workflow
           </h2>
           {!workflowState && (

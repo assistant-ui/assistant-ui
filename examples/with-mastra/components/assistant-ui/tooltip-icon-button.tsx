@@ -48,6 +48,7 @@ const TooltipIconButton = React.forwardRef<
       <TooltipPrimitive.Root>
         <TooltipPrimitive.Trigger asChild>
           <button
+            type="button"
             className={cn(tooltipVariants({ variant, size, className }))}
             ref={ref}
             {...props}

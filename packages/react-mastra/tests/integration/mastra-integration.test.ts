@@ -212,20 +212,18 @@ describe("Mastra Integration Tests", () => {
   });
 
   describe("Error Handling Integration", () => {
-    it("handles fetch errors gracefully", () => {
-      const mockFetch = vi.mocked(fetch);
-      mockFetch.mockRejectedValue(new Error("Network error"));
+    it("handles malformed message data", () => {
+      // Test that the converter handles malformed data gracefully
+      const malformedMessage = {
+        id: "malformed-1",
+        type: "assistant",
+        content: "This should be an array but is a string",
+      } as any;
 
-      // This should not throw an exception
-      expect(() => {
-        const _config = {
-          agentId: "test-agent",
-          api: "http://invalid-url",
-          onError: vi.fn(),
-        };
-        // The runtime should handle the error internally
-        // We're testing that it doesn't crash the application
-      }).not.toThrow();
+      // Should not throw when processing malformed data
+      expect(() =>
+        LegacyMastraMessageConverter(malformedMessage),
+      ).not.toThrow();
     });
 
     it("handles malformed responses", () => {

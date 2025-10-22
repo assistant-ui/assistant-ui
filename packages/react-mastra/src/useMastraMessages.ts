@@ -156,7 +156,6 @@ export const useMastraMessages = <
       } catch (error) {
         if (error instanceof Error && error.name === "AbortError") {
           // Request was aborted, don't treat as error
-          console.log("Stream request aborted");
         } else {
           onError?.(
             error instanceof Error ? error : new Error("Unknown stream error"),

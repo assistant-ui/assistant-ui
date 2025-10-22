@@ -6,16 +6,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { candidateName, candidateEmail, resume, position } = body;
 
-    console.log("Workflow API: Starting hiring workflow", {
-      candidateName,
-      position,
-    });
-
     // Get the hiring workflow
-    const workflow = mastra.getWorkflow("hiringWorkflow");
+    const workflow = mastra.getWorkflow("hiring-workflow");
     if (!workflow) {
       return NextResponse.json(
-        { error: "Workflow 'hiringWorkflow' not found" },
+        { error: "Workflow 'hiring-workflow' not found" },
         { status: 404 },
       );
     }
@@ -32,12 +27,6 @@ export async function POST(request: NextRequest) {
         position,
       },
     });
-
-    console.log("Workflow API: Workflow started", {
-      runId: run.runId,
-      status: result.status,
-    });
-    console.log("Workflow API: Full result:", JSON.stringify(result, null, 2));
 
     // Return the workflow state
     return NextResponse.json({

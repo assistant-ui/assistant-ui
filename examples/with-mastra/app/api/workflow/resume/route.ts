@@ -6,17 +6,15 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { runId, stepId, resumeData } = body;
 
-    console.log("Workflow Resume API: Resuming workflow", { runId, stepId });
-
     if (!runId) {
       return NextResponse.json({ error: "runId is required" }, { status: 400 });
     }
 
     // Get the hiring workflow
-    const workflow = mastra.getWorkflow("hiringWorkflow");
+    const workflow = mastra.getWorkflow("hiring-workflow");
     if (!workflow) {
       return NextResponse.json(
-        { error: "Workflow 'hiringWorkflow' not found" },
+        { error: "Workflow 'hiring-workflow' not found" },
         { status: 404 },
       );
     }
@@ -28,12 +26,6 @@ export async function POST(request: NextRequest) {
     const result = await run.resume({
       step: stepId,
       resumeData,
-    });
-
-    console.log("Workflow Resume API: Workflow resumed", {
-      runId,
-      status: result.status,
-      result: JSON.stringify(result, null, 2),
     });
 
     return NextResponse.json({

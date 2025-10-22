@@ -11,13 +11,6 @@ export async function POST(req: NextRequest) {
       agentId = "chefAgent",
     } = await req.json();
 
-    console.log("Chat API: Received request", {
-      agentId,
-      threadId,
-      resourceId,
-      messageCount: messages?.length,
-    });
-
     // Validate required memory parameters
     if (!threadId) {
       return new Response(
@@ -42,8 +35,6 @@ export async function POST(req: NextRequest) {
         resource: resourceId,
       },
     });
-
-    console.log("Chat API: Stream created");
 
     // Create a custom stream that converts Mastra format to our expected format
     const encoder = new TextEncoder();
@@ -107,20 +98,10 @@ export async function POST(req: NextRequest) {
 
           // Get tool calls after streaming completes
           const toolCalls = await result.toolCalls;
-          console.log(
-            "Chat API: Tool calls:",
-            JSON.stringify(toolCalls, null, 2),
-          );
 
           // Send tool call events if any tools were called
           if (toolCalls && toolCalls.length > 0) {
             for (const toolCall of toolCalls) {
-              console.log("Chat API: Processing tool call:", {
-                type: toolCall.type,
-                toolName: toolCall.payload?.toolName,
-                args: toolCall.payload?.args,
-              });
-
               const toolEvent = {
                 id: uuidv4(),
                 event: "tool/call",
@@ -159,7 +140,6 @@ export async function POST(req: NextRequest) {
           // Send done event
           safeEnqueue(encoder.encode("data: [DONE]\n\n"));
           safeClose();
-          console.log("Chat API: Stream completed");
         } catch (error) {
           console.error("Chat API: Stream error:", error);
           if (!isClosed) {

@@ -20,7 +20,10 @@ export const useMastraMemory = (config: MastraMemoryConfig) => {
   const [isSearching, setIsSearching] = useState(false);
 
   // API base URL - can be configured
-  const apiBase = useMemo(() => "/api/memory", []);
+  const apiBase = useMemo(
+    () => config.apiUrl || "/api/memory",
+    [config.apiUrl],
+  );
   const resourceId = useMemo(
     () => config.userId || "default-user",
     [config.userId],
@@ -33,7 +36,6 @@ export const useMastraMemory = (config: MastraMemoryConfig) => {
       try {
         const threadId = query.threadId || currentThread;
         if (!threadId) {
-          console.warn("No threadId available for memory search");
           return [];
         }
 
@@ -68,9 +70,7 @@ export const useMastraMemory = (config: MastraMemoryConfig) => {
   const saveToMemory = useCallback(
     async (_threadId: string, _messages: MastraMessage[]) => {
       // This is a no-op now - messages are saved automatically by the agent
-      console.warn(
-        "saveToMemory is deprecated - messages are saved automatically by the agent",
-      );
+      // saveToMemory is deprecated - messages are saved automatically by the agent
     },
     [],
   );
@@ -202,7 +202,7 @@ export const useMastraMemory = (config: MastraMemoryConfig) => {
       }
 
       // TODO: Add API call when Mastra adds delete thread support
-      console.warn("Thread deletion is not yet supported by Mastra Memory API");
+      // Thread deletion is not yet supported by Mastra Memory API
     },
     [currentThread],
   );
