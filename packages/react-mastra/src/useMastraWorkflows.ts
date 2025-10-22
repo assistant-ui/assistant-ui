@@ -115,8 +115,6 @@ const mastraWorkflow = {
     onUpdate: (event: { type: string; data: any; timestamp: string }) => void,
     onError?: (error: Error) => void,
   ) => {
-    console.log("Mastra workflow subscribe:", workflowId);
-
     let isActive = true;
     const abortController = new AbortController();
 
@@ -145,7 +143,6 @@ const mastraWorkflow = {
         while (isActive) {
           const { done, value } = await reader.read();
           if (done) {
-            console.log("Workflow stream ended:", workflowId);
             break;
           }
 
@@ -159,7 +156,6 @@ const mastraWorkflow = {
 
               // Handle [DONE] marker
               if (data === "[DONE]") {
-                console.log("Workflow stream complete:", workflowId);
                 isActive = false;
                 return;
               }
@@ -211,7 +207,6 @@ const mastraWorkflow = {
 
     // Return cleanup function
     const unsubscribe = () => {
-      console.log("Mastra workflow unsubscribe:", workflowId);
       isActive = false;
       abortController.abort();
     };
@@ -382,8 +377,6 @@ export const useMastraWorkflows = (config: MastraWorkflowConfig) => {
       data: any;
       timestamp: string;
     }) => {
-      console.log("Workflow event received:", event);
-
       switch (event.type) {
         case "workflow-state-update": {
           // Update workflow state based on event data
