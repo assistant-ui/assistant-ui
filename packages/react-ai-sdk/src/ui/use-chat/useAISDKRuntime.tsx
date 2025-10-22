@@ -23,7 +23,6 @@ import {
   aiSDKV5FormatAdapter,
 } from "../adapters/aiSDKFormatAdapter";
 import { useExternalHistory } from "./useExternalHistory";
-// import { useReasoningDuration } from "../hooks/useReasoningDuration";
 import { getItemId, normalizeDuration } from "../utils/providerMetadata";
 
 export type AISDKRuntimeAdapter = {
@@ -113,8 +112,9 @@ export const processReasoningDurations = <
               | undefined
           )?.["duration"] as number | undefined,
         );
-        const effectiveDuration =
-          normalizeDuration(nextDurations[key]) ?? providerDuration;
+
+        // Prefer runtime-computed duration over persisted provider metadata
+        const effectiveDuration = nextDurations[key] ?? providerDuration;
 
         if (
           effectiveDuration !== undefined &&

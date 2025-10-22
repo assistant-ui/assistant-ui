@@ -1,4 +1,10 @@
 /**
+ * Provider-specific metadata structure.
+ * Different AI providers (OpenAI, Anthropic, etc.) store different fields.
+ */
+export type ProviderMetadataEntry = Record<string, unknown>;
+
+/**
  * Extracts itemId from providerMetadata.
  *
  * Providers like OpenAI use itemId to group related message parts.
@@ -19,7 +25,7 @@ export const getItemId = (part: any): string | undefined => {
       typeof providerData === "object" &&
       "itemId" in providerData
     ) {
-      return String((providerData as any).itemId);
+      return String((providerData as ProviderMetadataEntry)["itemId"]);
     }
   }
   return undefined;
@@ -58,18 +64,19 @@ export const groupReasoningParts = (
       return;
     }
 
-    if (!groups.has(itemId)) {
+    const existing = groups.get(itemId);
+    if (existing) {
       groups.set(itemId, {
         itemId,
-        parts: [],
+        parts: [...existing.parts, part],
+        firstIndex: Math.min(existing.firstIndex, index),
+      });
+    } else {
+      groups.set(itemId, {
+        itemId,
+        parts: [part],
         firstIndex: index,
       });
-    }
-
-    const group = groups.get(itemId)!;
-    group.parts.push(part);
-    if (index < group.firstIndex) {
-      (group as any).firstIndex = index;
     }
   });
 
@@ -77,7 +84,10 @@ export const groupReasoningParts = (
 };
 
 export const mergeReasoningGroupText = (group: ReasoningGroup) =>
-  group.parts.map((part) => part.text).join("\n\n");
+  group.parts
+    .filter(Boolean)
+    .map((part) => part.text || "")
+    .join("\n\n");
 
 export const sanitizeProviderMetadata = (metadata: ProviderMetadata) => {
   if (!metadata || typeof metadata !== "object") {

@@ -24,10 +24,10 @@ export const aiSDKV5FormatAdapter: MessageFormatAdapter<
   encode({
     message: { id, parts, ...message },
   }: MessageFormatItem<UIMessage>): AISDKStorageFormat {
-    // 1. Filter out FileContentParts and step-start parts (streaming metadata only)
+    // Filter out streaming-only parts (step-start, file)
     const filteredParts = filterMessageParts(parts);
 
-    // 2. Merge reasoning parts with same itemId (OpenAI sends multiple paragraphs)
+    // Merge reasoning chunks with same itemId (OpenAI sends multi-paragraph thoughts)
     const reasoningGroups = groupReasoningParts(filteredParts, getItemId);
     const mergedParts = filteredParts.map((part, index) => {
       if (part.type !== "reasoning") {
@@ -50,7 +50,7 @@ export const aiSDKV5FormatAdapter: MessageFormatAdapter<
       };
     });
 
-    // 3. Sanitize providerMetadata on each part (remove encrypted content)
+    // Strip encrypted/sensitive metadata to prevent 500 errors on cloud storage
     const sanitizedParts = mergedParts
       .filter((part): part is Exclude<typeof part, null> => part !== null)
       .map((part) => {

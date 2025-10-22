@@ -15,6 +15,10 @@ import {
   normalizeDuration,
 } from "./providerMetadata";
 
+/**
+ * Strips AI SDK's fix-json closing delimiters during streaming.
+ * Example: {"query":"sea"} → {"query":"sea
+ */
 function stripClosingDelimiters(json: string) {
   return json.replace(/[}\]"]+$/, "");
 }
@@ -129,8 +133,6 @@ const convertParts = (
 
         let argsText = JSON.stringify(args);
         if (part.state === "input-streaming") {
-          // the argsText is not complete, so we need to strip the closing delimiters
-          // these are added by the AI SDK in fix-json
           argsText = stripClosingDelimiters(argsText);
         }
 
