@@ -1,8 +1,4 @@
-import {
-  getExamplesPages,
-  getExamplesPage,
-  type ExamplePage,
-} from "@/app/source";
+import { examples, type ExamplePage } from "@/lib/source";
 import type { Metadata } from "next";
 import { DocsPage, DocsBody } from "fumadocs-ui/page";
 import { notFound } from "next/navigation";
@@ -21,7 +17,7 @@ import { INTERNAL_EXAMPLES } from "@/lib/examples";
  * Safely gets an examples page and handles null cases
  */
 function getPage(slug: string[] | undefined): ExamplePage {
-  const page = getExamplesPage(slug);
+  const page = examples.getPage(slug);
   if (page == null) {
     notFound();
   }
@@ -126,7 +122,7 @@ export default async function Page(props: {
 
 export async function generateStaticParams() {
   // Generate params for both index and individual pages
-  const pages = getExamplesPages().map((page) => ({
+  const pages = examples.getPages().map((page) => ({
     slug: page.slugs,
   }));
 

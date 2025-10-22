@@ -1,4 +1,3 @@
-import { pageTree } from "@/app/source";
 import {
   BookIcon,
   CloudIcon,
@@ -9,8 +8,8 @@ import {
 import icon from "@/public/favicon/icon.svg";
 import Image from "next/image";
 import { DocsLayoutProps } from "fumadocs-ui/layouts/docs";
-import { HomeLayoutProps } from "fumadocs-ui/layouts/home";
 import { SidebarHiringBanner } from "@/components/docs/SidebarHiringBanner";
+import { BaseLayoutProps } from "fumadocs-ui/layouts/links";
 
 const DiscordIcon = () => {
   return (
@@ -28,7 +27,7 @@ const DiscordIcon = () => {
 };
 
 // shared configuration
-export const baseOptions: HomeLayoutProps = {
+export const baseOptions: BaseLayoutProps = {
   githubUrl: "https://github.com/assistant-ui/assistant-ui",
   nav: {
     title: (
@@ -86,10 +85,4 @@ export const sharedDocsOptions: Partial<DocsLayoutProps> = {
     defaultOpenLevel: 0,
     banner: <SidebarHiringBanner />,
   },
-};
-
-// docs layout configuration
-export const docsOptions: DocsLayoutProps = {
-  ...sharedDocsOptions,
-  tree: pageTree,
 };

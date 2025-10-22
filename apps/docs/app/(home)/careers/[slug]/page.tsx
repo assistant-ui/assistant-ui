@@ -2,7 +2,7 @@ import { use } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { ReactElement } from "react";
-import { careers, CareerPage } from "@/app/source";
+import { careers, CareerPage } from "@/lib/source";
 import { getMDXComponents } from "@/mdx-components";
 import { ApplyForm } from "@/components/careers/ApplyForm";
 
