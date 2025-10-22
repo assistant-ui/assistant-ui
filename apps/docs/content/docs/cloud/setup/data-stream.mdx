@@ -71,16 +71,21 @@ Create a client-side AssistantCloud instance and integrate it with your data str
 ```tsx title="app/chat/page.tsx"
 "use client";
 
+import { useMemo } from "react";
 import { AssistantCloud, AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useCloudRuntime } from "@assistant-ui/react-data-stream";
 import { ThreadList } from "@/components/assistant-ui/thread-list";
 import { Thread } from "@/components/assistant-ui/thread";
 
 export default function ChatPage() {
-  const cloud = new AssistantCloud({
-    baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
-    anonymous: true, // Creates browser-session based user ID
-  });
+  const cloud = useMemo(
+    () =>
+      new AssistantCloud({
+        baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+        anonymous: true, // Creates browser-session based user ID
+      }),
+    [],
+  );
 
   const runtime = useCloudRuntime({
     cloud,
