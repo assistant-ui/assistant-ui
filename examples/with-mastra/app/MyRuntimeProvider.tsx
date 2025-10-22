@@ -55,20 +55,8 @@ export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
       console.error("Mastra error:", error);
     },
     eventHandlers: {
-      onMetadata: (metadata) => {
-        console.log("Mastra metadata:", metadata);
-      },
       onError: (error) => {
         console.error("Mastra error:", error);
-      },
-      onInterrupt: (interrupt) => {
-        console.log("Mastra interrupt:", interrupt);
-      },
-      onToolCall: (toolCall) => {
-        console.log("Tool call:", toolCall);
-      },
-      onToolResult: (toolResult) => {
-        console.log("Tool result:", toolResult);
       },
     },
   });
@@ -87,7 +75,6 @@ export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
       }
 
       const data = await response.json();
-      console.log("StartWorkflow response:", JSON.stringify(data, null, 2));
 
       const currentStep = data.suspended?.[0]?.[0] || "screening-step";
       setWorkflowState({

@@ -54,7 +54,7 @@
     "ai": "^5.0.70",
     "assistant-stream": "^0.2.29",
     "uuid": "^11.1.0",
-    "zod": "^3.25.76"
+    "zod": "^4.1.12"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.11.18",

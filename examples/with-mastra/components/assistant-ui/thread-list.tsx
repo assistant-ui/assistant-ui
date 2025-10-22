@@ -19,7 +19,7 @@ export interface ThreadListProps {
  * import { ThreadList } from "@/components/assistant-ui/thread-list";
  *
  * <ThreadList
- *   onThreadSelect={(id) => console.log("Selected:", id)}
+ *   onThreadSelect={(id) => handleThreadSelect(id)}
  *   showArchived={false}
  * />
  * ```
@@ -79,7 +79,7 @@ export function ThreadList({
           <button
             className="text-muted-foreground hover:text-foreground flex w-full items-center gap-2 rounded p-2 text-left text-sm transition-colors"
             onClick={() => {
-              console.log("Show archived threads");
+              // Archive functionality would be implemented here
             }}
           >
             <Archive className="h-4 w-4" />

@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
       messages,
       threadId,
       resourceId = "default-user",
-      agentId = "chefAgent",
+      agentId = "screeningAgent",
     } = await req.json();
 
     // Validate required memory parameters

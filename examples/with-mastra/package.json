@@ -32,7 +32,7 @@
     "tailwindcss": "^4.1.12",
     "@tailwindcss/postcss": "^4.1.12",
     "uuid": "^11.1.0",
-    "zod": "^4.0.17"
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
