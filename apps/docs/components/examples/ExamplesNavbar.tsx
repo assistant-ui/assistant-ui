@@ -9,7 +9,7 @@ export function ExamplesNavbar() {
   const isChildPage = pathname !== "/examples";
 
   return (
-    <div className="mx-auto flex max-w-7xl items-center justify-between px-4 pt-4 pb-3">
+    <div className="flex max-w-7xl items-center justify-between px-4 pt-4 pb-3">
       {isChildPage && (
         <Button asChild size="sm" variant="ghost">
           <Link href="/examples">← Back to Examples</Link>
