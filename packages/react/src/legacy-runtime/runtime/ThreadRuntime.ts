@@ -485,10 +485,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
           const thread = this._threadBinding.getState();
 
           const branches = thread.getBranches(message.id);
-          const submittedFeedback =
-            message.role === "assistant"
-              ? message.metadata.submittedFeedback
-              : undefined;
+          const submittedFeedback = message.metadata.submittedFeedback;
 
           return {
             ...message,
