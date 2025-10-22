@@ -220,6 +220,39 @@ describe("auiV0 - Reasoning Duration Persistence", () => {
       // duration may or may not be present as undefined - that's okay
     });
 
+    it("should preserve zero durations on decode", () => {
+      const cloudMessage: CloudMessage & { format: "aui/v0" } = {
+        id: "msg-3",
+        parent_id: null,
+        created_at: new Date("2024-01-01T00:00:00Z"),
+        format: "aui/v0",
+        content: {
+          role: "assistant",
+          content: [
+            {
+              type: "reasoning",
+              text: "Instant",
+              duration: 0,
+            },
+          ],
+          metadata: {
+            unstable_state: null,
+            unstable_annotations: [],
+            unstable_data: [],
+            steps: [],
+            custom: {},
+          },
+        },
+      };
+
+      const { message } = auiV0Decode(cloudMessage);
+
+      expect(message.content[0]).toMatchObject({
+        type: "reasoning",
+        duration: 0,
+      });
+    });
+
     it("should preserve parentId from cloud message", () => {
       const cloudMessage: CloudMessage & { format: "aui/v0" } = {
         id: "msg-2",

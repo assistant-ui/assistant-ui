@@ -34,6 +34,141 @@ export type AISDKRuntimeAdapter = {
     | undefined;
 };
 
+type ReasoningTimingState = Record<string, { start: number; end?: number }>;
+type ReasoningDurationState = Record<string, number>;
+
+const normalizeDuration = (value: number | undefined) => {
+  if (typeof value !== "number" || Number.isNaN(value) || value <= 0) {
+    return undefined;
+  }
+
+  return Math.max(1, Math.round(value));
+};
+
+export const processReasoningDurations = <
+  UI_MESSAGE extends UIMessage = UIMessage,
+>(
+  messages: readonly UI_MESSAGE[],
+  timings: ReasoningTimingState,
+  durations: ReasoningDurationState,
+  getNow: () => number,
+) => {
+  const nextTimings: ReasoningTimingState = { ...timings };
+  const nextDurations: ReasoningDurationState = { ...durations };
+
+  let timingsChanged = false;
+  let durationsChanged = false;
+
+  const messageMutations = new Map<number, UI_MESSAGE>();
+
+  messages.forEach((message, messageIndex) => {
+    let mutatedParts: UI_MESSAGE["parts"] | undefined;
+
+    message.parts?.forEach((part, partIndex) => {
+      if (part.type !== "reasoning") {
+        return;
+      }
+
+      const itemId = getItemId(part);
+      const key = itemId
+        ? `${message.id}:${itemId}`
+        : `${message.id}:${partIndex}`;
+      const currentTiming = nextTimings[key];
+
+      if (part.state === "streaming" && !currentTiming) {
+        nextTimings[key] = { start: getNow() };
+        timingsChanged = true;
+
+        if (Object.prototype.hasOwnProperty.call(nextDurations, key)) {
+          delete nextDurations[key];
+          durationsChanged = true;
+        }
+      }
+
+      if (part.state === "done") {
+        const now = getNow();
+        const hadTiming = Boolean(currentTiming);
+        const timing = nextTimings[key] ?? { start: now };
+
+        if (!currentTiming) {
+          nextTimings[key] = timing;
+          timingsChanged = true;
+        }
+
+        if (!timing.end) {
+          timing.end = now;
+          timingsChanged = true;
+        }
+
+        const elapsed = timing.end - timing.start;
+        const computedDuration = hadTiming
+          ? normalizeDuration(Math.ceil(elapsed / 1000))
+          : undefined;
+
+        if (
+          computedDuration !== undefined &&
+          nextDurations[key] !== computedDuration
+        ) {
+          nextDurations[key] = computedDuration;
+          durationsChanged = true;
+        }
+
+        const providerDuration = normalizeDuration(
+          (
+            part.providerMetadata?.["assistant-ui"] as
+              | Record<string, unknown>
+              | undefined
+          )?.["duration"] as number | undefined,
+        );
+        const effectiveDuration =
+          normalizeDuration(nextDurations[key]) ?? providerDuration;
+
+        if (
+          effectiveDuration !== undefined &&
+          providerDuration !== effectiveDuration
+        ) {
+          if (!mutatedParts) {
+            mutatedParts = [...(message.parts ?? [])];
+          }
+
+          mutatedParts[partIndex] = {
+            ...part,
+            providerMetadata: {
+              ...(part.providerMetadata || {}),
+              "assistant-ui": {
+                ...(part.providerMetadata?.["assistant-ui"] || {}),
+                duration: effectiveDuration,
+              },
+            },
+          } as UI_MESSAGE["parts"][number];
+        }
+      }
+    });
+
+    if (mutatedParts) {
+      messageMutations.set(messageIndex, {
+        ...message,
+        parts: mutatedParts,
+      });
+    }
+  });
+
+  const messagesChanged = messageMutations.size > 0;
+
+  const updatedMessages = messagesChanged
+    ? messages.map((message, index) => messageMutations.get(index) ?? message)
+    : messages;
+
+  return {
+    timings: timingsChanged ? nextTimings : timings,
+    durations: durationsChanged ? nextDurations : durations,
+    timingsChanged,
+    durationsChanged,
+    messagesChanged,
+    updatedMessages,
+  } as const;
+};
+
 export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   chatHelpers: ReturnType<typeof useChat<UI_MESSAGE>>,
   { adapters }: AISDKRuntimeAdapter = {},
@@ -54,58 +189,39 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     Record<string, number>
   >({});
 
+  const helperMessages = chatHelpers.messages;
+  const setHelperMessages = chatHelpers.setMessages;
+
   // Track reasoning state transitions to maintain reliable timing data
   useEffect(() => {
-    const newTimings = { ...reasoningTimings };
-    const newDurations = { ...reasoningDurations };
-    let timingsChanged = false;
-    let durationsChanged = false;
+    if (helperMessages.length === 0) {
+      return;
+    }
 
-    chatHelpers.messages.forEach((msg) => {
-      msg.parts?.forEach((part, idx) => {
-        if (part.type !== "reasoning") return;
+    const result = processReasoningDurations(
+      helperMessages,
+      reasoningTimings,
+      reasoningDurations,
+      () => Date.now(),
+    );
 
-        const itemId = getItemId(part);
-        const key = itemId ? `${msg.id}:${itemId}` : `${msg.id}:${idx}`;
+    if (result.timingsChanged) {
+      setReasoningTimings(result.timings);
+    }
 
-        // Start timing when reasoning begins
-        if (part.state === "streaming" && !newTimings[key]) {
-          newTimings[key] = { start: Date.now() };
-          timingsChanged = true;
-          if (key in newDurations) {
-            delete newDurations[key];
-            durationsChanged = true;
-          }
-        }
-        // End timing when reasoning completes
-        else if (
-          part.state === "done" &&
-          newTimings[key] &&
-          !newTimings[key].end
-        ) {
-          const existing = newTimings[key]!;
-          const end = Date.now();
-          const start = existing.start;
-          newTimings[key] = { ...existing, end };
-          timingsChanged = true;
+    if (result.durationsChanged) {
+      setReasoningDurations(result.durations);
+    }
 
-          const durationSeconds = Math.max(0, Math.ceil((end - start) / 1000));
-          if (newDurations[key] !== durationSeconds) {
-            newDurations[key] = durationSeconds;
-            durationsChanged = true;
-          }
-        }
-      });
-    });
-
-    if (timingsChanged) setReasoningTimings(newTimings);
-    if (durationsChanged) setReasoningDurations(newDurations);
-  }, [chatHelpers.messages, reasoningTimings, reasoningDurations]);
+    if (result.messagesChanged) {
+      setHelperMessages(result.updatedMessages as UI_MESSAGE[]);
+    }
+  }, [helperMessages, reasoningTimings, reasoningDurations, setHelperMessages]);
 
   // Cleanup: remove timing data for messages that no longer exist
   useEffect(() => {
     const currentKeys = new Set<string>();
-    chatHelpers.messages.forEach((msg) => {
+    helperMessages.forEach((msg) => {
       msg.parts?.forEach((part, idx) => {
         if (part.type === "reasoning") {
           const itemId = getItemId(part);
@@ -132,73 +248,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         ? filtered
         : prev;
     });
-  }, [chatHelpers.messages]);
-
-  // Ensure final durations are persisted into providerMetadata once reasoning completes
-  const helperMessages = chatHelpers.messages;
-  const setHelperMessages = chatHelpers.setMessages;
-
-  useEffect(() => {
-    if (Object.keys(reasoningDurations).length === 0) {
-      return;
-    }
-
-    let hasChanges = false;
-    const updatedMessages = helperMessages.map((msg) => {
-      let messageChanged = false;
-      const updatedParts = msg.parts?.map((part, idx) => {
-        if (part.type !== "reasoning") {
-          return part;
-        }
-
-        const itemId = getItemId(part);
-        const key = itemId ? `${msg.id}:${itemId}` : `${msg.id}:${idx}`;
-        const finalDuration = reasoningDurations[key];
-
-        if (finalDuration === undefined) {
-          return part;
-        }
-
-        const existingDuration =
-          part.providerMetadata?.["assistant-ui"]?.["duration"];
-
-        // Only update metadata when the duration is finalized and missing or stale
-        if (existingDuration === finalDuration) {
-          return part;
-        }
-
-        if (part.state !== "done") {
-          return part;
-        }
-
-        messageChanged = true;
-        return {
-          ...part,
-          providerMetadata: {
-            ...(part.providerMetadata || {}),
-            "assistant-ui": {
-              ...(part.providerMetadata?.["assistant-ui"] || {}),
-              duration: finalDuration,
-            },
-          },
-        };
-      });
-
-      if (!messageChanged) {
-        return msg;
-      }
-
-      hasChanges = true;
-      return {
-        ...msg,
-        parts: updatedParts,
-      };
-    });
-
-    if (hasChanges) {
-      setHelperMessages(updatedMessages);
-    }
-  }, [helperMessages, setHelperMessages, reasoningDurations]);
+  }, [helperMessages]);
 
   const messages = AISDKMessageConverter.useThreadMessages({
     isRunning,

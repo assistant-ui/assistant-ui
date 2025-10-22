@@ -29,25 +29,24 @@ AI SDK stream → useAISDKRuntime state → AISDKMessageConverter → aiSDKForma
 
 1. **Runtime timing state**
    - `useAISDKRuntime.tsx` records start/end timestamps per reasoning part (`reasoningTimings`).
-   - When a part transitions to `state: "done"`, the runtime computes the final duration (seconds) and stores it in `reasoningDurations`.
-   - A follow-up effect ensures that completed reasoning parts receive the finalized duration inside `providerMetadata['assistant-ui']` by issuing a single `setMessages` update when the stored value differs.
+   - When a part transitions to `state: "done"`, the runtime computes the final duration (seconds), clamps it to a minimum of one second, and writes it to both `reasoningDurations` and the live AI SDK message in the same effect cycle. This avoids losing data if the component unmounts before React flushes another pass.
    - Keys follow the `messageId:itemId` (or index) pattern so merged reasoning blocks share a single entry.
 
 2. **Converter responsibilities**
    - `convertMessage.ts` reads `metadata.reasoningDurations` to obtain the finished value.
-   - If runtime data is unavailable (e.g., loading historical messages), it falls back to `providerMetadata['assistant-ui'].duration`.
-   - The converter remains a pure transformer: it returns the duration for UI consumption but no longer mutates the underlying message object.
+   - If runtime data is unavailable (e.g., loading historical messages), it falls back to `providerMetadata['assistant-ui'].duration` without overwriting the stored metadata.
+   - The converter remains a pure transformer: it returns the duration for UI consumption but does not mutate the underlying message object.
 
 3. **Format adapter**
-   - `aiSDKFormatAdapter.ts` merges reasoning parts by `itemId`, strips unsupported metadata, and preserves the injected duration when saving to the cloud.
+   - `aiSDKFormatAdapter.ts` merges reasoning parts by `itemId`, strips unsupported metadata (recursively removing encrypted blobs), and preserves the injected duration when saving to the cloud.
 
 4. **Reload path**
    - On page refresh, history loading returns messages containing the stored duration. Runtime timing state starts empty; the converter picks up the persisted value and the UI shows the correct number of seconds.
 
 ## Key Lessons Learned
 
-1. **Finalize metadata after completion** – Streaming updates are brittle, but a post-completion sync keeps provider metadata aligned without racing the SDK.
-2. **State + metadata works** – Runtime state provides reliable calculations; metadata ensures long-term storage.
+1. **Write metadata at the moment of completion** – Streaming updates are brittle, but committing the duration in the same effect that observes `state: "done"` prevents unmount races.
+2. **Runtime owns authoritative timing** – Local state provides the trustworthy calculation; provider metadata is treated as a persistence mirror and only read when no runtime value exists.
 3. **Hooks must respect SDK ownership** – Any real-time updates must cooperate with how the AI SDK manages message objects; naive `setMessages` loops cause runaway renders.
 
 ## Outstanding Gaps

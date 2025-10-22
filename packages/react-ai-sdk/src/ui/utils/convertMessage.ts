@@ -7,7 +7,12 @@ import {
   type SourceMessagePart,
   type useExternalMessageConverter,
 } from "@assistant-ui/react";
-import { getItemId } from "./providerMetadata";
+import {
+  filterMessageParts,
+  getItemId,
+  groupReasoningParts,
+  mergeReasoningGroupText,
+} from "./providerMetadata";
 
 function stripClosingDelimiters(json: string) {
   return json.replace(/[}\]"]+$/, "");
@@ -28,31 +33,30 @@ const convertParts = (
     return [];
   }
 
-  // First pass: collect reasoning parts by itemId for merging
-  const reasoningByItemId = new Map<
-    string,
-    { parts: any[]; indices: number[] }
-  >();
-  const processedIndices = new Set<number>();
+  const parts = filterMessageParts(message.parts);
+  const reasoningGroups = groupReasoningParts(parts, getItemId);
 
-  message.parts
-    .filter((p) => p.type !== "step-start" && p.type !== "file")
-    .forEach((part, partIndex) => {
-      if (part.type === "reasoning") {
-        const itemId = getItemId(part);
-        if (itemId) {
-          if (!reasoningByItemId.has(itemId)) {
-            reasoningByItemId.set(itemId, { parts: [], indices: [] });
-          }
-          reasoningByItemId.get(itemId)!.parts.push(part);
-          reasoningByItemId.get(itemId)!.indices.push(partIndex);
-          processedIndices.add(partIndex);
-        }
-      }
-    });
+  const normalizeDuration = (value: number | undefined) => {
+    if (typeof value !== "number" || Number.isNaN(value) || value <= 0) {
+      return undefined;
+    }
 
-  return message.parts
-    .filter((p) => p.type !== "step-start" && p.type !== "file")
+    return Math.max(1, Math.round(value));
+  };
+
+  const resolveDuration = (
+    key: string,
+    providerDuration: number | undefined,
+  ) => {
+    const runtimeDuration = normalizeDuration(
+      getReasoningDurations(metadata)?.[key],
+    );
+    const sanitizedProvider = normalizeDuration(providerDuration);
+
+    return runtimeDuration ?? sanitizedProvider;
+  };
+
+  return parts
     .map((part, partIndex) => {
       const type = part.type;
 
@@ -68,61 +72,41 @@ const convertParts = (
       if (type === "reasoning") {
         const itemId = getItemId(part);
 
-        // If this part has an itemId and was already processed, skip it (will be merged)
-        if (itemId && processedIndices.has(partIndex)) {
-          const group = reasoningByItemId.get(itemId)!;
-          const isFirstInGroup = group.indices[0] === partIndex;
-
-          if (!isFirstInGroup) {
-            // Skip non-first parts - they'll be merged into the first
+        if (itemId) {
+          const group = reasoningGroups.get(itemId);
+          if (!group) {
             return null;
           }
 
-          // This is the first part - merge all texts
-          const mergedText = group.parts.map((p) => p.text).join("\n\n");
+          if (group.firstIndex !== partIndex) {
+            return null;
+          }
 
           const key = `${message.id}:${itemId}`;
-          const finalDuration = getReasoningDurations(metadata)?.[key];
-
           const providerDuration = group.parts[0]?.providerMetadata?.[
             "assistant-ui"
           ]?.["duration"] as number | undefined;
-
-          const rawDuration = finalDuration ?? providerDuration;
-
-          // Validate duration is a valid number
-          const duration =
-            typeof rawDuration === "number" && rawDuration > 0
-              ? rawDuration
-              : undefined;
+          const resolvedDuration = resolveDuration(key, providerDuration);
 
           return {
             type: "reasoning",
-            text: mergedText,
-            ...(duration !== undefined && { duration }),
+            text: mergeReasoningGroupText(group),
+            ...(resolvedDuration !== undefined && {
+              duration: resolvedDuration,
+            }),
           } satisfies ReasoningMessagePart;
         }
 
-        // No itemId - handle as standalone reasoning part
         const key = `${message.id}:${partIndex}`;
-        const finalDuration = getReasoningDurations(metadata)?.[key];
-
         const providerDuration = part.providerMetadata?.["assistant-ui"]?.[
           "duration"
         ] as number | undefined;
-
-        const rawDuration = finalDuration ?? providerDuration;
-
-        // Validate duration is a valid number
-        const duration =
-          typeof rawDuration === "number" && rawDuration > 0
-            ? rawDuration
-            : undefined;
+        const resolvedDuration = resolveDuration(key, providerDuration);
 
         return {
           type: "reasoning",
           text: part.text,
-          ...(duration !== undefined && { duration }),
+          ...(resolvedDuration !== undefined && { duration: resolvedDuration }),
         } satisfies ReasoningMessagePart;
       }
 
