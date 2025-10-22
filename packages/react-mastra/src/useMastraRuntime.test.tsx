@@ -30,9 +30,7 @@ describe("useMastraRuntime", () => {
     const config = {
       agentId: "test-agent",
       api: "http://invalid-url",
-      eventHandlers: {
-        onError,
-      },
+      onError,
     };
 
     const { result } = renderHook(() => useMastraRuntime(config));

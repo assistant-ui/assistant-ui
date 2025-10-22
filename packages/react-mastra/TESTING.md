@@ -29,7 +29,7 @@ Tests are configured with an 8GB Node heap limit (`--max-old-space-size=8192`). 
 **Current limits:**
 
 - Standard tests: 8192MB
-- Memory profiling: 2048MB (stricter to catch leaks)
+- Memory profiling: 4096MB (with 2048MB threshold for warnings)
 - Vitest maxForks: 2 concurrent test files
 
 ### Writing Memory-Efficient Tests

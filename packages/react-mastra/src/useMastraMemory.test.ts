@@ -50,8 +50,9 @@ describe("useMastraMemory", () => {
 
     const { result } = renderHook(() => useMastraMemory(mockMemoryConfig));
 
-    const searchResults = await act(async () => {
-      return await result.current.searchMemory({
+    let searchResults: any[] = [];
+    await act(async () => {
+      searchResults = await result.current.searchMemory({
         query: "cooking preferences",
         threadId: "test-thread",
       });
@@ -86,8 +87,9 @@ describe("useMastraMemory", () => {
 
     const { result } = renderHook(() => useMastraMemory(mockMemoryConfig));
 
-    const threadId = await act(async () => {
-      return await result.current.createThread({ source: "test" });
+    let threadId: string | undefined;
+    await act(async () => {
+      threadId = await result.current.createThread({ source: "test" });
     });
 
     expect(threadId).toBe("test-thread-id");
@@ -118,8 +120,9 @@ describe("useMastraMemory", () => {
 
     const { result } = renderHook(() => useMastraMemory(mockMemoryConfig));
 
-    const threadState = await act(async () => {
-      return await result.current.getThreadContext("test-thread");
+    let threadState: any;
+    await act(async () => {
+      threadState = await result.current.getThreadContext("test-thread");
     });
 
     expect(threadState.id).toBe("test-thread");

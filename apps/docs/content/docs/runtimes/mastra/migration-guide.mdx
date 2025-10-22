@@ -122,7 +122,6 @@ Import and use advanced Mastra features in your components:
 import {
   useMastraRuntime,
   useMastraMemory,
-  useMastraTools,
   useMastraWorkflows
 } from "@assistant-ui/react-mastra";
 
@@ -136,7 +135,7 @@ function ChatComponent() {
     agentId: "chef-agent",
   });
 
-  const { tools, executeTool } = useMastraTools({
+  const { workflows, startWorkflow } = useMastraWorkflows({
     agentId: "chef-agent",
   });
 
@@ -213,27 +212,24 @@ const { memories, addMemory, searchMemories } = useMastraMemory({
 // Memory is automatically managed by Mastra
 ```
 
-### Tool Integration
+### Workflow Integration
 
 **Before:**
 ```tsx
-// Manual tool handling in stream processing
-const processStreamChunk = (chunk) => {
-  if (chunk.type === 'tool_call') {
-    // Manually parse and execute tools
-  }
-};
+// Manual workflow handling required
+const [workflowState, setWorkflowState] = useState(null);
+
+// Manually manage workflow state
 ```
 
 **After:**
 ```tsx
-// Automatic tool execution
-const { tools, executeTool, isExecuting } = useMastraTools({
+// Automatic workflow management
+const { workflows, startWorkflow, resumeWorkflow } = useMastraWorkflows({
   agentId: "chef-agent",
-  autoExecute: true,
 });
 
-// Tools are automatically executed by the runtime
+// Workflows are automatically managed by the runtime
 ```
 
 ## Troubleshooting

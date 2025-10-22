@@ -9,7 +9,7 @@ import {
   useIsMarkdownCodeBlock,
 } from "@assistant-ui/react-markdown";
 import remarkGfm from "remark-gfm";
-import { type FC, memo, useState } from "react";
+import { type FC, memo, useState, useEffect, useRef } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
@@ -51,6 +51,15 @@ const useCopyToClipboard = ({
   copiedDuration?: number;
 } = {}) => {
   const [isCopied, setIsCopied] = useState<boolean>(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   const copyToClipboard = (value: string) => {
     if (!value) return;
@@ -64,7 +73,10 @@ const useCopyToClipboard = ({
       .writeText(value)
       .then(() => {
         setIsCopied(true);
-        setTimeout(() => setIsCopied(false), copiedDuration);
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+        }
+        timeoutRef.current = setTimeout(() => setIsCopied(false), copiedDuration);
       })
       .catch(() => {
         // Silently handle clipboard write failures

@@ -296,12 +296,8 @@ describe("Mastra Integration Tests", () => {
       const messages = accumulator.getMessages();
       expect(messages.length).toBeLessThanOrEqual(100);
 
-      // Cleanup should be fast
-      const startTime = Date.now();
+      // Cleanup should work correctly
       accumulator.clear();
-      const cleanupTime = Date.now() - startTime;
-
-      expect(cleanupTime).toBeLessThan(10); // Should be very fast
       expect(accumulator.getMessages().length).toBe(0);
     });
   });

@@ -6,6 +6,17 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { candidateName, candidateEmail, resume, position } = body;
 
+    // Validate required fields
+    if (!candidateName || !candidateEmail || !resume || !position) {
+      return NextResponse.json(
+        {
+          error: "Missing required fields",
+          required: ["candidateName", "candidateEmail", "resume", "position"],
+        },
+        { status: 400 },
+      );
+    }
+
     // Get the hiring workflow
     const workflow = mastra.getWorkflow("hiring-workflow");
     if (!workflow) {

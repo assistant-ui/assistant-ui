@@ -191,7 +191,10 @@ export const useMastraRuntime = (config: MastraRuntimeConfig) => {
 
         while (true) {
           const { done, value } = await reader.read();
-          if (done) break;
+          if (done) {
+            setIsRunning(false);
+            break;
+          }
 
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split("\n");
@@ -316,7 +319,10 @@ export const useMastraRuntime = (config: MastraRuntimeConfig) => {
 
         while (true) {
           const { done, value } = await reader.read();
-          if (done) break;
+          if (done) {
+            setIsRunning(false);
+            break;
+          }
 
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split("\n");

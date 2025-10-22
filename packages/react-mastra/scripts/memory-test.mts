@@ -47,19 +47,18 @@ async function runTests() {
       "MB",
     );
 
-    const memoryLimit = 2048; // MB
-    const memoryUsagePercent = (finalMemory.heapUsed / memoryLimit) * 100;
+    // Note: Memory usage shown is for this wrapper script only, not the child vitest process
+    // The child process runs with --max-old-space-size=4096
+    const actualMemoryLimit = 4096; // MB - actual limit passed to vitest
+    const warningThreshold = 2048; // MB - threshold for warnings
 
     console.log(
-      `\nMemory usage: ${finalMemory.heapUsed}MB / ${memoryLimit}MB (${memoryUsagePercent.toFixed(1)}%)`,
+      `\n⚠️  Note: Memory metrics reflect wrapper process only, not child vitest process`,
     );
+    console.log(`Vitest runs with ${actualMemoryLimit}MB heap limit`);
+    console.log(`Warning threshold: ${warningThreshold}MB`);
 
-    if (memoryUsagePercent > 80) {
-      console.warn("\n⚠️  WARNING: Memory usage exceeds 80% of limit!");
-      console.warn("Consider optimizing tests or increasing memory limit.");
-    } else {
-      console.log("\n✅ Memory usage is within acceptable limits");
-    }
+    console.log("\n✅ Test execution completed successfully");
   } catch (error: any) {
     console.error("\n❌ Test execution failed:");
     console.error(error.message);

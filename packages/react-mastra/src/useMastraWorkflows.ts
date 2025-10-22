@@ -127,9 +127,6 @@ export const useMastraWorkflows = (config: MastraWorkflowConfig) => {
 
   const startWorkflow = useCallback(
     async (initialContext?: Record<string, any>) => {
-      setIsRunning(true);
-      setIsSuspended(false);
-
       try {
         const workflow = await mastraWorkflow.start({
           ...config,
@@ -147,11 +144,14 @@ export const useMastraWorkflows = (config: MastraWorkflowConfig) => {
         };
 
         setWorkflowState(fullWorkflowState);
+        setIsRunning(workflow.status === "running");
+        setIsSuspended(workflow.status === "suspended");
         config.onStateChange?.(fullWorkflowState);
         return fullWorkflowState;
       } catch (error) {
         console.error("Workflow start failed:", error);
         setIsRunning(false);
+        setIsSuspended(false);
         throw error;
       }
     },
@@ -225,11 +225,11 @@ export const useMastraWorkflows = (config: MastraWorkflowConfig) => {
       if (!workflowState) return;
 
       try {
-        await mastraWorkflow.sendCommand(workflowState.id, command);
+        const result = await mastraWorkflow.sendCommand(workflowState.id, command);
 
         const updatedState: MastraWorkflowState = {
           ...workflowState,
-          status: "running",
+          status: result.status,
           context: { ...workflowState.context, ...(command.context || {}) },
           history: [
             ...workflowState.history,
@@ -247,8 +247,8 @@ export const useMastraWorkflows = (config: MastraWorkflowConfig) => {
         }
 
         setWorkflowState(updatedState);
-        setIsRunning(true);
-        setIsSuspended(false);
+        setIsRunning(result.status === "running");
+        setIsSuspended(result.status === "suspended");
         config.onStateChange?.(updatedState);
         return updatedState;
       } catch (error) {

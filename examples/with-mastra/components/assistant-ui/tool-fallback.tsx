@@ -48,6 +48,11 @@ export const ToolFallback: FC<any> = (props) => {
               Error: {String(result)}
             </div>
           )}
+          {isComplete && result && (
+            <div className="text-muted-foreground mt-1 text-xs">
+              Result: {String(result)}
+            </div>
+          )}
         </div>
       </div>
     </MessagePrimitive.Root>

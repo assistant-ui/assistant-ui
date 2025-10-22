@@ -36,7 +36,6 @@ export interface TooltipIconButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof tooltipVariants> {
   tooltip: string;
-  asChild?: boolean;
 }
 
 const TooltipIconButton = React.forwardRef<
