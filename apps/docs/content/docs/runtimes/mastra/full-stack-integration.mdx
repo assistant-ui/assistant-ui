@@ -214,8 +214,9 @@ import { useMastraRuntime } from "@assistant-ui/react-mastra";
 
 export default function Home() {
   const runtime = useMastraRuntime({
+    api: "/api/chat",
     agentId: "chefAgent",
-    memory: true,
+    memory: { storage: "libsql" },
   });
 
   return (

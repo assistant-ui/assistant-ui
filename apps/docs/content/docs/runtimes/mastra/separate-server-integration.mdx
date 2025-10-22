@@ -148,7 +148,7 @@ export default function Home() {
   // Point the runtime to the Mastra server endpoint
   const runtime = useMastraRuntime({
     agentId: "chefAgent",
-    apiUrl: "http://localhost:4111/api/agents/chefAgent/stream",
+    api: "http://localhost:4111/api/agents/chefAgent/stream",
   });
 
   return (

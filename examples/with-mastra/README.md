@@ -4,12 +4,12 @@ This example demonstrates how to use `@assistant-ui/react-mastra` to build AI-po
 
 ## Features
 
-- **Multiple Agents**: Chef Agent for cooking assistance and Weather Agent for weather information
+- **Multiple Agents**: Screening Agent for candidate evaluation and Interview Agent for technical interviews
 - **Agent Selection**: Real-time switching between different specialized agents
 - **Memory Integration**: Persistent conversation memory using Mastra's memory system
 - **Memory Status Display**: Real-time visualization of memory system state
-- **Tool Execution**: Weather tool integration with enhanced UI display
-- **Workflow Controls**: Mock workflow demonstration with progress tracking
+- **Workflow Integration**: Hiring workflow with suspend/resume capabilities and human-in-the-loop interactions
+- **Workflow Controls**: Real candidate evaluation workflow with screening and interview stages
 - **Streaming Responses**: Real-time streaming of agent responses
 - **Advanced UI**: Complete chat interface with rich message formatting and tool result visualization
 
@@ -49,24 +49,24 @@ This example demonstrates how to use `@assistant-ui/react-mastra` to build AI-po
 
 You'll see a comprehensive interface showcasing:
 
-- Agent switching between Chef and Weather agents
+- Agent switching between Screening and Interview agents
 - Real-time memory status
-- Enhanced tool call displays
-- Mock workflow controls
+- Hiring workflow with candidate evaluation
+- Workflow suspend/resume with human feedback
 
 ## Available Agents
 
-### Chef Agent 🍳
+### Screening Agent 🔍
 
-- **Purpose**: Cooking assistance, recipes, meal planning, and food safety
-- **Capabilities**: Recipe suggestions, ingredient substitutions, cooking techniques
-- **Tool Access**: Weather information for cooking planning
+- **Purpose**: Initial candidate screening and resume evaluation
+- **Capabilities**: Resume analysis, skill assessment, qualification matching
+- **Workflow Integration**: First stage of hiring workflow with screening scores and recommendations
 
-### Weather Agent ☁️
+### Interview Agent 💼
 
-- **Purpose**: Weather information and forecasts
-- **Capabilities**: Current conditions, forecasts, weather alerts
-- **Tool Access**: Real-time weather data
+- **Purpose**: Conducting technical and behavioral interviews
+- **Capabilities**: Technical evaluation, cultural fit assessment, interview question generation
+- **Workflow Integration**: Second stage of hiring workflow with interview scores and feedback
 
 ## Components Showcase
 
@@ -74,7 +74,7 @@ The example demonstrates all Mastra-specific components in a single integrated i
 
 ### Agent Selector
 
-Switch between different Mastra agents (Chef Agent and Weather Agent) in real-time. The runtime automatically updates when you select a different agent.
+Switch between different Mastra agents (Screening Agent and Interview Agent) in real-time. The runtime automatically updates when you select a different agent.
 
 ### Memory Status
 
@@ -85,32 +85,31 @@ Displays the current state of Mastra's memory system:
 - Thread ID display
 - Real-time updates as conversation progresses
 
-### Tool Results
+### Candidate Form
 
-Enhanced tool call display with:
+Candidate submission form with:
 
-- Expandable/collapsible sections
-- Color-coded status (running, success, error)
-- Formatted arguments and results
-- Error message display
+- Candidate name input
+- Resume/CV text area
+- Position and experience level fields
+- Submit triggers hiring workflow start
 
-### Workflow Controls
+### Workflow Status
 
-Demonstrates workflow management with:
+Real hiring workflow management with:
 
-- Start/pause/stop controls
-- Progress tracking with percentage
-- Step-by-step visualization
-- Status indicators
-
-**Note**: Workflow functionality uses mock data for demonstration purposes.
+- Current workflow step display (screening, interview)
+- Candidate information and scores
+- Resume feedback controls for human-in-the-loop
+- Status indicators (running, suspended, completed)
+- Workflow resume functionality with updated scores
 
 ### Layout
 
 The interface uses a two-column layout:
 
-- **Left Sidebar**: Agent selector, memory status, and workflow controls
-- **Main Area**: Chat thread with enhanced tool results
+- **Left Sidebar**: Agent selector, memory status, candidate form, and workflow status
+- **Main Area**: Chat thread with agent conversation
 
 ## Project Structure
 
@@ -127,9 +126,8 @@ examples/with-mastra/
 │   ├── assistant-ui/
 │   │   ├── agent-selector.tsx    # Switch between agents
 │   │   ├── memory-status.tsx     # Memory system status
-│   │   ├── tool-results.tsx      # Enhanced tool display
-│   │   ├── workflow-controls.tsx # Workflow management
-│   │   ├── thread-list.tsx       # Thread history
+│   │   ├── candidate-form.tsx    # Candidate submission form
+│   │   ├── workflow-status.tsx   # Workflow status display
 │   │   ├── thread.tsx            # Main chat interface
 │   │   ├── markdown-text.tsx     # Markdown rendering
 │   │   └── tooltip-icon-button.tsx
@@ -138,9 +136,9 @@ examples/with-mastra/
 │   └── utils.ts                  # Utility functions
 ├── mastra/
 │   ├── agents/                   # Mastra agent definitions
+│   ├── workflows/                # Workflow definitions (hiring)
 │   ├── index.ts                  # Mastra configuration
-│   ├── memory.ts                 # Memory configuration
-│   └── tools/                    # Custom tools
+│   └── memory.ts                 # Memory configuration
 └── package.json
 ```
 
@@ -152,8 +150,9 @@ examples/with-mastra/
 import { useMastraRuntime } from "@assistant-ui/react-mastra";
 
 const runtime = useMastraRuntime({
-  agentId: "chef-agent",
-  memory: true,
+  api: "/api/chat",
+  agentId: "screeningAgent",
+  memory: { storage: "libsql" },
 });
 ```
 
@@ -161,8 +160,9 @@ const runtime = useMastraRuntime({
 
 ```typescript
 const runtime = useMastraRuntime({
+  api: "/api/chat",
   agentId: selectedAgent,
-  memory: true,
+  memory: { storage: "libsql" },
   stream: async function* (messages) {
     // Custom streaming implementation
   },
@@ -182,28 +182,50 @@ const runtime = useMastraRuntime({
 import { Agent } from "@mastra/core/agent";
 import { createOpenAI } from "@ai-sdk/openai";
 
-const chefAgent = new Agent({
-  name: "chef-agent",
-  instructions: "You are Michel, a practical and experienced home chef...",
+const screeningAgent = new Agent({
+  name: "screeningAgent",
+  instructions: "You are a professional recruiter specializing in candidate screening...",
   model: openai("gpt-4o-mini"),
-  tools: { weatherTool },
+  memory: true,
+});
+
+const interviewAgent = new Agent({
+  name: "interviewAgent",
+  instructions: "You are an experienced technical interviewer...",
+  model: openai("gpt-4o-mini"),
   memory: true,
 });
 ```
 
-### Tool Integration
+### Workflow Definition
 
 ```typescript
-export const weatherTool = {
-  description: "Get current weather information",
-  parameters: z.object({
-    location: z.string().describe("City and state/country"),
-    units: z.enum(["celsius", "fahrenheit"]).optional(),
+import { createWorkflow } from "@mastra/core";
+
+const hiringWorkflow = createWorkflow({
+  name: "hiring-workflow",
+  triggerSchema: z.object({
+    candidateName: z.string(),
+    resume: z.string(),
+    position: z.string(),
   }),
-  execute: async ({ location, units }) => {
-    // Tool implementation
+}).step("screening", {
+  execute: async ({ inputData, suspendData }) => {
+    return {
+      candidateName: suspendData?.candidateName || inputData.candidateName,
+      screeningScore: suspendData?.screeningScore || 7.5,
+      recommendation: suspendData?.recommendation || "proceed_to_interview",
+    };
   },
-};
+}).step("interview", {
+  execute: async ({ suspendData }) => {
+    return {
+      technicalScore: suspendData?.technicalScore || 8.0,
+      culturalScore: suspendData?.culturalScore || 7.5,
+      finalDecision: suspendData?.finalDecision || "pending",
+    };
+  },
+}).commit();
 ```
 
 ## Customization
@@ -215,11 +237,12 @@ export const weatherTool = {
 3. Register it in `mastra/index.ts`
 4. Add it to the agent selection UI
 
-### Adding New Tools
+### Adding New Workflows
 
-1. Create tool files in `mastra/tools/`
-2. Define tool parameters and execution logic
-3. Import and use in your agents
+1. Create workflow files in `mastra/workflows/`
+2. Define workflow steps and execution logic
+3. Register workflows in `mastra/index.ts`
+4. Create API routes for workflow operations
 
 ### Customizing the UI
 
@@ -248,14 +271,15 @@ export const weatherTool = {
 
 ### Workflows
 
-The example demonstrates workflow integration with:
+The example demonstrates a real hiring workflow integration with:
 
-- **Human-in-the-loop interactions**: Complex business logic that requires human input
-- **Real-time state streaming**: Live workflow progress updates
-- **Multi-step processes**: Sequential and parallel workflow execution
-- **State persistence**: Workflow state saved across sessions
+- **Human-in-the-loop interactions**: Candidate screening and interview with human feedback
+- **Suspend/Resume capabilities**: Workflow pauses for human input and resumes with updated data
+- **Multi-step processes**: Sequential execution of screening and interview stages
+- **State persistence**: Workflow state and candidate data persisted across sessions
+- **Score tracking**: Screening scores, technical scores, and cultural fit scores
 
-The workflow controls in the left sidebar show a mock demonstration of workflow functionality.
+The workflow form in the left sidebar allows starting new hiring workflows and resuming suspended ones with updated candidate information.
 
 ### Memory Management
 
@@ -264,12 +288,12 @@ The workflow controls in the left sidebar show a mock demonstration of workflow 
 - **Semantic context retrieval**: Intelligent context matching and relevance scoring
 - **Memory compression**: Efficient storage of conversation history
 
-### Tool Integration
+### Workflow Integration
 
-- **Dynamic tool registration**: Runtime tool discovery and registration
-- **Type-safe parameter validation**: Zod schema validation for all tool inputs
-- **Real-time tool result streaming**: Live updates during tool execution
-- **Error handling and recovery**: Robust error handling for tool failures
+- **Dynamic workflow execution**: Runtime workflow triggering and state management
+- **Type-safe input validation**: Zod schema validation for workflow inputs
+- **Real-time workflow state updates**: Live status and progress tracking
+- **Human-in-the-loop support**: Suspend/resume with human feedback integration
 
 ### Advanced Runtime Features
 
