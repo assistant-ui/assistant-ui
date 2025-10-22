@@ -155,6 +155,11 @@ const joinExternalMessages = (
                   ...output.metadata.custom,
                 };
               }
+
+              if (output.metadata.submittedFeedback) {
+                assistantMessage.metadata.submittedFeedback =
+                  output.metadata.submittedFeedback;
+              }
             }
             // TODO keep this in sync
           }

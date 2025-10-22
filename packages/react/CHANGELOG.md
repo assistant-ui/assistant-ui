@@ -1,5 +1,16 @@
 # @assistant-ui/react
 
+## 0.11.34
+
+### Patch Changes
+
+- 953db24: chore: update deps
+- fix: submittedFeedback external message converter support
+- Updated dependencies [953db24]
+  - assistant-stream@0.2.37
+  - assistant-cloud@0.1.5
+  - @assistant-ui/tap@0.1.4
+
 ## 0.11.33
 
 ### Patch Changes
