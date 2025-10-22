@@ -78,7 +78,10 @@ export const useMastraMessages = <
 
         // Clean up the listener when done
         abortController.signal.addEventListener("abort", () => {
-          config.abortSignal!.removeEventListener("abort", externalAbortHandler);
+          config.abortSignal!.removeEventListener(
+            "abort",
+            externalAbortHandler,
+          );
         });
       } else {
         abortController = new AbortController();

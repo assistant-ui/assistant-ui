@@ -118,7 +118,7 @@ const mastraWorkflow = {
     console.log("Mastra workflow subscribe:", workflowId);
 
     let isActive = true;
-    let abortController = new AbortController();
+    const abortController = new AbortController();
 
     const connect = async () => {
       try {
@@ -326,7 +326,10 @@ export const useMastraWorkflows = (config: MastraWorkflowConfig) => {
       if (!workflowState) return;
 
       try {
-        const result = await mastraWorkflow.sendCommand(workflowState.id, command);
+        const result = await mastraWorkflow.sendCommand(
+          workflowState.id,
+          command,
+        );
 
         const updatedState: MastraWorkflowState = {
           ...workflowState,

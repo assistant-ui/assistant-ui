@@ -62,13 +62,18 @@ Format your response clearly with these sections.`;
       const responseText = agentResponse.text || "";
 
       // Extract score (look for patterns like "Score: 7.5" or "7.5/10")
-      const scoreMatch = responseText.match(/(?:score|rating).*?(\d+(?:\.\d+)?)/i);
+      const scoreMatch = responseText.match(
+        /(?:score|rating).*?(\d+(?:\.\d+)?)/i,
+      );
       const screeningScore = scoreMatch ? parseFloat(scoreMatch[1]) : 7.5;
 
       // Extract recommendation (look for keywords)
       const lowerResponse = responseText.toLowerCase();
       let recommendation = "needs_more_info";
-      if (lowerResponse.includes("proceed_to_interview") || lowerResponse.includes("proceed to interview")) {
+      if (
+        lowerResponse.includes("proceed_to_interview") ||
+        lowerResponse.includes("proceed to interview")
+      ) {
         recommendation = "proceed_to_interview";
       } else if (lowerResponse.includes("reject")) {
         recommendation = "reject";
@@ -169,21 +174,38 @@ Format your response clearly with these sections.`;
       const responseText = agentResponse.text || "";
 
       // Extract technical score
-      const techScoreMatch = responseText.match(/technical.*?(?:score|skills).*?(\d+(?:\.\d+)?)/i);
-      const technicalScore = techScoreMatch ? parseFloat(techScoreMatch[1]) : 8.0;
+      const techScoreMatch = responseText.match(
+        /technical.*?(?:score|skills).*?(\d+(?:\.\d+)?)/i,
+      );
+      const technicalScore = techScoreMatch
+        ? parseFloat(techScoreMatch[1])
+        : 8.0;
 
       // Extract cultural score
-      const culturalScoreMatch = responseText.match(/cultural.*?(?:score|fit).*?(\d+(?:\.\d+)?)/i);
-      const culturalScore = culturalScoreMatch ? parseFloat(culturalScoreMatch[1]) : 9.0;
+      const culturalScoreMatch = responseText.match(
+        /cultural.*?(?:score|fit).*?(\d+(?:\.\d+)?)/i,
+      );
+      const culturalScore = culturalScoreMatch
+        ? parseFloat(culturalScoreMatch[1])
+        : 9.0;
 
       // Extract recommendation
       const lowerResponse = responseText.toLowerCase();
       let recommendation = "undecided";
-      if (lowerResponse.includes("strong_hire") || lowerResponse.includes("strong hire")) {
+      if (
+        lowerResponse.includes("strong_hire") ||
+        lowerResponse.includes("strong hire")
+      ) {
         recommendation = "strong_hire";
-      } else if (lowerResponse.includes("hire") && !lowerResponse.includes("no_hire")) {
+      } else if (
+        lowerResponse.includes("hire") &&
+        !lowerResponse.includes("no_hire")
+      ) {
         recommendation = "hire";
-      } else if (lowerResponse.includes("no_hire") || lowerResponse.includes("no hire")) {
+      } else if (
+        lowerResponse.includes("no_hire") ||
+        lowerResponse.includes("no hire")
+      ) {
         recommendation = "no_hire";
       }
 

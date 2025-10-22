@@ -76,7 +76,10 @@ const useCopyToClipboard = ({
         if (timeoutRef.current) {
           clearTimeout(timeoutRef.current);
         }
-        timeoutRef.current = setTimeout(() => setIsCopied(false), copiedDuration);
+        timeoutRef.current = setTimeout(
+          () => setIsCopied(false),
+          copiedDuration,
+        );
       })
       .catch(() => {
         // Silently handle clipboard write failures
