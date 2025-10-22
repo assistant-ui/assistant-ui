@@ -58,9 +58,8 @@ const runtime = useMastraRuntime({
     },
     {
       name: "memory",
-      type: "boolean",
-      defaultValue: "false",
-      description: "Enable memory persistence for conversations",
+      type: "MastraMemoryConfig",
+      description: "Configuration for memory persistence (e.g., { storage: 'libsql', threadId: 'thread-123', userId: 'user-456' })",
     },
     {
       name: "workflows",
@@ -200,7 +199,7 @@ const {
 ```typescript
 interface MastraRuntimeConfig {
   agentId: string;
-  memory?: boolean;
+  memory?: MastraMemoryConfig;
   workflows?: string[];
   apiUrl?: string;
   stream?: (messages: any[]) => AsyncGenerator<any>;
@@ -217,6 +216,15 @@ interface MastraRuntimeConfig {
     feedback?: FeedbackAdapter;
     speech?: SpeechSynthesisAdapter;
   };
+}
+
+interface MastraMemoryConfig {
+  storage: "libsql" | "postgresql" | "turso" | "pinecone" | "chroma";
+  apiUrl?: string;
+  threadId?: string;
+  userId?: string;
+  maxResults?: number;
+  similarityThreshold?: number;
 }
 ```
 
@@ -285,7 +293,11 @@ const [currentAgent, setCurrentAgent] = useState("agent-1");
 
 const runtime = useMastraRuntime({
   agentId: currentAgent,
-  memory: true,
+  memory: {
+    storage: "libsql",
+    threadId: "thread-123",
+    userId: "user-456"
+  },
   onSwitchToThread: async (threadId) => {
     // Load thread state for current agent
     return loadThreadState(threadId, currentAgent);
