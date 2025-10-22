@@ -106,10 +106,7 @@ export const ThreadMessageClient = resource(
         branchNumber,
         branchCount,
         speech: undefined,
-        submittedFeedback:
-          message.role === "assistant"
-            ? message.metadata.submittedFeedback
-            : undefined,
+        submittedFeedback: message.metadata.submittedFeedback,
         isCopied: isCopiedState,
         isHovering: isHoveringState,
       };

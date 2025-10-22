@@ -126,14 +126,6 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
     return () => this._subscriptions.delete(callback);
   }
 
-  public getSubmittedFeedback(messageId: string) {
-    const messageData = this.repository.getMessage(messageId);
-    if (messageData.message.role === "assistant") {
-      return messageData.message.metadata.submittedFeedback;
-    }
-    return undefined;
-  }
-
   public submitFeedback({ messageId, type }: SubmitFeedbackOptions) {
     const adapter = this.adapters?.feedback;
     if (!adapter) throw new Error("Feedback adapter not configured");
