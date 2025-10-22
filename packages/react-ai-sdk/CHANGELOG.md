@@ -1,5 +1,16 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.1.8
+
+### Patch Changes
+
+- 953db24: chore: update deps
+- Updated dependencies [953db24]
+- Updated dependencies
+  - assistant-stream@0.2.37
+  - assistant-cloud@0.1.5
+  - @assistant-ui/react@0.11.34
+
 ## 1.1.7
 
 ### Patch Changes
