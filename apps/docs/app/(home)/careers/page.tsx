@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactElement } from "react";
 import { Metadata } from "next";
-import { careers, CareerPage } from "@/app/source";
+import { careers, CareerPage } from "@/lib/source";
 
 export const metadata: Metadata = {
   title: "Careers",

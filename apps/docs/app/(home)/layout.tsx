@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { HomeLayout } from "fumadocs-ui/layouts/home";
-import { baseOptions } from "../docs/layout.config";
+import { baseOptions } from "../../lib/layout.shared";
 import { HomepageHiringBanner } from "@/components/home/HomepageHiringBanner";
 import { Footer } from "@/components/common";
 
