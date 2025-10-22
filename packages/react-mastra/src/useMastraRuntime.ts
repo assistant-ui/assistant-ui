@@ -48,9 +48,6 @@ const asMastraRuntimeExtras = (extras: unknown): MastraRuntimeExtras => {
 };
 
 export const useMastraRuntime = (config: MastraRuntimeConfig) => {
-  console.log("useMastraRuntime: Received config:", config);
-  console.log("useMastraRuntime: config.api =", config.api);
-
   const [messages, setMessages] = useState<MastraMessage[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const accumulatorRef = useRef<MastraMessageAccumulator<MastraMessage>>(
@@ -231,12 +228,108 @@ export const useMastraRuntime = (config: MastraRuntimeConfig) => {
     isRunning,
     messages: filteredMessages as any,
     onNew: handleNew,
-    onEdit: async () => {
+    onEdit: async (message: any) => {
       // Handle message editing
       setIsRunning(true);
       try {
-        // TODO: Implement message editing in Phase 3
-        console.warn("Message editing not yet implemented");
+        // 1. Get the parent message ID (the message before edit point)
+        const parentId = message.parentId;
+
+        // 2. Find all messages after the parent (these will be deleted)
+        const currentMessages = accumulatorRef.current.getMessages();
+        const parentIndex = currentMessages.findIndex(
+          (msg) => msg.id === parentId,
+        );
+
+        if (parentIndex === -1) {
+          throw new Error(`Parent message ${parentId} not found`);
+        }
+
+        // 3. Update local accumulator state - remove messages after edit point
+        // Note: We don't delete from Mastra memory - Mastra's append-only architecture
+        // means old messages stay in storage but won't be retrieved since we're
+        // continuing from the parent message
+        const remainingMessages = currentMessages.slice(0, parentIndex + 1);
+        accumulatorRef.current.reset(remainingMessages);
+        setMessages(remainingMessages);
+
+        // 4. Add the edited user message
+        const editedMessage: MastraMessage = {
+          id: crypto.randomUUID(),
+          type: "human",
+          content: getMessageContent(message),
+          timestamp: new Date().toISOString(),
+        };
+
+        const messagesWithEdit =
+          accumulatorRef.current.addMessages([editedMessage]);
+        setMessages(messagesWithEdit);
+
+        // 5. Get memory context if available
+        let threadId: string | undefined;
+        if (config.memory && memory) {
+          threadId =
+            memory.currentThread || (await memory.createThread());
+        }
+
+        const memoryContext = config.memory
+          ? {
+              threadId: threadId || "default-thread",
+              resourceId: config.memory.userId || "default-user",
+            }
+          : undefined;
+
+        // 6. Stream agent response
+        const response = await fetch(config.api, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            messages: [{ role: "user", content: getMessageContent(message) }],
+            agentId: config.agentId,
+            ...(memoryContext && memoryContext),
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        // 7. Process streaming response (same as handleNew)
+        const reader = response.body?.getReader();
+        if (!reader) {
+          throw new Error("No response body");
+        }
+
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              const data = line.slice(6);
+              if (data === "[DONE]") {
+                setIsRunning(false);
+                return;
+              }
+
+              try {
+                const event = JSON.parse(data);
+                processEvent(event);
+              } catch (e) {
+                console.error("Failed to parse event:", e);
+              }
+            }
+          }
+        }
       } catch (error) {
         config.onError?.(
           error instanceof Error ? error : new Error("Unknown error"),

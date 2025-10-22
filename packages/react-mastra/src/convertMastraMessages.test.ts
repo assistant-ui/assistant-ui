@@ -5,7 +5,7 @@ import { useExternalMessageConverter } from "@assistant-ui/react";
 
 // Helper function to handle the union type return from converter
 function getConvertedMessages(message: any): useExternalMessageConverter.Message[] {
-  const result = LegacyMastraMessageConverter(message);
+  const result = LegacyMastraMessageConverter(message, {});
   return Array.isArray(result) ? result : [result];
 }
 

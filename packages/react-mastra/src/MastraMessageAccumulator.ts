@@ -81,6 +81,22 @@ export class MastraMessageAccumulator<TMessage extends { id?: string }> {
       .filter((msg): msg is TMessage => msg !== undefined);
   }
 
+  /**
+   * Reset the accumulator with a new set of messages
+   * Used when messages are deleted (e.g., during editing)
+   */
+  public reset(messages: TMessage[]): void {
+    this.messagesMap.clear();
+    this.messageOrder = [];
+
+    // Add all messages and rebuild the map
+    for (const message of messages.map(this.ensureMessageId)) {
+      const messageId = message.id!; // ensureMessageId guarantees id exists
+      this.messagesMap.set(messageId, message);
+      this.messageOrder.push(messageId);
+    }
+  }
+
   public clear() {
     this.messagesMap.clear();
     this.messageOrder = [];

@@ -87,6 +87,7 @@ export type MastraStateAccumulatorConfig<TMessage> = {
 // Memory system types
 export interface MastraMemoryConfig {
   storage: 'libsql' | 'postgresql' | 'turso' | 'pinecone' | 'chroma';
+  apiUrl?: string; // API URL for memory operations
   threadId?: string;
   userId?: string;
   maxResults?: number;
