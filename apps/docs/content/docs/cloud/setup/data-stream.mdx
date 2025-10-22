@@ -193,6 +193,7 @@ const runtime = useCloudRuntime({
     // Send to error tracking service
     if (typeof window !== "undefined") {
       // Sentry, LogRocket, etc.
+      // TODO: Replace with your error tracking service (e.g., Sentry, LogRocket)
       errorTracking.captureException(error);
     }
 
@@ -202,11 +203,13 @@ const runtime = useCloudRuntime({
       window.location.href = "/login";
     } else if (error.message.includes("429")) {
       // Rate limit - show user-friendly message
+      // TODO: Replace with your notification system (e.g., toast, alert)
       showNotification("Rate limit exceeded. Please try again later.");
     }
   },
   onFinish: (message) => {
     // Track analytics
+    // TODO: Replace with your analytics service (e.g., Mixpanel, Segment)
     analytics.track("message_completed", {
       messageId: message.id,
       threadId: message.threadId,
@@ -237,6 +240,7 @@ export function MyRuntimeProvider({ children }) {
     () => ({
       cloud,
       assistantId: "my-assistant-id",
+      // TODO: Define these handler functions in your component
       onError: handleError,
       onFinish: handleFinish,
       headers: {
@@ -282,6 +286,7 @@ const runtime = useCloudRuntime({
     console.error("Full error details:", error);
 
     // Send sanitized error to client
+    // TODO: Replace with your notification system (e.g., toast, alert)
     showErrorNotification(sanitizedError.message);
   },
 });

@@ -252,10 +252,12 @@ const runtime = useCloudRuntime({
     // Log errors for monitoring
     console.error("Cloud runtime error:", error);
     // Send to error tracking service
+    // TODO: Replace with your error tracking service (e.g., Sentry, LogRocket)
     errorTracking.captureException(error);
   },
   onFinish: (message) => {
     // Track message completion for analytics
+    // TODO: Replace with your analytics service (e.g., Mixpanel, Segment)
     analytics.track("message_completed", {
       messageId: message.id,
       threadId: message.threadId,
