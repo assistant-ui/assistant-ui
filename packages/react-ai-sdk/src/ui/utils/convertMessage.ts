@@ -12,6 +12,7 @@ import {
   getItemId,
   groupReasoningParts,
   mergeReasoningGroupText,
+  normalizeDuration,
 } from "./providerMetadata";
 
 function stripClosingDelimiters(json: string) {
@@ -35,14 +36,6 @@ const convertParts = (
 
   const parts = filterMessageParts(message.parts);
   const reasoningGroups = groupReasoningParts(parts, getItemId);
-
-  const normalizeDuration = (value: number | undefined) => {
-    if (typeof value !== "number" || Number.isNaN(value) || value <= 0) {
-      return undefined;
-    }
-
-    return Math.max(1, Math.round(value));
-  };
 
   const resolveDuration = (
     key: string,

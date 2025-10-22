@@ -24,7 +24,7 @@ import {
 } from "../adapters/aiSDKFormatAdapter";
 import { useExternalHistory } from "./useExternalHistory";
 // import { useReasoningDuration } from "../hooks/useReasoningDuration";
-import { getItemId } from "../utils/providerMetadata";
+import { getItemId, normalizeDuration } from "../utils/providerMetadata";
 
 export type AISDKRuntimeAdapter = {
   adapters?:
@@ -36,14 +36,6 @@ export type AISDKRuntimeAdapter = {
 
 type ReasoningTimingState = Record<string, { start: number; end?: number }>;
 type ReasoningDurationState = Record<string, number>;
-
-const normalizeDuration = (value: number | undefined) => {
-  if (typeof value !== "number" || Number.isNaN(value) || value <= 0) {
-    return undefined;
-  }
-
-  return Math.max(1, Math.round(value));
-};
 
 export const processReasoningDurations = <
   UI_MESSAGE extends UIMessage = UIMessage,
@@ -88,7 +80,7 @@ export const processReasoningDurations = <
       if (part.state === "done") {
         const now = getNow();
         const hadTiming = Boolean(currentTiming);
-        const timing = nextTimings[key] ?? { start: now };
+        let timing = currentTiming ?? { start: now };
 
         if (!currentTiming) {
           nextTimings[key] = timing;
@@ -96,11 +88,12 @@ export const processReasoningDurations = <
         }
 
         if (!timing.end) {
-          timing.end = now;
+          timing = { ...timing, end: now };
+          nextTimings[key] = timing;
           timingsChanged = true;
         }
 
-        const elapsed = timing.end - timing.start;
+        const elapsed = timing.end! - timing.start;
         const computedDuration = hadTiming
           ? normalizeDuration(Math.ceil(elapsed / 1000))
           : undefined;

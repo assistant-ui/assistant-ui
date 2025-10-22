@@ -128,3 +128,16 @@ export const sanitizeProviderMetadata = (metadata: ProviderMetadata) => {
 export const filterMessageParts = <T extends { type: string }>(
   parts: readonly T[],
 ) => parts.filter((part) => !EXCLUDED_PART_TYPES.has(part.type));
+
+/**
+ * Normalizes a duration value to a positive integer in seconds.
+ * Clamps values to minimum 1 second to avoid "0 seconds" display.
+ * Returns undefined for invalid values (NaN, negative, zero).
+ */
+export const normalizeDuration = (value: number | undefined) => {
+  if (typeof value !== "number" || Number.isNaN(value) || value <= 0) {
+    return undefined;
+  }
+
+  return Math.max(1, Math.round(value));
+};
