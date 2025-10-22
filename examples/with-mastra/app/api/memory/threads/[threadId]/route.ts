@@ -74,8 +74,8 @@ export async function PATCH(
 
     await memory.updateThread({
       id: threadId,
-      title: title || existingThread.title,
-      metadata: metadata || existingThread.metadata,
+      title: title ?? existingThread.title,
+      metadata: metadata ?? existingThread.metadata,
     });
 
     const updatedThread = await memory.getThreadById({ threadId });

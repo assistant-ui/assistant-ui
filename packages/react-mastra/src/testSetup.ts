@@ -115,10 +115,15 @@ if (!global.crypto) {
 (global.crypto as any).randomUUID = () =>
   "test-uuid-" + Math.random().toString(36).substr(2, 9);
 
-global.performance = {
-  ...global.performance,
-  now: vi.fn(() => Date.now()),
-} as Performance;
+// Preserve the original performance object and only mock specific methods
+const originalPerformance = global.performance;
+global.performance = Object.create(originalPerformance, {
+  now: {
+    value: vi.fn(() => Date.now()),
+    writable: true,
+    configurable: true,
+  },
+});
 
 // Store original console methods
 const originalConsole = {

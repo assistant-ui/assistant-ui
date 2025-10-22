@@ -184,7 +184,7 @@ export const checkHealthThresholds = (
     warnings.push(`High connection count: ${health.metrics.activeConnections}`);
   }
 
-  const isHealthy = errors.length === 0 && health.status !== "unhealthy";
+  const isHealthy = errors.length === 0 && health.status === "healthy";
 
   return { isHealthy, warnings, errors };
 };

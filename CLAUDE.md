@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Development Environment
 
 ### Package Management
-- This repository uses **pnpm** as the package manager (v10.14.0)
+- This repository uses **pnpm** as the package manager (v10.18.3)
 - All packages are managed through workspace protocol in the monorepo
 
 ### Build System

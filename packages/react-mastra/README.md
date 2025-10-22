@@ -83,11 +83,43 @@ type MastraRuntimeConfig = {
   agentId: string;
   api: string;
   onError?: (error: Error) => void;
-  adapters?: {
-    attachments?: any;
-    feedback?: any;
-    speech?: any;
+  onSwitchToThread?: (threadId: string) => Promise<MastraThreadState>;
+  onSwitchToNewThread?: () => Promise<string>;
+  eventHandlers?: {
+    onMetadata?: (metadata: Record<string, any>) => void;
+    onError?: (error: Error) => void;
+    onInterrupt?: (interrupt: MastraInterruptState) => void;
+    onCustomEvent?: (event: MastraEvent) => void;
+    onToolCall?: (toolCall: MastraToolCall) => void;
+    onToolResult?: (toolResult: MastraToolResult) => void;
+    onAgentEvent?: (event: MastraEvent) => void;
+    onWorkflowEvent?: (event: MastraEvent) => void;
+    onMemoryEvent?: (event: MastraEvent) => void;
   };
+  adapters?: {
+    attachments?: {
+      accept?: string;
+      maxSize?: number;
+      onUpload?: (file: File) => Promise<string>;
+    };
+    feedback?: {
+      onPositive?: (messageId: string) => void;
+      onNegative?: (messageId: string) => void;
+    };
+    speech?: {
+      onStart?: () => void;
+      onStop?: () => void;
+      onError?: (error: Error) => void;
+    };
+  };
+  memory?: MastraMemoryConfig;
+  workflow?: MastraWorkflowConfig;
+  onMemoryUpdate?: (threadId: string, memory: MastraMemoryResult[]) => void;
+  legacyMemory?: boolean;
+  workflows?: string[];
+  autoCancelTools?: boolean;
+  enableTracing?: boolean;
+  enableMetrics?: boolean;
 };
 ```
 

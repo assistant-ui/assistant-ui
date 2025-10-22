@@ -68,8 +68,21 @@ export const useMastraMessages = <
         abortControllerRef.current.abort();
       }
 
-      // Create new abort controller
-      const abortController = new AbortController();
+      // Use provided abort signal or create new controller
+      let abortController: AbortController;
+      if (config.abortSignal) {
+        // Create a controller that responds to both the provided signal and our own
+        abortController = new AbortController();
+        const externalAbortHandler = () => abortController.abort();
+        config.abortSignal.addEventListener("abort", externalAbortHandler);
+
+        // Clean up the listener when done
+        abortController.signal.addEventListener("abort", () => {
+          config.abortSignal!.removeEventListener("abort", externalAbortHandler);
+        });
+      } else {
+        abortController = new AbortController();
+      }
       abortControllerRef.current = abortController;
 
       // Ensure all messages have an ID

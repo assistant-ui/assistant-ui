@@ -99,19 +99,36 @@ export const init = new Command()
     // Handle Mastra framework specially
     if (options.framework === "mastra") {
       if (packageJsonExists) {
+        // Existing Mastra project - run shadcn add for assistant-ui components
         console.log(
-          chalk.yellow(
-            "Package.json already exists. Cannot initialize Mastra project in existing directory.",
-          ),
+          chalk.blue("Initializing assistant-ui in existing Mastra project..."),
         );
-        console.log(
-          chalk.blue(
-            "Use 'npx assistant-ui create --template mastra <project-name>' instead.",
-          ),
+
+        const child = spawn(
+          "npx",
+          [
+            `shadcn@latest`,
+            "add",
+            "https://r.assistant-ui.com/chat/b/mastra/json",
+          ],
+          {
+            stdio: "inherit",
+          },
         );
+
+        child.on("error", (error) => {
+          console.error(`Error: ${error.message}`);
+        });
+
+        child.on("close", (code) => {
+          if (code !== 0) {
+            console.log(`shadcn process exited with code ${code}`);
+          }
+        });
         return;
       }
 
+      // New Mastra project - generate full template
       console.log(chalk.blue("Creating new Mastra project..."));
 
       const projectName = path.basename(process.cwd()) || "mastra-app";

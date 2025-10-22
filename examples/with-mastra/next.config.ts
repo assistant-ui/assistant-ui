@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   webpack: (config) => {
-    config.externals = [...(config.externals || []), { canvas: "canvas" }];
+    config.externals = [...(config.externals || []), { canvas: "commonjs canvas" }];
     // Ignore non-JS files in node_modules
     config.module.rules.push({
       test: /\.md$/,

@@ -1,7 +1,6 @@
 {
   "pages": [
     "vercel-ai-sdk",
-    "langgraph",
     "mastra",
     "react-data-stream",
     "react-hook-form"

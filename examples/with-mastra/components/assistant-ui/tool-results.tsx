@@ -83,6 +83,7 @@ export function ToolResults({
       )}
     >
       <button
+        type="button"
         onClick={() => setInternalExpanded(!internalExpanded)}
         className="flex w-full items-center gap-3 p-3 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5"
         aria-expanded={isExpanded}

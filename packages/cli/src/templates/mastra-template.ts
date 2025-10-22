@@ -326,7 +326,7 @@ ${
 
 export const mastra = new Mastra({
   agents: {
-    ${agentId},
+    "${agentId}": ${agentId.charAt(0).toUpperCase() + agentId.slice(1)},
   },
   ${enableMemory ? "memory," : ""}
   logger: {
