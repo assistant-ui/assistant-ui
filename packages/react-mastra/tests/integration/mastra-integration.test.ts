@@ -267,7 +267,7 @@ describe("Mastra Integration Tests", () => {
       const cleanupTime = Date.now() - startTime;
 
       expect(cleanupTime).toBeLessThan(10); // Should be very fast
-      expect(messages.length).toBe(0);
+      expect(accumulator.getMessages().length).toBe(0);
     });
   });
 });

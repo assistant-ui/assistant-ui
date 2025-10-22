@@ -21,90 +21,110 @@ export interface HealthCheckOptions {
 }
 
 export const performHealthCheck = async (options: HealthCheckOptions = {}): Promise<MastraHealthCheck> => {
-  const {
-    includeMemoryDetails = false,
-    checkConnections = true,
-    sampleSize = 100
-  } = options;
-  const memoryUsage = process.memoryUsage();
+  try {
+    const {
+      includeMemoryDetails = false,
+      checkConnections = true,
+      sampleSize = 100
+    } = options;
+    const memoryUsage = process.memoryUsage();
 
-  // Get basic memory metrics
-  const heapUsedMB = memoryUsage.heapUsed / 1024 / 1024;
-  const heapTotalMB = memoryUsage.heapTotal / 1024 / 1024;
-  const externalMB = memoryUsage.external / 1024 / 1024;
+    // Get basic memory metrics
+    const heapUsedMB = memoryUsage.heapUsed / 1024 / 1024;
+    const heapTotalMB = memoryUsage.heapTotal / 1024 / 1024;
+    const externalMB = memoryUsage.external / 1024 / 1024;
 
-  // Determine status based on memory usage
-  let status: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
-  if (heapUsedMB > 500) {
-    status = 'unhealthy';
-  } else if (heapUsedMB > 200) {
-    status = 'degraded';
-  }
+    // Determine status based on memory usage
+    let status: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
+    if (heapUsedMB > 500) {
+      status = 'unhealthy';
+    } else if (heapUsedMB > 200) {
+      status = 'degraded';
+    }
 
-  // Simulate connection checks (in real implementation, these would be actual checks)
-  let activeConnections = 0;
-  let averageResponseTime = 0;
-  let errorRate = 0;
+    // Simulate connection checks (in real implementation, these would be actual checks)
+    let activeConnections = 0;
+    let averageResponseTime = 0;
+    let errorRate = 0;
 
-  if (checkConnections) {
-    // Simulate checking active Mastra connections
-    // In a real implementation, this would check actual connection pools
-    activeConnections = Math.floor(Math.random() * 10);
+    if (checkConnections) {
+      // Simulate checking active Mastra connections
+      // In a real implementation, this would check actual connection pools
+      activeConnections = Math.floor(Math.random() * 10);
 
-    // Simulate response time measurement
-    const responseTimes = Array.from({ length: sampleSize }, () =>
-      Math.random() * 100 + 10 // 10-110ms response times
-    );
-    averageResponseTime = responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length;
+      // Simulate response time measurement
+      const responseTimes = Array.from({ length: sampleSize }, () =>
+        Math.random() * 100 + 10 // 10-110ms response times
+      );
+      averageResponseTime = responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length;
 
-    // Simulate error rate calculation
-    errorRate = Math.random() * 0.05; // 0-5% error rate
-  }
+      // Simulate error rate calculation
+      errorRate = Math.random() * 0.05; // 0-5% error rate
+    }
 
-  // Create health check result
-  const healthCheck: MastraHealthCheck = {
-    status,
-    timestamp: new Date().toISOString(),
-    metrics: {
-      memoryUsage: heapUsedMB,
-      activeConnections,
-      averageResponseTime,
-      errorRate,
-      messageCount: 0, // This would be retrieved from actual runtime state
-      accumulatorUtilization: 0, // This would be retrieved from actual accumulator
-    },
-  };
-
-  // Add detailed information if requested
-  if (includeMemoryDetails) {
-    healthCheck.details = {
-      memory: {
-        heapUsed: heapUsedMB,
-        heapTotal: heapTotalMB,
-        external: externalMB,
-        rss: memoryUsage.rss / 1024 / 1024,
-        arrayBuffers: memoryUsage.arrayBuffers / 1024 / 1024,
+    // Create health check result
+    const healthCheck: MastraHealthCheck = {
+      status,
+      timestamp: new Date().toISOString(),
+      metrics: {
+        memoryUsage: heapUsedMB,
+        activeConnections,
+        averageResponseTime,
+        errorRate,
+        messageCount: 0, // This would be retrieved from actual runtime state
+        accumulatorUtilization: 0, // This would be retrieved from actual accumulator
       },
-      process: {
-        pid: process.pid,
-        uptime: process.uptime(),
-        platform: process.platform,
-        nodeVersion: process.version,
+    };
+
+    // Add detailed information if requested
+    if (includeMemoryDetails) {
+      healthCheck.details = {
+        memory: {
+          heapUsed: heapUsedMB,
+          heapTotal: heapTotalMB,
+          external: externalMB,
+          rss: memoryUsage.rss / 1024 / 1024,
+          arrayBuffers: memoryUsage.arrayBuffers / 1024 / 1024,
+        },
+        process: {
+          pid: process.pid,
+          uptime: process.uptime(),
+          platform: process.platform,
+          nodeVersion: process.version,
+        },
+      };
+    }
+
+    // Adjust status based on response time and error rate
+    if (averageResponseTime > 1000 || errorRate > 0.1) {
+      status = 'unhealthy';
+    } else if (averageResponseTime > 500 || errorRate > 0.05) {
+      status = 'degraded';
+    }
+
+    healthCheck.status = status;
+    healthCheck.timestamp = new Date().toISOString();
+
+    return healthCheck;
+  } catch (error) {
+    // Handle any errors during health check
+    return {
+      status: 'unhealthy',
+      timestamp: new Date().toISOString(),
+      metrics: {
+        memoryUsage: 0,
+        activeConnections: 0,
+        averageResponseTime: 0,
+        errorRate: 1,
+        messageCount: 0,
+        accumulatorUtilization: 0,
+      },
+      details: {
+        error: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
       },
     };
   }
-
-  // Adjust status based on response time and error rate
-  if (averageResponseTime > 1000 || errorRate > 0.1) {
-    status = 'unhealthy';
-  } else if (averageResponseTime > 500 || errorRate > 0.05) {
-    status = 'degraded';
-  }
-
-  healthCheck.status = status;
-  healthCheck.timestamp = new Date().toISOString();
-
-  return healthCheck;
 };
 
 export const checkHealthThresholds = (health: MastraHealthCheck): {
