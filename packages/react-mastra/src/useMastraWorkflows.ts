@@ -489,7 +489,7 @@ export const useMastraWorkflows = (config: MastraWorkflowConfig) => {
     );
 
     return () => unsubscribe();
-  }, [workflowState, config]);
+  }, [workflowState?.id, config]);
 
   return {
     workflowState,

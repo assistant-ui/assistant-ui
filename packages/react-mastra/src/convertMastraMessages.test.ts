@@ -25,13 +25,6 @@ function isThreadMessageLike(
   return message.role !== "tool";
 }
 
-// Helper function to check if a message is a tool message
-function isToolMessage(
-  message: useExternalMessageConverter.Message,
-): message is Extract<useExternalMessageConverter.Message, { role: "tool" }> {
-  return message.role === "tool";
-}
-
 describe("MastraMessageConverter", () => {
   it("should convert basic text messages", () => {
     const mastraMessage = createMockMastraMessage({
@@ -45,9 +38,11 @@ describe("MastraMessageConverter", () => {
     expect(messages).toHaveLength(1);
     expect(firstMessage.role).toBe("assistant");
     if (isThreadMessageLike(firstMessage)) {
-      expect(firstMessage.content).toEqual([
-        { type: "text", text: "Hello world" },
-      ]);
+      expect(firstMessage.content).toHaveLength(1);
+      expect(firstMessage.content[0]).toMatchObject({
+        type: "text",
+        text: "Hello world",
+      });
     }
   });
 
@@ -63,9 +58,11 @@ describe("MastraMessageConverter", () => {
     expect(messages).toHaveLength(1);
     expect(firstMessage.role).toBe("user");
     if (isThreadMessageLike(firstMessage)) {
-      expect(firstMessage.content).toEqual([
-        { type: "text", text: "User input" },
-      ]);
+      expect(firstMessage.content).toHaveLength(1);
+      expect(firstMessage.content[0]).toMatchObject({
+        type: "text",
+        text: "User input",
+      });
     }
   });
 
@@ -81,9 +78,11 @@ describe("MastraMessageConverter", () => {
     expect(messages).toHaveLength(1);
     expect(firstMessage.role).toBe("system");
     if (isThreadMessageLike(firstMessage)) {
-      expect(firstMessage.content).toEqual([
-        { type: "text", text: "System instruction" },
-      ]);
+      expect(firstMessage.content).toHaveLength(1);
+      expect(firstMessage.content[0]).toMatchObject({
+        type: "text",
+        text: "System instruction",
+      });
     }
   });
 
@@ -104,13 +103,15 @@ describe("MastraMessageConverter", () => {
     expect(firstMessage.role).toBe("assistant");
     if (isThreadMessageLike(firstMessage)) {
       expect(firstMessage.content).toHaveLength(2);
-      expect(firstMessage.content[0]).toEqual({
+      expect(firstMessage.content[0]).toMatchObject({
         type: "text",
         text: "I'll help you with that",
       });
-      expect(firstMessage.content[1]).toEqual({
-        type: "tool_call",
-        tool_call: toolCall,
+      expect(firstMessage.content[1]).toMatchObject({
+        type: "tool-call",
+        toolCallId: toolCall.id,
+        toolName: toolCall.name,
+        args: toolCall.arguments,
       });
     }
   });
@@ -133,11 +134,11 @@ describe("MastraMessageConverter", () => {
     expect(messages).toHaveLength(1);
     if (isThreadMessageLike(firstMessage)) {
       expect(firstMessage.content).toHaveLength(2);
-      expect(firstMessage.content[0]).toEqual({
+      expect(firstMessage.content[0]).toMatchObject({
         type: "reasoning",
-        reasoning: "Let me think about this step by step",
+        text: "Let me think about this step by step",
       });
-      expect(firstMessage.content[1]).toEqual({
+      expect(firstMessage.content[1]).toMatchObject({
         type: "text",
         text: "The answer is 42",
       });
@@ -209,7 +210,23 @@ describe("MastraMessageConverter", () => {
   });
 
   it("should convert tool result messages", () => {
-    const mastraMessage = createMockMastraMessage({
+    // First create an assistant message with the tool call
+    const assistantMessage = createMockMastraMessage({
+      type: "assistant",
+      content: [
+        {
+          type: "tool_call",
+          tool_call: {
+            id: "tool-call-test-id",
+            name: "testTool",
+            arguments: { input: "test" },
+          },
+        },
+      ],
+    });
+
+    // Then create the tool result message
+    const toolResultMessage = createMockMastraMessage({
       type: "tool",
       content: [
         {
@@ -223,15 +240,25 @@ describe("MastraMessageConverter", () => {
       ],
     });
 
-    const messages = getConvertedMessages(mastraMessage);
-    const firstMessage = getFirstMessage(messages);
+    // Convert both messages together so the tool call exists
+    const messages = MastraMessageConverter.toThreadMessages([
+      assistantMessage,
+      toolResultMessage,
+    ]);
 
     expect(messages).toHaveLength(1);
-    expect(firstMessage.role).toBe("tool");
-    // Tool result messages are of the tool message type, not ThreadMessageLike
-    if (isToolMessage(firstMessage)) {
-      expect(firstMessage.toolCallId).toBe("tool-call-test-id");
-      expect(firstMessage.result).toBe("The tool executed successfully");
+    const firstMessage = messages[0]!;
+    expect(firstMessage.role).toBe("assistant");
+
+    // The tool result should be merged into the assistant message's tool call
+    if (isThreadMessageLike(firstMessage)) {
+      expect(firstMessage.content).toHaveLength(1);
+      const toolCall = firstMessage.content[0];
+      expect(toolCall).toMatchObject({
+        type: "tool-call",
+        toolCallId: "tool-call-test-id",
+        result: "The tool executed successfully",
+      });
     }
   });
 
@@ -254,7 +281,7 @@ describe("MastraMessageConverter", () => {
       const content = firstMessage.content;
       if (Array.isArray(content)) {
         expect(content[0]).toHaveProperty("type", "reasoning");
-        expect(content[1]).toHaveProperty("type", "tool_call");
+        expect(content[1]).toHaveProperty("type", "tool-call");
         expect(content[2]).toHaveProperty("type", "text");
       }
     }

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { MastraMessageAccumulator } from "../../src/MastraMessageAccumulator";
-import { LegacyMastraMessageConverter } from "../../src/convertMastraMessages";
+import { MastraMessageConverter } from "../../src/convertMastraMessages";
 import { createMockMastraMessage } from "../../src/testUtils";
 import { performHealthCheck, checkHealthThresholds } from "../../src/health";
 
@@ -139,7 +139,9 @@ describe("Mastra Integration Tests", () => {
         metadata: { tokens: 25, model: "gpt-4" },
       });
 
-      const result = LegacyMastraMessageConverter(complexMessage);
+      const result = MastraMessageConverter.toThreadMessages([
+        complexMessage,
+      ])[0];
 
       expect(result).toBeDefined();
       expect(result.role).toBe("assistant");
@@ -154,7 +156,9 @@ describe("Mastra Integration Tests", () => {
         content: [],
       });
 
-      expect(() => LegacyMastraMessageConverter(emptyMessage)).not.toThrow();
+      expect(() =>
+        MastraMessageConverter.toThreadMessages([emptyMessage]),
+      ).not.toThrow();
 
       // Test with null content
       const nullMessage = {
@@ -163,7 +167,9 @@ describe("Mastra Integration Tests", () => {
         content: null,
       } as any;
 
-      expect(() => LegacyMastraMessageConverter(nullMessage)).not.toThrow();
+      expect(() =>
+        MastraMessageConverter.toThreadMessages([nullMessage]),
+      ).not.toThrow();
     });
   });
 
@@ -222,7 +228,7 @@ describe("Mastra Integration Tests", () => {
 
       // Should not throw when processing malformed data
       expect(() =>
-        LegacyMastraMessageConverter(malformedMessage),
+        MastraMessageConverter.toThreadMessages([malformedMessage]),
       ).not.toThrow();
     });
 

@@ -53,6 +53,18 @@ describe("useMastraWorkflows", () => {
           };
         }
 
+        // Mock SSE events endpoint
+        if (url.startsWith("/api/workflow/events/")) {
+          return {
+            ok: true,
+            body: {
+              getReader: () => ({
+                read: async () => ({ done: true, value: undefined }),
+              }),
+            },
+          };
+        }
+
         // Default fallback for unexpected calls
         return {
           ok: false,

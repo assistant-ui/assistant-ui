@@ -1,4 +1,15 @@
 import { vi, beforeEach, afterEach } from "vitest";
+import * as React from "react";
+
+// Ensure React is available globally
+if (typeof global !== "undefined") {
+  (global as any).React = React;
+}
+
+// Ensure window.React is available for jsdom
+if (typeof window !== "undefined") {
+  (window as any).React = React;
+}
 
 // Enhanced Mastra core mocks
 vi.mock("@mastra/core", () => ({
