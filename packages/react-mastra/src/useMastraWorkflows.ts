@@ -184,7 +184,10 @@ export const useMastraWorkflows = (config: MastraWorkflowConfig) => {
       if (!workflowState || !isSuspended) return;
 
       try {
-        const resumeResult = await mastraWorkflow.resume(workflowState.id, input);
+        const resumeResult = await mastraWorkflow.resume(
+          workflowState.id,
+          input,
+        );
 
         const updatedState: MastraWorkflowState = {
           ...workflowState,

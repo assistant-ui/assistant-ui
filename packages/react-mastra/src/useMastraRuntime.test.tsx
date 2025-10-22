@@ -42,7 +42,10 @@ describe("useMastraRuntime", () => {
 
     // Trigger a message send which should call onError
     const runtime = result.current;
-    await runtime.thread.append({ role: "user", content: [{ type: "text", text: "test" }] });
+    await runtime.thread.append({
+      role: "user",
+      content: [{ type: "text", text: "test" }],
+    });
 
     // Wait for async operations
     await new Promise((resolve) => setTimeout(resolve, 0));

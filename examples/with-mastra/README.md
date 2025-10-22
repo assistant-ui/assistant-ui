@@ -184,7 +184,8 @@ import { createOpenAI } from "@ai-sdk/openai";
 
 const screeningAgent = new Agent({
   name: "screeningAgent",
-  instructions: "You are a professional recruiter specializing in candidate screening...",
+  instructions:
+    "You are a professional recruiter specializing in candidate screening...",
   model: openai("gpt-4o-mini"),
   memory: true,
 });
@@ -209,23 +210,26 @@ const hiringWorkflow = createWorkflow({
     resume: z.string(),
     position: z.string(),
   }),
-}).step("screening", {
-  execute: async ({ inputData, suspendData }) => {
-    return {
-      candidateName: suspendData?.candidateName || inputData.candidateName,
-      screeningScore: suspendData?.screeningScore || 7.5,
-      recommendation: suspendData?.recommendation || "proceed_to_interview",
-    };
-  },
-}).step("interview", {
-  execute: async ({ suspendData }) => {
-    return {
-      technicalScore: suspendData?.technicalScore || 8.0,
-      culturalScore: suspendData?.culturalScore || 7.5,
-      finalDecision: suspendData?.finalDecision || "pending",
-    };
-  },
-}).commit();
+})
+  .step("screening", {
+    execute: async ({ inputData, suspendData }) => {
+      return {
+        candidateName: suspendData?.candidateName || inputData.candidateName,
+        screeningScore: suspendData?.screeningScore || 7.5,
+        recommendation: suspendData?.recommendation || "proceed_to_interview",
+      };
+    },
+  })
+  .step("interview", {
+    execute: async ({ suspendData }) => {
+      return {
+        technicalScore: suspendData?.technicalScore || 8.0,
+        culturalScore: suspendData?.culturalScore || 7.5,
+        finalDecision: suspendData?.finalDecision || "pending",
+      };
+    },
+  })
+  .commit();
 ```
 
 ## Customization

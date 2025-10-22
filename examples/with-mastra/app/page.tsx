@@ -81,7 +81,11 @@ export default function Home() {
           )}
           {workflowState && (
             <WorkflowStatus
-              status={workflowState.status === "success" ? "completed" : (workflowState.status as any)}
+              status={
+                workflowState.status === "success"
+                  ? "completed"
+                  : (workflowState.status as any)
+              }
               currentStep={workflowState.current}
               suspendData={(workflowState as any).suspendData}
               onResume={handleResume}

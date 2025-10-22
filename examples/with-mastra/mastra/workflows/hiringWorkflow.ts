@@ -171,7 +171,9 @@ Format your response clearly with these sections.`;
       candidateName,
       technicalScore: suspendData?.technicalScore || 8.0,
       culturalScore: suspendData?.culturalScore || 9.0,
-      overallScore: suspendData ? (suspendData.technicalScore + suspendData.culturalScore) / 2 : 8.5,
+      overallScore: suspendData
+        ? (suspendData.technicalScore + suspendData.culturalScore) / 2
+        : 8.5,
       hiringDecision,
     };
   },

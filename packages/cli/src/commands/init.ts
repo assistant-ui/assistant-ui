@@ -88,7 +88,9 @@ export const init = new Command()
           }
         } else {
           // Non-interactive mode: default to Mastra setup
-          console.log(chalk.blue("Using Mastra-specific setup (non-interactive mode)"));
+          console.log(
+            chalk.blue("Using Mastra-specific setup (non-interactive mode)"),
+          );
           options.framework = "mastra";
         }
       }
