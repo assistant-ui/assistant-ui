@@ -10,6 +10,16 @@ import {
   MastraMessage,
 } from "./types";
 
+// Type definition for Mastra API message format
+// Based on actual API responses from Mastra memory system
+type MastraApiMessage = {
+  id: string;
+  role: "user" | "assistant" | "system" | "tool";
+  content: string; // API currently returns string only, not MastraContent[]
+  createdAt?: string;
+  metadata?: Record<string, any>;
+};
+
 export const useMastraMemory = (config: MastraMemoryConfig) => {
   const [threads, setThreads] = useState<Map<string, MastraThreadState>>(
     new Map(),
@@ -55,7 +65,7 @@ export const useMastraMemory = (config: MastraMemoryConfig) => {
 
         const { results } = await response.json();
         return results;
-      } catch (error) {
+      } catch {
         // Return empty array on error - caller can handle if needed
         return [];
       } finally {
@@ -94,22 +104,28 @@ export const useMastraMemory = (config: MastraMemoryConfig) => {
         // Transform messages to our format
         const threadState: MastraThreadState = {
           id: thread.id,
-          messages: (thread.messages || []).map((msg: any) => {
-            let type: "system" | "human" | "assistant" | "tool" = "human";
+          messages: (thread.messages || []).map((msg: MastraApiMessage) => {
+            // Map API role to MastraMessage type
+            let type: MastraMessage["type"] = "human";
             if (msg.role === "user") type = "human";
             else if (msg.role === "assistant") type = "assistant";
             else if (msg.role === "system") type = "system";
             else if (msg.role === "tool") type = "tool";
 
-            return {
+            // Transform API message to MastraMessage format
+            // Note: API currently returns string content only.
+            // Future: handle MastraContent[] when API supports it
+            const transformed: MastraMessage = {
               id: msg.id,
               type,
               content: msg.content,
               timestamp: msg.createdAt
                 ? new Date(msg.createdAt).toISOString()
                 : new Date().toISOString(),
-              metadata: msg.metadata,
+              ...(msg.metadata && { metadata: msg.metadata }),
             };
+
+            return transformed;
           }),
           interrupts: [],
           metadata: thread.metadata || {},

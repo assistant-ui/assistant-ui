@@ -7,7 +7,6 @@ export { useMastraMemory } from "./useMastraMemory";
 export {
   useMastraWorkflows,
   useMastraWorkflowInterrupt,
-  useMastraSendWorkflowCommand,
 } from "./useMastraWorkflows";
 
 // Message processing components

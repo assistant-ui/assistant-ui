@@ -110,7 +110,7 @@ const mastraWorkflow = {
       timestamp: new Date().toISOString(),
     };
   },
-  subscribe: (workflowId: string) => {
+  subscribe: (_workflowId: string) => {
     // In a real implementation, this would establish an SSE connection
     const unsubscribe = () => {
       // Cleanup logic here
@@ -310,15 +310,4 @@ export const useMastraWorkflowInterrupt = () => {
     interrupt,
     setWorkflowInterrupt,
   };
-};
-
-// Hook for sending workflow commands (following LangGraph pattern)
-export const useMastraSendWorkflowCommand = () => {
-  // This would integrate with the main workflow hook in a real implementation
-  // For now, we'll create a placeholder that can be connected later
-  const sendCommand = useCallback(async (command: MastraWorkflowCommand) => {
-    // In real implementation, this would call the actual workflow system
-  }, []);
-
-  return sendCommand;
 };

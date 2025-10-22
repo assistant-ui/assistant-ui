@@ -3,7 +3,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   useMastraWorkflows,
   useMastraWorkflowInterrupt,
-  useMastraSendWorkflowCommand,
 } from "./useMastraWorkflows";
 import { MastraWorkflowConfig, MastraWorkflowInterrupt } from "./types";
 
@@ -320,21 +319,5 @@ describe("useMastraWorkflowInterrupt", () => {
     });
 
     expect(result.current.interrupt).toBe(null);
-  });
-});
-
-describe("useMastraSendWorkflowCommand", () => {
-  it("should provide command sending functionality", async () => {
-    const { result } = renderHook(() => useMastraSendWorkflowCommand());
-
-    await act(async () => {
-      await result.current({
-        transition: "test",
-        context: { test: true },
-      });
-    });
-
-    // In this mock implementation, we just verify it doesn't throw
-    expect(result.current).toBeDefined();
   });
 });
