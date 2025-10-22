@@ -106,8 +106,14 @@ export const useMastraRuntime = (config: MastraRuntimeConfig) => {
           }
           break;
         case MastraKnownEventTypes.Error:
-          config.onError?.(new Error(event.data));
-          config.eventHandlers?.onError?.(new Error(event.data));
+          // Normalize error data to a meaningful message
+          const errorMessage =
+            typeof event.data === "string"
+              ? event.data
+              : event.data?.message || event.data?.error || "Unknown error";
+          const error = new Error(errorMessage);
+          config.onError?.(error);
+          config.eventHandlers?.onError?.(error);
           setIsRunning(false);
           break;
         case MastraKnownEventTypes.Metadata:
@@ -203,7 +209,10 @@ export const useMastraRuntime = (config: MastraRuntimeConfig) => {
                 const event = JSON.parse(data);
                 processEvent(event);
               } catch (e) {
-                console.error("Failed to parse event:", e);
+                // Notify error handler instead of logging to console
+                config.onError?.(
+                  e instanceof Error ? e : new Error("Failed to parse event"),
+                );
               }
             }
           }
@@ -325,7 +334,10 @@ export const useMastraRuntime = (config: MastraRuntimeConfig) => {
                 const event = JSON.parse(data);
                 processEvent(event);
               } catch (e) {
-                console.error("Failed to parse event:", e);
+                // Notify error handler instead of logging to console
+                config.onError?.(
+                  e instanceof Error ? e : new Error("Failed to parse event"),
+                );
               }
             }
           }

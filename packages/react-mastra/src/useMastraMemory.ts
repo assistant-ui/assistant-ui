@@ -56,23 +56,13 @@ export const useMastraMemory = (config: MastraMemoryConfig) => {
         const { results } = await response.json();
         return results;
       } catch (error) {
-        console.error("Memory search failed:", error);
+        // Return empty array on error - caller can handle if needed
         return [];
       } finally {
         setIsSearching(false);
       }
     },
     [apiBase, currentThread, resourceId],
-  );
-
-  // Note: saveToMemory is no longer needed - the agent handles this automatically
-  // when you call agent.stream() with memory context
-  const saveToMemory = useCallback(
-    async (_threadId: string, _messages: MastraMessage[]) => {
-      // This is a no-op now - messages are saved automatically by the agent
-      // saveToMemory is deprecated - messages are saved automatically by the agent
-    },
-    [],
   );
 
   // Get thread context from API
@@ -136,7 +126,7 @@ export const useMastraMemory = (config: MastraMemoryConfig) => {
 
         return threadState;
       } catch (error) {
-        console.error("Failed to get thread context:", error);
+        // Re-throw to let caller handle
         throw error;
       }
     },
@@ -180,7 +170,7 @@ export const useMastraMemory = (config: MastraMemoryConfig) => {
 
         return threadId;
       } catch (error) {
-        console.error("Failed to create thread:", error);
+        // Re-throw to let caller handle
         throw error;
       }
     },
@@ -237,7 +227,7 @@ export const useMastraMemory = (config: MastraMemoryConfig) => {
           return updated;
         });
       } catch (error) {
-        console.error("Failed to update thread metadata:", error);
+        // Re-throw to let caller handle
         throw error;
       }
     },
@@ -249,7 +239,6 @@ export const useMastraMemory = (config: MastraMemoryConfig) => {
     currentThread,
     isSearching,
     searchMemory,
-    saveToMemory, // Deprecated but kept for compatibility
     getThreadContext,
     createThread,
     deleteThread,

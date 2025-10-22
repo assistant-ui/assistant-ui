@@ -273,9 +273,20 @@ export type MastraRuntimeConfig = {
     onMemoryEvent?: (event: MastraEvent) => void;
   };
   adapters?: {
-    attachments?: any; // TODO: proper types in Phase 3
-    feedback?: any;
-    speech?: any;
+    attachments?: {
+      accept?: string;
+      maxSize?: number;
+      onUpload?: (file: File) => Promise<string>;
+    };
+    feedback?: {
+      onPositive?: (messageId: string) => void;
+      onNegative?: (messageId: string) => void;
+    };
+    speech?: {
+      onStart?: () => void;
+      onStop?: () => void;
+      onError?: (error: Error) => void;
+    };
   };
 
   // Advanced feature configurations - Real Mastra APIs only

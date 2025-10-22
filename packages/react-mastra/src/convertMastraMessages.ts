@@ -13,6 +13,7 @@ import type { MessageStatus } from "@assistant-ui/react";
 
 const warnedMessagePartTypes = new Set<string>();
 const warnForUnknownMessagePartType = (type: string) => {
+  // Only warn in development mode
   if (
     typeof process === "undefined" ||
     process?.env?.["NODE_ENV"] !== "development"
@@ -20,7 +21,10 @@ const warnForUnknownMessagePartType = (type: string) => {
     return;
   if (warnedMessagePartTypes.has(type)) return;
   warnedMessagePartTypes.add(type);
-  console.warn(`Unknown message part type: ${type}`);
+  // Use console.warn only in development
+  if (typeof console !== "undefined" && console.warn) {
+    console.warn(`[Mastra] Unknown message part type: ${type}`);
+  }
 };
 
 const convertMastraContentToParts = (
@@ -105,7 +109,6 @@ const mapMastraStatusToAssistantUI = (
 export const MastraMessageConverter = (message: MastraMessage) => {
   // Validate message has required fields
   if (!message.type) {
-    console.error("MastraMessageConverter: Message missing type", message);
     // Default to user message if type is missing
     message = { ...message, type: "human" };
   }
