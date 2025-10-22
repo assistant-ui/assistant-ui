@@ -26,10 +26,10 @@ import { useMastraRuntime } from "@assistant-ui/react-mastra";
 
 const runtime = useMastraRuntime({
   agentId: string,
-  memory?: boolean,
-  workflows?: string[],
-  apiUrl?: string,
-  stream?: (messages: any[]) => AsyncGenerator<any>,
+  api: string,
+  memory?: MastraMemoryConfig,
+  workflow?: MastraWorkflowConfig,
+  onError?: (error: Error) => void,
   onSwitchToThread?: (threadId: string) => Promise<MastraThreadState>,
   onSwitchToNewThread?: () => Promise<string>,
   eventHandlers?: {

@@ -46,9 +46,11 @@ export function WorkflowStatus({
 
   const getStepStatus = (stepId: string) => {
     if (status === "completed") return "completed";
+    if (status === "error") return "error";
     if (currentStep === stepId) {
       if (status === "suspended") return "suspended";
       if (status === "running") return "running";
+      if (status === "error") return "error";
     }
     const currentIndex = steps.findIndex((s) => s.id === currentStep);
     const stepIndex = steps.findIndex((s) => s.id === stepId);

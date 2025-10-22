@@ -71,6 +71,12 @@ export const useMastraMessages = <
       // Use provided abort signal or create new controller
       let abortController: AbortController;
       if (config.abortSignal) {
+        // Check if signal is already aborted
+        if (config.abortSignal.aborted) {
+          setIsRunning(false);
+          return;
+        }
+
         // Create a controller that responds to both the provided signal and our own
         abortController = new AbortController();
         const externalAbortHandler = () => abortController.abort();

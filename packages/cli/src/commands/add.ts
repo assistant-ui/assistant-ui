@@ -72,7 +72,7 @@ export const add = new Command()
 
       // Import and use Mastra component registry
       const mastraRegistryPath = path.join(
-        __dirname,
+        path.dirname(new URL(import.meta.url).pathname),
         "../components/mastra-registry.json",
       );
 

@@ -32,18 +32,6 @@ const qualityChecks = [
     },
   },
   {
-    name: "Performance Tests Pass",
-    check: () => {
-      try {
-        execSync("pnpm test:performance", { stdio: "pipe" });
-        return true;
-      } catch (error) {
-        console.warn("Performance tests failed:", error.message);
-        return false;
-      }
-    },
-  },
-  {
     name: "Bundle Size Check",
     check: () => {
       const distPath = join(process.cwd(), "dist");

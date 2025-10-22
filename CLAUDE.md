@@ -24,7 +24,7 @@ Each package has its own scripts:
 - `pnpm run test` - Run tests (vitest)
 - `pnpm run lint` - Run ESLint
 - `pnpm run test:watch` - Run tests in watch mode
-- `pnpm run test:mutation` - Run mutation testing with Stryker
+- `pnpm run test:mutation` - Run mutation testing with Stryker (available in select packages where configured)
 
 ## Codebase Architecture
 

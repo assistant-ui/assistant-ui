@@ -254,8 +254,9 @@ describe("useMastraMemory", () => {
 
     const { result } = renderHook(() => useMastraMemory(mockMemoryConfig));
 
-    const searchResults = await act(async () => {
-      return await result.current.searchMemory({
+    let searchResults: any[] = [];
+    await act(async () => {
+      searchResults = await result.current.searchMemory({
         query: "test query",
       });
     });

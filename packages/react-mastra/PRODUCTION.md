@@ -72,7 +72,10 @@ const config = {
   timeout: parseInt(process.env.MASTRA_TIMEOUT || "30000"),
 };
 
-const runtime = useMastraRuntime(config);
+function MyComponent() {
+  const runtime = useMastraRuntime(config);
+  // Use runtime in your component...
+}
 ```
 
 ### Advanced Production Setup
@@ -141,7 +144,10 @@ const config = {
   cleanupInterval: parseInt(process.env.MASTRA_CLEANUP_INTERVAL || "300000"),
 };
 
-const runtime = useMastraRuntime(config);
+function ProductionComponent() {
+  const runtime = useMastraRuntime(config);
+  // Use runtime in your component...
+}
 ```
 
 ## Performance Monitoring

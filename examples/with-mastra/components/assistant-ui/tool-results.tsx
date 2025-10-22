@@ -20,6 +20,7 @@ export interface ToolResultsProps {
   toolCall: ToolCallData;
   result?: unknown;
   isExpanded?: boolean;
+  onExpandedChange?: (expanded: boolean) => void;
   className?: string;
 }
 
@@ -41,11 +42,21 @@ export function ToolResults({
   toolCall,
   result,
   isExpanded: controlledExpanded,
+  onExpandedChange,
   className,
 }: ToolResultsProps) {
   const [internalExpanded, setInternalExpanded] = React.useState(false);
-  const isExpanded = controlledExpanded ?? internalExpanded;
+  const isControlled = controlledExpanded !== undefined;
+  const isExpanded = isControlled ? controlledExpanded : internalExpanded;
   const { name, args, state: toolState = "success" } = toolCall;
+
+  const handleToggle = () => {
+    const newExpanded = !isExpanded;
+    if (!isControlled) {
+      setInternalExpanded(newExpanded);
+    }
+    onExpandedChange?.(newExpanded);
+  };
 
   const stateConfig = {
     running: {
@@ -84,7 +95,7 @@ export function ToolResults({
     >
       <button
         type="button"
-        onClick={() => setInternalExpanded(!internalExpanded)}
+        onClick={handleToggle}
         className="flex w-full items-center gap-3 p-3 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5"
         aria-expanded={isExpanded}
         aria-label={`${isExpanded ? "Collapse" : "Expand"} tool result for ${name}`}

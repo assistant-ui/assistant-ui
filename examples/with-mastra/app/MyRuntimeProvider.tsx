@@ -119,27 +119,29 @@ export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
 
         const data = await response.json();
 
-        if (data.status === "success") {
-          setWorkflowState({
-            ...workflowState,
-            status: "completed",
-          });
-        } else if (data.status === "suspended") {
-          const nextStep = data.suspended?.[0]?.[0];
-          setWorkflowState({
-            ...workflowState,
-            status: data.status,
-            current: nextStep || workflowState.current,
-            suspendData:
-              data.result?.steps?.[nextStep]?.suspendPayload || data.result,
-          });
-        } else {
-          // Handle running or other statuses
-          setWorkflowState({
-            ...workflowState,
-            status: data.status,
-          });
-        }
+        setWorkflowState((prev) => {
+          if (data.status === "success") {
+            return {
+              ...prev,
+              status: "completed",
+            };
+          } else if (data.status === "suspended") {
+            const nextStep = data.suspended?.[0]?.[0];
+            return {
+              ...prev,
+              status: data.status,
+              current: nextStep || prev.current,
+              suspendData:
+                data.result?.steps?.[nextStep]?.suspendPayload || data.result,
+            };
+          } else {
+            // Handle running or other statuses
+            return {
+              ...prev,
+              status: data.status,
+            };
+          }
+        });
       } catch (error) {
         console.error("Failed to resume workflow:", error);
       } finally {

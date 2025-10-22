@@ -21,7 +21,7 @@ export interface WorkflowStep {
 
 export interface WorkflowControlsProps {
   workflowId: string;
-  status?: "idle" | "running" | "paused" | "completed" | "error";
+  status?: "idle" | "running" | "paused" | "completed" | "error" | "suspended";
   progress?: number;
   steps?: WorkflowStep[];
   showSteps?: boolean;
@@ -79,6 +79,12 @@ export function WorkflowControls({
       icon: Pause,
       label: "Paused",
       color: "text-yellow-600 dark:text-yellow-400",
+      animated: false,
+    },
+    suspended: {
+      icon: Pause,
+      label: "Suspended",
+      color: "text-orange-600 dark:text-orange-400",
       animated: false,
     },
     completed: {
@@ -189,7 +195,7 @@ export function WorkflowControls({
           </Button>
         )}
 
-        {(status === "running" || status === "paused") && (
+        {(status === "running" || status === "paused" || status === "suspended") && (
           <Button
             size="sm"
             variant="destructive"
@@ -199,6 +205,18 @@ export function WorkflowControls({
           >
             <StopCircle className="mr-1.5 h-3.5 w-3.5" />
             Stop
+          </Button>
+        )}
+
+        {status === "suspended" && (
+          <Button
+            size="sm"
+            onClick={onStart}
+            disabled={!onStart}
+            aria-label="Resume suspended workflow"
+          >
+            <Play className="mr-1.5 h-3.5 w-3.5" />
+            Resume
           </Button>
         )}
 

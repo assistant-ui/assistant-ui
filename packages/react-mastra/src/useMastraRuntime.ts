@@ -14,6 +14,7 @@ import {
   MastraEvent,
   MastraKnownEventTypes,
   MastraRuntimeExtras,
+  MastraRuntimeExtrasSymbol,
 } from "./types";
 import { useMastraMemory } from "./useMastraMemory";
 import { useMastraWorkflows } from "./useMastraWorkflows";
@@ -32,13 +33,11 @@ const getMessageContent = (msg: any): string => {
   return "";
 };
 
-const symbolMastraRuntimeExtras = Symbol("mastra-runtime-extras");
-
 const asMastraRuntimeExtras = (extras: unknown): MastraRuntimeExtras => {
   if (
     typeof extras !== "object" ||
     extras == null ||
-    !(symbolMastraRuntimeExtras in extras)
+    !(MastraRuntimeExtrasSymbol in extras)
   )
     throw new Error(
       "This method can only be called when you are using useMastraRuntime",
@@ -363,7 +362,7 @@ export const useMastraRuntime = (config: MastraRuntimeConfig) => {
     adapters: config.adapters,
     convertMessage: LegacyMastraMessageConverter as any,
     extras: {
-      [symbolMastraRuntimeExtras]: {
+      [MastraRuntimeExtrasSymbol]: {
         agentId: config.agentId,
         isStreaming: isRunning,
         // Only include Real Mastra features if they were configured

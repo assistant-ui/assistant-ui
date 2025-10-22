@@ -58,6 +58,7 @@ export function AgentSelector({
           return (
             <Button
               key={agent.id}
+              type="button"
               variant={isSelected ? "default" : "ghost"}
               className="h-auto w-full justify-start p-3"
               onClick={() => onAgentChange?.(agent.id)}

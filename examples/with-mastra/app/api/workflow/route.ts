@@ -4,6 +4,18 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+
+    // Guard against non-object payloads
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return NextResponse.json(
+        {
+          error: "Invalid request body",
+          details: "Expected a JSON object",
+        },
+        { status: 400 },
+      );
+    }
+
     const { candidateName, candidateEmail, resume, position } = body;
 
     // Validate required fields

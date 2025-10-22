@@ -23,12 +23,13 @@ async function runTests() {
 
   try {
     const { stdout, stderr } = await execAsync(
-      'NODE_OPTIONS="--max-old-space-size=4096 --expose-gc" pnpm vitest run --config vitest.memory.config.ts',
+      'pnpm vitest run --config vitest.memory.config.ts',
       {
         maxBuffer: 10 * 1024 * 1024, // 10MB buffer
         env: {
           ...process.env,
           NODE_ENV: "test",
+          NODE_OPTIONS: "--max-old-space-size=4096 --expose-gc",
         },
       },
     );

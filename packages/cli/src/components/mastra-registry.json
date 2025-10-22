@@ -40,7 +40,8 @@
       "dependencies": [
         "@assistant-ui/react",
         "@assistant-ui/react-mastra",
-        "@radix-ui/react-badge"
+        "@radix-ui/react-badge",
+        "lucide-react"
       ],
       "props": {
         "threadId": {

@@ -36,12 +36,13 @@ export interface TooltipIconButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof tooltipVariants> {
   tooltip: string;
+  "aria-label"?: string;
 }
 
 const TooltipIconButton = React.forwardRef<
   HTMLButtonElement,
   TooltipIconButtonProps
->(({ className, variant, size, tooltip, ...props }, ref) => {
+>(({ className, variant, size, tooltip, "aria-label": ariaLabel, ...props }, ref) => {
   return (
     <TooltipPrimitive.Provider delayDuration={0}>
       <TooltipPrimitive.Root>
@@ -50,6 +51,7 @@ const TooltipIconButton = React.forwardRef<
             type="button"
             className={cn(tooltipVariants({ variant, size, className }))}
             ref={ref}
+            aria-label={ariaLabel || tooltip}
             {...props}
           />
         </TooltipPrimitive.Trigger>

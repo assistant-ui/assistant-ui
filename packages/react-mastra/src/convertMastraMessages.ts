@@ -43,11 +43,14 @@ const convertMastraContentToParts = (
       case "text":
         return { type: "text" as const, text: part.text };
       case "reasoning":
-        return { type: "reasoning" as const, reasoning: part.reasoning };
+        return { type: "reasoning" as const, text: part.reasoning };
       case "tool_call":
         return {
-          type: "tool_call" as const,
-          tool_call: part.tool_call,
+          type: "tool-call" as const,
+          toolCallId: part.tool_call.id,
+          toolName: part.tool_call.name,
+          args: part.tool_call.arguments,
+          result: part.tool_call.result,
         };
       case "tool_result":
         return convertToolResultToMessagePart(part.tool_result);
@@ -81,10 +84,9 @@ const convertImageToMessagePart = (image: MastraImageContent) => {
 const convertFileToMessagePart = (file: MastraFileContent) => {
   return {
     type: "file" as const,
-    name: file.name,
-    url: file.url,
-    ...(file.mime_type && { mime_type: file.mime_type }),
-    ...(file.size && { size: file.size }),
+    filename: file.name,
+    data: file.url,
+    ...(file.mime_type && { mimeType: file.mime_type }),
   };
 };
 
