@@ -199,32 +199,6 @@ describe("useMastraWorkflows", () => {
     consoleSpy.mockRestore();
   });
 
-  it.skip("should handle suspend errors gracefully", async () => {
-    // Note: The current implementation of suspend() (useMastraWorkflows.ts:49-56)
-    // doesn't make API calls and just returns a local object, so it can't naturally
-    // produce errors to test error handling. This test is skipped until the suspend
-    // implementation is updated to make actual API calls.
-    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
-    const { result } = renderHook(() => useMastraWorkflows(mockWorkflowConfig));
-
-    await act(async () => {
-      await result.current.startWorkflow();
-    });
-
-    // Would need to mock suspend to throw, but implementation doesn't call APIs
-    await act(async () => {
-      await expect(result.current.suspendWorkflow()).rejects.toThrow("Suspend failed");
-    });
-
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining("Workflow suspend failed"),
-      expect.any(Error)
-    );
-
-    consoleSpy.mockRestore();
-  });
-
   it("should not suspend if workflow is not running", async () => {
     const { result } = renderHook(() => useMastraWorkflows(mockWorkflowConfig));
 
