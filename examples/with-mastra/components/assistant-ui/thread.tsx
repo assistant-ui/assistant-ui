@@ -245,7 +245,6 @@ const AssistantMessage: FC = () => {
                           : "error",
                   }}
                   result={props.result}
-                  isExpanded={false}
                 />
               ),
             },

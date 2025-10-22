@@ -6,12 +6,16 @@ import { unlinkSync, existsSync } from "fs";
 const TEST_DB = "./test-mastra-memory.db";
 
 describe("useMastraMemory - Real Mastra Integration", () => {
+  let originalFetch: typeof global.fetch;
+
   beforeEach(() => {
     // Clean up test database
     if (existsSync(TEST_DB)) {
       unlinkSync(TEST_DB);
     }
 
+    // Save original fetch before mocking
+    originalFetch = global.fetch;
     // Mock fetch to simulate API responses
     global.fetch = vi.fn();
   });
@@ -22,6 +26,8 @@ describe("useMastraMemory - Real Mastra Integration", () => {
       unlinkSync(TEST_DB);
     }
 
+    // Restore original fetch to prevent test leakage
+    global.fetch = originalFetch;
     vi.clearAllMocks();
   });
 

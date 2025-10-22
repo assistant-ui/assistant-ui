@@ -65,22 +65,30 @@ export const init = new Command()
       const detectedType = detectProjectType();
       if (detectedType === "mastra") {
         console.log(chalk.yellow("🔍 Mastra project detected automatically"));
-        const rl = readline.createInterface({
-          input: process.stdin,
-          output: process.stdout,
-        });
 
-        const answer = await new Promise<string>((resolve) => {
-          rl.question(
-            "Would you like to use Mastra-specific setup? (Y/n) ",
-            (answer: string) => {
-              rl.close();
-              resolve(answer);
-            },
-          );
-        });
+        // Only prompt if stdin is a TTY (interactive terminal)
+        if (process.stdin.isTTY) {
+          const rl = readline.createInterface({
+            input: process.stdin,
+            output: process.stdout,
+          });
 
-        if (answer === "" || answer.toLowerCase().startsWith("y")) {
+          const answer = await new Promise<string>((resolve) => {
+            rl.question(
+              "Would you like to use Mastra-specific setup? (Y/n) ",
+              (answer: string) => {
+                rl.close();
+                resolve(answer);
+              },
+            );
+          });
+
+          if (answer === "" || answer.toLowerCase().startsWith("y")) {
+            options.framework = "mastra";
+          }
+        } else {
+          // Non-interactive mode: default to Mastra setup
+          console.log(chalk.blue("Using Mastra-specific setup (non-interactive mode)"));
           options.framework = "mastra";
         }
       }

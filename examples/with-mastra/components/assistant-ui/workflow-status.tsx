@@ -109,7 +109,7 @@ export function WorkflowStatus({
                         {suspendData.candidateName}
                       </div>
                     )}
-                    {suspendData.screeningScore && (
+                    {suspendData.screeningScore != null && (
                       <div className="text-xs text-yellow-900 dark:text-yellow-100">
                         <span className="font-semibold">Score:</span>{" "}
                         {suspendData.screeningScore}/10
@@ -121,13 +121,13 @@ export function WorkflowStatus({
                         {suspendData.recommendation.replace(/_/g, " ")}
                       </div>
                     )}
-                    {suspendData.technicalScore && (
+                    {suspendData.technicalScore != null && (
                       <div className="text-xs text-yellow-900 dark:text-yellow-100">
                         <span className="font-semibold">Technical:</span>{" "}
                         {suspendData.technicalScore}/10
                       </div>
                     )}
-                    {suspendData.culturalScore && (
+                    {suspendData.culturalScore != null && (
                       <div className="text-xs text-yellow-900 dark:text-yellow-100">
                         <span className="font-semibold">Cultural:</span>{" "}
                         {suspendData.culturalScore}/10

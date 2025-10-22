@@ -32,7 +32,7 @@ const screeningStep = createStep({
     evaluationSummary: z.string(),
   }),
 
-  execute: async ({ inputData, resumeData, suspend, mastra }) => {
+  execute: async ({ inputData, resumeData, suspend, mastra, suspendData }) => {
     const { candidateName, candidateEmail, resume, position } = inputData;
 
     // If we don't have approval yet, suspend for human review
@@ -72,17 +72,18 @@ Format your response clearly with these sections.`;
       return await suspend(evaluation);
     }
 
-    // We have approval, proceed
+    // We have approval, proceed - use suspendData which contains the original evaluation
     const { approved } = resumeData;
 
     if (!approved) {
       throw new Error("Candidate rejected at screening stage");
     }
 
+    // Return the screening data from the original suspend call
     return {
-      candidateName,
-      screeningScore: 7.5,
-      recommendation: "proceed_to_interview",
+      candidateName: suspendData?.candidateName || candidateName,
+      screeningScore: suspendData?.screeningScore || 7.5,
+      recommendation: suspendData?.recommendation || "proceed_to_interview",
       proceedToInterview: true,
     };
   },
@@ -121,7 +122,7 @@ const interviewStep = createStep({
     interviewSummary: z.string(),
   }),
 
-  execute: async ({ inputData, resumeData, suspend, mastra }) => {
+  execute: async ({ inputData, resumeData, suspend, mastra, suspendData }) => {
     const { candidateName } = inputData;
 
     // If we don't have a hiring decision yet, suspend
@@ -163,14 +164,14 @@ Format your response clearly with these sections.`;
       return await suspend(interview);
     }
 
-    // We have a decision
+    // We have a decision - use suspendData which contains the original interview scores
     const { hiringDecision } = resumeData;
 
     return {
       candidateName,
-      technicalScore: 8.0,
-      culturalScore: 9.0,
-      overallScore: 8.5,
+      technicalScore: suspendData?.technicalScore || 8.0,
+      culturalScore: suspendData?.culturalScore || 9.0,
+      overallScore: suspendData ? (suspendData.technicalScore + suspendData.culturalScore) / 2 : 8.5,
       hiringDecision,
     };
   },

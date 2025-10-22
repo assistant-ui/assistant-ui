@@ -35,7 +35,10 @@ export async function POST(req: NextRequest) {
       metadata: msg.metadata || {},
       similarity: msg.similarity || 0,
       threadId: msg.threadId || threadId,
-      timestamp: msg.createdAt?.toISOString() || new Date().toISOString(),
+      timestamp:
+        typeof msg.createdAt === "string"
+          ? msg.createdAt
+          : msg.createdAt?.toISOString?.() || new Date().toISOString(),
     }));
 
     return new Response(JSON.stringify({ results }), {

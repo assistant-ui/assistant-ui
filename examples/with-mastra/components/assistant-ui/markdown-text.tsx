@@ -55,6 +55,11 @@ const useCopyToClipboard = ({
   const copyToClipboard = (value: string) => {
     if (!value) return;
 
+    if (typeof navigator === "undefined" || !navigator.clipboard) {
+      // Clipboard API not available
+      return;
+    }
+
     navigator.clipboard
       .writeText(value)
       .then(() => {

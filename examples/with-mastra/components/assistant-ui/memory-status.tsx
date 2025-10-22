@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useThreadRuntime } from "@assistant-ui/react";
+import { useThread } from "@assistant-ui/react";
 import { cn } from "@/lib/utils";
 import { Database, MessageCircle, Clock } from "lucide-react";
 
@@ -26,12 +26,11 @@ export function MemoryStatus({
   showStats = false,
   className,
 }: MemoryStatusProps) {
-  const threadRuntime = useThreadRuntime();
-  const state = threadRuntime.getState();
+  const { messages } = useThread();
   const currentThreadId = threadId || "current";
 
   // Simple stats based on current thread state
-  const messageCount = state.messages.length;
+  const messageCount = messages.length;
   const hasMemory = messageCount > 0;
 
   return (

@@ -11,10 +11,12 @@ const nextConfig: NextConfig = {
     return config;
   },
   async rewrites() {
+    const assistantTarget =
+      process.env.ASSISTANT_API_URL || "http://localhost:8000";
     return [
       {
         source: "/assistant/:path*",
-        destination: "http://localhost:8000/assistant/:path*",
+        destination: `${assistantTarget}/assistant/:path*`,
       },
     ];
   },

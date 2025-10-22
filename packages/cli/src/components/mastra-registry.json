@@ -94,7 +94,7 @@
       "dependencies": [
         "@assistant-ui/react",
         "@assistant-ui/react-mastra",
-        "@radix-ui/react-button",
+        "@radix-ui/react-slot",
         "@radix-ui/react-progress"
       ],
       "props": {

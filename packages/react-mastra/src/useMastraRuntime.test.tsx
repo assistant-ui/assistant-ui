@@ -25,17 +25,30 @@ describe("useMastraRuntime", () => {
     expect(result.current).toHaveProperty("switchToThread");
   });
 
-  it("should handle errors when provided", () => {
+  it("should handle errors when provided", async () => {
     const onError = vi.fn();
     const config = {
       agentId: "test-agent",
       api: "http://invalid-url",
-      onError,
+      eventHandlers: {
+        onError,
+      },
     };
 
-    renderHook(() => useMastraRuntime(config));
+    const { result } = renderHook(() => useMastraRuntime(config));
 
-    expect(onError).toBeDefined();
+    // Mock fetch to simulate an error
+    global.fetch = vi.fn().mockRejectedValueOnce(new Error("Network error"));
+
+    // Trigger a message send which should call onError
+    const runtime = result.current;
+    await runtime.thread.append({ role: "user", content: [{ type: "text", text: "test" }] });
+
+    // Wait for async operations
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // Verify onError was called
+    expect(onError).toHaveBeenCalled();
   });
 
   it("should accept optional adapters", () => {

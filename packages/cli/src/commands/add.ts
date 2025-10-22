@@ -33,7 +33,8 @@ export const add = new Command()
   .option("-p, --path <path>", "the path to add the component to.")
   .action(async (components: string[], opts) => {
     // Check for Mastra integration opportunity
-    if (hasMastraImports()) {
+    // Only prompt if --yes flag is not set
+    if (hasMastraImports() && !opts.yes) {
       const answer = await askQuestion(
         "Would you like to add Mastra integration support? (Y/n) ",
       );
