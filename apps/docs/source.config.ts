@@ -10,6 +10,8 @@ import { transformerMetaHighlight } from "@shikijs/transformers";
 import { z } from "zod";
 import { remarkMermaid } from "@theguild/remark-mermaid";
 import { createFileSystemTypesCache } from "fumadocs-twoslash/cache-fs";
+import { remarkAutoTypeTable } from "fumadocs-typescript";
+import { generator } from "./lib/fumadocs-generator";
 
 export const { docs, meta } = defineDocs({
   dir: "content/docs",
@@ -48,7 +50,7 @@ export const careers = defineCollections({
 
 export default defineConfig({
   mdxOptions: {
-    remarkPlugins: [remarkMermaid],
+    remarkPlugins: [remarkMermaid, [remarkAutoTypeTable, { generator }]],
     rehypeCodeOptions: {
       themes: {
         light: "catppuccin-latte",

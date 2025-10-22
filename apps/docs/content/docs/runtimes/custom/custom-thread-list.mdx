@@ -4,130 +4,353 @@ title: Custom Thread List
 
 import { Callout } from "fumadocs-ui/components/callout";
 import { Steps, Step } from "fumadocs-ui/components/steps";
-import { ParametersTable } from "@/components/docs";
 
 ## Overview
 
-`useRemoteThreadListRuntime` lets you plug a custom thread database into assistant-ui. It keeps the UI and local runtime logic in sync while you provide persistence, archiving, and metadata for every conversation. The hook is exported as `unstable_useRemoteThreadListRuntime`; we refer to it here as **Custom Thread List**.
+`useRemoteThreadListRuntime` enables you to integrate assistant-ui with your own database or backend storage for managing multiple conversation threads. It provides a complete multi-thread experience while giving you full control over where and how thread metadata and messages are persisted.
+
+The hook is exported as `unstable_useRemoteThreadListRuntime`; we refer to it here as **Custom Thread List**.
 
 ## When to Use
 
 Use a Custom Thread List when you need to:
 
-- Persist conversations in your own database or multitenant backend
-- Share threads across devices, teams, or long-lived sessions
-- Control thread metadata (titles, archived state, external identifiers)
-- Layer additional adapters (history, attachments) around each thread runtime
+- **Persist conversations in your own database** - Store threads and messages in PostgreSQL, MongoDB, or any database
+- **Multi-tenant applications** - Isolate threads per user or organization
+- **Share threads across devices** - Sync conversations across multiple sessions
+- **Custom metadata** - Add domain-specific fields to threads (tags, folders, etc.)
+- **Full control over persistence** - Implement your own backup, export, and migration strategies
+
+<Callout type="info">
+  If you don't need custom storage, consider using [Assistant
+  Cloud](/docs/cloud/overview) for managed multi-thread support with zero
+  database setup.
+</Callout>
+
+## Architecture Overview
+
+Custom Thread List consists of two separate but complementary pieces:
+
+<Callout type="info" title="Two-Layer Architecture">
+The Custom Thread List architecture separates **thread metadata** (managed by `RemoteThreadListAdapter`) from **message content** (managed by `ThreadHistoryAdapter`):
+
+1. **Thread List Adapter** - Manages thread records (list, create, rename, archive, delete)
+2. **History Adapter** - Persists messages within each thread (load, append)
+
+This separation allows you to optimize storage and queries independently for thread lists and message history.
+
+</Callout>
+
+```
+                        ┌─────────────────────────────────────────┐
+                        │   RemoteThreadListAdapter               │
+                        │   (Thread Metadata)                     │
+                        │                                         │
+                        │   • list() - Get all threads            │
+                        │   • initialize() - Create thread        │
+                        │   • rename() - Update title             │
+                        │   • archive/unarchive/delete            │
+                        │   • generateTitle()                     │
+                        │   • unstable_Provider                   │
+                        └─────────────────────────────────────────┘
+                                            │
+                                            │
+                                            │ provides context for
+                                            │
+                                            ↓
+                        ┌─────────────────────────────────────────┐
+                        │   ThreadHistoryAdapter                  │
+                        │   (Message Persistence)                 │
+                        │                                         │
+                        │   • load() - Load thread messages       │
+                        │   • append() - Save new messages        │
+                        │                                         │
+                        │   Runs per-thread via Provider pattern  │
+                        └─────────────────────────────────────────┘
+```
 
 ## How It Works
 
-Custom Thread List merges two pieces of state:
+1. **On mount**: Calls `list()` to load existing threads into the thread list UI
+2. **New conversation**: User sends first message → calls `initialize()` to create thread record and history `append()` to persist message
+3. **Thread switch**: User selects thread → calls history `load()` to populate messages
+4. **Message sent**: Calls history `append()` to persist the new message
+5. **Metadata updates**: Calls `rename()`, `archive()`, etc. as user interacts with threads
 
-1. **Per-thread runtime** – powered by any runtime hook (for example `useLocalRuntime` or `useAssistantTransportRuntime`).
-2. **Thread list adapter** – your adapter that reads and writes thread metadata in a remote store.
-
-When the hook mounts it calls `list()` on your adapter, hydrates existing threads, and uses your runtime hook to spawn a runtime whenever a thread is opened. Creating a new conversation calls `initialize(threadId)` so you can create a record server-side and return the canonical `remoteId`.
-
-<Callout type="info">
-  The built-in Assistant Cloud runtime is implemented with the same API. Inspect
-  `useCloudThreadListAdapter` for a production-ready reference adapter.
+<Callout type="warning" title="Critical: Message Persistence">
+  Without a properly implemented `ThreadHistoryAdapter`, messages will not be
+  saved. The thread list adapter only manages thread metadata - you **must**
+  provide a history adapter via `unstable_Provider` for message persistence.
 </Callout>
 
-## Build a Custom Thread List
+## Complete Integration Example: Browser Storage
+
+This example shows a full implementation using browser localStorage as the persistence layer.
 
 <Steps>
   <Step>
-    ### Provide a runtime per thread
+    ### Create the database connection layer
 
-    Use any runtime hook that returns an `AssistantRuntime`. In most custom setups this is `useLocalRuntime(modelAdapter)` or `useAssistantTransportRuntime(...)`.
+    ```tsx title="lib/db-connection.ts"
+    // Browser storage implementation for threads and messages
+
+    export interface ThreadRecord {
+      id: string;
+      title: string;
+      archived: boolean;
+      createdAt: string;
+    }
+
+    export interface MessageRecord {
+      id: string;
+      threadId: string;
+      parentId: string | null;
+      role: "user" | "assistant" | "system";
+      content: any; // Store as JSON
+      createdAt: string;
+    }
+
+    export const dbConnection = {
+      threads: {
+        async findAll(): Promise<ThreadRecord[]> {
+          const raw = localStorage.getItem("assistant-ui-threads");
+          return raw ? JSON.parse(raw) : [];
+        },
+
+        async create(data: { id: string }): Promise<ThreadRecord> {
+          const newThread: ThreadRecord = {
+            id: data.id,
+            title: "New Chat",
+            archived: false,
+            createdAt: new Date().toISOString(),
+          };
+
+          const threads = await this.findAll();
+          threads.push(newThread);
+          localStorage.setItem("assistant-ui-threads", JSON.stringify(threads));
+
+          return newThread;
+        },
+
+        async update(id: string, data: Partial<ThreadRecord>): Promise<void> {
+          const threads = await this.findAll();
+          const updated = threads.map((t) =>
+            t.id === id ? { ...t, ...data } : t
+          );
+          localStorage.setItem("assistant-ui-threads", JSON.stringify(updated));
+        },
+
+        async delete(id: string): Promise<void> {
+          const threads = await this.findAll();
+          const filtered = threads.filter((t) => t.id !== id);
+          localStorage.setItem("assistant-ui-threads", JSON.stringify(filtered));
+        },
+      },
+
+      messages: {
+        async findByThreadId(threadId: string): Promise<MessageRecord[]> {
+          const raw = localStorage.getItem("assistant-ui-messages");
+          const allMessages: MessageRecord[] = raw ? JSON.parse(raw) : [];
+          return allMessages.filter((m) => m.threadId === threadId);
+        },
+
+        async create(message: MessageRecord): Promise<void> {
+          const raw = localStorage.getItem("assistant-ui-messages");
+          const messages: MessageRecord[] = raw ? JSON.parse(raw) : [];
+
+          messages.push(message);
+          localStorage.setItem("assistant-ui-messages", JSON.stringify(messages));
+        },
+
+        async deleteByThreadId(threadId: string): Promise<void> {
+          const raw = localStorage.getItem("assistant-ui-messages");
+          const messages: MessageRecord[] = raw ? JSON.parse(raw) : [];
+          const filtered = messages.filter((m) => m.threadId !== threadId);
+          localStorage.setItem("assistant-ui-messages", JSON.stringify(filtered));
+        },
+      },
+    };
+    ```
 
   </Step>
   <Step>
-    ### Implement the adapter contract
+    ### Implement the thread list adapter
 
-    Your adapter decides how threads are stored. Implement the methods in the table below to connect to your database or API.
+    ```tsx title="lib/thread-list-adapter.ts"
+    import { type unstable_RemoteThreadListAdapter as RemoteThreadListAdapter } from "@assistant-ui/react";
+    import { createAssistantStream } from "assistant-stream";
+    import { dbConnection } from "./db-connection";
+
+    export const threadListAdapter: RemoteThreadListAdapter = {
+      async list() {
+        const threads = await dbConnection.threads.findAll();
+        return {
+          threads: threads.map((t) => ({
+            status: t.archived ? "archived" : "regular",
+            remoteId: t.id,
+            title: t.title,
+          })),
+        };
+      },
+
+      async initialize(threadId) {
+        console.log("Creating new thread:", threadId);
+        const thread = await dbConnection.threads.create({ id: threadId });
+        return { remoteId: thread.id };
+      },
+
+      async rename(remoteId, newTitle) {
+        await dbConnection.threads.update(remoteId, { title: newTitle });
+      },
+
+      async archive(remoteId) {
+        await dbConnection.threads.update(remoteId, { archived: true });
+      },
+
+      async unarchive(remoteId) {
+        await dbConnection.threads.update(remoteId, { archived: false });
+      },
+
+      async delete(remoteId) {
+        // Delete messages first, then the thread
+        await dbConnection.messages.deleteByThreadId(remoteId);
+        await dbConnection.threads.delete(remoteId);
+      },
+
+      async generateTitle(remoteId, messages) {
+        // Generate title from conversation
+        // You can use your AI model here or a simple heuristic
+        const firstUserMessage = messages.find((m) => m.role === "user");
+        const title =
+          firstUserMessage?.content?.[0]?.text?.slice(0, 50) || "New Chat";
+
+        // Save to database
+        await dbConnection.threads.update(remoteId, { title });
+
+        // IMPORTANT: Must return AssistantStream for UI to update
+        return createAssistantStream((controller) => {
+          controller.appendText(title);
+          controller.close();
+        });
+      },
+    };
+    ```
 
   </Step>
   <Step>
-    ### Compose the provider
+    ### Create the history adapter provider
 
-    Wrap `AssistantRuntimeProvider` with the runtime returned from the Custom Thread List hook.
+    <Callout type="info" title="Understanding the Provider Pattern">
 
-    ```tsx twoslash title="app/CustomThreadListProvider.tsx"
-    // @filename: app/model-adapter.ts
-    export const myModelAdapter = {} as any;
+The `unstable_Provider` component runs **in the context of each thread**, giving you access to thread-specific information via `useThreadListItem()`. This is where you create the history adapter that persists messages for that specific thread.
 
-    // @filename: app/CustomThreadListProvider.tsx
-    // ---cut---
+**Why it's needed:** Each thread needs its own history adapter instance that knows which thread's messages to load and save. The Provider pattern allows you to create thread-scoped adapters.
+
+</Callout>
+
+    ```tsx title="lib/history-adapter-provider.tsx"
+    "use client";
+
+    import { useCallback } from "react";
+    import {
+      useThreadListItem,
+      RuntimeAdapterProvider,
+      type ThreadHistoryAdapter,
+    } from "@assistant-ui/react";
+    import type { ExportedMessageRepositoryItem } from "@assistant-ui/react";
+    import { dbConnection, type MessageRecord } from "./db-connection";
+
+    export const HistoryAdapterProvider = useCallback(
+      function Provider({ children }: { children: React.ReactNode }) {
+        const threadListItem = useThreadListItem();
+        const remoteId = threadListItem.remoteId;
+
+        // Create thread-specific history adapter
+        const history: ThreadHistoryAdapter = {
+          async load() {
+            console.log("Loading messages for thread:", remoteId);
+
+            if (!remoteId) {
+              // Thread not yet initialized, return empty
+              return { messages: [] };
+            }
+
+            const messages = await dbConnection.messages.findByThreadId(remoteId);
+
+            // Convert database format to assistant-ui format
+            return {
+              messages: messages.map((m) => ({
+                parentId: m.parentId,
+                message: {
+                  id: m.id,
+                  role: m.role,
+                  content: m.content,
+                  createdAt: new Date(m.createdAt),
+                },
+              })),
+            };
+          },
+
+          async append(item: ExportedMessageRepositoryItem) {
+            console.log("Saving message:", item.message.id);
+
+            if (!remoteId) {
+              console.warn("Cannot save message - thread not initialized yet");
+              return;
+            }
+
+            const messageRecord: MessageRecord = {
+              id: item.message.id,
+              threadId: remoteId,
+              parentId: item.parentId,
+              role: item.message.role,
+              content: item.message.content,
+              createdAt: item.message.createdAt?.toISOString() || new Date().toISOString(),
+            };
+
+            await dbConnection.messages.create(messageRecord);
+          },
+        };
+
+        return (
+          <RuntimeAdapterProvider adapters={{ history }}>
+            {children}
+          </RuntimeAdapterProvider>
+        );
+      },
+      []
+    );
+    ```
+
+  </Step>
+  <Step>
+    ### Create the runtime provider
+
+    ```tsx title="app/MyRuntimeProvider.tsx"
     "use client";
 
     import type { ReactNode } from "react";
     import {
       AssistantRuntimeProvider,
-      useLocalRuntime,
+      useLocalThreadRuntime,
       unstable_useRemoteThreadListRuntime as useRemoteThreadListRuntime,
-      type unstable_RemoteThreadListAdapter as RemoteThreadListAdapter,
     } from "@assistant-ui/react";
-    import { createAssistantStream } from "assistant-stream";
-    import { myModelAdapter } from "./model-adapter"; // your chat model adapter
+    import { threadListAdapter } from "@/lib/thread-list-adapter";
+    import { HistoryAdapterProvider } from "@/lib/history-adapter-provider";
+    import { myModelAdapter } from "@/lib/model-adapter"; // Your AI model adapter
 
-    const threadListAdapter: RemoteThreadListAdapter = {
-      async list() {
-        const response = await fetch("/api/threads");
-        const threads = await response.json();
-        return {
-          threads: threads.map((thread: any) => ({
-            remoteId: thread.id,
-            externalId: thread.external_id ?? undefined,
-            status: thread.is_archived ? "archived" : "regular",
-            title: thread.title ?? undefined,
-          })),
-        };
-      },
-      async initialize(localId) {
-        const response = await fetch("/api/threads", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ localId }),
-        });
-        const result = await response.json();
-        return { remoteId: result.id, externalId: result.external_id };
-      },
-      async rename(remoteId, title) {
-        await fetch(`/api/threads/${remoteId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title }),
-        });
-      },
-      async archive(remoteId) {
-        await fetch(`/api/threads/${remoteId}/archive`, { method: "POST" });
-      },
-      async unarchive(remoteId) {
-        await fetch(`/api/threads/${remoteId}/unarchive`, { method: "POST" });
-      },
-      async delete(remoteId) {
-        await fetch(`/api/threads/${remoteId}`, { method: "DELETE" });
-      },
-      async generateTitle(remoteId, messages) {
-        return createAssistantStream(async (controller) => {
-          const response = await fetch(`/api/threads/${remoteId}/title`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ messages }),
-          });
-          const { title } = await response.json();
-          controller.appendText(title);
-        });
-      },
-    };
-
-    export function CustomThreadListProvider({
+    export function MyRuntimeProvider({
       children,
     }: Readonly<{ children: ReactNode }>) {
       const runtime = useRemoteThreadListRuntime({
-        runtimeHook: () => useLocalRuntime(myModelAdapter),
-        adapter: threadListAdapter,
+        // Create a basic LocalRuntime for each thread
+        runtimeHook: () => useLocalThreadRuntime(myModelAdapter),
+
+        adapter: {
+          ...threadListAdapter,
+          // Provider adds thread-specific adapters (like history)
+          unstable_Provider: HistoryAdapterProvider,
+        },
       });
 
       return (
@@ -139,80 +362,571 @@ When the hook mounts it calls `list()` on your adapter, hydrates existing thread
     ```
 
   </Step>
+  <Step>
+    ### Use in your application
+
+    ```tsx title="app/page.tsx"
+    import { Thread } from "@/components/assistant-ui/thread";
+    import { ThreadList } from "@/components/assistant-ui/thread-list";
+    import { MyRuntimeProvider } from "./MyRuntimeProvider";
+
+    export default function ChatPage() {
+      return (
+        <MyRuntimeProvider>
+          <div className="flex h-screen">
+            <aside className="w-64 border-r">
+              <ThreadList />
+            </aside>
+            <main className="flex-1">
+              <Thread />
+            </main>
+          </div>
+        </MyRuntimeProvider>
+      );
+    }
+    ```
+
+  </Step>
 </Steps>
 
-## Adapter Responsibilities
+## Database Integration Deep Dive
 
-<ParametersTable
-  type="RemoteThreadListAdapter"
-  parameters={[
-    {
-      name: "list",
-      type: "() => Promise<{ threads: RemoteThreadMetadata[] }>",
-      description:
-        "Return the current threads. Each thread must include status, remoteId, and any metadata you want to show immediately.",
-      required: true,
-    },
-    {
-      name: "initialize",
-      type: "(localId: string) => Promise<{ remoteId: string; externalId?: string }>",
-      description:
-        "Create a new remote record when the user starts a conversation. Return the canonical ids so later operations target the right thread.",
-      required: true,
-    },
-    {
-      name: "rename",
-      type: "(remoteId: string, title: string) => Promise<void>",
-      description: "Persist title changes triggered from the UI.",
-      required: true,
-    },
-    {
-      name: "archive",
-      type: "(remoteId: string) => Promise<void>",
-      description: "Mark the thread as archived in your system.",
-      required: true,
-    },
-    {
-      name: "unarchive",
-      type: "(remoteId: string) => Promise<void>",
-      description: "Restore an archived thread to the active list.",
-      required: true,
-    },
-    {
-      name: "delete",
-      type: "(remoteId: string) => Promise<void>",
-      description: "Permanently remove the thread and stop rendering it.",
-      required: true,
-    },
-    {
-      name: "generateTitle",
-      type: "(remoteId: string, unstable_messages: readonly ThreadMessage[]) => Promise<AssistantStream>",
-      description:
-        "Return a streaming title generator. You can reuse your model endpoint or queue a background job.",
-      required: true,
-    },
-    {
-      name: "unstable_Provider",
-      type: "ComponentType<PropsWithChildren>",
-      description:
-        "Optional wrapper rendered around all thread runtimes. Use it to inject adapters such as history or attachments (see the Cloud adapter).",
-    },
-  ]}
+### Understanding the Provider Pattern
+
+The `unstable_Provider` is a React component that wraps each thread's runtime. It runs **once per active thread** and has access to thread-specific context through hooks.
+
+**Key characteristics:**
+
+1. **Thread-scoped** - A new Provider instance is created for each thread the user opens
+2. **Access to thread metadata** - Can use `useThreadListItem()` to get `remoteId`, `title`, etc.
+3. **Adapter injection** - Use `RuntimeAdapterProvider` to add thread-specific capabilities
+4. **Lifecycle** - Mounts when thread opens, unmounts when switching away
+
+```tsx
+// This runs FOR EACH thread that's opened
+unstable_Provider: ({ children }) => {
+  // Access current thread's metadata
+  const threadListItem = useThreadListItem();
+  const remoteId = threadListItem.remoteId; // Available after initialize()
+
+  // Create adapters specific to THIS thread
+  const history = createHistoryAdapter(remoteId);
+  const attachments = createAttachmentAdapter(remoteId);
+
+  return (
+    <RuntimeAdapterProvider adapters={{ history, attachments }}>
+      {children}
+    </RuntimeAdapterProvider>
+  );
+};
+```
+
+### Thread Lifecycle and Timing
+
+Understanding when methods are called is crucial for correct implementation:
+
+<Steps>
+  <Step>**App loads** → `list()` called → Threads appear in ThreadList</Step>
+  <Step>
+    **User selects thread** → Provider mounts → `load()` called → Messages
+    populate
+  </Step>
+  <Step>
+    **User sends first message on new thread** → `initialize()` called →
+    `remoteId` becomes available → `append()` called
+  </Step>
+  <Step>
+    **Subsequent messages** → `append()` called immediately (remoteId already
+    exists)
+  </Step>
+</Steps>
+
+<Callout type="warning" title="First Message Timing">
+On a brand new thread, the first user message triggers `initialize()`. Until `initialize()` completes, `remoteId` is `null`. Your history adapter's `append()` may be called before `remoteId` is available.
+
+The example above returns early if `remoteId` is missing. For production use, consider storing the pending message and saving it once `remoteId` becomes available.
+
+</Callout>
+
+### Message Format Conversion
+
+The history adapter converts between your database format and assistant-ui's internal message structure:
+
+```tsx
+// Loading: Database → assistant-ui
+async load() {
+  const dbMessages = await db.messages.findByThreadId(remoteId);
+
+  return {
+    messages: dbMessages.map((m) => ({
+      parentId: m.parentId,
+      message: {
+        id: m.id,
+        role: m.role,
+        content: m.content, // Already in assistant-ui format
+        createdAt: new Date(m.createdAt),
+      },
+    })),
+  };
+}
+
+// Saving: assistant-ui → Database
+async append(item) {
+  await db.messages.create({
+    id: item.message.id,
+    threadId: remoteId,
+    parentId: item.parentId,
+    role: item.message.role,
+    content: item.message.content, // Store as JSON
+    createdAt: item.message.createdAt,
+  });
+}
+```
+
+<Callout type="info">
+  The `content` field contains structured data including text, tool calls,
+  images, and attachments. Your database must preserve this exact structure. See
+  [Database Requirements](#database-requirements) for storage specifications.
+</Callout>
+
+## Database Requirements
+
+Your database must support two types of records: thread metadata and messages.
+
+### Thread Records
+
+Your `list()` method must return threads matching this structure:
+
+<AutoTypeTable
+  path="packages/react/src/legacy-runtime/runtime-cores/remote-thread-list/types.tsx"
+  type="RemoteThreadMetadata"
 />
 
-## Thread Lifecycle Cheatsheet
+Your database can store additional fields (timestamps, userId, etc.) but must return at least these fields from `list()`.
 
-- `list()` hydrates threads on mount and during refreshes.
-- Creating a new conversation calls `initialize()` once the user sends the first message.
-- `archive`, `unarchive`, and `delete` are called optimistically; throw to revert the UI.
-- `generateTitle()` powers the automatic title button and expects an `AssistantStream`.
-- Provide a `runtimeHook` that always returns a fresh runtime instance per active thread.
+**Required operations:**
 
-## Optional Adapters
+- List all threads (optionally filtered by user)
+- Create new thread with generated ID
+- Update thread title and archive status
+- Delete thread and all messages
 
-If you need history or attachment support, expose them via `unstable_Provider`. The cloud implementation wraps each thread runtime with `RuntimeAdapterProvider` to inject:
+### Message Records
 
-- `history` – e.g. `useAssistantCloudThreadHistoryAdapter`
-- `attachments` – e.g. `CloudFileAttachmentAdapter`
+Your history adapter's `load()` must return messages and `append()` must save messages matching this structure:
 
-Reuse that pattern to register any capability your runtime requires.
+<AutoTypeTable
+  path="packages/react/src/legacy-runtime/runtime-cores/utils/MessageRepository.tsx"
+  type="ExportedMessageRepositoryItem"
+/>
+
+**Required operations:**
+
+- Load all messages for a thread
+- Save new message (idempotent by message ID)
+- Delete all messages when thread is deleted
+
+### Content Field Format
+
+The `message.content` field contains structured data. Store it as JSON to preserve the full structure:
+
+```typescript
+// Text message
+content: [{ type: "text", text: "Hello!" }];
+
+// Tool call
+content: [
+  {
+    type: "tool-call",
+    toolCallId: "call_123",
+    toolName: "getWeather",
+    args: { city: "SF" },
+  },
+];
+
+// Mixed content
+content: [
+  { type: "text", text: "Here's the image:" },
+  { type: "image", image: "data:image/png;base64,..." },
+];
+```
+
+<Callout type="info">
+  Use JSON/JSONB columns (PostgreSQL), document fields (MongoDB), or JSON
+  strings to preserve the exact content structure including nested objects and
+  arrays.
+</Callout>
+
+## Common Pitfalls and Solutions
+
+### Problem: Composer/Textbox is Disabled
+
+**Symptom:** When using `useRemoteThreadListRuntime`, the input field is disabled and users can't send messages.
+
+**Cause:** Missing or incorrectly implemented `ThreadHistoryAdapter` in the `unstable_Provider`.
+
+**Solution:**
+
+```tsx
+// ❌ Wrong - No history adapter provided
+unstable_Provider: ({ children }) => {
+  return <>{children}</>; // Missing RuntimeAdapterProvider
+};
+
+// ✅ Correct - History adapter provided
+unstable_Provider: ({ children }) => {
+  const threadListItem = useThreadListItem();
+  const history: ThreadHistoryAdapter = {
+    /* implementation */
+  };
+
+  return (
+    <RuntimeAdapterProvider adapters={{ history }}>
+      {children}
+    </RuntimeAdapterProvider>
+  );
+};
+```
+
+### Problem: Messages Not Persisting
+
+**Symptom:** Messages appear during the session but disappear on reload.
+
+**Cause:** `append()` method not saving to database, or `load()` not returning saved messages.
+
+**Solution:**
+
+```tsx
+// Verify append is actually saving
+async append(item) {
+  console.log("Saving message:", item.message.id, "to thread:", remoteId);
+
+  if (!remoteId) {
+    console.warn("No remoteId - message will be lost!");
+    return;
+  }
+
+  await db.messages.create({
+    id: item.message.id,
+    threadId: remoteId,
+    // ... other fields
+  });
+
+  console.log("Message saved successfully");
+}
+
+// Verify load is returning messages
+async load() {
+  const messages = await db.messages.findByThreadId(remoteId);
+  console.log("Loaded", messages.length, "messages for thread", remoteId);
+  return { messages: convertToAssistantUIFormat(messages) };
+}
+```
+
+### Problem: First Message Lost
+
+**Symptom:** The first message in a new thread doesn't get saved.
+
+**Cause:** `append()` is called before `initialize()` completes and `remoteId` is available.
+
+**Solution:**
+
+Store the pending message and save it once `remoteId` becomes available:
+
+```tsx
+const [pendingMessage, setPendingMessage] =
+  useState<ExportedMessageRepositoryItem | null>(null);
+
+// Save pending message when remoteId becomes available
+useEffect(() => {
+  if (pendingMessage && remoteId) {
+    db.messages.create({
+      id: pendingMessage.message.id,
+      threadId: remoteId,
+      parentId: pendingMessage.parentId,
+      role: pendingMessage.message.role,
+      content: pendingMessage.message.content,
+      createdAt:
+        pendingMessage.message.createdAt?.toISOString() ||
+        new Date().toISOString(),
+    });
+    setPendingMessage(null);
+  }
+}, [pendingMessage, remoteId]);
+
+const history: ThreadHistoryAdapter = {
+  async append(item) {
+    if (!remoteId) {
+      // Store for later when remoteId is available
+      setPendingMessage(item);
+      return;
+    }
+
+    await db.messages.create({
+      /* save message */
+    });
+  },
+  // ... rest of adapter
+};
+```
+
+### Problem: Duplicate Messages
+
+**Symptom:** Same message appears multiple times in the thread.
+
+**Cause:** `append()` being called multiple times without idempotency checks.
+
+**Solution:**
+
+```tsx
+async append(item) {
+  if (!remoteId) return;
+
+  // Check if message already exists
+  const existing = await db.messages.findById(item.message.id);
+  if (existing) {
+    console.log("Message already saved, skipping");
+    return;
+  }
+
+  await db.messages.create({ /* save message */ });
+}
+```
+
+### Problem: TypeScript Errors
+
+**Symptom:** Type errors when implementing adapters.
+
+**Cause:** Missing imports or incorrect types.
+
+**Solution:**
+
+```tsx
+import {
+  type unstable_RemoteThreadListAdapter as RemoteThreadListAdapter,
+  type ThreadHistoryAdapter,
+} from "@assistant-ui/react";
+import type { ExportedMessageRepositoryItem } from "@assistant-ui/react";
+
+const history: ThreadHistoryAdapter = {
+  async load() {
+    return { messages: [] };
+  },
+  async append(item: ExportedMessageRepositoryItem) {
+    // item is properly typed
+  },
+};
+```
+
+## Advanced Patterns
+
+### Multi-Tenant Support
+
+Filter threads by user ID:
+
+```tsx
+const threadListAdapter: RemoteThreadListAdapter = {
+  async list() {
+    const userId = await getCurrentUserId();
+    const threads = await db.threads.findByUserId(userId);
+    return { threads: threads.map(/* format */) };
+  },
+
+  async initialize(threadId) {
+    const userId = await getCurrentUserId();
+    const thread = await db.threads.create({
+      id: threadId,
+      userId,
+    });
+    return { remoteId: thread.id };
+  },
+
+  // ... other methods also filter by userId
+};
+```
+
+### Server-Side API Integration
+
+Replace localStorage with API calls:
+
+```tsx
+export const dbConnection = {
+  threads: {
+    async findAll() {
+      const res = await fetch("/api/threads");
+      return res.json();
+    },
+
+    async create(data: { id: string }) {
+      const res = await fetch("/api/threads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      return res.json();
+    },
+
+    // ... similar for other methods
+  },
+
+  messages: {
+    async findByThreadId(threadId: string) {
+      const res = await fetch(`/api/threads/${threadId}/messages`);
+      return res.json();
+    },
+
+    async create(message: MessageRecord) {
+      await fetch(`/api/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(message),
+      });
+    },
+
+    // ... other methods
+  },
+};
+```
+
+### Optimistic Updates
+
+Update UI immediately while saving in background:
+
+```tsx
+async archive(remoteId) {
+  // UI updates immediately (handled by assistant-ui)
+
+  try {
+    await db.threads.update(remoteId, { archived: true });
+  } catch (error) {
+    // If save fails, throw to revert UI
+    console.error("Failed to archive thread:", error);
+    throw error;
+  }
+}
+```
+
+### Custom Metadata
+
+Add domain-specific fields:
+
+```tsx
+interface CustomThreadMetadata {
+  tags: string[];
+  folder: string;
+  starred: boolean;
+}
+
+// Extend thread record
+await db.threads.create({
+  id: threadId,
+  title: "New Chat",
+  tags: ["support"],
+  folder: "customer-support",
+  starred: false,
+});
+
+// Use in UI
+unstable_Provider: ({ children }) => {
+  const thread = useThreadListItem();
+  const metadata = useThreadMetadata(thread.remoteId); // Custom hook
+
+  return (
+    <div data-tags={metadata?.tags?.join(",")}>
+      <RuntimeAdapterProvider adapters={{ history }}>
+        {children}
+      </RuntimeAdapterProvider>
+    </div>
+  );
+};
+```
+
+## API Reference
+
+### RemoteThreadListAdapter
+
+<AutoTypeTable
+  path="packages/react/src/legacy-runtime/runtime-cores/remote-thread-list/types.tsx"
+  type="RemoteThreadListAdapter"
+/>
+
+### ThreadHistoryAdapter
+
+<AutoTypeTable
+  path="packages/react/src/legacy-runtime/runtime-cores/adapters/thread-history/ThreadHistoryAdapter.ts"
+  type="ThreadHistoryAdapter"
+/>
+
+## Comparison with Assistant Cloud
+
+| Feature           | Custom Thread List                           | Assistant Cloud                      |
+| ----------------- | -------------------------------------------- | ------------------------------------ |
+| Setup Complexity  | Moderate - requires database setup           | Simple - create account for API keys |
+| Database Required | Yes - you provide                            | No - managed for you                 |
+| Multi-Tenant      | Your implementation                          | Built-in workspace isolation         |
+| Cost              | Your infrastructure costs                    | Usage-based pricing                  |
+| Data Control      | Full - you own all data                      | Managed by Assistant Cloud service   |
+| Customization     | Unlimited - any database, any schema         | Configured via dashboard             |
+| Maintenance       | You manage backups, scaling                  | Fully managed                        |
+| Best For          | Custom requirements, existing DB, enterprise | Quick setup, prototypes, most apps   |
+
+## Troubleshooting
+
+### Enable Debug Logging
+
+Add console logs to trace execution:
+
+```tsx
+const threadListAdapter: RemoteThreadListAdapter = {
+  async list() {
+    console.log("[ThreadList] Loading threads");
+    const threads = await db.threads.findAll();
+    console.log("[ThreadList] Loaded", threads.length, "threads");
+    return { threads: /* format */ };
+  },
+
+  async initialize(threadId) {
+    console.log("[ThreadList] Initializing thread:", threadId);
+    const thread = await db.threads.create({ id: threadId });
+    console.log("[ThreadList] Created thread with remoteId:", thread.id);
+    return { remoteId: thread.id };
+  },
+
+  // ... add logging to other methods
+};
+```
+
+### Check Database Queries
+
+Verify data is actually being saved:
+
+```tsx
+// After sending messages, check the database
+const threads = await db.threads.findAll();
+console.log("Threads in DB:", threads);
+
+const messages = await db.messages.findByThreadId(threadId);
+console.log("Messages in DB:", messages);
+```
+
+### Verify Adapter Registration
+
+Ensure Provider is properly set up:
+
+```tsx
+const runtime = useRemoteThreadListRuntime({
+  runtimeHook: () => useLocalThreadRuntime(myModelAdapter),
+  adapter: {
+    ...threadListAdapter,
+    unstable_Provider: HistoryAdapterProvider, // ✅ Make sure this is included
+  },
+});
+```
+
+## Related Resources
+
+- [LocalRuntime](/docs/runtimes/custom/local) - Single-thread runtime with adapters
+- [Assistant Cloud](/docs/cloud/overview) - Managed multi-thread solution
+- [Context API](/docs/guides/context-api) - Hooks for building custom components
+- [ThreadListItemRuntime API](/docs/api-reference/runtimes/ThreadListItemRuntime)
+- [ThreadList Component](/docs/ui/ThreadList)
