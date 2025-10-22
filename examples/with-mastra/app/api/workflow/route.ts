@@ -10,8 +10,14 @@ export async function POST(request: NextRequest) {
       body = await request.json();
     } catch (error) {
       return NextResponse.json(
-        { error: "Invalid JSON", details: "Request body is not valid JSON" },
-        { status: 400 }
+        {
+          error: "Invalid JSON",
+          details:
+            error instanceof Error
+              ? error.message
+              : "Request body is not valid JSON",
+        },
+        { status: 400 },
       );
     }
 

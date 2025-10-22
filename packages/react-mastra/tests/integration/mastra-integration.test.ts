@@ -13,7 +13,7 @@ describe("Mastra Integration Tests", () => {
   beforeAll(() => {
     // Setup test environment
     // Use spyOn so vi.restoreAllMocks() works correctly
-    fetchSpy = vi.spyOn(global, 'fetch').mockImplementation(vi.fn());
+    fetchSpy = vi.spyOn(global, "fetch").mockImplementation(vi.fn());
     vi.clearAllMocks();
   });
 

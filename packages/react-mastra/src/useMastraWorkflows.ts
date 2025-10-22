@@ -384,7 +384,7 @@ export const useMastraWorkflows = (config: MastraWorkflowConfig) => {
             if (!currentState) return currentState;
 
             const updatedState: MastraWorkflowState = {
-              ...currentState,  // Always current, never stale
+              ...currentState, // Always current, never stale
               current: event.data.currentStep,
               status: event.data.status,
               timestamp: event.timestamp,
@@ -395,7 +395,7 @@ export const useMastraWorkflows = (config: MastraWorkflowConfig) => {
               const suspendedStep = event.data.steps[event.data.currentStep];
               if (suspendedStep?.result) {
                 updatedState.interrupt = {
-                  id: currentState.id,  // Current state
+                  id: currentState.id, // Current state
                   state: event.data.currentStep,
                   context: suspendedStep.result,
                   requiresInput: true,
@@ -436,7 +436,7 @@ export const useMastraWorkflows = (config: MastraWorkflowConfig) => {
             if (!currentState) return currentState;
 
             const completedState: MastraWorkflowState = {
-              ...currentState,  // Current state
+              ...currentState, // Current state
               status: "completed",
               timestamp: event.timestamp,
             };
@@ -457,7 +457,7 @@ export const useMastraWorkflows = (config: MastraWorkflowConfig) => {
             if (!currentState) return currentState;
 
             const errorState: MastraWorkflowState = {
-              ...currentState,  // Current state
+              ...currentState, // Current state
               status: "error",
               timestamp: event.timestamp,
             };
@@ -490,7 +490,7 @@ export const useMastraWorkflows = (config: MastraWorkflowConfig) => {
           if (!currentState) return currentState;
 
           const errorState: MastraWorkflowState = {
-            ...currentState,  // Current state
+            ...currentState, // Current state
             status: "error",
             timestamp: new Date().toISOString(),
           };

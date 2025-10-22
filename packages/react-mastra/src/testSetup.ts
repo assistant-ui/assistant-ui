@@ -148,10 +148,10 @@ beforeEach(() => {
   vi.clearAllMocks();
 
   // Mock only performance.now, preserve native object
-  performanceNowSpy = vi.spyOn(performance, 'now').mockReturnValue(Date.now());
+  performanceNowSpy = vi.spyOn(performance, "now").mockReturnValue(Date.now());
 
   // Reset fetch mock only if it's actually a mock
-  if (global.fetch && typeof (global.fetch as any).mockClear === 'function') {
+  if (global.fetch && typeof (global.fetch as any).mockClear === "function") {
     (global.fetch as any).mockClear();
   }
 });

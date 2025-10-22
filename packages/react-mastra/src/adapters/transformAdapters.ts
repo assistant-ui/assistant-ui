@@ -137,7 +137,7 @@ export const createSpeechAdapter = (
         },
         cancel() {
           if (currentStatus.type !== "ended") {
-            clearTimeout(timeoutId);  // CRITICAL: Clear the pending timeout
+            clearTimeout(timeoutId); // CRITICAL: Clear the pending timeout
             currentStatus = { type: "ended", reason: "cancelled" };
             listeners.forEach((listener) => listener());
             config.onStop?.();
