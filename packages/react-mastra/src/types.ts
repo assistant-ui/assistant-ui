@@ -117,6 +117,7 @@ export interface MastraWorkflowConfig {
   context?: Record<string, any>;
   onStateChange?: (state: MastraWorkflowState) => void;
   onInterrupt?: (interrupt: MastraWorkflowInterrupt) => void;
+  onError?: (error: Error) => void;
 }
 
 export interface MastraWorkflowState {

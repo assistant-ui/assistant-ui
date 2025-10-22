@@ -1,13 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { LegacyMastraMessageConverter } from "./convertMastraMessages";
+import { MastraMessageConverter } from "./convertMastraMessages";
 import { createMockMastraMessage, createMockToolCall } from "./testUtils";
 import { useExternalMessageConverter } from "@assistant-ui/react";
 
-// Helper function to handle the union type return from converter
+// Helper function to convert messages for testing
 function getConvertedMessages(
   message: any,
 ): useExternalMessageConverter.Message[] {
-  const result = LegacyMastraMessageConverter(message, {});
+  const result = MastraMessageConverter.toThreadMessages([message]);
   return Array.isArray(result) ? result : [result];
 }
 
@@ -32,7 +32,7 @@ function isToolMessage(
   return message.role === "tool";
 }
 
-describe("LegacyMastraMessageConverter", () => {
+describe("MastraMessageConverter", () => {
   it("should convert basic text messages", () => {
     const mastraMessage = createMockMastraMessage({
       type: "assistant",
@@ -196,7 +196,7 @@ describe("LegacyMastraMessageConverter", () => {
     const mastraMessage = createMockMastraMessage({
       type: "assistant",
       content: [{ type: "text", text: "Hello" }],
-      timestamp: undefined,
+      // timestamp intentionally omitted to test default behavior
     });
 
     const messages = getConvertedMessages(mastraMessage);
@@ -215,6 +215,7 @@ describe("LegacyMastraMessageConverter", () => {
         {
           type: "tool_result",
           tool_result: {
+            success: true,
             tool_call_id: "tool-call-test-id",
             result: "The tool executed successfully",
           },

@@ -23,7 +23,9 @@ describe("MastraMessageAccumulator", () => {
   });
 
   it("should generate IDs for messages without them", () => {
-    const message = createMockMastraMessage({ id: undefined });
+    const message = createMockMastraMessage({
+      /* id intentionally omitted */
+    });
     const result = accumulator.addMessages([message]);
 
     expect(result).toHaveLength(1);

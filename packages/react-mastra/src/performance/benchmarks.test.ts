@@ -119,15 +119,23 @@ describe("Mastra Performance Benchmarks", () => {
   });
 
   it("measures cleanup performance", () => {
+    type TestMessage = ReturnType<typeof createMockMastraMessage>;
     // Create accumulator with maxMessages set to 5000 to test cleanup of large set
-    const accumulator = new MastraMessageAccumulator({
+    const accumulator = new MastraMessageAccumulator<TestMessage>({
       maxMessages: 5000,
       initialMessages: [],
-      appendMessage: (existing, event) => {
+      appendMessage: (
+        existing: TestMessage | undefined,
+        event: TestMessage,
+      ): TestMessage => {
         if (!existing) return event;
+        const existingContent = Array.isArray(existing.content)
+          ? existing.content
+          : [];
+        const eventContent = Array.isArray(event.content) ? event.content : [];
         return {
           ...existing,
-          content: [...existing.content, ...event.content],
+          content: [...existingContent, ...eventContent],
         };
       },
     });

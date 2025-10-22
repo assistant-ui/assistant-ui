@@ -5,7 +5,7 @@ import {
   useExternalStoreRuntime,
   useAssistantState,
 } from "@assistant-ui/react";
-import { LegacyMastraMessageConverter } from "./convertMastraMessages";
+import { MastraMessageConverter } from "./convertMastraMessages";
 import { MastraMessageAccumulator } from "./MastraMessageAccumulator";
 import { appendMastraChunk, extractMastraToolCalls } from "./appendMastraChunk";
 import {
@@ -18,6 +18,11 @@ import {
 } from "./types";
 import { useMastraMemory } from "./useMastraMemory";
 import { useMastraWorkflows } from "./useMastraWorkflows";
+import {
+  createAttachmentAdapter,
+  createFeedbackAdapter,
+  createSpeechAdapter,
+} from "./adapters/transformAdapters";
 
 const getMessageContent = (msg: any): string => {
   // Enhanced message content extraction for Phase 2
@@ -229,15 +234,29 @@ export const useMastraRuntime = (config: MastraRuntimeConfig) => {
     [config, processEvent, memory],
   );
 
-  // Filter out empty or invalid messages before passing to runtime
-  // The runtime will handle conversion using the convertMessage callback
+  // Filter out empty or invalid messages before converting
   const filteredMessages = messages.filter(
     (msg) => msg && msg.type && msg.content != null,
   );
 
+  // Convert Mastra messages to assistant-ui format using the converter
+  const threadMessages = MastraMessageConverter.useThreadMessages({
+    messages: filteredMessages,
+    isRunning,
+  });
+
+  // Transform simplified adapter configs into full adapter implementations
+  const transformedAdapters = config.adapters
+    ? {
+        attachments: createAttachmentAdapter(config.adapters.attachments),
+        feedback: createFeedbackAdapter(config.adapters.feedback),
+        speech: createSpeechAdapter(config.adapters.speech),
+      }
+    : undefined;
+
   const runtime = useExternalStoreRuntime({
     isRunning,
-    messages: filteredMessages as any,
+    messages: threadMessages,
     onNew: handleNew,
     onEdit: async (message: any) => {
       // Handle message editing
@@ -359,8 +378,7 @@ export const useMastraRuntime = (config: MastraRuntimeConfig) => {
       // Message reloading is not yet supported in this version
       throw new Error("Message reloading is not yet supported");
     },
-    adapters: config.adapters,
-    convertMessage: LegacyMastraMessageConverter as any,
+    adapters: transformedAdapters,
     extras: {
       [MastraRuntimeExtrasSymbol]: {
         agentId: config.agentId,

@@ -10,10 +10,7 @@ export {
 } from "./useMastraWorkflows";
 
 // Message processing components
-export {
-  MastraMessageConverter,
-  LegacyMastraMessageConverter,
-} from "./convertMastraMessages";
+export { MastraMessageConverter } from "./convertMastraMessages";
 export { MastraMessageAccumulator } from "./MastraMessageAccumulator";
 
 // Chunk processing utilities

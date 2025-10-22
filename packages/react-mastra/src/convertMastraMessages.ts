@@ -1,6 +1,6 @@
 "use client";
 
-import { useExternalMessageConverter } from "@assistant-ui/react";
+import { unstable_createMessageConverter } from "@assistant-ui/react";
 import type {
   MastraMessage,
   MastraContent,
@@ -107,90 +107,78 @@ const mapMastraStatusToAssistantUI = (
   }
 };
 
-// Simplified message converter for now
-export const MastraMessageConverter = (message: MastraMessage) => {
-  // Validate message has required fields
-  if (!message.type) {
-    // Default to user message if type is missing
-    message = { ...message, type: "human" };
-  }
-
-  const role = (
-    message.type === "human"
-      ? "user"
-      : message.type === "assistant"
-        ? "assistant"
-        : message.type
-  ) as "system" | "assistant" | "user";
-
-  const baseMessage = {
-    id: message.id ?? crypto.randomUUID(),
-    createdAt: new Date(message.timestamp ?? Date.now()),
-    role,
-    content: convertMastraContentToParts(message.content),
-    // Only include status for assistant messages
-    ...(role === "assistant" && {
-      status: mapMastraStatusToAssistantUI(message.status),
-    }),
-    metadata: {
-      unstable_state: null,
-      unstable_annotations: [],
-      unstable_data: [],
-      // Only include steps for assistant messages
-      ...(role === "assistant" && { steps: [] }),
-      custom: message.metadata ?? {},
-    },
-  };
-
-  // Handle special cases for different message types
-  switch (message.type) {
-    case "system":
-      return {
-        ...baseMessage,
-        role: "system" as const,
-        content: [
-          {
-            type: "text" as const,
-            text: convertMastraContentToParts(message.content)
-              .map((p) => ("text" in p ? p.text : ""))
-              .join(""),
-          },
-        ],
-      };
-
-    case "tool": {
-      const contentItem =
-        Array.isArray(message.content) && message.content.length > 0
-          ? message.content[0]
-          : null;
-
-      const toolResult =
-        contentItem?.type === "tool_result" ? contentItem.tool_result : null;
-
-      return {
-        id: message.id ?? crypto.randomUUID(),
-        createdAt: new Date(message.timestamp ?? Date.now()),
-        role: "tool" as const,
-        content: [],
-        metadata: {
-          toolCallId: toolResult?.tool_call_id,
-          result: toolResult?.result,
-        },
-        toolCallId: toolResult?.tool_call_id,
-        result: toolResult?.result,
-      };
+// Create the message converter using the standard pattern
+export const MastraMessageConverter =
+  unstable_createMessageConverter<MastraMessage>((message: MastraMessage) => {
+    // Validate message has required fields
+    if (!message.type) {
+      // Default to user message if type is missing
+      message = { ...message, type: "human" };
     }
 
-    default:
-      return baseMessage;
-  }
-};
+    const role = (
+      message.type === "human"
+        ? "user"
+        : message.type === "assistant"
+          ? "assistant"
+          : message.type
+    ) as "system" | "assistant" | "user";
 
-// Legacy converter for backward compatibility
-export const LegacyMastraMessageConverter: useExternalMessageConverter.Callback<
-  MastraMessage
-> = (message) => {
-  const result = MastraMessageConverter(message);
-  // The legacy converter expects to return the assistant-ui format directly
-  return result as any;
-};
+    const baseMessage = {
+      id: message.id ?? crypto.randomUUID(),
+      createdAt: new Date(message.timestamp ?? Date.now()),
+      role,
+      content: convertMastraContentToParts(message.content),
+      // Only include status for assistant messages
+      ...(role === "assistant" && {
+        status: mapMastraStatusToAssistantUI(message.status),
+      }),
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        // Only include steps for assistant messages
+        ...(role === "assistant" && { steps: [] }),
+        custom: message.metadata ?? {},
+      },
+    };
+
+    // Handle special cases for different message types
+    switch (message.type) {
+      case "system":
+        return {
+          ...baseMessage,
+          role: "system" as const,
+          content: [
+            {
+              type: "text" as const,
+              text: convertMastraContentToParts(message.content)
+                .map((p) => ("text" in p ? p.text : ""))
+                .join(""),
+            },
+          ],
+        };
+
+      case "tool": {
+        const contentItem =
+          Array.isArray(message.content) && message.content.length > 0
+            ? message.content[0]
+            : null;
+
+        const toolResult =
+          contentItem?.type === "tool_result" ? contentItem.tool_result : null;
+
+        // toolCallId is required for tool messages
+        const toolCallId = toolResult?.tool_call_id ?? "unknown";
+
+        return {
+          role: "tool" as const,
+          toolCallId,
+          result: toolResult?.result,
+        };
+      }
+
+      default:
+        return baseMessage;
+    }
+  });
