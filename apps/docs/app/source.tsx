@@ -4,6 +4,8 @@ import { loader } from "fumadocs-core/source";
 import {
   meta,
   docs,
+  examples,
+  examplesMeta,
   blog as blogPosts,
   careers as careersCollection,
 } from "@/.source";
@@ -15,6 +17,20 @@ const utils = loader({
 
 export const { getPages, getPage, pageTree } = utils;
 export const source = utils;
+
+export const examplesUtils = loader({
+  baseUrl: "/examples",
+  source: createMDXSource(examples, examplesMeta),
+});
+
+export const {
+  getPages: getExamplesPages,
+  getPage: getExamplesPage,
+  pageTree: examplesPageTree,
+} = examplesUtils;
+export const examplesSource = examplesUtils;
+
+export type ExamplePage = InferPageType<typeof examplesUtils>;
 
 export const blog = loader({
   baseUrl: "/blog",

@@ -1,0 +1,50 @@
+---
+title: Artifacts
+description: Open Source Claude Artifacts. You can ask the bot to generate websites.
+---
+
+import { Artifacts } from "@/components/artifacts/Artifacts";
+import { DocsRuntimeProvider } from "@/app/(home)/DocsRuntimeProvider";
+
+## Live Demo
+
+<div className="not-prose h-[700px]">
+  <DocsRuntimeProvider>
+    <Artifacts />
+  </DocsRuntimeProvider>
+</div>
+
+## Overview
+
+The Artifacts example demonstrates how to implement Claude Artifacts functionality with assistant-ui. This allows users to generate interactive content like websites, documents, and applications directly within the chat interface.
+
+## Features
+
+- **Interactive Artifacts**: Generate and interact with dynamic content
+- **Real-time Preview**: Live preview of generated artifacts
+- **Code Generation**: Generate HTML, CSS, and JavaScript code
+- **Interactive Elements**: Artifacts can include interactive components
+- **Export Functionality**: Download or copy generated artifacts
+- **Version Control**: Track changes and iterations of artifacts
+
+## Usage
+
+To implement artifacts functionality:
+
+1. **Artifact Rendering**: Create components to render generated artifacts
+2. **Code Execution**: Safely execute generated code in sandboxed environment
+3. **Preview Interface**: Provide real-time preview of artifacts
+4. **Export Options**: Implement download and copy functionality
+5. **Version Management**: Track artifact versions and changes
+
+## Code
+
+Key implementation components:
+
+- **Artifact Renderer**: Component to render different types of artifacts
+- **Code Sandbox**: Safe execution environment for generated code
+- **Preview System**: Real-time preview of artifact changes
+- **Export System**: Download and copy functionality for artifacts
+- **Version Control**: Track and manage artifact versions
+
+The implementation provides a safe, interactive environment for generating and previewing dynamic content.
