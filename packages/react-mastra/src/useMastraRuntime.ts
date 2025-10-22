@@ -221,7 +221,8 @@ export const useMastraRuntime = (config: MastraRuntimeConfig) => {
   // Filter out empty or invalid messages before passing to runtime
   // The runtime will handle conversion using the convertMessage callback
   const filteredMessages = messages.filter(
-    msg => msg && msg.type && (msg.content !== undefined && msg.content !== null)
+    (msg) =>
+      msg && msg.type && msg.content !== undefined && msg.content !== null,
   );
 
   const runtime = useExternalStoreRuntime({
@@ -261,15 +262,15 @@ export const useMastraRuntime = (config: MastraRuntimeConfig) => {
           timestamp: new Date().toISOString(),
         };
 
-        const messagesWithEdit =
-          accumulatorRef.current.addMessages([editedMessage]);
+        const messagesWithEdit = accumulatorRef.current.addMessages([
+          editedMessage,
+        ]);
         setMessages(messagesWithEdit);
 
         // 5. Get memory context if available
         let threadId: string | undefined;
         if (config.memory && memory) {
-          threadId =
-            memory.currentThread || (await memory.createThread());
+          threadId = memory.currentThread || (await memory.createThread());
         }
 
         const memoryContext = config.memory

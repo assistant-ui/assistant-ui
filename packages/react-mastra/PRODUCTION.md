@@ -51,14 +51,14 @@ MASTRA_BATCH_SIZE=50
 ### Basic Setup
 
 ```typescript
-import { useMastraRuntime } from '@assistant-ui/react-mastra';
+import { useMastraRuntime } from "@assistant-ui/react-mastra";
 
 const config = {
-  agentId: process.env.MASTRA_AGENT_ID || 'default-agent',
+  agentId: process.env.MASTRA_AGENT_ID || "default-agent",
   api: process.env.MASTRA_API_URL!,
   eventHandlers: {
     onError: (error) => {
-      console.error('Mastra runtime error:', error);
+      console.error("Mastra runtime error:", error);
       // Send to monitoring service
       trackError(error);
     },
@@ -68,8 +68,8 @@ const config = {
     },
   },
   // Production-optimized settings
-  maxRetries: parseInt(process.env.MASTRA_RETRY_ATTEMPTS || '3'),
-  timeout: parseInt(process.env.MASTRA_TIMEOUT || '30000'),
+  maxRetries: parseInt(process.env.MASTRA_RETRY_ATTEMPTS || "3"),
+  timeout: parseInt(process.env.MASTRA_TIMEOUT || "30000"),
 };
 
 const runtime = useMastraRuntime(config);
@@ -81,8 +81,8 @@ const runtime = useMastraRuntime(config);
 import {
   useMastraRuntime,
   performHealthCheck,
-  createHealthMonitor
-} from '@assistant-ui/react-mastra';
+  createHealthMonitor,
+} from "@assistant-ui/react-mastra";
 
 // Health monitoring
 const healthMonitor = createHealthMonitor();
@@ -94,7 +94,7 @@ setInterval(async () => {
     checkConnections: true,
   });
 
-  if (health.status === 'unhealthy') {
+  if (health.status === "unhealthy") {
     // Trigger alert or recovery procedures
     alertUnhealthy(health);
   }
@@ -102,7 +102,7 @@ setInterval(async () => {
 
 // Enhanced runtime with production features
 const config = {
-  agentId: 'production-agent',
+  agentId: "production-agent",
   api: process.env.MASTRA_API_URL!,
 
   // Error handling and recovery
@@ -126,10 +126,10 @@ const config = {
   eventHandlers: {
     onMetadata: (metadata) => {
       // Track performance metrics
-      trackPerformance('mastra_metadata', metadata);
+      trackPerformance("mastra_metadata", metadata);
     },
     onToolCall: (toolCall) => {
-      trackPerformance('mastra_tool_call', {
+      trackPerformance("mastra_tool_call", {
         tool: toolCall.name,
         arguments: toolCall.arguments,
       });
@@ -137,8 +137,8 @@ const config = {
   },
 
   // Memory management
-  maxMessages: parseInt(process.env.MASTRA_MAX_MESSAGES || '1000'),
-  cleanupInterval: parseInt(process.env.MASTRA_CLEANUP_INTERVAL || '300000'),
+  maxMessages: parseInt(process.env.MASTRA_MAX_MESSAGES || "1000"),
+  cleanupInterval: parseInt(process.env.MASTRA_CLEANUP_INTERVAL || "300000"),
 };
 
 const runtime = useMastraRuntime(config);
@@ -149,7 +149,10 @@ const runtime = useMastraRuntime(config);
 ### Health Checks
 
 ```typescript
-import { performHealthCheck, checkHealthThresholds } from '@assistant-ui/react-mastra';
+import {
+  performHealthCheck,
+  checkHealthThresholds,
+} from "@assistant-ui/react-mastra";
 
 // Manual health check
 const health = await performHealthCheck({
@@ -157,28 +160,28 @@ const health = await performHealthCheck({
   checkConnections: true,
 });
 
-console.log('Health status:', health.status);
-console.log('Memory usage:', health.metrics.memoryUsage, 'MB');
-console.log('Average response time:', health.metrics.averageResponseTime, 'ms');
+console.log("Health status:", health.status);
+console.log("Memory usage:", health.metrics.memoryUsage, "MB");
+console.log("Average response time:", health.metrics.averageResponseTime, "ms");
 
 // Check thresholds
 const { isHealthy, warnings, errors } = checkHealthThresholds(health);
 
 if (!isHealthy) {
-  console.error('Health issues detected:', { warnings, errors });
+  console.error("Health issues detected:", { warnings, errors });
 }
 ```
 
 ### Performance Metrics
 
 ```typescript
-import { createHealthMonitor } from '@assistant-ui/react-mastra';
+import { createHealthMonitor } from "@assistant-ui/react-mastra";
 
 const monitor = createHealthMonitor();
 
 // Get statistics
 const stats = monitor.getStats();
-console.log('Health check stats:', {
+console.log("Health check stats:", {
   totalChecks: stats.checkCount,
   errorCount: stats.errorCount,
   errorRate: `${(stats.errorRate * 100).toFixed(2)}%`,
@@ -200,7 +203,7 @@ const accumulator = new MastraMessageAccumulator({
 });
 
 const memoryUsage = accumulator.getMemoryUsage();
-console.log('Accumulator memory:', memoryUsage);
+console.log("Accumulator memory:", memoryUsage);
 // Output: { count: 850, maxCapacity: 1000, utilization: 0.85 }
 ```
 
@@ -212,7 +215,7 @@ console.log('Accumulator memory:', memoryUsage);
 const config = {
   // ... other config
   onError: (error, context) => {
-    if (error.message.includes('network') || error.message.includes('fetch')) {
+    if (error.message.includes("network") || error.message.includes("fetch")) {
       // Network error - implement retry logic
       implementRetryLogic(error, context);
     } else {
@@ -245,7 +248,7 @@ const config = {
 const config = {
   api: process.env.MASTRA_API_URL, // Use proxy server if needed
   headers: {
-    'Authorization': `Bearer ${process.env.MASTRA_API_KEY}`,
+    Authorization: `Bearer ${process.env.MASTRA_API_KEY}`,
   },
 };
 ```
@@ -259,13 +262,9 @@ const validateInput = (input: string): boolean => {
   const sanitized = input.trim().slice(0, 10000);
 
   // Check for malicious patterns
-  const dangerousPatterns = [
-    /<script/i,
-    /javascript:/i,
-    /data:/i,
-  ];
+  const dangerousPatterns = [/<script/i, /javascript:/i, /data:/i];
 
-  return !dangerousPatterns.some(pattern => pattern.test(sanitized));
+  return !dangerousPatterns.some((pattern) => pattern.test(sanitized));
 };
 ```
 
@@ -274,29 +273,37 @@ const validateInput = (input: string): boolean => {
 ### Common Issues
 
 #### 1. Memory Leaks
+
 **Symptoms**: Memory usage increases over time
 **Solution**:
+
 - Ensure proper cleanup of message accumulators
 - Check for event listener leaks
 - Monitor `maxMessages` configuration
 
 #### 2. Slow Response Times
+
 **Symptoms**: Requests take longer than expected
 **Solution**:
+
 - Check Mastra server performance
 - Implement response time monitoring
 - Consider request batching
 
 #### 3. Connection Issues
+
 **Symptoms**: Intermittent connection failures
 **Solution**:
+
 - Implement retry logic with exponential backoff
 - Check network configuration
 - Monitor connection pool status
 
 #### 4. Large Bundle Size
+
 **Symptoms**: Slow initial page load
 **Solution**:
+
 - Use tree-shaking imports
 - Lazy load advanced features
 - Optimize dependencies
@@ -305,9 +312,9 @@ const validateInput = (input: string): boolean => {
 
 ```typescript
 // Enable debug logging in development
-if (process.env.NODE_ENV === 'development') {
+if (process.env.NODE_ENV === "development") {
   config.debug = true;
-  config.logLevel = 'debug';
+  config.logLevel = "debug";
 }
 ```
 

@@ -46,10 +46,10 @@ export default function Home() {
   return (
     <div className="flex h-full">
       {/* Left Sidebar - Agent Control & Status */}
-      <div className="w-64 border-r border-border bg-muted/30 p-4 space-y-4 overflow-y-auto">
+      <div className="border-border bg-muted/30 w-64 space-y-4 overflow-y-auto border-r p-4">
         {/* Agent Selection */}
         <div className="space-y-2">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+          <h2 className="text-muted-foreground text-sm font-semibold uppercase tracking-wide">
             Agent Selection
           </h2>
           <AgentSelector
@@ -62,7 +62,7 @@ export default function Home() {
 
         {/* Memory Status */}
         <div className="space-y-2">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+          <h2 className="text-muted-foreground text-sm font-semibold uppercase tracking-wide">
             Memory System
           </h2>
           <MemoryStatus showStats={true} />
@@ -70,11 +70,14 @@ export default function Home() {
 
         {/* Hiring Workflow */}
         <div className="space-y-2">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+          <h2 className="text-muted-foreground text-sm font-semibold uppercase tracking-wide">
             Hiring Workflow
           </h2>
           {!workflowState && (
-            <CandidateForm onSubmit={handleCandidateSubmit} isLoading={isStarting} />
+            <CandidateForm
+              onSubmit={handleCandidateSubmit}
+              isLoading={isStarting}
+            />
           )}
           {workflowState && (
             <WorkflowStatus
@@ -89,13 +92,13 @@ export default function Home() {
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex flex-1 flex-col">
         {/* Header */}
-        <div className="border-b border-border p-4 bg-background">
+        <div className="border-border bg-background border-b p-4">
           <h1 className="text-xl font-semibold">
             {agents.find((a) => a.id === selectedAgent)?.name || "Mastra Agent"}
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-muted-foreground mt-1 text-sm">
             {agents.find((a) => a.id === selectedAgent)?.description}
           </p>
         </div>

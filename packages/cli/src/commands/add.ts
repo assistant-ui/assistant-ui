@@ -35,7 +35,7 @@ export const add = new Command()
     // Check for Mastra integration opportunity
     if (hasMastraImports()) {
       const answer = await askQuestion(
-        "Would you like to add Mastra integration support? (Y/n) "
+        "Would you like to add Mastra integration support? (Y/n) ",
       );
       if (answer === "" || answer.toLowerCase().startsWith("y")) {
         console.log("🔧 Adding Mastra integration packages...");
@@ -61,26 +61,35 @@ export const add = new Command()
     }
 
     // Check for Mastra component registry components
-    const mastraComponents = components.filter(c => c.startsWith("mastra-"));
-    const standardComponents = components.filter(c => !c.startsWith("mastra-"));
+    const mastraComponents = components.filter((c) => c.startsWith("mastra-"));
+    const standardComponents = components.filter(
+      (c) => !c.startsWith("mastra-"),
+    );
 
     if (mastraComponents.length > 0) {
       console.log("🤖 Processing Mastra components...");
 
       // Import and use Mastra component registry
-      const mastraRegistryPath = path.join(__dirname, "../components/mastra-registry.json");
+      const mastraRegistryPath = path.join(
+        __dirname,
+        "../components/mastra-registry.json",
+      );
 
       try {
-        const fs = await import('fs');
+        const fs = await import("fs");
         if (fs.existsSync(mastraRegistryPath)) {
-          const registry = JSON.parse(fs.readFileSync(mastraRegistryPath, "utf8"));
+          const registry = JSON.parse(
+            fs.readFileSync(mastraRegistryPath, "utf8"),
+          );
 
           for (const component of mastraComponents) {
             const componentId = component.replace("mastra-", "");
             const componentConfig = registry.components[componentId];
 
             if (componentConfig) {
-              console.log(`✨ Adding Mastra component: ${componentConfig.name}`);
+              console.log(
+                `✨ Adding Mastra component: ${componentConfig.name}`,
+              );
 
               // Here you would typically:
               // 1. Generate component files based on registry
@@ -88,7 +97,9 @@ export const add = new Command()
               // 3. Update configuration files
 
               console.log(`   📝 Description: ${componentConfig.description}`);
-              console.log(`   📦 Dependencies: ${componentConfig.dependencies.join(", ")}`);
+              console.log(
+                `   📦 Dependencies: ${componentConfig.dependencies.join(", ")}`,
+              );
             } else {
               console.log(`⚠️  Unknown Mastra component: ${component}`);
             }

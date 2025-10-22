@@ -110,11 +110,13 @@ export const MastraMessageConverter = (message: MastraMessage) => {
     message = { ...message, type: "human" };
   }
 
-  const role = (message.type === "human"
-    ? "user"
-    : message.type === "assistant"
-      ? "assistant"
-      : message.type) as "system" | "assistant" | "user";
+  const role = (
+    message.type === "human"
+      ? "user"
+      : message.type === "assistant"
+        ? "assistant"
+        : message.type
+  ) as "system" | "assistant" | "user";
 
   const baseMessage = {
     id: message.id ?? crypto.randomUUID(),
@@ -122,7 +124,9 @@ export const MastraMessageConverter = (message: MastraMessage) => {
     role,
     content: convertMastraContentToParts(message.content),
     // Only include status for assistant messages
-    ...(role === "assistant" && { status: mapMastraStatusToAssistantUI(message.status) }),
+    ...(role === "assistant" && {
+      status: mapMastraStatusToAssistantUI(message.status),
+    }),
     metadata: {
       unstable_state: null,
       unstable_annotations: [],
@@ -150,11 +154,13 @@ export const MastraMessageConverter = (message: MastraMessage) => {
       };
 
     case "tool": {
-      const contentItem = Array.isArray(message.content) && message.content.length > 0
-        ? message.content[0]
-        : null;
+      const contentItem =
+        Array.isArray(message.content) && message.content.length > 0
+          ? message.content[0]
+          : null;
 
-      const toolResult = contentItem?.type === "tool_result" ? contentItem.tool_result : null;
+      const toolResult =
+        contentItem?.type === "tool_result" ? contentItem.tool_result : null;
 
       return {
         id: message.id ?? crypto.randomUUID(),

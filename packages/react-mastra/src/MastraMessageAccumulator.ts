@@ -77,7 +77,7 @@ export class MastraMessageAccumulator<TMessage extends { id?: string }> {
   public getMessages(): TMessage[] {
     // Return messages in order of most recent to oldest
     return this.messageOrder
-      .map(id => this.messagesMap.get(id))
+      .map((id) => this.messagesMap.get(id))
       .filter((msg): msg is TMessage => msg !== undefined);
   }
 
@@ -106,7 +106,11 @@ export class MastraMessageAccumulator<TMessage extends { id?: string }> {
     this.clear();
   }
 
-  public getMemoryUsage(): { count: number; maxCapacity: number; utilization: number } {
+  public getMemoryUsage(): {
+    count: number;
+    maxCapacity: number;
+    utilization: number;
+  } {
     return {
       count: this.messagesMap.size,
       maxCapacity: this.maxMessages,

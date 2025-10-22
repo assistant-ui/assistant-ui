@@ -15,12 +15,17 @@ export const ToolFallback: FC<any> = (props) => {
 
   return (
     <MessagePrimitive.Root className="my-2">
-      <div className={cn(
-        "flex items-center gap-2 rounded-lg border p-3",
-        isRunning && "border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950",
-        isComplete && "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950",
-        isError && "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950"
-      )}>
+      <div
+        className={cn(
+          "flex items-center gap-2 rounded-lg border p-3",
+          isRunning &&
+            "border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950",
+          isComplete &&
+            "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950",
+          isError &&
+            "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950",
+        )}
+      >
         {isRunning && (
           <Loader2 className="h-4 w-4 animate-spin text-blue-600 dark:text-blue-400" />
         )}
@@ -32,16 +37,14 @@ export const ToolFallback: FC<any> = (props) => {
         )}
 
         <div className="flex-1">
-          <div className="font-medium text-sm">
-            Using tool: {toolName}
-          </div>
+          <div className="text-sm font-medium">Using tool: {toolName}</div>
           {argsText && (
-            <div className="text-xs text-muted-foreground mt-1 font-mono">
+            <div className="text-muted-foreground mt-1 font-mono text-xs">
               {argsText}
             </div>
           )}
           {isError && result && (
-            <div className="text-xs text-red-600 dark:text-red-400 mt-1">
+            <div className="mt-1 text-xs text-red-600 dark:text-red-400">
               Error: {String(result)}
             </div>
           )}

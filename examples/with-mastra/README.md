@@ -22,21 +22,25 @@ This example demonstrates how to use `@assistant-ui/react-mastra` to build AI-po
 ## Getting Started
 
 1. **Install dependencies**:
+
    ```bash
    pnpm install
    ```
 
 2. **Set up environment variables**:
+
    ```bash
    cp .env.local.example .env.local
    ```
 
    Add your OpenAI API key to `.env.local`:
+
    ```
    OPENAI_API_KEY=your_openai_api_key_here
    ```
 
 3. **Run the development server**:
+
    ```bash
    pnpm dev
    ```
@@ -44,6 +48,7 @@ This example demonstrates how to use `@assistant-ui/react-mastra` to build AI-po
 4. **Open [http://localhost:3000](http://localhost:3000)**
 
 You'll see a comprehensive interface showcasing:
+
 - Agent switching between Chef and Weather agents
 - Real-time memory status
 - Enhanced tool call displays
@@ -52,11 +57,13 @@ You'll see a comprehensive interface showcasing:
 ## Available Agents
 
 ### Chef Agent 🍳
+
 - **Purpose**: Cooking assistance, recipes, meal planning, and food safety
 - **Capabilities**: Recipe suggestions, ingredient substitutions, cooking techniques
 - **Tool Access**: Weather information for cooking planning
 
 ### Weather Agent ☁️
+
 - **Purpose**: Weather information and forecasts
 - **Capabilities**: Current conditions, forecasts, weather alerts
 - **Tool Access**: Real-time weather data
@@ -66,24 +73,31 @@ You'll see a comprehensive interface showcasing:
 The example demonstrates all Mastra-specific components in a single integrated interface:
 
 ### Agent Selector
+
 Switch between different Mastra agents (Chef Agent and Weather Agent) in real-time. The runtime automatically updates when you select a different agent.
 
 ### Memory Status
+
 Displays the current state of Mastra's memory system:
+
 - Active/inactive status indicator
 - Message count in current thread
 - Thread ID display
 - Real-time updates as conversation progresses
 
 ### Tool Results
+
 Enhanced tool call display with:
+
 - Expandable/collapsible sections
 - Color-coded status (running, success, error)
 - Formatted arguments and results
 - Error message display
 
 ### Workflow Controls
+
 Demonstrates workflow management with:
+
 - Start/pause/stop controls
 - Progress tracking with percentage
 - Step-by-step visualization
@@ -92,7 +106,9 @@ Demonstrates workflow management with:
 **Note**: Workflow functionality uses mock data for demonstration purposes.
 
 ### Layout
+
 The interface uses a two-column layout:
+
 - **Left Sidebar**: Agent selector, memory status, and workflow controls
 - **Main Area**: Chat thread with enhanced tool results
 
@@ -131,6 +147,7 @@ examples/with-mastra/
 ## Key Features Demonstrated
 
 ### Basic Integration
+
 ```typescript
 import { useMastraRuntime } from "@assistant-ui/react-mastra";
 
@@ -141,6 +158,7 @@ const runtime = useMastraRuntime({
 ```
 
 ### Advanced Runtime Configuration
+
 ```typescript
 const runtime = useMastraRuntime({
   agentId: selectedAgent,
@@ -159,6 +177,7 @@ const runtime = useMastraRuntime({
 ```
 
 ### Agent Definition
+
 ```typescript
 import { Agent } from "@mastra/core/agent";
 import { createOpenAI } from "@ai-sdk/openai";
@@ -173,6 +192,7 @@ const chefAgent = new Agent({
 ```
 
 ### Tool Integration
+
 ```typescript
 export const weatherTool = {
   description: "Get current weather information",
@@ -182,24 +202,27 @@ export const weatherTool = {
   }),
   execute: async ({ location, units }) => {
     // Tool implementation
-  }
+  },
 };
 ```
 
 ## Customization
 
 ### Adding New Agents
+
 1. Create a new agent file in `mastra/agents/`
 2. Define the agent with instructions and tools
 3. Register it in `mastra/index.ts`
 4. Add it to the agent selection UI
 
 ### Adding New Tools
+
 1. Create tool files in `mastra/tools/`
 2. Define tool parameters and execution logic
 3. Import and use in your agents
 
 ### Customizing the UI
+
 - Modify components in `components/assistant-ui/`
 - Update styles in `app/globals.css`
 - Extend the runtime provider in `app/MyRuntimeProvider.tsx`
@@ -224,7 +247,9 @@ export const weatherTool = {
 ## Advanced Features
 
 ### Workflows
+
 The example demonstrates workflow integration with:
+
 - **Human-in-the-loop interactions**: Complex business logic that requires human input
 - **Real-time state streaming**: Live workflow progress updates
 - **Multi-step processes**: Sequential and parallel workflow execution
@@ -233,24 +258,28 @@ The example demonstrates workflow integration with:
 The workflow controls in the left sidebar show a mock demonstration of workflow functionality.
 
 ### Memory Management
+
 - **Persistent conversation storage**: LibSQL-based memory system with local database
 - **Thread-based memory isolation**: Separate contexts for different conversation threads
 - **Semantic context retrieval**: Intelligent context matching and relevance scoring
 - **Memory compression**: Efficient storage of conversation history
 
 ### Tool Integration
+
 - **Dynamic tool registration**: Runtime tool discovery and registration
 - **Type-safe parameter validation**: Zod schema validation for all tool inputs
 - **Real-time tool result streaming**: Live updates during tool execution
 - **Error handling and recovery**: Robust error handling for tool failures
 
 ### Advanced Runtime Features
+
 - **Agent switching**: Runtime agent selection with context preservation
 - **Multi-modal support**: Text, image, and file processing capabilities
 - **Custom middleware**: Extensible middleware for request/response processing
 - **Event-driven architecture**: Comprehensive event system for monitoring and debugging
 
 ### Performance Optimizations
+
 - **Streaming responses**: Efficient response streaming for reduced latency
 - **Connection pooling**: Optimized database connection management
 - **Memory management**: Intelligent memory usage and cleanup

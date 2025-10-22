@@ -11,7 +11,12 @@ export interface TemplateOptions {
 }
 
 export function generateMastraTemplate(options: TemplateOptions): void {
-  const { projectName, targetDir, agentId = "chef-agent", enableMemory = true } = options;
+  const {
+    projectName,
+    targetDir,
+    agentId = "chef-agent",
+    enableMemory = true,
+  } = options;
 
   // Create directory structure
   const dirs = [
@@ -49,29 +54,29 @@ export function generateMastraTemplate(options: TemplateOptions): void {
       "@radix-ui/react-slot": "latest",
       "@radix-ui/react-tooltip": "latest",
       "class-variance-authority": "latest",
-      "clsx": "latest",
+      clsx: "latest",
       "lucide-react": "latest",
-      "next": "latest",
-      "react": "latest",
+      next: "latest",
+      react: "latest",
       "react-dom": "latest",
       "remark-gfm": "latest",
       "tailwind-merge": "latest",
-      "tailwindcss": "latest",
-      "zod": "latest",
+      tailwindcss: "latest",
+      zod: "latest",
     },
     devDependencies: {
       "@types/node": "latest",
       "@types/react": "latest",
       "@types/react-dom": "latest",
-      "eslint": "latest",
+      eslint: "latest",
       "eslint-config-next": "latest",
-      "typescript": "latest",
+      typescript: "latest",
     },
   };
 
   fs.writeFileSync(
     path.join(targetDir, "package.json"),
-    JSON.stringify(packageJson, null, 2)
+    JSON.stringify(packageJson, null, 2),
   );
 
   // Generate Next.js configuration
@@ -115,7 +120,7 @@ export default nextConfig;
 
   fs.writeFileSync(
     path.join(targetDir, "tsconfig.json"),
-    JSON.stringify(tsConfig, null, 2)
+    JSON.stringify(tsConfig, null, 2),
   );
 
   // Generate components.json
@@ -139,7 +144,7 @@ export default nextConfig;
 
   fs.writeFileSync(
     path.join(targetDir, "components.json"),
-    JSON.stringify(componentsJson, null, 2)
+    JSON.stringify(componentsJson, null, 2),
   );
 
   // Generate globals.css
@@ -301,15 +306,23 @@ export async function POST(req: Request) {
 
   // Generate Mastra configuration
   const mastraIndex = `import { Mastra } from "@mastra/core";
-${enableMemory ? `import { Memory } from "@mastra/memory";
-import { LibSQLStore } from "@mastra/libsql";` : ""}
+${
+  enableMemory
+    ? `import { Memory } from "@mastra/memory";
+import { LibSQLStore } from "@mastra/libsql";`
+    : ""
+}
 import { ${agentId.charAt(0).toUpperCase() + agentId.slice(1)} } from "./agents/${agentId}";
 
-${enableMemory ? `const memory = new Memory({
+${
+  enableMemory
+    ? `const memory = new Memory({
   storage: new LibSQLStore({
     url: "file:./mastra.db",
   }),
-});` : ""}
+});`
+    : ""
+}
 
 export const mastra = new Mastra({
   agents: {
@@ -340,7 +353,10 @@ export const ${agentId.charAt(0).toUpperCase() + agentId.slice(1)} = new Agent({
 });
 `;
 
-  fs.writeFileSync(path.join(targetDir, `mastra/agents/${agentId}.ts`), agentConfig);
+  fs.writeFileSync(
+    path.join(targetDir, `mastra/agents/${agentId}.ts`),
+    agentConfig,
+  );
 
   // Generate utilities
   const utils = `import { clsx, type ClassValue } from "clsx";
@@ -632,7 +648,10 @@ const CircleStopIcon = () => {
 };
 `;
 
-  fs.writeFileSync(path.join(targetDir, "components/assistant-ui/thread.tsx"), threadComponent);
+  fs.writeFileSync(
+    path.join(targetDir, "components/assistant-ui/thread.tsx"),
+    threadComponent,
+  );
 
   // Generate UI components (simplified versions)
   const buttonComponent = `import * as React from "react";
@@ -689,7 +708,10 @@ Button.displayName = "Button";
 export { Button, buttonVariants };
 `;
 
-  fs.writeFileSync(path.join(targetDir, "components/ui/button.tsx"), buttonComponent);
+  fs.writeFileSync(
+    path.join(targetDir, "components/ui/button.tsx"),
+    buttonComponent,
+  );
 
   // Generate markdown text component
   const markdownText = `import { MessagePrimitive } from "@assistant-ui/react";
@@ -744,7 +766,10 @@ MarkdownText.displayName = "MarkdownText";
 export { MarkdownText };
 `;
 
-  fs.writeFileSync(path.join(targetDir, "components/assistant-ui/markdown-text.tsx"), markdownText);
+  fs.writeFileSync(
+    path.join(targetDir, "components/assistant-ui/markdown-text.tsx"),
+    markdownText,
+  );
 
   // Generate tooltip icon button
   const tooltipIconButton = `import * as React from "react";
@@ -816,7 +841,10 @@ TooltipIconButton.displayName = "TooltipIconButton";
 export { TooltipIconButton, tooltipVariants };
 `;
 
-  fs.writeFileSync(path.join(targetDir, "components/assistant-ui/tooltip-icon-button.tsx"), tooltipIconButton);
+  fs.writeFileSync(
+    path.join(targetDir, "components/assistant-ui/tooltip-icon-button.tsx"),
+    tooltipIconButton,
+  );
 
   // Generate tool fallback
   const toolFallback = `import { MessagePrimitive } from "@assistant-ui/react";
@@ -863,7 +891,10 @@ export const ToolFallback = ({ tool }) => {
 };
 `;
 
-  fs.writeFileSync(path.join(targetDir, "components/assistant-ui/tool-fallback.tsx"), toolFallback);
+  fs.writeFileSync(
+    path.join(targetDir, "components/assistant-ui/tool-fallback.tsx"),
+    toolFallback,
+  );
 
   // Generate README
   const readme = `# ${projectName}
@@ -874,7 +905,7 @@ A Next.js application powered by Mastra and assistant-ui.
 
 - 🤖 **AI Agents**: Powered by Mastra's agent framework
 - 💬 **Real-time Chat**: Streaming responses with assistant-ui
-- 🧠 **Memory${enableMemory ? '': ''}**: ${enableMemory ? 'Persistent conversation context' : 'No memory (can be enabled)'}
+- 🧠 **Memory${enableMemory ? "" : ""}**: ${enableMemory ? "Persistent conversation context" : "No memory (can be enabled)"}
 - 🔧 **Tools**: Extensible tool system
 - 📱 **Responsive**: Mobile-friendly interface
 
@@ -934,13 +965,13 @@ ${projectName}/
 
 ### Enabling Memory
 
-Memory is ${enableMemory ? 'enabled' : 'disabled'} by default. To ${enableMemory ? 'keep it' : 'enable it'}:
+Memory is ${enableMemory ? "enabled" : "disabled"} by default. To ${enableMemory ? "keep it" : "enable it"}:
 
 1. Update the runtime configuration in \`app/page.tsx\`:
    \`\`\`tsx
    const runtime = useMastraRuntime({
      agentId: "${agentId}",
-     memory: ${enableMemory ? 'true' : 'false'}, // Change to true
+     memory: ${enableMemory ? "true" : "false"}, // Change to true
    });
    \`\`\`
 
@@ -966,7 +997,7 @@ Memory is ${enableMemory ? 'enabled' : 'disabled'} by default. To ${enableMemory
 OPENAI_API_KEY=your_openai_api_key_here
 
 # Optional: Database URL for persistent memory
-${enableMemory ? 'DATABASE_URL=file:./mastra.db' : '# DATABASE_URL=file:./mastra.db # Uncomment to enable memory'}
+${enableMemory ? "DATABASE_URL=file:./mastra.db" : "# DATABASE_URL=file:./mastra.db # Uncomment to enable memory"}
 `;
 
   fs.writeFileSync(path.join(targetDir, ".env.local.example"), envExample);
@@ -1010,7 +1041,7 @@ yarn-error.log*
   console.log(`✅ Generated Mastra template for ${projectName}`);
   console.log(`📁 Directory: ${targetDir}`);
   console.log(`🤖 Agent ID: ${agentId}`);
-  console.log(`🧠 Memory: ${enableMemory ? 'Enabled' : 'Disabled'}`);
+  console.log(`🧠 Memory: ${enableMemory ? "Enabled" : "Disabled"}`);
   console.log(`\n🚀 Next steps:`);
   console.log(`   cd ${targetDir}`);
   console.log(`   npm install`);

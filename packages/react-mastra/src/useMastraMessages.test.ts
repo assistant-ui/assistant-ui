@@ -1,6 +1,10 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { MastraMessageAccumulator } from "./MastraMessageAccumulator";
-import { createMockMastraEvent, createMockMastraMessage, createMockToolCall } from "./testUtils";
+import {
+  createMockMastraEvent,
+  createMockMastraMessage,
+  createMockToolCall,
+} from "./testUtils";
 import { MastraKnownEventTypes } from "./types";
 
 describe("MastraMessageAccumulator", () => {
@@ -53,7 +57,7 @@ describe("MastraMessageAccumulator", () => {
     const result = accumulator.addMessages([message1, message2, message3]);
 
     expect(result).toHaveLength(3);
-    expect(result.map(m => m.id)).toEqual(["msg-1", "msg-2", "msg-3"]);
+    expect(result.map((m) => m.id)).toEqual(["msg-1", "msg-2", "msg-3"]);
   });
 
   it("should handle tool call content", () => {
@@ -95,7 +99,7 @@ describe("MastraMessageAccumulator", () => {
 
     // Add many messages (simulating the max limit behavior)
     const messages = Array.from({ length: 1500 }, (_, i) =>
-      createMockMastraMessage({ id: `msg-${i}` })
+      createMockMastraMessage({ id: `msg-${i}` }),
     );
 
     limitedAccumulator.addMessages(messages);
@@ -111,11 +115,14 @@ describe("MastraMessageAccumulator", () => {
 
 describe("Event Processing", () => {
   it("should process message partial events", () => {
-    const partialEvent = createMockMastraEvent(MastraKnownEventTypes.MessagePartial, {
-      id: "msg-1",
-      type: "assistant",
-      content: [{ type: "text", text: "Hello" }],
-    });
+    const partialEvent = createMockMastraEvent(
+      MastraKnownEventTypes.MessagePartial,
+      {
+        id: "msg-1",
+        type: "assistant",
+        content: [{ type: "text", text: "Hello" }],
+      },
+    );
 
     const accumulator = new MastraMessageAccumulator<any>();
     const result = accumulator.addMessages([partialEvent.data]);
@@ -125,11 +132,14 @@ describe("Event Processing", () => {
   });
 
   it("should process message complete events", () => {
-    const completeEvent = createMockMastraEvent(MastraKnownEventTypes.MessageComplete, {
-      id: "msg-1",
-      type: "assistant",
-      content: [{ type: "text", text: "Hello world" }],
-    });
+    const completeEvent = createMockMastraEvent(
+      MastraKnownEventTypes.MessageComplete,
+      {
+        id: "msg-1",
+        type: "assistant",
+        content: [{ type: "text", text: "Hello world" }],
+      },
+    );
 
     const accumulator = new MastraMessageAccumulator<any>();
     const result = accumulator.addMessages([completeEvent.data]);
@@ -140,7 +150,10 @@ describe("Event Processing", () => {
 
   it("should process tool call events", () => {
     const toolCall = createMockToolCall();
-    const toolCallEvent = createMockMastraEvent(MastraKnownEventTypes.ToolCall, toolCall);
+    const toolCallEvent = createMockMastraEvent(
+      MastraKnownEventTypes.ToolCall,
+      toolCall,
+    );
 
     // Test that tool call events are properly structured
     expect(toolCallEvent.data).toEqual(toolCall);
@@ -150,7 +163,10 @@ describe("Event Processing", () => {
 
   it("should process error events", () => {
     const errorMessage = "Something went wrong";
-    const errorEvent = createMockMastraEvent(MastraKnownEventTypes.Error, errorMessage);
+    const errorEvent = createMockMastraEvent(
+      MastraKnownEventTypes.Error,
+      errorMessage,
+    );
 
     expect(errorEvent.event).toBe("error");
     expect(errorEvent.data).toBe(errorMessage);
@@ -159,7 +175,10 @@ describe("Event Processing", () => {
 
   it("should process metadata events", () => {
     const metadata = { tokenCount: 150, model: "gpt-4" };
-    const metadataEvent = createMockMastraEvent(MastraKnownEventTypes.Metadata, metadata);
+    const metadataEvent = createMockMastraEvent(
+      MastraKnownEventTypes.Metadata,
+      metadata,
+    );
 
     expect(metadataEvent.event).toBe("metadata");
     expect(metadataEvent.data).toEqual(metadata);
@@ -170,7 +189,10 @@ describe("Event Processing", () => {
       type: "human_input_required",
       message: "Please confirm this action",
     };
-    const interruptEvent = createMockMastraEvent(MastraKnownEventTypes.Interrupt, interruptData);
+    const interruptEvent = createMockMastraEvent(
+      MastraKnownEventTypes.Interrupt,
+      interruptData,
+    );
 
     expect(interruptEvent.event).toBe("interrupt");
     expect(interruptEvent.data).toEqual(interruptData);

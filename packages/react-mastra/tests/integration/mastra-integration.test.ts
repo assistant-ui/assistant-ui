@@ -26,16 +26,37 @@ describe("Mastra Integration Tests", () => {
 
       // Simulate a realistic conversation
       const conversation = [
-        createMockMastraMessage({ id: "user-1", type: "human", content: [{ type: "text", text: "Hello" }] }),
-        createMockMastraMessage({ id: "assistant-1", type: "assistant", content: [{ type: "text", text: "Hi there!" }] }),
-        createMockMastraMessage({ id: "user-2", type: "human", content: [{ type: "text", text: "How are you?" }] }),
-        createMockMastraMessage({ id: "assistant-2", type: "assistant", content: [{ type: "text", text: "I'm doing well, thank you!" }] }),
+        createMockMastraMessage({
+          id: "user-1",
+          type: "human",
+          content: [{ type: "text", text: "Hello" }],
+        }),
+        createMockMastraMessage({
+          id: "assistant-1",
+          type: "assistant",
+          content: [{ type: "text", text: "Hi there!" }],
+        }),
+        createMockMastraMessage({
+          id: "user-2",
+          type: "human",
+          content: [{ type: "text", text: "How are you?" }],
+        }),
+        createMockMastraMessage({
+          id: "assistant-2",
+          type: "assistant",
+          content: [{ type: "text", text: "I'm doing well, thank you!" }],
+        }),
       ];
 
       const result = accumulator.addMessages(conversation);
 
       expect(result).toHaveLength(4);
-      expect(result.map(m => m.id)).toEqual(["user-1", "assistant-1", "user-2", "assistant-2"]);
+      expect(result.map((m) => m.id)).toEqual([
+        "user-1",
+        "assistant-1",
+        "user-2",
+        "assistant-2",
+      ]);
     });
 
     it("maintains performance under load", () => {
@@ -45,11 +66,13 @@ describe("Mastra Integration Tests", () => {
 
       // Add many messages to simulate load
       for (let i = 0; i < 1000; i++) {
-        accumulator.addMessages([createMockMastraMessage({
-          id: `load-test-${i}`,
-          type: i % 2 === 0 ? "human" : "assistant",
-          content: [{ type: "text", text: `Message ${i}` }],
-        })]);
+        accumulator.addMessages([
+          createMockMastraMessage({
+            id: `load-test-${i}`,
+            type: i % 2 === 0 ? "human" : "assistant",
+            content: [{ type: "text", text: `Message ${i}` }],
+          }),
+        ]);
       }
 
       const duration = Date.now() - startTime;
@@ -66,19 +89,29 @@ describe("Mastra Integration Tests", () => {
       const accumulator = new MastraMessageAccumulator();
 
       // Add initial message
-      accumulator.addMessages([createMockMastraMessage({
-        id: "stream-1",
-        type: "assistant",
-        content: [{ type: "text", text: "Hello" }],
-      })]);
+      accumulator.addMessages([
+        createMockMastraMessage({
+          id: "stream-1",
+          type: "assistant",
+          content: [{ type: "text", text: "Hello" }],
+        }),
+      ]);
 
       // Simulate streaming updates
       const updates = [
-        createMockMastraMessage({ id: "stream-1", type: "assistant", content: [{ type: "text", text: "Hello world" }] }),
-        createMockMastraMessage({ id: "stream-1", type: "assistant", content: [{ type: "text", text: "Hello world! How are you?" }] }),
+        createMockMastraMessage({
+          id: "stream-1",
+          type: "assistant",
+          content: [{ type: "text", text: "Hello world" }],
+        }),
+        createMockMastraMessage({
+          id: "stream-1",
+          type: "assistant",
+          content: [{ type: "text", text: "Hello world! How are you?" }],
+        }),
       ];
 
-      updates.forEach(update => accumulator.addMessages([update]));
+      updates.forEach((update) => accumulator.addMessages([update]));
 
       const result = accumulator.getMessages();
       expect(result).toHaveLength(1);
@@ -98,8 +131,8 @@ describe("Mastra Integration Tests", () => {
             tool_call: {
               id: "tool-1",
               name: "search",
-              arguments: { query: "test information" }
-            }
+              arguments: { query: "test information" },
+            },
           },
           { type: "text", text: "Searching now..." },
         ],
@@ -227,11 +260,13 @@ describe("Mastra Integration Tests", () => {
 
       // Add a large number of messages
       for (let i = 0; i < 1000; i++) {
-        accumulator.addMessages([createMockMastraMessage({
-          id: `perf-${i}`,
-          type: "assistant",
-          content: [{ type: "text", text: `Performance test message ${i}` }],
-        })]);
+        accumulator.addMessages([
+          createMockMastraMessage({
+            id: `perf-${i}`,
+            type: "assistant",
+            content: [{ type: "text", text: `Performance test message ${i}` }],
+          }),
+        ]);
       }
 
       const duration = Date.now() - startTime;
@@ -251,11 +286,13 @@ describe("Mastra Integration Tests", () => {
 
       // Fill to capacity
       for (let i = 0; i < 150; i++) {
-        accumulator.addMessages([createMockMastraMessage({
-          id: `cleanup-${i}`,
-          type: "assistant",
-          content: [{ type: "text", text: `Cleanup test ${i}` }],
-        })]);
+        accumulator.addMessages([
+          createMockMastraMessage({
+            id: `cleanup-${i}`,
+            type: "assistant",
+            content: [{ type: "text", text: `Cleanup test ${i}` }],
+          }),
+        ]);
       }
 
       const messages = accumulator.getMessages();

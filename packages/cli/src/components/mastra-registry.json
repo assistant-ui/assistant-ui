@@ -7,9 +7,7 @@
       "name": "AgentSelector",
       "description": "UI component for switching between Mastra agents",
       "category": "runtime",
-      "files": [
-        "components/assistant-ui/agent-selector.tsx"
-      ],
+      "files": ["components/assistant-ui/agent-selector.tsx"],
       "dependencies": [
         "@assistant-ui/react",
         "@assistant-ui/react-mastra",
@@ -38,9 +36,7 @@
       "name": "MemoryStatus",
       "description": "Component displaying Mastra memory system status",
       "category": "debug",
-      "files": [
-        "components/assistant-ui/memory-status.tsx"
-      ],
+      "files": ["components/assistant-ui/memory-status.tsx"],
       "dependencies": [
         "@assistant-ui/react",
         "@assistant-ui/react-mastra",
@@ -64,9 +60,7 @@
       "name": "ToolResults",
       "description": "Enhanced tool result display component",
       "category": "ui",
-      "files": [
-        "components/assistant-ui/tool-results.tsx"
-      ],
+      "files": ["components/assistant-ui/tool-results.tsx"],
       "dependencies": [
         "@assistant-ui/react",
         "@assistant-ui/react-mastra",
@@ -96,9 +90,7 @@
       "name": "WorkflowControls",
       "description": "Controls for managing workflow execution",
       "category": "workflow",
-      "files": [
-        "components/assistant-ui/workflow-controls.tsx"
-      ],
+      "files": ["components/assistant-ui/workflow-controls.tsx"],
       "dependencies": [
         "@assistant-ui/react",
         "@assistant-ui/react-mastra",
@@ -129,13 +121,8 @@
       "name": "ThreadList",
       "description": "Component for managing conversation threads",
       "category": "ui",
-      "files": [
-        "components/assistant-ui/thread-list.tsx"
-      ],
-      "dependencies": [
-        "@assistant-ui/react",
-        "@assistant-ui/react-mastra"
-      ],
+      "files": ["components/assistant-ui/thread-list.tsx"],
+      "dependencies": ["@assistant-ui/react", "@assistant-ui/react-mastra"],
       "props": {
         "onThreadSelect": {
           "type": "function",
@@ -155,11 +142,7 @@
     "mastra-chat": {
       "name": "Mastra Chat Interface",
       "description": "Complete chat interface with Mastra integration",
-      "components": [
-        "agent-selector",
-        "thread-list",
-        "tool-results"
-      ],
+      "components": ["agent-selector", "thread-list", "tool-results"],
       "files": [
         "app/page.tsx",
         "app/layout.tsx",
@@ -170,11 +153,7 @@
     "mastra-workflows": {
       "name": "Mastra Workflow Interface",
       "description": "Workflow management interface",
-      "components": [
-        "workflow-controls",
-        "tool-results",
-        "memory-status"
-      ],
+      "components": ["workflow-controls", "tool-results", "memory-status"],
       "files": [
         "app/workflows/page.tsx",
         "components/assistant-ui/workflow-dashboard.tsx"

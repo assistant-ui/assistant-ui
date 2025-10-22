@@ -63,7 +63,9 @@ Format your response clearly with these sections.`;
         candidateName,
         screeningScore: 7.5,
         recommendation: "proceed_to_interview",
-        evaluationSummary: agentResponse.text || `Evaluated ${candidateName} for ${position}. The AI agent has completed the screening assessment.`,
+        evaluationSummary:
+          agentResponse.text ||
+          `Evaluated ${candidateName} for ${position}. The AI agent has completed the screening assessment.`,
       };
 
       // Suspend workflow and wait for hiring manager approval
@@ -153,7 +155,9 @@ Format your response clearly with these sections.`;
         technicalScore: 8.0,
         culturalScore: 9.0,
         recommendation: "hire",
-        interviewSummary: agentResponse.text || `Interviewed ${candidateName}. The AI agent has completed the technical and behavioral assessment.`,
+        interviewSummary:
+          agentResponse.text ||
+          `Interviewed ${candidateName}. The AI agent has completed the technical and behavioral assessment.`,
       };
 
       return await suspend(interview);

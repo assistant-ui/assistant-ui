@@ -72,7 +72,10 @@ export default async function installMastraLib(): Promise<void> {
     }
 
     // Also check for legacy Mastra patterns
-    if (content.includes("new Mastra(") || content.includes("mastra.getAgent")) {
+    if (
+      content.includes("new Mastra(") ||
+      content.includes("mastra.getAgent")
+    ) {
       found = true;
       hasCoreImport = true;
     }
@@ -164,12 +167,14 @@ export function hasMastraImports(): boolean {
     const content = fs.readFileSync(fullPath, "utf8");
 
     // Check for Mastra usage patterns
-    if (content.includes("new Mastra(") ||
-        content.includes("mastra.getAgent") ||
-        content.includes("@mastra/core") ||
-        content.includes("@mastra/memory") ||
-        content.includes("@mastra/libsql") ||
-        content.includes("@assistant-ui/react-mastra")) {
+    if (
+      content.includes("new Mastra(") ||
+      content.includes("mastra.getAgent") ||
+      content.includes("@mastra/core") ||
+      content.includes("@mastra/memory") ||
+      content.includes("@mastra/libsql") ||
+      content.includes("@assistant-ui/react-mastra")
+    ) {
       return true;
     }
   }

@@ -46,8 +46,10 @@ export function AgentSelector({
   className,
 }: AgentSelectorProps) {
   return (
-    <div className={cn("w-64 border-r border-border bg-muted/50 p-4", className)}>
-      <h2 className="text-lg font-semibold mb-4">Select Agent</h2>
+    <div
+      className={cn("border-border bg-muted/50 w-64 border-r p-4", className)}
+    >
+      <h2 className="mb-4 text-lg font-semibold">Select Agent</h2>
       <div className="space-y-2">
         {agents.map((agent) => {
           const Icon = agent.icon;
@@ -57,16 +59,16 @@ export function AgentSelector({
             <Button
               key={agent.id}
               variant={isSelected ? "default" : "ghost"}
-              className="w-full justify-start h-auto p-3"
+              className="h-auto w-full justify-start p-3"
               onClick={() => onAgentChange?.(agent.id)}
               aria-pressed={isSelected}
               aria-label={`Select ${agent.name}`}
             >
-              <div className="flex items-center gap-3 w-full">
+              <div className="flex w-full items-center gap-3">
                 <Icon className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
-                <div className="text-left flex-1 min-w-0">
-                  <div className="font-medium truncate">{agent.name}</div>
-                  <div className="text-sm text-muted-foreground truncate">
+                <div className="min-w-0 flex-1 text-left">
+                  <div className="truncate font-medium">{agent.name}</div>
+                  <div className="text-muted-foreground truncate text-sm">
                     {agent.description}
                   </div>
                 </div>

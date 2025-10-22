@@ -18,7 +18,9 @@ interface WorkflowContextType {
 }
 
 const AgentContext = createContext<AgentContextType | undefined>(undefined);
-const WorkflowContext = createContext<WorkflowContextType | undefined>(undefined);
+const WorkflowContext = createContext<WorkflowContextType | undefined>(
+  undefined,
+);
 
 export const useAgentContext = () => {
   const context = useContext(AgentContext);
@@ -92,7 +94,8 @@ export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
         id: data.runId,
         status: data.status,
         current: currentStep,
-        suspendData: data.result?.steps?.[currentStep]?.suspendPayload || data.result,
+        suspendData:
+          data.result?.steps?.[currentStep]?.suspendPayload || data.result,
       });
     } catch (error) {
       console.error("Failed to start workflow:", error);
@@ -101,47 +104,51 @@ export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const resumeWorkflow = useCallback(async (resumeData: any) => {
-    if (!workflowState) return;
+  const resumeWorkflow = useCallback(
+    async (resumeData: any) => {
+      if (!workflowState) return;
 
-    setIsResuming(true);
-    try {
-      const response = await fetch("/api/workflow/resume", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          runId: workflowState.id,
-          stepId: workflowState.current,
-          resumeData,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to resume workflow");
-      }
-
-      const data = await response.json();
-
-      if (data.status === "success") {
-        setWorkflowState({
-          ...workflowState,
-          status: "completed",
+      setIsResuming(true);
+      try {
+        const response = await fetch("/api/workflow/resume", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            runId: workflowState.id,
+            stepId: workflowState.current,
+            resumeData,
+          }),
         });
-      } else if (data.status === "suspended") {
-        const nextStep = data.suspended?.[0]?.[0];
-        setWorkflowState({
-          ...workflowState,
-          status: data.status,
-          current: nextStep || workflowState.current,
-          suspendData: data.result?.steps?.[nextStep]?.suspendPayload || data.result,
-        });
+
+        if (!response.ok) {
+          throw new Error("Failed to resume workflow");
+        }
+
+        const data = await response.json();
+
+        if (data.status === "success") {
+          setWorkflowState({
+            ...workflowState,
+            status: "completed",
+          });
+        } else if (data.status === "suspended") {
+          const nextStep = data.suspended?.[0]?.[0];
+          setWorkflowState({
+            ...workflowState,
+            status: data.status,
+            current: nextStep || workflowState.current,
+            suspendData:
+              data.result?.steps?.[nextStep]?.suspendPayload || data.result,
+          });
+        }
+      } catch (error) {
+        console.error("Failed to resume workflow:", error);
+      } finally {
+        setIsResuming(false);
       }
-    } catch (error) {
-      console.error("Failed to resume workflow:", error);
-    } finally {
-      setIsResuming(false);
-    }
-  }, [workflowState]);
+    },
+    [workflowState],
+  );
 
   return (
     <AgentContext.Provider value={{ selectedAgent, setSelectedAgent }}>

@@ -52,13 +52,8 @@ export const useMastraMessages = <
   const [isRunning, setIsRunning] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const {
-    onMetadata,
-    onError,
-    onInterrupt,
-    onCustomEvent,
-    onToolCall,
-  } = useMemo(() => eventHandlers ?? {}, [eventHandlers]);
+  const { onMetadata, onError, onInterrupt, onCustomEvent, onToolCall } =
+    useMemo(() => eventHandlers ?? {}, [eventHandlers]);
 
   const sendMessage = useCallback(
     async (newMessages: TMessage[], config: MastraSendMessageConfig = {}) => {

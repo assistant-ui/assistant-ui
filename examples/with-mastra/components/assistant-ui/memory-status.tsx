@@ -37,12 +37,15 @@ export function MemoryStatus({
   return (
     <div
       className={cn(
-        "rounded-lg border border-border bg-muted/50 p-4",
+        "border-border bg-muted/50 rounded-lg border p-4",
         className,
       )}
     >
-      <div className="flex items-center gap-2 mb-3">
-        <Database className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+      <div className="mb-3 flex items-center gap-2">
+        <Database
+          className="text-muted-foreground h-4 w-4"
+          aria-hidden="true"
+        />
         <h3 className="text-sm font-semibold">Memory Status</h3>
       </div>
 
@@ -84,7 +87,7 @@ export function MemoryStatus({
                   <Clock className="h-3.5 w-3.5" aria-hidden="true" />
                   Thread ID
                 </span>
-                <span className="font-mono text-xs truncate max-w-[120px]">
+                <span className="max-w-[120px] truncate font-mono text-xs">
                   {currentThreadId}
                 </span>
               </div>

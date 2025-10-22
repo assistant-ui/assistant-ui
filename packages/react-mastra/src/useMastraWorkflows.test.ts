@@ -1,6 +1,10 @@
 import { renderHook, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { useMastraWorkflows, useMastraWorkflowInterrupt, useMastraSendWorkflowCommand } from "./useMastraWorkflows";
+import {
+  useMastraWorkflows,
+  useMastraWorkflowInterrupt,
+  useMastraSendWorkflowCommand,
+} from "./useMastraWorkflows";
 import { MastraWorkflowConfig, MastraWorkflowInterrupt } from "./types";
 
 describe("useMastraWorkflows", () => {
@@ -22,39 +26,41 @@ describe("useMastraWorkflows", () => {
     vi.clearAllMocks();
 
     // Mock fetch to return workflow API responses
-    (global.fetch as any).mockImplementation(async (url: string, options: any) => {
-      // Mock successful workflow start
-      if (url === "/api/workflow" && options?.method === "POST") {
-        return {
-          ok: true,
-          json: async () => ({
-            runId: "mock-workflow-id",
-            status: "running",
-            suspended: ["gathering"], // Return the initial state from config
-            result: null,
-          }),
-        };
-      }
+    (global.fetch as any).mockImplementation(
+      async (url: string, options: any) => {
+        // Mock successful workflow start
+        if (url === "/api/workflow" && options?.method === "POST") {
+          return {
+            ok: true,
+            json: async () => ({
+              runId: "mock-workflow-id",
+              status: "running",
+              suspended: ["gathering"], // Return the initial state from config
+              result: null,
+            }),
+          };
+        }
 
-      // Mock successful workflow resume
-      if (url === "/api/workflow/resume" && options?.method === "POST") {
-        return {
-          ok: true,
-          json: async () => ({
-            runId: "mock-workflow-id",
-            status: "completed",
-            suspended: [],
-            result: {},
-          }),
-        };
-      }
+        // Mock successful workflow resume
+        if (url === "/api/workflow/resume" && options?.method === "POST") {
+          return {
+            ok: true,
+            json: async () => ({
+              runId: "mock-workflow-id",
+              status: "completed",
+              suspended: [],
+              result: {},
+            }),
+          };
+        }
 
-      // Default fallback for unexpected calls
-      return {
-        ok: false,
-        json: async () => ({ error: "Unexpected fetch call" }),
-      };
-    });
+        // Default fallback for unexpected calls
+        return {
+          ok: false,
+          json: async () => ({ error: "Unexpected fetch call" }),
+        };
+      },
+    );
   });
 
   it("should initialize with default state", () => {
@@ -67,10 +73,12 @@ describe("useMastraWorkflows", () => {
 
   it("should start workflow execution", async () => {
     const onStateChange = vi.fn();
-    const { result } = renderHook(() => useMastraWorkflows({
-      ...mockWorkflowConfig,
-      onStateChange,
-    }));
+    const { result } = renderHook(() =>
+      useMastraWorkflows({
+        ...mockWorkflowConfig,
+        onStateChange,
+      }),
+    );
 
     const workflow = await act(async () => {
       return await result.current.startWorkflow({ initialData: "test" });
@@ -87,11 +95,13 @@ describe("useMastraWorkflows", () => {
   it("should handle workflow interrupts", async () => {
     const onInterrupt = vi.fn();
     const onStateChange = vi.fn();
-    const { result } = renderHook(() => useMastraWorkflows({
-      ...mockWorkflowConfig,
-      onInterrupt,
-      onStateChange,
-    }));
+    const { result } = renderHook(() =>
+      useMastraWorkflows({
+        ...mockWorkflowConfig,
+        onInterrupt,
+        onStateChange,
+      }),
+    );
 
     // Start workflow
     await act(async () => {
@@ -188,12 +198,14 @@ describe("useMastraWorkflows", () => {
     const { result } = renderHook(() => useMastraWorkflows(mockWorkflowConfig));
 
     await act(async () => {
-      await expect(result.current.startWorkflow()).rejects.toThrow("Workflow start failed");
+      await expect(result.current.startWorkflow()).rejects.toThrow(
+        "Workflow start failed",
+      );
     });
 
     expect(consoleSpy).toHaveBeenCalledWith(
       expect.stringContaining("Workflow start failed"),
-      expect.any(Error)
+      expect.any(Error),
     );
 
     consoleSpy.mockRestore();
@@ -271,7 +283,9 @@ describe("useMastraWorkflows", () => {
       workflowId: "test-workflow",
     };
 
-    const { result } = renderHook(() => useMastraWorkflows(configWithoutDefaults));
+    const { result } = renderHook(() =>
+      useMastraWorkflows(configWithoutDefaults),
+    );
 
     await act(async () => {
       await result.current.startWorkflow();

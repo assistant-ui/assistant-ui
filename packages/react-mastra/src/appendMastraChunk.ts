@@ -76,10 +76,13 @@ const appendContent = (
     if (currPart.type === "text") {
       // For text, find existing text part and merge
       const existingTextIndex = mergedContent.findIndex(
-        (part) => part.type === "text"
+        (part) => part.type === "text",
       );
 
-      if (existingTextIndex >= 0 && mergedContent[existingTextIndex]?.type === "text") {
+      if (
+        existingTextIndex >= 0 &&
+        mergedContent[existingTextIndex]?.type === "text"
+      ) {
         // Merge text content
         mergedContent[existingTextIndex] = {
           type: "text",
@@ -95,7 +98,7 @@ const appendContent = (
         (part) =>
           part.type === "tool_call" &&
           (part as ToolCallContent).tool_call?.id ===
-            (currPart as ToolCallContent).tool_call?.id
+            (currPart as ToolCallContent).tool_call?.id,
       );
 
       if (existingIndex >= 0) {

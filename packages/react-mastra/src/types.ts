@@ -25,7 +25,6 @@ export type MastraToolCall = {
   error?: string;
 };
 
-
 export type MastraImageContent = {
   url: string;
   detail?: "low" | "high" | "auto";
@@ -86,7 +85,7 @@ export type MastraStateAccumulatorConfig<TMessage> = {
 
 // Memory system types
 export interface MastraMemoryConfig {
-  storage: 'libsql' | 'postgresql' | 'turso' | 'pinecone' | 'chroma';
+  storage: "libsql" | "postgresql" | "turso" | "pinecone" | "chroma";
   apiUrl?: string; // API URL for memory operations
   threadId?: string;
   userId?: string;
@@ -123,7 +122,7 @@ export interface MastraWorkflowConfig {
 export interface MastraWorkflowState {
   id: string;
   current: string;
-  status: 'running' | 'suspended' | 'completed' | 'error';
+  status: "running" | "suspended" | "completed" | "error";
   context: Record<string, any>;
   history: MastraWorkflowTransition[];
   interrupt?: MastraWorkflowInterrupt;
@@ -161,7 +160,7 @@ export interface MastraToolConfig {
   execute: MastraToolExecutor;
   timeout?: number;
   retryPolicy?: MastraRetryPolicy;
-  status?: 'available' | 'unavailable' | 'executing';
+  status?: "available" | "unavailable" | "executing";
 }
 
 export interface MastraToolExecutor {
@@ -184,7 +183,7 @@ export interface MastraToolExecution {
   id: string;
   toolId: string;
   parameters: any;
-  status: 'pending' | 'executing' | 'completed' | 'failed' | 'cancelled';
+  status: "pending" | "executing" | "completed" | "failed" | "cancelled";
   startTime: string;
   endTime?: string;
   result?: MastraToolResult;
@@ -193,7 +192,7 @@ export interface MastraToolExecution {
 
 export interface MastraRetryPolicy {
   maxAttempts: number;
-  backoffStrategy: 'linear' | 'exponential';
+  backoffStrategy: "linear" | "exponential";
   baseDelay: number;
 }
 
@@ -252,7 +251,7 @@ export enum MastraKnownEventTypes {
   ToolResult = "tool/result",
   ToolCallPartial = "tool/call/partial",
   ToolResultPartial = "tool/result/partial",
-  Interrupt = "interrupt"
+  Interrupt = "interrupt",
 }
 
 // Runtime configuration

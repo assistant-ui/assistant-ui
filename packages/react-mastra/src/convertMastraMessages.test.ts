@@ -4,23 +4,31 @@ import { createMockMastraMessage, createMockToolCall } from "./testUtils";
 import { useExternalMessageConverter } from "@assistant-ui/react";
 
 // Helper function to handle the union type return from converter
-function getConvertedMessages(message: any): useExternalMessageConverter.Message[] {
+function getConvertedMessages(
+  message: any,
+): useExternalMessageConverter.Message[] {
   const result = LegacyMastraMessageConverter(message, {});
   return Array.isArray(result) ? result : [result];
 }
 
 // Helper function to get the first message from array with non-null assertion
-function getFirstMessage(messages: useExternalMessageConverter.Message[]): useExternalMessageConverter.Message {
+function getFirstMessage(
+  messages: useExternalMessageConverter.Message[],
+): useExternalMessageConverter.Message {
   return messages[0]!;
 }
 
 // Helper function to check if a message is a ThreadMessageLike
-function isThreadMessageLike(message: useExternalMessageConverter.Message): message is Exclude<useExternalMessageConverter.Message, { role: "tool" }> {
+function isThreadMessageLike(
+  message: useExternalMessageConverter.Message,
+): message is Exclude<useExternalMessageConverter.Message, { role: "tool" }> {
   return message.role !== "tool";
 }
 
 // Helper function to check if a message is a tool message
-function isToolMessage(message: useExternalMessageConverter.Message): message is Extract<useExternalMessageConverter.Message, { role: "tool" }> {
+function isToolMessage(
+  message: useExternalMessageConverter.Message,
+): message is Extract<useExternalMessageConverter.Message, { role: "tool" }> {
   return message.role === "tool";
 }
 
@@ -37,7 +45,9 @@ describe("LegacyMastraMessageConverter", () => {
     expect(messages).toHaveLength(1);
     expect(firstMessage.role).toBe("assistant");
     if (isThreadMessageLike(firstMessage)) {
-      expect(firstMessage.content).toEqual([{ type: "text", text: "Hello world" }]);
+      expect(firstMessage.content).toEqual([
+        { type: "text", text: "Hello world" },
+      ]);
     }
   });
 
@@ -53,7 +63,9 @@ describe("LegacyMastraMessageConverter", () => {
     expect(messages).toHaveLength(1);
     expect(firstMessage.role).toBe("user");
     if (isThreadMessageLike(firstMessage)) {
-      expect(firstMessage.content).toEqual([{ type: "text", text: "User input" }]);
+      expect(firstMessage.content).toEqual([
+        { type: "text", text: "User input" },
+      ]);
     }
   });
 
@@ -69,7 +81,9 @@ describe("LegacyMastraMessageConverter", () => {
     expect(messages).toHaveLength(1);
     expect(firstMessage.role).toBe("system");
     if (isThreadMessageLike(firstMessage)) {
-      expect(firstMessage.content).toEqual([{ type: "text", text: "System instruction" }]);
+      expect(firstMessage.content).toEqual([
+        { type: "text", text: "System instruction" },
+      ]);
     }
   });
 
@@ -90,8 +104,14 @@ describe("LegacyMastraMessageConverter", () => {
     expect(firstMessage.role).toBe("assistant");
     if (isThreadMessageLike(firstMessage)) {
       expect(firstMessage.content).toHaveLength(2);
-      expect(firstMessage.content[0]).toEqual({ type: "text", text: "I'll help you with that" });
-      expect(firstMessage.content[1]).toEqual({ type: "tool_call", tool_call: toolCall });
+      expect(firstMessage.content[0]).toEqual({
+        type: "text",
+        text: "I'll help you with that",
+      });
+      expect(firstMessage.content[1]).toEqual({
+        type: "tool_call",
+        tool_call: toolCall,
+      });
     }
   });
 
@@ -99,7 +119,10 @@ describe("LegacyMastraMessageConverter", () => {
     const mastraMessage = createMockMastraMessage({
       type: "assistant",
       content: [
-        { type: "reasoning", reasoning: "Let me think about this step by step" },
+        {
+          type: "reasoning",
+          reasoning: "Let me think about this step by step",
+        },
         { type: "text", text: "The answer is 42" },
       ],
     });
@@ -114,7 +137,10 @@ describe("LegacyMastraMessageConverter", () => {
         type: "reasoning",
         reasoning: "Let me think about this step by step",
       });
-      expect(firstMessage.content[1]).toEqual({ type: "text", text: "The answer is 42" });
+      expect(firstMessage.content[1]).toEqual({
+        type: "text",
+        text: "The answer is 42",
+      });
     }
   });
 
@@ -160,7 +186,9 @@ describe("LegacyMastraMessageConverter", () => {
 
     expect(messages).toHaveLength(1);
     if (isThreadMessageLike(firstMessage)) {
-      expect(firstMessage.createdAt).toEqual(new Date("2023-01-01T00:00:00.000Z"));
+      expect(firstMessage.createdAt).toEqual(
+        new Date("2023-01-01T00:00:00.000Z"),
+      );
     }
   });
 

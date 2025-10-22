@@ -7,7 +7,7 @@ describe("Mastra Performance Benchmarks", () => {
   it("processes 1000 message chunks within performance threshold", async () => {
     const accumulator = new MastraMessageAccumulator();
     const messages = Array.from({ length: 1000 }, (_, i) =>
-      createMockMastraMessage({ id: `msg-${i}` })
+      createMockMastraMessage({ id: `msg-${i}` }),
     );
 
     const start = performance.now();
@@ -39,7 +39,9 @@ describe("Mastra Performance Benchmarks", () => {
 
     // Memory increase should be reasonable (less than 100MB to account for V8 overhead)
     expect(memoryIncrease).toBeLessThan(100 * 1024 * 1024);
-    console.log(`Memory increase: ${(memoryIncrease / 1024 / 1024).toFixed(2)}MB`);
+    console.log(
+      `Memory increase: ${(memoryIncrease / 1024 / 1024).toFixed(2)}MB`,
+    );
   });
 
   it("handles message merging efficiently", () => {
@@ -57,7 +59,7 @@ describe("Mastra Performance Benchmarks", () => {
       createMockMastraMessage({
         id: "msg-1",
         content: [{ type: "text", text: `Hello ${i}` }],
-      })
+      }),
     );
 
     const start = performance.now();
@@ -74,7 +76,10 @@ describe("Mastra Performance Benchmarks", () => {
 
   it("creates mock events efficiently", () => {
     const start = performance.now();
-    const events = createMockStreamEvents("This is a test message that should be processed quickly", false);
+    const events = createMockStreamEvents(
+      "This is a test message that should be processed quickly",
+      false,
+    );
     const end = performance.now();
 
     const duration = end - start;
@@ -97,11 +102,11 @@ describe("Mastra Performance Benchmarks", () => {
             tool_call: {
               id: `tool-${i}`,
               name: "testTool",
-              arguments: { input: `test input ${i}` }
-            }
-          }
-        ]
-      })
+              arguments: { input: `test input ${i}` },
+            },
+          },
+        ],
+      }),
     );
 
     const start = performance.now();
@@ -120,13 +125,16 @@ describe("Mastra Performance Benchmarks", () => {
       initialMessages: [],
       appendMessage: (existing, event) => {
         if (!existing) return event;
-        return { ...existing, content: [...existing.content, ...event.content] };
+        return {
+          ...existing,
+          content: [...existing.content, ...event.content],
+        };
       },
     });
 
     // Add many messages
     const messages = Array.from({ length: 5000 }, (_, i) =>
-      createMockMastraMessage({ id: `msg-${i}` })
+      createMockMastraMessage({ id: `msg-${i}` }),
     );
     accumulator.addMessages(messages);
 

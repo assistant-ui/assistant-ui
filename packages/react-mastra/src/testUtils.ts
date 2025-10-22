@@ -1,8 +1,11 @@
-import { MastraEvent, MastraMessage, MastraToolCall, MastraKnownEventTypes } from "./types";
+import {
+  MastraEvent,
+  MastraMessage,
+  MastraToolCall,
+  MastraKnownEventTypes,
+} from "./types";
 
-export const mockMastraStreamCallbackFactory = (
-  events: Array<MastraEvent>,
-) =>
+export const mockMastraStreamCallbackFactory = (events: Array<MastraEvent>) =>
   async function* () {
     for (const event of events) {
       yield event;
@@ -17,7 +20,10 @@ export const createMockMastraMessage = (overrides = {}): MastraMessage => ({
   ...overrides,
 });
 
-export const createMockMastraEvent = (type: MastraKnownEventTypes, data: any): MastraEvent => ({
+export const createMockMastraEvent = (
+  type: MastraKnownEventTypes,
+  data: any,
+): MastraEvent => ({
   id: `event-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
   event: type,
   data,
@@ -46,7 +52,12 @@ export const createMockStreamEvents = (
       data: {
         id: "msg-test-id",
         type: "assistant",
-        content: [{ type: "text", text: chunk + (index < chunks.length - 1 ? " " : "") }],
+        content: [
+          {
+            type: "text",
+            text: chunk + (index < chunks.length - 1 ? " " : ""),
+          },
+        ],
         timestamp: new Date().toISOString(),
       },
       timestamp: new Date().toISOString(),
@@ -81,9 +92,9 @@ export const createMockStreamEvents = (
 };
 
 export const mockFetchResponse = (events: Array<MastraEvent>) => {
-  const dataString = events
-    .map((event) => `data: ${JSON.stringify(event)}`)
-    .join("\n") + "\ndata: [DONE]\n";
+  const dataString =
+    events.map((event) => `data: ${JSON.stringify(event)}`).join("\n") +
+    "\ndata: [DONE]\n";
 
   return {
     ok: true,

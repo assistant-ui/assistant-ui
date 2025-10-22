@@ -10,17 +10,24 @@ import {
 
 // Real Mastra workflow API - connects to Next.js API routes
 const mastraWorkflow = {
-  start: async (workflowConfig: MastraWorkflowConfig & { context?: Record<string, any>, candidateData?: any }) => {
+  start: async (
+    workflowConfig: MastraWorkflowConfig & {
+      context?: Record<string, any>;
+      candidateData?: any;
+    },
+  ) => {
     // Call the workflow API
     const response = await fetch("/api/workflow", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(workflowConfig.candidateData || {
-        candidateName: "Test Candidate",
-        candidateEmail: "test@example.com",
-        resume: "Sample resume text",
-        position: "Software Engineer",
-      }),
+      body: JSON.stringify(
+        workflowConfig.candidateData || {
+          candidateName: "Test Candidate",
+          candidateEmail: "test@example.com",
+          resume: "Sample resume text",
+          position: "Software Engineer",
+        },
+      ),
     });
 
     if (!response.ok) {
@@ -34,14 +41,19 @@ const mastraWorkflow = {
     return {
       id: data.runId,
       current: data.suspended?.[0] || "screening-step",
-      status: data.status === "suspended" ? "suspended" as const : "running" as const,
+      status:
+        data.status === "suspended"
+          ? ("suspended" as const)
+          : ("running" as const),
       context: workflowConfig.context || {},
-      history: [{
-        from: "none",
-        to: "screening-step",
-        event: "start",
-        timestamp: new Date().toISOString(),
-      }],
+      history: [
+        {
+          from: "none",
+          to: "screening-step",
+          event: "start",
+          timestamp: new Date().toISOString(),
+        },
+      ],
       timestamp: new Date().toISOString(),
       suspendData: data.status === "suspended" ? data.result : undefined,
     };
@@ -74,8 +86,12 @@ const mastraWorkflow = {
 
     return {
       id: data.runId,
-      status: data.status === "suspended" ? "suspended" as const :
-              data.status === "success" ? "completed" as const : "running" as const,
+      status:
+        data.status === "suspended"
+          ? ("suspended" as const)
+          : data.status === "success"
+            ? ("completed" as const)
+            : ("running" as const),
       timestamp: new Date().toISOString(),
       suspendData: data.status === "suspended" ? data.result : undefined,
     };
@@ -104,38 +120,42 @@ const mastraWorkflow = {
 };
 
 export const useMastraWorkflows = (config: MastraWorkflowConfig) => {
-  const [workflowState, setWorkflowState] = useState<MastraWorkflowState | null>(null);
+  const [workflowState, setWorkflowState] =
+    useState<MastraWorkflowState | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [isSuspended, setIsSuspended] = useState(false);
 
-  const startWorkflow = useCallback(async (initialContext?: Record<string, any>) => {
-    setIsRunning(true);
-    setIsSuspended(false);
+  const startWorkflow = useCallback(
+    async (initialContext?: Record<string, any>) => {
+      setIsRunning(true);
+      setIsSuspended(false);
 
-    try {
-      const workflow = await mastraWorkflow.start({
-        ...config,
-        context: { ...config.context, ...initialContext }
-      });
+      try {
+        const workflow = await mastraWorkflow.start({
+          ...config,
+          context: { ...config.context, ...initialContext },
+        });
 
-      const fullWorkflowState: MastraWorkflowState = {
-        id: workflow.id,
-        current: workflow.current,
-        status: workflow.status,
-        context: workflow.context,
-        history: workflow.history || [],
-        timestamp: workflow.timestamp,
-      };
+        const fullWorkflowState: MastraWorkflowState = {
+          id: workflow.id,
+          current: workflow.current,
+          status: workflow.status,
+          context: workflow.context,
+          history: workflow.history || [],
+          timestamp: workflow.timestamp,
+        };
 
-      setWorkflowState(fullWorkflowState);
-      config.onStateChange?.(fullWorkflowState);
-      return fullWorkflowState;
-    } catch (error) {
-      console.error("Workflow start failed:", error);
-      setIsRunning(false);
-      throw error;
-    }
-  }, [config]);
+        setWorkflowState(fullWorkflowState);
+        config.onStateChange?.(fullWorkflowState);
+        return fullWorkflowState;
+      } catch (error) {
+        console.error("Workflow start failed:", error);
+        setIsRunning(false);
+        throw error;
+      }
+    },
+    [config],
+  );
 
   const suspendWorkflow = useCallback(async () => {
     if (!workflowState || !isRunning) return;
@@ -158,80 +178,92 @@ export const useMastraWorkflows = (config: MastraWorkflowConfig) => {
     }
   }, [workflowState, isRunning, config]);
 
-  const resumeWorkflow = useCallback(async (input?: any) => {
-    if (!workflowState || !isSuspended) return;
+  const resumeWorkflow = useCallback(
+    async (input?: any) => {
+      if (!workflowState || !isSuspended) return;
 
-    try {
-      await mastraWorkflow.resume(workflowState.id, input);
+      try {
+        await mastraWorkflow.resume(workflowState.id, input);
 
-      const updatedState: MastraWorkflowState = {
-        ...workflowState,
-        status: "running",
-        context: { ...workflowState.context, ...(input && { resumeInput: input }) },
-        history: [
-          ...workflowState.history,
-          {
-            from: "suspended",
-            to: "running",
-            event: "resume",
-            timestamp: new Date().toISOString(),
-          }
-        ],
-      };
+        const updatedState: MastraWorkflowState = {
+          ...workflowState,
+          status: "running",
+          context: {
+            ...workflowState.context,
+            ...(input && { resumeInput: input }),
+          },
+          history: [
+            ...workflowState.history,
+            {
+              from: "suspended",
+              to: "running",
+              event: "resume",
+              timestamp: new Date().toISOString(),
+            },
+          ],
+        };
 
-      setWorkflowState(updatedState);
-      setIsSuspended(false);
-      setIsRunning(true);
-      config.onStateChange?.(updatedState);
-      return updatedState;
-    } catch (error) {
-      console.error("Workflow resume failed:", error);
-      throw error;
-    }
-  }, [workflowState, isSuspended, config]);
-
-  const sendCommand = useCallback(async (command: MastraWorkflowCommand) => {
-    if (!workflowState) return;
-
-    try {
-      await mastraWorkflow.sendCommand(workflowState.id, command);
-
-      const updatedState: MastraWorkflowState = {
-        ...workflowState,
-        status: "running",
-        context: { ...workflowState.context, ...(command.context || {}) },
-        history: [
-          ...workflowState.history,
-          {
-            from: workflowState.current,
-            to: command.transition || workflowState.current,
-            event: `command: ${command.transition || 'unknown'}`,
-            timestamp: new Date().toISOString(),
-          }
-        ],
-      };
-
-      if (command.transition) {
-        updatedState.current = command.transition;
+        setWorkflowState(updatedState);
+        setIsSuspended(false);
+        setIsRunning(true);
+        config.onStateChange?.(updatedState);
+        return updatedState;
+      } catch (error) {
+        console.error("Workflow resume failed:", error);
+        throw error;
       }
+    },
+    [workflowState, isSuspended, config],
+  );
 
-      setWorkflowState(updatedState);
-      setIsRunning(true);
-      setIsSuspended(false);
-      config.onStateChange?.(updatedState);
-      return updatedState;
-    } catch (error) {
-      console.error("Workflow command failed:", error);
-      throw error;
-    }
-  }, [workflowState, config]);
+  const sendCommand = useCallback(
+    async (command: MastraWorkflowCommand) => {
+      if (!workflowState) return;
 
-  const transitionTo = useCallback(async (targetState: string, context?: Record<string, any>) => {
-    return sendCommand({
-      transition: targetState,
-      ...(context && { context }),
-    });
-  }, [sendCommand]);
+      try {
+        await mastraWorkflow.sendCommand(workflowState.id, command);
+
+        const updatedState: MastraWorkflowState = {
+          ...workflowState,
+          status: "running",
+          context: { ...workflowState.context, ...(command.context || {}) },
+          history: [
+            ...workflowState.history,
+            {
+              from: workflowState.current,
+              to: command.transition || workflowState.current,
+              event: `command: ${command.transition || "unknown"}`,
+              timestamp: new Date().toISOString(),
+            },
+          ],
+        };
+
+        if (command.transition) {
+          updatedState.current = command.transition;
+        }
+
+        setWorkflowState(updatedState);
+        setIsRunning(true);
+        setIsSuspended(false);
+        config.onStateChange?.(updatedState);
+        return updatedState;
+      } catch (error) {
+        console.error("Workflow command failed:", error);
+        throw error;
+      }
+    },
+    [workflowState, config],
+  );
+
+  const transitionTo = useCallback(
+    async (targetState: string, context?: Record<string, any>) => {
+      return sendCommand({
+        transition: targetState,
+        ...(context && { context }),
+      });
+    },
+    [sendCommand],
+  );
 
   // Handle workflow state updates via streaming
   useEffect(() => {
@@ -259,11 +291,16 @@ export const useMastraWorkflows = (config: MastraWorkflowConfig) => {
 export const useMastraWorkflowInterrupt = () => {
   // In a real implementation, this would access runtime extras
   // For now, we'll create a simple hook that can be integrated later
-  const [interrupt, setInterrupt] = useState<MastraWorkflowInterrupt | null>(null);
+  const [interrupt, setInterrupt] = useState<MastraWorkflowInterrupt | null>(
+    null,
+  );
 
-  const setWorkflowInterrupt = useCallback((newInterrupt: MastraWorkflowInterrupt | null) => {
-    setInterrupt(newInterrupt);
-  }, []);
+  const setWorkflowInterrupt = useCallback(
+    (newInterrupt: MastraWorkflowInterrupt | null) => {
+      setInterrupt(newInterrupt);
+    },
+    [],
+  );
 
   return {
     interrupt,

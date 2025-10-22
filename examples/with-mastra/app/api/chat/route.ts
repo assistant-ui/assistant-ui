@@ -11,7 +11,12 @@ export async function POST(req: NextRequest) {
       agentId = "chefAgent",
     } = await req.json();
 
-    console.log("Chat API: Received request", { agentId, threadId, resourceId, messageCount: messages?.length });
+    console.log("Chat API: Received request", {
+      agentId,
+      threadId,
+      resourceId,
+      messageCount: messages?.length,
+    });
 
     // Validate required memory parameters
     if (!threadId) {
@@ -83,14 +88,16 @@ export async function POST(req: NextRequest) {
               data: {
                 id: messageId,
                 type: "assistant",
-                content: [{
-                  type: "text",
-                  text: chunk  // Send only the delta, not accumulated text
-                }],
+                content: [
+                  {
+                    type: "text",
+                    text: chunk, // Send only the delta, not accumulated text
+                  },
+                ],
                 timestamp: new Date().toISOString(),
-                status: "running"
+                status: "running",
               },
-              timestamp: new Date().toISOString()
+              timestamp: new Date().toISOString(),
             };
 
             safeEnqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
@@ -100,7 +107,10 @@ export async function POST(req: NextRequest) {
 
           // Get tool calls after streaming completes
           const toolCalls = await result.toolCalls;
-          console.log("Chat API: Tool calls:", JSON.stringify(toolCalls, null, 2));
+          console.log(
+            "Chat API: Tool calls:",
+            JSON.stringify(toolCalls, null, 2),
+          );
 
           // Send tool call events if any tools were called
           if (toolCalls && toolCalls.length > 0) {
@@ -119,9 +129,11 @@ export async function POST(req: NextRequest) {
                   toolName: toolCall.payload?.toolName,
                   args: toolCall.payload?.args,
                 },
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
               };
-              safeEnqueue(encoder.encode(`data: ${JSON.stringify(toolEvent)}\n\n`));
+              safeEnqueue(
+                encoder.encode(`data: ${JSON.stringify(toolEvent)}\n\n`),
+              );
             }
           }
 
@@ -133,14 +145,16 @@ export async function POST(req: NextRequest) {
             data: {
               id: messageId,
               type: "assistant",
-              content: [],  // Empty content - text already accumulated
+              content: [], // Empty content - text already accumulated
               timestamp: new Date().toISOString(),
-              status: "complete"
+              status: "complete",
             },
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
           };
 
-          safeEnqueue(encoder.encode(`data: ${JSON.stringify(completeEvent)}\n\n`));
+          safeEnqueue(
+            encoder.encode(`data: ${JSON.stringify(completeEvent)}\n\n`),
+          );
 
           // Send done event
           safeEnqueue(encoder.encode("data: [DONE]\n\n"));
@@ -153,9 +167,11 @@ export async function POST(req: NextRequest) {
               id: uuidv4(),
               event: "error",
               data: error instanceof Error ? error.message : "Unknown error",
-              timestamp: new Date().toISOString()
+              timestamp: new Date().toISOString(),
             };
-            safeEnqueue(encoder.encode(`data: ${JSON.stringify(errorEvent)}\n\n`));
+            safeEnqueue(
+              encoder.encode(`data: ${JSON.stringify(errorEvent)}\n\n`),
+            );
             safeClose();
           }
         }
@@ -174,12 +190,12 @@ export async function POST(req: NextRequest) {
     return new Response(
       JSON.stringify({
         error: "Internal server error",
-        details: error instanceof Error ? error.message : String(error)
+        details: error instanceof Error ? error.message : String(error),
       }),
       {
         status: 500,
         headers: { "Content-Type": "application/json" },
-      }
+      },
     );
   }
 }

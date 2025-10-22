@@ -9,10 +9,7 @@ export async function POST(request: NextRequest) {
     console.log("Workflow Resume API: Resuming workflow", { runId, stepId });
 
     if (!runId) {
-      return NextResponse.json(
-        { error: "runId is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "runId is required" }, { status: 400 });
     }
 
     // Get the hiring workflow
@@ -20,7 +17,7 @@ export async function POST(request: NextRequest) {
     if (!workflow) {
       return NextResponse.json(
         { error: "Workflow 'hiringWorkflow' not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -52,7 +49,7 @@ export async function POST(request: NextRequest) {
         error: "Failed to resume workflow",
         details: error instanceof Error ? error.message : String(error),
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

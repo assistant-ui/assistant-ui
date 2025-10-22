@@ -87,29 +87,33 @@ const ThreadWelcome: FC<{ selectedAgent: string }> = ({ selectedAgent }) => {
   );
 };
 
-const ThreadWelcomeSuggestions: FC<{ selectedAgent: string }> = ({ selectedAgent }) => {
+const ThreadWelcomeSuggestions: FC<{ selectedAgent: string }> = ({
+  selectedAgent,
+}) => {
   // Different suggestions based on the selected agent
-  const suggestions = selectedAgent === "screeningAgent"
-    ? [
-        {
-          prompt: "What qualities are you looking for in a senior engineer?",
-          text: "What qualities are you looking for in a senior engineer?",
-        },
-        {
-          prompt: "How should I structure my screening questions?",
-          text: "How should I structure my screening questions?",
-        },
-      ]
-    : [
-        {
-          prompt: "What are good technical interview questions for React developers?",
-          text: "What are good technical interview questions for React developers?",
-        },
-        {
-          prompt: "How do you assess cultural fit during interviews?",
-          text: "How do you assess cultural fit during interviews?",
-        },
-      ];
+  const suggestions =
+    selectedAgent === "screeningAgent"
+      ? [
+          {
+            prompt: "What qualities are you looking for in a senior engineer?",
+            text: "What qualities are you looking for in a senior engineer?",
+          },
+          {
+            prompt: "How should I structure my screening questions?",
+            text: "How should I structure my screening questions?",
+          },
+        ]
+      : [
+          {
+            prompt:
+              "What are good technical interview questions for React developers?",
+            text: "What are good technical interview questions for React developers?",
+          },
+          {
+            prompt: "How do you assess cultural fit during interviews?",
+            text: "How do you assess cultural fit during interviews?",
+          },
+        ];
 
   return (
     <div className="mt-3 flex w-full items-stretch justify-center gap-4">
@@ -233,11 +237,12 @@ const AssistantMessage: FC = () => {
                   toolCall={{
                     name: props.toolName || "Unknown Tool",
                     args: props.args,
-                    state: props.status?.type === "running"
-                      ? "running"
-                      : props.status?.type === "complete"
-                        ? "success"
-                        : "error",
+                    state:
+                      props.status?.type === "running"
+                        ? "running"
+                        : props.status?.type === "complete"
+                          ? "success"
+                          : "error",
                   }}
                   result={props.result}
                   isExpanded={false}

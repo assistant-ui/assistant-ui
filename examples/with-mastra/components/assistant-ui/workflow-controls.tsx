@@ -99,30 +99,39 @@ export function WorkflowControls({
   const StatusIcon = config.icon;
 
   return (
-    <div className={cn("rounded-lg border border-border bg-muted/50 p-4", className)}>
-      <div className="flex items-center justify-between mb-4">
+    <div
+      className={cn(
+        "border-border bg-muted/50 rounded-lg border p-4",
+        className,
+      )}
+    >
+      <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <StatusIcon
-            className={cn("h-4 w-4", config.color, config.animated && "animate-spin")}
+            className={cn(
+              "h-4 w-4",
+              config.color,
+              config.animated && "animate-spin",
+            )}
             aria-hidden="true"
           />
           <h3 className="text-sm font-semibold">Workflow</h3>
-          <span className="text-xs text-muted-foreground">
+          <span className="text-muted-foreground text-xs">
             ({config.label})
           </span>
         </div>
-        <span className="text-xs font-mono text-muted-foreground">
+        <span className="text-muted-foreground font-mono text-xs">
           {workflowId}
         </span>
       </div>
 
       {/* Progress bar */}
       <div className="mb-4">
-        <div className="flex justify-between text-xs text-muted-foreground mb-1">
+        <div className="text-muted-foreground mb-1 flex justify-between text-xs">
           <span>Progress</span>
           <span>{Math.round(progress)}%</span>
         </div>
-        <div className="h-2 bg-muted rounded-full overflow-hidden">
+        <div className="bg-muted h-2 overflow-hidden rounded-full">
           <div
             className={cn(
               "h-full transition-all duration-300",
@@ -142,7 +151,7 @@ export function WorkflowControls({
       </div>
 
       {/* Control buttons */}
-      <div className="flex gap-2 mb-4">
+      <div className="mb-4 flex gap-2">
         {status === "idle" && (
           <Button
             size="sm"
@@ -150,7 +159,7 @@ export function WorkflowControls({
             disabled={!onStart}
             aria-label="Start workflow"
           >
-            <Play className="h-3.5 w-3.5 mr-1.5" />
+            <Play className="mr-1.5 h-3.5 w-3.5" />
             Start
           </Button>
         )}
@@ -163,7 +172,7 @@ export function WorkflowControls({
             disabled={!onPause}
             aria-label="Pause workflow"
           >
-            <Pause className="h-3.5 w-3.5 mr-1.5" />
+            <Pause className="mr-1.5 h-3.5 w-3.5" />
             Pause
           </Button>
         )}
@@ -175,7 +184,7 @@ export function WorkflowControls({
             disabled={!onStart}
             aria-label="Resume workflow"
           >
-            <Play className="h-3.5 w-3.5 mr-1.5" />
+            <Play className="mr-1.5 h-3.5 w-3.5" />
             Resume
           </Button>
         )}
@@ -188,7 +197,7 @@ export function WorkflowControls({
             disabled={!onStop}
             aria-label="Stop workflow"
           >
-            <StopCircle className="h-3.5 w-3.5 mr-1.5" />
+            <StopCircle className="mr-1.5 h-3.5 w-3.5" />
             Stop
           </Button>
         )}
@@ -201,7 +210,7 @@ export function WorkflowControls({
             disabled={!onReset}
             aria-label="Reset workflow"
           >
-            <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+            <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
             Reset
           </Button>
         )}
@@ -210,7 +219,7 @@ export function WorkflowControls({
       {/* Workflow steps */}
       {showSteps && steps && steps.length > 0 && (
         <div className="space-y-2">
-          <div className="text-xs font-semibold text-muted-foreground mb-2">
+          <div className="text-muted-foreground mb-2 text-xs font-semibold">
             Steps
           </div>
           {steps.map((step) => {
@@ -236,16 +245,18 @@ export function WorkflowControls({
             const stepConfig = stepStatusConfig[step.status];
 
             return (
-              <div
-                key={step.id}
-                className="flex items-center gap-2 text-sm"
-              >
+              <div key={step.id} className="flex items-center gap-2 text-sm">
                 <span className={cn("font-mono", stepConfig.color)}>
                   {stepConfig.icon}
                 </span>
-                <span className={cn(
-                  step.status === "completed" && "text-muted-foreground line-through",
-                )}>{step.name}</span>
+                <span
+                  className={cn(
+                    step.status === "completed" &&
+                      "text-muted-foreground line-through",
+                  )}
+                >
+                  {step.name}
+                </span>
               </div>
             );
           })}

@@ -15,7 +15,11 @@ function detectProjectType(): string | null {
     const deps = { ...pkgJson.dependencies, ...pkgJson.devDependencies };
 
     // Check for Mastra packages
-    if (deps["@mastra/core"] || deps["@mastra/memory"] || deps["@assistant-ui/react-mastra"]) {
+    if (
+      deps["@mastra/core"] ||
+      deps["@mastra/memory"] ||
+      deps["@assistant-ui/react-mastra"]
+    ) {
       return "mastra";
     }
 
@@ -26,9 +30,13 @@ function detectProjectType(): string | null {
 
     for (const file of files) {
       const content = fs.readFileSync(file, "utf8");
-      if (content.includes("new Mastra(") || content.includes("mastra.getAgent") ||
-          content.includes("@mastra/core") || content.includes("@mastra/memory") ||
-          content.includes("@assistant-ui/react-mastra")) {
+      if (
+        content.includes("new Mastra(") ||
+        content.includes("mastra.getAgent") ||
+        content.includes("@mastra/core") ||
+        content.includes("@mastra/memory") ||
+        content.includes("@assistant-ui/react-mastra")
+      ) {
         return "mastra";
       }
     }
@@ -42,7 +50,11 @@ function detectProjectType(): string | null {
 export const init = new Command()
   .name("init")
   .description("initialize assistant-ui in a new or existing project")
-  .option("--framework <framework>", "framework to use (next, vite, or mastra)", "next")
+  .option(
+    "--framework <framework>",
+    "framework to use (next, vite, or mastra)",
+    "next",
+  )
   .action(async (options) => {
     // Check if package.json exists in the current directory
     const packageJsonPath = path.join(process.cwd(), "package.json");
@@ -59,10 +71,13 @@ export const init = new Command()
         });
 
         const answer = await new Promise<string>((resolve) => {
-          rl.question("Would you like to use Mastra-specific setup? (Y/n) ", (answer: string) => {
-            rl.close();
-            resolve(answer);
-          });
+          rl.question(
+            "Would you like to use Mastra-specific setup? (Y/n) ",
+            (answer: string) => {
+              rl.close();
+              resolve(answer);
+            },
+          );
         });
 
         if (answer === "" || answer.toLowerCase().startsWith("y")) {
@@ -75,9 +90,15 @@ export const init = new Command()
     if (options.framework === "mastra") {
       if (packageJsonExists) {
         console.log(
-          chalk.yellow("Package.json already exists. Cannot initialize Mastra project in existing directory."),
+          chalk.yellow(
+            "Package.json already exists. Cannot initialize Mastra project in existing directory.",
+          ),
         );
-        console.log(chalk.blue("Use 'npx assistant-ui create --template mastra <project-name>' instead."));
+        console.log(
+          chalk.blue(
+            "Use 'npx assistant-ui create --template mastra <project-name>' instead.",
+          ),
+        );
         return;
       }
 
@@ -133,7 +154,10 @@ export const init = new Command()
       console.log(chalk.blue("Creating a new assistant-ui project..."));
 
       // For other frameworks, use the create command with default template
-      const template = options.framework === "vite" ? "https://github.com/assistant-ui/assistant-ui-starter-vite" : "https://github.com/assistant-ui/assistant-ui-starter";
+      const template =
+        options.framework === "vite"
+          ? "https://github.com/assistant-ui/assistant-ui-starter-vite"
+          : "https://github.com/assistant-ui/assistant-ui-starter";
 
       const child = spawn(
         "npx",
