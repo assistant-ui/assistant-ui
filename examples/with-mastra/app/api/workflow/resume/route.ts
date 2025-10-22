@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get the hiring workflow
-    const workflow = mastra.getWorkflow("hiring-workflow");
+    const workflow = mastra.getWorkflow("hiringWorkflow");
     if (!workflow) {
       return NextResponse.json(
         { error: "Workflow 'hiring-workflow' not found" },

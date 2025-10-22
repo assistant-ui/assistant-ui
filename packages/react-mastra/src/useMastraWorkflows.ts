@@ -110,11 +110,112 @@ const mastraWorkflow = {
       timestamp: new Date().toISOString(),
     };
   },
-  subscribe: (_workflowId: string) => {
-    // In a real implementation, this would establish an SSE connection
-    const unsubscribe = () => {
-      // Cleanup logic here
+  subscribe: (
+    workflowId: string,
+    onUpdate: (event: { type: string; data: any; timestamp: string }) => void,
+    onError?: (error: Error) => void,
+  ) => {
+    console.log("Mastra workflow subscribe:", workflowId);
+
+    let isActive = true;
+    let abortController = new AbortController();
+
+    const connect = async () => {
+      try {
+        // Use fetch with GET request for SSE endpoint
+        const response = await fetch(`/api/workflow/events/${workflowId}`, {
+          signal: abortController.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error(
+            `Failed to connect to workflow stream: ${response.status}`,
+          );
+        }
+
+        const reader = response.body?.getReader();
+        if (!reader) {
+          throw new Error("No response body");
+        }
+
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        // Read stream exactly like chat implementation
+        while (isActive) {
+          const { done, value } = await reader.read();
+          if (done) {
+            console.log("Workflow stream ended:", workflowId);
+            break;
+          }
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              const data = line.slice(6);
+
+              // Handle [DONE] marker
+              if (data === "[DONE]") {
+                console.log("Workflow stream complete:", workflowId);
+                isActive = false;
+                return;
+              }
+
+              try {
+                const event = JSON.parse(data);
+
+                // Ignore heartbeats (no action needed)
+                if (event.type === "heartbeat") {
+                  continue;
+                }
+
+                // Handle error events from server
+                if (event.type === "error") {
+                  const error = new Error(
+                    event.data?.error || "Workflow stream error",
+                  );
+                  onError?.(error);
+                  continue;
+                }
+
+                // Call update handler with parsed event
+                onUpdate(event);
+              } catch (error) {
+                console.error("Workflow subscribe: Parse error:", error);
+                onError?.(
+                  error instanceof Error
+                    ? error
+                    : new Error("Failed to parse workflow event"),
+                );
+              }
+            }
+          }
+        }
+      } catch (error) {
+        if (!isActive) return; // Ignore errors after unsubscribe
+
+        console.error("Workflow subscribe error:", error);
+        onError?.(
+          error instanceof Error
+            ? error
+            : new Error("Workflow subscription failed"),
+        );
+      }
     };
+
+    // Start connection
+    connect();
+
+    // Return cleanup function
+    const unsubscribe = () => {
+      console.log("Mastra workflow unsubscribe:", workflowId);
+      isActive = false;
+      abortController.abort();
+    };
+
     return unsubscribe;
   },
 };
@@ -273,8 +374,116 @@ export const useMastraWorkflows = (config: MastraWorkflowConfig) => {
   useEffect(() => {
     if (!workflowState) return;
 
-    // Mock subscription for now - in real implementation, this would be handled by Mastra's real-time system
-    const unsubscribe = mastraWorkflow.subscribe(workflowState.id);
+    const handleWorkflowEvent = (event: {
+      type: string;
+      data: any;
+      timestamp: string;
+    }) => {
+      console.log("Workflow event received:", event);
+
+      switch (event.type) {
+        case "workflow-state-update": {
+          // Update workflow state based on event data
+          const updatedState: MastraWorkflowState = {
+            ...workflowState,
+            current: event.data.currentStep,
+            status: event.data.status,
+            timestamp: event.timestamp,
+          };
+
+          // Check if suspended and add interrupt data
+          if (event.data.suspended && event.data.steps) {
+            const suspendedStep = event.data.steps[event.data.currentStep];
+            if (suspendedStep?.result) {
+              updatedState.interrupt = {
+                id: workflowState.id,
+                state: event.data.currentStep,
+                context: suspendedStep.result,
+                requiresInput: true,
+                prompt:
+                  event.data.currentStep === "screening-step"
+                    ? "Should we proceed with this candidate to interview?"
+                    : "What is your hiring decision?",
+                allowedActions:
+                  event.data.currentStep === "screening-step"
+                    ? ["approve", "reject"]
+                    : ["hire", "reject", "second_interview"],
+              };
+            }
+          }
+
+          // Update local state
+          setWorkflowState(updatedState);
+          setIsSuspended(event.data.suspended);
+          setIsRunning(
+            !event.data.suspended && event.data.status === "running",
+          );
+
+          // Call config callback
+          config.onStateChange?.(updatedState);
+
+          break;
+        }
+
+        case "workflow-complete": {
+          // Mark workflow as complete
+          const completedState: MastraWorkflowState = {
+            ...workflowState,
+            status: "completed",
+            timestamp: event.timestamp,
+          };
+
+          setWorkflowState(completedState);
+          setIsRunning(false);
+          setIsSuspended(false);
+
+          config.onStateChange?.(completedState);
+
+          break;
+        }
+
+        case "error": {
+          console.error("Workflow error event:", event.data);
+          // Update state to reflect error
+          const errorState: MastraWorkflowState = {
+            ...workflowState,
+            status: "error",
+            timestamp: event.timestamp,
+          };
+
+          setWorkflowState(errorState);
+          setIsRunning(false);
+          setIsSuspended(false);
+
+          config.onStateChange?.(errorState);
+
+          break;
+        }
+
+        default:
+          // Ignore unknown event types
+          break;
+      }
+    };
+
+    // Subscribe to workflow events with callbacks
+    const unsubscribe = mastraWorkflow.subscribe(
+      workflowState.id,
+      handleWorkflowEvent,
+      (error) => {
+        console.error("Workflow subscription error:", error);
+        config.onError?.(error);
+        // Update state to reflect error
+        const errorState: MastraWorkflowState = {
+          ...workflowState,
+          status: "error",
+          timestamp: new Date().toISOString(),
+        };
+        setWorkflowState(errorState);
+        setIsRunning(false);
+        setIsSuspended(false);
+      },
+    );
 
     return () => unsubscribe();
   }, [workflowState, config]);

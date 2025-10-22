@@ -2,7 +2,14 @@
 
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useMastraRuntime } from "@assistant-ui/react-mastra";
-import { createContext, useContext, useState, useCallback } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+} from "react";
 
 interface AgentContextType {
   selectedAgent: string;
@@ -127,6 +134,12 @@ export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
             suspendData:
               data.result?.steps?.[nextStep]?.suspendPayload || data.result,
           });
+        } else {
+          // Handle running or other statuses
+          setWorkflowState({
+            ...workflowState,
+            status: data.status,
+          });
         }
       } catch (error) {
         console.error("Failed to resume workflow:", error);
@@ -136,6 +149,108 @@ export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
     },
     [workflowState],
   );
+
+  // SSE subscription for real-time workflow updates
+  useEffect(() => {
+    if (!workflowState?.id) return;
+
+    let isActive = true;
+    const abortController = new AbortController();
+
+    const connect = async () => {
+      try {
+        const response = await fetch(
+          `/api/workflow/events/${workflowState.id}`,
+          {
+            signal: abortController.signal,
+          },
+        );
+
+        if (!response.ok) {
+          throw new Error(`SSE connection failed: ${response.status}`);
+        }
+
+        const reader = response.body?.getReader();
+        if (!reader) {
+          throw new Error("No response body");
+        }
+
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (isActive) {
+          const { done, value } = await reader.read();
+          if (done) {
+            console.log("Workflow SSE stream ended");
+            break;
+          }
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              const data = line.slice(6);
+
+              if (data === "[DONE]") {
+                console.log("Workflow SSE stream complete");
+                isActive = false;
+                return;
+              }
+
+              try {
+                const event = JSON.parse(data);
+
+                // Ignore heartbeats
+                if (event.type === "heartbeat") continue;
+
+                // Handle workflow state updates
+                if (event.type === "workflow-state-update") {
+                  const { currentStep, status, suspended, steps } = event.data;
+
+                  setWorkflowState((prev: any) => ({
+                    ...prev,
+                    status,
+                    current: currentStep,
+                    suspendData: suspended
+                      ? steps?.[currentStep]?.suspendPayload ||
+                        steps?.[currentStep]?.result
+                      : prev.suspendData,
+                  }));
+                }
+
+                // Handle workflow completion
+                if (event.type === "workflow-complete") {
+                  setWorkflowState((prev: any) => ({
+                    ...prev,
+                    status: "completed",
+                  }));
+                }
+
+                // Handle errors
+                if (event.type === "error") {
+                  console.error("Workflow SSE error event:", event.data);
+                }
+              } catch (error) {
+                console.error("Failed to parse SSE event:", error);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        if (!isActive) return;
+        console.error("Workflow SSE connection error:", error);
+      }
+    };
+
+    connect();
+
+    return () => {
+      isActive = false;
+      abortController.abort();
+    };
+  }, [workflowState?.id]);
 
   return (
     <AgentContext.Provider value={{ selectedAgent, setSelectedAgent }}>
