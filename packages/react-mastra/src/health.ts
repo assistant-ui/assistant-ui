@@ -60,7 +60,9 @@ export const performHealthCheck = async (
         () => Math.random() * 100 + 10, // 10-110ms response times
       );
       averageResponseTime =
-        responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length;
+        responseTimes.length > 0
+          ? responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length
+          : 0;
 
       // Simulate error rate calculation
       errorRate = Math.random() * 0.05; // 0-5% error rate

@@ -50,7 +50,7 @@
   },
   "dependencies": {
     "@mastra/core": "^0.20.2",
-    "@mastra/libsql": "latest",
+    "@mastra/libsql": "^0.4.0",
     "ai": "^5.0.70",
     "assistant-stream": "^0.2.29",
     "uuid": "^11.1.0",

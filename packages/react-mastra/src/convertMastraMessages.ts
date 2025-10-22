@@ -64,7 +64,7 @@ const convertMastraContentToParts = (
 
 const convertToolResultToMessagePart = (toolResult: MastraToolResult) => {
   return {
-    type: "tool_call" as const,
+    type: "tool_result" as const,
     tool_result: toolResult,
   };
 };

@@ -74,8 +74,8 @@ const appendContent = (
 
   for (const currPart of currArray) {
     if (currPart.type === "text") {
-      // For text, find existing text part and merge
-      const existingTextIndex = mergedContent.findIndex(
+      // For text, find the LAST existing text part and merge
+      const existingTextIndex = mergedContent.findLastIndex(
         (part) => part.type === "text",
       );
 

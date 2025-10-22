@@ -141,7 +141,13 @@ async function validateProductionBuild(): Promise<BuildValidationResult> {
 }
 
 // Run validation if this file is executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+import { fileURLToPath } from "url";
+import { resolve as resolvePath } from "path";
+
+const currentFilePath = fileURLToPath(import.meta.url);
+const scriptPath = resolvePath(process.argv[1] || "");
+
+if (currentFilePath === scriptPath) {
   validateProductionBuild()
     .then((result) => {
       process.exit(result.success ? 0 : 1);

@@ -52,8 +52,14 @@ export const useMastraMessages = <
   const [isRunning, setIsRunning] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const { onMetadata, onError, onInterrupt, onCustomEvent, onToolCall } =
-    useMemo(() => eventHandlers ?? {}, [eventHandlers]);
+  const {
+    onMetadata,
+    onError,
+    onInterrupt,
+    onCustomEvent,
+    onToolCall,
+    onToolResult,
+  } = useMemo(() => eventHandlers ?? {}, [eventHandlers]);
 
   const sendMessage = useCallback(
     async (newMessages: TMessage[], config: MastraSendMessageConfig = {}) => {
@@ -111,8 +117,15 @@ export const useMastraMessages = <
                 break;
 
               case MastraKnownEventTypes.ToolCallPartial:
+                const toolCallUpdatedMessages = accumulator.addMessages([
+                  event.data as TMessage,
+                ]);
+                setMessages(toolCallUpdatedMessages);
+                break;
+
               case MastraKnownEventTypes.ToolResult:
               case MastraKnownEventTypes.ToolResultPartial:
+                onToolResult?.(event.data);
                 const toolUpdatedMessages = accumulator.addMessages([
                   event.data as TMessage,
                 ]);
@@ -175,6 +188,7 @@ export const useMastraMessages = <
       onInterrupt,
       onCustomEvent,
       onToolCall,
+      onToolResult,
     ],
   );
 

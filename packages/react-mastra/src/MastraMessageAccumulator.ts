@@ -89,12 +89,15 @@ export class MastraMessageAccumulator<TMessage extends { id?: string }> {
     this.messagesMap.clear();
     this.messageOrder = [];
 
-    // Add all messages and rebuild the map
+    // Add all messages and rebuild the map, enforcing capacity limits
     for (const message of messages.map(this.ensureMessageId)) {
       const messageId = message.id!; // ensureMessageId guarantees id exists
       this.messagesMap.set(messageId, message);
       this.messageOrder.push(messageId);
     }
+
+    // Enforce memory limit after reset
+    this.enforceMemoryLimit();
   }
 
   public clear() {

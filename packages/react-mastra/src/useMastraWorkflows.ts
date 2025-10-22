@@ -184,11 +184,11 @@ export const useMastraWorkflows = (config: MastraWorkflowConfig) => {
       if (!workflowState || !isSuspended) return;
 
       try {
-        await mastraWorkflow.resume(workflowState.id, input);
+        const resumeResult = await mastraWorkflow.resume(workflowState.id, input);
 
         const updatedState: MastraWorkflowState = {
           ...workflowState,
-          status: "running",
+          status: resumeResult.status,
           context: {
             ...workflowState.context,
             ...(input && { resumeInput: input }),
@@ -197,7 +197,7 @@ export const useMastraWorkflows = (config: MastraWorkflowConfig) => {
             ...workflowState.history,
             {
               from: "suspended",
-              to: "running",
+              to: resumeResult.status === "suspended" ? "suspended" : "running",
               event: "resume",
               timestamp: new Date().toISOString(),
             },
@@ -205,8 +205,8 @@ export const useMastraWorkflows = (config: MastraWorkflowConfig) => {
         };
 
         setWorkflowState(updatedState);
-        setIsSuspended(false);
-        setIsRunning(true);
+        setIsSuspended(resumeResult.status === "suspended");
+        setIsRunning(resumeResult.status === "running");
         config.onStateChange?.(updatedState);
         return updatedState;
       } catch (error) {

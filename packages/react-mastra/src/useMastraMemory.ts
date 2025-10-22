@@ -104,10 +104,7 @@ export const useMastraMemory = (config: MastraMemoryConfig) => {
             return {
               id: msg.id,
               type,
-              content:
-                typeof msg.content === "string"
-                  ? msg.content
-                  : JSON.stringify(msg.content),
+              content: msg.content,
               timestamp: msg.createdAt
                 ? new Date(msg.createdAt).toISOString()
                 : new Date().toISOString(),
