@@ -76,7 +76,9 @@ export type MessageContentFile = {
   };
 };
 
-type UserMessageContentComplex = MessageContentText | MessageContentImageUrl
+type UserMessageContentComplex =
+  | MessageContentText
+  | MessageContentImageUrl
   | MessageContentFile;
 type AssistantMessageContentComplex =
   | MessageContentText
