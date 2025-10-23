@@ -50,7 +50,7 @@ const contentToParts = (content: LangChainMessage["content"]) => {
               };
             }
           case "file":
-            return { type: "file", filename: part.file.filename || '', data: part.file.file_data, mimeType: 'application/pdf' };
+            return { type: "file", filename: part.file.filename, data: part.file.file_data, mimeType: part.file.mime_type};
 
           case "thinking":
             return { type: "reasoning", text: part.thinking };

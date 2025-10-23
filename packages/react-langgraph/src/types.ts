@@ -70,8 +70,9 @@ export type EventType = LangGraphKnownEventTypes | CustomEventType;
 type MessageContentFile = {
   type: "file";
   file: {
-    filename?: string | undefined;
+    filename: string;
     file_data: string;
+    mime_type: string;
   };
 };
 
