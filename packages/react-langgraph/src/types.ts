@@ -67,7 +67,7 @@ type CustomEventType = string;
 
 export type EventType = LangGraphKnownEventTypes | CustomEventType;
 
-type MessageContentFile = {
+export type MessageContentFile = {
   type: "file";
   file: {
     filename: string;
