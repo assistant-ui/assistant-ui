@@ -10,6 +10,7 @@ import {
 } from "react";
 
 import { ToolUIApi, ToolUIState, ToolUIMeta } from "../../client/types/ToolUI";
+import { ToolsApi, ToolsState, ToolsMeta } from "../../client/types/Tools";
 import {
   MessageClientApi,
   MessageClientState,
@@ -54,6 +55,7 @@ import {
 export type AssistantState = {
   readonly threads: ThreadListClientState;
   readonly toolUIs: ToolUIState;
+  readonly tools: ToolsState;
 
   readonly threadListItem: ThreadListItemClientState;
   readonly thread: ThreadClientState;
@@ -115,6 +117,7 @@ type AttachmentMeta = {
 export type AssistantApi = {
   threads: AssistantApiField<ThreadListClientApi, ThreadsMeta>;
   toolUIs: AssistantApiField<ToolUIApi, ToolUIMeta>;
+  tools: AssistantApiField<ToolsApi, ToolsMeta>;
   threadListItem: AssistantApiField<
     ThreadListItemClientApi,
     ThreadListItemMeta
@@ -134,7 +137,7 @@ export type AssistantApi = {
   ): Unsubscribe;
 
   // temp
-  registerModelContextProvider(provider: ModelContextProvider): void;
+  registerModelContextProvider(provider: ModelContextProvider): Unsubscribe;
   /** @internal */
   __internal_getRuntime?(): AssistantRuntime;
 };
@@ -168,6 +171,13 @@ const AssistantApiContext = createContext<AssistantApi>({
     query: {},
     get: (): never => {
       throw new Error("ToolUIs is only available inside <AssistantProvider />");
+    },
+  }),
+  tools: createAssistantApiField({
+    source: null,
+    query: {},
+    get: (): never => {
+      throw new Error("Tools is only available inside <AssistantProvider />");
     },
   }),
   threadListItem: createAssistantApiField({
