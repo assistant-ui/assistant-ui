@@ -31,12 +31,12 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   const scrollToBottom = useCallback(
     (behavior: ScrollBehavior) => {
       const div = divRef.current;
-      if (!div || !autoScroll) return;
+      if (!div) return;
 
       isScrollingToBottomRef.current = true;
       div.scrollTo({ top: div.scrollHeight, behavior });
     },
-    [autoScroll],
+    [],
   );
 
   const handleScroll = () => {
@@ -66,8 +66,9 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
 
   const resizeRef = useOnResizeContent(() => {
     if (
-      isScrollingToBottomRef.current ||
-      threadViewportStore.getState().isAtBottom
+      autoScroll &&
+      (isScrollingToBottomRef.current ||
+        threadViewportStore.getState().isAtBottom)
     ) {
       scrollToBottom("instant");
     }
@@ -87,7 +88,9 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   });
 
   // autoscroll on run start
-  useAssistantEvent("thread.run-start", () => scrollToBottom("auto"));
+  useAssistantEvent("thread.run-start", () => {
+    if (autoScroll) scrollToBottom("auto");
+  });
 
   const autoScrollRef = useComposedRefs<TElement>(resizeRef, scrollRef, divRef);
   return autoScrollRef as RefCallback<TElement>;
