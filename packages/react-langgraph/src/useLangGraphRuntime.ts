@@ -59,13 +59,16 @@ const getMessageContent = (msg: AppendMessage) => {
       case "image":
         return { type: "image_url" as const, image_url: { url: part.image } };
       case "file":
-        return { type: "file" as const, file: { filename: part.filename, file_data: part.data } };
+        return {
+          type: "file" as const,
+          file: { filename: part.filename, file_data: part.data, mime_type: part.mimeType },
+        };
 
       case "tool-call":
         throw new Error("Tool call appends are not supported.");
 
       default:
-        const _exhaustiveCheck: "reasoning" | "source" | "file" | "audio" =
+        const _exhaustiveCheck: "reasoning" | "source" | "audio" =
           type;
         throw new Error(
           `Unsupported append message part type: ${_exhaustiveCheck}`,
@@ -148,43 +151,43 @@ type UseLangGraphRuntimeOptions = {
   delete?: (threadId: string) => Promise<void>;
   adapters?:
     | {
-        attachments?: AttachmentAdapter;
-        speech?: SpeechSynthesisAdapter;
-        feedback?: FeedbackAdapter;
-      }
+    attachments?: AttachmentAdapter;
+    speech?: SpeechSynthesisAdapter;
+    feedback?: FeedbackAdapter;
+  }
     | undefined;
   eventHandlers?:
     | {
-        /**
-         * Called when metadata is received from the LangGraph stream
-         */
-        onMetadata?: OnMetadataEventCallback;
-        /**
-         * Called when informational messages are received from the LangGraph stream
-         */
-        onInfo?: OnInfoEventCallback;
-        /**
-         * Called when errors occur during LangGraph stream processing
-         */
-        onError?: OnErrorEventCallback;
-        /**
-         * Called when custom events are received from the LangGraph stream
-         */
-        onCustomEvent?: OnCustomEventCallback;
-      }
+    /**
+     * Called when metadata is received from the LangGraph stream
+     */
+    onMetadata?: OnMetadataEventCallback;
+    /**
+     * Called when informational messages are received from the LangGraph stream
+     */
+    onInfo?: OnInfoEventCallback;
+    /**
+     * Called when errors occur during LangGraph stream processing
+     */
+    onError?: OnErrorEventCallback;
+    /**
+     * Called when custom events are received from the LangGraph stream
+     */
+    onCustomEvent?: OnCustomEventCallback;
+  }
     | undefined;
   cloud?: AssistantCloud | undefined;
 };
 
 const useLangGraphRuntimeImpl = ({
-  autoCancelPendingToolCalls,
-  adapters: { attachments, feedback, speech } = {},
-  unstable_allowCancellation,
-  stream,
-  onSwitchToThread: _onSwitchToThread,
-  load = _onSwitchToThread,
-  eventHandlers,
-}: UseLangGraphRuntimeOptions) => {
+                                   autoCancelPendingToolCalls,
+                                   adapters: { attachments, feedback, speech } = {},
+                                   unstable_allowCancellation,
+                                   stream,
+                                   onSwitchToThread: _onSwitchToThread,
+                                   load = _onSwitchToThread,
+                                   eventHandlers,
+                                 }: UseLangGraphRuntimeOptions) => {
   const {
     interrupt,
     setInterrupt,
@@ -222,10 +225,10 @@ const useLangGraphRuntimeImpl = ({
   const loadThread = !load
     ? undefined
     : async (externalId: string) => {
-        const { messages, interrupts } = await load(externalId);
-        setMessages(messages);
-        setInterrupt(interrupts?.[0]);
-      };
+      const { messages, interrupts } = await load(externalId);
+      setMessages(messages);
+      setInterrupt(interrupts?.[0]);
+    };
 
   const loadingRef = useRef(false);
   useEffect(() => {
@@ -257,15 +260,15 @@ const useLangGraphRuntimeImpl = ({
       const cancellations =
         autoCancelPendingToolCalls !== false
           ? getPendingToolCalls(messages).map(
-              (t) =>
-                ({
-                  type: "tool",
-                  name: t.name,
-                  tool_call_id: t.id,
-                  content: JSON.stringify({ cancelled: true }),
-                  status: "error",
-                }) satisfies LangChainMessage & { type: "tool" },
-            )
+            (t) =>
+              ({
+                type: "tool",
+                name: t.name,
+                tool_call_id: t.id,
+                content: JSON.stringify({ cancelled: true }),
+                status: "error",
+              }) satisfies LangChainMessage & { type: "tool" },
+          )
           : [];
 
       return handleSendMessage(
@@ -282,12 +285,12 @@ const useLangGraphRuntimeImpl = ({
       );
     },
     onAddToolResult: async ({
-      toolCallId,
-      toolName,
-      result,
-      isError,
-      artifact,
-    }) => {
+                              toolCallId,
+                              toolName,
+                              result,
+                              isError,
+                              artifact,
+                            }) => {
       // TODO parallel human in the loop calls
       await handleSendMessage(
         [
@@ -306,8 +309,8 @@ const useLangGraphRuntimeImpl = ({
     },
     onCancel: unstable_allowCancellation
       ? async () => {
-          cancel();
-        }
+        cancel();
+      }
       : undefined,
   });
 
@@ -315,11 +318,11 @@ const useLangGraphRuntimeImpl = ({
 };
 
 export const useLangGraphRuntime = ({
-  cloud,
-  create,
-  delete: deleteFn,
-  ...options
-}: UseLangGraphRuntimeOptions) => {
+                                      cloud,
+                                      create,
+                                      delete: deleteFn,
+                                      ...options
+                                    }: UseLangGraphRuntimeOptions) => {
   const api = useAssistantApi();
   const cloudAdapter = unstable_useCloudThreadListAdapter({
     cloud,
