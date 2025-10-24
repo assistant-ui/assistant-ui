@@ -1,4 +1,3 @@
-import { getPages, getPage } from "@/app/source";
 import type { Metadata } from "next";
 import { DocsPage, DocsBody } from "fumadocs-ui/page";
 import { notFound } from "next/navigation";
@@ -7,19 +6,27 @@ import { buttonVariants } from "@/components/ui/button";
 import { EditIcon } from "lucide-react";
 import { getMDXComponents } from "@/mdx-components";
 import { DocsRuntimeProvider } from "@/app/(home)/DocsRuntimeProvider";
+import { source } from "@/lib/source";
+import { getPageTreePeers } from "fumadocs-core/page-tree";
+import { Card, Cards } from "fumadocs-ui/components/card";
 
 export default async function Page(props: {
   params: Promise<{ slug?: string[] }>;
 }) {
   const params = await props.params;
-  const page = getPage(params.slug ?? []);
-  const mdxComponents = getMDXComponents({});
+  const page = source.getPage(params.slug ?? []);
 
   if (page == null) {
     notFound();
   }
 
-  const path = `apps/docs/content/docs/${page.file.path}`;
+  const mdxComponents = getMDXComponents({
+    DocsCategory: ({ url }) => {
+      return <DocsCategory url={url ?? page.url} />;
+    },
+  });
+
+  const path = `apps/docs/content/docs/${page.path}`;
 
   const footer = (
     <a
@@ -55,21 +62,31 @@ export default async function Page(props: {
   );
 }
 
-export async function generateStaticParams() {
-  return getPages()
-    .filter((page) => page.slugs[0] === "docs")
-    .map((page) => ({
-      slug: page.slugs.slice(1),
-    }));
+function DocsCategory({ url }: { url: string }) {
+  return (
+    <Cards>
+      {getPageTreePeers(source.pageTree, url).map((peer) => (
+        <Card key={peer.url} title={peer.name} href={peer.url}>
+          {peer.description}
+        </Card>
+      ))}
+    </Cards>
+  );
 }
 
-export async function generateMetadata(props: {
-  params: Promise<{ slug?: string[] }>;
-}) {
-  const params = await props.params;
-  const page = getPage(params.slug ?? []);
+export function generateStaticParams() {
+  return source.generateParams();
+}
 
-  if (page == null) notFound();
+export async function generateMetadata(
+  props: PageProps<"/docs/[[...slug]]">,
+): Promise<Metadata> {
+  const { slug = [] } = await props.params;
+  const page = source.getPage(slug);
+  if (!page)
+    return {
+      title: "Not Found",
+    };
 
   return {
     title: page.data.title,

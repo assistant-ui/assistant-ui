@@ -1,4 +1,4 @@
-import { getPages } from "@/app/source";
+import { source } from "@/lib/source";
 
 export const revalidate = false;
 
@@ -8,7 +8,7 @@ export async function GET() {
   const map = new Map<string, string[]>();
   const baseUrl = "https://assistant-ui.com";
 
-  for (const page of getPages()) {
+  for (const page of source.getPages()) {
     const dir = page.slugs[0] || "root";
     const list = map.get(dir) ?? [];
     list.push(

@@ -96,7 +96,6 @@ export type ThreadRuntimeCore = Readonly<{
   speak: (messageId: string) => void;
   stopSpeaking: () => void;
 
-  getSubmittedFeedback: (messageId: string) => SubmittedFeedback | undefined;
   submitFeedback: (feedback: SubmitFeedbackOptions) => void;
 
   getModelContext: () => ModelContext;

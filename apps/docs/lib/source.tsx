@@ -1,31 +1,34 @@
-import { createMDXSource } from "fumadocs-mdx";
+import { createMDXSource } from "fumadocs-mdx/runtime/next";
 import type { InferPageType } from "fumadocs-core/source";
 import { loader } from "fumadocs-core/source";
 import {
-  meta,
   docs,
+  examples as examplePages,
   blog as blogPosts,
   careers as careersCollection,
 } from "@/.source";
-
-const utils = loader({
+export const source = loader({
   baseUrl: "/docs",
-  source: createMDXSource(docs, meta),
+  source: docs.toFumadocsSource(),
 });
 
-export const { getPages, getPage, pageTree } = utils;
-export const source = utils;
+export const examples = loader({
+  baseUrl: "/examples",
+  source: createMDXSource(examplePages),
+});
+
+export type ExamplePage = InferPageType<typeof examples>;
 
 export const blog = loader({
   baseUrl: "/blog",
-  source: createMDXSource(blogPosts, []),
+  source: createMDXSource(blogPosts),
 });
 
 export type BlogPage = InferPageType<typeof blog>;
 
 export const careers = loader({
   baseUrl: "/careers",
-  source: createMDXSource(careersCollection, []),
+  source: createMDXSource(careersCollection),
 });
 
 export type CareerPage = InferPageType<typeof careers>;

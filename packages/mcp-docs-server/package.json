@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/mcp-docs-server",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "description": "MCP server for assistant-ui documentation and examples",
   "type": "module",
   "main": "dist/index.js",
@@ -25,11 +25,11 @@
     "cross-env": "^10.1.0"
   },
   "devDependencies": {
-    "@types/node": "^24.8.1",
+    "@types/node": "^24.9.1",
     "tsup": "^8.5.0",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
-    "vitest": "^3.2.4",
+    "vitest": "^4.0.1",
     "eslint": "^9.38.0"
   },
   "files": [
