@@ -5,6 +5,7 @@ import { SingleBar, Presets } from "cli-progress";
 import installReactUILib from "./install-ui-lib";
 import installEdgeLib from "./install-edge-lib";
 import installAiSdkLib from "./install-ai-sdk-lib";
+import installMastraLib from "./install-mastra-lib";
 
 const bundle = [
   "v0-8/ui-package-split",
@@ -81,6 +82,7 @@ export async function upgrade(options: TransformOptions) {
   await installReactUILib();
   await installEdgeLib();
   await installAiSdkLib();
+  await installMastraLib();
 
   log("Upgrade complete.");
   console.log("✅ Upgrade complete!");

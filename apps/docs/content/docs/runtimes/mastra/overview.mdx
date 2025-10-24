@@ -4,6 +4,73 @@ title: Overview
 
 Mastra is an open-source TypeScript agent framework designed to provide the essential primitives for building AI applications. It enables developers to create AI agents with memory and tool-calling capabilities, implement deterministic LLM workflows, and leverage RAG for knowledge integration. With features like model routing, workflow graphs, and automated evals, Mastra provides a complete toolkit for developing, testing, and deploying AI applications.
 
+## Quick Start
+
+Install the dedicated Mastra integration package:
+
+```bash npm2yarn
+npm install @assistant-ui/react @assistant-ui/react-mastra @mastra/core @mastra/memory
+```
+
+Create a simple chat interface with Mastra agents:
+
+```tsx
+"use client";
+
+import { Thread } from "@/components/assistant-ui/thread";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useMastraRuntime } from "@assistant-ui/react-mastra";
+
+export default function Home() {
+  const runtime = useMastraRuntime({
+    api: "/api/chat",
+    agentId: "chef-agent",
+    memory: { storage: "libsql" },
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <div className="h-full">
+        <Thread />
+      </div>
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+## Features
+
+### 🤖 **Agent System**
+- **Intelligent Agents**: Memory-enabled agents with persistent context and tool-calling
+- **Model Routing**: Support for 600+ models via unified provider API
+- **Dynamic Tool Integration**: Automatic function registration and execution
+- **Multi-Agent Orchestration**: Agent communication and composition patterns
+
+### 🔀 **Workflow Orchestration**
+- **XState-Powered Workflows**: Deterministic graph-based state machines
+- **Advanced Control Flow**: `.then()`, `.branch()`, `.parallel()`, `.suspend()`, `.resume()`
+- **Human-in-the-Loop**: Suspend/resume workflows with real-time state streaming
+
+### 🧠 **Memory Management**
+- **Persistent Memory**: Thread-based storage with semantic recall capabilities
+- **Vector-Based Search**: Context retrieval using similarity and metadata filtering
+- **Multiple Storage Backends**: LibSQL, PostgreSQL, Turso, Pinecone, Chroma integration
+
+### 🔍 **RAG Pipeline**
+- **Multi-Format Processing**: Text, HTML, Markdown, JSON with intelligent chunking
+- **Unified Vector Store API**: Consistent interface across all vector providers
+- **Advanced Filtering**: Source, time-based, and custom metadata filtering
+
+### 📊 **Observability & Monitoring**
+- **AI-Specific Tracing**: Specialized tracing for agents, LLM calls, tool executions
+- **Performance Metrics**: Token usage, latency, accuracy, relevance tracking
+- **Multi-Platform Export**: Langfuse, Braintrust, LangSmith, OpenTelemetry integration
+
+### ✅ **Evaluation System**
+- **Automated Evaluation**: Model-graded, rule-based, and statistical evaluation methods
+- **Comprehensive Metrics**: Toxicity, bias, relevance, factual accuracy assessment
+- **CI/CD Integration**: Automated evaluation in deployment pipelines
+
 ## Integrating with Next.js and assistant-ui
 
 There are two primary ways to integrate Mastra into your Next.js project when using assistant-ui:

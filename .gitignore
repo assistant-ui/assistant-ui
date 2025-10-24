@@ -46,9 +46,22 @@ __pycache__
 
 .langgraph_api
 
-# Cursor
+# extensions and dev tools
 .cursor
+.opencode/
+.opencode.json
+.claude/
+.claude.json
+.cursorignore
+.cursorindexingignore
+.specstory
+notes/
 
 # GitHub Spec Kit - https://github.com/github/spec-kit
 .specify/
 specs/*
+
+# Mastra database files
+*.db
+*.db-shm
+*.db-wal
