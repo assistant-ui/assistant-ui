@@ -67,11 +67,24 @@ type CustomEventType = string;
 
 export type EventType = LangGraphKnownEventTypes | CustomEventType;
 
-type UserMessageContentComplex = MessageContentText | MessageContentImageUrl;
+export type MessageContentFile = {
+  type: "file";
+  file: {
+    filename: string;
+    file_data: string;
+    mime_type: string;
+  };
+};
+
+type UserMessageContentComplex =
+  | MessageContentText
+  | MessageContentImageUrl
+  | MessageContentFile;
 type AssistantMessageContentComplex =
   | MessageContentText
   | MessageContentImageUrl
   | MessageContentToolUse
+  | MessageContentFile
   | MessageContentReasoning
   | MessageContentThinking
   | MessageContentComputerCall;

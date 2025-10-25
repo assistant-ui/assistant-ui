@@ -58,12 +58,17 @@ const getMessageContent = (msg: AppendMessage) => {
         return { type: "text" as const, text: part.text };
       case "image":
         return { type: "image_url" as const, image_url: { url: part.image } };
+      case "file":
+        return {
+          type: "file" as const,
+          file: { filename: part.filename, file_data: part.data, mime_type: part.mimeType }
+        };
 
       case "tool-call":
         throw new Error("Tool call appends are not supported.");
 
       default:
-        const _exhaustiveCheck: "reasoning" | "source" | "file" | "audio" =
+        const _exhaustiveCheck: "reasoning" | "source" | "audio" =
           type;
         throw new Error(
           `Unsupported append message part type: ${_exhaustiveCheck}`,

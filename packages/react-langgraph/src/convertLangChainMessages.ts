@@ -49,6 +49,14 @@ const contentToParts = (content: LangChainMessage["content"]) => {
                 image: part.image_url.url,
               };
             }
+          case "file":
+            return {
+              type: "file",
+              filename: part.file.filename,
+              data: part.file.file_data,
+              mimeType: part.file.mime_type,
+            };
+
           case "thinking":
             return { type: "reasoning", text: part.thinking };
 
