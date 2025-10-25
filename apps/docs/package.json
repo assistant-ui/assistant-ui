@@ -81,8 +81,6 @@
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
     "@types/react-syntax-highlighter": "^15.5.13",
-    "eslint": "^9",
-    "eslint-config-next": "16.0.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.15",
     "ts-morph": "^27.0.2",

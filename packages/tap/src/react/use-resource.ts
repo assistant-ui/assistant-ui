@@ -18,7 +18,7 @@ export function useResource<R, P>(element: ResourceElement<R, P>): R {
   const [, rerender] = useState({});
   const fiber = useMemo(
     () => createResourceFiber(element.type, () => rerender({})),
-    [element.type],
+    [element.type, rerender],
   );
 
   const result = renderResource(fiber, element.props);

@@ -50,15 +50,11 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     metadata: useMemo(() => ({ toolStatuses }), [toolStatuses]),
   });
 
-  const runtimeRef = useMemo(
-    () => ({
-      get current(): AssistantRuntime {
-        return runtime;
-      },
-    }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  );
+  const [runtimeRef] = useState(() => ({
+    get current(): AssistantRuntime {
+      return runtime;
+    },
+  }));
 
   const toolInvocations = INTERNAL.useToolInvocations({
     state: {

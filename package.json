@@ -8,11 +8,14 @@
     "prettier": "prettier \"{examples,packages,apps}/**/*.{js,jsx,ts,tsx,md,json}\" --check",
     "prettier:fix": "prettier \"{examples,packages,apps}/**/*.{js,jsx,ts,tsx,md,json}\" --write",
     "build": "turbo build",
-    "lint": "turbo lint",
+    "lint": "eslint .",
     "test": "turbo test"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.7",
+    "eslint": "^9.38.0",
+    "eslint-config-next": "16.0.0",
+    "eslint-plugin-workspaces": "^0.11.0",
     "prettier": "^3.6.2",
     "prettier-plugin-tailwindcss": "0.7.1",
     "turbo": "^2.5.8",

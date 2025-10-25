@@ -3,10 +3,12 @@ import { testContext } from "./test-setup.js";
 import * as fs from "fs/promises";
 
 vi.mock("fs/promises", async () => {
-  const actual = await vi.importActual<typeof fs>("fs/promises");
+  const { readdir, readFile, stat, lstat } = await import("node:fs/promises");
   return {
-    ...actual,
-    lstat: vi.fn(actual.lstat),
+    readdir,
+    readFile,
+    stat,
+    lstat: vi.fn(lstat),
   };
 });
 
