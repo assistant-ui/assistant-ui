@@ -11,6 +11,15 @@ importers:
       '@changesets/cli':
         specifier: ^2.29.7
         version: 2.29.7(@types/node@24.9.1)
+      eslint:
+        specifier: ^9.38.0
+        version: 9.38.0(jiti@2.6.1)
+      eslint-config-next:
+        specifier: 16.0.0
+        version: 16.0.0(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3)
+      eslint-plugin-workspaces:
+        specifier: ^0.11.0
+        version: 0.11.0
       prettier:
         specifier: ^3.6.2
         version: 3.6.2
@@ -51,12 +60,6 @@ importers:
       esbuild:
         specifier: ^0.25.11
         version: 0.25.11
-      eslint:
-        specifier: ^9
-        version: 9.38.0(jiti@2.6.1)
-      eslint-config-next:
-        specifier: 16.0.0
-        version: 16.0.0(@typescript-eslint/parser@8.46.2(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3))(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3)
       tsx:
         specifier: ^4.20.6
         version: 4.20.6
@@ -94,12 +97,6 @@ importers:
       '@types/react-dom':
         specifier: ^19.2.2
         version: 19.2.2(@types/react@19.2.2)
-      eslint:
-        specifier: ^9
-        version: 9.38.0(jiti@2.6.1)
-      eslint-config-next:
-        specifier: 16.0.0
-        version: 16.0.0(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3)
       postcss:
         specifier: ^8.5.6
         version: 8.5.6
@@ -299,12 +296,6 @@ importers:
       '@types/react-syntax-highlighter':
         specifier: ^15.5.13
         version: 15.5.13
-      eslint:
-        specifier: ^9
-        version: 9.38.0(jiti@2.6.1)
-      eslint-config-next:
-        specifier: 16.0.0
-        version: 16.0.0(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3)
       postcss:
         specifier: ^8.5.6
         version: 8.5.6
@@ -386,9 +377,6 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
-      eslint:
-        specifier: ^9
-        version: 9.38.0(jiti@2.6.1)
       lucide-react:
         specifier: ^0.546.0
         version: 0.546.0(react@19.2.0)
@@ -531,12 +519,6 @@ importers:
       '@types/react-dom':
         specifier: ^19.2.2
         version: 19.2.2(@types/react@19.2.2)
-      eslint:
-        specifier: ^9
-        version: 9.38.0(jiti@2.6.1)
-      eslint-config-next:
-        specifier: 16.0.0
-        version: 16.0.0(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3)
       tw-animate-css:
         specifier: ^1.4.0
         version: 1.4.0
@@ -619,12 +601,6 @@ importers:
       '@types/react-dom':
         specifier: ^19.2.2
         version: 19.2.2(@types/react@19.2.2)
-      eslint:
-        specifier: ^9
-        version: 9.38.0(jiti@2.6.1)
-      eslint-config-next:
-        specifier: 16.0.0
-        version: 16.0.0(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3)
       tw-animate-css:
         specifier: ^1.4.0
         version: 1.4.0
@@ -704,12 +680,6 @@ importers:
       '@types/react-dom':
         specifier: ^19
         version: 19.2.2(@types/react@19.2.2)
-      eslint:
-        specifier: ^9
-        version: 9.38.0(jiti@2.6.1)
-      eslint-config-next:
-        specifier: 16.0.0
-        version: 16.0.0(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3)
       postcss:
         specifier: ^8
         version: 8.5.6
@@ -777,12 +747,6 @@ importers:
       '@types/react-dom':
         specifier: ^19
         version: 19.2.2(@types/react@19.2.2)
-      eslint:
-        specifier: ^9
-        version: 9.38.0(jiti@2.6.1)
-      eslint-config-next:
-        specifier: 16.0.0
-        version: 16.0.0(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3)
       postcss:
         specifier: ^8
         version: 8.5.6
@@ -898,12 +862,6 @@ importers:
       '@types/react-dom':
         specifier: ^19
         version: 19.2.2(@types/react@19.2.2)
-      eslint:
-        specifier: ^9
-        version: 9.38.0(jiti@2.6.1)
-      eslint-config-next:
-        specifier: 16.0.0
-        version: 16.0.0(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3)
       postcss:
         specifier: ^8
         version: 8.5.6
@@ -989,12 +947,6 @@ importers:
       '@types/react-dom':
         specifier: ^19
         version: 19.2.2(@types/react@19.2.2)
-      eslint:
-        specifier: ^9
-        version: 9.38.0(jiti@2.6.1)
-      eslint-config-next:
-        specifier: 16.0.0
-        version: 16.0.0(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3)
       postcss:
         specifier: ^8
         version: 8.5.6
@@ -1062,12 +1014,6 @@ importers:
       '@types/react-dom':
         specifier: ^19
         version: 19.2.2(@types/react@19.2.2)
-      eslint:
-        specifier: ^9
-        version: 9.38.0(jiti@2.6.1)
-      eslint-config-next:
-        specifier: 16.0.0
-        version: 16.0.0(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3)
       postcss:
         specifier: ^8
         version: 8.5.6
@@ -1177,12 +1123,6 @@ importers:
       '@types/react-dom':
         specifier: ^19
         version: 19.2.2(@types/react@19.2.2)
-      eslint:
-        specifier: ^9
-        version: 9.38.0(jiti@2.6.1)
-      eslint-config-next:
-        specifier: 16.0.0
-        version: 16.0.0(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3)
       postcss:
         specifier: ^8
         version: 8.5.6
@@ -1214,12 +1154,6 @@ importers:
       '@types/node':
         specifier: ^24.9.1
         version: 24.9.1
-      eslint:
-        specifier: ^9
-        version: 9.38.0(jiti@2.6.1)
-      eslint-config-next:
-        specifier: 16.0.0
-        version: 16.0.0(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3)
       tsx:
         specifier: ^4.20.6
         version: 4.20.6
@@ -1278,12 +1212,6 @@ importers:
       '@types/semver':
         specifier: ^7.7.1
         version: 7.7.1
-      eslint:
-        specifier: ^9
-        version: 9.38.0(jiti@2.6.1)
-      eslint-config-next:
-        specifier: 16.0.0
-        version: 16.0.0(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3)
       tsx:
         specifier: ^4.20.6
         version: 4.20.6
@@ -1300,12 +1228,6 @@ importers:
       '@types/node':
         specifier: ^24.9.1
         version: 24.9.1
-      eslint:
-        specifier: ^9
-        version: 9.38.0(jiti@2.6.1)
-      eslint-config-next:
-        specifier: 16.0.0
-        version: 16.0.0(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3)
       tsx:
         specifier: ^4.20.6
         version: 4.20.6
@@ -1365,9 +1287,6 @@ importers:
       '@types/node':
         specifier: ^24.9.1
         version: 24.9.1
-      eslint:
-        specifier: ^9.38.0
-        version: 9.38.0(jiti@2.6.1)
       tsup:
         specifier: ^8.5.0
         version: 8.5.0(jiti@2.6.1)(postcss@8.5.6)(tsx@4.20.6)(typescript@5.9.3)(yaml@2.8.1)
@@ -1467,7 +1386,7 @@ importers:
         version: 9.38.0(jiti@2.6.1)
       eslint-config-next:
         specifier: 16.0.0
-        version: 16.0.0(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3)
+        version: 16.0.0(@typescript-eslint/parser@8.46.2(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3))(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3)
       tsx:
         specifier: ^4.20.6
         version: 4.20.6
@@ -1563,12 +1482,6 @@ importers:
       '@types/react':
         specifier: ^19.2.2
         version: 19.2.2
-      eslint:
-        specifier: ^9
-        version: 9.38.0(jiti@2.6.1)
-      eslint-config-next:
-        specifier: 16.0.0
-        version: 16.0.0(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3)
       react:
         specifier: 19.2.0
         version: 19.2.0
@@ -1606,12 +1519,6 @@ importers:
       '@types/node':
         specifier: ^24.9.1
         version: 24.9.1
-      eslint:
-        specifier: ^9
-        version: 9.38.0(jiti@2.6.1)
-      eslint-config-next:
-        specifier: 16.0.0
-        version: 16.0.0(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3)
       tsx:
         specifier: ^4.20.6
         version: 4.20.6
@@ -1637,12 +1544,6 @@ importers:
       '@types/react':
         specifier: ^19.2.2
         version: 19.2.2
-      eslint:
-        specifier: ^9
-        version: 9.38.0(jiti@2.6.1)
-      eslint-config-next:
-        specifier: 16.0.0
-        version: 16.0.0(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3)
       react:
         specifier: 19.2.0
         version: 19.2.0
@@ -1686,12 +1587,6 @@ importers:
       '@types/uuid':
         specifier: ^11.0.0
         version: 11.0.0
-      eslint:
-        specifier: ^9
-        version: 9.38.0(jiti@2.6.1)
-      eslint-config-next:
-        specifier: 16.0.0
-        version: 16.0.0(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3)
       jsdom:
         specifier: ^27.0.1
         version: 27.0.1(postcss@8.5.6)
@@ -1735,12 +1630,6 @@ importers:
       '@types/node':
         specifier: ^24.9.1
         version: 24.9.1
-      eslint:
-        specifier: ^9
-        version: 9.38.0(jiti@2.6.1)
-      eslint-config-next:
-        specifier: 16.0.0
-        version: 16.0.0(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3)
       react:
         specifier: 19.2.0
         version: 19.2.0
@@ -1774,12 +1663,6 @@ importers:
       '@types/react-syntax-highlighter':
         specifier: ^15.5.13
         version: 15.5.13
-      eslint:
-        specifier: ^9
-        version: 9.38.0(jiti@2.6.1)
-      eslint-config-next:
-        specifier: 16.0.0
-        version: 16.0.0(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3)
       react:
         specifier: 19.2.0
         version: 19.2.0
@@ -1868,15 +1751,6 @@ importers:
       esbuild-plugin-file-path-extensions:
         specifier: ^2.1.4
         version: 2.1.4
-      eslint:
-        specifier: ^9.38.0
-        version: 9.38.0(jiti@2.6.1)
-      eslint-config-next:
-        specifier: 16.0.0
-        version: 16.0.0(@typescript-eslint/parser@8.46.2(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3))(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3)
-      eslint-plugin-workspaces:
-        specifier: ^0.11.0
-        version: 0.11.0
       postcss:
         specifier: ^8.5.6
         version: 8.5.6
@@ -1889,16 +1763,10 @@ importers:
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
-      typescript-eslint:
-        specifier: ^8.46.2
-        version: 8.46.2(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3)
     devDependencies:
       '@types/cross-spawn':
         specifier: ^6.0.6
         version: 6.0.6
-      '@types/eslint':
-        specifier: ^9.6.1
-        version: 9.6.1
       '@types/node':
         specifier: ^24.9.1
         version: 24.9.1
@@ -4081,9 +3949,6 @@ packages:
 
   '@types/deep-eql@4.0.2':
     resolution: {integrity: sha512-c9h9dVVMigMPc4bwTvC5dxqtqJZwQPePsWjPlpSOnojbor6pGqdk541lfA7AqFQr5pB1BRdq0juY9db81BwyFw==}
-
-  '@types/eslint@9.6.1':
-    resolution: {integrity: sha512-FXx2pKgId/WyYo2jXw63kk7/+TY7u7AziEJxJAnSFzHlqTAS3Ync6SvgYAN/k4/PQpnnVuzoMuVnByKK2qp0ag==}
 
   '@types/estree-jsx@1.0.5':
     resolution: {integrity: sha512-52CcUVNFyfb1A2ALocQw/Dd1BQFNmSdkuC3BkZ6iqhdMfQz7JWOFRuJFloOzjk+6WijU56m9oKXFAXc7o3Towg==}
@@ -10634,11 +10499,6 @@ snapshots:
 
   '@types/deep-eql@4.0.2': {}
 
-  '@types/eslint@9.6.1':
-    dependencies:
-      '@types/estree': 1.0.8
-      '@types/json-schema': 7.0.15
-
   '@types/estree-jsx@1.0.5':
     dependencies:
       '@types/estree': 1.0.8
@@ -11856,7 +11716,7 @@ snapshots:
       eslint: 9.38.0(jiti@2.6.1)
       eslint-import-resolver-node: 0.3.9
       eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.46.2(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3))(eslint@9.38.0(jiti@2.6.1)))(eslint@9.38.0(jiti@2.6.1))
-      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.46.2(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.38.0(jiti@2.6.1))
+      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.46.2(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.46.2(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3))(eslint@9.38.0(jiti@2.6.1)))(eslint@9.38.0(jiti@2.6.1)))(eslint@9.38.0(jiti@2.6.1))
       eslint-plugin-jsx-a11y: 6.10.2(eslint@9.38.0(jiti@2.6.1))
       eslint-plugin-react: 7.37.5(eslint@9.38.0(jiti@2.6.1))
       eslint-plugin-react-hooks: 7.0.0(eslint@9.38.0(jiti@2.6.1))
@@ -11909,7 +11769,7 @@ snapshots:
       tinyglobby: 0.2.15
       unrs-resolver: 1.11.1
     optionalDependencies:
-      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.46.2(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.38.0(jiti@2.6.1))
+      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.46.2(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.46.2(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3))(eslint@9.38.0(jiti@2.6.1)))(eslint@9.38.0(jiti@2.6.1)))(eslint@9.38.0(jiti@2.6.1))
     transitivePeerDependencies:
       - supports-color
 
@@ -11949,7 +11809,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.46.2(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.38.0(jiti@2.6.1)):
+  eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.46.2(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.46.2(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3))(eslint@9.38.0(jiti@2.6.1)))(eslint@9.38.0(jiti@2.6.1)))(eslint@9.38.0(jiti@2.6.1)):
     dependencies:
       '@rtsao/scc': 1.1.0
       array-includes: 3.1.9

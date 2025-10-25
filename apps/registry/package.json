@@ -36,7 +36,6 @@
     "ai": "^5.0.76",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "eslint": "^9",
     "lucide-react": "^0.546.0",
     "mermaid": "^11.12.0",
     "motion": "^12.23.24",

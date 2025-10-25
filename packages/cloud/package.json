@@ -38,8 +38,6 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/node": "^24.9.1",
-    "eslint": "^9",
-    "eslint-config-next": "16.0.0",
     "tsx": "^4.20.6",
     "vitest": "^4.0.1"
   },
