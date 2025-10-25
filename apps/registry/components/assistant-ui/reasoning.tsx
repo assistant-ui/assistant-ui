@@ -3,7 +3,7 @@
 import type { ReasoningMessagePartComponent } from "@assistant-ui/react";
 import { TextMessagePartProvider } from "@assistant-ui/react";
 import { BrainIcon, ChevronDownIcon } from "lucide-react";
-import { memo, useState } from "react";
+import { memo, useState, useRef, type RefObject } from "react";
 
 import {
   Collapsible,
@@ -23,6 +23,57 @@ const getThinkingMessage = (isStreaming: boolean, duration?: number) => (
   </p>
 );
 
+/**
+ * Locks scroll position during collapsible/height animations and hides scrollbar.
+ *
+ * - Prevents forced reflows: no layout reads, mutations scoped to scrollable parent only
+ * - Reactive: only intercepts scroll events when browser actually adjusts
+ *
+ * @param animatedElementRef - Ref to the animated element
+ * @param animationDuration - Lock duration in milliseconds
+ * @returns Function to activate the scroll lock
+ */
+const useScrollLock = <T extends HTMLElement>(
+  animatedElementRef: RefObject<T | null>,
+  animationDuration: number,
+) => {
+  const scrollContainerRef = useRef<HTMLElement | null>(null);
+
+  const lockScroll = () => {
+    (() => {
+      if (scrollContainerRef.current || !animatedElementRef.current) return;
+
+      let el: HTMLElement | null = animatedElementRef.current;
+      while (el) {
+        const { overflowY } = getComputedStyle(el);
+        if (overflowY === "scroll" || overflowY === "auto") {
+          scrollContainerRef.current = el;
+          break;
+        }
+        el = el.parentElement;
+      }
+    })();
+
+    const scrollContainer = scrollContainerRef.current;
+    if (!scrollContainer) return;
+
+    const scrollPosition = scrollContainer.scrollTop;
+    const scrollbarWidth = scrollContainer.style.scrollbarWidth;
+
+    scrollContainer.style.scrollbarWidth = "none";
+
+    const resetPosition = () => (scrollContainer.scrollTop = scrollPosition);
+    scrollContainer.addEventListener("scroll", resetPosition);
+
+    setTimeout(() => {
+      scrollContainer.removeEventListener("scroll", resetPosition);
+      scrollContainer.style.scrollbarWidth = scrollbarWidth;
+    }, animationDuration);
+  };
+
+  return lockScroll;
+};
+
 const ReasoningComponent: ReasoningMessagePartComponent = ({
   text,
   status,
@@ -30,12 +81,24 @@ const ReasoningComponent: ReasoningMessagePartComponent = ({
 }) => {
   const isStreaming = status.type === "running";
   const [isOpen, setIsOpen] = useState(false);
+  const collapsibleRef = useRef<HTMLDivElement>(null);
+
+  // Prevent scroll jump when collapsing makes page shorter than viewport
+  const lockScroll = useScrollLock(collapsibleRef, 200);
+
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      lockScroll();
+    }
+    setIsOpen(open);
+  };
 
   return (
     <Collapsible
+      ref={collapsibleRef}
       className={cn("aui-reasoning-root mb-4 w-full")}
       open={isOpen}
-      onOpenChange={setIsOpen}
+      onOpenChange={handleOpenChange}
     >
       <CollapsibleTrigger
         className={cn(
