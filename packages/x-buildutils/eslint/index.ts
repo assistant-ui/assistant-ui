@@ -1,31 +1,26 @@
-import { dirname } from "path";
-import { fileURLToPath } from "url";
-import { FlatCompat } from "@eslint/eslintrc";
+import { defineConfig, globalIgnores } from "eslint/config";
+import tseslint from "typescript-eslint";
+import workspaces from "eslint-plugin-workspaces";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const eslintConfig = defineConfig([
+  // Global ignores first
+  globalIgnores([
+    "**/dist/**",
+    "**/node_modules/**",
+    "**/.next/**",
+    "**/.vercel/**",
+    "**/out/**",
+    ".source/**",
+    "next-env.d.ts",
+  ]),
 
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
+  // TypeScript ESLint recommended configs (no React)
+  ...tseslint.configs.recommended,
 
-const eslintConfig = [
-  {
-    ignores: [
-      "**/dist/**",
-      "**/node_modules/**",
-      "**/.next/**",
-      "**/.vercel/**",
-      "**/out/**",
-      ".source/**",
-      "next-env.d.ts",
-    ],
-  },
-  ...compat.extends(
-    "next/core-web-vitals",
-    "next/typescript",
-    "plugin:workspaces/recommended",
-  ),
+  // Workspaces plugin flat config
+  workspaces.configs["flat/recommended"],
+
+  // Custom rules override
   {
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
@@ -40,6 +35,6 @@ const eslintConfig = [
       ],
     },
   },
-];
+]);
 
 export default eslintConfig;
