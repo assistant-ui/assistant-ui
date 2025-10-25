@@ -975,6 +975,7 @@ export function DevToolsUI() {
 
   useEffect(() => {
     if (!selectedApi && apis.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedApiId(apis[0].id);
     }
   }, [apis, selectedApi]);

@@ -1,8 +1,7 @@
-import {
-  Project,
-  Node,
-  InterfaceDeclaration,
-  TypeAliasDeclaration,
+import { Project, Node } from "ts-morph";
+import type {
+  InterfaceDeclaration as _InterfaceDeclaration,
+  TypeAliasDeclaration as _TypeAliasDeclaration,
 } from "ts-morph";
 import * as fs from "fs";
 
@@ -60,7 +59,7 @@ function resolveAliasedDeclaration(declaration: any) {
 
 // Function to process type or interface
 function processTypeOrInterface(
-  declaration: InterfaceDeclaration | TypeAliasDeclaration,
+  declaration: _InterfaceDeclaration | _TypeAliasDeclaration,
   typeName: string,
 ) {
   const type = declaration.getType();

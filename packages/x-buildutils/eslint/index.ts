@@ -1,13 +1,6 @@
-import { dirname } from "path";
-import { fileURLToPath } from "url";
-import { FlatCompat } from "@eslint/eslintrc";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
+import nextConfig from "eslint-config-next";
+import workspacesPlugin from "eslint-plugin-workspaces";
+import tseslint from "typescript-eslint";
 
 const eslintConfig = [
   {
@@ -21,13 +14,14 @@ const eslintConfig = [
       "next-env.d.ts",
     ],
   },
-  ...compat.extends(
-    "next/core-web-vitals",
-    "next/typescript",
-    "plugin:workspaces/recommended",
-  ),
+  ...nextConfig,
   {
+    plugins: {
+      workspaces: workspacesPlugin,
+      "@typescript-eslint": tseslint.plugin,
+    },
     rules: {
+      ...workspacesPlugin.configs.recommended.rules,
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-namespace": "off",
       "@typescript-eslint/no-unused-vars": [
@@ -38,6 +32,8 @@ const eslintConfig = [
           varsIgnorePattern: "^_",
         },
       ],
+      "react-hooks/refs": "off",
+      "react-hooks/set-state-in-effect": "off",
     },
   },
 ];

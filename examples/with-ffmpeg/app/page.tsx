@@ -8,7 +8,7 @@ import {
 import { z } from "zod";
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { toBlobURL } from "@ffmpeg/util";
-import { FC, useEffect, useRef, useState } from "react";
+import { FC, useEffect, useRef } from "react";
 import {
   CircleCheckIcon,
   RefreshCcwIcon,
@@ -151,13 +151,11 @@ const FfmpegTool: FC<{ file: File }> = ({ file }) => {
 };
 
 export default function Home() {
-  const [lastFile, setLastFile] = useState<File | null>(null);
   const attachments = useThreadComposer((c) => c.attachments);
-  useEffect(() => {
-    const lastAttachment = attachments[attachments.length - 1];
-    if (!lastAttachment) return;
-    setLastFile(lastAttachment.file!);
-  }, [attachments]);
+  const lastFile =
+    attachments.length > 0
+      ? attachments[attachments.length - 1]?.file ?? null
+      : null;
 
   console.log(lastFile);
   return (
