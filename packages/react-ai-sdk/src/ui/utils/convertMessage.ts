@@ -7,10 +7,57 @@ import {
   type SourceMessagePart,
   type useExternalMessageConverter,
 } from "@assistant-ui/react";
+import {
+  filterMessageParts,
+  getItemId,
+  groupReasoningParts,
+  mergeReasoningGroupText,
+  normalizeDuration,
+} from "./providerMetadata";
 
+/**
+ * Strips AI SDK's fix-json closing delimiters during streaming.
+ * Example: {"query":"sea"} → {"query":"sea
+ */
 function stripClosingDelimiters(json: string) {
   return json.replace(/[}\]"]+$/, "");
 }
+
+const getReasoningDurations = (
+  metadata: useExternalMessageConverter.Metadata,
+): Record<string, number> | undefined => {
+  if (
+    metadata &&
+    typeof metadata === "object" &&
+    "reasoningDurations" in metadata
+  ) {
+    const durations = metadata.reasoningDurations;
+    if (
+      durations &&
+      typeof durations === "object" &&
+      !Array.isArray(durations)
+    ) {
+      return durations as Record<string, number>;
+    }
+  }
+  return undefined;
+};
+
+const extractProviderDuration = (
+  providerMetadata: Record<string, unknown> | undefined,
+): number | undefined => {
+  if (!providerMetadata || typeof providerMetadata !== "object") {
+    return undefined;
+  }
+
+  const assistantUi = providerMetadata["assistant-ui"];
+  if (!assistantUi || typeof assistantUi !== "object") {
+    return undefined;
+  }
+
+  const duration = (assistantUi as Record<string, unknown>)["duration"];
+  return typeof duration === "number" ? duration : undefined;
+};
 
 const convertParts = (
   message: UIMessage,
@@ -20,9 +67,23 @@ const convertParts = (
     return [];
   }
 
-  return message.parts
-    .filter((p) => p.type !== "step-start" && p.type !== "file")
-    .map((part) => {
+  const parts = filterMessageParts(message.parts);
+  const reasoningGroups = groupReasoningParts(parts, getItemId);
+
+  const resolveDuration = (
+    key: string,
+    providerDuration: number | undefined,
+  ) => {
+    const runtimeDuration = normalizeDuration(
+      getReasoningDurations(metadata)?.[key],
+    );
+    const sanitizedProvider = normalizeDuration(providerDuration);
+
+    return runtimeDuration ?? sanitizedProvider;
+  };
+
+  return parts
+    .map((part, partIndex) => {
       const type = part.type;
 
       // Handle text parts
@@ -35,9 +96,45 @@ const convertParts = (
 
       // Handle reasoning parts
       if (type === "reasoning") {
+        const itemId = getItemId(part);
+
+        if (itemId) {
+          const group = reasoningGroups.get(itemId);
+          if (!group) {
+            return null;
+          }
+
+          if (group.firstIndex !== partIndex) {
+            return null;
+          }
+
+          const key = `${message.id}:${itemId}`;
+          const providerDuration = extractProviderDuration(
+            group.parts[0]?.providerMetadata as
+              | Record<string, unknown>
+              | undefined,
+          );
+          const resolvedDuration = resolveDuration(key, providerDuration);
+
+          return {
+            type: "reasoning",
+            text: mergeReasoningGroupText(group),
+            ...(resolvedDuration !== undefined && {
+              duration: resolvedDuration,
+            }),
+          } satisfies ReasoningMessagePart;
+        }
+
+        const key = `${message.id}:${partIndex}`;
+        const providerDuration = extractProviderDuration(
+          part.providerMetadata as Record<string, unknown> | undefined,
+        );
+        const resolvedDuration = resolveDuration(key, providerDuration);
+
         return {
           type: "reasoning",
           text: part.text,
+          ...(resolvedDuration !== undefined && { duration: resolvedDuration }),
         } satisfies ReasoningMessagePart;
       }
 
@@ -67,8 +164,6 @@ const convertParts = (
 
         let argsText = JSON.stringify(args);
         if (part.state === "input-streaming") {
-          // the argsText is not complete, so we need to strip the closing delimiters
-          // these are added by the AI SDK in fix-json
           argsText = stripClosingDelimiters(argsText);
         }
 
@@ -240,3 +335,9 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
     }
   },
 );
+
+// Export for testing
+export const __test__ = {
+  convertParts,
+  getItemId,
+};
