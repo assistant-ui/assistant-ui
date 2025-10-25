@@ -8,21 +8,23 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "@eslint/eslintrc": "^3.3.1",
     "@tsconfig/strictest": "^2.0.6",
     "cross-spawn": "^7.0.6",
     "esbuild-plugin-file-path-extensions": "^2.1.4",
+    "eslint": "^9.38.0",
     "eslint-config-next": "16.0.0",
+    "eslint-plugin-workspaces": "^0.11.0",
     "postcss": "^8.5.6",
     "postcss-js": "^5.0.1",
     "tsup": "8.5.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.2"
   },
   "devDependencies": {
     "@types/cross-spawn": "^6.0.6",
+    "@types/eslint": "^9.6.1",
     "@types/node": "^24.9.1",
     "@types/postcss-js": "^4.0.4",
-    "eslint-plugin-workspaces": "^0.11.0",
     "jiti": "^2.6.1"
   }
 }
