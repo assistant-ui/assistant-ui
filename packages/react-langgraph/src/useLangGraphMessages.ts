@@ -187,6 +187,7 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
       }
     },
     [
+      api,
       messages,
       appendMessage,
       stream,

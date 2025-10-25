@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   LangChainMessage,
   LangChainToolCall,
@@ -217,26 +217,19 @@ const useLangGraphRuntimeImpl = ({
     isRunning,
   });
 
-  const loadThread = !load
-    ? undefined
-    : async (externalId: string) => {
-        const { messages, interrupts } = await load(externalId);
-        setMessages(messages);
-        setInterrupt(interrupts?.[0]);
-      };
+  const loadThread = useMemo(
+    () =>
+      !load
+        ? undefined
+        : async (externalId: string) => {
+            const { messages, interrupts } = await load(externalId);
+            setMessages(messages);
+            setInterrupt(interrupts?.[0]);
+          },
+    [load, setMessages, setInterrupt],
+  );
 
   const loadingRef = useRef(false);
-  useEffect(() => {
-    if (!loadThread || loadingRef.current) return;
-
-    const externalId = runtime.threads.mainItem.getState().externalId;
-    if (externalId) {
-      loadingRef.current = true;
-      loadThread(externalId).finally(() => {
-        loadingRef.current = false;
-      });
-    }
-  }, []);
 
   const runtime = useExternalStoreRuntime({
     isRunning,
@@ -308,6 +301,18 @@ const useLangGraphRuntimeImpl = ({
         }
       : undefined,
   });
+
+  useEffect(() => {
+    if (!loadThread || loadingRef.current) return;
+
+    const externalId = runtime.threads.mainItem.getState().externalId;
+    if (externalId) {
+      loadingRef.current = true;
+      loadThread(externalId).finally(() => {
+        loadingRef.current = false;
+      });
+    }
+  }, [loadThread, runtime]);
 
   return runtime;
 };
