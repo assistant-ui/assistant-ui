@@ -12,6 +12,7 @@ import type {
   ThreadMessage,
 } from "@assistant-ui/react";
 import type { HttpAgent } from "@ag-ui/client";
+import type { Logger } from "./logger";
 import type { AGUIEvent } from "./types";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import { RunAggregator } from "./adapter/run-aggregator";
@@ -28,6 +29,7 @@ type ResumeRunConfig = {
 
 type CoreOptions = {
   agent: HttpAgent;
+  logger: Logger;
   showThinking: boolean;
   onError?: (error: Error) => void;
   onCancel?: () => void;
@@ -39,6 +41,7 @@ const FALLBACK_USER_STATUS = { type: "complete", reason: "unknown" } as const;
 
 export class AGUIThreadRuntimeCore {
   private agent: HttpAgent;
+  private logger: Logger;
   private showThinking: boolean;
   private onError: ((error: Error) => void) | undefined;
   private onCancel: (() => void) | undefined;
@@ -49,6 +52,7 @@ export class AGUIThreadRuntimeCore {
   private isRunningFlag = false;
   private abortController: AbortController | null = null;
   private stateSnapshot: ReadonlyJSONValue | undefined;
+  private pendingError: Error | null = null;
   private history: ThreadHistoryAdapter | undefined;
   private lastRunConfig: RunConfig | undefined;
   private readonly assistantHistoryParents = new Map<string, string | null>();
@@ -56,6 +60,7 @@ export class AGUIThreadRuntimeCore {
 
   constructor(options: CoreOptions) {
     this.agent = options.agent;
+    this.logger = options.logger;
     this.showThinking = options.showThinking;
     this.onError = options.onError;
     this.onCancel = options.onCancel;
@@ -65,6 +70,7 @@ export class AGUIThreadRuntimeCore {
 
   updateOptions(options: Omit<CoreOptions, "notifyUpdate">) {
     this.agent = options.agent;
+    this.logger = options.logger;
     this.showThinking = options.showThinking;
     this.onError = options.onError;
     this.onCancel = options.onCancel;
@@ -129,7 +135,7 @@ export class AGUIThreadRuntimeCore {
 
   async resume(config: ResumeRunConfig): Promise<void> {
     if (config.stream) {
-      console.debug(
+      this.logger.debug?.(
         "[agui] resume stream is not supported, falling back to regular run",
       );
     }
@@ -192,16 +198,7 @@ export class AGUIThreadRuntimeCore {
     const historicalMessages = [...this.messages];
 
     const runId = INTERNAL.generateId();
-    let capturedError: Error | null = null;
-    const registerError = (rawError: unknown, { notify = true } = {}) => {
-      const normalized =
-        rawError instanceof Error ? rawError : new Error(String(rawError));
-      capturedError = capturedError ?? normalized;
-      if (notify) {
-        this.onError?.(normalized);
-      }
-      return normalized;
-    };
+    this.pendingError = null;
     const input = this.buildRunInput(
       runId,
       normalizedRunConfig,
@@ -219,6 +216,7 @@ export class AGUIThreadRuntimeCore {
 
     const aggregator = new RunAggregator({
       showThinking: this.showThinking,
+      logger: this.logger,
       emit: (update) => this.updateAssistantMessage(ensureAssistant(), update),
     });
     const dispatch = (event: AGUIEvent) => this.handleEvent(aggregator, event);
@@ -241,7 +239,8 @@ export class AGUIThreadRuntimeCore {
       dispatch,
       runId,
       onRunFailed: (error) => {
-        registerError(error);
+        this.pendingError = error;
+        this.onError?.(error);
       },
     });
 
@@ -260,15 +259,19 @@ export class AGUIThreadRuntimeCore {
       });
     } catch (error) {
       if (!abortSignal.aborted) {
-        const err = registerError(error);
+        const err = error instanceof Error ? error : new Error(String(error));
         dispatch({ type: "RUN_ERROR", message: err.message });
+        this.onError?.(err);
+        this.pendingError = this.pendingError ?? err;
       }
     } finally {
       this.finishRun(abortController);
     }
 
-    if (capturedError) {
-      throw capturedError;
+    if (this.pendingError) {
+      const err = this.pendingError;
+      this.pendingError = null;
+      throw err;
     }
   }
 
@@ -396,7 +399,7 @@ export class AGUIThreadRuntimeCore {
         return;
       }
       case "STATE_DELTA": {
-        console.debug("[agui] state delta event ignored", event.delta);
+        this.logger.debug?.("[agui] state delta event ignored", event.delta);
         return;
       }
       case "MESSAGES_SNAPSHOT": {
@@ -419,7 +422,7 @@ export class AGUIThreadRuntimeCore {
       );
       this.applyExternalMessages(converted);
     } catch (error) {
-      console.error("[agui] failed to import messages snapshot", error);
+      this.logger.error?.("[agui] failed to import messages snapshot", error);
     }
   }
 
@@ -475,7 +478,7 @@ export class AGUIThreadRuntimeCore {
     this.recordedHistoryIds.add(message.id);
     void this.history.append({ parentId, message }).catch((error) => {
       this.recordedHistoryIds.delete(message.id);
-      console.error("[agui] failed to append history entry", error);
+      this.logger.error?.("[agui] failed to append history entry", error);
     });
   }
 }

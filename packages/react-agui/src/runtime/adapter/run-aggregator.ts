@@ -6,6 +6,8 @@ import type {
   ToolCallMessagePart,
 } from "@assistant-ui/react";
 import type { AGUIEvent } from "../types";
+import type { Logger } from "../logger";
+
 type Emit = (update: ChatModelRunResult) => void;
 
 type ToolCallState = {
@@ -20,6 +22,7 @@ type ToolCallState = {
 
 export type RunAggregatorOptions = {
   showThinking: boolean;
+  logger: Logger;
   emit: Emit;
 };
 
@@ -32,6 +35,7 @@ export type RunAggregatorOptions = {
 export class RunAggregator {
   private readonly emitUpdate: Emit;
   private readonly showThinking: boolean;
+  private readonly logger: Logger;
 
   private status: ChatModelRunResult["status"] | undefined;
   private readonly textParts = new Map<
@@ -53,6 +57,7 @@ export class RunAggregator {
   constructor(options: RunAggregatorOptions) {
     this.emitUpdate = options.emit;
     this.showThinking = options.showThinking;
+    this.logger = options.logger;
   }
 
   handle(event: AGUIEvent): void {
@@ -170,7 +175,7 @@ export class RunAggregator {
       }
 
       default: {
-        console.debug("[agui] aggregator ignored event", event);
+        this.logger.debug?.("[agui] aggregator ignored event", event);
       }
     }
   }

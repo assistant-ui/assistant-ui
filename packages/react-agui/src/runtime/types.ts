@@ -5,6 +5,8 @@ import type {
   ThreadHistoryAdapter,
 } from "@assistant-ui/react";
 import type { HttpAgent } from "@ag-ui/client";
+import type { Logger } from "./logger";
+
 export type UseAGUIRuntimeAdapters = {
   attachments?: AttachmentAdapter;
   speech?: SpeechSynthesisAdapter;
@@ -14,6 +16,7 @@ export type UseAGUIRuntimeAdapters = {
 
 export type UseAGUIRuntimeOptions = {
   agent: HttpAgent;
+  logger?: Partial<Logger>;
   showThinking?: boolean;
   onError?: (e: Error) => void;
   onCancel?: () => void;

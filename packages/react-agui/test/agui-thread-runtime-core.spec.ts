@@ -8,6 +8,7 @@ import type {
 } from "@assistant-ui/react";
 import type { HttpAgent } from "@ag-ui/client";
 import { AGUIThreadRuntimeCore } from "../src/runtime/AGUIThreadRuntimeCore";
+import { makeLogger } from "../src/runtime/logger";
 
 const createAppendMessage = (
   overrides: Partial<AppendMessage> = {},
@@ -23,12 +24,15 @@ const createAppendMessage = (
   startRun: overrides.startRun ?? true,
 });
 
+const noopLogger = makeLogger();
+
 const createCore = (
   agent: HttpAgent,
   hooks: { onError?: (e: Error) => void; onCancel?: () => void } = {},
 ) =>
   new AGUIThreadRuntimeCore({
     agent,
+    logger: noopLogger,
     showThinking: true,
     ...(hooks.onError ? { onError: hooks.onError } : {}),
     ...(hooks.onCancel ? { onCancel: hooks.onCancel } : {}),
