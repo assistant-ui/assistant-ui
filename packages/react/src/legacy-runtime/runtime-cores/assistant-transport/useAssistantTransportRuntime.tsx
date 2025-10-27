@@ -30,12 +30,14 @@ import { ToolExecutionStatus, useToolInvocations } from "./useToolInvocations";
 import { toAISDKTools, getEnabledTools, createRequestHeaders } from "./utils";
 import { useRemoteThreadListRuntime } from "../remote-thread-list/useRemoteThreadListRuntime";
 import { InMemoryThreadListAdapter } from "../remote-thread-list/adapter/in-memory";
-import { useAssistantApi } from "../../../context/react";
+import { useAssistantApi, useAssistantState } from "../../../context/react";
+import { UserExternalState } from "../../../augmentations";
 
 const symbolAssistantTransportExtras = Symbol("assistant-transport-extras");
 type AssistantTransportExtras = {
   [symbolAssistantTransportExtras]: true;
   sendCommand: (command: AssistantTransportCommand) => void;
+  state: UserExternalState;
 };
 
 const asAssistantTransportExtras = (
@@ -62,6 +64,18 @@ export const useAssistantTransportSendCommand = () => {
     transportExtras.sendCommand(command);
   };
 };
+
+export function useAssistantTransportState(): UserExternalState;
+export function useAssistantTransportState<T>(
+  selector: (state: UserExternalState) => T,
+): T;
+export function useAssistantTransportState<T>(
+  selector: (state: UserExternalState) => T = (t) => t as T,
+): T | UserExternalState {
+  return useAssistantState(({ thread }) =>
+    selector(asAssistantTransportExtras(thread.extras).state),
+  );
+}
 
 const useAssistantTransportThreadRuntime = <T,>(
   options: AssistantTransportOptions<T>,
@@ -206,6 +220,7 @@ const useAssistantTransportThreadRuntime = <T,>(
       sendCommand: (command: AssistantTransportCommand) => {
         commandQueue.enqueue(command);
       },
+      state: agentStateRef.current as UserExternalState,
     } satisfies AssistantTransportExtras,
     onNew: async (message: AppendMessage): Promise<void> => {
       if (message.role !== "user")
