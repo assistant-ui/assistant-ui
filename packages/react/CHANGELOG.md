@@ -1,5 +1,14 @@
 # @assistant-ui/react
 
+## 0.11.35
+
+### Patch Changes
+
+- 2fc5c3d: feat: AssistantTransport wire format
+- 04144dd: feat: useAssistantTransportState
+- Updated dependencies [2fc5c3d]
+  - assistant-stream@0.2.38
+
 ## 0.11.34
 
 ### Patch Changes

@@ -27,13 +27,13 @@
     "ai": "^5.0.76",
     "@radix-ui/react-use-callback-ref": "^1.1.1",
     "@types/json-schema": "^7.0.15",
-    "assistant-stream": "^0.2.37",
+    "assistant-stream": "^0.2.38",
     "json-schema": "^0.4.0",
     "zod": "^4.1.12",
     "zustand": "^5.0.8"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.11.34",
+    "@assistant-ui/react": "^0.11.35",
     "@types/react": "*",
     "assistant-cloud": "*",
     "react": "^18 || ^19 || ^19.0.0-rc"
