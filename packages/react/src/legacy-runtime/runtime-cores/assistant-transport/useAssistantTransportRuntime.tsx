@@ -13,6 +13,7 @@ import { useState, useRef, useMemo } from "react";
 import {
   AssistantMessageAccumulator,
   DataStreamDecoder,
+  AssistantTransportDecoder,
   unstable_createInitialMessage as createInitialMessage,
 } from "assistant-stream";
 import {
@@ -128,21 +129,26 @@ const useAssistantTransportThreadRuntime = <T,>(
         throw new Error("Response body is null");
       }
 
+      // Select decoder based on protocol option
+      const protocol = options.protocol ?? "data-stream";
+      const decoder =
+        protocol === "assistant-transport"
+          ? new AssistantTransportDecoder()
+          : new DataStreamDecoder();
+
       let err: string | undefined;
-      const stream = response.body
-        .pipeThrough(new DataStreamDecoder())
-        .pipeThrough(
-          new AssistantMessageAccumulator({
-            initialMessage: createInitialMessage({
-              unstable_state:
-                (agentStateRef.current as ReadonlyJSONValue) ?? null,
-            }),
-            throttle: isResume,
-            onError: (error) => {
-              err = error;
-            },
+      const stream = response.body.pipeThrough(decoder).pipeThrough(
+        new AssistantMessageAccumulator({
+          initialMessage: createInitialMessage({
+            unstable_state:
+              (agentStateRef.current as ReadonlyJSONValue) ?? null,
           }),
-        );
+          throttle: isResume,
+          onError: (error) => {
+            err = error;
+          },
+        }),
+      );
 
       let markedDelivered = false;
 

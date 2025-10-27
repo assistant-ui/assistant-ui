@@ -6,4 +6,5 @@ export {
 export type {
   AssistantTransportConnectionMetadata,
   AssistantTransportCommand,
+  AssistantTransportProtocol,
 } from "./types";
