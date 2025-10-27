@@ -23,9 +23,6 @@ class AssistantTransportEncoder(StreamEncoder):
     and emits [DONE] when the stream completes.
     """
 
-    def __init__(self):
-        pass
-
     def get_media_type(self) -> str:
         return "text/event-stream"
 
