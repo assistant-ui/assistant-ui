@@ -137,20 +137,18 @@ const useAssistantTransportThreadRuntime = <T,>(
           : new DataStreamDecoder();
 
       let err: string | undefined;
-      const stream = response.body
-        .pipeThrough(decoder)
-        .pipeThrough(
-          new AssistantMessageAccumulator({
-            initialMessage: createInitialMessage({
-              unstable_state:
-                (agentStateRef.current as ReadonlyJSONValue) ?? null,
-            }),
-            throttle: isResume,
-            onError: (error) => {
-              err = error;
-            },
+      const stream = response.body.pipeThrough(decoder).pipeThrough(
+        new AssistantMessageAccumulator({
+          initialMessage: createInitialMessage({
+            unstable_state:
+              (agentStateRef.current as ReadonlyJSONValue) ?? null,
           }),
-        );
+          throttle: isResume,
+          onError: (error) => {
+            err = error;
+          },
+        }),
+      );
 
       let markedDelivered = false;
 
