@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.2.38
+
+### Patch Changes
+
+- 2fc5c3d: feat: AssistantTransport wire format
+
 ## 0.2.37
 
 ### Patch Changes

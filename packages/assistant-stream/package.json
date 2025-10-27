@@ -1,6 +1,6 @@
 {
   "name": "assistant-stream",
-  "version": "0.2.37",
+  "version": "0.2.38",
   "license": "MIT",
   "type": "module",
   "exports": {
