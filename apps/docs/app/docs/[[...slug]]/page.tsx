@@ -9,6 +9,10 @@ import { DocsRuntimeProvider } from "@/app/(home)/DocsRuntimeProvider";
 import { source } from "@/lib/source";
 import { getPageTreePeers } from "fumadocs-core/page-tree";
 import { Card, Cards } from "fumadocs-ui/components/card";
+import {
+  CopyMarkdownButton,
+  PageActionsDropdown,
+} from "@/components/ui/page-actions";
 
 export default async function Page(props: {
   params: Promise<{ slug?: string[] }>;
@@ -27,10 +31,13 @@ export default async function Page(props: {
   });
 
   const path = `apps/docs/content/docs/${page.path}`;
+  const markdownUrl = `${page.url}.mdx`;
+  const githubUrl = `https://github.com/assistant-ui/assistant-ui/blob/main/${path}`;
+  const githubEditUrl = `https://github.com/assistant-ui/assistant-ui/edit/main/${path}`;
 
   const footer = (
     <a
-      href={`https://github.com/assistant-ui/assistant-ui/blob/main/${path}`}
+      href={githubEditUrl}
       target="_blank"
       rel="noreferrer noopener"
       className={cn(
@@ -54,6 +61,16 @@ export default async function Page(props: {
     >
       <DocsBody>
         <h1>{page.data.title}</h1>
+        <div className="not-prose mb-6 flex gap-2">
+          <CopyMarkdownButton markdownUrl={markdownUrl} />
+          <PageActionsDropdown
+            markdownUrl={markdownUrl}
+            githubUrl={githubUrl}
+          />
+        </div>
+        {page.data.description && (
+          <p className="mb-4 text-muted-foreground">{page.data.description}</p>
+        )}
         <DocsRuntimeProvider>
           <page.data.body components={mdxComponents} />
         </DocsRuntimeProvider>
