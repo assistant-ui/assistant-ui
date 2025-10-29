@@ -79,8 +79,8 @@ export const useExternalHistory = <TMessage,>(
           const branchedMessages = tempRepo.getMessages();
 
           // Extract original UIMessages - metadata is preserved via symbolInnerMessage
-          const uiMessages = branchedMessages.map((threadMsg) =>
-            getExternalStoreMessages<TMessage>(threadMsg)[0]!
+          const uiMessages = branchedMessages.map(
+            (threadMsg) => getExternalStoreMessages<TMessage>(threadMsg)[0]!,
           );
 
           onSetMessagesRef.current(uiMessages);
@@ -134,9 +134,14 @@ export const useExternalHistory = <TMessage,>(
             getExternalStoreMessages<TMessage>(message)[0]!;
 
           // Write durations to UIMessage.metadata for persistence
-          if (message.role === 'assistant' && message.metadata?.custom?.['reasoningDurations']) {
-            const durations = message.metadata.custom['reasoningDurations'] as Record<string, number>;
-            
+          if (
+            message.role === "assistant" &&
+            message.metadata?.custom?.["reasoningDurations"]
+          ) {
+            const durations = message.metadata.custom[
+              "reasoningDurations"
+            ] as Record<string, number>;
+
             // Enhance UIMessage with metadata using AI SDK v5's native field
             const enhancedMessage: TMessage = {
               ...originalUIMessage,
