@@ -24,24 +24,42 @@ The reasoning duration feature determines how long an assistant message spent �
 ## Current Architecture (October 2025)
 
 ```
-AI SDK stream → useAISDKRuntime state → AISDKMessageConverter → aiSDKFormatAdapter → persistence → reload
+AI SDK stream → useAISDKRuntime state → AISDKMessageConverter → metadata.custom → aiSDKFormatAdapter → persistence → reload
 ```
 
-1. **Runtime timing state**
-   - `useAISDKRuntime.tsx` records start/end timestamps per reasoning part (`reasoningTimings`).
-   - When a part transitions to `state: "done"`, the runtime computes the final duration (seconds), clamps it to a minimum of one second, and writes it to both `reasoningDurations` and the live AI SDK message in the same effect cycle. This avoids losing data if the component unmounts before React flushes another pass.
-   - Keys follow the `messageId:itemId` (or index) pattern so merged reasoning blocks share a single entry.
+### Clean Separation: No providerMetadata Pollution
 
-2. **Converter responsibilities**
-   - `convertMessage.ts` reads `metadata.reasoningDurations` to obtain the finished value.
-   - If runtime data is unavailable (e.g., loading historical messages), it falls back to `providerMetadata['assistant-ui'].duration` without overwriting the stored metadata.
-   - The converter remains a pure transformer: it returns the duration for UI consumption but does not mutate the underlying message object.
+The duration tracking now uses a clean architecture that **never touches providerMetadata**:
 
-3. **Format adapter**
-   - `aiSDKFormatAdapter.ts` merges reasoning parts by `itemId`, strips unsupported metadata (recursively removing encrypted blobs), and preserves the injected duration when saving to the cloud.
+1. **Runtime timing state** (`useAISDKRuntime.tsx`)
+   - Records start/end timestamps per reasoning part in local state (`reasoningTimings`)
+   - When a part transitions to `state: "done"`, computes final duration (seconds), clamped to minimum 1 second
+   - Stores in `reasoningDurations` map with keys `messageId:itemId` (or index)
+   - **Does NOT write to AI SDK messages** - state is kept separate
 
-4. **Reload path**
-   - On page refresh, history loading returns messages containing the stored duration. Runtime timing state starts empty; the converter picks up the persisted value and the UI shows the correct number of seconds.
+2. **Message conversion** (`convertMessage.ts`)
+   - Receives `reasoningDurations` via converter metadata parameter
+   - Creates `ThreadMessage` with `metadata.custom.reasoningDurations`
+   - Reads duration in this priority order:
+     1. Runtime state (active streaming)
+     2. `__assistant_ui_metadata.reasoningDurations` (reloaded from storage)
+   - Returns `ReasoningMessagePart` with clean `duration` field
+
+3. **Storage preparation** (`useExternalHistory.tsx`)
+   - Before storage, extracts `metadata.custom.reasoningDurations` from ThreadMessage
+   - Attaches to UIMessage as `__assistant_ui_metadata` (temporary bridge field)
+   - This allows the storage adapter to access assistant-ui data without polluting AI SDK types
+
+4. **Format adapter** (`aiSDKFormatAdapter.ts`)
+   - Encodes: Extracts `__assistant_ui_metadata` from UIMessage → stores in `AISDKStorageFormat.__assistant_ui_metadata`
+   - Decodes: Restores `__assistant_ui_metadata` to UIMessage for converter to read
+   - Merges reasoning parts by `itemId`, strips encrypted metadata
+   - **Storage format**: `{ ...uiMessage, __assistant_ui_metadata: { reasoningDurations } }`
+
+5. **Reload path**
+   - Storage returns messages with `__assistant_ui_metadata.reasoningDurations`
+   - Converter reads from this field (runtime state is empty)
+   - UI displays the persisted duration
 
 ## Key Lessons Learned
 
