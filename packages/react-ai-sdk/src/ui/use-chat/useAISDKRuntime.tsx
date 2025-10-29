@@ -23,7 +23,12 @@ import {
   aiSDKV5FormatAdapter,
 } from "../adapters/aiSDKFormatAdapter";
 import { useExternalHistory } from "./useExternalHistory";
-import { getItemId, normalizeDuration } from "../utils/providerMetadata";
+import {
+  createReasoningOrdinalContext,
+  makeReasoningRuntimeKey,
+  normalizeDuration,
+  sanitizeHistoryForOutbound,
+} from "../utils/reasoning";
 
 export type AISDKRuntimeAdapter = {
   adapters?:
@@ -64,34 +69,39 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     let changed = false;
 
     helperMessages.forEach((message) => {
-      if (message.role !== "assistant") return;
+      if (message.role !== "assistant" || !message.id) return;
+
+      const messageId = message.id;
+      // Group reasoning chunks so duration timers follow the same ordinal keys as storage.
+      const ordinalContext = createReasoningOrdinalContext();
 
       message.parts?.forEach((part, partIndex) => {
         if (part.type !== "reasoning") return;
 
-        const itemId = getItemId(part);
-        const key = itemId || `part-${partIndex}`;
+        const { ordinal } = ordinalContext.getOrdinal(part, partIndex);
+        const runtimeKey = makeReasoningRuntimeKey(messageId, ordinal);
 
-        // Start timing when reasoning begins
-        if (part.state === "streaming" && !nextTimings.has(key)) {
-          nextTimings.set(key, { start: Date.now() });
+        if (part.state === "streaming" && !nextTimings.has(runtimeKey)) {
+          nextTimings.set(runtimeKey, { start: Date.now() });
           changed = true;
         }
 
-        // Finalize duration when done
         if (part.state === "done") {
-          const timing = nextTimings.get(key) || { start: Date.now() };
+          const timing = nextTimings.get(runtimeKey) || { start: Date.now() };
           const end = timing.end || Date.now();
           const elapsed = end - timing.start;
           const duration = normalizeDuration(Math.ceil(elapsed / 1000));
 
-          if (duration !== undefined && nextDurations[key] !== duration) {
-            nextDurations[key] = duration;
+          if (
+            duration !== undefined &&
+            nextDurations[runtimeKey] !== duration
+          ) {
+            nextDurations[runtimeKey] = duration;
             changed = true;
           }
 
           if (!timing.end) {
-            nextTimings.set(key, { ...timing, end });
+            nextTimings.set(runtimeKey, { ...timing, end });
             changed = true;
           }
         }
@@ -187,7 +197,8 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         chatHelpers.messages,
         message.parentId,
       );
-      chatHelpers.setMessages(newMessages);
+      const sanitized = sanitizeHistoryForOutbound(newMessages);
+      chatHelpers.setMessages(sanitized);
 
       const createMessage = toCreateMessage<UI_MESSAGE>(message);
       await chatHelpers.sendMessage(createMessage, {
@@ -196,7 +207,8 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     },
     onReload: async (parentId: string | null, config) => {
       const newMessages = sliceMessagesUntil(chatHelpers.messages, parentId);
-      chatHelpers.setMessages(newMessages);
+      const sanitized = sanitizeHistoryForOutbound(newMessages);
+      chatHelpers.setMessages(sanitized);
 
       await chatHelpers.regenerate({ metadata: config.runConfig });
     },

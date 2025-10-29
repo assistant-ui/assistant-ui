@@ -6,11 +6,12 @@ import {
 } from "@assistant-ui/react";
 import {
   filterMessageParts,
+  getItemId,
   groupReasoningParts,
   mergeReasoningGroupText,
   sanitizeProviderMetadata,
-} from "../utils/providerMetadata";
-import { getItemId } from "../utils/providerMetadata";
+  stripItemIdFromProviderMetadata,
+} from "../utils/reasoning";
 
 /**
  * Storage format for AI SDK v5 messages.
@@ -47,6 +48,7 @@ export const aiSDKV5FormatAdapter: MessageFormatAdapter<
         return null;
       }
 
+      // Merge text for reasoning parts that share the same provider itemId
       return {
         ...group.parts[0],
         text: mergeReasoningGroupText(group),
@@ -60,14 +62,15 @@ export const aiSDKV5FormatAdapter: MessageFormatAdapter<
         if (!part.providerMetadata) return part;
 
         const sanitized = sanitizeProviderMetadata(part.providerMetadata);
-        if (!sanitized) {
+        const withoutItemId = stripItemIdFromProviderMetadata(sanitized);
+        if (!withoutItemId) {
           const { providerMetadata: _removed, ...rest } = part;
           return rest;
         }
 
         return {
           ...part,
-          providerMetadata: sanitized,
+          providerMetadata: withoutItemId,
         };
       });
 
