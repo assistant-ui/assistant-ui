@@ -3,7 +3,7 @@
 import type { ReasoningMessagePartComponent } from "@assistant-ui/react";
 import { TextMessagePartProvider } from "@assistant-ui/react";
 import { BrainIcon, ChevronDownIcon } from "lucide-react";
-import { memo, useState, useRef, type RefObject } from "react";
+import { memo, useRef, useState, type RefObject } from "react";
 
 import {
   Collapsible,
@@ -99,21 +99,21 @@ const ReasoningComponent: ReasoningMessagePartComponent = ({
     >
       <CollapsibleTrigger
         className={cn(
-          "aui-reasoning-trigger flex w-full items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground",
+          "aui-reasoning-trigger -mb-2 flex w-full items-center gap-2 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground",
         )}
       >
         <BrainIcon className="size-4" />
-        <p>{getThinkingMessage(isStreaming, duration)}</p>
+        {getThinkingMessage(isStreaming, duration)}
         <ChevronDownIcon
           className={cn(
-            "size-4 transition-transform",
-            isOpen ? "rotate-180" : "rotate-0",
+            "size-4 transition-transform ease-out",
+            isOpen ? "rotate-0" : "-rotate-90",
           )}
         />
       </CollapsibleTrigger>
       <CollapsibleContent
         className={cn(
-          "aui-reasoning-content overflow-hidden text-sm text-muted-foreground outline-none",
+          "aui-reasoning-content relative overflow-hidden text-sm text-muted-foreground outline-none",
           "group/collapsible-content",
           "data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down",
           "data-[state=closed]:fill-mode-forwards",
@@ -122,20 +122,31 @@ const ReasoningComponent: ReasoningMessagePartComponent = ({
       >
         <div
           className={cn(
-            "aui-reasoning-text pt-4 leading-relaxed",
-            "transform-gpu transition-all duration-200 ease-out",
+            "aui-reasoning-text relative z-0 pt-4 pl-6 leading-relaxed",
+            "transform-gpu transition-[transform,opacity] ease-out",
             "group-data-[state=open]/collapsible-content:animate-in",
             "group-data-[state=closed]/collapsible-content:animate-out",
             "group-data-[state=open]/collapsible-content:fade-in-0",
             "group-data-[state=closed]/collapsible-content:fade-out-0",
-            "group-data-[state=open]/collapsible-content:zoom-in-95",
-            "group-data-[state=closed]/collapsible-content:zoom-out-95",
+            "group-data-[state=open]/collapsible-content:slide-in-from-top-6",
+            "group-data-[state=closed]/collapsible-content:slide-out-to-top-6",
           )}
         >
           <TextMessagePartProvider text={text} isRunning={isStreaming}>
             <MarkdownText />
           </TextMessagePartProvider>
         </div>
+        <div
+          className={cn(
+            "aui-reasoning-fade pointer-events-none absolute inset-x-0 bottom-0 z-10 h-16",
+            "bg-[linear-gradient(to_top,var(--color-background),transparent)]",
+            "animate-in fade-in-0",
+            "group-data-[state=open]/collapsible-content:animate-out",
+            "group-data-[state=open]/collapsible-content:fade-out-0",
+            "group-data-[state=open]/collapsible-content:delay-150",
+            "group-data-[state=open]/collapsible-content:fill-mode-forwards",
+          )}
+        />
       </CollapsibleContent>
     </Collapsible>
   );
