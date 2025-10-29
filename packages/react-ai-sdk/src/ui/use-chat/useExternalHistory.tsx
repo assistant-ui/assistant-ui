@@ -69,16 +69,21 @@ export const useExternalHistory = <TMessage,>(
           .withFormat?.(storageFormatAdapter)
           .load();
         if (repo && repo.messages.length > 0) {
+          // Convert to ThreadMessages and import (enables branching)
           const converted = toExportedMessageRepository(toThreadMessages, repo);
           runtimeRef.current.thread.import(converted);
 
+          // Use MessageRepository to compute the correct branch
           const tempRepo = new MessageRepository();
           tempRepo.import(converted);
-          const messages = tempRepo.getMessages();
+          const branchedMessages = tempRepo.getMessages();
 
-          onSetMessagesRef.current(
-            messages.map(getExternalStoreMessages<TMessage>).flat(),
+          // Extract original UIMessages - metadata is preserved via symbolInnerMessage
+          const uiMessages = branchedMessages.map((threadMsg) =>
+            getExternalStoreMessages<TMessage>(threadMsg)[0]!
           );
+
+          onSetMessagesRef.current(uiMessages);
 
           historyIds.current = new Set(
             converted.messages.map((m) => m.message.id),
@@ -125,10 +130,32 @@ export const useExternalHistory = <TMessage,>(
           historyIds.current.add(message.id);
 
           const parentId = i > 0 ? messages[i - 1]!.id : null;
-          await historyAdapter?.withFormat?.(storageFormatAdapter).append({
-            parentId,
-            message: getExternalStoreMessages<TMessage>(message)[0]!,
-          });
+          const originalUIMessage =
+            getExternalStoreMessages<TMessage>(message)[0]!;
+
+          // Write durations to UIMessage.metadata for persistence
+          if (message.role === 'assistant' && message.metadata?.custom?.['reasoningDurations']) {
+            const durations = message.metadata.custom['reasoningDurations'] as Record<string, number>;
+            
+            // Enhance UIMessage with metadata using AI SDK v5's native field
+            const enhancedMessage: TMessage = {
+              ...originalUIMessage,
+              metadata: {
+                ...(originalUIMessage as any).metadata,
+                reasoningDurations: durations,
+              },
+            } as TMessage;
+
+            await historyAdapter?.withFormat?.(storageFormatAdapter).append({
+              parentId,
+              message: enhancedMessage,
+            });
+          } else {
+            await historyAdapter?.withFormat?.(storageFormatAdapter).append({
+              parentId,
+              message: originalUIMessage,
+            });
+          }
         }
       }
     });

@@ -15,6 +15,7 @@ import {
   normalizeDuration,
 } from "./providerMetadata";
 
+
 /**
  * Strips AI SDK's fix-json closing delimiters during streaming.
  * Example: {"query":"sea"} → {"query":"sea
@@ -23,40 +24,21 @@ function stripClosingDelimiters(json: string) {
   return json.replace(/[}\]"]+$/, "");
 }
 
-const getReasoningDurations = (
-  metadata: useExternalMessageConverter.Metadata,
-): Record<string, number> | undefined => {
-  if (
-    metadata &&
-    typeof metadata === "object" &&
-    "reasoningDurations" in metadata
-  ) {
-    const durations = metadata.reasoningDurations;
-    if (
-      durations &&
-      typeof durations === "object" &&
-      !Array.isArray(durations)
-    ) {
-      return durations as Record<string, number>;
-    }
-  }
-  return undefined;
-};
-
-const extractProviderDuration = (
-  providerMetadata: Record<string, unknown> | undefined,
+/**
+ * Retrieves reasoning duration from UIMessage metadata.
+ *
+ * Uses AI SDK v5's native metadata field (generic type parameter).
+ * Metadata persists naturally through storage via symbolInnerMessage.
+ *
+ * @param message - UIMessage with metadata
+ * @param partId - Part identifier (itemId or part-index)
+ * @returns Duration in seconds, or undefined if not found
+ */
+const getReasoningDuration = (
+  message: UIMessage,
+  partId: string,
 ): number | undefined => {
-  if (!providerMetadata || typeof providerMetadata !== "object") {
-    return undefined;
-  }
-
-  const assistantUi = providerMetadata["assistant-ui"];
-  if (!assistantUi || typeof assistantUi !== "object") {
-    return undefined;
-  }
-
-  const duration = (assistantUi as Record<string, unknown>)["duration"];
-  return typeof duration === "number" ? duration : undefined;
+  return (message as any).metadata?.reasoningDurations?.[partId];
 };
 
 const convertParts = (
@@ -70,16 +52,20 @@ const convertParts = (
   const parts = filterMessageParts(message.parts);
   const reasoningGroups = groupReasoningParts(parts, getItemId);
 
-  const resolveDuration = (
-    key: string,
-    providerDuration: number | undefined,
-  ) => {
-    const runtimeDuration = normalizeDuration(
-      getReasoningDurations(metadata)?.[key],
-    );
-    const sanitizedProvider = normalizeDuration(providerDuration);
+  const resolveDuration = (key: string) => {
+    // Priority 1: Runtime state (during active streaming)
+    // This is passed via metadata parameter from useAISDKRuntime
+    if (metadata && typeof metadata === 'object' && 'reasoningDurations' in metadata) {
+      const duration = (metadata as any).reasoningDurations?.[key];
+      if (duration !== undefined) {
+        return normalizeDuration(duration);
+      }
+    }
 
-    return runtimeDuration ?? sanitizedProvider;
+    // Priority 2: UIMessage.metadata (after reload from storage)
+    // Metadata persists via symbolInnerMessage and is written on save
+    const duration = getReasoningDuration(message, key);
+    return normalizeDuration(duration);
   };
 
   return parts
@@ -108,13 +94,12 @@ const convertParts = (
             return null;
           }
 
-          const key = `${message.id}:${itemId}`;
-          const providerDuration = extractProviderDuration(
-            group.parts[0]?.providerMetadata as
-              | Record<string, unknown>
-              | undefined,
-          );
-          const resolvedDuration = resolveDuration(key, providerDuration);
+          // Use message-relative key (itemId only)
+          // We don't include message.id because it changes after cloud persistence:
+          // - Client: "temp-abc" → Server: "msg-xyz-123"
+          // - Using message.id would break duration lookups after reload
+          const key = itemId;
+          const resolvedDuration = resolveDuration(key);
 
           return {
             type: "reasoning",
@@ -125,11 +110,10 @@ const convertParts = (
           } satisfies ReasoningMessagePart;
         }
 
-        const key = `${message.id}:${partIndex}`;
-        const providerDuration = extractProviderDuration(
-          part.providerMetadata as Record<string, unknown> | undefined,
-        );
-        const resolvedDuration = resolveDuration(key, providerDuration);
+        // Fallback: Use part index as key
+        // This handles reasoning parts without itemId in providerMetadata
+        const key = `part-${partIndex}`;
+        const resolvedDuration = resolveDuration(key);
 
         return {
           type: "reasoning",
@@ -325,7 +309,12 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
               : (message as any).data
                 ? [(message as any).data]
                 : undefined,
-            custom: {},
+            // Store runtime durations in custom metadata for save flow to access
+            custom: {
+              ...((metadata as any)?.reasoningDurations && {
+                reasoningDurations: (metadata as any).reasoningDurations,
+              }),
+            },
           },
         };
 

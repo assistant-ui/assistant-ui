@@ -12,7 +12,10 @@ import {
 } from "../utils/providerMetadata";
 import { getItemId } from "../utils/providerMetadata";
 
-// Storage format for AI SDK messages - just the UIMessage
+/**
+ * Storage format for AI SDK v5 messages.
+ * Uses native UIMessage type with metadata field for app-level data.
+ */
 export type AISDKStorageFormat = Omit<UIMessage, "id">;
 
 export const aiSDKV5FormatAdapter: MessageFormatAdapter<
@@ -69,7 +72,7 @@ export const aiSDKV5FormatAdapter: MessageFormatAdapter<
       });
 
     return {
-      ...message,
+      ...message, // Includes metadata naturally
       parts: sanitizedParts,
     };
   },
@@ -81,8 +84,8 @@ export const aiSDKV5FormatAdapter: MessageFormatAdapter<
       parentId: stored.parent_id,
       message: {
         id: stored.id,
-        ...stored.content,
-      },
+        ...stored.content, // Includes metadata naturally
+      } as UIMessage,
     };
   },
 
