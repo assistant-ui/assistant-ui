@@ -52,7 +52,7 @@ export async function POST(req: Request) {
     messages,
   });
 
-  return result.toDataStreamResponse();
+  return result.toUIMessageStreamResponse();
 }
 ```
 
@@ -184,8 +184,8 @@ export async function POST(req: Request) {
   // Stream the response using the agent
   const result = await agent.stream(messages);
 
-  // Return the result as a data stream response
-  return result.toDataStreamResponse();
+  // Return the result as a UI message stream response
+  return result.toUIMessageStreamResponse();
 }
 ```
 
@@ -194,7 +194,7 @@ Key changes:
 - We import the `mastra` instance created in `mastra/index.ts`. Make sure the import path (`@/mastra`) is correct for your project setup (you might need `~/mastra`, `../../../mastra`, etc., depending on your path aliases and project structure).
 - We retrieve the `chefAgent` using `mastra.getAgent("chefAgent")`.
 - Instead of calling the AI SDK's `streamText` directly, we call `agent.stream(messages)` to process the chat messages using the agent's configuration and model.
-- The result is still returned in a format compatible with assistant-ui using `toDataStreamResponse()`.
+- The result is still returned in a format compatible with assistant-ui using `toUIMessageStreamResponse()`.
 
 Your API route is now powered by Mastra!
 
