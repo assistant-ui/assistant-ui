@@ -13,13 +13,6 @@ import {
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { cn } from "@/lib/utils";
 
-const getThinkingMessage = (isStreaming: boolean, duration?: number) =>
-  isStreaming
-    ? "Thinking..."
-    : duration
-      ? `Thought for ${duration > 2 ? `${duration} seconds` : `a moment`}`
-      : "Thought for a few seconds";
-
 /**
  * Locks scroll position during collapsible/height animations and hides scrollbar.
  *
@@ -74,7 +67,6 @@ const useScrollLock = <T extends HTMLElement>(
 const ReasoningComponent: ReasoningMessagePartComponent = ({
   text,
   status,
-  duration,
 }) => {
   const isStreaming = status.type === "running";
   const [isOpen, setIsOpen] = useState(false);
@@ -103,7 +95,7 @@ const ReasoningComponent: ReasoningMessagePartComponent = ({
         )}
       >
         <BrainIcon className="size-4" />
-        <p>{getThinkingMessage(isStreaming, duration)}</p>
+        <p>Reasoning</p>
         <ChevronDownIcon
           className={cn(
             "size-4 transition-transform",
