@@ -4,7 +4,7 @@ import { DocsPage, DocsBody } from "fumadocs-ui/page";
 import { notFound } from "next/navigation";
 import { getMDXComponents } from "@/mdx-components";
 import { DocsRuntimeProvider } from "@/app/(home)/DocsRuntimeProvider";
-import { LLMCopyButton, AIActions } from "@/components/ai/page-actions";
+import { AIActions } from "@/components/ai/page-actions";
 export default async function Page(props: {
   params: Promise<{ slug?: string[] }>;
 }) {
@@ -21,8 +21,8 @@ export default async function Page(props: {
   const githubUrl = `https://github.com/assistant-ui/assistant-ui/blob/main/${path}`;
   const githubEditUrl = `https://github.com/assistant-ui/assistant-ui/edit/main/${path}`;
   const footer = (
-    <div className="flex flex-col gap-1.5">
-      <LLMCopyButton markdownUrl={markdownUrl} />
+    <div className="flex w-fit flex-col gap-2">
+      <div className="h-2"></div>
       <AIActions
         markdownUrl={markdownUrl}
         githubUrl={githubUrl}
