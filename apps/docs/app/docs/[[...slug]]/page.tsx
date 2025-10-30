@@ -4,7 +4,7 @@ import { DocsPage, DocsBody } from "fumadocs-ui/page";
 import { notFound } from "next/navigation";
 import { getMDXComponents } from "@/mdx-components";
 import { DocsRuntimeProvider } from "@/app/(home)/DocsRuntimeProvider";
-import { AIActions } from "@/components/ai/page-actions";
+import { PageActionsMenu } from "@/components/ai/page-actions";
 export default async function Page(props: {
   params: Promise<{ slug?: string[] }>;
 }) {
@@ -23,7 +23,7 @@ export default async function Page(props: {
   const footer = (
     <div className="flex w-fit flex-col gap-2">
       <div className="h-2"></div>
-      <AIActions
+      <PageActionsMenu
         markdownUrl={markdownUrl}
         githubUrl={githubUrl}
         githubEditUrl={githubEditUrl}

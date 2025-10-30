@@ -113,7 +113,7 @@ export function LLMCopyButton({
   );
 }
 
-export function AIActions({
+export function PageActionsMenu({
   markdownUrl,
   githubUrl,
   githubEditUrl,
