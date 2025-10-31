@@ -87,6 +87,12 @@ export const useAssistantForm = <
         submit_form: tool({
           ...formTools.submit_form,
           execute: async () => {
+            if (form.formState.isSubmitting) {
+              return {
+                success: false,
+                message: "The form is already submitting.",
+              };
+            }
             const { _names, _fields } = control;
             for (const name of _names.mount) {
               const field = _fields[name];
