@@ -81,15 +81,13 @@ export const Reasoning = memo(ReasoningComponent);
 Reasoning.displayName = "Reasoning";
 
 /**
- * ReasoningGroup component - collapsible wrapper for reasoning parts.
- *
- * This component wraps reasoning parts (one or more consecutive) in a single collapsible container.
- * Each individual reasoning part inside renders its own text independently (no text merging).
+ * Collapsible wrapper for reasoning parts
  */
 const ReasoningGroupComponent: FC<PropsWithChildren> = ({ children }) => {
+  const ANIMATION_DURATION = 200;
   const collapsibleRef = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
-  const lockScroll = useScrollLock(collapsibleRef, 200);
+  const lockScroll = useScrollLock(collapsibleRef, ANIMATION_DURATION);
 
   const lockScrollWhenClosing = (open: boolean) => {
     if (!open) {
@@ -104,44 +102,73 @@ const ReasoningGroupComponent: FC<PropsWithChildren> = ({ children }) => {
       className="aui-reasoning-root mb-4 w-full"
       open={isOpen}
       onOpenChange={lockScrollWhenClosing}
+      style={
+        {
+          "--reasoning-duration": `${ANIMATION_DURATION}ms`,
+        } as React.CSSProperties
+      }
     >
       <CollapsibleTrigger
         className={cn(
-          "aui-reasoning-trigger flex w-full items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground",
+          "aui-reasoning-trigger -mb-2 flex w-full items-center gap-2 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground",
         )}
       >
         <BrainIcon className="size-4" />
         <p>Reasoning</p>
         <ChevronDownIcon
           className={cn(
-            "size-4 transition-transform",
-            isOpen ? "rotate-180" : "rotate-0",
+            "size-4 transition-transform duration-(--reasoning-duration) ease-out",
+            isOpen ? "rotate-0" : "-rotate-90",
           )}
         />
       </CollapsibleTrigger>
       <CollapsibleContent
         className={cn(
-          "aui-reasoning-content overflow-hidden text-sm text-muted-foreground outline-none",
-          "group/collapsible-content",
-          "data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down",
+          "aui-reasoning-content relative overflow-hidden text-sm text-muted-foreground outline-none",
+          "group/collapsible-content ease-out",
+          "data-[state=closed]:animate-collapsible-up",
+          "data-[state=open]:animate-collapsible-down",
           "data-[state=closed]:fill-mode-forwards",
           "data-[state=closed]:pointer-events-none",
+
+          "data-[state=open]:duration-(--reasoning-duration)",
+          "data-[state=closed]:duration-(--reasoning-duration)",
         )}
       >
         <div
           className={cn(
-            "aui-reasoning-text space-y-2 pt-4 leading-relaxed",
-            "transform-gpu transition-all duration-200 ease-out",
+            "aui-reasoning-text relative z-0 space-y-4 pt-4 pl-6 leading-relaxed [&_p]:-mb-2",
+            "transform-gpu transition-[transform,opacity]",
             "group-data-[state=open]/collapsible-content:animate-in",
             "group-data-[state=closed]/collapsible-content:animate-out",
             "group-data-[state=open]/collapsible-content:fade-in-0",
             "group-data-[state=closed]/collapsible-content:fade-out-0",
-            "group-data-[state=open]/collapsible-content:zoom-in-95",
-            "group-data-[state=closed]/collapsible-content:zoom-out-95",
+
+            "group-data-[state=open]/collapsible-content:slide-in-from-top-6",
+
+            // higher value gets inner text too close to root element when closing, I think this matches opening slide in spacing better
+            "group-data-[state=closed]/collapsible-content:slide-out-to-top-3",
+
+            "group-data-[state=open]/collapsible-content:duration-(--reasoning-duration)",
+            "group-data-[state=closed]/collapsible-content:duration-(--reasoning-duration)",
           )}
         >
           {children}
         </div>
+        <div
+          className={cn(
+            "aui-reasoning-fade pointer-events-none absolute inset-x-0 bottom-0 z-10 h-16",
+            "bg-[linear-gradient(to_top,var(--color-background),transparent)]",
+            "animate-in fade-in-0",
+            "group-data-[state=open]/collapsible-content:animate-out",
+            "group-data-[state=open]/collapsible-content:fade-out-0",
+            "group-data-[state=open]/collapsible-content:delay-[calc(var(--reasoning-duration)*0.75)]", // calculate delay based on duration
+            "group-data-[state=open]/collapsible-content:fill-mode-forwards",
+
+            "duration-(--reasoning-duration)",
+            "group-data-[state=open]/collapsible-content:duration-(--reasoning-duration)",
+          )}
+        />
       </CollapsibleContent>
     </Collapsible>
   );
