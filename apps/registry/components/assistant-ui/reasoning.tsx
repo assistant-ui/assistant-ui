@@ -1,9 +1,15 @@
 "use client";
 
-import type { ReasoningMessagePartComponent } from "@assistant-ui/react";
-import { TextMessagePartProvider } from "@assistant-ui/react";
+import { type ReasoningMessagePartComponent } from "@assistant-ui/react";
 import { BrainIcon, ChevronDownIcon } from "lucide-react";
-import { memo, useState, useRef, type RefObject } from "react";
+import {
+  memo,
+  useState,
+  useRef,
+  type RefObject,
+  type FC,
+  type PropsWithChildren,
+} from "react";
 
 import {
   Collapsible,
@@ -23,7 +29,7 @@ import { cn } from "@/lib/utils";
  * @param animationDuration - Lock duration in milliseconds
  * @returns Function to activate the scroll lock
  */
-const useScrollLock = <T extends HTMLElement>(
+const useScrollLock = <T extends HTMLElement = HTMLElement>(
   animatedElementRef: RefObject<T | null>,
   animationDuration: number,
 ) => {
@@ -64,18 +70,28 @@ const useScrollLock = <T extends HTMLElement>(
   return lockScroll;
 };
 
-const ReasoningComponent: ReasoningMessagePartComponent = ({
-  text,
-  status,
-}) => {
-  const isStreaming = status.type === "running";
-  const [isOpen, setIsOpen] = useState(false);
-  const collapsibleRef = useRef<HTMLDivElement>(null);
+/**
+ * Renders a single reasoning part's text, consecutive parts are grouped as children of ReasoningGroup collapsible.
+ */
+const ReasoningComponent: ReasoningMessagePartComponent = () => {
+  return <MarkdownText />;
+};
 
-  // Prevent scroll jump when collapsing makes page shorter than viewport
+export const Reasoning = memo(ReasoningComponent);
+Reasoning.displayName = "Reasoning";
+
+/**
+ * ReasoningGroup component - collapsible wrapper for reasoning parts.
+ *
+ * This component wraps reasoning parts (one or more consecutive) in a single collapsible container.
+ * Each individual reasoning part inside renders its own text independently (no text merging).
+ */
+const ReasoningGroupComponent: FC<PropsWithChildren> = ({ children }) => {
+  const collapsibleRef = useRef<HTMLDivElement>(null);
+  const [isOpen, setIsOpen] = useState(false);
   const lockScroll = useScrollLock(collapsibleRef, 200);
 
-  const handleOpenChange = (open: boolean) => {
+  const lockScrollWhenClosing = (open: boolean) => {
     if (!open) {
       lockScroll();
     }
@@ -85,9 +101,9 @@ const ReasoningComponent: ReasoningMessagePartComponent = ({
   return (
     <Collapsible
       ref={collapsibleRef}
-      className={cn("aui-reasoning-root mb-4 w-full")}
+      className="aui-reasoning-root mb-4 w-full"
       open={isOpen}
-      onOpenChange={handleOpenChange}
+      onOpenChange={lockScrollWhenClosing}
     >
       <CollapsibleTrigger
         className={cn(
@@ -114,7 +130,7 @@ const ReasoningComponent: ReasoningMessagePartComponent = ({
       >
         <div
           className={cn(
-            "aui-reasoning-text pt-4 leading-relaxed",
+            "aui-reasoning-text space-y-2 pt-4 leading-relaxed",
             "transform-gpu transition-all duration-200 ease-out",
             "group-data-[state=open]/collapsible-content:animate-in",
             "group-data-[state=closed]/collapsible-content:animate-out",
@@ -124,14 +140,12 @@ const ReasoningComponent: ReasoningMessagePartComponent = ({
             "group-data-[state=closed]/collapsible-content:zoom-out-95",
           )}
         >
-          <TextMessagePartProvider text={text} isRunning={isStreaming}>
-            <MarkdownText />
-          </TextMessagePartProvider>
+          {children}
         </div>
       </CollapsibleContent>
     </Collapsible>
   );
 };
 
-export const Reasoning = memo(ReasoningComponent);
-Reasoning.displayName = "Reasoning";
+export const ReasoningGroup = memo(ReasoningGroupComponent);
+ReasoningGroup.displayName = "ReasoningGroup";
