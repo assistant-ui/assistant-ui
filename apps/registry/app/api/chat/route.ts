@@ -1,3 +1,5 @@
+// @assistant-ui/registry ai-sdk-backend@0.1
+
 import { openai } from "@ai-sdk/openai";
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
 import { convertToModelMessages, streamText } from "ai";

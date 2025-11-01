@@ -1,3 +1,5 @@
+// @assistant-ui/registry threadlist-sidebar@1.0
+
 import * as React from "react";
 import { Github, MessagesSquare } from "lucide-react";
 import Link from "next/link";

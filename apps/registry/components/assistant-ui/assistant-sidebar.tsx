@@ -1,3 +1,5 @@
+// @assistant-ui/registry assistant-sidebar@1.0
+
 import {
   ResizableHandle,
   ResizablePanel,

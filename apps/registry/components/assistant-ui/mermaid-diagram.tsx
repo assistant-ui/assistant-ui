@@ -1,3 +1,5 @@
+// @assistant-ui/registry mermaid-diagram@1.0
+
 "use client";
 
 import { useMessagePart } from "@assistant-ui/react";

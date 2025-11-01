@@ -1,3 +1,5 @@
+// @assistant-ui/registry markdown-text@1.0
+
 "use client";
 
 import "@assistant-ui/react-markdown/styles/dot.css";

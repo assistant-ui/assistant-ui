@@ -1,3 +1,5 @@
+// @assistant-ui/registry follow-up-suggestions@1.0
+
 "use client";
 
 import { useThread, ThreadPrimitive } from "@assistant-ui/react";

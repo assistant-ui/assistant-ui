@@ -1,3 +1,5 @@
+// @assistant-ui/registry attachment@1.0
+
 "use client";
 
 import { PropsWithChildren, useEffect, useState, type FC } from "react";

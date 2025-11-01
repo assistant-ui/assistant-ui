@@ -1,3 +1,5 @@
+// @assistant-ui/registry tooltip-icon-button@1.0
+
 "use client";
 
 import { ComponentPropsWithRef, forwardRef } from "react";

@@ -1,3 +1,5 @@
+// @assistant-ui/registry chat/b/ai-sdk-quick-start/json@0.1
+
 "use client";
 
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
