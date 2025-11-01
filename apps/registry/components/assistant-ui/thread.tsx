@@ -1,3 +1,5 @@
+// @assistant-ui/registry thread@1.0
+
 import {
   ArrowDownIcon,
   ArrowUpIcon,

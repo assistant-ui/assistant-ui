@@ -1,3 +1,5 @@
+// @assistant-ui/registry syntax-highlighter@0.1
+
 import { PrismAsyncLight } from "react-syntax-highlighter";
 import { makePrismAsyncLightSyntaxHighlighter } from "@assistant-ui/react-syntax-highlighter";
 

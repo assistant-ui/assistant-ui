@@ -1,3 +1,5 @@
+// @assistant-ui/registry shiki-highlighter@1.0
+
 "use client";
 
 import { FC } from "react";

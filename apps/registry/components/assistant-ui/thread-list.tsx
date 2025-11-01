@@ -1,3 +1,5 @@
+// @assistant-ui/registry thread-list@1.0
+
 import type { FC } from "react";
 import {
   ThreadListItemPrimitive,

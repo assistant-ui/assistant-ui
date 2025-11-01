@@ -1,3 +1,5 @@
+// @assistant-ui/registry assistant-modal@1.0
+
 "use client";
 
 import { BotIcon, ChevronDownIcon } from "lucide-react";
