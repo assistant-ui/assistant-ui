@@ -1,7 +1,12 @@
 import { Unsubscribe } from "@assistant-ui/tap";
+import type { ComponentType, ReactNode } from "react";
 import { ToolCallMessagePartComponent } from "../../types";
 
-export type ToolUIState = Record<string, ToolCallMessagePartComponent[]>;
+export type ToolUIState = {
+  tools: Record<string, ToolCallMessagePartComponent[]>;
+  fallback: ToolCallMessagePartComponent[];
+  layout: ComponentType<{ children: ReactNode }>[];
+};
 
 export type ToolUIApi = {
   getState(): ToolUIState;
@@ -10,6 +15,10 @@ export type ToolUIApi = {
     toolName: string,
     render: ToolCallMessagePartComponent,
   ): Unsubscribe;
+
+  setFallbackToolUI(render: ToolCallMessagePartComponent): Unsubscribe;
+
+  setToolUILayout(render: ComponentType<{ children: ReactNode }>): Unsubscribe;
 };
 
 export type ToolUIMeta = {

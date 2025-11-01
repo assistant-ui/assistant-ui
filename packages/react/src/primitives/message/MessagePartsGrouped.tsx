@@ -221,8 +221,9 @@ const ToolUIDisplay = ({
   Fallback: ToolCallMessagePartComponent | undefined;
 } & ToolCallMessagePartProps) => {
   const Render = useAssistantState(({ toolUIs }) => {
-    const Render = toolUIs[props.toolName] ?? Fallback;
-    if (Array.isArray(Render)) return Render[0];
+    const Render =
+      toolUIs.tools[props.toolName] ?? toolUIs.fallback ?? Fallback;
+    if (Array.isArray(Render)) return Render[0] ?? Fallback;
     return Render;
   });
   if (!Render) return null;

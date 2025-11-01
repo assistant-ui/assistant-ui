@@ -5,7 +5,7 @@ import { AssistantProvider } from "../context/react/AssistantApiContext";
 import { AssistantRuntime } from "./runtime/AssistantRuntime";
 import { AssistantRuntimeCore } from "./runtime-cores/core/AssistantRuntimeCore";
 import { useAssistantClient } from "../client/AssistantClient";
-import { ThreadListClient } from "./client/ThreadListRuntimeClient";
+import { RuntimeAdapter } from "./RuntimeAdapter";
 
 export namespace AssistantProvider {
   export type Props = PropsWithChildren<{
@@ -25,11 +25,7 @@ export const AssistantRuntimeProviderImpl: FC<AssistantProvider.Props> = ({
   runtime,
 }) => {
   const api = useAssistantClient({
-    threads: ThreadListClient({
-      runtime: runtime.threads,
-    }),
-    registerModelContextProvider: runtime.registerModelContextProvider,
-    __internal_runtime: runtime,
+    threads: RuntimeAdapter(runtime),
   });
 
   const RenderComponent = getRenderComponent(runtime);

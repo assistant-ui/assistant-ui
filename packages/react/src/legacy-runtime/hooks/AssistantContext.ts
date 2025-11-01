@@ -38,7 +38,7 @@ export function useAssistantRuntime(options?: {
   optional?: boolean | undefined;
 }) {
   const api = useAssistantApi();
-  const runtime = api.__internal_getRuntime?.() ?? null;
+  const runtime = api.threads().__internal_getAssistantRuntime?.() ?? null;
 
   if (!runtime && !options?.optional) {
     throw new Error("AssistantRuntime is not available");

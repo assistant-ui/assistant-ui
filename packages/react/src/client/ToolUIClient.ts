@@ -3,7 +3,11 @@ import { tapApi } from "../utils/tap-store";
 import { ToolUIState, ToolUIApi } from "./types/ToolUI";
 
 export const ToolUIClient = resource(() => {
-  const [state, setState] = tapState<ToolUIState>(() => ({}));
+  const [state, setState] = tapState<ToolUIState>(() => ({
+    tools: {},
+    fallback: [],
+    layout: [],
+  }));
 
   return tapApi<ToolUIApi>({
     getState: () => state,
@@ -12,7 +16,10 @@ export const ToolUIClient = resource(() => {
       setState((prev) => {
         return {
           ...prev,
-          [toolName]: [...(prev[toolName] ?? []), render],
+          tools: {
+            ...prev.tools,
+            [toolName]: [...(prev.tools[toolName] ?? []), render],
+          },
         };
       });
 
@@ -20,7 +27,47 @@ export const ToolUIClient = resource(() => {
         setState((prev) => {
           return {
             ...prev,
-            [toolName]: prev[toolName]?.filter((r) => r !== render) ?? [],
+            tools: {
+              ...prev.tools,
+              [toolName]:
+                prev.tools[toolName]?.filter((r) => r !== render) ?? [],
+            },
+          };
+        });
+      };
+    },
+
+    setFallbackToolUI: (render) => {
+      setState((prev) => {
+        return {
+          ...prev,
+          fallback: [...prev.fallback, render],
+        };
+      });
+
+      return () => {
+        setState((prev) => {
+          return {
+            ...prev,
+            fallback: prev.fallback.filter((r) => r !== render),
+          };
+        });
+      };
+    },
+
+    setToolUILayout: (render) => {
+      setState((prev) => {
+        return {
+          ...prev,
+          layout: [...prev.layout, render],
+        };
+      });
+
+      return () => {
+        setState((prev) => {
+          return {
+            ...prev,
+            layout: prev.layout.filter((r) => r !== render),
           };
         });
       };
