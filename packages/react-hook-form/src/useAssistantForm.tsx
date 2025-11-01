@@ -115,7 +115,7 @@ export const useAssistantForm = <
         }),
       },
     };
-    return api.registerModelContextProvider({
+    return api.modelContext().register({
       getModelContext: () => value,
     });
   }, [control, setValue, getValues, api]);

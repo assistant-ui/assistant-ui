@@ -33,7 +33,7 @@ export const useAssistantTool = <
         [toolName]: rest,
       },
     };
-    return api.registerModelContextProvider({
+    return api.modelContext().register({
       getModelContext: () => context,
     });
   }, [api, tool]);

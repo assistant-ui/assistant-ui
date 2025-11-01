@@ -50,6 +50,11 @@ import {
   AssistantClientProps,
   useAssistantClient,
 } from "../../client/AssistantClient";
+import { ToolsApi, ToolsMeta } from "../../client/types/Tools";
+import {
+  ModelContextApi,
+  ModelContextMeta,
+} from "../../client/types/ModelContext";
 
 export type AssistantState = {
   readonly threads: ThreadListClientState;
@@ -115,6 +120,8 @@ type AttachmentMeta = {
 export type AssistantApi = {
   threads: AssistantApiField<ThreadListClientApi, ThreadsMeta>;
   toolUIs: AssistantApiField<ToolUIApi, ToolUIMeta>;
+  tools: AssistantApiField<ToolsApi, ToolsMeta>;
+  modelContext: AssistantApiField<ModelContextApi, ModelContextMeta>;
   threadListItem: AssistantApiField<
     ThreadListItemClientApi,
     ThreadListItemMeta
@@ -168,6 +175,22 @@ const AssistantApiContext = createContext<AssistantApi>({
     query: {},
     get: (): never => {
       throw new Error("ToolUIs is only available inside <AssistantProvider />");
+    },
+  }),
+  tools: createAssistantApiField({
+    source: null,
+    query: {},
+    get: (): never => {
+      throw new Error("Tools is only available inside <AssistantProvider />");
+    },
+  }),
+  modelContext: createAssistantApiField({
+    source: null,
+    query: {},
+    get: (): never => {
+      throw new Error(
+        "ModelContext is only available inside <AssistantProvider />",
+      );
     },
   }),
   threadListItem: createAssistantApiField({

@@ -76,7 +76,7 @@ export const makeAssistantVisible = <T extends ComponentType<any>>(
 
       const { clickable, editable } = config ?? {};
       useEffect(() => {
-        return api.registerModelContextProvider({
+        return api.modelContext().register({
           getModelContext: () => {
             return {
               tools: {

@@ -27,7 +27,7 @@ export const useAssistantInstructions = (
     const config = {
       system: instruction,
     };
-    return api.registerModelContextProvider({
+    return api.modelContext().register({
       getModelContext: () => config,
     });
   }, [api, instruction, disabled]);

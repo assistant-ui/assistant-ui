@@ -13,4 +13,8 @@ export abstract class BaseAssistantRuntimeCore implements AssistantRuntimeCore {
   ): Unsubscribe {
     return this._contextProvider.registerModelContextProvider(provider);
   }
+
+  public getModelContextProvider(): ModelContextProvider {
+    return this._contextProvider;
+  }
 }

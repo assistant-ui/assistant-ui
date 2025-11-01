@@ -9,6 +9,7 @@ import {
   ThreadListClientState,
   ThreadListClientApi,
 } from "../../client/types/ThreadList";
+import type { AssistantRuntime } from "../runtime/AssistantRuntime";
 
 const ThreadListItemClientById = resource(
   ({ runtime, id }: { runtime: ThreadListRuntime; id: string }) => {
@@ -25,7 +26,13 @@ const ThreadListItemClientById = resource(
 );
 
 export const ThreadListClient = resource(
-  ({ runtime }: { runtime: ThreadListRuntime }) => {
+  ({
+    runtime,
+    __internal_assistantRuntime,
+  }: {
+    runtime: ThreadListRuntime;
+    __internal_assistantRuntime: AssistantRuntime;
+  }) => {
     const runtimeState = tapSubscribable(runtime);
 
     const main = tapInlineResource(
@@ -80,6 +87,8 @@ export const ThreadListClient = resource(
       switchToNewThread: () => {
         runtime.switchToNewThread();
       },
+
+      __internal_getAssistantRuntime: () => __internal_assistantRuntime,
     });
   },
 );
