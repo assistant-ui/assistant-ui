@@ -58,5 +58,8 @@
     "typescript": "^5.9.3",
     "zod": "^4.1.12",
     "zustand": "^5.0.8"
+  },
+  "dependencies": {
+    "@radix-ui/react-collapsible": "^1.1.12"
   }
 }
