@@ -7,25 +7,56 @@ import {
   type SourceMessagePart,
   type useExternalMessageConverter,
 } from "@assistant-ui/react";
+import {
+  filterMessageParts,
+  groupReasoningParts,
+  mergeReasoningGroupText,
+  getItemId,
+  createReasoningOrdinalContext,
+  resolveReasoningDuration,
+} from "./reasoning";
 
+/**
+ * Strips AI SDK's fix-json closing delimiters during streaming.
+ * Example: {"query":"sea"} → {"query":"sea
+ */
 function stripClosingDelimiters(json: string) {
   return json.replace(/[}\]"]+$/, "");
 }
 
+type ConvertedParts = {
+  parts: any[];
+  storedReasoningDurations: Record<string, number>;
+};
+
 const convertParts = (
   message: UIMessage,
   metadata: useExternalMessageConverter.Metadata,
-) => {
+): ConvertedParts => {
   if (!message.parts || message.parts.length === 0) {
-    return [];
+    return { parts: [], storedReasoningDurations: {} };
   }
 
-  return message.parts
-    .filter((p) => p.type !== "step-start" && p.type !== "file")
-    .map((part) => {
+  const filteredParts = filterMessageParts(message.parts);
+  const reasoningGroups = groupReasoningParts(filteredParts, getItemId);
+  const messageId = message.id ?? "unknown";
+
+  const runtimeDurations: Record<string, number> =
+    metadata && typeof metadata === "object" && "reasoningDurations" in metadata
+      ? (((metadata as any).reasoningDurations as Record<string, number>) ?? {})
+      : {};
+
+  const metadataDurations: Record<string, number> | undefined = (message as any)
+    .metadata?.reasoningDurations;
+
+  const storedReasoningDurations: Record<string, number> = {};
+  // Keeps ordinal mapping consistent with the runtime so stored durations line up.
+  const ordinalContext = createReasoningOrdinalContext();
+
+  const converted = filteredParts
+    .map((part, partIndex) => {
       const type = part.type;
 
-      // Handle text parts
       if (type === "text") {
         return {
           type: "text",
@@ -33,15 +64,58 @@ const convertParts = (
         } satisfies TextMessagePart;
       }
 
-      // Handle reasoning parts
       if (type === "reasoning") {
+        const { ordinal, itemId } = ordinalContext.getOrdinal(part, partIndex);
+
+        if (itemId) {
+          const group = reasoningGroups.get(itemId!);
+          if (!group) {
+            return null;
+          }
+
+          if (group.firstIndex !== partIndex) {
+            return null;
+          }
+
+          const { duration, storedKey } = resolveReasoningDuration(
+            runtimeDurations,
+            metadataDurations,
+            messageId,
+            ordinal,
+          );
+
+          if (duration !== undefined) {
+            storedReasoningDurations[storedKey] = duration;
+          }
+
+          return {
+            type: "reasoning",
+            text: mergeReasoningGroupText(group),
+            ...(duration !== undefined && {
+              duration,
+            }),
+          } satisfies ReasoningMessagePart;
+        }
+
+        // Resolve duration using runtime metadata first, then persisted `rN` keys.
+        const { duration, storedKey } = resolveReasoningDuration(
+          runtimeDurations,
+          metadataDurations,
+          messageId,
+          ordinal,
+        );
+
+        if (duration !== undefined) {
+          storedReasoningDurations[storedKey] = duration;
+        }
+
         return {
           type: "reasoning",
           text: part.text,
+          ...(duration !== undefined && { duration }),
         } satisfies ReasoningMessagePart;
       }
 
-      // Handle tool-* parts (AI SDK v5 tool calls)
       if (isToolUIPart(part)) {
         const toolName = type.replace("tool-", "");
         const toolCallId = part.toolCallId;
@@ -67,8 +141,6 @@ const convertParts = (
 
         let argsText = JSON.stringify(args);
         if (part.state === "input-streaming") {
-          // the argsText is not complete, so we need to strip the closing delimiters
-          // these are added by the AI SDK in fix-json
           argsText = stripClosingDelimiters(argsText);
         }
 
@@ -169,6 +241,8 @@ const convertParts = (
       return null;
     })
     .filter(Boolean) as any[];
+
+  return { parts: converted, storedReasoningDurations };
 };
 
 export const AISDKMessageConverter = unstable_createMessageConverter(
@@ -177,11 +251,12 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
     const createdAt = new Date();
     switch (message.role) {
       case "user":
+        const userParts = convertParts(message, metadata);
         return {
           role: "user",
           id: message.id,
           createdAt,
-          content: convertParts(message, metadata),
+          content: userParts.parts,
           attachments: message.parts
             ?.filter((p) => p.type === "file")
             .map((part, idx) => {
@@ -210,19 +285,33 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
         };
 
       case "system":
+        const systemParts = convertParts(message, metadata);
         return {
           role: "system",
           id: message.id,
           createdAt,
-          content: convertParts(message, metadata),
+          content: systemParts.parts,
         };
 
       case "assistant":
+        const assistantParts = convertParts(message, metadata);
+        const existingCustom =
+          ((message as any).metadata?.["custom"] as Record<string, unknown>) ??
+          {};
+        const customMetadata: Record<string, unknown> = { ...existingCustom };
+
+        if (Object.keys(assistantParts.storedReasoningDurations).length > 0) {
+          customMetadata["reasoningDurations"] =
+            assistantParts.storedReasoningDurations;
+        } else {
+          delete customMetadata["reasoningDurations"];
+        }
+
         return {
           role: "assistant",
           id: message.id,
           createdAt,
-          content: convertParts(message, metadata),
+          content: assistantParts.parts,
           metadata: {
             unstable_annotations: (message as any).annotations,
             unstable_data: Array.isArray((message as any).data)
@@ -230,7 +319,10 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
               : (message as any).data
                 ? [(message as any).data]
                 : undefined,
-            custom: {},
+            custom:
+              Object.keys(customMetadata).length > 0
+                ? customMetadata
+                : undefined,
           },
         };
 
@@ -240,3 +332,8 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
     }
   },
 );
+
+// Export for testing
+export const __test__ = {
+  convertParts,
+};
