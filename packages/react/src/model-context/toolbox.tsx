@@ -15,7 +15,7 @@ export const FallbackSymbol = Symbol("Toolkit.Fallback");
 export const LayoutSymbol = Symbol("Toolkit.Layout");
 
 export type ToolkitFallback = {
-  render: ToolCallMessagePartComponent<any, any>;
+  render: ToolCallMessagePartComponent<unknown, unknown>;
 };
 
 export type ToolkitLayout = {

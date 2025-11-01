@@ -21,13 +21,13 @@ export const Tools = resource(({ toolkit }: { toolkit?: Toolkit }) => {
     const unsubscribes: (() => void)[] = [];
 
     // Register fallback UI
-    const fallback = (toolkit as any)[FallbackSymbol];
+    const fallback = toolkit[FallbackSymbol];
     if (fallback?.render) {
       unsubscribes.push(toolUI.setFallbackToolUI(fallback.render));
     }
 
     // Register layout
-    const layout = (toolkit as any)[LayoutSymbol];
+    const layout = toolkit[LayoutSymbol];
     if (layout?.render) {
       unsubscribes.push(toolUI.setToolUILayout(layout.render));
     }
