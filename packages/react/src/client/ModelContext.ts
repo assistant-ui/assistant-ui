@@ -7,9 +7,7 @@ import {
 import { ModelContextProvider } from "../model-context/ModelContextTypes";
 
 export type ModelContextRegistrar = ModelContextProvider & {
-  register: (
-    provider: ModelContextProvider,
-  ) => Unsubscribe;
+  register: (provider: ModelContextProvider) => Unsubscribe;
 };
 
 const ModelContextContext = createContext<ModelContextRegistrar | null>(null);

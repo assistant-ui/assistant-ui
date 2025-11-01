@@ -29,7 +29,8 @@ export const ToolUIClient = resource(() => {
             ...prev,
             tools: {
               ...prev.tools,
-              [toolName]: prev.tools[toolName]?.filter((r) => r !== render) ?? [],
+              [toolName]:
+                prev.tools[toolName]?.filter((r) => r !== render) ?? [],
             },
           };
         });

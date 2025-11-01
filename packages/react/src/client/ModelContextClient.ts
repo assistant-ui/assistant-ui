@@ -11,7 +11,6 @@ export const ModelContext = resource(() => {
     getState: () => state,
     getModelContext: () => composite.getModelContext(),
     subscribe: (callback) => composite.subscribe(callback),
-    register: (provider) =>
-      composite.registerModelContextProvider(provider),
+    register: (provider) => composite.registerModelContextProvider(provider),
   });
 });

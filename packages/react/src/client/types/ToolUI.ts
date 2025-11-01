@@ -18,9 +18,7 @@ export type ToolUIApi = {
 
   setFallbackToolUI(render: ToolCallMessagePartComponent): Unsubscribe;
 
-  setToolUILayout(
-    render: ComponentType<{ children: ReactNode }>,
-  ): Unsubscribe;
+  setToolUILayout(render: ComponentType<{ children: ReactNode }>): Unsubscribe;
 };
 
 export type ToolUIMeta = {

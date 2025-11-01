@@ -55,9 +55,7 @@ export const Tools = resource(({ toolkit }: { toolkit?: Toolkit }) => {
       }),
     };
 
-    unsubscribes.push(
-      modelContext.register(modelContextProvider),
-    );
+    unsubscribes.push(modelContext.register(modelContextProvider));
 
     return () => {
       unsubscribes.forEach((fn) => fn());

@@ -14,6 +14,6 @@ export const RuntimeAdapter = resource((runtime: AssistantRuntime) => {
     ThreadListClient({
       runtime: runtime.threads,
       __internal_assistantRuntime: runtime,
-    })
+    }),
   );
 });
