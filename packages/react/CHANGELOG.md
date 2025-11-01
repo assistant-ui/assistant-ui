@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.11.36
+
+### Patch Changes
+
+- 3ab9484: feat: Toolkit API
+
 ## 0.11.35
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @assistant-ui/react-hook-form
 
+## 0.11.5
+
+### Patch Changes
+
+- 3ab9484: feat: Toolkit API
+- Updated dependencies [3ab9484]
+  - @assistant-ui/react@0.11.36
+
 ## 0.11.4
 
 ### Patch Changes
