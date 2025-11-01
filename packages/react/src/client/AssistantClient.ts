@@ -8,7 +8,7 @@ import {
 } from "@assistant-ui/tap";
 import { ThreadListClientApi, ThreadListClientState } from "./types/ThreadList";
 import { AssistantRuntime } from "../legacy-runtime/runtime/AssistantRuntime";
-import { ModelContextProvider } from "../model-context";
+import { ModelContextProvider, Tools } from "../model-context";
 import { asStore, Store, tapApi } from "../utils/tap-store";
 import { useResource } from "@assistant-ui/tap/react";
 import { useMemo } from "react";
@@ -25,11 +25,18 @@ import {
 } from "../context/react/AssistantApiContext";
 import { ToolUIClient } from "./ToolUIClient";
 import { withEventsProvider } from "./EventContext";
+import {
+  withModelContextProvider,
+  type ModelContextRegistrar,
+} from "./ModelContext";
+import { withToolUIProvider } from "./ToolUIContext";
 import { ToolUIApi, ToolUIState } from "./types/ToolUI";
+import { ToolsApi, ToolsState } from "./types/Tools";
 
 type AssistantClientState = {
   readonly threads: ThreadListClientState;
   readonly toolUIs: ToolUIState;
+  readonly tools: ToolsState;
 };
 
 type AssistantClientApi = {
@@ -37,6 +44,7 @@ type AssistantClientApi = {
 
   readonly threads: ThreadListClientApi;
   readonly toolUIs: ToolUIApi;
+  readonly tools: ToolsApi;
 
   on<TEvent extends AssistantEvent>(
     event: TEvent,
@@ -52,24 +60,40 @@ type AssistantClientApi = {
 const AssistantStore = resource(
   ({
     threads: threadsEl,
+    tools: toolsEl,
     registerModelContextProvider,
     __internal_runtime,
   }: AssistantClientProps) => {
     const events = tapInlineResource(EventManager());
+    const toolUIsResource = tapInlineResource(ToolUIClient());
 
-    const { threads, toolUIs } = withEventsProvider(events, () => {
-      return {
-        toolUIs: tapInlineResource(ToolUIClient()),
-        threads: tapResource(threadsEl, [threadsEl]),
-      };
+    const modelContextRegistrar: ModelContextRegistrar = tapMemo(
+      () => ({
+        registerModelContextProvider:
+          registerModelContextProvider ?? (() => () => {}),
+      }),
+      [registerModelContextProvider],
+    );
+
+    const { threads, toolUIs, tools } = withEventsProvider(events, () => {
+      return withModelContextProvider(modelContextRegistrar, () => {
+        return withToolUIProvider(toolUIsResource.api, () => {
+          return {
+            toolUIs: toolUIsResource,
+            tools: tapResource(toolsEl ?? Tools({}), [toolsEl]),
+            threads: tapResource(threadsEl, [threadsEl]),
+          };
+        });
+      });
     });
 
     const state = tapMemo<AssistantClientState>(
       () => ({
         threads: threads.state,
         toolUIs: toolUIs.state,
+        tools: tools.state,
       }),
-      [threads.state, toolUIs.state],
+      [threads.state, toolUIs.state, tools.state],
     );
 
     return tapApi<AssistantClientApi>({
@@ -77,6 +101,7 @@ const AssistantStore = resource(
 
       threads: threads.api,
       toolUIs: toolUIs.api,
+      tools: tools.api,
       on: events.on,
 
       registerModelContextProvider:
@@ -102,6 +127,11 @@ const getClientFromStore = (client: Store<{ api: AssistantClientApi }>) => {
       source: "root",
       query: {},
       get: () => client.getState().api.toolUIs,
+    }),
+    tools: createAssistantApiField({
+      source: "root",
+      query: {},
+      get: () => client.getState().api.tools,
     }),
     thread: createAssistantApiField({
       source: "threads",
@@ -155,6 +185,12 @@ export type AssistantClientProps = {
     state: ThreadListClientState;
     api: ThreadListClientApi;
   }>;
+  tools?:
+    | ResourceElement<{
+        state: ToolsState;
+        api: ToolsApi;
+      }>
+    | undefined;
   registerModelContextProvider?: (
     provider: ModelContextProvider,
   ) => Unsubscribe;
