@@ -77,7 +77,10 @@ export const registry: RegistryItem[] = [
         path: "components/assistant-ui/reasoning.tsx",
       },
     ],
-    registryDependencies: ["collapsible", "button"],
+    registryDependencies: [
+      "collapsible",
+      "https://r.assistant-ui.com/markdown-text",
+    ],
     dependencies: ["@assistant-ui/react", "lucide-react"],
   },
   {
