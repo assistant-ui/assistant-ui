@@ -38,6 +38,9 @@ export class AssistantChatTransport<
       ...initOptions,
       prepareSendMessagesRequest: async (options) => {
         const context = this.runtime?.thread.getModelContext();
+        const id =
+          (await this.runtime?.threads.mainItem.initialize())?.remoteId ??
+          options.id;
 
         const optionsEx = {
           ...options,
@@ -55,7 +58,7 @@ export class AssistantChatTransport<
           ...preparedRequest,
           body: preparedRequest?.body ?? {
             ...optionsEx.body,
-            id: options.id,
+            id,
             messages: options.messages,
             trigger: options.trigger,
             messageId: options.messageId,
