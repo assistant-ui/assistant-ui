@@ -212,8 +212,10 @@ export class ExternalStoreThreadListRuntimeCore
     onDelete(threadId);
   }
 
-  public initialize(): never {
-    throw new Error("Method not implemented.");
+  public initialize(
+    threadId: string,
+  ): Promise<{ remoteId: string; externalId: string | undefined }> {
+    return Promise.resolve({ remoteId: threadId, externalId: undefined });
   }
 
   public generateTitle(): never {
