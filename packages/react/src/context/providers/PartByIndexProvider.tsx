@@ -1,13 +1,12 @@
 "use client";
 
-import { useMemo, type FC, type PropsWithChildren } from "react";
+import { type FC, type PropsWithChildren } from "react";
 import {
-  AssistantApi,
   AssistantProvider,
   useAssistantApi,
-  createAssistantApiField,
   useExtendedAssistantApi,
 } from "../react/AssistantApiContext";
+import { DerivedScope } from "../../utils/tap-store/derived-scopes";
 
 export const PartByIndexProvider: FC<
   PropsWithChildren<{
@@ -15,17 +14,13 @@ export const PartByIndexProvider: FC<
   }>
 > = ({ index, children }) => {
   const baseApi = useAssistantApi();
-  const partialApi = useMemo(() => {
-    return {
-      part: createAssistantApiField({
-        source: "message",
-        query: { type: "index", index },
-        get: () => baseApi.message().part({ index }),
-      }),
-    } satisfies Partial<AssistantApi>;
-  }, [baseApi, index]);
-
-  const api = useExtendedAssistantApi(partialApi);
+  const api = useExtendedAssistantApi({
+    part: DerivedScope({
+      source: "message",
+      query: { type: "index", index },
+      get: () => baseApi.message().part({ index }),
+    }),
+  });
 
   return <AssistantProvider api={api}>{children}</AssistantProvider>;
 };
