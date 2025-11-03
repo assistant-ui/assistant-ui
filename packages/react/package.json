@@ -89,14 +89,14 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@stryker-mutator/core": "^9.2.0",
-    "@stryker-mutator/vitest-runner": "^9.2.0",
+    "@stryker-mutator/core": "^9.3.0",
+    "@stryker-mutator/vitest-runner": "^9.3.0",
     "@types/json-schema": "^7.0.15",
-    "@types/node": "^24.9.1",
+    "@types/node": "^24.10.0",
     "eslint": "^9",
-    "eslint-config-next": "16.0.0",
+    "eslint-config-next": "16.0.1",
     "tsx": "^4.20.6",
-    "vitest": "^4.0.1"
+    "vitest": "^4.0.6"
   },
   "publishConfig": {
     "access": "public",

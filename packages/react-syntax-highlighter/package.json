@@ -45,11 +45,11 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^24.9.1",
+    "@types/node": "^24.10.0",
     "@types/react": "^19.2.2",
     "@types/react-syntax-highlighter": "^15.5.13",
     "react": "19.2.0",
-    "react-syntax-highlighter": "^16.0.0",
+    "react-syntax-highlighter": "^16.1.0",
     "tsx": "^4.20.6"
   },
   "publishConfig": {

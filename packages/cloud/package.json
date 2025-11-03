@@ -33,13 +33,13 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "assistant-stream": "^0.2.37"
+    "assistant-stream": "^0.2.38"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^24.9.1",
+    "@types/node": "^24.10.0",
     "tsx": "^4.20.6",
-    "vitest": "^4.0.1"
+    "vitest": "^4.0.6"
   },
   "publishConfig": {
     "access": "public",
