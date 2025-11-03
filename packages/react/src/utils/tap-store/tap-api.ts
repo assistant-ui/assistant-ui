@@ -40,7 +40,7 @@ export const tapApi = <TApi extends ApiObject & { getState: () => any }>(
     key?: string | undefined;
   },
 ) => {
-  const ref = tapRef(() => api);
+  const ref = tapRef(api);
   tapEffect(() => {
     ref.current = api;
   });
