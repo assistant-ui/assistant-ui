@@ -32,8 +32,6 @@ import {
   AttachmentClientState,
 } from "../../client/types/Attachment";
 import { Unsubscribe } from "@assistant-ui/tap";
-import { ModelContextProvider } from "../../model-context";
-import { AssistantRuntime } from "../../legacy-runtime/runtime/AssistantRuntime";
 import {
   AssistantEvent,
   AssistantEventCallback,
@@ -139,11 +137,6 @@ export type AssistantApi = {
     event: AssistantEventSelector<TEvent>,
     callback: AssistantEventCallback<TEvent>,
   ): Unsubscribe;
-
-  // temp
-  registerModelContextProvider(provider: ModelContextProvider): void;
-  /** @internal */
-  __internal_getRuntime?(): AssistantRuntime;
 };
 
 export const createAssistantApiField = <
@@ -251,12 +244,6 @@ const AssistantApiContext = createContext<AssistantApi>({
   on: (selector) => {
     const { scope } = normalizeEventSelector(selector);
     throw new Error(`Event scope is not available in this component: ${scope}`);
-  },
-
-  registerModelContextProvider: () => {
-    throw new Error(
-      "Registering model context providers is only available inside <AssistantProvider />",
-    );
   },
 });
 

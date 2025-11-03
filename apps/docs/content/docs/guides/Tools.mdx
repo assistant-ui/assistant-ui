@@ -165,15 +165,15 @@ function App() {
 
 ### 4. Advanced: Direct Context Registration
 
-Use `registerModelContextProvider` when you need to configure more than just tools:
+Use `api.modelContext().register()` when you need to configure more than just tools:
 
 ```tsx
-import { tool, useAssistantRuntime } from "@assistant-ui/react";
+import { tool, useAssistantApi } from "@assistant-ui/react";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 
 function MyComponent() {
-  const runtime = useAssistantRuntime();
+  const api = useAssistantApi();
   const [isCreativeMode, setIsCreativeMode] = useState(false);
 
   useEffect(() => {
@@ -188,7 +188,7 @@ function MyComponent() {
     });
 
     // Register tools with model configuration
-    return runtime.registerModelContextProvider({
+    return api.modelContext().register({
       getModelContext: () => ({
         tools: { calculate: calculateTool },
         callSettings: {
@@ -198,7 +198,7 @@ function MyComponent() {
         priority: 10, // Higher priority overrides other providers
       }),
     });
-  }, [runtime, isCreativeMode]);
+  }, [api, isCreativeMode]);
 
   return <div>{/* Your component */}</div>;
 }
