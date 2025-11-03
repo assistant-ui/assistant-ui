@@ -1,10 +1,12 @@
 "use client";
 
 import { FC, memo, PropsWithChildren } from "react";
-import { AssistantProvider } from "../context/react/AssistantApiContext";
+import {
+  AssistantProvider,
+  useAssistantApi,
+} from "../context/react/AssistantApiContext";
 import { AssistantRuntime } from "./runtime/AssistantRuntime";
 import { AssistantRuntimeCore } from "./runtime-cores/core/AssistantRuntimeCore";
-import { useAssistantClient } from "../client/AssistantClient";
 import { RuntimeAdapter } from "./RuntimeAdapter";
 
 export namespace AssistantProvider {
@@ -24,7 +26,7 @@ export const AssistantRuntimeProviderImpl: FC<AssistantProvider.Props> = ({
   children,
   runtime,
 }) => {
-  const api = useAssistantClient({
+  const api = useAssistantApi({
     threads: RuntimeAdapter(runtime),
   });
 

@@ -6,6 +6,7 @@ import {
   AssistantProvider,
   useAssistantApi,
   createAssistantApiField,
+  useExtendedAssistantApi,
 } from "../react/AssistantApiContext";
 
 export const PartByIndexProvider: FC<
@@ -13,16 +14,18 @@ export const PartByIndexProvider: FC<
     index: number;
   }>
 > = ({ index, children }) => {
-  const api = useAssistantApi();
-  const api2 = useMemo(() => {
+  const baseApi = useAssistantApi();
+  const partialApi = useMemo(() => {
     return {
       part: createAssistantApiField({
         source: "message",
         query: { type: "index", index },
-        get: () => api.message().part({ index }),
+        get: () => baseApi.message().part({ index }),
       }),
     } satisfies Partial<AssistantApi>;
-  }, [api, index]);
+  }, [baseApi, index]);
 
-  return <AssistantProvider api={api2}>{children}</AssistantProvider>;
+  const api = useExtendedAssistantApi(partialApi);
+
+  return <AssistantProvider api={api}>{children}</AssistantProvider>;
 };

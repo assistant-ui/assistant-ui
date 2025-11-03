@@ -6,6 +6,7 @@ import {
   AssistantProvider,
   useAssistantApi,
   createAssistantApiField,
+  useExtendedAssistantApi,
 } from "../react/AssistantApiContext";
 import {
   checkEventScope,
@@ -18,10 +19,10 @@ export const ThreadListItemByIndexProvider: FC<
     archived: boolean;
   }>
 > = ({ index, archived, children }) => {
-  const api = useAssistantApi();
+  const baseApi = useAssistantApi();
 
-  const api2 = useMemo(() => {
-    const getItem = () => api.threads().item({ index, archived });
+  const partialApi = useMemo(() => {
+    const getItem = () => baseApi.threads().item({ index, archived });
     return {
       threadListItem: createAssistantApiField({
         source: "threads",
@@ -31,18 +32,20 @@ export const ThreadListItemByIndexProvider: FC<
       on(selector, callback) {
         const { event, scope } = normalizeEventSelector(selector);
         if (!checkEventScope("thread-list-item", scope, event))
-          return api.on(selector, callback);
+          return baseApi.on(selector, callback);
 
-        return api.on({ scope: "*", event }, (e) => {
+        return baseApi.on({ scope: "*", event }, (e) => {
           if (e.threadId === getItem().getState().id) {
             callback(e);
           }
         });
       },
     } satisfies Partial<AssistantApi>;
-  }, [api, index, archived]);
+  }, [baseApi, index, archived]);
 
-  return <AssistantProvider api={api2}>{children}</AssistantProvider>;
+  const api = useExtendedAssistantApi(partialApi);
+
+  return <AssistantProvider api={api}>{children}</AssistantProvider>;
 };
 
 export const ThreadListItemByIdProvider: FC<
@@ -50,10 +53,10 @@ export const ThreadListItemByIdProvider: FC<
     id: string;
   }>
 > = ({ id, children }) => {
-  const api = useAssistantApi();
+  const baseApi = useAssistantApi();
 
-  const api2 = useMemo(() => {
-    const getItem = () => api.threads().item({ id });
+  const partialApi = useMemo(() => {
+    const getItem = () => baseApi.threads().item({ id });
     return {
       threadListItem: createAssistantApiField({
         source: "threads",
@@ -63,15 +66,17 @@ export const ThreadListItemByIdProvider: FC<
       on(selector, callback) {
         const { event, scope } = normalizeEventSelector(selector);
         if (!checkEventScope("thread-list-item", scope, event))
-          return api.on(selector, callback);
+          return baseApi.on(selector, callback);
 
-        return api.on({ scope: "*", event }, (e) => {
+        return baseApi.on({ scope: "*", event }, (e) => {
           if (e.threadId !== getItem().getState().id) return;
           callback(e);
         });
       },
     } satisfies Partial<AssistantApi>;
-  }, [api, id]);
+  }, [baseApi, id]);
 
-  return <AssistantProvider api={api2}>{children}</AssistantProvider>;
+  const api = useExtendedAssistantApi(partialApi);
+
+  return <AssistantProvider api={api}>{children}</AssistantProvider>;
 };
