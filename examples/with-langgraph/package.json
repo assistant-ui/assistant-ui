@@ -19,9 +19,9 @@
     "clsx": "^2.1.1",
     "js-cookie": "^3.0.5",
     "jsonwebtoken": "^9.0.2",
-    "lucide-react": "^0.546.0",
+    "lucide-react": "^0.552.0",
     "nanoid": "5.1.6",
-    "next": "16.0.0",
+    "next": "16.0.1",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "remark-gfm": "^4.0.1",
@@ -36,7 +36,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "postcss": "^8",
-    "tailwindcss": "^4.1.15",
+    "tailwindcss": "^4.1.16",
     "typescript": "^5.9.3"
   }
 }
