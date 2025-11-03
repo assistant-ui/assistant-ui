@@ -21,6 +21,8 @@ import { EventManager } from "../legacy-runtime/client/EventManagerRuntimeClient
 import {
   AssistantApi,
   createAssistantApiField,
+  useAssistantApiImpl,
+  extendApi,
 } from "../context/react/AssistantApiContext";
 import { ToolUIClient } from "./ToolUIClient";
 import { withEventsProvider } from "./EventContext";
@@ -186,6 +188,8 @@ export type AssistantClientProps = {
 };
 
 export const useAssistantClient = (props: AssistantClientProps) => {
+  const api = useAssistantApiImpl();
   const client = useResource(asStore(AssistantStore(props)));
-  return useMemo(() => getClientFromStore(client), [client]);
+  const clientApi = useMemo(() => getClientFromStore(client), [client]);
+  return useMemo(() => extendApi(api, clientApi), [api, clientApi]);
 };

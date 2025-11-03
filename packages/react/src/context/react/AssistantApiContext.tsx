@@ -247,17 +247,8 @@ const AssistantApiContext = createContext<AssistantApi>({
   },
 });
 
-const useAssistantApiImpl = (): AssistantApi => {
+export const useAssistantApiImpl = (): AssistantApi => {
   return useContext(AssistantApiContext);
-};
-
-const useExtendedAssistantApiImpl = (
-  config: AssistantClientProps,
-): AssistantApi => {
-  const api = useAssistantApiImpl();
-  const api2 = useAssistantClient(config);
-  const extendedApi = useMemo(() => extendApi(api, api2), [api, api2]);
-  return extendedApi;
 };
 
 export function useAssistantApi(): AssistantApi;
@@ -265,7 +256,7 @@ export function useAssistantApi(config: AssistantClientProps): AssistantApi;
 export function useAssistantApi(config?: AssistantClientProps): AssistantApi {
   if (config) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
-    return useExtendedAssistantApiImpl(config);
+    return useAssistantClient(config);
   } else {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     return useAssistantApiImpl();
@@ -303,7 +294,7 @@ const mergeFnsWithUnsubscribe = <TArgs extends Array<unknown>>(
   };
 };
 
-const extendApi = (
+export const extendApi = (
   api: AssistantApi,
   api2: Partial<AssistantApi>,
 ): AssistantApi => {
