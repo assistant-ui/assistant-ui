@@ -1,17 +1,16 @@
 "use client";
 
-import { useMemo, type FC, type PropsWithChildren } from "react";
+import { type FC, type PropsWithChildren } from "react";
 import {
-  AssistantApi,
   AssistantProvider,
   useAssistantApi,
-  createAssistantApiField,
   useExtendedAssistantApi,
 } from "../react/AssistantApiContext";
 import {
   checkEventScope,
   normalizeEventSelector,
 } from "../../types/EventTypes";
+import { DerivedScope } from "../../utils/tap-store/derived-scopes";
 
 export const ThreadListItemByIndexProvider: FC<
   PropsWithChildren<{
@@ -21,29 +20,25 @@ export const ThreadListItemByIndexProvider: FC<
 > = ({ index, archived, children }) => {
   const baseApi = useAssistantApi();
 
-  const partialApi = useMemo(() => {
-    const getItem = () => baseApi.threads().item({ index, archived });
-    return {
-      threadListItem: createAssistantApiField({
-        source: "threads",
-        query: { type: "index", index, archived },
-        get: () => getItem(),
-      }),
-      on(selector, callback) {
-        const { event, scope } = normalizeEventSelector(selector);
-        if (!checkEventScope("thread-list-item", scope, event))
-          return baseApi.on(selector, callback);
+  const api = useExtendedAssistantApi({
+    threadListItem: DerivedScope({
+      source: "threads",
+      query: { type: "index", index, archived },
+      get: () => baseApi.threads().item({ index, archived }),
+    }),
+    on(selector, callback) {
+      const getItem = () => baseApi.threads().item({ index, archived });
+      const { event, scope } = normalizeEventSelector(selector);
+      if (!checkEventScope("thread-list-item", scope, event))
+        return baseApi.on(selector, callback);
 
-        return baseApi.on({ scope: "*", event }, (e) => {
-          if (e.threadId === getItem().getState().id) {
-            callback(e);
-          }
-        });
-      },
-    } satisfies Partial<AssistantApi>;
-  }, [baseApi, index, archived]);
-
-  const api = useExtendedAssistantApi(partialApi);
+      return baseApi.on({ scope: "*", event }, (e) => {
+        if (e.threadId === getItem().getState().id) {
+          callback(e);
+        }
+      });
+    },
+  });
 
   return <AssistantProvider api={api}>{children}</AssistantProvider>;
 };
@@ -55,28 +50,24 @@ export const ThreadListItemByIdProvider: FC<
 > = ({ id, children }) => {
   const baseApi = useAssistantApi();
 
-  const partialApi = useMemo(() => {
-    const getItem = () => baseApi.threads().item({ id });
-    return {
-      threadListItem: createAssistantApiField({
-        source: "threads",
-        query: { type: "id", id },
-        get: () => getItem(),
-      }),
-      on(selector, callback) {
-        const { event, scope } = normalizeEventSelector(selector);
-        if (!checkEventScope("thread-list-item", scope, event))
-          return baseApi.on(selector, callback);
+  const api = useExtendedAssistantApi({
+    threadListItem: DerivedScope({
+      source: "threads",
+      query: { type: "id", id },
+      get: () => baseApi.threads().item({ id }),
+    }),
+    on(selector, callback) {
+      const getItem = () => baseApi.threads().item({ id });
+      const { event, scope } = normalizeEventSelector(selector);
+      if (!checkEventScope("thread-list-item", scope, event))
+        return baseApi.on(selector, callback);
 
-        return baseApi.on({ scope: "*", event }, (e) => {
-          if (e.threadId !== getItem().getState().id) return;
-          callback(e);
-        });
-      },
-    } satisfies Partial<AssistantApi>;
-  }, [baseApi, id]);
-
-  const api = useExtendedAssistantApi(partialApi);
+      return baseApi.on({ scope: "*", event }, (e) => {
+        if (e.threadId !== getItem().getState().id) return;
+        callback(e);
+      });
+    },
+  });
 
   return <AssistantProvider api={api}>{children}</AssistantProvider>;
 };

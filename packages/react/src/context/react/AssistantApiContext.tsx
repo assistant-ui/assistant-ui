@@ -8,6 +8,7 @@ import {
   useMemo,
   useEffect,
 } from "react";
+import { useResource } from "@assistant-ui/tap/react";
 
 import { ToolUIApi, ToolUIState, ToolUIMeta } from "../../client/types/ToolUI";
 import {
@@ -53,6 +54,10 @@ import {
   ModelContextApi,
   ModelContextMeta,
 } from "../../client/types/ModelContext";
+import {
+  DerivedScopes,
+  DerivedScopesInput,
+} from "../../utils/tap-store/derived-scopes";
 
 export type AssistantState = {
   readonly threads: ThreadListClientState;
@@ -66,7 +71,7 @@ export type AssistantState = {
   readonly attachment: AttachmentClientState;
 };
 
-type AssistantApiField<
+export type AssistantApiField<
   TApi,
   TMeta extends { source: string | null; query: any },
 > = (() => TApi) & (TMeta | { source: null; query: Record<string, never> });
@@ -252,28 +257,34 @@ export const useAssistantApiImpl = (): AssistantApi => {
 };
 
 /**
- * Hook to extend the current AssistantApi with additional partial API functionality.
- * This merges the provided partial API with the existing API from context.
+ * Hook to extend the current AssistantApi with additional derived scope fields and special callbacks.
+ * This merges the derived fields with the existing API from context.
+ * Fields are automatically memoized based on source and query changes.
+ * Special callbacks (on, subscribe, flushSync) use the useEffectEvent pattern to always access latest values.
  *
- * @param api - Partial AssistantApi to merge with the current API
+ * @param scopes - Record of field names to DerivedScope resource elements, plus optional special callbacks
  * @returns The merged AssistantApi
  *
  * @example
  * ```tsx
  * const api = useExtendedAssistantApi({
- *   message: createAssistantApiField({
+ *   message: DerivedScope({
  *     source: "root",
  *     query: {},
  *     get: () => messageApi,
  *   }),
+ *   on: (selector, callback) => {
+ *     // Custom event filtering logic
+ *   },
  * });
  * ```
  */
 export const useExtendedAssistantApi = (
-  api: Partial<AssistantApi>,
+  scopes: DerivedScopesInput,
 ): AssistantApi => {
   const baseApi = useAssistantApiImpl();
-  return useMemo(() => extendApi(baseApi, api), [baseApi, api]);
+  const partialApi = useResource(DerivedScopes(scopes));
+  return useMemo(() => extendApi(baseApi, partialApi), [baseApi, partialApi]);
 };
 
 const useExtendedAssistantApiImpl = (

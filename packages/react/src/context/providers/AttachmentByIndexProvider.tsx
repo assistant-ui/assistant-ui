@@ -1,14 +1,13 @@
 "use client";
 
-import { useMemo, type FC, type PropsWithChildren } from "react";
+import { type FC, type PropsWithChildren } from "react";
 
 import {
-  AssistantApi,
   AssistantProvider,
   useAssistantApi,
-  createAssistantApiField,
   useExtendedAssistantApi,
 } from "../react/AssistantApiContext";
+import { DerivedScope } from "../../utils/tap-store/derived-scopes";
 
 export const MessageAttachmentByIndexProvider: FC<
   PropsWithChildren<{
@@ -16,17 +15,13 @@ export const MessageAttachmentByIndexProvider: FC<
   }>
 > = ({ index, children }) => {
   const baseApi = useAssistantApi();
-  const partialApi = useMemo(() => {
-    return {
-      attachment: createAssistantApiField({
-        source: "message",
-        query: { type: "index", index },
-        get: () => baseApi.message().attachment({ index }),
-      }),
-    } satisfies Partial<AssistantApi>;
-  }, [baseApi, index]);
-
-  const api = useExtendedAssistantApi(partialApi);
+  const api = useExtendedAssistantApi({
+    attachment: DerivedScope({
+      source: "message",
+      query: { type: "index", index },
+      get: () => baseApi.message().attachment({ index }),
+    }),
+  });
 
   return <AssistantProvider api={api}>{children}</AssistantProvider>;
 };
@@ -37,17 +32,13 @@ export const ComposerAttachmentByIndexProvider: FC<
   }>
 > = ({ index, children }) => {
   const baseApi = useAssistantApi();
-  const partialApi = useMemo(() => {
-    return {
-      attachment: createAssistantApiField({
-        source: "composer",
-        query: { type: "index", index },
-        get: () => baseApi.composer().attachment({ index }),
-      }),
-    } satisfies Partial<AssistantApi>;
-  }, [baseApi, index]);
-
-  const api = useExtendedAssistantApi(partialApi);
+  const api = useExtendedAssistantApi({
+    attachment: DerivedScope({
+      source: "composer",
+      query: { type: "index", index },
+      get: () => baseApi.composer().attachment({ index }),
+    }),
+  });
 
   return <AssistantProvider api={api}>{children}</AssistantProvider>;
 };
