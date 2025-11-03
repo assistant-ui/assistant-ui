@@ -5,6 +5,7 @@ import {
   AssistantProvider,
   AssistantApi,
   createAssistantApiField,
+  useExtendedAssistantApi,
 } from "../react/AssistantApiContext";
 import { useResource } from "@assistant-ui/tap/react";
 import { asStore } from "../../utils/tap-store";
@@ -17,7 +18,7 @@ export const MessageProvider: FC<
   PropsWithChildren<ThreadMessageClientProps>
 > = ({ children, ...props }) => {
   const store = useResource(asStore(ThreadMessageClient(props)));
-  const api = useMemo(() => {
+  const partialApi = useMemo(() => {
     return {
       message: createAssistantApiField({
         source: "root",
@@ -28,6 +29,8 @@ export const MessageProvider: FC<
       flushSync: store.flushSync,
     } satisfies Partial<AssistantApi>;
   }, [store]);
+
+  const api = useExtendedAssistantApi(partialApi);
 
   return <AssistantProvider api={api}>{children}</AssistantProvider>;
 };

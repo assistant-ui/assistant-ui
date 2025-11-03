@@ -7,6 +7,7 @@ import {
   AssistantProvider,
   useAssistantApi,
   createAssistantApiField,
+  useExtendedAssistantApi,
 } from "../react/AssistantApiContext";
 
 export const MessageAttachmentByIndexProvider: FC<
@@ -14,18 +15,20 @@ export const MessageAttachmentByIndexProvider: FC<
     index: number;
   }>
 > = ({ index, children }) => {
-  const api = useAssistantApi();
-  const api2 = useMemo(() => {
+  const baseApi = useAssistantApi();
+  const partialApi = useMemo(() => {
     return {
       attachment: createAssistantApiField({
         source: "message",
         query: { type: "index", index },
-        get: () => api.message().attachment({ index }),
+        get: () => baseApi.message().attachment({ index }),
       }),
     } satisfies Partial<AssistantApi>;
-  }, [api, index]);
+  }, [baseApi, index]);
 
-  return <AssistantProvider api={api2}>{children}</AssistantProvider>;
+  const api = useExtendedAssistantApi(partialApi);
+
+  return <AssistantProvider api={api}>{children}</AssistantProvider>;
 };
 
 export const ComposerAttachmentByIndexProvider: FC<
@@ -33,16 +36,18 @@ export const ComposerAttachmentByIndexProvider: FC<
     index: number;
   }>
 > = ({ index, children }) => {
-  const api = useAssistantApi();
-  const api2 = useMemo(() => {
+  const baseApi = useAssistantApi();
+  const partialApi = useMemo(() => {
     return {
       attachment: createAssistantApiField({
         source: "composer",
         query: { type: "index", index },
-        get: () => api.composer().attachment({ index }),
+        get: () => baseApi.composer().attachment({ index }),
       }),
     } satisfies Partial<AssistantApi>;
-  }, [api, index]);
+  }, [baseApi, index]);
 
-  return <AssistantProvider api={api2}>{children}</AssistantProvider>;
+  const api = useExtendedAssistantApi(partialApi);
+
+  return <AssistantProvider api={api}>{children}</AssistantProvider>;
 };

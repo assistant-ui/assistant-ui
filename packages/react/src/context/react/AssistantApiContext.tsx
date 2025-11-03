@@ -251,12 +251,43 @@ export const useAssistantApiImpl = (): AssistantApi => {
   return useContext(AssistantApiContext);
 };
 
+/**
+ * Hook to extend the current AssistantApi with additional partial API functionality.
+ * This merges the provided partial API with the existing API from context.
+ *
+ * @param api - Partial AssistantApi to merge with the current API
+ * @returns The merged AssistantApi
+ *
+ * @example
+ * ```tsx
+ * const api = useExtendedAssistantApi({
+ *   message: createAssistantApiField({
+ *     source: "root",
+ *     query: {},
+ *     get: () => messageApi,
+ *   }),
+ * });
+ * ```
+ */
+export const useExtendedAssistantApi = (
+  api: Partial<AssistantApi>,
+): AssistantApi => {
+  const baseApi = useAssistantApiImpl();
+  return useMemo(() => extendApi(baseApi, api), [baseApi, api]);
+};
+
+const useExtendedAssistantApiImpl = (
+  config: AssistantClientProps,
+): AssistantApi => {
+  return useAssistantClient(config);
+};
+
 export function useAssistantApi(): AssistantApi;
 export function useAssistantApi(config: AssistantClientProps): AssistantApi;
 export function useAssistantApi(config?: AssistantClientProps): AssistantApi {
   if (config) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
-    return useAssistantClient(config);
+    return useExtendedAssistantApiImpl(config);
   } else {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     return useAssistantApiImpl();
@@ -312,18 +343,15 @@ export const extendApi = (
 };
 
 export const AssistantProvider: FC<
-  PropsWithChildren<{ api: Partial<AssistantApi>; devToolsVisible?: boolean }>
-> = ({ api: api2, children, devToolsVisible = true }) => {
-  const api = useAssistantApi();
-  const extendedApi = useMemo(() => extendApi(api, api2), [api, api2]);
-
+  PropsWithChildren<{ api: AssistantApi; devToolsVisible?: boolean }>
+> = ({ api, children, devToolsVisible = true }) => {
   useEffect(() => {
-    if (!devToolsVisible || !api2.subscribe) return undefined;
-    return DevToolsProviderApi.register(api2);
-  }, [api2, devToolsVisible]);
+    if (!devToolsVisible || !api.subscribe) return undefined;
+    return DevToolsProviderApi.register(api);
+  }, [api, devToolsVisible]);
 
   return (
-    <AssistantApiContext.Provider value={extendedApi}>
+    <AssistantApiContext.Provider value={api}>
       {/* TODO temporarily allow accessing viewport state from outside the viewport */}
       {/* TODO figure out if this behavior should be deprecated, since it is quite hacky */}
       <ThreadViewportProvider>{children}</ThreadViewportProvider>

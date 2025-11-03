@@ -6,6 +6,7 @@ import {
   AssistantProvider,
   useAssistantApi,
   createAssistantApiField,
+  useExtendedAssistantApi,
 } from "../react/AssistantApiContext";
 import {
   checkEventScope,
@@ -17,9 +18,9 @@ export const MessageByIndexProvider: FC<
     index: number;
   }>
 > = ({ index, children }) => {
-  const api = useAssistantApi();
-  const api2 = useMemo(() => {
-    const getMessage = () => api.thread().message({ index });
+  const baseApi = useAssistantApi();
+  const partialApi = useMemo(() => {
+    const getMessage = () => baseApi.thread().message({ index });
     return {
       message: createAssistantApiField({
         source: "thread",
@@ -37,16 +38,18 @@ export const MessageByIndexProvider: FC<
           !checkEventScope("composer", scope, event) &&
           !checkEventScope("message", scope, event)
         )
-          return api.on(selector, callback);
+          return baseApi.on(selector, callback);
 
-        return api.on({ scope: "thread", event }, (e) => {
+        return baseApi.on({ scope: "thread", event }, (e) => {
           if (e.messageId === getMessage().getState().id) {
             callback(e);
           }
         });
       },
     } satisfies Partial<AssistantApi>;
-  }, [api, index]);
+  }, [baseApi, index]);
 
-  return <AssistantProvider api={api2}>{children}</AssistantProvider>;
+  const api = useExtendedAssistantApi(partialApi);
+
+  return <AssistantProvider api={api}>{children}</AssistantProvider>;
 };

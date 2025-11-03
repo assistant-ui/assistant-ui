@@ -5,6 +5,7 @@ import {
   AssistantProvider,
   AssistantApi,
   createAssistantApiField,
+  useExtendedAssistantApi,
 } from "../react/AssistantApiContext";
 import {
   MessagePartClientApi,
@@ -46,7 +47,7 @@ export const TextMessagePartProvider: FC<
   const store = useResource(
     asStore(TextMessagePartClient({ text, isRunning })),
   );
-  const api = useMemo(() => {
+  const partialApi = useMemo(() => {
     return {
       part: createAssistantApiField({
         source: "root",
@@ -57,6 +58,8 @@ export const TextMessagePartProvider: FC<
       flushSync: store.flushSync,
     } satisfies Partial<AssistantApi>;
   }, [store]);
+
+  const api = useExtendedAssistantApi(partialApi);
 
   return <AssistantProvider api={api}>{children}</AssistantProvider>;
 };
