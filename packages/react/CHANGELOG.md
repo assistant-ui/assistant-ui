@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.11.37
+
+### Patch Changes
+
+- 0ce129b: add scroll lock hook for reasoning component
+
 ## 0.11.36
 
 ### Patch Changes
