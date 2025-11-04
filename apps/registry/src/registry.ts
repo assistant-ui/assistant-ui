@@ -90,7 +90,7 @@ export const registry: RegistryItem[] = [
     registryDependencies: [
       "collapsible",
       "https://r.assistant-ui.com/markdown-text",
-      "shimmer-style",
+      "https://r.assistant-ui.com/shimmer-style",
     ],
     dependencies: ["@assistant-ui/react", "lucide-react"],
   },
