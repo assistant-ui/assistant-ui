@@ -1,4 +1,4 @@
-import type { ComponentType } from "react";
+import type { ComponentType, PropsWithChildren } from "react";
 import type {
   MessagePartStatus,
   FileMessagePart,
@@ -23,6 +23,12 @@ export type TextMessagePartComponent = ComponentType<TextMessagePartProps>;
 export type ReasoningMessagePartProps = MessagePartState & ReasoningMessagePart;
 export type ReasoningMessagePartComponent =
   ComponentType<ReasoningMessagePartProps>;
+
+export type ReasoningGroupProps = PropsWithChildren<{
+  startIndex: number;
+  endIndex: number;
+}>;
+export type ReasoningGroupComponent = ComponentType<ReasoningGroupProps>;
 
 export type SourceMessagePartProps = MessagePartState & SourceMessagePart;
 export type SourceMessagePartComponent = ComponentType<SourceMessagePartProps>;

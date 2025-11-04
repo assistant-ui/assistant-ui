@@ -25,6 +25,7 @@ import type {
   ToolCallMessagePartProps,
   FileMessagePartComponent,
   ReasoningMessagePartComponent,
+  ReasoningGroupComponent,
 } from "../../types/MessagePartComponentTypes";
 import { MessagePartPrimitiveInProgress } from "../messagePart/MessagePartInProgress";
 import { MessagePartStatus } from "../../types/AssistantTypes";
@@ -239,9 +240,7 @@ export namespace MessagePrimitiveParts {
            * @param endIndex - Index of the last reasoning part in the group
            * @param children - Rendered reasoning part components
            */
-          ReasoningGroup?: ComponentType<
-            PropsWithChildren<{ startIndex: number; endIndex: number }>
-          >;
+          ReasoningGroup?: ReasoningGroupComponent;
         }
       | undefined;
   };
