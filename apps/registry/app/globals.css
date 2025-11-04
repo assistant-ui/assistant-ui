@@ -161,3 +161,18 @@
     @apply bg-background text-foreground;
   }
 }
+
+@keyframes shimmer-sweep {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@layer utilities {
+  .animate-shimmer {
+    animation: shimmer-sweep var(--shimmer-duration, 1.2s) linear infinite both;
+  }
+}

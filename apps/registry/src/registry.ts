@@ -2,6 +2,16 @@ import { RegistryItem } from "./schema";
 
 export const registry: RegistryItem[] = [
   {
+    name: "shimmer-style",
+    type: "registry:style",
+    files: [
+      {
+        type: "registry:style",
+        path: "styles/shimmer.css",
+      },
+    ],
+  },
+  {
     name: "chat/b/ai-sdk-quick-start/json",
     type: "registry:page",
     files: [
@@ -80,6 +90,7 @@ export const registry: RegistryItem[] = [
     registryDependencies: [
       "collapsible",
       "https://r.assistant-ui.com/markdown-text",
+      "shimmer-style",
     ],
     dependencies: ["@assistant-ui/react", "lucide-react"],
   },
