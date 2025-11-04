@@ -1,5 +1,11 @@
 # create-assistant-ui
 
+## 0.0.31
+
+### Patch Changes
+
+- 2fc7e99: chore: update deps
+
 ## 0.0.30
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @assistant-ui/styles
 
+## 0.2.7
+
+### Patch Changes
+
+- 2fc7e99: chore: update deps
+
 ## 0.2.6
 
 ### Patch Changes
