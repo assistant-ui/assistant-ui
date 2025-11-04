@@ -10,6 +10,7 @@ import { fromThreadMessageLike, ThreadMessageLike } from "./ThreadMessageLike";
 import { getAutoStatus, isAutoStatus } from "./auto-status";
 import { ThreadMessage, ToolCallMessagePart } from "../../../types";
 import { ToolExecutionStatus } from "../assistant-transport/useToolInvocations";
+import { ReadonlyJSONValue } from "assistant-stream/utils";
 
 export namespace useExternalMessageConverter {
   export type Message =
@@ -30,6 +31,7 @@ export namespace useExternalMessageConverter {
 
   export type Metadata = {
     readonly toolStatuses?: Record<string, ToolExecutionStatus>;
+    readonly error?: ReadonlyJSONValue;
   };
 
   export type Callback<T> = (
@@ -263,6 +265,7 @@ export const convertExternalMessages = <T extends WeakKey>(
       isRunning,
       hasSuspendedToolCalls,
       hasPendingToolCalls,
+      isLast ? metadata.error : undefined,
     );
     const newMessage = fromThreadMessageLike(
       joined,
@@ -348,6 +351,7 @@ export const useExternalMessageConverter = <T extends WeakKey>({
           isRunning,
           hasSuspendedToolCalls,
           hasPendingToolCalls,
+          isLast ? state.metadata.error : undefined,
         );
 
         if (
