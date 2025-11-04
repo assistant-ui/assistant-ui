@@ -49,23 +49,18 @@ This adds a `/components/assistant-ui/reasoning.tsx` file to your project, which
 
 Pass the `Reasoning` and `ReasoningGroup` components to the `MessagePrimitive.Parts` component:
 
-```tsx twoslash title="/components/assistant-ui/thread.tsx"
-import { FC, PropsWithChildren } from "react";
+```tsx
 import { MessagePrimitive } from "@assistant-ui/react";
 import { Reasoning, ReasoningGroup } from "@/components/assistant-ui/reasoning";
 
-const AssistantActionBar: FC = () => null;
-const BranchPicker: FC<{ className?: string }> = () => null;
-
-// ---cut---
 const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="...">
       <div className="...">
         <MessagePrimitive.Parts 
           components={{ 
-            Reasoning,
-            ReasoningGroup 
+            Reasoning: Reasoning,
+            ReasoningGroup: ReasoningGroup
           }} 
         />
       </div>
@@ -118,28 +113,55 @@ The Reasoning component doesn't accept additional props—it renders the reasoni
 
 ### Custom Styling
 
-```tsx
-const CustomReasoningGroup: FC<
-  PropsWithChildren<{ startIndex: number; endIndex: number }>
-> = ({ startIndex, endIndex, children }) => {
-  const partCount = endIndex - startIndex + 1;
+Since the component is copied to your project, you can customize it directly by modifying the `reasoning.tsx` file. The internal components (`ReasoningRoot`, `ReasoningTrigger`, `ReasoningContent`, `ReasoningText`) accept `className` props for styling:
 
+```tsx title="/components/assistant-ui/reasoning.tsx"
+const ReasoningGroupImpl: ReasoningGroupComponent = ({
+  // ... existing code ...
   return (
-    <details className="my-4 rounded-lg border bg-muted/50 p-4">
-      <summary className="cursor-pointer font-medium text-muted-foreground">
-        💭 Thinking ({partCount} {partCount === 1 ? "step" : "steps"})
-      </summary>
-      <div className="mt-2 space-y-2 text-sm">{children}</div>
-    </details>
+    <ReasoningRoot className="rounded-lg border bg-muted/50 p-4">
+      <ReasoningTrigger 
+        active={isReasoningStreaming} 
+        className="font-semibold text-foreground"
+      />
+      <ReasoningContent 
+        aria-busy={isReasoningStreaming}
+        className="mt-2"
+      >
+        <ReasoningText className="text-base">{children}</ReasoningText>
+      </ReasoningContent>
+    </ReasoningRoot>
+  );
+};
+```
+
+You can also customize the individual internal components:
+
+```tsx title="/components/assistant-ui/reasoning.tsx"
+const ReasoningRoot: FC<PropsWithChildren<{ className?: string }>> = ({ 
+  // ... existing code ...
+  return (
+    <Collapsible
+      // ...
+      className={cn("aui-reasoning-root mb-4 w-full rounded-lg border bg-muted/50 p-4", className)}
+      // ...
+    >
+      {children}
+    </Collapsible>
   );
 };
 
-<MessagePrimitive.Parts 
-  components={{ 
-    Reasoning,
-    ReasoningGroup: CustomReasoningGroup
-  }} 
-/>
+const ReasoningTrigger: FC<{ active: boolean; className?: string }> = ({
+  // ... existing code ...
+  <CollapsibleTrigger
+    className={cn(
+      "aui-reasoning-trigger group/trigger -mb-2 flex max-w-[75%] items-center gap-2 py-2 text-sm font-semibold text-foreground transition-colors hover:text-foreground",
+      className,
+    )}
+  >
+    {/* ... existing content ... */}
+  </CollapsibleTrigger>
+);
 ```
 
 ## Technical Details
