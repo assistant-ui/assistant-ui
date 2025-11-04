@@ -4,12 +4,22 @@ export const registry: RegistryItem[] = [
   {
     name: "shimmer-style",
     type: "registry:style",
-    files: [
-      {
-        type: "registry:style",
-        path: "styles/shimmer.css",
+    css: {
+      "@layer utilities": {
+        ".animate-shimmer": {
+          animation:
+            "shimmer-sweep var(--shimmer-duration, 1.2s) linear infinite both",
+        },
       },
-    ],
+      "@keyframes shimmer-sweep": {
+        from: {
+          "background-position": "10% 0",
+        },
+        to: {
+          "background-position": "-10% 0",
+        },
+      },
+    },
   },
   {
     name: "chat/b/ai-sdk-quick-start/json",
