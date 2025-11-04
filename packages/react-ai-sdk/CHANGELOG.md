@@ -1,5 +1,20 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.1.9
+
+### Patch Changes
+
+- 81b581f: feat: display AI SDK errors
+- 6d2c134: feat: useChatRuntime should use the assistant ui thread id remote id as the threadid by default
+- 2fc7e99: chore: update deps
+- Updated dependencies [3ab9484]
+- Updated dependencies [7a88ead]
+- Updated dependencies [81b581f]
+- Updated dependencies [2fc7e99]
+  - @assistant-ui/react@0.11.36
+  - assistant-stream@0.2.39
+  - assistant-cloud@0.1.6
+
 ## 1.1.8
 
 ### Patch Changes

@@ -1,5 +1,17 @@
 # @assistant-ui/react-data-stream
 
+## 0.11.6
+
+### Patch Changes
+
+- 2fc7e99: chore: update deps
+- Updated dependencies [3ab9484]
+- Updated dependencies [7a88ead]
+- Updated dependencies [81b581f]
+- Updated dependencies [2fc7e99]
+  - @assistant-ui/react@0.11.36
+  - assistant-stream@0.2.39
+
 ## 0.11.5
 
 ### Patch Changes

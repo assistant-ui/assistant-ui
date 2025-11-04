@@ -1,5 +1,19 @@
 # @assistant-ui/react
 
+## 0.11.36
+
+### Patch Changes
+
+- 3ab9484: feat: Toolkit API
+- 7a88ead: chore: mark all old context API hooks as deprecated
+- 81b581f: feat: display AI SDK errors
+- 2fc7e99: chore: update deps
+- Updated dependencies [dbc4ec7]
+- Updated dependencies [2fc7e99]
+  - @assistant-ui/tap@0.1.5
+  - assistant-stream@0.2.39
+  - assistant-cloud@0.1.6
+
 ## 0.11.35
 
 ### Patch Changes

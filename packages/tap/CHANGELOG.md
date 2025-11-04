@@ -1,5 +1,12 @@
 # @assistant-ui/tap
 
+## 0.1.5
+
+### Patch Changes
+
+- dbc4ec7: fix: tapRef should not support callback fns
+- 2fc7e99: chore: update deps
+
 ## 0.1.4
 
 ### Patch Changes

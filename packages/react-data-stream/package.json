@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-data-stream",
-  "version": "0.11.5",
+  "version": "0.11.6",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -24,12 +24,12 @@
   "dependencies": {
     "@ai-sdk/provider": "^1.1.3",
     "@types/json-schema": "^7.0.15",
-    "assistant-stream": "^0.2.38",
+    "assistant-stream": "^0.2.39",
     "json-schema": "^0.4.0",
     "zod": "^4.1.12"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.11.35",
+    "@assistant-ui/react": "^0.11.36",
     "@types/react": "*",
     "react": "^18 || ^19 || ^19.0.0-rc"
   },
