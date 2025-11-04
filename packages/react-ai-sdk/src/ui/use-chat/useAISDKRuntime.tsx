@@ -47,7 +47,13 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const messages = AISDKMessageConverter.useThreadMessages({
     isRunning,
     messages: chatHelpers.messages,
-    metadata: useMemo(() => ({ toolStatuses }), [toolStatuses]),
+    metadata: useMemo(
+      () => ({
+        toolStatuses,
+        ...(chatHelpers.error && { error: chatHelpers.error.message }),
+      }),
+      [toolStatuses, chatHelpers.error],
+    ),
   });
 
   const [runtimeRef] = useState(() => ({
