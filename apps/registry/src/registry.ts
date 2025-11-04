@@ -13,10 +13,10 @@ export const registry: RegistryItem[] = [
     css: {
       "@keyframes shimmer-sweep": {
         from: {
-          "background-position": "10% 0",
+          "background-position": "150% 0",
         },
         to: {
-          "background-position": "-10% 0",
+          "background-position": "-100% 0",
         },
       },
     },
