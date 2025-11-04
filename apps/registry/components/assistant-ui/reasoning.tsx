@@ -106,16 +106,16 @@ const ReasoningTrigger: FC<{ active: boolean; className?: string }> = ({
       className,
     )}
   >
-    <BrainIcon className="size-4 shrink-0" />
-    <span className="relative inline-block leading-none">
+    <BrainIcon className="aui-reasoning-trigger-icon size-4 shrink-0" />
+    <span className="aui-reasoning-trigger-label-wrapper relative inline-block leading-none">
       <span>Reasoning</span>
       {active ? (
         <span
           aria-hidden
           className={cn(
-            "pointer-events-none absolute inset-0 bg-clip-text bg-no-repeat text-transparent motion-reduce:animate-none",
+            "aui-reasoning-trigger-shimmer pointer-events-none absolute inset-0 bg-clip-text bg-no-repeat text-transparent motion-reduce:animate-none",
             "animate-shimmer will-change-[background-position]",
-            "bg-[length:200%_100%]",
+            "bg-size-[200%_100%]",
             "bg-[linear-gradient(90deg,transparent_0%,transparent_40%,color-mix(in_oklch,var(--foreground)_75%,transparent)_56%,transparent_80%,transparent_100%)]",
           )}
         >
@@ -125,7 +125,7 @@ const ReasoningTrigger: FC<{ active: boolean; className?: string }> = ({
     </span>
     <ChevronDownIcon
       className={cn(
-        "mt-0.5 size-4 shrink-0",
+        "aui-reasoning-trigger-chevron mt-0.5 size-4 shrink-0",
         "transition-transform duration-(--animation-duration) ease-out",
         "group-data-[state=closed]/trigger:-rotate-90",
         "group-data-[state=open]/trigger:rotate-0",
