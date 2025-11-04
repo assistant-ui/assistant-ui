@@ -4,13 +4,13 @@ export const registry: RegistryItem[] = [
   {
     name: "shimmer-style",
     type: "registry:style",
-    css: {
-      "@layer utilities": {
-        ".animate-shimmer": {
-          animation:
-            "shimmer-sweep var(--shimmer-duration, 1.2s) linear infinite both",
-        },
+    cssVars: {
+      theme: {
+        "--animate-shimmer":
+          "shimmer-sweep var(--shimmer-duration, 1.2s) linear infinite both",
       },
+    },
+    css: {
       "@keyframes shimmer-sweep": {
         from: {
           "background-position": "10% 0",
