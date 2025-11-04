@@ -7,7 +7,7 @@ export const registry: RegistryItem[] = [
     cssVars: {
       theme: {
         "--animate-shimmer":
-          "shimmer-sweep var(--shimmer-duration, 1.2s) linear infinite both",
+          "shimmer-sweep var(--shimmer-duration, 1000ms) linear infinite both",
       },
     },
     css: {
