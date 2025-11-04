@@ -1,0 +1,162 @@
+---
+title: Reasoning
+---
+
+import { Steps, Step } from "fumadocs-ui/components/steps";
+import { Tab, Tabs } from "fumadocs-ui/components/tabs";
+
+## Overview
+
+The Reasoning component displays AI reasoning or thinking messages in a collapsible UI. Consecutive reasoning message parts are automatically grouped together with smooth animations and a shimmer effect while streaming.
+
+## Getting Started
+
+<Steps>
+  <Step>
+
+### Add `reasoning`
+
+<Tabs items={["assistant-ui", "shadcn (namespace)", "shadcn"]}>
+  <Tab>
+
+```sh
+npx assistant-ui@latest add reasoning
+```
+
+  </Tab>
+  <Tab>
+
+```sh
+npx shadcn@latest add @assistant-ui/reasoning
+```
+
+  </Tab>
+  <Tab>
+
+```sh
+npx shadcn@latest add "https://r.assistant-ui.com/reasoning"
+```
+
+  </Tab>
+</Tabs>
+
+This adds a `/components/assistant-ui/reasoning.tsx` file to your project, which you can adjust as needed.
+
+  </Step>
+  <Step>
+
+### Use in your application
+
+Pass the `Reasoning` and `ReasoningGroup` components to the `MessagePrimitive.Parts` component:
+
+```tsx twoslash title="/components/assistant-ui/thread.tsx"
+import { FC, PropsWithChildren } from "react";
+import { MessagePrimitive } from "@assistant-ui/react";
+import { Reasoning, ReasoningGroup } from "@/components/assistant-ui/reasoning";
+
+const AssistantActionBar: FC = () => null;
+const BranchPicker: FC<{ className?: string }> = () => null;
+
+// ---cut---
+const AssistantMessage: FC = () => {
+  return (
+    <MessagePrimitive.Root className="...">
+      <div className="...">
+        <MessagePrimitive.Parts 
+          components={{ 
+            Reasoning,
+            ReasoningGroup 
+          }} 
+        />
+      </div>
+      <AssistantActionBar />
+
+      <BranchPicker className="..." />
+    </MessagePrimitive.Root>
+  );
+};
+```
+
+  </Step>
+</Steps>
+
+## How It Works
+
+The component consists of two parts:
+
+1. **Reasoning**: Renders individual reasoning message part content
+2. **ReasoningGroup**: Wraps consecutive reasoning parts in a collapsible container
+
+Consecutive reasoning parts are automatically grouped together by the `ReasoningGroup` component, similar to how `ToolGroup` handles tool calls.
+
+## Props
+
+### ReasoningGroup
+
+The ReasoningGroup component receives the following props:
+
+- `startIndex`: The index of the first reasoning part in the group
+- `endIndex`: The index of the last reasoning part in the group
+- `children`: The rendered reasoning components
+
+### Reasoning
+
+The Reasoning component doesn't accept additional props—it renders the reasoning text content with markdown support.
+
+## Examples
+
+### Basic Usage
+
+```tsx
+<MessagePrimitive.Parts 
+  components={{ 
+    Reasoning,
+    ReasoningGroup 
+  }} 
+/>
+```
+
+### Custom Styling
+
+```tsx
+const CustomReasoningGroup: FC<
+  PropsWithChildren<{ startIndex: number; endIndex: number }>
+> = ({ startIndex, endIndex, children }) => {
+  const partCount = endIndex - startIndex + 1;
+
+  return (
+    <details className="my-4 rounded-lg border bg-muted/50 p-4">
+      <summary className="cursor-pointer font-medium text-muted-foreground">
+        💭 Thinking ({partCount} {partCount === 1 ? "step" : "steps"})
+      </summary>
+      <div className="mt-2 space-y-2 text-sm">{children}</div>
+    </details>
+  );
+};
+
+<MessagePrimitive.Parts 
+  components={{ 
+    Reasoning,
+    ReasoningGroup: CustomReasoningGroup
+  }} 
+/>
+```
+
+## Technical Details
+
+### Scroll Lock
+
+The component uses the `useScrollLock` hook (exported from `@assistant-ui/react`) to prevent page jumps when collapsing the reasoning section. This maintains the scroll position during the collapse animation.
+
+### Animation Timing
+
+The component uses CSS custom properties for animation timing:
+- `--animation-duration`: Controls expand/collapse animation (default: 200ms)
+- `--shimmer-duration`: Controls the shimmer effect speed (default: 1200ms)
+
+These can be customized by modifying the CSS variables in your component.
+
+## Related Components
+
+- [ToolGroup](/ui/ToolGroup) - Similar grouping pattern for tool calls
+- [PartGrouping](/ui/PartGrouping) - Learn more about message part grouping
