@@ -1,6 +1,6 @@
 "use client";
 
-import { type RefObject, useRef } from "react";
+import { type RefObject, useCallback, useEffect, useRef } from "react";
 
 /**
  * Locks scroll position during collapsible/height animations and hides scrollbar.
@@ -33,8 +33,17 @@ export const useScrollLock = <T extends HTMLElement = HTMLElement>(
   animationDuration: number,
 ) => {
   const scrollContainerRef = useRef<HTMLElement | null>(null);
+  const cleanupRef = useRef<(() => void) | null>(null);
 
-  const lockScroll = () => {
+  useEffect(() => {
+    return () => {
+      cleanupRef.current?.();
+    };
+  }, []);
+
+  const lockScroll = useCallback(() => {
+    cleanupRef.current?.();
+
     (function findScrollableAncestor() {
       if (scrollContainerRef.current || !animatedElementRef.current) return;
 
@@ -60,11 +69,18 @@ export const useScrollLock = <T extends HTMLElement = HTMLElement>(
     const resetPosition = () => (scrollContainer.scrollTop = scrollPosition);
     scrollContainer.addEventListener("scroll", resetPosition);
 
-    setTimeout(() => {
+    const timeoutId = setTimeout(() => {
       scrollContainer.removeEventListener("scroll", resetPosition);
       scrollContainer.style.scrollbarWidth = scrollbarWidth;
+      cleanupRef.current = null;
     }, animationDuration);
-  };
+
+    cleanupRef.current = () => {
+      clearTimeout(timeoutId);
+      scrollContainer.removeEventListener("scroll", resetPosition);
+      scrollContainer.style.scrollbarWidth = scrollbarWidth;
+    };
+  }, [animationDuration, animatedElementRef]);
 
   return lockScroll;
 };
