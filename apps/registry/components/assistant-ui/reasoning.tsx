@@ -26,7 +26,7 @@ import {
 import { cn } from "@/lib/utils";
 
 const ANIMATION_DURATION = 200;
-const SHIMMER_DURATION = 1200;
+const SHIMMER_DURATION = 1000;
 
 /**
  * Root collapsible container that manages open/closed state and scroll lock.
