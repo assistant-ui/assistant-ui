@@ -12,6 +12,7 @@ import {
 
 import {
   useScrollLock,
+  useAssistantState,
   type ReasoningMessagePartComponent,
   type ReasoningGroupComponent,
 } from "@assistant-ui/react";
@@ -25,6 +26,7 @@ import {
 import { cn } from "@/lib/utils";
 
 const ANIMATION_DURATION = 200;
+const SHIMMER_DURATION = 1200;
 
 /**
  * Root collapsible container that manages open/closed state and scroll lock.
@@ -33,7 +35,6 @@ const ANIMATION_DURATION = 200;
 const ReasoningRoot: FC<
   PropsWithChildren<{
     className?: string;
-    children: React.ReactNode;
   }>
 > = ({ className, children }) => {
   const collapsibleRef = useRef<HTMLDivElement>(null);
@@ -59,6 +60,7 @@ const ReasoningRoot: FC<
       style={
         {
           "--animation-duration": `${ANIMATION_DURATION}ms`,
+          "--shimmer-duration": `${SHIMMER_DURATION}ms`,
         } as React.CSSProperties
       }
     >
@@ -91,6 +93,48 @@ const GradientFade: FC<{ className?: string }> = ({ className }) => (
 );
 
 /**
+ * Trigger button for the Reasoning collapsible.
+ * Composed of icons, label, and text shimmer animation when reasoning is being streamed.
+ */
+const ReasoningTrigger: FC<{ active: boolean; className?: string }> = ({
+  active,
+  className,
+}) => (
+  <CollapsibleTrigger
+    className={cn(
+      "aui-reasoning-trigger group/trigger -mb-2 flex max-w-[75%] items-center gap-2 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground",
+      className,
+    )}
+  >
+    <BrainIcon className="size-4 shrink-0" />
+    <span className="relative inline-block leading-none">
+      <span>Reasoning</span>
+      {active ? (
+        <span
+          aria-hidden
+          className={cn(
+            "pointer-events-none absolute inset-0 bg-clip-text bg-no-repeat text-transparent motion-reduce:animate-none",
+            "animate-shimmer will-change-[background-position]",
+            "bg-[length:200%_100%]",
+            "bg-[linear-gradient(90deg,transparent_0%,transparent_40%,color-mix(in_oklch,var(--foreground)_75%,transparent)_56%,transparent_80%,transparent_100%)]",
+          )}
+        >
+          Reasoning
+        </span>
+      ) : null}
+    </span>
+    <ChevronDownIcon
+      className={cn(
+        "mt-0.5 size-4 shrink-0",
+        "transition-transform duration-(--animation-duration) ease-out",
+        "group-data-[state=closed]/trigger:-rotate-90",
+        "group-data-[state=open]/trigger:rotate-0",
+      )}
+    />
+  </CollapsibleTrigger>
+);
+
+/**
  * Collapsible content wrapper that handles height expand/collapse animation.
  * Animation: Height animates up (collapse) and down (expand).
  * Also provides group context for child animations via data-state attributes.
@@ -98,9 +142,9 @@ const GradientFade: FC<{ className?: string }> = ({ className }) => (
 const ReasoningContent: FC<
   PropsWithChildren<{
     className?: string;
-    children: React.ReactNode;
+    "aria-busy"?: boolean;
   }>
-> = ({ className, children }) => (
+> = ({ className, children, "aria-busy": ariaBusy }) => (
   <CollapsibleContent
     className={cn(
       "aui-reasoning-content relative overflow-hidden text-sm text-muted-foreground outline-none",
@@ -113,6 +157,7 @@ const ReasoningContent: FC<
       "data-[state=closed]:duration-(--animation-duration)",
       className,
     )}
+    aria-busy={ariaBusy}
   >
     {children}
     <GradientFade />
@@ -129,7 +174,6 @@ ReasoningContent.displayName = "ReasoningContent";
 const ReasoningText: FC<
   PropsWithChildren<{
     className?: string;
-    children: React.ReactNode;
   }>
 > = ({ className, children }) => (
   <div
@@ -188,27 +232,28 @@ const ReasoningImpl: ReasoningMessagePartComponent = () => <MarkdownText />;
  * />
  * ```
  */
-const ReasoningGroupImpl: ReasoningGroupComponent = ({ children }) => {
+const ReasoningGroupImpl: ReasoningGroupComponent = ({
+  children,
+  startIndex,
+  endIndex,
+}) => {
+  /**
+   * Detects if reasoning is currently streaming within this group's range.
+   */
+  const isReasoningStreaming = useAssistantState(({ message }) => {
+    if (message.status?.type !== "running") return false;
+    const lastIndex = message.parts.length - 1;
+    if (lastIndex < 0) return false;
+    const lastType = message.parts[lastIndex]?.type;
+    if (lastType !== "reasoning") return false;
+    return lastIndex >= startIndex && lastIndex <= endIndex;
+  });
+
   return (
     <ReasoningRoot>
-      <CollapsibleTrigger
-        className={cn(
-          "aui-reasoning-trigger group/trigger -mb-2 flex max-w-[75%] items-center gap-2 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground",
-        )}
-      >
-        <BrainIcon className="size-4 shrink-0" />
-        <span className="leading-none">Reasoning</span>
-        <ChevronDownIcon
-          className={cn(
-            "size-4 shrink-0 mt-0.5",
-            "transition-transform duration-(--animation-duration) ease-out",
-            "group-data-[state=closed]/trigger:-rotate-90",
-            "group-data-[state=open]/trigger:rotate-0",
-          )}
-        />
-      </CollapsibleTrigger>
+      <ReasoningTrigger active={isReasoningStreaming} />
 
-      <ReasoningContent>
+      <ReasoningContent aria-busy={isReasoningStreaming}>
         <ReasoningText>{children}</ReasoningText>
       </ReasoningContent>
     </ReasoningRoot>
