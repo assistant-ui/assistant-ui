@@ -1,6 +1,6 @@
-import { createMDXSource } from "fumadocs-mdx/runtime/next";
 import type { InferPageType } from "fumadocs-core/source";
 import { loader } from "fumadocs-core/source";
+import { createMDXSource } from "fumadocs-mdx/runtime/next";
 import {
   docs,
   examples as examplePages,
@@ -24,11 +24,26 @@ export const blog = loader({
   source: createMDXSource(blogPosts),
 });
 
-export type BlogPage = InferPageType<typeof blog>;
+type BaseBlogPage = InferPageType<typeof blog>;
+export type BlogPage = Omit<BaseBlogPage, "data"> & {
+  data: BaseBlogPage["data"] & {
+    date: Date | undefined;
+    author: string;
+  };
+};
 
 export const careers = loader({
   baseUrl: "/careers",
   source: createMDXSource(careersCollection),
 });
 
-export type CareerPage = InferPageType<typeof careers>;
+type BaseCareerPage = InferPageType<typeof careers>;
+export type CareerPage = Omit<BaseCareerPage, "data"> & {
+  data: BaseCareerPage["data"] & {
+    location: string;
+    type: string;
+    salary: string;
+    summary: string;
+    order?: number | undefined;
+  };
+};

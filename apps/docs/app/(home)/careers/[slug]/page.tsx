@@ -22,7 +22,7 @@ export default function CareerRolePage({
     notFound();
   }
 
-  const role = page as CareerPage;
+  const role = page;
 
   const mdxComponents = getMDXComponents({});
 

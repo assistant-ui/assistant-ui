@@ -15,7 +15,7 @@ export default function Page(props: {
   params: Promise<Param>;
 }): React.ReactElement {
   const params = use(props.params);
-  const page = blog.getPage([params.slug]) as BlogPage;
+  const page = blog.getPage([params.slug]) as BlogPage | undefined;
   const mdxComponents = getMDXComponents({});
 
   if (!page) notFound();
@@ -31,7 +31,7 @@ export default function Page(props: {
         </Link>
         {!!page.data.date && (
           <p className="text-xs text-gray-500">
-            {(page.data.date as Date).toLocaleString("en-US", {
+            {page.data.date.toLocaleString("en-US", {
               year: "numeric",
               month: "2-digit",
               day: "2-digit",
