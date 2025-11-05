@@ -91,6 +91,13 @@ const SHOWCASE_ITEMS: ShowcaseItem[] = [
     description: "Research financial data about public companies",
     secondaryTag: "OSS",
   },
+  {
+    title: "CoreViz",
+    image: "/screenshot/coreviz.png",
+    tag: "AI Assistant",
+    link: "https://coreviz.io/",
+    description: "AI-powered visual intelligence platform for managing and searching photos and videos",
+  },
 ];
 
 export default function Component() {
