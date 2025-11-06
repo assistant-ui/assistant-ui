@@ -147,6 +147,15 @@
   --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
   --color-sidebar-border: hsl(var(--sidebar-border));
   --color-sidebar-ring: hsl(var(--sidebar-ring));
+  --animate-shimmer: shimmer-sweep var(--shimmer-duration, 1000ms) linear infinite both;
+  @keyframes shimmer-sweep {
+  from {
+    background-position: 150% 0;
+    }
+  to {
+    background-position: -100% 0;
+    }
+  }
 }
 
 @layer base {
