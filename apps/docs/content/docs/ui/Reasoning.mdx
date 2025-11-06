@@ -49,7 +49,7 @@ This adds a `/components/assistant-ui/reasoning.tsx` file to your project, which
 
 Pass the `Reasoning` and `ReasoningGroup` components to the `MessagePrimitive.Parts` component:
 
-```tsx
+```tsx title="/app/components/assistant-ui/thread.tsx" {2,10-11}
 import { MessagePrimitive } from "@assistant-ui/react";
 import { Reasoning, ReasoningGroup } from "@/components/assistant-ui/reasoning";
 
@@ -84,16 +84,6 @@ The component consists of two parts:
 
 Consecutive reasoning parts are automatically grouped together by the `ReasoningGroup` component, similar to how `ToolGroup` handles tool calls.
 
-## Props
-
-### ReasoningGroup
-
-The ReasoningGroup component receives the following props:
-
-- `startIndex`: The index of the first reasoning part in the group
-- `endIndex`: The index of the last reasoning part in the group
-- `children`: The rendered reasoning components
-
 ### Reasoning
 
 The Reasoning component doesn't accept additional props—it renders the reasoning text content with markdown support.
@@ -102,7 +92,7 @@ The Reasoning component doesn't accept additional props—it renders the reasoni
 
 ### Basic Usage
 
-```tsx
+```tsx title="/app/components/assistant-ui/thread.tsx"
 <MessagePrimitive.Parts 
   components={{ 
     Reasoning,
@@ -174,11 +164,11 @@ The component uses the `useScrollLock` hook (exported from `@assistant-ui/react`
 
 The component uses CSS custom properties for animation timing:
 - `--animation-duration`: Controls expand/collapse animation (default: 200ms)
-- `--shimmer-duration`: Controls the shimmer effect speed (default: 1200ms)
+- `--shimmer-duration`: Controls the shimmer effect speed (default: 1000ms)
 
 These can be customized by modifying the CSS variables in your component.
 
 ## Related Components
 
 - [ToolGroup](/ui/ToolGroup) - Similar grouping pattern for tool calls
-- [PartGrouping](/ui/PartGrouping) - Learn more about message part grouping
+- [PartGrouping](/ui/PartGrouping) - Experimental API for grouping message parts
