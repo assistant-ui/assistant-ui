@@ -192,7 +192,7 @@ const ComposerAction: FC = () => {
             type="submit"
             variant="default"
             size="icon"
-            className="aui-composer-send size-[34px] rounded-full bg-foreground p-1 hover:bg-foreground"
+            className="aui-composer-send size-[34px] rounded-full bg-foreground p-1 hover:bg-foreground/80"
             aria-label="Send message"
           >
             <ArrowUpIcon className="aui-composer-send-icon size-5" />
@@ -206,7 +206,7 @@ const ComposerAction: FC = () => {
             type="button"
             variant="default"
             size="icon"
-            className="aui-composer-cancel size-[34px] rounded-full border border-muted-foreground/60 bg-foreground hover:bg-primary/75 dark:border-muted-foreground/90"
+            className="aui-composer-cancel size-[34px] rounded-full border border-muted-foreground/60 bg-foreground hover:bg-foreground/80 dark:border-muted-foreground/90"
             aria-label="Stop generating"
           >
             <Square className="aui-composer-cancel-icon size-3.5 fill-white dark:fill-black" />
@@ -338,7 +338,7 @@ const EditComposer: FC = () => {
           <ComposerPrimitive.Send asChild>
             <Button
               size="sm"
-              className="bg-foreground"
+              className="bg-foreground hover:bg-foreground/80"
               aria-label="Update message"
             >
               Update

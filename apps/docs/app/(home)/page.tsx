@@ -95,7 +95,10 @@ export default function HomePage() {
             <p className="text-center text-2xl font-bold">
               Build conversational AI interfaces
             </p>
-            <Button asChild className="w-full bg-foreground sm:w-[unset]">
+            <Button
+              asChild
+              className="w-full bg-foreground hover:bg-foreground/80 sm:w-[unset]"
+            >
               <Link href="/docs/getting-started">Get Started</Link>
             </Button>
           </div>
