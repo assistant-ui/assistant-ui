@@ -12,14 +12,12 @@ import type {
   ThreadMessage,
 } from "@assistant-ui/react";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
-import { makeLogger } from "./runtime/logger";
 import type { UseAGUIRuntimeOptions } from "./runtime/types";
 import { AGUIThreadRuntimeCore } from "./runtime/AGUIThreadRuntimeCore";
 
 export function useAGUIRuntime(
   options: UseAGUIRuntimeOptions,
 ): AssistantRuntime {
-  const logger = useMemo(() => makeLogger(options.logger), [options.logger]);
   const [version, setVersion] = useState(0);
   const notifyUpdate = useCallback(() => setVersion((v) => v + 1), []);
   const coreRef = useRef<AGUIThreadRuntimeCore | null>(null);
@@ -34,7 +32,6 @@ export function useAGUIRuntime(
   if (!coreRef.current) {
     coreRef.current = new AGUIThreadRuntimeCore({
       agent: options.agent,
-      logger,
       showThinking: options.showThinking ?? true,
       ...(options.onError ? { onError: options.onError } : {}),
       ...(options.onCancel ? { onCancel: options.onCancel } : {}),
@@ -46,7 +43,6 @@ export function useAGUIRuntime(
   const core = coreRef.current;
   core.updateOptions({
     agent: options.agent,
-    logger,
     showThinking: options.showThinking ?? true,
     ...(options.onError ? { onError: options.onError } : {}),
     ...(options.onCancel ? { onCancel: options.onCancel } : {}),

@@ -5,11 +5,6 @@ import type { ChatModelRunResult } from "@assistant-ui/react";
 import { RunAggregator } from "../src/runtime/adapter/run-aggregator";
 import type { AGUIEvent } from "../src/runtime/types";
 
-const makeLogger = () => ({
-  debug: () => {},
-  error: () => {},
-});
-
 describe("RunAggregator", () => {
   let results: ChatModelRunResult[];
 
@@ -20,7 +15,6 @@ describe("RunAggregator", () => {
   const createAggregator = (showThinking: boolean) =>
     new RunAggregator({
       showThinking,
-      logger: makeLogger(),
       emit: (update) => results.push(update),
     });
 

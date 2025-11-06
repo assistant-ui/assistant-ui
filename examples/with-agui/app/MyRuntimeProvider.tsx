@@ -26,11 +26,6 @@ export function MyRuntimeProvider({
 
   const runtime = useAGUIRuntime({
     agent,
-    logger: {
-      debug: (...args: unknown[]) => console.debug("[agui]", ...args),
-      error: (...args: unknown[]) => console.error("[agui]", ...args),
-      error: (...a: any[]) => console.error("[agui]", ...a),
-    },
   });
 
   return (
