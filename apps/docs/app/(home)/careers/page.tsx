@@ -16,7 +16,7 @@ const roleOrder = (value: unknown, fallback: number) => {
 };
 
 export default function CareersPage(): ReactElement {
-  const roles = [...careers.getPages()].sort((a: CareerPage, b: CareerPage) => {
+  const roles = [...(careers.getPages() as CareerPage[])].sort((a, b) => {
     const orderA = roleOrder(a.data.order, Number.MAX_SAFE_INTEGER);
     const orderB = roleOrder(b.data.order, Number.MAX_SAFE_INTEGER);
     if (orderA === orderB) {
