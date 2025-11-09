@@ -4,6 +4,7 @@ import {
   ProjectorIcon,
   SparklesIcon,
   WalletIcon,
+  LayoutTemplateIcon,
 } from "lucide-react";
 import icon from "@/public/favicon/icon.svg";
 import Image from "next/image";
@@ -63,6 +64,12 @@ export const baseOptions: BaseLayoutProps = {
       text: "Dashboard",
       url: "https://cloud.assistant-ui.com/",
       icon: <CloudIcon />,
+    },
+    {
+      text: "Tool UI",
+      url: "https://tool-ui.com",
+      icon: <LayoutTemplateIcon />,
+      external: true,
     },
     {
       text: "Pricing",
