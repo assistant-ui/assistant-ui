@@ -3,6 +3,7 @@ import {
   RemoteThreadInitializeResponse,
   RemoteThreadListAdapter,
   RemoteThreadListResponse,
+  RemoteThreadMetadata,
 } from "../types";
 
 export class InMemoryThreadListAdapter implements RemoteThreadListAdapter {
@@ -34,5 +35,9 @@ export class InMemoryThreadListAdapter implements RemoteThreadListAdapter {
 
   generateTitle(): Promise<AssistantStream> {
     return Promise.resolve(new ReadableStream<AssistantStreamChunk>());
+  }
+
+  fetch(_threadId: string): Promise<RemoteThreadMetadata> {
+    return Promise.reject(new Error("Thread not found"));
   }
 }

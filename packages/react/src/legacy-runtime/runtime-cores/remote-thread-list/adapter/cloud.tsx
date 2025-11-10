@@ -121,6 +121,16 @@ export const useCloudThreadListAdapter = (
       });
     },
 
+    fetch: async (threadId: string) => {
+      const thread = await cloud.threads.get(threadId);
+      return {
+        status: thread.is_archived ? "archived" : "regular",
+        remoteId: thread.id,
+        title: thread.title,
+        externalId: thread.external_id ?? undefined,
+      };
+    },
+
     unstable_Provider,
   };
 };

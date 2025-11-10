@@ -308,9 +308,56 @@ export class RemoteThreadListThreadListRuntimeCore
   }
 
   public async switchToThread(threadIdOrRemoteId: string): Promise<void> {
-    const data = this.getItemById(threadIdOrRemoteId);
-    if (!data) throw new Error("Thread not found");
+    let data = this.getItemById(threadIdOrRemoteId);
 
+    if (!data) {
+      const remoteMetadata =
+        await this._options.adapter.fetch(threadIdOrRemoteId);
+      const state = this._state.value;
+      const mappingId = createThreadMappingId(remoteMetadata.remoteId);
+
+      const newThreadData = {
+        ...state.threadData,
+        [mappingId]: {
+          id: mappingId,
+          initializeTask: Promise.resolve({
+            remoteId: remoteMetadata.remoteId,
+            externalId: remoteMetadata.externalId,
+          }),
+          remoteId: remoteMetadata.remoteId,
+          externalId: remoteMetadata.externalId,
+          status: remoteMetadata.status,
+          title: remoteMetadata.title,
+        } as RemoteThreadData,
+      };
+
+      const newThreadIdMap = {
+        ...state.threadIdMap,
+        [remoteMetadata.remoteId]: mappingId,
+      };
+
+      const newThreadIds =
+        remoteMetadata.status === "regular"
+          ? [...state.threadIds, remoteMetadata.remoteId]
+          : state.threadIds;
+
+      const newArchivedThreadIds =
+        remoteMetadata.status === "archived"
+          ? [...state.archivedThreadIds, remoteMetadata.remoteId]
+          : state.archivedThreadIds;
+
+      this._state.update({
+        ...state,
+        threadIds: newThreadIds,
+        archivedThreadIds: newArchivedThreadIds,
+        threadIdMap: newThreadIdMap,
+        threadData: newThreadData,
+      });
+
+      data = this.getItemById(threadIdOrRemoteId);
+    }
+
+    if (!data) throw new Error("Thread not found");
     if (this._mainThreadId === data.id) return;
 
     const task = this._hookManager.startThreadRuntime(data.id);

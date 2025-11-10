@@ -55,6 +55,10 @@ export class AssistantCloudThreads {
     return this.cloud.makeRequest("/threads", { query });
   }
 
+  public async get(threadId: string): Promise<CloudThread> {
+    return this.cloud.makeRequest(`/threads/${encodeURIComponent(threadId)}`);
+  }
+
   public async create(
     body: AssistantCloudThreadsCreateBody,
   ): Promise<AssistantCloudThreadsCreateResponse> {
