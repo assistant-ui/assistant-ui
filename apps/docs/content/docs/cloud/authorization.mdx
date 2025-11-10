@@ -70,7 +70,7 @@ export const POST = async (req: Request) => {
  
   if (!userId) throw new Error("User not authenticated");
  
-  const workspaceId = orgId ? `${orgId}_${userId}` : userId;  // colons in workspaceId violate the schema
+  const workspaceId = orgId ? `${orgId}_${userId}` : userId;
   const assistantCloud = new AssistantCloud({
     apiKey: process.env["ASSISTANT_API_KEY"]!,
     userId,
