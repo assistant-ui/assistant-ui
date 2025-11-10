@@ -1,0 +1,69 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "assistant-transport-backend-django"
+version = "0.1.0"
+description = "A Django server implementing the assistant-transport protocol"
+authors = [{ name = "assistant-ui", email = "hi@assistant-ui.com" }]
+requires-python = ">=3.9,<4.0"
+readme = "README.md"
+license = { text = "MIT" }
+dependencies = [
+    "django>=5.0.0",
+    "djangorestframework>=3.14.0",
+    "django-cors-headers>=4.0.0",
+    "assistant-stream>=0.0.28",
+    "pydantic>=2.0.0",
+    "python-dotenv>=1.0.0",
+    "uvicorn[standard]>=0.20.0",
+]
+
+[project.optional-dependencies]
+openai = ["openai>=1.0.0"]
+anthropic = ["anthropic>=0.18.0"]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-django>=4.5.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "mypy>=1.0.0",
+    "ruff>=0.1.0",
+]
+
+[project.scripts]
+assistant-transport-backend-django = "manage:main"
+
+[project.urls]
+Homepage = "https://github.com/assistant-ui/assistant-ui"
+Documentation = "https://docs.assistant-ui.com"
+Repository = "https://github.com/assistant-ui/assistant-ui"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]
+
+[tool.black]
+line-length = 100
+target-version = ['py39']
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "C", "I"]
+ignore = ["E501"]
