@@ -70,7 +70,7 @@ export const POST = async (req: Request) => {
  
   if (!userId) throw new Error("User not authenticated");
  
-  const workspaceId = orgId ? `${orgId}:${userId}` : userId;
+  const workspaceId = orgId ? `${orgId}_${userId}` : userId;
   const assistantCloud = new AssistantCloud({
     apiKey: process.env["ASSISTANT_API_KEY"]!,
     userId,
@@ -91,7 +91,7 @@ const cloud = new AssistantCloud({
   baseUrl: process.env["NEXT_PUBLIC_ASSISTANT_BASE_URL"]!,
   authToken: () =>
     fetch("/api/assistant-ui-token", { method: "POST" }).then((r) =>
-      r.json().then((data) => data.token)
+      r.text(),
     ),
 });
 
