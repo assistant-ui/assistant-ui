@@ -57,6 +57,13 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
       "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/shadcn/Shadcn.tsx",
   },
   {
+    title: "Django Backend",
+    description: "Django REST Framework backend implementing assistant-transport protocol with streaming support",
+    image: "/screenshot/examples/django-backend.png",
+    link: "/examples/django-backend",
+    githubLink: "https://github.com/assistant-ui/assistant-ui/tree/main/python/assistant-transport-backend-django",
+  },
+  {
     title: "Mem0 - ChatGPT with memory",
     image: "/screenshot/examples/mem0.png",
     description:

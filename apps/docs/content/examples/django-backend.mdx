@@ -1,0 +1,108 @@
+---
+title: Django Backend
+description: Django REST Framework backend implementing assistant-transport protocol
+---
+
+## Overview
+
+The Django Backend example demonstrates how to implement the assistant-transport protocol using Django REST Framework. This provides a Python backend alternative to the FastAPI examples, suitable for projects that prefer Django's ecosystem.
+
+## Features
+
+- **Django 5.0+ with Async Views**: Modern Django async support for streaming responses
+- **Django REST Framework**: API framework for request handling
+- **assistant-stream Integration**: Same streaming protocol as FastAPI examples
+- **Mock & Real AI Responses**: Works standalone or with OpenAI integration
+- **CORS Support**: Ready for frontend integration with django-cors-headers
+- **Environment Configuration**: Similar setup to FastAPI examples
+
+## Usage
+
+The Django backend implements the same API contract as the FastAPI examples:
+
+### Installation
+
+```bash
+cd python/assistant-transport-backend-django
+pip install -e .
+cp .env.example .env
+```
+
+### Running the Server
+
+```bash
+# Using Django's manage.py (port 8002)
+python manage.py
+
+# Or with uvicorn (matching FastAPI style)
+python run_server.py
+```
+
+### Integration with Frontend
+
+```bash
+# Terminal 1: Start Django backend
+cd python/assistant-transport-backend-django
+python manage.py
+
+# Terminal 2: Start frontend
+cd examples/with-assistant-transport
+NEXT_PUBLIC_API_URL=http://localhost:8002/assistant pnpm dev
+```
+
+## Code
+
+The implementation follows Django patterns while maintaining compatibility with the assistant-transport protocol:
+
+**Main Endpoint** (`api/views.py`):
+```python
+@csrf_exempt
+@require_http_methods(["POST"])
+async def assistant_endpoint(request):
+    # Parse and validate request
+    request_data = AssistantRequest(**json.loads(request.body))
+
+    # Define streaming callback
+    async def run_callback(controller: RunController):
+        # Process commands and generate responses
+        controller.state["messages"].append({
+            "role": "assistant",
+            "parts": [{"type": "text", "text": "Hello from Django!"}]
+        })
+
+    # Create and return streaming response
+    stream = create_run(run_callback, state=request_data.state)
+    return StreamingHttpResponse(
+        DataStreamResponse(stream),
+        content_type="text/plain; charset=utf-8"
+    )
+```
+
+**CORS Configuration** (`settings.py`):
+```python
+MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
+    # ... other middleware
+]
+
+CORS_ALLOWED_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+CORS_ALLOW_CREDENTIALS = True
+```
+
+## Comparison with FastAPI
+
+| Feature | FastAPI | Django |
+|---------|---------|--------|
+| Framework | FastAPI | Django 5.0+ DRF |
+| Async | Native | async views |
+| Server | uvicorn | Django or uvicorn |
+| Validation | Pydantic | Pydantic |
+| Port | 8000 | 8002 |
+
+Choose Django if you prefer Django's ecosystem or your project already uses Django.
+
+## Learn More
+
+- [GitHub Repository](https://github.com/assistant-ui/assistant-ui/tree/main/python/assistant-transport-backend-django)
+- [Full Documentation](https://github.com/assistant-ui/assistant-ui/blob/main/python/assistant-transport-backend-django/README.md)
+- [FastAPI Example](/examples/ai-sdk) - Compare implementations
