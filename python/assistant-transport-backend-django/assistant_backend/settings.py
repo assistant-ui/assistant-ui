@@ -1,13 +1,24 @@
 import os
+import secrets
 from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-change-this-in-production")
+
+# Generate random SECRET_KEY if not provided
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    SECRET_KEY = secrets.token_urlsafe(50)
+
 DEBUG = os.getenv("DEBUG", "True").lower() == "true"
-ALLOWED_HOSTS = ["*"]  # Permissive for development
+
+# Restrict ALLOWED_HOSTS in production
+if DEBUG:
+    ALLOWED_HOSTS = ["*"]  # Permissive for development
+else:
+    ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
 INSTALLED_APPS = [
     "django.contrib.contenttypes",  # Required for Django

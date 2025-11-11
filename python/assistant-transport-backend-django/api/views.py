@@ -53,14 +53,16 @@ async def assistant_endpoint(request):
             await asyncio.sleep(1)
 
             # Process incoming command
-            if request_data.commands and request_data.commands[0].type == "add-message":
-                controller.state["messages"].append(
-                    request_data.commands[0].message.model_dump()
-                )
-            if request_data.commands and request_data.commands[0].type == "add-tool-result":
-                controller.state["messages"][-1]["parts"][-1]["result"] = (
-                    request_data.commands[0].result
-                )
+            if request_data.commands:
+                if request_data.commands[0].type == "add-message":
+                    controller.state["messages"].append(
+                        request_data.commands[0].message.model_dump()
+                    )
+                elif request_data.commands[0].type == "add-tool-result":
+                    if controller.state.get("messages") and controller.state["messages"][-1].get("parts"):
+                        controller.state["messages"][-1]["parts"][-1]["result"] = (
+                            request_data.commands[0].result
+                        )
 
             # Simulate processing
             await asyncio.sleep(1)
