@@ -20,8 +20,8 @@ The following hooks have been removed:
 
 - `useMessageUtils` → Use `useAssistantState(({ message }) => message.isHovering)` / `useAssistantState(({ message }) => message.isCopied)`
 - `useMessageUtilsStore` → Use `useAssistantApi()` with `api.message().setIsHovering()` / `api.message().setIsCopied()`
-- `useToolUIs` → Use `useAssistantState(({ toolUIs }) => toolUIs)` and `useAssistantApi()` with `api.toolUIs()`
-- `useToolUIsStore` → Use `useAssistantApi()` with `api.toolUIs()`
+- `useToolUIs` → Use `useAssistantState(({ tools }) => tools)` and `useAssistantApi()` with `api.tools()`
+- `useToolUIsStore` → Use `useAssistantApi()` with `api.tools()`
 
 **Deprecated Hooks:**
 

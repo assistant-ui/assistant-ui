@@ -1,8 +1,17 @@
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export type ToolsState = {};
+import { Unsubscribe } from "@assistant-ui/tap";
+import { ToolCallMessagePartComponent } from "../../types";
+
+export type ToolsState = {
+  tools: Record<string, ToolCallMessagePartComponent[]>;
+};
 
 export type ToolsApi = {
   getState(): ToolsState;
+
+  setToolUI(
+    toolName: string,
+    render: ToolCallMessagePartComponent,
+  ): Unsubscribe;
 };
 
 export type ToolsMeta = {

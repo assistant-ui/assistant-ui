@@ -806,7 +806,7 @@ const renderStatePreview = (key: string, value: unknown) => {
     case "threadListItem":
     case "threadlistitem":
       return renderThreadListItemStatePreview(value);
-    case "toolUIs":
+    case "tools":
       return renderToolUIsStatePreview(value);
     case "composer":
       return renderComposerStatePreview(value);
