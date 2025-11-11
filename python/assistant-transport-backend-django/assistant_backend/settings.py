@@ -18,7 +18,7 @@ DEBUG = os.getenv("DEBUG", "True").lower() == "true"
 if DEBUG:
     ALLOWED_HOSTS = ["*"]  # Permissive for development
 else:
-    ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+    ALLOWED_HOSTS = [h.strip() for h in os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")]
 
 INSTALLED_APPS = [
     "django.contrib.contenttypes",  # Required for Django
@@ -34,7 +34,7 @@ MIDDLEWARE = [
 ]
 
 # CORS Configuration (matching FastAPI pattern)
-CORS_ALLOWED_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+CORS_ALLOWED_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_METHODS = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
 CORS_ALLOW_HEADERS = ["*"]

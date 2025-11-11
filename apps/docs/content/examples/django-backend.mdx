@@ -73,8 +73,9 @@ async def assistant_endpoint(request):
 
     # Create and return streaming response
     stream = create_run(run_callback, state=request_data.state)
+    data_stream_response = DataStreamResponse(stream)
     return StreamingHttpResponse(
-        DataStreamResponse(stream),
+        data_stream_response.body_iterator,
         content_type="text/plain; charset=utf-8"
     )
 ```

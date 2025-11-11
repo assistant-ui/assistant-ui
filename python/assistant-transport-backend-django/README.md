@@ -10,11 +10,11 @@ A Django implementation of the assistant-transport protocol, providing a backend
 - 🎯 **Mock AI Responses** - Test without API keys (optionally integrate OpenAI/Anthropic)
 - 🌐 **CORS Support** - Ready for frontend integration
 - ⚡ **Async Views** - Django 5.0+ async support for better performance
-- 🐍 **Python 3.9+** - Modern Python with type hints
+- 🐍 **Python 3.10+** - Modern Python with type hints (required by Django 5.0)
 
 ## 📋 Prerequisites
 
-- Python 3.9 or higher
+- Python 3.10 or higher (required by Django 5.0)
 - pip or uv package manager
 - Virtual environment (recommended)
 
@@ -28,9 +28,6 @@ pip install -e .
 
 # Or using uv
 uv pip install -e .
-
-# Or directly from requirements.txt
-pip install -r requirements.txt
 ```
 
 ### 2. Configure Environment

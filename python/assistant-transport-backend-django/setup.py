@@ -17,10 +17,10 @@ from pathlib import Path
 
 
 def check_python_version():
-    """Ensure Python 3.9+ is installed."""
+    """Ensure Python 3.10+ (required by Django 5.0) is installed."""
     version = sys.version_info
-    if version.major < 3 or (version.major == 3 and version.minor < 9):
-        print("❌ Python 3.9 or higher is required")
+    if version.major < 3 or (version.major == 3 and version.minor < 10):
+        print("❌ Python 3.10 or higher is required (Django 5.0 requirement)")
         print(f"   Current version: Python {version.major}.{version.minor}.{version.micro}")
         sys.exit(1)
     print(f"✅ Python {version.major}.{version.minor}.{version.micro} detected")
@@ -62,12 +62,13 @@ def main():
         if not run_command(f"python -m venv {venv_name}", f"Creating virtual environment '{venv_name}'"):
             print("\n⚠️  Virtual environment creation failed, continuing anyway...")
         else:
-            print(f"\n💡 Activate your virtual environment:")
+            print(f"\n💡 To activate your virtual environment and continue setup:")
             if sys.platform == "win32":
-                print(f"   {venv_name}\\Scripts\\activate")
+                print(f"   {venv_name}\\Scripts\\activate && python setup.py")
             else:
-                print(f"   source {venv_name}/bin/activate")
-            input("\nPress Enter after activating the virtual environment...")
+                print(f"   source {venv_name}/bin/activate && python setup.py")
+            print("\n⚠️  Exiting - please rerun this script after activating the venv")
+            sys.exit(0)
 
     # Install dependencies
     print("\n" + "=" * 70)

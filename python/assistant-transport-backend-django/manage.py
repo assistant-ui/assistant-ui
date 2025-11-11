@@ -22,11 +22,12 @@ def main():
             "forget to activate a virtual environment?"
         ) from exc
 
-    # If no arguments provided, default to runserver
-    if len(sys.argv) == 1:
-        from dotenv import load_dotenv
-        load_dotenv()
+    # Load environment variables
+    from dotenv import load_dotenv
+    load_dotenv()
 
+    # If no arguments provided or just "runserver", use env defaults
+    if len(sys.argv) == 1 or (len(sys.argv) == 2 and sys.argv[1] == "runserver"):
         host = os.getenv("HOST", "0.0.0.0")
         port = os.getenv("PORT", "8002")
 
