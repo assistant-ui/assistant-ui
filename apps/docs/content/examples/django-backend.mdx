@@ -55,6 +55,7 @@ NEXT_PUBLIC_API_URL=http://localhost:8002/assistant pnpm dev
 The implementation follows Django patterns while maintaining compatibility with the assistant-transport protocol:
 
 **Main Endpoint** (`api/views.py`):
+
 ```python
 @csrf_exempt
 @require_http_methods(["POST"])
@@ -79,6 +80,7 @@ async def assistant_endpoint(request):
 ```
 
 **CORS Configuration** (`settings.py`):
+
 ```python
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
@@ -91,13 +93,13 @@ CORS_ALLOW_CREDENTIALS = True
 
 ## Comparison with FastAPI
 
-| Feature | FastAPI | Django |
-|---------|---------|--------|
-| Framework | FastAPI | Django 5.0+ DRF |
-| Async | Native | async views |
-| Server | uvicorn | Django or uvicorn |
-| Validation | Pydantic | Pydantic |
-| Port | 8000 | 8002 |
+| Feature    | FastAPI  | Django            |
+| ---------- | -------- | ----------------- |
+| Framework  | FastAPI  | Django 5.0+ DRF   |
+| Async      | Native   | async views       |
+| Server     | uvicorn  | Django or uvicorn |
+| Validation | Pydantic | Pydantic          |
+| Port       | 8000     | 8002              |
 
 Choose Django if you prefer Django's ecosystem or your project already uses Django.
 
