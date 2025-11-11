@@ -63,10 +63,10 @@ This default route uses the Vercel AI SDK directly with OpenAI. In the following
 
 ### Install Mastra Packages
 
-Add the Mastra core, memory, the AI SDK OpenAI provider packages to your project:
+Add the `@mastra/core` package and its peer dependency `zod` (which you can use later inside tools for example). Also add `@mastra/ai-sdk` to convert Mastra's stream to an AI SDK-compatible format:
 
 ```bash npm2yarn
-npm install @mastra/core@latest @mastra/memory@latest @ai-sdk/openai
+npm install @mastra/core@latest @mastra/ai-sdk@latest zod@latest
 ```
 
 </Step>
@@ -123,7 +123,6 @@ These files will be used in the next steps to define your Mastra agent and confi
 Now, let's define the behavior of our AI agent. Open the `mastra/agents/chefAgent.ts` file and add the following code:
 
 ```typescript title="mastra/agents/chefAgent.ts"
-import { openai } from "@ai-sdk/openai";
 import { Agent } from "@mastra/core/agent";
 
 export const chefAgent = new Agent({
@@ -131,14 +130,14 @@ export const chefAgent = new Agent({
   instructions:
     "You are Michel, a practical and experienced home chef. " +
     "You help people cook with whatever ingredients they have available.",
-  model: openai("gpt-4o-mini"),
+  model: "openai/gpt-4o-mini",
 });
 ```
 
 This code creates a new Mastra `Agent` named `chef-agent`.
 
 - `instructions`: Defines the agent's persona and primary goal.
-- `model`: Specifies the language model the agent will use (in this case, OpenAI's GPT-4o Mini via the AI SDK).
+- `model`: Specifies the language model the agent will use (in this case, OpenAI's GPT-4o Mini via Mastra's model router).
 
 Make sure you have set up your OpenAI API key as described in the [Getting Started guide](/docs/getting-started).
 
@@ -151,7 +150,6 @@ Next, register the agent with your Mastra instance. Open the `mastra/index.ts` f
 
 ```typescript title="mastra/index.ts"
 import { Mastra } from "@mastra/core";
-
 import { chefAgent } from "./agents/chefAgent";
 
 export const mastra = new Mastra({
@@ -169,6 +167,8 @@ This code initializes Mastra and makes the `chefAgent` available for use in your
 Now, update your API route (`app/api/chat/route.ts`) to use the Mastra agent you just configured. Replace the existing content with the following:
 
 ```typescript title="app/api/chat/route.ts"
+import { createUIMessageStreamResponse } from "ai";
+import { toAISdkFormat } from "@mastra/ai-sdk";
 import { mastra } from "@/mastra"; // Adjust the import path if necessary
 
 // Allow streaming responses up to 30 seconds
@@ -182,10 +182,12 @@ export async function POST(req: Request) {
   const agent = mastra.getAgent("chefAgent");
 
   // Stream the response using the agent
-  const result = await agent.stream(messages);
+  const stream = await agent.stream(messages);
 
-  // Return the result as a UI message stream response
-  return result.toUIMessageStreamResponse();
+  // Create a Response that streams the UI message stream to the client
+  return createUIMessageStreamResponse({
+    stream: toAISdkFormat(stream, { from: "agent" }),
+  });
 }
 ```
 
@@ -194,7 +196,7 @@ Key changes:
 - We import the `mastra` instance created in `mastra/index.ts`. Make sure the import path (`@/mastra`) is correct for your project setup (you might need `~/mastra`, `../../../mastra`, etc., depending on your path aliases and project structure).
 - We retrieve the `chefAgent` using `mastra.getAgent("chefAgent")`.
 - Instead of calling the AI SDK's `streamText` directly, we call `agent.stream(messages)` to process the chat messages using the agent's configuration and model.
-- The result is still returned in a format compatible with assistant-ui using `toUIMessageStreamResponse()`.
+- The result is still returned in a format compatible with assistant-ui using `createUIMessageStreamResponse()` and `toAISdkFormat()`.
 
 Your API route is now powered by Mastra!
 
