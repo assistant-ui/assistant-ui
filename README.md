@@ -98,7 +98,6 @@ With >400k monthly downloads, assistant-ui is one of the most popular UI librari
 - [Read the docs](https://www.assistant-ui.com/docs/)
 - [Join our Discord](https://discord.com/invite/S9dwgCNEFs)
 - [Book a sales call](https://cal.com/simon-farshid/assistant-ui)
-
 ---
 
 Backed by Y Combinator. Building something with assistant-ui? We’d love to hear from you.
