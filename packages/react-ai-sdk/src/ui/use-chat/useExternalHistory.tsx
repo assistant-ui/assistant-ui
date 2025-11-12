@@ -46,10 +46,7 @@ export const useExternalHistory = <TMessage,>(
     [api],
   );
 
-  const [isLoading, setIsLoading] = useState(
-    // we only load history if there is a remote id
-    () => optionalThreadListItem()?.getState().remoteId !== undefined,
-  );
+  const [isLoading, setIsLoading] = useState(false);
 
   const historyIds = useRef(new Set<string>());
 
