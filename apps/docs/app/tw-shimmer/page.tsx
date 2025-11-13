@@ -169,7 +169,7 @@ export default function TwShimmerPage() {
               />
             </BoxCode>
             <BoxContent>
-              <div className="shimmer shimmer-color-blue-500 dark:shimmer-color-blue-300 text-lg font-semibold text-blue-500/40 dark:text-blue-300/40">
+              <div className="shimmer text-lg font-semibold text-blue-500/40 shimmer-color-blue-500 dark:text-blue-300/40 dark:shimmer-color-blue-300">
                 Blue Shimmer
               </div>
             </BoxContent>
@@ -189,7 +189,7 @@ export default function TwShimmerPage() {
               />
             </BoxCode>
             <BoxContent>
-              <div className="shimmer-spread-24 shimmer text-lg font-semibold text-foreground/40">
+              <div className="shimmer text-lg font-semibold text-foreground/40 shimmer-spread-24">
                 Wide Spread Shimmer
               </div>
             </BoxContent>
