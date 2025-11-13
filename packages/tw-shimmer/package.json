@@ -1,5 +1,5 @@
 {
-  "name": "@assistant-ui/tw-shimmer",
+  "name": "tw-shimmer",
   "description": "Tailwind CSS v4 plugin for shimmer effects",
   "version": "0.1.0",
   "license": "MIT",

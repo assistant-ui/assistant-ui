@@ -1,30 +1,37 @@
-# @assistant-ui/tw-shimmer
+# tw-shimmer
 
 Tailwind CSS v4 plugin for shimmer effects.
 
 ## Installation
 
 ```bash
-npm install @assistant-ui/tw-shimmer
+npm install tw-shimmer
 ```
 
-```js
-// tailwind.config.js
-import shimmerPlugin from "@assistant-ui/tw-shimmer";
-
-export default {
-  plugins: [shimmerPlugin],
-};
+```css
+/* app/globals.css */
+@import "tailwindcss";
+@import "tw-shimmer";
 ```
+
+## Usage
+
+The shimmer effect uses `background-clip: text`, so you need to set a text color for the base text:
+
+```html
+<div class="shimmer text-foreground/40">Loading...</div>
+```
+
+Use opacity (`/40`, `/50`, etc.) to make the shimmer effect visible.
 
 ## API
 
 ### `shimmer`
 
-Base utility. Apply to any element.
+Base utility. Apply to any element with a text color.
 
 ```html
-<div class="shimmer">Loading...</div>
+<div class="shimmer text-foreground/40">Loading...</div>
 ```
 
 ### `shimmer-speed-{value}`
@@ -34,7 +41,7 @@ Animation speed in pixels per second. Default: `100px/s`.
 Values are unitless numbers (units auto-appended): `50`, `100`, `150`, `200`, etc.
 
 ```html
-<div class="shimmer shimmer-speed-200">Fast (200px/s)</div>
+<div class="shimmer shimmer-speed-200 text-foreground/40">Fast (200px/s)</div>
 ```
 
 ### `--shimmer-width-x`
@@ -58,7 +65,7 @@ Shimmer highlight color. Default: `currentColor`.
 Uses Tailwind color palette.
 
 ```html
-<div class="shimmer shimmer-color-blue-500">Colored</div>
+<div class="shimmer shimmer-color-blue-500 text-blue-500/40">Colored</div>
 ```
 
 ### `shimmer-spread-{spacing}`
@@ -68,7 +75,7 @@ Width of the shimmer highlight. Default: `6ch`.
 Uses Tailwind spacing scale.
 
 ```html
-<div class="shimmer shimmer-spread-12">Wide highlight</div>
+<div class="shimmer shimmer-spread-12 text-foreground/40">Wide highlight</div>
 ```
 
 ### `shimmer-angle-{degrees}`
@@ -78,7 +85,7 @@ Shimmer direction. Default: `90deg`.
 Values are unitless numbers (deg auto-appended): `0`, `45`, `90`, `180`, etc.
 
 ```html
-<div class="shimmer shimmer-angle-45">Diagonal (45deg)</div>
+<div class="shimmer shimmer-angle-45 text-foreground/40">Diagonal (45deg)</div>
 ```
 
 ## License
