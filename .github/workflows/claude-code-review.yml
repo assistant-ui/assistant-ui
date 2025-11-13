@@ -102,11 +102,25 @@ jobs:
       actions: read
 
     steps:
-      - name: Checkout repository
+      - name: Checkout internal repository
+        if: |
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/checkout@v5
         with:
           ref: refs/pull/${{ github.event.pull_request.number }}/head
           fetch-depth: 1
+
+      - name: Checkout fork repository
+        if: |
+          github.event_name == 'pull_request_target' &&
+          github.event.pull_request.head.repo.full_name != github.repository
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 1
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       # Minimize previous bot comments on fork PRs to keep discussion clean
       # NOTE: Temporary workaround until https://github.com/anthropics/claude-code-action/pull/411 is merged
