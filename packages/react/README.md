@@ -92,7 +92,7 @@ With >50k+ monthly downloads, assistant-ui is the most popular UI library for AI
 - [ ] Improved documentation (work in progress)
 - [ ] OpenAI Realtime Voice (work in progress)
 - [ ] Resume interrupted LLM calls (work in progress)
-- [ ] Native PDF attachment support
+- [x] Native PDF attachment support
 - [ ] Follow-up suggestions
 
 ## Next Steps
