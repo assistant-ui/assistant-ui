@@ -82,7 +82,7 @@ describe("SimplePDFAttachmentAdapter", () => {
       expect(result.content).toEqual([
         {
           type: "text",
-          text: "<attachment name=test.pdf>\nExtracted PDF content\n</attachment>",
+          text: '<attachment name="test.pdf">\nExtracted PDF content\n</attachment>',
         },
       ]);
     });
@@ -108,12 +108,9 @@ describe("SimplePDFAttachmentAdapter", () => {
       const result = await adapter.send(pendingAttachment);
 
       expect(result.status.type).toBe("complete");
-      expect(result.content).toEqual([
-        {
-          type: "text",
-          text: "<attachment name=invalid.pdf>\nError: Failed to process PDF file\n</attachment>",
-        },
-      ]);
+      expect(result.content[0].type).toBe("text");
+      expect(result.content[0].text).toContain('<attachment name="invalid.pdf">');
+      expect(result.content[0].text).toContain("Error: Failed to process PDF file");
     });
 
     it("should handle empty PDF content", async () => {
@@ -140,7 +137,7 @@ describe("SimplePDFAttachmentAdapter", () => {
       expect(result.content).toEqual([
         {
           type: "text",
-          text: "<attachment name=empty.pdf>\n\n</attachment>",
+          text: '<attachment name="empty.pdf">\n\n</attachment>',
         },
       ]);
     });

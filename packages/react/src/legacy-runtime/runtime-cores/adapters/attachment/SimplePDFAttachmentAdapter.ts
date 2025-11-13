@@ -86,7 +86,7 @@ export class SimplePDFAttachmentAdapter implements AttachmentAdapter {
         content: [
           {
             type: "text",
-            text: `<attachment name=${attachment.name}>\n${extractedText}\n</attachment>`,
+            text: `<attachment name="${attachment.name}">\n${extractedText}\n</attachment>`,
           },
         ],
       };
@@ -101,7 +101,7 @@ export class SimplePDFAttachmentAdapter implements AttachmentAdapter {
         content: [
           {
             type: "text",
-            text: `<attachment name=${attachment.name}>\nError: Failed to process PDF file - ${errorMessage}\n</attachment>`,
+            text: `<attachment name="${attachment.name}">\nError: Failed to process PDF file - ${errorMessage}\n</attachment>`,
           },
         ],
       };
