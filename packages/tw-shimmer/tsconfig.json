@@ -1,8 +1,0 @@
-{
-  "extends": "@assistant-ui/x-buildutils/ts/base.json",
-  "compilerOptions": {
-    "outDir": "dist",
-    "rootDir": "src"
-  },
-  "include": ["src"]
-}

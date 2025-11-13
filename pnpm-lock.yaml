@@ -1753,23 +1753,7 @@ importers:
         specifier: ^4.0.6
         version: 4.0.6(@types/debug@4.1.12)(@types/node@24.10.0)(@vitest/ui@4.0.6)(jiti@2.6.1)(jsdom@27.1.0)(lightningcss@1.30.2)(tsx@4.20.6)(yaml@2.8.1)
 
-  packages/tw-shimmer:
-    devDependencies:
-      '@assistant-ui/x-buildutils':
-        specifier: workspace:*
-        version: link:../x-buildutils
-      '@types/node':
-        specifier: ^24.10.0
-        version: 24.10.0
-      tailwindcss:
-        specifier: ^4.1.16
-        version: 4.1.16
-      tsup:
-        specifier: 8.5.0
-        version: 8.5.0(jiti@2.6.1)(postcss@8.5.6)(tsx@4.20.6)(typescript@5.9.3)(yaml@2.8.1)
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
+  packages/tw-shimmer: {}
 
   packages/x-buildutils:
     dependencies:
