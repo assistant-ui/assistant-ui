@@ -28,16 +28,13 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   // fix: delay the state change until the scroll is done
   const isScrollingToBottomRef = useRef(false);
 
-  const scrollToBottom = useCallback(
-    (behavior: ScrollBehavior) => {
-      const div = divRef.current;
-      if (!div) return;
+  const scrollToBottom = useCallback((behavior: ScrollBehavior) => {
+    const div = divRef.current;
+    if (!div) return;
 
-      isScrollingToBottomRef.current = true;
-      div.scrollTo({ top: div.scrollHeight, behavior });
-    },
-    [],
-  );
+    isScrollingToBottomRef.current = true;
+    div.scrollTo({ top: div.scrollHeight, behavior });
+  }, []);
 
   const handleScroll = () => {
     const div = divRef.current;
