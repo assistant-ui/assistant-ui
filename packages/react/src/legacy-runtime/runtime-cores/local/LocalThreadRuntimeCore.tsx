@@ -133,6 +133,11 @@ export class LocalThreadRuntimeCore
           );
         }
       })
+      .catch((error) => {
+        console.error("Failed to load thread history:", error);
+        // Don't rethrow - handle gracefully to prevent unhandled promise rejections
+        // The UI can still function without loaded history
+      })
       .finally(() => {
         this._isLoading = false;
         this._notifySubscribers();
