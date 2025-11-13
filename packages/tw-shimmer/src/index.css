@@ -1,0 +1,46 @@
+@theme inline {
+  @keyframes shimmer {
+    0% {
+      background-position: 100% 0;
+    }
+    100% {
+      background-position: -100% 0;
+    }
+  }
+}
+
+@utility shimmer {
+  --shimmer-speed: 100px;
+  --shimmer-width-x: 200px;
+  --shimmer-color: currentColor;
+  --shimmer-spread: 6ch;
+  --shimmer-angle: 90deg;
+  background: linear-gradient(
+      var(--shimmer-angle),
+      transparent calc(50% - var(--shimmer-spread) * 0.5),
+      color-mix(in oklch, var(--shimmer-color), white 75%) 50%,
+      transparent calc(50% + var(--shimmer-spread) * 0.5)
+    )
+    0 0 / 200% 100% no-repeat,
+    linear-gradient(var(--shimmer-color), var(--shimmer-color));
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer calc((var(--shimmer-width-x) * 2) / var(--shimmer-speed) * 1s) infinite linear;
+}
+
+@utility shimmer-speed-* {
+  --shimmer-speed: calc(--value(number) * 1px);
+}
+
+@utility shimmer-color-* {
+  --shimmer-color: --value(color);
+}
+
+@utility shimmer-spread-* {
+  --shimmer-spread: --value(length);
+}
+
+@utility shimmer-angle-* {
+  --shimmer-angle: calc(--value(number) * 1deg);
+}
