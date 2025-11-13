@@ -63,9 +63,7 @@ export class SimplePDFAttachmentAdapter implements AttachmentAdapter {
           textPromises.push(
             pdf.getPage(i).then(async (page) => {
               const textContent = await page.getTextContent();
-              return textContent.items
-                .map((item: any) => item.str)
-                .join(" ");
+              return textContent.items.map((item: any) => item.str).join(" ");
             }),
           );
         }
