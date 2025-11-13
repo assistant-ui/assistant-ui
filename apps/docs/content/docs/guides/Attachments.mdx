@@ -75,7 +75,10 @@ const runtime = useChatRuntime({
 ```
 
 <Callout type="info">
-  **Note:** The AI SDK runtime handles attachments automatically. For other runtimes like `useLocalRuntime`, you may still need to configure attachment adapters as shown in the [Creating Custom Attachment Adapters](#creating-custom-attachment-adapters) section below.
+  **Note:** The AI SDK runtime handles attachments automatically. For other
+  runtimes like `useLocalRuntime`, you may still need to configure attachment
+  adapters as shown in the [Creating Custom Attachment
+  Adapters](#creating-custom-attachment-adapters) section below.
 </Callout>
 
   </Step>
@@ -140,6 +143,22 @@ const textAdapter = new SimpleTextAttachmentAdapter();
 // Output: Content wrapped in <attachment>...</attachment> tags
 ```
 
+### SimplePDFAttachmentAdapter
+
+Extracts text content from PDF documents for LLM consumption:
+
+```tsx
+const pdfAdapter = new SimplePDFAttachmentAdapter();
+// Accepts: application/pdf
+// Output: Text content wrapped in <attachment>...</attachment> tags
+// Limit: 10MB file size for client-side processing
+```
+
+<Callout type="info">
+  The PDF adapter requires the `pdf-parse` library to be installed: ```sh npm
+  install pdf-parse ```
+</Callout>
+
 ### CompositeAttachmentAdapter
 
 Combines multiple adapters to support various file types:
@@ -148,6 +167,7 @@ Combines multiple adapters to support various file types:
 const compositeAdapter = new CompositeAttachmentAdapter([
   new SimpleImageAttachmentAdapter(),
   new SimpleTextAttachmentAdapter(),
+  new SimplePDFAttachmentAdapter(),
   // Add more adapters as needed
 ]);
 ```
