@@ -31,6 +31,19 @@
 
 ## 0.11.34
 
+### Added
+
+- `SimplePDFAttachmentAdapter` for native PDF document support
+- Client-side PDF text extraction using pdfjs-dist library for browsers
+- Server-side PDF text extraction using pdf-parse library for Node.js environments
+- 10MB size limit for PDF processing to prevent browser performance issues
+- Comprehensive error handling for corrupted or invalid PDFs
+
+### Changed
+
+- Updated attachment documentation with PDF examples
+- Added pdfjs-dist as required dependency and pdf-parse as optional dependency
+
 ### Patch Changes
 
 - 953db24: chore: update deps
