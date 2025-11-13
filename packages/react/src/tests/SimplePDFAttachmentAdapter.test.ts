@@ -109,8 +109,12 @@ describe("SimplePDFAttachmentAdapter", () => {
 
       expect(result.status.type).toBe("complete");
       expect(result.content[0].type).toBe("text");
-      expect(result.content[0].text).toContain('<attachment name="invalid.pdf">');
-      expect(result.content[0].text).toContain("Error: Failed to process PDF file");
+      expect(result.content[0].text).toContain(
+        '<attachment name="invalid.pdf">',
+      );
+      expect(result.content[0].text).toContain(
+        "Error: Failed to process PDF file",
+      );
     });
 
     it("should handle empty PDF content", async () => {
