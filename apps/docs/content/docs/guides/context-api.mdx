@@ -35,7 +35,7 @@ assistant-ui organizes state into **scopes** - logical boundaries that provide a
         └── ✏️  Composer (composer) - New message input
             └── 📎 Attachment (attachment) - Files being added
 
-🔧 ToolUIs (toolUIs) - Custom UI components for tool calls
+🔧 Tools (tools) - Custom UI components for tool calls
 ```
 
 **How scopes work:**
@@ -212,9 +212,9 @@ api.threadListItem().unarchive();
 api.threadListItem().delete();
 api.threads().getState();
 
-// ToolUIs actions
-api.toolUIs().setToolUI(toolName, render);
-api.toolUIs().getState();
+// Tools actions
+api.tools().setToolUI(toolName, render);
+api.tools().getState();
 ```
 
 ### useAssistantEvent
@@ -272,7 +272,7 @@ Each scope provides access to specific state and actions:
 - **Part** (`part`): Content part within a message (text, tool calls, etc.)
 - **Composer** (`composer`): Text input for sending or editing messages
 - **Attachment** (`attachment`): File or media attached to a message or composer
-- **ToolUIs** (`toolUIs`): Tool UI components
+- **Tools** (`tools`): Tool UI components
 
 ### Scope Resolution
 

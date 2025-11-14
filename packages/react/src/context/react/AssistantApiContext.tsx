@@ -10,7 +10,6 @@ import {
 } from "react";
 import { useResource } from "@assistant-ui/tap/react";
 
-import { ToolUIApi, ToolUIState, ToolUIMeta } from "../../client/types/ToolUI";
 import {
   MessageClientApi,
   MessageClientState,
@@ -49,7 +48,7 @@ import {
   AssistantClientProps,
   useAssistantClient,
 } from "../../client/AssistantClient";
-import { ToolsApi, ToolsMeta } from "../../client/types/Tools";
+import { ToolsApi, ToolsMeta, ToolsState } from "../../client/types/Tools";
 import {
   ModelContextApi,
   ModelContextMeta,
@@ -61,7 +60,7 @@ import {
 
 export type AssistantState = {
   readonly threads: ThreadListClientState;
-  readonly toolUIs: ToolUIState;
+  readonly tools: ToolsState;
 
   readonly threadListItem: ThreadListItemClientState;
   readonly thread: ThreadClientState;
@@ -122,7 +121,6 @@ type AttachmentMeta = {
 
 export type AssistantApi = {
   threads: AssistantApiField<ThreadListClientApi, ThreadsMeta>;
-  toolUIs: AssistantApiField<ToolUIApi, ToolUIMeta>;
   tools: AssistantApiField<ToolsApi, ToolsMeta>;
   modelContext: AssistantApiField<ModelContextApi, ModelContextMeta>;
   threadListItem: AssistantApiField<
@@ -166,13 +164,6 @@ const AssistantApiContext = createContext<AssistantApi>({
     query: {},
     get: () => {
       throw new Error("Threads is only available inside <AssistantProvider />");
-    },
-  }),
-  toolUIs: createAssistantApiField({
-    source: null,
-    query: {},
-    get: (): never => {
-      throw new Error("ToolUIs is only available inside <AssistantProvider />");
     },
   }),
   tools: createAssistantApiField({
