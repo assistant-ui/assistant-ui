@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.11.39
+
+### Patch Changes
+
+- 3754bdd: refactor: rename toolUIs to tools and remove ToolUI API
+
 ## 0.11.38
 
 ### Patch Changes
