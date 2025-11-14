@@ -183,9 +183,9 @@ export class LocalThreadRuntimeCore
   ): Promise<void> {
     this.ensureInitialized();
 
-    this.repository.resetHead(parentId);
-
     // add assistant message
+    // Note: resetHead is not called here to preserve branching during message refresh.
+    // The addOrUpdateMessage call in performRoundtrip handles head management correctly.
     const id = generateId();
     let message: ThreadAssistantMessage = {
       id,
