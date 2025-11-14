@@ -6,19 +6,15 @@
   "type": "module",
   "exports": {
     ".": {
-      "default": "./dist/index.css"
+      "default": "./src/index.css"
     }
   },
-  "main": "./dist/index.css",
+  "main": "./src/index.css",
   "files": [
-    "dist",
     "src",
     "README.md"
   ],
   "sideEffects": false,
-  "scripts": {
-    "build": "mkdir -p dist && cp src/index.css dist/index.css"
-  },
   "publishConfig": {
     "access": "public",
     "provenance": true
