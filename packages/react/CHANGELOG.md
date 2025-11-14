@@ -1,5 +1,20 @@
 # @assistant-ui/react
 
+## 0.11.38
+
+### Patch Changes
+
+- 66a13a0: fix: separate scroll-to-bottom button from autoScroll behavior (#1916)
+- 4e3877e: feat: Add thread fetching capability to remote thread list adapter
+  - Add `fetch` method to `RemoteThreadListAdapter` interface
+  - Implement `fetch` in cloud adapter to retrieve individual threads
+  - Enhance `switchToThread` to automatically fetch and load threads not present in the current list
+  - Add `get` method to `AssistantCloudThreads` for individual thread retrieval
+
+- eef682b: fix(react): update check for scroll position in autoscroll
+- Updated dependencies [4e3877e]
+  - assistant-cloud@0.1.7
+
 ## 0.11.37
 
 ### Patch Changes
