@@ -68,19 +68,21 @@ const MyRuntimeProvider = ({ children }: { children: React.ReactNode }) => {
     {
       name: "body",
       type: "object",
-      description: "Optional additional body parameters to include in the request.",
+      description:
+        "Optional additional body parameters to include in the request.",
     },
     {
       name: "sendExtraMessageFields",
       type: "boolean",
-      description: "Whether to include extra message fields like IDs in the request.",
+      description:
+        "Whether to include extra message fields like IDs in the request.",
     },
   ]}
 />
 
 ### `useCloudRuntime`
 
-Create a runtime that connects to Assistant Cloud using the data stream protocol.
+Create a runtime that connects to Assistant Cloud using the data stream protocol. This hook provides integration with Assistant Cloud's thread management, authentication, and persistence features.
 
 ```tsx
 import { useCloudRuntime } from "@assistant-ui/react-data-stream";
@@ -99,17 +101,60 @@ const MyRuntimeProvider = ({ children }: { children: React.ReactNode }) => {
 };
 ```
 
+**Key Features:**
+
+- **Thread Management**: Automatic thread creation and persistence
+- **Authentication**: Support for anonymous, JWT, and API key authentication
+- **Error Handling**: Built-in error handling with customizable callbacks
+- **Performance**: Optimized for production use with memoization support
+- **Security**: Secure communication with Assistant Cloud infrastructure
+
+**When to Use:**
+
+- Building applications that use Assistant Cloud
+- Need persistent thread management across sessions
+- Require user authentication and authorization
+- Want to leverage Assistant Cloud's infrastructure
+- Building applications that need to scale
+
+**Example with Authentication:**
+
+```tsx
+const cloud = new AssistantCloud({
+  baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+  authToken: async () => {
+    // Return your JWT token
+    return await getAuthToken();
+  },
+});
+
+const runtime = useCloudRuntime({
+  cloud,
+  assistantId: "my-assistant-id",
+  onError: (error) => {
+    console.error("Cloud runtime error:", error);
+  },
+  onFinish: (message) => {
+    console.log("Message completed:", message.id);
+  },
+});
+```
+
+**Note:** This hook inherits all parameters from `useDataStreamRuntime` in addition to the cloud-specific parameters listed below.
+
 <ParametersTable
   parameters={[
     {
       name: "cloud",
       type: "AssistantCloud",
-      description: "The Assistant Cloud instance.",
+      description:
+        "The Assistant Cloud instance. Must be configured with proper authentication (anonymous, JWT, or API key).",
     },
     {
       name: "assistantId",
       type: "string",
-      description: "The ID of the assistant to connect to.",
+      description:
+        "The ID of the assistant to connect to. Found in your Assistant Cloud project settings under the assistant configuration.",
     },
     {
       name: "onResponse",
@@ -144,12 +189,14 @@ const MyRuntimeProvider = ({ children }: { children: React.ReactNode }) => {
     {
       name: "body",
       type: "object",
-      description: "Optional additional body parameters to include in the request.",
+      description:
+        "Optional additional body parameters to include in the request.",
     },
     {
       name: "sendExtraMessageFields",
       type: "boolean",
-      description: "Whether to include extra message fields like IDs in the request.",
+      description:
+        "Whether to include extra message fields like IDs in the request.",
     },
   ]}
 />
@@ -184,7 +231,8 @@ const languageModelMessages = toLanguageModelMessages(messages, {
             {
               name: "unstable_includeId",
               type: "boolean",
-              description: "Whether to include message IDs in the converted messages.",
+              description:
+                "Whether to include message IDs in the converted messages.",
             },
           ],
         },
