@@ -26,12 +26,12 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^24.10.0",
+    "@types/node": "^24.10.1",
     "@types/react": "*",
-    "@vitest/ui": "^4.0.6",
+    "@vitest/ui": "^4.0.8",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.6"
+    "vitest": "^4.0.8"
   },
   "exports": {
     ".": {

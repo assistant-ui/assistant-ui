@@ -23,8 +23,8 @@
   },
   "dependencies": {
     "@ai-sdk/provider": "^2.0.0",
-    "@ai-sdk/react": "^2.0.86",
-    "ai": "^5.0.86",
+    "@ai-sdk/react": "^2.0.93",
+    "ai": "^5.0.93",
     "@radix-ui/react-use-callback-ref": "^1.1.1",
     "@types/json-schema": "^7.0.15",
     "assistant-stream": "^0.2.39",
@@ -49,10 +49,10 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^24.10.0",
-    "@types/react": "^19.2.2",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.4",
     "eslint": "^9",
-    "eslint-config-next": "16.0.1",
+    "eslint-config-next": "16.0.3",
     "react": "19.2.0",
     "tsx": "^4.20.6"
   },
