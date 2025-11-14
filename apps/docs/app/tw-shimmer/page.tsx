@@ -1,11 +1,35 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { Copy, Check, Sparkles, FileCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SyntaxHighlighter } from "@/components/assistant-ui/shiki-highlighter";
+import {
+  transformerMetaHighlight,
+  transformerMetaWordHighlight,
+} from "@shikijs/transformers";
 
-const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const HIGHLIGHT_STYLES = `
+  .highlighted {
+    background: rgba(59, 130, 246, 0.15);
+    display: block;
+  }
+  .dark .highlighted {
+    background: rgba(147, 197, 253, 0.25);
+  }
+  .highlighted-word {
+    background: rgba(59, 130, 246, 0.2);
+    color: rgb(30, 58, 138);
+    padding: 0 0.125rem;
+    border-radius: 0.125rem;
+    font-style: normal;
+    font-weight: inherit;
+  }
+  .dark .highlighted-word {
+    background: rgba(147, 197, 253, 0.3);
+    color: rgb(165, 180, 252);
+  }
+`;
 
 export default function TwShimmerPage() {
   const [copied, setCopied] = useState(false);
@@ -15,10 +39,6 @@ export default function TwShimmerPage() {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
-
-  useEffect(() => {
-    document.title = "tw-shimmer by assistant-ui";
-  }, []);
 
   return (
     <div className="container max-w-screen-xl space-y-16 px-4 py-12">
@@ -32,9 +52,9 @@ export default function TwShimmerPage() {
           tw-shimmer
         </h1>
 
-        <p className="max-w-[600px] text-lg text-muted-foreground">
-          A zero-dependency Tailwind CSS v4 plugin for beautiful shimmer
-          effects. Fully customizable, performant, and easy to use.
+        <p className="max-w-[600px] text-lg text-balance text-muted-foreground">
+          Zero-dependency CSS-only shimmer effect. Fully customizable,
+          performant, and easy to use.
         </p>
       </div>
 
@@ -70,7 +90,7 @@ export default function TwShimmerPage() {
                 language="css"
                 code={`@import "tailwindcss";
 @import "tw-shimmer";`}
-                highlight='"tw-shimmer"'
+                highlight="tw-shimmer"
                 highlightMode="line"
               />
             </BoxCode>
@@ -153,6 +173,12 @@ export default function TwShimmerPage() {
                 highlightMode="text"
               />
             </BoxCode>
+            <BoxContent>
+              <p className="text-sm text-muted-foreground">
+                Without this variable, animation speed varies by element width.
+                Use JS to set element width for consistent scroll speed.
+              </p>
+            </BoxContent>
           </Box>
 
           <Box>
@@ -200,77 +226,62 @@ export default function TwShimmerPage() {
   );
 }
 
+interface CodeBlockProps {
+  language: string;
+  code: string;
+  highlight?: string;
+  highlightMode?: "line" | "text";
+}
+
+interface BoxTitleProps {
+  title: string;
+  description: string;
+}
+
+interface BoxCodeHeaderProps {
+  fileName: string;
+}
+
 function CodeBlock({
   language,
   code,
   highlight,
   highlightMode = "line",
-}: {
-  language: string;
-  code: string;
-  highlight?: string;
-  highlightMode?: "line" | "text";
-}) {
-  const codeRef = useRef<HTMLDivElement>(null);
+}: CodeBlockProps) {
+  // Build the meta object for Shiki transformers
+  let metaProps = {};
 
-  useEffect(() => {
-    if (!highlight || !codeRef.current) return;
+  if (highlight) {
+    if (highlightMode === "text") {
+      metaProps = { meta: { __raw: `/${highlight}/` } };
+    } else if (highlightMode === "line") {
+      // Find lines containing the highlight text
+      const lines = code.split("\n");
+      const lineNumbers = lines
+        .map((line, index) => (line.includes(highlight) ? index + 1 : null))
+        .filter((n): n is number => n !== null);
 
-    const timer = setTimeout(() => {
-      const codeElement = codeRef.current?.querySelector("code");
-      if (!codeElement) return;
-
-      if (highlightMode === "line") {
-        codeElement.querySelectorAll(".line").forEach((line) => {
-          if (line.textContent?.includes(highlight)) {
-            line.classList.add("highlighted-line");
-          }
-        });
-      } else {
-        const walker = document.createTreeWalker(
-          codeElement,
-          NodeFilter.SHOW_TEXT,
-        );
-        const textNodes: Text[] = [];
-        let node: Node | null;
-
-        while ((node = walker.nextNode())) {
-          textNodes.push(node as Text);
-        }
-
-        textNodes.forEach((textNode) => {
-          const text = textNode.textContent || "";
-          if (text.includes(highlight)) {
-            const span = document.createElement("span");
-            span.innerHTML = text.replace(
-              new RegExp(`(${escapeRegex(highlight)})`, "g"),
-              '<mark class="bg-blue-600/20 dark:bg-blue-300/30 px-0.5 rounded not-italic font-[inherit] text-blue-900 dark:text-blue-100">$1</mark>',
-            );
-            textNode.replaceWith(span);
-          }
-        });
+      if (lineNumbers.length > 0) {
+        metaProps = { meta: { __raw: `{${lineNumbers.join(",")}}` } };
       }
-    }, 100);
-
-    return () => clearTimeout(timer);
-  }, [highlight, highlightMode]);
+    }
+  }
 
   return (
-    <div ref={codeRef}>
-      <style jsx>{`
-        :global(.highlighted-line) {
-          background: rgba(59, 130, 246, 0.15);
-          display: block;
-        }
-        :global(.dark .highlighted-line) {
-          background: rgba(147, 197, 253, 0.25);
-        }
-      `}</style>
+    <>
+      <style jsx global>
+        {HIGHLIGHT_STYLES}
+      </style>
       <SyntaxHighlighter
         language={language}
         code={code}
+        {...metaProps}
         addDefaultStyles={false}
-        className="[--padding-left:1.5rem] [&_pre]:m-0 [&_pre]:rounded-none [&_pre]:!bg-transparent [&_pre]:px-0 [&_pre]:py-4"
+        className="[--padding-left:1.5rem] [&_code]:block [&_pre]:m-0 [&_pre]:rounded-none [&_pre]:!bg-transparent [&_pre]:px-0 [&_pre]:py-4"
+        transformers={[
+          transformerMetaHighlight(),
+          transformerMetaWordHighlight(),
+        ]}
         components={{
           Pre: ({ className, ...props }: any) => (
             <pre className={className} {...props} />
@@ -280,7 +291,7 @@ function CodeBlock({
           ),
         }}
       />
-    </div>
+    </>
   );
 }
 
@@ -292,13 +303,7 @@ function Box({ children }: { children: React.ReactNode }) {
   );
 }
 
-function BoxTitle({
-  title,
-  description,
-}: {
-  title: string;
-  description: string;
-}) {
+function BoxTitle({ title, description }: BoxTitleProps) {
   return (
     <div className="space-y-2 p-6">
       <h3 className="font-mono text-lg font-semibold">{title}</h3>
@@ -311,7 +316,7 @@ function BoxContent({ children }: { children: React.ReactNode }) {
   return <div className="px-6 py-4">{children}</div>;
 }
 
-function BoxCodeHeader({ fileName }: { fileName: string }) {
+function BoxCodeHeader({ fileName }: BoxCodeHeaderProps) {
   return (
     <div className="flex items-center gap-2 px-6 py-4 font-mono text-sm font-medium">
       <FileCode className="size-4 text-muted-foreground" />
