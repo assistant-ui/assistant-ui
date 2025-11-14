@@ -1,5 +1,16 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.1.10
+
+### Patch Changes
+
+- 34d1c78: fix(react-ai-sdk): correctly initialize history loading state
+- Updated dependencies [66a13a0]
+- Updated dependencies [4e3877e]
+- Updated dependencies [eef682b]
+  - @assistant-ui/react@0.11.38
+  - assistant-cloud@0.1.7
+
 ## 1.1.9
 
 ### Patch Changes
