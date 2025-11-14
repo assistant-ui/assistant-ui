@@ -1,6 +1,6 @@
 ---
-"@assistant-ui/react": minor
-"assistant-cloud": minor
+"@assistant-ui/react": patch
+"assistant-cloud": patch
 ---
 
 feat: Add thread fetching capability to remote thread list adapter
