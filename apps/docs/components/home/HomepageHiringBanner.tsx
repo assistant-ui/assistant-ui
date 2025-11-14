@@ -4,7 +4,6 @@ import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { usePersistentBoolean } from "@/hooks/use-persistent-boolean";
-import { TextShimmer } from "@/components/ui/TextShimmer";
 
 export const HomepageHiringBanner = () => {
   const pathname = usePathname();
@@ -21,13 +20,9 @@ export const HomepageHiringBanner = () => {
           href="/careers"
           className="group inline-flex items-center gap-2 font-medium whitespace-nowrap text-foreground transition-colors hover:text-primary"
         >
-          <TextShimmer
-            as="span"
-            className="text-sm font-medium transition-colors group-hover:[--base-color:theme(colors.primary.DEFAULT)]"
-            duration={4}
-          >
+          <span className="shimmer text-sm font-medium text-foreground/40 group-hover:text-primary">
             {"We're hiring. Build the future of agentic UI."}
-          </TextShimmer>
+          </span>
           <ArrowRight className="h-4 w-4 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-primary" />
         </Link>
         <button
