@@ -109,6 +109,15 @@ When the hook mounts it calls `list()` on your adapter, hydrates existing thread
       async delete(remoteId) {
         await fetch(`/api/threads/${remoteId}`, { method: "DELETE" });
       },
+      async fetch(remoteId) {
+        const response = await fetch(`/api/threads/${remoteId}`);
+        const thread = await response.json();
+        return {
+          status: thread.is_archived ? "archived" : "regular",
+          remoteId: thread.id,
+          title: thread.title,
+        };
+      },
       async generateTitle(remoteId, messages) {
         return createAssistantStream(async (controller) => {
           const response = await fetch(`/api/threads/${remoteId}/title`, {
