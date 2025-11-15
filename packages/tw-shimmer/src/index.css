@@ -10,8 +10,8 @@
 }
 
 @utility shimmer {
-  --shimmer-speed: 100px;
-  --shimmer-width-x: 200px;
+  --shimmer-speed: 100;
+  --shimmer-width-x: 200;
   --shimmer-color: black;
   --shimmer-spread: 6ch;
   --shimmer-angle: 90deg;
@@ -37,7 +37,7 @@
 }
 
 @utility shimmer-speed-* {
-  --shimmer-speed: calc(--value(number) * 1px);
+  --shimmer-speed: --value(number);
 }
 
 @utility shimmer-color-* {

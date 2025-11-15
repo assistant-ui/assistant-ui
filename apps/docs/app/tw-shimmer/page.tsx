@@ -158,14 +158,14 @@ export default function TwShimmerPage() {
           <Box>
             <BoxTitle
               title="--shimmer-width-x"
-              description="CSS variable for container width. Default: 200px"
+              description="CSS variable for container width. Default: 200"
             />
             <BoxCode>
               <CodeBlock
                 language="html"
                 code={`<div
   class="shimmer text-foreground/40"
-  style={{ ["--shimmer-width-x" as string]: "50px" }}
+  style={{ ["--shimmer-width-x" as string]: "50" }}
 >
   Narrow
 </div>`}

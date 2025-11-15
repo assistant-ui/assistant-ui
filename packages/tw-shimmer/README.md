@@ -46,12 +46,12 @@ Values are unitless numbers (units auto-appended): `50`, `100`, `150`, `200`, et
 
 ### `--shimmer-width-x`
 
-CSS variable for container width used in speed calculations. Default: `200px`.
+CSS variable for container width used in speed calculations. Default: `200`.
 
 Set this at runtime to match your actual container width for accurate speed.
 
 ```tsx
-<div class="shimmer" style={{ ["--shimmer-width-x" as string]: "300px" }}>
+<div class="shimmer" style={{ ["--shimmer-width-x" as string]: "300" }}>
   Wide container
 </div>
 ```
