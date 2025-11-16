@@ -28,7 +28,7 @@ export type SimplePDFAttachmentAdapterConfig = {
 export class SimplePDFAttachmentAdapter implements AttachmentAdapter {
   public accept = "application/pdf";
   private readonly maxFileSize: number;
-  private readonly workerSrc?: string;
+  private readonly workerSrc: string | undefined;
 
   constructor(config?: SimplePDFAttachmentAdapterConfig) {
     this.maxFileSize = config?.maxFileSize ?? 10 * 1024 * 1024; // 10MB default
