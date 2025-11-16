@@ -3,12 +3,12 @@ export type ResourceFn<R, P> = (props: P) => R;
 export type Unsubscribe = () => void;
 
 export type ResourceElement<R, P = any> = {
-  type: ResourceFn<R, P>;
+  type: Resource<R, P>;
   props: P;
   key?: string | number;
 };
 
-export type ResourceElementConstructor<R, P> = (
+export type Resource<R, P> = (
   ...args: undefined extends P
     ? [props?: P, options?: { key?: string | number }]
     : [props: P, options?: { key?: string | number }]
