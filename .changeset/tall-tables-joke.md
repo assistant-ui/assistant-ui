@@ -3,4 +3,4 @@
 "@assistant-ui/tap": patch
 ---
 
-feat: add Resource type and ResourceElement.type is now Resource
+feat: renamed `ResourceElementConstructor` to `Resource`, changed `ResourceElement.type` to be `Resource` instead of `ResourceFn`
