@@ -28,7 +28,7 @@ export class SimpleTextAttachmentAdapter implements AttachmentAdapter {
       content: [
         {
           type: "text",
-          text: `<attachment name=${attachment.name}>\n${await getFileText(attachment.file)}\n</attachment>`,
+          text: `<attachment name="${attachment.name}">\n${await getFileText(attachment.file)}\n</attachment>`,
         },
       ],
     };
