@@ -19,41 +19,42 @@ npm install tw-shimmer
 The shimmer effect uses `background-clip: text`, so you need to set a text color for the base text:
 
 ```html
-<div class="shimmer text-foreground/40">Loading...</div>
+<span class="shimmer text-foreground/40">Loading...</span>
 ```
 
 Use opacity (`/40`, `/50`, etc.) to make the shimmer effect visible.
 
 ## API
 
+> [!NOTE]
+> All values are unitless numbers with units auto-appended. For example, `shimmer-speed-50` applies 50px/s.
+
 ### `shimmer`
 
 Base utility. Apply to any element with a text color.
 
 ```html
-<div class="shimmer text-foreground/40">Loading...</div>
+<span class="shimmer text-foreground/40">Loading...</span>
 ```
 
 ### `shimmer-speed-{value}`
 
-Animation speed in pixels per second. Default: `100px/s`.
-
-Values are unitless numbers (units auto-appended): `50`, `100`, `150`, `200`, etc.
+Animation speed in pixels per second. Default: `100`px/s.
 
 ```html
-<div class="shimmer shimmer-speed-200 text-foreground/40">Fast (200px/s)</div>
+<span class="shimmer shimmer-speed-200 text-foreground/40">Fast (200px/s)</span>
 ```
 
 ### `--shimmer-width-x`
 
-CSS variable for container width used in speed calculations. Default: `200px`.
+CSS variable for container width in pixels used in speed calculations. Default: `200`px.
 
 Set this at runtime to match your actual container width for accurate speed.
 
 ```tsx
-<div class="shimmer" style={{ ["--shimmer-width-x" as string]: "300px" }}>
+<span class="shimmer" style={{ ["--shimmer-width-x" as string]: "300" }}>
   Wide container
-</div>
+</span>
 ```
 
 Duration formula: `(width * 2) / speed`
@@ -65,27 +66,29 @@ Shimmer highlight color. Default: `currentColor`.
 Uses Tailwind color palette.
 
 ```html
-<div class="shimmer shimmer-color-blue-500 text-blue-500/40">Colored</div>
+<span class="shimmer shimmer-color-blue-500 text-blue-500/40"
+  >Blue highlight</span
+>
 ```
 
 ### `shimmer-spread-{spacing}`
 
-Width of the shimmer highlight. Default: `6ch`.
+Width of the shimmer highlight. Default: `6`ch.
 
 Uses Tailwind spacing scale.
 
 ```html
-<div class="shimmer shimmer-spread-12 text-foreground/40">Wide highlight</div>
+<span class="shimmer shimmer-spread-24 text-foreground/40">Wide highlight</span>
 ```
 
 ### `shimmer-angle-{degrees}`
 
-Shimmer direction. Default: `90deg`.
-
-Values are unitless numbers (deg auto-appended): `0`, `45`, `90`, `180`, etc.
+Shimmer direction. Default: `90`deg.
 
 ```html
-<div class="shimmer shimmer-angle-45 text-foreground/40">Diagonal (45deg)</div>
+<span class="shimmer shimmer-angle-45 text-foreground/40"
+  >Diagonal (45deg)</span
+>
 ```
 
 ## License

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Copy, Check, Sparkles, FileCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SyntaxHighlighter } from "@/components/assistant-ui/shiki-highlighter";
@@ -40,6 +40,13 @@ export default function TwShimmerPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const autoWidthRef = useCallback((node: HTMLElement | null): void => {
+    if (!node) return;
+    document.fonts.ready.then(() => {
+      node.style.setProperty("--shimmer-width-x", `${node.offsetWidth}`);
+    });
+  }, []);
+
   return (
     <div className="container max-w-screen-xl space-y-16 px-4 py-12">
       <div className="flex flex-col items-center space-y-6 text-center">
@@ -48,7 +55,10 @@ export default function TwShimmerPage() {
           <span>Tailwind CSS v4 Plugin</span>
         </div>
 
-        <h1 className="shimmer text-6xl font-bold tracking-tight text-foreground/40 shimmer-speed-150 lg:text-7xl">
+        <h1
+          ref={autoWidthRef}
+          className="shimmer text-6xl font-bold tracking-tight text-foreground/40 shimmer-speed-150 lg:text-7xl"
+        >
           tw-shimmer
         </h1>
 
@@ -123,15 +133,18 @@ export default function TwShimmerPage() {
             <BoxCode>
               <CodeBlock
                 language="html"
-                code='<div class="shimmer text-foreground/40">Text</div>'
+                code='<span class="shimmer text-foreground/40">Text</span>'
                 highlight="shimmer"
                 highlightMode="text"
               />
             </BoxCode>
             <BoxContent>
-              <div className="shimmer text-lg font-semibold text-foreground/40">
+              <span
+                ref={autoWidthRef}
+                className="shimmer text-lg font-semibold text-foreground/40"
+              >
                 Shimmer Effect
-              </div>
+              </span>
             </BoxContent>
           </Box>
 
@@ -143,32 +156,35 @@ export default function TwShimmerPage() {
             <BoxCode>
               <CodeBlock
                 language="html"
-                code='<div class="shimmer shimmer-speed-200 text-foreground/40">Fast</div>'
+                code='<span class="shimmer shimmer-speed-200 text-foreground/40">Fast</span>'
                 highlight="shimmer-speed-200"
                 highlightMode="text"
               />
             </BoxCode>
             <BoxContent>
-              <div className="shimmer text-lg font-semibold text-foreground/40 shimmer-speed-200">
+              <span
+                ref={autoWidthRef}
+                className="shimmer text-lg font-semibold text-foreground/40 shimmer-speed-200"
+              >
                 Fast Shimmer
-              </div>
+              </span>
             </BoxContent>
           </Box>
 
           <Box>
             <BoxTitle
               title="--shimmer-width-x"
-              description="CSS variable for container width. Default: 200px"
+              description="CSS variable for container width in pixels used in speed calculations. Default: 200px"
             />
             <BoxCode>
               <CodeBlock
-                language="html"
-                code={`<div
+                language="tsx"
+                code={`<span
   class="shimmer text-foreground/40"
-  style={{ ["--shimmer-width-x" as string]: "50px" }}
+  style={{ ["--shimmer-width-x" as string]: "50" }}
 >
   Narrow
-</div>`}
+</span>`}
                 highlight="--shimmer-width-x"
                 highlightMode="text"
               />
@@ -176,8 +192,47 @@ export default function TwShimmerPage() {
             <BoxContent>
               <p className="text-sm text-muted-foreground">
                 Without this variable, animation speed varies by element width.
+                <br />
                 Use JS to set element width for consistent scroll speed.
               </p>
+            </BoxContent>
+            <BoxContent>
+              <div className="grid gap-8 md:grid-cols-2">
+                <div>
+                  <p className="mb-3 text-xs font-semibold tracking-wide text-muted-foreground">
+                    Set --shimmer-width-x for consistent speed:
+                  </p>
+                  <div className="space-y-2">
+                    <span
+                      ref={autoWidthRef}
+                      className="shimmer text-sm font-semibold text-foreground/40"
+                    >
+                      A short line
+                    </span>
+                    <br />
+                    <span
+                      ref={autoWidthRef}
+                      className="shimmer text-sm font-semibold text-foreground/40"
+                    >
+                      An example of a longer line but same speed
+                    </span>
+                  </div>
+                </div>
+                <div>
+                  <p className="mb-3 text-xs font-semibold tracking-wide text-muted-foreground">
+                    Default --shimmer-width-x:
+                  </p>
+                  <div className="space-y-2">
+                    <span className="shimmer text-sm font-semibold text-foreground/40">
+                      A short line
+                    </span>
+                    <br />
+                    <span className="shimmer text-sm font-semibold text-foreground/40">
+                      An example of a longer line but same duration
+                    </span>
+                  </div>
+                </div>
+              </div>
             </BoxContent>
           </Box>
 
@@ -189,34 +244,68 @@ export default function TwShimmerPage() {
             <BoxCode>
               <CodeBlock
                 language="html"
-                code='<div class="shimmer shimmer-color-blue-500 text-blue-500/40">Blue</div>'
+                code='<span class="shimmer shimmer-color-blue-500 text-blue-500/40">Blue</span>'
                 highlight="shimmer-color-blue-500"
                 highlightMode="text"
               />
             </BoxCode>
             <BoxContent>
-              <div className="shimmer text-lg font-semibold text-blue-500/40 shimmer-color-blue-500 dark:text-blue-300/40 dark:shimmer-color-blue-300">
+              <span
+                ref={autoWidthRef}
+                className="shimmer text-lg font-semibold text-blue-500/40 shimmer-color-blue-500 dark:text-blue-300/40 dark:shimmer-color-blue-300"
+              >
                 Blue Shimmer
-              </div>
+              </span>
             </BoxContent>
           </Box>
 
           <Box>
             <BoxTitle
               title="shimmer-spread-{spacing}"
-              description="Width of shimmer highlight. Uses Tailwind spacing. Default: 6ch"
+              description="Width of the shimmer highlight. Uses Tailwind spacing. Default: 6ch"
             />
             <BoxCode>
               <CodeBlock
                 language="html"
-                code='<div class="shimmer shimmer-spread-12 text-foreground/40">Wide</div>'
-                highlight="shimmer-spread-12"
+                code='<span class="shimmer shimmer-spread-24 text-foreground/40">Wide</span>'
+                highlight="shimmer-spread-24"
                 highlightMode="text"
               />
             </BoxCode>
             <BoxContent>
-              <div className="shimmer text-lg font-semibold text-foreground/40 shimmer-spread-24">
+              <span
+                ref={autoWidthRef}
+                className="shimmer text-lg font-semibold text-foreground/40 shimmer-spread-24"
+              >
                 Wide Spread Shimmer
+              </span>
+            </BoxContent>
+          </Box>
+
+          <Box>
+            <BoxTitle
+              title="shimmer-angle-{degrees}"
+              description="Shimmer direction in degrees. Default: 90deg"
+            />
+            <BoxCode>
+              <CodeBlock
+                language="html"
+                code={`<div
+  class="shimmer shimmer-angle-45 inline-block text-foreground/40"
+> Diagonal
+</div>`}
+                highlight="shimmer-angle-45"
+                highlightMode="text"
+              />
+            </BoxCode>
+            <BoxContent>
+              <div
+                ref={autoWidthRef}
+                className="inline-block shimmer text-lg font-semibold text-foreground/40 shimmer-angle-45"
+              >
+                A multi-line
+                <br />
+                Diagonal Shimmer
               </div>
             </BoxContent>
           </Box>
