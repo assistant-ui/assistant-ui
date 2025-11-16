@@ -151,14 +151,40 @@ Extracts text content from PDF documents for LLM consumption:
 const pdfAdapter = new SimplePDFAttachmentAdapter();
 // Accepts: application/pdf
 // Output: Text content wrapped in <attachment>...</attachment> tags
-// Limit: 10MB file size for client-side processing
+// Default: 10MB file size limit
+
+// With custom configuration
+const pdfAdapter = new SimplePDFAttachmentAdapter({
+  maxFileSize: 20 * 1024 * 1024, // 20MB
+  workerSrc: '/pdf.worker.min.mjs', // Self-hosted worker
+});
 ```
 
 <Callout type="info">
-  The PDF adapter requires the `pdf-parse` library to be installed:
+  The PDF adapter uses `pdfjs-dist` for browser environments and `pdf-parse` for Node.js.
 
+  For Node.js environments, install:
   ```sh
   npm install pdf-parse
+  ```
+</Callout>
+
+<Callout type="warning">
+  **Security Considerations**
+
+  By default, the PDF.js worker is loaded from the unpkg CDN (`https://unpkg.com/pdfjs-dist`). For production applications:
+
+  - **Self-hosting**: Download the worker from the [PDF.js releases](https://github.com/mozilla/pdf.js/releases) and serve it from your domain
+  - **CSP**: Add the CDN to your Content Security Policy if using the default
+  - **Availability**: Consider CDN availability and implement fallbacks for critical applications
+
+  Example self-hosting setup:
+  ```tsx
+  // 1. Copy pdf.worker.min.mjs to your public directory
+  // 2. Configure the adapter
+  const pdfAdapter = new SimplePDFAttachmentAdapter({
+    workerSrc: '/pdf.worker.min.mjs'
+  });
   ```
 </Callout>
 

@@ -4,9 +4,36 @@ import {
 } from "../../../../types/AttachmentTypes";
 import { AttachmentAdapter } from "./AttachmentAdapter";
 
+export type SimplePDFAttachmentAdapterConfig = {
+  /**
+   * Custom URL for the PDF.js worker script.
+   * By default, uses unpkg CDN. For security-conscious applications,
+   * consider self-hosting the worker and providing the URL here.
+   *
+   * @example
+   * ```ts
+   * // Self-hosted worker
+   * new SimplePDFAttachmentAdapter({
+   *   workerSrc: '/pdf.worker.min.mjs'
+   * })
+   * ```
+   */
+  workerSrc?: string;
+  /**
+   * Maximum file size in bytes. Defaults to 10MB.
+   */
+  maxFileSize?: number;
+};
+
 export class SimplePDFAttachmentAdapter implements AttachmentAdapter {
   public accept = "application/pdf";
-  private readonly maxFileSize = 10 * 1024 * 1024; // 10MB
+  private readonly maxFileSize: number;
+  private readonly workerSrc?: string;
+
+  constructor(config?: SimplePDFAttachmentAdapterConfig) {
+    this.maxFileSize = config?.maxFileSize ?? 10 * 1024 * 1024; // 10MB default
+    this.workerSrc = config?.workerSrc;
+  }
 
   public async add(state: { file: File }): Promise<PendingAttachment> {
     if (state.file.size > this.maxFileSize) {
@@ -51,8 +78,10 @@ export class SimplePDFAttachmentAdapter implements AttachmentAdapter {
         // Use pdfjs-dist for browser environment
         const pdfjsLib = await import("pdfjs-dist");
 
-        // Set worker source using unpkg CDN
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+        // Set worker source - use custom URL if provided, otherwise default to unpkg CDN
+        pdfjsLib.GlobalWorkerOptions.workerSrc =
+          this.workerSrc ??
+          `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
         const arrayBuffer = await attachment.file.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;

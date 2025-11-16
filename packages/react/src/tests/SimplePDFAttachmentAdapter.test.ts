@@ -160,4 +160,45 @@ describe("SimplePDFAttachmentAdapter", () => {
       await expect(adapter.remove(attachment)).resolves.toBeUndefined();
     });
   });
+
+  describe("configuration", () => {
+    it("should accept custom maxFileSize", async () => {
+      const customAdapter = new SimplePDFAttachmentAdapter({
+        maxFileSize: 5 * 1024 * 1024, // 5MB
+      });
+
+      const file = new File(["large content"], "large.pdf", {
+        type: "application/pdf",
+      });
+      Object.defineProperty(file, "size", { value: 7 * 1024 * 1024 }); // 7MB
+
+      const result = await customAdapter.add({ file });
+
+      expect(result.status.type).toBe("incomplete");
+      expect(result.status.reason).toBe("error");
+    });
+
+    it("should accept custom workerSrc", () => {
+      const customAdapter = new SimplePDFAttachmentAdapter({
+        workerSrc: "/custom/pdf.worker.min.mjs",
+      });
+
+      expect(customAdapter).toBeDefined();
+      // Worker source is used internally in browser environment
+      // Cannot easily test without mocking browser environment
+    });
+
+    it("should work with default configuration", async () => {
+      const defaultAdapter = new SimplePDFAttachmentAdapter();
+
+      const file = new File(["test content"], "test.pdf", {
+        type: "application/pdf",
+      });
+      Object.defineProperty(file, "size", { value: 1024 }); // 1KB
+
+      const result = await defaultAdapter.add({ file });
+
+      expect(result.status.type).toBe("requires-action");
+    });
+  });
 });

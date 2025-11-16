@@ -49,14 +49,16 @@
 ### Added
 
 - `SimplePDFAttachmentAdapter` for native PDF document support
-- Client-side PDF text extraction using pdfjs-dist library for browsers
-- Server-side PDF text extraction using pdf-parse library for Node.js environments
-- 10MB size limit for PDF processing to prevent browser performance issues
-- Comprehensive error handling for corrupted or invalid PDFs
+  - Client-side PDF text extraction using pdfjs-dist library for browsers
+  - Server-side PDF text extraction using pdf-parse library for Node.js environments
+  - Configurable file size limit (default: 10MB) to prevent browser performance issues
+  - Configurable PDF.js worker source URL for security-conscious applications
+  - Self-hosting support for PDF.js worker script
+  - Comprehensive error handling for corrupted or invalid PDFs
 
 ### Changed
 
-- Updated attachment documentation with PDF examples
+- Updated attachment documentation with PDF examples, security considerations, and self-hosting instructions
 - Added pdfjs-dist as required dependency and pdf-parse as optional dependency
 
 ### Patch Changes
