@@ -80,10 +80,7 @@ const getMessageContent = (msg: AppendMessage) => {
 const symbolA2ARuntimeExtras = Symbol("a2a-runtime-extras");
 type A2ARuntimeExtras = {
   [symbolA2ARuntimeExtras]: true;
-  send: (
-    messages: A2AMessage[],
-    config: A2ASendMessageConfig,
-  ) => Promise<void>;
+  send: (messages: A2AMessage[], config: A2ASendMessageConfig) => Promise<void>;
   taskState: A2ATaskState | undefined;
   artifacts: A2AArtifact[];
 };
@@ -298,7 +295,7 @@ export const useA2ARuntime = ({
     },
     onAddToolResult: async ({
       toolCallId,
-      toolName,
+      toolName: _toolName,
       result,
       isError,
       artifact,
@@ -311,9 +308,9 @@ export const useA2ARuntime = ({
             tool_call_id: toolCallId,
             content: JSON.stringify(result),
             artifacts: artifact ? [artifact] : undefined,
-            status: isError ?
-              { type: "incomplete", reason: "error" } :
-              { type: "complete" },
+            status: isError
+              ? { type: "incomplete", reason: "error" }
+              : { type: "complete" },
           },
         ],
         // TODO reuse runconfig here!

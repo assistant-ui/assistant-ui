@@ -94,12 +94,21 @@ export type A2ACommand = {
 // A2A Stream Callback
 export type A2AStreamCallback<TMessage> = (
   messages: TMessage[],
-  config: A2ASendMessageConfig & { abortSignal: AbortSignal }
+  config: A2ASendMessageConfig & { abortSignal: AbortSignal },
 ) => Promise<AsyncGenerator<A2AEvent>> | AsyncGenerator<A2AEvent>;
 
 // Event handler callback types
-export type OnTaskUpdateEventCallback = (data: A2ATaskState) => void | Promise<void>;
-export type OnArtifactsEventCallback = (artifacts: A2AArtifact[]) => void | Promise<void>;
+export type OnTaskUpdateEventCallback = (
+  data: A2ATaskState,
+) => void | Promise<void>;
+export type OnArtifactsEventCallback = (
+  artifacts: A2AArtifact[],
+) => void | Promise<void>;
 export type OnErrorEventCallback = (error: unknown) => void | Promise<void>;
-export type OnStateUpdateEventCallback = (state: unknown) => void | Promise<void>;
-export type OnCustomEventCallback = (type: string, data: unknown) => void | Promise<void>;
+export type OnStateUpdateEventCallback = (
+  state: unknown,
+) => void | Promise<void>;
+export type OnCustomEventCallback = (
+  type: string,
+  data: unknown,
+) => void | Promise<void>;

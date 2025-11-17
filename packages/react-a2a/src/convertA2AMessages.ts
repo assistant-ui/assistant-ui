@@ -45,7 +45,9 @@ export const convertA2AMessages = (messages: A2AMessage[]) =>
           return {
             id: message.id ?? `${index}`,
             role: "system" as const,
-            content: [{ type: "text" as const, text: message.content as string }],
+            content: [
+              { type: "text" as const, text: message.content as string },
+            ],
           };
 
         case "user":
@@ -82,7 +84,8 @@ export const convertA2AMessages = (messages: A2AMessage[]) =>
                 type: "tool-result" as const,
                 toolCallId: message.tool_call_id!,
                 result: JSON.parse(message.content as string),
-                isError: message.status?.type === "incomplete" &&
+                isError:
+                  message.status?.type === "incomplete" &&
                   message.status?.reason === "error",
               },
             ],
@@ -93,7 +96,9 @@ export const convertA2AMessages = (messages: A2AMessage[]) =>
           throw new Error(`Unknown message role: ${_exhaustiveCheck}`);
       }
     })
-    .filter((message): message is NonNullable<typeof message> => message !== null);
+    .filter(
+      (message): message is NonNullable<typeof message> => message !== null,
+    );
 
 export const useA2AMessageConverter = (messages: A2AMessage[]) =>
   useExternalMessageConverter({

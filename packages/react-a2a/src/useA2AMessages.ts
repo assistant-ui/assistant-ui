@@ -14,7 +14,7 @@ import {
   OnCustomEventCallback,
 } from "./types";
 
-export type A2AMessagesEvent<TMessage> = A2AEvent;
+export type A2AMessagesEvent<_TMessage> = A2AEvent;
 
 export type A2AStreamCallback<TMessage> = (
   messages: TMessage[],
@@ -48,10 +48,8 @@ export const useA2AMessages = <TMessage extends { id?: string }>({
   const [artifacts, setArtifacts] = useState<A2AArtifact[]>([]);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const { onTaskUpdate, onArtifacts, onError, onStateUpdate, onCustomEvent } = useMemo(
-    () => eventHandlers ?? {},
-    [eventHandlers],
-  );
+  const { onTaskUpdate, onArtifacts, onError, onStateUpdate, onCustomEvent } =
+    useMemo(() => eventHandlers ?? {}, [eventHandlers]);
 
   const sendMessage = useCallback(
     async (newMessages: TMessage[], config: A2ASendMessageConfig) => {
@@ -83,7 +81,8 @@ export const useA2AMessages = <TMessage extends { id?: string }>({
 
           case A2AKnownEventTypes.TaskComplete:
             // Extract messages and artifacts from completed task
-            const { messages: taskMessages, artifacts: taskArtifacts } = event.data;
+            const { messages: taskMessages, artifacts: taskArtifacts } =
+              event.data;
             if (taskMessages) {
               setMessages(accumulator.addMessages(taskMessages));
             }
@@ -99,7 +98,11 @@ export const useA2AMessages = <TMessage extends { id?: string }>({
             onError?.(event.data);
             // Update task state to failed
             if (taskState) {
-              setTaskState({ ...taskState, state: "failed", message: event.data?.message });
+              setTaskState({
+                ...taskState,
+                state: "failed",
+                message: event.data?.message,
+              });
             }
             break;
 
@@ -119,7 +122,10 @@ export const useA2AMessages = <TMessage extends { id?: string }>({
             const messages = accumulator.getMessages();
             const lastAssistantMessage = messages.findLast(
               (m): m is TMessage & { role: string; id: string } =>
-                m != null && "role" in m && m.role === "assistant" && m.id != null,
+                m != null &&
+                "role" in m &&
+                m.role === "assistant" &&
+                m.id != null,
             );
             if (lastAssistantMessage) {
               const errorMessage = {
