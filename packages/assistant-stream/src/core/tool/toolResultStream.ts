@@ -83,9 +83,9 @@ export async function unstable_runPendingTools(
   abortSignal: AbortSignal,
   human: (toolCallId: string, payload: unknown) => Promise<unknown>,
 ) {
-  // TODO parallel tool calling
-  for (const part of message.parts) {
-    if (part.type === "tool-call") {
+  const toolCallPromises = message.parts
+    .filter((part) => part.type === "tool-call")
+    .map(async (part) => {
       const promiseOrUndefined = getToolResponse(
         tools,
         abortSignal,
@@ -99,29 +99,53 @@ export async function unstable_runPendingTools(
       );
       if (promiseOrUndefined) {
         const result = await promiseOrUndefined;
-        const updatedParts = message.parts.map((p) => {
-          if (p.type === "tool-call" && p.toolCallId === part.toolCallId) {
-            return {
-              ...p,
-              state: "result" as const,
-              ...(result.artifact !== undefined
-                ? { artifact: result.artifact }
-                : {}),
-              result: result.result as ReadonlyJSONValue,
-              isError: result.isError,
-            };
-          }
-          return p;
-        });
-        message = {
-          ...message,
-          parts: updatedParts,
-          content: updatedParts,
+        return {
+          toolCallId: part.toolCallId,
+          result,
+        };
+      }
+      return null;
+    });
+
+  const toolCallResults = (await Promise.all(toolCallPromises)).filter(
+    (result) => result !== null,
+  ) as { toolCallId: string; result: ToolResponse<ReadonlyJSONValue> }[];
+
+  if (toolCallResults.length === 0) {
+    return message;
+  }
+
+  const toolCallResultsById = toolCallResults.reduce(
+    (acc, { toolCallId, result }) => {
+      acc[toolCallId] = result;
+      return acc;
+    },
+    {} as Record<string, ToolResponse<ReadonlyJSONValue>>,
+  );
+
+  const updatedParts = message.parts.map((p) => {
+    if (p.type === "tool-call") {
+      const toolResponse = toolCallResultsById[p.toolCallId];
+      if (toolResponse) {
+        return {
+          ...p,
+          state: "result" as const,
+          ...(toolResponse.artifact !== undefined
+            ? { artifact: toolResponse.artifact }
+            : {}),
+          result: toolResponse.result as ReadonlyJSONValue,
+          isError: toolResponse.isError,
         };
       }
     }
-  }
-  return message;
+    return p;
+  });
+
+  return {
+    ...message,
+    parts: updatedParts,
+    content: updatedParts,
+  };
 }
 
 export function toolResultStream(
