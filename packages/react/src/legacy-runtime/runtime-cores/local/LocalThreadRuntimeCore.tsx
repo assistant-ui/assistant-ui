@@ -184,8 +184,6 @@ export class LocalThreadRuntimeCore
   ): Promise<void> {
     this.ensureInitialized();
 
-    this.repository.resetHead(parentId);
-
     // add assistant message
     const id = generateId();
     let message: ThreadAssistantMessage = {
@@ -255,7 +253,7 @@ export class LocalThreadRuntimeCore
     runConfig: RunConfig | undefined,
     runCallback?: ChatModelAdapter["run"],
   ) {
-    const messages = this.repository.getMessages();
+    const messages = parentId ? this.repository.getMessages(parentId) : [];
 
     // abort existing run
     this.abortController?.abort();
@@ -328,6 +326,10 @@ export class LocalThreadRuntimeCore
           type: "running",
         },
       });
+
+      // Switch to the new message branch right after adding it for the first time
+      this.repository.resetHead(message.id);
+      this._notifySubscribers();
     }
 
     try {
