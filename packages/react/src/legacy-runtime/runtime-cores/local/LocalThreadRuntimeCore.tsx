@@ -152,6 +152,7 @@ export class LocalThreadRuntimeCore
     this._options.adapters.history?.append({
       parentId: message.parentId,
       message: newMessage,
+      ...(message.runConfig !== undefined && { runConfig: message.runConfig }),
     });
 
     const startRun = message.startRun ?? message.role === "user";
@@ -401,6 +402,7 @@ export class LocalThreadRuntimeCore
         await this._options.adapters.history?.append({
           parentId,
           message: message,
+          runConfig: this._lastRunConfig,
         });
       }
     }
