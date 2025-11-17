@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.2.40
+
+### Patch Changes
+
+- ef58020: feat(assistant-stream): parallel tool calling
+
 ## 0.2.39
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-agui",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "license": "MIT",
   "type": "module",
   "exports": {
