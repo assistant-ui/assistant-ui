@@ -337,6 +337,9 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
     case "audio":
       return <Audio {...part} />;
 
+    case "data":
+      return null;
+
     default:
       const unhandledType: never = type;
       throw new Error(`Unknown message part type: ${unhandledType}`);

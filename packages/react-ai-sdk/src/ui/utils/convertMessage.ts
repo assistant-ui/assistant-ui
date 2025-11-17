@@ -4,6 +4,7 @@ import {
   type ReasoningMessagePart,
   type ToolCallMessagePart,
   type TextMessagePart,
+  type DataMessagePart,
   type SourceMessagePart,
   type useExternalMessageConverter,
 } from "@assistant-ui/react";
@@ -155,13 +156,12 @@ const convertParts = (
 
       // Handle data-* parts (AI SDK v5 data parts)
       if (type.startsWith("data-")) {
-        // For now, we'll skip data parts as they don't have a direct equivalent
-        // in the assistant-ui types. They could be converted to a custom message part
-        // or handled differently based on the specific use case.
-        console.warn(
-          `Data part type ${type} is not yet supported in conversion`,
-        );
-        return null;
+        const name = type.substring(5);
+        return {
+          type: "data",
+          name,
+          data: (part as any).data,
+        } satisfies DataMessagePart;
       }
 
       // For unsupported types, we'll skip them instead of throwing
