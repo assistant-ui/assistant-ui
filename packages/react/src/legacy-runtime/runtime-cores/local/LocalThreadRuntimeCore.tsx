@@ -152,6 +152,7 @@ export class LocalThreadRuntimeCore
     this._options.adapters.history?.append({
       parentId: message.parentId,
       message: newMessage,
+      ...(message.runConfig !== undefined && { runConfig: message.runConfig }),
     });
 
     const startRun = message.startRun ?? message.role === "user";
@@ -182,8 +183,6 @@ export class LocalThreadRuntimeCore
     runCallback?: ChatModelAdapter["run"],
   ): Promise<void> {
     this.ensureInitialized();
-
-    this.repository.resetHead(parentId);
 
     // add assistant message
     const id = generateId();
@@ -254,7 +253,7 @@ export class LocalThreadRuntimeCore
     runConfig: RunConfig | undefined,
     runCallback?: ChatModelAdapter["run"],
   ) {
-    const messages = this.repository.getMessages();
+    const messages = parentId ? this.repository.getMessages(parentId) : [];
 
     // abort existing run
     this.abortController?.abort();
@@ -327,6 +326,10 @@ export class LocalThreadRuntimeCore
           type: "running",
         },
       });
+
+      // Switch to the new message branch right after adding it for the first time
+      this.repository.resetHead(message.id);
+      this._notifySubscribers();
     }
 
     try {
@@ -401,6 +404,7 @@ export class LocalThreadRuntimeCore
         await this._options.adapters.history?.append({
           parentId,
           message: message,
+          runConfig: this._lastRunConfig,
         });
       }
     }

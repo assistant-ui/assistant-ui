@@ -1,15 +1,16 @@
 import { describe, it, expect, vi } from "vitest";
 import { createResource } from "../../core/ResourceHandle";
+import { resource } from "../../core/resource";
 
 describe("ResourceHandle - Basic Usage", () => {
   it("should create a resource handle with const API", () => {
     const handle = createResource({
-      type: (props: number) => {
+      type: resource((props: number) => {
         return {
           value: props * 2,
           propsUsed: props,
         };
-      },
+      }),
       props: 5,
     });
 
@@ -25,9 +26,9 @@ describe("ResourceHandle - Basic Usage", () => {
 
   it("should allow updating props", () => {
     const handle = createResource({
-      type: (props: { multiplier: number }) => {
+      type: resource((props: { multiplier: number }) => {
         return { result: 10 * props.multiplier };
-      },
+      }),
       props: { multiplier: 2 },
     });
 
@@ -40,7 +41,7 @@ describe("ResourceHandle - Basic Usage", () => {
 
   it("should support subscribing and unsubscribing", () => {
     const handle = createResource({
-      type: () => ({ timestamp: Date.now() }),
+      type: resource(() => ({ timestamp: Date.now() })),
       props: undefined,
     });
 
@@ -61,7 +62,7 @@ describe("ResourceHandle - Basic Usage", () => {
 
   it("should provide stable API references", () => {
     const handle = createResource({
-      type: () => ({ data: "test" }),
+      type: resource(() => ({ data: "test" })),
       props: undefined,
     });
 

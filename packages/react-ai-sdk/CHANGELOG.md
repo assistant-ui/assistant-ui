@@ -1,5 +1,30 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.1.11
+
+### Patch Changes
+
+- 0bcbb58: feat: custom `toCreateMessage` callback
+  fix: use AI SDK's idGenerator function for new messages
+- b408005: feat(react-ai-sdk): Integrate AI SDK v5 data parts in message content
+- Updated dependencies [b408005]
+- Updated dependencies [7a6d9ca]
+- Updated dependencies [70d5966]
+- Updated dependencies [3754bdd]
+- Updated dependencies [0a4bdc1]
+  - @assistant-ui/react@0.11.39
+
+## 1.1.10
+
+### Patch Changes
+
+- 34d1c78: fix(react-ai-sdk): correctly initialize history loading state
+- Updated dependencies [66a13a0]
+- Updated dependencies [4e3877e]
+- Updated dependencies [eef682b]
+  - @assistant-ui/react@0.11.38
+  - assistant-cloud@0.1.7
+
 ## 1.1.9
 
 ### Patch Changes

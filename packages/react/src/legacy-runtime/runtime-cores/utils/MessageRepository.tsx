@@ -1,4 +1,5 @@
 import type { ThreadMessage } from "../../../types";
+import { RunConfig } from "../../../types/AssistantTypes";
 import { generateId, generateOptimisticId } from "../../../utils/idUtils";
 import { ThreadMessageLike } from "../external-store";
 import { getAutoStatus } from "../external-store/auto-status";
@@ -34,6 +35,8 @@ export type ExportedMessageRepositoryItem = {
   message: ThreadMessage;
   /** ID of the parent message, or null for root messages */
   parentId: string | null;
+  /** The run configuration for the message */
+  runConfig?: RunConfig;
 };
 
 /**
@@ -46,6 +49,7 @@ export type ExportedMessageRepository = {
   messages: Array<{
     message: ThreadMessage;
     parentId: string | null;
+    runConfig?: RunConfig;
   }>;
 };
 
@@ -248,10 +252,30 @@ export class MessageRepository {
 
   /**
    * Gets all messages in the current active branch, from root to head.
-   * @returns Array of messages in the current branch
+   * @param headId - Optional ID of the head message to get messages for. If not provided, uses the current head.
+   * @returns Array of messages in the specified branch
    */
-  getMessages() {
-    return this._messages.value;
+  getMessages(headId?: string) {
+    if (headId === undefined || headId === this.head?.current.id) {
+      return this._messages.value;
+    }
+
+    const headMessage = this.messages.get(headId);
+    if (!headMessage) {
+      throw new Error(
+        "MessageRepository(getMessages): Head message not found. This is likely an internal bug in assistant-ui.",
+      );
+    }
+
+    const messages = new Array<ThreadMessage>(headMessage.level + 1);
+    for (
+      let current: RepositoryMessage | null = headMessage;
+      current;
+      current = current.prev
+    ) {
+      messages[current.level] = current.current;
+    }
+    return messages;
   }
 
   /**

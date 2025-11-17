@@ -24,18 +24,14 @@ import {
   useAssistantApiImpl,
   extendApi,
 } from "../context/react/AssistantApiContext";
-import { ToolUIClient } from "./ToolUIClient";
 import { withEventsProvider } from "./EventContext";
 import { withModelContextProvider } from "./ModelContext";
-import { withToolUIProvider } from "./ToolUIContext";
-import { ToolUIApi, ToolUIState } from "./types/ToolUI";
 import { ToolsApi, ToolsState } from "./types/Tools";
 import { ModelContextApi, ModelContextState } from "./types/ModelContext";
 import { ModelContext as ModelContextResource } from "./ModelContextClient";
 
 type AssistantClientState = {
   readonly threads: ThreadListClientState;
-  readonly toolUIs: ToolUIState;
   readonly tools: ToolsState;
   readonly modelContext: ModelContextState;
 };
@@ -44,7 +40,6 @@ type AssistantClientApi = {
   getState(): AssistantClientState;
 
   readonly threads: ThreadListClientApi;
-  readonly toolUIs: ToolUIApi;
   readonly tools: ToolsApi;
   readonly modelContext: ModelContextApi;
 
@@ -61,44 +56,35 @@ const AssistantStore = resource(
     tools: toolsEl,
   }: AssistantClientProps) => {
     const events = tapInlineResource(EventManager());
-    const toolUIsResource = tapInlineResource(ToolUIClient());
 
-    const { threads, toolUIs, tools, modelContext } = withEventsProvider(
-      events,
-      () => {
-        const modelContextResource = tapResource(
-          modelContextEl ?? ModelContextResource(),
-          [modelContextEl],
-        );
+    const { threads, tools, modelContext } = withEventsProvider(events, () => {
+      const modelContextResource = tapResource(
+        modelContextEl ?? ModelContextResource(),
+        [modelContextEl],
+      );
 
-        return withModelContextProvider(modelContextResource.api, () => {
-          return withToolUIProvider(toolUIsResource.api, () => {
-            return {
-              toolUIs: toolUIsResource,
-              modelContext: modelContextResource,
-              tools: tapResource(toolsEl ?? Tools({}), [toolsEl]),
-              threads: tapResource(threadsEl, [threadsEl]),
-            };
-          });
-        });
-      },
-    );
+      return withModelContextProvider(modelContextResource.api, () => {
+        return {
+          modelContext: modelContextResource,
+          tools: tapResource(toolsEl ?? Tools({}), [toolsEl]),
+          threads: tapResource(threadsEl, [threadsEl]),
+        };
+      });
+    });
 
     const state = tapMemo<AssistantClientState>(
       () => ({
         threads: threads.state,
-        toolUIs: toolUIs.state,
         tools: tools.state,
         modelContext: modelContext.state,
       }),
-      [threads.state, toolUIs.state, tools.state, modelContext.state],
+      [threads.state, tools.state, modelContext.state],
     );
 
     return tapApi<AssistantClientApi>({
       getState: () => state,
 
       threads: threads.api,
-      toolUIs: toolUIs.api,
       tools: tools.api,
       modelContext: modelContext.api,
       on: events.on,
@@ -115,11 +101,6 @@ const getClientFromStore = (client: Store<{ api: AssistantClientApi }>) => {
       source: "root",
       query: {},
       get: () => client.getState().api.threads,
-    }),
-    toolUIs: createAssistantApiField({
-      source: "root",
-      query: {},
-      get: () => client.getState().api.toolUIs,
     }),
     tools: createAssistantApiField({
       source: "root",

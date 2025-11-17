@@ -23,7 +23,7 @@ export { createContext, tapContext, withContextProvider } from "./core/context";
 export type {
   ResourceFn,
   ResourceElement,
-  ResourceElementConstructor,
+  Resource,
   Unsubscribe,
   StateUpdater,
   EffectCallback,

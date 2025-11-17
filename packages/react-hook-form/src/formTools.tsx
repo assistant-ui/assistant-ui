@@ -13,4 +13,9 @@ export const formTools = {
     description: "Submits the form. Confirm with user before submitting.",
     parameters: z.object({}),
   },
+  reset_form: {
+    description:
+      "Resets all form fields to their initial values. Confirm with user before resetting.",
+    parameters: z.object({}),
+  },
 };

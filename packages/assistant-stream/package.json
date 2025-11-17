@@ -32,9 +32,9 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@standard-schema/spec": "^1.0.0",
-    "@types/node": "^24.10.0",
+    "@types/node": "^24.10.1",
     "tsx": "^4.20.6",
-    "vitest": "^4.0.6"
+    "vitest": "^4.0.8"
   },
   "publishConfig": {
     "access": "public"

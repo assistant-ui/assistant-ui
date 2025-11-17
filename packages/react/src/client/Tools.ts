@@ -1,41 +1,25 @@
 import { resource, tapState, tapEffect } from "@assistant-ui/tap";
 import { tapApi } from "../utils/tap-store";
 import { tapModelContext } from "./ModelContext";
-import { tapToolUI } from "./ToolUIContext";
 import { ToolsState, ToolsApi } from "./types/Tools";
 import type { Tool } from "assistant-stream";
-import {
-  type Toolkit,
-  FallbackSymbol,
-  LayoutSymbol,
-} from "../model-context/toolbox";
+import { type Toolkit } from "../model-context/toolbox";
 
 export const Tools = resource(({ toolkit }: { toolkit?: Toolkit }) => {
-  const [state] = tapState<ToolsState>(() => ({}));
+  const [state, setState] = tapState<ToolsState>(() => ({
+    tools: {},
+  }));
 
   const modelContext = tapModelContext();
-  const toolUI = tapToolUI();
 
   tapEffect(() => {
     if (!toolkit) return;
     const unsubscribes: (() => void)[] = [];
 
-    // Register fallback UI
-    const fallback = toolkit[FallbackSymbol];
-    if (fallback?.render) {
-      unsubscribes.push(toolUI.setFallbackToolUI(fallback.render));
-    }
-
-    // Register layout
-    const layout = toolkit[LayoutSymbol];
-    if (layout?.render) {
-      unsubscribes.push(toolUI.setToolUILayout(layout.render));
-    }
-
     // Register tool UIs (exclude symbols)
     for (const [toolName, tool] of Object.entries(toolkit)) {
       if (tool.render) {
-        unsubscribes.push(toolUI.setToolUI(toolName, tool.render));
+        unsubscribes.push(setToolUI(toolName, tool.render));
       }
     }
 
@@ -60,9 +44,34 @@ export const Tools = resource(({ toolkit }: { toolkit?: Toolkit }) => {
     return () => {
       unsubscribes.forEach((fn) => fn());
     };
-  }, [toolkit, modelContext, toolUI]);
+  }, [toolkit, modelContext]);
+
+  const setToolUI = (toolName: string, render: any) => {
+    setState((prev) => {
+      return {
+        ...prev,
+        tools: {
+          ...prev.tools,
+          [toolName]: [...(prev.tools[toolName] ?? []), render],
+        },
+      };
+    });
+
+    return () => {
+      setState((prev) => {
+        return {
+          ...prev,
+          tools: {
+            ...prev.tools,
+            [toolName]: prev.tools[toolName]?.filter((r) => r !== render) ?? [],
+          },
+        };
+      });
+    };
+  };
 
   return tapApi<ToolsApi>({
     getState: () => state,
+    setToolUI,
   });
 });

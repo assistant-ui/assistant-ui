@@ -1,7 +1,6 @@
 import { AppendMessage } from "@assistant-ui/react";
 import {
   CreateUIMessage,
-  generateId,
   UIDataTypes,
   UIMessage,
   UIMessagePart,
@@ -48,7 +47,6 @@ export const toCreateMessage = <UI_MESSAGE extends UIMessage = UIMessage>(
   });
 
   return {
-    id: generateId(),
     role: message.role,
     parts,
   } satisfies CreateUIMessage<UIMessage> as CreateUIMessage<UI_MESSAGE>;

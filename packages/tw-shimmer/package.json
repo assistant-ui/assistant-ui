@@ -1,0 +1,30 @@
+{
+  "name": "tw-shimmer",
+  "description": "Tailwind CSS v4 plugin for shimmer effects",
+  "version": "0.2.0",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/index.css"
+    }
+  },
+  "main": "./src/index.css",
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "homepage": "https://www.assistant-ui.com/tw-shimmer",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/assistant-ui/assistant-ui/tree/main/packages/tw-shimmer"
+  },
+  "bugs": {
+    "url": "https://github.com/assistant-ui/assistant-ui/issues"
+  }
+}
