@@ -1,5 +1,17 @@
 # @assistant-ui/react-data-stream
 
+## 0.11.7
+
+### Patch Changes
+
+- b408005: feat(react-ai-sdk): Integrate AI SDK v5 data parts in message content
+- Updated dependencies [b408005]
+- Updated dependencies [7a6d9ca]
+- Updated dependencies [70d5966]
+- Updated dependencies [3754bdd]
+- Updated dependencies [0a4bdc1]
+  - @assistant-ui/react@0.11.39
+
 ## 0.11.6
 
 ### Patch Changes

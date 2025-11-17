@@ -1,5 +1,17 @@
 # @assistant-ui/react
 
+## 0.11.39
+
+### Patch Changes
+
+- b408005: feat(react-ai-sdk): Integrate AI SDK v5 data parts in message content
+- 7a6d9ca: fix: LocalThreadRuntime deleting branches during message reloads
+- 70d5966: feat: allow storing runConfig with ThreadHistoryAdapter
+- 3754bdd: refactor: rename toolUIs to tools and remove ToolUI API
+- 0a4bdc1: feat: renamed `ResourceElementConstructor` to `Resource`, changed `ResourceElement.type` to be `Resource` instead of `ResourceFn`
+- Updated dependencies [0a4bdc1]
+  - @assistant-ui/tap@0.2.1
+
 ## 0.11.38
 
 ### Patch Changes

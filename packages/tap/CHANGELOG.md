@@ -1,5 +1,11 @@
 # @assistant-ui/tap
 
+## 0.2.1
+
+### Patch Changes
+
+- 0a4bdc1: feat: renamed `ResourceElementConstructor` to `Resource`, changed `ResourceElement.type` to be `Resource` instead of `ResourceFn`
+
 ## 0.1.5
 
 ### Patch Changes
