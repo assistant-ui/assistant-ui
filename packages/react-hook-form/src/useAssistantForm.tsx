@@ -74,7 +74,13 @@ export const useAssistantForm = <
   props?: UseAssistantFormProps<TFieldValues, TContext, TTransformedValues>,
 ): UseFormReturn<TFieldValues, TContext, TTransformedValues> => {
   const form = useForm<TFieldValues, TContext, TTransformedValues>(props);
-  const { control, getValues, setValue, reset, formState: { isSubmitting } } = form;
+  const {
+    control,
+    getValues,
+    setValue,
+    reset,
+    formState: { isSubmitting },
+  } = form;
 
   const api = useAssistantApi();
   useEffect(() => {
