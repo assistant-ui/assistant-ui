@@ -1,7 +1,4 @@
-import {
-  A2AMessage,
-  A2AMessageContent,
-} from "./types";
+import { A2AMessage } from "./types";
 import { parsePartialJsonObject } from "assistant-stream/utils";
 
 export const appendA2AChunk = (
@@ -52,7 +49,9 @@ export const appendA2AChunk = (
     const newToolCalls = [...(prev.tool_calls ?? [])];
     if (curr.tool_calls) {
       for (const toolCall of curr.tool_calls) {
-        const existingIndex = newToolCalls.findIndex(tc => tc.id === toolCall.id);
+        const existingIndex = newToolCalls.findIndex(
+          (tc) => tc.id === toolCall.id,
+        );
         if (existingIndex >= 0) {
           // Update existing tool call (merge args if needed)
           const existing = newToolCalls[existingIndex];
@@ -60,11 +59,14 @@ export const appendA2AChunk = (
             ...existing,
             ...toolCall,
             // If argsText is provided in chunks, concatenate it
-            argsText: (existing.argsText || '') + (toolCall.argsText || ''),
+            argsText: (existing.argsText || "") + (toolCall.argsText || ""),
             // Try to parse merged args, fallback to existing or new args
-            args: parsePartialJsonObject((existing.argsText || '') + (toolCall.argsText || ''))
-              || toolCall.args
-              || existing.args,
+            args:
+              parsePartialJsonObject(
+                (existing.argsText || "") + (toolCall.argsText || ""),
+              ) ||
+              toolCall.args ||
+              existing.args,
           };
         } else {
           // Add new tool call
@@ -77,7 +79,9 @@ export const appendA2AChunk = (
     const newArtifacts = [...(prev.artifacts ?? [])];
     if (curr.artifacts) {
       for (const artifact of curr.artifacts) {
-        const existingIndex = newArtifacts.findIndex(a => a.name === artifact.name);
+        const existingIndex = newArtifacts.findIndex(
+          (a) => a.name === artifact.name,
+        );
         if (existingIndex >= 0) {
           // Merge artifact parts
           newArtifacts[existingIndex] = {
@@ -106,8 +110,9 @@ export const appendA2AChunk = (
     ...prev,
     ...curr,
     // Preserve any existing artifacts and merge with new ones
-    artifacts: curr.artifacts || prev.artifacts
-      ? [...(prev.artifacts ?? []), ...(curr.artifacts ?? [])]
-      : undefined,
+    artifacts:
+      curr.artifacts || prev.artifacts
+        ? [...(prev.artifacts ?? []), ...(curr.artifacts ?? [])]
+        : undefined,
   };
 };
