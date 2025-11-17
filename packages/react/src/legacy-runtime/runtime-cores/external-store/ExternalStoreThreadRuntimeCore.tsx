@@ -162,7 +162,13 @@ export class ExternalStoreThreadRuntimeCore
             if (!store.convertMessage) return m;
 
             const isLast = idx === store.messages!.length - 1;
-            const autoStatus = getAutoStatus(isLast, isRunning, false, false);
+            const autoStatus = getAutoStatus(
+              isLast,
+              isRunning,
+              false,
+              false,
+              undefined,
+            );
 
             if (
               cache &&
@@ -339,7 +345,7 @@ export class ExternalStoreThreadRuntimeCore
         messages.flatMap(getExternalStoreMessage).filter((m) => m != null),
       );
     } else {
-      // TODO mark this as readonly in v0.8.0
+      // TODO mark this as readonly in v0.12.0
       this._store.setMessages?.(messages as ThreadMessage[]);
     }
   };

@@ -4,6 +4,9 @@ import { AttachmentRuntime } from "../runtime/AttachmentRuntime";
 import { createStateHookForRuntime } from "../../context/react/utils/createStateHookForRuntime";
 import { useAssistantApi, useAssistantState } from "../../context/react";
 
+/**
+ * @deprecated Use `useAssistantApi()` with `api.attachment()` instead. See migration guide: https://docs.assistant-ui.com/docs/migrations/v0-12
+ */
 export function useAttachmentRuntime(options?: {
   optional?: false | undefined;
 }): AttachmentRuntime;
@@ -80,6 +83,9 @@ export function useMessageAttachmentRuntime(options?: {
   return attachmentRuntime as AttachmentRuntime<"message">;
 }
 
+/**
+ * @deprecated Use `useAssistantState(({ attachment }) => attachment)` instead. See migration guide: https://docs.assistant-ui.com/docs/migrations/v0-12
+ */
 export const useAttachment = createStateHookForRuntime(useAttachmentRuntime);
 
 export const useThreadComposerAttachment = createStateHookForRuntime(

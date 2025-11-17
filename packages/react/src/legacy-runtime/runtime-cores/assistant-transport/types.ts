@@ -79,10 +79,13 @@ export type QueuedCommand = AssistantTransportCommand;
 // Options types
 export type HeadersValue = Record<string, string> | Headers;
 
+export type AssistantTransportProtocol = "data-stream" | "assistant-transport";
+
 export type AssistantTransportOptions<T> = {
   initialState: T;
   api: string;
   resumeApi?: string;
+  protocol?: AssistantTransportProtocol;
   converter: AssistantTransportStateConverter<T>;
   headers: HeadersValue | (() => Promise<HeadersValue>);
   body?: object;

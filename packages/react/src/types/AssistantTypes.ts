@@ -98,6 +98,11 @@ export type ThreadSystemMessage = MessageCommonProps & {
   readonly role: "system";
   readonly content: readonly [TextMessagePart];
   readonly metadata: {
+    readonly unstable_state?: undefined;
+    readonly unstable_annotations?: undefined;
+    readonly unstable_data?: undefined;
+    readonly steps?: undefined;
+    readonly submittedFeedback?: undefined;
     readonly custom: Record<string, unknown>;
   };
 };
@@ -107,6 +112,11 @@ export type ThreadUserMessage = MessageCommonProps & {
   readonly content: readonly ThreadUserMessagePart[];
   readonly attachments: readonly CompleteAttachment[];
   readonly metadata: {
+    readonly unstable_state?: undefined;
+    readonly unstable_annotations?: undefined;
+    readonly unstable_data?: undefined;
+    readonly steps?: undefined;
+    readonly submittedFeedback?: undefined;
     readonly custom: Record<string, unknown>;
   };
 };
@@ -120,6 +130,7 @@ export type ThreadAssistantMessage = MessageCommonProps & {
     readonly unstable_annotations: readonly ReadonlyJSONValue[];
     readonly unstable_data: readonly ReadonlyJSONValue[];
     readonly steps: readonly ThreadStep[];
+    readonly submittedFeedback?: { readonly type: "positive" | "negative" };
     readonly custom: Record<string, unknown>;
   };
 };
@@ -145,6 +156,7 @@ type BaseThreadMessage = {
     readonly unstable_annotations?: readonly ReadonlyJSONValue[];
     readonly unstable_data?: readonly ReadonlyJSONValue[];
     readonly steps?: readonly ThreadStep[];
+    readonly submittedFeedback?: { readonly type: "positive" | "negative" };
     readonly custom: Record<string, unknown>;
   };
   readonly attachments?: ThreadUserMessage["attachments"];

@@ -1,23 +1,17 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { testContext } from "./test-setup.js";
 import * as fs from "fs/promises";
 
 vi.mock("fs/promises", async () => {
-  const actual = await vi.importActual<typeof fs>("fs/promises");
+  const { readdir, readFile, lstat } = await import("node:fs/promises");
   return {
-    ...actual,
-    lstat: vi.fn(actual.lstat),
+    readdir,
+    readFile,
+    lstat: vi.fn(lstat),
   };
 });
 
 describe("assistantUIExamples", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
   it("should list all available examples", async () => {
     const result = await testContext.callTool("assistantUIExamples", {});
 
@@ -78,6 +72,7 @@ describe("assistantUIExamples", () => {
     mockedLstat.mockResolvedValueOnce({
       isSymbolicLink: () => true,
       isFile: () => false,
+      size: 0,
     } as any);
 
     const symlinkResult = await testContext.callTool("assistantUIExamples", {
@@ -88,7 +83,7 @@ describe("assistantUIExamples", () => {
     mockedLstat.mockResolvedValueOnce({
       isSymbolicLink: () => false,
       isFile: () => true,
-      size: 11 * 1024 * 1024,
+      size: 11 * 1024 * 1024, // 11MB - exceeds MAX_FILE_SIZE
     } as any);
 
     const largeFileResult = await testContext.callTool("assistantUIExamples", {

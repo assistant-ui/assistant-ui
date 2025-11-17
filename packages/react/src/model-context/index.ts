@@ -19,5 +19,9 @@ export { tool } from "./tool";
 
 export { makeAssistantVisible } from "./makeAssistantVisible";
 
+export type { Toolkit, ToolDefinition } from "./toolbox";
+
+export { Tools } from "../client/Tools";
+
 export * from "./registry";
 export * from "./frame";

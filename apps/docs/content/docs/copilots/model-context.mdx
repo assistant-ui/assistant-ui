@@ -33,7 +33,6 @@ import {
   makeAssistantVisible,
   makeAssistantTool,
   tool,
-  useAssistantRuntime,
 } from "@assistant-ui/react";
 import { z } from "zod";
 
@@ -75,12 +74,12 @@ function Form() {
 The context provider system allows components to contribute to the model context. Here's a typical usage pattern:
 
 ```tsx
-import { useAssistantRuntime, tool } from "@assistant-ui/react";
+import { useAssistantApi, tool } from "@assistant-ui/react";
 import { useEffect } from "react";
 import { z } from "zod";
 
 function MyComponent() {
-  const assistantRuntime = useAssistantRuntime();
+  const api = useAssistantApi();
 
   // Define tool using the tool() helper
   const myTool = tool({
@@ -95,13 +94,13 @@ function MyComponent() {
 
   useEffect(() => {
     // Register context provider
-    return assistantRuntime.registerModelContextProvider({
+    return api.modelContext().register({
       getModelContext: () => ({
         system: "You are a helpful search assistant...",
         tools: { myTool },
       }),
     });
-  }, [assistantRuntime]); // Re-register if runtime changes
+  }, [api]); // Re-register if api changes
 
   return <div>{/* component content */}</div>;
 }

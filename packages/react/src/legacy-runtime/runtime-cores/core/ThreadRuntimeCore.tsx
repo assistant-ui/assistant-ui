@@ -96,7 +96,6 @@ export type ThreadRuntimeCore = Readonly<{
   speak: (messageId: string) => void;
   stopSpeaking: () => void;
 
-  getSubmittedFeedback: (messageId: string) => SubmittedFeedback | undefined;
   submitFeedback: (feedback: SubmitFeedbackOptions) => void;
 
   getModelContext: () => ModelContext;
@@ -116,7 +115,7 @@ export type ThreadRuntimeCore = Readonly<{
 
   // TODO deprecate for a more elegant solution
   // /**
-  //  * @deprecated This field is deprecated and will be removed in 0.8.0.
+  //  * @deprecated This field is deprecated and will be removed in 0.12.0.
   //  * Please migrate to using `AssistantRuntimeCore.Provider` instead.
   //  */
   extras: unknown;

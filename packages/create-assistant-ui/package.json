@@ -1,20 +1,20 @@
 {
   "name": "create-assistant-ui",
-  "version": "0.0.28",
+  "version": "0.0.31",
   "license": "MIT",
   "dependencies": {
     "chalk": "^5.6.2",
-    "commander": "^14.0.1",
+    "commander": "^14.0.2",
     "cosmiconfig": "^9.0.0",
     "cross-spawn": "^7.0.6",
     "tsconfig-paths": "^4.2.0",
-    "zod": "^4.1.11"
+    "zod": "^4.1.12"
   },
   "type": "module",
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/cross-spawn": "^6.0.6",
-    "@types/node": "^24.6.2",
+    "@types/node": "^24.10.1",
     "tsx": "^4.20.6"
   },
   "files": [

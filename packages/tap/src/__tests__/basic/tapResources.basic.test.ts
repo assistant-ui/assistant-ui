@@ -14,40 +14,37 @@ import {
 // ============================================================================
 
 // Simple counter that just returns the value
-const SimpleCounter = createCounterResource();
+const SimpleCounter = resource(createCounterResource());
 
 // Stateful counter that tracks its own count
-const StatefulCounter = (props: { initial: number }) => {
+const StatefulCounter = resource((props: { initial: number }) => {
   const [count] = tapState(props.initial);
   return { count };
-};
+});
 
 // Display component for testing type changes
-const Display = (props: { text: string }) => {
+const Display = resource((props: { text: string }) => {
   return { type: "display", text: props.text };
-};
+});
 
 // Counter with render tracking for testing instance preservation
-const TrackingCounter = (() => {
-  const renderCounts = new Map<string, number>();
-  const instances = new Map<string, object>();
+const renderCounts = new Map<string, number>();
+const instances = new Map<string, object>();
+const TrackingCounter = resource((props: { value: number; id: string }) => {
+  const currentCount = (renderCounts.get(props.id) || 0) + 1;
+  renderCounts.set(props.id, currentCount);
 
-  return (props: { value: number; id: string }) => {
-    const currentCount = (renderCounts.get(props.id) || 0) + 1;
-    renderCounts.set(props.id, currentCount);
+  if (!instances.has(props.id)) {
+    instances.set(props.id, { id: `fiber-${props.id}` });
+  }
 
-    if (!instances.has(props.id)) {
-      instances.set(props.id, { id: `fiber-${props.id}` });
-    }
-
-    return {
-      value: props.value,
-      id: props.id,
-      renderCount: currentCount,
-      instance: instances.get(props.id),
-    };
+  return {
+    value: props.value,
+    id: props.id,
+    renderCount: currentCount,
+    instance: instances.get(props.id),
   };
-})();
+});
 
 // ============================================================================
 // Tests
@@ -140,14 +137,14 @@ describe("tapResources - Basic Functionality", () => {
     it("should maintain resource instances when keys remain the same", () => {
       const testFiber = createTestResource(
         (props: { items: Array<{ key: string; value: number }> }) => {
-          const results = tapResources(
-            props.items.map((item) => ({
-              type: TrackingCounter,
-              props: { value: item.value, id: item.key },
-              key: item.key,
-            })),
+          return tapResources(
+            props.items.map((item) =>
+              TrackingCounter(
+                { value: item.value, id: item.key },
+                { key: item.key },
+              ),
+            ),
           );
-          return results;
         },
       );
 

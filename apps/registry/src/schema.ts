@@ -32,6 +32,7 @@ export const registryItemTailwindSchema = z.object({
 export const registryItemCssVarsSchema = z.object({
   light: z.record(z.string(), z.string()).optional(),
   dark: z.record(z.string(), z.string()).optional(),
+  theme: z.record(z.string(), z.string()).optional(),
 });
 
 export const registryItemSchema = z.object({
@@ -44,6 +45,7 @@ export const registryItemSchema = z.object({
   files: z.array(registryItemFileSchema).optional(),
   tailwind: registryItemTailwindSchema.optional(),
   cssVars: registryItemCssVarsSchema.optional(),
+  css: z.record(z.string(), z.any()).optional(),
   meta: z.record(z.string(), z.any()).optional(),
   docs: z.string().optional(),
 });

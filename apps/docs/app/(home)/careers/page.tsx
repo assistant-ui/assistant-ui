@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactElement } from "react";
 import { Metadata } from "next";
-import { careers, CareerPage } from "@/app/source";
+import { careers, CareerPage } from "@/lib/source";
 
 export const metadata: Metadata = {
   title: "Careers",
@@ -16,7 +16,7 @@ const roleOrder = (value: unknown, fallback: number) => {
 };
 
 export default function CareersPage(): ReactElement {
-  const roles = [...careers.getPages()].sort((a: CareerPage, b: CareerPage) => {
+  const roles = [...(careers.getPages() as CareerPage[])].sort((a, b) => {
     const orderA = roleOrder(a.data.order, Number.MAX_SAFE_INTEGER);
     const orderB = roleOrder(b.data.order, Number.MAX_SAFE_INTEGER);
     if (orderA === orderB) {

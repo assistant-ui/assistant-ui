@@ -1,12 +1,19 @@
 "use client";
 
-import { FormEvent, useCallback } from "react";
+import { FormEvent, useCallback, useState } from "react";
 
 interface ApplyFormProps {
   roleTitle: string;
 }
 
 export const ApplyForm = ({ roleTitle }: ApplyFormProps) => {
+  const [fallbackVisible, setFallbackVisible] = useState(false);
+  const [mailtoHref, setMailtoHref] = useState("");
+  const [composedBody, setComposedBody] = useState("");
+  const [copyStatus, setCopyStatus] = useState<"idle" | "success" | "error">(
+    "idle",
+  );
+
   const handleSubmit = useCallback(
     (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
@@ -44,7 +51,16 @@ export const ApplyForm = ({ roleTitle }: ApplyFormProps) => {
         `Application: ${roleTitle}`,
       )}&body=${encodeURIComponent(body)}`;
 
-      window.location.href = mailto;
+      // Attempt to open the user's default mail client.
+      // If it doesn't open (no handler configured), reveal fallbacks.
+      setComposedBody(body);
+      setMailtoHref(mailto);
+      setFallbackVisible(true);
+      try {
+        window.location.href = mailto;
+      } catch {
+        // No-op: rely on the fallback UI
+      }
     },
     [roleTitle],
   );
@@ -95,6 +111,56 @@ export const ApplyForm = ({ roleTitle }: ApplyFormProps) => {
       >
         Apply now
       </button>
+
+      {fallbackVisible ? (
+        <div className="mt-2 grid gap-2 rounded-lg border border-dashed border-border/70 bg-background/50 p-3">
+          <p className="text-xs text-muted-foreground">
+            If your email client didn&apos;t open, use the options below.
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <a
+              href={mailtoHref}
+              className="inline-flex items-center justify-center rounded-full border border-border px-4 py-1.5 text-xs font-medium text-foreground transition hover:border-primary hover:bg-primary/5 hover:text-primary"
+            >
+              Open email client
+            </a>
+            <button
+              type="button"
+              className="inline-flex items-center justify-center rounded-full border border-border px-4 py-1.5 text-xs font-medium text-foreground transition hover:border-primary hover:bg-primary/5 hover:text-primary"
+              onClick={async () => {
+                try {
+                  const text = `To: careers@assistant-ui.com
+Subject: Application: ${roleTitle}
+
+${composedBody}`;
+                  await navigator.clipboard.writeText(text);
+                  setCopyStatus("success");
+                  setTimeout(() => setCopyStatus("idle"), 2000);
+                } catch {
+                  setCopyStatus("error");
+                  setTimeout(() => setCopyStatus("idle"), 2000);
+                }
+              }}
+            >
+              Copy email text
+            </button>
+            <span className="text-xs text-muted-foreground">
+              {copyStatus === "success"
+                ? "Copied!"
+                : copyStatus === "error"
+                  ? "Copy failed"
+                  : ""}
+            </span>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Or email{" "}
+            <span className="font-medium text-foreground">
+              careers@assistant-ui.com
+            </span>{" "}
+            with the subject &quot;Application: {roleTitle}&quot;.
+          </p>
+        </div>
+      ) : null}
     </form>
   );
 };

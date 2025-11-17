@@ -3,6 +3,7 @@ import {
   ThreadListItemClientApi,
 } from "./ThreadListItem";
 import { ThreadClientApi, ThreadClientState } from "./Thread";
+import type { AssistantRuntime } from "../../legacy-runtime/runtime/AssistantRuntime";
 
 export type ThreadListClientState = {
   readonly mainThreadId: string;
@@ -29,4 +30,7 @@ export type ThreadListClientApi = {
   ): ThreadListItemClientApi;
 
   thread(selector: "main"): ThreadClientApi;
+
+  /** @internal */
+  __internal_getAssistantRuntime?(): AssistantRuntime;
 };

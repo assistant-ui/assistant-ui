@@ -1,5 +1,29 @@
 # @assistant-ui/styles
 
+## 0.2.8
+
+### Patch Changes
+
+- cfcf342: sync modal styles
+
+## 0.2.7
+
+### Patch Changes
+
+- 2fc7e99: chore: update deps
+
+## 0.2.6
+
+### Patch Changes
+
+- 953db24: chore: update deps
+
+## 0.2.5
+
+### Patch Changes
+
+- chore: update deps
+
 ## 0.2.4
 
 ### Patch Changes

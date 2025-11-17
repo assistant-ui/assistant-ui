@@ -2,6 +2,26 @@ import { RegistryItem } from "./schema";
 
 export const registry: RegistryItem[] = [
   {
+    name: "shimmer-style",
+    type: "registry:style",
+    cssVars: {
+      theme: {
+        "--animate-shimmer":
+          "shimmer-sweep var(--shimmer-duration, 1000ms) linear infinite both",
+      },
+    },
+    css: {
+      "@keyframes shimmer-sweep": {
+        from: {
+          "background-position": "150% 0",
+        },
+        to: {
+          "background-position": "-100% 0",
+        },
+      },
+    },
+  },
+  {
     name: "chat/b/ai-sdk-quick-start/json",
     type: "registry:page",
     files: [
@@ -67,6 +87,22 @@ export const registry: RegistryItem[] = [
       "lucide-react",
       "remark-gfm",
     ],
+  },
+  {
+    name: "reasoning",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/reasoning.tsx",
+      },
+    ],
+    registryDependencies: [
+      "collapsible",
+      "https://r.assistant-ui.com/markdown-text",
+      "https://r.assistant-ui.com/shimmer-style",
+    ],
+    dependencies: ["@assistant-ui/react", "lucide-react"],
   },
   {
     name: "thread-list",

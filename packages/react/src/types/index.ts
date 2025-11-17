@@ -45,6 +45,8 @@ export type {
   Unstable_AudioMessagePartProps,
   ToolCallMessagePartComponent,
   ToolCallMessagePartProps,
+  ReasoningGroupProps,
+  ReasoningGroupComponent,
 } from "./MessagePartComponentTypes";
 
 // Thread list item types

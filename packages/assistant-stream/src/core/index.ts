@@ -15,6 +15,10 @@ export {
   DataStreamEncoder,
 } from "./serialization/data-stream/DataStream";
 export { PlainTextDecoder, PlainTextEncoder } from "./serialization/PlainText";
+export {
+  AssistantTransportDecoder,
+  AssistantTransportEncoder,
+} from "./serialization/assistant-transport/AssistantTransport";
 export { AssistantMessageStream } from "./accumulators/AssistantMessageStream";
 export type { AssistantMessage } from "./utils/types";
 

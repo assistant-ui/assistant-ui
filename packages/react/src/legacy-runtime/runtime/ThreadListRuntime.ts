@@ -67,7 +67,7 @@ const getThreadListItemState = (
   if (!threadData) return SKIP_UPDATE;
   return {
     id: threadData.id,
-    threadId: threadData.id, // TODO remove in 0.8.0
+    threadId: threadData.id, // TODO remove in 0.12.0
     remoteId: threadData.remoteId,
     externalId: threadData.externalId,
     title: threadData.title,

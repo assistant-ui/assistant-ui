@@ -1,6 +1,6 @@
 {
   "name": "assistant-stream",
-  "version": "0.2.34",
+  "version": "0.2.39",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -32,11 +32,9 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@standard-schema/spec": "^1.0.0",
-    "@types/node": "^24.6.2",
-    "eslint": "^9",
-    "eslint-config-next": "15.5.4",
+    "@types/node": "^24.10.1",
     "tsx": "^4.20.6",
-    "vitest": "^3.2.4"
+    "vitest": "^4.0.8"
   },
   "publishConfig": {
     "access": "public"
@@ -52,6 +50,6 @@
   "dependencies": {
     "@types/json-schema": "^7.0.15",
     "nanoid": "5.1.6",
-    "secure-json-parse": "^4.0.0"
+    "secure-json-parse": "^4.1.0"
   }
 }

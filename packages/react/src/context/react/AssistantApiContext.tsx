@@ -8,8 +8,8 @@ import {
   useMemo,
   useEffect,
 } from "react";
+import { useResource } from "@assistant-ui/tap/react";
 
-import { ToolUIApi, ToolUIState, ToolUIMeta } from "../../client/types/ToolUI";
 import {
   MessageClientApi,
   MessageClientState,
@@ -32,8 +32,6 @@ import {
   AttachmentClientState,
 } from "../../client/types/Attachment";
 import { Unsubscribe } from "@assistant-ui/tap";
-import { ModelContextProvider } from "../../model-context";
-import { AssistantRuntime } from "../../legacy-runtime/runtime/AssistantRuntime";
 import {
   AssistantEvent,
   AssistantEventCallback,
@@ -50,10 +48,19 @@ import {
   AssistantClientProps,
   useAssistantClient,
 } from "../../client/AssistantClient";
+import { ToolsApi, ToolsMeta, ToolsState } from "../../client/types/Tools";
+import {
+  ModelContextApi,
+  ModelContextMeta,
+} from "../../client/types/ModelContext";
+import {
+  DerivedScopes,
+  DerivedScopesInput,
+} from "../../utils/tap-store/derived-scopes";
 
 export type AssistantState = {
   readonly threads: ThreadListClientState;
-  readonly toolUIs: ToolUIState;
+  readonly tools: ToolsState;
 
   readonly threadListItem: ThreadListItemClientState;
   readonly thread: ThreadClientState;
@@ -63,7 +70,7 @@ export type AssistantState = {
   readonly attachment: AttachmentClientState;
 };
 
-type AssistantApiField<
+export type AssistantApiField<
   TApi,
   TMeta extends { source: string | null; query: any },
 > = (() => TApi) & (TMeta | { source: null; query: Record<string, never> });
@@ -114,7 +121,8 @@ type AttachmentMeta = {
 
 export type AssistantApi = {
   threads: AssistantApiField<ThreadListClientApi, ThreadsMeta>;
-  toolUIs: AssistantApiField<ToolUIApi, ToolUIMeta>;
+  tools: AssistantApiField<ToolsApi, ToolsMeta>;
+  modelContext: AssistantApiField<ModelContextApi, ModelContextMeta>;
   threadListItem: AssistantApiField<
     ThreadListItemClientApi,
     ThreadListItemMeta
@@ -132,11 +140,6 @@ export type AssistantApi = {
     event: AssistantEventSelector<TEvent>,
     callback: AssistantEventCallback<TEvent>,
   ): Unsubscribe;
-
-  // temp
-  registerModelContextProvider(provider: ModelContextProvider): void;
-  /** @internal */
-  __internal_getRuntime?(): AssistantRuntime;
 };
 
 export const createAssistantApiField = <
@@ -163,11 +166,20 @@ const AssistantApiContext = createContext<AssistantApi>({
       throw new Error("Threads is only available inside <AssistantProvider />");
     },
   }),
-  toolUIs: createAssistantApiField({
+  tools: createAssistantApiField({
     source: null,
     query: {},
     get: (): never => {
-      throw new Error("ToolUIs is only available inside <AssistantProvider />");
+      throw new Error("Tools is only available inside <AssistantProvider />");
+    },
+  }),
+  modelContext: createAssistantApiField({
+    source: null,
+    query: {},
+    get: (): never => {
+      throw new Error(
+        "ModelContext is only available inside <AssistantProvider />",
+      );
     },
   }),
   threadListItem: createAssistantApiField({
@@ -229,25 +241,47 @@ const AssistantApiContext = createContext<AssistantApi>({
     const { scope } = normalizeEventSelector(selector);
     throw new Error(`Event scope is not available in this component: ${scope}`);
   },
-
-  registerModelContextProvider: () => {
-    throw new Error(
-      "Registering model context providers is only available inside <AssistantProvider />",
-    );
-  },
 });
 
-const useAssistantApiImpl = (): AssistantApi => {
+export const useAssistantApiImpl = (): AssistantApi => {
   return useContext(AssistantApiContext);
+};
+
+/**
+ * Hook to extend the current AssistantApi with additional derived scope fields and special callbacks.
+ * This merges the derived fields with the existing API from context.
+ * Fields are automatically memoized based on source and query changes.
+ * Special callbacks (on, subscribe, flushSync) use the useEffectEvent pattern to always access latest values.
+ *
+ * @param scopes - Record of field names to DerivedScope resource elements, plus optional special callbacks
+ * @returns The merged AssistantApi
+ *
+ * @example
+ * ```tsx
+ * const api = useExtendedAssistantApi({
+ *   message: DerivedScope({
+ *     source: "root",
+ *     query: {},
+ *     get: () => messageApi,
+ *   }),
+ *   on: (selector, callback) => {
+ *     // Custom event filtering logic
+ *   },
+ * });
+ * ```
+ */
+export const useExtendedAssistantApi = (
+  scopes: DerivedScopesInput,
+): AssistantApi => {
+  const baseApi = useAssistantApiImpl();
+  const partialApi = useResource(DerivedScopes(scopes));
+  return useMemo(() => extendApi(baseApi, partialApi), [baseApi, partialApi]);
 };
 
 const useExtendedAssistantApiImpl = (
   config: AssistantClientProps,
 ): AssistantApi => {
-  const api = useAssistantApiImpl();
-  const api2 = useAssistantClient(config);
-  const extendedApi = useMemo(() => extendApi(api, api2), [api, api2]);
-  return extendedApi;
+  return useAssistantClient(config);
 };
 
 export function useAssistantApi(): AssistantApi;
@@ -293,7 +327,7 @@ const mergeFnsWithUnsubscribe = <TArgs extends Array<unknown>>(
   };
 };
 
-const extendApi = (
+export const extendApi = (
   api: AssistantApi,
   api2: Partial<AssistantApi>,
 ): AssistantApi => {
@@ -311,18 +345,15 @@ const extendApi = (
 };
 
 export const AssistantProvider: FC<
-  PropsWithChildren<{ api: Partial<AssistantApi>; devToolsVisible?: boolean }>
-> = ({ api: api2, children, devToolsVisible = true }) => {
-  const api = useAssistantApi();
-  const extendedApi = useMemo(() => extendApi(api, api2), [api, api2]);
-
+  PropsWithChildren<{ api: AssistantApi; devToolsVisible?: boolean }>
+> = ({ api, children, devToolsVisible = true }) => {
   useEffect(() => {
-    if (!devToolsVisible || !api2.subscribe) return undefined;
-    return DevToolsProviderApi.register(api2);
-  }, [api2, devToolsVisible]);
+    if (!devToolsVisible || !api.subscribe) return undefined;
+    return DevToolsProviderApi.register(api);
+  }, [api, devToolsVisible]);
 
   return (
-    <AssistantApiContext.Provider value={extendedApi}>
+    <AssistantApiContext.Provider value={api}>
       {/* TODO temporarily allow accessing viewport state from outside the viewport */}
       {/* TODO figure out if this behavior should be deprecated, since it is quite hacky */}
       <ThreadViewportProvider>{children}</ThreadViewportProvider>

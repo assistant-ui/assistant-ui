@@ -14,12 +14,10 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/chrome": "^0.1.19",
-    "@types/node": "^24.6.2",
+    "@types/chrome": "^0.1.28",
+    "@types/node": "^24.10.1",
     "@types/webextension-polyfill": "^0.12.4",
-    "esbuild": "^0.25.10",
-    "eslint": "^9",
-    "eslint-config-next": "15.5.4",
+    "esbuild": "^0.27.0",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3"
   }

@@ -11,7 +11,7 @@ export const ThreadDetails = ({
 }) => (
   <div className="flex flex-col gap-3">
     {title ? (
-      <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+      <div className="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
         {title}
       </div>
     ) : null}
@@ -39,14 +39,14 @@ export const ThreadDetails = ({
 
     {thread.capabilities.length ? (
       <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-[11px] text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-200">
-        <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+        <div className="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
           Capabilities
         </div>
         <div className="mt-1 flex flex-wrap gap-1">
           {thread.capabilities.map((capability) => (
             <span
               key={capability}
-              className="rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+              className="rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-zinc-600 uppercase dark:bg-zinc-800 dark:text-zinc-300"
             >
               {capability}
             </span>
@@ -57,7 +57,7 @@ export const ThreadDetails = ({
 
     {thread.messages.length ? (
       <div className="rounded-md border border-zinc-200 bg-white text-[11px] text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950/40 dark:text-zinc-200">
-        <div className="border-b border-zinc-200 bg-zinc-100 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+        <div className="border-b border-zinc-200 bg-zinc-100 px-3 py-2 text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
           Recent Messages
         </div>
         <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
@@ -67,7 +67,7 @@ export const ThreadDetails = ({
             .map((message) => (
               <div key={message.id} className="flex flex-col gap-1 px-3 py-2">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-semibold capitalize text-zinc-800 dark:text-zinc-100">
+                  <span className="font-semibold text-zinc-800 capitalize dark:text-zinc-100">
                     {message.role}
                   </span>
                   <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
@@ -88,7 +88,7 @@ export const ThreadDetails = ({
                     {message.attachments.map((attachment, index) => (
                       <span
                         key={`${message.id}-attachment-${index}`}
-                        className="rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+                        className="rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-zinc-600 uppercase dark:bg-zinc-800 dark:text-zinc-300"
                       >
                         {attachment}
                       </span>
@@ -96,7 +96,7 @@ export const ThreadDetails = ({
                   </div>
                 ) : null}
                 {message.status ? (
-                  <div className="text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                  <div className="text-[10px] tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
                     Status: {message.status}
                   </div>
                 ) : null}
@@ -108,7 +108,7 @@ export const ThreadDetails = ({
 
     {thread.suggestions.length ? (
       <div className="rounded-md border border-dashed border-zinc-300 bg-white p-3 text-[11px] text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900/30 dark:text-zinc-200">
-        <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+        <div className="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
           Suggestions
         </div>
         <ul className="mt-2 list-disc space-y-1 pl-5">
@@ -121,7 +121,7 @@ export const ThreadDetails = ({
 
     {thread.composer ? (
       <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-[11px] text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-200">
-        <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+        <div className="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
           Composer
         </div>
         <div className="mt-1 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
@@ -138,7 +138,7 @@ export const ThreadDetails = ({
             <SummaryItem label="Mode" value={thread.composer.type} />
           ) : null}
         </div>
-        <div className="mt-2 flex flex-wrap gap-2 text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+        <div className="mt-2 flex flex-wrap gap-2 text-[10px] tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
           {typeof thread.composer.isEditing === "boolean" ? (
             <span>Edit: {formatBoolean(thread.composer.isEditing)}</span>
           ) : null}

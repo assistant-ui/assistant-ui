@@ -1,5 +1,34 @@
 # @assistant-ui/react-hook-form
 
+## 0.11.5
+
+### Patch Changes
+
+- 3ab9484: feat: Toolkit API
+- 2fc7e99: chore: update deps
+- Updated dependencies [3ab9484]
+- Updated dependencies [7a88ead]
+- Updated dependencies [81b581f]
+- Updated dependencies [2fc7e99]
+  - @assistant-ui/react@0.11.36
+
+## 0.11.4
+
+### Patch Changes
+
+- 953db24: chore: update deps
+- Updated dependencies [953db24]
+- Updated dependencies
+  - @assistant-ui/react@0.11.34
+
+## 0.11.3
+
+### Patch Changes
+
+- chore: update deps
+- Updated dependencies
+  - @assistant-ui/react@0.11.31
+
 ## 0.11.2
 
 ### Patch Changes

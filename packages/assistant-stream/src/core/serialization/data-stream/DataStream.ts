@@ -257,6 +257,12 @@ export class DataStreamDecoder extends PipeableTransformStream<
               const ctrl = parentId
                 ? controller.withParentId(parentId)
                 : controller;
+
+              if (toolCallControllers.has(toolCallId))
+                throw new Error(
+                  "Encountered duplicate tool call id: " + toolCallId,
+                );
+
               const toolCallController = ctrl.addToolCallPart({
                 toolCallId,
                 toolName,

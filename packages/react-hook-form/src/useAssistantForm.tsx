@@ -50,6 +50,16 @@ export type UseAssistantFormProps<
                       | undefined;
                   }
                 | undefined;
+              reset_form?:
+                | {
+                    render?:
+                      | ToolCallMessagePartComponent<
+                          z.infer<(typeof formTools.reset_form)["parameters"]>,
+                          unknown
+                        >
+                      | undefined;
+                  }
+                | undefined;
             }
           | undefined;
       }
@@ -64,7 +74,7 @@ export const useAssistantForm = <
   props?: UseAssistantFormProps<TFieldValues, TContext, TTransformedValues>,
 ): UseFormReturn<TFieldValues, TContext, TTransformedValues> => {
   const form = useForm<TFieldValues, TContext, TTransformedValues>(props);
-  const { control, getValues, setValue } = form;
+  const { control, getValues, setValue, reset } = form;
 
   const api = useAssistantApi();
   useEffect(() => {
@@ -113,12 +123,19 @@ export const useAssistantForm = <
             };
           },
         }),
+        reset_form: tool({
+          ...formTools.reset_form,
+          execute: async () => {
+            reset();
+            return { success: true };
+          },
+        }),
       },
     };
-    return api.registerModelContextProvider({
+    return api.modelContext().register({
       getModelContext: () => value,
     });
-  }, [control, setValue, getValues, api]);
+  }, [control, setValue, getValues, api, reset]);
 
   const renderFormFieldTool = props?.assistant?.tools?.set_form_field?.render;
   useAssistantToolUI(
@@ -136,6 +153,16 @@ export const useAssistantForm = <
       ? {
           toolName: "submit_form",
           render: renderSubmitFormTool,
+        }
+      : null,
+  );
+
+  const renderResetFormTool = props?.assistant?.tools?.reset_form?.render;
+  useAssistantToolUI(
+    renderResetFormTool
+      ? {
+          toolName: "reset_form",
+          render: renderResetFormTool,
         }
       : null,
   );

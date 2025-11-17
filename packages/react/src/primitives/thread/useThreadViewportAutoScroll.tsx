@@ -28,16 +28,13 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   // fix: delay the state change until the scroll is done
   const isScrollingToBottomRef = useRef(false);
 
-  const scrollToBottom = useCallback(
-    (behavior: ScrollBehavior) => {
-      const div = divRef.current;
-      if (!div || !autoScroll) return;
+  const scrollToBottom = useCallback((behavior: ScrollBehavior) => {
+    const div = divRef.current;
+    if (!div) return;
 
-      isScrollingToBottomRef.current = true;
-      div.scrollTo({ top: div.scrollHeight, behavior });
-    },
-    [autoScroll],
-  );
+    isScrollingToBottomRef.current = true;
+    div.scrollTo({ top: div.scrollHeight, behavior });
+  }, []);
 
   const handleScroll = () => {
     const div = divRef.current;
@@ -45,7 +42,8 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
 
     const isAtBottom = threadViewportStore.getState().isAtBottom;
     const newIsAtBottom =
-      div.scrollHeight - div.scrollTop <= div.clientHeight + 1; // TODO figure out why +1 is needed
+      Math.abs(div.scrollHeight - div.scrollTop - div.clientHeight) < 1 ||
+      div.scrollHeight <= div.clientHeight;
 
     if (!newIsAtBottom && lastScrollTop.current < div.scrollTop) {
       // ignore scroll down
@@ -66,8 +64,9 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
 
   const resizeRef = useOnResizeContent(() => {
     if (
-      isScrollingToBottomRef.current ||
-      threadViewportStore.getState().isAtBottom
+      autoScroll &&
+      (isScrollingToBottomRef.current ||
+        threadViewportStore.getState().isAtBottom)
     ) {
       scrollToBottom("instant");
     }
@@ -87,7 +86,9 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   });
 
   // autoscroll on run start
-  useAssistantEvent("thread.run-start", () => scrollToBottom("auto"));
+  useAssistantEvent("thread.run-start", () => {
+    if (autoScroll) scrollToBottom("auto");
+  });
 
   const autoScrollRef = useComposedRefs<TElement>(resizeRef, scrollRef, divRef);
   return autoScrollRef as RefCallback<TElement>;

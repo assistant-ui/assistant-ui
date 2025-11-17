@@ -11,18 +11,21 @@ import {
   createContext,
   useContext,
 } from "react";
-import { z } from "zod";
 import { useAssistantApi } from "../context/react/AssistantApiContext";
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
 import { tool } from "./tool";
 
-// TODO replace zod with json-schema so we can drop the zod dep
-
 const click = tool({
-  parameters: z.object({
-    clickId: z.string(),
-  }),
-  execute: async ({ clickId }) => {
+  parameters: {
+    type: "object",
+    properties: {
+      clickId: {
+        type: "string",
+      },
+    },
+    required: ["clickId"],
+  },
+  execute: async ({ clickId }: { clickId: string }) => {
     const escapedClickId = CSS.escape(clickId);
     const el = document.querySelector(`[data-click-id='${escapedClickId}']`);
     if (el instanceof HTMLElement) {
@@ -38,11 +41,19 @@ const click = tool({
 });
 
 const edit = tool({
-  parameters: z.object({
-    editId: z.string(),
-    value: z.string(),
-  }),
-  execute: async ({ editId, value }) => {
+  parameters: {
+    type: "object",
+    properties: {
+      editId: {
+        type: "string",
+      },
+      value: {
+        type: "string",
+      },
+    },
+    required: ["editId", "value"],
+  },
+  execute: async ({ editId, value }: { editId: string; value: string }) => {
     const escapedEditId = CSS.escape(editId);
     const el = document.querySelector(`[data-edit-id='${escapedEditId}']`);
     if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
@@ -76,7 +87,7 @@ export const makeAssistantVisible = <T extends ComponentType<any>>(
 
       const { clickable, editable } = config ?? {};
       useEffect(() => {
-        return api.registerModelContextProvider({
+        return api.modelContext().register({
           getModelContext: () => {
             return {
               tools: {

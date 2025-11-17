@@ -6,8 +6,13 @@ import {
   AssistantRuntime,
   unstable_useCloudThreadListAdapter,
   unstable_useRemoteThreadListRuntime,
+  useAssistantState,
 } from "@assistant-ui/react";
-import { useAISDKRuntime, type AISDKRuntimeAdapter } from "./useAISDKRuntime";
+import {
+  useAISDKRuntime,
+  type AISDKRuntimeAdapter,
+  type CustomToCreateMessageFunction,
+} from "./useAISDKRuntime";
 import { ChatInit } from "ai";
 import { AssistantChatTransport } from "./AssistantChatTransport";
 
@@ -15,6 +20,7 @@ export type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage = UIMessage> =
   ChatInit<UI_MESSAGE> & {
     cloud?: AssistantCloud | undefined;
     adapters?: AISDKRuntimeAdapter["adapters"] | undefined;
+    toCreateMessage?: CustomToCreateMessageFunction;
   };
 
 export const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
@@ -23,17 +29,21 @@ export const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const {
     adapters,
     transport: transportOptions,
+    toCreateMessage,
     ...chatOptions
   } = options ?? {};
   const transport = transportOptions ?? new AssistantChatTransport();
 
+  const id = useAssistantState(({ threadListItem }) => threadListItem.id);
   const chat = useChat({
     ...chatOptions,
+    id,
     transport,
   });
 
   const runtime = useAISDKRuntime(chat, {
     adapters,
+    ...(toCreateMessage && { toCreateMessage }),
   });
 
   if (transport instanceof AssistantChatTransport) {

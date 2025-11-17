@@ -1,7 +1,7 @@
 import { use } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { blog, BlogPage } from "@/app/source";
+import { blog, BlogPage } from "@/lib/source";
 import { buttonVariants } from "@/components/ui/button";
 import Image from "next/image";
 import profilePic from "../../../../components/testimonials/profiles/Mc0m3zkD_400x400.jpg";
@@ -15,7 +15,7 @@ export default function Page(props: {
   params: Promise<Param>;
 }): React.ReactElement {
   const params = use(props.params);
-  const page = blog.getPage([params.slug]) as BlogPage;
+  const page = blog.getPage([params.slug]) as BlogPage | undefined;
   const mdxComponents = getMDXComponents({});
 
   if (!page) notFound();
@@ -31,7 +31,7 @@ export default function Page(props: {
         </Link>
         {!!page.data.date && (
           <p className="text-xs text-gray-500">
-            {(page.data.date as Date).toLocaleString("en-US", {
+            {page.data.date.toLocaleString("en-US", {
               year: "numeric",
               month: "2-digit",
               day: "2-digit",

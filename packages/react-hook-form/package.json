@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-hook-form",
-  "version": "0.11.2",
+  "version": "0.11.5",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -22,10 +22,10 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "zod": "^4.1.11"
+    "zod": "^4.1.12"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.11.29",
+    "@assistant-ui/react": "^0.11.38",
     "@types/react": "*",
     "react": "^18 || ^19 || ^19.0.0-rc",
     "react-hook-form": "^7"
@@ -38,12 +38,10 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^24.6.2",
-    "@types/react": "^19.2.0",
-    "eslint": "^9",
-    "eslint-config-next": "15.5.4",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.4",
     "react": "19.2.0",
-    "react-hook-form": "^7.63.0",
+    "react-hook-form": "^7.66.0",
     "tsx": "^4.20.6"
   },
   "publishConfig": {
