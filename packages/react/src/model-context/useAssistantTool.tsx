@@ -23,7 +23,7 @@ export const useAssistantTool = <
 
   useEffect(() => {
     if (!tool.render) return undefined;
-    return api.toolUIs().setToolUI(tool.toolName, tool.render);
+    return api.tools().setToolUI(tool.toolName, tool.render);
   }, [api, tool.toolName, tool.render]);
 
   useEffect(() => {
@@ -33,7 +33,7 @@ export const useAssistantTool = <
         [toolName]: rest,
       },
     };
-    return api.registerModelContextProvider({
+    return api.modelContext().register({
       getModelContext: () => context,
     });
   }, [api, tool]);

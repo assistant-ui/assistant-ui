@@ -5,6 +5,8 @@ import { ComposerRuntime } from "../runtime/ComposerRuntime";
 import { createStateHookForRuntime } from "../../context/react/utils/createStateHookForRuntime";
 
 /**
+ * @deprecated Use `useAssistantApi()` with `api.composer()` instead. See migration guide: https://docs.assistant-ui.com/docs/migrations/v0-12
+ *
  * Hook to access the ComposerRuntime from the current context.
  *
  * The ComposerRuntime provides access to composer state and actions for message
@@ -18,21 +20,42 @@ import { createStateHookForRuntime } from "../../context/react/utils/createState
  *
  * @example
  * ```tsx
+ * // Before:
  * function ComposerActions() {
  *   const runtime = useComposerRuntime();
- *
  *   const handleSend = () => {
  *     if (runtime.getState().canSend) {
  *       runtime.send();
  *     }
  *   };
- *
  *   const handleCancel = () => {
  *     if (runtime.getState().canCancel) {
  *       runtime.cancel();
  *     }
  *   };
+ *   return (
+ *     <div>
+ *       <button onClick={handleSend}>Send</button>
+ *       <button onClick={handleCancel}>Cancel</button>
+ *     </div>
+ *   );
+ * }
  *
+ * // After:
+ * function ComposerActions() {
+ *   const api = useAssistantApi();
+ *   const canSend = useAssistantState(({ composer }) => composer.canSend);
+ *   const canCancel = useAssistantState(({ composer }) => composer.canCancel);
+ *   const handleSend = () => {
+ *     if (canSend) {
+ *       api.composer().send();
+ *     }
+ *   };
+ *   const handleCancel = () => {
+ *     if (canCancel) {
+ *       api.composer().cancel();
+ *     }
+ *   };
  *   return (
  *     <div>
  *       <button onClick={handleSend}>Send</button>
@@ -64,6 +87,8 @@ export function useComposerRuntime(options?: {
 }
 
 /**
+ * @deprecated Use `useAssistantState(({ composer }) => composer)` instead. See migration guide: https://docs.assistant-ui.com/docs/migrations/v0-12
+ *
  * Hook to access the current composer state.
  *
  * This hook provides reactive access to the composer's state, including text content,
@@ -74,11 +99,25 @@ export function useComposerRuntime(options?: {
  *
  * @example
  * ```tsx
+ * // Before:
  * function ComposerStatus() {
  *   const text = useComposer((state) => state.text);
  *   const canSend = useComposer((state) => state.canSend);
  *   const attachmentCount = useComposer((state) => state.attachments.length);
+ *   return (
+ *     <div>
+ *       Text: {text.length} chars,
+ *       Attachments: {attachmentCount},
+ *       Can send: {canSend}
+ *     </div>
+ *   );
+ * }
  *
+ * // After:
+ * function ComposerStatus() {
+ *   const text = useAssistantState(({ composer }) => composer.text);
+ *   const canSend = useAssistantState(({ composer }) => composer.canSend);
+ *   const attachmentCount = useAssistantState(({ composer }) => composer.attachments.length);
  *   return (
  *     <div>
  *       Text: {text.length} chars,

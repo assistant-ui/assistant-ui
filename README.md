@@ -88,9 +88,9 @@ Sample customization to make a Perplexity lookalike:
 
 Hundreds of projects use assistant-ui to build in-app AI assistants, including companies like LangChain, AthenaIntelligence, Browser Use, and more.
 
-With >200k monthly downloads, assistant-ui is one of the most popular UI libraries for building AI chat.
+With >400k monthly downloads, assistant-ui is one of the most popular UI libraries for building AI chat.
 
-<img src="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/growth.png" alt="Growth" style="max-width: 400px;">
+<img src="https://github.com/user-attachments/assets/b2d7854a-8ce6-4862-bafc-875a85418df2" alt="Growth" width="400" />
 
 ## Community & Support
 

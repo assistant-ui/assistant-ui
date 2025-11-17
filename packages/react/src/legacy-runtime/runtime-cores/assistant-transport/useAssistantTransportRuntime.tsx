@@ -13,6 +13,7 @@ import { useState, useRef, useMemo } from "react";
 import {
   AssistantMessageAccumulator,
   DataStreamDecoder,
+  AssistantTransportDecoder,
   unstable_createInitialMessage as createInitialMessage,
 } from "assistant-stream";
 import {
@@ -30,12 +31,14 @@ import { ToolExecutionStatus, useToolInvocations } from "./useToolInvocations";
 import { toAISDKTools, getEnabledTools, createRequestHeaders } from "./utils";
 import { useRemoteThreadListRuntime } from "../remote-thread-list/useRemoteThreadListRuntime";
 import { InMemoryThreadListAdapter } from "../remote-thread-list/adapter/in-memory";
-import { useAssistantApi } from "../../../context/react";
+import { useAssistantApi, useAssistantState } from "../../../context/react";
+import { UserExternalState } from "../../../augmentations";
 
 const symbolAssistantTransportExtras = Symbol("assistant-transport-extras");
 type AssistantTransportExtras = {
   [symbolAssistantTransportExtras]: true;
   sendCommand: (command: AssistantTransportCommand) => void;
+  state: UserExternalState;
 };
 
 const asAssistantTransportExtras = (
@@ -62,6 +65,18 @@ export const useAssistantTransportSendCommand = () => {
     transportExtras.sendCommand(command);
   };
 };
+
+export function useAssistantTransportState(): UserExternalState;
+export function useAssistantTransportState<T>(
+  selector: (state: UserExternalState) => T,
+): T;
+export function useAssistantTransportState<T>(
+  selector: (state: UserExternalState) => T = (t) => t as T,
+): T | UserExternalState {
+  return useAssistantState(({ thread }) =>
+    selector(asAssistantTransportExtras(thread.extras).state),
+  );
+}
 
 const useAssistantTransportThreadRuntime = <T,>(
   options: AssistantTransportOptions<T>,
@@ -114,21 +129,26 @@ const useAssistantTransportThreadRuntime = <T,>(
         throw new Error("Response body is null");
       }
 
+      // Select decoder based on protocol option
+      const protocol = options.protocol ?? "data-stream";
+      const decoder =
+        protocol === "assistant-transport"
+          ? new AssistantTransportDecoder()
+          : new DataStreamDecoder();
+
       let err: string | undefined;
-      const stream = response.body
-        .pipeThrough(new DataStreamDecoder())
-        .pipeThrough(
-          new AssistantMessageAccumulator({
-            initialMessage: createInitialMessage({
-              unstable_state:
-                (agentStateRef.current as ReadonlyJSONValue) ?? null,
-            }),
-            throttle: isResume,
-            onError: (error) => {
-              err = error;
-            },
+      const stream = response.body.pipeThrough(decoder).pipeThrough(
+        new AssistantMessageAccumulator({
+          initialMessage: createInitialMessage({
+            unstable_state:
+              (agentStateRef.current as ReadonlyJSONValue) ?? null,
           }),
-        );
+          throttle: isResume,
+          onError: (error) => {
+            err = error;
+          },
+        }),
+      );
 
       let markedDelivered = false;
 
@@ -206,6 +226,7 @@ const useAssistantTransportThreadRuntime = <T,>(
       sendCommand: (command: AssistantTransportCommand) => {
         commandQueue.enqueue(command);
       },
+      state: agentStateRef.current as UserExternalState,
     } satisfies AssistantTransportExtras,
     onNew: async (message: AppendMessage): Promise<void> => {
       if (message.role !== "user")

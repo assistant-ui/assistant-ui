@@ -7,6 +7,7 @@ export type AssistantRuntimeCore = {
   readonly threads: ThreadListRuntimeCore;
 
   registerModelContextProvider: (provider: ModelContextProvider) => Unsubscribe;
+  getModelContextProvider: () => ModelContextProvider;
 
   /**
    * EXPERIMENTAL: A component that is rendered inside the AssistantRuntimeProvider.

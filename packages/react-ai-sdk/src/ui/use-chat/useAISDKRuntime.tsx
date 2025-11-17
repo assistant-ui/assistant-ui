@@ -47,18 +47,20 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const messages = AISDKMessageConverter.useThreadMessages({
     isRunning,
     messages: chatHelpers.messages,
-    metadata: useMemo(() => ({ toolStatuses }), [toolStatuses]),
+    metadata: useMemo(
+      () => ({
+        toolStatuses,
+        ...(chatHelpers.error && { error: chatHelpers.error.message }),
+      }),
+      [toolStatuses, chatHelpers.error],
+    ),
   });
 
-  const runtimeRef = useMemo(
-    () => ({
-      get current(): AssistantRuntime {
-        return runtime;
-      },
-    }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  );
+  const [runtimeRef] = useState(() => ({
+    get current(): AssistantRuntime {
+      return runtime;
+    },
+  }));
 
   const toolInvocations = INTERNAL.useToolInvocations({
     state: {

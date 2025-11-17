@@ -1,5 +1,37 @@
 # @assistant-ui/react-langgraph
 
+## 0.7.6
+
+### Patch Changes
+
+- 2fc7e99: chore: update deps
+- Updated dependencies [3ab9484]
+- Updated dependencies [7a88ead]
+- Updated dependencies [81b581f]
+- Updated dependencies [2fc7e99]
+  - @assistant-ui/react@0.11.36
+  - assistant-stream@0.2.39
+
+## 0.7.5
+
+### Patch Changes
+
+- bcb4636: feat(react-langgraph): add "file" content type (filename, file_data) with round-trip mapping
+- Updated dependencies [2fc5c3d]
+- Updated dependencies [04144dd]
+  - assistant-stream@0.2.38
+  - @assistant-ui/react@0.11.35
+
+## 0.7.4
+
+### Patch Changes
+
+- 953db24: chore: update deps
+- Updated dependencies [953db24]
+- Updated dependencies
+  - assistant-stream@0.2.37
+  - @assistant-ui/react@0.11.34
+
 ## 0.7.3
 
 ### Patch Changes

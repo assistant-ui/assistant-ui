@@ -1,4 +1,5 @@
 import { ResourceElement, ResourceFiber } from "../core/types";
+import { getResourceFn } from "../core/getResourceFn";
 import { tapEffect } from "./tap-effect";
 import { tapMemo } from "./tap-memo";
 import { tapState } from "./tap-state";
@@ -55,9 +56,11 @@ export function tapResources<
       let fiber = fibers.get(key);
 
       // Create new fiber if needed or type changed
-      if (!fiber || fiber.resourceFn !== element.type) {
+      if (!fiber || fiber.resourceFn !== getResourceFn(element.type)) {
         if (fiber) unmountResource(fiber);
-        fiber = createResourceFiber(element.type, () => rerender({}));
+        fiber = createResourceFiber(getResourceFn(element.type), () =>
+          rerender({}),
+        );
         fibers.set(key, fiber);
       }
 

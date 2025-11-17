@@ -1,0 +1,48 @@
+---
+title: ChatGPT Clone
+description: Customized colors and styles for a ChatGPT look and feel
+---
+
+import { ChatGPT } from "@/components/chatgpt/ChatGPT";
+import { DocsRuntimeProvider } from "@/app/(home)/DocsRuntimeProvider";
+
+## Live Demo
+
+<div className="not-prose h-[700px]">
+  <DocsRuntimeProvider>
+    <ChatGPT />
+  </DocsRuntimeProvider>
+</div>
+
+## Overview
+
+The ChatGPT Clone example demonstrates how to customize assistant-ui to match OpenAI's ChatGPT interface. This includes the characteristic green color scheme, layout structure, and interaction patterns that users are familiar with from ChatGPT.
+
+## Features
+
+- **ChatGPT Styling**: Authentic green color scheme and visual design
+- **Sidebar Layout**: Left sidebar with conversation history and new chat button
+- **Message Formatting**: Proper message bubbles with user and assistant styling
+- **Input Design**: ChatGPT-style input field with send button
+- **Responsive Layout**: Mobile-friendly responsive design
+- **Dark Mode Support**: Proper dark mode theming
+
+## Usage
+
+To create a ChatGPT-style interface:
+
+1. **Custom CSS**: Apply ChatGPT-specific color schemes and styling
+2. **Layout Structure**: Implement sidebar + main chat area layout
+3. **Component Styling**: Customize message bubbles, input field, and buttons
+4. **Theme Integration**: Ensure proper light/dark mode support
+
+## Code
+
+Key styling considerations for ChatGPT clone:
+
+- **Color Palette**: Use ChatGPT's signature green (#10a37f) for primary actions
+- **Typography**: Match ChatGPT's font choices and sizing
+- **Spacing**: Replicate ChatGPT's padding and margin patterns
+- **Animations**: Include subtle hover effects and transitions
+
+The implementation uses custom CSS classes and Tailwind utilities to achieve the authentic ChatGPT appearance while maintaining all assistant-ui functionality.

@@ -8,7 +8,7 @@
     "development",
     "debugging"
   ],
-  "version": "0.1.5",
+  "version": "0.1.7",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -55,11 +55,9 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^24.8.1",
-    "eslint": "^9",
-    "eslint-config-next": "15.5.6",
+    "@types/node": "^24.10.1",
     "tsx": "^4.20.6",
-    "vitest": "^3.2.4"
+    "vitest": "^4.0.8"
   },
   "publishConfig": {
     "access": "public",

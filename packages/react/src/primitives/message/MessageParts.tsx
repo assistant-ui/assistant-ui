@@ -25,6 +25,7 @@ import type {
   ToolCallMessagePartProps,
   FileMessagePartComponent,
   ReasoningMessagePartComponent,
+  ReasoningGroupComponent,
 } from "../../types/MessagePartComponentTypes";
 import { MessagePartPrimitiveInProgress } from "../messagePart/MessagePartInProgress";
 import { MessagePartStatus } from "../../types/AssistantTypes";
@@ -32,50 +33,75 @@ import { useShallow } from "zustand/shallow";
 
 type MessagePartRange =
   | { type: "single"; index: number }
-  | { type: "toolGroup"; startIndex: number; endIndex: number };
+  | { type: "toolGroup"; startIndex: number; endIndex: number }
+  | { type: "reasoningGroup"; startIndex: number; endIndex: number };
 
 /**
- * Groups consecutive tool-call message parts into ranges.
- * Always groups tool calls, even if there's only one.
+ * Creates a group state manager for a specific part type.
+ * Returns functions to start, end, and finalize groups.
+ */
+const createGroupState = <T extends "toolGroup" | "reasoningGroup">(
+  groupType: T,
+) => {
+  let start = -1;
+
+  return {
+    startGroup: (index: number) => {
+      if (start === -1) {
+        start = index;
+      }
+    },
+    endGroup: (endIndex: number, ranges: MessagePartRange[]) => {
+      if (start !== -1) {
+        ranges.push({
+          type: groupType,
+          startIndex: start,
+          endIndex,
+        } as MessagePartRange);
+        start = -1;
+      }
+    },
+    finalize: (endIndex: number, ranges: MessagePartRange[]) => {
+      if (start !== -1) {
+        ranges.push({
+          type: groupType,
+          startIndex: start,
+          endIndex,
+        } as MessagePartRange);
+      }
+    },
+  };
+};
+
+/**
+ * Groups consecutive tool-call and reasoning message parts into ranges.
+ * Always groups tool calls and reasoning parts, even if there's only one.
  */
 const groupMessageParts = (
   messageTypes: readonly string[],
 ): MessagePartRange[] => {
   const ranges: MessagePartRange[] = [];
-  let currentToolGroupStart = -1;
+  const toolGroup = createGroupState("toolGroup");
+  const reasoningGroup = createGroupState("reasoningGroup");
 
   for (let i = 0; i < messageTypes.length; i++) {
     const type = messageTypes[i];
 
     if (type === "tool-call") {
-      // Start a new tool group if we haven't started one
-      if (currentToolGroupStart === -1) {
-        currentToolGroupStart = i;
-      }
+      reasoningGroup.endGroup(i - 1, ranges);
+      toolGroup.startGroup(i);
+    } else if (type === "reasoning") {
+      toolGroup.endGroup(i - 1, ranges);
+      reasoningGroup.startGroup(i);
     } else {
-      // End current tool group if it exists
-      if (currentToolGroupStart !== -1) {
-        ranges.push({
-          type: "toolGroup",
-          startIndex: currentToolGroupStart,
-          endIndex: i - 1,
-        });
-        currentToolGroupStart = -1;
-      }
-
-      // Add non-tool-call part individually
+      toolGroup.endGroup(i - 1, ranges);
+      reasoningGroup.endGroup(i - 1, ranges);
       ranges.push({ type: "single", index: i });
     }
   }
 
-  // Handle any remaining tool group at the end
-  if (currentToolGroupStart !== -1) {
-    ranges.push({
-      type: "toolGroup",
-      startIndex: currentToolGroupStart,
-      endIndex: messageTypes.length - 1,
-    });
-  }
+  toolGroup.finalize(messageTypes.length - 1, ranges);
+  reasoningGroup.finalize(messageTypes.length - 1, ranges);
 
   return ranges;
 };
@@ -184,6 +210,37 @@ export namespace MessagePrimitiveParts {
           ToolGroup?: ComponentType<
             PropsWithChildren<{ startIndex: number; endIndex: number }>
           >;
+
+          /**
+           * Component for rendering grouped reasoning parts.
+           *
+           * When provided, this component will automatically wrap reasoning message parts
+           * (one or more consecutive) in a group container. Each reasoning part inside
+           * renders its own text independently - no text merging occurs.
+           *
+           * The component receives:
+           * - `startIndex`: The index of the first reasoning part in the group
+           * - `endIndex`: The index of the last reasoning part in the group
+           * - `children`: The rendered Reasoning components (one per part)
+           *
+           * @example
+           * ```tsx
+           * // Collapsible reasoning group
+           * ReasoningGroup: ({ children }) => (
+           *   <details className="reasoning-group">
+           *     <summary>Reasoning</summary>
+           *     <div className="reasoning-content">
+           *       {children}
+           *     </div>
+           *   </details>
+           * )
+           * ```
+           *
+           * @param startIndex - Index of the first reasoning part in the group
+           * @param endIndex - Index of the last reasoning part in the group
+           * @param children - Rendered reasoning part components
+           */
+          ReasoningGroup?: ReasoningGroupComponent;
         }
       | undefined;
   };
@@ -195,9 +252,9 @@ const ToolUIDisplay = ({
 }: {
   Fallback: ToolCallMessagePartComponent | undefined;
 } & ToolCallMessagePartProps) => {
-  const Render = useAssistantState(({ toolUIs }) => {
-    const Render = toolUIs[props.toolName] ?? Fallback;
-    if (Array.isArray(Render)) return Render[0];
+  const Render = useAssistantState(({ tools }) => {
+    const Render = tools.tools[props.toolName] ?? Fallback;
+    if (Array.isArray(Render)) return Render[0] ?? Fallback;
     return Render;
   });
   if (!Render) return null;
@@ -219,6 +276,7 @@ const defaultComponents = {
   File: () => null,
   Unstable_Audio: () => null,
   ToolGroup: ({ children }) => children,
+  ReasoningGroup: ({ children }) => children,
 } satisfies MessagePrimitiveParts.Props["components"];
 
 type MessagePartComponentProps = {
@@ -327,7 +385,8 @@ export const MessagePrimitivePartByIndex: FC<MessagePrimitivePartByIndex.Props> 
       prev.components?.File === next.components?.File &&
       prev.components?.Unstable_Audio === next.components?.Unstable_Audio &&
       prev.components?.tools === next.components?.tools &&
-      prev.components?.ToolGroup === next.components?.ToolGroup,
+      prev.components?.ToolGroup === next.components?.ToolGroup &&
+      prev.components?.ReasoningGroup === next.components?.ReasoningGroup,
   );
 
 MessagePrimitivePartByIndex.displayName = "MessagePrimitive.PartByIndex";
@@ -415,12 +474,12 @@ export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = ({
             components={components}
           />
         );
-      } else {
+      } else if (range.type === "toolGroup") {
         const ToolGroupComponent =
           components!.ToolGroup ?? defaultComponents.ToolGroup;
         return (
           <ToolGroupComponent
-            key={range.startIndex}
+            key={`tool-${range.startIndex}`}
             startIndex={range.startIndex}
             endIndex={range.endIndex}
           >
@@ -435,6 +494,28 @@ export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = ({
               ),
             )}
           </ToolGroupComponent>
+        );
+      } else {
+        // reasoningGroup
+        const ReasoningGroupComponent =
+          components!.ReasoningGroup ?? defaultComponents.ReasoningGroup;
+        return (
+          <ReasoningGroupComponent
+            key={`reasoning-${range.startIndex}`}
+            startIndex={range.startIndex}
+            endIndex={range.endIndex}
+          >
+            {Array.from(
+              { length: range.endIndex - range.startIndex + 1 },
+              (_, i) => (
+                <MessagePrimitivePartByIndex
+                  key={i}
+                  index={range.startIndex + i}
+                  components={components}
+                />
+              ),
+            )}
+          </ReasoningGroupComponent>
         );
       }
     });

@@ -143,14 +143,14 @@ function SmartTransactionHistory() {
 Finally, let's add dynamic context based on the user's transaction patterns:
 
 ```tsx
-import { useAssistantRuntime } from "@assistant-ui/react";
+import { useAssistantApi } from "@assistant-ui/react";
 import { useEffect } from "react";
 
 function SmartTransactionHistory({ userProfile }) {
-  const assistantRuntime = useAssistantRuntime();
+  const api = useAssistantApi();
 
   useEffect(() => {
-    return assistantRuntime.registerModelContextProvider({
+    return api.modelContext().register({
       getModelContext: () => ({
         system: `
           User spending patterns:
@@ -160,7 +160,7 @@ function SmartTransactionHistory({ userProfile }) {
         `,
       }),
     });
-  }, [assistantRuntime, userProfile]);
+  }, [api, userProfile]);
 
   // Previous components...
 }

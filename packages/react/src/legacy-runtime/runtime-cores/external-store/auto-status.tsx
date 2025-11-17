@@ -1,34 +1,67 @@
+import { ReadonlyJSONValue } from "assistant-stream/utils";
 import { MessageStatus } from "../../../types";
 
-const AUTO_STATUS_RUNNING = Object.freeze({ type: "running" });
-const AUTO_STATUS_COMPLETE = Object.freeze({
-  type: "complete",
-  reason: "unknown",
-});
+const symbolAutoStatus = Symbol("autoStatus");
 
-const AUTO_STATUS_PENDING = Object.freeze({
-  type: "requires-action",
-  reason: "tool-calls",
-});
+const AUTO_STATUS_RUNNING = Object.freeze(
+  Object.assign({ type: "running" as const }, { [symbolAutoStatus]: true }),
+);
+const AUTO_STATUS_COMPLETE = Object.freeze(
+  Object.assign(
+    {
+      type: "complete" as const,
+      reason: "unknown" as const,
+    },
+    { [symbolAutoStatus]: true },
+  ),
+);
 
-const AUTO_STATUS_INTERRUPT = Object.freeze({
-  type: "requires-action",
-  reason: "interrupt",
-});
+const AUTO_STATUS_PENDING = Object.freeze(
+  Object.assign(
+    {
+      type: "requires-action" as const,
+      reason: "tool-calls" as const,
+    },
+    { [symbolAutoStatus]: true },
+  ),
+);
+
+const AUTO_STATUS_INTERRUPT = Object.freeze(
+  Object.assign(
+    {
+      type: "requires-action" as const,
+      reason: "interrupt" as const,
+    },
+    { [symbolAutoStatus]: true },
+  ),
+);
 
 export const isAutoStatus = (status: MessageStatus) =>
-  status === AUTO_STATUS_RUNNING || status === AUTO_STATUS_COMPLETE;
+  (status as any)[symbolAutoStatus] === true;
 
 export const getAutoStatus = (
   isLast: boolean,
   isRunning: boolean,
   hasInterruptedToolCalls: boolean,
   hasPendingToolCalls: boolean,
-) =>
-  isLast && isRunning
+  error?: ReadonlyJSONValue,
+): MessageStatus => {
+  if (isLast && error) {
+    return Object.assign(
+      {
+        type: "incomplete" as const,
+        reason: "error" as const,
+        error: error,
+      },
+      { [symbolAutoStatus]: true },
+    );
+  }
+
+  return isLast && isRunning
     ? AUTO_STATUS_RUNNING
     : hasInterruptedToolCalls
       ? AUTO_STATUS_INTERRUPT
       : hasPendingToolCalls
         ? AUTO_STATUS_PENDING
         : AUTO_STATUS_COMPLETE;
+};

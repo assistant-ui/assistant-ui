@@ -3,6 +3,7 @@ import {
   defineDocs,
   defineCollections,
   frontmatterSchema,
+  metaSchema,
 } from "fumadocs-mdx/config";
 import { rehypeCodeDefaultOptions } from "fumadocs-core/mdx-plugins";
 import { transformerTwoslash } from "fumadocs-twoslash";
@@ -11,23 +12,37 @@ import { z } from "zod";
 import { remarkMermaid } from "@theguild/remark-mermaid";
 import { createFileSystemTypesCache } from "fumadocs-twoslash/cache-fs";
 
-export const { docs, meta } = defineDocs({
-  dir: "content/docs",
+export const docs = defineDocs({
   docs: {
     schema: frontmatterSchema,
+    postprocess: {
+      includeProcessedMarkdown: true,
+    },
+  },
+  meta: {
+    schema: metaSchema.extend({
+      description: z.string().optional(),
+    }),
   },
 });
 
+export const examples = defineCollections({
+  type: "doc",
+  dir: "content/examples",
+  schema: frontmatterSchema,
+});
+
 export const blog = defineCollections({
+  type: "doc",
   dir: "content/blog",
   schema: frontmatterSchema.extend({
     author: z.string(),
-    date: z.string().date().or(z.date()).optional(),
+    date: z.date().optional(),
   }),
-  type: "doc",
 });
 
 export const careers = defineCollections({
+  type: "doc",
   dir: "content/careers",
   schema: frontmatterSchema.extend({
     order: z.number().optional(),
@@ -36,18 +51,19 @@ export const careers = defineCollections({
     salary: z.string(),
     summary: z.string(),
   }),
-  type: "doc",
 });
 
 export default defineConfig({
+  lastModifiedTime: "git",
   mdxOptions: {
     remarkPlugins: [remarkMermaid],
     rehypeCodeOptions: {
+      lazy: true,
+      langs: ["ts", "js", "html", "tsx", "mdx", "bash"],
       themes: {
         light: "catppuccin-latte",
         dark: "catppuccin-mocha",
       },
-      langs: ["js", "bash"],
       transformers: [
         ...(rehypeCodeDefaultOptions.transformers ?? []),
 

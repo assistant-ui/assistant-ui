@@ -53,6 +53,7 @@ export function useToolInvocations({
       {
         argsText: string;
         hasResult: boolean;
+        argsComplete: boolean;
         controller: ToolCallStreamController;
       }
     >
@@ -154,32 +155,44 @@ export function useToolInvocations({
                 lastState = {
                   argsText: "",
                   hasResult: false,
+                  argsComplete: false,
                   controller: toolCallController,
                 };
                 lastToolStates.current[content.toolCallId] = lastState;
               }
 
               if (content.argsText !== lastState.argsText) {
-                if (!content.argsText.startsWith(lastState.argsText)) {
-                  throw new Error(
-                    `Tool call argsText can only be appended, not updated: ${content.argsText} does not start with ${lastState.argsText}`,
+                if (lastState.argsComplete) {
+                  if (process.env["NODE_ENV"] !== "production") {
+                    console.warn(
+                      "argsText updated after controller was closed:",
+                      { previous: lastState.argsText, next: content.argsText },
+                    );
+                  }
+                } else {
+                  if (!content.argsText.startsWith(lastState.argsText)) {
+                    throw new Error(
+                      `Tool call argsText can only be appended, not updated: ${content.argsText} does not start with ${lastState.argsText}`,
+                    );
+                  }
+
+                  const argsTextDelta = content.argsText.slice(
+                    lastState.argsText.length,
                   );
+                  lastState.controller.argsText.append(argsTextDelta);
+
+                  const shouldClose = isArgsTextComplete(content.argsText);
+                  if (shouldClose) {
+                    lastState.controller.argsText.close();
+                  }
+
+                  lastToolStates.current[content.toolCallId] = {
+                    argsText: content.argsText,
+                    hasResult: lastState.hasResult,
+                    argsComplete: shouldClose,
+                    controller: lastState.controller,
+                  };
                 }
-
-                const argsTextDelta = content.argsText.slice(
-                  lastState.argsText.length,
-                );
-                lastState.controller.argsText.append(argsTextDelta);
-
-                if (isArgsTextComplete(content.argsText)) {
-                  lastState.controller.argsText.close();
-                }
-
-                lastToolStates.current[content.toolCallId] = {
-                  argsText: content.argsText,
-                  hasResult: lastState.hasResult,
-                  controller: lastState.controller,
-                };
               }
 
               if (content.result !== undefined && !lastState.hasResult) {
@@ -194,6 +207,7 @@ export function useToolInvocations({
 
                 lastToolStates.current[content.toolCallId] = {
                   hasResult: true,
+                  argsComplete: true,
                   argsText: lastState.argsText,
                   controller: lastState.controller,
                 };

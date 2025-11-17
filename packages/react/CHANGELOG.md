@@ -1,5 +1,72 @@
 # @assistant-ui/react
 
+## 0.11.38
+
+### Patch Changes
+
+- 66a13a0: fix: separate scroll-to-bottom button from autoScroll behavior (#1916)
+- 4e3877e: feat: Add thread fetching capability to remote thread list adapter
+  - Add `fetch` method to `RemoteThreadListAdapter` interface
+  - Implement `fetch` in cloud adapter to retrieve individual threads
+  - Enhance `switchToThread` to automatically fetch and load threads not present in the current list
+  - Add `get` method to `AssistantCloudThreads` for individual thread retrieval
+
+- eef682b: fix(react): update check for scroll position in autoscroll
+- Updated dependencies [4e3877e]
+  - assistant-cloud@0.1.7
+
+## 0.11.37
+
+### Patch Changes
+
+- 0ce129b: add scroll lock hook for reasoning component
+
+## 0.11.36
+
+### Patch Changes
+
+- 3ab9484: feat: Toolkit API
+- 7a88ead: chore: mark all old context API hooks as deprecated
+- 81b581f: feat: display AI SDK errors
+- 2fc7e99: chore: update deps
+- Updated dependencies [dbc4ec7]
+- Updated dependencies [2fc7e99]
+  - @assistant-ui/tap@0.1.5
+  - assistant-stream@0.2.39
+  - assistant-cloud@0.1.6
+
+## 0.11.35
+
+### Patch Changes
+
+- 2fc5c3d: feat: AssistantTransport wire format
+- 04144dd: feat: useAssistantTransportState
+- Updated dependencies [2fc5c3d]
+  - assistant-stream@0.2.38
+
+## 0.11.34
+
+### Patch Changes
+
+- 953db24: chore: update deps
+- fix: submittedFeedback external message converter support
+- Updated dependencies [953db24]
+  - assistant-stream@0.2.37
+  - assistant-cloud@0.1.5
+  - @assistant-ui/tap@0.1.4
+
+## 0.11.33
+
+### Patch Changes
+
+- refactor: move submittedFeedback to metadata, add ThreadMessageLike support
+
+## 0.11.32
+
+### Patch Changes
+
+- fix: Cannot enqueue a chunk into a readable stream that is closed or has been requested to be closed
+
 ## 0.11.31
 
 ### Patch Changes

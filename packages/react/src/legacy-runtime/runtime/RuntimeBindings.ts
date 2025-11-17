@@ -49,6 +49,7 @@ export type MessageStateBinding = SubscribableWithState<
     readonly branchNumber: number;
     readonly branchCount: number;
     readonly speech: SpeechState | undefined;
+    /** @deprecated Use `message.metadata.submittedFeedback` instead. This will be removed in 0.12.0. */
     readonly submittedFeedback: SubmittedFeedback | undefined;
   },
   MessageRuntimePath
@@ -62,7 +63,7 @@ export type ThreadListItemState = {
   readonly remoteId: string | undefined;
   readonly externalId: string | undefined;
   /**
-   * @deprecated Use `id` instead. This field will be removed in version 0.8.0.
+   * @deprecated Use `id` instead. This field will be removed in version 0.12.0.
    */
   readonly threadId: string;
   readonly status: ThreadListItemStatus;

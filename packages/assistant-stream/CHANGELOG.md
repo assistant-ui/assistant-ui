@@ -1,5 +1,23 @@
 # assistant-stream
 
+## 0.2.39
+
+### Patch Changes
+
+- 2fc7e99: chore: update deps
+
+## 0.2.38
+
+### Patch Changes
+
+- 2fc5c3d: feat: AssistantTransport wire format
+
+## 0.2.37
+
+### Patch Changes
+
+- 953db24: chore: update deps
+
 ## 0.2.36
 
 ### Patch Changes

@@ -1,52 +1,50 @@
 "use client";
 
-import { useMemo, type FC, type PropsWithChildren } from "react";
+import { type FC, type PropsWithChildren } from "react";
 import {
-  AssistantApi,
   AssistantProvider,
   useAssistantApi,
-  createAssistantApiField,
+  useExtendedAssistantApi,
 } from "../react/AssistantApiContext";
 import {
   checkEventScope,
   normalizeEventSelector,
 } from "../../types/EventTypes";
+import { DerivedScope } from "../../utils/tap-store/derived-scopes";
 
 export const MessageByIndexProvider: FC<
   PropsWithChildren<{
     index: number;
   }>
 > = ({ index, children }) => {
-  const api = useAssistantApi();
-  const api2 = useMemo(() => {
-    const getMessage = () => api.thread().message({ index });
-    return {
-      message: createAssistantApiField({
-        source: "thread",
-        query: { type: "index", index },
-        get: () => getMessage(),
-      }),
-      composer: createAssistantApiField({
-        source: "message",
-        query: {},
-        get: () => getMessage().composer,
-      }),
-      on(selector, callback) {
-        const { event, scope } = normalizeEventSelector(selector);
-        if (
-          !checkEventScope("composer", scope, event) &&
-          !checkEventScope("message", scope, event)
-        )
-          return api.on(selector, callback);
+  const baseApi = useAssistantApi();
+  const api = useExtendedAssistantApi({
+    message: DerivedScope({
+      source: "thread",
+      query: { type: "index", index },
+      get: () => baseApi.thread().message({ index }),
+    }),
+    composer: DerivedScope({
+      source: "message",
+      query: {},
+      get: () => baseApi.thread().message({ index }).composer,
+    }),
+    on(selector, callback) {
+      const getMessage = () => baseApi.thread().message({ index });
+      const { event, scope } = normalizeEventSelector(selector);
+      if (
+        !checkEventScope("composer", scope, event) &&
+        !checkEventScope("message", scope, event)
+      )
+        return baseApi.on(selector, callback);
 
-        return api.on({ scope: "thread", event }, (e) => {
-          if (e.messageId === getMessage().getState().id) {
-            callback(e);
-          }
-        });
-      },
-    } satisfies Partial<AssistantApi>;
-  }, [api, index]);
+      return baseApi.on({ scope: "thread", event }, (e) => {
+        if (e.messageId === getMessage().getState().id) {
+          callback(e);
+        }
+      });
+    },
+  });
 
-  return <AssistantProvider api={api2}>{children}</AssistantProvider>;
+  return <AssistantProvider api={api}>{children}</AssistantProvider>;
 };

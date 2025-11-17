@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   LangChainMessage,
   LangChainToolCall,
@@ -58,13 +58,21 @@ const getMessageContent = (msg: AppendMessage) => {
         return { type: "text" as const, text: part.text };
       case "image":
         return { type: "image_url" as const, image_url: { url: part.image } };
+      case "file":
+        return {
+          type: "file" as const,
+          file: {
+            filename: part.filename ?? "file",
+            file_data: part.data,
+            mime_type: part.mimeType,
+          },
+        };
 
       case "tool-call":
         throw new Error("Tool call appends are not supported.");
 
       default:
-        const _exhaustiveCheck: "reasoning" | "source" | "file" | "audio" =
-          type;
+        const _exhaustiveCheck: "reasoning" | "source" | "audio" = type;
         throw new Error(
           `Unsupported append message part type: ${_exhaustiveCheck}`,
         );
@@ -217,26 +225,17 @@ const useLangGraphRuntimeImpl = ({
     isRunning,
   });
 
-  const loadThread = !load
-    ? undefined
-    : async (externalId: string) => {
-        const { messages, interrupts } = await load(externalId);
-        setMessages(messages);
-        setInterrupt(interrupts?.[0]);
-      };
-
-  const loadingRef = useRef(false);
-  useEffect(() => {
-    if (!loadThread || loadingRef.current) return;
-
-    const externalId = runtime.threads.mainItem.getState().externalId;
-    if (externalId) {
-      loadingRef.current = true;
-      loadThread(externalId).finally(() => {
-        loadingRef.current = false;
-      });
-    }
-  }, []);
+  const loadThread = useMemo(
+    () =>
+      !load
+        ? undefined
+        : async (externalId: string) => {
+            const { messages, interrupts } = await load(externalId);
+            setMessages(messages);
+            setInterrupt(interrupts?.[0]);
+          },
+    [load, setMessages, setInterrupt],
+  );
 
   const runtime = useExternalStoreRuntime({
     isRunning,
@@ -308,6 +307,21 @@ const useLangGraphRuntimeImpl = ({
         }
       : undefined,
   });
+
+  {
+    const loadingRef = useRef(false);
+    useEffect(() => {
+      if (!loadThread || loadingRef.current) return;
+
+      const externalId = runtime.threads.mainItem.getState().externalId;
+      if (externalId) {
+        loadingRef.current = true;
+        loadThread(externalId).finally(() => {
+          loadingRef.current = false;
+        });
+      }
+    }, [loadThread, runtime]);
+  }
 
   return runtime;
 };

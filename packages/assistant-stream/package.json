@@ -1,6 +1,6 @@
 {
   "name": "assistant-stream",
-  "version": "0.2.36",
+  "version": "0.2.39",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -32,11 +32,9 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@standard-schema/spec": "^1.0.0",
-    "@types/node": "^24.8.1",
-    "eslint": "^9",
-    "eslint-config-next": "15.5.6",
+    "@types/node": "^24.10.1",
     "tsx": "^4.20.6",
-    "vitest": "^3.2.4"
+    "vitest": "^4.0.8"
   },
   "publishConfig": {
     "access": "public"

@@ -28,7 +28,7 @@ wheels = [
 
 [[package]]
 name = "assistant-stream"
-version = "0.0.25"
+version = "0.0.30"
 source = { editable = "." }
 dependencies = [
     { name = "starlette" },

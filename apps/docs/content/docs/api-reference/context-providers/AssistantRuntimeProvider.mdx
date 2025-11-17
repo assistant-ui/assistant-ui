@@ -13,9 +13,14 @@ You must either wrap your app in an `AssistantRuntimeProvider` or pass a `runtim
 
 ```tsx {1, 8, 10}
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/react-ai-sdk";
 
 const MyApp = () => {
-  const runtime = useChatRuntime({ api: "/api/chat" });
+  const runtime = useChatRuntime({
+    transport: new AssistantChatTransport({
+      api: "/api/chat",
+    }),
+  });
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>

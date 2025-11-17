@@ -1,10 +1,9 @@
 "use client";
 
-import { useMemo, type FC, type PropsWithChildren } from "react";
+import { type FC, type PropsWithChildren } from "react";
 import {
   AssistantProvider,
-  AssistantApi,
-  createAssistantApiField,
+  useExtendedAssistantApi,
 } from "../react/AssistantApiContext";
 import {
   MessagePartClientApi,
@@ -13,6 +12,7 @@ import {
 import { resource, tapMemo } from "@assistant-ui/tap";
 import { useResource } from "@assistant-ui/tap/react";
 import { asStore, tapApi } from "../../utils/tap-store";
+import { DerivedScope } from "../../utils/tap-store/derived-scopes";
 
 const TextMessagePartClient = resource(
   ({ text, isRunning }: { text: string; isRunning: boolean }) => {
@@ -46,17 +46,15 @@ export const TextMessagePartProvider: FC<
   const store = useResource(
     asStore(TextMessagePartClient({ text, isRunning })),
   );
-  const api = useMemo(() => {
-    return {
-      part: createAssistantApiField({
-        source: "root",
-        query: {},
-        get: () => store.getState().api,
-      }),
-      subscribe: store.subscribe,
-      flushSync: store.flushSync,
-    } satisfies Partial<AssistantApi>;
-  }, [store]);
+  const api = useExtendedAssistantApi({
+    part: DerivedScope({
+      source: "root",
+      query: {},
+      get: () => store.getState().api,
+    }),
+    subscribe: store.subscribe,
+    flushSync: store.flushSync,
+  });
 
   return <AssistantProvider api={api}>{children}</AssistantProvider>;
 };

@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/tap",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "type": "module",
   "description": "Zero-dependency reactive state management inspired by React hooks",
   "main": "dist/index.js",
@@ -26,12 +26,12 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^24.8.1",
+    "@types/node": "^24.10.1",
     "@types/react": "*",
-    "@vitest/ui": "^3.2.4",
+    "@vitest/ui": "^4.0.8",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
-    "vitest": "^3.2.4"
+    "vitest": "^4.0.8"
   },
   "exports": {
     ".": {

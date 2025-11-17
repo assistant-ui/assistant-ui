@@ -1,5 +1,6 @@
 import { ResourceElement } from "../core/types";
+import { getResourceFn } from "../core/getResourceFn";
 
 export function tapInlineResource<R, P>(element: ResourceElement<R, P>): R {
-  return element.type(element.props);
+  return getResourceFn(element.type)(element.props);
 }
