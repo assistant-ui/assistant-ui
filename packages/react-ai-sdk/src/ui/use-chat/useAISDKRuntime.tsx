@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import type { UIMessage, useChat } from "@ai-sdk/react";
+import type { UIMessage, useChat, CreateUIMessage } from "@ai-sdk/react";
 import {
   useExternalStoreRuntime,
   ExternalStoreAdapter,
@@ -12,9 +12,17 @@ import {
   useRuntimeAdapters,
   INTERNAL,
   type ToolExecutionStatus,
+  AppendMessage,
 } from "@assistant-ui/react";
 import { sliceMessagesUntil } from "../utils/sliceMessagesUntil";
 import { toCreateMessage } from "../utils/toCreateMessage";
+
+export type CustomToCreateMessageFunction = <
+  UI_MESSAGE extends UIMessage = UIMessage,
+>(
+  message: AppendMessage,
+) => CreateUIMessage<UI_MESSAGE>;
+
 import { vercelAttachmentAdapter } from "../utils/vercelAttachmentAdapter";
 import { getVercelAIMessages } from "../getVercelAIMessages";
 import { AISDKMessageConverter } from "../utils/convertMessage";
@@ -30,11 +38,15 @@ export type AISDKRuntimeAdapter = {
         history?: ThreadHistoryAdapter | undefined;
       })
     | undefined;
+  toCreateMessage?: CustomToCreateMessageFunction;
 };
 
 export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   chatHelpers: ReturnType<typeof useChat<UI_MESSAGE>>,
-  { adapters }: AISDKRuntimeAdapter = {},
+  {
+    adapters,
+    toCreateMessage: customToCreateMessage,
+  }: AISDKRuntimeAdapter = {},
 ) => {
   const contextAdapters = useRuntimeAdapters();
   const isRunning =
@@ -117,7 +129,9 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       toolInvocations.abort();
     },
     onNew: async (message) => {
-      const createMessage = toCreateMessage<UI_MESSAGE>(message);
+      const createMessage = (
+        customToCreateMessage ?? toCreateMessage
+      )<UI_MESSAGE>(message);
       await chatHelpers.sendMessage(createMessage, {
         metadata: message.runConfig,
       });
@@ -129,7 +143,9 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       );
       chatHelpers.setMessages(newMessages);
 
-      const createMessage = toCreateMessage<UI_MESSAGE>(message);
+      const createMessage = (
+        customToCreateMessage ?? toCreateMessage
+      )<UI_MESSAGE>(message);
       await chatHelpers.sendMessage(createMessage, {
         metadata: message.runConfig,
       });
