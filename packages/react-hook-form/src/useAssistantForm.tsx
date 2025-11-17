@@ -74,7 +74,13 @@ export const useAssistantForm = <
   props?: UseAssistantFormProps<TFieldValues, TContext, TTransformedValues>,
 ): UseFormReturn<TFieldValues, TContext, TTransformedValues> => {
   const form = useForm<TFieldValues, TContext, TTransformedValues>(props);
-  const { control, getValues, setValue, reset } = form;
+  const {
+    control,
+    getValues,
+    setValue,
+    reset,
+    formState: { isSubmitting },
+  } = form;
 
   const api = useAssistantApi();
   useEffect(() => {
@@ -97,6 +103,12 @@ export const useAssistantForm = <
         submit_form: tool({
           ...formTools.submit_form,
           execute: async () => {
+            if (isSubmitting) {
+              return {
+                success: false,
+                message: "The form is already submitting.",
+              };
+            }
             const { _names, _fields } = control;
             for (const name of _names.mount) {
               const field = _fields[name];
@@ -135,7 +147,7 @@ export const useAssistantForm = <
     return api.modelContext().register({
       getModelContext: () => value,
     });
-  }, [control, setValue, getValues, api, reset]);
+  }, [control, setValue, getValues, api, reset, isSubmitting]);
 
   const renderFormFieldTool = props?.assistant?.tools?.set_form_field?.render;
   useAssistantToolUI(
