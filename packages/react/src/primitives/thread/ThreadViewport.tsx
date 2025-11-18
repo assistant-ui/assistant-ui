@@ -15,15 +15,24 @@ export namespace ThreadPrimitiveViewport {
      * @default true
      */
     autoScroll?: boolean | undefined;
+    /**
+     * Scroll mode for the viewport.
+     * - "bottom": Traditional scroll-to-bottom behavior (default)
+     * - "user-message": Scroll to position user message at top when sent,
+     *   creating a stable reading canvas below for the streaming response
+     * @default "bottom"
+     */
+    scrollMode?: "bottom" | "user-message" | undefined;
   };
 }
 
 const ThreadPrimitiveViewportScrollable = forwardRef<
   ThreadPrimitiveViewport.Element,
   ThreadPrimitiveViewport.Props
->(({ autoScroll, children, ...rest }, forwardedRef) => {
+>(({ autoScroll, scrollMode, children, ...rest }, forwardedRef) => {
   const autoScrollRef = useThreadViewportAutoScroll<HTMLDivElement>({
     autoScroll,
+    scrollMode,
   });
 
   const ref = useComposedRefs(forwardedRef, autoScrollRef);

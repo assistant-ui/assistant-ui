@@ -121,11 +121,13 @@ const getComponent = (
   }
 };
 
-type ThreadMessageComponentProps = {
+type ThreadMessageWrapperProps = {
+  index: number;
   components: ThreadPrimitiveMessages.Props["components"];
 };
 
-const ThreadMessageComponent: FC<ThreadMessageComponentProps> = ({
+const ThreadMessageWrapper: FC<ThreadMessageWrapperProps> = ({
+  index,
   components,
 }) => {
   const role = useAssistantState(({ message }) => message.role);
@@ -134,7 +136,11 @@ const ThreadMessageComponent: FC<ThreadMessageComponentProps> = ({
   );
   const Component = getComponent(components, role, isEditing);
 
-  return <Component />;
+  return (
+    <div data-aui-message-index={index} data-aui-message-role={role}>
+      <Component />
+    </div>
+  );
 };
 export namespace ThreadPrimitiveMessageByIndex {
   export type Props = {
@@ -165,7 +171,7 @@ export const ThreadPrimitiveMessageByIndex: FC<ThreadPrimitiveMessageByIndex.Pro
     ({ index, components }) => {
       return (
         <MessageByIndexProvider index={index}>
-          <ThreadMessageComponent components={components} />
+          <ThreadMessageWrapper index={index} components={components} />
         </MessageByIndexProvider>
       );
     },
