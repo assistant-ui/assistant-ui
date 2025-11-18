@@ -156,12 +156,23 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
 
       await chatHelpers.regenerate({ metadata: config.runConfig });
     },
-    onAddToolResult: ({ toolCallId, result }) => {
-      chatHelpers.addToolResult({
-        tool: toolCallId,
-        toolCallId,
-        output: result,
-      });
+    onAddToolResult: ({ toolCallId, result, isError }) => {
+      if (isError) {
+        chatHelpers.addToolOutput({
+          state: "output-error",
+          tool: toolCallId,
+          toolCallId,
+          errorText:
+            typeof result === "string" ? result : JSON.stringify(result),
+        });
+      } else {
+        chatHelpers.addToolOutput({
+          state: "output-available",
+          tool: toolCallId,
+          toolCallId,
+          output: result,
+        });
+      }
     },
     onResumeToolCall: (options) =>
       toolInvocations.resume(options.toolCallId, options.payload),
