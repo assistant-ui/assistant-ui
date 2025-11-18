@@ -56,6 +56,8 @@ export namespace ThreadPrimitiveMessages {
   };
 }
 
+const USER_MESSAGE_SCROLL_MARGIN_TOP = 16;
+
 const isComponentsSame = (
   prev: ThreadPrimitiveMessages.Props["components"],
   next: ThreadPrimitiveMessages.Props["components"],
@@ -135,9 +137,17 @@ const ThreadMessageWrapper: FC<ThreadMessageWrapperProps> = ({
     ({ message }) => message.composer.isEditing,
   );
   const Component = getComponent(components, role, isEditing);
+  const scrollMarginStyle =
+    role === "user"
+      ? { scrollMarginTop: USER_MESSAGE_SCROLL_MARGIN_TOP }
+      : undefined;
 
   return (
-    <div data-aui-message-index={index} data-aui-message-role={role}>
+    <div
+      data-aui-message-index={index}
+      data-aui-message-role={role}
+      style={scrollMarginStyle}
+    >
       <Component />
     </div>
   );

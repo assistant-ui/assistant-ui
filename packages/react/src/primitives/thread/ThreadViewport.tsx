@@ -2,7 +2,12 @@
 
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
 import { Primitive } from "@radix-ui/react-primitive";
-import { type ComponentRef, forwardRef, ComponentPropsWithoutRef } from "react";
+import {
+  type ComponentRef,
+  forwardRef,
+  ComponentPropsWithoutRef,
+  type CSSProperties,
+} from "react";
 import { useThreadViewportAutoScroll } from "./useThreadViewportAutoScroll";
 import { ThreadViewportProvider } from "../../context/providers/ThreadViewportProvider";
 
@@ -11,34 +16,30 @@ export namespace ThreadPrimitiveViewport {
   export type Props = ComponentPropsWithoutRef<typeof Primitive.div> & {
     /**
      * Whether to automatically scroll to the bottom when new messages are added.
-     * When enabled, the viewport will automatically scroll to show the latest content.
+     * When enabled, the viewport will automatically scroll to show the latest content,
+     * except when a user-message anchor is active.
      * @default true
      */
     autoScroll?: boolean | undefined;
-    /**
-     * Scroll mode for the viewport.
-     * - "bottom": Traditional scroll-to-bottom behavior (default)
-     * - "user-message": Scroll to position user message at top when sent,
-     *   creating a stable reading canvas below for the streaming response
-     * @default "bottom"
-     */
-    scrollMode?: "bottom" | "user-message" | undefined;
   };
 }
 
 const ThreadPrimitiveViewportScrollable = forwardRef<
   ThreadPrimitiveViewport.Element,
   ThreadPrimitiveViewport.Props
->(({ autoScroll, scrollMode, children, ...rest }, forwardedRef) => {
+>(({ autoScroll, children, style, ...rest }, forwardedRef) => {
   const autoScrollRef = useThreadViewportAutoScroll<HTMLDivElement>({
     autoScroll,
-    scrollMode,
   });
 
   const ref = useComposedRefs(forwardedRef, autoScrollRef);
+  const viewportStyle: CSSProperties = {
+    overflowAnchor: "none",
+    ...(style ?? {}),
+  };
 
   return (
-    <Primitive.div {...rest} ref={ref}>
+    <Primitive.div {...rest} style={viewportStyle} ref={ref}>
       {children}
     </Primitive.div>
   );
