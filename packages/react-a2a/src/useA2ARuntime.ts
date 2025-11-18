@@ -4,6 +4,8 @@ import {
   A2AToolCall,
   A2AArtifact,
   A2ATaskState,
+  A2ASendMessageConfig,
+  A2AStreamCallback,
   OnTaskUpdateEventCallback,
   OnArtifactsEventCallback,
   OnErrorEventCallback,
@@ -16,12 +18,8 @@ import {
   useThread,
   useThreadListItemRuntime,
 } from "@assistant-ui/react";
-import { convertA2AMessages } from "./convertA2AMessages";
-import {
-  A2ASendMessageConfig,
-  A2AStreamCallback,
-  useA2AMessages,
-} from "./useA2AMessages";
+import { convertA2AMessage } from "./convertA2AMessages";
+import { useA2AMessages } from "./useA2AMessages";
 import { AttachmentAdapter } from "@assistant-ui/react";
 import { AppendMessage } from "@assistant-ui/react";
 import { ExternalStoreAdapter } from "@assistant-ui/react";
@@ -62,8 +60,12 @@ const getMessageContent = (msg: AppendMessage) => {
         throw new Error("Tool call appends are not supported.");
 
       default:
-        const _exhaustiveCheck: "reasoning" | "source" | "file" | "audio" =
-          type;
+        const _exhaustiveCheck:
+          | "reasoning"
+          | "source"
+          | "file"
+          | "audio"
+          | "data" = type;
         throw new Error(
           `Unsupported append message part type: ${_exhaustiveCheck}`,
         );
@@ -203,7 +205,7 @@ export const useA2ARuntime = ({
   };
 
   const threadMessages = useExternalMessageConverter({
-    callback: convertA2AMessages,
+    callback: convertA2AMessage,
     messages,
     isRunning,
   });
@@ -279,6 +281,9 @@ export const useA2ARuntime = ({
             )
           : [];
 
+      const config: A2ASendMessageConfig = {};
+      if (contextId !== undefined) config.contextId = contextId;
+      if (msg.runConfig !== undefined) config.runConfig = msg.runConfig;
       return handleSendMessage(
         [
           ...cancellations,
@@ -287,10 +292,7 @@ export const useA2ARuntime = ({
             content: getMessageContent(msg),
           },
         ],
-        {
-          contextId,
-          runConfig: msg.runConfig,
-        },
+        config,
       );
     },
     onAddToolResult: async ({
@@ -301,20 +303,23 @@ export const useA2ARuntime = ({
       artifact,
     }) => {
       // TODO parallel human in the loop calls
+      const message: A2AMessage = {
+        role: "tool",
+        tool_call_id: toolCallId,
+        content: JSON.stringify(result),
+        status: isError
+          ? { type: "incomplete", reason: "error" }
+          : { type: "complete", reason: "stop" },
+      };
+      if (artifact) {
+        message.artifacts = [artifact] as A2AArtifact[];
+      }
+      const config: A2ASendMessageConfig = {};
+      if (contextId !== undefined) config.contextId = contextId;
       await handleSendMessage(
-        [
-          {
-            role: "tool",
-            tool_call_id: toolCallId,
-            content: JSON.stringify(result),
-            artifacts: artifact ? [artifact] : undefined,
-            status: isError
-              ? { type: "incomplete", reason: "error" }
-              : { type: "complete" },
-          },
-        ],
+        [message],
         // TODO reuse runconfig here!
-        { contextId },
+        config,
       );
     },
     onCancel: unstable_allowCancellation
