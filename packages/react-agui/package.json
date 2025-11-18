@@ -24,7 +24,7 @@
     "test:run": "vitest run"
   },
   "dependencies": {
-    "@ag-ui/client": "^0.0.40",
+    "@ag-ui/client": "^0.0.41",
     "assistant-stream": "workspace:*"
   },
   "peerDependencies": {
@@ -40,14 +40,14 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^24.6.2",
-    "@types/react": "^19.2.0",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.5",
     "eslint": "^9",
-    "eslint-config-next": "15.5.4",
+    "eslint-config-next": "16.0.3",
     "react": "19.2.0",
     "tsx": "^4.20.6",
-    "vitest": "^3.2.4",
-    "jsdom": "^27.0.0"
+    "vitest": "^4.0.10",
+    "jsdom": "^27.2.0"
   },
   "publishConfig": {
     "access": "public",

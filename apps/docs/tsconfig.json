@@ -18,7 +18,8 @@
       "@assistant-ui/react/*": ["../../packages/react/src/*"],
       "@assistant-ui/tap/*": ["../../packages/tap/src/*"],
       "assistant-stream": ["../../packages/assistant-stream/src"],
-      "assistant-stream/*": ["../../packages/assistant-stream/src/*"]
+      "assistant-stream/*": ["../../packages/assistant-stream/src/*"],
+      "fumadocs-mdx:collections/*": ["./.source/*"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],

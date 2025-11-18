@@ -9,7 +9,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "@ai-sdk/openai": "^2.0.65",
+    "@ai-sdk/openai": "^2.0.68",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-ai-sdk": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
@@ -19,7 +19,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "jsonwebtoken": "^9.0.2",
-    "lucide-react": "^0.553.0",
+    "lucide-react": "^0.554.0",
     "nanoid": "5.1.6",
     "next": "16.0.3",
     "react": "19.2.0",

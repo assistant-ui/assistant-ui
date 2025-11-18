@@ -11,6 +11,7 @@ import { transformerMetaHighlight } from "@shikijs/transformers";
 import { z } from "zod";
 import { remarkMermaid } from "@theguild/remark-mermaid";
 import { createFileSystemTypesCache } from "fumadocs-twoslash/cache-fs";
+import lastModified from "fumadocs-mdx/plugins/last-modified";
 
 export const docs = defineDocs({
   docs: {
@@ -54,7 +55,7 @@ export const careers = defineCollections({
 });
 
 export default defineConfig({
-  lastModifiedTime: "git",
+  plugins: [lastModified()],
   mdxOptions: {
     remarkPlugins: [remarkMermaid],
     rehypeCodeOptions: {
