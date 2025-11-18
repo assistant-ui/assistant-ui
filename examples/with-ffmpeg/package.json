@@ -9,7 +9,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "@ai-sdk/openai": "^2.0.65",
+    "@ai-sdk/openai": "^2.0.68",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-ai-sdk": "workspace:*",
     "@assistant-ui/react-hook-form": "workspace:*",
@@ -28,11 +28,11 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "json-schema-to-zod": "^2.6.1",
-    "lucide-react": "^0.553.0",
+    "lucide-react": "^0.554.0",
     "next": "16.0.3",
     "react": "19.2.0",
     "react-dom": "19.2.0",
-    "react-hook-form": "^7.66.0",
+    "react-hook-form": "^7.66.1",
     "react-resizable-panels": "^3.0.6",
     "remark-gfm": "^4.0.1",
     "tailwind-merge": "^3.4.0",

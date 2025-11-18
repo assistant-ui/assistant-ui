@@ -15,7 +15,7 @@
     "tailwindStylesheet": "app/globals.css"
   },
   "devDependencies": {
-    "@ai-sdk/openai": "^2.0.65",
+    "@ai-sdk/openai": "^2.0.68",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-ai-sdk": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
@@ -36,7 +36,7 @@
     "ai": "^5.0.93",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^0.553.0",
+    "lucide-react": "^0.554.0",
     "mermaid": "^11.12.1",
     "motion": "^12.23.24",
     "next": "^16",

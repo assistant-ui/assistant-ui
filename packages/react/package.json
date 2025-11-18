@@ -96,7 +96,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.0.3",
     "tsx": "^4.20.6",
-    "vitest": "^4.0.8"
+    "vitest": "^4.0.10"
   },
   "publishConfig": {
     "access": "public",
