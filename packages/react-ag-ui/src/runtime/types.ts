@@ -7,23 +7,23 @@ import type {
 import type { HttpAgent } from "@ag-ui/client";
 import type { Logger } from "./logger";
 
-export type UseAGUIRuntimeAdapters = {
+export type UseAgUiRuntimeAdapters = {
   attachments?: AttachmentAdapter;
   speech?: SpeechSynthesisAdapter;
   feedback?: FeedbackAdapter;
   history?: ThreadHistoryAdapter;
 };
 
-export type UseAGUIRuntimeOptions = {
+export type UseAgUiRuntimeOptions = {
   agent: HttpAgent;
   logger?: Partial<Logger>;
   showThinking?: boolean;
   onError?: (e: Error) => void;
   onCancel?: () => void;
-  adapters?: UseAGUIRuntimeAdapters;
+  adapters?: UseAgUiRuntimeAdapters;
 };
 
-export type AGUIEvent =
+export type AgUiEvent =
   | { type: "RUN_STARTED"; runId: string }
   | { type: "RUN_FINISHED"; runId: string }
   | { type: "RUN_CANCELLED"; runId?: string }

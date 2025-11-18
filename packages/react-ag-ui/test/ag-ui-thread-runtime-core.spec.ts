@@ -7,7 +7,7 @@ import type {
   ThreadMessage,
 } from "@assistant-ui/react";
 import type { HttpAgent } from "@ag-ui/client";
-import { AGUIThreadRuntimeCore } from "../src/runtime/AGUIThreadRuntimeCore";
+import { AgUiThreadRuntimeCore } from "../src/runtime/AgUiThreadRuntimeCore";
 import { makeLogger } from "../src/runtime/logger";
 
 const createAppendMessage = (
@@ -30,7 +30,7 @@ const createCore = (
   agent: HttpAgent,
   hooks: { onError?: (e: Error) => void; onCancel?: () => void } = {},
 ) =>
-  new AGUIThreadRuntimeCore({
+  new AgUiThreadRuntimeCore({
     agent,
     logger: noopLogger,
     showThinking: true,

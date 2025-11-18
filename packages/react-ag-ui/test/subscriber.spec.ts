@@ -1,13 +1,13 @@
 "use client";
 
 import { describe, it, expect, vi } from "vitest";
-import { createAGUISubscriber } from "../src/runtime/adapter/subscriber";
-import type { AGUIEvent } from "../src/runtime/types";
+import { createAgUiSubscriber } from "../src/runtime/adapter/subscriber";
+import type { AgUiEvent } from "../src/runtime/types";
 
-describe("createAGUISubscriber", () => {
+describe("createAgUiSubscriber", () => {
   it("dispatches typed events without duplication", () => {
-    const events: AGUIEvent[] = [];
-    const subscriber = createAGUISubscriber({
+    const events: AgUiEvent[] = [];
+    const subscriber = createAgUiSubscriber({
       dispatch: (evt) => events.push(evt),
       runId: "run",
     });
@@ -25,9 +25,9 @@ describe("createAGUISubscriber", () => {
   });
 
   it("dispatches run error and invokes hook", () => {
-    const events: AGUIEvent[] = [];
+    const events: AgUiEvent[] = [];
     const onRunFailed = vi.fn();
-    const subscriber = createAGUISubscriber({
+    const subscriber = createAgUiSubscriber({
       dispatch: (evt) => events.push(evt),
       runId: "run",
       onRunFailed,

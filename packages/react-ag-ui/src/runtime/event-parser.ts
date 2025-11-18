@@ -1,4 +1,4 @@
-import type { AGUIEvent } from "./types";
+import type { AgUiEvent } from "./types";
 
 const isString = (value: unknown): value is string => typeof value === "string";
 const isNonEmptyString = (value: unknown): value is string =>
@@ -16,7 +16,7 @@ const withOptional = <T extends object>(
     : ({ ...base, ...Object.fromEntries(definedEntries) } as T);
 };
 
-export const parseAGUIEvent = (event: unknown): AGUIEvent | null => {
+export const parseAgUiEvent = (event: unknown): AgUiEvent | null => {
   if (!event || typeof event !== "object") return null;
   const payload = event as Record<string, unknown>;
   const typeValue = payload["type"];

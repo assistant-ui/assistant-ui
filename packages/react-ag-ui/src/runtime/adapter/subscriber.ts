@@ -1,9 +1,9 @@
 "use client";
 
-import type { AGUIEvent } from "../types";
-import { parseAGUIEvent } from "../event-parser";
+import type { AgUiEvent } from "../types";
+import { parseAgUiEvent } from "../event-parser";
 
-type Dispatch = (event: AGUIEvent) => void;
+type Dispatch = (event: AgUiEvent) => void;
 
 type Subscriber = {
   onEvent?: (payload: { event: unknown }) => void;
@@ -32,22 +32,22 @@ type Subscriber = {
 
 const ensureEvent = (
   raw: unknown,
-  type: AGUIEvent["type"],
-): AGUIEvent | null => {
+  type: AgUiEvent["type"],
+): AgUiEvent | null => {
   if (raw && typeof raw === "object") {
     const payload = raw as Record<string, unknown>;
     if (typeof payload["type"] === "string") {
-      return parseAGUIEvent(payload);
+      return parseAgUiEvent(payload);
     }
-    return parseAGUIEvent({ type, ...payload });
+    return parseAgUiEvent({ type, ...payload });
   }
-  return parseAGUIEvent({ type });
+  return parseAgUiEvent({ type });
 };
 
 const dispatchIfValid = (
   dispatch: Dispatch,
   raw: unknown,
-  type: AGUIEvent["type"],
+  type: AgUiEvent["type"],
 ) => {
   const event = ensureEvent(raw, type);
   if (!event) return;
@@ -60,7 +60,7 @@ type SubscriberOptions = {
   onRunFailed?: (error: Error) => void;
 };
 
-export const createAGUISubscriber = (
+export const createAgUiSubscriber = (
   options: SubscriberOptions,
 ): Subscriber => {
   const { dispatch, runId, onRunFailed } = options;
@@ -74,7 +74,7 @@ export const createAGUISubscriber = (
         // Typed handlers will receive this via the discriminated callbacks; avoid duplicates.
         return;
       }
-      const parsed = parseAGUIEvent(event);
+      const parsed = parseAgUiEvent(event);
       if (parsed) dispatch(parsed);
     },
     onTextMessageStartEvent: ({ event }) =>
@@ -126,9 +126,9 @@ export const createAGUISubscriber = (
         type: "RUN_ERROR" as const,
         ...(message !== undefined ? { message } : {}),
         ...(code !== undefined ? { code } : {}),
-      } satisfies AGUIEvent);
+      } satisfies AgUiEvent);
     },
   };
 };
 
-export type AGUISubscriber = ReturnType<typeof createAGUISubscriber>;
+export type AgUiSubscriber = ReturnType<typeof createAgUiSubscriber>;

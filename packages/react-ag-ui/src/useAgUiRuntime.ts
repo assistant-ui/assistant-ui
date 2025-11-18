@@ -13,16 +13,16 @@ import type {
 } from "@assistant-ui/react";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import { makeLogger } from "./runtime/logger";
-import type { UseAGUIRuntimeOptions } from "./runtime/types";
-import { AGUIThreadRuntimeCore } from "./runtime/AGUIThreadRuntimeCore";
+import type { UseAgUiRuntimeOptions } from "./runtime/types";
+import { AgUiThreadRuntimeCore } from "./runtime/AgUiThreadRuntimeCore";
 
-export function useAGUIRuntime(
-  options: UseAGUIRuntimeOptions,
+export function useAgUiRuntime(
+  options: UseAgUiRuntimeOptions,
 ): AssistantRuntime {
   const logger = useMemo(() => makeLogger(options.logger), [options.logger]);
   const [version, setVersion] = useState(0);
   const notifyUpdate = useCallback(() => setVersion((v) => v + 1), []);
-  const coreRef = useRef<AGUIThreadRuntimeCore | null>(null);
+  const coreRef = useRef<AgUiThreadRuntimeCore | null>(null);
   const runtimeAdapters = useRuntimeAdapters();
 
   const attachmentsAdapter =
@@ -32,7 +32,7 @@ export function useAGUIRuntime(
   const feedbackAdapter = options.adapters?.feedback;
 
   if (!coreRef.current) {
-    coreRef.current = new AGUIThreadRuntimeCore({
+    coreRef.current = new AgUiThreadRuntimeCore({
       agent: options.agent,
       logger,
       showThinking: options.showThinking ?? true,

@@ -5,7 +5,7 @@ import type {
   ThreadAssistantMessagePart,
   ToolCallMessagePart,
 } from "@assistant-ui/react";
-import type { AGUIEvent } from "../types";
+import type { AgUiEvent } from "../types";
 import type { Logger } from "../logger";
 
 type Emit = (update: ChatModelRunResult) => void;
@@ -60,7 +60,7 @@ export class RunAggregator {
     this.logger = options.logger;
   }
 
-  handle(event: AGUIEvent): void {
+  handle(event: AgUiEvent): void {
     switch (event.type) {
       case "RUN_STARTED": {
         this.clearTextParts();

@@ -13,11 +13,11 @@ import type {
 } from "@assistant-ui/react";
 import type { HttpAgent } from "@ag-ui/client";
 import type { Logger } from "./logger";
-import type { AGUIEvent } from "./types";
+import type { AgUiEvent } from "./types";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import { RunAggregator } from "./adapter/run-aggregator";
-import { toAGUIMessages, toAGUITools } from "./adapter/conversions";
-import { createAGUISubscriber } from "./adapter/subscriber";
+import { toAgUiMessages, toAgUiTools } from "./adapter/conversions";
+import { createAgUiSubscriber } from "./adapter/subscriber";
 
 type RunConfig = NonNullable<AppendMessage["runConfig"]>;
 type ResumeRunConfig = {
@@ -39,7 +39,7 @@ type CoreOptions = {
 
 const FALLBACK_USER_STATUS = { type: "complete", reason: "unknown" } as const;
 
-export class AGUIThreadRuntimeCore {
+export class AgUiThreadRuntimeCore {
   private agent: HttpAgent;
   private logger: Logger;
   private showThinking: boolean;
@@ -219,7 +219,7 @@ export class AGUIThreadRuntimeCore {
       logger: this.logger,
       emit: (update) => this.updateAssistantMessage(ensureAssistant(), update),
     });
-    const dispatch = (event: AGUIEvent) => this.handleEvent(aggregator, event);
+    const dispatch = (event: AgUiEvent) => this.handleEvent(aggregator, event);
 
     const abortController = new AbortController();
     const abortSignal = abortController.signal;
@@ -235,7 +235,7 @@ export class AGUIThreadRuntimeCore {
       { once: true },
     );
 
-    const subscriber = createAGUISubscriber({
+    const subscriber = createAgUiSubscriber({
       dispatch,
       runId,
       onRunFailed: (error) => {
@@ -281,14 +281,14 @@ export class AGUIThreadRuntimeCore {
     historyMessages: readonly ThreadMessage[] | undefined,
   ) {
     const threadId = "main";
-    const messages = toAGUIMessages(historyMessages ?? this.messages);
+    const messages = toAgUiMessages(historyMessages ?? this.messages);
     const context = this.runtime?.thread.getModelContext();
     return {
       threadId,
       runId,
       state: this.stateSnapshot ?? null,
       messages,
-      tools: toAGUITools(context?.tools),
+      tools: toAgUiTools(context?.tools),
       context: context?.system
         ? [{ description: "system", value: context.system }]
         : [],
@@ -391,7 +391,7 @@ export class AGUIThreadRuntimeCore {
     };
   }
 
-  private handleEvent(aggregator: RunAggregator, event: AGUIEvent) {
+  private handleEvent(aggregator: RunAggregator, event: AgUiEvent) {
     switch (event.type) {
       case "STATE_SNAPSHOT": {
         this.stateSnapshot = event.snapshot as ReadonlyJSONValue;

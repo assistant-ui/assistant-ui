@@ -11,19 +11,19 @@ const generateId = () =>
   (globalThis.crypto as any)?.randomUUID?.() ??
   Math.random().toString(36).slice(2);
 
-type AGUIToolCall = {
+type AgUiToolCall = {
   id: string;
   type: "function";
   function: { name: string; arguments: string };
 };
 
-export type AGUIMessage =
+export type AgUiMessage =
   | {
       id: string;
       role: string;
       content: string;
       name?: string;
-      toolCalls?: AGUIToolCall[];
+      toolCalls?: AgUiToolCall[];
     }
   | {
       id: string;
@@ -62,10 +62,10 @@ const normaliseToolCall = (part: ToolCallPart) => {
   };
 };
 
-export const toAGUIMessages = (
+export const toAgUiMessages = (
   messages: readonly ThreadMessageLike[],
-): AGUIMessage[] => {
-  const converted: AGUIMessage[] = [];
+): AgUiMessage[] => {
+  const converted: AgUiMessage[] = [];
 
   for (const message of messages) {
     const role = message.role;
@@ -147,7 +147,7 @@ const extractText = (content: any): string => {
     .join("\n");
 };
 
-export const toAGUITools = (tools: Record<string, any> | undefined) => {
+export const toAgUiTools = (tools: Record<string, any> | undefined) => {
   if (!tools) return [];
 
   return Object.entries(tools)
