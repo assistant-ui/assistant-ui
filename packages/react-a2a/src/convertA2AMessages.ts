@@ -36,72 +36,73 @@ const contentToParts = (content: A2AMessage["content"]) => {
     .filter((part): part is NonNullable<typeof part> => part !== null);
 };
 
+export const convertA2AMessage = (message: A2AMessage) => {
+  const role = message.role;
+  switch (role) {
+    case "system":
+      return {
+        id: message.id,
+        role: "system" as const,
+        content: [{ type: "text" as const, text: message.content as string }],
+      };
+
+    case "user":
+      return {
+        id: message.id,
+        role: "user" as const,
+        content: contentToParts(message.content),
+      };
+
+    case "assistant": {
+      const toolCallParts: ToolCallMessagePart[] =
+        message.tool_calls?.map((toolCall) => ({
+          type: "tool-call",
+          toolCallId: toolCall.id,
+          toolName: toolCall.name,
+          args: toolCall.args,
+          argsText: toolCall.argsText ?? JSON.stringify(toolCall.args),
+        })) ?? [];
+
+      return {
+        id: message.id,
+        role: "assistant" as const,
+        content: [...contentToParts(message.content), ...toolCallParts],
+        status: message.status,
+      };
+    }
+
+    case "tool":
+      return {
+        id: message.id,
+        role: "user" as const,
+        content: [
+          {
+            type: "tool-call" as const,
+            toolCallId: message.tool_call_id!,
+            toolName: "", // A2A doesn't store tool name in tool messages
+            result: JSON.parse(message.content as string),
+            isError:
+              message.status?.type === "incomplete" &&
+              message.status?.reason === "error",
+          },
+        ],
+      };
+
+    default:
+      const _exhaustiveCheck: never = role;
+      throw new Error(`Unknown message role: ${_exhaustiveCheck}`);
+  }
+};
+
 export const convertA2AMessages = (messages: A2AMessage[]) =>
-  messages
-    .map((message, index) => {
-      const role = message.role;
-      switch (role) {
-        case "system":
-          return {
-            id: message.id ?? `${index}`,
-            role: "system" as const,
-            content: [
-              { type: "text" as const, text: message.content as string },
-            ],
-          };
+  messages.map(convertA2AMessage);
 
-        case "user":
-          return {
-            id: message.id ?? `${index}`,
-            role: "user" as const,
-            content: contentToParts(message.content),
-          };
-
-        case "assistant": {
-          const toolCallParts: ToolCallMessagePart[] =
-            message.tool_calls?.map((toolCall) => ({
-              type: "tool-call",
-              toolCallId: toolCall.id,
-              toolName: toolCall.name,
-              args: toolCall.args,
-              argsText: toolCall.argsText,
-            })) ?? [];
-
-          return {
-            id: message.id ?? `${index}`,
-            role: "assistant" as const,
-            content: [...contentToParts(message.content), ...toolCallParts],
-            status: message.status,
-          };
-        }
-
-        case "tool":
-          return {
-            id: message.id ?? `${index}`,
-            role: "user" as const,
-            content: [
-              {
-                type: "tool-result" as const,
-                toolCallId: message.tool_call_id!,
-                result: JSON.parse(message.content as string),
-                isError:
-                  message.status?.type === "incomplete" &&
-                  message.status?.reason === "error",
-              },
-            ],
-          };
-
-        default:
-          const _exhaustiveCheck: never = role;
-          throw new Error(`Unknown message role: ${_exhaustiveCheck}`);
-      }
-    })
-    .filter(
-      (message): message is NonNullable<typeof message> => message !== null,
-    );
-
-export const useA2AMessageConverter = (messages: A2AMessage[]) =>
+export const useA2AMessageConverter = (
+  messages: A2AMessage[],
+  isRunning: boolean,
+) =>
   useExternalMessageConverter({
-    callback: convertA2AMessages,
+    callback: convertA2AMessage,
     messages,
+    isRunning,
   });

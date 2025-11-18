@@ -54,7 +54,7 @@ export const appendA2AChunk = (
         );
         if (existingIndex >= 0) {
           // Update existing tool call (merge args if needed)
-          const existing = newToolCalls[existingIndex];
+          const existing = newToolCalls[existingIndex]!;
           newToolCalls[existingIndex] = {
             ...existing,
             ...toolCall,
@@ -84,9 +84,10 @@ export const appendA2AChunk = (
         );
         if (existingIndex >= 0) {
           // Merge artifact parts
+          const existingArtifact = newArtifacts[existingIndex]!;
           newArtifacts[existingIndex] = {
-            ...newArtifacts[existingIndex],
-            parts: [...newArtifacts[existingIndex].parts, ...artifact.parts],
+            name: existingArtifact.name,
+            parts: [...existingArtifact.parts, ...artifact.parts],
           };
         } else {
           // Add new artifact
@@ -95,24 +96,26 @@ export const appendA2AChunk = (
       }
     }
 
-    return {
+    const result: A2AMessage = {
       ...prev,
       content: newContent,
-      tool_calls: newToolCalls.length > 0 ? newToolCalls : undefined,
-      artifacts: newArtifacts.length > 0 ? newArtifacts : undefined,
-      status: curr.status || prev.status,
     };
+    const newStatus = curr.status || prev.status;
+    if (newStatus) result.status = newStatus;
+    if (newToolCalls.length > 0) result.tool_calls = newToolCalls;
+    if (newArtifacts.length > 0) result.artifacts = newArtifacts;
+    return result;
   }
 
   // For other message types (user, system, tool), just return the current message
   // as they typically don't stream in chunks
-  return {
+  const result: A2AMessage = {
     ...prev,
     ...curr,
-    // Preserve any existing artifacts and merge with new ones
-    artifacts:
-      curr.artifacts || prev.artifacts
-        ? [...(prev.artifacts ?? []), ...(curr.artifacts ?? [])]
-        : undefined,
   };
+  // Preserve any existing artifacts and merge with new ones
+  if (curr.artifacts || prev.artifacts) {
+    result.artifacts = [...(prev.artifacts ?? []), ...(curr.artifacts ?? [])];
+  }
+  return result;
 };

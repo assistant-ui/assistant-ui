@@ -7,6 +7,7 @@ import {
   A2ATaskState,
   A2AArtifact,
   A2ASendMessageConfig,
+  A2AStreamCallback,
   OnTaskUpdateEventCallback,
   OnArtifactsEventCallback,
   OnErrorEventCallback,
@@ -15,13 +16,6 @@ import {
 } from "./types";
 
 export type A2AMessagesEvent<_TMessage> = A2AEvent;
-
-export type A2AStreamCallback<TMessage> = (
-  messages: TMessage[],
-  config: A2ASendMessageConfig & { abortSignal: AbortSignal },
-) =>
-  | Promise<AsyncGenerator<A2AMessagesEvent<TMessage>>>
-  | AsyncGenerator<A2AMessagesEvent<TMessage>>;
 
 const DEFAULT_APPEND_MESSAGE = <TMessage>(
   _: TMessage | undefined,
