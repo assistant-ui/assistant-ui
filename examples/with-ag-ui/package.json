@@ -1,5 +1,5 @@
 {
-  "name": "with-agui",
+  "name": "with-ag-ui",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -12,7 +12,7 @@
     "@ai-sdk/openai": "^2.0.68",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
-    "@assistant-ui/react-agui": "workspace:*",
+    "@assistant-ui/react-ag-ui": "workspace:*",
     "@ag-ui/client": "^0.0.41",
     "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-tooltip": "^1.2.8",

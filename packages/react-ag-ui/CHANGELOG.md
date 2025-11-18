@@ -1,4 +1,4 @@
-# @assistant-ui/react-agui
+# @assistant-ui/react-ag-ui
 
 ## 0.0.1
 

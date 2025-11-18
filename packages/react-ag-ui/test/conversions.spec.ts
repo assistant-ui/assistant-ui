@@ -2,13 +2,13 @@
 
 import { describe, it, expect } from "vitest";
 import {
-  toAGUIMessages,
-  toAGUITools,
+  toAgUiMessages,
+  toAgUiTools,
 } from "../src/runtime/adapter/conversions";
 
 describe("adapter conversions", () => {
   it("converts thread messages to AG-UI format", () => {
-    const result = toAGUIMessages([
+    const result = toAgUiMessages([
       {
         id: "1",
         role: "user",
@@ -39,7 +39,7 @@ describe("adapter conversions", () => {
   });
 
   it("marks errored tool call results with error content", () => {
-    const result = toAGUIMessages([
+    const result = toAgUiMessages([
       {
         id: "assistant-1",
         role: "assistant",
@@ -66,7 +66,7 @@ describe("adapter conversions", () => {
   });
 
   it("includes tool messages for completed tool calls", () => {
-    const result = toAGUIMessages([
+    const result = toAgUiMessages([
       {
         id: "assistant-1",
         role: "assistant",
@@ -102,7 +102,7 @@ describe("adapter conversions", () => {
   });
 
   it("filters disabled/back-end tools", () => {
-    const tools = toAGUITools({
+    const tools = toAgUiTools({
       search: { description: "Search", parameters: { type: "object" } },
       disabled: { disabled: true },
       backend: { type: "backend" },
@@ -113,7 +113,7 @@ describe("adapter conversions", () => {
   });
 
   it("prefers available schema conversion helpers for tools", () => {
-    const tools = toAGUITools({
+    const tools = toAgUiTools({
       jsonTool: { parameters: { toJSON: () => ({ type: "object" }) } },
       schemaTool: { parameters: { toJSONSchema: () => ({ type: "string" }) } },
       plain: { parameters: { type: "boolean" } },

@@ -3,7 +3,7 @@
 import React, { useMemo } from "react";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { HttpAgent } from "@ag-ui/client";
-import { useAGUIRuntime } from "@assistant-ui/react-agui";
+import { useAgUiRuntime } from "@assistant-ui/react-ag-ui";
 
 /**
  * Minimal example: instantiate AG-UI runtime and provide to Assistant UI.
@@ -24,7 +24,7 @@ export function MyRuntimeProvider({
     });
   }, [agentUrl]);
 
-  const runtime = useAGUIRuntime({
+  const runtime = useAgUiRuntime({
     agent,
     logger: {
       debug: (...a: any[]) => console.debug("[agui]", ...a),

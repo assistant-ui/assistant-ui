@@ -1,5 +1,5 @@
 {
-  "name": "@assistant-ui/react-agui",
+  "name": "@assistant-ui/react-ag-ui",
   "version": "0.0.1",
   "license": "MIT",
   "type": "module",
@@ -55,7 +55,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/assistant-ui/assistant-ui/tree/main/packages/react-agui"
+    "url": "https://github.com/assistant-ui/assistant-ui/tree/main/packages/react-ag-ui"
   },
   "bugs": {
     "url": "https://github.com/assistant-ui/assistant-ui/issues"
