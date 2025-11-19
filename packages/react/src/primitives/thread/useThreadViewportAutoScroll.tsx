@@ -16,6 +16,7 @@ export namespace useThreadViewportAutoScroll {
 }
 
 const USER_MESSAGE_TOP_PADDING = 16;
+const BASE_SPACER_MIN_HEIGHT = 8;
 
 export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   autoScroll = true,
@@ -29,6 +30,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   // bug: when ScrollToBottom's button changes its disabled state, the scroll stops
   // fix: delay the state change until the scroll is done
   const isScrollingToBottomRef = useRef(false);
+  const baseSpacerMinHeightRef = useRef<number | null>(null);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior) => {
     const div = divRef.current;
@@ -38,12 +40,67 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     div.scrollTo({ top: div.scrollHeight, behavior });
   }, []);
 
+  const updateSpacerForAnchor = useCallback(
+    (element: HTMLElement) => {
+      const div = divRef.current;
+      if (!div) return;
+
+      const spacer = div.querySelector<HTMLElement>(
+        ".aui-thread-viewport-spacer",
+      );
+      if (!spacer) return;
+
+      const scrollHeight = div.scrollHeight;
+      const clientHeight = div.clientHeight;
+
+      const elementRect = element.getBoundingClientRect();
+      const divRect = div.getBoundingClientRect();
+      const anchorTop = elementRect.top - divRect.top + div.scrollTop;
+
+      const requiredSlack = Math.max(
+        0,
+        clientHeight - USER_MESSAGE_TOP_PADDING,
+      );
+
+      const currentSlack = scrollHeight - anchorTop;
+      const extraNeeded = requiredSlack - currentSlack;
+
+      const style = getComputedStyle(spacer);
+      const currentMin = parseFloat(style.minHeight) || 0;
+
+      if (baseSpacerMinHeightRef.current == null) {
+        baseSpacerMinHeightRef.current = Math.max(
+          BASE_SPACER_MIN_HEIGHT,
+          currentMin,
+        );
+      }
+      const baseMin = baseSpacerMinHeightRef.current ?? BASE_SPACER_MIN_HEIGHT;
+
+      if (extraNeeded > 1) {
+        const nextMin = currentMin + extraNeeded;
+        spacer.style.minHeight = `${nextMin}px`;
+        return;
+      }
+
+      if (extraNeeded < -1) {
+        const nextMin = Math.max(baseMin, currentMin + extraNeeded);
+        if (nextMin < currentMin - 0.5) {
+          spacer.style.minHeight = `${nextMin}px`;
+        }
+      }
+    },
+    [],
+  );
+
   const scrollToUserMessage = useCallback(
     (element: HTMLElement, behavior: ScrollBehavior = "instant") => {
       const div = divRef.current;
       if (!div || !element) return;
 
       isScrollingToBottomRef.current = false;
+
+      // Ensure the spacer provides just enough slack for this anchor.
+      updateSpacerForAnchor(element);
 
       // Compute the desired scrollTop so the user message sits near the top.
       const elementRect = element.getBoundingClientRect();
@@ -71,7 +128,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
         isInReadingPosition: true,
       });
     },
-    [threadViewportStore],
+    [threadViewportStore, updateSpacerForAnchor],
   );
 
   const handleScroll = useCallback(
@@ -89,7 +146,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
         Math.abs(div.scrollHeight - div.scrollTop - div.clientHeight) < 1 ||
         div.scrollHeight <= div.clientHeight;
 
-      let newIsAtBottom = rawIsAtBottom;
+      const newIsAtBottom = rawIsAtBottom;
       let newIsInReadingPosition = state.isInReadingPosition;
 
       // Any meaningful user scroll exits "reading position"
@@ -135,6 +192,16 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     if (!div) return;
 
     const state = threadViewportStore.getState();
+
+    if (state.isInReadingPosition) {
+      const userMessages = div.querySelectorAll<HTMLElement>(
+        '[data-aui-message-role="user"]',
+      );
+      const lastUserMessage = userMessages[userMessages.length - 1];
+      if (lastUserMessage) {
+        updateSpacerForAnchor(lastUserMessage);
+      }
+    }
 
     if (
       autoScroll &&
