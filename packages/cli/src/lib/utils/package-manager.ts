@@ -38,20 +38,26 @@ export function isPackageInstalled(
   return fs.existsSync(modulePath);
 }
 
+export interface InstallCommand {
+  command: string;
+  args: string[];
+}
+
 export async function getInstallCommand(
-  packageName: string,
+  packageName: string | string[],
   cwd?: string,
-): Promise<string> {
+): Promise<InstallCommand> {
   const pm = await detect({ cwd });
+  const packages = Array.isArray(packageName) ? packageName : [packageName];
   switch (pm) {
     case "yarn":
-      return `yarn add ${packageName}`;
+      return { command: "yarn", args: ["add", ...packages] };
     case "pnpm":
-      return `pnpm add ${packageName}`;
+      return { command: "pnpm", args: ["add", ...packages] };
     case "bun":
-      return `bun add ${packageName}`;
+      return { command: "bun", args: ["add", ...packages] };
     default:
-      return `npm install ${packageName}`;
+      return { command: "npm", args: ["install", ...packages] };
   }
 }
 
@@ -60,8 +66,8 @@ export async function installPackage(
   cwd?: string,
 ): Promise<boolean> {
   try {
-    const cmd = await getInstallCommand(packageName, cwd);
-    execSync(cmd, { stdio: "inherit", cwd });
+    const { command, args } = await getInstallCommand(packageName, cwd);
+    execSync([command, ...args].join(" "), { stdio: "inherit", cwd });
     return true;
   } catch (e) {
     console.error("Installation failed:", e);

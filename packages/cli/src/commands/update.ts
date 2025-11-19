@@ -52,24 +52,22 @@ export const update = new Command()
     logger.break();
 
     // Build command using the utility
-    const baseCmd = await getInstallCommand(
-      targets.map((d) => `${d}@latest`).join(" "),
+    const installCmd = await getInstallCommand(
+      targets.map((d) => `${d}@latest`),
       opts.cwd,
     );
 
     if (opts.dry) {
       logger.info("Dry run: would run the following command:");
-      console.log(`  ${baseCmd}`);
+      console.log(`  ${installCmd.command} ${installCmd.args.join(" ")}`);
       return;
     }
 
     logger.step("Updating packages...");
-    const [cmd, ...args] = baseCmd.split(" ");
-    if (!cmd) {
-      logger.error("Failed to determine package manager command.");
-      process.exit(1);
-    }
-    const result = spawnSync(cmd, args, { stdio: "inherit", cwd: opts.cwd });
+    const result = spawnSync(installCmd.command, installCmd.args, {
+      stdio: "inherit",
+      cwd: opts.cwd,
+    });
 
     if (result.status !== 0) {
       logger.error("Package manager update failed.");

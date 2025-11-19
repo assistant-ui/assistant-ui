@@ -1,37 +1,17 @@
-import { scanForImport } from "./utils/file-scanner";
-import {
-  isPackageInstalled,
-  askQuestion,
-  installPackage,
-} from "./utils/package-manager";
+import { installPackageIfNeeded } from "./utils/package-installer";
 
 export default async function installEdgeLib(): Promise<void> {
-  // Check for Edge Runtime-related imports or usage
-  const hasUseChatRuntime = scanForImport([
-    "@assistant-ui/react-edge",
-    "@assistant-ui/react-ai-sdk",
-    "useChatRuntime",
-  ]);
-
-  if (!hasUseChatRuntime) {
-    console.log("No Edge Runtime imports found; skipping installation.");
-    return;
-  }
-
-  if (isPackageInstalled("@assistant-ui/react-ai-sdk")) {
-    console.log(
+  await installPackageIfNeeded({
+    packageName: "@assistant-ui/react-ai-sdk",
+    importPatterns: [
+      "@assistant-ui/react-edge",
+      "@assistant-ui/react-ai-sdk",
+      "useChatRuntime",
+    ],
+    promptMessage:
+      "Edge Runtime imports were detected but @assistant-ui/react-ai-sdk is not installed. Do you want to install it? (Y/n) ",
+    skipMessage:
       "@assistant-ui/react-ai-sdk is already installed. Skipping installation.",
-    );
-    return;
-  }
-
-  const answer = await askQuestion(
-    "Edge Runtime imports were detected but @assistant-ui/react-ai-sdk is not installed. Do you want to install it? (Y/n) ",
-  );
-
-  if (answer === "" || answer.toLowerCase().startsWith("y")) {
-    await installPackage("@assistant-ui/react-ai-sdk");
-  } else {
-    console.log("Skipping installation.");
-  }
+    notFoundMessage: "No Edge Runtime imports found; skipping installation.",
+  });
 }

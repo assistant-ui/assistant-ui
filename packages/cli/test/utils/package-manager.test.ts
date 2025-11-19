@@ -96,19 +96,14 @@ describe("package-manager utilities", () => {
   describe("getInstallCommand", () => {
     it("should return an install command", async () => {
       const cmd = await getInstallCommand("test-package", testDir);
-      // Should contain the package name and one of the common package manager commands
-      expect(cmd).toContain("test-package");
-      expect(
-        cmd.includes("npm") ||
-          cmd.includes("pnpm") ||
-          cmd.includes("yarn") ||
-          cmd.includes("bun"),
-      ).toBe(true);
+
+      expect(cmd.args).toContain("test-package");
+      expect(["npm", "pnpm", "yarn", "bun"]).toContain(cmd.command);
     });
 
     it("should include package name in command", async () => {
       const cmd = await getInstallCommand("my-awesome-package", testDir);
-      expect(cmd).toContain("my-awesome-package");
+      expect(cmd.args).toContain("my-awesome-package");
     });
   });
 });
