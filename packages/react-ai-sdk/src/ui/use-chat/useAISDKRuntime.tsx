@@ -4,15 +4,15 @@ import { useState, useMemo } from "react";
 import type { UIMessage, useChat, CreateUIMessage } from "@ai-sdk/react";
 import {
   useExternalStoreRuntime,
-  ExternalStoreAdapter,
-  ThreadHistoryAdapter,
-  AssistantRuntime,
-  ThreadMessage,
-  MessageFormatAdapter,
+  type ExternalStoreAdapter,
+  type ThreadHistoryAdapter,
+  type AssistantRuntime,
+  type ThreadMessage,
+  type MessageFormatAdapter,
   useRuntimeAdapters,
   INTERNAL,
   type ToolExecutionStatus,
-  AppendMessage,
+  type AppendMessage,
 } from "@assistant-ui/react";
 import { sliceMessagesUntil } from "../utils/sliceMessagesUntil";
 import { toCreateMessage } from "../utils/toCreateMessage";
@@ -27,10 +27,14 @@ import { vercelAttachmentAdapter } from "../utils/vercelAttachmentAdapter";
 import { getVercelAIMessages } from "../getVercelAIMessages";
 import { AISDKMessageConverter } from "../utils/convertMessage";
 import {
-  AISDKStorageFormat,
+  type AISDKStorageFormat,
   aiSDKV5FormatAdapter,
 } from "../adapters/aiSDKFormatAdapter";
 import { useExternalHistory } from "./useExternalHistory";
+
+type PendingHumanTool = {
+  readonly toolCallId: string;
+};
 
 export type AISDKRuntimeAdapter = {
   adapters?:
@@ -50,7 +54,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
 ) => {
   const contextAdapters = useRuntimeAdapters();
   const isRunning =
-    chatHelpers.status === "submitted" || chatHelpers.status == "streaming";
+    chatHelpers.status === "submitted" || chatHelpers.status === "streaming";
 
   const [toolStatuses, setToolStatuses] = useState<
     Record<string, ToolExecutionStatus>
@@ -80,7 +84,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       isRunning,
     },
     getTools: () => runtimeRef.current.thread.getModelContext().tools,
-    onResult: (command: any) => {
+    onResult: (command) => {
       if (command.type === "add-tool-result") {
         chatHelpers.addToolResult({
           tool: command.toolName,
@@ -129,6 +133,41 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       toolInvocations.abort();
     },
     onNew: async (message) => {
+      const pendingHumanTools: PendingHumanTool[] = Object.entries(toolStatuses)
+        .filter(
+          (
+            entry,
+          ): entry is [
+            string,
+            Extract<ToolExecutionStatus, { type: "interrupt" }>,
+          ] => entry[1]?.type === "interrupt",
+        )
+        .map(([toolCallId]) => ({ toolCallId }));
+
+      pendingHumanTools.forEach(({ toolCallId }) => {
+        chatHelpers.addToolOutput({
+          state: "output-available",
+          tool: toolCallId,
+          toolCallId,
+          output: {
+            _type: "assistant-ui/auto-completed-tool",
+            reason:
+              "User sent a new message instead of interacting with the tool UI.",
+          },
+        });
+      });
+
+      // Clean up auto-completed tool statuses
+      if (pendingHumanTools.length > 0) {
+        setToolStatuses((prev) => {
+          const next = { ...prev };
+          pendingHumanTools.forEach(({ toolCallId }) => {
+            delete next[toolCallId];
+          });
+          return next;
+        });
+      }
+
       const createMessage = (
         customToCreateMessage ?? toCreateMessage
       )<UI_MESSAGE>(message);
