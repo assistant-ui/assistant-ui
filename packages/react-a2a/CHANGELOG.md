@@ -1,6 +1,6 @@
-# @assistant-ui/react-ag-ui
+# @assistant-ui/react-a2a
 
-## 0.0.2
+## 0.1.1
 
 ### Patch Changes
 
@@ -8,10 +8,3 @@
 - Updated dependencies [2c33091]
   - assistant-stream@0.2.41
   - @assistant-ui/react@0.11.40
-
-## 0.0.1
-
-### Patch Changes
-
-- Updated dependencies [ef58020]
-  - assistant-stream@0.2.40

@@ -1,5 +1,11 @@
 # tw-shimmer
 
+## 0.2.1
+
+### Patch Changes
+
+- 2c33091: chore: update deps
+
 ## 0.2.0
 
 ### Minor Changes
