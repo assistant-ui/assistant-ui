@@ -33,9 +33,13 @@ export const codemodCommand = addTransformOptions(
 ).action((codemod, source, options: TransformOptions) => {
   try {
     transform(codemod, source, options);
-  } catch (err: any) {
-    error(`Error transforming: ${err}`);
-    error(err.stack);
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    const errorStack = err instanceof Error ? err.stack : undefined;
+    error(`Error transforming: ${errorMessage}`);
+    if (errorStack) {
+      error(errorStack);
+    }
     process.exit(1);
   }
 });
@@ -47,9 +51,13 @@ export const upgradeCommand = addTransformOptions(
 ).action((options: TransformOptions) => {
   try {
     upgrade(options);
-  } catch (err: any) {
-    error(`Error upgrading: ${err}`);
-    error(err.stack);
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    const errorStack = err instanceof Error ? err.stack : undefined;
+    error(`Error upgrading: ${errorMessage}`);
+    if (errorStack) {
+      error(errorStack);
+    }
     process.exit(1);
   }
 });
