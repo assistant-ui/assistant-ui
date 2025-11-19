@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.11.41
+
+### Patch Changes
+
+- 08430e8: feat(assistant-transport): support command enqueue inside onError/onCancel
+  feat(assistant-transport): cancel queued commands on error
+
 ## 0.11.40
 
 ### Patch Changes
