@@ -6,15 +6,12 @@ import {
 } from "./utils/package-manager";
 
 export default async function installEdgeLib(): Promise<void> {
-  // Check for both old and new import patterns
-  const found = scanForImport([
+  // Check for Edge Runtime-related imports or usage
+  const hasUseChatRuntime = scanForImport([
     "@assistant-ui/react-edge",
     "@assistant-ui/react-ai-sdk",
+    "useChatRuntime",
   ]);
-
-  // Also check for the specific useChatRuntime pattern
-  const hasUseChatRuntime =
-    found || scanForImport(["useChatRuntime", "@assistant-ui/react-ai-sdk"]);
 
   if (!hasUseChatRuntime) {
     console.log("No Edge Runtime imports found; skipping installation.");

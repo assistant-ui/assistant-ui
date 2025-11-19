@@ -151,11 +151,15 @@ describe("file-scanner utilities", () => {
 
       // Create a directory with the same name as a file pattern would match
       // This tests the error handling
+      const unreadableDir = path.join(testDir, "unreadable.ts");
+      fs.mkdirSync(unreadableDir);
+
       const result = getFilesContaining("@assistant-ui/react", {
         cwd: testDir,
       });
 
       expect(result).toContain(file1);
+      expect(result).not.toContain(unreadableDir);
     });
   });
 });

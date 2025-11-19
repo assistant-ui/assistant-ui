@@ -54,6 +54,7 @@ export const update = new Command()
     // Build command using the utility
     const baseCmd = await getInstallCommand(
       targets.map((d) => `${d}@latest`).join(" "),
+      opts.cwd,
     );
 
     if (opts.dry) {
@@ -63,11 +64,12 @@ export const update = new Command()
     }
 
     logger.step("Updating packages...");
-    const result = spawnSync(baseCmd, {
-      shell: true,
-      stdio: "inherit",
-      cwd: opts.cwd,
-    });
+    const [cmd, ...args] = baseCmd.split(" ");
+    if (!cmd) {
+      logger.error("Failed to determine package manager command.");
+      process.exit(1);
+    }
+    const result = spawnSync(cmd, args, { stdio: "inherit", cwd: opts.cwd });
 
     if (result.status !== 0) {
       logger.error("Package manager update failed.");

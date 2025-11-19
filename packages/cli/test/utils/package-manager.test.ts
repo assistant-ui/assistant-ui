@@ -95,7 +95,7 @@ describe("package-manager utilities", () => {
 
   describe("getInstallCommand", () => {
     it("should return an install command", async () => {
-      const cmd = await getInstallCommand("test-package");
+      const cmd = await getInstallCommand("test-package", testDir);
       // Should contain the package name and one of the common package manager commands
       expect(cmd).toContain("test-package");
       expect(
@@ -107,7 +107,7 @@ describe("package-manager utilities", () => {
     });
 
     it("should include package name in command", async () => {
-      const cmd = await getInstallCommand("my-awesome-package");
+      const cmd = await getInstallCommand("my-awesome-package", testDir);
       expect(cmd).toContain("my-awesome-package");
     });
   });

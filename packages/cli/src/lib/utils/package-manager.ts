@@ -1,8 +1,8 @@
-import * as fs from "fs";
-import * as path from "path";
-import { execSync } from "child_process";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { execSync } from "node:child_process";
 import { detect } from "detect-package-manager";
-import * as readline from "readline";
+import * as readline from "node:readline";
 
 export function askQuestion(query: string): Promise<string> {
   return new Promise((resolve) => {
@@ -38,8 +38,11 @@ export function isPackageInstalled(
   return fs.existsSync(modulePath);
 }
 
-export async function getInstallCommand(packageName: string): Promise<string> {
-  const pm = await detect();
+export async function getInstallCommand(
+  packageName: string,
+  cwd?: string,
+): Promise<string> {
+  const pm = await detect({ cwd });
   switch (pm) {
     case "yarn":
       return `yarn add ${packageName}`;
@@ -52,10 +55,13 @@ export async function getInstallCommand(packageName: string): Promise<string> {
   }
 }
 
-export async function installPackage(packageName: string): Promise<boolean> {
+export async function installPackage(
+  packageName: string,
+  cwd?: string,
+): Promise<boolean> {
   try {
-    const cmd = await getInstallCommand(packageName);
-    execSync(cmd, { stdio: "inherit" });
+    const cmd = await getInstallCommand(packageName, cwd);
+    execSync(cmd, { stdio: "inherit", cwd });
     return true;
   } catch (e) {
     console.error("Installation failed:", e);
