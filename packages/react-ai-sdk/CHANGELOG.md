@@ -1,5 +1,16 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.1.12
+
+### Patch Changes
+
+- faed815: feat: AI SDK error toolOutput support
+- 2c33091: chore: update deps
+- Updated dependencies [2c33091]
+  - assistant-stream@0.2.41
+  - assistant-cloud@0.1.8
+  - @assistant-ui/react@0.11.40
+
 ## 1.1.11
 
 ### Patch Changes

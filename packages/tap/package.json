@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/tap",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "type": "module",
   "description": "Zero-dependency reactive state management inspired by React hooks",
   "main": "dist/index.js",

@@ -1,5 +1,11 @@
 # @assistant-ui/mcp-docs-server
 
+## 0.1.14
+
+### Patch Changes
+
+- 2c33091: chore: update deps
+
 ## 0.1.13
 
 ### Patch Changes
