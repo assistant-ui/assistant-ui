@@ -9,6 +9,7 @@ import {
 } from "./types";
 import {
   AssistantCloud,
+  unstable_RemoteThreadListAdapter,
   unstable_useCloudThreadListAdapter,
   unstable_useRemoteThreadListRuntime,
   useAssistantApi,
@@ -179,6 +180,12 @@ type UseLangGraphRuntimeOptions = {
         onCustomEvent?: OnCustomEventCallback;
       }
     | undefined;
+  /**
+   * Custom adapter for thread list management.
+   * If provided, this adapter will be used instead of the cloud adapter.
+   * Use this when you need custom thread storage (e.g., your own LangGraph backend).
+   */
+  remoteThreadListAdapter?: unstable_RemoteThreadListAdapter;
   cloud?: AssistantCloud | undefined;
 };
 
@@ -308,19 +315,29 @@ const useLangGraphRuntimeImpl = ({
       : undefined,
   });
 
+  // Track externalId reactively using useAssistantState
+  const externalId = useAssistantState(
+    (state) => state.threadListItem?.externalId,
+  );
+
   {
     const loadingRef = useRef(false);
+    const lastLoadedIdRef = useRef<string | undefined>(undefined);
+
     useEffect(() => {
       if (!loadThread || loadingRef.current) return;
+      if (!externalId) return;
 
-      const externalId = runtime.threads.mainItem.getState().externalId;
-      if (externalId) {
-        loadingRef.current = true;
-        loadThread(externalId).finally(() => {
-          loadingRef.current = false;
-        });
-      }
-    }, [loadThread, runtime]);
+      // Only load if the externalId has changed
+      if (lastLoadedIdRef.current === externalId) return;
+
+      loadingRef.current = true;
+      lastLoadedIdRef.current = externalId;
+
+      loadThread(externalId).finally(() => {
+        loadingRef.current = false;
+      });
+    }, [loadThread, externalId]);
   }
 
   return runtime;
@@ -330,6 +347,7 @@ export const useLangGraphRuntime = ({
   cloud,
   create,
   delete: deleteFn,
+  remoteThreadListAdapter,
   ...options
 }: UseLangGraphRuntimeOptions) => {
   const api = useAssistantApi();
@@ -350,10 +368,14 @@ export const useLangGraphRuntime = ({
     },
     delete: deleteFn,
   });
+
+  // Use custom adapter if provided, otherwise use cloud adapter
+  const adapter = remoteThreadListAdapter ?? cloudAdapter;
+
   return unstable_useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
       return useLangGraphRuntimeImpl(options);
     },
-    adapter: cloudAdapter,
+    adapter,
   });
 };
