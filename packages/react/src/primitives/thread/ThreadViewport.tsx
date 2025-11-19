@@ -41,13 +41,6 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
   );
 
   const isRunning = useAssistantState(({ thread }) => thread.isRunning);
-  const lastUserMessageId = useAssistantState(({ thread }) => {
-    for (let i = thread.messages.length - 1; i >= 0; i -= 1) {
-      const message = thread.messages[i]!;
-      if (message.role === "user") return message.id;
-    }
-    return undefined;
-  });
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior) => {
     const viewport = viewportRef.current;
@@ -55,26 +48,17 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
     viewport.scrollTo({ top: viewport.scrollHeight, behavior });
   }, []);
 
-  const scrollToUserMessage = useCallback((messageId?: string) => {
+  const scrollToLastUserMessage = useCallback(() => {
     const viewport = viewportRef.current;
     if (!viewport) return false;
 
-    let target: HTMLElement | null = null;
-    if (messageId) {
-      const escapedId =
-        typeof CSS !== "undefined" && CSS.escape
-          ? CSS.escape(messageId)
-          : messageId;
-      target = viewport.querySelector<HTMLElement>(
-        `[data-thread-message-id='${escapedId}']`,
-      );
-    } else {
-      // Only fallback if no ID provided
-      const userMessages = viewport.querySelectorAll<HTMLElement>(
-        "[data-thread-message-role='user']",
-      );
-      target = userMessages.item(userMessages.length - 1) ?? null;
-    }
+    // TODO: Expose last user message reference through api
+    const len = viewport.children.length;
+    // 1. Composer
+    // 2. Spacer
+    // 3. Last assistant message
+    // 4. Last user message
+    const target = viewport.children.item(len - 4) as HTMLElement | null;
 
     if (!target) return false;
 
@@ -95,13 +79,13 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
   }, []);
 
   useEffect(() => {
-    if (!autoScroll || !isRunning || !lastUserMessageId) return undefined;
+    if (!autoScroll || !isRunning) return undefined;
 
     let retries = 0;
     let rafId: number;
 
     const attemptScroll = () => {
-      if (scrollToUserMessage(lastUserMessageId)) return;
+      if (scrollToLastUserMessage()) return;
 
       if (retries < 10) {
         retries++;
@@ -114,13 +98,7 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
     rafId = requestAnimationFrame(attemptScroll);
 
     return () => cancelAnimationFrame(rafId);
-  }, [
-    autoScroll,
-    isRunning,
-    lastUserMessageId,
-    scrollToBottom,
-    scrollToUserMessage,
-  ]);
+  }, [autoScroll, isRunning, scrollToBottom, scrollToLastUserMessage]);
 
   return (
     <Primitive.div {...rest} ref={ref}>
