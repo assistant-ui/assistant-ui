@@ -43,6 +43,7 @@ export const Thread: FC = () => {
           className="aui-root aui-thread-root @container flex h-full flex-col bg-background"
           style={{
             ["--thread-max-width" as string]: "44rem",
+            containerType: "size",
           }}
         >
           <ThreadPrimitive.Viewport className="aui-thread-viewport relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll px-4">
@@ -231,7 +232,7 @@ const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root asChild>
       <div
-        className="aui-assistant-message-root relative mx-auto w-full max-w-[var(--thread-max-width)] animate-in py-4 duration-150 ease-out fade-in slide-in-from-bottom-1 last:mb-24"
+        className="aui-assistant-message-root relative mx-auto min-h-[calc(100cqh-150px)] w-full max-w-[var(--thread-max-width)] shrink-0 animate-in border border-red-500 py-4 duration-150 ease-out fade-in slide-in-from-bottom-1 last:mb-24"
         data-role="assistant"
       >
         <div className="aui-assistant-message-content mx-2 leading-7 break-words text-foreground">

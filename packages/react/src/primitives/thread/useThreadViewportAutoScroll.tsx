@@ -36,6 +36,24 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     div.scrollTo({ top: div.scrollHeight, behavior });
   }, []);
 
+  const scrollToLastUserMessage = useCallback(() => {
+    const div = divRef.current;
+    if (!div) return false;
+
+    const userMessages = div.querySelectorAll<HTMLElement>(
+      "[data-thread-message-role='user']",
+    );
+    const lastUserMessage = userMessages.item(userMessages.length - 1) ?? null;
+    if (!lastUserMessage) return false;
+
+    lastUserMessage.scrollIntoView({
+      behavior: "auto",
+      block: "nearest",
+      inline: "nearest",
+    });
+    return true;
+  }, []);
+
   const handleScroll = () => {
     const div = divRef.current;
     if (!div) return;
@@ -87,7 +105,10 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
 
   // autoscroll on run start
   useAssistantEvent("thread.run-start", () => {
-    if (autoScroll) scrollToBottom("auto");
+    if (!autoScroll) return;
+    if (!scrollToLastUserMessage()) {
+      scrollToBottom("auto");
+    }
   });
 
   const autoScrollRef = useComposedRefs<TElement>(resizeRef, scrollRef, divRef);

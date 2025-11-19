@@ -72,10 +72,19 @@ export const MessagePrimitiveRoot = forwardRef<
   MessagePrimitiveRoot.Element,
   MessagePrimitiveRoot.Props
 >((props, forwardRef) => {
+  const role = useAssistantState(({ message }) => message.role);
+  const messageId = useAssistantState(({ message }) => message.id);
   const isHoveringRef = useIsHoveringRef();
   const ref = useComposedRefs<HTMLDivElement>(forwardRef, isHoveringRef);
 
-  return <Primitive.div {...props} ref={ref} />;
+  return (
+    <Primitive.div
+      {...props}
+      data-thread-message-role={role}
+      data-thread-message-id={messageId}
+      ref={ref}
+    />
+  );
 });
 
 MessagePrimitiveRoot.displayName = "MessagePrimitive.Root";
