@@ -2,7 +2,6 @@
 
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
 import { RefCallback, useCallback, useRef } from "react";
-import { useAssistantEvent } from "../../context";
 import { useOnResizeContent } from "../../utils/hooks/useOnResizeContent";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
@@ -34,24 +33,6 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
 
     isScrollingToBottomRef.current = true;
     div.scrollTo({ top: div.scrollHeight, behavior });
-  }, []);
-
-  const scrollToLastUserMessage = useCallback(() => {
-    const div = divRef.current;
-    if (!div) return false;
-
-    const userMessages = div.querySelectorAll<HTMLElement>(
-      "[data-thread-message-role='user']",
-    );
-    const lastUserMessage = userMessages.item(userMessages.length - 1) ?? null;
-    if (!lastUserMessage) return false;
-
-    lastUserMessage.scrollIntoView({
-      behavior: "auto",
-      block: "nearest",
-      inline: "nearest",
-    });
-    return true;
   }, []);
 
   const handleScroll = () => {
@@ -101,14 +82,6 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
 
   useOnScrollToBottom(() => {
     scrollToBottom("auto");
-  });
-
-  // autoscroll on run start
-  useAssistantEvent("thread.run-start", () => {
-    if (!autoScroll) return;
-    if (!scrollToLastUserMessage()) {
-      scrollToBottom("auto");
-    }
   });
 
   const autoScrollRef = useComposedRefs<TElement>(resizeRef, scrollRef, divRef);

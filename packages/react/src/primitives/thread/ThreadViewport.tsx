@@ -12,6 +12,7 @@ import {
 } from "react";
 import { ThreadViewportProvider } from "../../context/providers/ThreadViewportProvider";
 import { useAssistantState } from "../../context";
+import { useThreadViewportAutoScroll } from "./useThreadViewportAutoScroll";
 
 export namespace ThreadPrimitiveViewport {
   export type Element = ComponentRef<typeof Primitive.div>;
@@ -30,9 +31,13 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
   ThreadPrimitiveViewport.Props
 >(({ autoScroll = true, children, ...rest }, forwardedRef) => {
   const viewportRef = useRef<ThreadPrimitiveViewport.Element>(null);
+  const viewportAutoScrollRef = useThreadViewportAutoScroll({
+    autoScroll: false,
+  });
   const ref = useComposedRefs<ThreadPrimitiveViewport.Element>(
     forwardedRef,
     viewportRef,
+    viewportAutoScrollRef,
   );
 
   const isRunning = useAssistantState(({ thread }) => thread.isRunning);
