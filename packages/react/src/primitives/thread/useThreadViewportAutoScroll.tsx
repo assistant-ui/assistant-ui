@@ -41,7 +41,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   }, []);
 
   const updateSpacerForAnchor = useCallback(
-    (element: HTMLElement) => {
+    (element: HTMLElement, shrinkOnly: boolean = false) => {
       const div = divRef.current;
       if (!div) return;
 
@@ -77,7 +77,12 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
       const baseMin = baseSpacerMinHeightRef.current ?? BASE_SPACER_MIN_HEIGHT;
 
       if (extraNeeded > 1) {
+        if (shrinkOnly) {
+          // During streaming, don't grow - content fluctuations (like markdown rendering) cause temporary shrinks
+          return;
+        }
         const nextMin = currentMin + extraNeeded;
+        console.log("[spacer] GROW", currentMin.toFixed(0), "→", nextMin.toFixed(0));
         spacer.style.minHeight = `${nextMin}px`;
         return;
       }
@@ -85,8 +90,13 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
       if (extraNeeded < -1) {
         const nextMin = Math.max(baseMin, currentMin + extraNeeded);
         if (nextMin < currentMin - 0.5) {
+          console.log("[spacer] SHRINK", currentMin.toFixed(0), "→", nextMin.toFixed(0));
           spacer.style.minHeight = `${nextMin}px`;
+        } else {
+          console.log("[spacer] at min", currentMin.toFixed(0), `(baseMin: ${baseMin})`);
         }
+      } else {
+        console.log("[spacer] no-op", `extra: ${extraNeeded.toFixed(0)}, current: ${currentMin.toFixed(0)}, slack: ${currentSlack.toFixed(0)}/${requiredSlack.toFixed(0)}`);
       }
     },
     [],
@@ -118,12 +128,19 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
         targetScrollTop = 0;
       }
 
+      // Update lastScrollTop before programmatic scroll to prevent false "user scroll" detection
+      lastScrollTop.current = targetScrollTop;
+
       if (behavior === "instant") {
         div.scrollTop = targetScrollTop;
       } else {
         div.scrollTo({ top: targetScrollTop, behavior });
       }
 
+      console.log("[anchor] scrollTop:", targetScrollTop.toFixed(0),
+        "anchorTop:", elementTopRelativeToDiv.toFixed(0),
+        "scrollHeight:", div.scrollHeight,
+        "clientHeight:", div.clientHeight);
       writableStore(threadViewportStore).setState({
         isInReadingPosition: true,
       });
@@ -154,6 +171,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
         userInitiatedScroll &&
         Math.abs(div.scrollTop - lastScrollTop.current) > 1
       ) {
+        console.log("[scroll] Exit reading position - delta:", Math.abs(div.scrollTop - lastScrollTop.current).toFixed(0), "isTrusted:", event?.isTrusted);
         newIsInReadingPosition = false;
       }
 
@@ -199,7 +217,20 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
       );
       const lastUserMessage = userMessages[userMessages.length - 1];
       if (lastUserMessage) {
-        updateSpacerForAnchor(lastUserMessage);
+        const rect = lastUserMessage.getBoundingClientRect();
+        const divRect = div.getBoundingClientRect();
+        const visualTop = rect.top - divRect.top;
+
+        updateSpacerForAnchor(lastUserMessage, true); // shrinkOnly during streaming
+
+        // Correct scroll position if anchor has drifted from expected 16px
+        const drift = visualTop - USER_MESSAGE_TOP_PADDING;
+        if (Math.abs(drift) > 2) {
+          const correctedScrollTop = div.scrollTop + drift;
+          lastScrollTop.current = correctedScrollTop;
+          div.scrollTop = correctedScrollTop;
+          console.log("[drift-fix] corrected by:", drift.toFixed(0));
+        }
       }
     }
 
