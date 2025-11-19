@@ -11,7 +11,7 @@ export function useRunManager(config: {
   onRun: (signal: AbortSignal) => Promise<void>;
   onFinish?: (() => void) | undefined;
   onCancel?: (() => void) | undefined;
-  onError?: ((error: Error) => void) | undefined;
+  onError?: ((error: Error) => void | Promise<void>) | undefined;
 }): RunManager {
   const [isRunning, setIsRunning] = useState(false);
   const stateRef = useRef({
@@ -37,7 +37,7 @@ export function useRunManager(config: {
         if (ac.signal.aborted) {
           onCancelRef.current?.();
         } else {
-          onErrorRef.current?.(error as Error);
+          await onErrorRef.current?.(error as Error);
         }
       } finally {
         onFinishRef.current?.();

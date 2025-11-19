@@ -174,6 +174,9 @@ const useAssistantTransportThreadRuntime = <T,>(
         ...commandQueue.state.inTransit,
         ...commandQueue.state.queued,
       ];
+
+      commandQueue.reset();
+
       options.onCancel?.({
         commands: cmds,
         updateState: (updater) => {
@@ -181,19 +184,29 @@ const useAssistantTransportThreadRuntime = <T,>(
           rerender((prev) => prev + 1);
         },
       });
+    },
+    onError: async (error) => {
+      const inTransitCmds = [...commandQueue.state.inTransit];
+      const queuedCmds = [...commandQueue.state.queued];
 
       commandQueue.reset();
-    },
-    onError: (error) => {
-      const cmds = [...commandQueue.state.inTransit];
-      options.onError?.(error as Error, {
-        commands: cmds,
+
+      await options.onError?.(error as Error, {
+        commands: inTransitCmds,
         updateState: (updater) => {
           agentStateRef.current = updater(agentStateRef.current);
           rerender((prev) => prev + 1);
         },
       });
-      commandQueue.markDelivered();
+
+      options.onCancel?.({
+        commands: queuedCmds,
+        updateState: (updater) => {
+          agentStateRef.current = updater(agentStateRef.current);
+          rerender((prev) => prev + 1);
+        },
+        error: error as Error,
+      });
     },
   });
 
