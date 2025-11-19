@@ -1,5 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { logger } from "./logger";
 
 export interface AssistantUIConfig {
   $schema?: string;
@@ -33,7 +34,7 @@ export function getConfig(
         const configContent = fs.readFileSync(configPath, "utf8");
         return JSON.parse(configContent) as AssistantUIConfig;
       } catch (error) {
-        console.error(`Error reading config file ${fileName}:`, error);
+        logger.error(`Error reading config file ${fileName}: ${String(error)}`);
       }
     }
   }

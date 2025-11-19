@@ -1,8 +1,9 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { execSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { detect } from "detect-package-manager";
 import * as readline from "node:readline";
+import { logger } from "./logger";
 
 export function askQuestion(query: string): Promise<string> {
   return new Promise((resolve) => {
@@ -67,10 +68,20 @@ export async function installPackage(
 ): Promise<boolean> {
   try {
     const { command, args } = await getInstallCommand(packageName, cwd);
-    execSync([command, ...args].join(" "), { stdio: "inherit", cwd });
+    const result = spawnSync(command, args, { stdio: "inherit", cwd });
+
+    if (result.error || result.status !== 0) {
+      logger.error(
+        `Installation failed${
+          result.error ? `: ${String(result.error)}` : "."
+        }`,
+      );
+      return false;
+    }
+
     return true;
   } catch (e) {
-    console.error("Installation failed:", e);
+    logger.error(`Installation failed: ${String(e)}`);
     return false;
   }
 }

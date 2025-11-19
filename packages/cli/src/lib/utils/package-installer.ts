@@ -4,6 +4,7 @@ import {
   askQuestion,
   installPackage,
 } from "./package-manager";
+import { logger } from "./logger";
 
 export interface PackageInstallConfig {
   packageName: string;
@@ -19,12 +20,12 @@ export async function installPackageIfNeeded(
   const found = scanForImport(config.importPatterns);
 
   if (!found) {
-    console.log(config.notFoundMessage);
+    logger.info(config.notFoundMessage);
     return;
   }
 
   if (isPackageInstalled(config.packageName)) {
-    console.log(config.skipMessage);
+    logger.info(config.skipMessage);
     return;
   }
 
@@ -32,6 +33,6 @@ export async function installPackageIfNeeded(
   if (answer === "" || answer.toLowerCase().startsWith("y")) {
     await installPackage(config.packageName);
   } else {
-    console.log("Skipping installation.");
+    logger.info("Skipping installation.");
   }
 }
