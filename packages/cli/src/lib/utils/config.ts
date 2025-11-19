@@ -34,7 +34,11 @@ export function getConfig(
         const configContent = fs.readFileSync(configPath, "utf8");
         return JSON.parse(configContent) as AssistantUIConfig;
       } catch (error) {
-        logger.error(`Error reading config file ${fileName}: ${String(error)}`);
+        const errorDetails =
+          error instanceof Error
+            ? (error.stack ?? error.message)
+            : String(error);
+        logger.error(`Error reading config file ${fileName}: ${errorDetails}`);
       }
     }
   }
