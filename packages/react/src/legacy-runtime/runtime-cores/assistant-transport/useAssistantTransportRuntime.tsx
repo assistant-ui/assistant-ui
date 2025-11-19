@@ -191,22 +191,24 @@ const useAssistantTransportThreadRuntime = <T,>(
 
       commandQueue.reset();
 
-      await options.onError?.(error as Error, {
-        commands: inTransitCmds,
-        updateState: (updater) => {
-          agentStateRef.current = updater(agentStateRef.current);
-          rerender((prev) => prev + 1);
-        },
-      });
-
-      options.onCancel?.({
-        commands: queuedCmds,
-        updateState: (updater) => {
-          agentStateRef.current = updater(agentStateRef.current);
-          rerender((prev) => prev + 1);
-        },
-        error: error as Error,
-      });
+      try {
+        await options.onError?.(error as Error, {
+          commands: inTransitCmds,
+          updateState: (updater) => {
+            agentStateRef.current = updater(agentStateRef.current);
+            rerender((prev) => prev + 1);
+          },
+        });
+      } finally {
+        options.onCancel?.({
+          commands: queuedCmds,
+          updateState: (updater) => {
+            agentStateRef.current = updater(agentStateRef.current);
+            rerender((prev) => prev + 1);
+          },
+          error: error as Error,
+        });
+      }
     },
   });
 
