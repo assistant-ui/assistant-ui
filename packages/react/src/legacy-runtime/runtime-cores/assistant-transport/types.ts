@@ -97,10 +97,17 @@ export type AssistantTransportOptions<T> = {
       commands: AssistantTransportCommand[];
       updateState: (updater: (state: T) => T) => void;
     },
-  ) => void;
+  ) => void | Promise<void>;
+  /**
+   * Called when commands are cancelled.
+   *
+   * When an error occurs, queued commands are automatically cancelled after `onError` settles.
+   * In this case, the `error` parameter contains the error that caused the cancellation.
+   */
   onCancel?: (params: {
     commands: AssistantTransportCommand[];
     updateState: (updater: (state: T) => T) => void;
+    error?: Error;
   }) => void;
   adapters?: {
     attachments?: AttachmentAdapter | undefined;
