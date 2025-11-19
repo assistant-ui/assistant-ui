@@ -5,6 +5,7 @@ import { SingleBar, Presets } from "cli-progress";
 import installReactUILib from "./install-ui-lib";
 import installEdgeLib from "./install-edge-lib";
 import installAiSdkLib from "./install-ai-sdk-lib";
+import { logger } from "./utils/logger";
 
 const bundle = [
   "v0-8/ui-package-split",
@@ -26,10 +27,10 @@ export async function upgrade(options: TransformOptions) {
   log("Starting upgrade...");
 
   // Find relevant files once to avoid duplicate work
-  console.log("Analyzing codebase...");
+  logger.info("Analyzing codebase...");
   const relevantFiles = getRelevantFiles(cwd);
   const fileCount = relevantFiles.length;
-  console.log(`Found ${fileCount} files to process.`);
+  logger.info(`Found ${fileCount} files to process.`);
 
   // Calculate total work units (files × codemods)
   const totalWork = fileCount * bundle.length;
@@ -77,11 +78,11 @@ export async function upgrade(options: TransformOptions) {
   }
 
   // After codemods run, check if files import from the new packages and prompt for install.
-  console.log("Checking for package dependencies...");
+  logger.info("Checking for package dependencies...");
   await installReactUILib();
   await installEdgeLib();
   await installAiSdkLib();
 
   log("Upgrade complete.");
-  console.log("✅ Upgrade complete!");
+  logger.success("Upgrade complete!");
 }

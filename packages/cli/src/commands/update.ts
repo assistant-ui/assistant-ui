@@ -47,7 +47,7 @@ export const update = new Command()
 
     logger.info(`Found ${targets.length} package(s) to update:`);
     targets.forEach((pkg) => {
-      console.log(`  - ${pkg}`);
+      logger.info(`  - ${pkg}`);
     });
     logger.break();
 
@@ -59,7 +59,7 @@ export const update = new Command()
 
     if (opts.dry) {
       logger.info("Dry run: would run the following command:");
-      console.log(`  ${installCmd.command} ${installCmd.args.join(" ")}`);
+      logger.info(`  ${installCmd.command} ${installCmd.args.join(" ")}`);
       return;
     }
 
