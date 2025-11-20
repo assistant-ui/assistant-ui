@@ -24,6 +24,7 @@ declare module "@assistant-ui/store" {
         foo: (
           lookup: { index: number } | { id: string },
         ) => AssistantScopes["foo"]["value"];
+        addFoo: (id?: string) => void;
       };
       source: "root";
       query: Record<string, never>;

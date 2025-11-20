@@ -6,7 +6,7 @@ import {
   useAssistantClient,
   AssistantProvider,
   tapApi,
-  tapLookupResources,
+  tapStoreList,
   DerivedScope,
   useAssistantState,
 } from "@assistant-ui/store";
@@ -16,7 +16,11 @@ import {
  * Manages the state and actions for a single foo item
  */
 export const FooItemResource = resource(
-  ({ id, initialBar }: { id: string; initialBar: string }) => {
+  ({
+    initialValue: { id, initialBar },
+  }: {
+    initialValue: { id: string; initialBar: string };
+  }) => {
     const [state, setState] = tapState<{ id: string; bar: string }>({
       id,
       bar: initialBar,
@@ -38,27 +42,26 @@ export const FooItemResource = resource(
 
 /**
  * FooList resource implementation
- * Manages a list of foos using tapLookupResources
+ * Manages a list of foos using tapStoreList
  */
 export const FooListResource = resource(() => {
-  // Sample data - in a real app, this would come from props or external state
-  const items = [
-    { id: "foo-1", initialBar: "First Foo" },
-    { id: "foo-2", initialBar: "Second Foo" },
-    { id: "foo-3", initialBar: "Third Foo" },
-  ];
+  let counter = 3;
+  const idGenerator = () => `foo-${++counter}`;
 
-  const foos = tapLookupResources(
-    items.map((item) => FooItemResource(item, { key: item.id })),
-  );
+  const foos = tapStoreList({
+    initialValues: [
+      { id: "foo-1", initialBar: "First Foo" },
+      { id: "foo-2", initialBar: "Second Foo" },
+      { id: "foo-3", initialBar: "Third Foo" },
+    ],
+    resource: FooItemResource,
+    idGenerator,
+  });
 
   return tapApi({
     getState: () => ({ foos: foos.state }),
-    foo: (lookup: { index: number } | { id: string }) => {
-      return "id" in lookup
-        ? foos.api({ key: lookup.id })
-        : foos.api({ index: lookup.index });
-    },
+    foo: foos.api,
+    addFoo: (id?: string) => foos.add(id),
   });
 });
 

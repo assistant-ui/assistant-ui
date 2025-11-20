@@ -136,7 +136,9 @@ const DerivedScopeResource = resource(
     const source = element.props.source;
     const query = element.props.query;
     return tapMemo(() => {
-      const scopeFunction = (() => get(parentClient)) as ScopeField<AssistantScopes[K]>;
+      const scopeFunction = (() => get(parentClient)) as ScopeField<
+        AssistantScopes[K]
+      >;
       scopeFunction.source = source;
       scopeFunction.query = query;
 
@@ -149,40 +151,47 @@ const DerivedScopeResource = resource(
  * Resource for all derived scopes
  * Builds stable scope functions with source and query metadata
  */
-const DerivedScopesResource = resource(({
-  scopes,
-  parentClient,
-}: {
-  scopes: ScopesInput;
-  parentClient: AssistantClient;
-}) => {
-  const resultEntries = tapResources(
-    Object.entries(scopes).map(([scopeName, element]) =>
-      DerivedScopeResource(
-        {
-          scopeName: scopeName as keyof AssistantScopes,
-          element: element as ScopeInput<
-            AssistantScopes[keyof AssistantScopes]
-          >,
-          parentClient,
-        },
-        { key: scopeName },
+const DerivedScopesResource = resource(
+  ({
+    scopes,
+    parentClient,
+  }: {
+    scopes: ScopesInput;
+    parentClient: AssistantClient;
+  }) => {
+    const resultEntries = tapResources(
+      Object.entries(scopes).map(([scopeName, element]) =>
+        DerivedScopeResource(
+          {
+            scopeName: scopeName as keyof AssistantScopes,
+            element: element as ScopeInput<
+              AssistantScopes[keyof AssistantScopes]
+            >,
+            parentClient,
+          },
+          { key: scopeName },
+        ),
       ),
-    ),
-  );
+    );
 
-  return tapMemo(() => {
-    return Object.fromEntries(resultEntries) as {
-      [K in keyof typeof scopes]: ScopeField<AssistantScopes[K]>;
-    };
-  }, [...resultEntries]);
-});
+    return tapMemo(() => {
+      return Object.fromEntries(resultEntries) as {
+        [K in keyof typeof scopes]: ScopeField<AssistantScopes[K]>;
+      };
+    }, [...resultEntries]);
+  },
+);
 
 /**
  * Hook to mount and access derived scopes
  */
-export const useDerivedScopes = (derivedScopes: ScopesInput, parentClient: AssistantClient) => {
-  return useResource(DerivedScopesResource({ scopes: derivedScopes, parentClient }));
+export const useDerivedScopes = (
+  derivedScopes: ScopesInput,
+  parentClient: AssistantClient,
+) => {
+  return useResource(
+    DerivedScopesResource({ scopes: derivedScopes, parentClient }),
+  );
 };
 
 const useExtendedAssistantClientImpl = (
