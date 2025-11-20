@@ -12,7 +12,7 @@ import {
 } from "react";
 import { ThreadViewportProvider } from "../../context/providers/ThreadViewportProvider";
 import { useAssistantState } from "../../context";
-import { useThreadViewportAutoScroll } from "./useThreadViewportAutoScroll";
+import { useThreadViewportIsAtBottom } from "./useThreadViewportIsAtBottom";
 
 export namespace ThreadPrimitiveViewport {
   export type Element = ComponentRef<typeof Primitive.div>;
@@ -31,9 +31,7 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
   ThreadPrimitiveViewport.Props
 >(({ autoScroll = true, children, ...rest }, forwardedRef) => {
   const viewportRef = useRef<ThreadPrimitiveViewport.Element>(null);
-  const viewportAutoScrollRef = useThreadViewportAutoScroll({
-    autoScroll,
-  });
+  const trackIsAtBottomRef = useThreadViewportIsAtBottom(viewportRef);
 
   const isRunning = useAssistantState(({ thread }) => thread.isRunning);
   const messagesLength = useAssistantState(
@@ -82,7 +80,7 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
     const messageAdded = messagesLength > prevMessagesLength;
     const runStarted = isRunning && !prevIsRunning;
 
-    if (autoScroll && (messageAdded || runStarted)) {
+    if (messageAdded || runStarted) {
       scrollToLastUserMessage();
     }
 
@@ -93,7 +91,7 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
   const ref = useComposedRefs<ThreadPrimitiveViewport.Element>(
     forwardedRef,
     viewportRef,
-    viewportAutoScrollRef,
+    trackIsAtBottomRef,
   );
 
   return (

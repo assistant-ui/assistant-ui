@@ -16,5 +16,5 @@ export { useMessagePartSource } from "./messagePart/useMessagePartSource";
 export { useMessagePartFile } from "./messagePart/useMessagePartFile";
 export { useMessagePartImage } from "./messagePart/useMessagePartImage";
 export { useMessagePartData } from "./messagePart/useMessagePartData";
-export { useThreadViewportAutoScroll } from "./thread/useThreadViewportAutoScroll";
+export { useThreadViewportIsAtBottom } from "./thread/useThreadViewportIsAtBottom";
 export { useScrollLock } from "./reasoning";
