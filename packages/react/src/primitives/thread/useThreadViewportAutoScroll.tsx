@@ -1,7 +1,7 @@
 "use client";
 
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
-import { RefCallback, useCallback, useRef } from "react";
+import { RefCallback, useRef } from "react";
 import { useOnResizeContent } from "../../utils/hooks/useOnResizeContent";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
@@ -15,7 +15,7 @@ export namespace useThreadViewportAutoScroll {
 }
 
 export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
-  autoScroll = true,
+  autoScroll: _autoScroll = true,
 }: useThreadViewportAutoScroll.Options): RefCallback<TElement> => {
   const divRef = useRef<TElement>(null);
 
@@ -26,14 +26,6 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   // bug: when ScrollToBottom's button changes its disabled state, the scroll stops
   // fix: delay the state change until the scroll is done
   const isScrollingToBottomRef = useRef(false);
-
-  const scrollToBottom = useCallback((behavior: ScrollBehavior) => {
-    const div = divRef.current;
-    if (!div) return;
-
-    isScrollingToBottomRef.current = true;
-    div.scrollTo({ top: div.scrollHeight, behavior });
-  }, []);
 
   const handleScroll = () => {
     const div = divRef.current;
@@ -62,14 +54,6 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   };
 
   const resizeRef = useOnResizeContent(() => {
-    if (
-      autoScroll &&
-      (isScrollingToBottomRef.current ||
-        threadViewportStore.getState().isAtBottom)
-    ) {
-      scrollToBottom("instant");
-    }
-
     handleScroll();
   });
 
@@ -81,7 +65,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   });
 
   useOnScrollToBottom(() => {
-    scrollToBottom("auto");
+    // no-op: autoscroll behavior removed
   });
 
   const autoScrollRef = useComposedRefs<TElement>(resizeRef, scrollRef, divRef);

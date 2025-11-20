@@ -13,6 +13,7 @@ import {
 import { ThreadViewportProvider } from "../../context/providers/ThreadViewportProvider";
 import { useAssistantState } from "../../context";
 import { useThreadViewportAutoScroll } from "./useThreadViewportAutoScroll";
+import { useOnResizeContent } from "../../utils/hooks/useOnResizeContent";
 
 export namespace ThreadPrimitiveViewport {
   export type Element = ComponentRef<typeof Primitive.div>;
@@ -32,21 +33,10 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
 >(({ autoScroll = true, children, ...rest }, forwardedRef) => {
   const viewportRef = useRef<ThreadPrimitiveViewport.Element>(null);
   const viewportAutoScrollRef = useThreadViewportAutoScroll({
-    autoScroll: false,
+    autoScroll,
   });
-  const ref = useComposedRefs<ThreadPrimitiveViewport.Element>(
-    forwardedRef,
-    viewportRef,
-    viewportAutoScrollRef,
-  );
 
   const isRunning = useAssistantState(({ thread }) => thread.isRunning);
-
-  const scrollToBottom = useCallback((behavior: ScrollBehavior) => {
-    const viewport = viewportRef.current;
-    if (!viewport) return;
-    viewport.scrollTo({ top: viewport.scrollHeight, behavior });
-  }, []);
 
   const scrollToLastUserMessage = useCallback(() => {
     const viewport = viewportRef.current;
@@ -66,9 +56,11 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
     const targetRect = target.getBoundingClientRect();
     let offsetTop = targetRect.top - viewportRect.top + viewport.scrollTop;
 
-    // Heuristic: if message is tall (> 3 lines ~ 60px), scroll to show the bottom part
-    if (targetRect.height > 80) {
-      offsetTop += targetRect.height - 80;
+    // Temporary heuristic: if message is tall (> 3 lines ~ 80px), scroll to show the bottom part
+    const TALL_MESSAGE_THRESHOLD = 80;
+
+    if (targetRect.height > TALL_MESSAGE_THRESHOLD) {
+      offsetTop += targetRect.height - TALL_MESSAGE_THRESHOLD;
     }
 
     viewport.scrollTo({
@@ -78,27 +70,36 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
     return true;
   }, []);
 
+  const shouldScrollToUserMessageRef = useRef(false);
+
   useEffect(() => {
-    if (!autoScroll || !isRunning) return undefined;
+    if (!autoScroll || !isRunning) {
+      shouldScrollToUserMessageRef.current = false;
+      return;
+    }
 
-    let retries = 0;
-    let rafId: number;
+    shouldScrollToUserMessageRef.current = true;
+    if (scrollToLastUserMessage()) {
+      shouldScrollToUserMessageRef.current = false;
+    }
+  }, [autoScroll, isRunning, scrollToLastUserMessage]);
 
-    const attemptScroll = () => {
-      if (scrollToLastUserMessage()) return;
-
-      if (retries < 10) {
-        retries++;
-        rafId = requestAnimationFrame(attemptScroll);
-      } else {
-        scrollToBottom("auto");
+  const handleResize = useCallback(() => {
+    if (shouldScrollToUserMessageRef.current) {
+      if (scrollToLastUserMessage()) {
+        shouldScrollToUserMessageRef.current = false;
       }
-    };
+    }
+  }, [scrollToLastUserMessage]);
 
-    rafId = requestAnimationFrame(attemptScroll);
+  const resizeRef = useOnResizeContent(handleResize);
 
-    return () => cancelAnimationFrame(rafId);
-  }, [autoScroll, isRunning, scrollToBottom, scrollToLastUserMessage]);
+  const ref = useComposedRefs<ThreadPrimitiveViewport.Element>(
+    forwardedRef,
+    viewportRef,
+    viewportAutoScrollRef,
+    resizeRef,
+  );
 
   return (
     <Primitive.div {...rest} ref={ref}>
