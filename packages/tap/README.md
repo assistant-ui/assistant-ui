@@ -1,6 +1,6 @@
 # @assistant-ui/tap
 
-Zero-dependency reactive state management inspired by React hooks.
+**tap** (Reactive Resources) is a zero-dependency reactive state management library that brings **React's hooks mental model to state management outside of React components**.
 
 ## Installation
 
@@ -8,9 +8,34 @@ Zero-dependency reactive state management inspired by React hooks.
 npm install @assistant-ui/tap
 ```
 
-## Overview
+## What is tap?
 
-This library brings React's hooks mental model to state management outside of React components. It provides familiar APIs like `tapState` and `tapEffect` that work exactly like their React counterparts, but can be used anywhere.
+Instead of limiting hooks to React components, tap lets you use the same familiar hooks pattern (`useState`, `useEffect`, `useMemo`, etc.) to create self-contained, reusable units of reactive state and logic called **Resources** that can be used anywhere - in vanilla JavaScript, servers, or outside of React.
+
+## Philosophy
+
+- **Unified mental model**: Use the same hooks pattern everywhere
+- **Framework agnostic**: Zero dependencies, works with or without React
+- **Lifecycle management**: Resources handle their own cleanup automatically
+- **Type-safe**: Full TypeScript support with proper type inference
+
+## How It Works
+
+tap implements a **render-commit pattern** similar to React:
+
+### Render Phase
+
+1. Each resource instance has a "fiber" that tracks state and effects
+2. When a resource function runs, hooks record their data in the fiber
+3. The library maintains an execution context to track which fiber's hooks are being called
+4. Each hook stores its data in cells indexed by call order (enforcing React's rules)
+
+### Commit Phase
+
+1. After render, collected effect tasks are processed
+2. Effects check if dependencies changed using shallow equality
+3. Old effects are cleaned up before new ones run
+4. Updates are batched using microtasks to prevent excessive re-renders
 
 ## Core Concepts
 
@@ -18,8 +43,9 @@ This library brings React's hooks mental model to state management outside of Re
 
 Resources are self-contained units of reactive state and logic. They follow the same rules as React hooks:
 
-- Hooks must be called in the same order every render
-- Hooks cannot be called conditionally
+- **Hook Order**: Hooks must be called in the same order in every render
+- **No Conditional Hooks**: Can't call hooks inside conditionals or loops
+- **No Async Hooks**: Hooks must be called synchronously during render
 - Resources automatically handle cleanup and lifecycle
 
 ### Creating Resources
@@ -153,24 +179,45 @@ const Timer = resource(() => {
 Renders multiple resources with keys, similar to React's list rendering. All resources must have a unique `key` property.
 
 ```typescript
-// Using with createResourceNodeConstructor
 const TodoItem = resource((props: { text: string }) => {
   const [completed, setCompleted] = tapState(false);
   return { text: props.text, completed, setCompleted };
 });
 
-const MyTodos = resource(() => {
+const TodoList = resource(() => {
   const todos = [
-    { id: "1", text: "Learn reactive-resources" },
+    { id: "1", text: "Learn tap" },
     { id: "2", text: "Build something awesome" },
   ];
 
-  const todoResources = tapResources(
+  const todoItems = tapResources(
     todos.map((todo) => new TodoItem({ text: todo.text }, { key: todo.id })),
   );
 
-  return todoResources;
+  return todoItems;
 });
+```
+
+### `tapContext` and Context Support
+
+Create and use context to pass values through resource boundaries without prop drilling.
+
+```typescript
+import {
+  createContext,
+  tapContext,
+  withContextProvider,
+} from "@assistant-ui/tap";
+
+const MyContext = createContext(defaultValue);
+
+// Provide context
+withContextProvider(MyContext, value, () => {
+  // Inside this function, tapContext can access the value
+});
+
+// Access context in a resource
+const value = tapContext(MyContext);
 ```
 
 ## Resource Management
@@ -196,21 +243,36 @@ const unsubscribe = handle.subscribe(() => {
 handle.updateInput({ incrementBy: 2 });
 
 // Cleanup
+handle.dispose();
 unsubscribe();
 ```
 
-## Why Reactive Resources?
+## React Integration
 
-### Unified Mental Model
-
-Use the same hooks pattern everywhere - no need to learn different state management concepts for component state vs application state.
-
-### Lifecycle Management
-
-Unlike traditional state management libraries, resources handle their own lifecycle:
+Use resources directly in React components with the `useResource` hook:
 
 ```typescript
-const WebSocketResource = () => {
+import { useResource } from "@assistant-ui/tap/react";
+
+function MyComponent() {
+  const state = useResource(new Counter({ incrementBy: 1 }));
+  return (
+    <div>
+      <p>Count: {state.count}</p>
+      <button onClick={state.increment}>Increment</button>
+    </div>
+  );
+}
+```
+
+## Design Patterns
+
+### Automatic Cleanup
+
+Resources automatically clean up after themselves when unmounted:
+
+```typescript
+const WebSocketResource = resource(() => {
   const [messages, setMessages] = tapState<string[]>([]);
 
   tapEffect(() => {
@@ -225,16 +287,85 @@ const WebSocketResource = () => {
   }, []);
 
   return messages;
+});
+```
+
+### API Wrapper Pattern
+
+A common pattern in assistant-ui is to wrap resource state in a stable API object:
+
+```typescript
+export const tapApi = <TApi extends ApiObject & { getState: () => any }>(
+  api: TApi,
+) => {
+  const ref = tapRef(api);
+
+  tapEffect(() => {
+    ref.current = api;
+  });
+
+  const apiProxy = tapMemo(
+    () =>
+      new Proxy<TApi>({} as TApi, new ReadonlyApiHandler(() => ref.current)),
+    [],
+  );
+
+  return tapMemo(
+    () => ({
+      state: api.getState(),
+      api: apiProxy,
+    }),
+    [api.getState()],
+  );
 };
 ```
 
-### Framework Agnostic
+## Use Cases
 
-Works with React or vanilla JavaScript. The core library has zero dependencies and doesn't require any specific framework.
+tap is used throughout assistant-ui for:
 
-### Type Safety
+1. **State Management**: Application-wide state without Redux/Zustand
+2. **Event Handling**: Managing event subscriptions and cleanup
+3. **Resource Lifecycle**: Auto-cleanup of WebSockets, timers, subscriptions
+4. **Composition**: Nested resource management (threads, messages, tools)
+5. **Context Injection**: Passing values through resource boundaries without prop drilling
+6. **API Wrapping**: Creating reactive API objects with `getState()` and `subscribe()`
 
-Full TypeScript support with proper type inference throughout.
+### Example: Tools Management
+
+```typescript
+export const Tools = resource(({ toolkit }: { toolkit?: Toolkit }) => {
+  const [state, setState] = tapState<ToolsState>(() => ({
+    tools: {},
+  }));
+
+  const modelContext = tapModelContext();
+
+  tapEffect(() => {
+    if (!toolkit) return;
+
+    // Register tools and setup subscriptions
+    const unsubscribes: (() => void)[] = [];
+    // ... registration logic
+
+    return () => unsubscribes.forEach((fn) => fn());
+  }, [toolkit, modelContext]);
+
+  return tapApi<ToolsApi>({
+    getState: () => state,
+    setToolUI,
+  });
+});
+```
+
+## Why tap?
+
+- **Reuse React knowledge**: Developers already familiar with hooks can immediately work with tap
+- **Framework flexibility**: Core logic can work outside React components
+- **Automatic cleanup**: No memory leaks from forgotten unsubscribes
+- **Composability**: Resources can nest and combine naturally
+- **Type safety**: Full TypeScript inference for state and APIs
+- **Zero dependencies**: Lightweight and portable
 
 ## Comparison with React Hooks
 

@@ -8,6 +8,7 @@ export { tapEffect } from "./hooks/tap-effect";
 export { tapRef, type RefObject } from "./hooks/tap-ref";
 export { tapMemo } from "./hooks/tap-memo";
 export { tapCallback } from "./hooks/tap-callback";
+export { tapEffectEvent } from "./hooks/tap-effect-event";
 
 // resources
 export { tapResource } from "./hooks/tap-resource";
