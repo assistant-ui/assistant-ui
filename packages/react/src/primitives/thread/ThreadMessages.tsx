@@ -3,6 +3,7 @@
 import { type ComponentType, type FC, memo, useMemo } from "react";
 import { useAssistantState, MessageByIndexProvider } from "../../context";
 import { ThreadMessage as ThreadMessageType } from "../../types";
+import { useRegisterLastUserMessageAnchor } from "./ThreadViewportAnchorContext";
 
 export namespace ThreadPrimitiveMessages {
   export type Props = {
@@ -140,6 +141,7 @@ export namespace ThreadPrimitiveMessageByIndex {
   export type Props = {
     index: number;
     components: ThreadPrimitiveMessages.Props["components"];
+    lastUserMessageId: string | undefined;
   };
 }
 
@@ -160,12 +162,33 @@ export namespace ThreadPrimitiveMessageByIndex {
  * />
  * ```
  */
+const LastUserMessageAnchor: FC<{ lastUserMessageId: string | undefined }> = ({
+  lastUserMessageId,
+}) => {
+  const isLastUserMessage = useAssistantState(
+    ({ message }) =>
+      message.role === "user" && message.id === lastUserMessageId,
+  );
+  const registerLastUserMessageAnchor = useRegisterLastUserMessageAnchor();
+
+  if (!isLastUserMessage) return null;
+
+  return (
+    <span
+      ref={registerLastUserMessageAnchor}
+      aria-hidden="true"
+      className="aui-thread-last-user-message-anchor block h-0 overflow-hidden"
+    />
+  );
+};
+
 export const ThreadPrimitiveMessageByIndex: FC<ThreadPrimitiveMessageByIndex.Props> =
   memo(
-    ({ index, components }) => {
+    ({ index, components, lastUserMessageId }) => {
       return (
         <MessageByIndexProvider index={index}>
           <ThreadMessageComponent components={components} />
+          <LastUserMessageAnchor lastUserMessageId={lastUserMessageId} />
         </MessageByIndexProvider>
       );
     },
@@ -197,9 +220,16 @@ ThreadPrimitiveMessageByIndex.displayName = "ThreadPrimitive.MessageByIndex";
 export const ThreadPrimitiveMessagesImpl: FC<ThreadPrimitiveMessages.Props> = ({
   components,
 }) => {
-  const messagesLength = useAssistantState(
-    ({ thread }) => thread.messages.length,
-  );
+  const threadState = useAssistantState(({ thread }) => thread);
+  const messagesLength = threadState.messages.length;
+  let lastUserMessageId: string | undefined;
+  for (let i = threadState.messages.length - 1; i >= 0; i -= 1) {
+    const candidate = threadState.messages[i]!;
+    if (candidate.role === "user") {
+      lastUserMessageId = candidate.id;
+      break;
+    }
+  }
 
   const messageElements = useMemo(() => {
     if (messagesLength === 0) return null;
@@ -208,9 +238,10 @@ export const ThreadPrimitiveMessagesImpl: FC<ThreadPrimitiveMessages.Props> = ({
         key={index}
         index={index}
         components={components}
+        lastUserMessageId={lastUserMessageId}
       />
     ));
-  }, [messagesLength, components]);
+  }, [messagesLength, components, lastUserMessageId]);
 
   return messageElements;
 };

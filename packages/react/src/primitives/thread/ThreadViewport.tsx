@@ -13,6 +13,7 @@ import {
 import { ThreadViewportProvider } from "../../context/providers/ThreadViewportProvider";
 import { useAssistantState } from "../../context";
 import { useThreadViewportIsAtBottom } from "./useThreadViewportIsAtBottom";
+import { ThreadViewportAnchorProvider } from "./ThreadViewportAnchorContext";
 
 export namespace ThreadPrimitiveViewport {
   export type Element = ComponentRef<typeof Primitive.div>;
@@ -31,29 +32,27 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
   ThreadPrimitiveViewport.Props
 >(({ autoScroll = true, children, ...rest }, forwardedRef) => {
   const viewportRef = useRef<ThreadPrimitiveViewport.Element>(null);
+  const lastUserMessageAnchorRef = useRef<HTMLElement | null>(null);
   const trackIsAtBottomRef = useThreadViewportIsAtBottom(viewportRef);
+  const pendingScrollRef = useRef(false);
 
   const scrollToLastUserMessage = useCallback(() => {
     const viewport = viewportRef.current;
-    if (!viewport) return false;
+    const anchor = lastUserMessageAnchorRef.current;
+    console.log("anchor", anchor);
+    console.log("viewport", viewport);
+    if (!viewport || !anchor) return false;
 
-    // TODO: Simon to expose last user message reference through api or something like that.
-    const len = viewport.children.length;
-    // 1. Composer
-    // 2. Spacer
-    // 3. Last assistant message
-    // 4. Last user message
-    const target = viewport.children.item(len - 4) as HTMLElement | null;
+    const messageElement =
+      (anchor.previousElementSibling as HTMLElement | null) ?? anchor;
 
-    if (!target) return false;
+    console.log("messageElement", messageElement);
 
     const viewportRect = viewport.getBoundingClientRect();
-    const targetRect = target.getBoundingClientRect();
+    const targetRect = messageElement.getBoundingClientRect();
     let offsetTop = targetRect.top - viewportRect.top + viewport.scrollTop;
 
-    // Temporary heuristic: if message is tall (> 3 lines ~ 80px), scroll to show the bottom part
     const TALL_MESSAGE_THRESHOLD = 80;
-
     if (targetRect.height > TALL_MESSAGE_THRESHOLD) {
       offsetTop += targetRect.height - TALL_MESSAGE_THRESHOLD;
     }
@@ -64,6 +63,18 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
     });
     return true;
   }, []);
+
+  const registerLastUserMessageAnchor = useCallback(
+    (node: HTMLElement | null) => {
+      lastUserMessageAnchorRef.current = node;
+      if (node && pendingScrollRef.current) {
+        if (scrollToLastUserMessage()) {
+          pendingScrollRef.current = false;
+        }
+      }
+    },
+    [scrollToLastUserMessage],
+  );
 
   const threadState = useAssistantState(({ thread }) => thread);
   const isRunning = threadState.isRunning;
@@ -87,7 +98,10 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
     const runStarted = isRunning && !prevIsRunning;
 
     if (messageAdded || runStarted) {
-      scrollToLastUserMessage();
+      pendingScrollRef.current = true;
+      if (scrollToLastUserMessage()) {
+        pendingScrollRef.current = false;
+      }
     }
 
     previousStateRef.current = { isRunning, messagesLength };
@@ -100,9 +114,11 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
   );
 
   return (
-    <Primitive.div {...rest} ref={ref}>
-      {children}
-    </Primitive.div>
+    <ThreadViewportAnchorProvider value={{ registerLastUserMessageAnchor }}>
+      <Primitive.div {...rest} ref={ref}>
+        {children}
+      </Primitive.div>
+    </ThreadViewportAnchorProvider>
   );
 });
 
