@@ -208,6 +208,8 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       });
     },
     onReload: async (parentId: string | null, config) => {
+      completePendingToolCalls();
+
       const newMessages = sliceMessagesUntil(chatHelpers.messages, parentId);
       chatHelpers.setMessages(newMessages);
 
