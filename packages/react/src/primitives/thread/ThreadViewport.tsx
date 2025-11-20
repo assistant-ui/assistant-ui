@@ -7,13 +7,12 @@ import {
   forwardRef,
   ComponentPropsWithoutRef,
   useCallback,
-  useEffect,
+  useLayoutEffect,
   useRef,
 } from "react";
 import { ThreadViewportProvider } from "../../context/providers/ThreadViewportProvider";
 import { useAssistantState } from "../../context";
 import { useThreadViewportAutoScroll } from "./useThreadViewportAutoScroll";
-import { useOnResizeContent } from "../../utils/hooks/useOnResizeContent";
 
 export namespace ThreadPrimitiveViewport {
   export type Element = ComponentRef<typeof Primitive.div>;
@@ -37,12 +36,15 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
   });
 
   const isRunning = useAssistantState(({ thread }) => thread.isRunning);
+  const messagesLength = useAssistantState(
+    ({ thread }) => thread.messages.length,
+  );
 
   const scrollToLastUserMessage = useCallback(() => {
     const viewport = viewportRef.current;
     if (!viewport) return false;
 
-    // TODO: Expose last user message reference through api
+    // TODO: Simon to expose last user message reference through api or something like that.
     const len = viewport.children.length;
     // 1. Composer
     // 2. Spacer
@@ -70,35 +72,28 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
     return true;
   }, []);
 
-  const shouldScrollToUserMessageRef = useRef(false);
+  const prevMessagesLengthRef = useRef(messagesLength);
+  const prevIsRunningRef = useRef(isRunning);
 
-  useEffect(() => {
-    if (!autoScroll || !isRunning) {
-      shouldScrollToUserMessageRef.current = false;
-      return;
+  useLayoutEffect(() => {
+    const prevMessagesLength = prevMessagesLengthRef.current;
+    const prevIsRunning = prevIsRunningRef.current;
+
+    const messageAdded = messagesLength > prevMessagesLength;
+    const runStarted = isRunning && !prevIsRunning;
+
+    if (autoScroll && (messageAdded || runStarted)) {
+      scrollToLastUserMessage();
     }
 
-    shouldScrollToUserMessageRef.current = true;
-    if (scrollToLastUserMessage()) {
-      shouldScrollToUserMessageRef.current = false;
-    }
-  }, [autoScroll, isRunning, scrollToLastUserMessage]);
-
-  const handleResize = useCallback(() => {
-    if (shouldScrollToUserMessageRef.current) {
-      if (scrollToLastUserMessage()) {
-        shouldScrollToUserMessageRef.current = false;
-      }
-    }
-  }, [scrollToLastUserMessage]);
-
-  const resizeRef = useOnResizeContent(handleResize);
+    prevMessagesLengthRef.current = messagesLength;
+    prevIsRunningRef.current = isRunning;
+  }, [autoScroll, isRunning, messagesLength, scrollToLastUserMessage]);
 
   const ref = useComposedRefs<ThreadPrimitiveViewport.Element>(
     forwardedRef,
     viewportRef,
     viewportAutoScrollRef,
-    resizeRef,
   );
 
   return (
