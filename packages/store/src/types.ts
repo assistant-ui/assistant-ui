@@ -65,10 +65,17 @@ export type ScopeQuery<T extends ScopeDefinition> = T["query"];
  * Type for a scope field - a function that returns the current API value,
  * with source and query metadata attached
  */
-export type ScopeField<T extends ScopeDefinition> = (() => ScopeValue<T>) & {
-  source: ScopeSource<T>;
-  query: ScopeQuery<T>;
-};
+export type ScopeField<T extends ScopeDefinition> = (() => ScopeValue<T>) &
+  (
+    | {
+        source: ScopeSource<T>;
+        query: ScopeQuery<T>;
+      }
+    | {
+        source: null;
+        query: null;
+      }
+  );
 
 /**
  * Props passed to a derived scope resource element
