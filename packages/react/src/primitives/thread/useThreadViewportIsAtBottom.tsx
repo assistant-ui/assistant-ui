@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, type RefObject } from "react";
-import { writableStore } from "../../context/ReadonlyStore";
 import { useThreadViewportStore } from "../../context/react/ThreadViewportContext";
 import { useOnResizeContent } from "../../utils/hooks/useOnResizeContent";
+import { writableStore } from "../../context/ReadonlyStore";
 
 export const useThreadViewportIsAtBottom = <TElement extends HTMLElement>(
   viewportRef: RefObject<TElement | null>,

@@ -18,6 +18,8 @@ import {
   MessagePrimitive,
   ThreadPrimitive,
   useAssistantState,
+  useThreadLayout,
+  useThreadViewportComposerElement,
 } from "@assistant-ui/react";
 
 import type { FC } from "react";
@@ -44,7 +46,6 @@ export const Thread: FC = () => {
           className="aui-root aui-thread-root @container flex h-full flex-col bg-background"
           style={{
             ["--thread-max-width" as string]: "44rem",
-            containerType: "size",
           }}
         >
           <ThreadPrimitive.Viewport className="aui-thread-viewport relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll px-4">
@@ -163,8 +164,13 @@ const ThreadSuggestions: FC = () => {
 };
 
 const Composer: FC = () => {
+  const registerComposerElement = useThreadViewportComposerElement();
+
   return (
-    <div className="aui-composer-wrapper sticky bottom-0 mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4 md:pb-6">
+    <div
+      ref={registerComposerElement}
+      className="aui-composer-wrapper sticky bottom-0 mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4 md:pb-6"
+    >
       <ThreadScrollToBottom />
       <ComposerPrimitive.Root className="aui-composer-root group/input-group relative flex w-full flex-col rounded-3xl border border-input bg-background px-1 pt-2 shadow-xs transition-[color,box-shadow] outline-none has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-[3px] has-[textarea:focus-visible]:ring-ring/50 dark:bg-background">
         <ComposerAttachments />
@@ -231,15 +237,35 @@ const MessageError: FC = () => {
 
 const AssistantMessage: FC = () => {
   const isLastMessage = useAssistantState(({ message }) => message.isLast);
+  const { composerHeight, viewportHeight } = useThreadLayout();
 
+  console.log(
+    "[AssistantMessage] composerHeight: %d, viewportHeight: %d",
+    composerHeight,
+    viewportHeight,
+  );
+
+  const reservedHeight =
+    viewportHeight > 0 && composerHeight > 0
+      ? Math.max(0, viewportHeight - composerHeight)
+      : 0;
+  console.log("[AssistantMessage] reservedHeight: %d", reservedHeight);
   return (
     <MessagePrimitive.Root asChild>
       <div
-        className={cn(
-          "aui-assistant-message-root relative mx-auto w-full shrink-0 animate-in py-4 duration-150 ease-out fade-in slide-in-from-bottom-1 last:mb-24",
-          { "min-h-[calc(100cqh-270px)]": isLastMessage },
-        )}
         data-role="assistant"
+        className="aui-assistant-message-root relative mx-auto w-full max-w-[var(--thread-max-width)] shrink-0 animate-in border-5 border-red-500 py-4 duration-150 ease-out fade-in slide-in-from-bottom-1 last:mb-24"
+        /**
+         * If the message is the last message in the thread, set the min-height
+         * to the viewport height minus the height of the composer.
+         * This gives us enough scroll slack to anchor the last user message
+         * to the top of the thread.
+         */
+        style={
+          isLastMessage && reservedHeight > 0
+            ? { minHeight: reservedHeight - 120 }
+            : undefined
+        }
       >
         <div className="aui-assistant-message-content mx-2 leading-7 break-words text-foreground">
           <MessagePrimitive.Parts
