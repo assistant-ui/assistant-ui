@@ -12,6 +12,7 @@ import { ThreadViewportProvider } from "../../context/providers/ThreadViewportPr
 import { useThreadViewportIsAtBottom } from "./useThreadViewportIsAtBottom";
 import { ThreadViewportAnchorProvider } from "./ThreadViewportAnchorContext";
 import { useScrollToLastUserMessage } from "./useScrollToLastUserMessage";
+import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 
 export namespace ThreadPrimitiveViewport {
   export type Element = ComponentRef<typeof Primitive.div>;
@@ -35,6 +36,15 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
     viewportRef,
     autoScroll,
   );
+
+  useOnScrollToBottom(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    viewport.scrollTo({
+      top: viewport.scrollHeight,
+      behavior: "auto",
+    });
+  });
 
   const ref = useComposedRefs<ThreadPrimitiveViewport.Element>(
     forwardedRef,

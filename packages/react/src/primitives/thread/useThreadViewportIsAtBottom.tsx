@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, type RefObject } from "react";
 import { writableStore } from "../../context/ReadonlyStore";
 import { useThreadViewportStore } from "../../context/react/ThreadViewportContext";
 import { useOnResizeContent } from "../../utils/hooks/useOnResizeContent";
-import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 
 export const useThreadViewportIsAtBottom = <TElement extends HTMLElement>(
   viewportRef: RefObject<TElement | null>,
@@ -51,16 +50,6 @@ export const useThreadViewportIsAtBottom = <TElement extends HTMLElement>(
       viewport.removeEventListener("scroll", updateIsAtBottom);
     };
   }, [updateIsAtBottom, viewportRef]);
-
-  useOnScrollToBottom(() => {
-    const viewport = viewportRef.current;
-    if (!viewport) return;
-
-    viewport.scrollTo({
-      top: viewport.scrollHeight,
-      behavior: "auto",
-    });
-  });
 
   return resizeRef;
 };
