@@ -162,7 +162,78 @@ export function useToolInvocations({
               }
 
               if (content.argsText !== lastState.argsText) {
-                if (lastState.argsComplete) {
+                let lastParsed: any;
+                let currentParsed: any;
+                let isLastComplete = false;
+                let isCurrentComplete = false;
+
+                try {
+                  if (lastState.argsText.trim().startsWith("{")) {
+                    lastParsed = JSON.parse(lastState.argsText);
+                    isLastComplete = true;
+                  }
+                } catch (e) {
+                  // Is not complete JSON
+                }
+
+                try {
+                  if (content.argsText.trim().startsWith("{")) {
+                    currentParsed = JSON.parse(content.argsText);
+                    isCurrentComplete = true;
+                  }
+                } catch (e) {
+                  // Is not complete JSON
+                }
+
+                if (isLastComplete && isCurrentComplete) {
+                  try {
+                    const sortJsonKeys = (obj: any, depth = 0): any => {
+                      if (depth > 100)
+                        throw new Error("Max depth exceeded in sortJsonKeys");
+                      if (typeof obj !== "object" || obj === null) return obj;
+                      if (Array.isArray(obj))
+                        return obj.map((item) => sortJsonKeys(item, depth + 1));
+                      return Object.keys(obj)
+                        .sort()
+                        .reduce((result, key) => {
+                          result[key] = sortJsonKeys(obj[key], depth + 1);
+                          return result;
+                        }, {} as any);
+                    };
+
+                    if (
+                      JSON.stringify(sortJsonKeys(lastParsed)) !==
+                      JSON.stringify(sortJsonKeys(currentParsed))
+                    ) {
+                      if (process.env["NODE_ENV"] !== "production") {
+                        console.warn(
+                          "Complete argsText updated with different content:",
+                          {
+                            previous: lastState.argsText,
+                            next: content.argsText,
+                          },
+                        );
+                      }
+                    }
+                  } catch (e) {
+                    if (process.env["NODE_ENV"] !== "production") {
+                      console.warn(
+                        "Failed to compare JSON for semantic equivalence:",
+                        e,
+                      );
+                    }
+                  }
+
+                  if (!lastState.argsComplete) {
+                    lastState.controller.argsText.close();
+                  }
+
+                  lastToolStates.current[content.toolCallId] = {
+                    ...lastState,
+                    argsText: content.argsText,
+                    argsComplete: true,
+                  };
+                } else if (lastState.argsComplete) {
                   if (process.env["NODE_ENV"] !== "production") {
                     console.warn(
                       "argsText updated after controller was closed:",
@@ -187,10 +258,9 @@ export function useToolInvocations({
                   }
 
                   lastToolStates.current[content.toolCallId] = {
+                    ...lastState,
                     argsText: content.argsText,
-                    hasResult: lastState.hasResult,
                     argsComplete: shouldClose,
-                    controller: lastState.controller,
                   };
                 }
               }
