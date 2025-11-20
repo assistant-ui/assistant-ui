@@ -33,11 +33,6 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
   const viewportRef = useRef<ThreadPrimitiveViewport.Element>(null);
   const trackIsAtBottomRef = useThreadViewportIsAtBottom(viewportRef);
 
-  const isRunning = useAssistantState(({ thread }) => thread.isRunning);
-  const messagesLength = useAssistantState(
-    ({ thread }) => thread.messages.length,
-  );
-
   const scrollToLastUserMessage = useCallback(() => {
     const viewport = viewportRef.current;
     if (!viewport) return false;
@@ -70,12 +65,23 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
     return true;
   }, []);
 
-  const prevMessagesLengthRef = useRef(messagesLength);
-  const prevIsRunningRef = useRef(isRunning);
+  const threadState = useAssistantState(({ thread }) => thread);
+  const isRunning = threadState.isRunning;
+  const messagesLength = threadState.messages.length;
+
+  const previousStateRef = useRef({
+    isRunning,
+    messagesLength,
+  });
 
   useLayoutEffect(() => {
-    const prevMessagesLength = prevMessagesLengthRef.current;
-    const prevIsRunning = prevIsRunningRef.current;
+    if (!autoScroll) {
+      previousStateRef.current = { isRunning, messagesLength };
+      return;
+    }
+
+    const { isRunning: prevIsRunning, messagesLength: prevMessagesLength } =
+      previousStateRef.current;
 
     const messageAdded = messagesLength > prevMessagesLength;
     const runStarted = isRunning && !prevIsRunning;
@@ -84,8 +90,7 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
       scrollToLastUserMessage();
     }
 
-    prevMessagesLengthRef.current = messagesLength;
-    prevIsRunningRef.current = isRunning;
+    previousStateRef.current = { isRunning, messagesLength };
   }, [autoScroll, isRunning, messagesLength, scrollToLastUserMessage]);
 
   const ref = useComposedRefs<ThreadPrimitiveViewport.Element>(
