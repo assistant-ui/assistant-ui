@@ -53,6 +53,6 @@ export function getDefaultScopeInitializer<K extends keyof AssistantScopes>(
 /**
  * Get all registered scope names.
  */
-export function getRegisteredScopes(): (keyof AssistantScopes)[] {
-  return Array.from(scopeRegistry.keys());
+export function hasRegisteredScope(name: keyof AssistantScopes): boolean {
+  return scopeRegistry.has(name);
 }
