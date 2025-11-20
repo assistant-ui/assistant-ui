@@ -311,7 +311,7 @@ const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root asChild>
       <div
-        className="aui-user-message-root mx-auto grid w-full max-w-[var(--thread-max-width)] animate-in auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] gap-y-2 px-2 py-4 duration-150 ease-out fade-in slide-in-from-bottom-1 last:mb-5 [&:where(>*)]:col-start-2"
+        className="aui-user-message-root mx-auto grid w-full max-w-[var(--thread-max-width)] animate-in auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] gap-y-2 px-2 py-4 duration-150 ease-out fade-in slide-in-from-bottom-1 [&:where(>*)]:col-start-2"
         data-role="user"
       >
         <UserMessageAttachments />
