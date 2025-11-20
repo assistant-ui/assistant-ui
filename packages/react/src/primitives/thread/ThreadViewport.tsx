@@ -6,14 +6,12 @@ import {
   type ComponentRef,
   forwardRef,
   ComponentPropsWithoutRef,
-  useCallback,
-  useLayoutEffect,
   useRef,
 } from "react";
 import { ThreadViewportProvider } from "../../context/providers/ThreadViewportProvider";
-import { useAssistantState } from "../../context";
 import { useThreadViewportIsAtBottom } from "./useThreadViewportIsAtBottom";
 import { ThreadViewportAnchorProvider } from "./ThreadViewportAnchorContext";
+import { useScrollToLastUserMessage } from "./useScrollToLastUserMessage";
 
 export namespace ThreadPrimitiveViewport {
   export type Element = ComponentRef<typeof Primitive.div>;
@@ -32,80 +30,11 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
   ThreadPrimitiveViewport.Props
 >(({ autoScroll = true, children, ...rest }, forwardedRef) => {
   const viewportRef = useRef<ThreadPrimitiveViewport.Element>(null);
-  const lastUserMessageAnchorRef = useRef<HTMLElement | null>(null);
   const trackIsAtBottomRef = useThreadViewportIsAtBottom(viewportRef);
-  const pendingScrollRef = useRef(false);
-
-  const scrollToLastUserMessage = useCallback(() => {
-    const viewport = viewportRef.current;
-    const anchor = lastUserMessageAnchorRef.current;
-    console.log("anchor", anchor);
-    console.log("viewport", viewport);
-    if (!viewport || !anchor) return false;
-
-    const messageElement =
-      (anchor.previousElementSibling as HTMLElement | null) ?? anchor;
-
-    console.log("messageElement", messageElement);
-
-    const viewportRect = viewport.getBoundingClientRect();
-    const targetRect = messageElement.getBoundingClientRect();
-    let offsetTop = targetRect.top - viewportRect.top + viewport.scrollTop;
-
-    const TALL_MESSAGE_THRESHOLD = 80;
-    if (targetRect.height > TALL_MESSAGE_THRESHOLD) {
-      offsetTop += targetRect.height - TALL_MESSAGE_THRESHOLD;
-    }
-
-    viewport.scrollTo({
-      top: offsetTop,
-      behavior: "auto",
-    });
-    return true;
-  }, []);
-
-  const registerLastUserMessageAnchor = useCallback(
-    (node: HTMLElement | null) => {
-      lastUserMessageAnchorRef.current = node;
-      if (node && pendingScrollRef.current) {
-        if (scrollToLastUserMessage()) {
-          pendingScrollRef.current = false;
-        }
-      }
-    },
-    [scrollToLastUserMessage],
+  const registerLastUserMessageAnchor = useScrollToLastUserMessage(
+    viewportRef,
+    autoScroll,
   );
-
-  const threadState = useAssistantState(({ thread }) => thread);
-  const isRunning = threadState.isRunning;
-  const messagesLength = threadState.messages.length;
-
-  const previousStateRef = useRef({
-    isRunning,
-    messagesLength,
-  });
-
-  useLayoutEffect(() => {
-    if (!autoScroll) {
-      previousStateRef.current = { isRunning, messagesLength };
-      return;
-    }
-
-    const { isRunning: prevIsRunning, messagesLength: prevMessagesLength } =
-      previousStateRef.current;
-
-    const messageAdded = messagesLength > prevMessagesLength;
-    const runStarted = isRunning && !prevIsRunning;
-
-    if (messageAdded || runStarted) {
-      pendingScrollRef.current = true;
-      if (scrollToLastUserMessage()) {
-        pendingScrollRef.current = false;
-      }
-    }
-
-    previousStateRef.current = { isRunning, messagesLength };
-  }, [autoScroll, isRunning, messagesLength, scrollToLastUserMessage]);
 
   const ref = useComposedRefs<ThreadPrimitiveViewport.Element>(
     forwardedRef,
