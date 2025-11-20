@@ -72,14 +72,12 @@ export const FooProvider = ({
   index: number;
   children: React.ReactNode;
 }) => {
-  const parentAui = useAssistantClient();
-
   // Create a derived client with the foo scope at the specified index
   const aui = useAssistantClient({
     foo: DerivedScope({
       source: "fooList",
       query: { index },
-      get: () => parentAui.fooList().foo({ index }),
+      get: (aui) => aui.fooList().foo({ index }),
     }),
   });
 

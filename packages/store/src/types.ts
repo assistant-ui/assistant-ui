@@ -74,7 +74,7 @@ export type ScopeField<T extends ScopeDefinition> = (() => ScopeValue<T>) & {
  * Props passed to a derived scope resource element
  */
 export type DerivedScopeProps<T extends ScopeDefinition> = {
-  get: () => ScopeValue<T>;
+  get: (parent: AssistantClient) => ScopeValue<T>;
   source: ScopeSource<T>;
   query: ScopeQuery<T>;
 };

@@ -123,23 +123,25 @@ const DerivedScopeResource = resource(
   <K extends keyof AssistantScopes>({
     scopeName,
     element,
+    parentClient,
   }: {
     scopeName: K;
     element: ResourceElement<
       AssistantScopes[K],
       DerivedScopeProps<AssistantScopes[K]>
     >;
+    parentClient: AssistantClient;
   }) => {
     const get = tapEffectEvent(element.props.get);
     const source = element.props.source;
     const query = element.props.query;
     return tapMemo(() => {
-      const scopeFunction = (() => get()) as ScopeField<AssistantScopes[K]>;
+      const scopeFunction = (() => get(parentClient)) as ScopeField<AssistantScopes[K]>;
       scopeFunction.source = source;
       scopeFunction.query = query;
 
       return [scopeName, scopeFunction] as const;
-    }, [scopeName, get, source, JSON.stringify(query)]);
+    }, [scopeName, get, source, JSON.stringify(query), parentClient]);
   },
 );
 
@@ -147,7 +149,13 @@ const DerivedScopeResource = resource(
  * Resource for all derived scopes
  * Builds stable scope functions with source and query metadata
  */
-const DerivedScopesResource = resource((scopes: ScopesInput) => {
+const DerivedScopesResource = resource(({
+  scopes,
+  parentClient,
+}: {
+  scopes: ScopesInput;
+  parentClient: AssistantClient;
+}) => {
   const resultEntries = tapResources(
     Object.entries(scopes).map(([scopeName, element]) =>
       DerivedScopeResource(
@@ -156,6 +164,7 @@ const DerivedScopesResource = resource((scopes: ScopesInput) => {
           element: element as ScopeInput<
             AssistantScopes[keyof AssistantScopes]
           >,
+          parentClient,
         },
         { key: scopeName },
       ),
@@ -172,8 +181,8 @@ const DerivedScopesResource = resource((scopes: ScopesInput) => {
 /**
  * Hook to mount and access derived scopes
  */
-export const useDerivedScopes = (derivedScopes: ScopesInput) => {
-  return useResource(DerivedScopesResource(derivedScopes));
+export const useDerivedScopes = (derivedScopes: ScopesInput, parentClient: AssistantClient) => {
+  return useResource(DerivedScopesResource({ scopes: derivedScopes, parentClient }));
 };
 
 const useExtendedAssistantClientImpl = (
@@ -184,7 +193,7 @@ const useExtendedAssistantClientImpl = (
 
   // Mount the scopes to keep them alive
   const rootFields = useRootScopes(rootScopes);
-  const derivedFields = useDerivedScopes(derivedScopes);
+  const derivedFields = useDerivedScopes(derivedScopes, baseClient);
 
   return useMemo(() => {
     // Merge base client with extended client
