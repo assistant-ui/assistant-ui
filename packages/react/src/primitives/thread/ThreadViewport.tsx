@@ -71,6 +71,10 @@ ThreadPrimitiveViewportScrollable.displayName =
  * automatic scrolling capabilities. It manages the viewport state and provides
  * context for child components to access viewport-related functionality.
  *
+ * When customizing message layouts, ensure you keep the sentinel rendered by
+ * `ThreadPrimitive.Messages` (or supply an equivalent marker) so the viewport
+ * can reliably locate the last user message for auto-scroll.
+ *
  * @example
  * ```tsx
  * <ThreadPrimitive.Viewport autoScroll={true}>

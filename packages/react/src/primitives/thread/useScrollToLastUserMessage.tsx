@@ -17,6 +17,10 @@ export const useScrollToLastUserMessage = (
     const anchor = lastUserMessageAnchorRef.current;
     if (!viewport || !anchor) return false;
 
+    /**
+     * LastUserMessageAnchor is rendered after the message, so we need to access
+     * the previous element sibling (the message element) for measurement
+     */
     const messageElement =
       (anchor.previousElementSibling as HTMLElement | null) ?? anchor;
 

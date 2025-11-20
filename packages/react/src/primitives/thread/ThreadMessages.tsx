@@ -162,6 +162,12 @@ export namespace ThreadPrimitiveMessageByIndex {
  * />
  * ```
  */
+/**
+ * Hidden marker rendered alongside each message to indicate when we have reached
+ * the true last user message. ThreadPrimitive.Viewport subscribes to this marker
+ * (via context) so it can scroll precisely to the correct DOM node without
+ * relying on DOM order heuristics.
+ */
 const LastUserMessageAnchor: FC<{ lastUserMessageId: string | undefined }> = ({
   lastUserMessageId,
 }) => {
