@@ -17,6 +17,7 @@ import {
   ErrorPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
+  useAssistantState,
 } from "@assistant-ui/react";
 
 import type { FC } from "react";
@@ -229,10 +230,15 @@ const MessageError: FC = () => {
 };
 
 const AssistantMessage: FC = () => {
+  const isLastMessage = useAssistantState(({ message }) => message.isLast);
+
   return (
     <MessagePrimitive.Root asChild>
       <div
-        className="aui-assistant-message-root relative mx-auto min-h-[calc(100cqh-300px)] w-full max-w-[var(--thread-max-width)] shrink-0 animate-in py-4 duration-150 ease-out fade-in slide-in-from-bottom-1 last:mb-24"
+        className={cn(
+          "aui-assistant-message-root relative mx-auto w-full shrink-0 animate-in py-4 duration-150 ease-out fade-in slide-in-from-bottom-1 last:mb-24",
+          { "min-h-[calc(100cqh-270px)]": isLastMessage },
+        )}
         data-role="assistant"
       >
         <div className="aui-assistant-message-content mx-2 leading-7 break-words text-foreground">
