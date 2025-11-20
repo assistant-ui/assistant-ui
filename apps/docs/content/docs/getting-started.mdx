@@ -1186,7 +1186,7 @@ npm install ai @assistant-ui/react-ai-sdk @ai-sdk/cohere
 ```
 
 ```sh title="Terminal" tab="Ollama"
-npm install ai @assistant-ui/react-ai-sdk ollama-ai-provider
+npm install ai @assistant-ui/react-ai-sdk ollama-ai-provider-v2
 ```
 
 ```sh title="Terminal" tab="Chrome AI"
@@ -1353,7 +1353,7 @@ export async function POST(req: Request) {
 ```
 
 ```ts title="/app/api/chat/route.ts" tab="Ollama"
-import { ollama } from "ollama-ai-provider";
+import { ollama } from "ollama-ai-provider-v2";
 import { convertToModelMessages, streamText } from "ai";
 
 export const maxDuration = 30;
