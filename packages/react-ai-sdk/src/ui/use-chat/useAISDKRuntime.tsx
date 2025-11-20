@@ -43,6 +43,15 @@ export type AISDKRuntimeAdapter = {
       })
     | undefined;
   toCreateMessage?: CustomToCreateMessageFunction;
+  /**
+   * Whether to automatically cancel pending interactive tool calls when the user sends a new message.
+   *
+   * When enabled (default), the pending tool calls will be marked as failed with an error message
+   * indicating the user cancelled the tool call by sending a new message.
+   *
+   * @default true
+   */
+  cancelPendingToolCallsOnSend?: boolean | undefined;
 };
 
 export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
@@ -50,6 +59,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   {
     adapters,
     toCreateMessage: customToCreateMessage,
+    cancelPendingToolCallsOnSend = true,
   }: AISDKRuntimeAdapter = {},
 ) => {
   const contextAdapters = useRuntimeAdapters();
@@ -111,6 +121,45 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     },
   );
 
+  const completePendingToolCalls = () => {
+    if (!cancelPendingToolCallsOnSend) return;
+
+    const pendingHumanTools: PendingHumanTool[] = Object.entries(toolStatuses)
+      .filter(
+        (
+          entry,
+        ): entry is [
+          string,
+          Extract<ToolExecutionStatus, { type: "interrupt" }>,
+        ] => entry[1]?.type === "interrupt",
+      )
+      .map(([toolCallId]) => ({ toolCallId }));
+
+    if (pendingHumanTools.length === 0) return;
+
+    // Set tool statuses to cancelled so UI can show special state
+    setToolStatuses((prev) => {
+      const next = { ...prev };
+      pendingHumanTools.forEach(({ toolCallId }) => {
+        next[toolCallId] = {
+          type: "cancelled",
+          reason: "User cancelled tool call by sending a new message.",
+        };
+      });
+      return next;
+    });
+
+    // Mark tools as errored in the message history
+    pendingHumanTools.forEach(({ toolCallId }) => {
+      chatHelpers.addToolOutput({
+        state: "output-error",
+        tool: toolCallId,
+        toolCallId,
+        errorText: "User cancelled tool call by sending a new message.",
+      });
+    });
+  };
+
   const runtime = useExternalStoreRuntime({
     isRunning,
     messages,
@@ -133,40 +182,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       toolInvocations.abort();
     },
     onNew: async (message) => {
-      const pendingHumanTools: PendingHumanTool[] = Object.entries(toolStatuses)
-        .filter(
-          (
-            entry,
-          ): entry is [
-            string,
-            Extract<ToolExecutionStatus, { type: "interrupt" }>,
-          ] => entry[1]?.type === "interrupt",
-        )
-        .map(([toolCallId]) => ({ toolCallId }));
-
-      pendingHumanTools.forEach(({ toolCallId }) => {
-        chatHelpers.addToolOutput({
-          state: "output-available",
-          tool: toolCallId,
-          toolCallId,
-          output: {
-            _type: "assistant-ui/auto-completed-tool",
-            reason:
-              "User sent a new message instead of interacting with the tool UI.",
-          },
-        });
-      });
-
-      // Clean up auto-completed tool statuses
-      if (pendingHumanTools.length > 0) {
-        setToolStatuses((prev) => {
-          const next = { ...prev };
-          pendingHumanTools.forEach(({ toolCallId }) => {
-            delete next[toolCallId];
-          });
-          return next;
-        });
-      }
+      completePendingToolCalls();
 
       const createMessage = (
         customToCreateMessage ?? toCreateMessage
@@ -176,6 +192,8 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       });
     },
     onEdit: async (message) => {
+      completePendingToolCalls();
+
       const newMessages = sliceMessagesUntil(
         chatHelpers.messages,
         message.parentId,
