@@ -6,3 +6,5 @@ export { ThreadPrimitiveMessages as Messages } from "./ThreadMessages";
 export { ThreadPrimitiveMessageByIndex as MessageByIndex } from "./ThreadMessages";
 export { ThreadPrimitiveScrollToBottom as ScrollToBottom } from "./ThreadScrollToBottom";
 export { ThreadPrimitiveSuggestion as Suggestion } from "./ThreadSuggestion";
+export { ThreadPrimitiveFooter as Footer } from "./ThreadFooter";
+export { ThreadPrimitiveSpacer as Spacer } from "./ThreadSpacer";

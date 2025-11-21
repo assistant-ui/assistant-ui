@@ -33,6 +33,8 @@ export namespace ThreadPrimitiveViewport {
 }
 
 const DEFAULT_COMPOSER_HEIGHT = 150;
+const FOOTER_ATTR = "data-aui-thread-footer";
+const SPACER_ATTR = "data-aui-thread-spacer";
 
 const ThreadPrimitiveViewportScrollable = forwardRef<
   ThreadPrimitiveViewport.Element,
@@ -71,7 +73,7 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
       `${viewportHeight}px`,
     );
     viewport.style.setProperty(
-      "--aui-thread-composer-height",
+      "--aui-thread-footer-height",
       `${composerHeight}px`,
     );
     viewport.style.setProperty(
@@ -128,22 +130,32 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
     autoScroll,
   );
   const viewportResizeRef = useOnResizeContent(() => {
-    const viewport = viewportRef.current;
-    if (!viewport) return;
-    updateViewportHeight(viewport.clientHeight);
+    const viewportEl = viewportRef.current;
+    if (!viewportEl) return;
+    updateViewportHeight(viewportEl.clientHeight);
+
+    const footerEl = viewportEl.querySelector<HTMLElement>(`[${FOOTER_ATTR}]`);
+    if (footerEl) {
+      updateComposerHeight(footerEl.getBoundingClientRect().height);
+    }
+
+    const spacerEl = viewportEl.querySelector<HTMLElement>(`[${SPACER_ATTR}]`);
+    if (spacerEl) {
+      setSpacerMeasurement(spacerEl.getBoundingClientRect().height);
+    }
   });
   const composerRef = useRef<HTMLElement | null>(null);
   const spacerRef = useRef<HTMLElement | null>(null);
 
   const composerResizeRef = useOnResizeContent(() => {
-    const composer = composerRef.current;
-    if (!composer) return;
-    updateComposerHeight(composer.getBoundingClientRect().height);
+    const composerEl = composerRef.current;
+    if (!composerEl) return;
+    updateComposerHeight(composerEl.getBoundingClientRect().height);
   });
   const spacerResizeRef = useOnResizeContent(() => {
-    const spacer = spacerRef.current;
-    if (!spacer) return;
-    setSpacerMeasurement(spacer.getBoundingClientRect().height);
+    const spacerEl = spacerRef.current;
+    if (!spacerEl) return;
+    setSpacerMeasurement(spacerEl.getBoundingClientRect().height);
   });
 
   const registerComposer = useCallback(
@@ -172,10 +184,10 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
   );
 
   useOnScrollToBottom(() => {
-    const viewport = viewportRef.current;
-    if (!viewport) return;
-    viewport.scrollTo({
-      top: viewport.scrollHeight,
+    const viewportEl = viewportRef.current;
+    if (!viewportEl) return;
+    viewportEl.scrollTo({
+      top: viewportEl.scrollHeight,
       behavior: "auto",
     });
   });

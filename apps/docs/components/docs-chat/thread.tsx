@@ -45,10 +45,10 @@ export const Thread: FC = () => {
         />
 
         <ThreadPrimitive.If empty={false}>
-          <div className="min-h-8 flex-grow" />
+          <ThreadPrimitive.Spacer />
         </ThreadPrimitive.If>
 
-        <div className="sticky bottom-0 mt-3 flex w-full max-w-[var(--thread-max-width)] flex-col items-center justify-end rounded-t-lg bg-inherit pb-2">
+        <ThreadPrimitive.Footer className="sticky bottom-0 mt-3 flex w-full max-w-[var(--thread-max-width)] flex-col items-center justify-end rounded-t-lg bg-inherit pb-2">
           <ThreadScrollToBottom />
           <Composer />
           <a
@@ -63,7 +63,7 @@ export const Thread: FC = () => {
               width={70}
             />
           </a>
-        </div>
+        </ThreadPrimitive.Footer>
       </ThreadPrimitive.Viewport>
     </ThreadPrimitive.Root>
   );

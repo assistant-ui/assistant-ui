@@ -23,7 +23,7 @@ export const useRegisterComposerElement = (): RefCallback<HTMLElement> => {
  * Registers an element as the "thread footer" (typically the composer wrapper).
  *
  * The viewport measures this element and writes CSS custom properties such as
- * `--aui-thread-composer-height`, allowing layouts to react without subscribing
+ * `--aui-thread-footer-height`, allowing layouts to react without subscribing
  * to React context. This is useful when you have custom composer chrome (scroll
  * buttons, padding, etc.) that should count toward the measured height.
  *

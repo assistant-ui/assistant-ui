@@ -7,7 +7,7 @@ import { useCallback, useLayoutEffect, useRef, type RefObject } from "react";
  * The threshold for considering a user message "too tall" to scroll the entire message
  * into view. Just show the last couple lines of the message and cut off the rest.
  */
-const TALL_USER_MESSAGE_THRESHOLD = 80;
+const TALL_USER_MESSAGE_THRESHOLD = 100;
 
 export const useScrollToLastUserMessage = (
   viewportRef: RefObject<HTMLElement | null>,

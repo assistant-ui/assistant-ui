@@ -59,10 +59,12 @@ export const Thread: FC = () => {
             />
 
             <ThreadPrimitive.If empty={false}>
-              <div className="aui-thread-viewport-spacer min-h-8 grow" />
+              <ThreadPrimitive.Spacer className="aui-thread-viewport-spacer" />
             </ThreadPrimitive.If>
 
-            <Composer />
+            <ThreadPrimitive.Footer className="aui-composer-wrapper sticky bottom-0 mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4 md:pb-6">
+              <Composer />
+            </ThreadPrimitive.Footer>
           </ThreadPrimitive.Viewport>
         </ThreadPrimitive.Root>
       </MotionConfig>
@@ -172,7 +174,7 @@ const ThreadSuggestions: FC = () => {
 
 const Composer: FC = () => {
   return (
-    <div className="aui-composer-wrapper sticky bottom-0 mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4 md:pb-6">
+    <>
       <ThreadScrollToBottom />
       <ComposerPrimitive.Root className="aui-composer-root group/input-group relative flex w-full flex-col rounded-3xl border border-input bg-background px-1 pt-2 shadow-xs transition-[color,box-shadow] outline-none has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-[3px] has-[textarea:focus-visible]:ring-ring/50 dark:bg-background">
         <ComposerAttachments />
@@ -185,7 +187,7 @@ const Composer: FC = () => {
         />
         <ComposerAction />
       </ComposerPrimitive.Root>
-    </div>
+    </>
   );
 };
 
