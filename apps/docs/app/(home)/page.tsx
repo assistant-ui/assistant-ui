@@ -41,7 +41,7 @@ const FEATURE_CARDS = [
   {
     title: "State Management",
     description:
-      "State machines tuned for streaming responses, interruptions, retries, and multi-turn conversations out of the box.",
+      "Optimized for streaming responses, interruptions, retries, and multi-turn conversations out of the box.",
     icon: Cpu,
     iconClassName: "text-blue-400",
   },
@@ -162,8 +162,8 @@ function FeatureHighlights() {
           State, speed, and flexibility baked in
         </h2>
         <p className="text-muted-foreground">
-          assistant-ui pairs refined UI primitives with production-ready chat
-          state management so you can ship a real assistant, faster.
+          Production-ready components and state management to build AI chat,
+          faster.
         </p>
       </div>
 
