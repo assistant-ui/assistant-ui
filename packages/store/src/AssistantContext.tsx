@@ -23,7 +23,7 @@ export const AssistantContext = createContext<AssistantClient>(
     get(_, prop: string) {
       // Allow access to subscribe and flushSync without error
       if (prop === "subscribe") return NO_OP_SUBSCRIBE;
-
+      if (prop === "on") return NO_OP_SUBSCRIBE;
       if (prop === "flushSync") return NO_OP_FLUSH_SYNC;
 
       // If this is a registered scope, return a function that errors when called or accessed
