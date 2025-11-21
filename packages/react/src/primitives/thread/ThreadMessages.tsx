@@ -3,7 +3,7 @@
 import { type ComponentType, type FC, memo, useMemo } from "react";
 import { useAssistantState, MessageByIndexProvider } from "../../context";
 import { ThreadMessage as ThreadMessageType } from "../../types";
-import { useRegisterLastUserMessageAnchor } from "./ThreadViewportAnchorContext";
+import { useRegisterLastUserMessageScrollAnchor } from "./ThreadViewportAnchorContext";
 
 export namespace ThreadPrimitiveMessages {
   export type Props = {
@@ -151,6 +151,9 @@ export namespace ThreadPrimitiveMessageByIndex {
  * This component provides message context for a specific message in the thread
  * and renders it using the provided component configuration.
  *
+ * @note The ThreadMessageComponent is wrapped in a div so the viewport can
+ * auto-scroll to the last user message without the message component opting in.
+ *
  * @example
  * ```tsx
  * <ThreadPrimitive.MessageByIndex
@@ -162,39 +165,27 @@ export namespace ThreadPrimitiveMessageByIndex {
  * />
  * ```
  */
-/**
- * Hidden marker rendered alongside each message to indicate when we have reached
- * the true last user message. ThreadPrimitive.Viewport subscribes to this marker
- * (via context) so it can scroll precisely to the correct DOM node without
- * relying on DOM order heuristics.
- */
-const LastUserMessageAnchor: FC<{ lastUserMessageId: string | undefined }> = ({
-  lastUserMessageId,
-}) => {
-  const isLastUserMessage = useAssistantState(
-    ({ message }) =>
-      message.role === "user" && message.id === lastUserMessageId,
-  );
-  const registerLastUserMessageAnchor = useRegisterLastUserMessageAnchor();
-
-  if (!isLastUserMessage) return null;
-
-  return (
-    <span
-      ref={registerLastUserMessageAnchor}
-      aria-hidden="true"
-      className="aui-thread-last-user-message-anchor block h-0 overflow-hidden"
-    />
-  );
-};
-
 export const ThreadPrimitiveMessageByIndex: FC<ThreadPrimitiveMessageByIndex.Props> =
   memo(
     ({ index, components, lastUserMessageId }) => {
+      const registerLastUserMessageScrollAnchor =
+        useRegisterLastUserMessageScrollAnchor();
+      const isLastUserMessage = useAssistantState(
+        ({ message }) =>
+          message.role === "user" && message.id === lastUserMessageId,
+      );
+
       return (
         <MessageByIndexProvider index={index}>
-          <ThreadMessageComponent components={components} />
-          <LastUserMessageAnchor lastUserMessageId={lastUserMessageId} />
+          <div
+            ref={
+              isLastUserMessage
+                ? registerLastUserMessageScrollAnchor
+                : undefined
+            }
+          >
+            <ThreadMessageComponent components={components} />
+          </div>
         </MessageByIndexProvider>
       );
     },
@@ -229,10 +220,12 @@ export const ThreadPrimitiveMessagesImpl: FC<ThreadPrimitiveMessages.Props> = ({
 }) => {
   const threadState = useAssistantState(({ thread }) => thread);
   const messagesLength = threadState.messages.length;
+
   let lastUserMessageId: string | undefined;
+
   for (let i = threadState.messages.length - 1; i >= 0; i -= 1) {
-    const candidate = threadState.messages[i]!;
-    if (candidate.role === "user") {
+    const candidate = threadState.messages[i];
+    if (candidate?.role === "user") {
       lastUserMessageId = candidate.id;
       break;
     }

@@ -123,7 +123,7 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
   );
 
   const trackIsAtBottomRef = useThreadViewportIsAtBottom(viewportRef);
-  const registerLastUserMessageAnchor = useScrollToLastUserMessage(
+  const registerLastUserMessageScrollAnchor = useScrollToLastUserMessage(
     viewportRef,
     autoScroll,
   );
@@ -183,7 +183,9 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
 
   return (
     <ThreadViewportSpacerProvider value={{ registerSpacer }}>
-      <ThreadViewportAnchorProvider value={{ registerLastUserMessageAnchor }}>
+      <ThreadViewportAnchorProvider
+        value={{ registerLastUserMessageScrollAnchor }}
+      >
         <Primitive.div {...rest} ref={ref}>
           {children}
         </Primitive.div>

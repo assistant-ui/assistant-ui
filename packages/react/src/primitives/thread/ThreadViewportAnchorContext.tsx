@@ -8,7 +8,7 @@ import {
 } from "react";
 
 type ThreadViewportAnchorContextValue = {
-  registerLastUserMessageAnchor: (node: HTMLElement | null) => void;
+  registerLastUserMessageScrollAnchor: (node: HTMLElement | null) => void;
 };
 
 const ThreadViewportAnchorContext =
@@ -17,18 +17,18 @@ const ThreadViewportAnchorContext =
 export const ThreadViewportAnchorProvider =
   ThreadViewportAnchorContext.Provider;
 
-export const useRegisterLastUserMessageAnchor =
+export const useRegisterLastUserMessageScrollAnchor =
   (): RefCallback<HTMLElement> => {
     const context = useContext(ThreadViewportAnchorContext);
     if (!context) {
       throw new Error(
-        "useRegisterLastUserMessageAnchor must be used within ThreadPrimitive.Viewport",
+        "useRegisterLastUserMessageScrollAnchor must be used within ThreadPrimitive.Viewport",
       );
     }
 
     return useCallback(
       (node: HTMLElement | null) => {
-        context.registerLastUserMessageAnchor(node);
+        context.registerLastUserMessageScrollAnchor(node);
       },
       [context],
     );
