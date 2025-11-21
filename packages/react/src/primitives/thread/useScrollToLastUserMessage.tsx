@@ -1,6 +1,7 @@
 "use client";
 
 import { useAssistantState } from "../../context";
+import { useThreadViewportStore } from "../../context/react/ThreadViewportContext";
 import { useCallback, useLayoutEffect, useRef, type RefObject } from "react";
 
 /**
@@ -17,6 +18,7 @@ export const useScrollToLastUserMessage = (
   const lastUserMessageAnchorRef = useRef<HTMLElement | null>(null);
   const pendingScrollRef = useRef(false);
   const warnedMissingAnchorRef = useRef(false);
+  const threadViewportStore = useThreadViewportStore();
 
   const scrollToLastUserMessage = useCallback(() => {
     const viewport = viewportRef.current;
@@ -64,6 +66,9 @@ export const useScrollToLastUserMessage = (
   const threadState = useAssistantState(({ thread }) => thread);
   const isRunning = threadState.isRunning;
   const messagesLength = threadState.messages.length;
+  const lastMessageRole = threadState.messages[messagesLength - 1]?.role;
+  const userMessageAdded =
+    messagesLength > 0 && lastMessageRole === "user" ? true : false;
   const hasUserMessage = (() => {
     for (let i = threadState.messages.length - 1; i >= 0; i -= 1) {
       if (threadState.messages[i]?.role === "user") return true;
@@ -88,17 +93,21 @@ export const useScrollToLastUserMessage = (
 
     const messageAdded = messagesLength > prevMessagesLength;
     const runStarted = isRunning && !prevIsRunning;
+    const shouldAutoScroll =
+      autoScroll &&
+      (userMessageAdded ||
+        (threadViewportStore.getState().isAtBottom && runStarted));
 
     if (messageAdded || runStarted) {
-      pendingScrollRef.current = true;
-      if (scrollToLastUserMessage()) {
+      pendingScrollRef.current = shouldAutoScroll;
+      if (shouldAutoScroll && scrollToLastUserMessage()) {
         pendingScrollRef.current = false;
       }
     }
 
     if (
       process.env["NODE_ENV"] !== "production" &&
-      autoScroll &&
+      shouldAutoScroll &&
       pendingScrollRef.current &&
       hasUserMessage &&
       !lastUserMessageAnchorRef.current &&
@@ -115,8 +124,11 @@ export const useScrollToLastUserMessage = (
     autoScroll,
     hasUserMessage,
     isRunning,
+    lastMessageRole,
     messagesLength,
+    threadViewportStore,
     scrollToLastUserMessage,
+    userMessageAdded,
   ]);
 
   return registerLastUserMessageAnchor;
