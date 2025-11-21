@@ -1,5 +1,7 @@
 import { Command } from "commander";
 import { spawn } from "cross-spawn";
+import { logger } from "../lib/utils/logger";
+import { hasConfig } from "../lib/utils/config";
 
 const REGISTRY_BASE_URL = "https://r.assistant-ui.com";
 
@@ -16,12 +18,22 @@ export const add = new Command()
   )
   .option("-p, --path <path>", "the path to add the component to.")
   .action((components: string[], opts) => {
+    // Check if project is initialized
+    if (!hasConfig(opts.cwd)) {
+      logger.warn(
+        "It looks like you haven't initialized your project yet. Run 'assistant-ui init' first.",
+      );
+      logger.break();
+    }
+
     const componentsToAdd = components.map((c) => {
-      if (!/^[a-zA-Z0-9-\/]+$/.test(c)) {
+      if (!/^[a-zA-Z0-9-/]+$/.test(c)) {
         throw new Error(`Invalid component name: ${c}`);
       }
       return `${REGISTRY_BASE_URL}/${encodeURIComponent(c)}`;
     });
+
+    logger.step(`Adding ${components.length} component(s)...`);
 
     const args = [`shadcn@latest`, "add", ...componentsToAdd];
 
@@ -36,12 +48,16 @@ export const add = new Command()
     });
 
     child.on("error", (error) => {
-      console.error(`Error: ${error.message}`);
+      logger.error(`Failed to add components: ${error.message}`);
+      process.exit(1);
     });
 
     child.on("close", (code) => {
       if (code !== 0) {
-        console.log(`other-package-script process exited with code ${code}`);
+        logger.error(`Process exited with code ${code}`);
+        process.exit(code || 1);
+      } else {
+        logger.success("Components added successfully!");
       }
     });
   });

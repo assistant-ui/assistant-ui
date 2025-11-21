@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import chalk from "chalk";
 import { spawn } from "cross-spawn";
+import { logger } from "../lib/utils/logger";
 
 export const create = new Command()
   .name("create")
@@ -9,46 +10,13 @@ export const create = new Command()
   .usage(`${chalk.green("[project-directory]")} [options]`)
   .option(
     "-t, --template <template>",
-    `
-
-  The template to use for the project, e.g. default, langgraph
-`,
+    "template to use (default, cloud, langgraph, mcp)",
   )
-  .option(
-    "--use-npm",
-    `
-
-  Explicitly tell the CLI to bootstrap the application using npm
-`,
-  )
-  .option(
-    "--use-pnpm",
-    `
-
-  Explicitly tell the CLI to bootstrap the application using pnpm
-`,
-  )
-  .option(
-    "--use-yarn",
-    `
-
-  Explicitly tell the CLI to bootstrap the application using Yarn
-`,
-  )
-  .option(
-    "--use-bun",
-    `
-
-  Explicitly tell the CLI to bootstrap the application using Bun
-`,
-  )
-  .option(
-    "--skip-install",
-    `
-
-  Explicitly tell the CLI to skip installing packages
-`,
-  )
+  .option("--use-npm", "explicitly use npm")
+  .option("--use-pnpm", "explicitly use pnpm")
+  .option("--use-yarn", "explicitly use yarn")
+  .option("--use-bun", "explicitly use bun")
+  .option("--skip-install", "skip installing packages")
   .action((_, opts) => {
     const templates = {
       default: "https://github.com/assistant-ui/assistant-ui-starter",
@@ -58,12 +26,17 @@ export const create = new Command()
       mcp: "https://github.com/assistant-ui/assistant-ui-starter-mcp",
     };
 
-    const templateUrl =
-      templates[(opts.template as keyof typeof templates) ?? "default"];
+    const templateName = (opts.template as keyof typeof templates) ?? "default";
+    const templateUrl = templates[templateName];
+
     if (!templateUrl) {
-      console.error(`Unknown template: ${opts.template}`);
+      logger.error(`Unknown template: ${opts.template}`);
+      logger.info(`Available templates: ${Object.keys(templates).join(", ")}`);
       process.exit(1);
     }
+
+    logger.info(`Creating project with template: ${templateName}`);
+    logger.break();
 
     const filteredArgs = process.argv.slice(3).filter((arg, index, arr) => {
       return !(
@@ -83,12 +56,17 @@ export const create = new Command()
     );
 
     child.on("error", (error) => {
-      console.error(`Error: ${error.message}`);
+      logger.error(`Failed to create project: ${error.message}`);
+      process.exit(1);
     });
 
     child.on("close", (code) => {
       if (code !== 0) {
-        console.log(`other-package-script process exited with code ${code}`);
+        logger.error(`Project creation failed with code ${code}`);
+        process.exit(code || 1);
+      } else {
+        logger.break();
+        logger.success("Project created successfully!");
       }
     });
   });

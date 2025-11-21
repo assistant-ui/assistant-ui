@@ -23,7 +23,9 @@
     "@types/jscodeshift": "^17.3.0",
     "@types/node": "^24.10.1",
     "@types/semver": "^7.7.1",
-    "tsx": "^4.20.6"
+    "tsx": "^4.20.6",
+    "vitest": "^2.1.8",
+    "@vitest/coverage-v8": "^2.1.8"
   },
   "files": [
     "dist",
@@ -33,7 +35,10 @@
   "bin": "./dist/index.js",
   "scripts": {
     "build": "tsx scripts/build.mts",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "publishConfig": {
     "access": "public",
