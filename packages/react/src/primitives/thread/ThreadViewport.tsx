@@ -17,10 +17,7 @@ import { useScrollToLastUserMessage } from "./useScrollToLastUserMessage";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { useOnResizeContent } from "../../utils/hooks/useOnResizeContent";
 import { ThreadViewportSpacerProvider } from "./ThreadViewportSpacerContext";
-import {
-  THREAD_FOOTER_ATTR,
-  THREAD_SPACER_ATTR,
-} from "./threadDataAttributes";
+import { THREAD_FOOTER_ATTR, THREAD_SPACER_ATTR } from "./threadDataAttributes";
 
 export namespace ThreadPrimitiveViewport {
   export type Element = ComponentRef<typeof Primitive.div>;
@@ -36,59 +33,118 @@ export namespace ThreadPrimitiveViewport {
 
 const DEFAULT_COMPOSER_HEIGHT = 150;
 
+type Measurements = {
+  footerHeight: number;
+  viewportHeight: number;
+  spacerHeight: number;
+  /**
+   * Track whether we have an explicit spacer measurement; otherwise fall back
+   * to `viewportHeight - footerHeight` so layouts work even without a spacer.
+   */
+  spacerMeasured: boolean;
+};
+
+type AppliedMeasurements = {
+  footerHeight: number;
+  viewportHeight: number;
+  spacerHeight: number;
+  totalOffset: number;
+  bottomOffset: number;
+};
+
+const computeAppliedMeasurements = (
+  measurements: Measurements,
+): AppliedMeasurements => {
+  const footerHeight = Math.max(0, Math.round(measurements.footerHeight));
+  const viewportHeight = Math.max(0, Math.round(measurements.viewportHeight));
+  const fallbackSpacerHeight = Math.max(0, viewportHeight - footerHeight);
+  const effectiveSpacerHeight = measurements.spacerMeasured
+    ? measurements.spacerHeight
+    : fallbackSpacerHeight;
+  const spacerHeight = Math.max(0, Math.round(effectiveSpacerHeight));
+  const totalOffset = footerHeight + spacerHeight;
+  const bottomOffset = Math.max(0, viewportHeight - totalOffset);
+
+  return {
+    footerHeight,
+    viewportHeight,
+    spacerHeight,
+    totalOffset,
+    bottomOffset,
+  };
+};
+
+const syncMeasurementsToCSSVars = (
+  viewport: HTMLElement,
+  measurements: AppliedMeasurements,
+  lastApplied: AppliedMeasurements,
+  setLastApplied: (next: AppliedMeasurements) => void,
+) => {
+  const noChange =
+    lastApplied.viewportHeight === measurements.viewportHeight &&
+    lastApplied.footerHeight === measurements.footerHeight &&
+    lastApplied.spacerHeight === measurements.spacerHeight &&
+    lastApplied.totalOffset === measurements.totalOffset &&
+    lastApplied.bottomOffset === measurements.bottomOffset;
+
+  if (noChange) return;
+
+  viewport.style.setProperty(
+    "--aui-thread-viewport-height",
+    `${measurements.viewportHeight}px`,
+  );
+  viewport.style.setProperty(
+    "--aui-thread-footer-height",
+    `${measurements.footerHeight}px`,
+  );
+  viewport.style.setProperty(
+    "--aui-thread-spacer-height",
+    `${measurements.spacerHeight}px`,
+  );
+  viewport.style.setProperty(
+    "--aui-thread-bottom-offset",
+    `${measurements.bottomOffset}px`,
+  );
+  viewport.style.setProperty(
+    "--aui-thread-total-offset",
+    `${measurements.totalOffset}px`,
+  );
+
+  setLastApplied(measurements);
+};
+
 const ThreadPrimitiveViewportScrollable = forwardRef<
   ThreadPrimitiveViewport.Element,
   ThreadPrimitiveViewport.Props
 >(({ autoScroll = true, children, ...rest }, forwardedRef) => {
   const viewportRef = useRef<ThreadPrimitiveViewport.Element>(null);
-  const measurementsRef = useRef({
+  const measurementsRef = useRef<Measurements>({
     footerHeight: DEFAULT_COMPOSER_HEIGHT,
     viewportHeight: 0,
     spacerHeight: 0,
-    /**
-     * Track whether we have an explicit spacer measurement; otherwise fall back
-     * to `viewportHeight - footerHeight` so layouts work even without a spacer.
-     */
     spacerMeasured: false,
+  });
+  const lastAppliedRef = useRef<AppliedMeasurements>({
+    footerHeight: DEFAULT_COMPOSER_HEIGHT,
+    spacerHeight: 0,
+    bottomOffset: 0,
+    totalOffset: 0,
+    viewportHeight: 0,
   });
 
   const setMeasurementCSSVars = useCallback(() => {
     const viewport = viewportRef.current;
     if (!viewport) return;
 
-    const footerHeight = Math.max(
-      0,
-      Math.round(measurementsRef.current.footerHeight),
+    const next = computeAppliedMeasurements(measurementsRef.current);
+    syncMeasurementsToCSSVars(
+      viewport,
+      next,
+      lastAppliedRef.current,
+      (applied) => {
+        lastAppliedRef.current = applied;
+      },
     );
-    const viewportHeight = Math.max(
-      0,
-      Math.round(measurementsRef.current.viewportHeight),
-    );
-    const fallbackSpacerHeight = Math.max(0, viewportHeight - footerHeight);
-    const effectiveSpacerHeight = measurementsRef.current.spacerMeasured
-      ? measurementsRef.current.spacerHeight
-      : fallbackSpacerHeight;
-    const spacerHeight = Math.max(0, Math.round(effectiveSpacerHeight));
-    const totalOffset = footerHeight + spacerHeight;
-    const bottomOffset = Math.max(0, viewportHeight - totalOffset);
-
-    viewport.style.setProperty(
-      "--aui-thread-viewport-height",
-      `${viewportHeight}px`,
-    );
-    viewport.style.setProperty(
-      "--aui-thread-footer-height",
-      `${footerHeight}px`,
-    );
-    viewport.style.setProperty(
-      "--aui-thread-spacer-height",
-      `${spacerHeight}px`,
-    );
-    viewport.style.setProperty(
-      "--aui-thread-bottom-offset",
-      `${bottomOffset}px`,
-    );
-    viewport.style.setProperty("--aui-thread-total-offset", `${totalOffset}px`);
   }, []);
 
   const updateViewportHeight = useCallback(
@@ -138,14 +194,16 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
     if (!viewportEl) return;
     updateViewportHeight(viewportEl.clientHeight);
 
-    const footerEl =
-      viewportEl.querySelector<HTMLElement>(`[${THREAD_FOOTER_ATTR}]`);
+    const footerEl = viewportEl.querySelector<HTMLElement>(
+      `[${THREAD_FOOTER_ATTR}]`,
+    );
     if (footerEl) {
       updateFooterHeight(footerEl.getBoundingClientRect().height);
     }
 
-    const spacerEl =
-      viewportEl.querySelector<HTMLElement>(`[${THREAD_SPACER_ATTR}]`);
+    const spacerEl = viewportEl.querySelector<HTMLElement>(
+      `[${THREAD_SPACER_ATTR}]`,
+    );
     if (spacerEl) {
       setSpacerMeasurement(spacerEl.getBoundingClientRect().height);
     }
