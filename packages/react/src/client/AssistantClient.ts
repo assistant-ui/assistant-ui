@@ -1,7 +1,6 @@
 import {
   tapMemo,
   resource,
-  Unsubscribe,
   tapInlineResource,
   ResourceElement,
   tapResource,
@@ -29,6 +28,7 @@ import { withModelContextProvider } from "./ModelContext";
 import { ToolsApi, ToolsState } from "./types/Tools";
 import { ModelContextApi, ModelContextState } from "./types/ModelContext";
 import { ModelContext as ModelContextResource } from "./ModelContextClient";
+import { Unsubscribe } from "../types";
 
 type AssistantClientState = {
   readonly threads: ThreadListClientState;

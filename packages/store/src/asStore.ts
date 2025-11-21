@@ -4,8 +4,8 @@ import {
   ResourceElement,
   resource,
   createResource,
-  Unsubscribe,
 } from "@assistant-ui/tap";
+import { Unsubscribe } from "./types";
 
 export interface Store<TState> {
   /**

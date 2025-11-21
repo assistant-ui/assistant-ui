@@ -1,5 +1,5 @@
 import { getCurrentResourceFiber } from "../core/execution-context";
-import { EffectCallback, Cell } from "../core/types";
+import { Cell } from "../core/types";
 
 function getEffectCell(): number {
   const fiber = getCurrentResourceFiber();
@@ -31,13 +31,18 @@ function getEffectCell(): number {
   return index;
 }
 
-export function tapEffect(effect: EffectCallback): void;
+export namespace tapEffect {
+  export type Destructor = () => void;
+  export type EffectCallback = () => void | Destructor;
+}
+
+export function tapEffect(effect: tapEffect.EffectCallback): void;
 export function tapEffect(
-  effect: EffectCallback,
+  effect: tapEffect.EffectCallback,
   deps: readonly unknown[],
 ): void;
 export function tapEffect(
-  effect: EffectCallback,
+  effect: tapEffect.EffectCallback,
   deps?: readonly unknown[],
 ): void {
   const fiber = getCurrentResourceFiber();

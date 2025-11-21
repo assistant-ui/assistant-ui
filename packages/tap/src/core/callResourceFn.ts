@@ -1,19 +1,17 @@
-import { ResourceFn, Resource } from "./types";
+import { Resource } from "./types";
 
 /**
- * Get the ResourceFn from a Resource constructor.
+ * Renders a resource with the given props.
  * @internal This is for internal use only.
  */
-export function getResourceFn<R, P>(
-  resource: Resource<R, P>,
-): ResourceFn<R, P> {
-  const fn = (resource as unknown as { [fnSymbol]?: ResourceFn<R, P> })[
+export function callResourceFn<R, P>(resource: Resource<R, P>, props: P): R {
+  const fn = (resource as unknown as { [fnSymbol]?: (props: P) => R })[
     fnSymbol
   ];
   if (!fn) {
     throw new Error("ResourceElement.type is not a valid Resource");
   }
-  return fn;
+  return fn(props);
 }
 
 /**

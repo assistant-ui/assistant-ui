@@ -1,6 +1,5 @@
-export type ResourceFn<R, P> = (props: P) => R;
-
-export type Unsubscribe = () => void;
+import type { tapEffect } from "../hooks/tap-effect";
+import type { tapState } from "../hooks/tap-state";
 
 export type ResourceElement<R, P = any> = {
   type: Resource<R, P>;
@@ -9,31 +8,31 @@ export type ResourceElement<R, P = any> = {
 };
 
 export type Resource<R, P> = (
-  ...args: undefined extends P
-    ? [props?: P, options?: { key?: string | number }]
+  ...args: P extends undefined
+    ? [props?: undefined, options?: { key?: string | number }]
     : [props: P, options?: { key?: string | number }]
 ) => ResourceElement<R, P>;
 
-export type StateUpdater<S> = S | ((prev: S) => S);
-
-export type Destructor = () => void;
-export type EffectCallback = () => void | Destructor;
+export type ContravariantResource<R, P> = (
+  props: P,
+  options?: { key?: string | number },
+) => ResourceElement<R, any>;
 
 export type Cell =
   | {
       type: "state";
       value: any;
-      set: (updater: StateUpdater<any>) => void;
+      set: (updater: tapState.StateUpdater<any>) => void;
     }
   | {
       type: "effect";
       mounted: boolean;
-      cleanup?: Destructor | undefined;
+      cleanup?: tapEffect.Destructor | undefined;
       deps?: readonly unknown[] | undefined;
     };
 
 export interface EffectTask {
-  effect: EffectCallback;
+  effect: tapEffect.EffectCallback;
   deps?: readonly unknown[] | undefined;
   cellIndex: number;
 }
@@ -46,7 +45,7 @@ export interface RenderResult {
 
 export interface ResourceFiber<R, P> {
   readonly scheduleRerender: () => void;
-  readonly resourceFn: ResourceFn<R, P>;
+  readonly resource: Resource<R, P>;
 
   cells: Cell[];
   currentIndex: number;

@@ -2,8 +2,8 @@ import {
   resource,
   tapMemo,
   tapEffect,
-  RefObject,
   tapInlineResource,
+  type tapRef,
 } from "@assistant-ui/tap";
 import {
   ComposerRuntime,
@@ -43,8 +43,8 @@ export const ComposerClient = resource(
     messageIdRef,
     runtime,
   }: {
-    threadIdRef: RefObject<string>;
-    messageIdRef?: RefObject<string>;
+    threadIdRef: tapRef.RefObject<string>;
+    messageIdRef?: tapRef.RefObject<string>;
     runtime: ComposerRuntime;
   }) => {
     const runtimeState = tapSubscribable(runtime);

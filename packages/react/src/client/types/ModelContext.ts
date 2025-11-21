@@ -1,4 +1,4 @@
-import type { Unsubscribe } from "@assistant-ui/tap";
+import type { Unsubscribe } from "../../types";
 import type { ModelContextProvider } from "../../model-context/ModelContextTypes";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type

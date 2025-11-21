@@ -5,7 +5,7 @@ import {
   tapInlineResource,
   tapMemo,
   tapEffect,
-  RefObject,
+  type tapRef,
 } from "@assistant-ui/tap";
 import { ComposerClient } from "./ComposerRuntimeClient";
 import { MessageClient } from "./MessageRuntimeClient";
@@ -24,7 +24,7 @@ const MessageClientById = resource(
   }: {
     runtime: ThreadRuntime;
     id: string;
-    threadIdRef: RefObject<string>;
+    threadIdRef: tapRef.RefObject<string>;
   }) => {
     const messageRuntime = tapMemo(
       () => runtime.getMessageById(id),
