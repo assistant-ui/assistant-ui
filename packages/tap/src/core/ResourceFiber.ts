@@ -1,13 +1,14 @@
-import { ResourceFn, ResourceFiber, RenderResult } from "./types";
+import { ResourceFiber, RenderResult, Resource } from "./types";
 import { commitRender, cleanupAllEffects } from "./commit";
 import { withResourceFiber } from "./execution-context";
+import { callResourceFn } from "./callResourceFn";
 
 export function createResourceFiber<R, P>(
-  resourceFn: ResourceFn<R, P>,
+  resource: Resource<R, P>,
   scheduleRerender: () => void,
 ): ResourceFiber<R, P> {
   return {
-    resourceFn,
+    resource,
     scheduleRerender,
     cells: [],
     currentIndex: 0,
@@ -37,7 +38,7 @@ export function renderResource<R, P>(
   withResourceFiber(fiber, () => {
     fiber.renderContext = result;
     try {
-      result.state = fiber.resourceFn(props);
+      result.state = callResourceFn(fiber.resource, props);
     } finally {
       fiber.renderContext = undefined;
     }

@@ -5,7 +5,7 @@ export { tapState } from "./hooks/tap-state";
 export { tapEffect } from "./hooks/tap-effect";
 
 // utility hooks
-export { tapRef, type RefObject } from "./hooks/tap-ref";
+export { tapRef } from "./hooks/tap-ref";
 export { tapMemo } from "./hooks/tap-memo";
 export { tapCallback } from "./hooks/tap-callback";
 export { tapEffectEvent } from "./hooks/tap-effect-event";
@@ -16,17 +16,14 @@ export { tapInlineResource } from "./hooks/tap-inline-resource";
 export { tapResources } from "./hooks/tap-resources";
 
 // imperative
-export { createResource, type ResourceHandle } from "./core/ResourceHandle";
+export { createResource } from "./core/ResourceHandle";
 
 // context
 export { createContext, tapContext, withContextProvider } from "./core/context";
 
+// types
 export type {
-  ResourceFn,
-  ResourceElement,
   Resource,
-  Unsubscribe,
-  StateUpdater,
-  EffectCallback,
-  Destructor,
+  ContravariantResource,
+  ResourceElement,
 } from "./core/types";

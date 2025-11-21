@@ -1,5 +1,9 @@
 import { getCurrentResourceFiber } from "../core/execution-context";
-import { StateUpdater, Cell, ResourceFiber } from "../core/types";
+import { Cell, ResourceFiber } from "../core/types";
+
+export namespace tapState {
+  export type StateUpdater<S> = S | ((prev: S) => S);
+}
 
 export const rerender = (fiber: ResourceFiber<any, any>) => {
   if (fiber.renderContext) {
@@ -38,7 +42,7 @@ function getStateCell<T>(
     const cell: Cell & { type: "state" } = {
       type: "state",
       value,
-      set: (updater: StateUpdater<T>) => {
+      set: (updater: tapState.StateUpdater<T>) => {
         const currentValue = cell.value;
         const nextValue =
           typeof updater === "function"
@@ -65,14 +69,14 @@ function getStateCell<T>(
 
 export function tapState<S = undefined>(): [
   S | undefined,
-  (updater: StateUpdater<S>) => void,
+  (updater: tapState.StateUpdater<S>) => void,
 ];
 export function tapState<S>(
   initial: S | (() => S),
-): [S, (updater: StateUpdater<S>) => void];
+): [S, (updater: tapState.StateUpdater<S>) => void];
 export function tapState<S>(
   initial?: S | (() => S),
-): [S | undefined, (updater: StateUpdater<S>) => void] {
+): [S | undefined, (updater: tapState.StateUpdater<S>) => void] {
   const cell = getStateCell(initial as S | (() => S));
 
   return [cell.value, cell.set];

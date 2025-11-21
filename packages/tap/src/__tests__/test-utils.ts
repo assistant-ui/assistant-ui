@@ -4,7 +4,7 @@ import {
   renderResource as renderResourceFiber,
   commitResource,
 } from "../core/ResourceFiber";
-import { ResourceFn, ResourceFiber } from "../core/types";
+import { Resource, ResourceFiber } from "../core/types";
 import { tapState } from "../hooks/tap-state";
 
 // ============================================================================
@@ -16,7 +16,7 @@ import { tapState } from "../hooks/tap-state";
  * This is a low-level utility that creates a ResourceFiber directly.
  * Sets up a rerender callback that automatically re-renders when state changes.
  */
-export function createTestResource<R, P>(type: ResourceFn<R, P>) {
+export function createTestResource<R, P>(type: Resource<R, P>) {
   const rerenderCallback = () => {
     // Re-render when state changes
     if (activeResources.has(fiber)) {

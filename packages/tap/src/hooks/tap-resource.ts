@@ -1,5 +1,4 @@
 import { ResourceElement } from "../core/types";
-import { getResourceFn } from "../core/getResourceFn";
 import { tapEffect } from "./tap-effect";
 import {
   createResourceFiber,
@@ -21,7 +20,7 @@ export function tapResource<R, P>(
 ): R {
   const [stateVersion, rerender] = tapState({});
   const fiber = tapMemo(
-    () => createResourceFiber(getResourceFn(element.type), () => rerender({})),
+    () => createResourceFiber(element.type, () => rerender({})),
     [element.type],
   );
 
