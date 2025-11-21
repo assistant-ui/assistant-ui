@@ -52,7 +52,7 @@ export const Thread: FC = () => {
           <ThreadScrollToBottom />
           <Composer />
           <a
-            href="https://entelligence.ai/assistant-ui&assistant-ui?ref=assistant-ui"
+            href="https://entelligence.ai/"
             className="mt-2 flex justify-center gap-1 self-center text-xs opacity-25"
           >
             In partnership with{" "}
