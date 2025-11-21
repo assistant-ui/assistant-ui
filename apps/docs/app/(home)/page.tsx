@@ -48,14 +48,14 @@ const FEATURE_CARDS = [
   {
     title: "High Performance",
     description:
-      "Lean bundles and careful rendering paths keep your chat snappy, even when tokens are flying in.",
+      "Optimized rendering and minimal bundle size keep your app responsive during streaming.",
     icon: Zap,
     iconClassName: "text-green-400",
   },
   {
-    title: "Framework Agnostic",
+    title: "Works Everywhere",
     description:
-      "Works with any React-based stack and any runtime—Vercel AI SDK, direct LLM calls, or your own agents.",
+      "Compatible with Vercel AI SDK, LangChain, or any LLM provider. React-based.",
     icon: Terminal,
     iconClassName: "text-orange-400",
   },
@@ -98,8 +98,7 @@ export default function HomePage() {
             Be part of the community
           </h2>
           <p className="text-muted-foreground">
-            1000+ developers are building with assistant-ui, you&apos;re in good
-            company!
+            Join our active Discord community for support and updates.
           </p>
 
           <div className="my-2 flex w-full flex-col gap-4 sm:grid sm:grid-cols-2">
@@ -137,7 +136,7 @@ export default function HomePage() {
               inactiveZone={0.01}
             />
             <p className="text-center text-2xl font-bold">
-              Build conversational AI interfaces
+              Ship your AI assistant this week
             </p>
             <Button
               asChild
@@ -159,7 +158,7 @@ function FeatureHighlights() {
     <section className="mt-10 lg:mt-14">
       <div className="flex flex-col items-center gap-2 text-center">
         <h2 className="text-3xl font-medium tracking-tight">
-          State, speed, and flexibility baked in
+          Everything you need to ship AI chat
         </h2>
         <p className="text-muted-foreground">
           Production-ready components and state management to build AI chat,
@@ -200,14 +199,14 @@ function Hero() {
   return (
     <div className="relative z-2 flex flex-col overflow-hidden px-6 py-12 text-center md:pt-16">
       <h1 className="mb-8 text-4xl font-medium tracking-tight md:hidden">
-        UX of ChatGPT in your own app
+        Build ChatGPT-quality chat, fast.
       </h1>
       <h1 className="mb-8 text-5xl font-medium tracking-tight max-md:hidden">
-        UX of ChatGPT in your own app
+        Build ChatGPT-quality chat, fast.
       </h1>
-      <p className="mb-8 text-muted-foreground md:text-xl">
-        assistant-ui is the TypeScript/React library for{" "}
-        <span className="text-foreground">AI Chat</span>.<br />
+      <p className="mb-8 leading-relaxed text-muted-foreground md:text-xl">
+        The open-source React toolkit for production AI chat experiences.
+        <br />
         Built on <span className="text-foreground">shadcn/ui</span> and{" "}
         <span className="text-foreground">Tailwind</span>.
       </p>
