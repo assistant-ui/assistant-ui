@@ -11,3 +11,15 @@ export type { TapStoreListConfig } from "./tapStoreList";
 export { registerAssistantScope } from "./ScopeRegistry";
 
 export type { AssistantScopeRegistry } from "./types";
+
+// Events & Store Context
+export { tapStoreContext } from "./StoreContext";
+export type { StoreContextValue } from "./StoreContext";
+export { useAssistantEvent } from "./useAssistantEvent";
+export type {
+  AssistantEvent,
+  AssistantEventRegistry,
+  AssistantEventMap,
+  AssistantEventCallback,
+  EventManager,
+} from "./EventContext";

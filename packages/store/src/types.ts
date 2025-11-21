@@ -1,4 +1,8 @@
 import type { ResourceElement } from "@assistant-ui/tap";
+import type {
+  AssistantEvent,
+  AssistantEventCallback,
+} from "./EventContext";
 
 /**
  * Definition of a scope in the assistant client (internal type)
@@ -117,4 +121,8 @@ export type AssistantClient = {
 } & {
   subscribe(listener: () => void): Unsubscribe;
   flushSync(): void;
+  on<TEvent extends AssistantEvent>(
+    event: TEvent,
+    callback: AssistantEventCallback<TEvent>,
+  ): Unsubscribe;
 };

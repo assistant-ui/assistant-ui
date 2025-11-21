@@ -6,6 +6,7 @@ import {
   tapResource,
   tapResources,
   tapEffectEvent,
+  tapInlineResource,
   ResourceElement,
 } from "@assistant-ui/tap";
 import type {
@@ -19,6 +20,8 @@ import type {
 import { asStore } from "./asStore";
 import { useAssistantContextValue } from "./AssistantContext";
 import { splitScopes } from "./utils/splitScopes";
+import { EventManager } from "./EventContext";
+import { withStoreContextProvider } from "./StoreContext";
 
 /**
  * Resource for a single root scope
@@ -57,62 +60,79 @@ const RootScopeResource = resource(
  * Resource for all root scopes
  * Mounts each root scope and returns an object mapping scope names to their stores
  */
-const RootScopesResource = resource((scopes: ScopesInput) => {
-  const resultEntries = tapResources(
-    Object.entries(scopes).map(([scopeName, element]) =>
-      RootScopeResource(
-        {
-          scopeName: scopeName as keyof AssistantScopes,
-          element: element as ScopeInput<
-            AssistantScopes[keyof AssistantScopes]
-          >,
-        },
-        { key: scopeName },
+const RootScopesResource = resource(
+  ({
+    scopes,
+    parent,
+  }: {
+    scopes: ScopesInput;
+    parent: AssistantClient;
+  }) => {
+    const events = tapInlineResource(EventManager());
+
+    const resultEntries = withStoreContextProvider({ events, parent }, () =>
+      tapResources(
+        Object.entries(scopes).map(([scopeName, element]) =>
+          RootScopeResource(
+            {
+              scopeName: scopeName as keyof AssistantScopes,
+              element: element as ScopeInput<
+                AssistantScopes[keyof AssistantScopes]
+              >,
+            },
+            { key: scopeName },
+          ),
+        ),
       ),
-    ),
-  );
+    );
 
-  return tapMemo(() => {
-    if (resultEntries.length === 0) {
-      return {
-        scopes: {},
-      };
-    }
-
-    return {
-      scopes: Object.fromEntries(
-        resultEntries.map(([scopeName, { scopeFunction }]) => [
-          scopeName,
-          scopeFunction,
-        ]),
-      ) as {
-        [K in keyof typeof scopes]: ScopeField<AssistantScopes[K]>;
-      },
-      subscribe: (callback: () => void) => {
-        const unsubscribes = resultEntries.map(([, { subscribe }]) => {
-          return subscribe(() => {
-            console.log("Callback called for");
-            callback();
-          });
-        });
-        return () => {
-          unsubscribes.forEach((unsubscribe) => unsubscribe());
+    return tapMemo(() => {
+      if (resultEntries.length === 0) {
+        return {
+          scopes: {},
+          on: events.on,
         };
-      },
-      flushSync: () => {
-        resultEntries.forEach(([, { flushSync }]) => {
-          flushSync();
-        });
-      },
-    };
-  }, [...resultEntries]);
-});
+      }
+
+      return {
+        scopes: Object.fromEntries(
+          resultEntries.map(([scopeName, { scopeFunction }]) => [
+            scopeName,
+            scopeFunction,
+          ]),
+        ) as {
+          [K in keyof typeof scopes]: ScopeField<AssistantScopes[K]>;
+        },
+        subscribe: (callback: () => void) => {
+          const unsubscribes = resultEntries.map(([, { subscribe }]) => {
+            return subscribe(() => {
+              console.log("Callback called for");
+              callback();
+            });
+          });
+          return () => {
+            unsubscribes.forEach((unsubscribe) => unsubscribe());
+          };
+        },
+        flushSync: () => {
+          resultEntries.forEach(([, { flushSync }]) => {
+            flushSync();
+          });
+        },
+        on: events.on,
+      };
+    }, [...resultEntries, events]);
+  },
+);
 
 /**
  * Hook to mount and access root scopes
  */
-export const useRootScopes = (rootScopes: ScopesInput) => {
-  return useResource(RootScopesResource(rootScopes));
+export const useRootScopes = (
+  rootScopes: ScopesInput,
+  parent: AssistantClient,
+) => {
+  return useResource(RootScopesResource({ scopes: rootScopes, parent }));
 };
 
 /**
@@ -201,7 +221,7 @@ const useExtendedAssistantClientImpl = (
   const { rootScopes, derivedScopes } = splitScopes(scopes);
 
   // Mount the scopes to keep them alive
-  const rootFields = useRootScopes(rootScopes);
+  const rootFields = useRootScopes(rootScopes, baseClient);
   const derivedFields = useDerivedScopes(derivedScopes, baseClient);
 
   return useMemo(() => {
@@ -213,6 +233,7 @@ const useExtendedAssistantClientImpl = (
       ...derivedFields,
       subscribe: rootFields.subscribe ?? baseClient.subscribe,
       flushSync: rootFields.flushSync ?? baseClient.flushSync,
+      on: rootFields.on ?? baseClient.on,
     } as AssistantClient;
   }, [baseClient, rootFields, derivedFields]);
 };
