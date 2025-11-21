@@ -1,5 +1,13 @@
 # @assistant-ui/tap
 
+## 0.3.0
+
+### Minor Changes
+
+- feat: added `ContravariantResource` type
+- refactor: removed `Unsubscribe` type
+- refactor: moved multiple types to `tapX` hook namespace
+
 ## 0.2.2
 
 ### Patch Changes

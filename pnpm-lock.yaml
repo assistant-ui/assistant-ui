@@ -1395,7 +1395,7 @@ importers:
   packages/react:
     dependencies:
       '@assistant-ui/tap':
-        specifier: ^0.2.2
+        specifier: ^0.3.0
         version: link:../tap
       '@radix-ui/primitive':
         specifier: ^1.1.3
