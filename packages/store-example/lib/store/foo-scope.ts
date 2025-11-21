@@ -9,11 +9,12 @@ import { registerAssistantScope } from "@assistant-ui/store";
  * Implement the scope definition raw without importing ScopeDefinition
  */
 declare module "@assistant-ui/store" {
-  interface AssistantScopes {
+  interface AssistantScopeRegistry {
     foo: {
       value: {
         getState: () => { id: string; bar: string };
         updateBar: (newBar: string) => void;
+        remove: () => void;
       };
       source: "fooList";
       query: { index: number } | { id: string };
@@ -23,7 +24,7 @@ declare module "@assistant-ui/store" {
         getState: () => { foos: Array<{ id: string; bar: string }> };
         foo: (
           lookup: { index: number } | { id: string },
-        ) => AssistantScopes["foo"]["value"];
+        ) => AssistantScopeRegistry["foo"]["value"];
         addFoo: (id?: string) => void;
       };
       source: "root";

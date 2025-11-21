@@ -18,14 +18,12 @@ export type ScopeDefinition<
 };
 
 /**
- * Global interface for defining scopes via module augmentation.
- * Users extend this interface to define their own scopes by implementing
- * the scope definition raw (without importing ScopeDefinition).
+ * Module augmentation interface for assistant-ui store type extensions.
  *
  * @example
  * ```typescript
  * declare module "@assistant-ui/store" {
- *   interface AssistantScopes {
+ *   interface AssistantScopeRegistry {
  *     foo: {
  *       value: { getState: () => { bar: string }; updateBar: (bar: string) => void };
  *       source: "root";
@@ -35,16 +33,12 @@ export type ScopeDefinition<
  * }
  * ```
  */
-export interface AssistantScopes {
-  test: {
-    value: {
-      getState: () => { bar: string };
-      updateBar: (bar: string) => void;
-    };
-    source: "root";
-    query: Record<string, never>;
-  };
-}
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface AssistantScopeRegistry {}
+
+export type AssistantScopes = keyof AssistantScopeRegistry extends never
+  ? Record<"ERROR: No scopes were defined", ScopeDefinition>
+  : { [K in keyof AssistantScopeRegistry]: AssistantScopeRegistry[K] };
 
 /**
  * Helper type to extract the value type from a scope definition

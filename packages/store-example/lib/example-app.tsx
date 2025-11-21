@@ -6,6 +6,7 @@ import {
   useAssistantState,
 } from "@assistant-ui/store";
 import { FooList, FooListResource } from "./store/foo-store";
+
 import "./store/foo-scope"; // Register the fooList scope (demonstrates scope registry)
 
 /**
@@ -40,12 +41,20 @@ const Foo = () => {
           </span>
           <span className="text-gray-900 dark:text-white">{fooState.bar}</span>
         </div>
-        <button
-          onClick={handleUpdate}
-          className="mt-2 w-full rounded-md bg-blue-600 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none dark:focus:ring-offset-gray-800"
-        >
-          Update Value
-        </button>
+        <div className="mt-2 flex gap-2">
+          <button
+            onClick={handleUpdate}
+            className="flex-1 rounded-md bg-blue-600 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none dark:focus:ring-offset-gray-800"
+          >
+            Update
+          </button>
+          <button
+            onClick={() => aui.foo().remove()}
+            className="rounded-md bg-red-600 px-4 py-2 font-medium text-white transition-colors hover:bg-red-700 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:outline-none dark:focus:ring-offset-gray-800"
+          >
+            Delete
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -57,6 +66,18 @@ const FooListLength = () => {
     <span className="text-gray-500 dark:text-gray-400">
       ({fooListLength} items)
     </span>
+  );
+};
+
+const AddFooButton = () => {
+  const aui = useAssistantClient();
+  return (
+    <button
+      onClick={() => aui.fooList().addFoo()}
+      className="rounded-md bg-green-600 px-4 py-2 font-medium text-white transition-colors hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:outline-none dark:focus:ring-offset-gray-800"
+    >
+      Add New
+    </button>
   );
 };
 
@@ -75,9 +96,12 @@ export const ExampleApp = () => {
     <AssistantProvider client={rootClient}>
       <div className="space-y-6">
         <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-            Foo List <FooListLength />
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              Foo List <FooListLength />
+            </h2>
+            <AddFooButton />
+          </div>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
             Each item is rendered in its own FooProvider with scoped access
           </p>

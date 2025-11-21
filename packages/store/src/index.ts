@@ -9,3 +9,5 @@ export { tapLookupResources } from "./tapLookupResources";
 export { tapStoreList } from "./tapStoreList";
 export type { TapStoreListConfig } from "./tapStoreList";
 export { registerAssistantScope } from "./ScopeRegistry";
+
+export type { AssistantScopeRegistry } from "./types";

@@ -18,8 +18,10 @@ import {
 export const FooItemResource = resource(
   ({
     initialValue: { id, initialBar },
+    remove,
   }: {
     initialValue: { id: string; initialBar: string };
+    remove: () => void;
   }) => {
     const [state, setState] = tapState<{ id: string; bar: string }>({
       id,
@@ -34,6 +36,7 @@ export const FooItemResource = resource(
       {
         getState: () => state,
         updateBar,
+        remove,
       },
       { key: id },
     );
@@ -44,8 +47,8 @@ export const FooItemResource = resource(
  * FooList resource implementation
  * Manages a list of foos using tapStoreList
  */
+let counter = 3;
 export const FooListResource = resource(() => {
-  let counter = 3;
   const idGenerator = () => `foo-${++counter}`;
 
   const foos = tapStoreList({

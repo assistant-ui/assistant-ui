@@ -1,7 +1,7 @@
 import { tapState } from "@assistant-ui/tap";
+import type { ContravariantResource } from "@assistant-ui/tap";
 import { tapLookupResources } from "./tapLookupResources";
 import { ApiObject } from "./tapApi";
-import type { ResourceElement } from "@assistant-ui/tap";
 
 /**
  * Resource props that will be passed to each item resource
@@ -30,14 +30,14 @@ export type TapStoreListConfig<TProps, TState, TApi extends ApiObject> = {
    *
    * The resource will receive { initialValue, remove } as props.
    */
-  resource: (
-    props: TapStoreListResourceProps<TProps>,
-    options?: { key?: string | number },
-  ) => ResourceElement<{
-    key: string | undefined;
-    state: TState;
-    api: TApi;
-  }>;
+  resource: ContravariantResource<
+    {
+      key: string | undefined;
+      state: TState;
+      api: TApi;
+    },
+    TapStoreListResourceProps<TProps>
+  >;
   /**
    * Optional ID generator function for new items
    * If not provided, items must include an ID when added
@@ -86,13 +86,13 @@ export const tapStoreList = <
   api: (lookup: { index: number } | { id: string }) => TApi;
   add: (id?: string) => void;
 } => {
-  const { initialValues, resource, idGenerator } = config;
+  const { initialValues, resource: Resource, idGenerator } = config;
 
   const [items, setItems] = tapState<TProps[]>(initialValues);
 
   const lookup = tapLookupResources(
     items.map((item) =>
-      resource(
+      Resource(
         {
           initialValue: item,
           remove: () => {

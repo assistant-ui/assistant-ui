@@ -41,15 +41,17 @@ Open [http://localhost:3000](http://localhost:3000) to see the example.
 
 ```typescript
 declare module "@assistant-ui/store" {
-  interface AssistantScopes {
-    foo: {
-      value: {
-        getState: () => { id: string; bar: string };
-        updateBar: (newBar: string) => void;
+  namespace AssistantStore {
+    interface Scopes {
+      foo: {
+        value: {
+          getState: () => { id: string; bar: string };
+          updateBar: (newBar: string) => void;
+        };
+        source: "fooList";
+        query: { index: number } | { id: string };
       };
-      source: "fooList";
-      query: { index: number } | { id: string };
-    };
+    }
   }
 }
 ```
