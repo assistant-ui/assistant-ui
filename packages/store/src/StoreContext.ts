@@ -1,4 +1,8 @@
-import { createContext, tapContext, withContextProvider } from "@assistant-ui/tap";
+import {
+  createContext,
+  tapContext,
+  withContextProvider,
+} from "@assistant-ui/tap";
 import type { EventManager } from "./EventContext";
 import type { AssistantClient } from "./types";
 

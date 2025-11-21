@@ -167,7 +167,12 @@ export const EventManager = resource(() => {
           // Emit to wildcard listeners
           if (wildcardListeners) {
             for (const callback of wildcardListeners) {
-              (callback as (payload: { event: typeof event; payload: typeof payload }) => void)({ event, payload });
+              (
+                callback as (payload: {
+                  event: typeof event;
+                  payload: typeof payload;
+                }) => void
+              )({ event, payload });
             }
           }
         });
@@ -177,4 +182,3 @@ export const EventManager = resource(() => {
 
   return events;
 });
-
