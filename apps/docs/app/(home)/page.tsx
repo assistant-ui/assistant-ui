@@ -80,7 +80,7 @@ export default function HomePage() {
           asChild
         >
           <Link href="/examples">
-            Explore more examples <ArrowRight className="ml-2 h-4 w-4" />
+            Explore more examples <ArrowRight className="ml-2 size-4" />
           </Link>
         </Button>
       </div>
@@ -125,30 +125,29 @@ export default function HomePage() {
             testimonials={TESTIMONIALS}
             className="sm:columns-2 lg:columns-3 xl:columns-4"
           />
-          <div className="pointer-events-none absolute -bottom-8 left-0 z-10 h-[120px] w-full bg-linear-to-t from-background via-background" />
+          <div className="pointer-events-none absolute -bottom-8 left-0 z-10 h-12 w-full bg-linear-to-t from-background via-background" />
         </div>
-
-        <div className="flex justify-center">
-          <div className="relative flex h-max w-full flex-col items-center justify-between gap-5 rounded-xl border p-6 sm:w-max sm:flex-row sm:p-10 lg:h-32 lg:w-full lg:px-16">
-            <GlowingEffect
-              spread={40}
-              glow={true}
-              enabled={true}
-              proximity={64}
-              inactiveZone={0.01}
-            />
-            <p className="text-center text-2xl font-bold">
-              Ship your AI assistant this week
-            </p>
-            <Button
-              asChild
-              className="w-full bg-foreground hover:bg-foreground/80 sm:w-[unset]"
-            >
-              <Link href="/docs/getting-started">
-                Get Started <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
+      </div>
+      <div className="flex justify-center">
+        <div className="relative flex h-max w-full flex-col items-center justify-between gap-5 rounded-xl border p-6 sm:w-max sm:flex-row sm:p-10 lg:h-32 lg:w-full lg:px-16">
+          <GlowingEffect
+            spread={40}
+            glow={true}
+            enabled={true}
+            proximity={64}
+            inactiveZone={0.01}
+          />
+          <p className="text-center text-2xl font-bold">
+            Ship your AI assistant this week
+          </p>
+          <Button
+            asChild
+            className="w-full bg-foreground hover:bg-foreground/80 sm:w-[unset]"
+          >
+            <Link href="/docs/getting-started">
+              Get Started <ArrowRight className="ml-2 size-4" />
+            </Link>
+          </Button>
         </div>
       </div>
     </main>

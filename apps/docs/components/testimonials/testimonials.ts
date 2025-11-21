@@ -61,6 +61,14 @@ export const TESTIMONIALS: Testimonial[] = [
   },
   {
     platform: "X",
+    avatar: profileKeithSchacht,
+    username: "@keithschacht",
+    message:
+      "A great set of pre-built react components for building chatbot experiences.",
+    url: "https://x.com/keithschacht/status/1899656102310010984",
+  },
+  {
+    platform: "X",
     avatar: profileVirat,
     username: "@virattt",
     message:
@@ -81,14 +89,6 @@ export const TESTIMONIALS: Testimonial[] = [
     username: "@replyingaleks",
     message: "assistant-ui goated 🐐🐐",
     url: "https://x.com/replyingaleks/status/1833938146586939645",
-  },
-  {
-    platform: "X",
-    avatar: profileKeithSchacht,
-    username: "@keithschacht",
-    message:
-      "A great set of pre-built react components for building chatbot experiences.",
-    url: "https://x.com/keithschacht/status/1899656102310010984",
   },
 ];
 
