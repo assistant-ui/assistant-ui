@@ -18,8 +18,8 @@ import {
   MessagePrimitive,
   ThreadPrimitive,
   useAssistantState,
-  useThreadLayout,
   useThreadViewportComposerElement,
+  useThreadViewportSpacerElement,
 } from "@assistant-ui/react";
 
 import type { FC } from "react";
@@ -62,14 +62,23 @@ export const Thread: FC = () => {
             />
 
             <ThreadPrimitive.If empty={false}>
-              <div className="aui-thread-viewport-spacer min-h-8 grow" />
+              <ThreadViewportSpacer />
             </ThreadPrimitive.If>
-
             <Composer />
           </ThreadPrimitive.Viewport>
         </ThreadPrimitive.Root>
       </MotionConfig>
     </LazyMotion>
+  );
+};
+
+const ThreadViewportSpacer: FC = () => {
+  const registerSpacerElement = useThreadViewportSpacerElement();
+  return (
+    <div
+      ref={registerSpacerElement}
+      className="aui-thread-viewport-spacer min-h-8"
+    />
   );
 };
 
@@ -237,27 +246,23 @@ const MessageError: FC = () => {
 
 const AssistantMessage: FC = () => {
   const isLastMessage = useAssistantState(({ message }) => message.isLast);
-  const { composerHeight, viewportHeight } = useThreadLayout();
-
-  const reservedHeight =
-    viewportHeight > 0 && composerHeight > 0
-      ? Math.max(0, viewportHeight - composerHeight)
-      : 0;
 
   return (
     <MessagePrimitive.Root asChild>
       <div
         data-role="assistant"
-        className="aui-assistant-message-root relative mx-auto w-full max-w-[var(--thread-max-width)] shrink-0 animate-in border-5 border-red-500 py-4 duration-150 ease-out fade-in slide-in-from-bottom-1 last:mb-24"
+        className="aui-assistant-message-root relative mx-auto w-full max-w-[var(--thread-max-width)] shrink-0 grow animate-in border-2 border-red-500 py-4 duration-150 ease-out fade-in slide-in-from-bottom-1 last:mb-24"
         /**
-         * If the message is the last message in the thread, set the min-height
-         * to the viewport height minus the height of the composer.
-         * This gives us enough scroll slack to anchor the last user message
-         * to the top of the thread.
+         * If the message is the last message in the thread, reserve enough height
+         * for the viewport slack by referencing the CSS custom properties exposed
+         * by ThreadPrimitive.Viewport.
          */
         style={
-          isLastMessage && reservedHeight > 0
-            ? { minHeight: reservedHeight - 120 }
+          isLastMessage
+            ? {
+                minHeight:
+                  "max(0px, calc(var(--aui-thread-bottom-offset, 0px)))",
+              }
             : undefined
         }
       >

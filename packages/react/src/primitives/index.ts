@@ -17,7 +17,7 @@ export { useMessagePartFile } from "./messagePart/useMessagePartFile";
 export { useMessagePartImage } from "./messagePart/useMessagePartImage";
 export { useMessagePartData } from "./messagePart/useMessagePartData";
 export { useThreadViewportIsAtBottom } from "./thread/useThreadViewportIsAtBottom";
-export { useThreadLayout } from "./thread/useThreadLayout";
 export { useThreadViewportComposerElement } from "./thread/ThreadViewportComposerContext";
+export { useThreadViewportSpacerElement } from "./thread/ThreadViewportSpacerContext";
 export { useThreadViewportStore } from "../context/react/ThreadViewportContext";
 export { useScrollLock } from "./reasoning";
