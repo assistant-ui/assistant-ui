@@ -7,7 +7,15 @@ import { TESTIMONIALS } from "@/components/testimonials/testimonials";
 import { DiscordLogoIcon } from "@radix-ui/react-icons";
 import { TestimonialContainer } from "../../components/testimonials/TestimonialContainer";
 import { cn } from "@/lib/utils";
-import { CheckIcon, CopyIcon } from "lucide-react";
+import {
+  ArrowRight,
+  CheckIcon,
+  CopyIcon,
+  Cpu,
+  PanelsTopLeft,
+  Terminal,
+  Zap,
+} from "lucide-react";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import athenaintel from "./logos/cust/athenaintel.png";
 import browseruse from "./logos/cust/browseruse.svg";
@@ -15,7 +23,6 @@ import entelligence from "./logos/cust/entelligence.svg";
 import langchain from "./logos/cust/langchain.svg";
 import stack from "./logos/cust/stack.svg";
 import Image from "next/image";
-import { ArrowRight } from "lucide-react";
 import { DocsRuntimeProvider } from "./DocsRuntimeProvider";
 import { Marquee } from "@/components/magicui/marquee";
 import { useMediaQuery } from "@/lib/useMediaQuery";
@@ -23,37 +30,74 @@ import { StarPill } from "./home/StarPill";
 import ycombinator from "./logos/ycombinator.svg";
 import { useState } from "react";
 
+const FEATURE_CARDS = [
+  {
+    title: "Instant Chat UI",
+    description:
+      "Drop in a polished ChatGPT-style UX with theming and sensible defaults powered by shadcn/ui and Tailwind.",
+    icon: PanelsTopLeft,
+    iconClassName: "text-purple-400",
+  },
+  {
+    title: "State Management",
+    description:
+      "State machines tuned for streaming responses, interruptions, retries, and multi-turn conversations out of the box.",
+    icon: Cpu,
+    iconClassName: "text-blue-400",
+  },
+  {
+    title: "High Performance",
+    description:
+      "Lean bundles and careful rendering paths keep your chat snappy, even when tokens are flying in.",
+    icon: Zap,
+    iconClassName: "text-green-400",
+  },
+  {
+    title: "Framework Agnostic",
+    description:
+      "Works with any React-based stack and any runtime—Vercel AI SDK, direct LLM calls, or your own agents.",
+    icon: Terminal,
+    iconClassName: "text-orange-400",
+  },
+] as const;
+
 export default function HomePage() {
   return (
-    <main className="relative z-[2] container max-w-[1100px] px-2 py-16 lg:py-16">
+    <main className="relative z-2 container max-w-[1100px] px-2 py-16 lg:py-16">
       <StarPill />
       <Hero />
 
-      <div className="mx-auto mt-6 flex h-[650px] w-full max-w-screen-xl flex-col overflow-hidden rounded-lg border shadow">
+      <div className="mx-auto mt-6 flex h-[650px] w-full max-w-7xl flex-col overflow-hidden rounded-xl border shadow">
         <DocsRuntimeProvider>
           <Shadcn />
         </DocsRuntimeProvider>
       </div>
 
-      <Button variant="outline" className="mx-auto mt-6 flex" asChild>
+      <Button
+        className="mx-auto mt-6 flex w-fit border bg-background text-foreground shadow-sm hover:bg-background/90"
+        size="lg"
+        asChild
+      >
         <Link href="/examples">
-          View our other examples <ArrowRight />
+          Explore more examples <ArrowRight className="ml-2 h-4 w-4" />
         </Link>
       </Button>
 
+      <FeatureHighlights />
+
       <div className="mt-20 flex flex-col items-center gap-4">
-        <h1 className="text-center text-2xl font-medium">
+        <h2 className="text-center text-3xl font-medium tracking-tight">
           Trusted by fast-growing companies
-        </h1>
+        </h2>
         <Logos />
       </div>
 
       <div className="my-20 flex flex-col gap-6">
         <div className="flex flex-col items-center gap-3 self-center sm:w-full sm:self-start lg:w-[unset] lg:self-center">
-          <h1 className="self-start text-2xl font-medium sm:self-center">
+          <h2 className="self-start text-3xl font-medium tracking-tight sm:self-center">
             Be part of the community
-          </h1>
-          <p>
+          </h2>
+          <p className="text-muted-foreground">
             1000+ developers are building with assistant-ui, you&apos;re in good
             company!
           </p>
@@ -75,16 +119,16 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="relative mx-auto max-h-[500px] w-full max-w-screen-xl overflow-hidden">
+        <div className="relative mx-auto max-h-[500px] w-full max-w-7xl overflow-hidden">
           <TestimonialContainer
             testimonials={TESTIMONIALS}
             className="sm:columns-2 lg:columns-3 xl:columns-4"
           />
-          <div className="pointer-events-none absolute -bottom-8 left-0 z-10 h-[120px] w-full bg-gradient-to-t from-background via-background" />
+          <div className="pointer-events-none absolute -bottom-8 left-0 z-10 h-[120px] w-full bg-linear-to-t from-background via-background" />
         </div>
 
         <div className="flex justify-center">
-          <div className="relative flex h-max w-full flex-col items-center justify-between gap-5 rounded-3xl border p-6 sm:w-max sm:flex-row sm:p-10 lg:h-32 lg:w-full lg:px-16">
+          <div className="relative flex h-max w-full flex-col items-center justify-between gap-5 rounded-xl border p-6 sm:w-max sm:flex-row sm:p-10 lg:h-32 lg:w-full lg:px-16">
             <GlowingEffect
               spread={40}
               glow={true}
@@ -99,7 +143,9 @@ export default function HomePage() {
               asChild
               className="w-full bg-foreground hover:bg-foreground/80 sm:w-[unset]"
             >
-              <Link href="/docs/getting-started">Get Started</Link>
+              <Link href="/docs/getting-started">
+                Get Started <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
             </Button>
           </div>
         </div>
@@ -108,13 +154,55 @@ export default function HomePage() {
   );
 }
 
+function FeatureHighlights() {
+  return (
+    <section className="mt-10 lg:mt-14">
+      <div className="flex flex-col items-center gap-2 text-center">
+        <h2 className="text-3xl font-medium tracking-tight">
+          State, speed, and flexibility baked in
+        </h2>
+        <p className="text-muted-foreground">
+          assistant-ui pairs refined UI primitives with production-ready chat
+          state management so you can ship a real assistant, faster.
+        </p>
+      </div>
+
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {FEATURE_CARDS.map((feature) => {
+          const Icon = feature.icon;
+          return (
+            <div
+              key={feature.title}
+              className="flex h-full flex-col justify-between rounded-xl border bg-muted/20 p-6 text-left shadow-sm transition-all hover:shadow-md"
+            >
+              <div className="flex flex-col gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg border bg-background shadow-sm">
+                  <Icon className={`size-6 ${feature.iconClassName}`} />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-xl font-semibold tracking-tight">
+                    {feature.title}
+                  </h3>
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    {feature.description}
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 function Hero() {
   return (
-    <div className="relative z-[2] flex flex-col overflow-hidden px-6 py-12 text-center md:pt-16">
-      <h1 className="mb-8 text-4xl font-medium md:hidden">
+    <div className="relative z-2 flex flex-col overflow-hidden px-6 py-12 text-center md:pt-16">
+      <h1 className="mb-8 text-4xl font-medium tracking-tight md:hidden">
         UX of ChatGPT in your own app
       </h1>
-      <h1 className="mb-8 text-5xl font-medium max-md:hidden">
+      <h1 className="mb-8 text-5xl font-medium tracking-tight max-md:hidden">
         UX of ChatGPT in your own app
       </h1>
       <p className="mb-8 text-muted-foreground md:text-xl">
@@ -224,7 +312,7 @@ function CopyCommandButton() {
         size: "lg",
         variant: "outline",
         className:
-          "group relative flex h-12 items-center gap-2 rounded-lg border bg-background px-4 py-3 font-mono text-sm font-bold transition-all",
+          "group relative flex h-12 items-center gap-2 rounded-xl border bg-background px-4 py-3 font-mono text-sm font-bold transition-all",
       })}
     >
       <span>$ npx assistant-ui init</span>
