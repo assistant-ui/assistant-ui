@@ -31,7 +31,7 @@ import {
   AttachmentClientApi,
   AttachmentClientState,
 } from "../../client/types/Attachment";
-import { Unsubscribe } from "@assistant-ui/tap";
+import { Unsubscribe } from "../../types";
 import {
   AssistantEvent,
   AssistantEventCallback,

@@ -2,9 +2,9 @@ import {
   createContext,
   tapContext,
   withContextProvider,
-  Unsubscribe,
 } from "@assistant-ui/tap";
 import { ModelContextProvider } from "../model-context/ModelContextTypes";
+import { Unsubscribe } from "../types";
 
 export type ModelContextRegistrar = ModelContextProvider & {
   register: (provider: ModelContextProvider) => Unsubscribe;

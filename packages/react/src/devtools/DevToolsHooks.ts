@@ -1,5 +1,5 @@
 import { AssistantApi } from "../context/react/AssistantApiContext";
-import { Unsubscribe } from "@assistant-ui/tap";
+import { Unsubscribe } from "../types";
 
 export interface EventLog {
   time: Date;
