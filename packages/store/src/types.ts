@@ -2,6 +2,7 @@ import type { ResourceElement } from "@assistant-ui/tap";
 import type {
   AssistantEvent,
   AssistantEventCallback,
+  AssistantEventSelector,
 } from "./EventContext";
 
 /**
@@ -122,7 +123,7 @@ export type AssistantClient = {
   subscribe(listener: () => void): Unsubscribe;
   flushSync(): void;
   on<TEvent extends AssistantEvent>(
-    event: TEvent,
+    selector: AssistantEventSelector<TEvent>,
     callback: AssistantEventCallback<TEvent>,
   ): Unsubscribe;
 };

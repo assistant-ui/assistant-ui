@@ -20,7 +20,13 @@ import type {
 import { asStore } from "./asStore";
 import { useAssistantContextValue } from "./AssistantContext";
 import { splitScopes } from "./utils/splitScopes";
-import { EventManager } from "./EventContext";
+import {
+  EventManager,
+  normalizeEventSelector,
+  type AssistantEvent,
+  type AssistantEventCallback,
+  type AssistantEventSelector,
+} from "./EventContext";
 import { withStoreContextProvider } from "./StoreContext";
 
 /**
@@ -86,11 +92,19 @@ const RootScopesResource = resource(
       ),
     );
 
+    const on = <TEvent extends AssistantEvent>(
+      selector: AssistantEventSelector<TEvent>,
+      callback: AssistantEventCallback<TEvent>,
+    ) => {
+      const { event } = normalizeEventSelector(selector);
+      return events.on(event, callback);
+    };
+
     return tapMemo(() => {
       if (resultEntries.length === 0) {
         return {
           scopes: {},
-          on: events.on,
+          on,
         };
       }
 
@@ -119,7 +133,7 @@ const RootScopesResource = resource(
             flushSync();
           });
         },
-        on: events.on,
+        on,
       };
     }, [...resultEntries, events]);
   },
