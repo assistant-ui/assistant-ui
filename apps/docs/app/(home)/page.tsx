@@ -67,7 +67,7 @@ export default function HomePage() {
       <StarPill />
       <Hero />
 
-      <div className="mx-auto mt-6 flex h-[650px] w-full max-w-7xl flex-col overflow-hidden rounded-xl border shadow">
+      <div className="mx-auto flex h-[650px] w-full max-w-7xl flex-col overflow-hidden rounded-xl border shadow">
         <DocsRuntimeProvider>
           <Shadcn />
         </DocsRuntimeProvider>
@@ -198,13 +198,13 @@ function FeatureHighlights() {
 function Hero() {
   return (
     <div className="relative z-2 flex flex-col overflow-hidden px-6 py-12 text-center md:pt-16">
-      <h1 className="mb-8 text-4xl font-medium tracking-tight md:hidden">
-        Build ChatGPT-quality chat, fast.
+      <h1 className="mb-4 text-4xl font-medium tracking-tight md:hidden">
+        UX of ChatGPT in your own app
       </h1>
-      <h1 className="mb-8 text-5xl font-medium tracking-tight max-md:hidden">
-        Build ChatGPT-quality chat, fast.
+      <h1 className="mb-4 text-5xl font-medium tracking-tight max-md:hidden">
+        UX of ChatGPT in your own app
       </h1>
-      <p className="mb-8 leading-relaxed text-muted-foreground md:text-xl">
+      <p className="mb-4 leading-relaxed text-muted-foreground md:text-xl">
         The open-source React toolkit for production AI chat experiences.
         <br />
         Built on <span className="text-foreground">shadcn/ui</span> and{" "}
@@ -228,7 +228,7 @@ function Hero() {
         </a>
       </div>
 
-      <div className="mt-8 text-muted-foreground">
+      <div className="mt-6 text-muted-foreground">
         <p>
           Backed by{" "}
           <Image
