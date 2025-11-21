@@ -23,8 +23,8 @@ export namespace ThreadPrimitiveViewport {
   export type Element = ComponentRef<typeof Primitive.div>;
   export type Props = ComponentPropsWithoutRef<typeof Primitive.div> & {
     /**
-     * Whether to automatically scroll to the bottom when new messages are added.
-     * When enabled, the viewport will automatically scroll to show the latest content.
+     * Whether to automatically scroll to the last user message anchor when new messages are added.
+     * When enabled, the viewport will automatically target the latest user message.
      * @default true
      */
     autoScroll?: boolean | undefined;

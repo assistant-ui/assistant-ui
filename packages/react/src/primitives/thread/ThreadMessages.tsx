@@ -211,6 +211,9 @@ ThreadPrimitiveMessageByIndex.displayName = "ThreadPrimitive.MessageByIndex";
  * message context for each message. It handles different message types (user, assistant, system)
  * and supports editing mode through the provided edit composer components.
  *
+ * The auto-scroll to the last user message behavior relies on the built-in anchor rendered by
+ * this component. If you render a custom message list, add an equivalent anchor so auto-scroll stays intact.
+ *
  * @example
  * ```tsx
  * <ThreadPrimitive.Messages

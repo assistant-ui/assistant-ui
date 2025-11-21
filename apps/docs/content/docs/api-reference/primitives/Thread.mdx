@@ -41,7 +41,7 @@ This primitive renders a `<div>` element unless `asChild` is set.
 
 ### Viewport
 
-The scrollable area containing all messages. Anchors scroll to the bottom as new messages are added.
+The scrollable area containing all messages. Auto-scroll targets the last user message anchor as new messages are added.
 
 This primitive renders a `<div>` element unless `asChild` is set.
 
@@ -56,7 +56,7 @@ This primitive renders a `<div>` element unless `asChild` is set.
       type: "boolean",
       default: "true",
       description:
-        "Whether to automatically scroll to the bottom of the viewport when new messages are added while the viewport is was previously scrolled to the bottom.",
+        "Whether to automatically scroll to the last user message anchor when new messages are added.",
     },
   ]}
 />
