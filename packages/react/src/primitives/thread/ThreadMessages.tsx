@@ -4,6 +4,7 @@ import { type ComponentType, type FC, memo, useMemo } from "react";
 import { useAssistantState, MessageByIndexProvider } from "../../context";
 import { ThreadMessage as ThreadMessageType } from "../../types";
 import { useRegisterLastUserMessageScrollAnchor } from "./ThreadViewportAnchorContext";
+import { getLastUserMessageId } from "./utils/getLastUserMessageId";
 
 export namespace ThreadPrimitiveMessages {
   export type Props = {
@@ -231,15 +232,7 @@ export const ThreadPrimitiveMessagesImpl: FC<ThreadPrimitiveMessages.Props> = ({
   const threadState = useAssistantState(({ thread }) => thread);
   const messagesLength = threadState.messages.length;
 
-  let lastUserMessageId: string | undefined;
-
-  for (let i = threadState.messages.length - 1; i >= 0; i -= 1) {
-    const candidate = threadState.messages[i];
-    if (candidate?.role === "user") {
-      lastUserMessageId = candidate.id;
-      break;
-    }
-  }
+  const lastUserMessageId = getLastUserMessageId(threadState.messages);
 
   const messageElements = useMemo(() => {
     if (messagesLength === 0) return null;

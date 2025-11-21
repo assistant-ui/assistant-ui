@@ -3,6 +3,7 @@
 import { useAssistantState } from "../../context";
 import { useThreadViewportStore } from "../../context/react/ThreadViewportContext";
 import { useCallback, useLayoutEffect, useRef, type RefObject } from "react";
+import { getLastUserMessageId } from "./utils/getLastUserMessageId";
 
 /**
  * The threshold for considering a user message "too tall" to scroll the entire message
@@ -66,39 +67,43 @@ export const useScrollToLastUserMessage = (
   const threadState = useAssistantState(({ thread }) => thread);
   const isRunning = threadState.isRunning;
   const messagesLength = threadState.messages.length;
-  const lastMessageRole = threadState.messages[messagesLength - 1]?.role;
-  const userMessageAdded =
-    messagesLength > 0 && lastMessageRole === "user" ? true : false;
-  const hasUserMessage = (() => {
-    for (let i = threadState.messages.length - 1; i >= 0; i -= 1) {
-      if (threadState.messages[i]?.role === "user") return true;
-    }
-    return false;
-  })();
+  const lastUserMessageId = getLastUserMessageId(threadState.messages);
+  const hasUserMessage = lastUserMessageId !== undefined;
 
   const previousStateRef = useRef({
     isRunning,
     messagesLength,
+    lastUserMessageId,
   });
 
   useLayoutEffect(() => {
     if (!autoScroll) {
-      previousStateRef.current = { isRunning, messagesLength };
+      previousStateRef.current = {
+        isRunning,
+        messagesLength,
+        lastUserMessageId,
+      };
       pendingScrollRef.current = false;
       return;
     }
 
-    const { isRunning: prevIsRunning, messagesLength: prevMessagesLength } =
-      previousStateRef.current;
+    const {
+      isRunning: prevIsRunning,
+      messagesLength: prevMessagesLength,
+      lastUserMessageId: prevLastUserMessageId,
+    } = previousStateRef.current;
 
     const messageAdded = messagesLength > prevMessagesLength;
+    const userMessageChanged =
+      lastUserMessageId !== undefined &&
+      lastUserMessageId !== prevLastUserMessageId;
     const runStarted = isRunning && !prevIsRunning;
     const shouldAutoScroll =
       autoScroll &&
-      (userMessageAdded ||
+      (userMessageChanged ||
         (threadViewportStore.getState().isAtBottom && runStarted));
 
-    if (messageAdded || runStarted) {
+    if (messageAdded || runStarted || userMessageChanged) {
       pendingScrollRef.current = shouldAutoScroll;
       if (shouldAutoScroll && scrollToLastUserMessage()) {
         pendingScrollRef.current = false;
@@ -119,16 +124,19 @@ export const useScrollToLastUserMessage = (
       );
     }
 
-    previousStateRef.current = { isRunning, messagesLength };
+    previousStateRef.current = {
+      isRunning,
+      messagesLength,
+      lastUserMessageId,
+    };
   }, [
     autoScroll,
     hasUserMessage,
     isRunning,
-    lastMessageRole,
+    lastUserMessageId,
     messagesLength,
     threadViewportStore,
     scrollToLastUserMessage,
-    userMessageAdded,
   ]);
 
   return registerLastUserMessageAnchor;
