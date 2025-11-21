@@ -18,8 +18,6 @@ import {
   MessagePrimitive,
   ThreadPrimitive,
   useAssistantState,
-  useThreadViewportComposerElement,
-  useThreadViewportSpacerElement,
 } from "@assistant-ui/react";
 
 import type { FC } from "react";
@@ -62,23 +60,13 @@ export const Thread: FC = () => {
             />
 
             <ThreadPrimitive.If empty={false}>
-              <ThreadViewportSpacer />
+              <ThreadPrimitive.Spacer className="aui-thread-viewport-spacer" />
             </ThreadPrimitive.If>
             <Composer />
           </ThreadPrimitive.Viewport>
         </ThreadPrimitive.Root>
       </MotionConfig>
     </LazyMotion>
-  );
-};
-
-const ThreadViewportSpacer: FC = () => {
-  const registerSpacerElement = useThreadViewportSpacerElement();
-  return (
-    <div
-      ref={registerSpacerElement}
-      className="aui-thread-viewport-spacer min-h-8"
-    />
   );
 };
 
@@ -173,13 +161,8 @@ const ThreadSuggestions: FC = () => {
 };
 
 const Composer: FC = () => {
-  const registerComposerElement = useThreadViewportComposerElement();
-
   return (
-    <div
-      ref={registerComposerElement}
-      className="aui-composer-wrapper sticky bottom-0 mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4 md:pb-6"
-    >
+    <ThreadPrimitive.Footer className="aui-composer-wrapper sticky bottom-0 mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4 md:pb-6">
       <ThreadScrollToBottom />
       <ComposerPrimitive.Root className="aui-composer-root group/input-group relative flex w-full flex-col rounded-3xl border border-input bg-background px-1 pt-2 shadow-xs transition-[color,box-shadow] outline-none has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-[3px] has-[textarea:focus-visible]:ring-ring/50 dark:bg-background">
         <ComposerAttachments />
@@ -192,7 +175,7 @@ const Composer: FC = () => {
         />
         <ComposerAction />
       </ComposerPrimitive.Root>
-    </div>
+    </ThreadPrimitive.Footer>
   );
 };
 

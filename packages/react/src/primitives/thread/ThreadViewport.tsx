@@ -16,8 +16,6 @@ import { ThreadViewportAnchorProvider } from "./ThreadViewportAnchorContext";
 import { useScrollToLastUserMessage } from "./useScrollToLastUserMessage";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { useOnResizeContent } from "../../utils/hooks/useOnResizeContent";
-
-import { ThreadViewportComposerProvider } from "./ThreadViewportComposerContext";
 import { ThreadViewportSpacerProvider } from "./ThreadViewportSpacerContext";
 
 export namespace ThreadPrimitiveViewport {
@@ -42,7 +40,7 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
 >(({ autoScroll = true, children, ...rest }, forwardedRef) => {
   const viewportRef = useRef<ThreadPrimitiveViewport.Element>(null);
   const measurementsRef = useRef({
-    composerHeight: DEFAULT_COMPOSER_HEIGHT,
+    footerHeight: DEFAULT_COMPOSER_HEIGHT,
     viewportHeight: 0,
     spacerHeight: 0,
     spacerMeasured: false,
@@ -52,20 +50,20 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
     const viewport = viewportRef.current;
     if (!viewport) return;
 
-    const composerHeight = Math.max(
+    const footerHeight = Math.max(
       0,
-      Math.round(measurementsRef.current.composerHeight),
+      Math.round(measurementsRef.current.footerHeight),
     );
     const viewportHeight = Math.max(
       0,
       Math.round(measurementsRef.current.viewportHeight),
     );
-    const fallbackSpacerHeight = Math.max(0, viewportHeight - composerHeight);
+    const fallbackSpacerHeight = Math.max(0, viewportHeight - footerHeight);
     const effectiveSpacerHeight = measurementsRef.current.spacerMeasured
       ? measurementsRef.current.spacerHeight
       : fallbackSpacerHeight;
     const spacerHeight = Math.max(0, Math.round(effectiveSpacerHeight));
-    const totalOffset = composerHeight + spacerHeight;
+    const totalOffset = footerHeight + spacerHeight;
     const bottomOffset = Math.max(0, viewportHeight - totalOffset);
 
     viewport.style.setProperty(
@@ -74,7 +72,7 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
     );
     viewport.style.setProperty(
       "--aui-thread-footer-height",
-      `${composerHeight}px`,
+      `${footerHeight}px`,
     );
     viewport.style.setProperty(
       "--aui-thread-spacer-height",
@@ -97,11 +95,11 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
     [applyMeasurementsToCSS],
   );
 
-  const updateComposerHeight = useCallback(
+  const updateFooterHeight = useCallback(
     (height: number) => {
       const normalizedHeight = Math.max(0, Math.round(height));
-      if (measurementsRef.current.composerHeight === normalizedHeight) return;
-      measurementsRef.current.composerHeight = normalizedHeight;
+      if (measurementsRef.current.footerHeight === normalizedHeight) return;
+      measurementsRef.current.footerHeight = normalizedHeight;
       applyMeasurementsToCSS();
     },
     [applyMeasurementsToCSS],
@@ -136,7 +134,7 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
 
     const footerEl = viewportEl.querySelector<HTMLElement>(`[${FOOTER_ATTR}]`);
     if (footerEl) {
-      updateComposerHeight(footerEl.getBoundingClientRect().height);
+      updateFooterHeight(footerEl.getBoundingClientRect().height);
     }
 
     const spacerEl = viewportEl.querySelector<HTMLElement>(`[${SPACER_ATTR}]`);
@@ -144,32 +142,12 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
       setSpacerMeasurement(spacerEl.getBoundingClientRect().height);
     }
   });
-  const composerRef = useRef<HTMLElement | null>(null);
   const spacerRef = useRef<HTMLElement | null>(null);
-
-  const composerResizeRef = useOnResizeContent(() => {
-    const composerEl = composerRef.current;
-    if (!composerEl) return;
-    updateComposerHeight(composerEl.getBoundingClientRect().height);
-  });
   const spacerResizeRef = useOnResizeContent(() => {
     const spacerEl = spacerRef.current;
     if (!spacerEl) return;
     setSpacerMeasurement(spacerEl.getBoundingClientRect().height);
   });
-
-  const registerComposer = useCallback(
-    (node: HTMLElement | null) => {
-      composerResizeRef(node);
-      composerRef.current = node;
-      const height = node
-        ? node.getBoundingClientRect().height
-        : DEFAULT_COMPOSER_HEIGHT;
-
-      updateComposerHeight(height);
-    },
-    [composerResizeRef, updateComposerHeight],
-  );
   const registerSpacer = useCallback(
     (node: HTMLElement | null) => {
       spacerResizeRef(node);
@@ -204,15 +182,13 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
   }, [applyMeasurementsToCSS]);
 
   return (
-    <ThreadViewportComposerProvider value={{ registerComposer }}>
-      <ThreadViewportSpacerProvider value={{ registerSpacer }}>
-        <ThreadViewportAnchorProvider value={{ registerLastUserMessageAnchor }}>
-          <Primitive.div {...rest} ref={ref}>
-            {children}
-          </Primitive.div>
-        </ThreadViewportAnchorProvider>
-      </ThreadViewportSpacerProvider>
-    </ThreadViewportComposerProvider>
+    <ThreadViewportSpacerProvider value={{ registerSpacer }}>
+      <ThreadViewportAnchorProvider value={{ registerLastUserMessageAnchor }}>
+        <Primitive.div {...rest} ref={ref}>
+          {children}
+        </Primitive.div>
+      </ThreadViewportAnchorProvider>
+    </ThreadViewportSpacerProvider>
   );
 });
 

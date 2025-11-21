@@ -2,7 +2,6 @@
 
 import { Slot } from "@radix-ui/react-slot";
 import type { ComponentPropsWithoutRef, FC } from "react";
-import { useThreadViewportComposerElement } from "./ThreadViewportComposerContext";
 
 const FOOTER_ATTR = "data-aui-thread-footer";
 
@@ -17,11 +16,8 @@ export const ThreadPrimitiveFooter: FC<ThreadPrimitiveFooter.Props> = ({
   ...rest
 }) => {
   const Comp = asChild ? Slot : "div";
-  const registerFooterElement = useThreadViewportComposerElement();
 
-  return (
-    <Comp {...rest} ref={registerFooterElement} {...{ [FOOTER_ATTR]: "" }} />
-  );
+  return <Comp {...rest} {...{ [FOOTER_ATTR]: "" }} />;
 };
 
 ThreadPrimitiveFooter.displayName = "ThreadPrimitive.Footer";
