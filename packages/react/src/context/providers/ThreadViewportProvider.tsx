@@ -1,31 +1,48 @@
 "use client";
 
 import type { FC, PropsWithChildren } from "react";
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import { makeThreadViewportStore } from "../stores/ThreadViewport";
 import {
   ThreadViewportContext,
-  type ThreadViewportContextValue,
+  ThreadViewportContextValue,
+  useThreadViewportStore,
 } from "../react/ThreadViewportContext";
+import { writableStore } from "../ReadonlyStore";
 
-export const ThreadViewportProvider: FC<PropsWithChildren> = ({ children }) => {
-  const contextRef = useRef<ThreadViewportContextValue | null>(null);
-
-  if (!contextRef.current) {
-    const store = makeThreadViewportStore();
-    contextRef.current = { useThreadViewport: store };
-  }
+const useThreadViewportStoreValue = () => {
+  const outerViewport = useThreadViewportStore({ optional: true });
+  const [store] = useState(() => makeThreadViewportStore());
 
   useEffect(() => {
-    return () => {
-      if (contextRef.current) {
-        contextRef.current = null;
+    return outerViewport?.getState().onScrollToBottom(() => {
+      store.getState().scrollToBottom();
+    });
+  }, [outerViewport, store]);
+
+  useEffect(() => {
+    if (!outerViewport) return;
+    return store.subscribe((state) => {
+      if (outerViewport.getState().isAtBottom !== state.isAtBottom) {
+        writableStore(outerViewport).setState({ isAtBottom: state.isAtBottom });
       }
+    });
+  }, [store, outerViewport]);
+
+  return store;
+};
+
+export const ThreadViewportProvider: FC<PropsWithChildren> = ({ children }) => {
+  const useThreadViewport = useThreadViewportStoreValue();
+
+  const [context] = useState<ThreadViewportContextValue>(() => {
+    return {
+      useThreadViewport,
     };
-  }, []);
+  });
 
   return (
-    <ThreadViewportContext.Provider value={contextRef.current!}>
+    <ThreadViewportContext.Provider value={context}>
       {children}
     </ThreadViewportContext.Provider>
   );
