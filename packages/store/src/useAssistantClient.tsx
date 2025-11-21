@@ -67,13 +67,7 @@ const RootScopeResource = resource(
  * Mounts each root scope and returns an object mapping scope names to their stores
  */
 const RootScopesResource = resource(
-  ({
-    scopes,
-    parent,
-  }: {
-    scopes: ScopesInput;
-    parent: AssistantClient;
-  }) => {
+  ({ scopes, parent }: { scopes: ScopesInput; parent: AssistantClient }) => {
     const events = tapInlineResource(EventManager());
 
     const resultEntries = withStoreContextProvider({ events, parent }, () =>
