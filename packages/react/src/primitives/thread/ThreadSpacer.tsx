@@ -3,8 +3,7 @@
 import { Slot } from "@radix-ui/react-slot";
 import type { ComponentPropsWithoutRef, FC } from "react";
 import { useThreadViewportSpacerElement } from "./ThreadViewportSpacerContext";
-
-const SPACER_ATTR = "data-aui-thread-spacer";
+import { THREAD_SPACER_ATTR } from "./threadDataAttributes";
 const DEFAULT_SPACER_CLASS = "min-h-8 grow";
 
 export namespace ThreadPrimitiveSpacer {
@@ -30,7 +29,7 @@ export const ThreadPrimitiveSpacer: FC<ThreadPrimitiveSpacer.Props> = ({
       {...rest}
       ref={registerSpacerElement}
       className={mergedClassName}
-      {...{ [SPACER_ATTR]: "" }}
+      {...{ [THREAD_SPACER_ATTR]: "" }}
     />
   );
 };

@@ -2,8 +2,7 @@
 
 import { Slot } from "@radix-ui/react-slot";
 import type { ComponentPropsWithoutRef, FC } from "react";
-
-const FOOTER_ATTR = "data-aui-thread-footer";
+import { THREAD_FOOTER_ATTR } from "./threadDataAttributes";
 
 export namespace ThreadPrimitiveFooter {
   export type Props = ComponentPropsWithoutRef<typeof Slot> & {
@@ -17,7 +16,7 @@ export const ThreadPrimitiveFooter: FC<ThreadPrimitiveFooter.Props> = ({
 }) => {
   const Comp = asChild ? Slot : "div";
 
-  return <Comp {...rest} {...{ [FOOTER_ATTR]: "" }} />;
+  return <Comp {...rest} {...{ [THREAD_FOOTER_ATTR]: "" }} />;
 };
 
 ThreadPrimitiveFooter.displayName = "ThreadPrimitive.Footer";

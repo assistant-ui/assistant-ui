@@ -17,6 +17,10 @@ import { useScrollToLastUserMessage } from "./useScrollToLastUserMessage";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { useOnResizeContent } from "../../utils/hooks/useOnResizeContent";
 import { ThreadViewportSpacerProvider } from "./ThreadViewportSpacerContext";
+import {
+  THREAD_FOOTER_ATTR,
+  THREAD_SPACER_ATTR,
+} from "./threadDataAttributes";
 
 export namespace ThreadPrimitiveViewport {
   export type Element = ComponentRef<typeof Primitive.div>;
@@ -31,8 +35,6 @@ export namespace ThreadPrimitiveViewport {
 }
 
 const DEFAULT_COMPOSER_HEIGHT = 150;
-const FOOTER_ATTR = "data-aui-thread-footer";
-const SPACER_ATTR = "data-aui-thread-spacer";
 
 const ThreadPrimitiveViewportScrollable = forwardRef<
   ThreadPrimitiveViewport.Element,
@@ -43,10 +45,14 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
     footerHeight: DEFAULT_COMPOSER_HEIGHT,
     viewportHeight: 0,
     spacerHeight: 0,
+    /**
+     * Track whether we have an explicit spacer measurement; otherwise fall back
+     * to `viewportHeight - footerHeight` so layouts work even without a spacer.
+     */
     spacerMeasured: false,
   });
 
-  const applyMeasurementsToCSS = useCallback(() => {
+  const setMeasurementCSSVars = useCallback(() => {
     const viewport = viewportRef.current;
     if (!viewport) return;
 
@@ -90,9 +96,9 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
       const normalizedHeight = Math.max(0, Math.round(height));
       if (measurementsRef.current.viewportHeight === normalizedHeight) return;
       measurementsRef.current.viewportHeight = normalizedHeight;
-      applyMeasurementsToCSS();
+      setMeasurementCSSVars();
     },
-    [applyMeasurementsToCSS],
+    [setMeasurementCSSVars],
   );
 
   const updateFooterHeight = useCallback(
@@ -100,9 +106,9 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
       const normalizedHeight = Math.max(0, Math.round(height));
       if (measurementsRef.current.footerHeight === normalizedHeight) return;
       measurementsRef.current.footerHeight = normalizedHeight;
-      applyMeasurementsToCSS();
+      setMeasurementCSSVars();
     },
-    [applyMeasurementsToCSS],
+    [setMeasurementCSSVars],
   );
 
   const setSpacerMeasurement = useCallback(
@@ -117,9 +123,9 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
       }
       measurementsRef.current.spacerMeasured = measured;
       measurementsRef.current.spacerHeight = normalizedHeight;
-      applyMeasurementsToCSS();
+      setMeasurementCSSVars();
     },
-    [applyMeasurementsToCSS],
+    [setMeasurementCSSVars],
   );
 
   const trackIsAtBottomRef = useThreadViewportIsAtBottom(viewportRef);
@@ -132,12 +138,14 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
     if (!viewportEl) return;
     updateViewportHeight(viewportEl.clientHeight);
 
-    const footerEl = viewportEl.querySelector<HTMLElement>(`[${FOOTER_ATTR}]`);
+    const footerEl =
+      viewportEl.querySelector<HTMLElement>(`[${THREAD_FOOTER_ATTR}]`);
     if (footerEl) {
       updateFooterHeight(footerEl.getBoundingClientRect().height);
     }
 
-    const spacerEl = viewportEl.querySelector<HTMLElement>(`[${SPACER_ATTR}]`);
+    const spacerEl =
+      viewportEl.querySelector<HTMLElement>(`[${THREAD_SPACER_ATTR}]`);
     if (spacerEl) {
       setSpacerMeasurement(spacerEl.getBoundingClientRect().height);
     }
@@ -178,8 +186,8 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
   );
 
   useLayoutEffect(() => {
-    applyMeasurementsToCSS();
-  }, [applyMeasurementsToCSS]);
+    setMeasurementCSSVars();
+  }, [setMeasurementCSSVars]);
 
   return (
     <ThreadViewportSpacerProvider value={{ registerSpacer }}>
