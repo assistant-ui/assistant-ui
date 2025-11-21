@@ -15,7 +15,7 @@ import { useThreadViewportIsAtBottom } from "./useThreadViewportIsAtBottom";
 import { ThreadViewportAnchorProvider } from "./ThreadViewportAnchorContext";
 import { useScrollToLastUserMessage } from "./useScrollToLastUserMessage";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
-import { useOnResizeContent } from "../../utils/hooks/useOnResizeContent";
+import { useOnResize } from "../../utils/hooks/useOnResize";
 import { ThreadViewportSpacerProvider } from "./ThreadViewportSpacerContext";
 import { THREAD_FOOTER_ATTR, THREAD_SPACER_ATTR } from "./threadDataAttributes";
 
@@ -189,7 +189,7 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
     viewportRef,
     autoScroll,
   );
-  const viewportResizeRef = useOnResizeContent(() => {
+  const viewportResizeRef = useOnResize(() => {
     const viewportEl = viewportRef.current;
     if (!viewportEl) return;
     updateViewportHeight(viewportEl.clientHeight);
@@ -209,7 +209,7 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
     }
   });
   const spacerRef = useRef<HTMLElement | null>(null);
-  const spacerResizeRef = useOnResizeContent(() => {
+  const spacerResizeRef = useOnResize(() => {
     const spacerEl = spacerRef.current;
     if (!spacerEl) return;
     setSpacerMeasurement(spacerEl.getBoundingClientRect().height);
