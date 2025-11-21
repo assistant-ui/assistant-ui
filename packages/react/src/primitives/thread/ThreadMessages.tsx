@@ -145,6 +145,27 @@ export namespace ThreadPrimitiveMessageByIndex {
   };
 }
 
+const LastUserMessageAnchor: FC<{ lastUserMessageId: string | undefined }> = ({
+  lastUserMessageId,
+}) => {
+  const isLastUserMessage = useAssistantState(
+    ({ message }) =>
+      message.role === "user" && message.id === lastUserMessageId,
+  );
+  const registerLastUserMessageScrollAnchor =
+    useRegisterLastUserMessageScrollAnchor();
+
+  if (!isLastUserMessage) return null;
+
+  return (
+    <span
+      ref={registerLastUserMessageScrollAnchor}
+      aria-hidden="true"
+      className="aui-thread-last-user-message-anchor block h-0 overflow-hidden"
+    />
+  );
+};
+
 /**
  * Renders a single message at the specified index in the current thread.
  *
@@ -168,24 +189,10 @@ export namespace ThreadPrimitiveMessageByIndex {
 export const ThreadPrimitiveMessageByIndex: FC<ThreadPrimitiveMessageByIndex.Props> =
   memo(
     ({ index, components, lastUserMessageId }) => {
-      const registerLastUserMessageScrollAnchor =
-        useRegisterLastUserMessageScrollAnchor();
-      const isLastUserMessage = useAssistantState(
-        ({ message }) =>
-          message.role === "user" && message.id === lastUserMessageId,
-      );
-
       return (
         <MessageByIndexProvider index={index}>
-          <div
-            ref={
-              isLastUserMessage
-                ? registerLastUserMessageScrollAnchor
-                : undefined
-            }
-          >
-            <ThreadMessageComponent components={components} />
-          </div>
+          <ThreadMessageComponent components={components} />
+          <LastUserMessageAnchor lastUserMessageId={lastUserMessageId} />
         </MessageByIndexProvider>
       );
     },
