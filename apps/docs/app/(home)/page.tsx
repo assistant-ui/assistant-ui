@@ -63,36 +63,38 @@ const FEATURE_CARDS = [
 
 export default function HomePage() {
   return (
-    <main className="relative z-2 container max-w-[1100px] px-2 py-16 lg:py-16">
-      <StarPill />
-      <Hero />
+    <main className="relative z-2 container flex max-w-[1100px] flex-col gap-24 px-2 py-16 lg:py-16">
+      <div className="flex flex-col gap-6">
+        <StarPill />
+        <Hero />
 
-      <div className="mx-auto flex h-[650px] w-full max-w-7xl flex-col overflow-hidden rounded-xl border shadow">
-        <DocsRuntimeProvider>
-          <Shadcn />
-        </DocsRuntimeProvider>
+        <div className="mx-auto flex h-[650px] w-full max-w-7xl flex-col overflow-hidden rounded-xl border shadow">
+          <DocsRuntimeProvider>
+            <Shadcn />
+          </DocsRuntimeProvider>
+        </div>
+
+        <Button
+          className="mx-auto flex w-fit border bg-background text-foreground shadow-sm hover:bg-background/90"
+          size="lg"
+          asChild
+        >
+          <Link href="/examples">
+            Explore more examples <ArrowRight className="ml-2 h-4 w-4" />
+          </Link>
+        </Button>
       </div>
-
-      <Button
-        className="mx-auto mt-6 flex w-fit border bg-background text-foreground shadow-sm hover:bg-background/90"
-        size="lg"
-        asChild
-      >
-        <Link href="/examples">
-          Explore more examples <ArrowRight className="ml-2 h-4 w-4" />
-        </Link>
-      </Button>
 
       <FeatureHighlights />
 
-      <div className="mt-20 flex flex-col items-center gap-4">
+      <div className="flex flex-col items-center gap-4">
         <h2 className="text-center text-3xl font-medium tracking-tight">
           Trusted by fast-growing companies
         </h2>
         <Logos />
       </div>
 
-      <div className="my-20 flex flex-col gap-6">
+      <div className="flex flex-col gap-6">
         <div className="flex flex-col items-center gap-3 self-center sm:w-full sm:self-start lg:w-[unset] lg:self-center">
           <h2 className="self-start text-3xl font-medium tracking-tight sm:self-center">
             Be part of the community
@@ -155,7 +157,7 @@ export default function HomePage() {
 
 function FeatureHighlights() {
   return (
-    <section className="mt-10 lg:mt-14">
+    <section>
       <div className="flex flex-col items-center gap-2 text-center">
         <h2 className="text-3xl font-medium tracking-tight">
           Everything you need to ship AI chat
