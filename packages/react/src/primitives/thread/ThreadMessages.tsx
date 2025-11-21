@@ -200,6 +200,7 @@ export const ThreadPrimitiveMessageByIndex: FC<ThreadPrimitiveMessageByIndex.Pro
     },
     (prev, next) =>
       prev.index === next.index &&
+      prev.lastUserMessageId === next.lastUserMessageId &&
       isComponentsSame(prev.components, next.components),
   );
 
