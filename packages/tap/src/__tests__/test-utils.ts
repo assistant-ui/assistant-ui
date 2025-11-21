@@ -1,10 +1,11 @@
+import { resource } from "../core/resource";
 import {
   createResourceFiber,
   unmountResource as unmountResourceFiber,
   renderResource as renderResourceFiber,
   commitResource,
 } from "../core/ResourceFiber";
-import { Resource, ResourceFiber } from "../core/types";
+import { ResourceFiber } from "../core/types";
 import { tapState } from "../hooks/tap-state";
 
 // ============================================================================
@@ -16,7 +17,7 @@ import { tapState } from "../hooks/tap-state";
  * This is a low-level utility that creates a ResourceFiber directly.
  * Sets up a rerender callback that automatically re-renders when state changes.
  */
-export function createTestResource<R, P>(type: Resource<R, P>) {
+export function createTestResource<R, P>(fn: (props: P) => R) {
   const rerenderCallback = () => {
     // Re-render when state changes
     if (activeResources.has(fiber)) {
@@ -27,7 +28,7 @@ export function createTestResource<R, P>(type: Resource<R, P>) {
     }
   };
 
-  const fiber = createResourceFiber(type, rerenderCallback);
+  const fiber = createResourceFiber(resource(fn), rerenderCallback);
   return fiber;
 }
 
