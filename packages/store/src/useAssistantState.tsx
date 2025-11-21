@@ -20,7 +20,7 @@ class ProxiedAssistantState {
 
     const api = scopeField();
     const state = api.getState();
-    return state;
+    return state as AssistantState[K];
   }
 
   // Create a Proxy to dynamically handle property access
