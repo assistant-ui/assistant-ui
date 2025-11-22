@@ -45,11 +45,11 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
   const api = useAssistantApi();
 
   // Reset drag state when user releases mouse outside the browser window
-  useEffect(() => {
-    const handleWindowDragEnd = () => {
-      setDragDepth(0);
-    };
+  const handleWindowDragEnd = useCallback(() => {
+    setDragDepth(0);
+  }, []);
 
+  useEffect(() => {
     window.addEventListener("dragend", handleWindowDragEnd);
     window.addEventListener("drop", handleWindowDragEnd);
 
@@ -57,7 +57,7 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
       window.removeEventListener("dragend", handleWindowDragEnd);
       window.removeEventListener("drop", handleWindowDragEnd);
     };
-  }, []);
+  }, [handleWindowDragEnd]);
 
   const handleDragEnter = useCallback(
     (e: React.DragEvent) => {
