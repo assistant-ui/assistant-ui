@@ -4,7 +4,7 @@ import { Slot } from "@radix-ui/react-slot";
 import React from "react";
 import { useAssistantApi } from "../../context";
 
-export namespace ComposerAttachmentDropzonePrimitive {
+export namespace ComposerPrimitiveAttachmentDropzone {
   export type Element = HTMLDivElement;
   export type Props = React.HTMLAttributes<HTMLDivElement> & {
     asChild?: boolean | undefined;
@@ -12,9 +12,9 @@ export namespace ComposerAttachmentDropzonePrimitive {
   };
 }
 
-export const ComposerAttachmentDropzone = forwardRef<
+export const ComposerPrimitiveAttachmentDropzone = forwardRef<
   HTMLDivElement,
-  ComposerAttachmentDropzonePrimitive.Props
+  ComposerPrimitiveAttachmentDropzone.Props
 >(({ disabled, asChild = false, children, ...rest }, ref) => {
   const [isDragging, setIsDragging] = useState(false);
   const api = useAssistantApi();
@@ -67,4 +67,4 @@ export const ComposerAttachmentDropzone = forwardRef<
   );
 });
 
-ComposerAttachmentDropzone.displayName = "ComposerPrimitive.AttachmentDropzone";
+ComposerPrimitiveAttachmentDropzone.displayName = "ComposerPrimitive.AttachmentDropzone";
