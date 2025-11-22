@@ -3,6 +3,8 @@
 import { type ComponentType, type FC, memo, useMemo } from "react";
 import { useAssistantState, MessageByIndexProvider } from "../../context";
 import { ThreadMessage as ThreadMessageType } from "../../types";
+import { useRegisterLastUserMessageScrollAnchor } from "./ThreadViewportAnchorContext";
+import { getLastUserMessageId } from "./utils/getLastUserMessageId";
 
 export namespace ThreadPrimitiveMessages {
   export type Props = {
@@ -140,14 +142,39 @@ export namespace ThreadPrimitiveMessageByIndex {
   export type Props = {
     index: number;
     components: ThreadPrimitiveMessages.Props["components"];
+    lastUserMessageId: string | undefined;
   };
 }
+
+const LastUserMessageAnchor: FC<{ lastUserMessageId: string | undefined }> = ({
+  lastUserMessageId,
+}) => {
+  const isLastUserMessage = useAssistantState(
+    ({ message }) =>
+      message.role === "user" && message.id === lastUserMessageId,
+  );
+  const registerLastUserMessageScrollAnchor =
+    useRegisterLastUserMessageScrollAnchor();
+
+  if (!isLastUserMessage) return null;
+
+  return (
+    <span
+      ref={registerLastUserMessageScrollAnchor}
+      aria-hidden="true"
+      className="aui-thread-last-user-message-anchor block h-0 overflow-hidden"
+    />
+  );
+};
 
 /**
  * Renders a single message at the specified index in the current thread.
  *
  * This component provides message context for a specific message in the thread
  * and renders it using the provided component configuration.
+ *
+ * @note The ThreadMessageComponent is wrapped in a div so the viewport can
+ * auto-scroll to the last user message without the message component opting in.
  *
  * @example
  * ```tsx
@@ -162,15 +189,17 @@ export namespace ThreadPrimitiveMessageByIndex {
  */
 export const ThreadPrimitiveMessageByIndex: FC<ThreadPrimitiveMessageByIndex.Props> =
   memo(
-    ({ index, components }) => {
+    ({ index, components, lastUserMessageId }) => {
       return (
         <MessageByIndexProvider index={index}>
           <ThreadMessageComponent components={components} />
+          <LastUserMessageAnchor lastUserMessageId={lastUserMessageId} />
         </MessageByIndexProvider>
       );
     },
     (prev, next) =>
       prev.index === next.index &&
+      prev.lastUserMessageId === next.lastUserMessageId &&
       isComponentsSame(prev.components, next.components),
   );
 
@@ -182,6 +211,9 @@ ThreadPrimitiveMessageByIndex.displayName = "ThreadPrimitive.MessageByIndex";
  * This component automatically renders all messages in the thread, providing the appropriate
  * message context for each message. It handles different message types (user, assistant, system)
  * and supports editing mode through the provided edit composer components.
+ *
+ * The auto-scroll to the last user message behavior relies on the built-in anchor rendered by
+ * this component. If you render a custom message list, add an equivalent anchor so auto-scroll stays intact.
  *
  * @example
  * ```tsx
@@ -197,9 +229,10 @@ ThreadPrimitiveMessageByIndex.displayName = "ThreadPrimitive.MessageByIndex";
 export const ThreadPrimitiveMessagesImpl: FC<ThreadPrimitiveMessages.Props> = ({
   components,
 }) => {
-  const messagesLength = useAssistantState(
-    ({ thread }) => thread.messages.length,
-  );
+  const threadState = useAssistantState(({ thread }) => thread);
+  const messagesLength = threadState.messages.length;
+
+  const lastUserMessageId = getLastUserMessageId(threadState.messages);
 
   const messageElements = useMemo(() => {
     if (messagesLength === 0) return null;
@@ -208,9 +241,10 @@ export const ThreadPrimitiveMessagesImpl: FC<ThreadPrimitiveMessages.Props> = ({
         key={index}
         index={index}
         components={components}
+        lastUserMessageId={lastUserMessageId}
       />
     ));
-  }, [messagesLength, components]);
+  }, [messagesLength, components, lastUserMessageId]);
 
   return messageElements;
 };

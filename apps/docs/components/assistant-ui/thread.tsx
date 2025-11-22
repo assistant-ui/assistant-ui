@@ -17,6 +17,7 @@ import {
   ErrorPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
+  useAssistantState,
 } from "@assistant-ui/react";
 
 import type { FC } from "react";
@@ -59,9 +60,8 @@ export const Thread: FC = () => {
             />
 
             <ThreadPrimitive.If empty={false}>
-              <div className="aui-thread-viewport-spacer min-h-8 grow" />
+              <ThreadPrimitive.Spacer className="aui-thread-viewport-spacer" />
             </ThreadPrimitive.If>
-
             <Composer />
           </ThreadPrimitive.Viewport>
         </ThreadPrimitive.Root>
@@ -162,7 +162,7 @@ const ThreadSuggestions: FC = () => {
 
 const Composer: FC = () => {
   return (
-    <div className="aui-composer-wrapper sticky bottom-0 mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4 md:pb-6">
+    <ThreadPrimitive.Footer className="aui-composer-wrapper sticky bottom-0 mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4 md:pb-6">
       <ThreadScrollToBottom />
       <ComposerPrimitive.Root className="aui-composer-root group/input-group relative flex w-full flex-col rounded-3xl border border-input bg-background px-1 pt-2 shadow-xs transition-[color,box-shadow] outline-none has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-[3px] has-[textarea:focus-visible]:ring-ring/50 dark:bg-background">
         <ComposerAttachments />
@@ -175,7 +175,7 @@ const Composer: FC = () => {
         />
         <ComposerAction />
       </ComposerPrimitive.Root>
-    </div>
+    </ThreadPrimitive.Footer>
   );
 };
 
@@ -228,11 +228,26 @@ const MessageError: FC = () => {
 };
 
 const AssistantMessage: FC = () => {
+  const isLastMessage = useAssistantState(({ message }) => message.isLast);
+
   return (
     <MessagePrimitive.Root asChild>
       <div
-        className="aui-assistant-message-root relative mx-auto w-full max-w-[var(--thread-max-width)] animate-in py-4 duration-150 ease-out fade-in slide-in-from-bottom-1 last:mb-24"
         data-role="assistant"
+        className="aui-assistant-message-root relative mx-auto w-full max-w-[var(--thread-max-width)] shrink-0 grow animate-in border-2 border-red-500 py-4 duration-150 ease-out fade-in slide-in-from-bottom-1 last:mb-24"
+        /**
+         * If the message is the last message in the thread, reserve enough height
+         * for the viewport slack by referencing the CSS custom properties exposed
+         * by ThreadPrimitive.Viewport.
+         */
+        style={
+          isLastMessage
+            ? {
+                minHeight:
+                  "max(0px, calc(var(--aui-thread-bottom-offset, 0px)))",
+              }
+            : undefined
+        }
       >
         <div className="aui-assistant-message-content mx-2 leading-7 break-words text-foreground">
           <MessagePrimitive.Parts
@@ -284,7 +299,7 @@ const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root asChild>
       <div
-        className="aui-user-message-root mx-auto grid w-full max-w-[var(--thread-max-width)] animate-in auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] gap-y-2 px-2 py-4 duration-150 ease-out fade-in slide-in-from-bottom-1 first:mt-3 last:mb-5 [&:where(>*)]:col-start-2"
+        className="aui-user-message-root mx-auto grid w-full max-w-[var(--thread-max-width)] animate-in auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] gap-y-2 px-2 py-4 duration-150 ease-out fade-in slide-in-from-bottom-1 [&:where(>*)]:col-start-2"
         data-role="user"
       >
         <UserMessageAttachments />
