@@ -30,12 +30,18 @@ describe("logger utilities", () => {
   });
 
   it("should log error messages in red with cross", () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
     logger.error("Test error message");
 
-    expect(consoleLogSpy).toHaveBeenCalledOnce();
-    const message = consoleLogSpy.mock.calls[0]?.[0] as string;
+    expect(consoleErrorSpy).toHaveBeenCalledOnce();
+    const message = consoleErrorSpy.mock.calls[0]?.[0] as string;
     expect(message).toContain("✗");
     expect(message).toContain("Test error message");
+
+    consoleErrorSpy.mockRestore();
   });
 
   it("should log warning messages in yellow with warning icon", () => {
