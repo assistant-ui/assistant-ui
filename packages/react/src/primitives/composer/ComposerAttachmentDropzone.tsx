@@ -7,24 +7,66 @@ import { useAssistantApi } from "../../context";
 export namespace ComposerPrimitiveAttachmentDropzone {
   export type Element = HTMLDivElement;
   export type Props = React.HTMLAttributes<HTMLDivElement> & {
+    /**
+     * Whether to render as a child component using Slot.
+     * When true, the component will merge its props with its child.
+     */
     asChild?: boolean | undefined;
+    /**
+     * Whether the dropzone is disabled.
+     */
     disabled?: boolean | undefined;
   };
 }
 
+/**
+ * A drag-and-drop zone for adding file attachments to the composer.
+ *
+ * This component wraps content and enables drag-and-drop functionality for adding
+ * file attachments. Files dropped on this component are automatically added to
+ * the composer's attachment list. The component provides visual feedback during
+ * drag operations through the `data-dragging` attribute.
+ *
+ * @example
+ * ```tsx
+ * <ComposerPrimitive.AttachmentDropzone>
+ *   <ComposerPrimitive.Input />
+ *   <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
+ * </ComposerPrimitive.AttachmentDropzone>
+ * ```
+ */
 export const ComposerPrimitiveAttachmentDropzone = forwardRef<
   HTMLDivElement,
   ComposerPrimitiveAttachmentDropzone.Props
 >(({ disabled, asChild = false, children, ...rest }, ref) => {
-  const [isDragging, setIsDragging] = useState(false);
+  const [dragDepth, setDragDepth] = useState(0);
   const api = useAssistantApi();
 
-  const handleDrag = useCallback(
+  const handleDragEnter = useCallback(
     (e: React.DragEvent) => {
       if (disabled) return;
       e.preventDefault();
       e.stopPropagation();
-      setIsDragging(e.type === "dragenter" || e.type === "dragover");
+      setDragDepth((prev) => prev + 1);
+    },
+    [disabled],
+  );
+
+  const handleDragOver = useCallback(
+    (e: React.DragEvent) => {
+      if (disabled) return;
+      e.preventDefault();
+      e.stopPropagation();
+    },
+    [disabled],
+  );
+
+  const handleDragLeave = useCallback(
+    (e: React.DragEvent) => {
+      if (disabled) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setDragDepth((prev) => prev - 1);
     },
     [disabled],
   );
@@ -34,7 +76,7 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
       if (disabled) return;
       e.preventDefault();
       e.stopPropagation();
-      setIsDragging(false);
+      setDragDepth(0);
       for (const file of e.dataTransfer.files) {
         try {
           await api.composer().addAttachment(file);
@@ -47,11 +89,13 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
   );
 
   const dragProps = {
-    onDragEnter: handleDrag,
-    onDragOver: handleDrag,
-    onDragLeave: handleDrag,
+    onDragEnter: handleDragEnter,
+    onDragOver: handleDragOver,
+    onDragLeave: handleDragLeave,
     onDrop: handleDrop,
   };
+
+  const isDragging = dragDepth > 0;
 
   const Comp = asChild ? Slot : "div";
 
