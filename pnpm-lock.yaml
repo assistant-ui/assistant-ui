@@ -1863,6 +1863,18 @@ importers:
         specifier: ^4.20.6
         version: 4.20.6
 
+  packages/safe-content-frame:
+    devDependencies:
+      '@assistant-ui/x-buildutils':
+        specifier: workspace:*
+        version: link:../x-buildutils
+      tsup:
+        specifier: ^8.0.0
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.20.6)(typescript@5.9.3)(yaml@2.8.1)
+      typescript:
+        specifier: ^5.0.0
+        version: 5.9.3
+
   packages/store:
     dependencies:
       '@assistant-ui/tap':
