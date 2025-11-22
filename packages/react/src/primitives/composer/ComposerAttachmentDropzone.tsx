@@ -50,8 +50,8 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
   }, []);
 
   useEffect(() => {
-    window.addEventListener("dragend", handleWindowDragEnd);
-    window.addEventListener("drop", handleWindowDragEnd);
+    window.addEventListener("dragend", handleWindowDragEnd, { passive: true });
+    window.addEventListener("drop", handleWindowDragEnd, { passive: true });
 
     return () => {
       window.removeEventListener("dragend", handleWindowDragEnd);
