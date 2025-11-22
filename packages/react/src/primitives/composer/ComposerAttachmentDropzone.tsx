@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useCallback, useState } from "react";
+import { forwardRef, useCallback, useEffect, useState } from "react";
 
 import { Slot } from "@radix-ui/react-slot";
 import React from "react";
@@ -44,6 +44,21 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
   const [dragDepth, setDragDepth] = useState(0);
   const api = useAssistantApi();
 
+  // Reset drag state when user releases mouse outside the browser window
+  useEffect(() => {
+    const handleWindowDragEnd = () => {
+      setDragDepth(0);
+    };
+
+    window.addEventListener("dragend", handleWindowDragEnd);
+    window.addEventListener("drop", handleWindowDragEnd);
+
+    return () => {
+      window.removeEventListener("dragend", handleWindowDragEnd);
+      window.removeEventListener("drop", handleWindowDragEnd);
+    };
+  }, []);
+
   const handleDragEnter = useCallback(
     (e: React.DragEvent) => {
       if (disabled) return;
@@ -68,7 +83,7 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
       if (disabled) return;
       e.preventDefault();
       e.stopPropagation();
-      setDragDepth((prev) => prev - 1);
+      setDragDepth((prev) => Math.max(0, prev - 1));
     },
     [disabled],
   );
