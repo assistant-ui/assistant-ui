@@ -5,4 +5,5 @@ export { ComposerPrimitiveCancel as Cancel } from "./ComposerCancel";
 export { ComposerPrimitiveAddAttachment as AddAttachment } from "./ComposerAddAttachment";
 export { ComposerPrimitiveAttachments as Attachments } from "./ComposerAttachments";
 export { ComposerPrimitiveAttachmentByIndex as AttachmentByIndex } from "./ComposerAttachments";
+export { ComposerPrimitiveAttachmentDropzone as AttachmentDropzone } from "./ComposerAttachmentDropzone";
 export { ComposerPrimitiveIf as If } from "./ComposerIf";

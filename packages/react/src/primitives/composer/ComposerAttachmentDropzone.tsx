@@ -1,30 +1,89 @@
-import { forwardRef, useCallback, useState } from "react";
+"use client";
+
+import { forwardRef, useCallback, useEffect, useState } from "react";
 
 import { Slot } from "@radix-ui/react-slot";
 import React from "react";
 import { useAssistantApi } from "../../context";
 
-export namespace ComposerAttachmentDropzonePrimitive {
+export namespace ComposerPrimitiveAttachmentDropzone {
   export type Element = HTMLDivElement;
   export type Props = React.HTMLAttributes<HTMLDivElement> & {
+    /**
+     * Whether to render as a child component using Slot.
+     * When true, the component will merge its props with its child.
+     */
     asChild?: boolean | undefined;
+    /**
+     * Whether the dropzone is disabled.
+     */
     disabled?: boolean | undefined;
   };
 }
 
-export const ComposerAttachmentDropzone = forwardRef<
+/**
+ * A drag-and-drop zone for adding file attachments to the composer.
+ *
+ * This component wraps content and enables drag-and-drop functionality for adding
+ * file attachments. Files dropped on this component are automatically added to
+ * the composer's attachment list. The component provides visual feedback during
+ * drag operations through the `data-dragging` attribute.
+ *
+ * @example
+ * ```tsx
+ * <ComposerPrimitive.AttachmentDropzone>
+ *   <ComposerPrimitive.Input />
+ *   <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
+ * </ComposerPrimitive.AttachmentDropzone>
+ * ```
+ */
+export const ComposerPrimitiveAttachmentDropzone = forwardRef<
   HTMLDivElement,
-  ComposerAttachmentDropzonePrimitive.Props
+  ComposerPrimitiveAttachmentDropzone.Props
 >(({ disabled, asChild = false, children, ...rest }, ref) => {
-  const [isDragging, setIsDragging] = useState(false);
+  const [dragDepth, setDragDepth] = useState(0);
   const api = useAssistantApi();
 
-  const handleDrag = useCallback(
+  // Reset drag state when user releases mouse outside the browser window
+  const handleWindowDragEnd = useCallback(() => {
+    setDragDepth(0);
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("dragend", handleWindowDragEnd, { passive: true });
+    window.addEventListener("drop", handleWindowDragEnd, { passive: true });
+
+    return () => {
+      window.removeEventListener("dragend", handleWindowDragEnd);
+      window.removeEventListener("drop", handleWindowDragEnd);
+    };
+  }, [handleWindowDragEnd]);
+
+  const handleDragEnter = useCallback(
     (e: React.DragEvent) => {
       if (disabled) return;
       e.preventDefault();
       e.stopPropagation();
-      setIsDragging(e.type === "dragenter" || e.type === "dragover");
+      setDragDepth((prev) => prev + 1);
+    },
+    [disabled],
+  );
+
+  const handleDragOver = useCallback(
+    (e: React.DragEvent) => {
+      if (disabled) return;
+      e.preventDefault();
+      e.stopPropagation();
+    },
+    [disabled],
+  );
+
+  const handleDragLeave = useCallback(
+    (e: React.DragEvent) => {
+      if (disabled) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setDragDepth((prev) => Math.max(0, prev - 1));
     },
     [disabled],
   );
@@ -34,7 +93,7 @@ export const ComposerAttachmentDropzone = forwardRef<
       if (disabled) return;
       e.preventDefault();
       e.stopPropagation();
-      setIsDragging(false);
+      setDragDepth(0);
       for (const file of e.dataTransfer.files) {
         try {
           await api.composer().addAttachment(file);
@@ -47,11 +106,13 @@ export const ComposerAttachmentDropzone = forwardRef<
   );
 
   const dragProps = {
-    onDragEnter: handleDrag,
-    onDragOver: handleDrag,
-    onDragLeave: handleDrag,
+    onDragEnter: handleDragEnter,
+    onDragOver: handleDragOver,
+    onDragLeave: handleDragLeave,
     onDrop: handleDrop,
   };
+
+  const isDragging = dragDepth > 0;
 
   const Comp = asChild ? Slot : "div";
 
@@ -67,4 +128,5 @@ export const ComposerAttachmentDropzone = forwardRef<
   );
 });
 
-ComposerAttachmentDropzone.displayName = "ComposerPrimitive.AttachmentDropzone";
+ComposerPrimitiveAttachmentDropzone.displayName =
+  "ComposerPrimitive.AttachmentDropzone";
