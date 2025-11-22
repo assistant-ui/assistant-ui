@@ -151,13 +151,6 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
 
     // Mark tools as errored in the message history
     pendingHumanTools.forEach(({ toolCallId }) => {
-      // chatHelpers.addToolOutput({
-      //   state: "output-error",
-      //   tool: toolCallId,
-      //   toolCallId,
-      //   errorText: "User cancelled tool call by sending a new message.",
-      // });
-
       chatHelpers.setMessages(
         chatHelpers.messages.map((message) => {
           if (message.id === toolCallId) {
