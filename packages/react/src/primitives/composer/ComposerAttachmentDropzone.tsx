@@ -67,4 +67,5 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
   );
 });
 
-ComposerPrimitiveAttachmentDropzone.displayName = "ComposerPrimitive.AttachmentDropzone";
+ComposerPrimitiveAttachmentDropzone.displayName =
+  "ComposerPrimitive.AttachmentDropzone";
