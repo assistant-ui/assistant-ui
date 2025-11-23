@@ -57,7 +57,9 @@
         "noForEach": "off",
         "noBannedTypes": "off",
         "noUselessConstructor": "off",
-        "noStaticOnlyClass": "off"
+        "noStaticOnlyClass": "off",
+        "useArrowFunction": "off",
+        "noThisInStatic": "off"
       },
       "a11y": {
         "useKeyWithClickEvents": "off",
@@ -137,7 +139,7 @@
         "**/*.json"
       ],
       "formatter": {
-        "lineWidth": 120
+        "lineWidth": 80
       }
     }
   ]
