@@ -34,7 +34,8 @@
         "noImplicitAnyLet": "off",
         "noAssignInExpressions": "off",
         "noRedeclare": "off",
-        "noDoubleEquals": "off"
+        "noDoubleEquals": "off",
+        "noPrototypeBuiltins": "off"
       },
       "style": {
         "noNamespace": "off",
@@ -59,7 +60,8 @@
         "noUselessConstructor": "off",
         "noStaticOnlyClass": "off",
         "useArrowFunction": "off",
-        "noThisInStatic": "off"
+        "noThisInStatic": "off",
+        "useFlatMap": "off"
       },
       "a11y": {
         "useKeyWithClickEvents": "off",
