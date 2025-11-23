@@ -9,9 +9,14 @@
     "prettier:fix": "prettier \"{examples,packages,apps}/**/*.{js,jsx,ts,tsx,md,json}\" --write",
     "build": "turbo build",
     "lint": "eslint .",
-    "test": "turbo test"
+    "test": "turbo test",
+    "biome:check": "pnpm exec biome check",
+    "biome:format": "pnpm exec biome format --write",
+    "biome:lint": "pnpm exec biome lint --write",
+    "biome:fix": "pnpm exec biome check --fix"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.3.7",
     "@changesets/cli": "^2.29.7",
     "eslint": "^9.39.1",
     "eslint-config-next": "16.0.3",
