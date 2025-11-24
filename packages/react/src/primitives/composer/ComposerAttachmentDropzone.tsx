@@ -1,10 +1,12 @@
+"use client";
+
 import { forwardRef, useCallback, useState } from "react";
 
 import { Slot } from "@radix-ui/react-slot";
 import React from "react";
 import { useAssistantApi } from "../../context";
 
-export namespace ComposerAttachmentDropzonePrimitive {
+export namespace ComposerPrimitiveAttachmentDropzone {
   export type Element = HTMLDivElement;
   export type Props = React.HTMLAttributes<HTMLDivElement> & {
     asChild?: boolean | undefined;
@@ -12,19 +14,40 @@ export namespace ComposerAttachmentDropzonePrimitive {
   };
 }
 
-export const ComposerAttachmentDropzone = forwardRef<
+export const ComposerPrimitiveAttachmentDropzone = forwardRef<
   HTMLDivElement,
-  ComposerAttachmentDropzonePrimitive.Props
+  ComposerPrimitiveAttachmentDropzone.Props
 >(({ disabled, asChild = false, children, ...rest }, ref) => {
   const [isDragging, setIsDragging] = useState(false);
   const api = useAssistantApi();
 
-  const handleDrag = useCallback(
+  const handleDragEnterCapture = useCallback(
     (e: React.DragEvent) => {
       if (disabled) return;
       e.preventDefault();
-      e.stopPropagation();
-      setIsDragging(e.type === "dragenter" || e.type === "dragover");
+      setIsDragging(true);
+    },
+    [disabled],
+  );
+
+  const handleDragOverCapture = useCallback(
+    (e: React.DragEvent) => {
+      if (disabled) return;
+      e.preventDefault();
+      if (!isDragging) setIsDragging(true);
+    },
+    [disabled, isDragging],
+  );
+
+  const handleDragLeaveCapture = useCallback(
+    (e: React.DragEvent) => {
+      if (disabled) return;
+      e.preventDefault();
+      const next = e.relatedTarget as Node | null;
+      if (next && e.currentTarget.contains(next)) {
+        return;
+      }
+      setIsDragging(false);
     },
     [disabled],
   );
@@ -33,7 +56,6 @@ export const ComposerAttachmentDropzone = forwardRef<
     async (e: React.DragEvent) => {
       if (disabled) return;
       e.preventDefault();
-      e.stopPropagation();
       setIsDragging(false);
       for (const file of e.dataTransfer.files) {
         try {
@@ -47,10 +69,10 @@ export const ComposerAttachmentDropzone = forwardRef<
   );
 
   const dragProps = {
-    onDragEnter: handleDrag,
-    onDragOver: handleDrag,
-    onDragLeave: handleDrag,
-    onDrop: handleDrop,
+    onDragEnterCapture: handleDragEnterCapture,
+    onDragOverCapture: handleDragOverCapture,
+    onDragLeaveCapture: handleDragLeaveCapture,
+    onDropCapture: handleDrop,
   };
 
   const Comp = asChild ? Slot : "div";
@@ -67,4 +89,5 @@ export const ComposerAttachmentDropzone = forwardRef<
   );
 });
 
-ComposerAttachmentDropzone.displayName = "ComposerPrimitive.AttachmentDropzone";
+ComposerPrimitiveAttachmentDropzone.displayName =
+  "ComposerPrimitive.AttachmentDropzone";
