@@ -14,10 +14,6 @@ function stripClosingDelimiters(json: string) {
   return json.replace(/[}\]"]+$/, "");
 }
 
-function isReadonlyJSONObject(value: unknown): value is ReadonlyJSONObject {
-  return value != null && typeof value === "object" && !Array.isArray(value);
-}
-
 const convertParts = (
   message: UIMessage,
   metadata: useExternalMessageConverter.Metadata,
@@ -26,18 +22,17 @@ const convertParts = (
     return [];
   }
 
-  // Cache the last non-null tool input per toolCallId for this message only.
-  // This stabilizes args snapshots when later parts temporarily omit input
-  // without keeping a global, unbounded cache.
+  // Per-message cache of last tool input per toolCallId.
   const lastToolInputs = new Map<string, ReadonlyJSONObject>();
 
   const getToolArgs = (
     toolCallId: string,
     input: unknown,
   ): ReadonlyJSONObject => {
-    if (isReadonlyJSONObject(input)) {
-      lastToolInputs.set(toolCallId, input);
-      return input;
+    if (input && typeof input === "object" && !Array.isArray(input)) {
+      const jsonInput = input as ReadonlyJSONObject;
+      lastToolInputs.set(toolCallId, jsonInput);
+      return jsonInput;
     }
 
     const cached = lastToolInputs.get(toolCallId);
