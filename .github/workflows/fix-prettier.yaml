@@ -4,6 +4,10 @@ on:
   issue_comment:
     types: [created]
 
+permissions:
+  contents: write
+  pull-requests: write
+
 concurrency:
   group: fix-prettier-${{ github.event.issue.number }}
   cancel-in-progress: true
@@ -13,9 +17,6 @@ jobs:
     name: Fix Prettier Issues
     if: ${{ github.event.issue.pull_request && contains(github.event.comment.body, '/fix-prettier') && github.event.comment.user.type == 'User' }}
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
     steps:
       - name: Get PR information
         uses: actions/github-script@v7

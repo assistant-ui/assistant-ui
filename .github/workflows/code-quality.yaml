@@ -1,6 +1,4 @@
 name: Code Quality
-permissions:
-  contents: read
 
 on:
   push:
@@ -25,6 +23,9 @@ on:
       - "package.json"
       - "pnpm-lock.yaml"
       - ".github/workflows/code-quality.yaml"
+
+permissions:
+  contents: read
 
 jobs:
   lint:

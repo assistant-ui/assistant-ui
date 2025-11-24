@@ -8,6 +8,10 @@ on:
   issues:
     types: [opened, assigned]
 
+concurrency:
+  group: claude-code-${{ github.event.issue.number || github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   check-permissions:
     # Only run if @claude is mentioned (bot filtering handled by claude-code-action)

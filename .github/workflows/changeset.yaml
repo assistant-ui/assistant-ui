@@ -1,15 +1,16 @@
 name: Changesets
+
 on:
   push:
     branches:
       - main
 
-concurrency: ${{ github.workflow }}-${{ github.ref }}
-
 permissions:
   id-token: write
   contents: write
   pull-requests: write
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
 
 env:
   CI: true

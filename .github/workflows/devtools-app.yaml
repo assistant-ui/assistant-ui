@@ -1,9 +1,5 @@
 name: Deploy DevTools App
 
-env:
-  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_DEVTOOLS_APP_PROJECT_ID }}
-
 on:
   push:
     branches:
@@ -13,11 +9,17 @@ on:
       - packages/devtools/**
       - .github/workflows/devtools-app.yaml
 
+permissions:
+  contents: read
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_DEVTOOLS_APP_PROJECT_ID }}
+
 jobs:
-  Deploy-Production:
+  deploy-production:
+    name: Deploy Production
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
       - name: Checkout code repository
         uses: actions/checkout@v4
