@@ -33,7 +33,9 @@ import { useAssistantState, useAssistantApi } from "../../context";
  */
 const useActionBarPrimitiveCopy = ({
   copiedDuration = 3000,
-}: { copiedDuration?: number | undefined } = {}) => {
+}: {
+  copiedDuration?: number | undefined;
+} = {}) => {
   const api = useAssistantApi();
   const hasCopyableContent = useAssistantState(({ message }) => {
     return (

@@ -3,11 +3,25 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@assistant-ui/react": ["../react/src"],
-      "assistant-stream": ["../assistant-stream/src/index.ts"],
-      "assistant-stream/*": ["../assistant-stream/src/*"]
+      "@assistant-ui/react": [
+        "../react/src"
+      ],
+      "assistant-stream": [
+        "../assistant-stream/src/index.ts"
+      ],
+      "assistant-stream/*": [
+        "../assistant-stream/src/*"
+      ]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx"],
-  "exclude": ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx"]
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx"
+  ],
+  "exclude": [
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/*.spec.tsx"
+  ]
 }

@@ -53,6 +53,6 @@ export function sanitizePath(userPath: string): string {
 }
 
 export function isValidPathCharacters(path: string): boolean {
-  const validPathRegex = /^[a-zA-Z0-9\-_\/\.]+$/;
+  const validPathRegex = /^[a-zA-Z0-9\-_/.]+$/;
   return validPathRegex.test(path);
 }

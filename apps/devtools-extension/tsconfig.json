@@ -1,10 +1,21 @@
 {
   "extends": "@assistant-ui/x-buildutils/ts/base",
   "compilerOptions": {
-    "types": ["chrome"],
-    "lib": ["ES2020", "DOM"],
+    "types": [
+      "chrome"
+    ],
+    "lib": [
+      "ES2020",
+      "DOM"
+    ],
     "jsx": "react-jsx"
   },
-  "include": ["./*.ts", "./*.tsx"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "./*.ts",
+    "./*.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }

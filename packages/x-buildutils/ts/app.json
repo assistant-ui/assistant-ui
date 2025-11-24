@@ -5,12 +5,24 @@
     "declaration": false,
     "declarationMap": false,
     "paths": {
-      "@/*": ["./*"],
-      "@assistant-ui/*": ["../../packages/*/src"],
-      "@assistant-ui/react/*": ["../../packages/react/src/*"],
-      "@assistant-ui/tap/*": ["../../packages/tap/src/*"],
-      "assistant-stream": ["../../packages/assistant-stream/src"],
-      "assistant-stream/*": ["../../packages/assistant-stream/src/*"]
+      "@/*": [
+        "./*"
+      ],
+      "@assistant-ui/*": [
+        "../../packages/*/src"
+      ],
+      "@assistant-ui/react/*": [
+        "../../packages/react/src/*"
+      ],
+      "@assistant-ui/tap/*": [
+        "../../packages/tap/src/*"
+      ],
+      "assistant-stream": [
+        "../../packages/assistant-stream/src"
+      ],
+      "assistant-stream/*": [
+        "../../packages/assistant-stream/src/*"
+      ]
     }
   }
 }

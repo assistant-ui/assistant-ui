@@ -4,7 +4,10 @@
   "version": "0.1.0",
   "description": "Development tools for assistant-ui React components",
 
-  "permissions": ["activeTab", "storage"],
+  "permissions": [
+    "activeTab",
+    "storage"
+  ],
 
   "background": {
     "service_worker": "background.js"
@@ -12,8 +15,12 @@
 
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_start",
       "all_frames": false
     }
@@ -21,8 +28,12 @@
 
   "web_accessible_resources": [
     {
-      "resources": ["inject.js"],
-      "matches": ["<all_urls>"]
+      "resources": [
+        "inject.js"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ],
 

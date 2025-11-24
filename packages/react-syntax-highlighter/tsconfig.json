@@ -1,5 +1,12 @@
 {
   "extends": "@assistant-ui/x-buildutils/ts/base",
-  "include": ["src/**/*.ts", "src/**/*.tsx"],
-  "exclude": ["node_modules", "dist", "**/*.test.{ts,tsx}"]
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.{ts,tsx}"
+  ]
 }

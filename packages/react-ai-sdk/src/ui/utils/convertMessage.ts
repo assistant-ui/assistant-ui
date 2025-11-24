@@ -49,7 +49,7 @@ const convertParts = (
 
         // Extract args and result based on state
         let args: any = {};
-        let result: any = undefined;
+        let result: any;
         let isError = false;
 
         if (
@@ -99,7 +99,7 @@ const convertParts = (
 
         // Extract args and result based on state
         let args: any = {};
-        let result: any = undefined;
+        let result: any;
         let isError = false;
 
         if (

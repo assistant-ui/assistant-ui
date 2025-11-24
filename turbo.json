@@ -2,9 +2,20 @@
   "$schema": "https://turbo.build/schema.json",
   "tasks": {
     "build": {
-      "dependsOn": ["^build"],
-      "inputs": ["**/*.*", "!.next", "!.turbo"],
-      "outputs": ["dist", ".next/**", "!.next/cache/**", "generated/**"],
+      "dependsOn": [
+        "^build"
+      ],
+      "inputs": [
+        "**/*.*",
+        "!.next",
+        "!.turbo"
+      ],
+      "outputs": [
+        "dist",
+        ".next/**",
+        "!.next/cache/**",
+        "generated/**"
+      ],
       "env": [
         "OPENAI_*",
         "ASSISTANT_*",
@@ -18,10 +29,16 @@
     },
     "lint": {},
     "test": {
-      "dependsOn": ["^build"]
+      "dependsOn": [
+        "^build"
+      ]
     },
     "deploy": {
-      "dependsOn": ["build", "lint", "test"]
+      "dependsOn": [
+        "build",
+        "lint",
+        "test"
+      ]
     },
     "dev": {
       "cache": false,

@@ -21,7 +21,10 @@
       }
     }
   },
-  "forwardPorts": [3000, 3001],
+  "forwardPorts": [
+    3000,
+    3001
+  ],
   "postCreateCommand": "pnpm install && npm install -g @anthropic-ai/claude-code",
   "remoteUser": "node"
 }

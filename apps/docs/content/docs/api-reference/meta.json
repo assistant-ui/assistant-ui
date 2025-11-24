@@ -1,4 +1,10 @@
 {
   "title": "API Reference",
-  "pages": ["overview", "context-providers", "primitives", "runtimes", "..."]
+  "pages": [
+    "overview",
+    "context-providers",
+    "primitives",
+    "runtimes",
+    "..."
+  ]
 }

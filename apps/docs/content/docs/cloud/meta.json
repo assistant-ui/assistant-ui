@@ -1,3 +1,7 @@
 {
-  "pages": ["overview", "authorization", "persistence"]
+  "pages": [
+    "overview",
+    "authorization",
+    "persistence"
+  ]
 }

@@ -16,8 +16,9 @@ import { Unsubscribe } from "../../types";
 /**
  * Extract the API return type from an AssistantApiField
  */
-type ExtractApiType<T> =
-  T extends AssistantApiField<infer TApi, any> ? TApi : never;
+type ExtractApiType<T> = T extends AssistantApiField<infer TApi, any>
+  ? TApi
+  : never;
 
 /**
  * Extract the metadata type from an AssistantApiField
@@ -25,8 +26,9 @@ type ExtractApiType<T> =
  * Used in DerivedScopesInput to validate that each field's source/query types match
  * the expected types from AssistantApi.
  */
-type ExtractMeta<T> =
-  T extends AssistantApiField<any, infer TMeta> ? TMeta : never;
+type ExtractMeta<T> = T extends AssistantApiField<any, infer TMeta>
+  ? TMeta
+  : never;
 
 /**
  * Get only the field names from AssistantApi (exclude method names)
