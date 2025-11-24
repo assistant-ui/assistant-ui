@@ -5,10 +5,6 @@
     "clientKind": "git",
     "useIgnoreFile": true
   },
-  "files": {
-    "maxSize": 10485760,
-    "ignoreUnknown": false
-  },
   "formatter": {
     "enabled": true,
     "formatWithErrors": false,
@@ -135,27 +131,5 @@
     "linter": {
       "enabled": false
     }
-  },
-  "overrides": [
-    {
-      "includes": [
-        "*.tsx",
-        "*.ts",
-        "*.jsx",
-        "*.js"
-      ],
-      "linter": {
-        "rules": {
-          "correctness": {
-            "noUnusedVariables": {
-              "level": "error",
-              "options": {
-                "ignoreRestSiblings": true
-              }
-            }
-          }
-        }
-      }
-    }
-  ]
+  }
 }
