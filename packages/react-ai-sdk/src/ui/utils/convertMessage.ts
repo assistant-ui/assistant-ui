@@ -8,9 +8,29 @@ import {
   type SourceMessagePart,
   type useExternalMessageConverter,
 } from "@assistant-ui/react";
+import type { ReadonlyJSONObject } from "assistant-stream/utils";
 
 function stripClosingDelimiters(json: string) {
   return json.replace(/[}\]"]+$/, "");
+}
+
+const lastToolInputs = new Map<string, ReadonlyJSONObject>();
+
+function getToolArgs(
+  toolCallId: string,
+  input: ReadonlyJSONObject | null | undefined,
+): ReadonlyJSONObject {
+  if (input != null) {
+    lastToolInputs.set(toolCallId, input);
+    return input;
+  }
+
+  const cached = lastToolInputs.get(toolCallId);
+  if (cached) {
+    return cached;
+  }
+
+  return {};
 }
 
 const convertParts = (
@@ -47,24 +67,20 @@ const convertParts = (
         const toolName = type.replace("tool-", "");
         const toolCallId = part.toolCallId;
 
-        // Extract args and result based on state
-        let args: any = {};
-        let result: any = undefined;
+        let result: unknown;
         let isError = false;
 
-        if (
-          part.state === "input-streaming" ||
-          part.state === "input-available"
-        ) {
-          args = part.input || {};
-        } else if (part.state === "output-available") {
-          args = part.input || {};
+        if (part.state === "output-available") {
           result = part.output;
         } else if (part.state === "output-error") {
-          args = part.input || {};
           isError = true;
           result = { error: part.errorText };
         }
+
+        const args = getToolArgs(
+          toolCallId,
+          part.input as ReadonlyJSONObject | null | undefined,
+        );
 
         let argsText = JSON.stringify(args);
         if (part.state === "input-streaming") {
