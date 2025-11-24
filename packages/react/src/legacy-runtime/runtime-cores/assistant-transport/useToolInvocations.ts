@@ -162,34 +162,36 @@ export function useToolInvocations({
               }
 
               if (content.argsText !== lastState.argsText) {
-                let lastParsed: any;
-                let currentParsed: any;
+                // parse once and reuse for both completeness check and comparison
+                let lastParsed: any = null;
+                let currentParsed: any = null;
                 let isLastComplete = false;
                 let isCurrentComplete = false;
 
                 try {
-                  if (lastState.argsText.trim().startsWith("{")) {
-                    lastParsed = JSON.parse(lastState.argsText);
-                    isLastComplete = true;
-                  }
-                } catch (e) {
-                  // Is not complete JSON
+                  lastParsed = JSON.parse(lastState.argsText);
+                  isLastComplete = true;
+                } catch {
+                  // lastState.argsText is not complete JSON
                 }
 
                 try {
-                  if (content.argsText.trim().startsWith("{")) {
-                    currentParsed = JSON.parse(content.argsText);
-                    isCurrentComplete = true;
-                  }
-                } catch (e) {
-                  // Is not complete JSON
+                  currentParsed = JSON.parse(content.argsText);
+                  isCurrentComplete = true;
+                } catch {
+                  // content.argsText is not complete JSON
                 }
 
                 if (isLastComplete && isCurrentComplete) {
+                  // Verify semantic equivalence (reuse already-parsed objects)
+                  let areSemanticallySame = false;
                   try {
                     const sortJsonKeys = (obj: any, depth = 0): any => {
-                      if (depth > 100)
-                        throw new Error("Max depth exceeded in sortJsonKeys");
+                      if (depth > 100) {
+                        throw new Error(
+                          "Maximum nesting depth exceeded in tool arguments",
+                        );
+                      }
                       if (typeof obj !== "object" || obj === null) return obj;
                       if (Array.isArray(obj))
                         return obj.map((item) => sortJsonKeys(item, depth + 1));
@@ -201,10 +203,11 @@ export function useToolInvocations({
                         }, {} as any);
                     };
 
-                    if (
-                      JSON.stringify(sortJsonKeys(lastParsed)) !==
-                      JSON.stringify(sortJsonKeys(currentParsed))
-                    ) {
+                    areSemanticallySame =
+                      JSON.stringify(sortJsonKeys(lastParsed)) ===
+                      JSON.stringify(sortJsonKeys(currentParsed));
+
+                    if (!areSemanticallySame) {
                       if (process.env["NODE_ENV"] !== "production") {
                         console.warn(
                           "Complete argsText updated with different content:",
@@ -216,11 +219,9 @@ export function useToolInvocations({
                       }
                     }
                   } catch (e) {
+                    // Should not happen since we already successfully parsed both
                     if (process.env["NODE_ENV"] !== "production") {
-                      console.warn(
-                        "Failed to compare JSON for semantic equivalence:",
-                        e,
-                      );
+                      console.warn("Failed to compare JSON:", e);
                     }
                   }
 
@@ -233,13 +234,17 @@ export function useToolInvocations({
                     argsText: content.argsText,
                     argsComplete: true,
                   };
-                } else if (lastState.argsComplete) {
+                  return;
+                }
+                if (lastState.argsComplete) {
+                  // This case handles updates after the controller is already closed
                   if (process.env["NODE_ENV"] !== "production") {
                     console.warn(
                       "argsText updated after controller was closed:",
                       { previous: lastState.argsText, next: content.argsText },
                     );
                   }
+                  return;
                 } else {
                   if (!content.argsText.startsWith(lastState.argsText)) {
                     throw new Error(

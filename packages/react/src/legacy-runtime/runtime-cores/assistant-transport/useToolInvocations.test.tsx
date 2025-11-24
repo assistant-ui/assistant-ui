@@ -380,4 +380,126 @@ describe("useToolInvocations", () => {
       }),
     ).not.toThrow();
   });
+
+  it("should handle nested object reordering", () => {
+    const onResult = vi.fn();
+    const setToolStatuses = vi.fn();
+    const getTools = () => undefined;
+
+    const emptyState: AssistantTransportState = {
+      isRunning: false,
+      messages: [],
+    };
+
+    const { rerender } = renderHook(
+      ({ state }) =>
+        useToolInvocations({ state, getTools, onResult, setToolStatuses }),
+      { initialProps: { state: emptyState } },
+    );
+
+    // Incomplete JSON
+    rerender({
+      state: {
+        isRunning: true,
+        messages: [
+          {
+            id: "msg1",
+            role: "assistant",
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: "tool123",
+                toolName: "testTool",
+                argsText: '{"user":{"name":"Alice","id":1',
+                args: {},
+              },
+            ],
+          } as any,
+        ],
+      },
+    });
+
+    // Complete JSON with nested objects
+    rerender({
+      state: {
+        isRunning: true,
+        messages: [
+          {
+            id: "msg1",
+            role: "assistant",
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: "tool123",
+                toolName: "testTool",
+                argsText:
+                  '{"user":{"name":"Alice","id":1},"settings":{"theme":"dark","lang":"en"}}',
+                args: {
+                  user: { name: "Alice", id: 1 },
+                  settings: { theme: "dark", lang: "en" },
+                },
+              },
+            ],
+          } as any,
+        ],
+      },
+    });
+
+    // Same data but with nested keys reordered
+    expect(() =>
+      rerender({
+        state: {
+          isRunning: true,
+          messages: [
+            {
+              id: "msg1",
+              role: "assistant",
+              content: [
+                {
+                  type: "tool-call",
+                  toolCallId: "tool123",
+                  toolName: "testTool",
+                  // Reordered: settings comes first, and nested keys are swapped
+                  argsText:
+                    '{"settings":{"lang":"en","theme":"dark"},"user":{"id":1,"name":"Alice"}}',
+                  args: {
+                    settings: { lang: "en", theme: "dark" },
+                    user: { id: 1, name: "Alice" },
+                  },
+                },
+              ],
+            } as any,
+          ],
+        },
+      }),
+    ).not.toThrow();
+
+    // Should not have thrown the "can only be appended" error
+    expect(() =>
+      rerender({
+        state: {
+          isRunning: true,
+          messages: [
+            {
+              id: "msg1",
+              role: "assistant",
+              content: [
+                {
+                  type: "tool-call",
+                  toolCallId: "tool123",
+                  toolName: "testTool",
+                  argsText:
+                    '{"settings":{"lang":"en","theme":"dark"},"user":{"id":1,"name":"Alice"}}',
+                  args: {
+                    settings: { lang: "en", theme: "dark" },
+                    user: { id: 1, name: "Alice" },
+                  },
+                },
+              ],
+            } as any,
+          ],
+        },
+      }),
+    ).not.toThrow("Tool call argsText can only be appended, not updated");
+  });
 });
