@@ -3,4 +3,4 @@
 ---
 
 fix: export `ComposerAttachmentDropzone` as `ComposerPrimitive.AttachmentDropzone`
-fix: prevent drag state flicker in ComposerAttachmentDropzone
+fix: prevent drag state flicker in `ComposerAttachmentDropzone`
