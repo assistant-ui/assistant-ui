@@ -4,6 +4,10 @@ on:
   issue_comment:
     types: [created]
 
+concurrency:
+  group: fix-prettier-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
 jobs:
   fix-prettier:
     name: Fix Prettier Issues
@@ -54,14 +58,14 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ fromJson(steps.get-pr.outputs.result).head_ref }}
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Checkout PR (forked repo)
         if: fromJson(steps.get-pr.outputs.result).is_fork == true
         uses: actions/checkout@v4
         with:
           ref: ${{ fromJson(steps.get-pr.outputs.result).head_ref }}
-          fetch-depth: 0
+          fetch-depth: 1
           repository: ${{ format('{0}/{1}', fromJson(steps.get-pr.outputs.result).fork_owner, fromJson(steps.get-pr.outputs.result).fork_repo) }}
 
       - name: Install pnpm
