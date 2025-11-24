@@ -1,9 +1,10 @@
+/** biome-ignore-all lint/correctness/useHookAtTopLevel: <explanation> */
 "use client";
 
 import { useChat, type UIMessage } from "@ai-sdk/react";
 import type { AssistantCloud } from "assistant-cloud";
 import {
-  AssistantRuntime,
+  type AssistantRuntime,
   unstable_useCloudThreadListAdapter,
   unstable_useRemoteThreadListRuntime,
   useAssistantState,
@@ -13,14 +14,29 @@ import {
   type AISDKRuntimeAdapter,
   type CustomToCreateMessageFunction,
 } from "./useAISDKRuntime";
-import { ChatInit } from "ai";
+import type { ChatInit } from "ai";
 import { AssistantChatTransport } from "./AssistantChatTransport";
+import { useMemo, useRef } from "react";
 
 export type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage = UIMessage> =
   ChatInit<UI_MESSAGE> & {
     cloud?: AssistantCloud | undefined;
     adapters?: AISDKRuntimeAdapter["adapters"] | undefined;
     toCreateMessage?: CustomToCreateMessageFunction;
+    /**
+     * Extra body object to be sent with the API request.
+     * This will be merged with the default request body.
+     *
+     * Note: The body can be updated dynamically without recreating the runtime.
+     * @example
+     * ```tsx
+     * const [temperature, setTemperature] = useState(0.7);
+     * const runtime = useChatRuntime({
+     *   body: { temperature }
+     * });
+     * ```
+     */
+    body?: object | undefined;
   };
 
 export const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
@@ -30,9 +46,22 @@ export const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     adapters,
     transport: transportOptions,
     toCreateMessage,
+    body,
     ...chatOptions
   } = options ?? {};
-  const transport = transportOptions ?? new AssistantChatTransport();
+
+  const bodyRef = useRef(body);
+  bodyRef.current = body;
+
+  const transport = useMemo(() => {
+    const newTransport = transportOptions ?? new AssistantChatTransport();
+
+    if (!transportOptions && newTransport instanceof AssistantChatTransport) {
+      newTransport.__internal_setDynamicBodyRef(bodyRef);
+    }
+
+    return newTransport;
+  }, [transportOptions]);
 
   const id = useAssistantState(({ threadListItem }) => threadListItem.id);
   const chat = useChat({

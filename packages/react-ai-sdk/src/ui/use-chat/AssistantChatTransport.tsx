@@ -1,10 +1,11 @@
-import { AssistantRuntime, Tool } from "@assistant-ui/react";
+import type { AssistantRuntime, Tool } from "@assistant-ui/react";
 import {
   DefaultChatTransport,
-  HttpChatTransportInitOptions,
-  JSONSchema7,
-  UIMessage,
+  type HttpChatTransportInitOptions,
+  type JSONSchema7,
+  type UIMessage,
 } from "ai";
+import type { RefObject } from "react";
 import z from "zod";
 
 const toAISDKTools = (tools: Record<string, Tool>) => {
@@ -33,14 +34,20 @@ export class AssistantChatTransport<
   UI_MESSAGE extends UIMessage,
 > extends DefaultChatTransport<UI_MESSAGE> {
   private runtime: AssistantRuntime | undefined;
+  private dynamicBodyRef?: RefObject<object | undefined>;
+
   constructor(initOptions?: HttpChatTransportInitOptions<UI_MESSAGE>) {
+    const { body: _initBody, ...restInitOptions } = initOptions ?? {};
+
     super({
-      ...initOptions,
+      ...restInitOptions,
       prepareSendMessagesRequest: async (options) => {
         const context = this.runtime?.thread.getModelContext();
         const id =
           (await this.runtime?.threads.mainItem.initialize())?.remoteId ??
           options.id;
+
+        const dynamicBody = this.dynamicBodyRef?.current ?? _initBody;
 
         const optionsEx = {
           ...options,
@@ -49,10 +56,11 @@ export class AssistantChatTransport<
             system: context?.system,
             tools: toAISDKTools(getEnabledTools(context?.tools ?? {})),
             ...options?.body,
+            ...dynamicBody,
           },
         };
         const preparedRequest =
-          await initOptions?.prepareSendMessagesRequest?.(optionsEx);
+          await restInitOptions?.prepareSendMessagesRequest?.(optionsEx);
 
         return {
           ...preparedRequest,
@@ -70,5 +78,14 @@ export class AssistantChatTransport<
 
   setRuntime(runtime: AssistantRuntime) {
     this.runtime = runtime;
+  }
+
+  /**
+   * Set a ref that will be read dynamically on each request.
+   * This allows the body to be updated without recreating the transport.
+   * @internal
+   */
+  __internal_setDynamicBodyRef(ref: RefObject<object | undefined>) {
+    this.dynamicBodyRef = ref;
   }
 }
