@@ -21,12 +21,33 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
   const [isDragging, setIsDragging] = useState(false);
   const api = useAssistantApi();
 
-  const handleDrag = useCallback(
+  const handleDragEnterCapture = useCallback(
     (e: React.DragEvent) => {
       if (disabled) return;
       e.preventDefault();
-      e.stopPropagation();
-      setIsDragging(e.type === "dragenter" || e.type === "dragover");
+      setIsDragging(true);
+    },
+    [disabled],
+  );
+
+  const handleDragOverCapture = useCallback(
+    (e: React.DragEvent) => {
+      if (disabled) return;
+      e.preventDefault();
+      if (!isDragging) setIsDragging(true);
+    },
+    [disabled, isDragging],
+  );
+
+  const handleDragLeaveCapture = useCallback(
+    (e: React.DragEvent) => {
+      if (disabled) return;
+      e.preventDefault();
+      const next = e.relatedTarget as Node | null;
+      if (next && e.currentTarget.contains(next)) {
+        return;
+      }
+      setIsDragging(false);
     },
     [disabled],
   );
@@ -35,7 +56,6 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
     async (e: React.DragEvent) => {
       if (disabled) return;
       e.preventDefault();
-      e.stopPropagation();
       setIsDragging(false);
       for (const file of e.dataTransfer.files) {
         try {
@@ -49,10 +69,10 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
   );
 
   const dragProps = {
-    onDragEnter: handleDrag,
-    onDragOver: handleDrag,
-    onDragLeave: handleDrag,
-    onDrop: handleDrop,
+    onDragEnterCapture: handleDragEnterCapture,
+    onDragOverCapture: handleDragOverCapture,
+    onDragLeaveCapture: handleDragLeaveCapture,
+    onDropCapture: handleDrop,
   };
 
   const Comp = asChild ? Slot : "div";
