@@ -73,6 +73,26 @@
       },
       "security": {
         "noDangerouslySetInnerHtml": "off"
+      },
+      "nursery": {
+        "useSortedClasses": {
+          "fix": "none",
+          "level": "off",
+          "options": {
+            "attributes": [
+              "className"
+            ],
+            "functions": [
+              "clsx",
+              "cva",
+              "tw",
+              "twMerge",
+              "cn",
+              "twJoin",
+              "tv"
+            ]
+          }
+        }
       }
     }
   },
@@ -96,7 +116,8 @@
   "json": {
     "formatter": {
       "enabled": true,
-      "trailingCommas": "none"
+      "trailingCommas": "none",
+      "lineWidth": 1
     },
     "parser": {
       "allowComments": true,
@@ -134,14 +155,6 @@
             }
           }
         }
-      }
-    },
-    {
-      "includes": [
-        "**/*.json"
-      ],
-      "formatter": {
-        "lineWidth": 80
       }
     }
   ]
