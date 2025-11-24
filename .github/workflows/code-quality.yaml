@@ -97,7 +97,7 @@ jobs:
   test:
     name: Test Changed Packages
     runs-on: ubuntu-latest
-    needs: build
+    # Note: No dependency on 'build' job - Turbo handles test->build dependencies internally via dependsOn
     steps:
       - name: Checkout code repository
         uses: actions/checkout@v4
