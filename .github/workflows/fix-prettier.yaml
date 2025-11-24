@@ -8,7 +8,7 @@ jobs:
   fix-prettier:
     name: Fix Prettier Issues
     if: ${{ github.event.issue.pull_request && contains(github.event.comment.body, '/fix-prettier') && github.event.comment.user.type == 'User' }}
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     permissions:
       contents: write
       pull-requests: write
