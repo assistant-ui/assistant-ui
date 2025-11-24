@@ -19,7 +19,7 @@ concurrency:
 env:
   # Shared action configuration
   TRACK_PROGRESS: 'true'
-  USE_STICKY_COMMENT: 'false'
+  USE_STICKY_COMMENT: 'true'
   ADDITIONAL_PERMISSIONS: |
     actions: read
 
@@ -72,16 +72,18 @@ env:
     - Identify new problems introduced since last review
     - Note if fixes introduced new issues
 
-    IMPORTANT: Be comprehensive about issues and improvements. For good practices, be brief - just note what was done well without explaining why or praising excessively. NO meta-commentary about the review process itself. The overall summary and consolidated feedback should be written in the main PR review body.
+    IMPORTANT: Be comprehensive about issues and improvements. For good practices, be brief - just note what was done well without explaining why or praising excessively. NO meta-commentary about the review process itself.
 
     Use `mcp__github_inline_comment__create_inline_comment` only for critical code issues or relevant suggestions. Check existing inline comments first to avoid duplicates. Do NOT use inline comments for good practices or positive observations. Each inline comment must be well thought out, precise, and actionable.
 
-    IMPORTANT: Submit your review feedback as a single PR review: write the overall summary and consolidated feedback in the main review body, and use inline comments only for specific code issues or suggestions. Do not create or update separate sticky PR comments for the review.
+    You have been provided with the mcp__github_comment__update_claude_comment tool to update your comment. This tool automatically handles PR comments. Only the body parameter is required - the tool automatically knows which comment to update.
+
+    IMPORTANT: Submit your review feedback by updating the Claude comment using mcp__github_comment__update_claude_comment. This will be displayed as your PR review.
 
   # Allowed tools:
   # - mcp__github_inline_comment__create_inline_comment: Create inline code comments
   # - Bash(gh ...): Read-only GitHub CLI commands for PR/issue info
-  # Note: gh pr comment is NOT allowed - Claude should rely on PR reviews and inline comments instead of separate PR comments
+  # Note: gh pr comment is NOT allowed - Claude must use update_claude_comment only
   CLAUDE_ARGS: '--allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"'
 
 jobs:
