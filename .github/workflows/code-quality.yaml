@@ -5,8 +5,26 @@ permissions:
 on:
   push:
     branches: [main]
+    # Only run when relevant files change
+    paths:
+      - "packages/**"
+      - "apps/**"
+      - "examples/**"
+      - "turbo.json"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/code-quality.yaml"
   pull_request:
     branches: [main]
+    # Only run when relevant files change
+    paths:
+      - "packages/**"
+      - "apps/**"
+      - "examples/**"
+      - "turbo.json"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/code-quality.yaml"
 
 jobs:
   lint:
@@ -16,7 +34,7 @@ jobs:
       - name: Checkout code repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -35,7 +53,82 @@ jobs:
 
       - name: Run Prettier
         run: pnpm prettier
-        # This will fail the workflow if Prettier has warnings
 
-      - name: Run Tests
-        run: pnpm test
+  build:
+    name: Build Changed Packages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+
+      - name: Cache turbo build setup
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            # PR: Build packages changed compared to base branch
+            pnpm turbo build --filter="...[origin/${{ github.base_ref }}]"
+          else
+            # Push to main: Build packages changed in last commit
+            pnpm turbo build --filter="...[HEAD^1]"
+          fi
+
+  test:
+    name: Test Changed Packages
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+
+      - name: Cache turbo build setup
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run tests
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            # PR: Test packages changed compared to base branch
+            pnpm turbo test --filter="...[origin/${{ github.base_ref }}]"
+          else
+            # Push to main: Test packages changed in last commit
+            pnpm turbo test --filter="...[HEAD^1]"
+          fi
