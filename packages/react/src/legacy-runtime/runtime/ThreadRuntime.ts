@@ -447,6 +447,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
         return {
           message,
           parentId: messages[idx - 1]?.id ?? null,
+          index: idx,
         };
       },
     );
@@ -468,19 +469,20 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
   private _getMessageRuntime(
     path: MessageRuntimePath,
     callback: () =>
-      | { parentId: string | null; message: ThreadMessage }
+      | { parentId: string | null; message: ThreadMessage; index: number }
       | undefined,
   ) {
     return new MessageRuntimeImpl(
       new ShallowMemoizeSubject({
         path,
         getState: () => {
-          const { message, parentId } = callback() ?? {};
+          const { message, parentId, index } = callback() ?? {};
 
           const { messages, speech: speechState } =
             this._threadBinding.getState();
 
-          if (!message || parentId === undefined) return SKIP_UPDATE;
+          if (!message || parentId === undefined || index === undefined)
+            return SKIP_UPDATE;
 
           const thread = this._threadBinding.getState();
 
@@ -491,6 +493,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
             ...message,
             ...{ [symbolInnerMessage]: (message as any)[symbolInnerMessage] },
 
+            index,
             isLast: messages.at(-1)?.id === message.id,
             parentId,
 

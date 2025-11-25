@@ -63,6 +63,7 @@ const ThreadMessageAttachmentClient = resource(
 );
 export type ThreadMessageClientProps = {
   message: ThreadMessage;
+  index: number;
   isLast?: boolean;
   branchNumber?: number;
   branchCount?: number;
@@ -70,6 +71,7 @@ export type ThreadMessageClientProps = {
 export const ThreadMessageClient = resource(
   ({
     message,
+    index,
     isLast = true,
     branchNumber = 1,
     branchCount = 1,
@@ -102,6 +104,7 @@ export const ThreadMessageClient = resource(
         parts: parts.state,
         composer: composerState.state,
         parentId: null,
+        index,
         isLast,
         branchNumber,
         branchCount,
@@ -110,7 +113,7 @@ export const ThreadMessageClient = resource(
         isCopied: isCopiedState,
         isHovering: isHoveringState,
       };
-    }, [message, isCopiedState, isHoveringState, isLast]);
+    }, [message, index, isCopiedState, isHoveringState, isLast]);
 
     return tapApi<MessageClientApi>({
       getState: () => state,

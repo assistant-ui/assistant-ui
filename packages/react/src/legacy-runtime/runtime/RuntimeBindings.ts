@@ -45,6 +45,8 @@ export type ThreadListRuntimeCoreBinding = SubscribableWithState<
 export type MessageStateBinding = SubscribableWithState<
   ThreadMessage & {
     readonly parentId: string | null;
+    /** The position of this message in the thread (0 for first message) */
+    readonly index: number;
     readonly isLast: boolean;
     readonly branchNumber: number;
     readonly branchCount: number;
