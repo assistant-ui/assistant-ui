@@ -53,6 +53,7 @@ export class AssistantChatTransport<
   private runtime: AssistantRuntime | undefined;
   private dynamicBodyRef?: RefObject<RuntimeBody<TBody> | undefined>;
   private remoteId: string | undefined;
+  private lastThreadId: string | undefined;
 
   constructor(initOptions?: HttpChatTransportInitOptions<UI_MESSAGE>) {
     const { body: _initBody, ...restInitOptions } = initOptions ?? {};
@@ -117,9 +118,13 @@ export class AssistantChatTransport<
     });
   }
 
-  setRuntime(runtime: AssistantRuntime) {
+  setRuntime(runtime: AssistantRuntime, threadId: string) {
     this.runtime = runtime;
-    this.remoteId = undefined;
+
+    if (this.lastThreadId !== threadId) {
+      this.lastThreadId = threadId;
+      this.remoteId = undefined;
+    }
   }
 
   /**

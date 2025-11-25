@@ -89,7 +89,7 @@ export const useChatThreadRuntime = <
   });
 
   if (transport instanceof AssistantChatTransport) {
-    transport.setRuntime(runtime);
+    transport.setRuntime(runtime, id);
   }
 
   return runtime;
