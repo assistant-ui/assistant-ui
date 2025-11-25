@@ -7,6 +7,7 @@ Vercel AI SDK integration for `@assistant-ui/react`.
 - Seamless integration with Vercel AI SDK v5
 - Automatic system message and frontend tools forwarding via `AssistantChatTransport`
 - Support for custom transport configuration
+- Dynamic request body that updates with React state
 
 ## Usage
 
@@ -51,6 +52,45 @@ const runtime = useChatRuntime({
 ```
 
 **Important:** When customizing the API URL, you must explicitly use `AssistantChatTransport` to keep frontend system messages and tools forwarding.
+
+### Dynamic Body
+
+Pass extra data to the API request that updates dynamically with React state:
+
+```typescript
+const [temperature, setTemperature] = useState(0.7);
+
+const runtime = useChatRuntime({
+  body: { temperature },
+});
+
+// When temperature changes, the next request will use the new value
+```
+
+You can also use an async callback for values that need to be fetched:
+
+```typescript
+const runtime = useChatRuntime({
+  body: async () => ({ authToken: await getToken() }),
+});
+```
+
+The `body` option works with custom `AssistantChatTransport` as well:
+
+```typescript
+const runtime = useChatRuntime({
+  transport: new AssistantChatTransport({ api: "/custom-api" }),
+  body: { temperature },
+});
+```
+
+**Merge Order:** The request body is merged in the following order (later values override earlier ones):
+
+1. `contextBody` - Framework-managed fields (`callSettings`, `system`, `tools` from model context)
+2. `options.body` - Body from useChat options
+3. `body` option - Your dynamic body (highest precedence)
+
+> **Note:** The `body` option can override framework-managed fields like `system` and `callSettings`. Use with care if you need to preserve model context settings.
 
 ## AssistantChatTransport vs DefaultChatTransport
 

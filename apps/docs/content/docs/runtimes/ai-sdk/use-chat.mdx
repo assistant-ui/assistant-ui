@@ -172,6 +172,52 @@ const runtime = useChatRuntime({
 - **`AssistantChatTransport`** (default): Automatically forwards system messages and frontend tools from the assistant-ui context to your backend
 - **`DefaultChatTransport`**: Standard AI SDK transport without automatic forwarding
 
+### Dynamic Body
+
+Pass extra data to the API request that updates dynamically with React state:
+
+```tsx
+import { useState } from "react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+
+const [temperature, setTemperature] = useState(0.7);
+
+const runtime = useChatRuntime({
+  body: { temperature }
+});
+
+// When temperature changes, the next request will use the new value
+```
+
+You can also use an async callback for values that need to be fetched:
+
+```tsx
+const runtime = useChatRuntime({
+  body: async () => ({ authToken: await getToken() })
+});
+```
+
+The `body` option works with custom `AssistantChatTransport` as well:
+
+```tsx
+const runtime = useChatRuntime({
+  transport: new AssistantChatTransport({ api: "/custom-api" }),
+  body: { temperature }
+});
+```
+
+<Callout type="info">
+  **Merge Order:** The request body is merged in the following order (later values override earlier ones):
+  1. `contextBody` - Framework-managed fields (`callSettings`, `system`, `tools` from model context)
+  2. `options.body` - Body from useChat options
+  3. `body` option - Your dynamic body (highest precedence)
+</Callout>
+
+<Callout type="warning">
+  The `body` option can override framework-managed fields like `system` and `callSettings`. 
+  Use with care if you need to preserve model context settings.
+</Callout>
+
 ### Using Frontend Tools with `frontendTools`
 
 When using `AssistantChatTransport`, frontend tools are forwarded to your backend. Use the `frontendTools` helper to properly integrate them:
