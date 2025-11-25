@@ -27,7 +27,7 @@
     "build": "tsx scripts/build.mts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint ."
+    "lint": "biome check ."
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",

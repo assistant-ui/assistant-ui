@@ -6,7 +6,7 @@
     "dev": "next dev --turbo",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "biome check ."
   },
   "dependencies": {
     "@ai-sdk/openai": "^2.0.68",
@@ -31,8 +31,6 @@
     "@types/node": "^24",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.0.3",
     "postcss": "^8",
     "tailwindcss": "^4.1.17",
     "typescript": "^5"

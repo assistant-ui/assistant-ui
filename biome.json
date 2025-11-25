@@ -18,6 +18,10 @@
   },
   "linter": {
     "enabled": true,
+    "domains": {
+      "react": "all",
+      "next": "all"
+    },
     "rules": {
       "recommended": true,
       "suspicious": {

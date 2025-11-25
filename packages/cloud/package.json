@@ -30,7 +30,7 @@
     "build": "tsx scripts/build.mts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint ."
+    "lint": "biome check ."
   },
   "dependencies": {
     "assistant-stream": "^0.2.41"

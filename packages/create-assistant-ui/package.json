@@ -25,7 +25,7 @@
   "bin": "./dist/index.js",
   "scripts": {
     "build": "tsx scripts/build.mts",
-    "lint": "eslint ."
+    "lint": "biome check ."
   },
   "publishConfig": {
     "access": "public",

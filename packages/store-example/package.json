@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "biome check ."
   },
   "dependencies": {
     "@assistant-ui/store": "workspace:*",
@@ -21,8 +21,6 @@
     "@types/node": "^20",
     "@types/react": "19.2.5",
     "@types/react-dom": "19.2.3",
-    "eslint": "^9",
-    "eslint-config-next": "16.0.3",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

@@ -52,7 +52,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:mutation": "stryker run",
-    "lint": "eslint ."
+    "lint": "biome check ."
   },
   "dependencies": {
     "assistant-cloud": "^0.1.8",
@@ -93,8 +93,6 @@
     "@stryker-mutator/vitest-runner": "^9.3.0",
     "@types/json-schema": "^7.0.15",
     "@types/node": "^24.10.1",
-    "eslint": "^9",
-    "eslint-config-next": "16.0.3",
     "tsx": "^4.20.6",
     "vitest": "^4.0.10"
   },

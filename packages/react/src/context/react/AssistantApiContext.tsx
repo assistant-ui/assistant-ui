@@ -288,10 +288,8 @@ export function useAssistantApi(): AssistantApi;
 export function useAssistantApi(config: AssistantClientProps): AssistantApi;
 export function useAssistantApi(config?: AssistantClientProps): AssistantApi {
   if (config) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
     return useExtendedAssistantApiImpl(config);
   } else {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
     return useAssistantApiImpl();
   }
 }

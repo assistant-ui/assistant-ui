@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "tsx ./scripts/build-registry.ts",
-    "lint": "eslint ."
+    "lint": "biome check ."
   },
   "prettier": {
     "plugins": [

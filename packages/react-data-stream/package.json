@@ -19,7 +19,7 @@
   "sideEffects": false,
   "scripts": {
     "build": "tsx scripts/build.mts",
-    "lint": "eslint ."
+    "lint": "biome check ."
   },
   "dependencies": {
     "@ai-sdk/provider": "^1.1.3",

@@ -16,7 +16,7 @@
     "pretest": "pnpm build",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint ."
+    "lint": "biome check ."
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.22.0",

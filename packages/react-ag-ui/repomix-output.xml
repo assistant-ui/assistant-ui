@@ -48,18 +48,19 @@ src/
       conversions.ts
       run-aggregator.ts
       subscriber.ts
-    AGUIThreadRuntimeCore.ts
+    AgUiThreadRuntimeCore.ts
     event-parser.ts
     logger.ts
     types.ts
   index.ts
-  useAGUIRuntime.ts
+  useAgUiRuntime.ts
 test/
-  agui-thread-runtime-core.spec.ts
+  ag-ui-thread-runtime-core.spec.ts
   conversions.spec.ts
   event-parser.spec.ts
   run-aggregator.spec.ts
   subscriber.spec.ts
+CHANGELOG.md
 package.json
 tsconfig.json
 </directory_structure>
@@ -87,19 +88,19 @@ const generateId = () =>
   (globalThis.crypto as any)?.randomUUID?.() ??
   Math.random().toString(36).slice(2);
 
-type AGUIToolCall = {
+type AgUiToolCall = {
   id: string;
   type: "function";
   function: { name: string; arguments: string };
 };
 
-export type AGUIMessage =
+export type AgUiMessage =
   | {
       id: string;
       role: string;
       content: string;
       name?: string;
-      toolCalls?: AGUIToolCall[];
+      toolCalls?: AgUiToolCall[];
     }
   | {
       id: string;
@@ -138,10 +139,10 @@ const normaliseToolCall = (part: ToolCallPart) => {
   };
 };
 
-export const toAGUIMessages = (
+export const toAgUiMessages = (
   messages: readonly ThreadMessageLike[],
-): AGUIMessage[] => {
-  const converted: AGUIMessage[] = [];
+): AgUiMessage[] => {
+  const converted: AgUiMessage[] = [];
 
   for (const message of messages) {
     const role = message.role;
@@ -223,7 +224,7 @@ const extractText = (content: any): string => {
     .join("\n");
 };
 
-export const toAGUITools = (tools: Record<string, any> | undefined) => {
+export const toAgUiTools = (tools: Record<string, any> | undefined) => {
   if (!tools) return [];
 
   return Object.entries(tools)
@@ -249,7 +250,7 @@ import type {
   ThreadAssistantMessagePart,
   ToolCallMessagePart,
 } from "@assistant-ui/react";
-import type { AGUIEvent } from "../types";
+import type { AgUiEvent } from "../types";
 import type { Logger } from "../logger";
 
 type Emit = (update: ChatModelRunResult) => void;
@@ -304,7 +305,7 @@ export class RunAggregator {
     this.logger = options.logger;
   }
 
-  handle(event: AGUIEvent): void {
+  handle(event: AgUiEvent): void {
     switch (event.type) {
       case "RUN_STARTED": {
         this.clearTextParts();
@@ -623,10 +624,10 @@ export class RunAggregator {
 <file path="src/runtime/adapter/subscriber.ts">
 "use client";
 
-import type { AGUIEvent } from "../types";
-import { parseAGUIEvent } from "../event-parser";
+import type { AgUiEvent } from "../types";
+import { parseAgUiEvent } from "../event-parser";
 
-type Dispatch = (event: AGUIEvent) => void;
+type Dispatch = (event: AgUiEvent) => void;
 
 type Subscriber = {
   onEvent?: (payload: { event: unknown }) => void;
@@ -655,22 +656,22 @@ type Subscriber = {
 
 const ensureEvent = (
   raw: unknown,
-  type: AGUIEvent["type"],
-): AGUIEvent | null => {
+  type: AgUiEvent["type"],
+): AgUiEvent | null => {
   if (raw && typeof raw === "object") {
     const payload = raw as Record<string, unknown>;
     if (typeof payload["type"] === "string") {
-      return parseAGUIEvent(payload);
+      return parseAgUiEvent(payload);
     }
-    return parseAGUIEvent({ type, ...payload });
+    return parseAgUiEvent({ type, ...payload });
   }
-  return parseAGUIEvent({ type });
+  return parseAgUiEvent({ type });
 };
 
 const dispatchIfValid = (
   dispatch: Dispatch,
   raw: unknown,
-  type: AGUIEvent["type"],
+  type: AgUiEvent["type"],
 ) => {
   const event = ensureEvent(raw, type);
   if (!event) return;
@@ -683,7 +684,7 @@ type SubscriberOptions = {
   onRunFailed?: (error: Error) => void;
 };
 
-export const createAGUISubscriber = (
+export const createAgUiSubscriber = (
   options: SubscriberOptions,
 ): Subscriber => {
   const { dispatch, runId, onRunFailed } = options;
@@ -697,7 +698,7 @@ export const createAGUISubscriber = (
         // Typed handlers will receive this via the discriminated callbacks; avoid duplicates.
         return;
       }
-      const parsed = parseAGUIEvent(event);
+      const parsed = parseAgUiEvent(event);
       if (parsed) dispatch(parsed);
     },
     onTextMessageStartEvent: ({ event }) =>
@@ -749,15 +750,15 @@ export const createAGUISubscriber = (
         type: "RUN_ERROR" as const,
         ...(message !== undefined ? { message } : {}),
         ...(code !== undefined ? { code } : {}),
-      } satisfies AGUIEvent);
+      } satisfies AgUiEvent);
     },
   };
 };
 
-export type AGUISubscriber = ReturnType<typeof createAGUISubscriber>;
+export type AgUiSubscriber = ReturnType<typeof createAgUiSubscriber>;
 </file>
 
-<file path="src/runtime/AGUIThreadRuntimeCore.ts">
+<file path="src/runtime/AgUiThreadRuntimeCore.ts">
 "use client";
 
 import { INTERNAL } from "@assistant-ui/react";
@@ -773,11 +774,11 @@ import type {
 } from "@assistant-ui/react";
 import type { HttpAgent } from "@ag-ui/client";
 import type { Logger } from "./logger";
-import type { AGUIEvent } from "./types";
+import type { AgUiEvent } from "./types";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import { RunAggregator } from "./adapter/run-aggregator";
-import { toAGUIMessages, toAGUITools } from "./adapter/conversions";
-import { createAGUISubscriber } from "./adapter/subscriber";
+import { toAgUiMessages, toAgUiTools } from "./adapter/conversions";
+import { createAgUiSubscriber } from "./adapter/subscriber";
 
 type RunConfig = NonNullable<AppendMessage["runConfig"]>;
 type ResumeRunConfig = {
@@ -799,7 +800,7 @@ type CoreOptions = {
 
 const FALLBACK_USER_STATUS = { type: "complete", reason: "unknown" } as const;
 
-export class AGUIThreadRuntimeCore {
+export class AgUiThreadRuntimeCore {
   private agent: HttpAgent;
   private logger: Logger;
   private showThinking: boolean;
@@ -979,7 +980,7 @@ export class AGUIThreadRuntimeCore {
       logger: this.logger,
       emit: (update) => this.updateAssistantMessage(ensureAssistant(), update),
     });
-    const dispatch = (event: AGUIEvent) => this.handleEvent(aggregator, event);
+    const dispatch = (event: AgUiEvent) => this.handleEvent(aggregator, event);
 
     const abortController = new AbortController();
     const abortSignal = abortController.signal;
@@ -995,7 +996,7 @@ export class AGUIThreadRuntimeCore {
       { once: true },
     );
 
-    const subscriber = createAGUISubscriber({
+    const subscriber = createAgUiSubscriber({
       dispatch,
       runId,
       onRunFailed: (error) => {
@@ -1041,14 +1042,14 @@ export class AGUIThreadRuntimeCore {
     historyMessages: readonly ThreadMessage[] | undefined,
   ) {
     const threadId = "main";
-    const messages = toAGUIMessages(historyMessages ?? this.messages);
+    const messages = toAgUiMessages(historyMessages ?? this.messages);
     const context = this.runtime?.thread.getModelContext();
     return {
       threadId,
       runId,
       state: this.stateSnapshot ?? null,
       messages,
-      tools: toAGUITools(context?.tools),
+      tools: toAgUiTools(context?.tools),
       context: context?.system
         ? [{ description: "system", value: context.system }]
         : [],
@@ -1151,7 +1152,7 @@ export class AGUIThreadRuntimeCore {
     };
   }
 
-  private handleEvent(aggregator: RunAggregator, event: AGUIEvent) {
+  private handleEvent(aggregator: RunAggregator, event: AgUiEvent) {
     switch (event.type) {
       case "STATE_SNAPSHOT": {
         this.stateSnapshot = event.snapshot as ReadonlyJSONValue;
@@ -1245,7 +1246,7 @@ export class AGUIThreadRuntimeCore {
 </file>
 
 <file path="src/runtime/event-parser.ts">
-import type { AGUIEvent } from "./types";
+import type { AgUiEvent } from "./types";
 
 const isString = (value: unknown): value is string => typeof value === "string";
 const isNonEmptyString = (value: unknown): value is string =>
@@ -1263,7 +1264,7 @@ const withOptional = <T extends object>(
     : ({ ...base, ...Object.fromEntries(definedEntries) } as T);
 };
 
-export const parseAGUIEvent = (event: unknown): AGUIEvent | null => {
+export const parseAgUiEvent = (event: unknown): AgUiEvent | null => {
   if (!event || typeof event !== "object") return null;
   const payload = event as Record<string, unknown>;
   const typeValue = payload["type"];
@@ -1441,23 +1442,23 @@ import type {
 import type { HttpAgent } from "@ag-ui/client";
 import type { Logger } from "./logger";
 
-export type UseAGUIRuntimeAdapters = {
+export type UseAgUiRuntimeAdapters = {
   attachments?: AttachmentAdapter;
   speech?: SpeechSynthesisAdapter;
   feedback?: FeedbackAdapter;
   history?: ThreadHistoryAdapter;
 };
 
-export type UseAGUIRuntimeOptions = {
+export type UseAgUiRuntimeOptions = {
   agent: HttpAgent;
   logger?: Partial<Logger>;
   showThinking?: boolean;
   onError?: (e: Error) => void;
   onCancel?: () => void;
-  adapters?: UseAGUIRuntimeAdapters;
+  adapters?: UseAgUiRuntimeAdapters;
 };
 
-export type AGUIEvent =
+export type AgUiEvent =
   | { type: "RUN_STARTED"; runId: string }
   | { type: "RUN_FINISHED"; runId: string }
   | { type: "RUN_CANCELLED"; runId?: string }
@@ -1501,11 +1502,11 @@ export type AGUIEvent =
 </file>
 
 <file path="src/index.ts">
-export { useAGUIRuntime } from "./useAGUIRuntime";
-export type { UseAGUIRuntimeOptions } from "./runtime/types";
+export { useAgUiRuntime } from "./useAgUiRuntime";
+export type { UseAgUiRuntimeOptions } from "./runtime/types";
 </file>
 
-<file path="src/useAGUIRuntime.ts">
+<file path="src/useAgUiRuntime.ts">
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -1521,16 +1522,16 @@ import type {
 } from "@assistant-ui/react";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import { makeLogger } from "./runtime/logger";
-import type { UseAGUIRuntimeOptions } from "./runtime/types";
-import { AGUIThreadRuntimeCore } from "./runtime/AGUIThreadRuntimeCore";
+import type { UseAgUiRuntimeOptions } from "./runtime/types";
+import { AgUiThreadRuntimeCore } from "./runtime/AgUiThreadRuntimeCore";
 
-export function useAGUIRuntime(
-  options: UseAGUIRuntimeOptions,
+export function useAgUiRuntime(
+  options: UseAgUiRuntimeOptions,
 ): AssistantRuntime {
   const logger = useMemo(() => makeLogger(options.logger), [options.logger]);
   const [version, setVersion] = useState(0);
   const notifyUpdate = useCallback(() => setVersion((v) => v + 1), []);
-  const coreRef = useRef<AGUIThreadRuntimeCore | null>(null);
+  const coreRef = useRef<AgUiThreadRuntimeCore | null>(null);
   const runtimeAdapters = useRuntimeAdapters();
 
   const attachmentsAdapter =
@@ -1540,7 +1541,7 @@ export function useAGUIRuntime(
   const feedbackAdapter = options.adapters?.feedback;
 
   if (!coreRef.current) {
-    coreRef.current = new AGUIThreadRuntimeCore({
+    coreRef.current = new AgUiThreadRuntimeCore({
       agent: options.agent,
       logger,
       showThinking: options.showThinking ?? true,
@@ -1591,6 +1592,7 @@ export function useAGUIRuntime(
           core.loadExternalState(state),
         adapters: adapterAdapters,
       }) satisfies ExternalStoreAdapter<ThreadMessage>,
+    // version is intentionally included to trigger re-computation when core state changes via notifyUpdate
     [adapterAdapters, core, version],
   );
 
@@ -1607,7 +1609,7 @@ export function useAGUIRuntime(
 }
 </file>
 
-<file path="test/agui-thread-runtime-core.spec.ts">
+<file path="test/ag-ui-thread-runtime-core.spec.ts">
 "use client";
 
 import { describe, expect, it, vi } from "vitest";
@@ -1617,7 +1619,7 @@ import type {
   ThreadMessage,
 } from "@assistant-ui/react";
 import type { HttpAgent } from "@ag-ui/client";
-import { AGUIThreadRuntimeCore } from "../src/runtime/AGUIThreadRuntimeCore";
+import { AgUiThreadRuntimeCore } from "../src/runtime/AgUiThreadRuntimeCore";
 import { makeLogger } from "../src/runtime/logger";
 
 const createAppendMessage = (
@@ -1640,7 +1642,7 @@ const createCore = (
   agent: HttpAgent,
   hooks: { onError?: (e: Error) => void; onCancel?: () => void } = {},
 ) =>
-  new AGUIThreadRuntimeCore({
+  new AgUiThreadRuntimeCore({
     agent,
     logger: noopLogger,
     showThinking: true,
@@ -1811,13 +1813,13 @@ describe("AGUIThreadRuntimeCore", () => {
 
 import { describe, it, expect } from "vitest";
 import {
-  toAGUIMessages,
-  toAGUITools,
+  toAgUiMessages,
+  toAgUiTools,
 } from "../src/runtime/adapter/conversions";
 
 describe("adapter conversions", () => {
   it("converts thread messages to AG-UI format", () => {
-    const result = toAGUIMessages([
+    const result = toAgUiMessages([
       {
         id: "1",
         role: "user",
@@ -1848,7 +1850,7 @@ describe("adapter conversions", () => {
   });
 
   it("marks errored tool call results with error content", () => {
-    const result = toAGUIMessages([
+    const result = toAgUiMessages([
       {
         id: "assistant-1",
         role: "assistant",
@@ -1875,7 +1877,7 @@ describe("adapter conversions", () => {
   });
 
   it("includes tool messages for completed tool calls", () => {
-    const result = toAGUIMessages([
+    const result = toAgUiMessages([
       {
         id: "assistant-1",
         role: "assistant",
@@ -1911,7 +1913,7 @@ describe("adapter conversions", () => {
   });
 
   it("filters disabled/back-end tools", () => {
-    const tools = toAGUITools({
+    const tools = toAgUiTools({
       search: { description: "Search", parameters: { type: "object" } },
       disabled: { disabled: true },
       backend: { type: "backend" },
@@ -1922,7 +1924,7 @@ describe("adapter conversions", () => {
   });
 
   it("prefers available schema conversion helpers for tools", () => {
-    const tools = toAGUITools({
+    const tools = toAgUiTools({
       jsonTool: { parameters: { toJSON: () => ({ type: "object" }) } },
       schemaTool: { parameters: { toJSONSchema: () => ({ type: "string" }) } },
       plain: { parameters: { type: "boolean" } },
@@ -1953,11 +1955,11 @@ describe("adapter conversions", () => {
 "use client";
 
 import { describe, it, expect } from "vitest";
-import { parseAGUIEvent } from "../src/runtime/event-parser";
+import { parseAgUiEvent } from "../src/runtime/event-parser";
 
-describe("parseAGUIEvent", () => {
+describe("parseAgUiEvent", () => {
   it("parses text content event", () => {
-    const event = parseAGUIEvent({
+    const event = parseAgUiEvent({
       type: "TEXT_MESSAGE_CONTENT",
       messageId: "m1",
       delta: "hi",
@@ -1970,12 +1972,12 @@ describe("parseAGUIEvent", () => {
   });
 
   it("guards against invalid events", () => {
-    const event = parseAGUIEvent({ type: "TEXT_MESSAGE_CONTENT", delta: "" });
+    const event = parseAgUiEvent({ type: "TEXT_MESSAGE_CONTENT", delta: "" });
     expect(event).toBeNull();
   });
 
   it("falls back to RAW for unknown types", () => {
-    const event = parseAGUIEvent({ type: "UNKNOWN_EVENT", foo: "bar" });
+    const event = parseAgUiEvent({ type: "UNKNOWN_EVENT", foo: "bar" });
     expect(event).toEqual({
       type: "RAW",
       event: { type: "UNKNOWN_EVENT", foo: "bar" },
@@ -2255,13 +2257,13 @@ describe("RunAggregator", () => {
 "use client";
 
 import { describe, it, expect, vi } from "vitest";
-import { createAGUISubscriber } from "../src/runtime/adapter/subscriber";
-import type { AGUIEvent } from "../src/runtime/types";
+import { createAgUiSubscriber } from "../src/runtime/adapter/subscriber";
+import type { AgUiEvent } from "../src/runtime/types";
 
-describe("createAGUISubscriber", () => {
+describe("createAgUiSubscriber", () => {
   it("dispatches typed events without duplication", () => {
-    const events: AGUIEvent[] = [];
-    const subscriber = createAGUISubscriber({
+    const events: AgUiEvent[] = [];
+    const subscriber = createAgUiSubscriber({
       dispatch: (evt) => events.push(evt),
       runId: "run",
     });
@@ -2279,9 +2281,9 @@ describe("createAGUISubscriber", () => {
   });
 
   it("dispatches run error and invokes hook", () => {
-    const events: AGUIEvent[] = [];
+    const events: AgUiEvent[] = [];
     const onRunFailed = vi.fn();
-    const subscriber = createAGUISubscriber({
+    const subscriber = createAgUiSubscriber({
       dispatch: (evt) => events.push(evt),
       runId: "run",
       onRunFailed,
@@ -2297,10 +2299,30 @@ describe("createAGUISubscriber", () => {
 });
 </file>
 
+<file path="CHANGELOG.md">
+# @assistant-ui/react-ag-ui
+
+## 0.0.2
+
+### Patch Changes
+
+- 2c33091: chore: update deps
+- Updated dependencies [2c33091]
+  - assistant-stream@0.2.41
+  - @assistant-ui/react@0.11.40
+
+## 0.0.1
+
+### Patch Changes
+
+- Updated dependencies [ef58020]
+  - assistant-stream@0.2.40
+</file>
+
 <file path="package.json">
 {
-  "name": "@assistant-ui/react-agui",
-  "version": "0.0.0",
+  "name": "@assistant-ui/react-ag-ui",
+  "version": "0.0.2",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -2319,16 +2341,16 @@ describe("createAGUISubscriber", () => {
   "sideEffects": false,
   "scripts": {
     "build": "tsx scripts/build.mts",
-    "lint": "eslint .",
+    "lint": "biome check .",
     "test": "vitest",
     "test:run": "vitest run"
   },
   "dependencies": {
-    "@ag-ui/client": "^0.0.40",
+    "@ag-ui/client": "^0.0.41",
     "assistant-stream": "workspace:*"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.11.29",
+    "@assistant-ui/react": "^0.11.41",
     "@types/react": "*",
     "react": "^18 || ^19 || ^19.0.0-rc"
   },
@@ -2340,14 +2362,12 @@ describe("createAGUISubscriber", () => {
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^24.6.2",
-    "@types/react": "^19.2.0",
-    "eslint": "^9",
-    "eslint-config-next": "15.5.4",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.5",
     "react": "19.2.0",
     "tsx": "^4.20.6",
-    "vitest": "^3.2.4",
-    "jsdom": "^27.0.0"
+    "vitest": "^4.0.10",
+    "jsdom": "^27.2.0"
   },
   "publishConfig": {
     "access": "public",
@@ -2355,7 +2375,7 @@ describe("createAGUISubscriber", () => {
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/assistant-ui/assistant-ui/tree/main/packages/react-agui"
+    "url": "https://github.com/assistant-ui/assistant-ui/tree/main/packages/react-ag-ui"
   },
   "bugs": {
     "url": "https://github.com/assistant-ui/assistant-ui/issues"
@@ -2369,13 +2389,27 @@ describe("createAGUISubscriber", () => {
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@assistant-ui/react": ["../react/src"],
-      "assistant-stream": ["../assistant-stream/src/index.ts"],
-      "assistant-stream/*": ["../assistant-stream/src/*"]
+      "@assistant-ui/react": [
+        "../react/src"
+      ],
+      "assistant-stream": [
+        "../assistant-stream/src/index.ts"
+      ],
+      "assistant-stream/*": [
+        "../assistant-stream/src/*"
+      ]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx"],
-  "exclude": ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx"]
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx"
+  ],
+  "exclude": [
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/*.spec.tsx"
+  ]
 }
 </file>
 

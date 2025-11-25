@@ -246,7 +246,6 @@ export const useA2ARuntime = ({
         loadingRef.current = false;
       });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return useExternalStoreRuntime({

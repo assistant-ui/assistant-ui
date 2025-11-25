@@ -7,7 +7,7 @@
     "build:docs": "tsx ./scripts/generate-docs.mts",
     "dev": "next dev --turbopack",
     "start": "next start",
-    "lint": "eslint .",
+    "lint": "biome check .",
     "postinstall": "fumadocs-mdx"
   },
   "prettier": {
