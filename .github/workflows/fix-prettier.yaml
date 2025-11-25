@@ -4,14 +4,19 @@ on:
   issue_comment:
     types: [created]
 
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: fix-prettier-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
 jobs:
   fix-prettier:
     name: Fix Prettier Issues
     if: ${{ github.event.issue.pull_request && contains(github.event.comment.body, '/fix-prettier') && github.event.comment.user.type == 'User' }}
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    permissions:
-      contents: write
-      pull-requests: write
     steps:
       - name: Get PR information
         uses: actions/github-script@v7
@@ -54,14 +59,14 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ fromJson(steps.get-pr.outputs.result).head_ref }}
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Checkout PR (forked repo)
         if: fromJson(steps.get-pr.outputs.result).is_fork == true
         uses: actions/checkout@v4
         with:
           ref: ${{ fromJson(steps.get-pr.outputs.result).head_ref }}
-          fetch-depth: 0
+          fetch-depth: 1
           repository: ${{ format('{0}/{1}', fromJson(steps.get-pr.outputs.result).fork_owner, fromJson(steps.get-pr.outputs.result).fork_repo) }}
 
       - name: Install pnpm

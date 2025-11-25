@@ -12,6 +12,10 @@ on:
   pull_request_target:
     types: [opened, synchronize, ready_for_review, reopened]
 
+concurrency:
+  group: claude-code-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 env:
   # Shared action configuration
   TRACK_PROGRESS: 'true'
