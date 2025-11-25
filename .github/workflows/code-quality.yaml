@@ -57,7 +57,7 @@ jobs:
 
   build:
     name: Build Changed Packages
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Checkout code repository
         uses: actions/checkout@v4
@@ -97,7 +97,7 @@ jobs:
 
   test:
     name: Test Changed Packages
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     # Note: No dependency on 'build' job - Turbo handles test->build dependencies internally via dependsOn
     steps:
       - name: Checkout code repository
