@@ -30,6 +30,9 @@ export type MessageClientState = ThreadMessage & {
 
   readonly isCopied: boolean;
   readonly isHovering: boolean;
+
+  /** The position of this message in the thread (0 for first message) */
+  readonly index: number;
 };
 
 export type MessageClientApi = {
