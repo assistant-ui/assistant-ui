@@ -140,78 +140,94 @@ export function useToolInvocations({
       messages.forEach((message) => {
         message.content.forEach((content) => {
           if (content.type === "tool-call") {
+            const isCompleteToolCall =
+              content.result !== undefined &&
+              isArgsTextComplete(content.argsText);
+
+            // During initial state, ignore all tool calls
             if (isInititialState.current) {
               ignoredToolIds.current.add(content.toolCallId);
-            } else {
-              if (ignoredToolIds.current.has(content.toolCallId)) {
-                return;
-              }
-              let lastState = lastToolStates.current[content.toolCallId];
-              if (!lastState) {
-                const toolCallController = controller.addToolCallPart({
-                  toolName: content.toolName,
-                  toolCallId: content.toolCallId,
-                });
-                lastState = {
-                  argsText: "",
-                  hasResult: false,
-                  argsComplete: false,
-                  controller: toolCallController,
-                };
-                lastToolStates.current[content.toolCallId] = lastState;
-              }
+              return;
+            }
 
-              if (content.argsText !== lastState.argsText) {
-                if (lastState.argsComplete) {
-                  if (process.env["NODE_ENV"] !== "production") {
-                    console.warn(
-                      "argsText updated after controller was closed:",
-                      { previous: lastState.argsText, next: content.argsText },
-                    );
-                  }
-                } else {
-                  if (!content.argsText.startsWith(lastState.argsText)) {
-                    throw new Error(
-                      `Tool call argsText can only be appended, not updated: ${content.argsText} does not start with ${lastState.argsText}`,
-                    );
-                  }
+            // Skip if already processed
+            if (ignoredToolIds.current.has(content.toolCallId)) {
+              return;
+            }
 
-                  const argsTextDelta = content.argsText.slice(
-                    lastState.argsText.length,
+            // Check if we already have state for this tool call
+            let lastState = lastToolStates.current[content.toolCallId];
+
+            if (isCompleteToolCall && !lastState) {
+              ignoredToolIds.current.add(content.toolCallId);
+              return;
+            }
+
+            // Create controller if needed
+            if (!lastState) {
+              const toolCallController = controller.addToolCallPart({
+                toolName: content.toolName,
+                toolCallId: content.toolCallId,
+              });
+              lastState = {
+                argsText: "",
+                hasResult: false,
+                argsComplete: false,
+                controller: toolCallController,
+              };
+              lastToolStates.current[content.toolCallId] = lastState;
+            }
+
+            if (content.argsText !== lastState.argsText) {
+              if (lastState.argsComplete) {
+                if (process.env["NODE_ENV"] !== "production") {
+                  console.warn(
+                    "argsText updated after controller was closed:",
+                    { previous: lastState.argsText, next: content.argsText },
                   );
-                  lastState.controller.argsText.append(argsTextDelta);
-
-                  const shouldClose = isArgsTextComplete(content.argsText);
-                  if (shouldClose) {
-                    lastState.controller.argsText.close();
-                  }
-
-                  lastToolStates.current[content.toolCallId] = {
-                    argsText: content.argsText,
-                    hasResult: lastState.hasResult,
-                    argsComplete: shouldClose,
-                    controller: lastState.controller,
-                  };
                 }
-              }
+              } else {
+                if (!content.argsText.startsWith(lastState.argsText)) {
+                  throw new Error(
+                    `Tool call argsText can only be appended, not updated: ${content.argsText} does not start with ${lastState.argsText}`,
+                  );
+                }
 
-              if (content.result !== undefined && !lastState.hasResult) {
-                lastState.controller.setResponse(
-                  new ToolResponse({
-                    result: content.result as ReadonlyJSONValue,
-                    artifact: content.artifact as ReadonlyJSONValue | undefined,
-                    isError: content.isError,
-                  }),
+                const argsTextDelta = content.argsText.slice(
+                  lastState.argsText.length,
                 );
-                lastState.controller.close();
+                lastState.controller.argsText.append(argsTextDelta);
+
+                const shouldClose = isArgsTextComplete(content.argsText);
+                if (shouldClose) {
+                  lastState.controller.argsText.close();
+                }
 
                 lastToolStates.current[content.toolCallId] = {
-                  hasResult: true,
-                  argsComplete: true,
-                  argsText: lastState.argsText,
+                  argsText: content.argsText,
+                  hasResult: lastState.hasResult,
+                  argsComplete: shouldClose,
                   controller: lastState.controller,
                 };
               }
+            }
+
+            if (content.result !== undefined && !lastState.hasResult) {
+              lastState.controller.setResponse(
+                new ToolResponse({
+                  result: content.result as ReadonlyJSONValue,
+                  artifact: content.artifact as ReadonlyJSONValue | undefined,
+                  isError: content.isError,
+                }),
+              );
+              lastState.controller.close();
+
+              lastToolStates.current[content.toolCallId] = {
+                hasResult: true,
+                argsComplete: true,
+                argsText: lastState.argsText,
+                controller: lastState.controller,
+              };
             }
 
             // Recursively process nested messages
