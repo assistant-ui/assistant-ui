@@ -18,7 +18,7 @@ env:
 jobs:
   deploy-production:
     name: Deploy Production
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Checkout code repository
         uses: actions/checkout@v4
