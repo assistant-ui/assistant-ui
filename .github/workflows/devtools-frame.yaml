@@ -1,13 +1,13 @@
-name: Deploy DevTools App
+name: Deploy DevTools Frame
 
 on:
   push:
     branches:
       - main
     paths:
-      - apps/devtools-app/**
+      - apps/devtools-frame/**
       - packages/devtools/**
-      - .github/workflows/devtools-app.yaml
+      - .github/workflows/devtools-frame.yaml
 
 permissions:
   contents: read
