@@ -91,6 +91,68 @@ Shimmer direction. Default: `90`deg.
 >
 ```
 
+## Background Shimmer (Skeletons)
+
+For skeleton loaders and non-text elements, use `shimmer-bg` instead:
+
+### `shimmer-bg`
+
+Background shimmer for skeleton loaders and non-text elements. No text color needed.
+
+```html
+<div class="shimmer-bg h-4 w-48 rounded" />
+```
+
+### `--shimmer-bg-travel`
+
+CSS variable for container width in pixels. Set this on the container to sync all children.
+
+```tsx
+<div
+  class="flex gap-3"
+  style={{ ["--shimmer-bg-travel" as string]: "600" }}
+>
+  <div class="shimmer-bg size-10 rounded-full" />
+  <div class="shimmer-bg h-4 w-full rounded" />
+</div>
+```
+
+Duration formula: `(travel + shimmer-width) / speed`
+
+### `shimmer-bg-speed-{value}`
+
+Animation speed in pixels per second. Default: `500`px/s.
+
+```html
+<div class="shimmer-bg shimmer-bg-speed-300 h-4 w-48 rounded" />
+```
+
+### `shimmer-bg-base-{color}` / `shimmer-bg-highlight-{color}`
+
+Customize the base and highlight colors for skeleton shimmer.
+
+```html
+<div
+  class="shimmer-bg shimmer-bg-base-blue-200 shimmer-bg-highlight-blue-100 h-4 w-48 rounded"
+/>
+```
+
+### Skeleton Example
+
+```tsx
+<div
+  class="flex gap-3"
+  style={{ ["--shimmer-bg-travel" as string]: "600" }}
+>
+  <div class="shimmer-bg size-10 rounded-full" />
+  <div class="flex-1 space-y-2">
+    <div class="shimmer-bg h-4 w-24 rounded" />
+    <div class="shimmer-bg h-4 w-full rounded" />
+    <div class="shimmer-bg h-4 w-4/5 rounded" />
+  </div>
+</div>
+```
+
 ## License
 
 MIT
