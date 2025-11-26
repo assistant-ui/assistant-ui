@@ -19,7 +19,6 @@ import {
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import athenaintel from "./logos/cust/athenaintel.png";
 import browseruse from "./logos/cust/browseruse.svg";
-import entelligence from "./logos/cust/entelligence.svg";
 import langchain from "./logos/cust/langchain.svg";
 import stack from "./logos/cust/stack.svg";
 import Image from "next/image";
@@ -269,11 +268,6 @@ const Logos = () => {
         src={browseruse}
         alt="Browseruse"
         className="inline-block h-[26px] w-auto opacity-50 invert transition-opacity hover:opacity-100 dark:invert-0"
-      />
-      <Image
-        src={entelligence}
-        alt="Entelligence"
-        className="mt-1 inline-block h-[22px] w-auto opacity-50 invert transition-opacity hover:opacity-100 dark:invert-0"
       />
       <Image
         src={stack}
