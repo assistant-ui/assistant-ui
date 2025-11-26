@@ -101,7 +101,7 @@
     bottom: -100%;
     left: 0;
     width: calc(var(--shimmer-bg-width, 400) * 1px);
-    /* Eased gradient: sine ease-in-out for smooth falloff at both edges and center */
+    /* Eased gradient: sine ease-in-out for smooth falloff at both center and edges */
     background: linear-gradient(
       90deg,
       transparent 0%,
@@ -118,7 +118,7 @@
       color-mix(in oklch, var(--shimmer-bg-highlight), transparent 33%) 69%,
       color-mix(in oklch, var(--shimmer-bg-highlight), transparent 50%) 75%,
       color-mix(in oklch, var(--shimmer-bg-highlight), transparent 67%) 81%,
-      color-mix(in oklch, var(--shimmer-bg-highlight), transparent 83%) 88%,
+      color-mix(in oklch, var(--shimmer-bg-highlight), transparent 83%) 87%,
       color-mix(in oklch, var(--shimmer-bg-highlight), transparent 96%) 94%,
       transparent 100%
     );
@@ -129,6 +129,7 @@
           var(--shimmer-bg-speed, 500) * 1s
       )
       infinite linear;
+    /* Delay syncs animation across elements: y adjusted by angle slope, minus x offset */
     animation-delay: calc(
       (var(--shimmer-bg-y, 0) *
         tan(calc((90 - var(--shimmer-bg-angle, 90)) * 1deg)) -
