@@ -54,6 +54,8 @@ jobs:
     needs: version
     if: needs.version.outputs.hasChangesets == 'false'
     runs-on: ubuntu-latest
+    env:
+      NPM_CONFIG_LOGLEVEL: verbose # TODO remove this once changeset is fixed
     steps:
       - name: Checkout code repository
         uses: actions/checkout@v4
