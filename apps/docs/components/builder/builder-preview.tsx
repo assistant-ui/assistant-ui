@@ -3,14 +3,17 @@
 import {
   ArrowDownIcon,
   ArrowUpIcon,
+  BotIcon,
   CheckIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   CopyIcon,
+  LoaderIcon,
   PaperclipIcon,
   PencilIcon,
   RefreshCwIcon,
   Square,
+  UserIcon,
   Volume2Icon,
 } from "lucide-react";
 
@@ -29,6 +32,10 @@ import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 
 import type { BuilderConfig } from "./types";
+
+const PlainText: FC<{ text: string }> = ({ text }) => {
+  return <p className="whitespace-pre-wrap">{text}</p>;
+};
 
 interface BuilderPreviewProps {
   config: BuilderConfig;
@@ -244,11 +251,29 @@ interface UserMessageProps {
 }
 
 const UserMessage: FC<UserMessageProps> = ({ config, borderRadiusClass }) => {
-  const { components } = config;
+  const { components, styles } = config;
+  const isLeftAligned = styles.userMessagePosition === "left";
 
   return (
-    <MessagePrimitive.Root className="mx-auto grid w-full max-w-[var(--thread-max-width)] auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] gap-y-2 px-2 py-4 [&:where(>*)]:col-start-2">
-      <div className="relative col-start-2 min-w-0">
+    <MessagePrimitive.Root
+      className={cn(
+        "mx-auto flex w-full max-w-[var(--thread-max-width)] gap-3 px-2 py-4",
+        isLeftAligned ? "flex-row" : "flex-row-reverse",
+        styles.animations &&
+          "animate-in duration-300 fade-in slide-in-from-bottom-2",
+      )}
+    >
+      {components.avatar && (
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted">
+          <UserIcon className="size-4" />
+        </div>
+      )}
+      <div
+        className={cn(
+          "relative max-w-[80%] min-w-0",
+          !isLeftAligned && "ml-auto",
+        )}
+      >
         <div
           className={cn(
             "bg-muted px-5 py-2.5 break-words text-foreground",
@@ -258,7 +283,14 @@ const UserMessage: FC<UserMessageProps> = ({ config, borderRadiusClass }) => {
           <MessagePrimitive.Parts />
         </div>
         {components.editMessage && (
-          <div className="absolute top-1/2 left-0 -translate-x-full -translate-y-1/2 pr-2">
+          <div
+            className={cn(
+              "absolute top-1/2 -translate-y-1/2 pr-2",
+              isLeftAligned
+                ? "right-0 translate-x-full pr-0 pl-2"
+                : "left-0 -translate-x-full",
+            )}
+          >
             <ActionBarPrimitive.Root
               hideWhenRunning
               autohide="not-last"
@@ -274,9 +306,7 @@ const UserMessage: FC<UserMessageProps> = ({ config, borderRadiusClass }) => {
         )}
       </div>
 
-      {components.branchPicker && (
-        <BranchPicker className="col-span-full col-start-1 row-start-3 -mr-1 justify-end" />
-      )}
+      {components.branchPicker && <BranchPicker className="-mr-1 self-end" />}
     </MessagePrimitive.Root>
   );
 };
@@ -287,17 +317,59 @@ interface AssistantMessageProps {
 }
 
 const AssistantMessage: FC<AssistantMessageProps> = ({ config }) => {
-  const { components } = config;
+  const { components, styles } = config;
+  const TextComponent = components.markdown ? MarkdownText : PlainText;
 
   return (
-    <MessagePrimitive.Root className="relative mx-auto w-full max-w-[var(--thread-max-width)] py-4">
-      <div className="mx-2 leading-7 break-words text-foreground">
-        <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
-      </div>
+    <MessagePrimitive.Root
+      className={cn(
+        "relative mx-auto flex w-full max-w-[var(--thread-max-width)] gap-3 py-4",
+        styles.animations &&
+          "animate-in duration-300 fade-in slide-in-from-bottom-2",
+      )}
+    >
+      {components.avatar && (
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
+          <BotIcon className="size-4" />
+        </div>
+      )}
+      <div className="min-w-0 flex-1">
+        <div className="leading-7 break-words text-foreground">
+          <MessagePrimitive.Parts components={{ Text: TextComponent }} />
+        </div>
 
-      <div className="mt-2 ml-2 flex">
-        {components.branchPicker && <BranchPicker />}
-        <AssistantActionBar config={config} />
+        {components.typingIndicator && (
+          <ThreadPrimitive.If running>
+            <div className="mt-2 flex items-center gap-2 text-muted-foreground">
+              <LoaderIcon className="size-4 animate-spin" />
+              <span className="text-sm">Thinking...</span>
+            </div>
+          </ThreadPrimitive.If>
+        )}
+
+        <div className="mt-2 flex">
+          {components.branchPicker && <BranchPicker />}
+          <AssistantActionBar config={config} />
+        </div>
+
+        {components.followUpSuggestions && (
+          <ThreadPrimitive.If running={false}>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <ThreadPrimitive.Suggestion
+                prompt="Tell me more"
+                className="rounded-full border bg-background px-3 py-1 text-sm hover:bg-muted"
+              >
+                Tell me more
+              </ThreadPrimitive.Suggestion>
+              <ThreadPrimitive.Suggestion
+                prompt="Can you explain differently?"
+                className="rounded-full border bg-background px-3 py-1 text-sm hover:bg-muted"
+              >
+                Explain differently
+              </ThreadPrimitive.Suggestion>
+            </div>
+          </ThreadPrimitive.If>
+        )}
       </div>
     </MessagePrimitive.Root>
   );

@@ -27,6 +27,7 @@ import type {
   BorderRadius,
   Theme,
   Layout as LayoutType,
+  UserMessagePosition,
 } from "./types";
 import { ACCENT_COLORS, FONT_FAMILIES, MAX_WIDTHS } from "./types";
 import { PRESETS } from "./presets";
@@ -168,6 +169,57 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
                 checked={config.components.scrollToBottom}
                 onCheckedChange={(checked) =>
                   updateComponents({ scrollToBottom: checked })
+                }
+              />
+            </div>
+
+            <div className="space-y-4">
+              <Label className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                Content
+              </Label>
+
+              <ToggleRow
+                label="Markdown"
+                description="Render markdown formatting"
+                checked={config.components.markdown}
+                onCheckedChange={(checked) =>
+                  updateComponents({ markdown: checked })
+                }
+              />
+
+              <ToggleRow
+                label="Reasoning"
+                description="Show AI thinking process"
+                checked={config.components.reasoning}
+                onCheckedChange={(checked) =>
+                  updateComponents({ reasoning: checked })
+                }
+              />
+
+              <ToggleRow
+                label="Follow-up Suggestions"
+                description="Show suggestions after responses"
+                checked={config.components.followUpSuggestions}
+                onCheckedChange={(checked) =>
+                  updateComponents({ followUpSuggestions: checked })
+                }
+              />
+
+              <ToggleRow
+                label="Avatar"
+                description="Show user/assistant avatars"
+                checked={config.components.avatar}
+                onCheckedChange={(checked) =>
+                  updateComponents({ avatar: checked })
+                }
+              />
+
+              <ToggleRow
+                label="Typing Indicator"
+                description="Show loading animation"
+                checked={config.components.typingIndicator}
+                onCheckedChange={(checked) =>
+                  updateComponents({ typingIndicator: checked })
                 }
               />
             </div>
@@ -327,6 +379,42 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="space-y-3">
+              <Label className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                User Message Position
+              </Label>
+              <div className="flex gap-2">
+                {(["right", "left"] as UserMessagePosition[]).map(
+                  (position) => (
+                    <Button
+                      key={position}
+                      variant="outline"
+                      size="sm"
+                      className={cn(
+                        "flex-1 capitalize",
+                        config.styles.userMessagePosition === position &&
+                          "border-primary bg-primary/5",
+                      )}
+                      onClick={() =>
+                        updateStyles({ userMessagePosition: position })
+                      }
+                    >
+                      {position}
+                    </Button>
+                  ),
+                )}
+              </div>
+            </div>
+
+            <ToggleRow
+              label="Animations"
+              description="Enable message animations"
+              checked={config.styles.animations}
+              onCheckedChange={(checked) =>
+                updateStyles({ animations: checked })
+              }
+            />
           </div>
         </TabsContent>
 

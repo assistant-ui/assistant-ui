@@ -16,7 +16,14 @@ export interface ComponentsConfig {
   threadWelcome: boolean;
   suggestions: boolean;
   scrollToBottom: boolean;
+  markdown: boolean;
+  reasoning: boolean;
+  followUpSuggestions: boolean;
+  avatar: boolean;
+  typingIndicator: boolean;
 }
+
+export type UserMessagePosition = "right" | "left";
 
 export interface StylesConfig {
   theme: Theme;
@@ -24,6 +31,8 @@ export interface StylesConfig {
   borderRadius: BorderRadius;
   maxWidth: string;
   fontFamily: string;
+  userMessagePosition: UserMessagePosition;
+  animations: boolean;
 }
 
 export interface BuilderConfig {
@@ -52,6 +61,11 @@ export const DEFAULT_CONFIG: BuilderConfig = {
     threadWelcome: true,
     suggestions: true,
     scrollToBottom: true,
+    markdown: true,
+    reasoning: false,
+    followUpSuggestions: false,
+    avatar: false,
+    typingIndicator: true,
   },
   styles: {
     theme: "light",
@@ -59,6 +73,8 @@ export const DEFAULT_CONFIG: BuilderConfig = {
     borderRadius: "lg",
     maxWidth: "44rem",
     fontFamily: "system-ui",
+    userMessagePosition: "right",
+    animations: true,
   },
   layout: "default",
 };
