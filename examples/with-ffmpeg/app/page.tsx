@@ -161,7 +161,6 @@ export default function Home() {
     setLastFile(lastAttachment.file!);
   }, [attachments]);
 
-  console.log(lastFile);
   return (
     <div className="flex h-full flex-col">
       <div className="border-b">
