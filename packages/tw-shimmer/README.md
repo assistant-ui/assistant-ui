@@ -153,6 +153,33 @@ Customize the base and highlight colors for skeleton shimmer.
 </div>
 ```
 
+### `--shimmer-bg-angle`
+
+Shimmer angle in degrees. Default: `90` (horizontal). Set on container to apply to all children.
+
+```tsx
+<div style={{ ["--shimmer-bg-angle" as string]: "45" }}>
+  <div class="shimmer-bg h-4 w-48 rounded" />
+</div>
+```
+
+### `--shimmer-bg-y`
+
+Element's Y position relative to container top (in pixels). Used with angled shimmers to create a unified diagonal sweep effect. The animation delay is calculated automatically using `tan(90 - angle)`.
+
+```tsx
+<div
+  style={{
+    ["--shimmer-bg-travel" as string]: "600",
+    ["--shimmer-bg-angle" as string]: "45",
+  }}
+>
+  <div class="shimmer-bg h-4 w-24 rounded" style={{ ["--shimmer-bg-y" as string]: "0" }} />
+  <div class="shimmer-bg h-4 w-full rounded" style={{ ["--shimmer-bg-y" as string]: "24" }} />
+  <div class="shimmer-bg h-4 w-4/5 rounded" style={{ ["--shimmer-bg-y" as string]: "48" }} />
+</div>
+```
+
 ## License
 
 MIT
