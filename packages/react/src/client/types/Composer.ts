@@ -1,7 +1,8 @@
-import { ComposerRuntime } from "../../legacy-runtime/runtime";
-import { Attachment } from "../../types";
-import { MessageRole, RunConfig } from "../../types/AssistantTypes";
-import { AttachmentClientApi } from "./Attachment";
+import type { ComposerRuntime } from "../../legacy-runtime/runtime";
+import type { ListeningState } from "../../legacy-runtime/runtime-cores/core/ComposerRuntimeCore";
+import type { Attachment } from "../../types";
+import type { MessageRole, RunConfig } from "../../types/AssistantTypes";
+import type { AttachmentClientApi } from "./Attachment";
 
 export type ComposerClientState = {
   readonly text: string;
@@ -13,6 +14,11 @@ export type ComposerClientState = {
   readonly attachmentAccept: string;
   readonly isEmpty: boolean;
   readonly type: "thread" | "edit";
+  /**
+   * The current state of speech recognition (dictation).
+   * Undefined when not listening.
+   */
+  readonly listening: ListeningState | undefined;
 };
 
 export type ComposerClientApi = {
@@ -28,6 +34,17 @@ export type ComposerClientApi = {
   send(): void;
   cancel(): void;
   beginEdit(): void;
+
+  /**
+   * Start speech recognition to convert voice to text input.
+   * Requires a SpeechRecognitionAdapter to be configured.
+   */
+  startListening(): void;
+
+  /**
+   * Stop the current speech recognition session.
+   */
+  stopListening(): void;
 
   /** @internal */
   __internal_getRuntime?(): ComposerRuntime;

@@ -37,6 +37,20 @@ const EditComposer = () => (
     <ComposerPrimitive.Cancel />
   </ComposerPrimitive.Root>
 );
+
+// with voice input (dictation)
+const ComposerWithDictation = () => (
+  <ComposerPrimitive.Root>
+    <ComposerPrimitive.Input />
+    <ComposerPrimitive.If listening={false}>
+      <ComposerPrimitive.Dictate />
+    </ComposerPrimitive.If>
+    <ComposerPrimitive.If listening>
+      <ComposerPrimitive.StopDictation />
+    </ComposerPrimitive.If>
+    <ComposerPrimitive.Send />
+  </ComposerPrimitive.Root>
+);
 ```
 
 ## API Reference
@@ -214,6 +228,40 @@ This primitive renders a `<button>` element unless `asChild` is set.
   ]}
 />
 
+### Dictate
+
+Renders a button to start speech recognition (dictation) to convert voice to text.
+
+Requires a `SpeechRecognitionAdapter` to be configured in the runtime.
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+<ParametersTable
+  type="ComposerPrimitiveDictateProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+  ]}
+/>
+
+### StopDictation
+
+Renders a button to stop the current speech recognition session.
+
+Only visible when dictation is active.
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+<ParametersTable
+  type="ComposerPrimitiveStopDictationProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+  ]}
+/>
+
 ### If
 
 Renders children if a condition is met.
@@ -227,9 +275,17 @@ Renders children if a condition is met.
       type: "boolean | undefined",
       description: "Render children if the message is being edited.",
     },
+    {
+      name: "listening",
+      required: false,
+      type: "boolean | undefined",
+      description: "Render children if speech recognition (dictation) is active.",
+    },
   ]}
 />
 
 ```tsx
 <Composer.If editing>{/* rendered if message is being edited */}</Composer.If>
+
+<Composer.If listening>{/* rendered if dictation is active */}</Composer.If>
 ```

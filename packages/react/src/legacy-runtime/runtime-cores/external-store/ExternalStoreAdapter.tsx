@@ -1,15 +1,18 @@
-import { AppendMessage, ThreadMessage } from "../../../types";
-import { AttachmentAdapter } from "../adapters/attachment";
-import {
+import type { AppendMessage, ThreadMessage } from "../../../types";
+import type { AttachmentAdapter } from "../adapters/attachment";
+import type {
   AddToolResultOptions,
   ResumeRunConfig,
   StartRunConfig,
   ThreadSuggestion,
 } from "../core/ThreadRuntimeCore";
-import { FeedbackAdapter } from "../adapters/feedback/FeedbackAdapter";
-import { SpeechSynthesisAdapter } from "../adapters/speech/SpeechAdapterTypes";
-import { ThreadMessageLike } from "./ThreadMessageLike";
-import { ExportedMessageRepository } from "../utils/MessageRepository";
+import type { FeedbackAdapter } from "../adapters/feedback/FeedbackAdapter";
+import type {
+  SpeechSynthesisAdapter,
+  SpeechRecognitionAdapter,
+} from "../adapters/speech/SpeechAdapterTypes";
+import type { ThreadMessageLike } from "./ThreadMessageLike";
+import type { ExportedMessageRepository } from "../utils/MessageRepository";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 
 export type ExternalStoreThreadData<TState extends "regular" | "archived"> = {
@@ -85,6 +88,7 @@ type ExternalStoreAdapterBase<T> = {
     | {
         attachments?: AttachmentAdapter | undefined;
         speech?: SpeechSynthesisAdapter | undefined;
+        speechRecognition?: SpeechRecognitionAdapter | undefined;
         feedback?: FeedbackAdapter | undefined;
         /**
          * @deprecated This API is still under active development and might change without notice.

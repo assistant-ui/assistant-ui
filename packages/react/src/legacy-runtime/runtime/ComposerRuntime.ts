@@ -1,28 +1,32 @@
-import { Attachment, PendingAttachment } from "../../types/AttachmentTypes";
-import {
+import type {
+  Attachment,
+  PendingAttachment,
+} from "../../types/AttachmentTypes";
+import type {
   ComposerRuntimeCore,
   ComposerRuntimeEventType,
+  ListeningState,
   ThreadComposerRuntimeCore,
 } from "../runtime-cores/core/ComposerRuntimeCore";
-import { Unsubscribe } from "../../types";
-
-import { LazyMemoizeSubject } from "./subscribable/LazyMemoizeSubject";
-import {
-  AttachmentRuntime,
-  AttachmentState,
-  EditComposerAttachmentRuntimeImpl,
-  ThreadComposerAttachmentRuntimeImpl,
-} from "./AttachmentRuntime";
-import { ShallowMemoizeSubject } from "./subscribable/ShallowMemoizeSubject";
-import { SKIP_UPDATE } from "./subscribable/SKIP_UPDATE";
-import { ComposerRuntimePath } from "./RuntimePathTypes";
-import { MessageRole, RunConfig } from "../../types/AssistantTypes";
-import { EventSubscriptionSubject } from "./subscribable/EventSubscriptionSubject";
+import type { Unsubscribe } from "../../types";
+import type { MessageRole, RunConfig } from "../../types/AssistantTypes";
 import type {
   ThreadComposerRuntimeCoreBinding,
   EditComposerRuntimeCoreBinding,
   ComposerRuntimeCoreBinding,
 } from "./RuntimeBindings";
+import type { ComposerRuntimePath } from "./RuntimePathTypes";
+
+import { LazyMemoizeSubject } from "./subscribable/LazyMemoizeSubject";
+import {
+  type AttachmentRuntime,
+  type AttachmentState,
+  EditComposerAttachmentRuntimeImpl,
+  ThreadComposerAttachmentRuntimeImpl,
+} from "./AttachmentRuntime";
+import { ShallowMemoizeSubject } from "./subscribable/ShallowMemoizeSubject";
+import { SKIP_UPDATE } from "./subscribable/SKIP_UPDATE";
+import { EventSubscriptionSubject } from "./subscribable/EventSubscriptionSubject";
 
 export type {
   ThreadComposerRuntimeCoreBinding,
@@ -41,6 +45,12 @@ type BaseComposerState = {
   readonly runConfig: RunConfig;
 
   readonly attachmentAccept: string;
+
+  /**
+   * The current state of speech recognition (dictation).
+   * Undefined when not listening.
+   */
+  readonly listening: ListeningState | undefined;
 };
 
 export type ThreadComposerState = BaseComposerState & {
@@ -72,6 +82,7 @@ const getThreadComposerState = (
     role: runtime?.role ?? "user",
     runConfig: runtime?.runConfig ?? EMPTY_OBJECT,
     attachmentAccept: runtime?.attachmentAccept ?? "",
+    listening: runtime?.listening,
 
     value: runtime?.text ?? "",
   });
@@ -92,6 +103,7 @@ const getEditComposerState = (
     attachments: runtime?.attachments ?? EMPTY_ARRAY,
     runConfig: runtime?.runConfig ?? EMPTY_OBJECT,
     attachmentAccept: runtime?.attachmentAccept ?? "",
+    listening: runtime?.listening,
 
     value: runtime?.text ?? "",
   });
@@ -170,6 +182,17 @@ export type ComposerRuntime = {
   getAttachmentByIndex(idx: number): AttachmentRuntime;
 
   /**
+   * Start speech recognition to convert voice to text input.
+   * Requires a SpeechRecognitionAdapter to be configured.
+   */
+  startListening(): void;
+
+  /**
+   * Stop the current speech recognition session.
+   */
+  stopListening(): void;
+
+  /**
    * @deprecated This API is still under active development and might change without notice.
    */
   unstable_on(
@@ -199,6 +222,8 @@ export abstract class ComposerRuntimeImpl implements ComposerRuntime {
     this.cancel = this.cancel.bind(this);
     this.setRole = this.setRole.bind(this);
     this.getAttachmentByIndex = this.getAttachmentByIndex.bind(this);
+    this.startListening = this.startListening.bind(this);
+    this.stopListening = this.stopListening.bind(this);
     this.unstable_on = this.unstable_on.bind(this);
   }
 
@@ -250,6 +275,18 @@ export abstract class ComposerRuntimeImpl implements ComposerRuntime {
     const core = this._core.getState();
     if (!core) throw new Error("Composer is not available");
     core.setRole(role);
+  }
+
+  public startListening() {
+    const core = this._core.getState();
+    if (!core) throw new Error("Composer is not available");
+    core.startListening();
+  }
+
+  public stopListening() {
+    const core = this._core.getState();
+    if (!core) throw new Error("Composer is not available");
+    core.stopListening();
   }
 
   public subscribe(callback: () => void) {
@@ -335,7 +372,7 @@ export class ThreadComposerRuntimeImpl
           ...this.path,
           attachmentSource: "thread-composer",
           attachmentSelector: { type: "index", index: idx },
-          ref: this.path.ref + `${this.path.ref}.attachments[${idx}]`,
+          ref: `${this.path.ref}.attachments[${idx}]`,
         },
         getState: () => {
           const attachments = this.getState().attachments;
@@ -423,7 +460,7 @@ export class EditComposerRuntimeImpl
           ...this.path,
           attachmentSource: "edit-composer",
           attachmentSelector: { type: "index", index: idx },
-          ref: this.path.ref + `${this.path.ref}.attachments[${idx}]`,
+          ref: `${this.path.ref}.attachments[${idx}]`,
         },
         getState: () => {
           const attachments = this.getState().attachments;

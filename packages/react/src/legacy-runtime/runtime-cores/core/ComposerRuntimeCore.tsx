@@ -3,9 +3,17 @@ import type {
   PendingAttachment,
   Unsubscribe,
 } from "../../../types";
-import { MessageRole, RunConfig } from "../../../types/AssistantTypes";
+import type { MessageRole, RunConfig } from "../../../types/AssistantTypes";
+import type { SpeechRecognitionAdapter } from "../adapters/speech/SpeechAdapterTypes";
 
 export type ComposerRuntimeEventType = "send" | "attachment-add";
+
+/**
+ * State representing an active speech recognition (dictation) session.
+ */
+export type ListeningState = {
+  readonly status: SpeechRecognitionAdapter.Status;
+};
 
 export type ComposerRuntimeCore = Readonly<{
   isEditing: boolean;
@@ -33,6 +41,23 @@ export type ComposerRuntimeCore = Readonly<{
 
   send: () => void;
   cancel: () => void;
+
+  /**
+   * The current state of speech recognition (dictation).
+   * Undefined when not listening.
+   */
+  listening: ListeningState | undefined;
+
+  /**
+   * Start speech recognition to convert voice to text input.
+   * Requires a SpeechRecognitionAdapter to be configured.
+   */
+  startListening: () => void;
+
+  /**
+   * Stop the current speech recognition session.
+   */
+  stopListening: () => void;
 
   subscribe: (callback: () => void) => Unsubscribe;
 

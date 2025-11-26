@@ -1,33 +1,31 @@
 ---
-title: Speech
+title: Text-to-Speech (Speech Synthesis)
 ---
 
 import { SpeechSample } from "../../../components/samples/speech-sample";
-
-## Text-to-Speech
 
 assistant-ui supports text-to-speech via the `SpeechSynthesisAdapter` interface.
 
 <SpeechSample />
 
-### SpeechSynthesisAdapter
+## SpeechSynthesisAdapter
 
 Currently, the following speech synthesis adapters are supported:
 
-- `WebSpeechSynthesisAdapter`: Uses the browser's `Web Speech API` API
+- `WebSpeechSynthesisAdapter`: Uses the browser's `Web Speech API`
 
 Support for other speech synthesis adapters is planned for the future.
 
-Passing a `SpeechSynthesisAdapter` to the `EdgeRuntime` will enable text-to-speech support.
+Passing a `SpeechSynthesisAdapter` to the runtime will enable text-to-speech support.
 
-### UI
+## UI
 
 By default, a `Read aloud` button will be shown in the assistant message action bar.
 
 This is implemented using `AssistantActionBar.SpeechControl` which is a wrapper around `AssistantActionBar.Speak` and `AssistantActionBar.StopSpeaking`.
 The underlying primitives are `ActionBarPrimitive.Speak` and `ActionBarPrimitive.StopSpeaking`.
 
-### Example
+## Example
 
 The following example uses the `WebSpeechSynthesisAdapter`.
 
@@ -38,6 +36,106 @@ const runtime = useChatRuntime({
   api: "/api/chat",
   adapters: {
     speech: new WebSpeechSynthesisAdapter(),
+  },
+});
+```
+
+## Custom Adapters
+
+You can create custom text-to-speech adapters by implementing the `SpeechSynthesisAdapter` interface.
+
+### SpeechSynthesisAdapter Interface
+
+```tsx
+import type { SpeechSynthesisAdapter } from "@assistant-ui/react";
+
+class MyCustomSpeechAdapter implements SpeechSynthesisAdapter {
+  speak(text: string): SpeechSynthesisAdapter.Utterance {
+    // Return an utterance object that manages playback
+    return {
+      get status() {
+        // Return current status: { type: "starting" | "running" | "ended" }
+        return { type: "starting" };
+      },
+      cancel: () => {
+        // Stop playback
+      },
+      subscribe: (callback) => {
+        // Subscribe to status changes
+        return () => {}; // Return unsubscribe function
+      },
+    };
+  }
+}
+```
+
+### Example: ElevenLabs
+
+```tsx
+import type { SpeechSynthesisAdapter } from "@assistant-ui/react";
+
+class ElevenLabsSpeechAdapter implements SpeechSynthesisAdapter {
+  private apiKey: string;
+  private voiceId: string;
+
+  constructor(options: { apiKey: string; voiceId: string }) {
+    this.apiKey = options.apiKey;
+    this.voiceId = options.voiceId;
+  }
+
+  speak(text: string): SpeechSynthesisAdapter.Utterance {
+    const audio = new Audio();
+    let status: SpeechSynthesisAdapter.Status = { type: "starting" };
+    const subscribers = new Set<() => void>();
+
+    // Fetch audio from ElevenLabs API
+    fetch(`https://api.elevenlabs.io/v1/text-to-speech/${this.voiceId}`, {
+      method: "POST",
+      headers: {
+        "xi-api-key": this.apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ text }),
+    })
+      .then((res) => res.blob())
+      .then((blob) => {
+        audio.src = URL.createObjectURL(blob);
+        audio.play();
+        status = { type: "running" };
+        for (const cb of subscribers) cb();
+      });
+
+    audio.onended = () => {
+      status = { type: "ended", reason: "finished" };
+      for (const cb of subscribers) cb();
+    };
+
+    return {
+      get status() { return status; },
+      cancel: () => {
+        audio.pause();
+        status = { type: "ended", reason: "cancelled" };
+        for (const cb of subscribers) cb();
+      },
+      subscribe: (cb) => {
+        subscribers.add(cb);
+        return () => subscribers.delete(cb);
+      },
+    };
+  }
+}
+```
+
+Usage:
+
+```tsx
+const runtime = useChatRuntime({
+  api: "/api/chat",
+  adapters: {
+    speech: new ElevenLabsSpeechAdapter({
+      apiKey: process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY!,
+      voiceId: "your-voice-id",
+    }),
   },
 });
 ```

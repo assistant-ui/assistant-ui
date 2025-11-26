@@ -1,0 +1,298 @@
+---
+title: Speech-to-Text (Dictation)
+---
+
+import { DictationSample } from "../../../components/samples/dictation-sample";
+import { Callout } from "fumadocs-ui/components/callout";
+
+assistant-ui supports speech-to-text (dictation) via the `SpeechRecognitionAdapter` interface. This allows users to input messages using their voice.
+
+<DictationSample />
+
+## SpeechRecognitionAdapter
+
+Currently, the following speech recognition adapters are supported:
+
+- `WebSpeechRecognitionAdapter`: Uses the browser's `Web Speech API` (SpeechRecognition)
+
+The `WebSpeechRecognitionAdapter` is supported in Chrome, Edge, and Safari. Check [browser compatibility](https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognition#browser_compatibility) for details.
+
+## Configuration
+
+```tsx
+import { WebSpeechRecognitionAdapter } from "@assistant-ui/react";
+
+const runtime = useChatRuntime({
+  api: "/api/chat",
+  adapters: {
+    speechRecognition: new WebSpeechRecognitionAdapter({
+      // Optional configuration
+      language: "en-US",        // Language for recognition (default: browser language)
+      continuous: true,          // Keep listening after user stops (default: true)
+      interimResults: true,      // Return interim results (default: true)
+    }),
+  },
+});
+```
+
+## UI
+
+The dictation feature uses `ComposerPrimitive.Dictate` and `ComposerPrimitive.StopDictation` components.
+
+```tsx
+import { ComposerPrimitive } from "@assistant-ui/react";
+import { MicIcon, SquareIcon } from "lucide-react";
+
+const ComposerWithDictation = () => (
+  <ComposerPrimitive.Root>
+    <ComposerPrimitive.Input />
+    
+    {/* Show Dictate button when not listening */}
+    <ComposerPrimitive.If listening={false}>
+      <ComposerPrimitive.Dictate>
+        <MicIcon />
+      </ComposerPrimitive.Dictate>
+    </ComposerPrimitive.If>
+    
+    {/* Show Stop button when listening */}
+    <ComposerPrimitive.If listening>
+      <ComposerPrimitive.StopDictation>
+        <SquareIcon className="animate-pulse" />
+      </ComposerPrimitive.StopDictation>
+    </ComposerPrimitive.If>
+    
+    <ComposerPrimitive.Send />
+  </ComposerPrimitive.Root>
+);
+```
+
+## Browser Compatibility Check
+
+You can check if the browser supports speech recognition:
+
+```tsx
+import { WebSpeechRecognitionAdapter } from "@assistant-ui/react";
+
+if (WebSpeechRecognitionAdapter.isSupported()) {
+  // Speech recognition is available
+}
+```
+
+## Custom Adapters
+
+You can create custom adapters to integrate with any speech recognition service by implementing the `SpeechRecognitionAdapter` interface.
+
+### SpeechRecognitionAdapter Interface
+
+```tsx
+import type { SpeechRecognitionAdapter } from "@assistant-ui/react";
+
+class MyCustomRecognitionAdapter implements SpeechRecognitionAdapter {
+  listen(): SpeechRecognitionAdapter.Session {
+    // Return a session object that manages the speech recognition
+    return {
+      status: { type: "starting" },
+      
+      stop: async () => {
+        // Stop recognition and finalize results
+      },
+      
+      cancel: () => {
+        // Cancel recognition without finalizing
+      },
+      
+      onSpeechStart: (callback) => {
+        // Called when speech is detected
+        return () => {}; // Return unsubscribe function
+      },
+      
+      onSpeechEnd: (callback) => {
+        // Called when recognition ends with final result
+        return () => {};
+      },
+      
+      onSpeech: (callback) => {
+        // Called with interim/final transcription results
+        // callback({ transcript: "transcribed text" })
+        return () => {};
+      },
+    };
+  }
+}
+```
+
+### Example: OpenAI Realtime API
+
+OpenAI provides the [`@openai/agents`](https://openai.github.io/openai-agents-js/guides/voice-agents/quickstart/) SDK for Realtime API integration. This approach:
+
+1. Requires a backend endpoint to generate ephemeral keys (keys starting with `ek_`)
+2. Uses WebRTC in the browser for low-latency audio streaming
+3. Handles microphone/speaker setup automatically
+
+#### Install Dependencies
+
+```bash
+npm install @openai/agents zod@3
+```
+
+Or for a standalone browser package:
+
+```bash
+npm install @openai/agents-realtime
+```
+
+#### Backend API Route
+
+Create an API route to generate ephemeral client tokens:
+
+```ts title="app/api/realtime-token/route.ts"
+export async function POST() {
+  const response = await fetch("https://api.openai.com/v1/realtime/client_secrets", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      session: {
+        type: "realtime",
+        model: "gpt-realtime",
+      },
+    }),
+  });
+
+  const data = await response.json();
+  // Returns { value: "ek_..." }
+  return Response.json(data);
+}
+```
+
+#### Frontend Adapter
+
+```tsx
+import type { SpeechRecognitionAdapter } from "@assistant-ui/react";
+import { RealtimeAgent, RealtimeSession } from "@openai/agents/realtime";
+
+export class OpenAIRealtimeRecognitionAdapter implements SpeechRecognitionAdapter {
+  private tokenEndpoint: string;
+
+  constructor(options: { tokenEndpoint: string }) {
+    this.tokenEndpoint = options.tokenEndpoint;
+  }
+
+  listen(): SpeechRecognitionAdapter.Session {
+    const callbacks = {
+      start: new Set<() => void>(),
+      end: new Set<(r: SpeechRecognitionAdapter.Result) => void>(),
+      speech: new Set<(r: SpeechRecognitionAdapter.Result) => void>(),
+    };
+
+    let transcript = "";
+    let realtimeSession: RealtimeSession | null = null;
+
+    const session: SpeechRecognitionAdapter.Session = {
+      status: { type: "starting" },
+
+      stop: async () => {
+        realtimeSession?.close();
+        for (const cb of callbacks.end) cb({ transcript });
+      },
+
+      cancel: () => {
+        realtimeSession?.close();
+      },
+
+      onSpeechStart: (cb) => {
+        callbacks.start.add(cb);
+        return () => callbacks.start.delete(cb);
+      },
+
+      onSpeechEnd: (cb) => {
+        callbacks.end.add(cb);
+        return () => callbacks.end.delete(cb);
+      },
+
+      onSpeech: (cb) => {
+        callbacks.speech.add(cb);
+        return () => callbacks.speech.delete(cb);
+      },
+    };
+
+    this.connect(session, callbacks, {
+      setTranscript: (t) => { transcript = t; },
+      setRealtimeSession: (s) => { realtimeSession = s; },
+    });
+
+    return session;
+  }
+
+  private async connect(
+    session: SpeechRecognitionAdapter.Session,
+    callbacks: {
+      start: Set<() => void>;
+      end: Set<(r: SpeechRecognitionAdapter.Result) => void>;
+      speech: Set<(r: SpeechRecognitionAdapter.Result) => void>;
+    },
+    refs: {
+      setTranscript: (t: string) => void;
+      setRealtimeSession: (session: RealtimeSession) => void;
+    }
+  ) {
+    try {
+      // 1. Get ephemeral token from backend
+      const tokenResponse = await fetch(this.tokenEndpoint, { method: "POST" });
+      const { value: ephemeralKey } = await tokenResponse.json();
+
+      // 2. Create RealtimeAgent for transcription
+      const agent = new RealtimeAgent({
+        name: "Transcriber",
+        instructions: "Transcribe user speech to text.",
+      });
+
+      // 3. Create and connect RealtimeSession
+      const realtimeSession = new RealtimeSession(agent, {
+        model: "gpt-realtime",
+      });
+      refs.setRealtimeSession(realtimeSession);
+
+      // 4. Listen for transcription events
+      realtimeSession.on("transcript_delta", (event) => {
+        refs.setTranscript(event.delta);
+        for (const cb of callbacks.speech) cb({ transcript: event.delta });
+      });
+
+      // 5. Connect with ephemeral key (WebRTC in browser)
+      await realtimeSession.connect({ apiKey: ephemeralKey });
+
+      (session as { status: SpeechRecognitionAdapter.Status }).status = { type: "running" };
+      for (const cb of callbacks.start) cb();
+
+    } catch (error) {
+      console.error("OpenAI Realtime connection failed:", error);
+      (session as { status: SpeechRecognitionAdapter.Status }).status = {
+        type: "ended",
+        reason: "error",
+        error,
+      };
+    }
+  }
+}
+```
+
+Usage:
+
+```tsx
+const runtime = useChatRuntime({
+  api: "/api/chat",
+  adapters: {
+    speechRecognition: new OpenAIRealtimeRecognitionAdapter({
+      tokenEndpoint: "/api/realtime-token",
+    }),
+  },
+});
+```
+
+<Callout type="info">
+  For more details, see the [OpenAI Agents SDK documentation](https://openai.github.io/openai-agents-js/guides/voice-agents/quickstart/) and [Realtime API guide](https://platform.openai.com/docs/guides/realtime).
+</Callout>
+

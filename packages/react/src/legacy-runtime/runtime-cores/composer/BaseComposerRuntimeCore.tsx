@@ -1,16 +1,18 @@
-import {
+import type {
   Attachment,
   CompleteAttachment,
   PendingAttachment,
 } from "../../../types/AttachmentTypes";
-import { AppendMessage } from "../../../types";
-import { AttachmentAdapter } from "../adapters/attachment";
-import {
+import type { AppendMessage, Unsubscribe } from "../../../types";
+import type { AttachmentAdapter } from "../adapters/attachment";
+import type {
   ComposerRuntimeCore,
   ComposerRuntimeEventType,
+  ListeningState,
 } from "../core/ComposerRuntimeCore";
-import { MessageRole, RunConfig } from "../../../types/AssistantTypes";
+import type { MessageRole, RunConfig } from "../../../types/AssistantTypes";
 import { BaseSubscribable } from "../remote-thread-list/BaseSubscribable";
+import type { SpeechRecognitionAdapter } from "../adapters/speech/SpeechAdapterTypes";
 
 const isAttachmentComplete = (a: Attachment): a is CompleteAttachment =>
   a.status.type === "complete";
@@ -22,6 +24,9 @@ export abstract class BaseComposerRuntimeCore
   public readonly isEditing = true;
 
   protected abstract getAttachmentAdapter(): AttachmentAdapter | undefined;
+  protected abstract getSpeechRecognitionAdapter():
+    | SpeechRecognitionAdapter
+    | undefined;
 
   public get attachmentAccept(): string {
     return this.getAttachmentAdapter()?.accept ?? "*";
@@ -206,6 +211,92 @@ export abstract class BaseComposerRuntimeCore
       ...this._attachments.slice(0, index),
       ...this._attachments.slice(index + 1),
     ];
+    this._notifySubscribers();
+  }
+
+  // Speech Recognition (Dictation) support
+  private _listening: ListeningState | undefined;
+  private _listeningSession: SpeechRecognitionAdapter.Session | undefined;
+  private _listeningUnsubscribes: Unsubscribe[] = [];
+
+  public get listening(): ListeningState | undefined {
+    return this._listening;
+  }
+
+  public startListening(): void {
+    const adapter = this.getSpeechRecognitionAdapter();
+    if (!adapter) {
+      throw new Error("Speech recognition adapter not configured");
+    }
+
+    // Stop any existing session
+    if (this._listeningSession) {
+      this.stopListening();
+    }
+
+    const session = adapter.listen();
+    this._listeningSession = session;
+    this._listening = { status: session.status };
+    this._notifySubscribers();
+
+    // Subscribe to speech events to append text
+    const unsubSpeech = session.onSpeech((result) => {
+      // Append transcribed text to existing text
+      const currentText = this.text;
+      const separator = currentText && !currentText.endsWith(" ") ? " " : "";
+      this.setText(currentText + separator + result.transcript);
+    });
+    this._listeningUnsubscribes.push(unsubSpeech);
+
+    // Subscribe to speech start
+    const unsubStart = session.onSpeechStart(() => {
+      this._listening = { status: { type: "running" } };
+      this._notifySubscribers();
+    });
+    this._listeningUnsubscribes.push(unsubStart);
+
+    // Subscribe to speech end to detect when session ends
+    const unsubEnd = session.onSpeechEnd(() => {
+      // Session has ended
+      this._cleanupListening();
+    });
+    this._listeningUnsubscribes.push(unsubEnd);
+
+    // Also check for status changes (for error handling)
+    const checkStatus = () => {
+      if (session.status.type === "ended") {
+        this._cleanupListening();
+      }
+    };
+
+    // Poll status periodically as a fallback
+    const statusInterval = setInterval(checkStatus, 100);
+    this._listeningUnsubscribes.push(() => clearInterval(statusInterval));
+  }
+
+  public stopListening(): void {
+    if (!this._listeningSession) {
+      return;
+    }
+
+    // Stop the session - the onSpeechEnd callback will handle cleanup
+    // Don't call _cleanupListening() here to avoid race condition where
+    // we unsubscribe before the final transcript/end event is received
+    this._listeningSession.stop().catch(() => {
+      // If stop() fails, cleanup immediately
+      this._cleanupListening();
+    });
+  }
+
+  private _cleanupListening(): void {
+    // Unsubscribe from all listeners
+    for (const unsub of this._listeningUnsubscribes) {
+      unsub();
+    }
+    this._listeningUnsubscribes = [];
+
+    this._listeningSession = undefined;
+    this._listening = undefined;
     this._notifySubscribers();
   }
 
