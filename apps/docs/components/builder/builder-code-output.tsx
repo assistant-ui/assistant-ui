@@ -40,40 +40,14 @@ export function BuilderCodeOutput({ config }: BuilderCodeOutputProps) {
 
       <TabsContent value="code" className="mt-0 flex-1 overflow-hidden">
         <div className="relative h-full">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="absolute top-2 right-2 z-10 gap-1.5"
-            onClick={() => handleCopy(componentCode, "code")}
-          >
-            {copiedTab === "code" ? (
-              <>
-                <CheckIcon className="size-3.5" />
-                Copied!
-              </>
-            ) : (
-              <>
-                <CopyIcon className="size-3.5" />
-                Copy
-              </>
-            )}
-          </Button>
-          <pre className="h-full overflow-auto bg-muted/50 p-4 font-mono text-xs leading-relaxed">
-            <code>{componentCode}</code>
-          </pre>
-        </div>
-      </TabsContent>
-
-      <TabsContent value="cli" className="mt-0 flex-1 overflow-hidden">
-        <div className="flex h-full flex-col">
-          <div className="relative flex-1">
+          <div className="absolute top-2 right-2 z-10">
             <Button
-              variant="ghost"
+              variant="secondary"
               size="sm"
-              className="absolute top-2 right-2 z-10 gap-1.5"
-              onClick={() => handleCopy(cliCommand, "cli")}
+              className="gap-1.5 shadow-sm"
+              onClick={() => handleCopy(componentCode, "code")}
             >
-              {copiedTab === "cli" ? (
+              {copiedTab === "code" ? (
                 <>
                   <CheckIcon className="size-3.5" />
                   Copied!
@@ -85,7 +59,37 @@ export function BuilderCodeOutput({ config }: BuilderCodeOutputProps) {
                 </>
               )}
             </Button>
-            <pre className="h-full overflow-auto bg-muted/50 p-4 font-mono text-xs leading-relaxed">
+          </div>
+          <pre className="h-full overflow-auto bg-muted/50 p-4 pt-12 font-mono text-xs leading-relaxed">
+            <code>{componentCode}</code>
+          </pre>
+        </div>
+      </TabsContent>
+
+      <TabsContent value="cli" className="mt-0 flex-1 overflow-hidden">
+        <div className="flex h-full flex-col">
+          <div className="relative flex-1">
+            <div className="absolute top-2 right-2 z-10">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="gap-1.5 shadow-sm"
+                onClick={() => handleCopy(cliCommand, "cli")}
+              >
+                {copiedTab === "cli" ? (
+                  <>
+                    <CheckIcon className="size-3.5" />
+                    Copied!
+                  </>
+                ) : (
+                  <>
+                    <CopyIcon className="size-3.5" />
+                    Copy
+                  </>
+                )}
+              </Button>
+            </div>
+            <pre className="h-full overflow-auto bg-muted/50 p-4 pt-12 font-mono text-xs leading-relaxed">
               <code>{cliCommand}</code>
             </pre>
           </div>

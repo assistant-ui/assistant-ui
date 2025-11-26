@@ -90,7 +90,10 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="components" className="flex-1">
+      <Tabs
+        defaultValue="components"
+        className="min-h-0 flex-1 overflow-hidden"
+      >
         <TabsList className="mx-4 mt-4 grid w-[calc(100%-2rem)] grid-cols-3">
           <TabsTrigger value="components" className="gap-1.5 text-xs">
             <Layers className="size-3.5" />
