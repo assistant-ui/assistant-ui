@@ -52,7 +52,7 @@ jobs:
     needs: version
     if: needs.version.outputs.hasChangesets == 'false'
     environment: npm Publish
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code repository
         uses: actions/checkout@v4
