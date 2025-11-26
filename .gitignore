@@ -1,0 +1,54 @@
+# dependencies
+node_modules
+/.pnp
+.pnp.*
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+.pnpm-debug.log*
+
+# env files
+.env*.local
+.env
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# vercel
+.vercel
+
+# testing
+coverage
+.stryker-tmp/
+reports/mutation/
+
+# next.js
+.next/
+out/
+
+# fumadocs
+.source
+
+# production
+dist
+apps/docs/generated
+packages/*/generated
+
+# turbo
+.turbo
+
+# python
+__pycache__
+
+.langgraph_api
+
+# Cursor
+.cursor
+
+# GitHub Spec Kit - https://github.com/github/spec-kit
+.specify/
+specs/*
