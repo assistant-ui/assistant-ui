@@ -57,9 +57,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NPM_CONFIG_LOGLEVEL: verbose # TODO remove this once changeset is fixed
-    permissions:
-      id-token: write
-      contents: read
     steps:
       - name: Checkout code repository
         uses: actions/checkout@v4
@@ -90,3 +87,5 @@ jobs:
 
       - name: Publish to npm
         run: pnpm ci:publish
+        env:
+          NODE_AUTH_TOKEN: ""
