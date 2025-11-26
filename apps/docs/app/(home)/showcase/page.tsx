@@ -43,13 +43,6 @@ const SHOWCASE_ITEMS: ShowcaseItem[] = [
       "Helps homebuyers get the best deal and avoid getting screwed on their mortgage",
   },
   {
-    title: "Entelligence",
-    image: "/screenshot/entelligence.png",
-    tag: "Developer Tools",
-    link: "https://entelligence.ai/",
-    description: "AI-powered software engineering assistant",
-  },
-  {
     title: "Helicone",
     image: "/screenshot/helicone.png",
     tag: "Developer Tools",
