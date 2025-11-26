@@ -81,8 +81,8 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     };
   });
 
-  useOnScrollToBottom(() => {
-    scrollToBottom("auto");
+  useOnScrollToBottom(({ behavior }) => {
+    scrollToBottom(behavior);
   });
 
   // autoscroll on run start

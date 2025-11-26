@@ -5,18 +5,24 @@ import type { Unsubscribe } from "../../types/Unsubscribe";
 
 export type ThreadViewportState = {
   readonly isAtBottom: boolean;
-  readonly scrollToBottom: () => void;
-  readonly onScrollToBottom: (callback: () => void) => Unsubscribe;
+  readonly scrollToBottom: (config?: {
+    behavior?: ScrollBehavior | undefined;
+  }) => void;
+  readonly onScrollToBottom: (
+    callback: ({ behavior }: { behavior: ScrollBehavior }) => void,
+  ) => Unsubscribe;
 };
 
 export const makeThreadViewportStore = () => {
-  const scrollToBottomListeners = new Set<() => void>();
+  const scrollToBottomListeners = new Set<
+    (config: { behavior: ScrollBehavior }) => void
+  >();
 
   return create<ThreadViewportState>(() => ({
     isAtBottom: true,
-    scrollToBottom: () => {
+    scrollToBottom: ({ behavior = "auto" } = {}) => {
       for (const listener of scrollToBottomListeners) {
-        listener();
+        listener({ behavior });
       }
     },
     onScrollToBottom: (callback) => {
