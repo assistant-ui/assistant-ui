@@ -33,7 +33,10 @@ export const Thread: FC = () => {
         ["--thread-max-width" as string]: "42rem",
       }}
     >
-      <ThreadPrimitive.Viewport className="flex h-full flex-col items-center overflow-y-scroll scroll-smooth bg-inherit px-4 pt-8">
+      <ThreadPrimitive.Viewport
+        turnAnchor="top"
+        className="flex h-full flex-col items-center overflow-y-scroll scroll-smooth bg-inherit px-4 pt-8"
+      >
         <ThreadWelcome />
 
         <ThreadPrimitive.Messages
@@ -44,11 +47,7 @@ export const Thread: FC = () => {
           }}
         />
 
-        <ThreadPrimitive.If empty={false}>
-          <div className="min-h-8 flex-grow" />
-        </ThreadPrimitive.If>
-
-        <div className="sticky bottom-0 mt-3 flex w-full max-w-[var(--thread-max-width)] flex-col items-center justify-end rounded-t-lg bg-inherit pb-2">
+        <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mt-3 flex w-full max-w-[var(--thread-max-width)] flex-col items-center justify-end rounded-t-lg bg-inherit pb-2">
           <ThreadScrollToBottom />
           <Composer />
           <a
@@ -63,7 +62,7 @@ export const Thread: FC = () => {
               width={70}
             />
           </a>
-        </div>
+        </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
     </ThreadPrimitive.Root>
   );
