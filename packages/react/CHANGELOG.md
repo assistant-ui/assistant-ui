@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.11.43
+
+### Patch Changes
+
+- f54c17b: feat: Viewport turnAnchor="top"
+
 ## 0.11.42
 
 ### Patch Changes
