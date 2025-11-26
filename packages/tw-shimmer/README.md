@@ -5,10 +5,16 @@ Tailwind CSS v4 plugin for shimmer effects.
 ## Features
 
 - Zero-dependency, CSS-only shimmer effects
-- [Eased gradients](https://www.joshwcomeau.com/css/make-beautiful-gradients/) for smooth, natural-looking highlights
+- **Sine-eased gradients** for buttery-smooth highlights with no banding
 - OKLCH color space for perceptually uniform color mixing
 - Text shimmer and skeleton/background shimmer variants
 - Fully customizable speed, spread, angle, and colors
+
+## Why Sine-Eased Gradients?
+
+Most shimmer effects use simple linear gradients that create visible "banding" - harsh edges where the highlight meets the background. We use [eased gradients](https://www.joshwcomeau.com/css/make-beautiful-gradients/) with **13-17 carefully calculated stops** following a sine ease-in-out curve.
+
+This produces gradual transitions at both the center (peak brightness) and edges (fade to transparent), eliminating the banding that plagues typical shimmer implementations. The result is a shimmer that feels organic and polished.
 
 ## Installation
 
