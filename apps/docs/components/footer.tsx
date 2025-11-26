@@ -1,10 +1,10 @@
-import { FC, ReactNode } from "react";
+import type { FC, ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import icon from "../../../public/favicon/icon.svg";
-import xIcon from "../../../app/(home)/logos/x.svg";
-import githubIcon from "../../../app/(home)/logos/github.svg";
-import discordIcon from "../../../app/(home)/logos/discord.svg";
+import icon from "@/public/favicon/icon.svg";
+import xIcon from "@/app/(home)/logos/x.svg";
+import githubIcon from "@/app/(home)/logos/github.svg";
+import discordIcon from "@/app/(home)/logos/discord.svg";
 
 export function Footer(): React.ReactElement {
   return (
