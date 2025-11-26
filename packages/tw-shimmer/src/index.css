@@ -25,20 +25,32 @@
   --shimmer-spread: 6ch;
   --shimmer-angle: 90deg;
   /* Eased gradient: 11 stops following ease-in-out curve for smooth falloff */
-  --shimmer-highlight: color-mix(in oklch, currentColor, var(--shimmer-color) 90%);
+  --shimmer-highlight: color-mix(
+    in oklch,
+    currentColor,
+    var(--shimmer-color) 90%
+  );
   background:
     linear-gradient(
         var(--shimmer-angle),
         transparent calc(50% - var(--shimmer-spread) * 0.5),
-        color-mix(in oklch, var(--shimmer-highlight), transparent 94%) calc(50% - var(--shimmer-spread) * 0.4),
-        color-mix(in oklch, var(--shimmer-highlight), transparent 80%) calc(50% - var(--shimmer-spread) * 0.3),
-        color-mix(in oklch, var(--shimmer-highlight), transparent 50%) calc(50% - var(--shimmer-spread) * 0.2),
-        color-mix(in oklch, var(--shimmer-highlight), transparent 20%) calc(50% - var(--shimmer-spread) * 0.1),
+        color-mix(in oklch, var(--shimmer-highlight), transparent 94%)
+          calc(50% - var(--shimmer-spread) * 0.4),
+        color-mix(in oklch, var(--shimmer-highlight), transparent 80%)
+          calc(50% - var(--shimmer-spread) * 0.3),
+        color-mix(in oklch, var(--shimmer-highlight), transparent 50%)
+          calc(50% - var(--shimmer-spread) * 0.2),
+        color-mix(in oklch, var(--shimmer-highlight), transparent 20%)
+          calc(50% - var(--shimmer-spread) * 0.1),
         var(--shimmer-highlight) 50%,
-        color-mix(in oklch, var(--shimmer-highlight), transparent 20%) calc(50% + var(--shimmer-spread) * 0.1),
-        color-mix(in oklch, var(--shimmer-highlight), transparent 50%) calc(50% + var(--shimmer-spread) * 0.2),
-        color-mix(in oklch, var(--shimmer-highlight), transparent 80%) calc(50% + var(--shimmer-spread) * 0.3),
-        color-mix(in oklch, var(--shimmer-highlight), transparent 94%) calc(50% + var(--shimmer-spread) * 0.4),
+        color-mix(in oklch, var(--shimmer-highlight), transparent 20%)
+          calc(50% + var(--shimmer-spread) * 0.1),
+        color-mix(in oklch, var(--shimmer-highlight), transparent 50%)
+          calc(50% + var(--shimmer-spread) * 0.2),
+        color-mix(in oklch, var(--shimmer-highlight), transparent 80%)
+          calc(50% + var(--shimmer-spread) * 0.3),
+        color-mix(in oklch, var(--shimmer-highlight), transparent 94%)
+          calc(50% + var(--shimmer-spread) * 0.4),
         transparent calc(50% + var(--shimmer-spread) * 0.5)
       )
       0 0 / 200% 100% no-repeat,
