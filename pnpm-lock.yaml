@@ -905,9 +905,6 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
-      json-schema-to-zod:
-        specifier: ^2.6.1
-        version: 2.6.1
       lucide-react:
         specifier: ^0.554.0
         version: 0.554.0(react@19.2.0)
@@ -1166,9 +1163,6 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
-      json-schema-to-zod:
-        specifier: ^2.6.1
-        version: 2.6.1
       lucide-react:
         specifier: ^0.554.0
         version: 0.554.0(react@19.2.0)
@@ -1442,9 +1436,6 @@ importers:
       assistant-stream:
         specifier: ^0.2.41
         version: link:../assistant-stream
-      json-schema:
-        specifier: ^0.4.0
-        version: 0.4.0
       nanoid:
         specifier: 5.1.6
         version: 5.1.6
@@ -1595,9 +1586,6 @@ importers:
       '@radix-ui/react-use-callback-ref':
         specifier: ^1.1.1
         version: 1.1.1(@types/react@19.2.5)(react@19.2.0)
-      '@types/json-schema':
-        specifier: ^7.0.15
-        version: 7.0.15
       ai:
         specifier: ^5.0.93
         version: 5.0.93(zod@4.1.12)
@@ -1607,9 +1595,6 @@ importers:
       assistant-stream:
         specifier: ^0.2.41
         version: link:../assistant-stream
-      json-schema:
-        specifier: ^0.4.0
-        version: 0.4.0
       zod:
         specifier: ^4.1.12
         version: 4.1.12
@@ -1653,9 +1638,6 @@ importers:
       assistant-stream:
         specifier: ^0.2.41
         version: link:../assistant-stream
-      json-schema:
-        specifier: ^0.4.0
-        version: 0.4.0
       zod:
         specifier: ^4.1.12
         version: 4.1.12
@@ -6758,10 +6740,6 @@ packages:
 
   json-rpc-2.0@1.7.1:
     resolution: {integrity: sha512-JqZjhjAanbpkXIzFE7u8mE/iFblawwlXtONaCvRqI+pyABVz7B4M1EUNpyVW+dZjqgQ2L5HFmZCmOCgUKm00hg==}
-
-  json-schema-to-zod@2.6.1:
-    resolution: {integrity: sha512-uiHmWH21h9FjKJkRBntfVGTLpYlCZ1n98D0izIlByqQLqpmkQpNTBtfbdP04Na6+43lgsvrShFh2uWLkQDKJuQ==}
-    hasBin: true
 
   json-schema-traverse@0.4.1:
     resolution: {integrity: sha512-xbbCH5dCYU5T8LcEhhuh7HJ88HXuW3qsI3Y0zOZFKfZEHcpWiHU/Jxzk629Brsab/mMiHQti9wMP+845RPe3Vg==}
@@ -14246,8 +14224,6 @@ snapshots:
   json-parse-even-better-errors@2.3.1: {}
 
   json-rpc-2.0@1.7.1: {}
-
-  json-schema-to-zod@2.6.1: {}
 
   json-schema-traverse@0.4.1: {}
 
