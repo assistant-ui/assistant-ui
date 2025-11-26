@@ -42,7 +42,6 @@ import {
   ThreadListClientApi,
   ThreadListClientState,
 } from "../../client/types/ThreadList";
-import { ThreadPrimitiveViewportProvider } from "../providers/ThreadViewportProvider";
 import { DevToolsProviderApi } from "../../devtools/DevToolsHooks";
 import {
   AssistantClientProps,
@@ -354,11 +353,7 @@ export const AssistantProvider: FC<
 
   return (
     <AssistantApiContext.Provider value={api}>
-      {/* TODO temporarily allow accessing viewport state from outside the viewport */}
-      {/* TODO figure out if this behavior should be deprecated, since it is quite hacky */}
-      <ThreadPrimitiveViewportProvider>
-        {children}
-      </ThreadPrimitiveViewportProvider>
+      {children}
     </AssistantApiContext.Provider>
   );
 };
