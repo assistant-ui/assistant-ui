@@ -311,6 +311,189 @@ export default function TwShimmerPage() {
           </Box>
         </div>
       </div>
+
+      <div className="space-y-8">
+        <div className="text-center">
+          <h2 className="text-3xl font-bold tracking-tight">
+            Skeleton / Background Shimmer
+          </h2>
+          <p className="mt-2 text-muted-foreground">
+            Use <code className="px-1 py-0.5 text-sm">shimmer-bg</code> for
+            skeleton loaders and non-text elements.
+          </p>
+        </div>
+
+        <div className="mx-auto max-w-3xl space-y-6">
+          <Box>
+            <BoxTitle
+              title="shimmer-bg"
+              description="Background shimmer for skeleton loaders and non-text elements."
+            />
+            <BoxCode>
+              <CodeBlock
+                language="html"
+                code='<div class="shimmer-bg h-4 w-48 rounded" />'
+                highlight="shimmer-bg"
+                highlightMode="text"
+              />
+            </BoxCode>
+            <BoxContent>
+              <div className="shimmer-bg h-4 w-48 rounded" />
+            </BoxContent>
+          </Box>
+
+          <Box>
+            <BoxTitle
+              title="Skeleton Card Example"
+              description="Set --shimmer-bg-travel on the container to match the container width. All children share the same animation."
+            />
+            <BoxCode>
+              <CodeBlock
+                language="tsx"
+                code={`<div
+  class="flex gap-3"
+  style={{ ["--shimmer-bg-travel" as string]: "600" }}
+>
+  <div class="shimmer-bg size-10 rounded-full" />
+  <div class="flex-1 space-y-2">
+    <div class="shimmer-bg h-4 w-24 rounded" />
+    <div class="shimmer-bg h-4 w-full rounded" />
+    <div class="shimmer-bg h-4 w-4/5 rounded" />
+  </div>
+</div>`}
+                highlight="--shimmer-bg-travel"
+                highlightMode="text"
+              />
+            </BoxCode>
+            <BoxContent>
+              <div
+                className="flex gap-3"
+                style={{ ["--shimmer-bg-travel" as string]: "600" }}
+              >
+                <div className="shimmer-bg size-10 shrink-0 rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <div className="shimmer-bg h-4 w-24 rounded" />
+                  <div className="shimmer-bg h-4 w-full rounded" />
+                  <div className="shimmer-bg h-4 w-4/5 rounded" />
+                </div>
+              </div>
+            </BoxContent>
+          </Box>
+
+          <Box>
+            <BoxTitle
+              title="shimmer-bg-base-{color} / shimmer-bg-highlight-{color}"
+              description="Customize the base and highlight colors for skeleton shimmer."
+            />
+            <BoxCode>
+              <CodeBlock
+                language="html"
+                code={`<div class="shimmer-bg shimmer-bg-base-blue-200 shimmer-bg-highlight-blue-100 dark:shimmer-bg-base-blue-900 dark:shimmer-bg-highlight-blue-800 h-4 w-48 rounded" />`}
+                highlight="shimmer-bg-base-blue-200"
+                highlightMode="text"
+              />
+            </BoxCode>
+            <BoxContent>
+              <div
+                className="space-y-3"
+                style={{ ["--shimmer-bg-travel" as string]: "192" }}
+              >
+                <div className="shimmer-bg shimmer-bg-base-blue-200 shimmer-bg-highlight-blue-100 dark:shimmer-bg-base-blue-900 dark:shimmer-bg-highlight-blue-800 h-4 w-48 rounded" />
+                <div className="shimmer-bg shimmer-bg-base-purple-200 shimmer-bg-highlight-purple-100 dark:shimmer-bg-base-purple-900 dark:shimmer-bg-highlight-purple-800 h-4 w-48 rounded" />
+                <div className="shimmer-bg shimmer-bg-base-green-200 shimmer-bg-highlight-green-100 dark:shimmer-bg-base-green-900 dark:shimmer-bg-highlight-green-800 h-4 w-48 rounded" />
+              </div>
+            </BoxContent>
+          </Box>
+
+          <Box>
+            <BoxTitle
+              title="Angled Shimmer with Offset"
+              description="Use --shimmer-bg-angle for diagonal shimmer. Set --shimmer-bg-offset-y on each element to align the gradient peaks vertically, creating a unified sweep effect."
+            />
+            <BoxCode>
+              <CodeBlock
+                language="tsx"
+                code={`<div
+  style={{
+    ["--shimmer-bg-travel" as string]: "600",
+    ["--shimmer-bg-angle" as string]: "45",
+  }}
+>
+  <div
+    class="shimmer-bg h-4 w-24 rounded"
+    style={{
+      ["--shimmer-bg-angle" as string]: "45",
+      ["--shimmer-bg-offset-y" as string]: "0",
+    }}
+  />
+  <div
+    class="shimmer-bg h-4 w-full rounded"
+    style={{
+      ["--shimmer-bg-angle" as string]: "45",
+      ["--shimmer-bg-offset-y" as string]: "24",
+    }}
+  />
+  <div
+    class="shimmer-bg h-4 w-4/5 rounded"
+    style={{
+      ["--shimmer-bg-angle" as string]: "45",
+      ["--shimmer-bg-offset-y" as string]: "48",
+    }}
+  />
+</div>`}
+                highlight="--shimmer-bg-offset-y"
+                highlightMode="text"
+              />
+            </BoxCode>
+            <BoxContent>
+              <p className="mb-4 text-sm text-muted-foreground">
+                Each row&apos;s <code className="px-1 py-0.5 text-xs">--shimmer-bg-offset-y</code> shifts the gradient vertically.
+                Calculate offset as: <code className="px-1 py-0.5 text-xs">element_y_position * tan(90 - angle)</code>.
+              </p>
+              <div
+                className="flex gap-3"
+                style={{
+                  ["--shimmer-bg-travel" as string]: "600",
+                  ["--shimmer-bg-angle" as string]: "45",
+                }}
+              >
+                <div
+                  className="shimmer-bg size-10 shrink-0 rounded-full"
+                  style={{
+                    ["--shimmer-bg-angle" as string]: "45",
+                    ["--shimmer-bg-offset-y" as string]: "0",
+                  }}
+                />
+                <div className="flex-1 space-y-2">
+                  <div
+                    className="shimmer-bg h-4 w-24 rounded"
+                    style={{
+                      ["--shimmer-bg-angle" as string]: "45",
+                      ["--shimmer-bg-offset-y" as string]: "0",
+                    }}
+                  />
+                  <div
+                    className="shimmer-bg h-4 w-full rounded"
+                    style={{
+                      ["--shimmer-bg-angle" as string]: "45",
+                      ["--shimmer-bg-offset-y" as string]: "24",
+                    }}
+                  />
+                  <div
+                    className="shimmer-bg h-4 w-4/5 rounded"
+                    style={{
+                      ["--shimmer-bg-angle" as string]: "45",
+                      ["--shimmer-bg-offset-y" as string]: "48",
+                    }}
+                  />
+                </div>
+              </div>
+            </BoxContent>
+          </Box>
+
+
+        </div>
+      </div>
     </div>
   );
 }

@@ -7,6 +7,15 @@
       background-position: -50% 0;
     }
   }
+
+  @keyframes shimmer-bg {
+    0% {
+      translate: -100% 0;
+    }
+    100% {
+      translate: calc(var(--shimmer-bg-travel, 600) * 1px) 0;
+    }
+  }
 }
 
 @utility shimmer {
@@ -50,4 +59,62 @@
 
 @utility shimmer-angle-* {
   --shimmer-angle: calc(--value(number) * 1deg);
+}
+
+@utility shimmer-bg {
+  --_bg-base: var(--shimmer-bg-base, oklch(0.9 0 0));
+  --_bg-highlight: var(--shimmer-bg-highlight, oklch(1 0 0));
+  --_bg-width: var(--shimmer-bg-width, 200);
+  --_bg-travel: var(--shimmer-bg-travel, 600);
+  --_bg-speed: var(--shimmer-bg-speed, 500);
+  --_bg-angle: var(--shimmer-bg-angle, 90);
+  --_bg-offset-y: var(--shimmer-bg-offset-y, 0);
+  position: relative;
+  overflow: hidden;
+  background: var(--_bg-base);
+
+  &::after {
+    content: "";
+    position: absolute;
+    top: calc(var(--_bg-offset-y) * -1px);
+    bottom: calc(var(--_bg-offset-y) * -1px);
+    left: 0;
+    width: calc(var(--_bg-width) * 1px);
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      var(--_bg-highlight) 50%,
+      transparent 100%
+    );
+    transform: skewX(calc((90 - var(--_bg-angle)) * 1deg))
+      translateY(calc(var(--_bg-offset-y) * -1px));
+    animation: shimmer-bg
+      calc((var(--_bg-travel) + var(--_bg-width)) / var(--_bg-speed) * 1s)
+      infinite linear;
+  }
+
+  @variant dark {
+    --_bg-base: var(--shimmer-bg-base, oklch(0.25 0 0));
+    --_bg-highlight: var(--shimmer-bg-highlight, oklch(0.4 0 0));
+  }
+}
+
+@utility shimmer-bg-angle-* {
+  --shimmer-bg-angle: --value(number);
+}
+
+@utility shimmer-bg-travel-* {
+  --shimmer-bg-travel: --value(integer);
+}
+
+@utility shimmer-bg-speed-* {
+  --shimmer-bg-speed: --value(integer);
+}
+
+@utility shimmer-bg-base-* {
+  --shimmer-bg-base: --value(--color-*);
+}
+
+@utility shimmer-bg-highlight-* {
+  --shimmer-bg-highlight: --value(--color-*);
 }
