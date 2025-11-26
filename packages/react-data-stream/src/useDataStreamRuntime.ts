@@ -2,17 +2,17 @@
 
 import { toLanguageModelMessages } from "./converters";
 import {
-  AssistantRuntime,
-  ChatModelAdapter,
-  ChatModelRunOptions,
+  type AssistantRuntime,
+  type ChatModelAdapter,
+  type ChatModelRunOptions,
   INTERNAL,
-  LocalRuntimeOptions,
-  ThreadMessage,
-  Tool,
+  type LocalRuntimeOptions,
+  type ThreadMessage,
+  type Tool,
   useLocalRuntime,
 } from "@assistant-ui/react";
 import { z } from "zod";
-import { JSONSchema7 } from "json-schema";
+import type { JSONSchema7 } from "json-schema";
 import {
   AssistantMessageAccumulator,
   DataStreamDecoder,

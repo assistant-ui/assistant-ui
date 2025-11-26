@@ -67,7 +67,6 @@
     "@radix-ui/react-use-escape-keydown": "^1.1.1",
     "@standard-schema/spec": "^1.0.0",
     "assistant-stream": "^0.2.41",
-    "json-schema": "^0.4.0",
     "nanoid": "5.1.6",
     "react-textarea-autosize": "^8.5.9",
     "zod": "^4.1.12",

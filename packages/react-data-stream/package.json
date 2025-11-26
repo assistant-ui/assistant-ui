@@ -25,7 +25,6 @@
     "@ai-sdk/provider": "^1.1.3",
     "@types/json-schema": "^7.0.15",
     "assistant-stream": "^0.2.41",
-    "json-schema": "^0.4.0",
     "zod": "^4.1.12"
   },
   "peerDependencies": {
