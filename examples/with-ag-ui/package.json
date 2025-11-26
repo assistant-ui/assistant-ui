@@ -9,7 +9,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "@ai-sdk/openai": "^2.0.68",
+    "@ai-sdk/openai": "^2.0.73",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
     "@assistant-ui/react-ag-ui": "workspace:*",
@@ -18,8 +18,8 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^0.554.0",
-    "next": "16.0.3",
+    "lucide-react": "^0.555.0",
+    "next": "16.0.4",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "remark-gfm": "^4.0.1",
@@ -32,7 +32,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.0.3",
+    "eslint-config-next": "16.0.4",
     "postcss": "^8",
     "tailwindcss": "^4.1.17",
     "typescript": "^5"

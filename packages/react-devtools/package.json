@@ -33,7 +33,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "zod": "^4.1.12"
+    "zod": "^4.1.13"
   },
   "peerDependencies": {
     "@assistant-ui/react": "*",
@@ -57,7 +57,7 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/node": "^24.10.1",
     "tsx": "^4.20.6",
-    "vitest": "^4.0.10"
+    "vitest": "^4.0.14"
   },
   "publishConfig": {
     "access": "public",
