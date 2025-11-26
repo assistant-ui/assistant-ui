@@ -62,40 +62,43 @@
 }
 
 @utility shimmer-bg {
-  --_bg-base: var(--shimmer-bg-base, oklch(0.9 0 0));
-  --_bg-highlight: var(--shimmer-bg-highlight, oklch(1 0 0));
-  --_bg-width: var(--shimmer-bg-width, 200);
-  --_bg-travel: var(--shimmer-bg-travel, 600);
-  --_bg-speed: var(--shimmer-bg-speed, 500);
-  --_bg-angle: var(--shimmer-bg-angle, 90);
-  --_bg-offset-y: var(--shimmer-bg-offset-y, 0);
+  --shimmer-bg-base: oklch(0.87 0 0);
+  --shimmer-bg-highlight: oklch(1 0 0);
   position: relative;
   overflow: hidden;
-  background: var(--_bg-base);
+  background: var(--shimmer-bg-base);
 
   &::after {
     content: "";
     position: absolute;
-    top: calc(var(--_bg-offset-y) * -1px);
-    bottom: calc(var(--_bg-offset-y) * -1px);
+    top: -100%;
+    bottom: -100%;
     left: 0;
-    width: calc(var(--_bg-width) * 1px);
+    width: calc(var(--shimmer-bg-width, 400) * 1px);
     background: linear-gradient(
       90deg,
       transparent 0%,
-      var(--_bg-highlight) 50%,
+      var(--shimmer-bg-highlight) 50%,
       transparent 100%
     );
-    transform: skewX(calc((90 - var(--_bg-angle)) * 1deg))
-      translateY(calc(var(--_bg-offset-y) * -1px));
+    transform: skewX(calc((90 - var(--shimmer-bg-angle, 90)) * 1deg));
     animation: shimmer-bg
-      calc((var(--_bg-travel) + var(--_bg-width)) / var(--_bg-speed) * 1s)
+      calc(
+        (var(--shimmer-bg-travel, 600) + var(--shimmer-bg-width, 400)) /
+          var(--shimmer-bg-speed, 500) * 1s
+      )
       infinite linear;
+    animation-delay: calc(
+      (var(--shimmer-bg-y, 0) *
+        tan(calc((90 - var(--shimmer-bg-angle, 90)) * 1deg)) -
+        var(--shimmer-bg-x, 0)) /
+        var(--shimmer-bg-speed, 500) * -1s
+    );
   }
 
   @variant dark {
-    --_bg-base: var(--shimmer-bg-base, oklch(0.25 0 0));
-    --_bg-highlight: var(--shimmer-bg-highlight, oklch(0.4 0 0));
+    --shimmer-bg-base: oklch(0.25 0 0);
+    --shimmer-bg-highlight: oklch(0.45 0 0);
   }
 }
 
@@ -104,11 +107,15 @@
 }
 
 @utility shimmer-bg-travel-* {
-  --shimmer-bg-travel: --value(integer);
+  --shimmer-bg-travel: --value(number);
+}
+
+@utility shimmer-bg-width-* {
+  --shimmer-bg-width: --value(number);
 }
 
 @utility shimmer-bg-speed-* {
-  --shimmer-bg-speed: --value(integer);
+  --shimmer-bg-speed: --value(number);
 }
 
 @utility shimmer-bg-base-* {
