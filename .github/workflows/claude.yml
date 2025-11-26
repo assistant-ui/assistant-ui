@@ -20,6 +20,7 @@ jobs:
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 2
     permissions:
       contents: read
     outputs:
@@ -50,6 +51,7 @@ jobs:
     needs: check-permissions
     if: needs.check-permissions.outputs.can-run == 'true'
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 60
     permissions:
       contents: read
       pull-requests: write

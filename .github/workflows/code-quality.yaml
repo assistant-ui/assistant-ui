@@ -3,7 +3,6 @@ name: Code Quality
 on:
   push:
     branches: [main]
-    # Only run when relevant files change
     paths:
       - "packages/**"
       - "apps/**"
@@ -12,9 +11,8 @@ on:
       - "package.json"
       - "pnpm-lock.yaml"
       - ".github/workflows/code-quality.yaml"
-  pull_request:
+  pull_request_target:
     branches: [main]
-    # Only run when relevant files change
     paths:
       - "packages/**"
       - "apps/**"
@@ -31,10 +29,12 @@ jobs:
   lint:
     name: ESLint & Prettier
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 5
     steps:
       - name: Checkout code repository
         uses: actions/checkout@v6
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       - name: Install pnpm
@@ -58,10 +58,12 @@ jobs:
   build:
     name: Build Changed Packages
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 5
     steps:
       - name: Checkout code repository
         uses: actions/checkout@v6
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       - name: Install pnpm
@@ -87,7 +89,7 @@ jobs:
 
       - name: Build packages
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
+          if [ "${{ github.event_name }}" = "pull_request_target" ]; then
             # PR: Build packages changed compared to base branch
             pnpm turbo build --filter="...[origin/${{ github.base_ref }}]"
           else
@@ -98,11 +100,13 @@ jobs:
   test:
     name: Test Changed Packages
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 5
     # Note: No dependency on 'build' job - Turbo handles test->build dependencies internally via dependsOn
     steps:
       - name: Checkout code repository
         uses: actions/checkout@v6
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       - name: Install pnpm
@@ -128,7 +132,7 @@ jobs:
 
       - name: Run tests
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
+          if [ "${{ github.event_name }}" = "pull_request_target" ]; then
             # PR: Test packages changed compared to base branch
             pnpm turbo test --filter="...[origin/${{ github.base_ref }}]"
           else
