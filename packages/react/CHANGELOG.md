@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.11.44
+
+### Patch Changes
+
+- 4f6afef: feat: unified json schema
+
 ## 0.11.43
 
 ### Patch Changes
