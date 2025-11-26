@@ -1,4 +1,5 @@
-import { jsonSchema, type JSONSchema7 } from "ai";
+import { jsonSchema } from "ai";
+import type { JSONSchema7 } from "json-schema";
 
 export const frontendTools = (
   tools: Record<string, { description?: string; parameters: JSONSchema7 }>,

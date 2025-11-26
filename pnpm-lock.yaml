@@ -1586,6 +1586,9 @@ importers:
       '@radix-ui/react-use-callback-ref':
         specifier: ^1.1.1
         version: 1.1.1(@types/react@19.2.5)(react@19.2.0)
+      '@types/json-schema':
+        specifier: ^7.0.15
+        version: 7.0.15
       ai:
         specifier: ^5.0.93
         version: 5.0.93(zod@4.1.12)

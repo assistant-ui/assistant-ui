@@ -27,6 +27,7 @@
     "ai": "^5.0.93",
     "@radix-ui/react-use-callback-ref": "^1.1.1",
     "assistant-stream": "^0.2.41",
+    "@types/json-schema": "^7.0.15",
     "zod": "^4.1.12",
     "zustand": "^5.0.8"
   },
