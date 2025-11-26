@@ -53,7 +53,6 @@ jobs:
   publish:
     needs: version
     if: needs.version.outputs.hasChangesets == 'false'
-    environment: npm Publish
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code repository
