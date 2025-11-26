@@ -24,7 +24,7 @@ jobs:
       hasChangesets: ${{ steps.changesets.outputs.hasChangesets }}
     steps:
       - name: Checkout code repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
@@ -32,9 +32,9 @@ jobs:
         uses: pnpm/action-setup@v4
 
       - name: Setup node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 24
           cache: "pnpm"
 
       - name: Install dependencies
@@ -53,15 +53,11 @@ jobs:
   publish:
     needs: version
     if: needs.version.outputs.hasChangesets == 'false'
+    environment: npm Publish
     runs-on: ubuntu-latest
-    env:
-      NPM_CONFIG_LOGLEVEL: verbose # TODO remove this once changeset is fixed
-    permissions:
-      id-token: write
-      contents: read
     steps:
       - name: Checkout code repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
@@ -69,9 +65,9 @@ jobs:
         uses: pnpm/action-setup@v4
 
       - name: Setup node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 24
           cache: "pnpm"
           registry-url: "https://registry.npmjs.org"
 
