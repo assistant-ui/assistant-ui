@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-data-stream",
-  "version": "0.11.8",
+  "version": "0.11.9",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -28,7 +28,7 @@
     "zod": "^4.1.12"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.11.43",
+    "@assistant-ui/react": "^0.11.44",
     "@types/react": "*",
     "react": "^18 || ^19 || ^19.0.0-rc"
   },
