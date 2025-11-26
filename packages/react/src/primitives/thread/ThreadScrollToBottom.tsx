@@ -11,14 +11,22 @@ import {
   useThreadViewportStore,
 } from "../../context/react/ThreadViewportContext";
 
-const useThreadScrollToBottom = () => {
+export namespace useThreadScrollToBottom {
+  export type Options = {
+    behavior?: ScrollBehavior | undefined;
+  };
+}
+
+const useThreadScrollToBottom = ({
+  behavior,
+}: useThreadScrollToBottom.Options = {}) => {
   const isAtBottom = useThreadViewport((s) => s.isAtBottom);
 
   const threadViewportStore = useThreadViewportStore();
 
   const handleScrollToBottom = useCallback(() => {
-    threadViewportStore.getState().scrollToBottom();
-  }, [threadViewportStore]);
+    threadViewportStore.getState().scrollToBottom({ behavior });
+  }, [threadViewportStore, behavior]);
 
   if (isAtBottom) return null;
   return handleScrollToBottom;
@@ -32,4 +40,5 @@ export namespace ThreadPrimitiveScrollToBottom {
 export const ThreadPrimitiveScrollToBottom = createActionButton(
   "ThreadPrimitive.ScrollToBottom",
   useThreadScrollToBottom,
+  ["behavior"],
 );
