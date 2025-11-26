@@ -2,6 +2,14 @@
 
 Tailwind CSS v4 plugin for shimmer effects.
 
+## Features
+
+- Zero-dependency, CSS-only shimmer effects
+- [Eased gradients](https://www.joshwcomeau.com/css/make-beautiful-gradients/) for smooth, natural-looking highlights
+- OKLCH color space for perceptually uniform color mixing
+- Text shimmer and skeleton/background shimmer variants
+- Fully customizable speed, spread, angle, and colors
+
 ## Installation
 
 ```bash
