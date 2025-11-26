@@ -17,9 +17,10 @@ jobs:
     name: Fix Prettier Issues
     if: ${{ github.event.issue.pull_request && contains(github.event.comment.body, '/fix-prettier') && github.event.comment.user.type == 'User' }}
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 5
     steps:
       - name: Get PR information
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         id: get-pr
         with:
           script: |
@@ -56,14 +57,14 @@ jobs:
 
       - name: Checkout PR (same repo)
         if: fromJson(steps.get-pr.outputs.result).is_fork == false
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ fromJson(steps.get-pr.outputs.result).head_ref }}
           fetch-depth: 1
 
       - name: Checkout PR (forked repo)
         if: fromJson(steps.get-pr.outputs.result).is_fork == true
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ fromJson(steps.get-pr.outputs.result).head_ref }}
           fetch-depth: 1
@@ -73,9 +74,9 @@ jobs:
         uses: pnpm/action-setup@v4
 
       - name: Setup node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 24
           cache: "pnpm"
 
       - name: Install dependencies
@@ -114,7 +115,7 @@ jobs:
           fi
 
       - name: Comment on PR
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const { owner, repo, number } = context.issue;

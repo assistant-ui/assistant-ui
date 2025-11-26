@@ -1,13 +1,13 @@
 import { describe, it, expect } from "vitest";
 import transform from "../content-part-to-message-part";
-import jscodeshift from "jscodeshift";
+import jscodeshift, { API } from "jscodeshift";
 
 const transformer = transform;
 
 function applyTransform(source: string): string {
   const fileInfo = { path: "test.tsx", source };
   const api = { jscodeshift: jscodeshift.withParser("tsx") };
-  const result = transformer(fileInfo, api, {});
+  const result = transformer(fileInfo, api as API, {});
   return result || source;
 }
 

@@ -218,25 +218,23 @@ const MessageError: FC = () => {
 
 const AssistantMessage: FC = () => {
   return (
-    <MessagePrimitive.Root asChild>
-      <div
-        className="aui-assistant-message-root relative mx-auto w-full max-w-[var(--thread-max-width)] py-4 last:mb-24"
-        data-role="assistant"
-      >
-        <div className="aui-assistant-message-content mx-2 leading-7 break-words text-foreground">
-          <MessagePrimitive.Parts
-            components={{
-              Text: MarkdownText,
-              tools: { Fallback: ToolFallback },
-            }}
-          />
-          <MessageError />
-        </div>
+    <MessagePrimitive.Root
+      className="aui-assistant-message-root relative mx-auto w-full max-w-[var(--thread-max-width)] py-4 last:mb-24"
+      data-role="assistant"
+    >
+      <div className="aui-assistant-message-content mx-2 leading-7 break-words text-foreground">
+        <MessagePrimitive.Parts
+          components={{
+            Text: MarkdownText,
+            tools: { Fallback: ToolFallback },
+          }}
+        />
+        <MessageError />
+      </div>
 
-        <div className="aui-assistant-message-footer mt-2 ml-2 flex">
-          <BranchPicker />
-          <AssistantActionBar />
-        </div>
+      <div className="aui-assistant-message-footer mt-2 ml-2 flex">
+        <BranchPicker />
+        <AssistantActionBar />
       </div>
     </MessagePrimitive.Root>
   );

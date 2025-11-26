@@ -1,5 +1,13 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.1.13
+
+### Patch Changes
+
+- 4f6afef: feat: unified json schema
+- Updated dependencies [4f6afef]
+  - @assistant-ui/react@0.11.44
+
 ## 1.1.12
 
 ### Patch Changes

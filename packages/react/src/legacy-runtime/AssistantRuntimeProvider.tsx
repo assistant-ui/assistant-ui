@@ -8,6 +8,7 @@ import {
 import { AssistantRuntime } from "./runtime/AssistantRuntime";
 import { AssistantRuntimeCore } from "./runtime-cores/core/AssistantRuntimeCore";
 import { RuntimeAdapter } from "./RuntimeAdapter";
+import { ThreadPrimitiveViewportProvider } from "../context/providers/ThreadViewportProvider";
 
 export namespace AssistantProvider {
   export type Props = PropsWithChildren<{
@@ -36,7 +37,11 @@ export const AssistantRuntimeProviderImpl: FC<AssistantProvider.Props> = ({
     <AssistantProvider api={api}>
       {RenderComponent && <RenderComponent />}
 
-      {children}
+      {/* TODO temporarily allow accessing viewport state from outside the viewport */}
+      {/* TODO figure out if this behavior should be deprecated, since it is quite hacky */}
+      <ThreadPrimitiveViewportProvider>
+        {children}
+      </ThreadPrimitiveViewportProvider>
     </AssistantProvider>
   );
 };

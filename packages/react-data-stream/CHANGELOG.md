@@ -1,5 +1,13 @@
 # @assistant-ui/react-data-stream
 
+## 0.11.9
+
+### Patch Changes
+
+- 4f6afef: feat: unified json schema
+- Updated dependencies [4f6afef]
+  - @assistant-ui/react@0.11.44
+
 ## 0.11.8
 
 ### Patch Changes

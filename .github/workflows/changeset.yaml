@@ -10,7 +10,9 @@ permissions:
   contents: write
   pull-requests: write
 
-concurrency: ${{ github.workflow }}-${{ github.ref }}
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   CI: true
@@ -22,7 +24,7 @@ jobs:
       hasChangesets: ${{ steps.changesets.outputs.hasChangesets }}
     steps:
       - name: Checkout code repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
@@ -30,9 +32,9 @@ jobs:
         uses: pnpm/action-setup@v4
 
       - name: Setup node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 24
           cache: "pnpm"
 
       - name: Install dependencies
@@ -52,10 +54,10 @@ jobs:
     needs: version
     if: needs.version.outputs.hasChangesets == 'false'
     environment: npm Publish
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
@@ -63,9 +65,9 @@ jobs:
         uses: pnpm/action-setup@v4
 
       - name: Setup node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 24
           cache: "pnpm"
           registry-url: "https://registry.npmjs.org"
 
@@ -80,9 +82,6 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
-      - name: Build packages
-        run: pnpm build
 
       - name: Publish to npm
         run: pnpm ci:publish
