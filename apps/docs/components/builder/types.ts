@@ -1,6 +1,5 @@
 export type Theme = "light" | "dark" | "system";
 export type BorderRadius = "none" | "sm" | "md" | "lg" | "full";
-export type Layout = "default" | "sidebar" | "modal" | "fullscreen";
 
 export interface ActionBarConfig {
   copy: boolean;
@@ -38,7 +37,6 @@ export interface StylesConfig {
 export interface BuilderConfig {
   components: ComponentsConfig;
   styles: StylesConfig;
-  layout: Layout;
 }
 
 export interface Preset {
@@ -76,7 +74,6 @@ export const DEFAULT_CONFIG: BuilderConfig = {
     userMessagePosition: "right",
     animations: true,
   },
-  layout: "default",
 };
 
 export const ACCENT_COLORS = [

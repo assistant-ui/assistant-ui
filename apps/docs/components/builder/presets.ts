@@ -33,7 +33,6 @@ export const PRESETS: Preset[] = [
         userMessagePosition: "right",
         animations: true,
       },
-      layout: "default",
     },
   },
   {
@@ -68,7 +67,6 @@ export const PRESETS: Preset[] = [
         userMessagePosition: "right",
         animations: true,
       },
-      layout: "default",
     },
   },
   {
@@ -103,7 +101,6 @@ export const PRESETS: Preset[] = [
         userMessagePosition: "right",
         animations: true,
       },
-      layout: "default",
     },
   },
   {
@@ -138,7 +135,6 @@ export const PRESETS: Preset[] = [
         userMessagePosition: "left",
         animations: true,
       },
-      layout: "default",
     },
   },
   {
@@ -173,7 +169,6 @@ export const PRESETS: Preset[] = [
         userMessagePosition: "right",
         animations: false,
       },
-      layout: "default",
     },
   },
 ];

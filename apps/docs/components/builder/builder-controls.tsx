@@ -12,21 +12,12 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Layers,
-  Palette,
-  Layout,
-  Sparkles,
-  MonitorSmartphone,
-  Moon,
-  Sun,
-} from "lucide-react";
+import { Layers, Palette, MonitorSmartphone, Moon, Sun } from "lucide-react";
 
 import type {
   BuilderConfig,
   BorderRadius,
   Theme,
-  Layout as LayoutType,
   UserMessagePosition,
 } from "./types";
 import { ACCENT_COLORS, FONT_FAMILIES, MAX_WIDTHS } from "./types";
@@ -95,7 +86,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
         defaultValue="components"
         className="min-h-0 flex-1 overflow-hidden"
       >
-        <TabsList className="mx-4 mt-4 grid w-[calc(100%-2rem)] grid-cols-3">
+        <TabsList className="mx-4 mt-4 grid w-[calc(100%-2rem)] grid-cols-2">
           <TabsTrigger value="components" className="gap-1.5 text-xs">
             <Layers className="size-3.5" />
             <span className="hidden sm:inline">Components</span>
@@ -103,10 +94,6 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
           <TabsTrigger value="styles" className="gap-1.5 text-xs">
             <Palette className="size-3.5" />
             <span className="hidden sm:inline">Styles</span>
-          </TabsTrigger>
-          <TabsTrigger value="layout" className="gap-1.5 text-xs">
-            <Layout className="size-3.5" />
-            <span className="hidden sm:inline">Layout</span>
           </TabsTrigger>
         </TabsList>
 
@@ -415,79 +402,6 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
                 updateStyles({ animations: checked })
               }
             />
-          </div>
-        </TabsContent>
-
-        {/* Layout Tab */}
-        <TabsContent value="layout" className="flex-1 overflow-y-auto p-4">
-          <div className="space-y-6">
-            <div className="space-y-3">
-              <Label className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                Layout Style
-              </Label>
-              <div className="grid grid-cols-2 gap-2">
-                {(
-                  [
-                    {
-                      value: "default",
-                      label: "Default",
-                      description: "Standard chat layout",
-                    },
-                    {
-                      value: "sidebar",
-                      label: "Sidebar",
-                      description: "With thread list",
-                    },
-                    {
-                      value: "modal",
-                      label: "Modal",
-                      description: "Floating dialog",
-                    },
-                    {
-                      value: "fullscreen",
-                      label: "Fullscreen",
-                      description: "Full viewport",
-                    },
-                  ] as const
-                ).map((layout) => (
-                  <Button
-                    key={layout.value}
-                    variant="outline"
-                    className={cn(
-                      "h-auto flex-col items-start gap-0.5 px-3 py-3 text-left",
-                      config.layout === layout.value &&
-                        "border-primary bg-primary/5",
-                    )}
-                    onClick={() =>
-                      onChange({
-                        ...config,
-                        layout: layout.value as LayoutType,
-                      })
-                    }
-                  >
-                    <span className="text-sm font-medium">{layout.label}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {layout.description}
-                    </span>
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-lg border border-dashed bg-muted/50 p-4">
-              <div className="flex items-start gap-2">
-                <Sparkles className="mt-0.5 size-4 text-muted-foreground" />
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">
-                    More layouts coming soon
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    We&apos;re working on additional layout options including
-                    split view, floating assistant, and more.
-                  </p>
-                </div>
-              </div>
-            </div>
           </div>
         </TabsContent>
       </Tabs>
