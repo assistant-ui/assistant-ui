@@ -1,23 +1,27 @@
 name: Deploy Shadcn Registry
-permissions:
-  contents: read
-env:
-  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_REGISTRY_PROJECT_ID }}
+
 on:
   push:
     branches:
       - main
     paths:
       - apps/registry/**
-      - .github/workflows/**
+      - .github/workflows/registry.yaml
+
+permissions:
+  contents: read
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_REGISTRY_PROJECT_ID }}
 
 jobs:
-  Deploy-Production:
-    runs-on: ubuntu-latest
+  deploy-production:
+    name: Deploy Production
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Checkout code repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
@@ -25,17 +29,18 @@ jobs:
         uses: pnpm/action-setup@v4
 
       - name: Setup node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 24
           cache: "pnpm"
 
       - name: Cache turbo build setup
         uses: actions/cache@v4
         with:
           path: .turbo
-          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          key: ${{ runner.os }}-turbo-${{ github.ref }}-${{ github.sha }}
           restore-keys: |
+            ${{ runner.os }}-turbo-${{ github.ref }}-
             ${{ runner.os }}-turbo-
 
       - name: Install Vercel CLI
@@ -47,9 +52,11 @@ jobs:
       - name: Pull Vercel Environment Information
         working-directory: apps/registry
         run: vercel pull --yes --prod --token=${{ secrets.VERCEL_TOKEN }}
+
       - name: Build Project Artifacts
         working-directory: apps/registry
         run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
       - name: Deploy Project Artifacts to Vercel
         working-directory: apps/registry
         run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}

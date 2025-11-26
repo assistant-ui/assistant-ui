@@ -11,28 +11,38 @@ import { useThreadViewportStore } from "../../context/react/ThreadViewportContex
 
 export namespace useThreadViewportAutoScroll {
   export type Options = {
+    /**
+     * Whether to automatically scroll to the bottom when new messages are added.
+     * When enabled, the viewport will automatically scroll to show the latest content.
+     *
+     * Default false if `turnAnchor` is "top", otherwise defaults to true.
+     */
     autoScroll?: boolean | undefined;
   };
 }
 
 export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
-  autoScroll = true,
+  autoScroll,
 }: useThreadViewportAutoScroll.Options): RefCallback<TElement> => {
   const divRef = useRef<TElement>(null);
 
   const threadViewportStore = useThreadViewportStore();
+  if (autoScroll === undefined) {
+    autoScroll = threadViewportStore.getState().turnAnchor !== "top";
+  }
 
   const lastScrollTop = useRef<number>(0);
 
   // bug: when ScrollToBottom's button changes its disabled state, the scroll stops
   // fix: delay the state change until the scroll is done
-  const isScrollingToBottomRef = useRef(false);
+  // stores the scroll behavior to reuse during content resize, or null if not scrolling
+  const scrollingToBottomBehaviorRef = useRef<ScrollBehavior | null>(null);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior) => {
     const div = divRef.current;
     if (!div) return;
 
-    isScrollingToBottomRef.current = true;
+    scrollingToBottomBehaviorRef.current = behavior;
     div.scrollTo({ top: div.scrollHeight, behavior });
   }, []);
 
@@ -49,7 +59,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
       // ignore scroll down
     } else {
       if (newIsAtBottom) {
-        isScrollingToBottomRef.current = false;
+        scrollingToBottomBehaviorRef.current = null;
       }
 
       if (newIsAtBottom !== isAtBottom) {
@@ -63,11 +73,10 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   };
 
   const resizeRef = useOnResizeContent(() => {
-    if (
-      autoScroll &&
-      (isScrollingToBottomRef.current ||
-        threadViewportStore.getState().isAtBottom)
-    ) {
+    const scrollBehavior = scrollingToBottomBehaviorRef.current;
+    if (scrollBehavior) {
+      scrollToBottom(scrollBehavior);
+    } else if (autoScroll && threadViewportStore.getState().isAtBottom) {
       scrollToBottom("instant");
     }
 
@@ -81,13 +90,16 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     };
   });
 
-  useOnScrollToBottom(() => {
-    scrollToBottom("auto");
+  useOnScrollToBottom(({ behavior }) => {
+    scrollToBottom(behavior);
   });
 
   // autoscroll on run start
   useAssistantEvent("thread.run-start", () => {
-    if (autoScroll) scrollToBottom("auto");
+    scrollingToBottomBehaviorRef.current = "auto";
+    requestAnimationFrame(() => {
+      scrollToBottom("auto");
+    });
   });
 
   const autoScrollRef = useComposedRefs<TElement>(resizeRef, scrollRef, divRef);

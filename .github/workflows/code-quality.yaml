@@ -1,30 +1,49 @@
 name: Code Quality
-permissions:
-  contents: read
 
 on:
   push:
     branches: [main]
-  pull_request:
+    paths:
+      - "packages/**"
+      - "apps/**"
+      - "examples/**"
+      - "turbo.json"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/code-quality.yaml"
+  pull_request_target:
     branches: [main]
+    paths:
+      - "packages/**"
+      - "apps/**"
+      - "examples/**"
+      - "turbo.json"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/code-quality.yaml"
+
+permissions:
+  contents: read
 
 jobs:
   lint:
     name: ESLint & Prettier
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 5
     steps:
       - name: Checkout code repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
-          fetch-depth: 1
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
 
       - name: Setup node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 24
           cache: "pnpm"
 
       - name: Install dependencies
@@ -35,7 +54,88 @@ jobs:
 
       - name: Run Prettier
         run: pnpm prettier
-        # This will fail the workflow if Prettier has warnings
 
-      - name: Run Tests
-        run: pnpm test
+  build:
+    name: Build Changed Packages
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 5
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: "pnpm"
+
+      - name: Cache turbo build setup
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.ref }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-${{ github.ref }}-
+            ${{ runner.os }}-turbo-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request_target" ]; then
+            # PR: Build packages changed compared to base branch
+            pnpm turbo build --filter="...[origin/${{ github.base_ref }}]"
+          else
+            # Push to main: Build packages changed in last commit
+            pnpm turbo build --filter="...[HEAD^1]"
+          fi
+
+  test:
+    name: Test Changed Packages
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 5
+    # Note: No dependency on 'build' job - Turbo handles test->build dependencies internally via dependsOn
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: "pnpm"
+
+      - name: Cache turbo build setup
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.ref }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-${{ github.ref }}-
+            ${{ runner.os }}-turbo-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run tests
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request_target" ]; then
+            # PR: Test packages changed compared to base branch
+            pnpm turbo test --filter="...[origin/${{ github.base_ref }}]"
+          else
+            # Push to main: Test packages changed in last commit
+            pnpm turbo test --filter="...[HEAD^1]"
+          fi

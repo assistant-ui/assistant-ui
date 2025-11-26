@@ -79,6 +79,7 @@ export type ThreadRuntimeCore = Readonly<{
     | {
         parentId: string | null;
         message: ThreadMessage;
+        index: number;
       }
     | undefined;
 

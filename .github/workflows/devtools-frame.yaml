@@ -1,26 +1,28 @@
-name: Deploy DevTools App
-
-env:
-  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_DEVTOOLS_APP_PROJECT_ID }}
+name: Deploy DevTools Frame
 
 on:
   push:
     branches:
       - main
     paths:
-      - apps/devtools-app/**
+      - apps/devtools-frame/**
       - packages/devtools/**
-      - .github/workflows/devtools-app.yaml
+      - .github/workflows/devtools-frame.yaml
+
+permissions:
+  contents: read
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_DEVTOOLS_APP_PROJECT_ID }}
 
 jobs:
-  Deploy-Production:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
+  deploy-production:
+    name: Deploy Production
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Checkout code repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
@@ -28,17 +30,18 @@ jobs:
         uses: pnpm/action-setup@v4
 
       - name: Setup node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 24
           cache: "pnpm"
 
       - name: Cache turbo build setup
         uses: actions/cache@v4
         with:
           path: .turbo
-          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          key: ${{ runner.os }}-turbo-${{ github.ref }}-${{ github.sha }}
           restore-keys: |
+            ${{ runner.os }}-turbo-${{ github.ref }}-
             ${{ runner.os }}-turbo-
 
       - name: Install Vercel CLI

@@ -1,5 +1,26 @@
 # @assistant-ui/react
 
+## 0.11.44
+
+### Patch Changes
+
+- 4f6afef: feat: unified json schema
+
+## 0.11.43
+
+### Patch Changes
+
+- f54c17b: feat: Viewport turnAnchor="top"
+
+## 0.11.42
+
+### Patch Changes
+
+- 354c5c3: feat: MessageState.index
+- c3ac004: fix: export `ComposerAttachmentDropzone` as `ComposerPrimitive.AttachmentDropzone`
+  fix: prevent drag state flicker in `ComposerAttachmentDropzone`
+- 282a596: feat: ThreadPrimitive.ScrollToBottom behavior prop
+
 ## 0.11.41
 
 ### Patch Changes

@@ -17,7 +17,7 @@ This is a Next.js application demonstrating the `@assistant-ui/store` package.
 pnpm install
 
 # Run the development server
-cd packages/store-example
+cd examples/store-example
 pnpm dev
 ```
 

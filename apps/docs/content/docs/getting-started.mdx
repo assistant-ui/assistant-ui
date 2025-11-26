@@ -437,25 +437,23 @@ const MessageError: FC = () => {
 
 const AssistantMessage: FC = () => {
   return (
-    <MessagePrimitive.Root asChild>
-      <div
-        className="aui-assistant-message-root"
-        data-role="assistant"
-      >
-        <div className="aui-assistant-message-content">
-          <MessagePrimitive.Parts
-            components={{
-              Text: MarkdownText,
-              tools: { Fallback: ToolFallback },
-            }}
-          />
-          <MessageError />
-        </div>
+    <MessagePrimitive.Root
+      className="aui-assistant-message-root"
+      data-role="assistant"
+    >
+      <div className="aui-assistant-message-content">
+        <MessagePrimitive.Parts
+          components={{
+            Text: MarkdownText,
+            tools: { Fallback: ToolFallback },
+          }}
+        />
+        <MessageError />
+      </div>
 
-        <div className="aui-assistant-message-footer">
-          <BranchPicker />
-          <AssistantActionBar />
-        </div>
+      <div className="aui-assistant-message-footer">
+        <BranchPicker />
+        <AssistantActionBar />
       </div>
     </MessagePrimitive.Root>
   );
@@ -490,24 +488,22 @@ const AssistantActionBar: FC = () => {
 
 const UserMessage: FC = () => {
   return (
-    <MessagePrimitive.Root asChild>
-      <div
-        className="aui-user-message-root"
-        data-role="user"
-      >
-        <UserMessageAttachments />
+    <MessagePrimitive.Root
+      className="aui-user-message-root"
+      data-role="user"
+    >
+      <UserMessageAttachments />
 
-        <div className="aui-user-message-content-wrapper">
-          <div className="aui-user-message-content">
-            <MessagePrimitive.Parts />
-          </div>
-          <div className="aui-user-action-bar-wrapper">
-            <UserActionBar />
-          </div>
+      <div className="aui-user-message-content-wrapper">
+        <div className="aui-user-message-content">
+          <MessagePrimitive.Parts />
         </div>
-
-        <BranchPicker className="aui-user-branch-picker" />
+        <div className="aui-user-action-bar-wrapper">
+          <UserActionBar />
+        </div>
       </div>
+
+      <BranchPicker className="aui-user-branch-picker" />
     </MessagePrimitive.Root>
   );
 };
@@ -862,8 +858,6 @@ export const ToolFallback: ToolCallMessagePartComponent = ({
     </div>
   );
 };
-```
-
 ```
 
 ```tsx title="components/assistant-ui/thread-list.tsx"

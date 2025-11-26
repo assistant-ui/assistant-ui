@@ -8,6 +8,10 @@ on:
   issues:
     types: [opened, assigned]
 
+concurrency:
+  group: claude-code-${{ github.event.issue.number || github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   check-permissions:
     # Only run if @claude is mentioned (bot filtering handled by claude-code-action)
@@ -15,7 +19,8 @@ jobs:
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 2
     permissions:
       contents: read
     outputs:
@@ -45,7 +50,8 @@ jobs:
   claude:
     needs: check-permissions
     if: needs.check-permissions.outputs.can-run == 'true'
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 60
     permissions:
       contents: read
       pull-requests: write
@@ -54,7 +60,7 @@ jobs:
       actions: read
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
 

@@ -131,7 +131,7 @@ export function useToolInvocations({
   });
 
   const ignoredToolIds = useRef<Set<string>>(new Set());
-  const isInititialState = useRef(true);
+  const isInitialState = useRef(true);
 
   useEffect(() => {
     const processMessages = (
@@ -140,7 +140,7 @@ export function useToolInvocations({
       messages.forEach((message) => {
         message.content.forEach((content) => {
           if (content.type === "tool-call") {
-            if (isInititialState.current) {
+            if (isInitialState.current) {
               ignoredToolIds.current.add(content.toolCallId);
             } else {
               if (ignoredToolIds.current.has(content.toolCallId)) {
@@ -225,8 +225,8 @@ export function useToolInvocations({
 
     processMessages(state.messages);
 
-    if (isInititialState.current) {
-      isInititialState.current = false;
+    if (isInitialState.current) {
+      isInitialState.current = false;
     }
   }, [state, controller, onResult]);
 
@@ -244,7 +244,7 @@ export function useToolInvocations({
   return {
     reset: () => {
       abort();
-      isInititialState.current = true;
+      isInitialState.current = true;
     },
     abort,
     resume: (toolCallId: string, payload: unknown) => {

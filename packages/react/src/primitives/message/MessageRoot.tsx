@@ -9,7 +9,10 @@ import {
 } from "react";
 import { useAssistantApi, useAssistantState } from "../../context";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
+import { useSizeHandle } from "../../utils/hooks/useSizeHandle";
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
+import { useThreadViewport } from "../../context/react/ThreadViewportContext";
+import { ThreadPrimitiveViewportSlack } from "../thread/ThreadViewportSlack";
 
 const useIsHoveringRef = () => {
   const api = useAssistantApi();
@@ -41,6 +44,34 @@ const useIsHoveringRef = () => {
   return useManagedRef(callbackRef);
 };
 
+/**
+ * Hook that registers the anchor user message as a content inset.
+ * Only registers if: user message, at index messages.length-2, and last message is assistant.
+ */
+const useMessageViewportRef = () => {
+  const turnAnchor = useThreadViewport((s) => s.turnAnchor);
+  const registerUserHeight = useThreadViewport(
+    (s) => s.registerUserMessageHeight,
+  );
+
+  // inset rules:
+  // - the previous user message before the last assistant message registers its full height
+  const shouldRegisterAsInset = useAssistantState(
+    ({ thread, message }) =>
+      turnAnchor === "top" &&
+      message.role === "user" &&
+      message.index === thread.messages.length - 2 &&
+      thread.messages.at(-1)?.role === "assistant",
+  );
+
+  const getHeight = useCallback((el: HTMLElement) => el.offsetHeight, []);
+
+  return useSizeHandle(
+    shouldRegisterAsInset ? registerUserHeight : null,
+    getHeight,
+  );
+};
+
 export namespace MessagePrimitiveRoot {
   export type Element = ComponentRef<typeof Primitive.div>;
   /**
@@ -56,6 +87,9 @@ export namespace MessagePrimitiveRoot {
  * This component provides the foundational wrapper for message content and handles
  * hover state management for the message. It automatically tracks when the user
  * is hovering over the message, which can be used by child components like action bars.
+ *
+ * When `turnAnchor="top"` is set on the viewport, this component
+ * registers itself as the scroll anchor if it's the last user message.
  *
  * @example
  * ```tsx
@@ -73,9 +107,18 @@ export const MessagePrimitiveRoot = forwardRef<
   MessagePrimitiveRoot.Props
 >((props, forwardRef) => {
   const isHoveringRef = useIsHoveringRef();
-  const ref = useComposedRefs<HTMLDivElement>(forwardRef, isHoveringRef);
+  const anchorUserMessageRef = useMessageViewportRef();
+  const ref = useComposedRefs<HTMLDivElement>(
+    forwardRef,
+    isHoveringRef,
+    anchorUserMessageRef,
+  );
 
-  return <Primitive.div {...props} ref={ref} />;
+  return (
+    <ThreadPrimitiveViewportSlack>
+      <Primitive.div {...props} ref={ref} />
+    </ThreadPrimitiveViewportSlack>
+  );
 });
 
 MessagePrimitiveRoot.displayName = "MessagePrimitive.Root";

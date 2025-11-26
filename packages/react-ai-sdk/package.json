@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-ai-sdk",
-  "version": "1.1.12",
+  "version": "1.1.13",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -26,14 +26,13 @@
     "@ai-sdk/react": "^2.0.93",
     "ai": "^5.0.93",
     "@radix-ui/react-use-callback-ref": "^1.1.1",
-    "@types/json-schema": "^7.0.15",
     "assistant-stream": "^0.2.41",
-    "json-schema": "^0.4.0",
+    "@types/json-schema": "^7.0.15",
     "zod": "^4.1.12",
     "zustand": "^5.0.8"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.11.41",
+    "@assistant-ui/react": "^0.11.44",
     "@types/react": "*",
     "assistant-cloud": "*",
     "react": "^18 || ^19 || ^19.0.0-rc"
