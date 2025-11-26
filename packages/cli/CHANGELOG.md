@@ -1,5 +1,11 @@
 # assistant-ui
 
+## 0.0.66
+
+### Patch Changes
+
+- 9d50ed9: refactor assistant-ui cli
+
 ## 0.0.65
 
 ### Patch Changes
