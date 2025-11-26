@@ -41,12 +41,12 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/node": "^24.10.1",
-    "@types/react": "^19.2.5",
+    "@types/react": "^19.2.7",
     "eslint": "^9",
-    "eslint-config-next": "16.0.3",
+    "eslint-config-next": "16.0.4",
     "react": "19.2.0",
     "tsx": "^4.20.6",
-    "vitest": "^4.0.10",
+    "vitest": "^4.0.14",
     "jsdom": "^27.2.0"
   },
   "publishConfig": {

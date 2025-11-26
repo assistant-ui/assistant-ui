@@ -69,7 +69,7 @@
     "assistant-stream": "^0.2.41",
     "nanoid": "5.1.6",
     "react-textarea-autosize": "^8.5.9",
-    "zod": "^4.1.12",
+    "zod": "^4.1.13",
     "zustand": "^5.0.8"
   },
   "peerDependencies": {
@@ -88,14 +88,14 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@stryker-mutator/core": "^9.3.0",
-    "@stryker-mutator/vitest-runner": "^9.3.0",
+    "@stryker-mutator/core": "^9.4.0",
+    "@stryker-mutator/vitest-runner": "^9.4.0",
     "@types/json-schema": "^7.0.15",
     "@types/node": "^24.10.1",
     "eslint": "^9",
-    "eslint-config-next": "16.0.3",
+    "eslint-config-next": "16.0.4",
     "tsx": "^4.20.6",
-    "vitest": "^4.0.10"
+    "vitest": "^4.0.14"
   },
   "publishConfig": {
     "access": "public",
