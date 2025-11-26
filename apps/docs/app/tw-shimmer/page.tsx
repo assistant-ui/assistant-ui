@@ -33,6 +33,7 @@ const HIGHLIGHT_STYLES = `
 
 export default function TwShimmerPage() {
   const [copied, setCopied] = useState(false);
+  const [angledSynced, setAngledSynced] = useState(true);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -48,7 +49,7 @@ export default function TwShimmerPage() {
   }, []);
 
   return (
-    <div className="container max-w-screen-xl space-y-16 px-4 py-12">
+    <div className="container max-w-7xl space-y-16 px-4 py-12">
       <div className="flex flex-col items-center space-y-6 text-center">
         <div className="flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm">
           <Sparkles className="size-4" />
@@ -181,7 +182,7 @@ export default function TwShimmerPage() {
                 language="tsx"
                 code={`<span
   class="shimmer text-foreground/40"
-  style={{ ["--shimmer-width-x" as string]: "50" }}
+  style={{ ["--shimmer-width-x" as string]: "52" }}
 >
   Narrow
 </span>`}
@@ -356,7 +357,7 @@ export default function TwShimmerPage() {
 >
   <div class="shimmer-bg size-10 rounded-full" />
   <div class="flex-1 space-y-2">
-    <div class="shimmer-bg h-4 w-24 rounded" />
+    <div class="shimmer-bg h-4 w-1/4 rounded" />
     <div class="shimmer-bg h-4 w-full rounded" />
     <div class="shimmer-bg h-4 w-4/5 rounded" />
   </div>
@@ -372,7 +373,7 @@ export default function TwShimmerPage() {
               >
                 <div className="shimmer-bg size-10 shrink-0 rounded-full" />
                 <div className="flex-1 space-y-2">
-                  <div className="shimmer-bg h-4 w-24 rounded" />
+                  <div className="shimmer-bg h-4 w-1/4 rounded" />
                   <div className="shimmer-bg h-4 w-full rounded" />
                   <div className="shimmer-bg h-4 w-4/5 rounded" />
                 </div>
@@ -388,8 +389,8 @@ export default function TwShimmerPage() {
             <BoxCode>
               <CodeBlock
                 language="html"
-                code={`<div class="shimmer-bg shimmer-bg-base-blue-200 shimmer-bg-highlight-blue-100 dark:shimmer-bg-base-blue-900 dark:shimmer-bg-highlight-blue-800 h-4 w-48 rounded" />`}
-                highlight="shimmer-bg-base-blue-200"
+                code={`<div class="shimmer-bg shimmer-bg-base-blue-300 shimmer-bg-highlight-blue-100 dark:shimmer-bg-base-blue-800 dark:shimmer-bg-highlight-blue-500 h-4 w-48 rounded" />`}
+                highlight="shimmer-bg-base-blue-300"
                 highlightMode="text"
               />
             </BoxCode>
@@ -398,17 +399,66 @@ export default function TwShimmerPage() {
                 className="space-y-3"
                 style={{ ["--shimmer-bg-travel" as string]: "192" }}
               >
-                <div className="shimmer-bg h-4 w-48 rounded shimmer-bg-base-blue-200 shimmer-bg-highlight-blue-100 dark:shimmer-bg-base-blue-900 dark:shimmer-bg-highlight-blue-800" />
-                <div className="shimmer-bg h-4 w-48 rounded shimmer-bg-base-purple-200 shimmer-bg-highlight-purple-100 dark:shimmer-bg-base-purple-900 dark:shimmer-bg-highlight-purple-800" />
-                <div className="shimmer-bg h-4 w-48 rounded shimmer-bg-base-green-200 shimmer-bg-highlight-green-100 dark:shimmer-bg-base-green-900 dark:shimmer-bg-highlight-green-800" />
+                <div className="shimmer-bg h-4 w-48 rounded shimmer-bg-base-blue-300 shimmer-bg-highlight-blue-100 dark:shimmer-bg-base-blue-800 dark:shimmer-bg-highlight-blue-500" />
+                <div className="shimmer-bg h-4 w-48 rounded shimmer-bg-base-purple-300 shimmer-bg-highlight-purple-100 dark:shimmer-bg-base-purple-800 dark:shimmer-bg-highlight-purple-500" />
+                <div className="shimmer-bg h-4 w-48 rounded shimmer-bg-base-green-300 shimmer-bg-highlight-green-100 dark:shimmer-bg-base-green-800 dark:shimmer-bg-highlight-green-500" />
               </div>
             </BoxContent>
           </Box>
 
           <Box>
             <BoxTitle
-              title="Angled Shimmer"
-              description="Create a unified diagonal sweep across multiple skeleton elements."
+              title="shimmer-bg-angle-{degrees}"
+              description="Add a diagonal sweep to your skeleton shimmer."
+            />
+            <BoxCode>
+              <CodeBlock
+                language="tsx"
+                code={`<div
+  class="flex gap-3"
+  style={{
+    ["--shimmer-bg-travel" as string]: "600",
+    ["--shimmer-bg-angle" as string]: "15",
+  }}
+>
+  <div class="shimmer-bg size-10 rounded-full" />
+  <div class="flex-1 space-y-2">
+    <div class="shimmer-bg h-4 w-1/4 rounded" />
+    <div class="shimmer-bg h-4 w-full rounded" />
+    <div class="shimmer-bg h-4 w-4/5 rounded" />
+  </div>
+</div>`}
+                highlight="--shimmer-bg-angle"
+                highlightMode="text"
+              />
+            </BoxCode>
+            <BoxContent>
+              <div
+                className="flex gap-3"
+                style={{
+                  ["--shimmer-bg-travel" as string]: "600",
+                  ["--shimmer-bg-angle" as string]: "15",
+                }}
+              >
+                <div className="shimmer-bg size-10 shrink-0 rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <div className="shimmer-bg h-4 w-1/4 rounded" />
+                  <div className="shimmer-bg h-4 w-full rounded" />
+                  <div className="shimmer-bg h-4 w-4/5 rounded" />
+                </div>
+              </div>
+              <p className="mt-4 text-sm text-muted-foreground">
+                Notice the shimmer sweep looks slightly disjointed? See{" "}
+                <code className="px-1 py-0.5 text-xs">--shimmer-bg-x/y</code>{" "}
+                below for pixel-perfect alignment.
+              </p>
+            </BoxContent>
+          </Box>
+
+          <Box>
+            <BoxTitle
+              title="--shimmer-bg-x / --shimmer-bg-y"
+              description="Fine-tune animation sync across elements with different positions."
             />
             <BoxCode>
               <CodeBlock
@@ -417,64 +467,116 @@ export default function TwShimmerPage() {
   class="flex gap-3"
   style={{
     ["--shimmer-bg-travel" as string]: "720",
-    ["--shimmer-bg-angle" as string]: "45",
+    ["--shimmer-bg-angle" as string]: "15",
   }}
 >
   <div
     class="shimmer-bg size-10 rounded-full"
-    style={{ ["--shimmer-bg-y" as string]: "20" }}
+    style={{ ["--shimmer-bg-x" as string]: "20", ["--shimmer-bg-y" as string]: "20" }}
   />
   <div class="flex-1 space-y-2">
     <div
-      class="shimmer-bg h-4 w-24 rounded"
-      style={{ ["--shimmer-bg-y" as string]: "8" }}
+      class="shimmer-bg h-4 w-1/4 rounded"
+      style={{ ["--shimmer-bg-x" as string]: "52", ["--shimmer-bg-y" as string]: "0" }}
     />
     <div
       class="shimmer-bg h-4 w-full rounded"
-      style={{ ["--shimmer-bg-y" as string]: "32" }}
+      style={{ ["--shimmer-bg-x" as string]: "52", ["--shimmer-bg-y" as string]: "24" }}
     />
     <div
       class="shimmer-bg h-4 w-4/5 rounded"
-      style={{ ["--shimmer-bg-y" as string]: "56" }}
+      style={{ ["--shimmer-bg-x" as string]: "52", ["--shimmer-bg-y" as string]: "48" }}
     />
   </div>
 </div>`}
-                highlight="--shimmer-bg-y"
+                highlight={["--shimmer-bg-x", "--shimmer-bg-y"]}
                 highlightMode="text"
               />
             </BoxCode>
             <BoxContent>
               <p className="mb-4 text-sm text-muted-foreground">
-                Set{" "}
-                <code className="px-1 py-0.5 text-xs">--shimmer-bg-angle</code>{" "}
-                on the container and{" "}
-                <code className="px-1 py-0.5 text-xs">--shimmer-bg-y</code> on
-                each element to its center Y position. The timing is adjusted
-                automatically to create a seamless diagonal effect.
+                Since each element animates independently, elements at different
+                positions may appear slightly out of sync. For pixel-perfect
+                alignment across elements, set{" "}
+                <code className="px-1 py-0.5 text-xs">--shimmer-bg-x</code> and{" "}
+                <code className="px-1 py-0.5 text-xs">--shimmer-bg-y</code> to
+                each element&apos;s position relative to the container. The
+                timing is adjusted automatically.
               </p>
+              <p className="mb-4 text-sm text-muted-foreground">
+                <strong>Tip:</strong> For larger elements like avatars, use
+                center coordinates instead of top-left for better alignment with
+                the diagonal sweep.
+              </p>
+              <label className="mb-4 flex w-fit cursor-pointer items-center gap-2">
+                <span className="text-sm font-medium">Sync</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={angledSynced}
+                  onClick={() => setAngledSynced(!angledSynced)}
+                  className={`relative h-5 w-9 rounded-full transition-colors ${
+                    angledSynced ? "bg-primary" : "bg-muted"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 size-4 rounded-full bg-background shadow transition-transform ${
+                      angledSynced ? "translate-x-4" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </label>
               <div
                 className="flex gap-3"
                 style={{
                   ["--shimmer-bg-travel" as string]: "720",
-                  ["--shimmer-bg-angle" as string]: "45",
+                  ["--shimmer-bg-angle" as string]: "15",
                 }}
               >
                 <div
                   className="shimmer-bg size-10 shrink-0 rounded-full"
-                  style={{ ["--shimmer-bg-y" as string]: "20" }}
+                  style={
+                    angledSynced
+                      ? {
+                          ["--shimmer-bg-x" as string]: "20",
+                          ["--shimmer-bg-y" as string]: "20",
+                        }
+                      : undefined
+                  }
                 />
                 <div className="flex-1 space-y-2">
                   <div
-                    className="shimmer-bg h-4 w-24 rounded"
-                    style={{ ["--shimmer-bg-y" as string]: "8" }}
+                    className="shimmer-bg h-4 w-1/4 rounded"
+                    style={
+                      angledSynced
+                        ? {
+                            ["--shimmer-bg-x" as string]: "52",
+                            ["--shimmer-bg-y" as string]: "0",
+                          }
+                        : undefined
+                    }
                   />
                   <div
                     className="shimmer-bg h-4 w-full rounded"
-                    style={{ ["--shimmer-bg-y" as string]: "32" }}
+                    style={
+                      angledSynced
+                        ? {
+                            ["--shimmer-bg-x" as string]: "52",
+                            ["--shimmer-bg-y" as string]: "24",
+                          }
+                        : undefined
+                    }
                   />
                   <div
                     className="shimmer-bg h-4 w-4/5 rounded"
-                    style={{ ["--shimmer-bg-y" as string]: "56" }}
+                    style={
+                      angledSynced
+                        ? {
+                            ["--shimmer-bg-x" as string]: "52",
+                            ["--shimmer-bg-y" as string]: "48",
+                          }
+                        : undefined
+                    }
                   />
                 </div>
               </div>
@@ -489,7 +591,7 @@ export default function TwShimmerPage() {
 interface CodeBlockProps {
   language: string;
   code: string;
-  highlight?: string;
+  highlight?: string | string[];
   highlightMode?: "line" | "text";
 }
 
@@ -512,13 +614,19 @@ function CodeBlock({
   let metaProps = {};
 
   if (highlight) {
+    const highlights = Array.isArray(highlight) ? highlight : [highlight];
+
     if (highlightMode === "text") {
-      metaProps = { meta: { __raw: `/${highlight}/` } };
+      // Multiple /pattern/ entries for each highlight
+      const patterns = highlights.map((h) => `/${h}/`).join(" ");
+      metaProps = { meta: { __raw: patterns } };
     } else if (highlightMode === "line") {
-      // Find lines containing the highlight text
+      // Find lines containing any of the highlight texts
       const lines = code.split("\n");
       const lineNumbers = lines
-        .map((line, index) => (line.includes(highlight) ? index + 1 : null))
+        .map((line, index) =>
+          highlights.some((h) => line.includes(h)) ? index + 1 : null,
+        )
         .filter((n): n is number => n !== null);
 
       if (lineNumbers.length > 0) {
@@ -537,7 +645,7 @@ function CodeBlock({
         code={code}
         {...metaProps}
         addDefaultStyles={false}
-        className="[--padding-left:1.5rem] [&_code]:block [&_pre]:m-0 [&_pre]:rounded-none [&_pre]:!bg-transparent [&_pre]:px-0 [&_pre]:py-4"
+        className="[--padding-left:1.5rem] [&_code]:block [&_pre]:m-0 [&_pre]:rounded-none [&_pre]:bg-transparent! [&_pre]:px-0 [&_pre]:py-4"
         transformers={[
           transformerMetaHighlight(),
           transformerMetaWordHighlight(),

@@ -108,10 +108,7 @@ Background shimmer for skeleton loaders and non-text elements. No text color nee
 CSS variable for container width in pixels. Set this on the container to sync all children.
 
 ```tsx
-<div
-  class="flex gap-3"
-  style={{ ["--shimmer-bg-travel" as string]: "600" }}
->
+<div class="flex gap-3" style={{ ["--shimmer-bg-travel" as string]: "600" }}>
   <div class="shimmer-bg size-10 rounded-full" />
   <div class="shimmer-bg h-4 w-full rounded" />
 </div>
@@ -133,17 +130,14 @@ Customize the base and highlight colors for skeleton shimmer.
 
 ```html
 <div
-  class="shimmer-bg shimmer-bg-base-blue-200 shimmer-bg-highlight-blue-100 h-4 w-48 rounded"
+  class="shimmer-bg shimmer-bg-base-blue-300 shimmer-bg-highlight-blue-100 h-4 w-48 rounded"
 />
 ```
 
 ### Skeleton Example
 
 ```tsx
-<div
-  class="flex gap-3"
-  style={{ ["--shimmer-bg-travel" as string]: "600" }}
->
+<div class="flex gap-3" style={{ ["--shimmer-bg-travel" as string]: "600" }}>
   <div class="shimmer-bg size-10 rounded-full" />
   <div class="flex-1 space-y-2">
     <div class="shimmer-bg h-4 w-24 rounded" />
@@ -153,9 +147,15 @@ Customize the base and highlight colors for skeleton shimmer.
 </div>
 ```
 
-### `--shimmer-bg-angle`
+### `shimmer-bg-angle-{degrees}`
 
-Shimmer angle in degrees. Default: `90` (horizontal). Set on container to apply to all children.
+Shimmer angle in degrees. Default: `90` (horizontal).
+
+```html
+<div class="shimmer-bg shimmer-bg-angle-45 h-4 w-48 rounded" />
+```
+
+Or set on container via CSS variable to apply to all children:
 
 ```tsx
 <div style={{ ["--shimmer-bg-angle" as string]: "45" }}>
@@ -163,20 +163,51 @@ Shimmer angle in degrees. Default: `90` (horizontal). Set on container to apply 
 </div>
 ```
 
-### `--shimmer-bg-y`
+### `shimmer-bg-width-{value}`
 
-Element's Y position relative to container top (in pixels). Used with angled shimmers to create a unified diagonal sweep effect. The animation delay is calculated automatically using `tan(90 - angle)`.
+Width of the shimmer highlight stripe in pixels. Default: `400`px.
+
+```html
+<div class="shimmer-bg shimmer-bg-width-200 h-4 w-48 rounded" />
+```
+
+### `--shimmer-bg-x` / `--shimmer-bg-y`
+
+Element's X and Y position relative to container (in pixels). Used with angled shimmers to create a unified diagonal sweep effect. The animation delay is calculated automatically.
+
+- `--shimmer-bg-x`: Horizontal offset from container left
+- `--shimmer-bg-y`: Vertical offset from container top (adjusted by `tan(90 - angle)`)
+
+> **Tip:** For larger elements like avatars, use center coordinates instead of top-left for better alignment with the diagonal sweep.
 
 ```tsx
 <div
   style={{
     ["--shimmer-bg-travel" as string]: "600",
-    ["--shimmer-bg-angle" as string]: "45",
+    ["--shimmer-bg-angle" as string]: "15",
   }}
 >
-  <div class="shimmer-bg h-4 w-24 rounded" style={{ ["--shimmer-bg-y" as string]: "0" }} />
-  <div class="shimmer-bg h-4 w-full rounded" style={{ ["--shimmer-bg-y" as string]: "24" }} />
-  <div class="shimmer-bg h-4 w-4/5 rounded" style={{ ["--shimmer-bg-y" as string]: "48" }} />
+  <div
+    class="shimmer-bg size-10 rounded-full"
+    style={{
+      ["--shimmer-bg-x" as string]: "20",
+      ["--shimmer-bg-y" as string]: "20",
+    }}
+  />
+  <div
+    class="shimmer-bg h-4 w-24 rounded"
+    style={{
+      ["--shimmer-bg-x" as string]: "52",
+      ["--shimmer-bg-y" as string]: "0",
+    }}
+  />
+  <div
+    class="shimmer-bg h-4 w-full rounded"
+    style={{
+      ["--shimmer-bg-x" as string]: "52",
+      ["--shimmer-bg-y" as string]: "24",
+    }}
+  />
 </div>
 ```
 

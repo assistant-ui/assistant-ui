@@ -62,7 +62,7 @@
 }
 
 @utility shimmer-bg {
-  --shimmer-bg-base: oklch(0.9 0 0);
+  --shimmer-bg-base: oklch(0.87 0 0);
   --shimmer-bg-highlight: oklch(1 0 0);
   position: relative;
   overflow: hidden;
@@ -89,15 +89,16 @@
       )
       infinite linear;
     animation-delay: calc(
-      var(--shimmer-bg-y, 0) *
-        tan(calc((90 - var(--shimmer-bg-angle, 90)) * 1deg)) /
+      (var(--shimmer-bg-y, 0) *
+        tan(calc((90 - var(--shimmer-bg-angle, 90)) * 1deg)) -
+        var(--shimmer-bg-x, 0)) /
         var(--shimmer-bg-speed, 500) * -1s
     );
   }
 
   @variant dark {
     --shimmer-bg-base: oklch(0.25 0 0);
-    --shimmer-bg-highlight: oklch(0.4 0 0);
+    --shimmer-bg-highlight: oklch(0.45 0 0);
   }
 }
 
@@ -106,11 +107,15 @@
 }
 
 @utility shimmer-bg-travel-* {
-  --shimmer-bg-travel: --value(integer);
+  --shimmer-bg-travel: --value(number);
+}
+
+@utility shimmer-bg-width-* {
+  --shimmer-bg-width: --value(number);
 }
 
 @utility shimmer-bg-speed-* {
-  --shimmer-bg-speed: --value(integer);
+  --shimmer-bg-speed: --value(number);
 }
 
 @utility shimmer-bg-base-* {
