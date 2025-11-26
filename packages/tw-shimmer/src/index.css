@@ -24,11 +24,21 @@
   --shimmer-color: black;
   --shimmer-spread: 6ch;
   --shimmer-angle: 90deg;
+  /* Eased gradient: 11 stops following ease-in-out curve for smooth falloff */
+  --shimmer-highlight: color-mix(in oklch, currentColor, var(--shimmer-color) 90%);
   background:
     linear-gradient(
         var(--shimmer-angle),
         transparent calc(50% - var(--shimmer-spread) * 0.5),
-        color-mix(in oklch, currentColor, var(--shimmer-color) 90%) 50%,
+        color-mix(in oklch, var(--shimmer-highlight), transparent 94%) calc(50% - var(--shimmer-spread) * 0.4),
+        color-mix(in oklch, var(--shimmer-highlight), transparent 80%) calc(50% - var(--shimmer-spread) * 0.3),
+        color-mix(in oklch, var(--shimmer-highlight), transparent 50%) calc(50% - var(--shimmer-spread) * 0.2),
+        color-mix(in oklch, var(--shimmer-highlight), transparent 20%) calc(50% - var(--shimmer-spread) * 0.1),
+        var(--shimmer-highlight) 50%,
+        color-mix(in oklch, var(--shimmer-highlight), transparent 20%) calc(50% + var(--shimmer-spread) * 0.1),
+        color-mix(in oklch, var(--shimmer-highlight), transparent 50%) calc(50% + var(--shimmer-spread) * 0.2),
+        color-mix(in oklch, var(--shimmer-highlight), transparent 80%) calc(50% + var(--shimmer-spread) * 0.3),
+        color-mix(in oklch, var(--shimmer-highlight), transparent 94%) calc(50% + var(--shimmer-spread) * 0.4),
         transparent calc(50% + var(--shimmer-spread) * 0.5)
       )
       0 0 / 200% 100% no-repeat,
@@ -75,10 +85,23 @@
     bottom: -100%;
     left: 0;
     width: calc(var(--shimmer-bg-width, 400) * 1px);
+    /* Eased gradient: 15 stops with gentle falloff for even distribution */
     background: linear-gradient(
       90deg,
       transparent 0%,
+      color-mix(in oklch, var(--shimmer-bg-highlight), transparent 96%) 5%,
+      color-mix(in oklch, var(--shimmer-bg-highlight), transparent 88%) 10%,
+      color-mix(in oklch, var(--shimmer-bg-highlight), transparent 70%) 15%,
+      color-mix(in oklch, var(--shimmer-bg-highlight), transparent 50%) 20%,
+      color-mix(in oklch, var(--shimmer-bg-highlight), transparent 25%) 30%,
+      color-mix(in oklch, var(--shimmer-bg-highlight), transparent 10%) 40%,
       var(--shimmer-bg-highlight) 50%,
+      color-mix(in oklch, var(--shimmer-bg-highlight), transparent 10%) 60%,
+      color-mix(in oklch, var(--shimmer-bg-highlight), transparent 25%) 70%,
+      color-mix(in oklch, var(--shimmer-bg-highlight), transparent 50%) 80%,
+      color-mix(in oklch, var(--shimmer-bg-highlight), transparent 70%) 85%,
+      color-mix(in oklch, var(--shimmer-bg-highlight), transparent 88%) 90%,
+      color-mix(in oklch, var(--shimmer-bg-highlight), transparent 96%) 95%,
       transparent 100%
     );
     transform: skewX(calc((90 - var(--shimmer-bg-angle, 90)) * 1deg));
