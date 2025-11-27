@@ -3,7 +3,6 @@ import {
   tapMemo,
   tapEffect,
   tapInlineResource,
-  type tapRef,
 } from "@assistant-ui/tap";
 import {
   ComposerRuntime,
@@ -21,6 +20,8 @@ import {
 import { tapLookupResources } from "../../client/util-hooks/tapLookupResources";
 import { AttachmentRuntimeClient } from "./AttachmentRuntimeClient";
 import { tapSubscribable } from "../util-hooks/tapSubscribable";
+
+type RefObject<T> = { current: T };
 
 const ComposerAttachmentClientByIndex = resource(
   ({ runtime, index }: { runtime: ComposerRuntime; index: number }) => {
@@ -43,8 +44,8 @@ export const ComposerClient = resource(
     messageIdRef,
     runtime,
   }: {
-    threadIdRef: tapRef.RefObject<string>;
-    messageIdRef?: tapRef.RefObject<string>;
+    threadIdRef: RefObject<string>;
+    messageIdRef?: RefObject<string>;
     runtime: ComposerRuntime;
   }) => {
     const runtimeState = tapSubscribable(runtime);

@@ -10,12 +10,8 @@
     "cssVariables": true,
     "prefix": ""
   },
-  "iconLibrary": "radix",
   "aliases": {
     "components": "@/components",
     "utils": "@/lib/utils"
-  },
-  "registries": {
-    "@assistant-ui": "https://r.assistant-ui.com/{name}.json"
   }
 }

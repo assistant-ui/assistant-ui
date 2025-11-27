@@ -14,6 +14,8 @@ export namespace ComposerPrimitiveAttachments {
           Image?: ComponentType | undefined;
           Document?: ComponentType | undefined;
           File?: ComponentType | undefined;
+          Video?: ComponentType | undefined;
+          Audio?: ComponentType | undefined;
           Attachment?: ComponentType | undefined;
         }
       | undefined;
@@ -32,6 +34,10 @@ const getComponent = (
       return components?.Document ?? components?.Attachment;
     case "file":
       return components?.File ?? components?.Attachment;
+    case "video":
+      return components?.Video ?? components?.File ?? components?.Attachment;
+    case "audio":
+      return components?.Audio ?? components?.File ?? components?.Attachment;
     default:
       const _exhaustiveCheck: never = type;
       throw new Error(`Unknown attachment type: ${_exhaustiveCheck}`);
