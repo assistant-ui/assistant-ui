@@ -360,5 +360,6 @@ export const useLangGraphRuntime = ({
       return useLangGraphRuntimeImpl(options);
     },
     adapter: cloudAdapter,
+    allowNesting: true,
   });
 };
