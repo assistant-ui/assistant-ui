@@ -10,7 +10,7 @@
 
   @keyframes shimmer-bg {
     0% {
-      translate: -100% 0;
+      translate: calc(-1 * var(--shimmer-bg-width, 400) * 1px) 0;
     }
     100% {
       translate: calc(var(--shimmer-bg-travel, 600) * 1px) 0;
@@ -131,9 +131,11 @@
       infinite linear;
     /* Delay syncs animation across elements: y adjusted by angle slope, minus x offset */
     animation-delay: calc(
-      (var(--shimmer-bg-y, 0) *
-        tan(calc((90 - var(--shimmer-bg-angle, 90)) * 1deg)) -
-        var(--shimmer-bg-x, 0)) /
+      (
+          var(--shimmer-bg-y, 0) *
+            tan(calc((90 - var(--shimmer-bg-angle, 90)) * 1deg)) -
+            var(--shimmer-bg-x, 0)
+        ) /
         var(--shimmer-bg-speed, 500) * -1s
     );
   }
