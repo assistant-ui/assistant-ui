@@ -24,7 +24,6 @@
 
 @utility shimmer {
   --shimmer-speed: 100;
-  --shimmer-width: 200;
   --shimmer-color: oklch(0 0 0 / 0.8);
   --shimmer-spread: 6ch;
   --shimmer-angle: 90deg;
@@ -67,7 +66,7 @@
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   animation: shimmer
-    calc((var(--shimmer-width) * 2) / var(--shimmer-speed) * 1s) infinite linear;
+    calc((var(--shimmer-width, 200) * 2) / var(--shimmer-speed) * 1s) infinite linear;
   /* Delay syncs animation across elements: y adjusted by angle slope, minus x offset */
   animation-delay: calc(
     (

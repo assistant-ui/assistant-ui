@@ -65,6 +65,11 @@ Animation speed in pixels per second. Default: `100`px/s for text, `500`px/s for
 
 Container width in pixels for animation timing. Default: `200`px for text, `600`px for bg.
 
+`--shimmer-width` is inheritable:
+
+- If you set `--shimmer-width` (or use `shimmer-width-{value}`) on a parent container, both `shimmer` and `shimmer-bg` children will use that value unless they override it.
+- If no value is set anywhere, text shimmer falls back to `200` and background shimmer falls back to `600`.
+
 Set this to match your container width for consistent animation speed across different element sizes.
 
 ```tsx
@@ -125,7 +130,7 @@ Background shimmer for skeleton loaders and non-text elements. Use standard Tail
 
 ### Skeleton Example
 
-Set `--shimmer-width` on the container to sync all children:
+Set `--shimmer-width` on the container to sync all children. Any `shimmer-bg` or `shimmer` elements inside will inherit this width unless they define their own `shimmer-width-{value}`:
 
 ```tsx
 <div class="flex gap-3" style={{ ["--shimmer-width" as string]: "600" }}>
