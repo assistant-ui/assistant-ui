@@ -13,36 +13,15 @@
     "strictNullChecks": true,
     "jsx": "preserve",
     "paths": {
-      "@/*": [
-        "./*"
-      ],
-      "@assistant-ui/react-ag-ui": [
-        "../../packages/react-ag-ui/src"
-      ],
-      "@assistant-ui/*": [
-        "../../packages/*/src"
-      ],
-      "@assistant-ui/react/*": [
-        "../../packages/react/src/*"
-      ],
-      "@assistant-ui/tap/*": [
-        "../../packages/tap/src/*"
-      ],
-      "assistant-stream": [
-        "../../packages/assistant-stream/src"
-      ],
-      "assistant-stream/*": [
-        "../../packages/assistant-stream/src/*"
-      ]
+      "@/*": ["./*"],
+      "@assistant-ui/react-ag-ui": ["../../packages/react-ag-ui/src"],
+      "@assistant-ui/*": ["../../packages/*/src"],
+      "@assistant-ui/react/*": ["../../packages/react/src/*"],
+      "@assistant-ui/tap/*": ["../../packages/tap/src/*"],
+      "assistant-stream": ["../../packages/assistant-stream/src"],
+      "assistant-stream/*": ["../../packages/assistant-stream/src/*"]
     }
   },
-  "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    ".next/types/**/*.ts"
-  ],
-  "exclude": [
-    "node_modules"
-  ]
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
 }

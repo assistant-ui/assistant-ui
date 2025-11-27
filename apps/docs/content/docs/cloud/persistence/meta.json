@@ -1,7 +1,4 @@
 {
   "title": "Chat History",
-  "pages": [
-    "ai-sdk",
-    "langgraph"
-  ]
+  "pages": ["ai-sdk", "langgraph"]
 }

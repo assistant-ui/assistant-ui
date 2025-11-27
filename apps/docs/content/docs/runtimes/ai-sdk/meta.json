@@ -1,7 +1,4 @@
 {
   "title": "AI SDK by Vercel",
-  "pages": [
-    "use-chat",
-    "v4-legacy"
-  ]
+  "pages": ["use-chat", "v4-legacy"]
 }

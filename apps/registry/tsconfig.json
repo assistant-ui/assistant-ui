@@ -2,32 +2,14 @@
   "extends": "@assistant-ui/x-buildutils/ts/base",
   "compilerOptions": {
     "paths": {
-      "@/*": [
-        "./*"
-      ],
-      "@assistant-ui/*": [
-        "../../packages/*/src"
-      ],
-      "@assistant-ui/react/*": [
-        "../../packages/react/src/*"
-      ],
-      "@assistant-ui/tap/*": [
-        "../../packages/tap/src/*"
-      ],
-      "assistant-stream": [
-        "../../packages/assistant-stream/src"
-      ],
-      "assistant-stream/*": [
-        "../../packages/assistant-stream/src/*"
-      ]
+      "@/*": ["./*"],
+      "@assistant-ui/*": ["../../packages/*/src"],
+      "@assistant-ui/react/*": ["../../packages/react/src/*"],
+      "@assistant-ui/tap/*": ["../../packages/tap/src/*"],
+      "assistant-stream": ["../../packages/assistant-stream/src"],
+      "assistant-stream/*": ["../../packages/assistant-stream/src/*"]
     }
   },
-  "include": [
-    "**/*.ts",
-    "**/*.tsx"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist"
-  ]
+  "include": ["**/*.ts", "**/*.tsx"],
+  "exclude": ["node_modules", "dist"]
 }

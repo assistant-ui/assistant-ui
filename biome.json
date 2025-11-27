@@ -79,18 +79,8 @@
           "fix": "none",
           "level": "off",
           "options": {
-            "attributes": [
-              "className"
-            ],
-            "functions": [
-              "clsx",
-              "cva",
-              "tw",
-              "twMerge",
-              "cn",
-              "twJoin",
-              "tv"
-            ]
+            "attributes": ["className"],
+            "functions": ["clsx", "cva", "tw", "twMerge", "cn", "twJoin", "tv"]
           }
         }
       }
@@ -116,8 +106,7 @@
   "json": {
     "formatter": {
       "enabled": true,
-      "trailingCommas": "none",
-      "lineWidth": 1
+      "trailingCommas": "none"
     },
     "parser": {
       "allowComments": true,
