@@ -16,6 +16,8 @@ Most shimmer effects use simple linear gradients that create visible "banding" -
 
 This produces gradual transitions at both the center (peak brightness) and edges (fade to transparent), eliminating the banding that plagues typical shimmer implementations. The result is a shimmer that feels organic and polished.
 
+Any performance impact is negligible given the gradient is rendered and accelerated as a texture on the GPU.
+
 ## Installation
 
 ```bash
@@ -66,9 +68,7 @@ Container width in pixels for animation timing. Default: `200`px for text, `600`
 Set this to match your container width for consistent animation speed across different element sizes.
 
 ```tsx
-<span class="shimmer shimmer-width-300 text-foreground/40">
-  Wide container
-</span>
+<span class="shimmer shimmer-width-300 text-foreground/40">Wide container</span>
 ```
 
 Or set via CSS variable at runtime:
@@ -81,7 +81,7 @@ Or set via CSS variable at runtime:
 
 ### `shimmer-color-{color}`
 
-Shimmer highlight color. Default: `currentColor`.
+Shimmer highlight color. Default: `black` for text (white in dark mode), `white` for bg.
 
 Uses Tailwind color palette.
 
@@ -138,20 +138,12 @@ Set `--shimmer-width` on the container to sync all children:
 </div>
 ```
 
-### `shimmer-highlight-{color}`
+### `shimmer-color-{color}` (with shimmer-bg)
 
-Customize the shimmer highlight color. Use with standard `bg-*` for base color.
-
-```html
-<div class="shimmer-bg bg-blue-300 shimmer-highlight-blue-100 h-4 w-48 rounded" />
-```
-
-### `shimmer-bg-spread-{value}`
-
-Width of the shimmer highlight stripe in pixels. Default: `400`px.
+The same `shimmer-color-*` utility works for both text and bg shimmer:
 
 ```html
-<div class="shimmer-bg bg-muted shimmer-bg-spread-200 h-4 w-48 rounded" />
+<div class="shimmer-bg shimmer-color-blue-100 h-4 w-48 rounded bg-blue-300" />
 ```
 
 ### Angled Skeleton Shimmer
@@ -159,7 +151,10 @@ Width of the shimmer highlight stripe in pixels. Default: `400`px.
 Use `shimmer-angle-{degrees}` (shared with text shimmer) for diagonal sweeps:
 
 ```tsx
-<div class="flex gap-3 shimmer-angle-15" style={{ ["--shimmer-width" as string]: "600" }}>
+<div
+  class="shimmer-angle-15 flex gap-3"
+  style={{ ["--shimmer-width" as string]: "600" }}
+>
   <div class="shimmer-bg bg-muted size-10 rounded-full" />
   <div class="shimmer-bg bg-muted h-4 w-full rounded" />
 </div>
@@ -175,10 +170,7 @@ Element's X and Y position relative to container (in pixels). Used with angled s
 > **Tip:** For larger elements like avatars, use center coordinates instead of top-left for better alignment with the diagonal sweep.
 
 ```tsx
-<div
-  class="shimmer-angle-15"
-  style={{ ["--shimmer-width" as string]: "600" }}
->
+<div class="shimmer-angle-15" style={{ ["--shimmer-width" as string]: "600" }}>
   <div
     class="shimmer-bg bg-muted size-10 rounded-full"
     style={{

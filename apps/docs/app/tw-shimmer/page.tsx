@@ -373,7 +373,7 @@ export default function TwShimmerPage() {
               />
             </BoxCode>
             <BoxContent>
-              <div className="shimmer-bg bg-muted h-4 w-48 rounded" />
+              <div className="shimmer-bg h-4 w-48 rounded bg-muted" />
             </BoxContent>
           </Box>
 
@@ -405,11 +405,11 @@ export default function TwShimmerPage() {
                 className="flex gap-3"
                 style={{ ["--shimmer-width" as string]: "600" }}
               >
-                <div className="shimmer-bg bg-muted size-10 shrink-0 rounded-full" />
+                <div className="shimmer-bg size-10 shrink-0 rounded-full bg-muted" />
                 <div className="flex-1 space-y-2">
-                  <div className="shimmer-bg bg-muted h-4 w-1/4 rounded" />
-                  <div className="shimmer-bg bg-muted h-4 w-full rounded" />
-                  <div className="shimmer-bg bg-muted h-4 w-4/5 rounded" />
+                  <div className="shimmer-bg h-4 w-1/4 rounded bg-muted" />
+                  <div className="shimmer-bg h-4 w-full rounded bg-muted" />
+                  <div className="shimmer-bg h-4 w-4/5 rounded bg-muted" />
                 </div>
               </div>
             </BoxContent>
@@ -417,14 +417,14 @@ export default function TwShimmerPage() {
 
           <Box>
             <BoxTitle
-              title="bg-{color} + shimmer-highlight-{color}"
-              description="Use standard Tailwind bg-* for base color. Customize highlight with shimmer-highlight-*."
+              title="bg-{color} + shimmer-color-{color}"
+              description="Use standard Tailwind bg-* for base color. Customize highlight with shimmer-color-* (shared with text shimmer)."
             />
             <BoxCode>
               <CodeBlock
                 language="html"
-                code={`<div class="shimmer-bg bg-blue-300 shimmer-highlight-blue-100 dark:bg-blue-800 dark:shimmer-highlight-blue-500 h-4 w-48 rounded" />`}
-                highlight="bg-blue-300"
+                code={`<div class="shimmer-bg bg-blue-300 shimmer-color-blue-100 dark:bg-blue-800 dark:shimmer-color-blue-500 h-4 w-48 rounded" />`}
+                highlight="shimmer-color-blue-100"
                 highlightMode="text"
               />
             </BoxCode>
@@ -433,9 +433,9 @@ export default function TwShimmerPage() {
                 className="space-y-3"
                 style={{ ["--shimmer-width" as string]: "192" }}
               >
-                <div className="shimmer-bg h-4 w-48 rounded bg-blue-300 shimmer-highlight-blue-100 dark:bg-blue-800 dark:shimmer-highlight-blue-500" />
-                <div className="shimmer-bg h-4 w-48 rounded bg-purple-300 shimmer-highlight-purple-100 dark:bg-purple-800 dark:shimmer-highlight-purple-500" />
-                <div className="shimmer-bg h-4 w-48 rounded bg-green-300 shimmer-highlight-green-100 dark:bg-green-800 dark:shimmer-highlight-green-500" />
+                <div className="shimmer-bg h-4 w-48 rounded bg-blue-300 shimmer-color-blue-100 dark:bg-blue-800 dark:shimmer-color-blue-500" />
+                <div className="shimmer-bg h-4 w-48 rounded bg-purple-300 shimmer-color-purple-100 dark:bg-purple-800 dark:shimmer-color-purple-500" />
+                <div className="shimmer-bg h-4 w-48 rounded bg-green-300 shimmer-color-green-100 dark:bg-green-800 dark:shimmer-color-green-500" />
               </div>
             </BoxContent>
           </Box>
@@ -468,11 +468,11 @@ export default function TwShimmerPage() {
                 className="flex gap-3 shimmer-angle-15"
                 style={{ ["--shimmer-width" as string]: "600" }}
               >
-                <div className="shimmer-bg bg-muted size-10 shrink-0 rounded-full" />
+                <div className="shimmer-bg size-10 shrink-0 rounded-full bg-muted" />
                 <div className="flex-1 space-y-2">
-                  <div className="shimmer-bg bg-muted h-4 w-1/4 rounded" />
-                  <div className="shimmer-bg bg-muted h-4 w-full rounded" />
-                  <div className="shimmer-bg bg-muted h-4 w-4/5 rounded" />
+                  <div className="shimmer-bg h-4 w-1/4 rounded bg-muted" />
+                  <div className="shimmer-bg h-4 w-full rounded bg-muted" />
+                  <div className="shimmer-bg h-4 w-4/5 rounded bg-muted" />
                 </div>
               </div>
               <p className="mt-4 text-sm text-muted-foreground">
@@ -556,7 +556,7 @@ export default function TwShimmerPage() {
                 style={{ ["--shimmer-width" as string]: "720" }}
               >
                 <div
-                  className="shimmer-bg bg-muted size-10 shrink-0 rounded-full"
+                  className="shimmer-bg size-10 shrink-0 rounded-full bg-muted"
                   style={
                     angledSynced
                       ? {
@@ -568,7 +568,7 @@ export default function TwShimmerPage() {
                 />
                 <div className="flex-1 space-y-2">
                   <div
-                    className="shimmer-bg bg-muted h-4 w-1/4 rounded"
+                    className="shimmer-bg h-4 w-1/4 rounded bg-muted"
                     style={
                       angledSynced
                         ? {
@@ -579,7 +579,7 @@ export default function TwShimmerPage() {
                     }
                   />
                   <div
-                    className="shimmer-bg bg-muted h-4 w-full rounded"
+                    className="shimmer-bg h-4 w-full rounded bg-muted"
                     style={
                       angledSynced
                         ? {
@@ -590,7 +590,7 @@ export default function TwShimmerPage() {
                     }
                   />
                   <div
-                    className="shimmer-bg bg-muted h-4 w-4/5 rounded"
+                    className="shimmer-bg h-4 w-4/5 rounded bg-muted"
                     style={
                       angledSynced
                         ? {
