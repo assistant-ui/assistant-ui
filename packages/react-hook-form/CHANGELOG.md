@@ -1,5 +1,13 @@
 # @assistant-ui/react-hook-form
 
+## 0.11.8
+
+### Patch Changes
+
+- ec662cd: chore: update dependencies
+- Updated dependencies [ec662cd]
+  - @assistant-ui/react@0.11.45
+
 ## 0.11.7
 
 ### Patch Changes

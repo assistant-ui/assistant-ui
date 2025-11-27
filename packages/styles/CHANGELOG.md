@@ -1,5 +1,11 @@
 # @assistant-ui/styles
 
+## 0.2.10
+
+### Patch Changes
+
+- ec662cd: chore: update dependencies
+
 ## 0.2.9
 
 ### Patch Changes
