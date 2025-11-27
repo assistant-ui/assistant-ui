@@ -1,7 +1,7 @@
 {
   "name": "@assistant-ui/store",
   "description": "Tap-based state management for @assistant-ui",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -32,7 +32,7 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/node": "^24.10.1",
-    "@types/react": "19.2.5",
+    "@types/react": "19.2.7",
     "tsx": "^4.20.6"
   },
   "publishConfig": {

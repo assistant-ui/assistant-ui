@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-ai-sdk",
-  "version": "1.1.13",
+  "version": "1.1.14",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -23,16 +23,16 @@
   },
   "dependencies": {
     "@ai-sdk/provider": "^2.0.0",
-    "@ai-sdk/react": "^2.0.93",
-    "ai": "^5.0.93",
+    "@ai-sdk/react": "^2.0.102",
     "@radix-ui/react-use-callback-ref": "^1.1.1",
-    "assistant-stream": "^0.2.41",
     "@types/json-schema": "^7.0.15",
-    "zod": "^4.1.12",
+    "ai": "^5.0.102",
+    "assistant-stream": "^0.2.42",
+    "zod": "^4.1.13",
     "zustand": "^5.0.8"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.11.44",
+    "@assistant-ui/react": "^0.11.45",
     "@types/react": "*",
     "assistant-cloud": "*",
     "react": "^18 || ^19 || ^19.0.0-rc"
@@ -49,9 +49,9 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/node": "^24.10.1",
-    "@types/react": "^19.2.5",
+    "@types/react": "^19.2.7",
     "eslint": "^9",
-    "eslint-config-next": "16.0.3",
+    "eslint-config-next": "16.0.4",
     "react": "19.2.0",
     "tsx": "^4.20.6"
   },
@@ -61,7 +61,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/assistant-ui/assistant-ui/tree/main/packages/react-ai-sdk-v5"
+    "url": "https://github.com/assistant-ui/assistant-ui/tree/main/packages/react-ai-sdk"
   },
   "bugs": {
     "url": "https://github.com/assistant-ui/assistant-ui/issues"

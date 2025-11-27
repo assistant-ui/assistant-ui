@@ -1,5 +1,11 @@
 # tw-shimmer
 
+## 0.2.2
+
+### Patch Changes
+
+- ec662cd: chore: update dependencies
+
 ## 0.2.1
 
 ### Patch Changes

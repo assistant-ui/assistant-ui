@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.2.42
+
+### Patch Changes
+
+- ec662cd: chore: update dependencies
+
 ## 0.2.41
 
 ### Patch Changes
