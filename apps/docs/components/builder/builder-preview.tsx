@@ -379,8 +379,8 @@ const AssistantMessage: FC<AssistantMessageProps> = ({
                 <span className="font-medium">Thinking...</span>
               </summary>
               <div className="border-t border-dashed border-muted-foreground/30 px-3 py-2 text-sm text-muted-foreground italic">
-                Let me analyze this step by step. First, I'll consider the key
-                points of your question...
+                Let me analyze this step by step. First, I&apos;ll consider the
+                key points of your question...
               </div>
             </details>
           </div>
@@ -479,16 +479,13 @@ const AssistantActionBar: FC<AssistantActionBarProps> = ({ config }) => {
       )}
       {actionBar.feedback && (
         <>
-          <ActionBarPrimitive.FeedbackPositive asChild>
-            <TooltipIconButton tooltip="Good response">
-              <ThumbsUpIcon />
-            </TooltipIconButton>
-          </ActionBarPrimitive.FeedbackPositive>
-          <ActionBarPrimitive.FeedbackNegative asChild>
-            <TooltipIconButton tooltip="Bad response">
-              <ThumbsDownIcon />
-            </TooltipIconButton>
-          </ActionBarPrimitive.FeedbackNegative>
+          {/* Using regular buttons for preview - actual implementation uses ActionBarPrimitive.FeedbackPositive/Negative */}
+          <TooltipIconButton tooltip="Good response">
+            <ThumbsUpIcon />
+          </TooltipIconButton>
+          <TooltipIconButton tooltip="Bad response">
+            <ThumbsDownIcon />
+          </TooltipIconButton>
         </>
       )}
     </ActionBarPrimitive.Root>

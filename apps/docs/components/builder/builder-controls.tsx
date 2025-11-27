@@ -1,6 +1,5 @@
 "use client";
 
-import { useRef } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -20,8 +19,6 @@ import {
   Moon,
   Sun,
   RotateCcw,
-  Download,
-  Upload,
 } from "lucide-react";
 
 import type {
@@ -48,8 +45,6 @@ interface BuilderControlsProps {
 }
 
 export function BuilderControls({ config, onChange }: BuilderControlsProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   const updateComponents = (updates: Partial<BuilderConfig["components"]>) => {
     onChange({
       ...config,
@@ -80,42 +75,6 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
     onChange(DEFAULT_CONFIG);
   };
 
-  const handleExport = () => {
-    const dataStr = JSON.stringify(config, null, 2);
-    const blob = new Blob([dataStr], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "assistant-ui-config.json";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const importedConfig = JSON.parse(
-          e.target?.result as string,
-        ) as BuilderConfig;
-        // Validate the imported config has the expected structure
-        if (importedConfig.components && importedConfig.styles) {
-          onChange(importedConfig);
-        }
-      } catch {
-        console.error("Failed to parse config file");
-      }
-    };
-    reader.readAsText(file);
-    // Reset the input so the same file can be imported again
-    event.target.value = "";
-  };
-
   return (
     <div className="flex h-full flex-col">
       {/* Header Actions */}
@@ -123,42 +82,15 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
         <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
           Config
         </span>
-        <div className="flex items-center gap-1">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".json"
-            onChange={handleImport}
-            className="hidden"
-          />
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-7"
-            onClick={() => fileInputRef.current?.click()}
-            title="Import configuration"
-          >
-            <Upload className="size-3.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-7"
-            onClick={handleExport}
-            title="Export configuration"
-          >
-            <Download className="size-3.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-7"
-            onClick={handleReset}
-            title="Reset to default"
-          >
-            <RotateCcw className="size-3.5" />
-          </Button>
-        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-7"
+          onClick={handleReset}
+          title="Reset to default"
+        >
+          <RotateCcw className="size-3.5" />
+        </Button>
       </div>
 
       {/* Presets */}

@@ -12,19 +12,26 @@ interface BuilderCodeOutputProps {
 }
 
 export function BuilderCodeOutput({ config }: BuilderCodeOutputProps) {
-  const [copiedTab, setCopiedTab] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<string>("code");
+  const [copied, setCopied] = useState(false);
 
   const componentCode = generateComponentCode(config);
   const cliCommand = generateCliCommand(config);
 
-  const handleCopy = async (text: string, tab: string) => {
+  const handleCopy = async () => {
+    const text = activeTab === "code" ? componentCode : cliCommand;
     await navigator.clipboard.writeText(text);
-    setCopiedTab(tab);
-    setTimeout(() => setCopiedTab(null), 2000);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
-    <Tabs defaultValue="code" className="flex h-full flex-col">
+    <Tabs
+      defaultValue="code"
+      value={activeTab}
+      onValueChange={setActiveTab}
+      className="flex h-full flex-col"
+    >
       <div className="flex items-center justify-between border-b px-4 py-2">
         <TabsList className="h-8">
           <TabsTrigger value="code" className="gap-1.5 text-xs">
@@ -36,63 +43,37 @@ export function BuilderCodeOutput({ config }: BuilderCodeOutputProps) {
             CLI
           </TabsTrigger>
         </TabsList>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 gap-1.5 text-xs"
+          onClick={handleCopy}
+        >
+          {copied ? (
+            <>
+              <CheckIcon className="size-3.5" />
+              Copied!
+            </>
+          ) : (
+            <>
+              <CopyIcon className="size-3.5" />
+              Copy
+            </>
+          )}
+        </Button>
       </div>
 
       <TabsContent value="code" className="mt-0 flex-1 overflow-hidden">
-        <div className="relative h-full">
-          <div className="absolute top-2 right-2 z-10">
-            <Button
-              variant="secondary"
-              size="sm"
-              className="gap-1.5 shadow-sm"
-              onClick={() => handleCopy(componentCode, "code")}
-            >
-              {copiedTab === "code" ? (
-                <>
-                  <CheckIcon className="size-3.5" />
-                  Copied!
-                </>
-              ) : (
-                <>
-                  <CopyIcon className="size-3.5" />
-                  Copy
-                </>
-              )}
-            </Button>
-          </div>
-          <pre className="h-full overflow-auto bg-muted/50 p-4 pt-12 font-mono text-xs leading-relaxed">
-            <code>{componentCode}</code>
-          </pre>
-        </div>
+        <pre className="h-full overflow-auto bg-muted/50 p-4 font-mono text-xs leading-relaxed">
+          <code>{componentCode}</code>
+        </pre>
       </TabsContent>
 
       <TabsContent value="cli" className="mt-0 flex-1 overflow-hidden">
         <div className="flex h-full flex-col">
-          <div className="relative flex-1">
-            <div className="absolute top-2 right-2 z-10">
-              <Button
-                variant="secondary"
-                size="sm"
-                className="gap-1.5 shadow-sm"
-                onClick={() => handleCopy(cliCommand, "cli")}
-              >
-                {copiedTab === "cli" ? (
-                  <>
-                    <CheckIcon className="size-3.5" />
-                    Copied!
-                  </>
-                ) : (
-                  <>
-                    <CopyIcon className="size-3.5" />
-                    Copy
-                  </>
-                )}
-              </Button>
-            </div>
-            <pre className="h-full overflow-auto bg-muted/50 p-4 pt-12 font-mono text-xs leading-relaxed">
-              <code>{cliCommand}</code>
-            </pre>
-          </div>
+          <pre className="flex-1 overflow-auto bg-muted/50 p-4 font-mono text-xs leading-relaxed">
+            <code>{cliCommand}</code>
+          </pre>
           <div className="border-t bg-muted/30 p-4">
             <p className="text-xs text-muted-foreground">
               Run these commands to add the configured thread component to your
@@ -619,7 +600,7 @@ ${addCommand}
 # Step 3: Copy the generated code above and paste it into your thread.tsx file
 # The code is customized based on your playground configuration
 
-${featureNotes.length > 0 ? featureNotes.join("\n") + "\n" : ""}
+${featureNotes.length > 0 ? `${featureNotes.join("\n")}\n` : ""}
 # Configuration Summary:
 # - Theme: ${config.styles.theme}
 # - Accent Color: ${config.styles.accentColor}
