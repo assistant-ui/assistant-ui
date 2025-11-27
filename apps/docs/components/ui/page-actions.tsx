@@ -220,7 +220,7 @@ export const CopyMarkdownButton = memo(function CopyMarkdownButton({
         aria-live="polite"
       >
         {checked ? (
-          <Check className="size-3 animate-in fade-in-0" />
+          <Check className="fade-in-0 size-3 animate-in" />
         ) : (
           <Copy className="size-3" />
         )}

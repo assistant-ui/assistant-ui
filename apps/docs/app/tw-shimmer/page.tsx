@@ -57,12 +57,12 @@ export default function TwShimmerPage() {
 
         <h1
           ref={autoWidthRef}
-          className="shimmer text-6xl font-bold tracking-tight text-foreground/40 shimmer-speed-150 lg:text-7xl"
+          className="shimmer shimmer-speed-150 font-bold text-6xl text-foreground/40 tracking-tight lg:text-7xl"
         >
           tw-shimmer
         </h1>
 
-        <p className="max-w-[600px] text-lg text-balance text-muted-foreground">
+        <p className="max-w-[600px] text-balance text-lg text-muted-foreground">
           Zero-dependency CSS-only shimmer effect. Fully customizable,
           performant, and easy to use.
         </p>
@@ -70,7 +70,7 @@ export default function TwShimmerPage() {
 
       <div id="installation" className="space-y-8">
         <div className="text-center">
-          <h2 className="text-3xl font-bold tracking-tight">Installation</h2>
+          <h2 className="font-bold text-3xl tracking-tight">Installation</h2>
         </div>
 
         <div className="mx-auto max-w-3xl space-y-6">
@@ -110,11 +110,11 @@ export default function TwShimmerPage() {
 
       <div className="space-y-8">
         <div className="text-center">
-          <h2 className="text-3xl font-bold tracking-tight">Usage</h2>
+          <h2 className="font-bold text-3xl tracking-tight">Usage</h2>
         </div>
 
         <div className="mx-auto max-w-3xl space-y-6">
-          <div className="border border-dashed border-blue-500/20 bg-blue-500/5 p-4 text-sm">
+          <div className="border border-blue-500/20 border-dashed bg-blue-500/5 p-4 text-sm">
             <p className="mb-1 font-semibold">💡 Important</p>
             <p className="text-muted-foreground">
               The shimmer effect uses{" "}
@@ -141,7 +141,7 @@ export default function TwShimmerPage() {
             <BoxContent>
               <span
                 ref={autoWidthRef}
-                className="shimmer text-lg font-semibold text-foreground/40"
+                className="shimmer font-semibold text-foreground/40 text-lg"
               >
                 Shimmer Effect
               </span>
@@ -164,7 +164,7 @@ export default function TwShimmerPage() {
             <BoxContent>
               <span
                 ref={autoWidthRef}
-                className="shimmer text-lg font-semibold text-foreground/40 shimmer-speed-200"
+                className="shimmer shimmer-speed-200 font-semibold text-foreground/40 text-lg"
               >
                 Fast Shimmer
               </span>
@@ -190,7 +190,7 @@ export default function TwShimmerPage() {
               />
             </BoxCode>
             <BoxContent>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-muted-foreground text-sm">
                 Without this variable, animation speed varies by element width.
                 <br />
                 Use JS to set element width for consistent scroll speed.
@@ -199,35 +199,35 @@ export default function TwShimmerPage() {
             <BoxContent>
               <div className="grid gap-8 md:grid-cols-2">
                 <div>
-                  <p className="mb-3 text-xs font-semibold tracking-wide text-muted-foreground">
+                  <p className="mb-3 font-semibold text-muted-foreground text-xs tracking-wide">
                     Set --shimmer-width-x for consistent speed:
                   </p>
                   <div className="space-y-2">
                     <span
                       ref={autoWidthRef}
-                      className="shimmer text-sm font-semibold text-foreground/40"
+                      className="shimmer font-semibold text-foreground/40 text-sm"
                     >
                       A short line
                     </span>
                     <br />
                     <span
                       ref={autoWidthRef}
-                      className="shimmer text-sm font-semibold text-foreground/40"
+                      className="shimmer font-semibold text-foreground/40 text-sm"
                     >
                       An example of a longer line but same speed
                     </span>
                   </div>
                 </div>
                 <div>
-                  <p className="mb-3 text-xs font-semibold tracking-wide text-muted-foreground">
+                  <p className="mb-3 font-semibold text-muted-foreground text-xs tracking-wide">
                     Default --shimmer-width-x:
                   </p>
                   <div className="space-y-2">
-                    <span className="shimmer text-sm font-semibold text-foreground/40">
+                    <span className="shimmer font-semibold text-foreground/40 text-sm">
                       A short line
                     </span>
                     <br />
-                    <span className="shimmer text-sm font-semibold text-foreground/40">
+                    <span className="shimmer font-semibold text-foreground/40 text-sm">
                       An example of a longer line but same duration
                     </span>
                   </div>
@@ -252,7 +252,7 @@ export default function TwShimmerPage() {
             <BoxContent>
               <span
                 ref={autoWidthRef}
-                className="shimmer text-lg font-semibold text-blue-500/40 shimmer-color-blue-500 dark:text-blue-300/40 dark:shimmer-color-blue-300"
+                className="shimmer shimmer-color-blue-500 dark:shimmer-color-blue-300 font-semibold text-blue-500/40 text-lg dark:text-blue-300/40"
               >
                 Blue Shimmer
               </span>
@@ -275,7 +275,7 @@ export default function TwShimmerPage() {
             <BoxContent>
               <span
                 ref={autoWidthRef}
-                className="shimmer text-lg font-semibold text-foreground/40 shimmer-spread-24"
+                className="shimmer shimmer-spread-24 font-semibold text-foreground/40 text-lg"
               >
                 Wide Spread Shimmer
               </span>
@@ -301,7 +301,7 @@ export default function TwShimmerPage() {
             <BoxContent>
               <div
                 ref={autoWidthRef}
-                className="inline-block shimmer text-lg font-semibold text-foreground/40 shimmer-angle-45"
+                className="shimmer shimmer-angle-45 inline-block font-semibold text-foreground/40 text-lg"
               >
                 A multi-line
                 <br />
@@ -366,7 +366,7 @@ function CodeBlock({
         code={code}
         {...metaProps}
         addDefaultStyles={false}
-        className="[--padding-left:1.5rem] [&_code]:block [&_pre]:m-0 [&_pre]:rounded-none [&_pre]:!bg-transparent [&_pre]:px-0 [&_pre]:py-4"
+        className="[&_pre]:!bg-transparent [--padding-left:1.5rem] [&_code]:block [&_pre]:m-0 [&_pre]:rounded-none [&_pre]:px-0 [&_pre]:py-4"
         transformers={[
           transformerMetaHighlight(),
           transformerMetaWordHighlight(),
@@ -395,8 +395,8 @@ function Box({ children }: { children: React.ReactNode }) {
 function BoxTitle({ title, description }: BoxTitleProps) {
   return (
     <div className="space-y-2 p-6">
-      <h3 className="font-mono text-lg font-semibold">{title}</h3>
-      <p className="text-sm text-muted-foreground">{description}</p>
+      <h3 className="font-mono font-semibold text-lg">{title}</h3>
+      <p className="text-muted-foreground text-sm">{description}</p>
     </div>
   );
 }
@@ -407,7 +407,7 @@ function BoxContent({ children }: { children: React.ReactNode }) {
 
 function BoxCodeHeader({ fileName }: BoxCodeHeaderProps) {
   return (
-    <div className="flex items-center gap-2 px-6 py-4 font-mono text-sm font-medium">
+    <div className="flex items-center gap-2 px-6 py-4 font-medium font-mono text-sm">
       <FileCode className="size-4 text-muted-foreground" />
       {fileName}
     </div>

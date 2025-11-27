@@ -135,11 +135,11 @@ export default function SafeContentFramePage() {
           <span>Secure iframe rendering</span>
         </div>
 
-        <h1 className="text-5xl font-bold tracking-tight lg:text-6xl">
+        <h1 className="font-bold text-5xl tracking-tight lg:text-6xl">
           Safe Content Frame
         </h1>
 
-        <p className="max-w-[600px] text-lg text-balance text-muted-foreground">
+        <p className="max-w-[600px] text-balance text-lg text-muted-foreground">
           Render untrusted HTML content securely in sandboxed iframes with
           unique origins per render.
         </p>
@@ -148,7 +148,7 @@ export default function SafeContentFramePage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-lg font-semibold">
+            <h2 className="flex items-center gap-2 font-semibold text-lg">
               <Code className="size-5" />
               HTML Input
             </h2>
@@ -174,7 +174,7 @@ export default function SafeContentFramePage() {
           <textarea
             value={html}
             onChange={(e) => setHtml(e.target.value)}
-            className="h-[400px] w-full rounded-lg border bg-muted/50 p-4 font-mono text-sm focus:ring-2 focus:ring-primary focus:outline-none"
+            className="h-[400px] w-full rounded-lg border bg-muted/50 p-4 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             spellCheck={false}
           />
 
@@ -205,7 +205,7 @@ export default function SafeContentFramePage() {
         </div>
 
         <div className="space-y-4">
-          <h2 className="flex items-center gap-2 text-lg font-semibold">
+          <h2 className="flex items-center gap-2 font-semibold text-lg">
             <Shield className="size-5" />
             Sandboxed Output
           </h2>

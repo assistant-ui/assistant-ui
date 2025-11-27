@@ -53,7 +53,7 @@ export function ShineBorder({
             "--background-radial-gradient": `radial-gradient(transparent,transparent, ${color instanceof Array ? color.join(",") : color},transparent,transparent)`,
           } as React.CSSProperties
         }
-        className={`pointer-events-none before:absolute before:inset-0 before:size-full before:animate-shine before:rounded-[var(--border-radius)] before:[background-image:var(--background-radial-gradient)] before:[background-size:300%_300%] before:![mask-composite:exclude] before:p-[var(--border-width)] before:will-change-[background-position] before:content-[""] before:![-webkit-mask-composite:xor] before:[mask:var(--mask-linear-gradient)]`}
+        className={`before:![mask-composite:exclude] before:![-webkit-mask-composite:xor] pointer-events-none before:absolute before:inset-0 before:size-full before:animate-shine before:rounded-[var(--border-radius)] before:p-[var(--border-width)] before:will-change-[background-position] before:content-[""] before:[background-image:var(--background-radial-gradient)] before:[background-size:300%_300%] before:[mask:var(--mask-linear-gradient)]`}
       ></div>
       {children}
     </div>
