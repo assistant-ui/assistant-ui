@@ -201,7 +201,13 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
             .map((part, idx) => {
               return {
                 id: idx.toString(),
-                type: part.mediaType.startsWith("image/") ? "image" : "file",
+                type: part.mediaType.startsWith("image/")
+                  ? "image"
+                  : part.mediaType.startsWith("video/")
+                    ? "video"
+                    : part.mediaType.startsWith("audio/")
+                      ? "audio"
+                      : "file",
                 name: part.filename ?? "file",
                 content: [
                   part.mediaType.startsWith("image/")
