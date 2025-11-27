@@ -4,10 +4,18 @@ import {
 } from "../../../../types/AttachmentTypes";
 import { AttachmentAdapter } from "./AttachmentAdapter";
 
+const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB limit for video
+
 export class SimpleVideoAttachmentAdapter implements AttachmentAdapter {
   public accept = "video/*";
 
   public async add(state: { file: File }): Promise<PendingAttachment> {
+    if (state.file.size > MAX_FILE_SIZE) {
+      throw new Error(
+        `Video file size exceeds maximum allowed size of ${MAX_FILE_SIZE / 1024 / 1024}MB`,
+      );
+    }
+
     return {
       id: crypto.randomUUID(),
       type: "video",

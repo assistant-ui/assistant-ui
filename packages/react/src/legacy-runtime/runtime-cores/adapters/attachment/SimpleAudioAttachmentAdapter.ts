@@ -4,10 +4,18 @@ import {
 } from "../../../../types/AttachmentTypes";
 import { AttachmentAdapter } from "./AttachmentAdapter";
 
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB limit
+
 export class SimpleAudioAttachmentAdapter implements AttachmentAdapter {
   public accept = "audio/*";
 
   public async add(state: { file: File }): Promise<PendingAttachment> {
+    if (state.file.size > MAX_FILE_SIZE) {
+      throw new Error(
+        `Audio file size exceeds maximum allowed size of ${MAX_FILE_SIZE / 1024 / 1024}MB`,
+      );
+    }
+
     return {
       id: crypto.randomUUID(),
       type: "audio",
