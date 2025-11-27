@@ -35,7 +35,7 @@ export const ToolFallback: ToolCallMessagePartComponent = ({
     >
       <div className="aui-tool-fallback-header flex items-center gap-2 px-4">
         {isCancelled ? (
-          <XCircleIcon className="aui-tool-fallback-icon size-4 text-muted-foreground" />
+          <XCircleIcon className="aui-tool-fallback-icon text-muted-foreground size-4" />
         ) : (
           <CheckIcon className="aui-tool-fallback-icon size-4" />
         )}
@@ -56,7 +56,7 @@ export const ToolFallback: ToolCallMessagePartComponent = ({
         <div className="aui-tool-fallback-content flex flex-col gap-2 border-t pt-2">
           {cancelledReason && (
             <div className="aui-tool-fallback-cancelled-root px-4">
-              <p className="aui-tool-fallback-cancelled-header font-semibold text-muted-foreground">
+              <p className="aui-tool-fallback-cancelled-header text-muted-foreground font-semibold">
                 Cancelled reason:
               </p>
               <p className="aui-tool-fallback-cancelled-reason text-muted-foreground">
