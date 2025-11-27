@@ -33,12 +33,16 @@ const useDynamicChatTransport = <UI_MESSAGE extends UIMessage = UIMessage>(
   });
   const dynamicTransport = useMemo(
     () =>
-      new Proxy(transport, {
+      new Proxy(transportRef.current, {
         get(_, prop) {
-          return transportRef.current[prop as keyof ChatTransport<UI_MESSAGE>];
+          const res =
+            transportRef.current[prop as keyof ChatTransport<UI_MESSAGE>];
+          return typeof res === "function"
+            ? res.bind(transportRef.current)
+            : res;
         },
       }),
-    [transport],
+    [],
   );
   return dynamicTransport;
 };
