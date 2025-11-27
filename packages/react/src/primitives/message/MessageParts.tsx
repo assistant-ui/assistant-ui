@@ -15,6 +15,8 @@ import {
 } from "../../context";
 import { MessagePartPrimitiveText } from "../messagePart/MessagePartText";
 import { MessagePartPrimitiveImage } from "../messagePart/MessagePartImage";
+import { MessagePartPrimitiveFile } from "../messagePart/MessagePartFile";
+import { MessagePartPrimitiveAudio } from "../messagePart/MessagePartAudio";
 import type {
   Unstable_AudioMessagePartComponent,
   EmptyMessagePartComponent,
@@ -273,8 +275,8 @@ const defaultComponents = {
   Reasoning: () => null,
   Source: () => null,
   Image: () => <MessagePartPrimitiveImage />,
-  File: () => null,
-  Unstable_Audio: () => null,
+  File: () => <MessagePartPrimitiveFile />,
+  Unstable_Audio: () => <MessagePartPrimitiveAudio />,
   ToolGroup: ({ children }) => children,
   ReasoningGroup: ({ children }) => children,
 } satisfies MessagePrimitiveParts.Props["components"];
