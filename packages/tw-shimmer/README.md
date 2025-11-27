@@ -160,14 +160,25 @@ Use `shimmer-angle-{degrees}` (shared with text shimmer) for diagonal sweeps:
 </div>
 ```
 
+## Advanced: Position-Based Sync
+
+> **Note:** These utilities are **optional** and only relevant for angled shimmers (`shimmer-angle-*` ≠ 90°). Most users can skip this section.
+
 ### `shimmer-x-{value}` / `shimmer-y-{value}`
 
-Element's X and Y position relative to container (in pixels). Used with angled shimmers to create a unified diagonal sweep effect. The animation delay is calculated automatically. Works for both text shimmer and background shimmer.
+Manual position hints for syncing angled shimmer animations across multiple elements. When using diagonal shimmers on layouts with multiple skeleton elements (e.g., avatar + text lines), the highlights may appear slightly out of sync because each element animates independently.
+
+These utilities let you specify each element's approximate position (in pixels) relative to a shared container. The plugin uses these values to calculate animation delays, aligning the diagonal sweep across elements.
 
 - `shimmer-x-*`: Horizontal offset from container left
-- `shimmer-y-*`: Vertical offset from container top (adjusted by `tan(90 - angle)`)
+- `shimmer-y-*`: Vertical offset from container top
+- `-shimmer-x-*` / `-shimmer-y-*`: Negative offsets
 
-> **Tip:** For larger elements like avatars, use center coordinates instead of top-left for better alignment with the diagonal sweep.
+**How it works:** The x/y values feed into an animation-delay formula that accounts for the shimmer angle. This creates the illusion of a single diagonal highlight passing through all elements.
+
+> **Tip:** For larger or rounded elements (like avatars), use the element's approximate center rather than its top-left corner. The sync math treats each element as a single reference point, so using the center better matches where the shimmer visually "passes through" the element. Finding good offsets may still require some trial and error.
+>
+> For example, a 40×40 avatar at the left edge of the container would often look better with `shimmer-x-20 shimmer-y-20` than `shimmer-x-0 shimmer-y-0`.
 
 ```tsx
 <div class="shimmer-angle-15" style={{ ["--shimmer-width" as string]: "600" }}>
@@ -176,6 +187,20 @@ Element's X and Y position relative to container (in pixels). Used with angled s
   <div class="shimmer-bg shimmer-x-52 shimmer-y-24 bg-muted h-4 w-full rounded" />
 </div>
 ```
+
+## Limitations
+
+`tw-shimmer` is intentionally **zero-dependency and CSS-only**. This keeps it lightweight and framework-agnostic, but it comes with trade-offs:
+
+- **No automatic layout detection:** CSS cannot access runtime element positions, so perfectly unified diagonal shimmer across arbitrarily positioned elements cannot be fully automated.
+
+- **Vertical shimmers just work:** For `shimmer-angle-90` (the default), all elements naturally sync without any extra configuration.
+
+- **Angled shimmers are best-effort:** The `shimmer-x-*` / `shimmer-y-*` utilities enable manual sync tuning, but some minor desync or visual artifacts may still occur—especially at shallow angles or with large rounded shapes.
+
+- **Complex layouts may need JavaScript:** If your application requires truly "physically correct" shimmer alignment across a complex layout, that would require measuring element positions at runtime and setting CSS variables via JavaScript. `tw-shimmer` intentionally does not do this.
+
+For most skeleton loaders and text shimmer use cases, the defaults work well. The advanced position utilities are there for power users who want fine-grained control over angled animations.
 
 ## License
 

@@ -95,7 +95,7 @@ export default function TwShimmerPage() {
         className="flex flex-col items-center space-y-6 text-center"
         ref={autoWidthRef}
       >
-        <div className="shimmer-bg flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm shimmer-angle-45 shimmer-speed-200">
+        <div className="shimmer-bg flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm shimmer-angle-45 shimmer-speed-200 shimmer-width-400">
           <Sparkles className="size-4" />
           <span>Tailwind CSS v4 Plugin</span>
         </div>
@@ -106,7 +106,7 @@ export default function TwShimmerPage() {
               className={cn(
                 "pointer-events-none absolute inset-0 select-none",
                 "text-5xl font-bold tracking-tight lg:text-8xl",
-                "shimmer",
+                "shimmer shimmer-speed-200 shimmer-width-400",
                 "text-black shimmer-color-black",
                 "shimmer-angle-45 dark:text-black dark:shimmer-color-white",
                 "blur-xl",
@@ -122,7 +122,7 @@ export default function TwShimmerPage() {
             <h1
               className={cn(
                 "text-5xl font-bold tracking-tight lg:text-8xl",
-                "shimmer-metallic shimmer shimmer-angle-45",
+                "shimmer-metallic shimmer shimmer-angle-45 shimmer-speed-200 shimmer-width-400",
                 "shimmer-color-black",
                 "dark:shimmer-color-white",
               )}
@@ -146,7 +146,7 @@ export default function TwShimmerPage() {
           <p
             className={cn(
               "max-w-[600px] text-lg font-light text-balance text-muted-foreground",
-              "shimmer shimmer-angle-45 shimmer-spread-50",
+              "shimmer shimmer-angle-45 shimmer-speed-200 shimmer-spread-50 shimmer-width-400",
               "shimmer-color-black dark:shimmer-color-gray-300",
             )}
           >
@@ -403,7 +403,7 @@ export default function TwShimmerPage() {
       <div className="space-y-8">
         <div className="text-center">
           <h2 className="text-3xl font-bold tracking-tight">
-            Skeleton / Background Shimmer
+            Background Shimmer
           </h2>
           <p className="mt-2 text-muted-foreground">
             Use <code className="px-1 py-0.5 text-sm">shimmer-bg</code> for
@@ -529,17 +529,20 @@ export default function TwShimmerPage() {
                 </div>
               </div>
               <p className="mt-4 text-sm text-muted-foreground">
-                Notice the shimmer sweep looks slightly disjointed? See{" "}
+                With angled shimmers, elements at different positions may appear
+                slightly disjointed. This is a limitation of pure CSS animation.
+                For most layouts this is barely noticeable. Power users can use
+                the optional{" "}
                 <code className="px-1 py-0.5 text-xs">shimmer-x-*/y-*</code>{" "}
-                below for pixel-perfect alignment.
+                utilities below for finer control.
               </p>
             </BoxContent>
           </Box>
 
           <Box>
             <BoxTitle
-              title="shimmer-x-{value} / shimmer-y-{value}"
-              description="Fine-tune animation sync across elements with different positions."
+              title="Advanced: shimmer-x-{value} / shimmer-y-{value}"
+              description="Optional manual sync for angled shimmers. Most users can skip this."
             />
             <BoxCode>
               <CodeBlock
@@ -560,18 +563,29 @@ export default function TwShimmerPage() {
             </BoxCode>
             <BoxContent>
               <p className="mb-4 text-sm text-muted-foreground">
-                Since each element animates independently, elements at different
-                positions may appear slightly out of sync. For pixel-perfect
-                alignment across elements, use{" "}
-                <code className="px-1 py-0.5 text-xs">shimmer-x-*</code> and{" "}
-                <code className="px-1 py-0.5 text-xs">shimmer-y-*</code> to set
-                each element&apos;s position relative to the container. The
-                timing is adjusted automatically.
+                These utilities provide manual position hints (in pixels) that
+                feed into the animation-delay formula. By specifying each
+                element&apos;s approximate x/y offset from a shared origin, the
+                plugin can align the diagonal sweep across elements—creating the
+                illusion of a single highlight passing through all of them.
+              </p>
+              <p className="mb-4 text-sm text-muted-foreground">
+                <strong>When to use:</strong> Only needed for angled shimmers
+                (not{" "}
+                <code className="px-1 py-0.5 text-xs">shimmer-angle-90</code>)
+                on multi-element layouts like skeleton cards. Vertical shimmers
+                sync automatically.
+              </p>
+              <p className="mb-4 text-sm text-muted-foreground">
+                <strong>Expectations:</strong> Because this is pure CSS with no
+                runtime layout access, sync is &quot;best-effort.&quot; Some
+                trial and error may be needed to find good offsets. Minor desync
+                at shallow angles or with large rounded shapes is normal.
               </p>
               <p className="mb-4 text-sm text-muted-foreground">
                 <strong>Tip:</strong> For larger elements like avatars, use
-                center coordinates instead of top-left for better alignment with
-                the diagonal sweep.
+                center coordinates instead of top-left for better visual
+                alignment.
               </p>
               <label className="mb-4 flex w-fit cursor-pointer items-center gap-2">
                 <span className="text-sm font-medium">Sync</span>
