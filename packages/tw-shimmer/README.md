@@ -53,25 +53,31 @@ Base utility. Apply to any element with a text color.
 
 ### `shimmer-speed-{value}`
 
-Animation speed in pixels per second. Default: `100`px/s.
+Animation speed in pixels per second. Default: `100`px/s for text, `500`px/s for bg.
 
 ```html
 <span class="shimmer shimmer-speed-200 text-foreground/40">Fast (200px/s)</span>
 ```
 
-### `--shimmer-width-x`
+### `shimmer-width-{value}`
 
-CSS variable for container width in pixels used in speed calculations. Default: `200`px.
+Container width in pixels for animation timing. Default: `200`px for text, `600`px for bg.
 
-Set this at runtime to match your actual container width for accurate speed.
+Set this to match your container width for consistent animation speed across different element sizes.
 
 ```tsx
-<span class="shimmer" style={{ ["--shimmer-width-x" as string]: "300" }}>
+<span class="shimmer shimmer-width-300 text-foreground/40">
   Wide container
 </span>
 ```
 
-Duration formula: `(width * 2) / speed`
+Or set via CSS variable at runtime:
+
+```tsx
+<span class="shimmer" style={{ ["--shimmer-width" as string]: "300" }}>
+  Wide container
+</span>
+```
 
 ### `shimmer-color-{color}`
 
@@ -97,7 +103,7 @@ Uses Tailwind spacing scale.
 
 ### `shimmer-angle-{degrees}`
 
-Shimmer direction. Default: `90`deg.
+Shimmer direction. Default: `90`deg. Shared with `shimmer-bg`.
 
 ```html
 <span class="shimmer shimmer-angle-45 text-foreground/40"
@@ -111,78 +117,52 @@ For skeleton loaders and non-text elements, use `shimmer-bg` instead:
 
 ### `shimmer-bg`
 
-Background shimmer for skeleton loaders and non-text elements. No text color needed.
+Background shimmer for skeleton loaders and non-text elements. Use standard Tailwind `bg-*` for base color.
 
 ```html
-<div class="shimmer-bg h-4 w-48 rounded" />
-```
-
-### `--shimmer-bg-travel`
-
-CSS variable for container width in pixels. Set this on the container to sync all children.
-
-```tsx
-<div class="flex gap-3" style={{ ["--shimmer-bg-travel" as string]: "600" }}>
-  <div class="shimmer-bg size-10 rounded-full" />
-  <div class="shimmer-bg h-4 w-full rounded" />
-</div>
-```
-
-Duration formula: `(travel + shimmer-width) / speed`
-
-### `shimmer-bg-speed-{value}`
-
-Animation speed in pixels per second. Default: `500`px/s.
-
-```html
-<div class="shimmer-bg shimmer-bg-speed-300 h-4 w-48 rounded" />
-```
-
-### `shimmer-bg-base-{color}` / `shimmer-bg-highlight-{color}`
-
-Customize the base and highlight colors for skeleton shimmer.
-
-```html
-<div
-  class="shimmer-bg shimmer-bg-base-blue-300 shimmer-bg-highlight-blue-100 h-4 w-48 rounded"
-/>
+<div class="shimmer-bg bg-muted h-4 w-48 rounded" />
 ```
 
 ### Skeleton Example
 
+Set `--shimmer-width` on the container to sync all children:
+
 ```tsx
-<div class="flex gap-3" style={{ ["--shimmer-bg-travel" as string]: "600" }}>
-  <div class="shimmer-bg size-10 rounded-full" />
+<div class="flex gap-3" style={{ ["--shimmer-width" as string]: "600" }}>
+  <div class="shimmer-bg bg-muted size-10 rounded-full" />
   <div class="flex-1 space-y-2">
-    <div class="shimmer-bg h-4 w-24 rounded" />
-    <div class="shimmer-bg h-4 w-full rounded" />
-    <div class="shimmer-bg h-4 w-4/5 rounded" />
+    <div class="shimmer-bg bg-muted h-4 w-24 rounded" />
+    <div class="shimmer-bg bg-muted h-4 w-full rounded" />
+    <div class="shimmer-bg bg-muted h-4 w-4/5 rounded" />
   </div>
 </div>
 ```
 
-### `shimmer-bg-angle-{degrees}`
+### `shimmer-highlight-{color}`
 
-Shimmer angle in degrees. Default: `90` (horizontal).
+Customize the shimmer highlight color. Use with standard `bg-*` for base color.
 
 ```html
-<div class="shimmer-bg shimmer-bg-angle-45 h-4 w-48 rounded" />
+<div class="shimmer-bg bg-blue-300 shimmer-highlight-blue-100 h-4 w-48 rounded" />
 ```
 
-Or set on container via CSS variable to apply to all children:
-
-```tsx
-<div style={{ ["--shimmer-bg-angle" as string]: "45" }}>
-  <div class="shimmer-bg h-4 w-48 rounded" />
-</div>
-```
-
-### `shimmer-bg-width-{value}`
+### `shimmer-bg-spread-{value}`
 
 Width of the shimmer highlight stripe in pixels. Default: `400`px.
 
 ```html
-<div class="shimmer-bg shimmer-bg-width-200 h-4 w-48 rounded" />
+<div class="shimmer-bg bg-muted shimmer-bg-spread-200 h-4 w-48 rounded" />
+```
+
+### Angled Skeleton Shimmer
+
+Use `shimmer-angle-{degrees}` (shared with text shimmer) for diagonal sweeps:
+
+```tsx
+<div class="flex gap-3 shimmer-angle-15" style={{ ["--shimmer-width" as string]: "600" }}>
+  <div class="shimmer-bg bg-muted size-10 rounded-full" />
+  <div class="shimmer-bg bg-muted h-4 w-full rounded" />
+</div>
 ```
 
 ### `--shimmer-bg-x` / `--shimmer-bg-y`
@@ -196,27 +176,25 @@ Element's X and Y position relative to container (in pixels). Used with angled s
 
 ```tsx
 <div
-  style={{
-    ["--shimmer-bg-travel" as string]: "600",
-    ["--shimmer-bg-angle" as string]: "15",
-  }}
+  class="shimmer-angle-15"
+  style={{ ["--shimmer-width" as string]: "600" }}
 >
   <div
-    class="shimmer-bg size-10 rounded-full"
+    class="shimmer-bg bg-muted size-10 rounded-full"
     style={{
       ["--shimmer-bg-x" as string]: "20",
       ["--shimmer-bg-y" as string]: "20",
     }}
   />
   <div
-    class="shimmer-bg h-4 w-24 rounded"
+    class="shimmer-bg bg-muted h-4 w-24 rounded"
     style={{
       ["--shimmer-bg-x" as string]: "52",
       ["--shimmer-bg-y" as string]: "0",
     }}
   />
   <div
-    class="shimmer-bg h-4 w-full rounded"
+    class="shimmer-bg bg-muted h-4 w-full rounded"
     style={{
       ["--shimmer-bg-x" as string]: "52",
       ["--shimmer-bg-y" as string]: "24",

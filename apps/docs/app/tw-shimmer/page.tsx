@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { Copy, Check, Sparkles, FileCode } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { SyntaxHighlighter } from "@/components/assistant-ui/shiki-highlighter";
 import {
@@ -44,7 +45,7 @@ export default function TwShimmerPage() {
   const autoWidthRef = useCallback((node: HTMLElement | null): void => {
     if (!node) return;
     document.fonts.ready.then(() => {
-      node.style.setProperty("--shimmer-width-x", `${node.offsetWidth}`);
+      node.style.setProperty("--shimmer-width", `${node.offsetWidth}`);
     });
   }, []);
 
@@ -56,12 +57,45 @@ export default function TwShimmerPage() {
           <span>Tailwind CSS v4 Plugin</span>
         </div>
 
-        <h1
-          ref={autoWidthRef}
-          className="shimmer text-6xl font-bold tracking-tight text-foreground/40 shimmer-speed-150 lg:text-7xl"
-        >
-          tw-shimmer
-        </h1>
+        <div className="relative" ref={autoWidthRef}>
+          {/* Base shimmer text */}
+          <h1
+            className={cn(
+              "text-6xl font-bold tracking-tight lg:text-7xl",
+              "shimmer shimmer-speed-150",
+              "text-black/20 shimmer-color-black",
+              "dark:text-white/20 dark:shimmer-color-white",
+            )}
+          >
+            tw-shimmer
+          </h1>
+          {/* Emboss layer - creates depth with highlight and shadow */}
+          <span
+            className={cn(
+              "pointer-events-none absolute inset-0 select-none",
+              "text-6xl font-bold tracking-tight text-transparent lg:text-7xl",
+              "[text-shadow:0px_0px_0_rgba(0,0,0,0.2)]",
+              "dark:[text-shadow:1px_1px_0.5px_rgba(0,0,0,0.4)]",
+            )}
+            aria-hidden="true"
+          >
+            tw-shimmer
+          </span>
+          {/* Top edge highlight for glass refraction effect */}
+          <span
+            className={cn(
+              "pointer-events-none absolute inset-0 select-none",
+              "text-6xl font-bold tracking-tight text-transparent lg:text-7xl",
+              // Dark mode only
+              "hidden dark:block",
+              // Glass top highlight
+              "dark:[text-shadow:0_1px_-1px_rgba(255,255,255,1)]",
+            )}
+            aria-hidden="true"
+          >
+            tw-shimmer
+          </span>
+        </div>
 
         <p className="max-w-[600px] text-lg text-balance text-muted-foreground">
           Zero-dependency CSS-only shimmer effect. Fully customizable,
@@ -174,7 +208,7 @@ export default function TwShimmerPage() {
 
           <Box>
             <BoxTitle
-              title="--shimmer-width-x"
+              title="--shimmer-width"
               description="CSS variable for container width in pixels used in speed calculations. Default: 200px"
             />
             <BoxCode>
@@ -182,11 +216,11 @@ export default function TwShimmerPage() {
                 language="tsx"
                 code={`<span
   class="shimmer text-foreground/40"
-  style={{ ["--shimmer-width-x" as string]: "52" }}
+  style={{ ["--shimmer-width" as string]: "52" }}
 >
   Narrow
 </span>`}
-                highlight="--shimmer-width-x"
+                highlight="--shimmer-width"
                 highlightMode="text"
               />
             </BoxCode>
@@ -201,7 +235,7 @@ export default function TwShimmerPage() {
               <div className="grid gap-8 md:grid-cols-2">
                 <div>
                   <p className="mb-3 text-xs font-semibold tracking-wide text-muted-foreground">
-                    Set --shimmer-width-x for consistent speed:
+                    Set --shimmer-width for consistent speed:
                   </p>
                   <div className="space-y-2">
                     <span
@@ -221,7 +255,7 @@ export default function TwShimmerPage() {
                 </div>
                 <div>
                   <p className="mb-3 text-xs font-semibold tracking-wide text-muted-foreground">
-                    Default --shimmer-width-x:
+                    Default --shimmer-width:
                   </p>
                   <div className="space-y-2">
                     <span className="shimmer text-sm font-semibold text-foreground/40">
@@ -333,49 +367,49 @@ export default function TwShimmerPage() {
             <BoxCode>
               <CodeBlock
                 language="html"
-                code='<div class="shimmer-bg h-4 w-48 rounded" />'
+                code='<div class="shimmer-bg bg-muted h-4 w-48 rounded" />'
                 highlight="shimmer-bg"
                 highlightMode="text"
               />
             </BoxCode>
             <BoxContent>
-              <div className="shimmer-bg h-4 w-48 rounded" />
+              <div className="shimmer-bg bg-muted h-4 w-48 rounded" />
             </BoxContent>
           </Box>
 
           <Box>
             <BoxTitle
               title="Skeleton Card Example"
-              description="Set --shimmer-bg-travel on the container to match the container width. All children share the same animation."
+              description="Set --shimmer-width on the container to match the container width. All children share the same animation."
             />
             <BoxCode>
               <CodeBlock
                 language="tsx"
                 code={`<div
   class="flex gap-3"
-  style={{ ["--shimmer-bg-travel" as string]: "600" }}
+  style={{ ["--shimmer-width" as string]: "600" }}
 >
-  <div class="shimmer-bg size-10 rounded-full" />
+  <div class="shimmer-bg bg-muted size-10 rounded-full" />
   <div class="flex-1 space-y-2">
-    <div class="shimmer-bg h-4 w-1/4 rounded" />
-    <div class="shimmer-bg h-4 w-full rounded" />
-    <div class="shimmer-bg h-4 w-4/5 rounded" />
+    <div class="shimmer-bg bg-muted h-4 w-1/4 rounded" />
+    <div class="shimmer-bg bg-muted h-4 w-full rounded" />
+    <div class="shimmer-bg bg-muted h-4 w-4/5 rounded" />
   </div>
 </div>`}
-                highlight="--shimmer-bg-travel"
+                highlight="--shimmer-width"
                 highlightMode="text"
               />
             </BoxCode>
             <BoxContent>
               <div
                 className="flex gap-3"
-                style={{ ["--shimmer-bg-travel" as string]: "600" }}
+                style={{ ["--shimmer-width" as string]: "600" }}
               >
-                <div className="shimmer-bg size-10 shrink-0 rounded-full" />
+                <div className="shimmer-bg bg-muted size-10 shrink-0 rounded-full" />
                 <div className="flex-1 space-y-2">
-                  <div className="shimmer-bg h-4 w-1/4 rounded" />
-                  <div className="shimmer-bg h-4 w-full rounded" />
-                  <div className="shimmer-bg h-4 w-4/5 rounded" />
+                  <div className="shimmer-bg bg-muted h-4 w-1/4 rounded" />
+                  <div className="shimmer-bg bg-muted h-4 w-full rounded" />
+                  <div className="shimmer-bg bg-muted h-4 w-4/5 rounded" />
                 </div>
               </div>
             </BoxContent>
@@ -383,68 +417,62 @@ export default function TwShimmerPage() {
 
           <Box>
             <BoxTitle
-              title="shimmer-bg-base-{color} / shimmer-bg-highlight-{color}"
-              description="Customize the base and highlight colors for skeleton shimmer."
+              title="bg-{color} + shimmer-highlight-{color}"
+              description="Use standard Tailwind bg-* for base color. Customize highlight with shimmer-highlight-*."
             />
             <BoxCode>
               <CodeBlock
                 language="html"
-                code={`<div class="shimmer-bg shimmer-bg-base-blue-300 shimmer-bg-highlight-blue-100 dark:shimmer-bg-base-blue-800 dark:shimmer-bg-highlight-blue-500 h-4 w-48 rounded" />`}
-                highlight="shimmer-bg-base-blue-300"
+                code={`<div class="shimmer-bg bg-blue-300 shimmer-highlight-blue-100 dark:bg-blue-800 dark:shimmer-highlight-blue-500 h-4 w-48 rounded" />`}
+                highlight="bg-blue-300"
                 highlightMode="text"
               />
             </BoxCode>
             <BoxContent>
               <div
                 className="space-y-3"
-                style={{ ["--shimmer-bg-travel" as string]: "192" }}
+                style={{ ["--shimmer-width" as string]: "192" }}
               >
-                <div className="shimmer-bg h-4 w-48 rounded shimmer-bg-base-blue-300 shimmer-bg-highlight-blue-100 dark:shimmer-bg-base-blue-800 dark:shimmer-bg-highlight-blue-500" />
-                <div className="shimmer-bg h-4 w-48 rounded shimmer-bg-base-purple-300 shimmer-bg-highlight-purple-100 dark:shimmer-bg-base-purple-800 dark:shimmer-bg-highlight-purple-500" />
-                <div className="shimmer-bg h-4 w-48 rounded shimmer-bg-base-green-300 shimmer-bg-highlight-green-100 dark:shimmer-bg-base-green-800 dark:shimmer-bg-highlight-green-500" />
+                <div className="shimmer-bg h-4 w-48 rounded bg-blue-300 shimmer-highlight-blue-100 dark:bg-blue-800 dark:shimmer-highlight-blue-500" />
+                <div className="shimmer-bg h-4 w-48 rounded bg-purple-300 shimmer-highlight-purple-100 dark:bg-purple-800 dark:shimmer-highlight-purple-500" />
+                <div className="shimmer-bg h-4 w-48 rounded bg-green-300 shimmer-highlight-green-100 dark:bg-green-800 dark:shimmer-highlight-green-500" />
               </div>
             </BoxContent>
           </Box>
 
           <Box>
             <BoxTitle
-              title="shimmer-bg-angle-{degrees}"
-              description="Add a diagonal sweep to your skeleton shimmer."
+              title="shimmer-angle-{degrees}"
+              description="Add a diagonal sweep to your skeleton shimmer. Shared with text shimmer."
             />
             <BoxCode>
               <CodeBlock
                 language="tsx"
                 code={`<div
-  class="flex gap-3"
-  style={{
-    ["--shimmer-bg-travel" as string]: "600",
-    ["--shimmer-bg-angle" as string]: "15",
-  }}
+  class="flex gap-3 shimmer-angle-15"
+  style={{ ["--shimmer-width" as string]: "600" }}
 >
-  <div class="shimmer-bg size-10 rounded-full" />
+  <div class="shimmer-bg bg-muted size-10 rounded-full" />
   <div class="flex-1 space-y-2">
-    <div class="shimmer-bg h-4 w-1/4 rounded" />
-    <div class="shimmer-bg h-4 w-full rounded" />
-    <div class="shimmer-bg h-4 w-4/5 rounded" />
+    <div class="shimmer-bg bg-muted h-4 w-1/4 rounded" />
+    <div class="shimmer-bg bg-muted h-4 w-full rounded" />
+    <div class="shimmer-bg bg-muted h-4 w-4/5 rounded" />
   </div>
 </div>`}
-                highlight="--shimmer-bg-angle"
+                highlight="shimmer-angle-15"
                 highlightMode="text"
               />
             </BoxCode>
             <BoxContent>
               <div
-                className="flex gap-3"
-                style={{
-                  ["--shimmer-bg-travel" as string]: "600",
-                  ["--shimmer-bg-angle" as string]: "15",
-                }}
+                className="flex gap-3 shimmer-angle-15"
+                style={{ ["--shimmer-width" as string]: "600" }}
               >
-                <div className="shimmer-bg size-10 shrink-0 rounded-full" />
+                <div className="shimmer-bg bg-muted size-10 shrink-0 rounded-full" />
                 <div className="flex-1 space-y-2">
-                  <div className="shimmer-bg h-4 w-1/4 rounded" />
-                  <div className="shimmer-bg h-4 w-full rounded" />
-                  <div className="shimmer-bg h-4 w-4/5 rounded" />
+                  <div className="shimmer-bg bg-muted h-4 w-1/4 rounded" />
+                  <div className="shimmer-bg bg-muted h-4 w-full rounded" />
+                  <div className="shimmer-bg bg-muted h-4 w-4/5 rounded" />
                 </div>
               </div>
               <p className="mt-4 text-sm text-muted-foreground">
@@ -464,27 +492,24 @@ export default function TwShimmerPage() {
               <CodeBlock
                 language="tsx"
                 code={`<div
-  class="flex gap-3"
-  style={{
-    ["--shimmer-bg-travel" as string]: "720",
-    ["--shimmer-bg-angle" as string]: "15",
-  }}
+  class="flex gap-3 shimmer-angle-15"
+  style={{ ["--shimmer-width" as string]: "720" }}
 >
   <div
-    class="shimmer-bg size-10 rounded-full"
+    class="shimmer-bg bg-muted size-10 rounded-full"
     style={{ ["--shimmer-bg-x" as string]: "20", ["--shimmer-bg-y" as string]: "20" }}
   />
   <div class="flex-1 space-y-2">
     <div
-      class="shimmer-bg h-4 w-1/4 rounded"
+      class="shimmer-bg bg-muted h-4 w-1/4 rounded"
       style={{ ["--shimmer-bg-x" as string]: "52", ["--shimmer-bg-y" as string]: "0" }}
     />
     <div
-      class="shimmer-bg h-4 w-full rounded"
+      class="shimmer-bg bg-muted h-4 w-full rounded"
       style={{ ["--shimmer-bg-x" as string]: "52", ["--shimmer-bg-y" as string]: "24" }}
     />
     <div
-      class="shimmer-bg h-4 w-4/5 rounded"
+      class="shimmer-bg bg-muted h-4 w-4/5 rounded"
       style={{ ["--shimmer-bg-x" as string]: "52", ["--shimmer-bg-y" as string]: "48" }}
     />
   </div>
@@ -527,14 +552,11 @@ export default function TwShimmerPage() {
                 </button>
               </label>
               <div
-                className="flex gap-3"
-                style={{
-                  ["--shimmer-bg-travel" as string]: "720",
-                  ["--shimmer-bg-angle" as string]: "15",
-                }}
+                className="flex gap-3 shimmer-angle-15"
+                style={{ ["--shimmer-width" as string]: "720" }}
               >
                 <div
-                  className="shimmer-bg size-10 shrink-0 rounded-full"
+                  className="shimmer-bg bg-muted size-10 shrink-0 rounded-full"
                   style={
                     angledSynced
                       ? {
@@ -546,7 +568,7 @@ export default function TwShimmerPage() {
                 />
                 <div className="flex-1 space-y-2">
                   <div
-                    className="shimmer-bg h-4 w-1/4 rounded"
+                    className="shimmer-bg bg-muted h-4 w-1/4 rounded"
                     style={
                       angledSynced
                         ? {
@@ -557,7 +579,7 @@ export default function TwShimmerPage() {
                     }
                   />
                   <div
-                    className="shimmer-bg h-4 w-full rounded"
+                    className="shimmer-bg bg-muted h-4 w-full rounded"
                     style={
                       angledSynced
                         ? {
@@ -568,7 +590,7 @@ export default function TwShimmerPage() {
                     }
                   />
                   <div
-                    className="shimmer-bg h-4 w-4/5 rounded"
+                    className="shimmer-bg bg-muted h-4 w-4/5 rounded"
                     style={
                       angledSynced
                         ? {

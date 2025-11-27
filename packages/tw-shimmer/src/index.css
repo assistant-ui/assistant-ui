@@ -10,17 +10,17 @@
 
   @keyframes shimmer-bg {
     0% {
-      translate: calc(-1 * var(--shimmer-bg-width, 400) * 1px) 0;
+      translate: calc(-1 * var(--shimmer-bg-spread, 400) * 1px) 0;
     }
     100% {
-      translate: calc(var(--shimmer-bg-travel, 600) * 1px) 0;
+      translate: calc(var(--shimmer-width, 600) * 1px) 0;
     }
   }
 }
 
 @utility shimmer {
   --shimmer-speed: 100;
-  --shimmer-width-x: 200;
+  --shimmer-width: 200;
   --shimmer-color: black;
   --shimmer-spread: 6ch;
   --shimmer-angle: 90deg;
@@ -63,8 +63,7 @@
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   animation: shimmer
-    calc((var(--shimmer-width-x) * 2) / var(--shimmer-speed) * 1s) infinite
-    linear;
+    calc((var(--shimmer-width) * 2) / var(--shimmer-speed) * 1s) infinite linear;
 
   @variant dark {
     --shimmer-color: white;
@@ -88,11 +87,12 @@
 }
 
 @utility shimmer-bg {
-  --shimmer-bg-base: oklch(0.87 0 0);
+  /* Reuses --shimmer-speed, --shimmer-angle, --shimmer-width from shared utilities */
+  /* Use standard Tailwind bg-* for base color */
   --shimmer-bg-highlight: oklch(1 0 0);
+  --shimmer-bg-spread: 400;
   position: relative;
   overflow: hidden;
-  background: var(--shimmer-bg-base);
 
   &::after {
     content: "";
@@ -100,7 +100,7 @@
     top: -100%;
     bottom: -100%;
     left: 0;
-    width: calc(var(--shimmer-bg-width, 400) * 1px);
+    width: calc(var(--shimmer-bg-spread) * 1px);
     /* Eased gradient: sine ease-in-out for smooth falloff at both center and edges */
     background: linear-gradient(
       90deg,
@@ -122,50 +122,40 @@
       color-mix(in oklch, var(--shimmer-bg-highlight), transparent 96%) 94%,
       transparent 100%
     );
-    transform: skewX(calc((90 - var(--shimmer-bg-angle, 90)) * 1deg));
+    transform: skewX(calc(90deg - var(--shimmer-angle, 90deg)));
     animation: shimmer-bg
       calc(
-        (var(--shimmer-bg-travel, 600) + var(--shimmer-bg-width, 400)) /
-          var(--shimmer-bg-speed, 500) * 1s
+        (var(--shimmer-width, 600) + var(--shimmer-bg-spread)) /
+          var(--shimmer-speed, 500) * 1s
       )
       infinite linear;
     /* Delay syncs animation across elements: y adjusted by angle slope, minus x offset */
     animation-delay: calc(
       (
           var(--shimmer-bg-y, 0) *
-            tan(calc((90 - var(--shimmer-bg-angle, 90)) * 1deg)) -
+            tan(calc(90deg - var(--shimmer-angle, 90deg))) -
             var(--shimmer-bg-x, 0)
         ) /
-        var(--shimmer-bg-speed, 500) * -1s
+        var(--shimmer-speed, 500) * -1s
     );
   }
 
   @variant dark {
-    --shimmer-bg-base: oklch(0.25 0 0);
     --shimmer-bg-highlight: oklch(0.45 0 0);
   }
 }
 
-@utility shimmer-bg-angle-* {
-  --shimmer-bg-angle: --value(number);
+/* Shared utility for container width (used by both shimmer and shimmer-bg) */
+@utility shimmer-width-* {
+  --shimmer-width: --value(number);
 }
 
-@utility shimmer-bg-travel-* {
-  --shimmer-bg-travel: --value(number);
+/* shimmer-bg specific utilities */
+@utility shimmer-bg-spread-* {
+  --shimmer-bg-spread: --value(number);
 }
 
-@utility shimmer-bg-width-* {
-  --shimmer-bg-width: --value(number);
-}
-
-@utility shimmer-bg-speed-* {
-  --shimmer-bg-speed: --value(number);
-}
-
-@utility shimmer-bg-base-* {
-  --shimmer-bg-base: --value(--color-*);
-}
-
-@utility shimmer-bg-highlight-* {
+/* Highlight color for shimmer-bg (also works as shimmer-highlight-*) */
+@utility shimmer-highlight-* {
   --shimmer-bg-highlight: --value(--color-*);
 }
