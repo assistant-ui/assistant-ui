@@ -32,22 +32,54 @@ export const vercelAttachmentAdapter: AttachmentAdapter = {
     };
   },
   async send(attachment) {
-    // noop
+    const dataURL = await getFileDataURL(attachment.file);
+
+    // Handle image attachments
+    if (attachment.type === "image") {
+      return {
+        ...attachment,
+        status: { type: "complete" },
+        content: [{ type: "image", image: dataURL }],
+      };
+    }
+
+    // Handle audio attachments - use native audio part for mp3/wav
+    if (attachment.type === "audio") {
+      const mimeType = attachment.contentType;
+      const isMP3 = mimeType === "audio/mpeg" || mimeType === "audio/mp3";
+      const isWAV =
+        mimeType === "audio/wav" ||
+        mimeType === "audio/wave" ||
+        mimeType === "audio/x-wav";
+
+      if (isMP3 || isWAV) {
+        return {
+          ...attachment,
+          status: { type: "complete" },
+          content: [
+            {
+              type: "audio",
+              audio: {
+                data: dataURL,
+                format: isMP3 ? "mp3" : "wav",
+              },
+            },
+          ],
+        };
+      }
+    }
+
+    // Fall back to file part for video, documents, and unsupported audio formats
     return {
       ...attachment,
       status: { type: "complete" },
       content: [
-        attachment.type === "image"
-          ? {
-              type: "image",
-              image: await getFileDataURL(attachment.file),
-            }
-          : {
-              type: "file",
-              mimeType: attachment.contentType,
-              filename: attachment.name,
-              data: await getFileDataURL(attachment.file),
-            },
+        {
+          type: "file",
+          mimeType: attachment.contentType,
+          filename: attachment.name,
+          data: dataURL,
+        },
       ],
     };
   },

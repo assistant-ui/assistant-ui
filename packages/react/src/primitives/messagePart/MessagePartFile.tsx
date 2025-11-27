@@ -16,6 +16,23 @@ const getFileType = (
   return "document";
 };
 
+const isSafeUrl = (url: string): boolean => {
+  // Only allow data: URLs, blob: URLs, http:, and https: protocols
+  // Block javascript:, vbscript:, and other potentially dangerous protocols
+  try {
+    const parsed = new URL(url, "http://localhost");
+    return ["data:", "blob:", "http:", "https:"].includes(parsed.protocol);
+  } catch {
+    // If URL parsing fails, check if it starts with a safe protocol
+    return (
+      url.startsWith("data:") ||
+      url.startsWith("blob:") ||
+      url.startsWith("http:") ||
+      url.startsWith("https:")
+    );
+  }
+};
+
 /**
  * Renders audio/video file content parts using HTML5 audio/video elements.
  *
@@ -56,6 +73,15 @@ export const MessagePartPrimitiveFile: FC<
   }
 
   if (fileType === "document") {
+    // Validate URL to prevent XSS via javascript: protocol
+    if (!isSafeUrl(url)) {
+      return (
+        <span className="aui-message-file-document aui-message-file-invalid">
+          {name}
+        </span>
+      );
+    }
+
     return (
       <a
         href={url}

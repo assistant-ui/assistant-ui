@@ -16,7 +16,11 @@ export const ToolFallback: ToolCallMessagePartComponent = ({
         <p className="aui-tool-fallback-title flex-grow">
           Used tool: <b>{toolName}</b>
         </p>
-        <Button onClick={() => setIsCollapsed(!isCollapsed)}>
+        <Button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          aria-expanded={!isCollapsed}
+          aria-label={isCollapsed ? "Expand tool details" : "Collapse tool details"}
+        >
           {isCollapsed ? <ChevronUpIcon /> : <ChevronDownIcon />}
         </Button>
       </div>

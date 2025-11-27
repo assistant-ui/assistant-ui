@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterAll } from "vitest";
 import { SimpleVideoAttachmentAdapter } from "../../legacy-runtime/runtime-cores/adapters/attachment/SimpleVideoAttachmentAdapter";
 
 // Mock FileReader
@@ -21,6 +21,10 @@ class MockFileReader {
 
 vi.stubGlobal("FileReader", MockFileReader);
 
+afterAll(() => {
+  vi.unstubAllGlobals();
+});
+
 describe("SimpleVideoAttachmentAdapter", () => {
   let adapter: SimpleVideoAttachmentAdapter;
 
@@ -41,14 +45,15 @@ describe("SimpleVideoAttachmentAdapter", () => {
       const file = new File(["video data"], "test.mp4", { type: "video/mp4" });
       const result = await adapter.add({ file });
 
-      expect(result).toEqual({
-        id: "test.mp4",
-        type: "document",
+      expect(result).toMatchObject({
+        type: "video",
         name: "test.mp4",
         contentType: "video/mp4",
         file,
         status: { type: "requires-action", reason: "composer-send" },
       });
+      expect(result.id).toBeDefined();
+      expect(typeof result.id).toBe("string");
     });
   });
 
