@@ -29,16 +29,32 @@ async function sha256(data: ArrayBuffer): Promise<ArrayBuffer> {
   return crypto.subtle.digest("SHA-256", data);
 }
 
-async function computeOriginHash(product: string, salt: ArrayBuffer, origin: string): Promise<string> {
+async function computeOriginHash(
+  product: string,
+  salt: ArrayBuffer,
+  origin: string,
+): Promise<string> {
   const enc = new TextEncoder();
   const sep = enc.encode("$@#|");
-  const parts = [enc.encode(product), sep, new Uint8Array(salt), sep, enc.encode(origin)];
+  const parts = [
+    enc.encode(product),
+    sep,
+    new Uint8Array(salt),
+    sep,
+    enc.encode(origin),
+  ];
   const combined = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
   let offset = 0;
-  for (const p of parts) { combined.set(p, offset); offset += p.length; }
+  for (const p of parts) {
+    combined.set(p, offset);
+    offset += p.length;
+  }
 
   const hash = new Uint8Array(await sha256(combined.buffer as ArrayBuffer));
-  const bigint = hash.reduce((acc, b) => BigInt(256) * acc + BigInt(b), BigInt(0));
+  const bigint = hash.reduce(
+    (acc, b) => BigInt(256) * acc + BigInt(b),
+    BigInt(0),
+  );
   return bigint.toString(36).padStart(50, "0").slice(0, 50);
 }
 
@@ -48,10 +64,15 @@ function randomSalt(): ArrayBuffer {
   return arr.buffer as ArrayBuffer;
 }
 
-async function contentSalt(content: Uint8Array, pathname: string): Promise<ArrayBuffer> {
+async function contentSalt(
+  content: Uint8Array,
+  pathname: string,
+): Promise<ArrayBuffer> {
   const enc = new TextEncoder();
   const sep = enc.encode("$@#|");
-  const combined = new Uint8Array(content.length + sep.length + pathname.length);
+  const combined = new Uint8Array(
+    content.length + sep.length + pathname.length,
+  );
   combined.set(content, 0);
   combined.set(sep, content.length);
   combined.set(enc.encode(pathname), content.length + sep.length);
@@ -59,18 +80,38 @@ async function contentSalt(content: Uint8Array, pathname: string): Promise<Array
 }
 
 export class SafeContentFrame {
-  constructor(private product: string, private options: SafeContentFrameOptions = {}) {}
+  constructor(
+    private product: string,
+    private options: SafeContentFrameOptions = {},
+  ) {}
 
-  async renderHtml(html: string, container: HTMLElement, opts?: { unsafeDocumentWrite?: boolean }): Promise<RenderedFrame> {
-    return this.render(new TextEncoder().encode(html), "text/html; charset=utf-8", container, opts);
+  async renderHtml(
+    html: string,
+    container: HTMLElement,
+    opts?: { unsafeDocumentWrite?: boolean },
+  ): Promise<RenderedFrame> {
+    return this.render(
+      new TextEncoder().encode(html),
+      "text/html; charset=utf-8",
+      container,
+      opts,
+    );
   }
 
-  async renderRaw(content: Uint8Array | string, mimeType: string, container: HTMLElement): Promise<RenderedFrame> {
-    const data = typeof content === "string" ? new TextEncoder().encode(content) : content;
+  async renderRaw(
+    content: Uint8Array | string,
+    mimeType: string,
+    container: HTMLElement,
+  ): Promise<RenderedFrame> {
+    const data =
+      typeof content === "string" ? new TextEncoder().encode(content) : content;
     return this.render(data, mimeType, container);
   }
 
-  async renderPdf(content: Uint8Array, container: HTMLElement): Promise<RenderedFrame> {
+  async renderPdf(
+    content: Uint8Array,
+    container: HTMLElement,
+  ): Promise<RenderedFrame> {
     return this.render(content, "application/pdf", container);
   }
 
@@ -78,7 +119,7 @@ export class SafeContentFrame {
     content: Uint8Array,
     mimeType: string,
     container: HTMLElement,
-    opts?: { unsafeDocumentWrite?: boolean }
+    opts?: { unsafeDocumentWrite?: boolean },
   ): Promise<RenderedFrame> {
     const origin = window.location.origin;
     const salt = this.options.salt
@@ -106,24 +147,41 @@ export class SafeContentFrame {
     return new Promise((resolve, reject) => {
       const channel = new MessageChannel();
       let onLoaded: () => void;
-      const loaded = new Promise<void>(r => { onLoaded = r; });
+      const loaded = new Promise<void>((r) => {
+        onLoaded = r;
+      });
 
-      channel.port1.onmessage = e => {
+      channel.port1.onmessage = (e) => {
         if (e.data?.type === "msg") onLoaded();
         else if (e.data?.type === "error") reject(new Error(e.data.message));
       };
 
       iframe.onload = () => {
         iframe.contentWindow?.postMessage(
-          { body: content.buffer.slice(content.byteOffset, content.byteOffset + content.byteLength), mimeType, salt, unsafeDocumentWrite: opts?.unsafeDocumentWrite },
+          {
+            body: content.buffer.slice(
+              content.byteOffset,
+              content.byteOffset + content.byteLength,
+            ),
+            mimeType,
+            salt,
+            unsafeDocumentWrite: opts?.unsafeDocumentWrite,
+          },
           iframeOrigin,
-          [channel.port2]
+          [channel.port2],
         );
         resolve({
           iframe,
           origin: iframeOrigin,
-          sendMessage: (data, transfer) => iframe.contentWindow?.postMessage(data, iframeOrigin, transfer),
-          fullyLoadedPromiseWithTimeout: ms => Promise.race([loaded, new Promise<void>((_, rej) => setTimeout(() => rej(new Error("Timeout")), ms))]),
+          sendMessage: (data, transfer) =>
+            iframe.contentWindow?.postMessage(data, iframeOrigin, transfer),
+          fullyLoadedPromiseWithTimeout: (ms) =>
+            Promise.race([
+              loaded,
+              new Promise<void>((_, rej) =>
+                setTimeout(() => rej(new Error("Timeout")), ms),
+              ),
+            ]),
           dispose: () => iframe.remove(),
         });
       };
