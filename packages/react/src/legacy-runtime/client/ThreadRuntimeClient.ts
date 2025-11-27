@@ -5,7 +5,7 @@ import {
   tapInlineResource,
   tapMemo,
   tapEffect,
-  type tapRef,
+  tapRef,
 } from "@assistant-ui/tap";
 import { ComposerClient } from "./ComposerRuntimeClient";
 import { MessageClient } from "./MessageRuntimeClient";

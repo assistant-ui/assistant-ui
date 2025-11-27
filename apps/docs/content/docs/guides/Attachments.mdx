@@ -140,13 +140,49 @@ const textAdapter = new SimpleTextAttachmentAdapter();
 // Output: Content wrapped in <attachment>...</attachment> tags
 ```
 
+### SimpleAudioAttachmentAdapter
+
+Handles audio files and converts them to data URLs for playback in the chat UI:
+
+```tsx
+const audioAdapter = new SimpleAudioAttachmentAdapter();
+// Accepts: audio/* (MP3, WAV, OGG, etc.)
+// Output: { type: "audio", url: "data:audio/..." }
+```
+
+The adapter supports common audio formats including:
+- MP3 (audio/mpeg)
+- WAV (audio/wav)
+- OGG (audio/ogg)
+- WebM Audio (audio/webm)
+- AAC (audio/aac)
+- FLAC (audio/flac)
+
+### SimpleVideoAttachmentAdapter
+
+Handles video files and converts them to data URLs for playback in the chat UI:
+
+```tsx
+const videoAdapter = new SimpleVideoAttachmentAdapter();
+// Accepts: video/* (MP4, WebM, OGG, etc.)
+// Output: { type: "video", url: "data:video/..." }
+```
+
+The adapter supports common video formats including:
+- MP4 (video/mp4)
+- WebM (video/webm)
+- OGG Video (video/ogg)
+- QuickTime (video/quicktime)
+
 ### CompositeAttachmentAdapter
 
-Combines multiple adapters to support various file types:
+Combines multiple adapters to support various file types. Here's an example supporting all media types:
 
 ```tsx
 const compositeAdapter = new CompositeAttachmentAdapter([
   new SimpleImageAttachmentAdapter(),
+  new SimpleAudioAttachmentAdapter(),
+  new SimpleVideoAttachmentAdapter(),
   new SimpleTextAttachmentAdapter(),
   // Add more adapters as needed
 ]);
