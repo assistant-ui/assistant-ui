@@ -90,5 +90,6 @@ export const useChatRuntime = <UI_MESSAGE extends UIMessage = UIMessage>({
       return useChatThreadRuntime(options);
     },
     adapter: cloudAdapter,
+    allowNesting: true,
   });
 };

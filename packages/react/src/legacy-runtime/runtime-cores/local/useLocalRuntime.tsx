@@ -57,5 +57,6 @@ export const useLocalRuntime = (
       return useLocalThreadRuntime(adapter, options);
     },
     adapter: cloudAdapter,
+    allowNesting: true,
   });
 };
