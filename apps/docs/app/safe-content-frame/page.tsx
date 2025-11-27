@@ -174,7 +174,7 @@ export default function SafeContentFramePage() {
           <textarea
             value={html}
             onChange={(e) => setHtml(e.target.value)}
-            className="h-[400px] w-full rounded-lg border bg-muted/50 p-4 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            className="h-[400px] w-full rounded-lg border bg-muted/50 p-4 font-mono text-sm focus:ring-2 focus:ring-primary focus:outline-none"
             spellCheck={false}
           />
 
@@ -190,7 +190,7 @@ export default function SafeContentFramePage() {
           </div>
 
           <div
-            className={`rounded-lg p-3 text-sm font-mono ${
+            className={`rounded-lg p-3 font-mono text-sm ${
               status.type === "error"
                 ? "bg-destructive/10 text-destructive"
                 : status.type === "success"
