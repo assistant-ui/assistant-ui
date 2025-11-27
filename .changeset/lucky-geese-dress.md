@@ -1,5 +1,5 @@
 ---
-"@assistant-ui/mcp-docs-server": minor
+"@assistant-ui/react": minor
 "@assistant-ui/react-ai-sdk": minor
 "safe-content-frame": minor
 ---
