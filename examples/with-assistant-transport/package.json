@@ -7,6 +7,8 @@
     "@assistant-ui/react": "workspace:^",
     "@assistant-ui/react-langgraph": "workspace:^",
     "@assistant-ui/react-markdown": "workspace:^",
+    "@radix-ui/react-avatar": "^1.1.4",
+    "@radix-ui/react-dialog": "^1.1.7",
     "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@tailwindcss/postcss": "^4.1.17",
@@ -15,6 +17,7 @@
     "clsx": "^2.1.1",
     "framer-motion": "^12.23.24",
     "lucide-react": "^0.555.0",
+    "motion": "^11.18.2",
     "next": "16.0.4",
     "postcss": "^8.5.6",
     "react": "19.2.0",
@@ -23,7 +26,8 @@
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^4.1.17",
     "tailwindcss-animate": "^1.0.7",
-    "zod": "^4.1.13"
+    "zod": "^4.1.13",
+    "zustand": "^5.0.8"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
