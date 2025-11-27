@@ -10,7 +10,11 @@
 
   @keyframes shimmer-bg {
     0% {
-      translate: calc(-1 * var(--shimmer-bg-spread, 400) * 1px) 0;
+      /* Start well left of the container + spread */
+      translate: calc(
+          -1 * (var(--shimmer-width, 600) + var(--shimmer-bg-spread, 400)) * 1px
+        )
+        0;
     }
     100% {
       translate: calc(var(--shimmer-width, 600) * 1px) 0;
@@ -24,6 +28,11 @@
   --shimmer-color: oklch(0 0 0 / 0.8);
   --shimmer-spread: 6ch;
   --shimmer-angle: 90deg;
+
+  @variant dark {
+    --shimmer-color: oklch(1 0 0 / 0.8);
+  }
+
   /* Eased gradient: sine ease-in-out for smooth falloff at both center and edges */
   background:
     linear-gradient(
@@ -59,10 +68,14 @@
   -webkit-text-fill-color: transparent;
   animation: shimmer
     calc((var(--shimmer-width) * 2) / var(--shimmer-speed) * 1s) infinite linear;
-
-  @variant dark {
-    --shimmer-color: oklch(1 0 0 / 0.8);
-  }
+  /* Delay syncs animation across elements: y adjusted by angle slope, minus x offset */
+  animation-delay: calc(
+    (
+        var(--shimmer-y, 0) * tan(calc(90deg - var(--shimmer-angle, 90deg))) -
+          var(--shimmer-x, 0)
+      ) /
+      var(--shimmer-speed) * -1s
+  );
 }
 
 @utility shimmer-speed-* {
@@ -85,13 +98,17 @@
   --shimmer-color: oklch(1 0 0 / 0.5);
   --shimmer-bg-spread: 400;
   position: relative;
-  overflow: hidden;
+  overflow: clip;
+
+  @variant dark {
+    --shimmer-color: oklch(1 0 0 / 0.25);
+  }
 
   &::after {
     content: "";
     position: absolute;
-    top: -100%;
-    bottom: -100%;
+    top: -150%;
+    bottom: -150%;
     left: 0;
     width: calc(var(--shimmer-bg-spread) * 1px);
     /* Eased gradient: sine ease-in-out for smooth falloff at both center and edges */
@@ -125,19 +142,30 @@
     /* Delay syncs animation across elements: y adjusted by angle slope, minus x offset */
     animation-delay: calc(
       (
-          var(--shimmer-bg-y, 0) *
-            tan(calc(90deg - var(--shimmer-angle, 90deg))) -
-            var(--shimmer-bg-x, 0)
+          var(--shimmer-y, 0) * tan(calc(90deg - var(--shimmer-angle, 90deg))) -
+            var(--shimmer-x, 0)
         ) /
         var(--shimmer-speed, 500) * -1s
     );
-  }
-
-  @variant dark {
-    --shimmer-color: oklch(1 0 0 / 0.15);
   }
 }
 
 @utility shimmer-width-* {
   --shimmer-width: --value(number);
+}
+
+@utility shimmer-y-* {
+  --shimmer-y: --value(number);
+}
+
+@utility -shimmer-y-* {
+  --shimmer-y: calc(-1 * --value(integer));
+}
+
+@utility shimmer-x-* {
+  --shimmer-x: --value(number);
+}
+
+@utility -shimmer-x-* {
+  --shimmer-x: calc(-1 * --value(integer));
 }

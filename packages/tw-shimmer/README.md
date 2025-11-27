@@ -160,38 +160,20 @@ Use `shimmer-angle-{degrees}` (shared with text shimmer) for diagonal sweeps:
 </div>
 ```
 
-### `--shimmer-bg-x` / `--shimmer-bg-y`
+### `shimmer-x-{value}` / `shimmer-y-{value}`
 
-Element's X and Y position relative to container (in pixels). Used with angled shimmers to create a unified diagonal sweep effect. The animation delay is calculated automatically.
+Element's X and Y position relative to container (in pixels). Used with angled shimmers to create a unified diagonal sweep effect. The animation delay is calculated automatically. Works for both text shimmer and background shimmer.
 
-- `--shimmer-bg-x`: Horizontal offset from container left
-- `--shimmer-bg-y`: Vertical offset from container top (adjusted by `tan(90 - angle)`)
+- `shimmer-x-*`: Horizontal offset from container left
+- `shimmer-y-*`: Vertical offset from container top (adjusted by `tan(90 - angle)`)
 
 > **Tip:** For larger elements like avatars, use center coordinates instead of top-left for better alignment with the diagonal sweep.
 
 ```tsx
 <div class="shimmer-angle-15" style={{ ["--shimmer-width" as string]: "600" }}>
-  <div
-    class="shimmer-bg bg-muted size-10 rounded-full"
-    style={{
-      ["--shimmer-bg-x" as string]: "20",
-      ["--shimmer-bg-y" as string]: "20",
-    }}
-  />
-  <div
-    class="shimmer-bg bg-muted h-4 w-24 rounded"
-    style={{
-      ["--shimmer-bg-x" as string]: "52",
-      ["--shimmer-bg-y" as string]: "0",
-    }}
-  />
-  <div
-    class="shimmer-bg bg-muted h-4 w-full rounded"
-    style={{
-      ["--shimmer-bg-x" as string]: "52",
-      ["--shimmer-bg-y" as string]: "24",
-    }}
-  />
+  <div class="shimmer-bg shimmer-x-20 shimmer-y-20 bg-muted size-10 rounded-full" />
+  <div class="shimmer-bg shimmer-x-52 shimmer-y-0 bg-muted h-4 w-24 rounded" />
+  <div class="shimmer-bg shimmer-x-52 shimmer-y-24 bg-muted h-4 w-full rounded" />
 </div>
 ```
 
