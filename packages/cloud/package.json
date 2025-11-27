@@ -8,7 +8,7 @@
     "chat",
     "assistant-ui"
   ],
-  "version": "0.1.8",
+  "version": "0.1.9",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -33,7 +33,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "assistant-stream": "^0.2.41"
+    "assistant-stream": "^0.2.42"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",

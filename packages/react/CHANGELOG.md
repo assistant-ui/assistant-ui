@@ -1,5 +1,15 @@
 # @assistant-ui/react
 
+## 0.11.45
+
+### Patch Changes
+
+- ec662cd: chore: update dependencies
+- Updated dependencies [ec662cd]
+  - assistant-stream@0.2.42
+  - assistant-cloud@0.1.9
+  - @assistant-ui/tap@0.3.1
+
 ## 0.11.44
 
 ### Patch Changes

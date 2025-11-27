@@ -1,5 +1,14 @@
 # @assistant-ui/react-data-stream
 
+## 0.11.10
+
+### Patch Changes
+
+- ec662cd: chore: update dependencies
+- Updated dependencies [ec662cd]
+  - assistant-stream@0.2.42
+  - @assistant-ui/react@0.11.45
+
 ## 0.11.9
 
 ### Patch Changes

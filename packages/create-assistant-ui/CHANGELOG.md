@@ -1,5 +1,11 @@
 # create-assistant-ui
 
+## 0.0.33
+
+### Patch Changes
+
+- ec662cd: chore: update dependencies
+
 ## 0.0.32
 
 ### Patch Changes
