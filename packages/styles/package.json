@@ -16,7 +16,6 @@
   "sideEffects": false,
   "scripts": {
     "build": "tsx scripts/build.mts",
-    "lint": "biome check .",
     "sync-styles": "tsx scripts/sync-styles.mts",
     "sync-styles:dry-run": "tsx scripts/sync-styles.mts --dry-run"
   },

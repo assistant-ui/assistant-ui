@@ -5,8 +5,7 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "build": "tsx ./scripts/build-registry.ts",
-    "lint": "biome check ."
+    "build": "tsx ./scripts/build-registry.ts"
   },
   "devDependencies": {
     "@ai-sdk/openai": "^2.0.73",

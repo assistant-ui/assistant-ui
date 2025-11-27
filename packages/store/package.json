@@ -20,8 +20,7 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsx scripts/build.mts",
-    "lint": "biome check ."
+    "build": "tsx scripts/build.mts"
   },
   "dependencies": {
     "@assistant-ui/tap": "workspace:*"

@@ -24,8 +24,7 @@
   ],
   "bin": "./dist/index.js",
   "scripts": {
-    "build": "tsx scripts/build.mts",
-    "lint": "biome check ."
+    "build": "tsx scripts/build.mts"
   },
   "publishConfig": {
     "access": "public",

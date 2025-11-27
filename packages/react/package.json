@@ -51,8 +51,7 @@
     "build": "tsx scripts/build.mts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:mutation": "stryker run",
-    "lint": "biome check ."
+    "test:mutation": "stryker run"
   },
   "dependencies": {
     "assistant-cloud": "^0.1.9",

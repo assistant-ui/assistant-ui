@@ -35,7 +35,6 @@
   "bin": "./dist/index.js",
   "scripts": {
     "build": "tsx scripts/build.mts",
-    "lint": "biome check .",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"

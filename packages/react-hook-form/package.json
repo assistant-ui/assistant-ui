@@ -18,8 +18,7 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsx scripts/build.mts",
-    "lint": "biome check ."
+    "build": "tsx scripts/build.mts"
   },
   "dependencies": {
     "zod": "^4.1.13"
