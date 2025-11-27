@@ -5,6 +5,7 @@ import {
   ArrowUpIcon,
   BotIcon,
   CheckIcon,
+  ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   CopyIcon,
@@ -13,6 +14,8 @@ import {
   PencilIcon,
   RefreshCwIcon,
   Square,
+  ThumbsDownIcon,
+  ThumbsUpIcon,
   UserIcon,
   Volume2Icon,
 } from "lucide-react";
@@ -31,7 +34,7 @@ import { Button } from "@/components/ui/button";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 
-import type { BuilderConfig } from "./types";
+import type { BuilderConfig, FontSize, MessageSpacing } from "./types";
 
 const PlainText: FC<{ text: string }> = ({ text }) => {
   return <p className="whitespace-pre-wrap">{text}</p>;
@@ -52,6 +55,9 @@ export function BuilderPreview({ config }: BuilderPreviewProps) {
     full: "rounded-3xl",
   }[styles.borderRadius];
 
+  const fontSizeClass = getFontSizeClass(styles.fontSize);
+  const messageSpacingClass = getMessageSpacingClass(styles.messageSpacing);
+
   const themeClass = styles.theme === "dark" ? "dark" : "";
 
   return (
@@ -68,6 +74,7 @@ export function BuilderPreview({ config }: BuilderPreviewProps) {
       <ThreadPrimitive.Root
         className={cn(
           "flex h-full flex-col bg-background text-foreground",
+          fontSizeClass,
           themeClass && "bg-zinc-900 text-zinc-100",
         )}
       >
@@ -87,12 +94,14 @@ export function BuilderPreview({ config }: BuilderPreviewProps) {
                 <UserMessage
                   config={config}
                   borderRadiusClass={borderRadiusClass}
+                  messageSpacingClass={messageSpacingClass}
                 />
               ),
               AssistantMessage: () => (
                 <AssistantMessage
                   config={config}
                   borderRadiusClass={borderRadiusClass}
+                  messageSpacingClass={messageSpacingClass}
                 />
               ),
             }}
@@ -107,6 +116,22 @@ export function BuilderPreview({ config }: BuilderPreviewProps) {
       </ThreadPrimitive.Root>
     </div>
   );
+}
+
+function getFontSizeClass(fontSize: FontSize): string {
+  return {
+    sm: "text-sm",
+    base: "text-base",
+    lg: "text-lg",
+  }[fontSize];
+}
+
+function getMessageSpacingClass(spacing: MessageSpacing): string {
+  return {
+    compact: "py-2",
+    comfortable: "py-4",
+    spacious: "py-6",
+  }[spacing];
 }
 
 interface ThreadWelcomeProps {
@@ -248,16 +273,22 @@ const ThreadScrollToBottom: FC = () => {
 interface UserMessageProps {
   config: BuilderConfig;
   borderRadiusClass: string;
+  messageSpacingClass: string;
 }
 
-const UserMessage: FC<UserMessageProps> = ({ config, borderRadiusClass }) => {
+const UserMessage: FC<UserMessageProps> = ({
+  config,
+  borderRadiusClass,
+  messageSpacingClass,
+}) => {
   const { components, styles } = config;
   const isLeftAligned = styles.userMessagePosition === "left";
 
   return (
     <MessagePrimitive.Root
       className={cn(
-        "mx-auto flex w-full max-w-[var(--thread-max-width)] gap-3 px-2 py-4",
+        "mx-auto flex w-full max-w-[var(--thread-max-width)] gap-3 px-2",
+        messageSpacingClass,
         isLeftAligned ? "flex-row" : "flex-row-reverse",
         styles.animations &&
           "animate-in duration-300 fade-in slide-in-from-bottom-2",
@@ -314,16 +345,21 @@ const UserMessage: FC<UserMessageProps> = ({ config, borderRadiusClass }) => {
 interface AssistantMessageProps {
   config: BuilderConfig;
   borderRadiusClass: string;
+  messageSpacingClass: string;
 }
 
-const AssistantMessage: FC<AssistantMessageProps> = ({ config }) => {
+const AssistantMessage: FC<AssistantMessageProps> = ({
+  config,
+  messageSpacingClass,
+}) => {
   const { components, styles } = config;
   const TextComponent = components.markdown ? MarkdownText : PlainText;
 
   return (
     <MessagePrimitive.Root
       className={cn(
-        "relative mx-auto flex w-full max-w-[var(--thread-max-width)] gap-3 py-4",
+        "relative mx-auto flex w-full max-w-[var(--thread-max-width)] gap-3",
+        messageSpacingClass,
         styles.animations &&
           "animate-in duration-300 fade-in slide-in-from-bottom-2",
       )}
@@ -334,6 +370,22 @@ const AssistantMessage: FC<AssistantMessageProps> = ({ config }) => {
         </div>
       )}
       <div className="min-w-0 flex-1">
+        {/* Reasoning/Thinking Section */}
+        {components.reasoning && (
+          <div className="mb-3 overflow-hidden rounded-lg border border-dashed border-muted-foreground/30 bg-muted/30">
+            <details className="group">
+              <summary className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50">
+                <ChevronDownIcon className="size-4 transition-transform group-open:rotate-180" />
+                <span className="font-medium">Thinking...</span>
+              </summary>
+              <div className="border-t border-dashed border-muted-foreground/30 px-3 py-2 text-sm text-muted-foreground italic">
+                Let me analyze this step by step. First, I'll consider the key
+                points of your question...
+              </div>
+            </details>
+          </div>
+        )}
+
         <div className="leading-7 break-words text-foreground">
           <MessagePrimitive.Parts components={{ Text: TextComponent }} />
         </div>
@@ -383,7 +435,12 @@ const AssistantActionBar: FC<AssistantActionBarProps> = ({ config }) => {
   const { components } = config;
   const { actionBar } = components;
 
-  if (!actionBar.copy && !actionBar.reload && !actionBar.speak) {
+  if (
+    !actionBar.copy &&
+    !actionBar.reload &&
+    !actionBar.speak &&
+    !actionBar.feedback
+  ) {
     return null;
   }
 
@@ -419,6 +476,20 @@ const AssistantActionBar: FC<AssistantActionBarProps> = ({ config }) => {
             <Volume2Icon />
           </TooltipIconButton>
         </ActionBarPrimitive.Speak>
+      )}
+      {actionBar.feedback && (
+        <>
+          <ActionBarPrimitive.FeedbackPositive asChild>
+            <TooltipIconButton tooltip="Good response">
+              <ThumbsUpIcon />
+            </TooltipIconButton>
+          </ActionBarPrimitive.FeedbackPositive>
+          <ActionBarPrimitive.FeedbackNegative asChild>
+            <TooltipIconButton tooltip="Bad response">
+              <ThumbsDownIcon />
+            </TooltipIconButton>
+          </ActionBarPrimitive.FeedbackNegative>
+        </>
       )}
     </ActionBarPrimitive.Root>
   );

@@ -308,6 +308,7 @@ function CopyCommandButton() {
         className:
           "group relative flex h-12 items-center gap-2 rounded-xl border bg-background px-4 py-3 font-mono text-sm font-bold transition-all",
       })}
+      type="button"
     >
       <span>$ npx assistant-ui init</span>
       <div className="ml-2 flex h-5 w-5 items-center justify-center text-muted-foreground">

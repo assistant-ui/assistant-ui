@@ -1,10 +1,13 @@
 export type Theme = "light" | "dark" | "system";
 export type BorderRadius = "none" | "sm" | "md" | "lg" | "full";
+export type FontSize = "sm" | "base" | "lg";
+export type MessageSpacing = "compact" | "comfortable" | "spacious";
 
 export interface ActionBarConfig {
   copy: boolean;
   reload: boolean;
   speak: boolean;
+  feedback: boolean;
 }
 
 export interface ComponentsConfig {
@@ -30,6 +33,8 @@ export interface StylesConfig {
   borderRadius: BorderRadius;
   maxWidth: string;
   fontFamily: string;
+  fontSize: FontSize;
+  messageSpacing: MessageSpacing;
   userMessagePosition: UserMessagePosition;
   animations: boolean;
 }
@@ -55,6 +60,7 @@ export const DEFAULT_CONFIG: BuilderConfig = {
       copy: true,
       reload: true,
       speak: false,
+      feedback: false,
     },
     threadWelcome: true,
     suggestions: true,
@@ -71,6 +77,8 @@ export const DEFAULT_CONFIG: BuilderConfig = {
     borderRadius: "lg",
     maxWidth: "44rem",
     fontFamily: "system-ui",
+    fontSize: "base",
+    messageSpacing: "comfortable",
     userMessagePosition: "right",
     animations: true,
   },
@@ -83,6 +91,12 @@ export const ACCENT_COLORS = [
   { name: "Amber", value: "#f59e0b" },
   { name: "Emerald", value: "#10b981" },
   { name: "Slate", value: "#64748b" },
+  { name: "Indigo", value: "#6366f1" },
+  { name: "Pink", value: "#ec4899" },
+  { name: "Teal", value: "#14b8a6" },
+  { name: "Orange", value: "#f97316" },
+  { name: "Cyan", value: "#22d3ee" },
+  { name: "Neutral", value: "#171717" },
 ] as const;
 
 export const FONT_FAMILIES = [
@@ -98,4 +112,16 @@ export const MAX_WIDTHS = [
   { name: "Default", value: "44rem" },
   { name: "Wide", value: "56rem" },
   { name: "Full", value: "100%" },
+] as const;
+
+export const FONT_SIZES = [
+  { name: "Small", value: "sm" },
+  { name: "Default", value: "base" },
+  { name: "Large", value: "lg" },
+] as const;
+
+export const MESSAGE_SPACINGS = [
+  { name: "Compact", value: "compact" },
+  { name: "Comfortable", value: "comfortable" },
+  { name: "Spacious", value: "spacious" },
 ] as const;

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -12,15 +13,33 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Layers, Palette, MonitorSmartphone, Moon, Sun } from "lucide-react";
+import {
+  Layers,
+  Palette,
+  MonitorSmartphone,
+  Moon,
+  Sun,
+  RotateCcw,
+  Download,
+  Upload,
+} from "lucide-react";
 
 import type {
   BuilderConfig,
   BorderRadius,
   Theme,
   UserMessagePosition,
+  FontSize,
+  MessageSpacing,
 } from "./types";
-import { ACCENT_COLORS, FONT_FAMILIES, MAX_WIDTHS } from "./types";
+import {
+  ACCENT_COLORS,
+  FONT_FAMILIES,
+  MAX_WIDTHS,
+  FONT_SIZES,
+  MESSAGE_SPACINGS,
+  DEFAULT_CONFIG,
+} from "./types";
 import { PRESETS } from "./presets";
 
 interface BuilderControlsProps {
@@ -29,6 +48,8 @@ interface BuilderControlsProps {
 }
 
 export function BuilderControls({ config, onChange }: BuilderControlsProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const updateComponents = (updates: Partial<BuilderConfig["components"]>) => {
     onChange({
       ...config,
@@ -55,15 +76,98 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
     });
   };
 
+  const handleReset = () => {
+    onChange(DEFAULT_CONFIG);
+  };
+
+  const handleExport = () => {
+    const dataStr = JSON.stringify(config, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "assistant-ui-config.json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const importedConfig = JSON.parse(
+          e.target?.result as string,
+        ) as BuilderConfig;
+        // Validate the imported config has the expected structure
+        if (importedConfig.components && importedConfig.styles) {
+          onChange(importedConfig);
+        }
+      } catch {
+        console.error("Failed to parse config file");
+      }
+    };
+    reader.readAsText(file);
+    // Reset the input so the same file can be imported again
+    event.target.value = "";
+  };
+
   return (
     <div className="flex h-full flex-col">
+      {/* Header Actions */}
+      <div className="flex items-center justify-between border-b px-4 py-2">
+        <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+          Config
+        </span>
+        <div className="flex items-center gap-1">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleImport}
+            className="hidden"
+          />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-7"
+            onClick={() => fileInputRef.current?.click()}
+            title="Import configuration"
+          >
+            <Upload className="size-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-7"
+            onClick={handleExport}
+            title="Export configuration"
+          >
+            <Download className="size-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-7"
+            onClick={handleReset}
+            title="Reset to default"
+          >
+            <RotateCcw className="size-3.5" />
+          </Button>
+        </div>
+      </div>
+
       {/* Presets */}
       <div className="border-b p-4">
         <Label className="mb-3 block text-xs font-semibold tracking-wider text-muted-foreground uppercase">
           Presets
         </Label>
         <div className="grid grid-cols-2 gap-2">
-          {PRESETS.slice(0, 4).map((preset) => (
+          {PRESETS.map((preset) => (
             <Button
               key={preset.id}
               variant="outline"
@@ -242,6 +346,15 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
                   updateActionBar({ speak: checked })
                 }
               />
+
+              <ToggleRow
+                label="Feedback"
+                description="Thumbs up/down buttons"
+                checked={config.components.actionBar.feedback}
+                onCheckedChange={(checked) =>
+                  updateActionBar({ feedback: checked })
+                }
+              />
             </div>
           </div>
         </TabsContent>
@@ -348,6 +461,31 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
 
             <div className="space-y-3">
               <Label className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                Font Size
+              </Label>
+              <div className="flex gap-2">
+                {FONT_SIZES.map((size) => (
+                  <Button
+                    key={size.value}
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      "flex-1",
+                      config.styles.fontSize === size.value &&
+                        "border-primary bg-primary/5",
+                    )}
+                    onClick={() =>
+                      updateStyles({ fontSize: size.value as FontSize })
+                    }
+                  >
+                    {size.name}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <Label className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                 Max Width
               </Label>
               <Select
@@ -365,6 +503,33 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-3">
+              <Label className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                Message Spacing
+              </Label>
+              <div className="flex gap-2">
+                {MESSAGE_SPACINGS.map((spacing) => (
+                  <Button
+                    key={spacing.value}
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      "flex-1",
+                      config.styles.messageSpacing === spacing.value &&
+                        "border-primary bg-primary/5",
+                    )}
+                    onClick={() =>
+                      updateStyles({
+                        messageSpacing: spacing.value as MessageSpacing,
+                      })
+                    }
+                  >
+                    {spacing.name}
+                  </Button>
+                ))}
+              </div>
             </div>
 
             <div className="space-y-3">

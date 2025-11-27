@@ -5,12 +5,13 @@ import {
   SparklesIcon,
   WalletIcon,
   LayoutTemplateIcon,
+  CodeIcon,
 } from "lucide-react";
 import icon from "@/public/favicon/icon.svg";
 import Image from "next/image";
-import { DocsLayoutProps } from "fumadocs-ui/layouts/docs";
+import type { DocsLayoutProps } from "fumadocs-ui/layouts/docs";
 import { SidebarHiringBanner } from "@/components/docs/SidebarHiringBanner";
-import { BaseLayoutProps } from "fumadocs-ui/layouts/links";
+import type { BaseLayoutProps } from "fumadocs-ui/layouts/links";
 
 const DiscordIcon = () => {
   return (
@@ -59,6 +60,11 @@ export const baseOptions: BaseLayoutProps = {
       text: "Examples",
       url: "/examples",
       icon: <SparklesIcon />,
+    },
+    {
+      text: "Playground",
+      url: "/playground",
+      icon: <CodeIcon />,
     },
     {
       text: "Dashboard",

@@ -95,7 +95,7 @@ export function BuilderCodeOutput({ config }: BuilderCodeOutputProps) {
           </div>
           <div className="border-t bg-muted/30 p-4">
             <p className="text-xs text-muted-foreground">
-              Run this command to add the configured thread component to your
+              Run these commands to add the configured thread component to your
               project. Make sure you have{" "}
               <code className="rounded bg-muted px-1 py-0.5">
                 @assistant-ui/react
@@ -132,14 +132,26 @@ function generateComponentCode(config: BuilderConfig): string {
   const iconImports = generateIconImports(config);
 
   const borderRadiusClass = getBorderRadiusClass(styles.borderRadius);
+  const fontSizeClass = getFontSizeClass(styles.fontSize);
+  const messageSpacingClass = getMessageSpacingClass(styles.messageSpacing);
+
+  // Generate CSS variables section
+  const cssVariables = `
+    "--thread-max-width": "${styles.maxWidth}",
+    "--accent-color": "${styles.accentColor}",`;
+
+  // Generate font family inline style
+  const fontFamilyStyle =
+    styles.fontFamily !== "system-ui"
+      ? `\n    fontFamily: "${styles.fontFamily}",`
+      : "";
 
   const threadComponent = `
 export function Thread() {
   return (
     <ThreadPrimitive.Root
-      className="flex h-full flex-col bg-background"
-      style={{
-        ["--thread-max-width" as string]: "${styles.maxWidth}",
+      className="flex h-full flex-col bg-background ${fontSizeClass}"
+      style={{${cssVariables}${fontFamilyStyle}
       }}
     >
       <ThreadPrimitive.Viewport className="relative flex flex-1 flex-col overflow-y-auto px-4">
@@ -185,6 +197,18 @@ function ThreadWelcome() {
         components.suggestions
           ? `<div className="grid w-full gap-2 pb-4 md:grid-cols-2">
         {/* Add your suggestions here */}
+        <ThreadPrimitive.Suggestion prompt="What's the weather in San Francisco?" asChild>
+          <Button variant="ghost" className="h-auto w-full flex-col items-start justify-start gap-1 border ${borderRadiusClass} px-5 py-4 text-left text-sm">
+            <span className="font-medium">What's the weather</span>
+            <span className="text-muted-foreground">in San Francisco?</span>
+          </Button>
+        </ThreadPrimitive.Suggestion>
+        <ThreadPrimitive.Suggestion prompt="Explain React hooks like useState" asChild>
+          <Button variant="ghost" className="h-auto w-full flex-col items-start justify-start gap-1 border ${borderRadiusClass} px-5 py-4 text-left text-sm">
+            <span className="font-medium">Explain React hooks</span>
+            <span className="text-muted-foreground">like useState</span>
+          </Button>
+        </ThreadPrimitive.Suggestion>
       </div>`
           : ""
       }
@@ -219,15 +243,25 @@ function Composer() {
 
             <ThreadPrimitive.If running={false}>
               <ComposerPrimitive.Send asChild>
-                <TooltipIconButton tooltip="Send message" variant="default" className="size-[34px] rounded-full p-1">
-                  <ArrowUpIcon className="size-5" />
+                <TooltipIconButton
+                  tooltip="Send message"
+                  variant="default"
+                  className="size-[34px] rounded-full p-1"
+                  style={{ backgroundColor: "var(--accent-color)" }}
+                >
+                  <ArrowUpIcon className="size-5 text-white" />
                 </TooltipIconButton>
               </ComposerPrimitive.Send>
             </ThreadPrimitive.If>
 
             <ThreadPrimitive.If running>
               <ComposerPrimitive.Cancel asChild>
-                <Button variant="default" size="icon" className="size-[34px] rounded-full">
+                <Button
+                  variant="default"
+                  size="icon"
+                  className="size-[34px] rounded-full"
+                  style={{ backgroundColor: "var(--accent-color)" }}
+                >
                   <Square className="size-3.5 fill-current" />
                 </Button>
               </ComposerPrimitive.Cancel>
@@ -261,7 +295,7 @@ function ThreadScrollToBottom() {
     ? " animate-in fade-in slide-in-from-bottom-2 duration-300"
     : "";
 
-  const userMessageRootClass = `mx-auto flex w-full max-w-[var(--thread-max-width)] gap-3 px-2 py-4 ${isLeftAligned ? "flex-row" : "flex-row-reverse"}${animationClass}`;
+  const userMessageRootClass = `mx-auto flex w-full max-w-[var(--thread-max-width)] gap-3 px-2 ${messageSpacingClass} ${isLeftAligned ? "flex-row" : "flex-row-reverse"}${animationClass}`;
   const userMessageContentClass = `relative min-w-0 max-w-[80%]${!isLeftAligned ? " ml-auto" : ""}`;
   const editButtonPositionClass = isLeftAligned
     ? "absolute top-1/2 -translate-y-1/2 right-0 translate-x-full pl-2"
@@ -301,8 +335,24 @@ function UserMessage() {
   );
 }`;
 
-  const assistantMessageRootClass = `relative mx-auto flex w-full max-w-[var(--thread-max-width)] gap-3 py-4${animationClass}`;
+  const assistantMessageRootClass = `relative mx-auto flex w-full max-w-[var(--thread-max-width)] gap-3 ${messageSpacingClass}${animationClass}`;
   const textComponent = components.markdown ? "MarkdownText" : "undefined";
+
+  const reasoningSection = components.reasoning
+    ? `
+        {/* Reasoning/Thinking Section */}
+        <div className="mb-3 overflow-hidden rounded-lg border border-dashed border-muted-foreground/30 bg-muted/30">
+          <details className="group">
+            <summary className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50">
+              <ChevronDownIcon className="size-4 transition-transform group-open:rotate-180" />
+              <span className="font-medium">Thinking...</span>
+            </summary>
+            <div className="border-t border-dashed border-muted-foreground/30 px-3 py-2 text-sm italic text-muted-foreground">
+              {/* Reasoning content will be displayed here */}
+            </div>
+          </details>
+        </div>`
+    : "";
 
   const assistantMessageComponent = `
 function AssistantMessage() {
@@ -315,7 +365,7 @@ function AssistantMessage() {
       </div>`
           : ""
       }
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1">${reasoningSection}
         <div className="leading-7 break-words text-foreground">
           <MessagePrimitive.Parts${components.markdown ? ` components={{ Text: ${textComponent} }}` : ""} />
         </div>
@@ -361,6 +411,21 @@ function AssistantMessage() {
   );
 }`;
 
+  // Generate action bar with feedback buttons
+  const feedbackButtons = components.actionBar.feedback
+    ? `
+      <ActionBarPrimitive.FeedbackPositive asChild>
+        <TooltipIconButton tooltip="Good response">
+          <ThumbsUpIcon />
+        </TooltipIconButton>
+      </ActionBarPrimitive.FeedbackPositive>
+      <ActionBarPrimitive.FeedbackNegative asChild>
+        <TooltipIconButton tooltip="Bad response">
+          <ThumbsDownIcon />
+        </TooltipIconButton>
+      </ActionBarPrimitive.FeedbackNegative>`
+    : "";
+
   const actionBarComponent = `
 function AssistantActionBar() {
   return (
@@ -401,7 +466,7 @@ function AssistantActionBar() {
         </TooltipIconButton>
       </ActionBarPrimitive.Speak>`
           : ""
-      }
+      }${feedbackButtons}
     </ActionBarPrimitive.Root>
   );
 }`;
@@ -464,8 +529,11 @@ function generateIconImports(config: BuilderConfig): string {
   if (components.actionBar.copy) icons.push("CheckIcon", "CopyIcon");
   if (components.actionBar.reload) icons.push("RefreshCwIcon");
   if (components.actionBar.speak) icons.push("Volume2Icon");
+  if (components.actionBar.feedback)
+    icons.push("ThumbsUpIcon", "ThumbsDownIcon");
   if (components.avatar) icons.push("BotIcon", "UserIcon");
   if (components.typingIndicator) icons.push("LoaderIcon");
+  if (components.reasoning) icons.push("ChevronDownIcon");
 
   return `import {\n  ${[...new Set(icons)].sort().join(",\n  ")},\n} from "lucide-react";`;
 }
@@ -482,21 +550,100 @@ function getBorderRadiusClass(radius: string): string {
   );
 }
 
-function generateCliCommand(_config: BuilderConfig): string {
+function getFontSizeClass(fontSize: string): string {
+  return (
+    {
+      sm: "text-sm",
+      base: "text-base",
+      lg: "text-lg",
+    }[fontSize] || "text-base"
+  );
+}
+
+function getMessageSpacingClass(spacing: string): string {
+  return (
+    {
+      compact: "py-2",
+      comfortable: "py-4",
+      spacious: "py-6",
+    }[spacing] || "py-4"
+  );
+}
+
+function generateCliCommand(config: BuilderConfig): string {
+  const { components } = config;
+
+  // Determine which components to add based on configuration
+  const componentsToAdd: string[] = ["thread"];
+
+  if (components.markdown) {
+    componentsToAdd.push("markdown-text");
+  }
+
+  // tooltip-icon-button is always needed for various actions
+  componentsToAdd.push("tooltip-icon-button");
+
+  if (components.attachments) {
+    componentsToAdd.push("attachment");
+  }
+
+  const addCommand =
+    componentsToAdd.length > 0
+      ? `npx assistant-ui@latest add ${componentsToAdd.join(" ")}`
+      : "";
+
+  const featureNotes: string[] = [];
+
+  if (components.reasoning) {
+    featureNotes.push(
+      "# Note: Reasoning/thinking display is included in the code above",
+    );
+  }
+
+  if (components.actionBar.speak) {
+    featureNotes.push("# Note: Text-to-speech requires browser API support");
+  }
+
+  if (components.actionBar.feedback) {
+    featureNotes.push(
+      "# Note: Feedback buttons require backend integration to store user feedback",
+    );
+  }
+
   return `# Step 1: Initialize assistant-ui in your project
 npx assistant-ui@latest init
 
-# Step 2: Add the thread component
-npx assistant-ui@latest add thread
+# Step 2: Add the required components
+${addCommand}
 
 # Step 3: Copy the generated code above and paste it into your thread.tsx file
-# The code above is customized based on your playground configuration
+# The code is customized based on your playground configuration
 
-# Additional components you might need:
-npx assistant-ui@latest add markdown-text
-npx assistant-ui@latest add tooltip-icon-button
-npx assistant-ui@latest add attachment
-
-# Or add all components at once:
-npx assistant-ui@latest add thread markdown-text tooltip-icon-button attachment`;
+${featureNotes.length > 0 ? featureNotes.join("\n") + "\n" : ""}
+# Configuration Summary:
+# - Theme: ${config.styles.theme}
+# - Accent Color: ${config.styles.accentColor}
+# - Border Radius: ${config.styles.borderRadius}
+# - Font: ${config.styles.fontFamily}
+# - Font Size: ${config.styles.fontSize}
+# - Message Spacing: ${config.styles.messageSpacing}
+# - User Message Position: ${config.styles.userMessagePosition}
+# - Animations: ${config.styles.animations ? "enabled" : "disabled"}
+# 
+# Components enabled:
+# - Attachments: ${components.attachments ? "yes" : "no"}
+# - Branch Picker: ${components.branchPicker ? "yes" : "no"}
+# - Edit Messages: ${components.editMessage ? "yes" : "no"}
+# - Welcome Screen: ${components.threadWelcome ? "yes" : "no"}
+# - Suggestions: ${components.suggestions ? "yes" : "no"}
+# - Scroll to Bottom: ${components.scrollToBottom ? "yes" : "no"}
+# - Markdown: ${components.markdown ? "yes" : "no"}
+# - Reasoning: ${components.reasoning ? "yes" : "no"}
+# - Follow-up Suggestions: ${components.followUpSuggestions ? "yes" : "no"}
+# - Avatar: ${components.avatar ? "yes" : "no"}
+# - Typing Indicator: ${components.typingIndicator ? "yes" : "no"}
+# - Action Bar Copy: ${components.actionBar.copy ? "yes" : "no"}
+# - Action Bar Reload: ${components.actionBar.reload ? "yes" : "no"}
+# - Action Bar Speak: ${components.actionBar.speak ? "yes" : "no"}
+# - Action Bar Feedback: ${components.actionBar.feedback ? "yes" : "no"}`;
 }
