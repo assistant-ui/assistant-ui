@@ -5,8 +5,7 @@
   "scripts": {
     "dev": "next dev --turbo",
     "build": "next build",
-    "start": "next start",
-    "lint": "biome check ."
+    "start": "next start"
   },
   "dependencies": {
     "@ai-sdk/openai": "^2.0.73",

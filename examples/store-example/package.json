@@ -5,8 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "lint": "biome check ."
+    "start": "next start"
   },
   "dependencies": {
     "@assistant-ui/store": "workspace:*",
