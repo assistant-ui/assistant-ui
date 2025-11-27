@@ -1,6 +1,6 @@
 {
   "name": "assistant-stream",
-  "version": "0.2.41",
+  "version": "0.2.42",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -34,7 +34,7 @@
     "@standard-schema/spec": "^1.0.0",
     "@types/node": "^24.10.1",
     "tsx": "^4.20.6",
-    "vitest": "^4.0.10"
+    "vitest": "^4.0.14"
   },
   "publishConfig": {
     "access": "public"

@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-syntax-highlighter",
-  "version": "0.11.5",
+  "version": "0.11.6",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -26,8 +26,8 @@
     "lint": "biome check ."
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.11.44",
-    "@assistant-ui/react-markdown": "^0.11.5",
+    "@assistant-ui/react": "^0.11.45",
+    "@assistant-ui/react-markdown": "^0.11.6",
     "@types/react": "*",
     "@types/react-syntax-highlighter": "*",
     "react": "^18 || ^19 || ^19.0.0-rc",
@@ -46,7 +46,7 @@
     "@assistant-ui/react-markdown": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/node": "^24.10.1",
-    "@types/react": "^19.2.5",
+    "@types/react": "^19.2.7",
     "@types/react-syntax-highlighter": "^15.5.13",
     "react": "19.2.0",
     "react-syntax-highlighter": "^16.1.0",

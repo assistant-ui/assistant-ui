@@ -11,15 +11,15 @@
   "dependencies": {
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
-    "next": "16.0.3",
+    "next": "16.0.4",
     "react": "19.2.0",
     "react-dom": "19.2.0"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "19.2.5",
+    "@types/node": "^24",
+    "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",
     "tailwindcss": "^4",
     "typescript": "^5"
