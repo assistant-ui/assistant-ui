@@ -31,7 +31,7 @@ export const MessagePartPrimitiveAudio = forwardRef<
   MessagePartPrimitiveAudio.Props
 >((props, forwardedRef) => {
   const part = useMessagePartAudio();
-  const src = `data:audio/${part.audio.format};base64,${part.audio.data}`;
+  const src = part.audio.data;
   return <audio src={src} {...props} ref={forwardedRef} />;
 });
 
