@@ -8,7 +8,7 @@ import { GithubIcon } from "lucide-react";
 import { getMDXComponents } from "@/mdx-components";
 import { DocsRuntimeProvider } from "@/app/(home)/DocsRuntimeProvider";
 import Link from "next/link";
-import { ExamplesNavbar } from "@/components/examples";
+import { ExamplesNavbar } from "@/components/examples/ExamplesNavbar";
 import { INTERNAL_EXAMPLES } from "@/lib/examples";
 
 // Helper functions to eliminate code duplication

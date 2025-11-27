@@ -1,6 +1,6 @@
 {
   "name": "create-assistant-ui",
-  "version": "0.0.32",
+  "version": "0.0.33",
   "license": "MIT",
   "dependencies": {
     "chalk": "^5.6.2",
@@ -8,7 +8,7 @@
     "cosmiconfig": "^9.0.0",
     "cross-spawn": "^7.0.6",
     "tsconfig-paths": "^4.2.0",
-    "zod": "^4.1.12"
+    "zod": "^4.1.13"
   },
   "type": "module",
   "devDependencies": {
