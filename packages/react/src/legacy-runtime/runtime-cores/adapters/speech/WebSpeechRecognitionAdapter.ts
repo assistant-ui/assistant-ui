@@ -222,17 +222,16 @@ export class WebSpeechRecognitionAdapter implements SpeechRecognitionAdapter {
     });
 
     // Handle speech end (user stopped talking)
+    // Note: speechend fires when user stops speaking, but recognition may continue
+    // to finalize results. We don't invoke callbacks here to avoid double invocation.
     recognition.addEventListener("speechend", () => {
-      if (finalTranscript) {
-        for (const cb of speechEndCallbacks)
-          cb({ transcript: finalTranscript });
-      }
+      // No action needed - the 'end' event will handle final cleanup
     });
 
     // Handle recognition end
     recognition.addEventListener("end", () => {
       updateStatus({ type: "ended", reason: "stopped" });
-      // Ensure we send any remaining transcript
+      // Send final transcript when recognition terminates
       if (finalTranscript) {
         for (const cb of speechEndCallbacks)
           cb({ transcript: finalTranscript });

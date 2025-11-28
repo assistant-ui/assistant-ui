@@ -18,8 +18,10 @@ export type ListeningState = {
    * This is a preview of what the user is saying and may change
    * as the speech recognition refines its prediction.
    *
-   * Useful for displaying a live preview of the transcription.
-   * Only final transcripts are appended to the composer text.
+   * Note: By default, interim transcripts are shown directly in the composer
+   * input field (like native dictation). This property is provided for
+   * advanced customization when you want to display or style the interim
+   * transcript separately.
    */
   readonly transcript?: string;
 };

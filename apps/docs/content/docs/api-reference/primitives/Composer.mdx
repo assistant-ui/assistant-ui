@@ -262,6 +262,28 @@ This primitive renders a `<button>` element unless `asChild` is set.
   ]}
 />
 
+### ListeningTranscript
+
+Renders the current interim (partial) transcript while speech recognition is active.
+
+<Callout type="info">
+**Note:** By default, interim transcripts are displayed directly in the composer input (like native dictation).
+This component is for **advanced customization** when you want to display the interim transcript separately (e.g., in a different style or location).
+</Callout>
+
+Only renders when there is an active interim transcript (returns `null` otherwise).
+
+This primitive renders a `<span>` element.
+
+```tsx
+{/* Optional: Display interim transcript separately with custom styling */}
+<ComposerPrimitive.If listening>
+  <div className="listening-preview">
+    <ComposerPrimitive.ListeningTranscript className="italic text-muted" />
+  </div>
+</ComposerPrimitive.If>
+```
+
 ### If
 
 Renders children if a condition is met.

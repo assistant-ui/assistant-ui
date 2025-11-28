@@ -218,6 +218,12 @@ export abstract class BaseComposerRuntimeCore
   private _listening: ListeningState | undefined;
   private _listeningSession: SpeechRecognitionAdapter.Session | undefined;
   private _listeningUnsubscribes: Unsubscribe[] = [];
+  /** Base text for dictation (everything committed so far) */
+  private _dictationBaseText = "";
+  /** User-typed text that hasn't been committed yet */
+  private _dictationUserText = "";
+  /** Current interim text (to be replaced by next interim or final) */
+  private _currentInterimText = "";
 
   public get listening(): ListeningState | undefined {
     return this._listening;
@@ -234,6 +240,11 @@ export abstract class BaseComposerRuntimeCore
       this.stopListening();
     }
 
+    // Initialize dictation state with current text
+    this._dictationBaseText = this._text;
+    this._dictationUserText = "";
+    this._currentInterimText = "";
+
     const session = adapter.listen();
     this._listeningSession = session;
     this._listening = { status: session.status };
@@ -245,27 +256,62 @@ export abstract class BaseComposerRuntimeCore
       // Default to final=true for backwards compatibility
       const isFinal = result.isFinal !== false;
 
-      if (isFinal) {
-        // Final result: append to the actual text
-        const currentText = this.text;
-        const separator = currentText && !currentText.endsWith(" ") ? " " : "";
-        this.setText(currentText + separator + result.transcript);
+      // Detect NEW user-typed text: anything added after our last known state
+      // Expected state is: base + userText + interim
+      const expectedText =
+        this._dictationBaseText +
+        this._dictationUserText +
+        this._currentInterimText;
+      if (this._text.startsWith(expectedText)) {
+        // User typed something new at the end
+        this._dictationUserText += this._text.slice(expectedText.length);
+      }
 
-        // Clear the interim transcript since it's now committed
+      // Calculate separator based on what comes before the new dictation
+      // Order: base + userTyped + [newDictation]
+      const textBeforeNewContent =
+        this._dictationBaseText + this._dictationUserText;
+      const needsSeparator =
+        textBeforeNewContent &&
+        !textBeforeNewContent.endsWith(" ") &&
+        result.transcript;
+      const separator = needsSeparator ? " " : "";
+
+      if (isFinal) {
+        // Final result: commit everything to base
+        // Order: base + userTyped + finalResult
+        this._dictationBaseText =
+          this._dictationBaseText +
+          this._dictationUserText +
+          separator +
+          result.transcript;
+        this._dictationUserText = "";
+        this._currentInterimText = "";
+        this._text = this._dictationBaseText;
+
+        // Clear interim transcript marker
         if (this._listening) {
           const { transcript: _, ...rest } = this._listening;
           this._listening = rest;
-          this._notifySubscribers();
         }
+        this._notifySubscribers();
       } else {
-        // Interim/partial result: update the preview transcript (don't append)
+        // Interim result: show interim WITHOUT modifying base permanently
+        // Order: base + userTyped + interim
+        this._currentInterimText = separator + result.transcript;
+        this._text =
+          this._dictationBaseText +
+          this._dictationUserText +
+          this._currentInterimText;
+
+        // Also store in listening.transcript for custom UI use cases
         if (this._listening) {
           this._listening = {
             ...this._listening,
             transcript: result.transcript,
           };
-          this._notifySubscribers();
         }
+        this._notifySubscribers();
       }
     });
     this._listeningUnsubscribes.push(unsubSpeech);
@@ -322,6 +368,9 @@ export abstract class BaseComposerRuntimeCore
 
     this._listeningSession = undefined;
     this._listening = undefined;
+    this._dictationBaseText = "";
+    this._dictationUserText = "";
+    this._currentInterimText = "";
     this._notifySubscribers();
   }
 

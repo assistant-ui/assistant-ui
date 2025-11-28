@@ -5,7 +5,6 @@ import {
   ErrorPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
-  useAssistantState,
 } from "@assistant-ui/react";
 import type { FC } from "react";
 import {
@@ -120,34 +119,17 @@ const ThreadWelcomeSuggestions: FC = () => {
 
 const Composer: FC = () => {
   return (
-    <div className="w-full">
-      <ListeningPreview />
-      <ComposerPrimitive.Root className="flex w-full flex-wrap items-end rounded-lg border bg-inherit px-2.5 shadow-sm transition-colors ease-in focus-within:border-ring/20">
+    <ComposerPrimitive.Root className="flex w-full flex-col rounded-lg border bg-inherit shadow-sm transition-colors ease-in focus-within:border-ring/20">
+      <div className="flex items-end px-2.5">
         <ComposerPrimitive.Input
           rows={1}
           autoFocus
           placeholder="Write a message or use voice input..."
-          className="max-h-40 flex-grow resize-none border-none bg-transparent px-2 py-4 text-sm outline-none placeholder:text-muted-foreground focus:ring-0 disabled:cursor-not-allowed"
+          className="max-h-40 grow resize-none border-none bg-transparent px-2 py-4 text-sm outline-none placeholder:text-muted-foreground focus:ring-0 disabled:cursor-not-allowed"
         />
         <ComposerAction />
-      </ComposerPrimitive.Root>
-    </div>
-  );
-};
-
-/** Shows real-time preview of what's being transcribed */
-const ListeningPreview: FC = () => {
-  const transcript = useAssistantState(
-    ({ composer }) => composer.listening?.transcript,
-  );
-
-  if (!transcript) return null;
-
-  return (
-    <div className="mb-2 rounded-md bg-muted/50 px-3 py-2 text-muted-foreground text-sm">
-      <span className="mr-2 inline-block size-2 animate-pulse rounded-full bg-red-500" />
-      <span className="italic">{transcript}</span>
-    </div>
+      </div>
+    </ComposerPrimitive.Root>
   );
 };
 
