@@ -34,7 +34,7 @@ const HIGHLIGHT_STYLES = `
 
 export default function TwShimmerPage() {
   const [copied, setCopied] = useState(false);
-  const [angledSynced, setAngledSynced] = useState(true);
+  const [anglesAligned, setAnglesAligned] = useState(true);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -52,29 +52,36 @@ export default function TwShimmerPage() {
   return (
     <div className="container max-w-7xl space-y-16 px-4 py-12">
       <div
-        className="flex flex-col items-center space-y-6 text-center"
+        className="flex flex-col items-center space-y-6 text-center shimmer-angle-45 shimmer-speed-800"
         ref={autoWidthRef}
       >
-        <div className="shimmer-bg flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm shimmer-angle-45 shimmer-speed-200 shimmer-width-400">
+        <div className="dark:shimmer-color-[rgba(255,255,255,0.04)] shimmer-bg flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm">
           <Sparkles className="size-4" />
-          <span className="shimmer text-foreground/40 shimmer-color-black dark:shimmer-color-white">
+          <span className="shimmer text-foreground/40 shimmer-color-black dark:shimmer-color-muted-foreground">
             Tailwind CSS v4 Plugin
           </span>
         </div>
 
-        <div className="relative flex flex-col gap-5 shimmer-angle-45 shimmer-speed-200 shimmer-width-400">
-          <div>
+        <div className="relative flex flex-col gap-5">
+          <div className="pointer-events-none text-6xl font-bold tracking-tight select-none md:text-7xl lg:text-8xl">
             <span
               className={cn(
-                "pointer-events-none absolute inset-0 select-none",
-                "text-5xl font-bold tracking-tight lg:text-8xl",
-                "shimmer",
-                "text-black shimmer-color-black",
-                "dark:text-black dark:shimmer-color-white",
-                "blur-xl",
-                "-z-1",
-                "mix-blend-screen",
-                "opacity-30",
+                "absolute inset-0",
+                "bg-[url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.5'/%3E%3C/svg%3E\")]",
+                "bg-clip-text text-transparent",
+                "mix-blend-overlay",
+                "pointer-events-none select-none",
+                "z-20",
+              )}
+              aria-hidden="true"
+            >
+              tw-shimmer
+            </span>
+            <span
+              className={cn(
+                "absolute inset-0 hidden dark:block",
+                "shimmer text-black shimmer-color-black dark:text-black dark:shimmer-color-white",
+                "opacity-20 mix-blend-screen blur-xl",
               )}
               aria-hidden="true"
             >
@@ -83,8 +90,7 @@ export default function TwShimmerPage() {
             {/* Base shimmer text */}
             <h1
               className={cn(
-                "text-5xl font-bold tracking-tight lg:text-8xl",
-                "shimmer text-foreground/40",
+                "shimmer text-foreground/30",
                 "shimmer-color-black",
                 "dark:shimmer-color-white",
               )}
@@ -94,10 +100,10 @@ export default function TwShimmerPage() {
             {/* Emboss layer - creates depth with highlight and shadow */}
             <span
               className={cn(
-                "pointer-events-none absolute inset-0 select-none",
-                "text-5xl font-bold tracking-tight text-transparent lg:text-8xl",
+                "absolute inset-0",
+                "text-transparent",
                 "[text-shadow:0px_0px_0_rgba(0,0,0,0.2)]",
-                "dark:[text-shadow:1px_1px_0.5px_rgba(0,0,0,0.4)]",
+                "dark:[text-shadow:1px_1px_0_rgba(0,0,0,0.2),1px_1px_1px_rgba(0,0,0,0.4),-1px_-1.5px_3px_rgba(0,0,0,0.1),-1px_-1px_2px_rgba(0,0,0,0.2)]",
               )}
               aria-hidden="true"
             >
@@ -105,16 +111,16 @@ export default function TwShimmerPage() {
             </span>
           </div>
 
-          <p
-            className={cn(
-              "max-w-[600px] text-lg font-light text-balance text-muted-foreground",
-              "shimmer shimmer-spread-50",
-              "shimmer-color-black dark:shimmer-color-gray-300",
-            )}
-          >
-            Zero-dependency CSS-only shimmer effect. Fully customizable,
-            performant, and easy to use.
-          </p>
+          <div className="relative max-w-[600px] text-lg font-light text-balance text-muted-foreground shimmer-spread-50">
+            <p className="shimmer shimmer-color-black dark:shimmer-color-gray-300">
+              Zero-dependency CSS-only shimmer effect. Fully customizable,
+              performant, and easy to use.
+            </p>
+            <p className="aria-hidden:true absolute inset-0 hidden shimmer opacity-50 blur-lg dark:block">
+              Zero-dependency CSS-only shimmer effect. Fully customizable,
+              performant, and easy to use.
+            </p>
+          </div>
         </div>
       </div>
 
@@ -504,7 +510,7 @@ export default function TwShimmerPage() {
           <Box>
             <BoxTitle
               title="Advanced: shimmer-x-{value} / shimmer-y-{value}"
-              description="Optional manual sync for angled shimmers. Most users can skip this."
+              description="Optional, manual alignment utilities for angled shimmers. Only needed for low angled shimmers on multi-element layouts like certain skeleton states."
             />
             <BoxCode>
               <CodeBlock
@@ -536,13 +542,14 @@ export default function TwShimmerPage() {
                 (not{" "}
                 <code className="px-1 py-0.5 text-xs">shimmer-angle-90</code>)
                 on multi-element layouts like skeleton cards. Vertical shimmers
-                sync automatically.
+                align automatically.
               </p>
               <p className="mb-4 text-sm text-muted-foreground">
                 <strong>Expectations:</strong> Because this is pure CSS with no
-                runtime layout access, sync is &quot;best-effort.&quot; Some
-                trial and error may be needed to find good offsets. Minor desync
-                at shallow angles or with large rounded shapes is normal.
+                runtime layout access, alignment is &quot;best-effort.&quot;
+                Some trial and error may be needed to find good offsets. Minor
+                unalignment at shallow angles or with large rounded shapes is
+                normal.
               </p>
               <p className="mb-4 text-sm text-muted-foreground">
                 <strong>Tip:</strong> For larger elements like avatars, use
@@ -550,50 +557,47 @@ export default function TwShimmerPage() {
                 alignment.
               </p>
               <label className="mb-4 flex w-fit cursor-pointer items-center gap-2">
-                <span className="text-sm font-medium">Sync</span>
+                <span className="text-sm font-medium">Auto-aligned</span>
                 <button
                   type="button"
                   role="switch"
-                  aria-checked={angledSynced}
-                  onClick={() => setAngledSynced(!angledSynced)}
+                  aria-checked={anglesAligned}
+                  onClick={() => setAnglesAligned(!anglesAligned)}
                   className={`relative h-5 w-9 rounded-full transition-colors ${
-                    angledSynced ? "bg-primary" : "bg-muted"
+                    anglesAligned ? "bg-primary" : "bg-muted"
                   }`}
                 >
                   <span
                     className={`absolute top-0.5 left-0.5 size-4 rounded-full bg-background shadow transition-transform ${
-                      angledSynced ? "translate-x-4" : "translate-x-0"
+                      anglesAligned ? "translate-x-4" : "translate-x-0"
                     }`}
                   />
                 </button>
               </label>
-              <div
-                className="flex gap-3 shimmer-angle-15"
-                style={{ ["--shimmer-width" as string]: "720" }}
-              >
+              <div className="flex gap-3 shimmer-angle-15 shimmer-speed-800">
                 <div
                   className={cn(
                     "shimmer-bg size-16 shrink-0 rounded-full bg-muted",
-                    angledSynced && "shimmer-x-0 shimmer-y-16",
+                    anglesAligned && "shimmer-x-40 shimmer-y-40",
                   )}
                 />
                 <div className="flex-1 space-y-2">
                   <div
                     className={cn(
                       "shimmer-bg h-4 w-1/4 rounded bg-muted",
-                      angledSynced && "shimmer-x-52 shimmer-y-0",
+                      anglesAligned && "shimmer-x-52 shimmer-y-0",
                     )}
                   />
                   <div
                     className={cn(
                       "shimmer-bg h-4 w-full rounded bg-muted",
-                      angledSynced && "shimmer-x-52 shimmer-y-24",
+                      anglesAligned && "shimmer-x-52 shimmer-y-24",
                     )}
                   />
                   <div
                     className={cn(
                       "shimmer-bg h-4 w-4/5 rounded bg-muted",
-                      angledSynced && "shimmer-x-52 shimmer-y-48",
+                      anglesAligned && "shimmer-x-52 shimmer-y-48",
                     )}
                   />
                 </div>
