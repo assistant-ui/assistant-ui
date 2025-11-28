@@ -12,7 +12,7 @@ import { Card, Cards } from "fumadocs-ui/components/card";
 import {
   CopyMarkdownButton,
   PageActionsDropdown,
-} from "@/components/ui/page-actions";
+} from "@/components/docs/page-actions";
 
 function DocsCategory({ url }: { url?: string }) {
   const effectiveUrl = url ?? "";
