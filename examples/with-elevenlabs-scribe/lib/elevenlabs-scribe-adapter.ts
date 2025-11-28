@@ -42,9 +42,7 @@ export class ElevenLabsScribeAdapter implements SpeechRecognitionAdapter {
 
       stop: async () => {
         if (connection) {
-          // Commit any remaining transcript before closing
           connection.commit();
-          // Wait a bit for final transcript
           await new Promise((resolve) => setTimeout(resolve, 500));
           connection.close();
           connection = null;
@@ -95,7 +93,6 @@ export class ElevenLabsScribeAdapter implements SpeechRecognitionAdapter {
       },
     };
 
-    // Start the connection
     this.connect(session, callbacks, {
       setConnection: (conn) => {
         connection = conn;
@@ -123,7 +120,6 @@ export class ElevenLabsScribeAdapter implements SpeechRecognitionAdapter {
     },
   ) {
     try {
-      // 1. Get single-use token from backend
       const tokenResponse = await fetch(this.tokenEndpoint, {
         method: "POST",
       });
@@ -134,7 +130,6 @@ export class ElevenLabsScribeAdapter implements SpeechRecognitionAdapter {
 
       const { token } = await tokenResponse.json();
 
-      // 2. Connect to Scribe v2 Realtime with microphone
       const connection = Scribe.connect({
         token,
         modelId: "scribe_v2_realtime",
@@ -148,9 +143,6 @@ export class ElevenLabsScribeAdapter implements SpeechRecognitionAdapter {
 
       refs.setConnection(connection);
 
-      // 3. Set up event handlers
-
-      // Session started
       connection.on(RealtimeEvents.SESSION_STARTED, () => {
         (session as { status: SpeechRecognitionAdapter.Status }).status = {
           type: "running",
@@ -158,31 +150,21 @@ export class ElevenLabsScribeAdapter implements SpeechRecognitionAdapter {
         for (const cb of callbacks.start) cb();
       });
 
-      // Partial transcripts (interim results) - show as preview
       connection.on(RealtimeEvents.PARTIAL_TRANSCRIPT, (data) => {
         if (data.text) {
-          // Send as interim (isFinal: false) - will show as preview, not append
           for (const cb of callbacks.speech)
             cb({ transcript: data.text, isFinal: false });
         }
       });
 
-      // Committed transcripts - finalized text, append to input
       connection.on(RealtimeEvents.COMMITTED_TRANSCRIPT, (data) => {
         if (data.text?.trim()) {
           refs.setFullTranscript(`${refs.getFullTranscript()}${data.text} `);
-          // Send as final (isFinal: true) - will be appended to the input
           for (const cb of callbacks.speech)
             cb({ transcript: data.text, isFinal: true });
         }
       });
 
-      // Connection opened
-      connection.on(RealtimeEvents.OPEN, () => {
-        console.log("ElevenLabs Scribe connection opened");
-      });
-
-      // Connection closed
       connection.on(RealtimeEvents.CLOSE, () => {
         const transcript = refs.getFullTranscript().trim();
         if (transcript) {
@@ -190,7 +172,6 @@ export class ElevenLabsScribeAdapter implements SpeechRecognitionAdapter {
         }
       });
 
-      // Errors
       connection.on(RealtimeEvents.ERROR, (error) => {
         console.error("ElevenLabs Scribe error:", error);
         (session as { status: SpeechRecognitionAdapter.Status }).status = {
@@ -199,7 +180,6 @@ export class ElevenLabsScribeAdapter implements SpeechRecognitionAdapter {
         };
       });
 
-      // Auth errors
       connection.on(RealtimeEvents.AUTH_ERROR, (data) => {
         console.error("ElevenLabs Scribe auth error:", data.error);
         (session as { status: SpeechRecognitionAdapter.Status }).status = {

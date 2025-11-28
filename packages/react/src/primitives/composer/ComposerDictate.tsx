@@ -22,10 +22,6 @@ const useComposerDictate = () => {
     api.composer().startListening();
   }, [api]);
 
-  // Don't show if:
-  // - Already listening
-  // - Dictation not supported (no adapter configured)
-  // - Not in editing mode
   if (isListening || !canDictate || !isEditing) return null;
   return callback;
 };

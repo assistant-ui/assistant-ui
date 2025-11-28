@@ -138,7 +138,6 @@ export class WebSpeechRecognitionAdapter implements SpeechRecognitionAdapter {
 
       stop: async () => {
         recognition.stop();
-        // Return a promise that resolves when the recognition ends
         return new Promise<void>((resolve) => {
           const checkEnded = () => {
             if (session.status.type === "ended") {
@@ -186,17 +185,14 @@ export class WebSpeechRecognitionAdapter implements SpeechRecognitionAdapter {
       for (const cb of statusSubscribers) cb();
     };
 
-    // Handle speech start
     recognition.addEventListener("speechstart", () => {
       for (const cb of speechStartCallbacks) cb();
     });
 
-    // Handle recognition start (microphone access granted)
     recognition.addEventListener("start", () => {
       updateStatus({ type: "running" });
     });
 
-    // Handle results
     recognition.addEventListener("result", (event) => {
       const speechEvent = event as unknown as SpeechRecognitionEvent;
 
@@ -212,26 +208,19 @@ export class WebSpeechRecognitionAdapter implements SpeechRecognitionAdapter {
 
         if (result.isFinal) {
           finalTranscript += transcript;
-          // Notify about final result (will be appended to input)
           for (const cb of speechCallbacks) cb({ transcript, isFinal: true });
         } else {
-          // Notify about interim result (will show as preview)
           for (const cb of speechCallbacks) cb({ transcript, isFinal: false });
         }
       }
     });
 
-    // Handle speech end (user stopped talking)
-    // Note: speechend fires when user stops speaking, but recognition may continue
-    // to finalize results. We don't invoke callbacks here to avoid double invocation.
     recognition.addEventListener("speechend", () => {
-      // No action needed - the 'end' event will handle final cleanup
+      // speechend fires when user stops speaking, but 'end' handles final cleanup
     });
 
-    // Handle recognition end
     recognition.addEventListener("end", () => {
       updateStatus({ type: "ended", reason: "stopped" });
-      // Send final transcript when recognition terminates
       if (finalTranscript) {
         for (const cb of speechEndCallbacks)
           cb({ transcript: finalTranscript });
@@ -239,10 +228,8 @@ export class WebSpeechRecognitionAdapter implements SpeechRecognitionAdapter {
       }
     });
 
-    // Handle errors
     recognition.addEventListener("error", (event) => {
       const errorEvent = event as unknown as SpeechRecognitionErrorEvent;
-      // "aborted" is not really an error, it's when cancel() is called
       if (errorEvent.error === "aborted") {
         updateStatus({ type: "ended", reason: "cancelled" });
       } else {
@@ -255,7 +242,6 @@ export class WebSpeechRecognitionAdapter implements SpeechRecognitionAdapter {
       }
     });
 
-    // Start recognition
     try {
       recognition.start();
     } catch (error) {

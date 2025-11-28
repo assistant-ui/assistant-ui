@@ -136,7 +136,6 @@ const Composer: FC = () => {
 const ComposerAction: FC = () => {
   return (
     <div className="flex items-center gap-1">
-      {/* Dictation Button - Show when not listening */}
       <ComposerPrimitive.If listening={false}>
         <ComposerPrimitive.Dictate asChild>
           <TooltipIconButton
@@ -149,7 +148,6 @@ const ComposerAction: FC = () => {
         </ComposerPrimitive.Dictate>
       </ComposerPrimitive.If>
 
-      {/* Stop Dictation Button - Show when listening */}
       <ComposerPrimitive.If listening>
         <ComposerPrimitive.StopDictation asChild>
           <TooltipIconButton

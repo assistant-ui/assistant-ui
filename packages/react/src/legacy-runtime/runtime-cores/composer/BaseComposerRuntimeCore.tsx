@@ -214,15 +214,12 @@ export abstract class BaseComposerRuntimeCore
     this._notifySubscribers();
   }
 
-  // Speech Recognition (Dictation) support
+  // Speech Recognition (Dictation)
   private _listening: ListeningState | undefined;
   private _listeningSession: SpeechRecognitionAdapter.Session | undefined;
   private _listeningUnsubscribes: Unsubscribe[] = [];
-  /** Base text for dictation (everything committed so far) */
   private _dictationBaseText = "";
-  /** User-typed text that hasn't been committed yet */
   private _dictationUserText = "";
-  /** Current interim text (to be replaced by next interim or final) */
   private _currentInterimText = "";
 
   public get listening(): ListeningState | undefined {
@@ -235,12 +232,17 @@ export abstract class BaseComposerRuntimeCore
       throw new Error("Speech recognition adapter not configured");
     }
 
-    // Stop any existing session
+    // Clean up existing session to prevent race conditions
     if (this._listeningSession) {
-      this.stopListening();
+      for (const unsub of this._listeningUnsubscribes) {
+        unsub();
+      }
+      this._listeningUnsubscribes = [];
+      const oldSession = this._listeningSession;
+      oldSession.stop().catch(() => {});
+      this._listeningSession = undefined;
     }
 
-    // Initialize dictation state with current text
     this._dictationBaseText = this._text;
     this._dictationUserText = "";
     this._currentInterimText = "";
@@ -250,25 +252,18 @@ export abstract class BaseComposerRuntimeCore
     this._listening = { status: session.status };
     this._notifySubscribers();
 
-    // Subscribe to speech events
     const unsubSpeech = session.onSpeech((result) => {
-      // Check if this is a final (committed) result or interim (partial) result
-      // Default to final=true for backwards compatibility
       const isFinal = result.isFinal !== false;
 
-      // Detect NEW user-typed text: anything added after our last known state
-      // Expected state is: base + userText + interim
+      // Detect user-typed text added after our last known state
       const expectedText =
         this._dictationBaseText +
         this._dictationUserText +
         this._currentInterimText;
       if (this._text.startsWith(expectedText)) {
-        // User typed something new at the end
         this._dictationUserText += this._text.slice(expectedText.length);
       }
 
-      // Calculate separator based on what comes before the new dictation
-      // Order: base + userTyped + [newDictation]
       const textBeforeNewContent =
         this._dictationBaseText + this._dictationUserText;
       const needsSeparator =
@@ -278,8 +273,7 @@ export abstract class BaseComposerRuntimeCore
       const separator = needsSeparator ? " " : "";
 
       if (isFinal) {
-        // Final result: commit everything to base
-        // Order: base + userTyped + finalResult
+        // Commit: base + userTyped + finalResult
         this._dictationBaseText =
           this._dictationBaseText +
           this._dictationUserText +
@@ -289,22 +283,19 @@ export abstract class BaseComposerRuntimeCore
         this._currentInterimText = "";
         this._text = this._dictationBaseText;
 
-        // Clear interim transcript marker
         if (this._listening) {
           const { transcript: _, ...rest } = this._listening;
           this._listening = rest;
         }
         this._notifySubscribers();
       } else {
-        // Interim result: show interim WITHOUT modifying base permanently
-        // Order: base + userTyped + interim
+        // Interim: base + userTyped + interim (without modifying base)
         this._currentInterimText = separator + result.transcript;
         this._text =
           this._dictationBaseText +
           this._dictationUserText +
           this._currentInterimText;
 
-        // Also store in listening.transcript for custom UI use cases
         if (this._listening) {
           this._listening = {
             ...this._listening,
@@ -316,7 +307,6 @@ export abstract class BaseComposerRuntimeCore
     });
     this._listeningUnsubscribes.push(unsubSpeech);
 
-    // Subscribe to speech start
     const unsubStart = session.onSpeechStart(() => {
       const currentTranscript = this._listening?.transcript;
       this._listening = currentTranscript
@@ -326,41 +316,29 @@ export abstract class BaseComposerRuntimeCore
     });
     this._listeningUnsubscribes.push(unsubStart);
 
-    // Subscribe to speech end to detect when session ends
     const unsubEnd = session.onSpeechEnd(() => {
-      // Session has ended
       this._cleanupListening();
     });
     this._listeningUnsubscribes.push(unsubEnd);
 
-    // Also check for status changes (for error handling)
-    const checkStatus = () => {
+    // Poll status as fallback for error handling
+    const statusInterval = setInterval(() => {
       if (session.status.type === "ended") {
         this._cleanupListening();
       }
-    };
-
-    // Poll status periodically as a fallback
-    const statusInterval = setInterval(checkStatus, 100);
+    }, 100);
     this._listeningUnsubscribes.push(() => clearInterval(statusInterval));
   }
 
   public stopListening(): void {
-    if (!this._listeningSession) {
-      return;
-    }
+    if (!this._listeningSession) return;
 
-    // Stop the session - the onSpeechEnd callback will handle cleanup
-    // Don't call _cleanupListening() here to avoid race condition where
-    // we unsubscribe before the final transcript/end event is received
     this._listeningSession.stop().catch(() => {
-      // If stop() fails, cleanup immediately
       this._cleanupListening();
     });
   }
 
   private _cleanupListening(): void {
-    // Unsubscribe from all listeners
     for (const unsub of this._listeningUnsubscribes) {
       unsub();
     }

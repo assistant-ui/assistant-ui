@@ -18,7 +18,6 @@ const useComposerStopDictation = () => {
     api.composer().stopListening();
   }, [api]);
 
-  // Only show if currently listening
   if (!isListening) return null;
   return callback;
 };
