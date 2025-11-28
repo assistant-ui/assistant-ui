@@ -8,6 +8,7 @@ import {
   type SourceMessagePart,
   type useExternalMessageConverter,
 } from "@assistant-ui/react";
+import type { ReadonlyJSONObject } from "assistant-stream/utils";
 
 function stripClosingDelimiters(json: string) {
   return json.replace(/[}\]"]+$/, "");
@@ -20,6 +21,23 @@ const convertParts = (
   if (!message.parts || message.parts.length === 0) {
     return [];
   }
+
+  // Per-message cache of last tool input per toolCallId.
+  const lastToolInputs = new Map<string, ReadonlyJSONObject>();
+
+  const getToolArgs = (
+    toolCallId: string,
+    input: unknown,
+  ): ReadonlyJSONObject => {
+    if (input && typeof input === "object" && !Array.isArray(input)) {
+      const jsonInput = input as ReadonlyJSONObject;
+      lastToolInputs.set(toolCallId, jsonInput);
+      return jsonInput;
+    }
+
+    const cached = lastToolInputs.get(toolCallId);
+    return cached ?? {};
+  };
 
   return message.parts
     .filter((p) => p.type !== "step-start" && p.type !== "file")
@@ -47,24 +65,17 @@ const convertParts = (
         const toolName = type.replace("tool-", "");
         const toolCallId = part.toolCallId;
 
-        // Extract args and result based on state
-        let args: any = {};
-        let result: any = undefined;
+        let result: unknown;
         let isError = false;
 
-        if (
-          part.state === "input-streaming" ||
-          part.state === "input-available"
-        ) {
-          args = part.input || {};
-        } else if (part.state === "output-available") {
-          args = part.input || {};
+        if (part.state === "output-available") {
           result = part.output;
         } else if (part.state === "output-error") {
-          args = part.input || {};
           isError = true;
           result = { error: part.errorText };
         }
+
+        const args = getToolArgs(toolCallId, part.input);
 
         let argsText = JSON.stringify(args);
         if (part.state === "input-streaming") {
@@ -104,21 +115,14 @@ const convertParts = (
         const toolName = part.toolName;
         const toolCallId = part.toolCallId;
 
-        // Extract args and result based on state
-        let args: any = {};
-        let result: any = undefined;
+        let result: unknown;
         let isError = false;
 
-        if (
-          part.state === "input-streaming" ||
-          part.state === "input-available"
-        ) {
-          args = part.input || {};
-        } else if (part.state === "output-available") {
-          args = part.input || {};
+        const args = getToolArgs(toolCallId, part.input);
+
+        if (part.state === "output-available") {
           result = part.output;
         } else if (part.state === "output-error") {
-          args = part.input || {};
           isError = true;
           result = { error: part.errorText };
         }
