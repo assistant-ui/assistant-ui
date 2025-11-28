@@ -92,14 +92,14 @@ jobs:
         if: fromJson(steps.check-permission.outputs.result).authorized == true && fromJson(steps.get-pr.outputs.result).is_fork == false
         uses: actions/checkout@v6
         with:
-          ref: ${{ fromJson(steps.get-pr.outputs.result).head_ref }}
+          ref: ${{ fromJson(steps.get-pr.outputs.result).head_sha }}
           fetch-depth: 1
 
       - name: Checkout PR (forked repo)
         if: fromJson(steps.check-permission.outputs.result).authorized == true && fromJson(steps.get-pr.outputs.result).is_fork == true
         uses: actions/checkout@v6
         with:
-          ref: ${{ fromJson(steps.get-pr.outputs.result).head_ref }}
+          ref: ${{ fromJson(steps.get-pr.outputs.result).head_sha }}
           fetch-depth: 1
           repository: ${{ format('{0}/{1}', fromJson(steps.get-pr.outputs.result).fork_owner, fromJson(steps.get-pr.outputs.result).fork_repo) }}
 
