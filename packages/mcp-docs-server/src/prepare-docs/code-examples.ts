@@ -1,5 +1,5 @@
-import { rm, mkdir, readdir, readFile, writeFile } from "fs/promises";
-import { join, relative, extname } from "path";
+import { rm, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { join, relative, extname } from "node:path";
 import { logger } from "../utils/logger.js";
 import { ROOT_DIR, EXAMPLES_PATH } from "../constants.js";
 

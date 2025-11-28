@@ -18,7 +18,7 @@ export const MessagePartClient = resource(
     return tapApi<MessagePartClientApi>(api, {
       key:
         runtimeState.type === "tool-call"
-          ? "toolCallId-" + runtimeState.toolCallId
+          ? `toolCallId-${runtimeState.toolCallId}`
           : undefined,
     });
   },

@@ -26,8 +26,7 @@ const transformCssToJson = async (files: string[]) => {
         postcssJs.objectify(root),
       );
 
-      const outputFile =
-        path.join("dist", ...file.split(/[/\\]/).slice(1)) + ".json";
+      const outputFile = `${path.join("dist", ...file.split(/[/\\]/).slice(1))}.json`;
       const outputContent = JSON.stringify(formattedComponents, null, 2);
 
       await fs.mkdir(path.dirname(outputFile), { recursive: true });

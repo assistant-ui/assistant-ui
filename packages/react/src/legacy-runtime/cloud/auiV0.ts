@@ -92,7 +92,7 @@ export const auiV0Encode = (message: ThreadMessage): AuiV0Message => {
         case "tool-call": {
           if (!isJSONValue(part.result)) {
             console.warn(
-              "tool-call result is not JSON! " + JSON.stringify(part),
+              `tool-call result is not JSON! ${JSON.stringify(part)}`,
             );
           }
           return {

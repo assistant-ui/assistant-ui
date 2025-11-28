@@ -100,12 +100,12 @@ export default function SafeContentFramePage() {
         await frame.fullyLoadedPromiseWithTimeout(5000);
         setStatus((prev) => ({
           ...prev,
-          message: prev.message + " | Content fully loaded",
+          message: `${prev.message} | Content fully loaded`,
         }));
       } catch {
         setStatus((prev) => ({
           ...prev,
-          message: prev.message + " | Load timeout",
+          message: `${prev.message} | Load timeout`,
         }));
       }
     } catch (error) {

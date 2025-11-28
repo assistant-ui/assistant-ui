@@ -110,9 +110,9 @@ export const WeatherSearchToolUI = () => {
 
         const data = await response.json();
 
-        if (data.hourly && data.hourly.time && data.hourly.temperature_2m) {
+        if (data.hourly?.time && data.hourly.temperature_2m) {
           const now = new Date();
-          const nowUtcString = now.toISOString().substring(0, 14) + "00";
+          const nowUtcString = `${now.toISOString().substring(0, 14)}00`;
 
           let currentHourIndex = data.hourly.time.findIndex(
             (t: string) => t >= nowUtcString,

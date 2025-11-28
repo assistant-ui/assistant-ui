@@ -24,7 +24,7 @@ const TestimonialView: FC<Testimonial> = (testimonial) => {
         <div className="flex flex-col gap-3 rounded-lg border bg-card p-6 shadow transition-colors hover:bg-border">
           <div className="relative flex items-center gap-2">
             <Image
-              alt={"@" + testimonial.username + "'s twitter image"}
+              alt={`@${testimonial.username}'s twitter image`}
               loading="lazy"
               width="64"
               height="64"

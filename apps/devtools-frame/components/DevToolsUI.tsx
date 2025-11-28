@@ -1102,7 +1102,6 @@ export function DevToolsUI() {
             </ControlButton>
           </div>
         );
-      case "modelContext":
       default:
         return (
           <div className="flex h-full items-center px-4 text-xs text-zinc-500 dark:text-zinc-400">
@@ -1329,7 +1328,6 @@ export function DevToolsUI() {
         return renderStateContent();
       case "events":
         return renderEventsContent();
-      case "modelContext":
       default:
         return renderContextContent();
     }

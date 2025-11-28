@@ -156,7 +156,7 @@
         try {
           await currentFrame.fullyLoadedPromiseWithTimeout(5000);
           status.textContent += '\n✅ Content fully loaded';
-        } catch (e) {
+        } catch (_e) {
           status.textContent += '\n⏱️ Load timeout (content may still be loading)';
         }
       } catch (error) {

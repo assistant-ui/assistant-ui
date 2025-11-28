@@ -331,6 +331,14 @@ interface BoxCodeHeaderProps {
   fileName: string;
 }
 
+const PreComponent = ({ className, ...props }: any) => (
+  <pre className={className} {...props} />
+);
+
+const CodeComponent = ({ className, ...props }: any) => (
+  <code className={className} {...props} />
+);
+
 function CodeBlock({
   language,
   code,
@@ -372,12 +380,8 @@ function CodeBlock({
           transformerMetaWordHighlight(),
         ]}
         components={{
-          Pre: ({ className, ...props }: any) => (
-            <pre className={className} {...props} />
-          ),
-          Code: ({ className, ...props }: any) => (
-            <code className={className} {...props} />
-          ),
+          Pre: PreComponent,
+          Code: CodeComponent,
         }}
       />
     </>

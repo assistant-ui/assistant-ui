@@ -250,6 +250,36 @@ const ParentIdGroup: FC<
   );
 };
 
+const SourceComponent = ({ url, title }: { url: string; title?: string }) => (
+  <div className="text-muted-foreground text-sm">
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="hover:underline"
+    >
+      📄 {title || url}
+    </a>
+  </div>
+);
+
+const ToolFallbackComponent = (props: any) => {
+  const { toolName, args, result } = props;
+  return (
+    <div className="my-1 rounded-md bg-muted/40 p-2 text-sm">
+      <div className="font-medium text-muted-foreground">🔧 {toolName}</div>
+      <div className="mt-1 text-muted-foreground text-xs">
+        <details>
+          <summary className="cursor-pointer">View details</summary>
+          <pre className="mt-2 overflow-x-auto">
+            {JSON.stringify({ args, result }, null, 2)}
+          </pre>
+        </details>
+      </div>
+    </div>
+  );
+};
+
 const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="relative grid w-full max-w-[var(--thread-max-width)] grid-cols-[auto_auto_1fr] grid-rows-[auto_1fr] py-4">
@@ -258,34 +288,9 @@ const AssistantMessage: FC = () => {
           components={{
             Text: MarkdownText,
             Group: ParentIdGroup,
-            Source: ({ url, title }) => (
-              <div className="text-muted-foreground text-sm">
-                <a
-                  href={url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:underline"
-                >
-                  📄 {title || url}
-                </a>
-              </div>
-            ),
+            Source: SourceComponent,
             tools: {
-              Fallback: ({ toolName, args, result }) => (
-                <div className="my-1 rounded-md bg-muted/40 p-2 text-sm">
-                  <div className="font-medium text-muted-foreground">
-                    🔧 {toolName}
-                  </div>
-                  <div className="mt-1 text-muted-foreground text-xs">
-                    <details>
-                      <summary className="cursor-pointer">View details</summary>
-                      <pre className="mt-2 overflow-x-auto">
-                        {JSON.stringify({ args, result }, null, 2)}
-                      </pre>
-                    </details>
-                  </div>
-                </div>
-              ),
+              Fallback: ToolFallbackComponent,
             },
           }}
         />
