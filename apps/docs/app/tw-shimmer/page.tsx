@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { Copy, Check, Sparkles, FileCode } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { SyntaxHighlighter } from "@/components/assistant-ui/shiki-highlighter";
 import {
@@ -33,6 +34,7 @@ const HIGHLIGHT_STYLES = `
 
 export default function TwShimmerPage() {
   const [copied, setCopied] = useState(false);
+  const [angledSynced, setAngledSynced] = useState(true);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -43,29 +45,77 @@ export default function TwShimmerPage() {
   const autoWidthRef = useCallback((node: HTMLElement | null): void => {
     if (!node) return;
     document.fonts.ready.then(() => {
-      node.style.setProperty("--shimmer-width-x", `${node.offsetWidth}`);
+      node.style.setProperty("--shimmer-width", `${node.offsetWidth}`);
     });
   }, []);
 
   return (
-    <div className="container max-w-screen-xl space-y-16 px-4 py-12">
-      <div className="flex flex-col items-center space-y-6 text-center">
-        <div className="flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm">
+    <div className="container max-w-7xl space-y-16 px-4 py-12">
+      <div
+        className="flex flex-col items-center space-y-6 text-center"
+        ref={autoWidthRef}
+      >
+        <div className="shimmer-bg flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm shimmer-angle-45 shimmer-speed-200 shimmer-width-400">
           <Sparkles className="size-4" />
-          <span>Tailwind CSS v4 Plugin</span>
+          <span className="shimmer text-foreground/40 shimmer-color-black dark:shimmer-color-white">
+            Tailwind CSS v4 Plugin
+          </span>
         </div>
 
-        <h1
-          ref={autoWidthRef}
-          className="shimmer text-6xl font-bold tracking-tight text-foreground/40 shimmer-speed-150 lg:text-7xl"
-        >
-          tw-shimmer
-        </h1>
+        <div className="relative flex flex-col gap-5 shimmer-angle-45 shimmer-speed-200 shimmer-width-400">
+          <div>
+            <span
+              className={cn(
+                "pointer-events-none absolute inset-0 select-none",
+                "text-5xl font-bold tracking-tight lg:text-8xl",
+                "shimmer",
+                "text-black shimmer-color-black",
+                "dark:text-black dark:shimmer-color-white",
+                "blur-xl",
+                "-z-1",
+                "mix-blend-screen",
+                "opacity-30",
+              )}
+              aria-hidden="true"
+            >
+              tw-shimmer
+            </span>
+            {/* Base shimmer text */}
+            <h1
+              className={cn(
+                "text-5xl font-bold tracking-tight lg:text-8xl",
+                "shimmer text-foreground/40",
+                "shimmer-color-black",
+                "dark:shimmer-color-white",
+              )}
+            >
+              tw-shimmer
+            </h1>
+            {/* Emboss layer - creates depth with highlight and shadow */}
+            <span
+              className={cn(
+                "pointer-events-none absolute inset-0 select-none",
+                "text-5xl font-bold tracking-tight text-transparent lg:text-8xl",
+                "[text-shadow:0px_0px_0_rgba(0,0,0,0.2)]",
+                "dark:[text-shadow:1px_1px_0.5px_rgba(0,0,0,0.4)]",
+              )}
+              aria-hidden="true"
+            >
+              tw-shimmer
+            </span>
+          </div>
 
-        <p className="max-w-[600px] text-lg text-balance text-muted-foreground">
-          Zero-dependency CSS-only shimmer effect. Fully customizable,
-          performant, and easy to use.
-        </p>
+          <p
+            className={cn(
+              "max-w-[600px] text-lg font-light text-balance text-muted-foreground",
+              "shimmer shimmer-spread-50",
+              "shimmer-color-black dark:shimmer-color-gray-300",
+            )}
+          >
+            Zero-dependency CSS-only shimmer effect. Fully customizable,
+            performant, and easy to use.
+          </p>
+        </div>
       </div>
 
       <div id="installation" className="space-y-8">
@@ -173,7 +223,7 @@ export default function TwShimmerPage() {
 
           <Box>
             <BoxTitle
-              title="--shimmer-width-x"
+              title="--shimmer-width"
               description="CSS variable for container width in pixels used in speed calculations. Default: 200px"
             />
             <BoxCode>
@@ -181,11 +231,11 @@ export default function TwShimmerPage() {
                 language="tsx"
                 code={`<span
   class="shimmer text-foreground/40"
-  style={{ ["--shimmer-width-x" as string]: "50" }}
+  style={{ ["--shimmer-width" as string]: "52" }}
 >
   Narrow
 </span>`}
-                highlight="--shimmer-width-x"
+                highlight="--shimmer-width"
                 highlightMode="text"
               />
             </BoxCode>
@@ -200,7 +250,7 @@ export default function TwShimmerPage() {
               <div className="grid gap-8 md:grid-cols-2">
                 <div>
                   <p className="mb-3 text-xs font-semibold tracking-wide text-muted-foreground">
-                    Set --shimmer-width-x for consistent speed:
+                    Set --shimmer-width for consistent speed:
                   </p>
                   <div className="space-y-2">
                     <span
@@ -220,7 +270,7 @@ export default function TwShimmerPage() {
                 </div>
                 <div>
                   <p className="mb-3 text-xs font-semibold tracking-wide text-muted-foreground">
-                    Default --shimmer-width-x:
+                    Default --shimmer-width:
                   </p>
                   <div className="space-y-2">
                     <span className="shimmer text-sm font-semibold text-foreground/40">
@@ -311,6 +361,247 @@ export default function TwShimmerPage() {
           </Box>
         </div>
       </div>
+
+      <div className="space-y-8">
+        <div className="text-center">
+          <h2 className="text-3xl font-bold tracking-tight">
+            Background Shimmer
+          </h2>
+          <p className="mt-2 text-muted-foreground">
+            Use <code className="px-1 py-0.5 text-sm">shimmer-bg</code> for
+            skeleton loaders and non-text elements.
+          </p>
+        </div>
+
+        <div className="mx-auto max-w-3xl space-y-6">
+          <Box>
+            <BoxTitle
+              title="shimmer-bg"
+              description="Background shimmer for skeleton loaders and non-text elements."
+            />
+            <BoxCode>
+              <CodeBlock
+                language="html"
+                code='<div class="shimmer-bg bg-muted h-4 w-48 rounded" />'
+                highlight="shimmer-bg"
+                highlightMode="text"
+              />
+            </BoxCode>
+            <BoxContent>
+              <div className="shimmer-bg h-4 w-48 rounded bg-muted" />
+            </BoxContent>
+          </Box>
+
+          <Box>
+            <BoxTitle
+              title="Skeleton Card Example"
+              description="Set --shimmer-width on the container to match the container width. All children share the same animation."
+            />
+            <BoxCode>
+              <CodeBlock
+                language="tsx"
+                code={`<div
+  class="flex gap-3"
+  style={{ ["--shimmer-width" as string]: "600" }}
+>
+  <div class="shimmer-bg bg-muted size-10 rounded-full" />
+  <div class="flex-1 space-y-2">
+    <div class="shimmer-bg bg-muted h-4 w-1/4 rounded" />
+    <div class="shimmer-bg bg-muted h-4 w-full rounded" />
+    <div class="shimmer-bg bg-muted h-4 w-4/5 rounded" />
+  </div>
+</div>`}
+                highlight="--shimmer-width"
+                highlightMode="text"
+              />
+            </BoxCode>
+            <BoxContent>
+              <div
+                className="flex gap-3"
+                style={{ ["--shimmer-width" as string]: "600" }}
+              >
+                <div className="shimmer-bg size-10 shrink-0 rounded-full bg-muted" />
+                <div className="flex-1 space-y-2">
+                  <div className="shimmer-bg h-4 w-1/4 rounded bg-muted" />
+                  <div className="shimmer-bg h-4 w-full rounded bg-muted" />
+                  <div className="shimmer-bg h-4 w-4/5 rounded bg-muted" />
+                </div>
+              </div>
+            </BoxContent>
+          </Box>
+
+          <Box>
+            <BoxTitle
+              title="bg-{color} + shimmer-color-{color}"
+              description="Use standard Tailwind bg-* for base color. Customize highlight with shimmer-color-* (shared with text shimmer)."
+            />
+            <BoxCode>
+              <CodeBlock
+                language="html"
+                code={`<div class="shimmer-bg bg-blue-300 shimmer-color-blue-100 dark:bg-blue-800 dark:shimmer-color-blue-500 h-4 w-48 rounded" />`}
+                highlight="shimmer-color-blue-100"
+                highlightMode="text"
+              />
+            </BoxCode>
+            <BoxContent>
+              <div
+                className="space-y-3"
+                style={{ ["--shimmer-width" as string]: "192" }}
+              >
+                <div className="shimmer-bg h-4 w-48 rounded bg-blue-300 shimmer-color-blue-100 dark:bg-blue-800 dark:shimmer-color-blue-500" />
+                <div className="shimmer-bg h-4 w-48 rounded bg-purple-300 shimmer-color-purple-100 dark:bg-purple-800 dark:shimmer-color-purple-500" />
+                <div className="shimmer-bg h-4 w-48 rounded bg-green-300 shimmer-color-green-100 dark:bg-green-800 dark:shimmer-color-green-500" />
+              </div>
+            </BoxContent>
+          </Box>
+
+          <Box>
+            <BoxTitle
+              title="shimmer-angle-{degrees}"
+              description="Add a diagonal sweep to your skeleton shimmer. Shared with text shimmer."
+            />
+            <BoxCode>
+              <CodeBlock
+                language="tsx"
+                code={`<div
+  class="flex gap-3 shimmer-angle-15"
+  style={{ ["--shimmer-width" as string]: "600" }}
+>
+  <div class="shimmer-bg bg-muted size-10 rounded-full" />
+  <div class="flex-1 space-y-2">
+    <div class="shimmer-bg bg-muted h-4 w-1/4 rounded" />
+    <div class="shimmer-bg bg-muted h-4 w-full rounded" />
+    <div class="shimmer-bg bg-muted h-4 w-4/5 rounded" />
+  </div>
+</div>`}
+                highlight="shimmer-angle-15"
+                highlightMode="text"
+              />
+            </BoxCode>
+            <BoxContent>
+              <div
+                className="flex gap-3 shimmer-angle-15"
+                style={{ ["--shimmer-width" as string]: "600" }}
+              >
+                <div className="shimmer-bg size-10 shrink-0 rounded-full bg-muted" />
+                <div className="flex-1 space-y-2">
+                  <div className="shimmer-bg h-4 w-1/4 rounded bg-muted" />
+                  <div className="shimmer-bg h-4 w-full rounded bg-muted" />
+                  <div className="shimmer-bg h-4 w-4/5 rounded bg-muted" />
+                </div>
+              </div>
+              <p className="mt-4 text-sm text-muted-foreground">
+                With angled shimmers, elements at different positions may appear
+                slightly disjointed. This is a limitation of pure CSS animation.
+                For most layouts this is barely noticeable. Power users can use
+                the optional{" "}
+                <code className="px-1 py-0.5 text-xs">shimmer-x-*/y-*</code>{" "}
+                utilities below for finer control.
+              </p>
+            </BoxContent>
+          </Box>
+
+          <Box>
+            <BoxTitle
+              title="Advanced: shimmer-x-{value} / shimmer-y-{value}"
+              description="Optional manual sync for angled shimmers. Most users can skip this."
+            />
+            <BoxCode>
+              <CodeBlock
+                language="html"
+                code={`<div
+  class="shimmer-angle-15 flex gap-3"
+>
+  <div class="shimmer-bg shimmer-x-20 shimmer-y-20 bg-muted size-10 rounded-full" />
+  <div class="flex-1 space-y-2">
+    <div class="shimmer-bg shimmer-x-52 shimmer-y-0 bg-muted h-4 w-1/4 rounded" />
+    <div class="shimmer-bg shimmer-x-52 shimmer-y-24 bg-muted h-4 w-full rounded" />
+    <div class="shimmer-bg shimmer-x-52 shimmer-y-48 bg-muted h-4 w-4/5 rounded" />
+  </div>
+</div>`}
+                highlight={["shimmer-x-", "shimmer-y-"]}
+                highlightMode="text"
+              />
+            </BoxCode>
+            <BoxContent>
+              <p className="mb-4 text-sm text-muted-foreground">
+                These utilities provide manual position hints (in pixels) that
+                feed into the animation-delay formula. By specifying each
+                element&apos;s approximate x/y offset from a shared origin, the
+                plugin can align the diagonal sweep across elements—creating the
+                illusion of a single highlight passing through all of them.
+              </p>
+              <p className="mb-4 text-sm text-muted-foreground">
+                <strong>When to use:</strong> Only needed for angled shimmers
+                (not{" "}
+                <code className="px-1 py-0.5 text-xs">shimmer-angle-90</code>)
+                on multi-element layouts like skeleton cards. Vertical shimmers
+                sync automatically.
+              </p>
+              <p className="mb-4 text-sm text-muted-foreground">
+                <strong>Expectations:</strong> Because this is pure CSS with no
+                runtime layout access, sync is &quot;best-effort.&quot; Some
+                trial and error may be needed to find good offsets. Minor desync
+                at shallow angles or with large rounded shapes is normal.
+              </p>
+              <p className="mb-4 text-sm text-muted-foreground">
+                <strong>Tip:</strong> For larger elements like avatars, use
+                center coordinates instead of top-left for better visual
+                alignment.
+              </p>
+              <label className="mb-4 flex w-fit cursor-pointer items-center gap-2">
+                <span className="text-sm font-medium">Sync</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={angledSynced}
+                  onClick={() => setAngledSynced(!angledSynced)}
+                  className={`relative h-5 w-9 rounded-full transition-colors ${
+                    angledSynced ? "bg-primary" : "bg-muted"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 size-4 rounded-full bg-background shadow transition-transform ${
+                      angledSynced ? "translate-x-4" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </label>
+              <div
+                className="flex gap-3 shimmer-angle-15"
+                style={{ ["--shimmer-width" as string]: "720" }}
+              >
+                <div
+                  className={cn(
+                    "shimmer-bg size-16 shrink-0 rounded-full bg-muted",
+                    angledSynced && "shimmer-x-0 shimmer-y-16",
+                  )}
+                />
+                <div className="flex-1 space-y-2">
+                  <div
+                    className={cn(
+                      "shimmer-bg h-4 w-1/4 rounded bg-muted",
+                      angledSynced && "shimmer-x-52 shimmer-y-0",
+                    )}
+                  />
+                  <div
+                    className={cn(
+                      "shimmer-bg h-4 w-full rounded bg-muted",
+                      angledSynced && "shimmer-x-52 shimmer-y-24",
+                    )}
+                  />
+                  <div
+                    className={cn(
+                      "shimmer-bg h-4 w-4/5 rounded bg-muted",
+                      angledSynced && "shimmer-x-52 shimmer-y-48",
+                    )}
+                  />
+                </div>
+              </div>
+            </BoxContent>
+          </Box>
+        </div>
+      </div>
     </div>
   );
 }
@@ -318,7 +609,7 @@ export default function TwShimmerPage() {
 interface CodeBlockProps {
   language: string;
   code: string;
-  highlight?: string;
+  highlight?: string | string[];
   highlightMode?: "line" | "text";
 }
 
@@ -341,13 +632,19 @@ function CodeBlock({
   let metaProps = {};
 
   if (highlight) {
+    const highlights = Array.isArray(highlight) ? highlight : [highlight];
+
     if (highlightMode === "text") {
-      metaProps = { meta: { __raw: `/${highlight}/` } };
+      // Multiple /pattern/ entries for each highlight
+      const patterns = highlights.map((h) => `/${h}/`).join(" ");
+      metaProps = { meta: { __raw: patterns } };
     } else if (highlightMode === "line") {
-      // Find lines containing the highlight text
+      // Find lines containing any of the highlight texts
       const lines = code.split("\n");
       const lineNumbers = lines
-        .map((line, index) => (line.includes(highlight) ? index + 1 : null))
+        .map((line, index) =>
+          highlights.some((h) => line.includes(h)) ? index + 1 : null,
+        )
         .filter((n): n is number => n !== null);
 
       if (lineNumbers.length > 0) {
@@ -366,7 +663,7 @@ function CodeBlock({
         code={code}
         {...metaProps}
         addDefaultStyles={false}
-        className="[--padding-left:1.5rem] [&_code]:block [&_pre]:m-0 [&_pre]:rounded-none [&_pre]:!bg-transparent [&_pre]:px-0 [&_pre]:py-4"
+        className="[--padding-left:1.5rem] [&_code]:block [&_pre]:m-0 [&_pre]:rounded-none [&_pre]:bg-transparent! [&_pre]:px-0 [&_pre]:py-4"
         transformers={[
           transformerMetaHighlight(),
           transformerMetaWordHighlight(),
