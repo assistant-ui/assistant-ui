@@ -59,7 +59,7 @@ export class ObjectStreamAccumulator {
     const [key, ...rest] = path as [string, ...(readonly string[])];
     if (Array.isArray(state)) {
       const idx = Number(key);
-      if (isNaN(idx))
+      if (Number.isNaN(idx))
         throw new Error(`Expected array index at [${path.join(", ")}]`);
       if (idx > state.length || idx < 0)
         throw new Error(`Insert array index out of bounds`);

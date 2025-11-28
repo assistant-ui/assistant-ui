@@ -70,7 +70,7 @@ export function fixJson(input: string): [string, string[]] {
 
   function pushCurrentKeyToPath(): void {
     if (currentKey !== undefined) {
-      path.push(JSON.parse('"' + currentKey + '"'));
+      path.push(JSON.parse(`"${currentKey}"`));
       currentKey = undefined;
     }
   }

@@ -116,7 +116,7 @@ export const MessageClient = resource(
           if ("index" in selector) {
             return parts.api({ index: selector.index });
           } else {
-            return parts.api({ key: "toolCallId-" + selector.toolCallId });
+            return parts.api({ key: `toolCallId-${selector.toolCallId}` });
           }
         },
 

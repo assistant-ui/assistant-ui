@@ -1,5 +1,5 @@
-import { normalize, relative } from "path";
-import path from "path";
+import { normalize, relative } from "node:path";
+import path from "node:path";
 
 export function sanitizePath(userPath: string): string {
   if (!userPath || typeof userPath !== "string") {

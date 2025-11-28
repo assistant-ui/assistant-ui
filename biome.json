@@ -34,13 +34,21 @@
         "noImplicitAnyLet": "off",
         "noAssignInExpressions": "off",
         "noRedeclare": "off",
+        "noConfusingLabels": {
+          "level": "error",
+          "options": {
+            "allowedLabels": ["DEV"]
+          }
+        },
         "noDoubleEquals": "off",
-        "noPrototypeBuiltins": "off"
+        "noPrototypeBuiltins": "off",
+        "noDocumentCookie": "off"
       },
       "style": {
         "noNamespace": "off",
         "useImportType": "off",
-        "noNonNullAssertion": "off"
+        "noNonNullAssertion": "off",
+        "useComponentExportOnlyModules": "off"
       },
       "correctness": {
         "noUnusedVariables": {
@@ -52,7 +60,8 @@
         "useExhaustiveDependencies": "off",
         "useHookAtTopLevel": "off",
         "noSwitchDeclarations": "off",
-        "noUnsafeOptionalChaining": "off"
+        "noUnsafeOptionalChaining": "off",
+        "useUniqueElementIds": "off"
       },
       "complexity": {
         "noForEach": "off",
@@ -61,7 +70,8 @@
         "noStaticOnlyClass": "off",
         "useArrowFunction": "off",
         "noThisInStatic": "off",
-        "useFlatMap": "off"
+        "useFlatMap": "off",
+        "useLiteralKeys": "off"
       },
       "a11y": {
         "useKeyWithClickEvents": "off",
@@ -73,6 +83,9 @@
       },
       "security": {
         "noDangerouslySetInnerHtml": "off"
+      },
+      "performance": {
+        "noImgElement": "off"
       },
       "nursery": {
         "useSortedClasses": {

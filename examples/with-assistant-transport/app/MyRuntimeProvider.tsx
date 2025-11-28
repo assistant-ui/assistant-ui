@@ -11,7 +11,7 @@ import {
   convertLangChainMessages,
   LangChainMessage,
 } from "@assistant-ui/react-langgraph";
-import React, { ReactNode } from "react";
+import { ReactNode } from "react";
 import { z } from "zod";
 
 // Frontend tool with execute function

@@ -1,9 +1,9 @@
-import { execFileSync, spawnSync } from "child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import debug from "debug";
-import path from "path";
+import path from "node:path";
 import { TransformOptions } from "./transform-options";
-import { fileURLToPath } from "url";
-import * as fs from "fs";
+import { fileURLToPath } from "node:url";
+import * as fs from "node:fs";
 import { sync as globSync } from "glob";
 
 const log = debug("codemod:transform");

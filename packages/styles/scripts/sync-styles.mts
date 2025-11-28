@@ -353,8 +353,12 @@ class SyncStyles {
           const answer = await rl.question(
             chalk.green(`   Select file (1-${cssFiles.length}): `),
           );
-          choice = parseInt(answer);
-        } while (isNaN(choice) || choice < 1 || choice > cssFiles.length);
+          choice = parseInt(answer, 10);
+        } while (
+          Number.isNaN(choice) ||
+          choice < 1 ||
+          choice > cssFiles.length
+        );
 
         rl.close();
 

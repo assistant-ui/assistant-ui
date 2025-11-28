@@ -47,7 +47,7 @@ const FfmpegTool: FC<{ file: File }> = ({ file }) => {
     load();
   }, []);
 
-  useAssistantInstructions("The user has attached a file: " + file.name);
+  useAssistantInstructions(`The user has attached a file: ${file.name}`);
 
   useAssistantTool({
     toolName: "run_ffmpeg",
@@ -92,7 +92,7 @@ const FfmpegTool: FC<{ file: File }> = ({ file }) => {
         hint:
           code === 0
             ? "note: a download button is appearing in the chat for the user"
-            : "some error happened, logs: " + logs.join("\n"),
+            : `some error happened, logs: ${logs.join("\n")}`,
       };
     },
     render: function RenderFfmpeg({

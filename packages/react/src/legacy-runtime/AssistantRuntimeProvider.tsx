@@ -2,15 +2,15 @@
 
 import { FC, memo, PropsWithChildren } from "react";
 import {
-  AssistantProvider,
   useAssistantApi,
+  AssistantProvider,
 } from "../context/react/AssistantApiContext";
 import { AssistantRuntime } from "./runtime/AssistantRuntime";
 import { AssistantRuntimeCore } from "./runtime-cores/core/AssistantRuntimeCore";
 import { RuntimeAdapter } from "./RuntimeAdapter";
 import { ThreadPrimitiveViewportProvider } from "../context/providers/ThreadViewportProvider";
 
-export namespace AssistantProvider {
+export namespace AssistantRuntimeProvider {
   export type Props = PropsWithChildren<{
     /**
      * The runtime to provide to the rest of your app.
@@ -23,10 +23,9 @@ const getRenderComponent = (runtime: AssistantRuntime) => {
   return (runtime as { _core?: AssistantRuntimeCore })._core?.RenderComponent;
 };
 
-export const AssistantRuntimeProviderImpl: FC<AssistantProvider.Props> = ({
-  children,
-  runtime,
-}) => {
+export const AssistantRuntimeProviderImpl: FC<
+  AssistantRuntimeProvider.Props
+> = ({ children, runtime }) => {
   const api = useAssistantApi({
     threads: RuntimeAdapter(runtime),
   });
