@@ -57,6 +57,11 @@ Base utility. Apply to any element with a text color.
 
 Animation speed in pixels per second. Default: `100`px/s for text, `500`px/s for bg.
 
+`--shimmer-speed` is inheritable:
+
+- If you set `--shimmer-speed` (or use `shimmer-speed-{value}`) on a parent container, both `shimmer` and `shimmer-bg` children will use that value unless they override it.
+- If no value is set anywhere, text shimmer falls back to `100` and background shimmer falls back to `500`.
+
 ```html
 <span class="shimmer shimmer-speed-200 text-foreground/40">Fast (200px/s)</span>
 ```
@@ -88,7 +93,12 @@ Or set via CSS variable at runtime:
 
 Shimmer highlight color. Default: `black` for text (white in dark mode), `white` for bg.
 
-Uses Tailwind color palette.
+`--shimmer-color` is shared and inheritable:
+
+- If you set `--shimmer-color` (or use `shimmer-color-{color}`) on a parent container, any `shimmer` or `shimmer-bg` elements inside will use that color unless they define their own.
+- If no value is set anywhere, text shimmer falls back to black in light mode (and white in dark mode), and background shimmer falls back to white (with a subtler default in dark mode).
+
+Uses the Tailwind color palette.
 
 ```html
 <span class="shimmer shimmer-color-blue-500 text-blue-500/40"
@@ -98,9 +108,14 @@ Uses Tailwind color palette.
 
 ### `shimmer-spread-{spacing}`
 
-Width of the shimmer highlight. Default: `6`ch.
+Width of the shimmer highlight for text shimmer. Default: `6`ch.
 
-Uses Tailwind spacing scale.
+`--shimmer-spread` is inheritable:
+
+- If you set `--shimmer-spread` (or use `shimmer-spread-{spacing}`) on a parent container, any `shimmer` elements inside will use that value unless they override it.
+- If no value is set anywhere, text shimmer falls back to `6ch`.
+
+Uses the Tailwind spacing scale.
 
 ```html
 <span class="shimmer shimmer-spread-24 text-foreground/40">Wide highlight</span>
@@ -109,6 +124,11 @@ Uses Tailwind spacing scale.
 ### `shimmer-angle-{degrees}`
 
 Shimmer direction. Default: `90`deg. Shared with `shimmer-bg`.
+
+`--shimmer-angle` is inheritable:
+
+- If you set `--shimmer-angle` (or use `shimmer-angle-{degrees}`) on a parent container, any `shimmer` or `shimmer-bg` elements inside will use that angle unless they define their own.
+- If no value is set anywhere, both text and background shimmer fall back to `90deg`.
 
 ```html
 <span class="shimmer shimmer-angle-45 text-foreground/40"
@@ -130,7 +150,9 @@ Background shimmer for skeleton loaders and non-text elements. Use standard Tail
 
 ### Skeleton Example
 
-Set `--shimmer-width` on the container to sync all children. Any `shimmer-bg` or `shimmer` elements inside will inherit this width unless they define their own `shimmer-width-{value}`:
+Set `--shimmer-width` on the container to sync all children. Any `shimmer-bg` or `shimmer` elements inside will inherit this width unless they define their own `shimmer-width-{value}`.
+
+You can also set `--shimmer-speed`, `--shimmer-angle`, and `--shimmer-color` on the same container to keep both text shimmer and background shimmer moving in the same direction, at the same speed, and with the same highlight color. You can also set `--shimmer-bg-spread` on the container (or individual skeleton elements) to widen or tighten the background highlight band for all `shimmer-bg` children:
 
 ```tsx
 <div class="flex gap-3" style={{ ["--shimmer-width" as string]: "600" }}>

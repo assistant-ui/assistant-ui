@@ -23,42 +23,40 @@
 }
 
 @utility shimmer {
-  --shimmer-speed: 100;
-  --shimmer-color: oklch(0 0 0 / 0.8);
-  --shimmer-spread: 6ch;
-  --shimmer-angle: 90deg;
+  --shimmer-color-default: var(--shimmer-color, oklch(0 0 0 / 0.8));
+  --shimmer-spread-default: var(--shimmer-spread, 6ch);
 
   @variant dark {
-    --shimmer-color: oklch(1 0 0 / 0.8);
+    --shimmer-color-default: var(--shimmer-color, oklch(1 0 0 / 0.8));
   }
 
   /* Eased gradient: sine ease-in-out for smooth falloff at both center and edges */
   background:
     linear-gradient(
-        var(--shimmer-angle),
-        transparent calc(50% - var(--shimmer-spread) * 0.5),
-        color-mix(in oklch, var(--shimmer-color), transparent 94%)
-          calc(50% - var(--shimmer-spread) * 0.42),
-        color-mix(in oklch, var(--shimmer-color), transparent 76%)
-          calc(50% - var(--shimmer-spread) * 0.33),
-        color-mix(in oklch, var(--shimmer-color), transparent 50%)
-          calc(50% - var(--shimmer-spread) * 0.25),
-        color-mix(in oklch, var(--shimmer-color), transparent 24%)
-          calc(50% - var(--shimmer-spread) * 0.17),
-        color-mix(in oklch, var(--shimmer-color), transparent 6%)
-          calc(50% - var(--shimmer-spread) * 0.08),
-        var(--shimmer-color) 50%,
-        color-mix(in oklch, var(--shimmer-color), transparent 6%)
-          calc(50% + var(--shimmer-spread) * 0.08),
-        color-mix(in oklch, var(--shimmer-color), transparent 24%)
-          calc(50% + var(--shimmer-spread) * 0.17),
-        color-mix(in oklch, var(--shimmer-color), transparent 50%)
-          calc(50% + var(--shimmer-spread) * 0.25),
-        color-mix(in oklch, var(--shimmer-color), transparent 76%)
-          calc(50% + var(--shimmer-spread) * 0.33),
-        color-mix(in oklch, var(--shimmer-color), transparent 94%)
-          calc(50% + var(--shimmer-spread) * 0.42),
-        transparent calc(50% + var(--shimmer-spread) * 0.5)
+        var(--shimmer-angle, 90deg),
+        transparent calc(50% - var(--shimmer-spread-default) * 0.5),
+        color-mix(in oklch, var(--shimmer-color-default), transparent 94%)
+          calc(50% - var(--shimmer-spread-default) * 0.42),
+        color-mix(in oklch, var(--shimmer-color-default), transparent 76%)
+          calc(50% - var(--shimmer-spread-default) * 0.33),
+        color-mix(in oklch, var(--shimmer-color-default), transparent 50%)
+          calc(50% - var(--shimmer-spread-default) * 0.25),
+        color-mix(in oklch, var(--shimmer-color-default), transparent 24%)
+          calc(50% - var(--shimmer-spread-default) * 0.17),
+        color-mix(in oklch, var(--shimmer-color-default), transparent 6%)
+          calc(50% - var(--shimmer-spread-default) * 0.08),
+        var(--shimmer-color-default) 50%,
+        color-mix(in oklch, var(--shimmer-color-default), transparent 6%)
+          calc(50% + var(--shimmer-spread-default) * 0.08),
+        color-mix(in oklch, var(--shimmer-color-default), transparent 24%)
+          calc(50% + var(--shimmer-spread-default) * 0.17),
+        color-mix(in oklch, var(--shimmer-color-default), transparent 50%)
+          calc(50% + var(--shimmer-spread-default) * 0.25),
+        color-mix(in oklch, var(--shimmer-color-default), transparent 76%)
+          calc(50% + var(--shimmer-spread-default) * 0.33),
+        color-mix(in oklch, var(--shimmer-color-default), transparent 94%)
+          calc(50% + var(--shimmer-spread-default) * 0.42),
+        transparent calc(50% + var(--shimmer-spread-default) * 0.5)
       )
       0 0 / 200% 100% no-repeat,
     linear-gradient(currentColor, currentColor);
@@ -66,14 +64,15 @@
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   animation: shimmer
-    calc((var(--shimmer-width, 200) * 2) / var(--shimmer-speed) * 1s) infinite linear;
+    calc((var(--shimmer-width, 200) * 2) / var(--shimmer-speed, 100) * 1s)
+    infinite linear;
   /* Delay syncs animation across elements: y adjusted by angle slope, minus x offset */
   animation-delay: calc(
     (
         var(--shimmer-y, 0) * tan(calc(90deg - var(--shimmer-angle, 90deg))) -
           var(--shimmer-x, 0)
       ) /
-      var(--shimmer-speed) * -1s
+      var(--shimmer-speed, 100) * -1s
   );
 }
 
@@ -94,13 +93,13 @@
 }
 
 @utility shimmer-bg {
-  --shimmer-color: oklch(1 0 0 / 0.5);
-  --shimmer-bg-spread: 400;
+  --shimmer-color-default: var(--shimmer-color, oklch(1 0 0 / 0.5));
+  --shimmer-bg-spread-default: var(--shimmer-bg-spread, 400);
   position: relative;
   overflow: clip;
 
   @variant dark {
-    --shimmer-color: oklch(1 0 0 / 0.25);
+    --shimmer-color-default: var(--shimmer-color, oklch(1 0 0 / 0.25));
   }
 
   &::after {
@@ -109,32 +108,32 @@
     top: -150%;
     bottom: -150%;
     left: 0;
-    width: calc(var(--shimmer-bg-spread) * 1px);
+    width: calc(var(--shimmer-bg-spread-default) * 1px);
     /* Eased gradient: sine ease-in-out for smooth falloff at both center and edges */
     background: linear-gradient(
       90deg,
       transparent 0%,
-      color-mix(in oklch, var(--shimmer-color), transparent 96%) 6%,
-      color-mix(in oklch, var(--shimmer-color), transparent 83%) 13%,
-      color-mix(in oklch, var(--shimmer-color), transparent 67%) 19%,
-      color-mix(in oklch, var(--shimmer-color), transparent 50%) 25%,
-      color-mix(in oklch, var(--shimmer-color), transparent 33%) 31%,
-      color-mix(in oklch, var(--shimmer-color), transparent 17%) 38%,
-      color-mix(in oklch, var(--shimmer-color), transparent 4%) 44%,
-      var(--shimmer-color) 50%,
-      color-mix(in oklch, var(--shimmer-color), transparent 4%) 56%,
-      color-mix(in oklch, var(--shimmer-color), transparent 17%) 62%,
-      color-mix(in oklch, var(--shimmer-color), transparent 33%) 69%,
-      color-mix(in oklch, var(--shimmer-color), transparent 50%) 75%,
-      color-mix(in oklch, var(--shimmer-color), transparent 67%) 81%,
-      color-mix(in oklch, var(--shimmer-color), transparent 83%) 87%,
-      color-mix(in oklch, var(--shimmer-color), transparent 96%) 94%,
+      color-mix(in oklch, var(--shimmer-color-default), transparent 96%) 6%,
+      color-mix(in oklch, var(--shimmer-color-default), transparent 83%) 13%,
+      color-mix(in oklch, var(--shimmer-color-default), transparent 67%) 19%,
+      color-mix(in oklch, var(--shimmer-color-default), transparent 50%) 25%,
+      color-mix(in oklch, var(--shimmer-color-default), transparent 33%) 31%,
+      color-mix(in oklch, var(--shimmer-color-default), transparent 17%) 38%,
+      color-mix(in oklch, var(--shimmer-color-default), transparent 4%) 44%,
+      var(--shimmer-color-default) 50%,
+      color-mix(in oklch, var(--shimmer-color-default), transparent 4%) 56%,
+      color-mix(in oklch, var(--shimmer-color-default), transparent 17%) 62%,
+      color-mix(in oklch, var(--shimmer-color-default), transparent 33%) 69%,
+      color-mix(in oklch, var(--shimmer-color-default), transparent 50%) 75%,
+      color-mix(in oklch, var(--shimmer-color-default), transparent 67%) 81%,
+      color-mix(in oklch, var(--shimmer-color-default), transparent 83%) 87%,
+      color-mix(in oklch, var(--shimmer-color-default), transparent 96%) 94%,
       transparent 100%
     );
     transform: skewX(calc(90deg - var(--shimmer-angle, 90deg)));
     animation: shimmer-bg
       calc(
-        (var(--shimmer-width, 600) + var(--shimmer-bg-spread)) /
+        (var(--shimmer-width, 600) + var(--shimmer-bg-spread-default)) /
           var(--shimmer-speed, 500) * 1s
       )
       infinite linear;
