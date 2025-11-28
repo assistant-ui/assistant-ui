@@ -55,7 +55,7 @@ jobs:
   build:
     name: Build Changed Packages
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - name: Checkout code repository
         uses: actions/checkout@v6
