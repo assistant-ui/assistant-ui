@@ -13,6 +13,15 @@ export type ComposerRuntimeEventType = "send" | "attachment-add";
  */
 export type ListeningState = {
   readonly status: SpeechRecognitionAdapter.Status;
+  /**
+   * The current interim (partial) transcript being recognized.
+   * This is a preview of what the user is saying and may change
+   * as the speech recognition refines its prediction.
+   *
+   * Useful for displaying a live preview of the transcription.
+   * Only final transcripts are appended to the composer text.
+   */
+  readonly transcript?: string;
 };
 
 export type ComposerRuntimeCore = Readonly<{

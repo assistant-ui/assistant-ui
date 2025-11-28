@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "OpenAI Whisper Dictation Example",
+  title: "ElevenLabs Scribe Dictation Example",
   description:
-    "Example using @assistant-ui/react with OpenAI Whisper API for voice dictation",
+    "Example using @assistant-ui/react with ElevenLabs Scribe for real-time voice dictation",
 };
 
 export default function RootLayout({

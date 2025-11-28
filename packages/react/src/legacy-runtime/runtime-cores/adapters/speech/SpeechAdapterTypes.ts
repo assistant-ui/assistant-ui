@@ -80,7 +80,22 @@ export namespace SpeechRecognitionAdapter {
       };
 
   export type Result = {
+    /** The transcribed text */
     transcript: string;
+    /**
+     * Whether this is a final (committed) result or an interim (partial) result.
+     *
+     * - `true` (final): The text should be appended to the composer input.
+     *   This text is finalized and won't change.
+     *
+     * - `false` (interim/partial): The text is a preview that may change.
+     *   It should be displayed as a preview but not appended to the input yet.
+     *   Subsequent interim results replace the previous interim result.
+     *
+     * Defaults to `true` for backwards compatibility with adapters that
+     * don't set this flag.
+     */
+    isFinal?: boolean;
   };
 
   export type Session = {

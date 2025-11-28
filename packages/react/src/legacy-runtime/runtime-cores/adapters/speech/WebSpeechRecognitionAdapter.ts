@@ -212,10 +212,12 @@ export class WebSpeechRecognitionAdapter implements SpeechRecognitionAdapter {
 
         if (result.isFinal) {
           finalTranscript += transcript;
-          // Notify about final result
-          for (const cb of speechCallbacks) cb({ transcript });
+          // Notify about final result (will be appended to input)
+          for (const cb of speechCallbacks) cb({ transcript, isFinal: true });
+        } else {
+          // Notify about interim result (will show as preview)
+          for (const cb of speechCallbacks) cb({ transcript, isFinal: false });
         }
-        // Interim results are not notified - only final results for text appending
       }
     });
 

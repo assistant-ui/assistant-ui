@@ -239,18 +239,43 @@ export abstract class BaseComposerRuntimeCore
     this._listening = { status: session.status };
     this._notifySubscribers();
 
-    // Subscribe to speech events to append text
+    // Subscribe to speech events
     const unsubSpeech = session.onSpeech((result) => {
-      // Append transcribed text to existing text
-      const currentText = this.text;
-      const separator = currentText && !currentText.endsWith(" ") ? " " : "";
-      this.setText(currentText + separator + result.transcript);
+      // Check if this is a final (committed) result or interim (partial) result
+      // Default to final=true for backwards compatibility
+      const isFinal = result.isFinal !== false;
+
+      if (isFinal) {
+        // Final result: append to the actual text
+        const currentText = this.text;
+        const separator = currentText && !currentText.endsWith(" ") ? " " : "";
+        this.setText(currentText + separator + result.transcript);
+
+        // Clear the interim transcript since it's now committed
+        if (this._listening) {
+          const { transcript: _, ...rest } = this._listening;
+          this._listening = rest;
+          this._notifySubscribers();
+        }
+      } else {
+        // Interim/partial result: update the preview transcript (don't append)
+        if (this._listening) {
+          this._listening = {
+            ...this._listening,
+            transcript: result.transcript,
+          };
+          this._notifySubscribers();
+        }
+      }
     });
     this._listeningUnsubscribes.push(unsubSpeech);
 
     // Subscribe to speech start
     const unsubStart = session.onSpeechStart(() => {
-      this._listening = { status: { type: "running" } };
+      const currentTranscript = this._listening?.transcript;
+      this._listening = currentTranscript
+        ? { status: { type: "running" }, transcript: currentTranscript }
+        : { status: { type: "running" } };
       this._notifySubscribers();
     });
     this._listeningUnsubscribes.push(unsubStart);

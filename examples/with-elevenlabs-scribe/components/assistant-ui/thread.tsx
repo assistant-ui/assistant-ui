@@ -5,6 +5,7 @@ import {
   ErrorPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
+  useAssistantState,
 } from "@assistant-ui/react";
 import type { FC } from "react";
 import {
@@ -77,9 +78,11 @@ const ThreadWelcome: FC = () => {
     <ThreadPrimitive.Empty>
       <div className="flex w-full max-w-[var(--thread-max-width)] flex-grow flex-col">
         <div className="flex w-full flex-grow flex-col items-center justify-center">
-          <p className="mt-4 font-medium text-xl">OpenAI Whisper Dictation</p>
+          <p className="mt-4 font-medium text-xl">
+            ElevenLabs Scribe Dictation
+          </p>
           <p className="mt-2 text-muted-foreground">
-            Click the microphone button to start voice input
+            Click the microphone button for real-time voice input
           </p>
         </div>
         <ThreadWelcomeSuggestions />
@@ -117,15 +120,34 @@ const ThreadWelcomeSuggestions: FC = () => {
 
 const Composer: FC = () => {
   return (
-    <ComposerPrimitive.Root className="flex w-full flex-wrap items-end rounded-lg border bg-inherit px-2.5 shadow-sm transition-colors ease-in focus-within:border-ring/20">
-      <ComposerPrimitive.Input
-        rows={1}
-        autoFocus
-        placeholder="Write a message or use voice input..."
-        className="max-h-40 flex-grow resize-none border-none bg-transparent px-2 py-4 text-sm outline-none placeholder:text-muted-foreground focus:ring-0 disabled:cursor-not-allowed"
-      />
-      <ComposerAction />
-    </ComposerPrimitive.Root>
+    <div className="w-full">
+      <ListeningPreview />
+      <ComposerPrimitive.Root className="flex w-full flex-wrap items-end rounded-lg border bg-inherit px-2.5 shadow-sm transition-colors ease-in focus-within:border-ring/20">
+        <ComposerPrimitive.Input
+          rows={1}
+          autoFocus
+          placeholder="Write a message or use voice input..."
+          className="max-h-40 flex-grow resize-none border-none bg-transparent px-2 py-4 text-sm outline-none placeholder:text-muted-foreground focus:ring-0 disabled:cursor-not-allowed"
+        />
+        <ComposerAction />
+      </ComposerPrimitive.Root>
+    </div>
+  );
+};
+
+/** Shows real-time preview of what's being transcribed */
+const ListeningPreview: FC = () => {
+  const transcript = useAssistantState(
+    ({ composer }) => composer.listening?.transcript,
+  );
+
+  if (!transcript) return null;
+
+  return (
+    <div className="mb-2 rounded-md bg-muted/50 px-3 py-2 text-muted-foreground text-sm">
+      <span className="mr-2 inline-block size-2 animate-pulse rounded-full bg-red-500" />
+      <span className="italic">{transcript}</span>
+    </div>
   );
 };
 
@@ -136,7 +158,7 @@ const ComposerAction: FC = () => {
       <ComposerPrimitive.If listening={false}>
         <ComposerPrimitive.Dictate asChild>
           <TooltipIconButton
-            tooltip="Voice input (Whisper)"
+            tooltip="Voice input (ElevenLabs Scribe)"
             variant="ghost"
             className="my-2.5 size-8 p-2 transition-opacity ease-in"
           >
