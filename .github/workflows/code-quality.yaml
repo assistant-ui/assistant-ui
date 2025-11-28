@@ -11,7 +11,7 @@ on:
       - "package.json"
       - "pnpm-lock.yaml"
       - ".github/workflows/code-quality.yaml"
-  pull_request_target:
+  pull_request:
     branches: [main]
     paths:
       - "packages/**"
@@ -34,7 +34,6 @@ jobs:
       - name: Checkout code repository
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       - name: Install pnpm
@@ -60,7 +59,6 @@ jobs:
       - name: Checkout code repository
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       - name: Install pnpm
@@ -86,7 +84,7 @@ jobs:
 
       - name: Build packages
         run: |
-          if [ "${{ github.event_name }}" = "pull_request_target" ]; then
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
             # PR: Build packages changed compared to base branch
             pnpm turbo build --filter="...[origin/${{ github.base_ref }}]"
           else
@@ -103,7 +101,6 @@ jobs:
       - name: Checkout code repository
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       - name: Install pnpm
@@ -129,7 +126,7 @@ jobs:
 
       - name: Run tests
         run: |
-          if [ "${{ github.event_name }}" = "pull_request_target" ]; then
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
             # PR: Test packages changed compared to base branch
             pnpm turbo test --filter="...[origin/${{ github.base_ref }}]"
           else
