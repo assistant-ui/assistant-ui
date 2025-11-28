@@ -22,6 +22,7 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     outputs:
       hasChangesets: ${{ steps.changesets.outputs.hasChangesets }}
+      needsPublish: ${{ steps.check-publish.outputs.needsPublish }}
     steps:
       - name: Checkout code repository
         uses: actions/checkout@v6
@@ -50,9 +51,41 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Check if any packages need publishing
+        id: check-publish
+        if: steps.changesets.outputs.hasChangesets == 'false'
+        run: |
+          needs_publish="false"
+          for pkg in packages/*/package.json; do
+            # Skip if no packages found
+            [ -f "$pkg" ] || continue
+
+            # Get package name and version
+            name=$(jq -r '.name' "$pkg")
+            version=$(jq -r '.version' "$pkg")
+            private=$(jq -r '.private // false' "$pkg")
+
+            # Skip private packages
+            if [ "$private" = "true" ]; then
+              echo "Skipping private package: $name"
+              continue
+            fi
+
+            # Check if this version exists on npm
+            if npm view "${name}@${version}" version 2>/dev/null | grep -q "${version}"; then
+              echo "✓ ${name}@${version} already published"
+            else
+              echo "✗ ${name}@${version} needs publishing"
+              needs_publish="true"
+            fi
+          done
+
+          echo "needsPublish=${needs_publish}" >> $GITHUB_OUTPUT
+          echo "Needs publish: ${needs_publish}"
+
   publish:
     needs: version
-    if: needs.version.outputs.hasChangesets == 'false'
+    if: needs.version.outputs.hasChangesets == 'false' && needs.version.outputs.needsPublish == 'true'
     environment: npm Publish
     runs-on: ubuntu-latest
     steps:
