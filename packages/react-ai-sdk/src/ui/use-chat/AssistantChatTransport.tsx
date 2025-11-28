@@ -62,6 +62,7 @@ export class AssistantChatTransport<
             messages: options.messages,
             trigger: options.trigger,
             messageId: options.messageId,
+            metadata: options.requestMetadata,
           },
         };
       },
