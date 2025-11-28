@@ -90,22 +90,6 @@
   );
 }
 
-@utility shimmer-speed-* {
-  --shimmer-speed: --value(number);
-}
-
-@utility shimmer-color-* {
-  --shimmer-color: --value(--color-*);
-}
-
-@utility shimmer-spread-* {
-  --shimmer-spread: --spacing(--value(integer));
-}
-
-@utility shimmer-angle-* {
-  --shimmer-angle: calc(--value(number) * 1deg);
-}
-
 @utility shimmer-bg {
   /* Interally resolved values with a default value */
   --tw-shimmer-color: var(--shimmer-color, oklch(1 0 0 / 0.5));
@@ -164,6 +148,22 @@
         var(--tw-shimmer-speed) * -1s
     );
   }
+}
+
+@utility shimmer-speed-* {
+  --shimmer-speed: --value(number);
+}
+
+@utility shimmer-color-* {
+  --shimmer-color: --value(--color-*);
+}
+
+@utility shimmer-spread-* {
+  --shimmer-spread: --spacing(--value(integer));
+}
+
+@utility shimmer-angle-* {
+  --shimmer-angle: calc(--value(number) * 1deg);
 }
 
 @utility shimmer-width-* {
