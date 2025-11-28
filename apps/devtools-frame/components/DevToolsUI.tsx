@@ -86,7 +86,7 @@ const ControlButton = ({
 );
 
 const JSONPreview = ({ value }: { value: unknown }) => (
-  <pre className="whitespace-pre-wrap break-words rounded-lg bg-zinc-100 p-3 text-[11px] text-zinc-800 leading-relaxed dark:bg-zinc-900 dark:text-zinc-200">
+  <pre className="wrap-break-word whitespace-pre-wrap rounded-lg bg-zinc-100 p-3 text-[11px] text-zinc-800 leading-relaxed dark:bg-zinc-900 dark:text-zinc-200">
     {JSON.stringify(value, null, 2)}
   </pre>
 );
@@ -755,7 +755,7 @@ const renderComposerStatePreview = (value: unknown) => {
           <div className="font-semibold text-[10px] text-zinc-500 uppercase tracking-wide dark:text-zinc-400">
             Text Preview
           </div>
-          <div className="mt-1 whitespace-pre-wrap break-words text-zinc-700 dark:text-zinc-200">
+          <div className="wrap-break-word mt-1 whitespace-pre-wrap text-zinc-700 dark:text-zinc-200">
             {truncate(text, 240)}
           </div>
         </div>

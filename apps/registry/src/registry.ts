@@ -63,7 +63,7 @@ export const registry: RegistryItem[] = [
         path: "components/assistant-ui/thread.tsx",
       },
     ],
-    dependencies: ["@assistant-ui/react", "lucide-react", "motion"],
+    dependencies: ["@assistant-ui/react", "lucide-react"],
     registryDependencies: [
       "button",
       "https://r.assistant-ui.com/attachment",
