@@ -1,5 +1,13 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.1.15
+
+### Patch Changes
+
+- ab8953b: feat(react): add `allowNesting` option to allow wrapping runtimes with custom thread list adapters
+- Updated dependencies [ab8953b]
+  - @assistant-ui/react@0.11.46
+
 ## 1.1.14
 
 ### Patch Changes
