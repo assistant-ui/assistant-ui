@@ -487,11 +487,12 @@ export default function TwShimmerPage() {
               </div>
               <p className="mt-4 text-sm text-muted-foreground">
                 With angled shimmers, elements at different positions may appear
-                slightly disjointed. This is a limitation of pure CSS animation.
-                For most layouts this is barely noticeable. Power users can use
-                the optional{" "}
+                slightly out of sync. CSS has no way to know where each element
+                sits on the page, so it can&apos;t automatically coordinate the
+                timing. For most layouts this is barely noticeable. For precise
+                control, use the optional{" "}
                 <code className="px-1 py-0.5 text-xs">shimmer-x-*/y-*</code>{" "}
-                utilities below for finer control.
+                utilities below.
               </p>
             </BoxContent>
           </Box>
@@ -520,30 +521,13 @@ export default function TwShimmerPage() {
             </BoxCode>
             <BoxContent>
               <p className="mb-4 text-sm text-muted-foreground">
-                These utilities provide manual position hints (in pixels) that
-                feed into the animation-delay formula. By specifying each
-                element&apos;s approximate x/y offset from a shared origin, the
-                plugin can align the diagonal sweep across elements—creating the
-                illusion of a single highlight passing through all of them.
+                Specify each element&apos;s approximate x/y position (in pixels)
+                to coordinate timing across a diagonal sweep. Only needed for
+                angled shimmers on multi-element layouts.
               </p>
               <p className="mb-4 text-sm text-muted-foreground">
-                <strong>When to use:</strong> Only needed for angled shimmers
-                (not{" "}
-                <code className="px-1 py-0.5 text-xs">shimmer-angle-90</code>)
-                on multi-element layouts like skeleton cards. Vertical shimmers
-                align automatically.
-              </p>
-              <p className="mb-4 text-sm text-muted-foreground">
-                <strong>Expectations:</strong> Because this is pure CSS with no
-                runtime layout access, alignment is &quot;best-effort.&quot;
-                Some trial and error may be needed to find good offsets. Minor
-                unalignment at shallow angles or with large rounded shapes is
-                normal.
-              </p>
-              <p className="mb-4 text-sm text-muted-foreground">
-                <strong>Tip:</strong> For larger elements like avatars, use
-                center coordinates instead of top-left for better visual
-                alignment.
+                Some trial and error may be needed. For large elements like
+                avatars, use center coordinates for better alignment.
               </p>
               <label className="mb-4 flex w-fit cursor-pointer items-center gap-2">
                 <span className="text-sm font-medium">Auto-aligned</span>
