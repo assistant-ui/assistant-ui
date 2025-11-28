@@ -84,7 +84,6 @@ export function useAgUiRuntime(
         adapters: adapterAdapters,
       }) satisfies ExternalStoreAdapter<ThreadMessage>,
     // version is intentionally included to trigger re-computation when core state changes via notifyUpdate
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [adapterAdapters, core, version],
   );
 

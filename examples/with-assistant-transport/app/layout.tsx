@@ -16,8 +16,8 @@ export default function RootLayout({
     <html lang="en">
       <body className="font-sans antialiased">
         <div className="flex h-screen flex-col">
-          <header className="bg-background border-b px-4 py-2">
-            <h1 className="text-lg font-semibold">
+          <header className="border-b bg-background px-4 py-2">
+            <h1 className="font-semibold text-lg">
               Assistant Transport Example
             </h1>
           </header>

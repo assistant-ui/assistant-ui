@@ -73,7 +73,7 @@ type ExternalStoreAdapterBase<T> = {
   onNew: (message: AppendMessage) => Promise<void>;
   onEdit?: ((message: AppendMessage) => Promise<void>) | undefined;
   onReload?: // TODO: remove parentId in 0.12.0
-  | ((parentId: string | null, config: StartRunConfig) => Promise<void>)
+    | ((parentId: string | null, config: StartRunConfig) => Promise<void>)
     | undefined;
   onResume?: ((config: ResumeRunConfig) => Promise<void>) | undefined;
   onCancel?: (() => Promise<void>) | undefined;

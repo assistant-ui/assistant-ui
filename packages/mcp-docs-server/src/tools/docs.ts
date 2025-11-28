@@ -1,6 +1,6 @@
 import { z } from "zod/v3";
-import { stat, lstat } from "fs/promises";
-import { join, extname } from "path";
+import { stat, lstat } from "node:fs/promises";
+import { join, extname } from "node:path";
 import { DOCS_PATH, MDX_EXTENSION, MAX_FILE_SIZE } from "../constants.js";
 import { logger } from "../utils/logger.js";
 import {

@@ -19,7 +19,7 @@ function fileMatchesAccept(
     .map((type) => type.trim().toLowerCase());
 
   // Get the file's extension and MIME type
-  const fileExtension = "." + file.name.split(".").pop()!.toLowerCase();
+  const fileExtension = `.${file.name.split(".").pop()!.toLowerCase()}`;
   const fileMimeType = file.type.toLowerCase();
 
   for (const type of allowedTypes) {
@@ -37,7 +37,7 @@ function fileMatchesAccept(
       // Check for wildcard MIME type match
       if (type.endsWith("/*")) {
         const generalType = type.split("/")[0]!;
-        if (fileMimeType.startsWith(generalType + "/")) {
+        if (fileMimeType.startsWith(`${generalType}/`)) {
           return true;
         }
       }

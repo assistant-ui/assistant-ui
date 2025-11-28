@@ -47,7 +47,7 @@ const useDynamicChatTransport = <UI_MESSAGE extends UIMessage = UIMessage>(
   return dynamicTransport;
 };
 
-export const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
+const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   options?: UseChatRuntimeOptions<UI_MESSAGE>,
 ): AssistantRuntime => {
   const {
@@ -90,5 +90,6 @@ export const useChatRuntime = <UI_MESSAGE extends UIMessage = UIMessage>({
       return useChatThreadRuntime(options);
     },
     adapter: cloudAdapter,
+    allowNesting: true,
   });
 };

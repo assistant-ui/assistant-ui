@@ -9,7 +9,7 @@ export const MessagePrimitiveError: FC<PropsWithChildren> = ({ children }) => {
       message.status?.type === "incomplete" &&
       message.status.reason === "error",
   );
-  return hasError ? <>{children}</> : null;
+  return hasError ? children : null;
 };
 
 MessagePrimitiveError.displayName = "MessagePrimitive.Error";

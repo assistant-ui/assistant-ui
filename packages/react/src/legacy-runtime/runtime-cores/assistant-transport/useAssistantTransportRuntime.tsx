@@ -325,6 +325,7 @@ export const useAssistantTransportRuntime = <T,>(
       return useAssistantTransportThreadRuntime(options);
     },
     adapter: new InMemoryThreadListAdapter(),
+    allowNesting: true,
   });
   return runtime;
 };

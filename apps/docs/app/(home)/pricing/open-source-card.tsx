@@ -7,11 +7,11 @@ export default function OpenSourceCard() {
         <div className="flex-grow">
           <div className="mb-4 flex gap-3">
             <GithubIcon className="h-6 w-6" />
-            <h3 className="text-xl font-semibold">
+            <h3 className="font-semibold text-xl">
               Forever Free & Open Source (MIT License)
             </h3>
           </div>
-          <p className="text-md mb-4">
+          <p className="mb-4 text-md">
             UI components for your AI chat application
           </p>
           <ul className="space-y-2 text-sm">

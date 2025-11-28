@@ -62,7 +62,7 @@ const FEATURE_CARDS = [
 
 export default function HomePage() {
   return (
-    <main className="relative z-2 container flex max-w-[1100px] flex-col gap-24 px-2 py-16 lg:py-16">
+    <main className="container relative z-2 flex max-w-[1100px] flex-col gap-24 px-2 py-16 lg:py-16">
       <div className="flex flex-col gap-6">
         <StarPill />
         <Hero />
@@ -87,7 +87,7 @@ export default function HomePage() {
       <FeatureHighlights />
 
       <div className="flex flex-col items-center gap-4">
-        <h2 className="text-center text-3xl font-medium tracking-tight">
+        <h2 className="text-center font-medium text-3xl tracking-tight">
           Trusted by fast-growing companies
         </h2>
         <Logos />
@@ -95,7 +95,7 @@ export default function HomePage() {
 
       <div className="flex flex-col gap-6">
         <div className="flex flex-col items-center gap-3 self-center sm:w-full sm:self-start lg:w-[unset] lg:self-center">
-          <h2 className="self-start text-3xl font-medium tracking-tight sm:self-center">
+          <h2 className="self-start font-medium text-3xl tracking-tight sm:self-center">
             Be part of the community
           </h2>
           <p className="text-muted-foreground">
@@ -124,7 +124,7 @@ export default function HomePage() {
             testimonials={TESTIMONIALS}
             className="sm:columns-2 lg:columns-3 xl:columns-4"
           />
-          <div className="pointer-events-none absolute -bottom-8 left-0 z-10 h-12 w-full bg-linear-to-t from-background via-background" />
+          <div className="-bottom-8 pointer-events-none absolute left-0 z-10 h-12 w-full bg-linear-to-t from-background via-background" />
         </div>
       </div>
       <div className="flex justify-center">
@@ -136,7 +136,7 @@ export default function HomePage() {
             proximity={64}
             inactiveZone={0.01}
           />
-          <p className="text-center text-2xl font-bold">
+          <p className="text-center font-bold text-2xl">
             Ship your AI assistant this week
           </p>
           <Button
@@ -157,7 +157,7 @@ function FeatureHighlights() {
   return (
     <section>
       <div className="flex flex-col items-center gap-2 text-center">
-        <h2 className="text-3xl font-medium tracking-tight">
+        <h2 className="font-medium text-3xl tracking-tight">
           Everything you need to ship AI chat
         </h2>
         <p className="text-muted-foreground">
@@ -179,10 +179,10 @@ function FeatureHighlights() {
                   <Icon className={`size-6 ${feature.iconClassName}`} />
                 </div>
                 <div className="space-y-2">
-                  <h3 className="text-xl font-semibold tracking-tight">
+                  <h3 className="font-semibold text-xl tracking-tight">
                     {feature.title}
                   </h3>
-                  <p className="text-sm leading-relaxed text-muted-foreground">
+                  <p className="text-muted-foreground text-sm leading-relaxed">
                     {feature.description}
                   </p>
                 </div>
@@ -198,13 +198,13 @@ function FeatureHighlights() {
 function Hero() {
   return (
     <div className="relative z-2 flex flex-col overflow-hidden px-6 py-12 text-center md:pt-16">
-      <h1 className="mb-4 text-4xl font-medium tracking-tight md:hidden">
+      <h1 className="mb-4 font-medium text-4xl tracking-tight md:hidden">
         UX of ChatGPT in your own app
       </h1>
-      <h1 className="mb-4 text-5xl font-medium tracking-tight max-md:hidden">
+      <h1 className="mb-4 font-medium text-5xl tracking-tight max-md:hidden">
         UX of ChatGPT in your own app
       </h1>
-      <p className="mb-4 leading-relaxed text-muted-foreground md:text-xl">
+      <p className="mb-4 text-muted-foreground leading-relaxed md:text-xl">
         The open-source React toolkit for production AI chat experiences.
         <br />
         Built on <span className="text-foreground">shadcn/ui</span> and{" "}
@@ -306,7 +306,7 @@ function CopyCommandButton() {
         size: "lg",
         variant: "outline",
         className:
-          "group relative flex h-12 items-center gap-2 rounded-xl border bg-background px-4 py-3 font-mono text-sm font-bold transition-all",
+          "group relative flex h-12 items-center gap-2 rounded-xl border bg-background px-4 py-3 font-bold font-mono text-sm transition-all",
       })}
     >
       <span>$ npx assistant-ui init</span>

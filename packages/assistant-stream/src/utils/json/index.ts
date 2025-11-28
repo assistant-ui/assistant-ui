@@ -1,1 +1,1 @@
-export { type ReadonlyJSONObject, type ReadonlyJSONValue } from "./json-value";
+export type { ReadonlyJSONObject, ReadonlyJSONValue } from "./json-value";

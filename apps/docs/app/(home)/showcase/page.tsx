@@ -99,10 +99,10 @@ export default function Component() {
     <div className="min-h-screen">
       <div className="mx-auto max-w-7xl px-4 py-8">
         <header className="mb-28 text-center">
-          <div className="text-sm tracking-wider text-muted-foreground uppercase">
+          <div className="text-muted-foreground text-sm uppercase tracking-wider">
             COMMUNITY SHOWCASE
           </div>
-          <h1 className="mt-4 text-5xl font-bold">
+          <h1 className="mt-4 font-bold text-5xl">
             Built with
             <br />
             assistant-ui
@@ -115,7 +115,7 @@ export default function Component() {
         </div>
 
         <div className="my-20 flex flex-col items-center gap-6">
-          <h2 className="text-4xl font-bold">Building something cool?</h2>
+          <h2 className="font-bold text-4xl">Building something cool?</h2>
           <Button asChild>
             <a href="mailto:showcase@assistant-ui.com">Let us know about it!</a>
           </Button>
@@ -148,7 +148,7 @@ function ShowcaseCard({
       </div>
       <div className="flex flex-col gap-1 p-4 pt-2">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold">{title}</h3>
+          <h3 className="font-semibold text-lg">{title}</h3>
           <div className="flex gap-2">
             <span className="rounded bg-purple-300/50 px-2 py-1 text-xs dark:bg-purple-900/50">
               {tag}

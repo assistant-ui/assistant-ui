@@ -28,10 +28,10 @@ export default function CareersPage(): ReactElement {
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-24 px-6 pt-20 pb-24 sm:px-8 lg:px-0">
       <section className="space-y-6 text-center">
-        <p className="text-sm tracking-[0.3em] text-muted-foreground uppercase">
+        <p className="text-muted-foreground text-sm uppercase tracking-[0.3em]">
           Careers
         </p>
-        <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
+        <h1 className="font-semibold text-4xl tracking-tight sm:text-5xl">
           Build the future of agentic UI with us
         </h1>
         <p className="mx-auto max-w-2xl text-base text-muted-foreground sm:text-lg">
@@ -43,8 +43,8 @@ export default function CareersPage(): ReactElement {
 
       <section className="grid gap-10">
         <div className="space-y-3">
-          <h2 className="text-xl font-semibold">Open roles</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="font-semibold text-xl">Open roles</h2>
+          <p className="text-muted-foreground text-sm">
             Don&apos;t see the perfect fit? We&apos;d still love to hear from
             you - drop us a note at
             <span className="px-1 font-medium text-foreground">
@@ -54,16 +54,16 @@ export default function CareersPage(): ReactElement {
           </p>
         </div>
 
-        <div className="overflow-hidden border border-dashed border-border/70 bg-background/80">
+        <div className="overflow-hidden border border-border/70 border-dashed bg-background/80">
           <div className="divide-y divide-dashed divide-border/70">
             {roles.map((role) => (
               <article key={role.url} className="group">
                 <div className="flex flex-col gap-4 px-6 py-8 transition-colors duration-200 group-hover:bg-primary/5 sm:flex-row sm:items-center sm:justify-between">
                   <div className="space-y-2">
-                    <h3 className="text-2xl font-medium tracking-tight">
+                    <h3 className="font-medium text-2xl tracking-tight">
                       {role.data.title}
                     </h3>
-                    <p className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                    <p className="flex flex-wrap items-center gap-3 text-muted-foreground text-sm">
                       <span>{role.data.location}</span>
                       <span className="text-muted-foreground/40">•</span>
                       <span>{role.data.type}</span>
@@ -73,7 +73,7 @@ export default function CareersPage(): ReactElement {
                   </div>
                   <Link
                     href={role.url}
-                    className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary hover:bg-primary/5 hover:text-primary"
+                    className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 font-medium text-foreground text-sm transition-colors hover:border-primary hover:bg-primary/5 hover:text-primary"
                   >
                     Read more
                   </Link>

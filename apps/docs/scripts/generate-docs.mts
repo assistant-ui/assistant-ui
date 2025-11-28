@@ -4,7 +4,7 @@ import {
   InterfaceDeclaration,
   TypeAliasDeclaration,
 } from "ts-morph";
-import * as fs from "fs";
+import * as fs from "node:fs";
 
 const project = new Project({
   tsConfigFilePath: "tsconfig.json",

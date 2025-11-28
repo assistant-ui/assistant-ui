@@ -54,18 +54,18 @@ const Parameter: FC<ParameterProps> = ({
       className={cn("flex flex-col gap-1 px-3.5 py-3.5", !isLast && "border-b")}
     >
       <div className="relative flex gap-2">
-        <h3 className="font-mono text-sm font-semibold">
+        <h3 className="font-mono font-semibold text-sm">
           {parameter.name}
           {!parameter.required && !parameter.default && "?"}
           {!!parameter.type && ":"}
         </h3>
-        <div className="w-full font-mono text-sm text-foreground/70">
+        <div className="w-full font-mono text-foreground/70 text-sm">
           {parameter.type}
           {parameter.default && ` = ${parameter.default}`}
         </div>
       </div>
       <div>
-        <p className="text-sm text-foreground/70">{parameter.description}</p>
+        <p className="text-foreground/70 text-sm">{parameter.description}</p>
       </div>
       {parameter.children?.map((property) => (
         <ParametersBox key={property.type} {...property} />
@@ -96,7 +96,7 @@ const ParametersBox: FC<ParametersTableProps> = ({ type, parameters }) => {
       )}
     >
       {!!type && (
-        <h3 className="absolute top-0 right-3 z-50 -translate-y-1/2 rounded-md border bg-background px-4 py-2 font-mono text-xs font-semibold text-foreground/70">
+        <h3 className="-translate-y-1/2 absolute top-0 right-3 z-50 rounded-md border bg-background px-4 py-2 font-mono font-semibold text-foreground/70 text-xs">
           {type}
         </h3>
       )}

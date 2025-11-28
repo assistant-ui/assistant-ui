@@ -38,7 +38,6 @@ export type ScopeDefinition<
  * }
  * ```
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface AssistantScopeRegistry {}
 
 export type AssistantScopes = keyof AssistantScopeRegistry extends never
