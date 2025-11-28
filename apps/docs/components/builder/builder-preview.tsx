@@ -147,7 +147,7 @@ const ThreadWelcome: FC<ThreadWelcomeProps> = ({
     <div className="mx-auto my-auto flex w-full max-w-[var(--thread-max-width)] flex-grow flex-col">
       <div className="flex w-full flex-grow flex-col items-center justify-center">
         <div className="flex size-full flex-col justify-center px-8">
-          <div className="text-2xl font-semibold">Hello there!</div>
+          <div className="font-semibold text-2xl">Hello there!</div>
           <div className="text-2xl text-muted-foreground/65">
             How can I help you today?
           </div>
@@ -262,7 +262,7 @@ const ThreadScrollToBottom: FC = () => {
       <TooltipIconButton
         tooltip="Scroll to bottom"
         variant="outline"
-        className="absolute -top-12 z-10 self-center rounded-full p-4 disabled:invisible"
+        className="-top-12 absolute z-10 self-center rounded-full p-4 disabled:invisible"
       >
         <ArrowDownIcon />
       </TooltipIconButton>
@@ -291,7 +291,7 @@ const UserMessage: FC<UserMessageProps> = ({
         messageSpacingClass,
         isLeftAligned ? "flex-row" : "flex-row-reverse",
         styles.animations &&
-          "animate-in duration-300 fade-in slide-in-from-bottom-2",
+          "fade-in slide-in-from-bottom-2 animate-in duration-300",
       )}
     >
       {components.avatar && (
@@ -301,13 +301,13 @@ const UserMessage: FC<UserMessageProps> = ({
       )}
       <div
         className={cn(
-          "relative max-w-[80%] min-w-0",
+          "relative min-w-0 max-w-[80%]",
           !isLeftAligned && "ml-auto",
         )}
       >
         <div
           className={cn(
-            "bg-muted px-5 py-2.5 break-words text-foreground",
+            "break-words bg-muted px-5 py-2.5 text-foreground",
             borderRadiusClass,
           )}
         >
@@ -316,10 +316,10 @@ const UserMessage: FC<UserMessageProps> = ({
         {components.editMessage && (
           <div
             className={cn(
-              "absolute top-1/2 -translate-y-1/2 pr-2",
+              "-translate-y-1/2 absolute top-1/2 pr-2",
               isLeftAligned
                 ? "right-0 translate-x-full pr-0 pl-2"
-                : "left-0 -translate-x-full",
+                : "-translate-x-full left-0",
             )}
           >
             <ActionBarPrimitive.Root
@@ -361,7 +361,7 @@ const AssistantMessage: FC<AssistantMessageProps> = ({
         "relative mx-auto flex w-full max-w-[var(--thread-max-width)] gap-3",
         messageSpacingClass,
         styles.animations &&
-          "animate-in duration-300 fade-in slide-in-from-bottom-2",
+          "fade-in slide-in-from-bottom-2 animate-in duration-300",
       )}
     >
       {components.avatar && (
@@ -372,13 +372,13 @@ const AssistantMessage: FC<AssistantMessageProps> = ({
       <div className="min-w-0 flex-1">
         {/* Reasoning/Thinking Section */}
         {components.reasoning && (
-          <div className="mb-3 overflow-hidden rounded-lg border border-dashed border-muted-foreground/30 bg-muted/30">
+          <div className="mb-3 overflow-hidden rounded-lg border border-muted-foreground/30 border-dashed bg-muted/30">
             <details className="group">
-              <summary className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50">
+              <summary className="flex cursor-pointer items-center gap-2 px-3 py-2 text-muted-foreground text-sm hover:bg-muted/50">
                 <ChevronDownIcon className="size-4 transition-transform group-open:rotate-180" />
                 <span className="font-medium">Thinking...</span>
               </summary>
-              <div className="border-t border-dashed border-muted-foreground/30 px-3 py-2 text-sm text-muted-foreground italic">
+              <div className="border-muted-foreground/30 border-t border-dashed px-3 py-2 text-muted-foreground text-sm italic">
                 Let me analyze this step by step. First, I&apos;ll consider the
                 key points of your question...
               </div>
@@ -386,7 +386,7 @@ const AssistantMessage: FC<AssistantMessageProps> = ({
           </div>
         )}
 
-        <div className="leading-7 break-words text-foreground">
+        <div className="break-words text-foreground leading-7">
           <MessagePrimitive.Parts components={{ Text: TextComponent }} />
         </div>
 
@@ -501,7 +501,7 @@ const BranchPicker: FC<BranchPickerProps> = ({ className }) => {
     <BranchPickerPrimitive.Root
       hideWhenSingleBranch
       className={cn(
-        "mr-2 -ml-2 inline-flex items-center text-xs text-muted-foreground",
+        "-ml-2 mr-2 inline-flex items-center text-muted-foreground text-xs",
         className,
       )}
     >

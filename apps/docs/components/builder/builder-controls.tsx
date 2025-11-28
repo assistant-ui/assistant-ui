@@ -79,7 +79,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
     <div className="flex h-full flex-col">
       {/* Header Actions */}
       <div className="flex items-center justify-between border-b px-4 py-2">
-        <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+        <span className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
           Config
         </span>
         <Button
@@ -95,7 +95,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
 
       {/* Presets */}
       <div className="border-b p-4">
-        <Label className="mb-3 block text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+        <Label className="mb-3 block font-semibold text-muted-foreground text-xs uppercase tracking-wider">
           Presets
         </Label>
         <div className="grid grid-cols-2 gap-2">
@@ -111,7 +111,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
               )}
               onClick={() => onChange(preset.config)}
             >
-              <span className="text-xs font-medium">{preset.name}</span>
+              <span className="font-medium text-xs">{preset.name}</span>
             </Button>
           ))}
         </div>
@@ -137,7 +137,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
         <TabsContent value="components" className="flex-1 overflow-y-auto p-4">
           <div className="space-y-6">
             <div className="space-y-4">
-              <Label className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+              <Label className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
                 Features
               </Label>
 
@@ -197,7 +197,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
             </div>
 
             <div className="space-y-4">
-              <Label className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+              <Label className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
                 Content
               </Label>
 
@@ -248,7 +248,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
             </div>
 
             <div className="space-y-4">
-              <Label className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+              <Label className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
                 Action Bar
               </Label>
 
@@ -295,7 +295,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
         <TabsContent value="styles" className="flex-1 overflow-y-auto p-4">
           <div className="space-y-6">
             <div className="space-y-3">
-              <Label className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+              <Label className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
                 Theme
               </Label>
               <div className="flex gap-2">
@@ -323,7 +323,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
             </div>
 
             <div className="space-y-3">
-              <Label className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+              <Label className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
                 Accent Color
               </Label>
               <div className="flex flex-wrap gap-2">
@@ -346,7 +346,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
             </div>
 
             <div className="space-y-3">
-              <Label className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+              <Label className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
                 Border Radius
               </Label>
               <div className="flex gap-2">
@@ -371,7 +371,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
             </div>
 
             <div className="space-y-3">
-              <Label className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+              <Label className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
                 Font Family
               </Label>
               <Select
@@ -392,7 +392,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
             </div>
 
             <div className="space-y-3">
-              <Label className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+              <Label className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
                 Font Size
               </Label>
               <div className="flex gap-2">
@@ -417,7 +417,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
             </div>
 
             <div className="space-y-3">
-              <Label className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+              <Label className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
                 Max Width
               </Label>
               <Select
@@ -438,7 +438,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
             </div>
 
             <div className="space-y-3">
-              <Label className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+              <Label className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
                 Message Spacing
               </Label>
               <div className="flex gap-2">
@@ -465,7 +465,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
             </div>
 
             <div className="space-y-3">
-              <Label className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+              <Label className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
                 User Message Position
               </Label>
               <div className="flex gap-2">
@@ -522,8 +522,8 @@ function ToggleRow({
   return (
     <div className="flex items-center justify-between gap-4">
       <div className="space-y-0.5">
-        <Label className="text-sm font-medium">{label}</Label>
-        <p className="text-xs text-muted-foreground">{description}</p>
+        <Label className="font-medium text-sm">{label}</Label>
+        <p className="text-muted-foreground text-xs">{description}</p>
       </div>
       <Switch checked={checked} onCheckedChange={onCheckedChange} />
     </div>

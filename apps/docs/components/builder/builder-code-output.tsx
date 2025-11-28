@@ -75,7 +75,7 @@ export function BuilderCodeOutput({ config }: BuilderCodeOutputProps) {
             <code>{cliCommand}</code>
           </pre>
           <div className="border-t bg-muted/30 p-4">
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               Run these commands to add the configured thread component to your
               project. Make sure you have{" "}
               <code className="rounded bg-muted px-1 py-0.5">
