@@ -1,5 +1,5 @@
 ---
-"@assistant-ui/react": minor
+"@assistant-ui/react": patch
 "@assistant-ui/react-ai-sdk": patch
 "@assistant-ui/react-langgraph": patch
 ---
