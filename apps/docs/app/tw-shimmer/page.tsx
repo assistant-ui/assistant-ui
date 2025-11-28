@@ -52,43 +52,20 @@ export default function TwShimmerPage() {
   return (
     <div className="container max-w-7xl space-y-16 px-4 py-12">
       <div
-        className="flex flex-col items-center space-y-6 text-center shimmer-speed-500"
+        className="flex flex-col items-center space-y-6 text-center shimmer-speed-300"
         ref={autoWidthRef}
       >
-        <div className="shimmer-bg z-0 flex rounded-full bg-border p-px text-sm shimmer-color-[rgba(255,255,255,0.1)] shimmer-spread-64">
-          <div className="shimmer-bg z-10 flex items-center gap-2 rounded-full bg-background px-4 py-1.5 text-sm shimmer-color-[rgba(255,255,255,0.04)] shimmer-spread-64">
+        <div className="shimmer-bg z-0 flex cursor-default rounded-full bg-border p-px shimmer-color-[rgba(255,255,255,0.1)] shimmer-spread-64">
+          <div className="z-10 flex items-center gap-2 rounded-full bg-background px-4 py-1.5 text-sm">
             <Sparkle className="size-4 opacity-50" />
-            <span className="shimmer text-foreground/60 shimmer-color-[rgba(0,0,0,0.1)] shimmer-spread-24 dark:shimmer-color-[rgba(255,255,255,0.5)]">
+            <span className="shimmer text-foreground/60 shimmer-color-[rgba(0,0,0,0.5)] shimmer-spread-24 dark:shimmer-color-[rgba(255,255,255,0.5)]">
               Tailwind CSS v4 Plugin
             </span>
           </div>
         </div>
 
         <div className="relative flex flex-col gap-5">
-          <div className="pointer-events-none text-6xl font-bold tracking-tight select-none md:text-7xl lg:text-8xl">
-            <span
-              className={cn(
-                "absolute inset-0",
-                "bg-[url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.5'/%3E%3C/svg%3E\")]",
-                "bg-clip-text text-transparent",
-                "mix-blend-overlay",
-                "pointer-events-none select-none",
-                "z-20",
-              )}
-              aria-hidden="true"
-            >
-              tw-shimmer
-            </span>
-            <span
-              className={cn(
-                "absolute inset-0 hidden dark:block",
-                "shimmer text-black shimmer-color-black dark:text-black dark:shimmer-color-white",
-                "opacity-20 mix-blend-screen blur-xl",
-              )}
-              aria-hidden="true"
-            >
-              tw-shimmer
-            </span>
+          <div className="pointer-events-none text-5xl font-bold tracking-tight select-none lg:text-7xl">
             {/* Base shimmer text */}
             <h1
               className={cn(
@@ -99,30 +76,12 @@ export default function TwShimmerPage() {
             >
               tw-shimmer
             </h1>
-            {/* Emboss layer - creates depth with highlight and shadow */}
-            <span
-              className={cn(
-                "absolute inset-0",
-                "text-transparent",
-                "[text-shadow:0px_0px_0_rgba(0,0,0,0.2)]",
-                "dark:[text-shadow:-1px_-1px_10px_rgba(0,0,0,0.1),1px_1px_1px_rgba(0,0,0,0.4),-1px_1px_3px_rgba(0,0,0,0.1),-1px_-1px_2px_rgba(0,0,0,0.2)]",
-              )}
-              aria-hidden="true"
-            >
-              tw-shimmer
-            </span>
           </div>
 
-          <div className="relative max-w-[600px] text-lg font-light text-balance text-muted-foreground shimmer-spread-50">
-            <p className="shimmer shimmer-color-black dark:shimmer-color-gray-300">
-              Zero-dependency CSS-only shimmer effect. Fully customizable,
-              performant, and easy to use.
-            </p>
-            <p className="aria-hidden:true absolute inset-0 hidden shimmer opacity-50 blur-lg dark:block">
-              Zero-dependency CSS-only shimmer effect. Fully customizable,
-              performant, and easy to use.
-            </p>
-          </div>
+          <p className="relative max-w-[600px] shimmer text-lg font-light text-balance text-muted-foreground shimmer-color-black shimmer-spread-50 dark:shimmer-color-gray-300">
+            Zero-dependency CSS-only shimmer effect. Fully customizable,
+            performant, and easy to use.
+          </p>
         </div>
       </div>
 
@@ -440,16 +399,16 @@ export default function TwShimmerPage() {
             <BoxCode>
               <CodeBlock
                 language="html"
-                code={`<div class="shimmer-bg bg-blue-300 shimmer-color-blue-100 dark:bg-blue-800 dark:shimmer-color-blue-500 h-4 w-48 rounded" />`}
+                code={`<div class="shimmer-bg bg-blue-500 shimmer-color-blue-300 dark:bg-blue-800 dark:shimmer-color-blue-500 h-4 w-48 rounded" />`}
                 highlight="shimmer-color-blue-100"
                 highlightMode="text"
               />
             </BoxCode>
             <BoxContent>
               <div className="space-y-3" ref={autoWidthRef}>
-                <div className="shimmer-bg h-4 w-48 rounded bg-blue-300 shimmer-color-blue-100 dark:bg-blue-800 dark:shimmer-color-blue-500" />
-                <div className="shimmer-bg h-4 w-48 rounded bg-purple-300 shimmer-color-purple-100 dark:bg-purple-800 dark:shimmer-color-purple-500" />
-                <div className="shimmer-bg h-4 w-48 rounded bg-green-300 shimmer-color-green-100 dark:bg-green-800 dark:shimmer-color-green-500" />
+                <div className="shimmer-bg h-4 w-48 rounded bg-blue-500 shimmer-color-blue-300 dark:bg-blue-800 dark:shimmer-color-blue-500" />
+                <div className="shimmer-bg h-4 w-48 rounded bg-purple-500 shimmer-color-purple-300 dark:bg-purple-800 dark:shimmer-color-purple-500" />
+                <div className="shimmer-bg h-4 w-48 rounded bg-green-500 shimmer-color-green-300 dark:bg-green-800 dark:shimmer-color-green-500" />
               </div>
             </BoxContent>
           </Box>
@@ -537,7 +496,7 @@ export default function TwShimmerPage() {
                   aria-checked={anglesAligned}
                   onClick={() => setAnglesAligned(!anglesAligned)}
                   className={`relative h-5 w-9 rounded-full transition-colors ${
-                    anglesAligned ? "bg-primary" : "bg-muted"
+                    anglesAligned ? "bg-primary" : "bg-gray-300"
                   }`}
                 >
                   <span
@@ -550,26 +509,26 @@ export default function TwShimmerPage() {
               <div className="flex gap-3 shimmer-angle-15 shimmer-speed-800">
                 <div
                   className={cn(
-                    "shimmer-bg size-16 shrink-0 rounded-full bg-muted",
+                    "shimmer-bg size-16 shrink-0 rounded-full bg-gray-300",
                     anglesAligned && "shimmer-x-40 shimmer-y-40",
                   )}
                 />
                 <div className="flex-1 space-y-2">
                   <div
                     className={cn(
-                      "shimmer-bg h-4 w-1/4 rounded bg-muted",
+                      "shimmer-bg h-4 w-1/4 rounded bg-gray-300",
                       anglesAligned && "shimmer-x-52 shimmer-y-0",
                     )}
                   />
                   <div
                     className={cn(
-                      "shimmer-bg h-4 w-full rounded bg-muted",
+                      "shimmer-bg h-4 w-full rounded bg-gray-300",
                       anglesAligned && "shimmer-x-52 shimmer-y-24",
                     )}
                   />
                   <div
                     className={cn(
-                      "shimmer-bg h-4 w-4/5 rounded bg-muted",
+                      "shimmer-bg h-4 w-4/5 rounded bg-gray-300",
                       anglesAligned && "shimmer-x-52 shimmer-y-48",
                     )}
                   />
