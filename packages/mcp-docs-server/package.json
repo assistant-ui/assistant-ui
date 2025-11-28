@@ -15,8 +15,7 @@
     "dev": "tsx src/stdio.ts",
     "pretest": "pnpm build",
     "test": "vitest run",
-    "test:watch": "vitest",
-    "lint": "eslint ."
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.23.0",

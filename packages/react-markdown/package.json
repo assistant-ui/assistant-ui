@@ -24,7 +24,6 @@
   "sideEffects": false,
   "scripts": {
     "build": "tsx scripts/build.mts",
-    "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest"
   },

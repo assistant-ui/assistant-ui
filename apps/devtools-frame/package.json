@@ -5,8 +5,7 @@
   "scripts": {
     "dev": "next dev --port 3010",
     "build": "next build",
-    "start": "next start --port 3010",
-    "lint": "eslint ."
+    "start": "next start --port 3010"
   },
   "dependencies": {
     "@assistant-ui/react-devtools": "workspace:*",

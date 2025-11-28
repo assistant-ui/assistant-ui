@@ -5,8 +5,7 @@
   "scripts": {
     "dev": "next dev --turbo",
     "build": "next build",
-    "start": "next start",
-    "lint": "eslint ."
+    "start": "next start"
   },
   "dependencies": {
     "@assistant-ui/react": "workspace:*",

@@ -24,8 +24,7 @@
   ],
   "bin": "./dist/index.js",
   "scripts": {
-    "build": "tsx scripts/build.mts",
-    "lint": "eslint ."
+    "build": "tsx scripts/build.mts"
   },
   "publishConfig": {
     "access": "public",

@@ -67,7 +67,7 @@ export const Component: React.FC<ComponentProps> = ({
       {isContextProvider && (
         <div className="ml-3 flex items-center">
           <Layers className="mr-2 h-5 w-5 text-purple-500 dark:text-purple-400" />
-          <span className="text-sm font-semibold text-purple-500 dark:text-purple-400">
+          <span className="font-semibold text-purple-500 text-sm dark:text-purple-400">
             Context Provider
           </span>
         </div>

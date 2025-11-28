@@ -8,7 +8,6 @@
   "sideEffects": false,
   "scripts": {
     "build": "tsx build.mts",
-    "lint": "eslint .",
     "prepublishOnly": "pnpm turbo build",
     "test": "vitest",
     "test:run": "vitest run"

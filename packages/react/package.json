@@ -51,8 +51,7 @@
     "build": "tsx scripts/build.mts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:mutation": "stryker run",
-    "lint": "eslint ."
+    "test:mutation": "stryker run"
   },
   "dependencies": {
     "assistant-cloud": "^0.1.9",
@@ -92,8 +91,6 @@
     "@stryker-mutator/vitest-runner": "^9.4.0",
     "@types/json-schema": "^7.0.15",
     "@types/node": "^24.10.1",
-    "eslint": "^9",
-    "eslint-config-next": "16.0.4",
     "tsx": "^4.20.6",
     "vitest": "^4.0.14"
   },

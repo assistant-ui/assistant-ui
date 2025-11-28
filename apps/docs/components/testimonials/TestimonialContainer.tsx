@@ -31,8 +31,8 @@ const TestimonialView: FC<Testimonial> = (testimonial) => {
               className="h-10 w-10 rounded-full border"
               src={testimonial.avatar}
             />
-            <p className="text-sm font-medium">{testimonial.username}</p>
-            <div className="absolute -top-1 -left-1 flex h-5 w-5 items-center justify-center rounded-full bg-background">
+            <p className="font-medium text-sm">{testimonial.username}</p>
+            <div className="-top-1 -left-1 absolute flex h-5 w-5 items-center justify-center rounded-full bg-background">
               <XLogo />
             </div>
           </div>

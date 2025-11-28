@@ -40,7 +40,7 @@ const ButtonWithTooltip: FC<ButtonWithTooltipProps> = ({
 
 const TopLeft: FC = () => {
   return (
-    <div className="flex h-full w-full items-center gap-2 px-3 text-sm font-semibold">
+    <div className="flex h-full w-full items-center gap-2 px-3 font-semibold text-sm">
       <Image
         src={icon}
         alt="logo"

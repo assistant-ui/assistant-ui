@@ -27,7 +27,7 @@ permissions:
 
 jobs:
   lint:
-    name: ESLint & Prettier
+    name: Biome
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 5
     steps:
@@ -49,11 +49,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run ESLint
+      - name: Run Biome
         run: pnpm lint
-
-      - name: Run Prettier
-        run: pnpm prettier
 
   build:
     name: Build Changed Packages

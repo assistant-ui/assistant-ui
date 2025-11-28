@@ -25,26 +25,26 @@ export function TransactionConfirmationPending(props: TransactionConfirmation) {
   return (
     <Card className="mx-auto w-full max-w-md">
       <CardHeader>
-        <CardTitle className="text-2xl font-bold">
+        <CardTitle className="font-bold text-2xl">
           Confirm Transaction
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 gap-2">
-          <p className="text-muted-foreground text-sm font-medium">Ticker:</p>
-          <p className="text-sm font-bold">{ticker}</p>
-          <p className="text-muted-foreground text-sm font-medium">Company:</p>
+          <p className="font-medium text-muted-foreground text-sm">Ticker:</p>
+          <p className="font-bold text-sm">{ticker}</p>
+          <p className="font-medium text-muted-foreground text-sm">Company:</p>
           <p className="text-sm">{companyName}</p>
-          <p className="text-muted-foreground text-sm font-medium">Quantity:</p>
+          <p className="font-medium text-muted-foreground text-sm">Quantity:</p>
           <p className="text-sm">{quantity} shares</p>
-          <p className="text-muted-foreground text-sm font-medium">
+          <p className="font-medium text-muted-foreground text-sm">
             Max Purchase Price:
           </p>
           <p className="text-sm">${maxPurchasePrice?.toFixed(2)}</p>
         </div>
-        <div className="bg-muted rounded-md p-3">
-          <p className="text-sm font-medium">Total Maximum Cost:</p>
-          <p className="text-lg font-bold">
+        <div className="rounded-md bg-muted p-3">
+          <p className="font-medium text-sm">Total Maximum Cost:</p>
+          <p className="font-bold text-lg">
             ${(quantity * maxPurchasePrice)?.toFixed(2)}
           </p>
         </div>

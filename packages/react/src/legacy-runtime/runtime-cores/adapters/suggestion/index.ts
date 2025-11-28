@@ -1,1 +1,1 @@
-export { type SuggestionAdapter } from "./SuggestionAdapter";
+export type { SuggestionAdapter } from "./SuggestionAdapter";

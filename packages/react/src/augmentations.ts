@@ -22,10 +22,8 @@
  * ```
  */
 export namespace Assistant {
-  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
   export interface Commands {}
 
-  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
   export interface ExternalState {}
 }
 

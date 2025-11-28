@@ -126,7 +126,7 @@ const FfmpegTool: FC<{ file: File }> = ({ file }) => {
               )}
               <p>Running ffmpeg</p>
             </div>
-            <pre className="font-sm overflow-y-scroll">
+            <pre className="overflow-y-scroll font-sm">
               ffmpeg {command?.join(" ")}
             </pre>
           </div>
@@ -164,7 +164,7 @@ export default function Home() {
   return (
     <div className="flex h-full flex-col">
       <div className="border-b">
-        <p className="my-4 ml-8 text-xl font-bold">
+        <p className="my-4 ml-8 font-bold text-xl">
           ConvertGPT (built with{" "}
           <a
             href="https://github.com/assistant-ui/assistant-ui"

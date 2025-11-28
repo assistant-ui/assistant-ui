@@ -19,7 +19,6 @@
   "sideEffects": false,
   "scripts": {
     "build": "tsx scripts/build.mts",
-    "lint": "eslint .",
     "test": "vitest",
     "test:run": "vitest run"
   },
@@ -42,8 +41,6 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.7",
-    "eslint": "^9",
-    "eslint-config-next": "16.0.4",
     "react": "19.2.0",
     "tsx": "^4.20.6",
     "vitest": "^4.0.14",

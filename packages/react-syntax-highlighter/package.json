@@ -22,8 +22,7 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsx scripts/build.mts",
-    "lint": "eslint ."
+    "build": "tsx scripts/build.mts"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.11.46",

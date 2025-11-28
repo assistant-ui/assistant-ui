@@ -10,7 +10,7 @@ export default function HomePage() {
   return (
     <main className="container mx-auto flex flex-col gap-6 self-stretch py-4">
       <div className="mt-12 flex flex-col gap-4 self-center">
-        <h1 className="text-center text-4xl font-extrabold">
+        <h1 className="text-center font-extrabold text-4xl">
           shadcn/ui for AI chat
         </h1>
       </div>

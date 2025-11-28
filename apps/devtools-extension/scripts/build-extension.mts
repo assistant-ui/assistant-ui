@@ -27,7 +27,10 @@ const buildExtension = async () => {
 
   // Copy manifest
   try {
-    await fs.copyFile(resolve("manifest.json"), path.join(distDir, "manifest.json"));
+    await fs.copyFile(
+      resolve("manifest.json"),
+      path.join(distDir, "manifest.json"),
+    );
   } catch {
     console.warn("No manifest.json found, skipping copy");
   }
@@ -102,7 +105,9 @@ const buildExtension = async () => {
     });
     console.log("✅ Background service worker built");
   } catch {
-    console.warn("No background.ts found, skipping background service worker build");
+    console.warn(
+      "No background.ts found, skipping background service worker build",
+    );
   }
 
   // Copy static files

@@ -23,7 +23,7 @@ export function ExampleCard({
       </div>
       <div className="flex flex-col gap-1 p-4 pt-2">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold">{title}</h3>
+          <h3 className="font-semibold text-lg">{title}</h3>
         </div>
         <div className="flex-1">
           <p className="text-muted-foreground">{description}</p>

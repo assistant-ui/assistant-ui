@@ -1,4 +1,4 @@
-name: Fix Prettier Issues
+name: Fix Lint Issues
 
 on:
   issue_comment:
@@ -9,13 +9,13 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: fix-prettier-${{ github.event.issue.number }}
+  group: fix-lint-${{ github.event.issue.number }}
   cancel-in-progress: true
 
 jobs:
-  fix-prettier:
-    name: Fix Prettier Issues
-    if: ${{ github.event.issue.pull_request && contains(github.event.comment.body, '/fix-prettier') && github.event.comment.user.type == 'User' }}
+  fix-lint:
+    name: Fix Lint Issues
+    if: ${{ github.event.issue.pull_request && contains(github.event.comment.body, '/fix-lint') && github.event.comment.user.type == 'User' }}
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 5
     steps:
@@ -82,8 +82,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run Prettier fix
-        run: pnpm prettier:fix
+      - name: Run Biome fix
+        run: pnpm biome:fix
 
       - name: Commit changes
         id: commit
@@ -92,10 +92,10 @@ jobs:
           git config --local user.name "GitHub Action"
           git add -A
           if git diff --staged --quiet; then
-            echo "No prettier issues to fix"
+            echo "No lint issues to fix"
             echo "changes_made=false" >> $GITHUB_OUTPUT
           else
-            git commit -m "style: fix prettier issues"
+            git commit -m "style: fix lint issues"
             echo "changes_made=true" >> $GITHUB_OUTPUT
           fi
 
@@ -124,11 +124,11 @@ jobs:
 
             let message;
             if (changes_made && push_failed) {
-              message = '❌ Failed to push prettier fixes. Please ensure "Allow edits from maintainers" is enabled in your PR settings.';
+              message = '❌ Failed to push lint fixes. Please ensure "Allow edits from maintainers" is enabled in your PR settings.';
             } else if (changes_made) {
-              message = '✅ Prettier issues fixed and committed to this PR!';
+              message = '✅ Lint issues fixed and committed to this PR!';
             } else {
-              message = '✅ No prettier issues found in this PR!';
+              message = '✅ No lint issues found in this PR!';
             }
 
             await github.rest.issues.createComment({
@@ -137,3 +137,4 @@ jobs:
               issue_number: number,
               body: message
             });
+

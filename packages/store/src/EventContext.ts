@@ -14,7 +14,6 @@ import type { Unsubscribe } from "./types";
  * }
  * ```
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface AssistantEventRegistry {}
 
 /**
@@ -31,7 +30,6 @@ export interface AssistantEventRegistry {}
  * }
  * ```
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface AssistantEventScopeConfig {}
 
 export type AssistantEventMap = AssistantEventRegistry & {
