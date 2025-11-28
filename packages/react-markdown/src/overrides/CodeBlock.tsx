@@ -29,7 +29,7 @@ export const DefaultCodeBlock: FC<CodeBlockProps> = ({
 }) => {
   const components = useMemo(() => ({ Pre, Code }), [Pre, Code]);
 
-  const SH = !!language ? SyntaxHighlighter : DefaultCodeBlockContent;
+  const SH = language ? SyntaxHighlighter : DefaultCodeBlockContent;
 
   return (
     <>

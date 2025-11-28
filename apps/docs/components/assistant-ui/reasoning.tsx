@@ -80,7 +80,7 @@ const GradientFade: FC<{ className?: string }> = ({ className }) => (
     className={cn(
       "aui-reasoning-fade pointer-events-none absolute inset-x-0 bottom-0 z-10 h-16",
       "bg-[linear-gradient(to_top,var(--color-background),transparent)]",
-      "animate-in fade-in-0",
+      "fade-in-0 animate-in",
       "group-data-[state=open]/collapsible-content:animate-out",
       "group-data-[state=open]/collapsible-content:fade-out-0",
       "group-data-[state=open]/collapsible-content:delay-[calc(var(--animation-duration)*0.75)]", // calc for timing the delay
@@ -102,7 +102,7 @@ const ReasoningTrigger: FC<{ active: boolean; className?: string }> = ({
 }) => (
   <CollapsibleTrigger
     className={cn(
-      "aui-reasoning-trigger group/trigger -mb-2 flex max-w-[75%] items-center gap-2 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground",
+      "aui-reasoning-trigger group/trigger -mb-2 flex max-w-[75%] items-center gap-2 py-2 text-muted-foreground text-sm transition-colors hover:text-foreground",
       className,
     )}
   >
@@ -147,7 +147,7 @@ const ReasoningContent: FC<
 > = ({ className, children, "aria-busy": ariaBusy }) => (
   <CollapsibleContent
     className={cn(
-      "aui-reasoning-content relative overflow-hidden text-sm text-muted-foreground outline-none",
+      "aui-reasoning-content relative overflow-hidden text-muted-foreground text-sm outline-none",
       "group/collapsible-content ease-out",
       "data-[state=closed]:animate-collapsible-up",
       "data-[state=open]:animate-collapsible-down",

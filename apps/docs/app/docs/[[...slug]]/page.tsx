@@ -14,6 +14,19 @@ import {
   PageActionsDropdown,
 } from "@/components/ui/page-actions";
 
+function DocsCategory({ url }: { url?: string }) {
+  const effectiveUrl = url ?? "";
+  return (
+    <Cards>
+      {getPageTreePeers(source.pageTree, effectiveUrl).map((peer) => (
+        <Card key={peer.url} title={peer.name} href={peer.url}>
+          {peer.description}
+        </Card>
+      ))}
+    </Cards>
+  );
+}
+
 export default async function Page(props: {
   params: Promise<{ slug?: string[] }>;
 }) {
@@ -25,9 +38,7 @@ export default async function Page(props: {
   }
 
   const mdxComponents = getMDXComponents({
-    DocsCategory: ({ url }) => {
-      return <DocsCategory url={url ?? page.url} />;
-    },
+    DocsCategory: DocsCategory,
   });
 
   const path = `apps/docs/content/docs/${page.path}`;
@@ -76,18 +87,6 @@ export default async function Page(props: {
         </DocsRuntimeProvider>
       </DocsBody>
     </DocsPage>
-  );
-}
-
-function DocsCategory({ url }: { url: string }) {
-  return (
-    <Cards>
-      {getPageTreePeers(source.pageTree, url).map((peer) => (
-        <Card key={peer.url} title={peer.name} href={peer.url}>
-          {peer.description}
-        </Card>
-      ))}
-    </Cards>
   );
 }
 

@@ -19,7 +19,6 @@
   "sideEffects": false,
   "scripts": {
     "build": "tsx scripts/build.mts",
-    "lint": "eslint .",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest"
   },
@@ -29,7 +28,7 @@
     "zod": "^4.1.13"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.11.45",
+    "@assistant-ui/react": "^0.11.47",
     "@types/react": "*",
     "react": "^18 || ^19 || ^19.0.0-rc"
   },
@@ -46,8 +45,6 @@
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.7",
     "@types/uuid": "^11.0.0",
-    "eslint": "^9",
-    "eslint-config-next": "16.0.4",
     "jsdom": "^27.2.0",
     "react": "19.2.0",
     "tsx": "^4.20.6",

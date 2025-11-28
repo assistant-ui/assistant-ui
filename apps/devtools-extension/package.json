@@ -4,8 +4,7 @@
   "private": true,
   "scripts": {
     "build": "tsx scripts/build-extension.mts",
-    "dev": "NODE_ENV=development tsx scripts/build-extension.mts --watch",
-    "lint": "eslint ."
+    "dev": "NODE_ENV=development tsx scripts/build-extension.mts --watch"
   },
   "dependencies": {
     "@assistant-ui/react-devtools": "workspace:*",

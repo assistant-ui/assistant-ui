@@ -295,7 +295,6 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
       return <Source {...part} />;
 
     case "image":
-      // eslint-disable-next-line jsx-a11y/alt-text
       return <Image {...part} />;
 
     case "file":

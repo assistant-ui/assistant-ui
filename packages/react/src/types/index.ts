@@ -18,7 +18,6 @@ export type {
   MessageStatus,
   MessagePartStatus,
   ToolCallMessagePartStatus,
-
   // thread message types
   ThreadUserMessagePart,
   ThreadAssistantMessagePart,

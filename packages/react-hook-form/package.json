@@ -18,14 +18,13 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsx scripts/build.mts",
-    "lint": "eslint ."
+    "build": "tsx scripts/build.mts"
   },
   "dependencies": {
     "zod": "^4.1.13"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.11.45",
+    "@assistant-ui/react": "^0.11.47",
     "@types/react": "*",
     "react": "^18 || ^19 || ^19.0.0-rc",
     "react-hook-form": "^7"

@@ -1,5 +1,5 @@
-import { readdir, stat } from "fs/promises";
-import { join, extname } from "path";
+import { readdir, stat } from "node:fs/promises";
+import { join, extname } from "node:path";
 import { DOCS_PATH, MDX_EXTENSION, MD_EXTENSION } from "../constants.js";
 import { logger } from "./logger.js";
 

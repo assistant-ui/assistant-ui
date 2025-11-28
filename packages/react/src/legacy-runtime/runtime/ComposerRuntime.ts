@@ -335,7 +335,7 @@ export class ThreadComposerRuntimeImpl
           ...this.path,
           attachmentSource: "thread-composer",
           attachmentSelector: { type: "index", index: idx },
-          ref: this.path.ref + `${this.path.ref}.attachments[${idx}]`,
+          ref: `${this.path.ref}${this.path.ref}.attachments[${idx}]`,
         },
         getState: () => {
           const attachments = this.getState().attachments;
@@ -423,7 +423,7 @@ export class EditComposerRuntimeImpl
           ...this.path,
           attachmentSource: "edit-composer",
           attachmentSelector: { type: "index", index: idx },
-          ref: this.path.ref + `${this.path.ref}.attachments[${idx}]`,
+          ref: `${this.path.ref}${this.path.ref}.attachments[${idx}]`,
         },
         getState: () => {
           const attachments = this.getState().attachments;

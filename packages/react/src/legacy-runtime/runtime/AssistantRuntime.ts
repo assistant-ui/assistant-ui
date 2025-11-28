@@ -101,7 +101,9 @@ export class AssistantRuntimeImpl implements AssistantRuntime {
 
   public reset({
     initialMessages,
-  }: { initialMessages?: ThreadMessageLike[] } = {}) {
+  }: {
+    initialMessages?: ThreadMessageLike[];
+  } = {}) {
     return this._core.threads
       .getMainThreadRuntimeCore()
       .import(ExportedMessageRepository.fromArray(initialMessages ?? []));

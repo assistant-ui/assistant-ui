@@ -163,7 +163,7 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
     return new this._runtimeFactory(
       new NestedSubscriptionSubject({
         path: {
-          ref: "threads[threadId=" + JSON.stringify(threadId) + "]",
+          ref: `threads[threadId=${JSON.stringify(threadId)}]`,
           threadSelector: { type: "threadId", threadId },
         },
         getState: () => this._core.getThreadRuntimeCore(threadId),

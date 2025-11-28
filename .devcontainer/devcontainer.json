@@ -9,15 +9,14 @@
   "customizations": {
     "vscode": {
       "extensions": [
-        "dbaeumer.vscode-eslint",
-        "esbenp.prettier-vscode",
+        "biomejs.biome",
         "ms-vscode.vscode-typescript-next",
         "bradlc.vscode-tailwindcss",
         "anthropics.claude-code"
       ],
       "settings": {
         "editor.formatOnSave": true,
-        "editor.defaultFormatter": "esbenp.prettier-vscode"
+        "editor.defaultFormatter": "biomejs.biome"
       }
     }
   },

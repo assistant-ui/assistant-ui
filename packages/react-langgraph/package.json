@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-langgraph",
-  "version": "0.7.9",
+  "version": "0.7.10",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -19,7 +19,6 @@
   "sideEffects": false,
   "scripts": {
     "build": "tsx scripts/build.mts",
-    "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -29,7 +28,7 @@
     "zod": "^4.1.13"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.11.45",
+    "@assistant-ui/react": "^0.11.47",
     "@types/react": "*",
     "react": "^18 || ^19 || ^19.0.0-rc"
   },

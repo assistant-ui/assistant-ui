@@ -74,7 +74,7 @@ export const ApplyForm = ({ roleTitle }: ApplyFormProps) => {
           name="full_name"
           required
           autoComplete="name"
-          className="rounded-lg border border-border bg-background px-3 py-2 text-base shadow-sm ring-0 transition outline-none focus:border-primary"
+          className="rounded-lg border border-border bg-background px-3 py-2 text-base shadow-sm outline-none ring-0 transition focus:border-primary"
           placeholder="Ada Lovelace"
         />
       </label>
@@ -87,7 +87,7 @@ export const ApplyForm = ({ roleTitle }: ApplyFormProps) => {
           name="urls"
           required
           rows={3}
-          className="rounded-lg border border-border bg-background px-3 py-2 text-base shadow-sm ring-0 transition outline-none focus:border-primary"
+          className="rounded-lg border border-border bg-background px-3 py-2 text-base shadow-sm outline-none ring-0 transition focus:border-primary"
           placeholder="Portfolio, GitHub, LinkedIn, blog – one per line"
         ></textarea>
       </label>
@@ -100,33 +100,33 @@ export const ApplyForm = ({ roleTitle }: ApplyFormProps) => {
         <textarea
           name="notes"
           rows={4}
-          className="rounded-lg border border-border bg-background px-3 py-2 text-base shadow-sm ring-0 transition outline-none focus:border-primary"
+          className="rounded-lg border border-border bg-background px-3 py-2 text-base shadow-sm outline-none ring-0 transition focus:border-primary"
           placeholder="Tell us about goals, timelines, or anything you'd like us to know."
         ></textarea>
       </label>
 
       <button
         type="submit"
-        className="inline-flex w-fit items-center justify-center rounded-full border border-border px-5 py-2 text-sm font-medium text-foreground transition hover:border-primary hover:bg-primary/5 hover:text-primary"
+        className="inline-flex w-fit items-center justify-center rounded-full border border-border px-5 py-2 font-medium text-foreground text-sm transition hover:border-primary hover:bg-primary/5 hover:text-primary"
       >
         Apply now
       </button>
 
       {fallbackVisible ? (
-        <div className="mt-2 grid gap-2 rounded-lg border border-dashed border-border/70 bg-background/50 p-3">
-          <p className="text-xs text-muted-foreground">
+        <div className="mt-2 grid gap-2 rounded-lg border border-border/70 border-dashed bg-background/50 p-3">
+          <p className="text-muted-foreground text-xs">
             If your email client didn&apos;t open, use the options below.
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <a
               href={mailtoHref}
-              className="inline-flex items-center justify-center rounded-full border border-border px-4 py-1.5 text-xs font-medium text-foreground transition hover:border-primary hover:bg-primary/5 hover:text-primary"
+              className="inline-flex items-center justify-center rounded-full border border-border px-4 py-1.5 font-medium text-foreground text-xs transition hover:border-primary hover:bg-primary/5 hover:text-primary"
             >
               Open email client
             </a>
             <button
               type="button"
-              className="inline-flex items-center justify-center rounded-full border border-border px-4 py-1.5 text-xs font-medium text-foreground transition hover:border-primary hover:bg-primary/5 hover:text-primary"
+              className="inline-flex items-center justify-center rounded-full border border-border px-4 py-1.5 font-medium text-foreground text-xs transition hover:border-primary hover:bg-primary/5 hover:text-primary"
               onClick={async () => {
                 try {
                   const text = `To: careers@assistant-ui.com
@@ -144,7 +144,7 @@ ${composedBody}`;
             >
               Copy email text
             </button>
-            <span className="text-xs text-muted-foreground">
+            <span className="text-muted-foreground text-xs">
               {copyStatus === "success"
                 ? "Copied!"
                 : copyStatus === "error"

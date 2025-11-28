@@ -5,7 +5,7 @@ import React, { useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import { DEFAULT_FRAME_URL } from "@assistant-ui/react-devtools";
 
-const DevToolsPanel: React.FC = () => {
+export const DevToolsPanel: React.FC = () => {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const portRef = useRef<chrome.runtime.Port | null>(null);
   const tabIdRef = useRef<number | null>(null);

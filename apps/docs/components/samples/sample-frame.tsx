@@ -15,11 +15,11 @@ export const SampleFrame = ({
 }) => {
   return (
     <div className="relative rounded-lg border bg-accent/75 p-4">
-      <div className="absolute -top-2 left-4 rounded bg-primary px-2 py-0.5 text-xs text-primary-foreground">
+      <div className="-top-2 absolute left-4 rounded bg-primary px-2 py-0.5 text-primary-foreground text-xs">
         {sampleText || "Sample"}
       </div>
       {description && (
-        <div className="py-2 text-sm text-muted-foreground">{description}</div>
+        <div className="py-2 text-muted-foreground text-sm">{description}</div>
       )}
       <div
         className={cn(

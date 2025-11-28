@@ -12,7 +12,7 @@ export function Footer(): React.ReactElement {
       <div className="mx-auto flex w-full max-w-screen-xl flex-col justify-between sm:flex-row">
         <div className="mr-4 flex flex-col gap-4">
           <Link
-            className="mr-4 flex items-center gap-3 text-sm font-normal text-black"
+            className="mr-4 flex items-center gap-3 font-normal text-black text-sm"
             href="/"
           >
             <Image
@@ -20,7 +20,7 @@ export function Footer(): React.ReactElement {
               alt="logo"
               className="inline size-7 dark:hue-rotate-180 dark:invert"
             />
-            <span className="text-2xl font-medium text-black dark:text-white">
+            <span className="font-medium text-2xl text-black dark:text-white">
               assistant-ui
             </span>
           </Link>
@@ -60,7 +60,7 @@ export function Footer(): React.ReactElement {
             </Link>
           </div>
           <div className="flex-grow" />
-          <p className="text-sm text-foreground/30">
+          <p className="text-foreground/30 text-sm">
             &copy; {new Date().getFullYear()} AgentbaseAI Inc.
           </p>
         </div>
@@ -100,7 +100,7 @@ const FooterLink: FC<{ href: string; children: ReactNode }> = ({
 
   return (
     <a
-      className="text-xs text-muted-foreground transition-colors hover:text-foreground sm:text-sm"
+      className="text-muted-foreground text-xs transition-colors hover:text-foreground sm:text-sm"
       href={href}
       {...(isExternal && { target: "_blank", rel: "noopener noreferrer" })}
     >

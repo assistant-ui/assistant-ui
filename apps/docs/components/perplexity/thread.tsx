@@ -67,7 +67,7 @@ const ThreadScrollToBottom: FC = () => {
       <TooltipIconButton
         tooltip="Scroll to bottom"
         variant="outline"
-        className="absolute -top-8 rounded-full border-[#3a3a3a] bg-[#242424] text-[#f5f5f5] hover:bg-[#3a3a3a] disabled:invisible"
+        className="-top-8 absolute rounded-full border-[#3a3a3a] bg-[#242424] text-[#f5f5f5] hover:bg-[#3a3a3a] disabled:invisible"
       >
         <ArrowDownIcon />
       </TooltipIconButton>
@@ -80,22 +80,22 @@ const ThreadWelcome: FC = () => {
     <div className="flex h-full w-full items-center justify-center px-4">
       <div className="flex w-full max-w-[var(--thread-max-width)] flex-grow flex-col gap-12">
         <div className="flex w-full flex-grow flex-col items-center justify-center">
-          <p className="font-regular font-display text-4xl text-[#f5f5f5] md:text-5xl">
+          <p className="font-display font-regular text-4xl text-[#f5f5f5] md:text-5xl">
             What do you want to know?
           </p>
         </div>
-        <ComposerPrimitive.Root className="w-full rounded-xl border border-[#3a3a3a] bg-[#242424] px-2 shadow-sm transition-all duration-200 outline-none focus-within:border-[#20b8cd] focus-within:ring-1 focus-within:ring-[#20b8cd]/30">
+        <ComposerPrimitive.Root className="w-full rounded-xl border border-[#3a3a3a] bg-[#242424] px-2 shadow-sm outline-none transition-all duration-200 focus-within:border-[#20b8cd] focus-within:ring-1 focus-within:ring-[#20b8cd]/30">
           <ComposerPrimitive.Input
             rows={1}
             autoFocus
             placeholder="Ask anything..."
-            className="max-h-40 w-full flex-grow resize-none border-none bg-transparent px-2 py-4 text-lg text-[#f5f5f5] outline-none placeholder:text-[#808080] focus:ring-0 disabled:cursor-not-allowed"
+            className="max-h-40 w-full flex-grow resize-none border-none bg-transparent px-2 py-4 text-[#f5f5f5] text-lg outline-none placeholder:text-[#808080] focus:ring-0 disabled:cursor-not-allowed"
           />
           <div className="mx-1.5 flex gap-2">
             <div className="flex-grow" />
             <ComposerPrimitive.AddAttachment asChild>
               <TooltipIconButton
-                className="rounded-max my-2.5 size-8 p-2 text-[#808080] transition-colors hover:text-[#f5f5f5]"
+                className="my-2.5 size-8 rounded-max p-2 text-[#808080] transition-colors hover:text-[#f5f5f5]"
                 tooltip="Add Attachment"
                 variant="ghost"
               >
@@ -127,7 +127,7 @@ const Composer: FC = () => {
           rows={1}
           autoFocus
           placeholder="Ask follow-up"
-          className="max-h-40 flex-grow resize-none border-none bg-transparent px-4 py-4 text-lg text-[#f5f5f5] outline-none placeholder:text-[#808080] focus:ring-0 disabled:cursor-not-allowed"
+          className="max-h-40 flex-grow resize-none border-none bg-transparent px-4 py-4 text-[#f5f5f5] text-lg outline-none placeholder:text-[#808080] focus:ring-0 disabled:cursor-not-allowed"
         />
         <div className="flex gap-3">
           <ComposerPrimitive.AddAttachment asChild>
@@ -180,7 +180,7 @@ const UserMessage: FC = () => {
     <MessagePrimitive.Root className="relative w-full max-w-[var(--thread-max-width)] gap-y-2 py-4">
       <UserMessageAttachments />
 
-      <div className="rounded-3xl py-2.5 text-3xl break-words text-[#f5f5f5]">
+      <div className="break-words rounded-3xl py-2.5 text-3xl text-[#f5f5f5]">
         <MessagePrimitive.Parts />
       </div>
     </MessagePrimitive.Root>
@@ -190,7 +190,7 @@ const UserMessage: FC = () => {
 const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="relative grid w-full max-w-[var(--thread-max-width)] grid-cols-[auto_auto_1fr] grid-rows-[auto_1fr] py-4">
-      <div className="col-span-2 col-start-2 row-start-1 my-1.5 max-w-[calc(var(--thread-max-width)*0.8)] leading-7 break-words text-[#e5e5e5]">
+      <div className="col-span-2 col-start-2 row-start-1 my-1.5 max-w-[calc(var(--thread-max-width)*0.8)] break-words text-[#e5e5e5] leading-7">
         <h1 className="mb-4 inline-flex items-center gap-2 text-2xl text-[#20b8cd]">
           <SparkleIcon /> Answer
         </h1>
@@ -200,7 +200,7 @@ const AssistantMessage: FC = () => {
 
       <AssistantActionBar />
 
-      <BranchPicker className="col-start-2 row-start-2 mr-2 -ml-2" />
+      <BranchPicker className="-ml-2 col-start-2 row-start-2 mr-2" />
     </MessagePrimitive.Root>
   );
 };
@@ -211,7 +211,7 @@ const AssistantActionBar: FC = () => {
       hideWhenRunning
       autohide="not-last"
       autohideFloat="single-branch"
-      className="col-start-3 row-start-2 -ml-1 flex gap-1 text-[#808080]"
+      className="-ml-1 col-start-3 row-start-2 flex gap-1 text-[#808080]"
     >
       <ActionBarPrimitive.Copy asChild>
         <TooltipIconButton
@@ -246,7 +246,7 @@ const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({
     <BranchPickerPrimitive.Root
       hideWhenSingleBranch
       className={cn(
-        "inline-flex items-center text-xs text-[#808080]",
+        "inline-flex items-center text-[#808080] text-xs",
         className,
       )}
       {...rest}

@@ -2,4 +2,4 @@ export {
   asAsyncIterableStream,
   type AsyncIterableStream,
 } from "./AsyncIterableStream";
-export { type ReadonlyJSONObject, type ReadonlyJSONValue } from "./json";
+export type { ReadonlyJSONObject, ReadonlyJSONValue } from "./json";

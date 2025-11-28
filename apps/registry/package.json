@@ -5,14 +5,7 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "build": "tsx ./scripts/build-registry.ts",
-    "lint": "eslint ."
-  },
-  "prettier": {
-    "plugins": [
-      "prettier-plugin-tailwindcss"
-    ],
-    "tailwindStylesheet": "app/globals.css"
+    "build": "tsx ./scripts/build-registry.ts"
   },
   "devDependencies": {
     "@ai-sdk/openai": "^2.0.73",
@@ -41,8 +34,6 @@
     "motion": "^12.23.24",
     "next": "^16",
     "postcss": "^8.5.6",
-    "prettier": "^3.6.2",
-    "prettier-plugin-tailwindcss": "^0.7.1",
     "react": "19.2.0",
     "react-resizable-panels": "^3.0.6",
     "react-shiki": "^0.9.0",

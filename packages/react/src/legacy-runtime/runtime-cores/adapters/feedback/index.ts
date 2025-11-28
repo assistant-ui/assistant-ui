@@ -1,1 +1,1 @@
-export { type FeedbackAdapter } from "./FeedbackAdapter";
+export type { FeedbackAdapter } from "./FeedbackAdapter";

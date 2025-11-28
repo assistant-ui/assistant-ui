@@ -40,7 +40,7 @@ const ThreadMessagePartClient = resource(
       {
         key:
           state.type === "tool-call"
-            ? "toolCallId-" + state.toolCallId
+            ? `toolCallId-${state.toolCallId}`
             : undefined,
       },
     );
@@ -122,7 +122,7 @@ export const ThreadMessageClient = resource(
         if ("index" in selector) {
           return parts.api({ index: selector.index });
         } else {
-          return parts.api({ key: "toolCallId-" + selector.toolCallId });
+          return parts.api({ key: `toolCallId-${selector.toolCallId}` });
         }
       },
       attachment: (selector) => {
