@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Copy, Check, Sparkles, FileCode } from "lucide-react";
+import { Copy, Check, FileCode, Sparkle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { SyntaxHighlighter } from "@/components/assistant-ui/shiki-highlighter";
@@ -52,14 +52,16 @@ export default function TwShimmerPage() {
   return (
     <div className="container max-w-7xl space-y-16 px-4 py-12">
       <div
-        className="flex flex-col items-center space-y-6 text-center shimmer-angle-45 shimmer-speed-800"
+        className="flex flex-col items-center space-y-6 text-center shimmer-speed-500"
         ref={autoWidthRef}
       >
-        <div className="dark:shimmer-color-[rgba(255,255,255,0.04)] shimmer-bg flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm">
-          <Sparkles className="size-4" />
-          <span className="shimmer text-foreground/40 shimmer-color-black dark:shimmer-color-muted-foreground">
-            Tailwind CSS v4 Plugin
-          </span>
+        <div className="shimmer-bg z-0 flex rounded-full bg-border p-px text-sm shimmer-color-[rgba(255,255,255,0.1)] shimmer-spread-64">
+          <div className="shimmer-bg z-10 flex items-center gap-2 rounded-full bg-background px-4 py-1.5 text-sm shimmer-color-[rgba(255,255,255,0.04)] shimmer-spread-64">
+            <Sparkle className="size-4 opacity-50" />
+            <span className="shimmer text-foreground/60 shimmer-color-[rgba(0,0,0,0.1)] shimmer-spread-24 dark:shimmer-color-[rgba(255,255,255,0.5)]">
+              Tailwind CSS v4 Plugin
+            </span>
+          </div>
         </div>
 
         <div className="relative flex flex-col gap-5">
@@ -103,7 +105,7 @@ export default function TwShimmerPage() {
                 "absolute inset-0",
                 "text-transparent",
                 "[text-shadow:0px_0px_0_rgba(0,0,0,0.2)]",
-                "dark:[text-shadow:1px_1px_0_rgba(0,0,0,0.2),1px_1px_1px_rgba(0,0,0,0.4),-1px_-1.5px_3px_rgba(0,0,0,0.1),-1px_-1px_2px_rgba(0,0,0,0.2)]",
+                "dark:[text-shadow:-1px_-1px_10px_rgba(0,0,0,0.1),1px_1px_1px_rgba(0,0,0,0.4),-1px_1px_3px_rgba(0,0,0,0.1),-1px_-1px_2px_rgba(0,0,0,0.2)]",
               )}
               aria-hidden="true"
             >
@@ -126,7 +128,7 @@ export default function TwShimmerPage() {
 
       <div id="installation" className="space-y-8">
         <div className="text-center">
-          <h2 className="text-3xl font-bold tracking-tight">Installation</h2>
+          <h2 className="text-3xl font-medium">Installation</h2>
         </div>
 
         <div className="mx-auto max-w-3xl space-y-6">
@@ -166,7 +168,7 @@ export default function TwShimmerPage() {
 
       <div className="space-y-8">
         <div className="text-center">
-          <h2 className="text-3xl font-bold tracking-tight">Usage</h2>
+          <h2 className="text-3xl font-medium">Usage</h2>
         </div>
 
         <div className="mx-auto max-w-3xl space-y-6">
@@ -370,9 +372,7 @@ export default function TwShimmerPage() {
 
       <div className="space-y-8">
         <div className="text-center">
-          <h2 className="text-3xl font-bold tracking-tight">
-            Background Shimmer
-          </h2>
+          <h2 className="text-3xl font-medium">Background Shimmer</h2>
           <p className="mt-2 text-muted-foreground">
             Use <code className="px-1 py-0.5 text-sm">shimmer-bg</code> for
             skeleton loaders and non-text elements.
@@ -408,7 +408,6 @@ export default function TwShimmerPage() {
                 language="tsx"
                 code={`<div
   class="flex gap-3"
-  style={{ ["--shimmer-width" as string]: "600" }}
 >
   <div class="shimmer-bg bg-muted size-10 rounded-full" />
   <div class="flex-1 space-y-2">
@@ -422,10 +421,7 @@ export default function TwShimmerPage() {
               />
             </BoxCode>
             <BoxContent>
-              <div
-                className="flex gap-3"
-                style={{ ["--shimmer-width" as string]: "600" }}
-              >
+              <div className="flex gap-3" ref={autoWidthRef}>
                 <div className="shimmer-bg size-10 shrink-0 rounded-full bg-muted" />
                 <div className="flex-1 space-y-2">
                   <div className="shimmer-bg h-4 w-1/4 rounded bg-muted" />
@@ -450,10 +446,7 @@ export default function TwShimmerPage() {
               />
             </BoxCode>
             <BoxContent>
-              <div
-                className="space-y-3"
-                style={{ ["--shimmer-width" as string]: "192" }}
-              >
+              <div className="space-y-3" ref={autoWidthRef}>
                 <div className="shimmer-bg h-4 w-48 rounded bg-blue-300 shimmer-color-blue-100 dark:bg-blue-800 dark:shimmer-color-blue-500" />
                 <div className="shimmer-bg h-4 w-48 rounded bg-purple-300 shimmer-color-purple-100 dark:bg-purple-800 dark:shimmer-color-purple-500" />
                 <div className="shimmer-bg h-4 w-48 rounded bg-green-300 shimmer-color-green-100 dark:bg-green-800 dark:shimmer-color-green-500" />
@@ -471,7 +464,6 @@ export default function TwShimmerPage() {
                 language="tsx"
                 code={`<div
   class="flex gap-3 shimmer-angle-15"
-  style={{ ["--shimmer-width" as string]: "600" }}
 >
   <div class="shimmer-bg bg-muted size-10 rounded-full" />
   <div class="flex-1 space-y-2">
@@ -485,10 +477,7 @@ export default function TwShimmerPage() {
               />
             </BoxCode>
             <BoxContent>
-              <div
-                className="flex gap-3 shimmer-angle-15"
-                style={{ ["--shimmer-width" as string]: "600" }}
-              >
+              <div className="flex gap-3 shimmer-angle-15" ref={autoWidthRef}>
                 <div className="shimmer-bg size-10 shrink-0 rounded-full bg-muted" />
                 <div className="flex-1 space-y-2">
                   <div className="shimmer-bg h-4 w-1/4 rounded bg-muted" />
@@ -696,7 +685,7 @@ function Box({ children }: { children: React.ReactNode }) {
 function BoxTitle({ title, description }: BoxTitleProps) {
   return (
     <div className="space-y-2 p-6">
-      <h3 className="font-mono text-lg font-semibold">{title}</h3>
+      <h3 className="font-mono text-lg">{title}</h3>
       <p className="text-sm text-muted-foreground">{description}</p>
     </div>
   );
