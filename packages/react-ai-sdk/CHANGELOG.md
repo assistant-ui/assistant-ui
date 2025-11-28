@@ -1,5 +1,11 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.1.16
+
+### Patch Changes
+
+- c4142ac: fix(react-ai-sdk): pass runConfig metadata to backend API request
+
 ## 1.1.15
 
 ### Patch Changes
