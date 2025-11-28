@@ -29,6 +29,7 @@
   --tw-shimmer-spread: var(--shimmer-spread, 6ch);
   --tw-shimmer-speed: var(--shimmer-speed, 100);
   --tw-shimmer-color: var(--shimmer-color, oklch(0 0 0 / 0.8));
+
   @variant dark {
     --tw-shimmer-color: var(--shimmer-color, oklch(1 0 0 / 0.8));
   }
@@ -91,14 +92,14 @@
 }
 
 @utility shimmer-bg {
-  /* Interally resolved values with a default value */
-  --tw-shimmer-color: var(--shimmer-color, oklch(1 0 0 / 0.5));
-  --tw-shimmer-bg-spread: var(--shimmer-bg-spread, 400);
-  --tw-shimmer-width: var(--shimmer-width, 600);
-  --tw-shimmer-speed: var(--shimmer-speed, 500);
-  --tw-shimmer-angle: var(--shimmer-angle, 90deg);
   position: relative;
   overflow: clip;
+  /* Interally resolved values with a default value */
+  --tw-shimmer-angle: var(--shimmer-angle, 90deg);
+  --tw-shimmer-width: var(--shimmer-width, 600);
+  --tw-shimmer-bg-spread: var(--shimmer-bg-spread, 400);
+  --tw-shimmer-speed: var(--shimmer-speed, 500);
+  --tw-shimmer-color: var(--shimmer-color, oklch(1 0 0 / 0.5));
 
   @variant dark {
     --tw-shimmer-color: var(--shimmer-color, oklch(1 0 0 / 0.25));
@@ -155,7 +156,7 @@
 }
 
 @utility shimmer-color-* {
-  --shimmer-color: --value(--color-*);
+  --shimmer-color: --value([color], --color-*);
 }
 
 @utility shimmer-spread-* {
