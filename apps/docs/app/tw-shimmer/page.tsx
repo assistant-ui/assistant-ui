@@ -30,46 +30,6 @@ const HIGHLIGHT_STYLES = `
     background: rgba(147, 197, 253, 0.3);
     color: rgb(165, 180, 252);
   }
-  .shimmer-metallic {
-    --metallic-start: rgba(0,0,0,0.2);
-    --metallic-end: rgba(0,0,0,0.4);
-    background:
-      linear-gradient(
-        var(--shimmer-angle),
-        transparent calc(50% - var(--shimmer-spread) * 0.5),
-        color-mix(in oklch, var(--shimmer-color), transparent 94%)
-          calc(50% - var(--shimmer-spread) * 0.42),
-        color-mix(in oklch, var(--shimmer-color), transparent 76%)
-          calc(50% - var(--shimmer-spread) * 0.33),
-        color-mix(in oklch, var(--shimmer-color), transparent 50%)
-          calc(50% - var(--shimmer-spread) * 0.25),
-        color-mix(in oklch, var(--shimmer-color), transparent 24%)
-          calc(50% - var(--shimmer-spread) * 0.17),
-        color-mix(in oklch, var(--shimmer-color), transparent 6%)
-          calc(50% - var(--shimmer-spread) * 0.08),
-        var(--shimmer-color) 50%,
-        color-mix(in oklch, var(--shimmer-color), transparent 6%)
-          calc(50% + var(--shimmer-spread) * 0.08),
-        color-mix(in oklch, var(--shimmer-color), transparent 24%)
-          calc(50% + var(--shimmer-spread) * 0.17),
-        color-mix(in oklch, var(--shimmer-color), transparent 50%)
-          calc(50% + var(--shimmer-spread) * 0.25),
-        color-mix(in oklch, var(--shimmer-color), transparent 76%)
-          calc(50% + var(--shimmer-spread) * 0.33),
-        color-mix(in oklch, var(--shimmer-color), transparent 94%)
-          calc(50% + var(--shimmer-spread) * 0.42),
-        transparent calc(50% + var(--shimmer-spread) * 0.5)
-      )
-      0 0 / 200% 100% no-repeat,
-      linear-gradient(to top, var(--metallic-start), var(--metallic-end));
-    background-clip: text;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
-  .dark .shimmer-metallic {
-    --metallic-start: rgba(255,255,255,0.2);
-    --metallic-end: rgba(255,255,255,0.4);
-  }
 `;
 
 export default function TwShimmerPage() {
@@ -97,18 +57,20 @@ export default function TwShimmerPage() {
       >
         <div className="shimmer-bg flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm shimmer-angle-45 shimmer-speed-200 shimmer-width-400">
           <Sparkles className="size-4" />
-          <span>Tailwind CSS v4 Plugin</span>
+          <span className="shimmer text-foreground/40 shimmer-color-black dark:shimmer-color-white">
+            Tailwind CSS v4 Plugin
+          </span>
         </div>
 
-        <div className="relative flex flex-col gap-5">
+        <div className="relative flex flex-col gap-5 shimmer-angle-45 shimmer-speed-200 shimmer-width-400">
           <div>
             <span
               className={cn(
                 "pointer-events-none absolute inset-0 select-none",
                 "text-5xl font-bold tracking-tight lg:text-8xl",
-                "shimmer shimmer-speed-200 shimmer-width-400",
+                "shimmer",
                 "text-black shimmer-color-black",
-                "shimmer-angle-45 dark:text-black dark:shimmer-color-white",
+                "dark:text-black dark:shimmer-color-white",
                 "blur-xl",
                 "-z-1",
                 "mix-blend-screen",
@@ -122,7 +84,7 @@ export default function TwShimmerPage() {
             <h1
               className={cn(
                 "text-5xl font-bold tracking-tight lg:text-8xl",
-                "shimmer-metallic shimmer shimmer-angle-45 shimmer-speed-200 shimmer-width-400",
+                "shimmer text-foreground/40",
                 "shimmer-color-black",
                 "dark:shimmer-color-white",
               )}
@@ -146,7 +108,7 @@ export default function TwShimmerPage() {
           <p
             className={cn(
               "max-w-[600px] text-lg font-light text-balance text-muted-foreground",
-              "shimmer shimmer-angle-45 shimmer-speed-200 shimmer-spread-50 shimmer-width-400",
+              "shimmer shimmer-spread-50",
               "shimmer-color-black dark:shimmer-color-gray-300",
             )}
           >
