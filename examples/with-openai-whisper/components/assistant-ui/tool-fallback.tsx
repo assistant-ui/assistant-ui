@@ -91,4 +91,3 @@ export const ToolFallback: ToolCallMessagePartComponent = ({
     </div>
   );
 };
-

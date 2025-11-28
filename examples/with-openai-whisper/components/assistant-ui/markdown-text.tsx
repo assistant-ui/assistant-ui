@@ -226,4 +226,3 @@ const defaultComponents = memoizeMarkdownComponents({
   },
   CodeHeader,
 });
-

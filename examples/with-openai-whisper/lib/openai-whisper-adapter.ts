@@ -220,4 +220,3 @@ export class OpenAIWhisperAdapter implements SpeechRecognitionAdapter {
     return map[mimeType] || "webm";
   }
 }
-
