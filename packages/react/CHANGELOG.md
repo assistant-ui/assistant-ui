@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.11.46
+
+### Patch Changes
+
+- ab8953b: feat(react): add `allowNesting` option to allow wrapping runtimes with custom thread list adapters
+
 ## 0.11.45
 
 ### Patch Changes
