@@ -52,13 +52,13 @@ export default function TwShimmerPage() {
   return (
     <div className="container max-w-7xl space-y-16 px-4 py-12">
       <div
-        className="flex flex-col items-center space-y-6 text-center shimmer-speed-300"
+        className="flex flex-col items-center space-y-6 text-center shimmer-speed-400"
         ref={autoWidthRef}
       >
-        <div className="shimmer-bg z-0 flex cursor-default rounded-full bg-border p-px shimmer-color-[rgba(255,255,255,0.1)] shimmer-spread-64">
+        <div className="shimmer-bg z-0 flex cursor-default rounded-full bg-border p-px shimmer-color-[rgba(255,255,255,0.2)]">
           <div className="z-10 flex items-center gap-2 rounded-full bg-background px-4 py-1.5 text-sm">
             <Sparkle className="size-4 opacity-50" />
-            <span className="shimmer text-foreground/60 shimmer-color-[rgba(0,0,0,0.5)] shimmer-spread-24 dark:shimmer-color-[rgba(255,255,255,0.5)]">
+            <span className="shimmer text-foreground/60 shimmer-color-[rgba(0,0,0,0.5)] dark:shimmer-color-[rgba(255,255,255,0.5)]">
               Tailwind CSS v4 Plugin
             </span>
           </div>
@@ -78,7 +78,7 @@ export default function TwShimmerPage() {
             </h1>
           </div>
 
-          <p className="relative max-w-[600px] shimmer text-lg font-light text-balance text-muted-foreground shimmer-color-black shimmer-spread-50 dark:shimmer-color-gray-300">
+          <p className="relative max-w-[600px] shimmer text-lg font-light text-balance text-muted-foreground shimmer-color-black shimmer-spread-50 dark:shimmer-color-neutral-300">
             Zero-dependency CSS-only shimmer effect. Fully customizable,
             performant, and easy to use.
           </p>
@@ -158,9 +158,9 @@ export default function TwShimmerPage() {
             <BoxContent>
               <span
                 ref={autoWidthRef}
-                className="shimmer text-lg font-semibold text-foreground/40"
+                className="shimmer text-lg text-foreground/40"
               >
-                Shimmer Effect
+                Default Shimmer Effect
               </span>
             </BoxContent>
           </Box>
@@ -181,9 +181,9 @@ export default function TwShimmerPage() {
             <BoxContent>
               <span
                 ref={autoWidthRef}
-                className="shimmer text-lg font-semibold text-foreground/40 shimmer-speed-200"
+                className="shimmer text-lg text-foreground/40 shimmer-speed-200"
               >
-                Fast Shimmer
+                Faster Shimmer
               </span>
             </BoxContent>
           </Box>
@@ -216,20 +216,20 @@ export default function TwShimmerPage() {
             <BoxContent>
               <div className="grid gap-8 md:grid-cols-2">
                 <div>
-                  <p className="mb-3 text-xs font-semibold tracking-wide text-muted-foreground">
+                  <p className="mb-3 text-xs tracking-wide text-muted-foreground">
                     Set --shimmer-width for consistent speed:
                   </p>
                   <div className="space-y-2">
                     <span
                       ref={autoWidthRef}
-                      className="shimmer text-sm font-semibold text-foreground/40"
+                      className="shimmer text-sm text-foreground/40"
                     >
                       A short line
                     </span>
                     <br />
                     <span
                       ref={autoWidthRef}
-                      className="shimmer text-sm font-semibold text-foreground/40"
+                      className="shimmer text-sm text-foreground/40"
                     >
                       An example of a longer line but same speed
                     </span>
@@ -240,11 +240,11 @@ export default function TwShimmerPage() {
                     Default --shimmer-width:
                   </p>
                   <div className="space-y-2">
-                    <span className="shimmer text-sm font-semibold text-foreground/40">
+                    <span className="shimmer text-sm text-foreground/40">
                       A short line
                     </span>
                     <br />
-                    <span className="shimmer text-sm font-semibold text-foreground/40">
+                    <span className="shimmer text-sm text-foreground/40">
                       An example of a longer line but same duration
                     </span>
                   </div>
@@ -292,7 +292,7 @@ export default function TwShimmerPage() {
             <BoxContent>
               <span
                 ref={autoWidthRef}
-                className="shimmer text-lg font-semibold text-foreground/40 shimmer-spread-24"
+                className="shimmer text-lg text-foreground/40 shimmer-spread-24"
               >
                 Wide Spread Shimmer
               </span>
@@ -318,7 +318,7 @@ export default function TwShimmerPage() {
             <BoxContent>
               <div
                 ref={autoWidthRef}
-                className="inline-block shimmer text-lg font-semibold text-foreground/40 shimmer-angle-45"
+                className="inline-block shimmer text-lg text-foreground/40 shimmer-angle-45"
               >
                 A multi-line
                 <br />
@@ -331,8 +331,8 @@ export default function TwShimmerPage() {
 
       <div className="space-y-8">
         <div className="text-center">
-          <h2 className="text-3xl font-medium">Background Shimmer</h2>
-          <p className="mt-2 text-muted-foreground">
+          <h2 className="mb-2 text-3xl font-medium">Background Shimmer</h2>
+          <p className="text-muted-foreground">
             Use <code className="px-1 py-0.5 text-sm">shimmer-bg</code> for
             skeleton loaders and non-text elements.
           </p>
@@ -353,7 +353,10 @@ export default function TwShimmerPage() {
               />
             </BoxCode>
             <BoxContent>
-              <div className="shimmer-bg h-4 w-48 rounded bg-muted" />
+              <div
+                ref={autoWidthRef}
+                className="shimmer-bg h-6 w-48 rounded bg-muted"
+              />
             </BoxContent>
           </Box>
 
@@ -368,11 +371,11 @@ export default function TwShimmerPage() {
                 code={`<div
   class="flex gap-3"
 >
-  <div class="shimmer-bg bg-muted size-10 rounded-full" />
+  <div class="shimmer-bg size-10 shrink-0 rounded-full bg-muted" />
   <div class="flex-1 space-y-2">
-    <div class="shimmer-bg bg-muted h-4 w-1/4 rounded" />
-    <div class="shimmer-bg bg-muted h-4 w-full rounded" />
-    <div class="shimmer-bg bg-muted h-4 w-4/5 rounded" />
+    <div class="shimmer-bg h-4 w-1/4 rounded bg-muted" />
+    <div class="shimmer-bg h-4 w-full rounded bg-muted" />
+    <div class="shimmer-bg h-4 w-4/5 rounded bg-muted" />
   </div>
 </div>`}
                 highlight="--shimmer-width"
@@ -424,11 +427,11 @@ export default function TwShimmerPage() {
                 code={`<div
   class="flex gap-3 shimmer-angle-15"
 >
-  <div class="shimmer-bg bg-muted size-10 rounded-full" />
+  <div class="shimmer-bg size-10 shrink-0 rounded-full bg-muted" />
   <div class="flex-1 space-y-2">
-    <div class="shimmer-bg bg-muted h-4 w-1/4 rounded" />
-    <div class="shimmer-bg bg-muted h-4 w-full rounded" />
-    <div class="shimmer-bg bg-muted h-4 w-4/5 rounded" />
+    <div class="shimmer-bg h-4 w-1/4 rounded bg-muted" />
+    <div class="shimmer-bg h-4 w-full rounded bg-muted" />
+    <div class="shimmer-bg h-4 w-4/5 rounded bg-muted" />
   </div>
 </div>`}
                 highlight="shimmer-angle-15"
@@ -444,7 +447,7 @@ export default function TwShimmerPage() {
                   <div className="shimmer-bg h-4 w-4/5 rounded bg-muted" />
                 </div>
               </div>
-              <p className="mt-4 text-sm text-muted-foreground">
+              <p className="mt-4 max-w-[60ch] text-sm text-muted-foreground">
                 With angled shimmers, elements at different positions may appear
                 slightly out of sync. CSS has no way to know where each element
                 sits on the page, so it can&apos;t automatically coordinate the
@@ -479,12 +482,12 @@ export default function TwShimmerPage() {
               />
             </BoxCode>
             <BoxContent>
-              <p className="mb-4 text-sm text-muted-foreground">
+              <p className="mb-4 max-w-[60ch] text-sm text-muted-foreground">
                 Specify each element&apos;s approximate x/y position (in pixels)
                 to coordinate timing across a diagonal sweep. Only needed for
                 angled shimmers on multi-element layouts.
               </p>
-              <p className="mb-4 text-sm text-muted-foreground">
+              <p className="mb-4 max-w-[60ch] text-sm text-muted-foreground">
                 Some trial and error may be needed. For large elements like
                 avatars, use center coordinates for better alignment.
               </p>
@@ -496,7 +499,7 @@ export default function TwShimmerPage() {
                   aria-checked={anglesAligned}
                   onClick={() => setAnglesAligned(!anglesAligned)}
                   className={`relative h-5 w-9 rounded-full transition-colors ${
-                    anglesAligned ? "bg-primary" : "bg-gray-300"
+                    anglesAligned ? "bg-primary" : "bg-neutral-300"
                   }`}
                 >
                   <span
@@ -506,29 +509,29 @@ export default function TwShimmerPage() {
                   />
                 </button>
               </label>
-              <div className="flex gap-3 shimmer-angle-15 shimmer-speed-800">
+              <div className="flex gap-3 shimmer-angle-15" ref={autoWidthRef}>
                 <div
                   className={cn(
-                    "shimmer-bg size-16 shrink-0 rounded-full bg-gray-300",
+                    "shimmer-bg size-16 shrink-0 rounded-full bg-neutral-300 dark:bg-neutral-800",
                     anglesAligned && "shimmer-x-40 shimmer-y-40",
                   )}
                 />
                 <div className="flex-1 space-y-2">
                   <div
                     className={cn(
-                      "shimmer-bg h-4 w-1/4 rounded bg-gray-300",
+                      "shimmer-bg h-4 w-1/4 rounded bg-neutral-300 dark:bg-neutral-800",
                       anglesAligned && "shimmer-x-52 shimmer-y-0",
                     )}
                   />
                   <div
                     className={cn(
-                      "shimmer-bg h-4 w-full rounded bg-gray-300",
+                      "shimmer-bg h-4 w-full rounded bg-neutral-300 dark:bg-neutral-800",
                       anglesAligned && "shimmer-x-52 shimmer-y-24",
                     )}
                   />
                   <div
                     className={cn(
-                      "shimmer-bg h-4 w-4/5 rounded bg-gray-300",
+                      "shimmer-bg h-4 w-4/5 rounded bg-neutral-300 dark:bg-neutral-800",
                       anglesAligned && "shimmer-x-52 shimmer-y-48",
                     )}
                   />
@@ -629,7 +632,9 @@ function BoxTitle({ title, description }: BoxTitleProps) {
   return (
     <div className="space-y-2 p-6">
       <h3 className="font-mono text-lg">{title}</h3>
-      <p className="text-sm text-muted-foreground">{description}</p>
+      <p className="max-w-[60ch] text-sm text-muted-foreground">
+        {description}
+      </p>
     </div>
   );
 }
