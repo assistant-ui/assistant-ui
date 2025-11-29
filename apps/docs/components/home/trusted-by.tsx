@@ -4,10 +4,10 @@ import { Marquee } from "@/components/magicui/marquee";
 import { useMediaQuery } from "@/lib/useMediaQuery";
 import Image from "next/image";
 
-export function Logos() {
+export function TrustedBy() {
   const isMobile = useMediaQuery("(max-width: 1080px)");
 
-  const content = (
+  const logos = (
     <div className="flex w-full items-center justify-around">
       <Image
         src="/logos/cust/langchain.svg"
@@ -40,16 +40,20 @@ export function Logos() {
     </div>
   );
 
-  if (isMobile) {
-    return (
-      <div className="w-full overflow-clip">
-        <Marquee repeat={4}>
-          <div className="flex w-[1000px]">{content}</div>
-        </Marquee>
-      </div>
-    );
-  }
-
-  return content;
+  return (
+    <section className="flex flex-col items-center gap-2">
+      <h2 className="text-center font-medium text-3xl tracking-tight">
+        Trusted by fast-growing companies
+      </h2>
+      {isMobile ? (
+        <div className="w-full overflow-clip">
+          <Marquee repeat={4}>
+            <div className="flex w-[1000px]">{logos}</div>
+          </Marquee>
+        </div>
+      ) : (
+        logos
+      )}
+    </section>
+  );
 }
-
