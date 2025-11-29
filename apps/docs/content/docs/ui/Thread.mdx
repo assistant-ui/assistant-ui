@@ -4,8 +4,8 @@ title: Thread
 
 import { Steps, Step } from "fumadocs-ui/components/steps";
 import { Callout } from "fumadocs-ui/components/callout";
-import { Tab, Tabs } from "fumadocs-ui/components/tabs";
 import { ParametersTable } from "@/components/docs";
+import { InstallCommand } from "@/components/docs/install-command";
 import { ThreadSample } from "../../../components/samples/thread-sample";
 
 A complete chat interface that combines message rendering, auto-scrolling, composer input,
@@ -45,29 +45,7 @@ import { ThreadPrimitive } from "@assistant-ui/react";
 
 ### Add the component
 
-<Tabs items={["assistant-ui", "shadcn (namespace)", "shadcn"]}>
-  <Tab>
-
-```sh
-npx assistant-ui@latest add thread
-```
-
-  </Tab>
-  <Tab>
-
-```sh
-npx shadcn@latest add @assistant-ui/thread
-```
-
-  </Tab>
-  <Tab>
-
-```sh
-npx shadcn@latest add "https://r.assistant-ui.com/thread"
-```
-
-  </Tab>
-</Tabs>
+<InstallCommand shadcn={["thread"]} />
 
 This adds a `/components/assistant-ui/thread.tsx` file to your project, which you can adjust as needed.
 
