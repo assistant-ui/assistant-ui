@@ -30,13 +30,6 @@ export const Claude: FC = () => {
       <ThreadPrimitive.Viewport className="flex grow flex-col overflow-y-scroll">
         <ThreadPrimitive.Messages components={{ Message: ChatMessage }} />
         <div aria-hidden="true" className="h-4" />
-        <ThreadPrimitive.If empty={false}>
-          <div className="mx-auto mt-6 flex w-full max-w-3xl items-center justify-end px-2">
-            <p className="flex-1 text-right text-[#8a8985] text-[0.65rem] leading-[0.85rem] opacity-90 sm:text-[0.75rem] dark:text-[#b8b5a9]">
-              Claude can make mistakes. Please double-check responses.
-            </p>
-          </div>
-        </ThreadPrimitive.If>
       </ThreadPrimitive.Viewport>
 
       <ComposerPrimitive.Root className="mx-auto flex w-full max-w-3xl flex-col rounded-2xl border border-transparent bg-white p-0.5 shadow-[0_0.25rem_1.25rem_rgba(0,0,0,0.035),0_0_0_0.5px_rgba(0,0,0,0.08)] transition-shadow duration-200 focus-within:shadow-[0_0.25rem_1.25rem_rgba(0,0,0,0.075),0_0_0_0.5px_rgba(0,0,0,0.15)] hover:shadow-[0_0.25rem_1.25rem_rgba(0,0,0,0.05),0_0_0_0.5px_rgba(0,0,0,0.12)] dark:bg-[#1f1e1b] dark:shadow-[0_0.25rem_1.25rem_rgba(0,0,0,0.4),0_0_0_0.5px_rgba(108,106,96,0.15)] dark:hover:shadow-[0_0.25rem_1.25rem_rgba(0,0,0,0.4),0_0_0_0.5px_rgba(108,106,96,0.3)] dark:focus-within:shadow-[0_0.25rem_1.25rem_rgba(0,0,0,0.5),0_0_0_0.5px_rgba(108,106,96,0.3)]">
@@ -89,13 +82,15 @@ export const Claude: FC = () => {
 
 const ChatMessage: FC = () => {
   return (
-    <MessagePrimitive.Root className="group relative mt-1 mb-1">
+    <MessagePrimitive.Root className="group relative mt-1 mb-1 block">
       <MessagePrimitive.If user>
-        <div className="wrap-break-word relative inline-flex max-w-[75ch] rounded-xl bg-[#DDD9CE] py-2.5 pr-6 pl-2.5 text-[#1a1a18] transition-all dark:bg-[#393937] dark:text-[#eee]">
+        <div className="group/user wrap-break-word relative inline-flex max-w-[75ch] flex-col gap-2 rounded-xl bg-[#DDD9CE] py-2.5 pr-6 pl-2.5 text-[#1a1a18] transition-all dark:bg-[#393937] dark:text-[#eee]">
           <div className="relative flex flex-row gap-2">
-            <Avatar.Root className="flex h-7 w-7 shrink-0 select-none items-center justify-center self-start rounded-full bg-[#1a1a18] font-bold text-[12px] text-white dark:bg-[#eee] dark:text-[#2b2a27]">
-              <Avatar.AvatarFallback>U</Avatar.AvatarFallback>
-            </Avatar.Root>
+            <div className="shrink-0 self-start transition-all duration-300">
+              <Avatar.Root className="flex h-7 w-7 shrink-0 select-none items-center justify-center rounded-full bg-[#1a1a18] font-bold text-[12px] text-white dark:bg-[#eee] dark:text-[#2b2a27]">
+                <Avatar.AvatarFallback>U</Avatar.AvatarFallback>
+              </Avatar.Root>
+            </div>
             <div className="flex-1">
               <div className="relative grid grid-cols-1 gap-2 py-0.5">
                 <div className="wrap-break-word whitespace-pre-wrap">
@@ -107,7 +102,7 @@ const ChatMessage: FC = () => {
           <div className="pointer-events-none absolute right-2 bottom-0">
             <ActionBarPrimitive.Root
               autohide="not-last"
-              className="pointer-events-auto min-w-max translate-x-1 translate-y-4 rounded-lg border border-[#00000015] bg-white/80 p-0.5 opacity-0 shadow-sm backdrop-blur-sm transition group-hover:translate-x-0.5 group-hover:opacity-100 dark:border-[#6c6a6040] dark:bg-[#1f1e1b]/80"
+              className="pointer-events-auto min-w-max translate-x-1 translate-y-4 rounded-lg border-[#00000015] border-[0.5px] bg-white/80 p-0.5 opacity-0 shadow-sm backdrop-blur-sm transition group-hover/user:translate-x-0.5 group-hover/user:opacity-100 dark:border-[#6c6a6040] dark:bg-[#1f1e1b]/80"
             >
               <div className="flex items-center text-[#6b6a68] dark:text-[#9a9893]">
                 <ActionBarPrimitive.Reload className="flex h-8 w-8 items-center justify-center rounded-md transition duration-300 ease-[cubic-bezier(0.165,0.85,0.45,1)] hover:bg-transparent active:scale-95">
@@ -123,7 +118,7 @@ const ChatMessage: FC = () => {
       </MessagePrimitive.If>
 
       <MessagePrimitive.If assistant>
-        <div className="relative pb-3 font-serif">
+        <div className="relative mb-12 font-serif">
           <div className="relative leading-[1.65rem]">
             <div className="grid grid-cols-1 gap-2.5">
               <div className="wrap-break-word whitespace-normal pr-8 pl-2 font-serif text-[#1a1a18] dark:text-[#eee]">
@@ -131,11 +126,11 @@ const ChatMessage: FC = () => {
               </div>
             </div>
           </div>
-          <div className="pointer-events-none absolute right-2 bottom-0">
+          <div className="pointer-events-none absolute inset-x-0 bottom-0">
             <ActionBarPrimitive.Root
               hideWhenRunning
               autohide="not-last"
-              className="pointer-events-auto min-w-max translate-x-2 translate-y-full rounded-lg pt-2 transition"
+              className="pointer-events-auto flex w-full translate-y-full flex-col items-end px-2 pt-2 transition"
             >
               <div className="flex items-center text-[#6b6a68] dark:text-[#9a9893]">
                 <ActionBarPrimitive.Copy className="flex h-8 w-8 items-center justify-center rounded-md transition duration-300 ease-[cubic-bezier(0.165,0.85,0.45,1)] hover:bg-transparent active:scale-95">
@@ -151,6 +146,11 @@ const ChatMessage: FC = () => {
                   <ReloadIcon width={20} height={20} />
                 </ActionBarPrimitive.Reload>
               </div>
+              <MessagePrimitive.If last>
+                <p className="mt-2 w-full text-right text-[#8a8985] text-[0.65rem] leading-[0.85rem] opacity-90 sm:text-[0.75rem] dark:text-[#b8b5a9]">
+                  Claude can make mistakes. Please double-check responses.
+                </p>
+              </MessagePrimitive.If>
             </ActionBarPrimitive.Root>
           </div>
         </div>
