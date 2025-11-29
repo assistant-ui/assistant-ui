@@ -16,17 +16,12 @@ import {
   Zap,
 } from "lucide-react";
 import { GlowingEffect } from "@/components/home/glowing-effect";
-import athenaintel from "./logos/cust/athenaintel.png";
-import browseruse from "./logos/cust/browseruse.svg";
-import langchain from "./logos/cust/langchain.svg";
-import stack from "./logos/cust/stack.svg";
 import Image from "next/image";
 import { DocsRuntimeProvider } from "./DocsRuntimeProvider";
 import { Marquee } from "@/components/magicui/marquee";
 import { useMediaQuery } from "@/lib/useMediaQuery";
 import { StarPill } from "./home/StarPill";
 import { useState } from "react";
-import ycombinator from "./logos/yc_logo.png";
 import { cn } from "@/lib/utils";
 
 const FEATURE_CARDS = [
@@ -97,7 +92,7 @@ export default function HomePage() {
               <div className="flex items-center gap-2 text-muted-foreground/70">
                 <span>Backed by</span>
                 <Image
-                  src={ycombinator}
+                  src="/logos/yc_logo.png"
                   alt="Y Combinator"
                   height={24}
                   width={24}
@@ -248,23 +243,31 @@ const Logos = () => {
   const content = (
     <div className="flex w-full items-center justify-around rounded pt-6">
       <Image
-        src={langchain}
+        src="/logos/cust/langchain.svg"
         alt="Langchain"
+        width={100}
+        height={28}
         className="inline-block h-[28px] w-auto opacity-50 invert transition-opacity hover:opacity-100 dark:invert-0"
       />
       <Image
-        src={athenaintel}
+        src="/logos/cust/athenaintel.png"
         alt="Athena Intelligence"
+        width={100}
+        height={44}
         className="inline-block h-11 w-auto opacity-50 invert transition-opacity hover:opacity-100 dark:invert-0"
       />
       <Image
-        src={browseruse}
+        src="/logos/cust/browseruse.svg"
         alt="Browseruse"
+        width={100}
+        height={26}
         className="inline-block h-[26px] w-auto opacity-50 invert transition-opacity hover:opacity-100 dark:invert-0"
       />
       <Image
-        src={stack}
+        src="/logos/cust/stack.svg"
         alt="Stack"
+        width={100}
+        height={22}
         className="mt-0.5 inline-block h-[22px] w-auto opacity-50 invert transition-opacity hover:opacity-100 dark:invert-0"
       />
     </div>
