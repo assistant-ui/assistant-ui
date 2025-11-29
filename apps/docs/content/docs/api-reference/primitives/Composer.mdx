@@ -227,9 +227,23 @@ Renders children if a condition is met.
       type: "boolean | undefined",
       description: "Render children if the message is being edited.",
     },
+    {
+      name: "hasAttachments",
+      required: false,
+      type: "boolean | undefined",
+      description: "Render children if the composer has attachments.",
+    },
+    {
+      name: "isEmpty",
+      required: false,
+      type: "boolean | undefined",
+      description: "Render children if the composer is empty (no text and no attachments).",
+    },
   ]}
 />
 
 ```tsx
 <Composer.If editing>{/* rendered if message is being edited */}</Composer.If>
+<Composer.If hasAttachments>{/* rendered if composer has attachments */}</Composer.If>
+<Composer.If isEmpty={false}>{/* rendered if composer is not empty */}</Composer.If>
 ```
