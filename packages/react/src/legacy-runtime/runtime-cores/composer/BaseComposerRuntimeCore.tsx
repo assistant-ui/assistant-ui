@@ -76,6 +76,8 @@ export abstract class BaseComposerRuntimeCore
     if (this._listening) {
       this._dictationBaseText = value;
       this._currentInterimText = "";
+      const { status, inputDisabled } = this._listening;
+      this._listening = inputDisabled ? { status, inputDisabled } : { status };
     }
     this._notifySubscribers();
   }

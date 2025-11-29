@@ -134,6 +134,15 @@ export class ElevenLabsScribeAdapter implements SpeechRecognitionAdapter {
 
       const { token } = await tokenResponse.json();
 
+      const currentStatus = (
+        session as { status: SpeechRecognitionAdapter.Status }
+      ).status;
+      if (currentStatus.type === "ended") {
+        // Session was cancelled or stopped before the connection was created.
+        // Avoid opening a new microphone session in this case.
+        return;
+      }
+
       const connection = Scribe.connect({
         token,
         modelId: "scribe_v2_realtime",
