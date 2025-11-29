@@ -81,31 +81,29 @@ export function Hero() {
         <div className="flex flex-wrap items-center gap-3">
           <CopyCommandButton />
           <Button asChild className="h-10 px-5">
-            <Link href="/docs/getting-started">
-              Get Started
+            <Link href="https://cal.com/simon-farshid/assistant-ui">
+              Contact Sales
               <ArrowRight className="ml-2 size-4" />
             </Link>
           </Button>
         </div>
 
-        <div className="flex items-center gap-4 text-[13px]">
-          <a
-            href="https://cal.com/simon-farshid/assistant-ui"
-            className="font-medium text-foreground underline-offset-4 transition-colors hover:underline"
+        <div className="flex items-center gap-3 text-[13px] text-muted-foreground">
+          <Link
+            href="/docs"
+            className="transition-colors hover:text-foreground hover:underline"
           >
-            Contact Sales
-          </a>
+            Get Started
+          </Link>
           <span className="size-1 rounded-full bg-border" />
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <span>Backed by</span>
-            <Image
-              src="/logos/yc_logo.png"
-              alt="Y Combinator"
-              height={24}
-              width={24}
-            />
-            <span>Combinator</span>
-          </div>
+          <span>Backed by</span>
+          <Image
+            src="/logos/yc_logo.png"
+            alt="Y Combinator"
+            height={24}
+            width={24}
+          />
+          <span>Combinator</span>
         </div>
       </div>
 
