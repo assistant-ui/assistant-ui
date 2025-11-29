@@ -21,7 +21,6 @@
     "clsx": "^2.1.1",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.555.0",
-    "motion": "^11.18.2",
     "nanoid": "5.1.6",
     "next": "16.0.4",
     "react": "19.2.0",

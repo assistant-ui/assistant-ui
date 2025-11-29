@@ -51,7 +51,6 @@
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.555.0",
     "mermaid": "^11.12.1",
-    "motion": "^12.23.24",
     "next": "16.0.4",
     "openai": "^6.9.1",
     "react": "19.2.0",
@@ -71,6 +70,7 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@assistant-ui/shadcn-registry": "workspace:*",
     "@tailwindcss/postcss": "^4.1.17",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/mdx": "^2.0.13",

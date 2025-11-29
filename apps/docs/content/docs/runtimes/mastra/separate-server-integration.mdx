@@ -4,6 +4,7 @@ title: Separate Server Integration
 
 import { Step, Steps } from "fumadocs-ui/components/steps";
 import { Callout } from "fumadocs-ui/components/callout";
+import { InstallCommand } from "@/components/docs/install-command";
 
 Run Mastra as a standalone server and connect your Next.js frontend (using assistant-ui) to its API endpoints. This approach separates your AI backend from your frontend application, allowing for independent development and scaling.
 
@@ -31,9 +32,7 @@ cd your-mastra-server-directory # Replace with the actual directory name
 
 In the next steps you'll need to use the `@mastra/ai-sdk` package. Add it to your Mastra project:
 
-```bash
-npm install @mastra/ai-sdk@latest
-```
+<InstallCommand npm={["@mastra/ai-sdk@latest"]} />
 
 You now have a basic Mastra server project ready.
 

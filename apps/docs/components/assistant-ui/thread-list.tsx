@@ -2,11 +2,13 @@ import type { FC } from "react";
 import {
   ThreadListItemPrimitive,
   ThreadListPrimitive,
+  useAssistantState,
 } from "@assistant-ui/react";
 import { ArchiveIcon, PlusIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const ThreadList: FC = () => {
   return (
@@ -32,13 +34,37 @@ const ThreadListNew: FC = () => {
 };
 
 const ThreadListItems: FC = () => {
+  const isLoading = useAssistantState(({ threads }) => threads.isLoading);
+
+  if (isLoading) {
+    return <ThreadListSkeleton />;
+  }
+
   return <ThreadListPrimitive.Items components={{ ThreadListItem }} />;
+};
+
+const ThreadListSkeleton: FC = () => {
+  return (
+    <>
+      {Array.from({ length: 5 }, (_, i) => (
+        <div
+          key={i}
+          role="status"
+          aria-label="Loading threads"
+          aria-live="polite"
+          className="aui-thread-list-skeleton-wrapper flex items-center gap-2 rounded-md px-3 py-2"
+        >
+          <Skeleton className="aui-thread-list-skeleton h-[22px] grow" />
+        </div>
+      ))}
+    </>
+  );
 };
 
 const ThreadListItem: FC = () => {
   return (
-    <ThreadListItemPrimitive.Root className="aui-thread-list-item flex items-center gap-2 rounded-lg transition-all hover:bg-muted focus-visible:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[active]:bg-muted">
-      <ThreadListItemPrimitive.Trigger className="aui-thread-list-item-trigger flex-grow px-3 py-2 text-start">
+    <ThreadListItemPrimitive.Root className="aui-thread-list-item flex items-center gap-2 rounded-lg transition-all hover:bg-muted focus-visible:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-active:bg-muted">
+      <ThreadListItemPrimitive.Trigger className="aui-thread-list-item-trigger grow px-3 py-2 text-start">
         <ThreadListItemTitle />
       </ThreadListItemPrimitive.Trigger>
       <ThreadListItemArchive />

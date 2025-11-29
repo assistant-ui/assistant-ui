@@ -6,6 +6,7 @@ import { Callout } from "fumadocs-ui/components/callout";
 import { Steps, Step } from "fumadocs-ui/components/steps";
 import { Card, Cards } from "fumadocs-ui/components/card";
 import { ParametersTable } from "@/components/docs";
+import { InstallCommand } from "@/components/docs/install-command";
 
 ## Overview
 
@@ -152,9 +153,7 @@ graph TD
   <Step>
     ### Install Dependencies
 
-    ```sh npm2yarn
-    npm install @assistant-ui/react
-    ```
+    <InstallCommand npm={["@assistant-ui/react"]} />
 
   </Step>
   
