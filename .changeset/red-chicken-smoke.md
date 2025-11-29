@@ -2,4 +2,4 @@
 "@assistant-ui/react": patch
 ---
 
-feat: dictation
+feat(react): dictation
