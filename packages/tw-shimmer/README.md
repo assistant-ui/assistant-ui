@@ -62,6 +62,8 @@ Animation speed in pixels per second. Default: `100`px/s for text, `500`px/s for
 - If you set `--shimmer-speed` (or use `shimmer-speed-{value}`) on a parent container, both `shimmer` and `shimmer-bg` children will use that value unless they override it.
 - If no value is set anywhere, text shimmer falls back to `100` and background shimmer falls back to `500`.
 
+> **How speed is calculated:** For text shimmer, duration = `(2 × width) / speed`. For background shimmer, duration = `(2 × width + spread) / speed`, where `spread` defaults to 400. This accounts for the full travel distance of the shimmer highlight.
+
 ```html
 <span class="shimmer shimmer-speed-200 text-foreground/40">Fast (200px/s)</span>
 ```
@@ -130,6 +132,8 @@ Shimmer direction. Default: `90`deg. Shared with `shimmer-bg`.
 - If you set `--shimmer-angle` (or use `shimmer-angle-{degrees}`) on a parent container, any `shimmer` or `shimmer-bg` elements inside will use that angle unless they define their own.
 - If no value is set anywhere, both text and background shimmer fall back to `90deg`.
 
+> **Note on angle values:** Avoid exactly `0deg` and `180deg`, as these create extreme values in the animation delay formula (which uses tangent). For diagonal sweeps, use angles in a "safe" range such as 15–75° or 105–165°. Extreme angles can cause very large delays and may visually desync the animation.
+
 ```html
 <span class="shimmer shimmer-angle-45 text-foreground/40"
   >Diagonal (45deg)</span
@@ -197,15 +201,16 @@ Manual position hints for syncing angled shimmer animations across multiple elem
 
 These utilities let you specify each element's approximate position (in pixels) relative to a shared container. The plugin uses these values to calculate animation delays, aligning the diagonal sweep across elements.
 
-- `shimmer-x-*`: Horizontal offset from container left
-- `shimmer-y-*`: Vertical offset from container top
-- `-shimmer-x-*` / `-shimmer-y-*`: Negative offsets
+- `shimmer-x-*`: Horizontal offset from container left (unitless, interpreted as pixels)
+- `shimmer-y-*`: Vertical offset from container top (unitless, interpreted as pixels)
 
 **How it works:** The x/y values feed into an animation-delay formula that accounts for the shimmer angle. This creates the illusion of a single diagonal highlight passing through all elements.
 
 > **Tip:** For larger or rounded elements (like avatars), use the element's approximate center rather than its top-left corner. The sync math treats each element as a single reference point, so using the center better matches where the shimmer visually "passes through" the element. Finding good offsets may still require some trial and error.
 >
 > For example, a 40×40 avatar at the left edge of the container would often look better with `shimmer-x-20 shimmer-y-20` than `shimmer-x-0 shimmer-y-0`.
+
+> **Angle caveat:** Position sync works best with moderate angles (15–75° or 105–165°). Avoid exactly 0° and 180° as these cause extreme delay values. See the `shimmer-angle-*` section for details.
 
 ```tsx
 <div class="shimmer-angle-15" style={{ ["--shimmer-width" as string]: "600" }}>
@@ -214,6 +219,18 @@ These utilities let you specify each element's approximate position (in pixels) 
   <div class="shimmer-bg shimmer-x-52 shimmer-y-24 bg-muted h-4 w-full rounded" />
 </div>
 ```
+
+## Browser Support & Accessibility
+
+### Modern CSS Requirements
+
+`tw-shimmer` uses modern CSS features for the best visual quality:
+
+- `oklch` and `color-mix` for perceptually uniform color mixing
+- `translate` as an independent transform property
+- `overflow: clip` for precise clipping (with `overflow: hidden` fallback)
+
+These features are supported in all modern browsers (Chrome 111+, Firefox 113+, Safari 16.4+). Older browsers will degrade gracefully but may not render the full effect.
 
 ## Limitations
 
