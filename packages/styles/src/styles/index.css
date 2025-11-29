@@ -2,6 +2,7 @@
 @import "./base.css";
 @import "./tailwindcss/base-components.css";
 @import "./tailwindcss/thread.css";
+@import "./tailwindcss/reasoning.css";
 @import "./themes/default.css";
 
 @import "tw-animate-css";

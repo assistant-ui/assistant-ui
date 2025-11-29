@@ -4,7 +4,7 @@
 }
 
 .aui-thread-viewport {
-  @apply relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll px-4;
+  @apply relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth px-4 pt-4;
 }
 
 .aui-thread-viewport-spacer {
@@ -12,7 +12,7 @@
 }
 
 .aui-thread-scroll-to-bottom {
-  @apply absolute -top-12 z-10 self-center rounded-full p-4 disabled:invisible dark:bg-background dark:hover:bg-accent;
+  @apply -top-12 absolute z-10 self-center rounded-full p-4 disabled:invisible dark:bg-background dark:hover:bg-accent;
 }
 
 .aui-thread-followup-suggestions {
@@ -26,11 +26,11 @@
 /* thread welcome */
 
 .aui-thread-welcome-root {
-  @apply mx-auto my-auto flex w-full max-w-[var(--thread-max-width)] flex-grow flex-col;
+  @apply mx-auto my-auto flex w-full max-w-(--thread-max-width) grow flex-col;
 }
 
 .aui-thread-welcome-center {
-  @apply flex w-full flex-grow flex-col items-center justify-center;
+  @apply flex w-full grow flex-col items-center justify-center;
 }
 
 .aui-thread-welcome-message {
@@ -46,15 +46,15 @@
 }
 
 .aui-thread-welcome-suggestions {
-  @apply grid w-full gap-2 pb-4 @md:grid-cols-2;
+  @apply grid w-full @md:grid-cols-2 gap-2 pb-4;
 }
 
 .aui-thread-welcome-suggestion {
-  @apply h-auto w-full flex-1 flex-wrap items-start justify-start gap-1 rounded-3xl border px-5 py-4 text-left text-sm @md:flex-col dark:hover:bg-accent/60;
+  @apply h-auto w-full flex-1 @md:flex-col flex-wrap items-start justify-start gap-1 rounded-3xl border px-5 py-4 text-left text-sm dark:hover:bg-accent/60;
 }
 
 .aui-thread-welcome-suggestion-display {
-  @apply [&:nth-child(n+3)]:hidden @md:[&:nth-child(n+3)]:block;
+  @apply fade-in slide-in-from-bottom-4 @md:nth-[n+3]:block nth-[n+3]:hidden animate-in fill-mode-both duration-300 ease-out;
 }
 
 .aui-thread-welcome-suggestion-text-1 {
@@ -72,11 +72,11 @@
 }
 
 .aui-composer-root {
-  @apply relative flex w-full flex-col rounded-3xl border border-border bg-muted px-1 pt-2 shadow-[0_9px_9px_0px_rgba(0,0,0,0.01),0_2px_5px_0px_rgba(0,0,0,0.06)] dark:border-muted-foreground/15;
+  @apply relative flex w-full flex-col;
 }
 
 .aui-composer-input {
-  @apply mb-1 max-h-32 min-h-16 w-full resize-none bg-transparent px-3.5 pt-1.5 pb-3 text-base outline-none placeholder:text-muted-foreground focus:outline-primary;
+  @apply mb-1 max-h-32 min-h-16 w-full resize-none bg-transparent px-3.5 pt-1.5 pb-3 text-base outline-none placeholder:text-muted-foreground focus-visible:ring-0;
 }
 
 .aui-composer-action-wrapper {
@@ -100,7 +100,7 @@
 }
 
 .aui-composer-add-attachment {
-  @apply size-[34px] rounded-full p-1 text-xs font-semibold hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30;
+  @apply size-[34px] rounded-full p-1 font-semibold text-xs hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30;
 }
 
 .aui-composer-attachments {
@@ -134,7 +134,7 @@
 }
 
 .aui-attachment-preview-dialog-content {
-  @apply p-2 sm:max-w-3xl [&_svg]:text-background [&>button]:rounded-full [&>button]:bg-foreground/60 [&>button]:p-1 [&>button]:opacity-100 [&>button]:!ring-0 [&>button]:hover:[&_svg]:text-destructive;
+  @apply p-2 sm:max-w-3xl [&>button]:rounded-full [&>button]:bg-foreground/60 [&>button]:p-1 [&>button]:opacity-100 [&>button]:ring-0! [&_svg]:text-background [&>button]:hover:[&_svg]:text-destructive;
 }
 
 .aui-attachment-tile {
@@ -158,7 +158,7 @@
 }
 
 .aui-attachment-tile-remove {
-  @apply absolute top-1.5 right-1.5 size-3.5 rounded-full bg-white text-muted-foreground opacity-100 shadow-sm hover:!bg-white [&_svg]:text-black hover:[&_svg]:text-destructive;
+  @apply absolute top-1.5 right-1.5 size-3.5 rounded-full bg-white text-muted-foreground opacity-100 shadow-sm hover:bg-white! [&_svg]:text-black hover:[&_svg]:text-destructive;
 }
 
 /* attachment icons */
@@ -174,15 +174,15 @@
 /* user message */
 
 .aui-user-message-root {
-  @apply mx-auto grid w-full max-w-[var(--thread-max-width)] animate-in auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] gap-y-2 px-2 py-4 duration-150 ease-out fade-in slide-in-from-bottom-1 first:mt-3 last:mb-5 [&:where(>*)]:col-start-2;
+  @apply fade-in slide-in-from-bottom-1 mx-auto grid w-full max-w-(--thread-max-width) animate-in auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] content-start gap-y-2 px-2 py-4 duration-150 ease-out [&:where(>*)]:col-start-2;
 }
 
 .aui-user-branch-picker {
-  @apply col-span-full col-start-1 row-start-3 -mr-1 justify-end;
+  @apply -mr-1 col-span-full col-start-1 row-start-3 justify-end;
 }
 
 .aui-user-message-content {
-  @apply rounded-3xl bg-muted px-5 py-2.5 break-words text-foreground;
+  @apply wrap-break-word rounded-3xl bg-muted px-5 py-2.5 text-foreground;
 }
 
 .aui-user-message-content-wrapper {
@@ -190,7 +190,7 @@
 }
 
 .aui-user-action-bar-wrapper {
-  @apply absolute top-1/2 left-0 -translate-x-full -translate-y-1/2 pr-2;
+  @apply -translate-x-full -translate-y-1/2 absolute top-1/2 left-0 pr-2;
 }
 
 /* user action bar */
@@ -206,7 +206,7 @@
 /* edit composer */
 
 .aui-edit-composer-wrapper {
-  @apply mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 px-2 first:mt-4;
+  @apply mx-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 px-2;
 }
 
 .aui-edit-composer-root {
@@ -224,11 +224,11 @@
 /* assistant message */
 
 .aui-assistant-message-root {
-  @apply relative mx-auto w-full max-w-[var(--thread-max-width)] animate-in py-4 duration-150 ease-out fade-in slide-in-from-bottom-1 last:mb-24;
+  @apply fade-in slide-in-from-bottom-1 relative mx-auto w-full max-w-(--thread-max-width) animate-in py-4 duration-150 ease-out;
 }
 
 .aui-assistant-message-content {
-  @apply mx-2 leading-7 break-words text-foreground;
+  @apply wrap-break-word mx-2 text-foreground leading-7;
 }
 
 .aui-assistant-message-footer {
@@ -236,7 +236,7 @@
 }
 
 .aui-message-error-root {
-  @apply mt-2 rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive dark:bg-destructive/5 dark:text-red-200;
+  @apply mt-2 rounded-md border border-destructive bg-destructive/10 p-3 text-destructive text-sm dark:bg-destructive/5 dark:text-red-200;
 }
 
 .aui-message-error-message {
@@ -246,13 +246,13 @@
 /* assistant action bar */
 
 .aui-assistant-action-bar-root {
-  @apply col-start-3 row-start-2 -ml-1 flex gap-1 text-muted-foreground data-floating:absolute data-floating:rounded-md data-floating:border data-floating:bg-background data-floating:p-1 data-floating:shadow-sm;
+  @apply -ml-1 col-start-3 row-start-2 flex gap-1 text-muted-foreground data-floating:absolute data-floating:rounded-md data-floating:border data-floating:bg-background data-floating:p-1 data-floating:shadow-sm;
 }
 
 /* branch picker */
 
 .aui-branch-picker-root {
-  @apply mr-2 -ml-2 inline-flex items-center text-xs text-muted-foreground;
+  @apply -ml-2 mr-2 inline-flex items-center text-muted-foreground text-xs;
 }
 
 .aui-branch-picker-state {
@@ -272,7 +272,7 @@
 }
 
 .aui-thread-list-item {
-  @apply flex items-center gap-2 rounded-lg transition-all hover:bg-muted focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none data-active:bg-muted;
+  @apply flex items-center gap-2 rounded-lg transition-all hover:bg-muted focus-visible:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-active:bg-muted;
 }
 
 .aui-thread-list-new {
@@ -280,7 +280,7 @@
 }
 
 .aui-thread-list-item-trigger {
-  @apply flex-grow px-3 py-2 text-start;
+  @apply grow px-3 py-2 text-start;
 }
 
 .aui-thread-list-item-title {
@@ -296,7 +296,7 @@
 }
 
 .aui-thread-list-skeleton {
-  @apply h-[22px] flex-grow;
+  @apply h-[22px] grow;
 }
 
 /* ThreadListSidebar */
@@ -352,7 +352,7 @@
 /* Unused classes from old design */
 
 .aui-thread-viewport-footer {
-  @apply sticky bottom-0 mt-3 flex w-full max-w-[var(--thread-max-width)] flex-col items-center justify-end rounded-t-lg bg-inherit pb-4;
+  @apply sticky bottom-0 mx-auto mt-4 flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4 md:pb-6;
 }
 
 .aui-composer-attach {
@@ -415,3 +415,14 @@
   @apply whitespace-pre-line;
 }
 
+
+/* New classes from registry components */
+
+.aui-thread-welcome-message-inner {
+  @apply fade-in slide-in-from-bottom-2 animate-in font-semibold text-2xl duration-300 ease-out;
+  @apply fade-in slide-in-from-bottom-2 animate-in text-2xl text-muted-foreground/65 delay-100 duration-300 ease-out;
+}
+
+.aui-composer-attachment-dropzone {
+  @apply group/input-group flex w-full flex-col rounded-3xl border border-input bg-background px-1 pt-2 shadow-xs outline-none transition-[color,box-shadow] has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-[3px] has-[textarea:focus-visible]:ring-ring/50 data-[dragging=true]:border-ring data-[dragging=true]:border-dashed data-[dragging=true]:bg-accent/50 dark:bg-background;
+}

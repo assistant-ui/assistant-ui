@@ -1,10 +1,10 @@
 /* code */
 .aui-shiki-base {
-  @apply [&_pre]:overflow-x-auto [&_pre]:rounded-b-lg [&_pre]:!bg-muted/75 [&_pre]:p-4;
+  @apply [&_pre]:overflow-x-auto [&_pre]:rounded-b-lg [&_pre]:bg-muted/75! [&_pre]:p-4;
 }
 
 .aui-code-header-root {
-  @apply mt-4 flex items-center justify-between gap-4 rounded-t-lg bg-muted-foreground/15 px-4 py-2 text-sm font-semibold text-foreground dark:bg-muted-foreground/20;
+  @apply mt-4 flex items-center justify-between gap-4 rounded-t-lg bg-muted-foreground/15 px-4 py-2 font-semibold text-foreground text-sm dark:bg-muted-foreground/20;
 }
 
 .aui-code-header-language {
@@ -13,23 +13,23 @@
 
 /* typography */
 .aui-md-h1 {
-  @apply mb-8 scroll-m-20 text-4xl font-extrabold tracking-tight last:mb-0;
+  @apply mb-8 scroll-m-20 font-extrabold text-4xl tracking-tight last:mb-0;
 }
 
 .aui-md-h2 {
-  @apply mt-8 mb-4 scroll-m-20 text-3xl font-semibold tracking-tight first:mt-0 last:mb-0;
+  @apply mt-8 mb-4 scroll-m-20 font-semibold text-3xl tracking-tight first:mt-0 last:mb-0;
 }
 
 .aui-md-h3 {
-  @apply mt-6 mb-4 scroll-m-20 text-2xl font-semibold tracking-tight first:mt-0 last:mb-0;
+  @apply mt-6 mb-4 scroll-m-20 font-semibold text-2xl tracking-tight first:mt-0 last:mb-0;
 }
 
 .aui-md-h4 {
-  @apply mt-6 mb-4 scroll-m-20 text-xl font-semibold tracking-tight first:mt-0 last:mb-0;
+  @apply mt-6 mb-4 scroll-m-20 font-semibold text-xl tracking-tight first:mt-0 last:mb-0;
 }
 
 .aui-md-h5 {
-  @apply my-4 text-lg font-semibold first:mt-0 last:mb-0;
+  @apply my-4 font-semibold text-lg first:mt-0 last:mb-0;
 }
 
 .aui-md-h6 {
@@ -65,11 +65,11 @@
 }
 
 .aui-md-th {
-  @apply bg-muted px-4 py-2 text-left font-bold first:rounded-tl-lg last:rounded-tr-lg [&[align=center]]:text-center [&[align=right]]:text-right;
+  @apply bg-muted px-4 py-2 text-left font-bold first:rounded-tl-lg last:rounded-tr-lg [align=center]:text-center [align=right]:text-right;
 }
 
 .aui-md-td {
-  @apply border-b border-l px-4 py-2 text-left last:border-r [&[align=center]]:text-center [&[align=right]]:text-right;
+  @apply border-b border-l px-4 py-2 text-left last:border-r [align=center]:text-center [align=right]:text-right;
 }
 
 .aui-md-tr {
@@ -81,7 +81,7 @@
 }
 
 .aui-md-pre {
-  @apply overflow-x-auto !rounded-t-none rounded-b-lg bg-black p-4 text-white;
+  @apply overflow-x-auto rounded-t-none! rounded-b-lg bg-black p-4 text-white;
 }
 
 .aui-md-inline-code {

@@ -72,6 +72,7 @@
 
 .aui-tool-fallback-root {
   @apply mb-4 flex w-full flex-col gap-3 rounded-lg border py-3;
+  @apply border-muted-foreground/30 bg-muted/30;
 }
 
 .aui-tool-fallback-header {
@@ -79,11 +80,13 @@
 }
 
 .aui-tool-fallback-icon {
+  @apply size-4 text-muted-foreground;
   @apply size-4;
 }
 
 .aui-tool-fallback-title {
-  @apply flex-grow;
+  @apply grow;
+  @apply text-muted-foreground line-through;
 }
 
 .aui-tool-fallback-content {
@@ -92,6 +95,7 @@
 
 .aui-tool-fallback-args-root {
   @apply px-4;
+  @apply opacity-60;
 }
 
 .aui-tool-fallback-args-value {
@@ -108,4 +112,18 @@
 
 .aui-tool-fallback-result-content {
   @apply whitespace-pre-wrap;
+}
+
+/* New classes from registry components */
+
+.aui-tool-fallback-cancelled-root {
+  @apply px-4;
+}
+
+.aui-tool-fallback-cancelled-header {
+  @apply font-semibold text-muted-foreground;
+}
+
+.aui-tool-fallback-cancelled-reason {
+  @apply text-muted-foreground;
 }
