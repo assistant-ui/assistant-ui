@@ -101,12 +101,12 @@ class SyncStyles {
     const lines = content.split("\n");
     const multipleApplyWarnings: string[] = [];
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
+      const line = lines[i]!;
 
       // Match .aui-* class definitions (skip base classes in SKIPPED_AUI_BASES)
       const classMatch = line.match(/^\.(aui-[a-z0-9-]+)\s*\{/);
       if (classMatch) {
-        const className = classMatch[1];
+        const className = classMatch[1]!;
 
         // Skip exact base class names only
         if (SKIPPED_AUI_BASES.has(className)) {
@@ -119,13 +119,13 @@ class SyncStyles {
         let applyCount = 0;
 
         for (let j = i + 1; j < lines.length; j++) {
-          const nextLine = lines[j];
+          const nextLine = lines[j]!;
 
           if (nextLine.includes("@apply")) {
             applyCount++;
             // Extract classes from @apply directive
             const applyMatch = nextLine.match(/@apply\s+([^;]+);?/);
-            if (applyMatch) {
+            if (applyMatch?.[1]) {
               tailwindClassesList.push(applyMatch[1].trim());
             }
           }
@@ -214,7 +214,9 @@ class SyncStyles {
         // Extract all string literals from expression (skip variables/conditionals)
         // Matches: "...", '...', `...` but not template expressions
         const strings = expression.matchAll(/["'`]([^"'`]+)["'`]/g);
-        stringLiterals = Array.from(strings, (m) => m[1]);
+        stringLiterals = Array.from(strings, (m) => m[1]).filter(
+          (s): s is string => s !== undefined,
+        );
       }
 
       // Process string literals to find aui-* classes
@@ -362,11 +364,11 @@ class SyncStyles {
 
         rl.close();
 
-        targetCssFile = cssFiles[choice - 1];
+        targetCssFile = cssFiles[choice - 1]!;
         console.log(chalk.green(`   ✓ Will add to ${targetCssFile}\n`));
       }
 
-      componentToCssFile.set(componentFile, targetCssFile);
+      componentToCssFile.set(componentFile, targetCssFile!);
     }
 
     // Now group all classes by their target CSS file
@@ -569,7 +571,7 @@ class SyncStyles {
 
       // Add any lines before this class
       for (let i = lastProcessedLine + 1; i < existingClass.startLine; i++) {
-        result.push(lines[i]);
+        result.push(lines[i]!);
       }
 
       if (update) {
@@ -596,7 +598,7 @@ class SyncStyles {
             i <= existingClass.endLine;
             i++
           ) {
-            result.push(lines[i]);
+            result.push(lines[i]!);
           }
         }
       }
@@ -606,7 +608,7 @@ class SyncStyles {
 
     // Add remaining lines
     for (let i = lastProcessedLine + 1; i < lines.length; i++) {
-      result.push(lines[i]);
+      result.push(lines[i]!);
     }
 
     // Add new classes at the end
