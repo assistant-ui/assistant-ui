@@ -12,18 +12,20 @@
     0% {
       /* Start off-screen to the left */
       translate: calc(
-          -1 * (var(--shimmer-width, 600) + var(--shimmer-bg-spread, 400)) * 1px
+          -1 *
+            (var(--tw-shimmer-width, 600) + var(--tw-shimmer-bg-spread, 400)) *
+            1px
         )
         0;
     }
     100% {
-      translate: calc(var(--shimmer-width, 600) * 1px) 0;
+      translate: calc(var(--tw-shimmer-width, 600) * 1px) 0;
     }
   }
 }
 
 @utility shimmer {
-  /* Interally resolved values with defaults */
+  /* Internally resolved values with defaults */
   --tw-shimmer-angle: var(--shimmer-angle, 90deg);
   --tw-shimmer-width: var(--shimmer-width, 200);
   --tw-shimmer-spread: var(--shimmer-spread, 6ch);
@@ -93,13 +95,14 @@
 
 @utility shimmer-bg {
   position: relative;
+  overflow: hidden;
   overflow: clip;
 
-  /* Interally resolved values with a default value */
+  /* Internally resolved values with defaults */
   --tw-shimmer-angle: var(--shimmer-angle, 90deg);
-  --tw-shimmer-width: var(--shimmer-width, 200);
+  --tw-shimmer-width: var(--shimmer-width, 600);
   --tw-shimmer-bg-spread: var(--shimmer-bg-spread, 400);
-  --tw-shimmer-speed: var(--shimmer-speed, 1000);
+  --tw-shimmer-speed: var(--shimmer-speed, 500);
   --tw-shimmer-color: var(--shimmer-color, oklch(1 0 0 / 0.5));
 
   @variant dark {
@@ -139,7 +142,10 @@
     );
     transform: skewX(calc(90deg - var(--tw-shimmer-angle)));
     animation: shimmer-bg
-      calc((var(--tw-shimmer-width) * 2) / var(--tw-shimmer-speed) * 1s)
+      calc(
+        (var(--tw-shimmer-width) * 2 + var(--tw-shimmer-bg-spread)) /
+          var(--tw-shimmer-speed) * 1s
+      )
       infinite linear;
     /* Offset timing based on element position (for aligning angled shimmers) */
     animation-delay: calc(
@@ -177,7 +183,7 @@
 }
 
 @utility -shimmer-y-* {
-  --shimmer-y: calc(-1 * --value(integer));
+  --shimmer-y: calc(-1 * --value(number));
 }
 
 @utility shimmer-x-* {
@@ -185,5 +191,5 @@
 }
 
 @utility -shimmer-x-* {
-  --shimmer-x: calc(-1 * --value(integer));
+  --shimmer-x: calc(-1 * --value(number));
 }
