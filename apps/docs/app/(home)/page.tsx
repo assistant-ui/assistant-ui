@@ -57,49 +57,45 @@ const FEATURE_CARDS = [
 
 export default function HomePage() {
   return (
-    <main className="container relative z-2 flex flex-col gap-12 px-4 py-12">
-      <section className="grid grid-cols-1 items-center gap-12">
-        <div className="flex flex-col items-start text-left">
-          <div className="flex flex-col gap-2">
-            <StarPill />
-            <h1 className="font-medium text-2xl tracking-tight">
-              UX of ChatGPT in your own app
-            </h1>
-            <p className="mb-3 text-lg text-muted-foreground leading-relaxed sm:text-center lg:text-left">
-              Open-source React toolkit for production AI chat experiences.
-            </p>
-          </div>
+    <main className="container relative z-2 flex flex-col gap-16 px-4 py-12">
+      <section className="flex flex-col gap-6">
+        <div className="flex flex-col gap-2">
+          <StarPill />
+          <h1 className="font-medium text-2xl tracking-tight">
+            UX of ChatGPT in your own app
+          </h1>
+          <p className="text-lg text-muted-foreground leading-relaxed">
+            Open-source React toolkit for production AI chat experiences.
+          </p>
+        </div>
 
-          <div className="flex flex-col gap-6">
-            <div className="flex flex-wrap items-center gap-3">
-              <CopyCommandButton />
-              <Button asChild className="h-10 px-5">
-                <Link href="/docs/getting-started">
-                  Get Started
-                  <ArrowRight className="ml-2 size-4" />
-                </Link>
-              </Button>
-            </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <CopyCommandButton />
+          <Button asChild className="h-10 px-5">
+            <Link href="/docs/getting-started">
+              Get Started
+              <ArrowRight className="ml-2 size-4" />
+            </Link>
+          </Button>
+        </div>
 
-            <div className="flex items-center gap-4 text-[13px] text-muted-foreground">
-              <a
-                href="https://cal.com/simon-farshid/assistant-ui"
-                className="transition-colors hover:text-foreground"
-              >
-                Contact Sales
-              </a>
-              <span className="size-1 rounded-full bg-border" />
-              <div className="flex items-center gap-2 text-muted-foreground/70">
-                <span>Backed by</span>
-                <Image
-                  src="/logos/yc_logo.png"
-                  alt="Y Combinator"
-                  height={24}
-                  width={24}
-                />
-                <span>Combinator</span>
-              </div>
-            </div>
+        <div className="flex items-center gap-4 text-[13px] text-muted-foreground">
+          <a
+            href="https://cal.com/simon-farshid/assistant-ui"
+            className="transition-colors hover:text-foreground"
+          >
+            Contact Sales
+          </a>
+          <span className="size-1 rounded-full bg-border" />
+          <div className="flex items-center gap-2 text-muted-foreground/70">
+            <span>Backed by</span>
+            <Image
+              src="/logos/yc_logo.png"
+              alt="Y Combinator"
+              height={24}
+              width={24}
+            />
+            <span>Combinator</span>
           </div>
         </div>
       </section>
@@ -114,51 +110,55 @@ export default function HomePage() {
         <div className="-bottom-6 -right-6 -z-10 absolute h-full w-full rounded-xl bg-linear-to-br from-primary/5 to-secondary/5 blur-2xl" />
       </div>
 
-      <div className="flex justify-center">
-        <Button
-          className="mx-auto flex w-fit border bg-background text-foreground shadow-sm hover:bg-background/90"
-          size="lg"
-          asChild
-        >
-          <Link href="/examples">
-            Explore more examples <ArrowRight className="ml-2 size-4" />
-          </Link>
-        </Button>
-      </div>
+      <Button
+        className="mx-auto border bg-background text-foreground shadow-sm hover:bg-background/90"
+        size="lg"
+        asChild
+      >
+        <Link href="/examples">
+          Explore more examples <ArrowRight className="ml-2 size-4" />
+        </Link>
+      </Button>
 
       <FeatureHighlights />
 
-      <div className="flex flex-col items-center gap-4">
+      <section className="flex flex-col items-center gap-2">
         <h2 className="text-center font-medium text-3xl tracking-tight">
           Trusted by fast-growing companies
         </h2>
         <Logos />
-      </div>
+      </section>
 
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-col items-center gap-3 self-center sm:w-full sm:self-start lg:w-[unset] lg:self-center">
-          <h2 className="self-start font-medium text-3xl tracking-tight sm:self-center">
+      <section className="flex flex-col items-center gap-6">
+        <div className="flex flex-col items-center gap-2 text-center">
+          <h2 className="font-medium text-3xl tracking-tight">
             Be part of the community
           </h2>
           <p className="text-muted-foreground">
             Join our active Discord community for support and updates.
           </p>
+        </div>
 
-          <div className="my-2 flex w-full flex-col gap-4 sm:grid sm:grid-cols-2">
-            <a
-              className={buttonVariants({ variant: "outline" })}
-              href="https://discord.gg/S9dwgCNEFs"
-            >
-              <DiscordLogoIcon className="mr-2 size-4 text-indigo-600" /> Join
-              our Discord
-            </a>
-            <a
-              className={buttonVariants({ variant: "outline" })}
-              href="https://github.com/assistant-ui/assistant-ui"
-            >
-              <span className="mr-2">🌟</span> Star us on GitHub
-            </a>
-          </div>
+        <div className="flex w-full max-w-md flex-col gap-3 sm:flex-row">
+          <a
+            className={buttonVariants({
+              variant: "outline",
+              className: "flex-1",
+            })}
+            href="https://discord.gg/S9dwgCNEFs"
+          >
+            <DiscordLogoIcon className="mr-2 size-4 text-indigo-600" />
+            Join our Discord
+          </a>
+          <a
+            className={buttonVariants({
+              variant: "outline",
+              className: "flex-1",
+            })}
+            href="https://github.com/assistant-ui/assistant-ui"
+          >
+            <span className="mr-2">🌟</span> Star us on GitHub
+          </a>
         </div>
 
         <div className="relative mx-auto max-h-[500px] w-full max-w-7xl overflow-hidden">
@@ -166,30 +166,29 @@ export default function HomePage() {
             testimonials={TESTIMONIALS}
             className="sm:columns-2 lg:columns-3 xl:columns-4"
           />
-          <div className="-bottom-8 pointer-events-none absolute left-0 z-10 h-12 w-full bg-linear-to-t from-background via-background" />
+          <div className="pointer-events-none absolute bottom-0 left-0 z-10 h-16 w-full bg-linear-to-t from-background" />
         </div>
-      </div>
-      <div className="flex justify-center">
-        <div className="relative flex h-max w-full flex-col items-center justify-between gap-5 rounded-xl border p-6 sm:w-max sm:flex-row sm:p-10 lg:h-32 lg:w-full lg:px-16">
-          <GlowingEffect
-            spread={40}
-            glow={true}
-            enabled={true}
-            proximity={64}
-            inactiveZone={0.01}
-          />
-          <p className="text-center font-bold text-2xl">
-            Ship your AI assistant this week
-          </p>
-          <Button
-            asChild
-            className="w-full bg-foreground hover:bg-foreground/80 sm:w-[unset]"
-          >
-            <Link href="/docs/getting-started">
-              Get Started <ArrowRight className="ml-2 size-4" />
-            </Link>
-          </Button>
-        </div>
+      </section>
+
+      <div className="relative flex w-full flex-col items-center justify-between gap-4 rounded-xl border p-6 sm:flex-row sm:p-10 lg:px-16">
+        <GlowingEffect
+          spread={40}
+          glow={true}
+          enabled={true}
+          proximity={64}
+          inactiveZone={0.01}
+        />
+        <p className="text-center font-bold text-2xl sm:text-left">
+          Ship your AI assistant this week
+        </p>
+        <Button
+          asChild
+          className="w-full bg-foreground hover:bg-foreground/80 sm:w-auto"
+        >
+          <Link href="/docs/getting-started">
+            Get Started <ArrowRight className="ml-2 size-4" />
+          </Link>
+        </Button>
       </div>
     </main>
   );
@@ -197,7 +196,7 @@ export default function HomePage() {
 
 function FeatureHighlights() {
   return (
-    <section>
+    <section className="flex flex-col gap-6">
       <div className="flex flex-col items-center gap-2 text-center">
         <h2 className="font-medium text-3xl tracking-tight">
           Everything you need to ship AI chat
@@ -208,26 +207,24 @@ function FeatureHighlights() {
         </p>
       </div>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {FEATURE_CARDS.map((feature) => {
           const Icon = feature.icon;
           return (
             <div
               key={feature.title}
-              className="flex h-full flex-col justify-between rounded-xl border bg-muted/20 p-6 text-left shadow-sm transition-all hover:shadow-md"
+              className="flex flex-col gap-4 rounded-xl border bg-muted/20 p-6 shadow-sm transition-shadow hover:shadow-md"
             >
-              <div className="flex flex-col gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg border bg-background shadow-sm">
-                  <Icon className={`size-6 ${feature.iconClassName}`} />
-                </div>
-                <div className="space-y-2">
-                  <h3 className="font-semibold text-xl tracking-tight">
-                    {feature.title}
-                  </h3>
-                  <p className="text-muted-foreground text-sm leading-relaxed">
-                    {feature.description}
-                  </p>
-                </div>
+              <div className="flex size-12 items-center justify-center rounded-lg border bg-background shadow-sm">
+                <Icon className={cn("size-6", feature.iconClassName)} />
+              </div>
+              <div className="flex flex-col gap-2">
+                <h3 className="font-semibold text-xl tracking-tight">
+                  {feature.title}
+                </h3>
+                <p className="text-muted-foreground text-sm leading-relaxed">
+                  {feature.description}
+                </p>
               </div>
             </div>
           );
@@ -241,34 +238,34 @@ const Logos = () => {
   const isMobile = useMediaQuery("(max-width: 1080px)");
 
   const content = (
-    <div className="flex w-full items-center justify-around rounded pt-6">
+    <div className="flex w-full items-center justify-around">
       <Image
         src="/logos/cust/langchain.svg"
         alt="Langchain"
         width={100}
         height={28}
-        className="inline-block h-[28px] w-auto opacity-50 invert transition-opacity hover:opacity-100 dark:invert-0"
+        className="h-7 w-auto opacity-50 invert transition-opacity hover:opacity-100 dark:invert-0"
       />
       <Image
         src="/logos/cust/athenaintel.png"
         alt="Athena Intelligence"
         width={100}
         height={44}
-        className="inline-block h-11 w-auto opacity-50 invert transition-opacity hover:opacity-100 dark:invert-0"
+        className="h-11 w-auto opacity-50 invert transition-opacity hover:opacity-100 dark:invert-0"
       />
       <Image
         src="/logos/cust/browseruse.svg"
         alt="Browseruse"
         width={100}
         height={26}
-        className="inline-block h-[26px] w-auto opacity-50 invert transition-opacity hover:opacity-100 dark:invert-0"
+        className="h-6 w-auto opacity-50 invert transition-opacity hover:opacity-100 dark:invert-0"
       />
       <Image
         src="/logos/cust/stack.svg"
         alt="Stack"
         width={100}
         height={22}
-        className="mt-0.5 inline-block h-[22px] w-auto opacity-50 invert transition-opacity hover:opacity-100 dark:invert-0"
+        className="h-5 w-auto opacity-50 invert transition-opacity hover:opacity-100 dark:invert-0"
       />
     </div>
   );
@@ -298,10 +295,7 @@ function CopyCommandButton() {
   return (
     <button
       onClick={copyToClipboard}
-      className={cn(
-        "group flex h-10 items-center gap-2 rounded-md border border-border/60 bg-muted/30 px-4 font-mono text-sm transition-all hover:border-border hover:bg-muted/50",
-        // GeistMono.variable,
-      )}
+      className="group flex h-10 items-center gap-2 rounded-md border border-border/60 bg-muted/30 px-4 font-mono text-sm transition-all hover:border-border hover:bg-muted/50"
     >
       <span className="text-muted-foreground/70">$</span>
       <span>npx assistant-ui init</span>
