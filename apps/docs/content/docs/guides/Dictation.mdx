@@ -178,7 +178,7 @@ Create an API route to generate single-use tokens:
 ```ts title="app/api/scribe-token/route.ts"
 export async function POST() {
   const response = await fetch(
-    "https://api.elevenlabs.io/v1/speech-to-text/get-single-use-token",
+    "https://api.elevenlabs.io/v1/single-use-token/realtime_scribe",
     {
       method: "POST",
       headers: {
