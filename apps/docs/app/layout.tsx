@@ -16,18 +16,20 @@ export const metadata = {
 
 export default function Layout({ children }: { children: ReactNode }) {
   return (
-    <html
-      lang="en"
-      className={cn(GeistSans.variable, GeistMono.variable)}
-      suppressHydrationWarning
-    >
+    <html lang="en" suppressHydrationWarning>
       {/* <head>
         <script
           crossOrigin="anonymous"
           src="//unpkg.com/react-scan/dist/auto.global.js"
         />
       </head> */}
-      <body className={"flex min-h-screen flex-col"}>
+      <body
+        className={cn(
+          "flex min-h-screen flex-col overscroll-none antialiased",
+          GeistSans.className,
+          GeistMono.variable,
+        )}
+      >
         <Provider>{children}</Provider>
         <script
           defer

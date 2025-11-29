@@ -25,8 +25,9 @@ import { DocsRuntimeProvider } from "./DocsRuntimeProvider";
 import { Marquee } from "@/components/magicui/marquee";
 import { useMediaQuery } from "@/lib/useMediaQuery";
 import { StarPill } from "./home/StarPill";
-import ycombinator from "./logos/ycombinator.svg";
 import { useState } from "react";
+import ycombinator from "./logos/yc_logo.png";
+import { cn } from "@/lib/utils";
 
 const FEATURE_CARDS = [
   {
@@ -61,26 +62,23 @@ const FEATURE_CARDS = [
 
 export default function HomePage() {
   return (
-    <main className="container relative z-2 flex flex-col gap-24 px-4 py-16 lg:py-16">
-      <section className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2">
+    <main className="container relative z-2 flex flex-col gap-12 px-4 py-12">
+      <section className="grid grid-cols-1 items-center gap-12">
         <div className="flex flex-col items-start text-left">
           <div className="flex flex-col gap-2">
             <StarPill />
             <h1 className="font-medium text-2xl tracking-tight">
               UX of ChatGPT in your own app
             </h1>
-            <p className="mb-8 text-lg text-muted-foreground leading-relaxed">
-              The open-source React toolkit for production AI chat experiences.
-              <br className="hidden lg:inline" />
-              Built on <span className="text-foreground">shadcn/ui</span> and{" "}
-              <span className="text-foreground">Tailwind</span>.
+            <p className="mb-3 text-lg text-muted-foreground leading-relaxed sm:text-center lg:text-left">
+              Open-source React toolkit for production AI chat experiences.
             </p>
           </div>
 
           <div className="flex flex-col gap-6">
-            <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+            <div className="flex flex-wrap items-center gap-3">
               <CopyCommandButton />
-              <Button asChild size="lg" className="h-12">
+              <Button asChild className="h-10 px-5">
                 <Link href="/docs/getting-started">
                   Get Started
                   <ArrowRight className="ml-2 size-4" />
@@ -88,27 +86,24 @@ export default function HomePage() {
               </Button>
             </div>
 
-            <div className="flex items-center gap-6 text-muted-foreground">
+            <div className="flex items-center gap-4 text-[13px] text-muted-foreground">
               <a
                 href="https://cal.com/simon-farshid/assistant-ui"
-                className="text-sm underline-offset-4 transition-colors hover:text-foreground hover:underline"
+                className="transition-colors hover:text-foreground"
               >
-                Contact Sales →
+                Contact Sales
               </a>
-              <span className="h-4 w-px bg-border" />
-              <a
-                href="https://www.ycombinator.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 opacity-70 transition-opacity hover:opacity-100"
-              >
+              <span className="size-1 rounded-full bg-border" />
+              <div className="flex items-center gap-2 text-muted-foreground/70">
+                <span>Backed by</span>
                 <Image
                   src={ycombinator}
                   alt="Y Combinator"
-                  className="h-5 w-auto"
-                  width={100}
+                  height={24}
+                  width={24}
                 />
-              </a>
+                <span>Combinator</span>
+              </div>
             </div>
           </div>
         </div>
@@ -300,19 +295,18 @@ function CopyCommandButton() {
   return (
     <button
       onClick={copyToClipboard}
-      className={buttonVariants({
-        size: "default",
-        variant: "outline",
-        className:
-          "group relative flex h-12 items-center gap-2 rounded-xl border bg-background px-4 py-3 font-bold font-mono text-sm transition-all",
-      })}
+      className={cn(
+        "group flex h-10 items-center gap-2 rounded-md border border-border/60 bg-muted/30 px-4 font-mono text-sm transition-all hover:border-border hover:bg-muted/50",
+        // GeistMono.variable,
+      )}
     >
-      <span>$ npx assistant-ui init</span>
-      <div className="ml-2 flex h-5 w-5 items-center justify-center text-muted-foreground">
+      <span className="text-muted-foreground/70">$</span>
+      <span>npx assistant-ui init</span>
+      <div className="ml-1 flex size-4 items-center justify-center text-muted-foreground">
         {copied ? (
-          <CheckIcon className="h-3 w-3 text-green-500" />
+          <CheckIcon className="size-3.5 text-green-500" />
         ) : (
-          <CopyIcon className="h-3 w-3 opacity-70 transition-opacity group-hover:opacity-100" />
+          <CopyIcon className="size-3.5 opacity-50 transition-opacity group-hover:opacity-100" />
         )}
       </div>
     </button>
