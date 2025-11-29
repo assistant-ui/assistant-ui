@@ -112,6 +112,16 @@ const ThreadSuggestions: FC = () => {
           label: "like useState and useEffect",
           action: "Explain React hooks like useState and useEffect",
         },
+        {
+          title: "Write a SQL query",
+          label: "to find top customers",
+          action: "Write a SQL query to find top customers",
+        },
+        {
+          title: "Create a meal plan",
+          label: "for healthy weight loss",
+          action: "Create a meal plan for healthy weight loss",
+        },
       ].map((suggestedAction, index) => (
         <div
           key={`suggested-action-${suggestedAction.title}-${index}`}
