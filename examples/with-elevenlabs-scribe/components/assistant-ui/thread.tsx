@@ -96,8 +96,8 @@ const ThreadWelcomeSuggestions: FC = () => {
       <ThreadPrimitive.Suggestion
         className="flex max-w-sm grow basis-0 flex-col items-center justify-center rounded-lg border p-3 transition-colors ease-in hover:bg-muted/80"
         prompt="What is the weather in Tokyo?"
-        method="replace"
-        autoSend
+        send
+        clearComposer
       >
         <span className="line-clamp-2 text-ellipsis font-semibold text-sm">
           What is the weather in Tokyo?
@@ -106,8 +106,8 @@ const ThreadWelcomeSuggestions: FC = () => {
       <ThreadPrimitive.Suggestion
         className="flex max-w-sm grow basis-0 flex-col items-center justify-center rounded-lg border p-3 transition-colors ease-in hover:bg-muted/80"
         prompt="What is assistant-ui?"
-        method="replace"
-        autoSend
+        send
+        clearComposer
       >
         <span className="line-clamp-2 text-ellipsis font-semibold text-sm">
           What is assistant-ui?

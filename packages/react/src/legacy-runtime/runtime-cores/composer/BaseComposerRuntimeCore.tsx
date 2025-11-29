@@ -70,6 +70,13 @@ export abstract class BaseComposerRuntimeCore
     if (this._text === value) return;
 
     this._text = value;
+    // When dictation is active and the user manually edits the composer text,
+    // treat the new text as the updated base so speech results are appended
+    // instead of overwriting manual edits.
+    if (this._listening) {
+      this._dictationBaseText = value;
+      this._currentInterimText = "";
+    }
     this._notifySubscribers();
   }
 

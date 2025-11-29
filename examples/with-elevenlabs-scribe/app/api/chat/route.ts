@@ -20,7 +20,7 @@ export async function POST(req: Request) {
     stopWhen: stepCountIs(10),
     tools: {
       get_current_weather: tool({
-        name: "",
+        name: "get_current_weather",
         description: "Get the current weather",
         inputSchema: z.object({
           city: z.string(),

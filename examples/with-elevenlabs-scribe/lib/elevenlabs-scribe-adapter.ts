@@ -170,6 +170,19 @@ export class ElevenLabsScribeAdapter implements SpeechRecognitionAdapter {
       });
 
       connection.on(RealtimeEvents.CLOSE, () => {
+        const currentStatus = (
+          session as {
+            status: SpeechRecognitionAdapter.Status;
+          }
+        ).status;
+
+        if (currentStatus.type !== "ended") {
+          (session as { status: SpeechRecognitionAdapter.Status }).status = {
+            type: "ended",
+            reason: "stopped",
+          };
+        }
+
         const transcript = refs.getFullTranscript().trim();
         if (transcript) {
           for (const cb of callbacks.end) cb({ transcript });

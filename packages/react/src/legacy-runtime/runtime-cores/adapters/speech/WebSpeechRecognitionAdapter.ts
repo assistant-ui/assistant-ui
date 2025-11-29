@@ -96,7 +96,11 @@ export class WebSpeechRecognitionAdapter implements SpeechRecognitionAdapter {
       interimResults?: boolean;
     } = {},
   ) {
-    this._language = options.language ?? navigator.language;
+    const defaultLanguage =
+      typeof navigator !== "undefined" && navigator.language
+        ? navigator.language
+        : "en-US";
+    this._language = options.language ?? defaultLanguage;
     this._continuous = options.continuous ?? true;
     this._interimResults = options.interimResults ?? true;
   }
@@ -220,7 +224,10 @@ export class WebSpeechRecognitionAdapter implements SpeechRecognitionAdapter {
     });
 
     recognition.addEventListener("end", () => {
-      updateStatus({ type: "ended", reason: "stopped" });
+      const currentStatus = session.status;
+      if (currentStatus.type !== "ended") {
+        updateStatus({ type: "ended", reason: "stopped" });
+      }
       if (finalTranscript) {
         for (const cb of speechEndCallbacks)
           cb({ transcript: finalTranscript });
