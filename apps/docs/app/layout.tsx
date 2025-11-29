@@ -4,6 +4,7 @@ import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import Script from "next/script";
 import { Provider } from "./provider";
+import { cn } from "@/lib/utils";
 
 export const metadata = {
   title: {
@@ -17,7 +18,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   return (
     <html
       lang="en"
-      className={`${GeistSans.variable} ${GeistMono.variable}`}
+      className={cn(GeistSans.variable, GeistMono.variable)}
       suppressHydrationWarning
     >
       {/* <head>

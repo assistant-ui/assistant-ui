@@ -7,6 +7,7 @@ import { usePersistentBoolean } from "@/hooks/use-persistent-boolean";
 
 export const HomepageHiringBanner = () => {
   const pathname = usePathname();
+
   const [dismissed, setDismissed] = usePersistentBoolean(
     "homepage-hiring-banner-dismissed",
   );

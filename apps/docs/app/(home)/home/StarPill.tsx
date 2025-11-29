@@ -13,7 +13,7 @@ export function StarPill() {
   }, []);
 
   return (
-    <div className="flex justify-center">
+    <div className="mb-2 flex">
       <a
         className="rainbow-border after:-z-10 relative items-center justify-center rounded-full p-[1px] text-sm after:absolute after:inset-0 after:block after:rounded-full"
         href="https://github.com/assistant-ui/assistant-ui"
