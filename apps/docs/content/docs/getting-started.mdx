@@ -6,6 +6,7 @@ import { Step, Steps } from "fumadocs-ui/components/steps";
 import { Tab, Tabs } from "fumadocs-ui/components/tabs";
 import { Callout } from "fumadocs-ui/components/callout";
 import { Card, Cards } from "fumadocs-ui/components/card";
+import { InstallCommand } from "@/components/docs/install-command";
 
 ## Start with a new project
 
@@ -77,70 +78,7 @@ npm run dev
 
 ### Add assistant-ui
 
-<Tabs items={["With Tailwind (Recommended)", "Without Tailwind"]}>
-  <Tab>
-
-```sh npm2yarn
-npx assistant-ui add thread thread-list
-```
-
-  </Tab>
-  <Tab>
-     <Steps>
-        <Step>
-
-Add the following packages:
-
-```sh
-npm install \
-  @assistant-ui/react \
-  @assistant-ui/react-markdown \
-  @assistant-ui/styles \
-  @radix-ui/react-avatar \
-  @radix-ui/react-dialog \
-  @radix-ui/react-slot \
-  @radix-ui/react-tooltip \
-  class-variance-authority \
-  clsx \
-  lucide-react \
-  remark-gfm \
-  tw-animate-css \
-  zustand
-```
-
-        </Step>
-
-        <Step>
-
-Copy the following components into your project:
-
-{/* TODO: Build ComponentSource component */}
-{/* <ComponentSource component="button" /> */}
-{/* <ComponentSource component="tooltip" /> */}
-{/* <ComponentSource component="thread" /> */}
-{/* <ComponentSource component="attachment" /> */}
-{/* <ComponentSource component="tool-fallback" /> */}
-{/* <ComponentSource component="thread-list" /> */}
-{/* <ComponentSource component="markdown-text" /> */}
-{/* <ComponentSource component="tooltip-icon-button" /> */}
-{/* <ComponentSource component="utils" /> */}
-
-        </Step>
-
-        <Step>
-       The components above reference CSS class names like `aui-thread-root`, `aui-composer-input`, etc. These are normally replaced by our CLI with Tailwind class names, but in this case you'll use our pre-compiled CSS files without a need for Tailwind:
-
-```ts
-import "@assistant-ui/styles/index.css";
-import "@assistant-ui/styles/markdown.css";
-// import "@assistant-ui/styles/modal.css";  // for future reference, only if you use our modal component
-```
-
-        </Step>
-     </Steps>
-
-  </Tab>
-</Tabs>
+<InstallCommand shadcn={["thread", "thread-list"]} manualSetupInstructions />
 
   </Step>
   <Step>
@@ -150,51 +88,39 @@ import "@assistant-ui/styles/markdown.css";
 Install provider SDK:
 
 <Tabs groupId="provider" items={["OpenAI", "Anthropic", "Azure", "AWS", "Gemini", "GCP", "Groq", "Fireworks", "Cohere", "Ollama", "Chrome AI"]}>
-
-```sh title="Terminal" tab="OpenAI"
-npm install ai @assistant-ui/react-ai-sdk @ai-sdk/openai
-```
-
-```sh title="Terminal" tab="Anthropic"
-npm install ai @assistant-ui/react-ai-sdk @ai-sdk/anthropic
-```
-
-```sh title="Terminal" tab="Azure"
-npm install ai @assistant-ui/react-ai-sdk @ai-sdk/azure
-```
-
-```sh title="Terminal" tab="AWS"
-npm install ai @assistant-ui/react-ai-sdk @ai-sdk/amazon-bedrock
-```
-
-```sh title="Terminal" tab="Gemini"
-npm install ai @assistant-ui/react-ai-sdk @ai-sdk/google
-```
-
-```sh title="Terminal" tab="GCP"
-npm install ai @assistant-ui/react-ai-sdk @ai-sdk/google-vertex
-```
-
-```sh title="Terminal" tab="Groq"
-npm install ai @assistant-ui/react-ai-sdk @ai-sdk/openai
-```
-
-```sh title="Terminal" tab="Fireworks"
-npm install ai @assistant-ui/react-ai-sdk @ai-sdk/openai
-```
-
-```sh title="Terminal" tab="Cohere"
-npm install ai @assistant-ui/react-ai-sdk @ai-sdk/cohere
-```
-
-```sh title="Terminal" tab="Ollama"
-npm install ai @assistant-ui/react-ai-sdk ollama-ai-provider-v2
-```
-
-```sh title="Terminal" tab="Chrome AI"
-npm install ai @assistant-ui/react-ai-sdk chrome-ai
-```
-
+  <Tab>
+    <InstallCommand npm={["ai", "@assistant-ui/react-ai-sdk", "@ai-sdk/openai"]} />
+  </Tab>
+  <Tab>
+    <InstallCommand npm={["ai", "@assistant-ui/react-ai-sdk", "@ai-sdk/anthropic"]} />
+  </Tab>
+  <Tab>
+    <InstallCommand npm={["ai", "@assistant-ui/react-ai-sdk", "@ai-sdk/azure"]} />
+  </Tab>
+  <Tab>
+    <InstallCommand npm={["ai", "@assistant-ui/react-ai-sdk", "@ai-sdk/amazon-bedrock"]} />
+  </Tab>
+  <Tab>
+    <InstallCommand npm={["ai", "@assistant-ui/react-ai-sdk", "@ai-sdk/google"]} />
+  </Tab>
+  <Tab>
+    <InstallCommand npm={["ai", "@assistant-ui/react-ai-sdk", "@ai-sdk/google-vertex"]} />
+  </Tab>
+  <Tab>
+    <InstallCommand npm={["ai", "@assistant-ui/react-ai-sdk", "@ai-sdk/openai"]} />
+  </Tab>
+  <Tab>
+    <InstallCommand npm={["ai", "@assistant-ui/react-ai-sdk", "@ai-sdk/openai"]} />
+  </Tab>
+  <Tab>
+    <InstallCommand npm={["ai", "@assistant-ui/react-ai-sdk", "@ai-sdk/cohere"]} />
+  </Tab>
+  <Tab>
+    <InstallCommand npm={["ai", "@assistant-ui/react-ai-sdk", "ollama-ai-provider-v2"]} />
+  </Tab>
+  <Tab>
+    <InstallCommand npm={["ai", "@assistant-ui/react-ai-sdk", "chrome-ai"]} />
+  </Tab>
 </Tabs>
 
 Add an API endpoint:
@@ -478,7 +404,7 @@ const MyApp = () => {
 ```
 
 ```tsx title="/app/page.tsx" tab="AssistantModal"
-// run `npx shadcn@latest add "https://r.assistant-ui.com/assistant-modal"`
+// run `npx shadcn@latest add @assistant-ui/assistant-modal`
 
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/react-ai-sdk";
