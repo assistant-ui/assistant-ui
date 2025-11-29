@@ -1,10 +1,6 @@
 import type { FC, ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import icon from "@/public/favicon/icon.svg";
-import xIcon from "@/app/(home)/logos/x.svg";
-import githubIcon from "@/app/(home)/logos/github.svg";
-import discordIcon from "@/app/(home)/logos/discord.svg";
 
 export function Footer(): React.ReactElement {
   return (
@@ -16,8 +12,10 @@ export function Footer(): React.ReactElement {
             href="/"
           >
             <Image
-              src={icon}
+              src="/favicon/icon.svg"
               alt="logo"
+              width={28}
+              height={28}
               className="inline size-7 dark:hue-rotate-180 dark:invert"
             />
             <span className="font-medium text-2xl text-black dark:text-white">
@@ -31,8 +29,10 @@ export function Footer(): React.ReactElement {
               rel="noopener noreferrer"
             >
               <Image
-                src={xIcon}
+                src="/logos/x.svg"
                 alt="X icon"
+                width={20}
+                height={20}
                 className="inline size-5 opacity-30 transition-opacity hover:opacity-100 dark:hue-rotate-180 dark:invert"
               />
             </Link>
@@ -42,8 +42,10 @@ export function Footer(): React.ReactElement {
               rel="noopener noreferrer"
             >
               <Image
-                src={githubIcon}
+                src="/logos/github.svg"
                 alt="GitHub icon"
+                width={20}
+                height={20}
                 className="inline size-5 opacity-30 transition-opacity hover:opacity-100 dark:hue-rotate-180 dark:invert"
               />
             </Link>
@@ -53,8 +55,10 @@ export function Footer(): React.ReactElement {
               rel="noopener noreferrer"
             >
               <Image
-                src={discordIcon}
+                src="/logos/discord.svg"
                 alt="Discord icon"
+                width={20}
+                height={20}
                 className="inline size-5 opacity-30 transition-opacity hover:opacity-100 dark:hue-rotate-180 dark:invert"
               />
             </Link>
