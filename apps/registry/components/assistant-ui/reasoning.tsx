@@ -26,7 +26,6 @@ import {
 import { cn } from "@/lib/utils";
 
 const ANIMATION_DURATION = 200;
-const SHIMMER_DURATION = 1000;
 
 /**
  * Root collapsible container that manages open/closed state and scroll lock.
@@ -60,7 +59,6 @@ const ReasoningRoot: FC<
       style={
         {
           "--animation-duration": `${ANIMATION_DURATION}ms`,
-          "--shimmer-duration": `${SHIMMER_DURATION}ms`,
         } as React.CSSProperties
       }
     >
@@ -112,12 +110,7 @@ const ReasoningTrigger: FC<{ active: boolean; className?: string }> = ({
       {active ? (
         <span
           aria-hidden
-          className={cn(
-            "aui-reasoning-trigger-shimmer pointer-events-none absolute inset-0 bg-clip-text bg-no-repeat text-transparent motion-reduce:animate-none",
-            "animate-shimmer will-change-[background-position]",
-            "bg-size-[200%_100%]",
-            "bg-[linear-gradient(90deg,transparent_0%,transparent_40%,color-mix(in_oklch,var(--foreground)_75%,transparent)_56%,transparent_80%,transparent_100%)]",
-          )}
+          className="aui-reasoning-trigger-shimmer pointer-events-none absolute inset-0 shimmer motion-reduce:animate-none"
         >
           Reasoning
         </span>

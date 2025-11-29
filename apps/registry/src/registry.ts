@@ -100,9 +100,8 @@ export const registry: RegistryItem[] = [
     registryDependencies: [
       "collapsible",
       "https://r.assistant-ui.com/markdown-text",
-      "https://r.assistant-ui.com/shimmer-style",
     ],
-    dependencies: ["@assistant-ui/react", "lucide-react"],
+    dependencies: ["@assistant-ui/react", "lucide-react", "tw-shimmer"],
   },
   {
     name: "thread-list",
