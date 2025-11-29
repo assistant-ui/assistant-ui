@@ -1,59 +1,18 @@
 "use client";
 
-import { Shadcn } from "@/components/shadcn/Shadcn";
 import { Button, buttonVariants } from "@/components/ui/button";
 import Link from "next/link";
 import { TESTIMONIALS } from "@/components/testimonials/testimonials";
 import { DiscordLogoIcon } from "@radix-ui/react-icons";
-import { TestimonialContainer } from "../../components/testimonials/TestimonialContainer";
-import {
-  ArrowRight,
-  CheckIcon,
-  CopyIcon,
-  Cpu,
-  PanelsTopLeft,
-  Terminal,
-  Zap,
-} from "lucide-react";
+import { TestimonialContainer } from "@/components/testimonials/TestimonialContainer";
+import { ArrowRight } from "lucide-react";
 import { GlowingEffect } from "@/components/home/glowing-effect";
+import { FeatureHighlights } from "@/components/home/feature-highlights";
+import { Logos } from "@/components/home/logos";
+import { CopyCommandButton } from "@/components/home/copy-command-button";
+import { ExamplesShowcase } from "@/components/home/examples-showcase";
 import Image from "next/image";
-import { DocsRuntimeProvider } from "./DocsRuntimeProvider";
-import { Marquee } from "@/components/magicui/marquee";
-import { useMediaQuery } from "@/lib/useMediaQuery";
-import { StarPill } from "./home/StarPill";
-import { useState } from "react";
-import { cn } from "@/lib/utils";
-
-const FEATURE_CARDS = [
-  {
-    title: "Instant Chat UI",
-    description:
-      "Drop in a polished ChatGPT-style UX with theming and sensible defaults powered by shadcn/ui and Tailwind.",
-    icon: PanelsTopLeft,
-    iconClassName: "text-purple-400",
-  },
-  {
-    title: "State Management",
-    description:
-      "Optimized for streaming responses, interruptions, retries, and multi-turn conversations out of the box.",
-    icon: Cpu,
-    iconClassName: "text-blue-400",
-  },
-  {
-    title: "High Performance",
-    description:
-      "Optimized rendering and minimal bundle size keep your app responsive during streaming.",
-    icon: Zap,
-    iconClassName: "text-green-400",
-  },
-  {
-    title: "Works Everywhere",
-    description:
-      "Compatible with Vercel AI SDK, LangChain, or any LLM provider. React-based.",
-    icon: Terminal,
-    iconClassName: "text-orange-400",
-  },
-] as const;
+import { StarPill } from "@/components/home/star-pill";
 
 export default function HomePage() {
   return (
@@ -100,25 +59,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <div className="relative w-full">
-        <div className="flex h-[600px] w-full flex-col overflow-hidden rounded-xl border bg-background/50 shadow-xl backdrop-blur-sm">
-          <DocsRuntimeProvider>
-            <Shadcn />
-          </DocsRuntimeProvider>
-        </div>
-
-        <div className="-bottom-6 -right-6 -z-10 absolute h-full w-full rounded-xl bg-linear-to-br from-primary/5 to-secondary/5 blur-2xl" />
-      </div>
-
-      <Button
-        className="mx-auto border bg-background text-foreground shadow-sm hover:bg-background/90"
-        size="lg"
-        asChild
-      >
-        <Link href="/examples">
-          Explore more examples <ArrowRight className="ml-2 size-4" />
-        </Link>
-      </Button>
+      <ExamplesShowcase />
 
       <FeatureHighlights />
 
@@ -191,121 +132,5 @@ export default function HomePage() {
         </Button>
       </div>
     </main>
-  );
-}
-
-function FeatureHighlights() {
-  return (
-    <section className="flex flex-col gap-6">
-      <div className="flex flex-col items-center gap-2 text-center">
-        <h2 className="font-medium text-3xl tracking-tight">
-          Everything you need to ship AI chat
-        </h2>
-        <p className="text-muted-foreground">
-          Production-ready components and state management to build AI chat,
-          faster.
-        </p>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {FEATURE_CARDS.map((feature) => {
-          const Icon = feature.icon;
-          return (
-            <div
-              key={feature.title}
-              className="flex flex-col gap-4 rounded-xl border bg-muted/20 p-6 shadow-sm transition-shadow hover:shadow-md"
-            >
-              <div className="flex size-12 items-center justify-center rounded-lg border bg-background shadow-sm">
-                <Icon className={cn("size-6", feature.iconClassName)} />
-              </div>
-              <div className="flex flex-col gap-2">
-                <h3 className="font-semibold text-xl tracking-tight">
-                  {feature.title}
-                </h3>
-                <p className="text-muted-foreground text-sm leading-relaxed">
-                  {feature.description}
-                </p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
-const Logos = () => {
-  const isMobile = useMediaQuery("(max-width: 1080px)");
-
-  const content = (
-    <div className="flex w-full items-center justify-around">
-      <Image
-        src="/logos/cust/langchain.svg"
-        alt="Langchain"
-        width={100}
-        height={28}
-        className="h-7 w-auto opacity-50 invert transition-opacity hover:opacity-100 dark:invert-0"
-      />
-      <Image
-        src="/logos/cust/athenaintel.png"
-        alt="Athena Intelligence"
-        width={100}
-        height={44}
-        className="h-11 w-auto opacity-50 invert transition-opacity hover:opacity-100 dark:invert-0"
-      />
-      <Image
-        src="/logos/cust/browseruse.svg"
-        alt="Browseruse"
-        width={100}
-        height={26}
-        className="h-6 w-auto opacity-50 invert transition-opacity hover:opacity-100 dark:invert-0"
-      />
-      <Image
-        src="/logos/cust/stack.svg"
-        alt="Stack"
-        width={100}
-        height={22}
-        className="h-5 w-auto opacity-50 invert transition-opacity hover:opacity-100 dark:invert-0"
-      />
-    </div>
-  );
-
-  if (isMobile) {
-    return (
-      <div className="w-full overflow-clip">
-        <Marquee repeat={4}>
-          <div className="flex w-[1000px]">{content}</div>
-        </Marquee>
-      </div>
-    );
-  }
-
-  return content;
-};
-
-function CopyCommandButton() {
-  const [copied, setCopied] = useState(false);
-
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText("npx assistant-ui init");
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <button
-      onClick={copyToClipboard}
-      className="group flex h-10 items-center gap-2 rounded-md border border-border/60 bg-muted/30 px-4 font-mono text-sm transition-all hover:border-border hover:bg-muted/50"
-    >
-      <span className="text-muted-foreground/70">$</span>
-      <span>npx assistant-ui init</span>
-      <div className="ml-1 flex size-4 items-center justify-center text-muted-foreground">
-        {copied ? (
-          <CheckIcon className="size-3.5 text-green-500" />
-        ) : (
-          <CopyIcon className="size-3.5 opacity-50 transition-opacity group-hover:opacity-100" />
-        )}
-      </div>
-    </button>
   );
 }
