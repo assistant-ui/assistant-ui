@@ -32,15 +32,26 @@ const HIGHLIGHT_STYLES = `
   }
 `;
 
+function HighlightStyles() {
+  return (
+    <style jsx global>
+      {HIGHLIGHT_STYLES}
+    </style>
+  );
+}
+
 export default function TwShimmerPage() {
   const [copied, setCopied] = useState(false);
   const [anglesAligned, setAnglesAligned] = useState(true);
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  const copyToClipboard = useCallback(async (text: string) => {
+    if (typeof navigator === "undefined" || !navigator.clipboard) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {}
+  }, []);
 
   const autoWidthRef = useCallback((node: HTMLElement | null): void => {
     if (!node) return;
@@ -51,6 +62,7 @@ export default function TwShimmerPage() {
 
   return (
     <div className="container max-w-7xl space-y-16 px-4 py-12">
+      <HighlightStyles />
       <div
         className="flex flex-col items-center space-y-6 text-center shimmer-speed-400"
         ref={autoWidthRef}
@@ -168,7 +180,7 @@ export default function TwShimmerPage() {
           <Box>
             <BoxTitle
               title="shimmer-speed-{value}"
-              description="Animation speed in pixels per second. Default: 100px/s"
+              description="Animation speed in pixels per second. Default: 100px/s for text shimmer. Background shimmer defaults to 500px/s."
             />
             <BoxCode>
               <CodeBlock
@@ -209,7 +221,7 @@ export default function TwShimmerPage() {
               <p className="text-sm text-muted-foreground">
                 Without this variable, animation speed varies by element width.
                 <br />
-                Use JS to set element width for consistent scroll speed.
+                Use JS to set element width for consistent shimmer speed.
               </p>
             </BoxContent>
             <BoxContent>
@@ -255,7 +267,7 @@ export default function TwShimmerPage() {
           <Box>
             <BoxTitle
               title="shimmer-color-{color}"
-              description="Shimmer highlight color. Uses Tailwind color palette. Default: currentColor"
+              description="Shimmer highlight color. Uses the Tailwind color palette. Default: black for text in light mode (white in dark mode), white for background shimmer."
             />
             <BoxCode>
               <CodeBlock
@@ -336,7 +348,7 @@ export default function TwShimmerPage() {
           <Box>
             <BoxTitle
               title="shimmer-bg"
-              description="Background shimmer for skeleton loaders and non-text elements."
+              description="Background shimmer for skeleton loaders and non-text elements. Defaults: 600px width, 500px/s speed."
             />
             <BoxCode>
               <CodeBlock
@@ -357,14 +369,14 @@ export default function TwShimmerPage() {
           <Box>
             <BoxTitle
               title="Skeleton Card Example"
-              description="Set --shimmer-width on the container to match the container width. All children share the same animation."
+              description="Set --shimmer-width on the container to match its width. All children share the same animation timing."
             />
             <BoxCode>
               <CodeBlock
                 language="tsx"
                 code={`<div
   class="flex gap-3"
->
+  >
   <div class="shimmer-bg size-10 shrink-0 rounded-full bg-muted" />
   <div class="flex-1 space-y-1">
     <div class="shimmer-bg h-4 w-1/4 rounded bg-muted" />
@@ -587,30 +599,25 @@ function CodeBlock({
   }
 
   return (
-    <>
-      <style jsx global>
-        {HIGHLIGHT_STYLES}
-      </style>
-      <SyntaxHighlighter
-        language={language}
-        code={code}
-        {...metaProps}
-        addDefaultStyles={false}
-        className="[--padding-left:1.5rem] [&_code]:block [&_pre]:m-0 [&_pre]:rounded-none [&_pre]:bg-transparent! [&_pre]:px-0 [&_pre]:py-4"
-        transformers={[
-          transformerMetaHighlight(),
-          transformerMetaWordHighlight(),
-        ]}
-        components={{
-          Pre: ({ className, ...props }: any) => (
-            <pre className={className} {...props} />
-          ),
-          Code: ({ className, ...props }: any) => (
-            <code className={className} {...props} />
-          ),
-        }}
-      />
-    </>
+    <SyntaxHighlighter
+      language={language}
+      code={code}
+      {...metaProps}
+      addDefaultStyles={false}
+      className="[--padding-left:1.5rem] [&_code]:block [&_pre]:m-0 [&_pre]:rounded-none [&_pre]:bg-transparent! [&_pre]:px-0 [&_pre]:py-4"
+      transformers={[
+        transformerMetaHighlight(),
+        transformerMetaWordHighlight(),
+      ]}
+      components={{
+        Pre: ({ className, ...props }: any) => (
+          <pre className={className} {...props} />
+        ),
+        Code: ({ className, ...props }: any) => (
+          <code className={className} {...props} />
+        ),
+      }}
+    />
   );
 }
 
