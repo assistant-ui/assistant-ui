@@ -12,19 +12,23 @@ import { Scribe, RealtimeEvents } from "@elevenlabs/client";
 export class ElevenLabsScribeAdapter implements SpeechRecognitionAdapter {
   private tokenEndpoint: string;
   private languageCode: string;
+  public disableInputDuringListening: boolean;
 
   constructor(options: {
-    /**
-     * Backend endpoint that returns a single-use token
-     */
     tokenEndpoint: string;
-    /**
-     * Language code for transcription (e.g., "en", "zh", "ja")
-     */
     languageCode?: string;
+    /**
+     * Whether to disable text input while listening.
+     * ElevenLabs Scribe returns cumulative transcripts that conflict
+     * with simultaneous typing.
+     * @default true
+     */
+    disableInputDuringListening?: boolean;
   }) {
     this.tokenEndpoint = options.tokenEndpoint;
     this.languageCode = options.languageCode ?? "en";
+    this.disableInputDuringListening =
+      options.disableInputDuringListening ?? true;
   }
 
   listen(): SpeechRecognitionAdapter.Session {

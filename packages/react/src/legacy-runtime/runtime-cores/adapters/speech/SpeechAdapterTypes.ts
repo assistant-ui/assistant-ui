@@ -110,4 +110,12 @@ export namespace SpeechRecognitionAdapter {
 
 export type SpeechRecognitionAdapter = {
   listen: () => SpeechRecognitionAdapter.Session;
+
+  /**
+   * Whether to disable text input while listening.
+   * Some adapters (like ElevenLabs Scribe) return cumulative transcripts
+   * that conflict with simultaneous typing.
+   * @default false
+   */
+  disableInputDuringListening?: boolean;
 };

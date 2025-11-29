@@ -24,6 +24,8 @@ export type ListeningState = {
    * transcript separately.
    */
   readonly transcript?: string;
+  /** Whether text input is disabled during this listening session. */
+  readonly inputDisabled?: boolean;
 };
 
 export type ComposerRuntimeCore = Readonly<{

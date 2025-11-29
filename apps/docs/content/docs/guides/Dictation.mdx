@@ -27,7 +27,7 @@ const runtime = useChatRuntime({
   adapters: {
     speechRecognition: new WebSpeechRecognitionAdapter({
       // Optional configuration
-      language: "en-US",        // Language for recognition (default: browser language)
+      language: "en-US",         // Language for recognition (default: browser language)
       continuous: true,          // Keep listening after user stops (default: true)
       interimResults: true,      // Return interim results (default: true)
     }),
@@ -78,6 +78,25 @@ if (WebSpeechRecognitionAdapter.isSupported()) {
 }
 ```
 
+## Disabling Input During Dictation
+
+Some speech recognition services (like ElevenLabs Scribe) return cumulative transcripts that conflict with simultaneous typing. You can disable the text input during dictation:
+
+```tsx
+import type { SpeechRecognitionAdapter } from "@assistant-ui/react";
+
+class MyAdapter implements SpeechRecognitionAdapter {
+  // Set to true to disable typing while listening
+  disableInputDuringListening = true;
+  
+  listen() { /* ... */ }
+}
+```
+
+<Callout type="info">
+  When a message is sent during an active dictation session, the session is automatically stopped.
+</Callout>
+
 ## Custom Adapters
 
 You can create custom adapters to integrate with any speech recognition service by implementing the `SpeechRecognitionAdapter` interface.
@@ -88,6 +107,9 @@ You can create custom adapters to integrate with any speech recognition service 
 import type { SpeechRecognitionAdapter } from "@assistant-ui/react";
 
 class MyCustomRecognitionAdapter implements SpeechRecognitionAdapter {
+  // Optional: disable text input while listening (default: false)
+  disableInputDuringListening?: boolean;
+  
   listen(): SpeechRecognitionAdapter.Session {
     // Return a session object that manages the speech recognition
     return {
@@ -179,13 +201,18 @@ import { Scribe, RealtimeEvents } from "@elevenlabs/client";
 export class ElevenLabsScribeAdapter implements SpeechRecognitionAdapter {
   private tokenEndpoint: string;
   private languageCode: string;
+  
+  // ElevenLabs returns cumulative transcripts, so we disable typing during dictation
+  public disableInputDuringListening: boolean;
 
   constructor(options: {
     tokenEndpoint: string;
     languageCode?: string;
+    disableInputDuringListening?: boolean;
   }) {
     this.tokenEndpoint = options.tokenEndpoint;
     this.languageCode = options.languageCode ?? "en";
+    this.disableInputDuringListening = options.disableInputDuringListening ?? true;
   }
 
   listen(): SpeechRecognitionAdapter.Session {
@@ -324,6 +351,7 @@ const runtime = useChatRuntime({
     speechRecognition: new ElevenLabsScribeAdapter({
       tokenEndpoint: "/api/scribe-token",
       languageCode: "en", // Optional: supports 90+ languages
+      disableInputDuringListening: true, // Default: true (recommended for ElevenLabs)
     }),
   },
 });

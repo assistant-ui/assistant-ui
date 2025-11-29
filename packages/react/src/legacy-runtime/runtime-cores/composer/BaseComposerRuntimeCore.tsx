@@ -126,6 +126,11 @@ export abstract class BaseComposerRuntimeCore
   }
 
   public async send() {
+    if (this._listeningSession) {
+      this._listeningSession.cancel();
+      this._cleanupListening();
+    }
+
     const adapter = this.getAttachmentAdapter();
     const attachments =
       adapter && this.attachments.length > 0
@@ -214,12 +219,10 @@ export abstract class BaseComposerRuntimeCore
     this._notifySubscribers();
   }
 
-  // Speech Recognition (Dictation)
   private _listening: ListeningState | undefined;
   private _listeningSession: SpeechRecognitionAdapter.Session | undefined;
   private _listeningUnsubscribes: Unsubscribe[] = [];
   private _dictationBaseText = "";
-  private _dictationUserText = "";
   private _currentInterimText = "";
 
   public get listening(): ListeningState | undefined {
@@ -232,7 +235,6 @@ export abstract class BaseComposerRuntimeCore
       throw new Error("Speech recognition adapter not configured");
     }
 
-    // Clean up existing session to prevent race conditions
     if (this._listeningSession) {
       for (const unsub of this._listeningUnsubscribes) {
         unsub();
@@ -243,43 +245,28 @@ export abstract class BaseComposerRuntimeCore
       this._listeningSession = undefined;
     }
 
+    const inputDisabled = adapter.disableInputDuringListening ?? false;
+
     this._dictationBaseText = this._text;
-    this._dictationUserText = "";
     this._currentInterimText = "";
 
     const session = adapter.listen();
     this._listeningSession = session;
-    this._listening = { status: session.status };
+    this._listening = { status: session.status, inputDisabled };
     this._notifySubscribers();
 
     const unsubSpeech = session.onSpeech((result) => {
       const isFinal = result.isFinal !== false;
 
-      // Detect user-typed text added after our last known state
-      const expectedText =
-        this._dictationBaseText +
-        this._dictationUserText +
-        this._currentInterimText;
-      if (this._text.startsWith(expectedText)) {
-        this._dictationUserText += this._text.slice(expectedText.length);
-      }
-
-      const textBeforeNewContent =
-        this._dictationBaseText + this._dictationUserText;
       const needsSeparator =
-        textBeforeNewContent &&
-        !textBeforeNewContent.endsWith(" ") &&
+        this._dictationBaseText &&
+        !this._dictationBaseText.endsWith(" ") &&
         result.transcript;
       const separator = needsSeparator ? " " : "";
 
       if (isFinal) {
-        // Commit: base + userTyped + finalResult
         this._dictationBaseText =
-          this._dictationBaseText +
-          this._dictationUserText +
-          separator +
-          result.transcript;
-        this._dictationUserText = "";
+          this._dictationBaseText + separator + result.transcript;
         this._currentInterimText = "";
         this._text = this._dictationBaseText;
 
@@ -289,12 +276,8 @@ export abstract class BaseComposerRuntimeCore
         }
         this._notifySubscribers();
       } else {
-        // Interim: base + userTyped + interim (without modifying base)
         this._currentInterimText = separator + result.transcript;
-        this._text =
-          this._dictationBaseText +
-          this._dictationUserText +
-          this._currentInterimText;
+        this._text = this._dictationBaseText + this._currentInterimText;
 
         if (this._listening) {
           this._listening = {
@@ -310,8 +293,12 @@ export abstract class BaseComposerRuntimeCore
     const unsubStart = session.onSpeechStart(() => {
       const currentTranscript = this._listening?.transcript;
       this._listening = currentTranscript
-        ? { status: { type: "running" }, transcript: currentTranscript }
-        : { status: { type: "running" } };
+        ? {
+            status: { type: "running" },
+            transcript: currentTranscript,
+            inputDisabled,
+          }
+        : { status: { type: "running" }, inputDisabled };
       this._notifySubscribers();
     });
     this._listeningUnsubscribes.push(unsubStart);
@@ -321,7 +308,6 @@ export abstract class BaseComposerRuntimeCore
     });
     this._listeningUnsubscribes.push(unsubEnd);
 
-    // Poll status as fallback for error handling
     const statusInterval = setInterval(() => {
       if (session.status.type === "ended") {
         this._cleanupListening();
@@ -333,7 +319,7 @@ export abstract class BaseComposerRuntimeCore
   public stopListening(): void {
     if (!this._listeningSession) return;
 
-    this._listeningSession.stop().catch(() => {
+    this._listeningSession.stop().finally(() => {
       this._cleanupListening();
     });
   }
@@ -347,7 +333,6 @@ export abstract class BaseComposerRuntimeCore
     this._listeningSession = undefined;
     this._listening = undefined;
     this._dictationBaseText = "";
-    this._dictationUserText = "";
     this._currentInterimText = "";
     this._notifySubscribers();
   }
