@@ -102,6 +102,9 @@ export const registry: RegistryItem[] = [
       "https://r.assistant-ui.com/markdown-text",
     ],
     dependencies: ["@assistant-ui/react", "lucide-react", "tw-shimmer"],
+    css: {
+      "@import": "tw-shimmer",
+    },
   },
   {
     name: "thread-list",
