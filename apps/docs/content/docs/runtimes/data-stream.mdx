@@ -60,7 +60,7 @@ export default function ChatPage() {
 Your backend endpoint should accept POST requests and return data stream responses:
 
 ```typescript title="app/api/chat/route.ts"
-import { DataStreamResponse } from "assistant-stream";
+import { ObjectStreamResponse } from "assistant-stream";
 
 export async function POST(request: Request) {
   const { messages, tools, system } = await request.json();
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
     system,
   });
 
-  return new DataStreamResponse(stream);
+  return new ObjectStreamResponse(stream);
 }
 ```
 
