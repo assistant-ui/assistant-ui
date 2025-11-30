@@ -270,10 +270,8 @@ export function useAssistantClient(): AssistantClient;
 export function useAssistantClient(scopes: ScopesInput): AssistantClient;
 export function useAssistantClient(scopes?: ScopesInput): AssistantClient {
   if (scopes) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
     return useExtendedAssistantClientImpl(scopes);
   } else {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
     return useAssistantContextValue();
   }
 }

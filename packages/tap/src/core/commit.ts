@@ -38,24 +38,18 @@ export function commitRender<R, P>(
           effectCell.mounted = false;
         }
       }
+      const cleanup = task.effect();
 
-      try {
-        const cleanup = task.effect();
-
-        if (cleanup !== undefined && typeof cleanup !== "function") {
-          throw new Error(
-            "An effect function must either return a cleanup function or nothing. " +
-              `Received: ${typeof cleanup}`,
-          );
-        }
-
-        effectCell.mounted = true;
-        effectCell.cleanup =
-          typeof cleanup === "function" ? cleanup : undefined;
-        effectCell.deps = task.deps;
-      } catch (error) {
-        throw error;
+      if (cleanup !== undefined && typeof cleanup !== "function") {
+        throw new Error(
+          "An effect function must either return a cleanup function or nothing. " +
+            `Received: ${typeof cleanup}`,
+        );
       }
+
+      effectCell.mounted = true;
+      effectCell.cleanup = typeof cleanup === "function" ? cleanup : undefined;
+      effectCell.deps = task.deps;
     }
   });
 }

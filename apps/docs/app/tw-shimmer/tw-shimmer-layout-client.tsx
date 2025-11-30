@@ -35,7 +35,7 @@ export function TwShimmerLayoutClient({
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-50 w-full border-b border-dashed border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="sticky top-0 z-50 w-full border-border/40 border-b border-dashed bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-14 max-w-screen-2xl items-center">
           <div className="mr-4 flex">
             <Link href="/" className="flex items-center space-x-2">
@@ -64,8 +64,8 @@ export function TwShimmerLayoutClient({
                 onClick={toggleTheme}
                 className="h-9 w-9"
               >
-                <Sun className="size-4 scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
-                <Moon className="absolute size-4 scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
+                <Sun className="dark:-rotate-90 size-4 rotate-0 scale-100 transition-all dark:scale-0" />
+                <Moon className="absolute size-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
                 <span className="sr-only">Toggle theme</span>
               </Button>
               <Link
@@ -83,7 +83,7 @@ export function TwShimmerLayoutClient({
       </header>
       <main className="flex-1">{children}</main>
       <footer className="border-t border-dashed py-6 md:py-0">
-        <div className="container flex h-14 max-w-screen-2xl items-center justify-between text-sm text-muted-foreground">
+        <div className="container flex h-14 max-w-screen-2xl items-center justify-between text-muted-foreground text-sm">
           <p>
             By{" "}
             <Link

@@ -8,7 +8,7 @@ import { GithubIcon } from "lucide-react";
 import { getMDXComponents } from "@/mdx-components";
 import { DocsRuntimeProvider } from "@/app/(home)/DocsRuntimeProvider";
 import Link from "next/link";
-import { ExamplesNavbar } from "@/components/examples";
+import { ExamplesNavbar } from "@/components/examples/ExamplesNavbar";
 import { INTERNAL_EXAMPLES } from "@/lib/examples";
 
 // Helper functions to eliminate code duplication
@@ -109,7 +109,7 @@ export default async function Page(props: {
         <ExamplesNavbar />
         <DocsBody>
           <header className="mt-7 mb-28 text-center">
-            <h1 className="mt-4 text-5xl font-bold">{page.data.title}</h1>
+            <h1 className="mt-4 font-bold text-5xl">{page.data.title}</h1>
           </header>
           <DocsRuntimeProvider>
             <page.data.body components={mdxComponents} />

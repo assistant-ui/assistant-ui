@@ -1,5 +1,4 @@
 import { Box, Code, Table, Text } from "@radix-ui/themes";
-import React from "react";
 
 type KeyboardDef = {
   attribute: string;

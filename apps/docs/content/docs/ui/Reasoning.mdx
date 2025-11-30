@@ -3,7 +3,7 @@ title: Reasoning
 ---
 
 import { Steps, Step } from "fumadocs-ui/components/steps";
-import { Tab, Tabs } from "fumadocs-ui/components/tabs";
+import { InstallCommand } from "@/components/docs/install-command";
 
 ## Overview
 
@@ -16,29 +16,7 @@ The Reasoning component displays AI reasoning or thinking messages in a collapsi
 
 ### Add `reasoning`
 
-<Tabs items={["assistant-ui", "shadcn (namespace)", "shadcn"]}>
-  <Tab>
-
-```sh
-npx assistant-ui@latest add reasoning
-```
-
-  </Tab>
-  <Tab>
-
-```sh
-npx shadcn@latest add @assistant-ui/reasoning
-```
-
-  </Tab>
-  <Tab>
-
-```sh
-npx shadcn@latest add "https://r.assistant-ui.com/reasoning"
-```
-
-  </Tab>
-</Tabs>
+<InstallCommand shadcn={["reasoning"]} />
 
 This adds a `/components/assistant-ui/reasoning.tsx` file to your project, which you can adjust as needed.
 

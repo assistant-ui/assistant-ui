@@ -1,0 +1,54 @@
+name: Deploy DevTools Frame
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - apps/devtools-frame/**
+      - packages/devtools/**
+      - .github/workflows/devtools-frame.yaml
+
+permissions:
+  contents: read
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_DEVTOOLS_APP_PROJECT_ID }}
+
+jobs:
+  deploy-production:
+    name: Deploy Production
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: "pnpm"
+
+      - name: Cache turbo build setup
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.ref }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-${{ github.ref }}-
+            ${{ runner.os }}-turbo-
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Deploy Project Artifacts to Vercel
+        run: vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }}

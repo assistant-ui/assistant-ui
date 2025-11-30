@@ -605,9 +605,7 @@ export class RemoteThreadListThreadListRuntimeCore
   private useBoundIds = create<string[]>(() => []);
 
   public __internal_RenderComponent: FC = () => {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
     const id = useId();
-    // eslint-disable-next-line react-hooks/rules-of-hooks
     useEffect(() => {
       this.useBoundIds.setState((s) => [...s, id], true);
       return () => {

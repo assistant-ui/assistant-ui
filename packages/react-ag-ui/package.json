@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-ag-ui",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -19,7 +19,6 @@
   "sideEffects": false,
   "scripts": {
     "build": "tsx scripts/build.mts",
-    "lint": "eslint .",
     "test": "vitest",
     "test:run": "vitest run"
   },
@@ -28,7 +27,7 @@
     "assistant-stream": "workspace:*"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.11.41",
+    "@assistant-ui/react": "^0.11.47",
     "@types/react": "*",
     "react": "^18 || ^19 || ^19.0.0-rc"
   },
@@ -41,12 +40,10 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/node": "^24.10.1",
-    "@types/react": "^19.2.5",
-    "eslint": "^9",
-    "eslint-config-next": "16.0.3",
+    "@types/react": "^19.2.7",
     "react": "19.2.0",
     "tsx": "^4.20.6",
-    "vitest": "^4.0.10",
+    "vitest": "^4.0.14",
     "jsdom": "^27.2.0"
   },
   "publishConfig": {

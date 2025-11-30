@@ -260,7 +260,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
 
               if (toolCallControllers.has(toolCallId))
                 throw new Error(
-                  "Encountered duplicate tool call id: " + toolCallId,
+                  `Encountered duplicate tool call id: ${toolCallId}`,
                 );
 
               const toolCallController = ctrl.addToolCallPart({
@@ -278,7 +278,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
               const toolCallController = toolCallControllers.get(toolCallId);
               if (!toolCallController)
                 throw new Error(
-                  "Encountered tool call with unknown id: " + toolCallId,
+                  `Encountered tool call with unknown id: ${toolCallId}`,
                 );
               toolCallController.argsText.append(argsTextDelta);
               break;
@@ -289,7 +289,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
               const toolCallController = toolCallControllers.get(toolCallId);
               if (!toolCallController)
                 throw new Error(
-                  "Encountered tool call result with unknown id: " + toolCallId,
+                  `Encountered tool call result with unknown id: ${toolCallId}`,
                 );
               toolCallController.setResponse({
                 artifact,

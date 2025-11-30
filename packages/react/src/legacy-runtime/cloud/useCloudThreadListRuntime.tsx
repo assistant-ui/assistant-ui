@@ -26,6 +26,7 @@ export const useCloudThreadListRuntime = ({
   const runtime = useRemoteThreadListRuntime({
     runtimeHook: runtimeHook,
     adapter,
+    allowNesting: true,
   });
 
   return runtime;

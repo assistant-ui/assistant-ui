@@ -8,7 +8,7 @@ export default function Page(): React.ReactElement {
 
   return (
     <main className="mx-auto w-full max-w-screen-sm p-4 py-12">
-      <h1 className="mb-4 px-4 pb-2 text-4xl font-bold">assistant-ui Blog</h1>
+      <h1 className="mb-4 px-4 pb-2 font-bold text-4xl">assistant-ui Blog</h1>
       <div className="flex flex-col">
         {posts.map((post) => (
           <Link
@@ -18,7 +18,7 @@ export default function Page(): React.ReactElement {
           >
             <p className="font-medium">{post.data.title}</p>
             {post.data.date && (
-              <p className="mt-auto pt-2 text-xs text-muted-foreground">
+              <p className="mt-auto pt-2 text-muted-foreground text-xs">
                 {post.data.date.toDateString()}
               </p>
             )}

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   createAssistantStreamController,
-  ToolCallStreamController,
+  type ToolCallStreamController,
   ToolResponse,
   unstable_toolResultStream,
   type Tool,
@@ -39,7 +39,8 @@ type UseToolInvocationsParams = {
 
 export type ToolExecutionStatus =
   | { type: "executing" }
-  | { type: "interrupt"; payload: { type: "human"; payload: unknown } };
+  | { type: "interrupt"; payload: { type: "human"; payload: unknown } }
+  | { type: "cancelled"; reason: string };
 
 export function useToolInvocations({
   state,
@@ -131,7 +132,7 @@ export function useToolInvocations({
   });
 
   const ignoredToolIds = useRef<Set<string>>(new Set());
-  const isInititialState = useRef(true);
+  const isInitialState = useRef(true);
 
   useEffect(() => {
     const processMessages = (
@@ -140,7 +141,7 @@ export function useToolInvocations({
       messages.forEach((message) => {
         message.content.forEach((content) => {
           if (content.type === "tool-call") {
-            if (isInititialState.current) {
+            if (isInitialState.current) {
               ignoredToolIds.current.add(content.toolCallId);
             } else {
               if (ignoredToolIds.current.has(content.toolCallId)) {
@@ -166,7 +167,10 @@ export function useToolInvocations({
                   if (process.env["NODE_ENV"] !== "production") {
                     console.warn(
                       "argsText updated after controller was closed:",
-                      { previous: lastState.argsText, next: content.argsText },
+                      {
+                        previous: lastState.argsText,
+                        next: content.argsText,
+                      },
                     );
                   }
                 } else {
@@ -225,8 +229,8 @@ export function useToolInvocations({
 
     processMessages(state.messages);
 
-    if (isInititialState.current) {
-      isInititialState.current = false;
+    if (isInitialState.current) {
+      isInitialState.current = false;
     }
   }, [state, controller, onResult]);
 
@@ -244,7 +248,7 @@ export function useToolInvocations({
   return {
     reset: () => {
       abort();
-      isInititialState.current = true;
+      isInitialState.current = true;
     },
     abort,
     resume: (toolCallId: string, payload: unknown) => {

@@ -4,8 +4,7 @@
   "private": true,
   "scripts": {
     "build": "tsx scripts/build-extension.mts",
-    "dev": "NODE_ENV=development tsx scripts/build-extension.mts --watch",
-    "lint": "eslint ."
+    "dev": "NODE_ENV=development tsx scripts/build-extension.mts --watch"
   },
   "dependencies": {
     "@assistant-ui/react-devtools": "workspace:*",
@@ -14,7 +13,7 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/chrome": "^0.1.30",
+    "@types/chrome": "^0.1.31",
     "@types/node": "^24.10.1",
     "@types/webextension-polyfill": "^0.12.4",
     "esbuild": "^0.27.0",

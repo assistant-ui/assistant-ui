@@ -23,15 +23,15 @@ const BrowserAlertTool = () => {
     },
     render: ({ args, result }) => (
       <div className="mt-3 w-full max-w-[var(--thread-max-width)] rounded-lg border px-4 py-3 text-sm">
-        <p className="text-muted-foreground font-semibold">browser_alert</p>
+        <p className="font-semibold text-muted-foreground">browser_alert</p>
         <p className="mt-1">
           Requested alert with message:
-          <span className="text-foreground ml-1 font-mono">
+          <span className="ml-1 font-mono text-foreground">
             {JSON.stringify(args.message)}
           </span>
         </p>
         {result?.status === "shown" && (
-          <p className="text-foreground/70 mt-2 text-xs">
+          <p className="mt-2 text-foreground/70 text-xs">
             Alert displayed in this tab.
           </p>
         )}

@@ -131,15 +131,10 @@ const migrateAssistantUI = createTransformer(({ j, root, markAsChanged }) => {
     .forEach((path: any) => {
       removedMarkdownPlugin = true;
       const parent = path.parentPath;
-      if (
-        parent &&
-        parent.value &&
-        parent.value.type === "VariableDeclarator"
-      ) {
+      if (parent?.value && parent.value.type === "VariableDeclarator") {
         const varDecl = parent.parentPath;
         if (
-          varDecl &&
-          varDecl.value.declarations &&
+          varDecl?.value.declarations &&
           varDecl.value.declarations.length === 1
         ) {
           j(varDecl).remove();
@@ -170,8 +165,7 @@ const migrateAssistantUI = createTransformer(({ j, root, markAsChanged }) => {
       markAsChanged();
       if (removedMarkdownPlugin) {
         if (
-          path.parentPath &&
-          path.parentPath.value &&
+          path.parentPath?.value &&
           path.parentPath.value.type === "CallExpression" &&
           path.parentPath.value.arguments.length > 0
         ) {

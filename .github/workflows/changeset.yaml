@@ -1,25 +1,28 @@
 name: Changesets
+
 on:
   push:
     branches:
       - main
 
-concurrency: ${{ github.workflow }}-${{ github.ref }}
-
 permissions:
-  id-token: write
   contents: write
   pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   CI: true
 
 jobs:
   version:
-    runs-on: ubuntu-latest
+    name: Create Version PR
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Checkout code repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
@@ -27,29 +30,58 @@ jobs:
         uses: pnpm/action-setup@v4
 
       - name: Setup node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 24
           cache: "pnpm"
-
-      - name: Cache turbo build setup
-        uses: actions/cache@v4
-        with:
-          path: .turbo
-          key: ${{ runner.os }}-turbo-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-turbo-
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Create and publish versions
+      - name: Create version PR
+        id: changesets
         uses: changesets/action@v1
         with:
           commit: "chore: update versions"
           title: "chore: update versions"
           version: pnpm ci:version
-          publish: pnpm ci:publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Check if any packages need publishing
+        id: check-publish
+        if: steps.changesets.outputs.hasChangesets == 'false'
+        run: |
+          needs_publish="false"
+          for pkg in packages/*/package.json; do
+            [ -f "$pkg" ] || continue
+
+            name=$(jq -r '.name' "$pkg")
+            version=$(jq -r '.version' "$pkg")
+            private=$(jq -r '.private // false' "$pkg")
+
+            if [ "$private" = "true" ]; then
+              echo "Skipping private package: $name"
+              continue
+            fi
+
+            if npm view "${name}@${version}" version 2>/dev/null | grep -q "${version}"; then
+              echo "✓ ${name}@${version} already published"
+            else
+              echo "✗ ${name}@${version} needs publishing"
+              needs_publish="true"
+            fi
+          done
+
+          echo "needsPublish=${needs_publish}" >> $GITHUB_OUTPUT
+
+      - name: Trigger npm publish
+        if: steps.changesets.outputs.hasChangesets == 'false' && steps.check-publish.outputs.needsPublish == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createDispatchEvent({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              event_type: 'npm-publish'
+            });

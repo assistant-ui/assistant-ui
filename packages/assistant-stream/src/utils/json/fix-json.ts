@@ -70,81 +70,79 @@ export function fixJson(input: string): [string, string[]] {
 
   function pushCurrentKeyToPath(): void {
     if (currentKey !== undefined) {
-      path.push(JSON.parse('"' + currentKey + '"'));
+      path.push(JSON.parse(`"${currentKey}"`));
       currentKey = undefined;
     }
   }
 
   function processValueStart(char: string, i: number, swapState: State) {
-    {
-      switch (char) {
-        case '"': {
-          lastValidIndex = i;
-          stack.pop();
-          stack.push(swapState);
-          stack.push("INSIDE_STRING");
+    switch (char) {
+      case '"': {
+        lastValidIndex = i;
+        stack.pop();
+        stack.push(swapState);
+        stack.push("INSIDE_STRING");
 
-          pushCurrentKeyToPath();
-          break;
-        }
+        pushCurrentKeyToPath();
+        break;
+      }
 
-        case "f":
-        case "t":
-        case "n": {
-          lastValidIndex = i;
-          literalStart = i;
-          stack.pop();
-          stack.push(swapState);
-          stack.push("INSIDE_LITERAL");
-          break;
-        }
+      case "f":
+      case "t":
+      case "n": {
+        lastValidIndex = i;
+        literalStart = i;
+        stack.pop();
+        stack.push(swapState);
+        stack.push("INSIDE_LITERAL");
+        break;
+      }
 
-        case "-": {
-          stack.pop();
-          stack.push(swapState);
-          stack.push("INSIDE_NUMBER");
+      case "-": {
+        stack.pop();
+        stack.push(swapState);
+        stack.push("INSIDE_NUMBER");
 
-          pushCurrentKeyToPath();
-          break;
-        }
-        case "0":
-        case "1":
-        case "2":
-        case "3":
-        case "4":
-        case "5":
-        case "6":
-        case "7":
-        case "8":
-        case "9": {
-          lastValidIndex = i;
-          stack.pop();
-          stack.push(swapState);
-          stack.push("INSIDE_NUMBER");
+        pushCurrentKeyToPath();
+        break;
+      }
+      case "0":
+      case "1":
+      case "2":
+      case "3":
+      case "4":
+      case "5":
+      case "6":
+      case "7":
+      case "8":
+      case "9": {
+        lastValidIndex = i;
+        stack.pop();
+        stack.push(swapState);
+        stack.push("INSIDE_NUMBER");
 
-          pushCurrentKeyToPath();
-          break;
-        }
+        pushCurrentKeyToPath();
+        break;
+      }
 
-        case "{": {
-          lastValidIndex = i;
-          stack.pop();
-          stack.push(swapState);
-          stack.push("INSIDE_OBJECT_START");
+      case "{": {
+        lastValidIndex = i;
+        stack.pop();
+        stack.push(swapState);
+        stack.push("INSIDE_OBJECT_START");
 
-          pushCurrentKeyToPath();
-          break;
-        }
+        pushCurrentKeyToPath();
+        break;
+      }
 
-        case "[": {
-          lastValidIndex = i;
-          stack.pop();
-          stack.push(swapState);
-          stack.push("INSIDE_ARRAY_START");
+      case "[": {
+        lastValidIndex = i;
+        stack.pop();
+        stack.push(swapState);
+        stack.push("INSIDE_ARRAY_START");
 
-          pushCurrentKeyToPath();
-          break;
-        }
+        pushCurrentKeyToPath();
+        break;
       }
     }
   }

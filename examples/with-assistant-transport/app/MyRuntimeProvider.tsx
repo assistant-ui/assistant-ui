@@ -11,7 +11,7 @@ import {
   convertLangChainMessages,
   LangChainMessage,
 } from "@assistant-ui/react-langgraph";
-import React, { ReactNode } from "react";
+import { ReactNode } from "react";
 import { z } from "zod";
 
 // Frontend tool with execute function
@@ -95,7 +95,6 @@ const converter = (
   );
 
   const messages = [...state.messages, ...optimisticStateMessages.flat()];
-  console.log({ state, messages });
   return {
     messages: LangChainMessageConverter.toThreadMessages(messages),
     isRunning: connectionMetadata.isSending || false,

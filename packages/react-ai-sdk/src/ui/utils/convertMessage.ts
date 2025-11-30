@@ -1,4 +1,4 @@
-import { isToolUIPart, UIMessage } from "ai";
+import { isToolUIPart, type UIMessage } from "ai";
 import {
   unstable_createMessageConverter,
   type ReasoningMessagePart,
@@ -65,7 +65,9 @@ const convertParts = (
         const toolName = type.replace("tool-", "");
         const toolCallId = part.toolCallId;
 
-        let result: unknown;
+        // Extract args and result based on state
+        let args: any = {};
+        let result: any;
         let isError = false;
 
         if (part.state === "output-available") {
@@ -100,6 +102,13 @@ const convertParts = (
               reason: "interrupt",
             },
           }),
+          ...(toolStatus?.type === "cancelled" && {
+            status: {
+              type: "incomplete" as const,
+              reason: "cancelled",
+              error: toolStatus.reason,
+            },
+          }),
         } satisfies ToolCallMessagePart;
       }
 
@@ -108,7 +117,9 @@ const convertParts = (
         const toolName = part.toolName;
         const toolCallId = part.toolCallId;
 
-        let result: unknown;
+        // Extract args and result based on state
+        let args: any = {};
+        let result: any;
         let isError = false;
 
         const args = getToolArgs(toolCallId, part.input);
@@ -134,6 +145,13 @@ const convertParts = (
             status: {
               type: "requires-action" as const,
               reason: "interrupt",
+            },
+          }),
+          ...(toolStatus?.type === "cancelled" && {
+            status: {
+              type: "incomplete" as const,
+              reason: "cancelled",
+              error: toolStatus.reason,
             },
           }),
         } satisfies ToolCallMessagePart;

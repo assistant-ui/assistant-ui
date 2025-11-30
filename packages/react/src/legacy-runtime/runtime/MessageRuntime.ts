@@ -80,6 +80,8 @@ const getMessagePartState = (
 
 export type MessageState = ThreadMessage & {
   readonly parentId: string | null;
+  /** The position of this message in the thread (0 for first message) */
+  readonly index: number;
   readonly isLast: boolean;
 
   readonly branchNumber: number;
@@ -147,7 +149,7 @@ export class MessageRuntimeImpl implements MessageRuntime {
       new NestedSubscriptionSubject({
         path: {
           ...this.path,
-          ref: this.path.ref + `${this.path.ref}.composer`,
+          ref: `${this.path.ref}${this.path.ref}.composer`,
           composerSource: "edit",
         },
         getState: this._getEditComposerRuntimeCore,
@@ -268,7 +270,7 @@ export class MessageRuntimeImpl implements MessageRuntime {
       new ShallowMemoizeSubject({
         path: {
           ...this.path,
-          ref: this.path.ref + `${this.path.ref}.content[${idx}]`,
+          ref: `${this.path.ref}${this.path.ref}.content[${idx}]`,
           messagePartSelector: { type: "index", index: idx },
         },
         getState: () => {
@@ -312,7 +314,7 @@ export class MessageRuntimeImpl implements MessageRuntime {
       new ShallowMemoizeSubject({
         path: {
           ...this.path,
-          ref: this.path.ref + `${this.path.ref}.attachments[${idx}]`,
+          ref: `${this.path.ref}${this.path.ref}.attachments[${idx}]`,
           attachmentSource: "message",
           attachmentSelector: { type: "index", index: idx },
         },

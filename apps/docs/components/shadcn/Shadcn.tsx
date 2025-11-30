@@ -40,7 +40,7 @@ const ButtonWithTooltip: FC<ButtonWithTooltipProps> = ({
 
 const TopLeft: FC = () => {
   return (
-    <div className="flex h-full w-full items-center gap-2 px-3 text-sm font-semibold">
+    <div className="flex h-full w-full items-center gap-2 px-3 font-semibold text-sm">
       <Image
         src={icon}
         alt="logo"
@@ -98,7 +98,7 @@ export const Shadcn = () => {
   const leftStyle = "border-r hidden md:block";
 
   return (
-    <div className="grid h-full w-full grid-flow-col grid-rows-[auto_1fr] md:grid-cols-[250px_1fr]">
+    <div className="grid h-full w-full grid-flow-col grid-rows-[auto_1fr] [--primary-foreground:0_0%_98%] [--primary:0_0%_9%] md:grid-cols-[250px_1fr] dark:[--primary-foreground:0_0%_9%] dark:[--primary:0_0%_98%]">
       <div className={cn(sideStyle, leftStyle, topStyle)}>
         <TopLeft />
       </div>

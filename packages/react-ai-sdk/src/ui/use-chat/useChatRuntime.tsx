@@ -13,8 +13,9 @@ import {
   type AISDKRuntimeAdapter,
   type CustomToCreateMessageFunction,
 } from "./useAISDKRuntime";
-import { ChatInit } from "ai";
+import { ChatInit, ChatTransport } from "ai";
 import { AssistantChatTransport } from "./AssistantChatTransport";
+import { useEffect, useMemo, useRef } from "react";
 
 export type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage = UIMessage> =
   ChatInit<UI_MESSAGE> & {
@@ -23,7 +24,30 @@ export type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage = UIMessage> =
     toCreateMessage?: CustomToCreateMessageFunction;
   };
 
-export const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
+const useDynamicChatTransport = <UI_MESSAGE extends UIMessage = UIMessage>(
+  transport: ChatTransport<UI_MESSAGE>,
+): ChatTransport<UI_MESSAGE> => {
+  const transportRef = useRef<ChatTransport<UI_MESSAGE>>(transport);
+  useEffect(() => {
+    transportRef.current = transport;
+  });
+  const dynamicTransport = useMemo(
+    () =>
+      new Proxy(transportRef.current, {
+        get(_, prop) {
+          const res =
+            transportRef.current[prop as keyof ChatTransport<UI_MESSAGE>];
+          return typeof res === "function"
+            ? res.bind(transportRef.current)
+            : res;
+        },
+      }),
+    [],
+  );
+  return dynamicTransport;
+};
+
+const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   options?: UseChatRuntimeOptions<UI_MESSAGE>,
 ): AssistantRuntime => {
   const {
@@ -32,7 +56,10 @@ export const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     toCreateMessage,
     ...chatOptions
   } = options ?? {};
-  const transport = transportOptions ?? new AssistantChatTransport();
+
+  const transport = useDynamicChatTransport(
+    transportOptions ?? new AssistantChatTransport(),
+  );
 
   const id = useAssistantState(({ threadListItem }) => threadListItem.id);
   const chat = useChat({
@@ -63,5 +90,6 @@ export const useChatRuntime = <UI_MESSAGE extends UIMessage = UIMessage>({
       return useChatThreadRuntime(options);
     },
     adapter: cloudAdapter,
+    allowNesting: true,
   });
 };

@@ -1,4 +1,4 @@
-import { readFile } from "fs/promises";
+import { readFile } from "node:fs/promises";
 import matter from "gray-matter";
 import { logger } from "./logger.js";
 

@@ -7,6 +7,7 @@ Allow the assistant to display rich text using markdown.
 import { Step, Steps } from "fumadocs-ui/components/steps";
 import { Callout } from "fumadocs-ui/components/callout";
 import { Tabs } from "fumadocs-ui/components/tabs";
+import { InstallCommand } from "@/components/docs/install-command";
 
 ## Enabling markdown support
 
@@ -15,9 +16,7 @@ import { Tabs } from "fumadocs-ui/components/tabs";
 <Step>
 ### Install `@assistant-ui/react-markdown`
 
-```sh npm2yarn
-npm install @assistant-ui/react-markdown
-```
+<InstallCommand npm={["@assistant-ui/react-markdown"]} />
 
 </Step>
 <Step>

@@ -4,7 +4,7 @@ title: "Mermaid Diagrams"
 
 import { Callout } from "fumadocs-ui/components/callout";
 import { Step, Steps } from "fumadocs-ui/components/steps";
-import { Tab, Tabs } from "fumadocs-ui/components/tabs";
+import { InstallCommand } from "@/components/docs/install-command";
 
 Render Mermaid diagrams in chat messages with the `mermaid-diagram` component.
 
@@ -13,29 +13,7 @@ Render Mermaid diagrams in chat messages with the `mermaid-diagram` component.
 
 ### Add `mermaid-diagram` component
 
-<Tabs items={["assistant-ui", "shadcn (namespace)", "shadcn"]}>
-  <Tab>
-
-```sh
-npx assistant-ui@latest add mermaid-diagram
-```
-
-  </Tab>
-  <Tab>
-
-```sh
-npx shadcn@latest add @assistant-ui/mermaid-diagram
-```
-
-  </Tab>
-  <Tab>
-
-```sh
-npx shadcn@latest add "https://r.assistant-ui.com/mermaid-diagram"
-```
-
-  </Tab>
-</Tabs>
+<InstallCommand shadcn={["mermaid-diagram"]} />
 
 This will install the required dependencies and add the component to your project.
 

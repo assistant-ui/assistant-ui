@@ -1,6 +1,6 @@
 import { beforeAll, afterAll } from "vitest";
-import { existsSync } from "fs";
-import { join } from "path";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { PACKAGE_DIR } from "../../constants.js";
 import { docsTools } from "../docs.js";
 import { examplesTools } from "../examples.js";

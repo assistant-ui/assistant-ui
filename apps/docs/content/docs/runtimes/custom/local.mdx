@@ -6,6 +6,7 @@ import { Callout } from "fumadocs-ui/components/callout";
 import { Steps, Step } from "fumadocs-ui/components/steps";
 import { Card, Cards } from "fumadocs-ui/components/card";
 import { ParametersTable } from "@/components/docs";
+import { InstallCommand } from "@/components/docs/install-command";
 
 ## Overview
 
@@ -68,8 +69,15 @@ Use `LocalRuntime` if you need:
 
     ### Install `@assistant-ui/react`
 
+    <InstallCommand npm={["@assistant-ui/react"]} />
+
+  </Step>
+  <Step>
+
+    ### Add `assistant-ui` Thread component
+
     ```sh npm2yarn
-    npm install @assistant-ui/react
+    npx assistant-ui@latest add thread
     ```
 
   </Step>
@@ -406,12 +414,11 @@ For custom thread storage, use `useRemoteThreadListRuntime` with your own adapte
 
 ```tsx
 import {
-  useLocalThreadRuntime,
   unstable_useRemoteThreadListRuntime as useRemoteThreadListRuntime,
   useThreadListItem,
   RuntimeAdapterProvider,
   AssistantRuntimeProvider,
-  type RemoteThreadListAdapter,
+  type unstable_RemoteThreadListAdapter as RemoteThreadListAdapter,
   type ThreadHistoryAdapter,
 } from "@assistant-ui/react";
 import { createAssistantStream } from "assistant-stream";
@@ -472,7 +479,7 @@ const myDatabaseAdapter: RemoteThreadListAdapter = {
 export function MyRuntimeProvider({ children }) {
   const runtime = useRemoteThreadListRuntime({
     runtimeHook: () => {
-      return useLocalThreadRuntime(MyModelAdapter);
+      return useLocalRuntime(MyModelAdapter);
     },
     adapter: {
       ...myDatabaseAdapter,
@@ -826,43 +833,6 @@ function MyComponent() {
   );
 }
 ```
-
-### Custom Runtime Implementation
-
-`useLocalThreadRuntime` provides the core single-thread runtime for building custom implementations:
-
-```tsx
-import {
-  useLocalThreadRuntime,
-  unstable_useRemoteThreadListRuntime as useRemoteThreadListRuntime,
-  AssistantRuntimeProvider,
-} from "@assistant-ui/react";
-
-// Build your own multi-thread runtime
-function MyCustomRuntimeProvider({ children }) {
-  const runtime = useRemoteThreadListRuntime({
-    runtimeHook: () => useLocalThreadRuntime(MyModelAdapter, options),
-    adapter: myCustomThreadListAdapter,
-  });
-
-  return (
-    <AssistantRuntimeProvider runtime={runtime}>
-      {children}
-    </AssistantRuntimeProvider>
-  );
-}
-```
-
-<Callout type="info">
-  `useLocalRuntime` internally uses `useLocalThreadRuntime` +
-  `useRemoteThreadListRuntime` for multi-thread support.
-</Callout>
-
-<Callout type="warning">
-  **`useThreadRuntime` vs `useLocalThreadRuntime`:** - `useThreadRuntime` -
-  Access the current thread's runtime from within components -
-  `useLocalThreadRuntime` - Create a new single-thread runtime instance
-</Callout>
 
 ## Integration Examples
 

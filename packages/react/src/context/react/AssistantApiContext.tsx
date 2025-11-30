@@ -42,7 +42,6 @@ import {
   ThreadListClientApi,
   ThreadListClientState,
 } from "../../client/types/ThreadList";
-import { ThreadViewportProvider } from "../providers/ThreadViewportProvider";
 import { DevToolsProviderApi } from "../../devtools/DevToolsHooks";
 import {
   AssistantClientProps,
@@ -288,10 +287,8 @@ export function useAssistantApi(): AssistantApi;
 export function useAssistantApi(config: AssistantClientProps): AssistantApi;
 export function useAssistantApi(config?: AssistantClientProps): AssistantApi {
   if (config) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
     return useExtendedAssistantApiImpl(config);
   } else {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
     return useAssistantApiImpl();
   }
 }
@@ -354,9 +351,7 @@ export const AssistantProvider: FC<
 
   return (
     <AssistantApiContext.Provider value={api}>
-      {/* TODO temporarily allow accessing viewport state from outside the viewport */}
-      {/* TODO figure out if this behavior should be deprecated, since it is quite hacky */}
-      <ThreadViewportProvider>{children}</ThreadViewportProvider>
+      {children}
     </AssistantApiContext.Provider>
   );
 };

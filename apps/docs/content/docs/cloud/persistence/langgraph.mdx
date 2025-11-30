@@ -5,6 +5,7 @@ title: Chat History for LangGraph Cloud
 import { Steps, Step } from "fumadocs-ui/components/steps";
 import { Callout } from "fumadocs-ui/components/callout";
 import { Tab, Tabs } from "fumadocs-ui/components/tabs";
+import { InstallCommand } from "@/components/docs/install-command";
 
 ## Overview
 
@@ -54,9 +55,7 @@ ASSISTANT_API_KEY=your-api-key-here
 
 Install the required packages:
 
-```bash
-npm install @assistant-ui/react @assistant-ui/react-langgraph
-```
+<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-langgraph"]} />
 
 </Step>
 

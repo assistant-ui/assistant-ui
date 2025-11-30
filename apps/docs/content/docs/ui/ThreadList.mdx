@@ -5,6 +5,7 @@ title: ThreadList
 import { Steps, Step } from "fumadocs-ui/components/steps";
 import { Callout } from "fumadocs-ui/components/callout";
 import { Tabs, Tab } from "fumadocs-ui/components/tabs";
+import { InstallCommand } from "@/components/docs/install-command";
 import { ThreadListSample } from "../../../components/samples/threadlist-sample";
 
 ## Overview
@@ -28,55 +29,11 @@ Use `threadlist-sidebar` for a complete sidebar layout or `thread-list` for cust
 
 #### ThreadListSidebar
 
-<Tabs items={["assistant-ui", "shadcn (namespace)", "shadcn"]}>
-  <Tab>
-
-```sh
-npx assistant-ui@latest add threadlist-sidebar
-```
-
-  </Tab>
-  <Tab>
-
-```sh
-npx shadcn@latest add @assistant-ui/threadlist-sidebar
-```
-
-  </Tab>
-  <Tab>
-
-```sh
-npx shadcn@latest add "https://r.assistant-ui.com/threadlist-sidebar"
-```
-
-  </Tab>
-</Tabs>
+<InstallCommand shadcn={["threadlist-sidebar"]} />
 
 #### ThreadList
 
-<Tabs items={["assistant-ui", "shadcn (namespace)", "shadcn"]}>
-  <Tab>
-
-```sh
-npx assistant-ui@latest add thread-list
-```
-
-  </Tab>
-  <Tab>
-
-```sh
-npx shadcn@latest add @assistant-ui/thread-list
-```
-
-  </Tab>
-  <Tab>
-
-```sh
-npx shadcn@latest add "https://r.assistant-ui.com/thread-list"
-```
-
-  </Tab>
-</Tabs>
+<InstallCommand shadcn={["thread-list"]} />
 
   </Step>
   <Step>

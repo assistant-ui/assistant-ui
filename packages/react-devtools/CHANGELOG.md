@@ -1,5 +1,14 @@
 # @assistant-ui/react-devtools
 
+## 0.1.9
+
+### Patch Changes
+
+- ec662cd: chore: update dependencies
+- Updated dependencies [ec662cd]
+  - @assistant-ui/react@0.11.45
+  - @assistant-ui/tap@0.3.1
+
 ## 0.1.8
 
 ### Patch Changes

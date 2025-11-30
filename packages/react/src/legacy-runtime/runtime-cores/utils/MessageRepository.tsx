@@ -339,6 +339,7 @@ export class MessageRepository {
     return {
       parentId: message.prev?.current.id ?? null,
       message: message.current,
+      index: message.level,
     };
   }
 

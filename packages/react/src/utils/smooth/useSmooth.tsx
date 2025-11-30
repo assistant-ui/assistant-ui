@@ -96,12 +96,12 @@ export const useSmooth = (
   useEffect(() => {
     if (smoothStatusStore) {
       const target =
-        displayedText !== text || state.status.type === "running"
+        smooth && (displayedText !== text || state.status.type === "running")
           ? SMOOTH_STATUS
           : state.status;
       writableStore(smoothStatusStore).setState(target, true);
     }
-  }, [smoothStatusStore, text, displayedText, state.status]);
+  }, [smoothStatusStore, smooth, text, displayedText, state.status]);
 
   const [animatorRef] = useState<TextStreamAnimator>(
     new TextStreamAnimator(text, setText),
