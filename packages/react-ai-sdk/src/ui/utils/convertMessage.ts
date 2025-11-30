@@ -66,7 +66,6 @@ const convertParts = (
         const toolCallId = part.toolCallId;
 
         // Extract args and result based on state
-        const args: any = {};
         let result: any;
         let isError = false;
 
@@ -79,8 +78,20 @@ const convertParts = (
 
         const args = getToolArgs(toolCallId, part.input);
 
-        let argsText = JSON.stringify(args);
-        if (part.state === "input-streaming") {
+        const existingArgsText =
+          typeof (part as any).argsText === "string"
+            ? ((part as any).argsText as string)
+            : undefined;
+
+        let argsText =
+          existingArgsText !== undefined
+            ? existingArgsText
+            : JSON.stringify(args);
+
+        if (
+          existingArgsText === undefined &&
+          part.state === "input-streaming"
+        ) {
           // the argsText is not complete, so we need to strip the closing delimiters
           // these are added by the AI SDK in fix-json
           argsText = stripClosingDelimiters(argsText);
@@ -118,7 +129,6 @@ const convertParts = (
         const toolCallId = part.toolCallId;
 
         // Extract args and result based on state
-        const args: any = {};
         let result: any;
         let isError = false;
 
@@ -131,12 +141,20 @@ const convertParts = (
           result = { error: part.errorText };
         }
 
+        const existingArgsText =
+          typeof (part as any).argsText === "string"
+            ? ((part as any).argsText as string)
+            : undefined;
+
         const toolStatus = metadata.toolStatuses?.[toolCallId];
         return {
           type: "tool-call",
           toolName,
           toolCallId,
-          argsText: JSON.stringify(args),
+          argsText:
+            existingArgsText !== undefined
+              ? existingArgsText
+              : JSON.stringify(args),
           args,
           result,
           isError,
