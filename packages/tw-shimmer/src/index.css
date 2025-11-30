@@ -239,17 +239,37 @@
 
       - Use the container width (100cqw) as the unitless shimmer track
         width for timing calculations.
-      - Derive speed so a full sweep (from -width to +width) takes
-        roughly 1.4s, regardless of the container size:
+      - Derive a width-dependent pass time so small containers feel a bit
+        snappier and large containers a bit slower, instead of a flat
+        duration everywhere.
 
-          duration = (2 × width) / speed ≈ 1.4s
-          → speed = (2 × width) / 1.4
+        We target:
+          ~1.1s at ~320px,
+          ~1.35s at ~640px,
+          ~1.6s at >= ~960px.
+
+        base = width / 320
+        pass_time = clamp(1.1, 1.1 + (base - 1) * 0.25, 1.6)
+        speed = (2 × width) / pass_time
 
       These are auto values; public --shimmer-width and --shimmer-speed
       still override them if set (e.g. via shimmer-width-* or shimmer-speed-*).
     */
     --tw-shimmer-width-auto: calc(100cqw / 1px);
-    --tw-shimmer-speed-auto: calc((var(--tw-shimmer-width) * 2) / 1.4);
+
+    /* Dimensionless pass time in seconds, width-dependent */
+    --tw-shimmer-pass-time-auto: clamp(
+      1.1,
+      calc(
+        1.1 + ((var(--tw-shimmer-width) / 320) - 1) * 0.25
+      ),
+      1.6
+    );
+
+    /* Auto speed derived from width and pass time */
+    --tw-shimmer-speed-auto: calc(
+      (var(--tw-shimmer-width) * 2) / var(--tw-shimmer-pass-time-auto)
+    );
   }
 
   .shimmer-container .shimmer-bg {
@@ -271,8 +291,8 @@
     --tw-shimmer-bg-max: min(var(--tw-shimmer-width-px), 300px);
 
     --tw-shimmer-bg-spread-auto: clamp(
-      min(80px, var(--tw-shimmer-bg-max)),
-      60cqw,
+      min(200px, var(--tw-shimmer-bg-max)),
+      70cqw,
       var(--tw-shimmer-bg-max)
     );
   }
