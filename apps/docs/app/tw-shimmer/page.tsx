@@ -366,14 +366,12 @@ export default function TwShimmerPage() {
           <Box>
             <BoxTitle
               title="Skeleton Card Example"
-              description="Set --shimmer-width on the container to match its width. All children share the same animation timing."
+              description="Wrap skeleton elements in shimmer-container to automatically set --shimmer-width based on the container's width. In browsers that support container queries, all shimmer-bg children sync to the same animation timing. Older browsers fall back to default width or manual configuration."
             />
             <BoxCode>
               <CodeBlock
-                language="tsx"
-                code={`<div
-  class="flex gap-3 shimmer-width-720"
-  >
+                language="html"
+                code={`<div class="shimmer-container flex gap-3">
   <div class="shimmer-bg size-10 shrink-0 rounded-full bg-muted" />
   <div class="flex-1 space-y-1">
     <div class="shimmer-bg h-4 w-1/4 rounded bg-muted" />
@@ -381,12 +379,12 @@ export default function TwShimmerPage() {
     <div class="shimmer-bg h-4 w-4/5 rounded bg-muted" />
   </div>
 </div>`}
-                highlight="shimmer-width"
+                highlight="shimmer-container"
                 highlightMode="text"
               />
             </BoxCode>
             <BoxContent>
-              <div className="flex gap-3" ref={autoWidthRef}>
+              <div className="shimmer-container flex gap-3">
                 <div className="shimmer-bg size-10 shrink-0 rounded-full bg-muted" />
                 <div className="flex-1 space-y-1">
                   <div className="shimmer-bg h-4 w-1/4 rounded bg-muted" />
@@ -413,7 +411,7 @@ export default function TwShimmerPage() {
               />
             </BoxCode>
             <BoxContent>
-              <div className="space-y-1" ref={autoWidthRef}>
+              <div className="shimmer-container space-y-1">
                 <div className="shimmer-bg h-4 w-48 rounded bg-blue-600 shimmer-color-blue-400" />
                 <div className="shimmer-bg h-4 w-48 rounded bg-purple-600 shimmer-color-purple-400" />
                 <div className="shimmer-bg h-4 w-48 rounded bg-green-600 shimmer-color-green-400" />
@@ -428,10 +426,8 @@ export default function TwShimmerPage() {
             />
             <BoxCode>
               <CodeBlock
-                language="tsx"
-                code={`<div
-  class="flex gap-3 shimmer-width-720 shimmer-angle-15"
->
+                language="html"
+                code={`<div class="shimmer-container flex gap-3 shimmer-angle-15">
   <div class="shimmer-bg size-10 shrink-0 rounded-full bg-muted" />
   <div class="flex-1 space-y-1">
     <div class="shimmer-bg h-4 w-1/4 rounded bg-muted" />
@@ -444,7 +440,7 @@ export default function TwShimmerPage() {
               />
             </BoxCode>
             <BoxContent>
-              <div className="flex gap-3 shimmer-angle-15" ref={autoWidthRef}>
+              <div className="shimmer-container flex gap-3 shimmer-angle-15">
                 <div className="shimmer-bg size-10 shrink-0 rounded-full bg-muted" />
                 <div className="flex-1 space-y-1">
                   <div className="shimmer-bg h-4 w-1/4 rounded bg-muted" />
@@ -472,7 +468,7 @@ export default function TwShimmerPage() {
             <BoxCode>
               <CodeBlock
                 language="html"
-                code={`<div class="flex gap-3 shimmer-width-720 shimmer-angle-15">
+                code={`<div class="shimmer-container flex gap-3 shimmer-angle-15">
   <div class="shimmer-bg shimmer-x-24 shimmer-y-24 size-12 rounded-full bg-muted" />
   <div class="flex-1 space-y-1">
     <div class="shimmer-bg shimmer-x-52 shimmer-y-0 h-4 w-1/4 rounded bg-muted" />
@@ -512,7 +508,7 @@ export default function TwShimmerPage() {
                   />
                 </button>
               </label>
-              <div className="flex gap-3 shimmer-angle-15" ref={autoWidthRef}>
+              <div className="shimmer-container flex gap-3 shimmer-angle-15">
                 <div
                   className={cn(
                     "shimmer-bg size-12 shrink-0 rounded-full bg-muted",
@@ -638,7 +634,7 @@ function BoxTitle({ title, description }: BoxTitleProps) {
 }
 
 function BoxContent({ children }: { children: React.ReactNode }) {
-  return <div className="p-8">{children}</div>;
+  return <div className="p-6">{children}</div>;
 }
 
 function BoxCodeHeader({ fileName }: BoxCodeHeaderProps) {

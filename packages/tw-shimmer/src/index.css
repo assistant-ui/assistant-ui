@@ -96,7 +96,10 @@
   /* Internally resolved values with defaults */
   --tw-shimmer-angle: var(--shimmer-angle, 90deg);
   --tw-shimmer-width: var(--shimmer-width, 800);
-  --tw-shimmer-bg-spread: var(--shimmer-bg-spread, 800px);
+  --tw-shimmer-bg-spread: var(
+    --shimmer-bg-spread,
+    min(calc(var(--shimmer-width, 800) * 1px), 800px)
+  );
   --tw-shimmer-speed: var(--shimmer-speed, 1000);
   --tw-shimmer-color: var(--shimmer-color, oklch(1 0 0 / 0.5));
 
@@ -188,4 +191,46 @@
 
 @utility -shimmer-x-* {
   --shimmer-x: calc(-1 * --value(number));
+}
+
+/*
+  Container-based auto-width for shimmer animations.
+  Uses CSS container queries to automatically set --shimmer-width
+  based on the container's width, eliminating the need for JS or
+  manual width configuration in supporting browsers.
+
+  This is gated by @supports so it only applies in browsers that
+  support container query units (cqw). In older browsers, the
+  shimmer-container class has no effect and shimmers fall back
+  to their default widths or manually set values.
+*/
+@supports (width: 1cqw) {
+  .shimmer-container {
+    /* Define a size container so cqw resolves to this element's inline size */
+    container-type: inline-size;
+  }
+
+  .shimmer-container .shimmer,
+  .shimmer-container .shimmer-bg {
+    /*
+      Convert 100% container width (100cqw) into a unitless "pixels" value
+      by dividing by 1px. This preserves the invariant that --shimmer-width
+      is unitless, while allowing existing math (translate * 1px, duration
+      calc) to work as-is.
+    */
+    --shimmer-width: calc(100cqw / 1px);
+  }
+
+  .shimmer-container .shimmer-bg {
+    /*
+      Auto spread based on container width:
+      - 40% of container width on small/mid containers.
+      - Clamped to a maximum of 300px on very wide containers
+        so the highlight doesn't get comically huge.
+      This value is a length (mix of px + cqw) and will be
+      picked up by --tw-shimmer-bg-spread via the existing
+      fallback logic.
+    */
+    --shimmer-bg-spread: min(1000px, 80cqw);
+  }
 }

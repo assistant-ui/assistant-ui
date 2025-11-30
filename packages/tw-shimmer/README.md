@@ -91,6 +91,26 @@ Or set via CSS variable at runtime:
 </span>
 ```
 
+#### CSS-only Auto-Width with `shimmer-container`
+
+In modern browsers that support CSS container queries and container units (Chrome 111+, Safari 16.4+, Firefox 110+), you can use the `shimmer-container` helper class to automatically set `--shimmer-width` based on the container's width:
+
+```html
+<div class="shimmer-container flex gap-3">
+  <div class="shimmer-bg bg-muted size-10 rounded-full" />
+  <div class="flex-1 space-y-2">
+    <div class="shimmer-bg bg-muted h-4 w-24 rounded" />
+    <div class="shimmer-bg bg-muted h-4 w-full rounded" />
+  </div>
+</div>
+```
+
+This is primarily useful for **skeleton/background shimmer layouts** where the container already has a stable width defined by its parent or layout context.
+
+> **Note:** `shimmer-container` sets `container-type: inline-size`, which prevents the container from sizing based on its contents. This means it's **not recommended for text-only containers** that rely on shrink-to-fit behavior. For those cases, continue using JS or the `shimmer-width-*` utility.
+
+In older browsers, `shimmer-container` has no effect and shimmers fall back to their default widths or manually configured values.
+
 ### `shimmer-color-{color}`
 
 Shimmer highlight color. Default: `black` for text (white in dark mode), `white` for bg.
@@ -154,9 +174,26 @@ Background shimmer for skeleton loaders and non-text elements. Use standard Tail
 
 ### Skeleton Example
 
-Set `--shimmer-width` on the container to sync all children. Any `shimmer-bg` or `shimmer` elements inside will inherit this width unless they define their own `shimmer-width-{value}`.
+To sync shimmer timing across all skeleton children, you have two options:
 
-You can also set `--shimmer-speed`, `--shimmer-angle`, and `--shimmer-color` on the same container to keep both text shimmer and background shimmer moving in the same direction, at the same speed, and with the same highlight color. You can also set `--shimmer-bg-spread` on the container (or individual skeleton elements) to widen or tighten the background highlight band for all `shimmer-bg` children:
+**Option 1: CSS-only with `shimmer-container` (recommended for modern browsers)**
+
+Wrap your skeleton elements in a `shimmer-container` to automatically set `--shimmer-width` based on the container's width:
+
+```html
+<div class="shimmer-container flex gap-3">
+  <div class="shimmer-bg bg-muted size-10 rounded-full" />
+  <div class="flex-1 space-y-2">
+    <div class="shimmer-bg bg-muted h-4 w-24 rounded" />
+    <div class="shimmer-bg bg-muted h-4 w-full rounded" />
+    <div class="shimmer-bg bg-muted h-4 w-4/5 rounded" />
+  </div>
+</div>
+```
+
+**Option 2: Manual width with CSS variable or JS**
+
+Set `--shimmer-width` on the container manually. Any `shimmer-bg` or `shimmer` elements inside will inherit this width unless they define their own `shimmer-width-{value}`:
 
 ```tsx
 <div class="flex gap-3" style={{ ["--shimmer-width" as string]: "600" }}>
@@ -169,6 +206,8 @@ You can also set `--shimmer-speed`, `--shimmer-angle`, and `--shimmer-color` on 
 </div>
 ```
 
+You can also set `--shimmer-speed`, `--shimmer-angle`, and `--shimmer-color` on the same container to keep both text shimmer and background shimmer moving in the same direction, at the same speed, and with the same highlight color. You can also set `--shimmer-bg-spread` on the container (or individual skeleton elements) to widen or tighten the background highlight band for all `shimmer-bg` children.
+
 ### `shimmer-color-{color}` (with shimmer-bg)
 
 The same `shimmer-color-*` utility works for both text and bg shimmer:
@@ -179,13 +218,10 @@ The same `shimmer-color-*` utility works for both text and bg shimmer:
 
 ### Angled Skeleton Shimmer
 
-Use `shimmer-angle-{degrees}` (shared with text shimmer) for diagonal sweeps:
+Use `shimmer-angle-{degrees}` (shared with text shimmer) for diagonal sweeps. This works with both `shimmer-container` and manual width configuration:
 
-```tsx
-<div
-  class="shimmer-angle-15 flex gap-3"
-  style={{ ["--shimmer-width" as string]: "600" }}
->
+```html
+<div class="shimmer-container shimmer-angle-15 flex gap-3">
   <div class="shimmer-bg bg-muted size-10 rounded-full" />
   <div class="shimmer-bg bg-muted h-4 w-full rounded" />
 </div>
@@ -212,11 +248,15 @@ These utilities let you specify each element's approximate position (in pixels) 
 
 > **Angle caveat:** Position sync works best with moderate angles (15–75° or 105–165°). Avoid exactly 0° and 180° as these cause extreme delay values. See the `shimmer-angle-*` section for details.
 
-```tsx
-<div class="shimmer-angle-15" style={{ ["--shimmer-width" as string]: "600" }}>
-  <div class="shimmer-bg shimmer-x-20 shimmer-y-20 bg-muted size-10 rounded-full" />
+```html
+<div class="shimmer-container shimmer-angle-15">
+  <div
+    class="shimmer-bg shimmer-x-20 shimmer-y-20 bg-muted size-10 rounded-full"
+  />
   <div class="shimmer-bg shimmer-x-52 shimmer-y-0 bg-muted h-4 w-24 rounded" />
-  <div class="shimmer-bg shimmer-x-52 shimmer-y-24 bg-muted h-4 w-full rounded" />
+  <div
+    class="shimmer-bg shimmer-x-52 shimmer-y-24 bg-muted h-4 w-full rounded"
+  />
 </div>
 ```
 
@@ -235,6 +275,10 @@ These features are supported in all modern browsers (Chrome 111+, Firefox 113+, 
 ## Limitations
 
 `tw-shimmer` is intentionally **zero-dependency and CSS-only**. This keeps it lightweight and framework-agnostic, but it comes with trade-offs:
+
+- **`shimmer-container` auto-width is progressive enhancement:** The `shimmer-container` helper uses modern CSS container units (`cqw`) and is gated by `@supports (width: 1cqw)`. In unsupported browsers, `shimmer-container` has no effect and shimmer elements fall back to their default widths or manually configured values.
+
+- **`shimmer-container` prevents shrink-to-fit sizing:** Because it sets `container-type: inline-size`, the container cannot size itself based on its contents. This makes it unsuitable for text-only containers that rely on intrinsic sizing.
 
 - **No automatic layout detection:** CSS cannot access runtime element positions, so perfectly unified diagonal shimmer across arbitrarily positioned elements cannot be fully automated.
 
