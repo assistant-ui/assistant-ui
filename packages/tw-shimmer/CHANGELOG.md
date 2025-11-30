@@ -9,8 +9,10 @@
 - Add position sync utilities (`shimmer-x-*`, `shimmer-y-*`) for aligning angled shimmers across multiple elements
 - Add `shimmer-angle-*` utility for diagonal shimmer sweeps
 - Add internal variable system (`--tw-shimmer-*`) derived from public `--shimmer-*` variables with sensible defaults
-- Background shimmer defaults: 600px width, 500px/s speed, 400px spread
-- Text shimmer defaults: 200px width, 100px/s speed
+- Add `shimmer-container` auto-speed and auto-spread heuristics for `shimmer-bg` so that shimmer passes take a roughly constant time (~1.4s) and highlight spread scales with container width (clamped between ~80px and 300px)
+- Introduce internal `--tw-shimmer-*-auto` variables for width and speed so that container-derived values act as fallbacks and any explicit `--shimmer-width`, `--shimmer-speed`, or `--shimmer-bg-spread` (from utilities or inline styles) always override them, even inside `shimmer-container`
+- Background shimmer defaults: 800px width, 1000px/s speed
+- Text shimmer defaults: 200px width, 150px/s speed
 
 ### Patch Changes
 

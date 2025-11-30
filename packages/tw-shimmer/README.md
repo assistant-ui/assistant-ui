@@ -55,14 +55,16 @@ Base utility. Apply to any element with a text color.
 
 ### `shimmer-speed-{value}`
 
-Animation speed in pixels per second. Default: `100`px/s for text, `500`px/s for bg.
+Animation speed in pixels per second. Default: `150`px/s for text, `1000`px/s for background.
 
 `--shimmer-speed` is inheritable:
 
 - If you set `--shimmer-speed` (or use `shimmer-speed-{value}`) on a parent container, both `shimmer` and `shimmer-bg` children will use that value unless they override it.
-- If no value is set anywhere, text shimmer falls back to `100` and background shimmer falls back to `500`.
+- If no value is set anywhere, text shimmer falls back to `150` and background shimmer falls back to `1000`.
 
-> **How speed is calculated:** For text shimmer, duration = `(2 × width) / speed`. For background shimmer, duration = `(2 × width + spread) / speed`, where `spread` defaults to 400. This accounts for the full travel distance of the shimmer highlight.
+> **How speed is calculated:** For both text and background shimmer, duration is `(2 × width) / speed`, where width is the shimmer track width in pixels (from `--shimmer-width`). Spread does not affect timing; it only controls how thick the highlight appears.
+
+When `shimmer-bg` is used inside a `shimmer-container`, the plugin derives `--shimmer-speed` automatically from the container width so that each shimmer pass takes roughly the same amount of time (~1.4s) regardless of container size. You can still override this by setting `--shimmer-speed` (or using `shimmer-speed-{value}`) on any ancestor or the element itself.
 
 ```html
 <span class="shimmer shimmer-speed-200 text-foreground/40">Fast (200px/s)</span>
@@ -70,14 +72,16 @@ Animation speed in pixels per second. Default: `100`px/s for text, `500`px/s for
 
 ### `shimmer-width-{value}`
 
-Container width in pixels for animation timing. Default: `200`px for text, `600`px for bg.
+Container width in pixels for animation timing. Default: `200`px for text shimmer, `800`px for background shimmer.
 
 `--shimmer-width` is inheritable:
 
 - If you set `--shimmer-width` (or use `shimmer-width-{value}`) on a parent container, both `shimmer` and `shimmer-bg` children will use that value unless they override it.
-- If no value is set anywhere, text shimmer falls back to `200` and background shimmer falls back to `600`.
+- If no value is set anywhere, text shimmer falls back to `200` and background shimmer falls back to `800`.
 
 Set this to match your container width for consistent animation speed across different element sizes.
+
+When used inside `shimmer-container`, the plugin sets an auto track width based on the container's width; this auto value is used only if you haven't explicitly set `--shimmer-width` yourself. Any explicit `--shimmer-width` (or `shimmer-width-{value}`) still wins and will be used to compute timing.
 
 ```tsx
 <span class="shimmer shimmer-width-300 text-foreground/40">Wide container</span>
@@ -104,6 +108,14 @@ In modern browsers that support CSS container queries and container units (Chrom
   </div>
 </div>
 ```
+
+Inside `shimmer-container`, tw-shimmer automatically:
+
+- Sets the shimmer track width based on the container width (`--shimmer-width` auto).
+- Derives the animation speed so that one shimmer pass takes roughly a constant time (~1.4s), regardless of container size.
+- For `shimmer-bg`, adjusts the highlight spread based on the container width, clamping it between a sensible minimum (~80px) and maximum (~300px) so it looks good at any size.
+
+These container-based values act as smart defaults. Any explicit `--shimmer-width`, `--shimmer-speed`, or `--shimmer-bg-spread` that you set (for example via `shimmer-width-*`, `shimmer-speed-*`, or `shimmer-bg-spread-*`) will override them, even inside `shimmer-container`.
 
 This is primarily useful for **skeleton/background shimmer layouts** where the container already has a stable width defined by its parent or layout context.
 
@@ -166,7 +178,7 @@ For skeleton loaders and non-text elements, use `shimmer-bg` instead:
 
 ### `shimmer-bg`
 
-Background shimmer for skeleton loaders and non-text elements. Use standard Tailwind `bg-*` for base color.
+Background shimmer for skeleton loaders and non-text elements. Use standard Tailwind `bg-*` for base color. Standalone default: 800px width, 1000px/s speed.
 
 ```html
 <div class="shimmer-bg bg-muted h-4 w-48 rounded" />
@@ -178,7 +190,7 @@ To sync shimmer timing across all skeleton children, you have two options:
 
 **Option 1: CSS-only with `shimmer-container` (recommended for modern browsers)**
 
-Wrap your skeleton elements in a `shimmer-container` to automatically set `--shimmer-width` based on the container's width:
+Wrap skeleton elements in `shimmer-container` for consistent timing. The container auto-derives speed so each pass takes ~1.4s regardless of width, and clamps the highlight spread (80–300px). All `shimmer-bg` children sync to the same animation. Older browsers fall back to standalone defaults.
 
 ```html
 <div class="shimmer-container flex gap-3">
@@ -206,7 +218,7 @@ Set `--shimmer-width` on the container manually. Any `shimmer-bg` or `shimmer` e
 </div>
 ```
 
-You can also set `--shimmer-speed`, `--shimmer-angle`, and `--shimmer-color` on the same container to keep both text shimmer and background shimmer moving in the same direction, at the same speed, and with the same highlight color. You can also set `--shimmer-bg-spread` on the container (or individual skeleton elements) to widen or tighten the background highlight band for all `shimmer-bg` children.
+You can also set `--shimmer-speed`, `--shimmer-angle`, and `--shimmer-color` on the same container to keep both text shimmer and background shimmer moving in the same direction, at the same speed, and with the same highlight color. You can also use `shimmer-bg-spread-*` or set `--shimmer-bg-spread` on the container (or individual skeleton elements) to override the container's auto spread and manually control the background highlight band width.
 
 ### `shimmer-color-{color}` (with shimmer-bg)
 
@@ -276,7 +288,7 @@ These features are supported in all modern browsers (Chrome 111+, Firefox 113+, 
 
 `tw-shimmer` is intentionally **zero-dependency and CSS-only**. This keeps it lightweight and framework-agnostic, but it comes with trade-offs:
 
-- **`shimmer-container` auto-width is progressive enhancement:** The `shimmer-container` helper uses modern CSS container units (`cqw`) and is gated by `@supports (width: 1cqw)`. In unsupported browsers, `shimmer-container` has no effect and shimmer elements fall back to their default widths or manually configured values.
+- **`shimmer-container` auto-width/auto-speed/auto-spread are progressive enhancements:** The `shimmer-container` helper uses modern CSS container units (`cqw`) and is gated by `@supports (width: 1cqw)`. In unsupported browsers, `shimmer-container` has no effect and shimmer elements fall back to their default widths or manually configured values.
 
 - **`shimmer-container` prevents shrink-to-fit sizing:** Because it sets `container-type: inline-size`, the container cannot size itself based on its contents. This makes it unsuitable for text-only containers that rely on intrinsic sizing.
 

@@ -64,13 +64,13 @@ export default function TwShimmerPage() {
     <div className="container max-w-7xl space-y-16 px-4 py-12">
       <HighlightStyles />
       <div
-        className="mx-auto flex w-fit flex-col items-center space-y-6 border border-red-500 text-center shimmer-speed-200"
+        className="mx-auto flex w-fit flex-col items-center space-y-6 text-center shimmer-speed-200"
         ref={autoWidthRef}
       >
-        <div className="shimmer-bg z-0 flex cursor-default rounded-full bg-border p-px shimmer-color-[rgba(255,255,255,0.2)]">
+        <div className="shimmer-bg z-0 flex cursor-default rounded-full bg-border p-px shimmer-color-[rgba(255,255,255,0.4)]">
           <div className="z-10 flex items-center gap-2 rounded-full bg-background px-4 py-1.5 text-sm">
             <Sparkle className="size-4 opacity-50" />
-            <span className="shimmer text-foreground/60 shimmer-color-[rgba(0,0,0,0.5)] shimmer-spread-30 dark:shimmer-color-[rgba(255,255,255,0.5)]">
+            <span className="shimmer text-foreground/60 shimmer-color-[rgba(0,0,0,0.5)] shimmer-spread-30 dark:shimmer-color-[rgba(255,255,255,0.7)]">
               Tailwind CSS v4 Plugin
             </span>
           </div>
@@ -180,7 +180,7 @@ export default function TwShimmerPage() {
           <Box>
             <BoxTitle
               title="shimmer-speed-{value}"
-              description="Animation speed in pixels per second. Default: 100px/s for text shimmer. Background shimmer defaults to 500px/s."
+              description="Animation speed in pixels per second. Default: 150px/s for text, 1000px/s for background. Inside shimmer-container, speed is auto-derived for a consistent ~1.4s pass duration."
             />
             <BoxCode>
               <CodeBlock
@@ -203,7 +203,7 @@ export default function TwShimmerPage() {
           <Box>
             <BoxTitle
               title="--shimmer-width"
-              description="CSS variable for container width in pixels used in speed calculations. Default: 200px"
+              description="CSS variable for shimmer track width in pixels used in timing. Default: 200px for text shimmer, 800px for background shimmer. Inside shimmer-container, an auto width is derived from the container, but any explicit --shimmer-width or shimmer-width-* still wins."
             />
             <BoxCode>
               <CodeBlock
@@ -348,7 +348,7 @@ export default function TwShimmerPage() {
           <Box>
             <BoxTitle
               title="shimmer-bg"
-              description="Background shimmer for skeleton loaders and non-text elements. Defaults: 600px width, 500px/s speed."
+              description="Background shimmer for skeleton loaders and non-text elements. Standalone default: 800px width, 1000px/s speed. For responsive sizing, wrap in shimmer-container."
             />
             <BoxCode>
               <CodeBlock
@@ -366,7 +366,7 @@ export default function TwShimmerPage() {
           <Box>
             <BoxTitle
               title="Skeleton Card Example"
-              description="Wrap skeleton elements in shimmer-container to automatically set --shimmer-width based on the container's width. In browsers that support container queries, all shimmer-bg children sync to the same animation timing. Older browsers fall back to default width or manual configuration."
+              description="Wrap skeleton elements in shimmer-container for consistent timing. The container auto-derives speed so each pass takes ~1.4s regardless of width, and clamps the highlight spread (80–300px). All shimmer-bg children sync to the same animation. Older browsers fall back to standalone defaults."
             />
             <BoxCode>
               <CodeBlock

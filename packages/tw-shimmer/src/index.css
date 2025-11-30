@@ -22,9 +22,11 @@
 @utility shimmer {
   /* Internally resolved values with defaults */
   --tw-shimmer-angle: var(--shimmer-angle, 90deg);
-  --tw-shimmer-width: var(--shimmer-width, 200);
+  --tw-shimmer-width-auto: 200;
+  --tw-shimmer-width: var(--shimmer-width, var(--tw-shimmer-width-auto));
   --tw-shimmer-spread: var(--shimmer-spread, 6ch);
-  --tw-shimmer-speed: var(--shimmer-speed, 150);
+  --tw-shimmer-speed-auto: 150;
+  --tw-shimmer-speed: var(--shimmer-speed, var(--tw-shimmer-speed-auto));
   --tw-shimmer-color: var(--shimmer-color, oklch(0 0 0 / 0.8));
 
   @variant dark {
@@ -95,17 +97,23 @@
 
   /* Internally resolved values with defaults */
   --tw-shimmer-angle: var(--shimmer-angle, 90deg);
-  --tw-shimmer-width: var(--shimmer-width, 800);
+
+  /* Auto+final width for background shimmer */
+  --tw-shimmer-width-auto: 800;
+  --tw-shimmer-width: var(--shimmer-width, var(--tw-shimmer-width-auto));
+
+  /*
+    Helper: track width as a length. --shimmer-width stays unitless,
+    but we often need a px length for clamping.
+  */
+  --tw-shimmer-width-px: calc(var(--tw-shimmer-width) * 1px);
 
   /*
     Auto spread based on shimmer width, clamped so the stripe is
-    never wider than the track or 800px. This internal variable
-    can be overridden by shimmer-container for container-based sizing.
+    never wider than the track or 800px. This is the base auto value,
+    which can be refined by shimmer-container for container-based sizing.
   */
-  --tw-shimmer-bg-spread-auto: min(
-    calc(var(--shimmer-width, 800) * 1px),
-    800px
-  );
+  --tw-shimmer-bg-spread-auto: min(var(--tw-shimmer-width-px), 800px);
 
   /*
     Final spread: public override (--shimmer-bg-spread) if set via
@@ -116,7 +124,9 @@
     var(--tw-shimmer-bg-spread-auto)
   );
 
-  --tw-shimmer-speed: var(--shimmer-speed, 1000);
+  /* Auto+final speed for background shimmer */
+  --tw-shimmer-speed-auto: 1000;
+  --tw-shimmer-speed: var(--shimmer-speed, var(--tw-shimmer-speed-auto));
   --tw-shimmer-color: var(--shimmer-color, oklch(1 0 0 / 0.5));
 
   @variant dark {
@@ -212,43 +222,58 @@
 /*
   Container-based auto-width for shimmer animations.
   Uses CSS container queries to automatically set --shimmer-width
-  based on the container's width, eliminating the need for JS or
-  manual width configuration in supporting browsers.
+  based on the container's width, without needing JS.
 
-  This is gated by @supports so it only applies in browsers that
-  support container query units (cqw). In older browsers, the
-  shimmer-container class has no effect and shimmers fall back
-  to their default widths or manually set values.
+  In older browsers, the shimmer-container class has no effect and 
+  shimmers fall back to their default widths or manually set values.
 */
 @supports (width: 1cqw) {
   .shimmer-container {
-    /* Define a size container so cqw resolves to this element's inline size */
     container-type: inline-size;
   }
 
   .shimmer-container .shimmer,
   .shimmer-container .shimmer-bg {
     /*
-      Convert 100% container width (100cqw) into a unitless "pixels" value
-      by dividing by 1px. This preserves the invariant that --shimmer-width
-      is unitless, while allowing existing math (translate * 1px, duration
-      calc) to work as-is.
+      Timing based on container width:
+
+      - Use the container width (100cqw) as the unitless shimmer track
+        width for timing calculations.
+      - Derive speed so a full sweep (from -width to +width) takes
+        roughly 1.4s, regardless of the container size:
+
+          duration = (2 × width) / speed ≈ 1.4s
+          → speed = (2 × width) / 1.4
+
+      These are auto values; public --shimmer-width and --shimmer-speed
+      still override them if set (e.g. via shimmer-width-* or shimmer-speed-*).
     */
-    --shimmer-width: calc(100cqw / 1px);
+    --tw-shimmer-width-auto: calc(100cqw / 1px);
+    --tw-shimmer-speed-auto: calc((var(--tw-shimmer-width) * 2) / 1.4);
   }
 
   .shimmer-container .shimmer-bg {
     /*
-      Auto spread based on container width:
-      - Uses a fraction of the container width (e.g. 40% via 40cqw).
-      - Clamped to an upper bound (e.g. 300px) so the band
-        doesn't become absurdly wide on huge containers.
+      Track-aware auto spread based on container width:
 
-      This value feeds into the final --tw-shimmer-bg-spread via
-      --tw-shimmer-bg-spread-auto and can be overridden by setting
-      --shimmer-bg-spread (for example via shimmer-bg-spread-* on the
-      element itself or any ancestor, including the shimmer-container).
+      - Use the actual container width (100cqw) for spread calculations,
+        separate from the timing calculations above.
+      - Clamp spread to never exceed 300px or the actual track width.
+      - Set a minimum (80px, or track width if smaller) for visibility
+        on small containers.
+
+      This feeds into --tw-shimmer-bg-spread via --tw-shimmer-bg-spread-auto
+      and can be overridden at any time by setting --shimmer-bg-spread
+      (for example via shimmer-bg-spread-* on the element itself or any
+      ancestor, including the shimmer-container).
     */
-    --tw-shimmer-bg-spread-auto: min(300px, 40cqw);
+    --tw-shimmer-width-px: 100cqw;
+    --tw-shimmer-bg-max: min(var(--tw-shimmer-width-px), 300px);
+
+    --tw-shimmer-bg-spread-auto: clamp(
+      min(80px, var(--tw-shimmer-bg-max)),
+      60cqw,
+      var(--tw-shimmer-bg-max)
+    );
   }
 }
