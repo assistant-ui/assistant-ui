@@ -96,10 +96,26 @@
   /* Internally resolved values with defaults */
   --tw-shimmer-angle: var(--shimmer-angle, 90deg);
   --tw-shimmer-width: var(--shimmer-width, 800);
+
+  /*
+    Auto spread based on shimmer width, clamped so the stripe is
+    never wider than the track or 800px. This internal variable
+    can be overridden by shimmer-container for container-based sizing.
+  */
+  --tw-shimmer-bg-spread-auto: min(
+    calc(var(--shimmer-width, 800) * 1px),
+    800px
+  );
+
+  /*
+    Final spread: public override (--shimmer-bg-spread) if set via
+    shimmer-bg-spread-* utilities or inline styles, otherwise auto.
+  */
   --tw-shimmer-bg-spread: var(
     --shimmer-bg-spread,
-    min(calc(var(--shimmer-width, 800) * 1px), 800px)
+    var(--tw-shimmer-bg-spread-auto)
   );
+
   --tw-shimmer-speed: var(--shimmer-speed, 1000);
   --tw-shimmer-color: var(--shimmer-color, oklch(1 0 0 / 0.5));
 
@@ -224,13 +240,15 @@
   .shimmer-container .shimmer-bg {
     /*
       Auto spread based on container width:
-      - 40% of container width on small/mid containers.
-      - Clamped to a maximum of 300px on very wide containers
-        so the highlight doesn't get comically huge.
-      This value is a length (mix of px + cqw) and will be
-      picked up by --tw-shimmer-bg-spread via the existing
-      fallback logic.
+      - Uses a fraction of the container width (e.g. 40% via 40cqw).
+      - Clamped to an upper bound (e.g. 300px) so the band
+        doesn't become absurdly wide on huge containers.
+
+      This value feeds into the final --tw-shimmer-bg-spread via
+      --tw-shimmer-bg-spread-auto and can be overridden by setting
+      --shimmer-bg-spread (for example via shimmer-bg-spread-* on the
+      element itself or any ancestor, including the shimmer-container).
     */
-    --shimmer-bg-spread: min(1000px, 80cqw);
+    --tw-shimmer-bg-spread-auto: min(300px, 40cqw);
   }
 }
