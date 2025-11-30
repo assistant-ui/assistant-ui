@@ -581,7 +581,7 @@ function CodeBlock({
       const patterns = highlights.map((h) => `/${h}/`).join(" ");
       metaProps = { meta: { __raw: patterns } };
     } else if (highlightMode === "line") {
-      // Find lines containing any of the highlight texts
+      // Find lines containing the highlight text
       const lines = code.split("\n");
       const lineNumbers = lines
         .map((line, index) =>
@@ -638,7 +638,7 @@ function BoxTitle({ title, description }: BoxTitleProps) {
 }
 
 function BoxContent({ children }: { children: React.ReactNode }) {
-  return <div className="px-6 py-4">{children}</div>;
+  return <div className="p-8">{children}</div>;
 }
 
 function BoxCodeHeader({ fileName }: BoxCodeHeaderProps) {
@@ -651,5 +651,5 @@ function BoxCodeHeader({ fileName }: BoxCodeHeaderProps) {
 }
 
 function BoxCode({ children }: { children: React.ReactNode }) {
-  return <div className="text-sm">{children}</div>;
+  return <div className="p-2 text-sm">{children}</div>;
 }
