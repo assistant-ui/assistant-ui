@@ -1,5 +1,5 @@
 @theme inline {
-  @keyframes shimmer {
+  @keyframes tw-shimmer-text {
     0% {
       background-position: 150% 0;
     }
@@ -8,18 +8,13 @@
     }
   }
 
-  @keyframes shimmer-bg {
+  @keyframes tw-shimmer-bg {
     0% {
       /* Start off-screen to the left */
-      translate: calc(
-          -1 *
-            (var(--tw-shimmer-width, 600) + var(--tw-shimmer-bg-spread, 400)) *
-            1px
-        )
-        0;
+      translate: calc(-1 * var(--tw-shimmer-width) * 1px) 0;
     }
     100% {
-      translate: calc(var(--tw-shimmer-width, 600) * 1px) 0;
+      translate: calc(var(--tw-shimmer-width) * 1px) 0;
     }
   }
 }
@@ -29,7 +24,7 @@
   --tw-shimmer-angle: var(--shimmer-angle, 90deg);
   --tw-shimmer-width: var(--shimmer-width, 200);
   --tw-shimmer-spread: var(--shimmer-spread, 6ch);
-  --tw-shimmer-speed: var(--shimmer-speed, 100);
+  --tw-shimmer-speed: var(--shimmer-speed, 150);
   --tw-shimmer-color: var(--shimmer-color, oklch(0 0 0 / 0.8));
 
   @variant dark {
@@ -80,7 +75,7 @@
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: shimmer
+  animation: tw-shimmer-text
     calc((var(--tw-shimmer-width) * 2) / var(--tw-shimmer-speed) * 1s) infinite
     linear;
   /* Offset timing based on element position (for aligning angled shimmers) */
@@ -100,9 +95,9 @@
 
   /* Internally resolved values with defaults */
   --tw-shimmer-angle: var(--shimmer-angle, 90deg);
-  --tw-shimmer-width: var(--shimmer-width, 600);
-  --tw-shimmer-bg-spread: var(--shimmer-bg-spread, 400);
-  --tw-shimmer-speed: var(--shimmer-speed, 500);
+  --tw-shimmer-width: var(--shimmer-width, 800);
+  --tw-shimmer-bg-spread: var(--shimmer-bg-spread, 800px);
+  --tw-shimmer-speed: var(--shimmer-speed, 1000);
   --tw-shimmer-color: var(--shimmer-color, oklch(1 0 0 / 0.5));
 
   @variant dark {
@@ -115,7 +110,8 @@
     top: -150%;
     bottom: -150%;
     left: 0;
-    width: calc(var(--tw-shimmer-bg-spread) * 1px);
+    pointer-events: none;
+    width: var(--tw-shimmer-bg-spread);
     /*
       Shimmer highlight: transparent → color → transparent
       Uses a sine ease-in-out curve (17 stops) for smooth falloff.
@@ -141,11 +137,8 @@
       transparent 100%
     );
     transform: skewX(calc(90deg - var(--tw-shimmer-angle)));
-    animation: shimmer-bg
-      calc(
-        (var(--tw-shimmer-width) * 2 + var(--tw-shimmer-bg-spread)) /
-          var(--tw-shimmer-speed) * 1s
-      )
+    animation: tw-shimmer-bg
+      calc((var(--tw-shimmer-width) * 2) / var(--tw-shimmer-speed) * 1s)
       infinite linear;
     /* Offset timing based on element position (for aligning angled shimmers) */
     animation-delay: calc(
@@ -168,6 +161,9 @@
 
 @utility shimmer-spread-* {
   --shimmer-spread: --spacing(--value(integer));
+}
+@utility shimmer-bg-spread-* {
+  --shimmer-bg-spread: --spacing(--value(integer));
 }
 
 @utility shimmer-angle-* {

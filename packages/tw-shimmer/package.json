@@ -37,5 +37,8 @@
   },
   "bugs": {
     "url": "https://github.com/assistant-ui/assistant-ui/issues"
+  },
+  "peerDependencies": {
+    "tailwindcss": ">=4.0.0-0"
   }
 }

@@ -64,13 +64,13 @@ export default function TwShimmerPage() {
     <div className="container max-w-7xl space-y-16 px-4 py-12">
       <HighlightStyles />
       <div
-        className="flex flex-col items-center space-y-6 text-center shimmer-speed-400"
+        className="mx-auto flex w-fit flex-col items-center space-y-6 border border-red-500 text-center shimmer-speed-200"
         ref={autoWidthRef}
       >
         <div className="shimmer-bg z-0 flex cursor-default rounded-full bg-border p-px shimmer-color-[rgba(255,255,255,0.2)]">
           <div className="z-10 flex items-center gap-2 rounded-full bg-background px-4 py-1.5 text-sm">
             <Sparkle className="size-4 opacity-50" />
-            <span className="shimmer text-foreground/60 shimmer-color-[rgba(0,0,0,0.5)] dark:shimmer-color-[rgba(255,255,255,0.5)]">
+            <span className="shimmer text-foreground/60 shimmer-color-[rgba(0,0,0,0.5)] shimmer-spread-30 dark:shimmer-color-[rgba(255,255,255,0.5)]">
               Tailwind CSS v4 Plugin
             </span>
           </div>
@@ -162,7 +162,7 @@ export default function TwShimmerPage() {
             <BoxCode>
               <CodeBlock
                 language="html"
-                code='<span class="shimmer font-semibold text-foreground/40">Shimmer Effect</span>'
+                code='<span class="shimmer text-foreground/40">Shimmer Effect</span>'
                 highlight="shimmer"
                 highlightMode="text"
               />
@@ -170,7 +170,7 @@ export default function TwShimmerPage() {
             <BoxContent>
               <span
                 ref={autoWidthRef}
-                className="shimmer font-semibold text-foreground/40"
+                className="shimmer text-xl font-semibold text-foreground/40"
               >
                 Shimmer Effect
               </span>
@@ -185,17 +185,17 @@ export default function TwShimmerPage() {
             <BoxCode>
               <CodeBlock
                 language="html"
-                code='<span class="shimmer shimmer-speed-200 font-semibold text-foreground/40">Fast Shimmer</span>'
-                highlight="shimmer-speed-200"
+                code='<span class="shimmer shimmer-speed-300 text-foreground/40">Faster Shimmer</span>'
+                highlight="shimmer-speed"
                 highlightMode="text"
               />
             </BoxCode>
             <BoxContent>
               <span
                 ref={autoWidthRef}
-                className="shimmer font-semibold text-foreground/40 shimmer-speed-200"
+                className="shimmer text-xl font-semibold text-foreground/40 shimmer-speed-300"
               >
-                Fast Shimmer
+                Faster Shimmer
               </span>
             </BoxContent>
           </Box>
@@ -209,11 +209,11 @@ export default function TwShimmerPage() {
               <CodeBlock
                 language="tsx"
                 code={`<span
-  class="shimmer font-semibold text-foreground/40 shimmer-width-100"
+  class="shimmer text-foreground/40 shimmer-width-100"
 >
   A short line
 </span>`}
-                highlight="--shimmer-width"
+                highlight="shimmer-width"
                 highlightMode="text"
               />
             </BoxCode>
@@ -272,15 +272,15 @@ export default function TwShimmerPage() {
             <BoxCode>
               <CodeBlock
                 language="html"
-                code='<span class="shimmer shimmer-color-blue-500 font-semibold text-blue-500/40">Blue Shimmer</span>'
-                highlight="shimmer-color-blue-500"
+                code='<span class="shimmer shimmer-color-blue-300 text-blue-500/60">Blue Shimmer</span>'
+                highlight="shimmer-color"
                 highlightMode="text"
               />
             </BoxCode>
             <BoxContent>
               <span
                 ref={autoWidthRef}
-                className="shimmer font-semibold text-blue-500/40 shimmer-color-blue-500"
+                className="shimmer text-xl font-semibold text-blue-500/60 shimmer-color-blue-300"
               >
                 Blue Shimmer
               </span>
@@ -295,15 +295,15 @@ export default function TwShimmerPage() {
             <BoxCode>
               <CodeBlock
                 language="html"
-                code='<span class="shimmer shimmer-spread-24 font-semibold text-foreground/40">Wide Shimmer</span>'
-                highlight="shimmer-spread-24"
+                code='<span class="shimmer shimmer-spread-40 text-foreground/40">Wide Shimmer</span>'
+                highlight="shimmer-spread"
                 highlightMode="text"
               />
             </BoxCode>
             <BoxContent>
               <span
                 ref={autoWidthRef}
-                className="shimmer font-semibold text-foreground/40 shimmer-spread-24"
+                className="shimmer text-xl font-semibold text-foreground/40 shimmer-spread-40"
               >
                 Wide Shimmer
               </span>
@@ -319,17 +319,17 @@ export default function TwShimmerPage() {
               <CodeBlock
                 language="html"
                 code='<div class="shimmer shimmer-angle-45 font-semibold text-foreground/40">Diagonal Shimmer</div>'
-                highlight="shimmer-angle-45"
+                highlight="shimmer-angle"
                 highlightMode="text"
               />
             </BoxCode>
             <BoxContent>
-              <div
+              <span
                 ref={autoWidthRef}
-                className="shimmer font-semibold text-foreground/40 shimmer-angle-45"
+                className="shimmer text-xl font-semibold text-foreground/40 shimmer-angle-45"
               >
                 Diagonal Shimmer
-              </div>
+              </span>
             </BoxContent>
           </Box>
         </div>
@@ -338,7 +338,7 @@ export default function TwShimmerPage() {
       <div className="space-y-8">
         <div className="text-center">
           <h2 className="mb-2 text-3xl font-medium">Background Shimmer</h2>
-          <p className="text-muted-foreground">
+          <p className="text-xl text-muted-foreground">
             Use <code className="px-1 py-0.5 text-sm">shimmer-bg</code> for
             skeleton loaders and non-text elements.
           </p>
@@ -359,10 +359,7 @@ export default function TwShimmerPage() {
               />
             </BoxCode>
             <BoxContent>
-              <div
-                ref={autoWidthRef}
-                className="shimmer-bg h-4 w-48 rounded bg-muted"
-              />
+              <div className="shimmer-bg h-4 w-64 rounded bg-muted" />
             </BoxContent>
           </Box>
 
@@ -375,7 +372,7 @@ export default function TwShimmerPage() {
               <CodeBlock
                 language="tsx"
                 code={`<div
-  class="flex gap-3"
+  class="flex gap-3 shimmer-width-720"
   >
   <div class="shimmer-bg size-10 shrink-0 rounded-full bg-muted" />
   <div class="flex-1 space-y-1">
@@ -384,7 +381,7 @@ export default function TwShimmerPage() {
     <div class="shimmer-bg h-4 w-4/5 rounded bg-muted" />
   </div>
 </div>`}
-                highlight="--shimmer-width"
+                highlight="shimmer-width"
                 highlightMode="text"
               />
             </BoxCode>
@@ -408,18 +405,18 @@ export default function TwShimmerPage() {
             <BoxCode>
               <CodeBlock
                 language="html"
-                code={`<div class="shimmer-bg h-4 w-48 rounded bg-blue-500 shimmer-color-blue-300" />
-<div class="shimmer-bg h-4 w-48 rounded bg-purple-500 shimmer-color-purple-300" />
-<div class="shimmer-bg h-4 w-48 rounded bg-green-500 shimmer-color-green-300" />`}
+                code={`<div class="shimmer-bg h-4 w-48 rounded bg-blue-600 shimmer-color-blue-400" />
+<div class="shimmer-bg h-4 w-48 rounded bg-purple-600 shimmer-color-purple-400" />
+<div class="shimmer-bg h-4 w-48 rounded bg-green-600 shimmer-color-green-400" />`}
                 highlight="shimmer-color"
                 highlightMode="text"
               />
             </BoxCode>
             <BoxContent>
               <div className="space-y-1" ref={autoWidthRef}>
-                <div className="shimmer-bg h-4 w-48 rounded bg-blue-500 shimmer-color-blue-300" />
-                <div className="shimmer-bg h-4 w-48 rounded bg-purple-500 shimmer-color-purple-300" />
-                <div className="shimmer-bg h-4 w-48 rounded bg-green-500 shimmer-color-green-300" />
+                <div className="shimmer-bg h-4 w-48 rounded bg-blue-600 shimmer-color-blue-400" />
+                <div className="shimmer-bg h-4 w-48 rounded bg-purple-600 shimmer-color-purple-400" />
+                <div className="shimmer-bg h-4 w-48 rounded bg-green-600 shimmer-color-green-400" />
               </div>
             </BoxContent>
           </Box>
@@ -433,7 +430,7 @@ export default function TwShimmerPage() {
               <CodeBlock
                 language="tsx"
                 code={`<div
-  class="flex gap-3 shimmer-angle-15"
+  class="flex gap-3 shimmer-width-720 shimmer-angle-15"
 >
   <div class="shimmer-bg size-10 shrink-0 rounded-full bg-muted" />
   <div class="flex-1 space-y-1">
@@ -442,7 +439,7 @@ export default function TwShimmerPage() {
     <div class="shimmer-bg h-4 w-4/5 rounded bg-muted" />
   </div>
 </div>`}
-                highlight="shimmer-angle-15"
+                highlight="shimmer-angle"
                 highlightMode="text"
               />
             </BoxCode>
@@ -475,7 +472,7 @@ export default function TwShimmerPage() {
             <BoxCode>
               <CodeBlock
                 language="html"
-                code={`<div class="shimmer-angle-15 flex gap-3">
+                code={`<div class="flex gap-3 shimmer-width-720 shimmer-angle-15">
   <div class="shimmer-bg shimmer-x-24 shimmer-y-24 size-12 rounded-full bg-muted" />
   <div class="flex-1 space-y-1">
     <div class="shimmer-bg shimmer-x-52 shimmer-y-0 h-4 w-1/4 rounded bg-muted" />
