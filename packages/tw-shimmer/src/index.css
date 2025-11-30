@@ -207,16 +207,8 @@
   --shimmer-y: --value(number);
 }
 
-@utility -shimmer-y-* {
-  --shimmer-y: calc(-1 * --value(number));
-}
-
 @utility shimmer-x-* {
   --shimmer-x: --value(number);
-}
-
-@utility -shimmer-x-* {
-  --shimmer-x: calc(-1 * --value(number));
 }
 
 /*
@@ -260,9 +252,7 @@
     /* Dimensionless pass time in seconds, width-dependent */
     --tw-shimmer-pass-time-auto: clamp(
       1.1,
-      calc(
-        1.1 + ((var(--tw-shimmer-width) / 320) - 1) * 0.25
-      ),
+      calc(1.1 + ((var(--tw-shimmer-width) / 320) - 1) * 0.25),
       1.6
     );
 
