@@ -14,10 +14,6 @@
 - Background shimmer defaults: 800px width, 1000px/s speed
 - Text shimmer defaults: 200px width, 150px/s speed
 
-### Patch Changes
-
-- Add `overflow: hidden` fallback before `overflow: clip` for older browser compatibility
-
 ## 0.2.1
 
 ### Patch Changes
