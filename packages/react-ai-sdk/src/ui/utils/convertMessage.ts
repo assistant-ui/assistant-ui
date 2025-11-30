@@ -66,7 +66,7 @@ const convertParts = (
         const toolCallId = part.toolCallId;
 
         // Extract args and result based on state
-        let args: any = {};
+        const args: any = {};
         let result: any;
         let isError = false;
 
@@ -118,7 +118,7 @@ const convertParts = (
         const toolCallId = part.toolCallId;
 
         // Extract args and result based on state
-        let args: any = {};
+        const args: any = {};
         let result: any;
         let isError = false;
 
