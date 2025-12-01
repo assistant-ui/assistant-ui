@@ -236,7 +236,7 @@
 }
 
 @utility shimmer-color-* {
-  --shimmer-color: --value([color], --color-*);
+  --shimmer-color: --alpha(--value([color], --color-*) / calc(--modifier(integer) * 1%));
 }
 
 @utility shimmer-spread-* {

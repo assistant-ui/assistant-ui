@@ -272,7 +272,7 @@ export default function TwShimmerPage() {
             <BoxCode>
               <CodeBlock
                 language="html"
-                code='<span class="shimmer shimmer-color-blue-300 text-blue-500/60">Blue Shimmer</span>'
+                code='<span class="shimmer shimmer-color-background text-foreground/60">Blue Shimmer</span>'
                 highlight="shimmer-color"
                 highlightMode="text"
               />
@@ -280,9 +280,9 @@ export default function TwShimmerPage() {
             <BoxContent>
               <span
                 ref={autoWidthRef}
-                className="shimmer text-xl font-semibold text-blue-500/60 shimmer-color-blue-300"
+                className="shimmer text-xl font-semibold text-foreground/80 shimmer-color-background/60"
               >
-                Blue Shimmer
+                Inverted Shimmer
               </span>
             </BoxContent>
           </Box>
