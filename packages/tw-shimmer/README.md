@@ -62,9 +62,9 @@ Animation speed in pixels per second. Default: `150`px/s for text, `1000`px/s fo
 - If you set `--shimmer-speed` (or use `shimmer-speed-{value}`) on a parent container, both `shimmer` and `shimmer-bg` children will use that value unless they override it.
 - If no value is set anywhere, text shimmer falls back to `150` and background shimmer falls back to `1000`.
 
-> **How speed is calculated:** For both text and background shimmer, duration is `(2 × width) / speed`, where width is the shimmer track width in pixels (from `--shimmer-width`). Spread does not affect timing; it only controls how thick the highlight appears.
+> **How speed is calculated:** For text shimmer, duration is `(2 × width) / speed`, where width is the shimmer track width in pixels (from `--shimmer-width`). For background shimmer we use the same idea but include an angle-aware overshoot so the stripe starts and ends fully off-screen at shallow angles. At 90deg this reduces to the same `(2 × width) / speed` formula; at more extreme angles the pass time is slightly longer to account for the extra travel. Spread does not affect timing; it only controls how thick the highlight appears.
 
-When `shimmer-bg` is used inside a `shimmer-container`, the plugin derives `--shimmer-speed` automatically from the container width so that each shimmer pass takes roughly the same amount of time (~1.4s) regardless of container size. You can still override this by setting `--shimmer-speed` (or using `shimmer-speed-{value}`) on any ancestor or the element itself.
+When `shimmer-bg` is used inside a `shimmer-container`, the plugin derives `--shimmer-speed` automatically from the container width so that each shimmer pass takes roughly 1.1–1.6 seconds, depending on container size. Smaller containers run slightly faster, larger containers slightly slower, which feels more consistent than a perfectly flat duration. Text shimmer in containers uses a slightly slower multiplier (~2.2–3.2 second passes) for a more subtle effect. You can still override this by setting `--shimmer-speed` (or using `shimmer-speed-{value}`) on any ancestor or the element itself.
 
 ```html
 <span class="shimmer shimmer-speed-200 text-foreground/40">Fast (200px/s)</span>
@@ -112,8 +112,8 @@ In modern browsers that support CSS container queries and container units (Chrom
 Inside `shimmer-container`, tw-shimmer automatically:
 
 - Sets the shimmer track width based on the container width (`--shimmer-width` auto).
-- Derives the animation speed so that one shimmer pass takes roughly a constant time (~1.4s), regardless of container size.
-- For `shimmer-bg`, adjusts the highlight spread based on the container width, clamping it between a sensible minimum (~80px) and maximum (~300px) so it looks good at any size.
+- Derives the animation speed from the container width so that one shimmer pass takes roughly 1.1–1.6 seconds, depending on container size. Small containers feel snappier, larger containers a bit slower, while keeping the motion perceptually consistent.
+- For `shimmer-bg`, adjusts the highlight spread based on the container width, clamping it between a sensible minimum (about 200px, or the track width if smaller) and maximum (about 300px) so it looks good at any size.
 
 These container-based values act as smart defaults. Any explicit `--shimmer-width`, `--shimmer-speed`, or `--shimmer-bg-spread` that you set (for example via `shimmer-width-*`, `shimmer-speed-*`, or `shimmer-bg-spread-*`) will override them, even inside `shimmer-container`.
 
@@ -190,7 +190,7 @@ To sync shimmer timing across all skeleton children, you have two options:
 
 **Option 1: CSS-only with `shimmer-container` (recommended for modern browsers)**
 
-Wrap skeleton elements in `shimmer-container` for consistent timing. The container auto-derives speed so each pass takes ~1.4s regardless of width, and clamps the highlight spread (80–300px). All `shimmer-bg` children sync to the same animation. Older browsers fall back to standalone defaults.
+Wrap skeleton elements in `shimmer-container` for consistent timing. The container auto-derives speed so each pass takes roughly 1.1–1.6 seconds depending on width, and clamps the highlight spread to a width-aware band (roughly 200–300px, or the track width if smaller). All `shimmer-bg` children sync to the same animation. Older browsers fall back to standalone defaults.
 
 ```html
 <div class="shimmer-container flex gap-3">
@@ -271,6 +271,35 @@ These utilities let you specify each element's approximate position (in pixels) 
   />
 </div>
 ```
+
+### Advanced: Offscreen Overshoot (background shimmer)
+
+For angled background shimmers (`shimmer-bg` with `shimmer-angle-*`), the plugin automatically adjusts how far the shimmer stripe starts and ends off-screen based on the angle. This helps avoid the highlight being visible at the left edge at the very start of the animation, especially at shallow angles (e.g. 15–30°).
+
+Internally, this uses an angle-aware overshoot multiplier:
+
+- Steep angles (~90°) → multiplier ≈ 1 (no extra overshoot)
+- Moderate angles (e.g. 45°) → multiplier ≈ 1.3
+- Shallow angles (e.g. 15° or 165°) → multiplier up to ≈ 3 (clamped)
+
+You can override this behavior per element or per container using the CSS variable:
+
+```css
+--shimmer-offscreen-multiplier: 1.5; /* or any positive value */
+```
+
+For example:
+
+```html
+<div
+  class="shimmer-container"
+  style="--shimmer-angle: 20deg; --shimmer-offscreen-multiplier: 2;"
+>
+  <div class="shimmer-bg bg-muted h-4 w-full rounded"></div>
+</div>
+```
+
+Most users never need to set this manually; it exists for power users who are tuning very shallow angles or unusual aspect ratios.
 
 ## Browser Support & Accessibility
 

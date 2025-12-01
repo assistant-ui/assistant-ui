@@ -295,7 +295,7 @@ export default function TwShimmerPage() {
             <BoxCode>
               <CodeBlock
                 language="html"
-                code='<span class="shimmer shimmer-spread-40 text-foreground/40">Wide Shimmer</span>'
+                code='<span class="shimmer shimmer-spread-40 text-foreground/40">Wider Spread Shimmer</span>'
                 highlight="shimmer-spread"
                 highlightMode="text"
               />
@@ -305,7 +305,7 @@ export default function TwShimmerPage() {
                 ref={autoWidthRef}
                 className="shimmer text-xl font-semibold text-foreground/40 shimmer-spread-40"
               >
-                Wide Shimmer
+                Wider Spread Shimmer
               </span>
             </BoxContent>
           </Box>
@@ -318,7 +318,7 @@ export default function TwShimmerPage() {
             <BoxCode>
               <CodeBlock
                 language="html"
-                code='<div class="shimmer shimmer-angle-45 font-semibold text-foreground/40">Diagonal Shimmer</div>'
+                code='<div class="shimmer text-xl font-semibold text-foreground/40 shimmer-angle-130 shimmer-spread-10">Diagonal Shimmer</div>'
                 highlight="shimmer-angle"
                 highlightMode="text"
               />
@@ -326,7 +326,7 @@ export default function TwShimmerPage() {
             <BoxContent>
               <span
                 ref={autoWidthRef}
-                className="shimmer text-xl font-semibold text-foreground/40 shimmer-angle-45"
+                className="shimmer text-xl font-semibold text-foreground/40 shimmer-angle-130 shimmer-spread-10"
               >
                 Diagonal Shimmer
               </span>
