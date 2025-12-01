@@ -4,6 +4,7 @@ title: Full-Stack Integration
 
 import { Step, Steps } from "fumadocs-ui/components/steps";
 import { Callout } from "fumadocs-ui/components/callout";
+import { InstallCommand } from "@/components/docs/install-command";
 
 Integrate Mastra directly into your Next.js application's API routes. This approach keeps your backend and frontend code within the same project.
 
@@ -65,9 +66,7 @@ This default route uses the Vercel AI SDK directly with OpenAI. In the following
 
 Add the `@mastra/core` package and its peer dependency `zod` (which you can use later inside tools for example). Also add `@mastra/ai-sdk` to convert Mastra's stream to an AI SDK-compatible format:
 
-```bash npm2yarn
-npm install @mastra/core@latest @mastra/ai-sdk@latest zod@latest
-```
+<InstallCommand npm={["@mastra/core@latest", "@mastra/ai-sdk@latest", "zod@latest"]} />
 
 </Step>
 <Step>

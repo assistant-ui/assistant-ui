@@ -1,5 +1,5 @@
-import { normalize, relative } from "path";
-import path from "path";
+import { normalize, relative } from "node:path";
+import path from "node:path";
 
 export function sanitizePath(userPath: string): string {
   if (!userPath || typeof userPath !== "string") {
@@ -53,6 +53,6 @@ export function sanitizePath(userPath: string): string {
 }
 
 export function isValidPathCharacters(path: string): boolean {
-  const validPathRegex = /^[a-zA-Z0-9\-_\/\.]+$/;
+  const validPathRegex = /^[a-zA-Z0-9\-_/.]+$/;
   return validPathRegex.test(path);
 }

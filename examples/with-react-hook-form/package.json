@@ -5,8 +5,7 @@
   "scripts": {
     "dev": "next dev --turbo",
     "build": "next build",
-    "start": "next start",
-    "lint": "eslint ."
+    "start": "next start"
   },
   "dependencies": {
     "@ai-sdk/openai": "^2.0.73",
@@ -15,7 +14,8 @@
     "@assistant-ui/react-hook-form": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
     "@hookform/resolvers": "^5.2.2",
-    "@radix-ui/react-avatar": "^1.1.11",
+    "@radix-ui/react-avatar": "^1.1.4",
+    "@radix-ui/react-dialog": "^1.1.7",
     "@radix-ui/react-icons": "^1.3.2",
     "@radix-ui/react-label": "^2.1.8",
     "@radix-ui/react-slot": "^1.2.4",

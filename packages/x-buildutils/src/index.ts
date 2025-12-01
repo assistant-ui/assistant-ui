@@ -1,40 +1,7 @@
 import { build } from "tsup";
 import { promises as fs } from "node:fs";
-import postcss from "postcss";
-import postcssJs from "postcss-js";
-import path from "node:path";
 import { esbuildPluginFilePathExtensions } from "esbuild-plugin-file-path-extensions";
 import { spawn } from "cross-spawn";
-
-const replaceNullWithObject = (obj: object): object => {
-  return Object.fromEntries(
-    Object.entries(obj).map(([key, value]) => {
-      if (value === true) return [key, {}];
-      if (typeof value === "object" && value !== null)
-        return [key, replaceNullWithObject(value)];
-      return [key, value];
-    }),
-  );
-};
-
-const transformCssToJson = async (files: string[]) => {
-  await Promise.all(
-    files.map(async (file) => {
-      const cssContent = await fs.readFile(file, "utf8");
-      const root = postcss.parse(cssContent);
-      const formattedComponents = replaceNullWithObject(
-        postcssJs.objectify(root),
-      );
-
-      const outputFile =
-        path.join("dist", ...file.split(/[/\\]/).slice(1)) + ".json";
-      const outputContent = JSON.stringify(formattedComponents, null, 2);
-
-      await fs.mkdir(path.dirname(outputFile), { recursive: true });
-      await fs.writeFile(outputFile, outputContent);
-    }),
-  );
-};
 
 const transpileTypescript = async () => {
   await build({
@@ -116,21 +83,10 @@ export class Build {
     return this;
   }
 
-  public transpileCSS({
-    jsonEntrypoints,
-    cssEntrypoints = jsonEntrypoints,
-  }: {
-    jsonEntrypoints: string[];
-    cssEntrypoints?: string[];
-  }) {
-    this.initTask = this.initTask.then(() =>
-      transformCssToJson(jsonEntrypoints),
-    );
+  public transpileCSS({ cssEntrypoints }: { cssEntrypoints: string[] }) {
     this.tasks.push(
       this.initTask.then(() => {
-        return Promise.all([
-          transformTailwindToCss(cssEntrypoints), // css imports
-        ]);
+        return transformTailwindToCss(cssEntrypoints);
       }),
     );
     return this;

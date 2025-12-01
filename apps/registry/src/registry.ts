@@ -63,7 +63,7 @@ export const registry: RegistryItem[] = [
         path: "components/assistant-ui/thread.tsx",
       },
     ],
-    dependencies: ["@assistant-ui/react", "lucide-react", "motion"],
+    dependencies: ["@assistant-ui/react", "lucide-react"],
     registryDependencies: [
       "button",
       "https://r.assistant-ui.com/attachment",
@@ -100,9 +100,11 @@ export const registry: RegistryItem[] = [
     registryDependencies: [
       "collapsible",
       "https://r.assistant-ui.com/markdown-text",
-      "https://r.assistant-ui.com/shimmer-style",
     ],
-    dependencies: ["@assistant-ui/react", "lucide-react"],
+    dependencies: ["@assistant-ui/react", "lucide-react", "tw-shimmer"],
+    css: {
+      "@import": "tw-shimmer",
+    },
   },
   {
     name: "thread-list",

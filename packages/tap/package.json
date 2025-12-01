@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/tap",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "type": "module",
   "description": "Zero-dependency reactive state management inspired by React hooks",
   "main": "dist/index.js",
@@ -8,7 +8,6 @@
   "sideEffects": false,
   "scripts": {
     "build": "tsx build.mts",
-    "lint": "eslint .",
     "prepublishOnly": "pnpm turbo build",
     "test": "vitest",
     "test:run": "vitest run"
@@ -45,5 +44,16 @@
   },
   "files": [
     "dist"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/assistant-ui/assistant-ui/tree/main/packages/tap"
+  },
+  "bugs": {
+    "url": "https://github.com/assistant-ui/assistant-ui/issues"
+  }
 }

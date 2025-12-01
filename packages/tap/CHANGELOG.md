@@ -1,5 +1,11 @@
 # @assistant-ui/tap
 
+## 0.3.1
+
+### Patch Changes
+
+- ec662cd: chore: update dependencies
+
 ## 0.3.0
 
 ### Minor Changes

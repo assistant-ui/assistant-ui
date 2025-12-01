@@ -1,6 +1,6 @@
 import { z } from "zod/v3";
-import { readFile, readdir, lstat } from "fs/promises";
-import { join, extname } from "path";
+import { readFile, readdir, lstat } from "node:fs/promises";
+import { join, extname } from "node:path";
 import { CODE_EXAMPLES_PATH, MAX_FILE_SIZE } from "../constants.js";
 import { logger } from "../utils/logger.js";
 import { formatMCPResponse } from "../utils/mcp-format.js";

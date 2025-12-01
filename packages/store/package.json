@@ -1,7 +1,7 @@
 {
   "name": "@assistant-ui/store",
   "description": "Tap-based state management for @assistant-ui",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -20,8 +20,7 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsx scripts/build.mts",
-    "lint": "eslint ."
+    "build": "tsx scripts/build.mts"
   },
   "dependencies": {
     "@assistant-ui/tap": "workspace:*"

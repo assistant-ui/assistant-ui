@@ -338,7 +338,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
       new NestedSubscriptionSubject({
         path: {
           ...this.path,
-          ref: this.path.ref + `${this.path.ref}.composer`,
+          ref: `${this.path.ref}${this.path.ref}.composer`,
           composerSource: "thread",
         },
         getState: () => this._threadBinding.getState().composer,
@@ -437,7 +437,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     return this._getMessageRuntime(
       {
         ...this.path,
-        ref: this.path.ref + `${this.path.ref}.messages[${idx}]`,
+        ref: `${this.path.ref}${this.path.ref}.messages[${idx}]`,
         messageSelector: { type: "index", index: idx },
       },
       () => {

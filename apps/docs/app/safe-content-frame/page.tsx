@@ -100,12 +100,12 @@ export default function SafeContentFramePage() {
         await frame.fullyLoadedPromiseWithTimeout(5000);
         setStatus((prev) => ({
           ...prev,
-          message: prev.message + " | Content fully loaded",
+          message: `${prev.message} | Content fully loaded`,
         }));
       } catch {
         setStatus((prev) => ({
           ...prev,
-          message: prev.message + " | Load timeout",
+          message: `${prev.message} | Load timeout`,
         }));
       }
     } catch (error) {
@@ -135,11 +135,11 @@ export default function SafeContentFramePage() {
           <span>Secure iframe rendering</span>
         </div>
 
-        <h1 className="text-5xl font-bold tracking-tight lg:text-6xl">
+        <h1 className="font-bold text-5xl tracking-tight lg:text-6xl">
           Safe Content Frame
         </h1>
 
-        <p className="max-w-[600px] text-lg text-balance text-muted-foreground">
+        <p className="max-w-[600px] text-balance text-lg text-muted-foreground">
           Render untrusted HTML content securely in sandboxed iframes with
           unique origins per render.
         </p>
@@ -148,7 +148,7 @@ export default function SafeContentFramePage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-lg font-semibold">
+            <h2 className="flex items-center gap-2 font-semibold text-lg">
               <Code className="size-5" />
               HTML Input
             </h2>
@@ -190,7 +190,7 @@ export default function SafeContentFramePage() {
           </div>
 
           <div
-            className={`rounded-lg p-3 text-sm font-mono ${
+            className={`rounded-lg p-3 font-mono text-sm ${
               status.type === "error"
                 ? "bg-destructive/10 text-destructive"
                 : status.type === "success"
@@ -205,7 +205,7 @@ export default function SafeContentFramePage() {
         </div>
 
         <div className="space-y-4">
-          <h2 className="flex items-center gap-2 text-lg font-semibold">
+          <h2 className="flex items-center gap-2 font-semibold text-lg">
             <Shield className="size-5" />
             Sandboxed Output
           </h2>

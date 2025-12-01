@@ -186,7 +186,7 @@ const tests: PartialJsonTest[] = [
     result: "complete",
   },
   {
-    input: `{"foo": [1,"\",{"b":1},[],{},[1,[[2]]],{"1":1,"t":1`,
+    input: `{"foo": [1,"",{"b":1},[],{},[1,[[2]]],{"1":1,"t":1`,
     query: ["foo", 6, "t"],
     result: "partial",
   },

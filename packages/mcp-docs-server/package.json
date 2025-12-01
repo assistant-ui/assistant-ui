@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/mcp-docs-server",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "description": "MCP server for assistant-ui documentation and examples",
   "type": "module",
   "main": "dist/index.js",
@@ -15,8 +15,7 @@
     "dev": "tsx src/stdio.ts",
     "pretest": "pnpm build",
     "test": "vitest run",
-    "test:watch": "vitest",
-    "lint": "eslint ."
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.23.0",
@@ -37,6 +36,14 @@
     "README.md"
   ],
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "provenance": true
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/assistant-ui/assistant-ui/tree/main/packages/mcp-docs-server"
+  },
+  "bugs": {
+    "url": "https://github.com/assistant-ui/assistant-ui/issues"
   }
 }

@@ -1,5 +1,31 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.1.16
+
+### Patch Changes
+
+- c4142ac: fix(react-ai-sdk): pass runConfig metadata to backend API request
+
+## 1.1.15
+
+### Patch Changes
+
+- ab8953b: feat(react): add `allowNesting` option to allow wrapping runtimes with custom thread list adapters
+- Updated dependencies [ab8953b]
+  - @assistant-ui/react@0.11.46
+
+## 1.1.14
+
+### Patch Changes
+
+- ec662cd: chore: update dependencies
+- cdb5ea5: mark tool call as complete once user sends new message when tool calling
+- 5dd925e: feat(ai-sdk): allow updates to headers/body
+- Updated dependencies [ec662cd]
+  - assistant-stream@0.2.42
+  - assistant-cloud@0.1.9
+  - @assistant-ui/react@0.11.45
+
 ## 1.1.13
 
 ### Patch Changes

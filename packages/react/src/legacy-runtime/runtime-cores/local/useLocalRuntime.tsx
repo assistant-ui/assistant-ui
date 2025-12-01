@@ -9,7 +9,7 @@ import { useRemoteThreadListRuntime } from "../remote-thread-list/useRemoteThrea
 import { useCloudThreadListAdapter } from "../remote-thread-list/adapter/cloud";
 import { AssistantRuntimeImpl } from "../../../internal";
 
-export const useLocalThreadRuntime = (
+const useLocalThreadRuntime = (
   adapter: ChatModelAdapter,
   { initialMessages, ...options }: LocalRuntimeOptions,
 ) => {
@@ -57,5 +57,6 @@ export const useLocalRuntime = (
       return useLocalThreadRuntime(adapter, options);
     },
     adapter: cloudAdapter,
+    allowNesting: true,
   });
 };

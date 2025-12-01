@@ -143,7 +143,7 @@ export default function TwShimmerPage() {
         </div>
 
         <div className="mx-auto max-w-3xl space-y-6">
-          <div className="border border-dashed border-blue-500/20 bg-blue-500/5 p-4 text-sm">
+          <div className="border border-blue-500/20 border-dashed bg-blue-500/5 p-4 text-sm">
             <p className="mb-1 font-semibold">💡 Important</p>
             <p className="text-muted-foreground">
               The shimmer effect uses{" "}
@@ -218,7 +218,7 @@ export default function TwShimmerPage() {
               />
             </BoxCode>
             <BoxContent>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-muted-foreground text-sm">
                 Without this variable, animation speed varies by element width.
                 <br />
                 Use JS to set element width for consistent shimmer speed.
@@ -233,14 +233,14 @@ export default function TwShimmerPage() {
                   <div className="space-y-2">
                     <span
                       ref={autoWidthRef}
-                      className="shimmer text-sm font-semibold text-foreground/40"
+                      className="shimmer font-semibold text-foreground/40 text-sm"
                     >
                       A short line
                     </span>
                     <br />
                     <span
                       ref={autoWidthRef}
-                      className="shimmer text-sm font-semibold text-foreground/40"
+                      className="shimmer font-semibold text-foreground/40 text-sm"
                     >
                       An example of a longer line but same speed
                     </span>
@@ -251,11 +251,11 @@ export default function TwShimmerPage() {
                     Default --shimmer-width:
                   </p>
                   <div className="space-y-2">
-                    <span className="shimmer text-sm font-semibold text-foreground/40">
+                    <span className="shimmer font-semibold text-foreground/40 text-sm">
                       A short line
                     </span>
                     <br />
-                    <span className="shimmer text-sm font-semibold text-foreground/40">
+                    <span className="shimmer font-semibold text-foreground/40 text-sm">
                       An example of a longer line but same duration
                     </span>
                   </div>
@@ -559,6 +559,14 @@ interface BoxCodeHeaderProps {
   fileName: string;
 }
 
+const PreComponent = ({ className, ...props }: any) => (
+  <pre className={className} {...props} />
+);
+
+const CodeComponent = ({ className, ...props }: any) => (
+  <code className={className} {...props} />
+);
+
 function CodeBlock({
   language,
   code,
@@ -638,7 +646,7 @@ function BoxContent({ children }: { children: React.ReactNode }) {
 
 function BoxCodeHeader({ fileName }: BoxCodeHeaderProps) {
   return (
-    <div className="flex items-center gap-2 px-6 py-4 font-mono text-sm font-medium">
+    <div className="flex items-center gap-2 px-6 py-4 font-medium font-mono text-sm">
       <FileCode className="size-4 text-muted-foreground" />
       {fileName}
     </div>

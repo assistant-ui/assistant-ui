@@ -3,6 +3,7 @@ title: AI SDK v4 (Legacy)
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
+import { InstallCommand } from "@/components/docs/install-command";
 
 ## Overview
 
@@ -27,9 +28,7 @@ import { Steps, Step } from "fumadocs-ui/components/steps";
 
 Install `@assistant-ui/react-data-stream` alongside assistant-ui and AI SDK v4:
 
-```sh npm2yarn
-npm install @assistant-ui/react @assistant-ui/react-data-stream ai@^4
-```
+<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-data-stream", "ai@^4"]} />
 
   </Step>
   <Step>
@@ -92,9 +91,7 @@ export default function Home() {
 
 Alternatively, you can use the older version of the AI SDK integration package, though this version is no longer actively maintained:
 
-```sh npm2yarn
-npm install @assistant-ui/react @assistant-ui/react-ai-sdk@0.1.10 ai@^4
-```
+<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-ai-sdk@0.1.10", "ai@^4"]} />
 
 <Callout type="warning">
   Version 0.1.10 of `@assistant-ui/react-ai-sdk` is no longer actively

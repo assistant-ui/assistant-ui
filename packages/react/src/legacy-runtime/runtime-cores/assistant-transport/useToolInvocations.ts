@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   createAssistantStreamController,
-  ToolCallStreamController,
+  type ToolCallStreamController,
   ToolResponse,
   unstable_toolResultStream,
   type Tool,
@@ -39,7 +39,8 @@ type UseToolInvocationsParams = {
 
 export type ToolExecutionStatus =
   | { type: "executing" }
-  | { type: "interrupt"; payload: { type: "human"; payload: unknown } };
+  | { type: "interrupt"; payload: { type: "human"; payload: unknown } }
+  | { type: "cancelled"; reason: string };
 
 export function useToolInvocations({
   state,
@@ -166,7 +167,10 @@ export function useToolInvocations({
                   if (process.env["NODE_ENV"] !== "production") {
                     console.warn(
                       "argsText updated after controller was closed:",
-                      { previous: lastState.argsText, next: content.argsText },
+                      {
+                        previous: lastState.argsText,
+                        next: content.argsText,
+                      },
                     );
                   }
                 } else {

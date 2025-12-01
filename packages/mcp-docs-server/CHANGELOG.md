@@ -1,5 +1,11 @@
 # @assistant-ui/mcp-docs-server
 
+## 0.1.15
+
+### Patch Changes
+
+- ec662cd: chore: update dependencies
+
 ## 0.1.14
 
 ### Patch Changes

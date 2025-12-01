@@ -5,7 +5,7 @@ const config = {
     "postcss-nested": {},
     "postcss-prefix-selector": {
       prefix: ":where(.aui-root)",
-      transform: function (prefix, selector) {
+      transform: function (_prefix, selector) {
         if (selector === ":where(.aui-root) :root") {
           return ":root :where(.aui-root)";
         }

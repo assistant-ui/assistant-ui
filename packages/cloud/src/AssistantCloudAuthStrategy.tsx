@@ -30,7 +30,7 @@ const getJwtExpiry = (jwt: string): number => {
     // Convert expiration time to milliseconds
     return exp * 1000;
   } catch (error) {
-    throw new Error("Unable to determine the token expiry: " + error);
+    throw new Error(`Unable to determine the token expiry: ${error}`);
   }
 };
 

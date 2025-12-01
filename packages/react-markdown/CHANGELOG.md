@@ -1,5 +1,13 @@
 # @assistant-ui/react-markdown
 
+## 0.11.6
+
+### Patch Changes
+
+- ec662cd: chore: update dependencies
+- Updated dependencies [ec662cd]
+  - @assistant-ui/react@0.11.45
+
 ## 0.11.5
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # assistant-cloud
 
+## 0.1.9
+
+### Patch Changes
+
+- ec662cd: chore: update dependencies
+- Updated dependencies [ec662cd]
+  - assistant-stream@0.2.42
+
 ## 0.1.8
 
 ### Patch Changes

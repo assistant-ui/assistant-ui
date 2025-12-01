@@ -5,9 +5,9 @@ import { examplesTools } from "./tools/examples.js";
 import { logger } from "./utils/logger.js";
 import { IS_PREPARE_MODE } from "./constants.js";
 
-import { readFileSync } from "fs";
-import { dirname, join } from "path";
-import { fileURLToPath } from "url";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const packageJson = JSON.parse(

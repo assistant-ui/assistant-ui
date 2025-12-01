@@ -48,8 +48,8 @@ export default function PricingSection() {
           const content = (
             <>
               <div className="flex-grow">
-                <h3 className="mb-2 text-2xl font-semibold">{option.title}</h3>
-                <p className="text-md mb-4">{option.price}</p>
+                <h3 className="mb-2 font-semibold text-2xl">{option.title}</h3>
+                <p className="mb-4 text-md">{option.price}</p>
                 <ul className="mb-6 space-y-2 text-sm">
                   {option.features.map((feature) => (
                     <li key={feature} className="flex items-start">

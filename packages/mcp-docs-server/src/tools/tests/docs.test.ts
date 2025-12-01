@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { testContext } from "./test-setup.js";
-import * as fs from "fs/promises";
+import * as fs from "node:fs/promises";
 
 vi.mock("fs/promises", async () => {
   const { readdir, readFile, stat, lstat } = await import("node:fs/promises");

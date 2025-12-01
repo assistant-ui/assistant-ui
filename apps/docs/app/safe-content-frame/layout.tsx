@@ -13,5 +13,7 @@ export default function SafeContentFrameLayout({
 }: {
   children: ReactNode;
 }): React.ReactElement {
-  return <SafeContentFrameLayoutClient>{children}</SafeContentFrameLayoutClient>;
+  return (
+    <SafeContentFrameLayoutClient>{children}</SafeContentFrameLayoutClient>
+  );
 }

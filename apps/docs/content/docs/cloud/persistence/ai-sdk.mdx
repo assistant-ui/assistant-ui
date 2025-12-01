@@ -4,6 +4,7 @@ title: Chat History for AI SDK
 
 import { Steps, Step } from 'fumadocs-ui/components/steps';
 import { Callout } from 'fumadocs-ui/components/callout';
+import { InstallCommand } from "@/components/docs/install-command";
 
 ## Overview
 
@@ -52,9 +53,7 @@ ASSISTANT_API_KEY=your-api-key-here
 
 Install the required packages:
 
-```bash
-npm install @assistant-ui/react @assistant-ui/react-ai-sdk
-```
+<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-ai-sdk"]} />
 
 </Step>
 

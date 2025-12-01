@@ -30,7 +30,7 @@ export default function Page(props: {
           Back
         </Link>
         {!!page.data.date && (
-          <p className="text-xs text-gray-500">
+          <p className="text-gray-500 text-xs">
             {page.data.date.toLocaleString("en-US", {
               year: "numeric",
               month: "2-digit",
@@ -52,15 +52,15 @@ export default function Page(props: {
         }}
       >
         <div className="mx-auto flex w-full max-w-screen-sm flex-col items-center justify-center px-4">
-          <h1 className="text-center text-4xl font-bold text-white">
+          <h1 className="text-center font-bold text-4xl text-white">
             {page.data.title}
           </h1>
-          <p className="mt-4 text-center text-lg text-balance text-white/80">
+          <p className="mt-4 text-balance text-center text-lg text-white/80">
             {page.data.description}
           </p>
         </div>
       </div>
-      <article className="lg:prose-lg mx-auto prose w-full max-w-screen-sm py-8">
+      <article className="lg:prose-lg prose mx-auto w-full max-w-screen-sm py-8">
         <page.data.body components={mdxComponents} />
       </article>
       <div className="mx-auto mb-20 flex w-full max-w-screen-sm items-start gap-3">
@@ -72,7 +72,7 @@ export default function Page(props: {
           className="size-8 rounded-full"
         />
         <div className="mt-1.5 flex flex-col">
-          <span className="text-sm font-medium">Simon Farshid</span>
+          <span className="font-medium text-sm">Simon Farshid</span>
         </div>
       </div>
     </main>

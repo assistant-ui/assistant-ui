@@ -16,7 +16,7 @@ chrome.runtime.onConnect.addListener((port) => {
     // Extract tab ID from port name (format: "devtools-panel-123")
     const tabId = parseInt(port.name.replace("devtools-panel-", ""), 10);
 
-    if (!isNaN(tabId)) {
+    if (!Number.isNaN(tabId)) {
       console.log(
         `[assistant-ui DevTools] DevTools panel connected for tab ${tabId}`,
       );

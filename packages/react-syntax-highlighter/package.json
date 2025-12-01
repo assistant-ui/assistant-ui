@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-syntax-highlighter",
-  "version": "0.11.5",
+  "version": "0.11.6",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -22,12 +22,11 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsx scripts/build.mts",
-    "lint": "eslint ."
+    "build": "tsx scripts/build.mts"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.11.44",
-    "@assistant-ui/react-markdown": "^0.11.5",
+    "@assistant-ui/react": "^0.11.47",
+    "@assistant-ui/react-markdown": "^0.11.6",
     "@types/react": "*",
     "@types/react-syntax-highlighter": "*",
     "react": "^18 || ^19 || ^19.0.0-rc",

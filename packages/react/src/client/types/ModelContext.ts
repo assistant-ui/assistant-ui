@@ -1,7 +1,6 @@
 import type { Unsubscribe } from "../../types";
 import type { ModelContextProvider } from "../../model-context/ModelContextTypes";
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export type ModelContextState = {};
 
 export type ModelContextApi = ModelContextProvider & {

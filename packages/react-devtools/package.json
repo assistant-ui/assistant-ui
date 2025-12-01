@@ -8,7 +8,7 @@
     "development",
     "debugging"
   ],
-  "version": "0.1.8",
+  "version": "0.1.9",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -29,8 +29,7 @@
   "scripts": {
     "build": "tsx scripts/build.mts",
     "build:lib": "tsx scripts/build-lib.mts",
-    "dev": "tsx scripts/build.mts --watch",
-    "lint": "eslint ."
+    "dev": "tsx scripts/build.mts --watch"
   },
   "dependencies": {
     "zod": "^4.1.13"

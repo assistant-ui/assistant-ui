@@ -24,7 +24,7 @@ const debugVerifyPrototype = (
 
   if (unboundMethods.length > 0) {
     throw new Error(
-      "The following methods are not bound: " + JSON.stringify(unboundMethods),
+      `The following methods are not bound: ${JSON.stringify(unboundMethods)}`,
     );
   }
 

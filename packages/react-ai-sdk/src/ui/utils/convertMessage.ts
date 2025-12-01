@@ -1,4 +1,4 @@
-import { isToolUIPart, UIMessage } from "ai";
+import { isToolUIPart, type UIMessage } from "ai";
 import {
   unstable_createMessageConverter,
   type ReasoningMessagePart,
@@ -49,7 +49,7 @@ const convertParts = (
 
         // Extract args and result based on state
         let args: any = {};
-        let result: any = undefined;
+        let result: any;
         let isError = false;
 
         if (
@@ -89,6 +89,13 @@ const convertParts = (
               reason: "interrupt",
             },
           }),
+          ...(toolStatus?.type === "cancelled" && {
+            status: {
+              type: "incomplete" as const,
+              reason: "cancelled",
+              error: toolStatus.reason,
+            },
+          }),
         } satisfies ToolCallMessagePart;
       }
 
@@ -99,7 +106,7 @@ const convertParts = (
 
         // Extract args and result based on state
         let args: any = {};
-        let result: any = undefined;
+        let result: any;
         let isError = false;
 
         if (
@@ -130,6 +137,13 @@ const convertParts = (
             status: {
               type: "requires-action" as const,
               reason: "interrupt",
+            },
+          }),
+          ...(toolStatus?.type === "cancelled" && {
+            status: {
+              type: "incomplete" as const,
+              reason: "cancelled",
+              error: toolStatus.reason,
             },
           }),
         } satisfies ToolCallMessagePart;

@@ -1,5 +1,4 @@
 "use client";
-import {} from "@radix-ui/react-select";
 import Image from "next/image";
 import type { FC } from "react";
 import anthropic from "../../assets/providers/anthropic.svg";

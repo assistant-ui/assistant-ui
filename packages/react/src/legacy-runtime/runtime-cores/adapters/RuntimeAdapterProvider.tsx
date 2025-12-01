@@ -13,7 +13,7 @@ export type RuntimeAdapters = {
 
 const RuntimeAdaptersContext = createContext<RuntimeAdapters | null>(null);
 
-namespace RuntimeAdapterProvider {
+export namespace RuntimeAdapterProvider {
   export type Props = {
     adapters: RuntimeAdapters;
     children: ReactNode;

@@ -1,5 +1,11 @@
 # assistant-ui
 
+## 0.0.67
+
+### Patch Changes
+
+- ec662cd: chore: update dependencies
+
 ## 0.0.66
 
 ### Patch Changes
