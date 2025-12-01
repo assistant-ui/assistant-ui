@@ -41,6 +41,14 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
       "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/claude/Claude.tsx",
   },
   {
+    title: "Grok Clone",
+    image: "/screenshot/examples/grok.png",
+    description: "Customized colors and styles for a Grok look and feel.",
+    link: "/examples/grok",
+    githubLink:
+      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/grok/Grok.tsx",
+  },
+  {
     title: "Perplexity Clone",
     image: "/screenshot/examples/perplexity.png",
     description: "Customized colors and styles for a Perplexity look and feel.",

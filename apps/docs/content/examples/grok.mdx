@@ -1,0 +1,50 @@
+---
+title: Grok Clone
+description: Customized colors and styles for a Grok look and feel
+---
+
+import { Grok } from "@/components/grok/Grok";
+import { DocsRuntimeProvider } from "@/app/(home)/DocsRuntimeProvider";
+
+## Live Demo
+
+<div className="not-prose h-[700px]">
+  <DocsRuntimeProvider>
+    <Grok />
+  </DocsRuntimeProvider>
+</div>
+
+## Overview
+
+The Grok Clone example demonstrates how to customize assistant-ui to match xAI's Grok interface. This includes the characteristic dark theme, magenta accent color, and minimalist design that users associate with Grok on X (formerly Twitter).
+
+## Features
+
+- **Grok Styling**: Authentic black background with magenta (#f91880) accent color
+- **Dark Theme**: Pure black background with subtle gray borders
+- **Message Formatting**: Clean message layout with Grok avatar for assistant responses
+- **Input Design**: Grok-style rounded input field with animated send button
+- **Empty State**: Welcome screen with Grok logo
+- **Action Buttons**: Regenerate and Copy actions for assistant messages
+
+## Usage
+
+To create a Grok-style interface:
+
+1. **Color Scheme**: Apply Grok's black background (#000) and magenta (#f91880) accent
+2. **Typography**: Use clean, sans-serif fonts with proper hierarchy
+3. **Layout Design**: Implement Grok's minimalist, dark-themed layout
+4. **Component Styling**: Customize all UI elements to match Grok's aesthetic
+
+## Code
+
+Key styling elements for Grok clone:
+
+- **Primary Background**: Pure black (#000000) for the main container
+- **Secondary Background**: Dark gray (#0f0f0f, #1a1a1a) for input and message areas
+- **Accent Color**: Grok's signature magenta (#f91880) for buttons and highlights
+- **Text Colors**: White (#e5e5e5) for content, gray (#6b6b6b) for secondary text
+- **Borders**: Subtle dark borders (#2a2a2a) for separation
+
+The implementation focuses on the sleek, dark aesthetic while maintaining all assistant-ui functionality.
+
