@@ -2,6 +2,7 @@
 
 import {
   ActionBarPrimitive,
+  AssistantIf,
   AttachmentPrimitive,
   ComposerPrimitive,
   MessagePrimitive,
@@ -83,7 +84,7 @@ export const Claude: FC = () => {
 const ChatMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="group relative mt-1 mb-1 block">
-      <MessagePrimitive.If user>
+      <AssistantIf condition={({ message }) => message.role === "user"}>
         <div className="group/user wrap-break-word relative inline-flex max-w-[75ch] flex-col gap-2 rounded-xl bg-[#DDD9CE] py-2.5 pr-6 pl-2.5 text-[#1a1a18] transition-all dark:bg-[#393937] dark:text-[#eee]">
           <div className="relative flex flex-row gap-2">
             <div className="shrink-0 self-start transition-all duration-300">
@@ -115,9 +116,9 @@ const ChatMessage: FC = () => {
             </ActionBarPrimitive.Root>
           </div>
         </div>
-      </MessagePrimitive.If>
+      </AssistantIf>
 
-      <MessagePrimitive.If assistant>
+      <AssistantIf condition={({ message }) => message.role === "assistant"}>
         <div className="relative mb-12 font-serif">
           <div className="relative leading-[1.65rem]">
             <div className="grid grid-cols-1 gap-2.5">
@@ -146,15 +147,15 @@ const ChatMessage: FC = () => {
                   <ReloadIcon width={20} height={20} />
                 </ActionBarPrimitive.Reload>
               </div>
-              <MessagePrimitive.If last>
+              <AssistantIf condition={({ message }) => message.isLast}>
                 <p className="mt-2 w-full text-right text-[#8a8985] text-[0.65rem] leading-[0.85rem] opacity-90 sm:text-[0.75rem] dark:text-[#b8b5a9]">
                   Claude can make mistakes. Please double-check responses.
                 </p>
-              </MessagePrimitive.If>
+              </AssistantIf>
             </ActionBarPrimitive.Root>
           </div>
         </div>
-      </MessagePrimitive.If>
+      </AssistantIf>
     </MessagePrimitive.Root>
   );
 };

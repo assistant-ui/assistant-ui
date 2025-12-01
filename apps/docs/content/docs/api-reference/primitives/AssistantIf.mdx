@@ -1,0 +1,200 @@
+---
+title: AssistantIf
+---
+
+Conditionally render children based on assistant state.
+
+import { ParametersTable } from "@/components/docs";
+import { Callout } from "fumadocs-ui/components/callout";
+
+## Anatomy
+
+```tsx
+import { AssistantIf } from "@assistant-ui/react";
+
+<AssistantIf condition={({ thread }) => thread.isEmpty}>
+  <WelcomeScreen />
+</AssistantIf>
+```
+
+## Overview
+
+`AssistantIf` is a generic conditional rendering component that provides access to the full assistant state. It replaces the deprecated `ThreadPrimitive.If`, `MessagePrimitive.If`, and `ComposerPrimitive.If` components with a single, flexible API.
+
+## API Reference
+
+<ParametersTable
+  type="AssistantIfProps"
+  parameters={[
+    {
+      name: "condition",
+      type: "(state: AssistantState) => boolean",
+      required: true,
+      description: "A function that receives the assistant state and returns whether to render children.",
+    },
+    {
+      name: "children",
+      type: "ReactNode",
+      description: "Content to render when the condition returns true.",
+    },
+  ]}
+/>
+
+## AssistantState
+
+The condition function receives an `AssistantState` object with the following properties:
+
+<ParametersTable
+  type="AssistantState"
+  parameters={[
+    {
+      name: "thread",
+      type: "ThreadState",
+      description: "The current thread state (always available).",
+    },
+    {
+      name: "message",
+      type: "MessageState",
+      description: "The current message state (available within a message context).",
+    },
+    {
+      name: "composer",
+      type: "ComposerState",
+      description: "The current composer state (always available).",
+    },
+    {
+      name: "part",
+      type: "PartState",
+      description: "The current message part state (available within a part context).",
+    },
+    {
+      name: "attachment",
+      type: "AttachmentState",
+      description: "The current attachment state (available within an attachment context).",
+    },
+  ]}
+/>
+
+## Examples
+
+### Thread State Conditions
+
+```tsx
+// Show welcome screen when thread is empty
+<AssistantIf condition={({ thread }) => thread.isEmpty}>
+  <WelcomeScreen />
+</AssistantIf>
+
+// Show loading indicator while running
+<AssistantIf condition={({ thread }) => thread.isRunning}>
+  <LoadingSpinner />
+</AssistantIf>
+
+// Conditional send/cancel button
+<AssistantIf condition={({ thread }) => !thread.isRunning}>
+  <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
+</AssistantIf>
+<AssistantIf condition={({ thread }) => thread.isRunning}>
+  <ComposerPrimitive.Cancel>Cancel</ComposerPrimitive.Cancel>
+</AssistantIf>
+```
+
+### Message State Conditions
+
+```tsx
+// Show avatar only for assistant messages
+<AssistantIf condition={({ message }) => message.role === "assistant"}>
+  <AssistantAvatar />
+</AssistantIf>
+
+// Show disclaimer on last message
+<AssistantIf condition={({ message }) => message.isLast}>
+  <Disclaimer />
+</AssistantIf>
+
+// Toggle copy icon based on copied state
+<ActionBarPrimitive.Copy>
+  <AssistantIf condition={({ message }) => !message.isCopied}>
+    <CopyIcon />
+  </AssistantIf>
+  <AssistantIf condition={({ message }) => message.isCopied}>
+    <CheckIcon />
+  </AssistantIf>
+</ActionBarPrimitive.Copy>
+
+// Show speak/stop button based on speech state
+<AssistantIf condition={({ message }) => message.speech == null}>
+  <ActionBarPrimitive.Speak>
+    <SpeakIcon />
+  </ActionBarPrimitive.Speak>
+</AssistantIf>
+<AssistantIf condition={({ message }) => message.speech != null}>
+  <ActionBarPrimitive.StopSpeaking>
+    <StopIcon />
+  </ActionBarPrimitive.StopSpeaking>
+</AssistantIf>
+```
+
+### Composer State Conditions
+
+```tsx
+// Show placeholder when composer is empty
+<AssistantIf condition={({ composer }) => composer.isEmpty}>
+  <PlaceholderText />
+</AssistantIf>
+
+// Show attachment preview when editing
+<AssistantIf condition={({ composer }) => composer.isEditing}>
+  <EditingIndicator />
+</AssistantIf>
+```
+
+### Complex Conditions
+
+```tsx
+// Combine multiple conditions
+<AssistantIf condition={({ thread, message }) =>
+  !thread.isRunning && message.role === "assistant"
+}>
+  <ActionBar />
+</AssistantIf>
+
+// Custom logic
+<AssistantIf condition={({ thread }) =>
+  thread.messages.length > 0 && !thread.isRunning
+}>
+  <FollowUpSuggestions />
+</AssistantIf>
+```
+
+## Type Export
+
+You can import the `AssistantIf.Condition` type for typing your condition functions:
+
+```tsx
+import { AssistantIf } from "@assistant-ui/react";
+
+const isThreadEmpty: AssistantIf.Condition = ({ thread }) => thread.isEmpty;
+
+<AssistantIf condition={isThreadEmpty}>
+  <WelcomeScreen />
+</AssistantIf>
+```
+
+## Migration from Deprecated Components
+
+<Callout type="warn">
+`ThreadPrimitive.If`, `MessagePrimitive.If`, and `ComposerPrimitive.If` are deprecated. Use `AssistantIf` instead.
+</Callout>
+
+| Before | After |
+|--------|-------|
+| `<ThreadPrimitive.If empty>` | `<AssistantIf condition={({ thread }) => thread.isEmpty}>` |
+| `<ThreadPrimitive.If running>` | `<AssistantIf condition={({ thread }) => thread.isRunning}>` |
+| `<ThreadPrimitive.If running={false}>` | `<AssistantIf condition={({ thread }) => !thread.isRunning}>` |
+| `<MessagePrimitive.If user>` | `<AssistantIf condition={({ message }) => message.role === "user"}>` |
+| `<MessagePrimitive.If assistant>` | `<AssistantIf condition={({ message }) => message.role === "assistant"}>` |
+| `<MessagePrimitive.If copied>` | `<AssistantIf condition={({ message }) => message.isCopied}>` |
+| `<MessagePrimitive.If speaking>` | `<AssistantIf condition={({ message }) => message.speech != null}>` |
+| `<MessagePrimitive.If last>` | `<AssistantIf condition={({ message }) => message.isLast}>` |
+| `<ComposerPrimitive.If editing>` | `<AssistantIf condition={({ composer }) => composer.isEditing}>` |
