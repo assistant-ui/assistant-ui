@@ -27,9 +27,29 @@
   }
 }
 
-@utility shimmer {
-  /* Internally resolved values with defaults */
+/*
+  Shared internals for both text and background shimmer utilities.
+  Uses :where() for zero specificity so utility-specific values take precedence.
+*/
+:where(.shimmer, .shimmer-bg) {
+  /* Resolved angle with default (public --shimmer-angle or 90deg) */
   --tw-shimmer-angle: var(--shimmer-angle, 90deg);
+
+  /* Tangent for diagonal delay and angle-aware overshoot */
+  --tw-shimmer-angle-tan: tan(calc(90deg - var(--tw-shimmer-angle)));
+
+  /*
+    Position-based delay to sync angled shimmers across elements.
+    Uses --shimmer-x and --shimmer-y set via shimmer-x-* / shimmer-y-* utilities.
+  */
+  --tw-shimmer-delay: calc(
+    (var(--shimmer-y, 0) * var(--tw-shimmer-angle-tan) - var(--shimmer-x, 0)) /
+      var(--tw-shimmer-speed) * -1s
+  );
+}
+
+@utility shimmer {
+  /* Internally resolved values with defaults (--tw-shimmer-angle from shared rule) */
   --tw-shimmer-width-auto: 200;
   --tw-shimmer-width: var(--shimmer-width, var(--tw-shimmer-width-auto));
   --tw-shimmer-spread: var(--shimmer-spread, 6ch);
@@ -86,25 +106,17 @@
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   animation: tw-shimmer-text
-    calc((var(--tw-shimmer-width) * 2) / var(--tw-shimmer-speed) * 1s) infinite
-    linear;
-  /* Offset timing based on element position (for aligning angled shimmers) */
-  animation-delay: calc(
-    (
-        var(--shimmer-y, 0) * tan(calc(90deg - var(--tw-shimmer-angle))) -
-          var(--shimmer-x, 0)
-      ) /
-      var(--tw-shimmer-speed) * -1s
-  );
+    calc((var(--tw-shimmer-width) * 2) / var(--tw-shimmer-speed) * 1s) linear
+    infinite;
+  animation-delay: var(--tw-shimmer-delay, 0s);
 }
 
 @utility shimmer-bg {
   position: relative;
-  overflow: hidden;
-  overflow: clip;
+  overflow: hidden; /* fallback */
+  overflow: clip; /* preferred in modern browsers */
 
-  /* Internally resolved values with defaults */
-  --tw-shimmer-angle: var(--shimmer-angle, 90deg);
+  /* Internally resolved values with defaults (--tw-shimmer-angle from shared rule) */
 
   /* Auto+final width for background shimmer */
   --tw-shimmer-width-auto: 800;
@@ -137,23 +149,12 @@
   --tw-shimmer-speed: var(--shimmer-speed, var(--tw-shimmer-speed-auto));
 
   /*
-    Angle-aware offscreen overshoot for start/end positions.
-
-    We base overshoot on the magnitude of the diagonal slope, so angles
-    mirrored around 90deg (e.g. 75deg and 105deg) behave the same:
-
-      slope = tan(90deg - angle)
-      overshootMagnitude = abs(slope)
-
-    - Steep angles (~90deg) → slope ~0 → multiplier ≈ 1
-    - Moderate angles (e.g. 45deg / 135deg) → moderate slope → ~1.3x
-    - Shallow angles (e.g. 15deg / 165deg) → large slope, clamped to ~3x
-
-    Advanced users can override this via --shimmer-offscreen-multiplier.
+    Angle-aware offscreen overshoot: multiplier is derived from slope magnitude,
+    mirrored around 90deg, clamped ~1–3x. See README for full explanation.
+    Override via --shimmer-offscreen-multiplier if needed.
   */
-  --tw-shimmer-angle-tan: tan(calc(90deg - var(--tw-shimmer-angle)));
 
-  /* Approximate absolute value: max(x, -x) */
+  /* Approximate absolute value of tangent (uses --tw-shimmer-angle-tan from shared rule) */
   --tw-shimmer-angle-tan-abs: max(
     var(--tw-shimmer-angle-tan),
     calc(var(--tw-shimmer-angle-tan) * -1)
@@ -224,16 +225,9 @@
     );
     transform: skewX(calc(90deg - var(--tw-shimmer-angle)));
     animation: tw-shimmer-bg
-      calc(var(--tw-shimmer-distance) / var(--tw-shimmer-speed) * 1s) infinite
-      linear;
-    /* Offset timing based on element position (for aligning angled shimmers) */
-    animation-delay: calc(
-      (
-          var(--shimmer-y, 0) * tan(calc(90deg - var(--tw-shimmer-angle))) -
-            var(--shimmer-x, 0)
-        ) /
-        var(--tw-shimmer-speed) * -1s
-    );
+      calc(var(--tw-shimmer-distance) / var(--tw-shimmer-speed) * 1s) linear
+      infinite;
+    animation-delay: var(--tw-shimmer-delay, 0s);
   }
 }
 
@@ -281,17 +275,10 @@
     container-type: inline-size;
   }
 
-  .shimmer-container .shimmer,
-  .shimmer-container .shimmer-bg {
+  .shimmer-container :is(.shimmer, .shimmer-bg) {
     /*
-      Shared timing foundation for container-based shimmers:
-
-      - Container width (100cqw) becomes the unitless track width.
-      - Pass time scales with width: snappier for small, slower for large.
-
-        Targets: ~1.1s at 320px, ~1.35s at 640px, ~1.6s at 960px+
-
-      Public --shimmer-width and --shimmer-speed still override if set.
+      Container-based timing: width from container, pass time ~1.1–1.6s
+      scaling with width. Public --shimmer-width/--shimmer-speed override if set.
     */
     --tw-shimmer-width-auto: calc(100cqw / 1px);
 
@@ -303,45 +290,22 @@
   }
 
   .shimmer-container .shimmer {
-    /*
-      Text shimmer: 1x speed multiplier for a subtle, readable effect.
-      Results in ~290px/s at 320px, ~470px/s at 640px.
-    */
+    /* Text shimmer: 1x speed multiplier (~290px/s at 320px, ~470px/s at 640px). */
     --tw-shimmer-speed-auto: calc(
       var(--tw-shimmer-width) / var(--tw-shimmer-pass-time-auto)
     );
   }
 
   .shimmer-container .shimmer-bg {
-    /*
-      Background shimmer: auto speed based on angle-aware travel distance.
-
-      We derive speed so that:
-        duration ≈ --tw-shimmer-pass-time-auto
-        where distance = 2 × width × overshootMultiplier.
-
-      This keeps the perceived timing consistent across container widths
-      even when the shimmer angle changes.
-    */
+    /* Auto speed based on angle-aware travel distance for consistent timing. */
     --tw-shimmer-speed-auto: calc(
       var(--tw-shimmer-distance) / var(--tw-shimmer-pass-time-auto)
     );
 
     /*
-      Track-aware auto spread based on container width:
-
-      - Use the actual container width (100cqw) for spread calculations,
-        separate from the timing calculations above.
-      - Clamp spread to never exceed 300px or the actual track width.
-      - Set a minimum (~200px, or track width if smaller) for visibility
-        on small containers.
-
-      This feeds into --tw-shimmer-bg-spread via --tw-shimmer-bg-spread-auto
-      and can be overridden at any time by setting --shimmer-bg-spread
-      (for example via shimmer-bg-spread-* on the element itself or any
-      ancestor, including the shimmer-container).
+      Container-aware auto spread: clamped to ~200–300px or track width.
+      Override via --shimmer-bg-spread (shimmer-bg-spread-* utilities).
     */
-    --tw-shimmer-width-px: 100cqw;
     --tw-shimmer-bg-max: min(var(--tw-shimmer-width-px), 300px);
 
     --tw-shimmer-bg-spread-auto: clamp(

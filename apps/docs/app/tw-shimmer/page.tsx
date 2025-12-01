@@ -339,8 +339,7 @@ export default function TwShimmerPage() {
         <div className="text-center">
           <h2 className="mb-2 text-3xl font-medium">Background Shimmer</h2>
           <p className="text-xl text-muted-foreground">
-            Use <code className="px-1 py-0.5 text-sm">shimmer-bg</code> for
-            skeleton loaders and non-text elements.
+            Add shimmer to skeleton components and non-text elements.
           </p>
         </div>
 
