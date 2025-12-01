@@ -60,19 +60,24 @@ export default function ChatPage() {
 Your backend endpoint should accept POST requests and return data stream responses:
 
 ```typescript title="app/api/chat/route.ts"
-import { DataStreamResponse } from "assistant-stream";
+import { createAssistantStreamResponse } from "assistant-stream";
 
 export async function POST(request: Request) {
   const { messages, tools, system } = await request.json();
 
-  // Process the request with your AI provider
-  const stream = await processWithAI({
-    messages,
-    tools,
-    system,
-  });
+  return createAssistantStreamResponse(async (controller) => {
+    // Process the request with your AI provider
+    const stream = await processWithAI({
+      messages,
+      tools,
+      system,
+    });
 
-  return new DataStreamResponse(stream);
+    // Stream the response
+    for await (const chunk of stream) {
+      controller.appendText(chunk.text);
+    }
+  });
 }
 ```
 
