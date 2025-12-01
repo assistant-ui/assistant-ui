@@ -97,6 +97,7 @@ export const ThreadClient = resource(
 
     const state = tapMemo<ThreadClientState>(() => {
       return {
+        isEmpty: messages.state.length === 0 && !runtimeState.isLoading,
         isDisabled: runtimeState.isDisabled,
         isLoading: runtimeState.isLoading,
         isRunning: runtimeState.isRunning,

@@ -77,6 +77,9 @@ export namespace MessagePrimitiveIf {
   export type Props = PropsWithChildren<UseMessageIfProps>;
 }
 
+/**
+ * @deprecated Use `<AssistantIf condition={({ message }) => ...} />` instead.
+ */
 export const MessagePrimitiveIf: FC<MessagePrimitiveIf.Props> = ({
   children,
   ...query

@@ -6,6 +6,7 @@ export {
   useAssistantApi,
   useExtendedAssistantApi,
   type AssistantApi,
+  type AssistantState,
 } from "./AssistantApiContext";
 export { useAssistantState } from "./hooks/useAssistantState";
 export { useAssistantEvent } from "./hooks/useAssistantEvent";
