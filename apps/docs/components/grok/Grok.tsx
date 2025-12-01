@@ -54,36 +54,40 @@ export const Grok: FC = () => {
 const Composer: FC = () => {
   return (
     <ComposerPrimitive.Root className="group/composer mx-auto mb-3 w-full max-w-3xl">
-      <div className="flex flex-col overflow-hidden rounded-4xl bg-white shadow-sm ring-1 ring-[#e5e5e5] ring-inset transition-all focus-within:ring-[#d0d0d0] dark:bg-[#1a1a1a] dark:ring-[#2a2a2a] dark:focus-within:ring-[#3a3a3a]">
+      <div className="overflow-hidden rounded-4xl bg-white shadow-sm ring-1 ring-[#e5e5e5] ring-inset transition-all focus-within:ring-[#d0d0d0] dark:bg-[#1a1a1a] dark:ring-[#2a2a2a] dark:focus-within:ring-[#3a3a3a]">
         <GrokAttachments />
 
-        <div className="flex-1 px-5 pt-4 pb-1">
-          <ComposerPrimitive.Input
-            placeholder="What do you want to know?"
-            className="max-h-[400px] min-h-6 w-full resize-none bg-transparent text-[#0d0d0d] text-base leading-6 outline-none placeholder:text-[#9a9a9a] dark:text-white dark:placeholder:text-[#6b6b6b]"
-          />
-        </div>
-
-        <div className="flex items-center gap-1 px-2 pb-2">
-          <ComposerPrimitive.AddAttachment className="flex h-10 w-10 items-center justify-center rounded-full text-[#0d0d0d] transition-colors hover:bg-[#f0f0f0] dark:text-white dark:hover:bg-[#2a2a2a]">
+        <div className="flex items-end gap-1 p-2">
+          <ComposerPrimitive.AddAttachment className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#0d0d0d] transition-colors hover:bg-[#f0f0f0] dark:text-white dark:hover:bg-[#2a2a2a]">
             <Paperclip width={18} height={18} />
           </ComposerPrimitive.AddAttachment>
 
-          <div className="grow" />
+          <div className="min-h-10 min-w-0 flex-1 py-2">
+            <ComposerPrimitive.Input
+              placeholder="What do you want to know?"
+              className="max-h-[400px] w-full resize-none bg-transparent text-[#0d0d0d] text-base leading-6 outline-none placeholder:text-[#9a9a9a] dark:text-white dark:placeholder:text-[#6b6b6b]"
+            />
+          </div>
 
           <button
             type="button"
-            className="flex h-10 items-center gap-2 rounded-full px-3.5 text-[#0d0d0d] transition-colors hover:bg-[#f0f0f0] dark:text-white dark:hover:bg-[#2a2a2a]"
+            className="flex h-10 shrink items-center gap-2 rounded-full px-3.5 text-[#0d0d0d] transition-all hover:bg-[#f0f0f0] group-data-[send-disabled=false]/composer:w-10 group-data-[send-disabled=false]/composer:justify-center group-data-[send-disabled=false]/composer:gap-0 group-data-[send-disabled=false]/composer:px-0 dark:text-white dark:hover:bg-[#2a2a2a]"
           >
-            <Moon width={18} height={18} />
-            <span className="font-semibold text-sm">Grok 3</span>
-            <ChevronDownIcon width={16} height={16} />
+            <Moon width={18} height={18} className="shrink-0" />
+            <span className="font-semibold text-sm group-data-[send-disabled=false]/composer:hidden">
+              Grok 3
+            </span>
+            <ChevronDownIcon
+              width={16}
+              height={16}
+              className="shrink-0 group-data-[send-disabled=false]/composer:hidden"
+            />
           </button>
 
           <ThreadPrimitive.If running={false}>
             <button
               type="button"
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-[#0d0d0d] text-white transition-all group-data-[send-disabled=false]/composer:hidden dark:bg-white dark:text-[#0d0d0d]"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#0d0d0d] text-white transition-all group-data-[send-disabled=false]/composer:hidden dark:bg-white dark:text-[#0d0d0d]"
               aria-label="Voice mode"
             >
               <Mic width={20} height={20} />
@@ -91,13 +95,13 @@ const Composer: FC = () => {
           </ThreadPrimitive.If>
 
           <ThreadPrimitive.If running={false}>
-            <ComposerPrimitive.Send className="hidden h-10 w-10 items-center justify-center rounded-full bg-[#0d0d0d] text-white transition-all group-data-[send-disabled=false]/composer:flex dark:bg-white dark:text-[#0d0d0d]">
+            <ComposerPrimitive.Send className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#0d0d0d] text-white transition-all group-data-[send-disabled=false]/composer:flex dark:bg-white dark:text-[#0d0d0d]">
               <ArrowUpIcon width={20} height={20} />
             </ComposerPrimitive.Send>
           </ThreadPrimitive.If>
 
           <ThreadPrimitive.If running>
-            <ComposerPrimitive.Cancel className="flex h-10 w-10 items-center justify-center rounded-full bg-[#0d0d0d] text-white dark:bg-white dark:text-[#0d0d0d]">
+            <ComposerPrimitive.Cancel className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#0d0d0d] text-white dark:bg-white dark:text-[#0d0d0d]">
               <Square width={14} height={14} fill="currentColor" />
             </ComposerPrimitive.Cancel>
           </ThreadPrimitive.If>
