@@ -93,7 +93,7 @@ export const Claude: FC = () => {
 
 const ChatMessage: FC = () => {
   return (
-    <MessagePrimitive.Root className="group relative mt-1 mb-1 block">
+    <MessagePrimitive.Root className="group relative mx-auto mt-1 mb-1 block w-full max-w-3xl">
       <AssistantIf condition={({ message }) => message.role === "user"}>
         <div className="group/user wrap-break-word relative inline-flex max-w-[75ch] flex-col gap-2 rounded-xl bg-[#DDD9CE] py-2.5 pr-6 pl-2.5 text-[#1a1a18] transition-all dark:bg-[#393937] dark:text-[#eee]">
           <div className="relative flex flex-row gap-2">
