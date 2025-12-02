@@ -6,7 +6,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import React from "react";
 
-// Simplified tab configuration
 interface TabItem {
   label: string;
   value?: React.ReactNode; // If present, it's a content tab

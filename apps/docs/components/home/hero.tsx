@@ -1,9 +1,9 @@
 "use client";
 
-import { ChatGPT } from "@/components/chatgpt/ChatGPT";
-import { Claude } from "@/components/claude/Claude";
-import { Perplexity } from "@/components/perplexity/Perplexity";
-import { Shadcn } from "@/components/shadcn/Shadcn";
+import { ChatGPT } from "@/components/example/chatgpt/ChatGPT";
+import { Claude } from "@/components/example/claude/Claude";
+import { Perplexity } from "@/components/example/perplexity/Perplexity";
+import { Shadcn } from "@/components/example/shadcn/Shadcn";
 import { Tab } from "@/components/shared/tab";
 import { DocsRuntimeProvider } from "@/app/(home)/DocsRuntimeProvider";
 import { StarPill } from "@/components/home/star-pill";

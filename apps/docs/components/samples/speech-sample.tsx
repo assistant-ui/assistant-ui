@@ -29,10 +29,10 @@ import {
   ChevronRightIcon,
   Square,
 } from "lucide-react";
-import { MarkdownText } from "../assistant-ui/markdown-text";
-import { Button } from "../ui/button";
+import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ToolFallback } from "../assistant-ui/tool-fallback";
+import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 
 export const SpeechSample = () => {
   return (

@@ -9,8 +9,12 @@ import type { TooltipContentProps } from "@radix-ui/react-tooltip";
 import { MenuIcon, PanelLeftIcon, ShareIcon } from "lucide-react";
 import Image from "next/image";
 import { ComponentPropsWithRef, useState, type FC } from "react";
-import { Sheet, SheetContent, SheetTrigger } from "../ui/sheet";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { ModelPicker } from "./ModelPicker";
 
 type ButtonWithTooltipProps = ComponentPropsWithRef<typeof Button> & {

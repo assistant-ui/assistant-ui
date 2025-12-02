@@ -1,6 +1,6 @@
 "use client";
 
-import { Shadcn } from "@/components/shadcn/Shadcn";
+import { Shadcn } from "@/components/example/shadcn/Shadcn";
 import { Button } from "@/components/ui/button";
 import { useChat } from "@ai-sdk/react";
 import Link from "next/link";

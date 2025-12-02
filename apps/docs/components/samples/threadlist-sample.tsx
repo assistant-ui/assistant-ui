@@ -1,7 +1,7 @@
 "use client";
 import { Thread } from "../assistant-ui/thread";
 import { ThreadListSidebar } from "../assistant-ui/threadlist-sidebar";
-import { SidebarInset, SidebarProvider } from "../ui/sidebar";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { SampleFrame } from "./sample-frame";
 
 export const ThreadListSample = () => {
