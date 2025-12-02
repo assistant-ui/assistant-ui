@@ -213,23 +213,3 @@ This primitive renders a `<button>` element unless `asChild` is set.
     },
   ]}
 />
-
-### If
-
-Renders children if a condition is met.
-
-<ParametersTable
-  type="UseComposerIfProps"
-  parameters={[
-    {
-      name: "editing",
-      required: false,
-      type: "boolean | undefined",
-      description: "Render children if the message is being edited.",
-    },
-  ]}
-/>
-
-```tsx
-<Composer.If editing>{/* rendered if message is being edited */}</Composer.If>
-```

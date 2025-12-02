@@ -13,6 +13,7 @@ import {
 
 import {
   ActionBarPrimitive,
+  AssistantIf,
   BranchPickerPrimitive,
   ComposerPrimitive,
   ErrorPrimitive,
@@ -46,9 +47,9 @@ export const Thread: FC = () => {
         turnAnchor="top"
         className="aui-thread-viewport relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth px-4 pt-4"
       >
-        <ThreadPrimitive.If empty>
+        <AssistantIf condition={({ thread }) => thread.isEmpty}>
           <ThreadWelcome />
-        </ThreadPrimitive.If>
+        </AssistantIf>
 
         <ThreadPrimitive.Messages
           components={{
@@ -176,7 +177,7 @@ const ComposerAction: FC = () => {
     <div className="aui-composer-action-wrapper relative mx-1 mt-2 mb-2 flex items-center justify-between">
       <ComposerAddAttachment />
 
-      <ThreadPrimitive.If running={false}>
+      <AssistantIf condition={({ thread }) => !thread.isRunning}>
         <ComposerPrimitive.Send asChild>
           <TooltipIconButton
             tooltip="Send message"
@@ -190,9 +191,9 @@ const ComposerAction: FC = () => {
             <ArrowUpIcon className="aui-composer-send-icon size-5" />
           </TooltipIconButton>
         </ComposerPrimitive.Send>
-      </ThreadPrimitive.If>
+      </AssistantIf>
 
-      <ThreadPrimitive.If running>
+      <AssistantIf condition={({ thread }) => thread.isRunning}>
         <ComposerPrimitive.Cancel asChild>
           <Button
             type="button"
@@ -204,7 +205,7 @@ const ComposerAction: FC = () => {
             <Square className="aui-composer-cancel-icon size-3.5 fill-white dark:fill-black" />
           </Button>
         </ComposerPrimitive.Cancel>
-      </ThreadPrimitive.If>
+      </AssistantIf>
     </div>
   );
 };
@@ -253,12 +254,12 @@ const AssistantActionBar: FC = () => {
     >
       <ActionBarPrimitive.Copy asChild>
         <TooltipIconButton tooltip="Copy">
-          <MessagePrimitive.If copied>
+          <AssistantIf condition={({ message }) => message.isCopied}>
             <CheckIcon />
-          </MessagePrimitive.If>
-          <MessagePrimitive.If copied={false}>
+          </AssistantIf>
+          <AssistantIf condition={({ message }) => !message.isCopied}>
             <CopyIcon />
-          </MessagePrimitive.If>
+          </AssistantIf>
         </TooltipIconButton>
       </ActionBarPrimitive.Copy>
       <ActionBarPrimitive.ExportMarkdown asChild>

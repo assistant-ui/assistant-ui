@@ -14,9 +14,8 @@ type UseThreadIfProps = RequireAtLeastOne<ThreadIfFilters>;
 
 const useThreadIf = (props: UseThreadIfProps) => {
   return useAssistantState(({ thread }) => {
-    const isEmpty = thread.messages.length === 0 && !thread.isLoading;
-    if (props.empty === true && !isEmpty) return false;
-    if (props.empty === false && isEmpty) return false;
+    if (props.empty === true && !thread.isEmpty) return false;
+    if (props.empty === false && thread.isEmpty) return false;
 
     if (props.running === true && !thread.isRunning) return false;
     if (props.running === false && thread.isRunning) return false;
@@ -31,6 +30,9 @@ export namespace ThreadPrimitiveIf {
   export type Props = PropsWithChildren<UseThreadIfProps>;
 }
 
+/**
+ * @deprecated Use `<AssistantIf condition={({ thread }) => ...} />` instead.
+ */
 export const ThreadPrimitiveIf: FC<ThreadPrimitiveIf.Props> = ({
   children,
   ...query
